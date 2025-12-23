@@ -81,7 +81,7 @@ jobs:
           XZ_OPT=-9e tar -cJf "dist/cosmostrix-${VERSION}-${TARGET}.tar.xz" -C dist "cosmostrix-${VERSION}-${TARGET}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: packages-${{ matrix.os }}
           path: dist/*.tar.xz
