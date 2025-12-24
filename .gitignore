@@ -1,3 +1,7 @@
 # Basic
 target
 reference
+
+# Bloat
+.log
+*.log
