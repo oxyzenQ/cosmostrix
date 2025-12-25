@@ -54,10 +54,6 @@ impl Droplet {
         }
     }
 
-    pub fn reset(&mut self) {
-        *self = Self::new();
-    }
-
     pub fn activate(&mut self, now: Instant) {
         self.is_alive = true;
         self.is_head_crawling = true;
@@ -110,7 +106,9 @@ impl Droplet {
             }
         }
 
-        if self.is_tail_crawling && (self.head_put_line >= self.length || self.head_put_line >= self.end_line) {
+        if self.is_tail_crawling
+            && (self.head_put_line >= self.length || self.head_put_line >= self.end_line)
+        {
             let next_tail = match self.tail_put_line {
                 Some(v) => v.saturating_add(chars_advanced),
                 None => chars_advanced,
@@ -155,17 +153,19 @@ impl Droplet {
         false
     }
 
-    pub fn draw(&mut self, ctx: &DrawCtx<'_>, frame: &mut Frame, now: Instant, draw_everything: bool) {
+    pub fn draw(
+        &mut self,
+        ctx: &DrawCtx<'_>,
+        frame: &mut Frame,
+        now: Instant,
+        draw_everything: bool,
+    ) {
         let bg = ctx.bg;
 
         let mut start_line = 0u16;
         if let Some(tp) = self.tail_put_line {
             for line in self.tail_cur_line..=tp {
-                frame.set(
-                    self.bound_col,
-                    line,
-                    crate::terminal::blank_cell(bg),
-                );
+                frame.set(self.bound_col, line, crate::terminal::blank_cell(bg));
             }
             self.tail_cur_line = tp;
             start_line = tp.saturating_add(1);
@@ -197,7 +197,15 @@ impl Droplet {
                 continue;
             }
 
-            let (fg, bold) = ctx.get_attr(line, self.bound_col, val, loc, now, self.head_put_line, self.length);
+            let (fg, bold) = ctx.get_attr(
+                line,
+                self.bound_col,
+                val,
+                loc,
+                now,
+                self.head_put_line,
+                self.length,
+            );
 
             frame.set(
                 self.bound_col,
@@ -210,19 +218,17 @@ impl Droplet {
                 },
             );
 
-            if ctx.full_width {
-                if self.bound_col + 1 < frame.width {
-                    frame.set(
-                        self.bound_col + 1,
-                        line,
-                        crate::cell::Cell {
-                            ch: ' ',
-                            fg: None,
-                            bg,
-                            bold: false,
-                        },
-                    );
-                }
+            if ctx.full_width && self.bound_col + 1 < frame.width {
+                frame.set(
+                    self.bound_col + 1,
+                    line,
+                    crate::cell::Cell {
+                        ch: ' ',
+                        fg: None,
+                        bg,
+                        bold: false,
+                    },
+                );
             }
         }
 

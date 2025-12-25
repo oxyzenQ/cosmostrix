@@ -19,10 +19,6 @@ impl Frame {
         }
     }
 
-    pub fn clear(&mut self) {
-        self.clear_with_bg(None);
-    }
-
     pub fn clear_with_bg(&mut self, bg: Option<crossterm::style::Color>) {
         for cell in &mut self.cells {
             *cell = Cell::blank_with_bg(bg);

@@ -3,11 +3,11 @@
 use std::io::{stdout, Result, Stdout, Write};
 
 use crossterm::{
-    cursor,
-    event,
-    style::{Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor},
-    terminal,
-    ExecutableCommand, QueueableCommand,
+    cursor, event,
+    style::{
+        Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
+    },
+    terminal, ExecutableCommand, QueueableCommand,
 };
 
 use crate::cell::Cell;
@@ -26,7 +26,10 @@ impl Terminal {
         out.execute(cursor::Hide)?;
         out.execute(terminal::Clear(terminal::ClearType::All))?;
         out.flush()?;
-        Ok(Self { stdout: out, last: None })
+        Ok(Self {
+            stdout: out,
+            last: None,
+        })
     }
 
     pub fn size(&self) -> Result<(u16, u16)> {

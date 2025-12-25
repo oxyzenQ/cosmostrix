@@ -27,15 +27,6 @@ impl Charset {
     pub fn contains(self, other: Charset) -> bool {
         (self.0 & other.0) != 0
     }
-
-    pub fn or(self, other: Charset) -> Charset {
-        Charset(self.0 | other.0)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct CharRanges {
-    pub ranges: Vec<(char, char)>,
 }
 
 pub fn parse_user_hex_chars(s: &str) -> Result<Vec<char>, String> {
@@ -47,7 +38,8 @@ pub fn parse_user_hex_chars(s: &str) -> Result<Vec<char>, String> {
         }
         let v = u32::from_str_radix(part, 16)
             .map_err(|_| format!("invalid hex char at index {}", i + 1))?;
-        let ch = char::from_u32(v).ok_or_else(|| format!("invalid unicode scalar at index {}", i + 1))?;
+        let ch = char::from_u32(v)
+            .ok_or_else(|| format!("invalid unicode scalar at index {}", i + 1))?;
         out.push(ch);
     }
     Ok(out)
@@ -88,7 +80,11 @@ fn push_range(out: &mut Vec<char>, start: u32, end: u32) {
     }
 }
 
-pub fn build_chars(mut charset: Charset, user_ranges: &[(char, char)], default_to_ascii: bool) -> Vec<char> {
+pub fn build_chars(
+    mut charset: Charset,
+    user_ranges: &[(char, char)],
+    default_to_ascii: bool,
+) -> Vec<char> {
     if charset == Charset::NONE && user_ranges.is_empty() {
         charset = if default_to_ascii {
             Charset::DEFAULT

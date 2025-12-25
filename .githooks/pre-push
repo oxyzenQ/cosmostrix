@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+
+if [ "${COSMOSTRIX_SKIP_PREPUSH:-0}" = "1" ]; then
+    exit 0
+fi
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+cd "$ROOT"
+
+if [ ! -f "./build.sh" ]; then
+    echo "[pre-push] ./build.sh not found in repo root" >&2
+    exit 1
+fi
+
+if [ ! -x "./build.sh" ]; then
+    echo "[pre-push] ./build.sh is not executable. Run: chmod +x ./build.sh" >&2
+    exit 1
+fi
+
+CMD="${COSMOSTRIX_PREPUSH_CMD:-check}"
+./build.sh "$CMD"

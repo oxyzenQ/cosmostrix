@@ -14,7 +14,11 @@ fn rgb_from_1000(r: u16, g: u16, b: u16) -> Color {
     let rr = ((r as u32).saturating_mul(255) / 1000) as u8;
     let gg = ((g as u32).saturating_mul(255) / 1000) as u8;
     let bb = ((b as u32).saturating_mul(255) / 1000) as u8;
-    Color::Rgb { r: rr, g: gg, b: bb }
+    Color::Rgb {
+        r: rr,
+        g: gg,
+        b: bb,
+    }
 }
 
 fn from_ansi_list(list: &[u8]) -> Vec<Color> {
@@ -89,7 +93,12 @@ pub fn build_palette(
         },
         ColorScheme::Green2 => match mode {
             ColorMode::Mono => vec![Color::White],
-            ColorMode::Color16 => vec![Color::DarkGrey, Color::DarkGreen, Color::Green, Color::White],
+            ColorMode::Color16 => vec![
+                Color::DarkGrey,
+                Color::DarkGreen,
+                Color::Green,
+                Color::White,
+            ],
             _ => from_ansi_list(&[28, 34, 76, 84, 120, 157, 231]),
         },
         ColorScheme::Green3 => match mode {
@@ -99,7 +108,12 @@ pub fn build_palette(
         },
         ColorScheme::Gold => match mode {
             ColorMode::Mono => vec![Color::White],
-            ColorMode::Color16 => vec![Color::DarkGrey, Color::DarkYellow, Color::Yellow, Color::White],
+            ColorMode::Color16 => vec![
+                Color::DarkGrey,
+                Color::DarkYellow,
+                Color::Yellow,
+                Color::White,
+            ],
             _ => from_ansi_list(&[58, 94, 172, 178, 228, 230, 231]),
         },
         ColorScheme::Yellow => match mode {
@@ -144,8 +158,16 @@ pub fn build_palette(
         },
         ColorScheme::Vaporwave => match mode {
             ColorMode::Mono => vec![Color::White],
-            ColorMode::Color16 => vec![Color::Magenta, Color::Magenta, Color::Yellow, Color::Cyan, Color::White],
-            _ => from_ansi_list(&[53, 54, 55, 134, 177, 219, 214, 220, 227, 229, 87, 123, 159, 195, 231]),
+            ColorMode::Color16 => vec![
+                Color::Magenta,
+                Color::Magenta,
+                Color::Yellow,
+                Color::Cyan,
+                Color::White,
+            ],
+            _ => from_ansi_list(&[
+                53, 54, 55, 134, 177, 219, 214, 220, 227, 229, 87, 123, 159, 195, 231,
+            ]),
         },
         ColorScheme::Gray => match mode {
             ColorMode::Mono => vec![Color::White],
@@ -154,7 +176,14 @@ pub fn build_palette(
         },
         ColorScheme::Rainbow => match mode {
             ColorMode::Mono => vec![Color::White],
-            ColorMode::Color16 => vec![Color::Red, Color::Blue, Color::Yellow, Color::Green, Color::Cyan, Color::Magenta],
+            ColorMode::Color16 => vec![
+                Color::Red,
+                Color::Blue,
+                Color::Yellow,
+                Color::Green,
+                Color::Cyan,
+                Color::Magenta,
+            ],
             _ => from_ansi_list(&[196, 208, 226, 46, 21, 93, 201]),
         },
     };

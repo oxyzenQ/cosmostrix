@@ -40,7 +40,9 @@ fn detect_color_mode(args: &Args) -> ColorMode {
         };
     }
 
-    let colorterm = env::var("COLORTERM").unwrap_or_default().to_ascii_lowercase();
+    let colorterm = env::var("COLORTERM")
+        .unwrap_or_default()
+        .to_ascii_lowercase();
     if colorterm.contains("truecolor") || colorterm.contains("24bit") {
         return ColorMode::TrueColor;
     }
@@ -110,7 +112,10 @@ fn parse_user_colors(path: &std::path::Path) -> std::result::Result<UserColors, 
             None
         };
 
-        colors.push(UserColor { index: idx, rgb_1000 });
+        colors.push(UserColor {
+            index: idx,
+            rgb_1000,
+        });
     }
 
     if colors.len() < 2 {
@@ -295,7 +300,7 @@ fn main() -> std::io::Result<()> {
                             }
                         }
                         (KeyCode::Tab, _) => {
-                            let sm = if matches!(cloud.shading_distance, true) {
+                            let sm = if cloud.shading_distance {
                                 ShadingMode::Random
                             } else {
                                 ShadingMode::DistanceFromHead

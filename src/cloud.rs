@@ -3,7 +3,11 @@
 use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
-use rand::{distributions::Uniform, prelude::Distribution, rngs::StdRng, SeedableRng};
+use rand::{
+    distr::{Distribution, Uniform},
+    rngs::StdRng,
+    SeedableRng,
+};
 
 use crate::{
     cell::Cell,
@@ -84,10 +88,12 @@ impl DrawCtx<'_> {
     }
 
     pub fn get_char(&self, line: u16, char_pool_idx: u16) -> char {
-        let idx = ((char_pool_idx as usize) + (line as usize)) % self.char_pool.len().max(1);
+        let len = self.char_pool.len().max(1);
+        let idx = ((char_pool_idx as usize) + (line as usize)) % len;
         self.char_pool.get(idx).copied().unwrap_or('0')
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn get_attr(
         &self,
         line: u16,
@@ -242,6 +248,7 @@ pub struct Cloud {
 }
 
 impl Cloud {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         color_mode: ColorMode,
         full_width: bool,
@@ -258,7 +265,12 @@ impl Cloud {
         let cloud = Self {
             lines: 25,
             cols: 80,
-            palette: build_palette(color_scheme, color_mode, default_background, user_colors.as_ref()),
+            palette: build_palette(
+                color_scheme,
+                color_mode,
+                default_background,
+                user_colors.as_ref(),
+            ),
             color_mode,
             full_width,
             shading_distance: matches!(shading_mode, ShadingMode::DistanceFromHead),
@@ -288,14 +300,14 @@ impl Cloud {
             color_map: Vec::new(),
             col_stat: Vec::new(),
             mt,
-            rand_chance: Uniform::new(0.0, 1.0),
-            rand_line: Uniform::new_inclusive(0, 23),
-            rand_cpidx: Uniform::new_inclusive(0, 2047),
-            rand_len: Uniform::new_inclusive(1, 23),
-            rand_col: Uniform::new_inclusive(0, 79),
-            rand_glitch_ms: Uniform::new_inclusive(300, 400),
-            rand_linger_ms: Uniform::new_inclusive(1, 3000),
-            rand_speed: Uniform::new_inclusive(0.3333333, 1.0),
+            rand_chance: Uniform::new(0.0, 1.0).expect("valid range"),
+            rand_line: Uniform::new_inclusive(0, 23).expect("valid range"),
+            rand_cpidx: Uniform::new_inclusive(0, 2047).expect("valid range"),
+            rand_len: Uniform::new_inclusive(1, 23).expect("valid range"),
+            rand_col: Uniform::new_inclusive(0, 79).expect("valid range"),
+            rand_glitch_ms: Uniform::new_inclusive(300, 400).expect("valid range"),
+            rand_linger_ms: Uniform::new_inclusive(1, 3000).expect("valid range"),
+            rand_speed: Uniform::new_inclusive(0.3333333, 1.0).expect("valid range"),
             last_glitch_time: now,
             next_glitch_time: now + Duration::from_millis(300),
             last_spawn_time: now,
@@ -326,7 +338,12 @@ impl Cloud {
 
     pub fn set_color_scheme(&mut self, scheme: ColorScheme) {
         self.color_scheme = scheme;
-        self.palette = build_palette(scheme, self.color_mode, self.default_background, self.user_colors.as_ref());
+        self.palette = build_palette(
+            scheme,
+            self.color_mode,
+            self.default_background,
+            self.user_colors.as_ref(),
+        );
         self.fill_color_map();
         self.force_draw_everything = true;
     }
@@ -357,13 +374,23 @@ impl Cloud {
     pub fn set_glitch_times(&mut self, low_ms: u16, high_ms: u16) {
         self.glitch_low_ms = low_ms;
         self.glitch_high_ms = high_ms;
-        self.rand_glitch_ms = Uniform::new_inclusive(low_ms, high_ms);
+        let (lo, hi) = if low_ms <= high_ms {
+            (low_ms, high_ms)
+        } else {
+            (high_ms, low_ms)
+        };
+        self.rand_glitch_ms = Uniform::new_inclusive(lo, hi).expect("valid range");
     }
 
     pub fn set_linger_times(&mut self, low_ms: u16, high_ms: u16) {
         self.linger_low_ms = low_ms;
         self.linger_high_ms = high_ms;
-        self.rand_linger_ms = Uniform::new_inclusive(low_ms, high_ms);
+        let (lo, hi) = if low_ms <= high_ms {
+            (low_ms, high_ms)
+        } else {
+            (high_ms, low_ms)
+        };
+        self.rand_linger_ms = Uniform::new_inclusive(lo, hi).expect("valid range");
     }
 
     pub fn set_max_droplets_per_column(&mut self, v: u8) {
@@ -395,10 +422,10 @@ impl Cloud {
 
         let max_line = lines.saturating_sub(2);
         let max_len = max_line.max(1);
-        self.rand_line = Uniform::new_inclusive(0, max_line);
-        self.rand_len = Uniform::new_inclusive(1, max_len);
-        self.rand_col = Uniform::new_inclusive(0, cols.saturating_sub(1));
-        self.rand_cpidx = Uniform::new_inclusive(0, 2047);
+        self.rand_line = Uniform::new_inclusive(0, max_line).expect("valid range");
+        self.rand_len = Uniform::new_inclusive(1, max_len).expect("valid range");
+        self.rand_col = Uniform::new_inclusive(0, cols.saturating_sub(1)).expect("valid range");
+        self.rand_cpidx = Uniform::new_inclusive(0, 2047).expect("valid range");
 
         self.recalc_droplets_per_sec();
 
@@ -423,7 +450,8 @@ impl Cloud {
 
         let now = Instant::now();
         self.last_glitch_time = now;
-        self.next_glitch_time = now + Duration::from_millis(self.rand_glitch_ms.sample(&mut self.mt) as u64);
+        self.next_glitch_time =
+            now + Duration::from_millis(self.rand_glitch_ms.sample(&mut self.mt) as u64);
         self.last_spawn_time = now;
         self.force_draw_everything = true;
     }
@@ -439,7 +467,8 @@ impl Cloud {
         self.glitch_pool.resize(1024, '0');
         self.glitch_pool_idx = 0;
 
-        let dist = Uniform::new_inclusive(0usize, self.chars.len().saturating_sub(1));
+        let dist = Uniform::new_inclusive(0usize, self.chars.len().saturating_sub(1))
+            .expect("valid range");
         for i in 0..self.char_pool.len() {
             let idx = dist.sample(&mut self.mt);
             self.char_pool[i] = self.chars[idx];
@@ -472,8 +501,14 @@ impl Cloud {
         self.color_map.resize(size, 0);
 
         let n = self.palette.colors.len().max(1);
-        let (low, high) = if n < 3 { (0, 0) } else if n == 3 { (1, 1) } else { (1, (n - 2) as u8) };
-        let dist = Uniform::new_inclusive(low, high);
+        let (low, high) = if n < 3 {
+            (0, 0)
+        } else if n == 3 {
+            (1, 1)
+        } else {
+            (1, (n - 2) as u8)
+        };
+        let dist = Uniform::new_inclusive(low, high).expect("valid range");
 
         for v in &mut self.color_map {
             *v = dist.sample(&mut self.mt);
@@ -511,47 +546,12 @@ impl Cloud {
         self.glitchy && now >= self.next_glitch_time
     }
 
-    fn is_bright(&self, now: Instant) -> bool {
-        if now < self.last_glitch_time {
-            return false;
-        }
-        let since = now.saturating_duration_since(self.last_glitch_time).as_nanos() as f64;
-        let between = self
-            .next_glitch_time
-            .saturating_duration_since(self.last_glitch_time)
-            .as_nanos() as f64;
-        if between <= 0.0 {
-            return false;
-        }
-        (since / between) <= 0.25
-    }
-
-    fn is_dim(&self, now: Instant) -> bool {
-        if now > self.next_glitch_time {
-            return true;
-        }
-        let since = now.saturating_duration_since(self.last_glitch_time).as_nanos() as f64;
-        let between = self
-            .next_glitch_time
-            .saturating_duration_since(self.last_glitch_time)
-            .as_nanos() as f64;
-        if between <= 0.0 {
-            return true;
-        }
-        (since / between) >= 0.75
-    }
-
     pub fn is_glitched(&self, line: u16, col: u16) -> bool {
         if !self.glitchy {
             return false;
         }
         let idx = col as usize * self.lines as usize + line as usize;
         self.glitch_map.get(idx).copied().unwrap_or(false)
-    }
-
-    pub fn get_char(&self, line: u16, char_pool_idx: u16) -> char {
-        let idx = ((char_pool_idx as usize) + (line as usize)) % self.char_pool.len().max(1);
-        self.char_pool.get(idx).copied().unwrap_or('0')
     }
 
     fn do_glitch_span(&mut self, start_line: u16, hp: u16, col: u16, cp_idx: u16) {
@@ -673,72 +673,6 @@ impl Cloud {
         self.shading_mode = sm;
         self.shading_distance = matches!(sm, ShadingMode::DistanceFromHead);
         self.force_draw_everything = true;
-    }
-
-    pub fn get_attr(
-        &self,
-        line: u16,
-        col: u16,
-        val: char,
-        loc: CharLoc,
-        now: Instant,
-        head_put_line: u16,
-        length: u16,
-    ) -> (Option<Color>, bool) {
-        let mut bold = false;
-        if self.bold_mode == BoldMode::Random {
-            bold = (((line as u32) ^ (val as u32)) % 2) == 1;
-        }
-
-        let idx = col as usize * self.lines as usize + line as usize;
-        let mut color_idx = self.color_map.get(idx).copied().unwrap_or(0) as i32;
-
-        if self.shading_distance {
-            let n = self.palette.colors.len().max(1) as f32;
-            let dist = (head_put_line.saturating_sub(line)) as f32;
-            let len = length.max(1) as f32;
-            let v = (n - 1.0) - (dist / len * (n - 1.0));
-            color_idx = v.round() as i32;
-        }
-
-        if self.glitchy && self.glitch_map.get(idx).copied().unwrap_or(false) {
-            if self.is_bright(now) {
-                color_idx += 1;
-                bold = true;
-            } else if self.is_dim(now) {
-                color_idx -= 1;
-                bold = false;
-            }
-        }
-
-        let last = self.palette.colors.len().saturating_sub(1) as i32;
-        match loc {
-            CharLoc::Tail => {
-                color_idx = 0;
-                bold = false;
-            }
-            CharLoc::Head => {
-                color_idx = last;
-                bold = true;
-            }
-            CharLoc::Middle => {
-                color_idx = color_idx.clamp(0, last.max(0));
-            }
-        }
-
-        match self.bold_mode {
-            BoldMode::Off => bold = false,
-            BoldMode::All => bold = true,
-            BoldMode::Random => {}
-        }
-
-        let fg = if self.color_mode == ColorMode::Mono {
-            None
-        } else {
-            self.palette.colors.get(color_idx as usize).copied()
-        };
-
-        (fg, bold)
     }
 
     fn reset_message(&mut self) {
