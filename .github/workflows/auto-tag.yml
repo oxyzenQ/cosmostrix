@@ -6,12 +6,12 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   tag:
     name: Create tag from release commit
     runs-on: ubuntu-latest
-    if: startsWith(github.event.head_commit.message, 'release:')
 
     steps:
       - name: Checkout
@@ -25,8 +25,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          MSG="${{ github.event.head_commit.message }}"
-          FIRST_LINE="${MSG%%$'\n'*}"
+          RANGE="${{ github.event.before }}..${{ github.sha }}"
+          FIRST_LINE=$(git log --format=%s "${RANGE}" | grep -E '^release:' | head -n 1 || true)
+          if [ -z "${FIRST_LINE}" ]; then
+            echo "No release commit found in range ${RANGE}; skipping."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           VERSION="${FIRST_LINE#release:}"
           VERSION="${VERSION## }"
@@ -43,10 +48,12 @@ jobs:
             exit 1
           fi
 
+          echo "found=true" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Verify Cargo.toml version matches
+        if: steps.ver.outputs.found == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -67,6 +74,8 @@ PY
           fi
 
       - name: Create and push tag
+        id: push_tag
+        if: steps.ver.outputs.found == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -78,8 +87,18 @@ PY
 
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag already exists: $TAG"
+            echo "created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           git tag -a "$TAG" -m "$TAG"
           git push origin "$TAG"
+
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Release workflow
+        if: steps.push_tag.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run release.yml --ref main -f tag="${{ steps.ver.outputs.tag }}"
