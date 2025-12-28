@@ -49,7 +49,12 @@ jobs:
         run: cargo build --release --locked
 
       - name: Format check
-        run: cargo fmt --all --check
+        run: cargo fmt --all -- --check
+
+      - name: Dependency policy (cargo-deny)
+        run: |
+          cargo install cargo-deny --locked
+          cargo deny check all
 
       - name: Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
@@ -77,6 +82,7 @@ jobs:
           mkdir -p "$OUTDIR"
           cp -f "target/release/cosmostrix" "$OUTDIR/"
           cp -f "README.md" "$OUTDIR/"
+          cp -f "LICENSE" "$OUTDIR/"
 
           XZ_OPT=-9e tar -cJf "dist/cosmostrix-${VERSION}-${TARGET}.tar.xz" -C dist "cosmostrix-${VERSION}-${TARGET}"
 

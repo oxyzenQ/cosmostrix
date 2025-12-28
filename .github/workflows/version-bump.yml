@@ -1,0 +1,96 @@
+name: Auto Version Bump (deps)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    name: Bump patch after 10 deps updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore(deps): auto-update dependencies')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to bump
+        id: decide
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Avoid loops: do not run on release commits.
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            MSG="${{ github.event.head_commit.message }}"
+            FIRST_LINE="${MSG%%$'\n'*}"
+            if [[ "${FIRST_LINE}" == release:* ]]; then
+              echo "should_bump=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          LAST_TAG=$(git tag --list 'v*' --sort=-creatordate | head -n 1 || true)
+          if [ -n "${LAST_TAG}" ]; then
+            RANGE="${LAST_TAG}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          COUNT=$(git log --format=%s "${RANGE}" --grep '^chore\(deps\): auto-update dependencies$' | wc -l | tr -d ' ')
+          if [ -z "${COUNT}" ]; then COUNT=0; fi
+
+          if [ $((COUNT % 10)) -ne 0 ] || [ "${COUNT}" -eq 0 ]; then
+            echo "should_bump=false" >> "$GITHUB_OUTPUT"
+            echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_bump=true" >> "$GITHUB_OUTPUT"
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version + commit
+        if: steps.decide.outputs.should_bump == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          COUNT="${{ steps.decide.outputs.count }}"
+
+          CURRENT=$(python3 - <<'PY'
+import re
+from pathlib import Path
+s = Path('Cargo.toml').read_text(encoding='utf-8')
+m = re.search(r'^version\s*=\s*"(\d+)\.(\d+)\.(\d+)"\s*$', s, re.M)
+if not m:
+    raise SystemExit('Could not find version in Cargo.toml')
+print('.'.join(m.groups()))
+PY
+)
+
+          IFS='.' read -r MA MI PA <<< "${CURRENT}"
+          NEW="${MA}.${MI}.$((PA + 1))"
+
+          python3 - <<PY
+import re
+from pathlib import Path
+p = Path('Cargo.toml')
+s = p.read_text(encoding='utf-8')
+s2 = re.sub(r'^(version\s*=\s*")\d+\.\d+\.\d+("\s*)$', r"\\g<1>${NEW}\\g<2>", s, flags=re.M)
+if s2 == s:
+    raise SystemExit('Version replacement did not change Cargo.toml')
+p.write_text(s2, encoding='utf-8')
+PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add Cargo.toml
+          git commit -s -m "release: ${NEW}" -m "Automated version bump after ${COUNT} dependency update commits." || exit 0
+          git push origin main

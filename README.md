@@ -120,7 +120,7 @@ These flags match the current Rust implementation (`src/config.rs`).
  -S, --speed <NUM>            chars per second (default: 8)
  -s, --screensaver            exit on first keypress
      --shortpct <PCT>         short droplet percent (default: 50)
-     --charset <NAME>         character set (default: auto)
+     --charset <NAME>         character set (default: binary)
      --chars <HEX...>         custom unicode hex ranges (pairs)
      --colormode <MODE>       force color mode (0, 16, 256, 32)
      --info                   print build info and exit
@@ -161,9 +161,12 @@ Example:
 
 Built-in charsets:
 
-`auto`, `ascii`, `extended`, `english`, `digits`, `punc`, `bin`, `hex`, `katakana`, `greek`, `cyrillic`, `arabic`, `hebrew`, `devanagari`, `braille`, `runic`
+`auto`, `matrix`, `ascii`, `extended`, `english`, `digits`, `punc`, `binary`, `hex`, `katakana`, `greek`, `cyrillic`, `hebrew`, `devanagari`, `braille`, `runic`
 
-- `auto` chooses between `ascii` and `extended` using the `LANG` environment variable (falls back to ASCII when `LANG` is unset).
+- `binary` also accepts `bin` and `01`.
+- `auto` chooses a safe charset based on `LANG`:
+  - if `LANG` does **not** contain `UTF`, it uses a safe ASCII set (letters + digits)
+  - otherwise it uses `matrix`.
 - `--chars` takes comma-separated *hex* unicode code points, and the list length must be even. Each pair defines an inclusive range.
 
 Example: digits + uppercase letters
@@ -243,7 +246,7 @@ PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before sub
 
 ## License
 
-No license file is currently included in this repository.
+MIT. See `LICENSE`.
 
 ## Notes
 

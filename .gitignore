@@ -5,3 +5,6 @@ reference
 # Bloat
 .log
 *.log
+
+# Secret
+guide-optimize*
