@@ -9,12 +9,24 @@ permissions:
 
 jobs:
   build_packages:
-    name: Build packages (${{ matrix.os }})
+    name: Build packages (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            platform: linux-amd64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            platform: linux-arm64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            platform: darwin-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            platform: darwin-arm64
 
     steps:
       - name: Checkout
@@ -45,6 +57,15 @@ jobs:
           toolchain: 1.81.0
           components: rustfmt, clippy
 
+      - name: Add Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Install Linux arm64 linker
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
       - name: Install stable toolchain
         run: rustup toolchain install stable
 
@@ -59,10 +80,14 @@ jobs:
         run: cargo test --all --locked
 
       - name: Build (debug)
-        run: cargo build --profile dev --locked
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --profile dev --locked --target ${{ matrix.target }}
 
       - name: Build (release)
-        run: cargo build --profile release --locked
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --profile release --locked --target ${{ matrix.target }}
 
       - name: Format check
         run: cargo fmt --all -- --check
@@ -79,25 +104,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
           VERSION="${{ steps.ver.outputs.version }}"
 
-          TARGET="$(rustc -vV | sed -n 's/^host: //p')"
-          case "${TARGET}" in
-            x86_64-unknown-linux-gnu) PLATFORM="linux-amd64";;
-            aarch64-unknown-linux-gnu) PLATFORM="linux-arm64";;
-            x86_64-apple-darwin) PLATFORM="macos-amd64";;
-            aarch64-apple-darwin) PLATFORM="macos-arm64";;
-            aarch64-linux-android) PLATFORM="android-aarch64";;
-            *) PLATFORM="${TARGET}";;
-          esac
+          TARGET="${{ matrix.target }}"
+          PLATFORM="${{ matrix.platform }}"
 
           OUTDIR="dist/cosmostrix-${VERSION}-${TARGET}"
           mkdir -p "$OUTDIR"
-          cp -f "target/release/cosmostrix" "$OUTDIR/"
+          cp -f "target/${TARGET}/release/cosmostrix" "$OUTDIR/"
           cp -f "README.md" "$OUTDIR/"
           cp -f "LICENSE" "$OUTDIR/"
 
-          TARBALL="cosmostrix-bin-${PLATFORM}.tar.xz"
+          TARBALL="cosmostrix-bin-${TAG}-${PLATFORM}.tar.xz"
           XZ_OPT=-9e tar -cJf "dist/${TARBALL}" -C dist "cosmostrix-${VERSION}-${TARGET}"
 
           (
@@ -112,12 +131,12 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: packages-${{ matrix.os }}
+          name: packages-${{ matrix.platform }}
           path: dist/*.tar.xz*
           if-no-files-found: error
 
   build_android:
-    name: Build packages (android-aarch64)
+    name: Build packages (android-arm64)
     runs-on: ubuntu-latest
 
     steps:
@@ -163,7 +182,7 @@ jobs:
       - name: Add Rust target
         run: rustup target add aarch64-linux-android
 
-      - name: Build (release, android-aarch64)
+      - name: Build (release, android-arm64)
         shell: bash
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
@@ -181,9 +200,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          TAG="${{ steps.ver.outputs.tag }}"
           VERSION="${{ steps.ver.outputs.version }}"
           TARGET="aarch64-linux-android"
-          PLATFORM="android-aarch64"
+          PLATFORM="android-arm64"
 
           OUTDIR="dist/cosmostrix-${VERSION}-${TARGET}"
           mkdir -p "$OUTDIR"
@@ -191,7 +211,7 @@ jobs:
           cp -f "README.md" "$OUTDIR/"
           cp -f "LICENSE" "$OUTDIR/"
 
-          TARBALL="cosmostrix-bin-${PLATFORM}.tar.xz"
+          TARBALL="cosmostrix-bin-${TAG}-${PLATFORM}.tar.xz"
           XZ_OPT=-9e tar -cJf "dist/${TARBALL}" -C dist "cosmostrix-${VERSION}-${TARGET}"
 
           (
@@ -206,7 +226,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: packages-android-aarch64
+          name: packages-android-arm64
           path: dist/*.tar.xz*
           if-no-files-found: error
 
@@ -260,19 +280,104 @@ jobs:
           set -euo pipefail
           TAG="${{ steps.ver.outputs.tag }}"
           VERSION="${{ steps.ver.outputs.version }}"
+          PRERELEASE="${{ steps.ver.outputs.prerelease }}"
+          REPO="${GITHUB_REPOSITORY}"
 
-          PREV_TAG=$(git tag --list 'v*' --sort=-creatordate | grep -v "^${TAG}$" | head -n 1 || true)
+          # Find previous STABLE tag (skip pre-releases for stable comparison)
+          if [ "${PRERELEASE}" = "false" ]; then
+            PREV_TAG=$(git tag --list 'v*' --sort=-creatordate | \
+              grep -v "^${TAG}$" | \
+              grep -v -E -- '-(alpha|beta|rc)\.' | \
+              head -n 1 || true)
+          else
+            PREV_TAG=$(git tag --list 'v*' --sort=-creatordate | \
+              grep -v "^${TAG}$" | \
+              head -n 1 || true)
+          fi
+
           if [ -n "$PREV_TAG" ]; then
             RANGE="${PREV_TAG}..${TAG}"
+            CHANGELOG_URL="https://github.com/${REPO}/compare/${PREV_TAG}...${TAG}"
+            CHANGELOG_LABEL="${PREV_TAG}...${TAG}"
           else
             RANGE="${TAG}"
+            CHANGELOG_URL="https://github.com/${REPO}/releases/tag/${TAG}"
+            CHANGELOG_LABEL="${TAG}"
+          fi
+
+          # Categorize commits
+          FEATURES=$(git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}" | grep "^- feat" || true)
+          FIXES=$(git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}" | grep "^- fix" || true)
+          CHORES=$(git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}" | grep "^- chore" || true)
+          OTHERS=$(git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}" | grep -v "^- feat" | grep -v "^- fix" | grep -v "^- chore" || true)
+
+          if [ "${PRERELEASE}" = "true" ]; then
+            RELEASE_BADGE="> **Pre-release** • Experimental features ahead"
+            KNOWN_ISSUES="⚠️ This is a pre-release. Report bugs via [Issues](https://github.com/${REPO}/issues)."
+            WHATS_NEW="A pre-release build with upcoming changes for testing."
+          else
+            RELEASE_BADGE="> **Stable Release** • Production ready"
+            KNOWN_ISSUES="🐛 Report bugs via [Issues](https://github.com/${REPO}/issues)."
+            WHATS_NEW="A stable release including all improvements from previous versions."
           fi
 
           {
-            echo "## Changes"
+            echo "## 🌌 Cosmostrix ${TAG}"
             echo
-            git log --no-merges --pretty=format:'- %s (%h)' "$RANGE"
+            echo "${RELEASE_BADGE}"
             echo
+            echo "### ✨ What's New"
+            echo
+            echo "${WHATS_NEW}"
+            echo
+
+            if [ -n "$FEATURES" ]; then
+              echo "### 🎉 New Features"
+              echo
+              echo "$FEATURES"
+              echo
+            fi
+
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              echo
+              echo "$FIXES"
+              echo
+            fi
+
+            if [ -n "$CHORES" ]; then
+              echo "### 🔧 Maintenance"
+              echo
+              echo "$CHORES"
+              echo
+            fi
+
+            if [ -n "$OTHERS" ]; then
+              echo "### 📦 Other Changes"
+              echo
+              echo "$OTHERS"
+              echo
+            fi
+
+            echo "### 📥 Installation"
+            echo
+            echo '```bash'
+            echo '# Quick install (Linux x86_64)'
+            echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-linux-amd64.tar.xz | tar -xJ"
+            echo
+            echo '# Quick install (macOS Apple Silicon)'
+            echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-darwin-arm64.tar.xz | tar -xJ"
+            echo
+            echo '# Or download your platform-specific package from the assets below'
+            echo '```'
+            echo
+            echo "### 🐛 Feedback"
+            echo
+            echo "${KNOWN_ISSUES}"
+            echo
+            echo "---"
+            echo
+            echo "**Full Changelog**: [\`${CHANGELOG_LABEL}\`](${CHANGELOG_URL})"
           } > release-notes.md
 
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
