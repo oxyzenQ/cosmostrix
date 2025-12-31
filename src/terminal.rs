@@ -42,6 +42,8 @@ pub struct Terminal {
     stdout: Stdout,
     last: Option<LastFrame>,
     run_buf: String,
+    row_dirty: Vec<Vec<usize>>,
+    touched_rows: Vec<u16>,
 }
 
 impl Terminal {
@@ -61,6 +63,8 @@ impl Terminal {
                 s.reserve(64);
                 s
             },
+            row_dirty: Vec::new(),
+            touched_rows: Vec::new(),
         })
     }
 
@@ -161,108 +165,130 @@ impl Terminal {
 
         let last = self.last.as_mut().expect("checked above");
 
-        frame.sort_dirty();
-
         let dirty = frame.dirty_indices();
         let width_usize = frame.width as usize;
-        let mut i = 0usize;
         let run_buf = &mut self.run_buf;
 
-        while i < dirty.len() {
-            let idx0 = dirty[i];
-            let cell0 = frame.cell_at_index(idx0);
-            if last.cells.get(idx0).copied() == Some(cell0) {
-                i += 1;
+        if self.row_dirty.len() != frame.height as usize {
+            self.row_dirty = vec![Vec::new(); frame.height as usize];
+        }
+        for r in &mut self.row_dirty {
+            r.clear();
+        }
+        self.touched_rows.clear();
+
+        for &idx in dirty {
+            let y = (idx / width_usize) as u16;
+            if y >= frame.height {
                 continue;
             }
-
-            let x0 = (idx0 % width_usize) as u16;
-            let y0 = (idx0 / width_usize) as u16;
-            let fg0 = cell0.fg;
-            let bg0 = cell0.bg;
-            let bold0 = cell0.bold;
-
-            run_buf.clear();
-            run_buf.push(cell0.ch);
-            let mut run_len: u16 = 1;
-            let mut last_idx_in_run = idx0;
-            let mut j = i + 1;
-
-            while j < dirty.len() {
-                let idx1 = dirty[j];
-                if idx1 != last_idx_in_run + 1 {
-                    break;
-                }
-
-                let y1 = (idx1 / width_usize) as u16;
-                if y1 != y0 {
-                    break;
-                }
-
-                let cell1 = frame.cell_at_index(idx1);
-                if last.cells.get(idx1).copied() == Some(cell1) {
-                    break;
-                }
-                if cell1.fg != fg0 || cell1.bg != bg0 || cell1.bold != bold0 {
-                    break;
-                }
-
-                run_buf.push(cell1.ch);
-                run_len = run_len.saturating_add(1);
-                last_idx_in_run = idx1;
-                j += 1;
+            let b = &mut self.row_dirty[y as usize];
+            if b.is_empty() {
+                self.touched_rows.push(y);
             }
+            b.push(idx);
+        }
 
-            if cur_pos != Some((x0, y0)) {
-                self.stdout.queue(cursor::MoveTo(x0, y0))?;
+        self.touched_rows.sort_unstable();
+        self.touched_rows.dedup();
+
+        for y0 in self.touched_rows.iter().copied() {
+            let b = &mut self.row_dirty[y0 as usize];
+            if b.len() > 1 {
+                b.sort_unstable();
             }
-
-            if fg0 != cur_fg {
-                if let Some(fg) = fg0 {
-                    self.stdout.queue(SetForegroundColor(fg))?;
-                } else {
-                    self.stdout.queue(SetForegroundColor(Color::Reset))?;
+            let mut i = 0usize;
+            while i < b.len() {
+                let idx0 = b[i];
+                let cell0 = frame.cell_at_index(idx0);
+                if last.cells.get(idx0).copied() == Some(cell0) {
+                    i += 1;
+                    continue;
                 }
-                cur_fg = fg0;
-            }
 
-            if bg0 != cur_bg {
-                if let Some(bg) = bg0 {
-                    self.stdout.queue(SetBackgroundColor(bg))?;
-                } else {
-                    self.stdout.queue(SetBackgroundColor(Color::Reset))?;
+                let x0 = (idx0 % width_usize) as u16;
+                let fg0 = cell0.fg;
+                let bg0 = cell0.bg;
+                let bold0 = cell0.bold;
+
+                run_buf.clear();
+                run_buf.push(cell0.ch);
+                let mut run_len: u16 = 1;
+                let mut last_idx_in_run = idx0;
+                let mut j = i + 1;
+
+                while j < b.len() {
+                    let idx1 = b[j];
+                    if idx1 != last_idx_in_run + 1 {
+                        break;
+                    }
+
+                    let cell1 = frame.cell_at_index(idx1);
+                    if last.cells.get(idx1).copied() == Some(cell1) {
+                        break;
+                    }
+                    if cell1.fg != fg0 || cell1.bg != bg0 || cell1.bold != bold0 {
+                        break;
+                    }
+
+                    run_buf.push(cell1.ch);
+                    run_len = run_len.saturating_add(1);
+                    last_idx_in_run = idx1;
+                    j += 1;
                 }
-                cur_bg = bg0;
-            }
 
-            if bold0 != cur_bold {
-                self.stdout.queue(SetAttribute(if bold0 {
-                    Attribute::Bold
-                } else {
-                    Attribute::NormalIntensity
-                }))?;
-                cur_bold = bold0;
-            }
+                if cur_pos != Some((x0, y0)) {
+                    self.stdout.queue(cursor::MoveTo(x0, y0))?;
+                }
 
-            self.stdout.queue(Print(run_buf.as_str()))?;
+                if fg0 != cur_fg {
+                    if let Some(fg) = fg0 {
+                        self.stdout.queue(SetForegroundColor(fg))?;
+                    } else {
+                        self.stdout.queue(SetForegroundColor(Color::Reset))?;
+                    }
+                    cur_fg = fg0;
+                }
 
-            let start = idx0;
-            let end = last_idx_in_run + 1;
-            if end <= last.cells.len() {
-                for idx in start..end {
-                    if let Some(v) = last.cells.get_mut(idx) {
-                        *v = frame.cell_at_index(idx);
+                if bg0 != cur_bg {
+                    if let Some(bg) = bg0 {
+                        self.stdout.queue(SetBackgroundColor(bg))?;
+                    } else {
+                        self.stdout.queue(SetBackgroundColor(Color::Reset))?;
+                    }
+                    cur_bg = bg0;
+                }
+
+                if bold0 != cur_bold {
+                    self.stdout.queue(SetAttribute(if bold0 {
+                        Attribute::Bold
+                    } else {
+                        Attribute::NormalIntensity
+                    }))?;
+                    cur_bold = bold0;
+                }
+
+                self.stdout.queue(Print(run_buf.as_str()))?;
+
+                let start = idx0;
+                let end = last_idx_in_run + 1;
+                if end <= last.cells.len() {
+                    for idx in start..end {
+                        if let Some(v) = last.cells.get_mut(idx) {
+                            *v = frame.cell_at_index(idx);
+                        }
                     }
                 }
-            }
-            let next_x = x0.saturating_add(run_len);
-            cur_pos = if next_x < frame.width {
-                Some((next_x, y0))
-            } else {
-                None
-            };
+                let next_x = x0.saturating_add(run_len);
+                cur_pos = if next_x < frame.width {
+                    Some((next_x, y0))
+                } else {
+                    None
+                };
 
-            i = j;
+                i = j;
+            }
+            b.clear();
         }
 
         self.stdout.queue(SetAttribute(Attribute::Reset))?;

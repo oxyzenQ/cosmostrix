@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 
-pub const DEFAULT_PARAMS_USAGE: &str = "DEFAULT PARAMS USAGE:\n  cosmostrix --color green --charset binary --fps 60 --speed 8 --density 1 --maxdpc 3 --bold 1 --shadingmode 0 --glitchpct 10 --glitchms 300,400 --lingerms 1,3000 --shortpct 50 --rippct 33.33333";
+pub const DEFAULT_PARAMS_USAGE: &str = "DEFAULT PARAMS USAGE:\n  cosmostrix --duration 0 --color green --charset binary --fps 60 --speed 8 --density 1 --maxdpc 3 --bold 1 --shadingmode 0 --glitchpct 10 --glitchms 300,400 --lingerms 1,3000 --shortpct 50 --rippct 33.33333";
 
 pub fn color_enabled_stdout() -> bool {
     if std::env::var_os("NO_COLOR").is_some() {
