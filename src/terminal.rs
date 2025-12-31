@@ -50,11 +50,24 @@ impl Terminal {
     pub fn new() -> Result<Self> {
         let mut out = stdout();
         terminal::enable_raw_mode()?;
-        out.execute(terminal::EnterAlternateScreen)?;
-        out.execute(cursor::Hide)?;
-        let _ = out.execute(terminal::DisableLineWrap);
-        out.execute(terminal::Clear(terminal::ClearType::All))?;
-        out.flush()?;
+        let init_res: Result<()> = (|| {
+            out.execute(terminal::EnterAlternateScreen)?;
+            out.execute(cursor::Hide)?;
+            let _ = out.execute(terminal::DisableLineWrap);
+            out.execute(terminal::Clear(terminal::ClearType::All))?;
+            out.flush()?;
+            Ok(())
+        })();
+        if let Err(e) = init_res {
+            let _ = out.execute(SetAttribute(Attribute::Reset));
+            let _ = out.execute(ResetColor);
+            let _ = out.execute(cursor::Show);
+            let _ = out.execute(terminal::EnableLineWrap);
+            let _ = out.execute(terminal::LeaveAlternateScreen);
+            let _ = terminal::disable_raw_mode();
+            let _ = out.flush();
+            return Err(e);
+        }
         Ok(Self {
             stdout: out,
             last: None,
@@ -149,9 +162,7 @@ impl Terminal {
 
                     self.stdout.queue(Print(cell.ch))?;
 
-                    if let Some(v) = last.cells.get_mut(idx) {
-                        *v = cell;
-                    }
+                    last.cells[idx] = cell;
                 }
             }
 
@@ -206,6 +217,8 @@ impl Terminal {
                     continue;
                 }
 
+                last.cells[idx0] = cell0;
+
                 let x0 = (idx0 % width_usize) as u16;
                 let fg0 = cell0.fg;
                 let bg0 = cell0.bg;
@@ -232,6 +245,7 @@ impl Terminal {
                     }
 
                     run_buf.push(cell1.ch);
+                    last.cells[idx1] = cell1;
                     run_len = run_len.saturating_add(1);
                     last_idx_in_run = idx1;
                     j += 1;
@@ -269,16 +283,6 @@ impl Terminal {
                 }
 
                 self.stdout.queue(Print(run_buf.as_str()))?;
-
-                let start = idx0;
-                let end = last_idx_in_run + 1;
-                if end <= last.cells.len() {
-                    for idx in start..end {
-                        if let Some(v) = last.cells.get_mut(idx) {
-                            *v = frame.cell_at_index(idx);
-                        }
-                    }
-                }
                 let next_x = x0.saturating_add(run_len);
                 cur_pos = if next_x < frame.width {
                     Some((next_x, y0))
@@ -309,6 +313,17 @@ impl Drop for Terminal {
         let _ = terminal::disable_raw_mode();
         let _ = self.stdout.flush();
     }
+}
+
+pub fn restore_terminal_best_effort() {
+    let mut out = stdout();
+    let _ = out.execute(SetAttribute(Attribute::Reset));
+    let _ = out.execute(ResetColor);
+    let _ = out.execute(cursor::Show);
+    let _ = out.execute(terminal::EnableLineWrap);
+    let _ = out.execute(terminal::LeaveAlternateScreen);
+    let _ = terminal::disable_raw_mode();
+    let _ = out.flush();
 }
 
 pub fn blank_cell(bg: Option<Color>) -> Cell {

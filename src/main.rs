@@ -11,6 +11,7 @@ mod runtime;
 mod terminal;
 
 use std::env;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use clap::builder::styling::{AnsiColor as ClapAnsiColor, Color as ClapColor};
@@ -18,6 +19,8 @@ use clap::builder::styling::{Effects as ClapEffects, Style as ClapStyle};
 use clap::builder::Styles as ClapStyles;
 use clap::{CommandFactory, FromArgMatches};
 use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
+use signal_hook::consts::{SIGHUP, SIGINT, SIGTERM};
+use signal_hook::iterator::Signals;
 
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
 use crate::cloud::Cloud;
@@ -27,7 +30,7 @@ use crate::config::{
 };
 use crate::frame::Frame;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
-use crate::terminal::Terminal;
+use crate::terminal::{restore_terminal_best_effort, Terminal};
 
 const HELP_TEMPLATE_PLAIN: &str = "\
 {before-help}{about-with-newline}
@@ -110,20 +113,7 @@ fn default_to_ascii() -> bool {
     !lang.to_ascii_uppercase().contains("UTF")
 }
 
-fn detect_color_mode(args: &Args) -> ColorMode {
-    if let Some(m) = args.colormode {
-        return match m {
-            0 => ColorMode::Mono,
-            16 => ColorMode::Color16,
-            32 => ColorMode::TrueColor,
-            256 => ColorMode::Color256,
-            _ => {
-                eprintln!("invalid --colormode: {} (allowed: 0,16,256,32)", m);
-                std::process::exit(1);
-            }
-        };
-    }
-
+fn detect_color_mode_auto() -> ColorMode {
     let colorterm = env::var("COLORTERM")
         .unwrap_or_default()
         .to_ascii_lowercase();
@@ -132,11 +122,39 @@ fn detect_color_mode(args: &Args) -> ColorMode {
     }
 
     let term = env::var("TERM").unwrap_or_default().to_ascii_lowercase();
+    if term == "dumb" {
+        return ColorMode::Mono;
+    }
     if term.contains("256color") {
         return ColorMode::Color256;
     }
 
-    ColorMode::Color16
+    ColorMode::Color256
+}
+
+fn detect_color_mode(args: &Args) -> ColorMode {
+    if let Some(m) = args.colormode {
+        return match m {
+            0 => ColorMode::Mono,
+            8 => ColorMode::Color256,
+            24 => ColorMode::TrueColor,
+            _ => {
+                eprintln!("invalid --colormode: {} (allowed: 0,8,24)", m);
+                std::process::exit(1);
+            }
+        };
+    }
+
+    detect_color_mode_auto()
+}
+
+fn color_mode_label(m: ColorMode) -> &'static str {
+    match m {
+        ColorMode::TrueColor => "24-bit truecolor",
+        ColorMode::Color256 => "8-bit (256-color)",
+        ColorMode::Mono => "mono",
+        ColorMode::Color16 => "16-color",
+    }
 }
 
 fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
@@ -168,6 +186,20 @@ fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
 }
 
 fn main() -> std::io::Result<()> {
+    std::panic::set_hook(Box::new(|info| {
+        restore_terminal_best_effort();
+        eprintln!("{}", info);
+    }));
+
+    if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP]) {
+        thread::spawn(move || {
+            for sig in signals.forever() {
+                restore_terminal_best_effort();
+                std::process::exit(128 + sig);
+            }
+        });
+    }
+
     let mut cmd = Args::command();
     cmd = cmd.styles(clap_styles());
     cmd = cmd.before_help(default_params_usage_for_help());
@@ -198,6 +230,23 @@ fn main() -> std::io::Result<()> {
 
     if args.help_detail {
         print_help_detail();
+        return Ok(());
+    }
+
+    if args.check_bitcolor {
+        let colorterm = env::var("COLORTERM").unwrap_or_default();
+        let term = env::var("TERM").unwrap_or_default();
+        let auto = detect_color_mode_auto();
+        let effective = detect_color_mode(&args);
+
+        println!("BITCOLOR CHECK:");
+        println!("  COLORTERM: {}", if colorterm.is_empty() { "(unset)" } else { &colorterm });
+        println!("  TERM: {}", if term.is_empty() { "(unset)" } else { &term });
+        println!("  auto_detected: {}", color_mode_label(auto));
+        if args.colormode.is_some() {
+            println!("  forced: {}", color_mode_label(effective));
+        }
+        println!("  effective: {}", color_mode_label(effective));
         return Ok(());
     }
 

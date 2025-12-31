@@ -3,6 +3,7 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorMode {
     Mono,
+    #[allow(dead_code)]
     Color16,
     Color256,
     TrueColor,

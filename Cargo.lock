@@ -126,6 +126,7 @@ dependencies = [
  "clap",
  "crossterm",
  "rand",
+ "signal-hook",
 ]
 
 [[package]]
