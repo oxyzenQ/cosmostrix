@@ -1,6 +1,6 @@
 name: T-800 - Release
 
-on:
+'on':
   push:
     tags: ["v*"]
 
@@ -21,7 +21,7 @@ jobs:
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             platform: linux-arm64
-          - os: macos-13
+          - os: macos-15-intel
             target: x86_64-apple-darwin
             platform: darwin-amd64
           - os: macos-latest
@@ -54,8 +54,10 @@ jobs:
           fi
 
           VERSION="${TAG#v}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=${TAG}"
+            echo "version=${VERSION}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -316,9 +318,11 @@ jobs:
             esac
           fi
 
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "prerelease=${PRE}" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=${TAG}"
+            echo "version=${VERSION}"
+            echo "prerelease=${PRE}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Download artifacts
         uses: actions/download-artifact@v4

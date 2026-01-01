@@ -10,7 +10,7 @@
 
 name: "T-800 - Auto Update Dependencies"
 
-on:
+'on':
   schedule:
     - cron: "0 1 * * *"  # 08:00 WIB daily
   workflow_dispatch:
@@ -135,15 +135,15 @@ jobs:
           echo ""
           echo "════════════════════════════════════════════════════════"
 
-          echo "actions_update_log=${ACTIONS_UPDATE_LOG}" >> $GITHUB_ENV
+          echo "actions_update_log=${ACTIONS_UPDATE_LOG}" >> "$GITHUB_ENV"
 
           if [ "$UPDATED" = true ]; then
             echo "✨ GitHub Actions updated successfully!"
             echo -e "$UPDATES_LOG"
-            echo "workflows_updated=true" >> $GITHUB_ENV
+            echo "workflows_updated=true" >> "$GITHUB_ENV"
           else
             echo "✅ All GitHub Actions are up-to-date"
-            echo "workflows_updated=false" >> $GITHUB_ENV
+            echo "workflows_updated=false" >> "$GITHUB_ENV"
           fi
 
           echo "════════════════════════════════════════════════════════"
@@ -251,10 +251,10 @@ jobs:
         id: check_changes
         run: |
           if [[ -z "$(git status --porcelain)" ]]; then
-            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "✅ No updates needed"
           else
-            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "changed=true" >> "$GITHUB_OUTPUT"
             echo "📝 Updates detected"
             echo ""
             echo "Changed files:"
@@ -280,7 +280,7 @@ jobs:
           CARGO_UPDATE_LOG="${{ env.cargo_update_log }}"
           UPDATES_COUNT="0"
           if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
-            UPDATES_COUNT="$(grep -E '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}" | wc -l | tr -d ' ')"
+            UPDATES_COUNT="$(grep -cE '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}")"
           fi
 
           BREAKING_UPDATE="false"
@@ -316,9 +316,11 @@ jobs:
             LABELS+=$'\nenhancement'
           fi
 
-          echo "yamllabels<<EOF" >> "$GITHUB_OUTPUT"
-          printf "%s\n" "${LABELS}" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "yamllabels<<EOF"
+            printf "%s\n" "${LABELS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
           if [ "${SECURITY_UPDATE}" = "true" ] && [ "${WORKFLOW_UPDATED}" = "true" ]; then
             TITLE="fix(security): T-800 patches vulnerable deps + refreshes workflows"
@@ -349,20 +351,16 @@ jobs:
             BASELINE_SECURITY_STATUS="⚠️ advisories found"
           fi
 
-          BODY=$(cat <<EOF
-🤖 Automated update by T-800
-
-## Summary
-- 📦 Rust dependencies updated via \`cargo update\` (${UPDATES_COUNT} changes)
-- 🔐 Security baseline (pre-update): ${BASELINE_SECURITY_STATUS}
-- 🔒 Security audit (post-update): ✅ passed
-- 🛡️ Dependency policy (cargo-deny): ✅ passed
-- 🎨 Formatting (cargo fmt): ✅ passed
-- 🔨 Build (dev + release): ✅ passed
-- 🧪 Tests: ${TESTS_STATUS}
-- 🔍 Clippy: ✅ passed
-EOF
-)
+          BODY="🤖 Automated update by T-800"
+          BODY+=$'\n\n'"## Summary"
+          BODY+=$'\n'"- 📦 Rust dependencies updated via \`cargo update\` (${UPDATES_COUNT} changes)"
+          BODY+=$'\n'"- 🔐 Security baseline (pre-update): ${BASELINE_SECURITY_STATUS}"
+          BODY+=$'\n'"- 🔒 Security audit (post-update): ✅ passed"
+          BODY+=$'\n'"- 🛡️ Dependency policy (cargo-deny): ✅ passed"
+          BODY+=$'\n'"- 🎨 Formatting (cargo fmt): ✅ passed"
+          BODY+=$'\n'"- 🔨 Build (dev + release): ✅ passed"
+          BODY+=$'\n'"- 🧪 Tests: ${TESTS_STATUS}"
+          BODY+=$'\n'"- 🔍 Clippy: ✅ passed"
 
           if [ "${WORKFLOW_UPDATED}" = "true" ] && [ -n "${ACTIONS_UPDATE_LOG}" ] && [ -s "${ACTIONS_UPDATE_LOG}" ]; then
             BODY="${BODY}"$'\n\n'"## GitHub Actions updated"
@@ -400,26 +398,20 @@ EOF
 
           COMMIT_BODY="${BODY}"$'\n\n'"${CO_AUTHOR_TRAILER}"
 
-          echo "title=$TITLE" >> $GITHUB_OUTPUT
           {
+            echo "title=$TITLE"
             echo "body<<EOF"
             echo "$BODY"
             echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-          {
             echo "commit_body<<EOF"
             echo "$COMMIT_BODY"
             echo "EOF"
-          } >> $GITHUB_OUTPUT
-
-          {
             echo "commit_message<<EOF"
             echo "$TITLE"
             echo ""
             echo "$COMMIT_BODY"
             echo "EOF"
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
       - name: Commit and push changes
         if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'direct'
