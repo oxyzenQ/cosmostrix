@@ -175,7 +175,7 @@ jobs:
 
       - name: Setup Android NDK
         id: ndk
-        uses: nttld/setup-ndk@v1
+        uses: nttld/setup-ndk@v1.5.0
         with:
           ndk-version: r26d
 
@@ -384,7 +384,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: ${{ steps.prep.outputs.tag }}
           name: cosmostrix ${{ steps.prep.outputs.version }}
