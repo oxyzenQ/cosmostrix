@@ -120,7 +120,7 @@ These flags match the current Rust implementation (`src/config.rs`).
  -a, --async                  enable async column speeds
  -b, --bold <NUM>             0=off, 1=random, 2=all
  -c, --color <COLOR>          color scheme (default: green)
- -D, --defaultbg              use terminal default background color
+     --color-bg <MODE>        background: black, default-background, transparent (default: black)
  -d, --density <NUM>          droplet density (default: 1.0)
  -F, --fullwidth              use two columns per character
  -f, --fps <NUM>              target FPS (default: 60)

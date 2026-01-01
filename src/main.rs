@@ -26,7 +26,7 @@ use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
 use crate::cloud::Cloud;
 use crate::config::{
     color_enabled_stdout, default_params_usage_for_help, print_help_detail, print_list_charsets,
-    print_list_colors, Args,
+    print_list_colors, Args, ColorBg,
 };
 use crate::frame::Frame;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
@@ -351,7 +351,10 @@ fn main() -> std::io::Result<()> {
         shading_mode,
         bold_mode,
         args.async_mode,
-        args.defaultbg,
+        matches!(
+            args.color_bg,
+            ColorBg::DefaultBackground | ColorBg::Transparent
+        ),
         color_scheme,
     );
 

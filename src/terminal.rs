@@ -54,6 +54,8 @@ impl Terminal {
             out.execute(terminal::EnterAlternateScreen)?;
             out.execute(cursor::Hide)?;
             let _ = out.execute(terminal::DisableLineWrap);
+            out.execute(SetAttribute(Attribute::Reset))?;
+            out.execute(ResetColor)?;
             out.execute(terminal::Clear(terminal::ClearType::All))?;
             out.flush()?;
             Ok(())

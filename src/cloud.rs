@@ -817,7 +817,7 @@ impl Cloud {
     }
 
     fn draw_message(&self, frame: &mut Frame) {
-        let bg = Some(Color::Black);
+        let bg = self.palette.bg;
         let fg = if self.color_mode == ColorMode::Mono {
             None
         } else {
