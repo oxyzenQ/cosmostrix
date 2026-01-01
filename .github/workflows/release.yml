@@ -1,4 +1,4 @@
-name: Release
+name: T-800 - Release
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build_packages:
-    name: Build packages (${{ matrix.platform }})
+    name: T-800 - Build packages (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -188,7 +188,7 @@ jobs:
           if-no-files-found: error
 
   build_android:
-    name: Build packages (android-arm64)
+    name: T-800 - Build packages (android-arm64)
     runs-on: ubuntu-latest
 
     steps:
@@ -283,7 +283,7 @@ jobs:
           if-no-files-found: error
 
   publish_release:
-    name: Publish GitHub Release
+    name: T-800 - Publish GitHub Release
     runs-on: ubuntu-latest
     needs: [build_packages, build_android]
 
@@ -453,3 +453,7 @@ jobs:
             dist/**/**/*.tar.xz.sha512
             dist/**/**/*.zip
             dist/**/**/*.zip.sha512
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true

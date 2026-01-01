@@ -1,14 +1,14 @@
 # =============================================================================
-# AUTO DEPENDENCY UPDATE - NEBULA
+# AUTO DEPENDENCY UPDATE - T-800
 # =============================================================================
 # Features:
 # - Daily auto-update dependencies (08:00 WIB / 01:00 UTC)
 # - Self-healing: auto-updates GitHub Actions in workflows
 # - Security audit before commit
 # - Test validation
-# - Powered by Nebula automation
+# - Powered by T-800 automation
 
-name: "Auto Update Dependencies"
+name: "T-800 - Auto Update Dependencies"
 
 on:
   schedule:
@@ -38,20 +38,21 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  BOT_TOKEN: ${{ secrets.T800_TOKEN || secrets.NEBULA_TOKEN }}
   UPDATE_STRATEGY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.strategy || 'direct' }}
   FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_update || 'false' }}
   UPDATE_WORKFLOWS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.update_workflows || 'true' }}
 
 jobs:
   auto-update:
-    name: "🌌 Nebula - Dependency & Workflow Update"
+    name: "🤖 T-800 - Dependency & Workflow Update"
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.NEBULA_TOKEN }}
+          token: ${{ env.BOT_TOKEN }}
           fetch-depth: 0
 
       - name: Setup Rust toolchain
@@ -80,6 +81,10 @@ jobs:
 
           UPDATED=false
           UPDATES_LOG=""
+          ACTIONS_UPDATE_LOG="${RUNNER_TEMP}/actions-updates.log"
+          : > "${ACTIONS_UPDATE_LOG}"
+
+          AUTH_HEADER="Authorization: Bearer ${BOT_TOKEN}"
 
           for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
             [ -f "$workflow" ] || continue
@@ -87,7 +92,7 @@ jobs:
             echo ""
             echo "📄 Checking: $workflow"
 
-            grep -oP 'uses:\s+\K[^@\s]+@v[0-9]+(\.[0-9]+)*' "$workflow" | sort -u | while read -r action_with_ver; do
+            while read -r action_with_ver; do
               ACTION="${action_with_ver%@*}"
               CURRENT_VER="${action_with_ver#*@}"
 
@@ -96,10 +101,10 @@ jobs:
               echo "  🔎 Checking: $ACTION @ $CURRENT_VER"
 
               if [[ "$ACTION" == */* ]]; then
-                LATEST_TAG=$(curl -s "https://api.github.com/repos/$ACTION/releases/latest" | grep -oP '"tag_name":\s*"\K[^"]+' || echo "")
+                LATEST_TAG=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$ACTION/releases/latest" | grep -oP '"tag_name":\s*"\K[^"]+' || echo "")
 
                 if [ -z "$LATEST_TAG" ]; then
-                  LATEST_TAG=$(curl -s "https://api.github.com/repos/$ACTION/tags" | grep -oP '"name":\s*"v\K[0-9]+(\.[0-9]+)*' | head -n1)
+                  LATEST_TAG=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$ACTION/tags" | grep -oP '"name":\s*"v\K[0-9]+(\.[0-9]+)*' | head -n1)
                   [ -n "$LATEST_TAG" ] && LATEST_TAG="v$LATEST_TAG"
                 fi
 
@@ -116,6 +121,7 @@ jobs:
 
                     UPDATED=true
                     UPDATES_LOG="${UPDATES_LOG}\n  - $ACTION: $CURRENT_VER → $LATEST_TAG"
+                    echo "$ACTION: $CURRENT_VER -> $LATEST_TAG" >> "${ACTIONS_UPDATE_LOG}"
                   else
                     echo "    ⚠️  Major version change detected ($CURRENT_VER → $LATEST_TAG), skipping"
                   fi
@@ -123,11 +129,13 @@ jobs:
                   echo "    ✅ Already up-to-date"
                 fi
               fi
-            done
+            done < <(grep -oP 'uses:\s+\K[^@\s]+@v[0-9]+(\.[0-9]+)*' "$workflow" | sort -u)
           done
 
           echo ""
           echo "════════════════════════════════════════════════════════"
+
+          echo "actions_update_log=${ACTIONS_UPDATE_LOG}" >> $GITHUB_ENV
 
           if [ "$UPDATED" = true ]; then
             echo "✨ GitHub Actions updated successfully!"
@@ -151,10 +159,28 @@ jobs:
           cargo tree --depth 1 || true
           echo "════════════════════════════════════════════════════════"
 
+      - name: Baseline security audit (pre-update)
+        id: pre_audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "🔒 Running baseline security audit (pre-update)..."
+
+          cargo +stable install cargo-audit --locked
+
+          if cargo +stable audit; then
+            echo "vulnerable=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "vulnerable=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Update dependencies
+        id: update_deps
         run: |
           echo "🔄 Updating Cargo.lock..."
-          cargo update
+          CARGO_UPDATE_LOG="${RUNNER_TEMP}/cargo-update.log"
+          echo "cargo_update_log=${CARGO_UPDATE_LOG}" >> "$GITHUB_ENV"
+          cargo update 2>&1 | tee "${CARGO_UPDATE_LOG}"
 
           echo ""
           echo "════════════════════════════════════════════════════════"
@@ -164,23 +190,26 @@ jobs:
           echo "════════════════════════════════════════════════════════"
 
       - name: Security audit
+        id: post_audit
         run: |
           echo "🔒 Running security audit..."
-          cargo +stable install cargo-audit --locked
           cargo +stable audit
 
       - name: Dependency policy (cargo-deny)
+        id: deny
         run: |
           echo "🛡️  Checking dependency policies..."
           cargo +stable install cargo-deny --locked
           cargo +stable deny check all
 
       - name: Format check
+        id: fmt
         run: |
           echo "🎨 Checking code formatting..."
           cargo fmt --all -- --check
 
       - name: Build project
+        id: build
         run: |
           echo "🔨 Building with updated dependencies..."
           cargo build --profile dev --locked
@@ -190,6 +219,7 @@ jobs:
           echo "✅ Build successful with updated deps"
 
       - name: Run tests
+        id: tests
         run: |
           echo "🧪 Running test suite..."
           cargo test --all --locked
@@ -199,17 +229,23 @@ jobs:
         continue-on-error: ${{ env.FORCE_UPDATE == 'true' }}
 
       - name: Quick clippy check
+        id: clippy
         run: |
           echo "🔍 Running clippy sanity check..."
           cargo clippy --locked --all-targets --all-features -- -D warnings
 
-      - name: Configure Git (Nebula identity)
+      - name: Configure Git (T-800 identity)
         run: |
-          echo "⚙️  Configuring Git as Nebula..."
-          git config --global user.name "oxyzenQ[Nebula]"
+          echo "⚙️  Configuring Git as T-800..."
+          git config --global user.name "oxyzenQ[T-800]"
           git config --global user.email "${{ secrets.GIT_EMAIL }}"
 
-          echo "✅ Git configured with Nebula identity"
+          git config --global commit.gpgsign false
+          git config --global tag.gpgsign false
+          git config --local commit.gpgsign false
+          git config --local tag.gpgsign false
+
+          echo "✅ Git configured with T-800 identity"
 
       - name: Check for changes
         id: check_changes
@@ -233,49 +269,155 @@ jobs:
         if: steps.check_changes.outputs.changed == 'true'
         run: |
           WORKFLOW_UPDATED="${{ env.workflows_updated }}"
+          ACTIONS_UPDATE_LOG="${{ env.actions_update_log }}"
 
-          if [ "$WORKFLOW_UPDATED" = "true" ]; then
-            TITLE="chore: auto-update dependencies & workflows"
-            BODY="🌌 Automated update by Nebula
-
-          📦 Rust Dependencies
-          - Updated via cargo update
-          - Security audit passed
-          - All tests passed
-
-          🔄 GitHub Actions
-          - Auto-updated workflow versions
-          - Ensured compatibility (same major version only)
-
-          🛡️ Validation
-          - ✅ Security audit (cargo-audit)
-          - ✅ Dependency policy (cargo-deny)
-          - ✅ Code formatting
-          - ✅ Build check (dev + release)
-          - ✅ Test suite
-          - ✅ Clippy check"
-          else
-            TITLE="chore(deps): auto-update dependencies"
-            BODY="🌌 Automated update by Nebula
-
-          📦 Rust Dependencies
-          - Updated via cargo update
-          - Security audit passed
-          - All tests passed
-
-          🛡️ Validation
-          - ✅ Security audit (cargo-audit)
-          - ✅ Dependency policy (cargo-deny)
-          - ✅ Code formatting
-          - ✅ Build check (dev + release)
-          - ✅ Test suite
-          - ✅ Clippy check"
+          PRE_AUDIT_VULNERABLE="${{ steps.pre_audit.outputs.vulnerable }}"
+          SECURITY_UPDATE="false"
+          if [ "${PRE_AUDIT_VULNERABLE}" = "true" ]; then
+            SECURITY_UPDATE="true"
           fi
+
+          CARGO_UPDATE_LOG="${{ env.cargo_update_log }}"
+          UPDATES_COUNT="0"
+          if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
+            UPDATES_COUNT="$(grep -E '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}" | wc -l | tr -d ' ')"
+          fi
+
+          BREAKING_UPDATE="false"
+          if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
+            while IFS= read -r line; do
+              if [[ "${line}" =~ ^[[:space:]]*(Updating|Downgrading)[[:space:]]+[^[:space:]]+[[:space:]]+v([0-9]+)\.([0-9]+)\.([0-9]+)[[:space:]]+\-\>[[:space:]]+v([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+                OLD_MAJOR="${BASH_REMATCH[2]}"
+                OLD_MINOR="${BASH_REMATCH[3]}"
+                NEW_MAJOR="${BASH_REMATCH[5]}"
+                NEW_MINOR="${BASH_REMATCH[6]}"
+
+                if [ "${OLD_MAJOR}" != "${NEW_MAJOR}" ]; then
+                  BREAKING_UPDATE="true"
+                  break
+                fi
+
+                if [ "${OLD_MAJOR}" = "0" ] && [ "${OLD_MINOR}" != "${NEW_MINOR}" ]; then
+                  BREAKING_UPDATE="true"
+                  break
+                fi
+              fi
+            done < "${CARGO_UPDATE_LOG}"
+          fi
+
+          LABELS=$'dependencies\nautomated\n🤖 bot'
+          if [ "${SECURITY_UPDATE}" = "true" ]; then
+            LABELS+=$'\nsecurity'
+          fi
+          if [ "${BREAKING_UPDATE}" = "true" ]; then
+            LABELS+=$'\nbreaking'
+          fi
+          if [ "${SECURITY_UPDATE}" != "true" ] && [ "${BREAKING_UPDATE}" != "true" ]; then
+            LABELS+=$'\nenhancement'
+          fi
+
+          echo "yamllabels<<EOF" >> "$GITHUB_OUTPUT"
+          printf "%s\n" "${LABELS}" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          if [ "${SECURITY_UPDATE}" = "true" ] && [ "${WORKFLOW_UPDATED}" = "true" ]; then
+            TITLE="fix(security): T-800 patches vulnerable deps + refreshes workflows"
+          elif [ "${SECURITY_UPDATE}" = "true" ]; then
+            TITLE="fix(security): T-800 patches vulnerable dependencies"
+          elif [ "${BREAKING_UPDATE}" = "true" ] && [ "${WORKFLOW_UPDATED}" = "true" ]; then
+            TITLE="chore(deps)!: T-800 recalibrates dependencies & workflows"
+          elif [ "${BREAKING_UPDATE}" = "true" ]; then
+            TITLE="chore(deps)!: T-800 dependency recalibration"
+          elif [ "${WORKFLOW_UPDATED}" = "true" ]; then
+            TITLE="chore: T-800 recalibrates dependencies & workflows"
+          else
+            TITLE="chore(deps): T-800 dependency recalibration"
+          fi
+
+          TESTS_OUTCOME="${{ steps.tests.outcome }}"
+          TESTS_STATUS="✅ passed"
+          if [ "${TESTS_OUTCOME}" != "success" ]; then
+            if [ "${FORCE_UPDATE}" = "true" ]; then
+              TESTS_STATUS="⚠️ failed (forced)"
+            else
+              TESTS_STATUS="❌ failed"
+            fi
+          fi
+
+          BASELINE_SECURITY_STATUS="✅ clean"
+          if [ "${SECURITY_UPDATE}" = "true" ]; then
+            BASELINE_SECURITY_STATUS="⚠️ advisories found"
+          fi
+
+          BODY=$(cat <<EOF
+🤖 Automated update by T-800
+
+## Summary
+- 📦 Rust dependencies updated via \`cargo update\` (${UPDATES_COUNT} changes)
+- 🔐 Security baseline (pre-update): ${BASELINE_SECURITY_STATUS}
+- 🔒 Security audit (post-update): ✅ passed
+- 🛡️ Dependency policy (cargo-deny): ✅ passed
+- 🎨 Formatting (cargo fmt): ✅ passed
+- 🔨 Build (dev + release): ✅ passed
+- 🧪 Tests: ${TESTS_STATUS}
+- 🔍 Clippy: ✅ passed
+EOF
+)
+
+          if [ "${WORKFLOW_UPDATED}" = "true" ] && [ -n "${ACTIONS_UPDATE_LOG}" ] && [ -s "${ACTIONS_UPDATE_LOG}" ]; then
+            BODY="${BODY}"$'\n\n'"## GitHub Actions updated"
+            while IFS= read -r line; do
+              [ -n "${line}" ] || continue
+              BODY="${BODY}"$'\n'"- ${line}"
+            done < "${ACTIONS_UPDATE_LOG}"
+          fi
+
+          if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
+            UPDATES_SECTION=false
+            while IFS= read -r line; do
+              [ -n "${line}" ] || continue
+
+              if [ "${UPDATES_SECTION}" != "true" ]; then
+                BODY="${BODY}"$'\n\n'"## Dependency updates (top 25)"
+                UPDATES_SECTION=true
+              fi
+
+              BODY="${BODY}"$'\n'"- ${line}"
+            done < <(grep -E '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}" | head -n 25 | sed -E 's/^[[:space:]]+//')
+          fi
+
+          if [ "${SECURITY_UPDATE}" = "true" ]; then
+            BODY="${BODY}"$'\n\n'"## Security"$'\n'"- Baseline audit found advisories before the update"
+          fi
+
+          if [ "${BREAKING_UPDATE}" = "true" ]; then
+            BODY="${BODY}"$'\n\n'"## Breaking change risk"$'\n'"- Detected a major (or 0.x minor) version jump in Cargo.lock"
+          fi
+
+          CO_AUTHOR_NAME="oxyzenQ"
+          CO_AUTHOR_EMAIL="${{ secrets.GIT_EMAIL }}"
+          CO_AUTHOR_TRAILER="Co-authored-by: ${CO_AUTHOR_NAME} <${CO_AUTHOR_EMAIL}>"
+
+          COMMIT_BODY="${BODY}"$'\n\n'"${CO_AUTHOR_TRAILER}"
 
           echo "title=$TITLE" >> $GITHUB_OUTPUT
           {
             echo "body<<EOF"
             echo "$BODY"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "commit_body<<EOF"
+            echo "$COMMIT_BODY"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+          {
+            echo "commit_message<<EOF"
+            echo "$TITLE"
+            echo ""
+            echo "$COMMIT_BODY"
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
@@ -286,8 +428,7 @@ jobs:
 
           git commit -s \
             -m "${{ steps.commit_msg.outputs.title }}" \
-            -m "" \
-            -m "${{ steps.commit_msg.outputs.body }}"
+            -m "${{ steps.commit_msg.outputs.commit_body }}"
 
           git push origin main
 
@@ -300,23 +441,21 @@ jobs:
         if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'pr'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.NEBULA_TOKEN }}
-          commit-message: "${{ steps.commit_msg.outputs.title }}"
+          token: ${{ env.BOT_TOKEN }}
+          commit-message: "${{ steps.commit_msg.outputs.commit_message }}"
           title: "${{ steps.commit_msg.outputs.title }}"
           body: "${{ steps.commit_msg.outputs.body }}"
-          branch: bot/nebula-auto-update
+          branch: bot/t-800-auto-update
           delete-branch: true
           signoff: true
-          labels: |
-            dependencies
-            automated
-          committer: oxyzenQ[Nebula] <${{ secrets.GIT_EMAIL }}>
-          author: oxyzenQ[Nebula] <${{ secrets.GIT_EMAIL }}>
+          labels: ${{ steps.commit_msg.outputs.yamllabels }}
+          committer: oxyzenQ[T-800] <${{ secrets.GIT_EMAIL }}>
+          author: oxyzenQ[T-800] <${{ secrets.GIT_EMAIL }}>
 
       - name: Summary
         run: |
           echo "════════════════════════════════════════════════════════"
-          echo "🌌 NEBULA - UPDATE SUMMARY"
+          echo "🤖 T-800 - UPDATE SUMMARY"
           echo "════════════════════════════════════════════════════════"
           echo ""
           echo "Strategy: ${{ env.UPDATE_STRATEGY }}"
@@ -331,7 +470,15 @@ jobs:
             fi
             echo "  - 📦 Rust dependencies updated"
             echo "  - 🔒 Security audit passed"
-            echo "  - 🧪 Tests validated"
+            if [ "${{ steps.tests.outcome }}" == "success" ]; then
+              echo "  - 🧪 Tests passed"
+            else
+              if [ "${{ env.FORCE_UPDATE }}" == "true" ]; then
+                echo "  - 🧪 Tests failed (forced)"
+              else
+                echo "  - 🧪 Tests failed"
+              fi
+            fi
             echo ""
 
             if [ "${{ env.UPDATE_STRATEGY }}" == "direct" ]; then
