@@ -442,7 +442,7 @@ jobs:
             -m "${{ steps.commit_msg.outputs.title }}" \
             -m "${{ steps.commit_msg.outputs.commit_body }}"
 
-          git push origin main
+          git push origin dev
 
           echo ""
           echo "✅ Updates pushed to main"
