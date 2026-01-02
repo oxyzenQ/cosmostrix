@@ -181,13 +181,13 @@ jobs:
 
       - name: Setup MSVC dev cmd (windows-amd64)
         if: matrix.target == 'x86_64-pc-windows-msvc'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@v1.13.0
         with:
           arch: x64
 
       - name: Setup MSVC dev cmd (windows-aarch64)
         if: matrix.target == 'aarch64-pc-windows-msvc' && runner.arch == 'X64'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@v1.13.0
         with:
           arch: amd64_arm64
 
