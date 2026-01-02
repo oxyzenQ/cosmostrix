@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
         with:
           token: ${{ env.BOT_TOKEN }}
           fetch-depth: 0
@@ -518,7 +518,7 @@ jobs:
       - name: Create pull request
         id: cpr
         if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'pr'
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v6.1.0
         with:
           token: ${{ env.BOT_TOKEN }}
           commit-message: "${{ steps.commit_msg.outputs.commit_message }}"
