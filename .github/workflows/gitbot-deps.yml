@@ -1,12 +1,12 @@
 # =============================================================================
-# AUTO DEPENDENCY UPDATE - T-800
+# AUTO DEPENDENCY UPDATE - T-800 (SIMPLIFIED)
 # =============================================================================
 # Features:
 # - Daily auto-update dependencies (08:00 WIB / 01:00 UTC)
 # - Self-healing: auto-updates GitHub Actions in workflows
 # - Security audit before commit
 # - Test validation
-# - Verified commits (no unverified badge)
+# - Signed-off commits (no GPG signing)
 # - Powered by T-800 automation
 
 name: "T-800 - Auto Update Dependencies"
@@ -43,7 +43,6 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  BOT_TOKEN: ${{ secrets.T800_TOKEN || secrets.NEBULA_TOKEN }}
   UPDATE_STRATEGY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.strategy || 'direct' }}
   FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_update || 'false' }}
   UPDATE_WORKFLOWS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.update_workflows || 'true' }}
@@ -58,7 +57,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ env.BOT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Setup Rust toolchain
@@ -114,7 +113,7 @@ jobs:
           : > "${ACTIONS_UPDATE_LOG}"
           : > "${SKIPPED_LOG}"
 
-          AUTH_HEADER="Authorization: Bearer ${BOT_TOKEN}"
+          AUTH_HEADER="Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"
           ALLOW_MAJOR="${{ env.ALLOW_MAJOR_UPDATES }}"
 
           for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
@@ -309,33 +308,6 @@ jobs:
           echo "🔍 Running clippy sanity check..."
           cargo clippy --locked --all-targets --all-features -- -D warnings
 
-      # =============================================================================
-      # CRITICAL FIX: Proper Git Configuration for Verified Commits
-      # =============================================================================
-      - name: Configure Git (T-800 verified identity)
-        run: |
-          echo "⚙️  Configuring Git as T-800 with verified identity..."
-
-          # CRITICAL: Use GitHub Actions bot email for verification
-          # This email is automatically verified by GitHub
-          git config --global user.name "oxyzenQ[T-800]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          # Explicitly disable GPG signing
-          git config --global commit.gpgsign false
-          git config --global tag.gpgsign false
-          git config --local commit.gpgsign false
-          git config --local tag.gpgsign false
-
-          # Verify configuration
-          echo ""
-          echo "✅ Git configuration:"
-          echo "   Name: $(git config user.name)"
-          echo "   Email: $(git config user.email)"
-          echo "   GPG Sign: $(git config commit.gpgsign)"
-          echo ""
-          echo "✅ This email is verified by GitHub Actions"
-
       - name: Check for changes
         id: check_changes
         run: |
@@ -462,6 +434,20 @@ jobs:
             done < "${ACTIONS_UPDATE_LOG}"
           fi
 
+          # Add skipped major updates notice
+          SKIPPED_MAJORS_LOG="${{ env.skipped_majors_log }}"
+          HAS_MAJOR_UPDATES="${{ env.workflows_has_major_updates }}"
+          if [ "${HAS_MAJOR_UPDATES}" = "true" ] && [ -n "${SKIPPED_MAJORS_LOG}" ] && [ -s "${SKIPPED_MAJORS_LOG}" ]; then
+            BODY="${BODY}"$'\n\n'"## ⚠️ Major version updates available (skipped)"
+            BODY="${BODY}"$'\n'"The following actions have major version updates available but were skipped for safety:"
+            BODY="${BODY}"$'\n'
+            while IFS= read -r line; do
+              [ -n "${line}" ] || continue
+              BODY="${BODY}"$'\n'"- ${line}"
+            done < "${SKIPPED_MAJORS_LOG}"
+            BODY="${BODY}"$'\n\n'"💡 To apply major updates, run this workflow manually with \`allow_major_updates=true\`"
+          fi
+
           if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
             UPDATES_SECTION=false
             while IFS= read -r line; do
@@ -484,10 +470,7 @@ jobs:
             BODY="${BODY}"$'\n\n'"## Breaking change risk"$'\n'"- Detected a major (or 0.x minor) version jump in Cargo.lock"
           fi
 
-          # Use GitHub Actions bot email for co-author
-          CO_AUTHOR_NAME="github-actions[bot]"
-          CO_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
-          CO_AUTHOR_TRAILER="Co-authored-by: ${CO_AUTHOR_NAME} <${CO_AUTHOR_EMAIL}>"
+          CO_AUTHOR_TRAILER="Co-authored-by: oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
 
           COMMIT_BODY="${BODY}"$'\n\n'"${CO_AUTHOR_TRAILER}"
 
@@ -509,9 +492,12 @@ jobs:
       - name: Commit and push changes
         if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'direct'
         run: |
-          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local commit.gpgsign false
+          git config --local tag.gpgsign false
 
-          # Commit with verified email
+          git add -A
           git commit --no-gpg-sign -s \
             -m "${{ steps.commit_msg.outputs.title }}" \
             -m "${{ steps.commit_msg.outputs.commit_body }}"
@@ -521,14 +507,13 @@ jobs:
           echo ""
           echo "✅ Updates pushed to dev branch"
           echo "📍 Commit: $(git rev-parse HEAD)"
-          echo "✅ Commit will show as VERIFIED (GitHub Actions bot email)"
 
       - name: Create pull request
         id: cpr
         if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'pr'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ env.BOT_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "${{ steps.commit_msg.outputs.commit_message }}"
           title: "${{ steps.commit_msg.outputs.title }}"
           body: "${{ steps.commit_msg.outputs.body }}"
@@ -536,9 +521,8 @@ jobs:
           delete-branch: true
           signoff: true
           labels: ${{ steps.commit_msg.outputs.yamllabels }}
-          # Use GitHub Actions bot email for verified commits
           committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          author: oxyzenQ[T-800] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
 
       - name: Summary
         run: |
@@ -548,6 +532,7 @@ jobs:
           echo ""
           echo "Strategy: ${{ env.UPDATE_STRATEGY }}"
           echo "Workflow Updates: ${{ env.UPDATE_WORKFLOWS }}"
+          echo "Allow Major Updates: ${{ env.ALLOW_MAJOR_UPDATES }}"
           echo ""
 
           if [ "${{ steps.check_changes.outputs.changed }}" == "true" ]; then
@@ -567,19 +552,30 @@ jobs:
                 echo "  - 🧪 Tests failed"
               fi
             fi
+
+            if [ "${{ env.workflows_has_major_updates }}" == "true" ]; then
+              echo ""
+              echo "⚠️  Major version updates available (not applied)"
+              echo "   Run with allow_major_updates=true to apply them"
+            fi
+
             echo ""
 
             if [ "${{ env.UPDATE_STRATEGY }}" == "direct" ]; then
               echo "✅ Changes pushed to dev branch"
               echo "📍 Commit: $(git rev-parse HEAD)"
-              echo "✅ Commits are VERIFIED (using GitHub Actions bot email)"
             else
               echo "✅ Pull request created"
               echo "🔗 PR: ${{ steps.cpr.outputs.pull-request-url }}"
-              echo "✅ PR commits are VERIFIED"
             fi
           else
             echo "✅ No updates needed - everything is current!"
+
+            if [ "${{ env.workflows_has_major_updates }}" == "true" ]; then
+              echo ""
+              echo "⚠️  Major version updates available (not applied)"
+              echo "   Run with allow_major_updates=true to apply them"
+            fi
           fi
 
           echo ""
