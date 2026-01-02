@@ -1,0 +1,977 @@
+desc: --time-unit=ms --max-snapshots=100 --massif-out-file=/home/rezky/Desktop/cosmostrix/benchmark/massif-30s.out
+cmd: /home/rezky/Desktop/cosmostrix/target/release/cosmostrix --duration 30
+time_unit: ms
+#-----------
+snapshot=0
+#-----------
+time=0
+mem_heap_B=0
+mem_heap_extra_B=0
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=1
+#-----------
+time=2836
+mem_heap_B=472
+mem_heap_extra_B=16
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=2
+#-----------
+time=2867
+mem_heap_B=8056
+mem_heap_extra_B=216
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=3
+#-----------
+time=4634
+mem_heap_B=8360
+mem_heap_extra_B=224
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=4
+#-----------
+time=5542
+mem_heap_B=222030
+mem_heap_extra_B=3042
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=5
+#-----------
+time=6175
+mem_heap_B=222214
+mem_heap_extra_B=3114
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=6
+#-----------
+time=6626
+mem_heap_B=222662
+mem_heap_extra_B=3146
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=7
+#-----------
+time=7375
+mem_heap_B=223142
+mem_heap_extra_B=3178
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=8
+#-----------
+time=7876
+mem_heap_B=223910
+mem_heap_extra_B=3242
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=9
+#-----------
+time=8509
+mem_heap_B=224102
+mem_heap_extra_B=3274
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=10
+#-----------
+time=9459
+mem_heap_B=225542
+mem_heap_extra_B=3258
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=11
+#-----------
+time=9992
+mem_heap_B=225734
+mem_heap_extra_B=3242
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=12
+#-----------
+time=10826
+mem_heap_B=225862
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=13
+#-----------
+time=11692
+mem_heap_B=226086
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=14
+#-----------
+time=12392
+mem_heap_B=226150
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=detailed
+n10: 226150 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 62176 0x402A02E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 62176 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 62176 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 62176 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 62176 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 62176 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 62176 0x402BA2B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 62176 0x40342D9: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 62176 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 62176 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 62176 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 62176 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n6: 46134 0x408EDD7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 16080 0x400B971: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 16080 0x402437B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 16080 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 16080 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 16080 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 16080 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 16080 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n2: 12288 0x400B817: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 8192 0x4024775: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 8192 0x40338A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 8192 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 8192 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 8192 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 8192 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n1: 4096 0x40247A8: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4096 0x40338A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4096 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4096 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4096 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 4096 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n4: 8064 0x4083E9D: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n2: 2688 0x40612F0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 2592 0x4077430: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n0: 2592 in 2 places, all below massif's threshold (1.00%)
+    n0: 96 in 1 place, below massif's threshold (1.00%)
+   n1: 2592 0x4076BA4: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n0: 2592 in 2 places, all below massif's threshold (1.00%)
+   n1: 2592 0x4076BE3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n0: 2592 in 2 places, all below massif's threshold (1.00%)
+   n0: 192 in 4 places, all below massif's threshold (1.00%)
+  n2: 4006 0x400BBF7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3886 0x40252E6: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3886 0x402410B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3886 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3886 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3886 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 3886 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 3886 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n0: 120 in 35 places, all below massif's threshold (1.00%)
+  n2: 3584 0x401E89E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n2: 3584 0x4061298: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3456 0x4077430: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n0: 3456 in 2 places, all below massif's threshold (1.00%)
+    n0: 128 in 1 place, below massif's threshold (1.00%)
+   n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 2112 in 11 places, all below massif's threshold (1.00%)
+ n1: 15544 0x402A0DE: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 15544 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 15544 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 15544 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 15544 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 15544 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n4: 13600 0x408ED6C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n2: 4544 0x401EB7F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 2496 0x402C628: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 2496 0x40342D9: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 2496 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 2496 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 2496 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 2496 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n0: 2048 in 1 place, below massif's threshold (1.00%)
+  n1: 4000 0x400BBF7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 4000 0x4024974: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4000 0x4024103: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4000 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4000 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4000 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 4000 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 4000 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n1: 3328 0x4059061: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3328 0x406112E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n2: 3328 0x4076B6C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3328 0x405B69A: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3328 0x406245C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3328 0x4057FCF: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 3328 0x4051E80: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+         n1: 3328 0x4032DDE: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+          n1: 3328 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+           n1: 3328 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+            n1: 3328 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+             n0: 3328 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+     n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 1728 in 5 places, all below massif's threshold (1.00%)
+ n0: 7274 in 139 places, all below massif's threshold (1.00%)
+ n1: 6144 0x402EF1D: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 6144 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 6144 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 6144 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+     n0: 6144 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 6144 0x408345B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 6144 0x40881E5: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 6144 0x4033C64: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 6144 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 6144 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 6144 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+       n0: 6144 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 3886 0x402A172: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 3886 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3886 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3886 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3886 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 3886 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 3072 0x40837C8: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 3072 0x40881E5: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3072 0x4033C64: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3072 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3072 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3072 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+       n0: 3072 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+#-----------
+snapshot=15
+#-----------
+time=12859
+mem_heap_B=226150
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=16
+#-----------
+time=13693
+mem_heap_B=226246
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=17
+#-----------
+time=14293
+mem_heap_B=226310
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=18
+#-----------
+time=14759
+mem_heap_B=226374
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=19
+#-----------
+time=15326
+mem_heap_B=226430
+mem_heap_extra_B=3210
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=20
+#-----------
+time=15793
+mem_heap_B=226566
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=21
+#-----------
+time=16526
+mem_heap_B=226630
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=22
+#-----------
+time=16959
+mem_heap_B=226822
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=23
+#-----------
+time=17625
+mem_heap_B=226822
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=24
+#-----------
+time=18559
+mem_heap_B=226886
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=25
+#-----------
+time=19292
+mem_heap_B=227142
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=26
+#-----------
+time=19792
+mem_heap_B=227206
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=27
+#-----------
+time=20359
+mem_heap_B=227206
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=28
+#-----------
+time=20859
+mem_heap_B=227206
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=29
+#-----------
+time=21676
+mem_heap_B=229574
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=peak
+n10: 229574 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 62176 0x402A02E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 62176 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 62176 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 62176 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 62176 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 62176 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 62176 0x402BA2B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 62176 0x40342D9: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 62176 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 62176 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 62176 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 62176 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n6: 46102 0x408EDD7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 16080 0x400B971: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 16080 0x402437B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 16080 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 16080 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 16080 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 16080 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 16080 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n2: 12288 0x400B817: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 8192 0x4024775: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 8192 0x40338A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 8192 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 8192 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 8192 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 8192 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n1: 4096 0x40247A8: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4096 0x40338A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4096 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4096 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4096 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 4096 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n4: 8064 0x4083E9D: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n2: 2688 0x40612F0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 2592 0x4077430: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n0: 2592 in 2 places, all below massif's threshold (1.00%)
+    n0: 96 in 1 place, below massif's threshold (1.00%)
+   n1: 2592 0x4076BA4: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n0: 2592 in 2 places, all below massif's threshold (1.00%)
+   n1: 2592 0x4076BE3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n0: 2592 in 2 places, all below massif's threshold (1.00%)
+   n0: 192 in 4 places, all below massif's threshold (1.00%)
+  n2: 4006 0x400BBF7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3886 0x40252E6: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3886 0x402410B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3886 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3886 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3886 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 3886 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 3886 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n0: 120 in 35 places, all below massif's threshold (1.00%)
+  n2: 3584 0x401E89E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n2: 3584 0x4061298: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3456 0x4077430: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n0: 3456 in 2 places, all below massif's threshold (1.00%)
+    n0: 128 in 1 place, below massif's threshold (1.00%)
+   n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 2080 in 11 places, all below massif's threshold (1.00%)
+ n4: 17056 0x408ED6C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n2: 8000 0x401EB7F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 4096 0x402A4C0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4096 0x40283F0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4096 0x40342A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4096 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4096 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 4096 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 4096 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n1: 3904 0x402C628: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3904 0x40342D9: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3904 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3904 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3904 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 3904 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n1: 4000 0x400BBF7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 4000 0x4024974: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4000 0x4024103: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4000 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4000 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4000 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 4000 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 4000 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n1: 3328 0x4059061: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3328 0x406112E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n2: 3328 0x4076B6C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3328 0x405B69A: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3328 0x406245C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3328 0x4057FCF: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 3328 0x4051E80: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+         n1: 3328 0x4032DDE: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+          n1: 3328 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+           n1: 3328 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+            n1: 3328 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+             n0: 3328 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+     n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 1728 in 5 places, all below massif's threshold (1.00%)
+ n1: 15544 0x402A0DE: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 15544 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 15544 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 15544 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 15544 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 15544 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n0: 7274 in 139 places, all below massif's threshold (1.00%)
+ n1: 6144 0x402EF1D: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 6144 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 6144 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 6144 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+     n0: 6144 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 6144 0x408345B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 6144 0x40881E5: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 6144 0x4033C64: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 6144 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 6144 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 6144 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+       n0: 6144 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 3886 0x402A172: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 3886 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3886 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3886 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3886 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 3886 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 3072 0x40837C8: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 3072 0x40881E5: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3072 0x4033C64: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3072 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3072 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3072 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+       n0: 3072 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+#-----------
+snapshot=30
+#-----------
+time=22343
+mem_heap_B=229702
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=detailed
+n10: 229702 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 62176 0x402A02E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 62176 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 62176 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 62176 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 62176 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 62176 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 62176 0x402BA2B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 62176 0x40342D9: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 62176 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 62176 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 62176 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 62176 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n6: 46102 0x408EDD7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 16080 0x400B971: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 16080 0x402437B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 16080 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 16080 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 16080 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 16080 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 16080 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n2: 12288 0x400B817: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 8192 0x4024775: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 8192 0x40338A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 8192 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 8192 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 8192 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 8192 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n1: 4096 0x40247A8: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4096 0x40338A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4096 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4096 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4096 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 4096 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n4: 8064 0x4083E9D: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n2: 2688 0x40612F0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 2592 0x4077430: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n0: 2592 in 2 places, all below massif's threshold (1.00%)
+    n0: 96 in 1 place, below massif's threshold (1.00%)
+   n1: 2592 0x4076BA4: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n0: 2592 in 2 places, all below massif's threshold (1.00%)
+   n1: 2592 0x4076BE3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n0: 2592 in 2 places, all below massif's threshold (1.00%)
+   n0: 192 in 4 places, all below massif's threshold (1.00%)
+  n2: 4006 0x400BBF7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3886 0x40252E6: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3886 0x402410B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3886 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3886 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3886 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 3886 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 3886 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n0: 120 in 35 places, all below massif's threshold (1.00%)
+  n2: 3584 0x401E89E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n2: 3584 0x4061298: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3456 0x4077430: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n0: 3456 in 2 places, all below massif's threshold (1.00%)
+    n0: 128 in 1 place, below massif's threshold (1.00%)
+   n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 2080 in 11 places, all below massif's threshold (1.00%)
+ n4: 17184 0x408ED6C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n2: 8128 0x401EB7F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 4096 0x402A4C0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4096 0x40283F0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4096 0x40342A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4096 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4096 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 4096 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 4096 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n1: 4032 0x402C628: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4032 0x40342D9: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4032 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4032 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4032 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 4032 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n1: 4000 0x400BBF7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 4000 0x4024974: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4000 0x4024103: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4000 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4000 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4000 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 4000 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 4000 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n1: 3328 0x4059061: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3328 0x406112E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n2: 3328 0x4076B6C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3328 0x405B69A: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3328 0x406245C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3328 0x4057FCF: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 3328 0x4051E80: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+         n1: 3328 0x4032DDE: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+          n1: 3328 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+           n1: 3328 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+            n1: 3328 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+             n0: 3328 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+     n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 1728 in 5 places, all below massif's threshold (1.00%)
+ n1: 15544 0x402A0DE: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 15544 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 15544 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 15544 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 15544 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 15544 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n0: 7274 in 139 places, all below massif's threshold (1.00%)
+ n1: 6144 0x402EF1D: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 6144 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 6144 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 6144 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+     n0: 6144 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 6144 0x408345B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 6144 0x40881E5: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 6144 0x4033C64: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 6144 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 6144 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 6144 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+       n0: 6144 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 3886 0x402A172: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 3886 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3886 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3886 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3886 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 3886 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 3072 0x40837C8: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 3072 0x40881E5: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3072 0x4033C64: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3072 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3072 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3072 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+       n0: 3072 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+#-----------
+snapshot=31
+#-----------
+time=22842
+mem_heap_B=229958
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=32
+#-----------
+time=23376
+mem_heap_B=230086
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=33
+#-----------
+time=24209
+mem_heap_B=230278
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=34
+#-----------
+time=24875
+mem_heap_B=230406
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=35
+#-----------
+time=25809
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=36
+#-----------
+time=26476
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=37
+#-----------
+time=27109
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=38
+#-----------
+time=27542
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=39
+#-----------
+time=28176
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=40
+#-----------
+time=28709
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=41
+#-----------
+time=29509
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=42
+#-----------
+time=30142
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=43
+#-----------
+time=30476
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=44
+#-----------
+time=31176
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=45
+#-----------
+time=32142
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=46
+#-----------
+time=32842
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=47
+#-----------
+time=33509
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=48
+#-----------
+time=33976
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=49
+#-----------
+time=34509
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=50
+#-----------
+time=34542
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=51
+#-----------
+time=34575
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=52
+#-----------
+time=34609
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=53
+#-----------
+time=34642
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=54
+#-----------
+time=34676
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=detailed
+n10: 230534 (heap allocation functions) malloc/new/new[], --alloc-fns, etc.
+ n1: 62176 0x402A02E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 62176 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 62176 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 62176 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 62176 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 62176 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 62176 0x402BA2B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 62176 0x40342D9: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 62176 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 62176 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 62176 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 62176 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n6: 46102 0x408EDD7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 16080 0x400B971: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 16080 0x402437B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 16080 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 16080 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 16080 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 16080 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 16080 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n2: 12288 0x400B817: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 8192 0x4024775: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 8192 0x40338A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 8192 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 8192 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 8192 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 8192 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n1: 4096 0x40247A8: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4096 0x40338A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4096 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4096 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4096 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 4096 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n4: 8064 0x4083E9D: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n2: 2688 0x40612F0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 2592 0x4077430: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n0: 2592 in 2 places, all below massif's threshold (1.00%)
+    n0: 96 in 1 place, below massif's threshold (1.00%)
+   n1: 2592 0x4076BA4: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n0: 2592 in 2 places, all below massif's threshold (1.00%)
+   n1: 2592 0x4076BE3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n0: 2592 in 2 places, all below massif's threshold (1.00%)
+   n0: 192 in 4 places, all below massif's threshold (1.00%)
+  n2: 4006 0x400BBF7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3886 0x40252E6: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3886 0x402410B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3886 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3886 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3886 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 3886 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 3886 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n0: 120 in 35 places, all below massif's threshold (1.00%)
+  n2: 3584 0x401E89E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n2: 3584 0x4061298: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3456 0x4077430: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n0: 3456 in 2 places, all below massif's threshold (1.00%)
+    n0: 128 in 1 place, below massif's threshold (1.00%)
+   n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 2080 in 11 places, all below massif's threshold (1.00%)
+ n4: 18016 0x408ED6C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n2: 8960 0x401EB7F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 4864 0x402C628: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4864 0x40342D9: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4864 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4864 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4864 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+        n0: 4864 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+   n1: 4096 0x402A4C0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4096 0x40283F0: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4096 0x40342A7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4096 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4096 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 4096 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 4096 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n1: 4000 0x400BBF7: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 4000 0x4024974: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 4000 0x4024103: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 4000 0x40338B3: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 4000 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 4000 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 4000 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+         n0: 4000 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+  n1: 3328 0x4059061: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3328 0x406112E: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n2: 3328 0x4076B6C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3328 0x405B69A: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3328 0x406245C: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+       n1: 3328 0x4057FCF: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+        n1: 3328 0x4051E80: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+         n1: 3328 0x4032DDE: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+          n1: 3328 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+           n1: 3328 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+            n1: 3328 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+             n0: 3328 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+     n0: 0 in 1 place, below massif's threshold (1.00%)
+  n0: 1728 in 5 places, all below massif's threshold (1.00%)
+ n1: 15544 0x402A0DE: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 15544 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 15544 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 15544 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 15544 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 15544 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n0: 7274 in 139 places, all below massif's threshold (1.00%)
+ n1: 6144 0x402EF1D: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 6144 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 6144 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 6144 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+     n0: 6144 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 6144 0x408345B: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 6144 0x40881E5: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 6144 0x4033C64: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 6144 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 6144 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 6144 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+       n0: 6144 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 3886 0x402A172: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 3886 0x4033936: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3886 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3886 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3886 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+      n0: 3886 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+ n1: 3072 0x40837C8: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+  n1: 3072 0x40881E5: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+   n1: 3072 0x4033C64: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+    n1: 3072 0x4019EF2: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+     n1: 3072 0x403E75F: ??? (in /home/rezky/Desktop/cosmostrix/target/release/cosmostrix)
+      n1: 3072 0x4ABAB8A: ??? (in /usr/lib/libc.so.6)
+       n0: 3072 0x4ABAC4A: (below main) (in /usr/lib/libc.so.6)
+#-----------
+snapshot=55
+#-----------
+time=34709
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=56
+#-----------
+time=34743
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty
+#-----------
+snapshot=57
+#-----------
+time=34774
+mem_heap_B=230534
+mem_heap_extra_B=3226
+mem_stacks_B=0
+heap_tree=empty

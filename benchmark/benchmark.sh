@@ -35,13 +35,23 @@ JOBS="$(get_jobs)"
 
 echo "[2/5] Hyperfine (if available)"
 if have hyperfine; then
-  hyperfine \
-    --warmup 3 \
-    --runs 10 \
-    --time-limit 30 \
-    "$DEBUG_BIN --duration $DURATION_SECS" \
-    "$RELEASE_BIN --duration $DURATION_SECS" \
-    --export-markdown "$BENCH_DIR/hyperfine.md"
+  if hyperfine --help 2>/dev/null | grep -q -- "--time-limit"; then
+    hyperfine \
+      --warmup 3 \
+      --runs 10 \
+      --time-limit "$DURATION_SECS" \
+      "$DEBUG_BIN --duration $DURATION_SECS" \
+      "$RELEASE_BIN --duration $DURATION_SECS" \
+      --export-markdown "$BENCH_DIR/hyperfine.md"
+  else
+    echo "- hyperfine does not support --time-limit; falling back to fewer runs."
+    hyperfine \
+      --warmup 1 \
+      --runs 3 \
+      "$DEBUG_BIN --duration $DURATION_SECS" \
+      "$RELEASE_BIN --duration $DURATION_SECS" \
+      --export-markdown "$BENCH_DIR/hyperfine.md"
+  fi
 else
   echo "- hyperfine not found; skipping."
 fi
