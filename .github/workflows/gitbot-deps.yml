@@ -1,11 +1,12 @@
 # =============================================================================
-# AUTO DEPENDENCY UPDATE - T-800
+# AUTO DEPENDENCY UPDATE - T-800 (SIMPLIFIED)
 # =============================================================================
 # Features:
 # - Daily auto-update dependencies (08:00 WIB / 01:00 UTC)
 # - Self-healing: auto-updates GitHub Actions in workflows
 # - Security audit before commit
 # - Test validation
+# - Signed-off commits (no GPG signing)
 # - Powered by T-800 automation
 
 name: "T-800 - Auto Update Dependencies"
@@ -30,6 +31,10 @@ name: "T-800 - Auto Update Dependencies"
         description: "Also update GitHub Actions versions"
         type: boolean
         default: true
+      allow_major_updates:
+        description: "Allow major version updates for GitHub Actions"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -38,10 +43,12 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  BOT_TOKEN: ${{ secrets.T800_TOKEN || secrets.NEBULA_TOKEN }}
+  BOT_TOKEN: ${{ secrets.T800_TOKEN || github.token }}
+  HAS_PAT: ${{ secrets.T800_TOKEN != '' }}
   UPDATE_STRATEGY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.strategy || 'direct' }}
   FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_update || 'false' }}
   UPDATE_WORKFLOWS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.update_workflows || 'true' }}
+  ALLOW_MAJOR_UPDATES: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.allow_major_updates || 'false' }}
 
 jobs:
   auto-update:
@@ -89,18 +96,27 @@ jobs:
       # SELF-HEALING: AUTO-UPDATE GITHUB ACTIONS VERSIONS
       # =============================================================================
       - name: 🤖 Self-Update GitHub Actions
-        if: env.UPDATE_WORKFLOWS == 'true'
+        if: env.UPDATE_WORKFLOWS == 'true' && env.HAS_PAT == 'true'
         run: |
           echo "════════════════════════════════════════════════════════"
           echo "🔍 Scanning for outdated GitHub Actions..."
+          if [ "${{ env.ALLOW_MAJOR_UPDATES }}" = "true" ]; then
+            echo "⚡ Mode: AGGRESSIVE (includes major version updates)"
+          else
+            echo "🛡️  Mode: SAFE (minor/patch updates only)"
+          fi
           echo "════════════════════════════════════════════════════════"
 
           UPDATED=false
           UPDATES_LOG=""
+          SKIPPED_MAJORS=""
           ACTIONS_UPDATE_LOG="${RUNNER_TEMP}/actions-updates.log"
+          SKIPPED_LOG="${RUNNER_TEMP}/skipped-majors.log"
           : > "${ACTIONS_UPDATE_LOG}"
+          : > "${SKIPPED_LOG}"
 
           AUTH_HEADER="Authorization: Bearer ${BOT_TOKEN}"
+          ALLOW_MAJOR="${{ env.ALLOW_MAJOR_UPDATES }}"
 
           for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
             [ -f "$workflow" ] || continue
@@ -117,6 +133,7 @@ jobs:
               echo "  🔎 Checking: $ACTION @ $CURRENT_VER"
 
               if [[ "$ACTION" == */* ]]; then
+                # Get latest release
                 LATEST_TAG=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$ACTION/releases/latest" | grep -oP '"tag_name":\s*"\K[^"]+' || echo "")
 
                 if [ -z "$LATEST_TAG" ]; then
@@ -130,16 +147,46 @@ jobs:
                   LATEST_MAJOR="${LATEST_TAG#v}"
                   LATEST_MAJOR="${LATEST_MAJOR%%.*}"
 
-                  if [ "$CURRENT_MAJOR" == "$LATEST_MAJOR" ]; then
+                  # Check if major version changed
+                  if [ "$CURRENT_MAJOR" != "$LATEST_MAJOR" ]; then
+                    if [ "$ALLOW_MAJOR" = "true" ]; then
+                      echo "    ⚡ Major update available: $CURRENT_VER → $LATEST_TAG (applying)"
+                      sed -i "s|$ACTION@$CURRENT_VER|$ACTION@$LATEST_TAG|g" "$workflow"
+                      UPDATED=true
+                      UPDATES_LOG="${UPDATES_LOG}\n  - $ACTION: $CURRENT_VER → $LATEST_TAG ⚡ (major)"
+                      echo "$ACTION: $CURRENT_VER -> $LATEST_TAG (major)" >> "${ACTIONS_UPDATE_LOG}"
+                    else
+                      echo "    ⚠️  Major version available: $CURRENT_VER → $LATEST_TAG (skipped, enable allow_major_updates)"
+                      SKIPPED_MAJORS="${SKIPPED_MAJORS}\n  - $ACTION: $CURRENT_VER → $LATEST_TAG"
+                      echo "$ACTION: $CURRENT_VER -> $LATEST_TAG" >> "${SKIPPED_LOG}"
+
+                      # Still try to get latest patch in current major version
+                      ALL_TAGS=$(curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/$ACTION/tags" | grep -oP '"name":\s*"v\K[0-9]+(\.[0-9]+)*' || echo "")
+                      LATEST_IN_MAJOR=""
+                      while IFS= read -r tag; do
+                        [ -z "$tag" ] && continue
+                        TAG_MAJOR="${tag%%.*}"
+                        if [ "$TAG_MAJOR" = "$CURRENT_MAJOR" ]; then
+                          LATEST_IN_MAJOR="v$tag"
+                          break
+                        fi
+                      done <<< "$ALL_TAGS"
+
+                      if [ -n "$LATEST_IN_MAJOR" ] && [ "$LATEST_IN_MAJOR" != "$CURRENT_VER" ]; then
+                        echo "    ✨ Patch update available: $CURRENT_VER → $LATEST_IN_MAJOR"
+                        sed -i "s|$ACTION@$CURRENT_VER|$ACTION@$LATEST_IN_MAJOR|g" "$workflow"
+                        UPDATED=true
+                        UPDATES_LOG="${UPDATES_LOG}\n  - $ACTION: $CURRENT_VER → $LATEST_IN_MAJOR"
+                        echo "$ACTION: $CURRENT_VER -> $LATEST_IN_MAJOR" >> "${ACTIONS_UPDATE_LOG}"
+                      fi
+                    fi
+                  else
+                    # Same major version, safe to update
                     echo "    ✨ Update available: $CURRENT_VER → $LATEST_TAG"
-
                     sed -i "s|$ACTION@$CURRENT_VER|$ACTION@$LATEST_TAG|g" "$workflow"
-
                     UPDATED=true
                     UPDATES_LOG="${UPDATES_LOG}\n  - $ACTION: $CURRENT_VER → $LATEST_TAG"
                     echo "$ACTION: $CURRENT_VER -> $LATEST_TAG" >> "${ACTIONS_UPDATE_LOG}"
-                  else
-                    echo "    ⚠️  Major version change detected ($CURRENT_VER → $LATEST_TAG), skipping"
                   fi
                 else
                   echo "    ✅ Already up-to-date"
@@ -152,14 +199,26 @@ jobs:
           echo "════════════════════════════════════════════════════════"
 
           echo "actions_update_log=${ACTIONS_UPDATE_LOG}" >> "$GITHUB_ENV"
+          echo "skipped_majors_log=${SKIPPED_LOG}" >> "$GITHUB_ENV"
 
           if [ "$UPDATED" = true ]; then
             echo "✨ GitHub Actions updated successfully!"
             echo -e "$UPDATES_LOG"
             echo "workflows_updated=true" >> "$GITHUB_ENV"
           else
-            echo "✅ All GitHub Actions are up-to-date"
+            echo "✅ All GitHub Actions are up-to-date (in current major versions)"
             echo "workflows_updated=false" >> "$GITHUB_ENV"
+          fi
+
+          if [ -s "${SKIPPED_LOG}" ]; then
+            echo ""
+            echo "⚠️  Skipped major version updates:"
+            echo -e "$SKIPPED_MAJORS"
+            echo ""
+            echo "💡 To update major versions, run workflow_dispatch with allow_major_updates=true"
+            echo "workflows_has_major_updates=true" >> "$GITHUB_ENV"
+          else
+            echo "workflows_has_major_updates=false" >> "$GITHUB_ENV"
           fi
 
           echo "════════════════════════════════════════════════════════"
@@ -250,19 +309,6 @@ jobs:
         run: |
           echo "🔍 Running clippy sanity check..."
           cargo clippy --locked --all-targets --all-features -- -D warnings
-
-      - name: Configure Git (T-800 identity)
-        run: |
-          echo "⚙️  Configuring Git as T-800..."
-          git config --global user.name "oxyzenQ[T-800]"
-          git config --global user.email "${{ secrets.GIT_EMAIL }}"
-
-          git config --global commit.gpgsign false
-          git config --global tag.gpgsign false
-          git config --local commit.gpgsign false
-          git config --local tag.gpgsign false
-
-          echo "✅ Git configured with T-800 identity"
 
       - name: Check for changes
         id: check_changes
@@ -390,6 +436,20 @@ jobs:
             done < "${ACTIONS_UPDATE_LOG}"
           fi
 
+          # Add skipped major updates notice
+          SKIPPED_MAJORS_LOG="${{ env.skipped_majors_log }}"
+          HAS_MAJOR_UPDATES="${{ env.workflows_has_major_updates }}"
+          if [ "${HAS_MAJOR_UPDATES}" = "true" ] && [ -n "${SKIPPED_MAJORS_LOG}" ] && [ -s "${SKIPPED_MAJORS_LOG}" ]; then
+            BODY="${BODY}"$'\n\n'"## ⚠️ Major version updates available (skipped)"
+            BODY="${BODY}"$'\n'"The following actions have major version updates available but were skipped for safety:"
+            BODY="${BODY}"$'\n'
+            while IFS= read -r line; do
+              [ -n "${line}" ] || continue
+              BODY="${BODY}"$'\n'"- ${line}"
+            done < "${SKIPPED_MAJORS_LOG}"
+            BODY="${BODY}"$'\n\n'"💡 To apply major updates, run this workflow manually with \`allow_major_updates=true\`"
+          fi
+
           if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
             UPDATES_SECTION=false
             while IFS= read -r line; do
@@ -412,11 +472,7 @@ jobs:
             BODY="${BODY}"$'\n\n'"## Breaking change risk"$'\n'"- Detected a major (or 0.x minor) version jump in Cargo.lock"
           fi
 
-          CO_AUTHOR_NAME="oxyzenQ"
-          CO_AUTHOR_EMAIL="${{ secrets.GIT_EMAIL }}"
-          CO_AUTHOR_TRAILER="Co-authored-by: ${CO_AUTHOR_NAME} <${CO_AUTHOR_EMAIL}>"
-
-          COMMIT_BODY="${BODY}"$'\n\n'"${CO_AUTHOR_TRAILER}"
+          COMMIT_BODY="${BODY}"
 
           {
             echo "title=$TITLE"
@@ -436,16 +492,27 @@ jobs:
       - name: Commit and push changes
         if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'direct'
         run: |
-          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local commit.gpgsign false
+          git config --local tag.gpgsign false
 
-          git commit -s \
+          if [ "${HAS_PAT}" != "true" ]; then
+            if git diff --name-only | grep -q '^\.github/workflows/'; then
+              echo "⚠️  Workflow file changes detected but no PAT is configured; dropping workflow changes to avoid push rejection"
+              git restore .github/workflows
+            fi
+          fi
+
+          git add -A
+          git commit --no-gpg-sign -s \
             -m "${{ steps.commit_msg.outputs.title }}" \
             -m "${{ steps.commit_msg.outputs.commit_body }}"
 
           git push origin main
 
           echo ""
-          echo "✅ Updates pushed to main"
+          echo "✅ Updates pushed to main branch"
           echo "📍 Commit: $(git rev-parse HEAD)"
 
       - name: Create pull request
@@ -461,8 +528,8 @@ jobs:
           delete-branch: true
           signoff: true
           labels: ${{ steps.commit_msg.outputs.yamllabels }}
-          committer: oxyzenQ[T-800] <${{ secrets.GIT_EMAIL }}>
-          author: oxyzenQ[T-800] <${{ secrets.GIT_EMAIL }}>
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
 
       - name: Summary
         run: |
@@ -472,6 +539,7 @@ jobs:
           echo ""
           echo "Strategy: ${{ env.UPDATE_STRATEGY }}"
           echo "Workflow Updates: ${{ env.UPDATE_WORKFLOWS }}"
+          echo "Allow Major Updates: ${{ env.ALLOW_MAJOR_UPDATES }}"
           echo ""
 
           if [ "${{ steps.check_changes.outputs.changed }}" == "true" ]; then
@@ -491,10 +559,17 @@ jobs:
                 echo "  - 🧪 Tests failed"
               fi
             fi
+
+            if [ "${{ env.workflows_has_major_updates }}" == "true" ]; then
+              echo ""
+              echo "⚠️  Major version updates available (not applied)"
+              echo "   Run with allow_major_updates=true to apply them"
+            fi
+
             echo ""
 
             if [ "${{ env.UPDATE_STRATEGY }}" == "direct" ]; then
-              echo "✅ Changes pushed to main"
+              echo "✅ Changes pushed to main branch"
               echo "📍 Commit: $(git rev-parse HEAD)"
             else
               echo "✅ Pull request created"
@@ -502,6 +577,12 @@ jobs:
             fi
           else
             echo "✅ No updates needed - everything is current!"
+
+            if [ "${{ env.workflows_has_major_updates }}" == "true" ]; then
+              echo ""
+              echo "⚠️  Major version updates available (not applied)"
+              echo "   Run with allow_major_updates=true to apply them"
+            fi
           fi
 
           echo ""
