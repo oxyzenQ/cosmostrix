@@ -43,6 +43,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  BOT_TOKEN: ${{ secrets.T800_TOKEN || github.token }}
+  HAS_PAT: ${{ secrets.T800_TOKEN != '' }}
   UPDATE_STRATEGY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.strategy || 'direct' }}
   FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_update || 'false' }}
   UPDATE_WORKFLOWS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.update_workflows || 'true' }}
@@ -57,7 +59,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ env.BOT_TOKEN }}
           fetch-depth: 0
 
       - name: Setup Rust toolchain
@@ -94,7 +96,7 @@ jobs:
       # SELF-HEALING: AUTO-UPDATE GITHUB ACTIONS VERSIONS
       # =============================================================================
       - name: 🤖 Self-Update GitHub Actions
-        if: env.UPDATE_WORKFLOWS == 'true'
+        if: env.UPDATE_WORKFLOWS == 'true' && env.HAS_PAT == 'true'
         run: |
           echo "════════════════════════════════════════════════════════"
           echo "🔍 Scanning for outdated GitHub Actions..."
@@ -113,7 +115,7 @@ jobs:
           : > "${ACTIONS_UPDATE_LOG}"
           : > "${SKIPPED_LOG}"
 
-          AUTH_HEADER="Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"
+          AUTH_HEADER="Authorization: Bearer ${BOT_TOKEN}"
           ALLOW_MAJOR="${{ env.ALLOW_MAJOR_UPDATES }}"
 
           for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
@@ -497,6 +499,13 @@ jobs:
           git config --local commit.gpgsign false
           git config --local tag.gpgsign false
 
+          if [ "${HAS_PAT}" != "true" ]; then
+            if git diff --name-only | grep -q '^\.github/workflows/'; then
+              echo "⚠️  Workflow file changes detected but no PAT is configured; dropping workflow changes to avoid push rejection"
+              git restore .github/workflows
+            fi
+          fi
+
           git add -A
           git commit --no-gpg-sign -s \
             -m "${{ steps.commit_msg.outputs.title }}" \
@@ -513,7 +522,7 @@ jobs:
         if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'pr'
         uses: peter-evans/create-pull-request@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ env.BOT_TOKEN }}
           commit-message: "${{ steps.commit_msg.outputs.commit_message }}"
           title: "${{ steps.commit_msg.outputs.title }}"
           body: "${{ steps.commit_msg.outputs.body }}"
