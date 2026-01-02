@@ -2,8 +2,6 @@
 
 Cosmostrix is a cosmic take on the classic Matrix rain for the terminal.
 
-It is a clean-room Rust migration of an older ncurses-based terminal project.
-
 ## Demo
 
 Watch the demo on YouTube:
@@ -50,17 +48,31 @@ cargo run -- --color green --fps 60 --speed 10
 Build a release binary:
 
 ```bash
+# native local machine
 cargo build --release
+
+# build with specific cpu
+cargo pro-linux-v3
+
+# See detail options to build
+cargo --list
 ```
 
 Run the built binary:
 
 ```bash
+# Native local machine
+
 # Linux/macOS
 ./target/release/cosmostrix --help
 
 # Windows (PowerShell)
 .\target\release\cosmostrix.exe --help
+
+# Cross-compile target
+
+# Cross-compile for x86_64 Linux
+./target/x86_64-unknown-linux-gnu/release/cosmostrix --info
 ```
 
 ## Installation
@@ -76,7 +88,7 @@ Download the package for your OS/arch from Releases, verify the checksum, extrac
 
  - Linux x86_64: `linux-x86_64-v1` (most compatible), `linux-x86_64-v2`, `linux-x86_64-v3`, `linux-x86_64-v4`
  - macOS: `darwin-x86_64-native` (Intel), `darwin-aarch64-native` (Apple Silicon)
- - Windows: `windows-x86_64-v1`/`v2`/`v3`/`v4` (x86_64), `windows-aarch64-native` (ARM64)
+ - Windows: `windows-x86_64-v1`/`v2`/`v3`/`v4` (x86_64), `windows-aarch64-native` (AARCH64)
  - Android (Termux): `android-aarch64-native`
 
  You can confirm what you downloaded/installed by running `cosmostrix -i` (it prints a `build:` line).

@@ -1,3 +1,6 @@
+[build]
+jobs = 8
+
 [alias]
 pro = "build --profile pro"
 
@@ -77,10 +80,10 @@ pro-macos-intel-native = [
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=native\"]",
 ]
-pro-macos-arm64-native = [
+pro-macos-aarch64-native = [
   "build",
   "--profile",
-  "pro-macos-arm64-native",
+  "pro-macos-aarch64-native",
   "--target",
   "aarch64-apple-darwin",
   "--config",
@@ -146,7 +149,7 @@ pro-win-v4 = [
   "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
 ]
 
-pro-android-arm64 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"; TARGET="aarch64-linux-android"; TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"; export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"; export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"; COSMOSTRIX_BUILD="android-aarch64-native" cargo build --profile pro-android-arm64 --target "${TARGET}"'"""
+pro-android-aarch64 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"; TARGET="aarch64-linux-android"; TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"; export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"; export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"; COSMOSTRIX_BUILD="android-aarch64-native" cargo build --profile pro-android-aarch64 --target "${TARGET}"'"""
 
 pro-android-armv7 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"; TARGET="armv7-linux-androideabi"; TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"; export CC_armv7_linux_androideabi="${TOOLCHAIN}/bin/armv7a-linux-androideabi21-clang"; export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="${CC_armv7_linux_androideabi}"; COSMOSTRIX_BUILD="android-armv7-native" cargo build --profile pro-android-armv7 --target "${TARGET}"'"""
 

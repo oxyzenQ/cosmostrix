@@ -77,11 +77,27 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Set cargo build jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(nproc 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS=2
+          fi
+          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
+
       - name: Tests
         run: cargo test --all --locked
 
       - name: Build (debug)
-        run: cargo build --profile dev --locked
+        run: cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
 
   macos_build:
     name: T-800 - Build (macos native)
@@ -96,7 +112,7 @@ jobs:
             profile: pro-macos-intel-native
           - os: macos-latest
             target: aarch64-apple-darwin
-            profile: pro-macos-arm64-native
+            profile: pro-macos-aarch64-native
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,16 +127,32 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Set cargo build jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(nproc 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS=2
+          fi
+          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
+
       - name: Add Rust target
         run: rustup target add ${{ matrix.target }}
 
       - name: Build
         env:
           RUSTFLAGS: "-C target-cpu=native"
-        run: cargo build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }}
+        run: cargo build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
   android_build:
-    name: T-800 - Build (android-arm64)
+    name: T-800 - Build (android-aarch64)
     runs-on: ubuntu-latest
     needs: build_test
     if: github.event_name == 'push'
@@ -138,6 +170,22 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Set cargo build jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(nproc 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS=2
+          fi
+          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -153,7 +201,7 @@ jobs:
       - name: Add Rust target
         run: rustup target add aarch64-linux-android
 
-      - name: Build (android-arm64)
+      - name: Build (android-aarch64)
         shell: bash
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
@@ -165,10 +213,10 @@ jobs:
           export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"
 
-          cargo build --profile pro-android-arm64 --locked --target "${TARGET}"
+          cargo build --profile pro-android-aarch64 --locked --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
 
-  linux_arm64_build:
-    name: T-800 - Build (linux arm64)
+  linux_aarch64_build:
+    name: T-800 - Build (linux aarch64)
     runs-on: ubuntu-latest
     needs: build_test
     steps:
@@ -185,7 +233,23 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Install Linux arm64 linker
+      - name: Set cargo build jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(nproc 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS=2
+          fi
+          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
+
+      - name: Install Linux aarch64 linker
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
@@ -196,10 +260,10 @@ jobs:
       - name: Build
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-        run: cargo build --profile pro --locked --target aarch64-unknown-linux-gnu
+        run: cargo build --profile pro --locked --target aarch64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
-  windows_arm64_build:
-    name: T-800 - Build (windows arm64)
+  windows_aarch64_build:
+    name: T-800 - Build (windows aarch64)
     runs-on: windows-latest
     needs: windows_build
     steps:
@@ -216,6 +280,14 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Set cargo build jobs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $jobs = $env:NUMBER_OF_PROCESSORS
+          if (-not $jobs) { $jobs = 2 }
+          "CARGO_BUILD_JOBS=$jobs" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Add Rust target
         run: rustup target add aarch64-pc-windows-msvc
 
@@ -225,7 +297,8 @@ jobs:
           arch: amd64_arm64
 
       - name: Build
-        run: cargo build --profile pro --locked --target aarch64-pc-windows-msvc
+        shell: pwsh
+        run: cargo build --profile pro --locked --target aarch64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
 
   linux_cpu_variants:
     name: T-800 - Build (linux x86_64 variants)
@@ -259,10 +332,26 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Set cargo build jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(nproc 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS=2
+          fi
+          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
+
       - name: Build
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
-        run: cargo build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu
+        run: cargo build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
   windows_cpu_variants:
     name: T-800 - Build (windows x86_64 variants)
@@ -296,6 +385,14 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Set cargo build jobs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $jobs = $env:NUMBER_OF_PROCESSORS
+          if (-not $jobs) { $jobs = 2 }
+          "CARGO_BUILD_JOBS=$jobs" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Setup MSVC dev cmd
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -304,7 +401,8 @@ jobs:
       - name: Build
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
-        run: cargo build --profile ${{ matrix.profile }} --locked --target x86_64-pc-windows-msvc
+        shell: pwsh
+        run: cargo build --profile ${{ matrix.profile }} --locked --target x86_64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
 
   windows_build:
     name: T-800 - Build (windows)
@@ -323,8 +421,17 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Set cargo build jobs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $jobs = $env:NUMBER_OF_PROCESSORS
+          if (-not $jobs) { $jobs = 2 }
+          "CARGO_BUILD_JOBS=$jobs" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Build (debug)
-        run: cargo build --profile dev --locked
+        shell: pwsh
+        run: cargo build --profile dev --locked --jobs "$env:CARGO_BUILD_JOBS"
 
   fmt_clippy:
     name: T-800 - Format + Clippy

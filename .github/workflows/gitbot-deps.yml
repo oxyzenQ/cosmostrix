@@ -69,6 +69,22 @@ jobs:
         with:
           cache-on-failure: true
 
+      - name: Set cargo build jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(nproc 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS=2
+          fi
+          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
+
       # =============================================================================
       # SELF-HEALING: AUTO-UPDATE GITHUB ACTIONS VERSIONS
       # =============================================================================
@@ -212,9 +228,9 @@ jobs:
         id: build
         run: |
           echo "🔨 Building with updated dependencies..."
-          cargo build --profile dev --locked
-          cargo build --profile release --locked
-          RUSTFLAGS="-C target-cpu=x86-64" cargo build --profile pro-linux-v1 --locked --target x86_64-unknown-linux-gnu
+          cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
+          cargo build --profile release --locked --jobs "${CARGO_BUILD_JOBS}"
+          RUSTFLAGS="-C target-cpu=x86-64" cargo build --profile pro-linux-v1 --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
           echo ""
           echo "✅ Build successful with updated deps"
@@ -281,7 +297,10 @@ jobs:
           CARGO_UPDATE_LOG="${{ env.cargo_update_log }}"
           UPDATES_COUNT="0"
           if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
-            UPDATES_COUNT="$(grep -cE '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}")"
+            UPDATES_COUNT="$(grep -cE '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}" || true)"
+            if [ -z "${UPDATES_COUNT}" ]; then
+              UPDATES_COUNT="0"
+            fi
           fi
 
           BREAKING_UPDATE="false"
@@ -382,7 +401,7 @@ jobs:
               fi
 
               BODY="${BODY}"$'\n'"- ${line}"
-            done < <(grep -E '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}" | head -n 25 | sed -E 's/^[[:space:]]+//')
+            done < <((grep -E '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}" || true) | head -n 25 | sed -E 's/^[[:space:]]+//')
           fi
 
           if [ "${SECURITY_UPDATE}" = "true" ]; then

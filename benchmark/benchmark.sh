@@ -11,11 +11,27 @@ DURATION_SECS="${DURATION_SECS:-30}"
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+get_jobs() {
+  local jobs
+  jobs="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+  if [[ -z "${jobs}" ]]; then
+    jobs="$(nproc 2>/dev/null || true)"
+  fi
+  if [[ -z "${jobs}" ]]; then
+    jobs="$(sysctl -n hw.ncpu 2>/dev/null || true)"
+  fi
+  if [[ -z "${jobs}" ]]; then
+    jobs=2
+  fi
+  echo "${jobs}"
+}
+
 echo "=== Cosmostrix Benchmark (${DURATION_SECS}s limit) ==="
 
 echo "[1/5] Build (debug + release)"
-(cargo build --profile dev) >/dev/null
-(cargo build --profile release) >/dev/null
+JOBS="$(get_jobs)"
+(cargo build --profile dev --jobs "${JOBS}") >/dev/null
+(cargo build --profile release --jobs "${JOBS}") >/dev/null
 
 echo "[2/5] Hyperfine (if available)"
 if have hyperfine; then

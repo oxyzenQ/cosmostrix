@@ -62,7 +62,7 @@ inherits = "pro"
 [profile.pro-macos-intel-native]
 inherits = "pro"
 
-[profile.pro-macos-arm64-native]
+[profile.pro-macos-aarch64-native]
 inherits = "pro"
 
 [profile.pro-win-native]
@@ -80,7 +80,7 @@ inherits = "pro"
 [profile.pro-win-v4]
 inherits = "pro"
 
-[profile.pro-android-arm64]
+[profile.pro-android-aarch64]
 inherits = "pro"
 
 [profile.pro-android-armv7]
