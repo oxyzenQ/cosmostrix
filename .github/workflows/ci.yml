@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -43,7 +43,7 @@ jobs:
     needs: security
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain (MSRV)
         uses: dtolnay/rust-toolchain@stable
@@ -64,7 +64,7 @@ jobs:
     needs: [security, msrv]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -115,7 +115,7 @@ jobs:
             profile: pro-macos-aarch64-native
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -158,7 +158,7 @@ jobs:
     if: github.event_name == 'push'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -187,7 +187,7 @@ jobs:
           echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v4.8.0
         with:
           distribution: temurin
           java-version: "17"
@@ -221,7 +221,7 @@ jobs:
     needs: build_test
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -268,7 +268,7 @@ jobs:
     needs: windows_build
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -320,7 +320,7 @@ jobs:
             rustflags: "-C target-cpu=native"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -373,7 +373,7 @@ jobs:
             rustflags: "-C target-cpu=native"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -409,7 +409,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -439,7 +439,7 @@ jobs:
     needs: build_test
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -464,7 +464,7 @@ jobs:
     needs: build_test
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.3.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
