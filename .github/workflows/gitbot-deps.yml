@@ -472,9 +472,7 @@ jobs:
             BODY="${BODY}"$'\n\n'"## Breaking change risk"$'\n'"- Detected a major (or 0.x minor) version jump in Cargo.lock"
           fi
 
-          CO_AUTHOR_TRAILER="Co-authored-by: oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>"
-
-          COMMIT_BODY="${BODY}"$'\n\n'"${CO_AUTHOR_TRAILER}"
+          COMMIT_BODY="${BODY}"
 
           {
             echo "title=$TITLE"
