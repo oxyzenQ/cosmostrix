@@ -438,7 +438,7 @@ jobs:
         run: |
           git add -A
 
-          git commit -s \
+          git commit --no-gpg-sign -s \
             -m "${{ steps.commit_msg.outputs.title }}" \
             -m "${{ steps.commit_msg.outputs.commit_body }}"
 

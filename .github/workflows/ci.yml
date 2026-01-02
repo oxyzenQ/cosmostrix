@@ -292,7 +292,7 @@ jobs:
         run: rustup target add aarch64-pc-windows-msvc
 
       - name: Setup MSVC dev cmd
-        uses: ilammy/msvc-dev-cmd@v1.13.0
+        uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64_arm64
 
