@@ -6,7 +6,7 @@ Cosmostrix is a cosmic take on the classic Matrix rain for the terminal.
 
 ## Demo
 
-![Demo](assets/demo-cosmostrix-v1.0.2.alpha.2-highquality.gif)
+![Demo](assets/demo-cosmostrix-v1.0.2.alpha.2-optimized.gif)
 
 Watch the demo on YouTube:
 
