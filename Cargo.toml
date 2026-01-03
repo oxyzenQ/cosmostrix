@@ -1,6 +1,6 @@
 [package]
 name = "cosmostrix"
-version = "1.0.3-alpha.2"
+version = "1.0.3-stable.1"
 edition = "2021"
 rust-version = "1.81"
 authors = ["rezky_nightky"]
