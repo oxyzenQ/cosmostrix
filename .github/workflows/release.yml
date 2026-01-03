@@ -245,7 +245,7 @@ jobs:
             $outLines = & $bin -i
             $out = ($outLines | ForEach-Object { $_.TrimEnd("`r") }) -join "`n"
             $out
-            $pat = "(?m)^(build|Build): " + [regex]::Escape($build) + "( \\([0-9a-f]+\\))?\\s*$"
+            $pat = "(?m)^(build|Build): " + [regex]::Escape($build) + "( \([0-9a-f]+\))?\s*$"
             if ($out -notmatch $pat) {
               throw "Expected build id '$build' in cosmostrix -i output"
             }
