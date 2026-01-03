@@ -1,4 +1,4 @@
-// Copyright (c) 2025 rezk_nightky
+// Copyright (c) 2026 rezky_nightky
 
 mod cell;
 mod charset;
@@ -184,6 +184,29 @@ fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
         "fancy-diamond" | "fancy_diamond" | "fancydiamond" => Ok(ColorScheme::FancyDiamond),
         "cosmos" => Ok(ColorScheme::Cosmos),
         "nebula" => Ok(ColorScheme::Nebula),
+        "spectrum20" | "spectrum-20" | "spectrum_20" | "theme20" | "theme-20" | "theme_20" => {
+            Ok(ColorScheme::Spectrum20)
+        }
+        "stars" | "star" => Ok(ColorScheme::Stars),
+        "mars" => Ok(ColorScheme::Mars),
+        "venus" => Ok(ColorScheme::Venus),
+        "mercury" => Ok(ColorScheme::Mercury),
+        "jupiter" => Ok(ColorScheme::Jupiter),
+        "saturn" => Ok(ColorScheme::Saturn),
+        "uranus" => Ok(ColorScheme::Uranus),
+        "neptune" => Ok(ColorScheme::Neptune),
+        "pluto" => Ok(ColorScheme::Pluto),
+        "moon" => Ok(ColorScheme::Moon),
+        "sun" => Ok(ColorScheme::Sun),
+        "comet" => Ok(ColorScheme::Comet),
+        "galaxy" => Ok(ColorScheme::Galaxy),
+        "supernova" | "super-nova" | "super_nova" => Ok(ColorScheme::Supernova),
+        "blackhole" | "black-hole" | "black_hole" => Ok(ColorScheme::BlackHole),
+        "andromeda" => Ok(ColorScheme::Andromeda),
+        "stardust" | "star-dust" | "star_dust" => Ok(ColorScheme::Stardust),
+        "meteor" => Ok(ColorScheme::Meteor),
+        "eclipse" => Ok(ColorScheme::Eclipse),
+        "deepspace" | "deep-space" | "deep_space" => Ok(ColorScheme::DeepSpace),
         _ => Err(format!("invalid color: {} (see --list-colors)", s)),
     }
 }
@@ -290,11 +313,11 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.info {
-        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-        println!("build: {}", build_info());
-        println!();
-        println!("author: {}", env!("CARGO_PKG_AUTHORS"));
-        println!("{}", env!("CARGO_PKG_DESCRIPTION"));
+        println!("Version: v{}", env!("CARGO_PKG_VERSION"));
+        println!("Build: {}", build_info());
+        println!("Copyright: (c) 2026 {}", env!("CARGO_PKG_AUTHORS"));
+        println!("License: {}", env!("CARGO_PKG_LICENSE"));
+        println!("Source: {}", env!("CARGO_PKG_REPOSITORY"));
         return Ok(());
     }
 

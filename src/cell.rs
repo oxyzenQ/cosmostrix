@@ -1,4 +1,4 @@
-// Copyright (c) 2025 rezk_nightky
+// Copyright (c) 2026 rezky_nightky
 
 use crossterm::style::Color;
 

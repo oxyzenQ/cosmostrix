@@ -3,9 +3,10 @@ name = "cosmostrix"
 version = "1.0.2-alpha.2"
 edition = "2021"
 rust-version = "1.81"
-authors = ["rezk_nightky"]
+authors = ["rezky_nightky"]
 description = "A cosmic take on the classic Matrix rain for the terminal"
 license = "MIT"
+repository = "https://github.com/oxyzenq/cosmostrix"
 build = "build.rs"
 
 [dependencies]

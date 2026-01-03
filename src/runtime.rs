@@ -1,4 +1,4 @@
-// Copyright (c) 2025 rezk_nightky
+// Copyright (c) 2026 rezky_nightky
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ColorMode {
@@ -46,4 +46,25 @@ pub enum ColorScheme {
     FancyDiamond,
     Cosmos,
     Nebula,
+    Spectrum20,
+    Stars,
+    Mars,
+    Venus,
+    Mercury,
+    Jupiter,
+    Saturn,
+    Uranus,
+    Neptune,
+    Pluto,
+    Moon,
+    Sun,
+    Comet,
+    Galaxy,
+    Supernova,
+    BlackHole,
+    Andromeda,
+    Stardust,
+    Meteor,
+    Eclipse,
+    DeepSpace,
 }

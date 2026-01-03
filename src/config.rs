@@ -1,4 +1,4 @@
-// Copyright (c) 2025 rezk_nightky
+// Copyright (c) 2026 rezky_nightky
 
 use std::io::IsTerminal;
 use std::str::FromStr;
@@ -425,12 +425,33 @@ pub fn print_list_colors() {
     println!("ocean        Ocean theme (alias: deep-sea)");
     println!("forest       Forest theme (alias: jungle)");
     println!("vaporwave    Vaporwave theme");
+    println!("spectrum20   Spectrum 20-color theme (aliases: theme20, spectrum-20)");
     println!("gray         Gray theme (alias: grey)");
     println!("snow         Snow / ice theme");
     println!("aurora       Aurora theme");
     println!("fancy-diamond Fancy diamond theme");
     println!("cosmos       Cosmos theme");
     println!("nebula       Nebula theme");
+    println!("stars        Stars theme");
+    println!("mars         Mars theme");
+    println!("venus        Venus theme");
+    println!("mercury      Mercury theme");
+    println!("jupiter      Jupiter theme");
+    println!("saturn       Saturn theme");
+    println!("uranus       Uranus theme");
+    println!("neptune      Neptune theme");
+    println!("pluto        Pluto theme");
+    println!("moon         Moon theme");
+    println!("sun          Sun theme");
+    println!("comet        Comet theme");
+    println!("galaxy       Galaxy theme");
+    println!("supernova    Supernova theme");
+    println!("blackhole    Black hole theme");
+    println!("andromeda    Andromeda theme");
+    println!("stardust     Stardust theme");
+    println!("meteor       Meteor theme");
+    println!("eclipse      Eclipse theme");
+    println!("deepspace    Deep space theme");
 }
 
 pub fn print_help_detail() {

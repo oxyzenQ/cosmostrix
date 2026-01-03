@@ -1,4 +1,4 @@
-// Copyright (c) 2025 rezk_nightky
+// Copyright (c) 2026 rezky_nightky
 
 use crossterm::style::Color;
 
@@ -12,6 +12,150 @@ pub struct Palette {
 
 fn from_ansi_list(list: &[u8]) -> Vec<Color> {
     list.iter().map(|&v| Color::AnsiValue(v)).collect()
+}
+
+fn from_rgb_list(list: &[(u8, u8, u8)]) -> Vec<Color> {
+    list.iter()
+        .map(|&(r, g, b)| Color::Rgb { r, g, b })
+        .collect()
+}
+
+fn dist2(r0: u8, g0: u8, b0: u8, r1: u8, g1: u8, b1: u8) -> i32 {
+    let dr = (r0 as i32) - (r1 as i32);
+    let dg = (g0 as i32) - (g1 as i32);
+    let db = (b0 as i32) - (b1 as i32);
+    (dr * dr) + (dg * dg) + (db * db)
+}
+
+fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
+    const CUBE_LEVELS: [u8; 6] = [0, 95, 135, 175, 215, 255];
+
+    let r6 = ((r as u16 * 5) + 127) / 255;
+    let g6 = ((g as u16 * 5) + 127) / 255;
+    let b6 = ((b as u16 * 5) + 127) / 255;
+
+    let cr = CUBE_LEVELS[r6 as usize];
+    let cg = CUBE_LEVELS[g6 as usize];
+    let cb = CUBE_LEVELS[b6 as usize];
+    let cube_idx = 16 + (36 * r6 as u8) + (6 * g6 as u8) + (b6 as u8);
+    let cube_dist = dist2(r, g, b, cr, cg, cb);
+
+    let avg = ((r as u16 + g as u16 + b as u16) / 3) as u8;
+    let gray_idx = if avg < 8 {
+        16
+    } else if avg > 238 {
+        231
+    } else {
+        232 + ((avg - 8) / 10)
+    };
+    let (gr, gg, gb) = if gray_idx == 16 {
+        (0, 0, 0)
+    } else if gray_idx == 231 {
+        (255, 255, 255)
+    } else {
+        let v = 8 + 10 * (gray_idx - 232);
+        (v, v, v)
+    };
+    let gray_dist = dist2(r, g, b, gr, gg, gb);
+
+    if gray_dist < cube_dist {
+        gray_idx
+    } else {
+        cube_idx
+    }
+}
+
+fn rgb_to_color16(r: u8, g: u8, b: u8) -> Color {
+    const TABLE: [(Color, (u8, u8, u8)); 16] = [
+        (Color::Black, (0, 0, 0)),
+        (Color::DarkGrey, (128, 128, 128)),
+        (Color::Grey, (192, 192, 192)),
+        (Color::White, (255, 255, 255)),
+        (Color::DarkRed, (128, 0, 0)),
+        (Color::Red, (255, 0, 0)),
+        (Color::DarkGreen, (0, 128, 0)),
+        (Color::Green, (0, 255, 0)),
+        (Color::DarkBlue, (0, 0, 128)),
+        (Color::Blue, (0, 0, 255)),
+        (Color::DarkCyan, (0, 128, 128)),
+        (Color::Cyan, (0, 255, 255)),
+        (Color::DarkMagenta, (128, 0, 128)),
+        (Color::Magenta, (255, 0, 255)),
+        (Color::DarkYellow, (128, 128, 0)),
+        (Color::Yellow, (255, 255, 0)),
+    ];
+
+    let mut best = Color::White;
+    let mut best_d = i32::MAX;
+    for (c, (cr, cg, cb)) in TABLE {
+        let d = dist2(r, g, b, cr, cg, cb);
+        if d < best_d {
+            best_d = d;
+            best = c;
+        }
+    }
+    best
+}
+
+fn colors_from_rgb(mode: ColorMode, list: &[(u8, u8, u8)]) -> Vec<Color> {
+    match mode {
+        ColorMode::Mono => vec![Color::White],
+        ColorMode::TrueColor => from_rgb_list(list),
+        ColorMode::Color256 => list
+            .iter()
+            .map(|&(r, g, b)| Color::AnsiValue(rgb_to_ansi256(r, g, b)))
+            .collect(),
+        ColorMode::Color16 => list
+            .iter()
+            .map(|&(r, g, b)| rgb_to_color16(r, g, b))
+            .collect(),
+    }
+}
+
+fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
+    let a = a as f32;
+    let b = b as f32;
+    (a + (b - a) * t).round().clamp(0.0, 255.0) as u8
+}
+
+fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
+    if steps == 0 || stops.is_empty() {
+        return Vec::new();
+    }
+    if stops.len() == 1 {
+        return vec![stops[0]; steps];
+    }
+    if steps == 1 {
+        return vec![stops[0]];
+    }
+
+    let segs = stops.len().saturating_sub(1);
+    let mut out = Vec::with_capacity(steps);
+    for i in 0..steps {
+        let t = (i as f32) / ((steps - 1) as f32);
+        let pos = t * (segs as f32);
+        let mut seg = pos.floor() as usize;
+        if seg >= segs {
+            seg = segs.saturating_sub(1);
+        }
+        let lt = pos - (seg as f32);
+        let (r0, g0, b0) = stops[seg];
+        let (r1, g1, b1) = stops[seg + 1];
+        out.push((
+            lerp_u8(r0, r1, lt),
+            lerp_u8(g0, g1, lt),
+            lerp_u8(b0, b1, lt),
+        ));
+    }
+    out
+}
+
+fn colors_from_stops(mode: ColorMode, stops: &[(u8, u8, u8)], steps: usize) -> Vec<Color> {
+    if matches!(mode, ColorMode::Mono) {
+        return vec![Color::White];
+    }
+    let rgb = gradient_from_stops(stops, steps);
+    colors_from_rgb(mode, &rgb)
 }
 
 pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: bool) -> Palette {
@@ -173,6 +317,162 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
             ColorMode::Color16 => vec![Color::Magenta, Color::Red, Color::Blue, Color::White],
             _ => from_ansi_list(&[53, 54, 90, 126, 162, 198, 201, 207, 213, 219, 225]),
         },
+        ColorScheme::Spectrum20 => match mode {
+            ColorMode::Mono => vec![Color::White],
+            ColorMode::Color16 => vec![
+                Color::DarkGrey,
+                Color::DarkRed,
+                Color::Red,
+                Color::DarkYellow,
+                Color::Yellow,
+                Color::DarkGreen,
+                Color::Green,
+                Color::DarkCyan,
+                Color::Cyan,
+                Color::DarkBlue,
+                Color::Blue,
+                Color::DarkMagenta,
+                Color::Magenta,
+                Color::DarkGrey,
+                Color::Grey,
+                Color::White,
+                Color::Cyan,
+                Color::Yellow,
+                Color::Magenta,
+                Color::White,
+            ],
+            ColorMode::TrueColor => from_rgb_list(&[
+                (0, 0, 0),
+                (128, 0, 0),
+                (255, 0, 0),
+                (255, 64, 0),
+                (255, 128, 0),
+                (255, 191, 0),
+                (255, 255, 0),
+                (191, 255, 0),
+                (128, 255, 0),
+                (0, 255, 0),
+                (0, 255, 128),
+                (0, 255, 191),
+                (0, 255, 255),
+                (0, 191, 255),
+                (0, 128, 255),
+                (0, 0, 255),
+                (128, 0, 255),
+                (191, 0, 255),
+                (255, 0, 255),
+                (255, 255, 255),
+            ]),
+            _ => from_ansi_list(&[
+                234, 52, 88, 124, 160, 196, 202, 208, 214, 226, 190, 154, 118, 82, 51, 39, 27, 93,
+                201, 231,
+            ]),
+        },
+        ColorScheme::Stars => colors_from_stops(
+            mode,
+            &[(0, 0, 0), (10, 10, 40), (80, 160, 255), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Mars => colors_from_stops(
+            mode,
+            &[(20, 0, 0), (120, 10, 10), (220, 60, 20), (255, 235, 220)],
+            9,
+        ),
+        ColorScheme::Venus => colors_from_stops(
+            mode,
+            &[(10, 10, 0), (120, 90, 30), (255, 220, 120), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Mercury => colors_from_stops(
+            mode,
+            &[(0, 0, 0), (64, 64, 64), (160, 160, 160), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Jupiter => colors_from_stops(
+            mode,
+            &[(20, 10, 0), (120, 60, 20), (200, 140, 90), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Saturn => colors_from_stops(
+            mode,
+            &[
+                (20, 20, 10),
+                (140, 120, 60),
+                (230, 210, 150),
+                (255, 255, 255),
+            ],
+            9,
+        ),
+        ColorScheme::Uranus => colors_from_stops(
+            mode,
+            &[(0, 10, 10), (0, 120, 130), (120, 255, 255), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Neptune => colors_from_stops(
+            mode,
+            &[(0, 0, 20), (0, 40, 140), (0, 140, 255), (240, 255, 255)],
+            9,
+        ),
+        ColorScheme::Pluto => colors_from_stops(
+            mode,
+            &[(10, 5, 0), (90, 60, 40), (180, 190, 210), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Moon => colors_from_stops(
+            mode,
+            &[(0, 0, 0), (90, 100, 120), (200, 210, 220), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Sun => colors_from_stops(
+            mode,
+            &[(40, 0, 0), (200, 60, 0), (255, 200, 0), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Comet => colors_from_stops(
+            mode,
+            &[(0, 0, 20), (0, 100, 160), (180, 255, 255), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Galaxy => colors_from_stops(
+            mode,
+            &[(10, 0, 20), (60, 0, 120), (180, 60, 255), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Supernova => colors_from_stops(
+            mode,
+            &[(20, 0, 40), (180, 0, 60), (255, 120, 0), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::BlackHole => colors_from_stops(
+            mode,
+            &[(0, 0, 0), (20, 0, 40), (40, 0, 80), (200, 120, 255)],
+            9,
+        ),
+        ColorScheme::Andromeda => colors_from_stops(
+            mode,
+            &[(0, 0, 20), (50, 0, 120), (255, 80, 200), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Stardust => colors_from_stops(
+            mode,
+            &[(10, 0, 20), (120, 60, 200), (80, 200, 255), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Meteor => colors_from_stops(
+            mode,
+            &[(20, 10, 0), (180, 60, 0), (255, 170, 0), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::Eclipse => colors_from_stops(
+            mode,
+            &[(0, 0, 0), (40, 0, 60), (255, 120, 0), (255, 255, 255)],
+            9,
+        ),
+        ColorScheme::DeepSpace => colors_from_stops(
+            mode,
+            &[(0, 0, 0), (0, 10, 40), (0, 80, 160), (200, 120, 255)],
+            9,
+        ),
     };
 
     if default_background {
