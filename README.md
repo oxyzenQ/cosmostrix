@@ -307,18 +307,21 @@ You can override with:
 
 ## Runtime controls (keys)
 
-Controls are handled in `src/main.rs`:
+Interactive controls (while running)
+These hotkeys now work in the main loop (no CLI changes needed):
 
 ```text
- Esc / q        quit
- Space          reset
+ q / Esc        quit
+ p              pause/resume
+ Space          reset/reseed animation
+ Up / Down      increase/decrease speed (--speed effect)
+ [ / -          decrease density
+ ] / +          increase density
+ c              cycle to next theme (includes your new space themes)
+ C              cycle to previous theme
  a              toggle async mode
- p              pause/unpause
- Up/Down        change speed
  Left/Right     change glitch percent
  Tab            toggle shading mode
- -              decrease density
- + / =          increase density
 
  1              green
  2              green2
