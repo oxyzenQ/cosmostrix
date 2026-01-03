@@ -110,6 +110,7 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             profile: pro-macos-aarch64-native
+            build: darwin-aarch64-native
     steps:
       - name: Checkout
         uses: actions/checkout@v4.3.1
@@ -146,7 +147,18 @@ jobs:
       - name: Build
         env:
           RUSTFLAGS: "-C target-cpu=native"
+          COSMOSTRIX_BUILD: ${{ matrix.build }}
         run: cargo build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+
+      - name: Verify build id
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
+          BUILD_ID="${{ matrix.build }}"
+          OUT="$(${BIN} -i)"
+          echo "${OUT}"
+          echo "${OUT}" | grep -E "^(build|Build): ${BUILD_ID}( \\([0-9a-f]+\\))?$"
 
   android_build:
     name: T-800 - Build (android-aarch64)
@@ -202,6 +214,7 @@ jobs:
         shell: bash
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+          COSMOSTRIX_BUILD: android-aarch64-native
         run: |
           set -euo pipefail
           TARGET="aarch64-linux-android"
@@ -211,6 +224,19 @@ jobs:
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"
 
           cargo build --profile pro-android-aarch64 --locked --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
+
+      - name: Verify build id
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="target/aarch64-linux-android/pro-android-aarch64/cosmostrix"
+          BUILD_ID="android-aarch64-native"
+          echo "Verifying embedded build id in binary: ${BUILD_ID}"
+          if command -v strings >/dev/null 2>&1; then
+            strings "${BIN}" | grep -F "${BUILD_ID}"
+          else
+            grep -aF "${BUILD_ID}" "${BIN}"
+          fi
 
   linux_aarch64_build:
     name: T-800 - Build (linux aarch64)
@@ -257,7 +283,21 @@ jobs:
       - name: Build
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          COSMOSTRIX_BUILD: linux-aarch64-native
         run: cargo build --profile pro --locked --target aarch64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+
+      - name: Verify build id
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="target/aarch64-unknown-linux-gnu/pro/cosmostrix"
+          BUILD_ID="linux-aarch64-native"
+          echo "Verifying embedded build id in binary: ${BUILD_ID}"
+          if command -v strings >/dev/null 2>&1; then
+            strings "${BIN}" | grep -F "${BUILD_ID}"
+          else
+            grep -aF "${BUILD_ID}" "${BIN}"
+          fi
 
   windows_aarch64_build:
     name: T-800 - Build (windows aarch64)
@@ -295,7 +335,22 @@ jobs:
 
       - name: Build
         shell: pwsh
+        env:
+          COSMOSTRIX_BUILD: windows-aarch64-native
         run: cargo build --profile pro --locked --target aarch64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
+
+      - name: Verify build id
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bin = "target/aarch64-pc-windows-msvc/pro/cosmostrix.exe"
+          $build = "windows-aarch64-native"
+          Write-Host "Verifying embedded build id in binary: $build"
+          $bytes = [System.IO.File]::ReadAllBytes($bin)
+          $text = [System.Text.Encoding]::ASCII.GetString($bytes)
+          if (-not $text.Contains($build)) {
+            throw "Expected embedded build id '$build' in binary"
+          }
 
   linux_cpu_variants:
     name: T-800 - Build (linux x86_64 variants)
@@ -307,12 +362,16 @@ jobs:
         include:
           - profile: pro-linux-v1
             rustflags: "-C target-cpu=x86-64"
+            build: linux-x86_64-v1
           - profile: pro-linux-v2
             rustflags: "-C target-cpu=x86-64-v2"
+            build: linux-x86_64-v2
           - profile: pro-linux-v3
             rustflags: "-C target-cpu=x86-64-v3"
+            build: linux-x86_64-v3
           - profile: pro-linux-v4
             rustflags: "-C target-cpu=x86-64-v4"
+            build: linux-x86_64-v4
     steps:
       - name: Checkout
         uses: actions/checkout@v4.3.1
@@ -346,7 +405,28 @@ jobs:
       - name: Build
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
+          COSMOSTRIX_BUILD: ${{ matrix.build }}
         run: cargo build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+
+      - name: Verify build id
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="target/x86_64-unknown-linux-gnu/${{ matrix.profile }}/cosmostrix"
+          BUILD_ID="${{ matrix.build }}"
+
+          if [[ "${BUILD_ID}" == *-v4 ]]; then
+            echo "Skipping execution for ${BUILD_ID} (may require AVX-512); verifying embedded build id in binary"
+            if command -v strings >/dev/null 2>&1; then
+              strings "${BIN}" | grep -F "${BUILD_ID}"
+            else
+              grep -aF "${BUILD_ID}" "${BIN}"
+            fi
+          else
+            OUT="$(${BIN} -i)"
+            echo "${OUT}"
+            echo "${OUT}" | grep -E "^(build|Build): ${BUILD_ID}( \\([0-9a-f]+\\))?$"
+          fi
 
   windows_build:
     name: T-800 - Build (windows)
@@ -376,6 +456,27 @@ jobs:
       - name: Build (debug)
         shell: pwsh
         run: cargo build --profile dev --locked --jobs "$env:CARGO_BUILD_JOBS"
+
+      - name: Build (release)
+        shell: pwsh
+        env:
+          COSMOSTRIX_BUILD: windows-x86_64
+          RUSTFLAGS: "-C target-cpu=x86-64"
+        run: cargo build --profile pro-win-x86_64 --locked --target x86_64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
+
+      - name: Verify build id
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bin = "target/x86_64-pc-windows-msvc/pro-win-x86_64/cosmostrix.exe"
+          $build = "windows-x86_64"
+          $outLines = & $bin -i
+          $out = ($outLines | ForEach-Object { $_.TrimEnd("`r") }) -join "`n"
+          $out
+          $pat = "(?m)^(build|Build): " + [regex]::Escape($build) + "( \\([0-9a-f]+\\))?\\s*$"
+          if ($out -notmatch $pat) {
+            throw "Expected build id '$build' in cosmostrix -i output"
+          }
 
   fmt_clippy:
     name: T-800 - Format + Clippy
