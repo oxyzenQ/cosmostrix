@@ -43,26 +43,12 @@ jobs:
             rustflags: "-C target-cpu=x86-64-v4"
             build: linux-x86_64-v4
             checks: false
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            platform: linux-x86_64-native
-            profile: pro-linux-native
-            rustflags: "-C target-cpu=native"
-            build: linux-x86_64-native
-            checks: false
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             platform: linux-aarch64-native
             profile: pro
             rustflags: "-C target-cpu=native"
             build: linux-aarch64-native
-            checks: false
-          - os: macos-15-intel
-            target: x86_64-apple-darwin
-            platform: darwin-x86_64-native
-            profile: pro-macos-intel-native
-            rustflags: "-C target-cpu=native"
-            build: darwin-x86_64-native
             checks: false
           - os: macos-latest
             target: aarch64-apple-darwin
@@ -73,38 +59,10 @@ jobs:
             checks: false
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            platform: windows-x86_64-v1
-            profile: pro-win-v1
+            platform: windows-x86_64
+            profile: pro-win-x86_64
             rustflags: "-C target-cpu=x86-64"
-            build: windows-x86_64-v1
-            checks: false
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            platform: windows-x86_64-v2
-            profile: pro-win-v2
-            rustflags: "-C target-cpu=x86-64-v2"
-            build: windows-x86_64-v2
-            checks: false
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            platform: windows-x86_64-v3
-            profile: pro-win-v3
-            rustflags: "-C target-cpu=x86-64-v3"
-            build: windows-x86_64-v3
-            checks: false
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            platform: windows-x86_64-v4
-            profile: pro-win-v4
-            rustflags: "-C target-cpu=x86-64-v4"
-            build: windows-x86_64-v4
-            checks: false
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            platform: windows-x86_64-native
-            profile: pro-win-native
-            rustflags: "-C target-cpu=native"
-            build: windows-x86_64-native
+            build: windows-x86_64
             checks: false
           - os: windows-11-arm
             target: aarch64-pc-windows-msvc
@@ -265,7 +223,7 @@ jobs:
           else
             OUT="$(${BIN} -i)"
             echo "${OUT}"
-            echo "${OUT}" | grep -F "build: ${BUILD_ID}"
+            echo "${OUT}" | grep -E "^(build|Build): ${BUILD_ID}( \\([0-9a-f]+\\))?$"
           fi
 
       - name: Verify build id
@@ -287,8 +245,9 @@ jobs:
             $outLines = & $bin -i
             $out = $outLines -join "`n"
             $out
-            if ($out -notmatch [regex]::Escape("build: $build")) {
-              throw "Expected build id 'build: $build' in cosmostrix -i output"
+            $pat = "(?m)^(build|Build): " + [regex]::Escape($build) + "( \\([0-9a-f]+\\))?$"
+            if ($out -notmatch $pat) {
+              throw "Expected build id '$build' in cosmostrix -i output"
             }
           }
 
@@ -639,7 +598,7 @@ jobs:
             echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-darwin-aarch64-native.tar.gz | tar -xzf -"
             echo
             echo '# Quick install (Windows x86_64) (PowerShell)'
-            echo "curl.exe -L -o cosmostrix.zip https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-windows-x86_64-v1.zip"
+            echo "curl.exe -L -o cosmostrix.zip https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-windows-x86_64.zip"
             echo 'Expand-Archive -Force cosmostrix.zip .'
             echo
             echo '# Or download your platform-specific package from the assets below'

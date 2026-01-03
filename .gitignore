@@ -12,3 +12,6 @@ guide-optimize*
 # Benchmark artifacts
 benchmark/perf.data*
 dist
+
+# error log
+cosmostrix-log-error.txt

@@ -12,18 +12,6 @@ pro-native = [
   "build.rustflags=[\"-C\",\"target-cpu=native\"]",
 ]
 
-pro-linux-native = [
-  "build",
-  "--profile",
-  "pro-linux-native",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"linux-x86_64-native\"",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
-  "--target",
-  "x86_64-unknown-linux-gnu",
-]
-
 pro-linux-v1 = [
   "build",
   "--profile",
@@ -69,17 +57,6 @@ pro-linux-v4 = [
   "x86_64-unknown-linux-gnu",
 ]
 
-pro-macos-intel-native = [
-  "build",
-  "--profile",
-  "pro-macos-intel-native",
-  "--target",
-  "x86_64-apple-darwin",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"darwin-x86_64-native\"",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
-]
 pro-macos-aarch64-native = [
   "build",
   "--profile",
@@ -92,67 +69,16 @@ pro-macos-aarch64-native = [
   "build.rustflags=[\"-C\",\"target-cpu=native\"]",
 ]
 
-pro-win-native = [
+pro-win-x86_64 = [
   "build",
   "--profile",
-  "pro-win-native",
+  "pro-win-x86_64",
   "--target",
   "x86_64-pc-windows-msvc",
   "--config",
-  "env.COSMOSTRIX_BUILD=\"windows-x86_64-native\"",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
-]
-
-pro-win-v1 = [
-  "build",
-  "--profile",
-  "pro-win-v1",
-  "--target",
-  "x86_64-pc-windows-msvc",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"windows-x86_64-v1\"",
+  "env.COSMOSTRIX_BUILD=\"windows-x86_64\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=x86-64\"]",
 ]
-pro-win-v2 = [
-  "build",
-  "--profile",
-  "pro-win-v2",
-  "--target",
-  "x86_64-pc-windows-msvc",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"windows-x86_64-v2\"",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v2\"]",
-]
-pro-win-v3 = [
-  "build",
-  "--profile",
-  "pro-win-v3",
-  "--target",
-  "x86_64-pc-windows-msvc",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"windows-x86_64-v3\"",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
-]
-pro-win-v4 = [
-  "build",
-  "--profile",
-  "pro-win-v4",
-  "--target",
-  "x86_64-pc-windows-msvc",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"windows-x86_64-v4\"",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
-]
 
 pro-android-aarch64 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"; TARGET="aarch64-linux-android"; TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"; export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"; export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"; COSMOSTRIX_BUILD="android-aarch64-native" cargo build --profile pro-android-aarch64 --target "${TARGET}"'"""
-
-pro-android-armv7 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"; TARGET="armv7-linux-androideabi"; TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"; export CC_armv7_linux_androideabi="${TOOLCHAIN}/bin/armv7a-linux-androideabi21-clang"; export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="${CC_armv7_linux_androideabi}"; COSMOSTRIX_BUILD="android-armv7-native" cargo build --profile pro-android-armv7 --target "${TARGET}"'"""
-
-pro-android-x86_64 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"; TARGET="x86_64-linux-android"; TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"; export CC_x86_64_linux_android="${TOOLCHAIN}/bin/x86_64-linux-android21-clang"; export CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER="${CC_x86_64_linux_android}"; COSMOSTRIX_BUILD="android-x86_64-native" cargo build --profile pro-android-x86_64 --target "${TARGET}"'"""
-
-pro-android-x86 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"; TARGET="i686-linux-android"; TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"; export CC_i686_linux_android="${TOOLCHAIN}/bin/i686-linux-android21-clang"; export CARGO_TARGET_I686_LINUX_ANDROID_LINKER="${CC_i686_linux_android}"; COSMOSTRIX_BUILD="android-x86-native" cargo build --profile pro-android-x86 --target "${TARGET}"'"""

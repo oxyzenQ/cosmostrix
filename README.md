@@ -91,11 +91,11 @@ Download the package for your OS/arch from Releases, verify the checksum, extrac
  Pick `PLATFORM` based on your OS/CPU:
 
  - Linux x86_64: `linux-x86_64-v1` (most compatible), `linux-x86_64-v2`, `linux-x86_64-v3`, `linux-x86_64-v4`
- - macOS: `darwin-x86_64-native` (Intel), `darwin-aarch64-native` (Apple Silicon)
- - Windows: `windows-x86_64-v1`/`v2`/`v3`/`v4` (x86_64), `windows-aarch64-native` (AARCH64)
+ - macOS: `darwin-aarch64-native` (Apple Silicon)
+ - Windows: `windows-x86_64` (x86_64), `windows-aarch64-native` (AARCH64)
  - Android (Termux): `android-aarch64-native`
 
- You can confirm what you downloaded/installed by running `cosmostrix -i` (it prints a `build:` line).
+ You can confirm what you downloaded/installed by running `cosmostrix -i` (it prints a `Build:` line).
 
  #### Linux (example)
 
@@ -161,7 +161,7 @@ Download the package for your OS/arch from Releases, verify the checksum, extrac
  ```powershell
  $repo = "oxyzenQ/cosmostrix"
  $tag = "v1.0.0"
- $platform = "windows-x86_64-v1"
+ $platform = "windows-x86_64"
  $zip = "cosmostrix-bin-$tag-$platform.zip"
  $version = $tag.TrimStart('v')
  $base = "https://github.com/$repo/releases/download/$tag"

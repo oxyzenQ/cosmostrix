@@ -314,7 +314,7 @@ pub struct Args {
     #[arg(
         long = "colormode",
         help_heading = "APPEARANCE",
-        help = "Force color mode (allowed: 0,8,24). Default: 24-bit if supported (COLORTERM), else 8-bit (256-color)"
+        help = "Force color mode (allowed: 0,16,8/256,24/32). Default: 24-bit if supported (COLORTERM), else 8-bit (TERM=...256color), else 16-color"
     )]
     pub colormode: Option<u16>,
 
@@ -485,7 +485,7 @@ pub fn print_help_detail() {
     println!("  --lingerms <low,high>    min 1 max 60000 (each)");
     println!("  --bold <0|1|2>           min 0 max 2");
     println!("  --shadingmode <0|1>      min 0 max 1");
-    println!("  --colormode <0|8|24>     allowed values only");
+    println!("  --colormode <0|16|8|24>  allowed values only (8==256, 24==32)");
     println!();
     print_list_charsets();
     println!();

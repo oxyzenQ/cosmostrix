@@ -43,11 +43,10 @@ Workflow files live under:
 
 **What it builds**
 
-- Linux x86_64 (v1/v2/v3/v4/native) (runner host build)
+- Linux x86_64 (v1/v2/v3/v4) (runner host build)
 - Linux aarch64 native (runner host build)
-- macOS x86_64 native (runner host build)
 - macOS aarch64 native (runner host build)
-- Windows x86_64 (v1/v2/v3/v4/native) (runner host build)
+- Windows x86_64 (universal) (runner host build)
 - Windows aarch64 native (runner host build)
 - Android aarch64 native (cross-compiled): `aarch64-linux-android`
 
@@ -79,15 +78,9 @@ Where `<platform>` is one of:
 - `linux-x86_64-v2`
 - `linux-x86_64-v3`
 - `linux-x86_64-v4`
-- `linux-x86_64-native`
 - `linux-aarch64-native`
-- `darwin-x86_64-native`
 - `darwin-aarch64-native`
-- `windows-x86_64-v1`
-- `windows-x86_64-v2`
-- `windows-x86_64-v3`
-- `windows-x86_64-v4`
-- `windows-x86_64-native`
+- `windows-x86_64`
 - `windows-aarch64-native`
 - `android-aarch64-native`
 

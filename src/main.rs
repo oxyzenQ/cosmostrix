@@ -19,6 +19,7 @@ use std::thread;
 use clap::builder::styling::{AnsiColor as ClapAnsiColor, Color as ClapColor};
 use clap::builder::styling::{Effects as ClapEffects, Style as ClapStyle};
 use clap::builder::Styles as ClapStyles;
+use clap::parser::ValueSource;
 use clap::{CommandFactory, FromArgMatches};
 use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
 
@@ -55,6 +56,13 @@ fn build_info() -> &'static str {
     env!("COSMOSTRIX_BUILD")
 }
 
+fn build_commit_short() -> Option<&'static str> {
+    match option_env!("COSMOSTRIX_GIT_SHA") {
+        Some(s) if !s.is_empty() => Some(s),
+        _ => None,
+    }
+}
+
 fn clap_styles() -> ClapStyles {
     ClapStyles::styled()
         .header(
@@ -73,10 +81,12 @@ fn clap_styles() -> ClapStyles {
 
 fn require_f64_range(name: &str, v: f64, min: f64, max: f64) -> f64 {
     if !v.is_finite() {
+        restore_terminal_best_effort();
         eprintln!("failed to apply {} {} (must be a finite number)", name, v);
         std::process::exit(1);
     }
     if v < min || v > max {
+        restore_terminal_best_effort();
         eprintln!("failed to apply {} {} (min {} max {})", name, v, min, max);
         std::process::exit(1);
     }
@@ -85,10 +95,12 @@ fn require_f64_range(name: &str, v: f64, min: f64, max: f64) -> f64 {
 
 fn require_f32_range(name: &str, v: f32, min: f32, max: f32) -> f32 {
     if !v.is_finite() {
+        restore_terminal_best_effort();
         eprintln!("failed to apply {} {} (must be a finite number)", name, v);
         std::process::exit(1);
     }
     if v < min || v > max {
+        restore_terminal_best_effort();
         eprintln!("failed to apply {} {} (min {} max {})", name, v, min, max);
         std::process::exit(1);
     }
@@ -97,6 +109,7 @@ fn require_f32_range(name: &str, v: f32, min: f32, max: f32) -> f32 {
 
 fn require_u8_range(name: &str, v: u8, min: u8, max: u8) -> u8 {
     if v < min || v > max {
+        restore_terminal_best_effort();
         eprintln!("failed to apply {} {} (min {} max {})", name, v, min, max);
         std::process::exit(1);
     }
@@ -105,6 +118,7 @@ fn require_u8_range(name: &str, v: u8, min: u8, max: u8) -> u8 {
 
 fn require_u16_range(name: &str, v: u16, min: u16, max: u16) -> u16 {
     if v < min || v > max {
+        restore_terminal_best_effort();
         eprintln!("failed to apply {} {} (min {} max {})", name, v, min, max);
         std::process::exit(1);
     }
@@ -124,25 +138,36 @@ fn detect_color_mode_auto() -> ColorMode {
         return ColorMode::TrueColor;
     }
 
+    #[cfg(windows)]
+    {
+        if env::var_os("WT_SESSION").is_some() {
+            return ColorMode::TrueColor;
+        }
+    }
+
     let term = env::var("TERM").unwrap_or_default().to_ascii_lowercase();
     if term == "dumb" {
         return ColorMode::Mono;
+    }
+    if term.contains("-truecolor") {
+        return ColorMode::TrueColor;
     }
     if term.contains("256color") {
         return ColorMode::Color256;
     }
 
-    ColorMode::Color256
+    ColorMode::Color16
 }
 
 fn detect_color_mode(args: &Args) -> ColorMode {
     if let Some(m) = args.colormode {
         return match m {
             0 => ColorMode::Mono,
-            8 => ColorMode::Color256,
-            24 => ColorMode::TrueColor,
+            16 => ColorMode::Color16,
+            8 | 256 => ColorMode::Color256,
+            24 | 32 => ColorMode::TrueColor,
             _ => {
-                eprintln!("invalid --colormode: {} (allowed: 0,8,24)", m);
+                eprintln!("invalid --colormode: {} (allowed: 0,16,8/256,24/32)", m);
                 std::process::exit(1);
             }
         };
@@ -158,6 +183,88 @@ fn color_mode_label(m: ColorMode) -> &'static str {
         ColorMode::Mono => "mono",
         ColorMode::Color16 => "16-color",
     }
+}
+
+fn all_color_schemes() -> &'static [ColorScheme] {
+    &[
+        ColorScheme::Green,
+        ColorScheme::Green2,
+        ColorScheme::Green3,
+        ColorScheme::Yellow,
+        ColorScheme::Orange,
+        ColorScheme::Red,
+        ColorScheme::Blue,
+        ColorScheme::Cyan,
+        ColorScheme::Gold,
+        ColorScheme::Rainbow,
+        ColorScheme::Purple,
+        ColorScheme::Neon,
+        ColorScheme::Fire,
+        ColorScheme::Ocean,
+        ColorScheme::Forest,
+        ColorScheme::Vaporwave,
+        ColorScheme::Gray,
+        ColorScheme::Snow,
+        ColorScheme::Aurora,
+        ColorScheme::FancyDiamond,
+        ColorScheme::Cosmos,
+        ColorScheme::Nebula,
+        ColorScheme::Spectrum20,
+        ColorScheme::Stars,
+        ColorScheme::Mars,
+        ColorScheme::Venus,
+        ColorScheme::Mercury,
+        ColorScheme::Jupiter,
+        ColorScheme::Saturn,
+        ColorScheme::Uranus,
+        ColorScheme::Neptune,
+        ColorScheme::Pluto,
+        ColorScheme::Moon,
+        ColorScheme::Sun,
+        ColorScheme::Comet,
+        ColorScheme::Galaxy,
+        ColorScheme::Supernova,
+        ColorScheme::BlackHole,
+        ColorScheme::Andromeda,
+        ColorScheme::Stardust,
+        ColorScheme::Meteor,
+        ColorScheme::Eclipse,
+        ColorScheme::DeepSpace,
+    ]
+}
+
+fn cycle_color_scheme(current: ColorScheme, dir: i32) -> ColorScheme {
+    let list = all_color_schemes();
+    let Some(pos) = list.iter().position(|&c| c == current) else {
+        return ColorScheme::Green;
+    };
+
+    let n = list.len() as i32;
+    let mut idx = pos as i32 + dir;
+    idx = ((idx % n) + n) % n;
+    list[idx as usize]
+}
+
+fn auto_density_factor(cols: u16, lines: u16, fullwidth: bool) -> f32 {
+    let eff_cols = if fullwidth {
+        (cols / 2).max(1)
+    } else {
+        cols.max(1)
+    } as f32;
+    let eff_lines = lines.max(1) as f32;
+
+    let area = eff_cols * eff_lines;
+    let base = 80.0 * 25.0;
+    let factor = (area / base).sqrt();
+    factor.clamp(0.5, 2.0)
+}
+
+fn effective_density(base: f32, cols: u16, lines: u16, fullwidth: bool, auto: bool) -> f32 {
+    let base = base.clamp(0.01, 5.0);
+    if !auto {
+        return base;
+    }
+    (base * auto_density_factor(cols, lines, fullwidth)).clamp(0.01, 5.0)
 }
 
 fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
@@ -314,7 +421,11 @@ fn main() -> std::io::Result<()> {
 
     if args.info {
         println!("Version: v{}", env!("CARGO_PKG_VERSION"));
-        println!("Build: {}", build_info());
+        if let Some(sha) = build_commit_short() {
+            println!("Build: {} ({})", build_info(), sha);
+        } else {
+            println!("Build: {}", build_info());
+        }
         println!("Copyright: (c) 2026 {}", env!("CARGO_PKG_AUTHORS"));
         println!("License: {}", env!("CARGO_PKG_LICENSE"));
         println!("Source: {}", env!("CARGO_PKG_REPOSITORY"));
@@ -363,7 +474,6 @@ fn main() -> std::io::Result<()> {
     let short_pct = require_f32_range("--shortpct", args.shortpct, 0.0, 100.0);
     let die_early_pct = require_f32_range("--rippct", args.rippct, 0.0, 100.0);
     let max_dpc = require_u8_range("--maxdpc", args.max_droplets_per_column, 1, 3);
-    let density = require_f32_range("--density", args.density, 0.01, 5.0);
     let speed = require_f32_range("--speed", args.speed, 0.001, 1000.0);
 
     let mut user_ranges: Vec<(char, char)> = Vec::new();
@@ -397,8 +507,13 @@ fn main() -> std::io::Result<()> {
 
     let chars = build_chars(charset, &user_ranges, def_ascii);
 
+    let density_auto = matches.value_source("density") == Some(ValueSource::DefaultValue);
+    let base_density = require_f32_range("--density", args.density, 0.01, 5.0);
+
     let mut term = Terminal::new()?;
     let (w, h) = term.size()?;
+
+    let density = effective_density(base_density, w, h, args.fullwidth, density_auto);
 
     let mut cloud = Cloud::new(
         color_mode,
@@ -482,6 +597,14 @@ fn main() -> std::io::Result<()> {
                                 cloud.reset(frame.width, frame.height);
                                 cloud.force_draw_everything();
                             }
+                            (KeyCode::Char('c'), _) => {
+                                let next = cycle_color_scheme(cloud.color_scheme(), 1);
+                                cloud.set_color_scheme(next);
+                            }
+                            (KeyCode::Char('C'), _) => {
+                                let prev = cycle_color_scheme(cloud.color_scheme(), -1);
+                                cloud.set_color_scheme(prev);
+                            }
                             (KeyCode::Char('a'), _) => {
                                 cloud.set_async(!cloud.async_mode);
                             }
@@ -526,11 +649,15 @@ fn main() -> std::io::Result<()> {
                                 };
                                 cloud.set_shading_mode(sm);
                             }
-                            (KeyCode::Char('-'), _) => {
+                            (KeyCode::Char('-'), _)
+                            | (KeyCode::Char('['), _)
+                            | (KeyCode::Char('_'), _) => {
                                 let d = (cloud.droplet_density - 0.25).max(0.01);
                                 cloud.set_droplet_density(d);
                             }
-                            (KeyCode::Char('+'), _) | (KeyCode::Char('='), KeyModifiers::SHIFT) => {
+                            (KeyCode::Char('+'), _)
+                            | (KeyCode::Char('='), KeyModifiers::SHIFT)
+                            | (KeyCode::Char(']'), _) => {
                                 let d = (cloud.droplet_density + 0.25).min(5.0);
                                 cloud.set_droplet_density(d);
                             }
@@ -584,6 +711,15 @@ fn main() -> std::io::Result<()> {
         if let Some((nw, nh)) = pending_resize {
             cloud.reset(nw, nh);
             frame = Frame::new(nw, nh, cloud.palette.bg);
+            if density_auto {
+                cloud.set_droplet_density(effective_density(
+                    base_density,
+                    nw,
+                    nh,
+                    args.fullwidth,
+                    true,
+                ));
+            }
             cloud.force_draw_everything();
         }
 

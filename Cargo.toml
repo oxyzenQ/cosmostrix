@@ -1,6 +1,6 @@
 [package]
 name = "cosmostrix"
-version = "1.0.2-alpha.2"
+version = "1.0.3-alpha.2"
 edition = "2021"
 rust-version = "1.81"
 authors = ["rezky_nightky"]
@@ -46,9 +46,6 @@ codegen-units = 1
 panic = "abort"
 overflow-checks = false
 
-[profile.pro-linux-native]
-inherits = "pro"
-
 [profile.pro-linux-v1]
 inherits = "pro"
 
@@ -61,37 +58,13 @@ inherits = "pro"
 [profile.pro-linux-v4]
 inherits = "pro"
 
-[profile.pro-macos-intel-native]
-inherits = "pro"
-
 [profile.pro-macos-aarch64-native]
 inherits = "pro"
 
-[profile.pro-win-native]
-inherits = "pro"
-
-[profile.pro-win-v1]
-inherits = "pro"
-
-[profile.pro-win-v2]
-inherits = "pro"
-
-[profile.pro-win-v3]
-inherits = "pro"
-
-[profile.pro-win-v4]
+[profile.pro-win-x86_64]
 inherits = "pro"
 
 [profile.pro-android-aarch64]
-inherits = "pro"
-
-[profile.pro-android-armv7]
-inherits = "pro"
-
-[profile.pro-android-x86_64]
-inherits = "pro"
-
-[profile.pro-android-x86]
 inherits = "pro"
 
 [profile.release-with-debug]

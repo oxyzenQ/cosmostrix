@@ -343,6 +343,10 @@ impl Cloud {
         self.force_draw_everything = true;
     }
 
+    pub fn color_scheme(&self) -> ColorScheme {
+        self.color_scheme
+    }
+
     pub fn set_async(&mut self, on: bool) {
         self.async_mode = on;
         self.set_column_speeds();
@@ -720,17 +724,25 @@ impl Cloud {
                 break;
             }
 
-            let chars: Vec<char> = raw_line.chars().collect();
-            if chars.is_empty() {
-                content_lines.push(Vec::new());
-                continue;
+            let mut buf: Vec<char> = Vec::new();
+            for ch in raw_line.chars() {
+                if buf.len() >= max_content_w as usize {
+                    content_lines.push(std::mem::take(&mut buf));
+                    if content_lines.len() as u16 >= max_content_h {
+                        break;
+                    }
+                }
+                buf.push(ch);
             }
 
-            for chunk in chars.chunks(max_content_w as usize) {
-                if content_lines.len() as u16 >= max_content_h {
-                    break;
-                }
-                content_lines.push(chunk.to_vec());
+            if content_lines.len() as u16 >= max_content_h {
+                break;
+            }
+
+            if raw_line.is_empty() {
+                content_lines.push(Vec::new());
+            } else if !buf.is_empty() {
+                content_lines.push(buf);
             }
         }
 
