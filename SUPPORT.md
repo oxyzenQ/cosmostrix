@@ -5,6 +5,7 @@
 - Linux (primary)
 - macOS
 - Android (Termux) (best-effort)
+- Windows
 
 ## MSRV
 
