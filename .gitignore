@@ -2,16 +2,30 @@
 target
 reference
 
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+
+/target/
+
 # Bloat
 .log
 *.log
+*.swp
+*.swo
+*.tmp
+*.bak
 
 # Secret
 guide-optimize*
+.env
 
 # Benchmark artifacts
 benchmark/perf.data*
 dist
+
+/dist/
 
 # error log
 cosmostrix-log-error.txt
