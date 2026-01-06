@@ -408,8 +408,40 @@ jobs:
           COSMOSTRIX_BUILD: ${{ matrix.build }}
         run: cargo build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
-      - name: Verify build id
-        shell: bash
+  windows_cpu_variants:
+    name: T-800 - Build (windows x86_64 variants)
+    runs-on: windows-latest
+    needs: windows_build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: pro-win-v1
+            rustflags: "-C target-cpu=x86-64"
+          - profile: pro-win-v2
+            rustflags: "-C target-cpu=x86-64-v2"
+          - profile: pro-win-v3
+            rustflags: "-C target-cpu=x86-64-v3"
+          - profile: pro-win-v4
+            rustflags: "-C target-cpu=x86-64-v4"
+          - profile: pro-win-native
+            rustflags: "-C target-cpu=native"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.81.0
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2.8.2
+        with:
+          cache-on-failure: true
+
+      - name: Set cargo build jobs
+        shell: pwsh
         run: |
           set -euo pipefail
           BIN="target/x86_64-unknown-linux-gnu/${{ matrix.profile }}/cosmostrix"

@@ -509,10 +509,10 @@ jobs:
             -m "${{ steps.commit_msg.outputs.title }}" \
             -m "${{ steps.commit_msg.outputs.commit_body }}"
 
-          git push origin main
+          git push origin dev
 
           echo ""
-          echo "✅ Updates pushed to main branch"
+          echo "✅ Updates pushed to dev branch"
           echo "📍 Commit: $(git rev-parse HEAD)"
 
       - name: Create pull request
@@ -569,7 +569,7 @@ jobs:
             echo ""
 
             if [ "${{ env.UPDATE_STRATEGY }}" == "direct" ]; then
-              echo "✅ Changes pushed to main branch"
+              echo "✅ Changes pushed to dev branch"
               echo "📍 Commit: $(git rev-parse HEAD)"
             else
               echo "✅ Pull request created"
