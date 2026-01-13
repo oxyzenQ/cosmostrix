@@ -1002,7 +1002,7 @@ fn main() -> std::io::Result<()> {
     });
 
     let target_period = Duration::from_secs_f64(1.0 / target_fps);
-    let target_period_s = target_period.as_secs_f32().max(0.000_001);
+    let pause_period = Duration::from_millis(250);
     let mut next_frame = Instant::now();
     let mut perf_pressure: f32 = 0.0;
 
@@ -1015,6 +1015,13 @@ fn main() -> std::io::Result<()> {
     let mut perf_overshoot_frames: u64 = 0;
 
     while cloud.raining {
+        let frame_period = if cloud.pause {
+            pause_period
+        } else {
+            target_period
+        };
+        let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
+
         if end_time.is_some_and(|end| Instant::now() >= end) {
             cloud.raining = false;
             break;
@@ -1207,9 +1214,9 @@ fn main() -> std::io::Result<()> {
         }
 
         cloud.set_perf_pressure(perf_pressure);
-        let sim_base_s = target_period.as_secs_f64() * 3.0;
+        let sim_base_s = frame_period.as_secs_f64() * 3.0;
         let sim_factor = (1.0 - (perf_pressure as f64) * 0.7).clamp(0.3, 1.0);
-        let sim_min_s = (target_period.as_secs_f64() * 0.5).max(0.001);
+        let sim_min_s = (frame_period.as_secs_f64() * 0.5).max(0.001);
         let sim_max_s = sim_base_s.min(0.5);
         let sim_cap_s = (sim_base_s * sim_factor).clamp(sim_min_s, sim_max_s);
         cloud.set_max_sim_delta(Duration::from_secs_f64(sim_cap_s));
@@ -1221,7 +1228,7 @@ fn main() -> std::io::Result<()> {
             term.draw(&mut frame)?;
         }
         let work_s = work_start.elapsed().as_secs_f32();
-        let overshoot = ((work_s / target_period_s) - 1.0).clamp(0.0, 2.0);
+        let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
         if overshoot > 0.0 {
             perf_pressure = (perf_pressure + (overshoot * 0.25)).min(1.0);
         } else {
@@ -1242,10 +1249,10 @@ fn main() -> std::io::Result<()> {
             }
         }
 
-        next_frame += target_period;
         let now = Instant::now();
+        next_frame = next_frame.checked_add(frame_period).unwrap_or(now);
         if now > next_frame {
-            next_frame = now;
+            next_frame = now.checked_add(frame_period).unwrap_or(now);
         }
     }
 

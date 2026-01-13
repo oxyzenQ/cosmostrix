@@ -204,7 +204,7 @@ Download the package for your OS/arch from Releases, verify the checksum, extrac
 Common examples:
 
 ```bash
-# default settings (async on, glitch off)
+# default settings (async off, glitch off)
 cosmostrix
 
 # color + speed
@@ -235,7 +235,7 @@ cosmostrix --chars 30,39,41,5A
 These flags at (`cosmostrix -h`).
 
 ```text
- -a, --async                  async column speeds (default: on; disable with --async=false)
+ -a, --async                  async column speeds (default: off; enable with --async or --async=true)
  -b, --bold <NUM>             0=off, 1=random, 2=all
  -c, --color <COLOR>          color scheme (default: green)
      --color-bg <MODE>        background: black, default-background, transparent (default: black)
