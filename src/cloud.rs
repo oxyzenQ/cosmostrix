@@ -221,6 +221,7 @@ pub struct Cloud {
 
     droplets: Vec<Droplet>,
     num_droplets: usize,
+    spawn_scan_idx: usize,
 
     chars: Vec<char>,
     char_pool: Vec<char>,
@@ -302,6 +303,7 @@ impl Cloud {
             max_droplets_per_column: 3,
             droplets: Vec::new(),
             num_droplets: 0,
+            spawn_scan_idx: 0,
             chars: Vec::new(),
             char_pool: Vec::new(),
             glitch_pool: Vec::new(),
@@ -451,6 +453,7 @@ impl Cloud {
         self.num_droplets = (1.5 * self.cols as f32).round() as usize;
         self.droplets.clear();
         self.droplets.resize_with(self.num_droplets, Droplet::new);
+        self.spawn_scan_idx = 0;
 
         let max_line = lines.saturating_sub(2);
         let max_len = max_line.max(1);
@@ -513,8 +516,17 @@ impl Cloud {
     }
 
     fn recalc_droplets_per_sec(&mut self) {
+        if self.lines == 0 || self.cols == 0 {
+            self.droplets_per_sec = 0.0;
+            return;
+        }
         let droplet_seconds = (self.lines as f32) / self.chars_per_sec.max(0.001);
-        self.droplets_per_sec = (self.cols as f32) * self.droplet_density / droplet_seconds;
+        if droplet_seconds <= 0.0 {
+            self.droplets_per_sec = 0.0;
+            return;
+        }
+        let dps = (self.cols as f32) * self.droplet_density / droplet_seconds;
+        self.droplets_per_sec = if dps.is_finite() { dps.max(0.0) } else { 0.0 };
     }
 
     fn fill_glitch_map(&mut self) {
@@ -650,13 +662,24 @@ impl Cloud {
 
         let elapsed_sec = elapsed.as_secs_f32();
         let budget = (elapsed_sec * self.droplets_per_sec * scale).max(0.0) + self.spawn_remainder;
+        if !budget.is_finite() {
+            self.spawn_remainder = 0.0;
+            return;
+        }
         let to_spawn = (budget.floor() as usize).min(self.num_droplets);
         self.spawn_remainder = budget - (to_spawn as f32);
+        if !self.spawn_remainder.is_finite() {
+            self.spawn_remainder = 0.0;
+        }
         if to_spawn == 0 {
             return;
         }
 
-        let mut idx = 0usize;
+        let len = self.droplets.len();
+        if len == 0 {
+            return;
+        }
+
         let mut spawned = 0usize;
 
         for _ in 0..to_spawn {
@@ -675,14 +698,28 @@ impl Cloud {
                 continue;
             }
 
+            let start = self.spawn_scan_idx.min(len);
             let mut found = None;
-            while idx < self.droplets.len() {
+
+            let mut idx = start;
+            while idx < len {
                 if !self.droplets[idx].is_alive {
                     found = Some(idx);
                     break;
                 }
                 idx += 1;
             }
+            if found.is_none() {
+                idx = 0;
+                while idx < start {
+                    if !self.droplets[idx].is_alive {
+                        found = Some(idx);
+                        break;
+                    }
+                    idx += 1;
+                }
+            }
+
             let Some(di) = found else {
                 break;
             };
@@ -691,6 +728,7 @@ impl Cloud {
             self.fill_droplet(&mut d, col);
             d.activate(now);
             self.droplets[di] = d;
+            self.spawn_scan_idx = (di + 1) % len;
 
             self.col_stat[col as usize].can_spawn = false;
             self.col_stat[col as usize].num_droplets += 1;

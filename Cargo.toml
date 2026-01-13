@@ -36,7 +36,7 @@ debug = false
 strip = true
 lto = "fat"
 codegen-units = 1
-panic = "abort"
+panic = "unwind"
 overflow-checks = false
 
 [profile.pro]
@@ -46,7 +46,7 @@ debug = false
 strip = true
 lto = "fat"
 codegen-units = 1
-panic = "abort"
+panic = "unwind"
 overflow-checks = false
 
 [profile.pro-linux-v1]
