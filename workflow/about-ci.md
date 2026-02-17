@@ -12,12 +12,12 @@ Workflow files live under:
 
 ### CI (`.github/workflows/ci.yml`)
 
-**Triggers**
+#### Triggers
 
 - `push` to `main`
 - `pull_request` targeting `main`
 
-**What it does**
+#### What it does
 
 - **Security audit**: runs `cargo-audit` using `cargo +stable` to avoid MSRV breakage when `cargo-audit` bumps its required Rust version.
 - **MSRV**: runs `cargo test --all` on Rust `1.81.0`.
@@ -25,23 +25,23 @@ Workflow files live under:
 - **Format + Clippy**: runs `cargo fmt -- --check` and `cargo clippy ... -D warnings`.
 - **Dependency policy**: installs `cargo-deny` and runs `cargo +stable deny check all`.
 
-**Notes**
+#### Notes
 
 - This workflow is meant to keep `main` green and enforce formatting/lints/policy.
 
 ### Release (`.github/workflows/release.yml`)
 
-**Triggers**
+#### Triggers
 
 - `push` tag matching `v*` (recommended)
 
-**Tag conventions (release channel)**
+#### Tag conventions (release channel)
 
 - `vX.Y.Z-alpha.N`, `vX.Y.Z-beta.N`, `vX.Y.Z-rc.N` => published as **prerelease** (not Latest)
 - `vX.Y.Z-stable.N` => published as a **normal release** (eligible to become **Latest**)
 - `vX.Y.Z` => published as a **normal release** (eligible to become **Latest**)
 
-**What it builds**
+#### What it builds
 
 - Linux x86_64 (v1/v2/v3/v4) (runner host build)
 - Linux aarch64 native (runner host build)
@@ -50,7 +50,7 @@ Workflow files live under:
 - Windows aarch64 native (runner host build)
 - Android aarch64 native (cross-compiled): `aarch64-linux-android`
 
-**Build steps (per platform job)**
+#### Build steps (per platform job)
 
 - Tests: `cargo test --all --locked`
 - Builds:
@@ -61,7 +61,7 @@ Workflow files live under:
   - `cargo clippy --locked --all-targets --all-features -- -D warnings`
   - `cargo +stable deny check all`
 
-**Packaging output**
+#### Packaging output
 
 Each build produces:
 
@@ -90,7 +90,7 @@ The archive contains:
 - `README.md`
 - `LICENSE`
 
-**Checksums**
+#### Checksums
 
 Checksum files are generated using:
 
@@ -107,7 +107,7 @@ sha512sum -c cosmostrix-bin-v1.0.0-linux-x86_64-v1.tar.gz.sha512
 shasum -a 512 -c cosmostrix-bin-v1.0.0-darwin-aarch64-native.tar.gz.sha512
 ```
 
-**Release publishing**
+#### Release publishing
 
 The `publish_release` job:
 
@@ -141,22 +141,22 @@ git push origin v1.0.1-stable.1
 
 ### Dependency update bot (`.github/workflows/gitbot-deps.yml`)
 
-**Triggers**
+#### Triggers
 
 - `schedule` daily at **01:00 UTC (08:00 WIB)**
 - `workflow_dispatch` manual run
 
-**Manual inputs**
+#### Manual inputs
 
 - `strategy`: `direct` (commit to `main`) or `pr` (open a PR)
 - `force_update`: continue even if tests fail
 
-**What it does**
+#### What it does
 
 - Runs `cargo update`
 - Runs `cargo +stable audit` and `cargo +stable deny check all`
 - Runs `cargo fmt -- --check` and basic build/test/clippy on toolchain `1.81.0`
 
-**Notes**
+#### Notes
 
 - GitHub cron uses UTC; adjust the schedule if you want a different local time.
