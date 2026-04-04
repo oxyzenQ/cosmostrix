@@ -16,7 +16,6 @@ use crate::frame::Frame;
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
 /// (centralized in constants.rs, imported above)
-
 struct LastFrame {
     width: u16,
     height: u16,
@@ -134,13 +133,28 @@ impl Terminal {
             }
             let last = self.last.as_mut().expect("set above");
 
+            let mut row_buf = String::with_capacity(frame.width as usize * 4);
             for y in 0..frame.height {
                 self.stdout.queue(cursor::MoveTo(0, y))?;
+                row_buf.clear();
+                let width_usize = frame.width as usize;
                 for x in 0..frame.width {
-                    let idx = y as usize * frame.width as usize + x as usize;
+                    let idx = y as usize * width_usize + x as usize;
                     let cell = frame.cell_at_index(idx);
 
+                    // Peek ahead: if next cell has different style, flush buffer first
+                    let next_differs = (x + 1 >= frame.width) || {
+                        let next_cell = frame.cell_at_index(idx + 1);
+                        next_cell.fg != cell.fg
+                            || next_cell.bg != cell.bg
+                            || next_cell.bold != cell.bold
+                    };
+
                     if cell.fg != cur_fg {
+                        if !row_buf.is_empty() {
+                            self.stdout.queue(Print(row_buf.as_str()))?;
+                            row_buf.clear();
+                        }
                         if let Some(fg) = cell.fg {
                             self.stdout.queue(SetForegroundColor(fg))?;
                         } else {
@@ -150,6 +164,10 @@ impl Terminal {
                     }
 
                     if cell.bg != cur_bg {
+                        if !row_buf.is_empty() {
+                            self.stdout.queue(Print(row_buf.as_str()))?;
+                            row_buf.clear();
+                        }
                         if let Some(bg) = cell.bg {
                             self.stdout.queue(SetBackgroundColor(bg))?;
                         } else {
@@ -159,6 +177,10 @@ impl Terminal {
                     }
 
                     if cell.bold != cur_bold {
+                        if !row_buf.is_empty() {
+                            self.stdout.queue(Print(row_buf.as_str()))?;
+                            row_buf.clear();
+                        }
                         self.stdout.queue(SetAttribute(if cell.bold {
                             Attribute::Bold
                         } else {
@@ -167,9 +189,17 @@ impl Terminal {
                         cur_bold = cell.bold;
                     }
 
-                    self.stdout.queue(Print(cell.ch))?;
-
+                    row_buf.push(cell.ch);
                     last.cells[idx] = cell;
+
+                    if next_differs && !row_buf.is_empty() {
+                        self.stdout.queue(Print(row_buf.as_str()))?;
+                        row_buf.clear();
+                    }
+                }
+                // Flush any remaining cells in the row buffer
+                if !row_buf.is_empty() {
+                    self.stdout.queue(Print(row_buf.as_str()))?;
                 }
             }
 

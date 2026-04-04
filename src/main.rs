@@ -5,6 +5,7 @@ mod cell;
 mod charset;
 mod cloud;
 mod config;
+mod configfile;
 mod constants;
 mod doctor;
 mod droplet;
@@ -203,7 +204,7 @@ pub fn spawn_kill9_terminal_guard() {
 
         let _ = libc::prctl(
             libc::PR_SET_NAME,
-            b"cx-term-guard\0".as_ptr() as usize,
+            c"cx-term-guard".as_ptr() as usize,
             0,
             0,
             0,
@@ -555,9 +556,117 @@ fn validate_err<T>(name: &str, r: Result<T, String>) -> std::io::Result<T> {
     })
 }
 
+// --- Config file defaults integration ---
+
+/// Apply config file defaults to CLI args that were not explicitly provided.
+fn apply_config_defaults(matches: &clap::ArgMatches, args: &mut Args) {
+    use clap::parser::ValueSource;
+
+    let cfg = configfile::load_config_file();
+    if cfg.is_empty() {
+        return;
+    }
+
+    // Only override args that were not explicitly provided (still at default)
+    let apply = |key: &str, matches: &clap::ArgMatches| -> Option<String> {
+        if matches.value_source(key) == Some(ValueSource::DefaultValue) {
+            cfg.get(key).cloned()
+        } else {
+            None
+        }
+    };
+
+    if let Some(v) = apply("color", matches) {
+        args.color = v;
+    }
+    if let Some(v) = apply("charset", matches) {
+        args.charset = v;
+    }
+    if let Some(v) = apply("fps", matches) {
+        if let Ok(f) = v.parse::<f64>() {
+            args.fps = f;
+        }
+    }
+    if let Some(v) = apply("speed", matches) {
+        if let Ok(f) = v.parse::<f32>() {
+            args.speed = f;
+        }
+    }
+    if let Some(v) = apply("density", matches) {
+        if let Ok(f) = v.parse::<f32>() {
+            args.density = f;
+        }
+    }
+    if let Some(v) = apply("bold", matches) {
+        if let Ok(n) = v.parse::<u8>() {
+            args.bold = n;
+        }
+    }
+    if let Some(v) = apply("shadingmode", matches) {
+        if let Ok(n) = v.parse::<u8>() {
+            args.shading_mode = n;
+        }
+    }
+    if let Some(v) = apply("glitchpct", matches) {
+        if let Ok(f) = v.parse::<f32>() {
+            args.glitch_pct = f;
+        }
+    }
+    if let Some(v) = apply("shortpct", matches) {
+        if let Ok(f) = v.parse::<f32>() {
+            args.shortpct = f;
+        }
+    }
+    if let Some(v) = apply("rippct", matches) {
+        if let Ok(f) = v.parse::<f32>() {
+            args.rippct = f;
+        }
+    }
+    if let Some(v) = apply("maxdpc", matches) {
+        if let Ok(n) = v.parse::<u8>() {
+            args.max_droplets_per_column = n;
+        }
+    }
+}
+
 // --- Main entry point ---
 
+/// Runtime CPU feature check for x86-64 builds.
+///
+/// Detects if the CPU supports the required instruction set for the
+/// compiled target level (v3 = AVX2, v4 = AVX-512). Prints a clear
+/// error message and exits instead of crashing with SIGILL.
+#[cfg(target_arch = "x86_64")]
+fn check_cpu_features() {
+    let build = option_env!("COSMOSTRIX_BUILD").unwrap_or("");
+    if build.contains("-v4") {
+        if !std::arch::is_x86_feature_detected!("avx512f") {
+            eprintln!(
+                "\x1b[1;31mFATAL:\x1b[0m This binary requires \x1b[1mAVX-512\x1b[0m (x86-64-v4)"
+            );
+            eprintln!("       but your CPU does not support it.");
+            eprintln!();
+            eprintln!("Rebuild with a compatible target:");
+            eprintln!("  cargo pro-linux-v2    # x86-64-v2 (SSE4.2, POPCNT) — most CPUs");
+            eprintln!("  cargo pro-linux-v3    # x86-64-v3 (AVX2) — modern CPUs");
+            std::process::exit(1);
+        }
+    } else if build.contains("-v3") && !std::arch::is_x86_feature_detected!("avx2") {
+        eprintln!("\x1b[1;31mFATAL:\x1b[0m This binary requires \x1b[1mAVX2\x1b[0m (x86-64-v3)");
+        eprintln!("       but your CPU does not support it.");
+        eprintln!();
+        eprintln!("Rebuild with:");
+        eprintln!("  cargo pro-linux-v1    # x86-64-v1 (baseline)");
+        eprintln!("  cargo pro-linux-v2    # x86-64-v2 (SSE4.2, POPCNT)");
+        std::process::exit(1);
+    }
+}
+
 fn main() -> std::io::Result<()> {
+    // MUST be first — checks CPU features before any v3/v4 instructions execute
+    #[cfg(target_arch = "x86_64")]
+    check_cpu_features();
+
     std::panic::set_hook(Box::new(|info| {
         restore_terminal_best_effort();
         eprintln!("{}", info);
@@ -587,7 +696,10 @@ fn main() -> std::io::Result<()> {
     }
 
     let matches = cmd.get_matches_from(argv);
-    let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+
+    // Apply config file defaults for args not explicitly set by user
+    apply_config_defaults(&matches, &mut args);
 
     if args.list_charsets {
         print_list_charsets();

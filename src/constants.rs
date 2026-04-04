@@ -130,3 +130,16 @@ pub const SHUTDOWN_TIMEOUT_SECS: u64 = 2;
 
 /// Minimum elapsed seconds denominator to avoid division by zero in bench.
 pub const BENCH_ELAPSED_MIN_S: f64 = 0.000_001;
+
+// ---------------------------------------------------------------------------
+// Config file
+// ---------------------------------------------------------------------------
+
+/// Config file directory name under XDG_CONFIG_HOME or ~/.config.
+pub const CONFIG_DIR_NAME: &str = "cosmostrix";
+
+/// Config file name.
+pub const CONFIG_FILE_NAME: &str = "config";
+
+/// Default frame dirty capacity pre-allocation (1/4 of total cells).
+pub const DIRTY_CAPACITY_DIVISOR: usize = 4;

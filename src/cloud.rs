@@ -16,6 +16,7 @@ use crate::{
     palette::{build_palette, Palette},
     runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode},
 };
+use bitvec::prelude::{BitSlice, BitVec};
 
 use crate::droplet::Droplet;
 
@@ -43,7 +44,7 @@ pub struct DrawCtx<'a> {
 
     pub palette_colors: &'a [Color],
     pub color_map: &'a [u8],
-    pub glitch_map: &'a [bool],
+    pub glitch_map: &'a BitSlice,
     pub char_pool: &'a [char],
 }
 
@@ -87,7 +88,7 @@ impl DrawCtx<'_> {
             return false;
         }
         let idx = col as usize * self.lines as usize + line as usize;
-        self.glitch_map.get(idx).copied().unwrap_or(false)
+        self.glitch_map.get(idx).is_some_and(|b| *b)
     }
 
     pub fn get_char(&self, line: u16, char_pool_idx: u16) -> char {
@@ -136,7 +137,7 @@ impl DrawCtx<'_> {
             color_idx = v as i32;
         }
 
-        if self.glitchy && self.glitch_map.get(idx).copied().unwrap_or(false) {
+        if self.glitchy && self.glitch_map.get(idx).is_some_and(|b| *b) {
             if self.is_bright(now) {
                 color_idx += 1;
                 bold = true;
@@ -231,7 +232,7 @@ pub struct Cloud {
     glitch_pool: Vec<char>,
     glitch_pool_idx: usize,
 
-    glitch_map: Vec<bool>,
+    glitch_map: BitVec,
     color_map: Vec<u8>,
 
     col_stat: Vec<ColumnStatus>,
@@ -313,7 +314,7 @@ impl Cloud {
             char_pool: Vec::new(),
             glitch_pool: Vec::new(),
             glitch_pool_idx: 0,
-            glitch_map: Vec::new(),
+            glitch_map: BitVec::new(),
             color_map: Vec::new(),
             col_stat: Vec::new(),
             mt,
@@ -544,8 +545,9 @@ impl Cloud {
         }
         let size = self.lines as usize * self.cols as usize;
         self.glitch_map.resize(size, false);
-        for v in &mut self.glitch_map {
-            *v = self.rand_chance.sample(&mut self.mt) <= self.glitch_pct;
+        for i in 0..size {
+            self.glitch_map
+                .set(i, self.rand_chance.sample(&mut self.mt) <= self.glitch_pct);
         }
     }
 
@@ -603,7 +605,7 @@ impl Cloud {
             return false;
         }
         let idx = col as usize * self.lines as usize + line as usize;
-        self.glitch_map.get(idx).copied().unwrap_or(false)
+        self.glitch_map.get(idx).is_some_and(|b| *b)
     }
 
     fn do_glitch_span(&mut self, start_line: u16, hp: u16, col: u16, cp_idx: u16) {

@@ -1,6 +1,14 @@
 // Copyright (c) 2026 rezky_nightky
 
+use smallvec::SmallVec;
+
 use crate::cell::Cell;
+use crate::constants::DIRTY_CAPACITY_DIVISOR;
+use bitvec::prelude::BitVec;
+
+/// Inline capacity for dirty indices SmallVec (64 usize = 512 bytes on stack).
+/// Covers small terminals without heap allocation; spills to heap for large frames.
+const DIRTY_INLINE_CAPACITY: usize = 64;
 
 #[derive(Clone, Debug)]
 pub struct Frame {
@@ -11,8 +19,8 @@ pub struct Frame {
     cell_gen: Vec<u32>,
     blank: Cell,
     dirty_all: bool,
-    dirty_map: Vec<bool>,
-    dirty: Vec<usize>,
+    dirty_map: BitVec,
+    dirty: SmallVec<[usize; DIRTY_INLINE_CAPACITY]>,
 }
 
 impl Frame {
@@ -28,8 +36,8 @@ impl Frame {
             cell_gen: vec![gen; len],
             blank,
             dirty_all: true,
-            dirty_map: vec![false; len],
-            dirty: Vec::new(),
+            dirty_map: BitVec::repeat(false, len),
+            dirty: SmallVec::with_capacity(len / DIRTY_CAPACITY_DIVISOR),
         }
     }
 
@@ -71,7 +79,7 @@ impl Frame {
         }
 
         for &i in &self.dirty {
-            if let Some(v) = self.dirty_map.get_mut(i) {
+            if let Some(mut v) = self.dirty_map.get_mut(i) {
                 *v = false;
             }
         }
@@ -122,8 +130,8 @@ impl Frame {
             if let Some(v) = self.cell_gen.get_mut(i) {
                 *v = self.gen;
             }
-            if !self.dirty_all && self.dirty_map.get(i).copied() == Some(false) {
-                self.dirty_map[i] = true;
+            if !self.dirty_all && self.dirty_map.get(i).map_or(true, |b| !*b) {
+                self.dirty_map.set(i, true);
                 self.dirty.push(i);
             }
         }
