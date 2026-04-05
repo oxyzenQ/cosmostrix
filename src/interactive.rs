@@ -77,6 +77,8 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     spawn_watchdog();
 
     let mut term = Terminal::new()?;
+    // Enable mouse capture (non-fatal if terminal doesn't support it)
+    let _ = term.enable_mouse_capture();
     let (w, h) = term.size()?;
 
     let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);
@@ -160,6 +162,9 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             #[cfg(unix)]
                             &term_reinit,
                         );
+                    }
+                    Event::Mouse(m) => {
+                        cloud.set_mouse_position(m.column, m.row);
                     }
                     _ => {}
                 }

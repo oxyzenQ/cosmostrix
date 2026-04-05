@@ -47,6 +47,7 @@ pub struct Terminal {
     run_buf: String,
     row_dirty: Vec<Vec<usize>>,
     touched_rows: Vec<u16>,
+    mouse_capture_enabled: bool,
 }
 
 impl Terminal {
@@ -83,6 +84,7 @@ impl Terminal {
             },
             row_dirty: Vec::new(),
             touched_rows: Vec::new(),
+            mouse_capture_enabled: false,
         })
     }
 
@@ -96,6 +98,24 @@ impl Terminal {
 
     pub fn read_event() -> Result<event::Event> {
         event::read()
+    }
+
+    /// Enable mouse capture so mouse events are reported.
+    pub fn enable_mouse_capture(&mut self) -> Result<()> {
+        self.stdout.execute(event::EnableMouseCapture)?;
+        self.stdout.flush()?;
+        self.mouse_capture_enabled = true;
+        Ok(())
+    }
+
+    /// Disable mouse capture.
+    pub fn disable_mouse_capture(&mut self) -> Result<()> {
+        if self.mouse_capture_enabled {
+            self.stdout.execute(event::DisableMouseCapture)?;
+            self.stdout.flush()?;
+            self.mouse_capture_enabled = false;
+        }
+        Ok(())
     }
 
     pub fn draw(&mut self, frame: &mut Frame) -> Result<()> {
@@ -339,6 +359,7 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
+        let _ = self.disable_mouse_capture();
         let _ = self.stdout.execute(SetAttribute(Attribute::Reset));
         let _ = self.stdout.execute(ResetColor);
         let _ = self.stdout.execute(cursor::Show);

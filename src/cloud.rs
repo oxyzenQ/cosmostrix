@@ -13,7 +13,7 @@ use crate::constants::*;
 use crate::{
     cell::Cell,
     frame::Frame,
-    palette::{build_palette, Palette},
+    palette::{blend_palettes, build_palette, Palette},
     runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode},
 };
 use bitvec::prelude::{BitSlice, BitVec};
@@ -118,19 +118,16 @@ impl DrawCtx<'_> {
 
         if self.shading_distance {
             let last = self.palette_colors.len().saturating_sub(1) as u64;
-            let dist = head_put_line.saturating_sub(line) as u64;
-            let len = length.max(1) as u64;
+            let dist = head_put_line.saturating_sub(line) as f64;
+            let len = length.max(1) as f64;
 
-            let inv = (len.saturating_sub(dist)).min(len);
-            let inv2 = inv * inv;
-            let len2 = len * len;
+            // Exponential decay: brightness = exp(-k * distance/length)
+            let normalized_dist = (dist / len).clamp(0.0, 1.0);
+            let brightness = (-TRAIL_EXPONENTIAL_K * normalized_dist).exp();
+            let mut v = ((brightness * last as f64).round() as u64).min(last);
 
-            let mut v = if len2 == 0 {
-                0
-            } else {
-                ((inv2 * last) + (len2 / 2)) / len2
-            };
-            if dist <= 1 {
+            // Bloom: cells right behind head get extra brightness
+            if dist < HEAD_BLOOM_CELLS as f64 {
                 v = (v + 1).min(last);
             }
 
@@ -267,6 +264,24 @@ pub struct Cloud {
     color_scheme: ColorScheme,
     default_background: bool,
 
+    /// Previous palette for crossfade blending.
+    prev_palette: Option<Palette>,
+
+    /// Target palette for crossfade blending.
+    target_palette: Option<Palette>,
+
+    /// Crossfade start time.
+    crossfade_start: Option<Instant>,
+
+    /// Mouse cursor column position (u16::MAX if no mouse).
+    pub mouse_col: u16,
+
+    /// Mouse cursor line position (u16::MAX if no mouse).
+    pub mouse_line: u16,
+
+    /// Whether mouse interaction is enabled.
+    pub mouse_enabled: bool,
+
     last_reseed_time: Instant,
 }
 
@@ -340,6 +355,12 @@ impl Cloud {
             message_border: true,
             color_scheme,
             default_background,
+            prev_palette: None,
+            target_palette: None,
+            crossfade_start: None,
+            mouse_col: u16::MAX,
+            mouse_line: u16::MAX,
+            mouse_enabled: true,
             last_reseed_time: now,
         }
     }
@@ -360,9 +381,23 @@ impl Cloud {
 
     pub fn set_color_scheme(&mut self, scheme: ColorScheme) {
         self.color_scheme = scheme;
-        self.palette = build_palette(scheme, self.color_mode, self.default_background);
+        let new_palette = build_palette(scheme, self.color_mode, self.default_background);
+
+        // Start crossfade from current effective palette
+        let current = self.palette.clone();
+        self.prev_palette = Some(current);
+        self.target_palette = Some(new_palette.clone());
+        self.crossfade_start = Some(Instant::now());
+
+        self.palette = new_palette;
         self.fill_color_map();
         self.force_draw_everything = true;
+    }
+
+    /// Set mouse cursor position for interaction effects.
+    pub fn set_mouse_position(&mut self, col: u16, line: u16) {
+        self.mouse_col = col;
+        self.mouse_line = line;
     }
 
     #[must_use]
@@ -590,7 +625,11 @@ impl Cloud {
                 continue;
             }
             if let Some(cs) = self.col_stat.get(d.bound_col as usize) {
-                d.chars_per_sec = cs.max_speed_pct * self.chars_per_sec;
+                let layer_speed = PARALLAX_SPEED_MULT[d.layer as usize];
+                d.chars_per_sec = cs.max_speed_pct * self.chars_per_sec * layer_speed;
+                // Keep velocity clamped to new terminal velocity
+                let terminal = d.chars_per_sec * DROPLET_TERMINAL_VELOCITY_MULT;
+                d.velocity = d.velocity.min(terminal);
             }
         }
     }
@@ -638,18 +677,36 @@ impl Cloud {
             len = self.rand_len.sample(&mut self.mt);
         }
 
+        // Assign parallax layer (0=far, 1=mid, 2=near)
+        let layer_roll = self.rand_chance.sample(&mut self.mt);
+        let layer: u8 = if layer_roll < 0.3 {
+            0
+        } else if layer_roll < 0.7 {
+            1
+        } else {
+            2
+        };
+        d.layer = layer;
+
+        // Adjust length by parallax layer
+        let len_mult = PARALLAX_LENGTH_MULT[layer as usize];
+        len = ((len as f32) * len_mult).max(1.0) as u16;
+
         let mut ttl = Duration::from_millis(1);
         if end_line <= len {
             let ms = self.rand_linger_ms.sample(&mut self.mt) as u64;
             ttl = Duration::from_millis(ms);
         }
 
+        // Adjust speed by parallax layer
+        let layer_speed = PARALLAX_SPEED_MULT[layer as usize];
         let speed = self
             .col_stat
             .get(col as usize)
             .map(|cs| cs.max_speed_pct)
             .unwrap_or(1.0)
-            * self.chars_per_sec;
+            * self.chars_per_sec
+            * layer_speed;
 
         d.bound_col = col;
         d.end_line = end_line;
@@ -717,6 +774,18 @@ impl Cloud {
                 || self.col_stat[col as usize].num_droplets >= self.max_droplets_per_column
             {
                 continue;
+            }
+
+            // Mouse avoidance: skip spawning near cursor
+            if self.mouse_enabled && self.mouse_col != u16::MAX {
+                let col_dist = if col > self.mouse_col {
+                    col - self.mouse_col
+                } else {
+                    self.mouse_col - col
+                };
+                if col_dist <= MOUSE_AVOID_RADIUS_COLS {
+                    continue;
+                }
             }
 
             let start = self.spawn_scan_idx.min(len);
@@ -940,6 +1009,24 @@ impl Cloud {
     pub fn rain_at(&mut self, frame: &mut Frame, now: Instant) {
         if self.pause {
             return;
+        }
+
+        // Update crossfade state
+        if let Some(start) = self.crossfade_start {
+            let elapsed = start.elapsed().as_secs_f64();
+            if elapsed >= COLOR_CROSSFADE_DURATION_SECS {
+                if let Some(target) = self.target_palette.take() {
+                    self.palette = target;
+                }
+                self.crossfade_start = None;
+                self.prev_palette = None;
+            } else {
+                let t = (elapsed / COLOR_CROSSFADE_DURATION_SECS).clamp(0.0, 1.0);
+                let ease = t * t * (3.0 - 2.0 * t); // smoothstep
+                if let (Some(prev), Some(target)) = (&self.prev_palette, &self.target_palette) {
+                    self.palette = blend_palettes(prev, target, ease as f32);
+                }
+            }
         }
 
         // Periodically re-seed RNG for very long sessions

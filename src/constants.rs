@@ -143,3 +143,66 @@ pub const CONFIG_FILE_NAME: &str = "config";
 
 /// Default frame dirty capacity pre-allocation (1/4 of total cells).
 pub const DIRTY_CAPACITY_DIVISOR: usize = 4;
+
+// ---------------------------------------------------------------------------
+// Exponential trail fade & head bloom
+// ---------------------------------------------------------------------------
+
+/// Exponential decay rate for trail fading (higher = faster fade near head).
+pub const TRAIL_EXPONENTIAL_K: f64 = 3.0;
+
+/// Number of cells behind the head that get bloom glow effect.
+pub const HEAD_BLOOM_CELLS: u16 = 3;
+
+/// Bloom glow intensity (0.0 = off, 1.0 = full white blend).
+pub const HEAD_BLOOM_INTENSITY: f32 = 0.4;
+
+// ---------------------------------------------------------------------------
+// Color scheme crossfade
+// ---------------------------------------------------------------------------
+
+/// Duration of color scheme crossfade in seconds.
+pub const COLOR_CROSSFADE_DURATION_SECS: f64 = 1.5;
+
+// ---------------------------------------------------------------------------
+// Gravity acceleration
+// ---------------------------------------------------------------------------
+
+/// Gravity acceleration for droplets (chars/s²).
+pub const DROPLET_GRAVITY: f32 = 2.0;
+
+/// Terminal velocity multiplier (fraction of chars_per_sec).
+pub const DROPLET_TERMINAL_VELOCITY_MULT: f32 = 1.8;
+
+// ---------------------------------------------------------------------------
+// Depth fog vignette
+// ---------------------------------------------------------------------------
+
+/// Number of rows at top and bottom for fog vignette effect.
+pub const FOG_ROWS: u16 = 4;
+
+/// Minimum brightness factor at fog edges (0.0 = invisible, 1.0 = full).
+pub const FOG_MIN_FACTOR: f32 = 0.25;
+
+// ---------------------------------------------------------------------------
+// Mouse interaction
+// ---------------------------------------------------------------------------
+
+/// Mouse interaction: radius around cursor (in columns) where droplets avoid.
+pub const MOUSE_AVOID_RADIUS_COLS: u16 = 5;
+
+// ---------------------------------------------------------------------------
+// Parallax depth layers
+// ---------------------------------------------------------------------------
+
+/// Number of parallax depth layers.
+pub const PARALLAX_LAYERS: usize = 3;
+
+/// Per-layer speed multiplier (layer 0 = far, 2 = near).
+pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
+
+/// Per-layer brightness multiplier (layer 0 = dim, 2 = bright).
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.35, 0.8, 1.0];
+
+/// Per-layer length multiplier (layer 0 = short, 2 = long).
+pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];

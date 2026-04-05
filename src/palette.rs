@@ -118,6 +118,83 @@ fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
     (a + (b - a) * t).round().clamp(0.0, 255.0) as u8
 }
 
+/// Blend a color toward white by the given factor (0.0 = no change, 1.0 = pure white).
+#[must_use]
+pub fn blend_toward_white(color: Color, factor: f32) -> Color {
+    if factor <= 0.0 || matches!(color, Color::Reset) {
+        return color;
+    }
+    let f = factor.clamp(0.0, 1.0);
+    match color {
+        Color::Rgb { r, g, b } => Color::Rgb {
+            r: lerp_u8(r, 255, f),
+            g: lerp_u8(g, 255, f),
+            b: lerp_u8(b, 255, f),
+        },
+        _ => color,
+    }
+}
+
+/// Darken a color by the given factor (1.0 = no change, 0.0 = black).
+#[must_use]
+pub fn apply_brightness(color: Color, factor: f32) -> Color {
+    if factor >= 1.0 || matches!(color, Color::Reset) {
+        return color;
+    }
+    let f = factor.clamp(0.0, 1.0);
+    match color {
+        Color::Rgb { r, g, b } => Color::Rgb {
+            r: (r as f32 * f).round().clamp(0.0, 255.0) as u8,
+            g: (g as f32 * f).round().clamp(0.0, 255.0) as u8,
+            b: (b as f32 * f).round().clamp(0.0, 255.0) as u8,
+        },
+        _ => color,
+    }
+}
+
+/// Blend two colors together by factor t (0.0 = a, 1.0 = b).
+fn lerp_colors(a: Color, b: Color, t: f32) -> Color {
+    match (a, b) {
+        (
+            Color::Rgb {
+                r: ar,
+                g: ag,
+                b: ab,
+            },
+            Color::Rgb {
+                r: br,
+                g: bg,
+                b: bb,
+            },
+        ) => Color::Rgb {
+            r: lerp_u8(ar, br, t),
+            g: lerp_u8(ag, bg, t),
+            b: lerp_u8(ab, bb, t),
+        },
+        _ => {
+            if t < 0.5 {
+                a
+            } else {
+                b
+            }
+        }
+    }
+}
+
+/// Blend two palettes together by factor t (0.0 = a, 1.0 = b).
+/// Background is taken from target (b).
+#[must_use]
+pub fn blend_palettes(a: &Palette, b: &Palette, t: f32) -> Palette {
+    let max_len = a.colors.len().max(b.colors.len());
+    let mut colors = Vec::with_capacity(max_len);
+    for i in 0..max_len {
+        let ca = a.colors.get(i).copied().unwrap_or(Color::Reset);
+        let cb = b.colors.get(i).copied().unwrap_or(Color::Reset);
+        colors.push(lerp_colors(ca, cb, t));
+    }
+    Palette { colors, bg: b.bg }
+}
+
 fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
     if steps == 0 || stops.is_empty() {
         return Vec::new();

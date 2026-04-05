@@ -3,8 +3,12 @@
 use std::time::{Duration, Instant};
 
 use crate::cloud::{CharLoc, DrawCtx};
-use crate::constants::HEAD_LINGER_BRIGHTNESS_MS;
+use crate::constants::{
+    DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT, FOG_MIN_FACTOR, FOG_ROWS, HEAD_BLOOM_CELLS,
+    HEAD_BLOOM_INTENSITY, HEAD_LINGER_BRIGHTNESS_MS, PARALLAX_BRIGHTNESS_MULT,
+};
 use crate::frame::Frame;
+use crate::palette;
 
 #[derive(Clone, Debug)]
 pub struct Droplet {
@@ -25,6 +29,12 @@ pub struct Droplet {
     pub chars_per_sec: f32,
 
     pub advance_remainder: f32,
+
+    /// Current velocity (chars/sec), increases with gravity.
+    pub velocity: f32,
+
+    /// Which parallax layer this droplet belongs to (0=far, 1=mid, 2=near).
+    pub layer: u8,
 
     pub last_time: Option<Instant>,
     pub head_stop_time: Option<Instant>,
@@ -48,6 +58,8 @@ impl Droplet {
             chars_per_sec: 0.0,
 
             advance_remainder: 0.0,
+            velocity: 0.0,
+            layer: 0,
 
             last_time: None,
             head_stop_time: None,
@@ -60,6 +72,7 @@ impl Droplet {
         self.is_head_crawling = true;
         self.is_tail_crawling = true;
         self.advance_remainder = 0.0;
+        self.velocity = self.chars_per_sec * 0.3;
         self.last_time = Some(now);
     }
 
@@ -80,7 +93,12 @@ impl Droplet {
 
         let elapsed = now.saturating_duration_since(last);
         let elapsed_sec = elapsed.as_secs_f32();
-        let delta = (self.chars_per_sec * elapsed_sec).max(0.0);
+
+        // Apply gravity: accelerate toward terminal velocity
+        let terminal_vel = self.chars_per_sec * DROPLET_TERMINAL_VELOCITY_MULT;
+        self.velocity = (self.velocity + DROPLET_GRAVITY * elapsed_sec).min(terminal_vel);
+
+        let delta = (self.velocity * elapsed_sec).max(0.0);
         let total = self.advance_remainder + delta;
         let whole = total.floor();
         self.advance_remainder = total - whole;
@@ -208,6 +226,44 @@ impl Droplet {
                 self.head_put_line,
                 self.length,
             );
+
+            // Apply visual effects to foreground color
+            let fg = fg.map(|c| {
+                let mut c = c;
+
+                // Head bloom: cells near head get extra white glow
+                if matches!(loc, CharLoc::Middle) {
+                    let dist_from_head = self.head_put_line.saturating_sub(line);
+                    if dist_from_head > 0 && dist_from_head < HEAD_BLOOM_CELLS {
+                        let t = 1.0 - (dist_from_head as f32 / HEAD_BLOOM_CELLS as f32);
+                        c = palette::blend_toward_white(c, t * HEAD_BLOOM_INTENSITY);
+                    }
+                }
+
+                // Parallax layer brightness
+                let layer_brightness = PARALLAX_BRIGHTNESS_MULT[self.layer as usize];
+                if layer_brightness < 1.0 {
+                    c = palette::apply_brightness(c, layer_brightness);
+                }
+
+                // Depth fog: dim top and bottom rows
+                let fog_factor = if line < FOG_ROWS {
+                    FOG_MIN_FACTOR + (1.0 - FOG_MIN_FACTOR) * (line as f32 / FOG_ROWS as f32)
+                } else {
+                    let bottom_dist = ctx.lines.saturating_sub(line).saturating_sub(1);
+                    if bottom_dist < FOG_ROWS {
+                        FOG_MIN_FACTOR
+                            + (1.0 - FOG_MIN_FACTOR) * (bottom_dist as f32 / FOG_ROWS as f32)
+                    } else {
+                        1.0
+                    }
+                };
+                if fog_factor < 1.0 {
+                    c = palette::apply_brightness(c, fog_factor);
+                }
+
+                c
+            });
 
             frame.set(
                 self.bound_col,
