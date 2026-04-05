@@ -148,7 +148,7 @@ dependencies = [
 
 [[package]]
 name = "cosmostrix"
-version = "1.0.5-stable.1"
+version = "1.1.0-stable.1"
 dependencies = [
  "bitvec",
  "clap",
