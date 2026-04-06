@@ -1,5 +1,5 @@
-perf.data*
-*debug.txt*
-*.log
-*.out
-*.txt
+#perf.data*
+#*debug.txt*
+#*.log
+#*.out
+#*.txt

@@ -4,20 +4,24 @@ This folder contains performance and profiling artifacts for Cosmostrix.
 
 ## Summary (current results)
 
-- Peak heap (Valgrind Massif): `~212 KB` (`212,904 bytes` total)
+- Peak heap (Valgrind Massif): `~162 KB` (`165,240 bytes` total)
+  - `mem_heap_B=162471`
+  - `mem_heap_extra_B=2769`
 - Heap behavior: stable (no obvious growth during runtime)
-- Release build is significantly faster than debug (use `hyperfine` for exact numbers on your machine)
+- **Performance comparison (hyperfine, 215,318 frames @ 60 fps):**
+  - `release`: 30.6s (~6,948 fps)
+  - `pro-native`: 26.5s (~7,969 fps) — **1.16x faster**
 
 Practical takeaway:
 
-- Memory usage is low and stable for a terminal visualizer.
-- If you want a stronger claim ("no leaks"), run a longer Massif capture or use a leak checker tool.
+- Memory usage is low and stable for a terminal visualizer (~162 KB peak).
+- The `pro-native` profile provides measurable performance gains over standard `release`.
 
 Massif detail (from `massif.out` peak snapshot):
 
-- `mem_heap_B=212316`
-- `mem_heap_extra_B=588`
-- Total: `212316 + 588 = 212904 bytes`
+- `mem_heap_B=162471`
+- `mem_heap_extra_B=2769`
+- Total: `162471 + 2769 = 165240 bytes (~162 KB)`
 
 Artifacts currently tracked here:
 
@@ -63,9 +67,9 @@ bash benchmark/benchmark.sh
 
 The script will try to generate:
 
-- `benchmark/hyperfine.md`
-- `benchmark/time-release.txt`, `benchmark/time-debug.txt`
-- `benchmark/perf-release.txt`, `benchmark/perf-debug.txt`
-- `benchmark/massif-30s.out`
+- `benchmark/hyperfine.md` — comparison table (release vs pro-native)
+- `benchmark/time-release.txt`, `benchmark/time-pro-native.txt` — /usr/bin/time -v output
+- `benchmark/perf-release.txt`, `benchmark/perf-pro-native.txt` — perf stat output
+- `benchmark/massif-release-{frames}f.out`, `benchmark/massif-pro-native-{frames}f.out` — Valgrind heap profiles
 
 (If a tool is missing, the related step is skipped.)
