@@ -377,6 +377,7 @@ impl Drop for Terminal {
 
 pub fn restore_terminal_best_effort() {
     let mut out = stdout();
+    let _ = out.execute(event::DisableMouseCapture);
     let _ = out.execute(SetAttribute(Attribute::Reset));
     let _ = out.execute(ResetColor);
     let _ = out.execute(cursor::Show);
