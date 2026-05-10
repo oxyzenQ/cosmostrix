@@ -76,16 +76,19 @@ jobs:
 
           VERSION="${TAG#v}"
 
-          # Convert version to AUR-compatible pkgver (replace - with .)
-          PKGVER="${VERSION//-/.}"
+          # Split into pkgver and _tag
+          # Example: v1.1.2-stable.1 -> pkgver=1.1.2, _tag=stable.1
+          PKGVER="${VERSION%%-*}"
+          AUR_TAG="${VERSION#*-}"
 
           {
             echo "tag=${TAG}"
             echo "version=${VERSION}"
             echo "pkgver=${PKGVER}"
+            echo "aur_tag=${AUR_TAG}"
           } >> "$GITHUB_OUTPUT"
 
-          echo "Resolved: tag=${TAG} version=${VERSION} pkgver=${PKGVER}"
+          echo "Resolved: tag=${TAG} version=${VERSION} pkgver=${PKGVER} _tag=${AUR_TAG}"
 
       # ------------------------------------------------------------------
       # 2. Checkout the main repository (for PKGBUILD template)
@@ -105,8 +108,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="${{ steps.resolve.outputs.tag }}"
           PKGVER="${{ steps.resolve.outputs.pkgver }}"
+          AUR_TAG="${{ steps.resolve.outputs.aur_tag }}"
           PKGBUILD="${{ env.PKGBUILD_DIR }}/PKGBUILD"
 
           if [[ ! -f "${PKGBUILD}" ]]; then
@@ -114,11 +117,11 @@ jobs:
             exit 1
           fi
 
-          # Update _tag (the single source of truth for URLs)
-          sed -i -E "s|^_tag=.*|_tag=${TAG}|" "${PKGBUILD}"
-
-          # Update pkgver (AUR-compatible version string)
+          # Update pkgver (semver portion only, e.g. 1.1.2)
           sed -i -E "s|^pkgver=.*|pkgver=${PKGVER}|" "${PKGBUILD}"
+
+          # Update _tag (channel portion, e.g. stable.1)
+          sed -i -E "s|^_tag=.*|_tag=${AUR_TAG}|" "${PKGBUILD}"
 
           # Reset pkgrel to 1 on version change
           sed -i -E "s|^pkgrel=.*|pkgrel=1|" "${PKGBUILD}"
@@ -130,12 +133,15 @@ jobs:
       # ------------------------------------------------------------------
       # 4. Regenerate .SRCINFO from PKGBUILD
       # ------------------------------------------------------------------
+      # .SRCINFO reflects the PKGBUILD state.  Since source=() and sha512sums=()
+      # are empty (assets are downloaded dynamically in prepare()), the .SRCINFO
+      # only contains metadata fields.  This is deterministic and idempotent.
+      # ------------------------------------------------------------------
       - name: Regenerate .SRCINFO
         shell: bash
         run: |
           set -euo pipefail
 
-          TAG="${{ steps.resolve.outputs.tag }}"
           PKGVER="${{ steps.resolve.outputs.pkgver }}"
           PKGBUILD="${{ env.PKGBUILD_DIR }}/PKGBUILD"
           SRCINFO="${{ env.PKGBUILD_DIR }}/.SRCINFO"
@@ -145,28 +151,22 @@ jobs:
 
           # Generate .SRCINFO deterministically
           # .SRCINFO uses tab indentation for continuation lines
+          # source=() and sha512sums=() are intentionally empty — assets are
+          # selected and verified dynamically in prepare().
           {
             echo "pkgbase = cosmostrix-bin"
-            printf '\tpkgdesc = A cosmic take on the classic Matrix rain for the terminal\n'
+            printf '\tpkgdesc = A cosmic Matrix-style terminal rain written in Rust\n'
             printf '\tpkgver = %s\n' "${PKGVER}"
             printf '\tpkgrel = %s\n' "${pkgrel}"
             printf '\turl = https://github.com/oxyzenQ/cosmostrix\n'
             printf '\tarch = x86_64\n'
             printf '\tarch = aarch64\n'
             printf '\tlicense = MIT\n'
+            printf '\tdepends = glibc\n'
+            printf '\tdepends = gcc-libs\n'
             printf '\tprovides = cosmostrix\n'
             printf '\tconflicts = cosmostrix\n'
             printf '\toptions = !strip\n'
-            printf '\tsource_x86_64 = https://github.com/oxyzenQ/cosmostrix/releases/download/%s/cosmostrix-bin-%s-linux-x86_64-v1.tar.gz\n' "${TAG}" "${TAG}"
-            printf '\tsource_x86_64 = https://github.com/oxyzenQ/cosmostrix/releases/download/%s/cosmostrix-bin-%s-linux-x86_64-v2.tar.gz\n' "${TAG}" "${TAG}"
-            printf '\tsource_x86_64 = https://github.com/oxyzenQ/cosmostrix/releases/download/%s/cosmostrix-bin-%s-linux-x86_64-v3.tar.gz\n' "${TAG}" "${TAG}"
-            printf '\tsource_x86_64 = https://github.com/oxyzenQ/cosmostrix/releases/download/%s/cosmostrix-bin-%s-linux-x86_64-v4.tar.gz\n' "${TAG}" "${TAG}"
-            printf '\tsource_aarch64 = https://github.com/oxyzenQ/cosmostrix/releases/download/%s/cosmostrix-bin-%s-linux-aarch64-native.tar.gz\n' "${TAG}" "${TAG}"
-            printf '\tsha256sums_x86_64 = SKIP\n'
-            printf '\tsha256sums_x86_64 = SKIP\n'
-            printf '\tsha256sums_x86_64 = SKIP\n'
-            printf '\tsha256sums_x86_64 = SKIP\n'
-            printf '\tsha256sums_aarch64 = SKIP\n'
             echo ""
             echo "pkgname = cosmostrix-bin"
           } > "${SRCINFO}"
