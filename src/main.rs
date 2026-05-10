@@ -62,7 +62,6 @@ const HELP_TEMPLATE_COLOR: &str = "\
 /// Aggregated configuration for creating and running a `Cloud` instance.
 /// Collected from CLI args and config file, then passed to the interactive
 /// loop or benchmark runner.
-
 pub struct CloudConfig {
     pub color_mode: ColorMode,
     pub fullwidth: bool,
@@ -561,7 +560,6 @@ fn format_bytes(bytes: usize) -> String {
 /// Convert a `Result<T, String>` validation error to `io::Error`.
 /// Side effect: restores the terminal and prints the error message to stderr
 /// before returning the error, so the user doesn't see a broken terminal.
-
 fn validate_err<T>(name: &str, r: Result<T, String>) -> std::io::Result<T> {
     r.map_err(|e| {
         restore_terminal_best_effort();
