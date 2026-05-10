@@ -207,7 +207,8 @@ jobs:
           chmod 600 "${HOME}/.ssh/config"
 
           # Add AUR host key (deterministic, pinned)
-          echo "aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEAqIVM6rPn6ExbYOgrMVLGShRnwnnjC2A1H6g9pP6kR" \
+          # Updated 2026-05: AUR rotated their Ed25519 host key (OpenSSH 10.3)
+          echo "aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN" \
             > "${HOME}/.ssh/known_hosts"
 
       # ------------------------------------------------------------------
