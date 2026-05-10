@@ -13,7 +13,9 @@ use crossterm::{
 };
 
 use crate::cell::Cell;
-use crate::constants::{DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, SHUTDOWN_TIMEOUT_SECS};
+use crate::constants::{
+    DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, SHUTDOWN_TIMEOUT_SECS,
+};
 use crate::frame::Frame;
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
@@ -30,15 +32,7 @@ impl LastFrame {
         Self {
             width,
             height,
-            cells: vec![
-                crate::cell::Cell {
-                    ch: ' ',
-                    fg: None,
-                    bg: None,
-                    bold: false,
-                };
-                len
-            ],
+            cells: vec![Cell::blank_with_bg(None); len],
         }
     }
 }
@@ -261,7 +255,7 @@ impl Terminal {
         let run_buf = &mut self.run_buf;
 
         if self.row_dirty.len() != frame.height as usize {
-            self.row_dirty = vec![Vec::new(); frame.height as usize];
+            self.row_dirty.resize_with(frame.height as usize, Vec::new);
         }
         self.touched_rows.clear();
 

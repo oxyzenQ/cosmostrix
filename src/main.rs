@@ -59,6 +59,10 @@ const HELP_TEMPLATE_COLOR: &str = "\
 
 // --- CloudConfig struct for deduplicating cloud initialization ---
 
+/// Aggregated configuration for creating and running a `Cloud` instance.
+/// Collected from CLI args and config file, then passed to the interactive
+/// loop or benchmark runner.
+
 pub struct CloudConfig {
     pub color_mode: ColorMode,
     pub fullwidth: bool,
@@ -233,11 +237,13 @@ pub fn spawn_kill9_terminal_guard() {
     }
 }
 
+#[must_use]
 fn default_to_ascii() -> bool {
     let lang = env::var("LANG").unwrap_or_default();
     !lang.to_ascii_uppercase().contains("UTF")
 }
 
+#[must_use]
 fn detect_color_mode_auto() -> ColorMode {
     let colorterm = env::var("COLORTERM")
         .unwrap_or_default()
@@ -343,6 +349,7 @@ fn all_color_schemes() -> &'static [ColorScheme] {
     ]
 }
 
+#[must_use]
 fn cycle_color_scheme(current: ColorScheme, dir: i32) -> ColorScheme {
     let list = all_color_schemes();
     let Some(pos) = list.iter().position(|&c| c == current) else {
@@ -520,8 +527,8 @@ fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
 
 #[must_use]
 fn estimate_memory_budget(w: u16, h: u16) -> usize {
-    // Each cell: 1 char (4 bytes) + fg Option<Color> (8 bytes) + bg Option<Color> (8 bytes) + bold (1 byte) ≈ 21 bytes, padded to ~24
-    let cell_size = 24;
+    // Use actual Cell size rather than a magic number for accuracy
+    let cell_size = std::mem::size_of::<crate::cell::Cell>();
     let frame_cells = (w as usize) * (h as usize) * cell_size;
 
     // Cloud internal buffers: char_pool (2048), glitch_pool (1024), color_map, glitch_map
@@ -530,7 +537,7 @@ fn estimate_memory_budget(w: u16, h: u16) -> usize {
 
     // Droplets: ~1.5 * cols droplets, each ~100 bytes
     let droplet_count = (1.5 * w as f32) as usize;
-    let droplets_size = droplet_count * 100;
+    let droplets_size = droplet_count * std::mem::size_of::<crate::droplet::Droplet>().max(100);
 
     // Terminal: LastFrame + row_dirty + touched_rows
     let terminal_last = (w as usize) * (h as usize) * cell_size;
@@ -550,6 +557,10 @@ fn format_bytes(bytes: usize) -> String {
 }
 
 // --- Helper to convert String errors to io::Error for main() ---
+
+/// Convert a `Result<T, String>` validation error to `io::Error`.
+/// Side effect: restores the terminal and prints the error message to stderr
+/// before returning the error, so the user doesn't see a broken terminal.
 
 fn validate_err<T>(name: &str, r: Result<T, String>) -> std::io::Result<T> {
     r.map_err(|e| {
@@ -616,7 +627,9 @@ fn apply_config_defaults(matches: &clap::ArgMatches, args: &mut Args) {
     if let Some(v) = apply("density", matches) {
         match v.parse::<f32>() {
             Ok(n) if n.is_finite() => {
-                if let Ok(f) = validate_f32_range("config density", n, DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX) {
+                if let Ok(f) =
+                    validate_f32_range("config density", n, DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX)
+                {
                     args.density = f;
                 } else {
                     eprintln!("config: ignoring invalid density={v} (min {DENSITY_CLAMP_MIN} max {DENSITY_CLAMP_MAX})");

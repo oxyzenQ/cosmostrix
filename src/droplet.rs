@@ -18,6 +18,7 @@ pub struct Droplet {
     pub is_head_crawling: bool,
     pub is_tail_crawling: bool,
 
+    /// Column this droplet is bound to; `u16::MAX` when inactive (recycled).
     pub bound_col: u16,
     pub head_put_line: u16,
     pub head_cur_line: u16,
@@ -25,8 +26,11 @@ pub struct Droplet {
     pub tail_put_line: Option<u16>,
     pub tail_cur_line: u16,
 
+    /// Line at which the head stops; `u16::MAX` sentinel when inactive.
     pub end_line: u16,
+    /// Index into the char_pool; `u16::MAX` sentinel when inactive.
     pub char_pool_idx: u16,
+    /// Visual length of the droplet trail; `u16::MAX` sentinel when inactive.
     pub length: u16,
     pub chars_per_sec: f32,
 

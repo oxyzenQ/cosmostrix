@@ -146,7 +146,7 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut perf_frames: u64 = 0;
     let mut perf_drawn_frames: u64 = 0;
     let mut perf_work_sum_s: f64 = 0.0;
-    let mut perf_work_max_s: f32 = 0.0;
+    let mut perf_work_max_s: f64 = 0.0;
     let mut perf_pressure_sum: f64 = 0.0;
     let mut perf_pressure_max: f32 = 0.0;
     let mut perf_overshoot_frames: u64 = 0;
@@ -289,7 +289,7 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 perf_drawn_frames = perf_drawn_frames.saturating_add(1);
             }
             perf_work_sum_s += work_s as f64;
-            perf_work_max_s = perf_work_max_s.max(work_s);
+            perf_work_max_s = perf_work_max_s.max(work_s as f64);
             perf_pressure_sum += perf_pressure as f64;
             perf_pressure_max = perf_pressure_max.max(perf_pressure);
             if overshoot > 0.0 {
@@ -330,7 +330,7 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             drawn_ratio * 100.0
         );
         println!("  avg_work_ms: {:.3}", avg_work_ms);
-        println!("  max_work_ms: {:.3}", perf_work_max_s as f64 * 1000.0);
+        println!("  max_work_ms: {:.3}", perf_work_max_s * 1000.0);
         println!(
             "  overshoot_frames: {} ({:.1}%)",
             perf_overshoot_frames,

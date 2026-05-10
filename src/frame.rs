@@ -3,7 +3,9 @@
 use smallvec::SmallVec;
 
 use crate::cell::Cell;
-use crate::constants::{DIRTY_CAPACITY_DIVISOR, DIRTY_CAPACITY_CAP, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES};
+use crate::constants::{
+    DIRTY_CAPACITY_CAP, DIRTY_CAPACITY_DIVISOR, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
+};
 use bitvec::prelude::BitVec;
 
 /// Inline capacity for dirty indices SmallVec (64 usize = 512 bytes on stack).

@@ -46,6 +46,15 @@ pub fn parse_user_hex_chars(s: &str) -> Result<Vec<char>, String> {
             .map_err(|_| format!("invalid hex char at index {}", i + 1))?;
         let ch = char::from_u32(v)
             .ok_or_else(|| format!("invalid unicode scalar at index {}", i + 1))?;
+        // Reject control characters (C0/C1 control codes) — they are invisible
+        // and can break terminal rendering. Allow spaces and above.
+        if ch.is_control() {
+            return Err(format!(
+                "control character at index {} (U+{:04X}) — invisible chars break rendering",
+                i + 1,
+                v
+            ));
+        }
         out.push(ch);
     }
     Ok(out)

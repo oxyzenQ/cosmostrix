@@ -115,6 +115,7 @@ fn colors_from_rgb(mode: ColorMode, list: &[(u8, u8, u8)]) -> Vec<Color> {
 /// Convert any crossterm Color to approximate (r, g, b).
 /// Returns (0, 0, 0) for Reset.
 #[must_use]
+#[allow(unreachable_patterns)] // Catch-all guards against future crossterm Color variants
 fn color_to_rgb(color: Color) -> (u8, u8, u8) {
     match color {
         Color::Rgb { r, g, b } => (r, g, b),
@@ -177,6 +178,8 @@ fn color_to_rgb(color: Color) -> (u8, u8, u8) {
         Color::White => (255, 255, 255),
         Color::Grey => (192, 192, 192),
         Color::Reset => (0, 0, 0),
+        // Catch-all for any future crossterm Color variants
+        _ => (0, 0, 0),
     }
 }
 

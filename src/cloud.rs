@@ -29,6 +29,8 @@ pub enum CharLoc {
     Head,
 }
 
+/// Read-only drawing context passed to `Droplet::draw` to avoid borrowing
+/// the entire `Cloud` (which would conflict with the mutable droplet loop).
 pub struct DrawCtx<'a> {
     pub lines: u16,
     pub full_width: bool,
@@ -186,6 +188,7 @@ impl DrawCtx<'_> {
     }
 }
 
+/// Per-column tracking for spawn control and speed scaling.
 #[derive(Clone, Debug)]
 struct ColumnStatus {
     max_speed_pct: f32,
@@ -193,6 +196,7 @@ struct ColumnStatus {
     can_spawn: bool,
 }
 
+/// A single character in the overlay message box (position + glyph).
 #[derive(Clone, Debug)]
 struct MsgChr {
     line: u16,
@@ -353,14 +357,18 @@ impl Cloud {
             color_map: Vec::new(),
             col_stat: Vec::new(),
             mt,
-            rand_chance: Uniform::new(0.0, 1.0).expect("valid range"),
-            rand_line: Uniform::new_inclusive(0, 23).expect("valid range"),
-            rand_cpidx: Uniform::new_inclusive(0, MAX_CHAR_POOL_IDX).expect("valid range"),
-            rand_len: Uniform::new_inclusive(1, 23).expect("valid range"),
-            rand_col: Uniform::new_inclusive(0, 79).expect("valid range"),
-            rand_glitch_ms: Uniform::new_inclusive(300, 400).expect("valid range"),
-            rand_linger_ms: Uniform::new_inclusive(1, 3000).expect("valid range"),
-            rand_speed: Uniform::new_inclusive(0.3333333, 1.0).expect("valid range"),
+            rand_chance: Uniform::new(0.0, 1.0).expect("rand_chance: [0,1) always valid"),
+            rand_line: Uniform::new_inclusive(0, 23).expect("rand_line: [0,23] always valid"),
+            rand_cpidx: Uniform::new_inclusive(0, MAX_CHAR_POOL_IDX)
+                .expect("rand_cpidx: [0,2047] always valid"),
+            rand_len: Uniform::new_inclusive(1, 23).expect("rand_len: [1,23] always valid"),
+            rand_col: Uniform::new_inclusive(0, 79).expect("rand_col: [0,79] always valid"),
+            rand_glitch_ms: Uniform::new_inclusive(300, 400)
+                .expect("rand_glitch_ms: [300,400] always valid"),
+            rand_linger_ms: Uniform::new_inclusive(1, 3000)
+                .expect("rand_linger_ms: [1,3000] always valid"),
+            rand_speed: Uniform::new_inclusive(0.3333333, 1.0)
+                .expect("rand_speed: [0.33,1.0] always valid"),
             last_glitch_time: now,
             next_glitch_time: now + Duration::from_millis(300),
             last_spawn_time: now,
@@ -478,7 +486,8 @@ impl Cloud {
         } else {
             (high_ms, low_ms)
         };
-        self.rand_glitch_ms = Uniform::new_inclusive(lo, hi).expect("valid range");
+        self.rand_glitch_ms =
+            Uniform::new_inclusive(lo, hi).expect("rand_glitch_ms: lo <= hi after swap");
     }
 
     pub fn set_linger_times(&mut self, low_ms: u16, high_ms: u16) {
@@ -489,7 +498,8 @@ impl Cloud {
         } else {
             (high_ms, low_ms)
         };
-        self.rand_linger_ms = Uniform::new_inclusive(lo, hi).expect("valid range");
+        self.rand_linger_ms =
+            Uniform::new_inclusive(lo, hi).expect("rand_linger_ms: lo <= hi after swap");
     }
 
     pub fn set_max_droplets_per_column(&mut self, v: u8) {
@@ -530,10 +540,13 @@ impl Cloud {
 
         let max_line = lines.saturating_sub(2);
         let max_len = max_line.max(1);
-        self.rand_line = Uniform::new_inclusive(0, max_line).expect("valid range");
-        self.rand_len = Uniform::new_inclusive(1, max_len).expect("valid range");
-        self.rand_col = Uniform::new_inclusive(0, cols.saturating_sub(1)).expect("valid range");
-        self.rand_cpidx = Uniform::new_inclusive(0, MAX_CHAR_POOL_IDX).expect("valid range");
+        self.rand_line = Uniform::new_inclusive(0, max_line).expect("rand_line: max_line >= 0");
+        self.rand_len =
+            Uniform::new_inclusive(1, max_len).expect("rand_len: max_len >= 1 after max(1)");
+        self.rand_col =
+            Uniform::new_inclusive(0, cols.saturating_sub(1)).expect("rand_col: cols-1 >= 0");
+        self.rand_cpidx = Uniform::new_inclusive(0, MAX_CHAR_POOL_IDX)
+            .expect("rand_cpidx: [0,2047] always valid");
 
         self.recalc_droplets_per_sec();
 
@@ -578,7 +591,7 @@ impl Cloud {
         self.glitch_pool_idx = 0;
 
         let dist = Uniform::new_inclusive(0usize, self.chars.len().saturating_sub(1))
-            .expect("valid range");
+            .expect("char_pool: chars.len() >= 2 (guaranteed by empty check above)");
         for i in 0..self.char_pool.len() {
             let idx = dist.sample(&mut self.mt);
             self.char_pool[i] = self.chars[idx];
@@ -626,7 +639,8 @@ impl Cloud {
             3 => (1, 1),
             _ => (1, (n - 2) as u8),
         };
-        let dist = Uniform::new_inclusive(low, high).expect("valid range");
+        let dist =
+            Uniform::new_inclusive(low, high).expect("fill_color_map: low <= high by construction");
 
         for v in &mut self.color_map {
             *v = dist.sample(&mut self.mt);
@@ -789,8 +803,6 @@ impl Cloud {
             return;
         }
 
-        let mut spawned = 0usize;
-
         for _ in 0..to_spawn {
             let mut col = self.rand_col.sample(&mut self.mt);
             if self.full_width {
@@ -815,7 +827,7 @@ impl Cloud {
                 }
             }
 
-            let start = self.spawn_scan_idx.min(len);
+            let start = self.spawn_scan_idx.min(len.saturating_sub(1));
             let mut found = None;
 
             let mut idx = start;
@@ -849,11 +861,7 @@ impl Cloud {
 
             self.col_stat[col as usize].can_spawn = false;
             self.col_stat[col as usize].num_droplets += 1;
-
-            spawned += 1;
         }
-
-        let _ = spawned;
     }
 
     pub fn force_draw_everything(&mut self) {
@@ -943,8 +951,8 @@ impl Cloud {
             .saturating_add(2u16.saturating_mul(border))
             .saturating_add(2u16.saturating_mul(pad_y));
 
-        let start_col = self.cols / 2 - box_w / 2;
-        let start_line = self.lines / 2 - box_h / 2;
+        let start_col = (self.cols / 2).saturating_sub(box_w / 2);
+        let start_line = (self.lines / 2).saturating_sub(box_h / 2);
 
         self.message.clear();
 
