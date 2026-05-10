@@ -223,6 +223,7 @@ pub fn apply_brightness(color: Color, factor: f32) -> Color {
 
 /// Blend two colors together by factor t (0.0 = a, 1.0 = b).
 /// Works with all color types via RGB conversion.
+#[allow(dead_code)]
 fn lerp_colors(a: Color, b: Color, t: f32) -> Color {
     let (ar, ag, ab) = color_to_rgb(a);
     let (br, bg, bb) = color_to_rgb(b);
@@ -235,7 +236,7 @@ fn lerp_colors(a: Color, b: Color, t: f32) -> Color {
 
 /// Blend two palettes together by factor t (0.0 = a, 1.0 = b).
 /// Background is taken from target (b).
-#[must_use]
+#[allow(dead_code)]
 pub fn blend_palettes(a: &Palette, b: &Palette, t: f32) -> Palette {
     let max_len = a.colors.len().max(b.colors.len());
     let mut colors = Vec::with_capacity(max_len);

@@ -172,11 +172,35 @@ pub const HEAD_BLOOM_CELLS: u16 = 3;
 pub const HEAD_BLOOM_INTENSITY: f32 = 0.4;
 
 // ---------------------------------------------------------------------------
-// Color scheme crossfade
+// Cinematic color transition (generation-based palette propagation)
 // ---------------------------------------------------------------------------
 
-/// Duration of color scheme crossfade in seconds.
-pub const COLOR_CROSSFADE_DURATION_SECS: f64 = 1.5;
+/// Maximum number of concurrent palette generations tracked simultaneously.
+/// Old palettes are kept alive until all droplets using them have died,
+/// at which point the slot can be reused. 4 slots covers rapid cycling
+/// (by which time old droplets will have expired naturally).
+pub const MAX_PALETTE_SLOTS: usize = 4;
+
+/// Maximum stagger delay for column desynchronization (in milliseconds).
+/// Each column adopts the new palette at a slightly different time,
+/// creating an organic propagation wave instead of a robotic simultaneous switch.
+pub const COLUMN_TRANSITION_STAGGER_MS: u16 = 700;
+
+/// Velocity boost for new-generation streams during an active transition.
+/// Creates a subtle feeling of an incoming wave (3-8% range, 5% default).
+pub const TRANSITION_VELOCITY_BOOST: f32 = 0.05;
+
+/// Duration (seconds) over which new-palette streams have enhanced energy.
+/// Fresh streams start brighter and settle to normal over this period.
+pub const TRANSITION_ENERGY_DURATION_SECS: f32 = 1.5;
+
+/// Saturation/brightness boost for freshly spawned transition streams.
+/// New-palette heads glow slightly brighter to visually "push" the old palette.
+pub const TRANSITION_ENERGY_SATURATION_BOOST: f32 = 0.15;
+
+/// Additional head bloom glow for new-palette droplets during transition.
+/// Makes the leading edge of the new color ecosystem feel more energetic.
+pub const TRANSITION_HEAD_GLOW_BOOST: f32 = 0.2;
 
 // ---------------------------------------------------------------------------
 // Gravity acceleration

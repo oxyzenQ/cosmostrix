@@ -13,7 +13,7 @@ use crate::constants::*;
 use crate::{
     cell::Cell,
     frame::Frame,
-    palette::{blend_palettes, build_palette, Palette},
+    palette::{build_palette, Palette},
     runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode},
 };
 use bitvec::prelude::{BitSlice, BitVec};
@@ -44,7 +44,18 @@ pub struct DrawCtx<'a> {
     pub last_glitch_time: Instant,
     pub next_glitch_time: Instant,
 
-    pub palette_colors: &'a [Color],
+    /// Per-slot palette color arrays for generation-based rendering.
+    /// Index by droplet's `palette_slot` to resolve its birth palette.
+    pub palette_slices: [&'a [Color]; MAX_PALETTE_SLOTS],
+
+    /// Which palette slot is the currently active (latest) one.
+    /// Used for transition glow effects on new-generation streams.
+    pub active_palette_slot: u8,
+
+    /// Whether a palette transition is currently in progress.
+    /// When true, new-generation streams get enhanced visual effects.
+    pub transitioning: bool,
+
     pub color_map: &'a [u8],
     pub glitch_map: &'a BitSlice,
     pub char_pool: &'a [char],
@@ -113,6 +124,7 @@ impl DrawCtx<'_> {
     #[allow(clippy::too_many_arguments)]
     pub fn get_attr(
         &self,
+        palette_slot: u8,
         line: u16,
         col: u16,
         val: char,
@@ -121,6 +133,14 @@ impl DrawCtx<'_> {
         head_put_line: u16,
         length: u16,
     ) -> (Option<Color>, bool) {
+        // Resolve this stream's birth palette from the generation table
+        let palette_colors = if (palette_slot as usize) < MAX_PALETTE_SLOTS {
+            self.palette_slices[palette_slot as usize]
+        } else {
+            // Fallback: use active palette for invalid slots
+            self.palette_slices[self.active_palette_slot as usize]
+        };
+
         let mut bold = false;
         if self.bold_mode == BoldMode::Random {
             bold = (((line as u32) ^ (val as u32)) % 2) == 1;
@@ -130,7 +150,7 @@ impl DrawCtx<'_> {
         let mut color_idx = self.color_map.get(idx).copied().unwrap_or(0) as i32;
 
         if self.shading_distance {
-            let last = self.palette_colors.len().saturating_sub(1) as u64;
+            let last = palette_colors.len().saturating_sub(1) as u64;
             let dist = head_put_line.saturating_sub(line) as f64;
             let len = length.max(1) as f64;
 
@@ -157,7 +177,7 @@ impl DrawCtx<'_> {
             }
         }
 
-        let last = self.palette_colors.len().saturating_sub(1) as i32;
+        let last = palette_colors.len().saturating_sub(1) as i32;
         match loc {
             CharLoc::Tail => {
                 color_idx = 0;
@@ -181,7 +201,7 @@ impl DrawCtx<'_> {
         let fg = if self.color_mode == ColorMode::Mono {
             None
         } else {
-            self.palette_colors.get(color_idx as usize).copied()
+            palette_colors.get(color_idx as usize).copied()
         };
 
         (fg, bold)
@@ -279,14 +299,27 @@ pub struct Cloud {
     color_scheme: ColorScheme,
     default_background: bool,
 
-    /// Previous palette for crossfade blending.
-    prev_palette: Option<Palette>,
+    /// Palette generation table: stores up to MAX_PALETTE_SLOTS palettes for
+    /// generation-based transitions.  Each droplet carries a `palette_slot`
+    /// that indexes into this table, so old streams retain their birth palette
+    /// while new streams inherit the latest one.
+    palette_table: [Option<Palette>; MAX_PALETTE_SLOTS],
 
-    /// Target palette for crossfade blending.
-    target_palette: Option<Palette>,
+    /// Index of the currently active palette slot (where new streams inherit).
+    active_palette_slot: u8,
 
-    /// Crossfade start time.
-    crossfade_start: Option<Instant>,
+    /// Time when the current palette transition started (None if not transitioning).
+    /// Used for column desynchronization stagger.
+    transition_start: Option<Instant>,
+
+    /// Per-column palette slot: tracks which palette each column is currently
+    /// using for spawning.  During a transition, columns adopt the new palette
+    /// at staggered times, creating an organic propagation wave.
+    column_palette_slot: Vec<u8>,
+
+    /// Per-column stagger delay (in ms) before adopting a new palette.
+    /// Randomized within [0, COLUMN_TRANSITION_STAGGER_MS] for desynchronization.
+    column_transition_delay_ms: Vec<u16>,
 
     /// Mouse cursor column position (u16::MAX if no mouse).
     pub mouse_col: u16,
@@ -383,9 +416,11 @@ impl Cloud {
             message_border: true,
             color_scheme,
             default_background,
-            prev_palette: None,
-            target_palette: None,
-            crossfade_start: None,
+            palette_table: [None, None, None, None],
+            active_palette_slot: 0,
+            transition_start: None,
+            column_palette_slot: Vec::new(),
+            column_transition_delay_ms: Vec::new(),
             mouse_col: u16::MAX,
             mouse_line: u16::MAX,
             mouse_enabled: true,
@@ -414,15 +449,30 @@ impl Cloud {
         self.color_scheme = scheme;
         let new_palette = build_palette(scheme, self.color_mode, self.default_background);
 
-        // Start crossfade from current effective palette
-        let current = self.palette.clone();
-        self.prev_palette = Some(current);
-        self.target_palette = Some(new_palette.clone());
-        self.crossfade_start = Some(Instant::now());
+        // Advance to next palette slot (circular buffer)
+        let next_slot = ((self.active_palette_slot as usize + 1) % MAX_PALETTE_SLOTS) as u8;
+        self.palette_table[next_slot as usize] = Some(new_palette.clone());
+        self.active_palette_slot = next_slot;
 
+        // Update the convenience palette reference
         self.palette = new_palette;
+
+        // Regenerate color map for the new palette size
         self.fill_color_map();
-        self.force_draw_everything = true;
+
+        // Start transition: assign per-column stagger delays for desynchronization.
+        // Each column adopts the new palette at a slightly different time,
+        // creating an organic top-to-bottom propagation wave.
+        self.transition_start = Some(Instant::now());
+        let stagger_dist = Uniform::new_inclusive(0u16, COLUMN_TRANSITION_STAGGER_MS)
+            .expect("stagger_dist: 0 <= COLUMN_TRANSITION_STAGGER_MS always valid");
+        for delay in &mut self.column_transition_delay_ms {
+            *delay = stagger_dist.sample(&mut self.mt);
+        }
+
+        // Do NOT force a full redraw — old streams must persist with their
+        // birth palette.  The new palette propagates only through newly
+        // spawned streams, creating the cinematic transition effect.
     }
 
     /// Set mouse cursor position for interaction effects.
@@ -559,6 +609,14 @@ impl Cloud {
                 can_spawn: true,
             },
         );
+
+        // Initialize palette generation system for current terminal size
+        self.palette_table[self.active_palette_slot as usize] = Some(self.palette.clone());
+        self.column_palette_slot.clear();
+        self.column_palette_slot.resize(cols as usize, self.active_palette_slot);
+        self.column_transition_delay_ms.clear();
+        self.column_transition_delay_ms.resize(cols as usize, 0);
+        self.transition_start = None;
 
         self.fill_glitch_map();
         self.fill_color_map();
@@ -742,15 +800,31 @@ impl Cloud {
             ttl = Duration::from_millis(ms);
         }
 
+        // Determine which palette this droplet inherits from its column.
+        // During a transition, columns adopt the new palette at staggered times,
+        // creating an organic propagation wave instead of a simultaneous switch.
+        let palette_slot = self
+            .column_palette_slot
+            .get(col as usize)
+            .copied()
+            .unwrap_or(self.active_palette_slot);
+        d.palette_slot = palette_slot;
+
         // Adjust speed by parallax layer
         let layer_speed = PARALLAX_SPEED_MULT[layer as usize];
-        let speed = self
+        let mut speed = self
             .col_stat
             .get(col as usize)
             .map(|cs| cs.max_speed_pct)
             .unwrap_or(1.0)
             * self.chars_per_sec
             * layer_speed;
+
+        // Transition momentum: new-generation streams get a subtle velocity
+        // boost during active transitions, creating a feeling of an incoming wave.
+        if palette_slot == self.active_palette_slot && self.transition_start.is_some() {
+            speed *= 1.0 + TRANSITION_VELOCITY_BOOST;
+        }
 
         d.bound_col = col;
         d.end_line = end_line;
@@ -1046,21 +1120,28 @@ impl Cloud {
             return;
         }
 
-        // Update crossfade state
-        if let Some(start) = self.crossfade_start {
-            let elapsed = start.elapsed().as_secs_f64();
-            if elapsed >= COLOR_CROSSFADE_DURATION_SECS {
-                if let Some(target) = self.target_palette.take() {
-                    self.palette = target;
+        // Update column transition readiness: during a palette transition,
+        // each column adopts the new palette after its individual stagger delay.
+        // This creates an organic desynchronized propagation wave.
+        if let Some(transition_start) = self.transition_start {
+            let elapsed_ms = transition_start.elapsed().as_millis() as u64;
+            let mut all_ready = true;
+            for (i, slot) in self.column_palette_slot.iter_mut().enumerate() {
+                if *slot != self.active_palette_slot {
+                    let delay = self
+                        .column_transition_delay_ms
+                        .get(i)
+                        .copied()
+                        .unwrap_or(0) as u64;
+                    if elapsed_ms >= delay {
+                        *slot = self.active_palette_slot;
+                    } else {
+                        all_ready = false;
+                    }
                 }
-                self.crossfade_start = None;
-                self.prev_palette = None;
-            } else {
-                let t = (elapsed / COLOR_CROSSFADE_DURATION_SECS).clamp(0.0, 1.0);
-                let ease = t * t * (3.0 - 2.0 * t); // smoothstep
-                if let (Some(prev), Some(target)) = (&self.prev_palette, &self.target_palette) {
-                    self.palette = blend_palettes(prev, target, ease as f32);
-                }
+            }
+            if all_ready {
+                self.transition_start = None;
             }
         }
 
@@ -1130,6 +1211,21 @@ impl Cloud {
             }
         }
 
+        // Build palette_slices for DrawCtx from the palette table.
+        // Each slot either has a Palette (Some) or is empty (None) — use an
+        // empty slice for empty slots so hot-path rendering stays branch-free.
+        let empty: &[Color] = &[];
+        let mut palette_slices: [&[Color]; MAX_PALETTE_SLOTS] = [&[]; MAX_PALETTE_SLOTS];
+        for (i, slot) in palette_slices.iter_mut().enumerate() {
+            if let Some(ref p) = self.palette_table[i] {
+                *slot = &p.colors;
+            } else {
+                *slot = empty;
+            }
+        }
+
+        let transitioning = self.transition_start.is_some();
+
         // Draw pass (split-borrows via DrawCtx)
         let draw_everything = self.force_draw_everything || time_for_glitch;
         let ctx = DrawCtx {
@@ -1142,7 +1238,9 @@ impl Cloud {
             glitchy: self.glitchy,
             last_glitch_time: self.last_glitch_time,
             next_glitch_time: self.next_glitch_time,
-            palette_colors: &self.palette.colors,
+            palette_slices,
+            active_palette_slot: self.active_palette_slot,
+            transitioning,
             color_map: &self.color_map,
             glitch_map: &self.glitch_map,
             char_pool: &self.char_pool,

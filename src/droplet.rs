@@ -8,6 +8,8 @@ use crate::constants::{
     HEAD_BLOOM_INTENSITY, HEAD_LINGER_BRIGHTNESS_MS, MOUSE_FLASH_DURATION_SECS,
     MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
+    TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
+    TRANSITION_HEAD_GLOW_BOOST,
 };
 use crate::frame::Frame;
 use crate::palette;
@@ -42,6 +44,11 @@ pub struct Droplet {
     /// Which parallax layer this droplet belongs to (0=far, 1=mid, 2=near).
     pub layer: u8,
 
+    /// Which palette generation slot this droplet was born with.
+    /// Streams retain their birth palette for their entire lifecycle;
+    /// the new palette propagates only through newly spawned streams.
+    pub palette_slot: u8,
+
     pub last_time: Option<Instant>,
     pub head_stop_time: Option<Instant>,
     pub time_to_linger: Duration,
@@ -66,6 +73,7 @@ impl Droplet {
             advance_remainder: 0.0,
             velocity: 0.0,
             layer: 0,
+            palette_slot: 0,
 
             last_time: None,
             head_stop_time: None,
@@ -224,6 +232,7 @@ impl Droplet {
             }
 
             let (fg, bold) = ctx.get_attr(
+                self.palette_slot,
                 line,
                 self.bound_col,
                 val,
@@ -234,15 +243,38 @@ impl Droplet {
             );
 
             // Apply visual effects to foreground color
+            let is_new_generation =
+                self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
+
             let fg = fg.map(|c| {
                 let mut c = c;
 
-                // Head bloom: cells near head get extra white glow
+                // Transition energy: new-palette streams glow brighter when fresh
+                if is_new_generation {
+                    if let Some(birth) = self.last_time {
+                        let age = now.saturating_duration_since(birth).as_secs_f32();
+                        if age < TRANSITION_ENERGY_DURATION_SECS {
+                            let t = 1.0 - (age / TRANSITION_ENERGY_DURATION_SECS);
+                            c = palette::blend_toward_white(
+                                c,
+                                t * TRANSITION_ENERGY_SATURATION_BOOST,
+                            );
+                        }
+                    }
+                }
+
+                // Head bloom: cells near head get extra white glow.
+                // New-generation streams get enhanced bloom for energetic leading edge.
                 if matches!(loc, CharLoc::Middle) {
                     let dist_from_head = self.head_put_line.saturating_sub(line);
                     if dist_from_head > 0 && dist_from_head < HEAD_BLOOM_CELLS {
                         let t = 1.0 - (dist_from_head as f32 / HEAD_BLOOM_CELLS as f32);
-                        c = palette::blend_toward_white(c, t * HEAD_BLOOM_INTENSITY);
+                        let bloom = if is_new_generation {
+                            HEAD_BLOOM_INTENSITY + TRANSITION_HEAD_GLOW_BOOST
+                        } else {
+                            HEAD_BLOOM_INTENSITY
+                        };
+                        c = palette::blend_toward_white(c, t * bloom);
                     }
                 }
 
