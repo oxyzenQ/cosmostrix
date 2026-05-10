@@ -10,20 +10,20 @@ repository = "https://github.com/oxyzenq/cosmostrix"
 build = "build.rs"
 
 [dependencies]
-clap = { version = "4.5.23", features = ["derive"] }
-crossterm = "0.29.0"
-rand = "0.9.3"
+clap = { version = "4.5", features = ["derive"] }
+crossterm = "0.29"
+rand = "0.9"
 bitvec = "1"
 smallvec = "1"
 
 [target.'cfg(unix)'.dependencies]
-signal-hook = "0.3.17"
+signal-hook = "0.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2.160"
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
-ctrlc = "3.4.5"
+ctrlc = "3.4"
 
 [profile.dev]
 opt-level = 0
