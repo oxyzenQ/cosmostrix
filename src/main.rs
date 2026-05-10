@@ -188,20 +188,24 @@ pub fn spawn_kill9_terminal_guard() {
     }
 
     unsafe {
-        let mut orig: libc::termios = std::mem::zeroed();
-        if libc::tcgetattr(libc::STDIN_FILENO, &mut orig) != 0 {
+        let mut orig: std::mem::MaybeUninit<libc::termios> = std::mem::MaybeUninit::uninit();
+        if libc::tcgetattr(libc::STDIN_FILENO, orig.as_mut_ptr()) != 0 {
             return;
         }
+        let orig = orig.assume_init();
 
         let pid = libc::fork();
         if pid != 0 {
             return;
         }
 
-        let mut set: libc::sigset_t = std::mem::zeroed();
-        libc::sigemptyset(&mut set);
-        libc::sigaddset(&mut set, libc::SIGTERM);
-        let _ = libc::pthread_sigmask(libc::SIG_BLOCK, &set, std::ptr::null_mut());
+        // Initialize sigset_t via MaybeUninit — sigemptyset will fully
+        // initialize it, so this is safe.
+        let mut set = std::mem::MaybeUninit::<libc::sigset_t>::uninit();
+        libc::sigemptyset(set.as_mut_ptr());
+        libc::sigaddset(set.as_mut_ptr(), libc::SIGTERM);
+        let _ = libc::pthread_sigmask(libc::SIG_BLOCK, set.as_ptr(), std::ptr::null_mut());
+        let set = set.assume_init();
 
         let _ = libc::prctl(
             libc::PR_SET_NAME,
@@ -551,8 +555,6 @@ fn validate_err<T>(name: &str, r: Result<T, String>) -> std::io::Result<T> {
     r.map_err(|e| {
         restore_terminal_best_effort();
         eprintln!("{}", e);
-        std::process::exit(1);
-        #[allow(unreachable_code)]
         std::io::Error::new(std::io::ErrorKind::InvalidInput, name)
     })
 }

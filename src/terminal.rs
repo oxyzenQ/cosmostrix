@@ -377,13 +377,18 @@ impl Drop for Terminal {
         // The flag is set to `true` after flush completes; if the watchdog
         // sees the flag it skips `process::exit`, allowing normal shutdown
         // and SIGCONT recovery to proceed without being killed.
+        //
+        // The thread detaches and checks the flag after the timeout; if
+        // shutdown already completed it simply returns without doing anything.
         let done = self.shutdown_complete.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_secs(SHUTDOWN_TIMEOUT_SECS));
-            if !done.load(std::sync::atomic::Ordering::Acquire) {
-                std::process::exit(0);
-            }
-        });
+        let _ = std::thread::Builder::new()
+            .name("cx-shutdown-guard".to_string())
+            .spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(SHUTDOWN_TIMEOUT_SECS));
+                if !done.load(std::sync::atomic::Ordering::Acquire) {
+                    std::process::exit(0);
+                }
+            });
         let _ = self.stdout.flush();
         self.shutdown_complete
             .store(true, std::sync::atomic::Ordering::Release);

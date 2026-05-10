@@ -26,6 +26,11 @@ use crate::terminal::{restore_terminal_best_effort, Terminal};
 
 use super::{cycle_charset_preset, cycle_color_scheme, effective_density, CloudConfig};
 
+/// Global flag set when mouse capture was successfully enabled.
+/// Signal handlers check this to decide whether DisableMouseCapture is needed.
+static MOUSE_CAPTURE_ACTIVE: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
 /// Global frame counter for the watchdog thread (AtomicU64 for lock-free watchdog).
 pub static FRAME_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
@@ -41,6 +46,13 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP]) {
             std::thread::spawn(move || {
                 if let Some(sig) = signals.forever().next() {
+                    // Disable mouse capture before restoring terminal so the
+                    // terminal is not left in a broken state with mouse
+                    // reporting still active.
+                    if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
+                        use crossterm::ExecutableCommand;
+                        let _ = std::io::stdout().execute(crossterm::event::DisableMouseCapture);
+                    }
                     restore_terminal_best_effort();
                     std::process::exit(128 + sig);
                 }
@@ -53,6 +65,14 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 for sig in signals.forever() {
                     match sig {
                         SIGTSTP => {
+                            // Disable mouse capture before suspending so the
+                            // terminal is usable while cosmostrix is stopped.
+                            if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
+                                use crossterm::ExecutableCommand;
+                                let _ = std::io::stdout()
+                                    .execute(crossterm::event::DisableMouseCapture);
+                                MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
+                            }
                             restore_terminal_best_effort();
                             term_reinit.store(true, Ordering::Release);
                             let _ = low_level::raise(SIGSTOP);
@@ -70,6 +90,10 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(windows)]
     {
         if let Err(e) = ctrlc::set_handler(|| {
+            if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
+                use crossterm::ExecutableCommand;
+                let _ = std::io::stdout().execute(crossterm::event::DisableMouseCapture);
+            }
             restore_terminal_best_effort();
             std::process::exit(130);
         }) {
@@ -82,7 +106,9 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut term = Terminal::new()?;
     // Enable mouse capture (non-fatal if terminal doesn't support it)
-    let _ = term.enable_mouse_capture();
+    if term.enable_mouse_capture().is_ok() {
+        MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
+    }
     let (w, h) = term.size()?;
 
     let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);
@@ -322,6 +348,14 @@ fn handle_keybinding(
         (KeyCode::Char('z'), KeyModifiers::CONTROL) => {
             #[cfg(unix)]
             {
+                // Disable mouse capture before suspending so the terminal
+                // is not left with mouse reporting active while cosmostrix
+                // is in the background.
+                if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
+                    use crossterm::ExecutableCommand;
+                    let _ = std::io::stdout().execute(crossterm::event::DisableMouseCapture);
+                    MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
+                }
                 restore_terminal_best_effort();
                 term_reinit.store(true, Ordering::Release);
                 let _ = low_level::raise(SIGSTOP);
@@ -384,17 +418,13 @@ fn handle_keybinding(
             }
             cloud.set_chars_per_sec(cps.max(0.001));
         }
-        (KeyCode::Left, _) => {
-            if cloud.glitchy {
-                let gp = (cloud.glitch_pct - GLITCH_PCT_STEP).max(0.0);
-                cloud.set_glitch_pct(gp);
-            }
+        (KeyCode::Left, _) if cloud.glitchy => {
+            let gp = (cloud.glitch_pct - GLITCH_PCT_STEP).max(0.0);
+            cloud.set_glitch_pct(gp);
         }
-        (KeyCode::Right, _) => {
-            if cloud.glitchy {
-                let gp = (cloud.glitch_pct + GLITCH_PCT_STEP).min(1.0);
-                cloud.set_glitch_pct(gp);
-            }
+        (KeyCode::Right, _) if cloud.glitchy => {
+            let gp = (cloud.glitch_pct + GLITCH_PCT_STEP).min(1.0);
+            cloud.set_glitch_pct(gp);
         }
         (KeyCode::Tab, _) => {
             let sm = if cloud.shading_distance {

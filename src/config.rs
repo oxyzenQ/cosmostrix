@@ -113,7 +113,7 @@ impl FromStr for U16Range {
             .parse()
             .map_err(|_| "invalid high value".to_string())?;
         if low == 0 || high == 0 || low > high {
-            return Err("range must be >0 and low <= high".to_string());
+            return Err("range must be >0 and low <= high (min allowed value is 1)".to_string());
         }
         Ok(Self { low, high })
     }

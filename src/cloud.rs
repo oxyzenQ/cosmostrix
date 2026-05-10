@@ -809,11 +809,7 @@ impl Cloud {
 
             // Mouse avoidance: skip spawning near cursor
             if self.mouse_enabled && self.mouse_col != u16::MAX {
-                let col_dist = if col > self.mouse_col {
-                    col - self.mouse_col
-                } else {
-                    self.mouse_col - col
-                };
+                let col_dist = col.abs_diff(self.mouse_col);
                 if col_dist <= MOUSE_AVOID_RADIUS_COLS {
                     continue;
                 }
