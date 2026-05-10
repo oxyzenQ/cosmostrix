@@ -613,7 +613,8 @@ impl Cloud {
         // Initialize palette generation system for current terminal size
         self.palette_table[self.active_palette_slot as usize] = Some(self.palette.clone());
         self.column_palette_slot.clear();
-        self.column_palette_slot.resize(cols as usize, self.active_palette_slot);
+        self.column_palette_slot
+            .resize(cols as usize, self.active_palette_slot);
         self.column_transition_delay_ms.clear();
         self.column_transition_delay_ms.resize(cols as usize, 0);
         self.transition_start = None;
@@ -1128,11 +1129,7 @@ impl Cloud {
             let mut all_ready = true;
             for (i, slot) in self.column_palette_slot.iter_mut().enumerate() {
                 if *slot != self.active_palette_slot {
-                    let delay = self
-                        .column_transition_delay_ms
-                        .get(i)
-                        .copied()
-                        .unwrap_or(0) as u64;
+                    let delay = self.column_transition_delay_ms.get(i).copied().unwrap_or(0) as u64;
                     if elapsed_ms >= delay {
                         *slot = self.active_palette_slot;
                     } else {
