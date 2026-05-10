@@ -265,3 +265,60 @@ pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.35, 0.8, 1.0];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
+
+// ---------------------------------------------------------------------------
+// Phosphor persistence (CRT afterglow)
+// ---------------------------------------------------------------------------
+
+/// Per-cell phosphor energy decay rate (higher = faster fade).
+/// At 3.0, a cell at energy 200 decays to ~10 in ~1.3 seconds.
+pub const PHOSPHOR_DECAY_RATE: f32 = 3.0;
+
+/// Energy level when a cell's tail passes (starts the phosphor glow).
+pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 180;
+
+/// Below this energy, the cell is cleared to blank.
+pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
+
+/// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
+pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.6, 1.0, 0.7];
+
+// ---------------------------------------------------------------------------
+// Atmospheric depth layering enhancements
+// ---------------------------------------------------------------------------
+
+/// Per-layer spawn density multiplier (far = sparse, near = dense).
+pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.5];
+
+/// Per-layer glyph simplicity: far layer chars are less visually dense.
+/// Implemented as a brightness modifier on top of PARALLAX_BRIGHTNESS_MULT.
+pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [0.7, 1.0, 1.0];
+
+// ---------------------------------------------------------------------------
+// Velocity turbulence
+// ---------------------------------------------------------------------------
+
+/// Maximum velocity perturbation as fraction of base chars_per_sec.
+pub const TURBULENCE_AMPLITUDE: f32 = 0.08;
+
+/// Turbulence oscillation frequency (Hz). Controls how often drift changes.
+pub const TURBULENCE_FREQ: f32 = 0.4;
+
+// ---------------------------------------------------------------------------
+// Rare anomaly events
+// ---------------------------------------------------------------------------
+
+/// Probability of an anomaly occurring per second (~1 every 60s).
+pub const ANOMALY_CHANCE_PER_SEC: f64 = 0.017;
+
+/// Duration of an anomaly event in seconds.
+pub const ANOMALY_DURATION_SECS: f32 = 1.5;
+
+/// Maximum number of active anomaly zones.
+pub const ANOMALY_MAX_ZONES: usize = 3;
+
+/// Anomaly intensity (brightness boost for luminance surge, 0.0-1.0).
+pub const ANOMALY_LUMINANCE_INTENSITY: f32 = 0.3;
+
+/// Anomaly corruption probability per cell in zone.
+pub const ANOMALY_CORRUPTION_CHANCE: f32 = 0.4;

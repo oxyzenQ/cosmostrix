@@ -8,6 +8,7 @@ use crate::constants::{
     HEAD_BLOOM_INTENSITY, HEAD_LINGER_BRIGHTNESS_MS, MOUSE_FLASH_DURATION_SECS,
     MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
+    PARALLAX_GLYPH_DIM, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ,
     TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
     TRANSITION_HEAD_GLOW_BOOST,
 };
@@ -49,6 +50,11 @@ pub struct Droplet {
     /// the new palette propagates only through newly spawned streams.
     pub palette_slot: u8,
 
+    /// Turbulence phase offset (determines unique oscillation pattern).
+    pub turb_phase: f32,
+    /// Turbulence accumulator (elapsed time for this droplet's oscillation).
+    pub turb_time: f32,
+
     pub last_time: Option<Instant>,
     pub head_stop_time: Option<Instant>,
     pub time_to_linger: Duration,
@@ -74,6 +80,8 @@ impl Droplet {
             velocity: 0.0,
             layer: 0,
             palette_slot: 0,
+            turb_phase: 0.0,
+            turb_time: 0.0,
 
             last_time: None,
             head_stop_time: None,
@@ -112,7 +120,15 @@ impl Droplet {
         let terminal_vel = self.chars_per_sec * DROPLET_TERMINAL_VELOCITY_MULT;
         self.velocity = (self.velocity + DROPLET_GRAVITY * elapsed_sec).min(terminal_vel);
 
-        let delta = (self.velocity * elapsed_sec).max(0.0);
+        // Subtle velocity turbulence: smooth sinusoidal drift
+        self.turb_time += elapsed_sec;
+        let turb_drift = (self.turb_time * TURBULENCE_FREQ * std::f32::consts::TAU + self.turb_phase)
+            .sin()
+            * TURBULENCE_AMPLITUDE
+            * self.chars_per_sec;
+        let turb_velocity = (self.velocity + turb_drift).max(0.0);
+
+        let delta = (turb_velocity * elapsed_sec).max(0.0);
         let total = self.advance_remainder + delta;
         let whole = total.floor();
         self.advance_remainder = total - whole;
@@ -282,6 +298,12 @@ impl Droplet {
                 let layer_brightness = PARALLAX_BRIGHTNESS_MULT[self.layer as usize];
                 if layer_brightness < 1.0 {
                     c = palette::apply_brightness(c, layer_brightness);
+                }
+
+                // Atmospheric depth: per-layer glyph dimming (far layer = simpler glyphs)
+                let glyph_dim = PARALLAX_GLYPH_DIM[self.layer as usize];
+                if glyph_dim < 1.0 {
+                    c = palette::apply_brightness(c, glyph_dim);
                 }
 
                 // Depth fog: dim top and bottom rows
