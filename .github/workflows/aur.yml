@@ -240,9 +240,9 @@ jobs:
             exit 0
           fi
 
-          # Commit and push
-          git config user.name "oxyzenQ"
-          git config user.email "130107241+oxyzenQ@users.noreply.github.com"
+          # Commit and push — use AUR identity, NOT GitHub identity
+          git config user.name "rezky_nightky"
+          git config user.email "rezky2399@proton.me"
 
           git add PKGBUILD .SRCINFO
           git commit -m "chore: update to ${TAG}"
