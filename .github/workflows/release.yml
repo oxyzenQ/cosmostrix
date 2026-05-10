@@ -8,6 +8,10 @@ permissions:
   contents: write
   actions: write
 
+env:
+  # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build_packages:
     name: T-800 - Build packages (${{ matrix.platform }})
