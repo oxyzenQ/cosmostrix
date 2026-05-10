@@ -13,7 +13,7 @@ use crossterm::{
 };
 
 use crate::cell::Cell;
-use crate::constants::{DIRTY_THRESHOLD_RATIO, SHUTDOWN_TIMEOUT_SECS};
+use crate::constants::{DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, SHUTDOWN_TIMEOUT_SECS};
 use crate::frame::Frame;
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
@@ -47,6 +47,8 @@ pub struct Terminal {
     stdout: Stdout,
     last: Option<LastFrame>,
     run_buf: String,
+    /// Reusable buffer for full-redraw row batching (avoids per-frame allocation).
+    row_buf: String,
     row_dirty: Vec<Vec<usize>>,
     touched_rows: Vec<u16>,
     mouse_capture_enabled: bool,
@@ -87,6 +89,7 @@ impl Terminal {
                 s.reserve(64);
                 s
             },
+            row_buf: String::with_capacity(512),
             row_dirty: Vec::new(),
             touched_rows: Vec::new(),
             mouse_capture_enabled: false,
@@ -95,7 +98,11 @@ impl Terminal {
     }
 
     pub fn size(&self) -> Result<(u16, u16)> {
-        terminal::size()
+        let (w, h) = terminal::size()?;
+        // Clamp to prevent OOM from misreported terminal sizes
+        let w = w.min(MAX_TERMINAL_COLS);
+        let h = h.min(MAX_TERMINAL_LINES);
+        Ok((w, h))
     }
 
     pub fn poll_event(timeout: std::time::Duration) -> Result<bool> {
@@ -120,6 +127,9 @@ impl Terminal {
             self.stdout.execute(event::DisableMouseCapture)?;
             self.stdout.flush()?;
             self.mouse_capture_enabled = false;
+            // Keep the global signal-handler flag in sync so that signal
+            // handlers don't issue a redundant DisableMouseCapture later.
+            crate::interactive::clear_mouse_capture_flag();
         }
         Ok(())
     }
@@ -159,7 +169,14 @@ impl Terminal {
             }
             let last = self.last.as_mut().expect("set above");
 
-            let mut row_buf = String::with_capacity(frame.width as usize * 4);
+            // Reuse the persistent row_buf to avoid per-frame allocation
+            let row_buf = &mut self.row_buf;
+            row_buf.clear();
+            // Pre-reserve if terminal grew since last frame
+            let need_cap = frame.width as usize * 4;
+            if row_buf.capacity() < need_cap {
+                row_buf.reserve(need_cap - row_buf.capacity());
+            }
             for y in 0..frame.height {
                 self.stdout.queue(cursor::MoveTo(0, y))?;
                 row_buf.clear();

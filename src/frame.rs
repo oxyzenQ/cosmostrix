@@ -3,7 +3,7 @@
 use smallvec::SmallVec;
 
 use crate::cell::Cell;
-use crate::constants::DIRTY_CAPACITY_DIVISOR;
+use crate::constants::{DIRTY_CAPACITY_DIVISOR, DIRTY_CAPACITY_CAP, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES};
 use bitvec::prelude::BitVec;
 
 /// Inline capacity for dirty indices SmallVec (64 usize = 512 bytes on stack).
@@ -25,6 +25,9 @@ pub struct Frame {
 
 impl Frame {
     pub fn new(width: u16, height: u16, bg: Option<crossterm::style::Color>) -> Self {
+        // Safety clamp: prevent OOM from absurd terminal sizes
+        let width = width.min(MAX_TERMINAL_COLS);
+        let height = height.min(MAX_TERMINAL_LINES);
         let len = width as usize * height as usize;
         let blank = Cell::blank_with_bg(bg);
         let gen = 1u32;
@@ -37,7 +40,7 @@ impl Frame {
             blank,
             dirty_all: true,
             dirty_map: BitVec::repeat(false, len),
-            dirty: SmallVec::with_capacity(len / DIRTY_CAPACITY_DIVISOR),
+            dirty: SmallVec::with_capacity((len / DIRTY_CAPACITY_DIVISOR).min(DIRTY_CAPACITY_CAP)),
         }
     }
 

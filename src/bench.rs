@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use crate::constants::{
     BENCH_ELAPSED_MIN_S, DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES,
+    MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
 };
 use crate::frame::Frame;
 
@@ -17,11 +18,13 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         env::var("COSMOSTRIX_BENCH_COLS")
             .ok()
             .and_then(|v| v.parse::<u16>().ok())
-            .unwrap_or(DENSITY_AUTO_DEFAULT_COLS),
+            .unwrap_or(DENSITY_AUTO_DEFAULT_COLS)
+            .min(MAX_TERMINAL_COLS),
         env::var("COSMOSTRIX_BENCH_LINES")
             .ok()
             .and_then(|v| v.parse::<u16>().ok())
-            .unwrap_or(DENSITY_AUTO_DEFAULT_LINES),
+            .unwrap_or(DENSITY_AUTO_DEFAULT_LINES)
+            .min(MAX_TERMINAL_LINES),
     );
 
     let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);

@@ -590,93 +590,111 @@ fn apply_config_defaults(matches: &clap::ArgMatches, args: &mut Args) {
         args.charset = v;
     }
     if let Some(v) = apply("fps", matches) {
-        if let Ok(f) = validate_f64_range("config fps", v.parse::<f64>().unwrap_or(0.0), 1.0, 240.0)
-        {
-            args.fps = f;
-        } else {
-            eprintln!("config: ignoring invalid fps={v} (min 1 max 240)");
+        match v.parse::<f64>() {
+            Ok(n) if n.is_finite() => {
+                if let Ok(f) = validate_f64_range("config fps", n, 1.0, 240.0) {
+                    args.fps = f;
+                } else {
+                    eprintln!("config: ignoring invalid fps={v} (min 1 max 240)");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable fps='{v}' (expected a number)"),
         }
     }
     if let Some(v) = apply("speed", matches) {
-        if let Ok(f) = validate_f32_range(
-            "config speed",
-            v.parse::<f32>().unwrap_or(0.0),
-            0.001,
-            1000.0,
-        ) {
-            args.speed = f;
-        } else {
-            eprintln!("config: ignoring invalid speed={v} (min 0.001 max 1000)");
+        match v.parse::<f32>() {
+            Ok(n) if n.is_finite() => {
+                if let Ok(f) = validate_f32_range("config speed", n, 0.001, 1000.0) {
+                    args.speed = f;
+                } else {
+                    eprintln!("config: ignoring invalid speed={v} (min 0.001 max 1000)");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable speed='{v}' (expected a number)"),
         }
     }
     if let Some(v) = apply("density", matches) {
-        if let Ok(f) = validate_f32_range(
-            "config density",
-            v.parse::<f32>().unwrap_or(0.0),
-            DENSITY_CLAMP_MIN,
-            DENSITY_CLAMP_MAX,
-        ) {
-            args.density = f;
-        } else {
-            eprintln!("config: ignoring invalid density={v} (min {DENSITY_CLAMP_MIN} max {DENSITY_CLAMP_MAX})");
+        match v.parse::<f32>() {
+            Ok(n) if n.is_finite() => {
+                if let Ok(f) = validate_f32_range("config density", n, DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX) {
+                    args.density = f;
+                } else {
+                    eprintln!("config: ignoring invalid density={v} (min {DENSITY_CLAMP_MIN} max {DENSITY_CLAMP_MAX})");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable density='{v}' (expected a number)"),
         }
     }
     if let Some(v) = apply("bold", matches) {
-        if let Ok(n) = validate_u8_range("config bold", v.parse::<u8>().unwrap_or(255), 0, 2) {
-            args.bold = n;
-        } else {
-            eprintln!("config: ignoring invalid bold={v} (min 0 max 2)");
+        match v.parse::<u8>() {
+            Ok(n) => {
+                if let Ok(valid) = validate_u8_range("config bold", n, 0, 2) {
+                    args.bold = valid;
+                } else {
+                    eprintln!("config: ignoring invalid bold={v} (min 0 max 2)");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable bold='{v}' (expected integer 0-2)"),
         }
     }
     if let Some(v) = apply("shadingmode", matches) {
-        if let Ok(n) = validate_u8_range("config shadingmode", v.parse::<u8>().unwrap_or(255), 0, 1)
-        {
-            args.shading_mode = n;
-        } else {
-            eprintln!("config: ignoring invalid shadingmode={v} (min 0 max 1)");
+        match v.parse::<u8>() {
+            Ok(n) => {
+                if let Ok(valid) = validate_u8_range("config shadingmode", n, 0, 1) {
+                    args.shading_mode = valid;
+                } else {
+                    eprintln!("config: ignoring invalid shadingmode={v} (min 0 max 1)");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable shadingmode='{v}' (expected integer 0-1)"),
         }
     }
     if let Some(v) = apply("glitchpct", matches) {
-        if let Ok(f) = validate_f32_range(
-            "config glitchpct",
-            v.parse::<f32>().unwrap_or(-1.0),
-            0.0,
-            100.0,
-        ) {
-            args.glitch_pct = f;
-        } else {
-            eprintln!("config: ignoring invalid glitchpct={v} (min 0 max 100)");
+        match v.parse::<f32>() {
+            Ok(n) if n.is_finite() => {
+                if let Ok(f) = validate_f32_range("config glitchpct", n, 0.0, 100.0) {
+                    args.glitch_pct = f;
+                } else {
+                    eprintln!("config: ignoring invalid glitchpct={v} (min 0 max 100)");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable glitchpct='{v}' (expected a number)"),
         }
     }
     if let Some(v) = apply("shortpct", matches) {
-        if let Ok(f) = validate_f32_range(
-            "config shortpct",
-            v.parse::<f32>().unwrap_or(-1.0),
-            0.0,
-            100.0,
-        ) {
-            args.shortpct = f;
-        } else {
-            eprintln!("config: ignoring invalid shortpct={v} (min 0 max 100)");
+        match v.parse::<f32>() {
+            Ok(n) if n.is_finite() => {
+                if let Ok(f) = validate_f32_range("config shortpct", n, 0.0, 100.0) {
+                    args.shortpct = f;
+                } else {
+                    eprintln!("config: ignoring invalid shortpct={v} (min 0 max 100)");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable shortpct='{v}' (expected a number)"),
         }
     }
     if let Some(v) = apply("rippct", matches) {
-        if let Ok(f) = validate_f32_range(
-            "config rippct",
-            v.parse::<f32>().unwrap_or(-1.0),
-            0.0,
-            100.0,
-        ) {
-            args.rippct = f;
-        } else {
-            eprintln!("config: ignoring invalid rippct={v} (min 0 max 100)");
+        match v.parse::<f32>() {
+            Ok(n) if n.is_finite() => {
+                if let Ok(f) = validate_f32_range("config rippct", n, 0.0, 100.0) {
+                    args.rippct = f;
+                } else {
+                    eprintln!("config: ignoring invalid rippct={v} (min 0 max 100)");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable rippct='{v}' (expected a number)"),
         }
     }
     if let Some(v) = apply("maxdpc", matches) {
-        if let Ok(n) = validate_u8_range("config maxdpc", v.parse::<u8>().unwrap_or(0), 1, 3) {
-            args.max_droplets_per_column = n;
-        } else {
-            eprintln!("config: ignoring invalid maxdpc={v} (min 1 max 3)");
+        match v.parse::<u8>() {
+            Ok(n) => {
+                if let Ok(valid) = validate_u8_range("config maxdpc", n, 1, 3) {
+                    args.max_droplets_per_column = valid;
+                } else {
+                    eprintln!("config: ignoring invalid maxdpc={v} (min 1 max 3)");
+                }
+            }
+            _ => eprintln!("config: ignoring unparseable maxdpc='{v}' (expected integer 1-3)"),
         }
     }
 }

@@ -31,8 +31,19 @@ use super::{cycle_charset_preset, cycle_color_scheme, effective_density, CloudCo
 static MOUSE_CAPTURE_ACTIVE: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
+/// Clear the global `MOUSE_CAPTURE_ACTIVE` flag. Called by `Terminal` when
+/// mouse capture is disabled (e.g. on drop) so that signal handlers don't
+/// attempt a redundant `DisableMouseCapture` on an already-restored terminal.
+pub fn clear_mouse_capture_flag() {
+    MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
+}
+
 /// Global frame counter for the watchdog thread (AtomicU64 for lock-free watchdog).
 pub static FRAME_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Global shutdown flag. Set to `true` when the main loop exits so the
+/// watchdog thread can terminate instead of running forever.
+static SHUTDOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(target_os = "linux")]
@@ -293,6 +304,10 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
     }
 
+    // Signal the watchdog thread to stop so it doesn't outlive the main
+    // loop and falsely detect a "stuck" state after normal exit.
+    SHUTDOWN.store(true, Ordering::Release);
+
     if cfg.perf_stats {
         drop(term);
         let elapsed = start_time.elapsed();
@@ -465,11 +480,22 @@ fn handle_keybinding(
 
 fn spawn_watchdog() {
     let counter = &FRAME_COUNTER as &std::sync::atomic::AtomicU64;
+    let shutdown = &SHUTDOWN as &std::sync::atomic::AtomicBool;
     let mut stuck_count: u32 = 0;
     std::thread::spawn(move || loop {
+        // Check shutdown flag before each sleep cycle
+        if shutdown.load(Ordering::Acquire) {
+            return;
+        }
         std::thread::sleep(Duration::from_secs(WATCHDOG_INTERVAL_SECS));
+        if shutdown.load(Ordering::Acquire) {
+            return;
+        }
         let current = counter.load(Ordering::Relaxed);
         std::thread::sleep(Duration::from_secs(WATCHDOG_INTERVAL_SECS));
+        if shutdown.load(Ordering::Acquire) {
+            return;
+        }
         let next = counter.load(Ordering::Relaxed);
         if current == next {
             stuck_count += 1;

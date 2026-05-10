@@ -124,6 +124,14 @@ pub const DIRTY_THRESHOLD_RATIO: usize = 3;
 /// Graceful shutdown timeout in seconds (force-exit if flush blocks).
 pub const SHUTDOWN_TIMEOUT_SECS: u64 = 2;
 
+/// Maximum allowed terminal width (columns).  Prevents OOM from wildly
+/// misreported terminal sizes (e.g. 65535 × 65535 → hundreds of GiB).
+/// 1024 cols × 500 lines × ~48 bytes/cell ≈ 24 MiB — still comfortable.
+pub const MAX_TERMINAL_COLS: u16 = 1024;
+
+/// Maximum allowed terminal height (lines).  Same rationale as above.
+pub const MAX_TERMINAL_LINES: u16 = 500;
+
 // ---------------------------------------------------------------------------
 // Benchmark
 // ---------------------------------------------------------------------------
@@ -141,8 +149,14 @@ pub const CONFIG_DIR_NAME: &str = "cosmostrix";
 /// Config file name.
 pub const CONFIG_FILE_NAME: &str = "config";
 
-/// Default frame dirty capacity pre-allocation (1/4 of total cells).
-pub const DIRTY_CAPACITY_DIVISOR: usize = 4;
+/// Default frame dirty capacity pre-allocation.  One Nth of total cells.
+/// 8 is conservative enough for 1024×500 terminals (≈64K pre-alloc) while
+/// still covering most frames without a heap spill.
+pub const DIRTY_CAPACITY_DIVISOR: usize = 8;
+
+/// Hard cap on dirty-vec pre-allocation in cells (≈8 KiB worth of usize).
+/// Prevents wasting memory when terminal is very large.
+pub const DIRTY_CAPACITY_CAP: usize = 8192;
 
 // ---------------------------------------------------------------------------
 // Exponential trail fade & head bloom

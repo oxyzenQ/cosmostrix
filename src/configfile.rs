@@ -14,6 +14,7 @@ use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
 
 /// Load config file and return a HashMap of key → value pairs.
 /// Returns empty HashMap if file doesn't exist or can't be read.
+/// Warns on stderr for unrecognized keys (likely typos).
 #[must_use]
 pub fn load_config_file() -> HashMap<String, String> {
     let path = config_file_path();
@@ -21,6 +22,21 @@ pub fn load_config_file() -> HashMap<String, String> {
         Ok(c) => c,
         Err(_) => return HashMap::new(),
     };
+
+    /// Known configuration keys (lowercase). Anything else is a likely typo.
+    const KNOWN_KEYS: &[&str] = &[
+        "color",
+        "charset",
+        "fps",
+        "speed",
+        "density",
+        "bold",
+        "shadingmode",
+        "glitchpct",
+        "shortpct",
+        "rippct",
+        "maxdpc",
+    ];
 
     let mut map = HashMap::new();
     for line in content.lines() {
@@ -34,6 +50,14 @@ pub fn load_config_file() -> HashMap<String, String> {
             let key = key.trim().to_ascii_lowercase();
             let value = value.trim().to_string();
             if !key.is_empty() && !value.is_empty() {
+                if !KNOWN_KEYS.contains(&key.as_str()) {
+                    eprintln!(
+                        "config: ignoring unknown key '{}' (known: {})",
+                        key,
+                        KNOWN_KEYS.join(", ")
+                    );
+                    continue;
+                }
                 map.insert(key, value);
             }
         }
