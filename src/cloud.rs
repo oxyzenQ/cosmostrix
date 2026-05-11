@@ -875,12 +875,13 @@ pub struct Cloud {
     spawn_remainder: f32,
     pause_time: Option<Instant>,
 
-    /// Resume easing blend factor: 0.0 (just resumed) → 1.0 (fully active).
-    /// Scales spawn rate and droplet position deltas during the smooth
-    /// resume transition to prevent perceptual snap/jank on unpause.
+    /// Resume time-scale factor: 0.0 (just resumed) → 1.0 (fully active).
+    /// Scales the simulation clock for all droplets during the smoothstep
+    /// resume transition, producing cinematic inertia recovery — the rain
+    /// decelerates into the pause and accelerates smoothly out of it.
     resume_blend: f32,
     /// Timestamp when the most recent unpause occurred. Used to compute
-    /// the exponential ease-in curve for `resume_blend`.
+    /// the smoothstep S-curve for `resume_blend`.
     resume_start: Option<Instant>,
 
     force_draw_everything: bool,
@@ -1277,8 +1278,8 @@ impl Cloud {
             if let Some(ref mut cd) = self.storytelling.cooldown_until {
                 *cd += elapsed;
             }
-            // Initialize cinematic resume easing: animation ramps from 0→full
-            // over ~200ms to prevent perceptual snap/jank on unpause.
+            // Initialize cinematic resume easing: simulation time scale ramps
+            // from 0→1 over 300ms using smoothstep S-curve for inertia recovery.
             self.resume_blend = 0.0;
             self.resume_start = Some(now);
         }
@@ -2281,14 +2282,18 @@ impl Cloud {
         // Periodically re-seed RNG for very long sessions
         self.maybe_reseed_rng(now);
 
-        // Advance cinematic resume easing: exponential ease from 0→1 over
-        // ~200ms after unpause. This prevents perceptual snap/jank when
-        // transitioning from frozen to full-speed animation.
+        // Advance cinematic resume easing: smoothstep S-curve from 0→1 over
+        // RESUME_EASE_DURATION_SECS (300ms) after unpause. Unlike exponential
+        // easing or position-delta scaling, this interpolates the simulation
+        // time scale itself — the physics clock runs in slow motion during
+        // the transition, producing genuine inertia recovery rather than a
+        // frozen-then-unfrozen snap.
         if let Some(rs) = self.resume_start {
             let t = rs.elapsed().as_secs_f32();
-            // Exponential ease: 1 - e^(-t/tau). At 3*tau (~240ms), blend ≈ 0.95.
-            self.resume_blend = (1.0 - (-t / RESUME_EASE_TAU_SECS).exp()).min(1.0);
-            if self.resume_blend >= 0.99 {
+            let normalized = (t / RESUME_EASE_DURATION_SECS).min(1.0);
+            // Smoothstep: 3t² - 2t³ — slow start, fast middle, slow end.
+            self.resume_blend = normalized * normalized * (3.0 - 2.0 * normalized);
+            if normalized >= 1.0 {
                 self.resume_blend = 1.0;
                 self.resume_start = None; // Transition complete — stop tracking
             }
@@ -2302,7 +2307,8 @@ impl Cloud {
         spawn_scale *= self.profile_current.density_mult;
         // Apply emergent density boost
         spawn_scale += self.storytelling.active_effects(now).density_boost;
-        // Apply resume easing: scale spawn rate during smooth resume transition
+        // Apply resume time-scale easing: spawn rate ramps with the smoothstep
+        // curve so new streams appear gradually during the inertia recovery.
         spawn_scale *= self.resume_blend;
         spawn_scale = spawn_scale.clamp(0.0, 3.0);
         self.spawn_droplets(now, spawn_scale);
@@ -2592,7 +2598,7 @@ mod tests {
         assert!(!frame.is_dirty_all() && frame.dirty_indices().is_empty());
 
         cloud.toggle_pause();
-        // Advance resume_start far enough in the past so the exponential
+        // Advance resume_start far enough in the past so the smoothstep
         // easing completes (resume_blend reaches 1.0, allowing full-speed
         // simulation on the next rain() call).
         cloud.resume_start = Some(Instant::now() - Duration::from_secs(1));

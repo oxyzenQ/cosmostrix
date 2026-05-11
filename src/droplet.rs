@@ -144,7 +144,7 @@ impl Droplet {
     }
 
     #[inline]
-    pub fn advance(&mut self, now: Instant, lines: u16, motion_scale: f32) -> bool {
+    pub fn advance(&mut self, now: Instant, lines: u16, time_scale: f32) -> bool {
         let Some(last) = self.last_time else {
             self.last_time = Some(now);
             return false;
@@ -152,6 +152,11 @@ impl Droplet {
 
         let elapsed = now.saturating_duration_since(last);
         let elapsed_sec = elapsed.as_secs_f32();
+        // Apply resume time-scale: the simulation clock runs in slow motion
+        // during the smoothstep transition. Gravity, turbulence, and position
+        // all advance at the scaled rate, producing genuine inertia recovery
+        // rather than a frozen-then-unfrozen snap.
+        let effective_sec = elapsed_sec * time_scale;
 
         // Apply gravity: accelerate toward terminal velocity.
         // During startup (first ~0.5s), use exponential ease-in for a
@@ -168,23 +173,22 @@ impl Droplet {
             let eased_target = terminal_vel * (1.0 - (-stream_age / STARTUP_EASE_TAU).exp());
             self.velocity = self.velocity.max(eased_target);
         } else {
-            self.velocity = (self.velocity + DROPLET_GRAVITY * elapsed_sec).min(terminal_vel);
+            // Gravity accumulates at time-scaled rate for smooth velocity ramp.
+            self.velocity = (self.velocity + DROPLET_GRAVITY * effective_sec).min(terminal_vel);
         }
 
-        // Subtle velocity turbulence: smooth sinusoidal drift
-        self.turb_time += elapsed_sec;
+        // Subtle velocity turbulence: smooth sinusoidal drift (time-scaled).
+        self.turb_time += effective_sec;
         let turb_drift =
             (self.turb_time * TURBULENCE_FREQ * std::f32::consts::TAU + self.turb_phase).sin()
                 * TURBULENCE_AMPLITUDE
                 * self.chars_per_sec;
         let turb_velocity = (self.velocity + turb_drift).max(0.0);
 
-        // Scale position delta by motion_scale for cinematic resume easing.
-        // When motion_scale=0.0 (just resumed), no position change occurs.
-        // When motion_scale=1.0 (fully active), full speed is restored.
-        // This is applied to the final delta (not velocity) so turbulence and
-        // gravity calculations remain accurate across the transition.
-        let delta = (turb_velocity * elapsed_sec * motion_scale).max(0.0);
+        // Position delta uses effective (time-scaled) elapsed time.
+        // When time_scale=0.0 (just resumed), no movement occurs.
+        // When time_scale=1.0 (fully active), full speed is restored.
+        let delta = (turb_velocity * effective_sec).max(0.0);
         let total = self.advance_remainder + delta;
         let whole = total.floor();
         self.advance_remainder = total - whole;

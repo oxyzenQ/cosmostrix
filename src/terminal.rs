@@ -45,7 +45,13 @@ use crate::constants::{
 use crate::frame::Frame;
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
-/// (centralized in constants.rs, imported above)
+/// (centralized in constants.rs, imported above).
+///
+/// Note: we do NOT issue `Clear(All)` before full redraws when dimensions
+/// are unchanged. The full redraw path iterates every cell and overwrites
+/// it, so a blanket clear is redundant — and it causes visible flicker in
+/// fullscreen terminals because the screen is blanked before the redraw
+/// completes (the gap is perceptible at high cell counts).
 struct LastFrame {
     width: u16,
     height: u16,
@@ -187,16 +193,6 @@ impl Terminal {
         let do_full_redraw = !can_reuse_last || frame.is_dirty_all() || dirty_is_large;
 
         if do_full_redraw {
-            // Always clear the terminal before a full redraw. This prevents
-            // stale glyphs from persisting when the render semantics change
-            // (charset switch, theme change, shading mode toggle) but the
-            // terminal dimensions remain the same. Without this, the
-            // differential renderer's LastFrame could mask cells that the
-            // terminal emulator still displays with old content.
-            if !needs_full_redraw {
-                self.stdout
-                    .queue(terminal::Clear(terminal::ClearType::All))?;
-            }
             let needs_new_last = self
                 .last
                 .as_ref()

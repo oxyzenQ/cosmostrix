@@ -492,11 +492,12 @@ pub const EMERGENT_SPEED_SHIFT: f32 = 0.15;
 // Cinematic resume easing (pause → resume transition)
 // ---------------------------------------------------------------------------
 
-/// Exponential time constant for resume ease-in (seconds).
-/// Controls how quickly animation ramps back to full speed after unpause.
-/// At t=tau: ~63%, at t=2*tau: ~86%, at t=3*tau: ~95%.
-/// 0.08s gives a smooth ~200ms cinematic ease-in.
-pub const RESUME_EASE_TAU_SECS: f32 = 0.08;
+/// Duration of the smoothstep resume ease-in curve (seconds).
+/// The simulation time scale interpolates from 0.0 → 1.0 over this period
+/// using a smoothstep S-curve, producing a cinematic inertia recovery that
+/// starts gently (no snap) and ends smoothly (no jank at full speed).
+/// 300ms sits in the middle of the perceptual sweet spot (200–400ms).
+pub const RESUME_EASE_DURATION_SECS: f32 = 0.3;
 
 // ---------------------------------------------------------------------------
 // Hardening: drift correction & terminal safety
