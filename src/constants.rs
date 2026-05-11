@@ -197,12 +197,6 @@ pub const DIRTY_CAPACITY_CAP: usize = 8192;
 /// Exponential decay rate for trail fading (higher = faster fade near head).
 pub const TRAIL_EXPONENTIAL_K: f64 = 3.0;
 
-/// Number of cells behind the head that get bloom glow effect.
-pub const HEAD_BLOOM_CELLS: u16 = 3;
-
-/// Bloom glow intensity (0.0 = off, 1.0 = full white blend).
-pub const HEAD_BLOOM_INTENSITY: f32 = 0.4;
-
 // ---------------------------------------------------------------------------
 // Cinematic color transition (generation-based palette propagation)
 // ---------------------------------------------------------------------------
@@ -243,6 +237,32 @@ pub const DROPLET_GRAVITY: f32 = 2.0;
 
 /// Terminal velocity multiplier (fraction of chars_per_sec).
 pub const DROPLET_TERMINAL_VELOCITY_MULT: f32 = 1.8;
+
+// ---------------------------------------------------------------------------
+// Cinematic startup easing
+// ---------------------------------------------------------------------------
+
+/// Initial velocity as fraction of chars_per_sec when a stream is born.
+/// Much lower than the old 0.3 for a more gradual, organic appearance.
+pub const STARTUP_VELOCITY_FRACTION: f32 = 0.05;
+
+/// Time in seconds for startup easing to reach ~95% of full velocity.
+/// Uses exponential ease: v = target × (1 - e^(-t/tau)).
+pub const STARTUP_EASE_TAU: f32 = 0.15;
+
+// ---------------------------------------------------------------------------
+// Head bloom (exponential gaussian falloff)
+// ---------------------------------------------------------------------------
+
+/// Bloom sigma (spread) for exponential gaussian head glow.
+/// Higher = wider, softer glow. 1.5 gives a natural falloff over ~3 cells.
+pub const HEAD_BLOOM_SIGMA: f32 = 1.5;
+
+/// Bloom glow intensity at the head cell itself (0.0 = off, 1.0 = full white blend).
+pub const HEAD_BLOOM_INTENSITY: f32 = 0.4;
+
+/// Number of cells behind the head that receive bloom glow effect.
+pub const HEAD_BLOOM_CELLS: u16 = 3;
 
 // ---------------------------------------------------------------------------
 // Depth fog vignette

@@ -33,11 +33,12 @@ use std::time::{Duration, Instant};
 use crate::cloud::{CharLoc, DrawCtx};
 use crate::constants::{
     DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT, FOG_MIN_FACTOR, FOG_ROWS, HEAD_BLOOM_CELLS,
-    HEAD_BLOOM_INTENSITY, HEAD_LINGER_BRIGHTNESS_MS, MOUSE_FLASH_DURATION_SECS,
+    HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS, MOUSE_FLASH_DURATION_SECS,
     MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT, PARALLAX_GLYPH_DIM,
-    TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
-    TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ,
+    STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS,
+    TRANSITION_ENERGY_SATURATION_BOOST, TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE,
+    TURBULENCE_FREQ,
 };
 use crate::frame::Frame;
 use crate::palette;
@@ -85,6 +86,8 @@ pub struct Droplet {
     pub last_time: Option<Instant>,
     pub head_stop_time: Option<Instant>,
     pub time_to_linger: Duration,
+    /// Birth timestamp for cinematic startup easing (set once in activate).
+    birth_time: Option<Instant>,
 }
 
 impl Droplet {
@@ -113,6 +116,7 @@ impl Droplet {
             last_time: None,
             head_stop_time: None,
             time_to_linger: Duration::from_millis(0),
+            birth_time: None,
         }
     }
 
@@ -121,8 +125,13 @@ impl Droplet {
         self.is_head_crawling = true;
         self.is_tail_crawling = true;
         self.advance_remainder = 0.0;
-        self.velocity = self.chars_per_sec * 0.3;
+        // Cinematic startup: begin at a low fraction and ease into full speed
+        // via exponential approach in advance(). This eliminates the jarring
+        // instant-snap from the old 0.3× initial velocity.
+        self.velocity = self.chars_per_sec * STARTUP_VELOCITY_FRACTION;
+        self.turb_time = 0.0;
         self.last_time = Some(now);
+        self.birth_time = Some(now);
     }
 
     pub fn increment_time(&mut self, delta: Duration) {
@@ -144,9 +153,23 @@ impl Droplet {
         let elapsed = now.saturating_duration_since(last);
         let elapsed_sec = elapsed.as_secs_f32();
 
-        // Apply gravity: accelerate toward terminal velocity
+        // Apply gravity: accelerate toward terminal velocity.
+        // During startup (first ~0.5s), use exponential ease-in for a
+        // cinematic ramp instead of linear gravity. After startup,
+        // standard linear gravity takes over for natural feel.
         let terminal_vel = self.chars_per_sec * DROPLET_TERMINAL_VELOCITY_MULT;
-        self.velocity = (self.velocity + DROPLET_GRAVITY * elapsed_sec).min(terminal_vel);
+        let stream_age = self
+            .birth_time
+            .map(|bt| now.saturating_duration_since(bt).as_secs_f32())
+            .unwrap_or(1.0); // fallback: skip easing if no birth_time
+        if stream_age < STARTUP_EASE_TAU * 3.0 {
+            // Exponential ease: v → target × (1 - e^(-t/τ))
+            // After 3τ, we're at 95% and switch to linear gravity.
+            let eased_target = terminal_vel * (1.0 - (-stream_age / STARTUP_EASE_TAU).exp());
+            self.velocity = self.velocity.max(eased_target);
+        } else {
+            self.velocity = (self.velocity + DROPLET_GRAVITY * elapsed_sec).min(terminal_vel);
+        }
 
         // Subtle velocity turbulence: smooth sinusoidal drift
         self.turb_time += elapsed_sec;
@@ -220,16 +243,30 @@ impl Droplet {
         false
     }
 
+    /// Returns 0.0–1.0 indicating how "bright" the head cell should appear.
+    /// During crawling: 1.0. After head stops: exponential decay from 1.0→0.0
+    /// over HEAD_LINGER_BRIGHTNESS_MS, producing a smooth fade instead of
+    /// the old binary on/off switch.
     #[inline]
-    fn is_head_bright(&self, now: Instant) -> bool {
+    fn head_brightness(&self, now: Instant) -> f32 {
         if self.is_head_crawling {
-            return true;
+            return 1.0;
         }
         if let Some(stop) = self.head_stop_time {
-            return now.saturating_duration_since(stop)
-                <= Duration::from_millis(HEAD_LINGER_BRIGHTNESS_MS);
+            let elapsed_ms = now.saturating_duration_since(stop).as_secs_f32() * 1000.0;
+            let window = HEAD_LINGER_BRIGHTNESS_MS as f32;
+            if elapsed_ms < window {
+                // Exponential decay: e^(-3t/T) — at t=0: 1.0, at t=T: ~0.05
+                return (-3.0 * elapsed_ms / window).exp();
+            }
         }
-        false
+        0.0
+    }
+
+    /// Legacy binary helper kept for CharLoc::Head classification threshold.
+    #[inline]
+    fn is_head_bright(&self, now: Instant) -> bool {
+        self.head_brightness(now) > 0.3
     }
 
     pub fn draw(
@@ -287,6 +324,9 @@ impl Droplet {
                 self.length,
             );
 
+            // Smooth head brightness: fade head glow exponentially after stop
+            let head_bright = self.head_brightness(now);
+
             // Apply visual effects to foreground color
             let is_new_generation =
                 self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
@@ -308,18 +348,20 @@ impl Droplet {
                     }
                 }
 
-                // Head bloom: cells near head get extra white glow.
+                // Head bloom: exponential gaussian falloff for natural glow.
                 // New-generation streams get enhanced bloom for energetic leading edge.
                 if matches!(loc, CharLoc::Middle) {
                     let dist_from_head = self.head_put_line.saturating_sub(line);
                     if dist_from_head > 0 && dist_from_head < HEAD_BLOOM_CELLS {
-                        let t = 1.0 - (dist_from_head as f32 / HEAD_BLOOM_CELLS as f32);
+                        // Gaussian: intensity × e^(-d²/2σ²) — softer center, faster edge falloff
+                        let d = dist_from_head as f32;
+                        let gaussian = (-d * d / (2.0 * HEAD_BLOOM_SIGMA * HEAD_BLOOM_SIGMA)).exp();
                         let bloom = if is_new_generation {
                             HEAD_BLOOM_INTENSITY + TRANSITION_HEAD_GLOW_BOOST
                         } else {
                             HEAD_BLOOM_INTENSITY
                         };
-                        c = palette::blend_toward_white(c, t * bloom);
+                        c = palette::blend_toward_white(c, gaussian * bloom);
                     }
                 }
 
@@ -395,6 +437,14 @@ impl Droplet {
                             c = palette::blend_toward_white(c, t * MOUSE_FLASH_INTENSITY * fade);
                         }
                     }
+                }
+
+                // Head brightness modulation: smoothly fade the head cell's
+                // brightness after it stops (exponential decay). This replaces
+                // the old binary bright/dim switch with a perceptually smooth
+                // transition that makes stream endings feel less abrupt.
+                if matches!(loc, CharLoc::Head) && head_bright < 1.0 {
+                    c = palette::apply_brightness(c, 0.5 + 0.5 * head_bright);
                 }
 
                 c
