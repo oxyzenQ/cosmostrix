@@ -7,11 +7,15 @@
 //!
 //! ## Frame Pacing
 //!
-//! The pacing system uses a combination of target period calculation and
-//! single-reschedule logic to maintain smooth frame delivery. When a frame
-//! overshoots its deadline, the next frame is scheduled from `now + period`
-//! rather than `next + period`, preventing cascading stutter from a single
-//! late frame.
+//! The pacing system uses a spin-sleep hybrid approach: the bulk of each
+//! frame's idle time is spent in `poll_event()` (which also processes input),
+//! while the final ~500μs uses a busy-wait spin loop for sub-millisecond
+//! deadline accuracy. This eliminates OS scheduling jitter from the frame
+//! cadence.
+//!
+//! When a frame overshoots its deadline, the next frame is scheduled from
+//! `now + period` rather than `next + period`, preventing cascading stutter
+//! from a single late frame.
 //!
 //! Under sustained performance pressure, the simulation time budget is
 //! adaptively reduced (down to 30% of nominal) to prevent frame queue
@@ -57,6 +61,21 @@ use crate::runtime::{ColorScheme, ShadingMode};
 use crate::terminal::{restore_terminal_best_effort, Terminal};
 
 use super::{cycle_charset_preset, cycle_color_scheme, effective_density, CloudConfig};
+
+/// Spin-wait until `deadline` is reached, capped at 1ms to avoid wasting CPU
+/// on pathological cases (clock jumps, VM pauses).
+///
+/// Used for the final sub-millisecond portion of frame pacing where OS sleep
+/// granularity (~0.5–2ms) is insufficient. The busy-wait ensures we hit the
+/// frame deadline with microsecond precision rather than millisecond.
+#[inline]
+fn spin_wait(deadline: Instant) {
+    let spin_limit = Duration::from_micros(1000);
+    let spin_start = Instant::now();
+    while Instant::now() < deadline && spin_start.elapsed() < spin_limit {
+        std::hint::spin_loop();
+    }
+}
 
 /// Rolling frame time tracker: allocation-free fixed-size ring buffer.
 ///
@@ -358,7 +377,23 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
                 timeout = timeout.min(end - now);
             }
-            let _ = Terminal::poll_event(timeout)?;
+
+            // Spin-sleep hybrid: use poll_event for the bulk of the wait
+            // (which also processes input events), then spin-wait the final
+            // ~500μs for sub-millisecond deadline accuracy. This eliminates
+            // OS scheduling jitter from the frame cadence.
+            let spin_budget = Duration::from_micros(500);
+            if timeout > spin_budget {
+                let _ = Terminal::poll_event(timeout - spin_budget)?;
+                // Spin-wait the remaining time for precise deadline alignment.
+                // The spin is capped at 1ms internally to handle edge cases.
+                spin_wait(next_frame);
+            } else {
+                // Already close to deadline (< 500μs away): spin-wait to hit
+                // it precisely, then drain any events that arrived.
+                spin_wait(next_frame);
+                let _ = Terminal::poll_event(Duration::from_millis(0))?;
+            }
         }
 
         if !cloud.raining {
@@ -422,13 +457,16 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             frame_time_tracker.push(work_s as f64 * 1000.0);
         }
 
-        let now = Instant::now();
-        let next = next_frame.checked_add(frame_period).unwrap_or(now);
-        // Single reschedule: if we overslept past the next tick, snap forward
-        // by exactly one period from now instead of double-advancing (which
-        // caused visible stutter on frames that took just 1μs too long).
-        next_frame = if now > next {
-            now.checked_add(frame_period).unwrap_or(now)
+        // Schedule next frame relative to the ideal deadline, using the
+        // pre-work timestamp to prevent drift between render work and
+        // scheduling. Single-reschedule: if we overslept past the next tick,
+        // snap forward by exactly one period from now instead of
+        // double-advancing (which caused visible stutter on frames that took
+        // just 1μs too long).
+        let frame_ts = work_start;
+        let next = next_frame.checked_add(frame_period).unwrap_or(frame_ts);
+        next_frame = if frame_ts > next {
+            frame_ts.checked_add(frame_period).unwrap_or(frame_ts)
         } else {
             next
         };

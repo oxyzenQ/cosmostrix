@@ -1,144 +1,141 @@
-# Cosmostrix Next Arc — Hardening & Stabilization Phase
+# Cosmostrix Roadmap — Perceived Quality Engineering
 
-> **Core Principle:** `feature richness > stability maturity` means the next evolution
-> is not more features — it is refinement, reliability, and engineering maturity.
-
----
-
-## Current State Assessment
-
-After Phase 1–3, Cosmostrix has reached sufficient:
-- Sophistication
-- Uniqueness
-- Visual richness
-
-**The differentiator now is not more features, but deeper refinement.**
+> **Core Principle:** Cosmostrix has passed the "fast enough" threshold.
+> The differentiator now is not raw FPS — it is **how it feels while running**.
+> This is the territory of pacing, smoothness, polish, and cinematic engineering.
 
 ---
 
-## Arc Overview
+## Evolution Summary
 
-| Arc | Focus | Question |
-|-----|-------|----------|
-| **1 — Hardening** | Survival under abuse | "Can this survive abuse?" |
-| **2 — Stabilization** | Perpetual smoothness | "Can this remain smooth forever?" |
-| **3 — Performance Maturity** | Elite-tier efficiency | "Can this become elite-tier?" |
-| **4 — Production Polish** | Completeness feel | "Does this feel complete?" |
-
----
-
-## ARC 1 — HARDENING
-
-### 1.1 Long-Endurance Stability Testing
-- Test durations: 1hr, 3hr, overnight
-- Hunt: memory creep, FPS drift, pacing degradation, entropy instability,
-  visual corruption, ANSI desync, terminal restoration bugs
-
-### 1.2 Panic & Recovery Hardening
-- Clean Ctrl+C handling
-- Panic → terminal restore
-- Alternate screen always recovers
-- Cursor visibility always recovers
-- No broken TTY state
-
-### 1.3 Terminal Compatibility Matrix
-- Targets: kitty, wezterm, alacritty, ghostty, foot, gnome-terminal, tmux, ssh, low refresh
-- Hunt: unicode width issues, ANSI quirks, pacing weirdness, redraw anomalies
-
-### 1.4 Unicode Safety Audit
-- wcwidth consistency
-- No broken glyph alignment
-- UTF-8 edge cases safe
-- Fallback ASCII robust
-
-### 1.5 Stress Density Testing
-- Ultra-wide terminal, tiny terminal, huge density, low FPS caps, resize spam
-- Hunt: instability, pacing collapse, buffer corruption
+| Arc | Focus | Status |
+|-----|-------|--------|
+| **1 — Hardening** | Survival under abuse | Done |
+| **2 — Stabilization** | Perpetual smoothness | Done |
+| **3 — Performance Maturity** | Elite-tier efficiency | Done |
+| **4 — Production Polish** | Completeness feel | Done (CLI, help, defaults) |
+| **5 — Render Smoothness** | Perceived quality | In Progress |
+| **6 — Runtime Hardening** | Endurance under load | Planned |
+| **7 — Cinematic Polish** | Premium animation feel | Planned |
 
 ---
 
-## ARC 2 — STABILIZATION
+## ARC 5 — RENDER SMOOTHNESS (Phase A)
 
-### 2.1 Frame Pacing Audit
-- Perceptual smoothness over raw FPS
-- Frametime consistency
-- Jitter elimination
+> Humans don't see FPS. Humans see consistency.
+> 60 FPS with high jitter feels cheap. Stable frametime feels premium smooth.
 
-### 2.2 Allocation Audit
-- Hidden allocations
-- Formatting churn
-- Transient Vec creation
-- String rebuilds
-- Goal: steady-state renderer
+### 5.1 Frame Pacing Consistency
 
-### 2.3 State Complexity Reduction
-- Duplicated state
-- Entropy overlap
-- Unnecessary mutation paths
-- Renderer complexity growth
-- Goal: maintain architectural elegance
+- **Spin-sleep hybrid pacing**: Replace naive `poll_event(timeout)` sleep with
+  a spin-sleep approach — busy-wait the last ~0.5ms for sub-millisecond
+  accuracy, then yield for the remainder. Eliminates OS scheduling jitter.
+- **Sleep drift correction**: Track cumulative drift between target and actual
+  frame times. Distribute corrections across frames to avoid single-frame jumps.
+- **Pacing accumulator**: Use a phase-accumulator model where the target cadence
+  is an ideal clock, and the renderer chases it. Prevents phase creep.
+- **Oversleep compensation**: When OS sleep overshoots, absorb the error into
+  the next frame's budget rather than shifting the schedule.
 
-### 2.4 Deterministic Behavior Audit
-- Unstable randomness
-- Runaway turbulence
-- Anomaly clustering
-- Chaotic evolution drift
-- Goal: atmospheric but coherent
+### 5.2 Delta-Time Normalization
 
----
+- **Smooth delta-time**: Apply exponential moving average to raw delta-time
+  before feeding simulation. Reduces per-frame jitter propagation into physics.
+- **Clamped simulation step**: Cap per-frame simulation advance to prevent
+  teleportation on frame spikes (already partially implemented via `max_sim_delta`).
+- **Sub-frame interpolation for animation subsystems**: Long-timescale systems
+  (color ecosystems, atmospheric evolution) should interpolate rather than step.
 
-## ARC 3 — PERFORMANCE MATURITY
+### 5.3 Monotonic Timing Hardening
 
-### 3.1 Hot Path Profiling
-- Render loop, diff engine, ANSI writes, glyph generation, pacing logic
-- Hunt: branch misses, cache misses, syscall pressure
-
-### 3.2 Terminal IO Optimization
-- Largest likely bottleneck: terminal writes (not simulation)
-- Explore: larger write batching, ANSI compression, smarter diff packing,
-  cursor movement minimization
-
-### 3.3 SIMD Opportunity Audit
-- Luminance decay, glyph state updates, dirty tracking, atmospheric evolution
-- Identify vectorizable workloads
-
-### 3.4 Benchmark Credibility Pass
-- Realistic, stable, reproducible, not misleading
-- Benchmarks are part of project identity
+- **Single `Instant` per frame**: Capture time once at loop top, derive all
+  timing from it. Eliminates drift between multiple `Instant::now()` calls.
+- **Consistent timing model**: Ensure every subsystem (spawn, advance, decay,
+  glitch, atmospheric) derives from the same frame timestamp.
 
 ---
 
-## ARC 4 — PRODUCTION POLISH
+## ARC 6 — RUNTIME HARDENING (Phase B)
 
-### 4.1 CLI UX Polish
-- Wording consistency
-- Typography consistency
-- Command hierarchy
-- Help clarity
+> A premium renderer must run for hours without degradation.
 
-### 4.2 Config Philosophy Audit
-- Keep curated, intentional, restrained
-- Avoid: 200-option terminal mess
+### 6.1 Resize Stability
 
-### 4.3 Documentation Maturity
-- Renderer philosophy
-- Benchmark explanation
-- Motion architecture
-- Atmospheric systems
-- Optimization philosophy
+- **Zero-flash resize**: Eliminate full redraw flash on resize. Transition the
+  existing frame into the new dimensions — crop or extend — then resume
+  differential rendering without a full clear.
+- **Resize coalescing**: Already partially implemented. Ensure rapid resize
+  storms are collapsed into a single transition.
+- **Dimension-preserving state migration**: Cloud state (droplets, entropy)
+  should survive resize without full reset where possible.
 
-### 4.4 Identity Finalization
-- Define officially: What IS Cosmostrix?
-- Candidate identities:
-  - "High-performance cinematic terminal renderer"
-  - "Atmospheric realtime terminal rendering engine"
+### 6.2 Adaptive Throttling
+
+- **Idle detection**: Reduce update pressure when user is away (no input for N
+  seconds). Lower FPS, reduce atmospheric subsystem tick rates.
+- **Active restoration**: Instantly restore full quality on user interaction.
+- **Power-aware scheduling**: Integrate with `--low-power` philosophy at
+  runtime — detect battery/thermal pressure and adapt dynamically.
+
+### 6.3 Long-Endurance Stability
+
+- **Allocation audit**: Zero steady-state allocations. All rendering should be
+  reuse-based after initial setup.
+- **Terminal state drift detection**: Periodic ANSI state validation to catch
+  desync before it becomes visible.
+- **Timing drift guard**: Detect and correct cumulative timing drift over
+  multi-hour sessions.
+- **Memory budget enforcement**: Hard cap on transient allocations per frame.
+
+### 6.4 Terminal Compatibility
+
+- **Graceful degradation matrix**: kitty, wezterm, alacritty, ghostty, foot,
+  gnome-terminal, tmux, SSH, low refresh rate terminals.
+- **Feature capability detection**: Probe terminal capabilities at startup and
+  disable features the terminal cannot support.
+- **ANSI safety net**: Detect broken ANSI state and force a full redraw.
 
 ---
 
-## Execution Priority (Recommended Order)
+## ARC 7 — CINEMATIC POLISH (Phase C)
 
-1. Hardening
-2. Long-session testing
-3. Frame pacing refinement
-4. Architecture cleanup
-5. Terminal IO optimization
+> The psychological gap between "technically correct" and "premium smooth".
+
+### 7.1 Animation Refinement
+
+- **Velocity smoothing**: Apply easing curves to droplet acceleration instead
+  of linear gravity. Feels more organic.
+- **Stream death refinement**: Fade-out instead of abrupt stop. Droplets
+  should decelerate gracefully at end-of-life.
+- **Color propagation smoothing**: Interpolate color transitions across
+  temporal color ecosystem ticks rather than stepping.
+- **Rain acceleration easing**: Gradual ramp-up on start, not instant full speed.
+
+### 7.2 Temporal Coherence
+
+- **Frame-blend for low FPS**: At low FPS targets (<=30), blend consecutive
+  frames for perceived smoothness rather than stepping discretely.
+- **Transition interpolation**: All cross-fades (profile changes, color scheme
+  cycles, density shifts) should use smoothstep or eased interpolation.
+
+### 7.3 Deterministic Timing
+
+- **Replay consistency**: Same seed + same config should produce identical
+  output frame-for-frame (within floating-point tolerance).
+- **Stable pacing cadence**: Frame timing should be deterministic enough that
+  visual rhythm is predictable and rhythmic, not stochastic.
+
+---
+
+## Explicitly Deferred
+
+The following are intentionally NOT in scope:
+
+- Plugin system / Lua scripting
+- Networking / multi-user
+- GUI mode
+- Config ecosystem / theme marketplace
+- WASM / browser targets
+
+These can dilute renderer excellence. The focus is on being the best
+terminal renderer — not a platform.
