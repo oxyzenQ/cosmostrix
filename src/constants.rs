@@ -142,6 +142,21 @@ pub const MIN_TERMINAL_COLS: u16 = 4;
 /// Minimum usable terminal height (lines). Same rationale as above.
 pub const MIN_TERMINAL_LINES: u16 = 4;
 
+/// Resize debounce window in milliseconds. Rapid resize events within this
+/// window are coalesced into a single application, preventing redundant
+/// full resets and visual thrashing during window drag.
+pub const RESIZE_DEBOUNCE_MS: u64 = 150;
+
+/// Seconds of no user input before entering idle mode. In idle mode the
+/// effective FPS target is reduced to conserve CPU/battery, and
+/// atmospheric subsystem tick rates are lowered. Any input event instantly
+/// restores full performance.
+pub const IDLE_THRESHOLD_SECS: f64 = 30.0;
+
+/// Effective FPS multiplier while idle. Applied on top of the user's
+/// configured FPS target to reduce update pressure during inactivity.
+pub const IDLE_FPS_FACTOR: f64 = 0.25;
+
 // ---------------------------------------------------------------------------
 // Benchmark
 // ---------------------------------------------------------------------------

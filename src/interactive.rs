@@ -283,6 +283,17 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut perf_overshoot_frames: u64 = 0;
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
 
+    // Resize debounce: track when the last resize event arrived so rapid
+    // resize storms (e.g. window drag) are coalesced into a single apply.
+    let mut last_resize_event: Option<Instant> = None;
+
+    // Adaptive throttling: track last user input time for idle detection.
+    // After IDLE_THRESHOLD_SECS with no input, effective FPS is reduced to
+    // IDLE_FPS_FACTOR × target_fps. Any input event instantly restores.
+    let mut last_input_time = Instant::now();
+    let idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
+    let mut is_idle = false;
+
     let mut charset_preset = cfg.charset_preset.clone();
     let user_ranges = cfg.user_ranges.clone();
     let def_ascii = cfg.def_ascii;
@@ -296,8 +307,16 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             break;
         }
 
+        // Adaptive throttling: detect idle state (no input for IDLE_THRESHOLD_SECS)
+        // and reduce effective FPS to conserve CPU/battery. Any input event
+        // instantly restores full performance.
+        let was_idle = is_idle;
+        is_idle = !was_idle && last_input_time.elapsed().as_secs_f64() >= IDLE_THRESHOLD_SECS;
+
         let frame_period = if cloud.pause {
             pause_period
+        } else if is_idle {
+            idle_period
         } else {
             target_period
         };
@@ -324,9 +343,18 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 let ev = Terminal::read_event()?;
                 match ev {
                     Event::Resize(nw, nh) => {
-                        pending_resize = Some((nw, nh));
+                        // Clamp to safe bounds before storing — raw crossterm
+                        // values can be degenerate (0×0, 65535×65535) during
+                        // window transitions and would panic in Uniform::new
+                        // or cause massive allocations inside cloud.reset().
+                        let cw = nw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+                        let ch = nh.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+                        pending_resize = Some((cw, ch));
+                        last_resize_event = Some(Instant::now());
                     }
                     Event::Key(k) if k.kind == KeyEventKind::Press => {
+                        // Any user input resets idle timer for adaptive throttling.
+                        last_input_time = Instant::now();
                         if cfg.screensaver {
                             cloud.raining = false;
                             break;
@@ -345,6 +373,8 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         );
                     }
                     Event::Mouse(m) => {
+                        // Mouse interaction resets idle timer.
+                        last_input_time = Instant::now();
                         cloud.set_mouse_position(m.column, m.row);
                         if matches!(m.kind, MouseEventKind::Down(_)) {
                             cloud.set_mouse_click(m.column, m.row);
@@ -354,8 +384,19 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
 
-            if !cloud.raining || pending_resize.is_some() {
+            // Break out of the poll loop when we have a resize to apply,
+            // but only after the debounce window has elapsed. This coalesces
+            // rapid resize events (e.g. window drag) into a single reset.
+            if !cloud.raining {
                 break;
+            }
+            if pending_resize.is_some() {
+                let debounce_elapsed = last_resize_event
+                    .map(|t| t.elapsed() >= Duration::from_millis(RESIZE_DEBOUNCE_MS))
+                    .unwrap_or(true);
+                if debounce_elapsed {
+                    break;
+                }
             }
 
             let now = Instant::now();

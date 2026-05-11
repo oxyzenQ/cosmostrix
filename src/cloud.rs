@@ -1270,8 +1270,11 @@ impl Cloud {
     }
 
     pub fn reset(&mut self, cols: u16, lines: u16) {
-        self.cols = cols;
-        self.lines = lines;
+        // Defense in depth: clamp even though callers should clamp before
+        // calling. Prevents degenerate sizes from reaching buffer allocation
+        // or Uniform::new_inclusive construction.
+        self.cols = cols.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+        self.lines = lines.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
 
         let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
         self.droplets.clear();
@@ -1339,6 +1342,7 @@ impl Cloud {
         self.last_spawn_time = now;
         self.spawn_remainder = 0.0;
         self.force_draw_everything = true;
+        self.frames_since_full_redraw = 0;
         self.last_reseed_time = now;
         self.last_phosphor_time = now;
 
