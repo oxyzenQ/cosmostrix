@@ -1,8 +1,6 @@
 # Cosmostrix
 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/oxyzenQ/cosmostrix)
-
-Cosmostrix is a cosmic take on the classic Matrix rain for the terminal.
+**High-performance cinematic terminal renderer.**
 
 ## Demo
 
@@ -11,427 +9,168 @@ Cosmostrix is a cosmic take on the classic Matrix rain for the terminal.
 </p>
 
 <details>
-<summary>▶ Watch full video demo (47s)</summary>
+<summary>Watch full video demo (47s)</summary>
 
 <video src="assets/cosmostrix-long-endurance.mp4" autoplay loop muted playsinline width="100%"></video>
 
 </details>
 
-[▶ Watch Demo on YouTube](https://www.youtube.com/watch?v=KSk-DWFdg3A)
-
-## Performance & benchmarking
-
-See `benchmark/README.md` for profiling artifacts and a reproducible benchmark script.
+[Watch on YouTube](https://www.youtube.com/watch?v=KSk-DWFdg3A)
 
 ## Features
 
-- Multiple built-in color schemes
-- Configurable speed, density, FPS, glitching, shading, and boldness
-- Unicode character sets (`--charset`) and custom ranges (`--chars`)
-- Screensaver mode (`--screensaver`)
-- Runs in **alternate screen** and **raw mode** (no scrollback spam)
+- 42 built-in color schemes and 24 character set presets
+- Cinematic animation engine with phosphor persistence, depth fog, and parallax layers
+- Configurable speed, density, FPS, and glitch intensity
+- Alternate screen with diff-based rendering — no scrollback spam
+- Adaptive throttling: reduces CPU usage when idle
+- Screensaver mode
+- Cross-platform: Linux, macOS, Windows, Android (Termux)
 
 ## Requirements
 
-- Rust toolchain (stable) to build from source
-- A terminal that supports ANSI escape sequences, alternate screen, and raw mode
+- Rust stable toolchain to build from source
+- A terminal supporting ANSI escape sequences, alternate screen, and raw mode
 - Best results with 256-color or truecolor terminals
-
-Cosmostrix supports Unix-like systems (Linux, BSD, macOS, and similar) and Windows (7/10/11) via `crossterm`.
-
-On Unix, Cosmostrix uses OS signals for clean shutdown; on Windows it uses a Ctrl-C handler. For best results on Windows, use a modern terminal that supports ANSI/VT sequences.
 
 ## Quickstart
 
-Run directly from source:
-
 ```bash
-cargo run -- --help
-cargo run -- --color green --fps 60 --speed 10
-```
+# Run from source
+cargo run --release
 
-Build a release binary:
-
-```bash
-# native local machine
+# Build a release binary
 cargo build --release
 
-# build with specific cpu
-cargo pro-linux-v3
-
-# See detail options to build
-cargo --list
-```
-
-Run the built binary:
-
-```bash
-# Native local machine
-
-# Linux/macOS
-./target/release/cosmostrix --help
-
-# Windows (PowerShell)
-.\target\release\cosmostrix.exe --help
-
-# Cross-compile target
-
-# Cross-compile for x86_64 Linux
-./target/x86_64-unknown-linux-gnu/release/cosmostrix --info
+# Run with a color scheme
+./target/release/cosmostrix --color rainbow --speed 12
 ```
 
 ## Installation
 
-### From GitHub Releases (prebuilt binaries)
+### GitHub Releases (prebuilt binaries)
 
-Download the package for your OS/arch from Releases, verify the checksum, extract it, and place `cosmostrix` somewhere in your `PATH`.
+Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify the checksum, and place `cosmostrix` in your `PATH`.
 
-- **Linux/macOS/Android**: `.tar.gz`
-- **Windows**: `.zip`
+**Available platforms:**
 
-Pick `PLATFORM` based on your OS/CPU:
-
-- Linux x86_64: `linux-x86_64-v1` (most compatible), `linux-x86_64-v2`, `linux-x86_64-v3`, `linux-x86_64-v4`
+- Linux x86_64: `v1` (compatible), `v2`, `v3`, `v4`
 - macOS: `darwin-aarch64-native` (Apple Silicon)
-- Windows: `windows-x86_64` (x86_64), `windows-aarch64-native` (AARCH64)
+- Windows: `windows-x86_64`, `windows-aarch64-native`
 - Android (Termux): `android-aarch64-native`
 
-You can confirm what you downloaded/installed by running `cosmostrix -i` (it prints a `Build:` line).
-
-Linux (example)
-
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v1.0.0"
+TAG="v1.1.1"
 PLATFORM="linux-x86_64-v3"
-ARCHIVE="cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
-BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
-
-mkdir -p cosmostrix && cd cosmostrix
-curl -LO "${BASE_URL}/${ARCHIVE}"
-curl -LO "${BASE_URL}/${ARCHIVE}.sha512"
-sha512sum -c "${ARCHIVE}.sha512"
-tar -xzf "${ARCHIVE}"
-./cosmostrix -i
-
-# optional: install to PATH
-install -Dm755 ./cosmostrix ~/.local/bin/cosmostrix
-```
-
-macOS (example)
-
-```bash
-REPO="oxyzenQ/cosmostrix"
-TAG="v1.0.0"
-PLATFORM="darwin-aarch64-native"
-ARCHIVE="cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
-BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
-
-mkdir -p cosmostrix && cd cosmostrix
-curl -LO "${BASE_URL}/${ARCHIVE}"
-curl -LO "${BASE_URL}/${ARCHIVE}.sha512"
-shasum -a 512 -c "${ARCHIVE}.sha512"
-tar -xzf "${ARCHIVE}"
+curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
+curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
+sha512sum -c "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
+tar -xzf "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 ./cosmostrix -i
 ```
 
-Android (Termux) (example)
+### AUR (Arch Linux)
 
 ```bash
-pkg install -y coreutils tar curl
-REPO="oxyzenQ/cosmostrix"
-TAG="v1.0.0"
-PLATFORM="android-aarch64-native"
-ARCHIVE="cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
-BASE_URL="https://github.com/${REPO}/releases/download/${TAG}"
-
-mkdir -p cosmostrix && cd cosmostrix
-curl -LO "${BASE_URL}/${ARCHIVE}"
-curl -LO "${BASE_URL}/${ARCHIVE}.sha512"
-sha512sum -c "${ARCHIVE}.sha512"
-tar -xzf "${ARCHIVE}"
-chmod +x ./cosmostrix
-./cosmostrix -i
-
-# optional: install to PATH (Termux)
-install -m755 ./cosmostrix "$PREFIX/bin/cosmostrix"
+paru -S cosmostrix-bin    # or: yay -S cosmostrix-bin
 ```
 
-Windows (PowerShell) (example)
-
-```powershell
-$repo = "oxyzenQ/cosmostrix"
-$tag = "v1.0.0"
-$platform = "windows-x86_64"
-$zip = "cosmostrix-bin-$tag-$platform.zip"
-$base = "https://github.com/$repo/releases/download/$tag"
-
-New-Item -ItemType Directory -Force -Path cosmostrix | Out-Null
-Set-Location cosmostrix
-Invoke-WebRequest -Uri "$base/$zip" -OutFile $zip
-Invoke-WebRequest -Uri "$base/$zip.sha512" -OutFile "$zip.sha512"
-
-$expected = (Get-Content "$zip.sha512").Split()[0]
-$actual = (Get-FileHash -Algorithm SHA512 $zip).Hash.ToLower()
-if ($actual -ne $expected) { throw "SHA512 mismatch" }
-
-Expand-Archive -Force $zip .
-.\cosmostrix.exe -i
-```
-
-### From AUR (Arch Linux)
-
-```bash
-# Using paru
-paru -S cosmostrix-bin
-
-# Using yay
-yay -S cosmostrix-bin
-
-# Manual
-git clone https://aur.archlinux.org/cosmostrix-bin.git
-cd cosmostrix-bin
-makepkg -si
-```
-
-The AUR package automatically selects the optimal binary for your CPU (x86_64-v1 through v4, or aarch64-native).
-
-### From source (recommended)
+### From source
 
 ```bash
 git clone https://github.com/oxyzenQ/cosmostrix.git
 cd cosmostrix
-
 cargo install --path .
 cosmostrix -i
 ```
 
-#### CPU-specific optimized builds (optional)
-
-Use the cargo aliases in `.cargo/config.toml` to build the same variants as GitHub Releases (and to embed the correct `build:` id shown by `cosmostrix -i`).
-
-```bash
-# Linux x86_64 example
-cargo pro-linux-v3
-./target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix -i
-```
-
 ## Usage
 
-Common examples:
-
 ```bash
-# default settings (async off, glitch off)
-cosmostrix
-
-# color + speed
-cosmostrix --color rainbow --speed 12
-
-# tune visuals
-cosmostrix --density 1.5 --fps 30 --shadingmode 1 --bold 2
-
-# enable glitching
-cosmostrix --noglitch=false
-
-# screensaver: exit on first keypress
-cosmostrix --screensaver
-
-# overlay message
-cosmostrix --message "wake up, neo"
-
-# character sets
-cosmostrix --charset katakana
-cosmostrix --charset braille
-
-# custom unicode ranges (hex code points, pairs define inclusive ranges)
-cosmostrix --chars 30,39,41,5A
+cosmostrix                           # default settings
+cosmostrix --color rainbow --speed 12   # color + speed
+cosmostrix --screensaver              # exit on keypress
+cosmostrix --message "wake up, neo"   # overlay message
+cosmostrix --charset katakana         # character set
+cosmostrix --low-power                # power-saving mode
 ```
 
 ## CLI options
 
-These flags at (`cosmostrix -h`).
+Run `cosmostrix --help` for common options or `cosmostrix --help-detail` for the full reference.
 
 ```text
- -a, --async                  async column speeds (default: off; enable with --async or --async=true)
- -b, --bold <NUM>             0=off, 1=random, 2=all
- -c, --color <COLOR>          color scheme (default: green)
-     --color-bg <MODE>        background: black, default-background, transparent (default: black)
- -d, --density <NUM>          droplet density (default: 1.0)
- -F, --fullwidth              use two columns per character
- -f, --fps <NUM>              target FPS (default: 60)
-     --duration <SECONDS>     exit after N seconds (useful for benchmarks)
- -g, --glitchms <LO,HI>       glitch timing range in ms (default: 300,400)
- -G, --glitchpct <PCT>        glitch chance percent (default: 10)
- -l, --lingerms <LO,HI>       linger timing range in ms (default: 1,3000)
- -M, --shadingmode <NUM>      0=random, 1=distance-from-head (default: 0)
- -m, --message <TEXT>         overlay message
-     --message-no-border      draw message box without border (use with --message; shorthand: -mB)
-     --maxdpc <NUM>           max droplets per column (min 1 max 3, default: 3)
-     --noglitch               disable glitch (default: on; enable with --noglitch=false)
- -r, --rippct <PCT>           die-early percent (default: 33.33333)
- -S, --speed <NUM>            chars per second (default: 8)
- -s, --screensaver            exit on first keypress
-     --shortpct <PCT>         short droplet percent (default: 50)
-     --charset <NAME>         character set (default: binary)
-     --chars <HEX...>         custom unicode hex ranges (pairs)
-     --colormode <MODE>       force color mode (0, 8, 24)
-     --check-bitcolor         print detected terminal color capability and exit
-     --doctor                 print compatibility report and exit
-     --info                   print version info and exit
+COMMON OPTIONS
+  -c, --color <name>        Color theme
+     --charset <name>       Character preset
+  -f, --fps <1-240>         Target FPS
+  -S, --speed <0.001-1000>  Rain speed
+  -d, --density <0.01-5.0>  Rain density
+  -s, --screensaver         Exit on keypress
+  -m, --message <text>      Overlay message
+     --low-power            Power-saving mode
+     --glitch-level <level> Glitch intensity (none|subtle|default|intense)
+
+DIAGNOSTICS
+     --doctor               Compatibility report
+     --benchmark            Renderer benchmark
+  -i, --info                Build and runtime information
+
+DISCOVERY
+     --list-colors          Show available color themes
+     --list-charsets        Show available charset presets
+     --defaults             Show the default runtime profile
 ```
 
-## Environment variables
+## Runtime controls
 
-- **`COSMOSTRIX_NO_FORK_GUARD=1`** (Linux only): disables the fork-based SIGKILL (`-9`) terminal guard.
-  - When disabled, killing Cosmostrix with `SIGKILL` may leave your terminal in raw/alt-screen mode.
-  - `0`, `false`, `off`, `no`, or an empty value keeps the guard enabled.
+```text
+  q / Esc       Quit              p          Pause / resume
+  c / C         Cycle theme       s / S      Cycle charset
+  [ / ]         Density           Up / Down  Speed
+  g             Toggle glitch     Tab        Toggle shading
+  Space         Reseed animation  m          Cycle profile
+```
 
 ## Config file
 
-You can set persistent defaults in a config file at `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config` if set).
-
-Format: one `key = value` per line, `#` for comments, blank lines ignored.
+Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`).
 
 ```
-# Example config file
 color = ocean
 charset = matrix
 fps = 60
 speed = 10
 density = 1.5
-bold = 1
-shadingmode = 1
-glitchpct = 15
-shortpct = 40
-rippct = 25
-maxdpc = 3
+glitch-level = default
 ```
 
-**Supported keys:**
-
-| Key | Description | Example |
-|-----|-------------|---------|
-| `color` | Color scheme | `green`, `ocean`, `neon`, `fire`... |
-| `charset` | Character set | `binary`, `matrix`, `katakana`, `braille`... |
-| `fps` | Target FPS (1-240) | `60` |
-| `speed` | Characters per second (0.001-1000) | `10` |
-| `density` | Droplet density (0.01-5.0) | `1.5` |
-| `bold` | Bold mode: 0=off, 1=random, 2=all | `1` |
-| `shadingmode` | Shading: 0=random, 1=distance-from-head | `0` |
-| `glitchpct` | Glitch chance percent (0-100) | `10` |
-| `shortpct` | Short droplet percent (0-100) | `50` |
-| `rippct` | Die-early percent (0-100) | `33.33` |
-| `maxdpc` | Max droplets per column (1-3) | `3` |
-
-CLI arguments always take precedence over config file values.
+CLI arguments always take precedence over config file values. See `--defaults` for the curated default profile.
 
 ## Color schemes
 
-`--color` supports:
+42 themes available. Run `--list-colors` to see all, including space-themed sets (cosmos, nebula, stars, aurora, galaxy, supernova, and more).
 
-`green`, `green2`, `green3`, `gold`, `yellow`, `orange`, `red`, `blue`, `cyan`, `purple`, `neon`, `fire`, `ocean`, `forest`, `vaporwave`, `gray`, `snow`, `aurora`, `fancy-diamond`, `cosmos`, `nebula`, `rainbow`
+## Character sets
 
-`gray` also accepts `grey`.
+24 presets available. Run `--list-charsets` to see all (binary, matrix, katakana, braille, cyberpunk, hacker, and more).
 
-## Charset (`--charset`) and custom ranges (`--chars`)
+## Performance & benchmarking
 
-Built-in charsets:
-
-`auto`, `matrix`, `ascii`, `extended`, `english`, `digits`, `punc`, `binary`, `hex`, `katakana`, `greek`, `cyrillic`, `hebrew`, `blocks`, `symbols`, `arrows`, `retro`, `cyberpunk`, `hacker`, `minimal`, `code`, `dna`, `braille`, `runic`
-
-- `binary` also accepts `bin` and `01`.
-- `auto` chooses a safe charset based on `LANG`:
-  - if `LANG` does **not** contain `UTF`, it uses a safe ASCII set (letters + digits)
-  - otherwise it uses `matrix`.
-- `--chars` takes comma-separated *hex* unicode code points, and the list length must be even. Each pair defines an inclusive range.
-
-Example: digits + uppercase letters
-
-```bash
-cosmostrix --chars 30,39,41,5A
-```
-
-## Color mode (`--colormode`)
-
-If `--colormode` isn't set, Cosmostrix tries to detect terminal capabilities:
-
-- `COLORTERM` contains `truecolor` / `24bit` -> truecolor
-- `TERM` contains `256color` -> 256-color
-- `TERM` equals `dumb` -> mono
-- otherwise -> 256-color
-
-To inspect what Cosmostrix detects on your system:
-
-- `cosmostrix --check-bitcolor`
-
-You can override with:
-
-- `--colormode 0` (mono)
-- `--colormode 8` (256-color)
-- `--colormode 24` (truecolor)
-
-## Runtime controls (keys)
-
-Interactive controls (while running)
-These hotkeys now work in the main loop (no CLI changes needed):
-
-```text
- q / Esc        quit
- Ctrl+Z         suspend (resume with `fg`)
- p              pause/resume
- Space          reset/reseed animation
- Up / Down      increase/decrease speed (--speed effect)
- [ / -          decrease density
- ] / +          increase density
- c              cycle to next theme (includes your new space themes)
- C              cycle to previous theme
- s              cycle to next charset preset
- S              cycle to previous charset preset
- a              toggle async mode
- g              toggle glitch effects on/off
- Left/Right     change glitch percent
- Tab            toggle shading mode
-
- 1              green
- 2              green2
- 3              green3
- 4              gold
- 5              neon
- 6              red
- 7              blue
- 8              cyan
- 9              purple
- 0              gray
- !              rainbow
- @              yellow
- #              orange
- $              fire
- %              vaporwave
-```
+See `benchmark/README.md` for profiling artifacts and the reproducible benchmark script.
 
 ## Development
 
 ```bash
 cargo test --all
 cargo fmt --all
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --all-targets -- -D warnings
 ```
 
 ## Release process
 
-Create a release by pushing a `v*` git tag (this triggers the GitHub Actions Release workflow).
-
-```bash
-# 1) Update Cargo.toml version
-# 2) Commit the version bump
-git commit -am "release: 1.0.1-stable.1"
-
-# 3) Tag and push
-git tag -a v1.0.1-stable.1 -m v1.0.1-stable.1
-git push origin v1.0.1-stable.1
-```
-
-See `workflow/about-ci.md` for details.
+Create a release by pushing a `v*` tag. See `workflow/about-ci.md` for CI and release workflow details.
 
 ## Contributing
 
@@ -440,8 +179,3 @@ PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before sub
 ## License
 
 MIT. See `LICENSE`.
-
-## Notes
-
-- **Terminal compatibility**: best results in modern terminals with 256-color or truecolor support.
-- **UTF-8**: Cosmostrix can use Unicode character sets depending on your locale and `--charset`.
