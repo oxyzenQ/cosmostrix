@@ -121,6 +121,17 @@ impl Frame {
         }
     }
 
+    /// Borrow a cell by index without copying. Use when you only need to
+    /// inspect the cell (e.g., check `fg.is_some()`) rather than move it.
+    #[must_use]
+    pub fn cell_at_index_ref(&self, i: usize) -> &Cell {
+        if self.cell_gen.get(i).copied() == Some(self.gen) {
+            &self.cells[i]
+        } else {
+            &self.blank
+        }
+    }
+
     pub fn set(&mut self, x: u16, y: u16, cell: Cell) {
         if let Some(i) = self.index(x, y) {
             let cur = if self.cell_gen.get(i).copied() == Some(self.gen) {

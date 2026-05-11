@@ -100,7 +100,9 @@ pub const SIM_PRESSURE_SCALE_FACTOR: f64 = 0.7;
 pub const SIM_MIN_FRACTION: f64 = 0.5;
 
 /// Maximum simulation cap in seconds.
-pub const SIM_MAX_CAP_SECS: f64 = 0.5;
+/// 100ms is below the human perception threshold for smooth motion,
+/// preventing visible teleporting of droplet heads during frame spikes.
+pub const SIM_MAX_CAP_SECS: f64 = 0.1;
 
 /// Multiplier for frame_period to get sim_base.
 pub const SIM_BASE_MULTIPLIER: f64 = 3.0;
@@ -417,9 +419,6 @@ pub const MEMORY_ANOMALY_PRESSURE_WEIGHT: f32 = 0.3;
 
 /// How much historical calm increases persistence richness.
 pub const MEMORY_CALM_PERSISTENCE_BOOST: f32 = 0.15;
-
-/// How much historical density cools brightness.
-pub const MEMORY_DENSITY_BRIGHTNESS_COOL: f32 = 0.1;
 
 // ---------------------------------------------------------------------------
 // Phase 3: Emergent visual storytelling

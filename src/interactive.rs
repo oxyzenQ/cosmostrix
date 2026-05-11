@@ -389,10 +389,15 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
 
         let now = Instant::now();
-        next_frame = next_frame.checked_add(frame_period).unwrap_or(now);
-        if now > next_frame {
-            next_frame = now.checked_add(frame_period).unwrap_or(now);
-        }
+        let next = next_frame.checked_add(frame_period).unwrap_or(now);
+        // Single reschedule: if we overslept past the next tick, snap forward
+        // by exactly one period from now instead of double-advancing (which
+        // caused visible stutter on frames that took just 1μs too long).
+        next_frame = if now > next {
+            now.checked_add(frame_period).unwrap_or(now)
+        } else {
+            next
+        };
     }
 
     // Signal the watchdog thread to stop so it doesn't outlive the main

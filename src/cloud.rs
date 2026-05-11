@@ -70,25 +70,6 @@ pub struct DrawCtx<'a> {
     pub flash_line: u16,
     /// Flash effect start time (None if no active flash).
     pub flash_time: Option<Instant>,
-
-    /// Global luminance climate modifier from color ecosystem.
-    #[allow(dead_code)]
-    pub luminance_climate: f32,
-    /// Global saturation climate modifier from color ecosystem.
-    #[allow(dead_code)]
-    pub saturation_climate: f32,
-    /// Instability pressure from renderer memory.
-    #[allow(dead_code)]
-    pub instability_pressure: f32,
-    /// Persistence richness from renderer memory.
-    #[allow(dead_code)]
-    pub persistence_richness: f32,
-    /// Emergent visual effects currently active.
-    #[allow(dead_code)]
-    pub emergent_effects: EmergentEffects,
-    /// Current profile params (interpolated).
-    #[allow(dead_code)]
-    pub profile_params: ProfileParams,
 }
 
 impl DrawCtx<'_> {
@@ -492,11 +473,6 @@ struct ColorEcosystem {
     saturation_direction: f32,
     hue_direction: f32,
     last_tick: Instant,
-    #[allow(dead_code)]
-    palette_drift_target: Option<ColorScheme>,
-    #[allow(dead_code)]
-    palette_drift_start: Option<Instant>,
-    drift_count: u32,
 }
 
 impl ColorEcosystem {
@@ -509,9 +485,6 @@ impl ColorEcosystem {
             saturation_direction: 0.0,
             hue_direction: 0.0,
             last_tick: now,
-            palette_drift_target: None,
-            palette_drift_start: None,
-            drift_count: 0,
         }
     }
 
@@ -574,7 +547,6 @@ impl ColorEcosystem {
                 let idx_dist = Uniform::new_inclusive(0usize, related.len().saturating_sub(1))
                     .expect("related_schemes idx always valid");
                 let new_scheme = related[idx_dist.sample(mt)];
-                self.drift_count += 1;
                 return Some(new_scheme);
             }
         }
@@ -631,12 +603,10 @@ impl AtmosphericEvolution {
 struct RendererMemory {
     anomaly_history: [f32; MEMORY_HISTORY_SAMPLES],
     density_history: [f32; MEMORY_HISTORY_SAMPLES],
-    luminance_history: [f32; MEMORY_HISTORY_SAMPLES],
     history_idx: usize,
     last_sample: Instant,
     instability_pressure: f32,
     persistence_richness: f32,
-    brightness_cooling: f32,
 }
 
 impl RendererMemory {
@@ -644,12 +614,10 @@ impl RendererMemory {
         Self {
             anomaly_history: [0.0; MEMORY_HISTORY_SAMPLES],
             density_history: [0.0; MEMORY_HISTORY_SAMPLES],
-            luminance_history: [0.0; MEMORY_HISTORY_SAMPLES],
             history_idx: 0,
             last_sample: now,
             instability_pressure: 0.0,
             persistence_richness: 0.0,
-            brightness_cooling: 0.0,
         }
     }
 
@@ -658,7 +626,7 @@ impl RendererMemory {
         now: Instant,
         anomaly_density: f32,
         rain_density: f32,
-        luminance: f32,
+        #[allow(unused_variables)] luminance: f32,
     ) {
         let elapsed = now
             .saturating_duration_since(self.last_sample)
@@ -669,18 +637,15 @@ impl RendererMemory {
         self.last_sample = now;
         self.anomaly_history[self.history_idx] = anomaly_density;
         self.density_history[self.history_idx] = rain_density;
-        self.luminance_history[self.history_idx] = luminance;
         self.history_idx = (self.history_idx + 1) % MEMORY_HISTORY_SAMPLES;
     }
 
     fn recompute_derived(&mut self) {
         let n = MEMORY_HISTORY_SAMPLES as f32;
         let avg_anomaly: f32 = self.anomaly_history.iter().sum::<f32>() / n;
-        let avg_density: f32 = self.density_history.iter().sum::<f32>() / n;
 
         self.instability_pressure = avg_anomaly * MEMORY_ANOMALY_PRESSURE_WEIGHT;
         self.persistence_richness = (1.0 - avg_anomaly) * MEMORY_CALM_PERSISTENCE_BOOST;
-        self.brightness_cooling = avg_density * MEMORY_DENSITY_BRIGHTNESS_COOL;
     }
 }
 
@@ -845,7 +810,6 @@ pub struct Cloud {
     pub max_droplets_per_column: u8,
 
     droplets: Vec<Droplet>,
-    num_droplets: usize,
     spawn_scan_idx: usize,
 
     chars: Vec<char>,
@@ -1010,7 +974,6 @@ impl Cloud {
             linger_high_ms: 3000,
             max_droplets_per_column: 3,
             droplets: Vec::new(),
-            num_droplets: 0,
             spawn_scan_idx: 0,
             chars: Vec::new(),
             char_pool: Vec::new(),
@@ -1239,11 +1202,25 @@ impl Cloud {
             self.pause_time = Some(Instant::now());
         } else if let Some(pt) = self.pause_time.take() {
             let elapsed = Instant::now().saturating_duration_since(pt);
+            // Shift all active droplet timestamps so they resume seamlessly.
             self.last_spawn_time += elapsed;
             for d in &mut self.droplets {
                 if d.is_alive {
                     d.increment_time(elapsed);
                 }
+            }
+            // Shift all Phase 3 subsystem timers so they don't burst-fire
+            // on the first tick after unpause (each sees a large elapsed).
+            self.last_phosphor_time += elapsed;
+            self.last_glitch_time += elapsed;
+            self.next_glitch_time += elapsed;
+            self.last_reseed_time += elapsed;
+            self.color_ecosystem.last_tick += elapsed;
+            self.atmosphere.last_tick += elapsed;
+            self.memory.last_sample += elapsed;
+            self.storytelling.last_tick += elapsed;
+            if let Some(ref mut cd) = self.storytelling.cooldown_until {
+                *cd += elapsed;
             }
         }
     }
@@ -1252,9 +1229,9 @@ impl Cloud {
         self.cols = cols;
         self.lines = lines;
 
-        self.num_droplets = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
+        let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
         self.droplets.clear();
-        self.droplets.resize_with(self.num_droplets, Droplet::new);
+        self.droplets.resize_with(pool_size, Droplet::new);
         self.spawn_scan_idx = 0;
 
         let max_line = lines.saturating_sub(2);
@@ -1561,7 +1538,7 @@ impl Cloud {
             self.spawn_remainder = 0.0;
             return;
         }
-        let to_spawn = (budget.floor() as usize).min(self.num_droplets);
+        let to_spawn = (budget.floor() as usize).min(self.droplets.len());
         self.spawn_remainder = budget - (to_spawn as f32);
         if !self.spawn_remainder.is_finite() {
             self.spawn_remainder = 0.0;
@@ -1846,7 +1823,7 @@ impl Cloud {
         for line in 0..lines {
             for col in 0..self.cols {
                 let fidx = line as usize * frame.width as usize + col as usize;
-                let cell = frame.cell_at_index(fidx);
+                let cell = frame.cell_at_index_ref(fidx);
                 if cell.fg.is_some() {
                     let pidx = col as usize * lines as usize + line as usize;
                     self.phosphor_fresh.set(pidx, true);
@@ -2049,8 +2026,10 @@ impl Cloud {
                             }
 
                             let fidx = line as usize * width as usize + col as usize;
-                            let cell = frame.cell_at_index(fidx);
-                            if cell.fg.is_some() && !self.glitch_pool.is_empty() {
+                            if frame.cell_at_index_ref(fidx).fg.is_some()
+                                && !self.glitch_pool.is_empty()
+                            {
+                                let cell = frame.cell_at_index(fidx);
                                 let glitch_idx = (col as usize + line as usize + elapsed as usize)
                                     % self.glitch_pool.len();
                                 frame.set(
@@ -2335,12 +2314,6 @@ impl Cloud {
             flash_col: self.flash_col,
             flash_line: self.flash_line,
             flash_time: self.flash_time,
-            luminance_climate: self.color_ecosystem.luminance_climate,
-            saturation_climate: self.color_ecosystem.saturation_climate,
-            instability_pressure: self.memory.instability_pressure,
-            persistence_richness: self.memory.persistence_richness,
-            emergent_effects: self.storytelling.active_effects(now),
-            profile_params: self.profile_current,
         };
 
         for d in &mut self.droplets {
@@ -2369,11 +2342,15 @@ impl Cloud {
         self.phosphor_decay_pass(frame, phosphor_elapsed);
 
         // --- Rare anomaly events ---
-        // Check for new anomaly spawn
-        let anomaly_chance = ANOMALY_CHANCE_PER_SEC
+        // Check for new anomaly spawn. The product of multipliers creates a
+        // positive feedback loop (more anomalies → higher instability → more
+        // anomalies). Cap the effective rate at 3× base to prevent visual
+        // overload while preserving atmospheric dynamics.
+        let anomaly_chance = (ANOMALY_CHANCE_PER_SEC
             * self.profile_current.anomaly_freq_mult as f64
             * (1.0 + self.atmosphere.anomaly_offset as f64)
-            * (1.0 + self.memory.instability_pressure as f64);
+            * (1.0 + self.memory.instability_pressure as f64))
+            .min(ANOMALY_CHANCE_PER_SEC * 3.0);
         if phosphor_elapsed > 0.0
             && (self.rand_chance.sample(&mut self.mt) as f64)
                 <= anomaly_chance * phosphor_elapsed as f64
@@ -2444,11 +2421,6 @@ impl Cloud {
                 self.profile_transition_start = None;
             }
         }
-
-        // 6. Apply atmospheric evolution offsets to rendering parameters
-        // Density modulation from atmosphere + memory
-        let _atmo_density_mod =
-            1.0 + self.atmosphere.density_offset - self.memory.brightness_cooling;
 
         // 7. Apply Phase 3 global atmospheric frame effects (post-process)
         self.apply_atmospheric_frame_effects(frame, now);
