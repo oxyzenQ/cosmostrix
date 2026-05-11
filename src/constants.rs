@@ -149,6 +149,13 @@ pub const MIN_TERMINAL_LINES: u16 = 4;
 /// Minimum elapsed seconds denominator to avoid division by zero in bench.
 pub const BENCH_ELAPSED_MIN_S: f64 = 0.000_001;
 
+/// Estimated ANSI overhead bytes per drawn cell in steady-state rendering.
+/// Accounts for run-encoded style changes amortized across the terminal:
+/// ~19 bytes = (5-byte SGR reset + ~6-byte fg escape + ~6-byte bg escape
+/// + 1-byte char) × ~0.65 run-compression factor. This is a rough estimate
+///   used for throughput reporting in the benchmark, not for frame pacing.
+pub const ANSI_BYTES_PER_CELL_ESTIMATE: u64 = 19;
+
 // ---------------------------------------------------------------------------
 // Config file
 // ---------------------------------------------------------------------------

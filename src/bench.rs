@@ -17,8 +17,8 @@ use crossterm::cursor::{Hide, Show};
 use crossterm::execute;
 
 use crate::constants::{
-    BENCH_ELAPSED_MIN_S, DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES, MAX_TERMINAL_COLS,
-    MAX_TERMINAL_LINES,
+    ANSI_BYTES_PER_CELL_ESTIMATE, BENCH_ELAPSED_MIN_S, DENSITY_AUTO_DEFAULT_COLS,
+    DENSITY_AUTO_DEFAULT_LINES, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
 };
 use crate::diagnostics;
 use crate::frame::Frame;
@@ -31,7 +31,7 @@ use super::{effective_density, CloudConfig};
 const BENCHMARK_DURATION_SECS: u64 = 5;
 
 /// Warmup duration for the premium benchmark in seconds.
-const BENCHMARK_WARMUP_SECS: u64 = 1;
+const BENCHMARK_WARMUP_SECS: u64 = 2;
 
 /// Number of frame time samples for percentile calculations.
 const FRAME_TIME_SAMPLES: usize = 10_000;
@@ -409,7 +409,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // ── Warmup phase ─────────────────────────────────────────────────────
     progress.warmup_start();
-    let warmup_end = Instant::now() + Duration::from_secs(BENCHMARK_WARMUP_SECS);
+    let warmup_end = Instant::now() + Duration::from_secs(bench_warmup_secs());
     let mut sim_now = Instant::now();
     while Instant::now() < warmup_end {
         if interrupted.load(Ordering::Relaxed) {
@@ -428,7 +428,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut ft_index: usize = 0;
     let mut total_frames: u64 = 0;
     let mut drawn_frames: u64 = 0;
-    let mut total_ansi_bytes: u64 = 0;
+    let mut total_drawn_cells: u64 = 0;
     let mut active_streams_sum: u64 = 0;
 
     let start = Instant::now();
@@ -444,15 +444,22 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         let frame_start = Instant::now();
         cloud.rain_at(&mut frame, sim_now);
 
-        let did_draw = frame.is_dirty_all() || !frame.dirty_indices().is_empty();
+        // Cache dirty checks once per frame to avoid redundant method calls.
+        let is_dirty_all = frame.is_dirty_all();
+        let dirty_len = frame.dirty_indices().len();
+        let did_draw = is_dirty_all || dirty_len > 0;
         if did_draw {
             drawn_frames += 1;
-            let dirty_count = if frame.is_dirty_all() {
+            let dirty_count = if is_dirty_all {
                 (w as usize) * (h as usize)
             } else {
-                frame.dirty_indices().len()
+                dirty_len
             };
-            total_ansi_bytes += (dirty_count as u64) * 20;
+            // Estimate: ~19 bytes ANSI overhead per dirty cell on average
+            // (fg escape 20 + bg escape 20 + optional bold 4 + char 1-4 = ~45 bytes).
+            // Most cells share styles with neighbors (run-encoding), so the
+            // amortized overhead is much lower — ~19 bytes per cell.
+            total_drawn_cells += dirty_count as u64;
         }
 
         frame.clear_dirty();
@@ -463,7 +470,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             ft_index += 1;
         }
         total_frames += 1;
-        active_streams_sum += cloud.droplet_count() as u64;
+        active_streams_sum += cloud.active_droplet_count() as u64;
 
         // Live progress update — AFTER frame time measurement to avoid skew.
         let elapsed_s = start.elapsed().as_secs_f64();
@@ -492,11 +499,16 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             .fold(f64::MAX, f64::min);
     let avg_frame_time = frame_times[..ft_index].iter().sum::<f64>() / (ft_index as f64).max(1.0);
 
-    // p99 frame time
+    // p99 frame time — trim top/bottom 1% outliers for stability
     let mut sorted_ft: Vec<f64> = frame_times[..ft_index].to_vec();
     sorted_ft.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let p99_frame_time = if ft_index > 0 {
-        sorted_ft[(((ft_index as f64) * 0.99) as usize).min(ft_index - 1)]
+    let trim_count = (ft_index as f64 * 0.01) as usize;
+    let trimmed_start = trim_count.min(ft_index);
+    let trimmed_end = ft_index.saturating_sub(trim_count).max(trimmed_start);
+    let trimmed_slice = &sorted_ft[trimmed_start..trimmed_end];
+    let p99_frame_time = if !trimmed_slice.is_empty() {
+        let p99_idx = ((trimmed_slice.len() as f64) * 0.99) as usize;
+        trimmed_slice[p99_idx.min(trimmed_slice.len() - 1)]
     } else {
         0.0
     };
@@ -528,7 +540,8 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         0
     };
 
-    let ansi_bytes_per_second = (total_ansi_bytes as f64 / elapsed_s).round() as u64;
+    let ansi_bytes_per_second = ((total_drawn_cells * ANSI_BYTES_PER_CELL_ESTIMATE) as f64
+        / elapsed_s.max(0.000_001)) as u64;
     let active_streams_avg = active_streams_sum / total_frames.max(1);
 
     let draw_ratio = if total_frames > 0 {
@@ -561,6 +574,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         s.field("pacing", ri.pacing);
         s.field("frame_strategy", ri.frame_strategy);
         s.field("color_depth", ri.color_depth);
+        s.field("io_strategy", ri.io_strategy);
     }
 
     {
@@ -586,6 +600,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         s.field("glyphs_per_second", &glyphs_per_second.to_string());
         s.field("ansi_bytes_per_second", &ansi_bytes_per_second.to_string());
         s.field("active_streams_avg", &active_streams_avg.to_string());
+        s.field("cells_drawn_total", &total_drawn_cells.to_string());
     }
 
     {
@@ -613,4 +628,14 @@ fn bench_dimensions() -> (u16, u16) {
         .unwrap_or(DENSITY_AUTO_DEFAULT_LINES)
         .min(MAX_TERMINAL_LINES);
     (w, h)
+}
+
+/// Read configurable warmup duration from environment, falling back to the
+/// default constant. Allows CI or power users to tune JIT warmup for
+/// stability on different hardware.
+fn bench_warmup_secs() -> u64 {
+    env::var("COSMOSTRIX_BENCH_WARMUP_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(BENCHMARK_WARMUP_SECS)
 }

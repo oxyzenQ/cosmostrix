@@ -359,7 +359,10 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         let work_start = Instant::now();
         cloud.rain(&mut frame);
-        let did_draw = frame.is_dirty_all() || !frame.dirty_indices().is_empty();
+        // Cache dirty checks once per frame to avoid redundant method calls.
+        let is_dirty_all = frame.is_dirty_all();
+        let dirty_len = frame.dirty_indices().len();
+        let did_draw = is_dirty_all || dirty_len > 0;
         if did_draw {
             term.draw(&mut frame)?;
         }

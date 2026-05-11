@@ -1,6 +1,6 @@
 // Copyright (c) 2026 rezky_nightky
 
-use std::io::{stdout, Result, Stdout, Write};
+use std::io::{stdout, BufWriter, Result, Stdout, Write};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
@@ -38,8 +38,12 @@ impl LastFrame {
     }
 }
 
+/// Buffer size for stdout BufWriter (64 KiB). Large enough to batch an
+/// entire frame's ANSI commands into a single syscall.
+const STDOUT_BUF_CAPACITY: usize = 64 * 1024;
+
 pub struct Terminal {
-    stdout: Stdout,
+    stdout: BufWriter<Stdout>,
     last: Option<LastFrame>,
     run_buf: String,
     /// Reusable buffer for full-redraw row batching (avoids per-frame allocation).
@@ -54,8 +58,9 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn new() -> Result<Self> {
-        let mut out = stdout();
+        let raw = stdout();
         terminal::enable_raw_mode()?;
+        let mut out = BufWriter::with_capacity(STDOUT_BUF_CAPACITY, raw);
         let init_res: Result<()> = (|| {
             out.execute(terminal::EnterAlternateScreen)?;
             out.execute(cursor::Hide)?;
@@ -81,7 +86,7 @@ impl Terminal {
             last: None,
             run_buf: {
                 let mut s = String::new();
-                s.reserve(64);
+                s.reserve(256);
                 s
             },
             row_buf: String::with_capacity(512),
@@ -176,20 +181,26 @@ impl Terminal {
                 row_buf.reserve(need_cap - row_buf.capacity());
             }
             for y in 0..frame.height {
-                self.stdout.queue(cursor::MoveTo(0, y))?;
+                // Skip MoveTo for y=0: cursor is already at (0,0) after Clear.
+                if y > 0 {
+                    self.stdout.queue(cursor::MoveTo(0, y))?;
+                }
                 row_buf.clear();
                 let width_usize = frame.width as usize;
                 for x in 0..frame.width {
                     let idx = y as usize * width_usize + x as usize;
-                    let cell = frame.cell_at_index(idx);
+                    let cell_ref = frame.cell_at_index_ref(idx);
 
-                    // Peek ahead: if next cell has different style, flush buffer first
+                    // Peek ahead: if next cell has different style, flush buffer first.
+                    // Uses borrowed reference to avoid copying the next Cell (~24 bytes).
                     let next_differs = (x + 1 >= frame.width) || {
-                        let next_cell = frame.cell_at_index(idx + 1);
-                        next_cell.fg != cell.fg
-                            || next_cell.bg != cell.bg
-                            || next_cell.bold != cell.bold
+                        let next_ref = frame.cell_at_index_ref(idx + 1);
+                        next_ref.fg != cell_ref.fg
+                            || next_ref.bg != cell_ref.bg
+                            || next_ref.bold != cell_ref.bold
                     };
+
+                    let cell = *cell_ref;
 
                     if cell.fg != cur_fg {
                         if !row_buf.is_empty() {
@@ -286,12 +297,16 @@ impl Terminal {
             let mut i = 0usize;
             while i < b.len() {
                 let idx0 = b[i];
-                let cell0 = frame.cell_at_index(idx0);
-                if last.cells.get(idx0).copied() == Some(cell0) {
+                // Borrow instead of copy: compare with last frame without allocating.
+                // Most dirty cells are unchanged (set to blank by tail pass);
+                // this avoids copying ~24 bytes per Cell for early-exit.
+                let cell0_ref = frame.cell_at_index_ref(idx0);
+                if last.cells.get(idx0) == Some(cell0_ref) {
                     i += 1;
                     continue;
                 }
 
+                let cell0 = *cell0_ref;
                 last.cells[idx0] = cell0;
 
                 let x0 = (idx0 % width_usize) as u16;
@@ -311,15 +326,16 @@ impl Terminal {
                         break;
                     }
 
-                    let cell1 = frame.cell_at_index(idx1);
-                    if last.cells.get(idx1).copied() == Some(cell1) {
+                    let cell1_ref = frame.cell_at_index_ref(idx1);
+                    if last.cells.get(idx1) == Some(cell1_ref) {
                         break;
                     }
-                    if cell1.fg != fg0 || cell1.bg != bg0 || cell1.bold != bold0 {
+                    if cell1_ref.fg != fg0 || cell1_ref.bg != bg0 || cell1_ref.bold != bold0 {
                         break;
                     }
 
-                    run_buf.push(cell1.ch);
+                    run_buf.push(cell1_ref.ch);
+                    let cell1 = *cell1_ref;
                     last.cells[idx1] = cell1;
                     run_len = run_len.saturating_add(1);
                     last_idx_in_run = idx1;
@@ -410,6 +426,7 @@ impl Drop for Terminal {
     }
 }
 
+#[cold]
 pub fn restore_terminal_best_effort() {
     let mut out = stdout();
     let _ = out.execute(event::DisableMouseCapture);

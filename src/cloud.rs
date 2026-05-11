@@ -73,6 +73,7 @@ pub struct DrawCtx<'a> {
 }
 
 impl DrawCtx<'_> {
+    #[inline]
     fn is_bright(&self, now: Instant) -> bool {
         if now < self.last_glitch_time {
             return false;
@@ -90,6 +91,7 @@ impl DrawCtx<'_> {
         (since / between) <= GLITCH_BRIGHT_RATIO
     }
 
+    #[inline]
     fn is_dim(&self, now: Instant) -> bool {
         if now > self.next_glitch_time {
             return true;
@@ -107,6 +109,7 @@ impl DrawCtx<'_> {
         (since / between) >= GLITCH_DIM_RATIO
     }
 
+    #[inline]
     pub fn is_glitched(&self, line: u16, col: u16) -> bool {
         if !self.glitchy {
             return false;
@@ -115,12 +118,14 @@ impl DrawCtx<'_> {
         self.glitch_map.get(idx).is_some_and(|b| *b)
     }
 
+    #[inline]
     pub fn get_char(&self, line: u16, char_pool_idx: u16) -> char {
         let len = self.char_pool.len().max(1);
         let idx = ((char_pool_idx as usize) + (line as usize)) % len;
         self.char_pool.get(idx).copied().unwrap_or('0')
     }
 
+    #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn get_attr(
         &self,
@@ -394,6 +399,7 @@ pub struct ProfileParams {
     pub linger_mult: f32,
 }
 
+#[inline]
 fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) -> ProfileParams {
     ProfileParams {
         speed_mult: a.speed_mult + (b.speed_mult - a.speed_mult) * t,
@@ -1125,6 +1131,14 @@ impl Cloud {
         self.droplets.len()
     }
 
+    /// Return the number of currently active (alive) droplets.
+    /// More accurate for performance metrics than `droplet_count()`
+    /// which includes recycled slots waiting to be reused.
+    #[must_use]
+    pub fn active_droplet_count(&self) -> usize {
+        self.droplets.iter().filter(|d| d.is_alive).count()
+    }
+
     pub fn set_async(&mut self, on: bool) {
         self.async_mode = on;
         self.set_column_speeds();
@@ -1411,6 +1425,7 @@ impl Cloud {
     }
 
     #[must_use]
+    #[inline]
     pub fn is_glitched(&self, line: u16, col: u16) -> bool {
         if !self.glitchy {
             return false;
@@ -1818,6 +1833,14 @@ impl Cloud {
         let bg = self.palette.bg;
         let lines = self.lines;
 
+        // Pre-build blank cell for phosphor clear operations (avoids per-cell struct construction).
+        let blank_cell = Cell {
+            ch: ' ',
+            fg: None,
+            bg,
+            bold: false,
+        };
+
         // Pass 1: Mark cells currently drawn by droplets as fresh
         self.phosphor_fresh.fill(false);
         for line in 0..lines {
@@ -1880,16 +1903,7 @@ impl Cloud {
                     // Phosphor is dead — clear cell
                     self.phosphor[pidx] = 0;
                     self.phosphor_base_fg[pidx] = None;
-                    frame.set(
-                        col,
-                        line,
-                        Cell {
-                            ch: ' ',
-                            fg: None,
-                            bg,
-                            bold: false,
-                        },
-                    );
+                    frame.set(col, line, blank_cell);
                 } else if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                     // Render ghost cell with dimmed color
                     let factor = self.phosphor[pidx] as f32 / 255.0;

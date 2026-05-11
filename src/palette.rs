@@ -118,6 +118,8 @@ fn colors_from_rgb(mode: ColorMode, list: &[(u8, u8, u8)]) -> Vec<Color> {
 #[allow(unreachable_patterns)] // Catch-all guards against future crossterm Color variants
 fn color_to_rgb(color: Color) -> (u8, u8, u8) {
     match color {
+        // Fast path: most common in TrueColor mode — zero branching for the
+        // dominant case in production rendering.
         Color::Rgb { r, g, b } => (r, g, b),
         Color::AnsiValue(v) => {
             // Decode 256-color: 0-7 = standard, 8-15 = bright, 16-231 = 6x6x6 cube, 232-255 = grayscale
@@ -160,8 +162,9 @@ fn color_to_rgb(color: Color) -> (u8, u8, u8) {
                 (v, v, v)
             }
         }
-        // Named 8/16 colors — use the same RGB approximations
-        Color::Black => (0, 0, 0),
+        // Named 8/16 colors — handle Reset early alongside Black (both → (0,0,0))
+        // to avoid iterating through all named variants before reaching Reset.
+        Color::Reset | Color::Black => (0, 0, 0),
         Color::DarkGrey => (128, 128, 128),
         Color::Red => (255, 0, 0),
         Color::DarkRed => (128, 0, 0),
@@ -177,7 +180,6 @@ fn color_to_rgb(color: Color) -> (u8, u8, u8) {
         Color::DarkCyan => (0, 128, 128),
         Color::White => (255, 255, 255),
         Color::Grey => (192, 192, 192),
-        Color::Reset => (0, 0, 0),
         // Catch-all for any future crossterm Color variants
         _ => (0, 0, 0),
     }

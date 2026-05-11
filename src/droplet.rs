@@ -106,6 +106,7 @@ impl Droplet {
         }
     }
 
+    #[inline]
     pub fn advance(&mut self, now: Instant, lines: u16) -> bool {
         let Some(last) = self.last_time else {
             self.last_time = Some(now);
@@ -191,6 +192,7 @@ impl Droplet {
         false
     }
 
+    #[inline]
     fn is_head_bright(&self, now: Instant) -> bool {
         if self.is_head_crawling {
             return true;

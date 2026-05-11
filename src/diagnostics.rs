@@ -18,6 +18,7 @@ pub struct CpuInfo {
 }
 
 /// Detect CPU info at runtime.
+#[inline]
 pub fn detect_cpu_info() -> CpuInfo {
     let (variant, features) = detect_variant_and_features();
     CpuInfo {
@@ -29,6 +30,7 @@ pub fn detect_cpu_info() -> CpuInfo {
 }
 
 /// Return a slash-separated feature string for display (e.g. "AVX2/BMI2/FMA").
+#[inline]
 pub fn feature_string(features: &[&str]) -> String {
     features.join("/")
 }

@@ -15,9 +15,11 @@ pub struct RendererInfo {
     pub frame_strategy: &'static str,
     pub dirty_tracking: &'static str,
     pub color_depth: &'static str,
+    pub io_strategy: &'static str,
 }
 
 /// Return the renderer info for the given effective color mode.
+#[inline]
 pub fn renderer_info(color_mode: ColorMode) -> RendererInfo {
     RendererInfo {
         backend: "ansi-stream",
@@ -25,6 +27,7 @@ pub fn renderer_info(color_mode: ColorMode) -> RendererInfo {
         unicode: "utf8-singlewidth",
         frame_strategy: "differential",
         dirty_tracking: "bitvec+generation",
+        io_strategy: "crossterm-queue-batch",
         color_depth: match color_mode {
             ColorMode::TrueColor => "truecolor",
             ColorMode::Color256 => "256",

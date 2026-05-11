@@ -869,6 +869,7 @@ fn main() -> std::io::Result<()> {
             s.field("unicode", ri.unicode);
             s.field("frame_strategy", ri.frame_strategy);
             s.field("dirty_tracking", ri.dirty_tracking);
+            s.field("io_strategy", ri.io_strategy);
             s.field("color_depth", ri.color_depth);
         }
         {
