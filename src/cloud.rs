@@ -1286,6 +1286,16 @@ impl Cloud {
             if let Some(ref mut cd) = self.storytelling.cooldown_until {
                 *cd += elapsed;
             }
+            // Shift palette transition and profile interpolation timers
+            // so they don't jump on resume. Without this, a transition in
+            // progress during pause would see a large elapsed and instantly
+            // complete, causing a visible visual discontinuity.
+            if let Some(ref mut ts) = self.transition_start {
+                *ts += elapsed;
+            }
+            if let Some(ref mut pt) = self.profile_transition_start {
+                *pt += elapsed;
+            }
             // Initialize cinematic resume easing: simulation time scale ramps
             // from 0→1 over 300ms using smoothstep S-curve for inertia recovery.
             self.resume_blend = 0.0;

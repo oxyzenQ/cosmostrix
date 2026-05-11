@@ -46,12 +46,6 @@ use crate::frame::Frame;
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
 /// (centralized in constants.rs, imported above).
-///
-/// Note: we do NOT issue `Clear(All)` before full redraws when dimensions
-/// are unchanged. The full redraw path iterates every cell and overwrites
-/// it, so a blanket clear is redundant — and it causes visible flicker in
-/// fullscreen terminals because the screen is blanked before the redraw
-/// completes (the gap is perceptible at high cell counts).
 struct LastFrame {
     width: u16,
     height: u16,
@@ -178,17 +172,25 @@ impl Terminal {
         let mut cur_bold: bool = false;
         let mut cur_pos: Option<(u16, u16)> = None;
 
-        let needs_full_redraw = self
+        // Separate dimension-change detection from semantic-change detection.
+        // Clear(All) is ONLY issued when the terminal dimensions changed, because
+        // resized terminals may have stale content at the new edges that isn't
+        // covered by the frame. For semantic-only changes (charset, shading,
+        // theme), the full redraw path iterates every cell and overwrites it, so
+        // a blanket clear is redundant — and it causes visible flicker in
+        // fullscreen terminals because the screen is blanked before the redraw
+        // completes (the gap is perceptible at high cell counts).
+        let (needs_full_redraw, needs_clear) = self
             .last
             .as_ref()
             .map(|l| {
-                l.width != frame.width
-                    || l.height != frame.height
-                    || l.semantic_gen != frame.semantic_gen
+                let dim_changed = l.width != frame.width || l.height != frame.height;
+                let sem_changed = l.semantic_gen != frame.semantic_gen;
+                (dim_changed || sem_changed, dim_changed)
             })
-            .unwrap_or(true);
+            .unwrap_or((true, true));
 
-        if needs_full_redraw {
+        if needs_clear {
             self.stdout
                 .queue(terminal::Clear(terminal::ClearType::All))?;
         }
