@@ -461,7 +461,14 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let sim_factor = (1.0 - (perf_pressure as f64) * SIM_PRESSURE_SCALE_FACTOR).clamp(0.3, 1.0);
         let sim_min_s = (frame_period.as_secs_f64() * SIM_MIN_FRACTION).max(0.001);
         let sim_max_s = sim_base_s.min(SIM_MAX_CAP_SECS);
-        let sim_cap_s = (sim_base_s * sim_factor).clamp(sim_min_s, sim_max_s);
+        // When frame_period is large (pause mode: 250ms, or very low FPS),
+        // sim_min_s can exceed sim_max_s, which would panic in f64::clamp.
+        // Sanitize: use sim_max_s as the effective lower bound when inverted.
+        let sim_cap_s = if sim_min_s <= sim_max_s {
+            (sim_base_s * sim_factor).clamp(sim_min_s, sim_max_s)
+        } else {
+            sim_max_s
+        };
         cloud.set_max_sim_delta(Duration::from_secs_f64(sim_cap_s));
 
         let work_start = Instant::now();
