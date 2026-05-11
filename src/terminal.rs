@@ -56,6 +56,9 @@ struct LastFrame {
     width: u16,
     height: u16,
     cells: Vec<Cell>,
+    /// Semantic generation this LastFrame was rendered with.
+    /// A mismatch with Frame::semantic_gen forces a full redraw.
+    semantic_gen: u32,
 }
 
 impl LastFrame {
@@ -65,6 +68,7 @@ impl LastFrame {
             width,
             height,
             cells: vec![Cell::blank_with_bg(None); len],
+            semantic_gen: 0,
         }
     }
 }
@@ -177,7 +181,11 @@ impl Terminal {
         let needs_full_redraw = self
             .last
             .as_ref()
-            .map(|l| l.width != frame.width || l.height != frame.height)
+            .map(|l| {
+                l.width != frame.width
+                    || l.height != frame.height
+                    || l.semantic_gen != frame.semantic_gen
+            })
             .unwrap_or(true);
 
         if needs_full_redraw {
@@ -196,12 +204,19 @@ impl Terminal {
             let needs_new_last = self
                 .last
                 .as_ref()
-                .map(|l| l.width != frame.width || l.height != frame.height)
+                .map(|l| {
+                    l.width != frame.width
+                        || l.height != frame.height
+                        || l.semantic_gen != frame.semantic_gen
+                })
                 .unwrap_or(true);
             if needs_new_last {
                 self.last = Some(LastFrame::new(frame.width, frame.height));
             }
             let last = self.last.as_mut().expect("set above");
+            // Synchronize semantic generation so future differential frames
+            // don't spuriously re-trigger full redraws for this generation.
+            last.semantic_gen = frame.semantic_gen;
 
             // Reuse the persistent row_buf to avoid per-frame allocation
             let row_buf = &mut self.row_buf;

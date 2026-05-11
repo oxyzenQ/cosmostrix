@@ -496,8 +496,9 @@ pub const EMERGENT_SPEED_SHIFT: f32 = 0.15;
 /// The simulation time scale interpolates from 0.0 → 1.0 over this period
 /// using a smoothstep S-curve, producing a cinematic inertia recovery that
 /// starts gently (no snap) and ends smoothly (no jank at full speed).
-/// 300ms sits in the middle of the perceptual sweet spot (200–400ms).
-pub const RESUME_EASE_DURATION_SECS: f32 = 0.3;
+/// 400ms is in the upper range of the perceptual sweet spot (200–400ms),
+/// providing a more gradual wake-up that eliminates residual temporal spikiness.
+pub const RESUME_EASE_DURATION_SECS: f32 = 0.4;
 
 // ---------------------------------------------------------------------------
 // Hardening: drift correction & terminal safety

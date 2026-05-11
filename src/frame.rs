@@ -42,6 +42,12 @@ pub struct Frame {
     dirty_all: bool,
     dirty_map: BitVec,
     dirty: SmallVec<[usize; DIRTY_INLINE_CAPACITY]>,
+    /// Semantic generation counter: incremented when the renderer's semantic
+    /// identity changes (charset switch, shading mode toggle, theme change).
+    /// The Terminal's LastFrame cache tracks this value — a mismatch forces
+    /// a full redraw regardless of cell-level diff results, eliminating stale
+    /// glyph residue from semantic mutations.
+    pub semantic_gen: u32,
 }
 
 impl Frame {
@@ -62,6 +68,7 @@ impl Frame {
             dirty_all: true,
             dirty_map: BitVec::repeat(false, len),
             dirty: SmallVec::with_capacity((len / DIRTY_CAPACITY_DIVISOR).min(DIRTY_CAPACITY_CAP)),
+            semantic_gen: 0,
         }
     }
 
@@ -74,6 +81,17 @@ impl Frame {
         }
         self.dirty_all = true;
         self.dirty.clear();
+    }
+
+    /// Invalidate the renderer's semantic identity. Call when charset,
+    /// shading mode, or theme changes. Increments `semantic_gen` and
+    /// performs a full logical clear via `clear_with_bg`, ensuring the
+    /// Terminal's differential renderer detects the semantic change and
+    /// forces a complete redraw — eliminating stale glyph residue from
+    /// the previous renderer configuration.
+    pub fn invalidate_semantic(&mut self, bg: Option<crossterm::style::Color>) {
+        self.semantic_gen = self.semantic_gen.wrapping_add(1);
+        self.clear_with_bg(bg);
     }
 
     #[must_use]

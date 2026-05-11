@@ -886,6 +886,13 @@ pub struct Cloud {
 
     force_draw_everything: bool,
 
+    /// Pending semantic invalidation: set to true when the renderer's semantic
+    /// identity changes (charset switch, shading mode toggle). On the next
+    /// `rain_at()`, this triggers `frame.invalidate_semantic()` which bumps
+    /// the frame's `semantic_gen`, forcing the Terminal to do a full redraw
+    /// and properly synchronize its LastFrame cache with the new semantics.
+    semantic_invalidate: bool,
+
     /// Frame counter for periodic full redraw (ANSI drift correction).
     /// Every `FULL_REDRAW_INTERVAL_FRAMES`, forces a complete screen refresh
     /// to correct any accumulated terminal state desync.
@@ -1048,6 +1055,7 @@ impl Cloud {
             resume_blend: 1.0,
             resume_start: None,
             force_draw_everything: false,
+            semantic_invalidate: false,
             frames_since_full_redraw: 0,
             perf_pressure: 0.0,
             max_sim_delta: Duration::from_millis(0),
@@ -1404,6 +1412,12 @@ impl Cloud {
         self.phosphor_base_fg.resize(total, None);
         self.phosphor_layer.clear();
         self.phosphor_layer.resize(total, 0);
+
+        // Flag semantic invalidation so the Terminal's LastFrame cache is
+        // fully invalidated on the next rain_at() call. This eliminates stale
+        // glyph residue that can persist when only dirty-region invalidation
+        // is used — charset changes are semantic mutations, not cell mutations.
+        self.semantic_invalidate = true;
     }
 
     fn recalc_droplets_per_sec(&mut self) {
@@ -1713,7 +1727,9 @@ impl Cloud {
     pub fn set_shading_mode(&mut self, sm: ShadingMode) {
         self.shading_mode = sm;
         self.shading_distance = matches!(sm, ShadingMode::DistanceFromHead);
-        self.force_draw_everything = true;
+        // Shading mode is a renderer semantic mutation — invalidate the
+        // Terminal's LastFrame cache to prevent stale shading artifacts.
+        self.semantic_invalidate = true;
     }
 
     fn reset_message(&mut self) {
@@ -2313,6 +2329,15 @@ impl Cloud {
         spawn_scale = spawn_scale.clamp(0.0, 3.0);
         self.spawn_droplets(now, spawn_scale);
 
+        // Process pending semantic invalidation BEFORE force_draw_everything.
+        // Semantic mutations (charset switch, shading mode toggle) require
+        // invalidate_semantic() which bumps semantic_gen, ensuring the
+        // Terminal's LastFrame cache is fully synchronized.
+        if self.semantic_invalidate {
+            self.semantic_invalidate = false;
+            frame.invalidate_semantic(self.palette.bg);
+        }
+
         if self.force_draw_everything {
             frame.clear_with_bg(self.palette.bg);
         }
@@ -2431,9 +2456,14 @@ impl Cloud {
         }
 
         // --- Phosphor persistence post-process ---
+        // Scale phosphor decay elapsed by resume_blend so afterglow fades at
+        // the same rate as the rain wakes up. Without this, phosphor trails
+        // vanish at full speed while droplets move in slow motion — creating
+        // temporal inconsistency that feels "spiky" during resume.
         let phosphor_elapsed = now
             .saturating_duration_since(self.last_phosphor_time)
-            .as_secs_f32();
+            .as_secs_f32()
+            * self.resume_blend;
         self.last_phosphor_time = now;
         self.phosphor_decay_pass(frame, phosphor_elapsed);
 
