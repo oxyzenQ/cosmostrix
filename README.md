@@ -61,7 +61,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v1.1.1"
+TAG="v1.2.0"
 PLATFORM="linux-x86_64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
