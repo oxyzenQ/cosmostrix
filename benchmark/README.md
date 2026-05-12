@@ -4,9 +4,9 @@ This folder contains the benchmark script and reference results for Cosmostrix.
 
 ## Reference results
 
-- Peak heap (Valgrind Massif): ~162 KB (165,240 bytes total)
-- Heap behavior: stable, no growth during runtime
-- `pro-native` profile: ~1.16x faster than standard `release` (hyperfine, 215k frames @ 60 fps)
+- RSS: stable ~1.8 MB (release) / ~2.0 MB (pro-native), no growth during runtime
+- `pro-native` profile: ~1.08x faster than standard `release` (hyperfine, 165k frames @ 60 fps, 120x40)
+- Throughput: ~12,380 fps (release) / ~13,322 fps (pro-native)
 
 ## Reproducible benchmark
 

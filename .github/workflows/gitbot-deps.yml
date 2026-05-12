@@ -15,7 +15,7 @@
 
 name: "T-800 - Auto Update Dependencies"
 
-on:
+'on':
   schedule:
     - cron: "0 23 * * 6"  # Saturday 23:00 UTC (Sunday 06:00 WIB)
   workflow_dispatch:
