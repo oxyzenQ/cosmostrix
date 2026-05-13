@@ -5,8 +5,6 @@
 #
 # Strategy:
 # - Weekly auto-update minimizes lockfile churn for a stable-phase project
-# - Action scan: scans & reports outdated GitHub Actions (report-only,
-#   GITHUB_TOKEN cannot push workflow file changes)
 # - Full validation: audit -> deny -> fmt -> build -> test -> clippy
 # - No-op detection skips pipeline when nothing changed
 # - Signed-off commits (no GPG signing)
@@ -35,7 +33,6 @@ name: "T-800 - Auto Update Dependencies"
 
 permissions:
   contents: write
-  actions: read
   pull-requests: write
 
 env:
@@ -85,70 +82,6 @@ jobs:
             JOBS=2
           fi
           echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
-
-      # =========================================================================
-      # SCAN OUTDATED GITHUB ACTIONS (REPORT-ONLY)
-      # =========================================================================
-      # GITHUB_TOKEN cannot push workflow file changes. This step scans and
-      # reports available updates only. Actual updates must be applied manually.
-      # =========================================================================
-      - name: Scan outdated GitHub Actions
-        run: |
-          echo "=============================================================="
-          echo "Scanning for outdated GitHub Actions (report-only)..."
-          echo "=============================================================="
-
-          OUTDATED_LOG="${RUNNER_TEMP}/outdated-actions.log"
-          : > "${OUTDATED_LOG}"
-          HAS_OUTDATED=false
-
-          AUTH_HEADER="Authorization: Bearer ${{ github.token }}"
-
-          for workflow in .github/workflows/*.yml .github/workflows/*.yaml; do
-            [ -f "$workflow" ] || continue
-
-            while read -r action_with_ver; do
-              ACTION="${action_with_ver%@*}"
-              CURRENT_VER="${action_with_ver#*@}"
-
-              [[ "$CURRENT_VER" =~ ^v[0-9] ]] || continue
-
-              if [[ "$ACTION" == */* ]]; then
-                LATEST_TAG=$(curl -sf -H "$AUTH_HEADER" \
-                  "https://api.github.com/repos/$ACTION/releases/latest" \
-                  | grep -oP '"tag_name":\s*"\K[^"]+' || echo "")
-
-                if [ -z "$LATEST_TAG" ]; then
-                  LATEST_TAG=$(curl -sf -H "$AUTH_HEADER" \
-                    "https://api.github.com/repos/$ACTION/tags" \
-                    | grep -oP '"name":\s*"v\K[0-9]+(\.[0-9]+)*' | head -n1)
-                  [ -n "$LATEST_TAG" ] && LATEST_TAG="v$LATEST_TAG"
-                fi
-
-                if [ -n "$LATEST_TAG" ] && [ "$LATEST_TAG" != "$CURRENT_VER" ]; then
-                  HAS_OUTDATED=true
-                  echo "  $ACTION: $CURRENT_VER -> $LATEST_TAG ($workflow)"
-                  echo "$ACTION: $CURRENT_VER -> $LATEST_TAG ($workflow)" >> "${OUTDATED_LOG}"
-                fi
-              fi
-            done < <(grep -oP 'uses:\s+\K[^@\s]+@v[0-9]+(\.[0-9]+)*' "$workflow" | sort -u)
-          done
-
-          echo "outdated_actions_log=${OUTDATED_LOG}" >> "$GITHUB_ENV"
-
-          if [ "$HAS_OUTDATED" = true ]; then
-            echo ""
-            echo "WARNING: Outdated GitHub Actions detected (manual update required):"
-            cat "${OUTDATED_LOG}"
-            echo ""
-            echo "workflows_has_outdated=true" >> "$GITHUB_ENV"
-          else
-            echo ""
-            echo "All GitHub Actions are up-to-date"
-            echo "workflows_has_outdated=false" >> "$GITHUB_ENV"
-          fi
-
-          echo "=============================================================="
 
       # =========================================================================
       # RUST DEPENDENCIES UPDATE
@@ -362,19 +295,6 @@ jobs:
           BODY+=$'\n'"- Tests: ${TESTS_STATUS}"
           BODY+=$'\n'"- Clippy: passed"
 
-          # Add outdated actions notice (report-only, not auto-applied)
-          OUTDATED_LOG="${{ env.outdated_actions_log }}"
-          HAS_OUTDATED="${{ env.workflows_has_outdated }}"
-          if [ "${HAS_OUTDATED}" = "true" ] && [ -n "${OUTDATED_LOG}" ] && [ -s "${OUTDATED_LOG}" ]; then
-            BODY="${BODY}"$'\n\n'"## Outdated GitHub Actions (manual update needed)"
-            BODY="${BODY}"$'\n'"GITHUB_TOKEN cannot push workflow file changes. Update manually or via Dependabot:"
-            BODY="${BODY}"$'\n'
-            while IFS= read -r line; do
-              [ -n "${line}" ] || continue
-              BODY="${BODY}"$'\n'"- ${line}"
-            done < "${OUTDATED_LOG}"
-          fi
-
           if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
             UPDATES_SECTION=false
             while IFS= read -r line; do
@@ -483,13 +403,6 @@ jobs:
             fi
           else
             echo "No updates needed - everything is current!"
-          fi
-
-          if [ "${{ env.workflows_has_outdated }}" == "true" ]; then
-            echo ""
-            echo "WARNING: Outdated GitHub Actions detected"
-            echo "  GITHUB_TOKEN cannot push workflow changes."
-            echo "  Update manually or configure Dependabot."
           fi
 
           echo ""

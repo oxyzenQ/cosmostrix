@@ -28,6 +28,8 @@ permissions:
   actions: read
 
 env:
+  # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -38,7 +40,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.3.1
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -46,7 +48,7 @@ jobs:
           toolchain: 1.81.0
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.8.2
+        uses: Swatinem/rust-cache@v2.9.1
         with:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
