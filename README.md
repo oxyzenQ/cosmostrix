@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Rust-1.81.0-orange?logo=rust" alt="Rust">
-  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-blue" alt="Platform">
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
+  <img src="https://img.shields.io/badge/Rust-1.81.0-8000C0?logo=rust" alt="Rust">
+  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-6B21A8" alt="Platform">
+  <img src="https://img.shields.io/badge/License-MIT-9333EA" alt="License">
   <img src="https://img.shields.io/badge/AUR-cosmostrix--bin-1793D1?logo=archlinux" alt="AUR">
 </p>
 
