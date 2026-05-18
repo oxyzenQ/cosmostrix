@@ -251,6 +251,39 @@ struct ColumnStatus {
     can_spawn: bool,
 }
 
+/// Spawn-time state sampled from `Cloud` before mutably borrowing the droplet pool.
+struct DropletSpawnSpec {
+    col: u16,
+    end_line: u16,
+    char_pool_idx: u16,
+    length: u16,
+    chars_per_sec: f32,
+    time_to_linger: Duration,
+    layer: u8,
+    palette_slot: u8,
+    turb_phase: f32,
+}
+
+impl DropletSpawnSpec {
+    fn apply_to(self, d: &mut Droplet) {
+        d.bound_col = self.col;
+        d.end_line = self.end_line;
+        d.char_pool_idx = self.char_pool_idx;
+        d.length = self.length;
+        d.chars_per_sec = self.chars_per_sec;
+        d.time_to_linger = self.time_to_linger;
+        d.layer = self.layer;
+        d.palette_slot = self.palette_slot;
+        d.head_put_line = 0;
+        d.head_cur_line = 0;
+        d.tail_put_line = None;
+        d.tail_cur_line = 0;
+        d.head_stop_time = None;
+        d.turb_phase = self.turb_phase;
+        d.turb_time = 0.0;
+    }
+}
+
 /// A single character in the overlay message box (position + glyph).
 #[derive(Clone, Debug)]
 struct MsgChr {
@@ -1538,7 +1571,7 @@ impl Cloud {
         }
     }
 
-    fn fill_droplet(&mut self, d: &mut Droplet, col: u16) {
+    fn build_droplet_spec(&mut self, col: u16) -> DropletSpawnSpec {
         let mut end_line = self.lines.saturating_sub(1);
         if self.rand_chance.sample(&mut self.mt) <= self.die_early_pct {
             end_line = self.rand_line.sample(&mut self.mt);
@@ -1560,7 +1593,6 @@ impl Cloud {
         } else {
             2
         };
-        d.layer = layer;
 
         // Adjust length by parallax layer
         let len_mult = PARALLAX_LENGTH_MULT[layer as usize];
@@ -1580,7 +1612,6 @@ impl Cloud {
             .get(col as usize)
             .copied()
             .unwrap_or(self.active_palette_slot);
-        d.palette_slot = palette_slot;
 
         // Adjust speed by parallax layer
         let layer_speed = PARALLAX_SPEED_MULT[layer as usize];
@@ -1598,21 +1629,20 @@ impl Cloud {
             speed *= 1.0 + TRANSITION_VELOCITY_BOOST;
         }
 
-        d.bound_col = col;
-        d.end_line = end_line;
-        d.char_pool_idx = cp_idx;
-        d.length = len;
-        d.chars_per_sec = speed;
-        d.time_to_linger = ttl;
-        d.head_put_line = 0;
-        d.head_cur_line = 0;
-        d.tail_put_line = None;
-        d.tail_cur_line = 0;
-        d.head_stop_time = None;
-
         // Initialize turbulence: unique phase offset per droplet
-        d.turb_phase = (cp_idx as f32 * 0.73).fract() * std::f32::consts::TAU;
-        d.turb_time = 0.0;
+        let turb_phase = (cp_idx as f32 * 0.73).fract() * std::f32::consts::TAU;
+
+        DropletSpawnSpec {
+            col,
+            end_line,
+            char_pool_idx: cp_idx,
+            length: len,
+            chars_per_sec: speed,
+            time_to_linger: ttl,
+            layer,
+            palette_slot,
+            turb_phase,
+        }
     }
 
     fn maybe_reseed_rng(&mut self, now: Instant) {
@@ -1719,10 +1749,10 @@ impl Cloud {
                 break;
             };
 
-            let mut d = std::mem::replace(&mut self.droplets[di], Droplet::new());
-            self.fill_droplet(&mut d, col);
+            let spec = self.build_droplet_spec(col);
+            let d = &mut self.droplets[di];
+            spec.apply_to(d);
             d.activate(now);
-            self.droplets[di] = d;
             self.spawn_scan_idx = (di + 1) % len;
 
             self.col_stat[col as usize].can_spawn = false;
@@ -2641,9 +2671,11 @@ mod tests {
         // Advance resume_start far enough in the past so the smoothstep
         // easing completes (resume_blend reaches 1.0, allowing full-speed
         // simulation on the next rain() call).
-        cloud.resume_start = Some(Instant::now() - Duration::from_secs(1));
-        cloud.last_spawn_time = Instant::now() - Duration::from_secs(1);
-        cloud.rain(&mut frame);
+        let now = Instant::now();
+        cloud.resume_start = Some(now - Duration::from_secs(1));
+        cloud.last_spawn_time = now - Duration::from_secs(1);
+        cloud.rain_at(&mut frame, now);
+        cloud.rain_at(&mut frame, now + Duration::from_secs(1));
         assert!(frame.is_dirty_all() || !frame.dirty_indices().is_empty());
     }
 }

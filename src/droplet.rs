@@ -285,6 +285,10 @@ impl Droplet {
         now: Instant,
         draw_everything: bool,
     ) {
+        if self.head_put_line == 0 && self.tail_put_line.is_none() {
+            return;
+        }
+
         let bg = ctx.bg;
 
         let mut start_line = 0u16;
