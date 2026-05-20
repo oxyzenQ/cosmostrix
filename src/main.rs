@@ -285,26 +285,17 @@ fn default_to_ascii() -> bool {
 }
 
 #[must_use]
-fn detect_color_mode_auto() -> ColorMode {
-    let colorterm = env::var("COLORTERM")
-        .unwrap_or_default()
-        .to_ascii_lowercase();
+fn detect_color_mode_from_terms(colorterm: &str, term: &str) -> ColorMode {
+    let colorterm = colorterm.to_ascii_lowercase();
     if colorterm.contains("truecolor") || colorterm.contains("24bit") {
         return ColorMode::TrueColor;
     }
 
-    #[cfg(windows)]
-    {
-        if env::var_os("WT_SESSION").is_some() {
-            return ColorMode::TrueColor;
-        }
-    }
-
-    let term = env::var("TERM").unwrap_or_default().to_ascii_lowercase();
+    let term = term.to_ascii_lowercase();
     if term == "dumb" {
         return ColorMode::Mono;
     }
-    if term.contains("-truecolor") {
+    if term.contains("-truecolor") || term.ends_with("-direct") {
         return ColorMode::TrueColor;
     }
     if term.contains("256color") {
@@ -312,6 +303,20 @@ fn detect_color_mode_auto() -> ColorMode {
     }
 
     ColorMode::Color16
+}
+
+#[must_use]
+fn detect_color_mode_auto() -> ColorMode {
+    #[cfg(windows)]
+    {
+        if env::var_os("WT_SESSION").is_some() {
+            return ColorMode::TrueColor;
+        }
+    }
+
+    let colorterm = env::var("COLORTERM").unwrap_or_default();
+    let term = env::var("TERM").unwrap_or_default();
+    detect_color_mode_from_terms(&colorterm, &term)
 }
 
 pub fn detect_color_mode(args: &Args) -> ColorMode {
@@ -1192,4 +1197,41 @@ fn main() -> std::io::Result<()> {
     }
 
     interactive::run_interactive(&cloud_cfg)
+}
+
+#[cfg(test)]
+mod color_detection_tests {
+    use super::{detect_color_mode_from_terms, ColorMode};
+
+    #[test]
+    fn term_xterm_direct_detects_truecolor_without_colorterm() {
+        assert_eq!(
+            detect_color_mode_from_terms("", "xterm-direct"),
+            ColorMode::TrueColor
+        );
+    }
+
+    #[test]
+    fn term_tmux_direct_detects_truecolor_without_colorterm() {
+        assert_eq!(
+            detect_color_mode_from_terms("", "tmux-direct"),
+            ColorMode::TrueColor
+        );
+    }
+
+    #[test]
+    fn term_xterm_256color_preserves_256color_detection() {
+        assert_eq!(
+            detect_color_mode_from_terms("", "xterm-256color"),
+            ColorMode::Color256
+        );
+    }
+
+    #[test]
+    fn colorterm_truecolor_still_overrides_term() {
+        assert_eq!(
+            detect_color_mode_from_terms("truecolor", "xterm"),
+            ColorMode::TrueColor
+        );
+    }
 }
