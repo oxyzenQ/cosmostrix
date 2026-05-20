@@ -258,33 +258,6 @@ pub fn apply_saturation(color: Color, factor: f32) -> Color {
     }
 }
 
-/// Blend two colors together by factor t (0.0 = a, 1.0 = b).
-/// Works with all color types via RGB conversion.
-#[allow(dead_code)]
-fn lerp_colors(a: Color, b: Color, t: f32) -> Color {
-    let (ar, ag, ab) = color_to_rgb(a);
-    let (br, bg, bb) = color_to_rgb(b);
-    Color::Rgb {
-        r: lerp_u8(ar, br, t),
-        g: lerp_u8(ag, bg, t),
-        b: lerp_u8(ab, bb, t),
-    }
-}
-
-/// Blend two palettes together by factor t (0.0 = a, 1.0 = b).
-/// Background is taken from target (b).
-#[allow(dead_code)]
-pub fn blend_palettes(a: &Palette, b: &Palette, t: f32) -> Palette {
-    let max_len = a.colors.len().max(b.colors.len());
-    let mut colors = Vec::with_capacity(max_len);
-    for i in 0..max_len {
-        let ca = a.colors.get(i).copied().unwrap_or(Color::Reset);
-        let cb = b.colors.get(i).copied().unwrap_or(Color::Reset);
-        colors.push(lerp_colors(ca, cb, t));
-    }
-    Palette { colors, bg: b.bg }
-}
-
 fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
     if steps == 0 || stops.is_empty() {
         return Vec::new();

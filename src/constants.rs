@@ -404,11 +404,6 @@ pub const COLOR_LUMINANCE_CLIMATE_MAX: f32 = 1.0;
 pub const COLOR_SATURATION_CLIMATE_MIN: f32 = 0.5;
 pub const COLOR_SATURATION_CLIMATE_MAX: f32 = 1.0;
 
-/// Duration over which autonomous palette transitions occur (seconds).
-/// Very long to feel like atmospheric evolution, not theme switching.
-#[allow(dead_code)]
-pub const AUTONOMOUS_PALETTE_TRANSITION_SECS: f32 = 120.0;
-
 /// Probability per ecosystem tick that an autonomous palette drift occurs.
 /// At 3s ticks, 0.03 ≈ one drift attempt every ~100 seconds.
 pub const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
@@ -416,10 +411,6 @@ pub const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
 // ---------------------------------------------------------------------------
 // Phase 3: Cinematic runtime behavior profiles
 // ---------------------------------------------------------------------------
-
-/// Number of cinematic behavior profiles.
-#[allow(dead_code)]
-pub const NUM_BEHAVIOR_PROFILES: usize = 7;
 
 /// Duration for a profile transition (seconds).
 pub const PROFILE_TRANSITION_SECS: f32 = 30.0;

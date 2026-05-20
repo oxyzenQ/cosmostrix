@@ -175,12 +175,6 @@ impl CloudConfig {
 // --- Helper functions (shared across modules) ---
 
 #[must_use]
-#[allow(dead_code)]
-fn build_info() -> &'static str {
-    env!("COSMOSTRIX_BUILD")
-}
-
-#[must_use]
 fn build_commit_short() -> Option<&'static str> {
     match option_env!("COSMOSTRIX_GIT_SHA") {
         Some(s) if !s.is_empty() => Some(s),

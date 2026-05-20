@@ -104,14 +104,6 @@ impl Frame {
         &self.dirty
     }
 
-    #[allow(dead_code)]
-    pub fn sort_dirty(&mut self) {
-        if self.dirty_all || self.dirty.len() <= 1 {
-            return;
-        }
-        self.dirty.sort_unstable();
-    }
-
     pub fn clear_dirty(&mut self) {
         if self.dirty_all {
             self.dirty_all = false;
