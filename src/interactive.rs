@@ -292,7 +292,6 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // IDLE_FPS_FACTOR × target_fps. Any input event instantly restores.
     let mut last_input_time = Instant::now();
     let idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
-    let mut is_idle = false;
 
     let mut charset_preset = cfg.charset_preset.clone();
     let user_ranges = cfg.user_ranges.clone();
@@ -310,8 +309,7 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Adaptive throttling: detect idle state (no input for IDLE_THRESHOLD_SECS)
         // and reduce effective FPS to conserve CPU/battery. Any input event
         // instantly restores full performance.
-        let was_idle = is_idle;
-        is_idle = !was_idle && last_input_time.elapsed().as_secs_f64() >= IDLE_THRESHOLD_SECS;
+        let is_idle = last_input_time.elapsed().as_secs_f64() >= IDLE_THRESHOLD_SECS;
 
         let frame_period = if cloud.pause {
             pause_period

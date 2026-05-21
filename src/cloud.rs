@@ -2378,8 +2378,10 @@ impl Cloud {
             frame.invalidate_semantic(self.palette.bg);
         }
 
-        if self.force_draw_everything {
+        let force_draw_everything = self.force_draw_everything;
+        if force_draw_everything {
             frame.clear_with_bg(self.palette.bg);
+            self.force_draw_everything = false;
         }
 
         let glitch_due = self.time_for_glitch(now);
@@ -2453,7 +2455,7 @@ impl Cloud {
         let transitioning = self.transition_start.is_some();
 
         // Draw pass (split-borrows via DrawCtx)
-        let draw_everything = self.force_draw_everything || time_for_glitch;
+        let draw_everything = force_draw_everything || time_for_glitch;
         let ctx = DrawCtx {
             lines: self.lines,
             full_width: self.full_width,
@@ -2607,9 +2609,6 @@ impl Cloud {
             let ms = self.rand_glitch_ms.sample(&mut self.mt) as u64;
             self.next_glitch_time = self.last_glitch_time + Duration::from_millis(ms);
         }
-
-        self.force_draw_everything = false;
-
         // Expire flash effect after duration
         if let Some(flash_time) = self.flash_time {
             if flash_time.elapsed().as_secs_f32() >= MOUSE_FLASH_DURATION_SECS {
@@ -2624,6 +2623,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::Cloud;
+    use crate::constants::FULL_REDRAW_INTERVAL_FRAMES;
     use crate::frame::Frame;
     use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
@@ -2677,5 +2677,22 @@ mod tests {
         cloud.rain_at(&mut frame, now);
         cloud.rain_at(&mut frame, now + Duration::from_secs(1));
         assert!(frame.is_dirty_all() || !frame.dirty_indices().is_empty());
+    }
+
+    #[test]
+    fn periodic_full_redraw_survives_until_next_frame() {
+        let mut cloud = make_cloud();
+        let mut frame = Frame::new(20, 10, cloud.palette.bg);
+        let now = Instant::now();
+
+        frame.clear_dirty();
+        cloud.frames_since_full_redraw = FULL_REDRAW_INTERVAL_FRAMES - 1;
+        cloud.rain_at(&mut frame, now);
+        assert!(cloud.force_draw_everything);
+
+        frame.clear_dirty();
+        cloud.rain_at(&mut frame, now + Duration::from_millis(16));
+        assert!(frame.is_dirty_all());
+        assert!(!cloud.force_draw_everything);
     }
 }
