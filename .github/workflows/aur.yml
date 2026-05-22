@@ -150,7 +150,13 @@ jobs:
           SRCINFO="${{ env.PKGBUILD_DIR }}/.SRCINFO"
 
           # Read current values from PKGBUILD
+          pkgdesc="$(grep -oP '^pkgdesc="\K.*(?="$)' "${PKGBUILD}")"
           pkgrel="$(grep -oP '^pkgrel=\K.*' "${PKGBUILD}")"
+
+          if [[ -z "${pkgdesc}" ]]; then
+            echo "::error::pkgdesc is empty or missing in ${PKGBUILD}"
+            exit 1
+          fi
 
           # Generate .SRCINFO deterministically
           # .SRCINFO uses tab indentation for continuation lines
@@ -158,7 +164,7 @@ jobs:
           # selected and verified dynamically in prepare().
           {
             echo "pkgbase = cosmostrix-bin"
-            printf '\tpkgdesc = A cosmic Matrix-style terminal rain written in Rust\n'
+            printf '\tpkgdesc = %s\n' "${pkgdesc}"
             printf '\tpkgver = %s\n' "${PKGVER}"
             printf '\tpkgrel = %s\n' "${pkgrel}"
             printf '\turl = https://github.com/oxyzenQ/cosmostrix\n'
