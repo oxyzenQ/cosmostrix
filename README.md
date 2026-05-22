@@ -80,7 +80,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v1.2.0"
+TAG="v2.0.0-stable.1"
 PLATFORM="linux-x86_64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
@@ -178,6 +178,18 @@ CLI arguments always take precedence over config file values. See `--defaults` f
 ## Performance & benchmarking
 
 See `benchmark/README.md` for profiling artifacts and the reproducible benchmark script.
+
+## Release notes
+
+### v2.0.0-stable.1
+
+- Fixed stale glyph artifacts in the top visible rows during charset and theme changes.
+- Fixed long-idle rain/trail resync issues with wall-clock redraw scheduling and focus/input redraw resync.
+- Clarified benchmark dirty-cell and color-mode metrics so differential rendering reports are easier to interpret.
+- Fixed direct-color auto-detection for `xterm-direct` and `tmux-direct`.
+- Removed unused low-value support code while preserving rendering behavior.
+- Completed 10h+ visual soak checks across Alacritty, Konsole, and WezTerm.
+- Resource monitoring found no memory, file descriptor, thread, swap, CPU, or IO leak during the release soak.
 
 ## Development
 
