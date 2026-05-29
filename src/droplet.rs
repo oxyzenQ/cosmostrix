@@ -520,11 +520,25 @@ impl Droplet {
                 // brightness after it stops (exponential decay). While crawling,
                 // the fractional progress ramp already makes the head brighter
                 // via head_brightness(); here we apply a smooth mapping that
-                // compresses the 1.0–1.15 range into a visually appropriate
-                // range (0.75–1.0) for the final output, and decays the
-                // stopped head from 0.75→0.0.
+                // keeps the head more prominent during decay. The mapping
+                // 0.7 + 0.3*hb preserves 70% base brightness even at hb=0,
+                // preventing the abrupt head disappearance that occurred with
+                // the old 0.5+0.5*hb mapping (which dropped to 50% immediately
+                // after the head stopped, making it indistinguishable from body).
                 if matches!(loc, CharLoc::Head) && head_bright < 1.0 {
-                    c = palette::apply_brightness(c, 0.5 + 0.5 * head_bright);
+                    c = palette::apply_brightness(c, 0.7 + 0.3 * head_bright);
+                }
+
+                // Head self-bloom: the head cell itself gets a subtle white
+                // blend to make it glow slightly beyond its palette's brightest
+                // color. This creates the visual impression that the head is
+                // luminous and energetic — the key to making the head > body
+                // hierarchy instantly obvious. Without this, the head only has
+                // its palette color (which for Green is ANSI 159 = cyan-white)
+                // and no additional luminance to distinguish it from the bright
+                // body cells near it.
+                if matches!(loc, CharLoc::Head) {
+                    c = palette::blend_toward_white(c, 0.12);
                 }
 
                 c

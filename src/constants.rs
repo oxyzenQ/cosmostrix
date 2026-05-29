@@ -81,7 +81,11 @@ pub const MAX_CHAR_POOL_IDX: u16 = 2047;
 pub const RNG_RESEED_INTERVAL_SECS: u64 = 600;
 
 /// Head linger brightness duration in milliseconds.
-pub const HEAD_LINGER_BRIGHTNESS_MS: u64 = 100;
+/// Raised from 100 to 300 for a smoother, more cinematic head fadeout that
+/// keeps the head visually prominent for longer after it stops advancing.
+/// The old 100ms was too abrupt — the bright head snapped to near-zero
+/// within a few frames, undermining the head > body hierarchy.
+pub const HEAD_LINGER_BRIGHTNESS_MS: u64 = 300;
 
 // ---------------------------------------------------------------------------
 // Interactive mode tuning
@@ -203,7 +207,12 @@ pub const DIRTY_CAPACITY_CAP: usize = 8192;
 // ---------------------------------------------------------------------------
 
 /// Exponential decay rate for trail fading (higher = faster fade near head).
-pub const TRAIL_EXPONENTIAL_K: f64 = 3.0;
+/// Lowered from 3.0 to 1.8 for improved body glyph readability: at K=3.0,
+/// 75% of the trail was below 22% brightness (perceptually invisible); at
+/// K=1.8, the same region is at 41% — clearly visible while still fading
+/// smoothly toward the tail. This preserves the head > body > tail hierarchy
+/// without making the trail body muddy and invisible.
+pub const TRAIL_EXPONENTIAL_K: f64 = 1.8;
 
 /// Hard cap on spawn remainder to prevent spawn debt accumulation
 /// at high speeds or after timing spikes. Without this, a long stall
@@ -301,7 +310,10 @@ pub const HEAD_BLOOM_CELLS: u16 = 3;
 pub const FOG_ROWS: u16 = 4;
 
 /// Minimum brightness factor at fog edges (0.0 = invisible, 1.0 = full).
-pub const FOG_MIN_FACTOR: f32 = 0.25;
+/// Raised from 0.25 to 0.35 — the old value made edge-row glyphs perceptually
+/// ~5% (effectively invisible). 0.35 (~14% perceptual) preserves the vignette
+/// effect while keeping edge glyphs faintly visible rather than lost entirely.
+pub const FOG_MIN_FACTOR: f32 = 0.35;
 
 // ---------------------------------------------------------------------------
 // Mouse interaction
@@ -342,7 +354,12 @@ pub const PARALLAX_LAYERS: usize = 3;
 pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = dim, 2 = bright).
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.35, 0.8, 1.0];
+/// Raised from [0.35, 0.8, 1.0] to [0.55, 0.90, 1.0] for improved body
+/// glyph readability. The old far-layer at 35% was perceptually ~12% (nearly
+/// invisible after other dimming); 55% is perceptually ~30% — still clearly
+/// dimmer than the near layer but actually readable. Mid-layer at 90% (was
+/// 80%) reduces excessive dimming on the most common layer.
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.90, 1.0];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
@@ -356,11 +373,12 @@ pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 pub const PHOSPHOR_DECAY_RATE: f32 = 3.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
-/// Lowered from 180 to 120 to shorten the afterglow duration and prevent
-/// bottom-row ghost cell accumulation (the "concrete wall" artifact).
-/// At 120, afterglow decays to dead-threshold in ~1.0s (normal) or ~0.4s
-/// (bottom rows with PHOSPHOR_BOTTOM_DECAY_MULT).
-pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 120;
+/// Lowered from 180 to 120 (then raised to 160) for improved ghost afterglow
+/// visibility. At 160 (~63% brightness), ghost cells are clearly visible for
+/// the first ~400ms of afterglow, creating a better CRT fadeout effect.
+/// The bottom-row "concrete wall" artifact is still prevented by the
+/// PHOSPHOR_GLYPH_THRESHOLD (96) and PHOSPHOR_BOTTOM_DECAY_MULT (2.5).
+pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 160;
 
 /// Below this energy, the cell is cleared to blank.
 pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
@@ -403,7 +421,11 @@ pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.5];
 
 /// Per-layer glyph simplicity: far layer chars are less visually dense.
 /// Implemented as a brightness modifier on top of PARALLAX_BRIGHTNESS_MULT.
-pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [0.7, 1.0, 1.0];
+/// Raised from [0.7, 1.0, 1.0] to [0.85, 1.0, 1.0] — the far layer is
+/// already dimmed significantly by PARALLAX_BRIGHTNESS_MULT; stacking an
+/// additional 30% dim on top made it nearly invisible. 15% is enough to
+/// create visual separation without making far-layer glyphs disappear.
+pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [0.85, 1.0, 1.0];
 
 // ---------------------------------------------------------------------------
 // Velocity turbulence
@@ -487,11 +509,17 @@ pub const COLOR_HUE_DRIFT_RATE: f32 = 0.015;
 pub const COLOR_DRIFT_REEVAL_CHANCE: f32 = 0.15;
 
 /// Luminance climate bounds (min/max global brightness modifier).
-pub const COLOR_LUMINANCE_CLIMATE_MIN: f32 = 0.6;
+/// Raised minimum from 0.6 to 0.75 — the old minimum of 0.6 combined with
+/// profile luminance_offset could drop effective brightness to ~50%, making
+/// active glyphs muddy and hard to read. 0.75 ensures the atmosphere never
+/// dims below a clearly readable level.
+pub const COLOR_LUMINANCE_CLIMATE_MIN: f32 = 0.75;
 pub const COLOR_LUMINANCE_CLIMATE_MAX: f32 = 1.0;
 
 /// Saturation climate bounds (min/max global saturation modifier).
-pub const COLOR_SATURATION_CLIMATE_MIN: f32 = 0.5;
+/// Raised minimum from 0.5 to 0.7 — excessive desaturation makes colors
+/// feel washed out and gray, undermining the premium green aesthetic.
+pub const COLOR_SATURATION_CLIMATE_MIN: f32 = 0.7;
 pub const COLOR_SATURATION_CLIMATE_MAX: f32 = 1.0;
 
 /// Probability per ecosystem tick that an autonomous palette drift occurs.

@@ -314,6 +314,19 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
         ColorScheme::Green => match mode {
             ColorMode::Mono => vec![Color::White],
             ColorMode::Color16 => vec![Color::DarkGreen, Color::Green],
+            ColorMode::TrueColor => colors_from_stops(
+                mode,
+                &[
+                    (0, 20, 0),      // Trail: deep dark green (not gray)
+                    (0, 75, 5),      // Dark green
+                    (0, 145, 30),    // Medium green
+                    (20, 200, 60),   // Bright green
+                    (75, 235, 95),   // Vivid green
+                    (135, 255, 150), // Bright mint-green
+                    (185, 255, 210), // HEAD: luminous green-white
+                ],
+                7,
+            ),
             _ => from_ansi_list(&[234, 22, 28, 35, 78, 84, 159]),
         },
         ColorScheme::Green2 => match mode {
@@ -324,11 +337,37 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
                 Color::Green,
                 Color::White,
             ],
+            ColorMode::TrueColor => colors_from_stops(
+                mode,
+                &[
+                    (0, 30, 0),
+                    (0, 90, 10),
+                    (10, 160, 40),
+                    (60, 220, 100),
+                    (120, 255, 160),
+                    (200, 255, 230),
+                    (240, 255, 250),
+                ],
+                7,
+            ),
             _ => from_ansi_list(&[28, 34, 76, 84, 120, 157, 231]),
         },
         ColorScheme::Green3 => match mode {
             ColorMode::Mono => vec![Color::White],
             ColorMode::Color16 => vec![Color::DarkGreen, Color::White],
+            ColorMode::TrueColor => colors_from_stops(
+                mode,
+                &[
+                    (0, 25, 0),
+                    (0, 85, 5),
+                    (5, 150, 25),
+                    (30, 195, 65),
+                    (85, 235, 110),
+                    (150, 255, 175),
+                    (185, 255, 210),
+                ],
+                7,
+            ),
             _ => from_ansi_list(&[22, 28, 34, 70, 76, 82, 157]),
         },
         ColorScheme::Gold => match mode {

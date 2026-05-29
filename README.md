@@ -38,12 +38,16 @@
 
 ## Features
 
+- **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy
 - 42 built-in color schemes and 24 character set presets
-- Cinematic animation engine with phosphor persistence, depth fog, and parallax layers
+- Phosphor persistence (CRT afterglow), depth fog, and 3-layer parallax
+- TrueColor green gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
 - Alternate screen with diff-based rendering — no scrollback spam
 - Adaptive throttling: reduces CPU usage when idle
 - Screensaver mode
+- Optional mouse hover/click effects (`--mouse`)
+- Safe terminal cleanup and recovery (`--reset-terminal`)
 - Cross-platform: Linux, macOS, Windows, Android (Termux)
 
 ## Requirements
@@ -192,8 +196,8 @@ DISCOVERY
   q / Esc       Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   [ / ]         Density           Up / Down  Speed
-  g             Toggle glitch     Tab        Toggle shading
-  Space         Reseed animation  m          Cycle profile
+  g             Toggle glitch     m          Cycle profile
+  Space         Reseed animation
 ```
 
 ## Terminal Recovery
@@ -265,6 +269,33 @@ See `benchmark/README.md` for the exact commands, generated artifacts, and
 notes on comparing release vs local `pro-native` builds.
 
 ## Release notes
+
+### v2.1.0
+
+**Visual contrast & readability overhaul** — body glyphs are now clearly readable with stronger head/body/trail hierarchy while preserving the calm cinematic identity.
+
+- Tuned exponential trail decay (K: 3.0 → 1.8) for readable body glyphs across the full trail length
+- Raised parallax brightness (far: 35→55%, mid: 80→90%) so depth layers are visible, not invisible
+- Increased phosphor residual energy (120→160) for more visible CRT afterglow fadeout
+- Extended head linger duration (100→300ms) for smoother cinematic head fade
+- Added head self-bloom (12% white blend) making the head clearly the brightest element
+- Softer head brightness mapping (0.5+0.5×hb → 0.7+0.3×hb) preventing abrupt head disappearance
+- Raised luminance climate minimum (60→75%) and saturation minimum (50→70%) to prevent muddy/dim periods
+- Raised fog vignette minimum (25→35%) to keep edge glyphs faintly visible
+- Reduced far-layer glyph dimming (30→15%) — already dim from parallax brightness
+- TrueColor green palettes now use 24-bit RGB gradients instead of ANSI 256-color indices, with proper bright green head instead of cyan-white
+- Reduced profile luminance offsets (Monolith: -0.1→0, Void: -0.2→-0.1, Decay: -0.15→-0.05, Static: -0.25→-0.1)
+
+**Safety & hardening fixes:**
+
+- Tab key safely ignored (was toggling shading mode, causing ghost background glyph flood)
+- Paste safety (bracketed-paste burst suppression ignores shortcut letters during paste)
+- Pause/resume with cinematic smoothstep easing (no snap on resume)
+- Color and charset transitions use cinematic top-to-bottom wave propagation
+- Mouse mode default-off, opt-in with `--mouse`
+- Bottom-row phosphor decay acceleration prevents "concrete wall" accumulation
+- Ghost glyph threshold prevents stale charset from filling background on full redraw
+- Safe terminal cleanup on all exit paths (RAII guard + `--reset-terminal`)
 
 ### v2.0.0-stable.1
 
