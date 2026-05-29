@@ -164,6 +164,10 @@ impl CloudConfig {
         cloud.init_chars(self.chars.clone());
         cloud.reset(DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES);
 
+        // Mouse interaction is opt-in (--mouse flag). Default: disabled for
+        // terminal safety (avoids mouse escape sequence leaks on crash).
+        cloud.mouse_enabled = self.mouse;
+
         if let Some(msg) = &self.message {
             cloud.set_message_border(!self.message_no_border);
             cloud.set_message(msg);

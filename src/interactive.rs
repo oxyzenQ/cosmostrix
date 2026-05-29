@@ -1052,4 +1052,21 @@ mod tests {
 
         assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1), false));
     }
+
+    #[test]
+    fn paste_suppression_does_not_trigger_shortcut_actions() {
+        // Verify that paste events go through the Paste branch, not Key,
+        // so they never trigger 'c', 's', 'p', or other shortcuts.
+        let now = Instant::now();
+        let mut guard = PasteBurstGuard::default();
+
+        // Simulate a bracketed paste event
+        guard.note_bracketed_paste(now);
+
+        // Printable keys during the suppression window should be silently
+        // ignored — they must not reach the keybinding handler.
+        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(1), false));
+        assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(1), false));
+        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1), false));
+    }
 }

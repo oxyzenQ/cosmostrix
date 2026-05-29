@@ -32,13 +32,13 @@ use std::time::{Duration, Instant};
 
 use crate::cloud::{CharLoc, DrawCtx};
 use crate::constants::{
-    DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT, FOG_MIN_FACTOR, FOG_ROWS, HEAD_BLOOM_CELLS,
-    HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS, MOUSE_FLASH_DURATION_SECS,
-    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
-    MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT, PARALLAX_GLYPH_DIM,
-    STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS,
-    TRANSITION_ENERGY_SATURATION_BOOST, TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE,
-    TURBULENCE_FREQ,
+    ADVANCE_REMAINDER_CAP, DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT, FOG_MIN_FACTOR,
+    FOG_ROWS, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS,
+    MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED,
+    MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES,
+    PARALLAX_BRIGHTNESS_MULT, PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
+    TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
+    TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ,
 };
 use crate::frame::Frame;
 use crate::palette;
@@ -192,9 +192,13 @@ impl Droplet {
         // When time_scale=0.0 (just resumed), no movement occurs.
         // When time_scale=1.0 (fully active), full speed is restored.
         let delta = (turb_velocity * effective_sec).max(0.0);
-        let total = self.advance_remainder + delta;
+        // Clamp the accumulated remainder to prevent high-speed droplets
+        // from advancing too many rows in one frame, which dumps cells
+        // into bottom rows and creates permanent "concrete wall" residue.
+        let clamped_remainder = self.advance_remainder.min(ADVANCE_REMAINDER_CAP);
+        let total = clamped_remainder + delta;
         let whole = total.floor();
-        self.advance_remainder = total - whole;
+        self.advance_remainder = (total - whole).min(ADVANCE_REMAINDER_CAP);
         let chars_advanced = whole as u16;
         if chars_advanced == 0 {
             self.last_time = Some(now);

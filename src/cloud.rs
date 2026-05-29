@@ -27,8 +27,9 @@
 //!
 //! When the color scheme changes, new droplets inherit the new palette while
 //! existing streams retain their birth palette for their entire lifecycle.
-//! Columns adopt the new palette at staggered intervals, creating an organic
-//! propagation wave instead of a robotic simultaneous switch.
+//! Rows adopt the new palette via a top-to-bottom wave (matching the charset
+//! transition visual language), creating an organic propagation cascade
+//! instead of a robotic simultaneous switch.
 
 use std::time::{Duration, Instant};
 
@@ -91,6 +92,12 @@ pub struct DrawCtx<'a> {
     pub char_pool: &'a [char],
     pub previous_char_pool: &'a [char],
     pub charset_wave_line: Option<f32>,
+
+    /// Color transition wave line: during a palette transition, rows above
+    /// this value use the new (active) palette; rows below use their birth
+    /// palette. Sweeps from 0 to lines+1 over COLOR_TRANSITION_DURATION_MS,
+    /// creating a top-to-bottom wave that matches the charset transition.
+    pub color_wave_line: Option<f32>,
 
     /// Mouse cursor column (u16::MAX if no mouse).
     pub mouse_col: u16,
@@ -181,6 +188,25 @@ impl DrawCtx<'_> {
         (line as f32) > wave_line + jitter
     }
 
+    /// During a color transition, returns whether a cell at (line, col) should
+    /// use its birth (previous) palette rather than the new (active) palette.
+    /// Rows below the wave line use the old palette; rows above use the new.
+    /// This creates a top-to-bottom cascade matching the charset transition.
+    #[inline]
+    pub fn color_uses_previous_palette(&self, palette_slot: u8, line: u16, col: u16) -> bool {
+        let Some(wave_line) = self.color_wave_line else {
+            return false;
+        };
+        // Only applies to droplets that still carry the old palette slot
+        if palette_slot == self.active_palette_slot {
+            return false;
+        }
+        // Jitter for organic edge (same pattern as charset wave)
+        let jitter =
+            (((line as u32).wrapping_mul(13) ^ (col as u32).wrapping_mul(29)) % 3) as f32 * 0.15;
+        (line as f32) > wave_line + jitter
+    }
+
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn get_attr(
@@ -194,9 +220,17 @@ impl DrawCtx<'_> {
         head_put_line: u16,
         length: u16,
     ) -> (Option<Color>, bool) {
-        // Resolve this stream's birth palette from the generation table
-        let palette_colors = if (palette_slot as usize) < MAX_PALETTE_SLOTS {
-            self.palette_slices[palette_slot as usize]
+        // Resolve this stream's palette from the generation table.
+        // During a color transition, cells above the wave line adopt the new
+        // (active) palette even if the droplet was born with the old one,
+        // creating a visible top-to-bottom cascade.
+        let effective_slot = if self.color_uses_previous_palette(palette_slot, line, col) {
+            palette_slot // Below wave: keep birth palette
+        } else {
+            self.active_palette_slot // Above wave or no transition: use new palette
+        };
+        let palette_colors = if (effective_slot as usize) < MAX_PALETTE_SLOTS {
+            self.palette_slices[effective_slot as usize]
         } else {
             // Fallback: use active palette for invalid slots
             self.palette_slices[self.active_palette_slot as usize]
@@ -980,17 +1014,18 @@ pub struct Cloud {
     active_palette_slot: u8,
 
     /// Time when the current palette transition started (None if not transitioning).
-    /// Used for column desynchronization stagger.
+    /// Used for row-based top-to-bottom wave progression.
     transition_start: Option<Instant>,
 
     /// Per-column palette slot: tracks which palette each column is currently
-    /// using for spawning.  During a transition, columns adopt the new palette
-    /// at staggered times, creating an organic propagation wave.
+    /// using for spawning.  During a transition, all columns adopt the new
+    /// palette simultaneously since the wave is row-based (top-to-bottom),
+    /// not column-based. This field is kept for spawn-time inheritance.
     column_palette_slot: Vec<u8>,
 
-    /// Per-column delay (in ms) before adopting a new palette.
-    /// Deterministic within [0, COLOR_TRANSITION_DURATION_MS] so runtime
-    /// color changes are responsive and repeatable under test.
+    /// Per-column delay (in ms) — legacy field kept for spawn-time reference.
+    /// No longer used for wave propagation; the row-based wave logic in
+    /// `color_wave_line_at()` drives the transition.
     column_transition_delay_ms: Vec<u16>,
 
     /// Mouse cursor column position (u16::MAX if no mouse).
@@ -1136,7 +1171,7 @@ impl Cloud {
             column_transition_delay_ms: Vec::new(),
             mouse_col: u16::MAX,
             mouse_line: u16::MAX,
-            mouse_enabled: true,
+            mouse_enabled: false,
             flash_col: u16::MAX,
             flash_line: u16::MAX,
             flash_time: None,
@@ -1187,36 +1222,18 @@ impl Cloud {
         // Regenerate color map for the new palette size
         self.fill_color_map();
 
-        // Start transition: assign deterministic per-column delays. At least
-        // one column moves on the very next frame, while the whole palette
-        // handoff completes quickly enough to feel responsive.
+        // Start transition: all columns adopt the new palette immediately
+        // for spawn purposes. The visual wave is row-based (top-to-bottom)
+        // driven by color_wave_line_at(), not column-based delays.
+        for slot in self.column_palette_slot.iter_mut() {
+            *slot = self.active_palette_slot;
+        }
         self.transition_start = Some(Instant::now());
-        self.assign_color_transition_delays();
 
         // Do NOT force a full redraw — old streams must persist with their
-        // birth palette.  The new palette propagates only through newly
-        // spawned streams, creating the cinematic transition effect.
-    }
-
-    fn assign_color_transition_delays(&mut self) {
-        if self.column_transition_delay_ms.is_empty() {
-            return;
-        }
-
-        let len = self.column_transition_delay_ms.len();
-        let max_delay = COLOR_TRANSITION_DURATION_MS as u32;
-        let initial_columns =
-            ((len as f32 * COLOR_TRANSITION_INITIAL_VISIBLE_PCT).ceil() as usize).max(1);
-        for (col, delay) in self.column_transition_delay_ms.iter_mut().enumerate() {
-            if col < initial_columns {
-                *delay = 0;
-            } else {
-                let wave = ((col - initial_columns + 1) as u32).saturating_mul(max_delay)
-                    / (len - initial_columns + 1) as u32;
-                let shimmer = ((col as u32).wrapping_mul(17) % 19).min(max_delay);
-                *delay = wave.saturating_add(shimmer).min(max_delay) as u16;
-            }
-        }
+        // birth palette below the wave line.  The new palette propagates
+        // visually via the row-based wave in get_attr(), creating the
+        // cinematic top-to-bottom cascade.
     }
 
     /// Set mouse cursor position for interaction effects.
@@ -1515,6 +1532,30 @@ impl Cloud {
         Some(progress * (self.lines as f32 + 1.0))
     }
 
+    /// Compute the color transition wave line position at the given time.
+    /// Returns None if no transition is active. The wave sweeps from 0 to
+    /// lines+1 over COLOR_TRANSITION_DURATION_MS, with the first
+    /// COLOR_TRANSITION_INITIAL_VISIBLE_PCT of rows adopting immediately
+    /// for responsive first-frame feedback.
+    fn color_wave_line_at(&self, now: Instant) -> Option<f32> {
+        let start = self.transition_start?;
+        let elapsed_ms = now.saturating_duration_since(start).as_millis() as f32;
+        let duration = COLOR_TRANSITION_DURATION_MS as f32;
+        if elapsed_ms >= duration {
+            return Some(self.lines as f32 + 1.0); // Wave complete
+        }
+        // The initial band of rows adopts immediately for first-frame feedback.
+        // We do this by offsetting the wave start: the wave line already
+        // includes the initial visible fraction at t=0.
+        let initial_frac = COLOR_TRANSITION_INITIAL_VISIBLE_PCT;
+        let progress = (elapsed_ms / duration).clamp(0.0, 1.0);
+        // At progress=0, wave_line = initial_frac * lines → first band visible.
+        // At progress=1, wave_line = lines + 1 → entire screen converted.
+        let wave_line = initial_frac * self.lines as f32
+            + progress * (1.0 - initial_frac) * (self.lines as f32 + 1.0);
+        Some(wave_line)
+    }
+
     fn rebuild_char_pools(&mut self, chars: Vec<char>) {
         self.chars = chars;
         if self.chars.is_empty() {
@@ -1749,13 +1790,17 @@ impl Cloud {
         self.last_spawn_time = now;
 
         let elapsed_sec = elapsed.as_secs_f32();
-        let budget = (elapsed_sec * self.droplets_per_sec * scale).max(0.0) + self.spawn_remainder;
+        // Clamp spawn remainder to prevent debt accumulation at high speeds
+        // or after timing spikes. Without this cap, a long stall could dump
+        // hundreds of droplets in one frame, overwhelming the bottom rows.
+        let clamped_remainder = self.spawn_remainder.min(SPAWN_REMAINDER_CAP);
+        let budget = (elapsed_sec * self.droplets_per_sec * scale).max(0.0) + clamped_remainder;
         if !budget.is_finite() {
             self.spawn_remainder = 0.0;
             return;
         }
         let to_spawn = (budget.floor() as usize).min(self.droplets.len());
-        self.spawn_remainder = budget - (to_spawn as f32);
+        self.spawn_remainder = (budget - (to_spawn as f32)).min(SPAWN_REMAINDER_CAP);
         if !self.spawn_remainder.is_finite() {
             self.spawn_remainder = 0.0;
         }
@@ -2044,17 +2089,28 @@ impl Cloud {
             bold: false,
         };
 
-        // Pass 1: Mark cells currently drawn by droplets as fresh
+        // Pass 1: Mark cells currently drawn by droplets as fresh.
+        // IMPORTANT: We check the frame's dirty set rather than scanning for
+        // fg.is_some(), because cells from previous frames that weren't
+        // redrawn would falsely appear fresh and never decay — causing the
+        // "concrete wall" bottom accumulation bug.
+        // We also need to cover cells drawn during this frame that may not be
+        // in the dirty set yet (e.g., via draw_everything path), so we also
+        // check cells that are in the current generation.
         self.phosphor_fresh.fill(false);
+        let current_gen = frame.current_gen();
         for line in 0..lines {
             for col in 0..self.cols {
                 let fidx = line as usize * frame.width as usize + col as usize;
-                let cell = frame.cell_at_index_ref(fidx);
-                if cell.fg.is_some() {
-                    let pidx = col as usize * lines as usize + line as usize;
-                    self.phosphor_fresh.set(pidx, true);
-                    self.phosphor[pidx] = 255;
-                    self.phosphor_base_fg[pidx] = cell.fg;
+                let is_current_gen = frame.cell_gen_at_index(fidx) == current_gen;
+                if is_current_gen {
+                    let cell = frame.cell_at_index_ref(fidx);
+                    if cell.fg.is_some() {
+                        let pidx = col as usize * lines as usize + line as usize;
+                        self.phosphor_fresh.set(pidx, true);
+                        self.phosphor[pidx] = 255;
+                        self.phosphor_base_fg[pidx] = cell.fg;
+                    }
                 }
             }
         }
@@ -2399,32 +2455,20 @@ impl Cloud {
             return;
         }
 
-        // Update column transition readiness: during a palette transition,
-        // each column adopts the new palette after its individual stagger delay.
-        // This creates an organic desynchronized propagation wave.
+        // Update color transition: during a palette transition, check if the
+        // wave has completed (all rows have adopted the new palette).
+        // The visual wave is driven by color_wave_line_at() in DrawCtx;
+        // here we just detect completion and update droplet palette slots
+        // for streams that are now fully above the wave.
         if let Some(transition_start) = self.transition_start {
             let elapsed_ms = now.saturating_duration_since(transition_start).as_millis() as u64;
-            let mut all_ready = true;
-            for (i, slot) in self.column_palette_slot.iter_mut().enumerate() {
-                if *slot != self.active_palette_slot {
-                    let delay = self.column_transition_delay_ms.get(i).copied().unwrap_or(0) as u64;
-                    if elapsed_ms >= delay {
-                        *slot = self.active_palette_slot;
-                    } else {
-                        all_ready = false;
+            if elapsed_ms >= COLOR_TRANSITION_DURATION_MS as u64 {
+                // Transition complete: all droplets adopt the new palette
+                for d in &mut self.droplets {
+                    if d.is_alive {
+                        d.palette_slot = self.active_palette_slot;
                     }
                 }
-            }
-            for d in &mut self.droplets {
-                let col = d.bound_col as usize;
-                if d.is_alive
-                    && col < self.column_palette_slot.len()
-                    && self.column_palette_slot[col] == self.active_palette_slot
-                {
-                    d.palette_slot = self.active_palette_slot;
-                }
-            }
-            if all_ready {
                 self.transition_start = None;
             }
         }
@@ -2561,6 +2605,7 @@ impl Cloud {
         } else {
             None
         };
+        let color_wave_line = self.color_wave_line_at(now);
 
         // Draw pass (split-borrows via DrawCtx)
         let draw_everything = force_draw_everything || time_for_glitch;
@@ -2582,6 +2627,7 @@ impl Cloud {
             char_pool: &self.char_pool,
             previous_char_pool: &self.previous_char_pool,
             charset_wave_line,
+            color_wave_line,
             mouse_col: self.mouse_col,
             mouse_line: self.mouse_line,
             flash_col: self.flash_col,
@@ -2741,6 +2787,7 @@ mod tests {
     use crate::constants::{
         CHARSET_TRANSITION_DURATION_MS, COLOR_TRANSITION_DURATION_MS,
         COLOR_TRANSITION_INITIAL_VISIBLE_PCT, FULL_REDRAW_INTERVAL_FRAMES, MAX_PALETTE_SLOTS,
+        SPAWN_REMAINDER_CAP,
     };
     use crate::frame::Frame;
     use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
@@ -2823,47 +2870,54 @@ mod tests {
         cloud.set_color_scheme(ColorScheme::Blue);
 
         assert_eq!(cloud.color_scheme(), ColorScheme::Blue);
-        assert!(cloud.transition_start.is_some());
         assert!(
-            cloud.column_transition_delay_ms.contains(&0),
-            "at least one column must update on the next frame"
+            cloud.transition_start.is_some(),
+            "transition must start immediately after set_color_scheme"
         );
-        let immediate_columns = cloud
-            .column_transition_delay_ms
-            .iter()
-            .filter(|&&delay| delay == 0)
-            .count();
-        let min_immediate = ((cloud.column_transition_delay_ms.len() as f32
-            * COLOR_TRANSITION_INITIAL_VISIBLE_PCT)
-            .ceil() as usize)
-            .max(1);
+
+        // Row-based wave: at t=0, the wave line should cover the initial band.
+        // The wave line value represents the boundary; rows with index <= wave_line
+        // use the new palette. So wave_line=1.2 means rows 0 and 1 adopt.
+        let wave = cloud.color_wave_line_at(now);
         assert!(
-            immediate_columns >= min_immediate,
-            "first transition frame should visibly update a band of columns"
+            wave.is_some(),
+            "color wave must be active during transition"
         );
+        // The number of rows that adopt the new palette at t=0 is (wave_line + 1),
+        // since row indices 0 through floor(wave_line) are above the wave.
+        let initial_adopted_rows = wave.unwrap().floor() as usize + 1;
+        let min_initial_rows =
+            ((cloud.lines as f32 * COLOR_TRANSITION_INITIAL_VISIBLE_PCT).ceil() as usize).max(1);
+        assert!(
+            initial_adopted_rows >= min_initial_rows,
+            "first transition frame should visibly update a band of top rows (got {} rows >= {})",
+            initial_adopted_rows,
+            min_initial_rows
+        );
+
+        // All columns should already have adopted the new palette (wave is row-based)
         assert!(cloud
-            .column_transition_delay_ms
+            .column_palette_slot
             .iter()
-            .all(|&delay| delay <= COLOR_TRANSITION_DURATION_MS));
+            .all(|slot| *slot == cloud.active_palette_slot));
 
         cloud.transition_start = Some(now);
         cloud.rain_at(&mut frame, now);
-        let initially_adopted = cloud
-            .column_palette_slot
-            .iter()
-            .filter(|&&slot| slot == cloud.active_palette_slot)
-            .count();
-        assert!(initially_adopted >= min_immediate);
+
+        // After one frame, transition should still be in progress (150ms hasn't elapsed)
+        assert!(cloud.transition_start.is_some());
 
         cloud.transition_start =
             Some(now - Duration::from_millis(COLOR_TRANSITION_DURATION_MS as u64 + 1));
         cloud.rain_at(&mut frame, now);
 
         assert!(cloud.transition_start.is_none());
-        assert!(cloud
-            .column_palette_slot
-            .iter()
-            .all(|slot| *slot == cloud.active_palette_slot));
+        // All droplets should have adopted the new palette after transition completes
+        for d in &cloud.droplets {
+            if d.is_alive {
+                assert_eq!(d.palette_slot, cloud.active_palette_slot);
+            }
+        }
     }
 
     #[test]
@@ -2908,6 +2962,7 @@ mod tests {
             char_pool: &new_pool,
             previous_char_pool: &old_pool,
             charset_wave_line: Some(3.0),
+            color_wave_line: None,
             mouse_col: u16::MAX,
             mouse_line: u16::MAX,
             flash_col: u16::MAX,
@@ -3005,5 +3060,132 @@ mod tests {
         assert_ne!(cloud.previous_char_pool, first_pool);
         assert!(cloud.char_pool.iter().all(|ch| matches!(ch, 'X' | 'Y')));
         assert!(cloud.charset_transition_start.is_some());
+    }
+
+    #[test]
+    fn color_wave_begins_at_top_rows() {
+        let mut cloud = make_cloud();
+        let now = Instant::now();
+        cloud.set_color_scheme(ColorScheme::Blue);
+
+        let wave = cloud.color_wave_line_at(now);
+        assert!(wave.is_some());
+        let wave_line = wave.unwrap();
+        // At t=0, the wave should cover at least the initial visible fraction of rows.
+        // Rows 0..=floor(wave_line) adopt the new palette immediately.
+        let adopted_rows = wave_line.floor() as usize + 1;
+        let min_rows =
+            ((cloud.lines as f32 * COLOR_TRANSITION_INITIAL_VISIBLE_PCT).ceil() as usize).max(1);
+        assert!(
+            adopted_rows >= min_rows,
+            "color wave at t=0 should cover initial band of top rows ({} rows adopted >= {} expected)",
+            adopted_rows,
+            min_rows
+        );
+    }
+
+    #[test]
+    fn color_wave_progresses_downward_over_time() {
+        let mut cloud = make_cloud();
+        let start = Instant::now();
+        cloud.transition_start = Some(start);
+
+        let wave_early = cloud
+            .color_wave_line_at(start + Duration::from_millis(10))
+            .unwrap();
+        let wave_mid = cloud
+            .color_wave_line_at(start + Duration::from_millis(75))
+            .unwrap();
+        let wave_late = cloud
+            .color_wave_line_at(start + Duration::from_millis(140))
+            .unwrap();
+
+        assert!(
+            wave_mid > wave_early,
+            "color wave should progress downward over time"
+        );
+        assert!(
+            wave_late > wave_mid,
+            "color wave should continue progressing downward"
+        );
+    }
+
+    #[test]
+    fn repeated_color_transitions_remain_valid() {
+        let mut cloud = make_cloud();
+
+        cloud.set_color_scheme(ColorScheme::Blue);
+        assert!(cloud.transition_start.is_some());
+
+        // Second transition should replace the first cleanly
+        cloud.set_color_scheme(ColorScheme::Red);
+        assert!(cloud.transition_start.is_some());
+        assert_eq!(cloud.color_scheme(), ColorScheme::Red);
+    }
+
+    #[test]
+    fn spawn_remainder_is_clamped() {
+        let mut cloud = make_cloud();
+        cloud.spawn_remainder = 100.0; // Unrealistically high
+        cloud.last_spawn_time = Instant::now() - Duration::from_secs(1);
+        let mut frame = Frame::new(20, 10, cloud.palette.bg);
+        cloud.rain(&mut frame);
+        // After one rain tick, spawn remainder should be clamped
+        assert!(
+            cloud.spawn_remainder <= SPAWN_REMAINDER_CAP,
+            "spawn remainder should be clamped to SPAWN_REMAINDER_CAP (got {})",
+            cloud.spawn_remainder
+        );
+    }
+
+    #[test]
+    fn mouse_mode_is_default_off_and_opt_in() {
+        let mut cloud = make_cloud();
+        assert!(
+            !cloud.mouse_enabled,
+            "mouse_enabled should default to false (off) when not explicitly set"
+        );
+        cloud.mouse_enabled = true;
+        assert!(cloud.mouse_enabled);
+    }
+
+    #[test]
+    fn color_uses_previous_palette_below_wave_line() {
+        let empty: &[Color] = &[];
+        let palette_slices: [&[Color]; MAX_PALETTE_SLOTS] = [empty; MAX_PALETTE_SLOTS];
+        let glitch_map = bitvec::bitvec![0; 200];
+
+        let ctx = DrawCtx {
+            lines: 10,
+            full_width: false,
+            shading_distance: false,
+            bg: None,
+            color_mode: ColorMode::Mono,
+            bold_mode: BoldMode::Off,
+            glitchy: false,
+            last_glitch_time: Instant::now(),
+            next_glitch_time: Instant::now(),
+            palette_slices,
+            active_palette_slot: 1,
+            transitioning: true,
+            color_map: &[],
+            glitch_map: glitch_map.as_bitslice(),
+            char_pool: &['0', '1'],
+            previous_char_pool: &[],
+            charset_wave_line: None,
+            color_wave_line: Some(3.0),
+            mouse_col: u16::MAX,
+            mouse_line: u16::MAX,
+            flash_col: u16::MAX,
+            flash_line: u16::MAX,
+            flash_time: None,
+        };
+
+        // Row 0 (above wave): droplet with old palette should NOT use previous
+        assert!(!ctx.color_uses_previous_palette(0, 0, 0));
+        // Row 8 (below wave): droplet with old palette SHOULD use previous
+        assert!(ctx.color_uses_previous_palette(0, 8, 0));
+        // Droplet already on active palette: always uses new palette
+        assert!(!ctx.color_uses_previous_palette(1, 8, 0));
     }
 }

@@ -202,6 +202,18 @@ pub const DIRTY_CAPACITY_CAP: usize = 8192;
 /// Exponential decay rate for trail fading (higher = faster fade near head).
 pub const TRAIL_EXPONENTIAL_K: f64 = 3.0;
 
+/// Hard cap on spawn remainder to prevent spawn debt accumulation
+/// at high speeds or after timing spikes. Without this, a long stall
+/// could dump hundreds of droplets into the same frame, causing
+/// visual chaos and bottom-row "concrete wall" accumulation.
+pub const SPAWN_REMAINDER_CAP: f32 = 4.0;
+
+/// Hard cap on droplet advance remainder per frame. Without this,
+/// high speed settings can cause a single advance() call to move
+/// a droplet many rows at once, dumping many cells into the same
+/// bottom rows and creating permanent blocky residue.
+pub const ADVANCE_REMAINDER_CAP: f32 = 3.0;
+
 // ---------------------------------------------------------------------------
 // Cinematic color transition (generation-based palette propagation)
 // ---------------------------------------------------------------------------

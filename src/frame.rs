@@ -99,6 +99,23 @@ impl Frame {
         self.dirty_all
     }
 
+    /// Returns the current frame generation counter.
+    /// Cells whose `cell_gen` matches this value were written in the current frame.
+    #[must_use]
+    #[inline]
+    pub fn current_gen(&self) -> u32 {
+        self.gen
+    }
+
+    /// Returns the generation counter for a cell at the given flat index.
+    /// Useful for checking whether a cell was written in the current frame
+    /// without incurring the blank-fallback logic of `cell_at_index_ref`.
+    #[must_use]
+    #[inline]
+    pub fn cell_gen_at_index(&self, i: usize) -> u32 {
+        self.cell_gen.get(i).copied().unwrap_or(0)
+    }
+
     #[must_use]
     pub fn dirty_indices(&self) -> &[usize] {
         &self.dirty
