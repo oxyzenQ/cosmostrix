@@ -174,9 +174,10 @@ jobs:
         env:
           RUSTFLAGS: "-C target-cpu=native"
           COSMOSTRIX_BUILD: ${{ matrix.build }}
+          COSMOSTRIX_PROFILE: ${{ matrix.profile }}
         run: cargo build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
-      - name: Verify build id
+      - name: Verify build metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -184,7 +185,11 @@ jobs:
           BUILD_ID="${{ matrix.build }}"
           OUT="$(${BIN} -i)"
           echo "${OUT}"
-          echo "${OUT}" | grep -E "^  variant: ${BUILD_ID}$"
+          echo "${OUT}" | grep -E "^  variant: ${BUILD_ID}$" || { echo "::error::Expected variant ${BUILD_ID}"; exit 1; }
+          echo "${OUT}" | grep -E "^  dispatch: static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+          echo "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
+          echo "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
+          echo "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
 
   android_build:
     name: T-800 - Build (android-aarch64)
@@ -242,6 +247,7 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
           COSMOSTRIX_BUILD: android-aarch64-native
+          COSMOSTRIX_PROFILE: pro-android-aarch64
         run: |
           set -euo pipefail
           TARGET="aarch64-linux-android"
@@ -252,18 +258,23 @@ jobs:
 
           cargo build --profile pro-android-aarch64 --locked --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
 
-      - name: Verify build id
+      - name: Verify embedded build metadata
         shell: bash
         run: |
           set -euo pipefail
           BIN="target/aarch64-linux-android/pro-android-aarch64/cosmostrix"
           BUILD_ID="android-aarch64-native"
-          echo "Verifying embedded build id in binary: ${BUILD_ID}"
+          echo "Verifying embedded build metadata in binary: ${BUILD_ID}"
           if command -v strings >/dev/null 2>&1; then
-            strings "${BIN}" | grep -F "${BUILD_ID}"
+            TEXT="$(strings "${BIN}")"
           else
-            grep -aF "${BUILD_ID}" "${BIN}"
+            TEXT="$(grep -aE 'android-aarch64-native|static optimized build|fat|unwind|yes' "${BIN}" || true)"
           fi
+          grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
+          grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
+          grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
+          grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
+          grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
 
   linux_aarch64_build:
     name: T-800 - Build (linux aarch64)
@@ -312,20 +323,26 @@ jobs:
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           COSMOSTRIX_BUILD: linux-aarch64-native
+          COSMOSTRIX_PROFILE: pro
         run: cargo build --profile pro --locked --target aarch64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
-      - name: Verify build id
+      - name: Verify embedded build metadata
         shell: bash
         run: |
           set -euo pipefail
           BIN="target/aarch64-unknown-linux-gnu/pro/cosmostrix"
           BUILD_ID="linux-aarch64-native"
-          echo "Verifying embedded build id in binary: ${BUILD_ID}"
+          echo "Verifying embedded build metadata in binary: ${BUILD_ID}"
           if command -v strings >/dev/null 2>&1; then
-            strings "${BIN}" | grep -F "${BUILD_ID}"
+            TEXT="$(strings "${BIN}")"
           else
-            grep -aF "${BUILD_ID}" "${BIN}"
+            TEXT="$(grep -aE 'linux-aarch64-native|static optimized build|fat|unwind|yes' "${BIN}" || true)"
           fi
+          grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
+          grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
+          grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
+          grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
+          grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
 
   windows_aarch64_build:
     name: T-800 - Build (windows aarch64)
@@ -366,19 +383,25 @@ jobs:
         shell: pwsh
         env:
           COSMOSTRIX_BUILD: windows-aarch64-native
-        run: cargo build --profile pro --locked --target aarch64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
+          COSMOSTRIX_PROFILE: pro-win-aarch64
+        run: cargo build --profile pro-win-aarch64 --locked --target aarch64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
 
-      - name: Verify build id
+      - name: Verify embedded build metadata
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $bin = "target/aarch64-pc-windows-msvc/pro/cosmostrix.exe"
+          $bin = "target/aarch64-pc-windows-msvc/pro-win-aarch64/cosmostrix.exe"
           $build = "windows-aarch64-native"
-          Write-Host "Verifying embedded build id in binary: $build"
+          Write-Host "Verifying embedded build metadata in binary: $build"
           $bytes = [System.IO.File]::ReadAllBytes($bin)
           $text = [System.Text.Encoding]::ASCII.GetString($bytes)
           if (-not $text.Contains($build)) {
             throw "Expected embedded build id '$build' in binary"
+          }
+          foreach ($needle in @("static optimized build", "fat", "unwind", "yes")) {
+            if (-not $text.Contains($needle)) {
+              throw "Expected embedded metadata '$needle' in binary"
+            }
           }
 
   linux_cpu_variants:
@@ -436,9 +459,10 @@ jobs:
         env:
           RUSTFLAGS: ${{ matrix.rustflags }}
           COSMOSTRIX_BUILD: ${{ matrix.build }}
+          COSMOSTRIX_PROFILE: ${{ matrix.profile }}
         run: cargo build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
-      - name: Verify build id
+      - name: Verify build metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -446,16 +470,29 @@ jobs:
           BUILD_ID="${{ matrix.build }}"
 
           if [[ "${BUILD_ID}" == *-v4 ]]; then
-            echo "Skipping execution for ${BUILD_ID} (may require AVX-512); verifying embedded build id in binary"
+            echo "Skipping execution for ${BUILD_ID} (may require AVX-512); verifying embedded build metadata in binary"
             if command -v strings >/dev/null 2>&1; then
-              strings "${BIN}" | grep -F "${BUILD_ID}"
+              TEXT="$(strings "${BIN}")"
             else
-              grep -aF "${BUILD_ID}" "${BIN}"
+              TEXT="$(grep -aE 'linux-x86_64-v4|static optimized build|fat|unwind|yes' "${BIN}" || true)"
             fi
+            grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
+            grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
+            grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
+            grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
+            grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
           else
             OUT="$(${BIN} -i)"
             echo "${OUT}"
-            echo "${OUT}" | grep -E "^  variant: ${BUILD_ID}$"
+            echo "${OUT}" | grep -E "^  variant: ${BUILD_ID}$" || { echo "::error::Expected variant ${BUILD_ID}"; exit 1; }
+            echo "${OUT}" | grep -E "^  dispatch: static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+            echo "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
+            echo "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
+            echo "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
+          fi
+          if file "${BIN}" | grep -qiE 'not stripped'; then
+            echo "::error::Metadata says strip: yes, but file reports not stripped: ${BIN}"
+            exit 1
           fi
 
   windows_build:
@@ -492,10 +529,11 @@ jobs:
         shell: pwsh
         env:
           COSMOSTRIX_BUILD: windows-x86_64
+          COSMOSTRIX_PROFILE: pro-win-x86_64
           RUSTFLAGS: "-C target-cpu=x86-64"
         run: cargo build --profile pro-win-x86_64 --locked --target x86_64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
 
-      - name: Verify build id
+      - name: Verify build metadata
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -507,6 +545,16 @@ jobs:
           $pat = "(?m)^  variant: " + [regex]::Escape($build) + "\s*$"
           if ($out -notmatch $pat) {
             throw "Expected variant '$build' in cosmostrix -i output"
+          }
+          foreach ($pat in @(
+            "(?m)^  dispatch: static optimized build\s*$",
+            "(?m)^  lto: fat\s*$",
+            "(?m)^  panic: unwind\s*$",
+            "(?m)^  strip: yes\s*$"
+          )) {
+            if ($out -notmatch $pat) {
+              throw "Expected metadata pattern '$pat' in cosmostrix -i output"
+            }
           }
 
   fmt_clippy:

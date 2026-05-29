@@ -10,7 +10,7 @@ repository = "https://github.com/oxyzenq/cosmostrix"
 build = "build.rs"
 
 [dependencies]
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = ">=4.5, <4.6", features = ["derive"] }
 crossterm = "0.29"
 rand = "0.9"
 bitvec = "1"
@@ -41,6 +41,7 @@ lto = "fat"
 codegen-units = 1
 panic = "unwind"
 overflow-checks = false
+incremental = false
 
 [profile.pro]
 inherits = "release"
@@ -51,6 +52,7 @@ lto = "fat"
 codegen-units = 1
 panic = "unwind"
 overflow-checks = false
+incremental = false
 
 [profile.pro-linux-v1]
 inherits = "pro"
@@ -70,6 +72,9 @@ inherits = "pro"
 [profile.pro-win-x86_64]
 inherits = "pro"
 
+[profile.pro-win-aarch64]
+inherits = "pro"
+
 [profile.pro-android-aarch64]
 inherits = "pro"
 
@@ -81,6 +86,7 @@ strip = false
 [profile.bench]
 inherits = "release"
 debug = true
+strip = false
 overflow-checks = false
 
 # Platform-specific optimizations

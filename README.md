@@ -104,6 +104,39 @@ cargo install --path .
 cosmostrix -i
 ```
 
+### Optimized local builds
+
+For a modern Linux x86_64 machine, the recommended optimized build is:
+
+```bash
+cargo pro-linux-v3
+# equivalent:
+COSMOSTRIX_BUILD=linux-x86_64-v3 COSMOSTRIX_PROFILE=pro-linux-v3 \
+  RUSTFLAGS="-C target-cpu=x86-64-v3" \
+  cargo build --profile pro-linux-v3 --target x86_64-unknown-linux-gnu
+```
+
+Artifact variants use explicit CPU baselines:
+
+- `linux-x86_64-v1`: maximum x86_64 compatibility
+- `linux-x86_64-v2`: newer baseline with SSE4.2/POPCNT-era CPUs
+- `linux-x86_64-v3`: AVX2/BMI2/FMA-era CPUs
+- `linux-x86_64-v4`: AVX-512 baseline
+- `native`: local-only build tuned for the current CPU; not used for distributed Linux x86_64 artifacts
+
+Release/pro builds keep `panic = "unwind"` on purpose. Cosmostrix owns raw mode,
+alternate screen, cursor visibility, and mouse capture while running; unwinding
+lets the RAII terminal guard and panic hook restore the terminal on panic.
+
+To verify an optimized artifact:
+
+```bash
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix -i
+file target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix
+readelf -S target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix | grep -E '\.debug|\.symtab'
+scripts/verify-release-build.sh pro-linux-v3
+```
+
 ## Usage
 
 ```bash
@@ -177,7 +210,15 @@ CLI arguments always take precedence over config file values. See `--defaults` f
 
 ## Performance & benchmarking
 
-See `benchmark/README.md` for profiling artifacts and the reproducible benchmark script.
+Use deterministic sanity checks in CI and measure performance locally. The
+repeatable benchmark path is:
+
+```bash
+bash benchmark/benchmark.sh
+```
+
+See `benchmark/README.md` for the exact commands, generated artifacts, and
+notes on comparing release vs local `pro-native` builds.
 
 ## Release notes
 
@@ -194,9 +235,10 @@ See `benchmark/README.md` for profiling artifacts and the reproducible benchmark
 ## Development
 
 ```bash
-cargo test --all
 cargo fmt --all
-cargo clippy --all-targets -- -D warnings
+cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo test --all --locked
+scripts/verify-release-build.sh pro-linux-v1 pro-linux-v2 pro-linux-v3
 ```
 
 ## Release process

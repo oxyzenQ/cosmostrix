@@ -195,19 +195,6 @@ build_release() {
 		size=$(du -h "$binary" 2>/dev/null | cut -f1 || echo "unknown")
 		log_success "Release build complete (${size})"
 		echo "  └─ Binary: ${binary}"
-
-		# Strip binary for smaller size (optional)
-		if command -v strip &>/dev/null && [ -f "$binary" ]; then
-			local before
-			local after
-			before=$(stat -f%z "$binary" 2>/dev/null || stat -c%s "$binary" 2>/dev/null)
-			strip "$binary" || true
-			after=$(stat -f%z "$binary" 2>/dev/null || stat -c%s "$binary" 2>/dev/null)
-			if [ -n "${before:-}" ] && [ -n "${after:-}" ] && [ "$before" -ge "$after" ]; then
-				local saved=$(((before - after) / 1024))
-				log_info "Stripped binary (saved ${saved}KB)"
-			fi
-		fi
 	else
 		log_error "Release build failed"
 		return 1
@@ -369,10 +356,26 @@ show_cache_stats() {
 run_benchmark() {
 	log_step "Running benchmarks..."
 
-	if cargo bench --no-fail-fast; then
-		log_success "Benchmarks complete"
+	if [ -x "benchmark/benchmark.sh" ]; then
+		if bash benchmark/benchmark.sh; then
+			log_success "Benchmarks complete"
+		else
+			log_error "Benchmarks failed"
+			return 1
+		fi
 	else
-		log_error "Benchmarks failed"
+		log_error "benchmark/benchmark.sh not found"
+		return 1
+	fi
+}
+
+verify_release_builds() {
+	log_step "Verifying Linux x86_64 release builds..."
+
+	if scripts/verify-release-build.sh; then
+		log_success "Release build verification complete"
+	else
+		log_error "Release build verification failed"
 		return 1
 	fi
 }
@@ -390,6 +393,7 @@ COMMANDS:
     debug           Build debug version (default)
     release         Build optimized release version
     release-debug   Build release with debug symbols
+    verify-release  Build and verify Linux x86_64 release variants
     test            Run test suite
     bench           Run benchmarks
 
@@ -415,6 +419,7 @@ ENVIRONMENT VARIABLES:
 
 EXAMPLES:
     ./build.sh release                  # Build release version
+    ./build.sh verify-release           # Build and verify v1/v2/v3/v4 artifacts
     ./build.sh check-all                # Run all quality checks
     ./build.sh ci                       # Run CI pipeline
     COSMOSTRIX_JOBS=4 ./build.sh all    # Full build with 4 cores
@@ -512,6 +517,10 @@ main() {
 	bench | benchmark)
 		check_rust_toolchain
 		run_benchmark
+		;;
+	verify-release)
+		check_rust_toolchain
+		verify_release_builds
 		;;
 	check)
 		check_rust_toolchain

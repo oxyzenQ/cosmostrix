@@ -22,6 +22,7 @@ Workflow files live under:
 - **Security audit**: runs `cargo-audit` using `cargo +stable` to avoid MSRV breakage when `cargo-audit` bumps its required Rust version.
 - **MSRV**: runs `cargo test --all` on Rust `1.81.0`.
 - **Test + Build (debug)**: runs `cargo test --all` and `cargo build --profile dev`.
+- **Release variant sanity**: builds optimized Linux/macOS/Windows/Android targets, verifies embedded build metadata, and runs `cosmostrix -i` whenever the artifact can safely execute on the runner.
 - **Format + Clippy**: runs `cargo fmt -- --check` and `cargo clippy ... -D warnings`.
 - **Dependency policy**: installs `cargo-deny` and runs `cargo +stable deny check all`.
 
@@ -60,6 +61,24 @@ Workflow files live under:
   - `cargo fmt -- --check`
   - `cargo clippy --locked --all-targets --all-features -- -D warnings`
   - `cargo +stable deny check all`
+  - `cosmostrix -i` metadata checks for runnable artifacts:
+    - expected `variant`
+    - `dispatch: static optimized build`
+    - `lto: fat`
+    - `panic: unwind`
+    - `strip: yes`
+  - embedded metadata scan for cross-built or unsafe-to-run artifacts
+  - Unix stripped-binary check with a clear failure if metadata says stripped but the artifact is not stripped
+
+Linux x86_64 release artifacts are built with explicit baselines:
+
+- `v1`: `-C target-cpu=x86-64`
+- `v2`: `-C target-cpu=x86-64-v2`
+- `v3`: `-C target-cpu=x86-64-v3`
+- `v4`: `-C target-cpu=x86-64-v4`
+
+`target-cpu=native` is reserved for local/native non-x86_64 release jobs and
+developer aliases; it is not used for distributed Linux x86_64 artifacts.
 
 #### Packaging output
 
