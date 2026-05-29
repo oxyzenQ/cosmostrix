@@ -2,7 +2,7 @@
 
 //! Terminal abstraction layer for Cosmostrix.
 //!
-//! Provides raw mode, alternate screen management, mouse capture, and the
+//! Provides raw mode, alternate screen management, optional mouse capture, and the
 //! core diff-based ANSI rendering pipeline.
 //!
 //! ## Output Strategy
@@ -26,6 +26,8 @@
 //! for cases where the process is killed with signal 9.
 
 use std::io::{stdout, BufWriter, Result, Stdout, Write};
+#[cfg(unix)]
+use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
@@ -81,6 +83,11 @@ pub struct Terminal {
     touched_rows: Vec<u16>,
     mouse_capture_enabled: bool,
     focus_change_enabled: bool,
+    raw_mode_enabled: bool,
+    alternate_screen_enabled: bool,
+    cursor_hidden: bool,
+    line_wrap_disabled: bool,
+    cleaned_up: bool,
     /// Set to `true` after flush completes; the force-exit watchdog checks
     /// this and skips `process::exit` when cleanup finished normally.
     shutdown_complete: Arc<AtomicBool>,
@@ -90,28 +97,8 @@ impl Terminal {
     pub fn new() -> Result<Self> {
         let raw = stdout();
         terminal::enable_raw_mode()?;
-        let mut out = BufWriter::with_capacity(STDOUT_BUF_CAPACITY, raw);
-        let init_res: Result<()> = (|| {
-            out.execute(terminal::EnterAlternateScreen)?;
-            out.execute(cursor::Hide)?;
-            let _ = out.execute(terminal::DisableLineWrap);
-            out.execute(SetAttribute(Attribute::Reset))?;
-            out.execute(ResetColor)?;
-            out.execute(terminal::Clear(terminal::ClearType::All))?;
-            out.flush()?;
-            Ok(())
-        })();
-        if let Err(e) = init_res {
-            let _ = out.execute(SetAttribute(Attribute::Reset));
-            let _ = out.execute(ResetColor);
-            let _ = out.execute(cursor::Show);
-            let _ = out.execute(terminal::EnableLineWrap);
-            let _ = out.execute(terminal::LeaveAlternateScreen);
-            let _ = terminal::disable_raw_mode();
-            let _ = out.flush();
-            return Err(e);
-        }
-        Ok(Self {
+        let out = BufWriter::with_capacity(STDOUT_BUF_CAPACITY, raw);
+        let mut term = Self {
             stdout: out,
             last: None,
             run_buf: {
@@ -124,8 +111,34 @@ impl Terminal {
             touched_rows: Vec::new(),
             mouse_capture_enabled: false,
             focus_change_enabled: false,
+            raw_mode_enabled: true,
+            alternate_screen_enabled: false,
+            cursor_hidden: false,
+            line_wrap_disabled: false,
+            cleaned_up: false,
             shutdown_complete: Arc::new(AtomicBool::new(false)),
-        })
+        };
+
+        let init_res: Result<()> = (|| {
+            let out = &mut term.stdout;
+            out.execute(terminal::EnterAlternateScreen)?;
+            term.alternate_screen_enabled = true;
+            out.execute(cursor::Hide)?;
+            term.cursor_hidden = true;
+            if out.execute(terminal::DisableLineWrap).is_ok() {
+                term.line_wrap_disabled = true;
+            }
+            out.execute(SetAttribute(Attribute::Reset))?;
+            out.execute(ResetColor)?;
+            out.execute(terminal::Clear(terminal::ClearType::All))?;
+            out.flush()?;
+            Ok(())
+        })();
+        if let Err(e) = init_res {
+            term.cleanup_terminal();
+            return Err(e);
+        }
+        Ok(term)
     }
 
     pub fn size(&self) -> Result<(u16, u16)> {
@@ -172,6 +185,34 @@ impl Terminal {
         }
         self.stdout.flush()?;
         Ok(())
+    }
+
+    fn cleanup_terminal(&mut self) {
+        if self.cleaned_up {
+            return;
+        }
+        self.cleaned_up = true;
+
+        let _ = self.disable_mouse_capture();
+        let _ = self.stdout.execute(SetAttribute(Attribute::Reset));
+        let _ = self.stdout.execute(ResetColor);
+        if self.cursor_hidden {
+            let _ = self.stdout.execute(cursor::Show);
+            self.cursor_hidden = false;
+        }
+        if self.line_wrap_disabled {
+            let _ = self.stdout.execute(terminal::EnableLineWrap);
+            self.line_wrap_disabled = false;
+        }
+        if self.alternate_screen_enabled {
+            let _ = self.stdout.execute(terminal::LeaveAlternateScreen);
+            self.alternate_screen_enabled = false;
+        }
+        if self.raw_mode_enabled {
+            let _ = terminal::disable_raw_mode();
+            self.raw_mode_enabled = false;
+        }
+        let _ = self.stdout.flush();
     }
 
     pub fn draw(&mut self, frame: &mut Frame) -> Result<()> {
@@ -452,14 +493,6 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        let _ = self.disable_mouse_capture();
-        let _ = self.stdout.execute(SetAttribute(Attribute::Reset));
-        let _ = self.stdout.execute(ResetColor);
-        let _ = self.stdout.execute(cursor::Show);
-        let _ = self.stdout.execute(terminal::EnableLineWrap);
-        let _ = self.stdout.execute(terminal::LeaveAlternateScreen);
-        let _ = terminal::disable_raw_mode();
-
         // Safety: spawn a force-exit timer in case flush blocks.
         // The flag is set to `true` after flush completes; if the watchdog
         // sees the flag it skips `process::exit`, allowing normal shutdown
@@ -476,7 +509,7 @@ impl Drop for Terminal {
                     std::process::exit(0);
                 }
             });
-        let _ = self.stdout.flush();
+        self.cleanup_terminal();
         self.shutdown_complete
             .store(true, std::sync::atomic::Ordering::Release);
     }
@@ -487,6 +520,7 @@ pub fn restore_terminal_best_effort() {
     let mut out = stdout();
     let _ = out.execute(event::DisableMouseCapture);
     let _ = out.execute(event::DisableFocusChange);
+    let _ = out.write_all(TERMINAL_RESET_SEQUENCE.as_bytes());
     let _ = out.execute(SetAttribute(Attribute::Reset));
     let _ = out.execute(ResetColor);
     let _ = out.execute(cursor::Show);
@@ -496,6 +530,18 @@ pub fn restore_terminal_best_effort() {
     let _ = out.flush();
 }
 
+pub const TERMINAL_RESET_SEQUENCE: &str =
+    "\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?1004l\x1b[?1049l\x1b[?25h\x1b[0m";
+
+pub fn reset_terminal_emergency() {
+    restore_terminal_best_effort();
+    #[cfg(unix)]
+    {
+        let _ = Command::new("stty").arg("sane").status();
+        let _ = Command::new("reset").status();
+    }
+}
+
 #[must_use]
 pub fn blank_cell(bg: Option<Color>) -> Cell {
     Cell {
@@ -503,5 +549,96 @@ pub fn blank_cell(bg: Option<Color>) -> Cell {
         fg: None,
         bg,
         bold: false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TERMINAL_RESET_SEQUENCE;
+
+    #[derive(Default)]
+    struct CleanupFlags {
+        mouse: bool,
+        focus: bool,
+        cursor: bool,
+        wrap: bool,
+        alternate: bool,
+        raw: bool,
+        cleaned: bool,
+    }
+
+    impl CleanupFlags {
+        fn cleanup_plan(&mut self) -> Vec<&'static str> {
+            if self.cleaned {
+                return Vec::new();
+            }
+            self.cleaned = true;
+
+            let mut plan = Vec::new();
+            if self.mouse {
+                plan.push("disable-mouse");
+                self.mouse = false;
+            }
+            if self.focus {
+                plan.push("disable-focus");
+                self.focus = false;
+            }
+            if self.cursor {
+                plan.push("show-cursor");
+                self.cursor = false;
+            }
+            if self.wrap {
+                plan.push("enable-wrap");
+                self.wrap = false;
+            }
+            if self.alternate {
+                plan.push("leave-alternate");
+                self.alternate = false;
+            }
+            if self.raw {
+                plan.push("disable-raw");
+                self.raw = false;
+            }
+            plan
+        }
+    }
+
+    #[test]
+    fn emergency_reset_sequence_disables_terminal_reporting_modes() {
+        for mode in [
+            "?1000l", "?1002l", "?1003l", "?1006l", "?1015l", "?1004l", "?1049l", "?25h",
+        ] {
+            assert!(
+                TERMINAL_RESET_SEQUENCE.contains(mode),
+                "missing terminal reset mode {mode}"
+            );
+        }
+        assert!(TERMINAL_RESET_SEQUENCE.ends_with("\x1b[0m"));
+    }
+
+    #[test]
+    fn terminal_cleanup_plan_is_reverse_order_and_idempotent() {
+        let mut flags = CleanupFlags {
+            mouse: true,
+            focus: true,
+            cursor: true,
+            wrap: true,
+            alternate: true,
+            raw: true,
+            cleaned: false,
+        };
+
+        assert_eq!(
+            flags.cleanup_plan(),
+            [
+                "disable-mouse",
+                "disable-focus",
+                "show-cursor",
+                "enable-wrap",
+                "leave-alternate",
+                "disable-raw",
+            ]
+        );
+        assert!(flags.cleanup_plan().is_empty());
     }
 }

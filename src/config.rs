@@ -215,6 +215,14 @@ pub struct Args {
     pub screensaver: bool,
 
     #[arg(
+        long = "mouse",
+        help_heading = "COMMON OPTIONS",
+        display_order = 65,
+        help = "Enable mouse hover/click effects"
+    )]
+    pub mouse: bool,
+
+    #[arg(
         short = 'm',
         long = "message",
         help_heading = "COMMON OPTIONS",
@@ -266,6 +274,14 @@ pub struct Args {
         help = "Build and runtime information"
     )]
     pub info: bool,
+
+    #[arg(
+        long = "reset-terminal",
+        help_heading = "DIAGNOSTICS",
+        display_order = 130,
+        help = "Restore terminal modes after an interrupted run"
+    )]
+    pub reset_terminal: bool,
 
     // === DISCOVERY (visible in --help) ===
     #[arg(
@@ -579,6 +595,11 @@ COMMON OPTIONS:
   -s, --screensaver
       Screensaver mode (exit on any keypress).
 
+  --mouse
+      Enable mouse hover/click effects. This turns on terminal mouse reporting
+      while Cosmostrix is running; it is off by default for safer recovery
+      after abrupt process termination.
+
   -m, --message <text>
       Display overlay message.
       cosmostrix -m \"hello\"
@@ -620,6 +641,9 @@ DIAGNOSTICS:
   --doctor       System compatibility report.
   --benchmark    Renderer benchmark (5 seconds).
   -i, --info     Build and runtime information.
+  --reset-terminal
+      Restore raw mode, alternate screen, cursor, focus, and mouse reporting
+      after an interrupted run.
 
 DISCOVERY:
   --list-colors    Show available color themes.

@@ -1343,12 +1343,15 @@ impl Cloud {
         } else if let Some(pt) = self.pause_time.take() {
             let now = Instant::now();
             let elapsed = now.saturating_duration_since(pt);
-            // Shift all active droplet timestamps so they resume seamlessly.
-            self.last_spawn_time += elapsed;
+            // Drop all spawn debt on resume. The next frame starts from this
+            // instant and the smoothstep resume ramp reintroduces motion.
+            self.last_spawn_time = now;
             self.spawn_remainder = 0.0;
             for d in &mut self.droplets {
                 if d.is_alive {
                     d.increment_time(elapsed);
+                    d.last_time = Some(now);
+                    d.advance_remainder = 0.0;
                 }
             }
             // Shift all Phase 3 subsystem timers so they don't burst-fire

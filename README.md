@@ -132,8 +132,9 @@ Artifact variants use explicit CPU baselines:
 - `native`: local-only build tuned for the current CPU; not used for distributed Linux x86_64 artifacts
 
 Release/pro builds keep `panic = "unwind"` on purpose. Cosmostrix owns raw mode,
-alternate screen, cursor visibility, and mouse capture while running; unwinding
-lets the RAII terminal guard and panic hook restore the terminal on panic.
+alternate screen, cursor visibility, and line-wrap state while running;
+unwinding lets the RAII terminal guard and panic hook restore the terminal on
+panic. Mouse reporting is off by default and is enabled only with `--mouse`.
 
 To verify an optimized artifact:
 
@@ -153,6 +154,7 @@ cosmostrix --screensaver              # exit on keypress
 cosmostrix --message "wake up, neo"   # overlay message
 cosmostrix --charset katakana         # character set
 cosmostrix --low-power                # power-saving mode
+cosmostrix --mouse                    # opt-in mouse hover/click effects
 ```
 
 ## CLI options
@@ -167,6 +169,7 @@ COMMON OPTIONS
   -S, --speed <0.001-1000>  Rain speed
   -d, --density <0.01-5.0>  Rain density
   -s, --screensaver         Exit on keypress
+     --mouse                Enable mouse hover/click effects
   -m, --message <text>      Overlay message
      --low-power            Power-saving mode
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
@@ -175,6 +178,7 @@ DIAGNOSTICS
      --doctor               Compatibility report
      --benchmark            Renderer benchmark
   -i, --info                Build and runtime information
+     --reset-terminal       Restore terminal modes after an interrupted run
 
 DISCOVERY
      --list-colors          Show available color themes
@@ -190,6 +194,39 @@ DISCOVERY
   [ / ]         Density           Up / Down  Speed
   g             Toggle glitch     Tab        Toggle shading
   Space         Reseed animation  m          Cycle profile
+```
+
+## Terminal Recovery
+
+Quit with `q`, `Esc`, or Ctrl+C when possible. From another shell, prefer:
+
+```bash
+pkill -TERM -x cosmostrix
+```
+
+Use SIGKILL only as an emergency because no program can restore terminal state
+after `kill -9`:
+
+```bash
+pkill -KILL -x cosmostrix
+```
+
+Avoid `kill -9 $(pgrep -af cosmostrix)` because `pgrep -af` prints command text
+as well as PIDs, which can pass non-PID words to `kill`.
+
+If a terminal is left in raw mode, alternate screen, hidden cursor, focus
+reporting, or mouse reporting, run:
+
+```bash
+cosmostrix --reset-terminal
+```
+
+or, if `cosmostrix` is not available:
+
+```bash
+printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l\033[?1004l\033[?1049l\033[?25h\033[0m'
+stty sane
+reset
 ```
 
 ## Config file

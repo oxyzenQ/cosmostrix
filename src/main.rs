@@ -74,7 +74,7 @@ use crate::config::{
 };
 use crate::constants::*;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
-use crate::terminal::restore_terminal_best_effort;
+use crate::terminal::{reset_terminal_emergency, restore_terminal_best_effort};
 use crate::validation::{
     validate_f32_range, validate_f64_range, validate_u16_range, validate_u8_range,
 };
@@ -133,6 +133,7 @@ pub struct CloudConfig {
     pub base_density: f32,
     pub perf_stats: bool,
     pub screensaver: bool,
+    pub mouse: bool,
     pub charset_preset: String,
     pub user_ranges: Vec<(char, char)>,
     pub def_ascii: bool,
@@ -822,6 +823,11 @@ fn main() -> std::io::Result<()> {
     let matches = cmd.get_matches_from(argv);
     let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
+    if args.reset_terminal {
+        reset_terminal_emergency();
+        return Ok(());
+    }
+
     // Apply config file defaults for args not explicitly set by user
     apply_config_defaults(&matches, &mut args);
 
@@ -1179,6 +1185,7 @@ fn main() -> std::io::Result<()> {
         base_density,
         perf_stats: args.perf_stats,
         screensaver: args.screensaver,
+        mouse: args.mouse,
         charset_preset,
         user_ranges,
         def_ascii,

@@ -141,6 +141,9 @@ impl Droplet {
         if let Some(t) = self.head_stop_time.as_mut() {
             *t += delta;
         }
+        if let Some(t) = self.birth_time.as_mut() {
+            *t += delta;
+        }
     }
 
     #[inline]

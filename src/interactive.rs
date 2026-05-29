@@ -278,8 +278,9 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     spawn_watchdog();
 
     let mut term = Terminal::new()?;
-    // Enable mouse capture (non-fatal if terminal doesn't support it)
-    if term.enable_mouse_capture().is_ok() {
+    // Mouse reporting is opt-in because abrupt process death can leave some
+    // terminals echoing raw mouse escape sequences until they are reset.
+    if cfg.mouse && term.enable_mouse_capture().is_ok() {
         MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
     }
     let (w, h) = term.size()?;
@@ -349,15 +350,6 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             next_frame = loop_now;
         }
 
-        let frame_period = if cloud.pause {
-            pause_period
-        } else if is_idle {
-            idle_period
-        } else {
-            target_period
-        };
-        let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
-
         if end_time.is_some_and(|end| Instant::now() >= end) {
             cloud.raining = false;
             break;
@@ -368,6 +360,9 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         if term_reinit.swap(false, Ordering::Acquire) {
             drop(term);
             term = Terminal::new()?;
+            if cfg.mouse && term.enable_mouse_capture().is_ok() {
+                MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
+            }
             let (nw, nh) = term.size()?;
             pending_resize = Some((nw, nh));
             cloud.force_draw_everything();
@@ -422,7 +417,7 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = Instant::now();
                         }
                     }
-                    Event::Mouse(m) => {
+                    Event::Mouse(m) if cfg.mouse => {
                         // Mouse interaction resets idle timer.
                         let activity_time = Instant::now();
                         if register_activity(
@@ -529,6 +524,20 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.force_draw_everything();
             last_resync_time = Instant::now();
         }
+
+        // Key handling can toggle pause/resume after the frame period was
+        // chosen for the wait phase. Recompute before simulation and
+        // scheduling so the first resumed frame does not inherit the paused
+        // 250ms cadence.
+        let active_is_idle = is_runtime_idle(last_input_time, Instant::now());
+        let frame_period = if cloud.pause {
+            pause_period
+        } else if active_is_idle {
+            idle_period
+        } else {
+            target_period
+        };
+        let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
 
         cloud.set_perf_pressure(perf_pressure);
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
