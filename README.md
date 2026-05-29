@@ -258,15 +258,20 @@ CLI arguments always take precedence over config file values. See `--defaults` f
 
 ## Performance & benchmarking
 
-Use deterministic sanity checks in CI and measure performance locally. The
-repeatable benchmark path is:
+v2.1.0 throughput exceeds 7,000 FPS headless (120×40, well above the 60 FPS
+target) with a ~3% dirty-cell ratio from differential rendering. Real
+interactive FPS is terminal-bound, not simulation-bound.
+
+Quick benchmark:
 
 ```bash
-bash benchmark/benchmark.sh
+cargo pro-linux-v3
+COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
+  target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
 ```
 
-See `benchmark/README.md` for the exact commands, generated artifacts, and
-notes on comparing release vs local `pro-native` builds.
+See `benchmark/README.md` for full reference results, reproduction steps, and
+interpretation notes.
 
 ## Release notes
 
