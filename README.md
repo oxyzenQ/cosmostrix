@@ -24,11 +24,11 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-demo.gif" alt="Cosmostrix Demo" width="640">
+  <img src="assets/cosmostrix-demo.gif" alt="Cosmostrix cinematic Matrix rain demo" width="900">
 </p>
 
 <details>
-<summary>Watch full video demo (47s)</summary>
+<summary>Watch full video demo (38s)</summary>
 
 <video src="assets/cosmostrix-long-endurance.mp4" autoplay loop muted playsinline width="100%"></video>
 
