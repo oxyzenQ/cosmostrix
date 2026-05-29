@@ -182,3 +182,30 @@ git push origin v2.1.0
 #### Notes
 
 - GitHub cron uses UTC; adjust the schedule if you want a different local time.
+
+## Version bump
+
+Use the `version-to.sh` helper to bump the stable release version consistently:
+
+```bash
+./version-to.sh 2.5.0
+git diff
+git commit -m "chore: bump version to v2.5.0"
+git tag v2.5.0
+git push origin main v2.5.0
+```
+
+The script updates:
+- `Cargo.toml` (package version)
+- `Cargo.lock` (root package version only, no dependency changes)
+- `aur/cosmostrix-bin/PKGBUILD` (`pkgver=`, `_tag=`)
+- `README.md` (active version examples)
+- `workflow/about-ci.md` (release flow examples)
+
+It skips changelog headings (e.g. `### v2.1.0`) to preserve historical release notes.
+
+Verify the current version without making changes:
+
+```bash
+./version-to.sh --check 2.5.0
+```
