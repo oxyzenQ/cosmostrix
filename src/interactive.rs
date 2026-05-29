@@ -57,7 +57,7 @@ use crate::cloud::Cloud;
 use crate::constants::*;
 use crate::frame::Frame;
 use crate::report::Report;
-use crate::runtime::{ColorScheme, ShadingMode};
+use crate::runtime::ColorScheme;
 use crate::terminal::{restore_terminal_best_effort, Terminal};
 
 use super::{cycle_charset_preset, cycle_color_scheme, effective_density, CloudConfig};
@@ -885,13 +885,13 @@ fn handle_keybinding(
             let gp = (cloud.glitch_pct + GLITCH_PCT_STEP).min(1.0);
             cloud.set_glitch_pct(gp);
         }
-        (KeyCode::Tab, _) => {
-            let sm = if cloud.shading_distance {
-                ShadingMode::Random
-            } else {
-                ShadingMode::DistanceFromHead
-            };
-            cloud.set_shading_mode(sm);
+        (KeyCode::Tab, _) | (KeyCode::BackTab, _) => {
+            // Tab and Shift+Tab are explicitly ignored. Previously Tab
+            // toggled shading mode, which called set_shading_mode() →
+            // semantic_invalidate → invalidate_semantic() → frame clear
+            // without clearing phosphor_base_ch, causing a ghost background
+            // glyph flood. Tab is not a useful shortcut for a terminal rain
+            // renderer, so it is safely ignored to prevent this class of bug.
         }
         (KeyCode::Char('-'), _) | (KeyCode::Char('['), _) | (KeyCode::Char('_'), _) => {
             let d = (cloud.droplet_density - DENSITY_STEP).max(0.01);
@@ -1107,5 +1107,280 @@ mod tests {
         assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(1), false));
         assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(1), false));
         assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1), false));
+    }
+
+    // --- Tab key safety tests ---
+    // These tests verify that Tab and BackTab are safely ignored and do not
+    // cause ghost background artifacts, state mutations, or visual flicker.
+
+    fn make_test_cloud() -> Cloud {
+        let mut cloud = Cloud::new(
+            crate::runtime::ColorMode::Mono,
+            false,
+            crate::runtime::ShadingMode::Random,
+            crate::runtime::BoldMode::Off,
+            false,
+            true,
+            crate::runtime::ColorScheme::Green,
+        );
+        cloud.init_chars(vec!['0', '1']);
+        cloud.reset(20, 10);
+        // Clear flags set by init_chars/reset so tests start from a clean
+        // state. Without this, semantic_invalidate and force_draw_everything
+        // are already true from initialization, causing test assertions to
+        // fail even when the tested key is a no-op.
+        cloud.clear_redraw_flags_for_test();
+        cloud
+    }
+
+    fn make_test_config() -> CloudConfig {
+        CloudConfig {
+            color_mode: crate::runtime::ColorMode::Mono,
+            fullwidth: false,
+            shading_mode: crate::runtime::ShadingMode::Random,
+            bold_mode: crate::runtime::BoldMode::Off,
+            async_mode: false,
+            default_bg: true,
+            color_scheme: crate::runtime::ColorScheme::Green,
+            noglitch: true,
+            glitch_pct: 0.0,
+            glitch_low: 0,
+            glitch_high: 0,
+            linger_low: 0,
+            linger_high: 0,
+            short_pct: 0.0,
+            die_early_pct: 0.0,
+            max_dpc: 1,
+            density: 0.8,
+            speed: 8.0,
+            chars: vec!['0', '1'],
+            message: None,
+            message_no_border: false,
+            target_fps: 60.0,
+            duration: None,
+            duration_s: None,
+            bench_frames: None,
+            benchmark: false,
+            density_auto: false,
+            base_density: 0.8,
+            perf_stats: false,
+            screensaver: false,
+            mouse: false,
+            charset_preset: String::from("binary"),
+            user_ranges: vec![],
+            def_ascii: true,
+        }
+    }
+
+    fn tab_key() -> KeyEvent {
+        KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE)
+    }
+
+    fn backtab_key() -> KeyEvent {
+        KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT)
+    }
+
+    #[test]
+    fn tab_key_is_ignored() {
+        // Tab should be a no-op in handle_keybinding — it must not toggle
+        // shading mode, pause, color, charset, or any other state.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let user_ranges: [(char, char); 0] = [];
+
+        let shading_before = cloud.shading_distance;
+        let pause_before = cloud.pause;
+        let color_before = cloud.color_scheme();
+
+        let result = handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &tab_key(),
+            &mut charset_preset,
+            &user_ranges,
+            true,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        // Tab should not trigger any keybinding action
+        assert!(!result, "Tab should not signal a keybinding action");
+        // Tab should not change any state
+        assert_eq!(
+            cloud.shading_distance, shading_before,
+            "Tab should not toggle shading mode"
+        );
+        assert_eq!(cloud.pause, pause_before, "Tab should not toggle pause");
+        assert_eq!(
+            cloud.color_scheme(),
+            color_before,
+            "Tab should not change color scheme"
+        );
+    }
+
+    #[test]
+    fn backtab_key_is_ignored() {
+        // Shift+Tab (BackTab) should be a no-op, same as Tab.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let user_ranges: [(char, char); 0] = [];
+
+        let shading_before = cloud.shading_distance;
+
+        let result = handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &backtab_key(),
+            &mut charset_preset,
+            &user_ranges,
+            true,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert!(!result, "BackTab should not signal a keybinding action");
+        assert_eq!(
+            cloud.shading_distance, shading_before,
+            "BackTab should not toggle shading mode"
+        );
+    }
+
+    #[test]
+    fn tab_does_not_toggle_pause() {
+        // Tab must not toggle pause state.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let user_ranges: [(char, char); 0] = [];
+
+        assert!(!cloud.pause, "cloud should start unpaused");
+
+        handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &tab_key(),
+            &mut charset_preset,
+            &user_ranges,
+            true,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert!(!cloud.pause, "Tab should not pause the rain");
+    }
+
+    #[test]
+    fn tab_does_not_change_color_or_charset() {
+        // Tab must not change the color scheme or charset.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let user_ranges: [(char, char); 0] = [];
+
+        let color_before = cloud.color_scheme();
+
+        handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &tab_key(),
+            &mut charset_preset,
+            &user_ranges,
+            true,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            cloud.color_scheme(),
+            color_before,
+            "Tab should not change color scheme"
+        );
+        // charset_preset should be unchanged
+        assert_eq!(
+            charset_preset, "binary",
+            "Tab should not change charset preset"
+        );
+    }
+
+    #[test]
+    fn tab_does_not_force_ghost_background_redraw() {
+        // Tab must not set semantic_invalidate or force_draw_everything,
+        // which could cause a ghost background glyph flood.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let user_ranges: [(char, char); 0] = [];
+
+        handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &tab_key(),
+            &mut charset_preset,
+            &user_ranges,
+            true,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert!(
+            !cloud.is_semantic_invalidate(),
+            "Tab should not set semantic_invalidate"
+        );
+        assert!(
+            !cloud.is_force_draw_everything(),
+            "Tab should not set force_draw_everything"
+        );
+    }
+
+    #[test]
+    fn repeated_tab_is_stable() {
+        // Repeated Tab presses should not accumulate state changes or
+        // cause instability. Each Tab should be a complete no-op.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let user_ranges: [(char, char); 0] = [];
+
+        let shading_before = cloud.shading_distance;
+        let pause_before = cloud.pause;
+
+        // Press Tab 10 times
+        for _ in 0..10 {
+            handle_keybinding(
+                &mut cloud,
+                &mut frame,
+                &tab_key(),
+                &mut charset_preset,
+                &user_ranges,
+                true,
+                &make_test_config(),
+                #[cfg(unix)]
+                &Arc::new(AtomicBool::new(false)),
+            );
+        }
+
+        assert_eq!(
+            cloud.shading_distance, shading_before,
+            "10 Tab presses should not change shading mode"
+        );
+        assert_eq!(
+            cloud.pause, pause_before,
+            "10 Tab presses should not change pause state"
+        );
+        assert!(
+            !cloud.is_semantic_invalidate(),
+            "10 Tab presses should not set semantic_invalidate"
+        );
+        assert!(
+            !cloud.is_force_draw_everything(),
+            "10 Tab presses should not set force_draw_everything"
+        );
     }
 }

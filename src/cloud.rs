@@ -1916,6 +1916,31 @@ impl Cloud {
         self.force_draw_everything = true;
     }
 
+    /// Returns whether a full redraw is pending. Used by tests to verify
+    /// that ignored keys don't trigger destructive redraws.
+    #[cfg(test)]
+    pub fn is_force_draw_everything(&self) -> bool {
+        self.force_draw_everything
+    }
+
+    /// Returns whether a semantic invalidation is pending. Used by tests to
+    /// verify that ignored keys don't trigger frame invalidation.
+    #[cfg(test)]
+    pub fn is_semantic_invalidate(&self) -> bool {
+        self.semantic_invalidate
+    }
+
+    /// Clear all pending redraw flags for test setup. After init_chars() and
+    /// reset(), both semantic_invalidate and force_draw_everything are set.
+    /// Tests that verify "key X does not trigger redraw" need these cleared
+    /// first, or the assertion fails due to initialization residue rather
+    /// than the tested key's behavior.
+    #[cfg(test)]
+    pub fn clear_redraw_flags_for_test(&mut self) {
+        self.semantic_invalidate = false;
+        self.force_draw_everything = false;
+    }
+
     pub fn set_shading_mode(&mut self, sm: ShadingMode) {
         self.shading_mode = sm;
         self.shading_distance = matches!(sm, ShadingMode::DistanceFromHead);
@@ -2702,9 +2727,18 @@ impl Cloud {
         // Semantic mutations (charset switch, shading mode toggle) require
         // invalidate_semantic() which bumps semantic_gen, ensuring the
         // Terminal's LastFrame cache is fully synchronized.
+        // Also clear stale ghost glyph characters to prevent the full redraw
+        // from exposing phosphor_base_ch entries as visible background charset
+        // glyphs — the same "ghost background" bug that affects
+        // force_draw_everything. Active trail cells will have their
+        // phosphor_base_ch repopulated by Pass 1 (current-gen cells) and
+        // Pass 2 (active droplet trail protection) of phosphor_decay_pass.
         if self.semantic_invalidate {
             self.semantic_invalidate = false;
             frame.invalidate_semantic(self.palette.bg);
+            for ch in self.phosphor_base_ch.iter_mut() {
+                *ch = '\0';
+            }
         }
 
         let force_draw_everything = self.force_draw_everything;
@@ -4096,5 +4130,138 @@ mod tests {
             "no cells should have ghost glyphs with energy below GLYPH_THRESHOLD after safe redraw (found {})",
             stale_glyph_count
         );
+    }
+
+    #[test]
+    fn semantic_invalidation_clears_stale_ghost_glyphs() {
+        // When semantic_invalidate is set (e.g., from set_shading_mode),
+        // the rain_at() path should also clear phosphor_base_ch, just like
+        // force_draw_everything does. This prevents the ghost background
+        // bug when shading mode or other semantic mutations occur.
+        use crate::constants::PHOSPHOR_GLYPH_THRESHOLD;
+
+        let mut cloud = make_cloud();
+        cloud.chars_per_sec = 8.0;
+        cloud.recalc_droplets_per_sec();
+
+        let now = Instant::now();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+
+        // Run rain for several frames to build up phosphor state
+        cloud.last_spawn_time = now - Duration::from_secs(1);
+        cloud.last_phosphor_time = now;
+        for i in 0..20 {
+            cloud.rain_at(&mut frame, now + Duration::from_millis(i * 16));
+            frame.clear_dirty();
+        }
+
+        // Count ghost glyph cells before semantic invalidation
+        let ghost_fill_before: usize = cloud
+            .phosphor_base_ch
+            .iter()
+            .filter(|&&ch| ch != '\0')
+            .count();
+
+        // Trigger semantic invalidation (simulating shading mode change)
+        cloud.set_shading_mode(ShadingMode::DistanceFromHead);
+        assert!(
+            cloud.semantic_invalidate,
+            "set_shading_mode should set semantic_invalidate"
+        );
+
+        // Run one frame to process the semantic invalidation
+        cloud.rain_at(&mut frame, now + Duration::from_millis(320));
+        frame.clear_dirty();
+
+        // After semantic invalidation, ghost fill should be reduced because
+        // phosphor_base_ch was cleared. Active trail cells are repopulated
+        // by Pass 1 & 2, but stale cells should be clean.
+        let ghost_fill_after: usize = cloud
+            .phosphor_base_ch
+            .iter()
+            .filter(|&&ch| ch != '\0')
+            .count();
+
+        assert!(
+            ghost_fill_after <= ghost_fill_before,
+            "semantic invalidation should not increase ghost fill (before={}, after={})",
+            ghost_fill_before,
+            ghost_fill_after
+        );
+
+        // No low-energy ghost glyphs should exist
+        for (&ch, &energy) in cloud.phosphor_base_ch.iter().zip(cloud.phosphor.iter()) {
+            if ch != '\0' {
+                assert!(
+                    energy >= PHOSPHOR_GLYPH_THRESHOLD,
+                    "ghost glyph cell should have energy >= GLYPH_THRESHOLD after semantic invalidation, got {}",
+                    energy
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn tab_after_phosphor_activity_does_not_increase_ghost_fill() {
+        // Simulates the Tab key bug scenario: after rain creates phosphor
+        // state, a semantic invalidation (previously caused by Tab toggling
+        // shading mode) should not cause a ghost background flood. With the
+        // fix, semantic invalidation also clears phosphor_base_ch, and the
+        // PHOSPHOR_GLYPH_THRESHOLD prevents low-energy glyphs from rendering.
+        use crate::constants::PHOSPHOR_GLYPH_THRESHOLD;
+
+        let mut cloud = make_cloud();
+        cloud.chars_per_sec = 8.0;
+        cloud.recalc_droplets_per_sec();
+
+        let now = Instant::now();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+
+        // Run rain to create phosphor state
+        cloud.last_spawn_time = now - Duration::from_secs(1);
+        cloud.last_phosphor_time = now;
+        for i in 0..20 {
+            cloud.rain_at(&mut frame, now + Duration::from_millis(i * 16));
+            frame.clear_dirty();
+        }
+
+        // Count ghost glyph cells before semantic invalidation
+        let ghost_fill_before: usize = cloud
+            .phosphor_base_ch
+            .iter()
+            .filter(|&&ch| ch != '\0')
+            .count();
+
+        // Simulate the Tab key effect: set_shading_mode (which Tab used to
+        // call) triggers semantic_invalidate. This is the exact path that
+        // caused the ghost background bug.
+        cloud.set_shading_mode(ShadingMode::DistanceFromHead);
+        cloud.rain_at(&mut frame, now + Duration::from_millis(320));
+        frame.clear_dirty();
+
+        let ghost_fill_after: usize = cloud
+            .phosphor_base_ch
+            .iter()
+            .filter(|&&ch| ch != '\0')
+            .count();
+
+        // Ghost fill should not have increased due to semantic invalidation
+        assert!(
+            ghost_fill_after <= ghost_fill_before,
+            "semantic invalidation from Tab-like action should not increase ghost fill (before={}, after={})",
+            ghost_fill_before,
+            ghost_fill_after
+        );
+
+        // No low-energy ghost glyphs should exist
+        for (&ch, &energy) in cloud.phosphor_base_ch.iter().zip(cloud.phosphor.iter()) {
+            if ch != '\0' {
+                assert!(
+                    energy >= PHOSPHOR_GLYPH_THRESHOLD,
+                    "ghost glyph cell should have energy >= GLYPH_THRESHOLD, got {}",
+                    energy
+                );
+            }
+        }
     }
 }
