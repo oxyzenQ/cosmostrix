@@ -5,7 +5,7 @@
 <h1 align="center">COSMOSTRIX</h1>
 
 <p align="center">
-  <strong>High-performance cinematic terminal renderer</strong>
+  <strong>High-performance cinematic Matrix rain renderer for the terminal.</strong>
 </p>
 
 <p align="center">

@@ -23,7 +23,7 @@ pub struct RendererInfo {
 #[inline]
 pub fn renderer_info(color_mode: ColorMode) -> RendererInfo {
     RendererInfo {
-        identity: "high-performance cinematic terminal renderer",
+        identity: "high-performance cinematic Matrix rain renderer for the terminal.",
         backend: "ansi-stream",
         pacing: "adaptive",
         unicode: "utf8-singlewidth",

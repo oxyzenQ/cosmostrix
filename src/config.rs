@@ -152,7 +152,7 @@ impl FromStr for U16Range {
     name = "cosmostrix",
     version,
     disable_version_flag = true,
-    about = "High-performance cinematic terminal renderer"
+    about = "High-performance cinematic Matrix rain renderer for the terminal."
 )]
 pub struct Args {
     // === COMMON OPTIONS (visible in --help) ===

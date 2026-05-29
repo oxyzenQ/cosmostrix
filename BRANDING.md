@@ -8,7 +8,7 @@ from the GitHub repository to documentation, releases, and community presence.
 
 ## 1. Brand Identity
 
-**Cosmostrix** is a high-performance cinematic terminal renderer built in Rust.
+**Cosmostrix** is a high-performance cinematic Matrix rain renderer for the terminal, built in Rust.
 The brand reflects:
 
 - **Precision** — engineered performance, SIMD optimization, zero-compromise rendering
@@ -42,7 +42,7 @@ The brand sits at the intersection of **systems engineering** and **visual art**
 
 In external articles or documentation, the first mention should include context:
 
-> Cosmostrix is a high-performance cinematic terminal renderer.
+> Cosmostrix is a high-performance cinematic Matrix rain renderer for the terminal.
 
 Subsequent mentions may use "Cosmostrix" alone.
 

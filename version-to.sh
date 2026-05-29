@@ -21,8 +21,10 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-readonly SCRIPT_NAME="$(basename "$0")"
-readonly REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_NAME
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+readonly REPO_ROOT
 readonly CARGO_TOML="${REPO_ROOT}/Cargo.toml"
 readonly CARGO_LOCK="${REPO_ROOT}/Cargo.lock"
 readonly PKGBUILD="${REPO_ROOT}/aur/cosmostrix-bin/PKGBUILD"
@@ -50,7 +52,6 @@ readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
 readonly BLUE='\033[0;34m'
-readonly CYAN='\033[0;36m'
 readonly NC='\033[0m'
 
 log_info()  { printf '%b[INFO]%b %s\n'  "${BLUE}" "${NC}" "$*"; }
@@ -309,9 +310,6 @@ update_pkgbuild() {
 update_docs() {
     local old_ver="$1"
     local new_ver="$2"
-    local old_tag="v${old_ver}"
-    local new_tag="v${new_ver}"
-
     for f in "${DOC_FILES[@]}"; do
         if [[ ! -f "${f}" ]]; then
             log_warn "Doc file not found: ${f}"
@@ -363,7 +361,6 @@ update_docs() {
 # ---------------------------------------------------------------------------
 audit_workflows() {
     local new_ver="$1"
-    local new_tag="v${new_ver}"
 
     log_info "Auditing workflow files for hardcoded version references..."
 
@@ -400,7 +397,6 @@ audit_workflows() {
 # ---------------------------------------------------------------------------
 verify_version() {
     local expected_ver="$1"
-    local expected_tag="v${expected_ver}"
     local errors=0
 
     echo ""
