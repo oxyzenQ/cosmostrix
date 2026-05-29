@@ -353,13 +353,29 @@ pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 pub const PHOSPHOR_DECAY_RATE: f32 = 3.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
-pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 180;
+/// Lowered from 180 to 120 to shorten the afterglow duration and prevent
+/// bottom-row ghost cell accumulation (the "concrete wall" artifact).
+/// At 120, afterglow decays to dead-threshold in ~1.0s (normal) or ~0.4s
+/// (bottom rows with PHOSPHOR_BOTTOM_DECAY_MULT).
+pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 120;
 
 /// Below this energy, the cell is cleared to blank.
 pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.6, 1.0, 0.7];
+
+/// Number of rows from the bottom of the screen where phosphor decay is
+/// accelerated. Ghost cells near the bottom accumulate into a static
+/// "concrete wall" because droplets end there and fewer new streams
+/// overwrite the residue. Accelerating decay in this region clears
+/// afterglow faster without affecting the cinematic look elsewhere.
+pub const PHOSPHOR_BOTTOM_ROWS: u16 = 8;
+
+/// Phosphor decay rate multiplier applied to bottom rows. Combined with
+/// PHOSPHOR_DECAY_RATE=3.0, this yields an effective rate of 7.5 at the
+/// bottom, reducing afterglow duration from ~1.0s to ~0.4s.
+pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 2.5;
 
 // ---------------------------------------------------------------------------
 // Atmospheric depth layering enhancements

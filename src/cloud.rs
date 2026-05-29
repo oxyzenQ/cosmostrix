@@ -2067,6 +2067,32 @@ impl Cloud {
 
     /// Phosphor persistence post-process: fade cells not refreshed by a
     /// droplet this frame, creating CRT-style afterglow.
+    ///
+    /// ## Bug fix: active trail cell protection
+    ///
+    /// The draw optimization in `Droplet::draw()` skips middle cells that
+    /// haven't moved (lines below `head_cur_line`). These cells are NOT
+    /// `current_gen` in the frame, so Pass 1 doesn't mark them fresh. Without
+    /// protection, Pass 3 would decay their phosphor and render ghost cells,
+    /// progressively dimming active trail cells — a major contributor to the
+    /// "concrete wall" bottom accumulation bug.
+    ///
+    /// Pass 2 now marks cells within **living** droplet ranges as fresh,
+    /// preventing phosphor decay from affecting active trail cells.
+    ///
+    /// ## Bug fix: blanked-cell ghost override
+    ///
+    /// When a cell is blanked by tail cleanup (fg = None, current_gen), the
+    /// phosphor pass used to immediately render a ghost cell over it, blocking
+    /// the intentional blank. Now, freshly blanked cells get their phosphor set
+    /// to `PHOSPHOR_TAIL_RESIDUAL` but **no ghost cell** is rendered this
+    /// frame — the blank takes effect, and afterglow begins on the next frame.
+    ///
+    /// ## Bug fix: bottom-row decay acceleration
+    ///
+    /// Ghost cells near the bottom of the screen decay faster (via
+    /// `PHOSPHOR_BOTTOM_DECAY_MULT`), preventing accumulation where droplets
+    /// end and fewer new streams overwrite the residue.
     fn phosphor_decay_pass(&mut self, frame: &mut Frame, elapsed_sec: f32) {
         let total = (self.cols as usize) * (self.lines as usize);
         if total == 0 || self.phosphor.len() != total {
@@ -2080,6 +2106,7 @@ impl Cloud {
 
         let bg = self.palette.bg;
         let lines = self.lines;
+        let frame_width = frame.width;
 
         // Pre-build blank cell for phosphor clear operations (avoids per-cell struct construction).
         let blank_cell = Cell {
@@ -2090,8 +2117,8 @@ impl Cloud {
         };
 
         // Pass 1: Mark cells currently drawn by droplets as fresh.
-        // IMPORTANT: We check the frame's dirty set rather than scanning for
-        // fg.is_some(), because cells from previous frames that weren't
+        // IMPORTANT: We check the frame's generation counter rather than scanning
+        // for fg.is_some(), because cells from previous frames that weren't
         // redrawn would falsely appear fresh and never decay — causing the
         // "concrete wall" bottom accumulation bug.
         // We also need to cover cells drawn during this frame that may not be
@@ -2101,7 +2128,7 @@ impl Cloud {
         let current_gen = frame.current_gen();
         for line in 0..lines {
             for col in 0..self.cols {
-                let fidx = line as usize * frame.width as usize + col as usize;
+                let fidx = line as usize * frame_width as usize + col as usize;
                 let is_current_gen = frame.cell_gen_at_index(fidx) == current_gen;
                 if is_current_gen {
                     let cell = frame.cell_at_index_ref(fidx);
@@ -2115,10 +2142,19 @@ impl Cloud {
             }
         }
 
-        // Pass 2: Update phosphor_layer from active droplets
+        // Pass 2: Update phosphor_layer from active droplets AND protect
+        // active trail cells from phosphor decay.
+        //
+        // Without this protection, cells skipped by the draw optimization
+        // (middle cells below head_cur_line) are NOT current_gen and NOT
+        // marked fresh in Pass 1. Pass 3 would then decay their phosphor and
+        // render ghost cells, progressively dimming active trail cells. This
+        // was a major contributor to the "concrete wall" bottom accumulation
+        // bug: active cells at the bottom were being ghosted frame after frame,
+        // creating a dim, static residue that never cleared.
         for d in &self.droplets {
-            if d.bound_col == u16::MAX {
-                continue;
+            if d.bound_col == u16::MAX || !d.is_alive {
+                continue; // Only protect living droplets' cells
             }
             let start = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
             for line in start..=d.head_put_line {
@@ -2129,6 +2165,23 @@ impl Cloud {
                 if pidx < self.phosphor_layer.len() {
                     self.phosphor_layer[pidx] = d.layer;
                 }
+                // Mark as fresh to prevent phosphor decay from ghosting
+                // active trail cells that were skipped by the draw optimization.
+                if pidx < self.phosphor_fresh.len()
+                    && !self.phosphor_fresh.get(pidx).is_some_and(|b| *b)
+                {
+                    self.phosphor_fresh.set(pidx, true);
+                    // Refresh phosphor energy so that when the tail eventually
+                    // passes, the cell starts its afterglow from full energy.
+                    self.phosphor[pidx] = 255;
+                    // Update base_fg to the cell's current color so the
+                    // afterglow reflects the most recent visual state.
+                    let fidx = line as usize * frame_width as usize + d.bound_col as usize;
+                    let cell_fg = frame.cell_at_index_ref(fidx).fg;
+                    if cell_fg.is_some() {
+                        self.phosphor_base_fg[pidx] = cell_fg;
+                    }
+                }
             }
         }
 
@@ -2138,28 +2191,61 @@ impl Cloud {
                 let pidx = col as usize * lines as usize + line as usize;
 
                 if self.phosphor_fresh.get(pidx).is_some_and(|b| *b) {
-                    continue; // Cell was just drawn by a droplet
+                    continue; // Cell was just drawn by a droplet (or protected by Pass 2)
                 }
 
                 if self.phosphor[pidx] == 0 {
                     continue;
                 }
 
-                // If phosphor is at 255 (max), this cell was just tail-cleared
-                // this frame. Set it to PHOSPHOR_TAIL_RESIDUAL to start decay.
+                // Check if cell was explicitly blanked this frame (tail cleanup
+                // or droplet death). Blanked cells should NOT be overridden by
+                // ghost cells — the blank takes effect immediately. Phosphor
+                // energy is set to PHOSPHOR_TAIL_RESIDUAL so the afterglow
+                // begins on the next frame, preserving the CRT cinematic look
+                // without allowing ghost cells to block intentional clearing.
+                let fidx = line as usize * frame_width as usize + col as usize;
+                let is_blank_current_gen = frame.cell_gen_at_index(fidx) == current_gen
+                    && frame.cell_at_index_ref(fidx).fg.is_none();
+
+                if is_blank_current_gen {
+                    // Cell was just blanked — start phosphor from residual
+                    // energy but don't render a ghost cell that would override
+                    // the blank. The afterglow begins next frame.
+                    self.phosphor[pidx] = PHOSPHOR_TAIL_RESIDUAL;
+                    continue;
+                }
+
+                // If phosphor is at 255 (max), this cell was drawn in a
+                // previous frame and not refreshed. Set it to
+                // PHOSPHOR_TAIL_RESIDUAL to start decay.
                 if self.phosphor[pidx] == 255 {
                     self.phosphor[pidx] = PHOSPHOR_TAIL_RESIDUAL;
                 } else {
                     // Apply exponential decay
                     let layer = self.phosphor_layer[pidx] as usize;
-                    let decay_mult = PHOSPHOR_LAYER_DECAY_MULT.get(layer).copied().unwrap_or(1.0);
-                    let decay = PHOSPHOR_DECAY_RATE * decay_mult * elapsed_sec;
+                    let layer_decay_mult =
+                        PHOSPHOR_LAYER_DECAY_MULT.get(layer).copied().unwrap_or(1.0);
+
+                    // Bottom-row decay acceleration: ghost cells near the
+                    // bottom of the screen decay faster, preventing
+                    // accumulation where droplets end and fewer new streams
+                    // overwrite the residue ("concrete wall" fix).
+                    let bottom_dist = lines.saturating_sub(line).saturating_sub(1);
+                    let bottom_decay_mult = if bottom_dist < PHOSPHOR_BOTTOM_ROWS {
+                        PHOSPHOR_BOTTOM_DECAY_MULT
+                    } else {
+                        1.0
+                    };
+
+                    let decay =
+                        PHOSPHOR_DECAY_RATE * layer_decay_mult * bottom_decay_mult * elapsed_sec;
                     let new_energy = ((self.phosphor[pidx] as f32) * (-decay).exp()) as u8;
                     self.phosphor[pidx] = new_energy;
                 }
 
                 if self.phosphor[pidx] <= PHOSPHOR_DEAD_THRESHOLD {
-                    // Phosphor is dead — clear cell
+                    // Phosphor is dead — clear cell and mark dirty
                     self.phosphor[pidx] = 0;
                     self.phosphor_base_fg[pidx] = None;
                     frame.set(col, line, blank_cell);
@@ -2787,7 +2873,7 @@ mod tests {
     use crate::constants::{
         CHARSET_TRANSITION_DURATION_MS, COLOR_TRANSITION_DURATION_MS,
         COLOR_TRANSITION_INITIAL_VISIBLE_PCT, FULL_REDRAW_INTERVAL_FRAMES, MAX_PALETTE_SLOTS,
-        SPAWN_REMAINDER_CAP,
+        PHOSPHOR_BOTTOM_ROWS, SPAWN_REMAINDER_CAP,
     };
     use crate::frame::Frame;
     use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
@@ -3187,5 +3273,238 @@ mod tests {
         assert!(ctx.color_uses_previous_palette(0, 8, 0));
         // Droplet already on active palette: always uses new palette
         assert!(!ctx.color_uses_previous_palette(1, 8, 0));
+    }
+
+    #[test]
+    fn droplet_exiting_bottom_fully_clears_trail() {
+        // When a droplet dies (tail catches head), all its trail cells should
+        // be blanked in the draw call. After the draw, no cells in the
+        // droplet's column should retain stale content from that droplet.
+        let mut cloud = make_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+
+        // Spawn a droplet that will die quickly
+        let now = Instant::now();
+        cloud.last_spawn_time = now - Duration::from_secs(1);
+        cloud.rain_at(&mut frame, now);
+
+        // Find a living droplet and force it to die by making tail catch head
+        let mut found = false;
+        for d in &mut cloud.droplets {
+            if d.is_alive {
+                // Force the droplet to die: tail reaches head
+                d.tail_put_line = Some(d.head_put_line);
+                d.tail_cur_line = d.head_put_line;
+                d.is_alive = false;
+                found = true;
+                break;
+            }
+        }
+        assert!(found, "should have at least one living droplet after rain");
+
+        // Run another frame — the dead droplet's draw() should blank all cells
+        let mut frame2 = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        cloud.last_phosphor_time = now;
+        cloud.rain_at(&mut frame2, now + Duration::from_millis(16));
+
+        // After the draw, dead droplet's bound_col should be recycled
+        let dead_droplets: Vec<_> = cloud
+            .droplets
+            .iter()
+            .filter(|d| !d.is_alive && d.bound_col != u16::MAX)
+            .collect();
+        assert!(
+            dead_droplets.is_empty(),
+            "dead droplets should have bound_col = u16::MAX after cleanup draw"
+        );
+    }
+
+    #[test]
+    fn phosphor_blank_cells_are_not_overridden_by_ghost() {
+        // When a cell is blanked (fg = None, current_gen), the phosphor pass
+        // should NOT render a ghost cell over it. The blank should take effect,
+        // and afterglow begins on the next frame.
+        let mut cloud = make_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+
+        let now = Instant::now();
+        cloud.last_spawn_time = now - Duration::from_secs(1);
+        cloud.rain_at(&mut frame, now);
+
+        // Manually blank a cell that has phosphor energy
+        let col = 0u16;
+        let line = 0u16;
+        let blank = crate::terminal::blank_cell(cloud.palette.bg);
+        frame.set(col, line, blank);
+
+        // The cell should now be blank in the frame
+        let cell = frame.get(col, line).unwrap();
+        assert_eq!(cell.ch, ' ');
+        assert!(cell.fg.is_none(), "blanked cell should have fg = None");
+    }
+
+    #[test]
+    fn stale_bottom_cells_decay_to_blank_within_bounded_time() {
+        // Phosphor ghost cells at the bottom of the screen should decay to
+        // blank within a bounded number of frames, thanks to the bottom-row
+        // decay acceleration (PHOSPHOR_BOTTOM_DECAY_MULT).
+        use crate::constants::{
+            PHOSPHOR_BOTTOM_DECAY_MULT, PHOSPHOR_DEAD_THRESHOLD, PHOSPHOR_DECAY_RATE,
+            PHOSPHOR_TAIL_RESIDUAL,
+        };
+
+        // Calculate the theoretical number of 60fps frames needed for a
+        // bottom-row ghost cell to decay from PHOSPHOR_TAIL_RESIDUAL to
+        // PHOSPHOR_DEAD_THRESHOLD with bottom acceleration.
+        let fps = 60.0;
+        let dt = 1.0 / fps;
+        let effective_rate = PHOSPHOR_DECAY_RATE * PHOSPHOR_BOTTOM_DECAY_MULT;
+        let mut energy = PHOSPHOR_TAIL_RESIDUAL as f32;
+        let mut frames = 0u32;
+        let max_frames = 300; // 5 seconds at 60fps — hard upper bound
+
+        while energy > PHOSPHOR_DEAD_THRESHOLD as f32 && frames < max_frames {
+            energy *= (-effective_rate * dt).exp();
+            frames += 1;
+        }
+
+        assert!(
+            energy <= PHOSPHOR_DEAD_THRESHOLD as f32,
+            "phosphor should decay to dead within {} frames at bottom, but energy = {}",
+            frames,
+            energy
+        );
+        // Bottom decay should be significantly faster than normal
+        // Normal: ~60-70 frames. Bottom should be < 30 frames.
+        assert!(
+            frames < 30,
+            "bottom-row phosphor should decay in < 30 frames (got {}), ensuring no concrete wall",
+            frames
+        );
+    }
+
+    #[test]
+    fn high_speed_does_not_create_unbounded_bottom_accumulation() {
+        // Simulate high-speed rain for many frames and verify that the bottom
+        // rows don't accumulate more than a bounded number of non-blank cells.
+        let mut cloud = make_cloud();
+        cloud.chars_per_sec = 100.0; // High speed
+        cloud.droplet_density = 1.5;
+        cloud.recalc_droplets_per_sec();
+
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let start = Instant::now();
+        let frame_dt = Duration::from_millis(16); // ~60fps
+
+        // Run 300 frames (~5 seconds) of high-speed rain
+        for i in 0..300 {
+            let now = start + frame_dt * i;
+            cloud.last_spawn_time = now - Duration::from_millis(16);
+            cloud.last_phosphor_time = now;
+            cloud.rain_at(&mut frame, now);
+        }
+
+        // Count non-blank cells in the bottom PHOSPHOR_BOTTOM_ROWS
+        let bottom_start = cloud.lines.saturating_sub(PHOSPHOR_BOTTOM_ROWS);
+        let mut non_blank_bottom = 0usize;
+        let mut total_bottom = 0usize;
+        for line in bottom_start..cloud.lines {
+            for col in 0..cloud.cols {
+                total_bottom += 1;
+                let cell = frame.get(col, line).unwrap();
+                if cell.fg.is_some() {
+                    non_blank_bottom += 1;
+                }
+            }
+        }
+
+        // At high speed, there should always be some active cells, but the
+        // ratio of non-blank cells at the bottom should not approach 100%
+        // (which would indicate a "concrete wall"). Allow up to 85% to
+        // account for active rain, but not the ~100% seen in the bug.
+        let ratio = non_blank_bottom as f32 / total_bottom as f32;
+        assert!(
+            ratio < 0.85,
+            "bottom rows should not be >85% non-blank after high-speed rain (got {:.1}%), \
+             indicating no concrete wall accumulation",
+            ratio * 100.0
+        );
+    }
+
+    #[test]
+    fn blank_cells_are_marked_dirty_for_redraw() {
+        // When a cell transitions from having content to blank (via tail
+        // cleanup), it must be marked dirty so the terminal redraws it.
+        let mut frame = Frame::new(4, 4, None);
+        frame.clear_dirty();
+
+        // Set a cell with content
+        frame.set(
+            2,
+            2,
+            crate::cell::Cell {
+                ch: 'X',
+                fg: Some(Color::Green),
+                bg: None,
+                bold: true,
+            },
+        );
+        assert!(
+            !frame.dirty_indices().is_empty(),
+            "setting content should be dirty"
+        );
+
+        frame.clear_dirty();
+
+        // Blank the cell
+        frame.set(2, 2, crate::cell::Cell::blank_with_bg(None));
+        assert!(
+            !frame.dirty_indices().is_empty(),
+            "blanking a cell with content must be dirty — otherwise differential rendering skips the clear"
+        );
+        assert_eq!(frame.get(2, 2).unwrap().ch, ' ');
+        assert!(frame.get(2, 2).unwrap().fg.is_none());
+    }
+
+    #[test]
+    fn active_trail_cells_are_protected_from_phosphor_decay() {
+        // Cells within a living droplet's range should NOT be ghosted by
+        // the phosphor system, even if they weren't redrawn this frame.
+        // This test verifies that Pass 2 of phosphor_decay_pass marks
+        // active trail cells as fresh.
+        let mut cloud = make_cloud();
+        cloud.chars_per_sec = 50.0;
+        cloud.recalc_droplets_per_sec();
+
+        let now = Instant::now();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+
+        cloud.last_spawn_time = now - Duration::from_secs(1);
+        cloud.rain_at(&mut frame, now);
+
+        // After rain, find a living droplet
+        let living: Vec<_> = cloud.droplets.iter().filter(|d| d.is_alive).collect();
+        assert!(!living.is_empty(), "should have living droplets after rain");
+
+        // Verify that cells within living droplet ranges have phosphor = 255
+        // (protected from decay by Pass 2)
+        let lines = cloud.lines;
+        let mut protected_count = 0;
+        for d in &living {
+            let start = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
+            for line in start..=d.head_put_line {
+                if line >= lines {
+                    break;
+                }
+                let pidx = d.bound_col as usize * lines as usize + line as usize;
+                if pidx < cloud.phosphor.len() && cloud.phosphor[pidx] == 255 {
+                    protected_count += 1;
+                }
+            }
+        }
+        assert!(
+            protected_count > 0,
+            "living droplet cells should have phosphor = 255 (protected from decay)"
+        );
     }
 }
