@@ -341,6 +341,9 @@ impl DropletSpawnSpec {
         d.head_stop_time = None;
         d.turb_phase = self.turb_phase;
         d.turb_time = 0.0;
+        // Phase jitter: leave advance_remainder at its current value.
+        // activate() will reset it to 0.0 unless SPAWN_PHASE_JITTER is true,
+        // in which case a random offset is applied after activation.
     }
 }
 
@@ -1054,6 +1057,12 @@ pub struct Cloud {
     phosphor: Vec<u8>,
     /// Per-cell base foreground color captured when phosphor was activated.
     phosphor_base_fg: Vec<Option<Color>>,
+    /// Per-cell base character captured when phosphor was activated.
+    /// Used to render ghost cells with the original character at dimmed
+    /// brightness instead of a blank space — this makes trail afterglow
+    /// look like fading text rather than dim colored patches, which is
+    /// critical for perceived smoothness and cinematic quality.
+    phosphor_base_ch: Vec<char>,
     /// Per-cell layer identifier for layer-aware phosphor decay.
     phosphor_layer: Vec<u8>,
     /// BitVec tracking which cells were refreshed by a droplet this frame.
@@ -1178,6 +1187,7 @@ impl Cloud {
             last_reseed_time: now,
             phosphor: Vec::new(),
             phosphor_base_fg: Vec::new(),
+            phosphor_base_ch: Vec::new(),
             phosphor_layer: Vec::new(),
             phosphor_fresh: BitVec::new(),
             last_phosphor_time: now,
@@ -1468,6 +1478,8 @@ impl Cloud {
         self.phosphor.resize(total, 0);
         self.phosphor_base_fg.clear();
         self.phosphor_base_fg.resize(total, None);
+        self.phosphor_base_ch.clear();
+        self.phosphor_base_ch.resize(total, '\0');
         self.phosphor_layer.clear();
         self.phosphor_layer.resize(total, 0);
         self.phosphor_fresh.clear();
@@ -1585,6 +1597,8 @@ impl Cloud {
         self.phosphor.resize(total, 0);
         self.phosphor_base_fg.clear();
         self.phosphor_base_fg.resize(total, None);
+        self.phosphor_base_ch.clear();
+        self.phosphor_base_ch.resize(total, '\0');
         self.phosphor_layer.clear();
         self.phosphor_layer.resize(total, 0);
     }
@@ -1883,6 +1897,14 @@ impl Cloud {
             let d = &mut self.droplets[di];
             spec.apply_to(d);
             d.activate(now);
+            // Apply spawn phase jitter: randomize the fractional advance offset
+            // so droplets don't all advance on the same frame cadence. This
+            // breaks the "robotic march" where every stream moves its head on
+            // the same tick, making the rain feel organic and alive.
+            if SPAWN_PHASE_JITTER {
+                let jitter = self.rand_chance.sample(&mut self.mt);
+                d.apply_phase_jitter(jitter);
+            }
             self.spawn_scan_idx = (di + 1) % len;
 
             self.col_stat[col as usize].can_spawn = false;
@@ -2137,6 +2159,17 @@ impl Cloud {
                         self.phosphor_fresh.set(pidx, true);
                         self.phosphor[pidx] = 255;
                         self.phosphor_base_fg[pidx] = cell.fg;
+                        self.phosphor_base_ch[pidx] = cell.ch;
+                    } else if cell.ch != ' ' {
+                        // Mono mode: cells may have fg=None but still display a
+                        // character. Track the character so ghost cells can render
+                        // with the original glyph during phosphor decay.
+                        let pidx = col as usize * lines as usize + line as usize;
+                        self.phosphor_fresh.set(pidx, true);
+                        self.phosphor[pidx] = 255;
+                        self.phosphor_base_ch[pidx] = cell.ch;
+                        // phosphor_base_fg stays None — ghost cells will use a
+                        // default dim color derived from the palette.
                     }
                 }
             }
@@ -2174,12 +2207,16 @@ impl Cloud {
                     // Refresh phosphor energy so that when the tail eventually
                     // passes, the cell starts its afterglow from full energy.
                     self.phosphor[pidx] = 255;
-                    // Update base_fg to the cell's current color so the
-                    // afterglow reflects the most recent visual state.
+                    // Update base_fg/base_ch to the cell's current visual state
+                    // so the afterglow reflects the most recent appearance.
                     let fidx = line as usize * frame_width as usize + d.bound_col as usize;
-                    let cell_fg = frame.cell_at_index_ref(fidx).fg;
-                    if cell_fg.is_some() {
-                        self.phosphor_base_fg[pidx] = cell_fg;
+                    let cell = frame.cell_at_index_ref(fidx);
+                    if cell.fg.is_some() {
+                        self.phosphor_base_fg[pidx] = cell.fg;
+                        self.phosphor_base_ch[pidx] = cell.ch;
+                    } else if cell.ch != ' ' {
+                        // Mono mode: track character even without fg color
+                        self.phosphor_base_ch[pidx] = cell.ch;
                     }
                 }
             }
@@ -2248,17 +2285,47 @@ impl Cloud {
                     // Phosphor is dead — clear cell and mark dirty
                     self.phosphor[pidx] = 0;
                     self.phosphor_base_fg[pidx] = None;
+                    self.phosphor_base_ch[pidx] = '\0';
                     frame.set(col, line, blank_cell);
                 } else if let Some(base_fg) = self.phosphor_base_fg[pidx] {
-                    // Render ghost cell with dimmed color
+                    // Render ghost cell with the original character at dimmed
+                    // brightness. Using the actual character (not a space) makes
+                    // trail afterglow look like fading text — this is critical
+                    // for perceived smoothness because the character texture
+                    // makes the per-frame brightness decay visible, whereas a
+                    // dim space only shows color change which is hard to perceive.
                     let factor = self.phosphor[pidx] as f32 / 255.0;
                     let ghost_fg = crate::palette::apply_brightness(base_fg, factor);
+                    let ghost_ch = self.phosphor_base_ch[pidx];
                     frame.set(
                         col,
                         line,
                         Cell {
-                            ch: ' ',
+                            ch: if ghost_ch == '\0' { ' ' } else { ghost_ch },
                             fg: Some(ghost_fg),
+                            bg,
+                            bold: false,
+                        },
+                    );
+                } else if self.phosphor_base_ch[pidx] != '\0' {
+                    // Mono mode: no base_fg (ColorMode::Mono), but we have a
+                    // tracked character. Render the ghost cell with the original
+                    // glyph at dimmed brightness using the palette's dim color.
+                    let factor = self.phosphor[pidx] as f32 / 255.0;
+                    let ghost_ch = self.phosphor_base_ch[pidx];
+                    // Use the palette's darkest non-background color for the ghost
+                    let ghost_fg = self
+                        .palette
+                        .colors
+                        .first()
+                        .copied()
+                        .map(|c| crate::palette::apply_brightness(c, factor * 0.6));
+                    frame.set(
+                        col,
+                        line,
+                        Cell {
+                            ch: ghost_ch,
+                            fg: ghost_fg,
                             bg,
                             bold: false,
                         },
@@ -3506,5 +3573,186 @@ mod tests {
             protected_count > 0,
             "living droplet cells should have phosphor = 255 (protected from decay)"
         );
+    }
+
+    #[test]
+    fn phosphor_ghost_cells_use_original_character() {
+        // Ghost cells should render with the original character (not a space)
+        // so trail afterglow looks like fading text rather than dim colored patches.
+        // We verify this by checking that phosphor_base_ch is populated when
+        // cells have phosphor energy, and that ghost cells in the frame have
+        // non-space characters.
+        let mut cloud = make_cloud();
+        cloud.chars_per_sec = 8.0;
+        cloud.recalc_droplets_per_sec();
+
+        let now = Instant::now();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+
+        // Run rain to spawn and advance droplets, creating phosphor state
+        cloud.last_spawn_time = now - Duration::from_secs(1);
+        cloud.last_phosphor_time = now;
+        cloud.rain_at(&mut frame, now);
+
+        // Verify that phosphor has been populated — at least some cells should
+        // have energy after droplets draw.
+        let total_with_energy = cloud.phosphor.iter().filter(|&&e| e > 0).count();
+        assert!(
+            total_with_energy > 0,
+            "after rain, some cells should have phosphor energy"
+        );
+
+        // Verify that phosphor_base_ch is set for cells that have phosphor energy.
+        // These are cells drawn by droplets (Pass 1) or protected by active
+        // droplets (Pass 2). The character tracking is essential for rendering
+        // ghost cells with the original glyph instead of a blank space.
+        let cells_with_char_and_energy: usize = cloud
+            .phosphor
+            .iter()
+            .zip(cloud.phosphor_base_ch.iter())
+            .filter(|(&energy, &ch)| energy > 0 && ch != '\0')
+            .count();
+        assert!(
+            cells_with_char_and_energy > 0,
+            "after rain, cells with phosphor energy should have tracked characters (found {} with energy, {} with both energy and char)",
+            total_with_energy,
+            cells_with_char_and_energy
+        );
+    }
+
+    #[test]
+    fn spawn_phase_jitter_produces_varied_advance_remainder() {
+        // With SPAWN_PHASE_JITTER enabled, newly spawned droplets should
+        // have varied advance_remainder values, not all zero.
+        let mut cloud = make_cloud();
+        cloud.chars_per_sec = 8.0;
+        cloud.recalc_droplets_per_sec();
+
+        let now = Instant::now();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+
+        cloud.last_spawn_time = now - Duration::from_secs(1);
+        cloud.last_phosphor_time = now;
+        cloud.rain_at(&mut frame, now);
+
+        let living: Vec<_> = cloud.droplets.iter().filter(|d| d.is_alive).collect();
+
+        if living.len() < 2 {
+            // Not enough droplets to test variance — skip
+            return;
+        }
+
+        let remainders: Vec<f32> = living.iter().map(|d| d.advance_remainder).collect();
+        // Use bitwise comparison for uniqueness (f32 doesn't impl Hash/Eq)
+        let unique_count: usize = {
+            let mut sorted_bits: Vec<u32> = remainders.iter().map(|r| r.to_bits()).collect();
+            sorted_bits.sort_unstable();
+            sorted_bits.dedup();
+            sorted_bits.len()
+        };
+
+        // With jitter, we expect at least some variety in remainders.
+        // Without jitter, all would be 0.0 (or very similar after one frame).
+        // Note: this test is probabilistic — with many droplets, it's
+        // overwhelmingly likely that at least 2 have different remainders.
+        assert!(
+            unique_count > 1 || living.len() < 3,
+            "spawn phase jitter should produce varied advance_remainder values, but all {} droplets have the same: {:?}",
+            living.len(),
+            remainders
+        );
+    }
+
+    #[test]
+    fn consecutive_frames_produce_visual_changes() {
+        // At default speed, consecutive frames should produce visible dirty
+        // cells even when droplet heads don't advance rows — because phosphor
+        // ghost characters create per-frame visual differences.
+        let mut cloud = make_cloud();
+        cloud.chars_per_sec = 8.0;
+        cloud.recalc_droplets_per_sec();
+
+        let base = Instant::now();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+
+        // First rain tick: spawn and advance
+        cloud.last_spawn_time = base - Duration::from_secs(1);
+        cloud.last_phosphor_time = base;
+        cloud.rain_at(&mut frame, base);
+
+        // Second tick: small time step (1/60s = ~16.7ms)
+        let frame2_time = base + Duration::from_micros(16_667);
+        frame.clear_dirty();
+        cloud.last_phosphor_time = base; // will be corrected by rain_at
+        cloud.rain_at(&mut frame, frame2_time);
+        let dirty2 = frame.dirty_indices().len();
+
+        // Third tick: another 16.7ms
+        let frame3_time = base + Duration::from_micros(33_334);
+        frame.clear_dirty();
+        cloud.last_phosphor_time = frame2_time;
+        cloud.rain_at(&mut frame, frame3_time);
+        let dirty3 = frame.dirty_indices().len();
+
+        // At least one of these frames should have visual changes
+        // (phosphor ghost characters, head brightness modulation, etc.)
+        assert!(
+            dirty2 > 0 || dirty3 > 0,
+            "consecutive frames at default speed should produce visual changes (dirty2={}, dirty3={})",
+            dirty2, dirty3
+        );
+    }
+
+    #[test]
+    fn fractional_head_brightness_varies_between_frames() {
+        // The Droplet's fractional_progress should vary based on advance_remainder,
+        // producing different values across frames even when the head doesn't move rows.
+        // This is the public API that drives head brightness modulation.
+        use crate::droplet::Droplet;
+
+        let now = Instant::now();
+        let mut d = Droplet::new();
+        d.is_alive = true;
+        d.is_head_crawling = true;
+        d.is_tail_crawling = true;
+        d.bound_col = 5;
+        d.head_put_line = 3;
+        d.end_line = 9;
+        d.length = 8;
+        d.chars_per_sec = 8.0;
+        d.velocity = 8.0;
+        d.last_time = Some(now);
+        // birth_time is private, so activate the droplet to set it
+        d.activate(now);
+
+        // At advance_remainder = 0.0 (just advanced)
+        d.advance_remainder = 0.0;
+        let progress_0 = d.fractional_progress();
+
+        // At advance_remainder = 0.5 (halfway to next row)
+        d.advance_remainder = 0.5;
+        let progress_5 = d.fractional_progress();
+
+        // At advance_remainder = 0.9 (about to advance)
+        d.advance_remainder = 0.9;
+        let progress_9 = d.fractional_progress();
+
+        // Fractional progress should increase monotonically
+        assert!(
+            progress_9 > progress_5,
+            "fractional progress at 0.9 should exceed 0.5: {} vs {}",
+            progress_5,
+            progress_9
+        );
+        assert!(
+            progress_5 > progress_0,
+            "fractional progress at 0.5 should exceed 0.0: {} vs {}",
+            progress_5,
+            progress_0
+        );
+        // Verify exact values
+        assert!((progress_0 - 0.0).abs() < 0.001);
+        assert!((progress_5 - 0.5).abs() < 0.001);
+        assert!((progress_9 - 0.9).abs() < 0.001);
     }
 }

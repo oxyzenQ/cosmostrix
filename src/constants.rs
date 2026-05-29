@@ -155,7 +155,10 @@ pub const IDLE_THRESHOLD_SECS: f64 = 30.0;
 
 /// Effective FPS multiplier while idle. Applied on top of the user's
 /// configured FPS target to reduce update pressure during inactivity.
-pub const IDLE_FPS_FACTOR: f64 = 0.25;
+/// Raised from 0.25 to 0.5 (30 FPS at 60 target) to keep phosphor decay
+/// and shimmer visually smooth even during idle — the old 15 FPS felt
+/// choppy and undermined the cinematic smoothness improvements.
+pub const IDLE_FPS_FACTOR: f64 = 0.5;
 
 /// Wall-clock interval for one-shot full redraws while idle. This keeps
 /// terminal/compositor state synchronized even when idle FPS makes the
@@ -397,6 +400,37 @@ pub const TURBULENCE_AMPLITUDE: f32 = 0.08;
 
 /// Turbulence oscillation frequency (Hz). Controls how often drift changes.
 pub const TURBULENCE_FREQ: f32 = 0.4;
+
+// ---------------------------------------------------------------------------
+// Cinematic perceived smoothness (fractional advance & shimmer)
+// ---------------------------------------------------------------------------
+
+/// Fractional head brightness amplitude: how much the head cell brightness
+/// varies based on fractional row progress between advances. 0.15 means the
+/// head brightens up to 15% as it approaches the next row, creating a subtle
+/// "energy building" pulse that makes every frame feel visually different even
+/// when the head hasn't moved to a new row. This is the key to perceived
+/// smoothness at default speed — without it, the head only changes every
+/// ~8 frames (at 8 chars/sec, 60 FPS), making the rain feel like 8 FPS.
+pub const FRACTIONAL_HEAD_BRIGHTNESS_AMP: f32 = 0.15;
+
+/// Fractional bloom modulation: how much the head bloom glow intensifies
+/// based on fractional progress. Works alongside FRACTIONAL_HEAD_BRIGHTNESS_AMP
+/// to create a per-frame visual pulse that makes the leading edge feel alive.
+pub const FRACTIONAL_BLOOM_AMP: f32 = 0.10;
+
+/// Head glyph shimmer period in seconds. The head character cycles to a new
+/// glyph from the char pool at this interval, creating subtle "churn" that
+/// makes active cells feel alive without noisy flicker. At 0.12s, the head
+/// changes character ~8 times per second — frequent enough to notice but
+/// slow enough to avoid distraction.
+pub const HEAD_SHIMMER_PERIOD_SECS: f32 = 0.12;
+
+/// Whether to add random fractional phase offset when spawning a droplet.
+/// When true, new droplets start with a random `advance_remainder` so they
+/// don't all advance on the same frame cadence. This breaks the "robotic"
+/// synchronized march where every stream moves its head on the same tick.
+pub const SPAWN_PHASE_JITTER: bool = true;
 
 // ---------------------------------------------------------------------------
 // Rare anomaly events

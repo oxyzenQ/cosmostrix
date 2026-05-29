@@ -33,7 +33,8 @@ use std::time::{Duration, Instant};
 use crate::cloud::{CharLoc, DrawCtx};
 use crate::constants::{
     ADVANCE_REMAINDER_CAP, DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT, FOG_MIN_FACTOR,
-    FOG_ROWS, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS,
+    FOG_ROWS, FRACTIONAL_BLOOM_AMP, FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS,
+    HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS,
     MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED,
     MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES,
     PARALLAX_BRIGHTNESS_MULT, PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
@@ -124,6 +125,10 @@ impl Droplet {
         self.is_alive = true;
         self.is_head_crawling = true;
         self.is_tail_crawling = true;
+        // When SPAWN_PHASE_JITTER is enabled, advance_remainder is set to a
+        // random value by the caller (Cloud::spawn_droplets) AFTER activate()
+        // resets it to 0.0. This ordering ensures activate() always produces
+        // a consistent initial state, and jitter is layered on top.
         self.advance_remainder = 0.0;
         // Cinematic startup: begin at a low fraction and ease into full speed
         // via exponential approach in advance(). This eliminates the jarring
@@ -132,6 +137,17 @@ impl Droplet {
         self.turb_time = 0.0;
         self.last_time = Some(now);
         self.birth_time = Some(now);
+    }
+
+    /// Apply spawn phase jitter: set a random fractional advance offset so
+    /// this droplet's row advances are staggered relative to other droplets.
+    /// Without jitter, all droplets start at advance_remainder=0 and advance
+    /// on the same frame cadence, creating a robotic synchronized march.
+    /// With jitter, each droplet's head brightens and advances at a different
+    /// phase, making the rain feel organic and alive.
+    #[inline]
+    pub fn apply_phase_jitter(&mut self, offset: f32) {
+        self.advance_remainder = offset.clamp(0.0, 1.0);
     }
 
     pub fn increment_time(&mut self, delta: Duration) {
@@ -259,14 +275,34 @@ impl Droplet {
         false
     }
 
+    /// Returns 0.0–1.0 indicating how much fractional progress the droplet
+    /// has made toward its next row advance. This is used to create per-frame
+    /// visual variation (brightness ramp, bloom modulation) even when the
+    /// head hasn't moved to a new row — the key to perceived smoothness.
+    #[inline]
+    pub fn fractional_progress(&self) -> f32 {
+        self.advance_remainder.clamp(0.0, 1.0)
+    }
+
     /// Returns 0.0–1.0 indicating how "bright" the head cell should appear.
-    /// During crawling: 1.0. After head stops: exponential decay from 1.0→0.0
-    /// over HEAD_LINGER_BRIGHTNESS_MS, producing a smooth fade instead of
-    /// the old binary on/off switch.
+    /// During crawling: 1.0 + fractional progress ramp. After head stops:
+    /// exponential decay from 1.0→0.0 over HEAD_LINGER_BRIGHTNESS_MS.
+    ///
+    /// The fractional progress ramp makes the head progressively brighter
+    /// as it approaches the next row advance, creating a subtle "energy
+    /// building" pulse. This means every frame has a visible brightness
+    /// change on the head cell, even when the row position hasn't changed —
+    /// transforming the perceived update rate from ~8 FPS (row-quantized)
+    /// to 60 FPS (brightness-interpolated).
     #[inline]
     fn head_brightness(&self, now: Instant) -> f32 {
         if self.is_head_crawling {
-            return 1.0;
+            // Fractional progress creates a subtle brightness ramp.
+            // When advance_remainder is 0 (just advanced), brightness is 1.0.
+            // When advance_remainder is ~1 (about to advance), brightness is
+            // 1.0 + FRACTIONAL_HEAD_BRIGHTNESS_AMP (e.g., 1.15).
+            // This "energy building" effect makes every frame feel different.
+            return 1.0 + self.fractional_progress() * FRACTIONAL_HEAD_BRIGHTNESS_AMP;
         }
         if let Some(stop) = self.head_stop_time {
             let elapsed_ms = now.saturating_duration_since(stop).as_secs_f32() * 1000.0;
@@ -309,13 +345,29 @@ impl Droplet {
             }
 
             let is_glitched = ctx.is_glitched(line, self.bound_col);
-            let val = ctx.get_char(line, self.bound_col, self.char_pool_idx);
+            // Head glyph shimmer: periodically cycle the head character to create
+            // subtle "churn" that makes active cells feel alive without flicker.
+            // The shimmer uses a time-based offset into the char_pool, so the
+            // character changes smoothly at HEAD_SHIMMER_PERIOD_SECS intervals.
+            let is_head = line == self.head_put_line && self.is_head_bright(now);
+            let val = if is_head && self.is_head_crawling {
+                let birth = self.birth_time.unwrap_or(now);
+                let age = now.saturating_duration_since(birth).as_secs_f32();
+                let shimmer_idx = (age / HEAD_SHIMMER_PERIOD_SECS) as u16;
+                ctx.get_char(
+                    line,
+                    self.bound_col,
+                    self.char_pool_idx.wrapping_add(shimmer_idx),
+                )
+            } else {
+                ctx.get_char(line, self.bound_col, self.char_pool_idx)
+            };
 
             let mut loc = CharLoc::Middle;
             if self.tail_put_line.is_some() && Some(line) == self.tail_put_line.map(|v| v + 1) {
                 loc = CharLoc::Tail;
             }
-            if line == self.head_put_line && self.is_head_bright(now) {
+            if is_head {
                 loc = CharLoc::Head;
             }
 
@@ -368,6 +420,9 @@ impl Droplet {
 
                 // Head bloom: exponential gaussian falloff for natural glow.
                 // New-generation streams get enhanced bloom for energetic leading edge.
+                // Fractional bloom modulation: bloom intensifies as the head
+                // approaches its next row advance, creating a per-frame pulse
+                // that makes the leading edge feel alive even between row steps.
                 if matches!(loc, CharLoc::Middle) {
                     let dist_from_head = self.head_put_line.saturating_sub(line);
                     if dist_from_head > 0 && dist_from_head < HEAD_BLOOM_CELLS {
@@ -379,7 +434,11 @@ impl Droplet {
                         } else {
                             HEAD_BLOOM_INTENSITY
                         };
-                        c = palette::blend_toward_white(c, gaussian * bloom);
+                        // Fractional bloom: as the head approaches the next row,
+                        // bloom subtly intensifies. This creates visible per-frame
+                        // change in the cells immediately behind the head.
+                        let frac_bloom = 1.0 + self.fractional_progress() * FRACTIONAL_BLOOM_AMP;
+                        c = palette::blend_toward_white(c, gaussian * bloom * frac_bloom);
                     }
                 }
 
@@ -458,9 +517,12 @@ impl Droplet {
                 }
 
                 // Head brightness modulation: smoothly fade the head cell's
-                // brightness after it stops (exponential decay). This replaces
-                // the old binary bright/dim switch with a perceptually smooth
-                // transition that makes stream endings feel less abrupt.
+                // brightness after it stops (exponential decay). While crawling,
+                // the fractional progress ramp already makes the head brighter
+                // via head_brightness(); here we apply a smooth mapping that
+                // compresses the 1.0–1.15 range into a visually appropriate
+                // range (0.75–1.0) for the final output, and decays the
+                // stopped head from 0.75→0.0.
                 if matches!(loc, CharLoc::Head) && head_bright < 1.0 {
                     c = palette::apply_brightness(c, 0.5 + 0.5 * head_bright);
                 }

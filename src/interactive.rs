@@ -355,6 +355,14 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut perf_overshoot_frames: u64 = 0;
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
 
+    // Perceived-motion diagnostics: track how many frames produce visible
+    // changes vs. frames where nothing visually changed. This helps diagnose
+    // the "feels like 10 FPS" problem where the renderer runs at 60 FPS but
+    // row advances only happen every ~8 frames.
+    let mut perf_idle_frames: u64 = 0; // frames where dirty_count == 0
+    let mut perf_dirty_sum: u64 = 0; // total dirty cells across all frames
+    let mut perf_dirty_samples: u64 = 0; // number of frames sampled for dirty avg
+
     // Resize debounce: track when the last resize event arrived so rapid
     // resize storms (e.g. window drag) are coalesced into a single apply.
     let mut last_resize_event: Option<Instant> = None;
@@ -645,7 +653,11 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             perf_frames = perf_frames.saturating_add(1);
             if did_draw {
                 perf_drawn_frames = perf_drawn_frames.saturating_add(1);
+            } else {
+                perf_idle_frames = perf_idle_frames.saturating_add(1);
             }
+            perf_dirty_sum = perf_dirty_sum.saturating_add(dirty_len as u64);
+            perf_dirty_samples = perf_dirty_samples.saturating_add(1);
             perf_work_sum_s += work_s as f64;
             perf_work_max_s = perf_work_max_s.max(work_s as f64);
             perf_pressure_sum += perf_pressure as f64;
@@ -716,8 +728,35 @@ pub fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 &format!("{} ({:.1}%)", perf_drawn_frames, drawn_ratio * 100.0),
             );
             s.field(
+                "idle_visual",
+                &format!(
+                    "{} ({:.1}%)",
+                    perf_idle_frames,
+                    (perf_idle_frames as f64) / (perf_frames as f64).max(1.0) * 100.0
+                ),
+            );
+            s.field(
                 "overshoot",
                 &format!("{} ({:.1}%)", perf_overshoot_frames, overshoot_ratio),
+            );
+        }
+
+        {
+            let s = r.section("MOTION");
+            let avg_dirty = if perf_dirty_samples > 0 {
+                perf_dirty_sum as f64 / perf_dirty_samples as f64
+            } else {
+                0.0
+            };
+            s.field("avg_dirty_cells", &format!("{:.1}", avg_dirty));
+            s.field(
+                "visual_fps_hint",
+                &format!(
+                    "{:.1} ({} of {} frames had visual changes)",
+                    drawn_ratio * cfg.target_fps,
+                    perf_drawn_frames,
+                    perf_frames
+                ),
             );
         }
 
