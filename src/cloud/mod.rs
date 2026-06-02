@@ -1,0 +1,784 @@
+// Copyright (c) 2026 rezky_nightky
+
+//! Core simulation engine for Cosmostrix.
+//!
+//! This module implements the entire atmospheric rendering pipeline:
+//! droplet spawning, advancement, palette management, phosphor persistence,
+//! anomaly events, and the autonomous cinematic ecosystem.
+//!
+//! ## Key Systems
+//!
+//! - **DrawCtx**: A read-only snapshot of renderer state passed to each
+//!   droplet's `draw()` method, avoiding borrow conflicts with the mutable
+//!   droplet iteration loop.
+//! - **Behavior Profiles**: Seven cinematic identities (Monolith, Void, Neural,
+//!   Decay, Eclipse, Static, Pulse) that define fundamentally different
+//!   atmospheric behaviors — not mere recolors.
+//! - **Color Ecosystem**: Slow autonomous drift of luminance, saturation, and
+//!   hue that makes the renderer feel organically alive over long sessions.
+//! - **Atmospheric Evolution**: Entropy cycles that modulate density, luminance
+//!   and anomaly pressure on minute-scale timescales.
+//! - **Renderer Memory**: Long-timescale history that influences emergent
+//!   behavior based on past atmospheric conditions.
+//! - **Storytelling State**: Watches for convergence across other systems and
+//!   occasionally produces emotionally resonant emergent moments.
+//!
+//! ## Palette Transition System
+//!
+//! When the color scheme changes, new droplets inherit the new palette while
+//! existing streams retain their birth palette for their entire lifecycle.
+//! Rows adopt the new palette via a top-to-bottom wave (matching the charset
+//! transition visual language), creating an organic propagation cascade
+//! instead of a robotic simultaneous switch.
+
+mod ecosystem;
+mod phosphor;
+mod rain;
+mod render;
+mod spawn;
+mod state;
+
+#[cfg(test)]
+mod tests;
+
+// Re-export public types needed by other modules (droplet.rs uses CharLoc + DrawCtx)
+pub(super) use render::{CharLoc, DrawCtx};
+
+use std::time::{Duration, Instant};
+
+use bitvec::prelude::BitVec;
+use crossterm::style::Color;
+use rand::{
+    distr::{Distribution, Uniform},
+    rngs::StdRng,
+    SeedableRng,
+};
+
+use crate::cell::Cell;
+use crate::constants::*;
+use crate::droplet::Droplet;
+use crate::frame::Frame;
+use crate::palette::{build_palette, Palette};
+use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
+
+use ecosystem::{
+    AtmosphericEvolution, BehaviorProfile, ColorEcosystem, ProfileParams, RendererMemory,
+    StorytellingState,
+};
+use state::{AnomalyZone, ColumnStatus, MsgChr};
+
+// --- Named constants are centralized in constants.rs ---
+
+#[allow(private_interfaces, clippy::struct_excessive_bools)]
+pub struct Cloud {
+    pub(super) lines: u16,
+    pub(super) cols: u16,
+
+    pub(super) palette: Palette,
+    pub(super) color_mode: ColorMode,
+
+    pub(super) full_width: bool,
+    pub(super) shading_distance: bool,
+    pub(super) bold_mode: BoldMode,
+
+    pub(super) async_mode: bool,
+    pub(super) raining: bool,
+    pub(super) pause: bool,
+
+    pub(super) droplet_density: f32,
+    pub(super) droplets_per_sec: f32,
+    pub(super) chars_per_sec: f32,
+
+    pub(super) glitchy: bool,
+    pub(super) glitch_pct: f32,
+    pub(super) glitch_low_ms: u16,
+    pub(super) glitch_high_ms: u16,
+
+    pub(super) short_pct: f32,
+    pub(super) die_early_pct: f32,
+    pub(super) linger_low_ms: u16,
+    pub(super) linger_high_ms: u16,
+
+    pub(super) max_droplets_per_column: u8,
+
+    pub(super) droplets: Vec<Droplet>,
+    pub(super) spawn_scan_idx: usize,
+
+    pub(super) chars: Vec<char>,
+    pub(super) char_pool: Vec<char>,
+    pub(super) previous_char_pool: Vec<char>,
+    pub(super) charset_transition_start: Option<Instant>,
+    pub(super) glitch_pool: Vec<char>,
+    pub(super) glitch_pool_idx: usize,
+
+    pub(super) glitch_map: BitVec,
+    pub(super) color_map: Vec<u8>,
+
+    pub(super) col_stat: Vec<ColumnStatus>,
+
+    pub(super) mt: StdRng,
+
+    pub(super) rand_chance: Uniform<f32>,
+    pub(super) rand_line: Uniform<u16>,
+    pub(super) rand_cpidx: Uniform<u16>,
+    pub(super) rand_len: Uniform<u16>,
+    pub(super) rand_col: Uniform<u16>,
+    pub(super) rand_glitch_ms: Uniform<u16>,
+    pub(super) rand_linger_ms: Uniform<u16>,
+    pub(super) rand_speed: Uniform<f32>,
+
+    pub(super) last_glitch_time: Instant,
+    pub(super) next_glitch_time: Instant,
+    pub(super) last_spawn_time: Instant,
+    pub(super) spawn_remainder: f32,
+    pub(super) pause_time: Option<Instant>,
+
+    /// Resume time-scale factor: 0.0 (just resumed) → 1.0 (fully active).
+    /// Scales the simulation clock for all droplets during the smoothstep
+    /// resume transition, producing cinematic inertia recovery — the rain
+    /// decelerates into the pause and accelerates smoothly out of it.
+    pub(super) resume_blend: f32,
+    /// Timestamp when the most recent unpause occurred. Used to compute
+    /// the smoothstep S-curve for `resume_blend`.
+    pub(super) resume_start: Option<Instant>,
+
+    pub(super) force_draw_everything: bool,
+
+    /// Pending semantic invalidation: set to true when the renderer's semantic
+    /// identity changes (charset switch, shading mode toggle). On the next
+    /// `rain_at()`, this triggers `frame.invalidate_semantic()` which bumps
+    /// the frame's `semantic_gen`, forcing the Terminal to do a full redraw
+    /// and properly synchronize its LastFrame cache with the new semantics.
+    pub(super) semantic_invalidate: bool,
+
+    /// Frame counter for periodic full redraw (ANSI drift correction).
+    /// Every `FULL_REDRAW_INTERVAL_FRAMES`, forces a complete screen refresh
+    /// to correct any accumulated terminal state desync.
+    pub(super) frames_since_full_redraw: u64,
+
+    pub(super) perf_pressure: f32,
+    pub(super) max_sim_delta: Duration,
+
+    pub(super) shading_mode: ShadingMode,
+
+    pub(super) message: Vec<MsgChr>,
+    pub(super) message_text: Option<String>,
+    pub(super) message_border: bool,
+    pub(super) color_scheme: ColorScheme,
+    pub(super) default_background: bool,
+
+    /// Palette generation table: stores up to MAX_PALETTE_SLOTS palettes for
+    /// generation-based transitions.  Each droplet carries a `palette_slot`
+    /// that indexes into this table, so old streams retain their birth palette
+    /// while new streams inherit the latest one.
+    pub(super) palette_table: [Option<Palette>; MAX_PALETTE_SLOTS],
+
+    /// Index of the currently active palette slot (where new streams inherit).
+    pub(super) active_palette_slot: u8,
+
+    /// Time when the current palette transition started (None if not transitioning).
+    /// Used for row-based top-to-bottom wave progression.
+    pub(super) transition_start: Option<Instant>,
+
+    /// Per-column palette slot: tracks which palette each column is currently
+    /// using for spawning.  During a transition, all columns adopt the new
+    /// palette simultaneously since the wave is row-based (top-to-bottom),
+    /// not column-based. This field is kept for spawn-time inheritance.
+    pub(super) column_palette_slot: Vec<u8>,
+
+    /// Per-column delay (in ms) — legacy field kept for spawn-time reference.
+    /// No longer used for wave propagation; the row-based wave logic in
+    /// `color_wave_line_at()` drives the transition.
+    pub(super) column_transition_delay_ms: Vec<u16>,
+
+    /// Mouse cursor column position (u16::MAX if no mouse).
+    pub mouse_col: u16,
+
+    /// Mouse cursor line position (u16::MAX if no mouse).
+    pub mouse_line: u16,
+
+    /// Whether mouse interaction is enabled.
+    pub mouse_enabled: bool,
+
+    /// Flash effect: click column.
+    pub(super) flash_col: u16,
+
+    /// Flash effect: click line.
+    pub(super) flash_line: u16,
+
+    /// Flash effect: start time (None if no active flash).
+    pub(super) flash_time: Option<Instant>,
+
+    pub(super) last_reseed_time: Instant,
+
+    // --- Phosphor persistence state ---
+    /// Per-cell phosphor energy (0 = dead, 255 = full). Tracks residual
+    /// luminance for CRT-style afterglow after a droplet's tail passes.
+    pub(super) phosphor: Vec<u8>,
+    /// Per-cell base foreground color captured when phosphor was activated.
+    pub(super) phosphor_base_fg: Vec<Option<Color>>,
+    /// Per-cell base character captured when phosphor was activated.
+    /// Used to render ghost cells with the original character at dimmed
+    /// brightness instead of a blank space — this makes trail afterglow
+    /// look like fading text rather than dim colored patches, which is
+    /// critical for perceived smoothness and cinematic quality.
+    pub(super) phosphor_base_ch: Vec<char>,
+    /// Per-cell layer identifier for layer-aware phosphor decay.
+    pub(super) phosphor_layer: Vec<u8>,
+    /// BitVec tracking which cells were refreshed by a droplet this frame.
+    pub(super) phosphor_fresh: BitVec,
+    /// Time of the last phosphor pass for frame-rate-independent decay.
+    pub(super) last_phosphor_time: Instant,
+
+    // --- Rare anomaly events ---
+    /// Active anomaly zones currently affecting the screen.
+    pub(super) anomaly_zones: Vec<AnomalyZone>,
+
+    // --- Phase 3: Autonomous cinematic ecosystem ---
+    /// Active cinematic behavior profile.
+    pub(super) profile: BehaviorProfile,
+    /// Interpolated profile params (current, transitioning toward target).
+    pub(super) profile_current: ProfileParams,
+    /// Target profile params (what we're transitioning toward).
+    pub(super) profile_target: ProfileParams,
+    /// Time when profile transition started.
+    pub(super) profile_transition_start: Option<Instant>,
+
+    /// Temporal color ecosystem.
+    pub(super) color_ecosystem: ColorEcosystem,
+    /// Autonomous atmospheric evolution.
+    pub(super) atmosphere: AtmosphericEvolution,
+    /// Long-timescale renderer memory.
+    pub(super) memory: RendererMemory,
+    /// Emergent visual storytelling.
+    pub(super) storytelling: StorytellingState,
+}
+
+impl Cloud {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        color_mode: ColorMode,
+        full_width: bool,
+        shading_mode: ShadingMode,
+        bold_mode: BoldMode,
+        async_mode: bool,
+        default_background: bool,
+        color_scheme: ColorScheme,
+    ) -> Self {
+        let now = Instant::now();
+        let mt = StdRng::seed_from_u64(RNG_INITIAL_SEED);
+
+        Self {
+            lines: 25,
+            cols: 80,
+            palette: build_palette(color_scheme, color_mode, default_background),
+            color_mode,
+            full_width,
+            shading_distance: matches!(shading_mode, ShadingMode::DistanceFromHead),
+            bold_mode,
+            async_mode,
+            raining: true,
+            pause: false,
+            droplet_density: 1.0,
+            droplets_per_sec: 5.0,
+            chars_per_sec: 8.0,
+            glitchy: true,
+            glitch_pct: 0.1,
+            glitch_low_ms: 300,
+            glitch_high_ms: 400,
+            short_pct: 0.5,
+            die_early_pct: 0.3333333,
+            linger_low_ms: 1,
+            linger_high_ms: 3000,
+            max_droplets_per_column: 3,
+            droplets: Vec::new(),
+            spawn_scan_idx: 0,
+            chars: Vec::new(),
+            char_pool: Vec::new(),
+            previous_char_pool: Vec::new(),
+            charset_transition_start: None,
+            glitch_pool: Vec::new(),
+            glitch_pool_idx: 0,
+            glitch_map: BitVec::new(),
+            color_map: Vec::new(),
+            col_stat: Vec::new(),
+            mt,
+            rand_chance: Uniform::new(0.0, 1.0).expect("rand_chance: [0,1) always valid"),
+            rand_line: Uniform::new_inclusive(0, 23).expect("rand_line: [0,23] always valid"),
+            rand_cpidx: Uniform::new_inclusive(0, MAX_CHAR_POOL_IDX)
+                .expect("rand_cpidx: [0,2047] always valid"),
+            rand_len: Uniform::new_inclusive(1, 23).expect("rand_len: [1,23] always valid"),
+            rand_col: Uniform::new_inclusive(0, 79).expect("rand_col: [0,79] always valid"),
+            rand_glitch_ms: Uniform::new_inclusive(300, 400)
+                .expect("rand_glitch_ms: [300,400] always valid"),
+            rand_linger_ms: Uniform::new_inclusive(1, 3000)
+                .expect("rand_linger_ms: [1,3000] always valid"),
+            rand_speed: Uniform::new_inclusive(0.3333333, 1.0)
+                .expect("rand_speed: [0.33,1.0] always valid"),
+            last_glitch_time: now,
+            next_glitch_time: now + Duration::from_millis(300),
+            last_spawn_time: now,
+            spawn_remainder: 0.0,
+            pause_time: None,
+            resume_blend: 1.0,
+            resume_start: None,
+            force_draw_everything: false,
+            semantic_invalidate: false,
+            frames_since_full_redraw: 0,
+            perf_pressure: 0.0,
+            max_sim_delta: Duration::from_millis(0),
+            shading_mode,
+            message: Vec::new(),
+            message_text: None,
+            message_border: true,
+            color_scheme,
+            default_background,
+            palette_table: [None, None, None, None],
+            active_palette_slot: 0,
+            transition_start: None,
+            column_palette_slot: Vec::new(),
+            column_transition_delay_ms: Vec::new(),
+            mouse_col: u16::MAX,
+            mouse_line: u16::MAX,
+            mouse_enabled: false,
+            flash_col: u16::MAX,
+            flash_line: u16::MAX,
+            flash_time: None,
+            last_reseed_time: now,
+            phosphor: Vec::new(),
+            phosphor_base_fg: Vec::new(),
+            phosphor_base_ch: Vec::new(),
+            phosphor_layer: Vec::new(),
+            phosphor_fresh: BitVec::new(),
+            last_phosphor_time: now,
+            anomaly_zones: Vec::new(),
+            profile: BehaviorProfile::Monolith,
+            profile_current: BehaviorProfile::Monolith.params(),
+            profile_target: BehaviorProfile::Monolith.params(),
+            profile_transition_start: None,
+            color_ecosystem: ColorEcosystem::new(now),
+            atmosphere: AtmosphericEvolution::new(now),
+            memory: RendererMemory::new(now),
+            storytelling: StorytellingState::new(now),
+        }
+    }
+
+    pub fn set_message(&mut self, msg: &str) {
+        self.message_text = Some(msg.to_string());
+        self.reset_message();
+        self.force_draw_everything = true;
+    }
+
+    pub fn set_message_border(&mut self, on: bool) {
+        self.message_border = on;
+        if self.message_text.is_some() {
+            self.reset_message();
+            self.force_draw_everything = true;
+        }
+    }
+
+    pub fn set_color_scheme(&mut self, scheme: ColorScheme) {
+        self.color_scheme = scheme;
+        let new_palette = build_palette(scheme, self.color_mode, self.default_background);
+
+        // Advance to next palette slot (circular buffer)
+        let next_slot = ((self.active_palette_slot as usize + 1) % MAX_PALETTE_SLOTS) as u8;
+        self.palette_table[next_slot as usize] = Some(new_palette.clone());
+        self.active_palette_slot = next_slot;
+
+        // Update the convenience palette reference
+        self.palette = new_palette;
+
+        // Regenerate color map for the new palette size
+        self.fill_color_map();
+
+        // Start transition: all columns adopt the new palette immediately
+        // for spawn purposes. The visual wave is row-based (top-to-bottom)
+        // driven by color_wave_line_at(), not column-based delays.
+        for slot in self.column_palette_slot.iter_mut() {
+            *slot = self.active_palette_slot;
+        }
+        self.transition_start = Some(Instant::now());
+
+        // Do NOT force a full redraw — old streams must persist with their
+        // birth palette below the wave line.  The new palette propagates
+        // visually via the row-based wave in get_attr(), creating the
+        // cinematic top-to-bottom cascade.
+    }
+
+    /// Set mouse cursor position for interaction effects.
+    pub fn set_mouse_position(&mut self, col: u16, line: u16) {
+        self.mouse_col = col;
+        self.mouse_line = line;
+    }
+
+    /// Trigger a click flash effect at the given position.
+    pub fn set_mouse_click(&mut self, col: u16, line: u16) {
+        self.flash_col = col;
+        self.flash_line = line;
+        self.flash_time = Some(Instant::now());
+    }
+
+    #[must_use]
+    pub fn color_scheme(&self) -> ColorScheme {
+        self.color_scheme
+    }
+
+    /// Get current behavior profile.
+    pub fn profile(&self) -> BehaviorProfile {
+        self.profile
+    }
+
+    /// Cycle to the next behavior profile with smooth transition.
+    pub fn cycle_profile(&mut self) {
+        let next = self.profile.cycle();
+        self.profile = next;
+        self.profile_target = next.params();
+        self.profile_transition_start = Some(Instant::now());
+    }
+
+    /// Get the name of the current behavior profile.
+    pub fn profile_name(&self) -> &'static str {
+        self.profile.name()
+    }
+
+    /// Return the total number of droplet slots (alive + dead).
+    #[must_use]
+    pub fn droplet_count(&self) -> usize {
+        self.droplets.len()
+    }
+
+    /// Return the number of currently active (alive) droplets.
+    /// More accurate for performance metrics than `droplet_count()`
+    /// which includes recycled slots waiting to be reused.
+    #[must_use]
+    pub fn active_droplet_count(&self) -> usize {
+        self.droplets.iter().filter(|d| d.is_alive).count()
+    }
+
+    pub fn set_async(&mut self, on: bool) {
+        self.async_mode = on;
+        self.set_column_speeds();
+        self.update_droplet_speeds();
+    }
+
+    pub fn set_chars_per_sec(&mut self, cps: f32) {
+        self.chars_per_sec = cps;
+        self.recalc_droplets_per_sec();
+        self.set_column_speeds();
+        self.update_droplet_speeds();
+    }
+
+    pub fn set_droplet_density(&mut self, density: f32) {
+        self.droplet_density = density;
+        self.recalc_droplets_per_sec();
+    }
+
+    pub fn set_glitchy(&mut self, on: bool) {
+        self.glitchy = on;
+        self.fill_glitch_map();
+        if on {
+            let now = Instant::now();
+            self.last_glitch_time = now;
+            let ms = self.rand_glitch_ms.sample(&mut self.mt) as u64;
+            self.next_glitch_time = now + Duration::from_millis(ms);
+        }
+        self.force_draw_everything = true;
+    }
+
+    pub fn set_glitch_pct(&mut self, pct: f32) {
+        self.glitch_pct = pct;
+        self.fill_glitch_map();
+    }
+
+    pub fn set_glitch_times(&mut self, low_ms: u16, high_ms: u16) {
+        self.glitch_low_ms = low_ms;
+        self.glitch_high_ms = high_ms;
+        let (lo, hi) = if low_ms <= high_ms {
+            (low_ms, high_ms)
+        } else {
+            (high_ms, low_ms)
+        };
+        self.rand_glitch_ms =
+            Uniform::new_inclusive(lo, hi).expect("rand_glitch_ms: lo <= hi after swap");
+    }
+
+    pub fn set_linger_times(&mut self, low_ms: u16, high_ms: u16) {
+        self.linger_low_ms = low_ms;
+        self.linger_high_ms = high_ms;
+        let (lo, hi) = if low_ms <= high_ms {
+            (low_ms, high_ms)
+        } else {
+            (high_ms, low_ms)
+        };
+        self.rand_linger_ms =
+            Uniform::new_inclusive(lo, hi).expect("rand_linger_ms: lo <= hi after swap");
+    }
+
+    pub fn set_max_droplets_per_column(&mut self, v: u8) {
+        self.max_droplets_per_column = v;
+    }
+
+    pub fn set_perf_pressure(&mut self, p: f32) {
+        self.perf_pressure = p.clamp(0.0, 1.0);
+    }
+
+    pub fn set_max_sim_delta(&mut self, d: Duration) {
+        self.max_sim_delta = d;
+    }
+
+    pub fn toggle_pause(&mut self) -> bool {
+        self.pause = !self.pause;
+        if self.pause {
+            self.pause_time = Some(Instant::now());
+            true
+        } else if let Some(pt) = self.pause_time.take() {
+            let now = Instant::now();
+            let elapsed = now.saturating_duration_since(pt);
+            // Drop all spawn debt on resume. The next frame starts from this
+            // instant and the smoothstep resume ramp reintroduces motion.
+            self.last_spawn_time = now;
+            self.spawn_remainder = 0.0;
+            for d in &mut self.droplets {
+                if d.is_alive {
+                    d.increment_time(elapsed);
+                    d.last_time = Some(now);
+                    d.advance_remainder = 0.0;
+                }
+            }
+            // Shift all Phase 3 subsystem timers so they don't burst-fire
+            // on the first tick after unpause (each sees a large elapsed).
+            self.last_phosphor_time += elapsed;
+            self.last_glitch_time += elapsed;
+            self.next_glitch_time += elapsed;
+            self.last_reseed_time += elapsed;
+            self.color_ecosystem.last_tick += elapsed;
+            self.atmosphere.last_tick += elapsed;
+            self.memory.last_sample += elapsed;
+            self.storytelling.last_tick += elapsed;
+            if let Some(ref mut cd) = self.storytelling.cooldown_until {
+                *cd += elapsed;
+            }
+            // Shift palette transition and profile interpolation timers
+            // so they don't jump on resume. Without this, a transition in
+            // progress during pause would see a large elapsed and instantly
+            // complete, causing a visible visual discontinuity.
+            if let Some(ref mut ts) = self.transition_start {
+                *ts += elapsed;
+            }
+            if let Some(ref mut pt) = self.profile_transition_start {
+                *pt += elapsed;
+            }
+            if let Some(ref mut ct) = self.charset_transition_start {
+                *ct += elapsed;
+            }
+            // Initialize cinematic resume easing: simulation time scale ramps
+            // from 0→1 over RESUME_EASE_DURATION_SECS using smoothstep S-curve.
+            self.resume_blend = 0.0;
+            self.resume_start = Some(now);
+            true
+        } else {
+            true
+        }
+    }
+
+    pub fn force_draw_everything(&mut self) {
+        self.force_draw_everything = true;
+    }
+
+    /// Returns whether a full redraw is pending. Used by tests to verify
+    /// that ignored keys don't trigger destructive redraws.
+    #[cfg(test)]
+    pub fn is_force_draw_everything(&self) -> bool {
+        self.force_draw_everything
+    }
+
+    /// Returns whether a semantic invalidation is pending. Used by tests to
+    /// verify that ignored keys don't trigger frame invalidation.
+    #[cfg(test)]
+    pub fn is_semantic_invalidate(&self) -> bool {
+        self.semantic_invalidate
+    }
+
+    /// Clear all pending redraw flags for test setup. After init_chars() and
+    /// reset(), both semantic_invalidate and force_draw_everything are set.
+    /// Tests that verify "key X does not trigger redraw" need these cleared
+    /// first, or the assertion fails due to initialization residue rather
+    /// than the tested key's behavior.
+    #[cfg(test)]
+    pub fn clear_redraw_flags_for_test(&mut self) {
+        self.semantic_invalidate = false;
+        self.force_draw_everything = false;
+    }
+
+    pub fn set_shading_mode(&mut self, sm: ShadingMode) {
+        self.shading_mode = sm;
+        self.shading_distance = matches!(sm, ShadingMode::DistanceFromHead);
+        // Shading mode is a renderer semantic mutation — invalidate the
+        // Terminal's LastFrame cache to prevent stale shading artifacts.
+        self.semantic_invalidate = true;
+    }
+
+    pub(super) fn reset_message(&mut self) {
+        let Some(text) = self.message_text.as_deref() else {
+            return;
+        };
+
+        let pad_x: u16 = 2;
+        let pad_y: u16 = 1;
+
+        let border: u16 = if self.message_border { 1 } else { 0 };
+
+        let min_box_w = (2u16.saturating_mul(border))
+            .saturating_add(2u16.saturating_mul(pad_x))
+            .max(1);
+        let min_box_h = (2u16.saturating_mul(border))
+            .saturating_add(2u16.saturating_mul(pad_y))
+            .max(1);
+        if self.cols < min_box_w || self.lines < min_box_h {
+            self.message.clear();
+            return;
+        }
+
+        let max_content_w = self
+            .cols
+            .saturating_sub(2u16.saturating_mul(border))
+            .saturating_sub(2u16.saturating_mul(pad_x))
+            .max(1);
+        let max_content_h = self
+            .lines
+            .saturating_sub(2u16.saturating_mul(border))
+            .saturating_sub(2u16.saturating_mul(pad_y))
+            .max(1);
+
+        let mut content_lines: Vec<Vec<char>> = Vec::new();
+        for raw_line in text.split('\n') {
+            if content_lines.len() as u16 >= max_content_h {
+                break;
+            }
+
+            let mut buf: Vec<char> = Vec::new();
+            for ch in raw_line.chars() {
+                if buf.len() >= max_content_w as usize {
+                    content_lines.push(std::mem::take(&mut buf));
+                    if content_lines.len() as u16 >= max_content_h {
+                        break;
+                    }
+                }
+                buf.push(ch);
+            }
+
+            if content_lines.len() as u16 >= max_content_h {
+                break;
+            }
+
+            if raw_line.is_empty() {
+                content_lines.push(Vec::new());
+            } else if !buf.is_empty() {
+                content_lines.push(buf);
+            }
+        }
+
+        if content_lines.is_empty() {
+            content_lines.push(Vec::new());
+        }
+
+        let mut content_w: u16 = 1;
+        for l in &content_lines {
+            content_w = content_w.max(l.len().min(max_content_w as usize) as u16);
+        }
+        let content_h: u16 = (content_lines.len().min(max_content_h as usize)) as u16;
+
+        let box_w = content_w
+            .saturating_add(2u16.saturating_mul(border))
+            .saturating_add(2u16.saturating_mul(pad_x));
+        let box_h = content_h
+            .saturating_add(2u16.saturating_mul(border))
+            .saturating_add(2u16.saturating_mul(pad_y));
+
+        let start_col = (self.cols / 2).saturating_sub(box_w / 2);
+        let start_line = (self.lines / 2).saturating_sub(box_h / 2);
+
+        self.message.clear();
+
+        for y in 0..box_h {
+            let line = start_line.saturating_add(y);
+            if line >= self.lines {
+                continue;
+            }
+
+            for x in 0..box_w {
+                let col = start_col.saturating_add(x);
+                if col >= self.cols {
+                    continue;
+                }
+
+                let mut ch = ' ';
+                if border == 1 {
+                    let is_top = y == 0;
+                    let is_bottom = y + 1 == box_h;
+                    let is_left = x == 0;
+                    let is_right = x + 1 == box_w;
+                    ch = if (is_top || is_bottom) && (is_left || is_right) {
+                        '+'
+                    } else if is_top || is_bottom {
+                        '-'
+                    } else if is_left || is_right {
+                        '|'
+                    } else {
+                        ' '
+                    };
+                }
+
+                {
+                    let content_start_y = border.saturating_add(pad_y);
+                    let content_start_x = border.saturating_add(pad_x);
+
+                    if y >= content_start_y
+                        && y < content_start_y.saturating_add(content_h)
+                        && x >= content_start_x
+                        && x < content_start_x.saturating_add(content_w)
+                    {
+                        let inner_y = y - content_start_y;
+                        let inner_x = x - content_start_x;
+
+                        let li = inner_y as usize;
+                        if let Some(line_chars) = content_lines.get(li) {
+                            let line_len = line_chars.len().min(content_w as usize);
+                            let left_pad = (content_w as usize)
+                                .saturating_sub(line_len)
+                                .saturating_div(2);
+                            let ix = inner_x as usize;
+                            if ix >= left_pad && ix < left_pad + line_len {
+                                ch = line_chars[ix - left_pad];
+                            }
+                        }
+                    }
+                }
+
+                self.message.push(MsgChr { line, col, val: ch });
+            }
+        }
+    }
+
+    fn draw_message(&self, frame: &mut Frame) {
+        let bg = self.palette.bg;
+        let fg = if self.color_mode == ColorMode::Mono {
+            None
+        } else {
+            self.palette.colors.last().copied()
+        };
+        for mc in &self.message {
+            frame.set(
+                mc.col,
+                mc.line,
+                Cell {
+                    ch: mc.val,
+                    fg: if mc.val == ' ' { None } else { fg },
+                    bg,
+                    bold: mc.val != ' ' && self.bold_mode != BoldMode::Off,
+                },
+            );
+        }
+    }
+}

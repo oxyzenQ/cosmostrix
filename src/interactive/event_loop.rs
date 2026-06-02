@@ -1,0 +1,587 @@
+// Copyright (c) 2026 rezky_nightky
+
+//! Main interactive event loop.
+//!
+//! Contains the `run_interactive()` function that drives the entire
+//! interactive mode: signal handling, frame pacing, input dispatch,
+//! simulation stepping, rendering, and performance reporting.
+
+use std::sync::atomic::Ordering;
+use std::time::{Duration, Instant};
+
+#[cfg(unix)]
+use std::sync::atomic::AtomicBool;
+#[cfg(unix)]
+use std::sync::Arc;
+
+use crossterm::event::{Event, KeyEventKind, MouseEventKind};
+
+#[cfg(unix)]
+use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGSTOP, SIGTERM, SIGTSTP};
+#[cfg(unix)]
+use signal_hook::iterator::Signals;
+#[cfg(unix)]
+use signal_hook::low_level;
+
+use crate::constants::*;
+use crate::frame::Frame;
+use crate::report::Report;
+use crate::terminal::{restore_terminal_best_effort, Terminal};
+
+use super::super::{effective_density, CloudConfig};
+use super::activity::{
+    idle_resync_due, is_runtime_idle, register_activity, spin_wait, FrameTimeTracker,
+};
+use super::input::{handle_keybinding, PasteBurstGuard};
+use super::watchdog::{
+    spawn_watchdog, FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN,
+};
+
+pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
+    #[cfg(target_os = "linux")]
+    crate::spawn_kill9_terminal_guard();
+
+    #[cfg(unix)]
+    let term_reinit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+
+    #[cfg(unix)]
+    {
+        if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP]) {
+            std::thread::spawn(move || {
+                if let Some(sig) = signals.forever().next() {
+                    // Request graceful shutdown via AtomicBool instead of
+                    // directly writing ANSI restore sequences to stdout.
+                    // This avoids racing with the main thread on the same fd.
+                    GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
+                    // Wait briefly for the main loop to notice and exit.
+                    // If the main loop is stuck (e.g., infinite loop), the
+                    // watchdog thread will handle the hard restore.
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    // Fallback: if still alive after timeout, force restore.
+                    if !SHUTDOWN.load(Ordering::Acquire) {
+                        if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
+                            use crossterm::ExecutableCommand;
+                            let _ =
+                                std::io::stdout().execute(crossterm::event::DisableMouseCapture);
+                        }
+                        restore_terminal_best_effort();
+                        std::process::exit(128 + sig);
+                    }
+                }
+            });
+        }
+
+        let term_reinit = term_reinit.clone();
+        if let Ok(mut signals) = Signals::new([SIGTSTP, SIGCONT]) {
+            std::thread::spawn(move || {
+                for sig in signals.forever() {
+                    match sig {
+                        SIGTSTP => {
+                            // Disable mouse capture before suspending so the
+                            // terminal is usable while cosmostrix is stopped.
+                            if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
+                                use crossterm::ExecutableCommand;
+                                let _ = std::io::stdout()
+                                    .execute(crossterm::event::DisableMouseCapture);
+                                MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
+                            }
+                            restore_terminal_best_effort();
+                            term_reinit.store(true, Ordering::Release);
+                            let _ = low_level::raise(SIGSTOP);
+                        }
+                        SIGCONT => {
+                            term_reinit.store(true, Ordering::Release);
+                        }
+                        _ => {}
+                    }
+                }
+            });
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        if let Err(e) = ctrlc::set_handler(|| {
+            GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            if !SHUTDOWN.load(Ordering::Acquire) {
+                if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
+                    use crossterm::ExecutableCommand;
+                    let _ = std::io::stdout().execute(crossterm::event::DisableMouseCapture);
+                }
+                restore_terminal_best_effort();
+                std::process::exit(130);
+            }
+        }) {
+            eprintln!("failed to install Ctrl-C handler: {}", e);
+        }
+    }
+
+    // Spawn watchdog thread
+    spawn_watchdog();
+
+    let mut term = Terminal::new()?;
+    // Mouse reporting is opt-in because abrupt process death can leave some
+    // terminals echoing raw mouse escape sequences until they are reset.
+    if cfg.mouse && term.enable_mouse_capture().is_ok() {
+        MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
+    }
+    let (w, h) = term.size()?;
+
+    let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);
+
+    let mut cloud = cfg.create_cloud(density);
+    cloud.reset(w, h);
+
+    let mut frame = Frame::new(w, h, cloud.palette.bg);
+
+    let start_time = Instant::now();
+    let end_time = cfg.duration_s.and_then(|s| {
+        if !s.is_finite() || s <= 0.0 {
+            return None;
+        }
+        let s = cfg.duration.unwrap_or(s);
+        Some(start_time + Duration::from_secs_f64(s))
+    });
+
+    let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
+    let pause_period = Duration::from_millis(PAUSE_PERIOD_MS);
+    let mut next_frame = Instant::now();
+    let mut perf_pressure: f32 = 0.0;
+
+    let mut perf_frames: u64 = 0;
+    let mut perf_drawn_frames: u64 = 0;
+    let mut perf_work_sum_s: f64 = 0.0;
+    let mut perf_work_max_s: f64 = 0.0;
+    let mut perf_pressure_sum: f64 = 0.0;
+    let mut perf_pressure_max: f32 = 0.0;
+    let mut perf_overshoot_frames: u64 = 0;
+    let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
+
+    // Perceived-motion diagnostics: track how many frames produce visible
+    // changes vs. frames where nothing visually changed. This helps diagnose
+    // the "feels like 10 FPS" problem where the renderer runs at 60 FPS but
+    // row advances only happen every ~8 frames.
+    let mut perf_idle_frames: u64 = 0; // frames where dirty_count == 0
+    let mut perf_dirty_sum: u64 = 0; // total dirty cells across all frames
+    let mut perf_dirty_samples: u64 = 0; // number of frames sampled for dirty avg
+
+    // Resize debounce: track when the last resize event arrived so rapid
+    // resize storms (e.g. window drag) are coalesced into a single apply.
+    let mut last_resize_event: Option<Instant> = None;
+
+    // Adaptive throttling: track last user input time for idle detection.
+    // After IDLE_THRESHOLD_SECS with no input, effective FPS is reduced to
+    // IDLE_FPS_FACTOR × target_fps. Any input event instantly restores.
+    let mut last_input_time = Instant::now();
+    let mut last_resync_time = last_input_time;
+    let idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
+
+    let mut charset_preset = cfg.charset_preset.clone();
+    let user_ranges = cfg.user_ranges.clone();
+    let def_ascii = cfg.def_ascii;
+    let mut paste_guard = PasteBurstGuard::default();
+
+    while cloud.raining {
+        // Check for graceful shutdown request from signal handler.
+        // This allows clean exit via Terminal::drop() instead of racing
+        // on stdout with the signal handler thread.
+        if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
+            cloud.raining = false;
+            break;
+        }
+
+        // Adaptive throttling: detect idle state (no input for IDLE_THRESHOLD_SECS)
+        // and reduce effective FPS to conserve CPU/battery. Any input event
+        // instantly restores full performance.
+        let loop_now = Instant::now();
+        let is_idle = is_runtime_idle(last_input_time, loop_now);
+        if idle_resync_due(is_idle, last_resync_time, loop_now) {
+            cloud.force_draw_everything();
+            last_resync_time = loop_now;
+            next_frame = loop_now;
+        }
+
+        if end_time.is_some_and(|end| Instant::now() >= end) {
+            cloud.raining = false;
+            break;
+        }
+        let mut pending_resize: Option<(u16, u16)> = None;
+
+        #[cfg(unix)]
+        if term_reinit.swap(false, Ordering::Acquire) {
+            drop(term);
+            term = Terminal::new()?;
+            if cfg.mouse && term.enable_mouse_capture().is_ok() {
+                MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
+            }
+            let (nw, nh) = term.size()?;
+            pending_resize = Some((nw, nh));
+            cloud.force_draw_everything();
+            let reinit_time = Instant::now();
+            last_resync_time = reinit_time;
+            next_frame = reinit_time;
+        }
+
+        loop {
+            while Terminal::poll_event(Duration::from_millis(0))? {
+                let ev = Terminal::read_event()?;
+                match ev {
+                    Event::Resize(nw, nh) => {
+                        // Clamp to safe bounds before storing — raw crossterm
+                        // values can be degenerate (0×0, 65535×65535) during
+                        // window transitions and would panic in Uniform::new
+                        // or cause massive allocations inside cloud.reset().
+                        let cw = nw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+                        let ch = nh.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+                        pending_resize = Some((cw, ch));
+                        last_resize_event = Some(Instant::now());
+                    }
+                    Event::Key(k) if k.kind == KeyEventKind::Press => {
+                        let activity_time = Instant::now();
+                        let queued_event_ready = Terminal::poll_event(Duration::from_millis(0))?;
+                        if paste_guard.ignore_plain_key(&k, activity_time, queued_event_ready) {
+                            let _ = register_activity(
+                                &mut last_input_time,
+                                &mut last_resync_time,
+                                activity_time,
+                                is_idle,
+                                false,
+                            );
+                            cloud.force_draw_everything();
+                            next_frame = activity_time;
+                            continue;
+                        }
+
+                        // Any user input resets idle timer for adaptive throttling.
+                        if register_activity(
+                            &mut last_input_time,
+                            &mut last_resync_time,
+                            activity_time,
+                            is_idle,
+                            false,
+                        ) {
+                            cloud.force_draw_everything();
+                            next_frame = activity_time;
+                        }
+                        if cfg.screensaver {
+                            cloud.raining = false;
+                            break;
+                        }
+
+                        if handle_keybinding(
+                            &mut cloud,
+                            &mut frame,
+                            &k,
+                            &mut charset_preset,
+                            &user_ranges,
+                            def_ascii,
+                            cfg,
+                            #[cfg(unix)]
+                            &term_reinit,
+                        ) {
+                            next_frame = Instant::now();
+                        }
+                    }
+                    Event::Paste(_) => {
+                        let activity_time = Instant::now();
+                        paste_guard.note_bracketed_paste(activity_time);
+                        let _ = register_activity(
+                            &mut last_input_time,
+                            &mut last_resync_time,
+                            activity_time,
+                            is_idle,
+                            false,
+                        );
+                        cloud.force_draw_everything();
+                        next_frame = activity_time;
+                    }
+                    Event::Mouse(m) if cfg.mouse => {
+                        // Mouse interaction resets idle timer.
+                        let activity_time = Instant::now();
+                        if register_activity(
+                            &mut last_input_time,
+                            &mut last_resync_time,
+                            activity_time,
+                            is_idle,
+                            false,
+                        ) {
+                            cloud.force_draw_everything();
+                            next_frame = activity_time;
+                        }
+                        cloud.set_mouse_position(m.column, m.row);
+                        if matches!(m.kind, MouseEventKind::Down(_)) {
+                            cloud.set_mouse_click(m.column, m.row);
+                        }
+                    }
+                    Event::FocusGained => {
+                        let activity_time = Instant::now();
+                        if register_activity(
+                            &mut last_input_time,
+                            &mut last_resync_time,
+                            activity_time,
+                            is_idle,
+                            true,
+                        ) {
+                            cloud.force_draw_everything();
+                            next_frame = activity_time;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Break out of the poll loop when we have a resize to apply,
+            // but only after the debounce window has elapsed. This coalesces
+            // rapid resize events (e.g. window drag) into a single reset.
+            if !cloud.raining {
+                break;
+            }
+            if pending_resize.is_some() {
+                let debounce_elapsed = last_resize_event
+                    .map(|t| t.elapsed() >= Duration::from_millis(RESIZE_DEBOUNCE_MS))
+                    .unwrap_or(true);
+                if debounce_elapsed {
+                    break;
+                }
+            }
+
+            let now = Instant::now();
+            // Monotonic clock jump guard
+            let frame_elapsed = now.saturating_duration_since(next_frame);
+            if frame_elapsed.as_secs_f64() > CLOCK_JUMP_GUARD_SECS {
+                next_frame = now;
+                break;
+            }
+
+            if now >= next_frame {
+                break;
+            }
+
+            let mut timeout = next_frame - now;
+            if let Some(end) = end_time {
+                if now >= end {
+                    break;
+                }
+                timeout = timeout.min(end - now);
+            }
+
+            // Spin-sleep hybrid: use poll_event for the bulk of the wait
+            // (which also processes input events), then spin-wait the final
+            // ~500μs for sub-millisecond deadline accuracy. This eliminates
+            // OS scheduling jitter from the frame cadence.
+            let spin_budget = Duration::from_micros(500);
+            if timeout > spin_budget {
+                let _ = Terminal::poll_event(timeout - spin_budget)?;
+                // Spin-wait the remaining time for precise deadline alignment.
+                // The spin is capped at 1ms internally to handle edge cases.
+                spin_wait(next_frame);
+            } else {
+                // Already close to deadline (< 500μs away): spin-wait to hit
+                // it precisely, then drain any events that arrived.
+                spin_wait(next_frame);
+                let _ = Terminal::poll_event(Duration::from_millis(0))?;
+            }
+        }
+
+        if !cloud.raining {
+            break;
+        }
+
+        if let Some((nw, nh)) = pending_resize {
+            cloud.reset(nw, nh);
+            frame = Frame::new(nw, nh, cloud.palette.bg);
+            if cfg.density_auto {
+                cloud.set_droplet_density(effective_density(
+                    cfg.base_density,
+                    nw,
+                    nh,
+                    cfg.fullwidth,
+                    true,
+                ));
+            }
+            cloud.force_draw_everything();
+            last_resync_time = Instant::now();
+        }
+
+        // Key handling can toggle pause/resume after the frame period was
+        // chosen for the wait phase. Recompute before simulation and
+        // scheduling so the first resumed frame does not inherit the paused
+        // 250ms cadence.
+        let active_is_idle = is_runtime_idle(last_input_time, Instant::now());
+        let frame_period = if cloud.pause {
+            pause_period
+        } else if active_is_idle {
+            idle_period
+        } else {
+            target_period
+        };
+        let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
+
+        cloud.set_perf_pressure(perf_pressure);
+        let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
+        let sim_factor = (1.0 - (perf_pressure as f64) * SIM_PRESSURE_SCALE_FACTOR).clamp(0.3, 1.0);
+        let sim_min_s = (frame_period.as_secs_f64() * SIM_MIN_FRACTION).max(0.001);
+        let sim_max_s = sim_base_s.min(SIM_MAX_CAP_SECS);
+        // When frame_period is large (pause mode: 250ms, or very low FPS),
+        // sim_min_s can exceed sim_max_s, which would panic in f64::clamp.
+        // Sanitize: use sim_max_s as the effective lower bound when inverted.
+        let sim_cap_s = if sim_min_s <= sim_max_s {
+            (sim_base_s * sim_factor).clamp(sim_min_s, sim_max_s)
+        } else {
+            sim_max_s
+        };
+        cloud.set_max_sim_delta(Duration::from_secs_f64(sim_cap_s));
+
+        let work_start = Instant::now();
+        cloud.rain(&mut frame);
+        // Cache dirty checks once per frame to avoid redundant method calls.
+        let is_dirty_all = frame.is_dirty_all();
+        let dirty_len = frame.dirty_indices().len();
+        let did_draw = is_dirty_all || dirty_len > 0;
+        if did_draw {
+            term.draw(&mut frame)?;
+        }
+        FRAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+
+        let work_s = work_start.elapsed().as_secs_f32();
+        let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
+        if overshoot > 0.0 {
+            perf_pressure = (perf_pressure + (overshoot * PERF_PRESSURE_INCREMENT)).min(1.0);
+        } else {
+            perf_pressure = (perf_pressure - PERF_PRESSURE_DECAY).max(0.0);
+        }
+
+        if cfg.perf_stats {
+            perf_frames = perf_frames.saturating_add(1);
+            if did_draw {
+                perf_drawn_frames = perf_drawn_frames.saturating_add(1);
+            } else {
+                perf_idle_frames = perf_idle_frames.saturating_add(1);
+            }
+            perf_dirty_sum = perf_dirty_sum.saturating_add(dirty_len as u64);
+            perf_dirty_samples = perf_dirty_samples.saturating_add(1);
+            perf_work_sum_s += work_s as f64;
+            perf_work_max_s = perf_work_max_s.max(work_s as f64);
+            perf_pressure_sum += perf_pressure as f64;
+            perf_pressure_max = perf_pressure_max.max(perf_pressure);
+            if overshoot > 0.0 {
+                perf_overshoot_frames = perf_overshoot_frames.saturating_add(1);
+            }
+            frame_time_tracker.push(work_s as f64 * 1000.0);
+        }
+
+        // Schedule next frame relative to the ideal deadline, using the
+        // pre-work timestamp to prevent drift between render work and
+        // scheduling. Single-reschedule: if we overslept past the next tick,
+        // snap forward by exactly one period from now instead of
+        // double-advancing (which caused visible stutter on frames that took
+        // just 1μs too long).
+        let frame_ts = work_start;
+        let next = next_frame.checked_add(frame_period).unwrap_or(frame_ts);
+        next_frame = if frame_ts > next {
+            frame_ts.checked_add(frame_period).unwrap_or(frame_ts)
+        } else {
+            next
+        };
+    }
+
+    // Signal the watchdog thread to stop so it doesn't outlive the main
+    // loop and falsely detect a "stuck" state after normal exit.
+    SHUTDOWN.store(true, Ordering::Release);
+
+    if cfg.perf_stats {
+        drop(term);
+        let elapsed = start_time.elapsed();
+        let elapsed_s = elapsed.as_secs_f64().max(0.000_001);
+
+        let frames = perf_frames.max(1);
+        let avg_work_ms = (perf_work_sum_s / frames as f64) * 1000.0;
+        let avg_pressure = perf_pressure_sum / frames as f64;
+        let avg_fps = (perf_frames as f64) / elapsed_s;
+        let drawn_ratio = (perf_drawn_frames as f64) / (perf_frames as f64).max(1.0);
+        let overshoot_ratio =
+            (perf_overshoot_frames as f64) / (perf_frames as f64).max(1.0) * 100.0;
+        let pressure_class = if avg_pressure < 0.05 {
+            "low"
+        } else if avg_pressure < 0.3 {
+            "medium"
+        } else {
+            "high"
+        };
+
+        let mut r = Report::new("COSMOSTRIX PERFORMANCE REPORT");
+
+        {
+            let s = r.section("TIMING");
+            s.field("elapsed", &format!("{:.3}s", elapsed_s));
+            s.field("target_fps", &format!("{:.3}", cfg.target_fps));
+            s.field("avg_fps", &format!("{:.3}", avg_fps));
+            s.field(
+                "rolling_avg_frame_time",
+                &format!("{:.3}ms", frame_time_tracker.rolling_avg_ms()),
+            );
+        }
+
+        {
+            let s = r.section("FRAMES");
+            s.field("total", &perf_frames.to_string());
+            s.field(
+                "drawn",
+                &format!("{} ({:.1}%)", perf_drawn_frames, drawn_ratio * 100.0),
+            );
+            s.field(
+                "idle_visual",
+                &format!(
+                    "{} ({:.1}%)",
+                    perf_idle_frames,
+                    (perf_idle_frames as f64) / (perf_frames as f64).max(1.0) * 100.0
+                ),
+            );
+            s.field(
+                "overshoot",
+                &format!("{} ({:.1}%)", perf_overshoot_frames, overshoot_ratio),
+            );
+        }
+
+        {
+            let s = r.section("MOTION");
+            let avg_dirty = if perf_dirty_samples > 0 {
+                perf_dirty_sum as f64 / perf_dirty_samples as f64
+            } else {
+                0.0
+            };
+            s.field("avg_dirty_cells", &format!("{:.1}", avg_dirty));
+            s.field(
+                "visual_fps_hint",
+                &format!(
+                    "{:.1} ({} of {} frames had visual changes)",
+                    drawn_ratio * cfg.target_fps,
+                    perf_drawn_frames,
+                    perf_frames
+                ),
+            );
+        }
+
+        {
+            let s = r.section("LATENCY");
+            s.field("avg_frame_time", &format!("{:.3}ms", avg_work_ms));
+            s.field(
+                "max_frame_time",
+                &format!("{:.3}ms", perf_work_max_s * 1000.0),
+            );
+            s.field("jitter", frame_time_tracker.jitter_classification());
+        }
+
+        {
+            let s = r.section("PRESSURE");
+            s.field("avg", &format!("{:.3}", avg_pressure));
+            s.field("peak", &format!("{:.3}", perf_pressure_max));
+            s.field("classification", pressure_class);
+        }
+
+        r.print();
+    }
+
+    Ok(())
+}
