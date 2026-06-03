@@ -86,7 +86,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v2.3.0"
+TAG="v2.4.0"
 PLATFORM="linux-x86_64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
@@ -292,7 +292,7 @@ So `cosmostrix --config ./config --preset storm --fps 60` uses the config file, 
 
 ## Performance & benchmarking
 
-v2.3.0 throughput exceeds 7,000 FPS headless (120×40, well above the 60 FPS
+v2.4.0 throughput exceeds 7,000 FPS headless (120×40, well above the 60 FPS
 target) with a ~3% dirty-cell ratio from differential rendering. Real
 interactive FPS is terminal-bound, not simulation-bound.
 
@@ -361,8 +361,8 @@ interpretation notes.
 
 ## Versioning
 
-Cosmostrix uses SemVer for package versions, e.g. `2.3.0`.
-Git tags and GitHub Releases use a leading `v`, e.g. `v2.3.0`.
+Cosmostrix uses SemVer for package versions, e.g. `2.4.0`.
+Git tags and GitHub Releases use a leading `v`, e.g. `v2.4.0`.
 Stable releases do not use `-stable.N` suffixes.
 
 ## Development
