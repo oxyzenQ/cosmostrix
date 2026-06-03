@@ -10,10 +10,10 @@
 //! ## Precedence
 //!
 //! 1. Built-in defaults (clap `default_value` / `default_value_t`)
-//! 2. Config file values (applied by `apply_config_defaults`)
-//! 3. Preset values (applied for fields still at clap default)
-//! 4. Explicit CLI flags (always win)
-//! 5. `--low-power` only overrides fields not touched by preset or CLI
+//! 2. Config file values
+//! 3. Preset values (override config-managed preset fields)
+//! 4. `--low-power` for fields not touched by preset or explicit CLI
+//! 5. Explicit CLI flags (always win)
 
 use crate::config::color_enabled_stdout;
 use crate::config::GlitchLevel;

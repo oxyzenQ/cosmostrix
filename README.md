@@ -164,6 +164,8 @@ cosmostrix --mouse                    # opt-in mouse hover/click effects
 cosmostrix --preset cinematic          # curated preset
 cosmostrix --preset calm               # gentle ocean rain
 cosmostrix --preset storm --fps 60     # preset with explicit override
+cosmostrix --config ./cosmostrix.conf  # explicit config file
+cosmostrix --dump-config               # print example config
 ```
 
 ## CLI options
@@ -183,6 +185,9 @@ COMMON OPTIONS
      --low-power            Power-saving mode
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
      --preset <name>       Apply a named preset (see --list-presets)
+     --config <path>        Load config from an explicit file
+     --dump-config          Print an example config and exit
+     --config-path          Print the default config path and exit
 
 DIAGNOSTICS
      --doctor               Compatibility report
@@ -244,18 +249,38 @@ reset
 
 ## Config file
 
-Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`).
+Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`). Use `--config <path>` to load a specific file.
 
 ```
-color = ocean
-charset = matrix
+preset = cinematic
+color = cosmos
+charset = binary
 fps = 60
-speed = 10
-density = 1.5
+speed = 8
+density = 1
 glitch-level = default
+color-bg = transparent
+low-power = false
+mouse = false
+fullwidth = false
 ```
 
-CLI arguments always take precedence over config file values. See `--defaults` for the curated default profile.
+Print a complete copy-pasteable template or the default path with:
+
+```bash
+cosmostrix --dump-config
+cosmostrix --config-path
+```
+
+Precedence is:
+
+1. Built-in defaults
+2. Config file values
+3. Preset values (from config or CLI)
+4. Low-power values when requested, for fields not touched by preset or explicit CLI
+5. Explicit CLI flags
+
+So `cosmostrix --config ./config --preset storm --fps 60` uses the config file, applies the `storm` preset over config-managed preset fields, and keeps FPS at the explicit CLI value `60`.
 
 ## Color schemes
 

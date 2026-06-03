@@ -11,6 +11,7 @@
 //!   from the casual user.
 
 use std::io::IsTerminal;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::Parser;
@@ -257,6 +258,32 @@ pub struct Args {
         help = "Apply a named preset (see --list-presets)"
     )]
     pub preset: Option<String>,
+
+    // === CONFIG (visible in --help) ===
+    #[arg(
+        long = "config",
+        value_name = "PATH",
+        help_heading = "CONFIG",
+        display_order = 96,
+        help = "Load config from an explicit file path"
+    )]
+    pub config: Option<PathBuf>,
+
+    #[arg(
+        long = "dump-config",
+        help_heading = "CONFIG",
+        display_order = 97,
+        help = "Print a complete example config and exit"
+    )]
+    pub dump_config: bool,
+
+    #[arg(
+        long = "config-path",
+        help_heading = "CONFIG",
+        display_order = 98,
+        help = "Print the default config path and exit"
+    )]
+    pub config_path: bool,
 
     // === DIAGNOSTICS (visible in --help) ===
     #[arg(
@@ -634,6 +661,21 @@ COMMON OPTIONS:
       Explicit CLI flags always override preset values.
       cosmostrix --preset cinematic
       cosmostrix --preset storm --fps 60
+
+CONFIG:
+  --config <path>
+      Load config from an explicit path instead of the default
+      $XDG_CONFIG_HOME/cosmostrix/config or ~/.config/cosmostrix/config.
+
+  --dump-config
+      Print a complete, commented example config and exit.
+
+  --config-path
+      Print the resolved default config path and exit.
+
+  Precedence:
+      built-in defaults < config values < preset values < low-power
+      < explicit CLI flags.
 
 APPEARANCE:
   --colormode <0|16|256|24>
