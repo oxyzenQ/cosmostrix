@@ -287,7 +287,7 @@ interpretation notes.
 - Added supply-chain hardening policy ([SUPPLY_CHAIN.md](docs/SUPPLY_CHAIN.md))
 - Added terminal stability audit ([STABILITY_AUDIT.md](docs/STABILITY_AUDIT.md))
 - Fixed clippy module-inception and unused import warnings
-- 61 regression tests pass, clippy clean, fmt clean
+- Regression suite passes, clippy clean, fmt clean
 
 ### v2.1.0
 

@@ -56,7 +56,7 @@ impl Cloud {
         self.maybe_reseed_rng(now);
 
         // Advance cinematic resume easing: smoothstep S-curve from 0→1 over
-        // RESUME_EASE_DURATION_SECS (300ms) after unpause. Unlike exponential
+        // RESUME_EASE_DURATION_SECS after unpause. Unlike exponential
         // easing or position-delta scaling, this interpolates the simulation
         // time scale itself — the physics clock runs in slow motion during
         // the transition, producing genuine inertia recovery rather than a

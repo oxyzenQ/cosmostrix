@@ -15,7 +15,7 @@ use crate::constants::{
     CHARSET_TRANSITION_DURATION_MS, COLOR_TRANSITION_DURATION_MS,
     COLOR_TRANSITION_INITIAL_VISIBLE_PCT, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN,
     FULL_REDRAW_INTERVAL_FRAMES, MAX_PALETTE_SLOTS, PHOSPHOR_BOTTOM_ROWS, PHOSPHOR_EDGE_ENERGY_CAP,
-    SPAWN_REMAINDER_CAP,
+    PHOSPHOR_EDGE_ROW_TAPER, SPAWN_REMAINDER_CAP,
 };
 use crate::frame::Frame;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
@@ -783,6 +783,45 @@ fn bottom_row_phosphor_energy_is_capped_after_rain() {
 }
 
 #[test]
+fn bottom_edge_phosphor_cap_tapers_toward_final_row() {
+    let mut cloud = make_cloud();
+    let lines = cloud.lines;
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    let now = Instant::now();
+    cloud.last_phosphor_time = now;
+
+    for line in (lines - EDGE_FADE_ROWS)..lines {
+        frame.set(
+            0,
+            line,
+            crate::cell::Cell {
+                ch: '0',
+                fg: Some(Color::Green),
+                bg: cloud.palette.bg,
+                bold: false,
+            },
+        );
+    }
+
+    cloud.phosphor_decay_pass(&mut frame, 0.0);
+
+    let upper_edge = lines - EDGE_FADE_ROWS;
+    let final_row = lines - 1;
+    let upper_idx = upper_edge as usize;
+    let final_idx = final_row as usize;
+
+    assert_eq!(cloud.phosphor[upper_idx], PHOSPHOR_EDGE_ENERGY_CAP);
+    assert_eq!(
+        cloud.phosphor[final_idx],
+        PHOSPHOR_EDGE_ENERGY_CAP - (EDGE_FADE_ROWS as u8 - 1) * PHOSPHOR_EDGE_ROW_TAPER
+    );
+    assert!(
+        cloud.phosphor[final_idx] < cloud.phosphor[upper_idx],
+        "final row phosphor cap should be lower than the upper edge-fade row"
+    );
+}
+
+#[test]
 fn edge_fade_does_not_increase_ghost_background_fill() {
     // The viewport edge fade should not cause an increase in ghost background
     // fill. Specifically, the phosphor energy cap for bottom-edge cells means
@@ -867,7 +906,7 @@ fn high_speed_bottom_edge_cells_clear_bounded() {
         frames,
         energy
     );
-    // With cap=100 instead of 160/255, bottom-edge cells should clear fast
+    // With the edge cap instead of 160/255, bottom-edge cells should clear fast
     assert!(
         frames < 20,
         "edge-capped bottom cells should clear in < 20 frames (got {})",

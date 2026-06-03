@@ -392,7 +392,7 @@ pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
 /// regain) where a full redraw would expose all ghost glyphs at once.
 ///
 /// At 96 (~38% of max), ghost characters are visible for about the first
-/// ~400ms of afterglow (from PHOSPHOR_TAIL_RESIDUAL=120), then the glyph
+/// ~400ms of afterglow (from PHOSPHOR_TAIL_RESIDUAL=160), then the glyph
 /// vanishes and only a dim color patch remains for the final ~600ms of
 /// energy decay. This preserves the "fading text" cinematic effect for
 /// recently passed trails while preventing stale background charset fill.
@@ -653,8 +653,14 @@ pub const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
 /// Phosphor energy cap for cells in the bottom viewport edge zone.
 /// Normally phosphor captures full energy (255) for freshly drawn cells,
 /// but at the bottom edge this creates persistent bright ghost residue
-/// from dying droplet heads. Capping at 64 (~25% brightness) ensures
-/// ghost cells at the bottom fade out within ~19 frames at 60fps with
-/// the existing PHOSPHOR_BOTTOM_DECAY_MULT (2.5×) acceleration, preventing
-/// the horizontal residue line artifact.
+/// from dying droplet heads. Capping at 64 (~25% brightness), then tapering
+/// lower toward the final row, ensures ghost cells at the bottom fade out
+/// quickly with the existing PHOSPHOR_BOTTOM_DECAY_MULT (2.5×) acceleration,
+/// preventing the horizontal residue line artifact.
 pub const PHOSPHOR_EDGE_ENERGY_CAP: u8 = 64;
+
+/// Additional per-row phosphor cap reduction toward the final bottom row.
+/// The upper edge-fade row keeps PHOSPHOR_EDGE_ENERGY_CAP, while lower rows
+/// taper down slightly so the terminal border itself never carries the same
+/// afterglow energy as the rows above it.
+pub const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
