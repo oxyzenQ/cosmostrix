@@ -49,6 +49,21 @@ assert_contains() {
     fi
 }
 
+assert_fails_with() {
+    local cmd_output needle label
+    label="$1"
+    needle="$2"
+    shift 2
+    if cmd_output=$("$@" 2>&1); then
+        echo "   FAIL: $label (command unexpectedly succeeded)"
+        echo "--- output ---"
+        echo "$cmd_output"
+        echo "--- end ---"
+        exit 1
+    fi
+    assert_contains "$cmd_output" "$needle" "$label"
+}
+
 assert_contains "$OUTPUT" "Start RSS:     4160 kB"          "RSS start = 4160"
 assert_contains "$OUTPUT" "End RSS:       4164 kB"          "RSS end = 4164"
 assert_contains "$OUTPUT" "Max RSS:       4164 kB"          "RSS max = 4164"
@@ -126,6 +141,14 @@ OUTPUT_ZERO=$(bash "$SUMMARY" "$ZERO_CSV" 2>&1 || true)
 assert_contains "$OUTPUT_ZERO" "Start RSS:     4160 kB"       "Single-row RSS ok"
 # Should not crash with division by zero
 echo "   PASS: no crash with elapsed=0"
+
+# --- 6. Friendly failures for missing inputs ---
+echo "6. Friendly missing input failures..."
+assert_fails_with "No args show usage" "Usage:" bash "$SUMMARY"
+assert_fails_with \
+    "Unmatched glob shows no-logs hint" \
+    "No matching/readable Cosmostrix endurance CSV files found." \
+    bash "$SUMMARY" "$TMPDIR_WORK/no-such-cosmostrix-resource-*.csv"
 
 echo ""
 echo "--- all self-tests passed ---"

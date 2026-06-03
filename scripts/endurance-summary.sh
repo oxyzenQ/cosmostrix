@@ -26,6 +26,26 @@ die() {
     exit 1
 }
 
+usage() {
+    echo "Usage: $0 <csv_file> [csv_file ...]" >&2
+    echo "  Parses Cosmostrix resource CSV logs and prints endurance summary." >&2
+    echo "  Example: bash scripts/endurance-summary.sh '../logs/cosmostrix-resource-*.csv'" >&2
+}
+
+no_logs_found() {
+    echo "No matching/readable Cosmostrix endurance CSV files found." >&2
+    echo "" >&2
+    usage
+    echo "" >&2
+    echo "Create logs with an endurance sampling run, then summarize them here." >&2
+    echo "See docs/ENDURANCE.md for the logging method and CSV format." >&2
+    exit 1
+}
+
+has_glob_chars() {
+    [[ "$1" == *'*'* || "$1" == *'?'* || "$1" == *'['* ]]
+}
+
 # Find the 1-based index of a column name in a comma-separated header line.
 # Usage: col_index "header_line" "column_name"
 # Prints the index (1-based) or 0 if not found.
@@ -122,12 +142,28 @@ fmt_duration() {
 # --- Argument handling ---
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: $0 <csv_file> [csv_file ...]" >&2
-    echo "  Parses Cosmostrix resource CSV logs and prints endurance summary." >&2
+    usage
     exit 1
 fi
 
-CSV_PATHS=("$@")
+CSV_PATHS=()
+for ARG in "$@"; do
+    if has_glob_chars "$ARG"; then
+        mapfile -t MATCHES < <(compgen -G "$ARG" || true)
+        if [[ ${#MATCHES[@]} -eq 0 ]]; then
+            continue
+        fi
+        for MATCH in "${MATCHES[@]}"; do
+            CSV_PATHS+=("$MATCH")
+        done
+    else
+        CSV_PATHS+=("$ARG")
+    fi
+done
+
+if [[ ${#CSV_PATHS[@]} -eq 0 ]]; then
+    no_logs_found
+fi
 
 # --- Process each CSV file ---
 

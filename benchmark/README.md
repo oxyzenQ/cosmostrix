@@ -1,118 +1,111 @@
 # Benchmark
 
-This folder contains the benchmark script and reference results for Cosmostrix.
+This folder contains the benchmark script and interpretation notes for
+Cosmostrix performance measurements.
 
-## v2.1.0 reference results
+Benchmark numbers are **machine-dependent**. They depend on CPU, kernel
+scheduler behavior, build profile, terminal dimensions, density, color mode,
+and whether the test is measuring headless simulation or real terminal I/O.
+Use benchmark output to compare builds on the same machine, not as a portable
+promise.
 
-Local measurements from the premium benchmark (`--benchmark`) on a CI-style cloud
-runner. These numbers are **machine-dependent** — they depend on CPU, terminal
-size, density, color mode, and OS kernel scheduler behavior. Treat them as a
-baseline example, not a portable promise.
+## Current Benchmark Model
 
-### Environment
+Cosmostrix exposes two benchmark paths:
 
-| Item | Value |
-|---|---|
-| Cosmostrix | v2.1.0 |
-| CPU | Intel Xeon, 4 cores, x86-64-v4 capable |
-| OS | Linux 5.10 (x86_64) |
-| Rust | 1.96.0 |
-| Build profile | `pro-linux-v3` (fat LTO, x86-64-v3 baseline) |
-| Terminal size | 120×40 (headless, `TERM=dumb`) |
-| Target FPS | 60 |
-| Density | 1.00 |
+- `--benchmark`: recommended human-readable benchmark. It runs a 2-second
+  warmup, then measures for 5 seconds and prints FPS, frame-time percentiles,
+  dirty-cell coverage, and throughput estimates.
+- `--bench-frames N`: legacy CI/regression benchmark. It runs a fixed number
+  of headless frames and prints compact `BENCH:` output for scripts.
 
-### Performance summary
+The benchmark is a headless simulation/draw-computation benchmark. It is useful
+for tracking renderer regressions, but interactive rendering can still be
+terminal/compositor-bound.
 
-| Metric | `release` (x86-64 baseline) | `pro-linux-v3` (AVX2) |
-|---|---|---|
-| Avg FPS | 8,836 | 9,237 |
-| Peak FPS | 9,744 | 9,760 |
-| Avg frame time | 0.141 ms | 0.134 ms |
-| P99 frame time | 0.191 ms | 0.160 ms |
-| Frame jitter | low | low |
-| Avg dirty cells/frame | 147 (3.06%) | 150 (3.12%) |
-| Dirty glyphs/s | 1,298,754 | 1,384,007 |
-| ANSI bytes/s | 24,676,320 | 26,296,131 |
-| Active streams avg | 124 | 125 |
-| Full redraw ratio | 0.0% | 0.0% |
+## Example Local Results
 
-### Legacy CI benchmark (`--bench-frames`)
+The following values are example local measurements from the v2.5.0/v2.6.0
+report style, using an optimized `pro-linux-v3` build. Treat them as a shape
+of output and interpretation guide, not as guaranteed numbers.
 
-| Profile | Frames | Elapsed | FPS |
-|---|---|---|---|
-| `release` | 10,000 | 1.399s | 7,148 |
-| `pro-linux-v3` | 10,000 | 1.264s | 7,911 |
+| Size | Avg FPS | P99 frame time | Avg dirty-cell coverage |
+|---|---:|---:|---:|
+| 120x40 | ~2370 | ~0.497 ms | ~43.71% |
+| 200x60 | ~963 | ~1.158 ms | ~44.21% |
 
-### Interpretation
+Both examples are comfortably above the 60 FPS simulation target. The
+dirty-cell coverage is not a quality score by itself; it reflects how much of
+the frame changes under the current cinematic renderer and terminal redraw
+threshold.
 
-- **v2.1.0 prioritizes cinematic quality and terminal safety** over raw
-  throughput. The renderer adds phosphor ghost character tracking, bottom-row
-  residue cleanup, bracketed-paste burst suppression, and Tab/focus safety
-  — all of which add per-frame work compared to earlier versions.
-- **Performance remains well above the 60 FPS target.** Even in the
-  worst-case headless benchmark, throughput exceeds 7,000 FPS, which is
-  over 100x the 60 FPS target. Real terminal rendering is I/O-bound (ANSI
-  escape sequence throughput to the terminal emulator), not simulation-bound.
-- **Dirty cell ratio (~3%) is the key efficiency metric.** Cosmostrix uses
-  differential (dirty-cell) rendering — only cells that changed since the last
-  frame are redrawn. A 3% dirty ratio means 97% of the frame buffer is reused
-  unchanged each frame. Full redraws (dirty cells >= 1/3 of total) are near
-  zero (0.0%).
-- **Terminal rendering benchmarks vary significantly by terminal emulator,
-  OS, and font rendering pipeline.** A headless benchmark measures the
-  simulation/draw-computation path without actual terminal I/O, which gives
-  a stable throughput ceiling. Interactive FPS depends on terminal emulator
-  speed, window compositor, and display refresh rate.
-- **`pro-linux-v3` vs `release`**: The AVX2-optimized build is ~5-10% faster
-  on the simulation path. In interactive use the difference is usually
-  imperceptible because terminal I/O dominates.
+## Metric Notes
 
-## How to reproduce
+- `draw_ratio` is a legacy compatibility field. It means frames with at least
+  one dirty cell, not percentage of cell coverage.
+- `active_frame_ratio_percent` is the clearer name for that same active-frame
+  concept.
+- `avg_dirty_cell_ratio_percent` is average dirty-cell coverage across all
+  measured frames.
+- `dirty_all_frames` counts logical frames where every cell was dirty.
+- `estimated_full_redraw_frames` and
+  `estimated_full_redraw_ratio_percent` estimate how often the terminal draw
+  path is likely to cross its full-redraw threshold. They are not the same as
+  `dirty_all_frames`.
 
-### Premium benchmark (recommended)
+## Benchmark Sizes
 
-The premium benchmark runs for 5 seconds with a 2-second warmup and produces
-a comprehensive report including FPS, frame time percentiles, dirty cell
-ratios, and throughput metrics:
+The default benchmark size is 120x40:
 
 ```bash
-# Build an optimized profile
-cargo pro-linux-v3
-
-# Run the premium benchmark
 COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
   target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
 ```
 
-### Legacy CI benchmark
+Use 200x60 for a larger terminal-like stress case:
 
-The legacy benchmark runs a fixed number of headless frames and prints
-machine-parseable output:
+```bash
+COSMOSTRIX_BENCH_COLS=200 COSMOSTRIX_BENCH_LINES=60 \
+  target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+```
+
+## How to Reproduce
+
+Build an optimized profile:
+
+```bash
+cargo pro-linux-v3
+```
+
+Run the recommended benchmark:
+
+```bash
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+```
+
+Run the legacy fixed-frame benchmark:
 
 ```bash
 COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
   target/release/cosmostrix --fps 60 --bench-frames 10000
 ```
 
-### Full comparison script
-
-The benchmark script builds both `release` and `pro-native`, calibrates a
-repeatable frame count, and records FPS, frame pacing, and memory/profiling
-data when optional tools (hyperfine, perf, valgrind) are installed:
+Run the full comparison script:
 
 ```bash
 bash benchmark/benchmark.sh
 ```
 
-CI intentionally does not gate on benchmark numbers; they are measurement
-aids, not stable pass/fail thresholds.
+The script builds comparison profiles and records optional `hyperfine`, `perf`,
+and Valgrind outputs when those tools are installed. CI intentionally does not
+gate on benchmark numbers; they are measurement aids, not stable pass/fail
+thresholds.
 
-### Generated outputs
+## Generated Outputs
 
-The script generates (in this folder, gitignored):
+The comparison script generates gitignored files in this folder:
 
-- `hyperfine.md` — release vs pro-native comparison table
-- `time-*.txt` — `/usr/bin/time -v` output
-- `perf-*.txt` — `perf stat` output
-- `massif-*-*.out` — Valgrind heap profiles
+- `hyperfine.md` - release vs optimized comparison table
+- `time-*.txt` - `/usr/bin/time -v` output
+- `perf-*.txt` - `perf stat` output
+- `massif-*-*.out` - Valgrind heap profiles

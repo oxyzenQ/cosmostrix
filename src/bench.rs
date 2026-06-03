@@ -68,6 +68,15 @@ const UPDATE_INTERVAL: Duration = Duration::from_millis(66);
 /// Number of recent frame times to smooth for display.
 const DISPLAY_FT_WINDOW: usize = 16;
 
+const DRAW_RATIO_MEANING: &str = "legacy compatibility: percentage of frames with >=1 dirty cell";
+const ACTIVE_FRAME_RATIO_MEANING: &str =
+    "frames that produced at least one dirty cell during measurement";
+const AVG_DIRTY_CELL_RATIO_MEANING: &str = "average dirty-cell coverage across all measured frames";
+const DIRTY_ALL_FRAMES_MEANING: &str =
+    "logical frames where every cell was dirty; distinct from terminal redraw estimate";
+const ESTIMATED_FULL_REDRAW_MEANING: &str =
+    "threshold estimate of frames likely to use Terminal::draw full-redraw path";
+
 // ── Cursor guard ─────────────────────────────────────────────────────────────
 
 /// RAII guard that ensures the terminal cursor is restored on drop.
@@ -659,14 +668,16 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         s.field("p99_frame_time", &format!("{:.3}ms", p99_frame_time));
         s.field("frame_jitter", jitter_classification);
         s.field("draw_ratio", &format!("{:.1}%", active_frame_ratio));
+        s.field("draw_ratio_meaning", DRAW_RATIO_MEANING);
         s.field(
-            "draw_ratio_meaning",
-            "legacy: frames with >=1 dirty cell, not cell coverage",
+            "active_frame_ratio_percent",
+            &format!("{:.1}%", active_frame_ratio),
         );
         s.field(
             "active_frame_ratio",
             &format!("{:.1}% (frames with >=1 dirty cell)", active_frame_ratio),
         );
+        s.field("active_frame_ratio_meaning", ACTIVE_FRAME_RATIO_MEANING);
         s.field(
             "avg_dirty_cells_per_frame",
             &format!("{:.1}", avg_dirty_cells_per_frame),
@@ -676,7 +687,9 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             "avg_dirty_cell_ratio_percent",
             &format!("{:.2}%", avg_dirty_cell_ratio_percent),
         );
+        s.field("avg_dirty_cell_ratio_meaning", AVG_DIRTY_CELL_RATIO_MEANING);
         s.field("dirty_all_frames", &dirty_all_frames.to_string());
+        s.field("dirty_all_frames_meaning", DIRTY_ALL_FRAMES_MEANING);
         s.field("dirty_threshold_cells", &dirty_threshold_cells.to_string());
         s.field(
             "estimated_full_redraw_frames",
@@ -695,7 +708,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         );
         s.field(
             "estimated_full_redraw_meaning",
-            "frames likely to use full redraw in Terminal::draw, not dirty_all",
+            ESTIMATED_FULL_REDRAW_MEANING,
         );
     }
 
@@ -767,4 +780,28 @@ fn bench_warmup_secs() -> u64 {
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(BENCHMARK_WARMUP_SECS)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn benchmark_metric_meanings_distinguish_dirty_frame_concepts() {
+        assert!(DRAW_RATIO_MEANING.contains("legacy compatibility"));
+        assert!(ACTIVE_FRAME_RATIO_MEANING.contains("at least one dirty cell"));
+        assert!(AVG_DIRTY_CELL_RATIO_MEANING.contains("dirty-cell coverage"));
+        assert!(DIRTY_ALL_FRAMES_MEANING.contains("every cell was dirty"));
+        assert!(ESTIMATED_FULL_REDRAW_MEANING.contains("threshold estimate"));
+    }
+
+    #[test]
+    fn benchmark_docs_do_not_keep_stale_active_claims() {
+        let readme = include_str!("../README.md");
+        let benchmark_readme = include_str!("../benchmark/README.md");
+        assert!(!readme.contains("7,000 FPS"));
+        assert!(!readme.contains(">7,000 FPS"));
+        assert!(!benchmark_readme.contains("v2.1.0 reference results"));
+        assert!(!benchmark_readme.contains("throughput exceeds 7,000 FPS"));
+    }
 }

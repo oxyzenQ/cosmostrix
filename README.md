@@ -293,9 +293,11 @@ So `cosmostrix --config ./config --preset storm --fps 60` uses the config file, 
 
 ## Performance & benchmarking
 
-v2.5.0 throughput exceeds 7,000 FPS headless (120×40, well above the 60 FPS
-target) with a ~3% dirty-cell ratio from differential rendering. Real
-interactive FPS is terminal-bound, not simulation-bound.
+Benchmark results are machine-dependent. Use them to compare builds on the
+same machine, not as portable performance promises. Current optimized builds
+remain comfortably above the 60 FPS target in headless simulation; real
+interactive rendering is usually limited by the terminal emulator, compositor,
+font rendering, and display refresh rate.
 
 Quick benchmark:
 

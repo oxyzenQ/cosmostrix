@@ -14,6 +14,10 @@ cap. A lightweight sampling script reads `/proc/<pid>/status`,
 `/proc/<pid>/stat`, `/proc/<pid>/statm`, `/proc/<pid>/fd`, and
 `/proc/<pid>/io` at regular intervals and appends a single CSV row per sample.
 
+Store endurance logs outside the repository root when practical, for example
+`../logs/cosmostrix-resource-YYYYMMDD-HHMM.csv`. Keeping logs in a sibling
+`logs/` directory avoids mixing large runtime artifacts with source files.
+
 ### Resource log format (CSV)
 
 The current (extended) CSV format contains 19 fields per row:
@@ -134,6 +138,13 @@ done
 bash scripts/endurance-summary.sh "$CSV_PATH"
 ```
 
+If logs are stored in a sibling `logs/` directory, this copy-paste command is
+safe to run even when no current files exist:
+
+```bash
+bash scripts/endurance-summary.sh '../logs/cosmostrix-resource-*.csv' || true
+```
+
 ### Quick 1-hour smoke test
 
 For faster iteration, use a 1-hour run with 10-second sampling:
@@ -217,6 +228,27 @@ fields are validated before processing:
 
 If required fields are missing, the script exits with a clear error message
 identifying the missing column.
+
+### No logs found
+
+If a glob does not match any readable CSV files, the summary script prints a
+friendly usage message instead of a raw `file not found` error. For example:
+
+```bash
+bash scripts/endurance-summary.sh '../logs/cosmostrix-resource-*.csv' || true
+```
+
+If that reports no matching logs:
+
+- Confirm the logs were written to the path you passed.
+- Prefer a durable sibling directory such as `../logs/`.
+- Use a filename pattern like `cosmostrix-resource-YYYYMMDD-HHMM.csv`.
+- Run a short smoke sample first, then summarize the exact CSV path.
+- Quote glob patterns in zsh so the shell does not reject unmatched patterns
+  before the summary script can print its friendly no-logs message.
+
+Malformed CSV files and missing required columns are still treated as real
+errors and should be fixed rather than ignored.
 
 ## Past results
 
