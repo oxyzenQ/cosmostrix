@@ -22,7 +22,7 @@ pub enum BoldMode {
     All,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ColorScheme {
     Green,
     Green2,

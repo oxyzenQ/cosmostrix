@@ -4,12 +4,11 @@
 //! CLI presentation helpers: help templates, clap styling, color/charset scheme
 //! parsing, cycling, and terminal color detection.
 
-use std::collections::HashMap;
 use std::env;
-use std::sync::LazyLock;
 
 use crate::config::Args;
 use crate::runtime::{ColorMode, ColorScheme};
+use crate::theme;
 
 // --- Help template constants ---
 
@@ -130,51 +129,7 @@ pub fn color_mode_label(m: ColorMode) -> &'static str {
 
 #[must_use]
 pub(crate) fn all_color_schemes() -> &'static [ColorScheme] {
-    &[
-        ColorScheme::Green,
-        ColorScheme::Green2,
-        ColorScheme::Green3,
-        ColorScheme::Yellow,
-        ColorScheme::Orange,
-        ColorScheme::Red,
-        ColorScheme::Blue,
-        ColorScheme::Cyan,
-        ColorScheme::Gold,
-        ColorScheme::Rainbow,
-        ColorScheme::Purple,
-        ColorScheme::Neon,
-        ColorScheme::Fire,
-        ColorScheme::Ocean,
-        ColorScheme::Forest,
-        ColorScheme::Vaporwave,
-        ColorScheme::Gray,
-        ColorScheme::Snow,
-        ColorScheme::Aurora,
-        ColorScheme::FancyDiamond,
-        ColorScheme::Cosmos,
-        ColorScheme::Nebula,
-        ColorScheme::Spectrum20,
-        ColorScheme::Stars,
-        ColorScheme::Mars,
-        ColorScheme::Venus,
-        ColorScheme::Mercury,
-        ColorScheme::Jupiter,
-        ColorScheme::Saturn,
-        ColorScheme::Uranus,
-        ColorScheme::Neptune,
-        ColorScheme::Pluto,
-        ColorScheme::Moon,
-        ColorScheme::Sun,
-        ColorScheme::Comet,
-        ColorScheme::Galaxy,
-        ColorScheme::Supernova,
-        ColorScheme::BlackHole,
-        ColorScheme::Andromeda,
-        ColorScheme::Stardust,
-        ColorScheme::Meteor,
-        ColorScheme::Eclipse,
-        ColorScheme::DeepSpace,
-    ]
+    theme::SCHEME_ORDER.as_slice()
 }
 
 #[must_use]
@@ -245,84 +200,6 @@ pub fn cycle_charset_preset(current: &str, dir: i32) -> &'static str {
     list[idx as usize]
 }
 
-// --- HashMap-based color scheme parser ---
-
-pub(crate) static COLOR_SCHEME_MAP: LazyLock<HashMap<&'static str, ColorScheme>> =
-    LazyLock::new(|| {
-        let mut m = HashMap::new();
-        m.insert("green", ColorScheme::Green);
-        m.insert("green2", ColorScheme::Green2);
-        m.insert("green3", ColorScheme::Green3);
-        m.insert("yellow", ColorScheme::Yellow);
-        m.insert("orange", ColorScheme::Orange);
-        m.insert("red", ColorScheme::Red);
-        m.insert("blue", ColorScheme::Blue);
-        m.insert("cyan", ColorScheme::Cyan);
-        m.insert("gold", ColorScheme::Gold);
-        m.insert("rainbow", ColorScheme::Rainbow);
-        m.insert("purple", ColorScheme::Purple);
-        m.insert("neon", ColorScheme::Neon);
-        m.insert("synthwave", ColorScheme::Neon);
-        m.insert("fire", ColorScheme::Fire);
-        m.insert("inferno", ColorScheme::Fire);
-        m.insert("ocean", ColorScheme::Ocean);
-        m.insert("deep-sea", ColorScheme::Ocean);
-        m.insert("deep_sea", ColorScheme::Ocean);
-        m.insert("deepsea", ColorScheme::Ocean);
-        m.insert("forest", ColorScheme::Forest);
-        m.insert("jungle", ColorScheme::Forest);
-        m.insert("vaporwave", ColorScheme::Vaporwave);
-        m.insert("gray", ColorScheme::Gray);
-        m.insert("grey", ColorScheme::Gray);
-        m.insert("snow", ColorScheme::Snow);
-        m.insert("aurora", ColorScheme::Aurora);
-        m.insert("fancy-diamond", ColorScheme::FancyDiamond);
-        m.insert("fancy_diamond", ColorScheme::FancyDiamond);
-        m.insert("fancydiamond", ColorScheme::FancyDiamond);
-        m.insert("cosmos", ColorScheme::Cosmos);
-        m.insert("nebula", ColorScheme::Nebula);
-        m.insert("spectrum20", ColorScheme::Spectrum20);
-        m.insert("spectrum-20", ColorScheme::Spectrum20);
-        m.insert("spectrum_20", ColorScheme::Spectrum20);
-        m.insert("theme20", ColorScheme::Spectrum20);
-        m.insert("theme-20", ColorScheme::Spectrum20);
-        m.insert("theme_20", ColorScheme::Spectrum20);
-        m.insert("stars", ColorScheme::Stars);
-        m.insert("star", ColorScheme::Stars);
-        m.insert("mars", ColorScheme::Mars);
-        m.insert("venus", ColorScheme::Venus);
-        m.insert("mercury", ColorScheme::Mercury);
-        m.insert("jupiter", ColorScheme::Jupiter);
-        m.insert("saturn", ColorScheme::Saturn);
-        m.insert("uranus", ColorScheme::Uranus);
-        m.insert("neptune", ColorScheme::Neptune);
-        m.insert("pluto", ColorScheme::Pluto);
-        m.insert("moon", ColorScheme::Moon);
-        m.insert("sun", ColorScheme::Sun);
-        m.insert("comet", ColorScheme::Comet);
-        m.insert("galaxy", ColorScheme::Galaxy);
-        m.insert("supernova", ColorScheme::Supernova);
-        m.insert("super-nova", ColorScheme::Supernova);
-        m.insert("super_nova", ColorScheme::Supernova);
-        m.insert("blackhole", ColorScheme::BlackHole);
-        m.insert("black-hole", ColorScheme::BlackHole);
-        m.insert("black_hole", ColorScheme::BlackHole);
-        m.insert("andromeda", ColorScheme::Andromeda);
-        m.insert("stardust", ColorScheme::Stardust);
-        m.insert("star-dust", ColorScheme::Stardust);
-        m.insert("star_dust", ColorScheme::Stardust);
-        m.insert("meteor", ColorScheme::Meteor);
-        m.insert("eclipse", ColorScheme::Eclipse);
-        m.insert("deepspace", ColorScheme::DeepSpace);
-        m.insert("deep-space", ColorScheme::DeepSpace);
-        m.insert("deep_space", ColorScheme::DeepSpace);
-        m
-    });
-
 pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
-    let key = s.trim().to_ascii_lowercase();
-    COLOR_SCHEME_MAP
-        .get(key.as_str())
-        .copied()
-        .ok_or_else(|| format!("invalid color: {} (see --list-colors)", s))
+    theme::lookup_theme(s).ok_or_else(|| format!("invalid color: {} (see --list-colors)", s))
 }

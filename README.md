@@ -196,7 +196,8 @@ DIAGNOSTICS
      --reset-terminal       Restore terminal modes after an interrupted run
 
 DISCOVERY
-     --list-colors          Show available color themes
+     --list-colors          Show compact color theme names
+     --list-colors-detail   Show grouped theme descriptions and aliases
      --list-charsets        Show available charset presets
      --list-presets         Show available presets
      --defaults             Show the default runtime profile
@@ -284,7 +285,7 @@ So `cosmostrix --config ./config --preset storm --fps 60` uses the config file, 
 
 ## Color schemes
 
-42 themes available. Run `--list-colors` to see all, including space-themed sets (cosmos, nebula, stars, aurora, galaxy, supernova, and more).
+43 built-in themes are available. Run `--list-colors` for the compact canonical list, or `--list-colors-detail` for grouped descriptions and aliases. Existing color names and aliases remain supported, including space-themed sets such as cosmos, nebula, stars, aurora, galaxy, supernova, blackhole, and deepspace.
 
 ## Character sets
 

@@ -58,6 +58,7 @@ mod renderer_info;
 mod report;
 mod runtime;
 mod terminal;
+mod theme;
 mod validation;
 
 use std::env;
@@ -71,7 +72,7 @@ use clap::{CommandFactory, FromArgMatches};
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
 use crate::config::{
     color_enabled_stdout, print_defaults, print_help_detail, print_list_charsets,
-    print_list_colors, Args, ColorBg,
+    print_list_colors, print_list_colors_detail, Args, ColorBg,
 };
 use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
@@ -228,6 +229,11 @@ fn main() -> std::io::Result<()> {
 
     if args.list_colors {
         print_list_colors();
+        return Ok(());
+    }
+
+    if args.list_colors_detail {
+        print_list_colors_detail();
         return Ok(());
     }
 

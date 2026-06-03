@@ -16,6 +16,8 @@ use std::str::FromStr;
 
 use clap::Parser;
 
+use crate::theme;
+
 #[must_use]
 pub fn color_enabled_stdout() -> bool {
     if std::env::var_os("NO_COLOR").is_some() {
@@ -324,9 +326,17 @@ pub struct Args {
         long = "list-colors",
         help_heading = "DISCOVERY",
         display_order = 200,
-        help = "Show available color themes"
+        help = "Show compact color theme names"
     )]
     pub list_colors: bool,
+
+    #[arg(
+        long = "list-colors-detail",
+        help_heading = "DISCOVERY",
+        display_order = 205,
+        help = "Show grouped color themes with descriptions and aliases"
+    )]
+    pub list_colors_detail: bool,
 
     #[arg(
         long = "list-charsets",
@@ -571,21 +581,24 @@ pub fn print_list_colors() {
         println!("AVAILABLE COLOR THEMES:");
     }
     println!();
-    println!("  green        green2       green3");
-    println!("  yellow       orange       red");
-    println!("  blue         cyan         gold");
-    println!("  rainbow      purple       neon");
-    println!("  fire         ocean        forest");
-    println!("  vaporwave    spectrum20   gray");
-    println!("  snow         aurora       fancy-diamond");
-    println!("  cosmos       nebula       stars");
-    println!("  mars         venus        mercury");
-    println!("  jupiter      saturn       uranus");
-    println!("  neptune      pluto        moon");
-    println!("  sun          comet        galaxy");
-    println!("  supernova    blackhole    andromeda");
-    println!("  stardust     meteor       eclipse");
-    println!("  deepspace");
+    print!("{}", theme::compact_list_text());
+    println!();
+    println!(
+        "{} built-in themes. Use --list-colors-detail for descriptions and aliases.",
+        theme::theme_count()
+    );
+}
+
+pub fn print_list_colors_detail() {
+    if color_enabled_stdout() {
+        println!("\x1b[1;36mCOLOR THEME CATALOG:\x1b[0m");
+    } else {
+        println!("COLOR THEME CATALOG:");
+    }
+    println!();
+
+    print!("{}", theme::detail_list_text());
+    println!("{} built-in themes.", theme::theme_count());
 }
 
 pub fn print_defaults() {
@@ -617,7 +630,8 @@ pub fn print_help_detail() {
 
 COMMON OPTIONS:
   -c, --color <name>
-      Color theme. See --list-colors for available themes.
+      Color theme. See --list-colors for compact names, or
+      --list-colors-detail for grouped descriptions and aliases.
       cosmostrix --color rainbow
 
   --charset <name>
@@ -717,10 +731,12 @@ DIAGNOSTICS:
       after an interrupted run.
 
 DISCOVERY:
-  --list-colors    Show available color themes.
-  --list-charsets  Show available charset presets.
-  --list-presets   Show available presets.
-  --defaults       Show the default runtime profile.
+  --list-colors         Show compact color theme names.
+                        There are 43 built-in themes.
+  --list-colors-detail  Show grouped theme descriptions and aliases.
+  --list-charsets       Show available charset presets.
+  --list-presets        Show available presets.
+  --defaults            Show the default runtime profile.
 
 RUNTIME CONTROLS:
   q / Esc       Quit              p          Pause / resume
