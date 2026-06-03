@@ -1,4 +1,5 @@
-// Copyright (c) 2026 rezky_nightky
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
 
 //! Individual droplet (rain stream) simulation.
 //!
@@ -32,17 +33,53 @@ use std::time::{Duration, Instant};
 
 use crate::cloud::{CharLoc, DrawCtx};
 use crate::constants::{
-    ADVANCE_REMAINDER_CAP, DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT, FOG_MIN_FACTOR,
-    FOG_ROWS, FRACTIONAL_BLOOM_AMP, FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS,
-    HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS,
-    MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED,
-    MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES,
-    PARALLAX_BRIGHTNESS_MULT, PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
-    TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
+    ADVANCE_REMAINDER_CAP, DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT,
+    EDGE_FADE_BOLD_THRESHOLD, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN,
+    FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP, FRACTIONAL_HEAD_BRIGHTNESS_AMP,
+    HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS,
+    HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_INTENSITY,
+    MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS,
+    MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT, PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU,
+    STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
     TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ,
 };
 use crate::frame::Frame;
 use crate::palette;
+
+/// Compute the viewport edge fade factor for a cell at the given line.
+/// Returns a value in `[min(top, bottom)..1.0]` depending on proximity
+/// to the viewport edges. Interior rows return 1.0 (no dimming).
+///
+/// This fade is applied AFTER all other visual effects (including head
+/// self-bloom and head brightness modulation) so it takes priority at
+/// viewport edges, creating:
+/// - Smooth rain emergence at the top (rain appears to enter from beyond)
+/// - Smooth rain exit at the bottom (tails fade out before the terminal border)
+/// - Prevention of bright head tips lingering on the bottom border
+///
+/// The asymmetric min values (EDGE_FADE_TOP_MIN=0.55 vs
+/// EDGE_FADE_BOTTOM_MIN=0.20) ensure the bottom fade is more aggressive
+/// to prevent the phosphor ghost residue artifact where dying droplet
+/// heads burn into the bottom row.
+#[inline]
+pub(crate) fn viewport_edge_fade(line: u16, lines: u16) -> f32 {
+    if lines == 0 || EDGE_FADE_ROWS == 0 {
+        return 1.0;
+    }
+    let top_fade = if line < EDGE_FADE_ROWS {
+        EDGE_FADE_TOP_MIN + (1.0 - EDGE_FADE_TOP_MIN) * (line as f32 / EDGE_FADE_ROWS as f32)
+    } else {
+        1.0
+    };
+    let bottom_dist = lines.saturating_sub(line).saturating_sub(1);
+    let bottom_fade = if bottom_dist < EDGE_FADE_ROWS {
+        EDGE_FADE_BOTTOM_MIN
+            + (1.0 - EDGE_FADE_BOTTOM_MIN) * (bottom_dist as f32 / EDGE_FADE_ROWS as f32)
+    } else {
+        1.0
+    };
+    top_fade.min(bottom_fade)
+}
 
 #[derive(Clone, Debug)]
 pub struct Droplet {
@@ -543,6 +580,29 @@ impl Droplet {
 
                 c
             });
+
+            // Final viewport edge fade: applied AFTER all other visual
+            // effects (including head self-bloom and brightness modulation)
+            // so it takes priority at viewport edges. This creates:
+            // 1. Smooth rain emergence at the top — the head/trail brightness
+            //    ramps in over EDGE_FADE_ROWS, making rain appear to enter
+            //    from just beyond the top border rather than popping in.
+            // 2. Smooth rain exit at the bottom — heads/tails fade out before
+            //    the terminal border, preventing harsh clipping.
+            // 3. Bottom bright-head residue prevention — by dimming the head
+            //    cell's captured brightness at the last viewport row, the
+            //    phosphor system receives a much dimmer initial state.
+            let edge_fade = viewport_edge_fade(line, ctx.lines);
+            let fg = fg.map(|c| {
+                if edge_fade < 1.0 {
+                    palette::apply_brightness(c, edge_fade)
+                } else {
+                    c
+                }
+            });
+            // Suppress bold at viewport edges to prevent harsh bright spots
+            // right at the border where the fade should create smooth dimming.
+            let bold = bold && edge_fade >= EDGE_FADE_BOLD_THRESHOLD;
 
             frame.set(
                 self.bound_col,

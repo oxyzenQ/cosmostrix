@@ -1,4 +1,5 @@
-// Copyright (c) 2026 rezky_nightky
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
 
 //! Differential frame buffer with generation-based dirty tracking.
 //!

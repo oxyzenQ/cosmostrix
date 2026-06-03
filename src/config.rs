@@ -1,4 +1,5 @@
-// Copyright (c) 2026 rezky_nightky
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
 
 //! CLI argument definitions and help output generators.
 //!
@@ -622,11 +623,16 @@ APPEARANCE:
       Shading mode (random, cinematic).
 
   --color-bg <black|default-background|transparent>
-      Background rendering mode.
+      Background rendering mode. 'transparent' means Cosmostrix does not
+      paint a solid background — it follows the terminal emulator
+      background. It does not change terminal emulator opacity.
+      Example: if Alacritty uses a black background, transparent will
+      still look black.
 
 GENERAL:
   -a, --async
-      Enable async rendering.
+      Enable legacy async-style rain pacing compatibility mode.
+      Advanced option; default adaptive renderer is recommended.
 
   -F, --fullwidth
       Use full terminal width.
@@ -654,7 +660,7 @@ RUNTIME CONTROLS:
   c / C         Cycle theme       s / S      Cycle charset
   [ / ]         Density           Up / Down  Speed
   g             Toggle glitch     m          Cycle profile
-  Tab           Toggle shading    Space      Reseed animation
+  Tab           Ignored safely    Space      Reseed animation
 
 HELP:
   --help          Show common options.

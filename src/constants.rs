@@ -1,4 +1,5 @@
-// Copyright (c) 2026 rezky_nightky
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
 
 //! Centralized named constants for the entire codebase.
 //!
@@ -617,3 +618,43 @@ pub const RESUME_EASE_DURATION_SECS: f32 = 0.18;
 /// At 60fps this triggers roughly every 5 minutes — frequent enough to
 /// catch drift but rare enough for zero perceptual impact.
 pub const FULL_REDRAW_INTERVAL_FRAMES: u64 = 18000;
+
+// ---------------------------------------------------------------------------
+// Viewport edge fade (smooth entry/exit at terminal borders)
+// ---------------------------------------------------------------------------
+
+/// Number of rows from viewport edges for smooth entry/exit fade.
+/// Applied after all visual effects including head bloom, ensuring
+/// the fade takes priority over head brightness at edges. Covers a
+/// smaller zone than FOG_ROWS so the two effects complement without
+/// excessive stacking (fog handles rows 3; edge fade handles rows 0-2).
+pub const EDGE_FADE_ROWS: u16 = 3;
+
+/// Minimum brightness at the very top edge (row 0).
+/// At 0.55, the first visible row is moderately dimmed, creating a
+/// subtle emergence effect as rain enters from just beyond the top
+/// border. Combined with the existing fog vignette (FOG_MIN_FACTOR=0.35),
+/// the effective brightness at row 0 is ~0.55 × 0.35 ≈ 0.19 — visible
+/// but subdued, giving the cinematic "entering the frame" feel.
+pub const EDGE_FADE_TOP_MIN: f32 = 0.55;
+
+/// Minimum brightness at the very bottom edge (last row).
+/// More aggressive than top (0.20 vs 0.55) to prevent bright head
+/// tips from lingering on the terminal's bottom border. Combined with
+/// fog (0.35), effective brightness at last row is ~0.20 × 0.35 ≈ 0.07 —
+/// nearly invisible, preventing the horizontal residue line artifact.
+pub const EDGE_FADE_BOTTOM_MIN: f32 = 0.20;
+
+/// Threshold for bold suppression at viewport edges. When the edge
+/// fade factor is below this value, bold is forced off to prevent bold
+/// glyphs from creating harsh bright spots right at the border.
+pub const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
+
+/// Phosphor energy cap for cells in the bottom viewport edge zone.
+/// Normally phosphor captures full energy (255) for freshly drawn cells,
+/// but at the bottom edge this creates persistent bright ghost residue
+/// from dying droplet heads. Capping at 64 (~25% brightness) ensures
+/// ghost cells at the bottom fade out within ~19 frames at 60fps with
+/// the existing PHOSPHOR_BOTTOM_DECAY_MULT (2.5×) acceleration, preventing
+/// the horizontal residue line artifact.
+pub const PHOSPHOR_EDGE_ENERGY_CAP: u8 = 64;

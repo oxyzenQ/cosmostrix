@@ -1,4 +1,5 @@
-// Copyright (c) 2026 rezky_nightky
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
 
 //! Runtime CPU feature detection and binary variant reporting.
 //!

@@ -1,6 +1,5 @@
-# =============================================================================
-# T-800 — AUR Synchronization
-# =============================================================================
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: MIT
 # Triggers after a successful GitHub Release publication and synchronizes
 # pkgver, _tag, and .SRCINFO to the Arch User Repository.
 #
@@ -14,7 +13,6 @@
 #   Uses AUR_SSH_PRIVATE_KEY from GitHub Actions Secrets.
 #   This key is isolated, revocable, has no passphrase, and exists
 #   only for automated deployment.
-# =============================================================================
 
 name: "T-800 - AUR Sync"
 

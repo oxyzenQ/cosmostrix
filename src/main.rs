@@ -1,4 +1,5 @@
-// Copyright (c) 2026 rezky_nightky
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
 
 //! Cosmostrix — High-performance cinematic Matrix rain renderer for the terminal.
 //!
@@ -35,9 +36,11 @@
 //! and outlier trimming. Optimizations target real bottlenecks identified
 //! through profiling, not hypothetical micro-optimizations.
 
+mod app;
 mod bench;
 mod cell;
 mod charset;
+mod cli;
 mod cloud;
 mod config;
 mod configfile;
@@ -46,6 +49,7 @@ mod diagnostics;
 mod doctor;
 mod droplet;
 mod frame;
+mod info;
 mod interactive;
 mod palette;
 mod renderer_info;
@@ -59,166 +63,41 @@ use std::env;
 #[cfg(target_os = "linux")]
 use std::io::IsTerminal;
 
-#[cfg(unix)]
-use clap::builder::styling::{AnsiColor as ClapAnsiColor, Color as ClapColor};
-use clap::builder::styling::{Effects as ClapEffects, Style as ClapStyle};
-use clap::builder::Styles as ClapStyles;
 use clap::parser::ValueSource;
 use clap::{CommandFactory, FromArgMatches};
 
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
-use crate::cloud::Cloud;
 use crate::config::{
     color_enabled_stdout, print_defaults, print_help_detail, print_list_charsets,
     print_list_colors, Args, ColorBg, GlitchLevel, U16Range,
 };
 use crate::constants::*;
-use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
+use crate::runtime::{BoldMode, ShadingMode};
 use crate::terminal::{reset_terminal_emergency, restore_terminal_best_effort};
 use crate::validation::{
     validate_f32_range, validate_f64_range, validate_u16_range, validate_u8_range,
 };
 
-// --- Named constants are centralized in constants.rs ---
+// Re-exports: items moved to submodules but still accessed by sibling
+// modules via `super::`.
+pub use app::{auto_density_factor, effective_density, CloudConfig};
+pub use cli::{
+    color_mode_label, cycle_charset_preset, cycle_color_scheme, default_to_ascii,
+    detect_color_mode, detect_color_mode_auto, normalize_charset_preset_name, parse_color_scheme,
+};
+pub use info::env_var_truthy;
 
-const HELP_TEMPLATE_PLAIN: &str = "\
-{name} {version}
-{about-with-newline}\
-USAGE:
-  {usage}
+// --- Helpers kept in the crate root ---
 
-{all-args}{after-help}";
-
-const HELP_TEMPLATE_COLOR: &str = "\
-{name} {version}
-{about-with-newline}\
-\x1b[1;36mUSAGE:\x1b[0m
-  {usage}
-
-{all-args}{after-help}";
-
-// --- CloudConfig struct for deduplicating cloud initialization ---
-
-/// Aggregated configuration for creating and running a `Cloud` instance.
-/// Collected from CLI args and config file, then passed to the interactive
-/// loop or benchmark runner.
-pub struct CloudConfig {
-    pub color_mode: ColorMode,
-    pub fullwidth: bool,
-    pub shading_mode: ShadingMode,
-    pub bold_mode: BoldMode,
-    pub async_mode: bool,
-    pub default_bg: bool,
-    pub color_scheme: ColorScheme,
-    pub noglitch: bool,
-    pub glitch_pct: f32,
-    pub glitch_low: u16,
-    pub glitch_high: u16,
-    pub linger_low: u16,
-    pub linger_high: u16,
-    pub short_pct: f32,
-    pub die_early_pct: f32,
-    pub max_dpc: u8,
-    pub density: f32,
-    pub speed: f32,
-    pub chars: Vec<char>,
-    pub message: Option<String>,
-    pub message_no_border: bool,
-    pub target_fps: f64,
-    pub duration: Option<f64>,
-    pub duration_s: Option<f64>,
-    pub bench_frames: Option<u64>,
-    pub benchmark: bool,
-    pub density_auto: bool,
-    pub base_density: f32,
-    pub perf_stats: bool,
-    pub screensaver: bool,
-    pub mouse: bool,
-    pub charset_preset: String,
-    pub user_ranges: Vec<(char, char)>,
-    pub def_ascii: bool,
-}
-
-impl CloudConfig {
-    pub fn create_cloud(&self, density: f32) -> Cloud {
-        let mut cloud = Cloud::new(
-            self.color_mode,
-            self.fullwidth,
-            self.shading_mode,
-            self.bold_mode,
-            self.async_mode,
-            self.default_bg,
-            self.color_scheme,
-        );
-
-        cloud.glitchy = !self.noglitch;
-        cloud.set_glitch_pct(self.glitch_pct / 100.0);
-        cloud.set_glitch_times(self.glitch_low, self.glitch_high);
-        cloud.set_linger_times(self.linger_low, self.linger_high);
-        cloud.short_pct = self.short_pct / 100.0;
-        cloud.die_early_pct = self.die_early_pct / 100.0;
-        cloud.set_max_droplets_per_column(self.max_dpc);
-        cloud.set_droplet_density(density);
-        cloud.set_chars_per_sec(self.speed);
-
-        cloud.init_chars(self.chars.clone());
-        cloud.reset(DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES);
-
-        // Mouse interaction is opt-in (--mouse flag). Default: disabled for
-        // terminal safety (avoids mouse escape sequence leaks on crash).
-        cloud.mouse_enabled = self.mouse;
-
-        if let Some(msg) = &self.message {
-            cloud.set_message_border(!self.message_no_border);
-            cloud.set_message(msg);
-        }
-
-        cloud
-    }
-}
-
-// --- Helper functions (shared across modules) ---
-
-#[must_use]
-fn build_commit_short() -> Option<&'static str> {
-    match option_env!("COSMOSTRIX_GIT_SHA") {
-        Some(s) if !s.is_empty() => Some(s),
-        _ => None,
-    }
-}
-
-#[must_use]
-pub fn env_var_truthy(name: &str) -> bool {
-    match env::var(name) {
-        Ok(v) => {
-            let v = v.trim();
-            if v.is_empty() {
-                return false;
-            }
-            let v = v.to_ascii_lowercase();
-            !(v == "0" || v == "false" || v == "no" || v == "off")
-        }
-        Err(env::VarError::NotPresent) => false,
-        Err(env::VarError::NotUnicode(_)) => true,
-    }
-}
-
-#[must_use]
-#[cfg(unix)]
-fn clap_styles() -> ClapStyles {
-    ClapStyles::styled()
-        .header(
-            ClapStyle::new()
-                .effects(ClapEffects::BOLD)
-                .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Cyan))),
-        )
-        .usage(
-            ClapStyle::new()
-                .effects(ClapEffects::BOLD)
-                .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Green))),
-        )
-        .literal(ClapStyle::new().fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Yellow))))
-        .placeholder(ClapStyle::new().fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Magenta))))
+/// Convert a `Result<T, String>` validation error to `io::Error`.
+/// Side effect: restores the terminal and prints the error message to stderr
+/// before returning the error, so the user doesn't see a broken terminal.
+fn validate_err<T>(name: &str, r: Result<T, String>) -> std::io::Result<T> {
+    r.map_err(|e| {
+        restore_terminal_best_effort();
+        eprintln!("{}", e);
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, name)
+    })
 }
 
 #[cfg(target_os = "linux")]
@@ -277,522 +156,10 @@ pub fn spawn_kill9_terminal_guard() {
     }
 }
 
-#[must_use]
-fn default_to_ascii() -> bool {
-    let lang = env::var("LANG").unwrap_or_default();
-    !lang.to_ascii_uppercase().contains("UTF")
-}
-
-#[must_use]
-fn detect_color_mode_from_terms(colorterm: &str, term: &str) -> ColorMode {
-    let colorterm = colorterm.to_ascii_lowercase();
-    if colorterm.contains("truecolor") || colorterm.contains("24bit") {
-        return ColorMode::TrueColor;
-    }
-
-    let term = term.to_ascii_lowercase();
-    if term == "dumb" {
-        return ColorMode::Mono;
-    }
-    if term.contains("-truecolor") || term.ends_with("-direct") {
-        return ColorMode::TrueColor;
-    }
-    if term.contains("256color") {
-        return ColorMode::Color256;
-    }
-
-    ColorMode::Color16
-}
-
-#[must_use]
-fn detect_color_mode_auto() -> ColorMode {
-    #[cfg(windows)]
-    {
-        if env::var_os("WT_SESSION").is_some() {
-            return ColorMode::TrueColor;
-        }
-    }
-
-    let colorterm = env::var("COLORTERM").unwrap_or_default();
-    let term = env::var("TERM").unwrap_or_default();
-    detect_color_mode_from_terms(&colorterm, &term)
-}
-
-pub fn detect_color_mode(args: &Args) -> ColorMode {
-    if let Some(m) = args.colormode {
-        return match m {
-            0 => ColorMode::Mono,
-            16 => ColorMode::Color16,
-            8 | 256 => ColorMode::Color256,
-            24 | 32 => ColorMode::TrueColor,
-            _ => {
-                eprintln!("invalid --colormode: {} (allowed: 0,16,8/256,24/32)", m);
-                std::process::exit(1);
-            }
-        };
-    }
-
-    detect_color_mode_auto()
-}
-
-#[must_use]
-pub fn color_mode_label(m: ColorMode) -> &'static str {
-    match m {
-        ColorMode::TrueColor => "24-bit truecolor",
-        ColorMode::Color256 => "8-bit (256-color)",
-        ColorMode::Mono => "mono",
-        ColorMode::Color16 => "16-color",
-    }
-}
-
-#[must_use]
-fn all_color_schemes() -> &'static [ColorScheme] {
-    &[
-        ColorScheme::Green,
-        ColorScheme::Green2,
-        ColorScheme::Green3,
-        ColorScheme::Yellow,
-        ColorScheme::Orange,
-        ColorScheme::Red,
-        ColorScheme::Blue,
-        ColorScheme::Cyan,
-        ColorScheme::Gold,
-        ColorScheme::Rainbow,
-        ColorScheme::Purple,
-        ColorScheme::Neon,
-        ColorScheme::Fire,
-        ColorScheme::Ocean,
-        ColorScheme::Forest,
-        ColorScheme::Vaporwave,
-        ColorScheme::Gray,
-        ColorScheme::Snow,
-        ColorScheme::Aurora,
-        ColorScheme::FancyDiamond,
-        ColorScheme::Cosmos,
-        ColorScheme::Nebula,
-        ColorScheme::Spectrum20,
-        ColorScheme::Stars,
-        ColorScheme::Mars,
-        ColorScheme::Venus,
-        ColorScheme::Mercury,
-        ColorScheme::Jupiter,
-        ColorScheme::Saturn,
-        ColorScheme::Uranus,
-        ColorScheme::Neptune,
-        ColorScheme::Pluto,
-        ColorScheme::Moon,
-        ColorScheme::Sun,
-        ColorScheme::Comet,
-        ColorScheme::Galaxy,
-        ColorScheme::Supernova,
-        ColorScheme::BlackHole,
-        ColorScheme::Andromeda,
-        ColorScheme::Stardust,
-        ColorScheme::Meteor,
-        ColorScheme::Eclipse,
-        ColorScheme::DeepSpace,
-    ]
-}
-
-#[must_use]
-fn cycle_color_scheme(current: ColorScheme, dir: i32) -> ColorScheme {
-    let list = all_color_schemes();
-    let Some(pos) = list.iter().position(|&c| c == current) else {
-        return ColorScheme::Green;
-    };
-
-    let n = list.len() as i32;
-    let mut idx = pos as i32 + dir;
-    idx = ((idx % n) + n) % n;
-    list[idx as usize]
-}
-
-#[must_use]
-fn all_charset_presets() -> &'static [&'static str] {
-    &[
-        "auto",
-        "matrix",
-        "ascii",
-        "extended",
-        "english",
-        "digits",
-        "punc",
-        "binary",
-        "hex",
-        "katakana",
-        "greek",
-        "cyrillic",
-        "hebrew",
-        "blocks",
-        "symbols",
-        "arrows",
-        "retro",
-        "cyberpunk",
-        "hacker",
-        "minimal",
-        "code",
-        "dna",
-        "braille",
-        "runic",
-    ]
-}
-
-#[must_use]
-fn normalize_charset_preset_name(s: &str) -> String {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "bin" | "01" => "binary".to_string(),
-        "dec" | "decimal" => "digits".to_string(),
-        "hexadecimal" => "hex".to_string(),
-        other => other.to_string(),
-    }
-}
-
-#[must_use]
-fn cycle_charset_preset(current: &str, dir: i32) -> &'static str {
-    let list = all_charset_presets();
-    let Some(pos) = list.iter().position(|&c| c == current) else {
-        return "binary";
-    };
-
-    let n = list.len() as i32;
-    let mut idx = pos as i32 + dir;
-    idx = ((idx % n) + n) % n;
-    list[idx as usize]
-}
-
-#[must_use]
-pub fn auto_density_factor(cols: u16, lines: u16, fullwidth: bool) -> f32 {
-    let eff_cols = if fullwidth {
-        (cols / 2).max(1)
-    } else {
-        cols.max(1)
-    } as f32;
-    let eff_lines = lines.max(1) as f32;
-
-    let area = eff_cols * eff_lines;
-    let base = DENSITY_BASE_COLS * DENSITY_BASE_LINES;
-    let factor = (area / base).sqrt();
-    factor.clamp(DENSITY_AUTO_MIN, DENSITY_AUTO_MAX)
-}
-
-#[must_use]
-pub fn effective_density(base: f32, cols: u16, lines: u16, fullwidth: bool, auto: bool) -> f32 {
-    let base = base.clamp(DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX);
-    if !auto {
-        return base;
-    }
-    (base * auto_density_factor(cols, lines, fullwidth)).clamp(DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX)
-}
-
-// --- HashMap-based color scheme parser ---
-
-use std::collections::HashMap;
-use std::sync::LazyLock;
-
-static COLOR_SCHEME_MAP: LazyLock<HashMap<&'static str, ColorScheme>> = LazyLock::new(|| {
-    let mut m = HashMap::new();
-    m.insert("green", ColorScheme::Green);
-    m.insert("green2", ColorScheme::Green2);
-    m.insert("green3", ColorScheme::Green3);
-    m.insert("yellow", ColorScheme::Yellow);
-    m.insert("orange", ColorScheme::Orange);
-    m.insert("red", ColorScheme::Red);
-    m.insert("blue", ColorScheme::Blue);
-    m.insert("cyan", ColorScheme::Cyan);
-    m.insert("gold", ColorScheme::Gold);
-    m.insert("rainbow", ColorScheme::Rainbow);
-    m.insert("purple", ColorScheme::Purple);
-    m.insert("neon", ColorScheme::Neon);
-    m.insert("synthwave", ColorScheme::Neon);
-    m.insert("fire", ColorScheme::Fire);
-    m.insert("inferno", ColorScheme::Fire);
-    m.insert("ocean", ColorScheme::Ocean);
-    m.insert("deep-sea", ColorScheme::Ocean);
-    m.insert("deep_sea", ColorScheme::Ocean);
-    m.insert("deepsea", ColorScheme::Ocean);
-    m.insert("forest", ColorScheme::Forest);
-    m.insert("jungle", ColorScheme::Forest);
-    m.insert("vaporwave", ColorScheme::Vaporwave);
-    m.insert("gray", ColorScheme::Gray);
-    m.insert("grey", ColorScheme::Gray);
-    m.insert("snow", ColorScheme::Snow);
-    m.insert("aurora", ColorScheme::Aurora);
-    m.insert("fancy-diamond", ColorScheme::FancyDiamond);
-    m.insert("fancy_diamond", ColorScheme::FancyDiamond);
-    m.insert("fancydiamond", ColorScheme::FancyDiamond);
-    m.insert("cosmos", ColorScheme::Cosmos);
-    m.insert("nebula", ColorScheme::Nebula);
-    m.insert("spectrum20", ColorScheme::Spectrum20);
-    m.insert("spectrum-20", ColorScheme::Spectrum20);
-    m.insert("spectrum_20", ColorScheme::Spectrum20);
-    m.insert("theme20", ColorScheme::Spectrum20);
-    m.insert("theme-20", ColorScheme::Spectrum20);
-    m.insert("theme_20", ColorScheme::Spectrum20);
-    m.insert("stars", ColorScheme::Stars);
-    m.insert("star", ColorScheme::Stars);
-    m.insert("mars", ColorScheme::Mars);
-    m.insert("venus", ColorScheme::Venus);
-    m.insert("mercury", ColorScheme::Mercury);
-    m.insert("jupiter", ColorScheme::Jupiter);
-    m.insert("saturn", ColorScheme::Saturn);
-    m.insert("uranus", ColorScheme::Uranus);
-    m.insert("neptune", ColorScheme::Neptune);
-    m.insert("pluto", ColorScheme::Pluto);
-    m.insert("moon", ColorScheme::Moon);
-    m.insert("sun", ColorScheme::Sun);
-    m.insert("comet", ColorScheme::Comet);
-    m.insert("galaxy", ColorScheme::Galaxy);
-    m.insert("supernova", ColorScheme::Supernova);
-    m.insert("super-nova", ColorScheme::Supernova);
-    m.insert("super_nova", ColorScheme::Supernova);
-    m.insert("blackhole", ColorScheme::BlackHole);
-    m.insert("black-hole", ColorScheme::BlackHole);
-    m.insert("black_hole", ColorScheme::BlackHole);
-    m.insert("andromeda", ColorScheme::Andromeda);
-    m.insert("stardust", ColorScheme::Stardust);
-    m.insert("star-dust", ColorScheme::Stardust);
-    m.insert("star_dust", ColorScheme::Stardust);
-    m.insert("meteor", ColorScheme::Meteor);
-    m.insert("eclipse", ColorScheme::Eclipse);
-    m.insert("deepspace", ColorScheme::DeepSpace);
-    m.insert("deep-space", ColorScheme::DeepSpace);
-    m.insert("deep_space", ColorScheme::DeepSpace);
-    m
-});
-
-fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
-    let key = s.trim().to_ascii_lowercase();
-    COLOR_SCHEME_MAP
-        .get(key.as_str())
-        .copied()
-        .ok_or_else(|| format!("invalid color: {} (see --list-colors)", s))
-}
-
-// --- Memory budget estimation ---
-
-#[must_use]
-fn estimate_memory_budget(w: u16, h: u16) -> usize {
-    // Use actual Cell size rather than a magic number for accuracy
-    let cell_size = std::mem::size_of::<crate::cell::Cell>();
-    let frame_cells = (w as usize) * (h as usize) * cell_size;
-
-    // Cloud internal buffers: char_pool (2048), glitch_pool (1024), color_map, glitch_map
-    let cloud_pools = 2048 * 4 + 1024 * 4;
-    let cloud_maps = (w as usize) * (h as usize) * 2; // color_map + glitch_map
-
-    // Droplets: ~1.5 * cols droplets, each ~100 bytes
-    let droplet_count = (1.5 * w as f32) as usize;
-    let droplets_size = droplet_count * std::mem::size_of::<crate::droplet::Droplet>().max(100);
-
-    // Terminal: LastFrame + row_dirty + touched_rows
-    let terminal_last = (w as usize) * (h as usize) * cell_size;
-
-    frame_cells * 2 + cloud_pools + cloud_maps + droplets_size + terminal_last
-}
-
-#[must_use]
-fn format_bytes(bytes: usize) -> String {
-    if bytes < 1024 {
-        format!("{} B", bytes)
-    } else if bytes < 1024 * 1024 {
-        format!("{:.1} KiB", bytes as f64 / 1024.0)
-    } else {
-        format!("{:.1} MiB", bytes as f64 / (1024.0 * 1024.0))
-    }
-}
-
-// --- Helper to convert String errors to io::Error for main() ---
-
-/// Convert a `Result<T, String>` validation error to `io::Error`.
-/// Side effect: restores the terminal and prints the error message to stderr
-/// before returning the error, so the user doesn't see a broken terminal.
-fn validate_err<T>(name: &str, r: Result<T, String>) -> std::io::Result<T> {
-    r.map_err(|e| {
-        restore_terminal_best_effort();
-        eprintln!("{}", e);
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, name)
-    })
-}
-
-// --- Config file defaults integration ---
-
-/// Apply config file defaults to CLI args that were not explicitly provided.
-///
-/// All numeric values are validated against the same ranges enforced for CLI
-/// arguments, so a malformed config file cannot cause panics (e.g. fps=0
-/// leading to division-by-zero) or out-of-range behaviour.
-fn apply_config_defaults(matches: &clap::ArgMatches, args: &mut Args) {
-    use clap::parser::ValueSource;
-
-    let cfg = configfile::load_config_file();
-    if cfg.is_empty() {
-        return;
-    }
-
-    // Only override args that were not explicitly provided (still at default)
-    let apply = |key: &str, matches: &clap::ArgMatches| -> Option<String> {
-        if matches.value_source(key) == Some(ValueSource::DefaultValue) {
-            cfg.get(key).cloned()
-        } else {
-            None
-        }
-    };
-
-    if let Some(v) = apply("color", matches) {
-        args.color = v;
-    }
-    if let Some(v) = apply("charset", matches) {
-        args.charset = v;
-    }
-    if let Some(v) = apply("fps", matches) {
-        match v.parse::<f64>() {
-            Ok(n) if n.is_finite() => {
-                if let Ok(f) = validate_f64_range("config fps", n, 1.0, 240.0) {
-                    args.fps = f;
-                } else {
-                    eprintln!("config: ignoring invalid fps={v} (min 1 max 240)");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable fps='{v}' (expected a number)"),
-        }
-    }
-    if let Some(v) = apply("speed", matches) {
-        match v.parse::<f32>() {
-            Ok(n) if n.is_finite() => {
-                if let Ok(f) = validate_f32_range("config speed", n, 0.001, 1000.0) {
-                    args.speed = f;
-                } else {
-                    eprintln!("config: ignoring invalid speed={v} (min 0.001 max 1000)");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable speed='{v}' (expected a number)"),
-        }
-    }
-    if let Some(v) = apply("density", matches) {
-        match v.parse::<f32>() {
-            Ok(n) if n.is_finite() => {
-                if let Ok(f) =
-                    validate_f32_range("config density", n, DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX)
-                {
-                    args.density = f;
-                } else {
-                    eprintln!("config: ignoring invalid density={v} (min {DENSITY_CLAMP_MIN} max {DENSITY_CLAMP_MAX})");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable density='{v}' (expected a number)"),
-        }
-    }
-    if let Some(v) = apply("bold", matches) {
-        match v.parse::<u8>() {
-            Ok(n) => {
-                if let Ok(valid) = validate_u8_range("config bold", n, 0, 2) {
-                    args.bold = valid;
-                } else {
-                    eprintln!("config: ignoring invalid bold={v} (min 0 max 2)");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable bold='{v}' (expected integer 0-2)"),
-        }
-    }
-    if let Some(v) = apply("shadingmode", matches) {
-        match v.parse::<u8>() {
-            Ok(n) => {
-                if let Ok(valid) = validate_u8_range("config shadingmode", n, 0, 1) {
-                    args.shading_mode = valid;
-                } else {
-                    eprintln!("config: ignoring invalid shadingmode={v} (min 0 max 1)");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable shadingmode='{v}' (expected integer 0-1)"),
-        }
-    }
-    if let Some(v) = apply("glitchpct", matches) {
-        match v.parse::<f32>() {
-            Ok(n) if n.is_finite() => {
-                if let Ok(f) = validate_f32_range("config glitchpct", n, 0.0, 100.0) {
-                    args.glitch_pct = f;
-                } else {
-                    eprintln!("config: ignoring invalid glitchpct={v} (min 0 max 100)");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable glitchpct='{v}' (expected a number)"),
-        }
-    }
-    if let Some(v) = apply("shortpct", matches) {
-        match v.parse::<f32>() {
-            Ok(n) if n.is_finite() => {
-                if let Ok(f) = validate_f32_range("config shortpct", n, 0.0, 100.0) {
-                    args.shortpct = f;
-                } else {
-                    eprintln!("config: ignoring invalid shortpct={v} (min 0 max 100)");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable shortpct='{v}' (expected a number)"),
-        }
-    }
-    if let Some(v) = apply("rippct", matches) {
-        match v.parse::<f32>() {
-            Ok(n) if n.is_finite() => {
-                if let Ok(f) = validate_f32_range("config rippct", n, 0.0, 100.0) {
-                    args.rippct = f;
-                } else {
-                    eprintln!("config: ignoring invalid rippct={v} (min 0 max 100)");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable rippct='{v}' (expected a number)"),
-        }
-    }
-    if let Some(v) = apply("maxdpc", matches) {
-        match v.parse::<u8>() {
-            Ok(n) => {
-                if let Ok(valid) = validate_u8_range("config maxdpc", n, 1, 3) {
-                    args.max_droplets_per_column = valid;
-                } else {
-                    eprintln!("config: ignoring invalid maxdpc={v} (min 1 max 3)");
-                }
-            }
-            _ => eprintln!("config: ignoring unparseable maxdpc='{v}' (expected integer 1-3)"),
-        }
-    }
-}
-
-// --- Main entry point ---
-
-/// Runtime CPU feature check for x86-64 builds.
-///
-/// Detects if the CPU supports the required instruction set for the
-/// compiled target level (v3 = AVX2, v4 = AVX-512). Prints a clear
-/// error message and exits instead of crashing with SIGILL.
-#[cfg(target_arch = "x86_64")]
-fn check_cpu_features() {
-    let build = option_env!("COSMOSTRIX_BUILD").unwrap_or("");
-    if build.contains("-v4") {
-        if !std::arch::is_x86_feature_detected!("avx512f") {
-            eprintln!(
-                "\x1b[1;31mFATAL:\x1b[0m This binary requires \x1b[1mAVX-512\x1b[0m (x86-64-v4)"
-            );
-            eprintln!("       but your CPU does not support it.");
-            eprintln!();
-            eprintln!("Rebuild with a compatible target:");
-            eprintln!("  cargo pro-linux-v2    # x86-64-v2 (SSE4.2, POPCNT) — most CPUs");
-            eprintln!("  cargo pro-linux-v3    # x86-64-v3 (AVX2) — modern CPUs");
-            std::process::exit(1);
-        }
-    } else if build.contains("-v3") && !std::arch::is_x86_feature_detected!("avx2") {
-        eprintln!("\x1b[1;31mFATAL:\x1b[0m This binary requires \x1b[1mAVX2\x1b[0m (x86-64-v3)");
-        eprintln!("       but your CPU does not support it.");
-        eprintln!();
-        eprintln!("Rebuild with:");
-        eprintln!("  cargo pro-linux-v1    # x86-64-v1 (baseline)");
-        eprintln!("  cargo pro-linux-v2    # x86-64-v2 (SSE4.2, POPCNT)");
-        std::process::exit(1);
-    }
-}
-
 fn main() -> std::io::Result<()> {
     // MUST be first — checks CPU features before any v3/v4 instructions execute
     #[cfg(target_arch = "x86_64")]
-    check_cpu_features();
+    info::check_cpu_features();
 
     std::panic::set_hook(Box::new(|info| {
         restore_terminal_best_effort();
@@ -802,12 +169,12 @@ fn main() -> std::io::Result<()> {
     let mut cmd = Args::command();
     #[cfg(unix)]
     {
-        cmd = cmd.styles(clap_styles());
+        cmd = cmd.styles(cli::clap_styles());
     }
     let help_template = if color_enabled_stdout() {
-        HELP_TEMPLATE_COLOR
+        cli::HELP_TEMPLATE_COLOR
     } else {
-        HELP_TEMPLATE_PLAIN
+        cli::HELP_TEMPLATE_PLAIN
     };
     cmd = cmd.help_template(help_template);
     cmd.build();
@@ -833,7 +200,7 @@ fn main() -> std::io::Result<()> {
     }
 
     // Apply config file defaults for args not explicitly set by user
-    apply_config_defaults(&matches, &mut args);
+    app::apply_config_defaults(&matches, &mut args);
 
     // Apply --low-power overrides for args still at their default values.
     // Explicit CLI flags always take precedence; config file values are also
@@ -988,7 +355,7 @@ fn main() -> std::io::Result<()> {
         {
             let s = r.section("BUILD");
             s.field("version", &format!("v{}", env!("CARGO_PKG_VERSION")));
-            if let Some(sha) = build_commit_short() {
+            if let Some(sha) = info::build_commit_short() {
                 s.field("commit", sha);
             }
             s.field("variant", cpu.build_variant);
@@ -1016,11 +383,11 @@ fn main() -> std::io::Result<()> {
             let s = r.section("CAPACITY");
             s.field(
                 "est_memory_per_frame (120x40)",
-                &format_bytes(estimate_memory_budget(120, 40)),
+                &info::format_bytes(info::estimate_memory_budget(120, 40)),
             );
             s.field(
                 "est_memory_per_frame (200x60)",
-                &format_bytes(estimate_memory_budget(200, 60)),
+                &info::format_bytes(info::estimate_memory_budget(200, 60)),
             );
         }
         {
@@ -1208,7 +575,8 @@ fn main() -> std::io::Result<()> {
 
 #[cfg(test)]
 mod color_detection_tests {
-    use super::{detect_color_mode_from_terms, ColorMode};
+    use crate::cli::detect_color_mode_from_terms;
+    use crate::runtime::ColorMode;
 
     #[test]
     fn term_xterm_direct_detects_truecolor_without_colorterm() {

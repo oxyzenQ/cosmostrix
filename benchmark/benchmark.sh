@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: MIT
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

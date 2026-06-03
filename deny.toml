@@ -1,3 +1,6 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: MIT
+
 [graph]
 targets = []
 all-features = false

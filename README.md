@@ -276,6 +276,19 @@ interpretation notes.
 
 ## Release notes
 
+### v2.2.0
+
+**Stability, maintainability, and supply-chain hardening release.** No visual or CLI behavior changes.
+
+- All `*.rs` files are under 1,000 gross lines (enforced by `check-rs-loc.sh` in `check-all`)
+- Module splits: `src/cloud.rs` → `src/cloud/` (8 modules), `src/interactive.rs` → `src/interactive/` (6 modules), `src/main.rs` → `src/app.rs` + `src/cli.rs` + `src/info.rs` + `src/main.rs`
+- Cloud tests split into `tests/mod.rs` (core) and `tests/tests_phosphor.rs` (phosphor/ghost)
+- Added endurance testing documentation ([ENDURANCE.md](docs/ENDURANCE.md)) and resource summary script
+- Added supply-chain hardening policy ([SUPPLY_CHAIN.md](docs/SUPPLY_CHAIN.md))
+- Added terminal stability audit ([STABILITY_AUDIT.md](docs/STABILITY_AUDIT.md))
+- Fixed clippy module-inception and unused import warnings
+- 61 regression tests pass, clippy clean, fmt clean
+
 ### v2.1.0
 
 **Visual contrast & readability overhaul** — body glyphs are now clearly readable with stronger head/body/trail hierarchy while preserving the calm cinematic identity.
@@ -334,7 +347,7 @@ Create a release by pushing a `v*` tag. See `workflow/about-ci.md` for CI and re
 
 ## Contributing
 
-PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting.
+PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [RULES.md](RULES.md) for project conventions.
 
 ## Support
 

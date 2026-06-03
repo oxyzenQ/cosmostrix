@@ -1,3 +1,6 @@
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
+
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
