@@ -152,7 +152,7 @@ GitHub Actions permissions follow the principle of least privilege:
 | `gitbot-audit.yml` | `contents: read`, `actions: read` | Observation-only security scan |
 | `aur.yml` | `contents: read` | No write to this repo; SSH key handles AUR push |
 | `release.yml` | `contents: write`, `actions: write` | Creates GitHub Releases; write is necessary |
-| `gitbot-deps.yml` | `contents: write`, `pull-requests: write` | Commits lockfile updates and/or opens PRs |
+| `gitbot-deps.yml` | `contents: write` | Commits validated lockfile updates directly to `main` |
 
 No workflow requests `attestations: write` at present. If binary attestation via
 GitHub's Sigstore integration is adopted in the future, that permission will be
@@ -162,15 +162,13 @@ scoped exclusively to the `release.yml` workflow and pinned to a single job.
 
 The CI workflow (`ci.yml`) triggers on both `push` to `main` and `pull_request`
 against `main`. However, the `gitbot-deps.yml` automated dependency update workflow
-has the ability to push directly to `main` (via the `direct` strategy) when
-scheduled weekly. This is acceptable because:
+pushes directly to `main` when scheduled weekly. This is acceptable because:
 
 - The automated commit only modifies `Cargo.lock` — no source code changes.
 - The commit is preceded by a full validation pipeline: `cargo audit`,
   `cargo deny check all`, `cargo fmt --check`, `cargo build`, `cargo test`,
   and `cargo clippy`.
-- An alternative `pr` strategy is available via `workflow_dispatch` for
-  maintainers who prefer human review before merge.
+- Failed validation stops the workflow before any commit is pushed.
 
 For all human-authored changes, the recommendation is to enable GitHub branch
 protection rules on `main` that require at least one approving review before
@@ -256,8 +254,7 @@ The project uses a weekly automated update cycle powered by the T-800 bot
 8. **`cargo clippy --locked --all-targets --all-features -- -D warnings`** — lints
    for correctness and style issues introduced by the update.
 9. **Commit and push** — if all checks pass, the updated `Cargo.lock` is committed
-   with a descriptive message and pushed directly to `main` (or opened as a PR
-   if the `pr` strategy is selected).
+   with a descriptive message and pushed directly to `main`.
 
 ### Security Advisory Response
 

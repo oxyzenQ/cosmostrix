@@ -165,19 +165,19 @@ git push origin v2.2.1
 
 #### Triggers
 
-- `schedule` daily at **01:00 UTC (08:00 WIB)**
+- `schedule` weekly at **23:00 UTC Saturday (06:00 WIB Sunday)**
 - `workflow_dispatch` manual run
 
 #### Manual inputs
 
-- `strategy`: `direct` (commit to `main`) or `pr` (open a PR)
-- `force_update`: continue even if tests fail
+- None. Updates are always validated and committed directly to `main`.
 
 #### What it does
 
 - Runs `cargo update`
 - Runs `cargo +stable audit` and `cargo +stable deny check all`
 - Runs `cargo fmt -- --check` and basic build/test/clippy on toolchain `1.81.0`
+- Commits and pushes to `main` only after validation passes
 
 #### Notes
 

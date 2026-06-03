@@ -6,6 +6,7 @@
 # - Weekly auto-update minimizes lockfile churn for a stable-phase project
 # - Full validation: audit -> deny -> fmt -> build -> test -> clippy
 # - No-op detection skips pipeline when nothing changed
+# - Direct self-healing commit to the default branch after validation passes
 # - Signed-off commits (no GPG signing)
 # - Powered by T-800 automation
 #
@@ -16,30 +17,15 @@ name: "T-800 - Auto Update Dependencies"
 'on':
   schedule:
     - cron: "0 23 * * 6"  # Saturday 23:00 UTC (Sunday 06:00 WIB)
-  workflow_dispatch:
-    inputs:
-      strategy:
-        description: "How to publish updates"
-        type: choice
-        options:
-          - direct
-          - pr
-        default: direct
-      force_update:
-        description: "Continue even if tests fail"
-        type: boolean
-        default: false
+  workflow_dispatch: {}
 
 permissions:
   contents: write
-  pull-requests: write
 
 env:
   # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
-  UPDATE_STRATEGY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.strategy || 'direct' }}
-  FORCE_UPDATE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.force_update || 'false' }}
 
 jobs:
   auto-update:
@@ -176,7 +162,6 @@ jobs:
 
           echo ""
           echo "All tests passed"
-        continue-on-error: ${{ env.FORCE_UPDATE == 'true' }}
 
       - name: Quick clippy check
         id: clippy
@@ -243,39 +228,12 @@ jobs:
             done < "${CARGO_UPDATE_LOG}"
           fi
 
-          LABELS=$'dependencies\nautomated'
-          if [ "${SECURITY_UPDATE}" = "true" ]; then
-            LABELS+=$'\nsecurity'
-          fi
-          if [ "${BREAKING_UPDATE}" = "true" ]; then
-            LABELS+=$'\nbreaking'
-          fi
-          if [ "${SECURITY_UPDATE}" != "true" ] && [ "${BREAKING_UPDATE}" != "true" ]; then
-            LABELS+=$'\nenhancement'
-          fi
-
-          {
-            echo "yamllabels<<EOF"
-            printf "%s\n" "${LABELS}"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
           if [ "${SECURITY_UPDATE}" = "true" ]; then
             TITLE="fix(security): T-800 patches vulnerable dependencies"
           elif [ "${BREAKING_UPDATE}" = "true" ]; then
             TITLE="chore(deps)!: T-800 dependency recalibration"
           else
             TITLE="chore(deps): T-800 dependency recalibration"
-          fi
-
-          TESTS_OUTCOME="${{ steps.tests.outcome }}"
-          TESTS_STATUS="passed"
-          if [ "${TESTS_OUTCOME}" != "success" ]; then
-            if [ "${FORCE_UPDATE}" = "true" ]; then
-              TESTS_STATUS="failed (forced)"
-            else
-              TESTS_STATUS="failed"
-            fi
           fi
 
           BASELINE_SECURITY_STATUS="clean"
@@ -291,7 +249,7 @@ jobs:
           BODY+=$'\n'"- Dependency policy (cargo-deny): passed"
           BODY+=$'\n'"- Formatting (cargo fmt): passed"
           BODY+=$'\n'"- Build (dev + release): passed"
-          BODY+=$'\n'"- Tests: ${TESTS_STATUS}"
+          BODY+=$'\n'"- Tests: passed"
           BODY+=$'\n'"- Clippy: passed"
 
           if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
@@ -320,9 +278,6 @@ jobs:
 
           {
             echo "title=$TITLE"
-            echo "body<<EOF"
-            echo "$BODY"
-            echo "EOF"
             echo "commit_body<<EOF"
             echo "$COMMIT_BODY"
             echo "EOF"
@@ -334,7 +289,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Commit and push changes
-        if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'direct'
+        if: steps.check_changes.outputs.changed == 'true'
         run: |
           git config user.name "oxyzenQ"
           git config user.email "130107241+oxyzenQ@users.noreply.github.com"
@@ -352,54 +307,24 @@ jobs:
           echo "Updates pushed to main branch"
           echo "Commit: $(git rev-parse HEAD)"
 
-      - name: Create pull request
-        id: cpr
-        if: steps.check_changes.outputs.changed == 'true' && env.UPDATE_STRATEGY == 'pr'
-        uses: peter-evans/create-pull-request@v8.1.1
-        with:
-          token: ${{ github.token }}
-          commit-message: "${{ steps.commit_msg.outputs.commit_message }}"
-          title: "${{ steps.commit_msg.outputs.title }}"
-          body: "${{ steps.commit_msg.outputs.body }}"
-          branch: bot/t-800-auto-update
-          delete-branch: true
-          signoff: true
-          labels: ${{ steps.commit_msg.outputs.yamllabels }}
-          committer: oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>
-          author: oxyzenQ <130107241+oxyzenQ@users.noreply.github.com>
-
       - name: Summary
         run: |
           echo "=============================================================="
           echo "T-800 - UPDATE SUMMARY"
           echo "=============================================================="
           echo ""
-          echo "Strategy: ${{ env.UPDATE_STRATEGY }}"
+          echo "Mode: direct commit to main after validation"
           echo ""
 
           if [ "${{ steps.check_changes.outputs.changed }}" == "true" ]; then
             echo "Updates Applied:"
             echo "  - Rust dependencies updated"
             echo "  - Security audit passed"
-            if [ "${{ steps.tests.outcome }}" == "success" ]; then
-              echo "  - Tests passed"
-            else
-              if [ "${{ env.FORCE_UPDATE }}" == "true" ]; then
-                echo "  - Tests failed (forced)"
-              else
-                echo "  - Tests failed"
-              fi
-            fi
+            echo "  - Tests passed"
 
             echo ""
-
-            if [ "${{ env.UPDATE_STRATEGY }}" == "direct" ]; then
-              echo "Changes pushed to main branch"
-              echo "Commit: $(git rev-parse HEAD)"
-            else
-              echo "Pull request created"
-              echo "PR: ${{ steps.cpr.outputs.pull-request-url }}"
-            fi
+            echo "Changes pushed to main branch"
+            echo "Commit: $(git rev-parse HEAD)"
           else
             echo "No updates needed - everything is current!"
           fi
