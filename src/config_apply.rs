@@ -6,9 +6,12 @@
 //! Precedence:
 //! 1. Built-in clap defaults
 //! 2. Config file values
-//! 3. Preset values
-//! 4. Low-power values for fields not touched by preset or explicit CLI
-//! 5. Explicit CLI flags
+//! 3. Config preset
+//! 4. Config scene
+//! 5. CLI preset
+//! 6. CLI scene
+//! 7. Low-power values for fields not touched by curated layers or explicit CLI
+//! 8. Explicit CLI flags
 
 use std::collections::{HashMap, HashSet};
 
@@ -21,6 +24,7 @@ use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::configfile::load_config_file;
 use crate::constants::DENSITY_CLAMP_MAX;
 use crate::preset::{get_preset, validate_preset_name};
+use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
 use crate::validation::{validate_f32_range, validate_f64_range, validate_u8_range};
 
 pub(crate) fn apply_config_and_runtime_defaults(
@@ -33,9 +37,29 @@ pub(crate) fn apply_config_and_runtime_defaults(
         apply_config_values(matches, args, &cfg, &mut config_touched);
     }
 
-    let preset_modified = apply_preset_values(matches, args)?;
-    apply_low_power_values(matches, args, &preset_modified);
-    apply_glitch_level_values(matches, args, &config_touched, &preset_modified);
+    let preset_is_cli = is_explicit(matches, "preset");
+    let scene_is_cli = is_explicit(matches, "scene");
+
+    let mut curated_modified = HashSet::new();
+    if !preset_is_cli {
+        curated_modified.extend(apply_preset_values(matches, args)?);
+    }
+    if !scene_is_cli {
+        curated_modified.extend(apply_scene_values(matches, args)?);
+    }
+    if preset_is_cli {
+        curated_modified.extend(apply_preset_values(matches, args)?);
+    }
+    if scene_is_cli {
+        curated_modified.extend(apply_scene_values(matches, args)?);
+    }
+
+    if args.scene.is_none() {
+        args.scene = Some(DEFAULT_SCENE.to_string());
+    }
+
+    apply_low_power_values(matches, args, &curated_modified);
+    apply_glitch_level_values(matches, args, &config_touched, &curated_modified);
 
     Ok(())
 }
@@ -53,6 +77,16 @@ fn apply_config_values(
                 config_touched.insert("preset");
             }
             Err(e) => eprintln!("config: ignoring invalid preset='{v}' ({e})"),
+        }
+    }
+
+    if let Some(v) = config_value(matches, cfg, "scene", "scene") {
+        match validate_scene_name(&v) {
+            Ok(name) => {
+                args.scene = Some(name);
+                config_touched.insert("scene");
+            }
+            Err(e) => eprintln!("config: ignoring invalid scene='{v}' ({e})"),
         }
     }
 
@@ -215,22 +249,77 @@ fn apply_preset_values(
     Ok(preset_modified)
 }
 
+fn apply_scene_values(
+    matches: &clap::ArgMatches,
+    args: &mut Args,
+) -> Result<HashSet<&'static str>, String> {
+    let mut scene_modified = HashSet::new();
+    let Some(ref scene_name) = args.scene else {
+        return Ok(scene_modified);
+    };
+
+    let name = validate_scene_name(scene_name)?;
+    args.scene = Some(name.clone());
+
+    if let Some(scene) = get_scene(&name) {
+        let cfg = scene.config;
+        if let Some(color) = cfg.color {
+            if !is_explicit(matches, "color") {
+                args.color = color.to_string();
+                scene_modified.insert("color");
+            }
+        }
+        if let Some(charset) = cfg.charset {
+            if !is_explicit(matches, "charset") {
+                args.charset = charset.to_string();
+                scene_modified.insert("charset");
+            }
+        }
+        if let Some(fps) = cfg.fps {
+            if !is_explicit(matches, "fps") {
+                args.fps = fps;
+                scene_modified.insert("fps");
+            }
+        }
+        if let Some(speed) = cfg.speed {
+            if !is_explicit(matches, "speed") {
+                args.speed = speed;
+                scene_modified.insert("speed");
+            }
+        }
+        if let Some(density) = cfg.density {
+            if !is_explicit(matches, "density") {
+                args.density = density;
+                scene_modified.insert("density");
+            }
+        }
+        if let Some(glitch_level) = cfg.glitch_level {
+            if !is_explicit(matches, "glitch_level") {
+                args.glitch_level = glitch_level;
+                scene_modified.insert("glitch_level");
+            }
+        }
+    }
+
+    Ok(scene_modified)
+}
+
 fn apply_low_power_values(
     matches: &clap::ArgMatches,
     args: &mut Args,
-    preset_modified: &HashSet<&'static str>,
+    curated_modified: &HashSet<&'static str>,
 ) {
     if !args.low_power {
         return;
     }
 
-    if !is_explicit(matches, "fps") && !preset_modified.contains("fps") {
+    if !is_explicit(matches, "fps") && !curated_modified.contains("fps") {
         args.fps = 30.0;
     }
-    if !is_explicit(matches, "speed") && !preset_modified.contains("speed") {
+    if !is_explicit(matches, "speed") && !curated_modified.contains("speed") {
         args.speed = 5.0;
     }
-    if !is_explicit(matches, "density") && !preset_modified.contains("density") {
+    if !is_explicit(matches, "density") && !curated_modified.contains("density") {
         args.density = 0.5;
     }
 }
@@ -239,10 +328,10 @@ fn apply_glitch_level_values(
     matches: &clap::ArgMatches,
     args: &mut Args,
     config_touched: &HashSet<&'static str>,
-    preset_modified: &HashSet<&'static str>,
+    curated_modified: &HashSet<&'static str>,
 ) {
     let high_precedence_glitch_level =
-        is_explicit(matches, "glitch_level") || preset_modified.contains("glitch_level");
+        is_explicit(matches, "glitch_level") || curated_modified.contains("glitch_level");
 
     let should_skip = |arg_id: &'static str| {
         is_explicit(matches, arg_id)
@@ -460,6 +549,16 @@ mod tests {
         args
     }
 
+    fn args_from_cli_result(cli: &[&str]) -> Result<Args, String> {
+        let mut argv = vec!["cosmostrix"];
+        argv.extend_from_slice(cli);
+        let cmd = Args::command();
+        let matches = cmd.get_matches_from(argv);
+        let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+        apply_config_and_runtime_defaults(&matches, &mut args)?;
+        Ok(args)
+    }
+
     #[test]
     fn config_glitch_level_subtle_applies() {
         let args = args_with_config("glitch-level = subtle\n", &[]);
@@ -477,6 +576,74 @@ mod tests {
         assert_eq!(args.charset, "minimal");
         assert_eq!(args.speed, 5.0);
         assert!((args.density - 0.65).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn default_scene_is_matrix() {
+        let args = args_from_cli(&[]);
+        assert_eq!(args.scene.as_deref(), Some("matrix"));
+        assert_eq!(args.color, "green");
+        assert_eq!(args.charset, "binary");
+        assert_eq!(args.speed, 8.0);
+        assert_eq!(args.density, 1.0);
+    }
+
+    #[test]
+    fn invalid_cli_scene_is_clear_error() {
+        let err = args_from_cli_result(&["--scene", "nonexistent"]).unwrap_err();
+        assert_eq!(err, "invalid scene: nonexistent (see --list-scenes)");
+    }
+
+    #[test]
+    fn config_scene_monolith_applies() {
+        let args = args_with_config("scene = monolith\n", &[]);
+        assert_eq!(args.scene.as_deref(), Some("monolith"));
+        assert_eq!(args.color, "blackhole");
+        assert_eq!(args.charset, "binary");
+        assert_eq!(args.speed, 4.0);
+        assert!((args.density - 0.75).abs() < f32::EPSILON);
+        assert_eq!(args.glitch_level, GlitchLevel::Subtle);
+        assert_eq!(args.glitch_pct, 3.0);
+    }
+
+    #[test]
+    fn cli_scene_overrides_config_scene() {
+        let args = args_with_config("scene = monolith\n", &["--scene", "signal"]);
+        assert_eq!(args.scene.as_deref(), Some("signal"));
+        assert_eq!(args.color, "cyan");
+        assert_eq!(args.charset, "code");
+        assert_eq!(args.speed, 10.0);
+    }
+
+    #[test]
+    fn explicit_cli_flags_override_scene_managed_values() {
+        let args = args_from_cli(&["--scene", "signal", "--color", "green", "--fps", "120"]);
+        assert_eq!(args.scene.as_deref(), Some("signal"));
+        assert_eq!(args.color, "green");
+        assert_eq!(args.fps, 120.0);
+        assert_eq!(args.charset, "code");
+        assert_eq!(args.speed, 10.0);
+    }
+
+    #[test]
+    fn cli_scene_overrides_cli_preset_for_overlapping_values() {
+        let args = args_from_cli(&["--preset", "calm", "--scene", "signal"]);
+        assert_eq!(args.preset.as_deref(), Some("calm"));
+        assert_eq!(args.scene.as_deref(), Some("signal"));
+        assert_eq!(args.color, "cyan");
+        assert_eq!(args.charset, "code");
+        assert_eq!(args.speed, 10.0);
+        assert!((args.density - 0.95).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn cli_preset_overrides_config_scene_for_overlapping_values() {
+        let args = args_with_config("scene = monolith\n", &["--preset", "storm"]);
+        assert_eq!(args.scene.as_deref(), Some("monolith"));
+        assert_eq!(args.preset.as_deref(), Some("storm"));
+        assert_eq!(args.color, "purple");
+        assert_eq!(args.charset, "cyberpunk");
+        assert_eq!(args.speed, 24.0);
     }
 
     #[test]
@@ -568,6 +735,7 @@ mod tests {
     fn dump_config_mentions_supported_keys() {
         let dump = dump_config_text();
         for key in [
+            "scene",
             "preset",
             "color",
             "charset",

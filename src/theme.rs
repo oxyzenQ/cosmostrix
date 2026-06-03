@@ -651,6 +651,7 @@ mod tests {
     fn readme_has_current_theme_count_wording() {
         let readme = include_str!("../README.md");
         assert!(!readme.contains("42 themes"));
+        assert!(!readme.contains("42 built-in color schemes"));
         assert!(readme.contains("43 built-in themes"));
     }
 }

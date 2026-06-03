@@ -57,6 +57,7 @@ mod preset;
 mod renderer_info;
 mod report;
 mod runtime;
+mod scene;
 mod terminal;
 mod theme;
 mod validation;
@@ -72,7 +73,7 @@ use clap::{CommandFactory, FromArgMatches};
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
 use crate::config::{
     color_enabled_stdout, print_defaults, print_help_detail, print_list_charsets,
-    print_list_colors, print_list_colors_detail, Args, ColorBg,
+    print_list_colors, print_list_colors_detail, print_list_scenes, Args, ColorBg,
 };
 use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
@@ -222,6 +223,11 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
+    if args.list_scenes {
+        print_list_scenes();
+        return Ok(());
+    }
+
     if args.list_charsets {
         print_list_charsets();
         return Ok(());
@@ -335,6 +341,10 @@ fn main() -> std::io::Result<()> {
             s.field("density", &format!("{}", args.density));
             s.field("color", &args.color);
             s.field("charset", &args.charset);
+            s.field(
+                "scene",
+                args.scene.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE),
+            );
             s.field(
                 "glitch_level",
                 &format!("{:?}", args.glitch_level).to_lowercase(),

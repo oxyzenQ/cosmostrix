@@ -40,8 +40,9 @@
 ## Features
 
 - **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy
+- **3 scene atmospheres** (matrix, monolith, signal) for v3 scene-based atmosphere selection
 - **8 curated presets** (classic, cinematic, calm, monolith, storm, cosmos, neon, hacker) for one-command visual profiles
-- 42 built-in color schemes and 24 character set presets
+- 43 built-in color themes and 24 character set presets
 - Phosphor persistence (CRT afterglow), depth fog, and 3-layer parallax
 - TrueColor green gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
@@ -164,6 +165,10 @@ cosmostrix --mouse                    # opt-in mouse hover/click effects
 cosmostrix --preset cinematic          # curated preset
 cosmostrix --preset calm               # gentle ocean rain
 cosmostrix --preset storm --fps 60     # preset with explicit override
+cosmostrix --scene matrix              # v2-compatible default scene
+cosmostrix --scene monolith            # dark calm atmosphere
+cosmostrix --scene signal --fps 60     # code-signal scene with FPS override
+cosmostrix --scene monolith --color deepspace
 cosmostrix --config ./cosmostrix.conf  # explicit config file
 cosmostrix --dump-config               # print example config
 ```
@@ -185,6 +190,7 @@ COMMON OPTIONS
      --low-power            Power-saving mode
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
      --preset <name>       Apply a named preset (see --list-presets)
+     --scene <name>        Apply a scene atmosphere (see --list-scenes)
      --config <path>        Load config from an explicit file
      --dump-config          Print an example config and exit
      --config-path          Print the default config path and exit
@@ -200,10 +206,11 @@ DISCOVERY
      --list-colors-detail   Show grouped theme descriptions and aliases
      --list-charsets        Show available charset presets
      --list-presets         Show available presets
+     --list-scenes          Show available scene atmospheres
      --defaults             Show the default runtime profile
 ```
 
-Explicit CLI flags always override preset values. For example, `cosmostrix --preset storm --fps 60` applies the storm preset but keeps FPS at 60.
+Explicit CLI flags always override preset and scene values. For example, `cosmostrix --scene signal --fps 60` applies the signal scene but keeps FPS at 60.
 
 ## Runtime controls
 
@@ -253,6 +260,7 @@ reset
 Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`). Use `--config <path>` to load a specific file.
 
 ```
+scene = matrix
 preset = cinematic
 color = cosmos
 charset = binary
@@ -277,11 +285,30 @@ Precedence is:
 
 1. Built-in defaults
 2. Config file values
-3. Preset values (from config or CLI)
-4. Low-power values when requested, for fields not touched by preset or explicit CLI
-5. Explicit CLI flags
+3. Config preset
+4. Config scene
+5. CLI preset
+6. CLI scene
+7. Low-power values when requested, for fields not touched by curated layers or explicit CLI
+8. Explicit CLI flags
 
-So `cosmostrix --config ./config --preset storm --fps 60` uses the config file, applies the `storm` preset over config-managed preset fields, and keeps FPS at the explicit CLI value `60`.
+So `cosmostrix --config ./config --preset storm --scene signal --fps 60` uses the config file, applies the CLI preset, then applies the CLI scene over overlapping curated fields, and keeps FPS at the explicit CLI value `60`.
+
+## Scenes
+
+3 scene atmospheres are available:
+
+- `matrix` — default v2-compatible Matrix rain
+- `monolith` — dark, calm, heavy premium atmosphere
+- `signal` — digital transmission / code-signal atmosphere
+
+```bash
+cosmostrix --scene matrix
+cosmostrix --scene monolith
+cosmostrix --scene signal
+cosmostrix --scene signal --fps 60
+cosmostrix --scene monolith --color deepspace
+```
 
 ## Color schemes
 

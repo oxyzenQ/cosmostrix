@@ -16,6 +16,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 
+use crate::scene;
 use crate::theme;
 
 #[must_use]
@@ -261,12 +262,20 @@ pub struct Args {
     )]
     pub preset: Option<String>,
 
+    #[arg(
+        long = "scene",
+        help_heading = "COMMON OPTIONS",
+        display_order = 96,
+        help = "Apply a scene atmosphere (see --list-scenes)"
+    )]
+    pub scene: Option<String>,
+
     // === CONFIG (visible in --help) ===
     #[arg(
         long = "config",
         value_name = "PATH",
         help_heading = "CONFIG",
-        display_order = 96,
+        display_order = 97,
         help = "Load config from an explicit file path"
     )]
     pub config: Option<PathBuf>,
@@ -274,7 +283,7 @@ pub struct Args {
     #[arg(
         long = "dump-config",
         help_heading = "CONFIG",
-        display_order = 97,
+        display_order = 98,
         help = "Print a complete example config and exit"
     )]
     pub dump_config: bool,
@@ -282,7 +291,7 @@ pub struct Args {
     #[arg(
         long = "config-path",
         help_heading = "CONFIG",
-        display_order = 98,
+        display_order = 99,
         help = "Print the default config path and exit"
     )]
     pub config_path: bool,
@@ -361,6 +370,14 @@ pub struct Args {
         help = "Show available presets"
     )]
     pub list_presets: bool,
+
+    #[arg(
+        long = "list-scenes",
+        help_heading = "DISCOVERY",
+        display_order = 230,
+        help = "Show available scene atmospheres"
+    )]
+    pub list_scenes: bool,
 
     // === HELP (visible in --help) ===
     #[arg(
@@ -601,6 +618,16 @@ pub fn print_list_colors_detail() {
     println!("{} built-in themes.", theme::theme_count());
 }
 
+pub fn print_list_scenes() {
+    if color_enabled_stdout() {
+        println!("\x1b[1;36mAVAILABLE SCENES:\x1b[0m");
+    } else {
+        println!("AVAILABLE SCENES:");
+    }
+    println!();
+    print!("{}", scene::list_scenes_text());
+}
+
 pub fn print_defaults() {
     if color_enabled_stdout() {
         println!("\x1b[1mCOSMOSTRIX DEFAULT PROFILE\x1b[0m");
@@ -609,6 +636,7 @@ pub fn print_defaults() {
     }
     println!("{}", "\u{2500}".repeat(27));
     println!("cosmostrix \\");
+    println!("  --scene matrix \\");
     println!("  --fps 60 \\");
     println!("  --speed 8 \\");
     println!("  --density 1 \\");
@@ -676,6 +704,14 @@ COMMON OPTIONS:
       cosmostrix --preset cinematic
       cosmostrix --preset storm --fps 60
 
+  --scene <matrix|monolith|signal>
+      Apply a scene atmosphere using existing runtime controls.
+      Matrix is the default v2-compatible scene. Explicit CLI flags
+      always override scene-managed values.
+      cosmostrix --scene matrix
+      cosmostrix --scene monolith
+      cosmostrix --scene signal --fps 60
+
 CONFIG:
   --config <path>
       Load config from an explicit path instead of the default
@@ -688,8 +724,8 @@ CONFIG:
       Print the resolved default config path and exit.
 
   Precedence:
-      built-in defaults < config values < preset values < low-power
-      < explicit CLI flags.
+      built-in defaults < config values < config preset < config scene
+      < CLI preset < CLI scene < low-power < explicit CLI flags.
 
 APPEARANCE:
   --colormode <0|16|256|24>
@@ -736,6 +772,7 @@ DISCOVERY:
   --list-colors-detail  Show grouped theme descriptions and aliases.
   --list-charsets       Show available charset presets.
   --list-presets        Show available presets.
+  --list-scenes         Show available scene atmospheres.
   --defaults            Show the default runtime profile.
 
 RUNTIME CONTROLS:

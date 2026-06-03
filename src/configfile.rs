@@ -28,6 +28,7 @@ use std::path::{Path, PathBuf};
 use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
 
 pub const USER_CONFIG_KEYS: &[&str] = &[
+    "scene",
     "preset",
     "color",
     "charset",
@@ -142,7 +143,11 @@ pub fn dump_config_text() -> &'static str {
 #   key = value
 #
 # Precedence:
-#   built-in defaults < config values < preset values < low-power < explicit CLI flags
+#   built-in defaults < config values < config preset < config scene
+#   < CLI preset < CLI scene < low-power < explicit CLI flags
+
+# Scene atmosphere. See: cosmostrix --list-scenes
+scene = matrix
 
 # Curated preset. See: cosmostrix --list-presets
 preset = cinematic
