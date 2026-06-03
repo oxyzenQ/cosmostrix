@@ -142,19 +142,19 @@ The `publish_release` job:
 ```bash
 # 1) Update Cargo.toml version
 # 2) Commit the version bump
-git commit -am "release: 2.2.0"
+git commit -am "release: 2.2.1"
 
 # 3) Create an annotated tag
-git tag -a v2.2.0 -m v2.2.0
+git tag -a v2.2.1 -m v2.2.1
 
 # 4) Push the tag (this triggers the Release workflow)
-git push origin v2.2.0
+git push origin v2.2.1
 
 # 5) if want to delete/repush
-git tag -d v2.2.0
-git push origin :refs/tags/v2.2.0
-git tag -a v2.2.0 -m v2.2.0
-git push origin v2.2.0
+git tag -d v2.2.1
+git push origin :refs/tags/v2.2.1
+git tag -a v2.2.1 -m v2.2.1
+git push origin v2.2.1
 ```
 
 - The **Release** workflow will run on that tag.
@@ -202,7 +202,7 @@ The script updates:
 - `README.md` (active version examples)
 - `workflow/about-ci.md` (release flow examples)
 
-It skips changelog headings (e.g. `### v2.2.0`) to preserve historical release notes.
+It skips changelog headings (e.g. `### v2.2.1`) to preserve historical release notes.
 
 Verify the current version without making changes:
 
