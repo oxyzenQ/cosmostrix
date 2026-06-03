@@ -89,7 +89,18 @@ impl Cloud {
                     if cell.fg.is_some() {
                         let pidx = col as usize * lines as usize + line as usize;
                         self.phosphor_fresh.set(pidx, true);
-                        self.phosphor[pidx] = 255;
+                        // Cap phosphor energy for bottom-edge cells to prevent
+                        // bright head ghost residue at the viewport bottom.
+                        // Normally phosphor captures 255 (full energy), but at
+                        // the bottom edge this creates persistent bright ghosts
+                        // from dying droplet heads — the root cause of the
+                        // horizontal bottom-line residue artifact.
+                        let bottom_dist = lines.saturating_sub(line).saturating_sub(1);
+                        self.phosphor[pidx] = if bottom_dist < EDGE_FADE_ROWS {
+                            PHOSPHOR_EDGE_ENERGY_CAP
+                        } else {
+                            255
+                        };
                         self.phosphor_base_fg[pidx] = cell.fg;
                         self.phosphor_base_ch[pidx] = cell.ch;
                     } else if cell.ch != ' ' {
@@ -98,7 +109,12 @@ impl Cloud {
                         // with the original glyph during phosphor decay.
                         let pidx = col as usize * lines as usize + line as usize;
                         self.phosphor_fresh.set(pidx, true);
-                        self.phosphor[pidx] = 255;
+                        let bottom_dist = lines.saturating_sub(line).saturating_sub(1);
+                        self.phosphor[pidx] = if bottom_dist < EDGE_FADE_ROWS {
+                            PHOSPHOR_EDGE_ENERGY_CAP
+                        } else {
+                            255
+                        };
                         self.phosphor_base_ch[pidx] = cell.ch;
                         // phosphor_base_fg stays None — ghost cells will use a
                         // default dim color derived from the palette.
@@ -137,8 +153,14 @@ impl Cloud {
                 {
                     self.phosphor_fresh.set(pidx, true);
                     // Refresh phosphor energy so that when the tail eventually
-                    // passes, the cell starts its afterglow from full energy.
-                    self.phosphor[pidx] = 255;
+                    // passes, the cell starts its afterglow. Cap at bottom edge
+                    // to prevent bright head ghost residue.
+                    let bottom_dist = lines.saturating_sub(line).saturating_sub(1);
+                    self.phosphor[pidx] = if bottom_dist < EDGE_FADE_ROWS {
+                        PHOSPHOR_EDGE_ENERGY_CAP
+                    } else {
+                        255
+                    };
                     // Update base_fg/base_ch to the cell's current visual state
                     // so the afterglow reflects the most recent appearance.
                     let fidx = line as usize * frame_width as usize + d.bound_col as usize;
