@@ -52,6 +52,7 @@ mod frame;
 mod info;
 mod interactive;
 mod palette;
+mod preset;
 mod renderer_info;
 mod report;
 mod runtime;
@@ -72,6 +73,7 @@ use crate::config::{
     print_list_colors, Args, ColorBg, GlitchLevel, U16Range,
 };
 use crate::constants::*;
+use crate::preset::{get_preset, validate_preset_name};
 use crate::runtime::{BoldMode, ShadingMode};
 use crate::terminal::{reset_terminal_emergency, restore_terminal_best_effort};
 use crate::validation::{
@@ -202,17 +204,68 @@ fn main() -> std::io::Result<()> {
     // Apply config file defaults for args not explicitly set by user
     app::apply_config_defaults(&matches, &mut args);
 
+    let is_explicit = |key: &str| matches.value_source(key) != Some(ValueSource::DefaultValue);
+
+    // Apply --preset values for args not explicitly set by the user.
+    // Preset values fill in defaults but are overridden by explicit CLI flags.
+    // Returns the set of field names modified by the preset so that --low-power
+    // can skip them.
+    let mut preset_modified: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    if let Some(ref preset_name) = args.preset {
+        match validate_preset_name(preset_name) {
+            Ok(name) => {
+                if let Some(p) = get_preset(&name) {
+                    if !is_explicit("color") {
+                        args.color = p.color.to_string();
+                        preset_modified.insert("color");
+                    }
+                    if !is_explicit("charset") {
+                        args.charset = p.charset.to_string();
+                        preset_modified.insert("charset");
+                    }
+                    if !is_explicit("fps") {
+                        args.fps = p.fps;
+                        preset_modified.insert("fps");
+                    }
+                    if !is_explicit("speed") {
+                        args.speed = p.speed;
+                        preset_modified.insert("speed");
+                    }
+                    if !is_explicit("density") {
+                        args.density = p.density;
+                        preset_modified.insert("density");
+                    }
+                    if !is_explicit("glitch_level") {
+                        args.glitch_level = p.glitch_level;
+                        preset_modified.insert("glitch_level");
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        }
+    }
+
     // Apply --low-power overrides for args still at their default values.
-    // Explicit CLI flags always take precedence; config file values are also
-    // overridden since --low-power is an intentional one-shot mode request.
+    // --low-power is an intentional one-shot mode that only overrides fields
+    // not already set by explicit CLI flags or by a preset.
+    // Precedence: explicit CLI > preset > low-power > config > built-in defaults.
     if args.low_power {
-        if matches.value_source("fps") == Some(ValueSource::DefaultValue) {
+        if matches.value_source("fps") == Some(ValueSource::DefaultValue)
+            && !preset_modified.contains("fps")
+        {
             args.fps = 30.0;
         }
-        if matches.value_source("speed") == Some(ValueSource::DefaultValue) {
+        if matches.value_source("speed") == Some(ValueSource::DefaultValue)
+            && !preset_modified.contains("speed")
+        {
             args.speed = 5.0;
         }
-        if matches.value_source("density") == Some(ValueSource::DefaultValue) {
+        if matches.value_source("density") == Some(ValueSource::DefaultValue)
+            && !preset_modified.contains("density")
+        {
             args.density = 0.5;
         }
     }
@@ -220,7 +273,6 @@ fn main() -> std::io::Result<()> {
     // Apply --glitch-level preset. Each level sets glitch-related parameters
     // to curated values. Individual hidden flags (--glitchpct, --glitchms, etc.)
     // override the preset if explicitly provided by the user.
-    let is_explicit = |key: &str| matches.value_source(key) != Some(ValueSource::DefaultValue);
     match args.glitch_level {
         GlitchLevel::None => {
             if !is_explicit("noglitch") {
@@ -287,6 +339,11 @@ fn main() -> std::io::Result<()> {
                 args.rippct = 20.0;
             }
         }
+    }
+
+    if args.list_presets {
+        preset::print_list_presets();
+        return Ok(());
     }
 
     if args.list_charsets {
@@ -402,6 +459,9 @@ fn main() -> std::io::Result<()> {
                 &format!("{:?}", args.glitch_level).to_lowercase(),
             );
             s.field_if("low_power", "on", args.low_power);
+            if let Some(ref pname) = args.preset {
+                s.field("preset", pname);
+            }
         }
         r.print();
         return Ok(());
@@ -608,5 +668,231 @@ mod color_detection_tests {
             detect_color_mode_from_terms("truecolor", "xterm"),
             ColorMode::TrueColor
         );
+    }
+}
+
+#[cfg(test)]
+mod preset_override_tests {
+    use super::*;
+    use crate::config::Args;
+    use crate::preset::{get_preset, validate_preset_name, PRESET_NAMES};
+
+    /// Helper: parse CLI args and apply preset + low-power logic like main().
+    fn apply_preset_and_lowpower(argv: &[&str]) -> Args {
+        let cmd = Args::command();
+        let matches = cmd.get_matches_from(argv);
+        let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+
+        let is_explicit = |key: &str| matches.value_source(key) != Some(ValueSource::DefaultValue);
+
+        let mut preset_modified: std::collections::HashSet<&str> = std::collections::HashSet::new();
+        if let Some(ref preset_name) = args.preset {
+            if let Ok(name) = validate_preset_name(preset_name) {
+                if let Some(p) = get_preset(&name) {
+                    if !is_explicit("color") {
+                        args.color = p.color.to_string();
+                        preset_modified.insert("color");
+                    }
+                    if !is_explicit("charset") {
+                        args.charset = p.charset.to_string();
+                        preset_modified.insert("charset");
+                    }
+                    if !is_explicit("fps") {
+                        args.fps = p.fps;
+                        preset_modified.insert("fps");
+                    }
+                    if !is_explicit("speed") {
+                        args.speed = p.speed;
+                        preset_modified.insert("speed");
+                    }
+                    if !is_explicit("density") {
+                        args.density = p.density;
+                        preset_modified.insert("density");
+                    }
+                    if !is_explicit("glitch_level") {
+                        args.glitch_level = p.glitch_level;
+                        preset_modified.insert("glitch_level");
+                    }
+                }
+            }
+        }
+
+        if args.low_power {
+            if matches.value_source("fps") == Some(ValueSource::DefaultValue)
+                && !preset_modified.contains("fps")
+            {
+                args.fps = 30.0;
+            }
+            if matches.value_source("speed") == Some(ValueSource::DefaultValue)
+                && !preset_modified.contains("speed")
+            {
+                args.speed = 5.0;
+            }
+            if matches.value_source("density") == Some(ValueSource::DefaultValue)
+                && !preset_modified.contains("density")
+            {
+                args.density = 0.5;
+            }
+        }
+
+        args
+    }
+
+    #[test]
+    fn preset_storm_applies_all_values() {
+        let args = apply_preset_and_lowpower(&["cosmostrix", "--preset", "storm"]);
+        assert_eq!(args.color, "purple");
+        assert_eq!(args.charset, "cyberpunk");
+        assert_eq!(args.fps, 120.0);
+        assert_eq!(args.speed, 24.0);
+        assert!((args.density - 1.35).abs() < f32::EPSILON);
+        assert_eq!(args.glitch_level, GlitchLevel::Intense);
+    }
+
+    #[test]
+    fn preset_calm_applies_all_values() {
+        let args = apply_preset_and_lowpower(&["cosmostrix", "--preset", "calm"]);
+        assert_eq!(args.color, "ocean");
+        assert_eq!(args.charset, "minimal");
+        assert_eq!(args.fps, 60.0);
+        assert_eq!(args.speed, 5.0);
+        assert!((args.density - 0.65).abs() < f32::EPSILON);
+        assert_eq!(args.glitch_level, GlitchLevel::Subtle);
+    }
+
+    #[test]
+    fn preset_classic_applies_all_values() {
+        let args = apply_preset_and_lowpower(&["cosmostrix", "--preset", "classic"]);
+        assert_eq!(args.color, "green");
+        assert_eq!(args.charset, "matrix");
+        assert_eq!(args.fps, 60.0);
+        assert_eq!(args.speed, 8.0);
+        assert_eq!(args.density, 1.0);
+        assert_eq!(args.glitch_level, GlitchLevel::Default);
+    }
+
+    #[test]
+    fn explicit_fps_overrides_preset() {
+        let args = apply_preset_and_lowpower(&["cosmostrix", "--preset", "storm", "--fps", "60"]);
+        assert_eq!(args.fps, 60.0); // explicit, not storm's 120
+        assert_eq!(args.color, "purple"); // preset still applied
+        assert_eq!(args.speed, 24.0); // preset still applied
+    }
+
+    #[test]
+    fn explicit_speed_overrides_preset() {
+        let args = apply_preset_and_lowpower(&["cosmostrix", "--preset", "storm", "--speed", "10"]);
+        assert_eq!(args.speed, 10.0); // explicit, not storm's 24
+        assert_eq!(args.fps, 120.0); // preset still applied
+    }
+
+    #[test]
+    fn explicit_density_overrides_preset() {
+        let args =
+            apply_preset_and_lowpower(&["cosmostrix", "--preset", "storm", "--density", "0.8"]);
+        assert!((args.density - 0.8).abs() < f32::EPSILON); // explicit
+        assert_eq!(args.fps, 120.0); // preset still applied
+    }
+
+    #[test]
+    fn explicit_color_overrides_preset() {
+        let args =
+            apply_preset_and_lowpower(&["cosmostrix", "--preset", "storm", "--color", "green"]);
+        assert_eq!(args.color, "green"); // explicit, not storm's purple
+        assert_eq!(args.charset, "cyberpunk"); // preset still applied
+    }
+
+    #[test]
+    fn explicit_charset_overrides_preset() {
+        let args =
+            apply_preset_and_lowpower(&["cosmostrix", "--preset", "storm", "--charset", "binary"]);
+        assert_eq!(args.charset, "binary"); // explicit
+        assert_eq!(args.color, "purple"); // preset still applied
+    }
+
+    #[test]
+    fn explicit_glitch_level_overrides_preset() {
+        let args = apply_preset_and_lowpower(&[
+            "cosmostrix",
+            "--preset",
+            "storm",
+            "--glitch-level",
+            "none",
+        ]);
+        assert_eq!(args.glitch_level, GlitchLevel::None); // explicit
+        assert_eq!(args.fps, 120.0); // preset still applied
+    }
+
+    #[test]
+    fn low_power_does_not_override_preset_values() {
+        let args = apply_preset_and_lowpower(&["cosmostrix", "--preset", "storm", "--low-power"]);
+        // Storm preset values should be preserved — low-power only overrides
+        // fields NOT touched by preset.
+        assert_eq!(args.fps, 120.0); // preset set it, low-power skips
+        assert_eq!(args.speed, 24.0); // preset set it, low-power skips
+        assert!((args.density - 1.35).abs() < f32::EPSILON); // preset set it, low-power skips
+    }
+
+    #[test]
+    fn low_power_overrides_non_preset_fields() {
+        // No preset: low-power should override defaults as before
+        let args = apply_preset_and_lowpower(&["cosmostrix", "--low-power"]);
+        assert_eq!(args.fps, 30.0);
+        assert_eq!(args.speed, 5.0);
+        assert_eq!(args.density, 0.5);
+    }
+
+    #[test]
+    fn explicit_cli_overrides_preset_and_low_power() {
+        let args = apply_preset_and_lowpower(&[
+            "cosmostrix",
+            "--preset",
+            "storm",
+            "--low-power",
+            "--fps",
+            "45",
+        ]);
+        assert_eq!(args.fps, 45.0); // explicit wins over everything
+        assert_eq!(args.speed, 24.0); // preset wins over low-power
+    }
+
+    #[test]
+    fn no_preset_leaves_defaults() {
+        let args = apply_preset_and_lowpower(&["cosmostrix"]);
+        assert_eq!(args.color, "green"); // clap default
+        assert_eq!(args.charset, "binary"); // clap default
+        assert_eq!(args.fps, 60.0); // clap default
+        assert_eq!(args.speed, 8.0); // clap default
+        assert_eq!(args.density, 1.0); // clap default
+        assert_eq!(args.glitch_level, GlitchLevel::Default);
+    }
+
+    #[test]
+    fn all_preset_names_parse() {
+        for &name in PRESET_NAMES {
+            let args = apply_preset_and_lowpower(&["cosmostrix", "--preset", name]);
+            assert!(args.preset.is_some());
+            assert_eq!(args.preset.as_deref(), Some(name));
+        }
+    }
+
+    #[test]
+    fn all_preset_names_in_list() {
+        assert_eq!(PRESET_NAMES.len(), 8);
+        assert!(PRESET_NAMES.contains(&"classic"));
+        assert!(PRESET_NAMES.contains(&"cinematic"));
+        assert!(PRESET_NAMES.contains(&"calm"));
+        assert!(PRESET_NAMES.contains(&"monolith"));
+        assert!(PRESET_NAMES.contains(&"storm"));
+        assert!(PRESET_NAMES.contains(&"cosmos"));
+        assert!(PRESET_NAMES.contains(&"neon"));
+        assert!(PRESET_NAMES.contains(&"hacker"));
+    }
+
+    #[test]
+    fn invalid_preset_rejected_by_validation() {
+        let err = validate_preset_name("nonexistent").unwrap_err();
+        assert!(err.contains("invalid preset: nonexistent"));
+        assert!(err.contains("--list-presets"));
     }
 }

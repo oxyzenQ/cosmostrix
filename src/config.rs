@@ -250,6 +250,14 @@ pub struct Args {
     )]
     pub glitch_level: GlitchLevel,
 
+    #[arg(
+        long = "preset",
+        help_heading = "COMMON OPTIONS",
+        display_order = 95,
+        help = "Apply a named preset (see --list-presets)"
+    )]
+    pub preset: Option<String>,
+
     // === DIAGNOSTICS (visible in --help) ===
     #[arg(
         long = "doctor",
@@ -308,6 +316,14 @@ pub struct Args {
         help = "Show the default runtime profile"
     )]
     pub defaults: bool,
+
+    #[arg(
+        long = "list-presets",
+        help_heading = "DISCOVERY",
+        display_order = 225,
+        help = "Show available presets"
+    )]
+    pub list_presets: bool,
 
     // === HELP (visible in --help) ===
     #[arg(
@@ -612,6 +628,13 @@ COMMON OPTIONS:
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.
 
+  --preset <name>
+      Apply a named parameter preset. Presets set color, charset,
+      fps, speed, density, and glitch-level to curated values.
+      Explicit CLI flags always override preset values.
+      cosmostrix --preset cinematic
+      cosmostrix --preset storm --fps 60
+
 APPEARANCE:
   --colormode <0|16|256|24>
       Force color depth. Auto-detected by default.
@@ -654,6 +677,8 @@ DIAGNOSTICS:
 DISCOVERY:
   --list-colors    Show available color themes.
   --list-charsets  Show available charset presets.
+  --list-presets   Show available presets.
+  --defaults       Show the default runtime profile.
 
 RUNTIME CONTROLS:
   q / Esc       Quit              p          Pause / resume

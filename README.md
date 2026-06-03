@@ -40,6 +40,7 @@
 ## Features
 
 - **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy
+- **8 curated presets** (classic, cinematic, calm, monolith, storm, cosmos, neon, hacker) for one-command visual profiles
 - 42 built-in color schemes and 24 character set presets
 - Phosphor persistence (CRT afterglow), depth fog, and 3-layer parallax
 - TrueColor green gradients with luminous head glow
@@ -160,6 +161,9 @@ cosmostrix --message "wake up, neo"   # overlay message
 cosmostrix --charset katakana         # character set
 cosmostrix --low-power                # power-saving mode
 cosmostrix --mouse                    # opt-in mouse hover/click effects
+cosmostrix --preset cinematic          # curated preset
+cosmostrix --preset calm               # gentle ocean rain
+cosmostrix --preset storm --fps 60     # preset with explicit override
 ```
 
 ## CLI options
@@ -178,6 +182,7 @@ COMMON OPTIONS
   -m, --message <text>      Overlay message
      --low-power            Power-saving mode
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
+     --preset <name>       Apply a named preset (see --list-presets)
 
 DIAGNOSTICS
      --doctor               Compatibility report
@@ -188,8 +193,11 @@ DIAGNOSTICS
 DISCOVERY
      --list-colors          Show available color themes
      --list-charsets        Show available charset presets
+     --list-presets         Show available presets
      --defaults             Show the default runtime profile
 ```
+
+Explicit CLI flags always override preset values. For example, `cosmostrix --preset storm --fps 60` applies the storm preset but keeps FPS at 60.
 
 ## Runtime controls
 
