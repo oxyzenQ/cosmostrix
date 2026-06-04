@@ -1,22 +1,18 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Cosmostrix logo" width="240">
+  <img src="assets/logo.png" alt="cosmostrix logo" width="240">
 </p>
 
-<h1 align="center">Cosmostrix</h1>
+<h1 align="center">cosmostrix</h1>
 
 <p align="center">
-  <strong>High-performance cinematic Matrix rain renderer for the terminal.</strong>
-</p>
-
-<p align="center">
-  Render fast, cinematic, and configurable Matrix-style terminal rain across Linux, macOS, Windows, and Android.
+  <strong>A production-grade cinematic Matrix rain renderer for serious terminal environments.</strong>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Rust-1.81.0-7C3AED?style=flat-square&labelColor=111827" alt="Rust 1.81.0">
-  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-8B5CF6?style=flat-square&labelColor=111827" alt="Platform Linux, macOS, Windows, and Android">
-  <img src="https://img.shields.io/badge/license-MIT-6D28D9?style=flat-square&labelColor=111827" alt="MIT license">
-  <img src="https://img.shields.io/badge/AUR-cosmostrix--bin-8B5CF6?style=flat-square&labelColor=111827" alt="AUR package cosmostrix-bin">
+  Engineered for smooth rendering, configurable atmosphere, clean terminal recovery, and reliable cross-platform operation.
+</p>
+
+<p align="center">
   <a href="https://ko-fi.com/rezky">
     <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
   </a>
