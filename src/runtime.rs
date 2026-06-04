@@ -22,6 +22,27 @@ pub enum BoldMode {
     All,
 }
 
+#[derive(clap::ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MonolithSize {
+    #[value(name = "small")]
+    Small,
+    #[value(name = "normal")]
+    Normal,
+    #[value(name = "large")]
+    Large,
+}
+
+impl MonolithSize {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Small => "small",
+            Self::Normal => "normal",
+            Self::Large => "large",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ColorScheme {
     Green,

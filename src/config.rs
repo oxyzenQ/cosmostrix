@@ -16,6 +16,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 
+use crate::runtime::MonolithSize;
 use crate::scene;
 use crate::theme;
 
@@ -209,6 +210,16 @@ pub struct Args {
         help = "Rain density"
     )]
     pub density: f32,
+
+    #[arg(
+        long = "monolith-size",
+        default_value = "normal",
+        value_enum,
+        help_heading = "COMMON OPTIONS",
+        display_order = 55,
+        help = "Monolith segment cell scale"
+    )]
+    pub monolith_size: MonolithSize,
 
     #[arg(
         short = 's',
@@ -680,12 +691,17 @@ COMMON OPTIONS:
       cosmostrix --fps 30
 
   -S, --speed <0.001-1000>
-      Rain speed (characters per second).
+      Rain speed (characters per second). Runtime Up/Down controls are
+      clamped to safe interactive limits.
       cosmostrix --speed 12
 
   -d, --density <0.01-5.0>
       Rain density multiplier.
       cosmostrix --density 1.25
+
+  --monolith-size <small|normal|large>
+      Monolith-only terminal-cell segment scale, not pixel size.
+      cosmostrix --scene monolith --monolith-size large
 
   -s, --screensaver
       Screensaver mode (exit on any keypress).

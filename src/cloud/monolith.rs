@@ -17,9 +17,10 @@ use crate::constants::SPAWN_REMAINDER_CAP;
 use crate::droplet::viewport_edge_fade;
 use crate::frame::Frame;
 use crate::palette;
-use crate::runtime::{BoldMode, ColorMode};
+use crate::runtime::{BoldMode, ColorMode, MonolithSize};
 use crate::terminal::blank_cell;
 
+use super::monolith_glyphs::{segment_char, spine_char};
 use super::render::DrawCtx;
 
 const MAX_SEGMENTS: usize = 9;
@@ -35,7 +36,7 @@ const SPINE_BRIGHTNESS: f32 = 0.07;
 const DRAWN_CELLS_PER_LANE_RESERVE: usize = 32;
 
 #[derive(Clone, Copy, Debug)]
-enum SegmentKind {
+pub(super) enum SegmentKind {
     Micro,
     Short,
     Medium,
@@ -64,19 +65,20 @@ pub(super) struct DrawnCell {
     pub(super) kind: DrawnCellKind,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum MonolithGlyphSet {
-    Binary,
-    Minimal,
-    Code,
-    Dense,
-}
-
 #[derive(Clone, Copy, Debug)]
 struct Segment {
     offset: u16,
     len: u8,
     kind: SegmentKind,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct ActivationParams {
+    now: Instant,
+    lines: u16,
+    chars_per_sec: f32,
+    size: MonolithSize,
+    palette_slot: u8,
 }
 
 impl Segment {
@@ -146,6 +148,7 @@ pub(super) struct MonolithSpawnParams {
     pub(super) full_width: bool,
     pub(super) density: f32,
     pub(super) chars_per_sec: f32,
+    pub(super) size: MonolithSize,
     pub(super) active_palette_slot: u8,
     pub(super) spawn_scale: f32,
     pub(super) mouse_enabled: bool,
@@ -293,10 +296,13 @@ impl MonolithRain {
 
             activate_stream(
                 &mut self.streams[idx],
-                now,
-                params.lines,
-                params.chars_per_sec,
-                params.active_palette_slot,
+                ActivationParams {
+                    now,
+                    lines: params.lines,
+                    chars_per_sec: params.chars_per_sec,
+                    size: params.size,
+                    palette_slot: params.active_palette_slot,
+                },
                 random.rand_chance,
                 random.rng,
             );
@@ -416,40 +422,40 @@ impl MonolithRain {
 
 fn activate_stream(
     stream: &mut MonolithStream,
-    now: Instant,
-    lines: u16,
-    chars_per_sec: f32,
-    palette_slot: u8,
+    params: ActivationParams,
     rand_chance: &Uniform<f32>,
     rng: &mut StdRng,
 ) {
     stream.active = true;
     stream.head = 0.0;
-    stream.speed = varied_speed(chars_per_sec, rand_chance.sample(rng));
-    stream.span = varied_span(lines, rand_chance.sample(rng));
-    stream.palette_slot = palette_slot;
+    stream.speed = varied_speed(params.chars_per_sec, rand_chance.sample(rng));
+    stream.span = varied_span(params.lines, rand_chance.sample(rng));
+    stream.palette_slot = params.palette_slot;
     stream.layer = layer_from_roll(rand_chance.sample(rng));
-    stream.last_time = Some(now);
-    build_segments(stream, rand_chance, rng);
+    stream.last_time = Some(params.now);
+    build_segments(stream, params.size, rand_chance, rng);
 }
 
-fn build_segments(stream: &mut MonolithStream, rand_chance: &Uniform<f32>, rng: &mut StdRng) {
+fn build_segments(
+    stream: &mut MonolithStream,
+    size: MonolithSize,
+    rand_chance: &Uniform<f32>,
+    rng: &mut StdRng,
+) {
     let mut cursor = 0u16;
     let mut count = 0usize;
     while cursor < stream.span && count < MAX_SEGMENTS {
         let roll = rand_chance.sample(rng);
-        let (kind, len) = if roll < 0.36 {
-            (SegmentKind::Micro, 1)
+        let kind = if roll < 0.36 {
+            SegmentKind::Micro
         } else if roll < 0.70 {
-            (SegmentKind::Short, 2)
+            SegmentKind::Short
         } else if roll < 0.93 {
-            (
-                SegmentKind::Medium,
-                3 + (rand_chance.sample(rng) * 2.0) as u8,
-            )
+            SegmentKind::Medium
         } else {
-            (SegmentKind::Hero, 5 + (rand_chance.sample(rng) * 3.0) as u8)
+            SegmentKind::Hero
         };
+        let len = segment_len(kind, size, rand_chance.sample(rng));
 
         stream.segments[count] = Segment {
             offset: cursor,
@@ -458,10 +464,37 @@ fn build_segments(stream: &mut MonolithStream, rand_chance: &Uniform<f32>, rng: 
         };
         count += 1;
 
-        let gap = 2 + (rand_chance.sample(rng) * 6.0) as u16;
+        let gap = segment_gap(size, rand_chance.sample(rng));
         cursor = cursor.saturating_add(len as u16).saturating_add(gap);
     }
     stream.segment_count = count as u8;
+}
+
+fn segment_len(kind: SegmentKind, size: MonolithSize, roll: f32) -> u8 {
+    let extra = roll.clamp(0.0, 1.0);
+    match (size, kind) {
+        (MonolithSize::Small, SegmentKind::Micro) => 1,
+        (MonolithSize::Small, SegmentKind::Short) => 2,
+        (MonolithSize::Small, SegmentKind::Medium) => 3 + (extra * 2.0) as u8,
+        (MonolithSize::Small, SegmentKind::Hero) => 5 + (extra * 3.0) as u8,
+        (MonolithSize::Normal, SegmentKind::Micro) => 1,
+        (MonolithSize::Normal, SegmentKind::Short) => 2 + (extra * 2.0) as u8,
+        (MonolithSize::Normal, SegmentKind::Medium) => 4 + (extra * 2.0) as u8,
+        (MonolithSize::Normal, SegmentKind::Hero) => 6 + (extra * 3.0) as u8,
+        (MonolithSize::Large, SegmentKind::Micro) => 2,
+        (MonolithSize::Large, SegmentKind::Short) => 3 + (extra * 2.0) as u8,
+        (MonolithSize::Large, SegmentKind::Medium) => 5 + (extra * 3.0) as u8,
+        (MonolithSize::Large, SegmentKind::Hero) => 8 + (extra * 3.0) as u8,
+    }
+}
+
+fn segment_gap(size: MonolithSize, roll: f32) -> u16 {
+    let roll = roll.clamp(0.0, 1.0);
+    match size {
+        MonolithSize::Small => 3 + (roll * 6.0) as u16,
+        MonolithSize::Normal => 2 + (roll * 5.0) as u16,
+        MonolithSize::Large => 2 + (roll * 4.0) as u16,
+    }
 }
 
 fn draw_spine(
@@ -594,156 +627,6 @@ fn spine_envelope(kind: SegmentKind) -> i32 {
         SegmentKind::Short | SegmentKind::Medium => 1,
         SegmentKind::Hero => 2,
     }
-}
-
-fn segment_char(
-    ctx: &DrawCtx<'_>,
-    line: u16,
-    col: u16,
-    kind: SegmentKind,
-    pos_from_bottom: u8,
-) -> char {
-    let glyph_set = glyph_set_for_cell(ctx, line, col);
-    match glyph_set {
-        MonolithGlyphSet::Binary => binary_segment_char(kind, pos_from_bottom),
-        MonolithGlyphSet::Minimal => minimal_segment_char(kind, pos_from_bottom),
-        MonolithGlyphSet::Code => code_segment_char(kind, pos_from_bottom),
-        MonolithGlyphSet::Dense => dense_segment_char(kind, pos_from_bottom),
-    }
-}
-
-fn binary_segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
-    match kind {
-        SegmentKind::Micro => '.',
-        SegmentKind::Short => {
-            if pos_from_bottom == 0 {
-                '1'
-            } else {
-                '.'
-            }
-        }
-        SegmentKind::Medium => {
-            if pos_from_bottom == 0 {
-                '='
-            } else {
-                '0'
-            }
-        }
-        SegmentKind::Hero => match pos_from_bottom {
-            0 => '+',
-            1 | 2 => '=',
-            _ => '-',
-        },
-    }
-}
-
-fn minimal_segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
-    match kind {
-        SegmentKind::Micro => '.',
-        SegmentKind::Short => {
-            if pos_from_bottom == 0 {
-                '-'
-            } else {
-                '.'
-            }
-        }
-        SegmentKind::Medium => {
-            if pos_from_bottom == 0 {
-                '='
-            } else {
-                '-'
-            }
-        }
-        SegmentKind::Hero => match pos_from_bottom {
-            0 => '+',
-            1 | 2 => '=',
-            _ => '-',
-        },
-    }
-}
-
-fn code_segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
-    match kind {
-        SegmentKind::Micro => '-',
-        SegmentKind::Short => {
-            if pos_from_bottom == 0 {
-                '+'
-            } else {
-                '-'
-            }
-        }
-        SegmentKind::Medium => {
-            if pos_from_bottom == 0 {
-                '*'
-            } else {
-                '='
-            }
-        }
-        SegmentKind::Hero => match pos_from_bottom {
-            0 => '+',
-            1 | 2 => '*',
-            _ => '=',
-        },
-    }
-}
-
-fn dense_segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
-    match kind {
-        SegmentKind::Micro => '.',
-        SegmentKind::Short => {
-            if pos_from_bottom == 0 {
-                '+'
-            } else {
-                ':'
-            }
-        }
-        SegmentKind::Medium => {
-            if pos_from_bottom == 0 {
-                '='
-            } else {
-                '+'
-            }
-        }
-        SegmentKind::Hero => match pos_from_bottom {
-            0 => '+',
-            1 | 2 => '=',
-            _ => '+',
-        },
-    }
-}
-
-fn spine_char(ctx: &DrawCtx<'_>, line: u16, col: u16) -> char {
-    if matches!(glyph_set_for_cell(ctx, line, col), MonolithGlyphSet::Code) {
-        '-'
-    } else if ((line / SPINE_PERIOD) + col) % 2 == 0 {
-        ':'
-    } else {
-        '.'
-    }
-}
-
-fn glyph_set_for_cell(ctx: &DrawCtx<'_>, line: u16, col: u16) -> MonolithGlyphSet {
-    let a = ctx.get_char(line, col, 0);
-    let b = ctx.get_char(line, col, 1);
-    let c = ctx.get_char(line, col, 5);
-    if [a, b, c].iter().all(|ch| matches!(ch, '0' | '1')) {
-        return MonolithGlyphSet::Binary;
-    }
-    if [a, b, c].iter().any(|ch| {
-        matches!(
-            ch,
-            '.' | ':' | '-' | '=' | '+' | '*' | '·' | '•' | '○' | '●'
-        )
-    }) {
-        return MonolithGlyphSet::Minimal;
-    }
-    if [a, b, c]
-        .iter()
-        .any(|ch| ch.is_ascii_alphanumeric() || ch.is_ascii_punctuation())
-    {
-        return MonolithGlyphSet::Code;
-    }
-    MonolithGlyphSet::Dense
 }
 
 fn segment_level(kind: SegmentKind, pos_from_bottom: u8) -> BrightnessLevel {

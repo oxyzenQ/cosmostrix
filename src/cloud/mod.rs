@@ -34,6 +34,7 @@
 
 mod ecosystem;
 mod monolith;
+mod monolith_glyphs;
 mod phosphor;
 mod rain;
 mod render;
@@ -62,7 +63,7 @@ use crate::droplet::Droplet;
 use crate::frame::Frame;
 use crate::palette::{build_palette, Palette};
 use crate::rain_style::RainStyle;
-use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
+use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
 
 use ecosystem::{
     AtmosphericEvolution, BehaviorProfile, ColorEcosystem, ProfileParams, RendererMemory,
@@ -81,6 +82,7 @@ pub struct Cloud {
     pub(super) palette: Palette,
     pub(super) color_mode: ColorMode,
     pub(super) rain_style: RainStyle,
+    monolith_size: MonolithSize,
 
     pub(super) full_width: bool,
     pub(super) shading_distance: bool,
@@ -281,6 +283,7 @@ impl Cloud {
             palette: build_palette(color_scheme, color_mode, default_background),
             color_mode,
             rain_style,
+            monolith_size: MonolithSize::Normal,
             full_width,
             shading_distance: matches!(shading_mode, ShadingMode::DistanceFromHead),
             bold_mode,
@@ -487,10 +490,19 @@ impl Cloud {
     }
 
     pub fn set_chars_per_sec(&mut self, cps: f32) {
-        self.chars_per_sec = cps;
+        self.chars_per_sec = sanitize_speed_for_style(cps, self.rain_style);
         self.recalc_droplets_per_sec();
         self.set_column_speeds();
         self.update_droplet_speeds();
+    }
+
+    pub fn set_monolith_size(&mut self, size: MonolithSize) {
+        self.monolith_size = size;
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.monolith_rain.clear_draw_history();
+            self.reset_phosphor_state();
+            self.semantic_invalidate = true;
+        }
     }
 
     pub fn set_droplet_density(&mut self, density: f32) {
@@ -808,5 +820,18 @@ impl Cloud {
                 },
             );
         }
+    }
+}
+
+fn sanitize_speed_for_style(cps: f32, rain_style: RainStyle) -> f32 {
+    let cps = if cps.is_finite() {
+        cps.max(crate::constants::RUNTIME_SPEED_MIN)
+    } else {
+        crate::constants::RUNTIME_SPEED_MIN
+    };
+    if matches!(rain_style, RainStyle::Monolith) {
+        cps.min(crate::constants::MONOLITH_EFFECTIVE_SPEED_MAX)
+    } else {
+        cps
     }
 }

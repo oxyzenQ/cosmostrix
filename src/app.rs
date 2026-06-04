@@ -6,7 +6,7 @@
 use crate::cloud::Cloud;
 use crate::constants::*;
 use crate::rain_style::RainStyle;
-use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
+use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
 
 // --- CloudConfig struct for deduplicating cloud initialization ---
 
@@ -33,6 +33,7 @@ pub struct CloudConfig {
     pub max_dpc: u8,
     pub density: f32,
     pub speed: f32,
+    pub monolith_size: MonolithSize,
     pub chars: Vec<char>,
     pub message: Option<String>,
     pub message_no_border: bool,
@@ -73,6 +74,7 @@ impl CloudConfig {
         cloud.set_max_droplets_per_column(self.max_dpc);
         cloud.set_droplet_density(density);
         cloud.set_chars_per_sec(self.speed);
+        cloud.set_monolith_size(self.monolith_size);
 
         cloud.init_chars(self.chars.clone());
         cloud.reset(DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES);

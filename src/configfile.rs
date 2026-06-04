@@ -35,6 +35,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "fps",
     "speed",
     "density",
+    "monolith-size",
     "glitch-level",
     "bold",
     "shadingmode",
@@ -161,6 +162,7 @@ color-bg = black
 fps = 60
 speed = 8
 density = 1
+monolith-size = normal
 
 # Behavior
 glitch-level = default

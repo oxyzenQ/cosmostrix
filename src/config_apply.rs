@@ -24,6 +24,7 @@ use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::configfile::load_config_file;
 use crate::constants::DENSITY_CLAMP_MAX;
 use crate::preset::{get_preset, validate_preset_name};
+use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
 use crate::validation::{validate_f32_range, validate_f64_range, validate_u8_range};
 
@@ -122,6 +123,17 @@ fn apply_config_values(
         if let Some(f) = parse_f32_config("density", &v, 0.01, DENSITY_CLAMP_MAX) {
             args.density = f;
             config_touched.insert("density");
+        }
+    }
+    if let Some(v) = config_value(matches, cfg, "monolith_size", "monolith-size") {
+        match MonolithSize::from_str(&v, true) {
+            Ok(size) => {
+                args.monolith_size = size;
+                config_touched.insert("monolith_size");
+            }
+            Err(_) => eprintln!(
+                "config: ignoring invalid monolith-size='{v}' (allowed: small, normal, large)"
+            ),
         }
     }
     if let Some(v) = config_value(matches, cfg, "glitch_level", "glitch-level") {
@@ -653,6 +665,23 @@ mod tests {
     }
 
     #[test]
+    fn monolith_size_cli_values_parse() {
+        let small = args_from_cli(&["--scene", "monolith", "--monolith-size", "small"]);
+        let normal = args_from_cli(&["--scene", "monolith", "--monolith-size", "normal"]);
+        let large = args_from_cli(&["--scene", "monolith", "--monolith-size", "large"]);
+
+        assert_eq!(small.monolith_size, MonolithSize::Small);
+        assert_eq!(normal.monolith_size, MonolithSize::Normal);
+        assert_eq!(large.monolith_size, MonolithSize::Large);
+    }
+
+    #[test]
+    fn config_monolith_size_large_applies() {
+        let args = args_with_config("monolith-size = large\n", &[]);
+        assert_eq!(args.monolith_size, MonolithSize::Large);
+    }
+
+    #[test]
     fn cli_scene_overrides_cli_preset_for_overlapping_values() {
         let args = args_from_cli(&["--preset", "calm", "--scene", "signal"]);
         assert_eq!(args.preset.as_deref(), Some("calm"));
@@ -769,6 +798,7 @@ mod tests {
             "fps",
             "speed",
             "density",
+            "monolith-size",
             "glitch-level",
             "bold",
             "shadingmode",

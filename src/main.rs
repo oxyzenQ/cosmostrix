@@ -351,6 +351,7 @@ fn main() -> std::io::Result<()> {
             s.field("fps", &format!("{}", args.fps));
             s.field("speed", &format!("{}", args.speed));
             s.field("density", &format!("{}", args.density));
+            s.field("monolith_size", args.monolith_size.as_str());
             s.field("color", &args.color);
             s.field("charset", &args.charset);
             s.field(
@@ -519,6 +520,7 @@ fn main() -> std::io::Result<()> {
         max_dpc,
         density: base_density,
         speed,
+        monolith_size: args.monolith_size,
         chars,
         message: args.message.clone(),
         message_no_border: args.message_no_border,

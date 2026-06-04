@@ -11,7 +11,8 @@ use crate::cloud::Cloud;
 use crate::constants::CHARSET_TRANSITION_DURATION_MS;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
-use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
+use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
+use std::collections::BTreeSet;
 
 fn make_monolith_cloud(cols: u16, lines: u16) -> Cloud {
     let mut cloud = Cloud::new(
@@ -67,6 +68,19 @@ fn visible_chars(frame: &Frame) -> Vec<char> {
         }
     }
     chars
+}
+
+fn visible_char_signature(frame: &Frame) -> BTreeSet<char> {
+    visible_chars(frame).into_iter().collect()
+}
+
+fn segment_draw_count(cloud: &Cloud) -> usize {
+    cloud
+        .monolith_rain
+        .drawn_cells_for_test()
+        .iter()
+        .filter(|cell| matches!(cell.kind, DrawnCellKind::Segment))
+        .count()
 }
 
 fn seed_stale_phosphor(cloud: &mut Cloud) {
@@ -272,6 +286,55 @@ fn monolith_spine_cells_do_not_retain_long_lived_phosphor_metadata() {
 }
 
 #[test]
+fn monolith_high_speed_top_cells_clear_after_bounded_frames() {
+    let mut cloud = make_monolith_cloud(96, 32);
+    cloud.set_chars_per_sec(999.0);
+    assert_eq!(
+        cloud.chars_per_sec,
+        crate::constants::MONOLITH_EFFECTIVE_SPEED_MAX
+    );
+    let mut frame = Frame::new(96, 32, cloud.palette.bg);
+    run_frames(&mut cloud, &mut frame, 120, 16);
+
+    disable_monolith_spawning(&mut cloud);
+    for idx in 1..=4 {
+        frame.clear_dirty();
+        cloud.rain_at(&mut frame, Instant::now() + Duration::from_millis(idx * 16));
+    }
+
+    let top_rows = 4u16;
+    let mut visible = 0usize;
+    for line in 0..top_rows {
+        for col in 0..frame.width {
+            let cell = frame.get(col, line).expect("cell in bounds");
+            if cell.ch != ' ' || cell.fg.is_some() {
+                visible += 1;
+            }
+        }
+    }
+    assert_eq!(visible, 0, "high-speed monolith top residue should clear");
+}
+
+#[test]
+fn monolith_resize_reset_clears_draw_caches_and_requests_semantic_sync() {
+    let mut cloud = make_monolith_cloud(64, 24);
+    let mut frame = Frame::new(64, 24, cloud.palette.bg);
+    let start = Instant::now();
+
+    cloud.last_spawn_time = start - Duration::from_secs(1);
+    cloud.last_phosphor_time = start;
+    cloud.rain_at(&mut frame, start);
+    assert!(cloud.monolith_rain.draw_history_count_for_test() > 0);
+
+    cloud.reset(120, 40);
+
+    assert_eq!(cloud.monolith_rain.draw_history_count_for_test(), 0);
+    assert!(cloud.is_semantic_invalidate());
+    assert!(cloud.phosphor.iter().all(|&energy| energy == 0));
+    assert!(cloud.phosphor_base_ch.iter().all(|&ch| ch == '\0'));
+}
+
+#[test]
 fn monolith_semantic_invalidation_clears_stale_residue() {
     let mut cloud = make_monolith_cloud(48, 18);
     let mut frame = Frame::new(48, 18, cloud.palette.bg);
@@ -337,6 +400,67 @@ fn monolith_charset_transition_changes_segment_glyph_style() {
         "code-like charset should remove binary segment accents"
     );
     assert_ne!(before, after);
+}
+
+#[test]
+fn monolith_charset_cycles_produce_multiple_glyph_styles() {
+    let mut cloud = make_monolith_cloud(80, 24);
+    let mut frame = Frame::new(80, 24, cloud.palette.bg);
+    let start = Instant::now();
+    cloud.last_spawn_time = start - Duration::from_secs(1);
+    cloud.last_phosphor_time = start;
+
+    cloud.rain_at(&mut frame, start);
+    let binary = visible_char_signature(&frame);
+
+    let styles = [
+        vec!['.', '-', '=', '+'],
+        vec!['A', 'B', 'C', 'D'],
+        vec!['▀', '▄', '▌', '▐'],
+    ];
+    let mut signatures = vec![binary];
+    for (idx, chars) in styles.into_iter().enumerate() {
+        frame.clear_dirty();
+        cloud.transition_chars(chars);
+        cloud.charset_transition_start =
+            Some(start - Duration::from_millis(CHARSET_TRANSITION_DURATION_MS as u64 + 1));
+        cloud.rain_at(
+            &mut frame,
+            start + Duration::from_millis(16 + idx as u64 * 16),
+        );
+        signatures.push(visible_char_signature(&frame));
+    }
+    signatures.sort();
+    signatures.dedup();
+
+    assert!(
+        signatures.len() >= 3,
+        "monolith charset cycling should produce at least three visible glyph styles"
+    );
+}
+
+#[test]
+fn monolith_size_changes_segment_coverage() {
+    let mut small = make_monolith_cloud(80, 24);
+    small.set_monolith_size(MonolithSize::Small);
+    small.reset(80, 24);
+    small.clear_redraw_flags_for_test();
+    let mut small_frame = Frame::new(80, 24, small.palette.bg);
+    run_frames(&mut small, &mut small_frame, 20, 16);
+
+    let mut large = make_monolith_cloud(80, 24);
+    large.set_monolith_size(MonolithSize::Large);
+    large.reset(80, 24);
+    large.clear_redraw_flags_for_test();
+    let mut large_frame = Frame::new(80, 24, large.palette.bg);
+    run_frames(&mut large, &mut large_frame, 20, 16);
+
+    let small_segments = segment_draw_count(&small);
+    let large_segments = segment_draw_count(&large);
+    assert!(
+        large_segments > small_segments,
+        "large monolith size should draw more segment cells than small (large={large_segments}, small={small_segments})"
+    );
 }
 
 #[test]

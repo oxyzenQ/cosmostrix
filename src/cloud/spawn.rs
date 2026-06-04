@@ -104,6 +104,9 @@ impl Cloud {
         self.last_spawn_time = now;
         self.spawn_remainder = 0.0;
         self.force_draw_everything = true;
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.semantic_invalidate = true;
+        }
         self.frames_since_full_redraw = 0;
         self.last_reseed_time = now;
         self.last_phosphor_time = now;

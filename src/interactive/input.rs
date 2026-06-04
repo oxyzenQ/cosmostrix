@@ -23,6 +23,7 @@ use crate::charset::{build_chars, charset_from_str};
 use crate::cloud::Cloud;
 use crate::constants::*;
 use crate::frame::Frame;
+use crate::rain_style::RainStyle;
 use crate::runtime::ColorScheme;
 #[cfg(unix)]
 use crate::terminal::restore_terminal_best_effort;
@@ -157,7 +158,7 @@ pub(super) fn handle_keybinding(
             } else {
                 cps += 1.0;
             }
-            cloud.set_chars_per_sec(cps.min(1000.0));
+            cloud.set_chars_per_sec(runtime_speed_clamp(cps, cloud.rain_style()));
         }
         (KeyCode::Down, _) => {
             let mut cps = cloud.chars_per_sec;
@@ -166,7 +167,7 @@ pub(super) fn handle_keybinding(
             } else {
                 cps -= 1.0;
             }
-            cloud.set_chars_per_sec(cps.max(0.001));
+            cloud.set_chars_per_sec(runtime_speed_clamp(cps, cloud.rain_style()));
         }
         (KeyCode::Left, _) if cloud.glitchy => {
             let gp = (cloud.glitch_pct - GLITCH_PCT_STEP).max(0.0);
@@ -213,4 +214,17 @@ pub(super) fn handle_keybinding(
     }
 
     false
+}
+
+pub(super) fn runtime_speed_clamp(cps: f32, rain_style: RainStyle) -> f32 {
+    let max = if matches!(rain_style, RainStyle::Monolith) {
+        MONOLITH_EFFECTIVE_SPEED_MAX
+    } else {
+        RUNTIME_SPEED_MAX
+    };
+    if cps.is_finite() {
+        cps.clamp(RUNTIME_SPEED_MIN, max)
+    } else {
+        RUNTIME_SPEED_MIN
+    }
 }

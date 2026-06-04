@@ -104,6 +104,7 @@ impl Cloud {
                 full_width: self.full_width,
                 density: self.droplet_density,
                 chars_per_sec: self.chars_per_sec,
+                size: self.monolith_size,
                 active_palette_slot: self.active_palette_slot,
                 spawn_scale,
                 mouse_enabled: self.mouse_enabled,

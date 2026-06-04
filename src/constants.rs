@@ -34,6 +34,15 @@ pub const DENSITY_CLAMP_MIN: f32 = 0.01;
 /// Absolute density clamp range (max).
 pub const DENSITY_CLAMP_MAX: f32 = 5.0;
 
+/// Minimum runtime speed reachable through keyboard controls.
+pub const RUNTIME_SPEED_MIN: f32 = 1.0;
+
+/// Maximum runtime speed reachable through keyboard controls for glyph rain.
+pub const RUNTIME_SPEED_MAX: f32 = 120.0;
+
+/// Maximum effective Monolith speed, including CLI/config values.
+pub const MONOLITH_EFFECTIVE_SPEED_MAX: f32 = 80.0;
+
 // ---------------------------------------------------------------------------
 // Performance tuning (shared between interactive & cloud)
 // ---------------------------------------------------------------------------

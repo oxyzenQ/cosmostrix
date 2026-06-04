@@ -165,6 +165,7 @@ cosmostrix --scene matrix              # v2-compatible default scene
 cosmostrix --scene monolith            # faster structured Monolith Rain
 cosmostrix --scene signal --fps 60     # code-signal scene with FPS override
 cosmostrix --scene monolith --color deepspace
+cosmostrix --scene monolith --monolith-size large
 cosmostrix --config ./cosmostrix.conf  # explicit config file
 cosmostrix --dump-config               # print example config
 ```
@@ -304,9 +305,10 @@ cosmostrix --scene monolith
 cosmostrix --scene signal
 cosmostrix --scene signal --fps 60
 cosmostrix --scene monolith --color deepspace
+cosmostrix --scene monolith --monolith-size large
 ```
 
-`matrix` remains the default scene. `monolith` requires no extra setup: `--scene monolith` switches to signature structured segmented rain with a faster premium motion default (`speed 10`, `density 0.75`). Charset cycling keeps the segmented identity but changes the segment glyph style; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
+`matrix` remains the default scene. `monolith` requires no extra setup: `--scene monolith` switches to signature structured segmented rain with a faster premium motion default (`speed 10`, `density 0.75`). Charset cycling keeps the segmented identity but changes the segment glyph style. `--monolith-size` controls terminal-cell segment scale (`small`, `normal`, `large`), not raw pixel size; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
 
 ## Color schemes
 

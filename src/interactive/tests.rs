@@ -17,7 +17,7 @@ mod cases {
     use crate::frame::Frame;
 
     use crate::interactive::activity::{idle_resync_due, is_runtime_idle, register_activity};
-    use crate::interactive::input::{handle_keybinding, PasteBurstGuard};
+    use crate::interactive::input::{handle_keybinding, runtime_speed_clamp, PasteBurstGuard};
     use crate::CloudConfig;
 
     fn key(ch: char) -> KeyEvent {
@@ -138,6 +138,26 @@ mod cases {
     }
 
     #[test]
+    fn runtime_speed_control_clamps_to_safe_limits() {
+        assert_eq!(
+            runtime_speed_clamp(f32::NAN, crate::rain_style::RainStyle::Glyph),
+            RUNTIME_SPEED_MIN
+        );
+        assert_eq!(
+            runtime_speed_clamp(-10.0, crate::rain_style::RainStyle::Glyph),
+            RUNTIME_SPEED_MIN
+        );
+        assert_eq!(
+            runtime_speed_clamp(9999.0, crate::rain_style::RainStyle::Glyph),
+            RUNTIME_SPEED_MAX
+        );
+        assert_eq!(
+            runtime_speed_clamp(9999.0, crate::rain_style::RainStyle::Monolith),
+            MONOLITH_EFFECTIVE_SPEED_MAX
+        );
+    }
+
+    #[test]
     fn paste_suppression_does_not_trigger_shortcut_actions() {
         // Verify that paste events go through the Paste branch, not Key,
         // so they never trigger 'c', 's', 'p', or other shortcuts.
@@ -200,6 +220,7 @@ mod cases {
             max_dpc: 1,
             density: 0.8,
             speed: 8.0,
+            monolith_size: crate::runtime::MonolithSize::Normal,
             chars: vec!['0', '1'],
             message: None,
             message_no_border: false,
