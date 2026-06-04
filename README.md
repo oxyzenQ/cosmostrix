@@ -36,7 +36,7 @@
 ## Features
 
 - **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy
-- **3 scene atmospheres** (matrix, monolith, signal) for v3 scene-based atmosphere selection
+- **3 scene atmospheres** (matrix, monolith, signal), including signature Cosmostrix Monolith Rain
 - **8 curated presets** (classic, cinematic, calm, monolith, storm, cosmos, neon, hacker) for one-command visual profiles
 - 43 built-in color themes and 24 character set presets
 - Phosphor persistence (CRT afterglow), depth fog, and 3-layer parallax
@@ -162,7 +162,7 @@ cosmostrix --preset cinematic          # curated preset
 cosmostrix --preset calm               # gentle ocean rain
 cosmostrix --preset storm --fps 60     # preset with explicit override
 cosmostrix --scene matrix              # v2-compatible default scene
-cosmostrix --scene monolith            # dark calm atmosphere
+cosmostrix --scene monolith            # structured segmented Monolith Rain
 cosmostrix --scene signal --fps 60     # code-signal scene with FPS override
 cosmostrix --scene monolith --color deepspace
 cosmostrix --config ./cosmostrix.conf  # explicit config file
@@ -295,7 +295,7 @@ So `cosmostrix --config ./config --preset storm --scene signal --fps 60` uses th
 3 scene atmospheres are available:
 
 - `matrix` — default v2-compatible Matrix rain
-- `monolith` — dark, calm, heavy premium atmosphere
+- `monolith` — signature Cosmostrix Monolith Rain with sparse structured segments
 - `signal` — digital transmission / code-signal atmosphere
 
 ```bash
@@ -305,6 +305,8 @@ cosmostrix --scene signal
 cosmostrix --scene signal --fps 60
 cosmostrix --scene monolith --color deepspace
 ```
+
+`matrix` remains the default scene. `monolith` requires no extra setup: `--scene monolith` switches to structured segmented rain, while explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
 
 ## Color schemes
 
@@ -334,6 +336,10 @@ See `benchmark/README.md` for full reference results, reproduction steps, and
 interpretation notes.
 
 ## Release notes
+
+### v3.1.0 (in development)
+
+**Monolith Rain Engine.** The monolith scene now uses signature Cosmostrix Monolith Rain: sparse structured vertical data pillars with segmented blocks, subtle spines, visible gaps, and a clear brightness hierarchy. The default matrix scene remains glyph rain.
 
 ### v2.2.0
 

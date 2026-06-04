@@ -3,6 +3,7 @@
 
 //! Core tests for the cloud module (rain, pause/resume, transitions, spawn).
 
+mod tests_monolith;
 mod tests_phosphor;
 
 use std::time::{Duration, Instant};
@@ -18,6 +19,7 @@ use crate::constants::{
     PHOSPHOR_EDGE_ROW_TAPER, SPAWN_REMAINDER_CAP,
 };
 use crate::frame::Frame;
+use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
 pub(super) fn make_cloud() -> Cloud {
@@ -29,6 +31,7 @@ pub(super) fn make_cloud() -> Cloud {
         false,
         true,
         ColorScheme::Green,
+        RainStyle::Glyph,
     );
     cloud.init_chars(vec!['0', '1']);
     cloud.reset(20, 10);

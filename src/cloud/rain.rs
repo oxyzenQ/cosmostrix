@@ -10,8 +10,10 @@ use rand::distr::Distribution;
 
 use crate::constants::*;
 use crate::frame::Frame;
+use crate::rain_style::RainStyle;
 
 use super::ecosystem::EmergentMoment;
+use super::monolith::{MonolithRandom, MonolithSpawnParams};
 use super::render::DrawCtx;
 use super::Cloud;
 
@@ -33,10 +35,15 @@ impl Cloud {
         if let Some(transition_start) = self.transition_start {
             let elapsed_ms = now.saturating_duration_since(transition_start).as_millis() as u64;
             if elapsed_ms >= COLOR_TRANSITION_DURATION_MS as u64 {
-                // Transition complete: all droplets adopt the new palette
-                for d in &mut self.droplets {
-                    if d.is_alive {
-                        d.palette_slot = self.active_palette_slot;
+                // Transition complete: all active streams adopt the new palette.
+                if matches!(self.rain_style, RainStyle::Monolith) {
+                    self.monolith_rain
+                        .adopt_palette_slot(self.active_palette_slot);
+                } else {
+                    for d in &mut self.droplets {
+                        if d.is_alive {
+                            d.palette_slot = self.active_palette_slot;
+                        }
                     }
                 }
                 self.transition_start = None;
@@ -84,7 +91,34 @@ impl Cloud {
         // curve so new streams appear gradually during the inertia recovery.
         spawn_scale *= self.resume_blend;
         spawn_scale = spawn_scale.clamp(0.0, 3.0);
-        self.spawn_droplets(now, spawn_scale);
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
+            if self.max_sim_delta > std::time::Duration::from_millis(0) {
+                elapsed = elapsed.min(self.max_sim_delta);
+            }
+            self.last_spawn_time = now;
+
+            let params = MonolithSpawnParams {
+                cols: self.cols,
+                lines: self.lines,
+                full_width: self.full_width,
+                density: self.droplet_density,
+                chars_per_sec: self.chars_per_sec,
+                active_palette_slot: self.active_palette_slot,
+                spawn_scale,
+                mouse_enabled: self.mouse_enabled,
+                mouse_col: self.mouse_col,
+            };
+            let mut random = MonolithRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+                rand_col: &self.rand_col,
+            };
+            self.monolith_rain
+                .spawn(now, elapsed, &mut self.spawn_remainder, params, &mut random);
+        } else {
+            self.spawn_droplets(now, spawn_scale);
+        }
 
         // Process pending semantic invalidation BEFORE force_draw_everything.
         // Semantic mutations (charset switch, shading mode toggle) require
@@ -130,50 +164,55 @@ impl Cloud {
         let use_sim_cap = max_sim_delta > std::time::Duration::from_millis(0);
 
         // Update pass (mut self)
-        for i in 0..self.droplets.len() {
-            if !self.droplets[i].is_alive {
-                continue;
-            }
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.monolith_rain
+                .advance(now, self.lines, max_sim_delta, self.resume_blend);
+        } else {
+            for i in 0..self.droplets.len() {
+                if !self.droplets[i].is_alive {
+                    continue;
+                }
 
-            let (col, start_line, hp, cp_idx, free_col, died) = {
-                let d = &mut self.droplets[i];
-                let adv_now = if use_sim_cap {
-                    if let Some(last) = d.last_time {
-                        let max_now = last + max_sim_delta;
-                        if now > max_now {
-                            max_now
+                let (col, start_line, hp, cp_idx, free_col, died) = {
+                    let d = &mut self.droplets[i];
+                    let adv_now = if use_sim_cap {
+                        if let Some(last) = d.last_time {
+                            let max_now = last + max_sim_delta;
+                            if now > max_now {
+                                max_now
+                            } else {
+                                now
+                            }
                         } else {
                             now
                         }
                     } else {
                         now
-                    }
-                } else {
-                    now
+                    };
+                    let free_col = d.advance(adv_now, self.lines, self.resume_blend);
+                    let col = d.bound_col;
+                    let start_line = d.tail_put_line.map(|v| v + 1).unwrap_or(0);
+                    let hp = d.head_put_line;
+                    let cp_idx = d.char_pool_idx;
+                    let died = !d.is_alive;
+                    (col, start_line, hp, cp_idx, free_col, died)
                 };
-                let free_col = d.advance(adv_now, self.lines, self.resume_blend);
-                let col = d.bound_col;
-                let start_line = d.tail_put_line.map(|v| v + 1).unwrap_or(0);
-                let hp = d.head_put_line;
-                let cp_idx = d.char_pool_idx;
-                let died = !d.is_alive;
-                (col, start_line, hp, cp_idx, free_col, died)
-            };
 
-            if died {
-                if let Some(cs) = self.col_stat.get_mut(col as usize) {
-                    cs.num_droplets = cs.num_droplets.saturating_sub(1);
-                    cs.can_spawn = true;
+                if died {
+                    if let Some(cs) = self.col_stat.get_mut(col as usize) {
+                        cs.num_droplets = cs.num_droplets.saturating_sub(1);
+                        cs.can_spawn = true;
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            if free_col {
-                self.set_column_spawn(col, true);
-            }
+                if free_col {
+                    self.set_column_spawn(col, true);
+                }
 
-            if time_for_glitch {
-                self.do_glitch_span(start_line, hp, col, cp_idx);
+                if time_for_glitch {
+                    self.do_glitch_span(start_line, hp, col, cp_idx);
+                }
             }
         }
 
@@ -226,17 +265,21 @@ impl Cloud {
             flash_time: self.flash_time,
         };
 
-        for d in &mut self.droplets {
-            let needs_tail_cleanup = !d.is_alive
-                && d.bound_col != u16::MAX
-                && d.tail_put_line.is_some_and(|tp| d.tail_cur_line != tp);
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.monolith_rain.draw(&ctx, frame);
+        } else {
+            for d in &mut self.droplets {
+                let needs_tail_cleanup = !d.is_alive
+                    && d.bound_col != u16::MAX
+                    && d.tail_put_line.is_some_and(|tp| d.tail_cur_line != tp);
 
-            if d.is_alive || needs_tail_cleanup {
-                d.draw(&ctx, frame, now, draw_everything);
-            }
+                if d.is_alive || needs_tail_cleanup {
+                    d.draw(&ctx, frame, now, draw_everything);
+                }
 
-            if !d.is_alive {
-                d.bound_col = u16::MAX;
+                if !d.is_alive {
+                    d.bound_col = u16::MAX;
+                }
             }
         }
 

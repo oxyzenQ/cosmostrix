@@ -13,6 +13,7 @@ use rand::{
 
 use crate::constants::*;
 use crate::droplet::Droplet;
+use crate::rain_style::RainStyle;
 
 use super::state::{ColumnStatus, DropletSpawnSpec};
 
@@ -28,9 +29,14 @@ impl Cloud {
         self.cols = cols.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
         self.lines = lines.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
 
-        let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
-        self.droplets.clear();
-        self.droplets.resize_with(pool_size, Droplet::new);
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.droplets.clear();
+        } else {
+            let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
+            self.droplets.clear();
+            self.droplets.resize_with(pool_size, Droplet::new);
+        }
+        self.monolith_rain.reset(self.cols, self.full_width);
         self.spawn_scan_idx = 0;
 
         let max_line = lines.saturating_sub(2);

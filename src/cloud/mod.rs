@@ -33,6 +33,7 @@
 //! instead of a robotic simultaneous switch.
 
 mod ecosystem;
+mod monolith;
 mod phosphor;
 mod rain;
 mod render;
@@ -60,12 +61,14 @@ use crate::constants::*;
 use crate::droplet::Droplet;
 use crate::frame::Frame;
 use crate::palette::{build_palette, Palette};
+use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
 use ecosystem::{
     AtmosphericEvolution, BehaviorProfile, ColorEcosystem, ProfileParams, RendererMemory,
     StorytellingState,
 };
+use monolith::MonolithRain;
 use state::{AnomalyZone, ColumnStatus, MsgChr};
 
 // --- Named constants are centralized in constants.rs ---
@@ -77,6 +80,7 @@ pub struct Cloud {
 
     pub(super) palette: Palette,
     pub(super) color_mode: ColorMode,
+    pub(super) rain_style: RainStyle,
 
     pub(super) full_width: bool,
     pub(super) shading_distance: bool,
@@ -103,6 +107,7 @@ pub struct Cloud {
     pub(super) max_droplets_per_column: u8,
 
     pub(super) droplets: Vec<Droplet>,
+    pub(super) monolith_rain: MonolithRain,
     pub(super) spawn_scan_idx: usize,
 
     pub(super) chars: Vec<char>,
@@ -265,6 +270,7 @@ impl Cloud {
         async_mode: bool,
         default_background: bool,
         color_scheme: ColorScheme,
+        rain_style: RainStyle,
     ) -> Self {
         let now = Instant::now();
         let mt = StdRng::seed_from_u64(RNG_INITIAL_SEED);
@@ -274,6 +280,7 @@ impl Cloud {
             cols: 80,
             palette: build_palette(color_scheme, color_mode, default_background),
             color_mode,
+            rain_style,
             full_width,
             shading_distance: matches!(shading_mode, ShadingMode::DistanceFromHead),
             bold_mode,
@@ -293,6 +300,7 @@ impl Cloud {
             linger_high_ms: 3000,
             max_droplets_per_column: 3,
             droplets: Vec::new(),
+            monolith_rain: MonolithRain::new(),
             spawn_scan_idx: 0,
             chars: Vec::new(),
             char_pool: Vec::new(),
@@ -425,6 +433,11 @@ impl Cloud {
         self.color_scheme
     }
 
+    #[must_use]
+    pub fn rain_style(&self) -> RainStyle {
+        self.rain_style
+    }
+
     /// Get current behavior profile.
     pub fn profile(&self) -> BehaviorProfile {
         self.profile
@@ -454,7 +467,11 @@ impl Cloud {
     /// which includes recycled slots waiting to be reused.
     #[must_use]
     pub fn active_droplet_count(&self) -> usize {
-        self.droplets.iter().filter(|d| d.is_alive).count()
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.monolith_rain.active_count()
+        } else {
+            self.droplets.iter().filter(|d| d.is_alive).count()
+        }
     }
 
     pub fn set_async(&mut self, on: bool) {

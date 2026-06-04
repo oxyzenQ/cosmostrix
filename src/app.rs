@@ -5,6 +5,7 @@
 
 use crate::cloud::Cloud;
 use crate::constants::*;
+use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
 // --- CloudConfig struct for deduplicating cloud initialization ---
@@ -20,6 +21,7 @@ pub struct CloudConfig {
     pub async_mode: bool,
     pub default_bg: bool,
     pub color_scheme: ColorScheme,
+    pub rain_style: RainStyle,
     pub noglitch: bool,
     pub glitch_pct: f32,
     pub glitch_low: u16,
@@ -59,6 +61,7 @@ impl CloudConfig {
             self.async_mode,
             self.default_bg,
             self.color_scheme,
+            self.rain_style,
         );
 
         cloud.glitchy = !self.noglitch;

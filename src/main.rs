@@ -52,8 +52,11 @@ mod droplet;
 mod frame;
 mod info;
 mod interactive;
+#[cfg(test)]
+mod loc_tests;
 mod palette;
 mod preset;
+mod rain_style;
 mod renderer_info;
 mod report;
 mod runtime;
@@ -354,6 +357,12 @@ fn main() -> std::io::Result<()> {
                 "scene",
                 args.scene.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE),
             );
+            let rain_style = args
+                .scene
+                .as_deref()
+                .and_then(scene::rain_style_for_scene)
+                .unwrap_or(rain_style::RainStyle::Glyph);
+            s.field("rain_style", rain_style.as_str());
             s.field(
                 "glitch_level",
                 &format!("{:?}", args.glitch_level).to_lowercase(),
@@ -400,6 +409,11 @@ fn main() -> std::io::Result<()> {
     });
 
     let color_scheme = validate_err("--color", parse_color_scheme(&args.color))?;
+    let rain_style = args
+        .scene
+        .as_deref()
+        .and_then(scene::rain_style_for_scene)
+        .unwrap_or(rain_style::RainStyle::Glyph);
 
     let glitch_pct = validate_err(
         "--glitchpct",
@@ -493,6 +507,7 @@ fn main() -> std::io::Result<()> {
         async_mode: args.async_mode,
         default_bg,
         color_scheme,
+        rain_style,
         noglitch: args.noglitch,
         glitch_pct,
         glitch_low,

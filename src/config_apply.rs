@@ -626,6 +626,33 @@ mod tests {
     }
 
     #[test]
+    fn monolith_scene_respects_explicit_color_override() {
+        let args = args_from_cli(&["--scene", "monolith", "--color", "deepspace"]);
+        assert_eq!(args.scene.as_deref(), Some("monolith"));
+        assert_eq!(args.color, "deepspace");
+        assert_eq!(args.charset, "binary");
+    }
+
+    #[test]
+    fn monolith_scene_respects_explicit_motion_overrides() {
+        let args = args_from_cli(&[
+            "--scene",
+            "monolith",
+            "--fps",
+            "120",
+            "--speed",
+            "9",
+            "--density",
+            "0.25",
+        ]);
+        assert_eq!(args.scene.as_deref(), Some("monolith"));
+        assert_eq!(args.fps, 120.0);
+        assert_eq!(args.speed, 9.0);
+        assert!((args.density - 0.25).abs() < f32::EPSILON);
+        assert_eq!(args.color, "blackhole");
+    }
+
+    #[test]
     fn cli_scene_overrides_cli_preset_for_overlapping_values() {
         let args = args_from_cli(&["--preset", "calm", "--scene", "signal"]);
         assert_eq!(args.preset.as_deref(), Some("calm"));

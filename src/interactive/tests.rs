@@ -167,6 +167,7 @@ mod cases {
             false,
             true,
             crate::runtime::ColorScheme::Green,
+            crate::rain_style::RainStyle::Glyph,
         );
         cloud.init_chars(vec!['0', '1']);
         cloud.reset(20, 10);
@@ -187,6 +188,7 @@ mod cases {
             async_mode: false,
             default_bg: true,
             color_scheme: crate::runtime::ColorScheme::Green,
+            rain_style: crate::rain_style::RainStyle::Glyph,
             noglitch: true,
             glitch_pct: 0.0,
             glitch_low: 0,

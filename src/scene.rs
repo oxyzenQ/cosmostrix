@@ -3,10 +3,11 @@
 
 //! Scene catalog and scene-to-runtime mappings.
 //!
-//! Scenes are a thin atmosphere selection layer over existing runtime knobs.
-//! They do not introduce renderer internals or change palette behavior.
+//! Scenes map curated runtime knobs and internal rain style selection while
+//! preserving palette override behavior.
 
 use crate::config::GlitchLevel;
+use crate::rain_style::RainStyle;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SceneConfig {
@@ -16,6 +17,7 @@ pub struct SceneConfig {
     pub speed: Option<f32>,
     pub density: Option<f32>,
     pub glitch_level: Option<GlitchLevel>,
+    pub rain_style: RainStyle,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -38,11 +40,12 @@ pub const SCENES: &[SceneInfo] = &[
             speed: None,
             density: None,
             glitch_level: None,
+            rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "monolith",
-        description: "Dark, calm, heavy atmosphere with premium pacing",
+        description: "Signature structured segmented rain with premium pacing",
         config: SceneConfig {
             color: Some("blackhole"),
             charset: Some("binary"),
@@ -50,6 +53,7 @@ pub const SCENES: &[SceneInfo] = &[
             speed: Some(4.0),
             density: Some(0.75),
             glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Monolith,
         },
     },
     SceneInfo {
@@ -62,6 +66,7 @@ pub const SCENES: &[SceneInfo] = &[
             speed: Some(10.0),
             density: Some(0.95),
             glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Glyph,
         },
     },
 ];
@@ -76,6 +81,11 @@ pub fn all_scene_names() -> &'static [&'static str] {
 pub fn get_scene(name: &str) -> Option<&'static SceneInfo> {
     let normalized = name.trim().to_ascii_lowercase();
     SCENES.iter().find(|scene| scene.name == normalized)
+}
+
+#[must_use]
+pub fn rain_style_for_scene(name: &str) -> Option<RainStyle> {
+    get_scene(name).map(|scene| scene.config.rain_style)
 }
 
 pub fn validate_scene_name(name: &str) -> Result<String, String> {
@@ -106,6 +116,13 @@ mod tests {
         for name in all_scene_names() {
             assert!(get_scene(name).is_some(), "missing scene {name}");
         }
+    }
+
+    #[test]
+    fn scenes_select_expected_rain_style() {
+        assert_eq!(rain_style_for_scene("matrix"), Some(RainStyle::Glyph));
+        assert_eq!(rain_style_for_scene("signal"), Some(RainStyle::Glyph));
+        assert_eq!(rain_style_for_scene("monolith"), Some(RainStyle::Monolith));
     }
 
     #[test]
