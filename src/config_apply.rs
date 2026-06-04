@@ -600,7 +600,7 @@ mod tests {
         assert_eq!(args.scene.as_deref(), Some("monolith"));
         assert_eq!(args.color, "blackhole");
         assert_eq!(args.charset, "binary");
-        assert_eq!(args.speed, 4.0);
+        assert_eq!(args.speed, 10.0);
         assert!((args.density - 0.75).abs() < f32::EPSILON);
         assert_eq!(args.glitch_level, GlitchLevel::Subtle);
         assert_eq!(args.glitch_pct, 3.0);

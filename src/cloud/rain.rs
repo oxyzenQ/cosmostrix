@@ -13,7 +13,7 @@ use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 
 use super::ecosystem::EmergentMoment;
-use super::monolith::{MonolithRandom, MonolithSpawnParams};
+use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
 use super::render::DrawCtx;
 use super::Cloud;
 
@@ -133,8 +133,13 @@ impl Cloud {
         if self.semantic_invalidate {
             self.semantic_invalidate = false;
             frame.invalidate_semantic(self.palette.bg);
-            for ch in self.phosphor_base_ch.iter_mut() {
-                *ch = '\0';
+            if matches!(self.rain_style, RainStyle::Monolith) {
+                self.monolith_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else {
+                for ch in self.phosphor_base_ch.iter_mut() {
+                    *ch = '\0';
+                }
             }
         }
 
@@ -150,8 +155,13 @@ impl Cloud {
             // droplet trail protection) of phosphor_decay_pass, so clearing
             // here only affects stale afterglow cells that should not render
             // character glyphs during a full redraw.
-            for ch in self.phosphor_base_ch.iter_mut() {
-                *ch = '\0';
+            if matches!(self.rain_style, RainStyle::Monolith) {
+                self.monolith_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else {
+                for ch in self.phosphor_base_ch.iter_mut() {
+                    *ch = '\0';
+                }
             }
             self.force_draw_everything = false;
         }
@@ -266,7 +276,15 @@ impl Cloud {
         };
 
         if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain.draw(&ctx, frame);
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.monolith_rain.draw(&ctx, frame, &mut cleanup);
         } else {
             for d in &mut self.droplets {
                 let needs_tail_cleanup = !d.is_alive

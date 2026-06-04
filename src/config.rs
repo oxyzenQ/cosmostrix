@@ -715,8 +715,8 @@ COMMON OPTIONS:
 
   --scene <matrix|monolith|signal>
       Apply a scene atmosphere. Matrix is the default glyph rain.
-      Monolith uses signature structured segmented rain. Explicit CLI
-      flags always override scene-managed values.
+      Monolith uses faster signature structured segmented rain.
+      Explicit CLI flags always override scene-managed values.
       cosmostrix --scene matrix
       cosmostrix --scene monolith
       cosmostrix --scene signal --fps 60

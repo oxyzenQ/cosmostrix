@@ -50,7 +50,7 @@ pub const SCENES: &[SceneInfo] = &[
             color: Some("blackhole"),
             charset: Some("binary"),
             fps: Some(60.0),
-            speed: Some(4.0),
+            speed: Some(10.0),
             density: Some(0.75),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Monolith,
@@ -123,6 +123,13 @@ mod tests {
         assert_eq!(rain_style_for_scene("matrix"), Some(RainStyle::Glyph));
         assert_eq!(rain_style_for_scene("signal"), Some(RainStyle::Glyph));
         assert_eq!(rain_style_for_scene("monolith"), Some(RainStyle::Monolith));
+    }
+
+    #[test]
+    fn monolith_scene_uses_premium_motion_defaults() {
+        let monolith = get_scene("monolith").expect("monolith scene");
+        assert_eq!(monolith.config.speed, Some(10.0));
+        assert_eq!(monolith.config.density, Some(0.75));
     }
 
     #[test]

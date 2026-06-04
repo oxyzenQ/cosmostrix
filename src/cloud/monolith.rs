@@ -31,7 +31,7 @@ const ACTIVE_MAX: f32 = 0.35;
 const SPAWN_RATE_MULT: f32 = 1.4;
 const SPAWN_RATE_FLOOR: f32 = 2.0;
 const SPINE_PERIOD: u16 = 4;
-const SPINE_BRIGHTNESS: f32 = 0.22;
+const SPINE_BRIGHTNESS: f32 = 0.16;
 
 #[derive(Clone, Copy, Debug)]
 enum SegmentKind {
@@ -74,7 +74,6 @@ struct MonolithStream {
     head: f32,
     speed: f32,
     span: u16,
-    char_seed: u16,
     palette_slot: u8,
     layer: u8,
     segments: [Segment; MAX_SEGMENTS],
@@ -93,7 +92,6 @@ impl MonolithStream {
             head: 0.0,
             speed: 0.0,
             span: MIN_STREAM_SPAN,
-            char_seed: 0,
             palette_slot: 0,
             layer: 0,
             segments: [Segment::empty(); MAX_SEGMENTS],
@@ -111,7 +109,6 @@ impl MonolithStream {
         self.head = 0.0;
         self.speed = 0.0;
         self.span = MIN_STREAM_SPAN;
-        self.char_seed = 0;
         self.palette_slot = 0;
         self.layer = 0;
         self.segment_count = 0;
@@ -142,6 +139,15 @@ pub(super) struct MonolithRandom<'a> {
     pub(super) rng: &'a mut StdRng,
     pub(super) rand_chance: &'a Uniform<f32>,
     pub(super) rand_col: &'a Uniform<u16>,
+}
+
+pub(super) struct MonolithCleanup<'a> {
+    pub(super) lines: u16,
+    pub(super) bg: Option<Color>,
+    pub(super) phosphor: &'a mut [u8],
+    pub(super) phosphor_base_fg: &'a mut [Option<Color>],
+    pub(super) phosphor_base_ch: &'a mut [char],
+    pub(super) phosphor_layer: &'a mut [u8],
 }
 
 impl MonolithRain {
@@ -182,6 +188,28 @@ impl MonolithRain {
                 stream.palette_slot = palette_slot;
             }
         }
+    }
+
+    pub(super) fn clear_draw_history(&mut self) {
+        for stream in &mut self.streams {
+            stream.had_last_draw = false;
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn deactivate_all_for_test(&mut self) {
+        for stream in &mut self.streams {
+            stream.active = false;
+        }
+        self.active_count = 0;
+    }
+
+    #[cfg(test)]
+    pub(super) fn draw_history_count_for_test(&self) -> usize {
+        self.streams
+            .iter()
+            .filter(|stream| stream.had_last_draw)
+            .count()
     }
 
     pub(super) fn spawn(
@@ -275,13 +303,18 @@ impl MonolithRain {
         }
     }
 
-    pub(super) fn draw(&mut self, ctx: &DrawCtx<'_>, frame: &mut Frame) {
+    pub(super) fn draw(
+        &mut self,
+        ctx: &DrawCtx<'_>,
+        frame: &mut Frame,
+        cleanup: &mut MonolithCleanup<'_>,
+    ) {
         for stream in &mut self.streams {
             if stream.had_last_draw {
                 for line in stream.last_draw_min..=stream.last_draw_max {
-                    frame.set(stream.col, line, blank_cell(ctx.bg));
+                    clear_cell(frame, cleanup, stream.col, line);
                     if ctx.full_width && stream.col + 1 < frame.width {
-                        frame.set(stream.col + 1, line, blank_cell(ctx.bg));
+                        clear_cell(frame, cleanup, stream.col + 1, line);
                     }
                 }
                 stream.had_last_draw = false;
@@ -365,8 +398,6 @@ fn activate_stream(
     stream.head = 0.0;
     stream.speed = varied_speed(chars_per_sec, rand_chance.sample(rng));
     stream.span = varied_span(lines, rand_chance.sample(rng));
-    stream.char_seed =
-        (rand_chance.sample(rng) * crate::constants::MAX_CHAR_POOL_IDX as f32) as u16;
     stream.palette_slot = palette_slot;
     stream.layer = layer_from_roll(rand_chance.sample(rng));
     stream.last_time = Some(now);
@@ -429,7 +460,7 @@ fn draw_spine(
             stream.col,
             line,
             Cell {
-                ch: '.',
+                ch: spine_char(line, stream.col),
                 fg,
                 bg: ctx.bg,
                 bold: false,
@@ -469,7 +500,7 @@ fn draw_segments(stream: &MonolithStream, ctx: &DrawCtx<'_>, frame: &mut Frame) 
             );
             let bold = bold_for_level(ctx.bold_mode, level, line, stream.col)
                 && edge_fade >= EDGE_FADE_BOLD_THRESHOLD;
-            let ch = segment_char(ctx, stream, segment, line, pos_from_bottom);
+            let ch = segment_char(segment.kind, pos_from_bottom);
 
             frame.set(
                 stream.col,
@@ -488,22 +519,36 @@ fn draw_segments(stream: &MonolithStream, ctx: &DrawCtx<'_>, frame: &mut Frame) 
     }
 }
 
-fn segment_char(
-    ctx: &DrawCtx<'_>,
-    stream: &MonolithStream,
-    segment: Segment,
-    line: u16,
-    pos_from_bottom: u8,
-) -> char {
-    let base = stream
-        .char_seed
-        .wrapping_add(segment.offset)
-        .wrapping_add(pos_from_bottom as u16);
-    if matches!(segment.kind, SegmentKind::Hero) && pos_from_bottom == 0 {
-        let slow_tick = (stream.head as u16) / 4;
-        ctx.get_char(line, stream.col, base.wrapping_add(slow_tick))
+fn segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
+    match kind {
+        SegmentKind::Micro => '.',
+        SegmentKind::Short => {
+            if pos_from_bottom == 0 {
+                '-'
+            } else {
+                '.'
+            }
+        }
+        SegmentKind::Medium => {
+            if pos_from_bottom == 0 {
+                '='
+            } else {
+                '-'
+            }
+        }
+        SegmentKind::Hero => match pos_from_bottom {
+            0 => '#',
+            1 | 2 => '=',
+            _ => '-',
+        },
+    }
+}
+
+fn spine_char(line: u16, col: u16) -> char {
+    if ((line / SPINE_PERIOD) + col) % 2 == 0 {
+        ':'
     } else {
-        ctx.get_char(line, stream.col, base)
+        '.'
     }
 }
 
@@ -602,6 +647,31 @@ fn layer_brightness(layer: u8) -> f32 {
         0 => 0.62,
         1 => 0.84,
         _ => 1.0,
+    }
+}
+
+fn clear_cell(frame: &mut Frame, cleanup: &mut MonolithCleanup<'_>, col: u16, line: u16) {
+    clear_phosphor_metadata(cleanup, col, line);
+    frame.set(col, line, blank_cell(cleanup.bg));
+}
+
+fn clear_phosphor_metadata(cleanup: &mut MonolithCleanup<'_>, col: u16, line: u16) {
+    if line >= cleanup.lines {
+        return;
+    }
+    let pidx = col as usize * cleanup.lines as usize + line as usize;
+    if pidx >= cleanup.phosphor.len() {
+        return;
+    }
+    cleanup.phosphor[pidx] = 0;
+    if let Some(base_fg) = cleanup.phosphor_base_fg.get_mut(pidx) {
+        *base_fg = None;
+    }
+    if let Some(base_ch) = cleanup.phosphor_base_ch.get_mut(pidx) {
+        *base_ch = '\0';
+    }
+    if let Some(layer) = cleanup.phosphor_layer.get_mut(pidx) {
+        *layer = 0;
     }
 }
 

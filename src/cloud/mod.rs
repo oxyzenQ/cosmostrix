@@ -409,6 +409,12 @@ impl Cloud {
         }
         self.transition_start = Some(Instant::now());
 
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.monolith_rain.clear_draw_history();
+            self.reset_phosphor_state();
+            self.semantic_invalidate = true;
+        }
+
         // Do NOT force a full redraw — old streams must persist with their
         // birth palette below the wave line.  The new palette propagates
         // visually via the row-based wave in get_attr(), creating the

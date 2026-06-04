@@ -140,6 +140,12 @@ impl Cloud {
         };
         self.rebuild_char_pools(chars);
         self.charset_transition_start = Some(Instant::now());
+
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.monolith_rain.clear_draw_history();
+            self.reset_phosphor_state();
+            self.semantic_invalidate = true;
+        }
     }
 
     pub(super) fn charset_wave_line_at(&self, now: Instant) -> Option<f32> {
