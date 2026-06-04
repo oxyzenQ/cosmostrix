@@ -30,8 +30,9 @@ const ACTIVE_DENSITY_MULT: f32 = 0.28;
 const ACTIVE_MAX: f32 = 0.35;
 const SPAWN_RATE_MULT: f32 = 1.4;
 const SPAWN_RATE_FLOOR: f32 = 2.0;
-const SPINE_PERIOD: u16 = 4;
-const SPINE_BRIGHTNESS: f32 = 0.16;
+const SPINE_PERIOD: u16 = 3;
+const SPINE_BRIGHTNESS: f32 = 0.07;
+const DRAWN_CELLS_PER_LANE_RESERVE: usize = 32;
 
 #[derive(Clone, Copy, Debug)]
 enum SegmentKind {
@@ -48,6 +49,27 @@ enum BrightnessLevel {
     Mid,
     Hot,
     Core,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum DrawnCellKind {
+    Segment,
+    Spine,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct DrawnCell {
+    pub(super) col: u16,
+    pub(super) line: u16,
+    pub(super) kind: DrawnCellKind,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MonolithGlyphSet {
+    Binary,
+    Minimal,
+    Code,
+    Dense,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -79,9 +101,6 @@ struct MonolithStream {
     segments: [Segment; MAX_SEGMENTS],
     segment_count: u8,
     last_time: Option<Instant>,
-    last_draw_min: u16,
-    last_draw_max: u16,
-    had_last_draw: bool,
 }
 
 impl MonolithStream {
@@ -97,9 +116,6 @@ impl MonolithStream {
             segments: [Segment::empty(); MAX_SEGMENTS],
             segment_count: 0,
             last_time: None,
-            last_draw_min: 0,
-            last_draw_max: 0,
-            had_last_draw: false,
         }
     }
 
@@ -113,12 +129,13 @@ impl MonolithStream {
         self.layer = 0;
         self.segment_count = 0;
         self.last_time = None;
-        self.had_last_draw = false;
     }
 }
 
 pub(super) struct MonolithRain {
     streams: Vec<MonolithStream>,
+    previous_cells: Vec<DrawnCell>,
+    current_cells: Vec<DrawnCell>,
     spawn_scan_idx: usize,
     active_count: usize,
 }
@@ -154,6 +171,8 @@ impl MonolithRain {
     pub(super) fn new() -> Self {
         Self {
             streams: Vec::new(),
+            previous_cells: Vec::new(),
+            current_cells: Vec::new(),
             spawn_scan_idx: 0,
             active_count: 0,
         }
@@ -168,10 +187,15 @@ impl MonolithRain {
                 self.streams
                     .push(MonolithStream::new(lane_col(lane, full_width)));
             }
+            let reserve = lane_count.saturating_mul(DRAWN_CELLS_PER_LANE_RESERVE);
+            self.previous_cells = Vec::with_capacity(reserve);
+            self.current_cells = Vec::with_capacity(reserve);
         } else {
             for (lane, stream) in self.streams.iter_mut().enumerate() {
                 stream.reset_for_lane(lane_col(lane, full_width));
             }
+            self.previous_cells.clear();
+            self.current_cells.clear();
         }
         self.spawn_scan_idx = 0;
         self.active_count = 0;
@@ -191,9 +215,8 @@ impl MonolithRain {
     }
 
     pub(super) fn clear_draw_history(&mut self) {
-        for stream in &mut self.streams {
-            stream.had_last_draw = false;
-        }
+        self.previous_cells.clear();
+        self.current_cells.clear();
     }
 
     #[cfg(test)]
@@ -206,10 +229,20 @@ impl MonolithRain {
 
     #[cfg(test)]
     pub(super) fn draw_history_count_for_test(&self) -> usize {
-        self.streams
-            .iter()
-            .filter(|stream| stream.had_last_draw)
-            .count()
+        self.previous_cells.len() + self.current_cells.len()
+    }
+
+    #[cfg(test)]
+    pub(super) fn drawn_cells_for_test(&self) -> &[DrawnCell] {
+        &self.previous_cells
+    }
+
+    pub(super) fn clear_spine_phosphor(&self, cleanup: &mut MonolithCleanup<'_>) {
+        for cell in &self.previous_cells {
+            if matches!(cell.kind, DrawnCellKind::Spine) {
+                clear_phosphor_metadata(cleanup, cell.col, cell.line);
+            }
+        }
     }
 
     pub(super) fn spawn(
@@ -309,32 +342,28 @@ impl MonolithRain {
         frame: &mut Frame,
         cleanup: &mut MonolithCleanup<'_>,
     ) {
-        for stream in &mut self.streams {
-            if stream.had_last_draw {
-                for line in stream.last_draw_min..=stream.last_draw_max {
-                    clear_cell(frame, cleanup, stream.col, line);
-                    if ctx.full_width && stream.col + 1 < frame.width {
-                        clear_cell(frame, cleanup, stream.col + 1, line);
-                    }
-                }
-                stream.had_last_draw = false;
+        for cell in &self.previous_cells {
+            clear_cell(frame, cleanup, cell.col, cell.line);
+            if ctx.full_width && cell.col + 1 < frame.width {
+                clear_cell(frame, cleanup, cell.col + 1, cell.line);
             }
+        }
+        self.current_cells.clear();
 
+        for stream in &mut self.streams {
             if !stream.active {
                 continue;
             }
 
-            let Some((min_line, max_line)) = visible_range(stream, ctx.lines) else {
+            if visible_range(stream, ctx.lines).is_none() {
                 continue;
-            };
+            }
 
-            draw_spine(stream, ctx, frame, min_line, max_line);
-            draw_segments(stream, ctx, frame);
-
-            stream.last_draw_min = min_line;
-            stream.last_draw_max = max_line;
-            stream.had_last_draw = true;
+            draw_spine(stream, ctx, frame, &mut self.current_cells);
+            draw_segments(stream, ctx, frame, &mut self.current_cells);
         }
+
+        std::mem::swap(&mut self.previous_cells, &mut self.current_cells);
     }
 
     fn refresh_active_count(&mut self) {
@@ -401,7 +430,6 @@ fn activate_stream(
     stream.palette_slot = palette_slot;
     stream.layer = layer_from_roll(rand_chance.sample(rng));
     stream.last_time = Some(now);
-    stream.had_last_draw = false;
     build_segments(stream, rand_chance, rng);
 }
 
@@ -440,36 +468,72 @@ fn draw_spine(
     stream: &MonolithStream,
     ctx: &DrawCtx<'_>,
     frame: &mut Frame,
-    min_line: u16,
-    max_line: u16,
+    drawn_cells: &mut Vec<DrawnCell>,
 ) {
-    for line in min_line..=max_line {
-        if (line + stream.col) % SPINE_PERIOD != 0 {
-            continue;
+    let head_line = stream.head.floor() as i32;
+    for idx in 0..stream.segment_count as usize {
+        let segment = stream.segments[idx];
+        let bottom = head_line - segment.offset as i32;
+        let top = bottom - segment.len as i32 + 1;
+        let envelope = spine_envelope(segment.kind);
+
+        for line_i in (top - envelope)..top {
+            draw_spine_cell(stream, ctx, frame, drawn_cells, line_i, segment.offset);
         }
-        let edge_fade = viewport_edge_fade(line, ctx.lines);
-        let fg = color_for_level(
-            ctx,
-            stream.palette_slot,
-            line,
-            stream.col,
-            BrightnessLevel::Ghost,
-            edge_fade * SPINE_BRIGHTNESS * layer_brightness(stream.layer),
-        );
-        frame.set(
-            stream.col,
-            line,
-            Cell {
-                ch: spine_char(line, stream.col),
-                fg,
-                bg: ctx.bg,
-                bold: false,
-            },
-        );
+        for line_i in (bottom + 1)..=(bottom + envelope) {
+            draw_spine_cell(stream, ctx, frame, drawn_cells, line_i, segment.offset);
+        }
     }
 }
 
-fn draw_segments(stream: &MonolithStream, ctx: &DrawCtx<'_>, frame: &mut Frame) {
+fn draw_spine_cell(
+    stream: &MonolithStream,
+    ctx: &DrawCtx<'_>,
+    frame: &mut Frame,
+    drawn_cells: &mut Vec<DrawnCell>,
+    line_i: i32,
+    segment_offset: u16,
+) {
+    if line_i < 0 || line_i >= ctx.lines as i32 {
+        return;
+    }
+    let line = line_i as u16;
+    if (line + stream.col + segment_offset) % SPINE_PERIOD != 0 {
+        return;
+    }
+
+    let edge_fade = viewport_edge_fade(line, ctx.lines);
+    let fg = color_for_level(
+        ctx,
+        stream.palette_slot,
+        line,
+        stream.col,
+        BrightnessLevel::Ghost,
+        edge_fade * SPINE_BRIGHTNESS * layer_brightness(stream.layer),
+    );
+    frame.set(
+        stream.col,
+        line,
+        Cell {
+            ch: spine_char(ctx, line, stream.col),
+            fg,
+            bg: ctx.bg,
+            bold: false,
+        },
+    );
+    drawn_cells.push(DrawnCell {
+        col: stream.col,
+        line,
+        kind: DrawnCellKind::Spine,
+    });
+}
+
+fn draw_segments(
+    stream: &MonolithStream,
+    ctx: &DrawCtx<'_>,
+    frame: &mut Frame,
+    drawn_cells: &mut Vec<DrawnCell>,
+) {
     let head_line = stream.head.floor() as i32;
     let frac = stream.head.fract().clamp(0.0, 1.0);
     for idx in 0..stream.segment_count as usize {
@@ -500,7 +564,7 @@ fn draw_segments(stream: &MonolithStream, ctx: &DrawCtx<'_>, frame: &mut Frame) 
             );
             let bold = bold_for_level(ctx.bold_mode, level, line, stream.col)
                 && edge_fade >= EDGE_FADE_BOLD_THRESHOLD;
-            let ch = segment_char(segment.kind, pos_from_bottom);
+            let ch = segment_char(ctx, line, stream.col, segment.kind, pos_from_bottom);
 
             frame.set(
                 stream.col,
@@ -515,11 +579,65 @@ fn draw_segments(stream: &MonolithStream, ctx: &DrawCtx<'_>, frame: &mut Frame) 
             if ctx.full_width && stream.col + 1 < frame.width {
                 frame.set(stream.col + 1, line, blank_cell(ctx.bg));
             }
+            drawn_cells.push(DrawnCell {
+                col: stream.col,
+                line,
+                kind: DrawnCellKind::Segment,
+            });
         }
     }
 }
 
-fn segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
+fn spine_envelope(kind: SegmentKind) -> i32 {
+    match kind {
+        SegmentKind::Micro => 0,
+        SegmentKind::Short | SegmentKind::Medium => 1,
+        SegmentKind::Hero => 2,
+    }
+}
+
+fn segment_char(
+    ctx: &DrawCtx<'_>,
+    line: u16,
+    col: u16,
+    kind: SegmentKind,
+    pos_from_bottom: u8,
+) -> char {
+    let glyph_set = glyph_set_for_cell(ctx, line, col);
+    match glyph_set {
+        MonolithGlyphSet::Binary => binary_segment_char(kind, pos_from_bottom),
+        MonolithGlyphSet::Minimal => minimal_segment_char(kind, pos_from_bottom),
+        MonolithGlyphSet::Code => code_segment_char(kind, pos_from_bottom),
+        MonolithGlyphSet::Dense => dense_segment_char(kind, pos_from_bottom),
+    }
+}
+
+fn binary_segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
+    match kind {
+        SegmentKind::Micro => '.',
+        SegmentKind::Short => {
+            if pos_from_bottom == 0 {
+                '1'
+            } else {
+                '.'
+            }
+        }
+        SegmentKind::Medium => {
+            if pos_from_bottom == 0 {
+                '='
+            } else {
+                '0'
+            }
+        }
+        SegmentKind::Hero => match pos_from_bottom {
+            0 => '+',
+            1 | 2 => '=',
+            _ => '-',
+        },
+    }
+}
+
+fn minimal_segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
     match kind {
         SegmentKind::Micro => '.',
         SegmentKind::Short => {
@@ -537,19 +655,95 @@ fn segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
             }
         }
         SegmentKind::Hero => match pos_from_bottom {
-            0 => '#',
+            0 => '+',
             1 | 2 => '=',
             _ => '-',
         },
     }
 }
 
-fn spine_char(line: u16, col: u16) -> char {
-    if ((line / SPINE_PERIOD) + col) % 2 == 0 {
+fn code_segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
+    match kind {
+        SegmentKind::Micro => '-',
+        SegmentKind::Short => {
+            if pos_from_bottom == 0 {
+                '+'
+            } else {
+                '-'
+            }
+        }
+        SegmentKind::Medium => {
+            if pos_from_bottom == 0 {
+                '*'
+            } else {
+                '='
+            }
+        }
+        SegmentKind::Hero => match pos_from_bottom {
+            0 => '+',
+            1 | 2 => '*',
+            _ => '=',
+        },
+    }
+}
+
+fn dense_segment_char(kind: SegmentKind, pos_from_bottom: u8) -> char {
+    match kind {
+        SegmentKind::Micro => '.',
+        SegmentKind::Short => {
+            if pos_from_bottom == 0 {
+                '+'
+            } else {
+                ':'
+            }
+        }
+        SegmentKind::Medium => {
+            if pos_from_bottom == 0 {
+                '='
+            } else {
+                '+'
+            }
+        }
+        SegmentKind::Hero => match pos_from_bottom {
+            0 => '+',
+            1 | 2 => '=',
+            _ => '+',
+        },
+    }
+}
+
+fn spine_char(ctx: &DrawCtx<'_>, line: u16, col: u16) -> char {
+    if matches!(glyph_set_for_cell(ctx, line, col), MonolithGlyphSet::Code) {
+        '-'
+    } else if ((line / SPINE_PERIOD) + col) % 2 == 0 {
         ':'
     } else {
         '.'
     }
+}
+
+fn glyph_set_for_cell(ctx: &DrawCtx<'_>, line: u16, col: u16) -> MonolithGlyphSet {
+    let a = ctx.get_char(line, col, 0);
+    let b = ctx.get_char(line, col, 1);
+    let c = ctx.get_char(line, col, 5);
+    if [a, b, c].iter().all(|ch| matches!(ch, '0' | '1')) {
+        return MonolithGlyphSet::Binary;
+    }
+    if [a, b, c].iter().any(|ch| {
+        matches!(
+            ch,
+            '.' | ':' | '-' | '=' | '+' | '*' | '·' | '•' | '○' | '●'
+        )
+    }) {
+        return MonolithGlyphSet::Minimal;
+    }
+    if [a, b, c]
+        .iter()
+        .any(|ch| ch.is_ascii_alphanumeric() || ch.is_ascii_punctuation())
+    {
+        return MonolithGlyphSet::Code;
+    }
+    MonolithGlyphSet::Dense
 }
 
 fn segment_level(kind: SegmentKind, pos_from_bottom: u8) -> BrightnessLevel {

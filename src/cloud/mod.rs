@@ -638,6 +638,10 @@ impl Cloud {
     pub fn set_shading_mode(&mut self, sm: ShadingMode) {
         self.shading_mode = sm;
         self.shading_distance = matches!(sm, ShadingMode::DistanceFromHead);
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.monolith_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        }
         // Shading mode is a renderer semantic mutation — invalidate the
         // Terminal's LastFrame cache to prevent stale shading artifacts.
         self.semantic_invalidate = true;

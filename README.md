@@ -306,7 +306,7 @@ cosmostrix --scene signal --fps 60
 cosmostrix --scene monolith --color deepspace
 ```
 
-`matrix` remains the default scene. `monolith` requires no extra setup: `--scene monolith` switches to signature structured segmented rain with a faster premium motion default (`speed 10`, `density 0.75`), while explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
+`matrix` remains the default scene. `monolith` requires no extra setup: `--scene monolith` switches to signature structured segmented rain with a faster premium motion default (`speed 10`, `density 0.75`). Charset cycling keeps the segmented identity but changes the segment glyph style; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
 
 ## Color schemes
 

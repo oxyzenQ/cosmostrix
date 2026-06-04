@@ -316,6 +316,17 @@ impl Cloud {
             * self.resume_blend;
         self.last_phosphor_time = now;
         self.phosphor_decay_pass(frame, phosphor_elapsed);
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.monolith_rain.clear_spine_phosphor(&mut cleanup);
+        }
 
         // --- Rare anomaly events ---
         // Check for new anomaly spawn. The product of multipliers creates a
