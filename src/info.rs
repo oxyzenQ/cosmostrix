@@ -16,6 +16,21 @@ pub(super) fn build_commit_short() -> Option<&'static str> {
     }
 }
 
+#[must_use]
+pub(super) fn version_report() -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    let target = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
+    let commit = build_commit_short().unwrap_or("unknown");
+
+    format!(
+        "Version: v{version}\n\
+         Build: {target} ({commit})\n\
+         Copyright: (c) 2026 Rezky_nightky\n\
+         License: MIT\n\
+         Source: https://github.com/oxyzenq/cosmostrix"
+    )
+}
+
 // --- Environment variable helpers ---
 
 #[must_use]

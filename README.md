@@ -391,6 +391,19 @@ Cosmostrix uses SemVer for package versions, e.g. `3.0.0`.
 Git tags and GitHub Releases use a leading `v`, e.g. `v3.0.0`.
 Stable releases do not use `-stable.N` suffixes.
 
+## Version And Updates
+
+```bash
+cosmostrix -V
+cosmostrix --version
+cosmostrix --check-update
+cosmostrix --check-updated
+```
+
+`-V` and `--version` print the complete version, build target, commit, license,
+and source repository. `--check-update` is read-only and checks the latest
+upstream GitHub release without downloading or replacing binaries.
+
 ## Development
 
 ```bash

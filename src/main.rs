@@ -60,6 +60,7 @@ mod runtime;
 mod scene;
 mod terminal;
 mod theme;
+mod update;
 mod validation;
 
 use std::env;
@@ -286,7 +287,15 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.version {
-        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+        println!("{}", info::version_report());
+        return Ok(());
+    }
+
+    if args.check_update {
+        if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
+            eprintln!("update check failed: {e}");
+            std::process::exit(1);
+        }
         return Ok(());
     }
 

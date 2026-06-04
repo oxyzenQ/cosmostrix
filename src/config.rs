@@ -390,12 +390,21 @@ pub struct Args {
 
     #[arg(
         long = "version",
-        short = 'v',
+        short = 'V',
         help_heading = "HELP",
         display_order = 320,
-        help = "Show version"
+        help = "Print complete version and build information"
     )]
     pub version: bool,
+
+    #[arg(
+        long = "check-update",
+        alias = "check-updated",
+        help_heading = "HELP",
+        display_order = 330,
+        help = "Check the latest upstream release"
+    )]
+    pub check_update: bool,
 
     // === HIDDEN (functional but intentionally undocumented) ===
     #[arg(
@@ -785,7 +794,8 @@ RUNTIME CONTROLS:
 HELP:
   --help          Show common options.
   --help-detail   Show this full reference.
-  -v, --version    Print version.
+  -V, --version    Print complete version and build information.
+  --check-update   Check the latest upstream release.
 ";
 
     if color_enabled_stdout() {
