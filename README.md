@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="cosmostrix logo" width="240">
+  <img src="assets/cosmostrix-logo.png" alt="cosmostrix logo" width="240">
 </p>
 
 <h1 align="center">cosmostrix</h1>
