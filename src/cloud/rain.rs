@@ -103,7 +103,6 @@ impl Cloud {
                 lines: self.lines,
                 full_width: self.full_width,
                 density: self.droplet_density,
-                chars_per_sec: self.chars_per_sec,
                 size: self.monolith_size,
                 active_palette_slot: self.active_palette_slot,
                 spawn_scale,
@@ -176,8 +175,13 @@ impl Cloud {
 
         // Update pass (mut self)
         if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain
-                .advance(now, self.lines, max_sim_delta, self.resume_blend);
+            self.monolith_rain.advance(
+                now,
+                self.lines,
+                self.chars_per_sec,
+                max_sim_delta,
+                self.resume_blend,
+            );
         } else {
             for i in 0..self.droplets.len() {
                 if !self.droplets[i].is_alive {

@@ -179,7 +179,7 @@ COMMON OPTIONS
   -c, --color <name>        Color theme
      --charset <name>       Character preset
   -f, --fps <1-240>         Target FPS
-  -S, --speed <0.001-1000>  Rain speed
+  -S, --speed <1-100>       Rain speed
   -d, --density <0.01-5.0>  Rain density
   -s, --screensaver         Exit on keypress
      --mouse                Enable mouse hover/click effects

@@ -83,7 +83,7 @@ use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
 use crate::terminal::{reset_terminal_emergency, restore_terminal_best_effort};
 use crate::validation::{
-    validate_f32_range, validate_f64_range, validate_u16_range, validate_u8_range,
+    validate_f32_range, validate_f64_range, validate_speed, validate_u16_range, validate_u8_range,
 };
 
 // Re-exports: items moved to submodules but still accessed by sibling
@@ -98,14 +98,18 @@ pub use info::env_var_truthy;
 // --- Helpers kept in the crate root ---
 
 /// Convert a `Result<T, String>` validation error to `io::Error`.
-/// Side effect: restores the terminal and prints the error message to stderr
-/// before returning the error, so the user doesn't see a broken terminal.
+/// Side effect: prints the error message to stderr and exits with a CLI-style
+/// validation status instead of returning an `io::Error` that Rust would render
+/// as a debug-looking `Error: Custom { ... }`.
 fn validate_err<T>(name: &str, r: Result<T, String>) -> std::io::Result<T> {
-    r.map_err(|e| {
-        restore_terminal_best_effort();
-        eprintln!("{}", e);
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, name)
-    })
+    match r {
+        Ok(value) => Ok(value),
+        Err(e) => {
+            let _ = name;
+            eprintln!("{e}");
+            std::process::exit(2);
+        }
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -448,10 +452,7 @@ fn main() -> std::io::Result<()> {
         "--maxdpc",
         validate_u8_range("--maxdpc", args.max_droplets_per_column, 1, 3),
     )?;
-    let speed = validate_err(
-        "--speed",
-        validate_f32_range("--speed", args.speed, 0.001, 1000.0),
-    )?;
+    let speed = validate_err("--speed", validate_speed(args.speed))?;
 
     let mut user_ranges: Vec<(char, char)> = Vec::new();
     if let Some(spec) = &args.chars {

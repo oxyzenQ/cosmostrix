@@ -22,7 +22,7 @@ use crate::charset::charset_from_str;
 use crate::cli::parse_color_scheme;
 use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::configfile::load_config_file;
-use crate::constants::DENSITY_CLAMP_MAX;
+use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::preset::{get_preset, validate_preset_name};
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
@@ -114,7 +114,7 @@ fn apply_config_values(
         }
     }
     if let Some(v) = config_value(matches, cfg, "speed", "speed") {
-        if let Some(f) = parse_f32_config("speed", &v, 0.001, 1000.0) {
+        if let Some(f) = parse_f32_config("speed", &v, SPEED_MIN, SPEED_MAX) {
             args.speed = f;
             config_touched.insert("speed");
         }
@@ -662,6 +662,14 @@ mod tests {
         assert_eq!(args.speed, 9.0);
         assert!((args.density - 0.25).abs() < f32::EPSILON);
         assert_eq!(args.color, "blackhole");
+    }
+
+    #[test]
+    fn config_speed_outside_safe_range_is_ignored() {
+        for value in ["0", "0.5", "100.1", "1000", "100000"] {
+            let args = args_with_config(&format!("speed = {value}\n"), &[]);
+            assert_eq!(args.speed, 8.0);
+        }
     }
 
     #[test]

@@ -690,9 +690,9 @@ COMMON OPTIONS:
       Target FPS.
       cosmostrix --fps 30
 
-  -S, --speed <0.001-1000>
-      Rain speed (characters per second). Runtime Up/Down controls are
-      clamped to safe interactive limits.
+  -S, --speed <1-100>
+      Rain speed (characters per second). Runtime Up/Down controls use the
+      same safe range.
       cosmostrix --speed 12
 
   -d, --density <0.01-5.0>

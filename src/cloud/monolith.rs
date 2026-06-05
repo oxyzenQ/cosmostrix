@@ -76,7 +76,6 @@ struct Segment {
 struct ActivationParams {
     now: Instant,
     lines: u16,
-    chars_per_sec: f32,
     size: MonolithSize,
     palette_slot: u8,
 }
@@ -96,7 +95,7 @@ struct MonolithStream {
     active: bool,
     col: u16,
     head: f32,
-    speed: f32,
+    speed_mult: f32,
     span: u16,
     palette_slot: u8,
     layer: u8,
@@ -111,7 +110,7 @@ impl MonolithStream {
             active: false,
             col,
             head: 0.0,
-            speed: 0.0,
+            speed_mult: 1.0,
             span: MIN_STREAM_SPAN,
             palette_slot: 0,
             layer: 0,
@@ -125,7 +124,7 @@ impl MonolithStream {
         self.active = false;
         self.col = col;
         self.head = 0.0;
-        self.speed = 0.0;
+        self.speed_mult = 1.0;
         self.span = MIN_STREAM_SPAN;
         self.palette_slot = 0;
         self.layer = 0;
@@ -147,7 +146,6 @@ pub(super) struct MonolithSpawnParams {
     pub(super) lines: u16,
     pub(super) full_width: bool,
     pub(super) density: f32,
-    pub(super) chars_per_sec: f32,
     pub(super) size: MonolithSize,
     pub(super) active_palette_slot: u8,
     pub(super) spawn_scale: f32,
@@ -240,6 +238,15 @@ impl MonolithRain {
         &self.previous_cells
     }
 
+    #[cfg(test)]
+    pub(super) fn active_heads_for_test(&self) -> Vec<f32> {
+        self.streams
+            .iter()
+            .filter(|stream| stream.active)
+            .map(|stream| stream.head)
+            .collect()
+    }
+
     pub(super) fn clear_spine_phosphor(&self, cleanup: &mut MonolithCleanup<'_>) {
         for cell in &self.previous_cells {
             if matches!(cell.kind, DrawnCellKind::Spine) {
@@ -299,7 +306,6 @@ impl MonolithRain {
                 ActivationParams {
                     now,
                     lines: params.lines,
-                    chars_per_sec: params.chars_per_sec,
                     size: params.size,
                     palette_slot: params.active_palette_slot,
                 },
@@ -315,9 +321,11 @@ impl MonolithRain {
         &mut self,
         now: Instant,
         lines: u16,
+        chars_per_sec: f32,
         max_sim_delta: Duration,
         resume_blend: f32,
     ) {
+        let speed = chars_per_sec.max(0.0);
         for stream in &mut self.streams {
             if !stream.active {
                 continue;
@@ -331,7 +339,7 @@ impl MonolithRain {
             if max_sim_delta > Duration::from_millis(0) {
                 elapsed = elapsed.min(max_sim_delta);
             }
-            let delta = elapsed.as_secs_f32() * stream.speed * resume_blend;
+            let delta = elapsed.as_secs_f32() * speed * stream.speed_mult * resume_blend;
             stream.head += delta.max(0.0);
             stream.last_time = Some(now);
 
@@ -428,7 +436,7 @@ fn activate_stream(
 ) {
     stream.active = true;
     stream.head = 0.0;
-    stream.speed = varied_speed(params.chars_per_sec, rand_chance.sample(rng));
+    stream.speed_mult = varied_speed_mult(rand_chance.sample(rng));
     stream.span = varied_span(params.lines, rand_chance.sample(rng));
     stream.palette_slot = params.palette_slot;
     stream.layer = layer_from_roll(rand_chance.sample(rng));
@@ -791,9 +799,8 @@ fn lane_col(lane: usize, full_width: bool) -> u16 {
     }
 }
 
-fn varied_speed(chars_per_sec: f32, roll: f32) -> f32 {
-    let lane_variation = 0.78 + roll.clamp(0.0, 1.0) * 0.58;
-    (chars_per_sec * lane_variation).max(0.001)
+fn varied_speed_mult(roll: f32) -> f32 {
+    0.78 + roll.clamp(0.0, 1.0) * 0.58
 }
 
 fn varied_span(lines: u16, roll: f32) -> u16 {

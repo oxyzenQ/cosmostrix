@@ -6,6 +6,7 @@
 use std::time::{Duration, Instant};
 
 use super::make_cloud;
+use crate::charset::{build_chars, charset_from_str};
 use crate::cloud::monolith::DrawnCellKind;
 use crate::cloud::Cloud;
 use crate::constants::CHARSET_TRANSITION_DURATION_MS;
@@ -72,6 +73,17 @@ fn visible_chars(frame: &Frame) -> Vec<char> {
 
 fn visible_char_signature(frame: &Frame) -> BTreeSet<char> {
     visible_chars(frame).into_iter().collect()
+}
+
+fn average_head_delta(before: &[f32], after: &[f32]) -> f32 {
+    let len = before.len().min(after.len()).max(1);
+    before
+        .iter()
+        .zip(after.iter())
+        .take(len)
+        .map(|(a, b)| b - a)
+        .sum::<f32>()
+        / len as f32
 }
 
 fn segment_draw_count(cloud: &Cloud) -> usize {
@@ -316,6 +328,38 @@ fn monolith_high_speed_top_cells_clear_after_bounded_frames() {
 }
 
 #[test]
+fn active_monolith_streams_update_speed_without_respawn() {
+    let mut cloud = make_monolith_cloud(96, 36);
+    let mut frame = Frame::new(96, 36, cloud.palette.bg);
+    let start = Instant::now();
+
+    cloud.last_spawn_time = start - Duration::from_secs(1);
+    cloud.last_phosphor_time = start;
+    cloud.rain_at(&mut frame, start);
+    let initial = cloud.monolith_rain.active_heads_for_test();
+    assert!(initial.len() > 4);
+
+    cloud.set_chars_per_sec(1.0);
+    frame.clear_dirty();
+    cloud.rain_at(&mut frame, start + Duration::from_millis(100));
+    let slow = cloud.monolith_rain.active_heads_for_test();
+    assert_eq!(slow.len(), initial.len());
+
+    cloud.set_chars_per_sec(100.0);
+    frame.clear_dirty();
+    cloud.rain_at(&mut frame, start + Duration::from_millis(200));
+    let fast = cloud.monolith_rain.active_heads_for_test();
+    assert_eq!(fast.len(), slow.len());
+
+    let slow_delta = average_head_delta(&initial, &slow);
+    let fast_delta = average_head_delta(&slow, &fast);
+    assert!(
+        fast_delta > slow_delta * 40.0,
+        "active streams should use the new global speed immediately (slow={slow_delta}, fast={fast_delta})"
+    );
+}
+
+#[test]
 fn monolith_resize_reset_clears_draw_caches_and_requests_semantic_sync() {
     let mut cloud = make_monolith_cloud(64, 24);
     let mut frame = Frame::new(64, 24, cloud.palette.bg);
@@ -436,6 +480,51 @@ fn monolith_charset_cycles_produce_multiple_glyph_styles() {
     assert!(
         signatures.len() >= 3,
         "monolith charset cycling should produce at least three visible glyph styles"
+    );
+}
+
+#[test]
+fn monolith_charset_presets_drive_distinct_segment_glyphs() {
+    let presets = [
+        "binary",
+        "matrix",
+        "katakana",
+        "code",
+        "hacker",
+        "cyberpunk",
+    ];
+    let mut signatures = Vec::new();
+
+    for preset in presets {
+        let charset = charset_from_str(preset, false).expect("known charset");
+        let mut cloud = make_monolith_cloud(80, 24);
+        cloud.init_chars(build_chars(charset, &[], false));
+        cloud.reset(80, 24);
+        cloud.clear_redraw_flags_for_test();
+
+        let mut frame = Frame::new(80, 24, cloud.palette.bg);
+        run_frames(&mut cloud, &mut frame, 8, 16);
+        let signature = visible_char_signature(&frame);
+        assert!(
+            !signature.is_empty(),
+            "{preset} should render monolith glyphs"
+        );
+
+        if preset == "binary" {
+            assert!(signature.iter().any(|ch| matches!(ch, '0' | '1')));
+        }
+        if preset == "katakana" {
+            assert!(signature.iter().any(|ch| ('ｦ'..='ﾝ').contains(ch)));
+        }
+        signatures.push(signature);
+    }
+
+    signatures.sort();
+    signatures.dedup();
+    assert!(
+        signatures.len() >= 5,
+        "monolith should reflect real charset presets, got {} distinct styles",
+        signatures.len()
     );
 }
 

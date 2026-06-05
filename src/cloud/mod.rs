@@ -829,9 +829,10 @@ fn sanitize_speed_for_style(cps: f32, rain_style: RainStyle) -> f32 {
     } else {
         crate::constants::RUNTIME_SPEED_MIN
     };
-    if matches!(rain_style, RainStyle::Monolith) {
-        cps.min(crate::constants::MONOLITH_EFFECTIVE_SPEED_MAX)
+    let max = if matches!(rain_style, RainStyle::Monolith) {
+        crate::constants::MONOLITH_EFFECTIVE_SPEED_MAX
     } else {
-        cps
-    }
+        crate::constants::RUNTIME_SPEED_MAX
+    };
+    cps.min(max)
 }
