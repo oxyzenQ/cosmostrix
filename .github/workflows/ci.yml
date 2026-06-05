@@ -7,25 +7,33 @@ name: T-800 - CI
   push:
     branches: ["main"]
     paths-ignore:
-      - '**.md'
+      - '*.md'
+      - '**/*.md'
+      - '*.txt'
+      - '**/*.txt'
       - 'assets/**'
       - 'docs/**'
       - 'LICENSE'
       - 'NOTICE'
       - 'AUTHORS'
       - 'TRADEMARK.md'
+      - 'BRANDING.md'
       - 'SUPPORT.md'
       - '.gitignore'
   pull_request:
     branches: ["main"]
     paths-ignore:
-      - '**.md'
+      - '*.md'
+      - '**/*.md'
+      - '*.txt'
+      - '**/*.txt'
       - 'assets/**'
       - 'docs/**'
       - 'LICENSE'
       - 'NOTICE'
       - 'AUTHORS'
       - 'TRADEMARK.md'
+      - 'BRANDING.md'
       - 'SUPPORT.md'
       - '.gitignore'
 
