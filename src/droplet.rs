@@ -369,8 +369,9 @@ impl Droplet {
 
         let mut start_line = 0u16;
         if let Some(tp) = self.tail_put_line {
+            let blank = crate::terminal::blank_cell(bg);
             for line in self.tail_cur_line..=tp {
-                frame.set(self.bound_col, line, crate::terminal::blank_cell(bg));
+                frame.set(self.bound_col, line, blank);
             }
             self.tail_cur_line = tp;
             start_line = tp.saturating_add(1);
@@ -401,8 +402,10 @@ impl Droplet {
             };
 
             let mut loc = CharLoc::Middle;
-            if self.tail_put_line.is_some() && Some(line) == self.tail_put_line.map(|v| v + 1) {
-                loc = CharLoc::Tail;
+            if let Some(tp) = self.tail_put_line {
+                if line == tp + 1 {
+                    loc = CharLoc::Tail;
+                }
             }
             if is_head {
                 loc = CharLoc::Head;

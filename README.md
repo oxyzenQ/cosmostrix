@@ -357,6 +357,8 @@ interpretation notes.
 - Added endurance testing documentation ([ENDURANCE.md](docs/ENDURANCE.md)) and resource summary script
 - Added supply-chain hardening policy ([SUPPLY_CHAIN.md](docs/SUPPLY_CHAIN.md))
 - Added terminal stability audit ([STABILITY_AUDIT.md](docs/STABILITY_AUDIT.md))
+- Added SIMD feasibility audit ([SIMD_FEASIBILITY.md](docs/SIMD_FEASIBILITY.md))
+- Engine module splits: `cloud/mod.rs` → `scene_runtime.rs` + `runtime_controls.rs` (scene switching and runtime controls extracted from core module)
 - Fixed clippy module-inception and unused import warnings
 - Regression suite passes, clippy clean, fmt clean
 

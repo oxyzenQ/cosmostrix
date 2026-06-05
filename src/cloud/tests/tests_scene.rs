@@ -734,7 +734,7 @@ fn sparse_entry_repeated_backward_stays_sparse() {
     }
 }
 
-/// All Rust source files must stay under 1000 LOC after the fix.
+/// All Rust source files must stay under 1000 LOC after the architecture split.
 #[test]
 fn all_rust_files_under_loc_cap() {
     let files = [
@@ -742,6 +742,9 @@ fn all_rust_files_under_loc_cap() {
         "src/cloud/spawn.rs",
         "src/cloud/tests/mod.rs",
         "src/cloud/tests/tests_scene.rs",
+        "src/cloud/tests/tests_architecture.rs",
+        "src/cloud/scene_runtime.rs",
+        "src/cloud/runtime_controls.rs",
     ];
     for path in &files {
         let content = std::fs::read_to_string(path).unwrap_or_default();

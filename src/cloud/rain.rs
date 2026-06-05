@@ -251,13 +251,10 @@ impl Cloud {
         // Build palette_slices for DrawCtx from the palette table.
         // Each slot either has a Palette (Some) or is empty (None) — use an
         // empty slice for empty slots so hot-path rendering stays branch-free.
-        let empty: &[Color] = &[];
         let mut palette_slices: [&[Color]; MAX_PALETTE_SLOTS] = [&[]; MAX_PALETTE_SLOTS];
         for (i, slot) in palette_slices.iter_mut().enumerate() {
             if let Some(ref p) = self.palette_table[i] {
                 *slot = &p.colors;
-            } else {
-                *slot = empty;
             }
         }
 

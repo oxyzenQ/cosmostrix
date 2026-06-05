@@ -38,6 +38,8 @@ mod monolith_glyphs;
 mod phosphor;
 mod rain;
 mod render;
+mod runtime_controls;
+mod scene_runtime;
 mod spawn;
 mod state;
 
@@ -51,14 +53,9 @@ use std::time::{Duration, Instant};
 
 use bitvec::prelude::BitVec;
 use crossterm::style::Color;
-use rand::{
-    distr::{Distribution, Uniform},
-    rngs::StdRng,
-    SeedableRng,
-};
+use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
 
 use crate::cell::Cell;
-use crate::config::GlitchLevel;
 use crate::constants::*;
 use crate::droplet::Droplet;
 use crate::frame::Frame;
@@ -400,41 +397,6 @@ impl Cloud {
         }
     }
 
-    pub fn set_color_scheme(&mut self, scheme: ColorScheme) {
-        self.color_scheme = scheme;
-        let new_palette = build_palette(scheme, self.color_mode, self.default_background);
-
-        // Advance to next palette slot (circular buffer)
-        let next_slot = ((self.active_palette_slot as usize + 1) % MAX_PALETTE_SLOTS) as u8;
-        self.palette_table[next_slot as usize] = Some(new_palette.clone());
-        self.active_palette_slot = next_slot;
-
-        // Update the convenience palette reference
-        self.palette = new_palette;
-
-        // Regenerate color map for the new palette size
-        self.fill_color_map();
-
-        // Start transition: all columns adopt the new palette immediately
-        // for spawn purposes. The visual wave is row-based (top-to-bottom)
-        // driven by color_wave_line_at(), not column-based delays.
-        for slot in self.column_palette_slot.iter_mut() {
-            *slot = self.active_palette_slot;
-        }
-        self.transition_start = Some(Instant::now());
-
-        if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain.clear_draw_history();
-            self.reset_phosphor_state();
-            self.semantic_invalidate = true;
-        }
-
-        // Do NOT force a full redraw — old streams must persist with their
-        // birth palette below the wave line.  The new palette propagates
-        // visually via the row-based wave in get_attr(), creating the
-        // cinematic top-to-bottom cascade.
-    }
-
     /// Set mouse cursor position for interaction effects.
     pub fn set_mouse_position(&mut self, col: u16, line: u16) {
         self.mouse_col = col;
@@ -500,210 +462,6 @@ impl Cloud {
         &self.scene_name
     }
 
-    /// Apply a runtime scene switch. Updates rain_style, color, charset,
-    /// speed, density, and glitch-level from the scene config.
-    ///
-    /// If the scene specifies a value for a parameter, it is applied.
-    /// If the scene does not specify a value (None), the current state
-    /// is preserved. This means runtime scene cycling always applies
-    /// scene-managed values; explicit CLI overrides set at startup are
-    /// not tracked at runtime.
-    ///
-    /// Returns the charset preset name used (scene's or current).
-    pub fn apply_scene_runtime(
-        &mut self,
-        scene_name: &str,
-        current_charset_preset: &str,
-        user_ranges: &[(char, char)],
-        def_ascii: bool,
-    ) -> String {
-        use crate::charset::{build_chars, charset_from_str};
-        use crate::cli::parse_color_scheme;
-        use crate::scene;
-
-        let Some(scene_info) = scene::get_scene(scene_name) else {
-            return current_charset_preset.to_string();
-        };
-        self.scene_name = scene_name.to_string();
-
-        let new_style = scene_info.config.rain_style;
-        if self.rain_style != new_style {
-            self.transition_rain_style(new_style);
-        }
-
-        // Apply scene color if specified
-        if let Some(color_name) = scene_info.config.color {
-            if let Ok(scheme) = parse_color_scheme(color_name) {
-                self.set_color_scheme(scheme);
-            }
-        }
-
-        // Apply scene charset if specified
-        let charset_name: &str = scene_info.config.charset.unwrap_or(current_charset_preset);
-        let charset_owned = charset_name.to_string();
-        if let Ok(cs) = charset_from_str(charset_name, def_ascii) {
-            let chars = build_chars(cs, user_ranges, def_ascii);
-            self.transition_chars(chars);
-        }
-
-        // Apply speed
-        if let Some(speed) = scene_info.config.speed {
-            self.set_chars_per_sec(speed);
-        }
-
-        // Apply density
-        if let Some(density) = scene_info.config.density {
-            self.set_droplet_density(density);
-        }
-
-        // Apply glitch level
-        if let Some(glitch) = scene_info.config.glitch_level {
-            self.apply_glitch_level_runtime(glitch);
-        }
-
-        self.semantic_invalidate = true;
-        self.force_draw_everything = true;
-        self.last_spawn_time = Instant::now();
-        // Only reset spawn debt for monolith; glyph warm-start sets its own.
-        if matches!(self.rain_style, RainStyle::Monolith) {
-            self.spawn_remainder = 0.0;
-        }
-
-        charset_owned
-    }
-
-    /// Transition to a different rain style, clearing all state for
-    /// both the old and new style to prevent ghosting or residue.
-    /// For glyph styles, the droplet pool is re-allocated and warm-started
-    /// so the first post-switch frame has visible content immediately.
-    fn transition_rain_style(&mut self, new_style: RainStyle) {
-        if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain.clear_draw_history();
-        }
-        self.rain_style = new_style;
-        if matches!(new_style, RainStyle::Monolith) {
-            self.monolith_rain.reset(self.cols, self.full_width);
-            self.droplets.clear();
-            self.spawn_remainder = 0.0;
-            self.glyph_entry_time = None;
-        } else {
-            // Re-allocate glyph droplet pool and warm-start so the
-            // first post-switch frame has visible rain immediately,
-            // preventing the blank-screen bug on monolith→glyph switch.
-            self.ensure_glyph_pool_and_warm_start();
-        }
-        self.reset_phosphor_state();
-        self.semantic_invalidate = true;
-        self.force_draw_everything = true;
-        self.last_spawn_time = Instant::now();
-    }
-
-    /// Apply glitch level parameters directly at runtime.
-    fn apply_glitch_level_runtime(&mut self, level: GlitchLevel) {
-        let (on, pct, lo, hi, short, rip) = match level {
-            GlitchLevel::None => (false, 0.0, 300u16, 400u16, 0.5f32, 0.3333333f32),
-            GlitchLevel::Subtle => (true, 0.03, 200, 300, 0.6, 0.45),
-            GlitchLevel::Default => (true, 0.10, 300, 400, 0.5, 0.3333333),
-            GlitchLevel::Intense => (true, 0.25, 500, 800, 0.3, 0.2),
-        };
-        self.glitchy = on;
-        self.glitch_pct = pct;
-        self.glitch_low_ms = lo;
-        self.glitch_high_ms = hi;
-        self.short_pct = short;
-        self.die_early_pct = rip;
-        if on {
-            self.fill_glitch_map();
-            let now = Instant::now();
-            self.last_glitch_time = now;
-            let ms = self.rand_glitch_ms.sample(&mut self.mt) as u64;
-            self.next_glitch_time = now + Duration::from_millis(ms);
-        } else {
-            self.glitch_map.clear();
-        }
-        self.force_draw_everything = true;
-    }
-
-    pub fn set_async(&mut self, on: bool) {
-        self.async_mode = on;
-        self.set_column_speeds();
-        self.update_droplet_speeds();
-    }
-
-    pub fn set_chars_per_sec(&mut self, cps: f32) {
-        self.chars_per_sec = sanitize_speed_for_style(cps, self.rain_style);
-        self.recalc_droplets_per_sec();
-        self.set_column_speeds();
-        self.update_droplet_speeds();
-    }
-
-    pub fn set_monolith_size(&mut self, size: MonolithSize) {
-        self.monolith_size = size;
-        if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain.clear_draw_history();
-            self.reset_phosphor_state();
-            self.semantic_invalidate = true;
-        }
-    }
-
-    pub fn set_droplet_density(&mut self, density: f32) {
-        self.droplet_density = density;
-        self.recalc_droplets_per_sec();
-    }
-
-    pub fn set_glitchy(&mut self, on: bool) {
-        self.glitchy = on;
-        self.fill_glitch_map();
-        if on {
-            let now = Instant::now();
-            self.last_glitch_time = now;
-            let ms = self.rand_glitch_ms.sample(&mut self.mt) as u64;
-            self.next_glitch_time = now + Duration::from_millis(ms);
-        }
-        self.force_draw_everything = true;
-    }
-
-    pub fn set_glitch_pct(&mut self, pct: f32) {
-        self.glitch_pct = pct;
-        self.fill_glitch_map();
-    }
-
-    pub fn set_glitch_times(&mut self, low_ms: u16, high_ms: u16) {
-        self.glitch_low_ms = low_ms;
-        self.glitch_high_ms = high_ms;
-        let (lo, hi) = if low_ms <= high_ms {
-            (low_ms, high_ms)
-        } else {
-            (high_ms, low_ms)
-        };
-        self.rand_glitch_ms =
-            Uniform::new_inclusive(lo, hi).expect("rand_glitch_ms: lo <= hi after swap");
-    }
-
-    pub fn set_linger_times(&mut self, low_ms: u16, high_ms: u16) {
-        self.linger_low_ms = low_ms;
-        self.linger_high_ms = high_ms;
-        let (lo, hi) = if low_ms <= high_ms {
-            (low_ms, high_ms)
-        } else {
-            (high_ms, low_ms)
-        };
-        self.rand_linger_ms =
-            Uniform::new_inclusive(lo, hi).expect("rand_linger_ms: lo <= hi after swap");
-    }
-
-    pub fn set_max_droplets_per_column(&mut self, v: u8) {
-        self.max_droplets_per_column = v;
-    }
-
-    pub fn set_perf_pressure(&mut self, p: f32) {
-        self.perf_pressure = p.clamp(0.0, 1.0);
-    }
-
-    pub fn set_max_sim_delta(&mut self, d: Duration) {
-        self.max_sim_delta = d;
-    }
-
     pub fn toggle_pause(&mut self) -> bool {
         self.pause = !self.pause;
         if self.pause {
@@ -759,10 +517,6 @@ impl Cloud {
         }
     }
 
-    pub fn force_draw_everything(&mut self) {
-        self.force_draw_everything = true;
-    }
-
     /// Returns whether a full redraw is pending. Used by tests to verify
     /// that ignored keys don't trigger destructive redraws.
     #[cfg(test)]
@@ -786,18 +540,6 @@ impl Cloud {
     pub fn clear_redraw_flags_for_test(&mut self) {
         self.semantic_invalidate = false;
         self.force_draw_everything = false;
-    }
-
-    pub fn set_shading_mode(&mut self, sm: ShadingMode) {
-        self.shading_mode = sm;
-        self.shading_distance = matches!(sm, ShadingMode::DistanceFromHead);
-        if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain.clear_draw_history();
-            self.reset_phosphor_state();
-        }
-        // Shading mode is a renderer semantic mutation — invalidate the
-        // Terminal's LastFrame cache to prevent stale shading artifacts.
-        self.semantic_invalidate = true;
     }
 
     pub(super) fn reset_message(&mut self) {
@@ -962,18 +704,4 @@ impl Cloud {
             );
         }
     }
-}
-
-fn sanitize_speed_for_style(cps: f32, rain_style: RainStyle) -> f32 {
-    let cps = if cps.is_finite() {
-        cps.max(crate::constants::RUNTIME_SPEED_MIN)
-    } else {
-        crate::constants::RUNTIME_SPEED_MIN
-    };
-    let max = if matches!(rain_style, RainStyle::Monolith) {
-        crate::constants::MONOLITH_EFFECTIVE_SPEED_MAX
-    } else {
-        crate::constants::RUNTIME_SPEED_MAX
-    };
-    cps.min(max)
 }
