@@ -2,15 +2,9 @@
 # SPDX-License-Identifier: MIT
 # Schedule: Weekly on Saturday 23:00 UTC (Sunday 06:00 WIB)
 #
-# Strategy:
-# - Weekly auto-update minimizes lockfile churn for a stable-phase project
-# - Full validation: audit -> deny -> fmt -> build -> test -> clippy
-# - No-op detection skips pipeline when nothing changed
-# - Direct self-healing commit to the default branch after validation passes
-# - Signed-off commits (no GPG signing)
-# - Powered by T-800 automation
-#
-# For daily security audit (non-mutating), see: gitbot-audit.yml
+# Direct-main dependency updates use a two-phase privilege model:
+# - validate: read-only token, dependency update, full checks, lockfile artifact
+# - commit: write token, no dependency code execution, Cargo.lock allowlist only
 
 name: "T-800 - Auto Update Dependencies"
 
@@ -20,25 +14,28 @@ name: "T-800 - Auto Update Dependencies"
   workflow_dispatch: {}
 
 permissions:
-  contents: write
+  contents: read
 
 env:
-  # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
 
 jobs:
-  auto-update:
-    name: "T-800 - Dependency & Workflow Update"
+  validate:
+    name: "T-800 - Validate Dependency Update"
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.changes.outputs.changed }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6.0.2
         with:
-          token: ${{ github.token }}
-          fetch-depth: 0
+          persist-credentials: false
+          fetch-depth: 1
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -68,273 +65,114 @@ jobs:
           fi
           echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
 
-      # =========================================================================
-      # RUST DEPENDENCIES UPDATE
-      # =========================================================================
-      - name: Check current versions
-        run: |
-          echo "=============================================================="
-          echo "Current Rust dependency versions:"
-          echo "=============================================================="
-          cargo tree --depth 1 || true
-          echo "=============================================================="
-
       - name: Install audit + deny tools
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-audit,cargo-deny
 
-      - name: Baseline security audit (pre-update)
-        id: pre_audit
-        run: |
-          echo "Running baseline security audit (pre-update)..."
-          if cargo audit; then
-            echo "vulnerable=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "vulnerable=true" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Baseline security audit
+        run: cargo audit
 
       - name: Update dependencies
-        id: update_deps
-        run: |
-          echo "Updating Cargo.lock..."
-          CARGO_UPDATE_LOG="${RUNNER_TEMP}/cargo-update.log"
-          echo "cargo_update_log=${CARGO_UPDATE_LOG}" >> "$GITHUB_ENV"
-          cargo update --workspace 2>&1 | tee "${CARGO_UPDATE_LOG}"
+        run: cargo update --workspace
 
-          echo ""
-          echo "=============================================================="
-          echo "Updated dependency tree:"
-          echo "=============================================================="
-          cargo tree --depth 1 || true
-          echo "=============================================================="
-
-      - name: Check if validation is needed
-        id: needs_validation
+      - name: Enforce dependency-only diff
+        id: changes
+        shell: bash
         run: |
-          if git diff --quiet Cargo.lock 2>/dev/null; then
-            echo "needed=false" >> "$GITHUB_OUTPUT"
-            echo "No dependency updates -- skipping validation pipeline"
-          else
-            echo "needed=true" >> "$GITHUB_OUTPUT"
-            echo "Updates detected -- proceeding with validation"
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Dependencies are already up to date"
+            exit 0
           fi
 
-      - name: Security audit
-        id: post_audit
-        if: steps.needs_validation.outputs.needed == 'true'
-        run: |
-          echo "Running security audit..."
-          cargo audit
+          git diff --name-only | tee /tmp/changed-files.txt
+          if grep -vE '^Cargo\.lock$' /tmp/changed-files.txt; then
+            echo "::error::Auto-update may only modify Cargo.lock"
+            exit 1
+          fi
 
-      - name: Dependency policy (cargo-deny)
-        id: deny
-        if: steps.needs_validation.outputs.needed == 'true'
-        run: |
-          echo "Checking dependency policies..."
-          cargo deny check all
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Security audit
+        if: steps.changes.outputs.changed == 'true'
+        run: cargo audit
+
+      - name: Dependency policy
+        if: steps.changes.outputs.changed == 'true'
+        run: cargo deny check all
 
       - name: Format check
-        id: fmt
-        if: steps.needs_validation.outputs.needed == 'true'
-        run: |
-          echo "Checking code formatting..."
-          cargo fmt --all -- --check
+        if: steps.changes.outputs.changed == 'true'
+        run: cargo fmt --all -- --check
 
       - name: Build project
-        id: build
-        if: steps.needs_validation.outputs.needed == 'true'
+        if: steps.changes.outputs.changed == 'true'
         run: |
-          echo "Building with updated dependencies..."
           cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
           cargo build --profile release --locked --jobs "${CARGO_BUILD_JOBS}"
           RUSTFLAGS="-C target-cpu=x86-64" cargo build --profile pro-linux-v1 --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
-          echo ""
-          echo "Build successful with updated deps"
-
       - name: Run tests
-        id: tests
-        if: steps.needs_validation.outputs.needed == 'true'
+        if: steps.changes.outputs.changed == 'true'
+        run: cargo test --all --locked
+
+      - name: Clippy
+        if: steps.changes.outputs.changed == 'true'
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+
+      - name: Upload validated Cargo.lock
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-cargo-lock
+          path: Cargo.lock
+          if-no-files-found: error
+
+  commit:
+    name: "T-800 - Commit Dependency Update"
+    runs-on: ubuntu-latest
+    needs: validate
+    if: needs.validate.outputs.changed == 'true'
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Download validated Cargo.lock
+        uses: actions/download-artifact@v4
+        with:
+          name: validated-cargo-lock
+          path: .auto-update
+
+      - name: Commit dependency update
+        shell: bash
         run: |
-          echo "Running test suite..."
-          cargo test --all --locked
+          set -euo pipefail
+          cp .auto-update/Cargo.lock Cargo.lock
 
-          echo ""
-          echo "All tests passed"
-
-      - name: Quick clippy check
-        id: clippy
-        if: steps.needs_validation.outputs.needed == 'true'
-        run: |
-          echo "Running clippy sanity check..."
-          cargo clippy --locked --all-targets --all-features -- -D warnings
-
-      - name: Check for changes
-        id: check_changes
-        run: |
-          if [[ -z "$(git status --porcelain)" ]]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No updates needed"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Updates detected"
-            echo ""
-            echo "Changed files:"
-            git status --porcelain
-            echo ""
-            echo "Diff stat:"
-            git diff --stat
+          if git diff --quiet; then
+            echo "Validated lockfile is already current"
+            exit 0
           fi
 
-      - name: Generate commit message
-        id: commit_msg
-        if: steps.check_changes.outputs.changed == 'true'
-        run: |
-          PRE_AUDIT_VULNERABLE="${{ steps.pre_audit.outputs.vulnerable }}"
-          SECURITY_UPDATE="false"
-          if [ "${PRE_AUDIT_VULNERABLE}" = "true" ]; then
-            SECURITY_UPDATE="true"
+          git diff --name-only | tee /tmp/changed-files.txt
+          if grep -vE '^Cargo\.lock$' /tmp/changed-files.txt; then
+            echo "::error::Commit job may only modify Cargo.lock"
+            exit 1
           fi
 
-          CARGO_UPDATE_LOG="${{ env.cargo_update_log }}"
-          UPDATES_COUNT="0"
-          if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
-            UPDATES_COUNT="$(grep -cE '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}" || true)"
-            if [ -z "${UPDATES_COUNT}" ]; then
-              UPDATES_COUNT="0"
-            fi
-          fi
-
-          BREAKING_UPDATE="false"
-          if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
-            while IFS= read -r line; do
-              if [[ "${line}" =~ ^[[:space:]]*(Updating|Downgrading)[[:space:]]+[^[:space:]]+[[:space:]]+v([0-9]+)\.([0-9]+)\.([0-9]+)[[:space:]]+\-\>[[:space:]]+v([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
-                OLD_MAJOR="${BASH_REMATCH[2]}"
-                OLD_MINOR="${BASH_REMATCH[3]}"
-                NEW_MAJOR="${BASH_REMATCH[5]}"
-                NEW_MINOR="${BASH_REMATCH[6]}"
-
-                if [ "${OLD_MAJOR}" != "${NEW_MAJOR}" ]; then
-                  BREAKING_UPDATE="true"
-                  break
-                fi
-
-                if [ "${OLD_MAJOR}" = "0" ] && [ "${OLD_MINOR}" != "${NEW_MINOR}" ]; then
-                  BREAKING_UPDATE="true"
-                  break
-                fi
-              fi
-            done < "${CARGO_UPDATE_LOG}"
-          fi
-
-          if [ "${SECURITY_UPDATE}" = "true" ]; then
-            TITLE="fix(security): T-800 patches vulnerable dependencies"
-          elif [ "${BREAKING_UPDATE}" = "true" ]; then
-            TITLE="chore(deps)!: T-800 dependency recalibration"
-          else
-            TITLE="chore(deps): T-800 dependency recalibration"
-          fi
-
-          BASELINE_SECURITY_STATUS="clean"
-          if [ "${SECURITY_UPDATE}" = "true" ]; then
-            BASELINE_SECURITY_STATUS="advisories found"
-          fi
-
-          BODY="Automated update by T-800"
-          BODY+=$'\n\n'"## Summary"
-          BODY+=$'\n'"- Rust dependencies updated via \`cargo update\` (${UPDATES_COUNT} changes)"
-          BODY+=$'\n'"- Security baseline (pre-update): ${BASELINE_SECURITY_STATUS}"
-          BODY+=$'\n'"- Security audit (post-update): passed"
-          BODY+=$'\n'"- Dependency policy (cargo-deny): passed"
-          BODY+=$'\n'"- Formatting (cargo fmt): passed"
-          BODY+=$'\n'"- Build (dev + release): passed"
-          BODY+=$'\n'"- Tests: passed"
-          BODY+=$'\n'"- Clippy: passed"
-
-          if [ -n "${CARGO_UPDATE_LOG}" ] && [ -f "${CARGO_UPDATE_LOG}" ]; then
-            UPDATES_SECTION=false
-            while IFS= read -r line; do
-              [ -n "${line}" ] || continue
-
-              if [ "${UPDATES_SECTION}" != "true" ]; then
-                BODY="${BODY}"$'\n\n'"## Dependency updates (top 25)"
-                UPDATES_SECTION=true
-              fi
-
-              BODY="${BODY}"$'\n'"- ${line}"
-            done < <((grep -E '^[[:space:]]*(Updating|Downgrading)[[:space:]]+' "${CARGO_UPDATE_LOG}" || true) | head -n 25 | sed -E 's/^[[:space:]]+//')
-          fi
-
-          if [ "${SECURITY_UPDATE}" = "true" ]; then
-            BODY="${BODY}"$'\n\n'"## Security"$'\n'"- Baseline audit found advisories before the update"
-          fi
-
-          if [ "${BREAKING_UPDATE}" = "true" ]; then
-            BODY="${BODY}"$'\n\n'"## Breaking change risk"$'\n'"- Detected a major (or 0.x minor) version jump in Cargo.lock"
-          fi
-
-          COMMIT_BODY="${BODY}"
-
-          {
-            echo "title=$TITLE"
-            echo "commit_body<<EOF"
-            echo "$COMMIT_BODY"
-            echo "EOF"
-            echo "commit_message<<EOF"
-            echo "$TITLE"
-            echo ""
-            echo "$COMMIT_BODY"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Commit and push changes
-        if: steps.check_changes.outputs.changed == 'true'
-        run: |
           git config user.name "oxyzenQ"
           git config user.email "130107241+oxyzenQ@users.noreply.github.com"
-          git config --local commit.gpgsign false
-          git config --local tag.gpgsign false
-
-          git add -A
-          git commit --no-gpg-sign -s \
-            -m "${{ steps.commit_msg.outputs.title }}" \
-            -m "${{ steps.commit_msg.outputs.commit_body }}"
-
-          git push origin main
-
-          echo ""
-          echo "Updates pushed to main branch"
-          echo "Commit: $(git rev-parse HEAD)"
-
-      - name: Summary
-        run: |
-          echo "=============================================================="
-          echo "T-800 - UPDATE SUMMARY"
-          echo "=============================================================="
-          echo ""
-          echo "Mode: direct commit to main after validation"
-          echo ""
-
-          if [ "${{ steps.check_changes.outputs.changed }}" == "true" ]; then
-            echo "Updates Applied:"
-            echo "  - Rust dependencies updated"
-            echo "  - Security audit passed"
-            echo "  - Tests passed"
-
-            echo ""
-            echo "Changes pushed to main branch"
-            echo "Commit: $(git rev-parse HEAD)"
-          else
-            echo "No updates needed - everything is current!"
-          fi
-
-          echo ""
-          echo "=============================================================="
-          echo "Next run: Saturday 23:00 UTC (Sunday 06:00 WIB)"
-          echo "Daily audit: gitbot-audit.yml"
-          echo "Manual trigger: Actions -> Auto Update Dependencies"
-          echo "=============================================================="
+          git add Cargo.lock
+          git commit -m "chore(deps): T-800 dependency recalibration"
+          git push origin HEAD:main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
