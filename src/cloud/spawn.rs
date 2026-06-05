@@ -534,6 +534,16 @@ impl Cloud {
     /// allocated pool would be empty and `spawn_droplets()` would need
     /// several frames to build visible density — producing a blank black
     /// screen for 100–500ms after the scene switch.
+    ///
+    /// ## Fresh-entry semantics
+    ///
+    /// Warm-started droplets get heads near the **top rows** (upper quarter
+    /// of the viewport, capped at a small absolute maximum) with short
+    /// trails starting from row 0. This produces visible glyph cells on the
+    /// first frame while looking like the scene just started — rain entering
+    /// from the top rather than appearing already halfway down the screen.
+    /// The natural spawn system fills in remaining columns over subsequent
+    /// frames via the spawn remainder debt.
     pub(super) fn ensure_glyph_pool_and_warm_start(&mut self) {
         let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
         self.droplets.clear();
@@ -546,33 +556,60 @@ impl Cloud {
             cs.num_droplets = 0;
         }
 
-        // Seed initial droplets at random columns with scattered head
-        // positions so the first frame has visible rain across the screen.
+        // Fresh-entry warm-start: seed droplets with heads near the top
+        // rows and short initial trails. The head position is bounded to
+        // the upper quarter of the viewport (capped at WARM_START_MAX_HEAD
+        // absolute rows) so the scene looks freshly entered, not already
+        // in progress. Trails start from row 0 for immediate visibility.
         let now = Instant::now();
         let seed_limit = self.droplets.len().min(self.cols as usize);
+        let head_cap = (self.lines / 4).clamp(2, WARM_START_MAX_HEAD);
 
+        // Pre-build a column assignment pool for fresh-entry seeding:
+        // iterate columns sequentially to maximize coverage across the
+        // viewport width, rather than random columns that may cluster.
+        let mut col_cursor = 0u16;
         for i in 0..seed_limit {
-            let mut col = self.rand_col.sample(&mut self.mt);
-            if self.full_width {
-                col &= 0xFFFE;
+            // Find next valid column for seeding
+            let mut placed = false;
+            for _ in 0..self.cols {
+                if col_cursor as usize >= self.col_stat.len() {
+                    col_cursor = 0;
+                }
+                if self.col_stat[col_cursor as usize].num_droplets < self.max_droplets_per_column {
+                    placed = true;
+                    break;
+                }
+                col_cursor += 1;
             }
-            if col as usize >= self.col_stat.len() {
-                continue;
+            if !placed {
+                break;
             }
-            if self.col_stat[col as usize].num_droplets >= self.max_droplets_per_column {
-                continue;
-            }
+
+            let col = if self.full_width {
+                col_cursor & 0xFFFE
+            } else {
+                col_cursor
+            };
+            col_cursor += 1;
 
             let spec = self.build_droplet_spec(col);
             let end_line = spec.end_line;
             let d = &mut self.droplets[i];
             spec.apply_to(d);
 
-            // Scatter the head at a random mid-screen position so the
-            // droplet trail is visible on the very first draw frame.
-            let head_line = self.rand_line.sample(&mut self.mt).min(end_line);
-            d.head_put_line = head_line;
-            d.head_cur_line = head_line;
+            // Fresh-entry: head near the top, not scattered mid-screen.
+            // Random within [0, head_cap) so every seeded droplet appears
+            // in the upper portion of the viewport.
+            let head_line =
+                (self.rand_chance.sample(&mut self.mt) * head_cap as f32).floor() as u16;
+            let safe_head = head_line.min(end_line);
+            d.head_put_line = safe_head;
+            d.head_cur_line = safe_head;
+            // Short trail: tail at row 0 so the visible trail is
+            // 0..safe_head — compact, fresh, top-biased.
+            d.tail_put_line = Some(0);
+            d.tail_cur_line = 0;
 
             d.activate(now);
 

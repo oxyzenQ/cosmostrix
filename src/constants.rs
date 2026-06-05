@@ -236,6 +236,13 @@ pub const TRAIL_EXPONENTIAL_K: f64 = 1.8;
 /// visual chaos and bottom-row "concrete wall" accumulation.
 pub const SPAWN_REMAINDER_CAP: f32 = 4.0;
 
+/// Absolute maximum head position (in rows from top) for the fresh-entry
+/// warm-start when switching to a glyph scene at runtime. Combined with
+/// the `lines/4` bound, this ensures warm-started droplets appear in the
+/// upper portion of the viewport — looking freshly entered rather than
+/// already in progress halfway down the screen.
+pub const WARM_START_MAX_HEAD: u16 = 8;
+
 /// Hard cap on droplet advance remainder per frame. Without this,
 /// high speed settings can cause a single advance() call to move
 /// a droplet many rows at once, dumping many cells into the same
