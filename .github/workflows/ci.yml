@@ -9,6 +9,7 @@ name: T-800 - CI
     paths-ignore:
       - '**/*.md'
       - '**/*.txt'
+      - '**/*.yml'
       - 'assets/**'
       - 'docs/**'
       - 'LICENSE'
@@ -18,11 +19,18 @@ name: T-800 - CI
       - 'BRANDING.md'
       - 'SUPPORT.md'
       - '.gitignore'
+      - '.gitattributes'
+      - '.yamllint'
+      - '.codespellrc'
+      - 'deny.toml'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
   pull_request:
     branches: ["main"]
     paths-ignore:
       - '**/*.md'
       - '**/*.txt'
+      - '**/*.yml'
       - 'assets/**'
       - 'docs/**'
       - 'LICENSE'
@@ -32,6 +40,12 @@ name: T-800 - CI
       - 'BRANDING.md'
       - 'SUPPORT.md'
       - '.gitignore'
+      - '.gitattributes'
+      - '.yamllint'
+      - '.codespellrc'
+      - 'deny.toml'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
 
 permissions:
   contents: read
