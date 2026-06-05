@@ -248,34 +248,51 @@ mod cases {
         KeyEvent::new(KeyCode::BackTab, KeyModifiers::SHIFT)
     }
 
+    fn call_handle_keybinding(
+        cloud: &mut Cloud,
+        frame: &mut Frame,
+        key: &KeyEvent,
+        charset_preset: &mut String,
+        cfg: &CloudConfig,
+        #[cfg(unix)] term_reinit: &Arc<AtomicBool>,
+    ) -> bool {
+        let mut scene_name = String::from("monolith");
+        let user_ranges: [(char, char); 0] = [];
+        handle_keybinding(
+            cloud,
+            frame,
+            key,
+            charset_preset,
+            &mut scene_name,
+            &user_ranges,
+            true,
+            cfg,
+            #[cfg(unix)]
+            term_reinit,
+        )
+    }
+
     #[test]
     fn tab_key_is_ignored() {
-        // Tab should be a no-op in handle_keybinding — it must not toggle
-        // shading mode, pause, color, charset, or any other state.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
-        let user_ranges: [(char, char); 0] = [];
 
         let shading_before = cloud.shading_distance;
         let pause_before = cloud.pause;
         let color_before = cloud.color_scheme();
 
-        let result = handle_keybinding(
+        let result = call_handle_keybinding(
             &mut cloud,
             &mut frame,
             &tab_key(),
             &mut charset_preset,
-            &user_ranges,
-            true,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
         );
 
-        // Tab should not trigger any keybinding action
         assert!(!result, "Tab should not signal a keybinding action");
-        // Tab should not change any state
         assert_eq!(
             cloud.shading_distance, shading_before,
             "Tab should not toggle shading mode"
@@ -290,21 +307,17 @@ mod cases {
 
     #[test]
     fn backtab_key_is_ignored() {
-        // Shift+Tab (BackTab) should be a no-op, same as Tab.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
-        let user_ranges: [(char, char); 0] = [];
 
         let shading_before = cloud.shading_distance;
 
-        let result = handle_keybinding(
+        let result = call_handle_keybinding(
             &mut cloud,
             &mut frame,
             &backtab_key(),
             &mut charset_preset,
-            &user_ranges,
-            true,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
@@ -319,21 +332,17 @@ mod cases {
 
     #[test]
     fn tab_does_not_toggle_pause() {
-        // Tab must not toggle pause state.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
-        let user_ranges: [(char, char); 0] = [];
 
         assert!(!cloud.pause, "cloud should start unpaused");
 
-        handle_keybinding(
+        call_handle_keybinding(
             &mut cloud,
             &mut frame,
             &tab_key(),
             &mut charset_preset,
-            &user_ranges,
-            true,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
@@ -344,21 +353,17 @@ mod cases {
 
     #[test]
     fn tab_does_not_change_color_or_charset() {
-        // Tab must not change the color scheme or charset.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
-        let user_ranges: [(char, char); 0] = [];
 
         let color_before = cloud.color_scheme();
 
-        handle_keybinding(
+        call_handle_keybinding(
             &mut cloud,
             &mut frame,
             &tab_key(),
             &mut charset_preset,
-            &user_ranges,
-            true,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
@@ -369,7 +374,6 @@ mod cases {
             color_before,
             "Tab should not change color scheme"
         );
-        // charset_preset should be unchanged
         assert_eq!(
             charset_preset, "binary",
             "Tab should not change charset preset"
@@ -378,20 +382,15 @@ mod cases {
 
     #[test]
     fn tab_does_not_force_ghost_background_redraw() {
-        // Tab must not set semantic_invalidate or force_draw_everything,
-        // which could cause a ghost background glyph flood.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
-        let user_ranges: [(char, char); 0] = [];
 
-        handle_keybinding(
+        call_handle_keybinding(
             &mut cloud,
             &mut frame,
             &tab_key(),
             &mut charset_preset,
-            &user_ranges,
-            true,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
@@ -409,25 +408,19 @@ mod cases {
 
     #[test]
     fn repeated_tab_is_stable() {
-        // Repeated Tab presses should not accumulate state changes or
-        // cause instability. Each Tab should be a complete no-op.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
-        let user_ranges: [(char, char); 0] = [];
 
         let shading_before = cloud.shading_distance;
         let pause_before = cloud.pause;
 
-        // Press Tab 10 times
         for _ in 0..10 {
-            handle_keybinding(
+            call_handle_keybinding(
                 &mut cloud,
                 &mut frame,
                 &tab_key(),
                 &mut charset_preset,
-                &user_ranges,
-                true,
                 &make_test_config(),
                 #[cfg(unix)]
                 &Arc::new(AtomicBool::new(false)),

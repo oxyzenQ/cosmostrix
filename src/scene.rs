@@ -29,6 +29,9 @@ pub struct SceneInfo {
 
 pub const DEFAULT_SCENE: &str = "monolith";
 
+/// Ordered scene cycle: monolith -> matrix -> signal -> monolith.
+pub const SCENE_ORDER: &[&str] = &["monolith", "matrix", "signal"];
+
 pub const SCENES: &[SceneInfo] = &[
     SceneInfo {
         name: "matrix",
@@ -77,6 +80,21 @@ pub fn all_scene_names() -> &'static [&'static str] {
     &["matrix", "monolith", "signal"]
 }
 
+/// Cycle to the next or previous scene in the ordered cycle.
+/// Returns the next scene name.
+/// Forward:  monolith -> matrix -> signal -> monolith
+/// Backward: monolith -> signal -> matrix -> monolith
+#[must_use]
+pub fn cycle_scene(current: &str, dir: i32) -> &'static str {
+    let Some(pos) = SCENE_ORDER.iter().position(|&n| n == current) else {
+        return DEFAULT_SCENE;
+    };
+    let n = SCENE_ORDER.len() as i32;
+    let mut idx = pos as i32 + dir;
+    idx = ((idx % n) + n) % n;
+    SCENE_ORDER[idx as usize]
+}
+
 #[must_use]
 pub fn get_scene(name: &str) -> Option<&'static SceneInfo> {
     let normalized = name.trim().to_ascii_lowercase();
@@ -109,6 +127,34 @@ pub fn list_scenes_text() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cycle_scene_forward_order() {
+        assert_eq!(cycle_scene("monolith", 1), "matrix");
+        assert_eq!(cycle_scene("matrix", 1), "signal");
+        assert_eq!(cycle_scene("signal", 1), "monolith");
+    }
+
+    #[test]
+    fn cycle_scene_backward_order() {
+        assert_eq!(cycle_scene("monolith", -1), "signal");
+        assert_eq!(cycle_scene("signal", -1), "matrix");
+        assert_eq!(cycle_scene("matrix", -1), "monolith");
+    }
+
+    #[test]
+    fn cycle_scene_unknown_returns_default() {
+        assert_eq!(cycle_scene("nonexistent", 1), DEFAULT_SCENE);
+        assert_eq!(cycle_scene("nonexistent", -1), DEFAULT_SCENE);
+    }
+
+    #[test]
+    fn cycle_scene_wraps_around() {
+        // Double forward from monolith
+        assert_eq!(cycle_scene(cycle_scene("monolith", 1), 1), "signal");
+        // Double backward from monolith
+        assert_eq!(cycle_scene(cycle_scene("monolith", -1), -1), "matrix");
+    }
 
     #[test]
     fn scene_names_are_present() {

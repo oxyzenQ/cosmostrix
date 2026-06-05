@@ -214,10 +214,12 @@ Explicit CLI flags always override preset and scene values. For example, `cosmos
 ```text
   q / Esc       Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
-  [ / ]         Density           Up / Down  Speed
-  g             Toggle glitch     m          Cycle profile
-  Space         Reseed animation
+  x / X         Cycle scene       [ / ]      Density
+  Up / Down     Speed             g          Toggle glitch
+  m             Cycle profile     Space      Reseed animation
 ```
+
+Press `x` while running to cycle scene atmospheres (Monolith Rain, Matrix, Signal).
 
 ## Terminal Recovery
 
@@ -309,6 +311,8 @@ cosmostrix --scene monolith --monolith-size large
 ```
 
 Plain `cosmostrix` launches signature structured Monolith Rain (`speed 10`, `density 0.75`). Classic Matrix mode remains available with `cosmostrix --scene matrix`. Charset cycling keeps the Monolith segmented identity but changes the segment glyph source. `--monolith-size` controls terminal-cell segment scale (`small`, `normal`, `large`), not raw pixel size; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
+
+Press `x` while running to cycle scenes at runtime: Monolith Rain -> Matrix -> Signal -> Monolith. Press `X` to cycle backward. Runtime scene cycling applies scene-managed values for color, charset, speed, density, and glitch level. Scene transitions are smooth with no ghosting or residue.
 
 ## Color schemes
 

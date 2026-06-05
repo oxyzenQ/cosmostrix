@@ -807,9 +807,9 @@ DISCOVERY:
 RUNTIME CONTROLS:
   q / Esc       Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
-  [ / ]         Density           Up / Down  Speed
-  g             Toggle glitch     m          Cycle profile
-  Tab           Ignored safely    Space      Reseed animation
+  x / X         Cycle scene       [ / ]      Density
+  Up / Down     Speed             g          Toggle glitch
+  m             Cycle profile     Space      Reseed animation
 
 HELP:
   --help          Show common options.

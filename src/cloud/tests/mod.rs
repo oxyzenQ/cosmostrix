@@ -5,6 +5,7 @@
 
 mod tests_monolith;
 mod tests_phosphor;
+mod tests_scene;
 
 use std::time::{Duration, Instant};
 

@@ -179,6 +179,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
 
     let mut charset_preset = cfg.charset_preset.clone();
+    let mut scene_name = crate::scene::DEFAULT_SCENE.to_string();
     let user_ranges = cfg.user_ranges.clone();
     let def_ascii = cfg.def_ascii;
     let mut paste_guard = PasteBurstGuard::default();
@@ -275,6 +276,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             &mut frame,
                             &k,
                             &mut charset_preset,
+                            &mut scene_name,
                             &user_ranges,
                             def_ascii,
                             cfg,
