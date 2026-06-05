@@ -155,7 +155,7 @@ scene = monolith
 preset = cinematic
 
 # Appearance
-color = blackhole
+color = cosmos
 charset = binary
 color-bg = black
 

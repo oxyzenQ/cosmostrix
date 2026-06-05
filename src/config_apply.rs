@@ -636,7 +636,7 @@ mod tests {
     fn default_scene_is_monolith() {
         let args = args_from_cli(&[]);
         assert_eq!(args.scene.as_deref(), Some("monolith"));
-        assert_eq!(args.color, "blackhole");
+        assert_eq!(args.color, "cosmos");
         assert_eq!(args.charset, "binary");
         assert_eq!(args.speed, 10.0);
         assert_eq!(args.density, 0.75);
@@ -664,7 +664,7 @@ mod tests {
     fn config_scene_monolith_applies() {
         let args = args_with_config("scene = monolith\n", &[]);
         assert_eq!(args.scene.as_deref(), Some("monolith"));
-        assert_eq!(args.color, "blackhole");
+        assert_eq!(args.color, "cosmos");
         assert_eq!(args.charset, "binary");
         assert_eq!(args.speed, 10.0);
         assert!((args.density - 0.75).abs() < f32::EPSILON);
@@ -715,7 +715,7 @@ mod tests {
         assert_eq!(args.fps, 120.0);
         assert_eq!(args.speed, 9.0);
         assert!((args.density - 0.25).abs() < f32::EPSILON);
-        assert_eq!(args.color, "blackhole");
+        assert_eq!(args.color, "cosmos");
     }
 
     #[test]
@@ -824,7 +824,7 @@ mod tests {
             "color = not-a-color\nfps = 0\nspeed = nope\nlow-power = maybe\npreset = unknown\n",
             &[],
         );
-        assert_eq!(args.color, "blackhole");
+        assert_eq!(args.color, "cosmos");
         assert_eq!(args.fps, 60.0);
         assert_eq!(args.speed, 10.0);
         assert!(!args.low_power);

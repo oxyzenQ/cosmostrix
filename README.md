@@ -259,7 +259,7 @@ Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG
 ```
 scene = monolith
 preset = cinematic
-color = blackhole
+color = cosmos
 charset = binary
 fps = 60
 speed = 10

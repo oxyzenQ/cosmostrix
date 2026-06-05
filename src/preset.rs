@@ -87,7 +87,7 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             description: PRESET_DESCRIPTIONS[2],
         }),
         "monolith" => Some(PresetConfig {
-            color: "blackhole",
+            color: "cosmos",
             charset: "binary",
             fps: 60.0,
             speed: 4.0,
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn preset_values_monolith() {
         let p = get_preset("monolith").unwrap();
-        assert_eq!(p.color, "blackhole");
+        assert_eq!(p.color, "cosmos");
         assert_eq!(p.charset, "binary");
         assert_eq!(p.fps, 60.0);
         assert_eq!(p.speed, 4.0);

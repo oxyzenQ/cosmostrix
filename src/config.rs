@@ -660,7 +660,7 @@ pub fn print_defaults() {
     println!("  --fps 60 \\");
     println!("  --speed 10 \\");
     println!("  --density 0.75 \\");
-    println!("  --color blackhole \\");
+    println!("  --color cosmos \\");
     println!("  --charset binary \\");
     println!("  --glitch-level subtle \\");
     println!("  --monolith-size normal");

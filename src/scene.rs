@@ -47,7 +47,7 @@ pub const SCENES: &[SceneInfo] = &[
         name: "monolith",
         description: "Signature structured segmented rain with premium pacing",
         config: SceneConfig {
-            color: Some("blackhole"),
+            color: Some("cosmos"),
             charset: Some("binary"),
             fps: Some(60.0),
             speed: Some(10.0),
