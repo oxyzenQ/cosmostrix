@@ -6,46 +6,18 @@ name: T-800 - CI
 'on':
   push:
     branches: ["main"]
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.txt'
-      - '**/*.yml'
-      - 'assets/**'
-      - 'docs/**'
-      - 'LICENSE'
-      - 'NOTICE'
-      - 'AUTHORS'
-      - 'TRADEMARK.md'
-      - 'BRANDING.md'
-      - 'SUPPORT.md'
-      - '.gitignore'
-      - '.gitattributes'
-      - '.yamllint'
-      - '.codespellrc'
-      - 'deny.toml'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
+    paths:
+      - '**/*.rs'
+      - '**/*.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
   pull_request:
     branches: ["main"]
-    paths-ignore:
-      - '**/*.md'
-      - '**/*.txt'
-      - '**/*.yml'
-      - 'assets/**'
-      - 'docs/**'
-      - 'LICENSE'
-      - 'NOTICE'
-      - 'AUTHORS'
-      - 'TRADEMARK.md'
-      - 'BRANDING.md'
-      - 'SUPPORT.md'
-      - '.gitignore'
-      - '.gitattributes'
-      - '.yamllint'
-      - '.codespellrc'
-      - 'deny.toml'
-      - 'rust-toolchain.toml'
-      - '.cargo/**'
+    paths:
+      - '**/*.rs'
+      - '**/*.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
 
 permissions:
   contents: read
