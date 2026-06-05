@@ -83,7 +83,8 @@ use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
 use crate::terminal::{reset_terminal_emergency, restore_terminal_best_effort};
 use crate::validation::{
-    validate_f32_range, validate_f64_range, validate_speed, validate_u16_range, validate_u8_range,
+    prevalidate_cli_args, validate_f32_range, validate_f64_range, validate_speed,
+    validate_u16_range, validate_u8_range,
 };
 
 // Re-exports: items moved to submodules but still accessed by sibling
@@ -201,6 +202,10 @@ fn main() -> std::io::Result<()> {
         if arg == "-mB" || arg == "-mb" {
             *arg = "--message-no-border".into();
         }
+    }
+    if let Err(e) = prevalidate_cli_args(&argv) {
+        eprintln!("{e}");
+        std::process::exit(2);
     }
 
     let matches = cmd.get_matches_from(argv);

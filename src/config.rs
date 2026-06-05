@@ -656,13 +656,14 @@ pub fn print_defaults() {
     }
     println!("{}", "\u{2500}".repeat(27));
     println!("cosmostrix \\");
-    println!("  --scene matrix \\");
+    println!("  --scene monolith \\");
     println!("  --fps 60 \\");
-    println!("  --speed 8 \\");
-    println!("  --density 1 \\");
-    println!("  --color green \\");
+    println!("  --speed 10 \\");
+    println!("  --density 0.75 \\");
+    println!("  --color blackhole \\");
     println!("  --charset binary \\");
-    println!("  --glitch-level default");
+    println!("  --glitch-level subtle \\");
+    println!("  --monolith-size normal");
 }
 
 // ---------------------------------------------------------------------------
@@ -691,7 +692,7 @@ COMMON OPTIONS:
       cosmostrix --fps 30
 
   -S, --speed <1-100>
-      Rain speed (characters per second). Runtime Up/Down controls use the
+      Rain speed as a canonical integer. Runtime Up/Down controls use the
       same safe range.
       cosmostrix --speed 12
 
@@ -730,12 +731,12 @@ COMMON OPTIONS:
       cosmostrix --preset storm --fps 60
 
   --scene <matrix|monolith|signal>
-      Apply a scene atmosphere. Matrix is the default glyph rain.
-      Monolith uses faster signature structured segmented rain.
+      Apply a scene atmosphere. Monolith Rain is the default signature
+      structured segmented rain experience.
       Charset cycling changes Monolith segment glyph style.
       Explicit CLI flags always override scene-managed values.
+      cosmostrix
       cosmostrix --scene matrix
-      cosmostrix --scene monolith
       cosmostrix --scene signal --fps 60
 
 CONFIG:
@@ -745,6 +746,8 @@ CONFIG:
 
   --dump-config
       Print a complete, commented example config and exit.
+
+      Config policy: invalid values warn cleanly and are ignored.
 
   --config-path
       Print the resolved default config path and exit.

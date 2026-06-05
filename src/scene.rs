@@ -27,12 +27,12 @@ pub struct SceneInfo {
     pub config: SceneConfig,
 }
 
-pub const DEFAULT_SCENE: &str = "matrix";
+pub const DEFAULT_SCENE: &str = "monolith";
 
 pub const SCENES: &[SceneInfo] = &[
     SceneInfo {
         name: "matrix",
-        description: "Default Matrix rain; preserves the classic v2 behavior",
+        description: "Classic Matrix glyph rain behavior",
         config: SceneConfig {
             color: None,
             charset: None,
@@ -112,6 +112,7 @@ mod tests {
 
     #[test]
     fn scene_names_are_present() {
+        assert_eq!(DEFAULT_SCENE, "monolith");
         assert_eq!(all_scene_names(), &["matrix", "monolith", "signal"]);
         for name in all_scene_names() {
             assert!(get_scene(name).is_some(), "missing scene {name}");

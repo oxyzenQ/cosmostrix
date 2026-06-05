@@ -142,30 +142,31 @@ pub fn dump_config_text() -> &'static str {
 #
 # Format:
 #   key = value
+# Invalid values warn cleanly and are ignored.
 #
 # Precedence:
 #   built-in defaults < config values < config preset < config scene
 #   < CLI preset < CLI scene < low-power < explicit CLI flags
 
 # Scene atmosphere. See: cosmostrix --list-scenes
-scene = matrix
+scene = monolith
 
 # Curated preset. See: cosmostrix --list-presets
 preset = cinematic
 
 # Appearance
-color = cosmos
+color = blackhole
 charset = binary
 color-bg = black
 
 # Motion
 fps = 60
-speed = 8
-density = 1
+speed = 10
+density = 0.75
 monolith-size = normal
 
 # Behavior
-glitch-level = default
+glitch-level = subtle
 low-power = false
 mouse = false
 fullwidth = false

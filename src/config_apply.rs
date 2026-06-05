@@ -26,7 +26,10 @@ use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::preset::{get_preset, validate_preset_name};
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
-use crate::validation::{validate_f32_range, validate_f64_range, validate_u8_range};
+use crate::validation::{
+    parse_canonical_f32_range, parse_canonical_f64_range, parse_canonical_speed,
+    parse_canonical_u8_range,
+};
 
 pub(crate) fn apply_config_and_runtime_defaults(
     matches: &clap::ArgMatches,
@@ -40,12 +43,17 @@ pub(crate) fn apply_config_and_runtime_defaults(
 
     let preset_is_cli = is_explicit(matches, "preset");
     let scene_is_cli = is_explicit(matches, "scene");
+    let scene_is_default = args.scene.is_none();
+    if scene_is_default {
+        args.scene = Some(DEFAULT_SCENE.to_string());
+        apply_default_scene_values(matches, args, &config_touched)?;
+    }
 
     let mut curated_modified = HashSet::new();
     if !preset_is_cli {
         curated_modified.extend(apply_preset_values(matches, args)?);
     }
-    if !scene_is_cli {
+    if !scene_is_cli && !scene_is_default {
         curated_modified.extend(apply_scene_values(matches, args)?);
     }
     if preset_is_cli {
@@ -55,13 +63,51 @@ pub(crate) fn apply_config_and_runtime_defaults(
         curated_modified.extend(apply_scene_values(matches, args)?);
     }
 
-    if args.scene.is_none() {
-        args.scene = Some(DEFAULT_SCENE.to_string());
-    }
-
     apply_low_power_values(matches, args, &curated_modified);
     apply_glitch_level_values(matches, args, &config_touched, &curated_modified);
 
+    Ok(())
+}
+
+fn apply_default_scene_values(
+    matches: &clap::ArgMatches,
+    args: &mut Args,
+    config_touched: &HashSet<&'static str>,
+) -> Result<(), String> {
+    let Some(scene) = get_scene(DEFAULT_SCENE) else {
+        return Ok(());
+    };
+    let cfg = scene.config;
+    if let Some(color) = cfg.color {
+        if !is_explicit(matches, "color") && !config_touched.contains("color") {
+            args.color = color.to_string();
+        }
+    }
+    if let Some(charset) = cfg.charset {
+        if !is_explicit(matches, "charset") && !config_touched.contains("charset") {
+            args.charset = charset.to_string();
+        }
+    }
+    if let Some(fps) = cfg.fps {
+        if !is_explicit(matches, "fps") && !config_touched.contains("fps") {
+            args.fps = fps;
+        }
+    }
+    if let Some(speed) = cfg.speed {
+        if !is_explicit(matches, "speed") && !config_touched.contains("speed") {
+            args.speed = speed;
+        }
+    }
+    if let Some(density) = cfg.density {
+        if !is_explicit(matches, "density") && !config_touched.contains("density") {
+            args.density = density;
+        }
+    }
+    if let Some(glitch_level) = cfg.glitch_level {
+        if !is_explicit(matches, "glitch_level") && !config_touched.contains("glitch_level") {
+            args.glitch_level = glitch_level;
+        }
+    }
     Ok(())
 }
 
@@ -114,7 +160,7 @@ fn apply_config_values(
         }
     }
     if let Some(v) = config_value(matches, cfg, "speed", "speed") {
-        if let Some(f) = parse_f32_config("speed", &v, SPEED_MIN, SPEED_MAX) {
+        if let Some(f) = parse_speed_config("speed", &v) {
             args.speed = f;
             config_touched.insert("speed");
         }
@@ -441,52 +487,48 @@ fn is_explicit(matches: &clap::ArgMatches, key: &str) -> bool {
 }
 
 fn parse_f32_config(name: &str, value: &str, min: f32, max: f32) -> Option<f32> {
-    match value.parse::<f32>() {
-        Ok(n) if n.is_finite() => {
-            match validate_f32_range(&format!("config {name}"), n, min, max) {
-                Ok(f) => Some(f),
-                Err(_) => {
-                    eprintln!("config: ignoring invalid {name}={value} (min {min} max {max})");
-                    None
-                }
-            }
-        }
-        _ => {
-            eprintln!("config: ignoring unparseable {name}='{value}' (expected a number)");
+    match parse_canonical_f32_range(&format!("config {name}"), value, min, max) {
+        Ok(f) => Some(f),
+        Err(_) => {
+            eprintln!(
+                "config: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
+            );
             None
         }
     }
 }
 
 fn parse_f64_config(name: &str, value: &str, min: f64, max: f64) -> Option<f64> {
-    match value.parse::<f64>() {
-        Ok(n) if n.is_finite() => {
-            match validate_f64_range(&format!("config {name}"), n, min, max) {
-                Ok(f) => Some(f),
-                Err(_) => {
-                    eprintln!("config: ignoring invalid {name}={value} (min {min} max {max})");
-                    None
-                }
-            }
-        }
-        _ => {
-            eprintln!("config: ignoring unparseable {name}='{value}' (expected a number)");
+    match parse_canonical_f64_range(&format!("config {name}"), value, min, max) {
+        Ok(f) => Some(f),
+        Err(_) => {
+            eprintln!(
+                "config: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
+            );
             None
         }
     }
 }
 
 fn parse_u8_config(name: &str, value: &str, min: u8, max: u8) -> Option<u8> {
-    match value.parse::<u8>() {
-        Ok(n) => match validate_u8_range(&format!("config {name}"), n, min, max) {
-            Ok(valid) => Some(valid),
-            Err(_) => {
-                eprintln!("config: ignoring invalid {name}={value} (min {min} max {max})");
-                None
-            }
-        },
-        _ => {
-            eprintln!("config: ignoring unparseable {name}='{value}' (expected integer)");
+    match parse_canonical_u8_range(&format!("config {name}"), value, min, max) {
+        Ok(valid) => Some(valid),
+        Err(_) => {
+            eprintln!(
+                "config: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
+            );
+            None
+        }
+    }
+}
+
+fn parse_speed_config(name: &str, value: &str) -> Option<f32> {
+    match parse_canonical_speed(&format!("config {name}"), value) {
+        Ok(valid) => Some(valid),
+        Err(_) => {
+            eprintln!(
+                "config: ignoring invalid {name}='{value}' (expected: canonical integer in range {SPEED_MIN}..={SPEED_MAX})"
+            );
             None
         }
     }
@@ -591,13 +633,25 @@ mod tests {
     }
 
     #[test]
-    fn default_scene_is_matrix() {
+    fn default_scene_is_monolith() {
         let args = args_from_cli(&[]);
+        assert_eq!(args.scene.as_deref(), Some("monolith"));
+        assert_eq!(args.color, "blackhole");
+        assert_eq!(args.charset, "binary");
+        assert_eq!(args.speed, 10.0);
+        assert_eq!(args.density, 0.75);
+        assert_eq!(args.glitch_level, GlitchLevel::Subtle);
+    }
+
+    #[test]
+    fn explicit_matrix_scene_restores_classic_defaults() {
+        let args = args_from_cli(&["--scene", "matrix"]);
         assert_eq!(args.scene.as_deref(), Some("matrix"));
         assert_eq!(args.color, "green");
         assert_eq!(args.charset, "binary");
         assert_eq!(args.speed, 8.0);
         assert_eq!(args.density, 1.0);
+        assert_eq!(args.glitch_level, GlitchLevel::Default);
     }
 
     #[test]
@@ -668,7 +722,7 @@ mod tests {
     fn config_speed_outside_safe_range_is_ignored() {
         for value in ["0", "0.5", "100.1", "1000", "100000"] {
             let args = args_with_config(&format!("speed = {value}\n"), &[]);
-            assert_eq!(args.speed, 8.0);
+            assert_eq!(args.speed, 10.0);
         }
     }
 
@@ -770,9 +824,9 @@ mod tests {
             "color = not-a-color\nfps = 0\nspeed = nope\nlow-power = maybe\npreset = unknown\n",
             &[],
         );
-        assert_eq!(args.color, "green");
+        assert_eq!(args.color, "blackhole");
         assert_eq!(args.fps, 60.0);
-        assert_eq!(args.speed, 8.0);
+        assert_eq!(args.speed, 10.0);
         assert!(!args.low_power);
         assert!(args.preset.is_none());
     }
@@ -821,5 +875,9 @@ mod tests {
         ] {
             assert!(dump.contains(key), "dump config should contain {key}");
         }
+        assert!(dump.contains("scene = monolith"));
+        assert!(dump.contains("speed = 10"));
+        assert!(dump.contains("density = 0.75"));
+        assert!(dump.contains("glitch-level = subtle"));
     }
 }

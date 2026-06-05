@@ -151,7 +151,7 @@ scripts/verify-release-build.sh pro-linux-v3
 ## Usage
 
 ```bash
-cosmostrix                           # default settings
+cosmostrix                           # signature Monolith Rain default
 cosmostrix --color rainbow --speed 12   # color + speed
 cosmostrix --screensaver              # exit on keypress
 cosmostrix --message "wake up, neo"   # overlay message
@@ -161,8 +161,8 @@ cosmostrix --mouse                    # opt-in mouse hover/click effects
 cosmostrix --preset cinematic          # curated preset
 cosmostrix --preset calm               # gentle ocean rain
 cosmostrix --preset storm --fps 60     # preset with explicit override
-cosmostrix --scene matrix              # v2-compatible default scene
-cosmostrix --scene monolith            # faster structured Monolith Rain
+cosmostrix --scene matrix              # classic Matrix glyph rain
+cosmostrix --scene monolith            # explicit Monolith Rain
 cosmostrix --scene signal --fps 60     # code-signal scene with FPS override
 cosmostrix --scene monolith --color deepspace
 cosmostrix --scene monolith --monolith-size large
@@ -257,14 +257,14 @@ reset
 Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`). Use `--config <path>` to load a specific file.
 
 ```
-scene = matrix
+scene = monolith
 preset = cinematic
-color = cosmos
+color = blackhole
 charset = binary
 fps = 60
-speed = 8
-density = 1
-glitch-level = default
+speed = 10
+density = 0.75
+glitch-level = subtle
 color-bg = transparent
 low-power = false
 mouse = false
@@ -295,20 +295,20 @@ So `cosmostrix --config ./config --preset storm --scene signal --fps 60` uses th
 
 3 scene atmospheres are available:
 
-- `matrix` — default v2-compatible Matrix rain
-- `monolith` — signature Cosmostrix Monolith Rain with sparse structured segments
+- `matrix` — classic Matrix glyph rain
+- `monolith` — default signature Cosmostrix Monolith Rain with sparse structured segments
 - `signal` — digital transmission / code-signal atmosphere
 
 ```bash
+cosmostrix
 cosmostrix --scene matrix
-cosmostrix --scene monolith
 cosmostrix --scene signal
 cosmostrix --scene signal --fps 60
 cosmostrix --scene monolith --color deepspace
 cosmostrix --scene monolith --monolith-size large
 ```
 
-`matrix` remains the default scene. `monolith` requires no extra setup: `--scene monolith` switches to signature structured segmented rain with a faster premium motion default (`speed 10`, `density 0.75`). Charset cycling keeps the segmented identity but changes the segment glyph style. `--monolith-size` controls terminal-cell segment scale (`small`, `normal`, `large`), not raw pixel size; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
+Plain `cosmostrix` launches signature structured Monolith Rain (`speed 10`, `density 0.75`). Classic Matrix mode remains available with `cosmostrix --scene matrix`. Charset cycling keeps the Monolith segmented identity but changes the segment glyph source. `--monolith-size` controls terminal-cell segment scale (`small`, `normal`, `large`), not raw pixel size; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
 
 ## Color schemes
 
@@ -341,7 +341,7 @@ interpretation notes.
 
 ### v3.1.0 (in development)
 
-**Monolith Rain Engine.** The monolith scene now uses signature Cosmostrix Monolith Rain: sparse structured vertical data pillars with segmented blocks, subtle spines, visible gaps, and a clear brightness hierarchy. The default matrix scene remains glyph rain.
+**Monolith Rain Engine.** Plain `cosmostrix` now launches signature Cosmostrix Monolith Rain: sparse structured vertical data pillars with segmented blocks, subtle spines, visible gaps, and a clear brightness hierarchy. Classic Matrix glyph rain remains available with `cosmostrix --scene matrix`.
 
 ### v2.2.0
 
