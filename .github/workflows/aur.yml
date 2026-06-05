@@ -197,7 +197,7 @@ jobs:
             echo "pkgname = cosmostrix-bin"
           } > "${SRCINFO}"
 
-          generated_pkgver="$(grep -E '^\tpkgver = ' "${SRCINFO}" | sed -E 's/^\tpkgver = //')"
+          generated_pkgver="$(grep -E '^[[:space:]]*pkgver = ' "${SRCINFO}" | sed -E 's/^[[:space:]]*pkgver = //')"
           if [[ "${generated_pkgver}" != "${PKGVER}" ]]; then
             echo "::error::.SRCINFO pkgver mismatch: expected ${PKGVER}, got ${generated_pkgver}"
             exit 1
