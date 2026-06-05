@@ -158,14 +158,24 @@ jobs:
           PKGBUILD="${{ env.PKGBUILD_DIR }}/PKGBUILD"
           SRCINFO="${{ env.PKGBUILD_DIR }}/.SRCINFO"
 
-          # Read current values from PKGBUILD
-          pkgdesc="$(grep -oP '^pkgdesc="\K.*(?="$)' "${PKGBUILD}")"
-          pkgrel="$(grep -oP '^pkgrel=\K.*' "${PKGBUILD}")"
+          # Read current values from PKGBUILD. Sourcing defines variables and
+          # functions only; prepare()/package() are not executed here.
+          # shellcheck disable=SC1090
+          source "${PKGBUILD}"
 
           if [[ -z "${pkgdesc}" ]]; then
             echo "::error::pkgdesc is empty or missing in ${PKGBUILD}"
             exit 1
           fi
+
+          print_values() {
+            local key="$1"
+            shift
+            local value
+            for value in "$@"; do
+              printf '\t%s = %s\n' "${key}" "${value}"
+            done
+          }
 
           # Generate .SRCINFO deterministically
           # .SRCINFO uses tab indentation for continuation lines
@@ -174,20 +184,24 @@ jobs:
           {
             echo "pkgbase = cosmostrix-bin"
             printf '\tpkgdesc = %s\n' "${pkgdesc}"
-            printf '\tpkgver = %s\n' "${PKGVER}"
+            printf '\tpkgver = %s\n' "${pkgver}"
             printf '\tpkgrel = %s\n' "${pkgrel}"
-            printf '\turl = https://github.com/oxyzenQ/cosmostrix\n'
-            printf '\tarch = x86_64\n'
-            printf '\tarch = aarch64\n'
-            printf '\tlicense = MIT\n'
-            printf '\tdepends = glibc\n'
-            printf '\tdepends = gcc-libs\n'
-            printf '\tprovides = cosmostrix\n'
-            printf '\tconflicts = cosmostrix\n'
-            printf '\toptions = !strip\n'
+            printf '\turl = %s\n' "${url}"
+            print_values "arch" "${arch[@]}"
+            print_values "license" "${license[@]}"
+            print_values "depends" "${depends[@]}"
+            print_values "provides" "${provides[@]}"
+            print_values "conflicts" "${conflicts[@]}"
+            print_values "options" "${options[@]}"
             echo ""
             echo "pkgname = cosmostrix-bin"
           } > "${SRCINFO}"
+
+          generated_pkgver="$(grep -E '^\tpkgver = ' "${SRCINFO}" | sed -E 's/^\tpkgver = //')"
+          if [[ "${generated_pkgver}" != "${PKGVER}" ]]; then
+            echo "::error::.SRCINFO pkgver mismatch: expected ${PKGVER}, got ${generated_pkgver}"
+            exit 1
+          fi
 
           echo "--- Generated .SRCINFO ---"
           cat "${SRCINFO}"
@@ -238,7 +252,6 @@ jobs:
           set -euo pipefail
 
           TAG="${{ steps.resolve.outputs.tag }}"
-          VERSION="${{ steps.resolve.outputs.version }}"
 
           # Clone the existing AUR package repository
           AUR_DIR="$(mktemp -d)"

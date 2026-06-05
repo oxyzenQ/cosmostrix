@@ -24,7 +24,7 @@ license=('MIT')
 depends=('glibc' 'gcc-libs')
 
 provides=('cosmostrix')
-conflicts=('cosmostrix')
+conflicts=('cosmostrix' 'cosmostrix-git')
 
 options=('!strip')
 
