@@ -7,9 +7,7 @@ name: T-800 - CI
   push:
     branches: ["main"]
     paths-ignore:
-      - '*.md'
       - '**/*.md'
-      - '*.txt'
       - '**/*.txt'
       - 'assets/**'
       - 'docs/**'
@@ -23,9 +21,7 @@ name: T-800 - CI
   pull_request:
     branches: ["main"]
     paths-ignore:
-      - '*.md'
       - '**/*.md'
-      - '*.txt'
       - '**/*.txt'
       - 'assets/**'
       - 'docs/**'
