@@ -90,6 +90,23 @@ impl Cloud {
         // Apply resume time-scale easing: spawn rate ramps with the smoothstep
         // curve so new streams appear gradually during the inertia recovery.
         spawn_scale *= self.resume_blend;
+        // Glyph scene-entry ramp: gradually increase spawn rate after switching
+        // to a glyph scene. During the ramp period, spawn starts at a reduced
+        // rate and smoothly accelerates to full speed via smoothstep, creating
+        // a cinematic top-entry cascade instead of an instant wall of rain.
+        if let Some(entry) = self.glyph_entry_time {
+            let elapsed_ms = now.saturating_duration_since(entry).as_millis() as f32;
+            let ramp_dur = GLYPH_ENTRY_RAMP_DURATION_MS as f32;
+            if elapsed_ms < ramp_dur {
+                let t = (elapsed_ms / ramp_dur).clamp(0.0, 1.0);
+                // Smoothstep: 3t² - 2t³ — slow start, fast middle, slow end.
+                let ramp = t * t * (3.0 - 2.0 * t);
+                spawn_scale *=
+                    GLYPH_ENTRY_RAMP_MIN_SCALE + ramp * (1.0 - GLYPH_ENTRY_RAMP_MIN_SCALE);
+            } else {
+                self.glyph_entry_time = None; // Ramp complete
+            }
+        }
         spawn_scale = spawn_scale.clamp(0.0, 3.0);
         if matches!(self.rain_style, RainStyle::Monolith) {
             let mut elapsed = now.saturating_duration_since(self.last_spawn_time);

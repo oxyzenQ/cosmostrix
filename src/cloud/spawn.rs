@@ -526,8 +526,9 @@ impl Cloud {
         }
     }
 
-    /// Re-allocate the glyph droplet pool and warm-start with pre-seeded
-    /// droplets so the first post-switch frame has visible rain immediately.
+    /// Re-allocate the glyph droplet pool and warm-start with a sparse set
+    /// of pre-seeded droplets so the first post-switch frame has visible rain
+    /// immediately, but not crowded.
     ///
     /// This is called by `transition_rain_style()` when switching from
     /// Monolith (or any style) to Glyph. Without warm-starting, the newly
@@ -535,15 +536,22 @@ impl Cloud {
     /// several frames to build visible density — producing a blank black
     /// screen for 100–500ms after the scene switch.
     ///
-    /// ## Fresh-entry semantics
+    /// ## Sparse fresh-entry semantics
     ///
-    /// Warm-started droplets get heads near the **top rows** (upper quarter
-    /// of the viewport, capped at a small absolute maximum) with short
-    /// trails starting from row 0. This produces visible glyph cells on the
-    /// first frame while looking like the scene just started — rain entering
-    /// from the top rather than appearing already halfway down the screen.
-    /// The natural spawn system fills in remaining columns over subsequent
-    /// frames via the spawn remainder debt.
+    /// Only a small fraction of columns (WARM_START_SEED_FRACTION, bounded
+    /// by WARM_START_SEED_MIN and WARM_START_SEED_MAX) are seeded with
+    /// droplets. This prevents the "instant wall of rain" look while still
+    /// ensuring visible content on the first frame.
+    ///
+    /// Seeded droplets get heads near the **top rows** (upper quarter of
+    /// the viewport, capped at WARM_START_MAX_HEAD absolute rows) with
+    /// short trails starting from row 0.
+    ///
+    /// The natural spawn system fills remaining columns over subsequent
+    /// frames, gradually accelerated by the scene-entry ramp
+    /// (glyph_entry_time) which scales spawn rate from
+    /// GLYPH_ENTRY_RAMP_MIN_SCALE to 1.0 over
+    /// GLYPH_ENTRY_RAMP_DURATION_MS.
     pub(super) fn ensure_glyph_pool_and_warm_start(&mut self) {
         let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
         self.droplets.clear();
@@ -556,42 +564,32 @@ impl Cloud {
             cs.num_droplets = 0;
         }
 
-        // Fresh-entry warm-start: seed droplets with heads near the top
-        // rows and short initial trails. The head position is bounded to
-        // the upper quarter of the viewport (capped at WARM_START_MAX_HEAD
-        // absolute rows) so the scene looks freshly entered, not already
-        // in progress. Trails start from row 0 for immediate visibility.
+        // Sparse seed: only a fraction of columns, not the full width.
+        // This avoids the "instant wall of rain" over-density problem
+        // while still providing visible content on the first frame.
         let now = Instant::now();
-        let seed_limit = self.droplets.len().min(self.cols as usize);
+        let seed_limit = ((self.cols as f32 * WARM_START_SEED_FRACTION).round() as usize)
+            .clamp(WARM_START_SEED_MIN, WARM_START_SEED_MAX);
         let head_cap = (self.lines / 4).clamp(2, WARM_START_MAX_HEAD);
 
-        // Pre-build a column assignment pool for fresh-entry seeding:
-        // iterate columns sequentially to maximize coverage across the
-        // viewport width, rather than random columns that may cluster.
-        let mut col_cursor = 0u16;
+        // Iterate columns with even spacing to maximize viewport coverage.
+        // Column step = total_cols / seed_limit, so seeds are distributed
+        // across the full width rather than clustered at the left edge.
+        let col_step = (self.cols as usize / seed_limit.max(1)).max(1);
         for i in 0..seed_limit {
-            // Find next valid column for seeding
-            let mut placed = false;
-            for _ in 0..self.cols {
-                if col_cursor as usize >= self.col_stat.len() {
-                    col_cursor = 0;
+            let col = ((i * col_step) as u16).min(self.cols.saturating_sub(1));
+            if self.full_width {
+                let col_adj = col & 0xFFFE;
+                if col_adj as usize >= self.col_stat.len() {
+                    continue;
                 }
-                if self.col_stat[col_cursor as usize].num_droplets < self.max_droplets_per_column {
-                    placed = true;
-                    break;
-                }
-                col_cursor += 1;
             }
-            if !placed {
-                break;
+            if col as usize >= self.col_stat.len() {
+                continue;
             }
-
-            let col = if self.full_width {
-                col_cursor & 0xFFFE
-            } else {
-                col_cursor
-            };
-            col_cursor += 1;
+            if self.col_stat[col as usize].num_droplets >= self.max_droplets_per_column {
+                continue;
+            }
 
             let spec = self.build_droplet_spec(col);
             let end_line = spec.end_line;
@@ -599,8 +597,6 @@ impl Cloud {
             spec.apply_to(d);
 
             // Fresh-entry: head near the top, not scattered mid-screen.
-            // Random within [0, head_cap) so every seeded droplet appears
-            // in the upper portion of the viewport.
             let head_line =
                 (self.rand_chance.sample(&mut self.mt) * head_cap as f32).floor() as u16;
             let safe_head = head_line.min(end_line);
@@ -617,8 +613,12 @@ impl Cloud {
             self.col_stat[col as usize].can_spawn = false;
         }
 
-        // Provide spawn debt so the natural spawn system continues
-        // filling in columns beyond the initial seed batch.
-        self.spawn_remainder = SPAWN_REMAINDER_CAP;
+        // Start the scene-entry ramp: spawn rate gradually increases
+        // from GLYPH_ENTRY_RAMP_MIN_SCALE to 1.0 over the ramp duration.
+        self.glyph_entry_time = Some(now);
+
+        // Low spawn debt: let the ramp + natural spawn fill gradually
+        // instead of flooding the first frame.
+        self.spawn_remainder = WARM_START_SPAWN_DEBT;
     }
 }

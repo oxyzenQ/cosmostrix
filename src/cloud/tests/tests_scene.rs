@@ -6,7 +6,7 @@
 use std::time::{Duration, Instant};
 
 use super::Cloud;
-use crate::constants::{RUNTIME_SPEED_MAX, WARM_START_MAX_HEAD};
+use crate::constants::{RUNTIME_SPEED_MAX, WARM_START_MAX_HEAD, WARM_START_SEED_MAX};
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
@@ -636,6 +636,102 @@ fn fresh_entry_no_monolith_residue_phosphor() {
     cloud.last_spawn_time = Instant::now();
     cloud.rain(&mut frame);
     assert_eq!(cloud.monolith_rain.draw_history_count_for_test(), 0);
+}
+
+// ---------------------------------------------------------------------------
+// Sparse fresh-entry density tests (v3.2.1 stabilization)
+// ---------------------------------------------------------------------------
+
+/// After monolith → matrix, the number of warm-started alive droplets must
+/// be bounded by WARM_START_SEED_MAX — no per-column flooding.
+#[test]
+fn sparse_entry_matrix_alive_count_bounded() {
+    let mut cloud = make_monolith_cloud();
+    cloud.apply_scene_runtime("matrix", "binary", &[], false);
+    let alive = cloud.droplets.iter().filter(|d| d.is_alive).count();
+    assert!(
+        alive <= WARM_START_SEED_MAX,
+        "sparse entry: alive droplets ({alive}) must be <= WARM_START_SEED_MAX ({WARM_START_SEED_MAX})"
+    );
+    assert!(
+        alive >= 3,
+        "sparse entry: must have at least 3 alive droplets for no-blank guarantee (got {alive})"
+    );
+}
+
+/// After monolith → signal, the same sparse bound applies.
+#[test]
+fn sparse_entry_signal_alive_count_bounded() {
+    let mut cloud = make_monolith_cloud();
+    cloud.apply_scene_runtime("signal", "binary", &[], false);
+    let alive = cloud.droplets.iter().filter(|d| d.is_alive).count();
+    assert!(
+        alive <= WARM_START_SEED_MAX,
+        "sparse entry signal: alive ({alive}) must be <= WARM_START_SEED_MAX ({WARM_START_SEED_MAX})"
+    );
+    assert!(
+        alive >= 3,
+        "sparse entry signal: must have at least 3 alive droplets (got {alive})"
+    );
+}
+
+/// The scene-entry ramp must be active immediately after switching to glyph.
+#[test]
+fn sparse_entry_ramp_starts_on_scene_switch() {
+    let mut cloud = make_monolith_cloud();
+    cloud.apply_scene_runtime("matrix", "binary", &[], false);
+    assert!(
+        cloud.glyph_entry_time.is_some(),
+        "glyph_entry_time must be set after switching to glyph scene"
+    );
+}
+
+/// The scene-entry ramp must be cleared when switching back to monolith.
+#[test]
+fn sparse_entry_ramp_cleared_on_monolith_switch() {
+    let mut cloud = make_monolith_cloud();
+    cloud.apply_scene_runtime("matrix", "binary", &[], false);
+    assert!(cloud.glyph_entry_time.is_some());
+    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    assert!(
+        cloud.glyph_entry_time.is_none(),
+        "glyph_entry_time must be cleared when switching to monolith"
+    );
+}
+
+/// Repeated x cycling must never overpopulate initial glyph scenes.
+/// After each switch, alive count must stay within the sparse bound.
+#[test]
+fn sparse_entry_repeated_forward_stays_sparse() {
+    let mut cloud = make_monolith_cloud();
+    let scenes = ["matrix", "signal", "monolith", "matrix", "signal"];
+    for scene in &scenes {
+        cloud.apply_scene_runtime(scene, "binary", &[], false);
+        if matches!(cloud.rain_style(), RainStyle::Glyph) {
+            let alive = cloud.droplets.iter().filter(|d| d.is_alive).count();
+            assert!(
+                alive <= WARM_START_SEED_MAX,
+                "forward cycle '{scene}': alive ({alive}) must be <= {WARM_START_SEED_MAX}"
+            );
+        }
+    }
+}
+
+/// Repeated X (backward) cycling must also stay sparse.
+#[test]
+fn sparse_entry_repeated_backward_stays_sparse() {
+    let mut cloud = make_monolith_cloud();
+    let scenes = ["signal", "matrix", "monolith", "signal", "matrix"];
+    for scene in &scenes {
+        cloud.apply_scene_runtime(scene, "binary", &[], false);
+        if matches!(cloud.rain_style(), RainStyle::Glyph) {
+            let alive = cloud.droplets.iter().filter(|d| d.is_alive).count();
+            assert!(
+                alive <= WARM_START_SEED_MAX,
+                "backward cycle '{scene}': alive ({alive}) must be <= {WARM_START_SEED_MAX}"
+            );
+        }
+    }
 }
 
 /// All Rust source files must stay under 1000 LOC after the fix.

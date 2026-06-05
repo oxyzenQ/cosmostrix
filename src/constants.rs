@@ -243,6 +243,38 @@ pub const SPAWN_REMAINDER_CAP: f32 = 4.0;
 /// already in progress halfway down the screen.
 pub const WARM_START_MAX_HEAD: u16 = 8;
 
+/// Fraction of terminal columns to seed during glyph fresh-entry warm-start.
+/// Lower values produce sparser initial scenes that fill naturally via the
+/// spawn system and scene-entry ramp, creating a cinematic top-entry cascade
+/// instead of an instant wall of rain.
+pub const WARM_START_SEED_FRACTION: f32 = 0.12;
+
+/// Minimum number of seed lanes for fresh-entry warm-start. Ensures at
+/// least a few visible droplets on the first frame after switching to a
+/// glyph scene, preventing blank screens on very narrow terminals.
+pub const WARM_START_SEED_MIN: usize = 3;
+
+/// Maximum number of seed lanes for fresh-entry warm-start. Prevents
+/// excessive initial density on very wide terminals where 12% of columns
+/// would otherwise produce too many simultaneous streams.
+pub const WARM_START_SEED_MAX: usize = 12;
+
+/// Initial spawn remainder set after glyph scene-entry warm-start. Much
+/// lower than SPAWN_REMAINDER_CAP to avoid flooding the first frame with
+/// natural spawn — the scene-entry ramp handles gradual fill-in instead.
+pub const WARM_START_SPAWN_DEBT: f32 = 0.5;
+
+/// Duration of the glyph scene-entry spawn ramp (ms). During this period
+/// after switching to a glyph scene, spawn rate gradually increases from
+/// GLYPH_ENTRY_RAMP_MIN_SCALE to full speed via smoothstep interpolation,
+/// creating a cinematic top-entry cascade instead of an instant wall.
+pub const GLYPH_ENTRY_RAMP_DURATION_MS: u32 = 500;
+
+/// Minimum spawn scale at the start of the glyph entry ramp (fraction of
+/// normal spawn rate). At the moment of scene switch, spawn begins at this
+/// rate and smoothly ramps to 1.0 over GLYPH_ENTRY_RAMP_DURATION_MS.
+pub const GLYPH_ENTRY_RAMP_MIN_SCALE: f32 = 0.25;
+
 /// Hard cap on droplet advance remainder per frame. Without this,
 /// high speed settings can cause a single advance() call to move
 /// a droplet many rows at once, dumping many cells into the same

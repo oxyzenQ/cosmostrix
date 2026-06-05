@@ -262,6 +262,13 @@ pub struct Cloud {
     pub(super) memory: RendererMemory,
     /// Emergent visual storytelling.
     pub(super) storytelling: StorytellingState,
+
+    // --- Scene-entry ramp ---
+    /// Timestamp when the glyph scene-entry ramp started. During the ramp
+    /// period (GLYPH_ENTRY_RAMP_DURATION_MS), spawn rate is gradually
+    /// increased from GLYPH_ENTRY_RAMP_MIN_SCALE to 1.0 via smoothstep,
+    /// creating a cinematic top-entry cascade. None when no ramp is active.
+    pub(super) glyph_entry_time: Option<Instant>,
 }
 
 impl Cloud {
@@ -375,6 +382,7 @@ impl Cloud {
             atmosphere: AtmosphericEvolution::new(now),
             memory: RendererMemory::new(now),
             storytelling: StorytellingState::new(now),
+            glyph_entry_time: None,
         }
     }
 
@@ -577,6 +585,7 @@ impl Cloud {
             self.monolith_rain.reset(self.cols, self.full_width);
             self.droplets.clear();
             self.spawn_remainder = 0.0;
+            self.glyph_entry_time = None;
         } else {
             // Re-allocate glyph droplet pool and warm-start so the
             // first post-switch frame has visible rain immediately,
