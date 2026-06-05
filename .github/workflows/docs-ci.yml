@@ -8,6 +8,7 @@ name: T-800 - Docs CI
     paths:
       - '**/*.md'
       - '**/*.txt'
+      - '**/*.rst'
       - 'LICENSE'
       - 'NOTICE'
       - 'AUTHORS'
@@ -15,6 +16,7 @@ name: T-800 - Docs CI
     paths:
       - '**/*.md'
       - '**/*.txt'
+      - '**/*.rst'
       - 'LICENSE'
       - 'NOTICE'
       - 'AUTHORS'
@@ -24,14 +26,15 @@ permissions:
 
 jobs:
   lint:
-    name: Markdown Lint
+    name: Docs Spelling Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
 
       - name: Install codespell
-        run: sudo apt-get update && sudo apt-get install -y codespell
+        run: python3 -m pip install --user codespell
 
-      - name: Check spelling
-        run: codespell **/*.md
+      - name: Check documentation files
+        run: |
+          find . -type f \( -name '*.md' -o -name '*.txt' -o -name '*.rst' \) -print0             | xargs -0r codespell

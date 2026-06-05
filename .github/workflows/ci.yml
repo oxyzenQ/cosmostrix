@@ -9,15 +9,21 @@ name: T-800 - CI
     paths:
       - '**/*.rs'
       - '**/*.toml'
+      - '**/*.sh'
       - 'Cargo.lock'
       - 'build.rs'
+      - '.cargo/**'
+      - '.github/workflows/**'
   pull_request:
     branches: ["main"]
     paths:
       - '**/*.rs'
       - '**/*.toml'
+      - '**/*.sh'
       - 'Cargo.lock'
       - 'build.rs'
+      - '.cargo/**'
+      - '.github/workflows/**'
 
 permissions:
   contents: read
