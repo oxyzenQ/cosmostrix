@@ -525,4 +525,63 @@ impl Cloud {
             self.col_stat[col as usize].num_droplets += 1;
         }
     }
+
+    /// Re-allocate the glyph droplet pool and warm-start with pre-seeded
+    /// droplets so the first post-switch frame has visible rain immediately.
+    ///
+    /// This is called by `transition_rain_style()` when switching from
+    /// Monolith (or any style) to Glyph. Without warm-starting, the newly
+    /// allocated pool would be empty and `spawn_droplets()` would need
+    /// several frames to build visible density — producing a blank black
+    /// screen for 100–500ms after the scene switch.
+    pub(super) fn ensure_glyph_pool_and_warm_start(&mut self) {
+        let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
+        self.droplets.clear();
+        self.droplets.resize_with(pool_size, Droplet::new);
+        self.spawn_scan_idx = 0;
+
+        // Reset column spawn state so all columns are eligible
+        for cs in &mut self.col_stat {
+            cs.can_spawn = true;
+            cs.num_droplets = 0;
+        }
+
+        // Seed initial droplets at random columns with scattered head
+        // positions so the first frame has visible rain across the screen.
+        let now = Instant::now();
+        let seed_limit = self.droplets.len().min(self.cols as usize);
+
+        for i in 0..seed_limit {
+            let mut col = self.rand_col.sample(&mut self.mt);
+            if self.full_width {
+                col &= 0xFFFE;
+            }
+            if col as usize >= self.col_stat.len() {
+                continue;
+            }
+            if self.col_stat[col as usize].num_droplets >= self.max_droplets_per_column {
+                continue;
+            }
+
+            let spec = self.build_droplet_spec(col);
+            let end_line = spec.end_line;
+            let d = &mut self.droplets[i];
+            spec.apply_to(d);
+
+            // Scatter the head at a random mid-screen position so the
+            // droplet trail is visible on the very first draw frame.
+            let head_line = self.rand_line.sample(&mut self.mt).min(end_line);
+            d.head_put_line = head_line;
+            d.head_cur_line = head_line;
+
+            d.activate(now);
+
+            self.col_stat[col as usize].num_droplets += 1;
+            self.col_stat[col as usize].can_spawn = false;
+        }
+
+        // Provide spawn debt so the natural spawn system continues
+        // filling in columns beyond the initial seed batch.
+        self.spawn_remainder = SPAWN_REMAINDER_CAP;
+    }
 }

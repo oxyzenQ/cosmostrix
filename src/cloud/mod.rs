@@ -556,13 +556,18 @@ impl Cloud {
         self.semantic_invalidate = true;
         self.force_draw_everything = true;
         self.last_spawn_time = Instant::now();
-        self.spawn_remainder = 0.0;
+        // Only reset spawn debt for monolith; glyph warm-start sets its own.
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.spawn_remainder = 0.0;
+        }
 
         charset_owned
     }
 
     /// Transition to a different rain style, clearing all state for
     /// both the old and new style to prevent ghosting or residue.
+    /// For glyph styles, the droplet pool is re-allocated and warm-started
+    /// so the first post-switch frame has visible content immediately.
     fn transition_rain_style(&mut self, new_style: RainStyle) {
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.monolith_rain.clear_draw_history();
@@ -570,13 +575,18 @@ impl Cloud {
         self.rain_style = new_style;
         if matches!(new_style, RainStyle::Monolith) {
             self.monolith_rain.reset(self.cols, self.full_width);
+            self.droplets.clear();
+            self.spawn_remainder = 0.0;
+        } else {
+            // Re-allocate glyph droplet pool and warm-start so the
+            // first post-switch frame has visible rain immediately,
+            // preventing the blank-screen bug on monolith→glyph switch.
+            self.ensure_glyph_pool_and_warm_start();
         }
-        self.droplets.clear();
         self.reset_phosphor_state();
         self.semantic_invalidate = true;
         self.force_draw_everything = true;
         self.last_spawn_time = Instant::now();
-        self.spawn_remainder = 0.0;
     }
 
     /// Apply glitch level parameters directly at runtime.
