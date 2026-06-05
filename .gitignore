@@ -1,34 +1,21 @@
-# Basic
-target
-reference
+# Rust
+target/
 
-/.idea/
-/.vscode/
+# IDE
+.idea/
+.vscode/
+
+# OS
 .DS_Store
 Thumbs.db
 
-/target/
+# Environment
+.env
+.env.*
+!.env.example
 
-# Bloat
-.log
-*.log
-*.swp
-*.swo
+# Temporary files
 *.tmp
 *.bak
-
-# Secret
-guide-optimize*
-.env
-
-# Benchmark artifacts
-benchmark/perf.data*
-dist
-
-/dist/
-
-# error log
-cosmostrix-log-error.txt
-
-# worklog
-worklog.md
+*.log
+*~
