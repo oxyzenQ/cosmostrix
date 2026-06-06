@@ -370,7 +370,7 @@ impl Cloud {
         // Apply anomaly effects to frame
         self.apply_anomalies(frame, now);
 
-        // --- Phase 3: Autonomous cinematic ecosystem tick ---
+        // --- Autonomous cinematic ecosystem tick ---
         // 1. Color ecosystem drift
         // The ecosystem always ticks for luminance/saturation/hue climate drift
         // (safe — only modulates rendering params, not the palette scheme).
@@ -438,7 +438,7 @@ impl Cloud {
             }
         }
 
-        // 7. Apply Phase 3 global atmospheric frame effects (post-process)
+        // 7. Apply global atmospheric frame effects (post-process)
         self.apply_atmospheric_frame_effects(frame, now);
 
         // --- Periodic full redraw for ANSI drift correction ---

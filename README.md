@@ -48,6 +48,7 @@
 - Optional mouse hover/click effects (`--mouse`)
 - Safe terminal cleanup and recovery (`--reset-terminal`)
 - Terminal Compatibility Lab docs (`docs/TERMINAL_COMPATIBILITY.md`)
+- Internal Zactrix Core architecture notes (`docs/ZACTRIX_CORE.md`)
 - Cross-platform: Linux, macOS, Windows, Android (Termux)
 
 ## Requirements
@@ -405,6 +406,10 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
 
 See `benchmark/README.md` for full reference results, reproduction steps, and
 interpretation notes.
+
+For the v3.8.0 groundwork, see the internal
+[Zactrix Core Architecture Lab](docs/ZACTRIX_CORE.md). It is an eBPF-inspired
+architecture discipline only, not Linux eBPF or a public API.
 
 ## Release notes
 

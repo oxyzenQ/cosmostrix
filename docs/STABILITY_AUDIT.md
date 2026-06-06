@@ -147,7 +147,7 @@ The `toggle_pause()` function (cloud/mod.rs:530–583) implements thorough timin
 
 2. **Per-droplet timing reset**: Each alive droplet has its time incremented via `d.increment_time(elapsed)` and `d.last_time` set to `now` with `d.advance_remainder = 0.0` (lines 542–547). This ensures droplets don't jump multiple rows on resume.
 
-3. **Phase 3 subsystem timer shifting** (lines 549–571): All timed subsystems have their "last tick" timestamps shifted forward by the pause duration:
+3. **Atmospheric subsystem timer shifting** (lines 549–571): All timed subsystems have their "last tick" timestamps shifted forward by the pause duration:
    - Phosphor decay timer (`last_phosphor_time`)
    - Glitch timers (`last_glitch_time`, `next_glitch_time`)
    - RNG reseed timer (`last_reseed_time`)
@@ -190,7 +190,7 @@ The pause/resume behavior is covered by multiple tests:
 
 ### Assessment
 
-The pause/resume system is **thoroughly engineered**. The timing debt reset covers all subsystems (spawn, per-droplet advance, and all nine Phase 3 subsystems). The smoothstep easing applies to all three physics channels (spawn, advance, phosphor decay) simultaneously, preventing temporal inconsistency during the transition. The 180ms easing duration is short enough to feel responsive but long enough to eliminate the harsh catch-up snap that would otherwise occur.
+The pause/resume system is **thoroughly engineered**. The timing debt reset covers all subsystems (spawn, per-droplet advance, and all atmospheric subsystems). The smoothstep easing applies to all three physics channels (spawn, advance, phosphor decay) simultaneously, preventing temporal inconsistency during the transition. The 180ms easing duration is short enough to feel responsive but long enough to eliminate the harsh catch-up snap that would otherwise occur.
 
 One observation: The `increment_time(elapsed)` call on alive droplets during resume (cloud/mod.rs:544) increments the droplet's internal time accumulator by the pause duration. This means droplets that were mid-trail when paused will have their internal timers advanced, potentially causing them to die sooner after resume (their tail catches up to where their head "would have been"). This is intentional — it prevents droplets from appearing frozen at their pause-time position. The smoothstep easing then handles the visual acceleration smoothly from there.
 

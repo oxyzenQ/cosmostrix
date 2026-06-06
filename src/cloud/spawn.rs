@@ -111,7 +111,7 @@ impl Cloud {
         self.last_reseed_time = now;
         self.last_phosphor_time = now;
 
-        // Phase 3: Reset cinematic subsystems on terminal resize
+        // Reset cinematic subsystems on terminal resize.
         self.color_ecosystem = ColorEcosystem::new(now);
         self.atmosphere = AtmosphericEvolution::new(now);
         self.memory = RendererMemory::new(now);

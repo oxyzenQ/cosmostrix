@@ -543,7 +543,7 @@ pub const ANOMALY_LUMINANCE_INTENSITY: f32 = 0.3;
 pub const ANOMALY_CORRUPTION_CHANCE: f32 = 0.4;
 
 // ---------------------------------------------------------------------------
-// Phase 3: Temporal color ecosystems
+// Temporal color ecosystems
 // ---------------------------------------------------------------------------
 
 /// How often the color ecosystem evaluates a drift (in seconds).
@@ -588,7 +588,7 @@ pub const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
 pub const AUTO_COLOR_DRIFT_DEFAULT: bool = false;
 
 // ---------------------------------------------------------------------------
-// Phase 3: Cinematic runtime behavior profiles
+// Cinematic runtime behavior profiles
 // ---------------------------------------------------------------------------
 
 /// Duration for a profile transition (seconds).
@@ -598,7 +598,7 @@ pub const PROFILE_TRANSITION_SECS: f32 = 30.0;
 pub const PROFILE_INTERPOLATION_RATE: f32 = 0.02;
 
 // ---------------------------------------------------------------------------
-// Phase 3: Autonomous atmospheric evolution
+// Autonomous atmospheric evolution
 // ---------------------------------------------------------------------------
 
 /// How often the atmospheric evolution system ticks (in seconds).
@@ -617,7 +617,7 @@ pub const ATMOSPHERE_LUMINANCE_RANGE: f32 = 0.2;
 pub const ATMOSPHERE_ANOMALY_RANGE: f32 = 0.5;
 
 // ---------------------------------------------------------------------------
-// Phase 3: Long-timescale renderer memory
+// Long-timescale renderer memory
 // ---------------------------------------------------------------------------
 
 /// Number of atmospheric history samples retained.
@@ -633,7 +633,7 @@ pub const MEMORY_ANOMALY_PRESSURE_WEIGHT: f32 = 0.3;
 pub const MEMORY_CALM_PERSISTENCE_BOOST: f32 = 0.15;
 
 // ---------------------------------------------------------------------------
-// Phase 3: Emergent visual storytelling
+// Emergent visual storytelling
 // ---------------------------------------------------------------------------
 
 /// How often the storytelling system evaluates emergence (in seconds).

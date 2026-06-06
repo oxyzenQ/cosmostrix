@@ -241,7 +241,7 @@ pub struct Cloud {
     /// Active anomaly zones currently affecting the screen.
     pub(super) anomaly_zones: Vec<AnomalyZone>,
 
-    // --- Phase 3: Autonomous cinematic ecosystem ---
+    // --- Autonomous cinematic ecosystem ---
     /// Active cinematic behavior profile.
     pub(super) profile: BehaviorProfile,
     /// Interpolated profile params (current, transitioning toward target).
@@ -489,7 +489,7 @@ impl Cloud {
                     d.advance_remainder = 0.0;
                 }
             }
-            // Shift all Phase 3 subsystem timers so they don't burst-fire
+            // Shift all atmospheric subsystem timers so they don't burst-fire
             // on the first tick after unpause (each sees a large elapsed).
             self.last_phosphor_time += elapsed;
             self.last_glitch_time += elapsed;

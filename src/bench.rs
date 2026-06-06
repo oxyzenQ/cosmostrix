@@ -44,6 +44,10 @@ use crate::frame::Frame;
 use crate::renderer_info;
 use crate::report::Report;
 use crate::runtime::ColorMode;
+use crate::zactrix_core::{
+    classify_frame_jitter, classify_frame_time_stability, dirty_threshold_cells,
+    estimates_full_redraw,
+};
 
 use super::{color_mode_label, detect_color_mode_auto, effective_density, CloudConfig};
 
@@ -509,8 +513,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         if is_dirty_all {
             dirty_all_frames += 1;
         }
-        let dirty_is_large = total_cells > 0 && dirty_len >= (total_cells / DIRTY_THRESHOLD_RATIO);
-        if is_dirty_all || dirty_is_large {
+        if estimates_full_redraw(total_cells, dirty_len, is_dirty_all, DIRTY_THRESHOLD_RATIO) {
             estimated_full_redraw_frames += 1;
         }
 
@@ -585,23 +588,8 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         0.0
     };
     let jitter_std = variance.sqrt();
-    let jitter_classification = if jitter_std < 0.5 {
-        "low"
-    } else if jitter_std < 2.0 {
-        "medium"
-    } else {
-        "high"
-    };
-
-    let frame_time_stability = if jitter_std < 0.3 {
-        "excellent"
-    } else if jitter_std < 0.5 {
-        "good"
-    } else if jitter_std < 2.0 {
-        "moderate"
-    } else {
-        "high"
-    };
+    let jitter_classification = classify_frame_jitter(jitter_std);
+    let frame_time_stability = classify_frame_time_stability(jitter_std);
 
     let median_fps = if !sorted_ft.is_empty() {
         let med = median_sorted(&sorted_ft);
@@ -626,11 +614,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let ansi_bytes_per_second = ((total_drawn_cells * ANSI_BYTES_PER_CELL_ESTIMATE) as f64
         / elapsed_s.max(0.000_001)) as u64;
     let active_streams_avg = active_streams_sum / total_frames.max(1);
-    let dirty_threshold_cells = if total_cells > 0 {
-        total_cells / DIRTY_THRESHOLD_RATIO
-    } else {
-        0
-    };
+    let dirty_threshold = dirty_threshold_cells(total_cells, DIRTY_THRESHOLD_RATIO);
 
     let active_frame_ratio = if total_frames > 0 {
         (drawn_frames as f64) / (total_frames as f64) * 100.0
@@ -737,7 +721,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         s.field("avg_dirty_cell_ratio_meaning", AVG_DIRTY_CELL_RATIO_MEANING);
         s.field("dirty_all_frames", &dirty_all_frames.to_string());
         s.field("dirty_all_frames_meaning", DIRTY_ALL_FRAMES_MEANING);
-        s.field("dirty_threshold_cells", &dirty_threshold_cells.to_string());
+        s.field("dirty_threshold_cells", &dirty_threshold.to_string());
         s.field(
             "estimated_full_redraw_frames",
             &estimated_full_redraw_frames.to_string(),

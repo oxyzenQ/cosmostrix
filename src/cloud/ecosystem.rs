@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: MIT
 
-//! Phase 3: Autonomous cinematic ecosystem types.
+//! Autonomous cinematic ecosystem types.
 
 use std::time::{Duration, Instant};
 
@@ -14,7 +14,7 @@ use crate::constants::*;
 use crate::runtime::ColorScheme;
 
 // ---------------------------------------------------------------------------
-// Phase 3: Autonomous cinematic ecosystem
+// Autonomous cinematic ecosystem
 // ---------------------------------------------------------------------------
 
 /// Cinematic runtime behavior profiles — atmospheric identities that

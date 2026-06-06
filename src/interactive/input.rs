@@ -72,10 +72,6 @@ pub(super) fn is_plain_printable_key(key: &crossterm::event::KeyEvent) -> bool {
             || key.modifiers == KeyModifiers::NONE)
 }
 
-#[cfg(test)]
-#[allow(dead_code)]
-pub(super) const PASTE_BURST_SUPPRESS_MS_FOR_TEST: u64 = PASTE_BURST_SUPPRESS_MS;
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_keybinding(
     cloud: &mut Cloud,

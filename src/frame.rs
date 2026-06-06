@@ -148,6 +148,7 @@ impl Frame {
     }
 
     #[must_use]
+    // Test-facing accessor; renderer hot paths use `cell_at_index`.
     #[allow(dead_code)]
     pub fn get(&self, x: u16, y: u16) -> Option<&Cell> {
         self.index(x, y).map(|i| {

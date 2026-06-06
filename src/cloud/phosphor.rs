@@ -495,7 +495,7 @@ impl Cloud {
         }
     }
 
-    /// Apply Phase 3 global atmospheric effects to the frame.
+    /// Apply global atmospheric effects to the frame.
     pub(super) fn apply_atmospheric_frame_effects(
         &self,
         frame: &mut crate::frame::Frame,

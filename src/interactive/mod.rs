@@ -47,5 +47,3 @@ mod tests;
 // Re-export public API for the rest of the crate
 pub(crate) use event_loop::run_interactive;
 pub(crate) use watchdog::clear_mouse_capture_flag;
-#[allow(unused_imports)]
-pub(crate) use watchdog::FRAME_COUNTER;

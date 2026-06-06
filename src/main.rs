@@ -46,6 +46,8 @@ mod config;
 mod config_apply;
 #[cfg(test)]
 mod config_apply_profiles_tests;
+#[cfg(test)]
+mod config_apply_tests;
 mod configfile;
 mod constants;
 mod diagnostics;
@@ -70,6 +72,7 @@ mod terminal;
 mod theme;
 mod update;
 mod validation;
+mod zactrix_core;
 
 use std::env;
 

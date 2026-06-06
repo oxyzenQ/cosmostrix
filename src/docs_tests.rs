@@ -25,6 +25,63 @@ fn readme_links_terminal_compatibility_doc() {
 }
 
 #[test]
+fn zactrix_core_doc_exists_and_covers_architecture_terms() {
+    let docs = include_str!("../docs/ZACTRIX_CORE.md");
+    let lowercase = docs.to_lowercase();
+    for term in ["probe", "map", "filter", "verifier", "bounded history"] {
+        assert!(
+            lowercase.contains(term),
+            "Zactrix Core docs should mention {term}"
+        );
+    }
+    assert!(docs.contains("not Linux eBPF"));
+    assert!(docs.contains("not a public API"));
+    assert!(docs.contains("v3.9.0 Ultimate Subtle Monolith Rain"));
+    assert!(docs.contains("v4.0.0"));
+
+    let readme = include_str!("../README.md");
+    assert!(readme.contains("docs/ZACTRIX_CORE.md"));
+}
+
+#[test]
+fn tracked_docs_and_sources_have_no_new_debt_markers() {
+    let markers = [
+        concat!("TO", "DO"),
+        concat!("FIX", "ME"),
+        concat!("HA", "CK"),
+    ];
+    let mut files = Vec::new();
+    collect_files(std::path::Path::new("src"), &mut files);
+    collect_files(std::path::Path::new("docs"), &mut files);
+    files.push(std::path::PathBuf::from("README.md"));
+
+    for path in files {
+        let text = std::fs::read_to_string(&path).expect("tracked text file should be readable");
+        for marker in markers {
+            assert!(
+                !text.contains(marker),
+                "{} contains debt marker {marker}",
+                path.display()
+            );
+        }
+    }
+}
+
+fn collect_files(dir: &std::path::Path, out: &mut Vec<std::path::PathBuf>) {
+    for entry in std::fs::read_dir(dir).expect("source/doc directory should exist") {
+        let path = entry.expect("directory entry should be readable").path();
+        if path.is_dir() {
+            collect_files(&path, out);
+        } else if matches!(
+            path.extension().and_then(|extension| extension.to_str()),
+            Some("rs" | "md")
+        ) {
+            out.push(path);
+        }
+    }
+}
+
+#[test]
 fn docs_mention_visual_stability_policy_if_exists() {
     let _ = include_str!("../README.md");
     // If VISUAL_STABILITY.md exists, README should link to it.

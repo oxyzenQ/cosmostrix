@@ -27,8 +27,6 @@ pub struct PresetConfig {
     pub speed: f32,
     pub density: f32,
     pub glitch_level: GlitchLevel,
-    #[allow(dead_code)]
-    pub description: &'static str,
 }
 
 /// All preset names in definition order.
@@ -66,7 +64,6 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             speed: 8.0,
             density: 1.0,
             glitch_level: GlitchLevel::Default,
-            description: PRESET_DESCRIPTIONS[0],
         }),
         "cinematic" => Some(PresetConfig {
             color: "cosmos",
@@ -75,7 +72,6 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             speed: 8.0,
             density: 1.0,
             glitch_level: GlitchLevel::Default,
-            description: PRESET_DESCRIPTIONS[1],
         }),
         "calm" => Some(PresetConfig {
             color: "ocean",
@@ -84,7 +80,6 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             speed: 5.0,
             density: 0.65,
             glitch_level: GlitchLevel::Subtle,
-            description: PRESET_DESCRIPTIONS[2],
         }),
         "monolith" => Some(PresetConfig {
             color: "cosmos",
@@ -93,7 +88,6 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             speed: 4.0,
             density: 0.75,
             glitch_level: GlitchLevel::Subtle,
-            description: PRESET_DESCRIPTIONS[3],
         }),
         "storm" => Some(PresetConfig {
             color: "purple",
@@ -102,7 +96,6 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             speed: 24.0,
             density: 1.35,
             glitch_level: GlitchLevel::Intense,
-            description: PRESET_DESCRIPTIONS[4],
         }),
         "cosmos" => Some(PresetConfig {
             color: "cosmos",
@@ -111,7 +104,6 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             speed: 9.0,
             density: 1.05,
             glitch_level: GlitchLevel::Default,
-            description: PRESET_DESCRIPTIONS[5],
         }),
         "neon" => Some(PresetConfig {
             color: "neon",
@@ -120,7 +112,6 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             speed: 10.0,
             density: 1.1,
             glitch_level: GlitchLevel::Default,
-            description: PRESET_DESCRIPTIONS[6],
         }),
         "hacker" => Some(PresetConfig {
             color: "green",
@@ -129,7 +120,6 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             speed: 11.0,
             density: 1.2,
             glitch_level: GlitchLevel::Default,
-            description: PRESET_DESCRIPTIONS[7],
         }),
         _ => None,
     }
