@@ -142,19 +142,19 @@ The `publish_release` job:
 ```bash
 # 1) Update Cargo.toml version
 # 2) Commit the version bump
-git commit -am "release: 3.5.0"
+git commit -am "release: 3.6.0"
 
 # 3) Create an annotated tag
-git tag -a v3.5.0 -m v3.5.0
+git tag -a v3.6.0 -m v3.6.0
 
 # 4) Push the tag (this triggers the Release workflow)
-git push origin v3.5.0
+git push origin v3.6.0
 
 # 5) if want to delete/repush
-git tag -d v3.5.0
-git push origin :refs/tags/v3.5.0
-git tag -a v3.5.0 -m v3.5.0
-git push origin v3.5.0
+git tag -d v3.6.0
+git push origin :refs/tags/v3.6.0
+git tag -a v3.6.0 -m v3.6.0
+git push origin v3.6.0
 ```
 
 - The **Release** workflow will run on that tag.
@@ -188,11 +188,11 @@ git push origin v3.5.0
 Use the `version-to.sh` helper to bump the stable release version consistently:
 
 ```bash
-./version-to.sh 3.5.0
+./version-to.sh 3.6.0
 git diff
-git commit -m "chore: bump version to v3.5.0"
-git tag v3.5.0
-git push origin main v3.5.0
+git commit -m "chore: bump version to v3.6.0"
+git tag v3.6.0
+git push origin main v3.6.0
 ```
 
 The script updates:
@@ -202,10 +202,10 @@ The script updates:
 - `README.md` (active version examples)
 - `workflow/about-ci.md` (release flow examples)
 
-It skips changelog headings (e.g. `### v3.5.0`) to preserve historical release notes.
+It skips changelog headings (e.g. `### v3.6.0`) to preserve historical release notes.
 
 Verify the current version without making changes:
 
 ```bash
-./version-to.sh --check 3.5.0
+./version-to.sh --check 3.6.0
 ```
