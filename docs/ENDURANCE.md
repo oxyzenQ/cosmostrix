@@ -181,6 +181,21 @@ done
 | Swap | Zero throughout run | Non-zero swap indicates memory pressure |
 | Crash / panic | None | Renderer must exit cleanly on duration expiry |
 | Clean exit | Exit code 0 | Confirms graceful shutdown path |
+| Color drift | None when `auto-color-drift` is off | Fixed colors must remain sticky |
+
+### Color stability endurance
+
+Starting with v3.7.0, endurance runs should also verify color stability:
+if the session was started with an explicit color (e.g., `--color sun`),
+the color must remain unchanged for the entire duration. This is enforced
+by deterministic in-process tests that simulate many minutes of frames and
+assert the `ColorScheme` never changes. See `docs/VISUAL_STABILITY.md` for
+the full color stability policy and test descriptions.
+
+To manually verify during a long endurance run, check that the `--color`
+value you passed at startup is still active at the end of the run. If
+`auto-color-drift` is enabled (opt-in), color changes are expected and
+acceptable.
 
 ### Pass/fail logic
 

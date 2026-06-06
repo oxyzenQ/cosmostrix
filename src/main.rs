@@ -572,6 +572,7 @@ fn main() -> std::io::Result<()> {
         charset_preset,
         user_ranges,
         def_ascii,
+        auto_color_drift: args.auto_color_drift,
     };
 
     if args.benchmark {

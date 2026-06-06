@@ -50,6 +50,7 @@ pub struct CloudConfig {
     pub charset_preset: String,
     pub user_ranges: Vec<(char, char)>,
     pub def_ascii: bool,
+    pub auto_color_drift: bool,
 }
 
 impl CloudConfig {
@@ -82,6 +83,11 @@ impl CloudConfig {
         // Mouse interaction is opt-in (--mouse flag). Default: disabled for
         // terminal safety (avoids mouse escape sequence leaks on crash).
         cloud.mouse_enabled = self.mouse;
+
+        // Color drift: disabled by default. When off, autonomous palette drift
+        // from ColorEcosystem is suppressed so that explicit CLI/config/profile
+        // color remains sticky across the entire session.
+        cloud.auto_color_drift = self.auto_color_drift;
 
         if let Some(msg) = &self.message {
             cloud.set_message_border(!self.message_no_border);

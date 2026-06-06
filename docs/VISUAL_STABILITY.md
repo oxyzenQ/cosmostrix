@@ -175,6 +175,78 @@ The `glyphs_per_second` metric is a theoretical upper bound, not actual
 rendered output. Compare it against `dirty_glyphs_per_second` to understand
 how much differential rendering saves versus full-frame updates.
 
+## Color Stability Policy
+
+### Explicit Color Is Sticky by Default
+
+When a user sets a color via `--color`, `--profile`, `--preset`, `--scene`,
+or the config file, that color remains **permanently sticky** for the entire
+session unless the user explicitly changes it. This is a UX trust guarantee:
+the renderer will never silently change the color you chose.
+
+Autonomous palette drift — where the `ColorEcosystem` spontaneously
+transitions to a related color scheme (e.g., Green drifting to Green2 or
+Aurora) — is **disabled by default**. The drift code path still exists in
+the codebase (reserved for the future atmosphere engine in v4.0.0) but is
+gated behind an explicit opt-in flag.
+
+### How Color Can Change at Runtime
+
+Color may only change through these explicit, user-initiated actions:
+
+| Action | Mechanism | Sticky After? |
+|--------|-----------|--------------|
+| `--color sun` (CLI) | Sets initial scheme | Yes, permanently |
+| `--profile nightcore` (CLI) | Profile may set color | Yes, permanently |
+| `--preset cinematic` (CLI) | Preset may set color | Yes, permanently |
+| `--scene monolith` (CLI) | Scene may set color | Yes, permanently |
+| `c` / `C` keypress | Cycles color scheme | Yes, new scheme sticks |
+| Numeric hotkeys `0-9`, `!@#$%` | Jumps to specific scheme | Yes, permanently |
+| `x` / `X` keypress (scene cycle) | Scene may set color | Yes, if scene specifies one |
+| `auto-color-drift = true` (config/CLI) | Enables autonomous drift | Drifts over time (opt-in only) |
+
+### The `auto-color-drift` Flag
+
+A hidden CLI flag and config file key control autonomous palette drift:
+
+```bash
+# CLI (hidden flag)
+cosmostrix --auto-color-drift --color sun
+
+# Config file
+auto-color-drift = true
+```
+
+When enabled, the `ColorEcosystem` may spontaneously replace the current
+color scheme with an atmospherically related one every ~100 seconds on
+average (governed by `AUTONOMOUS_PALETTE_DRIFT_CHANCE = 0.03` per 3-second
+tick). The luminance, saturation, and hue climate continue to drift
+regardless of this flag — these only modulate rendering intensity, not
+the palette identity.
+
+### Color Stability Endurance Tests
+
+Nine deterministic tests verify color stability without wall-clock sleeping:
+
+1. **fixed_color_sun_stays_sun_across_simulated_minutes** — Sun remains Sun
+   for 10 simulated minutes (36,000 frames at 60fps).
+2. **profile_color_sun_stays_sun_across_simulated_minutes** — Profile-set
+   Sun remains sticky across 10 simulated minutes.
+3. **default_monolith_color_does_not_drift_without_opt_in** — Green
+   Monolith does not drift without opt-in.
+4. **auto_color_drift_is_opt_in_only** — With drift OFF, color stays; with
+   drift ON, color eventually changes to a related scheme.
+5. **pressing_c_changes_color_intentionally** — User key `c` changes color
+   and new color sticks.
+6. **pressing_shift_c_changes_color_intentionally** — User key `C` changes
+   color and new color sticks.
+7. **scene_cycle_applies_scene_color_intentionally** — Scene cycling sets
+   color (if scene specifies one) and it sticks.
+8. **benchmark_output_fields_complete** — Verifies all required benchmark
+   metrics are present in the source.
+9. **endurance_color_sticky_default_off** — 30 simulated minutes (108,000
+   frames) with spot-checks every 1,000 frames.
+
 ## Implementation Notes
 
 v3.6.0 does not:
@@ -183,3 +255,11 @@ v3.6.0 does not:
 - Change profile precedence or CLI behavior.
 - Add unsafe code or heavy dependencies.
 - Bump the version number.
+
+v3.7.0 does not:
+- Retune any visual parameters.
+- Change terminal reset/cleanup behavior.
+- Change x/X scene cycling semantics.
+- Add unsafe code or heavy dependencies.
+- Bump the version number.
+- Grow src/config_apply.rs beyond its existing LOC budget.

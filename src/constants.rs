@@ -581,6 +581,12 @@ pub const COLOR_SATURATION_CLIMATE_MAX: f32 = 1.0;
 /// At 3s ticks, 0.03 ≈ one drift attempt every ~100 seconds.
 pub const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
 
+/// Default for autonomous palette drift: disabled by default so that
+/// explicit CLI/config/profile color remains sticky. Users who want
+/// atmospheric color evolution can opt in via `--auto-color-drift` or
+/// `auto-color-drift = true` in their config file.
+pub const AUTO_COLOR_DRIFT_DEFAULT: bool = false;
+
 // ---------------------------------------------------------------------------
 // Phase 3: Cinematic runtime behavior profiles
 // ---------------------------------------------------------------------------

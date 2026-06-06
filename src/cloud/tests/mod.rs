@@ -3,6 +3,7 @@
 
 //! Core tests for the cloud module (rain, pause/resume, transitions, spawn).
 
+mod tests_color_stability;
 mod tests_edge_fade;
 mod tests_monolith;
 mod tests_phosphor;

@@ -45,6 +45,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "low-power",
     "mouse",
     "fullwidth",
+    "auto-color-drift",
 ];
 
 pub const LEGACY_CONFIG_KEYS: &[&str] = &["glitchpct", "shortpct", "rippct", "maxdpc"];
@@ -178,6 +179,7 @@ glitch-level = subtle
 low-power = false
 mouse = false
 fullwidth = false
+auto-color-drift = false
 
 # Advanced style
 bold = 1

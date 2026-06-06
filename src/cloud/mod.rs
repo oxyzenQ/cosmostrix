@@ -266,6 +266,13 @@ pub struct Cloud {
     /// increased from GLYPH_ENTRY_RAMP_MIN_SCALE to 1.0 via smoothstep,
     /// creating a cinematic top-entry cascade. None when no ramp is active.
     pub(super) glyph_entry_time: Option<Instant>,
+
+    // --- Color drift gate ---
+    /// When false (default), autonomous palette drift from ColorEcosystem is
+    /// suppressed so that explicit CLI/config/profile color remains sticky.
+    /// When true, the ecosystem may spontaneously change color schemes via
+    /// `related_schemes()` drift, providing atmospheric color evolution.
+    pub(super) auto_color_drift: bool,
 }
 
 impl Cloud {
@@ -380,6 +387,7 @@ impl Cloud {
             memory: RendererMemory::new(now),
             storytelling: StorytellingState::new(now),
             glyph_entry_time: None,
+            auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
         }
     }
 

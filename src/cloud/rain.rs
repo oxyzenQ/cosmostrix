@@ -372,11 +372,18 @@ impl Cloud {
 
         // --- Phase 3: Autonomous cinematic ecosystem tick ---
         // 1. Color ecosystem drift
-        if let Some(new_scheme) = self
+        // The ecosystem always ticks for luminance/saturation/hue climate drift
+        // (safe — only modulates rendering params, not the palette scheme).
+        // Autonomous *palette* drift (scheme replacement) is gated behind
+        // `auto_color_drift` so that explicit CLI/config/profile color
+        // remains sticky by default.
+        let maybe_drift = self
             .color_ecosystem
-            .tick(now, &mut self.mt, self.color_scheme)
-        {
-            self.set_color_scheme(new_scheme);
+            .tick(now, &mut self.mt, self.color_scheme);
+        if self.auto_color_drift {
+            if let Some(new_scheme) = maybe_drift {
+                self.set_color_scheme(new_scheme);
+            }
         }
 
         // 2. Atmospheric evolution

@@ -266,6 +266,12 @@ fn apply_config_values(
             config_touched.insert("fullwidth");
         }
     }
+    if let Some(v) = config_value(matches, cfg, "auto_color_drift", "auto-color-drift") {
+        if let Some(b) = parse_bool_config("auto-color-drift", &v) {
+            args.auto_color_drift = b;
+            config_touched.insert("auto_color_drift");
+        }
+    }
 
     apply_legacy_config(matches, args, cfg, config_touched);
 }

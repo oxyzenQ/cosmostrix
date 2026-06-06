@@ -237,6 +237,7 @@ mod cases {
             charset_preset: String::from("binary"),
             user_ranges: vec![],
             def_ascii: true,
+            auto_color_drift: false,
         }
     }
 

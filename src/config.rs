@@ -503,6 +503,13 @@ pub struct Args {
     pub bench_frames: Option<u64>,
 
     #[arg(
+        long = "auto-color-drift",
+        hide = true,
+        help = "Enable autonomous palette drift (default: off)"
+    )]
+    pub auto_color_drift: bool,
+
+    #[arg(
         short = 'g',
         long = "glitchms",
         default_value = "300,400",
