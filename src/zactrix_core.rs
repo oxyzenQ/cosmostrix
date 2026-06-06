@@ -56,6 +56,43 @@ pub(crate) fn estimates_full_redraw(
         || (total_cells > 0 && dirty_cells >= dirty_threshold_cells(total_cells, threshold_divisor))
 }
 
+/// Bounded per-stream motion texture for Monolith Rain.
+#[must_use]
+pub(crate) fn monolith_motion_factor(phase: f32, head: f32) -> f32 {
+    let wave = triangle_wave01(phase + head * 0.041);
+    (0.965 + wave * 0.070).clamp(0.965, 1.035)
+}
+
+/// Bounded brightness breathing for Monolith Rain depth layers.
+#[must_use]
+pub(crate) fn monolith_breathing_factor(phase: f32, head: f32, layer: u8) -> f32 {
+    let amplitude = match layer {
+        0 => 0.018,
+        1 => 0.026,
+        _ => 0.034,
+    };
+    let centered = triangle_wave01(phase + head * 0.027) * 2.0 - 1.0;
+    (1.0 + centered * amplitude).clamp(0.965, 1.035)
+}
+
+/// Bounded hero segment shimmer; keeps hero blocks alive without white spam.
+#[must_use]
+pub(crate) fn monolith_hero_pulse(phase: f32, segment_offset: u16, head_fraction: f32) -> f32 {
+    let wave = triangle_wave01(phase * 0.5 + segment_offset as f32 * 0.073 + head_fraction * 0.5);
+    (0.992 + wave * 0.053).clamp(0.992, 1.045)
+}
+
+/// Deterministic local spine cadence. Returns only short, sparse cadences.
+#[must_use]
+pub(crate) fn monolith_spine_cadence(phase: f32, layer: u8) -> u16 {
+    3 + (((phase.clamp(0.0, 1.0) * 11.0) as u16 + layer as u16) & 1)
+}
+
+fn triangle_wave01(value: f32) -> f32 {
+    let t = value.rem_euclid(1.0);
+    1.0 - (t * 2.0 - 1.0).abs()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,5 +116,26 @@ mod tests {
         assert!(!estimates_full_redraw(0, 1, false, 3));
         assert!(estimates_full_redraw(1200, 400, false, 3));
         assert!(estimates_full_redraw(1200, 0, true, 3));
+    }
+
+    #[test]
+    fn monolith_subtle_depth_helpers_are_bounded_and_deterministic() {
+        let motion = monolith_motion_factor(0.37, 42.0);
+        assert!((0.965..=1.035).contains(&motion));
+        assert_eq!(motion, monolith_motion_factor(0.37, 42.0));
+
+        for layer in 0..=3 {
+            let breath = monolith_breathing_factor(0.11, 88.0, layer);
+            assert!((0.965..=1.035).contains(&breath));
+        }
+
+        let hero = monolith_hero_pulse(0.61, 12, 0.42);
+        assert!((0.992..=1.045).contains(&hero));
+        assert_eq!(hero, monolith_hero_pulse(0.61, 12, 0.42));
+
+        for layer in 0..=3 {
+            let cadence = monolith_spine_cadence(0.29, layer);
+            assert!((3..=4).contains(&cadence));
+        }
     }
 }

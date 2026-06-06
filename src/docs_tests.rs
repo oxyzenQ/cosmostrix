@@ -53,6 +53,15 @@ fn simd_docs_do_not_claim_global_zero_unsafe() {
 }
 
 #[test]
+fn visual_stability_docs_cover_v39_monolith_subtlety_policy() {
+    let docs = include_str!("../docs/VISUAL_STABILITY.md");
+    assert!(docs.contains("v3.9.0 Monolith Subtlety Policy"));
+    assert!(docs.contains("Organic does not mean chaotic"));
+    assert!(docs.contains("full-height spine walls"));
+    assert!(docs.contains("Zactrix Core may guide"));
+}
+
+#[test]
 fn source_contains_only_audited_platform_recovery_unsafe() {
     let main_rs = include_str!("main.rs");
     assert_eq!(main_rs.matches("unsafe {").count(), 1);

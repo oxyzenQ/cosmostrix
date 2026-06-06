@@ -341,3 +341,22 @@ v3.7.0 polish adds:
 - Config precedence clarity documentation explaining why config `color = sun` may
   be overridden by preset/scene, and how to guarantee a final color.
 - Three config resolution tests verifying precedence is distinct from drift.
+
+## v3.9.0 Monolith Subtlety Policy
+
+Ultimate Subtle Monolith Rain uses small bounded motion and depth variation to
+make the signature scene feel more organic without changing its identity.
+Organic does not mean chaotic: stream motion texture, lane breathing, hero pulse,
+and local spine cadence must stay deterministic under seeded RNG and bounded by
+Zactrix Core helper tests.
+
+Depth changes must preserve clean empty space. Hero, hot body, mid body, dim
+trail, spine ghost, gap, and blank background remain separate visual roles.
+Subtle breathing may make active streams feel alive, but it must not create
+full-height spine walls, over-bright white spam, muddy grey residue, or bottom
+edge buildup.
+
+Zactrix Core may guide these decisions through compact probes, maps, filters,
+verifiers, and bounded history, but it remains internal architecture guidance.
+It is not Linux eBPF, not a public API, and not the v4.0.0 Full Atmosphere
+Engine.

@@ -19,6 +19,9 @@ use crate::frame::Frame;
 use crate::palette;
 use crate::runtime::{BoldMode, ColorMode, MonolithSize};
 use crate::terminal::blank_cell;
+use crate::zactrix_core::{
+    monolith_breathing_factor, monolith_hero_pulse, monolith_motion_factor, monolith_spine_cadence,
+};
 
 use super::monolith_glyphs::{segment_char, spine_char};
 use super::render::DrawCtx;
@@ -80,6 +83,12 @@ struct ActivationParams {
     palette_slot: u8,
 }
 
+#[derive(Clone, Copy, Debug)]
+struct SpineTone {
+    breath: f32,
+    cadence: u16,
+}
+
 impl Segment {
     const fn empty() -> Self {
         Self {
@@ -96,6 +105,7 @@ struct MonolithStream {
     col: u16,
     head: f32,
     speed_mult: f32,
+    phase: f32,
     span: u16,
     palette_slot: u8,
     layer: u8,
@@ -111,6 +121,7 @@ impl MonolithStream {
             col,
             head: 0.0,
             speed_mult: 1.0,
+            phase: 0.0,
             span: MIN_STREAM_SPAN,
             palette_slot: 0,
             layer: 0,
@@ -125,6 +136,7 @@ impl MonolithStream {
         self.col = col;
         self.head = 0.0;
         self.speed_mult = 1.0;
+        self.phase = 0.0;
         self.span = MIN_STREAM_SPAN;
         self.palette_slot = 0;
         self.layer = 0;
@@ -339,7 +351,8 @@ impl MonolithRain {
             if max_sim_delta > Duration::from_millis(0) {
                 elapsed = elapsed.min(max_sim_delta);
             }
-            let delta = elapsed.as_secs_f32() * speed * stream.speed_mult * resume_blend;
+            let motion = monolith_motion_factor(stream.phase, stream.head);
+            let delta = elapsed.as_secs_f32() * speed * stream.speed_mult * motion * resume_blend;
             stream.head += delta.max(0.0);
             stream.last_time = Some(now);
 
@@ -437,6 +450,7 @@ fn activate_stream(
     stream.active = true;
     stream.head = 0.0;
     stream.speed_mult = varied_speed_mult(rand_chance.sample(rng));
+    stream.phase = rand_chance.sample(rng);
     stream.span = varied_span(params.lines, rand_chance.sample(rng));
     stream.palette_slot = params.palette_slot;
     stream.layer = layer_from_roll(rand_chance.sample(rng));
@@ -512,6 +526,10 @@ fn draw_spine(
     drawn_cells: &mut Vec<DrawnCell>,
 ) {
     let head_line = stream.head.floor() as i32;
+    let tone = SpineTone {
+        breath: monolith_breathing_factor(stream.phase, stream.head, stream.layer),
+        cadence: monolith_spine_cadence(stream.phase, stream.layer),
+    };
     for idx in 0..stream.segment_count as usize {
         let segment = stream.segments[idx];
         let bottom = head_line - segment.offset as i32;
@@ -519,10 +537,26 @@ fn draw_spine(
         let envelope = spine_envelope(segment.kind);
 
         for line_i in (top - envelope)..top {
-            draw_spine_cell(stream, ctx, frame, drawn_cells, line_i, segment.offset);
+            draw_spine_cell(
+                stream,
+                ctx,
+                frame,
+                drawn_cells,
+                line_i,
+                segment.offset,
+                tone,
+            );
         }
         for line_i in (bottom + 1)..=(bottom + envelope) {
-            draw_spine_cell(stream, ctx, frame, drawn_cells, line_i, segment.offset);
+            draw_spine_cell(
+                stream,
+                ctx,
+                frame,
+                drawn_cells,
+                line_i,
+                segment.offset,
+                tone,
+            );
         }
     }
 }
@@ -534,12 +568,14 @@ fn draw_spine_cell(
     drawn_cells: &mut Vec<DrawnCell>,
     line_i: i32,
     segment_offset: u16,
+    tone: SpineTone,
 ) {
     if line_i < 0 || line_i >= ctx.lines as i32 {
         return;
     }
     let line = line_i as u16;
-    if (line + stream.col + segment_offset) % SPINE_PERIOD != 0 {
+    let cadence = tone.cadence.max(SPINE_PERIOD);
+    if (line + stream.col + segment_offset) % cadence != 0 {
         return;
     }
 
@@ -550,7 +586,7 @@ fn draw_spine_cell(
         line,
         stream.col,
         BrightnessLevel::Ghost,
-        edge_fade * SPINE_BRIGHTNESS * layer_brightness(stream.layer) * 0.72,
+        edge_fade * SPINE_BRIGHTNESS * layer_brightness(stream.layer) * 0.72 * tone.breath,
     );
     frame.set(
         stream.col,
@@ -577,6 +613,7 @@ fn draw_segments(
 ) {
     let head_line = stream.head.floor() as i32;
     let frac = stream.head.fract().clamp(0.0, 1.0);
+    let breath = monolith_breathing_factor(stream.phase, stream.head, stream.layer);
     for idx in 0..stream.segment_count as usize {
         let segment = stream.segments[idx];
         let bottom = head_line - segment.offset as i32;
@@ -591,7 +628,7 @@ fn draw_segments(
             let level = segment_level(segment.kind, pos_from_bottom);
             let edge_fade = viewport_edge_fade(line, ctx.lines);
             let pulse = if matches!(level, BrightnessLevel::Hot | BrightnessLevel::Core) {
-                1.0 + frac * 0.08
+                monolith_hero_pulse(stream.phase, segment.offset, frac)
             } else {
                 1.0
             };
@@ -601,7 +638,7 @@ fn draw_segments(
                 line,
                 stream.col,
                 level,
-                edge_fade * layer_brightness(stream.layer) * pulse,
+                edge_fade * layer_brightness(stream.layer) * breath * pulse,
             );
             let bold = bold_for_level(ctx.bold_mode, level, line, stream.col)
                 && edge_fade >= EDGE_FADE_BOLD_THRESHOLD;

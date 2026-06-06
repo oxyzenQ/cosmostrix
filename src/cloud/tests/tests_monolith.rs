@@ -360,6 +360,35 @@ fn active_monolith_streams_update_speed_without_respawn() {
 }
 
 #[test]
+fn monolith_subtle_phase_behavior_is_deterministic_under_seeded_rng() {
+    let mut first = make_monolith_cloud(96, 36);
+    let mut second = make_monolith_cloud(96, 36);
+    let mut first_frame = Frame::new(96, 36, first.palette.bg);
+    let mut second_frame = Frame::new(96, 36, second.palette.bg);
+    let start = Instant::now();
+
+    first.last_spawn_time = start - Duration::from_secs(1);
+    second.last_spawn_time = first.last_spawn_time;
+    first.last_phosphor_time = start;
+    second.last_phosphor_time = start;
+
+    for idx in 0..32 {
+        let now = start + Duration::from_millis(idx * 16);
+        first.rain_at(&mut first_frame, now);
+        second.rain_at(&mut second_frame, now);
+        first_frame.clear_dirty();
+        second_frame.clear_dirty();
+    }
+
+    assert_eq!(
+        first.monolith_rain.active_heads_for_test(),
+        second.monolith_rain.active_heads_for_test(),
+        "seeded monolith phase motion should be deterministic"
+    );
+    assert_eq!(visible_chars(&first_frame), visible_chars(&second_frame));
+}
+
+#[test]
 fn monolith_resize_reset_clears_draw_caches_and_requests_semantic_sync() {
     let mut cloud = make_monolith_cloud(64, 24);
     let mut frame = Frame::new(64, 24, cloud.palette.bg);
