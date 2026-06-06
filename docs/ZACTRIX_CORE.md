@@ -37,7 +37,11 @@ the architecture layer is real code, not a marketing-only skeleton.
 ## Safety Rules
 
 - Zactrix Core is internal and not a public API.
-- It must remain stable Rust with no unsafe code.
+- Zactrix Core itself must remain stable Rust and must not introduce unsafe
+  code.
+- Project policy is no new unsafe in renderer/core paths unless it is
+  explicitly audited with local safety invariants. Existing platform recovery
+  FFI must stay isolated and documented.
 - It must not change terminal cleanup/reset semantics.
 - It must not enable autonomous palette drift by default.
 - Fixed CLI, config, or profile colors must remain sticky unless

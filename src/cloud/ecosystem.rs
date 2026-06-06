@@ -226,7 +226,7 @@ fn related_schemes(scheme: ColorScheme) -> &'static [ColorScheme] {
         Meteor => &[Fire, Red, Mars, Supernova],
         Eclipse => &[BlackHole, DeepSpace, Cosmos, Nebula],
         DeepSpace => &[Cosmos, BlackHole, Galaxy, Stars],
-        // Catch-all for future variants
+        // Future-proof fallback if ColorScheme gains variants.
         #[allow(unreachable_patterns)]
         _ => &[Green, Blue, Cyan],
     }
@@ -395,7 +395,7 @@ impl RendererMemory {
         now: Instant,
         anomaly_density: f32,
         rain_density: f32,
-        #[allow(unused_variables)] luminance: f32,
+        _luminance: f32,
     ) {
         let elapsed = now
             .saturating_duration_since(self.last_sample)

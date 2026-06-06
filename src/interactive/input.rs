@@ -72,6 +72,8 @@ pub(super) fn is_plain_printable_key(key: &crossterm::event::KeyEvent) -> bool {
             || key.modifiers == KeyModifiers::NONE)
 }
 
+// Runtime key handling coordinates cloud, frame, scene, charset, and terminal
+// recovery state in one dispatch point; splitting would obscure side effects.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_keybinding(
     cloud: &mut Cloud,

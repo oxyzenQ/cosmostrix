@@ -23,9 +23,9 @@ The renderer already achieves stable 60 fps on typical terminals (200×50 =
 baseline (AVX2 + SSE4.2 + BMI1/BMI2/FMA). The per-cell workload is dominated
 by branching logic, indirect memory access, and enum dispatch — all of which
 defeat SIMD vectorization. Introducing `unsafe` SIMD intrinsics would violate
-the project's zero-`unsafe` policy, add significant maintenance burden, and
-yield an estimated 5–15% improvement that is imperceptible at already-adequate
-frame rates.
+the project's no-new-unsafe renderer/core policy, add significant maintenance
+burden, and yield an estimated 5–15% improvement that is imperceptible at
+already-adequate frame rates.
 
 For SIMD to become worthwhile, the workload would need to scale by ~800×
 (8M+ cells/frame), data layout would need restructuring to contiguous SoA format,
@@ -56,8 +56,8 @@ level. LLVM's auto-vectorizer is active with the most aggressive settings:
 
 ### 2.3 Constraints (per `RULES.md`)
 
-Rust 1.81.0 stable, Clippy `-D warnings`, **zero `unsafe`**, source files under
-1,000 lines.
+Rust 1.81.0 stable, Clippy `-D warnings`, no new unsafe in renderer/core paths
+unless explicitly audited, source files under 1,000 lines.
 
 ---
 
@@ -205,7 +205,7 @@ Dominated by sequential `StdRng` sampling. RNG is inherently non-parallelizable.
 | Performance gain | 5–15% (imperceptible at 60 fps) |
 | Implementation cost | High (unsafe intrinsics, arch gating) |
 | Maintenance cost | High (compiler sensitivity, SIMD audits) |
-| Policy compliance | **Violates zero-`unsafe` policy** |
+| Policy compliance | **Violates no-new-unsafe renderer/core policy** |
 | Benefit-to-cost ratio | **Unfavorable** |
 
 ### Rationale
@@ -217,8 +217,8 @@ Dominated by sequential `StdRng` sampling. RNG is inherently non-parallelizable.
    different effect combinations per cell by design.
 4. **Workload is too small** — 10K cells = 1,250 AVX2 iterations; overhead
    is proportionally significant.
-5. **Unsafe code is a policy violation** — the zero-`unsafe` invariant should
-   not be broken for imperceptible gains.
+5. **Unsafe performance code is a policy violation** — the no-new-unsafe
+   renderer/core invariant should not be broken for imperceptible gains.
 
 ### Recommended Alternatives
 

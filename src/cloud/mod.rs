@@ -70,8 +70,8 @@ use ecosystem::{
 use monolith::MonolithRain;
 use state::{AnomalyZone, ColumnStatus, MsgChr};
 
-// --- Named constants are centralized in constants.rs ---
-
+// Cloud is crate-facing but exposes internal state to split submodules/tests.
+// Boolean fields mirror existing CLI/runtime flags and are kept explicit.
 #[allow(private_interfaces, clippy::struct_excessive_bools)]
 pub struct Cloud {
     pub(super) lines: u16,
@@ -276,6 +276,8 @@ pub struct Cloud {
 }
 
 impl Cloud {
+    // Constructor mirrors the public runtime config knobs; grouping them now
+    // would churn stable call sites without reducing renderer complexity.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         color_mode: ColorMode,

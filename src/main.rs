@@ -131,6 +131,12 @@ pub fn spawn_kill9_terminal_guard() {
         return;
     }
 
+    // SAFETY: this Linux-only guard calls libc APIs that Rust cannot model
+    // safely (`tcgetattr`, `fork`, signal-mask setup, `prctl`, `sigwait`, and
+    // `_exit`). We only enter after confirming stdin/stdout are TTYs. `orig`
+    // and `set` are initialized by the corresponding libc calls before
+    // `assume_init`, the child process does not return into Rust application
+    // flow, and restoration is limited to best-effort terminal recovery.
     unsafe {
         let mut orig: std::mem::MaybeUninit<libc::termios> = std::mem::MaybeUninit::uninit();
         if libc::tcgetattr(libc::STDIN_FILENO, orig.as_mut_ptr()) != 0 {

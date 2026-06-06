@@ -165,6 +165,8 @@ impl DrawCtx<'_> {
         (line as f32) > wave_line + jitter
     }
 
+    // Attribute calculation is the renderer's convergence point for palette,
+    // position, glyph, transition, and head-state signals.
     #[inline]
     #[allow(clippy::too_many_arguments)]
     pub fn get_attr(

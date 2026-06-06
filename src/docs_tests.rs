@@ -36,11 +36,30 @@ fn zactrix_core_doc_exists_and_covers_architecture_terms() {
     }
     assert!(docs.contains("not Linux eBPF"));
     assert!(docs.contains("not a public API"));
+    assert!(docs.contains("must not introduce unsafe"));
+    assert!(docs.contains("no new unsafe in renderer/core paths"));
     assert!(docs.contains("v3.9.0 Ultimate Subtle Monolith Rain"));
     assert!(docs.contains("v4.0.0"));
 
     let readme = include_str!("../README.md");
     assert!(readme.contains("docs/ZACTRIX_CORE.md"));
+}
+
+#[test]
+fn simd_docs_do_not_claim_global_zero_unsafe() {
+    let docs = include_str!("../docs/SIMD_FEASIBILITY.md");
+    assert!(!docs.contains("zero `unsafe`"));
+    assert!(docs.contains("no-new-unsafe renderer/core policy"));
+}
+
+#[test]
+fn source_contains_only_audited_platform_recovery_unsafe() {
+    let main_rs = include_str!("main.rs");
+    assert_eq!(main_rs.matches("unsafe {").count(), 1);
+    assert!(main_rs.contains("SAFETY: this Linux-only guard"));
+
+    let zactrix_core = include_str!("zactrix_core.rs");
+    assert!(!zactrix_core.contains("unsafe {"));
 }
 
 #[test]
