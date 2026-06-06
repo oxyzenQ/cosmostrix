@@ -420,9 +420,18 @@ pub fn lookup_theme(name: &str) -> Option<ColorScheme> {
 }
 
 #[must_use]
-#[cfg(test)]
 pub fn metadata_for_scheme(scheme: ColorScheme) -> Option<&'static ThemeInfo> {
     THEMES.iter().find(|theme| theme.scheme == scheme)
+}
+
+#[must_use]
+pub fn canonical_name_for_scheme(scheme: ColorScheme) -> Option<&'static str> {
+    metadata_for_scheme(scheme).map(|theme| theme.name)
+}
+
+#[must_use]
+pub fn canonical_name_for_input(name: &str) -> Option<&'static str> {
+    lookup_theme(name).and_then(canonical_name_for_scheme)
 }
 
 #[must_use]
@@ -613,6 +622,19 @@ mod tests {
     }
 
     #[test]
+    fn alias_inputs_have_canonical_display_names() {
+        assert_eq!(canonical_name_for_input("white"), Some("snow"));
+        assert_eq!(canonical_name_for_input("silver"), Some("gray"));
+        assert_eq!(canonical_name_for_input("grey"), Some("gray"));
+        assert_eq!(canonical_name_for_input("deepblue"), Some("deepspace"));
+        assert_eq!(canonical_name_for_input("deep-blue"), Some("deepspace"));
+        assert_eq!(canonical_name_for_input("deep_blue"), Some("deepspace"));
+        assert_eq!(canonical_name_for_input("snow"), Some("snow"));
+        assert_eq!(canonical_name_for_input("gray"), Some("gray"));
+        assert_eq!(canonical_name_for_input("deepspace"), Some("deepspace"));
+    }
+
+    #[test]
     fn parser_is_case_insensitive() {
         assert_eq!(parse_color_scheme("deepSpace"), Ok(ColorScheme::DeepSpace));
         assert_eq!(parse_color_scheme("BLACK-HOLE"), Ok(ColorScheme::BlackHole));
@@ -657,6 +679,9 @@ mod tests {
         for theme in themes() {
             assert!(detail.contains(theme.name), "missing {}", theme.name);
         }
+        assert!(detail.contains("aliases: white"));
+        assert!(detail.contains("aliases: grey, silver"));
+        assert!(detail.contains("deepblue, deep-blue, deep_blue"));
     }
 
     #[test]
