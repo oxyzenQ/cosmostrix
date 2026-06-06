@@ -7,6 +7,7 @@ mod tests_edge_fade;
 mod tests_monolith;
 mod tests_phosphor;
 mod tests_scene;
+mod tests_visual_depth;
 
 use std::time::{Duration, Instant};
 

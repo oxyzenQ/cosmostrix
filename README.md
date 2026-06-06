@@ -266,6 +266,9 @@ Normal app exit is non-destructive and should preserve visible shell history.
 For terminal behavior, background modes, tmux/SSH notes, and Windows recovery
 expectations, see [Terminal Compatibility](docs/TERMINAL_COMPATIBILITY.md).
 
+For visual depth expectations and throughput stability interpretation, see
+[Visual Stability](docs/VISUAL_STABILITY.md).
+
 or, if `cosmostrix` is not available:
 
 ```bash

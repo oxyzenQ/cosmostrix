@@ -620,3 +620,210 @@ fn monolith_bottom_residue_stays_bounded() {
         ratio * 100.0
     );
 }
+
+// ── Visual depth regression guards (v3.6.0) ───────────────────────
+
+#[test]
+fn monolith_color_for_level_ghost_is_faintest() {
+    use crate::cloud::monolith::BrightnessLevel;
+    use crate::cloud::render::DrawCtx;
+    use crossterm::style::Color;
+
+    let colors: Vec<Color> = vec![
+        Color::Rgb { r: 0, g: 0, b: 20 },  // 0: darkest
+        Color::Rgb { r: 0, g: 30, b: 5 },  // 1
+        Color::Rgb { r: 0, g: 60, b: 10 }, // 2
+        Color::Rgb {
+            r: 0,
+            g: 100,
+            b: 15,
+        }, // 3
+        Color::Rgb {
+            r: 0,
+            g: 140,
+            b: 25,
+        }, // 4
+        Color::Rgb {
+            r: 0,
+            g: 180,
+            b: 35,
+        }, // 5
+        Color::Rgb {
+            r: 0,
+            g: 220,
+            b: 45,
+        }, // 6
+        Color::Rgb {
+            r: 0,
+            g: 250,
+            b: 55,
+        }, // 7: brightest
+    ];
+    let empty: &[Color] = &[];
+    let palette_slices: [&[Color]; crate::constants::MAX_PALETTE_SLOTS] =
+        [&colors, empty, empty, empty];
+    let glitch_map = bitvec::bitvec![0; 100];
+    let ctx = DrawCtx {
+        lines: 10,
+        full_width: false,
+        shading_distance: false,
+        bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        color_mode: crate::runtime::ColorMode::TrueColor,
+        bold_mode: crate::runtime::BoldMode::Off,
+        glitchy: false,
+        last_glitch_time: std::time::Instant::now(),
+        next_glitch_time: std::time::Instant::now(),
+        palette_slices,
+        active_palette_slot: 0,
+        transitioning: false,
+        color_map: &[],
+        glitch_map: glitch_map.as_bitslice(),
+        char_pool: &['A'],
+        previous_char_pool: &[],
+        charset_wave_line: None,
+        color_wave_line: None,
+        mouse_col: u16::MAX,
+        mouse_line: u16::MAX,
+        flash_col: u16::MAX,
+        flash_line: u16::MAX,
+        flash_time: None,
+    };
+
+    let ghost = crate::cloud::monolith::color_for_level(&ctx, 0, 0, 0, BrightnessLevel::Ghost, 1.0);
+    let dim = crate::cloud::monolith::color_for_level(&ctx, 0, 1, 0, BrightnessLevel::Dim, 1.0);
+    let mid = crate::cloud::monolith::color_for_level(&ctx, 0, 2, 0, BrightnessLevel::Mid, 1.0);
+    let hot = crate::cloud::monolith::color_for_level(&ctx, 0, 3, 0, BrightnessLevel::Hot, 1.0);
+    let core = crate::cloud::monolith::color_for_level(&ctx, 0, 4, 0, BrightnessLevel::Core, 1.0);
+
+    // Ghost and Dim should use the faintest visible color (index 0)
+    assert_eq!(
+        ghost, dim,
+        "ghost and dim should be equal — both use first_visible"
+    );
+    // Mid should be strictly brighter than dim
+    assert_ne!(mid, ghost, "mid should differ from ghost/dim");
+    // Hot should be brighter than mid
+    assert_ne!(hot, mid, "hot should differ from mid");
+    // Core should be brightest
+    assert_ne!(core, hot, "core should differ from hot");
+    // Core should be close to full white (bloomed)
+    if let Color::Rgb { r, g, b } = core.unwrap() {
+        assert!(
+            r > 200 || g > 200 || b > 200,
+            "core should have a bright bloom"
+        );
+    }
+}
+
+#[test]
+fn monolith_background_muddy_residue_guard() {
+    // Verify that ghost/dim cells for dark backgrounds use distinct
+    // palette indices (not mid-range grey) that would create muddy residue
+    // on black backgrounds. The key invariant: Ghost and Dim should NOT
+    // map to the middle of the palette, which would appear as muddy grey
+    // against a black background.
+    use crate::cloud::monolith::BrightnessLevel;
+    use crate::cloud::render::DrawCtx;
+    use crossterm::style::Color;
+
+    let colors: Vec<Color> = (0..=7)
+        .map(|i| Color::Rgb {
+            r: 0,
+            g: i * 36, // 0..252 gradient
+            b: 0,
+        })
+        .collect();
+    let empty: &[Color] = &[];
+    let palette_slices: [&[Color]; crate::constants::MAX_PALETTE_SLOTS] =
+        [&colors, empty, empty, empty];
+    let glitch_map = bitvec::bitvec![0; 100];
+    let ctx = DrawCtx {
+        lines: 10,
+        full_width: false,
+        shading_distance: false,
+        bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        color_mode: crate::runtime::ColorMode::TrueColor,
+        bold_mode: crate::runtime::BoldMode::Off,
+        glitchy: false,
+        last_glitch_time: std::time::Instant::now(),
+        next_glitch_time: std::time::Instant::now(),
+        palette_slices,
+        active_palette_slot: 0,
+        transitioning: false,
+        color_map: &[],
+        glitch_map: glitch_map.as_bitslice(),
+        char_pool: &['0'],
+        previous_char_pool: &[],
+        charset_wave_line: None,
+        color_wave_line: None,
+        mouse_col: u16::MAX,
+        mouse_line: u16::MAX,
+        flash_col: u16::MAX,
+        flash_line: u16::MAX,
+        flash_time: None,
+    };
+
+    let ghost_idx =
+        crate::cloud::monolith::color_for_level(&ctx, 0, 0, 0, BrightnessLevel::Ghost, 1.0);
+    let dim_idx = crate::cloud::monolith::color_for_level(&ctx, 0, 1, 0, BrightnessLevel::Dim, 1.0);
+    let mid_idx = crate::cloud::monolith::color_for_level(&ctx, 0, 2, 0, BrightnessLevel::Mid, 1.0);
+
+    // Ghost and Dim should be at the faintest end (not middle)
+    let ghost_rgb = ghost_idx.unwrap();
+    let dim_rgb = dim_idx.unwrap();
+    let mid_rgb = mid_idx.unwrap();
+
+    // Verify ghost/dim are NOT in the middle 40-60% of the palette
+    // which would appear as muddy grey on black background
+    if let Color::Rgb {
+        r: gr,
+        g: gg,
+        b: gb,
+    } = ghost_rgb
+    {
+        let sum = gr as u32 + gg as u32 + gb as u32;
+        assert!(
+            sum < 80,
+            "ghost cell should be very dim on black bg (got sum={})",
+            sum
+        );
+    }
+    if let Color::Rgb {
+        r: gr,
+        g: gg,
+        b: gb,
+    } = dim_rgb
+    {
+        let sum = gr as u32 + gg as u32 + gb as u32;
+        assert!(
+            sum < 80,
+            "dim cell should be very dim on black bg (got sum={})",
+            sum
+        );
+    }
+    // Mid should be noticeably brighter than ghost/dim
+    if let Color::Rgb {
+        r: mr,
+        g: mg,
+        b: mb,
+    } = mid_rgb
+    {
+        let mid_sum = mr as u32 + mg as u32 + mb as u32;
+        let ghost_sum = if let Color::Rgb {
+            r: gr,
+            g: gg,
+            b: gb,
+        } = ghost_rgb
+        {
+            gr as u32 + gg as u32 + gb as u32
+        } else {
+            0
+        };
+        assert!(
+            mid_sum > ghost_sum,
+            "mid should be brighter than ghost (mid_sum={} vs ghost_sum={})",
+            mid_sum,
+            ghost_sum
+        );
+    }
+}

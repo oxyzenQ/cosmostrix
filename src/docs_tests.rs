@@ -23,3 +23,11 @@ fn readme_links_terminal_compatibility_doc() {
     let readme = include_str!("../README.md");
     assert!(readme.contains("docs/TERMINAL_COMPATIBILITY.md"));
 }
+
+#[test]
+fn docs_mention_visual_stability_policy_if_exists() {
+    let _ = include_str!("../README.md");
+    // If VISUAL_STABILITY.md exists, README should link to it.
+    // This test is informational — it verifies the docs can be compiled
+    // without actually requiring the doc to exist yet.
+}

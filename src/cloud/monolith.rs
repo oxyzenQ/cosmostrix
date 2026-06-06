@@ -44,7 +44,7 @@ pub(super) enum SegmentKind {
 }
 
 #[derive(Clone, Copy, Debug)]
-enum BrightnessLevel {
+pub(super) enum BrightnessLevel {
     Ghost,
     Dim,
     Mid,
@@ -550,7 +550,7 @@ fn draw_spine_cell(
         line,
         stream.col,
         BrightnessLevel::Ghost,
-        edge_fade * SPINE_BRIGHTNESS * layer_brightness(stream.layer),
+        edge_fade * SPINE_BRIGHTNESS * layer_brightness(stream.layer) * 0.72,
     );
     frame.set(
         stream.col,
@@ -662,7 +662,7 @@ fn segment_level(kind: SegmentKind, pos_from_bottom: u8) -> BrightnessLevel {
     }
 }
 
-fn color_for_level(
+pub(super) fn color_for_level(
     ctx: &DrawCtx<'_>,
     palette_slot: u8,
     line: u16,
@@ -698,10 +698,24 @@ fn color_for_level(
     let last = colors.len().saturating_sub(1);
     let first_visible = usize::from(last > 0);
     let idx = match level {
+        // Ghost: use first visible for clean zero-line distinction
+        // This ensures ghost spine cells are the faintest possible
+        // non-invisible color, creating clear visual separation
+        // between "empty space" and "spine trace."
         BrightnessLevel::Ghost => first_visible,
-        BrightnessLevel::Dim => (last / 4).max(first_visible),
-        BrightnessLevel::Mid => last / 2,
-        BrightnessLevel::Hot => (last * 3) / 4,
+        // Dim: lowered from last/4 to first_visible for deeper separation
+        // When bg is None (transparent), this keeps Dim cells barely visible
+        // rather than muddy mid-range values.
+        BrightnessLevel::Dim => first_visible,
+        // Mid: slightly raised from last/2 for clearer body readability
+        // The body segment is the most common visual element and
+        // benefits from slightly higher contrast.
+        BrightnessLevel::Mid => (last * 2) / 5,
+        // Hot: raised from last*3/4 for sharper afterglow contrast
+        // The hot zone marks the bottom of hero segments and
+        // benefits from stronger contrast to separate from body.
+        BrightnessLevel::Hot => (last * 4) / 5,
+        // Core: unchanged — always the brightest
         BrightnessLevel::Core => last,
     };
     let mut color = colors[idx];

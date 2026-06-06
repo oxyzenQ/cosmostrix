@@ -53,6 +53,26 @@ threshold.
   path is likely to cross its full-redraw threshold. They are not the same as
   `dirty_all_frames`.
 
+### Throughput Stability
+
+The premium benchmark (`--benchmark`) reports several frame-time stability
+metrics alongside raw FPS:
+
+- `p95_frame_time` and `p99_frame_time` are percentile measurements of frame
+  computation time, computed after trimming the top and bottom 1% of samples
+  to eliminate cold-path and OS scheduling noise.
+- `frame_time_stability` classifies jitter (frame time standard deviation)
+  as excellent (< 0.3ms), good (< 0.5ms), moderate (< 2.0ms), or high.
+- `frame_jitter` reports the raw standard deviation in milliseconds.
+
+**Interpreting stability**: A benchmark showing high `avg_fps` with
+`frame_time_stability` of "moderate" or "high" indicates uneven frame
+pacing that may cause visible micro-stutter despite the high average.
+Always check `p95_frame_time` and `p99_frame_time` alongside `avg_fps`.
+
+For detailed visual depth expectations and stability metric interpretation,
+see [Visual Stability](../docs/VISUAL_STABILITY.md).
+
 ## Benchmark Sizes
 
 The default benchmark size is 120x40:
