@@ -85,7 +85,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v3.7.0"
+TAG="v3.8.0"
 PLATFORM="linux-x86_64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
@@ -471,8 +471,8 @@ architecture discipline only, not Linux eBPF or a public API.
 
 ## Versioning
 
-Cosmostrix uses SemVer for package versions, e.g. `3.7.0`.
-Git tags and GitHub Releases use a leading `v`, e.g. `v3.7.0`.
+Cosmostrix uses SemVer for package versions, e.g. `3.8.0`.
+Git tags and GitHub Releases use a leading `v`, e.g. `v3.8.0`.
 Stable releases do not use `-stable.N` suffixes.
 
 ## Version And Updates
