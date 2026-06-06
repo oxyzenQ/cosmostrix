@@ -658,7 +658,7 @@ pub fn print_defaults() {
     println!("cosmostrix \\");
     println!("  --scene monolith \\");
     println!("  --fps 60 \\");
-    println!("  --speed 10 \\");
+    println!("  --speed 20 \\");
     println!("  --density 0.75 \\");
     println!("  --color cosmos \\");
     println!("  --charset binary \\");

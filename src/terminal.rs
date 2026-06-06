@@ -533,25 +533,35 @@ pub fn restore_terminal_best_effort() {
     let _ = out.execute(event::DisableMouseCapture);
     let _ = out.execute(event::DisableFocusChange);
     let _ = out.execute(event::DisableBracketedPaste);
-    let _ = out.write_all(TERMINAL_RESET_SEQUENCE.as_bytes());
+    let _ = out.write_all(TERMINAL_RESTORE_SEQUENCE.as_bytes());
     let _ = out.execute(SetAttribute(Attribute::Reset));
     let _ = out.execute(ResetColor);
     let _ = out.execute(cursor::Show);
     let _ = out.execute(terminal::EnableLineWrap);
     let _ = out.execute(terminal::LeaveAlternateScreen);
-    let _ = out.execute(cursor::MoveTo(0, 0));
-    let _ = out.execute(terminal::Clear(terminal::ClearType::All));
-    let _ = out.execute(terminal::Clear(terminal::ClearType::Purge));
-    let _ = out.execute(cursor::MoveTo(0, 0));
     let _ = terminal::disable_raw_mode();
     let _ = out.flush();
 }
+
+pub const TERMINAL_RESTORE_SEQUENCE: &str =
+    "\x1b[0m\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?2004l\x1b[?1004l\x1b[?1049l\x1b[?25h\x1b[0m";
 
 pub const TERMINAL_RESET_SEQUENCE: &str =
     "\x1b[0m\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?2004l\x1b[?1004l\x1b[?1049l\x1b[?25h\x1b[H\x1b[2J\x1b[3J\x1b[H\x1b[0m";
 
 pub fn reset_terminal_emergency() {
     restore_terminal_best_effort();
+    let mut out = stdout();
+    let _ = out.write_all(TERMINAL_RESET_SEQUENCE.as_bytes());
+    let _ = out.execute(SetAttribute(Attribute::Reset));
+    let _ = out.execute(ResetColor);
+    let _ = out.execute(cursor::Show);
+    let _ = out.execute(terminal::LeaveAlternateScreen);
+    let _ = out.execute(cursor::MoveTo(0, 0));
+    let _ = out.execute(terminal::Clear(terminal::ClearType::All));
+    let _ = out.execute(terminal::Clear(terminal::ClearType::Purge));
+    let _ = out.execute(cursor::MoveTo(0, 0));
+    let _ = out.flush();
     #[cfg(unix)]
     {
         if stdin().is_terminal() || stdout().is_terminal() {
@@ -573,7 +583,7 @@ pub fn blank_cell(bg: Option<Color>) -> Cell {
 
 #[cfg(test)]
 mod tests {
-    use super::TERMINAL_RESET_SEQUENCE;
+    use super::{TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE};
 
     #[derive(Default)]
     struct CleanupFlags {
@@ -628,7 +638,36 @@ mod tests {
     }
 
     #[test]
-    fn emergency_reset_sequence_disables_terminal_reporting_modes() {
+    fn normal_restore_sequence_disables_terminal_reporting_modes() {
+        for mode in [
+            "?1000l", "?1002l", "?1003l", "?1006l", "?1015l", "?2004l", "?1004l", "?1049l", "?25h",
+        ] {
+            assert!(
+                TERMINAL_RESTORE_SEQUENCE.contains(mode),
+                "missing terminal restore mode {mode}"
+            );
+        }
+        assert!(TERMINAL_RESTORE_SEQUENCE.ends_with("\x1b[0m"));
+    }
+
+    #[test]
+    fn normal_restore_sequence_does_not_clear_screen_or_scrollback() {
+        assert!(
+            !TERMINAL_RESTORE_SEQUENCE.contains("\x1b[2J"),
+            "normal restore must not clear the visible screen"
+        );
+        assert!(
+            !TERMINAL_RESTORE_SEQUENCE.contains("\x1b[3J"),
+            "normal restore must not purge scrollback"
+        );
+        assert!(
+            !TERMINAL_RESTORE_SEQUENCE.contains("\x1b[H"),
+            "normal restore must not move cursor home on the shell screen"
+        );
+    }
+
+    #[test]
+    fn reset_terminal_sequence_disables_terminal_reporting_modes() {
         for mode in [
             "?1000l", "?1002l", "?1003l", "?1006l", "?1015l", "?2004l", "?1004l", "?1049l", "?25h",
         ] {
@@ -641,7 +680,7 @@ mod tests {
     }
 
     #[test]
-    fn emergency_reset_sequence_clears_screen_and_scrollback() {
+    fn reset_terminal_sequence_clears_screen_and_scrollback() {
         assert!(
             TERMINAL_RESET_SEQUENCE.contains("\x1b[2J"),
             "reset sequence must clear the visible screen"
@@ -657,7 +696,7 @@ mod tests {
     }
 
     #[test]
-    fn emergency_reset_sequence_is_idempotent() {
+    fn reset_terminal_sequence_is_idempotent() {
         let repeated = format!("{TERMINAL_RESET_SEQUENCE}{TERMINAL_RESET_SEQUENCE}");
         for required in ["\x1b[0m", "\x1b[?1049l", "\x1b[?25h", "\x1b[2J", "\x1b[3J"] {
             assert!(
@@ -692,6 +731,20 @@ mod tests {
                 "disable-raw",
             ]
         );
+        let mut flags = CleanupFlags {
+            mouse: true,
+            focus: true,
+            bracketed_paste: true,
+            cursor: true,
+            wrap: true,
+            alternate: true,
+            raw: true,
+            cleaned: false,
+        };
+        let plan = flags.cleanup_plan();
+        assert!(!plan.contains(&"clear-screen"));
+        assert!(!plan.contains(&"purge-scrollback"));
+        assert!(!plan.contains(&"cursor-home"));
         assert!(flags.cleanup_plan().is_empty());
     }
 }

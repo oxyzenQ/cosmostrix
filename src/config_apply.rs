@@ -638,7 +638,7 @@ mod tests {
         assert_eq!(args.scene.as_deref(), Some("monolith"));
         assert_eq!(args.color, "cosmos");
         assert_eq!(args.charset, "binary");
-        assert_eq!(args.speed, 10.0);
+        assert_eq!(args.speed, 20.0);
         assert_eq!(args.density, 0.75);
         assert_eq!(args.glitch_level, GlitchLevel::Subtle);
     }
@@ -666,7 +666,7 @@ mod tests {
         assert_eq!(args.scene.as_deref(), Some("monolith"));
         assert_eq!(args.color, "cosmos");
         assert_eq!(args.charset, "binary");
-        assert_eq!(args.speed, 10.0);
+        assert_eq!(args.speed, 20.0);
         assert!((args.density - 0.75).abs() < f32::EPSILON);
         assert_eq!(args.glitch_level, GlitchLevel::Subtle);
         assert_eq!(args.glitch_pct, 3.0);
@@ -722,7 +722,7 @@ mod tests {
     fn config_speed_outside_safe_range_is_ignored() {
         for value in ["0", "0.5", "100.1", "1000", "100000"] {
             let args = args_with_config(&format!("speed = {value}\n"), &[]);
-            assert_eq!(args.speed, 10.0);
+            assert_eq!(args.speed, 20.0);
         }
     }
 
@@ -826,7 +826,7 @@ mod tests {
         );
         assert_eq!(args.color, "cosmos");
         assert_eq!(args.fps, 60.0);
-        assert_eq!(args.speed, 10.0);
+        assert_eq!(args.speed, 20.0);
         assert!(!args.low_power);
         assert!(args.preset.is_none());
     }
@@ -876,7 +876,7 @@ mod tests {
             assert!(dump.contains(key), "dump config should contain {key}");
         }
         assert!(dump.contains("scene = monolith"));
-        assert!(dump.contains("speed = 10"));
+        assert!(dump.contains("speed = 20"));
         assert!(dump.contains("density = 0.75"));
         assert!(dump.contains("glitch-level = subtle"));
     }

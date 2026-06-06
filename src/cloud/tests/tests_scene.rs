@@ -141,8 +141,8 @@ fn speed_updates_after_scene_switch() {
     let mut cloud = make_glyph_cloud();
     cloud.set_chars_per_sec(5.0);
     cloud.apply_scene_runtime("monolith", "binary", &[], false);
-    // Monolith scene sets speed=10
-    assert_eq!(cloud.chars_per_sec, 10.0);
+    // Monolith scene sets speed=20
+    assert_eq!(cloud.chars_per_sec, 20.0);
 }
 
 #[test]

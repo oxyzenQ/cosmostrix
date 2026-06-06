@@ -274,7 +274,7 @@ preset = cinematic
 color = cosmos
 charset = binary
 fps = 60
-speed = 10
+speed = 20
 density = 0.75
 glitch-level = subtle
 color-bg = transparent
@@ -320,7 +320,7 @@ cosmostrix --scene monolith --color deepspace
 cosmostrix --scene monolith --monolith-size large
 ```
 
-Plain `cosmostrix` launches signature structured Monolith Rain (`speed 10`, `density 0.75`). Classic Matrix mode remains available with `cosmostrix --scene matrix`. Charset cycling keeps the Monolith segmented identity but changes the segment glyph source. `--monolith-size` controls terminal-cell segment scale (`small`, `normal`, `large`), not raw pixel size; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
+Plain `cosmostrix` launches signature structured Monolith Rain (`speed 20`, `density 0.75`). Classic Matrix mode remains available with `cosmostrix --scene matrix`. Charset cycling keeps the Monolith segmented identity but changes the segment glyph source. `--monolith-size` controls terminal-cell segment scale (`small`, `normal`, `large`), not raw pixel size; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
 
 Press `x` or `X` while running to cycle scenes forward at runtime: Monolith Rain -> Matrix -> Signal -> Monolith. Runtime scene cycling applies scene-managed values for color, charset, speed, density, and glitch level. Scene transitions are smooth with no ghosting or residue.
 
