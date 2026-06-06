@@ -85,7 +85,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v3.8.0"
+TAG="v3.9.0"
 PLATFORM="linux-x86_64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
@@ -407,7 +407,7 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
 See `benchmark/README.md` for full reference results, reproduction steps, and
 interpretation notes.
 
-For the v3.8.0 groundwork, see the internal
+For the v3.9.0 groundwork, see the internal
 [Zactrix Core Architecture Lab](docs/ZACTRIX_CORE.md). It is an eBPF-inspired
 architecture discipline only, not Linux eBPF or a public API.
 
@@ -471,8 +471,8 @@ architecture discipline only, not Linux eBPF or a public API.
 
 ## Versioning
 
-Cosmostrix uses SemVer for package versions, e.g. `3.8.0`.
-Git tags and GitHub Releases use a leading `v`, e.g. `v3.8.0`.
+Cosmostrix uses SemVer for package versions, e.g. `3.9.0`.
+Git tags and GitHub Releases use a leading `v`, e.g. `v3.9.0`.
 Stable releases do not use `-stable.N` suffixes.
 
 ## Version And Updates
