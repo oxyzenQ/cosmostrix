@@ -155,3 +155,70 @@ fn default_plain_runtime_profile_remains_monolith() {
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.speed, 20.0);
 }
+
+// ---------------------------------------------------------------------------
+// Color precedence vs auto-drift clarity tests
+// ---------------------------------------------------------------------------
+
+#[test]
+fn config_color_overridden_by_config_preset_is_precedence_not_drift() {
+    // When a config file sets color = sun AND preset = cinematic / scene = monolith,
+    // the preset/scene color overrides per the documented precedence chain.
+    // This is NOT auto-color-drift; auto_color_drift remains false.
+    let args = args_with_config(
+        "color = sun\npreset = cinematic\nscene = monolith\nauto-color-drift = false\n",
+        &[],
+    );
+    // auto_color_drift must still be false — the color change is from precedence
+    assert!(
+        !args.auto_color_drift,
+        "auto_color_drift must remain false; color change is from precedence, not drift"
+    );
+    // color = sun in config (step 2) is overridden by config preset (step 3)
+    // or config scene (step 4), so the final color is NOT sun
+    assert_ne!(
+        args.color, "sun",
+        "config color=sun must be overridden by config preset/scene per precedence rules"
+    );
+}
+
+#[test]
+fn profile_color_resolves_sun_after_preset_and_scene() {
+    // Config profile color should override preset/scene color because
+    // config profile (step 5) has higher precedence than config preset (step 3)
+    // and config scene (step 4).
+    let args = args_with_config(
+        "preset = cinematic\n\
+         scene = monolith\n\
+         profile = nightcore\n\
+         profile.nightcore.base = monolith\n\
+         profile.nightcore.color = sun\n\
+         profile.nightcore.charset = binary\n\
+         profile.nightcore.speed = 24\n\
+         profile.nightcore.density = 0.70\n\
+         profile.nightcore.glitch-level = subtle\n\
+         profile.nightcore.monolith-size = large\n",
+        &[],
+    );
+    assert_eq!(
+        args.color, "sun",
+        "profile color must override preset/scene color per precedence"
+    );
+    assert!(
+        !args.auto_color_drift,
+        "auto_color_drift must default false"
+    );
+}
+
+#[test]
+fn cli_color_wins_over_config_preset_and_scene() {
+    // CLI --color (step 10) is the highest precedence and always wins.
+    let args = args_with_config(
+        "preset = cinematic\nscene = monolith\n",
+        &["--color", "sun"],
+    );
+    assert_eq!(
+        args.color, "sun",
+        "CLI --color must override config preset/scene"
+    );
+}

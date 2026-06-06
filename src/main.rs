@@ -410,6 +410,14 @@ fn main() -> std::io::Result<()> {
             if let Some(ref pname) = args.profile {
                 s.field("profile", pname);
             }
+            s.field(
+                "auto_color_drift",
+                if args.auto_color_drift {
+                    "true"
+                } else {
+                    "false"
+                },
+            );
         }
         r.print();
         return Ok(());

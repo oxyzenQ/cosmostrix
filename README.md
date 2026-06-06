@@ -295,6 +295,11 @@ low-power = false
 mouse = false
 fullwidth = false
 
+# Autonomous palette drift (default: off).
+# When enabled, the color ecosystem may spontaneously change the palette.
+# See docs/VISUAL_STABILITY.md for details.
+auto-color-drift = false
+
 # Optional user profile.
 # Load with: cosmostrix --profile nightcore
 profile.nightcore.base = monolith

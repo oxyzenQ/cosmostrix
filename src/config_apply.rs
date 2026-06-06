@@ -938,6 +938,7 @@ mod tests {
             "low-power",
             "mouse",
             "fullwidth",
+            "auto-color-drift",
             "glitchpct",
             "shortpct",
             "rippct",

@@ -197,6 +197,14 @@ value you passed at startup is still active at the end of the run. If
 `auto-color-drift` is enabled (opt-in), color changes are expected and
 acceptable.
 
+Use `-i` (info) to confirm the drift state at any time:
+
+```bash
+cosmostrix -i | rg "auto_color_drift"
+# auto_color_drift: false   <- default, no autonomous drift
+# auto_color_drift: true    <- opt-in, ecosystem may change color
+```
+
 ### Pass/fail logic
 
 - **PASS**: All criteria met for the full duration. Verdict: `PASS / stable`.

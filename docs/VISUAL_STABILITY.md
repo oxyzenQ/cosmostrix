@@ -247,6 +247,77 @@ Nine deterministic tests verify color stability without wall-clock sleeping:
 9. **endurance_color_sticky_default_off** — 30 simulated minutes (108,000
    frames) with spot-checks every 1,000 frames.
 
+## Config Color Precedence & Honesty
+
+### Why `color = sun` in Config May Not Win
+
+Cosmostrix uses a 10-level precedence chain (see README). A plain config value like
+`color = sun` is resolved at **step 2** (config file values). If the same config file
+also contains `preset = cinematic` or `scene = monolith`, those layers (steps 3 and 4)
+can override the color because they have higher precedence within the config file. The
+color you see in `-i` output reflects the **final resolved** value, not the raw config
+line.
+
+This is intentional and documented, but it can surprise users who expect `color = sun`
+to be the final word. The important distinction:
+
+- **Precedence override**: `preset`/`scene`/`profile` replace the config color at
+  startup. The replacement is immediate and deterministic. `auto_color_drift` remains
+  `false`. The replaced color is then sticky for the entire session.
+- **Autonomous drift**: `auto_color_drift = true` enables the `ColorEcosystem` to
+  spontaneously replace the color scheme over time (every ~100s on average). This is
+  a gradual, runtime effect, completely separate from startup precedence.
+
+### How to Guarantee a Final Color
+
+If you want `color = sun` to be the final resolved color, use one of these approaches:
+
+1. **Explicit CLI flag** (highest precedence, step 10):
+   ```bash
+   cosmostrix --color sun
+   ```
+   CLI `--color` always wins over config preset, scene, and profile.
+
+2. **Profile with explicit color** (step 5/8):
+   ```ini
+   profile.nightcore.color = sun
+   profile = nightcore
+   ```
+   Profile color overrides config preset and scene because profiles resolve after
+   them in the precedence chain.
+
+3. **Avoid preset/scene that manage color**:
+   Remove `preset` and `scene` from the config file (or use preset/scene variants
+   that do not set color), so the raw config `color = sun` is never overridden.
+
+### Verifying Drift State at Runtime
+
+The `-i` (info) output includes an `auto_color_drift` field showing `true` or `false`:
+
+```text
+RUNTIME PROFILE
+  ...
+  color: sun
+  auto_color_drift: false
+```
+
+- `auto_color_drift: false` (default) — autonomous palette drift is disabled.
+  The color shown will remain sticky for the entire session.
+- `auto_color_drift: true` — autonomous palette drift is enabled (opt-in).
+  The `ColorEcosystem` may replace the color scheme periodically.
+
+### Tests That Verify Precedence Is Not Drift
+
+Three config resolution tests document this behavior:
+
+1. **config_color_overridden_by_config_preset_is_precedence_not_drift** — verifies that
+   a config `color = sun` overridden by `preset`/`scene` leaves `auto_color_drift`
+   at `false`. The color change is from precedence, not autonomous drift.
+2. **profile_color_resolves_sun_after_preset_and_scene** — verifies that a profile
+   with `color = sun` correctly overrides preset/scene color per the precedence chain.
+3. **cli_color_wins_over_config_preset_and_scene** — verifies that `--color sun` on
+   the CLI always wins, regardless of config preset or scene.
+
 ## Implementation Notes
 
 v3.6.0 does not:
@@ -260,6 +331,13 @@ v3.7.0 does not:
 - Retune any visual parameters.
 - Change terminal reset/cleanup behavior.
 - Change x/X scene cycling semantics.
+- Change config precedence semantics.
 - Add unsafe code or heavy dependencies.
 - Bump the version number.
 - Grow src/config_apply.rs beyond its existing LOC budget.
+
+v3.7.0 polish adds:
+- `auto_color_drift` visibility in `-i` runtime profile output.
+- Config precedence clarity documentation explaining why config `color = sun` may
+  be overridden by preset/scene, and how to guarantee a final color.
+- Three config resolution tests verifying precedence is distinct from drift.
