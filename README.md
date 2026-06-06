@@ -47,6 +47,7 @@
 - Screensaver mode
 - Optional mouse hover/click effects (`--mouse`)
 - Safe terminal cleanup and recovery (`--reset-terminal`)
+- Terminal Compatibility Lab docs (`docs/TERMINAL_COMPATIBILITY.md`)
 - Cross-platform: Linux, macOS, Windows, Android (Termux)
 
 ## Requirements
@@ -261,6 +262,10 @@ On Windows PowerShell, use:
 disables terminal reporting modes, clears the visible screen, moves the cursor
 home, and attempts to purge scrollback when the terminal supports it.
 
+Normal app exit is non-destructive and should preserve visible shell history.
+For terminal behavior, background modes, tmux/SSH notes, and Windows recovery
+expectations, see [Terminal Compatibility](docs/TERMINAL_COMPATIBILITY.md).
+
 or, if `cosmostrix` is not available:
 
 ```bash
@@ -368,7 +373,7 @@ Press `x` or `X` while running to cycle scenes forward at runtime: Monolith Rain
 
 ## Color schemes
 
-43 built-in themes are available. Run `--list-colors` for the compact canonical list, or `--list-colors-detail` for grouped descriptions and aliases. Existing color names and aliases remain supported, including space-themed sets such as cosmos, nebula, stars, aurora, galaxy, supernova, blackhole, and deepspace.
+43 built-in themes are available. Run `--list-colors` for the compact canonical list, or `--list-colors-detail` for grouped descriptions and aliases. Existing color names and aliases remain supported, including space-themed sets such as cosmos, nebula, stars, aurora, galaxy, supernova, blackhole, and deepspace. Compatibility aliases include `white` for `snow`, `silver` for `gray`, and `deepblue`/`deep-blue`/`deep_blue` for `deepspace`.
 
 ## Character sets
 

@@ -177,14 +177,14 @@ pub const THEMES: &[ThemeInfo] = &[
         scheme: ColorScheme::Gray,
         category: ThemeCategory::Classic,
         description: "Neutral monochrome gray",
-        aliases: &["grey"],
+        aliases: &["grey", "silver"],
     },
     ThemeInfo {
         name: "snow",
         scheme: ColorScheme::Snow,
         category: ThemeCategory::Cinematic,
         description: "Cold white-blue shimmer",
-        aliases: &[],
+        aliases: &["white"],
     },
     ThemeInfo {
         name: "aurora",
@@ -365,7 +365,13 @@ pub const THEMES: &[ThemeInfo] = &[
         scheme: ColorScheme::DeepSpace,
         category: ThemeCategory::Space,
         description: "Deep blue-black space palette",
-        aliases: &["deep-space", "deep_space"],
+        aliases: &[
+            "deep-space",
+            "deep_space",
+            "deepblue",
+            "deep-blue",
+            "deep_blue",
+        ],
     },
 ];
 
@@ -582,6 +588,12 @@ mod tests {
         assert_eq!(parse_color_scheme("deep-sea"), Ok(ColorScheme::Ocean));
         assert_eq!(parse_color_scheme("deep_sea"), Ok(ColorScheme::Ocean));
         assert_eq!(parse_color_scheme("deepsea"), Ok(ColorScheme::Ocean));
+        assert_eq!(parse_color_scheme("white"), Ok(ColorScheme::Snow));
+        assert_eq!(parse_color_scheme("silver"), Ok(ColorScheme::Gray));
+        assert_eq!(parse_color_scheme("grey"), Ok(ColorScheme::Gray));
+        assert_eq!(parse_color_scheme("deepblue"), Ok(ColorScheme::DeepSpace));
+        assert_eq!(parse_color_scheme("deep-blue"), Ok(ColorScheme::DeepSpace));
+        assert_eq!(parse_color_scheme("deep_blue"), Ok(ColorScheme::DeepSpace));
         assert_eq!(parse_color_scheme("black-hole"), Ok(ColorScheme::BlackHole));
         assert_eq!(parse_color_scheme("black_hole"), Ok(ColorScheme::BlackHole));
         assert_eq!(parse_color_scheme("super-nova"), Ok(ColorScheme::Supernova));

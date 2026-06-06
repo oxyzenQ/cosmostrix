@@ -631,23 +631,50 @@ mod tests {
     }
 
     fn args_from_cli(cli: &[&str]) -> Args {
-        let mut argv = vec!["cosmostrix"];
-        argv.extend_from_slice(cli);
-        let cmd = Args::command();
-        let matches = cmd.get_matches_from(argv);
-        let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
-        apply_config_and_runtime_defaults(&matches, &mut args).expect("apply config");
-        args
+        if cli.contains(&"--config") {
+            let mut argv = vec!["cosmostrix"];
+            argv.extend_from_slice(cli);
+            let cmd = Args::command();
+            let matches = cmd.get_matches_from(argv);
+            let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+            apply_config_and_runtime_defaults(&matches, &mut args).expect("apply config");
+            return args;
+        }
+        args_with_config("", cli)
     }
 
     fn args_from_cli_result(cli: &[&str]) -> Result<Args, String> {
-        let mut argv = vec!["cosmostrix"];
+        if cli.contains(&"--config") {
+            let mut argv = vec!["cosmostrix"];
+            argv.extend_from_slice(cli);
+            let cmd = Args::command();
+            let matches = cmd.get_matches_from(argv);
+            let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+            apply_config_and_runtime_defaults(&matches, &mut args)?;
+            return Ok(args);
+        }
+
+        let mut path = std::env::temp_dir();
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after unix epoch")
+            .as_nanos();
+        path.push(format!(
+            "cosmostrix-empty-config-test-{}-{unique}.conf",
+            std::process::id(),
+        ));
+        std::fs::write(&path, "").expect("write temp config");
+
+        let path_string = path.to_string_lossy().into_owned();
+        let mut argv = vec!["cosmostrix", "--config", path_string.as_str()];
         argv.extend_from_slice(cli);
         let cmd = Args::command();
         let matches = cmd.get_matches_from(argv);
         let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
-        apply_config_and_runtime_defaults(&matches, &mut args)?;
-        Ok(args)
+        let result = apply_config_and_runtime_defaults(&matches, &mut args).map(|()| args);
+
+        let _ = std::fs::remove_file(path);
+        result
     }
 
     #[test]

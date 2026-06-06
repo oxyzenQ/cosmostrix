@@ -49,6 +49,8 @@ mod config_apply_profiles_tests;
 mod configfile;
 mod constants;
 mod diagnostics;
+#[cfg(test)]
+mod docs_tests;
 mod doctor;
 mod droplet;
 mod frame;

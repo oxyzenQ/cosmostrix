@@ -6,7 +6,7 @@
 use std::env;
 
 use crate::charset::{charset_from_str, Charset};
-use crate::config::Args;
+use crate::config::{Args, ColorBg};
 use crate::diagnostics;
 use crate::renderer_info;
 use crate::report::Report;
@@ -38,7 +38,8 @@ pub fn print_doctor_report(args: &Args) {
     let def_ascii = default_to_ascii();
 
     // Environment detections
-    let tmux = env::var("TMUX").is_ok();
+    let terminal_family = terminal_family(&term);
+    let tmux = env::var("TMUX").is_ok() || terminal_family == "tmux";
     let ssh = env::var("SSH_CONNECTION").is_ok() || env::var("SSH_TTY").is_ok();
     let headless = !stdin_tty && !stdout_tty;
 
@@ -71,6 +72,7 @@ pub fn print_doctor_report(args: &Args) {
     {
         let s = r.section("TERMINAL");
         s.field("TERM", if term.is_empty() { "(unset)" } else { &term });
+        s.field("family", terminal_family);
         s.field(
             "COLORTERM",
             if colorterm.is_empty() {
@@ -98,6 +100,27 @@ pub fn print_doctor_report(args: &Args) {
         if args.colormode.is_some() {
             s.field("color_forced", color_mode_label(effective));
         }
+    }
+
+    // COMPATIBILITY section
+    {
+        let s = r.section("COMPATIBILITY");
+        s.field("terminal_class", terminal_family);
+        s.field("color_capability", color_capability(effective));
+        s.field("background", background_guidance(args.color_bg));
+        s.field("normal_exit", "non-destructive mode/style restore");
+        s.field(
+            "reset_terminal",
+            "explicit destructive recovery: clears visible screen and attempts scrollback purge",
+        );
+        s.field("mouse_mode", "opt-in only via --mouse");
+        let hints = environment_hints(&term, &colorterm, locale_utf8, tmux, ssh, headless);
+        let hint_text = if hints.is_empty() {
+            "none".to_string()
+        } else {
+            hints.join(", ")
+        };
+        s.field("environment_hints", &hint_text);
     }
 
     // CHARSET section
@@ -202,14 +225,30 @@ pub fn print_doctor_report(args: &Args) {
         let s = r.section("ADVICE");
 
         if !stdin_tty || !stdout_tty {
-            s.advice("run cosmostrix directly in a terminal (avoid piping/redirect)");
+            s.advice("headless/non-TTY detected; use --benchmark, --info, --doctor, or other redirect-safe commands");
         }
         if !locale_utf8 {
             s.advice("locale does not look like UTF-8; unicode charsets may render incorrectly");
-            s.advice("try: export LANG=en_US.UTF-8");
+            s.advice(
+                "use a UTF-8 locale or choose an ASCII-safe charset such as --charset minimal",
+            );
         }
-        if effective != ColorMode::TrueColor {
-            s.advice("for best colors use a truecolor terminal (COLORTERM=truecolor)");
+        if should_advise_truecolor(&term, &colorterm, effective) {
+            if terminal_family == "tmux" || terminal_family == "screen" || tmux {
+                s.advice("256-color multiplexer detected; for truecolor, the outer terminal and tmux/screen config must both support RGB");
+            } else {
+                s.advice("256-color terminal detected; set COLORTERM=truecolor only if truecolor output is desired");
+            }
+        } else if effective == ColorMode::Color16 {
+            s.advice("limited color terminal detected; try --colormode 256 or a truecolor-capable terminal");
+        }
+        if ssh {
+            s.advice(
+                "SSH detected; remote TERM/COLORTERM should match the local terminal capability",
+            );
+        }
+        if tmux && effective == ColorMode::TrueColor {
+            s.advice("tmux/screen detected; if colors look wrong, verify the outer terminal and multiplexer truecolor settings");
         }
 
         // Re-check unicode usage for advice
@@ -246,10 +285,6 @@ pub fn print_doctor_report(args: &Args) {
             }
         }
 
-        if headless {
-            s.advice("running headless (no TTY detected); some features may not work");
-        }
-
         // If no advice was added, add the all-clear
         if !s.has_advice() {
             s.advice("no issues detected");
@@ -257,4 +292,136 @@ pub fn print_doctor_report(args: &Args) {
     }
 
     r.print();
+}
+
+#[must_use]
+fn terminal_family(term: &str) -> &'static str {
+    let term = term.to_ascii_lowercase();
+    if term.is_empty() || term == "dumb" {
+        "dumb/unknown"
+    } else if term.contains("tmux") {
+        "tmux"
+    } else if term.contains("screen") {
+        "screen"
+    } else if term == "xterm-direct" || term.ends_with("-direct") {
+        "xterm-direct"
+    } else if term.contains("256color") {
+        "xterm-256color"
+    } else {
+        "dumb/unknown"
+    }
+}
+
+#[must_use]
+fn color_capability(mode: ColorMode) -> &'static str {
+    match mode {
+        ColorMode::TrueColor => "truecolor",
+        ColorMode::Color256 => "256-color",
+        ColorMode::Color16 => "16-color/mono",
+        ColorMode::Mono => "16-color/mono",
+    }
+}
+
+#[must_use]
+fn background_guidance(color_bg: ColorBg) -> &'static str {
+    match color_bg {
+        ColorBg::Black => "black paints solid black",
+        ColorBg::Transparent => "transparent follows terminal emulator background",
+        ColorBg::DefaultBackground => "default-background uses terminal default background",
+    }
+}
+
+#[must_use]
+fn environment_hints(
+    term: &str,
+    colorterm: &str,
+    locale_utf8: bool,
+    tmux: bool,
+    ssh: bool,
+    headless: bool,
+) -> Vec<&'static str> {
+    let mut hints = Vec::new();
+    let family = terminal_family(term);
+    if tmux || family == "tmux" {
+        hints.push("tmux detected");
+    }
+    if family == "screen" {
+        hints.push("screen detected");
+    }
+    if ssh {
+        hints.push("ssh detected");
+    }
+    if headless {
+        hints.push("headless/non-TTY detected");
+    }
+    if colorterm.trim().is_empty() {
+        hints.push("COLORTERM missing");
+    }
+    if !locale_utf8 {
+        hints.push("locale not UTF-8");
+    }
+    hints
+}
+
+#[must_use]
+fn should_advise_truecolor(term: &str, colorterm: &str, effective: ColorMode) -> bool {
+    effective == ColorMode::Color256
+        && colorterm.trim().is_empty()
+        && terminal_family(term) != "xterm-direct"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn terminal_family_detects_common_terms() {
+        assert_eq!(terminal_family("xterm-direct"), "xterm-direct");
+        assert_eq!(terminal_family("xterm-256color"), "xterm-256color");
+        assert_eq!(terminal_family("tmux-256color"), "tmux");
+        assert_eq!(terminal_family("screen-256color"), "screen");
+        assert_eq!(terminal_family("dumb"), "dumb/unknown");
+    }
+
+    #[test]
+    fn doctor_guidance_distinguishes_truecolor_and_256_color() {
+        assert_eq!(color_capability(ColorMode::TrueColor), "truecolor");
+        assert_eq!(color_capability(ColorMode::Color256), "256-color");
+        assert!(should_advise_truecolor(
+            "xterm-256color",
+            "",
+            ColorMode::Color256
+        ));
+        assert!(!should_advise_truecolor(
+            "xterm-direct",
+            "",
+            ColorMode::TrueColor
+        ));
+    }
+
+    #[test]
+    fn doctor_background_guidance_mentions_modes() {
+        assert_eq!(
+            background_guidance(ColorBg::Transparent),
+            "transparent follows terminal emulator background"
+        );
+        assert_eq!(
+            background_guidance(ColorBg::Black),
+            "black paints solid black"
+        );
+        assert_eq!(
+            background_guidance(ColorBg::DefaultBackground),
+            "default-background uses terminal default background"
+        );
+    }
+
+    #[test]
+    fn doctor_environment_hints_are_actionable() {
+        let hints = environment_hints("tmux-256color", "", false, true, true, true);
+        assert!(hints.contains(&"tmux detected"));
+        assert!(hints.contains(&"ssh detected"));
+        assert!(hints.contains(&"headless/non-TTY detected"));
+        assert!(hints.contains(&"COLORTERM missing"));
+        assert!(hints.contains(&"locale not UTF-8"));
+    }
 }
