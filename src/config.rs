@@ -281,12 +281,20 @@ pub struct Args {
     )]
     pub scene: Option<String>,
 
+    #[arg(
+        long = "profile",
+        help_heading = "COMMON OPTIONS",
+        display_order = 97,
+        help = "Apply a user-defined profile from config"
+    )]
+    pub profile: Option<String>,
+
     // === CONFIG (visible in --help) ===
     #[arg(
         long = "config",
         value_name = "PATH",
         help_heading = "CONFIG",
-        display_order = 97,
+        display_order = 98,
         help = "Load config from an explicit file path"
     )]
     pub config: Option<PathBuf>,
@@ -294,15 +302,24 @@ pub struct Args {
     #[arg(
         long = "dump-config",
         help_heading = "CONFIG",
-        display_order = 98,
+        display_order = 99,
         help = "Print a complete example config and exit"
     )]
     pub dump_config: bool,
 
     #[arg(
+        long = "dump-profile",
+        value_name = "NAME",
+        help_heading = "CONFIG",
+        display_order = 100,
+        help = "Print one user profile from config and exit"
+    )]
+    pub dump_profile: Option<String>,
+
+    #[arg(
         long = "config-path",
         help_heading = "CONFIG",
-        display_order = 99,
+        display_order = 101,
         help = "Print the default config path and exit"
     )]
     pub config_path: bool,
@@ -389,6 +406,14 @@ pub struct Args {
         help = "Show available scene atmospheres"
     )]
     pub list_scenes: bool,
+
+    #[arg(
+        long = "list-profiles",
+        help_heading = "DISCOVERY",
+        display_order = 235,
+        help = "Show user-defined profiles from config"
+    )]
+    pub list_profiles: bool,
 
     // === HELP (visible in --help) ===
     #[arg(
@@ -739,6 +764,12 @@ COMMON OPTIONS:
       cosmostrix --scene matrix
       cosmostrix --scene signal --fps 60
 
+  --profile <name>
+      Apply a user-defined profile from config. A profile starts from a
+      base scene and overrides existing validated runtime fields.
+      Explicit CLI flags always override profile values.
+      cosmostrix --profile nightcore
+
 CONFIG:
   --config <path>
       Load config from an explicit path instead of the default
@@ -749,12 +780,16 @@ CONFIG:
 
       Config policy: invalid values warn cleanly and are ignored.
 
+  --dump-profile <name>
+      Print one user-defined profile from config and exit.
+
   --config-path
       Print the resolved default config path and exit.
 
   Precedence:
       built-in defaults < config values < config preset < config scene
-      < CLI preset < CLI scene < low-power < explicit CLI flags.
+      < config profile < CLI preset < CLI scene < CLI profile
+      < low-power < explicit CLI flags.
 
 APPEARANCE:
   --colormode <0|16|256|24>
@@ -803,6 +838,7 @@ DISCOVERY:
   --list-charsets       Show available charset presets.
   --list-presets        Show available presets.
   --list-scenes         Show available scene atmospheres.
+  --list-profiles       Show user-defined profiles from config.
   --defaults            Show the default runtime profile.
 
 RUNTIME CONTROLS:

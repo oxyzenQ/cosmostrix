@@ -44,6 +44,8 @@ mod cli;
 mod cloud;
 mod config;
 mod config_apply;
+#[cfg(test)]
+mod config_apply_profiles_tests;
 mod configfile;
 mod constants;
 mod diagnostics;
@@ -56,6 +58,7 @@ mod interactive;
 mod loc_tests;
 mod palette;
 mod preset;
+mod profile;
 mod rain_style;
 mod renderer_info;
 mod report;
@@ -226,6 +229,26 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
+    if args.list_profiles {
+        let cfg = configfile::load_config_file(args.config.as_deref());
+        let profiles = profile::collect_profiles(&cfg);
+        print!("{}", profile::list_profiles_text(&profiles));
+        return Ok(());
+    }
+
+    if let Some(ref name) = args.dump_profile {
+        let cfg = configfile::load_config_file(args.config.as_deref());
+        let profiles = profile::collect_profiles(&cfg);
+        match profile::dump_profile_text(&profiles, name) {
+            Ok(text) => print!("{text}"),
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
+
     if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
         eprintln!("{}", e);
         std::process::exit(1);
@@ -380,6 +403,9 @@ fn main() -> std::io::Result<()> {
             s.field_if("low_power", "on", args.low_power);
             if let Some(ref pname) = args.preset {
                 s.field("preset", pname);
+            }
+            if let Some(ref pname) = args.profile {
+                s.field("profile", pname);
             }
         }
         r.print();

@@ -167,6 +167,8 @@ cosmostrix --scene signal --fps 60     # code-signal scene with FPS override
 cosmostrix --scene monolith --color deepspace
 cosmostrix --scene monolith --monolith-size large
 cosmostrix --config ./cosmostrix.conf  # explicit config file
+cosmostrix --profile nightcore         # user-defined config profile
+cosmostrix --list-profiles             # list user profiles from config
 cosmostrix --dump-config               # print example config
 ```
 
@@ -188,8 +190,10 @@ COMMON OPTIONS
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
      --preset <name>       Apply a named preset (see --list-presets)
      --scene <name>        Apply a scene atmosphere (see --list-scenes)
+     --profile <name>      Apply a user-defined config profile
      --config <path>        Load config from an explicit file
      --dump-config          Print an example config and exit
+     --dump-profile <name>  Print one user-defined profile and exit
      --config-path          Print the default config path and exit
 
 DIAGNOSTICS
@@ -204,10 +208,11 @@ DISCOVERY
      --list-charsets        Show available charset presets
      --list-presets         Show available presets
      --list-scenes          Show available scene atmospheres
+     --list-profiles        Show user-defined profiles from config
      --defaults             Show the default runtime profile
 ```
 
-Explicit CLI flags always override preset and scene values. For example, `cosmostrix --scene signal --fps 60` applies the signal scene but keeps FPS at 60.
+Explicit CLI flags always override preset, scene, and profile values. For example, `cosmostrix --scene signal --fps 60` applies the signal scene but keeps FPS at 60.
 
 ## Runtime controls
 
@@ -281,12 +286,24 @@ color-bg = transparent
 low-power = false
 mouse = false
 fullwidth = false
+
+# Optional user profile.
+# Load with: cosmostrix --profile nightcore
+profile.nightcore.base = monolith
+profile.nightcore.color = purple
+profile.nightcore.charset = binary
+profile.nightcore.speed = 24
+profile.nightcore.density = 0.70
+profile.nightcore.glitch-level = subtle
+profile.nightcore.monolith-size = large
 ```
 
 Print a complete copy-pasteable template or the default path with:
 
 ```bash
 cosmostrix --dump-config
+cosmostrix --list-profiles
+cosmostrix --dump-profile nightcore
 cosmostrix --config-path
 ```
 
@@ -296,12 +313,37 @@ Precedence is:
 2. Config file values
 3. Config preset
 4. Config scene
-5. CLI preset
-6. CLI scene
-7. Low-power values when requested, for fields not touched by curated layers or explicit CLI
-8. Explicit CLI flags
+5. Config profile
+6. CLI preset
+7. CLI scene
+8. CLI profile
+9. Low-power values when requested, for fields not touched by curated layers or explicit CLI
+10. Explicit CLI flags
 
-So `cosmostrix --config ./config --preset storm --scene signal --fps 60` uses the config file, applies the CLI preset, then applies the CLI scene over overlapping curated fields, and keeps FPS at the explicit CLI value `60`.
+So `cosmostrix --config ./config --profile nightcore --speed 30` uses the config file, applies the `nightcore` profile, and keeps speed at the explicit CLI value `30`.
+
+## User Profiles
+
+Profiles are small user-defined scenes stored in the same flat config file. They are not built-in presets; they reuse an existing base scene and override existing validated fields.
+
+Supported profile fields are `base` or `scene`, `preset`, `color`, `charset`, `fps`, `speed`, `density`, `glitch-level`, `monolith-size`, and `color-bg`. Invalid profile values warn cleanly and are ignored, matching the normal config policy.
+
+```text
+profile.nightcore.base = monolith
+profile.nightcore.color = purple
+profile.nightcore.charset = binary
+profile.nightcore.speed = 24
+profile.nightcore.density = 0.70
+profile.nightcore.glitch-level = subtle
+profile.nightcore.monolith-size = large
+```
+
+```bash
+cosmostrix --profile nightcore
+cosmostrix --profile nightcore --speed 30
+cosmostrix --list-profiles
+cosmostrix --dump-profile nightcore
+```
 
 ## Scenes
 

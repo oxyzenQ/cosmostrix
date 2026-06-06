@@ -8,10 +8,12 @@
 //! 2. Config file values
 //! 3. Config preset
 //! 4. Config scene
-//! 5. CLI preset
-//! 6. CLI scene
-//! 7. Low-power values for fields not touched by curated layers or explicit CLI
-//! 8. Explicit CLI flags
+//! 5. Config profile
+//! 6. CLI preset
+//! 7. CLI scene
+//! 8. CLI profile
+//! 9. Low-power values for fields not touched by curated layers or explicit CLI
+//! 10. Explicit CLI flags
 
 use std::collections::{HashMap, HashSet};
 
@@ -24,6 +26,7 @@ use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::configfile::load_config_file;
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::preset::{get_preset, validate_preset_name};
+use crate::profile::{apply_profile_layer, collect_profiles, validate_profile_name};
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
 use crate::validation::{
@@ -37,12 +40,14 @@ pub(crate) fn apply_config_and_runtime_defaults(
 ) -> Result<(), String> {
     let mut config_touched = HashSet::new();
     let cfg = load_config_file(args.config.as_deref());
+    let profiles = collect_profiles(&cfg);
     if !cfg.is_empty() {
         apply_config_values(matches, args, &cfg, &mut config_touched);
     }
 
     let preset_is_cli = is_explicit(matches, "preset");
     let scene_is_cli = is_explicit(matches, "scene");
+    let profile_is_cli = is_explicit(matches, "profile");
     let scene_is_default = args.scene.is_none();
     if scene_is_default {
         args.scene = Some(DEFAULT_SCENE.to_string());
@@ -56,11 +61,33 @@ pub(crate) fn apply_config_and_runtime_defaults(
     if !scene_is_cli && !scene_is_default {
         curated_modified.extend(apply_scene_values(matches, args)?);
     }
+    if !profile_is_cli {
+        if let Some(profile_name) = args.profile.clone() {
+            curated_modified.extend(apply_profile_layer(
+                matches,
+                args,
+                &profiles,
+                &profile_name,
+                false,
+            )?);
+        }
+    }
     if preset_is_cli {
         curated_modified.extend(apply_preset_values(matches, args)?);
     }
     if scene_is_cli {
         curated_modified.extend(apply_scene_values(matches, args)?);
+    }
+    if profile_is_cli {
+        if let Some(profile_name) = args.profile.clone() {
+            curated_modified.extend(apply_profile_layer(
+                matches,
+                args,
+                &profiles,
+                &profile_name,
+                true,
+            )?);
+        }
     }
 
     apply_low_power_values(matches, args, &curated_modified);
@@ -134,6 +161,16 @@ fn apply_config_values(
                 config_touched.insert("scene");
             }
             Err(e) => eprintln!("config: ignoring invalid scene='{v}' ({e})"),
+        }
+    }
+
+    if let Some(v) = config_value(matches, cfg, "profile", "profile") {
+        match validate_profile_name(&v) {
+            Ok(name) => {
+                args.profile = Some(name);
+                config_touched.insert("profile");
+            }
+            Err(e) => eprintln!("config: ignoring invalid profile='{v}' ({e})"),
         }
     }
 

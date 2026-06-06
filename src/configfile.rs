@@ -26,10 +26,12 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
+use crate::profile::is_profile_config_key;
 
 pub const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
     "preset",
+    "profile",
     "color",
     "charset",
     "fps",
@@ -46,6 +48,8 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
 ];
 
 pub const LEGACY_CONFIG_KEYS: &[&str] = &["glitchpct", "shortpct", "rippct", "maxdpc"];
+
+const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParsedConfig {
@@ -146,13 +150,17 @@ pub fn dump_config_text() -> &'static str {
 #
 # Precedence:
 #   built-in defaults < config values < config preset < config scene
-#   < CLI preset < CLI scene < low-power < explicit CLI flags
+#   < config profile < CLI preset < CLI scene < CLI profile
+#   < low-power < explicit CLI flags
 
 # Scene atmosphere. See: cosmostrix --list-scenes
 scene = monolith
 
 # Curated preset. See: cosmostrix --list-presets
 preset = cinematic
+
+# User-defined profile to apply by default. See: cosmostrix --list-profiles
+# profile = nightcore
 
 # Appearance
 color = cosmos
@@ -181,6 +189,17 @@ shadingmode = 1
 # shortpct = 50
 # rippct = 33.33333
 # maxdpc = 3
+
+# User scene/profile config.
+# Load with: cosmostrix --profile nightcore
+# Invalid profile values warn cleanly and are ignored.
+# profile.nightcore.base = monolith
+# profile.nightcore.color = purple
+# profile.nightcore.charset = binary
+# profile.nightcore.speed = 24
+# profile.nightcore.density = 0.70
+# profile.nightcore.glitch-level = subtle
+# profile.nightcore.monolith-size = large
 "#
 }
 
@@ -189,13 +208,16 @@ pub fn known_keys() -> Vec<&'static str> {
     USER_CONFIG_KEYS
         .iter()
         .chain(LEGACY_CONFIG_KEYS.iter())
+        .chain(std::iter::once(&PROFILE_CONFIG_KEY_HINT))
         .copied()
         .collect()
 }
 
 #[inline]
 fn is_known_key(key: &str) -> bool {
-    USER_CONFIG_KEYS.contains(&key) || LEGACY_CONFIG_KEYS.contains(&key)
+    USER_CONFIG_KEYS.contains(&key)
+        || LEGACY_CONFIG_KEYS.contains(&key)
+        || is_profile_config_key(key)
 }
 
 #[inline]
@@ -262,10 +284,26 @@ mod tests {
     }
 
     #[test]
+    fn profile_keys_are_known() {
+        let parsed = parse_config_text(
+            "profile.nightcore.base = monolith\nprofile.nightcore.color = purple\n",
+        );
+        assert_eq!(
+            parsed
+                .values
+                .get("profile.nightcore.base")
+                .map(String::as_str),
+            Some("monolith")
+        );
+        assert!(parsed.unknown_keys.is_empty());
+    }
+
+    #[test]
     fn dump_config_contains_all_supported_keys() {
         let dump = dump_config_text();
         for key in USER_CONFIG_KEYS.iter().chain(LEGACY_CONFIG_KEYS.iter()) {
             assert!(dump.contains(key), "dump config should mention {key}");
         }
+        assert!(dump.contains("profile.nightcore.base"));
     }
 }

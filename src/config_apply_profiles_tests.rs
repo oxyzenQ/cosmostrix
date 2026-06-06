@@ -1,0 +1,157 @@
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: MIT
+
+use clap::{CommandFactory, FromArgMatches};
+
+use crate::config::{Args, GlitchLevel};
+use crate::config_apply::apply_config_and_runtime_defaults;
+use crate::rain_style::RainStyle;
+use crate::runtime::MonolithSize;
+
+fn args_with_config_result(config: &str, cli: &[&str]) -> Result<Args, String> {
+    let mut path = std::env::temp_dir();
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after unix epoch")
+        .as_nanos();
+    path.push(format!(
+        "cosmostrix-profile-test-{}-{unique}.conf",
+        std::process::id(),
+    ));
+    std::fs::write(&path, config).expect("write temp config");
+
+    let path_string = path.to_string_lossy().into_owned();
+    let mut argv = vec!["cosmostrix", "--config", path_string.as_str()];
+    argv.extend_from_slice(cli);
+
+    let cmd = Args::command();
+    let matches = cmd.get_matches_from(argv);
+    let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    let result = apply_config_and_runtime_defaults(&matches, &mut args).map(|()| args);
+
+    let _ = std::fs::remove_file(path);
+    result
+}
+
+fn args_with_config(config: &str, cli: &[&str]) -> Args {
+    args_with_config_result(config, cli).expect("apply profile config")
+}
+
+fn nightcore_config() -> &'static str {
+    "profile.nightcore.base = monolith\n\
+     profile.nightcore.color = purple\n\
+     profile.nightcore.charset = binary\n\
+     profile.nightcore.speed = 24\n\
+     profile.nightcore.density = 0.70\n\
+     profile.nightcore.glitch-level = subtle\n\
+     profile.nightcore.monolith-size = large\n"
+}
+
+#[test]
+fn cli_profile_loads_user_profile_from_config() {
+    let args = args_with_config(nightcore_config(), &["--profile", "nightcore"]);
+    assert_eq!(args.profile.as_deref(), Some("nightcore"));
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.color, "purple");
+    assert_eq!(args.charset, "binary");
+    assert_eq!(args.speed, 24.0);
+    assert!((args.density - 0.70).abs() < f32::EPSILON);
+    assert_eq!(args.glitch_level, GlitchLevel::Subtle);
+    assert_eq!(args.monolith_size, MonolithSize::Large);
+    assert_eq!(
+        args.scene
+            .as_deref()
+            .and_then(crate::scene::rain_style_for_scene),
+        Some(RainStyle::Monolith)
+    );
+}
+
+#[test]
+fn profile_base_monolith_applies_monolith_foundation() {
+    let args = args_with_config(
+        "profile.nightcore.base = monolith\n",
+        &["--profile", "nightcore"],
+    );
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.speed, 20.0);
+    assert_eq!(args.glitch_level, GlitchLevel::Subtle);
+}
+
+#[test]
+fn explicit_cli_flags_override_profile_values() {
+    let args = args_with_config(
+        nightcore_config(),
+        &[
+            "--profile",
+            "nightcore",
+            "--speed",
+            "30",
+            "--color",
+            "green",
+        ],
+    );
+    assert_eq!(args.color, "green");
+    assert_eq!(args.speed, 30.0);
+    assert!((args.density - 0.70).abs() < f32::EPSILON);
+    assert_eq!(args.monolith_size, MonolithSize::Large);
+}
+
+#[test]
+fn config_profile_applies_after_config_scene() {
+    let config = format!(
+        "scene = signal\nprofile = nightcore\n{}",
+        nightcore_config()
+    );
+    let args = args_with_config(&config, &[]);
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.color, "purple");
+    assert_eq!(args.speed, 24.0);
+}
+
+#[test]
+fn cli_profile_overrides_cli_scene_for_profile_foundation() {
+    let args = args_with_config(
+        nightcore_config(),
+        &["--scene", "signal", "--profile", "nightcore"],
+    );
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.color, "purple");
+    assert_eq!(args.speed, 24.0);
+}
+
+#[test]
+fn unknown_cli_profile_has_clear_error() {
+    let err = args_with_config_result(nightcore_config(), &["--profile", "unknown"]).unwrap_err();
+    assert!(err.contains("error: invalid profile: unknown"));
+    assert!(err.contains("expected one of: nightcore"));
+}
+
+#[test]
+fn invalid_profile_values_are_ignored_cleanly() {
+    let config = "profile.bad.base = monolith\n\
+                  profile.bad.color = not-a-color\n\
+                  profile.bad.speed = 0\n\
+                  profile.bad.density = nope\n";
+    let args = args_with_config(config, &["--profile", "bad"]);
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.speed, 20.0);
+    assert_eq!(args.density, 0.75);
+}
+
+#[test]
+fn existing_config_without_profiles_still_works() {
+    let args = args_with_config("scene = signal\ncolor = cyan\n", &[]);
+    assert_eq!(args.profile, None);
+    assert_eq!(args.scene.as_deref(), Some("signal"));
+    assert_eq!(args.color, "cyan");
+}
+
+#[test]
+fn default_plain_runtime_profile_remains_monolith() {
+    let args = args_with_config("", &[]);
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.speed, 20.0);
+}
