@@ -191,7 +191,7 @@ fn architecture_color_scheme_transition_after_split() {
     assert!(cloud.transition_start.is_some());
 }
 
-/// Scene switch x/X cycle through all scenes still produces
+/// Scene switch x/X forward cycle through all scenes still produces
 /// dirty frames with no blank screens after module split.
 #[test]
 fn architecture_full_cycle_no_blank_after_split() {

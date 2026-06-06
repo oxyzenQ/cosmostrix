@@ -26,6 +26,8 @@
 //! A fork-based SIGKILL guard (Linux) provides a last-resort safety net
 //! for cases where the process is killed with signal 9.
 
+#[cfg(unix)]
+use std::io::{stdin, IsTerminal};
 use std::io::{stdout, BufWriter, Result, Stdout, Write};
 #[cfg(unix)]
 use std::process::Command;
@@ -537,19 +539,25 @@ pub fn restore_terminal_best_effort() {
     let _ = out.execute(cursor::Show);
     let _ = out.execute(terminal::EnableLineWrap);
     let _ = out.execute(terminal::LeaveAlternateScreen);
+    let _ = out.execute(cursor::MoveTo(0, 0));
+    let _ = out.execute(terminal::Clear(terminal::ClearType::All));
+    let _ = out.execute(terminal::Clear(terminal::ClearType::Purge));
+    let _ = out.execute(cursor::MoveTo(0, 0));
     let _ = terminal::disable_raw_mode();
     let _ = out.flush();
 }
 
 pub const TERMINAL_RESET_SEQUENCE: &str =
-    "\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?2004l\x1b[?1004l\x1b[?1049l\x1b[?25h\x1b[0m";
+    "\x1b[0m\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?2004l\x1b[?1004l\x1b[?1049l\x1b[?25h\x1b[H\x1b[2J\x1b[3J\x1b[H\x1b[0m";
 
 pub fn reset_terminal_emergency() {
     restore_terminal_best_effort();
     #[cfg(unix)]
     {
-        let _ = Command::new("stty").arg("sane").status();
-        let _ = Command::new("reset").status();
+        if stdin().is_terminal() || stdout().is_terminal() {
+            let _ = Command::new("stty").arg("sane").status();
+            let _ = Command::new("reset").status();
+        }
     }
 }
 
@@ -630,6 +638,33 @@ mod tests {
             );
         }
         assert!(TERMINAL_RESET_SEQUENCE.ends_with("\x1b[0m"));
+    }
+
+    #[test]
+    fn emergency_reset_sequence_clears_screen_and_scrollback() {
+        assert!(
+            TERMINAL_RESET_SEQUENCE.contains("\x1b[2J"),
+            "reset sequence must clear the visible screen"
+        );
+        assert!(
+            TERMINAL_RESET_SEQUENCE.contains("\x1b[3J"),
+            "reset sequence must request scrollback purge"
+        );
+        assert!(
+            TERMINAL_RESET_SEQUENCE.matches("\x1b[H").count() >= 2,
+            "reset sequence must move cursor home before and after clearing"
+        );
+    }
+
+    #[test]
+    fn emergency_reset_sequence_is_idempotent() {
+        let repeated = format!("{TERMINAL_RESET_SEQUENCE}{TERMINAL_RESET_SEQUENCE}");
+        for required in ["\x1b[0m", "\x1b[?1049l", "\x1b[?25h", "\x1b[2J", "\x1b[3J"] {
+            assert!(
+                repeated.contains(required),
+                "repeated reset sequence missing required command {required:?}"
+            );
+        }
     }
 
     #[test]

@@ -60,7 +60,7 @@ fn scene_cycle_forward_updates_cloud_scene() {
 }
 
 #[test]
-fn scene_cycle_backward_updates_cloud_scene() {
+fn scene_cycle_to_signal_updates_cloud_scene() {
     let mut cloud = make_monolith_cloud();
     let charset = "binary".to_string();
     let new_charset = cloud.apply_scene_runtime("signal", &charset, &[], false);
@@ -385,13 +385,13 @@ fn repeated_forward_cycle_never_blank() {
     }
 }
 
-/// Repeated backward cycling (X key) through all scenes never yields
+/// Repeated uppercase X cycling forward through all scenes never yields
 /// a blank frame. Each scene transition must produce dirty cells.
 #[test]
-fn repeated_backward_cycle_never_blank() {
+fn repeated_uppercase_forward_cycle_never_blank() {
     let mut cloud = make_monolith_cloud();
     let mut frame = Frame::new(40, 20, cloud.palette.bg);
-    let scenes = ["signal", "matrix", "monolith"];
+    let scenes = ["matrix", "signal", "monolith"];
     for scene in &scenes {
         cloud.apply_scene_runtime(scene, "binary", &[], false);
         frame.clear_dirty();
@@ -399,7 +399,7 @@ fn repeated_backward_cycle_never_blank() {
         cloud.rain(&mut frame);
         assert!(
             has_dirty_cells(&frame),
-            "backward cycle: scene '{scene}' must produce dirty frame"
+            "uppercase forward cycle: scene '{scene}' must produce dirty frame"
         );
     }
 }
@@ -593,12 +593,12 @@ fn fresh_entry_repeated_forward_never_scattered() {
     }
 }
 
-/// Repeated X cycling (backward) never produces a frame where warm-started
+/// Repeated X cycling forward never produces a frame where warm-started
 /// glyph droplets have heads in the lower half.
 #[test]
-fn fresh_entry_repeated_backward_never_scattered() {
+fn fresh_entry_repeated_uppercase_forward_never_scattered() {
     let mut cloud = make_monolith_cloud();
-    let scenes = ["signal", "matrix", "monolith", "signal", "matrix"];
+    let scenes = ["matrix", "signal", "monolith", "matrix", "signal"];
     let lines = cloud.lines;
     let head_cap = (lines / 4).clamp(2, WARM_START_MAX_HEAD);
     for scene in &scenes {
@@ -608,7 +608,7 @@ fn fresh_entry_repeated_backward_never_scattered() {
                 if d.is_alive {
                     assert!(
                         d.head_put_line <= head_cap,
-                        "backward cycle '{scene}': head (line {}) must be in upper quarter (cap={head_cap})",
+                        "uppercase forward cycle '{scene}': head (line {}) must be in upper quarter (cap={head_cap})",
                         d.head_put_line
                     );
                 }
@@ -717,18 +717,18 @@ fn sparse_entry_repeated_forward_stays_sparse() {
     }
 }
 
-/// Repeated X (backward) cycling must also stay sparse.
+/// Repeated X forward cycling must also stay sparse.
 #[test]
-fn sparse_entry_repeated_backward_stays_sparse() {
+fn sparse_entry_repeated_uppercase_forward_stays_sparse() {
     let mut cloud = make_monolith_cloud();
-    let scenes = ["signal", "matrix", "monolith", "signal", "matrix"];
+    let scenes = ["matrix", "signal", "monolith", "matrix", "signal"];
     for scene in &scenes {
         cloud.apply_scene_runtime(scene, "binary", &[], false);
         if matches!(cloud.rain_style(), RainStyle::Glyph) {
             let alive = cloud.droplets.iter().filter(|d| d.is_alive).count();
             assert!(
                 alive <= WARM_START_SEED_MAX,
-                "backward cycle '{scene}': alive ({alive}) must be <= {WARM_START_SEED_MAX}"
+                "uppercase forward cycle '{scene}': alive ({alive}) must be <= {WARM_START_SEED_MAX}"
             );
         }
     }

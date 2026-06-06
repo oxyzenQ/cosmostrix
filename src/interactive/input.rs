@@ -153,17 +153,11 @@ pub(super) fn handle_keybinding(
         (KeyCode::Char('m'), _) => {
             cloud.cycle_profile();
         }
-        (KeyCode::Char('x'), _) => {
+        (KeyCode::Char('x' | 'X'), _) => {
             let next = scene::cycle_scene(scene_name, 1);
             *scene_name = next.to_string();
             *charset_preset =
                 cloud.apply_scene_runtime(next, charset_preset, user_ranges, def_ascii);
-        }
-        (KeyCode::Char('X'), _) => {
-            let prev = scene::cycle_scene(scene_name, -1);
-            *scene_name = prev.to_string();
-            *charset_preset =
-                cloud.apply_scene_runtime(prev, charset_preset, user_ranges, def_ascii);
         }
         (KeyCode::Up, _) => {
             let mut cps = cloud.chars_per_sec;

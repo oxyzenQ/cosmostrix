@@ -793,7 +793,8 @@ DIAGNOSTICS:
   -i, --info     Build and runtime information.
   --reset-terminal
       Restore raw mode, alternate screen, cursor, focus, and mouse reporting
-      after an interrupted run.
+      after an interrupted run. Also clears the visible screen, moves the
+      cursor home, and attempts scrollback purge when supported.
 
 DISCOVERY:
   --list-colors         Show compact color theme names.

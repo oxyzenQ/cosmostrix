@@ -257,19 +257,110 @@ mod cases {
         #[cfg(unix)] term_reinit: &Arc<AtomicBool>,
     ) -> bool {
         let mut scene_name = String::from("monolith");
+        call_handle_keybinding_with_scene(
+            cloud,
+            frame,
+            key,
+            charset_preset,
+            &mut scene_name,
+            cfg,
+            #[cfg(unix)]
+            term_reinit,
+        )
+    }
+
+    fn call_handle_keybinding_with_scene(
+        cloud: &mut Cloud,
+        frame: &mut Frame,
+        key: &KeyEvent,
+        charset_preset: &mut String,
+        scene_name: &mut String,
+        cfg: &CloudConfig,
+        #[cfg(unix)] term_reinit: &Arc<AtomicBool>,
+    ) -> bool {
         let user_ranges: [(char, char); 0] = [];
         handle_keybinding(
             cloud,
             frame,
             key,
             charset_preset,
-            &mut scene_name,
+            scene_name,
             &user_ranges,
             true,
             cfg,
             #[cfg(unix)]
             term_reinit,
         )
+    }
+
+    #[test]
+    fn lowercase_x_cycles_scene_forward() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key('x'),
+            &mut charset_preset,
+            &mut scene_name,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(scene_name, "matrix");
+        assert_eq!(cloud.active_scene(), "matrix");
+    }
+
+    #[test]
+    fn uppercase_x_cycles_scene_forward() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key('X'),
+            &mut charset_preset,
+            &mut scene_name,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(scene_name, "matrix");
+        assert_eq!(cloud.active_scene(), "matrix");
+    }
+
+    #[test]
+    fn uppercase_x_repeated_uses_forward_scene_order() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut visited = Vec::new();
+
+        for _ in 0..3 {
+            call_handle_keybinding_with_scene(
+                &mut cloud,
+                &mut frame,
+                &key('X'),
+                &mut charset_preset,
+                &mut scene_name,
+                &make_test_config(),
+                #[cfg(unix)]
+                &Arc::new(AtomicBool::new(false)),
+            );
+            visited.push(scene_name.clone());
+        }
+
+        assert_eq!(visited, ["matrix", "signal", "monolith"]);
+        assert_eq!(cloud.active_scene(), "monolith");
     }
 
     #[test]

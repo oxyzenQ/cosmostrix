@@ -219,7 +219,7 @@ Explicit CLI flags always override preset and scene values. For example, `cosmos
   m             Cycle profile     Space      Reseed animation
 ```
 
-Press `x` while running to cycle scene atmospheres (Monolith Rain, Matrix, Signal).
+Press `x` or `X` while running to cycle scene atmospheres forward (Monolith Rain, Matrix, Signal).
 
 ## Terminal Recovery
 
@@ -246,10 +246,20 @@ reporting, or mouse reporting, run:
 cosmostrix --reset-terminal
 ```
 
+On Windows PowerShell, use:
+
+```powershell
+.\cosmostrix.exe --reset-terminal
+```
+
+`--reset-terminal` resets styles, shows the cursor, leaves the alternate screen,
+disables terminal reporting modes, clears the visible screen, moves the cursor
+home, and attempts to purge scrollback when the terminal supports it.
+
 or, if `cosmostrix` is not available:
 
 ```bash
-printf '\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l\033[?2004l\033[?1004l\033[?1049l\033[?25h\033[0m'
+printf '\033[0m\033[?1000l\033[?1002l\033[?1003l\033[?1006l\033[?1015l\033[?2004l\033[?1004l\033[?1049l\033[?25h\033[H\033[2J\033[3J\033[H\033[0m'
 stty sane
 reset
 ```
@@ -312,7 +322,7 @@ cosmostrix --scene monolith --monolith-size large
 
 Plain `cosmostrix` launches signature structured Monolith Rain (`speed 10`, `density 0.75`). Classic Matrix mode remains available with `cosmostrix --scene matrix`. Charset cycling keeps the Monolith segmented identity but changes the segment glyph source. `--monolith-size` controls terminal-cell segment scale (`small`, `normal`, `large`), not raw pixel size; explicit options such as `--color deepspace`, `--fps`, `--speed`, and `--density` still override scene-managed values.
 
-Press `x` while running to cycle scenes at runtime: Monolith Rain -> Matrix -> Signal -> Monolith. Press `X` to cycle backward. Runtime scene cycling applies scene-managed values for color, charset, speed, density, and glitch level. Scene transitions are smooth with no ghosting or residue.
+Press `x` or `X` while running to cycle scenes forward at runtime: Monolith Rain -> Matrix -> Signal -> Monolith. Runtime scene cycling applies scene-managed values for color, charset, speed, density, and glitch level. Scene transitions are smooth with no ghosting or residue.
 
 ## Color schemes
 
