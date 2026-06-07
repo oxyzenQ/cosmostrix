@@ -3,8 +3,16 @@
 
 use std::process::Command;
 
-const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenq/cosmostrix/releases/latest";
-const RELEASES_URL: &str = "https://github.com/oxyzenq/cosmostrix/releases/latest";
+const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenQ/cosmostrix/releases/latest";
+const RELEASES_URL: &str = "https://github.com/oxyzenQ/cosmostrix/releases/latest";
+
+/// Canonical GitHub API URL for update checks (exposed for metadata tests).
+#[cfg(test)]
+pub(crate) const CANONICAL_GITHUB_API_URL: &str = GITHUB_API_URL;
+
+/// Canonical releases URL (exposed for metadata tests).
+#[cfg(test)]
+pub(crate) const CANONICAL_RELEASES_URL: &str = RELEASES_URL;
 
 #[derive(Debug, PartialEq, Eq)]
 enum UpdateStatus {
@@ -81,7 +89,7 @@ fn curl_failure(code: i32) -> &'static str {
 fn http_failure(code: u16) -> &'static str {
     match code {
         403 => "GitHub API request was rate-limited or forbidden",
-        404 => "no latest GitHub release found for oxyzenq/cosmostrix",
+        404 => "no latest GitHub release found for oxyzenQ/cosmostrix",
         _ => "GitHub API returned an unexpected error",
     }
 }

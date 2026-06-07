@@ -25,9 +25,9 @@ pub(super) fn version_report() -> String {
     format!(
         "Version: v{version}\n\
          Build: {target} ({commit})\n\
-         Copyright: (c) 2026 Rezky_nightky\n\
+         Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
          License: MIT\n\
-         Source: https://github.com/oxyzenq/cosmostrix"
+         Source: https://github.com/oxyzenQ/cosmostrix"
     )
 }
 
