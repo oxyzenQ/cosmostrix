@@ -393,3 +393,24 @@ variation while keeping the v3.9.0 visual identity intact.
 - The effective runtime values under ControlledLive are extremely close to
   base values: speed and density deviate by at most ±4% from config base.
 - Color change and terminal effects remain permanently false in ControlledLive.
+
+## v4.0.0 Visual Whisper Policy
+
+The Phase 7 visual whisper adapter provides the most restrictive modulation
+layer in the atmosphere pipeline. It converts verified atmosphere modulation
+into ultra-subtle visual-safe whisper values that are strictly tighter than
+ControlledLive bounds in every parameter.
+
+- VisualWhisperBounds are tighter than ControlledLiveBounds: speed ±2%,
+  density ±2%, brightness ±1.5%, trail_energy ±2%, glyph_pulse ±2%,
+  glitch_pressure ≤ 0.05.
+- The visual whisper adapter is internal/test-only. Non-identity whisper is
+  never produced in the default production runtime path.
+- Disabled mode always produces identity whisper.
+- Calm regime always produces identity whisper.
+- No color changes. No terminal effects. No persistent config mutation.
+- Clean empty space must remain clean: no muddy residue, no white spam,
+  no full-height spine wall, no bottom buildup.
+- The whisper adapter is a pure read-only transform — it never mutates
+  persistent configuration state or terminal state.
+- Visual whisper is deterministic: same input always produces same output.

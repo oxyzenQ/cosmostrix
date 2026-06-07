@@ -49,6 +49,7 @@ mod atmosphere_runtime;
 #[cfg(test)]
 mod atmosphere_tests;
 mod atmosphere_verifier;
+mod atmosphere_visual;
 mod bench;
 mod bench_report;
 mod cell;

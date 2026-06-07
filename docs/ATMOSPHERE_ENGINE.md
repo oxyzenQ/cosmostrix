@@ -6,6 +6,71 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
+## Status: Phase 7 — First Real Controlled Visual Whisper (v4.0.0)
+
+v4.0.0 Phase 7 introduces the first controlled visual modulation path that can
+subtly influence visual parameters through the verified runtime seam while
+preserving default v3.9.0-like behavior. The visual whisper adapter is an
+internal/test-only layer that converts verified `AtmosphereRuntimeModulation`
+into ultra-subtle visual-safe whisper values.
+
+### New Types and Functions
+
+- `AtmosphereVisualWhisper` (`src/atmosphere_visual.rs`): the visual whisper
+  struct carrying ultra-tightly bounded visual modulation values (speed_scale,
+  density_scale, brightness_scale, trail_energy_scale, glyph_pulse_scale,
+  glitch_pressure). Default is identity.
+- `VisualWhisperBounds` (`src/atmosphere_visual.rs`): ultra-tight bounds that
+  are strictly tighter than ControlledLiveBounds — speed ±2%, density ±2%,
+  brightness ±1.5%, trail_energy ±2%, glyph_pulse ±2%, glitch_pressure ≤ 0.05.
+- `visual_whisper_from_modulation()`: converts modulation + mode into whisper.
+  Disabled/Calm always returns identity.
+- `visual_whisper_from_application()`: converts application + mode into whisper.
+  Disabled/Calm always returns identity.
+- `visual_whisper_from_regime()`: one-step pipeline from regime to whisper.
+  Only useful in tests/internal code.
+
+### What Phase 7 Does
+
+- Introduces the visual whisper adapter as an internal/test-only module.
+- Proves the atmosphere pipeline can produce visual-safe ultra-subtle values.
+- Whisper bounds are tighter than ControlledLiveBounds for all parameters.
+- Adds trail_energy_scale and glyph_pulse_scale as new whisper parameters.
+- Default behavior remains identity (Disabled/Calm → identity whisper).
+- 18 new deterministic tests for visual whisper.
+
+### What Phase 7 Does NOT Do
+
+- Does NOT change default visual output — still identical to v3.9.0.
+- Does NOT expose visual whisper via public CLI.
+- Does NOT auto-activate Pulse/Storm/Void in normal `cosmostrix`.
+- Does NOT alter color scheme, terminal state, or scene cycling.
+- Does NOT add new dependencies or unsafe code.
+- Does NOT alter Monolith Rain behavior.
+- Does NOT store non-identity whisper in CloudConfig by default.
+
+### Visual Whisper Safety Guarantees
+
+- Speed deviation from identity: ≤ ±2% (VisualWhisperBounds::SPEED_MAX_DELTA = 0.02).
+- Density deviation: ≤ ±2% (DENSITY_MAX_DELTA = 0.02).
+- Brightness deviation: ≤ ±1.5% (BRIGHTNESS_MAX_DELTA = 0.015).
+- Trail energy deviation: ≤ ±2% (TRAIL_ENERGY_MAX_DELTA = 0.02).
+- Glyph pulse deviation: ≤ ±2% (GLYPH_PULSE_MAX_DELTA = 0.02).
+- Glitch pressure: ≤ 0.05 (GLITCH_PRESSURE_MAX = 0.05).
+- Color change: always false.
+- Terminal effects: always false.
+- Calm regime: always identity (no modulation).
+- Disabled mode: always identity (no modulation).
+- Whisper is always within VisualWhisperBounds (verified by tests).
+- Whisper is tighter than ControlledLive for every parameter.
+
+### Default Behavior
+
+The default application mode is `Disabled`. The visual whisper adapter returns
+identity for Disabled mode and for Calm regime. Non-identity whisper is only
+reachable through test or internal code paths. The production runtime path
+computes identity. The renderer behaves exactly as v3.9.0.
+
 ## Status: Phase 6 — Controlled Live Modulation (v4.0.0)
 
 v4.0.0 Phase 6 adds an internal-only ControlledLive modulation path while
