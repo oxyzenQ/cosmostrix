@@ -9,8 +9,11 @@
 //! parallelization framework. The terminal writer remains single-owner at
 //! all times.
 
-// Phase 1: Some probe fields are set but not yet consumed by the planner.
-// They exist for future adaptive logic and benchmark diagnostics.
+// Phase 1: Module-level dead_code allow is required because many types
+// (EngineProbe, EnginePlan, EngineMode) are pub(crate) API contracts consumed
+// only in tests and benchmark diagnostics — not yet wired into the hot render
+// path. When the engine is integrated into the rendering loop, most items will
+// become live and individual allows can be removed.
 #![allow(dead_code)]
 
 use std::thread::available_parallelism;

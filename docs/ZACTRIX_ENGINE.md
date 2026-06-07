@@ -89,6 +89,24 @@ parallel rendering. The planner produces diagnostic output used in benchmark
 reports. Actual parallel execution paths may be added in future phases only
 when tests confirm correctness and benchmarks confirm benefit.
 
+### Benchmark Diagnostic Labels (Phase 1)
+
+In v4.0.0 Phase 1, the benchmark reports Zactrix Engine fields with
+`planned_` prefixes to clearly communicate that the engine **plans only** and
+does **not** execute parallel compute:
+
+| Field | Example Value | Meaning |
+|-------|--------------|---------|
+| `planned_mode` | `parallel-compute` | Mode the planner recommends. Not the mode currently executing. |
+| `planned_worker_budget` | `2` | Future execution budget if parallel paths were wired. Not current thread count. |
+| `plan_reason` | `benchmark mode` | Why the planner chose this mode. |
+| `actual_execution` | `single-threaded-renderer` | What is actually running right now: always single-threaded in Phase 1. |
+| `terminal_writer` | `single-owner` | Terminal writes remain single-owner. Always true. |
+
+**No worker threads are spawned by Zactrix Engine in Phase 1.** The
+`planned_worker_budget` is a future execution budget, not a current thread
+count. The renderer remains single-threaded/single-owner for terminal output.
+
 ## Hard Constraints
 
 - Terminal writer remains single-owner.

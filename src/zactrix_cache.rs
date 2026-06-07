@@ -8,8 +8,10 @@
 //! It is not a public API. It does not cache terminal output strings.
 //! It is a policy module tested through unit tests.
 
-// Phase 1: Cache types are tested through unit tests and used in docs.
-// Not yet wired into the hot rendering path.
+// Phase 1: Module-level dead_code allow is required because all cache types
+// are pub(crate) API contracts consumed only in tests — not yet wired into the
+// hot rendering path. When the cache is integrated, most items will become
+// live and individual allows can be removed.
 #![allow(dead_code)]
 
 // ── Invalidation Events ────────────────────────────────────────────────────

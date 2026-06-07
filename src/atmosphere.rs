@@ -8,8 +8,10 @@
 //! types and design contracts but does not enable any regime transitions or
 //! visual changes. The renderer behaves exactly as v3.9.0.
 
-// Phase 1: Atmosphere types are design contracts tested through unit tests.
-// Not yet wired into the rendering path.
+// Phase 1: Module-level dead_code allow is required because all atmosphere
+// types are pub(crate) design contracts consumed only in unit tests — not yet
+// wired into the rendering path. When the Atmosphere Engine is integrated,
+// most items will become live and individual allows can be removed.
 #![allow(dead_code)]
 
 /// Visual regime for the Atmosphere Engine.

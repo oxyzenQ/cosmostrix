@@ -773,6 +773,8 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     }
 
     // ── Zactrix Engine diagnostics ───────────────────────────────────────
+    // Phase 1: The engine plans only — no worker threads are spawned.
+    // All fields prefixed with "planned_" to reflect this accurately.
     {
         let engine_probe = EngineProbe {
             cols: w,
@@ -787,9 +789,13 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         let engine_plan = EnginePlan::from_probe(&engine_probe);
 
         let s = r.section("ZACTRIX ENGINE");
-        s.field("mode", engine_plan.mode.as_str());
-        s.field("worker_budget", &engine_plan.worker_budget.to_string());
-        s.field("reason", engine_plan.reason);
+        s.field("planned_mode", engine_plan.mode.as_str());
+        s.field(
+            "planned_worker_budget",
+            &engine_plan.worker_budget.to_string(),
+        );
+        s.field("plan_reason", engine_plan.reason);
+        s.field("actual_execution", "single-threaded-renderer");
         s.field(
             "terminal_writer",
             if engine_plan.terminal_writer_single_owner {
@@ -899,9 +905,11 @@ mod tests {
             "estimated_full_redraw_ratio_percent",
             "active_streams_avg",
             "dirty_glyphs_per_second",
-            "zactrix_engine_mode",
-            "zactrix_worker_budget",
-            "zactrix_terminal_writer",
+            "planned_mode",
+            "planned_worker_budget",
+            "plan_reason",
+            "actual_execution",
+            "terminal_writer",
         ];
         // These are checked against report field keys in the actual
         // benchmark (integration-level). Here we just verify the
