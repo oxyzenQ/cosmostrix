@@ -46,6 +46,7 @@ mod atmosphere_apply_tests;
 mod atmosphere_controlled_live;
 mod atmosphere_probe;
 mod atmosphere_runtime;
+mod atmosphere_shadow;
 #[cfg(test)]
 mod atmosphere_tests;
 mod atmosphere_verifier;
@@ -481,6 +482,13 @@ fn main() -> std::io::Result<()> {
                     "modulated"
                 },
             );
+            // Phase 8: shadow metrics
+            let shadow = atmosphere_shadow::shadow_metrics_from_mode_and_regime(
+                apply_mode,
+                atmosphere::AtmosphereRegime::Calm,
+            );
+            s.field("shadow_metrics", shadow.risk_label());
+            s.field("shadow_risk", shadow.risk_label());
         }
         r.print();
         return Ok(());

@@ -321,6 +321,13 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 "modulated"
             },
         );
+        // Phase 8: shadow metrics
+        let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(
+            apply_mode,
+            crate::atmosphere::AtmosphereRegime::Calm,
+        );
+        s.field("atmosphere_shadow", shadow.risk_label());
+        s.field("atmosphere_shadow_risk", shadow.risk_label());
     }
 
     if data.color_mode == ColorMode::Color16

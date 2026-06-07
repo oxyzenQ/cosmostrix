@@ -414,3 +414,24 @@ ControlledLive bounds in every parameter.
 - The whisper adapter is a pure read-only transform — it never mutates
   persistent configuration state or terminal state.
 - Visual whisper is deterministic: same input always produces same output.
+
+## v4.0.0 Shadow Metrics Policy
+
+The Phase 8 shadow metrics layer measures whisper impact internally before any
+public visual activation. Shadow metrics exist to prevent muddy residue, white
+spam, bottom buildup, color drift, and terminal effects from reaching the
+renderer without first being measured and classified.
+
+- AtmosphereShadowMetrics (`src/atmosphere_shadow.rs`) measures percentage
+  deviations from identity for each whisper parameter.
+- Shadow evaluation functions are pure and deterministic: no cache invalidation,
+  no terminal state changes, no color changes, no config mutation.
+- Risk labels classify the potential visual impact: identity (no impact),
+  whisper (within VisualWhisperBounds, imperceptible), elevated (outside
+  whisper bounds but verifier-safe), rejected (color or terminal effect
+  allowed).
+- Default runtime reports identity shadow metrics (no visual impact).
+- Shadow diagnostics appear in `-i` and `--benchmark` output for transparency.
+- Shadow metrics do not alter the renderer. They are measurement-only.
+- The shadow layer adds no new dependencies, no new unsafe code, and no new
+  CLI flags. Full public atmosphere controls remain future work.

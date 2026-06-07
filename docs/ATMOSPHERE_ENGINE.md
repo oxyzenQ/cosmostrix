@@ -6,6 +6,61 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
+## Status: Phase 8 — Whisper Wiring Guard / Runtime Shadow Metrics (v4.0.0)
+
+v4.0.0 Phase 8 adds a shadow-metrics layer that measures the potential visual
+impact of the atmosphere whisper system without enabling visible modulation by
+default. This is measurement and guardrail work, not public visual activation.
+
+### New Types and Functions
+
+- `AtmosphereShadowMetrics` (`src/atmosphere_shadow.rs`): shadow metrics struct
+  carrying percentage deviations from identity for each whisper parameter
+  (speed_delta_percent, density_delta_percent, brightness_delta_percent,
+  trail_energy_delta_percent, glyph_pulse_delta_percent), plus glitch_pressure,
+  color_change_allowed, and terminal_effect_allowed. Includes `is_identity()`,
+  `max_abs_delta_percent()`, and `risk_label()` methods.
+- Risk labels: `identity` (no impact), `whisper` (within VisualWhisperBounds),
+  `elevated` (outside whisper bounds but verifier-safe), `rejected` (color or
+  terminal effect allowed).
+- `shadow_metrics_from_whisper()`: converts a visual whisper into shadow metrics.
+  Pure function, no side effects.
+- `shadow_metrics_from_mode_and_regime()`: computes shadow metrics for a given
+  mode and regime. Disabled/Calm returns identity. ControlledLive non-Calm
+  routes through the whisper adapter (whisper risk). InternalVerified non-Calm
+  routes through the modulation path (elevated risk).
+- `shadow_metrics_from_application()`: computes shadow metrics for a given mode
+  and verified application. Same routing logic as above.
+
+### What Phase 8 Does
+
+- Adds a shadow-metrics measurement layer for the atmosphere whisper system.
+- Provides pure deterministic evaluation functions with no side effects.
+- Adds risk labels (identity/whisper/elevated/rejected) for diagnostic reporting.
+- Integrates shadow diagnostics into `-i` (shadow_metrics, shadow_risk).
+- Integrates shadow diagnostics into `--benchmark` (atmosphere_shadow,
+  atmosphere_shadow_risk).
+- Default runtime shows identity shadow metrics (no visual impact).
+- 18 new deterministic tests for shadow metrics.
+- Shadow evaluation does not invalidate cache or alter terminal state.
+
+### What Phase 8 Does NOT Do
+
+- Does NOT change default visual output — still identical to v3.9.0.
+- Does NOT enable visible atmosphere modulation.
+- Does NOT alter benchmark field names or remove existing fields.
+- Does NOT add new CLI flags, scene types, or dependencies.
+- Does NOT introduce color drift, terminal effects, or random changes.
+- Does NOT grow src/config_apply.rs or src/bench.rs significantly.
+- Full public atmosphere controls remain future work.
+
+### Shadow Metrics Diagnostics
+
+- `-i` reports `shadow_metrics: identity` and `shadow_risk: identity` by default.
+- `--benchmark` reports `atmosphere_shadow: identity` and
+  `atmosphere_shadow_risk: identity` by default.
+- Non-identity shadow would show `whisper` or `elevated` risk labels.
+
 ## Status: Phase 7 — First Real Controlled Visual Whisper (v4.0.0)
 
 v4.0.0 Phase 7 introduces the first controlled visual modulation path that can
