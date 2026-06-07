@@ -399,7 +399,6 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${{ steps.ver.outputs.tag }}"
-          VERSION="${{ steps.ver.outputs.version }}"
 
           TARGET="${{ matrix.target }}"
           PLATFORM="${{ matrix.platform }}"
@@ -612,7 +611,6 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${{ steps.ver.outputs.tag }}"
-          VERSION="${{ steps.ver.outputs.version }}"
           TARGET="aarch64-linux-android"
           PLATFORM="android-aarch64-native"
 
