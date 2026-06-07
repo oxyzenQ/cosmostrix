@@ -233,7 +233,7 @@ rustup default 1.81.0
 
 ### Routine Dependency Updates
 
-The project uses a weekly automated update cycle powered by the T-800 bot
+The project uses a weekly automated update cycle powered by the `nightbot maintenance` workflow
 (`gitbot-deps.yml`):
 
 1. **`cargo update --workspace`** — bumps all dependencies in `Cargo.lock` to the

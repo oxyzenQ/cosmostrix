@@ -19,3 +19,9 @@ Thumbs.db
 *.bak
 *.log
 *~
+
+# AI workdirs
+worklog.md
+codex/
+agent/
+other ai/

@@ -170,7 +170,7 @@ git push origin v3.9.0
 
 #### Manual inputs
 
-- None. Updates are always validated and committed directly to `main`.
+- None. Updates are always validated and committed directly to `main` by `nightbot`.
 
 #### What it does
 
