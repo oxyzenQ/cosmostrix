@@ -431,6 +431,12 @@ fn main() -> std::io::Result<()> {
                 },
             );
         }
+        {
+            let s = r.section("ATMOSPHERE");
+            s.field("regime", atmosphere::AtmosphereRegime::Calm.as_str());
+            s.field("engine", "phase-2-internal");
+            s.field("effective", "no-op");
+        }
         r.print();
         return Ok(());
     }

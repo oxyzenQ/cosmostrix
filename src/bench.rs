@@ -806,6 +806,15 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         );
     }
 
+    // ── Atmosphere Engine diagnostics ────────────────────────────────────
+    // Phase 2: Reports current regime state. Always Calm in Phase 2.
+    {
+        let s = r.section("ATMOSPHERE");
+        s.field("regime", crate::atmosphere::AtmosphereRegime::Calm.as_str());
+        s.field("effective", "no-op");
+        s.field("transition", "stable");
+    }
+
     if cfg.color_mode == ColorMode::Color16
         && avg_dirty_cell_ratio_percent >= (100.0 / DIRTY_THRESHOLD_RATIO as f64)
     {
@@ -910,6 +919,9 @@ mod tests {
             "plan_reason",
             "actual_execution",
             "terminal_writer",
+            "atmosphere_regime",
+            "atmosphere_effective",
+            "atmosphere_transition",
         ];
         // These are checked against report field keys in the actual
         // benchmark (integration-level). Here we just verify the

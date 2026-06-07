@@ -70,17 +70,16 @@ entry can be added without exceeding the bounds.
 
 ## Integration Strategy
 
-In v4.0.0 Phase 1, Zactrix Cache is a policy module. It is tested through
-unit tests that verify:
+In v4.0.0 Phase 2, Zactrix Cache is wired into the Atmosphere Engine:
+when `AtmosphereController::transition_to()` accepts a regime change,
+it invalidates the cache with `InvalidationEvent::AtmosphereRegimeChange`,
+bumping the generation and resetting entry count. This seam is tested
+through unit tests in `atmosphere.rs`.
 
-1. Generation invalidation on all defined events.
-2. Bounded entry count enforcement.
-3. Deterministic reuse decisions.
-
-The cache is not yet wired into the hot rendering path. Future phases may
-use it for expensive computations such as palette pre-computation, glyph
-width tables, or per-column spawn rate calculations. Until then, it serves
-as a tested architectural contract.
+In Phase 1, Zactrix Cache was a policy module tested through unit tests.
+In Phase 2, the `AtmosphereRegimeChange` event is used in real code paths
+(controller transitions), but the cache is not yet wired into the hot
+rendering path for frame-level caching.
 
 ## What Zactrix Cache Does NOT Do
 

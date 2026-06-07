@@ -7,12 +7,42 @@ It is not implemented in v4.0.0 Phase 1. This document describes the design
 intent and regime model so that the foundation code can reference it without
 implementing it.
 
-## Status: Design Only (v4.0.0 Phase 1)
+## Status: Phase 2 — Internal Wiring (v4.0.0)
 
-v4.0.0 Phase 1 does **not** enable the Atmosphere Engine. No regime transitions
-occur. No visual changes are driven by atmosphere logic. The renderer behaves
-exactly as v3.9.0. This document exists to anchor the type definitions and
-design contracts that future phases will implement.
+v4.0.0 Phase 2 wires the regime model into internal runtime state:
+
+- `AtmosphereState` holds current regime, target regime, transition progress,
+  and timing markers. Default: Calm/Calm/stable.
+- `AtmosphereController` manages regime transitions with dwell-time enforcement
+  and bounded ramp progress.
+- `RegimeProbe` provides observable facts for deterministic regime selection.
+- `select_regime_from_probe()` is a pure function that maps probe facts to a
+  candidate regime without applying it to visuals.
+- The Zactrix Cache `AtmosphereRegimeChange` invalidation event is wired:
+  regime transitions bump the cache generation.
+
+### What Phase 2 Does NOT Do
+
+- No regime transitions are applied in production code paths.
+- The renderer produces output identical to v3.9.0.
+- No visual modulation occurs.
+- No color drift unless `auto_color_drift` is explicitly enabled.
+- No chaotic or random visual changes.
+- No new CLI flags are added.
+- `select_regime_from_probe()` is used for diagnostics only.
+
+### Default Behavior
+
+The default regime is `Calm`. Calm is a visual no-op: all parameter
+multipliers are identity (speed 1.0, density 1.0, glitch 1.0, brightness 0.0).
+The renderer behaves exactly as v3.9.0.
+
+### Diagnostics
+
+- `--info` (`-i`) reports an `ATMOSPHERE` section with `regime: calm`,
+  `engine: phase-2-internal`, `effective: no-op`.
+- `--benchmark` reports an `ATMOSPHERE` section with `regime: calm`,
+  `effective: no-op`, `transition: stable`.
 
 ## Concept
 
@@ -89,10 +119,14 @@ within which the renderer makes visual decisions.
 
 ## Hard Constraints
 
-- v4.0.0 Phase 1 does not enable any regime transitions.
+- Default regime is `Calm`. Calm is a visual no-op.
+- No visual changes are driven by atmosphere logic in Phase 2.
 - Color drift remains opt-in only (`auto_color_drift = false`).
 - No chaotic or random visual changes.
 - All regime parameters are bounded.
 - Terminal writer remains single-owner.
 - No new unsafe code.
 - Scene cycling (x/X) semantics unchanged.
+- Regime transitions enforce minimum dwell time (5 seconds).
+- Transition ramp is bounded (minimum 1 second).
+- Zactrix Cache is invalidated on `AtmosphereRegimeChange`.
