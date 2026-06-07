@@ -116,3 +116,211 @@ fn docs_mention_visual_stability_policy_if_exists() {
     // This test is informational — it verifies the docs can be compiled
     // without actually requiring the doc to exist yet.
 }
+
+#[test]
+fn zactrix_engine_doc_exists_and_covers_adaptive_planning() {
+    let docs = include_str!("../docs/ZACTRIX_ENGINE.md");
+    let lowercase = docs.to_lowercase();
+    assert!(
+        lowercase.contains("adaptive execution"),
+        "Zactrix Engine docs should mention adaptive execution"
+    );
+    assert!(
+        lowercase.contains("single-owner"),
+        "Zactrix Engine docs should mention single-owner terminal writer"
+    );
+    assert!(
+        lowercase.contains("not always-on"),
+        "Zactrix Engine docs should say engine is not always-on multithreading"
+    );
+    assert!(
+        lowercase.contains("not a public api"),
+        "Zactrix Engine docs should say it is not a public API"
+    );
+    assert!(
+        docs.contains("v4.0.0 Phase 1"),
+        "Zactrix Engine docs should mention v4.0.0 Phase 1"
+    );
+    assert!(
+        docs.contains("v3.9.0"),
+        "Zactrix Engine docs should mention v3.9.0 visual identity preservation"
+    );
+}
+
+#[test]
+fn zactrix_cache_doc_exists_and_covers_bounded_invalidation() {
+    let docs = include_str!("../docs/ZACTRIX_CACHE.md");
+    let lowercase = docs.to_lowercase();
+    assert!(
+        lowercase.contains("bounded"),
+        "Zactrix Cache docs should mention bounded cache"
+    );
+    assert!(
+        lowercase.contains("generation"),
+        "Zactrix Cache docs should mention generation-aware invalidation"
+    );
+    assert!(
+        lowercase.contains("invalidation"),
+        "Zactrix Cache docs should mention invalidation events"
+    );
+    assert!(
+        lowercase.contains("deterministic"),
+        "Zactrix Cache docs should mention deterministic behavior"
+    );
+    assert!(
+        lowercase.contains("does not cache terminal output strings"),
+        "Zactrix Cache docs should state it does not cache terminal output strings"
+    );
+}
+
+#[test]
+fn atmosphere_engine_doc_exists_and_covers_regimes() {
+    let docs = include_str!("../docs/ATMOSPHERE_ENGINE.md");
+    let lowercase = docs.to_lowercase();
+    assert!(
+        lowercase.contains("regime"),
+        "Atmosphere Engine docs should mention regimes"
+    );
+    assert!(
+        lowercase.contains("future"),
+        "Atmosphere Engine docs should mention it is future design"
+    );
+    assert!(
+        lowercase.contains("phase 1"),
+        "Atmosphere Engine docs should mention Phase 1 does not enable it"
+    );
+    assert!(
+        lowercase.contains("gradual"),
+        "Atmosphere Engine docs should mention gradual changes"
+    );
+    assert!(
+        lowercase.contains("not random chaos"),
+        "Atmosphere Engine docs should state changes are not random chaos"
+    );
+}
+
+#[test]
+fn zactrix_engine_planner_chooses_single_core_for_normal_sizes() {
+    use crate::zactrix_engine::{EngineMode, EnginePlan};
+    let plan = EnginePlan::from_dimensions(80, 24);
+    assert_eq!(plan.mode, EngineMode::SingleCore);
+}
+
+#[test]
+fn zactrix_engine_planner_chooses_assist_for_large_screens() {
+    use crate::zactrix_engine::{EngineMode, EnginePlan};
+    let plan = EnginePlan::from_dimensions(250, 50);
+    assert_eq!(plan.mode, EngineMode::Assist);
+}
+
+#[test]
+fn zactrix_engine_worker_budget_is_bounded() {
+    use crate::zactrix_engine::EnginePlan;
+    use std::thread::available_parallelism;
+    let plan = EnginePlan::from_dimensions(300, 80);
+    let available = available_parallelism().map(|n| n.get()).unwrap_or(1);
+    assert!(
+        plan.worker_budget <= available.min(4),
+        "worker_budget {} must be <= {}",
+        plan.worker_budget,
+        available.min(4)
+    );
+}
+
+#[test]
+fn zactrix_engine_safe_fallback_for_zero_dimensions() {
+    use crate::zactrix_engine::{EngineMode, EnginePlan};
+    let plan = EnginePlan::from_dimensions(0, 0);
+    assert_eq!(plan.mode, EngineMode::SafeFallback);
+}
+
+#[test]
+fn zactrix_cache_invalidates_on_all_defined_events() {
+    use crate::zactrix_cache::{CachePolicy, InvalidationEvent};
+    let mut policy = CachePolicy::default_policy();
+    let events = [
+        InvalidationEvent::Resize,
+        InvalidationEvent::ColorChange,
+        InvalidationEvent::CharsetChange,
+        InvalidationEvent::SceneSwitch,
+        InvalidationEvent::ProfileApply,
+        InvalidationEvent::TerminalModeChange,
+        InvalidationEvent::AtmosphereRegimeChange,
+    ];
+    for event in events {
+        let prev = policy.generation.id();
+        policy.invalidate(event);
+        assert_eq!(
+            policy.generation.id(),
+            prev + 1,
+            "event {:?} should bump generation",
+            event
+        );
+    }
+}
+
+#[test]
+fn zactrix_cache_policy_never_grows_unbounded() {
+    use crate::zactrix_cache::CachePolicy;
+    let policy = CachePolicy::default_policy();
+    assert!(!policy.should_admit(usize::MAX));
+    assert!(policy.is_within_bounds(policy.max_entries));
+}
+
+#[test]
+fn auto_color_drift_remains_default_false_in_constants() {
+    let constants = include_str!("constants.rs");
+    assert!(
+        constants.contains("AUTO_COLOR_DRIFT_DEFAULT: bool = false"),
+        "AUTO_COLOR_DRIFT_DEFAULT must be false"
+    );
+}
+
+#[test]
+fn fixed_color_remains_sticky_by_default() {
+    // Verify that the color stability docs and config are consistent.
+    let stability = include_str!("../docs/VISUAL_STABILITY.md");
+    assert!(
+        stability.to_lowercase().contains("sticky")
+            || stability.to_lowercase().contains("stable by default"),
+        "Visual stability docs should mention sticky/stable by default color behavior"
+    );
+}
+
+#[test]
+fn no_new_unsafe_in_zactrix_modules() {
+    let engine = include_str!("zactrix_engine.rs");
+    assert!(
+        !engine.contains("unsafe {"),
+        "zactrix_engine.rs must not contain unsafe"
+    );
+
+    let cache = include_str!("zactrix_cache.rs");
+    assert!(
+        !cache.contains("unsafe {"),
+        "zactrix_cache.rs must not contain unsafe"
+    );
+
+    let atmosphere = include_str!("atmosphere.rs");
+    assert!(
+        !atmosphere.contains("unsafe {"),
+        "atmosphere.rs must not contain unsafe"
+    );
+}
+
+#[test]
+fn all_zactrix_files_under_1000_loc() {
+    let files = [
+        ("zactrix_engine.rs", include_str!("zactrix_engine.rs")),
+        ("zactrix_cache.rs", include_str!("zactrix_cache.rs")),
+        ("atmosphere.rs", include_str!("atmosphere.rs")),
+        ("zactrix_core.rs", include_str!("zactrix_core.rs")),
+    ];
+    for (name, content) in files {
+        let lines = content.lines().count();
+        assert!(
+            lines <= 1000,
+            "{name} has {lines} lines, must be under 1000"
+        );
+    }
+}

@@ -48,6 +48,7 @@ use crate::zactrix_core::{
     classify_frame_jitter, classify_frame_time_stability, dirty_threshold_cells,
     estimates_full_redraw,
 };
+use crate::zactrix_engine::{EnginePlan, EngineProbe};
 
 use super::{color_mode_label, detect_color_mode_auto, effective_density, CloudConfig};
 
@@ -771,6 +772,34 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         s.field("frames_with_changes", &drawn_frames.to_string());
     }
 
+    // ── Zactrix Engine diagnostics ───────────────────────────────────────
+    {
+        let engine_probe = EngineProbe {
+            cols: w,
+            rows: h,
+            cell_count: total_cells,
+            target_fps: cfg.target_fps,
+            benchmark_mode: true,
+            active_streams: active_streams_avg as usize,
+            dirty_cell_ratio: avg_dirty_cell_ratio_percent / 100.0,
+            frame_time_pressure: p99_frame_time,
+        };
+        let engine_plan = EnginePlan::from_probe(&engine_probe);
+
+        let s = r.section("ZACTRIX ENGINE");
+        s.field("mode", engine_plan.mode.as_str());
+        s.field("worker_budget", &engine_plan.worker_budget.to_string());
+        s.field("reason", engine_plan.reason);
+        s.field(
+            "terminal_writer",
+            if engine_plan.terminal_writer_single_owner {
+                "single-owner"
+            } else {
+                "shared"
+            },
+        );
+    }
+
     if cfg.color_mode == ColorMode::Color16
         && avg_dirty_cell_ratio_percent >= (100.0 / DIRTY_THRESHOLD_RATIO as f64)
     {
@@ -870,6 +899,9 @@ mod tests {
             "estimated_full_redraw_ratio_percent",
             "active_streams_avg",
             "dirty_glyphs_per_second",
+            "zactrix_engine_mode",
+            "zactrix_worker_budget",
+            "zactrix_terminal_writer",
         ];
         // These are checked against report field keys in the actual
         // benchmark (integration-level). Here we just verify the

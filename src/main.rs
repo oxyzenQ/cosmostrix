@@ -37,6 +37,7 @@
 //! through profiling, not hypothetical micro-optimizations.
 
 mod app;
+mod atmosphere;
 mod bench;
 mod cell;
 mod charset;
@@ -72,7 +73,9 @@ mod terminal;
 mod theme;
 mod update;
 mod validation;
+mod zactrix_cache;
 mod zactrix_core;
+mod zactrix_engine;
 
 use std::env;
 
