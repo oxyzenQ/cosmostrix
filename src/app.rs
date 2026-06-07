@@ -3,6 +3,7 @@
 
 //! Application configuration: CloudConfig struct and density calculation helpers.
 
+use crate::atmosphere_apply::{AtmosphereApplicationMode, AtmosphereRuntimeModulation};
 use crate::cloud::Cloud;
 use crate::constants::*;
 use crate::rain_style::RainStyle;
@@ -51,6 +52,13 @@ pub struct CloudConfig {
     pub user_ranges: Vec<(char, char)>,
     pub def_ascii: bool,
     pub auto_color_drift: bool,
+    /// Atmosphere modulation for the runtime seam. Default is identity (Disabled).
+    /// Wired through derive_effective_runtime but identity by default.
+    pub(crate) atmosphere_modulation: AtmosphereRuntimeModulation,
+    /// Atmosphere application mode. Default is Disabled (identity).
+    /// Reserved for future phases where non-identity modulation is gated.
+    #[allow(dead_code)]
+    pub(crate) atmosphere_mode: AtmosphereApplicationMode,
 }
 
 impl CloudConfig {
@@ -73,8 +81,16 @@ impl CloudConfig {
         cloud.short_pct = self.short_pct / 100.0;
         cloud.die_early_pct = self.die_early_pct / 100.0;
         cloud.set_max_droplets_per_column(self.max_dpc);
-        cloud.set_droplet_density(density);
-        cloud.set_chars_per_sec(self.speed);
+
+        // Phase 5: Compute effective runtime values from base + atmosphere modulation.
+        // Default modulation is identity, so effective values equal base values.
+        let eff = crate::atmosphere_apply::derive_effective_runtime(
+            self.speed,
+            density,
+            &self.atmosphere_modulation,
+        );
+        cloud.set_droplet_density(eff.density);
+        cloud.set_chars_per_sec(eff.speed);
         cloud.set_monolith_size(self.monolith_size);
 
         cloud.init_chars(self.chars.clone());

@@ -440,7 +440,7 @@ fn main() -> std::io::Result<()> {
             let modulation = atmosphere_apply::apply_application(&app, apply_mode);
             let s = r.section("ATMOSPHERE");
             s.field("regime", atmosphere::AtmosphereRegime::Calm.as_str());
-            s.field("engine", "phase-4-verified-application");
+            s.field("engine", "phase-5-runtime-seam");
             s.field(
                 "effective",
                 if modulation.is_identity() {
@@ -459,6 +459,17 @@ fn main() -> std::io::Result<()> {
                 },
             );
             s.field("application_mode", apply_mode.as_str());
+            // Phase 5: effective runtime seam
+            let eff =
+                atmosphere_apply::derive_effective_runtime(args.speed, args.density, &modulation);
+            s.field(
+                "effective_runtime",
+                if eff.speed == args.speed && eff.density == args.density {
+                    "identity"
+                } else {
+                    "modulated"
+                },
+            );
         }
         r.print();
         return Ok(());
@@ -622,6 +633,9 @@ fn main() -> std::io::Result<()> {
         user_ranges,
         def_ascii,
         auto_color_drift: args.auto_color_drift,
+        // Phase 5: Default atmosphere modulation is identity (Disabled).
+        atmosphere_modulation: atmosphere_apply::AtmosphereRuntimeModulation::identity(),
+        atmosphere_mode: atmosphere_apply::AtmosphereApplicationMode::Disabled,
     };
 
     if args.benchmark {

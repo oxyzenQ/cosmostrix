@@ -832,6 +832,17 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
                 "active"
             },
         );
+        // Phase 5: effective runtime seam
+        let eff_runtime =
+            crate::atmosphere_apply::derive_effective_runtime(cfg.speed, cfg.density, &modulation);
+        s.field(
+            "effective_runtime",
+            if eff_runtime.speed == cfg.speed && eff_runtime.density == cfg.density {
+                "identity"
+            } else {
+                "modulated"
+            },
+        );
     }
 
     if cfg.color_mode == ColorMode::Color16
@@ -945,6 +956,7 @@ mod tests {
             "atmosphere_application",
             "atmosphere_application_mode",
             "atmosphere_visual_effect",
+            "effective_runtime",
         ];
         // These are checked against report field keys in the actual
         // benchmark (integration-level). Here we just verify the

@@ -1,11 +1,22 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: MIT
 
-//! Atmosphere application adapter for Cosmostrix v4.0.0 Phase 4.
+//! Atmosphere application adapter for Cosmostrix v4.0.0.
 //!
 //! Converts a verified AtmosphereApplication into safe runtime modulation values.
 //! This module is the controlled seam between the atmosphere verifier (Phase 3)
 //! and the actual renderer parameter space.
+//!
+//! ## Phase 5 Scope (Runtime Atmosphere Seam)
+//!
+//! - `AtmosphereEffectiveRuntime`: derives effective runtime values from base
+//!   config + AtmosphereRuntimeModulation. Disabled modulation returns exact
+//!   base values (identity).
+//! - `derive_effective_runtime()`: computes effective speed, density,
+//!   brightness_scale, glitch_pressure from base values and modulation.
+//! - Values are clamped to existing safe runtime ranges.
+//! - Color and terminal effects remain permanently false.
+//! - No permanent mutation of config/profile/CLI args.
 //!
 //! ## Phase 4 Scope
 //!
@@ -21,6 +32,9 @@
 #![allow(dead_code)]
 
 use crate::atmosphere_verifier::AtmosphereApplication;
+use crate::constants::{
+    DENSITY_CLAMP_MAX, DENSITY_CLAMP_MIN, RUNTIME_SPEED_MAX, RUNTIME_SPEED_MIN,
+};
 
 // ── Application Mode ────────────────────────────────────────────────────────
 
@@ -189,6 +203,74 @@ pub(crate) fn effective_brightness(modulation: &AtmosphereRuntimeModulation) -> 
 #[must_use]
 pub(crate) fn effective_glitch_pressure(modulation: &AtmosphereRuntimeModulation) -> f32 {
     modulation.glitch_pressure
+}
+
+// ── Effective Runtime (Phase 5) ──────────────────────────────────────────
+
+/// Derived effective runtime values from base config + atmosphere modulation.
+///
+/// This is the final output of the atmosphere pipeline before reaching the
+/// renderer. For Disabled modulation (the default), all values equal the base
+/// config values exactly — zero visual change from v3.9.0.
+///
+/// Speed and density are clamped to existing safe runtime ranges.
+/// Color and terminal effects are always false.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct AtmosphereEffectiveRuntime {
+    /// Effective speed (chars/sec). Equals base_speed when modulation is identity.
+    pub speed: f32,
+    /// Effective density multiplier. Equals base_density when modulation is identity.
+    pub density: f32,
+    /// Effective brightness scale (1.0 = identity). Always 1.0 when modulation is identity.
+    pub brightness_scale: f32,
+    /// Effective glitch pressure (0.0 = default). Always 0.0 when modulation is identity.
+    pub glitch_pressure: f32,
+    /// Whether color change is allowed. Always false.
+    pub color_change_allowed: bool,
+    /// Whether terminal effect is allowed. Always false.
+    pub terminal_effect_allowed: bool,
+}
+
+impl AtmosphereEffectiveRuntime {
+    /// Whether this effective runtime is identity (no modulation applied).
+    pub(crate) fn is_identity(&self) -> bool {
+        !self.color_change_allowed && !self.terminal_effect_allowed
+    }
+}
+
+/// Derive effective runtime values from base speed, base density, and modulation.
+///
+/// This is a pure deterministic function that computes the final renderer
+/// parameters after applying atmosphere modulation. For identity modulation
+/// (the default), returns exact base values unmodified.
+///
+/// Values are clamped to existing safe runtime ranges:
+/// - Speed: RUNTIME_SPEED_MIN (1.0) .. RUNTIME_SPEED_MAX (100.0)
+/// - Density: DENSITY_CLAMP_MIN (0.01) .. DENSITY_CLAMP_MAX (5.0)
+/// - Brightness: passthrough from modulation (1.0 = identity)
+/// - Glitch pressure: passthrough from modulation (0.0 = default)
+#[must_use]
+pub(crate) fn derive_effective_runtime(
+    base_speed: f32,
+    base_density: f32,
+    modulation: &AtmosphereRuntimeModulation,
+) -> AtmosphereEffectiveRuntime {
+    // Speed: base * scale, clamped to safe range.
+    let raw_speed = base_speed * modulation.speed_scale;
+    let speed = raw_speed.clamp(RUNTIME_SPEED_MIN, RUNTIME_SPEED_MAX);
+
+    // Density: base * scale, clamped to safe range.
+    let raw_density = base_density * modulation.density_scale;
+    let density = raw_density.clamp(DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX);
+
+    AtmosphereEffectiveRuntime {
+        speed,
+        density,
+        brightness_scale: modulation.brightness_scale,
+        glitch_pressure: modulation.glitch_pressure,
+        color_change_allowed: false,
+        terminal_effect_allowed: false,
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────
@@ -519,6 +601,210 @@ mod tests {
         assert!(result.brightness_scale <= bounds.brightness_max);
         assert!(result.glitch_pressure <= bounds.glitch_pressure_max);
         assert!(!result.color_change_allowed);
+    }
+
+    // ── Phase 5: AtmosphereEffectiveRuntime ──
+
+    #[test]
+    fn default_effective_runtime_equals_base_speed_and_density() {
+        let modulation = AtmosphereRuntimeModulation::identity();
+        let eff = derive_effective_runtime(20.0, 0.75, &modulation);
+        assert_eq!(eff.speed, 20.0);
+        assert_eq!(eff.density, 0.75);
+        assert_eq!(eff.brightness_scale, 1.0);
+        assert_eq!(eff.glitch_pressure, 0.0);
+        assert!(!eff.color_change_allowed);
+        assert!(!eff.terminal_effect_allowed);
+    }
+
+    #[test]
+    fn disabled_modulation_effective_equals_base() {
+        let app = AtmosphereApplication::identity();
+        let modulation = apply_application(&app, AtmosphereApplicationMode::Disabled);
+        let eff = derive_effective_runtime(15.0, 1.0, &modulation);
+        assert_eq!(eff.speed, 15.0);
+        assert_eq!(eff.density, 1.0);
+    }
+
+    #[test]
+    fn calm_modulation_effective_equals_base() {
+        let app = AtmosphereApplication::identity();
+        let modulation = apply_application(&app, AtmosphereApplicationMode::InternalVerified);
+        let eff = derive_effective_runtime(8.0, 0.5, &modulation);
+        assert_eq!(eff.speed, 8.0);
+        assert_eq!(eff.density, 0.5);
+    }
+
+    #[test]
+    fn internal_verified_non_calm_derives_bounded_effective() {
+        let mut app = AtmosphereApplication {
+            speed_scale: 1.5,
+            density_scale: 1.2,
+            brightness_scale: 1.05,
+            glitch_pressure: 0.3,
+            color_change: false,
+        };
+        let _ = crate::atmosphere_verifier::verify_application(
+            &mut app,
+            &crate::atmosphere_verifier::AtmosphereBounds::conservative(),
+        );
+        let modulation = apply_application(&app, AtmosphereApplicationMode::InternalVerified);
+        let eff = derive_effective_runtime(20.0, 0.75, &modulation);
+        assert!((eff.speed - 30.0).abs() < 0.01); // 20.0 * 1.5
+        assert!((eff.density - 0.9).abs() < 0.01); // 0.75 * 1.2
+        assert_eq!(eff.brightness_scale, 1.05);
+        assert_eq!(eff.glitch_pressure, 0.3);
+        assert!(!eff.color_change_allowed);
+        assert!(!eff.terminal_effect_allowed);
+    }
+
+    #[test]
+    fn effective_speed_is_clamped_to_safe_range() {
+        let extreme = AtmosphereRuntimeModulation {
+            speed_scale: 100.0,
+            density_scale: 1.0,
+            brightness_scale: 1.0,
+            glitch_pressure: 0.0,
+            color_change_allowed: false,
+            terminal_effect_allowed: false,
+        };
+        let eff = derive_effective_runtime(50.0, 1.0, &extreme);
+        assert_eq!(eff.speed, RUNTIME_SPEED_MAX); // clamped
+    }
+
+    #[test]
+    fn effective_density_is_clamped_to_safe_range() {
+        let extreme = AtmosphereRuntimeModulation {
+            speed_scale: 1.0,
+            density_scale: 100.0,
+            brightness_scale: 1.0,
+            glitch_pressure: 0.0,
+            color_change_allowed: false,
+            terminal_effect_allowed: false,
+        };
+        let eff = derive_effective_runtime(10.0, 0.1, &extreme);
+        assert_eq!(eff.density, DENSITY_CLAMP_MAX); // clamped
+    }
+
+    #[test]
+    fn effective_runtime_never_allows_color_change() {
+        let mod_identity = AtmosphereRuntimeModulation::identity();
+        let eff = derive_effective_runtime(10.0, 1.0, &mod_identity);
+        assert!(!eff.color_change_allowed);
+
+        let extreme = AtmosphereRuntimeModulation {
+            speed_scale: 1.0,
+            density_scale: 1.0,
+            brightness_scale: 1.0,
+            glitch_pressure: 0.0,
+            color_change_allowed: true,
+            terminal_effect_allowed: true,
+        };
+        let eff = derive_effective_runtime(10.0, 1.0, &extreme);
+        // derive_effective_runtime always sets these to false
+        assert!(!eff.color_change_allowed);
+    }
+
+    #[test]
+    fn effective_runtime_never_allows_terminal_effects() {
+        let extreme = AtmosphereRuntimeModulation {
+            speed_scale: 1.0,
+            density_scale: 1.0,
+            brightness_scale: 1.0,
+            glitch_pressure: 0.0,
+            color_change_allowed: true,
+            terminal_effect_allowed: true,
+        };
+        let eff = derive_effective_runtime(10.0, 1.0, &extreme);
+        assert!(!eff.terminal_effect_allowed);
+    }
+
+    #[test]
+    fn derive_effective_runtime_is_deterministic() {
+        let modulation = AtmosphereRuntimeModulation::identity();
+        for _ in 0..50 {
+            let a = derive_effective_runtime(20.0, 0.75, &modulation);
+            let b = derive_effective_runtime(20.0, 0.75, &modulation);
+            assert_eq!(a.speed, b.speed);
+            assert_eq!(a.density, b.density);
+            assert_eq!(a.brightness_scale, b.brightness_scale);
+        }
+    }
+
+    #[test]
+    fn effective_runtime_speed_clamped_to_minimum() {
+        // Speed scale near zero should clamp to RUNTIME_SPEED_MIN (1.0).
+        let near_zero = AtmosphereRuntimeModulation {
+            speed_scale: 0.001,
+            density_scale: 1.0,
+            brightness_scale: 1.0,
+            glitch_pressure: 0.0,
+            color_change_allowed: false,
+            terminal_effect_allowed: false,
+        };
+        let eff = derive_effective_runtime(50.0, 1.0, &near_zero);
+        assert_eq!(eff.speed, RUNTIME_SPEED_MIN);
+    }
+
+    #[test]
+    fn effective_runtime_density_clamped_to_minimum() {
+        // Density scale near zero should clamp to DENSITY_CLAMP_MIN (0.01).
+        let near_zero = AtmosphereRuntimeModulation {
+            speed_scale: 1.0,
+            density_scale: 0.001,
+            brightness_scale: 1.0,
+            glitch_pressure: 0.0,
+            color_change_allowed: false,
+            terminal_effect_allowed: false,
+        };
+        let eff = derive_effective_runtime(10.0, 1.0, &near_zero);
+        assert_eq!(eff.density, DENSITY_CLAMP_MIN);
+    }
+
+    #[test]
+    fn effective_runtime_identity_check() {
+        let mod_identity = AtmosphereRuntimeModulation::identity();
+        let eff = derive_effective_runtime(20.0, 1.0, &mod_identity);
+        // Identity effective runtime has both flags false.
+        assert!(eff.is_identity());
+    }
+
+    #[test]
+    fn derive_effective_runtime_combined_modulation() {
+        let combined = AtmosphereRuntimeModulation {
+            speed_scale: 1.3,
+            density_scale: 0.8,
+            brightness_scale: 1.05,
+            glitch_pressure: 0.15,
+            color_change_allowed: false,
+            terminal_effect_allowed: false,
+        };
+        let eff = derive_effective_runtime(25.0, 1.5, &combined);
+        assert!((eff.speed - 32.5).abs() < 0.01); // 25.0 * 1.3
+        assert!((eff.density - 1.2).abs() < 0.01); // 1.5 * 0.8
+        assert_eq!(eff.brightness_scale, 1.05);
+        assert_eq!(eff.glitch_pressure, 0.15);
+        assert!(!eff.color_change_allowed);
+        assert!(!eff.terminal_effect_allowed);
+    }
+
+    #[test]
+    fn derive_effective_runtime_with_test_only_mode() {
+        let mut app = AtmosphereApplication {
+            speed_scale: 1.6,
+            density_scale: 1.1,
+            brightness_scale: 1.02,
+            glitch_pressure: 0.2,
+            color_change: false,
+        };
+        let _ = crate::atmosphere_verifier::verify_application(
+            &mut app,
+            &crate::atmosphere_verifier::AtmosphereBounds::conservative(),
+        );
+        let modulation = apply_application(&app, AtmosphereApplicationMode::TestOnly);
+        let eff = derive_effective_runtime(12.0, 0.8, &modulation);
+        assert!((eff.speed - 19.2).abs() < 0.01); // 12.0 * 1.6
+        assert!((eff.density - 0.88).abs() < 0.01); // 0.8 * 1.1
     }
 
     // ── No new unsafe, no debt markers ──

@@ -6,58 +6,62 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
-## Status: Phase 4 — Subtle Atmosphere Application (v4.0.0)
+## Status: Phase 5 — Runtime Atmosphere Seam (v4.0.0)
 
-v4.0.0 Phase 4 adds a verified application adapter that converts atmosphere
-applications into safe runtime modulation values:
+v4.0.0 Phase 5 wires the verified atmosphere application seam into runtime
+parameter derivation without changing default visuals. The renderer can now
+receive verified atmosphere modulation safely, while default production behavior
+remains identity.
 
-- `AtmosphereApplicationMode` (`src/atmosphere_apply.rs`): controls whether
-  modulation is active. Default is `Disabled` (production identity).
-- `AtmosphereRuntimeModulation`: bounded modulation struct with speed_scale,
-  density_scale, brightness_scale, glitch_pressure, color_change_allowed,
-  terminal_effect_allowed.
-- `apply_application()`: converts a verified AtmosphereApplication into an
-  AtmosphereRuntimeModulation. Disabled mode always returns identity.
-- `effective_speed()`, `effective_density_from_modulation()`, etc.: helper
-  functions that compute derived parameters from base values and modulation.
+- `AtmosphereEffectiveRuntime` (`src/atmosphere_apply.rs`): derives effective
+  runtime values (speed, density, brightness_scale, glitch_pressure) from base
+  config values + AtmosphereRuntimeModulation. Disabled modulation returns
+  exact base values.
+- `derive_effective_runtime()`: pure deterministic function that computes the
+  final renderer parameters. Speed is clamped to RUNTIME_SPEED_MIN..RUNTIME_SPEED_MAX
+  (1.0..100.0). Density is clamped to DENSITY_CLAMP_MIN..DENSITY_CLAMP_MAX (0.01..5.0).
+  Color and terminal effects are always false.
+- `CloudConfig` now stores `atmosphere_modulation` and `atmosphere_mode` fields,
+  both defaulting to identity/Disabled. `create_cloud()` computes effective values
+  via `derive_effective_runtime()` before setting speed and density on the Cloud.
 
-### What Phase 4 Does
+### What Phase 5 Does
 
-- Adds an application adapter that bridges the verifier (Phase 3) and the
-  renderer parameter space.
-- Proves that verified non-Calm applications can be safely transformed into
-  bounded runtime modulation values.
-- Provides `InternalVerified` mode for controlled internal/test use.
-- Reports application_mode and visual_effect status in diagnostics.
-- Color change remains always forbidden in the adapter output.
-- Terminal behavior is never affected.
+- Wires the atmosphere pipeline into runtime parameter derivation.
+- Proves the renderer can receive verified atmosphere modulation safely.
+- Default production behavior remains identity (no visual change from v3.9.0).
+- Effective runtime derivation exists but is disabled by default.
+- Reports `effective_runtime: identity` in `--info` and `--benchmark` diagnostics.
 
-### What Phase 4 Does NOT Do
+### What Phase 5 Does NOT Do
 
-- Does not unleash non-Calm regimes in production code paths.
 - Does not change default visual output — still identical to v3.9.0.
-- Does not add new CLI flags or public API surface.
+- Does not auto-select non-Calm regime during normal runtime.
+- Does not apply Storm/Pulse/Void to real runtime by default.
 - Does not alter color scheme, terminal state, or scene cycling.
-- Does not make benchmark visual behavior different from v3.9.0.
-- Full visual atmosphere modulation is still a future phase.
+- Does not make benchmark visual behavior different.
+- Non-Calm values are only validated/tested, not enabled by default.
+- Full visible atmosphere remains a future phase.
 
 ### Default Behavior
 
-The default application mode is `Disabled`. The adapter always returns identity
-modulation in Disabled mode, regardless of input. The renderer behaves exactly
-as v3.9.0. Non-Calm regimes can be transformed into bounded modulation values
-internally (via `InternalVerified` or `TestOnly` mode), but this path is not
-exposed to the production runtime.
+The default application mode is `Disabled`. `derive_effective_runtime()` with
+identity modulation returns exact base speed and base density values. The
+renderer behaves exactly as v3.9.0. `CloudConfig::create_cloud()` now routes
+speed and density through `derive_effective_runtime()`, but since the modulation
+is always identity by default, the effective values are unchanged.
 
 ### Diagnostics
 
 - `--info` (`-i`) reports an `ATMOSPHERE` section with `regime: calm`,
-  `engine: phase-4-verified-application`, `effective: identity`,
-  `verifier: pass`, `application: identity`, `application_mode: disabled`.
+  `engine: phase-5-runtime-seam`, `effective: identity`,
+  `verifier: pass`, `application: identity`, `application_mode: disabled`,
+  `effective_runtime: identity`.
 - `--benchmark` reports an `ATMOSPHERE` section with `regime: calm`,
   `effective: no-op`, `transition: stable`, `verifier: pass`,
   `application: identity`, `atmosphere_application: identity`,
-  `atmosphere_application_mode: disabled`, `atmosphere_visual_effect: disabled`.
+  `atmosphere_application_mode: disabled`, `atmosphere_visual_effect: disabled`,
+  `effective_runtime: identity`.
 
 ## Phase 3 — Verifier + Controlled Application (v4.0.0)
 
@@ -227,3 +231,4 @@ within which the renderer makes visual decisions.
 - Zactrix Cache is invalidated on `AtmosphereRegimeChange`.
 - Verification does not invalidate cache (separation of concerns).
 - Application adapter does not invalidate cache or alter terminal state.
+- Effective runtime derivation preserves identity when modulation is Disabled.
