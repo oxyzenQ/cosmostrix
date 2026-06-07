@@ -6,6 +6,68 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
+## Status: Phase 9 — Internal Atmosphere Visual A/B Smoke (v4.0.0)
+
+v4.0.0 Phase 9 adds an internal A/B smoke validation layer that compares the
+baseline identity visual path against controlled whisper behavior. This is
+test-only validation work — it proves that the whisper path is bounded, clean,
+and safe before any public activation.
+
+### New Types and Functions
+
+- `AtmosphereAbSample` (`src/atmosphere_ab.rs`): captures both the baseline
+  identity and a candidate whisper/shadow for a single A/B comparison. Includes
+  delta fields (speed_delta_percent, density_delta_percent, brightness_delta_percent,
+  trail_energy_delta_percent, glyph_pulse_delta_percent, glitch_delta), risk_label,
+  and a passed boolean.
+- `AtmosphereAbVerdict` (`src/atmosphere_ab.rs`): structured pass/reject outcome
+  with a human-readable reason string.
+- `compare_identity_vs_regime()`: builds an A/B sample for a specific regime
+  under ControlledLive mode, comparing against the identity baseline.
+- `compare_identity_vs_whisper()`: lower-level A/B function that takes a
+  pre-built whisper and evaluates it against the identity baseline.
+- `smoke_regime_under_controlled_live()`: runs A/B smoke for a single regime,
+  returning both the sample and a structured verdict with specific pass/reject
+  reasons.
+- `smoke_all_regimes_under_controlled_live()`: batch function that runs A/B
+  smoke for all seven regimes and returns a vector of results.
+
+### What Phase 9 Does
+
+- Adds an internal test-only A/B smoke validation layer for atmosphere whisper.
+- Compares baseline identity behavior against controlled whisper behavior.
+- Verifies that whisper candidates pass all safety checks (no color change, no
+  terminal effect, no density collapse, no brightness spam, glitch pressure
+  within whisper cap, max delta within whisper bounds).
+- Proves deterministic behavior: same input always produces same A/B result.
+- Adds 30 deterministic tests covering all safety checks and invariants.
+- The A/B smoke module is `#[cfg(test)]` only — not compiled into production.
+
+### What Phase 9 Does NOT Do
+
+- Does NOT change default visual output — still identical to v3.9.0.
+- Does NOT expose A/B smoke via public CLI, config, or benchmark fields.
+- Does NOT enable visible atmosphere modulation in runtime.
+- Does NOT add new dependencies or unsafe code.
+- Does NOT alter color scheme, terminal state, or scene cycling.
+- Does NOT grow src/config_apply.rs or src/bench.rs.
+- Full public atmosphere controls remain future work.
+
+### A/B Safety Checks
+
+The A/B smoke layer verifies the following invariants for all regimes:
+
+- No color change is allowed (color_change_allowed = false).
+- No terminal effect is allowed (terminal_effect_allowed = false).
+- Density does not collapse (density_scale >= 0.98).
+- Brightness does not spike (brightness_scale <= 1.015).
+- Glitch pressure stays at or below the whisper cap (0.05).
+- Maximum absolute delta percent remains within whisper bounds (2.0%).
+- Candidate risk is identity or whisper for normal regimes.
+- Storm is clamped and does not exceed whisper bounds under ControlledLive.
+- Calm always passes as identity.
+- Default production mode remains disabled/identity.
+
 ## Status: Phase 8 — Whisper Wiring Guard / Runtime Shadow Metrics (v4.0.0)
 
 v4.0.0 Phase 8 adds a shadow-metrics layer that measures the potential visual

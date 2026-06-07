@@ -435,3 +435,27 @@ renderer without first being measured and classified.
 - Shadow metrics do not alter the renderer. They are measurement-only.
 - The shadow layer adds no new dependencies, no new unsafe code, and no new
   CLI flags. Full public atmosphere controls remain future work.
+
+## v4.0.0 A/B Smoke Policy
+
+The Phase 9 A/B smoke layer provides test-only validation that compares the
+baseline identity visual path against controlled whisper behavior. It protects
+against muddy residue, brightness spam, density collapse, terminal effects, color
+drift, and glitch overpressure before any public visual activation.
+
+- `AtmosphereAbSample` (`src/atmosphere_ab.rs`) captures both the identity
+  baseline and a candidate whisper/shadow for comparison, including per-parameter
+  deltas and a pass/fail boolean.
+- `AtmosphereAbVerdict` provides structured pass/reject outcomes with human-
+  readable reasons for each safety check failure.
+- A/B smoke functions are pure and deterministic: no side effects, no cache
+  invalidation, no terminal state changes, no color mutations.
+- Safety thresholds: density >= 0.98, brightness <= 1.015, glitch_pressure
+  <= 0.05, max_delta_percent <= 2.0, no color change, no terminal effect.
+- Calm must pass as identity. Pulse/Signal/MonolithPressure pass as whisper risk.
+- Storm must be clamped to whisper bounds under ControlledLive. Void must not
+  collapse density.
+- The A/B smoke module is `#[cfg(test)]` only — not compiled into production
+  binaries and not reachable from any runtime path.
+- A/B smoke adds no new dependencies, no new unsafe code, no new CLI flags, and
+  no benchmark field renames.

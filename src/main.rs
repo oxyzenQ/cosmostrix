@@ -38,6 +38,8 @@
 
 mod app;
 mod atmosphere;
+#[cfg(test)]
+mod atmosphere_ab;
 mod atmosphere_apply;
 #[cfg(test)]
 mod atmosphere_apply_cl_tests;
