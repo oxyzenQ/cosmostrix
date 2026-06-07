@@ -39,18 +39,19 @@ use crate::constants::{
     ANSI_BYTES_PER_CELL_ESTIMATE, BENCH_ELAPSED_MIN_S, DENSITY_AUTO_DEFAULT_COLS,
     DENSITY_AUTO_DEFAULT_LINES, DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
 };
-use crate::diagnostics;
 use crate::frame::Frame;
-use crate::renderer_info;
-use crate::report::Report;
-use crate::runtime::ColorMode;
 use crate::zactrix_core::{
     classify_frame_jitter, classify_frame_time_stability, dirty_threshold_cells,
     estimates_full_redraw,
 };
-use crate::zactrix_engine::{EnginePlan, EngineProbe};
 
-use super::{color_mode_label, detect_color_mode_auto, effective_density, CloudConfig};
+use super::{effective_density, CloudConfig};
+
+// Re-export metric meaning constants used by external modules
+// (e.g., cloud/tests/tests_visual_depth.rs) so that import paths
+// remain stable after the split into bench_report.rs.
+#[allow(unused_imports)]
+pub(crate) use crate::bench_report::{AVG_DIRTY_CELL_RATIO_MEANING, ESTIMATED_FULL_REDRAW_MEANING};
 
 /// Duration of the premium benchmark in seconds.
 const BENCHMARK_DURATION_SECS: u64 = 5;
@@ -72,16 +73,6 @@ const UPDATE_INTERVAL: Duration = Duration::from_millis(66);
 
 /// Number of recent frame times to smooth for display.
 const DISPLAY_FT_WINDOW: usize = 16;
-
-const DRAW_RATIO_MEANING: &str = "legacy compatibility: percentage of frames with >=1 dirty cell";
-const ACTIVE_FRAME_RATIO_MEANING: &str =
-    "frames that produced at least one dirty cell during measurement";
-pub(crate) const AVG_DIRTY_CELL_RATIO_MEANING: &str =
-    "average dirty-cell coverage across all measured frames";
-const DIRTY_ALL_FRAMES_MEANING: &str =
-    "logical frames where every cell was dirty; distinct from terminal redraw estimate";
-pub(crate) const ESTIMATED_FULL_REDRAW_MEANING: &str =
-    "threshold estimate of frames likely to use Terminal::draw full-redraw path";
 
 // ── Cursor guard ─────────────────────────────────────────────────────────────
 
@@ -638,235 +629,43 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         0.0
     };
 
-    // ── Build report ─────────────────────────────────────────────────────
-    let cpu = diagnostics::detect_cpu_info();
-    let ri = renderer_info::renderer_info(cfg.color_mode);
-    let auto_color_mode = detect_color_mode_auto();
-    let term = env::var("TERM")
-        .ok()
-        .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| "(unset)".to_string());
-    let colorterm = env::var("COLORTERM")
-        .ok()
-        .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| "(unset)".to_string());
-
-    let mut r = Report::new("COSMOSTRIX BENCHMARK");
-
-    if was_interrupted {
-        r.section("STATUS")
-            .advice("interrupted — results are partial");
-    }
-
-    {
-        let s = r.section("SYSTEM");
-        s.field("variant", cpu.variant);
-        s.field("optimization", env!("COSMOSTRIX_OPTIMIZATION"));
-        s.field("build", cpu.build_variant);
-    }
-
-    {
-        let s = r.section("RENDERER");
-        s.field("backend", ri.backend);
-        s.field("pacing", ri.pacing);
-        s.field("frame_strategy", ri.frame_strategy);
-        s.field("color_depth", ri.color_depth);
-        s.field("effective_color_mode", color_mode_label(cfg.color_mode));
-        s.field(
-            "auto_detected_color_mode",
-            color_mode_label(auto_color_mode),
-        );
-        s.field("io_strategy", ri.io_strategy);
-    }
-
-    {
-        let s = r.section("CONFIG");
-        s.field("cols", &w.to_string());
-        s.field("lines", &h.to_string());
-        s.field("target_fps", &format!("{:.1}", cfg.target_fps));
-        s.field("density", &format!("{:.2}", cfg.density));
-        s.field("TERM", &term);
-        s.field("COLORTERM", &colorterm);
-    }
-
-    {
-        let s = r.section("PERFORMANCE");
-        s.field("avg_fps", &format!("{:.1}", avg_fps));
-        s.field("peak_fps", &format!("{:.1}", peak_fps));
-        s.field("avg_frame_time", &format!("{:.3}ms", avg_frame_time));
-        s.field("p99_frame_time", &format!("{:.3}ms", p99_frame_time));
-        s.field("frame_jitter", jitter_classification);
-        s.field("median_fps", &format!("{:.1}", median_fps));
-        s.field("p95_frame_time", &format!("{:.3}ms", p95_frame_time));
-        s.field("frame_time_stability", frame_time_stability);
-        s.field("draw_ratio", &format!("{:.1}%", active_frame_ratio));
-        s.field("draw_ratio_meaning", DRAW_RATIO_MEANING);
-        s.field(
-            "active_frame_ratio_percent",
-            &format!("{:.1}%", active_frame_ratio),
-        );
-        s.field(
-            "active_frame_ratio",
-            &format!("{:.1}% (frames with >=1 dirty cell)", active_frame_ratio),
-        );
-        s.field("active_frame_ratio_meaning", ACTIVE_FRAME_RATIO_MEANING);
-        s.field(
-            "avg_dirty_cells_per_frame",
-            &format!("{:.1}", avg_dirty_cells_per_frame),
-        );
-        s.field("max_dirty_cells_per_frame", &max_dirty_cells.to_string());
-        s.field(
-            "avg_dirty_cell_ratio_percent",
-            &format!("{:.2}%", avg_dirty_cell_ratio_percent),
-        );
-        s.field("avg_dirty_cell_ratio_meaning", AVG_DIRTY_CELL_RATIO_MEANING);
-        s.field("dirty_all_frames", &dirty_all_frames.to_string());
-        s.field("dirty_all_frames_meaning", DIRTY_ALL_FRAMES_MEANING);
-        s.field("dirty_threshold_cells", &dirty_threshold.to_string());
-        s.field(
-            "estimated_full_redraw_frames",
-            &estimated_full_redraw_frames.to_string(),
-        );
-        s.field(
-            "estimated_full_redraw_ratio_percent",
-            &format!("{:.1}%", estimated_full_redraw_ratio_percent),
-        );
-        s.field(
-            "estimated_full_redraw_basis",
-            &format!(
-                "dirty cells >= total cells / {} (terminal threshold estimate)",
-                DIRTY_THRESHOLD_RATIO
-            ),
-        );
-        s.field(
-            "estimated_full_redraw_meaning",
-            ESTIMATED_FULL_REDRAW_MEANING,
-        );
-    }
-
-    {
-        let s = r.section("THROUGHPUT");
-        s.field("glyphs_per_second", &glyphs_per_second.to_string());
-        s.field(
-            "glyphs_per_second_basis",
-            "theoretical upper bound: full-frame cell count × active-frame rate",
-        );
-        s.field(
-            "dirty_glyphs_per_second",
-            &dirty_glyphs_per_second.to_string(),
-        );
-        s.field(
-            "theoretical_full_frame_glyphs_per_second",
-            &theoretical_full_frame_glyphs_per_second.to_string(),
-        );
-        s.field("ansi_bytes_per_second", &ansi_bytes_per_second.to_string());
-        s.field("active_streams_avg", &active_streams_avg.to_string());
-        s.field("cells_drawn_total", &total_drawn_cells.to_string());
-    }
-
-    {
-        let s = r.section("TIMING");
-        s.field("elapsed", &format!("{:.3}s", elapsed_s));
-        s.field("total_frames", &total_frames.to_string());
-        s.field("drawn_frames", &drawn_frames.to_string());
-        s.field("frames_with_changes", &drawn_frames.to_string());
-    }
-
-    // ── Zactrix Engine diagnostics ───────────────────────────────────────
-    // Phase 1: The engine plans only — no worker threads are spawned.
-    // All fields prefixed with "planned_" to reflect this accurately.
-    {
-        let engine_probe = EngineProbe {
-            cols: w,
-            rows: h,
-            cell_count: total_cells,
-            target_fps: cfg.target_fps,
-            benchmark_mode: true,
-            active_streams: active_streams_avg as usize,
-            dirty_cell_ratio: avg_dirty_cell_ratio_percent / 100.0,
-            frame_time_pressure: p99_frame_time,
-        };
-        let engine_plan = EnginePlan::from_probe(&engine_probe);
-
-        let s = r.section("ZACTRIX ENGINE");
-        s.field("planned_mode", engine_plan.mode.as_str());
-        s.field(
-            "planned_worker_budget",
-            &engine_plan.worker_budget.to_string(),
-        );
-        s.field("plan_reason", engine_plan.reason);
-        s.field("actual_execution", "single-threaded-renderer");
-        s.field(
-            "terminal_writer",
-            if engine_plan.terminal_writer_single_owner {
-                "single-owner"
-            } else {
-                "shared"
-            },
-        );
-    }
-
-    // ── Atmosphere Engine diagnostics ────────────────────────────────────
-    // Phase 4: Reports regime, verifier, application, application mode,
-    // and visual effect status. Always Calm; verifier always passes;
-    // application is identity; application_mode is disabled; visual effect
-    // is disabled.
-    {
-        let ctrl = crate::atmosphere::AtmosphereController::new();
-        let _app = ctrl.build_application();
-        let apply_mode = crate::atmosphere_apply::AtmosphereApplicationMode::Disabled;
-        let modulation = crate::atmosphere_apply::apply_application(&_app, apply_mode);
-        let s = r.section("ATMOSPHERE");
-        s.field("regime", crate::atmosphere::AtmosphereRegime::Calm.as_str());
-        s.field("effective", "no-op");
-        s.field("transition", "stable");
-        s.field("verifier", "pass");
-        s.field("application", "identity");
-        s.field("atmosphere_application", "identity");
-        s.field("atmosphere_application_mode", apply_mode.as_str());
-        s.field(
-            "atmosphere_visual_effect",
-            if modulation.is_identity() {
-                "disabled"
-            } else {
-                "active"
-            },
-        );
-        // Phase 5: effective runtime seam
-        let eff_runtime =
-            crate::atmosphere_apply::derive_effective_runtime(cfg.speed, cfg.density, &modulation);
-        s.field(
-            "effective_runtime",
-            if eff_runtime.speed == cfg.speed && eff_runtime.density == cfg.density {
-                "identity"
-            } else {
-                "modulated"
-            },
-        );
-    }
-
-    if cfg.color_mode == ColorMode::Color16
-        && avg_dirty_cell_ratio_percent >= (100.0 / DIRTY_THRESHOLD_RATIO as f64)
-    {
-        r.section("NOTES")
-            .advice(
-                "16-color mode with atmospheric foreground retinting can dirty many colored cells.",
-            )
-            .advice(
-                "Compare runs with --colormode 0, --colormode 256, or a truecolor-capable terminal.",
-            );
-    }
-
-    if avg_dirty_cell_ratio_percent < 5.0 && jitter_std < 0.5 {
-        r.section("STABILITY NOTES")
-            .advice("Frame time stability is good (std < 0.5ms).")
-            .advice("avg FPS alone is not enough; always check p99/p95 frame times.")
-            .advice("dirty-cell ratio < 5% indicates efficient differential rendering.")
-            .advice("p95 frame time < 2x avg frame time confirms throughput stability.");
-    }
-
-    // Final report goes to stdout — clean, pipeable.
-    r.print();
+    // ── Build and print report ────────────────────────────────────────
+    let report_data = crate::bench_report::BenchReportData {
+        was_interrupted,
+        w,
+        h,
+        color_mode: cfg.color_mode,
+        target_fps: cfg.target_fps,
+        density: cfg.density,
+        speed: cfg.speed,
+        avg_fps,
+        peak_fps,
+        avg_frame_time,
+        p99_frame_time,
+        p95_frame_time,
+        jitter_classification,
+        median_fps,
+        frame_time_stability,
+        jitter_std,
+        active_frame_ratio,
+        avg_dirty_cells_per_frame,
+        max_dirty_cells,
+        avg_dirty_cell_ratio_percent,
+        dirty_all_frames,
+        dirty_threshold,
+        estimated_full_redraw_frames,
+        estimated_full_redraw_ratio_percent,
+        glyphs_per_second,
+        dirty_glyphs_per_second,
+        theoretical_full_frame_glyphs_per_second,
+        ansi_bytes_per_second,
+        active_streams_avg,
+        total_drawn_cells,
+        elapsed_s,
+        total_frames,
+        drawn_frames,
+    };
+    crate::bench_report::build_premium_report(&report_data);
     Ok(())
 }
 
@@ -898,6 +697,9 @@ fn bench_warmup_secs() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bench_report::{
+        ACTIVE_FRAME_RATIO_MEANING, DIRTY_ALL_FRAMES_MEANING, DRAW_RATIO_MEANING,
+    };
 
     #[test]
     fn benchmark_metric_meanings_distinguish_dirty_frame_concepts() {
@@ -965,5 +767,26 @@ mod tests {
         for field in REQUIRED_FIELDS {
             assert!(!field.is_empty());
         }
+    }
+
+    #[test]
+    fn bench_file_stays_under_target_loc() {
+        // Guard: src/bench.rs must stay well under 1000 LOC.
+        // Phase 5.5 target is under 850 LOC.
+        let source = include_str!("bench.rs");
+        let lines = source.lines().count();
+        assert!(
+            lines < 850,
+            "bench.rs must stay under 850 LOC target (currently {lines})"
+        );
+    }
+
+    #[test]
+    fn bench_re_exports_preserve_external_import_paths() {
+        // Verify that the re-exports from bench_report.rs are correct
+        // so external modules (e.g., cloud/tests/tests_visual_depth.rs)
+        // can still use `use crate::bench::AVG_DIRTY_CELL_RATIO_MEANING`.
+        assert!(AVG_DIRTY_CELL_RATIO_MEANING.contains("dirty-cell coverage"));
+        assert!(ESTIMATED_FULL_REDRAW_MEANING.contains("threshold estimate"));
     }
 }

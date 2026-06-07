@@ -41,6 +41,7 @@ mod atmosphere;
 mod atmosphere_apply;
 mod atmosphere_verifier;
 mod bench;
+mod bench_report;
 mod cell;
 mod charset;
 mod cli;
