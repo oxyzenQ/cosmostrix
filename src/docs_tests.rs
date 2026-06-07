@@ -182,12 +182,10 @@ fn atmosphere_engine_doc_exists_and_covers_regimes() {
         "Atmosphere Engine docs should mention regimes"
     );
     assert!(
-        lowercase.contains("future"),
-        "Atmosphere Engine docs should mention it is future design"
-    );
-    assert!(
-        lowercase.contains("phase 1"),
-        "Atmosphere Engine docs should mention Phase 1 does not enable it"
+        lowercase.contains("phase 3")
+            || lowercase.contains("phase 2")
+            || lowercase.contains("phase 1"),
+        "Atmosphere Engine docs should mention phase status"
     );
     assert!(
         lowercase.contains("gradual"),
@@ -196,6 +194,14 @@ fn atmosphere_engine_doc_exists_and_covers_regimes() {
     assert!(
         lowercase.contains("not random chaos"),
         "Atmosphere Engine docs should state changes are not random chaos"
+    );
+    assert!(
+        lowercase.contains("verifier"),
+        "Atmosphere Engine docs should mention verifier (Phase 3)"
+    );
+    assert!(
+        lowercase.contains("calm"),
+        "Atmosphere Engine docs should mention Calm default regime"
     );
 }
 

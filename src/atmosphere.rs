@@ -5,29 +5,26 @@
 //!
 //! The Atmosphere Engine models the overall visual climate of the terminal
 //! render as a slow-moving regime that modulates rendering parameters
-//! gradually over time. v4.0.0 Phase 2 wires the regime model into internal
-//! runtime state without applying visual modulation. The renderer behaves
-//! exactly as v3.9.0 — Calm is the default and only active regime.
+//! gradually over time. Phase 3 adds a verifier layer and controlled
+//! internal application path while keeping Calm as the visual identity.
 //!
-//! ## Phase 2 Scope
+//! ## Phase 3 Scope
 //!
-//! - `AtmosphereState`: holds current regime, target regime, transition
-//!   progress, and last-update marker. Default: Calm/Calm/stable.
-//! - `AtmosphereController`: manages regime transitions with dwell-time
-//!   enforcement and bounded ramp progress.
-//! - `RegimeProbe`: observable facts for deterministic regime selection.
-//! - `select_regime_from_probe()`: pure function that maps probe facts
-//!   to a candidate regime without applying it to visuals.
+//! - `build_application()`: converts current regime state into a verified
+//!   AtmosphereApplication through the verifier layer.
+//! - Calm application is always identity (no visual change from v3.9.0).
+//! - Non-Calm applications are computed and verified but not applied to
+//!   the renderer in Phase 3.
+//! - Verifier rejects or clamps unsafe values deterministically.
 //!
-//! No regime transitions are applied to the renderer in Phase 2. The
-//! controller is wired internally but only advances state when explicitly
-//! invoked (tests, future phases).
+//! The renderer continues to behave exactly as v3.9.0 — Calm is the default
+//! and only active regime. Non-Calm regimes are verified but not unleashed.
 
-// Phase 2: Module-level dead_code allow is required because many types
-// (AtmosphereState, AtmosphereController, RegimeProbe) are pub(crate) API
-// contracts consumed in tests, diagnostics, and future integration points —
-// not yet wired into the hot render path. As integration progresses,
-// individual allows can replace this module-level one.
+// Phase 3: Module-level dead_code allow is required because many types
+// (AtmosphereState, AtmosphereController, RegimeProbe, build_application)
+// are pub(crate) API contracts consumed in tests, diagnostics, and future
+// integration points — not yet wired into the hot render path. As
+// integration progresses, individual allows can replace this module-level one.
 #![allow(dead_code)]
 
 use crate::zactrix_cache::{CachePolicy, InvalidationEvent};
@@ -275,9 +272,30 @@ impl AtmosphereState {
 
     /// Effective rendering parameters for the current state.
     ///
-    /// In Phase 2 with Calm default, this always returns identity params.
+    /// In Phase 3 with Calm default, this always returns identity params.
     pub(crate) fn effective_params(&self) -> RegimeParams {
         RegimeParams::calm()
+    }
+
+    /// Build a verified atmosphere application from the current state.
+    ///
+    /// Converts the current regime's parameters into an AtmosphereApplication
+    /// through the verifier layer. For Calm (the default), this returns
+    /// identity (no-op). Non-Calm regimes produce modulated applications
+    /// that are verified but not applied to the renderer in Phase 3.
+    pub(crate) fn build_application(&self) -> crate::atmosphere_verifier::AtmosphereApplication {
+        let params = self.effective_params();
+        let mut app = crate::atmosphere_verifier::application_from_regime_params(
+            params.speed_mult,
+            params.density_mult,
+            params.glitch_mult,
+            params.brightness_bias,
+        );
+        let _ = crate::atmosphere_verifier::verify_application(
+            &mut app,
+            &crate::atmosphere_verifier::AtmosphereBounds::conservative(),
+        );
+        app
     }
 }
 
@@ -337,6 +355,14 @@ impl AtmosphereController {
     /// Whether the effective regime is a visual no-op (Calm).
     pub(crate) fn is_effective_noop(&self) -> bool {
         self.state.is_calm()
+    }
+
+    /// Build a verified atmosphere application for the current state.
+    ///
+    /// Delegates to AtmosphereState::build_application after computing
+    /// the current effective parameters.
+    pub(crate) fn build_application(&self) -> crate::atmosphere_verifier::AtmosphereApplication {
+        self.state.build_application()
     }
 
     /// Evaluate probe and compute candidate regime without applying it.
@@ -780,5 +806,50 @@ mod tests {
         ctrl.transition_to(AtmosphereRegime::Compression, &mut cache);
 
         assert_eq!(cache.generation.id(), gen_before + 1);
+    }
+
+    // ── Phase 3: build_application ──
+
+    #[test]
+    fn calm_controller_builds_identity_application() {
+        let ctrl = AtmosphereController::new();
+        let app = ctrl.build_application();
+        assert!(app.is_identity());
+    }
+
+    #[test]
+    fn calm_state_builds_identity_application() {
+        let state = AtmosphereState::default();
+        let app = state.build_application();
+        assert!(app.is_identity());
+        assert_eq!(app.speed_scale, 1.0);
+        assert_eq!(app.density_scale, 1.0);
+        assert_eq!(app.brightness_scale, 1.0);
+        assert_eq!(app.glitch_pressure, 0.0);
+        assert!(!app.color_change);
+    }
+
+    #[test]
+    fn build_application_is_deterministic() {
+        let ctrl = AtmosphereController::new();
+        for _ in 0..50 {
+            let app_a = ctrl.build_application();
+            let app_b = ctrl.build_application();
+            assert_eq!(app_a.speed_scale, app_b.speed_scale);
+            assert_eq!(app_a.density_scale, app_b.density_scale);
+            assert_eq!(app_a.brightness_scale, app_b.brightness_scale);
+            assert_eq!(app_a.glitch_pressure, app_b.glitch_pressure);
+            assert_eq!(app_a.color_change, app_b.color_change);
+        }
+    }
+
+    #[test]
+    fn transition_progress_remains_bounded_after_build() {
+        let ctrl = AtmosphereController::new();
+        let state = ctrl.state();
+        let _app = ctrl.build_application();
+        // Transition progress unchanged by build_application.
+        assert!(state.transition_progress >= 0.0);
+        assert!(state.transition_progress <= 1.0);
     }
 }

@@ -807,12 +807,17 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     }
 
     // ── Atmosphere Engine diagnostics ────────────────────────────────────
-    // Phase 2: Reports current regime state. Always Calm in Phase 2.
+    // Phase 3: Reports current regime state, verifier, and application.
+    // Always Calm in Phase 3; verifier always passes; application is identity.
     {
+        let ctrl = crate::atmosphere::AtmosphereController::new();
+        let _app = ctrl.build_application();
         let s = r.section("ATMOSPHERE");
         s.field("regime", crate::atmosphere::AtmosphereRegime::Calm.as_str());
         s.field("effective", "no-op");
         s.field("transition", "stable");
+        s.field("verifier", "pass");
+        s.field("application", "identity");
     }
 
     if cfg.color_mode == ColorMode::Color16
@@ -922,6 +927,8 @@ mod tests {
             "atmosphere_regime",
             "atmosphere_effective",
             "atmosphere_transition",
+            "atmosphere_verifier",
+            "atmosphere_application",
         ];
         // These are checked against report field keys in the actual
         // benchmark (integration-level). Here we just verify the

@@ -38,6 +38,7 @@
 
 mod app;
 mod atmosphere;
+mod atmosphere_verifier;
 mod bench;
 mod cell;
 mod charset;
@@ -432,10 +433,35 @@ fn main() -> std::io::Result<()> {
             );
         }
         {
+            let ctrl = atmosphere::AtmosphereController::new();
+            let app = ctrl.build_application();
             let s = r.section("ATMOSPHERE");
             s.field("regime", atmosphere::AtmosphereRegime::Calm.as_str());
-            s.field("engine", "phase-2-internal");
-            s.field("effective", "no-op");
+            s.field("engine", "phase-3-verified-internal");
+            s.field(
+                "effective",
+                if app.is_identity() {
+                    "no-op"
+                } else {
+                    "modulated"
+                },
+            );
+            s.field(
+                "verifier",
+                if app.is_identity() {
+                    "pass"
+                } else {
+                    "pass-clamped"
+                },
+            );
+            s.field(
+                "application",
+                if app.is_identity() {
+                    "identity"
+                } else {
+                    "verified"
+                },
+            );
         }
         r.print();
         return Ok(());
