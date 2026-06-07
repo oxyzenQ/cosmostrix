@@ -7,6 +7,18 @@
 //! This module is the controlled seam between the atmosphere verifier (Phase 3)
 //! and the actual renderer parameter space.
 //!
+//! ## Phase 6 Scope (Controlled Live Modulation)
+//!
+//! - `ControlledLive` application mode: internal-only mode that applies very
+//!   subtle verified modulation through an extra clamping layer.
+//! - `ControlledLiveBounds`: tighter bounds than conservative — speed ±4%,
+//!   density ±4%, brightness ±3%, glitch_pressure ≤ 0.2.
+//! - `apply_controlled_live_modulation()`: deterministic function that builds
+//!   modulation from regime params through ControlledLive-specific bounds.
+//! - Calm regime always produces identity regardless of mode.
+//! - Default production mode remains Disabled (identity, no visual change).
+//! - ControlledLive is NOT exposed via public CLI; only internal/test paths.
+//!
 //! ## Phase 5 Scope (Runtime Atmosphere Seam)
 //!
 //! - `AtmosphereEffectiveRuntime`: derives effective runtime values from base
@@ -51,6 +63,11 @@ pub(crate) enum AtmosphereApplicationMode {
     /// Modulation is enabled for internally verified non-Calm applications.
     /// Only used in tests and internal integration paths.
     InternalVerified,
+    /// Internal-only controlled live modulation mode (Phase 6).
+    /// Applies very subtle verified modulation through an extra clamping
+    /// layer (ControlledLiveBounds). NOT exposed via public CLI.
+    /// Only reachable through internal/test code paths.
+    ControlledLive,
     /// Modulation is enabled only for tests. Produces bounded non-identity
     /// values for non-Calm applications without affecting production behavior.
     #[cfg(test)]
@@ -63,6 +80,7 @@ impl AtmosphereApplicationMode {
         match self {
             Self::Disabled => "disabled",
             Self::InternalVerified => "internal-verified",
+            Self::ControlledLive => "controlled-live",
             #[cfg(test)]
             Self::TestOnly => "test-only",
         }
@@ -72,10 +90,17 @@ impl AtmosphereApplicationMode {
     pub(crate) fn allows_modulation(self) -> bool {
         match self {
             Self::InternalVerified => true,
+            Self::ControlledLive => true,
             #[cfg(test)]
             Self::TestOnly => true,
             Self::Disabled => false,
         }
+    }
+
+    /// Whether this mode uses the controlled live modulation path.
+    /// ControlledLive applies extra clamping via ControlledLiveBounds.
+    pub(crate) fn is_controlled_live(self) -> bool {
+        matches!(self, Self::ControlledLive)
     }
 }
 
@@ -133,6 +158,9 @@ impl AtmosphereRuntimeModulation {
 /// - The application's values (which are already verified/clamped).
 /// - The application mode (Disabled always returns identity).
 ///
+/// For ControlledLive mode, an extra clamping layer (ControlledLiveBounds)
+/// is applied to ensure modulation is extremely subtle.
+///
 /// Color change is always forbidden regardless of application content.
 /// Terminal behavior is never affected.
 pub(crate) fn apply_application(
@@ -147,6 +175,11 @@ pub(crate) fn apply_application(
     // Calm application is always identity regardless of mode.
     if app.is_identity() {
         return AtmosphereRuntimeModulation::identity();
+    }
+
+    // ControlledLive mode: apply extra clamping layer.
+    if mode.is_controlled_live() {
+        return apply_controlled_live_modulation(app);
     }
 
     // InternalVerified/TestOnly mode with non-Calm application:
@@ -273,6 +306,108 @@ pub(crate) fn derive_effective_runtime(
     }
 }
 
+// ── Controlled Live Bounds (Phase 6) ──────────────────────────────────────
+
+/// Tighter bounds for ControlledLive modulation — much more restrictive than
+/// conservative bounds to ensure the modulation is subtle and safe.
+///
+/// These bounds define the maximum deviation from identity (v3.9.0 behavior)
+/// that ControlledLive mode allows. They are stricter than the verifier's
+/// conservative bounds to guarantee the visual identity is preserved.
+pub(crate) struct ControlledLiveBounds;
+
+impl ControlledLiveBounds {
+    /// Maximum absolute deviation for speed_scale from 1.0 (±4%).
+    pub(crate) const SPEED_MAX_DELTA: f32 = 0.04;
+    /// Maximum absolute deviation for density_scale from 1.0 (±4%).
+    pub(crate) const DENSITY_MAX_DELTA: f32 = 0.04;
+    /// Maximum absolute deviation for brightness_scale from 1.0 (±3%).
+    pub(crate) const BRIGHTNESS_MAX_DELTA: f32 = 0.03;
+    /// Maximum glitch_pressure (extremely low — barely perceptible).
+    pub(crate) const GLITCH_PRESSURE_MAX: f32 = 0.2;
+}
+
+/// Apply ControlledLive modulation with extra clamping.
+///
+/// This function takes a verified application and applies ControlledLive-specific
+/// bounds. The output is guaranteed to be within ControlledLiveBounds regardless
+/// of the input application values.
+///
+/// Calm applications always return identity.
+/// Color change and terminal effects are always false.
+#[must_use]
+pub(crate) fn apply_controlled_live_modulation(
+    app: &AtmosphereApplication,
+) -> AtmosphereRuntimeModulation {
+    // Calm application is always identity regardless of mode.
+    if app.is_identity() {
+        return AtmosphereRuntimeModulation::identity();
+    }
+
+    // Clamp speed_scale to 1.0 ± SPEED_MAX_DELTA.
+    let speed_scale = (app.speed_scale).clamp(
+        1.0 - ControlledLiveBounds::SPEED_MAX_DELTA,
+        1.0 + ControlledLiveBounds::SPEED_MAX_DELTA,
+    );
+
+    // Clamp density_scale to 1.0 ± DENSITY_MAX_DELTA.
+    let density_scale = (app.density_scale).clamp(
+        1.0 - ControlledLiveBounds::DENSITY_MAX_DELTA,
+        1.0 + ControlledLiveBounds::DENSITY_MAX_DELTA,
+    );
+
+    // Clamp brightness_scale to 1.0 ± BRIGHTNESS_MAX_DELTA.
+    let brightness_scale = (app.brightness_scale).clamp(
+        1.0 - ControlledLiveBounds::BRIGHTNESS_MAX_DELTA,
+        1.0 + ControlledLiveBounds::BRIGHTNESS_MAX_DELTA,
+    );
+
+    // Clamp glitch_pressure to 0.0 .. GLITCH_PRESSURE_MAX.
+    let glitch_pressure =
+        (app.glitch_pressure).clamp(0.0, ControlledLiveBounds::GLITCH_PRESSURE_MAX);
+
+    AtmosphereRuntimeModulation {
+        speed_scale,
+        density_scale,
+        brightness_scale,
+        glitch_pressure,
+        color_change_allowed: false,
+        terminal_effect_allowed: false,
+    }
+}
+
+/// Build ControlledLive modulation directly from regime parameters.
+///
+/// This is a deterministic function that combines the regime→application
+/// conversion, conservative verification, and ControlledLive extra clamping
+/// into a single step. Useful for internal/test paths.
+///
+/// For Calm regime, returns identity modulation.
+#[must_use]
+pub(crate) fn controlled_live_modulation_from_regime(
+    regime: crate::atmosphere::AtmosphereRegime,
+) -> AtmosphereRuntimeModulation {
+    // Get regime params.
+    let params = crate::atmosphere::params_for_regime(regime);
+
+    // Convert to application.
+    let mut app = crate::atmosphere_verifier::application_from_regime_params(
+        params.speed_mult,
+        params.density_mult,
+        params.glitch_mult,
+        params.brightness_bias,
+    );
+
+    // Verify with conservative bounds.
+    let _ = crate::atmosphere_verifier::verify_application(
+        &mut app,
+        &crate::atmosphere_verifier::AtmosphereBounds::conservative(),
+    );
+
+    // Apply ControlledLive extra clamping.
+    apply_controlled_live_modulation(&app)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -309,6 +444,7 @@ mod tests {
         let modes = [
             AtmosphereApplicationMode::Disabled,
             AtmosphereApplicationMode::InternalVerified,
+            AtmosphereApplicationMode::ControlledLive,
             AtmosphereApplicationMode::TestOnly,
         ];
         for (i, a) in modes.iter().enumerate() {
@@ -364,7 +500,7 @@ mod tests {
     }
 
     #[test]
-    fn disabled_mode_never_allows_color_change() {
+    fn disabled_mode_never_allows_color_or_terminal() {
         let mut app = AtmosphereApplication {
             speed_scale: 1.5,
             density_scale: 1.2,
@@ -378,6 +514,7 @@ mod tests {
         );
         let result = apply_application(&app, AtmosphereApplicationMode::Disabled);
         assert!(!result.color_change_allowed);
+        assert!(!result.terminal_effect_allowed);
     }
 
     // ── apply_application: Calm application ──
@@ -388,6 +525,7 @@ mod tests {
         for mode in [
             AtmosphereApplicationMode::Disabled,
             AtmosphereApplicationMode::InternalVerified,
+            AtmosphereApplicationMode::ControlledLive,
             AtmosphereApplicationMode::TestOnly,
         ] {
             let result = apply_application(&app, mode);
@@ -807,9 +945,6 @@ mod tests {
         assert!((eff.density - 0.88).abs() < 0.01); // 0.8 * 1.1
     }
 
-    // ── No new unsafe, no debt markers ──
-    // These are guaranteed by the implementation; verified by loc_tests and clippy.
-
     // ── Application adapter does not touch cache ──
 
     #[test]
@@ -824,8 +959,6 @@ mod tests {
 
         assert_eq!(cache.generation.id(), gen_before);
     }
-
-    // ── Runtime default effective values equal base values ──
 
     #[test]
     fn runtime_default_effective_speed_equals_base_speed() {

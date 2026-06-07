@@ -8,6 +8,17 @@
 //! gradually over time. Phase 3 adds a verifier layer and controlled
 //! internal application path while keeping Calm as the visual identity.
 //!
+//! ## Phase 6 Scope (Controlled Live Modulation)
+//!
+//! - `params_for_regime()`: maps each regime to specific bounded parameters.
+//!   Calm returns identity. Non-Calm regimes return subtle, conservative
+//!   modulation values.
+//! - `effective_params()` now returns regime-specific params instead of
+//!   always returning Calm identity.
+//! - The ControlledLive application mode (atmosphere_apply.rs) gates
+//!   whether regime modulation is applied to the renderer.
+//! - Default behavior remains Disabled/identity — no visual change from v3.9.0.
+//!
 //! ## Phase 3 Scope
 //!
 //! - `build_application()`: converts current regime state into a verified
@@ -114,6 +125,63 @@ impl RegimeParams {
         let mut copy = *self;
         copy.clamp();
         copy
+    }
+}
+
+// ── Regime-to-Parameter Mapping (Phase 6) ──────────────────────────────
+
+/// Map a regime to its specific bounded rendering parameters.
+///
+/// Each regime defines subtle, conservative modulation that preserves the
+/// v3.9.0 visual identity while allowing controlled atmospheric variation.
+/// All values are within the RegimeParams safe ranges (no clamping needed).
+///
+/// Calm returns identity. Non-Calm regimes return tiny deviations:
+/// - Pulse: tiny speed/brightness lift, no density spike
+/// - Compression: tiny density tightening, low brightness change
+/// - Void: tiny density/speed reduction, no brightness change
+/// - Storm: verified but heavily clamped speed/density/glitch
+/// - Signal: tiny structured speed/brightness change
+/// - MonolithPressure: tiny depth/brightness pressure, low glitch
+pub(crate) const fn params_for_regime(regime: AtmosphereRegime) -> RegimeParams {
+    match regime {
+        AtmosphereRegime::Calm => RegimeParams::calm(),
+        AtmosphereRegime::Pulse => RegimeParams {
+            speed_mult: 1.04,
+            density_mult: 1.0, // no density spike
+            glitch_mult: 1.0,
+            brightness_bias: 0.02,
+        },
+        AtmosphereRegime::Compression => RegimeParams {
+            speed_mult: 1.0,
+            density_mult: 1.04, // tiny density tightening
+            glitch_mult: 1.0,
+            brightness_bias: 0.01,
+        },
+        AtmosphereRegime::Storm => RegimeParams {
+            speed_mult: 1.08,   // heavily clamped
+            density_mult: 1.06, // heavily clamped
+            glitch_mult: 1.2,   // elevated but bounded
+            brightness_bias: 0.03,
+        },
+        AtmosphereRegime::Void => RegimeParams {
+            speed_mult: 0.97,     // slow down
+            density_mult: 0.96,   // sparse
+            glitch_mult: 0.6,     // reduced
+            brightness_bias: 0.0, // no brightness change
+        },
+        AtmosphereRegime::Signal => RegimeParams {
+            speed_mult: 1.03, // tiny structured lift
+            density_mult: 1.0,
+            glitch_mult: 1.0,
+            brightness_bias: 0.01,
+        },
+        AtmosphereRegime::MonolithPressure => RegimeParams {
+            speed_mult: 0.98,      // subtle slow
+            density_mult: 1.0,     // no density change
+            glitch_mult: 0.8,      // reduced glitch
+            brightness_bias: 0.02, // subtle depth
+        },
     }
 }
 
@@ -272,9 +340,12 @@ impl AtmosphereState {
 
     /// Effective rendering parameters for the current state.
     ///
-    /// In Phase 3 with Calm default, this always returns identity params.
+    /// In Phase 6, returns regime-specific params. For Calm, returns
+    /// identity params. For non-Calm regimes, returns subtle bounded
+    /// modulation values. These values are further verified by the
+    /// verifier and clamped by the application adapter.
     pub(crate) fn effective_params(&self) -> RegimeParams {
-        RegimeParams::calm()
+        params_for_regime(self.current_regime)
     }
 
     /// Build a verified atmosphere application from the current state.
@@ -576,13 +647,79 @@ mod tests {
     }
 
     #[test]
-    fn atmosphere_state_initializes_without_allocation() {
-        let state = AtmosphereState::default();
-        let _ = state; // Copy type, no heap allocation.
-        assert_eq!(
-            std::mem::size_of::<AtmosphereState>(),
-            std::mem::size_of::<AtmosphereState>()
-        );
+    fn params_for_regime_calm_is_identity() {
+        let params = params_for_regime(AtmosphereRegime::Calm);
+        assert_eq!(params.speed_mult, 1.0);
+        assert_eq!(params.density_mult, 1.0);
+        assert_eq!(params.glitch_mult, 1.0);
+        assert_eq!(params.brightness_bias, 0.0);
+    }
+
+    #[test]
+    fn params_for_regime_pulse_has_subtle_speed_and_brightness_lift() {
+        let params = params_for_regime(AtmosphereRegime::Pulse);
+        assert!(params.speed_mult > 1.0);
+        assert!(params.speed_mult <= 1.06); // tiny bounded
+        assert_eq!(params.density_mult, 1.0); // no density spike
+        assert!(params.brightness_bias > 0.0);
+        assert!(params.brightness_bias <= 0.03);
+    }
+
+    #[test]
+    fn params_for_regime_void_has_density_reduction() {
+        let params = params_for_regime(AtmosphereRegime::Void);
+        assert!(params.density_mult < 1.0); // density reduction
+        assert!(params.density_mult >= 0.95); // bounded safe minimum
+        assert!(params.speed_mult < 1.0);
+        assert_eq!(params.brightness_bias, 0.0); // no color change
+    }
+
+    #[test]
+    fn params_for_regime_storm_is_tightly_bounded() {
+        let params = params_for_regime(AtmosphereRegime::Storm);
+        assert!(params.speed_mult > 1.0);
+        assert!(params.speed_mult <= 1.10); // heavily clamped
+        assert!(params.density_mult > 1.0);
+        assert!(params.density_mult <= 1.08);
+        assert!(params.glitch_mult >= 1.0);
+        assert!(params.glitch_mult <= 1.3);
+    }
+
+    #[test]
+    fn params_for_regime_all_non_calm_bounded_within_safe_ranges() {
+        let non_calm = [
+            AtmosphereRegime::Pulse,
+            AtmosphereRegime::Compression,
+            AtmosphereRegime::Storm,
+            AtmosphereRegime::Void,
+            AtmosphereRegime::Signal,
+            AtmosphereRegime::MonolithPressure,
+        ];
+        for regime in non_calm {
+            let params = params_for_regime(regime);
+            let clamped = params.clamped();
+            // All params must already be within safe ranges (no clamping needed).
+            assert_eq!(
+                clamped.speed_mult, params.speed_mult,
+                "{:?} speed_mult must be in safe range",
+                regime
+            );
+            assert_eq!(
+                clamped.density_mult, params.density_mult,
+                "{:?} density_mult must be in safe range",
+                regime
+            );
+            assert_eq!(
+                clamped.glitch_mult, params.glitch_mult,
+                "{:?} glitch_mult must be in safe range",
+                regime
+            );
+            assert_eq!(
+                clamped.brightness_bias, params.brightness_bias,
+                "{:?} brightness_bias must be in safe range",
+                regime
+            );
+        }
     }
 
     #[test]
@@ -591,8 +728,6 @@ mod tests {
         assert!(state.transition_progress >= 0.0);
         assert!(state.transition_progress <= 1.0);
     }
-
-    // ── AtmosphereController ──
 
     #[test]
     fn controller_default_is_calm_stable() {
@@ -678,8 +813,6 @@ mod tests {
         assert!(ctrl.is_stable());
     }
 
-    // ── RegimeProbe ──
-
     #[test]
     fn regime_probe_idle_defaults() {
         let probe = RegimeProbe::idle();
@@ -688,8 +821,6 @@ mod tests {
         assert_eq!(probe.frame_time_pressure, 0.0);
         assert!(!probe.benchmark_mode);
     }
-
-    // ── select_regime_from_probe ──
 
     #[test]
     fn probe_idle_selects_calm() {
@@ -781,8 +912,6 @@ mod tests {
         }
     }
 
-    // ── Cache integration ──
-
     #[test]
     fn regime_change_invalidates_cache_generation() {
         let mut ctrl = AtmosphereController::new();
@@ -807,8 +936,6 @@ mod tests {
 
         assert_eq!(cache.generation.id(), gen_before + 1);
     }
-
-    // ── Phase 3: build_application ──
 
     #[test]
     fn calm_controller_builds_identity_application() {

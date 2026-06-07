@@ -39,6 +39,8 @@
 mod app;
 mod atmosphere;
 mod atmosphere_apply;
+#[cfg(test)]
+mod atmosphere_apply_cl_tests;
 mod atmosphere_verifier;
 mod bench;
 mod bench_report;

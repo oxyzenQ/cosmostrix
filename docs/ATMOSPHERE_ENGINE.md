@@ -6,6 +6,65 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
+## Status: Phase 6 — Controlled Live Modulation (v4.0.0)
+
+v4.0.0 Phase 6 adds an internal-only ControlledLive modulation path while
+preserving the default v3.9.0 visual identity. The system can apply very
+subtle verified modulation through an extra clamping layer without exposing
+any public CLI or changing default behavior.
+
+### New Types and Functions
+
+- `ControlledLive` variant in `AtmosphereApplicationMode` (atmosphere_apply.rs):
+  internal-only mode that applies modulation with extra clamping. NOT exposed
+  via public CLI. Only reachable through internal/test code paths.
+- `ControlledLiveBounds` (atmosphere_apply.rs): tighter bounds than conservative —
+  speed ±4%, density ±4%, brightness ±3%, glitch_pressure ≤ 0.2.
+- `apply_controlled_live_modulation()`: deterministic function that clamps a
+  verified application to ControlledLiveBounds. Calm applications always
+  return identity.
+- `controlled_live_modulation_from_regime()`: pipeline function that combines
+  regime→params→application→verify→CL-clamp into a single step.
+- `params_for_regime()` (atmosphere.rs, Phase 6): maps each regime to specific
+  bounded rendering parameters. Calm returns identity. Non-Calm regimes
+  return subtle, conservative modulation values.
+
+### What Phase 6 Does
+
+- Adds a ControlledLive application mode as an internal-only option.
+- Defines ControlledLiveBounds — much tighter than conservative bounds.
+- Wires ControlledLive through `apply_application()` with extra clamping.
+- All non-Calm regimes have defined parameter mappings via `params_for_regime()`.
+- Calm regime always returns identity regardless of mode.
+- Default production mode remains Disabled (identity, no visual change).
+- 17 new deterministic tests for ControlledLive path.
+
+### What Phase 6 Does NOT Do
+
+- Does NOT change default visual output — still identical to v3.9.0.
+- Does NOT expose ControlledLive via public CLI.
+- Does NOT add new dependencies or unsafe code.
+- Does NOT alter color scheme, terminal state, or scene cycling.
+- Does NOT make benchmark visual behavior different.
+- Does NOT grow atmosphere_apply.rs beyond its LOC budget.
+
+### ControlledLive Safety Guarantees
+
+- Speed deviation from identity: ≤ ±4% (ControlledLiveBounds::SPEED_MAX_DELTA = 0.04).
+- Density deviation: ≤ ±4% (DENSITY_MAX_DELTA = 0.04).
+- Brightness deviation: ≤ ±3% (BRIGHTNESS_MAX_DELTA = 0.03).
+- Glitch pressure: ≤ 0.2 (GLITCH_PRESSURE_MAX = 0.2).
+- Color change: always false.
+- Terminal effects: always false.
+- Calm regime: always identity (no modulation).
+- ControlledLive is always more restrictive than InternalVerified.
+
+### Diagnostics
+
+- `--benchmark` reports `atmosphere_application_mode: disabled` by default.
+  When ControlledLive is used internally, it reports `controlled-live`.
+- `effective_runtime` reflects the actual modulation applied.
+
 ## Status: Phase 5 — Runtime Atmosphere Seam (v4.0.0)
 
 v4.0.0 Phase 5 wires the verified atmosphere application seam into runtime

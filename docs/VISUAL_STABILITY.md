@@ -375,3 +375,21 @@ The Phase 4 atmosphere application adapter must preserve visual stability:
   adapter, and the adapter itself produces only bounded scale factors.
 - Clean empty space must remain clean. Hero, hot body, mid body, dim trail,
   spine ghost, gap, and blank background roles are unchanged.
+
+## v4.0.0 ControlledLive Modulation Policy
+
+The Phase 6 ControlledLive mode provides an even more restrictive modulation
+path than InternalVerified, designed for internal-only live atmosphere
+variation while keeping the v3.9.0 visual identity intact.
+
+- ControlledLiveBounds are tighter than conservative bounds: speed ±4%,
+  density ±4%, brightness ±3%, glitch_pressure ≤ 0.2.
+- ControlledLive is NOT exposed via public CLI. Only reachable through
+  internal/test code paths.
+- Calm regime always produces identity regardless of application mode.
+- ControlledLive modulation is always more restrictive than InternalVerified
+  modulation for the same application — deviation from identity is strictly
+  smaller in all parameters.
+- The effective runtime values under ControlledLive are extremely close to
+  base values: speed and density deviate by at most ±4% from config base.
+- Color change and terminal effects remain permanently false in ControlledLive.
