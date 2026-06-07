@@ -41,6 +41,13 @@ mod atmosphere;
 mod atmosphere_apply;
 #[cfg(test)]
 mod atmosphere_apply_cl_tests;
+#[cfg(test)]
+mod atmosphere_apply_tests;
+mod atmosphere_controlled_live;
+mod atmosphere_probe;
+mod atmosphere_runtime;
+#[cfg(test)]
+mod atmosphere_tests;
 mod atmosphere_verifier;
 mod bench;
 mod bench_report;
