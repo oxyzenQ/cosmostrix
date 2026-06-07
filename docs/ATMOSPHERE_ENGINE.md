@@ -6,7 +6,60 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
-## Status: Phase 3 — Verifier + Controlled Application (v4.0.0)
+## Status: Phase 4 — Subtle Atmosphere Application (v4.0.0)
+
+v4.0.0 Phase 4 adds a verified application adapter that converts atmosphere
+applications into safe runtime modulation values:
+
+- `AtmosphereApplicationMode` (`src/atmosphere_apply.rs`): controls whether
+  modulation is active. Default is `Disabled` (production identity).
+- `AtmosphereRuntimeModulation`: bounded modulation struct with speed_scale,
+  density_scale, brightness_scale, glitch_pressure, color_change_allowed,
+  terminal_effect_allowed.
+- `apply_application()`: converts a verified AtmosphereApplication into an
+  AtmosphereRuntimeModulation. Disabled mode always returns identity.
+- `effective_speed()`, `effective_density_from_modulation()`, etc.: helper
+  functions that compute derived parameters from base values and modulation.
+
+### What Phase 4 Does
+
+- Adds an application adapter that bridges the verifier (Phase 3) and the
+  renderer parameter space.
+- Proves that verified non-Calm applications can be safely transformed into
+  bounded runtime modulation values.
+- Provides `InternalVerified` mode for controlled internal/test use.
+- Reports application_mode and visual_effect status in diagnostics.
+- Color change remains always forbidden in the adapter output.
+- Terminal behavior is never affected.
+
+### What Phase 4 Does NOT Do
+
+- Does not unleash non-Calm regimes in production code paths.
+- Does not change default visual output — still identical to v3.9.0.
+- Does not add new CLI flags or public API surface.
+- Does not alter color scheme, terminal state, or scene cycling.
+- Does not make benchmark visual behavior different from v3.9.0.
+- Full visual atmosphere modulation is still a future phase.
+
+### Default Behavior
+
+The default application mode is `Disabled`. The adapter always returns identity
+modulation in Disabled mode, regardless of input. The renderer behaves exactly
+as v3.9.0. Non-Calm regimes can be transformed into bounded modulation values
+internally (via `InternalVerified` or `TestOnly` mode), but this path is not
+exposed to the production runtime.
+
+### Diagnostics
+
+- `--info` (`-i`) reports an `ATMOSPHERE` section with `regime: calm`,
+  `engine: phase-4-verified-application`, `effective: identity`,
+  `verifier: pass`, `application: identity`, `application_mode: disabled`.
+- `--benchmark` reports an `ATMOSPHERE` section with `regime: calm`,
+  `effective: no-op`, `transition: stable`, `verifier: pass`,
+  `application: identity`, `atmosphere_application: identity`,
+  `atmosphere_application_mode: disabled`, `atmosphere_visual_effect: disabled`.
+
+## Phase 3 — Verifier + Controlled Application (v4.0.0)
 
 v4.0.0 Phase 3 adds a verifier layer and controlled internal application path:
 
@@ -158,12 +211,14 @@ within which the renderer makes visual decisions.
 ## Hard Constraints
 
 - Default regime is `Calm`. Calm is a visual no-op.
-- No visual changes are driven by atmosphere logic in Phase 3.
+- Default application mode is `Disabled`. Disabled always returns identity.
+- No visual changes are driven by atmosphere logic in production code paths.
 - Color drift remains opt-in only (`auto_color_drift = false`).
 - No chaotic or random visual changes.
 - All regime parameters are bounded.
 - All applications must pass verification.
 - Color modification is always forbidden by default.
+- Terminal behavior is never affected by atmosphere.
 - Terminal writer remains single-owner.
 - No new unsafe code.
 - Scene cycling (x/X) semantics unchanged.
@@ -171,3 +226,4 @@ within which the renderer makes visual decisions.
 - Transition ramp is bounded (minimum 1 second).
 - Zactrix Cache is invalidated on `AtmosphereRegimeChange`.
 - Verification does not invalidate cache (separation of concerns).
+- Application adapter does not invalidate cache or alter terminal state.

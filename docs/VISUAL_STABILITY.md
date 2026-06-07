@@ -360,3 +360,18 @@ Zactrix Core may guide these decisions through compact probes, maps, filters,
 verifiers, and bounded history, but it remains internal architecture guidance.
 It is not Linux eBPF, not a public API, and not the v4.0.0 Full Atmosphere
 Engine.
+
+## v4.0.0 Atmosphere Application Policy
+
+The Phase 4 atmosphere application adapter must preserve visual stability:
+
+- Atmosphere modulation is disabled by default (application_mode = disabled).
+- Identity modulation produces output identical to v3.9.0.
+- Non-Calm applications produce bounded modulation only in internal/test mode.
+- Color change is always forbidden in the adapter output.
+- Terminal behavior is never affected by atmosphere.
+- The adapter does not introduce muddy residue, uncontrolled brightness, or
+  visual noise. All values are clamped by the verifier before reaching the
+  adapter, and the adapter itself produces only bounded scale factors.
+- Clean empty space must remain clean. Hero, hot body, mid body, dim trail,
+  spine ghost, gap, and blank background roles are unchanged.

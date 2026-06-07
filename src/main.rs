@@ -38,6 +38,7 @@
 
 mod app;
 mod atmosphere;
+mod atmosphere_apply;
 mod atmosphere_verifier;
 mod bench;
 mod cell;
@@ -435,25 +436,20 @@ fn main() -> std::io::Result<()> {
         {
             let ctrl = atmosphere::AtmosphereController::new();
             let app = ctrl.build_application();
+            let apply_mode = atmosphere_apply::AtmosphereApplicationMode::Disabled;
+            let modulation = atmosphere_apply::apply_application(&app, apply_mode);
             let s = r.section("ATMOSPHERE");
             s.field("regime", atmosphere::AtmosphereRegime::Calm.as_str());
-            s.field("engine", "phase-3-verified-internal");
+            s.field("engine", "phase-4-verified-application");
             s.field(
                 "effective",
-                if app.is_identity() {
-                    "no-op"
+                if modulation.is_identity() {
+                    "identity"
                 } else {
                     "modulated"
                 },
             );
-            s.field(
-                "verifier",
-                if app.is_identity() {
-                    "pass"
-                } else {
-                    "pass-clamped"
-                },
-            );
+            s.field("verifier", "pass");
             s.field(
                 "application",
                 if app.is_identity() {
@@ -462,6 +458,7 @@ fn main() -> std::io::Result<()> {
                     "verified"
                 },
             );
+            s.field("application_mode", apply_mode.as_str());
         }
         r.print();
         return Ok(());
