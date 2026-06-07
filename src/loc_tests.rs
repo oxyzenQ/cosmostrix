@@ -44,23 +44,26 @@ mod tests {
 
     // ── Canonical Identity / Metadata Tests ──
 
-    /// Scan all .rs and .toml files for lowercase `oxyzenq` (wrong casing).
+    /// Scan all .rs/.toml/.md/.sh files for wrong-cased repo owner (lowercase).
     /// User-facing source and metadata must use the canonical `oxyzenQ`.
     #[test]
-    fn no_lowercase_oxyzenq_in_source_or_toml() {
+    fn no_lowercase_repo_owner_in_source_or_toml() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
         let mut violations = Vec::new();
 
-        scan_dir_for_lowercase_oxyzenq(root, &mut violations);
+        scan_dir_for_lowercase_owner(root, &mut violations);
 
         assert!(
             violations.is_empty(),
-            "lowercase 'oxyzenq' found in tracked files — use 'oxyzenQ':\n{}",
-            violations.join("\n")
+            "{}",
+            format!(
+                "wrong-cased repo owner (lowercase) found in tracked files — use 'oxyzenQ':\n{}",
+                violations.join("\n")
+            )
         );
     }
 
-    fn scan_dir_for_lowercase_oxyzenq(dir: &Path, out: &mut Vec<String>) {
+    fn scan_dir_for_lowercase_owner(dir: &Path, out: &mut Vec<String>) {
         for entry in fs::read_dir(dir).expect("read dir") {
             let entry = entry.expect("read entry");
             let path = entry.path();
@@ -72,9 +75,9 @@ mod tests {
                 {
                     continue;
                 }
-                scan_dir_for_lowercase_oxyzenq(&path, out);
+                scan_dir_for_lowercase_owner(&path, out);
             } else {
-                // Skip this guard file itself (it contains the string in assertions)
+                // Skip this guard file itself
                 if path.file_name().is_some_and(|n| n == "loc_tests.rs") {
                     continue;
                 }
@@ -87,11 +90,13 @@ mod tests {
                             if trimmed.starts_with("// Copyright") {
                                 continue;
                             }
-                            // Flag lines containing lowercase "oxyzenq"
+                            // Flag lines containing the wrong-cased repo owner
                             // that do NOT also contain the canonical "oxyzenQ".
                             // This catches pure-lowercase references while
                             // allowing lines with the correct casing.
-                            if trimmed.contains("oxyzenq") && !trimmed.contains("oxyzenQ") {
+                            if trimmed.contains(concat!("oxyzen", "q"))
+                                && !trimmed.contains("oxyzenQ")
+                            {
                                 out.push(format!("{}:{}: {}", path.display(), i + 1, trimmed));
                             }
                         }
@@ -127,8 +132,8 @@ mod tests {
             "RELEASES_URL must contain canonical oxyzenQ"
         );
         assert!(
-            !crate::update::CANONICAL_GITHUB_API_URL.contains("oxyzenq"),
-            "GITHUB_API_URL must not contain lowercase oxyzenq"
+            !crate::update::CANONICAL_GITHUB_API_URL.contains(concat!("oxyzen", "q")),
+            "GITHUB_API_URL must not contain wrong-cased repo owner"
         );
     }
 
@@ -143,8 +148,8 @@ mod tests {
             "Cargo.toml repository must use canonical oxyzenQ"
         );
         assert!(
-            !cargo_toml.contains("github.com/oxyzenq"),
-            "Cargo.toml must not contain lowercase oxyzenq"
+            !cargo_toml.contains(concat!("github.com/", "oxyzen", "q")),
+            "Cargo.toml must not contain wrong-cased repo owner"
         );
     }
 }
