@@ -350,3 +350,205 @@ fn dump_config_mentions_supported_keys() {
     assert!(dump.contains("density = 0.75"));
     assert!(dump.contains("glitch-level = subtle"));
 }
+
+// ── Phase 10: Atmosphere Config Keys ──
+
+#[test]
+fn default_atmosphere_mode_and_regime_are_none() {
+    let args = args_from_cli(&[]);
+    assert!(args.atmosphere_mode_str.is_none());
+    assert!(args.atmosphere_regime_str.is_none());
+}
+
+#[test]
+fn config_atmosphere_mode_disabled_parses() {
+    let args = args_with_config("atmosphere-mode = disabled\n", &[]);
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("disabled"));
+}
+
+#[test]
+fn config_atmosphere_mode_controlled_live_parses() {
+    let args = args_with_config("atmosphere-mode = controlled-live\n", &[]);
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
+}
+
+#[test]
+fn config_atmosphere_mode_invalid_is_ignored() {
+    let args = args_with_config("atmosphere-mode = storm-mode\n", &[]);
+    assert!(args.atmosphere_mode_str.is_none());
+}
+
+#[test]
+fn config_atmosphere_regime_calm_parses() {
+    let args = args_with_config("atmosphere-regime = calm\n", &[]);
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("calm"));
+}
+
+#[test]
+fn config_atmosphere_regime_pulse_parses() {
+    let args = args_with_config("atmosphere-regime = pulse\n", &[]);
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("pulse"));
+}
+
+#[test]
+fn config_atmosphere_regime_signal_parses() {
+    let args = args_with_config("atmosphere-regime = signal\n", &[]);
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("signal"));
+}
+
+#[test]
+fn config_atmosphere_regime_compression_parses() {
+    let args = args_with_config("atmosphere-regime = compression\n", &[]);
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("compression"));
+}
+
+#[test]
+fn config_atmosphere_regime_void_parses() {
+    let args = args_with_config("atmosphere-regime = void\n", &[]);
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("void"));
+}
+
+#[test]
+fn config_atmosphere_regime_monolith_pressure_parses() {
+    let args = args_with_config("atmosphere-regime = monolith-pressure\n", &[]);
+    assert_eq!(
+        args.atmosphere_regime_str.as_deref(),
+        Some("monolith-pressure")
+    );
+}
+
+#[test]
+fn config_atmosphere_regime_storm_is_rejected() {
+    let args = args_with_config("atmosphere-regime = storm\n", &[]);
+    // Storm is NOT config-safe — should remain None (rejected).
+    assert!(args.atmosphere_regime_str.is_none());
+}
+
+#[test]
+fn config_atmosphere_regime_invalid_is_ignored() {
+    let args = args_with_config("atmosphere-regime = nonexistent\n", &[]);
+    assert!(args.atmosphere_regime_str.is_none());
+}
+
+#[test]
+fn config_atmosphere_mode_and_regime_together_parse() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = pulse\n",
+        &[],
+    );
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("pulse"));
+}
+
+#[test]
+fn resolve_atmosphere_mode_disabled_returns_disabled() {
+    use crate::atmosphere_apply::AtmosphereApplicationMode;
+    use crate::config_apply::resolve_atmosphere_mode;
+    let mode = resolve_atmosphere_mode(Some("disabled"));
+    assert_eq!(mode, AtmosphereApplicationMode::Disabled);
+}
+
+#[test]
+fn resolve_atmosphere_mode_controlled_live_returns_controlled_live() {
+    use crate::atmosphere_apply::AtmosphereApplicationMode;
+    use crate::config_apply::resolve_atmosphere_mode;
+    let mode = resolve_atmosphere_mode(Some("controlled-live"));
+    assert_eq!(mode, AtmosphereApplicationMode::ControlledLive);
+}
+
+#[test]
+fn resolve_atmosphere_mode_none_returns_disabled() {
+    use crate::atmosphere_apply::AtmosphereApplicationMode;
+    use crate::config_apply::resolve_atmosphere_mode;
+    let mode = resolve_atmosphere_mode(None);
+    assert_eq!(mode, AtmosphereApplicationMode::Disabled);
+}
+
+#[test]
+fn resolve_atmosphere_regime_calm_returns_calm() {
+    use crate::atmosphere::AtmosphereRegime;
+    use crate::config_apply::resolve_atmosphere_regime;
+    assert_eq!(
+        resolve_atmosphere_regime(Some("calm")),
+        AtmosphereRegime::Calm
+    );
+}
+
+#[test]
+fn resolve_atmosphere_regime_pulse_returns_pulse() {
+    use crate::atmosphere::AtmosphereRegime;
+    use crate::config_apply::resolve_atmosphere_regime;
+    assert_eq!(
+        resolve_atmosphere_regime(Some("pulse")),
+        AtmosphereRegime::Pulse
+    );
+}
+
+#[test]
+fn resolve_atmosphere_regime_signal_returns_signal() {
+    use crate::atmosphere::AtmosphereRegime;
+    use crate::config_apply::resolve_atmosphere_regime;
+    assert_eq!(
+        resolve_atmosphere_regime(Some("signal")),
+        AtmosphereRegime::Signal
+    );
+}
+
+#[test]
+fn resolve_atmosphere_regime_void_returns_void() {
+    use crate::atmosphere::AtmosphereRegime;
+    use crate::config_apply::resolve_atmosphere_regime;
+    assert_eq!(
+        resolve_atmosphere_regime(Some("void")),
+        AtmosphereRegime::Void
+    );
+}
+
+#[test]
+fn resolve_atmosphere_regime_compression_returns_compression() {
+    use crate::atmosphere::AtmosphereRegime;
+    use crate::config_apply::resolve_atmosphere_regime;
+    assert_eq!(
+        resolve_atmosphere_regime(Some("compression")),
+        AtmosphereRegime::Compression
+    );
+}
+
+#[test]
+fn resolve_atmosphere_regime_monolith_pressure_returns_monolith_pressure() {
+    use crate::atmosphere::AtmosphereRegime;
+    use crate::config_apply::resolve_atmosphere_regime;
+    assert_eq!(
+        resolve_atmosphere_regime(Some("monolith-pressure")),
+        AtmosphereRegime::MonolithPressure
+    );
+}
+
+#[test]
+fn resolve_atmosphere_regime_none_returns_calm() {
+    use crate::atmosphere::AtmosphereRegime;
+    use crate::config_apply::resolve_atmosphere_regime;
+    assert_eq!(resolve_atmosphere_regime(None), AtmosphereRegime::Calm);
+}
+
+#[test]
+fn controlled_live_modulation_from_config_pulse_is_subtle() {
+    use crate::atmosphere_apply::AtmosphereApplicationMode;
+    use crate::atmosphere_controlled_live::controlled_live_modulation_from_regime;
+    let modulation =
+        controlled_live_modulation_from_regime(crate::atmosphere::AtmosphereRegime::Pulse);
+    assert!(modulation.speed_scale > 1.0);
+    assert!(modulation.speed_scale <= 1.04); // ControlledLiveBounds
+    assert!(modulation.density_scale == 1.0); // Pulse: no density change
+    assert!(!modulation.color_change_allowed);
+    assert!(!modulation.terminal_effect_allowed);
+}
+
+#[test]
+fn dump_config_mentions_atmosphere_keys() {
+    let dump = dump_config_text();
+    assert!(dump.contains("atmosphere-mode"));
+    assert!(dump.contains("atmosphere-regime"));
+    assert!(dump.contains("controlled-live"));
+    assert!(dump.contains("storm is NOT config-safe"));
+}

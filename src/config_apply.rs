@@ -34,6 +34,83 @@ use crate::validation::{
     parse_canonical_u8_range,
 };
 
+/// Parsed atmosphere config values from config/profile layers.
+/// Resolved through precedence: CLI > profile > config > defaults.
+#[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
+pub(crate) struct AtmosphereConfigValues {
+    pub(crate) mode: Option<String>,
+    pub(crate) regime: Option<String>,
+}
+
+/// Validate atmosphere-mode config value.
+/// Allowed: disabled, controlled-live. Storm is NOT config-safe.
+fn parse_atmosphere_mode_config(name: &str, value: &str) -> Option<String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "disabled" | "controlled-live" => Some(value.trim().to_ascii_lowercase()),
+        _ => {
+            eprintln!(
+                "config: ignoring invalid {name}='{value}' (allowed: disabled, controlled-live)"
+            );
+            None
+        }
+    }
+}
+
+/// Validate atmosphere-regime config value.
+/// Allowed: calm, pulse, signal, compression, void, monolith-pressure.
+/// Storm is NOT config-safe in Phase 10 and will be rejected.
+fn parse_atmosphere_regime_config(name: &str, value: &str) -> Option<String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" => {
+            Some(value.trim().to_ascii_lowercase())
+        }
+        "storm" => {
+            eprintln!("config: rejecting {name}='storm' — storm is NOT config-safe in Phase 10");
+            None
+        }
+        _ => {
+            eprintln!(
+                "config: ignoring invalid {name}='{value}' (allowed: calm, pulse, signal, compression, void, monolith-pressure)"
+            );
+            None
+        }
+    }
+}
+
+/// Resolve atmosphere mode from the config string value.
+/// Returns Disabled (default) if the value is "disabled" or None.
+/// Returns ControlledLive if the value is "controlled-live".
+#[must_use]
+pub(crate) fn resolve_atmosphere_mode(
+    mode_str: Option<&str>,
+) -> crate::atmosphere_apply::AtmosphereApplicationMode {
+    match mode_str {
+        Some("controlled-live") => {
+            crate::atmosphere_apply::AtmosphereApplicationMode::ControlledLive
+        }
+        _ => crate::atmosphere_apply::AtmosphereApplicationMode::Disabled,
+    }
+}
+
+/// Resolve atmosphere regime from the config string value.
+/// Returns Calm (default) if the value is "calm" or None.
+/// Returns the corresponding AtmosphereRegime for valid values.
+/// Storm is never returned — it's rejected at the parsing layer.
+#[must_use]
+pub(crate) fn resolve_atmosphere_regime(
+    regime_str: Option<&str>,
+) -> crate::atmosphere::AtmosphereRegime {
+    match regime_str {
+        Some("pulse") => crate::atmosphere::AtmosphereRegime::Pulse,
+        Some("signal") => crate::atmosphere::AtmosphereRegime::Signal,
+        Some("compression") => crate::atmosphere::AtmosphereRegime::Compression,
+        Some("void") => crate::atmosphere::AtmosphereRegime::Void,
+        Some("monolith-pressure") => crate::atmosphere::AtmosphereRegime::MonolithPressure,
+        _ => crate::atmosphere::AtmosphereRegime::Calm,
+    }
+}
+
 pub(crate) fn apply_config_and_runtime_defaults(
     matches: &clap::ArgMatches,
     args: &mut Args,
@@ -270,6 +347,18 @@ fn apply_config_values(
         if let Some(b) = parse_bool_config("auto-color-drift", &v) {
             args.auto_color_drift = b;
             config_touched.insert("auto_color_drift");
+        }
+    }
+    if let Some(v) = config_value(matches, cfg, "atmosphere_mode_str", "atmosphere-mode") {
+        if let Some(valid) = parse_atmosphere_mode_config("atmosphere-mode", &v) {
+            args.atmosphere_mode_str = Some(valid);
+            config_touched.insert("atmosphere_mode_str");
+        }
+    }
+    if let Some(v) = config_value(matches, cfg, "atmosphere_regime_str", "atmosphere-regime") {
+        if let Some(valid) = parse_atmosphere_regime_config("atmosphere-regime", &v) {
+            args.atmosphere_regime_str = Some(valid);
+            config_touched.insert("atmosphere_regime_str");
         }
     }
 

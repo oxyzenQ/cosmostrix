@@ -34,6 +34,8 @@ pub const PROFILE_FIELDS: &[&str] = &[
     "glitch-level",
     "monolith-size",
     "color-bg",
+    "atmosphere-mode",
+    "atmosphere-regime",
 ];
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -48,6 +50,8 @@ pub struct UserProfile {
     pub glitch_level: Option<String>,
     pub monolith_size: Option<String>,
     pub color_bg: Option<String>,
+    pub atmosphere_mode: Option<String>,
+    pub atmosphere_regime: Option<String>,
 }
 
 #[must_use]
@@ -89,6 +93,8 @@ pub fn collect_profiles(
             "glitch-level" => profile.glitch_level = Some(value.clone()),
             "monolith-size" => profile.monolith_size = Some(value.clone()),
             "color-bg" => profile.color_bg = Some(value.clone()),
+            "atmosphere-mode" => profile.atmosphere_mode = Some(value.clone()),
+            "atmosphere-regime" => profile.atmosphere_regime = Some(value.clone()),
             _ => {}
         }
     }
@@ -205,6 +211,18 @@ pub fn dump_profile_text(
         &normalized,
         "color-bg",
         profile.color_bg.as_deref(),
+    );
+    push_field(
+        &mut out,
+        &normalized,
+        "atmosphere-mode",
+        profile.atmosphere_mode.as_deref(),
+    );
+    push_field(
+        &mut out,
+        &normalized,
+        "atmosphere-regime",
+        profile.atmosphere_regime.as_deref(),
     );
     Ok(out)
 }
@@ -406,6 +424,26 @@ fn apply_profile_overrides(
             ),
         }
     }
+    if let Some(value) = profile
+        .atmosphere_mode
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "atmosphere_mode_str"))
+    {
+        if let Some(mode) = parse_atmosphere_mode_profile(name, value) {
+            args.atmosphere_mode_str = Some(mode);
+            modified.insert("atmosphere_mode_str");
+        }
+    }
+    if let Some(value) = profile
+        .atmosphere_regime
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "atmosphere_regime_str"))
+    {
+        if let Some(regime) = parse_atmosphere_regime_profile(name, value) {
+            args.atmosphere_regime_str = Some(regime);
+            modified.insert("atmosphere_regime_str");
+        }
+    }
 }
 
 fn parse_f32_profile(name: &str, field: &str, value: &str, min: f32, max: f32) -> Option<f32> {
@@ -453,6 +491,39 @@ fn parse_color_bg(value: &str) -> Option<ColorBg> {
         "default-background" | "default_background" => Some(ColorBg::DefaultBackground),
         "transparent" => Some(ColorBg::Transparent),
         _ => None,
+    }
+}
+
+fn parse_atmosphere_mode_profile(name: &str, value: &str) -> Option<String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "disabled" | "controlled-live" => Some(value.trim().to_ascii_lowercase()),
+        _ => {
+            warn_invalid(name, "atmosphere-mode", value, "disabled, controlled-live");
+            None
+        }
+    }
+}
+
+fn parse_atmosphere_regime_profile(name: &str, value: &str) -> Option<String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" => {
+            Some(value.trim().to_ascii_lowercase())
+        }
+        "storm" => {
+            eprintln!(
+                "config: rejecting profile.{name}.atmosphere-regime='storm' — storm is NOT config-safe in Phase 10"
+            );
+            None
+        }
+        _ => {
+            warn_invalid(
+                name,
+                "atmosphere-regime",
+                value,
+                "calm, pulse, signal, compression, void, monolith-pressure",
+            );
+            None
+        }
     }
 }
 

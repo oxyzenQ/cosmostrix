@@ -6,6 +6,79 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
+## Status: Phase 10 — Controlled Atmosphere Profile Config (v4.0.0)
+
+v4.0.0 Phase 10 adds config-file and profile-level support for controlled atmosphere
+settings. This is a "pilot safety-cover switch" — it adds the config plumbing for
+atmosphere-mode and atmosphere-regime without changing default behavior, without
+new public CLI flags, and without enabling visible modulation by default.
+
+### New Config/Profile Keys
+
+- `atmosphere-mode`: `disabled` (default) | `controlled-live`. Controls whether
+  the atmosphere engine's controlled-live modulation path is activated. When disabled
+  (the default), all atmosphere modulation is identity — zero visual change from v3.9.0.
+- `atmosphere-regime`: `calm` (default) | `pulse` | `signal` | `compression` |
+  `void` | `monolith-pressure`. Selects the visual regime for the atmosphere engine
+  when mode is `controlled-live`. Storm is explicitly NOT config-safe in Phase 10
+  and will be rejected with a clear error message.
+- Profile keys: `profile.<name>.atmosphere-mode`, `profile.<name>.atmosphere-regime`.
+
+### Precedence
+
+CLI > profile > config > defaults. Since no new public CLI flags are added, the
+effective precedence for atmosphere config is: profile > config > defaults (disabled/calm).
+
+### New Functions
+
+- `resolve_atmosphere_mode()`: converts a config string to AtmosphereApplicationMode.
+  `controlled-live` → ControlledLive, anything else (including None/disabled) → Disabled.
+- `resolve_atmosphere_regime()`: converts a config string to AtmosphereRegime.
+  Supports all non-storm regimes. Storm is rejected at the parsing layer, never reaches
+  the resolver.
+- `parse_atmosphere_mode_config()` / `parse_atmosphere_regime_config()`: config-level
+  validators with clean rejection warnings.
+- `parse_atmosphere_mode_profile()` / `parse_atmosphere_regime_profile()`: profile-level
+  validators with the same behavior.
+
+### Diagnostics
+
+- `-i` now reports the resolved atmosphere mode and regime from config/profile.
+- Engine label updated to `phase-10-config-gated`.
+- When mode is disabled (default), all atmosphere diagnostics show identity.
+- When mode is controlled-live with a non-calm regime, diagnostics show the actual
+  modulation and shadow metrics.
+
+### What Phase 10 Does
+
+- Adds `atmosphere-mode` and `atmosphere-regime` config/profile keys.
+- Wires resolved config into the existing AtmosphereApplicationMode and regime
+  resolution pipeline.
+- Default behavior remains disabled/calm/identity — zero visual change from v3.9.0.
+- ControlledLive with non-calm regime produces subtle, bounded modulation.
+- Updates `--dump-config` template to document the new keys.
+- Adds 25 new deterministic tests for config parsing and resolution.
+- No new public CLI flags.
+
+### What Phase 10 Does NOT Do
+
+- Does NOT change default visual output — still identical to v3.9.0.
+- Does NOT add new public CLI flags.
+- Does NOT enable visible atmosphere modulation by default.
+- Does NOT make storm config-safe. Storm is explicitly rejected.
+- Does NOT add new dependencies or unsafe code.
+- Does NOT bump version or tag.
+- Does NOT alter color scheme, terminal state, or scene cycling.
+
+### Safety Constraints
+
+- atmosphere-mode defaults to disabled. Disabled always produces identity.
+- atmosphere-regime defaults to calm. Calm always produces identity.
+- Storm is not config-safe and is rejected at the parse layer.
+- All values are validated before reaching the resolver.
+- Invalid values produce clean stderr warnings and are ignored.
+- The resolution pipeline is pure and deterministic.
+
 ## Status: Phase 9 — Internal Atmosphere Visual A/B Smoke (v4.0.0)
 
 v4.0.0 Phase 9 adds an internal A/B smoke validation layer that compares the

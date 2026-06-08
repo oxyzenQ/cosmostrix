@@ -604,6 +604,22 @@ pub struct Args {
         help = "Print detected terminal color capability and exit"
     )]
     pub check_bitcolor: bool,
+
+    // Atmosphere engine config (gated/internal-first — Phase 10).
+    // NOT exposed as public CLI flags. Resolved from config/profile only.
+    #[arg(
+        long = "atmosphere-mode",
+        hide = true,
+        help = "Atmosphere mode (config only: disabled, controlled-live)"
+    )]
+    pub atmosphere_mode_str: Option<String>,
+
+    #[arg(
+        long = "atmosphere-regime",
+        hide = true,
+        help = "Atmosphere regime (config only: calm, pulse, signal, compression, void, monolith-pressure)"
+    )]
+    pub atmosphere_regime_str: Option<String>,
 }
 
 // ---------------------------------------------------------------------------

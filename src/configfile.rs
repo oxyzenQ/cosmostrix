@@ -46,11 +46,13 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "mouse",
     "fullwidth",
     "auto-color-drift",
+    "atmosphere-mode",
+    "atmosphere-regime",
 ];
 
 pub const LEGACY_CONFIG_KEYS: &[&str] = &["glitchpct", "shortpct", "rippct", "maxdpc"];
 
-const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg>";
+const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParsedConfig {
@@ -184,6 +186,14 @@ auto-color-drift = false
 # Advanced style
 bold = 1
 shadingmode = 1
+
+# Atmosphere engine (gated/internal-first — Phase 10).
+# atmosphere-mode: disabled (default) | controlled-live
+# atmosphere-regime: calm (default) | pulse | signal | compression | void | monolith-pressure
+# Note: storm is NOT config-safe in Phase 10 and will be rejected.
+# These keys are opt-in; setting atmosphere-mode without controlled-live has no effect.
+# atmosphere-mode = disabled
+# atmosphere-regime = calm
 
 # Legacy advanced keys kept for compatibility.
 # Prefer glitch-level for normal use.

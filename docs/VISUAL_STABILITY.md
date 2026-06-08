@@ -459,3 +459,25 @@ drift, and glitch overpressure before any public visual activation.
   binaries and not reachable from any runtime path.
 - A/B smoke adds no new dependencies, no new unsafe code, no new CLI flags, and
   no benchmark field renames.
+
+## v4.0.0 Phase 10 Config-Gated Atmosphere Policy
+
+Phase 10 adds config-file and profile-level atmosphere keys without changing
+default visual behavior. The atmosphere engine remains opt-in and gated behind
+explicit config keys. Default cosmostrix behavior is unchanged from v3.9.0.
+
+- `atmosphere-mode`: defaults to `disabled`. When disabled, all atmosphere
+  modulation is identity — zero visual change. Setting to `controlled-live`
+  activates the controlled-live modulation path for non-calm regimes.
+- `atmosphere-regime`: defaults to `calm`. Calm always produces identity.
+  Non-calm regimes (pulse, signal, compression, void, monolith-pressure) are
+  config-safe and produce subtle bounded modulation when mode is controlled-live.
+- Storm is explicitly NOT config-safe in Phase 10 and is rejected at the parse
+  layer with a clear error message. Storm cannot be activated via config or profile.
+- No new public CLI flags. Atmosphere config is resolved from config/profile only.
+- Precedence: CLI > profile > config > defaults (disabled/calm).
+- Config opt-in preserves zero visual side effects: when mode is disabled (the
+  default), the renderer behaves identically to v3.9.0.
+- Invalid atmosphere config values warn cleanly and are ignored.
+- The resolution pipeline is pure and deterministic.
+- `-i` diagnostics report the resolved atmosphere mode and regime.

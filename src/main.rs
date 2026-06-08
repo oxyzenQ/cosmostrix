@@ -452,11 +452,15 @@ fn main() -> std::io::Result<()> {
         {
             let ctrl = atmosphere::AtmosphereController::new();
             let app = ctrl.build_application();
-            let apply_mode = atmosphere_apply::AtmosphereApplicationMode::Disabled;
-            let modulation = atmosphere_apply::apply_application(&app, apply_mode);
+            // Phase 10: Resolve atmosphere config for diagnostics.
+            let diag_mode =
+                config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+            let diag_regime =
+                config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+            let modulation = atmosphere_apply::apply_application(&app, diag_mode);
             let s = r.section("ATMOSPHERE");
-            s.field("regime", atmosphere::AtmosphereRegime::Calm.as_str());
-            s.field("engine", "phase-5-runtime-seam");
+            s.field("regime", diag_regime.as_str());
+            s.field("engine", "phase-10-config-gated");
             s.field(
                 "effective",
                 if modulation.is_identity() {
@@ -474,7 +478,7 @@ fn main() -> std::io::Result<()> {
                     "verified"
                 },
             );
-            s.field("application_mode", apply_mode.as_str());
+            s.field("application_mode", diag_mode.as_str());
             // Phase 5: effective runtime seam
             let eff =
                 atmosphere_apply::derive_effective_runtime(args.speed, args.density, &modulation);
@@ -487,10 +491,8 @@ fn main() -> std::io::Result<()> {
                 },
             );
             // Phase 8: shadow metrics
-            let shadow = atmosphere_shadow::shadow_metrics_from_mode_and_regime(
-                apply_mode,
-                atmosphere::AtmosphereRegime::Calm,
-            );
+            let shadow =
+                atmosphere_shadow::shadow_metrics_from_mode_and_regime(diag_mode, diag_regime);
             s.field("shadow_metrics", shadow.risk_label());
             s.field("shadow_risk", shadow.risk_label());
         }
@@ -618,6 +620,27 @@ fn main() -> std::io::Result<()> {
         ColorBg::DefaultBackground | ColorBg::Transparent
     );
 
+    // Phase 5 + Phase 10: Resolve atmosphere config from config/profile keys.
+    // Default is Disabled/Calm — identical to v3.9.0 behavior.
+    let atmosphere_mode =
+        config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let atmosphere_regime =
+        config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+
+    // Build atmosphere modulation from resolved config.
+    // When mode is Disabled, modulation is always identity regardless of regime.
+    let (atmosphere_modulation, _resolved_regime) = if atmosphere_mode.allows_modulation() {
+        let modulation = crate::atmosphere_controlled_live::controlled_live_modulation_from_regime(
+            atmosphere_regime,
+        );
+        (modulation, atmosphere_regime)
+    } else {
+        (
+            atmosphere_apply::AtmosphereRuntimeModulation::identity(),
+            atmosphere::AtmosphereRegime::Calm,
+        )
+    };
+
     let cloud_cfg = CloudConfig {
         color_mode,
         fullwidth: args.fullwidth,
@@ -656,9 +679,9 @@ fn main() -> std::io::Result<()> {
         user_ranges,
         def_ascii,
         auto_color_drift: args.auto_color_drift,
-        // Phase 5: Default atmosphere modulation is identity (Disabled).
-        atmosphere_modulation: atmosphere_apply::AtmosphereRuntimeModulation::identity(),
-        atmosphere_mode: atmosphere_apply::AtmosphereApplicationMode::Disabled,
+        // Phase 10: atmosphere modulation resolved from config/profile.
+        atmosphere_modulation,
+        atmosphere_mode,
     };
 
     if args.benchmark {
