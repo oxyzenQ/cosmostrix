@@ -97,18 +97,21 @@ pass "README guards passed"
 
 log "Checking casing audit"
 # Scan docs, source, and metadata for wrong-cased repo owner.
-# The canonical casing is github.com/oxyzenQ (capital Q).
+# The canonical casing has a capital Q; construct the bad pattern dynamically
+# so the script itself never contains the wrong-cased literal.
+_BAD_O="oxyzen""q"
+_BAD_G="github.com/${_BAD_O}"
 BAD_CASING=0
 for SCAN_DIR in docs src; do
     if [[ -d "$SCAN_DIR" ]]; then
-        if grep -rq "github.com/oxyzenq" "$SCAN_DIR" 2>/dev/null; then
+        if grep -rq "$_BAD_G" "$SCAN_DIR" 2>/dev/null; then
             BAD_CASING=1
         fi
     fi
 done
 for SCAN_FILE in README.md CHANGELOG.md Cargo.toml; do
     if [[ -f "$SCAN_FILE" ]]; then
-        if grep -q "github.com/oxyzenq" "$SCAN_FILE" 2>/dev/null; then
+        if grep -q "$_BAD_G" "$SCAN_FILE" 2>/dev/null; then
             BAD_CASING=1
         fi
     fi
