@@ -567,3 +567,35 @@ fn benchmark_docs_mention_stability_more_important_than_peak_fps() {
         "benchmark/README.md should emphasize stability over peak FPS"
     );
 }
+
+// ── Phase 11.6: README demo embed / asset guard tests ─────────────────────
+
+#[test]
+fn readme_references_v4_demo_poster() {
+    let readme = include_str!("../README.md");
+    assert!(
+        readme.contains("assets/cosmostrix-v4-demo.png"),
+        "README must reference the v4 demo poster image"
+    );
+}
+
+#[test]
+fn readme_references_v4_demo_video() {
+    let readme = include_str!("../README.md");
+    assert!(
+        readme.contains("assets/cosmostrix-v4-demo.mp4"),
+        "README must reference the v4 demo video"
+    );
+}
+
+#[test]
+fn v4_demo_poster_asset_exists() {
+    let path = std::path::Path::new("assets/cosmostrix-v4-demo.png");
+    assert!(path.exists(), "assets/cosmostrix-v4-demo.png must exist");
+}
+
+#[test]
+fn v4_demo_video_asset_exists() {
+    let path = std::path::Path::new("assets/cosmostrix-v4-demo.mp4");
+    assert!(path.exists(), "assets/cosmostrix-v4-demo.mp4 must exist");
+}

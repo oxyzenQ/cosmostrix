@@ -21,17 +21,12 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-demo.gif" alt="Cosmostrix cinematic Matrix rain demo" width="900">
+  <a href="assets/cosmostrix-v4-demo.mp4">
+    <img src="assets/cosmostrix-v4-demo.png" alt="Cosmostrix v4 demo" width="900">
+  </a>
 </p>
 
-<details>
-<summary>Watch full video demo (38s)</summary>
-
-<video src="assets/cosmostrix-long-endurance.mp4" autoplay loop muted playsinline width="100%"></video>
-
-</details>
-
-[Watch on YouTube](https://www.youtube.com/watch?v=KSk-DWFdg3A)
+Signature Monolith Rain, cinematic themes, and message mode in a real terminal session.
 
 ## Features
 
