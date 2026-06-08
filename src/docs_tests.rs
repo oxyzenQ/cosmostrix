@@ -621,13 +621,19 @@ fn v4_demo_video_asset_exists() {
 #[test]
 fn v4_demo_binary_poster_asset_exists() {
     let path = std::path::Path::new("assets/cosmostrix-v4-demo-binary.png");
-    assert!(path.exists(), "assets/cosmostrix-v4-demo-binary.png must exist");
+    assert!(
+        path.exists(),
+        "assets/cosmostrix-v4-demo-binary.png must exist"
+    );
 }
 
 #[test]
 fn v4_demo_retro_poster_asset_exists() {
     let path = std::path::Path::new("assets/cosmostrix-v4-demo-retro.png");
-    assert!(path.exists(), "assets/cosmostrix-v4-demo-retro.png must exist");
+    assert!(
+        path.exists(),
+        "assets/cosmostrix-v4-demo-retro.png must exist"
+    );
 }
 
 #[test]
