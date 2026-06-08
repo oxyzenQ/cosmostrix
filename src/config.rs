@@ -158,7 +158,7 @@ impl FromStr for U16Range {
     name = "cosmostrix",
     version,
     disable_version_flag = true,
-    about = "High-performance cinematic Matrix rain renderer for the terminal."
+    about = "Production-grade cinematic Matrix rain renderer for serious terminal environments."
 )]
 pub struct Args {
     // === COMMON OPTIONS (visible in --help) ===

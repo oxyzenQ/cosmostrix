@@ -5,7 +5,7 @@
 <h1 align="center">cosmostrix</h1>
 
 <p align="center">
-  <strong>A production-grade cinematic Matrix rain renderer for serious terminal environments.</strong>
+  <strong>Production-grade cinematic Matrix rain renderer for serious terminal environments.</strong>
 </p>
 
 <p align="center">

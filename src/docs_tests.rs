@@ -421,6 +421,61 @@ fn readme_stays_under_350_lines() {
     );
 }
 
+// ── Phase 10.6: description/tagline consistency guard tests ────────────
+
+#[test]
+fn cargo_toml_uses_canonical_tagline() {
+    let cargo = include_str!("../Cargo.toml");
+    assert!(
+        cargo.contains("description = \"Production-grade cinematic Matrix rain renderer for serious terminal environments.\""),
+        "Cargo.toml description must use the canonical tagline"
+    );
+}
+
+#[test]
+fn readme_uses_canonical_tagline() {
+    let readme = include_str!("../README.md");
+    assert!(
+        readme.contains(
+            "Production-grade cinematic Matrix rain renderer for serious terminal environments."
+        ),
+        "README.md must contain the canonical tagline"
+    );
+}
+
+#[test]
+fn runtime_identity_uses_canonical_tagline() {
+    let ri = include_str!("renderer_info.rs");
+    assert!(
+        ri.contains(
+            "production-grade cinematic Matrix rain renderer for serious terminal environments."
+        ),
+        "renderer_info.rs identity must use the canonical tagline"
+    );
+}
+
+#[test]
+fn readme_does_not_contain_stale_high_performance_tagline() {
+    let readme = include_str!("../README.md");
+    assert!(
+        !readme.contains("High-performance cinematic Matrix rain renderer for the terminal."),
+        "README must not contain the old 'High-performance' tagline"
+    );
+}
+
+#[test]
+fn changelog_uses_568_not_570() {
+    let changelog = include_str!("../CHANGELOG.md");
+    assert!(
+        changelog.contains("568 deterministic tests"),
+        "CHANGELOG.md must say 568 deterministic tests"
+    );
+    assert!(
+        !changelog.contains("570 deterministic tests"),
+        "CHANGELOG.md must not contain stale 570 deterministic tests"
+    );
+}
+
 #[test]
 fn all_zactrix_files_under_1000_loc() {
     let files = [

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: MIT
 
-//! Cosmostrix — High-performance cinematic Matrix rain renderer for the terminal.
+//! Cosmostrix — Production-grade cinematic Matrix rain renderer for serious terminal environments.
 //!
 //! Cosmostrix transforms your terminal into a living, breathing canvas of
 //! atmospheric digital rain. It is not a simple Matrix clone; it is a
