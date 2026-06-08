@@ -25,9 +25,13 @@
 </p>
 
 <p align="center">
+  <img src="assets/cosmostrix-v4-demo-binary.png" alt="Cosmostrix v4 binary demo" width="900">
+  <br>
+  <img src="assets/cosmostrix-v4-demo-retro.png" alt="Cosmostrix v4 retro demo" width="900">
+</p>
+
+<p align="center">
   <a href="assets/cosmostrix-v4-demo.mp4">MP4 demo</a>
-  ·
-  <a href="assets/cosmostrix-v4-demo.png">Poster</a>
 </p>
 
 Signature Monolith Rain, cinematic themes, and message mode in a real terminal session.
