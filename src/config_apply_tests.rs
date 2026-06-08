@@ -533,7 +533,6 @@ fn resolve_atmosphere_regime_none_returns_calm() {
 
 #[test]
 fn controlled_live_modulation_from_config_pulse_is_subtle() {
-    use crate::atmosphere_apply::AtmosphereApplicationMode;
     use crate::atmosphere_controlled_live::controlled_live_modulation_from_regime;
     let modulation =
         controlled_live_modulation_from_regime(crate::atmosphere::AtmosphereRegime::Pulse);
