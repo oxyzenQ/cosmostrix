@@ -32,6 +32,8 @@
 
 <p align="center">
   <a href="assets/cosmostrix-v4-demo.mp4">MP4 demo</a>
+  ·
+  <a href="https://www.youtube.com/watch?v=KSk-DWFdg3A">YouTube</a>
 </p>
 
 Signature Monolith Rain, cinematic themes, and message mode in a real terminal session.
