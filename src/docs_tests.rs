@@ -492,3 +492,78 @@ fn all_zactrix_files_under_1000_loc() {
         );
     }
 }
+
+// ── Phase 11: Release Candidate Hardening guard tests ────────────────────
+
+#[test]
+fn release_candidate_doc_exists_and_covers_checklist() {
+    let docs = include_str!("../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("cargo clippy"),
+        "RELEASE_CANDIDATE.md should mention cargo clippy"
+    );
+    assert!(
+        docs.contains("cargo test"),
+        "RELEASE_CANDIDATE.md should mention cargo test"
+    );
+}
+
+#[test]
+fn release_candidate_doc_mentions_no_version_bump_until_release() {
+    let docs = include_str!("../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("Do not bump the version") || docs.contains("do not bump the version"),
+        "RELEASE_CANDIDATE.md should warn against premature version bumps"
+    );
+}
+
+#[test]
+fn release_candidate_doc_includes_runtime_smoke_commands() {
+    let docs = include_str!("../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("\"$BIN\" -i") || docs.contains("$BIN -i"),
+        "RELEASE_CANDIDATE.md should include -i runtime smoke command"
+    );
+    assert!(
+        docs.contains("\"$BIN\" --benchmark") || docs.contains("$BIN --benchmark"),
+        "RELEASE_CANDIDATE.md should include --benchmark runtime smoke command"
+    );
+}
+
+#[test]
+fn release_candidate_doc_includes_controlled_live_config_smoke() {
+    let docs = include_str!("../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("controlled-live"),
+        "RELEASE_CANDIDATE.md should mention controlled-live config smoke"
+    );
+}
+
+#[test]
+fn release_candidate_doc_includes_readme_changelog_guard() {
+    let docs = include_str!("../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("CHANGELOG") && docs.contains("README"),
+        "RELEASE_CANDIDATE.md should mention both CHANGELOG and README guards"
+    );
+}
+
+#[test]
+fn benchmark_docs_mention_fps_is_synthetic_uncapped() {
+    let docs = include_str!("../benchmark/README.md");
+    assert!(
+        docs.to_lowercase().contains("synthetic") && docs.to_lowercase().contains("uncapped"),
+        "benchmark/README.md should state FPS is synthetic/uncapped"
+    );
+}
+
+#[test]
+fn benchmark_docs_mention_stability_more_important_than_peak_fps() {
+    let docs = include_str!("../benchmark/README.md");
+    assert!(
+        docs.contains("p99")
+            && (docs.to_lowercase().contains("stability")
+                || docs.to_lowercase().contains("more than")),
+        "benchmark/README.md should emphasize stability over peak FPS"
+    );
+}

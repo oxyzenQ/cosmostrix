@@ -23,6 +23,14 @@ The benchmark is a headless simulation/draw-computation benchmark. It is useful
 for tracking renderer regressions, but interactive rendering can still be
 terminal/compositor-bound.
 
+**Important**: benchmark FPS is synthetic uncapped throughput. It measures how
+many frames the renderer can compute per second in a tight loop, not the FPS
+the user will see at runtime. The actual runtime target is the configured FPS
+(normally 60). A lower synthetic FPS in a newer build can be perfectly normal
+when diagnostics, reporting, or visual complexity have increased. Do not chase
+raw FPS; p95/p99 frame time and `frame_time_stability` matter far more than
+peak FPS.
+
 ## Example Local Results
 
 The following values are example local measurements from the v2.5.0/v2.6.0
