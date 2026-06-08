@@ -161,16 +161,16 @@ git push origin v3.9.0
 - `-alpha.*` / `-beta.*` / `-rc.*` tags are marked as prerelease.
 - Stable tags use the simple `vX.Y.Z` format (no `-stable.N` suffix).
 
-### Dependency update bot (`.github/workflows/gitbot-deps.yml`)
+### Maintenance deps weekly (`.github/workflows/gitbot-deps.yml`)
 
 #### Triggers
 
-- `schedule` weekly at **23:00 UTC Saturday (06:00 WIB Sunday)**
+- `schedule` weekly at **00:00 UTC Monday (07:00 WIB Monday)**
 - `workflow_dispatch` manual run
 
 #### Manual inputs
 
-- None. Updates are always validated and committed directly to `main` by `nightbot`.
+- None. Updates are always validated and committed directly to `main` by `github-actions[bot]`.
 
 #### What it does
 

@@ -189,7 +189,7 @@ via `taiki-e/install-action` in the CI pipeline and runs as the first gate in th
 The daily `gitbot-audit.yml` workflow runs `cargo audit` at 00:00 UTC every day
 as an observation-only check. If vulnerabilities are detected, the weekly
 `gitbot-deps.yml` workflow will resolve them during its next scheduled run
-(Saturday 23:00 UTC) by performing `cargo update`, re-auditing, and pushing the
+(Monday 00:00 UTC) by performing `cargo update`, re-auditing, and pushing the
 updated lockfile.
 
 ### `cargo deny` — Policy Enforcement
@@ -233,7 +233,7 @@ rustup default 1.81.0
 
 ### Routine Dependency Updates
 
-The project uses a weekly automated update cycle powered by the `nightbot maintenance` workflow
+The project uses a weekly automated update cycle powered by the `Maintenance deps weekly` workflow
 (`gitbot-deps.yml`):
 
 1. **`cargo update --workspace`** — bumps all dependencies in `Cargo.lock` to the

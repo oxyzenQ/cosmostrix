@@ -6,7 +6,7 @@
 # SPDX-License-Identifier: MIT
 # =============================================================================
 # Optimized build script with intelligent core detection and advanced caching
-# Author: rezky_nightky
+# Author: rezky_nightky (oxyzenQ)
 # Version: Stellar 4.0
 
 set -euo pipefail

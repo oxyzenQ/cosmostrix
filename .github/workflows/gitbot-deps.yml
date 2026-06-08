@@ -1,16 +1,16 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: MIT
-# Schedule: Weekly on Saturday 23:00 UTC (Sunday 06:00 WIB)
+# Schedule: Weekly on Monday 00:00 UTC (Monday 07:00 WIB)
 #
 # Direct-main dependency updates use a two-phase privilege model:
 # - validate: read-only token, dependency update, full checks, lockfile artifact
 # - commit: write token, no dependency code execution, Cargo.lock allowlist only
 
-name: nightbot maintenance
+name: Maintenance deps weekly
 
 'on':
   schedule:
-    - cron: "0 23 * * 6"  # Saturday 23:00 UTC (Sunday 06:00 WIB)
+    - cron: "0 0 * * 1"  # Monday 00:00 UTC (Monday 07:00 WIB)
   workflow_dispatch: {}
 
 permissions:
@@ -22,7 +22,7 @@ env:
 
 jobs:
   validate:
-    name: nightbot maintenance validate
+    name: Maintenance deps weekly validate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -131,7 +131,7 @@ jobs:
           if-no-files-found: error
 
   commit:
-    name: nightbot maintenance commit
+    name: Maintenance deps weekly commit
     runs-on: ubuntu-latest
     needs: validate
     if: needs.validate.outputs.changed == 'true'
@@ -168,10 +168,10 @@ jobs:
             exit 1
           fi
 
-          git config user.name "nightbot"
-          git config user.email "nightbot@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Cargo.lock
-          git commit -m "chore(deps): nightbot maintenance"
+          git commit -m "chore(deps): maintenance deps weekly"
           git push origin HEAD:main
 
 concurrency:
