@@ -481,3 +481,27 @@ explicit config keys. Default cosmostrix behavior is unchanged from v3.9.0.
 - Invalid atmosphere config values warn cleanly and are ignored.
 - The resolution pipeline is pure and deterministic.
 - `-i` diagnostics report the resolved atmosphere mode and regime.
+
+## v4.0.0 Phase 10.5 Atmosphere Diagnostic Honesty Policy
+
+Phase 10.5 adds diagnostic honesty fields that make the "armed vs active"
+distinction explicit. Config/profile atmosphere gate must not imply color drift,
+terminal effects, or storm default.
+
+- `config_gate: disabled|armed` — shows whether the config/profile gate is
+  activated. `disabled` by default; `armed` only when mode is `controlled-live`.
+- `visual_runtime: protected|active` — shows whether the visual runtime is
+  actively applying modulation or remains protected. `protected` when the
+  effective runtime matches base values (identity behavior).
+- `runtime_application: identity|non-identity` — shows whether the resolved
+  modulation is identity or contains bounded candidate values.
+- `shadow_risk: whisper` does NOT mean full live visual application. It means
+  the shadow detection path has identified bounded candidate modulation within
+  VisualWhisperBounds — the modulation is measurable but not applied to the
+  renderer in the current phase.
+- `effective_runtime: identity` means actual runtime remains protected. The
+  renderer output is identical to v3.9.0 regardless of config/profile settings.
+- Storm remains not config-safe. Storm config/profile values are rejected at
+  the parse layer and do not reach the resolver.
+- Full public atmosphere controls remain future work. Phase 10.5 is hardening,
+  not visual activation.

@@ -6,6 +6,109 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
+## Status: Phase 10.5 — Atmosphere Config Honesty + Profile Smoke Hardening (v4.0.0)
+
+v4.0.0 Phase 10.5 tightens the honesty and smoke coverage around Phase 10's gated
+atmosphere config/profile support. This is a hardening phase, not a new visual feature
+phase. No default visuals change; no new CLI flags; no new dependencies.
+
+### What Phase 10.5 Clarifies
+
+Phase 10 allows a temp config to show:
+- `application_mode: controlled-live`
+- `regime: pulse`
+- `shadow_metrics: whisper`
+- `shadow_risk: whisper`
+- `effective_runtime: identity`
+
+This is correct for the current safety model. Phase 10.5 makes the wording impossible
+to misread by adding three diagnostic honesty fields:
+
+- `config_gate: armed|disabled` — whether the config/profile gate is activated.
+  `disabled` by default; `armed` only when mode is controlled-live.
+- `visual_runtime: protected|active` — whether the visual runtime is actively
+  applying modulation or remains protected. `protected` when effective_runtime
+  matches base speed/density (identity). `active` when modulation changes values.
+- `runtime_application: identity|non-identity` — whether the resolved modulation
+  is identity or contains bounded candidate values.
+
+### Preferred Default Output
+
+```
+config_gate: disabled
+visual_runtime: protected
+runtime_application: identity
+```
+
+### Preferred Controlled-Live Config Output
+
+```
+config_gate: armed
+visual_runtime: protected
+runtime_application: non-identity
+shadow_risk: whisper
+effective_runtime: identity (or modulated with tiny delta)
+```
+
+This means:
+- The config/profile gate is armed (controlled-live mode is active).
+- The shadow/whisper path detects bounded candidate modulation.
+- Actual runtime visual application remains protected — effective_runtime stays
+  at or very near identity because ControlledLive bounds are extremely tight.
+
+### "Armed vs Active" Distinction
+
+Phase 10.5 formally documents that **armed does not mean active**. Armed means the
+config/profile gate has been set to `controlled-live`, which enables the shadow
+and whisper detection paths. Active would mean the renderer is actually applying
+non-identity visual modulation to the terminal output. In Phase 10.5, the visual
+runtime remains protected — the renderer output is identical to v3.9.0 for all
+config/profile combinations.
+
+### What Phase 10.5 Does
+
+- Adds `config_gate`, `visual_runtime`, `runtime_application` diagnostic fields
+  to `-i` output and `--benchmark` ATMOSPHERE section.
+- Adds 10 profile smoke hardening tests (profile controlled-live, profile override
+  base config, profile storm rejection, CLI color sticky).
+- Adds 10 config smoke hardening tests (disabled+calm identity, controlled-live
+  whisper risk, storm rejection, void bounded, invalid ignored, auto_color_drift).
+- Adds 7 deterministic diagnostic honesty tests (default implies disabled/protected,
+  controlled-live implies armed/whisper, benchmark backward compatibility).
+- Updates docs to explain "armed vs active" distinction.
+- All new tests are deterministic with no side effects.
+
+### What Phase 10.5 Does NOT Do
+
+- Does NOT change default visual output — still identical to v3.9.0.
+- Does NOT add new public CLI flags.
+- Does NOT enable visible atmosphere modulation by default.
+- Does NOT make storm config-safe. Storm is still explicitly rejected.
+- Does NOT add new dependencies or unsafe code.
+- Does NOT bump version or tag.
+- Does NOT alter color scheme, terminal state, or scene cycling.
+- Does NOT imply controlled-live is publicly stable or full atmosphere mode.
+
+### Diagnostic Honesty Fields (Additive)
+
+| Field | Values | Default | Controlled-Live |
+|-------|--------|---------|-----------------|
+| `config_gate` | `disabled`, `armed` | `disabled` | `armed` |
+| `visual_runtime` | `protected`, `active` | `protected` | `protected` (or `active` with tiny delta) |
+| `runtime_application` | `identity`, `non-identity` | `identity` | `non-identity` |
+
+These fields appear in both `-i` (info) output and `--benchmark` ATMOSPHERE section.
+They are purely additive — no existing fields are renamed or removed.
+
+### Safety Constraints (Unchanged from Phase 10)
+
+- atmosphere-mode defaults to disabled. Disabled always produces identity.
+- atmosphere-regime defaults to calm. Calm always produces identity.
+- Storm is not config-safe and is rejected at the parse layer.
+- All values are validated before reaching the resolver.
+- Invalid values produce clean stderr warnings and are ignored.
+- The resolution pipeline is pure and deterministic.
+
 ## Status: Phase 10 — Controlled Atmosphere Profile Config (v4.0.0)
 
 v4.0.0 Phase 10 adds config-file and profile-level support for controlled atmosphere

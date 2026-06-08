@@ -16,7 +16,8 @@ Internal v4.0.0 ground-work phase. No public API or visual behavior changes.
 - Whisper wiring guard and runtime shadow metrics
 - Zactrix Core eBPF-inspired architecture discipline
 - Self-referential guard string avoidance pattern
-- 510 deterministic tests, all passing
+- Phase 10.5: atmosphere config honesty + profile smoke hardening (27 new tests)
+- 570 deterministic tests, all passing
 
 ## v3.1.0
 

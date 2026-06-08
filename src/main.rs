@@ -495,6 +495,31 @@ fn main() -> std::io::Result<()> {
                 atmosphere_shadow::shadow_metrics_from_mode_and_regime(diag_mode, diag_regime);
             s.field("shadow_metrics", shadow.risk_label());
             s.field("shadow_risk", shadow.risk_label());
+            // Phase 10.5: diagnostic honesty fields
+            s.field(
+                "config_gate",
+                if diag_mode.allows_modulation() {
+                    "armed"
+                } else {
+                    "disabled"
+                },
+            );
+            s.field(
+                "visual_runtime",
+                if eff.speed == args.speed && eff.density == args.density {
+                    "protected"
+                } else {
+                    "active"
+                },
+            );
+            s.field(
+                "runtime_application",
+                if modulation.is_identity() {
+                    "identity"
+                } else {
+                    "non-identity"
+                },
+            );
         }
         r.print();
         return Ok(());

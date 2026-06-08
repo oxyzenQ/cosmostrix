@@ -328,6 +328,31 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field("atmosphere_shadow", shadow.risk_label());
         s.field("atmosphere_shadow_risk", shadow.risk_label());
+        // Phase 10.5: diagnostic honesty fields
+        s.field(
+            "config_gate",
+            if apply_mode.allows_modulation() {
+                "armed"
+            } else {
+                "disabled"
+            },
+        );
+        s.field(
+            "visual_runtime",
+            if eff_runtime.speed == data.speed && eff_runtime.density == data.density {
+                "protected"
+            } else {
+                "active"
+            },
+        );
+        s.field(
+            "runtime_application",
+            if modulation.is_identity() {
+                "identity"
+            } else {
+                "non-identity"
+            },
+        );
     }
 
     if data.color_mode == ColorMode::Color16
@@ -412,6 +437,10 @@ mod tests {
             "atmosphere_application_mode",
             "atmosphere_visual_effect",
             "effective_runtime",
+            // Phase 10.5: diagnostic honesty
+            "config_gate",
+            "visual_runtime",
+            "runtime_application",
         ];
         assert!(
             !REQUIRED_FIELDS.is_empty(),

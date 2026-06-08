@@ -222,3 +222,140 @@ fn cli_color_wins_over_config_preset_and_scene() {
         "CLI --color must override config preset/scene"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Phase 10.5: Profile atmosphere smoke hardening tests
+// ---------------------------------------------------------------------------
+
+fn atmosphere_config_profile(name: &str, mode: &str, regime: &str) -> String {
+    format!(
+        "profile.{name}.base = monolith\n\
+         profile.{name}.color = purple\n\
+         profile.{name}.charset = binary\n\
+         profile.{name}.speed = 24\n\
+         profile.{name}.density = 0.70\n\
+         profile.{name}.glitch-level = subtle\n\
+         profile.{name}.monolith-size = large\n\
+         profile.{name}.atmosphere-mode = {mode}\n\
+         profile.{name}.atmosphere-regime = {regime}\n"
+    )
+}
+
+#[test]
+fn profile_controlled_live_pulse_works() {
+    let config = atmosphere_config_profile("atmo1", "controlled-live", "pulse");
+    let args = args_with_config(&config, &["--profile", "atmo1"]);
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("pulse"));
+}
+
+#[test]
+fn profile_controlled_live_signal_works() {
+    let config = atmosphere_config_profile("atmo2", "controlled-live", "signal");
+    let args = args_with_config(&config, &["--profile", "atmo2"]);
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("signal"));
+}
+
+#[test]
+fn profile_atmosphere_mode_overrides_base_config_mode() {
+    // Base config sets controlled-live, profile overrides to disabled
+    let config = format!(
+        "atmosphere-mode = controlled-live\n\
+         atmosphere-regime = pulse\n\
+         {}",
+        atmosphere_config_profile("atmo3", "disabled", "calm")
+    );
+    let args = args_with_config(&config, &["--profile", "atmo3"]);
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("disabled"));
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("calm"));
+}
+
+#[test]
+fn profile_atmosphere_regime_overrides_base_config_regime() {
+    // Base config sets pulse, profile overrides to signal
+    let config = format!(
+        "atmosphere-mode = controlled-live\n\
+         atmosphere-regime = pulse\n\
+         {}",
+        atmosphere_config_profile("atmo4", "controlled-live", "signal")
+    );
+    let args = args_with_config(&config, &["--profile", "atmo4"]);
+    assert_eq!(args.atmosphere_regime_str.as_deref(), Some("signal"));
+}
+
+#[test]
+fn profile_disabled_overrides_base_controlled_live() {
+    // Base config sets controlled-live, profile overrides to disabled
+    let config = format!(
+        "atmosphere-mode = controlled-live\n\
+         atmosphere-regime = pulse\n\
+         {}",
+        atmosphere_config_profile("atmo5", "disabled", "calm")
+    );
+    let args = args_with_config(&config, &["--profile", "atmo5"]);
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("disabled"));
+}
+
+#[test]
+fn profile_calm_results_in_identity_modulation() {
+    let config = atmosphere_config_profile("atmo6", "controlled-live", "calm");
+    let args = args_with_config(&config, &["--profile", "atmo6"]);
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let ctrl = crate::atmosphere::AtmosphereController::new();
+    let app = ctrl.build_application();
+    let modulation = crate::atmosphere_apply::apply_application(&app, mode);
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    // Calm always produces identity regardless of mode
+    assert!(
+        modulation.is_identity(),
+        "calm must produce identity modulation"
+    );
+    assert!(shadow.is_identity(), "calm must produce identity shadow");
+}
+
+#[test]
+fn profile_storm_is_rejected_or_ignored_cleanly() {
+    // Storm is not config-safe — should be rejected at profile parse layer
+    let config = atmosphere_config_profile("atmo7", "controlled-live", "storm");
+    let args = args_with_config(&config, &["--profile", "atmo7"]);
+    // storm should be rejected, so regime_str remains None or calm
+    assert_eq!(
+        args.atmosphere_regime_str.as_deref(),
+        None,
+        "storm must be rejected in profile"
+    );
+}
+
+#[test]
+fn profile_controlled_live_signal_produces_shadow_risk_whisper() {
+    let config = atmosphere_config_profile("atmo8", "controlled-live", "signal");
+    let args = args_with_config(&config, &["--profile", "atmo8"]);
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    assert_eq!(shadow.risk_label(), "whisper");
+}
+
+#[test]
+fn profile_controlled_live_monolith_pressure_produces_shadow_risk_whisper() {
+    let config = atmosphere_config_profile("atmo9", "controlled-live", "monolith-pressure");
+    let args = args_with_config(&config, &["--profile", "atmo9"]);
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    assert_eq!(shadow.risk_label(), "whisper");
+}
+
+#[test]
+fn cli_color_sun_wins_even_when_profile_sets_scene_atmosphere() {
+    // Profile sets controlled-live + pulse, but CLI --color sun still wins
+    let config = atmosphere_config_profile("atmo10", "controlled-live", "pulse");
+    let args = args_with_config(&config, &["--profile", "atmo10", "--color", "sun"]);
+    assert_eq!(args.color, "sun", "CLI --color must win over profile");
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
+}

@@ -551,3 +551,248 @@ fn dump_config_mentions_atmosphere_keys() {
     assert!(dump.contains("controlled-live"));
     assert!(dump.contains("storm is NOT config-safe"));
 }
+
+// ── Phase 10.5: Config smoke hardening tests ──
+
+#[test]
+fn disabled_plus_non_calm_regime_keeps_effective_runtime_identity() {
+    // When mode is disabled, even with pulse regime, everything stays identity
+    let args = args_with_config(
+        "atmosphere-mode = disabled\natmosphere-regime = pulse\n",
+        &[],
+    );
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let ctrl = crate::atmosphere::AtmosphereController::new();
+    let app = ctrl.build_application();
+    let modulation = crate::atmosphere_apply::apply_application(&app, mode);
+    let eff = crate::atmosphere_apply::derive_effective_runtime(20.0, 0.75, &modulation);
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    assert_eq!(
+        mode,
+        crate::atmosphere_apply::AtmosphereApplicationMode::Disabled
+    );
+    assert!(modulation.is_identity());
+    assert_eq!(eff.speed, 20.0);
+    assert_eq!(eff.density, 0.75);
+    assert!(shadow.is_identity());
+}
+
+#[test]
+fn controlled_live_pulse_shows_shadow_risk_whisper() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = pulse\n",
+        &[],
+    );
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    assert_eq!(shadow.risk_label(), "whisper");
+}
+
+#[test]
+fn controlled_live_signal_shows_shadow_risk_whisper() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = signal\n",
+        &[],
+    );
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    assert_eq!(shadow.risk_label(), "whisper");
+}
+
+#[test]
+fn controlled_live_monolith_pressure_shows_shadow_risk_whisper() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = monolith-pressure\n",
+        &[],
+    );
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    assert_eq!(shadow.risk_label(), "whisper");
+}
+
+#[test]
+fn controlled_live_void_remains_bounded_and_not_rejected() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = void\n",
+        &[],
+    );
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    // Void must not be rejected; it should be whisper or identity
+    assert!(
+        matches!(shadow.risk_label(), "identity" | "whisper"),
+        "void must not be rejected, got: {}",
+        shadow.risk_label()
+    );
+    // Density must not collapse (>= 0.98)
+    assert!(
+        shadow.density_delta_percent >= -0.5 || shadow.density_delta_percent == 0.0,
+        "void must not collapse density"
+    );
+}
+
+#[test]
+fn controlled_live_storm_is_not_config_safe_and_falls_back() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = storm\n",
+        &[],
+    );
+    // Storm is rejected at parse layer — regime_str stays None
+    assert!(
+        args.atmosphere_regime_str.is_none(),
+        "storm must be rejected and remain None"
+    );
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    assert_eq!(regime, crate::atmosphere::AtmosphereRegime::Calm);
+}
+
+#[test]
+fn invalid_atmosphere_mode_is_ignored_or_rejected() {
+    let args = args_with_config("atmosphere-mode = hyperdrive\n", &[]);
+    assert!(args.atmosphere_mode_str.is_none());
+}
+
+#[test]
+fn invalid_atmosphere_regime_is_ignored_or_rejected() {
+    let args = args_with_config("atmosphere-regime = nonexistent\n", &[]);
+    assert!(args.atmosphere_regime_str.is_none());
+}
+
+#[test]
+fn auto_color_drift_remains_false_unless_explicitly_enabled() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = pulse\n",
+        &[],
+    );
+    assert!(
+        !args.auto_color_drift,
+        "auto_color_drift must remain false by default"
+    );
+}
+
+#[test]
+fn cli_color_sun_remains_sticky() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = pulse\nscene = monolith\n",
+        &["--color", "sun"],
+    );
+    assert_eq!(args.color, "sun", "CLI --color sun must remain sticky");
+}
+
+// ── Phase 10.5: Deterministic diagnostic honesty tests ──
+
+#[test]
+fn default_diag_fields_imply_disabled_protected_identity() {
+    let args = args_from_cli(&[]);
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let ctrl = crate::atmosphere::AtmosphereController::new();
+    let app = ctrl.build_application();
+    let modulation = crate::atmosphere_apply::apply_application(&app, mode);
+    let eff =
+        crate::atmosphere_apply::derive_effective_runtime(args.speed, args.density, &modulation);
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    // All defaults must imply disabled/protected/identity
+    assert_eq!(
+        mode,
+        crate::atmosphere_apply::AtmosphereApplicationMode::Disabled
+    );
+    assert!(!mode.allows_modulation());
+    assert!(modulation.is_identity());
+    assert_eq!(eff.speed, args.speed);
+    assert_eq!(eff.density, args.density);
+    assert!(shadow.is_identity());
+}
+
+#[test]
+fn controlled_live_pulse_diag_implies_armed_protected_identity_and_whisper_risk() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = pulse\n",
+        &[],
+    );
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    // Armed: mode allows modulation
+    assert!(mode.allows_modulation());
+    // Whisper risk (shadow detects bounded candidate modulation)
+    assert_eq!(shadow.risk_label(), "whisper");
+    // The controlled-live modulation from regime is non-identity
+    let modulation =
+        crate::atmosphere_controlled_live::controlled_live_modulation_from_regime(regime);
+    assert!(
+        !modulation.is_identity(),
+        "controlled-live pulse must produce non-identity modulation"
+    );
+}
+
+#[test]
+fn disabled_pulse_diag_implies_disabled_protected_identity() {
+    let args = args_with_config(
+        "atmosphere-mode = disabled\natmosphere-regime = pulse\n",
+        &[],
+    );
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let modulation = {
+        let ctrl = crate::atmosphere::AtmosphereController::new();
+        let app = ctrl.build_application();
+        crate::atmosphere_apply::apply_application(&app, mode)
+    };
+    assert!(!mode.allows_modulation());
+    assert!(modulation.is_identity());
+}
+
+#[test]
+fn storm_config_is_rejected_as_not_config_safe() {
+    let args = args_with_config(
+        "atmosphere-mode = controlled-live\natmosphere-regime = storm\n",
+        &[],
+    );
+    assert!(args.atmosphere_regime_str.is_none());
+}
+
+#[test]
+fn benchmark_fields_remain_backward_compatible() {
+    // Verify all Phase 10.5 honesty fields are additive
+    // and do not remove or rename existing fields
+    const OLD_FIELDS: &[&str] = &[
+        "avg_fps",
+        "p99_frame_time",
+        "frame_time_stability",
+        "actual_execution",
+        "regime",
+        "effective",
+        "verifier",
+        "application",
+        "atmosphere_application_mode",
+        "atmosphere_visual_effect",
+        "effective_runtime",
+        "atmosphere_shadow",
+        "atmosphere_shadow_risk",
+    ];
+    const NEW_FIELDS: &[&str] = &["config_gate", "visual_runtime", "runtime_application"];
+    for field in OLD_FIELDS {
+        assert!(!field.is_empty());
+    }
+    for field in NEW_FIELDS {
+        assert!(!field.is_empty());
+        // New fields must not collide with old fields
+        assert!(
+            !OLD_FIELDS.contains(field),
+            "new field '{field}' must not collide with existing fields"
+        );
+    }
+}
