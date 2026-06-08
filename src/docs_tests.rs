@@ -568,14 +568,14 @@ fn benchmark_docs_mention_stability_more_important_than_peak_fps() {
     );
 }
 
-// ── Phase 11.6: README demo embed / asset guard tests ─────────────────────
+// ── Phase 11.7: README GIF-first demo / old asset cleanup ────────────────
 
 #[test]
-fn readme_references_v4_demo_poster() {
+fn readme_references_v4_demo_gif() {
     let readme = include_str!("../README.md");
     assert!(
-        readme.contains("assets/cosmostrix-v4-demo.png"),
-        "README must reference the v4 demo poster image"
+        readme.contains("assets/cosmostrix-v4-demo.gif"),
+        "README must reference the v4 demo GIF"
     );
 }
 
@@ -589,13 +589,61 @@ fn readme_references_v4_demo_video() {
 }
 
 #[test]
-fn v4_demo_poster_asset_exists() {
-    let path = std::path::Path::new("assets/cosmostrix-v4-demo.png");
-    assert!(path.exists(), "assets/cosmostrix-v4-demo.png must exist");
+fn readme_references_v4_demo_poster() {
+    let readme = include_str!("../README.md");
+    assert!(
+        readme.contains("assets/cosmostrix-v4-demo.png"),
+        "README must reference the v4 demo poster"
+    );
+}
+
+#[test]
+fn v4_demo_gif_asset_exists() {
+    let path = std::path::Path::new("assets/cosmostrix-v4-demo.gif");
+    assert!(path.exists(), "assets/cosmostrix-v4-demo.gif must exist");
 }
 
 #[test]
 fn v4_demo_video_asset_exists() {
     let path = std::path::Path::new("assets/cosmostrix-v4-demo.mp4");
     assert!(path.exists(), "assets/cosmostrix-v4-demo.mp4 must exist");
+}
+
+#[test]
+fn v4_demo_poster_asset_exists() {
+    let path = std::path::Path::new("assets/cosmostrix-v4-demo.png");
+    assert!(path.exists(), "assets/cosmostrix-v4-demo.png must exist");
+}
+
+#[test]
+fn readme_gif_appears_before_png() {
+    let readme = include_str!("../README.md");
+    let gif_pos = readme
+        .find("cosmostrix-v4-demo.gif")
+        .expect("README must contain GIF ref");
+    let png_pos = readme
+        .find("cosmostrix-v4-demo.png")
+        .expect("README must contain PNG ref");
+    assert!(
+        gif_pos < png_pos,
+        "README GIF reference must appear before PNG reference"
+    );
+}
+
+#[test]
+fn readme_does_not_use_old_demo_gif_as_primary() {
+    let readme = include_str!("../README.md");
+    assert!(
+        !readme.contains("cosmostrix-demo.gif"),
+        "README must not reference the old demo GIF"
+    );
+}
+
+#[test]
+fn old_demo_gif_removed_from_assets() {
+    let path = std::path::Path::new("assets/cosmostrix-demo.gif");
+    assert!(
+        !path.exists(),
+        "Old assets/cosmostrix-demo.gif should have been removed"
+    );
 }

@@ -18,6 +18,7 @@ Internal v4.0.0 ground-work phase. No public API or visual behavior changes.
 - Self-referential guard string avoidance pattern
 - Phase 10.5: atmosphere config honesty + profile smoke hardening (27 new tests)
 - Added v4 demo poster and MP4 assets for README preview
+- Made the v4 README demo GIF-first and removed the obsolete demo GIF
 - 568 deterministic tests, all passing
 
 ## v3.1.0
