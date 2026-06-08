@@ -1,12 +1,33 @@
 # Changelog
 
-Cosmostrix uses [SemVer](https://semver.org/) for package versions (e.g. `3.9.0`).
-Git tags and GitHub Releases use a leading `v` (e.g. `v3.9.0`).
+Cosmostrix uses [SemVer](https://semver.org/) for package versions (e.g. `4.0.0`).
+Git tags and GitHub Releases use a leading `v` (e.g. `v4.0.0`).
 Stable releases do not use `-stable.N` suffixes.
 
 All notable changes to this project are documented in this file.
 
 ---
+
+## v4.0.0
+
+Full Atmosphere Engine groundwork and signature Monolith Rain maturation release.
+
+Highlights:
+- Signature Monolith Rain as the production default, with refined sparse data pillars, subtle phase variation, clean afterglow, and bounded residue behavior.
+- Zactrix Core / Zactrix Engine / Zactrix Cache groundwork for adaptive rendering architecture, while terminal writes remain single-owner.
+- Atmosphere engine internal model, verifier, controlled-live config gate, visual whisper, shadow metrics, and A/B safety smoke tests.
+- Terminal compatibility lab, doctor guidance, reset safety, color capability diagnostics, and clean terminal recovery.
+- User scene/profile config with controlled atmosphere profile keys.
+- Benchmark/endurance/report hardening with honest planned-vs-actual execution diagnostics.
+- README demo refresh with GIF-first v4 preview, MP4 link, and binary/retro posters.
+- Canonical metadata alignment across Cargo, README, runtime identity, and AUR packaging.
+- Release-candidate smoke script and release checklist.
+
+Safety/defaults:
+- Default runtime remains protected and identity: `application_mode = disabled`, `effective_runtime = identity`, `shadow_risk = identity`.
+- `auto_color_drift` remains off by default.
+- `storm` is not config-safe in controlled-live config/profile mode.
+- No actual multithreaded terminal rendering; benchmark reports planned engine mode honestly.
 
 ## v3.9.0
 

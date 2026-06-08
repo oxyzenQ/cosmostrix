@@ -1,9 +1,10 @@
 # Release Candidate Checklist
 
 Cosmostrix follows [SemVer](https://semver.org/) for package versions. Git tags and
-GitHub Releases use a leading `v` (e.g. `v3.9.0`). Stable releases do not use
+GitHub Releases use a leading `v` (e.g. `v4.0.0`). Stable releases do not use
 `-stable.N` suffixes. Do not bump the version or create a tag until the release
-phase is explicitly authorized.
+phase is explicitly authorized. Phase 12.1 bumps version metadata to 4.0.0 but
+does not create a tag.
 
 ## Required Commands
 

@@ -675,3 +675,75 @@ fn old_demo_gif_removed_from_assets() {
         "Old assets/cosmostrix-demo.gif should have been removed"
     );
 }
+
+// ── Phase 12.1: v4.0.0 release metadata guard tests ──────────────────────
+
+#[test]
+fn changelog_has_v400_entry_above_v390() {
+    let changelog = include_str!("../CHANGELOG.md");
+    let v400_pos = changelog
+        .find("## v4.0.0")
+        .expect("CHANGELOG must contain v4.0.0 entry");
+    let v390_pos = changelog
+        .find("## v3.9.0")
+        .expect("CHANGELOG must contain v3.9.0 entry");
+    assert!(
+        v400_pos < v390_pos,
+        "CHANGELOG v4.0.0 entry must appear above v3.9.0"
+    );
+}
+
+#[test]
+fn changelog_v400_mentions_default_runtime_protected_identity() {
+    let changelog = include_str!("../CHANGELOG.md");
+    let lower = changelog.to_lowercase();
+    assert!(
+        lower.contains("application_mode = disabled")
+            && lower.contains("effective_runtime = identity")
+            && lower.contains("shadow_risk = identity"),
+        "CHANGELOG v4.0.0 must mention default runtime remains protected/identity"
+    );
+}
+
+#[test]
+fn changelog_v400_mentions_no_multithreaded_terminal_rendering() {
+    let changelog = include_str!("../CHANGELOG.md");
+    let lower = changelog.to_lowercase();
+    assert!(
+        lower.contains("no actual multithreaded terminal rendering")
+            || lower.contains("single-owner"),
+        "CHANGELOG v4.0.0 must mention no multithreaded terminal rendering"
+    );
+}
+
+#[test]
+fn changelog_v400_mentions_demo_refresh() {
+    let changelog = include_str!("../CHANGELOG.md");
+    assert!(
+        changelog.to_lowercase().contains("demo refresh")
+            || changelog.to_lowercase().contains("gif-first"),
+        "CHANGELOG v4.0.0 must mention demo refresh"
+    );
+}
+
+#[test]
+fn cargo_toml_version_is_400() {
+    let cargo = include_str!("../Cargo.toml");
+    assert!(
+        cargo.contains("version = \"4.0.0\""),
+        "Cargo.toml must have version = \"4.0.0\""
+    );
+    assert!(
+        !cargo.contains("version = \"3.9.0\""),
+        "Cargo.toml must not contain old version 3.9.0"
+    );
+}
+
+#[test]
+fn readme_uses_v400_in_install_example() {
+    let readme = include_str!("../README.md");
+    assert!(
+        readme.contains("TAG=\"v4.0.0\""),
+        "README install example must use v4.0.0 tag"
+    );
+}
