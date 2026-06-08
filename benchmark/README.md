@@ -33,19 +33,21 @@ peak FPS.
 
 ## Example Local Results
 
-The following values are example local measurements from the v2.5.0/v2.6.0
-report style, using an optimized `pro-linux-v3` build. Treat them as a shape
-of output and interpretation guide, not as guaranteed numbers.
+The following values are example local measurements from the v4.0.0 AUR
+release artifact (`cosmostrix-bin v4.0.0 linux-x86_64-v3`, SHA512 verified).
+Treat them as a shape of output and interpretation guide, not as guaranteed
+numbers.
 
-| Size | Avg FPS | P99 frame time | Avg dirty-cell coverage |
-|---|---:|---:|---:|
-| 120x40 | ~2370 | ~0.497 ms | ~43.71% |
-| 200x60 | ~963 | ~1.158 ms | ~44.21% |
+| Size | Avg FPS | Median FPS | P95 frame time | P99 frame time | Stability | Avg dirty-cell coverage |
+|---|---:|---:|---:|---:|---|---:|
+| 120x40 | 16695.3 | 17010.1 | 0.070 ms | 0.075 ms | excellent | 7.22% |
+| 200x60 | 8190.8 | 8221.3 | 0.137 ms | 0.143 ms | excellent | 5.49% |
 
 Both examples are comfortably above the 60 FPS simulation target. The
 dirty-cell coverage is not a quality score by itself; it reflects how much of
 the frame changes under the current cinematic renderer and terminal redraw
-threshold.
+threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
+path (Zactrix engine runs single-threaded in headless benchmark mode).
 
 ## Metric Notes
 
@@ -128,6 +130,36 @@ The script builds comparison profiles and records optional `hyperfine`, `perf`,
 and Valgrind outputs when those tools are installed. CI intentionally does not
 gate on benchmark numbers; they are measurement aids, not stable pass/fail
 thresholds.
+
+## Release Benchmark Rule
+
+Before tagging a stable release, update this file with a fresh local benchmark
+from the release-candidate binary.
+
+Required pre-tag flow:
+
+```bash
+cargo pro-linux-v3
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
+```
+
+Record at minimum:
+
+* version / commit
+* build variant
+* terminal size
+* avg_fps
+* median_fps
+* p95_frame_time
+* p99_frame_time
+* frame_time_stability
+* avg_dirty_cell_ratio_percent
+* actual_execution
+
+After the tag is published, verify the GitHub Release/AUR artifact separately.
+Do not move or recreate a signed release tag just to update benchmark notes.
+If benchmark documentation was missed, update `benchmark/README.md` on `main`
+as a post-release process fix and apply the rule to the next release.
 
 ## Generated Outputs
 
