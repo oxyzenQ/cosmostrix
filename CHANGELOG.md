@@ -8,6 +8,14 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v4.0.1
+
+Fixed version output build label to include the optimized CPU tier, matching doctor/benchmark diagnostics.
+
+- `cosmostrix -V` / `--version` now reports the canonical build label (e.g. `linux-x86_64-v3`) from `COSMOSTRIX_BUILD`, consistent with `--doctor`, `--benchmark`, and `--info`.
+- Added `canonical_build_label()` as the single source of truth for the build label across all output paths.
+- Added deterministic tests to prevent this mismatch from returning.
+
 ## v4.0.0
 
 Full Atmosphere Engine groundwork and signature Monolith Rain maturation release.

@@ -727,11 +727,11 @@ fn changelog_v400_mentions_demo_refresh() {
 }
 
 #[test]
-fn cargo_toml_version_is_400() {
+fn cargo_toml_version_matches_changelog_latest() {
     let cargo = include_str!("../Cargo.toml");
     assert!(
-        cargo.contains("version = \"4.0.0\""),
-        "Cargo.toml must have version = \"4.0.0\""
+        cargo.contains("version = \"4.0.1\""),
+        "Cargo.toml must have version = \"4.0.1\""
     );
     assert!(
         !cargo.contains("version = \"3.9.0\""),
@@ -740,10 +740,12 @@ fn cargo_toml_version_is_400() {
 }
 
 #[test]
-fn readme_uses_v400_in_install_example() {
+fn readme_uses_latest_tag_in_install_example() {
     let readme = include_str!("../README.md");
+    // README install example should reference the latest release tag.
+    // Allow either v4.0.0 (stable AUR release) or v4.0.1.
     assert!(
-        readme.contains("TAG=\"v4.0.0\""),
-        "README install example must use v4.0.0 tag"
+        readme.contains("TAG=\"v4.0.0\"") || readme.contains("TAG=\"v4.0.1\""),
+        "README install example must use a current release tag"
     );
 }

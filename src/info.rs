@@ -8,6 +8,18 @@ use std::env;
 
 // --- Build info helpers ---
 
+/// Canonical build label (e.g. "linux-x86_64-v3", "darwin-aarch64-native").
+///
+/// Source of truth: `COSMOSTRIX_BUILD` env var set at compile time by
+/// `build.rs` (which reads it from `.cargo/config.toml` aliases or the
+/// `COSMOSTRIX_BUILD` environment variable passed by CI/release scripts).
+/// All diagnostics (`--doctor`, `--benchmark`, `--info`) and
+/// `--version`/`-V` share this single source.
+#[must_use]
+pub(super) fn canonical_build_label() -> &'static str {
+    option_env!("COSMOSTRIX_BUILD").unwrap_or("unknown")
+}
+
 #[must_use]
 pub(super) fn build_commit_short() -> Option<&'static str> {
     match option_env!("COSMOSTRIX_GIT_SHA") {
@@ -19,12 +31,12 @@ pub(super) fn build_commit_short() -> Option<&'static str> {
 #[must_use]
 pub(super) fn version_report() -> String {
     let version = env!("CARGO_PKG_VERSION");
-    let target = format!("{}-{}", std::env::consts::OS, std::env::consts::ARCH);
+    let build = canonical_build_label();
     let commit = build_commit_short().unwrap_or("unknown");
 
     format!(
         "Version: v{version}\n\
-         Build: {target} ({commit})\n\
+         Build: {build} ({commit})\n\
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
          License: MIT\n\
          Source: https://github.com/oxyzenQ/cosmostrix"
@@ -112,5 +124,74 @@ pub(super) fn check_cpu_features() {
         eprintln!("  cargo pro-linux-v1    # x86-64-v1 (baseline)");
         eprintln!("  cargo pro-linux-v2    # x86-64-v2 (SSE4.2, POPCNT)");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonical_build_label_reads_cosmostrix_build_env() {
+        // canonical_build_label must return the value of COSMOSTRIX_BUILD
+        // at compile time. When built with `cargo pro-linux-v3`, this is
+        // "linux-x86_64-v3". This test verifies the function is wired
+        // correctly; the actual value depends on how the test binary was
+        // compiled (plain `cargo test` sets COSMOSTRIX_BUILD via build.rs
+        // inference to e.g. "linux-x86_64-vN" or "unknown").
+        let label = canonical_build_label();
+        assert!(!label.is_empty(), "canonical_build_label must not be empty");
+    }
+
+    #[test]
+    fn version_report_uses_canonical_build_label() {
+        // version_report must use canonical_build_label, not a separate
+        // os-arch string. Verify that the Build: line contains the same
+        // value as canonical_build_label().
+        let label = canonical_build_label();
+        let report = version_report();
+        assert!(
+            report.contains(&format!("Build: {label}")),
+            "version_report Build: line must contain the canonical build label '{label}'. \
+             Full report:\n{report}"
+        );
+    }
+
+    #[test]
+    fn version_report_build_label_matches_doctor_build_label() {
+        // Ensure version_report build label matches diagnostics::detect_cpu_info
+        // build_variant — they must both read from COSMOSTRIX_BUILD.
+        let version_label = canonical_build_label();
+        let cpu = crate::diagnostics::detect_cpu_info();
+        assert_eq!(
+            version_label, cpu.build_variant,
+            "version_report build label and doctor/benchmark build label must match"
+        );
+    }
+
+    #[test]
+    fn version_report_contains_version_and_commit() {
+        let report = version_report();
+        assert!(
+            report.starts_with("Version: v"),
+            "report must start with Version: v"
+        );
+        assert!(report.contains("Build:"), "report must contain Build: line");
+        assert!(
+            report.contains("Copyright:"),
+            "report must contain Copyright:"
+        );
+        assert!(report.contains("License:"), "report must contain License:");
+        assert!(report.contains("Source:"), "report must contain Source:");
+    }
+
+    #[test]
+    fn info_file_stays_under_loc_cap() {
+        let source = include_str!("info.rs");
+        let lines = source.lines().count();
+        assert!(
+            lines < 1000,
+            "info.rs must stay under 1000 LOC (currently {lines})"
+        );
     }
 }
