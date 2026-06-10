@@ -206,6 +206,28 @@ output changed. The Depth Regression Lab remains the gate for future v4.8
 optimization. All 8 coverage categories are preserved with guard tests
 verifying no category was accidentally removed.
 
+## v4.5.0 Phase 5: Scene Test Pressure Relief
+
+`src/cloud/tests/tests_scene.rs` (959 LOC, dangerously close to the
+1000 LOC cap) was split into a focused module directory:
+
+```
+src/cloud/tests/tests_scene/
+  mod.rs          — facade with shared helpers and LOC/coverage guards
+  cycle.rs        — forward/backward scene cycling, roundtrips
+  transitions.rs  — monolith↔glyph switches, dirty-frame behavior, semantic invalidation
+  fresh_entry.rs  — upper-quarter seeding, top-biased visibility, short trails
+  sparse_entry.rs — alive-count bounded, ramp start/clear, repeated stays sparse
+  residue.rs      — monolith residue guards, depth lab scene switch residue
+  controls.rs     — speed/density/glitch/color after scene switch, unknown scene guard
+```
+
+This is pressure relief only. No test behavior, test names, visual
+output, or runtime behavior changed. Scene/depth regression coverage
+remains required before v4.8 optimization. All 10 scene coverage
+categories are preserved with guard tests verifying no category was
+accidentally removed.
+
 ### Future Milestones
 
 - **v4.8.0** may introduce controlled parallel compute for non-terminal buffer
