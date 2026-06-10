@@ -528,6 +528,19 @@ fn main() -> std::io::Result<()> {
                 },
             );
         }
+        // ── ZACTRIX SYSTEM diagnostics ──────────────────────────────────
+        // Phase 2: Policy/diagnostic only. No real parallel compute.
+        {
+            use crate::zactrix_engine::{RenderPlan, ZactrixSystemConfig};
+            let sys = ZactrixSystemConfig::default();
+            let render = RenderPlan::default();
+            let s = r.section("ZACTRIX SYSTEM");
+            s.field("runtime_mode", sys.runtime_mode.as_str());
+            s.field("cpu_budget", sys.cpu_budget.as_str());
+            s.field("render_plan", render.writer_policy.as_str());
+            s.field("compute_parallelism", sys.compute_parallelism.as_str());
+            s.field("idle_policy", sys.idle_policy.as_str());
+        }
         r.print();
         return Ok(());
     }

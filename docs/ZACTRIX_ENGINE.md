@@ -150,6 +150,42 @@ src/zactrix_engine/
 - `terminal_writer` remains `single-owner`.
 - v4.0.1 visual behavior is fully preserved.
 
+## v4.5.0 Phase 2: Docs Test Pressure Relief + Zactrix System Diagnostics
+
+### What Changed
+
+- `src/docs_tests.rs` (993 LOC, dangerously close to the 1000 LOC cap) was
+  split into a module directory `src/docs_tests/` with submodules:
+  `mod.rs`, `assets.rs`, `endurance.rs`, `metadata.rs`, `readme.rs`,
+  `release.rs`, `safety.rs`, `zactrix.rs`. All existing guard behavior
+  is preserved; test names are unchanged.
+- A new **ZACTRIX SYSTEM** diagnostic section was added to both `-i` (info)
+  and `--benchmark` output. This section reports policy/diagnostic values:
+
+  ```
+  ZACTRIX SYSTEM
+    runtime_mode: normal
+    cpu_budget: balanced
+    render_plan: single-owner
+    compute_parallelism: disabled
+    idle_policy: adaptive-sleep
+  ```
+
+### ZACTRIX SYSTEM Is Policy/Diagnostic Only
+
+At this stage, ZACTRIX SYSTEM is purely diagnostic. It reports conservative
+defaults from `ZactrixSystemConfig` and `RenderPlan`. No real parallel
+compute is active. The terminal writer remains single-owner. `actual_execution`
+remains `single-threaded-renderer`. `terminal_writer` remains `single-owner`.
+The existing `ZACTRIX ENGINE` benchmark section is unchanged.
+
+### Future Milestones
+
+- **v4.8.0** may introduce controlled parallel compute for non-terminal buffer
+  preparation, gated by the runtime planner.
+- **v5.0.0** requires a proven, stable runtime planner before any default
+  parallel execution is enabled.
+
 ### CPU Target Research
 
 - Calm/idle target: < 1-3% realistic CPU usage.
@@ -158,7 +194,8 @@ src/zactrix_engine/
 
 ### Roadmap
 
-- **v4.8.0** = Zactrix Render / Efficiency Finishing.
+- **v4.8.0** = Zactrix Render / Efficiency Finishing. May introduce controlled
+  parallel compute for non-terminal buffer preparation.
 - **v5.0.0** = Zactrix Engine stable default + precision/efficiency release.
   Only when the runtime planner is real and stable.
 

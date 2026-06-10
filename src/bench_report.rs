@@ -281,6 +281,20 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
     }
 
+    // ── Zactrix System diagnostics ────────────────────────────────────
+    // Phase 2: Policy/diagnostic only. No real parallel compute.
+    {
+        use crate::zactrix_engine::{RenderPlan, ZactrixSystemConfig};
+        let sys = ZactrixSystemConfig::default();
+        let render = RenderPlan::default();
+        let s = r.section("ZACTRIX SYSTEM");
+        s.field("runtime_mode", sys.runtime_mode.as_str());
+        s.field("cpu_budget", sys.cpu_budget.as_str());
+        s.field("render_plan", render.writer_policy.as_str());
+        s.field("compute_parallelism", sys.compute_parallelism.as_str());
+        s.field("idle_policy", sys.idle_policy.as_str());
+    }
+
     // ── Atmosphere Engine diagnostics ────────────────────────────────────
     // Phase 4: Reports regime, verifier, application, application mode,
     // and visual effect status. Always Calm; verifier always passes;
