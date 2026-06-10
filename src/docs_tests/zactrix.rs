@@ -503,3 +503,103 @@ fn depth_lab_visual_stability_doc_mentions_zactrix_guard() {
         "VISUAL_STABILITY.md must mention single-owner terminal writer"
     );
 }
+
+// ── v4.5.0 Phase 6: Closure prep docs guards ──────────────────────────
+
+#[test]
+fn phase6_roadmap_doc_exists() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    assert!(
+        !docs.is_empty(),
+        "docs/ROADMAP.md must exist and be non-empty"
+    );
+}
+
+#[test]
+fn phase6_roadmap_mentions_future_versions() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    assert!(docs.contains("v4.6"), "ROADMAP.md must mention v4.6");
+    assert!(docs.contains("v4.7"), "ROADMAP.md must mention v4.7");
+    assert!(docs.contains("v4.8"), "ROADMAP.md must mention v4.8");
+    assert!(docs.contains("v5.0"), "ROADMAP.md must mention v5.0");
+}
+
+#[test]
+fn phase6_roadmap_says_atmosphere_opt_in() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("opt-in") && lower.contains("atmosphere"),
+        "ROADMAP.md must say controlled atmosphere remains opt-in"
+    );
+}
+
+#[test]
+fn phase6_roadmap_says_terminal_writer_single_owner() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("terminal writer") && lower.contains("single-owner"),
+        "ROADMAP.md must say terminal writer remains single-owner"
+    );
+}
+
+#[test]
+fn phase6_zactrix_docs_mention_v45_closure() {
+    let docs = include_str!("../../docs/ZACTRIX_ENGINE.md");
+    assert!(
+        docs.contains("v4.5.0 Foundation Closure"),
+        "ZACTRIX_ENGINE.md must mention v4.5.0 Foundation Closure"
+    );
+    assert!(
+        docs.contains("architecture and regression foundation"),
+        "ZACTRIX_ENGINE.md must describe v4.5 as architecture and regression foundation"
+    );
+}
+
+#[test]
+fn phase6_benchmark_docs_mention_synthetic_fps_and_stability() {
+    let docs = include_str!("../../benchmark/README.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("synthetic uncapped throughput"),
+        "benchmark/README.md must mention synthetic uncapped throughput"
+    );
+    assert!(
+        lower.contains("p99") || lower.contains("p95"),
+        "benchmark/README.md must mention p95/p99 priority"
+    );
+}
+
+#[test]
+fn phase6_benchmark_docs_mention_v45_plateau_as_approximate() {
+    let docs = include_str!("../../benchmark/README.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("approximate"),
+        "benchmark/README.md must describe the v4.5 plateau as approximate, not a promise"
+    );
+    assert!(
+        docs.contains("v4.5"),
+        "benchmark/README.md must reference v4.5"
+    );
+}
+
+#[test]
+fn phase6_all_docs_test_modules_under_loc_cap() {
+    let files = [
+        "src/docs_tests/mod.rs",
+        "src/docs_tests/assets.rs",
+        "src/docs_tests/endurance.rs",
+        "src/docs_tests/metadata.rs",
+        "src/docs_tests/readme.rs",
+        "src/docs_tests/release.rs",
+        "src/docs_tests/safety.rs",
+        "src/docs_tests/zactrix.rs",
+    ];
+    for path in &files {
+        let content = std::fs::read_to_string(path).unwrap_or_default();
+        let count = content.lines().count();
+        assert!(count <= 1000, "{path}: {count} LOC exceeds 1000 cap");
+    }
+}

@@ -228,6 +228,21 @@ remains required before v4.8 optimization. All 10 scene coverage
 categories are preserved with guard tests verifying no category was
 accidentally removed.
 
+## v4.5.0 Foundation Closure
+
+v4.5 is now closed. This was architecture and regression foundation only:
+
+- No active parallel compute was implemented.
+- No real parallel terminal writing was added.
+- Terminal writer remains single-owner.
+- ZACTRIX SYSTEM diagnostics are honest policy diagnostics — they report
+  conservative defaults, not active execution state.
+- All 679 tests pass. Visual behavior is identical to v4.0.1.
+
+Future v4.8 may optimize compute for non-terminal buffer preparation, but
+must pass the full Depth Regression Lab before merge. See
+`docs/VISUAL_STABILITY.md` and `docs/ROADMAP.md` for details.
+
 ### Future Milestones
 
 - **v4.8.0** may introduce controlled parallel compute for non-terminal buffer

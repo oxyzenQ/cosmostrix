@@ -49,6 +49,25 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## v4.5.0 Local Benchmark Baseline
+
+The v4.5 foundation phase (architecture split, depth regression, test
+pressure relief) is docs-only with no runtime changes. Local benchmark
+plateau after v4.5.0 stabilization:
+
+- avg_fps: approximately 10,600
+- median_fps: approximately 11,000
+- p99_frame_time: approximately 0.117 ms
+- frame_time_stability: excellent
+
+These numbers are approximate local measurements, not a portable promise.
+Benchmark FPS is **synthetic uncapped throughput** — it measures how many
+frames the renderer can compute per second in a tight loop, not the FPS the
+user will see at runtime. Treat stability, p95, and p99 as far more
+important than raw FPS. Do not treat a difference between 10k and 13k FPS
+as a user-visible regression unless p99, frame_time_stability, runtime CPU,
+or visual behavior also regress.
+
 ## Metric Notes
 
 - `draw_ratio` is a legacy compatibility field. It means frames with at least
