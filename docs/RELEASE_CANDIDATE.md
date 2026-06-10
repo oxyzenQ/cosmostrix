@@ -131,3 +131,12 @@ Verify:
 - GitHub Releases can be deleted if no users have downloaded the asset.
 - AUR package can be reset by bumping `pkgrel` and publishing a fix.
 - Do not force-push to `main`; use revert or fix-forward.
+
+## Release Workflow Authentication
+
+The release workflow (`.github/workflows/release.yml`) requires `contents: write`
+permission for the `publish_release` job to create and upload GitHub Release assets.
+The `GITHUB_TOKEN` is passed explicitly to `softprops/action-gh-release` via `env`.
+If the workflow fails with HTTP 401 on the release publish step, verify that the
+repository or organization settings have not restricted the default `GITHUB_TOKEN`
+permissions.

@@ -800,3 +800,52 @@ fn no_active_metadata_still_uses_v400() {
         "SRCINFO must not have pkgver = 4.0.0"
     );
 }
+
+// ── Phase 12.3: release workflow authentication guard tests ──────────────
+
+#[test]
+fn release_workflow_has_contents_write_permission() {
+    let workflow = include_str!("../.github/workflows/release.yml");
+    assert!(
+        workflow.contains("contents: write"),
+        "release workflow must grant contents: write permission"
+    );
+}
+
+#[test]
+fn release_workflow_passes_github_token_to_release_action() {
+    let workflow = include_str!("../.github/workflows/release.yml");
+    assert!(
+        workflow.contains("GITHUB_TOKEN") && workflow.contains("secrets.GITHUB_TOKEN"),
+        "release workflow must pass GITHUB_TOKEN to the release action"
+    );
+}
+
+#[test]
+fn release_workflow_publish_job_has_permissions() {
+    let workflow = include_str!("../.github/workflows/release.yml");
+    // The publish_release job must have its own permissions block with
+    // contents: write, not rely solely on top-level inheritance.
+    let publish_marker = "publish_release:";
+    let publish_pos = workflow
+        .find(publish_marker)
+        .expect("release workflow must contain publish_release job");
+    let perm_pos = workflow[publish_pos..]
+        .find("permissions:")
+        .expect("publish_release job must have a permissions block");
+    let perm_section = &workflow[publish_pos + perm_pos..];
+    assert!(
+        perm_section.contains("contents: write"),
+        "publish_release job permissions must include contents: write"
+    );
+}
+
+#[test]
+fn release_candidate_doc_mentions_auth_requirement() {
+    let docs = include_str!("../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("contents: write")
+            && (docs.contains("GITHUB_TOKEN") || docs.contains("authentication")),
+        "RELEASE_CANDIDATE.md must document the release workflow authentication requirement"
+    );
+}
