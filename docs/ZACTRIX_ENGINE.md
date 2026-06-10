@@ -179,6 +179,33 @@ compute is active. The terminal writer remains single-owner. `actual_execution`
 remains `single-threaded-renderer`. `terminal_writer` remains `single-owner`.
 The existing `ZACTRIX ENGINE` benchmark section is unchanged.
 
+## v4.5.0 Phase 3: Depth Regression Lab
+
+Added 15 categories of deterministic regression tests that lock down the
+v4.0.1/v4.5 Monolith Rain visual identity. The Depth Regression Lab is a
+protective test suite that future v4.8.0 optimization work must pass before
+merge. No visual behavior changed. See `docs/VISUAL_STABILITY.md` for details.
+
+## v4.5.0 Phase 4: Monolith Test Pressure Relief
+
+`src/cloud/tests/tests_monolith.rs` (999 LOC, dangerously close to the
+1000 LOC cap) was split into a focused module directory:
+
+```
+src/cloud/tests/tests_monolith/
+  mod.rs         — facade with shared helpers
+  core.rs        — initialization, state, size, deterministic phase
+  depth.rs       — depth lab, sparse density, brightness hierarchy
+  residue.rs     — bottom residue, top clear, stale cleanup
+  transitions.rs — resize reset, stream move clearing, semantic invalidation
+  charset.rs     — charset transition, glyph style, presets
+```
+
+This is pressure relief only. No test behavior, test names, or visual
+output changed. The Depth Regression Lab remains the gate for future v4.8
+optimization. All 8 coverage categories are preserved with guard tests
+verifying no category was accidentally removed.
+
 ### Future Milestones
 
 - **v4.8.0** may introduce controlled parallel compute for non-terminal buffer

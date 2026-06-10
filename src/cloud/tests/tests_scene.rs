@@ -747,7 +747,12 @@ fn all_rust_files_under_loc_cap() {
         "src/cloud/tests/mod.rs",
         "src/cloud/tests/tests_scene.rs",
         "src/cloud/tests/tests_visual_depth.rs",
-        "src/cloud/tests/tests_monolith.rs",
+        "src/cloud/tests/tests_monolith/mod.rs",
+        "src/cloud/tests/tests_monolith/core.rs",
+        "src/cloud/tests/tests_monolith/depth.rs",
+        "src/cloud/tests/tests_monolith/residue.rs",
+        "src/cloud/tests/tests_monolith/transitions.rs",
+        "src/cloud/tests/tests_monolith/charset.rs",
         "src/cloud/tests/tests_architecture.rs",
         "src/cloud/scene_runtime.rs",
         "src/cloud/runtime_controls.rs",
@@ -860,5 +865,95 @@ fn depth_lab_repeated_cycle_never_accumulates_residue() {
                 );
             }
         }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v4.5.0 Phase 4 — Monolith Test Pressure Relief Guards
+//
+// These guards verify that the monolith test split (single file → directory
+// module) preserved all coverage categories and that no file exceeds the
+// 1000 LOC cap.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// The monolith mod.rs facade must stay small (under 200 LOC).
+#[test]
+fn phase4_monolith_facade_stays_small() {
+    let content =
+        std::fs::read_to_string("src/cloud/tests/tests_monolith/mod.rs").unwrap_or_default();
+    let count = content.lines().count();
+    assert!(
+        count < 200,
+        "monolith mod.rs facade should stay under 200 LOC (got {count})"
+    );
+}
+
+/// All monolith split files must be under 1000 LOC.
+#[test]
+fn phase4_all_monolith_split_files_under_loc_cap() {
+    let files = [
+        "src/cloud/tests/tests_monolith/mod.rs",
+        "src/cloud/tests/tests_monolith/core.rs",
+        "src/cloud/tests/tests_monolith/depth.rs",
+        "src/cloud/tests/tests_monolith/residue.rs",
+        "src/cloud/tests/tests_monolith/transitions.rs",
+        "src/cloud/tests/tests_monolith/charset.rs",
+    ];
+    for path in &files {
+        let content = std::fs::read_to_string(path).unwrap_or_default();
+        let count = content.lines().count();
+        assert!(count <= 1000, "{path}: {count} LOC exceeds 1000 cap");
+    }
+}
+
+/// All depth lab tests must still exist by name (string check on source).
+#[test]
+fn phase4_depth_lab_monolith_tests_still_exist() {
+    let depth_file =
+        std::fs::read_to_string("src/cloud/tests/tests_monolith/depth.rs").unwrap_or_default();
+    let required_tests = [
+        "depth_lab_monolith_sparse_lane_density_bounded_per_column",
+        "depth_lab_monolith_empty_space_ratio_above_min_threshold",
+        "depth_lab_monolith_no_full_height_continuous_wall",
+        "depth_lab_monolith_bottom_residue_bounded_extended_rain",
+    ];
+    for test_name in &required_tests {
+        assert!(
+            depth_file.contains(test_name),
+            "depth.rs must contain test '{test_name}'"
+        );
+    }
+}
+
+/// No monolith test coverage category was accidentally removed during split.
+#[test]
+fn phase4_no_monolith_coverage_category_removed() {
+    let all_files: String = [
+        "src/cloud/tests/tests_monolith/core.rs",
+        "src/cloud/tests/tests_monolith/depth.rs",
+        "src/cloud/tests/tests_monolith/residue.rs",
+        "src/cloud/tests/tests_monolith/transitions.rs",
+        "src/cloud/tests/tests_monolith/charset.rs",
+    ]
+    .iter()
+    .map(|p| std::fs::read_to_string(p).unwrap_or_default())
+    .collect();
+
+    let required_categories: &[(&str, &str)] = &[
+        ("sparse lane density", "sparse_lane_density"),
+        ("empty-space ratio", "empty_space_ratio"),
+        ("no full-height wall", "full_height"),
+        ("bottom residue", "bottom_residue"),
+        ("top clear", "top_cells_clear"),
+        ("resize reset", "resize_reset"),
+        ("charset transition", "charset_transition"),
+        ("color/charset residue", "color_and_charset_transitions"),
+    ];
+
+    for (category, marker) in required_categories {
+        assert!(
+            all_files.contains(marker),
+            "coverage category '{category}' (marker '{marker}') must exist in monolith test files"
+        );
     }
 }

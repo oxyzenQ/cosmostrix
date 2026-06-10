@@ -118,10 +118,10 @@ Any future optimization that touches the renderer, cloud module, monolith module
 | `tests_visual_depth.rs` | `depth_lab_brightness_level_four_tier_hierarchy` | Brightness hierarchy |
 | `tests_visual_depth.rs` | `depth_lab_sustained_rain_bottom_residue_bounded_300_frames` | Bottom residue bound |
 | `tests_visual_depth.rs` | `depth_lab_no_muddy_residue_on_dark_backgrounds` | Anti-muddy guard |
-| `tests_monolith.rs` | `depth_lab_monolith_sparse_lane_density_bounded_per_column` | Per-column density |
-| `tests_monolith.rs` | `depth_lab_monolith_empty_space_ratio_above_min_threshold` | Empty space ratio |
-| `tests_monolith.rs` | `depth_lab_monolith_no_full_height_continuous_wall` | No continuous wall |
-| `tests_monolith.rs` | `depth_lab_monolith_bottom_residue_bounded_extended_rain` | Extended bottom bound |
+| `tests_monolith/depth.rs` | `depth_lab_monolith_sparse_lane_density_bounded_per_column` | Per-column density |
+| `tests_monolith/depth.rs` | `depth_lab_monolith_empty_space_ratio_above_min_threshold` | Empty space ratio |
+| `tests_monolith/depth.rs` | `depth_lab_monolith_no_full_height_continuous_wall` | No continuous wall |
+| `tests_monolith/depth.rs` | `depth_lab_monolith_bottom_residue_bounded_extended_rain` | Extended bottom bound |
 | `tests_scene.rs` | `depth_lab_scene_switch_monolith_to_matrix_clears_phosphor` | Scene switch clean |
 | `tests_scene.rs` | `depth_lab_scene_switch_monolith_to_signal_clears_drawn_cells` | Scene switch clean |
 | `tests_scene.rs` | `depth_lab_scene_switch_glyph_to_monolith_renders_clean` | Scene switch clean |
