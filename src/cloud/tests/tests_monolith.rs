@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 //! Monolith Rain tests.
+//!
+//! v4.5.0 Phase 3 adds Depth Regression Lab tests that protect the
+//! v4.0.1/v4.5 Monolith Rain visual identity. These tests ensure cinematic
+//! depth, sparse density, distinct brightness hierarchy, and clean transitions.
 
 use std::time::{Duration, Instant};
 
@@ -855,4 +859,141 @@ fn monolith_background_muddy_residue_guard() {
             ghost_sum
         );
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v4.5.0 Phase 3 — Monolith Depth Regression Lab
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[test]
+fn depth_lab_monolith_sparse_lane_density_bounded_per_column() {
+    // After steady-state monolith rain, no single column should have
+    // excessive density. Sparse lanes are a core identity property.
+    let mut cloud = make_monolith_cloud(80, 30);
+    let mut frame = Frame::new(80, 30, cloud.palette.bg);
+    run_frames(&mut cloud, &mut frame, 120, 16);
+
+    let cols = frame.width;
+    let lines = frame.height;
+    let mut max_col_density = 0usize;
+    let mut total_cells = 0usize;
+    let mut total_visible = 0usize;
+
+    for col in 0..cols {
+        let mut col_visible = 0usize;
+        for line in 0..lines {
+            total_cells += 1;
+            let cell = frame.get(col, line).expect("cell in bounds");
+            if cell.ch != ' ' || cell.fg.is_some() {
+                col_visible += 1;
+                total_visible += 1;
+            }
+        }
+        max_col_density = max_col_density.max(col_visible);
+    }
+
+    let overall_ratio = total_visible as f32 / total_cells as f32;
+    assert!(
+        overall_ratio < 0.35,
+        "depth lab: monolith overall density must stay sparse (got {:.1}%)",
+        overall_ratio * 100.0
+    );
+    // No single column should be more than 60% filled
+    let max_ratio = max_col_density as f32 / lines as f32;
+    assert!(
+        max_ratio < 0.60,
+        "depth lab: no single column should exceed 60% (got {:.1}%)",
+        max_ratio * 100.0
+    );
+}
+
+#[test]
+fn depth_lab_monolith_empty_space_ratio_above_min_threshold() {
+    // The empty space ratio (cells that are truly blank) must remain above
+    // a minimum threshold. This is the key visual identity invariant:
+    // Monolith Rain must breathe, not fill the screen.
+    let mut cloud = make_monolith_cloud(96, 32);
+    let mut frame = Frame::new(96, 32, cloud.palette.bg);
+    run_frames(&mut cloud, &mut frame, 200, 16);
+
+    let mut blank_count = 0usize;
+    let total = (frame.width as usize) * (frame.height as usize);
+    for line in 0..frame.height {
+        for col in 0..frame.width {
+            let cell = frame.get(col, line).expect("cell in bounds");
+            if cell.ch == ' ' && cell.fg.is_none() {
+                blank_count += 1;
+            }
+        }
+    }
+    let blank_ratio = blank_count as f32 / total as f32;
+    assert!(
+        blank_ratio > 0.50,
+        "depth lab: monolith empty-space ratio must stay above 50% (got {:.1}%)",
+        blank_ratio * 100.0
+    );
+}
+
+#[test]
+fn depth_lab_monolith_no_full_height_continuous_wall() {
+    // After extended rain, verify that no column is fully filled from
+    // top to bottom — the "continuous wall" artifact that would indicate
+    // loss of cinematic depth.
+    let mut cloud = make_monolith_cloud(64, 28);
+    let mut frame = Frame::new(64, 28, cloud.palette.bg);
+    run_frames(&mut cloud, &mut frame, 200, 16);
+
+    let mut max_consecutive = 0usize;
+    for col in 0..frame.width {
+        let mut current_run = 0usize;
+        for line in 0..frame.height {
+            let cell = frame.get(col, line).expect("cell in bounds");
+            if cell.ch != ' ' || cell.fg.is_some() {
+                current_run += 1;
+                max_consecutive = max_consecutive.max(current_run);
+            } else {
+                current_run = 0;
+            }
+        }
+    }
+
+    // No column should have more than 70% consecutive fill
+    let threshold = (frame.height as f32 * 0.70) as usize;
+    assert!(
+        max_consecutive < threshold,
+        "depth lab: no column should have >70% consecutive fill (got {}/{})",
+        max_consecutive,
+        frame.height
+    );
+}
+
+#[test]
+fn depth_lab_monolith_bottom_residue_bounded_extended_rain() {
+    // Extended high-density rain (500 frames) must not accumulate bottom residue.
+    let mut cloud = make_monolith_cloud(80, 28);
+    cloud.set_droplet_density(3.0);
+    cloud.set_chars_per_sec(25.0);
+    cloud.reset(80, 28);
+    cloud.clear_redraw_flags_for_test();
+    let mut frame = Frame::new(80, 28, cloud.palette.bg);
+    run_frames(&mut cloud, &mut frame, 500, 16);
+    let bottom_rows = 5u16;
+    let bottom_start = frame.height.saturating_sub(bottom_rows);
+    let mut visible = 0usize;
+    let total = (frame.width as usize) * (bottom_rows as usize);
+    for line in bottom_start..frame.height {
+        for col in 0..frame.width {
+            let cell = frame.get(col, line).expect("cell in bounds");
+            if cell.ch != ' ' || cell.fg.is_some() {
+                visible += 1;
+            }
+        }
+    }
+    let ratio = visible as f32 / total as f32;
+    assert!(
+        ratio < 0.50,
+        "depth lab: bottom {} rows after 500 frames must stay < 50% (got {:.1}%)",
+        bottom_rows,
+        ratio * 100.0
+    );
 }

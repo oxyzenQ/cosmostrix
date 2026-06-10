@@ -1,507 +1,157 @@
-# Visual Depth & Throughput Stability Policy
-
-## Overview
-
-Cosmostrix v3.6.0 introduces focused improvements to visual depth
-perception and throughput stability reporting without rewriting the renderer
-or changing the identity of Monolith Rain.
-
-## Visual Depth Policy
-
-### Background Modes
-
-Cosmostrix supports three background rendering modes, each with distinct
-visual expectations:
-
-| Mode | Flag | Background | Visual Expectation |
-|-------|------|-----------|-------------------|
-| **Black** | `--color-bg black` | Solid `Color::Rgb(0,0,0)` | Cosmostrix paints every cell with a black background. Maximum depth contrast. Best for dark terminal emulators. |
-| **Transparent** | `--color-bg transparent` | `None` | Cosmostrix does NOT paint any background. The terminal emulator's own background shows through. It does NOT change terminal emulator opacity. If your emulator has a white background, transparent will appear on white. |
-| **Default-background** | `--color-bg default-background` | `None` | Equivalent to transparent. Cosmostrix relies on the terminal default background. Designed for user-configurable terminals. |
-
-### Black Mode Depth Hierarchy
-
-In black mode, the Monolith Rain visual depth hierarchy (from brightest to
-dimmest) is:
-
-1. **Hero Core** — the bottom cell of a Hero segment, white-bloomed.
-   Always the brightest element on screen.
-2. **Hero Hot** — upper cells of a Hero segment, bright afterglow.
-3. **Body Mid** — body segment cells, the main visual body of rain.
-4. **Body Dim** — fading trail edges, barely visible.
-5. **Spine Ghost** — faint spine trace between segments, the most subtle element.
-6. **Empty Space** — blank cells, completely black.
-
-This hierarchy must have clear separation at each level. If any two adjacent
-levels become visually indistinguishable, the depth perception degrades to a
-flat "wall of grey" — this is the "muddy residue" artifact that
-v3.6.0 specifically targets.
-
-### Brightness Level Implementation
-
-The `color_for_level()` function maps brightness levels to palette indices:
-
-- **Ghost / Dim**: use `first_visible` (the faintest non-background palette
-  entry), ensuring spine traces and dim segments are barely perceptible on
-  black backgrounds. Their combined RGB sum should remain below 80 to
-  prevent muddy mid-range greys.
-- **Mid**: uses `2/5` of the palette range, providing clear body readability
-  while maintaining separation from ghost/dim levels.
-- **Hot**: uses `4/5` of the palette range, creating sharp afterglow contrast
-  that separates hero segments from the body.
-- **Core**: uses the brightest palette entry with an additional 10% white
-  bloom, making hero tips unambiguously the brightest element on screen.
-
-This separation is enforced by regression tests that verify strict
-brightness ordering: ghost < mid < hot < core, and that ghost/dim cells
-never exceed a dimness threshold on black backgrounds.
-
-### Afterglow Contrast
-
-The phosphor persistence system creates CRT-style afterglow by decaying
-cell brightness over time after the trail passes. Key afterglow behaviors:
-
-- **Fresh capture**: cells drawn by active droplets capture phosphor energy
-  (capped at the bottom edge to prevent bright ghost residue).
-- **Active trail protection**: cells within living droplet ranges are
-  protected from phosphor decay, preventing the "concrete wall" artifact
-  where active trail cells were progressively dimmed.
-- **Blanked-cell protection**: freshly blanked cells start phosphor from
-  residual energy but do NOT render ghost cells that would override the
-  intentional blank.
-- **Glyph threshold**: below `PHOSPHOR_GLYPH_THRESHOLD` (96/255 energy),
-  the character glyph is no longer rendered, preventing stale cells from
-  filling the background with dark charset glyphs while still allowing
-  color-only dim patches for the final fade.
-- **Bottom-row acceleration**: ghost cells in the bottom 8 rows decay 2.5x
-  faster, preventing accumulation where droplets end and fewer new streams
-  overwrite the residue.
-
-On transparent backgrounds, afterglow works identically but the visual
-contrast depends on the terminal emulator's own background color. Users
-with light terminal backgrounds should expect dimmer afterglow perception.
-
-### Transparent Mode Expectations
-
-When `--color-bg transparent` is selected, Cosmostrix emits cells with
-`bg: None` (crossterm ResetColor for background). The terminal emulator's
-background is responsible for filling the background. This means:
-
-- On a dark terminal, transparent looks similar to black mode.
-- On a light terminal, transparent appears on a light background.
-- Cosmostrix does NOT and MUST NOT override the terminal's choice.
-
-### Guard Tests
-
-Regression tests verify:
-- Transparent mode never forces a solid black background.
-- Black mode always paints solid black.
-- Ghost/dim cells are never in the middle brightness range (prevents muddy grey).
-- Hero/spine/trail/empty-space brightness levels are strictly ordered.
-- Bottom rows do not accumulate persistent non-blank residue after normal frames.
-- Clean exit leaves no persistent ghost glyphs in bottom rows.
-- All benchmark output fields remain backward-compatible.
+# Visual Stability — Depth Regression Lab
 
-## Throughput Stability Interpretation
-
-### Why avg FPS Alone is Insufficient
+**Version**: v4.5.0 Phase 3  
+**Status**: Regression Lab (no visual redesign)  
+**Reference**: v4.0.1 Monolith Rain visual identity
 
-Average FPS is a common but misleading performance metric:
+## Purpose
 
-- **A benchmark averaging 60 FPS with 2ms avg frame time can still have
-  occasional 50ms spikes** (p99 = 50ms, effective 20 FPS) that cause
-  visible stutter.
-- A benchmark averaging 120 FPS with 8ms avg frame time and 0.1ms jitter
-  is noticeably smoother than 60 FPS with 2ms jitter, even at the same
-  average throughput.
-- The frame time distribution matters more than the average.
+The Depth Regression Lab is a suite of deterministic tests that lock down the v4.0.1/v4.5 Monolith Rain visual identity. These tests exist to prevent future regressions in cinematic depth, empty-space ratio, muddy residue, brightness hierarchy, and transition cleanliness.
 
-### Key Stability Metrics
+This is **not** a visual redesign. It is a protective test suite that future v4.8.0 optimization work MUST pass before merge.
 
-| Metric | What It Measures | Good Range |
-|--------|----------------|------------|
-| `avg_fps` | Average frames per second | Machine-dependent |
-| `median_fps` | 50th percentile FPS | Close to avg_fps |
-| `p95_frame_time` | 95th percentile frame time | < 2x avg frame time |
-| `p99_frame_time` | 99th percentile frame time (trimmed) | < 3x avg frame time |
-| `frame_time_stability` | Classification of jitter std | excellent/good/moderate/high |
-| `frame_jitter` | Frame time standard deviation | < 0.5ms = smooth |
+## Visual Identity Invariants
 
-### Stability Classification
+The following invariants define the v4.0.1 Monolith Rain visual identity. All future optimization must preserve these:
 
-The `frame_time_stability` field provides a human-readable classification:
+### 1. Monolith Rain Depth Remains Stable
 
-- **excellent**: jitter std < 0.3ms — frame pacing is nearly perfect.
-- **good**: jitter std < 0.5ms — imperceptible to most users.
-- **moderate**: jitter std < 2.0ms — acceptable but may show occasional micro-stutter.
-- **high**: jitter std >= 2.0ms — visible stutter, investigate system load or profiling.
-
-A healthy benchmark should show `frame_time_stability` of "good" or better,
-with `p95_frame_time` less than 2x the average frame time and `p99_frame_time`
-less than 3x the average. When `avg_fps` is high but `frame_time_stability`
-is "moderate" or "high", the user experience will be worse than the FPS
-number suggests due to uneven frame pacing.
-
-### Dirty-Cell Ratio
-
-The dirty-cell ratio tracks what percentage of the terminal's cells change
-per frame. Lower values indicate more efficient differential rendering:
-
-- `< 5%` — excellent, most frames update only active rain cells.
-- `5-30%` — normal for active Monolith scenes.
-- `> 50%` — may trigger full-redraw path in the terminal.
-
-### Estimated Full-Redraw Ratio
-
-This is a **threshold estimate**, NOT a literal measurement. It indicates what
-percentage of frames have enough dirty cells to potentially trigger the
-terminal's full-redraw rendering path (dirty cells >= total cells / 3).
-
-It does NOT mean Cosmostrix performs a full redraw on those frames.
-The terminal emulator's rendering pipeline makes its own decisions about
-when to batch redraw. This metric is useful for identifying when rendering
-load may spike, not for counting exact redraws.
-
-### Throughput Metrics
-
-| Metric | What It Measures |
-|--------|-----------------|
-| `glyphs_per_second` | Theoretical upper bound based on full-frame cell count and active-frame rate |
-| `dirty_glyphs_per_second` | Actual cell updates per second (differential rendering efficiency) |
-| `ansi_bytes_per_second` | Estimated ANSI output bandwidth |
-| `active_streams_avg` | Average number of active rain streams during measurement |
-
-The `glyphs_per_second` metric is a theoretical upper bound, not actual
-rendered output. Compare it against `dirty_glyphs_per_second` to understand
-how much differential rendering saves versus full-frame updates.
-
-## Color Stability Policy
-
-### Explicit Color Is Sticky by Default
-
-When a user sets a color via `--color`, `--profile`, `--preset`, `--scene`,
-or the config file, that color remains **permanently sticky** for the entire
-session unless the user explicitly changes it. This is a UX trust guarantee:
-the renderer will never silently change the color you chose.
-
-Autonomous palette drift — where the `ColorEcosystem` spontaneously
-transitions to a related color scheme (e.g., Green drifting to Green2 or
-Aurora) — is **disabled by default**. The drift code path still exists in
-the codebase (reserved for the future atmosphere engine in v4.0.0) but is
-gated behind an explicit opt-in flag.
-
-### How Color Can Change at Runtime
-
-Color may only change through these explicit, user-initiated actions:
-
-| Action | Mechanism | Sticky After? |
-|--------|-----------|--------------|
-| `--color sun` (CLI) | Sets initial scheme | Yes, permanently |
-| `--profile nightcore` (CLI) | Profile may set color | Yes, permanently |
-| `--preset cinematic` (CLI) | Preset may set color | Yes, permanently |
-| `--scene monolith` (CLI) | Scene may set color | Yes, permanently |
-| `c` / `C` keypress | Cycles color scheme | Yes, new scheme sticks |
-| Numeric hotkeys `0-9`, `!@#$%` | Jumps to specific scheme | Yes, permanently |
-| `x` / `X` keypress (scene cycle) | Scene may set color | Yes, if scene specifies one |
-| `auto-color-drift = true` (config/CLI) | Enables autonomous drift | Drifts over time (opt-in only) |
-
-### The `auto-color-drift` Flag
-
-A hidden CLI flag and config file key control autonomous palette drift:
-
-```bash
-# CLI (hidden flag)
-cosmostrix --auto-color-drift --color sun
-
-# Config file
-auto-color-drift = true
-```
-
-When enabled, the `ColorEcosystem` may spontaneously replace the current
-color scheme with an atmospherically related one every ~100 seconds on
-average (governed by `AUTONOMOUS_PALETTE_DRIFT_CHANCE = 0.03` per 3-second
-tick). The luminance, saturation, and hue climate continue to drift
-regardless of this flag — these only modulate rendering intensity, not
-the palette identity.
-
-### Color Stability Endurance Tests
-
-Nine deterministic tests verify color stability without wall-clock sleeping:
-
-1. **fixed_color_sun_stays_sun_across_simulated_minutes** — Sun remains Sun
-   for 10 simulated minutes (36,000 frames at 60fps).
-2. **profile_color_sun_stays_sun_across_simulated_minutes** — Profile-set
-   Sun remains sticky across 10 simulated minutes.
-3. **default_monolith_color_does_not_drift_without_opt_in** — Green
-   Monolith does not drift without opt-in.
-4. **auto_color_drift_is_opt_in_only** — With drift OFF, color stays; with
-   drift ON, color eventually changes to a related scheme.
-5. **pressing_c_changes_color_intentionally** — User key `c` changes color
-   and new color sticks.
-6. **pressing_shift_c_changes_color_intentionally** — User key `C` changes
-   color and new color sticks.
-7. **scene_cycle_applies_scene_color_intentionally** — Scene cycling sets
-   color (if scene specifies one) and it sticks.
-8. **benchmark_output_fields_complete** — Verifies all required benchmark
-   metrics are present in the source.
-9. **endurance_color_sticky_default_off** — 30 simulated minutes (108,000
-   frames) with spot-checks every 1,000 frames.
-
-## Config Color Precedence & Honesty
-
-### Why `color = sun` in Config May Not Win
-
-Cosmostrix uses a 10-level precedence chain (see README). A plain config value like
-`color = sun` is resolved at **step 2** (config file values). If the same config file
-also contains `preset = cinematic` or `scene = monolith`, those layers (steps 3 and 4)
-can override the color because they have higher precedence within the config file. The
-color you see in `-i` output reflects the **final resolved** value, not the raw config
-line.
-
-This is intentional and documented, but it can surprise users who expect `color = sun`
-to be the final word. The important distinction:
-
-- **Precedence override**: `preset`/`scene`/`profile` replace the config color at
-  startup. The replacement is immediate and deterministic. `auto_color_drift` remains
-  `false`. The replaced color is then sticky for the entire session.
-- **Autonomous drift**: `auto_color_drift = true` enables the `ColorEcosystem` to
-  spontaneously replace the color scheme over time (every ~100s on average). This is
-  a gradual, runtime effect, completely separate from startup precedence.
-
-### How to Guarantee a Final Color
-
-If you want `color = sun` to be the final resolved color, use one of these approaches:
-
-1. **Explicit CLI flag** (highest precedence, step 10):
-   ```bash
-   cosmostrix --color sun
-   ```
-   CLI `--color` always wins over config preset, scene, and profile.
-
-2. **Profile with explicit color** (step 5/8):
-   ```ini
-   profile.nightcore.color = sun
-   profile = nightcore
-   ```
-   Profile color overrides config preset and scene because profiles resolve after
-   them in the precedence chain.
-
-3. **Avoid preset/scene that manage color**:
-   Remove `preset` and `scene` from the config file (or use preset/scene variants
-   that do not set color), so the raw config `color = sun` is never overridden.
-
-### Verifying Drift State at Runtime
-
-The `-i` (info) output includes an `auto_color_drift` field showing `true` or `false`:
-
-```text
-RUNTIME PROFILE
-  ...
-  color: sun
-  auto_color_drift: false
-```
-
-- `auto_color_drift: false` (default) — autonomous palette drift is disabled.
-  The color shown will remain sticky for the entire session.
-- `auto_color_drift: true` — autonomous palette drift is enabled (opt-in).
-  The `ColorEcosystem` may replace the color scheme periodically.
-
-### Tests That Verify Precedence Is Not Drift
-
-Three config resolution tests document this behavior:
-
-1. **config_color_overridden_by_config_preset_is_precedence_not_drift** — verifies that
-   a config `color = sun` overridden by `preset`/`scene` leaves `auto_color_drift`
-   at `false`. The color change is from precedence, not autonomous drift.
-2. **profile_color_resolves_sun_after_preset_and_scene** — verifies that a profile
-   with `color = sun` correctly overrides preset/scene color per the precedence chain.
-3. **cli_color_wins_over_config_preset_and_scene** — verifies that `--color sun` on
-   the CLI always wins, regardless of config preset or scene.
-
-## Implementation Notes
-
-v3.6.0 does not:
-- Rewrite the renderer.
-- Add new scenes or color palettes.
-- Change profile precedence or CLI behavior.
-- Add unsafe code or heavy dependencies.
-- Bump the version number.
-
-v3.7.0 does not:
-- Retune any visual parameters.
-- Change terminal reset/cleanup behavior.
-- Change x/X scene cycling semantics.
-- Change config precedence semantics.
-- Add unsafe code or heavy dependencies.
-- Bump the version number.
-- Grow src/config_apply.rs beyond its existing LOC budget.
-
-v3.7.0 polish adds:
-- `auto_color_drift` visibility in `-i` runtime profile output.
-- Config precedence clarity documentation explaining why config `color = sun` may
-  be overridden by preset/scene, and how to guarantee a final color.
-- Three config resolution tests verifying precedence is distinct from drift.
-
-## v3.9.0 Monolith Subtlety Policy
-
-Ultimate Subtle Monolith Rain uses small bounded motion and depth variation to
-make the signature scene feel more organic without changing its identity.
-Organic does not mean chaotic: stream motion texture, lane breathing, hero pulse,
-and local spine cadence must stay deterministic under seeded RNG and bounded by
-Zactrix Core helper tests.
-
-Depth changes must preserve clean empty space. Hero, hot body, mid body, dim
-trail, spine ghost, gap, and blank background remain separate visual roles.
-Subtle breathing may make active streams feel alive, but it must not create
-full-height spine walls, over-bright white spam, muddy grey residue, or bottom
-edge buildup.
-
-Zactrix Core may guide these decisions through compact probes, maps, filters,
-verifiers, and bounded history, but it remains internal architecture guidance.
-It is not Linux eBPF, not a public API, and not the v4.0.0 Full Atmosphere
-Engine.
-
-## v4.0.0 Atmosphere Application Policy
-
-The Phase 4 atmosphere application adapter must preserve visual stability:
-
-- Atmosphere modulation is disabled by default (application_mode = disabled).
-- Identity modulation produces output identical to v3.9.0.
-- Non-Calm applications produce bounded modulation only in internal/test mode.
-- Color change is always forbidden in the adapter output.
-- Terminal behavior is never affected by atmosphere.
-- The adapter does not introduce muddy residue, uncontrolled brightness, or
-  visual noise. All values are clamped by the verifier before reaching the
-  adapter, and the adapter itself produces only bounded scale factors.
-- Clean empty space must remain clean. Hero, hot body, mid body, dim trail,
-  spine ghost, gap, and blank background roles are unchanged.
-
-## v4.0.0 ControlledLive Modulation Policy
-
-The Phase 6 ControlledLive mode provides an even more restrictive modulation
-path than InternalVerified, designed for internal-only live atmosphere
-variation while keeping the v3.9.0 visual identity intact.
-
-- ControlledLiveBounds are tighter than conservative bounds: speed ±4%,
-  density ±4%, brightness ±3%, glitch_pressure ≤ 0.2.
-- ControlledLive is NOT exposed via public CLI. Only reachable through
-  internal/test code paths.
-- Calm regime always produces identity regardless of application mode.
-- ControlledLive modulation is always more restrictive than InternalVerified
-  modulation for the same application — deviation from identity is strictly
-  smaller in all parameters.
-- The effective runtime values under ControlledLive are extremely close to
-  base values: speed and density deviate by at most ±4% from config base.
-- Color change and terminal effects remain permanently false in ControlledLive.
-
-## v4.0.0 Visual Whisper Policy
-
-The Phase 7 visual whisper adapter provides the most restrictive modulation
-layer in the atmosphere pipeline. It converts verified atmosphere modulation
-into ultra-subtle visual-safe whisper values that are strictly tighter than
-ControlledLive bounds in every parameter.
-
-- VisualWhisperBounds are tighter than ControlledLiveBounds: speed ±2%,
-  density ±2%, brightness ±1.5%, trail_energy ±2%, glyph_pulse ±2%,
-  glitch_pressure ≤ 0.05.
-- The visual whisper adapter is internal/test-only. Non-identity whisper is
-  never produced in the default production runtime path.
-- Disabled mode always produces identity whisper.
-- Calm regime always produces identity whisper.
-- No color changes. No terminal effects. No persistent config mutation.
-- Clean empty space must remain clean: no muddy residue, no white spam,
-  no full-height spine wall, no bottom buildup.
-- The whisper adapter is a pure read-only transform — it never mutates
-  persistent configuration state or terminal state.
-- Visual whisper is deterministic: same input always produces same output.
-
-## v4.0.0 Shadow Metrics Policy
-
-The Phase 8 shadow metrics layer measures whisper impact internally before any
-public visual activation. Shadow metrics exist to prevent muddy residue, white
-spam, bottom buildup, color drift, and terminal effects from reaching the
-renderer without first being measured and classified.
-
-- AtmosphereShadowMetrics (`src/atmosphere_shadow.rs`) measures percentage
-  deviations from identity for each whisper parameter.
-- Shadow evaluation functions are pure and deterministic: no cache invalidation,
-  no terminal state changes, no color changes, no config mutation.
-- Risk labels classify the potential visual impact: identity (no impact),
-  whisper (within VisualWhisperBounds, imperceptible), elevated (outside
-  whisper bounds but verifier-safe), rejected (color or terminal effect
-  allowed).
-- Default runtime reports identity shadow metrics (no visual impact).
-- Shadow diagnostics appear in `-i` and `--benchmark` output for transparency.
-- Shadow metrics do not alter the renderer. They are measurement-only.
-- The shadow layer adds no new dependencies, no new unsafe code, and no new
-  CLI flags. Full public atmosphere controls remain future work.
-
-## v4.0.0 A/B Smoke Policy
-
-The Phase 9 A/B smoke layer provides test-only validation that compares the
-baseline identity visual path against controlled whisper behavior. It protects
-against muddy residue, brightness spam, density collapse, terminal effects, color
-drift, and glitch overpressure before any public visual activation.
-
-- `AtmosphereAbSample` (`src/atmosphere_ab.rs`) captures both the identity
-  baseline and a candidate whisper/shadow for comparison, including per-parameter
-  deltas and a pass/fail boolean.
-- `AtmosphereAbVerdict` provides structured pass/reject outcomes with human-
-  readable reasons for each safety check failure.
-- A/B smoke functions are pure and deterministic: no side effects, no cache
-  invalidation, no terminal state changes, no color mutations.
-- Safety thresholds: density >= 0.98, brightness <= 1.015, glitch_pressure
-  <= 0.05, max_delta_percent <= 2.0, no color change, no terminal effect.
-- Calm must pass as identity. Pulse/Signal/MonolithPressure pass as whisper risk.
-- Storm must be clamped to whisper bounds under ControlledLive. Void must not
-  collapse density.
-- The A/B smoke module is `#[cfg(test)]` only — not compiled into production
-  binaries and not reachable from any runtime path.
-- A/B smoke adds no new dependencies, no new unsafe code, no new CLI flags, and
-  no benchmark field renames.
-
-## v4.0.0 Phase 10 Config-Gated Atmosphere Policy
-
-Phase 10 adds config-file and profile-level atmosphere keys without changing
-default visual behavior. The atmosphere engine remains opt-in and gated behind
-explicit config keys. Default cosmostrix behavior is unchanged from v3.9.0.
-
-- `atmosphere-mode`: defaults to `disabled`. When disabled, all atmosphere
-  modulation is identity — zero visual change. Setting to `controlled-live`
-  activates the controlled-live modulation path for non-calm regimes.
-- `atmosphere-regime`: defaults to `calm`. Calm always produces identity.
-  Non-calm regimes (pulse, signal, compression, void, monolith-pressure) are
-  config-safe and produce subtle bounded modulation when mode is controlled-live.
-- Storm is explicitly NOT config-safe in Phase 10 and is rejected at the parse
-  layer with a clear error message. Storm cannot be activated via config or profile.
-- No new public CLI flags. Atmosphere config is resolved from config/profile only.
-- Precedence: CLI > profile > config > defaults (disabled/calm).
-- Config opt-in preserves zero visual side effects: when mode is disabled (the
-  default), the renderer behaves identically to v3.9.0.
-- Invalid atmosphere config values warn cleanly and are ignored.
-- The resolution pipeline is pure and deterministic.
-- `-i` diagnostics report the resolved atmosphere mode and regime.
-
-## v4.0.0 Phase 10.5 Atmosphere Diagnostic Honesty Policy
-
-Phase 10.5 adds diagnostic honesty fields that make the "armed vs active"
-distinction explicit. Config/profile atmosphere gate must not imply color drift,
-terminal effects, or storm default.
-
-- `config_gate: disabled|armed` — shows whether the config/profile gate is
-  activated. `disabled` by default; `armed` only when mode is `controlled-live`.
-- `visual_runtime: protected|active` — shows whether the visual runtime is
-  actively applying modulation or remains protected. `protected` when the
-  effective runtime matches base values (identity behavior).
-- `runtime_application: identity|non-identity` — shows whether the resolved
-  modulation is identity or contains bounded candidate values.
-- `shadow_risk: whisper` does NOT mean full live visual application. It means
-  the shadow detection path has identified bounded candidate modulation within
-  VisualWhisperBounds — the modulation is measurable but not applied to the
-  renderer in the current phase.
-- `effective_runtime: identity` means actual runtime remains protected. The
-  renderer output is identical to v3.9.0 regardless of config/profile settings.
-- Storm remains not config-safe. Storm config/profile values are rejected at
-  the parse layer and do not reach the resolver.
-- Full public atmosphere controls remain future work. Phase 10.5 is hardening,
-  not visual activation.
+Monolith Rain produces a cinematic depth effect with clearly distinguishable brightness levels: Ghost (faintest), Dim, Mid, Hot, and Core (brightest with white bloom). These levels must remain visually distinct on all dark-background color schemes.
+
+- Ghost and Dim cells must use the faintest palette entries (RGB sum < 80 on black backgrounds)
+- Mid must be noticeably brighter than Ghost/Dim
+- Hot must be strictly brighter than Mid
+- Core must bloom with near-white brightness
+
+### 2. Hero/Spine/Trail/Empty-Space Hierarchy
+
+The visual hierarchy must remain distinct:
+
+- **Hero/Core**: Brightest cells at the stream head — visually dominant
+- **Spine**: Subtle local vertical accents — never forming continuous walls
+- **Trail/Segments**: Medium-brightness body cells that follow the head
+- **Ghost**: Faintest afterglow that fades to blank within bounded frames
+- **Empty Space**: The majority of the screen must remain blank
+
+No single column should have more than 60% consecutive fill. The overall visible cell ratio must stay below 35% for monolith mode.
+
+### 3. No Muddy Residue Regression
+
+The "flat wall of grey" artifact occurs when ghost/dim cells map to mid-range grey on dark backgrounds, creating an indistinct flat wall instead of clear depth hierarchy. This must never regress.
+
+Three color profile families are guarded: green-dark, blue-dark, and cyan-dark.
+
+### 4. No Full-Height Continuous Wall/Spine
+
+Monolith spine columns must remain local fragments. No column should have a continuous vertical run exceeding 2 cells, and spines should occupy less than 1/3 of any lane's height. This is established by the v3.9.0 Monolith Subtlety Policy: Organic does not mean chaotic, and full-height spine walls are explicitly forbidden.
+
+### 5. Scene Switching Remains Clean
+
+Switching from Monolith to Matrix or Signal must:
+
+- Clear all monolith draw history immediately
+- Clear all monolith drawn cells
+- Warm-start glyph droplets in the upper quarter of the viewport
+- Produce visible dirty cells on the first frame (no blank intermediate screen)
+
+Switching from Glyph to Monolith must reinitialize cleanly with no leftover glyph residue in the monolith draw path.
+
+### 6. Color Remains Sticky Unless Intentionally Changed
+
+Explicit CLI/config/profile color choices remain sticky across simulated runtime:
+
+- `--color sun` stays Sun indefinitely unless user presses c/C or scene changes
+- `auto_color_drift` is opt-in only (defaults false)
+- Color transitions complete cleanly with no stale palette references
+
+### 7. Bottom Residue Remains Bounded
+
+After sustained high-speed rain (300-500 frames), the bottom rows must not accumulate unbounded residue. The bottom 4-5 rows should stay below 50-70% visible cells depending on mode.
+
+### 8. Top Cells Clear Within Bounded Frames
+
+After high-speed monolith rain stops spawning, the top rows must clear within 4 bounded cleanup frames.
+
+### 9. Resize Reset Clears Stale History
+
+Terminal resize must clear all monolith draw caches, phosphor state, and request semantic invalidation. No stale monolith history from the previous terminal size should persist.
+
+### 10. Charset Transition Does Not Flood Background
+
+When charset transitions complete, the visible cell count must not suddenly flood. The ratio of visible cells before/after transition must be bounded.
+
+### 11. Zactrix Diagnostics Remain Honest
+
+The ZACTRIX ENGINE and ZACTRIX SYSTEM diagnostic sections must honestly report:
+
+- `actual_execution: single-threaded-renderer` (no real parallel execution)
+- `terminal_writer: single-owner` (terminal writes never parallelized)
+- `compute_parallelism: disabled` (no active parallel compute)
+- `render_plan: single-owner` (render pipeline uses single-owner model)
+- `runtime_mode: normal` (default operating mode)
+
+## Design Principles
+
+### Parallel Compute, Single-Owner Terminal Writer
+
+The Zactrix Engine may optimize planning and scheduling in future v4.8.0/v5.0.0 releases, but it must never:
+
+- Change terminal writer ownership from single-owner
+- Flatten cinematic depth for throughput
+- Create parallel terminal writes
+- Claim active parallel compute in diagnostics when none exists
+
+### Future v4.8.0 Optimization Must Pass This Lab
+
+Any future optimization that touches the renderer, cloud module, monolith module, phosphor system, or droplet lifecycle must pass all Depth Regression Lab tests. If an optimization cannot pass these tests, it must be redesigned. Zactrix Core may guide scheduling and cache planning, but must not flatten cinematic depth or change terminal writer ownership.
+
+## Test Categories
+
+### Cloud Tests (`src/cloud/tests/`)
+
+| File | Tests | Category |
+|------|-------|----------|
+| `tests_visual_depth.rs` | `depth_lab_empty_space_ratio_above_threshold` | Empty space invariant |
+| `tests_visual_depth.rs` | `depth_lab_glyph_rain_not_dense_wall` | Glyph density bound |
+| `tests_visual_depth.rs` | `depth_lab_charset_transition_no_background_flood` | Transition cleanliness |
+| `tests_visual_depth.rs` | `depth_lab_color_transition_no_stale_residue_at_frame_level` | Color transition guard |
+| `tests_visual_depth.rs` | `depth_lab_brightness_level_four_tier_hierarchy` | Brightness hierarchy |
+| `tests_visual_depth.rs` | `depth_lab_sustained_rain_bottom_residue_bounded_300_frames` | Bottom residue bound |
+| `tests_visual_depth.rs` | `depth_lab_no_muddy_residue_on_dark_backgrounds` | Anti-muddy guard |
+| `tests_monolith.rs` | `depth_lab_monolith_sparse_lane_density_bounded_per_column` | Per-column density |
+| `tests_monolith.rs` | `depth_lab_monolith_empty_space_ratio_above_min_threshold` | Empty space ratio |
+| `tests_monolith.rs` | `depth_lab_monolith_no_full_height_continuous_wall` | No continuous wall |
+| `tests_monolith.rs` | `depth_lab_monolith_bottom_residue_bounded_extended_rain` | Extended bottom bound |
+| `tests_scene.rs` | `depth_lab_scene_switch_monolith_to_matrix_clears_phosphor` | Scene switch clean |
+| `tests_scene.rs` | `depth_lab_scene_switch_monolith_to_signal_clears_drawn_cells` | Scene switch clean |
+| `tests_scene.rs` | `depth_lab_scene_switch_glyph_to_monolith_renders_clean` | Scene switch clean |
+| `tests_scene.rs` | `depth_lab_repeated_cycle_never_accumulates_residue` | Repeated cycle guard |
+
+### Diagnostics Tests (`src/docs_tests/zactrix.rs`)
+
+| Test | Guard |
+|------|-------|
+| `depth_lab_benchmark_actual_execution_is_single_threaded` | Single-threaded invariant |
+| `depth_lab_benchmark_terminal_writer_is_single_owner` | Single-owner invariant |
+| `depth_lab_benchmark_compute_parallelism_remains_disabled` | No parallel compute |
+| `depth_lab_benchmark_render_plan_remains_single_owner` | Single-owner render |
+| `depth_lab_no_active_parallel_compute_claimed` | No active claims |
+| `depth_lab_info_output_zactrix_system_honest` | Honest diagnostics |
+| `depth_lab_visual_stability_doc_exists` | Doc guard |
+| `depth_lab_visual_stability_doc_mentions_zactrix_guard` | Zactrix guard doc |
+
+## Existing Guard Tests (Pre-Phase 3)
+
+These existing tests are NOT part of the Phase 3 Depth Regression Lab but provide complementary coverage:
+
+- `monolith_does_not_draw_full_height_continuous_spine` — Spine column guard
+- `monolith_rain_is_sparse_compared_to_dense_glyph_rain` — Sparse density guard
+- `monolith_bottom_residue_stays_bounded` — Bottom residue bound
+- `hero_spine_trail_empty_space_have_distinct_brightness` — Brightness hierarchy
+- `monolith_color_for_level_ghost_is_faintest` — Ghost level guard
+- `monolith_background_muddy_residue_guard` — Anti-muddy guard
+- `fixed_color_sun_stays_sun_across_simulated_minutes` — Color stickiness
+- `auto_color_drift_is_opt_in_only` — Drift opt-in guard
+- `high_speed_does_not_create_unbounded_bottom_accumulation` — Bottom accumulation
+- `stale_bottom_cells_decay_to_blank_within_bounded_time` — Phosphor decay
+- `clean_exit_frame_has_no_persistent_ghost_in_bottom_rows` — Clean exit guard

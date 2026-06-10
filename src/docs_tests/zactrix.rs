@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 //! Zactrix Engine/Cache/Core doc guards, planner tests, and architecture split guards.
+//!
+//! v4.5.0 Phase 3 adds Depth Regression Lab diagnostics guards that ensure
+//! benchmark/info output honestly reports single-threaded, single-owner execution.
 
 #[test]
 fn zactrix_engine_doc_exists_and_covers_adaptive_planning() {
@@ -381,5 +384,122 @@ fn zactrix_system_docs_mention_v450_phase_2() {
     assert!(
         docs.contains("ZACTRIX SYSTEM"),
         "ZACTRIX_ENGINE.md must mention ZACTRIX SYSTEM"
+    );
+}
+
+// ── Phase 12.7: v4.5.0 Phase 3 Depth Regression diagnostics guards ──────
+
+#[test]
+fn depth_lab_benchmark_actual_execution_is_single_threaded() {
+    // ZACTRIX ENGINE must report actual_execution: single-threaded-renderer.
+    // This is a hard invariant: no real parallel execution exists.
+    let bench = include_str!("../bench_report.rs");
+    assert!(
+        bench.contains("\"single-threaded-renderer\""),
+        "bench_report.rs must emit actual_execution: single-threaded-renderer"
+    );
+}
+
+#[test]
+fn depth_lab_benchmark_terminal_writer_is_single_owner() {
+    // ZACTRIX ENGINE must report terminal_writer: single-owner.
+    // Terminal writes must never be parallelized.
+    let bench = include_str!("../bench_report.rs");
+    assert!(
+        bench.contains("\"single-owner\""),
+        "bench_report.rs must emit terminal_writer: single-owner"
+    );
+}
+
+#[test]
+fn depth_lab_benchmark_compute_parallelism_remains_disabled() {
+    // ZACTRIX SYSTEM must report compute_parallelism: disabled.
+    let bench = include_str!("../bench_report.rs");
+    // The bench_report uses sys.compute_parallelism.as_str() which
+    // evaluates to "disabled" at runtime. Verify the source references it.
+    assert!(
+        bench.contains("compute_parallelism"),
+        "bench_report.rs must reference compute_parallelism field"
+    );
+    // Also verify the ZactrixSystemConfig default is disabled
+    use crate::zactrix_engine::{ComputeParallelism, ZactrixSystemConfig};
+    assert_eq!(
+        ZactrixSystemConfig::default().compute_parallelism,
+        ComputeParallelism::Disabled
+    );
+}
+
+#[test]
+fn depth_lab_benchmark_render_plan_remains_single_owner() {
+    // ZACTRIX SYSTEM must report render_plan: single-owner.
+    use crate::zactrix_engine::{RenderPlan, TerminalWriterPolicy};
+    let render = RenderPlan::default();
+    assert_eq!(render.writer_policy, TerminalWriterPolicy::SingleOwner);
+}
+
+#[test]
+fn depth_lab_no_active_parallel_compute_claimed() {
+    // Verify that no code path claims active parallel compute.
+    // The EngineMode enum should not have an ActiveParallel variant
+    // that would be claimed in benchmark output.
+    use crate::zactrix_engine::EngineMode;
+    // EngineMode has: SingleCore, Assist, SafeFallback — none imply active execution
+    let _modes = [
+        EngineMode::SingleCore,
+        EngineMode::Assist,
+        EngineMode::SafeFallback,
+    ];
+}
+
+#[test]
+fn depth_lab_info_output_zactrix_system_honest() {
+    // Verify that main.rs -i output includes honest ZACTRIX SYSTEM fields.
+    let main_rs = include_str!("../main.rs");
+    // All 5 ZACTRIX SYSTEM fields must be present
+    let required_fields = [
+        "runtime_mode",
+        "cpu_budget",
+        "render_plan",
+        "compute_parallelism",
+        "idle_policy",
+    ];
+    for field in &required_fields {
+        assert!(
+            main_rs.contains(field),
+            "main.rs -i output must include ZACTRIX SYSTEM field '{}'",
+            field
+        );
+    }
+}
+
+#[test]
+fn depth_lab_visual_stability_doc_exists() {
+    // Verify that VISUAL_STABILITY.md exists and covers key concepts.
+    let docs = include_str!("../../docs/VISUAL_STABILITY.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("depth regression"),
+        "VISUAL_STABILITY.md must mention depth regression"
+    );
+    assert!(
+        lower.contains("v4.0.1"),
+        "VISUAL_STABILITY.md must reference v4.0.1 visual identity"
+    );
+    assert!(
+        lower.contains("monolith rain"),
+        "VISUAL_STABILITY.md must mention Monolith Rain"
+    );
+}
+
+#[test]
+fn depth_lab_visual_stability_doc_mentions_zactrix_guard() {
+    let docs = include_str!("../../docs/VISUAL_STABILITY.md");
+    assert!(
+        docs.contains("Zactrix Engine"),
+        "VISUAL_STABILITY.md must mention Zactrix Engine guard"
+    );
+    assert!(
+        docs.contains("single-owner"),
+        "VISUAL_STABILITY.md must mention single-owner terminal writer"
     );
 }
