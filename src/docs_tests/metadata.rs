@@ -112,8 +112,12 @@ fn changelog_v400_mentions_demo_refresh() {
 fn cargo_toml_version_matches_changelog_latest() {
     let cargo = include_str!("../../Cargo.toml");
     assert!(
-        cargo.contains("version = \"4.0.1\""),
-        "Cargo.toml must have version = \"4.0.1\""
+        cargo.contains("version = \"4.5.0\""),
+        "Cargo.toml must have version = \"4.5.0\""
+    );
+    assert!(
+        !cargo.contains("version = \"4.0.1\""),
+        "Cargo.toml must not contain old version 4.0.1"
     );
     assert!(
         !cargo.contains("version = \"3.9.0\""),
@@ -122,11 +126,11 @@ fn cargo_toml_version_matches_changelog_latest() {
 }
 
 #[test]
-fn readme_uses_v401_tag_in_install_example() {
+fn readme_uses_v450_tag_in_install_example() {
     let readme = include_str!("../../README.md");
     assert!(
-        readme.contains("TAG=\"v4.0.1\""),
-        "README install example must use TAG=\"v4.0.1\" as the current release tag"
+        readme.contains("TAG=\"v4.5.0\""),
+        "README install example must use TAG=\"v4.5.0\" as the current release tag"
     );
 }
 
@@ -136,8 +140,12 @@ fn readme_uses_v401_tag_in_install_example() {
 fn aur_pkgbuild_pkgver_matches_release() {
     let pkgbuild = include_str!("../../aur/cosmostrix-bin/PKGBUILD");
     assert!(
-        pkgbuild.contains("pkgver=4.0.1"),
-        "PKGBUILD must have pkgver=4.0.1"
+        pkgbuild.contains("pkgver=4.5.0"),
+        "PKGBUILD must have pkgver=4.5.0"
+    );
+    assert!(
+        !pkgbuild.contains("pkgver=4.0.1"),
+        "PKGBUILD must not contain old pkgver=4.0.1"
     );
     assert!(
         !pkgbuild.contains("pkgver=4.0.0"),
@@ -149,8 +157,12 @@ fn aur_pkgbuild_pkgver_matches_release() {
 fn aur_srcinfo_pkgver_matches_release() {
     let srcinfo = include_str!("../../aur/cosmostrix-bin/.SRCINFO");
     assert!(
-        srcinfo.contains("pkgver = 4.0.1"),
-        "SRCINFO must have pkgver = 4.0.1"
+        srcinfo.contains("pkgver = 4.5.0"),
+        "SRCINFO must have pkgver = 4.5.0"
+    );
+    assert!(
+        !srcinfo.contains("pkgver = 4.0.1"),
+        "SRCINFO must not contain old pkgver = 4.0.1"
     );
     assert!(
         !srcinfo.contains("pkgver = 4.0.0"),

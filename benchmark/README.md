@@ -52,12 +52,12 @@ path (Zactrix engine runs single-threaded in headless benchmark mode).
 ## v4.5.0 Local Benchmark Baseline
 
 The v4.5 foundation phase (architecture split, depth regression, test
-pressure relief) is docs-only with no runtime changes. Local benchmark
-plateau after v4.5.0 stabilization:
+pressure relief) is docs-only with no runtime changes. 5-run local
+benchmark plateau at 120x40 after v4.5.0 stabilization:
 
-- avg_fps: approximately 10,600
-- median_fps: approximately 11,000
-- p99_frame_time: approximately 0.117 ms
+- avg_fps: approximately 16,700
+- median_fps: approximately 17,000
+- p99_frame_time: approximately 0.074 ms
 - frame_time_stability: excellent
 
 These numbers are approximate local measurements, not a portable promise.

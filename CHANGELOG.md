@@ -8,6 +8,19 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v4.5.0
+
+Zactrix Foundation + Depth Regression. Architecture and test infrastructure release with no default visual behavior change and no active parallel compute.
+
+- Split Zactrix Engine architecture into core/cache/render/system/scheduler/metrics modules.
+- Added honest ZACTRIX SYSTEM diagnostics (runtime_mode, cpu_budget, render_plan, compute_parallelism, idle_policy).
+- Added depth regression lab for Monolith Rain visual stability (15 categories, deterministic guards).
+- Split docs, monolith, and scene regression tests into focused module directories to keep all files under 1000 LOC.
+- Added roadmap closure docs covering v4.6/v4.7/v4.8/v5 release trajectory.
+- No default visual behavior change.
+- No active parallel compute.
+- Terminal writer remains single-owner.
+
 ## v4.0.1
 
 Fixed version output build label to include the optimized CPU tier, matching doctor/benchmark diagnostics.
