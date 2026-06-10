@@ -107,6 +107,74 @@ does **not** execute parallel compute:
 `planned_worker_budget` is a future execution budget, not a current thread
 count. The renderer remains single-threaded/single-owner for terminal output.
 
+## v4.5.0 Phase 1: Architecture Split / Boundary Definition
+
+Starting with v4.5.0, the Zactrix Engine has been reorganized into a modular
+directory structure under `src/zactrix_engine/`:
+
+```
+src/zactrix_engine/
+  mod.rs        — facade with re-exports (preserves backward-compatible import paths)
+  core.rs       — deterministic helpers (frame jitter, monolith depth effects)
+  cache.rs      — bounded generation-aware cache policy
+  scheduler.rs  — adaptive execution planner (EngineMode, EngineProbe, EnginePlan)
+  system.rs     — Zactrix System diagnostic model (RuntimeMode, CpuBudget, etc.)
+  render.rs     — render planning boundary types (TerminalWriterPolicy, RenderPlan)
+  metrics.rs    — diagnostic labels and metric constants
+```
+
+### What Changed in v4.5.0
+
+- Internal code was moved from flat files (`zactrix_engine.rs`, `zactrix_core.rs`,
+  `zactrix_cache.rs`) into the `src/zactrix_engine/` directory with submodules.
+- A facade `mod.rs` re-exports all types, so `crate::zactrix_engine::*` imports
+  continue to work without modification.
+- Backward-compatible wrapper modules in `main.rs` preserve `crate::zactrix_cache::*`
+  and `crate::zactrix_core::*` import paths.
+- New foundation modules were added: `system.rs`, `render.rs`, `metrics.rs`.
+- The Zactrix System diagnostic model defines conservative defaults:
+  - `runtime_mode: normal`
+  - `cpu_budget: balanced`
+  - `compute_parallelism: disabled`
+  - `idle_policy: adaptive-sleep`
+
+### What Did NOT Change
+
+- No real parallel rendering was implemented.
+- No worker threads are spawned.
+- No visual output changed.
+- No terminal behavior changed.
+- No benchmark field names were renamed.
+- The terminal writer remains single-owner.
+- `actual_execution` remains `single-threaded-renderer`.
+- `terminal_writer` remains `single-owner`.
+- v4.0.1 visual behavior is fully preserved.
+
+### CPU Target Research
+
+- Calm/idle target: < 1-3% realistic CPU usage.
+- Benchmark/stress can use dynamic high CPU.
+- Paused should remain near 0%.
+
+### Roadmap
+
+- **v4.8.0** = Zactrix Render / Efficiency Finishing.
+- **v5.0.0** = Zactrix Engine stable default + precision/efficiency release.
+  Only when the runtime planner is real and stable.
+
+### Allowed in Future
+
+- Parallel compute for non-terminal buffer preparation.
+- Dirty-cell planning and render batch preparation.
+- Lane/stream simulation chunks in bounded worker budgets.
+
+### Forbidden
+
+- Multiple threads writing ANSI to the terminal.
+- Multiple threads mutating terminal state directly.
+- Any terminal writer ownership ambiguity.
+- Real parallel rendering without single-owner guarantee.
+
 ## Hard Constraints
 
 - Terminal writer remains single-owner.

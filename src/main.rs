@@ -91,9 +91,16 @@ mod terminal;
 mod theme;
 mod update;
 mod validation;
-mod zactrix_cache;
-mod zactrix_core;
 mod zactrix_engine;
+
+// Backward-compatible module aliases: existing code uses
+// crate::zactrix_cache::* and crate::zactrix_core::* internally.
+mod zactrix_cache {
+    pub(crate) use crate::zactrix_engine::cache::*;
+}
+mod zactrix_core {
+    pub(crate) use crate::zactrix_engine::core::*;
+}
 
 use std::env;
 

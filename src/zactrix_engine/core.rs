@@ -8,7 +8,6 @@
 //! shapes (probe, map, filter, verifier, bounded history), but it is plain
 //! stable Rust and has no Linux eBPF, root, kernel, or BPF dependency.
 
-/// Classify measured frame-time jitter for benchmark reporting.
 #[must_use]
 pub(crate) fn classify_frame_jitter(jitter_std_ms: f64) -> &'static str {
     if jitter_std_ms < 0.5 {
@@ -20,7 +19,6 @@ pub(crate) fn classify_frame_jitter(jitter_std_ms: f64) -> &'static str {
     }
 }
 
-/// Classify frame-time stability for benchmark reporting.
 #[must_use]
 pub(crate) fn classify_frame_time_stability(jitter_std_ms: f64) -> &'static str {
     if jitter_std_ms < 0.3 {
@@ -34,7 +32,6 @@ pub(crate) fn classify_frame_time_stability(jitter_std_ms: f64) -> &'static str 
     }
 }
 
-/// Compute the dirty-cell threshold used to estimate full terminal redraws.
 #[must_use]
 pub(crate) fn dirty_threshold_cells(total_cells: usize, threshold_divisor: usize) -> usize {
     if total_cells > 0 && threshold_divisor > 0 {
@@ -44,7 +41,6 @@ pub(crate) fn dirty_threshold_cells(total_cells: usize, threshold_divisor: usize
     }
 }
 
-/// Decide whether a frame crosses the estimated full-redraw threshold.
 #[must_use]
 pub(crate) fn estimates_full_redraw(
     total_cells: usize,
@@ -56,14 +52,12 @@ pub(crate) fn estimates_full_redraw(
         || (total_cells > 0 && dirty_cells >= dirty_threshold_cells(total_cells, threshold_divisor))
 }
 
-/// Bounded per-stream motion texture for Monolith Rain.
 #[must_use]
 pub(crate) fn monolith_motion_factor(phase: f32, head: f32) -> f32 {
     let wave = triangle_wave01(phase + head * 0.041);
     (0.965 + wave * 0.070).clamp(0.965, 1.035)
 }
 
-/// Bounded brightness breathing for Monolith Rain depth layers.
 #[must_use]
 pub(crate) fn monolith_breathing_factor(phase: f32, head: f32, layer: u8) -> f32 {
     let amplitude = match layer {
@@ -75,14 +69,12 @@ pub(crate) fn monolith_breathing_factor(phase: f32, head: f32, layer: u8) -> f32
     (1.0 + centered * amplitude).clamp(0.965, 1.035)
 }
 
-/// Bounded hero segment shimmer; keeps hero blocks alive without white spam.
 #[must_use]
 pub(crate) fn monolith_hero_pulse(phase: f32, segment_offset: u16, head_fraction: f32) -> f32 {
     let wave = triangle_wave01(phase * 0.5 + segment_offset as f32 * 0.073 + head_fraction * 0.5);
     (0.992 + wave * 0.053).clamp(0.992, 1.045)
 }
 
-/// Deterministic local spine cadence. Returns only short, sparse cadences.
 #[must_use]
 pub(crate) fn monolith_spine_cadence(phase: f32, layer: u8) -> u16 {
     3 + (((phase.clamp(0.0, 1.0) * 11.0) as u16 + layer as u16) & 1)
@@ -102,7 +94,6 @@ mod tests {
         assert_eq!(classify_frame_jitter(0.49), "low");
         assert_eq!(classify_frame_jitter(0.5), "medium");
         assert_eq!(classify_frame_jitter(2.0), "high");
-
         assert_eq!(classify_frame_time_stability(0.29), "excellent");
         assert_eq!(classify_frame_time_stability(0.3), "good");
         assert_eq!(classify_frame_time_stability(0.5), "moderate");
@@ -123,16 +114,13 @@ mod tests {
         let motion = monolith_motion_factor(0.37, 42.0);
         assert!((0.965..=1.035).contains(&motion));
         assert_eq!(motion, monolith_motion_factor(0.37, 42.0));
-
         for layer in 0..=3 {
             let breath = monolith_breathing_factor(0.11, 88.0, layer);
             assert!((0.965..=1.035).contains(&breath));
         }
-
         let hero = monolith_hero_pulse(0.61, 12, 0.42);
         assert!((0.992..=1.045).contains(&hero));
         assert_eq!(hero, monolith_hero_pulse(0.61, 12, 0.42));
-
         for layer in 0..=3 {
             let cadence = monolith_spine_cadence(0.29, layer);
             assert!((3..=4).contains(&cadence));

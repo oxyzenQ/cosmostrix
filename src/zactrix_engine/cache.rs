@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: MIT
 
-//! Bounded generation-aware cache policy for Cosmostrix v4.0.0.
+//! Bounded generation-aware cache policy for Cosmostrix.
 //!
 //! Zactrix Cache is an internal deterministic cache discipline. It provides
 //! bounded, generation-aware caching with explicit invalidation events.

@@ -67,7 +67,7 @@ fn source_contains_only_audited_platform_recovery_unsafe() {
     assert_eq!(main_rs.matches("unsafe {").count(), 1);
     assert!(main_rs.contains("SAFETY: this Linux-only guard"));
 
-    let zactrix_core = include_str!("zactrix_core.rs");
+    let zactrix_core = include_str!("zactrix_engine/core.rs");
     assert!(!zactrix_core.contains("unsafe {"));
 }
 
@@ -296,16 +296,16 @@ fn fixed_color_remains_sticky_by_default() {
 
 #[test]
 fn no_new_unsafe_in_zactrix_modules() {
-    let engine = include_str!("zactrix_engine.rs");
+    let engine = include_str!("zactrix_engine/scheduler.rs");
     assert!(
         !engine.contains("unsafe {"),
-        "zactrix_engine.rs must not contain unsafe"
+        "zactrix_engine/scheduler.rs must not contain unsafe"
     );
 
-    let cache = include_str!("zactrix_cache.rs");
+    let cache = include_str!("zactrix_engine/cache.rs");
     assert!(
         !cache.contains("unsafe {"),
-        "zactrix_cache.rs must not contain unsafe"
+        "zactrix_engine/cache.rs must not contain unsafe"
     );
 
     let atmosphere = include_str!("atmosphere.rs");
@@ -479,10 +479,35 @@ fn changelog_uses_568_not_570() {
 #[test]
 fn all_zactrix_files_under_1000_loc() {
     let files = [
-        ("zactrix_engine.rs", include_str!("zactrix_engine.rs")),
-        ("zactrix_cache.rs", include_str!("zactrix_cache.rs")),
+        (
+            "zactrix_engine/mod.rs",
+            include_str!("zactrix_engine/mod.rs"),
+        ),
+        (
+            "zactrix_engine/scheduler.rs",
+            include_str!("zactrix_engine/scheduler.rs"),
+        ),
+        (
+            "zactrix_engine/core.rs",
+            include_str!("zactrix_engine/core.rs"),
+        ),
+        (
+            "zactrix_engine/cache.rs",
+            include_str!("zactrix_engine/cache.rs"),
+        ),
+        (
+            "zactrix_engine/system.rs",
+            include_str!("zactrix_engine/system.rs"),
+        ),
+        (
+            "zactrix_engine/render.rs",
+            include_str!("zactrix_engine/render.rs"),
+        ),
+        (
+            "zactrix_engine/metrics.rs",
+            include_str!("zactrix_engine/metrics.rs"),
+        ),
         ("atmosphere.rs", include_str!("atmosphere.rs")),
-        ("zactrix_core.rs", include_str!("zactrix_core.rs")),
     ];
     for (name, content) in files {
         let lines = content.lines().count();
@@ -850,59 +875,119 @@ fn release_candidate_doc_mentions_auth_requirement() {
     );
 }
 
-// ── Phase 12.4: resource monitor script & endurance docs guard tests ──────
+// ── Phase 12.4: resource monitor & endurance guard tests ──────────────
 
 #[test]
-fn monitor_script_exists_and_has_spdx_mit_header() {
+fn monitor_script_has_spdx_and_is_executable() {
     let script = std::fs::read_to_string("scripts/monitor-cosmostrix.sh")
         .expect("monitor script must exist");
-    assert!(
-        script.contains("SPDX-License-Identifier: MIT"),
-        "monitor script must have SPDX MIT header"
-    );
-}
-
-#[test]
-fn monitor_script_is_executable() {
+    assert!(script.contains("SPDX-License-Identifier: MIT"));
     use std::os::unix::fs::PermissionsExt;
-    let meta =
-        std::fs::metadata("scripts/monitor-cosmostrix.sh").expect("monitor script must exist");
-    let mode = meta.permissions().mode();
-    assert!(mode & 0o111 != 0, "monitor script must be executable");
+    let mode = std::fs::metadata("scripts/monitor-cosmostrix.sh")
+        .unwrap()
+        .permissions()
+        .mode();
+    assert!(mode & 0o111 != 0);
 }
 
 #[test]
-fn endurance_docs_mention_monitor_script() {
+fn endurance_docs_mention_monitor_and_gitignored() {
     let docs = include_str!("../docs/ENDURANCE.md");
-    assert!(
-        docs.contains("scripts/monitor-cosmostrix.sh"),
-        "ENDURANCE.md must reference scripts/monitor-cosmostrix.sh"
-    );
-}
-
-#[test]
-fn endurance_docs_mention_csv_logs_are_gitignored() {
-    let docs = include_str!("../docs/ENDURANCE.md");
+    assert!(docs.contains("scripts/monitor-cosmostrix.sh"));
     let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("gitignored") && lower.contains("local artifact"),
-        "ENDURANCE.md must state CSV logs are gitignored/local artifacts"
-    );
+    assert!(lower.contains("gitignored") && lower.contains("local artifact"));
 }
 
 #[test]
 fn gitignore_contains_resource_log_rules() {
-    let gitignore = include_str!("../.gitignore");
+    let g = include_str!("../.gitignore");
     assert!(
-        gitignore.contains("/logs/"),
-        ".gitignore must ignore /logs/"
+        g.contains("/logs/") && g.contains("/benchmark/logs/") && g.contains("*-resource-*.csv")
     );
-    assert!(
-        gitignore.contains("/benchmark/logs/"),
-        ".gitignore must ignore /benchmark/logs/"
+}
+
+// ── Phase 12.5: v4.5.0 architecture split guard tests ───────────────────
+
+#[test]
+fn zactrix_engine_facade_reexports_compile() {
+    use crate::zactrix_engine::{
+        ComputeParallelism, CpuBudget, EngineMode, EnginePlan, EngineProbe, IdlePolicy, RenderPlan,
+        RuntimeMode, TerminalWriterPolicy, ZactrixSystemConfig,
+    };
+    let _mode: EngineMode = EngineMode::SingleCore;
+    let _plan: EnginePlan = EnginePlan::from_dimensions(80, 24);
+    let _config = ZactrixSystemConfig::default();
+    let _render: RenderPlan = RenderPlan::default();
+    let _policy: TerminalWriterPolicy = TerminalWriterPolicy::default();
+    let _runtime: RuntimeMode = RuntimeMode::default();
+    let _cpu: CpuBudget = CpuBudget::default();
+    let _idle: IdlePolicy = IdlePolicy::default();
+    let _compute: ComputeParallelism = ComputeParallelism::default();
+    let _probe = EngineProbe::from_dimensions(120, 40);
+    let _ = (
+        _mode, _plan, _config, _render, _policy, _runtime, _cpu, _idle, _compute, _probe,
     );
+}
+
+#[test]
+fn zactrix_engine_terminal_writer_label_is_single_owner() {
+    use crate::zactrix_engine::{EnginePlan, TerminalWriterPolicy};
+    let plan = EnginePlan::from_dimensions(80, 24);
+    assert_eq!(TerminalWriterPolicy::default().as_str(), "single-owner");
+    assert!(plan.terminal_writer_single_owner);
+}
+
+#[test]
+fn zactrix_engine_compute_parallelism_default_is_not_active() {
+    use crate::zactrix_engine::ComputeParallelism;
+    assert_ne!(ComputeParallelism::default(), ComputeParallelism::Active);
+}
+
+#[test]
+fn zactrix_engine_runtime_mode_labels_are_stable() {
+    use crate::zactrix_engine::RuntimeMode;
+    assert!(!RuntimeMode::Calm.as_str().is_empty());
+    assert!(!RuntimeMode::Normal.as_str().is_empty());
+    assert!(!RuntimeMode::Stress.as_str().is_empty());
+}
+
+#[test]
+fn zactrix_engine_cpu_budget_labels_are_stable() {
+    use crate::zactrix_engine::CpuBudget;
+    assert!(!CpuBudget::Low.as_str().is_empty());
+    assert!(!CpuBudget::Balanced.as_str().is_empty());
+    assert!(!CpuBudget::Stress.as_str().is_empty());
+}
+
+#[test]
+fn zactrix_engine_idle_policy_default_is_adaptive_sleep() {
+    use crate::zactrix_engine::IdlePolicy;
+    assert_eq!(IdlePolicy::default().as_str(), "adaptive-sleep");
+}
+
+#[test]
+fn zactrix_engine_render_plan_default_is_single_owner() {
+    use crate::zactrix_engine::RenderPlan;
+    let plan = RenderPlan::default();
+    assert_eq!(plan.writer_policy.as_str(), "single-owner");
+    assert!(!plan.compute_enabled);
+}
+
+#[test]
+fn zactrix_engine_docs_mention_parallel_compute_single_owner() {
+    let docs = include_str!("../docs/ZACTRIX_ENGINE.md");
+    let lower = docs.to_lowercase();
     assert!(
-        gitignore.contains("*-resource-*.csv"),
-        ".gitignore must ignore *-resource-*.csv"
+        lower.contains("parallel compute") && lower.contains("single-owner"),
+        "ZACTRIX_ENGINE.md must mention parallel compute + single-owner"
+    );
+}
+
+#[test]
+fn zactrix_engine_docs_say_no_real_parallel_terminal_writing() {
+    let docs = include_str!("../docs/ZACTRIX_ENGINE.md");
+    assert!(
+        docs.contains("never parallelize terminal writes"),
+        "ZACTRIX_ENGINE.md must say never parallelize terminal writes"
     );
 }
