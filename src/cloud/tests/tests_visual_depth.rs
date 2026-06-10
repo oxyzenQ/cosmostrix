@@ -209,6 +209,7 @@ fn hero_spine_trail_empty_space_have_distinct_brightness() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        pool_is_binary: false,
     };
 
     let ghost = crate::cloud::monolith::color_for_level(&ctx, 0, 1, 0, BrightnessLevel::Ghost, 1.0);
@@ -536,6 +537,7 @@ fn depth_lab_brightness_level_four_tier_hierarchy() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        pool_is_binary: false,
     };
 
     let ghost = crate::cloud::monolith::color_for_level(&ctx, 0, 1, 0, BrightnessLevel::Ghost, 1.0);
@@ -676,6 +678,7 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
             flash_col: u16::MAX,
             flash_line: u16::MAX,
             flash_time: None,
+            pool_is_binary: false,
         };
 
         let ghost =

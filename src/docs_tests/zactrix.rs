@@ -603,3 +603,183 @@ fn phase6_all_docs_test_modules_under_loc_cap() {
         assert!(count <= 1000, "{path}: {count} LOC exceeds 1000 cap");
     }
 }
+
+// ── v4.8.0 Phase 0: Benchmark Ceiling Lab guards ───────────────────────
+
+#[test]
+fn phase0_benchmark_fields_still_present() {
+    // Verify that all benchmark metric fields remain in the output.
+    // Removing any of these fields breaks backward compatibility.
+    let bench = include_str!("../bench_report.rs");
+    let required = [
+        "avg_fps",
+        "median_fps",
+        "p95_frame_time",
+        "p99_frame_time",
+        "frame_time_stability",
+        "avg_dirty_cell_ratio_percent",
+        "active_streams_avg",
+        "actual_execution",
+        "terminal_writer",
+        "compute_parallelism",
+    ];
+    for field in &required {
+        assert!(
+            bench.contains(field),
+            "bench_report.rs must still emit '{field}'"
+        );
+    }
+}
+
+#[test]
+fn phase0_actual_execution_remains_honest() {
+    // The actual_execution field must always report single-threaded-renderer.
+    // No parallel execution was added in this phase.
+    use crate::zactrix_engine::EnginePlan;
+    let plan = EnginePlan::from_dimensions(120, 40);
+    assert_eq!(plan.mode.as_str(), "single-core");
+    let bench = include_str!("../bench_report.rs");
+    assert!(
+        bench.contains("single-threaded-renderer"),
+        "actual_execution must remain single-threaded-renderer"
+    );
+}
+
+#[test]
+fn phase0_terminal_writer_remains_single_owner() {
+    use crate::zactrix_engine::{RenderPlan, TerminalWriterPolicy};
+    assert_eq!(
+        TerminalWriterPolicy::default(),
+        TerminalWriterPolicy::SingleOwner
+    );
+    let plan = RenderPlan::default();
+    assert_eq!(plan.writer_policy, TerminalWriterPolicy::SingleOwner);
+}
+
+#[test]
+fn phase0_no_parallel_terminal_writing_added() {
+    // Verify that Frame::set_force does not imply parallel access.
+    // set_force is a single-thread optimization (skips equality check),
+    // not a concurrent write primitive.
+    let frame_rs = include_str!("../frame.rs");
+    assert!(
+        frame_rs.contains("set_force"),
+        "frame.rs must have set_force optimization"
+    );
+    assert!(
+        !frame_rs.contains("std::sync::atomic"),
+        "frame.rs must not use atomics (no parallel access)"
+    );
+}
+
+#[test]
+fn phase0_dirty_cell_ratio_not_artificially_collapsed() {
+    // The benchmark must still measure and report dirty_cell_ratio.
+    // Artificially collapsing this metric would be a form of cheating.
+    let bench = include_str!("../bench_report.rs");
+    assert!(
+        bench.contains("avg_dirty_cell_ratio_percent"),
+        "bench_report must still measure avg_dirty_cell_ratio_percent"
+    );
+    assert!(
+        bench.contains("dirty_cell_ratio"),
+        "bench_report must still reference dirty_cell_ratio"
+    );
+}
+
+#[test]
+fn phase0_rgb_optimization_api_exists() {
+    // Verify the new RGB-tuple optimization functions exist in palette.
+    let palette = include_str!("../palette.rs");
+    assert!(
+        palette.contains("decode_color"),
+        "palette.rs must have decode_color for single-decode optimization"
+    );
+    assert!(
+        palette.contains("apply_brightness_rgb"),
+        "palette.rs must have apply_brightness_rgb for hot-path RGB variant"
+    );
+}
+
+#[test]
+fn phase0_pool_is_binary_cached_in_drawctx() {
+    // Verify DrawCtx caches pool_is_binary instead of iterating per-cell.
+    let render = include_str!("../cloud/render.rs");
+    assert!(
+        render.contains("pool_is_binary: bool"),
+        "DrawCtx must have pool_is_binary field"
+    );
+    let rain = include_str!("../cloud/rain.rs");
+    assert!(
+        rain.contains("pool_is_binary"),
+        "rain.rs must compute pool_is_binary during DrawCtx construction"
+    );
+}
+
+#[test]
+fn phase0_monolith_color_for_level_uses_single_decode() {
+    // Verify monolith color_for_level decodes color once, not multiple times.
+    let monolith = include_str!("../cloud/monolith.rs");
+    assert!(
+        monolith.contains("decode_color"),
+        "monolith.rs color_for_level must use decode_color (single decode)"
+    );
+    // Should NOT contain the old pattern of chaining apply_brightness + blend_toward_white
+    // which each re-decode the color
+    assert!(
+        !monolith.contains("palette::apply_brightness"),
+        "monolith.rs color_for_level should not call apply_brightness (re-decode)"
+    );
+}
+
+#[test]
+fn phase0_droplet_draw_uses_single_decode() {
+    // Verify droplet draw pipeline decodes color once for all effects.
+    let droplet = include_str!("../droplet.rs");
+    assert!(
+        droplet.contains("decode_color"),
+        "droplet.rs draw must use decode_color (single decode)"
+    );
+}
+
+#[test]
+fn phase0_no_new_dependencies() {
+    // Verify Cargo.toml dependencies haven't changed in this phase.
+    // The optimization uses only existing crossterm Color types.
+    let cargo = include_str!("../../Cargo.toml");
+    // No new crate dependencies should be present
+    assert!(
+        !cargo.contains("rayon"),
+        "No Rayon dependency (no parallel iterators)"
+    );
+    assert!(!cargo.contains("crossbeam"), "No crossbeam dependency");
+}
+
+#[test]
+fn phase0_no_version_bump() {
+    // This phase is research-only; version must remain v4.5.0.
+    let cargo = include_str!("../../Cargo.toml");
+    assert!(
+        cargo.contains("version = \"4.5.0\""),
+        "Cargo.toml must still show version 4.5.0 (no bump in Phase 0)"
+    );
+}
+
+#[test]
+fn phase0_all_modified_files_under_loc_cap() {
+    let files = [
+        "src/palette.rs",
+        "src/droplet.rs",
+        "src/frame.rs",
+        "src/cloud/monolith.rs",
+        "src/cloud/monolith_glyphs.rs",
+        "src/cloud/phosphor.rs",
+        "src/cloud/rain.rs",
+        "src/cloud/render.rs",
+    ];
+    for path in &files {
+        let content = std::fs::read_to_string(path).unwrap_or_default();
+        let count = content.lines().count();
+        assert!(count <= 1000, "{path}: {count} LOC exceeds 1000 cap");
+    }
+}

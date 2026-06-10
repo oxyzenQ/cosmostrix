@@ -67,6 +67,9 @@ pub struct DrawCtx<'a> {
     pub flash_line: u16,
     /// Flash effect start time (None if no active flash).
     pub flash_time: Option<Instant>,
+    /// Cached result of pool_is_binary check, computed once per DrawCtx
+    /// construction to avoid per-cell iteration of the char pool.
+    pub pool_is_binary: bool,
 }
 
 impl DrawCtx<'_> {

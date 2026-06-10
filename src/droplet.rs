@@ -31,6 +31,8 @@
 
 use std::time::{Duration, Instant};
 
+use crossterm::style::Color;
+
 use crate::cloud::{CharLoc, DrawCtx};
 use crate::constants::{
     ADVANCE_REMAINDER_CAP, DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT,
@@ -441,8 +443,10 @@ impl Droplet {
             let is_new_generation =
                 self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
 
-            let fg = fg.map(|c| {
-                let mut c = c;
+            let fg = fg.and_then(|c| {
+                // Decode color to RGB once; chain all effects on raw tuples.
+                // This eliminates 3-10 color_to_rgb() calls per cell.
+                let (mut r, mut g, mut b) = palette::decode_color(c)?;
 
                 // Transition energy: new-palette streams glow brighter when fresh
                 if is_new_generation {
@@ -450,23 +454,22 @@ impl Droplet {
                         let age = now.saturating_duration_since(birth).as_secs_f32();
                         if age < TRANSITION_ENERGY_DURATION_SECS {
                             let t = 1.0 - (age / TRANSITION_ENERGY_DURATION_SECS);
-                            c = palette::blend_toward_white(
-                                c,
-                                t * TRANSITION_ENERGY_SATURATION_BOOST,
-                            );
+                            let factor = t * TRANSITION_ENERGY_SATURATION_BOOST;
+                            let wf = (factor * 256.0) as i32;
+                            r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255)
+                                as u8;
+                            g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255)
+                                as u8;
+                            b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255)
+                                as u8;
                         }
                     }
                 }
 
                 // Head bloom: exponential gaussian falloff for natural glow.
-                // New-generation streams get enhanced bloom for energetic leading edge.
-                // Fractional bloom modulation: bloom intensifies as the head
-                // approaches its next row advance, creating a per-frame pulse
-                // that makes the leading edge feel alive even between row steps.
                 if matches!(loc, CharLoc::Middle) {
                     let dist_from_head = self.head_put_line.saturating_sub(line);
                     if dist_from_head > 0 && dist_from_head < HEAD_BLOOM_CELLS {
-                        // Gaussian: intensity × e^(-d²/2σ²) — softer center, faster edge falloff
                         let d = dist_from_head as f32;
                         let gaussian = (-d * d / (2.0 * HEAD_BLOOM_SIGMA * HEAD_BLOOM_SIGMA)).exp();
                         let bloom = if is_new_generation {
@@ -474,24 +477,24 @@ impl Droplet {
                         } else {
                             HEAD_BLOOM_INTENSITY
                         };
-                        // Fractional bloom: as the head approaches the next row,
-                        // bloom subtly intensifies. This creates visible per-frame
-                        // change in the cells immediately behind the head.
                         let frac_bloom = 1.0 + self.fractional_progress() * FRACTIONAL_BLOOM_AMP;
-                        c = palette::blend_toward_white(c, gaussian * bloom * frac_bloom);
+                        let factor = gaussian * bloom * frac_bloom;
+                        let wf = (factor * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                     }
                 }
 
-                // Parallax layer brightness
+                // Parallax layer brightness + glyph dim: combine into one multiply
                 let layer_brightness = PARALLAX_BRIGHTNESS_MULT[self.layer as usize];
-                if layer_brightness < 1.0 {
-                    c = palette::apply_brightness(c, layer_brightness);
-                }
-
-                // Atmospheric depth: per-layer glyph dimming (far layer = simpler glyphs)
                 let glyph_dim = PARALLAX_GLYPH_DIM[self.layer as usize];
-                if glyph_dim < 1.0 {
-                    c = palette::apply_brightness(c, glyph_dim);
+                let combined_layer = layer_brightness * glyph_dim;
+                if combined_layer < 1.0 {
+                    let fi = (combined_layer * 256.0) as i32;
+                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
                 // Depth fog: dim top and bottom rows
@@ -507,7 +510,10 @@ impl Droplet {
                     }
                 };
                 if fog_factor < 1.0 {
-                    c = palette::apply_brightness(c, fog_factor);
+                    let fi = (fog_factor * 256.0) as i32;
+                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
                 // Cursor glow: cells near mouse cursor get brighter (elliptical falloff)
@@ -527,7 +533,10 @@ impl Droplet {
                     let dist_sq = norm_col * norm_col + norm_line * norm_line;
                     if dist_sq < 1.0 {
                         let glow = (1.0 - dist_sq) * MOUSE_GLOW_INTENSITY;
-                        c = palette::blend_toward_white(c, glow);
+                        let wf = (glow * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                     }
                 }
 
@@ -551,37 +560,36 @@ impl Droplet {
                         if ring_dist < MOUSE_FLASH_RING_WIDTH {
                             let t = 1.0 - ring_dist / MOUSE_FLASH_RING_WIDTH;
                             let fade = 1.0 - elapsed / MOUSE_FLASH_DURATION_SECS;
-                            c = palette::blend_toward_white(c, t * MOUSE_FLASH_INTENSITY * fade);
+                            let factor = t * MOUSE_FLASH_INTENSITY * fade;
+                            let wf = (factor * 256.0) as i32;
+                            r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255)
+                                as u8;
+                            g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255)
+                                as u8;
+                            b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255)
+                                as u8;
                         }
                     }
                 }
 
-                // Head brightness modulation: smoothly fade the head cell's
-                // brightness after it stops (exponential decay). While crawling,
-                // the fractional progress ramp already makes the head brighter
-                // via head_brightness(); here we apply a smooth mapping that
-                // keeps the head more prominent during decay. The mapping
-                // 0.7 + 0.3*hb preserves 70% base brightness even at hb=0,
-                // preventing the abrupt head disappearance that occurred with
-                // the old 0.5+0.5*hb mapping (which dropped to 50% immediately
-                // after the head stopped, making it indistinguishable from body).
+                // Head brightness modulation
                 if matches!(loc, CharLoc::Head) && head_bright < 1.0 {
-                    c = palette::apply_brightness(c, 0.7 + 0.3 * head_bright);
+                    let factor = 0.7 + 0.3 * head_bright;
+                    let fi = (factor * 256.0) as i32;
+                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
-                // Head self-bloom: the head cell itself gets a subtle white
-                // blend to make it glow slightly beyond its palette's brightest
-                // color. This creates the visual impression that the head is
-                // luminous and energetic — the key to making the head > body
-                // hierarchy instantly obvious. Without this, the head only has
-                // its palette color (which for Green is ANSI 159 = cyan-white)
-                // and no additional luminance to distinguish it from the bright
-                // body cells near it.
+                // Head self-bloom: 12% white blend toward white
                 if matches!(loc, CharLoc::Head) {
-                    c = palette::blend_toward_white(c, 0.12);
+                    const HEAD_WF: i32 = 31; // 0.12 * 256 ≈ 31
+                    r = (r as i32 + ((255 - r as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
+                    g = (g as i32 + ((255 - g as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
+                    b = (b as i32 + ((255 - b as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
                 }
 
-                c
+                Some(Color::Rgb { r, g, b })
             });
 
             // Final viewport edge fade: applied AFTER all other visual
@@ -598,7 +606,8 @@ impl Droplet {
             let edge_fade = viewport_edge_fade(line, ctx.lines);
             let fg = fg.map(|c| {
                 if edge_fade < 1.0 {
-                    palette::apply_brightness(c, edge_fade)
+                    let (r, g, b) = palette::decode_color(c).unwrap_or((0, 0, 0));
+                    palette::apply_brightness_rgb(r, g, b, edge_fade)
                 } else {
                     c
                 }

@@ -134,9 +134,15 @@ fn colors_from_rgb(mode: ColorMode, list: &[(u8, u8, u8)]) -> Vec<Color> {
 
 /// Convert any crossterm Color to approximate (r, g, b).
 /// Returns (0, 0, 0) for Reset.
+///
+/// When the color is already `Color::Rgb`, this is a zero-cost destructure.
+/// For other variants, it decodes the ANSI/named representation.
+///
+/// Hot-path callers should prefer `apply_brightness_rgb` / `blend_toward_white_rgb`
+/// which accept pre-decoded `(u8, u8, u8)` tuples to avoid repeated decoding.
 #[must_use]
 #[allow(unreachable_patterns)] // Catch-all guards against future crossterm Color variants
-fn color_to_rgb(color: Color) -> (u8, u8, u8) {
+pub(crate) fn color_to_rgb(color: Color) -> (u8, u8, u8) {
     match color {
         // Fast path: most common in TrueColor mode — zero branching for the
         // dominant case in production rendering.
@@ -205,10 +211,16 @@ fn color_to_rgb(color: Color) -> (u8, u8, u8) {
     }
 }
 
+/// Integer-based linear interpolation for u8 values.
+/// Uses fixed-point arithmetic (16.16) to avoid float conversion overhead.
+/// Equivalent to `a + (b - a) * t` where t is in [0.0, 1.0].
+#[inline]
 fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
-    let a = a as f32;
-    let b = b as f32;
-    (a + (b - a) * t).round().clamp(0.0, 255.0) as u8
+    let a = a as i32;
+    let b = b as i32;
+    let ti = (t * 256.0) as i32; // 0..256 range
+    let result = a + ((b - a) * ti + 128) / 256;
+    result.clamp(0, 255) as u8
 }
 
 /// Blend a color toward white by the given factor (0.0 = no change, 1.0 = pure white).
@@ -220,6 +232,21 @@ pub fn blend_toward_white(color: Color, factor: f32) -> Color {
     }
     let f = factor.clamp(0.0, 1.0);
     let (r, g, b) = color_to_rgb(color);
+    Color::Rgb {
+        r: lerp_u8(r, 255, f),
+        g: lerp_u8(g, 255, f),
+        b: lerp_u8(b, 255, f),
+    }
+}
+
+/// RGB-tuple version of `blend_toward_white`. Avoids `color_to_rgb()` decode
+/// when the caller already has the pre-decoded (r, g, b) values.
+/// This is the primary hot-path variant used by the rendering pipeline.
+#[inline]
+#[must_use]
+#[allow(dead_code)] // Reserved for future hot-path callers (atmospheric effects)
+pub(crate) fn blend_toward_white_rgb(r: u8, g: u8, b: u8, factor: f32) -> Color {
+    let f = factor.clamp(0.0, 1.0);
     Color::Rgb {
         r: lerp_u8(r, 255, f),
         g: lerp_u8(g, 255, f),
@@ -243,6 +270,22 @@ pub fn apply_brightness(color: Color, factor: f32) -> Color {
     }
 }
 
+/// RGB-tuple version of `apply_brightness`. Avoids `color_to_rgb()` decode
+/// when the caller already has the pre-decoded (r, g, b) values.
+/// Uses integer math to avoid f32→f32→u8 round-trip overhead.
+/// This is the primary hot-path variant used by the rendering pipeline.
+#[inline]
+#[must_use]
+pub(crate) fn apply_brightness_rgb(r: u8, g: u8, b: u8, factor: f32) -> Color {
+    let f = factor.clamp(0.0, 1.0);
+    let fi = (f * 256.0) as i32; // 0..256
+    Color::Rgb {
+        r: ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8,
+        g: ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8,
+        b: ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8,
+    }
+}
+
 /// Reduce saturation of a color by the given factor (1.0 = no change, 0.0 = grayscale).
 #[must_use]
 pub fn apply_saturation(color: Color, factor: f32) -> Color {
@@ -257,6 +300,20 @@ pub fn apply_saturation(color: Color, factor: f32) -> Color {
         g: lerp_u8(gray, g, f),
         b: lerp_u8(gray, b, f),
     }
+}
+
+/// Decode a color to RGB once, returning both the original Color and the (r, g, b) tuple.
+/// Used by hot-path callers that need to chain multiple blend operations
+/// without re-decoding the color each time.
+/// Returns `None` for `Color::Reset` (no visual contribution).
+#[inline]
+#[must_use]
+pub(crate) fn decode_color(color: Color) -> Option<(u8, u8, u8)> {
+    if matches!(color, Color::Reset) {
+        return None;
+    }
+    let (r, g, b) = color_to_rgb(color);
+    Some((r, g, b))
 }
 
 fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {

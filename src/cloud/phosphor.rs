@@ -247,7 +247,11 @@ impl Cloud {
                     self.phosphor_base_ch[pidx] = '\0';
                     if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                         let factor = self.phosphor[pidx] as f32 / 255.0;
-                        let ghost_fg = palette::apply_brightness(base_fg, factor);
+                        let ghost_fg = if let Some((r, g, b)) = palette::decode_color(base_fg) {
+                            palette::apply_brightness_rgb(r, g, b, factor)
+                        } else {
+                            base_fg
+                        };
                         frame.set(
                             col,
                             line,
@@ -264,15 +268,14 @@ impl Cloud {
                     // needed since a blank space on dark bg is indistinguishable.
                 } else if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                     // High-energy ghost cell: render with the original character
-                    // at dimmed brightness. Using the actual character (not a
-                    // space) makes trail afterglow look like fading text — this
-                    // is critical for perceived smoothness because the character
-                    // texture makes the per-frame brightness decay visible,
-                    // whereas a dim space only shows color change which is hard
-                    // to perceive. Only rendered when energy >= GLYPH_THRESHOLD
-                    // to prevent stale background charset fill.
+                    // at dimmed brightness. Optimized: decode color to RGB once
+                    // instead of calling apply_brightness which re-decodes.
                     let factor = self.phosphor[pidx] as f32 / 255.0;
-                    let ghost_fg = palette::apply_brightness(base_fg, factor);
+                    let ghost_fg = if let Some((r, g, b)) = palette::decode_color(base_fg) {
+                        palette::apply_brightness_rgb(r, g, b, factor)
+                    } else {
+                        base_fg
+                    };
                     let ghost_ch = self.phosphor_base_ch[pidx];
                     frame.set(
                         col,
@@ -285,20 +288,16 @@ impl Cloud {
                         },
                     );
                 } else if self.phosphor_base_ch[pidx] != '\0' {
-                    // Mono mode: no base_fg (ColorMode::Mono), but we have a
-                    // tracked character with high energy. Render the ghost cell
-                    // with the original glyph at dimmed brightness using the
-                    // palette's dim color. Only rendered when energy >=
-                    // GLYPH_THRESHOLD to prevent stale background charset fill.
+                    // Mono mode ghost: decode palette color once for RGB variant.
                     let factor = self.phosphor[pidx] as f32 / 255.0;
                     let ghost_ch = self.phosphor_base_ch[pidx];
-                    // Use the palette's darkest non-background color for the ghost
-                    let ghost_fg = self
-                        .palette
-                        .colors
-                        .first()
-                        .copied()
-                        .map(|c| palette::apply_brightness(c, factor * 0.6));
+                    let ghost_fg = self.palette.colors.first().copied().map(|c| {
+                        if let Some((r, g, b)) = palette::decode_color(c) {
+                            palette::apply_brightness_rgb(r, g, b, factor * 0.6)
+                        } else {
+                            c
+                        }
+                    });
                     frame.set(
                         col,
                         line,
