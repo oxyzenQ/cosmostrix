@@ -28,4 +28,5 @@ other ai/
 
 # log monitor
 /logs/
-cosmostrix-resource-*.csv
+/benchmark/logs/
+*-resource-*.csv

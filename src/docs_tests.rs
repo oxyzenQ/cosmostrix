@@ -849,3 +849,60 @@ fn release_candidate_doc_mentions_auth_requirement() {
         "RELEASE_CANDIDATE.md must document the release workflow authentication requirement"
     );
 }
+
+// ── Phase 12.4: resource monitor script & endurance docs guard tests ──────
+
+#[test]
+fn monitor_script_exists_and_has_spdx_mit_header() {
+    let script = std::fs::read_to_string("scripts/monitor-cosmostrix.sh")
+        .expect("monitor script must exist");
+    assert!(
+        script.contains("SPDX-License-Identifier: MIT"),
+        "monitor script must have SPDX MIT header"
+    );
+}
+
+#[test]
+fn monitor_script_is_executable() {
+    use std::os::unix::fs::PermissionsExt;
+    let meta =
+        std::fs::metadata("scripts/monitor-cosmostrix.sh").expect("monitor script must exist");
+    let mode = meta.permissions().mode();
+    assert!(mode & 0o111 != 0, "monitor script must be executable");
+}
+
+#[test]
+fn endurance_docs_mention_monitor_script() {
+    let docs = include_str!("../docs/ENDURANCE.md");
+    assert!(
+        docs.contains("scripts/monitor-cosmostrix.sh"),
+        "ENDURANCE.md must reference scripts/monitor-cosmostrix.sh"
+    );
+}
+
+#[test]
+fn endurance_docs_mention_csv_logs_are_gitignored() {
+    let docs = include_str!("../docs/ENDURANCE.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("gitignored") && lower.contains("local artifact"),
+        "ENDURANCE.md must state CSV logs are gitignored/local artifacts"
+    );
+}
+
+#[test]
+fn gitignore_contains_resource_log_rules() {
+    let gitignore = include_str!("../.gitignore");
+    assert!(
+        gitignore.contains("/logs/"),
+        ".gitignore must ignore /logs/"
+    );
+    assert!(
+        gitignore.contains("/benchmark/logs/"),
+        ".gitignore must ignore /benchmark/logs/"
+    );
+    assert!(
+        gitignore.contains("*-resource-*.csv"),
+        ".gitignore must ignore *-resource-*.csv"
+    );
+}

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: MIT
 set -u
 set -o pipefail
 
@@ -20,7 +21,8 @@ resolve_pid() {
     return
   fi
 
-  pgrep -xo "$target" 2>/dev/null || pidof "$target" 2>/dev/null | awk '{print $1}'
+  # Prefer newest matching process; fall back to oldest via pidof.
+  pgrep -xn "$target" 2>/dev/null || pidof "$target" 2>/dev/null | awk '{print $NF}'
 }
 
 PID="$(resolve_pid "$TARGET")"

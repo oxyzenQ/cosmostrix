@@ -10,13 +10,18 @@ leaks, or crashes.
 ## Test methodology
 
 A Cosmostrix binary is launched in headless mode with a configurable duration
-cap. A lightweight sampling script reads `/proc/<pid>/status`,
-`/proc/<pid>/stat`, `/proc/<pid>/statm`, `/proc/<pid>/fd`, and
-`/proc/<pid>/io` at regular intervals and appends a single CSV row per sample.
+cap. The official sampling script `scripts/monitor-cosmostrix.sh` reads
+`/proc/<pid>/status`, `/proc/<pid>/stat`, `/proc/<pid>/smaps_rollup`,
+`/proc/<pid>/fd`, `/proc/<pid>/io`, and `/proc/stat` at regular intervals
+and appends a single CSV row per sample.
 
-Store endurance logs outside the repository root when practical, for example
-`../logs/cosmostrix-resource-YYYYMMDD-HHMM.csv`. Keeping logs in a sibling
-`logs/` directory avoids mixing large runtime artifacts with source files.
+### Important: CSV logs are local artifacts
+
+Raw CSV resource logs are **intentionally gitignored**. The repository
+`.gitignore` excludes `/logs/`, `/benchmark/logs/`, and the pattern
+`*-resource-*.csv`. These files are local diagnostic artifacts and must
+never be committed. Store them in `logs/` (the script default) or any
+convenient location outside the repository.
 
 ### Resource log format (CSV)
 
@@ -62,8 +67,8 @@ The script auto-detects the format based on the presence of extended columns
 
 ### Sampling interval
 
-The default interval is 60 seconds. For shorter test runs (e.g. 1-hour
-smoke tests) a 10-second interval provides higher resolution.
+The recommended interval is 60 seconds (`INTERVAL=60`). For shorter test runs
+(e.g. 1-hour smoke tests) a 10-second interval provides higher resolution.
 
 ### How to run
 
@@ -80,57 +85,24 @@ cargo build --release
 COSMO_PID=$!
 ```
 
-3. Start sampling (run from a separate terminal or via nohup):
+3. Start the monitor script (run from a separate terminal or via nohup):
 
 ```bash
-CSV_PATH="endurance-24h.csv"
+# Monitor by process name (resolves newest matching PID automatically)
+bash scripts/monitor-cosmostrix.sh cosmostrix
 
-# Write extended CSV header
-echo "timestamp,pid,elapsed_sec,cpu_pct,rss_kb,hwm_kb,vmsize_kb,rssanon_kb,rssfile_kb,pss_kb,swap_kb,threads,fd_count,minflt,majflt,voluntary_ctxt,nonvoluntary_ctxt,read_bytes,write_bytes" > "$CSV_PATH"
+# Or monitor by explicit PID
+bash scripts/monitor-cosmostrix.sh $COSMO_PID
 
-START_TS=$(date +%s)
+# Custom interval (default is 60 seconds)
+INTERVAL=10 bash scripts/monitor-cosmostrix.sh cosmostrix
 
-while kill -0 "$COSMO_PID" 2>/dev/null; do
-  NOW_TS=$(date +%s)
-  ELAPSED=$(( NOW_TS - START_TS ))
-
-  # Read /proc fields
-  RSS=$(awk '/^VmRSS:/ {print $2}' "/proc/$COSMO_PID/status")
-  HWM=$(awk '/^VmHWM:/ {print $2}' "/proc/$COSMO_PID/status")
-  VMSIZE=$(awk '/^VmSize:/ {print $2}' "/proc/$COSMO_PID/status")
-  RSSANON=$(awk '/^RssAnon:/ {print $2}' "/proc/$COSMO_PID/status")
-  RSSFILE=$(awk '/^RssFile:/ {print $2}' "/proc/$COSMO_PID/status")
-  VMSWAP=$(awk '/^VmSwap:/ {print $2}' "/proc/$COSMO_PID/status")
-  THREADS=$(awk '/^Threads:/ {print $2}' "/proc/$COSMO_PID/status")
-
-  # PSS from statm (field 3, in pages; page size typically 4096)
-  PSS_PAGES=$(awk '{print $3}' "/proc/$COSMO_PID/statm")
-  PSS=$(( PSS_PAGES * 4 ))  # kB (assuming 4 kB pages)
-
-  # CPU and faults from stat
-  STAT_DATA=$(cat "/proc/$COSMO_PID/stat")
-  MINFLT=$(echo "$STAT_DATA" | awk '{print $10}')
-  MAJFLT=$(echo "$STAT_DATA" | awk '{print $12}')
-  VCTX=$(echo "$STAT_DATA" | awk '{print $44}')
-  NVCTX=$(echo "$STAT_DATA" | awk '{print $45}')
-  UTIME=$(echo "$STAT_DATA" | awk '{print $14}')
-  STIME=$(echo "$STAT_DATA" | awk '{print $15}')
-  # CPU pct = (utime+stime) / elapsed_ticks * 100; use jiffies (typically 100 Hz)
-  CLOCKS=$(getconf CLK_TCK 2>/dev/null || echo 100)
-  CPU_PCT=$(awk "BEGIN { printf \"%.2f\", ($UTIME + $STIME) / ($CLOCKS * $ELAPSED) * 100 }")
-
-  FD_COUNT=$(ls "/proc/$COSMO_PID/fd" 2>/dev/null | wc -l)
-
-  # I/O from /proc/<pid>/io
-  IO_DATA=$(cat "/proc/$COSMO_PID/io" 2>/dev/null || echo "read_bytes: 0 write_bytes: 0")
-  READ_BYTES=$(echo "$IO_DATA" | awk '/^read_bytes:/ {print $2}')
-  WRITE_BYTES=$(echo "$IO_DATA" | awk '/^write_bytes:/ {print $2}')
-
-  echo "$(date -Iseconds),$COSMO_PID,$ELAPSED,$CPU_PCT,$RSS,$HWM,$VMSIZE,$RSSANON,$RSSFILE,$PSS,$VMSWAP,$THREADS,$FD_COUNT,$MINFLT,$MAJFLT,$VCTX,$NVCTX,$READ_BYTES,$WRITE_BYTES" >> "$CSV_PATH"
-
-  sleep 60
-done
+# Custom output directory (default is logs/)
+OUT_DIR=../logs bash scripts/monitor-cosmostrix.sh cosmostrix
 ```
+
+The script writes a CSV file to `logs/<name>-resource-<pid>-<timestamp>.csv`
+by default. It exits automatically when the target process terminates.
 
 4. After the run, analyze with the summary script:
 
@@ -151,26 +123,20 @@ For faster iteration, use a 1-hour run with 10-second sampling:
 
 ```bash
 ./target/release/cosmostrix --duration 3600 &
-COSMO_PID=$!
-
-SAMPLE_INTERVAL=10
-CSV_PATH="endurance-1h.csv"
-echo "timestamp,pid,elapsed_sec,cpu_pct,rss_kb,hwm_kb,vmsize_kb,rssanon_kb,rssfile_kb,pss_kb,swap_kb,threads,fd_count,minflt,majflt,voluntary_ctxt,nonvoluntary_ctxt,read_bytes,write_bytes" > "$CSV_PATH"
-
-START_TS=$(date +%s)
-
-while kill -0 "$COSMO_PID" 2>/dev/null; do
-  NOW_TS=$(date +%s)
-  ELAPSED=$(( NOW_TS - START_TS ))
-  RSS=$(awk '/^VmRSS:/ {print $2}' "/proc/$COSMO_PID/status")
-  FD_COUNT=$(ls "/proc/$COSMO_PID/fd" 2>/dev/null | wc -l)
-  THREADS=$(awk '/^Threads:/ {print $2}' "/proc/$COSMO_PID/status")
-  VMSWAP=$(awk '/^VmSwap:/ {print $2}' "/proc/$COSMO_PID/status")
-
-  echo "$(date -Iseconds),$COSMO_PID,$ELAPSED,0.00,$RSS,$RSS,0,0,$RSS,0,$VMSWAP,$THREADS,$FD_COUNT,0,0,0,0,0,0" >> "$CSV_PATH"
-  sleep "$SAMPLE_INTERVAL"
-done
+INTERVAL=10 bash scripts/monitor-cosmostrix.sh cosmostrix
 ```
+
+### Process resolution
+
+The monitor script accepts either a PID or a process name as its argument:
+
+- **PID**: If the argument is a numeric string, the script uses it directly
+  after verifying that `/proc/<pid>` exists.
+- **Process name**: If the argument is a name, the script calls `pgrep -xn`
+  to find the newest matching process. If `pgrep` fails, it falls back to
+  `pidof` and selects the last PID reported.
+
+If no argument is given, the default target is `cosmostrix`.
 
 ## Acceptance criteria
 
@@ -275,8 +241,51 @@ errors and should be fixed rather than ignored.
 
 ## Past results
 
-Template for recording actual endurance run results. Copy this section and
-fill in after each run.
+### Run — v4.0.1 — 2026-06-11 — linux-x86_64-v3
+
+| Item | Value |
+|---|---|
+| Cosmostrix version | 4.0.1 |
+| Build profile | release (linux-x86_64-v3) |
+| Duration target | ~2h |
+| Actual duration | ~1h45m |
+| Sampling interval | 60s |
+| Terminal size | default |
+| Color mode | default |
+| OS / kernel | Linux |
+| CPU | — |
+| Exit code | 0 |
+
+**Results:**
+
+| Metric | Value | Pass? |
+|---|---|---|
+| Start RSS | ~4.3 MiB | — |
+| End RSS | ~4.3 MiB | — |
+| Max RSS | ~4.3 MiB | — |
+| HWM | ~4.3 MiB | — |
+| RSS growth % | ~0% | PASS |
+| PSS max | — | — |
+| Swap max | 0 kB | PASS |
+| Start FD count | 10 | — |
+| End FD count | 10 | — |
+| FD leak detected | no | PASS |
+| Threads | 4 stable | — |
+| CPU avg | ~0.82% | — |
+| Major faults delta | 0 | — |
+| Disk I/O | 0 read / 0 write | — |
+| Crashes / panics | no | PASS |
+
+**Notes:**
+
+RSS remained flat at ~4.3 MiB for the entire run. FD count held at 10,
+threads at 4, swap at 0, major faults at 0, and disk I/O at zero. CPU
+averaged ~0.82% which is typical idle behavior for a terminal screensaver
+waiting on vsync. No anomalies observed.
+
+---
+
+Template for recording future endurance run results:
 
 ### Run — [version] — [date] — [platform]
 
