@@ -755,16 +755,36 @@ pub(super) fn color_for_level(
         // Core: unchanged — always the brightest
         BrightnessLevel::Core => last,
     };
-    let mut color = colors[idx];
+    let base_color = colors[idx];
     let factor = factor.max(0.0);
-    color = palette::apply_brightness(color, factor.min(1.0));
+
+    // Optimized hot path: decode color to RGB once, then chain all
+    // blend operations on the raw (r, g, b) tuple without re-decoding.
+    // This eliminates 2-4 color_to_rgb() calls per cell per frame.
+    let (mut r, mut g, mut b) = palette::decode_color(base_color)?;
+
+    if factor < 1.0 {
+        let fi = (factor * 256.0) as i32;
+        r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+        g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+        b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+    }
     if factor > 1.0 {
-        color = palette::blend_toward_white(color, (factor - 1.0).min(0.12));
+        let white_factor = (factor - 1.0).min(0.12);
+        let wf = (white_factor * 256.0) as i32;
+        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
     }
     if matches!(level, BrightnessLevel::Core) {
-        color = palette::blend_toward_white(color, 0.10);
+        // Core gets an additional 10% white blend
+        const CORE_WF: i32 = 26; // 0.10 * 256 ≈ 26
+        r = (r as i32 + ((255 - r as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
+        g = (g as i32 + ((255 - g as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
+        b = (b as i32 + ((255 - b as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
     }
-    Some(color)
+
+    Some(Color::Rgb { r, g, b })
 }
 
 fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, col: u16) -> bool {
@@ -788,7 +808,9 @@ fn layer_brightness(layer: u8) -> f32 {
 
 fn clear_cell(frame: &mut Frame, cleanup: &mut MonolithCleanup<'_>, col: u16, line: u16) {
     clear_phosphor_metadata(cleanup, col, line);
-    frame.set(col, line, blank_cell(cleanup.bg));
+    // Use set_force: previous_cells are known-drawn from the last frame,
+    // so the equality check in set() is almost always wasted work.
+    frame.set_force(col, line, blank_cell(cleanup.bg));
 }
 
 fn clear_phosphor_metadata(cleanup: &mut MonolithCleanup<'_>, col: u16, line: u16) {

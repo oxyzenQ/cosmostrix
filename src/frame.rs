@@ -204,6 +204,25 @@ impl Frame {
             }
         }
     }
+
+    /// Force-set a cell without equality comparison.
+    /// Used when the caller knows the cell content has changed
+    /// (e.g., monolith previous_cell cleanup clearing known-drawn cells).
+    /// Skips the 24-byte Cell equality check, saving ~10-15ns per call
+    /// in the monolith render hot path.
+    #[inline]
+    pub fn set_force(&mut self, x: u16, y: u16, cell: Cell) {
+        if let Some(i) = self.index(x, y) {
+            self.cells[i] = cell;
+            if let Some(v) = self.cell_gen.get_mut(i) {
+                *v = self.gen;
+            }
+            if !self.dirty_all && self.dirty_map.get(i).map_or(true, |b| !*b) {
+                self.dirty_map.set(i, true);
+                self.dirty.push(i);
+            }
+        }
+    }
 }
 
 #[cfg(test)]

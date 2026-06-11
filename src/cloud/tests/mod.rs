@@ -202,6 +202,7 @@ fn charset_wave_uses_old_rows_below_and_new_rows_above() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        pool_is_binary: false,
     };
 
     assert_eq!(ctx.get_char(1, 0, 0), 'B');
@@ -413,6 +414,7 @@ fn color_uses_previous_palette_below_wave_line() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        pool_is_binary: false,
     };
 
     // Row 0 (above wave): droplet with old palette should NOT use previous

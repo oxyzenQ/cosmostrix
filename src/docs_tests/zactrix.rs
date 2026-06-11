@@ -817,3 +817,40 @@ fn v46p2_expansion_doc_no_color_change_no_terminal_effects() {
         "ATMOSPHERE_EXPANSION.md must state no terminal effects by presets"
     );
 }
+
+// ── v4.8.0 Phase 2A: Color pipeline optimization guards ─────────────────
+
+#[test]
+fn v48_phase2a_rgb_optimization_api_exists() {
+    let palette = include_str!("../palette.rs");
+    assert!(
+        palette.contains("decode_color"),
+        "palette.rs must have decode_color for single-decode optimization"
+    );
+    assert!(
+        palette.contains("apply_brightness_rgb"),
+        "palette.rs must have apply_brightness_rgb for hot-path RGB variant"
+    );
+}
+
+#[test]
+fn v48_phase2a_set_force_is_single_threaded() {
+    let frame_rs = include_str!("../frame.rs");
+    assert!(
+        frame_rs.contains("set_force"),
+        "frame.rs must have set_force optimization"
+    );
+    assert!(
+        !frame_rs.contains("std::sync::atomic"),
+        "frame.rs must not use atomics (no parallel access)"
+    );
+}
+
+#[test]
+fn v48_phase2a_pool_is_binary_cached_in_drawctx() {
+    let render = include_str!("../cloud/render.rs");
+    assert!(
+        render.contains("pool_is_binary: bool"),
+        "DrawCtx must have pool_is_binary field"
+    );
+}

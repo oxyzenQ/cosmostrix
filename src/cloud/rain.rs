@@ -268,6 +268,15 @@ impl Cloud {
 
         // Draw pass (split-borrows via DrawCtx)
         let draw_everything = force_draw_everything || time_for_glitch;
+        // Pre-compute pool_is_binary once per frame instead of per-cell.
+        let active_pool = if self.char_pool.is_empty() {
+            &self.previous_char_pool
+        } else {
+            &self.char_pool
+        };
+        let pool_is_binary =
+            !active_pool.is_empty() && active_pool.iter().all(|ch| matches!(ch, '0' | '1'));
+
         let ctx = DrawCtx {
             lines: self.lines,
             full_width: self.full_width,
@@ -292,6 +301,7 @@ impl Cloud {
             flash_col: self.flash_col,
             flash_line: self.flash_line,
             flash_time: self.flash_time,
+            pool_is_binary,
         };
 
         if matches!(self.rain_style, RainStyle::Monolith) {

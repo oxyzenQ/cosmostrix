@@ -21,7 +21,10 @@ pub(super) fn segment_char(
 
 pub(super) fn spine_char(ctx: &DrawCtx<'_>, line: u16, col: u16) -> char {
     let phase = ((line / SPINE_PERIOD) + col) % 3;
-    if pool_is_binary(ctx) {
+    // Use cached pool_is_binary from DrawCtx instead of iterating the
+    // entire char pool on every call. This was the #2 per-cell bottleneck
+    // in the monolith render path (after color_to_rgb).
+    if ctx.pool_is_binary {
         return if phase == 0 { '0' } else { '1' };
     }
 
@@ -49,13 +52,4 @@ fn safe_pool_char(ctx: &DrawCtx<'_>, line: u16, col: u16, salt: u16) -> char {
         ch if ch.is_control() => '.',
         ch => ch,
     }
-}
-
-fn pool_is_binary(ctx: &DrawCtx<'_>) -> bool {
-    let pool = if ctx.char_pool.is_empty() {
-        ctx.previous_char_pool
-    } else {
-        ctx.char_pool
-    };
-    !pool.is_empty() && pool.iter().all(|ch| matches!(ch, '0' | '1'))
 }

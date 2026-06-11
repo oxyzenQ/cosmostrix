@@ -165,6 +165,7 @@ fn monolith_color_for_level_ghost_is_faintest() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        pool_is_binary: false,
     };
 
     let ghost = crate::cloud::monolith::color_for_level(&ctx, 0, 0, 0, BrightnessLevel::Ghost, 1.0);
@@ -224,6 +225,7 @@ fn monolith_background_muddy_residue_guard() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        pool_is_binary: false,
     };
 
     let ghost_idx =
