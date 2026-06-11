@@ -796,3 +796,5 @@ fn benchmark_fields_remain_backward_compatible() {
         );
     }
 }
+
+// ── v4.6.0 Phase 1 contract tests live in atmosphere_expansion_tests.rs ──

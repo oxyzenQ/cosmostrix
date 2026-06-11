@@ -4,47 +4,50 @@
 
 ## Release History
 
+### v4.5.0 — Zactrix Foundation + Depth Regression (COMPLETE)
+
+Architecture and regression foundation. Complete.
+
+| Phase | Description |
+|-------|-------------|
+| Phase 1 | Zactrix Engine Architecture Split |
+| Phase 2 | Docs Guard Split + ZACTRIX SYSTEM Diagnostics |
+| Phase 3 | Depth Regression Lab |
+| Phase 4 | Monolith Test Pressure Relief |
+| Phase 5 | Scene Test Pressure Relief |
+| Phase 6 | Closure Prep |
+
+v4.5 is complete. No active parallel compute was added. The terminal
+writer remains single-owner. ZACTRIX SYSTEM diagnostics report honest
+policy values. Visual behavior is identical to v4.0.1.
+
 ### v4.0.1 — Stable Patch
 
-Current release. Production-grade cinematic Matrix rain renderer. Includes
+Production-grade cinematic Matrix rain renderer. Includes
 Monolith Rain visual identity, warm-start scene transitions, phosphor decay
 system, and sparse density enforcement. All visual behavior is locked down
 by the Depth Regression Lab.
 
-### v4.1.x — Hygiene (if needed)
-
-Reserved for point fixes only: documentation corrections, CI adjustments,
-or supply-chain updates. No feature work.
-
 ---
 
-## v4.5.0 — Zactrix Foundation + Depth Regression
+## Active Development
 
-Architecture and regression foundation only. No visual redesign, no runtime
-behavior change, no active parallel compute.
+### v4.6.0 — Controlled Atmosphere Expansion (opt-in only) [ACTIVE]
 
-| Phase | Description |
-|-------|-------------|
-| Phase 1 | Zactrix Engine Architecture Split — modular directory structure under `src/zactrix_engine/` |
-| Phase 2 | Docs Guard Split + ZACTRIX SYSTEM Diagnostics — split 993 LOC docs tests, add system diagnostics |
-| Phase 3 | Depth Regression Lab — 15 categories of deterministic visual identity regression tests |
-| Phase 4 | Monolith Test Pressure Relief — split 999 LOC monolith tests into focused modules |
-| Phase 5 | Scene Test Pressure Relief — split 959 LOC scene tests into focused modules |
-| Phase 6 | Closure Prep — roadmap docs, benchmark baseline, foundation closure note |
+Controlled atmosphere expansion with contracts, docs, and tests before
+any visual expansion. All atmosphere features remain **opt-in only** —
+the default calm regime is never overridden without explicit user
+configuration. No forced visual changes. No version bump during Phase 1.
 
-v4.5 is complete. No active parallel compute was added. The terminal
-writer remains single-owner. ZACTRIX SYSTEM diagnostics report honest
-policy values. All 679 tests pass. Visual behavior is identical to v4.0.1.
-
----
-
-## Future Releases
-
-### v4.6.0 — Controlled Atmosphere Expansion (opt-in only)
-
-Gradual regime transitions for the Atmosphere Engine. All atmosphere features
-remain **opt-in only** — the default calm regime is never overridden without
-explicit user configuration. No forced visual changes.
+Phase 1 (current): Controlled Atmosphere Expansion Contract.
+- Expansion contract docs (ATMOSPHERE_EXPANSION.md).
+- State matrix for allowed/rejected mode+regime combinations.
+- Config/profile/parser hardening tests.
+- Diagnostics guards for honest reporting.
+- No default visual output change.
+- Storm remains rejected/unavailable.
+- Terminal writer remains single-owner.
+- Zactrix performance work parked for v4.8.
 
 ### v4.7.0 — Renderer Ergonomics + Profile Ecosystem
 
@@ -54,9 +57,10 @@ pipeline.
 
 ### v4.8.0 — Zactrix Render Efficiency Finishing
 
-May introduce controlled parallel compute for **non-terminal buffer
-preparation** only, gated by the runtime planner. Terminal writes remain
-single-owner. Must pass the full Depth Regression Lab before merge.
+Review and merge `zactrix-20k-lab` performance experiments. May introduce
+controlled parallel compute for **non-terminal buffer preparation** only,
+gated by the runtime planner. Terminal writes remain single-owner. Must
+pass the full Depth Regression Lab before merge.
 
 Any optimization that touches the renderer, cloud module, monolith module,
 phosphor system, or droplet lifecycle must pass all depth regression tests.

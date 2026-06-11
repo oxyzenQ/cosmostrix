@@ -6,6 +6,55 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
+## Status: v4.6.0 Phase 1 — Controlled Atmosphere Expansion Contract
+
+v4.6.0 prepares controlled atmosphere expansion safely with contracts, docs,
+and tests before any visual expansion. This phase does NOT change default
+visual output, does NOT enable live atmosphere by default, does NOT enable
+storm mode, and does NOT implement new aggressive visual effects.
+
+### v4.6.0 Phase 1 Hard Constraints
+
+- Expansion remains **opt-in only**.
+- Default remains `application_mode: disabled`, `effective_runtime: identity`,
+  `visual_runtime: protected`, `runtime_application: identity`.
+- Controlled-live remains bounded by whisper/shadow safety.
+- Storm remains **rejected / unavailable** in config and profile layers.
+- No public/default live atmosphere until proven stable across extended runs.
+- Terminal writer remains single-owner.
+- Zactrix performance work (`zactrix-20k-lab`) is parked for v4.8, not v4.6.
+- No version bump, no tag, no release during v4.6.0 Phase 1.
+- No new dependencies, no unsafe, no threads, no parallel compute.
+- All Rust files remain under 1000 LOC.
+
+### Controlled Atmosphere State Matrix
+
+| Mode | Regime | Effective Runtime | Shadow Risk | Visual Change |
+|------|--------|-------------------|-------------|---------------|
+| disabled | any | identity | identity | None |
+| controlled-live | calm | identity | identity | None |
+| controlled-live | pulse | whisper-bounded | whisper | Imperceptible |
+| controlled-live | signal | whisper-bounded | whisper | Imperceptible |
+| controlled-live | compression | whisper-bounded | whisper | Imperceptible |
+| controlled-live | void | whisper-bounded | whisper | Imperceptible |
+| controlled-live | monolith-pressure | whisper-bounded | whisper | Imperceptible |
+| any | storm | fallback to calm/identity | identity | None (rejected) |
+| any | unknown | fallback to calm/identity | identity | None (rejected) |
+
+Color changes remain forbidden. Terminal effects remain forbidden.
+
+### Diagnostics Honesty Fields (unchanged from Phase 10.5)
+
+- `config_gate: disabled|armed`
+- `visual_runtime: protected|active`
+- `runtime_application: identity|non-identity`
+- `shadow_risk: identity|whisper|elevated|rejected`
+- `compute_parallelism: disabled`
+- `terminal_writer: single-owner`
+- `actual_execution: single-threaded-renderer`
+
+---
+
 ## Status: Phase 10.5 — Atmosphere Config Honesty + Profile Smoke Hardening (v4.0.0)
 
 v4.0.0 Phase 10.5 tightens the honesty and smoke coverage around Phase 10's gated

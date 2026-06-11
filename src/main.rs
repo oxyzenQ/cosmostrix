@@ -48,6 +48,8 @@ mod atmosphere_apply_cl_tests;
 #[cfg(test)]
 mod atmosphere_apply_tests;
 mod atmosphere_controlled_live;
+#[cfg(test)]
+mod atmosphere_expansion_tests;
 mod atmosphere_probe;
 mod atmosphere_runtime;
 mod atmosphere_shadow;

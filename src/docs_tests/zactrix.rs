@@ -603,3 +603,135 @@ fn phase6_all_docs_test_modules_under_loc_cap() {
         assert!(count <= 1000, "{path}: {count} LOC exceeds 1000 cap");
     }
 }
+
+// ── v4.6.0 Phase 1: Atmosphere expansion contract doc guards ──
+
+#[test]
+fn v46_atmosphere_expansion_doc_exists() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        !docs.is_empty(),
+        "docs/ATMOSPHERE_EXPANSION.md must exist and be non-empty"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_states_opt_in_only() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("opt-in"),
+        "ATMOSPHERE_EXPANSION.md must state expansion is opt-in only"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_rejects_storm() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        docs.contains("storm") && docs.contains("rejected"),
+        "ATMOSPHERE_EXPANSION.md must state storm is rejected"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_forbids_color_change() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("color") && lower.contains("forbidden"),
+        "ATMOSPHERE_EXPANSION.md must state color changes are forbidden"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_forbids_terminal_effects() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("terminal effect") && lower.contains("forbidden"),
+        "ATMOSPHERE_EXPANSION.md must state terminal effects are forbidden"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_single_owner_invariant() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("single-owner"),
+        "ATMOSPHERE_EXPANSION.md must mention single-owner invariant"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_no_threads() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("no thread") || lower.contains("not spawn"),
+        "ATMOSPHERE_EXPANSION.md must forbid thread spawning"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_no_parallel_compute() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        docs.contains("compute_parallelism: disabled"),
+        "ATMOSPHERE_EXPANSION.md must state compute_parallelism is disabled"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_parks_zactrix_for_v48() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        docs.contains("v4.8") && docs.contains("zactrix"),
+        "ATMOSPHERE_EXPANSION.md must park zactrix perf work for v4.8"
+    );
+}
+
+#[test]
+fn v46_expansion_doc_state_matrix() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        docs.contains("State Matrix"),
+        "ATMOSPHERE_EXPANSION.md must contain the state matrix"
+    );
+    // Verify key matrix entries exist
+    assert!(
+        docs.contains("disabled") && docs.contains("identity"),
+        "State matrix must have disabled → identity mapping"
+    );
+    assert!(
+        docs.contains("whisper"),
+        "State matrix must mention whisper risk"
+    );
+}
+
+#[test]
+fn v46_atmosphere_engine_doc_has_v46_status() {
+    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
+    assert!(
+        docs.contains("v4.6.0"),
+        "ATMOSPHERE_ENGINE.md must reference v4.6.0"
+    );
+    assert!(
+        docs.contains("Controlled Atmosphere Expansion Contract"),
+        "ATMOSPHERE_ENGINE.md must mention Controlled Atmosphere Expansion Contract"
+    );
+    assert!(
+        docs.contains("State Matrix"),
+        "ATMOSPHERE_ENGINE.md must contain the state matrix"
+    );
+}
+
+#[test]
+fn v46_atmosphere_engine_doc_storm_rejected() {
+    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
+    assert!(
+        docs.contains("storm") && docs.contains("rejected"),
+        "ATMOSPHERE_ENGINE.md must state storm is rejected"
+    );
+}
