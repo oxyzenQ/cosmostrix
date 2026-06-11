@@ -14,8 +14,10 @@
 //! - `release` — release candidate doc, benchmark doc, release workflow auth
 //! - `safety` — unsafe audits, debt markers, source file hygiene
 //! - `zactrix` — Zactrix Engine/Cache/Core docs, planner tests, architecture
+//! - `atmosphere` — Controlled atmosphere preset doc guards (v4.6.0 Phase 3)
 
 mod assets;
+mod atmosphere;
 mod endurance;
 mod metadata;
 mod readme;

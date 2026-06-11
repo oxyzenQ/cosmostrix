@@ -49,7 +49,7 @@ Phase 1 (complete): Controlled Atmosphere Expansion Contract.
 - Terminal writer remains single-owner.
 - Zactrix performance work parked for v4.8.
 
-Phase 2 (current): Controlled Atmosphere Profile Presets.
+Phase 2 (complete): Controlled Atmosphere Profile Presets.
 - Atmosphere preset registry (6 presets: calm, pulse, signal,
   compression, void, monolith-pressure).
 - Preset constraints documented in ATMOSPHERE_EXPANSION.md and
@@ -61,6 +61,14 @@ Phase 2 (current): Controlled Atmosphere Profile Presets.
 - No color change or terminal effects by any preset.
 - `--color sun` remains sticky with every preset.
 - Auto color drift remains false unless explicitly enabled.
+
+Phase 3 (current): Preset UX / Config Examples + Pressure-aware Tests.
+- User-facing preset documentation (ATMOSPHERE_PRESETS.md).
+- Config dump atmosphere example lines.
+- Profile block examples for all 6 presets.
+- CLI/profile/config precedence explanation.
+- 16 deterministic doc guard tests in new docs_tests/atmosphere.rs.
+- No runtime or visual behavior change.
 
 ### v4.7.0 — Renderer Ergonomics + Profile Ecosystem
 
