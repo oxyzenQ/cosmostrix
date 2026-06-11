@@ -359,3 +359,91 @@ fn cli_color_sun_wins_even_when_profile_sets_scene_atmosphere() {
     assert_eq!(args.color, "sun", "CLI --color must win over profile");
     assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
 }
+
+// ── v4.6.0 Phase 2: Atmosphere profile preset override tests ──
+
+#[test]
+fn v46p2_profile_with_atmosphere_calm_is_identity() {
+    let config = atmosphere_config_profile("apCalm", "disabled", "calm");
+    let args = args_with_config(&config, &["--profile", "apCalm"]);
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    let regime =
+        crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    assert!(
+        shadow.is_identity(),
+        "atmosphere-calm profile must produce identity shadow"
+    );
+    assert_eq!(shadow.risk_label(), "identity");
+}
+
+#[test]
+fn v46p2_profile_with_each_non_calm_preset_is_whisper() {
+    let presets = [
+        ("apPulse", "controlled-live", "pulse"),
+        ("apSignal", "controlled-live", "signal"),
+        ("apCompress", "controlled-live", "compression"),
+        ("apVoid", "controlled-live", "void"),
+        ("apMono", "controlled-live", "monolith-pressure"),
+    ];
+    for (name, mode_str, regime_str) in presets {
+        let config = atmosphere_config_profile(name, mode_str, regime_str);
+        let args = args_with_config(&config, &[&format!("--profile={name}")]);
+        let mode =
+            crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+        let regime =
+            crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+        let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+        assert_eq!(
+            shadow.risk_label(),
+            "whisper",
+            "profile '{name}' (mode={mode_str}, regime={regime_str}) must be whisper"
+        );
+    }
+}
+
+#[test]
+fn v46p2_profile_still_no_color_or_terminal_effects() {
+    let presets = [
+        ("apPulse2", "controlled-live", "pulse"),
+        ("apCompress2", "controlled-live", "compression"),
+        ("apVoid2", "controlled-live", "void"),
+    ];
+    for (name, mode_str, regime_str) in presets {
+        let config = atmosphere_config_profile(name, mode_str, regime_str);
+        let args = args_with_config(&config, &[&format!("--profile={name}")]);
+        let mode =
+            crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+        let regime =
+            crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+        let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+        assert!(
+            !shadow.color_change_allowed,
+            "profile '{name}' must not allow color change"
+        );
+        assert!(
+            !shadow.terminal_effect_allowed,
+            "profile '{name}' must not allow terminal effects"
+        );
+    }
+}
+
+#[test]
+fn v46p2_profile_auto_color_drift_false_with_all_presets() {
+    let presets = [
+        ("apCalm3", "disabled", "calm"),
+        ("apPulse3", "controlled-live", "pulse"),
+        ("apSignal3", "controlled-live", "signal"),
+        ("apCompress3", "controlled-live", "compression"),
+        ("apVoid3", "controlled-live", "void"),
+        ("apMono3", "controlled-live", "monolith-pressure"),
+    ];
+    for (name, mode_str, regime_str) in presets {
+        let config = atmosphere_config_profile(name, mode_str, regime_str);
+        let args = args_with_config(&config, &[&format!("--profile={name}")]);
+        assert!(
+            !args.auto_color_drift,
+            "profile '{name}' must not enable auto_color_drift"
+        );
+    }
+}

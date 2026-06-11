@@ -39,7 +39,7 @@ any visual expansion. All atmosphere features remain **opt-in only** —
 the default calm regime is never overridden without explicit user
 configuration. No forced visual changes. No version bump during Phase 1.
 
-Phase 1 (current): Controlled Atmosphere Expansion Contract.
+Phase 1 (complete): Controlled Atmosphere Expansion Contract.
 - Expansion contract docs (ATMOSPHERE_EXPANSION.md).
 - State matrix for allowed/rejected mode+regime combinations.
 - Config/profile/parser hardening tests.
@@ -48,6 +48,19 @@ Phase 1 (current): Controlled Atmosphere Expansion Contract.
 - Storm remains rejected/unavailable.
 - Terminal writer remains single-owner.
 - Zactrix performance work parked for v4.8.
+
+Phase 2 (current): Controlled Atmosphere Profile Presets.
+- Atmosphere preset registry (6 presets: calm, pulse, signal,
+  compression, void, monolith-pressure).
+- Preset constraints documented in ATMOSPHERE_EXPANSION.md and
+  ATMOSPHERE_ENGINE.md.
+- Deterministic preset tests (registry, mode/regime mapping, storm
+  absence, color/terminal effect guards, CLI precedence).
+- Doc guard tests for Phase 2 preset documentation.
+- No preset is default. Storm preset does not exist.
+- No color change or terminal effects by any preset.
+- `--color sun` remains sticky with every preset.
+- Auto color drift remains false unless explicitly enabled.
 
 ### v4.7.0 — Renderer Ergonomics + Profile Ecosystem
 

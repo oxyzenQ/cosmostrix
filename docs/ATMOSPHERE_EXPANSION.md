@@ -180,3 +180,59 @@ The following test categories enforce this contract:
 - Diagnostics: honest reporting of all fields in matrix.
 - Doc guards: ATMOSPHERE_ENGINE.md and ATMOSPHERE_EXPANSION.md contain
   required contract language.
+
+## Controlled Atmosphere Profile Presets (Phase 2)
+
+v4.6.0 Phase 2 introduces a small registry of named atmosphere presets.
+These presets are documentation and test ground truth — they define the
+valid mode/regime/shadow combinations for controlled atmosphere use.
+
+### Preset Registry
+
+| Preset | Mode | Regime | Expected Shadow | Visual Change |
+|--------|------|--------|-----------------|---------------|
+| `atmosphere-calm` | disabled | calm | identity | None |
+| `atmosphere-pulse` | controlled-live | pulse | whisper | Imperceptible |
+| `atmosphere-signal` | controlled-live | signal | whisper | Imperceptible |
+| `atmosphere-compression` | controlled-live | compression | whisper | Imperceptible |
+| `atmosphere-void` | controlled-live | void | whisper | Imperceptible |
+| `atmosphere-monolith-pressure` | controlled-live | monolith-pressure | whisper | Imperceptible |
+
+### Preset Constraints
+
+These constraints are absolute and must never regress:
+
+1. **Presets are opt-in only.** No preset is default. Users must
+   explicitly select a preset through config or profile configuration.
+2. **Default remains disabled/protected/identity.** Selecting no
+   atmosphere preset produces the same behavior as v4.5.0 —
+   `application_mode: disabled`, `visual_runtime: protected`,
+   `runtime_application: identity`.
+3. **Presets only map to already-allowed regimes.** Every preset
+   mode/regime combination is a subset of the allowed state matrix
+   defined above. No preset introduces a new mode or regime.
+4. **Storm preset does not exist.** There is no `atmosphere-storm`
+   preset, and adding one is forbidden. Storm remains rejected at
+   every layer (config, profile, preset).
+5. **No color change allowed.** No preset enables `color_change_allowed`.
+   Color choices remain under explicit user control (`--color`).
+6. **No terminal effects allowed.** No preset enables
+   `terminal_effect_allowed`. Terminal behavior is never affected
+   by atmosphere presets.
+7. **Visual runtime remains protected.** Even under controlled-live
+   presets, `visual_runtime` stays `protected`. Presets do not
+   downgrade the visual safety gate.
+8. **Runtime application remains identity for calm.** The
+   `atmosphere-calm` preset produces `runtime_application: identity`.
+   Non-calm presets produce `runtime_application: identity/whisper`.
+9. **Zactrix performance work remains parked for v4.8.** Presets do
+   not depend on, reference, or enable any Zactrix performance
+   features from the `zactrix-20k-lab` branch.
+10. **Profile preset precedence remains below CLI override.** If a
+    user passes `--color sun` on the CLI alongside any atmosphere
+    preset, `--color sun` wins. This is consistent with the
+    existing precedence chain (step 10 above).
+11. **`--color sun` remains sticky with every preset.** CLI color
+    choice is never overridden by any atmosphere preset.
+12. **Auto color drift remains false unless explicitly enabled.**
+    No preset sets `auto_color_drift = true`.

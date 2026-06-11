@@ -499,3 +499,306 @@ fn v46_diag_actual_execution_single_threaded() {
         "actual_execution must be single-threaded-renderer"
     );
 }
+
+// ── v4.6.0 Phase 2: Controlled Atmosphere Profile Preset Tests ──
+
+// C.1: Every controlled atmosphere preset exists in docs or preset registry
+
+#[test]
+fn v46p2_every_preset_exists_in_registry() {
+    use crate::atmosphere_presets::{
+        all_atmosphere_presets, get_atmosphere_preset, ATMOSPHERE_PRESET_NAMES,
+    };
+    for &name in ATMOSPHERE_PRESET_NAMES {
+        assert!(
+            get_atmosphere_preset(name).is_some(),
+            "preset '{name}' must exist in registry"
+        );
+    }
+    assert_eq!(
+        ATMOSPHERE_PRESET_NAMES.len(),
+        all_atmosphere_presets().len(),
+        "name list and registry must have matching length"
+    );
+}
+
+#[test]
+fn v46p2_every_preset_documented_in_expansion_doc() {
+    let docs = include_str!("../docs/ATMOSPHERE_EXPANSION.md");
+    for name in crate::atmosphere_presets::ATMOSPHERE_PRESET_NAMES {
+        assert!(
+            docs.contains(name),
+            "ATMOSPHERE_EXPANSION.md must document preset '{name}'"
+        );
+    }
+}
+
+#[test]
+fn v46p2_every_preset_documented_in_engine_doc() {
+    let docs = include_str!("../docs/ATMOSPHERE_ENGINE.md");
+    for name in crate::atmosphere_presets::ATMOSPHERE_PRESET_NAMES {
+        assert!(
+            docs.contains(name),
+            "ATMOSPHERE_ENGINE.md must document preset '{name}'"
+        );
+    }
+}
+
+// C.2: Every preset maps to an allowed mode/regime pair
+
+#[test]
+fn v46p2_every_preset_maps_to_allowed_mode_regime() {
+    use crate::atmosphere_presets::all_atmosphere_presets;
+    let allowed_modes = ["disabled", "controlled-live"];
+    let allowed_regimes = [
+        "calm",
+        "pulse",
+        "signal",
+        "compression",
+        "void",
+        "monolith-pressure",
+    ];
+    for preset in all_atmosphere_presets() {
+        assert!(
+            allowed_modes.contains(&preset.mode),
+            "preset '{}' mode '{}' is not allowed",
+            preset.name,
+            preset.mode
+        );
+        assert!(
+            allowed_regimes.contains(&preset.regime),
+            "preset '{}' regime '{}' is not allowed",
+            preset.name,
+            preset.regime
+        );
+    }
+}
+
+// C.3: No preset maps to storm
+
+#[test]
+fn v46p2_no_preset_maps_to_storm() {
+    use crate::atmosphere_presets::{all_atmosphere_presets, get_atmosphere_preset};
+    for preset in all_atmosphere_presets() {
+        assert_ne!(
+            preset.regime, "storm",
+            "preset '{}' must not map to storm",
+            preset.name
+        );
+    }
+    assert!(
+        get_atmosphere_preset("atmosphere-storm").is_none(),
+        "atmosphere-storm preset must not exist"
+    );
+}
+
+// C.4: No preset enables color change
+
+#[test]
+fn v46p2_no_preset_enables_color_change() {
+    // Verify via visual whisper that all non-calm regimes have
+    // color_change_allowed = false (presets only use allowed regimes)
+    for regime in [
+        crate::atmosphere::AtmosphereRegime::Calm,
+        crate::atmosphere::AtmosphereRegime::Pulse,
+        crate::atmosphere::AtmosphereRegime::Signal,
+        crate::atmosphere::AtmosphereRegime::Compression,
+        crate::atmosphere::AtmosphereRegime::Void,
+        crate::atmosphere::AtmosphereRegime::MonolithPressure,
+    ] {
+        let whisper = crate::atmosphere_visual::visual_whisper_from_regime(regime);
+        assert!(
+            !whisper.color_change_allowed,
+            "regime {:?} must not allow color change",
+            regime
+        );
+    }
+}
+
+// C.5: No preset enables terminal effects
+
+#[test]
+fn v46p2_no_preset_enables_terminal_effects() {
+    for regime in [
+        crate::atmosphere::AtmosphereRegime::Calm,
+        crate::atmosphere::AtmosphereRegime::Pulse,
+        crate::atmosphere::AtmosphereRegime::Signal,
+        crate::atmosphere::AtmosphereRegime::Compression,
+        crate::atmosphere::AtmosphereRegime::Void,
+        crate::atmosphere::AtmosphereRegime::MonolithPressure,
+    ] {
+        let whisper = crate::atmosphere_visual::visual_whisper_from_regime(regime);
+        assert!(
+            !whisper.terminal_effect_allowed,
+            "regime {:?} must not allow terminal effects",
+            regime
+        );
+    }
+}
+
+// C.6: No preset claims active visual runtime
+
+#[test]
+fn v46p2_no_preset_claims_active_visual_runtime() {
+    // Verify docs explicitly say visual_runtime remains protected
+    let expansion = include_str!("../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        expansion.contains("visual_runtime") && expansion.contains("protected"),
+        "ATMOSPHERE_EXPANSION.md must state visual_runtime remains protected"
+    );
+    let engine = include_str!("../docs/ATMOSPHERE_ENGINE.md");
+    assert!(
+        engine.contains("visual_runtime") && engine.contains("protected"),
+        "ATMOSPHERE_ENGINE.md must state visual_runtime remains protected"
+    );
+}
+
+// C.7: No preset changes default behavior
+
+#[test]
+fn v46p2_no_preset_changes_default_behavior() {
+    // Default (no preset selected) must still be disabled/identity
+    let args = args_from_cli(&[]);
+    let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
+    assert!(!mode.allows_modulation(), "default must be disabled");
+    let ctrl = crate::atmosphere::AtmosphereController::new();
+    let app = ctrl.build_application();
+    let modulation = crate::atmosphere_apply::apply_application(&app, mode);
+    assert!(
+        modulation.is_identity(),
+        "default modulation must be identity"
+    );
+}
+
+// C.8: atmosphere-calm remains identity
+
+#[test]
+fn v46p2_atmosphere_calm_remains_identity() {
+    use crate::atmosphere_presets::get_atmosphere_preset;
+    let preset = get_atmosphere_preset("atmosphere-calm").unwrap();
+    assert_eq!(preset.expected_shadow, "identity");
+
+    let mode = crate::config_apply::resolve_atmosphere_mode(Some(preset.mode));
+    let regime = crate::config_apply::resolve_atmosphere_regime(Some(preset.regime));
+    let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+    assert!(
+        shadow.is_identity(),
+        "atmosphere-calm must produce identity shadow"
+    );
+
+    let ctrl = crate::atmosphere::AtmosphereController::new();
+    let app = ctrl.build_application();
+    let modulation = crate::atmosphere_apply::apply_application(&app, mode);
+    assert!(
+        modulation.is_identity(),
+        "atmosphere-calm must produce identity modulation"
+    );
+}
+
+// C.9: Non-calm presets remain whisper/protected only
+
+#[test]
+fn v46p2_non_calm_presets_remain_whisper_protected() {
+    use crate::atmosphere_presets::get_atmosphere_preset;
+    let non_calm = [
+        "atmosphere-pulse",
+        "atmosphere-signal",
+        "atmosphere-compression",
+        "atmosphere-void",
+        "atmosphere-monolith-pressure",
+    ];
+    for &name in &non_calm {
+        let preset = get_atmosphere_preset(name).unwrap();
+        assert_eq!(
+            preset.expected_shadow, "whisper",
+            "{name} must expect whisper"
+        );
+
+        let mode = crate::config_apply::resolve_atmosphere_mode(Some(preset.mode));
+        let regime = crate::config_apply::resolve_atmosphere_regime(Some(preset.regime));
+        let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
+        assert_eq!(
+            shadow.risk_label(),
+            "whisper",
+            "{name} shadow must be whisper"
+        );
+        assert!(
+            !shadow.color_change_allowed,
+            "{name} must not allow color change"
+        );
+        assert!(
+            !shadow.terminal_effect_allowed,
+            "{name} must not allow terminal effects"
+        );
+    }
+}
+
+// C.10: Profile preset precedence remains below CLI override
+
+#[test]
+fn v46p2_preset_precedence_below_cli_override() {
+    // Profile sets controlled-live + pulse, CLI --atmosphere-mode disabled overrides
+    let config = "atmosphere-mode = controlled-live\n\
+         atmosphere-regime = pulse\n\
+         profile.v46p2a.base = monolith\n\
+         profile.v46p2a.atmosphere-mode = disabled\n\
+         profile.v46p2a.atmosphere-regime = calm\n"
+        .to_string();
+    let args = args_with_config(&config, &["--profile", "v46p2a"]);
+    assert_eq!(args.atmosphere_mode_str.as_deref(), Some("disabled"));
+    // CLI override should win if provided
+    let config2 = "profile.v46p2b.base = monolith\n\
+                   profile.v46p2b.atmosphere-mode = controlled-live\n\
+                   profile.v46p2b.atmosphere-regime = pulse\n";
+    let args2 = args_with_config(
+        config2,
+        &["--profile", "v46p2b", "--atmosphere-mode", "disabled"],
+    );
+    assert_eq!(
+        args2.atmosphere_mode_str.as_deref(),
+        Some("disabled"),
+        "CLI --atmosphere-mode must override profile"
+    );
+}
+
+// C.11: --color sun remains sticky with every preset
+
+#[test]
+fn v46p2_color_sun_sticky_with_every_preset() {
+    use crate::atmosphere_presets::all_atmosphere_presets;
+    for preset in all_atmosphere_presets() {
+        let config = format!(
+            "atmosphere-mode = {mode}\n\
+             atmosphere-regime = {regime}\n",
+            mode = preset.mode,
+            regime = preset.regime
+        );
+        let args = args_with_config(&config, &["--color", "sun"]);
+        assert_eq!(
+            args.color, "sun",
+            "--color sun must be sticky with preset '{}' (mode={}, regime={})",
+            preset.name, preset.mode, preset.regime
+        );
+    }
+}
+
+// C.12: Auto color drift remains false unless explicitly enabled
+
+#[test]
+fn v46p2_auto_color_drift_false_with_every_preset() {
+    use crate::atmosphere_presets::all_atmosphere_presets;
+    for preset in all_atmosphere_presets() {
+        let config = format!(
+            "atmosphere-mode = {mode}\n\
+             atmosphere-regime = {regime}\n",
+            mode = preset.mode,
+            regime = preset.regime
+        );
+        let args = args_with_config(&config, &[]);
+        assert!(
+            !args.auto_color_drift,
+            "auto_color_drift must be false for preset '{}' unless explicitly enabled",
+            preset.name
+        );
+    }
+}

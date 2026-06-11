@@ -735,3 +735,85 @@ fn v46_atmosphere_engine_doc_storm_rejected() {
         "ATMOSPHERE_ENGINE.md must state storm is rejected"
     );
 }
+
+// ── v4.6.0 Phase 2: Profile preset doc guards ──
+
+#[test]
+fn v46p2_expansion_doc_mentions_profile_presets() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        docs.contains("Profile Presets"),
+        "ATMOSPHERE_EXPANSION.md must mention Profile Presets section"
+    );
+    assert!(
+        docs.contains("atmosphere-calm"),
+        "ATMOSPHERE_EXPANSION.md must document atmosphere-calm preset"
+    );
+    assert!(
+        docs.contains("atmosphere-pulse"),
+        "ATMOSPHERE_EXPANSION.md must document atmosphere-pulse preset"
+    );
+}
+
+#[test]
+fn v46p2_expansion_doc_storm_preset_does_not_exist() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        docs.contains("Storm preset does not exist"),
+        "ATMOSPHERE_EXPANSION.md must state storm preset does not exist"
+    );
+}
+
+#[test]
+fn v46p2_expansion_doc_presets_opt_in_only() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    assert!(
+        docs.contains("opt-in only") && docs.contains("No preset is default"),
+        "ATMOSPHERE_EXPANSION.md must state presets are opt-in and none is default"
+    );
+}
+
+#[test]
+fn v46p2_engine_doc_mentions_phase2_presets() {
+    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
+    assert!(
+        docs.contains("Phase 2") && docs.contains("Profile Presets"),
+        "ATMOSPHERE_ENGINE.md must mention Phase 2 Profile Presets"
+    );
+    assert!(
+        docs.contains("Preset Registry"),
+        "ATMOSPHERE_ENGINE.md must contain the Preset Registry table"
+    );
+}
+
+#[test]
+fn v46p2_engine_doc_storm_preset_forbidden() {
+    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
+    assert!(
+        docs.contains("Storm preset does not exist"),
+        "ATMOSPHERE_ENGINE.md must state storm preset does not exist"
+    );
+}
+
+#[test]
+fn v46p2_engine_doc_color_sun_sticky() {
+    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
+    assert!(
+        docs.contains("--color sun") || docs.contains("color sun"),
+        "ATMOSPHERE_ENGINE.md must mention --color sun stickiness"
+    );
+}
+
+#[test]
+fn v46p2_expansion_doc_no_color_change_no_terminal_effects() {
+    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("no color change"),
+        "ATMOSPHERE_EXPANSION.md must state no color change by presets"
+    );
+    assert!(
+        lower.contains("no terminal effects"),
+        "ATMOSPHERE_EXPANSION.md must state no terminal effects by presets"
+    );
+}

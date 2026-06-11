@@ -6,14 +6,38 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
-## Status: v4.6.0 Phase 1 — Controlled Atmosphere Expansion Contract
+## Status: v4.6.0 Phase 2 — Controlled Atmosphere Profile Presets
 
-v4.6.0 prepares controlled atmosphere expansion safely with contracts, docs,
-and tests before any visual expansion. This phase does NOT change default
-visual output, does NOT enable live atmosphere by default, does NOT enable
-storm mode, and does NOT implement new aggressive visual effects.
+v4.6.0 Phase 2 adds a small registry of controlled atmosphere profile presets.
+These presets define valid mode/regime/shadow combinations as documentation
+and test ground truth. No preset is default. No preset changes visual behavior
+without explicit opt-in. No storm preset exists.
 
-### v4.6.0 Phase 1 Hard Constraints
+### Phase 2 Preset Registry
+
+| Preset | Mode | Regime | Expected Shadow |
+|--------|------|--------|-----------------|
+| `atmosphere-calm` | disabled | calm | identity |
+| `atmosphere-pulse` | controlled-live | pulse | whisper |
+| `atmosphere-signal` | controlled-live | signal | whisper |
+| `atmosphere-compression` | controlled-live | compression | whisper |
+| `atmosphere-void` | controlled-live | void | whisper |
+| `atmosphere-monolith-pressure` | controlled-live | monolith-pressure | whisper |
+
+### Phase 2 Preset Constraints
+
+- Presets are **opt-in only**. Default remains disabled/protected/identity.
+- Presets only map to already-allowed regimes (subset of state matrix).
+- **Storm preset does not exist** and must never be added.
+- No color change allowed by any preset.
+- No terminal effects allowed by any preset.
+- `visual_runtime` remains `protected` with every preset.
+- `runtime_application` remains `identity` for calm, whisper for non-calm.
+- Zactrix performance work remains parked for v4.8.
+- CLI override (`--color sun`) remains sticky with every preset.
+- Auto color drift remains false unless explicitly enabled.
+
+### v4.6.0 Phase 1 Hard Constraints — Controlled Atmosphere Expansion Contract
 
 - Expansion remains **opt-in only**.
 - Default remains `application_mode: disabled`, `effective_runtime: identity`,
