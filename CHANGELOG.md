@@ -8,6 +8,32 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v4.6.0
+
+Controlled Atmosphere Expansion. Docs, test infrastructure, and CLI
+discoverability release with no default visual behavior change and no active
+parallel compute.
+
+- Controlled atmosphere expansion contract with state matrix (identity, whisper,
+  shadow, protected) and six regimes (calm, pulse, signal, compression, void,
+  monolith-pressure). Storm is intentionally unavailable.
+- Preset registry with six controlled atmosphere presets: atmosphere-calm
+  (identity), atmosphere-pulse, atmosphere-signal, atmosphere-compression,
+  atmosphere-void, atmosphere-monolith-pressure (all whisper). Presets are
+  opt-in only.
+- Preset UX documentation, config/profile examples, and config dump atmosphere
+  lines for discoverability.
+- `--list-profiles` enhanced with controlled atmosphere preset section showing
+  mode, regime, and shadow level for each preset.
+- RC smoke script hardened with six atmosphere checks (preset listing, storm
+  rejection, controlled-live field verification, disabled+non-calm identity,
+  color sun sticky).
+- 800 deterministic tests, all passing.
+- Default remains disabled/protected/identity. No live atmosphere enabled by
+  default.
+- Storm unavailable. Terminal writer remains single-owner.
+- No zactrix-20k-lab merge.
+
 ## v4.5.0
 
 Zactrix Foundation + Depth Regression. Architecture and test infrastructure release with no default visual behavior change and no active parallel compute.
