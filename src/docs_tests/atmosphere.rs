@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: MIT
 
-//! Documentation guard tests for controlled atmosphere preset docs (v4.6.0 Phase 3).
+//! Documentation guard tests for controlled atmosphere preset docs (v4.6.0 Phases 3–4).
 //!
 //! These tests verify that `docs/ATMOSPHERE_PRESETS.md` contains all required
 //! preset names, mappings, constraints, and safety invariants. A separate
@@ -244,4 +244,79 @@ fn v46p3_docs_test_files_under_1000_loc() {
         let loc = content.lines().count();
         assert!(loc < 1000, "{name} is {loc} LOC — must be under 1000");
     }
+}
+
+// ── Phase 4: Discoverability doc tests ──
+
+/// Helper: read ATMOSPHERE_EXPANSION.md at compile time.
+fn expansion_doc() -> &'static str {
+    include_str!("../../docs/ATMOSPHERE_EXPANSION.md")
+}
+
+/// Helper: read ATMOSPHERE_ENGINE.md at compile time.
+fn engine_doc() -> &'static str {
+    include_str!("../../docs/ATMOSPHERE_ENGINE.md")
+}
+
+#[test]
+fn v46p4_presets_doc_mentions_list_profiles_discoverability() {
+    let doc = presets_doc();
+    assert!(
+        doc.contains("--list-profiles"),
+        "ATMOSPHERE_PRESETS.md must mention --list-profiles discoverability"
+    );
+}
+
+#[test]
+fn v46p4_expansion_doc_mentions_phase4_discoverability() {
+    let doc = expansion_doc();
+    assert!(
+        doc.contains("--list-profiles"),
+        "ATMOSPHERE_EXPANSION.md must mention --list-profiles discoverability"
+    );
+    assert!(
+        doc.contains("Phase 3") && doc.contains("Phase 4"),
+        "ATMOSPHERE_EXPANSION.md must reference Phase 3 and Phase 4"
+    );
+}
+
+#[test]
+fn v46p4_engine_doc_status_phase4() {
+    let doc = engine_doc();
+    assert!(
+        doc.contains("Phase 4"),
+        "ATMOSPHERE_ENGINE.md must reference Phase 4"
+    );
+    assert!(
+        doc.contains("Discoverability"),
+        "ATMOSPHERE_ENGINE.md must mention Discoverability"
+    );
+}
+
+#[test]
+fn v46p4_expansion_doc_discoverability_storm_not_shown() {
+    let doc = expansion_doc();
+    let section = doc;
+    assert!(
+        section.contains("Storm preset does not exist"),
+        "ATMOSPHERE_EXPANSION.md must state storm preset does not exist"
+    );
+}
+
+#[test]
+fn v46p4_expansion_doc_discoverability_single_owner() {
+    let doc = expansion_doc();
+    assert!(
+        doc.contains("single-owner"),
+        "ATMOSPHERE_EXPANSION.md must mention terminal writer single-owner"
+    );
+}
+
+#[test]
+fn v46p4_expansion_doc_discoverability_zactrix_parked() {
+    let doc = expansion_doc();
+    assert!(
+        doc.contains("zactrix-20k-lab") || doc.contains("Zactrix"),
+        "ATMOSPHERE_EXPANSION.md must mention Zactrix parked for v4.8"
+    );
 }

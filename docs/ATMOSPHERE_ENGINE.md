@@ -6,14 +6,15 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
-## Status: v4.6.0 Phase 2 — Controlled Atmosphere Profile Presets
+## Status: v4.6.0 Phase 4 — Preset CLI/Profile Discoverability
 
-v4.6.0 Phase 2 adds a small registry of controlled atmosphere profile presets.
-These presets define valid mode/regime/shadow combinations as documentation
-and test ground truth. No preset is default. No preset changes visual behavior
-without explicit opt-in. No storm preset exists.
+v4.6.0 Phase 4 adds runtime discoverability for controlled atmosphere presets.
+`cosmostrix --list-profiles` now always shows the controlled atmosphere preset
+section (all 6 presets with mode, regime, shadow). No new CLI flag was needed.
+No preset is default. No preset changes visual behavior without explicit opt-in.
+No storm preset exists.
 
-### Phase 2 Preset Registry
+### Phase 2 Profile Presets
 
 | Preset | Mode | Regime | Expected Shadow |
 |--------|------|--------|-----------------|
@@ -23,6 +24,8 @@ without explicit opt-in. No storm preset exists.
 | `atmosphere-compression` | controlled-live | compression | whisper |
 | `atmosphere-void` | controlled-live | void | whisper |
 | `atmosphere-monolith-pressure` | controlled-live | monolith-pressure | whisper |
+
+### Preset Registry (see table above)
 
 ### Phase 2 Preset Constraints
 

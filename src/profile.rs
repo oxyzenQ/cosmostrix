@@ -160,17 +160,39 @@ pub fn apply_profile_layer(
     Ok(modified)
 }
 
+/// Produce a concise section listing controlled atmosphere presets.
+///
+/// This is appended to `--list-profiles` output so users discover the
+/// available atmosphere profiles without needing to read docs first.
+/// No preset is default; all are opt-in only.
+fn atmosphere_presets_section() -> String {
+    use crate::atmosphere_presets::all_atmosphere_presets;
+    let presets = all_atmosphere_presets();
+    let mut out = String::from("\nCONTROLLED ATMOSPHERE PRESETS (opt-in only)\n\n");
+    out.push_str("  Presets are opt-in. Default remains disabled/protected/identity.\n");
+    out.push_str("  Storm preset does not exist. See docs/ATMOSPHERE_PRESETS.md\n\n");
+    for p in &presets {
+        out.push_str(&format!(
+            "  {:30} mode={} regime={} shadow={}\n",
+            p.name, p.mode, p.regime, p.expected_shadow
+        ));
+    }
+    out
+}
+
 #[must_use]
 pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
-    if profiles.is_empty() {
-        return "USER PROFILES\n\n  (none defined)\n".to_string();
-    }
-
-    let mut out = String::from("USER PROFILES\n\n");
-    for (name, profile) in profiles {
-        let base = profile.base.as_deref().unwrap_or(DEFAULT_SCENE);
-        out.push_str(&format!("  {name:12} base={base}\n"));
-    }
+    let mut out = if profiles.is_empty() {
+        String::from("USER PROFILES\n\n  (none defined)\n")
+    } else {
+        let mut s = String::from("USER PROFILES\n\n");
+        for (name, profile) in profiles {
+            let base = profile.base.as_deref().unwrap_or(DEFAULT_SCENE);
+            s.push_str(&format!("  {name:12} base={base}\n"));
+        }
+        s
+    };
+    out.push_str(&atmosphere_presets_section());
     out
 }
 

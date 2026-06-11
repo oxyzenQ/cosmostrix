@@ -236,3 +236,20 @@ These constraints are absolute and must never regress:
     choice is never overridden by any atmosphere preset.
 12. **Auto color drift remains false unless explicitly enabled.**
     No preset sets `auto_color_drift = true`.
+
+## Preset Discoverability (Phase 3–4)
+
+v4.6.0 Phase 3 added `docs/ATMOSPHERE_PRESETS.md` with user-facing examples,
+profile blocks, and config examples. Phase 4 adds runtime discoverability:
+`cosmostrix --list-profiles` now always shows the controlled atmosphere
+preset section (all 6 presets with mode, regime, shadow) regardless of
+whether user profiles are defined. No new CLI flag was needed — the output
+appends to the existing `--list-profiles` path.
+
+Discoverability invariants:
+- Presets are opt-in only. Default remains disabled/protected/identity.
+- Storm preset does not exist and is not shown.
+- `--color sun` stickiness is documented.
+- Auto color drift remains opt-in only.
+- Terminal writer remains single-owner.
+- Zactrix performance lab remains parked for v4.8.

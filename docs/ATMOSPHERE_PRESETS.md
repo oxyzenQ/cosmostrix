@@ -1,11 +1,18 @@
 <!-- SPDX-License-Identifier: MIT -->
 
-# Controlled Atmosphere Profile Presets — v4.6.0 Phase 3
+# Controlled Atmosphere Profile Presets — v4.6.0
 
 This document provides user-facing examples for the six controlled atmosphere
 profile presets introduced in v4.6.0 Phase 2. Presets are **opt-in only** —
 no preset is default, and the default behavior remains
 `disabled / protected / identity` (identical to v4.5.0).
+
+## Discoverability
+
+Run `cosmostrix --list-profiles` to see both user-defined profiles and the
+controlled atmosphere presets. The output includes every preset name, its
+mode, regime, and expected shadow level. This works even when no user profiles
+are defined — the atmosphere preset section always appears.
 
 ## Preset Registry
 

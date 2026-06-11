@@ -447,3 +447,56 @@ fn v46p2_profile_auto_color_drift_false_with_all_presets() {
         );
     }
 }
+
+// ── Phase 4: --list-profiles discoverability output tests ──
+
+#[test]
+fn v46p4_list_profiles_empty_includes_atmosphere_presets() {
+    let text = crate::profile::list_profiles_text(&std::collections::BTreeMap::new());
+    assert!(
+        text.contains("CONTROLLED ATMOSPHERE PRESETS"),
+        "--list-profiles output must contain atmosphere presets section"
+    );
+    assert!(
+        text.contains("opt-in only"),
+        "--list-profiles output must say opt-in only"
+    );
+}
+
+#[test]
+fn v46p4_list_profiles_includes_all_six_presets() {
+    let text = crate::profile::list_profiles_text(&std::collections::BTreeMap::new());
+    let names = [
+        "atmosphere-calm",
+        "atmosphere-pulse",
+        "atmosphere-signal",
+        "atmosphere-compression",
+        "atmosphere-void",
+        "atmosphere-monolith-pressure",
+    ];
+    for name in names {
+        assert!(text.contains(name), "--list-profiles must mention '{name}'");
+    }
+}
+
+#[test]
+fn v46p4_list_profiles_no_storm_preset() {
+    let text = crate::profile::list_profiles_text(&std::collections::BTreeMap::new());
+    assert!(
+        text.contains("Storm preset does not exist"),
+        "--list-profiles must state storm preset does not exist"
+    );
+    assert!(
+        !text.contains("atmosphere-storm"),
+        "--list-profiles must not list atmosphere-storm as a preset"
+    );
+}
+
+#[test]
+fn v46p4_list_profiles_default_disabled_protected_identity() {
+    let text = crate::profile::list_profiles_text(&std::collections::BTreeMap::new());
+    assert!(
+        text.contains("disabled/protected/identity"),
+        "--list-profiles must state default remains disabled/protected/identity"
+    );
+}

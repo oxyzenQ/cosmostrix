@@ -62,12 +62,22 @@ Phase 2 (complete): Controlled Atmosphere Profile Presets.
 - `--color sun` remains sticky with every preset.
 - Auto color drift remains false unless explicitly enabled.
 
-Phase 3 (current): Preset UX / Config Examples + Pressure-aware Tests.
+Phase 3 (complete): Preset UX / Config Examples + Pressure-aware Tests.
 - User-facing preset documentation (ATMOSPHERE_PRESETS.md).
 - Config dump atmosphere example lines.
 - Profile block examples for all 6 presets.
 - CLI/profile/config precedence explanation.
 - 16 deterministic doc guard tests in new docs_tests/atmosphere.rs.
+- No runtime or visual behavior change.
+
+Phase 4 (current): Preset CLI/Profile Discoverability.
+- `--list-profiles` output now includes controlled atmosphere preset
+  section (all 6 presets with mode, regime, shadow).
+- Discoverability works even with no user profiles defined.
+- No new CLI flag. Appends to existing `--list-profiles` path.
+- Updated ATMOSPHERE_PRESETS.md, ATMOSPHERE_EXPANSION.md,
+  ATMOSPHERE_ENGINE.md with Phase 4 status.
+- Deterministic tests for discoverability output.
 - No runtime or visual behavior change.
 
 ### v4.7.0 — Renderer Ergonomics + Profile Ecosystem
