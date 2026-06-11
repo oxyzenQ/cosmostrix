@@ -584,3 +584,103 @@ fn v47p3_no_performance_lab_branch_merged() {
         "PROFILE_ECOSYSTEM.md must confirm zactrix-20k-lab is parked"
     );
 }
+
+// ── v4.7.0 Phase 4: Profile RC smoke guard tests ───────────────────────
+
+#[test]
+fn v47p4_rc_smoke_checks_list_profiles() {
+    let script = include_str!("../../scripts/rc-smoke.sh");
+    assert!(
+        script.contains("--list-profiles") && script.contains("USER PROFILES"),
+        "rc-smoke.sh must check --list-profiles output"
+    );
+}
+
+#[test]
+fn v47p4_rc_smoke_checks_profile_ecosystem_doc() {
+    let script = include_str!("../../scripts/rc-smoke.sh");
+    assert!(
+        script.contains("PROFILE_ECOSYSTEM"),
+        "rc-smoke.sh must check PROFILE_ECOSYSTEM pointer"
+    );
+}
+
+#[test]
+fn v47p4_rc_smoke_checks_profile_examples_doc() {
+    let script = include_str!("../../scripts/rc-smoke.sh");
+    assert!(
+        script.contains("PROFILE_EXAMPLES"),
+        "rc-smoke.sh must check PROFILE_EXAMPLES pointer"
+    );
+}
+
+#[test]
+fn v47p4_rc_smoke_checks_dump_config() {
+    let script = include_str!("../../scripts/rc-smoke.sh");
+    assert!(
+        script.contains("--dump-config") && script.contains("PROFILE_EXAMPLES"),
+        "rc-smoke.sh must check --dump-config profile pointer"
+    );
+}
+
+#[test]
+fn v47p4_rc_smoke_checks_unknown_profile_error() {
+    let script = include_str!("../../scripts/rc-smoke.sh");
+    assert!(
+        script.contains("nonexistent") && script.contains("expected one of:"),
+        "rc-smoke.sh must check unknown profile error lists available profiles"
+    );
+}
+
+#[test]
+fn v47p4_rc_smoke_checks_storm_unavailable() {
+    let script = include_str!("../../scripts/rc-smoke.sh");
+    assert!(
+        script.contains("storm is unavailable"),
+        "rc-smoke.sh must check storm is unavailable"
+    );
+}
+
+#[test]
+fn v47p4_docs_test_modules_under_1000_loc_phase4() {
+    let files: [&str; 10] = [
+        include_str!("mod.rs"),
+        include_str!("assets.rs"),
+        include_str!("atmosphere.rs"),
+        include_str!("endurance.rs"),
+        include_str!("metadata.rs"),
+        include_str!("profile.rs"),
+        include_str!("readme.rs"),
+        include_str!("release.rs"),
+        include_str!("safety.rs"),
+        include_str!("zactrix.rs"),
+    ];
+    let names = [
+        "mod.rs",
+        "assets.rs",
+        "atmosphere.rs",
+        "endurance.rs",
+        "metadata.rs",
+        "profile.rs",
+        "readme.rs",
+        "release.rs",
+        "safety.rs",
+        "zactrix.rs",
+    ];
+    for (name, content) in names.iter().zip(files.iter()) {
+        let loc = content.lines().count();
+        assert!(
+            loc < 1000,
+            "docs_tests/{name} is {loc} LOC (must be under 1000)"
+        );
+    }
+}
+
+#[test]
+fn v47p4_no_performance_lab_branch_merged() {
+    let docs = include_str!("../../docs/PROFILE_ECOSYSTEM.md");
+    assert!(
+        docs.contains("parked for v4.8"),
+        "PROFILE_ECOSYSTEM.md must confirm zactrix-20k-lab is parked"
+    );
+}

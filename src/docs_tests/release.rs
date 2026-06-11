@@ -161,3 +161,82 @@ fn release_candidate_doc_v46_storm_unavailable() {
         "RELEASE_CANDIDATE.md must indicate storm is not available"
     );
 }
+
+// ── v4.7 Phase 4: Profile RC checklist guard tests ────────────────────
+
+#[test]
+fn release_candidate_doc_mentions_v47_profile_rc_checklist() {
+    let docs = include_str!("../../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("v4.7 Profile RC Checklist"),
+        "RELEASE_CANDIDATE.md must contain v4.7 Profile RC Checklist section"
+    );
+}
+
+#[test]
+fn release_candidate_doc_v47_mentions_profile_ecosystem() {
+    let docs = include_str!("../../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("PROFILE_ECOSYSTEM"),
+        "RELEASE_CANDIDATE.md v4.7 section must mention profile ecosystem docs"
+    );
+}
+
+#[test]
+fn release_candidate_doc_v47_mentions_profile_examples() {
+    let docs = include_str!("../../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("PROFILE_EXAMPLES"),
+        "RELEASE_CANDIDATE.md v4.7 section must mention profile examples docs"
+    );
+}
+
+#[test]
+fn release_candidate_doc_v47_mentions_unknown_profile_clean_error() {
+    let docs = include_str!("../../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("clean error") || docs.contains("clean error listing"),
+        "RELEASE_CANDIDATE.md v4.7 section must mention unknown profile clean error"
+    );
+}
+
+#[test]
+fn release_candidate_doc_v47_mentions_storm_unavailable() {
+    let docs = include_str!("../../docs/RELEASE_CANDIDATE.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("storm") && lower.contains("unavailable"),
+        "RELEASE_CANDIDATE.md v4.7 section must mention storm unavailable"
+    );
+}
+
+#[test]
+fn roadmap_marks_phase4_current_or_closure() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    assert!(
+        docs.contains("Phase 4"),
+        "ROADMAP.md must mention Phase 4 for v4.7"
+    );
+    assert!(
+        docs.contains("RC Smoke") || docs.contains("Closure"),
+        "ROADMAP.md Phase 4 must mention RC Smoke or Closure"
+    );
+}
+
+#[test]
+fn v47_no_performance_lab_branch_referenced_as_merged() {
+    let ecosystem = include_str!("../../docs/PROFILE_ECOSYSTEM.md");
+    let examples = include_str!("../../docs/PROFILE_EXAMPLES.md");
+    let roadmap = include_str!("../../docs/ROADMAP.md");
+    // All three docs must say zactrix-20k-lab is parked, not merged
+    for (name, content) in [
+        ("ECOSYSTEM", ecosystem),
+        ("EXAMPLES", examples),
+        ("ROADMAP", roadmap),
+    ] {
+        assert!(
+            content.contains("parked") || content.contains("v4.8"),
+            "{name} must reference zactrix-20k-lab as parked for v4.8, not merged"
+        );
+    }
+}

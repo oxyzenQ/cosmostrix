@@ -135,4 +135,42 @@ if [[ "$BAD_CASING" -eq 1 ]]; then
 fi
 pass "Casing audit clean"
 
+# ── v4.7 Profile ecosystem RC smoke ──────────────────────────────────────
+
+log "Checking --list-profiles profile ecosystem pointers"
+LIST_V47=$("$BIN" --list-profiles)
+echo "$LIST_V47" | grep -Fq "USER PROFILES" || fail "--list-profiles must print USER PROFILES"
+echo "$LIST_V47" | grep -Fq "PROFILE_ECOSYSTEM" || fail "--list-profiles must point to docs/PROFILE_ECOSYSTEM.md"
+echo "$LIST_V47" | grep -Fq "PROFILE_EXAMPLES" || fail "--list-profiles must point to docs/PROFILE_EXAMPLES.md"
+pass "--list-profiles profile ecosystem pointers passed"
+
+log "Checking --dump-config profile pointers"
+DUMP_V47=$("$BIN" --dump-config)
+echo "$DUMP_V47" | grep -Fq "PROFILE_EXAMPLES" || fail "--dump-config must point to docs/PROFILE_EXAMPLES.md"
+echo "$DUMP_V47" | grep -Fq "ATMOSPHERE_PRESETS" || fail "--dump-config must point to atmosphere preset examples"
+pass "--dump-config profile pointers passed"
+
+log "Checking unknown profile error mentions --list-profiles"
+TMP_UP="$(mktemp)"
+printf 'profile.test.base = monolith\n' > "$TMP_UP"
+UP_ERR=$("$BIN" --config "$TMP_UP" --profile nonexistent 2>&1 || true)
+echo "$UP_ERR" | grep -Fq "expected one of:" || fail "unknown profile error must list available profiles"
+rm -f "$TMP_UP"
+pass "Unknown profile error passed"
+
+log "Checking storm remains unavailable"
+TMP_STORM="$(mktemp)"
+printf 'profile.storm.base = monolith\nprofile.storm.atmosphere-regime = storm\n' > "$TMP_STORM"
+STORM_ERR=$("$BIN" --config "$TMP_STORM" --profile storm 2>&1 || true)
+echo "$STORM_ERR" | grep -Fq "storm is unavailable" || fail "storm must be reported as unavailable"
+rm -f "$TMP_STORM"
+pass "Storm unavailability passed"
+
+log "Checking default runtime and writer invariants"
+"$BIN" -i | grep -Fq "application_mode: disabled" || fail "default must remain disabled"
+"$BIN" -i | grep -Fq "visual_runtime: protected" || fail "default must remain protected"
+"$BIN" --benchmark | grep -Eq "terminal_writer: single-owner" || fail "terminal_writer must be single-owner"
+"$BIN" --benchmark | grep -Eq "compute_parallelism: disabled" || fail "compute_parallelism must be disabled"
+pass "Default runtime and writer invariants passed"
+
 log "All release candidate smoke checks passed"

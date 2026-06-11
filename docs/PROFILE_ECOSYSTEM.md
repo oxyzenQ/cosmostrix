@@ -274,3 +274,13 @@ reference, or enable any Zactrix performance features from that branch.
 - `docs/ATMOSPHERE_PRESETS.md` — controlled atmosphere preset documentation
 - `docs/ATMOSPHERE_EXPANSION.md` — atmosphere contract and state matrix
 - `docs/PROFILE_ECOSYSTEM.md` — this document
+
+## Phase History
+
+- Phase 1 (complete): Profile Ecosystem Audit + Contract
+- Phase 2 (complete): Profile Examples + Config Dump Polish
+- Phase 3 (complete): Profile Validation UX + Error Message Polish
+- Phase 4 (complete): Profile RC Smoke + Closure Prep
+
+v4.7 remains profile/ergonomics focused. v4.8 remains Zactrix render
+efficiency / zactrix-20k-lab review.

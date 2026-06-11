@@ -76,7 +76,7 @@ Phase 2 (complete): Profile Examples + Config Dump Polish.
 - No runtime or visual behavior change.
 - No version bump.
 
-Phase 3 (current): Profile Validation UX + Error Message Polish.
+Phase 3 (complete): Profile Validation UX + Error Message Polish.
 - Polished error messages for unknown profiles, invalid profile fields,
   invalid profile values, storm rejection, and invalid atmosphere
   mode/regime. Messages are clear, actionable, and non-panicking.
@@ -87,6 +87,20 @@ Phase 3 (current): Profile Validation UX + Error Message Polish.
 - 15 deterministic tests covering clean errors, no partial mutation,
   field/value rejection, storm unavailability, precedence invariants,
   and doc guards.
+- No runtime or visual behavior change.
+- No version bump.
+
+Phase 4 (current): Profile RC Smoke + Closure Prep.
+- `scripts/rc-smoke.sh` — 11 new profile ecosystem smoke checks
+  covering --list-profiles pointers, --dump-config pointers, unknown
+  profile error, storm unavailability, and runtime/writer invariants.
+- `docs/RELEASE_CANDIDATE.md` — v4.7 Profile RC Checklist with
+  profile ecosystem, examples, precedence, storm, single-owner,
+  compute_parallelism, and zactrix-20k-lab items.
+- `docs/PROFILE_ECOSYSTEM.md` — Phase 1–4 completion status.
+- `docs/PROFILE_EXAMPLES.md` — Phase 1–4 closure note.
+- 14 deterministic doc guard tests for rc-smoke, RELEASE_CANDIDATE,
+  and ROADMAP.
 - No runtime or visual behavior change.
 - No version bump.
 

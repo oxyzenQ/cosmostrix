@@ -65,6 +65,27 @@ Expected:
 Note: The benchmark and README guard checks in `rc-smoke.sh` must still pass
 before any version tag is created.
 
+## v4.7 Profile RC Checklist
+
+Additional smoke checks for the profile ecosystem (v4.7.0):
+
+- `docs/PROFILE_ECOSYSTEM.md` exists with full profile contract,
+  behavior matrix, and validation documentation.
+- `docs/PROFILE_EXAMPLES.md` exists with 9 profile examples and
+  validation notes.
+- `--list-profiles` points to both `docs/PROFILE_ECOSYSTEM.md` and
+  `docs/PROFILE_EXAMPLES.md`.
+- `--dump-config` points to `docs/PROFILE_EXAMPLES.md` and atmosphere
+  preset examples.
+- Unknown profile produces a clean error listing available profiles.
+- Storm remains unavailable at every layer with a clear message.
+- `CLI > profile > config > defaults` precedence is documented and tested.
+- Terminal writer remains `single-owner`.
+- `compute_parallelism` remains `disabled`.
+- `zactrix-20k-lab` branch is parked for v4.8.
+- Benchmark and README rules in `rc-smoke.sh` must still pass before
+  any version tag is created.
+
 ## Controlled-Live Temp Config Smoke
 
 ```bash

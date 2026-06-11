@@ -208,3 +208,10 @@ Result: color is `green` (profile beats config), speed is `50`
   behavior matrix, validation details, and supported fields.
 - See `docs/ATMOSPHERE_PRESETS.md` for the six controlled atmosphere
   preset definitions and constraints.
+
+## Phase History
+
+- Phase 1: Profile Ecosystem Audit + Contract (complete)
+- Phase 2: Profile Examples + Config Dump Polish (complete)
+- Phase 3: Profile Validation UX + Error Message Polish (complete)
+- Phase 4: Profile RC Smoke + Closure Prep (complete)
