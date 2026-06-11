@@ -284,12 +284,12 @@ fn v46p4_expansion_doc_mentions_phase4_discoverability() {
 fn v46p4_engine_doc_status_phase4() {
     let doc = engine_doc();
     assert!(
-        doc.contains("Phase 4"),
-        "ATMOSPHERE_ENGINE.md must reference Phase 4"
+        doc.contains("Phase 4") || doc.contains("Phase 5"),
+        "ATMOSPHERE_ENGINE.md must reference Phase 4 or later"
     );
     assert!(
-        doc.contains("Discoverability"),
-        "ATMOSPHERE_ENGINE.md must mention Discoverability"
+        doc.contains("Discoverability") || doc.contains("Closure"),
+        "ATMOSPHERE_ENGINE.md must mention Discoverability or Closure"
     );
 }
 
@@ -319,4 +319,107 @@ fn v46p4_expansion_doc_discoverability_zactrix_parked() {
         doc.contains("zactrix-20k-lab") || doc.contains("Zactrix"),
         "ATMOSPHERE_EXPANSION.md must mention Zactrix parked for v4.8"
     );
+}
+
+// ── Phase 5: RC smoke / closure tests ──
+
+/// Helper: read rc-smoke.sh at compile time.
+fn rc_smoke_script() -> &'static str {
+    include_str!("../../scripts/rc-smoke.sh")
+}
+
+#[test]
+fn v46p5_rc_smoke_checks_list_profiles() {
+    let script = rc_smoke_script();
+    assert!(
+        script.contains("--list-profiles"),
+        "rc-smoke.sh must check --list-profiles"
+    );
+    assert!(
+        script.contains("CONTROLLED ATMOSPHERE PRESETS"),
+        "rc-smoke.sh must verify CONTROLLED ATMOSPHERE PRESETS in output"
+    );
+}
+
+#[test]
+fn v46p5_rc_smoke_checks_all_six_presets() {
+    let script = rc_smoke_script();
+    let names = [
+        "atmosphere-calm",
+        "atmosphere-pulse",
+        "atmosphere-signal",
+        "atmosphere-compression",
+        "atmosphere-void",
+        "atmosphere-monolith-pressure",
+    ];
+    for name in names {
+        assert!(
+            script.contains(name),
+            "rc-smoke.sh must check for preset '{name}'"
+        );
+    }
+}
+
+#[test]
+fn v46p5_rc_smoke_rejects_storm() {
+    let script = rc_smoke_script();
+    assert!(
+        script.contains("atmosphere-storm"),
+        "rc-smoke.sh must verify atmosphere-storm is absent"
+    );
+}
+
+#[test]
+fn v46p5_rc_smoke_checks_controlled_live_fields() {
+    let script = rc_smoke_script();
+    assert!(
+        script.contains("config_gate: armed"),
+        "rc-smoke.sh must check config_gate armed"
+    );
+    assert!(
+        script.contains("visual_runtime: protected"),
+        "rc-smoke.sh must check visual_runtime protected"
+    );
+    assert!(
+        script.contains("shadow_risk: whisper"),
+        "rc-smoke.sh must check shadow_risk whisper"
+    );
+}
+
+#[test]
+fn v46p5_expansion_doc_mentions_phase5_closure() {
+    let doc = expansion_doc();
+    assert!(
+        doc.contains("Phase 5"),
+        "ATMOSPHERE_EXPANSION.md must mention Phase 5"
+    );
+    assert!(
+        doc.contains("RC Smoke") || doc.contains("rc-smoke"),
+        "ATMOSPHERE_EXPANSION.md must mention RC Smoke"
+    );
+}
+
+#[test]
+fn v46p5_roadmap_marks_phase5_current_or_closure() {
+    let doc = include_str!("../../docs/ROADMAP.md");
+    assert!(doc.contains("Phase 5"), "ROADMAP.md must mention Phase 5");
+    assert!(
+        doc.contains("RC Smoke") || doc.contains("Closure"),
+        "ROADMAP.md must mention RC Smoke or Closure for Phase 5"
+    );
+}
+
+#[test]
+fn v46p5_docs_test_files_still_under_1000_loc() {
+    let files = [
+        (
+            "src/docs_tests/atmosphere.rs",
+            include_str!("atmosphere.rs"),
+        ),
+        ("src/docs_tests/zactrix.rs", include_str!("zactrix.rs")),
+    ];
+    for (name, content) in &files {
+        let loc = content.lines().count();
+        assert!(loc < 1000, "{name} is {loc} LOC — must be under 1000");
+    }
 }

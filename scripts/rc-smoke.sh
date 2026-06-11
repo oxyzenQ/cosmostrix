@@ -86,6 +86,20 @@ printf 'atmosphere-mode = disabled\natmosphere-regime = pulse\n' > "$TMP_DIS"
 pass "Disabled + non-Calm config smoke passed"
 rm -f "$TMP_DIS"
 
+# ── Atmosphere preset discoverability via --list-profiles ──────────────────
+
+log "Checking --list-profiles atmosphere preset discoverability"
+LIST_OUT=$("$BIN" --list-profiles)
+echo "$LIST_OUT" | grep -Fq "CONTROLLED ATMOSPHERE PRESETS" || fail "--list-profiles must show CONTROLLED ATMOSPHERE PRESETS section"
+echo "$LIST_OUT" | grep -Fq "atmosphere-calm" || fail "--list-profiles must list atmosphere-calm"
+echo "$LIST_OUT" | grep -Fq "atmosphere-pulse" || fail "--list-profiles must list atmosphere-pulse"
+echo "$LIST_OUT" | grep -Fq "atmosphere-signal" || fail "--list-profiles must list atmosphere-signal"
+echo "$LIST_OUT" | grep -Fq "atmosphere-compression" || fail "--list-profiles must list atmosphere-compression"
+echo "$LIST_OUT" | grep -Fq "atmosphere-void" || fail "--list-profiles must list atmosphere-void"
+echo "$LIST_OUT" | grep -Fq "atmosphere-monolith-pressure" || fail "--list-profiles must list atmosphere-monolith-pressure"
+echo "$LIST_OUT" | grep -Fq "atmosphere-storm" && fail "--list-profiles must not list atmosphere-storm"
+pass "Atmosphere preset discoverability passed"
+
 # ── README / CHANGELOG / casing audit ────────────────────────────────────
 
 log "Checking README guards"

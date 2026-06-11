@@ -253,3 +253,19 @@ Discoverability invariants:
 - Auto color drift remains opt-in only.
 - Terminal writer remains single-owner.
 - Zactrix performance lab remains parked for v4.8.
+
+## RC Smoke / Closure (Phase 5)
+
+v4.6.0 Phase 5 closes the atmosphere implementation with release-candidate
+smoke coverage. `scripts/rc-smoke.sh` now verifies `--list-profiles` output
+includes all six controlled atmosphere presets and excludes storm. The
+RELEASE_CANDIDATE.md checklist documents the v4.6 atmosphere RC requirements.
+No new runtime features are added.
+
+Closure invariants:
+- All v4.6.0 phases (1–5) are complete.
+- v4.6 remains opt-in only; version stays at v4.5.0 until tag.
+- v4.8 remains the place for `zactrix-20k-lab` review.
+- Storm preset does not exist and is not shown in any output.
+- Terminal writer remains single-owner.
+- No threads, no parallel compute, no unsafe, no new dependencies.

@@ -70,7 +70,7 @@ Phase 3 (complete): Preset UX / Config Examples + Pressure-aware Tests.
 - 16 deterministic doc guard tests in new docs_tests/atmosphere.rs.
 - No runtime or visual behavior change.
 
-Phase 4 (current): Preset CLI/Profile Discoverability.
+Phase 4 (complete): Preset CLI/Profile Discoverability.
 - `--list-profiles` output now includes controlled atmosphere preset
   section (all 6 presets with mode, regime, shadow).
 - Discoverability works even with no user profiles defined.
@@ -79,6 +79,15 @@ Phase 4 (current): Preset CLI/Profile Discoverability.
   ATMOSPHERE_ENGINE.md with Phase 4 status.
 - Deterministic tests for discoverability output.
 - No runtime or visual behavior change.
+
+Phase 5 (current): Atmosphere RC Smoke + v4.6 Closure.
+- `scripts/rc-smoke.sh` verifies `--list-profiles` includes all six
+  atmosphere presets and excludes storm.
+- `docs/RELEASE_CANDIDATE.md` documents v4.6 atmosphere RC checklist.
+- ATMOSPHERE_EXPANSION.md, ATMOSPHERE_PRESETS.md, ATMOSPHERE_ENGINE.md
+  updated with Phase 5 closure status.
+- Deterministic guard tests for RC smoke, release doc, roadmap.
+- No new runtime features. All v4.6.0 phases (1–5) complete.
 
 ### v4.7.0 — Renderer Ergonomics + Profile Ecosystem
 

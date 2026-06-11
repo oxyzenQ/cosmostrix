@@ -6,13 +6,12 @@ The Atmosphere Engine is a visual climate layer for Cosmostrix v4.0.0+.
 It models the overall visual mood of the terminal render as a slow-moving
 regime that modulates rendering parameters gradually over time.
 
-## Status: v4.6.0 Phase 4 — Preset CLI/Profile Discoverability
+## Status: v4.6.0 Phase 5 — Atmosphere RC Smoke + Closure
 
-v4.6.0 Phase 4 adds runtime discoverability for controlled atmosphere presets.
-`cosmostrix --list-profiles` now always shows the controlled atmosphere preset
-section (all 6 presets with mode, regime, shadow). No new CLI flag was needed.
-No preset is default. No preset changes visual behavior without explicit opt-in.
-No storm preset exists.
+v4.6.0 Phase 5 closes the atmosphere implementation with RC smoke coverage.
+`scripts/rc-smoke.sh` verifies `--list-profiles` includes all six presets and
+excludes storm. No preset is default. No preset changes visual behavior without
+explicit opt-in. No storm preset exists. Version remains v4.5.0 until tag.
 
 ### Phase 2 Profile Presets
 

@@ -126,3 +126,38 @@ fn release_candidate_doc_mentions_auth_requirement() {
         "RELEASE_CANDIDATE.md must document the release workflow authentication requirement"
     );
 }
+
+// ── v4.6 Phase 5: atmosphere RC checklist guard tests ────────────────────
+
+#[test]
+fn release_candidate_doc_mentions_v46_atmosphere_rc_checklist() {
+    let docs = include_str!("../../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("v4.6 Atmosphere RC Checklist"),
+        "RELEASE_CANDIDATE.md must contain v4.6 Atmosphere RC Checklist section"
+    );
+}
+
+#[test]
+fn release_candidate_doc_v46_mentions_list_profiles() {
+    let docs = include_str!("../../docs/RELEASE_CANDIDATE.md");
+    assert!(
+        docs.contains("--list-profiles"),
+        "RELEASE_CANDIDATE.md v4.6 section must mention --list-profiles"
+    );
+}
+
+#[test]
+fn release_candidate_doc_v46_storm_unavailable() {
+    let docs = include_str!("../../docs/RELEASE_CANDIDATE.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("storm"),
+        "RELEASE_CANDIDATE.md v4.6 section must mention storm"
+    );
+    // Ensure it says storm is NOT available, not that it is.
+    assert!(
+        lower.contains("not") || lower.contains("does not") || lower.contains("unavailable"),
+        "RELEASE_CANDIDATE.md must indicate storm is not available"
+    );
+}

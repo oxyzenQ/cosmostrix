@@ -209,3 +209,11 @@ The `zactrix-20k-lab` branch contains performance experiments for large
 terminal sizes. This work is parked for v4.8.0 and must not be merged into
 main during v4.6.0. Controlled atmosphere presets do not depend on, reference,
 or enable any Zactrix performance features from that branch.
+
+## v4.6.0 Closure (Phase 5)
+
+v4.6.0 Phase 5 adds release-candidate smoke coverage for atmosphere presets.
+`scripts/rc-smoke.sh` now verifies `--list-profiles` output includes all six
+presets and excludes storm. `docs/RELEASE_CANDIDATE.md` documents the v4.6
+atmosphere RC checklist. All v4.6.0 phases (1–5) are complete. The version
+remains v4.5.0 until an authorized version tag.

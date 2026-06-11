@@ -41,6 +41,30 @@ Expected defaults:
 - `runtime_application`: identity
 - `actual_execution`: single-threaded-renderer
 
+## v4.6 Atmosphere RC Checklist
+
+Additional smoke checks for the controlled atmosphere expansion (v4.6.0):
+
+```bash
+"$BIN" --list-profiles
+```
+
+Expected:
+
+- Output contains `CONTROLLED ATMOSPHERE PRESETS (opt-in only)`.
+- All six presets listed: `atmosphere-calm`, `atmosphere-pulse`,
+  `atmosphere-signal`, `atmosphere-compression`, `atmosphere-void`,
+  `atmosphere-monolith-pressure`.
+- `atmosphere-storm` does NOT appear.
+- Default remains `disabled / protected / identity`.
+- Storm remains unavailable at every layer.
+- `--color sun` stickiness is documented and tested.
+- Terminal writer remains `single-owner`.
+- `compute_parallelism` remains `disabled`.
+
+Note: The benchmark and README guard checks in `rc-smoke.sh` must still pass
+before any version tag is created.
+
 ## Controlled-Live Temp Config Smoke
 
 ```bash
