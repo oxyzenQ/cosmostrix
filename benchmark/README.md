@@ -49,6 +49,29 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## v4.7.0 Local Benchmark Baseline
+
+The v4.7.0 release prep phase (profile ecosystem contract, profile examples,
+config dump / list-profiles profile docs pointers, profile validation UX
+polish, profile RC smoke coverage) is docs/test-only with no runtime
+changes.  Local benchmark at 120x40 from `pro-linux-v3` binary (commit
+`c07dc5f`):
+
+- avg_fps: approximately 16,914
+- median_fps: approximately 17,141
+- p95_frame_time: approximately 0.069 ms
+- p99_frame_time: approximately 0.072 ms
+- frame_time_stability: excellent
+- avg_dirty_cell_ratio_percent: approximately 7.22%
+- actual_execution: single-threaded-renderer
+- terminal_writer: single-owner
+
+These numbers are approximate local measurements, not a portable promise.
+Benchmark FPS is **synthetic uncapped throughput** — it measures how many
+frames the renderer can compute per second in a tight loop, not the FPS the
+user will see at runtime. Treat stability, p95, and p99 as far more
+important than raw FPS.
+
 ## v4.6.0 Local Benchmark Baseline
 
 The v4.6.0 release prep phase (atmosphere expansion contract, preset registry,

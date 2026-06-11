@@ -8,6 +8,34 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v4.7.0
+
+Profile Ecosystem. Documentation, validation UX, and release-candidate smoke
+coverage for the profile system with no default visual behavior change and no
+active parallel compute.
+
+- Profile ecosystem contract documenting profile precedence
+  (CLI > profile > config > defaults), profile resolution, and mutation
+  semantics.
+- Profile examples documentation with ready-to-copy config snippets for
+  common profile use cases.
+- Config dump and `--list-profiles` enhanced with profile documentation
+  pointers to `PROFILE_ECOSYSTEM.md` and `PROFILE_EXAMPLES.md`.
+- Profile validation UX polish with clear, actionable error messages:
+  unknown profiles mention `--list-profiles`, invalid fields/values show
+  expected formats, storm rejection is explicit.
+- Unknown profile actionable error: both CLI and config paths produce
+  clear diagnostics pointing to `--list-profiles`.
+- Storm unavailable: error messages and config dump consistently state
+  that storm is unavailable.
+- Profile RC smoke coverage in `scripts/rc-smoke.sh` with 11 profile-related
+  checks and `docs/RELEASE_CANDIDATE.md` updated with v4.7 profile checklist.
+- Default remains disabled/protected/identity. No live atmosphere enabled by
+  default.
+- Terminal writer remains single-owner. Compute parallelism remains disabled.
+- No zactrix-20k-lab merge.
+- 858 deterministic tests, all passing.
+
 ## v4.6.0
 
 Controlled Atmosphere Expansion. Docs, test infrastructure, and CLI
