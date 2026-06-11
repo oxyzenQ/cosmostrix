@@ -8,7 +8,7 @@ use crate::config_apply::apply_config_and_runtime_defaults;
 use crate::rain_style::RainStyle;
 use crate::runtime::MonolithSize;
 
-fn args_with_config_result(config: &str, cli: &[&str]) -> Result<Args, String> {
+pub(crate) fn args_with_config_result(config: &str, cli: &[&str]) -> Result<Args, String> {
     let mut path = std::env::temp_dir();
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -33,7 +33,7 @@ fn args_with_config_result(config: &str, cli: &[&str]) -> Result<Args, String> {
     result
 }
 
-fn args_with_config(config: &str, cli: &[&str]) -> Args {
+pub(crate) fn args_with_config(config: &str, cli: &[&str]) -> Args {
     args_with_config_result(config, cli).expect("apply profile config")
 }
 

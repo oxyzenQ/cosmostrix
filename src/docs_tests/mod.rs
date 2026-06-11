@@ -15,11 +15,13 @@
 //! - `safety` — unsafe audits, debt markers, source file hygiene
 //! - `zactrix` — Zactrix Engine/Cache/Core docs, planner tests, architecture
 //! - `atmosphere` — Controlled atmosphere preset doc guards (v4.6.0 Phase 3)
+//! - `profile` — Profile ecosystem contract guards (v4.7.0 Phase 1)
 
 mod assets;
 mod atmosphere;
 mod endurance;
 mod metadata;
+mod profile;
 mod readme;
 mod release;
 mod safety;

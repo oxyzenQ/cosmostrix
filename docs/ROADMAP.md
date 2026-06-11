@@ -4,6 +4,20 @@
 
 ## Release History
 
+### v4.6.0 — Controlled Atmosphere Expansion (COMPLETE)
+
+Controlled atmosphere expansion with contracts, docs, presets, and tests.
+All atmosphere features remain **opt-in only**. No default visual output
+change. Terminal writer remains single-owner. Storm unavailable.
+
+| Phase | Description |
+|-------|-------------|
+| Phase 1 | Controlled Atmosphere Expansion Contract |
+| Phase 2 | Controlled Atmosphere Profile Presets (6 presets) |
+| Phase 3 | Preset UX / Config Examples + Pressure-aware Tests |
+| Phase 4 | Preset CLI/Profile Discoverability (`--list-profiles`) |
+| Phase 5 | Atmosphere RC Smoke + v4.6 Closure |
+
 ### v4.5.0 — Zactrix Foundation + Depth Regression (COMPLETE)
 
 Architecture and regression foundation. Complete.
@@ -32,68 +46,24 @@ by the Depth Regression Lab.
 
 ## Active Development
 
-### v4.6.0 — Controlled Atmosphere Expansion (opt-in only) [ACTIVE]
-
-Controlled atmosphere expansion with contracts, docs, and tests before
-any visual expansion. All atmosphere features remain **opt-in only** —
-the default calm regime is never overridden without explicit user
-configuration. No forced visual changes. No version bump during Phase 1.
-
-Phase 1 (complete): Controlled Atmosphere Expansion Contract.
-- Expansion contract docs (ATMOSPHERE_EXPANSION.md).
-- State matrix for allowed/rejected mode+regime combinations.
-- Config/profile/parser hardening tests.
-- Diagnostics guards for honest reporting.
-- No default visual output change.
-- Storm remains rejected/unavailable.
-- Terminal writer remains single-owner.
-- Zactrix performance work parked for v4.8.
-
-Phase 2 (complete): Controlled Atmosphere Profile Presets.
-- Atmosphere preset registry (6 presets: calm, pulse, signal,
-  compression, void, monolith-pressure).
-- Preset constraints documented in ATMOSPHERE_EXPANSION.md and
-  ATMOSPHERE_ENGINE.md.
-- Deterministic preset tests (registry, mode/regime mapping, storm
-  absence, color/terminal effect guards, CLI precedence).
-- Doc guard tests for Phase 2 preset documentation.
-- No preset is default. Storm preset does not exist.
-- No color change or terminal effects by any preset.
-- `--color sun` remains sticky with every preset.
-- Auto color drift remains false unless explicitly enabled.
-
-Phase 3 (complete): Preset UX / Config Examples + Pressure-aware Tests.
-- User-facing preset documentation (ATMOSPHERE_PRESETS.md).
-- Config dump atmosphere example lines.
-- Profile block examples for all 6 presets.
-- CLI/profile/config precedence explanation.
-- 16 deterministic doc guard tests in new docs_tests/atmosphere.rs.
-- No runtime or visual behavior change.
-
-Phase 4 (complete): Preset CLI/Profile Discoverability.
-- `--list-profiles` output now includes controlled atmosphere preset
-  section (all 6 presets with mode, regime, shadow).
-- Discoverability works even with no user profiles defined.
-- No new CLI flag. Appends to existing `--list-profiles` path.
-- Updated ATMOSPHERE_PRESETS.md, ATMOSPHERE_EXPANSION.md,
-  ATMOSPHERE_ENGINE.md with Phase 4 status.
-- Deterministic tests for discoverability output.
-- No runtime or visual behavior change.
-
-Phase 5 (current): Atmosphere RC Smoke + v4.6 Closure.
-- `scripts/rc-smoke.sh` verifies `--list-profiles` includes all six
-  atmosphere presets and excludes storm.
-- `docs/RELEASE_CANDIDATE.md` documents v4.6 atmosphere RC checklist.
-- ATMOSPHERE_EXPANSION.md, ATMOSPHERE_PRESETS.md, ATMOSPHERE_ENGINE.md
-  updated with Phase 5 closure status.
-- Deterministic guard tests for RC smoke, release doc, roadmap.
-- No new runtime features. All v4.6.0 phases (1–5) complete.
-
-### v4.7.0 — Renderer Ergonomics + Profile Ecosystem
+### v4.7.0 — Renderer Ergonomics + Profile Ecosystem [ACTIVE]
 
 Improved profile configuration, preset management, and renderer tuning
 options. Focus on user-facing ergonomics without touching the core render
 pipeline.
+
+Phase 1 (current): Profile Ecosystem Audit + Contract.
+- `docs/PROFILE_ECOSYSTEM.md` — profile syntax, precedence chain, behavior
+  matrix, color stickiness rules, storm unavailability, single-owner
+  invariant, zactrix-20k-lab parked for v4.8.
+- Profile behavior matrix: 14 documented scenarios covering no profile,
+  known/unknown profiles, CLI > profile > config precedence, color
+  stickiness, atmosphere opt-in, storm rejection, terminal writer
+  single-owner, compute parallelism disabled.
+- `--list-profiles` output adds pointer to `docs/PROFILE_ECOSYSTEM.md`.
+- Deterministic doc guard tests in new `docs_tests/profile.rs`.
+- No runtime or visual behavior change.
+- No version bump.
 
 ### v4.8.0 — Zactrix Render Efficiency Finishing
 

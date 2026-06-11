@@ -170,7 +170,8 @@ fn atmosphere_presets_section() -> String {
     let presets = all_atmosphere_presets();
     let mut out = String::from("\nCONTROLLED ATMOSPHERE PRESETS (opt-in only)\n\n");
     out.push_str("  Presets are opt-in. Default remains disabled/protected/identity.\n");
-    out.push_str("  Storm preset does not exist. See docs/ATMOSPHERE_PRESETS.md\n\n");
+    out.push_str("  Storm preset does not exist. See docs/ATMOSPHERE_PRESETS.md\n");
+    out.push_str("  See also: docs/PROFILE_ECOSYSTEM.md\n\n");
     for p in &presets {
         out.push_str(&format!(
             "  {:30} mode={} regime={} shadow={}\n",
