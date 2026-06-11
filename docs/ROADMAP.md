@@ -4,6 +4,21 @@
 
 ## Release History
 
+### v4.7.0 — Renderer Ergonomics + Profile Ecosystem (COMPLETE)
+
+Improved profile configuration, preset management, validation UX, and release
+candidate smoke coverage without changing core render behavior.
+
+| Phase | Description |
+|-------|-------------|
+| Phase 1 | Profile Ecosystem Audit + Contract |
+| Phase 2 | Profile Examples + Config Dump Polish |
+| Phase 3 | Profile Validation UX + Error Message Polish |
+| Phase 4 | Profile RC Smoke + Closure Prep |
+
+v4.7 is complete. Runtime and visual behavior remain stable. Terminal writer
+remains single-owner. `compute_parallelism` remains `disabled`.
+
 ### v4.6.0 — Controlled Atmosphere Expansion (COMPLETE)
 
 Controlled atmosphere expansion with contracts, docs, presets, and tests.
@@ -46,70 +61,22 @@ by the Depth Regression Lab.
 
 ## Active Development
 
-### v4.7.0 — Renderer Ergonomics + Profile Ecosystem [ACTIVE]
+### v4.8.0 — Zactrix Render Efficiency Integration [ACTIVE]
 
-Improved profile configuration, preset management, and renderer tuning
-options. Focus on user-facing ergonomics without touching the core render
-pipeline.
-
-Phase 1 (complete): Profile Ecosystem Audit + Contract.
-- `docs/PROFILE_ECOSYSTEM.md` — profile syntax, precedence chain, behavior
-  matrix, color stickiness rules, storm unavailability, single-owner
-  invariant, zactrix-20k-lab parked for v4.8.
-- Profile behavior matrix: 14 documented scenarios covering no profile,
-  known/unknown profiles, CLI > profile > config precedence, color
-  stickiness, atmosphere opt-in, storm rejection, terminal writer
-  single-owner, compute parallelism disabled.
-- `--list-profiles` output adds pointer to `docs/PROFILE_ECOSYSTEM.md`.
-- Deterministic doc guard tests in new `docs_tests/profile.rs`.
-- No runtime or visual behavior change.
-- No version bump.
-
-Phase 2 (complete): Profile Examples + Config Dump Polish.
-- `docs/PROFILE_EXAMPLES.md` — 9 concise profile examples (minimal,
-  color-only, scene foundation, 4 atmosphere presets, CLI override,
-  config precedence). All examples use real supported profile syntax.
-- Config dump adds pointer to `docs/PROFILE_EXAMPLES.md`.
-- `--list-profiles` adds pointer to `docs/PROFILE_EXAMPLES.md`.
-- 14 deterministic doc guard tests for examples doc, config dump, and
-  list-profiles pointers.
-- No runtime or visual behavior change.
-- No version bump.
-
-Phase 3 (complete): Profile Validation UX + Error Message Polish.
-- Polished error messages for unknown profiles, invalid profile fields,
-  invalid profile values, storm rejection, and invalid atmosphere
-  mode/regime. Messages are clear, actionable, and non-panicking.
-- `docs/PROFILE_ECOSYSTEM.md` — new Profile Validation section
-  documenting unknown profile behavior, invalid value handling,
-  unknown field contract, and storm unavailability.
-- `docs/PROFILE_EXAMPLES.md` — expanded Notes with validation behavior.
-- 15 deterministic tests covering clean errors, no partial mutation,
-  field/value rejection, storm unavailability, precedence invariants,
-  and doc guards.
-- No runtime or visual behavior change.
-- No version bump.
-
-Phase 4 (current): Profile RC Smoke + Closure Prep.
-- `scripts/rc-smoke.sh` — 11 new profile ecosystem smoke checks
-  covering --list-profiles pointers, --dump-config pointers, unknown
-  profile error, storm unavailability, and runtime/writer invariants.
-- `docs/RELEASE_CANDIDATE.md` — v4.7 Profile RC Checklist with
-  profile ecosystem, examples, precedence, storm, single-owner,
-  compute_parallelism, and zactrix-20k-lab items.
-- `docs/PROFILE_ECOSYSTEM.md` — Phase 1–4 completion status.
-- `docs/PROFILE_EXAMPLES.md` — Phase 1–4 closure note.
-- 14 deterministic doc guard tests for rc-smoke, RELEASE_CANDIDATE,
-  and ROADMAP.
-- No runtime or visual behavior change.
-- No version bump.
-
-### v4.8.0 — Zactrix Render Efficiency Finishing
-
-Review and merge `zactrix-20k-lab` performance experiments. May introduce
-controlled parallel compute for **non-terminal buffer preparation** only,
-gated by the runtime planner. Terminal writes remain single-owner. Must
-pass the full Depth Regression Lab before merge.
+Phase 1 (current): Zactrix Lab Integration Audit.
+- `docs/ZACTRIX_INTEGRATION_AUDIT.md` records the v4.7.0 main baseline,
+  lab commits, accepted candidate source, rejected 50k attempts, and
+  integration invariants.
+- `zactrix-20k-lab` is the optimization candidate source. The accepted
+  candidate is reducing redundant color pipeline work.
+- `zactrix-50k-lab` is ceiling and boundary evidence. 50k was not reached,
+  and rejected attempts stay rejected.
+- No direct merge from lab branches. Future work must cherry-pick or adapt
+  only clean changes.
+- No fake benchmark progress. Benchmark counters and field names stay honest.
+- No runtime or visual behavior change in Phase 1.
+- Terminal writer remains single-owner. `compute_parallelism` remains
+  `disabled`.
 
 Any optimization that touches the renderer, cloud module, monolith module,
 phosphor system, or droplet lifecycle must pass all depth regression tests.
