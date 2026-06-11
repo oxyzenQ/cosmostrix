@@ -190,7 +190,7 @@ shadingmode = 1
 # Atmosphere engine (gated/internal-first — Phase 10).
 # atmosphere-mode: disabled (default) | controlled-live
 # atmosphere-regime: calm (default) | pulse | signal | compression | void | monolith-pressure
-# Note: storm is NOT config-safe and will be rejected.
+# Note: storm is unavailable and will be rejected.
 # These keys are opt-in; setting atmosphere-mode without controlled-live has no effect.
 # atmosphere-mode = disabled
 # atmosphere-regime = calm

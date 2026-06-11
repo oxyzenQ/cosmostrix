@@ -65,7 +65,7 @@ Phase 1 (complete): Profile Ecosystem Audit + Contract.
 - No runtime or visual behavior change.
 - No version bump.
 
-Phase 2 (current): Profile Examples + Config Dump Polish.
+Phase 2 (complete): Profile Examples + Config Dump Polish.
 - `docs/PROFILE_EXAMPLES.md` — 9 concise profile examples (minimal,
   color-only, scene foundation, 4 atmosphere presets, CLI override,
   config precedence). All examples use real supported profile syntax.
@@ -73,6 +73,20 @@ Phase 2 (current): Profile Examples + Config Dump Polish.
 - `--list-profiles` adds pointer to `docs/PROFILE_EXAMPLES.md`.
 - 14 deterministic doc guard tests for examples doc, config dump, and
   list-profiles pointers.
+- No runtime or visual behavior change.
+- No version bump.
+
+Phase 3 (current): Profile Validation UX + Error Message Polish.
+- Polished error messages for unknown profiles, invalid profile fields,
+  invalid profile values, storm rejection, and invalid atmosphere
+  mode/regime. Messages are clear, actionable, and non-panicking.
+- `docs/PROFILE_ECOSYSTEM.md` — new Profile Validation section
+  documenting unknown profile behavior, invalid value handling,
+  unknown field contract, and storm unavailability.
+- `docs/PROFILE_EXAMPLES.md` — expanded Notes with validation behavior.
+- 15 deterministic tests covering clean errors, no partial mutation,
+  field/value rejection, storm unavailability, precedence invariants,
+  and doc guards.
 - No runtime or visual behavior change.
 - No version bump.
 

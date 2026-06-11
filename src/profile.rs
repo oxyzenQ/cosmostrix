@@ -130,7 +130,7 @@ pub fn apply_profile_layer(
             return Err(message);
         }
         eprintln!(
-            "config: ignoring invalid profile='{name}' ({})",
+            "config: ignoring unknown profile '{name}' (available: {}; see --list-profiles)",
             profile_name_list(profiles)
         );
         return Ok(modified);
@@ -152,7 +152,7 @@ pub fn apply_profile_layer(
         apply_profile_scene(matches, args, &base, &mut modified);
     } else {
         eprintln!(
-            "config: ignoring invalid profile.{normalized}.base='{base_scene}' (see --list-scenes)"
+            "profile: invalid base='{base_scene}' in profile '{normalized}' (see --list-scenes)"
         );
     }
 
@@ -258,7 +258,7 @@ fn apply_profile_preset(
     modified: &mut HashSet<&'static str>,
 ) {
     let Ok(name) = validate_preset_name(preset) else {
-        eprintln!("config: ignoring invalid profile preset='{preset}' (see --list-presets)");
+        eprintln!("profile: invalid preset='{preset}' in profile (see --list-presets)");
         return;
     };
     let Some(p) = get_preset(&name) else {
@@ -535,7 +535,7 @@ fn parse_atmosphere_regime_profile(name: &str, value: &str) -> Option<String> {
         }
         "storm" => {
             eprintln!(
-                "config: rejecting profile.{name}.atmosphere-regime='storm' — storm is NOT config-safe in Phase 10"
+                "profile: invalid atmosphere-regime='storm' in profile '{name}' — storm is unavailable"
             );
             None
         }
@@ -574,9 +574,7 @@ fn is_explicit(matches: &clap::ArgMatches, key: &str) -> bool {
 }
 
 fn warn_invalid(profile: &str, field: &str, value: &str, expected: &str) {
-    eprintln!(
-        "config: ignoring invalid profile.{profile}.{field}='{value}' (expected: {expected})"
-    );
+    eprintln!("profile: invalid {field}='{value}' in profile '{profile}' (expected: {expected})");
 }
 
 fn push_field(out: &mut String, profile: &str, field: &str, value: Option<&str>) {

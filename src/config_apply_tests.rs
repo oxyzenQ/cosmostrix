@@ -549,7 +549,7 @@ fn dump_config_mentions_atmosphere_keys() {
     assert!(dump.contains("atmosphere-mode"));
     assert!(dump.contains("atmosphere-regime"));
     assert!(dump.contains("controlled-live"));
-    assert!(dump.contains("storm is NOT config-safe"));
+    assert!(dump.contains("storm is unavailable"));
 }
 
 // ── Phase 10.5: Config smoke hardening tests ──

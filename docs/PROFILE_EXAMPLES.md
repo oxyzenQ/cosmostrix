@@ -189,11 +189,22 @@ Result: color is `green` (profile beats config), speed is `50`
 
 ## Notes
 
-- Storm is not config-safe and will be rejected at every layer.
-  There is no storm profile.
+- **Storm is unavailable** and will be rejected at every layer with a clear
+  message. There is no storm profile.
 - All controlled atmosphere profiles are opt-in only.
   The default remains `disabled / protected / identity`.
+- **Unknown profiles fail cleanly.** CLI `--profile unknown` produces a
+  clear error with no partial mutation. Config `profile = unknown` emits a
+  warning and continues with defaults.
+- **Invalid profile values fail before runtime mutation.** Each invalid
+  field is skipped independently; other valid fields in the same profile
+  still apply. Profile validation modifies the in-memory `Args` struct
+  only and never touches the terminal writer directly.
+- The terminal writer remains single-owner. No profile introduces parallel
+  terminal writes.
+- `zactrix-20k-lab` branch is parked for v4.8. Profile examples do not
+  depend on or enable any Zactrix performance features.
 - See `docs/PROFILE_ECOSYSTEM.md` for the full profile contract,
-  behavior matrix, and supported fields.
+  behavior matrix, validation details, and supported fields.
 - See `docs/ATMOSPHERE_PRESETS.md` for the six controlled atmosphere
   preset definitions and constraints.

@@ -59,14 +59,14 @@ fn parse_atmosphere_mode_config(name: &str, value: &str) -> Option<String> {
 
 /// Validate atmosphere-regime config value.
 /// Allowed: calm, pulse, signal, compression, void, monolith-pressure.
-/// Storm is NOT config-safe in Phase 10 and will be rejected.
+/// Storm is unavailable and will be rejected.
 fn parse_atmosphere_regime_config(name: &str, value: &str) -> Option<String> {
     match value.trim().to_ascii_lowercase().as_str() {
         "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" => {
             Some(value.trim().to_ascii_lowercase())
         }
         "storm" => {
-            eprintln!("config: rejecting {name}='storm' — storm is NOT config-safe in Phase 10");
+            eprintln!("config: rejecting atmosphere-regime='storm' — storm is unavailable");
             None
         }
         _ => {
@@ -247,7 +247,9 @@ fn apply_config_values(
                 args.profile = Some(name);
                 config_touched.insert("profile");
             }
-            Err(e) => eprintln!("config: ignoring invalid profile='{v}' ({e})"),
+            Err(e) => {
+                eprintln!("config: ignoring unknown profile '{v}' ({e}; see --list-profiles)")
+            }
         }
     }
 

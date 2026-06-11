@@ -153,9 +153,62 @@ config (`auto-color-drift = true`) or profile. No preset, scene, or
 atmosphere preset sets `auto_color_drift = true` implicitly. This is an
 opt-in feature with no hidden activation paths.
 
-## Storm Unavailable
+## Profile Validation
 
-Storm is not config-safe and is rejected at every parsing layer (config,
+Profiles are validated at application time, not at parse time. The
+`collect_profiles` function gathers all profile key-value pairs from the
+config file into an in-memory map without interpreting values. Validation
+happens when `apply_profile_layer` is called with a specific profile name.
+
+### Unknown Profiles
+
+When an unknown profile is requested via CLI (`--profile unknown`), the
+application returns a clean error before any runtime mutation occurs:
+
+```
+error: invalid profile: unknown
+expected one of: <list>
+```
+
+No partial mutation — the `Args` struct remains unmodified. The error is
+returned as a `Result::Err` and the application exits cleanly.
+
+When an unknown profile is referenced in config (`profile = unknown`), the
+config layer emits a warning and continues with defaults:
+
+```
+config: ignoring unknown profile 'unknown' (available: <list>; see --list-profiles)
+```
+
+This prevents a typo in the config file from breaking the entire
+application.
+
+### Invalid Profile Values
+
+Invalid field values in a profile produce clear, actionable warnings. Each
+invalid value is skipped independently — other valid fields in the same
+profile still apply. Example warnings:
+
+```
+profile: invalid color='not-a-color' in profile 'myprof' (expected: see --list-colors)
+profile: invalid atmosphere-regime='storm' in profile 'myprof' — storm is unavailable
+profile: invalid glitch-level='extreme' in profile 'myprof' (expected: none, subtle, default, intense)
+```
+
+Profile validation does not mutate terminal state directly. Profile
+application modifies the `Args` struct (in-memory configuration) only. The
+terminal writer remains single-owner and is never touched by profile code.
+
+### Unknown Profile Fields
+
+Keys in the config file that do not match `profile.<name>.<field>` for a
+known field are silently ignored. This allows forward-compatible config
+files that work across multiple versions of Cosmostrix without producing
+spurious warnings for newly added fields.
+
+### Storm Unavailable
+
+Storm is unavailable and will be rejected at every parsing layer (config,
 profile, preset). There is no `atmosphere-storm` preset. Attempting to set
 `atmosphere-regime = storm` in any profile or config key produces a clean
 rejection warning and falls back to safe defaults (disabled/calm/identity).
@@ -197,14 +250,14 @@ managed exclusively by the RAII terminal guard in the main application loop.
 ## Unknown Profile Behavior
 
 When an unknown profile is requested via CLI (`--profile unknown`), the
-application returns a clean error: `error: invalid profile: unknown` followed
-by `expected one of: <list>`. No partial mutation occurs — the `Args` struct
+application returns a clean error before any runtime mutation occurs (see
+[Profile Validation](#profile-validation) for details). The `Args` struct
 remains unmodified before the error is returned.
 
 When an unknown profile is referenced in config (`profile = unknown`), the
-config layer emits a warning (`config: ignoring invalid profile='unknown'`)
-and continues with defaults. This prevents a typo in the config file from
-breaking the entire application.
+config layer emits a warning with available profiles and a pointer to
+`--list-profiles`, then continues with defaults. This prevents a typo in
+the config file from breaking the entire application.
 
 ## Zactrix Render Efficiency Parked for v4.8
 
