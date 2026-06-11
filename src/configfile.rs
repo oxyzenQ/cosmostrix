@@ -210,6 +210,7 @@ shadingmode = 1
 # User scene/profile config.
 # Load with: cosmostrix --profile nightcore
 # Invalid profile values warn cleanly and are ignored.
+# See docs/PROFILE_EXAMPLES.md for more profile examples.
 # profile.nightcore.base = monolith
 # profile.nightcore.color = purple
 # profile.nightcore.charset = binary

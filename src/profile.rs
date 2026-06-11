@@ -193,6 +193,7 @@ pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
         }
         s
     };
+    out.push_str("\n  See docs/PROFILE_EXAMPLES.md for profile examples.\n");
     out.push_str(&atmosphere_presets_section());
     out
 }

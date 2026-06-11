@@ -52,7 +52,7 @@ Improved profile configuration, preset management, and renderer tuning
 options. Focus on user-facing ergonomics without touching the core render
 pipeline.
 
-Phase 1 (current): Profile Ecosystem Audit + Contract.
+Phase 1 (complete): Profile Ecosystem Audit + Contract.
 - `docs/PROFILE_ECOSYSTEM.md` — profile syntax, precedence chain, behavior
   matrix, color stickiness rules, storm unavailability, single-owner
   invariant, zactrix-20k-lab parked for v4.8.
@@ -62,6 +62,17 @@ Phase 1 (current): Profile Ecosystem Audit + Contract.
   single-owner, compute parallelism disabled.
 - `--list-profiles` output adds pointer to `docs/PROFILE_ECOSYSTEM.md`.
 - Deterministic doc guard tests in new `docs_tests/profile.rs`.
+- No runtime or visual behavior change.
+- No version bump.
+
+Phase 2 (current): Profile Examples + Config Dump Polish.
+- `docs/PROFILE_EXAMPLES.md` — 9 concise profile examples (minimal,
+  color-only, scene foundation, 4 atmosphere presets, CLI override,
+  config precedence). All examples use real supported profile syntax.
+- Config dump adds pointer to `docs/PROFILE_EXAMPLES.md`.
+- `--list-profiles` adds pointer to `docs/PROFILE_EXAMPLES.md`.
+- 14 deterministic doc guard tests for examples doc, config dump, and
+  list-profiles pointers.
 - No runtime or visual behavior change.
 - No version bump.
 
