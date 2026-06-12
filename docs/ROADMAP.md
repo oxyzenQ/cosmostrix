@@ -16,7 +16,7 @@ gate guardrails. No renderer hot-path behavior changes.
 | Phase 2 | Benchmark report automation | `f3b6b63` |
 | Phase 3 | Terminal lifecycle matrix | `294ad65` |
 | Phase 4 | Doctor/report polish | `43e3dc9` |
-| Phase 5 | Final release prep | pending |
+| Phase 5 | Final release prep | `7aee3b2` |
 
 v4.9 is complete. Terminal writer remains single-owner.
 `compute_parallelism` remains `disabled`. `actual_execution` remains
@@ -103,10 +103,24 @@ by the Depth Regression Lab.
 
 ## Active Development
 
-### v5.0.0 — Zactrix Engine Stable Default + Precision/Efficiency
+### v5.0.0 — Nightfall: Cinematic UX + Product Identity Release
 
-Only when the runtime planner is real, proven, and stable. Requires a
-completed v4.8.0 with confirmed stability across extended endurance runs.
+A **medium** major release focused on polish, discoverability, and
+product-grade feel. No renderer hot-path rewrite. No benchmark output
+field changes. No 50k FPS promise. Terminal writer remains single-owner.
+Benchmark honesty preserved. Release benchmark must be updated before tag.
+
+Android/Cosmostrix Live remains a future sibling product and is explicitly
+out of scope for the main CLI repository in v5.0.0.
+
+| Phase | Description | Commit |
+|-------|-------------|--------|
+| Phase 1 | Roadmap + product identity foundation | pending |
+| Phase 2 | Preset/profile discoverability polish | pending |
+| Phase 3 | Cinematic breathing language + docs contract | pending |
+| Phase 4 | Help/config UX polish | pending |
+| Phase 5 | Release candidate prep | pending |
+| Phase 6 | Signed tag / release / AUR | pending |
 
 ---
 
