@@ -45,8 +45,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(unix)]
     let term_reinit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
+    // Signal-exit flag: shared between signal handler threads and Terminal.
+    // Created before signal handlers so the handler closure can capture a
+    // clone. When set, Terminal::drop() clears the alternate screen viewport
+    // before switching back, preventing rain frame residue. Normal q/esc
+    // exit never sets this flag.
+    let signal_exit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+
     #[cfg(unix)]
     {
+        let se = signal_exit.clone();
         if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP]) {
             std::thread::spawn(move || {
                 if let Some(_sig) = signals.forever().next() {
@@ -54,6 +62,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     // directly writing ANSI restore sequences to stdout.
                     // This avoids racing with the main thread on the same fd.
                     GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
+                    // Mark this as a signal-triggered exit so Terminal::drop()
+                    // clears the visible viewport before leaving the alternate
+                    // screen. This prevents rain frame residue on the main
+                    // screen after pkill -TERM or Ctrl-C.
+                    se.store(true, Ordering::Release);
                     // Wait for the main loop to notice GRACEFUL_SHUTDOWN, set
                     // SHUTDOWN, and run Terminal::drop().  Do NOT call
                     // restore_terminal_best_effort() + process::exit() here —
@@ -103,8 +116,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     #[cfg(windows)]
     {
-        if let Err(e) = ctrlc::set_handler(|| {
+        let se = signal_exit.clone();
+        if let Err(e) = ctrlc::set_handler(move || {
             GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
+            se.store(true, Ordering::Release);
             std::thread::sleep(std::time::Duration::from_secs(1));
             if !SHUTDOWN.load(Ordering::Acquire) {
                 if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
@@ -122,7 +137,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Spawn watchdog thread
     spawn_watchdog();
 
-    let mut term = Terminal::new()?;
+    let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
     // Mouse reporting is opt-in because abrupt process death can leave some
     // terminals echoing raw mouse escape sequences until they are reset.
     if cfg.mouse && term.enable_mouse_capture().is_ok() {
@@ -214,7 +229,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         #[cfg(unix)]
         if term_reinit.swap(false, Ordering::Acquire) {
             drop(term);
-            term = Terminal::new()?;
+            term = Terminal::with_signal_exit(signal_exit.clone())?;
             if cfg.mouse && term.enable_mouse_capture().is_ok() {
                 MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
             }

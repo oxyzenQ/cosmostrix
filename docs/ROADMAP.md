@@ -63,9 +63,12 @@ by the Depth Regression Lab.
 
 ### v4.8.0 — Zactrix Render Efficiency Integration [ACTIVE]
 
-Phase 4 (current): Terminal Kill Cleanup / Signal Exit Hardening. Fix
-signal handler race that caused `pkill -f cosmostrix` to leave glyph
-residue. v4.8 merge blocked until owner-side visual smoke confirms.
+Phase 4B (current): Signal-Exit Visible Residue Cleanup. Fix fork-guard
+stdout race and add viewport clear before alternate screen switch on
+signal exit. v4.8 merge blocked until owner-side visual smoke confirms.
+
+Phase 4 (complete): Terminal mode sanity hardening. Signal handler
+race fixed. Commit `c56b4d7`.
 
 Phase 3 (complete): Main Merge Prep / Conflict Audit.
 

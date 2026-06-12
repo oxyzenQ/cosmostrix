@@ -95,10 +95,27 @@ pub struct Terminal {
     /// Set to `true` after flush completes; the force-exit watchdog checks
     /// this and skips `process::exit` when cleanup finished normally.
     shutdown_complete: Arc<AtomicBool>,
+    /// When set (by signal handlers), cleanup clears the visible viewport
+    /// before leaving the alternate screen. Normal q/esc exit leaves this
+    /// `false` so the alternate screen switch is non-destructive.
+    signal_exit: Arc<AtomicBool>,
 }
 
 impl Terminal {
+    /// Create a Terminal without signal-exit viewport cleanup.
+    /// On drop, the alternate screen is left non-destructively.
+    /// Use [`with_signal_exit`] for interactive mode where signal
+    /// exits should clear the viewport.
+    #[allow(dead_code)]
     pub fn new() -> Result<Self> {
+        Self::with_signal_exit(Arc::new(AtomicBool::new(false)))
+    }
+
+    /// Create a Terminal that clears the visible viewport on drop if the
+    /// given `signal_exit` flag is set. This is used by the interactive
+    /// event loop to distinguish signal-triggered exits (which need
+    /// viewport cleanup) from normal q/esc exits (which do not).
+    pub(crate) fn with_signal_exit(signal_exit: Arc<AtomicBool>) -> Result<Self> {
         let raw = stdout();
         terminal::enable_raw_mode()?;
         let out = BufWriter::with_capacity(STDOUT_BUF_CAPACITY, raw);
@@ -122,6 +139,7 @@ impl Terminal {
             line_wrap_disabled: false,
             cleaned_up: false,
             shutdown_complete: Arc::new(AtomicBool::new(false)),
+            signal_exit: signal_exit.clone(),
         };
 
         let init_res: Result<()> = (|| {
@@ -215,6 +233,20 @@ impl Terminal {
         if self.line_wrap_disabled {
             let _ = self.stdout.execute(terminal::EnableLineWrap);
             self.line_wrap_disabled = false;
+        }
+        // On signal-triggered exit (SIGINT/SIGTERM/SIGHUP), clear the
+        // visible viewport inside the alternate screen before switching
+        // back to the main screen. This prevents the last rain frame
+        // from being momentarily visible on the main screen when the
+        // terminal emulator processes the LeaveAlternateScreen escape.
+        // Normal q/esc exit skips this — the alternate screen switch
+        // alone cleanly restores the original terminal content.
+        if self.alternate_screen_enabled
+            && self.signal_exit.load(std::sync::atomic::Ordering::Acquire)
+        {
+            let _ = self.stdout.queue(cursor::MoveTo(0, 0));
+            let _ = self.stdout.queue(terminal::Clear(terminal::ClearType::All));
+            let _ = self.stdout.flush();
         }
         if self.alternate_screen_enabled {
             let _ = self.stdout.execute(terminal::LeaveAlternateScreen);
@@ -584,6 +616,8 @@ pub fn blank_cell(bg: Option<Color>) -> Cell {
 #[cfg(test)]
 mod tests {
     use super::{TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE};
+    use std::sync::atomic::AtomicBool;
+    use std::sync::Arc;
 
     #[derive(Default)]
     struct CleanupFlags {
@@ -592,13 +626,14 @@ mod tests {
         bracketed_paste: bool,
         cursor: bool,
         wrap: bool,
+        signal_exit_clear: bool,
         alternate: bool,
         raw: bool,
         cleaned: bool,
     }
 
     impl CleanupFlags {
-        fn cleanup_plan(&mut self) -> Vec<&'static str> {
+        fn cleanup_plan(&mut self, signal_exit: bool) -> Vec<&'static str> {
             if self.cleaned {
                 return Vec::new();
             }
@@ -624,6 +659,12 @@ mod tests {
             if self.wrap {
                 plan.push("enable-wrap");
                 self.wrap = false;
+            }
+            // Signal-exit viewport clear happens BEFORE leave-alternate
+            // but only when signal_exit flag is set.
+            if self.alternate && signal_exit {
+                plan.push("clear-viewport");
+                self.signal_exit_clear = true;
             }
             if self.alternate {
                 plan.push("leave-alternate");
@@ -717,10 +758,11 @@ mod tests {
             alternate: true,
             raw: true,
             cleaned: false,
+            ..Default::default()
         };
 
         assert_eq!(
-            flags.cleanup_plan(),
+            flags.cleanup_plan(false),
             [
                 "disable-mouse",
                 "disable-focus",
@@ -740,11 +782,69 @@ mod tests {
             alternate: true,
             raw: true,
             cleaned: false,
+            ..Default::default()
         };
-        let plan = flags.cleanup_plan();
-        assert!(!plan.contains(&"clear-screen"));
+        let plan = flags.cleanup_plan(false);
+        assert!(!plan.contains(&"clear-viewport"));
         assert!(!plan.contains(&"purge-scrollback"));
         assert!(!plan.contains(&"cursor-home"));
-        assert!(flags.cleanup_plan().is_empty());
+        assert!(flags.cleanup_plan(false).is_empty());
+    }
+
+    #[test]
+    fn signal_exit_cleanup_clears_viewport_before_leaving_alternate() {
+        let mut flags = CleanupFlags {
+            mouse: true,
+            focus: true,
+            bracketed_paste: true,
+            cursor: true,
+            wrap: true,
+            alternate: true,
+            raw: true,
+            cleaned: false,
+            ..Default::default()
+        };
+
+        let plan = flags.cleanup_plan(true);
+        let clear_idx = plan.iter().position(|&s| s == "clear-viewport");
+        let leave_idx = plan.iter().position(|&s| s == "leave-alternate");
+        assert!(
+            clear_idx.is_some() && leave_idx.is_some(),
+            "signal-exit cleanup must include clear-viewport and leave-alternate"
+        );
+        assert!(
+            clear_idx < leave_idx,
+            "clear-viewport must happen before leave-alternate"
+        );
+    }
+
+    #[test]
+    fn normal_exit_cleanup_skips_viewport_clear() {
+        let mut flags = CleanupFlags {
+            mouse: true,
+            focus: true,
+            bracketed_paste: true,
+            cursor: true,
+            wrap: true,
+            alternate: true,
+            raw: true,
+            cleaned: false,
+            ..Default::default()
+        };
+
+        let plan = flags.cleanup_plan(false);
+        assert!(
+            !plan.contains(&"clear-viewport"),
+            "normal exit must NOT clear viewport"
+        );
+    }
+
+    #[test]
+    fn signal_exit_flag_is_atomic_and_shared() {
+        let flag = Arc::new(AtomicBool::new(false));
+        let clone = flag.clone();
+        assert!(!flag.load(std::sync::atomic::Ordering::Acquire));
+        clone.store(true, std::sync::atomic::Ordering::Release);
+        assert!(flag.load(std::sync::atomic::Ordering::Acquire));
     }
 }

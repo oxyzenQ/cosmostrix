@@ -99,15 +99,15 @@ fn audit_doc_names_twenty_k_lab_as_candidate_source() {
 }
 
 #[test]
-fn roadmap_marks_v48_active_and_phase3_current() {
+fn roadmap_marks_v48_active_and_phase4b_current() {
     let docs = include_str!("../../docs/ROADMAP.md");
     assert!(
         docs.contains("v4.8.0") && docs.contains("[ACTIVE]"),
         "ROADMAP.md must mark v4.8.0 active"
     );
     assert!(
-        docs.contains("Phase 4 (current): Terminal Kill Cleanup"),
-        "ROADMAP.md must mark v4.8 Phase 4 as current"
+        docs.contains("Phase 4B") && docs.contains("current"),
+        "ROADMAP.md must mark v4.8 Phase 4B as current"
     );
     assert!(
         docs.contains("50k was not reached") && docs.contains("No fake benchmark progress"),
@@ -261,5 +261,41 @@ fn terminal_kill_cleanup_doc_mentions_watchdog_fallback() {
     assert!(
         docs.contains("watchdog") && docs.contains("20"),
         "doc must mention watchdog as stuck-loop fallback"
+    );
+}
+
+#[test]
+fn terminal_kill_cleanup_doc_mentions_signal_exit_viewport_clear() {
+    let docs = include_str!("../../docs/TERMINAL_KILL_CLEANUP.md");
+    assert!(
+        docs.contains("signal-exit") && docs.contains("viewport"),
+        "doc must mention signal-exit viewport clear behavior"
+    );
+}
+
+#[test]
+fn terminal_kill_cleanup_doc_mentions_fork_guard_ppid_check() {
+    let docs = include_str!("../../docs/TERMINAL_KILL_CLEANUP.md");
+    assert!(
+        docs.contains("ppid") || docs.contains("getppid"),
+        "doc must mention fork guard ppid check to prevent race"
+    );
+}
+
+#[test]
+fn terminal_kill_cleanup_doc_normal_exit_non_destructive() {
+    let docs = include_str!("../../docs/TERMINAL_KILL_CLEANUP.md");
+    assert!(
+        docs.contains("does NOT clear") || docs.contains("does not clear"),
+        "doc must confirm normal exit is non-destructive"
+    );
+}
+
+#[test]
+fn roadmap_marks_v48_phase4b() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    assert!(
+        docs.contains("Phase 4B") && docs.contains("current"),
+        "ROADMAP.md must mark v4.8 Phase 4B as current"
     );
 }

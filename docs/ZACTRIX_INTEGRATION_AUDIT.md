@@ -259,7 +259,7 @@ visual smoke is owner-side/local if the environment is non-interactive.
 - `active_frame_ratio`: 100%
 - No version bump until release prep
 
-## Phase 4 — Terminal Kill Cleanup / Signal Exit Hardening (CURRENT)
+## Phase 4 — Terminal Kill Cleanup / Signal Exit Hardening (COMPLETE)
 
 Commit: `a3ac896`
 
@@ -280,3 +280,60 @@ fork-based guard (`cx-term-guard`) provides best-effort recovery. See
 `docs/TERMINAL_KILL_CLEANUP.md` for full documentation.
 
 v4.8 merge remains blocked until owner-side visual smoke confirms the fix.
+
+## Phase 4B — Signal-Exit Visible Residue Cleanup (CURRENT)
+
+Commit: `0eaf691`
+
+Owner-side visual smoke after Phase 4 found that `pkill -TERM` still left
+visible Matrix rain residue on the terminal screen despite terminal modes
+being restored correctly. Two root causes were identified:
+
+### Root Cause 1: Fork Guard Stdout Race
+
+The fork-based `cx-term-guard` child process (created via `libc::fork()`)
+previously called `restore_terminal_best_effort()` on any received SIGTERM,
+including when the parent received `pkill -TERM` and was handling cleanup
+via `Terminal::drop()`. Since both processes share the same stdout file
+descriptor, this produced a race: the child's ANSI escape sequences
+interleaved with the parent's buffered writer output, causing garbled
+escape sequences and glyph residue on the main screen.
+
+Fix: the child now checks `getppid()` after receiving SIGTERM. If ppid
+is not 1 (parent still alive), the child exits silently without writing
+to stdout — the parent's `Terminal::drop()` handles all cleanup. Only
+when the parent is already dead (ppid == 1, indicating SIGKILL or crash)
+does the child perform terminal restoration.
+
+### Root Cause 2: No Viewport Clear Before Alternate Screen Switch
+
+The renderer uses the alternate screen buffer. On signal exit,
+`Terminal::cleanup_terminal()` called `LeaveAlternateScreen` without
+first clearing the visible viewport inside the alternate screen. Terminal
+emulators can briefly show the last alternate screen content during the
+buffer switch, leaving rain frame glyphs visible on the main screen.
+
+Fix: `Terminal` now accepts a `signal_exit: Arc<AtomicBool>` flag. When
+set (by signal handler threads for SIGINT/SIGTERM/SIGHUP),
+`cleanup_terminal()` writes `MoveTo(0,0)` + `Clear(All)` + flush inside
+the alternate screen before issuing `LeaveAlternateScreen`. Normal q/esc
+exit does not set this flag, so normal exit remains non-destructive — the
+alternate screen switch alone cleanly restores the original content.
+
+### Changed Files
+
+- `src/terminal.rs`: Added `signal_exit` field to `Terminal`, added
+  `with_signal_exit()` constructor, updated `cleanup_terminal()` to
+  clear viewport on signal exit, added tests.
+- `src/interactive/event_loop.rs`: Signal handlers set `signal_exit`
+  flag alongside `GRACEFUL_SHUTDOWN`. `Terminal::with_signal_exit()`
+  used instead of `Terminal::new()`.
+- `src/interactive/watchdog.rs`: Removed unused `SIGNAL_EXIT_REQUESTED`
+  static (replaced by local `Arc<AtomicBool>`).
+- `src/main.rs`: Fork guard child now checks `getppid()` before
+  restoring terminal on SIGTERM.
+- `docs/TERMINAL_KILL_CLEANUP.md`: Full rewrite with process model,
+  signal-exit viewport clear documentation, fork guard race fix,
+  manual test instructions.
+- `docs/ROADMAP.md`: Updated to Phase 4B (current).
+- `src/docs_tests/zactrix_integration.rs`: Added guards for Phase 4B.
