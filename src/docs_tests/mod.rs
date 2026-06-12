@@ -17,6 +17,7 @@
 //! - `zactrix_integration` — v4.8 lab integration audit guards
 //! - `atmosphere` — Controlled atmosphere preset doc guards (v4.6.0 Phase 3)
 //! - `profile` — Profile ecosystem contract guards (v4.7.0 Phase 1)
+//! - `terminal_lifecycle` — Terminal lifecycle matrix docs guards (v4.9.0 Phase 3)
 
 mod assets;
 mod atmosphere;
@@ -26,5 +27,6 @@ mod profile;
 mod readme;
 mod release;
 mod safety;
+mod terminal_lifecycle;
 mod zactrix;
 mod zactrix_integration;

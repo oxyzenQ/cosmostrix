@@ -91,8 +91,8 @@ Adds terminal lifecycle documentation and release gate guardrails.
 | Phase | Description | Status |
 |-------|-------------|--------|
 | Phase 1 | Release guard foundation | `cf63254` |
-| Phase 2 | Benchmark report automation | current |
-| Phase 3 | Terminal lifecycle matrix | pending |
+| Phase 2 | Benchmark report automation | `f3b6b63` |
+| Phase 3 | Terminal lifecycle matrix | current |
 | Phase 4 | Doctor/report polish | pending |
 | Phase 5 | Final release prep | pending |
 

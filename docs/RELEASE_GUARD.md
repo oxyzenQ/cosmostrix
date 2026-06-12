@@ -113,12 +113,33 @@ the following guards must be satisfied (see `src/docs_tests/release.rs`):
 * Benchmark README states 50k was not reached / not promised
 * Benchmark README reports `actual_execution: single-threaded-renderer`
 
-### Gate 7 — CI green
+### Gate 7 — Terminal lifecycle verification
+
+If terminal code has changed since the last release, verify the terminal
+lifecycle matrix paths:
+
+1. Run `--doctor` and confirm no errors.
+2. Test normal `q` / `Esc` exit — no visible residue, prompt clean.
+3. Test Ctrl-C (SIGINT) — no visible residue on main screen.
+4. Test `pkill -TERM -f cosmostrix` — no visible residue (v4.8 Phase 4B
+   cleanup).
+5. Run `cosmostrix --reset-terminal` — confirms destructive recovery works.
+6. Review `docs/TERMINAL_LIFECYCLE_MATRIX.md` for accuracy.
+7. **Do not claim SIGKILL cleanup.** SIGKILL cannot be caught. The fork
+   guard is best-effort and Linux-only. Document honestly.
+
+If no terminal code changed since the last release, this gate is a
+lightweight review (confirm matrix doc exists, no changes needed).
+
+See `docs/TERMINAL_LIFECYCLE_MATRIX.md` for the full matrix of all
+14 lifecycle paths and their expected behavior.
+
+### Gate 8 — CI green
 
 The CI workflow must pass on `main` at the commit that will be tagged.
 Do not tag until CI is green.
 
-### Gate 8 — Signed tag
+### Gate 9 — Signed tag
 
 Create a signed tag only after all above gates pass:
 
@@ -127,13 +148,13 @@ git tag -s vX.Y.Z -m "vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
-### Gate 9 — GitHub release
+### Gate 10 — GitHub release
 
 Create the GitHub release only after the tag workflow passes and CI
 artifacts are available.  The release workflow (`.github/workflows/release.yml`)
 handles this automatically when triggered by the tag.
 
-### Gate 10 — AUR publish
+### Gate 11 — AUR publish
 
 Publish to AUR only after release assets and checksums exist on GitHub.
 Verify the binary checksum matches before updating the AUR package.
@@ -166,6 +187,15 @@ Verify the binary checksum matches before updating the AUR package.
   - `actual_execution: single-threaded-renderer`
   - `terminal_writer: single-owner`
   - `compute_parallelism: disabled`
+
+* **Terminal lifecycle matrix is authoritative.**  The matrix in
+  `docs/TERMINAL_LIFECYCLE_MATRIX.md` defines expected cleanup behavior
+  for all 14 lifecycle paths.  Owner visual smoke testing is required
+  before release if terminal code changes.
+
+* **Owner visual smoke remains required before release** if terminal
+  code changes.  Automated tests cannot verify visible terminal residue.
+  The owner must manually test normal exit, Ctrl-C, and SIGTERM paths.
 
 ## Pattern for Future Releases
 

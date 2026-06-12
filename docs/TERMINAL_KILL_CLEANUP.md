@@ -201,3 +201,12 @@ Expected: no rain glyphs left on visible shell output, prompt not
 stained, terminal input normal.
 
 v4.8 merge remains blocked until owner-side visual smoke confirms the fix.
+
+## Terminal Lifecycle Matrix
+
+A comprehensive matrix covering all terminal lifecycle paths (normal exit,
+SIGINT, SIGTERM, SIGHUP, SIGTSTP/SIGCONT, SIGKILL, `--reset-terminal`,
+Windows Terminal, tmux, ssh, headless, benchmark mode, and doctor mode)
+is maintained in `docs/TERMINAL_LIFECYCLE_MATRIX.md`. That document is
+the authoritative reference for cleanup guarantees across all paths.
+This document covers the signal handling implementation details.
