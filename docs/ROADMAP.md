@@ -63,7 +63,11 @@ by the Depth Regression Lab.
 
 ### v4.8.0 — Zactrix Render Efficiency Integration [ACTIVE]
 
-Phase 3 (current): Main Merge Prep / Conflict Audit.
+Phase 4 (current): Terminal Kill Cleanup / Signal Exit Hardening. Fix
+signal handler race that caused `pkill -f cosmostrix` to leave glyph
+residue. v4.8 merge blocked until owner-side visual smoke confirms.
+
+Phase 3 (complete): Main Merge Prep / Conflict Audit.
 
 Phase 2B (complete): Validation Lock. Commit `fa2c995`. 875 tests pass.
 5-run benchmark mean ~27,900 FPS. All invariants stable.

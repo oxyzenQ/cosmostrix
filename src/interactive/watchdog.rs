@@ -38,7 +38,10 @@ pub(super) static SHUTDOWN: std::sync::atomic::AtomicBool =
 /// calling `restore_terminal_best_effort()` + `process::exit()` directly.
 /// The main loop checks this flag each iteration and exits cleanly, allowing
 /// `Terminal::drop()` to restore the terminal without racing on stdout.
-/// Falls back to direct restore after a timeout for stuck-loop protection.
+/// Signal handler threads simply set this flag and then block until `SHUTDOWN`
+/// is observed.  If the main loop is truly stuck, the watchdog (20 s timeout)
+/// is the sole fallback that calls `restore_terminal_best_effort()` +
+/// `process::exit()`.
 pub(super) static GRACEFUL_SHUTDOWN: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 

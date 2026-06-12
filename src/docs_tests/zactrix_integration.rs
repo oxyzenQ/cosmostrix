@@ -106,8 +106,8 @@ fn roadmap_marks_v48_active_and_phase3_current() {
         "ROADMAP.md must mark v4.8.0 active"
     );
     assert!(
-        docs.contains("Phase 3 (current): Main Merge Prep"),
-        "ROADMAP.md must mark v4.8 Phase 3 as current"
+        docs.contains("Phase 4 (current): Terminal Kill Cleanup"),
+        "ROADMAP.md must mark v4.8 Phase 4 as current"
     );
     assert!(
         docs.contains("50k was not reached") && docs.contains("No fake benchmark progress"),
@@ -206,5 +206,60 @@ fn audit_doc_mentions_merge_readiness_and_no_conflicts() {
     assert!(
         docs.contains("zero conflicts") || docs.contains("fast-forward"),
         "audit doc must mention merge-readiness (zero conflicts or fast-forward)"
+    );
+}
+
+#[test]
+fn terminal_kill_cleanup_doc_exists() {
+    let docs = include_str!("../../docs/TERMINAL_KILL_CLEANUP.md");
+    assert!(
+        docs.contains("pkill -f cosmostrix")
+            && docs.contains("SIGTERM")
+            && docs.contains("SIGKILL"),
+        "TERMINAL_KILL_CLEANUP.md must document pkill, SIGTERM, and SIGKILL"
+    );
+}
+
+#[test]
+fn terminal_kill_cleanup_doc_mentions_recovery() {
+    let docs = include_str!("../../docs/TERMINAL_KILL_CLEANUP.md");
+    assert!(
+        docs.contains("printf '\\\\033c'") || docs.contains("printf '\\033c'"),
+        "doc must mention printf escape recovery"
+    );
+    assert!(
+        docs.contains("stty sane"),
+        "doc must mention stty sane recovery"
+    );
+    assert!(
+        docs.contains("--reset-terminal"),
+        "doc must mention --reset-terminal recovery"
+    );
+}
+
+#[test]
+fn terminal_kill_cleanup_doc_separates_normal_from_reset() {
+    let docs = include_str!("../../docs/TERMINAL_KILL_CLEANUP.md");
+    assert!(
+        docs.contains("Normal Exit") && docs.contains("--reset-terminal"),
+        "doc must distinguish normal exit from --reset-terminal"
+    );
+}
+
+#[test]
+fn terminal_kill_cleanup_doc_mentions_no_screen_clear_on_normal_exit() {
+    let docs = include_str!("../../docs/TERMINAL_KILL_CLEANUP.md");
+    assert!(
+        docs.contains("does NOT clear the screen") || docs.contains("does not clear the screen"),
+        "doc must state normal exit does not clear screen"
+    );
+}
+
+#[test]
+fn terminal_kill_cleanup_doc_mentions_watchdog_fallback() {
+    let docs = include_str!("../../docs/TERMINAL_KILL_CLEANUP.md");
+    assert!(
+        docs.contains("watchdog") && docs.contains("20"),
+        "doc must mention watchdog as stuck-loop fallback"
     );
 }

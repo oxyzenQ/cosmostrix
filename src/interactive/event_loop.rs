@@ -49,24 +49,25 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     {
         if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP]) {
             std::thread::spawn(move || {
-                if let Some(sig) = signals.forever().next() {
+                if let Some(_sig) = signals.forever().next() {
                     // Request graceful shutdown via AtomicBool instead of
                     // directly writing ANSI restore sequences to stdout.
                     // This avoids racing with the main thread on the same fd.
                     GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
-                    // Wait briefly for the main loop to notice and exit.
-                    // If the main loop is stuck (e.g., infinite loop), the
-                    // watchdog thread will handle the hard restore.
-                    std::thread::sleep(std::time::Duration::from_secs(1));
-                    // Fallback: if still alive after timeout, force restore.
-                    if !SHUTDOWN.load(Ordering::Acquire) {
-                        if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
-                            use crossterm::ExecutableCommand;
-                            let _ =
-                                std::io::stdout().execute(crossterm::event::DisableMouseCapture);
+                    // Wait for the main loop to notice GRACEFUL_SHUTDOWN, set
+                    // SHUTDOWN, and run Terminal::drop().  Do NOT call
+                    // restore_terminal_best_effort() + process::exit() here —
+                    // that races on stdout with the main loop's buffered writer
+                    // and skips Terminal::drop(), which is the only path that
+                    // flushes the final frame before leaving the alternate
+                    // screen.  If the main loop is truly stuck (e.g. deadlock
+                    // inside a syscall), the watchdog thread (20s timeout)
+                    // will handle the hard restore instead.
+                    loop {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        if SHUTDOWN.load(Ordering::Acquire) {
+                            break;
                         }
-                        restore_terminal_best_effort();
-                        std::process::exit(128 + sig);
                     }
                 }
             });

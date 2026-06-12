@@ -258,3 +258,25 @@ visual smoke is owner-side/local if the environment is non-interactive.
 - `active_streams_avg`: 41
 - `active_frame_ratio`: 100%
 - No version bump until release prep
+
+## Phase 4 — Terminal Kill Cleanup / Signal Exit Hardening (CURRENT)
+
+Commit: `a3ac896`
+
+Owner-side visual smoke found that `pkill -f cosmostrix` left Matrix rain
+glyph residue on the terminal screen and prompt lines. Investigation
+revealed the signal handler fallback path (`restore_terminal_best_effort()`
++ `process::exit()` after 1-second timeout) raced on stdout with the main
+loop's buffered writer and skipped `Terminal::drop()`.
+
+Fix: signal handler threads (SIGINT, SIGTERM, SIGHUP) now set
+`GRACEFUL_SHUTDOWN` and block until `SHUTDOWN` is observed. They no longer
+call `restore_terminal_best_effort()` or `process::exit()` themselves. The
+watchdog thread (20-second stuck-loop timeout) remains the sole hard
+fallback.
+
+SIGKILL (`kill -9`) cannot be caught by any process. On Linux, the
+fork-based guard (`cx-term-guard`) provides best-effort recovery. See
+`docs/TERMINAL_KILL_CLEANUP.md` for full documentation.
+
+v4.8 merge remains blocked until owner-side visual smoke confirms the fix.
