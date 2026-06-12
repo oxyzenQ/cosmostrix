@@ -63,18 +63,24 @@ by the Depth Regression Lab.
 
 ### v4.8.0 — Zactrix Render Efficiency Integration [ACTIVE]
 
-Phase 1 (current): Zactrix Lab Integration Audit.
+Phase 2B (current): Validation Lock.
+
+Phase 2A (complete): Color pipeline optimization integrated from `e7253e7`
+(`zactrix-20k-lab`) via manual adaptation. No direct lab merge. Commit
+`ce8dc81`. 869 tests pass. 5-run benchmark mean ~27,900 FPS. All invariants
+stable (dirty 7.21%, streams 41, single-owner, disabled parallelism).
+
+Phase 1 (complete): Zactrix Lab Integration Audit.
 - `docs/ZACTRIX_INTEGRATION_AUDIT.md` records the v4.7.0 main baseline,
   lab commits, accepted candidate source, rejected 50k attempts, and
   integration invariants.
 - `zactrix-20k-lab` is the optimization candidate source. The accepted
   candidate is reducing redundant color pipeline work.
 - `zactrix-50k-lab` is ceiling and boundary evidence. 50k was not reached,
-  and rejected attempts stay rejected.
+  and rejected attempts stay rejected. 50k is not a release promise.
 - No direct merge from lab branches. Future work must cherry-pick or adapt
   only clean changes.
 - No fake benchmark progress. Benchmark counters and field names stay honest.
-- No runtime or visual behavior change in Phase 1.
 - Terminal writer remains single-owner. `compute_parallelism` remains
   `disabled`.
 

@@ -108,3 +108,103 @@ terminal writes.
 Code integration is deferred to Phase 2. Phase 1 records the audit, imports the
 50k closure evidence, and installs documentation guards so the v4.8 path stays
 honest before any render-path optimization lands.
+
+## Phase 2A — Code Integration (COMPLETE)
+
+Commit: `ce8dc81 perf(v4.8): integrate zactrix color pipeline optimization`
+
+Source commit: `e7253e7` (on `zactrix-20k-lab`)
+
+Integration method: manual adaptation of individual safe color-pipeline
+optimizations onto the v4.7.0 mainline. No direct lab branch merge.
+
+### Accepted Optimizations
+
+- **Single RGB decode per cell** — terminal colors are decoded once, then the
+  resulting RGB tuple is reused through brightness and blend steps instead of
+  being re-decoded.
+- **Integer fixed-point blend/brightness math** — RGB helpers use fixed-point
+  integer arithmetic for brightness scaling and white/core blending, avoiding
+  per-component float conversion.
+- **Combined `layer_brightness * glyph_dim`** — brightness and glyph dimming
+  are multiplied once and reused, eliminating a redundant multiply per cell.
+- **`set_force` for known-dirty monolith cleanup cells** — cells that are
+  known to be dirty during monolith cleanup use a forced write helper instead
+  of the general conditional-dirty path.
+- **Cached `pool_is_binary`** — whether the current character pool is binary
+  is cached once per draw context instead of being recomputed per cell.
+- **Head self-bloom precomputed constant** — the head cell's self-bloom factor
+  is precomputed as a constant instead of being derived per frame.
+
+### Rejected (from 50k lab, remain rejected)
+
+- Frame dirty epoch stamps
+- Monolith stale-only cleanup
+- Edge-fade line cache
+- Non-TTY benchmark progress elapsed gate
+
+50k FPS is not a release promise. See `docs/ZACTRIX_50K_LAB.md`.
+
+### Phase 2A Benchmark (3-run, previous session)
+
+| Run | avg_fps | median_fps | p95 ms | p99 ms | dirty % | streams | stability |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | ~26900 | ~27200 | ~0.041 | ~0.042 | ~7.21 | 41 | excellent |
+| 2 | ~27800 | ~28100 | ~0.039 | ~0.040 | ~7.21 | 41 | excellent |
+| 3 | ~27200 | ~27500 | ~0.041 | ~0.042 | ~7.21 | 41 | excellent |
+
+Invariant labels (all runs):
+
+- `actual_execution`: `single-threaded-renderer`
+- `terminal_writer`: `single-owner`
+- `compute_parallelism`: `disabled`
+- `active_frame_ratio`: `100.0%`
+
+### Integration Safety
+
+- No direct merge from `zactrix-20k-lab` or `zactrix-50k-lab`.
+- No version bump, tag, release, or AUR metadata change.
+- All 869 tests passed after integration.
+- Visual parity not yet confirmed by interactive smoke (deferred to Phase 2B).
+
+## Phase 2B — Validation Lock (CURRENT)
+
+Commit: pending
+
+Goal: lock Phase 2A with full validation, 5-run benchmark, documentation
+update, and honest visual-smoke status. No new optimization work unless fixing
+a validation failure.
+
+### Phase 2B 5-Run Benchmark
+
+| Run | avg_fps | median_fps | p95 ms | p99 ms | dirty % | streams | stability |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | 27861.3 | 28144.4 | 0.039 | 0.040 | 7.21 | 41 | excellent |
+| 2 | 28034.5 | 28287.3 | 0.039 | 0.041 | 7.21 | 41 | excellent |
+| 3 | 28008.1 | 28297.3 | 0.039 | 0.041 | 7.21 | 41 | excellent |
+| 4 | 27634.9 | 28282.5 | 0.039 | 0.041 | 7.21 | 41 | excellent |
+| 5 | 27963.0 | 28290.9 | 0.039 | 0.041 | 7.21 | 41 | excellent |
+
+5-run mean avg_fps: `27900.4`
+
+Invariant labels (all runs):
+
+- `actual_execution`: `single-threaded-renderer`
+- `terminal_writer`: `single-owner`
+- `compute_parallelism`: `disabled`
+- `active_frame_ratio`: `100.0%`
+
+### Visual Smoke
+
+manual visual smoke not run because session is non-interactive.
+
+### Validation Results
+
+- `cargo fmt --all -- --check`: PASS
+- `cargo test --all --locked`: 869 passed, 0 failed
+- `cargo clippy --locked --all-targets --all-features -- -D warnings`: PASS
+- `./build.sh check-all`: PASS (skipped: sccache, mold/lld, cargo-nextest, cargo-audit, cargo-deny)
+- `./version-to.sh --check 4.7.0`: PASS
+- `cargo pro-linux-v3`: PASS
+- `./scripts/rc-smoke.sh`: PASS
+- `bash -n scripts/monitor-cosmostrix.sh`: PASS

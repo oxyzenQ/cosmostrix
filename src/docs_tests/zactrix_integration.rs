@@ -99,18 +99,76 @@ fn audit_doc_names_twenty_k_lab_as_candidate_source() {
 }
 
 #[test]
-fn roadmap_marks_v48_phase1_current() {
+fn roadmap_marks_v48_phase2b_current() {
     let docs = include_str!("../../docs/ROADMAP.md");
     assert!(
         docs.contains("v4.8.0") && docs.contains("[ACTIVE]"),
         "ROADMAP.md must mark v4.8.0 active"
     );
     assert!(
-        docs.contains("Phase 1 (current): Zactrix Lab Integration Audit"),
-        "ROADMAP.md must mark v4.8 Phase 1 as current"
+        docs.contains("Phase 2B (current): Validation Lock"),
+        "ROADMAP.md must mark v4.8 Phase 2B as current"
     );
     assert!(
         docs.contains("50k was not reached") && docs.contains("No fake benchmark progress"),
         "ROADMAP.md must document honest 50k boundary evidence"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_phase2a_completed() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("Phase 2A") && docs.contains("Code Integration (COMPLETE)"),
+        "audit doc must record Phase 2A code integration as complete"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_integration_commit_ce8dc81() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("ce8dc81"),
+        "audit doc must mention integration commit ce8dc81"
+    );
+    assert!(
+        docs.contains("e7253e7"),
+        "audit doc must mention source commit e7253e7"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_terminal_writer_single_owner() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("terminal_writer") && docs.contains("single-owner"),
+        "audit doc must mention terminal_writer single-owner"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_compute_parallelism_disabled() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("compute_parallelism") && docs.contains("disabled"),
+        "audit doc must mention compute_parallelism disabled"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_phase2b_validation_lock() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("Phase 2B") && docs.contains("Validation Lock"),
+        "audit doc must record Phase 2B validation lock"
+    );
+}
+
+#[test]
+fn audit_doc_confirms_no_direct_lab_merge() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("No direct merge from"),
+        "audit doc must confirm no direct merge from lab branches"
     );
 }
