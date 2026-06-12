@@ -63,12 +63,14 @@ by the Depth Regression Lab.
 
 ### v4.8.0 — Zactrix Render Efficiency Integration [ACTIVE]
 
-Phase 2B (current): Validation Lock.
+Phase 3 (current): Main Merge Prep / Conflict Audit.
+
+Phase 2B (complete): Validation Lock. Commit `fa2c995`. 875 tests pass.
+5-run benchmark mean ~27,900 FPS. All invariants stable.
 
 Phase 2A (complete): Color pipeline optimization integrated from `e7253e7`
 (`zactrix-20k-lab`) via manual adaptation. No direct lab merge. Commit
-`ce8dc81`. 869 tests pass. 5-run benchmark mean ~27,900 FPS. All invariants
-stable (dirty 7.21%, streams 41, single-owner, disabled parallelism).
+`ce8dc81`.
 
 Phase 1 (complete): Zactrix Lab Integration Audit.
 - `docs/ZACTRIX_INTEGRATION_AUDIT.md` records the v4.7.0 main baseline,

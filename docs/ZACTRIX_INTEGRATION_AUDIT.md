@@ -208,3 +208,53 @@ manual visual smoke not run because session is non-interactive.
 - `cargo pro-linux-v3`: PASS
 - `./scripts/rc-smoke.sh`: PASS
 - `bash -n scripts/monitor-cosmostrix.sh`: PASS
+
+## Phase 3 — Main Merge Prep / Conflict Audit (CURRENT)
+
+Commit: pending
+
+Goal: prepare `v48-zactrix-integration` for eventual merge into `main` by
+auditing conflicts, diff scope, docs, tests, and release-readiness. Do not
+perform the merge.
+
+### Merge-Prep Status
+
+- Branch: `v48-zactrix-integration`
+- Commits ahead of main: 3 (Phase 1, 2A, 2B)
+- Changed files: 17 (docs, color pipeline, tests — no release metadata)
+- `origin/main` is an ancestor of HEAD (fast-forward eligible)
+- `git merge-tree` conflict check: zero conflicts
+- No AUR metadata touched
+- No version bump — v4.8 remains unbumped until release prep
+- No tag or release created
+- No direct lab branch merge
+- 50k FPS not reached and not a release promise
+- Locked integration benchmark: 27,900.4 FPS (5-run mean)
+
+### Merge-Readiness Summary
+
+The branch is a clean fast-forward candidate onto `main`. All changes are
+limited to:
+
+- Color pipeline optimizations (src/palette.rs, src/droplet.rs, src/frame.rs,
+  src/cloud/monolith.rs, src/cloud/phosphor.rs, src/cloud/rain.rs,
+  src/cloud/render.rs)
+- Documentation (docs/ZACTRIX_INTEGRATION_AUDIT.md, docs/ZACTRIX_50K_LAB.md,
+  docs/ROADMAP.md)
+- Guard tests (src/docs_tests/zactrix_integration.rs, src/docs_tests/zactrix.rs,
+  src/docs_tests/mod.rs)
+- Depth/visual regression tests (src/cloud/tests/)
+
+No release metadata, AUR files, version bumps, or configuration defaults were
+modified. The expected merge target is `main` after owner review. Manual
+visual smoke is owner-side/local if the environment is non-interactive.
+
+### Invariant Confirmation (Phase 3)
+
+- `terminal_writer`: single-owner
+- `compute_parallelism`: disabled
+- `actual_execution`: single-threaded-renderer
+- `avg_dirty_cell_ratio`: 7.21%
+- `active_streams_avg`: 41
+- `active_frame_ratio`: 100%
+- No version bump until release prep

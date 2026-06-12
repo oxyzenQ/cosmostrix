@@ -99,15 +99,15 @@ fn audit_doc_names_twenty_k_lab_as_candidate_source() {
 }
 
 #[test]
-fn roadmap_marks_v48_phase2b_current() {
+fn roadmap_marks_v48_active_and_phase3_current() {
     let docs = include_str!("../../docs/ROADMAP.md");
     assert!(
         docs.contains("v4.8.0") && docs.contains("[ACTIVE]"),
         "ROADMAP.md must mark v4.8.0 active"
     );
     assert!(
-        docs.contains("Phase 2B (current): Validation Lock"),
-        "ROADMAP.md must mark v4.8 Phase 2B as current"
+        docs.contains("Phase 3 (current): Main Merge Prep"),
+        "ROADMAP.md must mark v4.8 Phase 3 as current"
     );
     assert!(
         docs.contains("50k was not reached") && docs.contains("No fake benchmark progress"),
@@ -170,5 +170,41 @@ fn audit_doc_confirms_no_direct_lab_merge() {
     assert!(
         docs.contains("No direct merge from"),
         "audit doc must confirm no direct merge from lab branches"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_merge_prep() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("Main Merge Prep") && docs.contains("Conflict Audit"),
+        "audit doc must mention Phase 3 merge prep / conflict audit"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_no_version_bump_until_release_prep() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("No version bump") || docs.contains("no version bump"),
+        "audit doc must mention no version bump until release prep"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_locked_benchmark_27900() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("27,900.4") || docs.contains("27.9k"),
+        "audit doc must mention locked 27,900.4 FPS benchmark"
+    );
+}
+
+#[test]
+fn audit_doc_mentions_merge_readiness_and_no_conflicts() {
+    let docs = include_str!("../../docs/ZACTRIX_INTEGRATION_AUDIT.md");
+    assert!(
+        docs.contains("zero conflicts") || docs.contains("fast-forward"),
+        "audit doc must mention merge-readiness (zero conflicts or fast-forward)"
     );
 }
