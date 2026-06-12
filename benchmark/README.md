@@ -49,6 +49,62 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## v4.8.0 — Zactrix Integration + Terminal Cleanup Hardening
+
+v4.8.0 integrates the Zactrix color pipeline optimization and hardens terminal
+cleanup on signal exit (fork-guard stdout race fix, viewport clear before
+alternate screen switch). 5-run release benchmark from `pro-linux-v3` binary
+(commit `ec1214b`), default 120x40 terminal size.
+
+- Binary version: `v4.8.0`
+- Commit: `ec1214b`
+- Profile: `pro-linux-v3` (linux-x86_64-v3)
+- Run count: 5
+
+### 5-Run Table
+
+| Run | Avg FPS | Median FPS | P95 frame time | P99 frame time | Stability | Dirty ratio | Active streams |
+|-----|--------:|-----------:|---------------:|---------------:|-----------|------------:|---------------:|
+| 1 | 28445.2 | 28737.3 | 0.039 ms | 0.042 ms | excellent | 7.21% | 41 |
+| 2 | 28406.5 | 28808.1 | 0.039 ms | 0.041 ms | excellent | 7.21% | 41 |
+| 3 | 28305.6 | 28565.7 | 0.039 ms | 0.041 ms | excellent | 7.21% | 41 |
+| 4 | 28410.4 | 28582.9 | 0.038 ms | 0.040 ms | excellent | 7.21% | 41 |
+| 5 | 28429.9 | 28769.1 | 0.038 ms | 0.040 ms | excellent | 7.21% | 41 |
+
+- **Mean avg_fps**: 28399.5
+- **P95 range**: 0.038–0.039 ms
+- **P99 range**: 0.040–0.042 ms
+
+### Invariants
+
+| Field | Value |
+|-------|-------|
+| `actual_execution` | `single-threaded-renderer` |
+| `terminal_writer` | `single-owner` |
+| `compute_parallelism` | `disabled` |
+| `frame_time_stability` | `excellent` (all 5 runs) |
+| `avg_dirty_cell_ratio` | 7.21% (all 5 runs) |
+| `active_streams_avg` | 41 (all 5 runs) |
+
+### Notes
+
+- This benchmark measures the **default renderer workload** (cosmic rain
+  animation at 120x40).  Heavy message or matrix-mode workloads are not
+  comparable to the default benchmark and will yield different FPS numbers.
+- The 50k FPS lab target was **not reached** and is **not promised**.  The
+  ~28,400 FPS plateau reflects the v4.8.0 default workload on this machine.
+- `terminal_writer` remains `single-owner`: terminal writes are never
+  parallelized.
+- `compute_parallelism` remains `disabled`: no parallel frame computation.
+- `actual_execution` remains `single-threaded-renderer`: the renderer executes
+  on a single thread in benchmark mode.
+
+These numbers are local measurements on a single machine, not a portable
+promise.  Benchmark FPS is **synthetic uncapped throughput** — it measures how
+many frames the renderer can compute per second in a tight loop, not the FPS
+the user will see at runtime.  Treat stability, p95, and p99 as far more
+important than raw FPS.
+
 ## v4.7.0 Local Benchmark Baseline
 
 The v4.7.0 release prep phase (profile ecosystem contract, profile examples,

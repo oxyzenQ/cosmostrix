@@ -854,3 +854,51 @@ fn v48_phase2a_pool_is_binary_cached_in_drawctx() {
         "DrawCtx must have pool_is_binary field"
     );
 }
+
+// ── v4.8.0 Phase 5B: Release benchmark report doc guards ──────────────────
+
+#[test]
+fn v48_benchmark_docs_mention_v480() {
+    let docs = include_str!("../../benchmark/README.md");
+    assert!(
+        docs.contains("v4.8.0"),
+        "benchmark/README.md must mention v4.8.0 release benchmark"
+    );
+}
+
+#[test]
+fn v48_benchmark_docs_mention_release_commit() {
+    let docs = include_str!("../../benchmark/README.md");
+    assert!(
+        docs.contains("ec1214b"),
+        "benchmark/README.md must mention the v4.8.0 release commit hash"
+    );
+}
+
+#[test]
+fn v48_benchmark_docs_state_single_owner() {
+    let docs = include_str!("../../benchmark/README.md");
+    assert!(
+        docs.contains("single-owner"),
+        "benchmark/README.md v4.8.0 section must state terminal_writer single-owner"
+    );
+}
+
+#[test]
+fn v48_benchmark_docs_state_compute_parallelism_disabled() {
+    let docs = include_str!("../../benchmark/README.md");
+    assert!(
+        docs.contains("compute_parallelism") && docs.contains("disabled"),
+        "benchmark/README.md v4.8.0 section must state compute_parallelism disabled"
+    );
+}
+
+#[test]
+fn v48_benchmark_docs_state_50k_not_promised() {
+    let docs = include_str!("../../benchmark/README.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("not reached") && lower.contains("not promised"),
+        "benchmark/README.md v4.8.0 section must state 50k FPS was not reached and not promised"
+    );
+}
