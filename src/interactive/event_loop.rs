@@ -7,13 +7,9 @@
 //! interactive mode: signal handling, frame pacing, input dispatch,
 //! simulation stepping, rendering, and performance reporting.
 
-use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant};
-
-#[cfg(unix)]
-use std::sync::atomic::AtomicBool;
-#[cfg(unix)]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyEventKind, MouseEventKind};
 
