@@ -4,6 +4,26 @@
 
 ## Release History
 
+### v4.9.0 — The Wolf: Release Guard + Terminal Runtime Contract (COMPLETE)
+
+Hardens the release process so benchmark reports cannot be forgotten again.
+Adds terminal lifecycle documentation, doctor/report polish, and release
+gate guardrails. No renderer hot-path behavior changes.
+
+| Phase | Description | Commit |
+|-------|-------------|--------|
+| Phase 1 | Release guard foundation | `cf63254` |
+| Phase 2 | Benchmark report automation | `f3b6b63` |
+| Phase 3 | Terminal lifecycle matrix | `294ad65` |
+| Phase 4 | Doctor/report polish | `43e3dc9` |
+| Phase 5 | Final release prep | pending |
+
+v4.9 is complete. Terminal writer remains single-owner.
+`compute_parallelism` remains `disabled`. `actual_execution` remains
+`single-threaded-renderer`. 944 tests pass. 50k was not reached and is
+not a release promise. No renderer behavior changes. No benchmark field
+changes.
+
 ### v4.8.0 — Zactrix Integration + Terminal Cleanup Hardening (COMPLETE)
 
 Integrated accepted zactrix color pipeline optimization with signal-exit
@@ -82,26 +102,6 @@ by the Depth Regression Lab.
 ---
 
 ## Active Development
-
-### v4.9.0 — The Wolf: Release Guard + Terminal Runtime Contract
-
-Hardens the release process so benchmark reports cannot be forgotten again.
-Adds terminal lifecycle documentation and release gate guardrails.
-
-| Phase | Description | Status |
-|-------|-------------|--------|
-| Phase 1 | Release guard foundation | `cf63254` |
-| Phase 2 | Benchmark report automation | `f3b6b63` |
-| Phase 3 | Terminal lifecycle matrix | `294ad65` |
-| Phase 4 | Doctor/report polish | current |
-| Phase 5 | Final release prep | pending |
-
-v4.9 is not a 50k FPS promise. v4.9 does not claim parallel
-renderer execution. Renderer honesty invariants are preserved:
-
-- `actual_execution: single-threaded-renderer`
-- `terminal_writer: single-owner`
-- `compute_parallelism: disabled`
 
 ### v5.0.0 — Zactrix Engine Stable Default + Precision/Efficiency
 

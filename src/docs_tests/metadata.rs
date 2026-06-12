@@ -108,14 +108,14 @@ fn changelog_v400_mentions_demo_refresh() {
     );
 }
 
-// ── v4.8.0 release metadata guard tests ──────────────────────────────
+// ── v4.9.0 release metadata guard tests ──────────────────────────────
 
 #[test]
 fn cargo_toml_version_matches_changelog_latest() {
     let cargo = include_str!("../../Cargo.toml");
     assert!(
-        cargo.contains(r#"version = "4.8.0""#),
-        "Cargo.toml must have version = \"4.8.0\""
+        cargo.contains(r#"version = "4.9.0""#),
+        "Cargo.toml must have version = \"4.9.0\""
     );
     assert!(
         !cargo.contains(r#"version = "4.0.1""#),
@@ -133,14 +133,18 @@ fn cargo_toml_version_matches_changelog_latest() {
         !cargo.contains(r#"version = "4.7.0""#),
         "Cargo.toml must not contain old version 4.7.0"
     );
+    assert!(
+        !cargo.contains(r#"version = "4.8.0""#),
+        "Cargo.toml must not contain old version 4.8.0"
+    );
 }
 
 #[test]
-fn readme_uses_v480_tag_in_install_example() {
+fn readme_uses_v490_tag_in_install_example() {
     let readme = include_str!("../../README.md");
     assert!(
-        readme.contains(r#"TAG="v4.8.0""#),
-        "README install example must use TAG=\"v4.8.0\" as the current release tag"
+        readme.contains(r#"TAG="v4.9.0""#),
+        "README install example must use TAG=\"v4.9.0\" as the current release tag"
     );
 }
 
@@ -150,8 +154,8 @@ fn readme_uses_v480_tag_in_install_example() {
 fn aur_pkgbuild_pkgver_matches_release() {
     let pkgbuild = include_str!("../../aur/cosmostrix-bin/PKGBUILD");
     assert!(
-        pkgbuild.contains("pkgver=4.8.0"),
-        "PKGBUILD must have pkgver=4.8.0"
+        pkgbuild.contains("pkgver=4.9.0"),
+        "PKGBUILD must have pkgver=4.9.0"
     );
     assert!(
         !pkgbuild.contains("pkgver=4.0.1"),
@@ -169,14 +173,18 @@ fn aur_pkgbuild_pkgver_matches_release() {
         !pkgbuild.contains("pkgver=4.7.0"),
         "PKGBUILD must not contain old pkgver=4.7.0"
     );
+    assert!(
+        !pkgbuild.contains("pkgver=4.8.0"),
+        "PKGBUILD must not contain old pkgver=4.8.0"
+    );
 }
 
 #[test]
 fn aur_srcinfo_pkgver_matches_release() {
     let srcinfo = include_str!("../../aur/cosmostrix-bin/.SRCINFO");
     assert!(
-        srcinfo.contains("pkgver = 4.8.0"),
-        "SRCINFO must have pkgver = 4.8.0"
+        srcinfo.contains("pkgver = 4.9.0"),
+        "SRCINFO must have pkgver = 4.9.0"
     );
     assert!(
         !srcinfo.contains("pkgver = 4.0.1"),
@@ -193,6 +201,10 @@ fn aur_srcinfo_pkgver_matches_release() {
     assert!(
         !srcinfo.contains("pkgver = 4.7.0"),
         "SRCINFO must not contain old pkgver = 4.7.0"
+    );
+    assert!(
+        !srcinfo.contains("pkgver = 4.8.0"),
+        "SRCINFO must not contain old pkgver = 4.8.0"
     );
 }
 

@@ -316,11 +316,11 @@ fn roadmap_marks_v49_the_wolf_active() {
     let docs = include_str!("../../docs/ROADMAP.md");
     assert!(
         docs.contains("v4.9.0") && docs.contains("The Wolf"),
-        "ROADMAP.md must mark v4.9.0 The Wolf as active"
+        "ROADMAP.md must mention v4.9.0 The Wolf"
     );
     assert!(
-        docs.contains("current"),
-        "ROADMAP.md v4.9.0 Phase 1 must be marked current"
+        docs.contains("COMPLETE") || docs.contains("complete"),
+        "ROADMAP.md must mark v4.9.0 as complete"
     );
 }
 
@@ -329,8 +329,10 @@ fn roadmap_v49_not_50k_promise() {
     let docs = include_str!("../../docs/ROADMAP.md");
     let lower = docs.to_lowercase();
     assert!(
-        lower.contains("not a 50k fps promise"),
-        "ROADMAP.md v4.9.0 must state it is not a 50k FPS promise"
+        lower.contains("50k")
+            && lower.contains("not reached")
+            && (lower.contains("not promised") || lower.contains("not a release promise")),
+        "ROADMAP.md v4.9.0 must state 50k was not reached and not promised"
     );
     assert!(
         docs.contains("single-threaded-renderer"),

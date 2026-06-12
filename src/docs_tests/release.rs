@@ -164,20 +164,19 @@ fn release_candidate_doc_v46_storm_unavailable() {
 
 // ── v4.9.0 Phase 1: The Wolf — Benchmark release guard tests ─────────────
 
-// Static guard for v4.8.0: benchmark/README.md must contain a v4.8.0
-// release benchmark section.  When preparing v4.9.0 release, a similar
-// guard for v4.9.0 must be added and the v4.8.0 guard can remain as
-// historical evidence.  The pattern is: for each release N, the
-// benchmark README must have a section mentioning that version before
-// the release tag is created.
+// Static guard: benchmark/README.md must contain a release benchmark
+// section for the current version.  When preparing a new release, this
+// guard must be updated to the new version.  The pattern is: for each
+// release N, the benchmark README must have a section mentioning that
+// version before the release tag is created.
 
 #[test]
 fn benchmark_release_guard_current_version_has_report() {
     let docs = include_str!("../../benchmark/README.md");
-    // Guard: v4.8.0 is the current release; its benchmark section must exist.
+    // Guard: v4.9.0 is the current release; its benchmark section must exist.
     assert!(
-        docs.contains("v4.8.0"),
-        "benchmark/README.md must contain a section for the current release (v4.8.0)"
+        docs.contains("v4.9.0"),
+        "benchmark/README.md must contain a section for the current release (v4.9.0)"
     );
 }
 
@@ -236,6 +235,92 @@ fn benchmark_release_guard_preserves_invariants_table() {
     assert!(
         docs.contains("single-threaded-renderer"),
         "benchmark/README.md must report actual_execution as single-threaded-renderer"
+    );
+}
+
+// ── v4.9.0 Phase 5: RC prep release guard tests ─────────────────────────
+
+/// Extract the text of a versioned benchmark section from benchmark/README.md.
+/// Finds `\n## vX.Y.Z`, then slices until the next `\n## v` header.
+fn extract_bench_section<'a>(docs: &'a str, version_prefix: &str) -> &'a str {
+    let marker = format!("\n## {version_prefix}");
+    let start = docs
+        .find(&marker)
+        .unwrap_or_else(|| panic!("benchmark README must have section {version_prefix}"));
+    let section = &docs[start + 1..]; // skip the leading \n
+    let next_header = section.find("\n## ").unwrap_or(section.len());
+    &section[..next_header]
+}
+
+#[test]
+fn benchmark_v49_has_5_run_evidence() {
+    let docs = include_str!("../../benchmark/README.md");
+    let v49_section = extract_bench_section(docs, "v4.9.0");
+    assert!(
+        v49_section.contains("Run count: 5")
+            || v49_section.contains("5-run")
+            || v49_section.contains("5 Run"),
+        "v4.9.0 benchmark section must mention 5-run benchmark"
+    );
+    assert!(
+        v49_section.contains("excellent"),
+        "v4.9.0 benchmark section must report excellent frame_time_stability"
+    );
+    assert!(
+        v49_section.contains("single-owner"),
+        "v4.9.0 benchmark section must state terminal_writer is single-owner"
+    );
+    assert!(
+        v49_section.contains("disabled"),
+        "v4.9.0 benchmark section must state compute_parallelism is disabled"
+    );
+    assert!(
+        v49_section.contains("single-threaded-renderer"),
+        "v4.9.0 benchmark section must report actual_execution"
+    );
+}
+
+#[test]
+fn benchmark_v49_mentions_50k_not_promised() {
+    let docs = include_str!("../../benchmark/README.md");
+    let v49_section = extract_bench_section(docs, "v4.9.0");
+    let lower = v49_section.to_lowercase();
+    assert!(
+        lower.contains("not reached") && lower.contains("not promised"),
+        "v4.9.0 section must state 50k was not reached and not promised"
+    );
+}
+
+#[test]
+fn benchmark_v49_mentions_heavy_message_not_comparable() {
+    let docs = include_str!("../../benchmark/README.md");
+    let v49_section = extract_bench_section(docs, "v4.9.0");
+    let normalized: String = v49_section.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        normalized.to_lowercase().contains("not comparable"),
+        "v4.9.0 section must state heavy message/matrix mode is not comparable"
+    );
+}
+
+#[test]
+fn roadmap_marks_v49_phase5_release_prep() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    // Phase 5 should exist and be pending or have a commit hash
+    let phase5_line = docs
+        .lines()
+        .find(|l| l.contains("Phase 5") && l.contains("release prep"));
+    assert!(
+        phase5_line.is_some(),
+        "roadmap must have a Phase 5 row for Final release prep"
+    );
+}
+
+#[test]
+fn changelog_has_v49_section() {
+    let docs = include_str!("../../CHANGELOG.md");
+    assert!(
+        docs.contains("v4.9.0"),
+        "CHANGELOG.md must have a v4.9.0 section"
     );
 }
 

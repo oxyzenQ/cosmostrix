@@ -8,6 +8,44 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v4.9.0
+
+The Wolf: Release Guard + Terminal Runtime Contract. Hardens the release
+process with mandatory pre-tag gates, automated benchmark reporting,
+terminal lifecycle documentation, and doctor/report polish. No renderer
+hot-path behavior changes and no benchmark output field changes.
+
+- Release guard foundation (Phase 1): 10-gate (now 11-gate) pre-tag
+  checklist in `docs/RELEASE_GUARD.md` ensures benchmark reports,
+  version metadata, docs guards, CI, and terminal lifecycle verification
+  all pass before any release tag is created. Commit `cf63254`.
+- Benchmark report automation (Phase 2): `scripts/release-benchmark-report.sh`
+  implements full 5-run benchmark collection and Markdown report generation
+  with invariant validation. Commit `f3b6b63`.
+- Terminal lifecycle matrix (Phase 3): `docs/TERMINAL_LIFECYCLE_MATRIX.md`
+  documents expected cleanup behavior across 14 terminal lifecycle paths
+  including normal exit, SIGINT, SIGTERM, SIGHUP, SIGTSTP/SIGCONT, SIGKILL,
+  `--reset-terminal`, Windows Terminal, tmux, ssh, headless, benchmark mode,
+  and doctor mode. Commit `294ad65`.
+- Doctor/report polish (Phase 4): `--doctor` output now includes lifecycle
+  contract fields (`signal_exit`, `sigkill`, `terminal_writer`). `--reset-terminal`
+  help text clarified as destructive recovery. Commit `43e3dc9`.
+- Terminal cleanup honesty preserved:
+  - Normal exit (q/Esc): non-destructive mode/style restore.
+  - `--reset-terminal`: explicit destructive recovery (clears screen,
+    purges scrollback, resets modes).
+  - SIGINT/SIGTERM/SIGHUP: catchable cleanup with viewport clear.
+  - SIGKILL: cannot be caught or guaranteed. Fork guard is best-effort,
+    Linux-only.
+- Release guard Gate 7 (terminal lifecycle verification) requires
+  `--doctor` lifecycle contract fields, manual exit testing, and
+  SIGKILL honesty.
+- 944 deterministic tests, all passing.
+- Terminal writer remains single-owner.
+- `compute_parallelism` remains `disabled`.
+- `actual_execution` remains `single-threaded-renderer`.
+- No new dependencies.
+
 ## v4.8.0
 
 Zactrix Integration + Terminal Cleanup Hardening. Color pipeline optimization
