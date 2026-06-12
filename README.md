@@ -169,7 +169,7 @@ DIAGNOSTICS
      --doctor               Compatibility report
      --benchmark            Renderer benchmark
   -i, --info                Build and runtime information
-     --reset-terminal       Restore terminal modes after an interrupted run
+     --reset-terminal       Destructive terminal recovery (clears screen + scrollback)
 
 DISCOVERY
      --list-colors          Show compact color theme names

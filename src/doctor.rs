@@ -113,6 +113,9 @@ pub fn print_doctor_report(args: &Args) {
             "reset_terminal",
             "explicit destructive recovery: clears visible screen and attempts scrollback purge",
         );
+        s.field("signal_exit", "catchable cleanup (SIGINT/SIGTERM/SIGHUP)");
+        s.field("sigkill", "cannot be caught or guaranteed");
+        s.field("terminal_writer", "single-owner");
         s.field("mouse_mode", "opt-in only via --mouse");
         let hints = environment_hints(&term, &colorterm, locale_utf8, tmux, ssh, headless);
         let hint_text = if hints.is_empty() {
@@ -284,6 +287,9 @@ pub fn print_doctor_report(args: &Args) {
                 s.advice("fork-based SIGKILL terminal guard is disabled; SIGKILL (-9) may leave your terminal broken");
             }
         }
+        s.advice(
+            "lifecycle contract: see docs/TERMINAL_LIFECYCLE_MATRIX.md for all 14 terminal paths",
+        );
 
         // If no advice was added, add the all-clear
         if !s.has_advice() {

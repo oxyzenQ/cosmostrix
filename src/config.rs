@@ -354,7 +354,7 @@ pub struct Args {
         long = "reset-terminal",
         help_heading = "DIAGNOSTICS",
         display_order = 130,
-        help = "Restore terminal modes after an interrupted run"
+        help = "Destructive terminal recovery: clears screen, purges scrollback, resets modes"
     )]
     pub reset_terminal: bool,
 

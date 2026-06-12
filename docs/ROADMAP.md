@@ -92,8 +92,8 @@ Adds terminal lifecycle documentation and release gate guardrails.
 |-------|-------------|--------|
 | Phase 1 | Release guard foundation | `cf63254` |
 | Phase 2 | Benchmark report automation | `f3b6b63` |
-| Phase 3 | Terminal lifecycle matrix | current |
-| Phase 4 | Doctor/report polish | pending |
+| Phase 3 | Terminal lifecycle matrix | `294ad65` |
+| Phase 4 | Doctor/report polish | current |
 | Phase 5 | Final release prep | pending |
 
 v4.9 is not a 50k FPS promise. v4.9 does not claim parallel

@@ -229,3 +229,11 @@ mode, and does not modify terminal state. No cleanup is needed.
   lifecycle verification.
 - `src/docs_tests/terminal_lifecycle.rs` — static docs tests that
   guard the correctness of this document.
+
+## Doctor / Report
+
+`--doctor` is diagnostic/report-only. It does not enter alternate screen
+mode, does not set raw mode, and does not modify terminal state. It
+prints environment, compatibility, and lifecycle contract information
+then exits. Owner visual smoke testing remains required before release
+if terminal or runtime behavior changes.

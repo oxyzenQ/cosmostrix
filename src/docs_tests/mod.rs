@@ -18,9 +18,11 @@
 //! - `atmosphere` — Controlled atmosphere preset doc guards (v4.6.0 Phase 3)
 //! - `profile` — Profile ecosystem contract guards (v4.7.0 Phase 1)
 //! - `terminal_lifecycle` — Terminal lifecycle matrix docs guards (v4.9.0 Phase 3)
+//! - `doctor_report` — Doctor/report polish source and docs guards (v4.9.0 Phase 4)
 
 mod assets;
 mod atmosphere;
+mod doctor_report;
 mod endurance;
 mod metadata;
 mod profile;

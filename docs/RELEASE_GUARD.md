@@ -118,7 +118,8 @@ the following guards must be satisfied (see `src/docs_tests/release.rs`):
 If terminal code has changed since the last release, verify the terminal
 lifecycle matrix paths:
 
-1. Run `--doctor` and confirm no errors.
+1. Run `--doctor` and confirm the report includes lifecycle contract
+   fields (signal_exit, sigkill, terminal_writer, reset_terminal).
 2. Test normal `q` / `Esc` exit — no visible residue, prompt clean.
 3. Test Ctrl-C (SIGINT) — no visible residue on main screen.
 4. Test `pkill -TERM -f cosmostrix` — no visible residue (v4.8 Phase 4B
