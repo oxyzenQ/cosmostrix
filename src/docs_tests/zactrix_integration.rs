@@ -308,3 +308,88 @@ fn changelog_mentions_v480() {
         "CHANGELOG.md v4.8.0 entry must mention Zactrix Integration"
     );
 }
+
+// ── v4.9.0 Phase 1: The Wolf — Release guard doc guards ─────────────────
+
+#[test]
+fn roadmap_marks_v49_the_wolf_active() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    assert!(
+        docs.contains("v4.9.0") && docs.contains("The Wolf"),
+        "ROADMAP.md must mark v4.9.0 The Wolf as active"
+    );
+    assert!(
+        docs.contains("current"),
+        "ROADMAP.md v4.9.0 Phase 1 must be marked current"
+    );
+}
+
+#[test]
+fn roadmap_v49_not_50k_promise() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("not a 50k fps promise"),
+        "ROADMAP.md v4.9.0 must state it is not a 50k FPS promise"
+    );
+    assert!(
+        docs.contains("single-threaded-renderer"),
+        "ROADMAP.md v4.9.0 must preserve actual_execution invariant"
+    );
+}
+
+#[test]
+fn release_guard_doc_exists() {
+    let docs = include_str!("../../docs/RELEASE_GUARD.md");
+    assert!(
+        !docs.is_empty(),
+        "docs/RELEASE_GUARD.md must exist and be non-empty"
+    );
+}
+
+#[test]
+fn release_guard_doc_requires_benchmark_before_tag() {
+    let docs = include_str!("../../docs/RELEASE_GUARD.md");
+    assert!(
+        docs.contains("Never tag before benchmark report"),
+        "RELEASE_GUARD.md must forbid tagging before benchmark report"
+    );
+}
+
+#[test]
+fn release_guard_doc_mentions_benchmark_readme() {
+    let docs = include_str!("../../docs/RELEASE_GUARD.md");
+    assert!(
+        docs.contains("benchmark/README.md"),
+        "RELEASE_GUARD.md must reference benchmark/README.md"
+    );
+}
+
+#[test]
+fn release_guard_doc_requires_signed_tag_after_ci() {
+    let docs = include_str!("../../docs/RELEASE_GUARD.md");
+    assert!(
+        docs.contains("signed tag") && docs.contains("CI"),
+        "RELEASE_GUARD.md must require signed tag only after CI green"
+    );
+}
+
+#[test]
+fn release_guard_doc_forbids_cross_workload_claims() {
+    let docs = include_str!("../../docs/RELEASE_GUARD.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("heavy message") && lower.contains("not comparable"),
+        "RELEASE_GUARD.md must warn that heavy message/matrix mode is not comparable"
+    );
+}
+
+#[test]
+fn release_guard_doc_mentions_sigkill_limitation() {
+    let docs = include_str!("../../docs/RELEASE_GUARD.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("sigkill") && lower.contains("cannot be guaranteed"),
+        "RELEASE_GUARD.md must state SIGKILL cleanup cannot be guaranteed"
+    );
+}

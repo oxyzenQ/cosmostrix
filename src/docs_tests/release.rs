@@ -162,6 +162,83 @@ fn release_candidate_doc_v46_storm_unavailable() {
     );
 }
 
+// ── v4.9.0 Phase 1: The Wolf — Benchmark release guard tests ─────────────
+
+// Static guard for v4.8.0: benchmark/README.md must contain a v4.8.0
+// release benchmark section.  When preparing v4.9.0 release, a similar
+// guard for v4.9.0 must be added and the v4.8.0 guard can remain as
+// historical evidence.  The pattern is: for each release N, the
+// benchmark README must have a section mentioning that version before
+// the release tag is created.
+
+#[test]
+fn benchmark_release_guard_current_version_has_report() {
+    let docs = include_str!("../../benchmark/README.md");
+    // Guard: v4.8.0 is the current release; its benchmark section must exist.
+    assert!(
+        docs.contains("v4.8.0"),
+        "benchmark/README.md must contain a section for the current release (v4.8.0)"
+    );
+}
+
+#[test]
+fn benchmark_release_guard_mentions_release_benchmark() {
+    let docs = include_str!("../../benchmark/README.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("release benchmark"),
+        "benchmark/README.md must mention 'release benchmark' for the current version"
+    );
+}
+
+#[test]
+fn benchmark_release_guard_has_run_count() {
+    let docs = include_str!("../../benchmark/README.md");
+    // The v4.8.0 section must mention a 5-run benchmark.
+    assert!(
+        docs.contains("Run count: 5") || docs.contains("5-run") || docs.contains("5 run"),
+        "benchmark/README.md must mention the benchmark run count (5)"
+    );
+}
+
+#[test]
+fn benchmark_release_guard_terminal_writer_single_owner() {
+    let docs = include_str!("../../benchmark/README.md");
+    assert!(
+        docs.contains("terminal_writer") && docs.contains("single-owner"),
+        "benchmark/README.md must state terminal_writer is single-owner"
+    );
+}
+
+#[test]
+fn benchmark_release_guard_compute_parallelism_disabled() {
+    let docs = include_str!("../../benchmark/README.md");
+    assert!(
+        docs.contains("compute_parallelism") && docs.contains("disabled"),
+        "benchmark/README.md must state compute_parallelism is disabled"
+    );
+}
+
+#[test]
+fn benchmark_release_guard_50k_not_reached() {
+    let docs = include_str!("../../benchmark/README.md");
+    let lower = docs.to_lowercase();
+    assert!(
+        lower.contains("not reached") && lower.contains("not promised"),
+        "benchmark/README.md must state 50k FPS was not reached and not promised"
+    );
+}
+
+#[test]
+fn benchmark_release_guard_preserves_invariants_table() {
+    let docs = include_str!("../../benchmark/README.md");
+    // The current release section must have an invariants table with honest values.
+    assert!(
+        docs.contains("single-threaded-renderer"),
+        "benchmark/README.md must report actual_execution as single-threaded-renderer"
+    );
+}
+
 // ── v4.7 Phase 4: Profile RC checklist guard tests ────────────────────
 
 #[test]

@@ -18,7 +18,8 @@ parallel compute.
 | Phase 3 | Main Merge Prep / Conflict Audit | `8e9f3f8` |
 | Phase 4 | Terminal Mode Sanity Hardening | `c56b4d7` |
 | Phase 4B | Signal-Exit Visible Residue Cleanup | `df671fb` |
-| Phase 5 | Release Prep Metadata + RC Gate | pending |
+| Phase 5 | Release Prep Metadata + RC Gate | `ec1214b` |
+| Phase 5B | Release Benchmark Report | `08dc6f5` |
 
 v4.8 is complete. Terminal writer remains single-owner.
 `compute_parallelism` remains `disabled`. `actual_execution` remains
@@ -82,10 +83,25 @@ by the Depth Regression Lab.
 
 ## Active Development
 
-### v4.9.0 — Optional RC Freeze / Endurance / Release Prep
+### v4.9.0 — The Wolf: Release Guard + Terminal Runtime Contract
 
-Endurance testing, resource monitoring validation, and release candidate
-freeze. Stabilization only — no new features.
+Hardens the release process so benchmark reports cannot be forgotten again.
+Adds terminal lifecycle documentation and release gate guardrails.
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Release guard foundation | current |
+| Phase 2 | Benchmark report automation | pending |
+| Phase 3 | Terminal lifecycle matrix | pending |
+| Phase 4 | Doctor/report polish | pending |
+| Phase 5 | Final release prep | pending |
+
+v4.9 is not a 50k FPS promise. v4.9 does not claim parallel
+renderer execution. Renderer honesty invariants are preserved:
+
+- `actual_execution: single-threaded-renderer`
+- `terminal_writer: single-owner`
+- `compute_parallelism: disabled`
 
 ### v5.0.0 — Zactrix Engine Stable Default + Precision/Efficiency
 
