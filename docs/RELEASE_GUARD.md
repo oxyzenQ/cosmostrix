@@ -54,7 +54,21 @@ target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix -V
 
 ### Gate 4 — 5-run benchmark
 
-Run 5 benchmark iterations and record the results:
+Run 5 benchmark iterations and record the results.  The helper script
+automates collection and Markdown generation:
+
+```bash
+# Generate a report section for review (does NOT edit files):
+./scripts/release-benchmark-report.sh X.Y.Z
+
+# Custom run count, skip build:
+./scripts/release-benchmark-report.sh X.Y.Z --runs 5 --no-build
+
+# Output goes to stdout — review, then paste into benchmark/README.md.
+# The script validates invariants and fails if they are violated.
+```
+
+Manual process (if script is not used):
 
 ```bash
 BIN="target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix"
@@ -158,8 +172,12 @@ Verify the binary checksum matches before updating the AUR package.
 When preparing release N:
 
 1. Complete all feature work and validation.
-2. Run the 5-run benchmark (Gate 4).
-3. Add the benchmark section to `benchmark/README.md` (Gate 5).
+2. Run the benchmark report helper (Gate 4):
+   ```bash
+   ./scripts/release-benchmark-report.sh X.Y.Z > /tmp/bench-report.md
+   ```
+3. Review the generated Markdown, then add it to
+   `benchmark/README.md` (Gate 5).
 4. Add a docs guard test for the new version in
    `src/docs_tests/release.rs` following the existing pattern.
 5. Ensure all gates pass.

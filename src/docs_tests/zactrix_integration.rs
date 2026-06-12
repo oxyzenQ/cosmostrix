@@ -393,3 +393,94 @@ fn release_guard_doc_mentions_sigkill_limitation() {
         "RELEASE_GUARD.md must state SIGKILL cleanup cannot be guaranteed"
     );
 }
+
+// ── v4.9.0 Phase 2: Benchmark report automation script guards ─────────────
+
+#[test]
+fn release_benchmark_script_exists_and_is_executable() {
+    let script = include_str!("../../scripts/release-benchmark-report.sh");
+    assert!(
+        !script.is_empty(),
+        "scripts/release-benchmark-report.sh must exist and be non-empty"
+    );
+    assert!(
+        script.contains("#!/usr/bin/env bash"),
+        "script must have bash shebang"
+    );
+}
+
+#[test]
+fn release_benchmark_script_has_strict_mode() {
+    let script = include_str!("../../scripts/release-benchmark-report.sh");
+    assert!(
+        script.contains("set -euo pipefail"),
+        "script must use strict mode (set -euo pipefail)"
+    );
+}
+
+#[test]
+fn release_benchmark_script_supports_help() {
+    let script = include_str!("../../scripts/release-benchmark-report.sh");
+    assert!(script.contains("--help"), "script must support --help flag");
+}
+
+#[test]
+fn release_benchmark_script_mentions_runs_flag() {
+    let script = include_str!("../../scripts/release-benchmark-report.sh");
+    assert!(script.contains("--runs"), "script must mention --runs flag");
+}
+
+#[test]
+fn release_benchmark_script_mentions_no_build() {
+    let script = include_str!("../../scripts/release-benchmark-report.sh");
+    assert!(
+        script.contains("--no-build"),
+        "script must mention --no-build flag"
+    );
+}
+
+#[test]
+fn release_benchmark_script_checks_single_threaded_renderer() {
+    let script = include_str!("../../scripts/release-benchmark-report.sh");
+    assert!(
+        script.contains("single-threaded-renderer"),
+        "script must check actual_execution is single-threaded-renderer"
+    );
+}
+
+#[test]
+fn release_benchmark_script_checks_terminal_writer() {
+    let script = include_str!("../../scripts/release-benchmark-report.sh");
+    assert!(
+        script.contains("single-owner"),
+        "script must check terminal_writer is single-owner"
+    );
+}
+
+#[test]
+fn release_benchmark_script_checks_compute_parallelism() {
+    let script = include_str!("../../scripts/release-benchmark-report.sh");
+    assert!(
+        script.contains("compute_parallelism"),
+        "script must check compute_parallelism"
+    );
+}
+
+#[test]
+fn release_guard_doc_mentions_helper_script() {
+    let docs = include_str!("../../docs/RELEASE_GUARD.md");
+    assert!(
+        docs.contains("release-benchmark-report.sh"),
+        "RELEASE_GUARD.md must reference the benchmark report helper script"
+    );
+}
+
+#[test]
+fn roadmap_marks_v49_phase2_current_or_complete() {
+    let docs = include_str!("../../docs/ROADMAP.md");
+    assert!(docs.contains("Phase 2"), "ROADMAP.md must mention Phase 2");
+    assert!(
+        docs.contains("current") || docs.contains("complete"),
+        "ROADMAP.md v4.9.0 Phase 2 must be marked current or complete"
+    );
+}

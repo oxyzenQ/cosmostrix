@@ -246,6 +246,17 @@ Run the full comparison script:
 bash benchmark/benchmark.sh
 ```
 
+Generate a release benchmark report (prints Markdown to stdout):
+
+```bash
+./scripts/release-benchmark-report.sh X.Y.Z
+```
+
+The release report script runs N benchmark iterations, validates renderer
+invariants, and prints a Markdown section ready for review and pasting
+into this file.  It does not auto-edit files.  See `docs/RELEASE_GUARD.md`
+Gate 4 for details.
+
 The script builds comparison profiles and records optional `hyperfine`, `perf`,
 and Valgrind outputs when those tools are installed. CI intentionally does not
 gate on benchmark numbers; they are measurement aids, not stable pass/fail
