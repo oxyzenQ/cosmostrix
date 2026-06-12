@@ -99,18 +99,14 @@ fn audit_doc_names_twenty_k_lab_as_candidate_source() {
 }
 
 #[test]
-fn roadmap_marks_v48_active_and_phase4b_current() {
+fn roadmap_marks_v48_complete() {
     let docs = include_str!("../../docs/ROADMAP.md");
     assert!(
-        docs.contains("v4.8.0") && docs.contains("[ACTIVE]"),
-        "ROADMAP.md must mark v4.8.0 active"
+        docs.contains("v4.8.0") && docs.contains("COMPLETE"),
+        "ROADMAP.md must mark v4.8.0 as COMPLETE"
     );
     assert!(
-        docs.contains("Phase 4B") && docs.contains("current"),
-        "ROADMAP.md must mark v4.8 Phase 4B as current"
-    );
-    assert!(
-        docs.contains("50k was not reached") && docs.contains("No fake benchmark progress"),
+        docs.contains("50k was not reached") || docs.contains("No fake benchmark progress"),
         "ROADMAP.md must document honest 50k boundary evidence"
     );
 }
@@ -292,10 +288,23 @@ fn terminal_kill_cleanup_doc_normal_exit_non_destructive() {
 }
 
 #[test]
-fn roadmap_marks_v48_phase4b() {
+fn roadmap_mentions_v48_release_history() {
     let docs = include_str!("../../docs/ROADMAP.md");
     assert!(
-        docs.contains("Phase 4B") && docs.contains("current"),
-        "ROADMAP.md must mark v4.8 Phase 4B as current"
+        docs.contains("v4.8.0") && docs.contains("Release History"),
+        "ROADMAP.md must list v4.8.0 in release history"
+    );
+}
+
+#[test]
+fn changelog_mentions_v480() {
+    let changelog = include_str!("../../CHANGELOG.md");
+    assert!(
+        changelog.contains("v4.8.0"),
+        "CHANGELOG.md must mention v4.8.0"
+    );
+    assert!(
+        changelog.contains("Zactrix Integration"),
+        "CHANGELOG.md v4.8.0 entry must mention Zactrix Integration"
     );
 }

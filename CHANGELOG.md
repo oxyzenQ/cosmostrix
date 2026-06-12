@@ -8,6 +8,39 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v4.8.0
+
+Zactrix Integration + Terminal Cleanup Hardening. Color pipeline optimization
+from the zactrix lab with signal-exit terminal cleanup fixes. No default
+visual behavior change and no active parallel compute.
+
+- Integrated accepted zactrix color pipeline optimization from lab source
+  `e7253e7` (`zactrix-20k-lab`) via manual adaptation. No direct lab merge.
+  Commit `ce8dc81`.
+- Single RGB decode path and integer brightness blend path replace
+  redundant per-cell color computation, reducing pipeline overhead while
+  preserving identical visual output.
+- Cached binary pool detection avoids redundant `contains_key` lookups
+  during stream spawning.
+- `set_force` cleanup optimization removes unnecessary work on cells
+  that are already marked dirty.
+- 50k FPS lab (`zactrix-50k-lab`) documented as not reached and not a
+  release promise. Rejected optimization attempts stay rejected.
+- Signal-exit cleanup hardening (Phase 4): signal handler threads no
+  longer race on stdout with the main loop's buffered writer.
+- Visible residue fix (Phase 4B): catchable SIGTERM/pkill-TERM now clears
+  the alternate screen viewport before switching back, preventing rain
+  frame glyphs from bleeding into the main screen. Fork-guard child
+  process silenced on normal parent exit to prevent stdout races.
+- Cross-platform signal cleanup imports fixed for Windows CI.
+- Windows Terminal `--reset-terminal` issue #15 verified clean.
+- 891 deterministic tests, all passing.
+- Terminal writer remains single-owner.
+- `compute_parallelism` remains `disabled`.
+- `actual_execution` remains `single-threaded-renderer`.
+- No version bump until this release prep.
+- No new dependencies.
+
 ## v4.7.0
 
 Profile Ecosystem. Documentation, validation UX, and release-candidate smoke

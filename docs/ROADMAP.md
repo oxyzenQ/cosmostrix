@@ -4,6 +4,27 @@
 
 ## Release History
 
+### v4.8.0 — Zactrix Integration + Terminal Cleanup Hardening (COMPLETE)
+
+Integrated accepted zactrix color pipeline optimization with signal-exit
+terminal cleanup hardening. No default visual behavior change and no active
+parallel compute.
+
+| Phase | Description | Commit |
+|-------|-------------|--------|
+| Phase 1 | Zactrix Lab Integration Audit | `9c39b3f` |
+| Phase 2A | Color Pipeline Code Integration | `ce8dc81` |
+| Phase 2B | Validation Lock | `fa2c995` |
+| Phase 3 | Main Merge Prep / Conflict Audit | `8e9f3f8` |
+| Phase 4 | Terminal Mode Sanity Hardening | `c56b4d7` |
+| Phase 4B | Signal-Exit Visible Residue Cleanup | `df671fb` |
+| Phase 5 | Release Prep Metadata + RC Gate | pending |
+
+v4.8 is complete. Terminal writer remains single-owner.
+`compute_parallelism` remains `disabled`. `actual_execution` remains
+`single-threaded-renderer`. 891 tests pass. 50k was not reached and is
+not a release promise. No fake benchmark progress.
+
 ### v4.7.0 — Renderer Ergonomics + Profile Ecosystem (COMPLETE)
 
 Improved profile configuration, preset management, validation UX, and release
@@ -60,42 +81,6 @@ by the Depth Regression Lab.
 ---
 
 ## Active Development
-
-### v4.8.0 — Zactrix Render Efficiency Integration [ACTIVE]
-
-Phase 4B (current): Signal-Exit Visible Residue Cleanup. Fix fork-guard
-stdout race and add viewport clear before alternate screen switch on
-signal exit. v4.8 merge blocked until owner-side visual smoke confirms.
-
-Phase 4 (complete): Terminal mode sanity hardening. Signal handler
-race fixed. Commit `c56b4d7`.
-
-Phase 3 (complete): Main Merge Prep / Conflict Audit.
-
-Phase 2B (complete): Validation Lock. Commit `fa2c995`. 875 tests pass.
-5-run benchmark mean ~27,900 FPS. All invariants stable.
-
-Phase 2A (complete): Color pipeline optimization integrated from `e7253e7`
-(`zactrix-20k-lab`) via manual adaptation. No direct lab merge. Commit
-`ce8dc81`.
-
-Phase 1 (complete): Zactrix Lab Integration Audit.
-- `docs/ZACTRIX_INTEGRATION_AUDIT.md` records the v4.7.0 main baseline,
-  lab commits, accepted candidate source, rejected 50k attempts, and
-  integration invariants.
-- `zactrix-20k-lab` is the optimization candidate source. The accepted
-  candidate is reducing redundant color pipeline work.
-- `zactrix-50k-lab` is ceiling and boundary evidence. 50k was not reached,
-  and rejected attempts stay rejected. 50k is not a release promise.
-- No direct merge from lab branches. Future work must cherry-pick or adapt
-  only clean changes.
-- No fake benchmark progress. Benchmark counters and field names stay honest.
-- Terminal writer remains single-owner. `compute_parallelism` remains
-  `disabled`.
-
-Any optimization that touches the renderer, cloud module, monolith module,
-phosphor system, or droplet lifecycle must pass all depth regression tests.
-If an optimization cannot pass these tests, it must be redesigned.
 
 ### v4.9.0 — Optional RC Freeze / Endurance / Release Prep
 

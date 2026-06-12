@@ -279,9 +279,9 @@ SIGKILL (`kill -9`) cannot be caught by any process. On Linux, the
 fork-based guard (`cx-term-guard`) provides best-effort recovery. See
 `docs/TERMINAL_KILL_CLEANUP.md` for full documentation.
 
-v4.8 merge remains blocked until owner-side visual smoke confirms the fix.
+v4.8 merged to main. Owner-side visual smoke confirmed clean.
 
-## Phase 4B — Signal-Exit Visible Residue Cleanup (CURRENT)
+## Phase 4B — Signal-Exit Visible Residue Cleanup (COMPLETE)
 
 Commit: `0eaf691`
 
