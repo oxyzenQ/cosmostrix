@@ -115,12 +115,12 @@ out of scope for the main CLI repository in v5.0.0.
 
 | Phase | Description | Commit |
 |-------|-------------|--------|
-| Phase 1 | Roadmap + product identity foundation | pending |
-| Phase 2 | Preset/profile discoverability polish | pending |
-| Phase 3 | Cinematic breathing language + docs contract | pending |
-| Phase 4 | Help/config UX polish | pending |
+| Phase 1 | Roadmap + product identity foundation | `dc27e6f` |
+| Phase 2 | Preset/profile discoverability polish | `e9f7b3b` |
+| Phase 3 | Cinematic breathing language + docs contract | `6289f41` |
+| Phase 4 | Help/config UX polish | `20552f1` |
 | Phase 5 | Release candidate prep | pending |
-| Phase 6 | Signed tag / release / AUR | pending |
+| Phase 6 | Signed tag / release / AUR | pending owner approval |
 
 Cinematic breathing vocabulary and pacing contract are defined in
 `docs/CINEMATIC_BREATHING.md`.

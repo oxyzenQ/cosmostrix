@@ -4,7 +4,7 @@
 
 ## Status
 
-Active Development — Phase 4 in progress.
+Release Candidate Ready — Phase 5 complete. Awaiting owner testing and approval for Phase 6.
 
 ## Theme
 
@@ -137,11 +137,11 @@ purpose-built renderer, not a terminal emulator wrapper. Key boundaries:
 
 ## Phase Plan
 
-| Phase | Description | Focus |
-|-------|-------------|-------|
-| Phase 1 | Roadmap + product identity foundation | This document. Establish scope, non-goals, boundaries. |
-| Phase 2 | Preset/profile discoverability polish | Improve `--list-profiles`, preset descriptions, error guidance. |
-| Phase 3 | Cinematic breathing language + docs contract | `docs/CINEMATIC_BREATHING.md`. Vocabulary, pacing contract, naming conventions, anti-patterns. |
-| Phase 4 | Help/config UX polish | Error message consistency, --profile help cross-ref, discovery guard tests. |
-| Phase 5 | Release candidate prep | Version bump, CHANGELOG, benchmark report, release guard tests. |
-| Phase 6 | Signed tag / release / AUR | Final release with all v4.9.0 safety mechanisms intact. |
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Roadmap + product identity foundation | complete |
+| Phase 2 | Preset/profile discoverability polish | complete |
+| Phase 3 | Cinematic breathing language + docs contract (`docs/CINEMATIC_BREATHING.md`) | complete |
+| Phase 4 | Help/config UX polish | complete |
+| Phase 5 | Release candidate prep | complete |
+| Phase 6 | Signed tag / release / AUR | pending owner approval |

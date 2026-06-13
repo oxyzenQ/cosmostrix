@@ -8,6 +8,86 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v5.0.0 — Nightfall
+
+Cinematic UX + Product Identity Release. Polishes discoverability,
+error messages, help text, and configuration UX to product-grade quality.
+Establishes the cinematic breathing language as an authoritative
+reference for how visual transitions and atmospheric effects should feel.
+No renderer hot-path rewrite. No benchmark output field changes.
+No 50k FPS promise. Terminal writer remains single-owner.
+Benchmark honesty preserved.
+
+### Added
+- `--show-preset <NAME>` flag: display full preset details including
+  description, overridden parameters, and effective values for any
+  named preset. Makes preset behavior inspectable without running the
+  renderer. Commit `e9f7b3b`.
+- `config/cosmostrix.example.toml`: well-commented example configuration
+  file with documented defaults and three profile examples (calm-night,
+  cinematic, and dense-stress) ready to copy into `~/.config/cosmostrix/
+  config.toml`. Commit `e9f7b3b`.
+- `docs/CINEMATIC_BREATHING.md`: authoritative cinematic breathing
+  vocabulary and pacing contract defining eight terms (Rest, Pulse,
+  Whisper, Compression, Void, Signal, Storm, Breath Cycle), eight pacing
+  rules, naming conventions, a 10-layer state hierarchy, and six
+  anti-patterns. Commit `6289f41`.
+- Cinematic breathing vocabulary with formal definitions for all
+  atmospheric intensity levels, establishing a shared language for
+  future development and documentation.
+- Pacing contract: no instant visual state changes, default state is
+  always Rest, Storm is never a default, transitions must be perceptible
+  as breathing rather than flickering.
+- `--profile` help text now includes `(see --list-profiles)` cross-
+  reference so users know where to find available profiles.
+
+### Changed
+- Error messages follow a consistent pattern: `error: unknown <type>
+  '<value>'` followed by a discovery hint line suggesting the
+  appropriate `--list-*` flag. This applies to `--preset`, `--scene`,
+  `--color`, `--charset`, and `--profile` validation errors.
+- `--color` validation exit code changed from 2 to 1 for consistency
+  with other user-input validation errors.
+- `--charset` error message changed from "unsupported" to "unknown" for
+  consistency with all other validation error messages.
+- `--color` error message changed from inline parenthetical format to
+  a separate hint line for consistency with other discovery hints.
+- `docs/ROADMAP.md` updated with v5.0.0 Nightfall active development
+  section, phase table, and cinematic breathing language reference.
+- `docs/V5_NIGHTFALL_PLAN.md` created as the full v5.0.0 planning
+  document covering scope, non-goals, release safety, phase plan, and
+  Android/Cosmostrix Live boundaries. Commit `dc27e6f`.
+- `docs/cosmostrix-next-vision.md` created for future sibling product
+  (Cosmostrix Live) exploration as an explicitly exploratory document.
+  Commit `dc27e6f`.
+- `--help` output reorganized with a DISCOVERY section grouping
+  `--list-presets`, `--list-profiles`, `--list-scenes`, and
+  `--show-preset` for better scannability.
+
+### Fixed
+- `--profile` help text previously lacked a cross-reference to
+  `--list-profiles`, making profile discovery unintuitive for new
+  users. Now includes `(see --list-profiles)` hint.
+- `--charset` error message used "unsupported charset" instead of
+  "unknown charset", breaking the consistent `error: unknown <type>`
+  pattern. Now uses the consistent format.
+- `--color` error message used an inline parenthetical hint instead of
+  a separate discovery hint line, inconsistent with all other
+  validation errors. Now uses a separate line.
+
+### Release Safety
+- All v4.9.0 release guard mechanisms inherited and active.
+- Terminal writer remains single-owner.
+- Benchmark honesty preserved: no fake benchmark progress, no cherry-
+  picked runs, no omitted metrics.
+- No renderer hot-path changes.
+- No benchmark output field changes.
+- Terminal lifecycle contract remains authoritative.
+- 993 deterministic tests passing.
+- No new dependencies.
+
+---
+
 ## v4.9.0
 
 The Wolf: Release Guard + Terminal Runtime Contract. Hardens the release

@@ -477,12 +477,112 @@ fn error_messages_reference_discovery_flags() {
 }
 
 #[test]
-fn v5_plan_phase4_marked_in_progress() {
+fn v5_plan_phase4_complete() {
     assert!(V5_PLAN.contains("Phase 4"), "v5 plan must mention Phase 4");
     assert!(
         V5_PLAN.to_lowercase().contains("help/config ux polish"),
         "v5 plan Phase 4 must describe help/config UX polish"
     );
+    assert!(
+        V5_PLAN.contains("complete"),
+        "v5 plan Phase 4 must be marked complete"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: Release candidate prep guards
+// ---------------------------------------------------------------------------
+
+/// CHANGELOG doc.
+const CHANGELOG: &str = include_str!("../../CHANGELOG.md");
+
+#[test]
+fn changelog_exists() {
+    assert!(
+        !CHANGELOG.is_empty(),
+        "CHANGELOG.md must exist and be non-empty"
+    );
+}
+
+#[test]
+fn changelog_has_v500_section() {
+    assert!(
+        CHANGELOG.contains("v5.0.0"),
+        "CHANGELOG.md must contain v5.0.0"
+    );
+}
+
+#[test]
+fn changelog_v500_has_nightfall_codename() {
+    assert!(
+        CHANGELOG.contains("Nightfall"),
+        "CHANGELOG.md v5.0.0 entry must contain Nightfall codename"
+    );
+}
+
+#[test]
+fn changelog_v500_has_added_section() {
+    assert!(
+        CHANGELOG.contains("### Added"),
+        "CHANGELOG.md v5.0.0 entry must have Added section"
+    );
+}
+
+#[test]
+fn changelog_v500_mentions_show_preset() {
+    assert!(
+        CHANGELOG.contains("show-preset"),
+        "CHANGELOG.md v5.0.0 entry must mention --show-preset"
+    );
+}
+
+#[test]
+fn changelog_v500_mentions_cinematic_breathing() {
+    assert!(
+        CHANGELOG.contains("CINEMATIC_BREATHING"),
+        "CHANGELOG.md v5.0.0 entry must mention CINEMATIC_BREATHING"
+    );
+}
+
+#[test]
+fn v5_plan_phase5_marked_complete() {
+    assert!(V5_PLAN.contains("Phase 5"), "v5 plan must mention Phase 5");
+    // The Phase 5 row must be marked complete
+    let phase5_lines: Vec<&str> = V5_PLAN
+        .lines()
+        .filter(|l| l.contains("Phase 5") && l.contains("Release candidate prep"))
+        .collect();
+    assert!(
+        !phase5_lines.is_empty(),
+        "v5 plan must have Phase 5 release candidate prep row"
+    );
+    assert!(
+        phase5_lines[0].contains("complete"),
+        "v5 plan Phase 5 must be marked complete"
+    );
+}
+
+#[test]
+fn v5_plan_mentions_owner_testing() {
+    assert!(
+        V5_PLAN.to_lowercase().contains("owner"),
+        "v5 plan must mention owner (for owner testing/approval)"
+    );
+}
+
+#[test]
+fn roadmap_shows_phase1_through_4_complete() {
+    // Phase 1-4 should have commit hashes (meaning complete)
+    for phase in &["Phase 1", "Phase 2", "Phase 3", "Phase 4"] {
+        let lines: Vec<&str> = ROADMAP
+            .lines()
+            .filter(|l| l.contains(phase) && l.contains("`"))
+            .collect();
+        assert!(
+            !lines.is_empty(),
+            "roadmap {phase} must have a commit hash (indicating complete)"
+        );
+    }
 }
 
 #[test]

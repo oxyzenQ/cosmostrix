@@ -173,10 +173,10 @@ fn release_candidate_doc_v46_storm_unavailable() {
 #[test]
 fn benchmark_release_guard_current_version_has_report() {
     let docs = include_str!("../../benchmark/README.md");
-    // Guard: v4.9.0 is the current release; its benchmark section must exist.
+    // Guard: v5.0.0 is the current release; its benchmark section must exist.
     assert!(
-        docs.contains("v4.9.0"),
-        "benchmark/README.md must contain a section for the current release (v4.9.0)"
+        docs.contains("v5.0.0"),
+        "benchmark/README.md must contain a section for the current release (v5.0.0)"
     );
 }
 
@@ -302,16 +302,68 @@ fn benchmark_v49_mentions_heavy_message_not_comparable() {
     );
 }
 
+// ── v5.0.0 Phase 5: RC prep release guard tests ────────────────────────
+
 #[test]
-fn roadmap_marks_v49_phase5_release_prep() {
+fn benchmark_v50_has_5_run_evidence() {
+    let docs = include_str!("../../benchmark/README.md");
+    let v50_section = extract_bench_section(docs, "v5.0.0");
+    assert!(
+        v50_section.contains("Run count: 5")
+            || v50_section.contains("5-run")
+            || v50_section.contains("5 Run"),
+        "v5.0.0 benchmark section must mention 5-run benchmark"
+    );
+    assert!(
+        v50_section.contains("excellent"),
+        "v5.0.0 benchmark section must report excellent frame_time_stability"
+    );
+    assert!(
+        v50_section.contains("single-owner"),
+        "v5.0.0 benchmark section must state terminal_writer is single-owner"
+    );
+    assert!(
+        v50_section.contains("disabled"),
+        "v5.0.0 benchmark section must state compute_parallelism is disabled"
+    );
+    assert!(
+        v50_section.contains("single-threaded-renderer"),
+        "v5.0.0 benchmark section must report actual_execution"
+    );
+}
+
+#[test]
+fn benchmark_v50_mentions_50k_not_promised() {
+    let docs = include_str!("../../benchmark/README.md");
+    let v50_section = extract_bench_section(docs, "v5.0.0");
+    let lower = v50_section.to_lowercase();
+    assert!(
+        lower.contains("not reached") && lower.contains("not promised"),
+        "v5.0.0 section must state 50k was not reached and not promised"
+    );
+}
+
+#[test]
+fn benchmark_v50_mentions_heavy_message_not_comparable() {
+    let docs = include_str!("../../benchmark/README.md");
+    let v50_section = extract_bench_section(docs, "v5.0.0");
+    let normalized: String = v50_section.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        normalized.to_lowercase().contains("not comparable"),
+        "v5.0.0 section must state heavy message/matrix mode is not comparable"
+    );
+}
+
+#[test]
+fn roadmap_marks_v50_phase5_release_prep() {
     let docs = include_str!("../../docs/ROADMAP.md");
     // Phase 5 should exist and be pending or have a commit hash
     let phase5_line = docs
         .lines()
-        .find(|l| l.contains("Phase 5") && l.contains("release prep"));
+        .find(|l| l.contains("Phase 5") && l.to_lowercase().contains("release candidate prep"));
     assert!(
         phase5_line.is_some(),
-        "roadmap must have a Phase 5 row for Final release prep"
+        "roadmap must have a Phase 5 row for Release candidate prep"
     );
 }
 

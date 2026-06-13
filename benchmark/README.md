@@ -49,6 +49,59 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## v5.0.0 — Nightfall: Cinematic UX + Product Identity Release
+
+Release benchmark from `pro-linux-v3` binary
+(commit `20552f1`, 2026-06-13). Default 120x40 terminal size.
+
+- Binary version: `Version: v5.0.0`
+- Commit: `20552f1`
+- Profile: `pro-linux-v3` (linux-x86_64-v3)
+- Run count: 5
+
+### 5-Run Table
+
+| Run | Avg FPS | Median FPS | P95 frame time | P99 frame time | Stability | Dirty ratio | Active streams |
+|-----|--------:|-----------:|---------------:|---------------:|-----------|------------:|---------------:|
+| 1 | 28700.2 | 29078.2 | 0.037 ms | 0.039 ms | excellent | 7.21% | 41 |
+| 2 | 28780.7 | 29039.4 | 0.038 ms | 0.039 ms | excellent | 7.21% | 41 |
+| 3 | 28690.8 | 29001.5 | 0.038 ms | 0.041 ms | excellent | 7.21% | 41 |
+| 4 | 28798.9 | 29071.5 | 0.038 ms | 0.040 ms | excellent | 7.21% | 41 |
+| 5 | 28628.7 | 28931.4 | 0.038 ms | 0.040 ms | excellent | 7.21% | 41 |
+
+- **Mean avg_fps**: 28720.0
+- **P95 range**: 0.037–0.038 ms
+- **P99 range**: 0.039–0.041 ms
+
+### Invariants
+
+| Field | Value |
+|-------|-------|
+| `actual_execution` | `single-threaded-renderer` |
+| `terminal_writer` | `single-owner` |
+| `compute_parallelism` | `disabled` |
+| `frame_time_stability` | `excellent` (all 5 runs) |
+| `avg_dirty_cell_ratio` | 7.21% (all 5 runs) |
+| `active_streams_avg` | 41 (all 5 runs) |
+
+### Notes
+
+- This benchmark measures the **default renderer workload** (cosmic rain
+  animation at 120x40).  Heavy message or matrix-mode workloads are not
+  comparable to the default benchmark and will yield different FPS numbers.
+- The 50k FPS lab target was **not reached** and is **not promised**.
+- `terminal_writer` remains `single-owner`: terminal writes are never
+  parallelized.
+- `compute_parallelism` remains `disabled`: no parallel frame computation.
+- `actual_execution` remains `single-threaded-renderer`: the renderer executes
+  on a single thread in benchmark mode.
+
+These numbers are local measurements on a single machine, not a portable
+promise.  Benchmark FPS is **synthetic uncapped throughput** — it measures how
+many frames the renderer can compute per second in a tight loop, not the FPS
+the user will see at runtime.  Treat stability, p95, and p99 as far more
+important than raw FPS.
+
 ## v4.9.0 — The Wolf: Release Guard + Terminal Runtime Contract
 
 Release benchmark from `pro-linux-v3` binary
