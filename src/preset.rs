@@ -131,8 +131,85 @@ pub fn validate_preset_name(name: &str) -> Result<String, String> {
     if get_preset(&lower).is_some() {
         Ok(lower)
     } else {
-        Err(format!("invalid preset: {} (see --list-presets)", name))
+        Err(format!(
+            "error: unknown preset '{name}'\n\n  Use --list-presets to see available presets."
+        ))
     }
+}
+
+/// Default values that presets are compared against to show only overrides.
+const DEFAULTS: PresetConfig = PresetConfig {
+    color: "green",
+    charset: "binary",
+    fps: 60.0,
+    speed: 8.0,
+    density: 1.0,
+    glitch_level: GlitchLevel::Default,
+};
+
+/// Print detailed information about a single preset.
+///
+/// Returns `Ok(())` on success, `Err(message)` if the preset is not found.
+pub fn print_show_preset(name: &str) -> Result<(), String> {
+    let lower = name.trim().to_ascii_lowercase();
+    let Some(p) = get_preset(&lower) else {
+        return Err(format!(
+            "error: unknown preset '{name}'\n\n  Use --list-presets to see available presets."
+        ));
+    };
+
+    // Find the description for this preset.
+    let desc = PRESET_NAMES
+        .iter()
+        .position(|&n| n == lower)
+        .map(|i| PRESET_DESCRIPTIONS[i])
+        .unwrap_or("");
+
+    println!("PRESET: {lower}");
+    println!();
+    println!("  Description: {desc}");
+    println!();
+    println!("  Overrides:");
+
+    let mut has_override = false;
+    if p.color != DEFAULTS.color {
+        println!("    color   = {}", p.color);
+        has_override = true;
+    }
+    if p.charset != DEFAULTS.charset {
+        println!("    charset = {}", p.charset);
+        has_override = true;
+    }
+    if p.fps != DEFAULTS.fps {
+        println!("    fps     = {}", p.fps);
+        has_override = true;
+    }
+    if p.speed != DEFAULTS.speed {
+        println!("    speed   = {}", p.speed);
+        has_override = true;
+    }
+    if (p.density - DEFAULTS.density).abs() > f32::EPSILON {
+        println!("    density = {}", p.density);
+        has_override = true;
+    }
+    if p.glitch_level != DEFAULTS.glitch_level {
+        let label = match p.glitch_level {
+            GlitchLevel::None => "none",
+            GlitchLevel::Subtle => "subtle",
+            GlitchLevel::Default => "default",
+            GlitchLevel::Intense => "intense",
+        };
+        println!("    glitch  = {label}");
+        has_override = true;
+    }
+
+    if !has_override {
+        println!("    (matches defaults — no overrides)");
+    }
+
+    println!();
+    println!("  Use: cosmostrix --preset {lower}");
+    Ok(())
 }
 
 /// Print all available presets with one-line descriptions.
@@ -182,7 +259,8 @@ mod tests {
     #[test]
     fn validate_preset_name_invalid() {
         let err = validate_preset_name("nonexistent").unwrap_err();
-        assert!(err.contains("invalid preset: nonexistent"));
+        assert!(err.contains("unknown preset"));
+        assert!(err.contains("nonexistent"));
         assert!(err.contains("--list-presets"));
     }
 

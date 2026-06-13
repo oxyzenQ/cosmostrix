@@ -123,7 +123,7 @@ pub fn apply_profile_layer(
     let normalized = validate_profile_name(name)?;
     let Some(profile) = profiles.get(&normalized) else {
         let message = format!(
-            "error: invalid profile: {name}\nexpected one of: {}",
+            "error: invalid profile: {name}\nexpected one of: {}\n\n  Use --list-profiles to see available profiles.",
             profile_name_list(profiles)
         );
         if strict_unknown {
@@ -205,7 +205,7 @@ pub fn dump_profile_text(
     let normalized = validate_profile_name(name)?;
     let Some(profile) = profiles.get(&normalized) else {
         return Err(format!(
-            "error: invalid profile: {name}\nexpected one of: {}",
+            "error: invalid profile: {name}\nexpected one of: {}\n\n  Use --list-profiles to see available profiles.",
             profile_name_list(profiles)
         ));
     };

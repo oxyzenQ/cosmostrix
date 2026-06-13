@@ -400,6 +400,15 @@ pub struct Args {
     pub list_presets: bool,
 
     #[arg(
+        long = "show-preset",
+        value_name = "NAME",
+        help_heading = "DISCOVERY",
+        display_order = 227,
+        help = "Show full details for a named preset"
+    )]
+    pub show_preset: Option<String>,
+
+    #[arg(
         long = "list-scenes",
         help_heading = "DISCOVERY",
         display_order = 230,
@@ -860,6 +869,7 @@ DISCOVERY:
   --list-colors-detail  Show grouped theme descriptions and aliases.
   --list-charsets       Show available charset presets.
   --list-presets        Show available presets.
+  --show-preset <NAME>  Show full details for a named preset.
   --list-scenes         Show available scene atmospheres.
   --list-profiles       Show user-defined profiles from config.
   --defaults            Show the default runtime profile.

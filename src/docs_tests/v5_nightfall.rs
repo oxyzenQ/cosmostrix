@@ -16,6 +16,15 @@ const V5_PLAN: &str = include_str!("../../docs/V5_NIGHTFALL_PLAN.md");
 /// Future vision doc (exploratory).
 const NEXT_VISION: &str = include_str!("../../docs/cosmostrix-next-vision.md");
 
+/// Config source — for --show-preset documentation check.
+const CONFIG_SRC: &str = include_str!("../config.rs");
+
+/// Preset source — for print_show_preset existence check.
+const PRESET_SRC: &str = include_str!("../preset.rs");
+
+/// Example config file.
+const EXAMPLE_CONFIG: &str = include_str!("../../config/cosmostrix.example.toml");
+
 // ---------------------------------------------------------------------------
 // Roadmap guards
 // ---------------------------------------------------------------------------
@@ -164,5 +173,104 @@ fn next_vision_says_no_android_code_in_cli_repo() {
     assert!(
         lower.contains("no android code") || lower.contains("not part of"),
         "future vision doc must state no Android code in CLI repo"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: Discoverability guards
+// ---------------------------------------------------------------------------
+
+#[test]
+fn show_preset_documented_in_help_detail() {
+    assert!(
+        CONFIG_SRC.contains("--show-preset"),
+        "config.rs must mention --show-preset in help-detail text"
+    );
+    assert!(
+        CONFIG_SRC.contains("Show full details for a named preset"),
+        "--show-preset must have a description in help-detail"
+    );
+}
+
+#[test]
+fn show_preset_impl_exists_in_preset_rs() {
+    assert!(
+        PRESET_SRC.contains("fn print_show_preset"),
+        "preset.rs must contain print_show_preset function"
+    );
+}
+
+#[test]
+fn example_config_exists() {
+    assert!(
+        !EXAMPLE_CONFIG.is_empty(),
+        "config/cosmostrix.example.toml must exist and be non-empty"
+    );
+}
+
+#[test]
+fn example_config_has_defaults_section() {
+    assert!(
+        EXAMPLE_CONFIG.contains("scene = monolith"),
+        "example config must set scene = monolith"
+    );
+    assert!(
+        EXAMPLE_CONFIG.contains("color = cosmos"),
+        "example config must set color"
+    );
+    assert!(
+        EXAMPLE_CONFIG.contains("fps = 60"),
+        "example config must set fps"
+    );
+}
+
+#[test]
+fn example_config_has_profile_section() {
+    assert!(
+        EXAMPLE_CONFIG.contains("profile."),
+        "example config must contain at least one profile.<name> section"
+    );
+    assert!(
+        EXAMPLE_CONFIG.contains("profile.calm-night"),
+        "example config must contain profile.calm-night"
+    );
+}
+
+#[test]
+fn referenced_docs_exist() {
+    // These docs are referenced from --list-profiles and --dump-config.
+    // They must exist (verified by include_str! compilation above),
+    // but this named guard makes the intent explicit.
+    let _ = include_str!("../../docs/PROFILE_EXAMPLES.md");
+    let _ = include_str!("../../docs/ATMOSPHERE_PRESETS.md");
+    let _ = include_str!("../../docs/PROFILE_ECOSYSTEM.md");
+}
+
+#[test]
+fn v5_plan_has_phase_2() {
+    assert!(V5_PLAN.contains("Phase 2"), "v5 plan must mention Phase 2");
+    assert!(
+        V5_PLAN.to_lowercase().contains("discoverab"),
+        "v5 plan Phase 2 must mention discoverability"
+    );
+}
+
+#[test]
+fn profile_error_mentions_list_profiles() {
+    let src = include_str!("../profile.rs");
+    let lower = src.to_lowercase();
+    assert!(
+        lower.contains("--list-profiles"),
+        "profile unknown error must hint --list-profiles"
+    );
+}
+
+#[test]
+fn preset_error_mentions_list_presets() {
+    let src = include_str!("../preset.rs");
+    let lower = src.to_lowercase();
+    assert!(
+        lower.contains("--list-presets"),
+        "preset unknown error must hint --list-presets"
     );
 }

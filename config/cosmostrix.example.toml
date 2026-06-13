@@ -1,0 +1,94 @@
+# Cosmostrix Configuration Example
+# Copy to ~/.config/cosmostrix/config and customize.
+# See: cosmostrix --help-detail
+#
+# Format: key = value (flat, no TOML sections needed for globals)
+# Invalid values warn cleanly and are ignored.
+#
+# Precedence:
+#   built-in defaults < config values < config preset < config scene
+#   < config profile < CLI preset < CLI scene < CLI profile
+#   < low-power < explicit CLI flags
+
+# ── Scene ────────────────────────────────────────────────────────────────
+# See: cosmostrix --list-scenes
+scene = monolith
+
+# ── Appearance ───────────────────────────────────────────────────────────
+color = cosmos
+charset = binary
+color-bg = black
+
+# ── Motion ───────────────────────────────────────────────────────────────
+fps = 60
+speed = 20
+density = 0.75
+
+# ── Behavior ─────────────────────────────────────────────────────────────
+glitch-level = subtle
+low-power = false
+mouse = false
+fullwidth = false
+auto-color-drift = false
+
+# ── Monolith ─────────────────────────────────────────────────────────────
+monolith-size = normal
+
+# ── Advanced Style ───────────────────────────────────────────────────────
+bold = 1
+shadingmode = 1
+
+# ── Preset (optional) ────────────────────────────────────────────────────
+# Apply a curated visual preset on top of config values.
+# See: cosmostrix --list-presets
+# See: cosmostrix --show-preset cinematic
+# preset = cinematic
+
+# ── User Profiles ────────────────────────────────────────────────────────
+# Define named configuration blocks and apply with --profile <name>.
+# Each profile overrides specific fields. CLI flags always win.
+# See: cosmostrix --list-profiles
+# See: docs/PROFILE_EXAMPLES.md for more examples.
+#
+# Syntax: profile.<name>.<field> = <value>
+# Fields: base, preset, color, charset, fps, speed, density,
+#         glitch-level, monolith-size, color-bg,
+#         atmosphere-mode, atmosphere-regime
+
+# Calm nighttime profile: gentle rain, low density, no glitch.
+profile.calm-night.color = ocean
+profile.calm-night.speed = 4
+profile.calm-night.density = 0.6
+profile.calm-night.fps = 30
+profile.calm-night.glitch-level = none
+
+# Hacker mode: fast, dense, katakana, subtle glitch.
+profile.hacker-mode.color = green
+profile.hacker-mode.charset = katakana
+profile.hacker-mode.speed = 12
+profile.hacker-mode.density = 1.2
+profile.hacker-mode.glitch-level = subtle
+
+# Cinematic variant: cosmos palette, slower speed, subtle glitch.
+profile.cinematic.color = cosmos
+profile.cinematic.speed = 6
+profile.cinematic.glitch-level = subtle
+
+# ── Atmosphere Engine (opt-in only) ──────────────────────────────────────
+# atmosphere-mode: disabled (default) | controlled-live
+# atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure
+# Note: storm is unavailable and will be rejected.
+# See: docs/ATMOSPHERE_PRESETS.md
+#
+# Example: enable pulse atmosphere
+# atmosphere-mode = controlled-live
+# atmosphere-regime = pulse
+#
+# Or use a named atmosphere profile:
+# cosmostrix --profile atmosphere-pulse
+
+# ── Use ─────────────────────────────────────────────────────────────────
+# cosmostrix --profile calm-night
+# cosmostrix --profile hacker-mode
+# cosmostrix --profile cinematic
+# cosmostrix --show-preset calm

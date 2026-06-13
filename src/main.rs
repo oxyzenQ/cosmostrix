@@ -312,6 +312,16 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
+    if let Some(ref name) = args.show_preset {
+        match preset::print_show_preset(name) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(1);
+            }
+        }
+    }
+
     if args.list_scenes {
         print_list_scenes();
         return Ok(());
