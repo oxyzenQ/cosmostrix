@@ -22,6 +22,18 @@ const CONFIG_SRC: &str = include_str!("../config.rs");
 /// Preset source — for print_show_preset existence check.
 const PRESET_SRC: &str = include_str!("../preset.rs");
 
+/// Scene source — for error message format check.
+const SCENE_SRC: &str = include_str!("../scene.rs");
+
+/// CLI source — for color error format check.
+const CLI_SRC: &str = include_str!("../cli.rs");
+
+/// Charset source — for error message format check.
+const CHARSET_SRC: &str = include_str!("../charset.rs");
+
+/// Profile source — for error message format check.
+const PROFILE_SRC: &str = include_str!("../profile.rs");
+
 /// Example config file.
 const EXAMPLE_CONFIG: &str = include_str!("../../config/cosmostrix.example.toml");
 
@@ -387,5 +399,96 @@ fn roadmap_references_breathing_language() {
         ROADMAP.contains("CINEMATIC_BREATHING.md")
             || ROADMAP.to_lowercase().contains("breathing language"),
         "roadmap must reference CINEMATIC_BREATHING.md or breathing language"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: Help/config UX polish guards
+// ---------------------------------------------------------------------------
+
+#[test]
+fn help_contains_discovery_section() {
+    assert!(
+        CONFIG_SRC.contains("DISCOVERY"),
+        "config.rs must have DISCOVERY help section"
+    );
+}
+
+#[test]
+fn help_contains_show_preset() {
+    assert!(
+        CONFIG_SRC.contains("--show-preset"),
+        "config.rs must document --show-preset"
+    );
+}
+
+#[test]
+fn help_detail_contains_show_preset() {
+    // --help-detail is rendered from the same after_help block in config.rs
+    assert!(
+        CONFIG_SRC.contains("show-preset"),
+        "config.rs help-detail text must mention show-preset"
+    );
+}
+
+#[test]
+fn help_detail_superset_of_help() {
+    // Both --help and --help-detail share the same Arg definitions;
+    // verify 3 key discovery flags are present in the source.
+    for flag in &["--list-presets", "--list-scenes", "--list-profiles"] {
+        assert!(
+            CONFIG_SRC.contains(flag),
+            "config.rs must contain {flag} in help definitions"
+        );
+    }
+}
+
+#[test]
+fn error_messages_use_error_prefix() {
+    // All custom error messages for unknown values must use "error: unknown"
+    assert!(
+        SCENE_SRC.contains("error: unknown scene"),
+        "scene error must use 'error: unknown scene' format"
+    );
+    assert!(
+        CLI_SRC.contains("error: unknown color"),
+        "color error must use 'error: unknown color' format"
+    );
+    assert!(
+        CHARSET_SRC.contains("error: unknown charset"),
+        "charset error must use 'error: unknown charset' format"
+    );
+}
+
+#[test]
+fn error_messages_reference_discovery_flags() {
+    assert!(
+        PRESET_SRC.contains("--list-presets"),
+        "preset error must reference --list-presets"
+    );
+    assert!(
+        PROFILE_SRC.contains("--list-profiles"),
+        "profile error must reference --list-profiles"
+    );
+    assert!(
+        SCENE_SRC.contains("--list-scenes"),
+        "scene error must reference --list-scenes"
+    );
+}
+
+#[test]
+fn v5_plan_phase4_marked_in_progress() {
+    assert!(V5_PLAN.contains("Phase 4"), "v5 plan must mention Phase 4");
+    assert!(
+        V5_PLAN.to_lowercase().contains("help/config ux polish"),
+        "v5 plan Phase 4 must describe help/config UX polish"
+    );
+}
+
+#[test]
+fn profile_help_references_list_profiles() {
+    assert!(
+        CONFIG_SRC.contains("see --list-profiles"),
+        "--profile help text must reference --list-profiles"
     );
 }

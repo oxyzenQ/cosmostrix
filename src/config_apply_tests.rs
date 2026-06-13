@@ -126,7 +126,14 @@ fn explicit_matrix_scene_restores_classic_defaults() {
 #[test]
 fn invalid_cli_scene_is_clear_error() {
     let err = args_from_cli_result(&["--scene", "nonexistent"]).unwrap_err();
-    assert_eq!(err, "invalid scene: nonexistent (see --list-scenes)");
+    assert!(
+        err.contains("error: unknown scene"),
+        "scene error must use 'unknown' terminology: {err}"
+    );
+    assert!(
+        err.contains("--list-scenes"),
+        "scene error must reference --list-scenes: {err}"
+    );
 }
 
 #[test]

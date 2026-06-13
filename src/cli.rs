@@ -201,5 +201,7 @@ pub fn cycle_charset_preset(current: &str, dir: i32) -> &'static str {
 }
 
 pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
-    theme::lookup_theme(s).ok_or_else(|| format!("invalid color: {} (see --list-colors)", s))
+    theme::lookup_theme(s).ok_or_else(|| {
+        format!("error: unknown color '{s}'\n\n  Use --list-colors to see available colors.")
+    })
 }

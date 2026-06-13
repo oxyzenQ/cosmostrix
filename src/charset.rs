@@ -126,8 +126,7 @@ pub fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Charset, S
         "braille" => Ok(Charset::BRAILLE),
         "runic" => Ok(Charset::RUNIC),
         _ => Err(format!(
-            "unsupported charset: {} (see --list-charsets)",
-            spec
+            "error: unknown charset '{spec}'\n\n  Use --list-charsets to see available charsets."
         )),
     }
 }

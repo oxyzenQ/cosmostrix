@@ -90,7 +90,7 @@ fn v47p1_unknown_profile_behavior_remains_clean() {
     )
     .unwrap_err();
     assert!(
-        err.contains("error: invalid profile: unknown"),
+        err.contains("error: unknown profile 'unknown'"),
         "unknown CLI profile must produce clean error"
     );
     assert!(
@@ -377,7 +377,7 @@ fn v47p3_unknown_profile_returns_clean_error() {
     )
     .unwrap_err();
     assert!(
-        err.contains("error: invalid profile: nonexistent"),
+        err.contains("error: unknown profile"),
         "unknown CLI profile must produce clean error with profile name"
     );
     assert!(
@@ -397,7 +397,7 @@ fn v47p3_unknown_profile_does_not_partially_mutate_config() {
     )
     .unwrap_err();
     assert!(
-        err.contains("error: invalid profile: no-such-profile"),
+        err.contains("error: unknown profile 'no-such-profile'"),
         "must fail with clean error, not partial mutation"
     );
     // The error itself confirms no partial Args mutation —

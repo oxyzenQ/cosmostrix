@@ -600,7 +600,13 @@ fn main() -> std::io::Result<()> {
         s
     });
 
-    let color_scheme = validate_err("--color", parse_color_scheme(&args.color))?;
+    let color_scheme = match parse_color_scheme(&args.color) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+    };
     let rain_style = args
         .scene
         .as_deref()

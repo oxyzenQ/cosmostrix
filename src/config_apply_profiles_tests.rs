@@ -123,7 +123,7 @@ fn cli_profile_overrides_cli_scene_for_profile_foundation() {
 #[test]
 fn unknown_cli_profile_has_clear_error() {
     let err = args_with_config_result(nightcore_config(), &["--profile", "unknown"]).unwrap_err();
-    assert!(err.contains("error: invalid profile: unknown"));
+    assert!(err.contains("error: unknown profile 'unknown'"));
     assert!(err.contains("expected one of: nightcore"));
 }
 

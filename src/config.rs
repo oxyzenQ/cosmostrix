@@ -285,7 +285,7 @@ pub struct Args {
         long = "profile",
         help_heading = "COMMON OPTIONS",
         display_order = 97,
-        help = "Apply a user-defined profile from config"
+        help = "Apply a user-defined profile from config (see --list-profiles)"
     )]
     pub profile: Option<String>,
 

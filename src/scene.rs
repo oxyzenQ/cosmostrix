@@ -111,7 +111,9 @@ pub fn validate_scene_name(name: &str) -> Result<String, String> {
     if get_scene(&normalized).is_some() {
         Ok(normalized)
     } else {
-        Err(format!("invalid scene: {} (see --list-scenes)", name))
+        Err(format!(
+            "error: unknown scene '{name}'\n\n  Use --list-scenes to see available scenes."
+        ))
     }
 }
 
@@ -188,7 +190,14 @@ mod tests {
     #[test]
     fn invalid_scene_error_mentions_discovery() {
         let err = validate_scene_name("nonexistent").unwrap_err();
-        assert_eq!(err, "invalid scene: nonexistent (see --list-scenes)");
+        assert!(
+            err.contains("error: unknown scene"),
+            "scene error must use 'unknown' terminology: {err}"
+        );
+        assert!(
+            err.contains("--list-scenes"),
+            "scene error must reference --list-scenes: {err}"
+        );
     }
 
     #[test]
