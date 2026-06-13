@@ -4,7 +4,7 @@
 
 ## Status
 
-Active Development — Phase 1 in progress.
+Active Development — Phase 3 in progress.
 
 ## Theme
 
@@ -141,7 +141,7 @@ purpose-built renderer, not a terminal emulator wrapper. Key boundaries:
 |-------|-------------|-------|
 | Phase 1 | Roadmap + product identity foundation | This document. Establish scope, non-goals, boundaries. |
 | Phase 2 | Preset/profile discoverability polish | Improve `--list-profiles`, preset descriptions, error guidance. |
-| Phase 3 | Cinematic breathing language + docs contract | Document breathing concept, naming conventions, pacing language. |
+| Phase 3 | Cinematic breathing language + docs contract | `docs/CINEMATIC_BREATHING.md`. Vocabulary, pacing contract, naming conventions, anti-patterns. |
 | Phase 4 | Help/config UX polish | Polish `--help`, error messages, `--doctor` wording. |
 | Phase 5 | Release candidate prep | Version bump, CHANGELOG, benchmark report, release guard tests. |
 | Phase 6 | Signed tag / release / AUR | Final release with all v4.9.0 safety mechanisms intact. |

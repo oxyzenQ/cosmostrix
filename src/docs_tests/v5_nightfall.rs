@@ -274,3 +274,118 @@ fn preset_error_mentions_list_presets() {
         "preset unknown error must hint --list-presets"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3: Cinematic breathing language guards
+// ---------------------------------------------------------------------------
+
+/// Cinematic breathing language doc.
+const CINEMATIC_BREATHING: &str = include_str!("../../docs/CINEMATIC_BREATHING.md");
+
+#[test]
+fn breathing_doc_exists() {
+    assert!(
+        !CINEMATIC_BREATHING.is_empty(),
+        "docs/CINEMATIC_BREATHING.md must exist and be non-empty"
+    );
+}
+
+#[test]
+fn breathing_doc_has_pacing_contract() {
+    assert!(
+        CINEMATIC_BREATHING.contains("Pacing Contract"),
+        "breathing doc must contain 'Pacing Contract'"
+    );
+}
+
+#[test]
+fn breathing_doc_has_breathing_vocabulary() {
+    assert!(
+        CINEMATIC_BREATHING.contains("Breathing Vocabulary"),
+        "breathing doc must contain 'Breathing Vocabulary'"
+    );
+}
+
+#[test]
+fn breathing_doc_defines_rest() {
+    assert!(
+        CINEMATIC_BREATHING.contains("baseline state"),
+        "breathing doc must define Rest as the baseline state"
+    );
+}
+
+#[test]
+fn breathing_doc_defines_whisper() {
+    let lower = CINEMATIC_BREATHING.to_lowercase();
+    assert!(
+        lower.contains("whisper") && CINEMATIC_BREATHING.contains("most subtle atmosphere effect"),
+        "breathing doc must define Whisper as the most subtle effect"
+    );
+}
+
+#[test]
+fn breathing_doc_defines_compression() {
+    let lower = CINEMATIC_BREATHING.to_lowercase();
+    assert!(
+        lower.contains("compression") && CINEMATIC_BREATHING.contains("visual field tightens"),
+        "breathing doc must define Compression"
+    );
+}
+
+#[test]
+fn breathing_doc_defines_void() {
+    let lower = CINEMATIC_BREATHING.to_lowercase();
+    assert!(
+        lower.contains("void") && CINEMATIC_BREATHING.contains("deliberate reduction"),
+        "breathing doc must define Void"
+    );
+}
+
+#[test]
+fn breathing_doc_says_storm_never_default() {
+    assert!(
+        CINEMATIC_BREATHING.contains("Storm is never default"),
+        "breathing doc must state Storm is never default"
+    );
+}
+
+#[test]
+fn breathing_doc_says_no_instant_transitions() {
+    assert!(
+        CINEMATIC_BREATHING.contains("No visual state change is instant"),
+        "breathing doc must state no visual state change is instant"
+    );
+}
+
+#[test]
+fn breathing_doc_has_anti_patterns() {
+    assert!(
+        CINEMATIC_BREATHING.contains("Anti-patterns"),
+        "breathing doc must contain Anti-patterns section"
+    );
+}
+
+#[test]
+fn breathing_doc_has_state_hierarchy() {
+    assert!(
+        CINEMATIC_BREATHING.contains("State Hierarchy"),
+        "breathing doc must contain State Hierarchy section"
+    );
+}
+
+#[test]
+fn v5_plan_references_cinematic_breathing() {
+    assert!(
+        V5_PLAN.contains("CINEMATIC_BREATHING.md"),
+        "v5 plan must reference CINEMATIC_BREATHING.md"
+    );
+}
+
+#[test]
+fn roadmap_references_breathing_language() {
+    assert!(
+        ROADMAP.contains("CINEMATIC_BREATHING.md")
+            || ROADMAP.to_lowercase().contains("breathing language"),
+        "roadmap must reference CINEMATIC_BREATHING.md or breathing language"
+    );
+}

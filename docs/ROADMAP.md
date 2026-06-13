@@ -122,6 +122,9 @@ out of scope for the main CLI repository in v5.0.0.
 | Phase 5 | Release candidate prep | pending |
 | Phase 6 | Signed tag / release / AUR | pending |
 
+Cinematic breathing vocabulary and pacing contract are defined in
+`docs/CINEMATIC_BREATHING.md`.
+
 ---
 
 ## Invariants (all versions)
