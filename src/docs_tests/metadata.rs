@@ -108,115 +108,68 @@ fn changelog_v400_mentions_demo_refresh() {
     );
 }
 
-// ── v4.9.0 release metadata guard tests ──────────────────────────────
+// ── Active release metadata guard tests (version-agnostic) ───────────
+//
+// These tests verify that all active release metadata files agree on the
+// current package version. The source of truth is `env!("CARGO_PKG_VERSION")`,
+// injected by cargo at compile time from Cargo.toml's [package] version field.
+//
+// Previously these tests hardcoded the version string (e.g. "5.0.0") which
+// meant every version bump broke the test suite. Now they dynamically
+// compare against the compile-time version, so a version bump via
+// `./scripts/version-to.sh` requires ZERO test file edits.
+//
+// The old "must not contain old version X.Y.Z" assertions were also removed:
+// they were pure noise (any version != X.Y.Z passes) and accumulated one
+// block per historical version, making the file grow forever.
+
+/// Compile-time current package version (e.g. "5.0.1").
+///
+/// Injected by cargo from Cargo.toml [package] version. This is the single
+/// source of truth for what "current release" means in test assertions.
+const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[test]
-fn cargo_toml_version_matches_changelog_latest() {
+fn cargo_toml_has_current_release_version() {
     let cargo = include_str!("../../Cargo.toml");
+    let expected = format!("version = \"{}\"", CURRENT_VERSION);
     assert!(
-        cargo.contains(r#"version = "5.0.0""#),
-        "Cargo.toml must have version = \"5.0.0\""
-    );
-    assert!(
-        !cargo.contains(r#"version = "4.0.1""#),
-        "Cargo.toml must not contain old version 4.0.1"
-    );
-    assert!(
-        !cargo.contains(r#"version = "4.5.0""#),
-        "Cargo.toml must not contain old version 4.5.0"
-    );
-    assert!(
-        !cargo.contains(r#"version = "4.6.0""#),
-        "Cargo.toml must not contain old version 4.6.0"
-    );
-    assert!(
-        !cargo.contains(r#"version = "4.7.0""#),
-        "Cargo.toml must not contain old version 4.7.0"
-    );
-    assert!(
-        !cargo.contains(r#"version = "4.8.0""#),
-        "Cargo.toml must not contain old version 4.8.0"
-    );
-    assert!(
-        !cargo.contains(r#"version = "4.9.0""#),
-        "Cargo.toml must not contain old version 4.9.0"
+        cargo.contains(&expected),
+        "Cargo.toml must have version = \"{}\" (current package version from env! CARGO_PKG_VERSION)",
+        CURRENT_VERSION
     );
 }
 
 #[test]
-fn readme_uses_v500_tag_in_install_example() {
+fn readme_uses_current_release_tag_in_install_example() {
     let readme = include_str!("../../README.md");
+    let expected_tag = format!("TAG=\"v{}\"", CURRENT_VERSION);
     assert!(
-        readme.contains(r#"TAG="v5.0.0""#),
-        "README install example must use TAG=\"v5.0.0\" as the current release tag"
+        readme.contains(&expected_tag),
+        "README install example must use TAG=\"v{}\" as the current release tag",
+        CURRENT_VERSION
     );
 }
-
-// ── Phase 12.2: v4.0.1 release metadata guard tests ──────────────────────
 
 #[test]
 fn aur_pkgbuild_pkgver_matches_release() {
     let pkgbuild = include_str!("../../aur/cosmostrix-bin/PKGBUILD");
+    let expected = format!("pkgver={}", CURRENT_VERSION);
     assert!(
-        pkgbuild.contains("pkgver=5.0.0"),
-        "PKGBUILD must have pkgver=5.0.0"
-    );
-    assert!(
-        !pkgbuild.contains("pkgver=4.0.1"),
-        "PKGBUILD must not contain old pkgver=4.0.1"
-    );
-    assert!(
-        !pkgbuild.contains("pkgver=4.5.0"),
-        "PKGBUILD must not contain old pkgver=4.5.0"
-    );
-    assert!(
-        !pkgbuild.contains("pkgver=4.6.0"),
-        "PKGBUILD must not contain old pkgver=4.6.0"
-    );
-    assert!(
-        !pkgbuild.contains("pkgver=4.7.0"),
-        "PKGBUILD must not contain old pkgver=4.7.0"
-    );
-    assert!(
-        !pkgbuild.contains("pkgver=4.8.0"),
-        "PKGBUILD must not contain old pkgver=4.8.0"
-    );
-    assert!(
-        !pkgbuild.contains("pkgver=4.9.0"),
-        "PKGBUILD must not contain old pkgver=4.9.0"
+        pkgbuild.contains(&expected),
+        "PKGBUILD must have {} (must match Cargo.toml package version)",
+        expected
     );
 }
 
 #[test]
 fn aur_srcinfo_pkgver_matches_release() {
     let srcinfo = include_str!("../../aur/cosmostrix-bin/.SRCINFO");
+    let expected = format!("pkgver = {}", CURRENT_VERSION);
     assert!(
-        srcinfo.contains("pkgver = 5.0.0"),
-        "SRCINFO must have pkgver = 5.0.0"
-    );
-    assert!(
-        !srcinfo.contains("pkgver = 4.0.1"),
-        "SRCINFO must not contain old pkgver = 4.0.1"
-    );
-    assert!(
-        !srcinfo.contains("pkgver = 4.5.0"),
-        "SRCINFO must not contain old pkgver = 4.5.0"
-    );
-    assert!(
-        !srcinfo.contains("pkgver = 4.6.0"),
-        "SRCINFO must not contain old pkgver = 4.6.0"
-    );
-    assert!(
-        !srcinfo.contains("pkgver = 4.7.0"),
-        "SRCINFO must not contain old pkgver = 4.7.0"
-    );
-    assert!(
-        !srcinfo.contains("pkgver = 4.8.0"),
-        "SRCINFO must not contain old pkgver = 4.8.0"
-    );
-    assert!(
-        !srcinfo.contains("pkgver = 4.9.0"),
-        "SRCINFO must not contain old pkgver = 4.9.0"
+        srcinfo.contains(&expected),
+        ".SRCINFO must have {} (must match Cargo.toml package version)",
+        expected
     );
 }
 
