@@ -367,7 +367,8 @@ update_docs() {
 
         # Count occurrences before
         local count_old
-        count_old="$(grep -cF "${old_ver}" "${f}" 2>/dev/null || echo "0")"
+        count_old="$(grep -cF "${old_ver}" "${f}" 2>/dev/null || true)"
+        count_old="${count_old:-0}"
 
         if [[ "${count_old}" -eq 0 ]]; then
             log_info "  No references to ${old_ver} in $(basename "${f}")"

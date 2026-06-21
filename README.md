@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/cosmostrix-logo.png" alt="cosmostrix logo" width="240">
+  <img src="assets/cosmostrix-logo.png" alt="cosmostrix logo" width="260">
 </p>
 
 <h1 align="center">cosmostrix</h1>
@@ -75,7 +75,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v5.0.0"
+TAG="v5.0.1"
 PLATFORM="linux-x86_64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
