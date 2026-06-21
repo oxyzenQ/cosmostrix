@@ -1,16 +1,15 @@
+#!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: MIT
-
-#!/usr/bin/env bash
 # =============================================================================
 # Cosmostrix Version Bump Helper
 # =============================================================================
 # Updates all stable release version references consistently.
 #
 # Usage:
-#   ./version-to.sh 2.5.0          # Bump to 2.5.0
-#   ./version-to.sh --check 2.5.0  # Verify version is 2.5.0 (no changes)
-#   ./version-to.sh --help         # Show help
+#   ./scripts/version-to.sh 2.5.0          # Bump to 2.5.0
+#   ./scripts/version-to.sh --check 2.5.0  # Verify version is 2.5.0 (no changes)
+#   ./scripts/version-to.sh --help         # Show help
 #
 # Safety:
 #   - Refuses to run if git working tree has unrelated changes
@@ -26,7 +25,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
-REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 readonly REPO_ROOT
 readonly CARGO_TOML="${REPO_ROOT}/Cargo.toml"
 readonly CARGO_LOCK="${REPO_ROOT}/Cargo.lock"
@@ -72,16 +71,16 @@ Cosmostrix Version Bump Helper
 Updates all stable release version references consistently across the repo.
 
 USAGE:
-    ./version-to.sh <VERSION>           Bump to VERSION
-    ./version-to.sh --check <VERSION>   Verify version is VERSION (no changes)
-    ./version-to.sh --help              Show this help
+    ./scripts/version-to.sh <VERSION>           Bump to VERSION
+    ./scripts/version-to.sh --check <VERSION>   Verify version is VERSION (no changes)
+    ./scripts/version-to.sh --help              Show this help
 
 ARGUMENTS:
     <VERSION>   Target stable SemVer version, e.g. 2.5.0
 
 EXAMPLES:
-    ./version-to.sh 2.5.0              # Bump from current to 2.5.0
-    ./version-to.sh --check 2.5.0      # Verify repo is at 2.5.0
+    ./scripts/version-to.sh 2.5.0              # Bump from current to 2.5.0
+    ./scripts/version-to.sh --check 2.5.0      # Verify repo is at 2.5.0
 
 VALIDATION:
     - Version must be stable SemVer: X.Y.Z (digits only)

@@ -420,9 +420,9 @@ jobs:
           (
             cd dist
             if command -v sha512sum >/dev/null 2>&1; then
-              sha512sum "${TARBALL}" > "${TARBALL}.sha512"
+              sha512sum "${TARBALL}" > "${TARBALL}.sha512sum"
             else
-              shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512"
+              shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
             fi
           )
 
@@ -469,7 +469,7 @@ jobs:
           Compress-Archive -Force -Path "$outDir/*" -DestinationPath "dist/$zip"
 
           $hash = (Get-FileHash -Algorithm SHA512 "dist/$zip").Hash.ToLower()
-          "$hash  $zip" | Out-File -Encoding ascii "dist/$zip.sha512"
+          "$hash  $zip" | Out-File -Encoding ascii "dist/$zip.sha512sum"
 
       - name: Upload artifact
         if: runner.os != 'Windows'
@@ -629,9 +629,9 @@ jobs:
           (
             cd dist
             if command -v sha512sum >/dev/null 2>&1; then
-              sha512sum "${TARBALL}" > "${TARBALL}.sha512"
+              sha512sum "${TARBALL}" > "${TARBALL}.sha512sum"
             else
-              shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512"
+              shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
             fi
           )
 
@@ -828,9 +828,9 @@ jobs:
           body_path: release-notes.md
           files: |
             dist/**/*.tar.gz
-            dist/**/*.tar.gz.sha512
+            dist/**/*.tar.gz.sha512sum
             dist/**/*.zip
-            dist/**/*.zip.sha512
+            dist/**/*.zip.sha512sum
 
       # ------------------------------------------------------------------
       # Trigger AUR synchronization after successful release

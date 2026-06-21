@@ -12,9 +12,9 @@ does not create a tag.
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
-./build.sh check-all
+./scripts/build.sh check-all
 cargo pro-linux-v3
-./version-to.sh --check <version>
+./scripts/version-to.sh --check <version>
 ```
 
 All must pass with zero errors before a release candidate is considered.
@@ -134,7 +134,7 @@ Expected:
 ## AUR Metadata Check
 
 Verify `aur/cosmostrix-bin/PKGBUILD` and `aur/cosmostrix-bin/.SRCINFO` have matching
-`pkgver`, `pkgdesc`, and repository URL. Run `./version-to.sh --check <version>` to
+`pkgver`, `pkgdesc`, and repository URL. Run `./scripts/version-to.sh --check <version>` to
 automate this.
 
 ## README / CHANGELOG Guard

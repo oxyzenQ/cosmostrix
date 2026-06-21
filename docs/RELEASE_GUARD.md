@@ -18,7 +18,7 @@ depend on their output.
 Verify the version is correct across all metadata files:
 
 ```bash
-./version-to.sh --check <VERSION>
+./scripts/version-to.sh --check <VERSION>
 ```
 
 This validates `Cargo.toml`, `Cargo.lock`, `PKGBUILD`, and `.SRCINFO`

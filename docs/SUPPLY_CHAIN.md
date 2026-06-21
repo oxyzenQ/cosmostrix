@@ -55,7 +55,7 @@ build. No dependency enters the lockfile without passing both gates.
 
 ### SHA-512 Sidecar Checksums
 
-Every release binary published to GitHub Releases is accompanied by a `.sha512`
+Every release binary published to GitHub Releases is accompanied by a `.sha512sum`
 sidecar file. These checksums are generated during the release workflow
 (`release.yml`) immediately after the tarball or zip archive is created, using
 the host system's `sha512sum` or `shasum -a 512` utility.
@@ -71,13 +71,13 @@ The model is straightforward and deterministic:
    layout is intentionally flat (no directory nesting) to maintain compatibility
    with the AUR PKGBUILD `prepare()` function.
 3. **Hash** — The archive file is hashed with SHA-512. The hex digest is written
-   to a same-named `.sha512` file in the format `<digest>  <filename>`, uploaded
+   to a same-named `.sha512sum` file in the format `<digest>  <filename>`, uploaded
    alongside the archive as a release asset.
 
 Users can verify any downloaded artifact with a single command:
 
 ```bash
-sha512sum --check cosmostrix-bin-v2.1.0-linux-x86_64-v1.tar.gz.sha512
+sha512sum --check cosmostrix-bin-v2.1.0-linux-x86_64-v1.tar.gz.sha512sum
 ```
 
 ### AUR Package Verification

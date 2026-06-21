@@ -88,9 +88,9 @@ variant and Cargo's compile-time `CARGO_CFG_TARGET_FEATURE` set disagree.
 Each build produces:
 
 - `cosmostrix-bin-<tag>-<platform>.tar.gz`
-- `cosmostrix-bin-<tag>-<platform>.tar.gz.sha512`
+- `cosmostrix-bin-<tag>-<platform>.tar.gz.sha512sum`
 - `cosmostrix-bin-<tag>-<platform>.zip`
-- `cosmostrix-bin-<tag>-<platform>.zip.sha512`
+- `cosmostrix-bin-<tag>-<platform>.zip.sha512sum`
 
 Where `<tag>` is a git tag like `v1.0.0`.
 
@@ -123,10 +123,10 @@ Verification examples:
 
 ```bash
 # Linux
-sha512sum -c cosmostrix-bin-v1.0.0-linux-x86_64-v1.tar.gz.sha512
+sha512sum -c cosmostrix-bin-v1.0.0-linux-x86_64-v1.tar.gz.sha512sum
 
 # macOS
-shasum -a 512 -c cosmostrix-bin-v1.0.0-darwin-aarch64-native.tar.gz.sha512
+shasum -a 512 -c cosmostrix-bin-v1.0.0-darwin-aarch64-native.tar.gz.sha512sum
 ```
 
 #### Release publishing
@@ -135,7 +135,7 @@ The `publish_release` job:
 
 - downloads all build artifacts
 - generates release notes from git history (since previous `v*` tag)
-- creates a GitHub Release and uploads all `*.tar.gz`, `*.tar.gz.sha512`, `*.zip`, and `*.zip.sha512` files
+- creates a GitHub Release and uploads all `*.tar.gz`, `*.tar.gz.sha512sum`, `*.zip`, and `*.zip.sha512sum` files
 
 ## Typical release flow
 
@@ -188,7 +188,7 @@ git push origin v4.0.0
 Use the `version-to.sh` helper to bump the stable release version consistently:
 
 ```bash
-./version-to.sh 4.0.0
+./scripts/version-to.sh 4.0.0
 git diff
 git commit -m "chore: bump version to v4.0.0"
 git tag v4.0.0
@@ -207,5 +207,5 @@ It skips changelog headings (e.g. `### v4.0.0`) to preserve historical release n
 Verify the current version without making changes:
 
 ```bash
-./version-to.sh --check 4.0.0
+./scripts/version-to.sh --check 4.0.0
 ```

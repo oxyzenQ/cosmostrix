@@ -203,8 +203,8 @@ manual visual smoke not run because session is non-interactive.
 - `cargo fmt --all -- --check`: PASS
 - `cargo test --all --locked`: 869 passed, 0 failed
 - `cargo clippy --locked --all-targets --all-features -- -D warnings`: PASS
-- `./build.sh check-all`: PASS (skipped: sccache, mold/lld, cargo-nextest, cargo-audit, cargo-deny)
-- `./version-to.sh --check 4.7.0`: PASS
+- `./scripts/build.sh check-all`: PASS (skipped: sccache, mold/lld, cargo-nextest, cargo-audit, cargo-deny)
+- `./scripts/version-to.sh --check 4.7.0`: PASS
 - `cargo pro-linux-v3`: PASS
 - `./scripts/rc-smoke.sh`: PASS
 - `bash -n scripts/monitor-cosmostrix.sh`: PASS

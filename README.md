@@ -78,8 +78,8 @@ REPO="oxyzenQ/cosmostrix"
 TAG="v5.0.0"
 PLATFORM="linux-x86_64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
-curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
-sha512sum -c "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512"
+curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
+sha512sum -c "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
 tar -xzf "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 ./cosmostrix -i
 ```

@@ -4,7 +4,7 @@
 
 All Rust source files under `src/` must stay **under 1,000 gross lines**.
 This rule is enforced by `scripts/check-rs-loc.sh`, which runs as part of
-`./build.sh check-all`.
+`./scripts/build.sh check-all`.
 
 ### Scope
 
@@ -41,7 +41,7 @@ scripts/check-headers.sh
 cargo fmt --all
 cargo test --all --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
-./build.sh check-all
+./scripts/build.sh check-all
 ```
 
 ## License headers
