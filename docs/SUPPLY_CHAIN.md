@@ -139,7 +139,7 @@ reference actions by version tag (e.g., `actions/checkout@v6.0.2`,
 are semver tags from trusted maintainers, the hardened posture requires pinning
 each to an immutable SHA. A pending migration will replace every `@tag` reference
 with `@<sha-commit>` across all five workflow files (`ci.yml`, `release.yml`,
-`gitbot-deps.yml`, `gitbot-audit.yml`, `aur.yml`). Each pin will be accompanied
+`maintenance.yml`, `gitbot-audit.yml`, `aur.yml`). Each pin will be accompanied
 by a comment noting the tag and date for maintainability.
 
 ### Minimal Permissions
@@ -152,7 +152,7 @@ GitHub Actions permissions follow the principle of least privilege:
 | `gitbot-audit.yml` | `contents: read`, `actions: read` | Observation-only security scan |
 | `aur.yml` | `contents: read` | No write to this repo; SSH key handles AUR push |
 | `release.yml` | `contents: write`, `actions: write` | Creates GitHub Releases; write is necessary |
-| `gitbot-deps.yml` | `contents: write` | Commits validated lockfile updates directly to `main` |
+| `maintenance.yml` | `contents: write` | Commits validated lockfile updates directly to `main` |
 
 No workflow requests `attestations: write` at present. If binary attestation via
 GitHub's Sigstore integration is adopted in the future, that permission will be
@@ -161,7 +161,7 @@ scoped exclusively to the `release.yml` workflow and pinned to a single job.
 ### Branch Protection
 
 The CI workflow (`ci.yml`) triggers on both `push` to `main` and `pull_request`
-against `main`. However, the `gitbot-deps.yml` automated dependency update workflow
+against `main`. However, the `maintenance.yml` automated dependency update workflow
 pushes directly to `main` when scheduled weekly. This is acceptable because:
 
 - The automated commit only modifies `Cargo.lock` — no source code changes.
@@ -188,7 +188,7 @@ via `taiki-e/install-action` in the CI pipeline and runs as the first gate in th
 
 The daily `gitbot-audit.yml` workflow runs `cargo audit` at 00:00 UTC every day
 as an observation-only check. If vulnerabilities are detected, the weekly
-`gitbot-deps.yml` workflow will resolve them during its next scheduled run
+`maintenance.yml` workflow will resolve them during its next scheduled run
 (Monday 00:00 UTC) by performing `cargo update`, re-auditing, and pushing the
 updated lockfile.
 
@@ -209,7 +209,7 @@ in the project's `deny.toml` file:
   Git sources and unknown registries produce warnings.
 
 Both tools are run in CI (`ci.yml` deny job, `release.yml` audit+deny during the
-checks matrix) and in the automated dependency update workflow (`gitbot-deps.yml`).
+checks matrix) and in the automated dependency update workflow (`maintenance.yml`).
 
 ### `rustup` — Minimum Supported Rust Version (MSRV)
 
@@ -234,7 +234,7 @@ rustup default 1.81.0
 ### Routine Dependency Updates
 
 The project uses a weekly automated update cycle powered by the `Maintenance deps weekly` workflow
-(`gitbot-deps.yml`):
+(`maintenance.yml`):
 
 1. **`cargo update --workspace`** — bumps all dependencies in `Cargo.lock` to the
    latest compatible versions according to `Cargo.toml` version constraints.
@@ -264,7 +264,7 @@ vulnerability, the response depends on severity:
 | Severity | Response Time | Action |
 |---|---|---|
 | **Critical** (RustSec CVSS >= 9.0) | Immediate | Emergency `cargo update` targeting the affected crate, full CI validation, and direct push to `main`. A new patch release is published if the main branch is clean. |
-| **High** (CVSS 7.0–8.9) | Within 24 hours | The next scheduled `gitbot-deps.yml` run will resolve it automatically. If it runs before the weekly window, maintainers can trigger it manually via `workflow_dispatch`. |
+| **High** (CVSS 7.0–8.9) | Within 24 hours | The next scheduled `maintenance.yml` run will resolve it automatically. If it runs before the weekly window, maintainers can trigger it manually via `workflow_dispatch`. |
 | **Medium** (CVSS 4.0–6.9) | Next release cycle | The vulnerability is addressed during the next regular dependency update cycle (weekly) or the next feature release, whichever comes first. |
 | **Low** (CVSS < 4.0) | Next minor release | Low-severity advisories are tracked and resolved at the project's discretion during normal maintenance. |
 

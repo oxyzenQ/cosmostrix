@@ -6,7 +6,7 @@ Workflow files live under:
 
 - `.github/workflows/ci.yml`
 - `.github/workflows/release.yml`
-- `.github/workflows/gitbot-deps.yml`
+- `.github/workflows/maintenance.yml`
 
 ## Overview
 
@@ -161,7 +161,7 @@ git push origin v4.0.0
 - `-alpha.*` / `-beta.*` / `-rc.*` tags are marked as prerelease.
 - Stable tags use the simple `vX.Y.Z` format (no `-stable.N` suffix).
 
-### Maintenance deps weekly (`.github/workflows/gitbot-deps.yml`)
+### Maintenance deps weekly (`.github/workflows/maintenance.yml`)
 
 #### Triggers
 
