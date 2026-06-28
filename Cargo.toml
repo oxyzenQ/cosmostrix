@@ -40,7 +40,7 @@ codegen-units = 256
 opt-level = 3
 debug = false
 strip = true
-lto = "thin"
+lto = "fat"
 codegen-units = 1
 panic = "unwind"
 overflow-checks = false
@@ -48,6 +48,14 @@ incremental = false
 
 [profile.pro]
 inherits = "release"
+opt-level = 3
+debug = false
+strip = true
+lto = "fat"
+codegen-units = 1
+panic = "unwind"
+overflow-checks = false
+incremental = false
 
 [profile.pro-linux-v1]
 inherits = "pro"
