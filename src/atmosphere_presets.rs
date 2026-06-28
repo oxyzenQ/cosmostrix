@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Controlled atmosphere profile preset registry for v4.6.0 Phase 2.
 //!

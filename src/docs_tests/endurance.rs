@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Resource monitor, endurance docs, and gitignore guards.
 
@@ -7,7 +7,7 @@
 fn monitor_script_has_spdx_and_is_executable() {
     let script = std::fs::read_to_string("scripts/monitor-cosmostrix.sh")
         .expect("monitor script must exist");
-    assert!(script.contains("SPDX-License-Identifier: MIT"));
+    assert!(script.contains("SPDX-License-Identifier: GPL-3.0-or-later"));
     use std::os::unix::fs::PermissionsExt;
     let mode = std::fs::metadata("scripts/monitor-cosmostrix.sh")
         .unwrap()

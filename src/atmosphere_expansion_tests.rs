@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! v4.6.0 Phase 1: Controlled Atmosphere Expansion Contract Tests.
 //!
@@ -374,10 +374,9 @@ fn v46_color_change_allowed_false_all_regimes() {
 
 #[test]
 fn v46_no_active_parallel_compute() {
-    use crate::zactrix_engine::{ComputeParallelism, ZactrixSystemConfig};
-    let sys = ZactrixSystemConfig::default();
-    assert_eq!(sys.compute_parallelism, ComputeParallelism::Disabled);
-    assert_eq!(sys.compute_parallelism.as_str(), "disabled");
+    use crate::zactrix_engine::EngineMode;
+    // Only SingleCore and SafeFallback exist — no parallel variants
+    let _modes = [EngineMode::SingleCore, EngineMode::SafeFallback];
 }
 
 // ── Scope B: Controlled atmosphere matrix ──
@@ -478,9 +477,9 @@ fn v46_diag_shadow_risk_identity_by_default() {
 
 #[test]
 fn v46_diag_compute_parallelism_disabled() {
-    use crate::zactrix_engine::{ComputeParallelism, ZactrixSystemConfig};
-    let sys = ZactrixSystemConfig::default();
-    assert_eq!(sys.compute_parallelism, ComputeParallelism::Disabled);
+    // Cosmostrix is single-thread — no compute parallelism exists.
+    use crate::zactrix_engine::EngineMode;
+    let _modes = [EngineMode::SingleCore, EngineMode::SafeFallback];
 }
 
 #[test]

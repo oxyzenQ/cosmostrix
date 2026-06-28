@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Regime probe and selection for Cosmostrix v4.0.0.
 //!

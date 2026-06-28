@@ -1,7 +1,9 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Render planning boundary types for Zactrix Engine.
+//!
+//! Cosmostrix is single-thread: terminal writer is always single-owner.
 
 #![allow(dead_code)]
 
@@ -24,14 +26,12 @@ impl TerminalWriterPolicy {
 #[must_use]
 pub(crate) struct RenderPlan {
     pub writer_policy: TerminalWriterPolicy,
-    pub compute_enabled: bool,
 }
 
 impl RenderPlan {
     pub(crate) const fn default() -> Self {
         Self {
             writer_policy: TerminalWriterPolicy::SingleOwner,
-            compute_enabled: false,
         }
     }
 }
@@ -51,9 +51,8 @@ mod tests {
         assert_eq!(TerminalWriterPolicy::SingleOwner.as_str(), "single-owner");
     }
     #[test]
-    fn render_plan_default_is_single_owner_no_compute() {
+    fn render_plan_default_is_single_owner() {
         let p = RenderPlan::default();
         assert_eq!(p.writer_policy, TerminalWriterPolicy::SingleOwner);
-        assert!(!p.compute_enabled);
     }
 }

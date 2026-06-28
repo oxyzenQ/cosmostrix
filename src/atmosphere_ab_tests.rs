@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Tests for the internal A/B smoke model (Phase 9 / Phase 9.5).
 
@@ -435,12 +435,12 @@ fn no_debt_markers_in_atmosphere_ab_files() {
 }
 
 #[test]
-fn atmosphere_ab_files_have_mit_spdx_header() {
+fn atmosphere_ab_files_have_gpl_spdx_header() {
     for path in &["src/atmosphere_ab.rs", "src/atmosphere_ab_tests.rs"] {
         let content = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("{path} readable"));
         assert!(
-            content.contains("SPDX-License-Identifier: MIT"),
-            "{path} must have MIT SPDX header"
+            content.contains("SPDX-License-Identifier: GPL-3.0-or-later"),
+            "{path} must have GPL SPDX header"
         );
     }
 }

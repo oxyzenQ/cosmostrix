@@ -1,10 +1,10 @@
 # Cosmostrix Trademark Policy
 
 This document governs the use of the **Cosmostrix** name, logo, and associated
-branding assets. It supplements, but does not replace, the MIT License that
+branding assets. It supplements, but does not replace, the GPL v3 License that
 covers the source code.
 
-> **TL;DR** — You may fork, modify, and redistribute the code under the MIT
+> **TL;DR** — You may fork, modify, and redistribute the code under the GPL v3
 > License, but you may **not** use the "Cosmostrix" name or branding to
 > represent a modified or competing product without permission.
 
@@ -14,7 +14,7 @@ covers the source code.
 
 The name **"Cosmostrix"** and all associated logos, icons, artwork, and visual
 identifiers (collectively, the **"Marks"**) are trademarks of the project
-creator (oxyzenQ). These Marks are **not** covered by the MIT License granted
+creator (oxyzenQ). These Marks are **not** covered by the GPL v3 License granted
 to the source code.
 
 Use of the Marks is permitted only as described in this policy. All other uses
@@ -36,13 +36,13 @@ accurately identify the origin of the unmodified software. Examples:
 - Referencing the original project by name in articles, reviews, or
   academic papers.
 - Including the original name in source file headers as required by the
-  MIT License attribution clause.
+  GPL v3 License attribution clause.
 
 ### 2.2. Non-commercial redistribution of unmodified copies
 
 Distributing **unmodified** copies of the Cosmostrix binary or source code
-(including the original name, logo, and README) is permitted under the MIT
-License, provided that the license and copyright notices are preserved.
+(including the original name, logo, and README) is permitted under the GPL
+v3 License, provided that the license and copyright notices are preserved.
 
 ### 2.3. Community and educational use
 

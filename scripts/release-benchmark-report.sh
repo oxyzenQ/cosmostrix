@@ -3,7 +3,7 @@
 # COSMOSTRIX RELEASE BENCHMARK REPORT
 # =============================================================================
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-or-later
 # =============================================================================
 # Runs N benchmark iterations, parses results, and prints a Markdown section
 # suitable for pasting into benchmark/README.md.

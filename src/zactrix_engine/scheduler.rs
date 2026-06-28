@@ -1,31 +1,20 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Adaptive execution planner for Cosmostrix.
+//! Deterministic execution planner for Cosmostrix.
 //!
-//! Zactrix Scheduler is an internal deterministic planner that observes terminal
-//! dimensions, frame-time pressure, and workload characteristics, then produces
-//! a bounded execution plan. It is not a public API. It is not a
-//! parallelization framework. The terminal writer remains single-owner at
-//! all times.
+//! Cosmostrix is a single-thread, single-core renderer by design.
+//! Terminal ANSI output MUST remain single-owner at all times.
+//! The scheduler always returns SingleCore mode — no worker threads
+//! are spawned, no parallelism overhead exists.
 
 #![allow(dead_code)]
 
-use std::thread::available_parallelism;
-
-const WORKER_BUDGET_HARD_CAP: usize = 4;
-const FRAME_TIME_PRESSURE_EXTREME_MS: f64 = 50.0;
-const LARGE_COLS_THRESHOLD: u16 = 200;
-const LARGE_ROWS_THRESHOLD: u16 = 60;
-const VERY_LARGE_COLS_THRESHOLD: u16 = 300;
-const VERY_LARGE_ROWS_THRESHOLD: u16 = 80;
-
+/// Execution mode — always SingleCore for cosmostrix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[must_use]
 pub(crate) enum EngineMode {
     SingleCore,
-    Assist,
-    ParallelCompute,
     SafeFallback,
 }
 
@@ -33,13 +22,12 @@ impl EngineMode {
     pub(crate) const fn as_str(self) -> &'static str {
         match self {
             Self::SingleCore => "single-core",
-            Self::Assist => "assist",
-            Self::ParallelCompute => "parallel-compute",
             Self::SafeFallback => "safe-fallback",
         }
     }
 }
 
+/// Probe input for planner decision (kept for diagnostic compatibility).
 #[derive(Debug, Clone, Copy)]
 #[must_use]
 pub(crate) struct EngineProbe {
@@ -68,6 +56,7 @@ impl EngineProbe {
     }
 }
 
+/// Execution plan — always SingleCore, zero worker budget.
 #[derive(Debug, Clone, Copy)]
 #[must_use]
 pub(crate) struct EnginePlan {
@@ -78,6 +67,8 @@ pub(crate) struct EnginePlan {
 }
 
 impl EnginePlan {
+    /// Always returns SingleCore mode. Cosmostrix is single-thread by design.
+    /// Terminal writer is single-owner — non-negotiable invariant.
     pub(crate) fn from_probe(probe: &EngineProbe) -> Self {
         if probe.cols == 0 || probe.rows == 0 || probe.cell_count == 0 {
             return Self {
@@ -87,7 +78,7 @@ impl EnginePlan {
                 terminal_writer_single_owner: true,
             };
         }
-        if probe.frame_time_pressure > FRAME_TIME_PRESSURE_EXTREME_MS {
+        if probe.frame_time_pressure > 50.0 {
             return Self {
                 mode: EngineMode::SafeFallback,
                 reason: "extreme frame-time pressure",
@@ -95,33 +86,9 @@ impl EnginePlan {
                 terminal_writer_single_owner: true,
             };
         }
-        if probe.cols >= VERY_LARGE_COLS_THRESHOLD && probe.rows >= VERY_LARGE_ROWS_THRESHOLD {
-            return Self {
-                mode: EngineMode::ParallelCompute,
-                reason: "very large screen dimensions",
-                worker_budget: bounded_worker_budget(2),
-                terminal_writer_single_owner: true,
-            };
-        }
-        if probe.benchmark_mode {
-            return Self {
-                mode: EngineMode::ParallelCompute,
-                reason: "benchmark mode",
-                worker_budget: bounded_worker_budget(2),
-                terminal_writer_single_owner: true,
-            };
-        }
-        if probe.cols >= LARGE_COLS_THRESHOLD || probe.rows >= LARGE_ROWS_THRESHOLD {
-            return Self {
-                mode: EngineMode::Assist,
-                reason: "large screen dimensions",
-                worker_budget: bounded_worker_budget(1),
-                terminal_writer_single_owner: true,
-            };
-        }
         Self {
             mode: EngineMode::SingleCore,
-            reason: "normal terminal dimensions",
+            reason: "single-thread renderer — cosmostrix optimized for single-core execution",
             worker_budget: 0,
             terminal_writer_single_owner: true,
         }
@@ -132,62 +99,29 @@ impl EnginePlan {
     }
 }
 
-fn bounded_worker_budget(requested: usize) -> usize {
-    let available = available_parallelism().map(|n| n.get()).unwrap_or(1);
-    requested.min(available).min(WORKER_BUDGET_HARD_CAP)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn normal_terminal_selects_single_core() {
-        for (cols, rows) in [(80, 24), (120, 40), (160, 50), (199, 59)] {
+        for (cols, rows) in [
+            (80, 24),
+            (120, 40),
+            (160, 50),
+            (199, 59),
+            (200, 60),
+            (300, 80),
+        ] {
             let plan = EnginePlan::from_dimensions(cols, rows);
             assert_eq!(
                 plan.mode,
                 EngineMode::SingleCore,
-                "({cols}, {rows}) should be SingleCore"
+                "({cols}, {rows}) should be SingleCore — cosmostrix is single-thread"
             );
             assert_eq!(plan.worker_budget, 0);
             assert!(plan.terminal_writer_single_owner);
         }
-    }
-
-    #[test]
-    fn large_terminal_selects_assist() {
-        assert_eq!(
-            EnginePlan::from_dimensions(200, 40).mode,
-            EngineMode::Assist
-        );
-        assert_eq!(
-            EnginePlan::from_dimensions(100, 60).mode,
-            EngineMode::Assist
-        );
-        assert_eq!(
-            EnginePlan::from_dimensions(250, 70).mode,
-            EngineMode::Assist
-        );
-    }
-
-    #[test]
-    fn very_large_terminal_selects_parallel_compute() {
-        assert_eq!(
-            EnginePlan::from_dimensions(300, 80).mode,
-            EngineMode::ParallelCompute
-        );
-    }
-
-    #[test]
-    fn benchmark_mode_selects_parallel_compute() {
-        let probe = EngineProbe {
-            benchmark_mode: true,
-            ..EngineProbe::from_dimensions(120, 40)
-        };
-        let plan = EnginePlan::from_probe(&probe);
-        assert_eq!(plan.mode, EngineMode::ParallelCompute);
-        assert!(plan.reason.contains("benchmark"));
     }
 
     #[test]
@@ -215,11 +149,10 @@ mod tests {
     }
 
     #[test]
-    fn worker_budget_is_bounded() {
+    fn worker_budget_is_always_zero() {
         for (cols, rows) in [(80, 24), (200, 60), (300, 80)] {
             let plan = EnginePlan::from_dimensions(cols, rows);
-            let available = available_parallelism().map(|n| n.get()).unwrap_or(1);
-            assert!(plan.worker_budget <= available.min(WORKER_BUDGET_HARD_CAP));
+            assert_eq!(plan.worker_budget, 0);
         }
     }
 
@@ -245,8 +178,6 @@ mod tests {
     #[test]
     fn engine_mode_labels_are_deterministic() {
         assert_eq!(EngineMode::SingleCore.as_str(), "single-core");
-        assert_eq!(EngineMode::Assist.as_str(), "assist");
-        assert_eq!(EngineMode::ParallelCompute.as_str(), "parallel-compute");
         assert_eq!(EngineMode::SafeFallback.as_str(), "safe-fallback");
     }
 
@@ -269,7 +200,7 @@ mod tests {
         for probe in &probes {
             let plan = EnginePlan::from_probe(probe);
             assert!(!plan.reason.is_empty());
-            assert!(plan.reason.len() < 80);
+            assert!(plan.reason.len() < 160);
         }
     }
 }

@@ -301,4 +301,4 @@ Support is optional. The project remains open-source.
 
 ## License
 
-MIT. See `LICENSE`. Brand usage governed by `TRADEMARK.md`.
+GPL-3.0-or-later. See `LICENSE`. Brand usage governed by `TRADEMARK.md`.

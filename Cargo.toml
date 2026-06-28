@@ -1,5 +1,5 @@
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 [package]
 name = "cosmostrix"
@@ -8,7 +8,7 @@ edition = "2021"
 rust-version = "1.81"
 authors = ["rezky_nightky (oxyzenQ)"]
 description = "Production-grade cinematic Matrix rain renderer for serious terminal environments."
-license = "MIT"
+license = "GPL-3.0-or-later"
 repository = "https://github.com/oxyzenQ/cosmostrix"
 build = "build.rs"
 

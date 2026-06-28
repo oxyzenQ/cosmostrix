@@ -1,7 +1,10 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Zactrix System diagnostic model for Cosmostrix.
+//!
+//! Cosmostrix is single-thread by design. Compute parallelism is never
+//! activated. The diagnostic model reflects this immutable architecture.
 
 #![allow(dead_code)]
 
@@ -28,48 +31,6 @@ impl RuntimeMode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[must_use]
-pub(crate) enum CpuBudget {
-    Low,
-    Balanced,
-    Stress,
-}
-
-impl CpuBudget {
-    pub(crate) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Low => "low",
-            Self::Balanced => "balanced",
-            Self::Stress => "stress",
-        }
-    }
-    pub(crate) const fn default() -> Self {
-        Self::Balanced
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[must_use]
-pub(crate) enum ComputeParallelism {
-    Disabled,
-    Planned,
-    Active,
-}
-
-impl ComputeParallelism {
-    pub(crate) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Disabled => "disabled",
-            Self::Planned => "planned",
-            Self::Active => "active",
-        }
-    }
-    pub(crate) const fn default() -> Self {
-        Self::Disabled
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[must_use]
 pub(crate) enum IdlePolicy {
     AdaptiveSleep,
 }
@@ -87,8 +48,6 @@ impl IdlePolicy {
 #[must_use]
 pub(crate) struct ZactrixSystemConfig {
     pub runtime_mode: RuntimeMode,
-    pub cpu_budget: CpuBudget,
-    pub compute_parallelism: ComputeParallelism,
     pub idle_policy: IdlePolicy,
 }
 
@@ -96,8 +55,6 @@ impl ZactrixSystemConfig {
     pub(crate) const fn default() -> Self {
         Self {
             runtime_mode: RuntimeMode::Normal,
-            cpu_budget: CpuBudget::Balanced,
-            compute_parallelism: ComputeParallelism::Disabled,
             idle_policy: IdlePolicy::AdaptiveSleep,
         }
     }
@@ -117,24 +74,6 @@ mod tests {
         }
     }
     #[test]
-    fn cpu_budget_default_is_balanced() {
-        assert_eq!(CpuBudget::default(), CpuBudget::Balanced);
-    }
-    #[test]
-    fn cpu_budget_labels_are_non_empty() {
-        for b in [CpuBudget::Low, CpuBudget::Balanced, CpuBudget::Stress] {
-            assert!(!b.as_str().is_empty());
-        }
-    }
-    #[test]
-    fn compute_parallelism_default_is_disabled() {
-        assert_eq!(ComputeParallelism::default(), ComputeParallelism::Disabled);
-    }
-    #[test]
-    fn compute_parallelism_default_is_not_active() {
-        assert_ne!(ComputeParallelism::default(), ComputeParallelism::Active);
-    }
-    #[test]
     fn idle_policy_default_is_adaptive_sleep() {
         assert_eq!(IdlePolicy::default(), IdlePolicy::AdaptiveSleep);
     }
@@ -142,8 +81,6 @@ mod tests {
     fn system_config_defaults_are_conservative() {
         let c = ZactrixSystemConfig::default();
         assert_eq!(c.runtime_mode, RuntimeMode::Normal);
-        assert_eq!(c.cpu_budget, CpuBudget::Balanced);
-        assert_eq!(c.compute_parallelism, ComputeParallelism::Disabled);
         assert_eq!(c.idle_policy, IdlePolicy::AdaptiveSleep);
     }
 }

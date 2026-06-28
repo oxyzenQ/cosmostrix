@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Documentation guard tests for controlled atmosphere preset docs (v4.6.0 Phases 3–4).
 //!

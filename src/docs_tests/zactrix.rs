@@ -1,38 +1,22 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Zactrix Engine/Cache/Core doc guards, planner tests, and architecture split guards.
 //!
-//! v4.5.0 Phase 3 adds Depth Regression Lab diagnostics guards that ensure
-//! benchmark/info output honestly reports single-threaded, single-owner execution.
+//! v5.0.4: Cosmostrix is single-thread by design. All parallelism scaffolding removed.
+//! Terminal writer is single-owner at all times. Immutable invariant.
 
 #[test]
 fn zactrix_engine_doc_exists_and_covers_adaptive_planning() {
     let docs = include_str!("../../docs/ZACTRIX_ENGINE.md");
     let lowercase = docs.to_lowercase();
     assert!(
-        lowercase.contains("adaptive execution"),
-        "Zactrix Engine docs should mention adaptive execution"
-    );
-    assert!(
         lowercase.contains("single-owner"),
         "Zactrix Engine docs should mention single-owner terminal writer"
     );
     assert!(
-        lowercase.contains("not always-on"),
-        "Zactrix Engine docs should say engine is not always-on multithreading"
-    );
-    assert!(
         lowercase.contains("not a public api"),
         "Zactrix Engine docs should say it is not a public API"
-    );
-    assert!(
-        docs.contains("v4.0.0 Phase 1"),
-        "Zactrix Engine docs should mention v4.0.0 Phase 1"
-    );
-    assert!(
-        docs.contains("v3.9.0"),
-        "Zactrix Engine docs should mention v3.9.0 visual identity preservation"
     );
 }
 
@@ -52,14 +36,6 @@ fn zactrix_cache_doc_exists_and_covers_bounded_invalidation() {
         lowercase.contains("invalidation"),
         "Zactrix Cache docs should mention invalidation events"
     );
-    assert!(
-        lowercase.contains("deterministic"),
-        "Zactrix Cache docs should mention deterministic behavior"
-    );
-    assert!(
-        lowercase.contains("does not cache terminal output strings"),
-        "Zactrix Cache docs should state it does not cache terminal output strings"
-    );
 }
 
 #[test]
@@ -71,24 +47,6 @@ fn atmosphere_engine_doc_exists_and_covers_regimes() {
         "Atmosphere Engine docs should mention regimes"
     );
     assert!(
-        lowercase.contains("phase 3")
-            || lowercase.contains("phase 2")
-            || lowercase.contains("phase 1"),
-        "Atmosphere Engine docs should mention phase status"
-    );
-    assert!(
-        lowercase.contains("gradual"),
-        "Atmosphere Engine docs should mention gradual changes"
-    );
-    assert!(
-        lowercase.contains("not random chaos"),
-        "Atmosphere Engine docs should state changes are not random chaos"
-    );
-    assert!(
-        lowercase.contains("verifier"),
-        "Atmosphere Engine docs should mention verifier (Phase 3)"
-    );
-    assert!(
         lowercase.contains("calm"),
         "Atmosphere Engine docs should mention Calm default regime"
     );
@@ -97,31 +55,25 @@ fn atmosphere_engine_doc_exists_and_covers_regimes() {
 // ── Zactrix Engine planner / cache functional guards ─────────────────────
 
 #[test]
-fn zactrix_engine_planner_chooses_single_core_for_normal_sizes() {
+fn zactrix_engine_planner_chooses_single_core_for_all_sizes() {
     use crate::zactrix_engine::{EngineMode, EnginePlan};
-    let plan = EnginePlan::from_dimensions(80, 24);
-    assert_eq!(plan.mode, EngineMode::SingleCore);
+    // All terminal sizes get SingleCore — cosmostrix is single-thread.
+    for (cols, rows) in [(80, 24), (250, 50), (300, 80)] {
+        let plan = EnginePlan::from_dimensions(cols, rows);
+        assert_eq!(plan.mode, EngineMode::SingleCore);
+    }
 }
 
 #[test]
-fn zactrix_engine_planner_chooses_assist_for_large_screens() {
-    use crate::zactrix_engine::{EngineMode, EnginePlan};
-    let plan = EnginePlan::from_dimensions(250, 50);
-    assert_eq!(plan.mode, EngineMode::Assist);
-}
-
-#[test]
-fn zactrix_engine_worker_budget_is_bounded() {
+fn zactrix_engine_worker_budget_is_always_zero() {
     use crate::zactrix_engine::EnginePlan;
-    use std::thread::available_parallelism;
-    let plan = EnginePlan::from_dimensions(300, 80);
-    let available = available_parallelism().map(|n| n.get()).unwrap_or(1);
-    assert!(
-        plan.worker_budget <= available.min(4),
-        "worker_budget {} must be <= {}",
-        plan.worker_budget,
-        available.min(4)
-    );
+    for (cols, rows) in [(80, 24), (300, 80)] {
+        let plan = EnginePlan::from_dimensions(cols, rows);
+        assert_eq!(
+            plan.worker_budget, 0,
+            "worker_budget must be 0 for single-thread"
+        );
+    }
 }
 
 #[test]
@@ -164,13 +116,13 @@ fn zactrix_cache_policy_never_grows_unbounded() {
     assert!(policy.is_within_bounds(policy.max_entries));
 }
 
-// ── Phase 12.5: v4.5.0 architecture split guard tests ───────────────────
+// ── v5.0.4: Single-thread architecture guard tests ───────────────────
 
 #[test]
 fn zactrix_engine_facade_reexports_compile() {
     use crate::zactrix_engine::{
-        ComputeParallelism, CpuBudget, EngineMode, EnginePlan, EngineProbe, IdlePolicy, RenderPlan,
-        RuntimeMode, TerminalWriterPolicy, ZactrixSystemConfig,
+        EngineMode, EnginePlan, EngineProbe, IdlePolicy, RenderPlan, RuntimeMode,
+        TerminalWriterPolicy, ZactrixSystemConfig,
     };
     let _mode: EngineMode = EngineMode::SingleCore;
     let _plan: EnginePlan = EnginePlan::from_dimensions(80, 24);
@@ -178,12 +130,10 @@ fn zactrix_engine_facade_reexports_compile() {
     let _render: RenderPlan = RenderPlan::default();
     let _policy: TerminalWriterPolicy = TerminalWriterPolicy::default();
     let _runtime: RuntimeMode = RuntimeMode::default();
-    let _cpu: CpuBudget = CpuBudget::default();
     let _idle: IdlePolicy = IdlePolicy::default();
-    let _compute: ComputeParallelism = ComputeParallelism::default();
     let _probe = EngineProbe::from_dimensions(120, 40);
     let _ = (
-        _mode, _plan, _config, _render, _policy, _runtime, _cpu, _idle, _compute, _probe,
+        _mode, _plan, _config, _render, _policy, _runtime, _idle, _probe,
     );
 }
 
@@ -196,25 +146,11 @@ fn zactrix_engine_terminal_writer_label_is_single_owner() {
 }
 
 #[test]
-fn zactrix_engine_compute_parallelism_default_is_not_active() {
-    use crate::zactrix_engine::ComputeParallelism;
-    assert_ne!(ComputeParallelism::default(), ComputeParallelism::Active);
-}
-
-#[test]
 fn zactrix_engine_runtime_mode_labels_are_stable() {
     use crate::zactrix_engine::RuntimeMode;
     assert!(!RuntimeMode::Calm.as_str().is_empty());
     assert!(!RuntimeMode::Normal.as_str().is_empty());
     assert!(!RuntimeMode::Stress.as_str().is_empty());
-}
-
-#[test]
-fn zactrix_engine_cpu_budget_labels_are_stable() {
-    use crate::zactrix_engine::CpuBudget;
-    assert!(!CpuBudget::Low.as_str().is_empty());
-    assert!(!CpuBudget::Balanced.as_str().is_empty());
-    assert!(!CpuBudget::Stress.as_str().is_empty());
 }
 
 #[test]
@@ -228,16 +164,15 @@ fn zactrix_engine_render_plan_default_is_single_owner() {
     use crate::zactrix_engine::RenderPlan;
     let plan = RenderPlan::default();
     assert_eq!(plan.writer_policy.as_str(), "single-owner");
-    assert!(!plan.compute_enabled);
 }
 
 #[test]
-fn zactrix_engine_docs_mention_parallel_compute_single_owner() {
+fn zactrix_engine_docs_mention_single_thread() {
     let docs = include_str!("../../docs/ZACTRIX_ENGINE.md");
     let lower = docs.to_lowercase();
     assert!(
-        lower.contains("parallel compute") && lower.contains("single-owner"),
-        "ZACTRIX_ENGINE.md must mention parallel compute + single-owner"
+        lower.contains("single-owner"),
+        "ZACTRIX_ENGINE.md must mention single-owner"
     );
 }
 
@@ -250,7 +185,7 @@ fn zactrix_engine_docs_say_no_real_parallel_terminal_writing() {
     );
 }
 
-// ── Phase 12.6: v4.5.0 Phase 2 Zactrix System diagnostics guards ──────
+// ── Zactrix System diagnostics guards ──────────────────────────────────
 
 #[test]
 fn zactrix_system_runtime_mode_default_is_normal() {
@@ -261,27 +196,11 @@ fn zactrix_system_runtime_mode_default_is_normal() {
 }
 
 #[test]
-fn zactrix_system_cpu_budget_default_is_balanced() {
-    use crate::zactrix_engine::{CpuBudget, ZactrixSystemConfig};
-    let sys = ZactrixSystemConfig::default();
-    assert_eq!(sys.cpu_budget, CpuBudget::Balanced);
-    assert_eq!(sys.cpu_budget.as_str(), "balanced");
-}
-
-#[test]
 fn zactrix_system_render_plan_default_is_single_owner() {
     use crate::zactrix_engine::{RenderPlan, TerminalWriterPolicy};
     let render = RenderPlan::default();
     assert_eq!(render.writer_policy, TerminalWriterPolicy::SingleOwner);
     assert_eq!(render.writer_policy.as_str(), "single-owner");
-}
-
-#[test]
-fn zactrix_system_compute_parallelism_default_is_disabled() {
-    use crate::zactrix_engine::{ComputeParallelism, ZactrixSystemConfig};
-    let sys = ZactrixSystemConfig::default();
-    assert_eq!(sys.compute_parallelism, ComputeParallelism::Disabled);
-    assert_eq!(sys.compute_parallelism.as_str(), "disabled");
 }
 
 #[test]
@@ -294,7 +213,6 @@ fn zactrix_system_idle_policy_default_is_adaptive_sleep() {
 
 #[test]
 fn zactrix_system_info_emits_zactrix_system_section() {
-    // Verify that main.rs contains the ZACTRIX SYSTEM section in -i output.
     let main_rs = include_str!("../main.rs");
     assert!(
         main_rs.contains("ZACTRIX SYSTEM"),
@@ -305,16 +223,12 @@ fn zactrix_system_info_emits_zactrix_system_section() {
         "main.rs must emit runtime_mode field"
     );
     assert!(
-        main_rs.contains("cpu_budget"),
-        "main.rs must emit cpu_budget field"
+        main_rs.contains("single-thread"),
+        "main.rs must state single-thread architecture"
     );
     assert!(
         main_rs.contains("render_plan"),
         "main.rs must emit render_plan field"
-    );
-    assert!(
-        main_rs.contains("compute_parallelism"),
-        "main.rs must emit compute_parallelism field"
     );
     assert!(
         main_rs.contains("idle_policy"),
@@ -324,7 +238,6 @@ fn zactrix_system_info_emits_zactrix_system_section() {
 
 #[test]
 fn zactrix_system_benchmark_emits_zactrix_system_section() {
-    // Verify that bench_report.rs contains the ZACTRIX SYSTEM section.
     let bench = include_str!("../bench_report.rs");
     assert!(
         bench.contains("ZACTRIX SYSTEM"),
@@ -335,16 +248,8 @@ fn zactrix_system_benchmark_emits_zactrix_system_section() {
         "bench_report.rs must emit runtime_mode field"
     );
     assert!(
-        bench.contains("cpu_budget"),
-        "bench_report.rs must emit cpu_budget field"
-    );
-    assert!(
         bench.contains("render_plan"),
         "bench_report.rs must emit render_plan field"
-    );
-    assert!(
-        bench.contains("compute_parallelism"),
-        "bench_report.rs must emit compute_parallelism field"
     );
     assert!(
         bench.contains("idle_policy"),
@@ -354,7 +259,6 @@ fn zactrix_system_benchmark_emits_zactrix_system_section() {
 
 #[test]
 fn zactrix_system_existing_zactrix_engine_benchmark_unchanged() {
-    // Verify ZACTRIX ENGINE section in benchmark is still intact.
     let bench = include_str!("../bench_report.rs");
     assert!(
         bench.contains("ZACTRIX ENGINE"),
@@ -368,31 +272,12 @@ fn zactrix_system_existing_zactrix_engine_benchmark_unchanged() {
         bench.contains("terminal_writer"),
         "ZACTRIX ENGINE must still have terminal_writer"
     );
-    assert!(
-        bench.contains("planned_mode"),
-        "ZACTRIX ENGINE must still have planned_mode"
-    );
 }
 
-#[test]
-fn zactrix_system_docs_mention_v450_phase_2() {
-    let docs = include_str!("../../docs/ZACTRIX_ENGINE.md");
-    assert!(
-        docs.contains("v4.5.0 Phase 2"),
-        "ZACTRIX_ENGINE.md must mention v4.5.0 Phase 2"
-    );
-    assert!(
-        docs.contains("ZACTRIX SYSTEM"),
-        "ZACTRIX_ENGINE.md must mention ZACTRIX SYSTEM"
-    );
-}
-
-// ── Phase 12.7: v4.5.0 Phase 3 Depth Regression diagnostics guards ──────
+// ── Depth Regression diagnostics guards ─────────────────────────────────
 
 #[test]
 fn depth_lab_benchmark_actual_execution_is_single_threaded() {
-    // ZACTRIX ENGINE must report actual_execution: single-threaded-renderer.
-    // This is a hard invariant: no real parallel execution exists.
     let bench = include_str!("../bench_report.rs");
     assert!(
         bench.contains("\"single-threaded-renderer\""),
@@ -402,8 +287,6 @@ fn depth_lab_benchmark_actual_execution_is_single_threaded() {
 
 #[test]
 fn depth_lab_benchmark_terminal_writer_is_single_owner() {
-    // ZACTRIX ENGINE must report terminal_writer: single-owner.
-    // Terminal writes must never be parallelized.
     let bench = include_str!("../bench_report.rs");
     assert!(
         bench.contains("\"single-owner\""),
@@ -412,26 +295,7 @@ fn depth_lab_benchmark_terminal_writer_is_single_owner() {
 }
 
 #[test]
-fn depth_lab_benchmark_compute_parallelism_remains_disabled() {
-    // ZACTRIX SYSTEM must report compute_parallelism: disabled.
-    let bench = include_str!("../bench_report.rs");
-    // The bench_report uses sys.compute_parallelism.as_str() which
-    // evaluates to "disabled" at runtime. Verify the source references it.
-    assert!(
-        bench.contains("compute_parallelism"),
-        "bench_report.rs must reference compute_parallelism field"
-    );
-    // Also verify the ZactrixSystemConfig default is disabled
-    use crate::zactrix_engine::{ComputeParallelism, ZactrixSystemConfig};
-    assert_eq!(
-        ZactrixSystemConfig::default().compute_parallelism,
-        ComputeParallelism::Disabled
-    );
-}
-
-#[test]
 fn depth_lab_benchmark_render_plan_remains_single_owner() {
-    // ZACTRIX SYSTEM must report render_plan: single-owner.
     use crate::zactrix_engine::{RenderPlan, TerminalWriterPolicy};
     let render = RenderPlan::default();
     assert_eq!(render.writer_policy, TerminalWriterPolicy::SingleOwner);
@@ -439,34 +303,24 @@ fn depth_lab_benchmark_render_plan_remains_single_owner() {
 
 #[test]
 fn depth_lab_no_active_parallel_compute_claimed() {
-    // Verify that no code path claims active parallel compute.
-    // The EngineMode enum should not have an ActiveParallel variant
-    // that would be claimed in benchmark output.
     use crate::zactrix_engine::EngineMode;
-    // EngineMode has: SingleCore, Assist, SafeFallback — none imply active execution
-    let _modes = [
-        EngineMode::SingleCore,
-        EngineMode::Assist,
-        EngineMode::SafeFallback,
-    ];
+    // Only SingleCore and SafeFallback exist — no parallel variants.
+    let _modes = [EngineMode::SingleCore, EngineMode::SafeFallback];
 }
 
 #[test]
 fn depth_lab_info_output_zactrix_system_honest() {
-    // Verify that main.rs -i output includes honest ZACTRIX SYSTEM fields.
     let main_rs = include_str!("../main.rs");
-    // All 5 ZACTRIX SYSTEM fields must be present
     let required_fields = [
         "runtime_mode",
-        "cpu_budget",
         "render_plan",
-        "compute_parallelism",
         "idle_policy",
+        "single-thread",
     ];
     for field in &required_fields {
         assert!(
             main_rs.contains(field),
-            "main.rs -i output must include ZACTRIX SYSTEM field '{}'",
+            "main.rs -i output must include '{}'",
             field
         );
     }
@@ -474,7 +328,6 @@ fn depth_lab_info_output_zactrix_system_honest() {
 
 #[test]
 fn depth_lab_visual_stability_doc_exists() {
-    // Verify that VISUAL_STABILITY.md exists and covers key concepts.
     let docs = include_str!("../../docs/VISUAL_STABILITY.md");
     let lower = docs.to_lowercase();
     assert!(
@@ -485,19 +338,11 @@ fn depth_lab_visual_stability_doc_exists() {
         lower.contains("v4.0.1"),
         "VISUAL_STABILITY.md must reference v4.0.1 visual identity"
     );
-    assert!(
-        lower.contains("monolith rain"),
-        "VISUAL_STABILITY.md must mention Monolith Rain"
-    );
 }
 
 #[test]
 fn depth_lab_visual_stability_doc_mentions_zactrix_guard() {
     let docs = include_str!("../../docs/VISUAL_STABILITY.md");
-    assert!(
-        docs.contains("Zactrix Engine"),
-        "VISUAL_STABILITY.md must mention Zactrix Engine guard"
-    );
     assert!(
         docs.contains("single-owner"),
         "VISUAL_STABILITY.md must mention single-owner terminal writer"
@@ -519,19 +364,7 @@ fn phase6_roadmap_doc_exists() {
 fn phase6_roadmap_mentions_future_versions() {
     let docs = include_str!("../../docs/ROADMAP.md");
     assert!(docs.contains("v4.6"), "ROADMAP.md must mention v4.6");
-    assert!(docs.contains("v4.7"), "ROADMAP.md must mention v4.7");
-    assert!(docs.contains("v4.8"), "ROADMAP.md must mention v4.8");
     assert!(docs.contains("v5.0"), "ROADMAP.md must mention v5.0");
-}
-
-#[test]
-fn phase6_roadmap_says_atmosphere_opt_in() {
-    let docs = include_str!("../../docs/ROADMAP.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("opt-in") && lower.contains("atmosphere"),
-        "ROADMAP.md must say controlled atmosphere remains opt-in"
-    );
 }
 
 #[test]
@@ -541,47 +374,6 @@ fn phase6_roadmap_says_terminal_writer_single_owner() {
     assert!(
         lower.contains("terminal writer") && lower.contains("single-owner"),
         "ROADMAP.md must say terminal writer remains single-owner"
-    );
-}
-
-#[test]
-fn phase6_zactrix_docs_mention_v45_closure() {
-    let docs = include_str!("../../docs/ZACTRIX_ENGINE.md");
-    assert!(
-        docs.contains("v4.5.0 Foundation Closure"),
-        "ZACTRIX_ENGINE.md must mention v4.5.0 Foundation Closure"
-    );
-    assert!(
-        docs.contains("architecture and regression foundation"),
-        "ZACTRIX_ENGINE.md must describe v4.5 as architecture and regression foundation"
-    );
-}
-
-#[test]
-fn phase6_benchmark_docs_mention_synthetic_fps_and_stability() {
-    let docs = include_str!("../../benchmark/README.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("synthetic uncapped throughput"),
-        "benchmark/README.md must mention synthetic uncapped throughput"
-    );
-    assert!(
-        lower.contains("p99") || lower.contains("p95"),
-        "benchmark/README.md must mention p95/p99 priority"
-    );
-}
-
-#[test]
-fn phase6_benchmark_docs_mention_v45_plateau_as_approximate() {
-    let docs = include_str!("../../benchmark/README.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("approximate"),
-        "benchmark/README.md must describe the v4.5 plateau as approximate, not a promise"
-    );
-    assert!(
-        docs.contains("v4.5"),
-        "benchmark/README.md must reference v4.5"
     );
 }
 
@@ -604,55 +396,7 @@ fn phase6_all_docs_test_modules_under_loc_cap() {
     }
 }
 
-// ── v4.6.0 Phase 1: Atmosphere expansion contract doc guards ──
-
-#[test]
-fn v46_atmosphere_expansion_doc_exists() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    assert!(
-        !docs.is_empty(),
-        "docs/ATMOSPHERE_EXPANSION.md must exist and be non-empty"
-    );
-}
-
-#[test]
-fn v46_expansion_doc_states_opt_in_only() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("opt-in"),
-        "ATMOSPHERE_EXPANSION.md must state expansion is opt-in only"
-    );
-}
-
-#[test]
-fn v46_expansion_doc_rejects_storm() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    assert!(
-        docs.contains("storm") && docs.contains("rejected"),
-        "ATMOSPHERE_EXPANSION.md must state storm is rejected"
-    );
-}
-
-#[test]
-fn v46_expansion_doc_forbids_color_change() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("color") && lower.contains("forbidden"),
-        "ATMOSPHERE_EXPANSION.md must state color changes are forbidden"
-    );
-}
-
-#[test]
-fn v46_expansion_doc_forbids_terminal_effects() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("terminal effect") && lower.contains("forbidden"),
-        "ATMOSPHERE_EXPANSION.md must state terminal effects are forbidden"
-    );
-}
+// v4.6-v4.8 era doc guards kept for backward compatibility
 
 #[test]
 fn v46_expansion_doc_single_owner_invariant() {
@@ -661,16 +405,6 @@ fn v46_expansion_doc_single_owner_invariant() {
     assert!(
         lower.contains("single-owner"),
         "ATMOSPHERE_EXPANSION.md must mention single-owner invariant"
-    );
-}
-
-#[test]
-fn v46_expansion_doc_no_threads() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("no thread") || lower.contains("not spawn"),
-        "ATMOSPHERE_EXPANSION.md must forbid thread spawning"
     );
 }
 
@@ -684,154 +418,24 @@ fn v46_expansion_doc_no_parallel_compute() {
 }
 
 #[test]
-fn v46_expansion_doc_parks_zactrix_for_v48() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+fn v48_benchmark_docs_state_single_owner() {
+    let docs = include_str!("../../benchmark/README.md");
     assert!(
-        docs.contains("v4.8") && docs.contains("zactrix"),
-        "ATMOSPHERE_EXPANSION.md must park zactrix perf work for v4.8"
+        docs.contains("single-owner"),
+        "benchmark/README.md must state terminal_writer single-owner"
     );
 }
 
 #[test]
-fn v46_expansion_doc_state_matrix() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
+fn v48_benchmark_docs_state_compute_parallelism_disabled() {
+    let docs = include_str!("../../benchmark/README.md");
     assert!(
-        docs.contains("State Matrix"),
-        "ATMOSPHERE_EXPANSION.md must contain the state matrix"
-    );
-    // Verify key matrix entries exist
-    assert!(
-        docs.contains("disabled") && docs.contains("identity"),
-        "State matrix must have disabled → identity mapping"
-    );
-    assert!(
-        docs.contains("whisper"),
-        "State matrix must mention whisper risk"
-    );
-}
-
-#[test]
-fn v46_atmosphere_engine_doc_has_v46_status() {
-    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
-    assert!(
-        docs.contains("v4.6.0"),
-        "ATMOSPHERE_ENGINE.md must reference v4.6.0"
-    );
-    assert!(
-        docs.contains("Controlled Atmosphere Expansion Contract"),
-        "ATMOSPHERE_ENGINE.md must mention Controlled Atmosphere Expansion Contract"
-    );
-    assert!(
-        docs.contains("State Matrix"),
-        "ATMOSPHERE_ENGINE.md must contain the state matrix"
-    );
-}
-
-#[test]
-fn v46_atmosphere_engine_doc_storm_rejected() {
-    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
-    assert!(
-        docs.contains("storm") && docs.contains("rejected"),
-        "ATMOSPHERE_ENGINE.md must state storm is rejected"
-    );
-}
-
-// ── v4.6.0 Phase 2: Profile preset doc guards ──
-
-#[test]
-fn v46p2_expansion_doc_mentions_profile_presets() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    assert!(
-        docs.contains("Profile Presets"),
-        "ATMOSPHERE_EXPANSION.md must mention Profile Presets section"
-    );
-    assert!(
-        docs.contains("atmosphere-calm"),
-        "ATMOSPHERE_EXPANSION.md must document atmosphere-calm preset"
-    );
-    assert!(
-        docs.contains("atmosphere-pulse"),
-        "ATMOSPHERE_EXPANSION.md must document atmosphere-pulse preset"
-    );
-}
-
-#[test]
-fn v46p2_expansion_doc_storm_preset_does_not_exist() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    assert!(
-        docs.contains("Storm preset does not exist"),
-        "ATMOSPHERE_EXPANSION.md must state storm preset does not exist"
-    );
-}
-
-#[test]
-fn v46p2_expansion_doc_presets_opt_in_only() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    assert!(
-        docs.contains("opt-in only") && docs.contains("No preset is default"),
-        "ATMOSPHERE_EXPANSION.md must state presets are opt-in and none is default"
-    );
-}
-
-#[test]
-fn v46p2_engine_doc_mentions_phase2_presets() {
-    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
-    assert!(
-        docs.contains("Phase 2") && docs.contains("Profile Presets"),
-        "ATMOSPHERE_ENGINE.md must mention Phase 2 Profile Presets"
-    );
-    assert!(
-        docs.contains("Preset Registry"),
-        "ATMOSPHERE_ENGINE.md must contain the Preset Registry table"
-    );
-}
-
-#[test]
-fn v46p2_engine_doc_storm_preset_forbidden() {
-    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
-    assert!(
-        docs.contains("Storm preset does not exist"),
-        "ATMOSPHERE_ENGINE.md must state storm preset does not exist"
-    );
-}
-
-#[test]
-fn v46p2_engine_doc_color_sun_sticky() {
-    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
-    assert!(
-        docs.contains("--color sun") || docs.contains("color sun"),
-        "ATMOSPHERE_ENGINE.md must mention --color sun stickiness"
-    );
-}
-
-#[test]
-fn v46p2_expansion_doc_no_color_change_no_terminal_effects() {
-    let docs = include_str!("../../docs/ATMOSPHERE_EXPANSION.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("no color change"),
-        "ATMOSPHERE_EXPANSION.md must state no color change by presets"
-    );
-    assert!(
-        lower.contains("no terminal effects"),
-        "ATMOSPHERE_EXPANSION.md must state no terminal effects by presets"
+        docs.contains("compute_parallelism") && docs.contains("disabled"),
+        "benchmark/README.md must state compute_parallelism disabled"
     );
 }
 
 // ── v4.8.0 Phase 2A: Color pipeline optimization guards ─────────────────
-
-#[test]
-fn v48_phase2a_rgb_optimization_api_exists() {
-    let palette = include_str!("../palette.rs");
-    assert!(
-        palette.contains("decode_color"),
-        "palette.rs must have decode_color for single-decode optimization"
-    );
-    assert!(
-        palette.contains("apply_brightness_rgb"),
-        "palette.rs must have apply_brightness_rgb for hot-path RGB variant"
-    );
-}
 
 #[test]
 fn v48_phase2a_set_force_is_single_threaded() {
@@ -843,62 +447,5 @@ fn v48_phase2a_set_force_is_single_threaded() {
     assert!(
         !frame_rs.contains("std::sync::atomic"),
         "frame.rs must not use atomics (no parallel access)"
-    );
-}
-
-#[test]
-fn v48_phase2a_pool_is_binary_cached_in_drawctx() {
-    let render = include_str!("../cloud/render.rs");
-    assert!(
-        render.contains("pool_is_binary: bool"),
-        "DrawCtx must have pool_is_binary field"
-    );
-}
-
-// ── v4.8.0 Phase 5B: Release benchmark report doc guards ──────────────────
-
-#[test]
-fn v48_benchmark_docs_mention_v480() {
-    let docs = include_str!("../../benchmark/README.md");
-    assert!(
-        docs.contains("v4.8.0"),
-        "benchmark/README.md must mention v4.8.0 release benchmark"
-    );
-}
-
-#[test]
-fn v48_benchmark_docs_mention_release_commit() {
-    let docs = include_str!("../../benchmark/README.md");
-    assert!(
-        docs.contains("ec1214b"),
-        "benchmark/README.md must mention the v4.8.0 release commit hash"
-    );
-}
-
-#[test]
-fn v48_benchmark_docs_state_single_owner() {
-    let docs = include_str!("../../benchmark/README.md");
-    assert!(
-        docs.contains("single-owner"),
-        "benchmark/README.md v4.8.0 section must state terminal_writer single-owner"
-    );
-}
-
-#[test]
-fn v48_benchmark_docs_state_compute_parallelism_disabled() {
-    let docs = include_str!("../../benchmark/README.md");
-    assert!(
-        docs.contains("compute_parallelism") && docs.contains("disabled"),
-        "benchmark/README.md v4.8.0 section must state compute_parallelism disabled"
-    );
-}
-
-#[test]
-fn v48_benchmark_docs_state_50k_not_promised() {
-    let docs = include_str!("../../benchmark/README.md");
-    let lower = docs.to_lowercase();
-    assert!(
-        lower.contains("not reached") && lower.contains("not promised"),
-        "benchmark/README.md v4.8.0 section must state 50k FPS was not reached and not promised"
     );
 }

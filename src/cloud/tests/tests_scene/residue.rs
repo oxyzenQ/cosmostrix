@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Residue cleanup tests — monolith residue after glyph switch, cycle
 //! residue guards, depth lab scene switch residue, glyph→monolith clean render.

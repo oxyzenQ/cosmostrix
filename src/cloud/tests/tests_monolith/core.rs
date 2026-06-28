@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Monolith core tests: initialization, sparse rain basics, state sanity,
 //! size/density basics, deterministic phase behavior.

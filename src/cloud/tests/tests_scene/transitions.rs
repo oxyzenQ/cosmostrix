@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Scene transition tests — monolith↔glyph switches, dirty-frame behavior,
 //! semantic invalidation, spawn debt clearing, force draw.

@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: MIT -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
 # Controlled Atmosphere Profile Presets — v4.6.0
 

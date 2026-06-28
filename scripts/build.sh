@@ -3,7 +3,7 @@
 # COSMOSTRIX BUILD AUTOMATION SCRIPT
 # =============================================================================
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-3.0-or-later
 # =============================================================================
 # Optimized build script with intelligent core detection and advanced caching
 # Author: rezky_nightky (oxyzenQ)
