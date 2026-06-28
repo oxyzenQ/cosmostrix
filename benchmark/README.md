@@ -49,6 +49,62 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## v5.0.3 — Phosphor Optimization + Trail LUT + Dirty-Scan
+
+Release benchmark from `pro-linux-v3` binary
+(commit `2941aca`, 2026-06-29). Default 120x40 terminal size.
+Performance optimizations: phosphor dirty-index scan, active-cell tracking,
+trail exp LUT (eliminates ~3K exp() calls/frame), glitch multiply-by-inverse,
+glyph set_force (skips 24-byte Cell compare), char-pool bitmask.
+
+- Binary version: `v5.0.3`
+- Commit: `2941aca`
+- Profile: `pro-linux-v3` (linux-x86_64-v3)
+
+### Before/After Comparison (same machine, same profile)
+
+| Metric | v5.0.1 (old) | v5.0.3 (new) | Δ |
+|--------|-------------:|-------------:|------:|
+| avg_fps | 21,359 | **27,869** | **+30.5%** |
+| peak_fps | 28,283 | **42,801** | **+51.3%** |
+| avg_frame_time | 0.046 ms | **0.035 ms** | **-23.9%** |
+| p99_frame_time | 0.058 ms | **0.046 ms** | **-20.7%** |
+| p95_frame_time | 0.053 ms | **0.042 ms** | **-20.8%** |
+| total_frames (5s) | 106,794 | **139,344** | **+30.5%** |
+| dirty_glyphs/sec | 7.4M | **9.6M** | **+30.3%** |
+| frame_time_stability | excellent | excellent | — |
+| avg_dirty_cell_ratio | 7.22% | 7.21% | identical |
+| active_streams_avg | 41 | 41 | identical |
+
+### Invariants
+
+| Field | Value |
+|-------|-------|
+| `actual_execution` | `single-threaded-renderer` |
+| `terminal_writer` | `single-owner` |
+| `compute_parallelism` | `disabled` |
+| `frame_time_stability` | `excellent` |
+| `avg_dirty_cell_ratio` | 7.21% |
+| `active_streams_avg` | 41 |
+
+### Notes
+
+- **+30.5% avg FPS, +51.3% peak FPS** from pure computation optimization
+  with zero visual change — identical cinematic output.
+- The 50k FPS lab target remains **not reached** but peak is now within 15%.
+- `terminal_writer` remains `single-owner`.
+- `compute_parallelism` remains `disabled`.
+- `actual_execution` remains `single-threaded-renderer`.
+- Dirty-cell ratio and active streams are **identical** to v5.0.0/v5.0.1 —
+  confirming zero visual impact.
+- These optimizations benefit ALL terminal sizes proportionally.
+
+These numbers are local measurements on a single machine, not a portable
+promise.  Benchmark FPS is **synthetic uncapped throughput** — it measures how
+many frames the renderer can compute per second in a tight loop, not the FPS
+the user will see at runtime.  Treat stability, p95, and p99 as far more
+important than raw FPS.
+
 ## v5.0.0 — Nightfall: Cinematic UX + Product Identity Release
 
 Release benchmark from `pro-linux-v3` binary
