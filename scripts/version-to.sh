@@ -581,6 +581,7 @@ print_summary() {
 main() {
     local CHECK_MODE=0
     local ALLOW_DIRTY=0
+    local SYNC_MODE=0
     local TARGET_VERSION=""
 
     # Parse arguments
@@ -592,6 +593,10 @@ main() {
                 ;;
             --check)
                 CHECK_MODE=1
+                shift
+                ;;
+            --sync)
+                SYNC_MODE=1
                 shift
                 ;;
             --allow-dirty)
@@ -638,9 +643,19 @@ main() {
 
     # Idempotent check
     if [[ "${OLD_VER}" == "${NEW_VER}" ]]; then
-        log_info "Already at version ${NEW_VER} — running verification"
-        verify_version "${NEW_VER}"
-        exit 0
+        if [[ "${SYNC_MODE}" -eq 1 ]]; then
+            log_info "Cargo.toml already at ${NEW_VER} — forcing full sync of all files"
+            echo ""
+        else
+            log_info "Already at version ${NEW_VER} — running verification"
+            if ! verify_version "${NEW_VER}"; then
+                log_err ""
+                log_err "Version inconsistency detected! Some files are out of sync."
+                log_err "Run: ${SCRIPT_NAME} --sync ${NEW_VER}   to force re-sync all files."
+                exit 1
+            fi
+            exit 0
+        fi
     fi
 
     # Check mode
