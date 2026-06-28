@@ -10,7 +10,7 @@ name: Maintenance deps weekly
 
 'on':
   schedule:
-    - cron: "0 0 * * 1"  # Monday 00:00 UTC (Monday 07:00 WIB)
+    - cron: "0 7 * * 1"  # Monday 00:00 UTC (Monday 07:00 WIB)
   workflow_dispatch: {}
 
 permissions:
