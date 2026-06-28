@@ -373,7 +373,7 @@ impl Droplet {
         if let Some(tp) = self.tail_put_line {
             let blank = crate::terminal::blank_cell(bg);
             for line in self.tail_cur_line..=tp {
-                frame.set(self.bound_col, line, blank);
+                frame.set_force(self.bound_col, line, blank);
             }
             self.tail_cur_line = tp;
             start_line = tp.saturating_add(1);
@@ -616,7 +616,7 @@ impl Droplet {
             // right at the border where the fade should create smooth dimming.
             let bold = bold && edge_fade >= EDGE_FADE_BOLD_THRESHOLD;
 
-            frame.set(
+            frame.set_force(
                 self.bound_col,
                 line,
                 crate::cell::Cell {
@@ -628,7 +628,7 @@ impl Droplet {
             );
 
             if ctx.full_width && self.bound_col + 1 < frame.width {
-                frame.set(
+                frame.set_force(
                     self.bound_col + 1,
                     line,
                     crate::cell::Cell {

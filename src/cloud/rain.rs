@@ -277,6 +277,18 @@ impl Cloud {
         let pool_is_binary =
             !active_pool.is_empty() && active_pool.iter().all(|ch| matches!(ch, '0' | '1'));
 
+        let glitch_inv_between = {
+            let between = self
+                .next_glitch_time
+                .saturating_duration_since(self.last_glitch_time)
+                .as_nanos() as f64;
+            if between > 0.0 {
+                1.0 / between
+            } else {
+                0.0
+            }
+        };
+
         let ctx = DrawCtx {
             lines: self.lines,
             full_width: self.full_width,
@@ -287,6 +299,7 @@ impl Cloud {
             glitchy: self.glitchy,
             last_glitch_time: self.last_glitch_time,
             next_glitch_time: self.next_glitch_time,
+            glitch_inv_between,
             palette_slices,
             active_palette_slot: self.active_palette_slot,
             transitioning,

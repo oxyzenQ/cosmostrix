@@ -89,6 +89,7 @@ impl Cloud {
         self.phosphor_layer.resize(total, 0);
         self.phosphor_fresh.clear();
         self.phosphor_fresh.resize(total, false);
+        self.phosphor_active.clear();
 
         // Reset anomaly zones on terminal resize
         self.anomaly_zones.clear();
@@ -215,6 +216,7 @@ impl Cloud {
         self.phosphor_base_ch.resize(total, '\0');
         self.phosphor_layer.clear();
         self.phosphor_layer.resize(total, 0);
+        self.phosphor_active.clear();
     }
 
     pub(super) fn recalc_droplets_per_sec(&mut self) {

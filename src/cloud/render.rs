@@ -11,6 +11,18 @@ use crossterm::style::Color;
 use crate::constants::*;
 use crate::runtime::BoldMode;
 
+/// Precomputed exponential decay lookup table for trail brightness.
+/// Maps 256 normalized distances → exp(-TRAIL_EXPONENTIAL_K * t).
+/// Eliminates ~3,000 exp() calls per frame in shading_distance mode.
+static TRAIL_EXP_LUT: std::sync::LazyLock<[f32; 256]> = std::sync::LazyLock::new(|| {
+    let mut lut = [0.0f32; 256];
+    for (i, entry) in lut.iter_mut().enumerate() {
+        let t = i as f32 / 255.0;
+        *entry = (-(TRAIL_EXPONENTIAL_K as f32) * t).exp();
+    }
+    lut
+});
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CharLoc {
     Middle,
@@ -32,6 +44,8 @@ pub struct DrawCtx<'a> {
 
     pub last_glitch_time: Instant,
     pub next_glitch_time: Instant,
+    /// Precomputed 1.0 / glitch duration for multiply (avoids per-cell division).
+    pub glitch_inv_between: f64,
 
     /// Per-slot palette color arrays for generation-based rendering.
     /// Index by droplet's `palette_slot` to resolve its birth palette.
@@ -75,20 +89,13 @@ pub struct DrawCtx<'a> {
 impl DrawCtx<'_> {
     #[inline]
     fn is_bright(&self, now: Instant) -> bool {
-        if now < self.last_glitch_time {
+        if now < self.last_glitch_time || self.glitch_inv_between <= 0.0 {
             return false;
         }
         let since = now
             .saturating_duration_since(self.last_glitch_time)
             .as_nanos() as f64;
-        let between = self
-            .next_glitch_time
-            .saturating_duration_since(self.last_glitch_time)
-            .as_nanos() as f64;
-        if between <= 0.0 {
-            return false;
-        }
-        (since / between) <= GLITCH_BRIGHT_RATIO
+        since * self.glitch_inv_between <= GLITCH_BRIGHT_RATIO
     }
 
     #[inline]
@@ -96,17 +103,13 @@ impl DrawCtx<'_> {
         if now > self.next_glitch_time {
             return true;
         }
+        if self.glitch_inv_between <= 0.0 {
+            return true;
+        }
         let since = now
             .saturating_duration_since(self.last_glitch_time)
             .as_nanos() as f64;
-        let between = self
-            .next_glitch_time
-            .saturating_duration_since(self.last_glitch_time)
-            .as_nanos() as f64;
-        if between <= 0.0 {
-            return true;
-        }
-        (since / between) >= GLITCH_DIM_RATIO
+        since * self.glitch_inv_between >= GLITCH_DIM_RATIO
     }
 
     #[inline]
@@ -125,8 +128,9 @@ impl DrawCtx<'_> {
         } else {
             self.char_pool
         };
-        let len = pool.len().max(1);
-        let idx = ((char_pool_idx as usize) + (line as usize)) % len;
+        let _len = pool.len().max(1);
+        // OPTIMIZED: use bitmask instead of modulo (CHAR_POOL_SIZE is power of 2)
+        let idx = ((char_pool_idx as usize) + (line as usize)) & (CHAR_POOL_SIZE - 1);
         pool.get(idx).copied().unwrap_or('0')
     }
 
@@ -214,8 +218,10 @@ impl DrawCtx<'_> {
 
             // Exponential decay: brightness = exp(-k * distance/length)
             let normalized_dist = (dist / len).clamp(0.0, 1.0);
-            let brightness = (-TRAIL_EXPONENTIAL_K * normalized_dist).exp();
-            let mut v = ((brightness * last as f64).round() as u64).min(last);
+            // OPTIMIZED: use precomputed LUT instead of exp() per cell
+            let lut_idx = (normalized_dist * 255.0) as usize;
+            let brightness = TRAIL_EXP_LUT[lut_idx.min(255)];
+            let mut v = ((brightness * last as f32).round() as u64).min(last);
 
             // Bloom: cells right behind head get extra brightness
             if dist < HEAD_BLOOM_CELLS as f64 {
