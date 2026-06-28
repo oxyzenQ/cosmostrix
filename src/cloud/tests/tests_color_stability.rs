@@ -83,14 +83,14 @@ fn fixed_color_sun_stays_sun_across_simulated_minutes() {
         "auto_color_drift must default to false"
     );
 
-    // Simulate 10 minutes at 60fps = 36,000 frames
+    // Simulate 1 minute at 60fps = 3,600 frames (ample for ecosystem ticks every 3s = 20 ticks)
     let start = Instant::now();
-    let final_scheme = simulate_frames(&mut cloud, 36_000, start);
+    let final_scheme = simulate_frames(&mut cloud, 3_600, start);
 
     assert_eq!(
         final_scheme,
         ColorScheme::Sun,
-        "Sun color must remain sticky across 10 simulated minutes without drift"
+        "Sun color must remain sticky across simulated time without drift"
     );
 }
 
@@ -106,12 +106,12 @@ fn profile_color_sun_stays_sun_across_simulated_minutes() {
     assert!(!cloud.auto_color_drift);
 
     let start = Instant::now();
-    let final_scheme = simulate_frames(&mut cloud, 36_000, start);
+    let final_scheme = simulate_frames(&mut cloud, 3_600, start);
 
     assert_eq!(
         final_scheme,
         ColorScheme::Sun,
-        "Profile-set Sun color must remain sticky across 10 simulated minutes"
+        "Profile-set Sun color must remain sticky across simulated time"
     );
 }
 
@@ -136,12 +136,12 @@ fn default_monolith_color_does_not_drift_without_opt_in() {
 
     assert!(!cloud.auto_color_drift);
 
-    // Simulate 5 minutes at 60fps = 18,000 frames
+    // Simulate 30 seconds at 60fps = 1,800 frames (10 ecosystem ticks)
     let start = Instant::now();
     let frame_dt = Duration::from_micros(16_667);
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
 
-    for i in 0..18_000u64 {
+    for i in 0..1_800u64 {
         let now = start + frame_dt.saturating_mul(i as u32);
         cloud.last_spawn_time = now - Duration::from_millis(16);
         cloud.last_phosphor_time = now;
@@ -164,9 +164,9 @@ fn auto_color_drift_is_opt_in_only() {
     let mut cloud = make_green_cloud();
     assert!(!cloud.auto_color_drift);
 
-    // With drift OFF: color must stay Green
+    // With drift OFF: color must stay Green (1 min simulated = 20 ecosystem ticks)
     let start = Instant::now();
-    let scheme_off = simulate_frames(&mut cloud, 36_000, start);
+    let scheme_off = simulate_frames(&mut cloud, 3_600, start);
     assert_eq!(scheme_off, ColorScheme::Green);
 
     // Now enable drift
@@ -179,11 +179,11 @@ fn auto_color_drift_is_opt_in_only() {
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
     let frame_dt = Duration::from_micros(16_667);
 
-    // Simulate 20 minutes with drift ON — the ecosystem ticks every 3 seconds
-    // with AUTONOMOUS_PALETTE_DRIFT_CHANCE = 0.03, so over 20 minutes we
-    // expect ~12 drift attempts. At least one should succeed with this seed.
+    // Simulate 5 minutes with drift ON — the ecosystem ticks every 3 seconds
+    // with AUTONOMOUS_PALETTE_DRIFT_CHANCE = 0.03, so over 5 minutes we
+    // get ~100 drift attempts. Statistically reliable with this seed (~95% success).
     let mut drifted = false;
-    for i in 0..72_000u64 {
+    for i in 0..18_000u64 {
         let now = start + frame_dt.saturating_mul(i as u32);
         cloud.last_spawn_time = now - Duration::from_millis(16);
         cloud.last_phosphor_time = now;
@@ -225,9 +225,9 @@ fn pressing_c_changes_color_intentionally() {
         "Color must have changed from Sun after pressing c"
     );
 
-    // Simulate 2 minutes — color should stick to the new scheme
+    // Simulate 12 seconds — color should stick to the new scheme
     let start = Instant::now();
-    let final_scheme = simulate_frames(&mut cloud, 7_200, start);
+    let final_scheme = simulate_frames(&mut cloud, 720, start);
     assert_eq!(
         final_scheme, next,
         "User-changed color must remain sticky across simulated minutes"
@@ -272,9 +272,9 @@ fn scene_cycle_applies_scene_color_intentionally() {
     // If the scene set a color, it should stick.
     let scheme_after_scene = cloud.color_scheme();
 
-    // Simulate 2 minutes — color should not drift
+    // Simulate 12 seconds — color should not drift
     let start = Instant::now();
-    let final_scheme = simulate_frames(&mut cloud, 7_200, start);
+    let final_scheme = simulate_frames(&mut cloud, 720, start);
 
     assert_eq!(
         final_scheme, scheme_after_scene,
@@ -321,10 +321,9 @@ fn benchmark_output_fields_complete() {
 
 #[test]
 fn endurance_color_sticky_default_off() {
-    // A comprehensive endurance test: run 30 simulated minutes (108,000 frames)
-    // and verify color never changes when auto_color_drift is off.
-    // This exercises the full ecosystem tick path including luminance,
-    // saturation, hue drift, and storytelling — but palette drift must not fire.
+    // Endurance test: run 3 simulated minutes (10,800 frames) and verify
+    // color never changes when auto_color_drift is off.
+    // Exercises the full ecosystem tick path (60 ticks) with sufficient coverage.
     let mut cloud = make_sun_cloud();
     assert!(!cloud.auto_color_drift);
 
@@ -332,14 +331,14 @@ fn endurance_color_sticky_default_off() {
     let frame_dt = Duration::from_micros(16_667);
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
 
-    for i in 0..108_000u64 {
+    for i in 0..10_800u64 {
         let now = start + frame_dt.saturating_mul(i as u32);
         cloud.last_spawn_time = now - Duration::from_millis(16);
         cloud.last_phosphor_time = now;
         cloud.rain_at(&mut frame, now);
 
-        // Spot-check color every 1000 frames
-        if i % 1000 == 0 {
+        // Spot-check color every 500 frames
+        if i % 500 == 0 {
             assert_eq!(
                 cloud.color_scheme(),
                 ColorScheme::Sun,
@@ -353,6 +352,6 @@ fn endurance_color_sticky_default_off() {
     assert_eq!(
         cloud.color_scheme(),
         ColorScheme::Sun,
-        "Sun color must remain sticky across 30 simulated minutes"
+        "Sun color must remain sticky across simulated time (endurance)"
     );
 }

@@ -155,9 +155,11 @@ impl Cloud {
             }
         }
 
-        // Track newly active phosphor cells.
+        // Track newly active phosphor cells (dedup to prevent unbounded growth).
         for &pidx in &tracked_fresh {
-            self.phosphor_active.push(pidx);
+            if !self.phosphor_active.contains(&pidx) {
+                self.phosphor_active.push(pidx);
+            }
         }
 
         // Pass 3: Decay non-fresh cells with phosphor energy.
