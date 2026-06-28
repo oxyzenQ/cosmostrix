@@ -31,6 +31,7 @@ pub(super) fn is_runtime_idle(last_input_time: Instant, now: Instant) -> bool {
 }
 
 #[inline]
+#[allow(dead_code)]
 pub(super) fn idle_resync_due(is_idle: bool, last_resync_time: Instant, now: Instant) -> bool {
     is_idle
         && now

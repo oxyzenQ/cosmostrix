@@ -27,7 +27,11 @@ use crate::terminal::{restore_terminal_best_effort, Terminal};
 
 use super::super::{effective_density, CloudConfig};
 use super::activity::{
-    idle_resync_due, is_runtime_idle, register_activity, spin_wait, FrameTimeTracker,
+    is_runtime_idle, register_activity, spin_wait, FrameTimeTracker,
+};
+use super::adaptive::{
+    adaptive_resync_interval, local_secs_since_midnight, EnduranceHealth, PhasePredictor,
+    ReclaimState,
 };
 use super::input::{handle_keybinding, PasteBurstGuard};
 use super::watchdog::{
@@ -190,6 +194,22 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_resync_time = last_input_time;
     let idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
 
+       // P1: Phase predictor — learns daily activity cycle for proactive idle.
+    let mut phase_predictor = PhasePredictor::new();
+    let mut was_active = true; // Start assuming active; first idle transition records.
+
+    // P2: Track sustained idle duration for adaptive resync interval.
+    let mut idle_started: Option<Instant> = None;
+
+    // P4: Memory reclaim state — rate-limits madvise hints during idle.
+    let mut reclaim_state = ReclaimState::new();
+
+    // P5: Endurance health score tracker.
+    let mut endurance_health = EnduranceHealth::new();
+    let mut last_ctxt_switches: u64 = 0;
+    let mut last_ctxt_sample = Instant::now();
+    let mut perf_rss_samples: u64 = 0;
+
     let mut charset_preset = cfg.charset_preset.clone();
     let mut scene_name = crate::scene::DEFAULT_SCENE.to_string();
     let user_ranges = cfg.user_ranges.clone();
@@ -208,12 +228,58 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Adaptive throttling: detect idle state (no input for IDLE_THRESHOLD_SECS)
         // and reduce effective FPS to conserve CPU/battery. Any input event
         // instantly restores full performance.
+        //
+        // P1: Phase predictor can proactively suggest idle before the 30s
+        // threshold if it has learned the daily pattern.
+        // P2: Resync interval adapts based on sustained idle duration.
         let loop_now = Instant::now();
-        let is_idle = is_runtime_idle(last_input_time, loop_now);
-        if idle_resync_due(is_idle, last_resync_time, loop_now) {
+        let reactive_idle = is_runtime_idle(last_input_time, loop_now);
+        let predicted_idle = phase_predictor
+            .predicts_active(local_secs_since_midnight())
+            .map(|active| !active)
+            .unwrap_or(false);
+        let is_idle = reactive_idle || predicted_idle;
+
+        // Track phase transitions for the predictor.
+        let now_active = !is_idle;
+        if now_active != was_active {
+            phase_predictor.record_transition(now_active, local_secs_since_midnight());
+            was_active = now_active;
+        }
+
+        // Track idle duration for P2 adaptive resync.
+        if is_idle && idle_started.is_none() {
+            idle_started = Some(loop_now);
+        } else if !is_idle {
+            idle_started = None;
+        }
+
+        // P2: Use adaptive resync interval based on sustained idle duration.
+        let idle_secs = idle_started
+            .map(|t| loop_now.saturating_duration_since(t).as_secs_f64())
+            .unwrap_or(0.0);
+        let effective_resync_interval =
+            adaptive_resync_interval(idle_secs);
+        if is_idle
+            && loop_now
+                .saturating_duration_since(last_resync_time)
+                .as_secs_f64()
+                >= effective_resync_interval
+        {
             cloud.force_draw_everything();
             last_resync_time = loop_now;
             next_frame = loop_now;
+
+            // P4: Hint kernel to reclaim stale pages during sustained idle.
+            if reclaim_state.should_reclaim(loop_now) {
+                let cells_ptr = frame.cells.as_ptr();
+                let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
+                // SAFETY: frame.cells is a valid Vec allocation; we only hint.
+                unsafe {
+                    super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
+                }
+                reclaim_state.mark_reclaimed(loop_now);
+            }
         }
 
         if end_time.is_some_and(|end| Instant::now() >= end) {
@@ -423,7 +489,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // chosen for the wait phase. Recompute before simulation and
         // scheduling so the first resumed frame does not inherit the paused
         // 250ms cadence.
-        let active_is_idle = is_runtime_idle(last_input_time, Instant::now());
+        let active_is_idle = is_idle;
         let frame_period = if cloud.pause {
             pause_period
         } else if active_is_idle {
@@ -484,6 +550,34 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 perf_overshoot_frames = perf_overshoot_frames.saturating_add(1);
             }
             frame_time_tracker.push(work_s as f64 * 1000.0);
+
+            // P5: Feed endurance health tracker.
+            endurance_health.push_frame_time(work_s as f64 * 1000.0);
+            // Sample RSS every 60 frames (~1s at 60fps) to avoid /proc overhead.
+            if perf_rss_samples % 60 == 0 {
+                #[cfg(target_os = "linux")]
+                {
+                    let rss = read_self_rss_kb();
+                    endurance_health.push_rss(rss as f64);
+                }
+                // Context switch rate sampling.
+                let now = Instant::now();
+                let elapsed = now.saturating_duration_since(last_ctxt_sample).as_secs_f64();
+                if elapsed > 0.0 {
+                    #[cfg(target_os = "linux")]
+                    {
+                        let cur = read_self_voluntary_ctxt();
+                        if last_ctxt_switches > 0 {
+                            let rate = (cur.saturating_sub(last_ctxt_switches)) as f64 / elapsed;
+                            endurance_health.push_ctxt_rate(rate);
+                        }
+                        last_ctxt_switches = cur;
+                    }
+                    last_ctxt_sample = now;
+                }
+                endurance_health.recompute();
+            }
+            perf_rss_samples = perf_rss_samples.saturating_add(1);
         }
 
         // Schedule next frame relative to the ideal deadline, using the
@@ -595,8 +689,70 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             s.field("classification", pressure_class);
         }
 
+        // P5: Endurance health score
+        {
+            let s = r.section("ENDURANCE");
+            s.field(
+                "health_score",
+                &format!("{:.1}/100", endurance_health.score()),
+            );
+            s.field("classification", endurance_health.classification());
+            s.field(
+                "phase_transitions",
+                &phase_predictor.transitions_observed().to_string(),
+            );
+        }
+
         r.print();
     }
 
     Ok(())
+}
+
+/// Read this process's current RSS from `/proc/self/status` (Linux only).
+#[cfg(target_os = "linux")]
+fn read_self_rss_kb() -> u64 {
+    // Read VmRSS from /proc/self/status. Lightweight: single line match.
+    // Falls back to 0 if unavailable (shouldn't happen on Linux).
+    use std::io::BufRead;
+    let f = match std::fs::File::open("/proc/self/status") {
+        Ok(f) => f,
+        Err(_) => return 0,
+    };
+    for line in std::io::BufReader::new(f).lines() {
+        if let Ok(l) = line {
+            if l.starts_with("VmRSS:") {
+                // Format: "VmRSS:    2800 kB"
+                return l
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0);
+            }
+        }
+    }
+    0
+}
+
+/// Read voluntary context switches from `/proc/self/stat` (Linux only).
+#[cfg(target_os = "linux")]
+fn read_self_voluntary_ctxt() -> u64 {
+    // /proc/self/stat field 20 = voluntary_ctxt_switches
+    let stat = match std::fs::read_to_string("/proc/self/stat") {
+        Ok(s) => s,
+        Err(_) => return 0,
+    };
+    // Fields are space-separated; field 20 (1-indexed) is voluntary_ctxt_switches.
+    // But comm (field 2) may contain spaces inside parens, so split after the closing paren.
+    let after_paren = match stat.rfind(')') {
+        Some(idx) => &stat[idx + 1..],
+        None => return 0,
+    };
+    let fields: Vec<&str> = after_paren.split_whitespace().collect();
+    // After ')', field indices shift: field 3 in the original = fields[0] here.
+    // voluntary_ctxt_switches is field 20 (1-indexed), so fields[17] (0-indexed).
+    fields
+        .get(17)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
 }

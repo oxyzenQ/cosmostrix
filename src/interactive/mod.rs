@@ -37,6 +37,7 @@
 //! protecting against infinite loops that would leave the TTY in a broken state.
 
 mod activity;
+mod adaptive;
 mod event_loop;
 mod input;
 mod watchdog;
