@@ -32,7 +32,9 @@
 //! transition visual language), creating an organic propagation cascade
 //! instead of a robotic simultaneous switch.
 
+mod atmospheric_events;
 mod ecosystem;
+mod events;
 mod monolith;
 mod monolith_glyphs;
 mod phosphor;
@@ -70,6 +72,8 @@ use ecosystem::{
 };
 use monolith::MonolithRain;
 use state::{AnomalyZone, ColumnStatus, MsgChr};
+
+use atmospheric_events::AtmosphericEventManager;
 
 // Cloud is crate-facing but exposes internal state to split submodules/tests.
 // Boolean fields mirror existing CLI/runtime flags and are kept explicit.
@@ -277,6 +281,10 @@ pub struct Cloud {
     /// When true, the ecosystem may spontaneously change color schemes via
     /// `related_schemes()` drift, providing atmospheric color evolution.
     pub(super) auto_color_drift: bool,
+
+    // --- Atmospheric Event Engine ---
+    /// Event manager for cinematic atmospheric events (lightning, pulses, etc.).
+    pub(super) event_manager: AtmosphericEventManager,
 }
 
 impl Cloud {
@@ -395,6 +403,7 @@ impl Cloud {
             storytelling: StorytellingState::new(now),
             glyph_entry_time: None,
             auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
+            event_manager: AtmosphericEventManager::new(now),
         }
     }
 
@@ -410,6 +419,11 @@ impl Cloud {
             self.reset_message();
             self.force_draw_everything = true;
         }
+    }
+
+    /// Enable atmospheric events (called when entering interactive mode).
+    pub fn enable_events(&mut self) {
+        self.event_manager.enable_events();
     }
 
     /// Set mouse cursor position for interaction effects.

@@ -27,6 +27,23 @@ impl Cloud {
             return;
         }
 
+        // ── Atmospheric Event Engine: evaluate triggers ──
+        let anomaly_density = self.anomaly_zones.len() as f32 / ANOMALY_MAX_ZONES.max(1) as f32;
+        let in_transition = self.transition_start.is_some()
+            || self.charset_transition_start.is_some()
+            || self.profile_transition_start.is_some();
+        let palette_last = self.palette.colors.last().copied();
+        self.event_manager.evaluate_triggers(
+            now,
+            self.perf_pressure,
+            self.cols,
+            self.lines,
+            anomaly_density,
+            palette_last,
+            self.pause,
+            in_transition,
+        );
+
         // Update color transition: during a palette transition, check if the
         // wave has completed (all rows have adopted the new palette).
         // The visual wave is driven by color_wave_line_at() in DrawCtx;
@@ -393,6 +410,52 @@ impl Cloud {
         // Apply anomaly effects to frame
         self.apply_anomalies(frame, now);
 
+        // ── Atmospheric Event Engine: render active events ──
+        if !self.event_manager.is_empty() {
+            // Compute message bounds if a message is active
+            let msg_bounds = if self.message_text.is_some() {
+                let min_col = self.message.iter().map(|m| m.col).min();
+                let max_col = self.message.iter().map(|m| m.col).max();
+                let min_line = self.message.iter().map(|m| m.line).min();
+                let max_line = self.message.iter().map(|m| m.line).max();
+                if let (Some(mx), Some(mx2), Some(my), Some(my2)) =
+                    (min_col, max_col, min_line, max_line)
+                {
+                    Some((
+                        mx,
+                        my,
+                        mx2.saturating_sub(mx).saturating_add(1),
+                        my2.saturating_sub(my).saturating_add(1),
+                    ))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            let palette_slice: &[Color] = &self.palette.colors;
+            let event_ctx = crate::cloud::atmospheric_events::EventCtx {
+                cols: self.cols,
+                lines: self.lines,
+                bg: self.palette.bg,
+                palette_colors: palette_slice,
+                now,
+                message_bounds: msg_bounds,
+                has_message: self.message_text.is_some(),
+            };
+            self.event_manager.render(&event_ctx, frame);
+
+            // Update event states (phosphor seeding on Decay entry)
+            self.event_manager.update(
+                now,
+                &mut self.phosphor,
+                &mut self.phosphor_base_fg,
+                &mut self.phosphor_base_ch,
+                self.cols,
+                self.lines,
+            );
+        }
+
         // --- Autonomous cinematic ecosystem tick ---
         // 1. Color ecosystem drift
         // The ecosystem always ticks for luminance/saturation/hue climate drift
@@ -480,6 +543,19 @@ impl Cloud {
             let ms = self.rand_glitch_ms.sample(&mut self.mt) as u64;
             self.next_glitch_time = self.last_glitch_time + std::time::Duration::from_millis(ms);
         }
+
+        // ── Atmospheric Event Engine: clean stale phosphor residue ──
+        {
+            let total = (self.cols as usize) * (self.lines as usize);
+            self.event_manager.clean_stale_phosphor(
+                &mut self.phosphor,
+                &mut self.phosphor_base_fg,
+                &mut self.phosphor_base_ch,
+                &mut self.phosphor_active,
+                total,
+            );
+        }
+
         // Expire flash effect after duration
         if let Some(flash_time) = self.flash_time {
             if now.saturating_duration_since(flash_time).as_secs_f32() >= MOUSE_FLASH_DURATION_SECS

@@ -118,6 +118,7 @@ impl Cloud {
         self.memory = RendererMemory::new(now);
         self.storytelling = StorytellingState::new(now);
         self.profile_transition_start = None;
+        self.event_manager.reset(now);
         // Note: profile and profile params are preserved across resets
     }
 

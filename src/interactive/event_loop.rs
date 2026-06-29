@@ -147,6 +147,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
+    // Enable atmospheric events for interactive mode.
+    cloud.enable_events();
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 

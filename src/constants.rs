@@ -724,3 +724,107 @@ pub const PHOSPHOR_EDGE_ENERGY_CAP: u8 = 64;
 /// taper down slightly so the terminal border itself never carries the same
 /// afterglow energy as the rows above it.
 pub const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
+
+// ---------------------------------------------------------------------------
+// Atmospheric Event Engine (v10.0.0)
+// ---------------------------------------------------------------------------
+
+/// XOR seed offset for the event RNG (derived from Cloud's RNG seed).
+#[allow(dead_code)]
+pub const EVENT_RNG_XOR: u64 = 0xCAFE_BABE_1337_0420;
+
+/// Maximum number of concurrent atmospheric events.
+#[allow(dead_code)]
+pub const EVENT_MAX_CONCURRENT: usize = 2;
+
+/// Maximum lightning bolts simultaneous.
+#[allow(dead_code)]
+pub const LIGHTNING_MAX_BOLTS: usize = 5;
+
+/// Lightning bolt path capacity (max cells in a single bolt).
+#[allow(dead_code)]
+pub const LIGHTNING_PATH_CAPACITY: usize = 250;
+
+/// Lightning branch capacity (max cells per branch).
+#[allow(dead_code)]
+pub const LIGHTNING_BRANCH_CAPACITY: usize = 80;
+
+/// Lightning flash cell capacity (cells with brightness falloff).
+#[allow(dead_code)]
+pub const LIGHTNING_FLASH_CAPACITY: usize = 1536;
+
+/// Maximum number of lightning branches.
+#[allow(dead_code)]
+pub const LIGHTNING_MAX_BRANCHES: usize = 3;
+
+/// Lightning active phase duration in milliseconds.
+#[allow(dead_code)]
+pub const LIGHTNING_ACTIVE_MS: u64 = 200;
+
+/// Lightning decay phase duration in milliseconds.
+pub const LIGHTNING_DECAY_MS: u64 = 500;
+
+/// Lightning flash radius in columns from bolt path.
+pub const LIGHTNING_FLASH_RADIUS: u16 = 12;
+
+/// Lightning flash intensity at bolt center (0.0-1.0).
+pub const LIGHTNING_FLASH_INTENSITY: f32 = 0.35;
+
+/// Lightning strike phase duration fraction (portion of active phase).
+pub const LIGHTNING_STRIKE_FRACTION: f32 = 0.25;
+
+/// Lightning bolt core brightness boost (white blend factor).
+pub const LIGHTNING_CORE_BOOST: f32 = 0.4;
+
+/// Lightning branch brightness multiplier (relative to main bolt).
+pub const LIGHTNING_BRANCH_BRIGHTNESS: f32 = 0.55;
+
+/// Lightning flash gaussian sigma for brightness falloff.
+pub const LIGHTNING_FLASH_SIGMA: f32 = 3.5;
+
+/// Phosphor seeding energy for event afterglow.
+pub const EVENT_PHOSPHOR_SEED_ENERGY: u8 = 160;
+
+/// Maximum phosphor decay frames before event residue is force-cleared.
+pub const EVENT_MAX_PHOSPHOR_DECAY_FRAMES: u64 = 90;
+
+/// Lightning horizontal wander factor (max fraction of screen width).
+pub const LIGHTNING_WANDER_FRACTION: f32 = 0.25;
+
+/// Lightning zigzag frequency: direction change every N rows on average.
+pub const LIGHTNING_ZIGZAG_AVG: u16 = 3;
+
+/// Lightning vertical step per segment (rows).
+pub const LIGHTNING_VSTEP_MIN: u16 = 2;
+pub const LIGHTNING_VSTEP_MAX: u16 = 6;
+
+/// Lightning horizontal step per segment (columns).
+pub const LIGHTNING_HSTEP_MAX: i16 = 3;
+
+/// Trigger evaluation is skipped when perf_pressure exceeds this.
+pub const EVENT_PERF_GATE: f32 = 0.5;
+
+/// Cooldown after event trigger activation, minimum seconds.
+pub const EVENT_AMBIENT_COOLDOWN_SECS: f64 = 20.0;
+
+/// Ambient lightning chance per second (rare idle appearance).
+pub const LIGHTNING_AMBIENT_CHANCE_PER_SEC: f64 = 0.006;
+
+/// Startup burst: delay before first bolt in milliseconds.
+pub const LIGHTNING_STARTUP_DELAY_MS: u64 = 800;
+
+/// Startup burst: stagger between bolts in milliseconds.
+#[allow(dead_code)]
+pub const LIGHTNING_STARTUP_STAGGER_MS: u64 = 120;
+
+/// Startup burst: number of bolts.
+#[allow(dead_code)]
+pub const LIGHTNING_STARTUP_BURST_COUNT: usize = 2;
+
+/// Grace period after scene transition before events can trigger (ms).
+#[allow(dead_code)]
+pub const EVENT_TRANSITION_GRACE_MS: u64 = 400;
+
+/// Default lightning intensity (brightness multiplier).
+#[allow(dead_code)]
+pub const LIGHTNING_DEFAULT_INTENSITY: f32 = 1.0;
