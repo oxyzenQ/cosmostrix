@@ -654,16 +654,14 @@ impl AtmosphericEventManager {
                         // Scale ambient chance by weather charge level:
                         // base_chance * (0.3 + charge * 1.4)
                         let charge_mult = 0.3 + self.weather_charge * 1.4;
-                        let probability = (*chance_per_sec as f32)
-                            * charge_mult
-                            * (elapsed_sec as f32).min(1.0);
+                        let probability =
+                            (*chance_per_sec as f32) * charge_mult * (elapsed_sec as f32).min(1.0);
                         let roll: f32 = rand::distr::Uniform::new(0.0, 1.0)
                             .expect("[0,1) always valid")
                             .sample(&mut self.rng);
                         if roll < probability {
-                            self.triggers[i].cooldown_until = Some(
-                                now + std::time::Duration::from_secs_f64(*cooldown_secs),
-                            );
+                            self.triggers[i].cooldown_until =
+                                Some(now + std::time::Duration::from_secs_f64(*cooldown_secs));
                             true
                         } else {
                             continue;
@@ -674,18 +672,16 @@ impl AtmosphericEventManager {
                         cooldown_secs,
                     } => {
                         if anomaly_density >= *threshold {
-                            self.triggers[i].cooldown_until = Some(
-                                now + std::time::Duration::from_secs_f64(*cooldown_secs),
-                            );
+                            self.triggers[i].cooldown_until =
+                                Some(now + std::time::Duration::from_secs_f64(*cooldown_secs));
                             true
                         } else {
                             continue;
                         }
                     }
                     TriggerCondition::OnSceneEnter { cooldown_secs } => {
-                        self.triggers[i].cooldown_until = Some(
-                            now + std::time::Duration::from_secs_f64(*cooldown_secs),
-                        );
+                        self.triggers[i].cooldown_until =
+                            Some(now + std::time::Duration::from_secs_f64(*cooldown_secs));
                         continue;
                     }
                 };
@@ -707,12 +703,10 @@ impl AtmosphericEventManager {
             let (bolt_family, length_pct, brightness) = self.select_bolt_family();
 
             // Generate candidate position
-            let uniform =
-                rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
+            let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
             let col_range = (cols as f32 * 0.8) as u16;
             let col_start = (cols as f32 * 0.1) as u16;
-            let start_col =
-                col_start + (uniform.sample(&mut self.rng) * col_range as f32) as u16;
+            let start_col = col_start + (uniform.sample(&mut self.rng) * col_range as f32) as u16;
 
             // Direction bias from position on screen
             let center = cols / 2;

@@ -583,7 +583,6 @@ pub struct Args {
     #[arg(
         long = "no-lightning",
         default_value_t = false,
-        hide = true,
         help = "Disable atmospheric lightning events"
     )]
     pub no_lightning: bool,
