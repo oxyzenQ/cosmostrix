@@ -292,7 +292,7 @@ impl PhasePredictor {
 }
 ```
 
-**Integration point:** In `event_loop.rs`, before the idle detection check, consult the phase predictor. If it predicts idle, pre-emptively switch to idle_period even before the 30-second threshold. This eliminates the ~30-second high-CPU window at every transition.
+**Integration point:** In `event_loop.rs`, before the idle detection check, consult the phase predictor. If it predicts idle, preemptively switch to idle_period even before the 30-second threshold. This eliminates the ~30-second high-CPU window at every transition.
 
 **Expected impact:** Reduce transition-period CPU from ~2.3% to ~1.1% for ~1 hour per cycle, saving ~1.2% CPU × 1h = 0.05% daily average CPU.
 

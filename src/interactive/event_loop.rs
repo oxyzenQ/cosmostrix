@@ -26,9 +26,7 @@ use crate::report::Report;
 use crate::terminal::{restore_terminal_best_effort, Terminal};
 
 use super::super::{effective_density, CloudConfig};
-use super::activity::{
-    is_runtime_idle, register_activity, spin_wait, FrameTimeTracker,
-};
+use super::activity::{is_runtime_idle, register_activity, spin_wait, FrameTimeTracker};
 use super::adaptive::{
     adaptive_resync_interval, local_secs_since_midnight, EnduranceHealth, PhasePredictor,
     ReclaimState,
@@ -194,7 +192,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_resync_time = last_input_time;
     let idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
 
-       // P1: Phase predictor — learns daily activity cycle for proactive idle.
+    // P1: Phase predictor — learns daily activity cycle for proactive idle.
     let mut phase_predictor = PhasePredictor::new();
     let mut was_active = true; // Start assuming active; first idle transition records.
 
@@ -258,8 +256,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let idle_secs = idle_started
             .map(|t| loop_now.saturating_duration_since(t).as_secs_f64())
             .unwrap_or(0.0);
-        let effective_resync_interval =
-            adaptive_resync_interval(idle_secs);
+        let effective_resync_interval = adaptive_resync_interval(idle_secs);
         if is_idle
             && loop_now
                 .saturating_duration_since(last_resync_time)
@@ -562,7 +559,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
                 // Context switch rate sampling.
                 let now = Instant::now();
-                let elapsed = now.saturating_duration_since(last_ctxt_sample).as_secs_f64();
+                let elapsed = now
+                    .saturating_duration_since(last_ctxt_sample)
+                    .as_secs_f64();
                 if elapsed > 0.0 {
                     #[cfg(target_os = "linux")]
                     {
@@ -719,16 +718,14 @@ fn read_self_rss_kb() -> u64 {
         Ok(f) => f,
         Err(_) => return 0,
     };
-    for line in std::io::BufReader::new(f).lines() {
-        if let Ok(l) = line {
-            if l.starts_with("VmRSS:") {
-                // Format: "VmRSS:    2800 kB"
-                return l
-                    .split_whitespace()
-                    .nth(1)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(0);
-            }
+    for l in std::io::BufReader::new(f).lines().map_while(Result::ok) {
+        if l.starts_with("VmRSS:") {
+            // Format: "VmRSS:    2800 kB"
+            return l
+                .split_whitespace()
+                .nth(1)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
         }
     }
     0
@@ -751,8 +748,5 @@ fn read_self_voluntary_ctxt() -> u64 {
     let fields: Vec<&str> = after_paren.split_whitespace().collect();
     // After ')', field indices shift: field 3 in the original = fields[0] here.
     // voluntary_ctxt_switches is field 20 (1-indexed), so fields[17] (0-indexed).
-    fields
-        .get(17)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0)
+    fields.get(17).and_then(|s| s.parse().ok()).unwrap_or(0)
 }

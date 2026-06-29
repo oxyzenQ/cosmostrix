@@ -470,9 +470,18 @@ mod tests {
 
     #[test]
     fn resync_interval_standard_under_1h() {
-        assert_eq!(adaptive_resync_interval(0.0), IDLE_REDRAW_RESYNC_INTERVAL_SECS);
-        assert_eq!(adaptive_resync_interval(1800.0), IDLE_REDRAW_RESYNC_INTERVAL_SECS);
-        assert_eq!(adaptive_resync_interval(3599.0), IDLE_REDRAW_RESYNC_INTERVAL_SECS);
+        assert_eq!(
+            adaptive_resync_interval(0.0),
+            IDLE_REDRAW_RESYNC_INTERVAL_SECS
+        );
+        assert_eq!(
+            adaptive_resync_interval(1800.0),
+            IDLE_REDRAW_RESYNC_INTERVAL_SECS
+        );
+        assert_eq!(
+            adaptive_resync_interval(3599.0),
+            IDLE_REDRAW_RESYNC_INTERVAL_SECS
+        );
     }
 
     #[test]
@@ -559,7 +568,11 @@ mod tests {
         h.push_ctxt_rate(60.0);
         h.recompute();
         // Variance is large → rss_score drops
-        assert!(h.score() < 95.0, "score should reflect RSS instability, got {}", h.score());
+        assert!(
+            h.score() < 95.0,
+            "score should reflect RSS instability, got {}",
+            h.score()
+        );
     }
 
     #[test]
