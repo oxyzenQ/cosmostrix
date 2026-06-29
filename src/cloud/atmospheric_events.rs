@@ -423,17 +423,17 @@ impl AtmosphericEventManager {
         let roll: f32 = uniform.sample(&mut self.rng);
 
         // Weighted selection with cumulative thresholds:
-        // 0: Straight (30%), 1: Jagged (25%), 2: Forked (15%),
-        // 3: Broken (10%), 4: Ribbon (12%), 5: Heavy (8%)
+        // 0: Long (30%), 1: Short (25%), 2: Diagonal (18%),
+        // 3: Fork (15%), 4: Massive (8%), 5: Sheet (4%)
         let family = if roll < 0.30 {
             0u8
         } else if roll < 0.55 {
             1u8
-        } else if roll < 0.70 {
+        } else if roll < 0.73 {
             2u8
-        } else if roll < 0.80 {
+        } else if roll < 0.88 {
             3u8
-        } else if roll < 0.92 {
+        } else if roll < 0.96 {
             4u8
         } else {
             5u8
@@ -441,12 +441,16 @@ impl AtmosphericEventManager {
 
         // During storm mode, bias toward more dramatic families
         let family = if self.storm_mode_active && family <= 2 {
-            // Upgrade to heavier families
-            if uniform.sample(&mut self.rng) < 0.4 {
-                if family == 0 {
-                    4u8
+            if uniform.sample(&mut self.rng) < 0.45 {
+                if family <= 1 {
+                    // Long/Short upgrade to Fork/Massive
+                    if uniform.sample(&mut self.rng) < 0.5 {
+                        3u8
+                    } else {
+                        4u8
+                    }
                 } else {
-                    family + 2
+                    3u8 // Diagonal → Fork
                 }
             } else {
                 family
@@ -461,34 +465,40 @@ impl AtmosphericEventManager {
         let brightness: f32;
         match family {
             0 => {
-                len_min = 0.4;
-                len_max = 0.9;
-                brightness = 0.8;
+                // Long: 60-100% screen, normal brightness
+                len_min = 0.6;
+                len_max = 1.0;
+                brightness = 0.85;
             }
             1 => {
+                // Short: 15-35%, dimmer — overridden in generate_paths
+                len_min = 0.15;
+                len_max = 0.35;
+                brightness = 0.75;
+            }
+            2 => {
+                // Diagonal: 50-100%, slightly bright
                 len_min = 0.5;
+                len_max = 1.0;
+                brightness = 0.95;
+            }
+            3 => {
+                // Fork: 60-100%, normal brightness (branches carry drama)
+                len_min = 0.6;
                 len_max = 1.0;
                 brightness = 1.0;
             }
-            2 => {
-                len_min = 0.6;
-                len_max = 1.0;
-                brightness = 0.9;
-            }
-            3 => {
-                len_min = 0.3;
-                len_max = 0.7;
-                brightness = 0.7;
-            }
             4 => {
-                len_min = 0.5;
-                len_max = 1.0;
-                brightness = 1.1;
-            }
-            _ => {
+                // Massive: 80-100%, bright (min 1.2)
                 len_min = 0.8;
                 len_max = 1.0;
-                brightness = 1.3;
+                brightness = 1.25;
+            }
+            _ => {
+                // Sheet: 60-100%, dimmer channels
+                len_min = 0.6;
+                len_max = 1.0;
+                brightness = 0.7;
             }
         }
 
@@ -939,12 +949,12 @@ impl AtmosphericEventManager {
     /// position selection in anti-repetition path).
     fn resolve_family_params(&self, family: u8) -> (u8, f32, f32) {
         match family {
-            0 => (0, 0.7, 0.8),
-            1 => (1, 0.75, 1.0),
-            2 => (2, 0.8, 0.9),
-            3 => (3, 0.5, 0.7),
-            4 => (4, 0.75, 1.1),
-            _ => (5, 0.9, 1.3),
+            0 => (0, 0.8, 0.85),  // Long
+            1 => (1, 0.25, 0.75), // Short
+            2 => (2, 0.75, 0.95), // Diagonal
+            3 => (3, 0.8, 1.0),   // Fork
+            4 => (4, 0.9, 1.25),  // Massive
+            _ => (5, 0.8, 0.7),   // Sheet
         }
     }
 

@@ -797,7 +797,9 @@ pub const LIGHTNING_WANDER_FRACTION: f32 = 0.25;
 pub const LIGHTNING_ZIGZAG_AVG: u16 = 3;
 
 /// Lightning vertical step per segment (rows).
+#[allow(dead_code)]
 pub const LIGHTNING_VSTEP_MIN: u16 = 2;
+#[allow(dead_code)]
 pub const LIGHTNING_VSTEP_MAX: u16 = 6;
 
 /// Lightning horizontal step per segment (columns).

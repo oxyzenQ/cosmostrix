@@ -9,12 +9,12 @@
 //!
 //! ## Bolt Families (v10.0.0 Phase 2D)
 //!
-//! - 0: Straight — minimal zigzag, length 0.4-0.9, brightness 0.8
-//! - 1: Jagged — sharp zigzag, length 0.5-1.0, brightness 1.0
-//! - 2: Forked — many branches, length 0.6-1.0, brightness 0.9
-//! - 3: Broken — gaps, length 0.3-0.7, brightness 0.7
-//! - 4: Ribbon — thick, gentle curves, length 0.5-1.0, brightness 1.1
-//! - 5: Heavy — rare, thick, full-screen, length 0.8-1.0, brightness 1.3
+//! - 0: Long — vertical bolt, slight jitter, 1-2 small branches, length 0.6-1.0
+//! - 1: Short — vertical bolt stopped at 15-35% height, 0-1 branches
+//! - 2: Diagonal — angled 15-45°, NOT vertical, tan(angle) drift every row
+//! - 3: Fork — main stops at 30-50%, splits into 2-4 daughter branches (Y-shape)
+//! - 4: Massive — wide zigzag, 5-10 branches, length 0.8-1.0, brightness ≥1.2
+//! - 5: Sheet — 3-6 parallel vertical channels spread 8-25 cols
 //!
 //! ## Return Strokes
 //!
@@ -122,12 +122,12 @@ impl LightningEvent {
 
         // Determine per-family brightness
         let family_brightness = match bolt_family {
-            0 => 0.8,
-            1 => 1.0,
-            2 => 0.9,
-            3 => 0.7,
-            4 => 1.1,
-            _ => 1.3,
+            0 => 0.85, // Long: normal
+            1 => 0.75, // Short: dimmer (stopped mid-screen)
+            2 => 0.95, // Diagonal: slightly bright
+            3 => 1.0,  // Fork: normal, branches carry the drama
+            4 => 1.25, // Massive: bright (min 1.2 per spec)
+            _ => 0.7,  // Sheet: dimmer individual channels (the quantity creates impact)
         };
 
         let mut event = Self {
@@ -155,7 +155,7 @@ impl LightningEvent {
     }
 
     /// Generate the main bolt path, branches, and flash cells.
-    /// Path generation is family-specific.
+    /// Each bolt family uses fundamentally different generation logic.
     fn generate_paths(&mut self, rng: &mut StdRng) {
         if self.cols < 4 || self.lines < 4 {
             return;
@@ -163,8 +163,8 @@ impl LightningEvent {
 
         let chance = Uniform::new(0.0f32, 1.0f32).expect("chance [0,1) always valid");
 
-        let max_wander = ((self.cols as f32) * LIGHTNING_WANDER_FRACTION) as u16;
         let center = self.cols / 2;
+        let max_wander = ((self.cols as f32) * LIGHTNING_WANDER_FRACTION) as u16;
         let start_col = if max_wander > 0 {
             let offset = ((chance.sample(rng) * max_wander as f32 * 2.0) as i32)
                 .saturating_sub(max_wander as i32);
@@ -173,207 +173,393 @@ impl LightningEvent {
             center
         };
 
-        // Per-family zigzag and step parameters
-        let (zigzag_avg, hstep_max) = match self.bolt_family {
-            0 => (8u16, 1i16),  // Straight: minimal changes
-            1 => (2u16, 4i16),  // Jagged: frequent, sharp
-            2 => (2u16, 5i16),  // Forked: like Jagged but wider
-            3 => (6u16, 3i16),  // Broken: moderate but with gaps
-            4 => (6u16, 2i16),  // Ribbon: gentle curves
-            _ => (10u16, 1i16), // Heavy: slow, deliberate
-        };
+        match self.bolt_family {
+            // ── Family 0: Long — vertical bolt, slight jitter ──
+            0 => self.gen_long(rng, &chance, start_col),
+            // ── Family 1: Short — forced 15-35% length ──
+            1 => {
+                self.length_pct = 0.15 + chance.sample(rng) * 0.20;
+                self.gen_long(rng, &chance, start_col);
+            }
+            // ── Family 2: Diagonal — angled 15-45°, NOT vertical ──
+            2 => self.gen_diagonal(rng, &chance, start_col),
+            // ── Family 3: Fork — main stops mid-screen, branches split ──
+            3 => self.gen_fork(rng, &chance, start_col),
+            // ── Family 4: Massive — wide zigzag, many branches ──
+            4 => self.gen_massive(rng, &chance, start_col),
+            // ── Family 5: Sheet — parallel vertical channels ──
+            _ => self.gen_sheet(rng, &chance),
+        }
 
-        // Calculate target line based on length_pct
+        // Flash cells computed after path generation
+        self.compute_flash_cells(rng);
+    }
+
+    // ── Family 0/1: Long/Short — vertical bolt with slight jitter ──
+
+    fn gen_long(&mut self, rng: &mut StdRng, chance: &Uniform<f32>, start_col: u16) {
         let target_line = ((self.lines as f32) * self.length_pct) as u16;
         let target_line = target_line.min(self.lines);
 
         let mut col = start_col;
         let mut prev_col = col;
         let mut line: u16 = 0;
-        let zigzag_avg = zigzag_avg.max(1);
-
-        // Pre-compute gap pattern for Broken family
-        let gap_every = if self.bolt_family == 3 {
-            // Gap every 4th-6th segment
-            4 + (chance.sample(rng) * 3.0) as usize
-        } else {
-            0 // No gaps
-        };
-        let mut segment_index: usize = 0;
+        let zigzag_avg = 6u16 + (chance.sample(rng) * 4.0) as u16;
 
         while line < target_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
-            // Broken family: skip segments for gaps
-            let should_skip = if self.bolt_family == 3 && gap_every > 0 {
-                segment_index > 0 && segment_index % gap_every == 0
-            } else {
-                false
-            };
+            self.main_bolt.push((col, line));
 
-            if !should_skip {
-                self.main_bolt.push((col, line));
-            }
-
-            // Direction change
             if (line % zigzag_avg) == 0 || col == prev_col {
                 let dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
-                let step = (chance.sample(rng) * hstep_max as f32).ceil() as i16;
-                // For Ribbon family, reduce step size further
-                let step = if self.bolt_family == 4 {
-                    step.max(1)
-                } else {
-                    step
-                };
+                let step = 1i16 + (chance.sample(rng) * 1.5).ceil() as i16; // hstep 1-2
                 let new_col = (col as i16 + dir * step).clamp(0, (self.cols - 1) as i16) as u16;
                 prev_col = col;
                 col = new_col;
             }
 
-            // Character for this segment (or skip for broken family)
-            if !should_skip {
-                let dcol = col as i16 - prev_col as i16;
-                self.bolt_chars
-                    .push(super::helpers::bolt_char_for_step(dcol, 1, rng));
-            }
+            let dcol = col as i16 - prev_col as i16;
+            self.bolt_chars
+                .push(super::helpers::bolt_char_for_step(dcol, 1, rng));
 
-            // Vertical step — per-family
-            let vstep_min: f32 = if self.bolt_family == 5 {
-                1.0 // Heavy: slow progression
-            } else {
-                LIGHTNING_VSTEP_MIN as f32
-            };
-            let vstep_max = match self.bolt_family {
-                5 => 2.0, // Heavy: very slow
-                4 => 4.0, // Ribbon: moderate
-                0 => 5.0, // Straight: faster
-                _ => LIGHTNING_VSTEP_MAX as f32,
-            };
-            let vstep = vstep_min + chance.sample(rng) * (vstep_max - vstep_min);
+            let vstep = 2.0 + chance.sample(rng) * 3.0;
             line = line.saturating_add(vstep.ceil() as u16);
-            segment_index += 1;
         }
 
-        // ── Branches ──
-        let branch_prob: f32;
-        let min_branches: usize;
-        let max_branches: usize;
+        // 1-2 small branches for Long family
+        let branch_count = if self.bolt_family == 0 && chance.sample(rng) < 0.35 {
+            1 + (chance.sample(rng) * 2.0) as usize
+        } else {
+            0
+        };
+        self.gen_branches(rng, chance, 0.15, 0.35, branch_count);
+    }
 
-        match self.bolt_family {
-            2 => {
-                // Forked: 50-80% branch probability, 2-4 branches
-                branch_prob = 0.5 + chance.sample(rng) * 0.3;
-                min_branches = 2;
-                max_branches = 4;
-            }
-            4 => {
-                // Ribbon: occasional branch
-                branch_prob = 0.25;
-                min_branches = 1;
-                max_branches = 2;
-            }
-            _ => {
-                branch_prob = 0.35;
-                min_branches = 1;
-                max_branches = 3;
-            }
+    // ── Family 2: Diagonal — angled bolt, NOT vertical ──
+
+    fn gen_diagonal(&mut self, rng: &mut StdRng, _chance: &Uniform<f32>, start_col: u16) {
+        let target_line = ((self.lines as f32) * self.length_pct) as u16;
+        let target_line = target_line.min(self.lines);
+
+        // Angle 15-45 degrees
+        let angle_deg = 15.0
+            + rand::distr::Uniform::new(0.0f32, 30.0f32)
+                .expect("[0,30) valid")
+                .sample(rng);
+        let angle_rad = angle_deg * std::f32::consts::PI / 180.0;
+        let tan_angle = angle_rad.tan();
+
+        // Direction: left or right
+        let direction: f32 = if rand::distr::Uniform::new(0.0f32, 1.0f32)
+            .expect("[0,1) valid")
+            .sample(rng)
+            < 0.5
+        {
+            -1.0
+        } else {
+            1.0
+        };
+
+        let mut col_f: f32 = start_col as f32;
+        let mut line: u16 = 0;
+
+        while line < target_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
+            let col = (col_f.round() as u16).clamp(0, self.cols.saturating_sub(1));
+            self.main_bolt.push((col, line));
+
+            // Diagonal character
+            // Diagonal character
+            let ch = if direction < 0.0 { '╲' } else { '╱' };
+            self.bolt_chars.push(ch);
+
+            // Move horizontally EVERY row by tan(angle) * vstep
+            let vstep = 2.0
+                + rand::distr::Uniform::new(0.0f32, 2.0f32)
+                    .expect("[0,2) valid")
+                    .sample(rng);
+            col_f += direction * tan_angle * vstep;
+            line = line.saturating_add(vstep.ceil() as u16);
         }
 
-        if self.main_bolt.len() >= 5 && chance.sample(rng) < branch_prob {
-            let num_branches = min_branches
-                + (chance.sample(rng) * (max_branches - min_branches + 1) as f32) as usize;
-            let num_branches = num_branches.min(LIGHTNING_MAX_BRANCHES);
+        // Diagonal: 0-1 small branches
+        let branch_count = if rand::distr::Uniform::new(0.0f32, 1.0f32)
+            .expect("[0,1) valid")
+            .sample(rng)
+            < 0.25
+        {
+            1
+        } else {
+            0
+        };
+        self.gen_branches(
+            rng,
+            &Uniform::new(0.0, 1.0).expect("valid"),
+            0.15,
+            0.30,
+            branch_count,
+        );
+    }
 
-            for _ in 0..num_branches {
-                let branch_root = if self.bolt_family == 2 {
-                    // Forked: branches from various points
-                    (chance.sample(rng) * (self.main_bolt.len() as f32 * 0.7)) as usize
-                } else {
-                    (chance.sample(rng) * (self.main_bolt.len() as f32 * 0.5)) as usize
-                };
-                if let Some(&(root_col, root_line)) = self.main_bolt.get(branch_root) {
-                    let max_branch_len = self.main_bolt.len() - branch_root;
-                    let branch_len = if self.bolt_family == 2 {
-                        // Forked: longer branches
-                        ((0.4 + chance.sample(rng) * 0.4) * max_branch_len as f32) as usize
-                    } else {
-                        ((0.2 + chance.sample(rng) * 0.3) * max_branch_len as f32) as usize
-                    };
-                    let branch_len = branch_len.clamp(3, LIGHTNING_BRANCH_CAPACITY);
+    // ── Family 3: Fork — main stops at 30-50%, branches split (Y-shape) ──
 
-                    let mut branch: Vec<(u16, u16)> = Vec::new();
-                    let mut bcol = root_col;
-                    let mut bline = root_line;
+    fn gen_fork(&mut self, rng: &mut StdRng, chance: &Uniform<f32>, start_col: u16) {
+        let target_line = ((self.lines as f32) * self.length_pct) as u16;
+        let target_line = target_line.min(self.lines);
 
-                    let branch_dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
+        // Fork point: 30-50% of target
+        let fork_frac = 0.30 + chance.sample(rng) * 0.20;
+        let fork_line = (target_line as f32 * fork_frac) as u16;
 
-                    for _ in 0..branch_len {
-                        let step = (chance.sample(rng) * 3.0).ceil() as i16;
-                        bcol = (bcol as i16 + branch_dir * step).clamp(0, (self.cols - 1) as i16)
-                            as u16;
-                        bline = bline
-                            .saturating_add((1.0 + chance.sample(rng) * 2.0).ceil() as u16)
-                            .min(self.lines.saturating_sub(1));
-                        branch.push((bcol, bline));
-                    }
-                    self.branches.push(branch);
+        let mut col = start_col;
+        let mut prev_col = col;
+        let mut line: u16 = 0;
+        let zigzag_avg = 4u16;
+
+        // Draw main bolt up to fork point
+        while line < fork_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
+            self.main_bolt.push((col, line));
+
+            if (line % zigzag_avg) == 0 || col == prev_col {
+                let dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
+                let step = 1i16 + (chance.sample(rng) * 2.0).ceil() as i16;
+                let new_col = (col as i16 + dir * step).clamp(0, (self.cols - 1) as i16) as u16;
+                prev_col = col;
+                col = new_col;
+            }
+
+            let dcol = col as i16 - prev_col as i16;
+            self.bolt_chars
+                .push(super::helpers::bolt_char_for_step(dcol, 1, rng));
+
+            let vstep = 2.0 + chance.sample(rng) * 3.0;
+            line = line.saturating_add(vstep.ceil() as u16);
+        }
+
+        // Now generate fork branches from fork_line downward
+        let branch_count = 2 + (chance.sample(rng) * 3.0) as usize; // 2-4
+        let remaining = target_line.saturating_sub(fork_line);
+
+        for i in 0..branch_count {
+            let angle_offset = -0.6 + (i as f32 / (branch_count - 1).max(1) as f32) * 1.2; // spread angles
+            let branch_angle = std::f32::consts::FRAC_PI_4 * angle_offset; // ±45° spread
+            let tan_ba = branch_angle.tan();
+
+            let mut branch: Vec<(u16, u16)> = Vec::new();
+            let mut bcol_f = col as f32;
+            let mut bline = fork_line;
+
+            while bline < target_line && branch.len() < LIGHTNING_BRANCH_CAPACITY {
+                let bc = (bcol_f.round() as u16).clamp(0, self.cols.saturating_sub(1));
+                branch.push((bc, bline));
+
+                let vstep = 2.0 + chance.sample(rng) * 3.0;
+                bcol_f += tan_ba * vstep;
+                bline = bline.saturating_add(vstep.ceil() as u16);
+            }
+
+            if !branch.is_empty() {
+                // Mark the fork point with a bright character
+                if let Some(last_seg) = self.bolt_chars.last_mut() {
+                    *last_seg = '┣'; // fork indicator
                 }
+                self.branches.push(branch);
             }
+            let _ = remaining; // used for future tuning
+        }
+    }
+
+    // ── Family 4: Massive — wide zigzag, many branches ──
+
+    fn gen_massive(&mut self, rng: &mut StdRng, chance: &Uniform<f32>, start_col: u16) {
+        self.length_pct = self.length_pct.max(0.8); // Force at least 80%
+        let target_line = ((self.lines as f32) * self.length_pct) as u16;
+        let target_line = target_line.min(self.lines);
+
+        let mut col = start_col;
+        let mut prev_col = col;
+        let mut line: u16 = 0;
+        let zigzag_avg = 3u16;
+
+        while line < target_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
+            self.main_bolt.push((col, line));
+
+            if (line % zigzag_avg) == 0 || col == prev_col {
+                let dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
+                let step = (chance.sample(rng) * 7.0).ceil() as i16 + 1; // hstep 1-8
+                let new_col = (col as i16 + dir * step).clamp(0, (self.cols - 1) as i16) as u16;
+                prev_col = col;
+                col = new_col;
+            }
+
+            let dcol = col as i16 - prev_col as i16;
+            self.bolt_chars
+                .push(super::helpers::bolt_char_for_step(dcol, 1, rng));
+
+            let vstep = 1.0 + chance.sample(rng) * 2.0;
+            line = line.saturating_add(vstep.ceil() as u16);
         }
 
-        // ── Flash cells ──
+        // Many branches: 5-10
+        let branch_count = 5 + (chance.sample(rng) * 6.0) as usize;
+        self.gen_branches(rng, chance, 0.15, 0.50, branch_count);
+    }
+
+    // ── Family 5: Sheet — parallel vertical channels ──
+
+    fn gen_sheet(&mut self, rng: &mut StdRng, chance: &Uniform<f32>) {
+        self.length_pct = self.length_pct.max(0.6);
+        let target_line = ((self.lines as f32) * self.length_pct) as u16;
+        let target_line = target_line.min(self.lines);
+
+        // Main bolt: center channel (light)
+        let center_col = self.cols / 2;
+        self.main_bolt.push((center_col, 0));
+        self.bolt_chars.push('│');
+        let mut line: u16 = 2;
+        while line < target_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
+            self.main_bolt.push((center_col, line));
+            self.bolt_chars.push('│');
+            line = line.saturating_add(2);
+        }
+
+        // Parallel channels: 3-6
+        let num_channels = 3 + (chance.sample(rng) * 4.0) as usize;
+        let spread = 8u16 + (chance.sample(rng) * 17.0) as u16; // 8-25 cols
+
+        for c in 0..num_channels {
+            // Alternate sides from center
+            let side_offset = if c % 2 == 0 {
+                (c as u16 / 2 + 1) as i32
+            } else {
+                -((c as u16).div_ceil(2) as i32)
+            };
+            let channel_col = (center_col as i32
+                + side_offset * spread as i32 / num_channels as i32)
+                .clamp(0, (self.cols - 1) as i32) as u16;
+
+            let mut channel: Vec<(u16, u16)> = Vec::new();
+            let mut cline: u16 = (chance.sample(rng) * 6.0) as u16; // staggered start
+            let ccol = channel_col;
+
+            while cline < target_line && channel.len() < LIGHTNING_BRANCH_CAPACITY {
+                // Minimal jitter
+                let jitter = if chance.sample(rng) < 0.15 {
+                    (chance.sample(rng) * 2.0).round() as i16 - 1
+                } else {
+                    0
+                };
+                let jc = (ccol as i16 + jitter).clamp(0, (self.cols - 1) as i16) as u16;
+                channel.push((jc, cline));
+                let vstep = 2.0 + chance.sample(rng) * 3.0;
+                cline = cline.saturating_add(vstep.ceil() as u16);
+            }
+
+            if !channel.is_empty() {
+                self.branches.push(channel);
+            }
+        }
+    }
+
+    // ── Shared: branch generation ──
+
+    fn gen_branches(
+        &mut self,
+        rng: &mut StdRng,
+        chance: &Uniform<f32>,
+        len_min_frac: f32,
+        len_max_frac: f32,
+        count: usize,
+    ) {
+        if self.main_bolt.len() < 3 || count == 0 {
+            return;
+        }
+
+        for _ in 0..count {
+            let root_idx = (chance.sample(rng) * (self.main_bolt.len() as f32 * 0.6)) as usize;
+            if let Some(&(root_col, root_line)) = self.main_bolt.get(root_idx) {
+                let max_len = self.main_bolt.len() - root_idx;
+                let branch_len = ((len_min_frac
+                    + chance.sample(rng) * (len_max_frac - len_min_frac))
+                    * max_len as f32) as usize;
+                let branch_len = branch_len.clamp(2, LIGHTNING_BRANCH_CAPACITY);
+
+                let mut branch: Vec<(u16, u16)> = Vec::new();
+                let mut bcol = root_col;
+                let mut bline = root_line;
+                let branch_dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
+
+                for _ in 0..branch_len {
+                    let step = (chance.sample(rng) * 3.0).ceil() as i16;
+                    bcol =
+                        (bcol as i16 + branch_dir * step).clamp(0, (self.cols - 1) as i16) as u16;
+                    bline = bline
+                        .saturating_add((1.0 + chance.sample(rng) * 2.0).ceil() as u16)
+                        .min(self.lines.saturating_sub(1));
+                    branch.push((bcol, bline));
+                }
+                self.branches.push(branch);
+            }
+        }
+    }
+
+    // ── Shared: flash cell computation ──
+
+    fn compute_flash_cells(&mut self, rng: &mut StdRng) {
+        let _ = rng; // kept for future parameterization
         let flash_radius = match self.bolt_family {
-            5 => LIGHTNING_FLASH_RADIUS + 6, // Heavy: wider flash
-            4 => LIGHTNING_FLASH_RADIUS + 3, // Ribbon: thicker
+            4 => LIGHTNING_FLASH_RADIUS + 6, // Massive: wider flash
             _ => LIGHTNING_FLASH_RADIUS,
         };
 
-        if flash_radius > 0 && !self.main_bolt.is_empty() {
-            let flash_col_min = self
-                .main_bolt
-                .iter()
-                .map(|&(c, _)| c)
-                .min()
-                .unwrap_or(0)
-                .saturating_sub(flash_radius);
-            let flash_col_max = self
-                .main_bolt
-                .iter()
-                .map(|&(c, _)| c)
-                .max()
-                .unwrap_or(self.cols.saturating_sub(1))
-                .saturating_add(flash_radius)
-                .min(self.cols.saturating_sub(1));
-            let flash_line_min = 0u16;
-            let flash_line_max = self
-                .main_bolt
-                .last()
-                .map(|&(_, l)| l)
-                .unwrap_or(self.lines.saturating_sub(1))
-                .saturating_add(flash_radius)
-                .min(self.lines.saturating_sub(1));
+        if flash_radius == 0 || self.main_bolt.is_empty() {
+            return;
+        }
 
-            for fc in flash_col_min..=flash_col_max {
-                for fl in flash_line_min..=flash_line_max {
-                    if self.flash_cells.len() >= LIGHTNING_FLASH_CAPACITY {
-                        break;
+        let flash_col_min = self
+            .main_bolt
+            .iter()
+            .map(|&(c, _)| c)
+            .min()
+            .unwrap_or(0)
+            .saturating_sub(flash_radius);
+        let flash_col_max = self
+            .main_bolt
+            .iter()
+            .map(|&(c, _)| c)
+            .max()
+            .unwrap_or(self.cols.saturating_sub(1))
+            .saturating_add(flash_radius)
+            .min(self.cols.saturating_sub(1));
+        let flash_line_min = 0u16;
+        let flash_line_max = self
+            .main_bolt
+            .last()
+            .map(|&(_, l)| l)
+            .unwrap_or(self.lines.saturating_sub(1))
+            .saturating_add(flash_radius)
+            .min(self.lines.saturating_sub(1));
+
+        for fc in flash_col_min..=flash_col_max {
+            for fl in flash_line_min..=flash_line_max {
+                if self.flash_cells.len() >= LIGHTNING_FLASH_CAPACITY {
+                    return;
+                }
+                let mut min_dist = f32::MAX;
+                for &(bc, bl) in &self.main_bolt {
+                    let dx = fc as f32 - bc as f32;
+                    let dy = fl as f32 - bl as f32;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    if dist < min_dist {
+                        min_dist = dist;
                     }
-                    let mut min_dist = f32::MAX;
-                    for &(bc, bl) in &self.main_bolt {
-                        let dx = fc as f32 - bc as f32;
-                        let dy = fl as f32 - bl as f32;
-                        let dist = (dx * dx + dy * dy).sqrt();
-                        if dist < min_dist {
-                            min_dist = dist;
-                        }
-                    }
-                    if min_dist <= flash_radius as f32 {
-                        let sigma = LIGHTNING_FLASH_SIGMA;
-                        let closest_falloff = if sigma > 0.0 {
-                            (-(min_dist * min_dist) / (2.0 * sigma * sigma)).exp()
-                        } else {
-                            1.0
-                        };
-                        self.flash_cells.push((fc, fl, closest_falloff));
-                    }
+                }
+                if min_dist <= flash_radius as f32 {
+                    let sigma = LIGHTNING_FLASH_SIGMA;
+                    let closest_falloff = if sigma > 0.0 {
+                        (-(min_dist * min_dist) / (2.0 * sigma * sigma)).exp()
+                    } else {
+                        1.0
+                    };
+                    self.flash_cells.push((fc, fl, closest_falloff));
                 }
             }
         }
