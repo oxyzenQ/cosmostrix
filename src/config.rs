@@ -289,6 +289,15 @@ pub struct Args {
     )]
     pub profile: Option<String>,
 
+    #[arg(
+        long = "no-lightning",
+        help_heading = "COMMON OPTIONS",
+        display_order = 96,
+        default_value_t = false,
+        help = "Disable atmospheric lightning events"
+    )]
+    pub no_lightning: bool,
+
     // === CONFIG (visible in --help) ===
     #[arg(
         long = "config",
@@ -579,13 +588,6 @@ pub struct Args {
         help = "Disable glitch effects (default: on)"
     )]
     pub noglitch: bool,
-
-    #[arg(
-        long = "no-lightning",
-        default_value_t = false,
-        help = "Disable atmospheric lightning events"
-    )]
-    pub no_lightning: bool,
 
     #[arg(
         short = 'r',

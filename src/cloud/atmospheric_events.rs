@@ -20,13 +20,9 @@
 //!
 //! ## Weather Director (v10.0.0 Phase 2D)
 //!
-//! An invisible electrical charge system [0.0, 1.0] accumulates from:
-//! - Base idle rate (CHARGE_RATE_BASE)
-//! - Anomaly zone density boost (CHARGE_RATE_ANOMALY_BOOST per zone)
-//! - Enhanced rate during Storm Mode (CHARGE_RATE_STORM)
-//!
-//! The Weather Director uses charge level to make probabilistic strike
-//! decisions, scaling ambient chance by charge saturation.
+//! Invisible electrical charge [0.0, 1.0] accumulates from idle rate,
+//! anomaly density, and Storm Mode. The Weather Director scales ambient
+//! strike probability by charge saturation (0.3 + charge × 1.4).
 //!
 //! ## Lifecycle
 //!
@@ -38,20 +34,14 @@
 //! Pending events spawn (precompute paths). Active events render each
 //! frame. After their active duration, events enter Decay (phosphor
 //! afterglow) then finish.
-
-use std::time::Instant;
-
+use super::events::LightningEvent;
+use crate::constants::*;
+use crate::frame::Frame;
 use crossterm::style::Color;
 use rand::{distr::Distribution, rngs::StdRng, SeedableRng};
 use smallvec::SmallVec;
-
-use crate::constants::*;
-use crate::frame::Frame;
-
-use super::events::LightningEvent;
-
+use std::time::Instant;
 // ── Public types ──────────────────────────────────────────────────────────
-
 /// Lifecycle state of an atmospheric event.
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -97,16 +87,12 @@ pub struct EventCtx<'a> {
 pub trait AtmosphericEvent: Send {
     /// Returns the current lifecycle state.
     fn state(&self) -> EventState;
-
     /// Returns true when the event has finished and can be recycled.
     fn is_finished(&self) -> bool;
-
     /// Returns (active_duration_ms, decay_duration_ms).
     fn phase_durations_ms(&self) -> (u64, u64);
-
     /// Estimated memory footprint in bytes (for monitoring).
     fn memory_footprint(&self) -> usize;
-
     /// Called each frame. Updates internal phase state based on elapsed time.
     fn update(&mut self, now: Instant);
 
@@ -133,7 +119,6 @@ pub trait AtmosphericEvent: Send {
 }
 
 // ── Trigger types ─────────────────────────────────────────────────────────
-
 /// A registered trigger condition paired with its event factory.
 struct RegisteredTrigger {
     /// The condition to evaluate.
@@ -172,7 +157,6 @@ impl TriggerCondition {
 }
 
 // ── Strike Record ─────────────────────────────────────────────────────────
-
 /// A record of a recent lightning strike used for anti-repetition logic.
 #[derive(Clone, Copy, Debug)]
 struct StrikeRecord {
@@ -187,7 +171,6 @@ struct StrikeRecord {
 }
 
 // ── Event Manager ─────────────────────────────────────────────────────────
-
 /// Manages active atmospheric events and their trigger conditions.
 ///
 /// Owned by Cloud. Evaluates triggers once per frame at the top of
@@ -213,6 +196,8 @@ pub(super) struct AtmosphericEventManager {
     event_decay_frame: u64,
     /// Events are opt-in; disabled by default (tests, bench).
     events_enabled: bool,
+    /// Force immediate spawn next tick (Storm Mode activation).
+    force_spawn: bool,
 
     // ── Weather Director (v10.0.0 Phase 2D) ──
     /// Invisible electrical charge [0.0, 1.0].
@@ -244,6 +229,7 @@ impl AtmosphericEventManager {
             total_spawned: 0,
             event_decay_frame: 0,
             events_enabled: false,
+            force_spawn: false,
             weather_charge: 0.0,
             weather_last_tick: now,
             storm_mode_active: false,
@@ -328,7 +314,6 @@ impl AtmosphericEventManager {
     }
 
     // ── Weather Director ─────────────────────────────────────────────────
-
     /// Accumulate charge and evaluate weather state.
     /// Called periodically (every ~3s) from rain_at().
     pub fn weather_tick(&mut self, now: Instant, anomaly_count: usize, is_idle: bool) {
@@ -392,6 +377,9 @@ impl AtmosphericEventManager {
         self.storm_mode_end =
             Some(now + std::time::Duration::from_secs_f32(STORM_MODE_DURATION_SECS));
         self.storm_mode_cooldown = None;
+        // Full charge + force immediate bolt on activation
+        self.weather_charge = 1.0;
+        self.force_spawn = true;
 
         // Boost charge to at least the strike threshold
         if self.weather_charge < CHARGE_THRESHOLD_STRIKE {
@@ -415,7 +403,6 @@ impl AtmosphericEventManager {
     }
 
     // ── Bolt Family Selection ─────────────────────────────────────────────
-
     /// Select a bolt family with weighted probabilities.
     /// Returns (family_index, length_pct, brightness_mult).
     fn select_bolt_family(&mut self) -> (u8, f32, f32) {
@@ -507,7 +494,6 @@ impl AtmosphericEventManager {
     }
 
     // ── Strike Decision ───────────────────────────────────────────────────
-
     /// Weather Director decides whether to schedule a strike.
     fn should_strike(&mut self) -> bool {
         let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
@@ -544,7 +530,6 @@ impl AtmosphericEventManager {
     }
 
     // ── Anti-Repetition ───────────────────────────────────────────────────
-
     /// Record a strike in the history buffer.
     fn record_strike(&mut self, family: u8, start_col: u16, direction: i8, length_pct: f32) {
         if self.strike_history.len() >= STRIKE_HISTORY_SIZE {
@@ -587,7 +572,6 @@ impl AtmosphericEventManager {
     }
 
     // ── Trigger Evaluation ────────────────────────────────────────────────
-
     /// Evaluate all triggers and spawn new events as appropriate.
     /// Called once per frame before simulation update.
     #[allow(clippy::too_many_arguments)]
@@ -622,7 +606,14 @@ impl AtmosphericEventManager {
             .as_secs_f64();
         self.last_trigger_eval = now;
 
-        // Can't spawn more events if at max concurrent
+        // Force spawn: Storm Mode activation
+        if self.force_spawn {
+            self.force_spawn = false;
+            self.try_force_spawn(cols, lines, palette_color);
+            return;
+        }
+
+        // Guard: max concurrent events
         if self.events.len() >= EVENT_MAX_CONCURRENT {
             return;
         }
@@ -661,11 +652,14 @@ impl AtmosphericEventManager {
                         chance_per_sec,
                         cooldown_secs,
                     } => {
-                        // Scale ambient chance by weather charge level:
-                        // base_chance * (0.3 + charge * 1.4)
+                        // Scale: base × (0.3 + charge × 1.4)
                         let charge_mult = 0.3 + self.weather_charge * 1.4;
-                        let probability =
-                            (*chance_per_sec as f32) * charge_mult * (elapsed_sec as f32).min(1.0);
+                        // Storm Mode: 5× probability boost for burst feel
+                        let storm_mult = if self.storm_mode_active { 5.0 } else { 1.0 };
+                        let probability = (*chance_per_sec as f32)
+                            * charge_mult
+                            * storm_mult
+                            * (elapsed_sec as f32).min(1.0);
                         let roll: f32 = rand::distr::Uniform::new(0.0, 1.0)
                             .expect("[0,1) always valid")
                             .sample(&mut self.rng);
@@ -801,8 +795,6 @@ impl AtmosphericEventManager {
             self.weather_charge = (self.weather_charge - discharge).max(CHARGE_MIN_RETAINED);
         }
     }
-
-    /// Fire a scene-entry event (called from scene_runtime).
     pub fn fire_scene_entry(
         &mut self,
         now: Instant,
@@ -944,7 +936,6 @@ impl AtmosphericEventManager {
     }
 
     // ── Private Helpers ────────────────────────────────────────────────────
-
     /// Resolve brightness for a given bolt family (used during alternative
     /// position selection in anti-repetition path).
     fn resolve_family_params(&self, family: u8) -> (u8, f32, f32) {
@@ -971,6 +962,33 @@ impl AtmosphericEventManager {
             }
         } else {
             0
+        }
+    }
+
+    /// Force-spawn a bolt (called by Storm Mode activation).
+    fn try_force_spawn(&mut self, cols: u16, lines: u16, palette_color: Option<Color>) {
+        if self.events.len() >= EVENT_MAX_CONCURRENT {
+            return;
+        }
+        let (bolt_family, length_pct, brightness) = self.select_bolt_family();
+        let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) valid");
+        let start_col = (uniform.sample(&mut self.rng) * (cols - 1) as f32) as u16;
+        let direction: i8 = if start_col > cols / 2 { -1 } else { 1 };
+        if !self.avoid_repetition(bolt_family, start_col, direction, length_pct) {
+            let return_strokes = self.determine_return_strokes();
+            let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
+                cols,
+                lines,
+                &mut self.rng,
+                brightness,
+                palette_color,
+                bolt_family,
+                length_pct,
+                return_strokes,
+            ));
+            self.events.push(event);
+            self.total_spawned += 1;
+            self.record_strike(bolt_family, start_col, direction, length_pct);
         }
     }
 }

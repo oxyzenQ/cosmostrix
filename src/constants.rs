@@ -812,9 +812,10 @@ pub const EVENT_PERF_GATE: f32 = 0.5;
 /// Cooldown after event trigger activation, minimum seconds.
 pub const EVENT_AMBIENT_COOLDOWN_SECS: f64 = 20.0;
 
-/// Ambient lightning chance per second (rare idle appearance).
-/// With delta-time scaling: ~1 bolt per 80-90 seconds average (including cooldown).
-pub const LIGHTNING_AMBIENT_CHANCE_PER_SEC: f64 = 0.015;
+/// Ambient lightning chance per second.
+/// Scaled by charge: effective = base × (0.3 + charge × 1.4).
+/// At full charge: ~1 bolt per 6-8s. At low charge: rare.
+pub const LIGHTNING_AMBIENT_CHANCE_PER_SEC: f64 = 0.12;
 
 /// Startup burst: delay before first bolt in milliseconds.
 pub const LIGHTNING_STARTUP_DELAY_MS: u64 = 800;
@@ -846,15 +847,15 @@ pub const CHARGE_RATE_STORM: f32 = 0.06;
 /// Charge accumulation boost per anomaly zone present.
 pub const CHARGE_RATE_ANOMALY_BOOST: f32 = 0.008;
 /// Charge threshold: Weather Director considers scheduling a strike.
-pub const CHARGE_THRESHOLD_STRIKE: f32 = 0.45;
+pub const CHARGE_THRESHOLD_STRIKE: f32 = 0.15;
 /// Charge threshold: high probability of scheduling.
 pub const CHARGE_THRESHOLD_HIGH: f32 = 0.75;
 /// Charge discharged per strike (fraction of current charge).
 pub const CHARGE_DISCHARGE_PER_STRIKE: f32 = 0.6;
 /// Minimum charge retained after discharge.
 pub const CHARGE_MIN_RETAINED: f32 = 0.05;
-/// Weather Director tick interval in seconds.
-pub const WEATHER_TICK_SECS: f32 = 3.0;
+/// Weather Director tick interval in seconds. 0.5s for responsive feel.
+pub const WEATHER_TICK_SECS: f32 = 0.5;
 /// Storm Mode duration in seconds.
 pub const STORM_MODE_DURATION_SECS: f32 = 18.0;
 /// Storm Mode cooldown before it can be activated again (seconds).
