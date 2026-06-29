@@ -443,6 +443,8 @@ impl Droplet {
             let is_new_generation =
                 self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
 
+            let edge_fade = viewport_edge_fade(line, ctx.lines);
+
             let fg = fg.and_then(|c| {
                 // Decode color to RGB once; chain all effects on raw tuples.
                 // This eliminates 3-10 color_to_rgb() calls per cell.
@@ -589,28 +591,18 @@ impl Droplet {
                     b = (b as i32 + ((255 - b as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
                 }
 
-                Some(Color::Rgb { r, g, b })
-            });
-
-            // Final viewport edge fade: applied AFTER all other visual
-            // effects (including head self-bloom and brightness modulation)
-            // so it takes priority at viewport edges. This creates:
-            // 1. Smooth rain emergence at the top — the head/trail brightness
-            //    ramps in over EDGE_FADE_ROWS, making rain appear to enter
-            //    from just beyond the top border rather than popping in.
-            // 2. Smooth rain exit at the bottom — heads/tails fade out before
-            //    the terminal border, preventing harsh clipping.
-            // 3. Bottom bright-head residue prevention — by dimming the head
-            //    cell's captured brightness at the last viewport row, the
-            //    phosphor system receives a much dimmer initial state.
-            let edge_fade = viewport_edge_fade(line, ctx.lines);
-            let fg = fg.map(|c| {
+                // PERF(v10): Viewport edge fade applied on raw RGB tuples
+                // before wrapping into Color::Rgb.  This eliminates one
+                // decode_color() match + destructure + apply_brightness_rgb()
+                // call + extra .map() closure per cell — the color is already
+                // (r, g, b) here, so we just multiply in-place.
                 if edge_fade < 1.0 {
-                    let (r, g, b) = palette::decode_color(c).unwrap_or((0, 0, 0));
-                    palette::apply_brightness_rgb(r, g, b, edge_fade)
-                } else {
-                    c
+                    let fi = (edge_fade * 256.0) as i32;
+                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
+                Some(Color::Rgb { r, g, b })
             });
             // Suppress bold at viewport edges to prevent harsh bright spots
             // right at the border where the fade should create smooth dimming.

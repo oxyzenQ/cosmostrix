@@ -257,6 +257,7 @@ pub(crate) fn blend_toward_white_rgb(r: u8, g: u8, b: u8, factor: f32) -> Color 
 /// Darken a color by the given factor (1.0 = no change, 0.0 = black).
 /// Works with all color types (Rgb, AnsiValue, Ansi16).
 #[must_use]
+#[allow(dead_code)] // PERF(v10): inlined into atmospheric hot path; kept for API stability
 pub fn apply_brightness(color: Color, factor: f32) -> Color {
     if factor >= 1.0 || matches!(color, Color::Reset) {
         return color;
@@ -302,6 +303,7 @@ pub(crate) fn decode_color(color: Color) -> Option<(u8, u8, u8)> {
 
 /// Reduce saturation of a color by the given factor (1.0 = no change, 0.0 = grayscale).
 #[must_use]
+#[allow(dead_code)] // PERF(v10): inlined into atmospheric hot path; kept for API stability
 pub fn apply_saturation(color: Color, factor: f32) -> Color {
     if factor >= 1.0 || matches!(color, Color::Reset) {
         return color;

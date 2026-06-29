@@ -313,7 +313,10 @@ impl Terminal {
             // don't spuriously re-trigger full redraws for this generation.
             last.semantic_gen = frame.semantic_gen;
 
-            // Reuse the persistent row_buf to avoid per-frame allocation
+            // PERF(v10): True single-pass RLE — accumulate characters into row_buf,
+            // flush only when style actually changes.  Eliminates one
+            // cell_at_index_ref(idx+1) generation-check per cell (~4800
+            // calls on a 200×40 terminal per full redraw).
             let row_buf = &mut self.row_buf;
             row_buf.clear();
             // Pre-reserve if terminal grew since last frame
@@ -330,24 +333,16 @@ impl Terminal {
                 let width_usize = frame.width as usize;
                 for x in 0..frame.width {
                     let idx = y as usize * width_usize + x as usize;
-                    let cell_ref = frame.cell_at_index_ref(idx);
+                    let cell = frame.cell_at_index(idx);
 
-                    // Peek ahead: if next cell has different style, flush buffer first.
-                    // Uses borrowed reference to avoid copying the next Cell (~24 bytes).
-                    let next_differs = (x + 1 >= frame.width) || {
-                        let next_ref = frame.cell_at_index_ref(idx + 1);
-                        next_ref.fg != cell_ref.fg
-                            || next_ref.bg != cell_ref.bg
-                            || next_ref.bold != cell_ref.bold
-                    };
-
-                    let cell = *cell_ref;
+                    // Flush row_buf on any style change
+                    let style_changed = cell.fg != cur_fg || cell.bg != cur_bg || cell.bold != cur_bold;
+                    if style_changed && !row_buf.is_empty() {
+                        self.stdout.queue(Print(row_buf.as_str()))?;
+                        row_buf.clear();
+                    }
 
                     if cell.fg != cur_fg {
-                        if !row_buf.is_empty() {
-                            self.stdout.queue(Print(row_buf.as_str()))?;
-                            row_buf.clear();
-                        }
                         if let Some(fg) = cell.fg {
                             self.stdout.queue(SetForegroundColor(fg))?;
                         } else {
@@ -357,10 +352,6 @@ impl Terminal {
                     }
 
                     if cell.bg != cur_bg {
-                        if !row_buf.is_empty() {
-                            self.stdout.queue(Print(row_buf.as_str()))?;
-                            row_buf.clear();
-                        }
                         if let Some(bg) = cell.bg {
                             self.stdout.queue(SetBackgroundColor(bg))?;
                         } else {
@@ -370,10 +361,6 @@ impl Terminal {
                     }
 
                     if cell.bold != cur_bold {
-                        if !row_buf.is_empty() {
-                            self.stdout.queue(Print(row_buf.as_str()))?;
-                            row_buf.clear();
-                        }
                         self.stdout.queue(SetAttribute(if cell.bold {
                             Attribute::Bold
                         } else {
@@ -384,13 +371,8 @@ impl Terminal {
 
                     row_buf.push(cell.ch);
                     last.cells[idx] = cell;
-
-                    if next_differs && !row_buf.is_empty() {
-                        self.stdout.queue(Print(row_buf.as_str()))?;
-                        row_buf.clear();
-                    }
                 }
-                // Flush any remaining cells in the row buffer
+                // Flush remaining cells in the row buffer
                 if !row_buf.is_empty() {
                     self.stdout.queue(Print(row_buf.as_str()))?;
                 }

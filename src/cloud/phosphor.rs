@@ -5,6 +5,7 @@
 
 use std::time::Instant;
 
+use crossterm::style::Color;
 use rand::distr::Distribution;
 
 use crate::cell::Cell;
@@ -162,6 +163,19 @@ impl Cloud {
             }
         }
 
+        // PERF(v10): Precompute per-frame decay factors for all (layer, bottom)
+        // combinations.  There are PARALLAX_LAYERS (3) × 2 (normal/bottom) = 6
+        // unique exp() values per frame.  Precomputing eliminates one exp() call
+        // per decaying phosphor cell — typically 500-2000+ calls/frame.
+        // Index: [layer * 2 + is_bottom]
+        let base_decay = PHOSPHOR_DECAY_RATE * elapsed_sec;
+        let bottom_base_decay = base_decay * PHOSPHOR_BOTTOM_DECAY_MULT;
+        let mut decay_exp_factors = [1.0f32; PARALLAX_LAYERS * 2];
+        for (i, &lm) in PHOSPHOR_LAYER_DECAY_MULT.iter().enumerate() {
+            decay_exp_factors[i * 2] = (-base_decay * lm).exp();
+            decay_exp_factors[i * 2 + 1] = (-bottom_base_decay * lm).exp();
+        }
+
         // Pass 3: Decay non-fresh cells with phosphor energy.
         // OPTIMIZED: iterate only active phosphor cells instead of full grid.
         let mut i = 0;
@@ -198,19 +212,13 @@ impl Cloud {
             if self.phosphor[pidx] == 255 {
                 self.phosphor[pidx] = PHOSPHOR_TAIL_RESIDUAL;
             } else {
+                // PERF(v10): Use precomputed exp() factor instead of per-cell exp() call.
                 let layer = self.phosphor_layer[pidx] as usize;
-                let layer_decay_mult = PHOSPHOR_LAYER_DECAY_MULT.get(layer).copied().unwrap_or(1.0);
-
+                let layer_clamped = layer.min(PARALLAX_LAYERS - 1);
                 let bottom_dist = lines.saturating_sub(line).saturating_sub(1);
-                let bottom_decay_mult = if bottom_dist < PHOSPHOR_BOTTOM_ROWS {
-                    PHOSPHOR_BOTTOM_DECAY_MULT
-                } else {
-                    1.0
-                };
-
-                let decay =
-                    PHOSPHOR_DECAY_RATE * layer_decay_mult * bottom_decay_mult * elapsed_sec;
-                let new_energy = ((self.phosphor[pidx] as f32) * (-decay).exp()) as u8;
+                let is_bottom = (bottom_dist < PHOSPHOR_BOTTOM_ROWS) as usize;
+                let factor = decay_exp_factors[layer_clamped * 2 + is_bottom];
+                let new_energy = (self.phosphor[pidx] as f32 * factor) as u8;
                 self.phosphor[pidx] = new_energy;
             }
 
@@ -345,6 +353,7 @@ impl Cloud {
             match zone.kind {
                 AnomalyKind::LuminanceSurge => {
                     let r = zone.radius as i16;
+                    let r_sq = (zone.radius as f32) * (zone.radius as f32);
                     for col_off in -r..=r {
                         for line_off in -r..=r {
                             let c = zone.col as i16 + col_off;
@@ -358,10 +367,14 @@ impl Cloud {
                                 continue;
                             }
 
-                            let dist = ((col_off * col_off + line_off * line_off) as f32).sqrt();
-                            if dist > zone.radius as f32 {
+                            // PERF(v10): Compare dist_sq against r_sq to avoid sqrt()
+                            // for cells outside the circle (~30% of bounding box).
+                            let dist_sq = (col_off * col_off + line_off * line_off) as f32;
+                            if dist_sq > r_sq {
                                 continue;
                             }
+
+                            let dist = dist_sq.sqrt();
 
                             let falloff = 1.0 - dist / zone.radius as f32;
                             let intensity = ANOMALY_LUMINANCE_INTENSITY * falloff * fade;
@@ -430,6 +443,9 @@ impl Cloud {
                 AnomalyKind::PulseWave => {
                     let wave_radius = progress * zone.radius as f32 * 2.0;
                     let ring_width = 2.0;
+                    let ring_outer = wave_radius + ring_width;
+                    let ring_outer_sq = ring_outer * ring_outer;
+                    let ring_inner_sq = (wave_radius - ring_width).max(0.0).powi(2);
                     let r2 = (zone.radius as i16) * 2;
                     for col_off in -r2..=r2 {
                         for line_off in -r2..=r2 {
@@ -444,7 +460,13 @@ impl Cloud {
                                 continue;
                             }
 
-                            let dist = ((col_off * col_off + line_off * line_off) as f32).sqrt();
+                            // PERF(v10): Reject via dist_sq before computing sqrt.
+                            let dist_sq = (col_off * col_off + line_off * line_off) as f32;
+                            if dist_sq > ring_outer_sq || dist_sq < ring_inner_sq {
+                                continue;
+                            }
+
+                            let dist = dist_sq.sqrt();
                             let ring_dist = (dist - wave_radius).abs();
                             if ring_dist < ring_width {
                                 let t = 1.0 - ring_dist / ring_width;
@@ -502,6 +524,9 @@ impl Cloud {
             frame.dirty_indices().iter().copied().collect();
 
         // Apply to dirty cells only (O(dirty) not O(w×h))
+        // PERF(v10): Decode color to RGB once, chain all effects on raw tuples,
+        // encode once at the end.  Eliminates 2-3 redundant color_to_rgb()
+        // match+destructure cycles per cell when multiple effects are active.
         let bg = self.palette.bg;
         for &dirty_idx in &dirty_indices {
             let col = (dirty_idx % frame.width as usize) as u16;
@@ -511,24 +536,43 @@ impl Cloud {
             }
             let cell = frame.cell_at_index(dirty_idx);
             if let Some(fg) = cell.fg {
-                let mut modified = fg;
+                // Single decode — all effects operate on raw (r, g, b)
+                let Some((mut r, mut g, mut b)) = palette::decode_color(fg) else {
+                    continue;
+                };
 
                 if needs_luminance {
                     let total_lum = luminance + profile.luminance_offset + emergent.luminance_boost;
                     if total_lum < 1.0 {
-                        modified = palette::apply_brightness(modified, total_lum.clamp(0.0, 1.0));
+                        let f = total_lum.clamp(0.0, 1.0);
+                        let fi = (f * 256.0) as i32;
+                        r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                        g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                        b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                     } else if total_lum > 1.0 {
                         let boost = (total_lum - 1.0).clamp(0.0, 0.3);
-                        modified = palette::blend_toward_white(modified, boost);
+                        let wf = (boost * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                     }
                 }
 
                 if needs_saturation && saturation < 1.0 {
-                    modified = palette::apply_saturation(modified, saturation);
+                    let f = saturation.clamp(0.0, 1.0);
+                    let gray = ((r as u16 + g as u16 + b as u16) / 3) as u8;
+                    // Inline lerp: gray + (channel - gray) * f  (8.8 fixed-point)
+                    let ti = (f * 256.0) as i32;
+                    r = (gray as i32 + ((r as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255) as u8;
+                    g = (gray as i32 + ((g as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255) as u8;
+                    b = (gray as i32 + ((b as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255) as u8;
                 }
 
                 if needs_persistence && persistence > 0.0 {
-                    modified = palette::blend_toward_white(modified, persistence * 0.3);
+                    let wf = ((persistence * 0.3).clamp(0.0, 1.0) * 256.0) as i32;
+                    r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                 }
 
                 if instability > 0.15 {
@@ -536,7 +580,10 @@ impl Cloud {
                         ^ (line as u32).wrapping_mul(2246822519)
                         ^ (now.elapsed().as_secs() as u32);
                     if hash % 1000 < (instability * 50.0) as u32 {
-                        modified = palette::blend_toward_white(modified, instability * 0.1);
+                        let wf = ((instability * 0.1).clamp(0.0, 1.0) * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                     }
                 }
 
@@ -545,7 +592,7 @@ impl Cloud {
                     line,
                     crate::cell::Cell {
                         ch: cell.ch,
-                        fg: Some(modified),
+                        fg: Some(Color::Rgb { r, g, b }),
                         bg,
                         bold: cell.bold,
                     },
