@@ -336,7 +336,8 @@ impl Terminal {
                     let cell = frame.cell_at_index(idx);
 
                     // Flush row_buf on any style change
-                    let style_changed = cell.fg != cur_fg || cell.bg != cur_bg || cell.bold != cur_bold;
+                    let style_changed =
+                        cell.fg != cur_fg || cell.bg != cur_bg || cell.bold != cur_bold;
                     if style_changed && !row_buf.is_empty() {
                         self.stdout.queue(Print(row_buf.as_str()))?;
                         row_buf.clear();

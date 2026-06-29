@@ -563,9 +563,12 @@ impl Cloud {
                     let gray = ((r as u16 + g as u16 + b as u16) / 3) as u8;
                     // Inline lerp: gray + (channel - gray) * f  (8.8 fixed-point)
                     let ti = (f * 256.0) as i32;
-                    r = (gray as i32 + ((r as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255) as u8;
-                    g = (gray as i32 + ((g as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255) as u8;
-                    b = (gray as i32 + ((b as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255) as u8;
+                    r = (gray as i32 + ((r as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255)
+                        as u8;
+                    g = (gray as i32 + ((g as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255)
+                        as u8;
+                    b = (gray as i32 + ((b as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255)
+                        as u8;
                 }
 
                 if needs_persistence && persistence > 0.0 {
