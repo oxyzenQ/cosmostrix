@@ -20,7 +20,7 @@ use crate::constants::*;
 use crate::frame::Frame;
 
 use super::super::atmospheric_events::{AtmosphericEvent, EventCtx, EventState};
-use super::helpers::{apply_brightness_mult, apply_white_blend, bolt_char_for_step};
+use super::helpers::{apply_brightness_mult, apply_white_blend};
 
 /// Phase within the lightning lifecycle.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -129,7 +129,8 @@ impl LightningEvent {
             }
 
             let dcol = col as i16 - prev_col as i16;
-            self.bolt_chars.push(bolt_char_for_step(dcol, 1));
+            self.bolt_chars
+                .push(super::helpers::bolt_char_for_step(dcol, 1, rng));
 
             let vstep = LIGHTNING_VSTEP_MIN as f32
                 + chance.sample(rng) * (LIGHTNING_VSTEP_MAX - LIGHTNING_VSTEP_MIN) as f32;
@@ -236,14 +237,15 @@ impl LightningEvent {
     fn phase_brightness(&self, now: Instant, intensity: f32) -> f32 {
         match self.phase {
             LightningPhase::Strike => {
-                let active_ms = LIGHTNING_ACTIVE_MS as f32;
-                let strike_ms = active_ms * LIGHTNING_STRIKE_FRACTION;
+                let strike_ms = (LIGHTNING_ACTIVE_MS as f32) * LIGHTNING_STRIKE_FRACTION;
                 let elapsed = now.saturating_duration_since(self.phase_start).as_millis() as f32;
-                // Ramp up quickly, peak at center of strike
-                let progress = (elapsed / strike_ms).min(1.0);
-                // Sharp attack: sin curve for cinematic pop
-                let sin_peak = (progress * std::f32::consts::PI).sin();
-                intensity * (0.8 + 0.2 * sin_peak)
+                // Instant peak, exponential decay: exp(-t × 6.0)
+                // Frame 0 (t=0ms):   1.00 — instant full brightness
+                // Frame 1 (t=17ms):  0.36 — sharp falloff
+                // Frame 2 (t=33ms):  0.14 — rapid decay
+                // Frame 3 (t=50ms):  0.05 — into flash phase
+                let progress = (elapsed / strike_ms.max(1.0)).min(1.0);
+                intensity * (-progress * 6.0).exp()
             }
             LightningPhase::Flash => {
                 let active_ms = LIGHTNING_ACTIVE_MS as f32;
@@ -416,6 +418,18 @@ impl AtmosphericEvent for LightningEvent {
                 );
             }
         }
+    }
+
+    fn pulse_factor(&self, now: Instant) -> f32 {
+        if !matches!(self.phase, LightningPhase::Strike) {
+            return 0.0;
+        }
+        let strike_ms = (LIGHTNING_ACTIVE_MS as f32) * LIGHTNING_STRIKE_FRACTION;
+        let elapsed = now.saturating_duration_since(self.phase_start).as_millis() as f32;
+        let progress = (elapsed / strike_ms.max(1.0)).min(1.0);
+        // Sharp pulse: instant peak, rapid decay.
+        // t=0ms: 1.0  t=17ms: 0.22  t=33ms: 0.05
+        (-progress * 4.0).exp()
     }
 
     fn seed_phosphor(

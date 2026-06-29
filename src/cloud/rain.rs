@@ -454,6 +454,14 @@ impl Cloud {
                 self.cols,
                 self.lines,
             );
+
+            // Global illumination pulse: subtle screen-wide brightness boost
+            // during lightning strike moments. Applied as a uniform +6% white
+            // blend on all dirty cells, decaying exponentially with the strike.
+            let pulse = self.event_manager.global_pulse_factor(now);
+            if pulse > 0.005 {
+                self.apply_global_illumination_pulse(frame, pulse);
+            }
         }
 
         // --- Autonomous cinematic ecosystem tick ---

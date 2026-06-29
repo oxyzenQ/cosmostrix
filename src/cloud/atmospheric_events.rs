@@ -113,6 +113,13 @@ pub trait AtmosphericEvent: Send {
         cols: u16,
         lines: u16,
     );
+
+    /// Returns the current global illumination pulse factor [0.0, 1.0].
+    /// Used during strike/peak moments to subtly brighten the entire scene.
+    /// Default implementation returns 0.0 (no pulse).
+    fn pulse_factor(&self, _now: Instant) -> f32 {
+        0.0
+    }
 }
 
 // ── Trigger types ─────────────────────────────────────────────────────────
@@ -245,6 +252,15 @@ impl AtmosphericEventManager {
         self.events.is_empty()
     }
 
+    /// Returns the maximum global illumination pulse factor across all active events.
+    /// Used to apply a subtle screen-wide brightness pulse during strike moments.
+    pub fn global_pulse_factor(&self, now: Instant) -> f32 {
+        self.events
+            .iter()
+            .map(|e| e.pulse_factor(now))
+            .fold(0.0f32, f32::max)
+    }
+
     /// Enable atmospheric events (called when entering interactive mode).
     pub fn enable_events(&mut self) {
         self.events_enabled = true;
@@ -284,7 +300,7 @@ impl AtmosphericEventManager {
         }
 
         // Don't evaluate triggers too frequently (at most once per frame)
-        let _elapsed = now
+        let elapsed_sec = now
             .saturating_duration_since(self.last_trigger_eval)
             .as_secs_f64();
         self.last_trigger_eval = now;
@@ -324,10 +340,13 @@ impl AtmosphericEventManager {
                     chance_per_sec,
                     cooldown_secs,
                 } => {
+                    // Delta-time scaled probability: chance_per_sec × elapsed_sec
+                    // ensures consistent event frequency regardless of frame rate.
+                    let probability = (*chance_per_sec as f32) * (elapsed_sec as f32).min(1.0);
                     let roll: f32 = rand::distr::Uniform::new(0.0, 1.0)
                         .expect("[0,1) always valid")
                         .sample(&mut self.rng);
-                    if roll < *chance_per_sec as f32 {
+                    if roll < probability {
                         trigger.cooldown_until =
                             Some(now + std::time::Duration::from_secs_f64(*cooldown_secs));
                         true

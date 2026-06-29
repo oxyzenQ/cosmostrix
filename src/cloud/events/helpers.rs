@@ -10,6 +10,8 @@
 //! to avoid duplicating gaussian falloff, radial gradient, and
 //! screen-space line drawing logic.
 
+use rand::distr::Distribution;
+
 /// Compute a 1D gaussian falloff factor for a distance from center.
 /// `dist` is the distance, `sigma` controls spread.
 /// Returns a value in [0.0, 1.0] — 1.0 at the center, fading toward 0.
@@ -79,14 +81,43 @@ pub fn compute_message_bounds(
 }
 
 /// Select a bolt character based on the direction of travel.
-/// Vertical movement → `│`, diagonal → `/` or `\`, strong diagonal → `║`.
+/// Returns one of 8 glyphs for natural thickness variation:
+///   Vertical:   │ ┃ ┆ (thick, medium, thin)
+///   Diagonal L: ╲ ╲ (repeated for probability distribution)
+///   Diagonal R: ╱ ╱
+/// The probability distribution favors ╲/╱ for diagonals and varies
+/// thickness for vertical segments to avoid visual monotony.
 #[inline]
-pub fn bolt_char_for_step(dcol: i16, _dline: i16) -> char {
+pub fn bolt_char_for_step(dcol: i16, _dline: i16, rng: &mut impl rand::Rng) -> char {
+    let roll: f32 = rand::distr::Uniform::new(0.0, 1.0)
+        .expect("[0,1) always valid")
+        .sample(rng);
     match dcol {
         -3..=-2 => '╲',
-        -1 => '╲',
-        0 => '│',
-        1 => '╱',
+        -1 => {
+            if roll < 0.3 {
+                '┃'
+            } else {
+                '╲'
+            }
+        }
+        0 => {
+            // Vertical: vary thickness — 50% medium, 30% thick, 20% thin
+            if roll < 0.5 {
+                '│'
+            } else if roll < 0.8 {
+                '┃'
+            } else {
+                '┆'
+            }
+        }
+        1 => {
+            if roll < 0.3 {
+                '┃'
+            } else {
+                '╱'
+            }
+        }
         2..=3 => '╱',
         _ => '│',
     }

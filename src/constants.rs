@@ -808,7 +808,8 @@ pub const EVENT_PERF_GATE: f32 = 0.5;
 pub const EVENT_AMBIENT_COOLDOWN_SECS: f64 = 20.0;
 
 /// Ambient lightning chance per second (rare idle appearance).
-pub const LIGHTNING_AMBIENT_CHANCE_PER_SEC: f64 = 0.006;
+/// With delta-time scaling: ~1 bolt per 80-90 seconds average (including cooldown).
+pub const LIGHTNING_AMBIENT_CHANCE_PER_SEC: f64 = 0.015;
 
 /// Startup burst: delay before first bolt in milliseconds.
 pub const LIGHTNING_STARTUP_DELAY_MS: u64 = 800;
