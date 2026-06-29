@@ -52,6 +52,7 @@ pub struct CloudConfig {
     pub user_ranges: Vec<(char, char)>,
     pub def_ascii: bool,
     pub auto_color_drift: bool,
+    pub no_lightning: bool,
     /// Atmosphere modulation for the runtime seam. Default is identity (Disabled).
     /// Wired through derive_effective_runtime but identity by default.
     pub(crate) atmosphere_modulation: AtmosphereRuntimeModulation,
@@ -104,6 +105,9 @@ impl CloudConfig {
         // from ColorEcosystem is suppressed so that explicit CLI/config/profile
         // color remains sticky across the entire session.
         cloud.auto_color_drift = self.auto_color_drift;
+
+        // Lightning events: disabled via --no-lightning flag
+        cloud.no_lightning = self.no_lightning;
 
         if let Some(msg) = &self.message {
             cloud.set_message_border(!self.message_no_border);

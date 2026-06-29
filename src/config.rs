@@ -581,6 +581,14 @@ pub struct Args {
     pub noglitch: bool,
 
     #[arg(
+        long = "no-lightning",
+        default_value_t = false,
+        hide = true,
+        help = "Disable atmospheric lightning events"
+    )]
+    pub no_lightning: bool,
+
+    #[arg(
         short = 'r',
         long = "rippct",
         default_value_t = 33.33333,

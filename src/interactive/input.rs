@@ -145,6 +145,9 @@ pub(super) fn handle_keybinding(
         (KeyCode::Char('g'), _) => {
             cloud.set_glitchy(!cloud.glitchy);
         }
+        (KeyCode::Char('l' | 'L'), _) => {
+            cloud.activate_storm_mode(Instant::now());
+        }
         (KeyCode::Char('p'), _) => {
             return cloud.toggle_pause();
         }

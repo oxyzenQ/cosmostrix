@@ -752,6 +752,7 @@ fn main() -> std::io::Result<()> {
         user_ranges,
         def_ascii,
         auto_color_drift: args.auto_color_drift,
+        no_lightning: args.no_lightning,
         // Phase 10: atmosphere modulation resolved from config/profile.
         atmosphere_modulation,
         atmosphere_mode,

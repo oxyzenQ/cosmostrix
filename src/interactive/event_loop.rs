@@ -148,7 +148,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
     // Enable atmospheric events for interactive mode.
-    cloud.enable_events();
+    // --no-lightning flag skips event activation.
+    if !cfg.no_lightning {
+        cloud.enable_events();
+    }
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 
@@ -514,6 +517,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         cloud.set_max_sim_delta(Duration::from_secs_f64(sim_cap_s));
 
         let work_start = Instant::now();
+        // Pass idle state to Cloud for Weather Director tick
+        cloud.is_idle = is_idle;
         cloud.rain(&mut frame);
         // Cache dirty checks once per frame to avoid redundant method calls.
         let is_dirty_all = frame.is_dirty_all();

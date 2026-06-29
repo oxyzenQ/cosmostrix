@@ -792,6 +792,8 @@ pub const EVENT_MAX_PHOSPHOR_DECAY_FRAMES: u64 = 90;
 pub const LIGHTNING_WANDER_FRACTION: f32 = 0.25;
 
 /// Lightning zigzag frequency: direction change every N rows on average.
+/// Controls horizontal zigzag frequency per row: larger = smoother.
+#[allow(dead_code)]
 pub const LIGHTNING_ZIGZAG_AVG: u16 = 3;
 
 /// Lightning vertical step per segment (rows).
@@ -799,6 +801,7 @@ pub const LIGHTNING_VSTEP_MIN: u16 = 2;
 pub const LIGHTNING_VSTEP_MAX: u16 = 6;
 
 /// Lightning horizontal step per segment (columns).
+#[allow(dead_code)]
 pub const LIGHTNING_HSTEP_MAX: i16 = 3;
 
 /// Trigger evaluation is skipped when perf_pressure exceeds this.
@@ -829,3 +832,36 @@ pub const EVENT_TRANSITION_GRACE_MS: u64 = 400;
 /// Default lightning intensity (brightness multiplier).
 #[allow(dead_code)]
 pub const LIGHTNING_DEFAULT_INTENSITY: f32 = 1.0;
+
+// ---------------------------------------------------------------------------
+// Weather Director & Electrical Charge (v10.0.0 Phase 2D)
+// ---------------------------------------------------------------------------
+
+/// Charge accumulation rate per second (when idle/normal).
+pub const CHARGE_RATE_BASE: f32 = 0.012;
+/// Charge accumulation multiplier during Storm Mode.
+pub const CHARGE_RATE_STORM: f32 = 0.06;
+/// Charge accumulation boost per anomaly zone present.
+pub const CHARGE_RATE_ANOMALY_BOOST: f32 = 0.008;
+/// Charge threshold: Weather Director considers scheduling a strike.
+pub const CHARGE_THRESHOLD_STRIKE: f32 = 0.45;
+/// Charge threshold: high probability of scheduling.
+pub const CHARGE_THRESHOLD_HIGH: f32 = 0.75;
+/// Charge discharged per strike (fraction of current charge).
+pub const CHARGE_DISCHARGE_PER_STRIKE: f32 = 0.6;
+/// Minimum charge retained after discharge.
+pub const CHARGE_MIN_RETAINED: f32 = 0.05;
+/// Weather Director tick interval in seconds.
+pub const WEATHER_TICK_SECS: f32 = 3.0;
+/// Storm Mode duration in seconds.
+pub const STORM_MODE_DURATION_SECS: f32 = 18.0;
+/// Storm Mode cooldown before it can be activated again (seconds).
+pub const STORM_MODE_COOLDOWN_SECS: f32 = 60.0;
+/// Max recent strikes tracked in history.
+pub const STRIKE_HISTORY_SIZE: usize = 8;
+/// Minimum column distance from previous strike to avoid repetition.
+pub const STRIKE_HISTORY_COL_DISTANCE: u16 = 12;
+/// Return stroke probability (chance that a bolt produces secondary flashes).
+pub const RETURN_STROKE_CHANCE: f32 = 0.25;
+/// Maximum return strokes (flashes after the initial bolt).
+pub const RETURN_STROKE_MAX: usize = 2;

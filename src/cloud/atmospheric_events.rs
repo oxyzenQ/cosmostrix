@@ -15,8 +15,18 @@
 //!
 //! - **AtmosphericEvent**: Trait for event types (render, update, lifecycle).
 //! - **EventCtx**: Read-only rendering context, mirrors the DrawCtx pattern.
-//! - **AtmosphericEventManager**: Owns active events + trigger system.
+//! - **AtmosphericEventManager**: Owns active events + trigger system + Weather Director.
 //! - **EventTrigger**: Registered trigger conditions, evaluated once per frame.
+//!
+//! ## Weather Director (v10.0.0 Phase 2D)
+//!
+//! An invisible electrical charge system [0.0, 1.0] accumulates from:
+//! - Base idle rate (CHARGE_RATE_BASE)
+//! - Anomaly zone density boost (CHARGE_RATE_ANOMALY_BOOST per zone)
+//! - Enhanced rate during Storm Mode (CHARGE_RATE_STORM)
+//!
+//! The Weather Director uses charge level to make probabilistic strike
+//! decisions, scaling ambient chance by charge saturation.
 //!
 //! ## Lifecycle
 //!
@@ -161,6 +171,21 @@ impl TriggerCondition {
     }
 }
 
+// ── Strike Record ─────────────────────────────────────────────────────────
+
+/// A record of a recent lightning strike used for anti-repetition logic.
+#[derive(Clone, Copy, Debug)]
+struct StrikeRecord {
+    /// Bolt family index (0-5).
+    bolt_family: u8,
+    /// Starting column of the strike.
+    start_col: u16,
+    /// Overall directional bias: negative = left, positive = right.
+    direction: i8,
+    /// Length as a fraction of screen height [0.0, 1.0].
+    length_pct: f32,
+}
+
 // ── Event Manager ─────────────────────────────────────────────────────────
 
 /// Manages active atmospheric events and their trigger conditions.
@@ -168,6 +193,9 @@ impl TriggerCondition {
 /// Owned by Cloud. Evaluates triggers once per frame at the top of
 /// `rain_at()`. Renders active events after anomalies and before
 /// atmospheric frame effects.
+///
+/// The Weather Director adds an invisible electrical charge system
+/// that accumulates over time and drives probabilistic strike decisions.
 pub(super) struct AtmosphericEventManager {
     /// Active events (trait objects for polymorphism).
     events: SmallVec<[Box<dyn AtmosphericEvent>; 2]>,
@@ -185,6 +213,20 @@ pub(super) struct AtmosphericEventManager {
     event_decay_frame: u64,
     /// Events are opt-in; disabled by default (tests, bench).
     events_enabled: bool,
+
+    // ── Weather Director (v10.0.0 Phase 2D) ──
+    /// Invisible electrical charge [0.0, 1.0].
+    weather_charge: f32,
+    /// Last weather evaluation timestamp.
+    weather_last_tick: Instant,
+    /// Storm Mode active flag.
+    storm_mode_active: bool,
+    /// When Storm Mode expires.
+    storm_mode_end: Option<Instant>,
+    /// Storm Mode cooldown — cannot re-activate before this time.
+    storm_mode_cooldown: Option<Instant>,
+    /// Recent strike history for anti-repeat.
+    strike_history: SmallVec<[StrikeRecord; 8]>,
 }
 
 impl AtmosphericEventManager {
@@ -202,6 +244,12 @@ impl AtmosphericEventManager {
             total_spawned: 0,
             event_decay_frame: 0,
             events_enabled: false,
+            weather_charge: 0.0,
+            weather_last_tick: now,
+            storm_mode_active: false,
+            storm_mode_end: None,
+            storm_mode_cooldown: None,
+            strike_history: SmallVec::new(),
         };
 
         // Register default triggers
@@ -245,6 +293,14 @@ impl AtmosphericEventManager {
             }
             trigger.cooldown_until = None;
         }
+
+        // Reset Weather Director state
+        self.weather_charge = 0.0;
+        self.weather_last_tick = now;
+        self.storm_mode_active = false;
+        self.storm_mode_end = None;
+        self.storm_mode_cooldown = None;
+        self.strike_history.clear();
     }
 
     /// Returns true if no events are active.
@@ -270,6 +326,257 @@ impl AtmosphericEventManager {
     pub fn active_count(&self) -> usize {
         self.events.len()
     }
+
+    // ── Weather Director ─────────────────────────────────────────────────
+
+    /// Accumulate charge and evaluate weather state.
+    /// Called periodically (every ~3s) from rain_at().
+    pub fn weather_tick(&mut self, now: Instant, anomaly_count: usize, is_idle: bool) {
+        // Only evaluate at WEATHER_TICK_SECS intervals
+        let tick_elapsed = now
+            .saturating_duration_since(self.weather_last_tick)
+            .as_secs_f32();
+        if tick_elapsed < WEATHER_TICK_SECS {
+            return;
+        }
+        self.weather_last_tick = now;
+
+        // Check Storm Mode expiry
+        if self.storm_mode_active {
+            if let Some(end) = self.storm_mode_end {
+                if now >= end {
+                    self.storm_mode_active = false;
+                    self.storm_mode_end = None;
+                    self.storm_mode_cooldown =
+                        Some(now + std::time::Duration::from_secs_f32(STORM_MODE_COOLDOWN_SECS));
+                }
+            }
+        }
+
+        // Accumulate charge
+        let rate = if self.storm_mode_active {
+            CHARGE_RATE_STORM
+        } else if is_idle {
+            CHARGE_RATE_BASE * 0.7 // slower accumulation during idle
+        } else {
+            CHARGE_RATE_BASE
+        };
+
+        // Anomaly boost
+        let anomaly_boost = anomaly_count as f32 * CHARGE_RATE_ANOMALY_BOOST;
+
+        // Scale rate by tick interval
+        self.weather_charge =
+            (self.weather_charge + (rate + anomaly_boost) * tick_elapsed).min(1.0);
+
+        // Slow passive decay when no storm and charge is moderate
+        if !self.storm_mode_active && self.weather_charge < CHARGE_THRESHOLD_STRIKE {
+            self.weather_charge = (self.weather_charge - 0.002 * tick_elapsed).max(0.0);
+        }
+    }
+
+    /// Activate Storm Mode manually. Returns true if activated.
+    pub fn activate_storm_mode(&mut self, now: Instant) -> bool {
+        // Guard: already active
+        if self.storm_mode_active {
+            return false;
+        }
+        // Guard: on cooldown
+        if let Some(cooldown) = self.storm_mode_cooldown {
+            if now < cooldown {
+                return false;
+            }
+        }
+
+        self.storm_mode_active = true;
+        self.storm_mode_end =
+            Some(now + std::time::Duration::from_secs_f32(STORM_MODE_DURATION_SECS));
+        self.storm_mode_cooldown = None;
+
+        // Boost charge to at least the strike threshold
+        if self.weather_charge < CHARGE_THRESHOLD_STRIKE {
+            self.weather_charge = CHARGE_THRESHOLD_STRIKE;
+        }
+
+        true
+    }
+
+    /// Returns true if Storm Mode is currently active.
+    pub fn is_storm_active(&self, now: Instant) -> bool {
+        if !self.storm_mode_active {
+            return false;
+        }
+        if let Some(end) = self.storm_mode_end {
+            if now >= end {
+                return false;
+            }
+        }
+        true
+    }
+
+    // ── Bolt Family Selection ─────────────────────────────────────────────
+
+    /// Select a bolt family with weighted probabilities.
+    /// Returns (family_index, length_pct, brightness_mult).
+    fn select_bolt_family(&mut self) -> (u8, f32, f32) {
+        let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
+        let roll: f32 = uniform.sample(&mut self.rng);
+
+        // Weighted selection with cumulative thresholds:
+        // 0: Straight (30%), 1: Jagged (25%), 2: Forked (15%),
+        // 3: Broken (10%), 4: Ribbon (12%), 5: Heavy (8%)
+        let family = if roll < 0.30 {
+            0u8
+        } else if roll < 0.55 {
+            1u8
+        } else if roll < 0.70 {
+            2u8
+        } else if roll < 0.80 {
+            3u8
+        } else if roll < 0.92 {
+            4u8
+        } else {
+            5u8
+        };
+
+        // During storm mode, bias toward more dramatic families
+        let family = if self.storm_mode_active && family <= 2 {
+            // Upgrade to heavier families
+            if uniform.sample(&mut self.rng) < 0.4 {
+                if family == 0 {
+                    4u8
+                } else {
+                    family + 2
+                }
+            } else {
+                family
+            }
+        } else {
+            family
+        };
+
+        // Generate per-family length and brightness
+        let len_min: f32;
+        let len_max: f32;
+        let brightness: f32;
+        match family {
+            0 => {
+                len_min = 0.4;
+                len_max = 0.9;
+                brightness = 0.8;
+            }
+            1 => {
+                len_min = 0.5;
+                len_max = 1.0;
+                brightness = 1.0;
+            }
+            2 => {
+                len_min = 0.6;
+                len_max = 1.0;
+                brightness = 0.9;
+            }
+            3 => {
+                len_min = 0.3;
+                len_max = 0.7;
+                brightness = 0.7;
+            }
+            4 => {
+                len_min = 0.5;
+                len_max = 1.0;
+                brightness = 1.1;
+            }
+            _ => {
+                len_min = 0.8;
+                len_max = 1.0;
+                brightness = 1.3;
+            }
+        }
+
+        let length_pct = len_min + uniform.sample(&mut self.rng) * (len_max - len_min);
+        (family, length_pct, brightness)
+    }
+
+    // ── Strike Decision ───────────────────────────────────────────────────
+
+    /// Weather Director decides whether to schedule a strike.
+    fn should_strike(&mut self) -> bool {
+        let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
+
+        if self.weather_charge < CHARGE_THRESHOLD_STRIKE {
+            return false;
+        }
+
+        // Probability scales with charge:
+        // At threshold (0.45): ~10% chance
+        // At high (0.75): ~60% chance
+        // At full (1.0): ~90% chance
+        let probability = if self.weather_charge >= CHARGE_THRESHOLD_HIGH {
+            // High probability zone
+            0.6 + (self.weather_charge - CHARGE_THRESHOLD_HIGH) / (1.0 - CHARGE_THRESHOLD_HIGH)
+                * 0.3
+        } else {
+            // Threshold to high zone
+            (self.weather_charge - CHARGE_THRESHOLD_STRIKE)
+                / (CHARGE_THRESHOLD_HIGH - CHARGE_THRESHOLD_STRIKE)
+                * 0.5
+                + 0.1
+        };
+
+        // Storm Mode doubles the probability
+        let probability = if self.storm_mode_active {
+            probability * 2.0
+        } else {
+            probability
+        };
+
+        let roll: f32 = uniform.sample(&mut self.rng);
+        roll < probability
+    }
+
+    // ── Anti-Repetition ───────────────────────────────────────────────────
+
+    /// Record a strike in the history buffer.
+    fn record_strike(&mut self, family: u8, start_col: u16, direction: i8, length_pct: f32) {
+        if self.strike_history.len() >= STRIKE_HISTORY_SIZE {
+            self.strike_history.remove(0);
+        }
+        self.strike_history.push(StrikeRecord {
+            bolt_family: family,
+            start_col,
+            direction,
+            length_pct,
+        });
+    }
+
+    /// Check whether a proposed strike is too similar to recent history.
+    /// Returns true if the strike would be repetitive and should be avoided.
+    fn avoid_repetition(&self, family: u8, start_col: u16, direction: i8, length_pct: f32) -> bool {
+        for record in &self.strike_history {
+            // Same family AND close column AND same direction
+            if record.bolt_family == family {
+                let col_diff = start_col.abs_diff(record.start_col);
+                if col_diff < STRIKE_HISTORY_COL_DISTANCE
+                    && record.direction.signum() == direction.signum()
+                {
+                    return true;
+                }
+            }
+            // Same family AND nearly identical length
+            if record.bolt_family == family {
+                let len_diff = (length_pct - record.length_pct).abs();
+                if len_diff < 0.15 {
+                    // Only block if length is also very similar
+                    let col_diff = start_col.abs_diff(record.start_col);
+                    if col_diff < STRIKE_HISTORY_COL_DISTANCE / 2 {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    // ── Trigger Evaluation ────────────────────────────────────────────────
 
     /// Evaluate all triggers and spawn new events as appropriate.
     /// Called once per frame before simulation update.
@@ -310,84 +617,184 @@ impl AtmosphericEventManager {
             return;
         }
 
-        // Evaluate each trigger
-        for trigger in &mut self.triggers {
-            if self.events.len() >= EVENT_MAX_CONCURRENT {
-                break;
+        // Phase 1: Evaluate triggers (borrows self.triggers mutably)
+        let mut should_fire = false;
+        {
+            let triggers_len = self.triggers.len();
+            for i in 0..triggers_len {
+                if self.events.len() >= EVENT_MAX_CONCURRENT {
+                    break;
+                }
+
+                // Check cooldown
+                if let Some(until) = self.triggers[i].cooldown_until {
+                    if now < until {
+                        continue;
+                    }
+                }
+
+                should_fire = match &mut self.triggers[i].condition {
+                    TriggerCondition::OnStartup { delay_ms, fired } => {
+                        if *fired {
+                            continue;
+                        }
+                        let elapsed =
+                            now.saturating_duration_since(self.birth_time).as_millis() as u64;
+                        if elapsed >= *delay_ms {
+                            *fired = true;
+                            true
+                        } else {
+                            continue;
+                        }
+                    }
+                    TriggerCondition::OnAmbient {
+                        chance_per_sec,
+                        cooldown_secs,
+                    } => {
+                        // Scale ambient chance by weather charge level:
+                        // base_chance * (0.3 + charge * 1.4)
+                        let charge_mult = 0.3 + self.weather_charge * 1.4;
+                        let probability = (*chance_per_sec as f32)
+                            * charge_mult
+                            * (elapsed_sec as f32).min(1.0);
+                        let roll: f32 = rand::distr::Uniform::new(0.0, 1.0)
+                            .expect("[0,1) always valid")
+                            .sample(&mut self.rng);
+                        if roll < probability {
+                            self.triggers[i].cooldown_until = Some(
+                                now + std::time::Duration::from_secs_f64(*cooldown_secs),
+                            );
+                            true
+                        } else {
+                            continue;
+                        }
+                    }
+                    TriggerCondition::OnAnomalyDensity {
+                        threshold,
+                        cooldown_secs,
+                    } => {
+                        if anomaly_density >= *threshold {
+                            self.triggers[i].cooldown_until = Some(
+                                now + std::time::Duration::from_secs_f64(*cooldown_secs),
+                            );
+                            true
+                        } else {
+                            continue;
+                        }
+                    }
+                    TriggerCondition::OnSceneEnter { cooldown_secs } => {
+                        self.triggers[i].cooldown_until = Some(
+                            now + std::time::Duration::from_secs_f64(*cooldown_secs),
+                        );
+                        continue;
+                    }
+                };
+
+                if should_fire {
+                    break; // Only fire one event per frame
+                }
+            }
+        }
+
+        // Phase 2: Spawn event (self.triggers borrow released)
+        if should_fire && self.events.len() < EVENT_MAX_CONCURRENT {
+            // Weather Director decides: use charge-based strike decision
+            if !self.should_strike() {
+                return;
             }
 
-            // Check cooldown
-            if let Some(until) = trigger.cooldown_until {
-                if now < until {
-                    continue;
-                }
-            }
+            // Select bolt family and parameters
+            let (bolt_family, length_pct, brightness) = self.select_bolt_family();
 
-            let should_fire = match &mut trigger.condition {
-                TriggerCondition::OnStartup { delay_ms, fired } => {
-                    if *fired {
-                        continue;
-                    }
-                    let elapsed = now.saturating_duration_since(self.birth_time).as_millis() as u64;
-                    if elapsed >= *delay_ms {
-                        *fired = true;
-                        true
-                    } else {
-                        continue;
-                    }
-                }
-                TriggerCondition::OnAmbient {
-                    chance_per_sec,
-                    cooldown_secs,
-                } => {
-                    // Delta-time scaled probability: chance_per_sec × elapsed_sec
-                    // ensures consistent event frequency regardless of frame rate.
-                    let probability = (*chance_per_sec as f32) * (elapsed_sec as f32).min(1.0);
-                    let roll: f32 = rand::distr::Uniform::new(0.0, 1.0)
-                        .expect("[0,1) always valid")
-                        .sample(&mut self.rng);
-                    if roll < probability {
-                        trigger.cooldown_until =
-                            Some(now + std::time::Duration::from_secs_f64(*cooldown_secs));
-                        true
-                    } else {
-                        continue;
-                    }
-                }
-                TriggerCondition::OnAnomalyDensity {
-                    threshold,
-                    cooldown_secs,
-                } => {
-                    if anomaly_density >= *threshold {
-                        trigger.cooldown_until =
-                            Some(now + std::time::Duration::from_secs_f64(*cooldown_secs));
-                        true
-                    } else {
-                        continue;
-                    }
-                }
-                TriggerCondition::OnSceneEnter { cooldown_secs } => {
-                    // Scene entry triggers are fired externally (via
-                    // `fire_scene_entry`), not evaluated here.
-                    trigger.cooldown_until =
-                        Some(now + std::time::Duration::from_secs_f64(*cooldown_secs));
-                    // Don't fire — this is set externally
-                    continue;
-                }
-            };
+            // Generate candidate position
+            let uniform =
+                rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
+            let col_range = (cols as f32 * 0.8) as u16;
+            let col_start = (cols as f32 * 0.1) as u16;
+            let start_col =
+                col_start + (uniform.sample(&mut self.rng) * col_range as f32) as u16;
 
-            if should_fire {
-                let intensity = 1.0 + (self.total_spawned as f32 * 0.03).min(0.3);
+            // Direction bias from position on screen
+            let center = cols / 2;
+            let direction: i8 = if start_col > center { -1 } else { 1 };
+
+            // Anti-repetition: avoid repeating similar strikes
+            if self.avoid_repetition(bolt_family, start_col, direction, length_pct) {
+                // Try up to 3 alternative positions
+                let mut found = false;
+                let mut best_family = bolt_family;
+                let mut best_col = start_col;
+                let mut best_dir = direction;
+                let mut best_len = length_pct;
+
+                for _attempt in 0..3 {
+                    let (alt_family, alt_len, _alt_brightness) = self.select_bolt_family();
+                    let alt_col =
+                        col_start + (uniform.sample(&mut self.rng) * col_range as f32) as u16;
+                    let alt_dir: i8 = if alt_col > center { -1 } else { 1 };
+                    if !self.avoid_repetition(alt_family, alt_col, alt_dir, alt_len) {
+                        best_family = alt_family;
+                        best_col = alt_col;
+                        best_dir = alt_dir;
+                        best_len = alt_len;
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    return;
+                }
+
+                // Generate with the alt parameters
+                let (_, _, alt_brightness) = self.resolve_family_params(best_family);
+                let final_intensity = 1.0 + (self.total_spawned as f32 * 0.02).min(0.2);
+                let intensity = final_intensity * alt_brightness;
+
+                // Determine return strokes
+                let return_strokes = self.determine_return_strokes();
+
                 let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
                     cols,
                     lines,
                     &mut self.rng,
                     intensity,
                     palette_color,
+                    best_family,
+                    best_len,
+                    return_strokes,
                 ));
                 self.events.push(event);
                 self.total_spawned += 1;
+
+                // Record and discharge
+                self.record_strike(best_family, best_col, best_dir, best_len);
+            } else {
+                let final_intensity = 1.0 + (self.total_spawned as f32 * 0.02).min(0.2);
+                let intensity = final_intensity * brightness;
+
+                // Determine return strokes
+                let return_strokes = self.determine_return_strokes();
+
+                let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
+                    cols,
+                    lines,
+                    &mut self.rng,
+                    intensity,
+                    palette_color,
+                    bolt_family,
+                    length_pct,
+                    return_strokes,
+                ));
+                self.events.push(event);
+                self.total_spawned += 1;
+
+                // Record and discharge
+                self.record_strike(bolt_family, start_col, direction, length_pct);
             }
+
+            // Discharge: reduce charge by configured fraction
+            let discharge = self.weather_charge * CHARGE_DISCHARGE_PER_STRIKE;
+            self.weather_charge = (self.weather_charge - discharge).max(CHARGE_MIN_RETAINED);
         }
     }
 
@@ -428,6 +835,9 @@ impl AtmosphericEventManager {
             &mut self.rng,
             1.0,
             palette_color,
+            1,   // Jagged by default for scene entry
+            0.7, // 70% screen height
+            0,   // No return strokes for scene entry
         ));
         self.events.push(event);
         self.total_spawned += 1;
@@ -526,6 +936,37 @@ impl AtmosphericEventManager {
             } else {
                 i += 1;
             }
+        }
+    }
+
+    // ── Private Helpers ────────────────────────────────────────────────────
+
+    /// Resolve brightness for a given bolt family (used during alternative
+    /// position selection in anti-repetition path).
+    fn resolve_family_params(&self, family: u8) -> (u8, f32, f32) {
+        match family {
+            0 => (0, 0.7, 0.8),
+            1 => (1, 0.75, 1.0),
+            2 => (2, 0.8, 0.9),
+            3 => (3, 0.5, 0.7),
+            4 => (4, 0.75, 1.1),
+            _ => (5, 0.9, 1.3),
+        }
+    }
+
+    /// Determine number of return strokes for a bolt.
+    fn determine_return_strokes(&mut self) -> u8 {
+        let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
+        let roll: f32 = uniform.sample(&mut self.rng);
+        if roll < RETURN_STROKE_CHANCE {
+            // 1 or 2 return strokes
+            if uniform.sample(&mut self.rng) < 0.5 {
+                1
+            } else {
+                (RETURN_STROKE_MAX as u8).min(2)
+            }
+        } else {
+            0
         }
     }
 }

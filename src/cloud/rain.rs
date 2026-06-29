@@ -513,6 +513,11 @@ impl Cloud {
         }
         self.storytelling.expire_moments(now);
 
+        // ── Weather Director tick ──
+        let anomaly_count = self.anomaly_zones.len();
+        self.event_manager
+            .weather_tick(now, anomaly_count, self.is_idle);
+
         // 5. Profile interpolation (smooth transition)
         if let Some(transition_start) = self.profile_transition_start {
             let elapsed = now

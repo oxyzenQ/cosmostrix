@@ -324,11 +324,13 @@ fn benchmark_fields_unchanged() {
         user_ranges: vec![],
         def_ascii: true,
         auto_color_drift: false,
+        no_lightning: false,
         atmosphere_modulation: crate::atmosphere_apply::AtmosphereRuntimeModulation::identity(),
         atmosphere_mode: crate::atmosphere_apply::AtmosphereApplicationMode::Disabled,
     };
     assert!(!cfg.benchmark);
     assert!(!cfg.auto_color_drift);
+    assert!(!cfg.no_lightning);
 }
 
 #[test]
