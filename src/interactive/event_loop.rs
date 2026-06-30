@@ -321,8 +321,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     }
                     Event::Key(k) if k.kind == KeyEventKind::Press => {
                         let activity_time = Instant::now();
-                        let queued_event_ready = Terminal::poll_event(Duration::from_millis(0))?;
-                        if paste_guard.ignore_plain_key(&k, activity_time, queued_event_ready) {
+                        if paste_guard.ignore_plain_key(&k, activity_time) {
                             let _ = register_activity(
                                 &mut last_input_time,
                                 &mut last_resync_time,

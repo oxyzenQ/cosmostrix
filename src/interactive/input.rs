@@ -40,17 +40,27 @@ pub(super) struct PasteBurstGuard {
 }
 
 impl PasteBurstGuard {
+    /// Returns true if the given plain-printable key should be silently
+    /// dropped because we are inside a bracketed-paste suppression window.
+    ///
+    /// Only the bracketed-paste signal (`note_bracketed_paste`) arms the
+    /// suppression window. We deliberately do NOT inspect the OS event queue
+    /// for "another event is ready" — on modern terminals that emit
+    /// Press+Release pairs (kitty / foot / wezterm / alacritty / contour /
+    /// Windows Console), the Release event is always queued immediately
+    /// after the Press, so a queue-ready check would drop every single
+    /// printable key press. That made `L` (storm mode), `c` (color cycle),
+    /// `s` (charset), `p` (pause), etc. unreachable on those terminals.
     pub(super) fn ignore_plain_key(
         &mut self,
         key: &crossterm::event::KeyEvent,
         now: Instant,
-        queued_event_ready: bool,
     ) -> bool {
         if !is_plain_printable_key(key) {
             return false;
         }
 
-        if self.suppress_until.is_some_and(|until| now <= until) || queued_event_ready {
+        if self.suppress_until.is_some_and(|until| now <= until) {
             self.suppress_until = Some(now + Duration::from_millis(PASTE_BURST_SUPPRESS_MS));
             true
         } else {

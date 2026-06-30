@@ -105,17 +105,29 @@ mod cases {
         let now = Instant::now();
         let mut guard = PasteBurstGuard::default();
 
-        assert!(!guard.ignore_plain_key(&key('p'), now, false));
+        // No bracketed paste signal armed → plain keys must pass through.
+        // This is the critical case for printable shortcuts like L (storm
+        // mode), C (color cycle), S (charset), P (pause) on terminals that
+        // emit Press+Release pairs — previously the queue-ready heuristic
+        // would drop the Press because the Release was already queued.
+        assert!(!guard.ignore_plain_key(&key('p'), now));
+        assert!(!guard.ignore_plain_key(&key('l'), now));
+        assert!(!guard.ignore_plain_key(&key('c'), now));
+        assert!(!guard.ignore_plain_key(&key('s'), now));
     }
 
     #[test]
     fn paste_burst_ignores_shortcut_letters() {
+        // Bracketed paste arms the suppression window; subsequent plain
+        // keys within the window must be dropped so pasted text does not
+        // trigger shortcuts like c/s/p.
         let now = Instant::now();
         let mut guard = PasteBurstGuard::default();
 
-        assert!(guard.ignore_plain_key(&key('p'), now, true));
-        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(1), false));
-        assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(2), false));
+        guard.note_bracketed_paste(now);
+        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1)));
+        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(2)));
+        assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(3)));
     }
 
     #[test]
@@ -123,8 +135,11 @@ mod cases {
         let now = Instant::now();
         let mut guard = PasteBurstGuard::default();
 
-        assert!(guard.ignore_plain_key(&key('p'), now, true));
-        assert!(!guard.ignore_plain_key(&key('p'), now + Duration::from_millis(52), false,));
+        guard.note_bracketed_paste(now);
+        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1)));
+        // After PASTE_BURST_SUPPRESS_MS (50ms) elapses, plain keys must
+        // pass through again.
+        assert!(!guard.ignore_plain_key(&key('p'), now + Duration::from_millis(52)));
     }
 
     #[test]
@@ -134,7 +149,7 @@ mod cases {
 
         guard.note_bracketed_paste(now);
 
-        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1), false));
+        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1)));
     }
 
     #[test]
@@ -169,9 +184,9 @@ mod cases {
 
         // Printable keys during the suppression window should be silently
         // ignored — they must not reach the keybinding handler.
-        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(1), false));
-        assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(1), false));
-        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1), false));
+        assert!(guard.ignore_plain_key(&key('c'), now + Duration::from_millis(1)));
+        assert!(guard.ignore_plain_key(&key('s'), now + Duration::from_millis(1)));
+        assert!(guard.ignore_plain_key(&key('p'), now + Duration::from_millis(1)));
     }
 
     // --- Tab key safety tests ---
@@ -365,6 +380,58 @@ mod cases {
 
         assert_eq!(visited, ["matrix", "signal", "monolith"]);
         assert_eq!(cloud.active_scene(), "monolith");
+    }
+
+    #[test]
+    fn l_key_activates_storm_mode() {
+        // Regression test: on terminals that emit Press+Release pairs
+        // (kitty/foot/wezterm/alacritty/contour/Windows Console), the
+        // paste_guard heuristic was dropping every printable Press because
+        // the Release event was always queued immediately after. This made
+        // L (storm mode), C, S, P, etc. unreachable. After the fix, L must
+        // reach handle_keybinding and actually activate storm mode.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let cfg = make_test_config();
+
+        assert!(
+            !cloud.is_storm_active(),
+            "storm mode should be off initially"
+        );
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key('l'),
+            &mut charset_preset,
+            &cfg,
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert!(cloud.is_storm_active(), "L key must activate storm mode");
+    }
+
+    #[test]
+    fn uppercase_l_key_activates_storm_mode() {
+        // Shift+L should also work — the keybinding matches 'l' | 'L'.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let cfg = make_test_config();
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key('L'),
+            &mut charset_preset,
+            &cfg,
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert!(cloud.is_storm_active(), "Shift+L must activate storm mode");
     }
 
     #[test]
