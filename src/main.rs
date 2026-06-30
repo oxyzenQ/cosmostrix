@@ -36,6 +36,8 @@
 //! and outlier trimming. Optimizations target real bottlenecks identified
 //! through profiling, not hypothetical micro-optimizations.
 
+#[cfg(test)]
+mod ambient_smoke_tests;
 mod app;
 mod atmosphere;
 #[cfg(test)]
