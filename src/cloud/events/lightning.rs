@@ -326,12 +326,24 @@ impl LightningEvent {
 
                 let fg = cell.fg;
                 let (r, g, b) = match fg {
-                    Some(Color::Rgb { r, g, b }) => (r as f32, g as f32, b as f32),
-                    Some(Color::AnsiValue(v)) => {
-                        let v = v as f32 / 255.0 * 255.0;
-                        (v, v, v)
+                    // Use palette::color_to_rgb so that ALL Color variants are
+                    // decoded correctly:
+                    //   - Color::Rgb           (TrueColor)  -> direct destructure
+                    //   - Color::AnsiValue(v)  (Color256)   -> full 6x6x6 cube decode
+                    //                                          (previously bugged:
+                    //                                           treated as grayscale)
+                    //   - Color::Green/Cyan/.. (Color16)    -> named-color RGB table
+                    //                                          (previously skipped:
+                    //                                           `_ => continue`)
+                    //   - Color::White         (Mono)       -> (255,255,255)
+                    //                                          (previously skipped)
+                    // Skipping any of these made illuminate a no-op for entire
+                    // color modes, leaving lightning invisible.
+                    Some(color) => {
+                        let (rr, gg, bb) = crate::palette::color_to_rgb(color);
+                        (rr as f32, gg as f32, bb as f32)
                     }
-                    _ => continue,
+                    None => continue,
                 };
 
                 if col_intensity > 0.0 {
