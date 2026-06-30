@@ -498,16 +498,17 @@ impl Cloud {
     /// during lightning strike moments. Iterates dirty cells only; applies a
     /// uniform white blend proportional to the pulse factor.
     ///
-    /// Pulse intensity is capped at 30% (GLOBAL_PULSE_MAX_INTENSITY) to
-    /// produce a visible screen-wide flash when lightning strikes — the
-    /// "natural storm" feel where ambient light brightens momentarily.
-    /// The pulse fades with the strike's exponential decay.
+    /// Pulse intensity is capped at 12% (GLOBAL_PULSE_MAX_INTENSITY) to
+    /// produce a subtle screen-wide brightening when lightning strikes —
+    /// the "natural storm" feel where ambient light shifts momentarily
+    /// without blinding the viewer. The pulse fades with the strike's
+    /// exponential decay (2-3 frames visibly affected).
     pub(super) fn apply_global_illumination_pulse(
         &self,
         frame: &mut crate::frame::Frame,
         pulse: f32,
     ) {
-        const GLOBAL_PULSE_MAX_INTENSITY: f32 = 0.30;
+        const GLOBAL_PULSE_MAX_INTENSITY: f32 = 0.12;
         let intensity = (pulse * GLOBAL_PULSE_MAX_INTENSITY).clamp(0.0, GLOBAL_PULSE_MAX_INTENSITY);
         if intensity < 0.002 {
             return;

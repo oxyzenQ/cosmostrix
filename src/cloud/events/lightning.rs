@@ -343,9 +343,10 @@ impl LightningEvent {
                 };
 
                 if col_intensity > 0.0 {
-                    // Strong blend toward white: 1.5× multiplier, max 95%.
-                    // This produces a visible flash even on dark palette colors.
-                    let blend = (col_intensity * 1.5).clamp(0.0, 0.95);
+                    // Visible but not blinding blend toward white.
+                    // Linear with 55% cap: green (0,255,0) at peak becomes
+                    // (140,255,140) — clearly brighter, not white-out.
+                    let blend = (col_intensity * 1.0).clamp(0.0, 0.55);
                     let nr = (r + (255.0 - r) * blend) as u8;
                     let ng = (g + (255.0 - g) * blend) as u8;
                     let nb = (b + (255.0 - b) * blend) as u8;

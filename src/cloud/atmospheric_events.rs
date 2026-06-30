@@ -300,9 +300,7 @@ impl AtmosphericEventManager {
 
     // ── Weather Director ─────────────────────────────────────────────────
     /// Accumulate charge and evaluate weather state.
-    /// Called periodically (every ~3s) from rain_at().
     pub fn weather_tick(&mut self, now: Instant, anomaly_count: usize, is_idle: bool) {
-        // Only evaluate at WEATHER_TICK_SECS intervals
         let tick_elapsed = now
             .saturating_duration_since(self.weather_last_tick)
             .as_secs_f32();
@@ -311,7 +309,6 @@ impl AtmosphericEventManager {
         }
         self.weather_last_tick = now;
 
-        // Check Storm Mode expiry
         if self.storm_mode_active {
             if let Some(end) = self.storm_mode_end {
                 if now >= end {
@@ -323,23 +320,17 @@ impl AtmosphericEventManager {
             }
         }
 
-        // Accumulate charge
         let rate = if self.storm_mode_active {
             CHARGE_RATE_STORM
         } else if is_idle {
-            CHARGE_RATE_BASE * 0.7 // slower accumulation during idle
+            CHARGE_RATE_BASE * 0.7
         } else {
             CHARGE_RATE_BASE
         };
-
-        // Anomaly boost
         let anomaly_boost = anomaly_count as f32 * CHARGE_RATE_ANOMALY_BOOST;
-
-        // Scale rate by tick interval
         self.weather_charge =
             (self.weather_charge + (rate + anomaly_boost) * tick_elapsed).min(1.0);
 
-        // Slow passive decay when no storm and charge is moderate
         if !self.storm_mode_active && self.weather_charge < CHARGE_THRESHOLD_STRIKE {
             self.weather_charge = (self.weather_charge - 0.002 * tick_elapsed).max(0.0);
         }
@@ -404,8 +395,8 @@ impl AtmosphericEventManager {
     /// Force-spawn a single lightning bolt immediately (L key rapid-fire).
     /// Bypasses Storm Mode, charge threshold, and trigger cooldowns — each
     /// call is an independent, instant bolt. Only gate is
-    /// `EVENT_MAX_CONCURRENT`; excess presses are dropped until a live
-    /// bolt finishes (~700ms). Returns true if spawned, false if capped.
+    /// `EVENT_MAX_CONCURRENT`; excess presses drop until a live bolt
+    /// finishes (~700ms). Returns true if spawned, false if capped.
     pub fn force_strike(
         &mut self,
         _now: Instant,
@@ -627,6 +618,7 @@ impl AtmosphericEventManager {
 
         // Phase 1: Evaluate triggers (borrows self.triggers mutably)
         let mut should_fire = false;
+        let mut startup_fired_this_eval = false;
         {
             let triggers_len = self.triggers.len();
             for i in 0..triggers_len {
@@ -650,6 +642,7 @@ impl AtmosphericEventManager {
                             now.saturating_duration_since(self.birth_time).as_millis() as u64;
                         if elapsed >= *delay_ms {
                             *fired = true;
+                            startup_fired_this_eval = true;
                             true
                         } else {
                             continue;
@@ -705,8 +698,12 @@ impl AtmosphericEventManager {
 
         // Phase 2: Spawn event (self.triggers borrow released)
         if should_fire && self.events.len() < EVENT_MAX_CONCURRENT {
-            // Weather Director decides: use charge-based strike decision
-            if !self.should_strike() {
+            // The startup trigger is a one-shot "wake up" bolt that must
+            // always spawn at LIGHTNING_STARTUP_DELAY_MS — it fires long
+            // before charge reaches the strike threshold, so bypass the
+            // charge-based should_strike() gate for it. Ambient and other
+            // triggers still go through the weather-director gate.
+            if !startup_fired_this_eval && !self.should_strike() {
                 return;
             }
 
