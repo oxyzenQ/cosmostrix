@@ -443,10 +443,33 @@ impl Cloud {
             .activate_storm_mode(now, self.cols, self.lines, palette_color)
     }
 
+    /// Force-spawn a single lightning bolt immediately (L key rapid-fire).
+    ///
+    /// Unlike `activate_storm_mode`, this does NOT enter the 18s Storm
+    /// Mode window and does NOT trigger the 60s cooldown — each call is
+    /// an independent, instant bolt. The only rate limit is the
+    /// `EVENT_MAX_CONCURRENT` cap on simultaneously-live bolts.
+    ///
+    /// Returns true if a bolt was spawned; false if the concurrent cap
+    /// was hit (rapid presses faster than bolt lifetime).
+    pub fn force_strike(&mut self, now: Instant) -> bool {
+        let palette_color = self.palette.colors.last().copied();
+        self.event_manager
+            .force_strike(now, self.cols, self.lines, palette_color)
+    }
+
     /// Returns true if Storm Mode is currently active.
     #[must_use]
     pub fn is_storm_active(&self) -> bool {
         self.event_manager.is_storm_active(Instant::now())
+    }
+
+    /// Returns the number of currently-live atmospheric events
+    /// (lightning bolts, ghosts, etc.). Used by tests to verify that
+    /// `force_strike` actually spawns a bolt.
+    #[must_use]
+    pub fn active_event_count(&self) -> usize {
+        self.event_manager.active_count()
     }
 
     /// Set mouse cursor position for interaction effects.

@@ -354,11 +354,9 @@ impl AtmosphericEventManager {
         lines: u16,
         palette_color: Option<Color>,
     ) -> bool {
-        // Guard: already active
         if self.storm_mode_active {
             return false;
         }
-        // Guard: on cooldown
         if let Some(cooldown) = self.storm_mode_cooldown {
             if now < cooldown {
                 return false;
@@ -369,10 +367,9 @@ impl AtmosphericEventManager {
         self.storm_mode_end =
             Some(now + std::time::Duration::from_secs_f32(STORM_MODE_DURATION_SECS));
         self.storm_mode_cooldown = None;
-        // Force 3 immediate bolts + full charge on activation
         self.weather_charge = 1.0;
 
-        // Spawn 3 bolts NOW — don't wait for evaluate_triggers tick
+        // Spawn 3 bolts immediately — don't wait for evaluate_triggers tick.
         for _ in 0..3 {
             let (bolt_family, length_pct, brightness) = self.select_bolt_family();
             let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
@@ -401,6 +398,37 @@ impl AtmosphericEventManager {
                 return false;
             }
         }
+        true
+    }
+
+    /// Force-spawn a single lightning bolt immediately (L key rapid-fire).
+    /// Bypasses Storm Mode, charge threshold, and trigger cooldowns — each
+    /// call is an independent, instant bolt. Only gate is
+    /// `EVENT_MAX_CONCURRENT`; excess presses are dropped until a live
+    /// bolt finishes (~700ms). Returns true if spawned, false if capped.
+    pub fn force_strike(
+        &mut self,
+        _now: Instant,
+        cols: u16,
+        lines: u16,
+        palette_color: Option<Color>,
+    ) -> bool {
+        if self.events.len() >= EVENT_MAX_CONCURRENT {
+            return false;
+        }
+        let (bolt_family, length_pct, brightness) = self.select_bolt_family();
+        let return_strokes = self.determine_return_strokes();
+        let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
+            cols,
+            lines,
+            brightness,
+            palette_color,
+            bolt_family,
+            length_pct,
+            return_strokes,
+        ));
+        self.events.push(event);
+        self.total_spawned += 1;
         true
     }
 
@@ -579,26 +607,20 @@ impl AtmosphericEventManager {
         if !self.events_enabled {
             return;
         }
-        // Performance gate: skip trigger evaluation under high pressure
         if perf_pressure > EVENT_PERF_GATE || is_paused {
             return;
         }
-
-        // Transition grace: skip during scene transitions
         if in_transition {
             return;
         }
 
-        // Don't evaluate triggers too frequently (at most once per frame)
         let elapsed_sec = now
             .saturating_duration_since(self.last_trigger_eval)
             .as_secs_f64();
         self.last_trigger_eval = now;
 
-        // Ghost spawn: independent of normal trigger evaluation
         self.try_spawn_ghost(now, cols, lines, is_paused);
 
-        // Guard: max concurrent events
         if self.events.len() >= EVENT_MAX_CONCURRENT {
             return;
         }
@@ -711,7 +733,7 @@ impl AtmosphericEventManager {
                 let mut best_len = length_pct;
 
                 for _attempt in 0..3 {
-                    let (alt_family, alt_len, _alt_brightness) = self.select_bolt_family();
+                    let (alt_family, alt_len, _) = self.select_bolt_family();
                     let alt_col =
                         col_start + (uniform.sample(&mut self.rng) * col_range as f32) as u16;
                     let alt_dir: i8 = if alt_col > center { -1 } else { 1 };
@@ -728,12 +750,9 @@ impl AtmosphericEventManager {
                     return;
                 }
 
-                // Generate with the alt parameters
                 let (_, _, alt_brightness) = self.resolve_family_params(best_family);
                 let final_intensity = 1.0 + (self.total_spawned as f32 * 0.02).min(0.2);
                 let intensity = final_intensity * alt_brightness;
-
-                // Determine return strokes
                 let return_strokes = self.determine_return_strokes();
 
                 let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
@@ -747,14 +766,10 @@ impl AtmosphericEventManager {
                 ));
                 self.events.push(event);
                 self.total_spawned += 1;
-
-                // Record and discharge
                 self.record_strike(best_family, best_col, best_dir, best_len);
             } else {
                 let final_intensity = 1.0 + (self.total_spawned as f32 * 0.02).min(0.2);
                 let intensity = final_intensity * brightness;
-
-                // Determine return strokes
                 let return_strokes = self.determine_return_strokes();
 
                 let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
@@ -768,8 +783,6 @@ impl AtmosphericEventManager {
                 ));
                 self.events.push(event);
                 self.total_spawned += 1;
-
-                // Record and discharge
                 self.record_strike(bolt_family, start_col, direction, length_pct);
             }
 

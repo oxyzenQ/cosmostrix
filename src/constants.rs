@@ -815,13 +815,20 @@ pub const LIGHTNING_HSTEP_MAX: i16 = 3;
 /// Trigger evaluation is skipped when perf_pressure exceeds this.
 pub const EVENT_PERF_GATE: f32 = 0.5;
 
-/// Cooldown after event trigger activation, minimum seconds.
-pub const EVENT_AMBIENT_COOLDOWN_SECS: f64 = 20.0;
+/// Cooldown after ambient lightning trigger activation, in seconds.
+///
+/// Tuned for the "exclusive masterclass" feel: strikes appear every
+/// several seconds rather than back-to-back, giving each flash room to
+/// breathe without feeling spammy. Previous value (20s) made ambient
+/// lightning too rare to register as a living atmosphere; 8s keeps it
+/// natural and present without becoming noisy.
+pub const EVENT_AMBIENT_COOLDOWN_SECS: f64 = 8.0;
 
 /// Ambient lightning chance per second.
 /// Scaled by charge: effective = base × (0.3 + charge × 1.4).
-/// At full charge: ~1 bolt per 6-8s. At low charge: rare.
-pub const LIGHTNING_AMBIENT_CHANCE_PER_SEC: f64 = 0.12;
+/// At full charge with the 8s cooldown: roughly 1 bolt every 8-10s.
+/// At low charge: rare.
+pub const LIGHTNING_AMBIENT_CHANCE_PER_SEC: f64 = 0.15;
 
 /// Startup burst: delay before first bolt in milliseconds.
 pub const LIGHTNING_STARTUP_DELAY_MS: u64 = 800;
@@ -847,7 +854,13 @@ pub const LIGHTNING_DEFAULT_INTENSITY: f32 = 1.0;
 // ---------------------------------------------------------------------------
 
 /// Charge accumulation rate per second (when idle/normal).
-pub const CHARGE_RATE_BASE: f32 = 0.012;
+///
+/// Tuned so that ambient charge reaches the strike threshold (~0.15)
+/// in roughly 6 seconds from cold start, matching the 8s ambient
+/// cooldown for a natural "every few seconds" cadence. Previous value
+/// (0.012/s) took 12.5s to reach threshold, making ambient lightning
+/// effectively absent during normal play.
+pub const CHARGE_RATE_BASE: f32 = 0.025;
 /// Charge accumulation multiplier during Storm Mode.
 pub const CHARGE_RATE_STORM: f32 = 0.06;
 /// Charge accumulation boost per anomaly zone present.

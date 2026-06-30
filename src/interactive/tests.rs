@@ -383,13 +383,17 @@ mod cases {
     }
 
     #[test]
-    fn l_key_activates_storm_mode() {
+    fn l_key_spawns_lightning_bolt() {
         // Regression test: on terminals that emit Press+Release pairs
         // (kitty/foot/wezterm/alacritty/contour/Windows Console), the
         // paste_guard heuristic was dropping every printable Press because
         // the Release event was always queued immediately after. This made
-        // L (storm mode), C, S, P, etc. unreachable. After the fix, L must
-        // reach handle_keybinding and actually activate storm mode.
+        // L (lightning), C, S, P, etc. unreachable. After the fix, L must
+        // reach handle_keybinding and force-spawn a bolt immediately.
+        //
+        // L is now a direct force_strike (rapid-fire) rather than an
+        // activate_storm_mode call — pressing L should NOT enter Storm
+        // Mode, but SHOULD add a live lightning event.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
@@ -398,6 +402,11 @@ mod cases {
         assert!(
             !cloud.is_storm_active(),
             "storm mode should be off initially"
+        );
+        assert_eq!(
+            cloud.active_event_count(),
+            0,
+            "no events should be live initially"
         );
 
         call_handle_keybinding(
@@ -410,11 +419,19 @@ mod cases {
             &Arc::new(AtomicBool::new(false)),
         );
 
-        assert!(cloud.is_storm_active(), "L key must activate storm mode");
+        assert!(
+            !cloud.is_storm_active(),
+            "L should NOT enter Storm Mode (rapid-fire path)"
+        );
+        assert_eq!(
+            cloud.active_event_count(),
+            1,
+            "L must spawn exactly one lightning event"
+        );
     }
 
     #[test]
-    fn uppercase_l_key_activates_storm_mode() {
+    fn uppercase_l_key_spawns_lightning_bolt() {
         // Shift+L should also work — the keybinding matches 'l' | 'L'.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
@@ -431,7 +448,47 @@ mod cases {
             &Arc::new(AtomicBool::new(false)),
         );
 
-        assert!(cloud.is_storm_active(), "Shift+L must activate storm mode");
+        assert_eq!(
+            cloud.active_event_count(),
+            1,
+            "Shift+L must spawn exactly one lightning event"
+        );
+    }
+
+    #[test]
+    fn l_key_rapid_fire_respects_concurrent_cap() {
+        // Pressing L more times than EVENT_MAX_CONCURRENT in quick
+        // succession must NOT spawn an unbounded number of bolts —
+        // excess presses are silently dropped until a live bolt
+        // finishes. This is the natural rate limit that replaces the
+        // old 18s lock-in / 60s cooldown.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let cfg = make_test_config();
+
+        // Hammer L far beyond EVENT_MAX_CONCURRENT (which is currently 2).
+        for _ in 0..10 {
+            call_handle_keybinding(
+                &mut cloud,
+                &mut frame,
+                &key('l'),
+                &mut charset_preset,
+                &cfg,
+                #[cfg(unix)]
+                &Arc::new(AtomicBool::new(false)),
+            );
+        }
+
+        assert!(
+            cloud.active_event_count() <= 2,
+            "rapid L presses must not exceed EVENT_MAX_CONCURRENT; got {}",
+            cloud.active_event_count()
+        );
+        assert!(
+            cloud.active_event_count() >= 1,
+            "at least one bolt should have spawned from the rapid presses"
+        );
     }
 
     #[test]
