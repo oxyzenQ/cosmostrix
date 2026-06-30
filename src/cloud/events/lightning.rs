@@ -1,40 +1,39 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Lightning atmospheric event — precomputed bolt path with optional branches.
+//! Lightning atmospheric event — flash-only illumination.
 //!
-//! The bolt path is fully computed at spawn time and stored in pre-allocated
-//! buffers. Rendering iterates the precomputed path with zero per-frame
-//! allocation. Decay is handled via phosphor integration.
+//! Instead of drawing bolt paths, lightning modifies the foreground colors
+//! of existing rain cells (and other rendered content), blending them toward
+//! white or toward black depending on the lifecycle phase. This creates a
+//! full-screen illumination effect that feels like lightning without adding
+//! new characters to the frame.
 //!
-//! ## Bolt Families (v10.0.0 Phase 2D)
+//! ## Bolt Families (v10.0.0 Flash Pivot)
 //!
-//! - 0: Long — vertical bolt, slight jitter, 1-2 small branches, length 0.6-1.0
-//! - 1: Short — vertical bolt stopped at 15-35% height, 0-1 branches
-//! - 2: Diagonal — angled 15-45°, NOT vertical, tan(angle) drift every row
-//! - 3: Fork — main stops at 30-50%, splits into 2-4 daughter branches (Y-shape)
-//! - 4: Massive — wide zigzag, 5-10 branches, length 0.8-1.0, brightness ≥1.2
-//! - 5: Sheet — 3-6 parallel vertical channels spread 8-25 cols
+//! Each family maps to a different flash geometry and peak intensity:
+//!
+//! - 0: FullScreen — entire screen, peak 0.7
+//! - 1: CloudLayer — top 35% of screen, peak 0.5
+//! - 2: Sweep — left-to-right intensity gradient, peak 0.65
+//! - 3: DualPeak — two bright columns with falloff, peak 0.7
+//! - 4: Intense — full screen at peak 1.0
+//! - 5: Diffuse — full screen at low peak 0.45
 //!
 //! ## Return Strokes
 //!
 //! 25% chance of 1-2 secondary flashes after initial bolt, with a 40-80ms
-//! dark gap between strokes at 60-80% brightness.
+//! dark gap between strokes at 60-80% brightness. During dark gaps, the
+//! screen is dimmed slightly to create a visible flicker.
 
 use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
-use rand::{
-    distr::{Distribution, Uniform},
-    rngs::StdRng,
-};
 
-use crate::cell::Cell;
 use crate::constants::*;
 use crate::frame::Frame;
 
 use super::super::atmospheric_events::{AtmosphericEvent, EventCtx, EventState};
-use super::helpers::{apply_brightness_mult, apply_white_blend};
 
 /// Phase within the lightning lifecycle.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -53,10 +52,29 @@ enum LightningPhase {
     Finished,
 }
 
-/// A single lightning bolt with optional branches.
+/// Flash illumination geometry type.
+#[derive(Clone, Copy, Debug)]
+enum FlashType {
+    /// Full-screen uniform illumination.
+    FullScreen,
+    /// Top portion only (cloud layer).
+    CloudLayer,
+    /// Left-to-right intensity gradient.
+    Sweep,
+    /// Two bright columns with falloff.
+    DualPeak,
+    /// Full-screen at high intensity.
+    Intense,
+    /// Full-screen at low intensity, uniform.
+    Diffuse,
+}
+
+/// A lightning event that illuminates the scene via color blending.
 ///
-/// All path data is precomputed at spawn. Rendering iterates the stored
-/// path arrays — no simulation, no recomputation, no per-frame allocation.
+/// No line geometry is stored — only flash parameters and phase state.
+/// Rendering reads existing cell foreground colors and blends them
+/// toward white (illumination) or black (dark gap).
+#[allow(dead_code)]
 pub(crate) struct LightningEvent {
     /// Current lifecycle phase.
     phase: LightningPhase,
@@ -89,21 +107,22 @@ pub(crate) struct LightningEvent {
     /// Dark gap end time (when the return flash should begin).
     return_stroke_dark_until: Option<Instant>,
 
-    // ── Precomputed bolt path ──
-    /// Main bolt: (col, line) pairs from top to bottom.
-    main_bolt: Vec<(u16, u16)>,
-    /// Bolt characters for each main bolt segment.
-    bolt_chars: Vec<char>,
-    /// Branches: each branch is a list of (col, line) pairs.
-    branches: Vec<Vec<(u16, u16)>>,
-    /// Flash cells: (col, line, falloff_factor) for cells within flash radius.
-    flash_cells: Vec<(u16, u16, f32)>,
+    // ── Flash geometry (v10.0.0 Flash Pivot) ──
+    /// Type of flash illumination pattern.
+    flash_type: FlashType,
+    /// Flash region: (col_start, col_end, line_start, line_end).
+    flash_region: (u16, u16, u16, u16),
+    /// Peak intensity for this flash (0.0-1.0).
+    peak_intensity: f32,
+    /// Whether this is a near-strike (camera shake proximity).
+    is_near_strike: bool,
+
     /// Last palette color, captured at spawn for phosphor seeding.
     last_palette_color: Option<Color>,
 }
 
 impl LightningEvent {
-    /// Create a new lightning event with paths precomputed.
+    /// Create a new lightning event with flash parameters.
     /// `bolt_family`: 0-5 family index
     /// `length_pct`: target length as fraction of screen height
     /// `return_strokes`: 0-2 return strokes after the initial bolt
@@ -111,7 +130,6 @@ impl LightningEvent {
     pub fn new(
         cols: u16,
         lines: u16,
-        rng: &mut StdRng,
         intensity: f32,
         palette_color: Option<Color>,
         bolt_family: u8,
@@ -130,471 +148,187 @@ impl LightningEvent {
             _ => 0.7,  // Sheet: dimmer individual channels (the quantity creates impact)
         };
 
-        let mut event = Self {
-            phase: LightningPhase::Strike,
-            phase_start: now,
-            spawn_time: now,
-            intensity: intensity.clamp(0.1, 2.0),
-            cols,
-            lines,
-            bolt_family,
-            length_pct: length_pct.clamp(0.1, 1.0),
-            family_brightness,
-            return_stroke_count: return_strokes.min(2),
-            return_stroke_done: 0,
-            return_stroke_phase: false,
-            return_stroke_dark_until: None,
-            main_bolt: Vec::new(),
-            bolt_chars: Vec::new(),
-            branches: Vec::new(),
-            flash_cells: Vec::new(),
-            last_palette_color: palette_color,
-        };
-        event.generate_paths(rng);
-        event
-    }
-
-    /// Generate the main bolt path, branches, and flash cells.
-    /// Each bolt family uses fundamentally different generation logic.
-    fn generate_paths(&mut self, rng: &mut StdRng) {
-        if self.cols < 4 || self.lines < 4 {
-            return;
-        }
-
-        let chance = Uniform::new(0.0f32, 1.0f32).expect("chance [0,1) always valid");
-
-        let center = self.cols / 2;
-        let max_wander = ((self.cols as f32) * LIGHTNING_WANDER_FRACTION) as u16;
-        let start_col = if max_wander > 0 {
-            let offset = ((chance.sample(rng) * max_wander as f32 * 2.0) as i32)
-                .saturating_sub(max_wander as i32);
-            (center as i32 + offset).clamp(0, (self.cols - 1) as i32) as u16
-        } else {
-            center
+        // Map bolt family to flash configuration
+        let (flash_type, flash_region, mut peak_intensity) = match bolt_family {
+            0 => (FlashType::FullScreen, (0, cols, 0, lines), 0.7),
+            1 => (FlashType::CloudLayer, (0, cols, 0, lines * 35 / 100), 0.5),
+            2 => (FlashType::Sweep, (0, cols, 0, lines), 0.65),
+            3 => (FlashType::DualPeak, (0, cols, 0, lines), 0.7),
+            4 => (FlashType::Intense, (0, cols, 0, lines), 1.0),
+            _ => (FlashType::Diffuse, (0, cols, 0, lines), 0.45),
         };
 
-        match self.bolt_family {
-            // ── Family 0: Long — vertical bolt, slight jitter ──
-            0 => self.gen_long(rng, &chance, start_col),
-            // ── Family 1: Short — forced 15-35% length ──
-            1 => {
-                self.length_pct = 0.15 + chance.sample(rng) * 0.20;
-                self.gen_long(rng, &chance, start_col);
-            }
-            // ── Family 2: Diagonal — angled 15-45°, NOT vertical ──
-            2 => self.gen_diagonal(rng, &chance, start_col),
-            // ── Family 3: Fork — main stops mid-screen, branches split ──
-            3 => self.gen_fork(rng, &chance, start_col),
-            // ── Family 4: Massive — wide zigzag, many branches ──
-            4 => self.gen_massive(rng, &chance, start_col),
-            // ── Family 5: Sheet — parallel vertical channels ──
-            _ => self.gen_sheet(rng, &chance),
-        }
-
-        // Flash cells computed after path generation
-        self.compute_flash_cells(rng);
-    }
-
-    // ── Family 0/1: Long/Short — vertical bolt with slight jitter ──
-
-    fn gen_long(&mut self, rng: &mut StdRng, chance: &Uniform<f32>, start_col: u16) {
-        let target_line = ((self.lines as f32) * self.length_pct) as u16;
-        let target_line = target_line.min(self.lines);
-
-        let mut col = start_col;
-        let mut prev_col = col;
-        let mut line: u16 = 0;
-        let zigzag_avg = 6u16 + (chance.sample(rng) * 4.0) as u16;
-
-        while line < target_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
-            self.main_bolt.push((col, line));
-
-            if (line % zigzag_avg) == 0 || col == prev_col {
-                let dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
-                let step = 1i16 + (chance.sample(rng) * 1.5).ceil() as i16; // hstep 1-2
-                let new_col = (col as i16 + dir * step).clamp(0, (self.cols - 1) as i16) as u16;
-                prev_col = col;
-                col = new_col;
-            }
-
-            let dcol = col as i16 - prev_col as i16;
-            self.bolt_chars
-                .push(super::helpers::bolt_char_for_step(dcol, 1, rng));
-
-            let vstep = 2.0 + chance.sample(rng) * 3.0;
-            line = line.saturating_add(vstep.ceil() as u16);
-        }
-
-        // 1-2 small branches for Long family
-        let branch_count = if self.bolt_family == 0 && chance.sample(rng) < 0.35 {
-            1 + (chance.sample(rng) * 2.0) as usize
-        } else {
-            0
+        // 1% near-strike chance: override with full-screen, low-intensity flash
+        let is_near_strike = {
+            use rand::distr::Distribution;
+            let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
+            let mut rng = rand::rng();
+            uniform.sample(&mut rng) < 0.01
         };
-        self.gen_branches(rng, chance, 0.15, 0.35, branch_count);
-    }
-
-    // ── Family 2: Diagonal — angled bolt, NOT vertical ──
-
-    fn gen_diagonal(&mut self, rng: &mut StdRng, _chance: &Uniform<f32>, start_col: u16) {
-        let target_line = ((self.lines as f32) * self.length_pct) as u16;
-        let target_line = target_line.min(self.lines);
-
-        // Angle 15-45 degrees
-        let angle_deg = 15.0
-            + rand::distr::Uniform::new(0.0f32, 30.0f32)
-                .expect("[0,30) valid")
-                .sample(rng);
-        let angle_rad = angle_deg * std::f32::consts::PI / 180.0;
-        let tan_angle = angle_rad.tan();
-
-        // Direction: left or right
-        let direction: f32 = if rand::distr::Uniform::new(0.0f32, 1.0f32)
-            .expect("[0,1) valid")
-            .sample(rng)
-            < 0.5
-        {
-            -1.0
-        } else {
-            1.0
-        };
-
-        let mut col_f: f32 = start_col as f32;
-        let mut line: u16 = 0;
-
-        while line < target_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
-            let col = (col_f.round() as u16).clamp(0, self.cols.saturating_sub(1));
-            self.main_bolt.push((col, line));
-
-            // Diagonal character
-            // Diagonal character
-            let ch = if direction < 0.0 { '╲' } else { '╱' };
-            self.bolt_chars.push(ch);
-
-            // Move horizontally EVERY row by tan(angle) * vstep
-            let vstep = 2.0
-                + rand::distr::Uniform::new(0.0f32, 2.0f32)
-                    .expect("[0,2) valid")
-                    .sample(rng);
-            col_f += direction * tan_angle * vstep;
-            line = line.saturating_add(vstep.ceil() as u16);
-        }
-
-        // Diagonal: 0-1 small branches
-        let branch_count = if rand::distr::Uniform::new(0.0f32, 1.0f32)
-            .expect("[0,1) valid")
-            .sample(rng)
-            < 0.25
-        {
-            1
-        } else {
-            0
-        };
-        self.gen_branches(
-            rng,
-            &Uniform::new(0.0, 1.0).expect("valid"),
-            0.15,
-            0.30,
-            branch_count,
-        );
-    }
-
-    // ── Family 3: Fork — main stops at 30-50%, branches split (Y-shape) ──
-
-    fn gen_fork(&mut self, rng: &mut StdRng, chance: &Uniform<f32>, start_col: u16) {
-        let target_line = ((self.lines as f32) * self.length_pct) as u16;
-        let target_line = target_line.min(self.lines);
-
-        // Fork point: 30-50% of target
-        let fork_frac = 0.30 + chance.sample(rng) * 0.20;
-        let fork_line = (target_line as f32 * fork_frac) as u16;
-
-        let mut col = start_col;
-        let mut prev_col = col;
-        let mut line: u16 = 0;
-        let zigzag_avg = 4u16;
-
-        // Draw main bolt up to fork point
-        while line < fork_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
-            self.main_bolt.push((col, line));
-
-            if (line % zigzag_avg) == 0 || col == prev_col {
-                let dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
-                let step = 1i16 + (chance.sample(rng) * 2.0).ceil() as i16;
-                let new_col = (col as i16 + dir * step).clamp(0, (self.cols - 1) as i16) as u16;
-                prev_col = col;
-                col = new_col;
-            }
-
-            let dcol = col as i16 - prev_col as i16;
-            self.bolt_chars
-                .push(super::helpers::bolt_char_for_step(dcol, 1, rng));
-
-            let vstep = 2.0 + chance.sample(rng) * 3.0;
-            line = line.saturating_add(vstep.ceil() as u16);
-        }
-
-        // Now generate fork branches from fork_line downward
-        let branch_count = 2 + (chance.sample(rng) * 3.0) as usize; // 2-4
-        let remaining = target_line.saturating_sub(fork_line);
-
-        for i in 0..branch_count {
-            let angle_offset = -0.6 + (i as f32 / (branch_count - 1).max(1) as f32) * 1.2; // spread angles
-            let branch_angle = std::f32::consts::FRAC_PI_4 * angle_offset; // ±45° spread
-            let tan_ba = branch_angle.tan();
-
-            let mut branch: Vec<(u16, u16)> = Vec::new();
-            let mut bcol_f = col as f32;
-            let mut bline = fork_line;
-
-            while bline < target_line && branch.len() < LIGHTNING_BRANCH_CAPACITY {
-                let bc = (bcol_f.round() as u16).clamp(0, self.cols.saturating_sub(1));
-                branch.push((bc, bline));
-
-                let vstep = 2.0 + chance.sample(rng) * 3.0;
-                bcol_f += tan_ba * vstep;
-                bline = bline.saturating_add(vstep.ceil() as u16);
-            }
-
-            if !branch.is_empty() {
-                // Mark the fork point with a bright character
-                if let Some(last_seg) = self.bolt_chars.last_mut() {
-                    *last_seg = '┣'; // fork indicator
-                }
-                self.branches.push(branch);
-            }
-            let _ = remaining; // used for future tuning
-        }
-    }
-
-    // ── Family 4: Massive — wide zigzag, many branches ──
-
-    fn gen_massive(&mut self, rng: &mut StdRng, chance: &Uniform<f32>, start_col: u16) {
-        self.length_pct = self.length_pct.max(0.8); // Force at least 80%
-        let target_line = ((self.lines as f32) * self.length_pct) as u16;
-        let target_line = target_line.min(self.lines);
-
-        let mut col = start_col;
-        let mut prev_col = col;
-        let mut line: u16 = 0;
-        let zigzag_avg = 3u16;
-
-        while line < target_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
-            self.main_bolt.push((col, line));
-
-            if (line % zigzag_avg) == 0 || col == prev_col {
-                let dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
-                let step = (chance.sample(rng) * 7.0).ceil() as i16 + 1; // hstep 1-8
-                let new_col = (col as i16 + dir * step).clamp(0, (self.cols - 1) as i16) as u16;
-                prev_col = col;
-                col = new_col;
-            }
-
-            let dcol = col as i16 - prev_col as i16;
-            self.bolt_chars
-                .push(super::helpers::bolt_char_for_step(dcol, 1, rng));
-
-            let vstep = 1.0 + chance.sample(rng) * 2.0;
-            line = line.saturating_add(vstep.ceil() as u16);
-        }
-
-        // Many branches: 5-10
-        let branch_count = 5 + (chance.sample(rng) * 6.0) as usize;
-        self.gen_branches(rng, chance, 0.15, 0.50, branch_count);
-    }
-
-    // ── Family 5: Sheet — parallel vertical channels ──
-
-    fn gen_sheet(&mut self, rng: &mut StdRng, chance: &Uniform<f32>) {
-        self.length_pct = self.length_pct.max(0.6);
-        let target_line = ((self.lines as f32) * self.length_pct) as u16;
-        let target_line = target_line.min(self.lines);
-
-        // Main bolt: center channel (light)
-        let center_col = self.cols / 2;
-        self.main_bolt.push((center_col, 0));
-        self.bolt_chars.push('│');
-        let mut line: u16 = 2;
-        while line < target_line && self.main_bolt.len() < LIGHTNING_PATH_CAPACITY {
-            self.main_bolt.push((center_col, line));
-            self.bolt_chars.push('│');
-            line = line.saturating_add(2);
-        }
-
-        // Parallel channels: 3-6
-        let num_channels = 3 + (chance.sample(rng) * 4.0) as usize;
-        let spread = 8u16 + (chance.sample(rng) * 17.0) as u16; // 8-25 cols
-
-        for c in 0..num_channels {
-            // Alternate sides from center
-            let side_offset = if c % 2 == 0 {
-                (c as u16 / 2 + 1) as i32
-            } else {
-                -((c as u16).div_ceil(2) as i32)
+        if is_near_strike {
+            let (ft, fr, _) = match bolt_family {
+                0 => (FlashType::FullScreen, (0, cols, 0, lines), 0.7),
+                _ => (FlashType::FullScreen, (0, cols, 0, lines), 0.7),
             };
-            let channel_col = (center_col as i32
-                + side_offset * spread as i32 / num_channels as i32)
-                .clamp(0, (self.cols - 1) as i32) as u16;
-
-            let mut channel: Vec<(u16, u16)> = Vec::new();
-            let mut cline: u16 = (chance.sample(rng) * 6.0) as u16; // staggered start
-            let ccol = channel_col;
-
-            while cline < target_line && channel.len() < LIGHTNING_BRANCH_CAPACITY {
-                // Minimal jitter
-                let jitter = if chance.sample(rng) < 0.15 {
-                    (chance.sample(rng) * 2.0).round() as i16 - 1
-                } else {
-                    0
-                };
-                let jc = (ccol as i16 + jitter).clamp(0, (self.cols - 1) as i16) as u16;
-                channel.push((jc, cline));
-                let vstep = 2.0 + chance.sample(rng) * 3.0;
-                cline = cline.saturating_add(vstep.ceil() as u16);
+            // Use the flash_type and region but override peak
+            peak_intensity = 0.12;
+            Self {
+                phase: LightningPhase::Strike,
+                phase_start: now,
+                spawn_time: now,
+                intensity: intensity.clamp(0.1, 2.0),
+                cols,
+                lines,
+                bolt_family,
+                length_pct: length_pct.clamp(0.1, 1.0),
+                family_brightness,
+                return_stroke_count: return_strokes.min(2),
+                return_stroke_done: 0,
+                return_stroke_phase: false,
+                return_stroke_dark_until: None,
+                flash_type: ft,
+                flash_region: fr,
+                peak_intensity,
+                is_near_strike: true,
+                last_palette_color: palette_color,
             }
-
-            if !channel.is_empty() {
-                self.branches.push(channel);
-            }
-        }
-    }
-
-    // ── Shared: branch generation ──
-
-    fn gen_branches(
-        &mut self,
-        rng: &mut StdRng,
-        chance: &Uniform<f32>,
-        len_min_frac: f32,
-        len_max_frac: f32,
-        count: usize,
-    ) {
-        if self.main_bolt.len() < 3 || count == 0 {
-            return;
-        }
-
-        for _ in 0..count {
-            let root_idx = (chance.sample(rng) * (self.main_bolt.len() as f32 * 0.6)) as usize;
-            if let Some(&(root_col, root_line)) = self.main_bolt.get(root_idx) {
-                let max_len = self.main_bolt.len() - root_idx;
-                let branch_len = ((len_min_frac
-                    + chance.sample(rng) * (len_max_frac - len_min_frac))
-                    * max_len as f32) as usize;
-                let branch_len = branch_len.clamp(2, LIGHTNING_BRANCH_CAPACITY);
-
-                let mut branch: Vec<(u16, u16)> = Vec::new();
-                let mut bcol = root_col;
-                let mut bline = root_line;
-                let branch_dir: i16 = if chance.sample(rng) < 0.5 { -1 } else { 1 };
-
-                for _ in 0..branch_len {
-                    let step = (chance.sample(rng) * 3.0).ceil() as i16;
-                    bcol =
-                        (bcol as i16 + branch_dir * step).clamp(0, (self.cols - 1) as i16) as u16;
-                    bline = bline
-                        .saturating_add((1.0 + chance.sample(rng) * 2.0).ceil() as u16)
-                        .min(self.lines.saturating_sub(1));
-                    branch.push((bcol, bline));
-                }
-                self.branches.push(branch);
+        } else {
+            Self {
+                phase: LightningPhase::Strike,
+                phase_start: now,
+                spawn_time: now,
+                intensity: intensity.clamp(0.1, 2.0),
+                cols,
+                lines,
+                bolt_family,
+                length_pct: length_pct.clamp(0.1, 1.0),
+                family_brightness,
+                return_stroke_count: return_strokes.min(2),
+                return_stroke_done: 0,
+                return_stroke_phase: false,
+                return_stroke_dark_until: None,
+                flash_type,
+                flash_region,
+                peak_intensity,
+                is_near_strike: false,
+                last_palette_color: palette_color,
             }
         }
     }
 
-    // ── Shared: flash cell computation ──
-
-    fn compute_flash_cells(&mut self, rng: &mut StdRng) {
-        let _ = rng; // kept for future parameterization
-        let flash_radius = match self.bolt_family {
-            4 => LIGHTNING_FLASH_RADIUS + 6, // Massive: wider flash
-            _ => LIGHTNING_FLASH_RADIUS,
-        };
-
-        if flash_radius == 0 || self.main_bolt.is_empty() {
-            return;
-        }
-
-        let flash_col_min = self
-            .main_bolt
-            .iter()
-            .map(|&(c, _)| c)
-            .min()
-            .unwrap_or(0)
-            .saturating_sub(flash_radius);
-        let flash_col_max = self
-            .main_bolt
-            .iter()
-            .map(|&(c, _)| c)
-            .max()
-            .unwrap_or(self.cols.saturating_sub(1))
-            .saturating_add(flash_radius)
-            .min(self.cols.saturating_sub(1));
-        let flash_line_min = 0u16;
-        let flash_line_max = self
-            .main_bolt
-            .last()
-            .map(|&(_, l)| l)
-            .unwrap_or(self.lines.saturating_sub(1))
-            .saturating_add(flash_radius)
-            .min(self.lines.saturating_sub(1));
-
-        for fc in flash_col_min..=flash_col_max {
-            for fl in flash_line_min..=flash_line_max {
-                if self.flash_cells.len() >= LIGHTNING_FLASH_CAPACITY {
-                    return;
-                }
-                let mut min_dist = f32::MAX;
-                for &(bc, bl) in &self.main_bolt {
-                    let dx = fc as f32 - bc as f32;
-                    let dy = fl as f32 - bl as f32;
-                    let dist = (dx * dx + dy * dy).sqrt();
-                    if dist < min_dist {
-                        min_dist = dist;
-                    }
-                }
-                if min_dist <= flash_radius as f32 {
-                    let sigma = LIGHTNING_FLASH_SIGMA;
-                    let closest_falloff = if sigma > 0.0 {
-                        (-(min_dist * min_dist) / (2.0 * sigma * sigma)).exp()
-                    } else {
-                        1.0
-                    };
-                    self.flash_cells.push((fc, fl, closest_falloff));
-                }
-            }
-        }
-    }
-
-    /// Determine the current brightness multiplier based on phase and elapsed time.
-    fn phase_brightness(&self, now: Instant, intensity: f32) -> f32 {
-        let base_intensity = intensity * self.family_brightness;
-
-        match self.phase {
+    /// Compute progress [0.0, 1.0] within the current phase based on elapsed time.
+    fn calc_phase_progress(&self, now: Instant) -> f32 {
+        let elapsed = now
+            .saturating_duration_since(self.phase_start)
+            .as_secs_f32();
+        let duration = match self.phase {
             LightningPhase::Strike => {
-                let strike_ms = (LIGHTNING_ACTIVE_MS as f32) * LIGHTNING_STRIKE_FRACTION;
-                let elapsed = now.saturating_duration_since(self.phase_start).as_millis() as f32;
-                let progress = (elapsed / strike_ms.max(1.0)).min(1.0);
-                base_intensity * (-progress * 6.0).exp()
+                (LIGHTNING_ACTIVE_MS as f32 * LIGHTNING_STRIKE_FRACTION) / 1000.0
             }
             LightningPhase::Flash => {
-                let active_ms = LIGHTNING_ACTIVE_MS as f32;
-                let strike_ms = active_ms * LIGHTNING_STRIKE_FRACTION;
-                let flash_ms = active_ms - strike_ms;
-                let elapsed =
-                    now.saturating_duration_since(self.phase_start).as_millis() as f32 - strike_ms;
-                let progress = (elapsed / flash_ms.max(1.0)).min(1.0);
-                let decay = (-progress * 2.0).exp();
-                base_intensity * decay
+                (LIGHTNING_ACTIVE_MS as f32 * (1.0 - LIGHTNING_STRIKE_FRACTION)) / 1000.0
             }
-            LightningPhase::ReturnStrokeFlash => {
-                // Return stroke at 60-80% of original brightness
-                let return_brightness = 0.6 + (self.return_stroke_done as f32 * 0.1);
-                let elapsed = now.saturating_duration_since(self.phase_start).as_millis() as f32;
-                let strike_ms = (LIGHTNING_ACTIVE_MS as f32) * LIGHTNING_STRIKE_FRACTION * 0.6;
-                let progress = (elapsed / strike_ms.max(1.0)).min(1.0);
-                base_intensity * return_brightness * (-progress * 4.0).exp()
+            LightningPhase::ReturnStrokeDark => 0.06,
+            LightningPhase::ReturnStrokeFlash => 0.06,
+            LightningPhase::Decay | LightningPhase::Finished => 0.0,
+        };
+        if duration <= 0.0 {
+            return 1.0;
+        }
+        (elapsed / duration).clamp(0.0, 1.0)
+    }
+
+    /// Illuminate a rectangular region of the frame by blending existing cell
+    /// foreground colors toward white (positive intensity) or black (negative).
+    #[allow(clippy::too_many_arguments)]
+    fn illuminate(
+        &self,
+        frame: &mut Frame,
+        ctx: &EventCtx,
+        c0: u16,
+        c1: u16,
+        l0: u16,
+        l1: u16,
+        intensity: f32,
+    ) {
+        if intensity.abs() < 0.01 {
+            return;
+        }
+        let max_line = l1.min(self.lines).min(ctx.lines);
+        let max_col = c1.min(self.cols).min(ctx.cols);
+
+        for line in l0..max_line {
+            for col in c0..max_col {
+                // Skip message box
+                if let Some((mx, my, mw, mh)) = ctx.message_bounds {
+                    if col >= mx && col < mx + mw && line >= my && line < my + mh {
+                        continue;
+                    }
+                }
+
+                let Some(idx) = frame.index(col, line) else {
+                    continue;
+                };
+                let cell = frame.cell_at_index(idx);
+
+                // Per-column modulation for Sweep/DualPeak flash types
+                let col_intensity = match self.flash_type {
+                    FlashType::Sweep => {
+                        let progress = (col - c0) as f32 / (c1 - c0).max(1) as f32;
+                        intensity * (0.2 + 0.8 * progress)
+                    }
+                    FlashType::DualPeak => {
+                        let mid = (c0 + c1) as f32 / 2.0;
+                        let third = (c1 - c0) as f32 / 6.0;
+                        let p1 = mid - (c1 - c0) as f32 / 4.0;
+                        let p2 = mid + (c1 - c0) as f32 / 4.0;
+                        let d1 = (col as f32 - p1).abs().min(third);
+                        let d2 = (col as f32 - p2).abs().min(third);
+                        intensity * (1.0 - d1.min(d2) / third * 0.6)
+                    }
+                    _ => intensity,
+                };
+
+                if col_intensity.abs() < 0.01 {
+                    continue;
+                }
+
+                let fg = cell.fg;
+                let (r, g, b) = match fg {
+                    Some(Color::Rgb { r, g, b }) => (r as f32, g as f32, b as f32),
+                    Some(Color::AnsiValue(v)) => {
+                        let v = v as f32 / 255.0 * 255.0;
+                        (v, v, v)
+                    }
+                    _ => continue,
+                };
+
+                if col_intensity > 0.0 {
+                    let blend = (col_intensity * 0.85).clamp(0.0, 0.95);
+                    let nr = (r + (255.0 - r) * blend) as u8;
+                    let ng = (g + (255.0 - g) * blend) as u8;
+                    let nb = (b + (255.0 - b) * blend) as u8;
+                    let mut new_cell = cell;
+                    new_cell.fg = Some(Color::Rgb {
+                        r: nr,
+                        g: ng,
+                        b: nb,
+                    });
+                    frame.set_force(col, line, new_cell);
+                } else {
+                    let dim = (-col_intensity).clamp(0.0, 0.5);
+                    let nr = (r * (1.0 - dim)) as u8;
+                    let ng = (g * (1.0 - dim)) as u8;
+                    let nb = (b * (1.0 - dim)) as u8;
+                    let mut new_cell = cell;
+                    new_cell.fg = Some(Color::Rgb {
+                        r: nr,
+                        g: ng,
+                        b: nb,
+                    });
+                    frame.set_force(col, line, new_cell);
+                }
             }
-            _ => 0.0,
         }
     }
 }
@@ -622,14 +356,7 @@ impl AtmosphericEvent for LightningEvent {
     }
 
     fn memory_footprint(&self) -> usize {
-        self.main_bolt.capacity() * std::mem::size_of::<(u16, u16)>()
-            + self.bolt_chars.capacity() * std::mem::size_of::<char>()
-            + self
-                .branches
-                .iter()
-                .map(|b| b.capacity() * std::mem::size_of::<(u16, u16)>())
-                .sum::<usize>()
-            + self.flash_cells.capacity() * std::mem::size_of::<(u16, u16, f32)>()
+        std::mem::size_of::<Self>()
     }
 
     fn update(&mut self, now: Instant) {
@@ -711,141 +438,29 @@ impl AtmosphericEvent for LightningEvent {
     }
 
     fn render(&self, ctx: &EventCtx, frame: &mut Frame) {
-        if matches!(
-            self.phase,
-            LightningPhase::Finished | LightningPhase::Decay | LightningPhase::ReturnStrokeDark
-        ) {
-            // Don't render during dark gap or decay/finished
-            return;
-        }
+        let (c0, c1, l0, l1) = self.flash_region;
+        let phase_progress = self.calc_phase_progress(ctx.now);
 
-        let intensity = self.phase_brightness(ctx.now, self.intensity);
-        if intensity <= 0.01 {
-            return;
-        }
-        let bg = ctx.bg;
-
-        // Helper: skip message box cells
-        let skip_msg = |col: u16, line: u16| -> bool {
-            if let Some((mx, my, mw, mh)) = ctx.message_bounds {
-                col >= mx && col < mx + mw && line >= my && line < my + mh
-            } else {
-                false
+        match self.phase {
+            LightningPhase::Strike => {
+                let intensity = self.peak_intensity
+                    * self.family_brightness
+                    * (1.0 - (-phase_progress * 6.0).exp()); // exponential rise
+                self.illuminate(frame, ctx, c0, c1, l0, l1, intensity);
             }
-        };
-
-        // Helper: write a cell with intensity-based color
-        let mut write_cell = |col: u16, line: u16, ch: char, base_intensity: f32, is_core: bool| {
-            if skip_msg(col, line) || col >= self.cols || line >= self.lines {
-                return;
+            LightningPhase::Flash => {
+                let fade = phase_progress * 0.3;
+                let intensity = self.peak_intensity * self.family_brightness * (1.0 - fade);
+                self.illuminate(frame, ctx, c0, c1, l0, l1, intensity);
             }
-            let effective = (intensity * base_intensity).clamp(0.0, 1.0);
-            if effective < 0.02 {
-                return;
+            LightningPhase::ReturnStrokeDark => {
+                self.illuminate(frame, ctx, c0, c1, l0, l1, -0.25);
             }
-
-            // Get base color from palette
-            let Some(&base_color) = ctx.palette_colors.last() else {
-                return;
-            };
-            let Some((mut r, mut g, mut b)) = crate::palette::decode_color(base_color) else {
-                return;
-            };
-
-            // Apply intensity dimming
-            (r, g, b) = apply_brightness_mult(r, g, b, effective);
-
-            // Core boost for main bolt center
-            if is_core && effective > 0.3 {
-                (r, g, b) = apply_white_blend(r, g, b, LIGHTNING_CORE_BOOST * effective);
+            LightningPhase::ReturnStrokeFlash => {
+                let intensity = self.peak_intensity * self.family_brightness * 0.6;
+                self.illuminate(frame, ctx, c0, c1, l0, l1, intensity);
             }
-
-            frame.set_force(
-                col,
-                line,
-                Cell {
-                    ch,
-                    fg: Some(Color::Rgb { r, g, b }),
-                    bg,
-                    bold: effective > 0.5,
-                },
-            );
-        };
-
-        // ── Render main bolt ──
-        for (i, &(col, line)) in self.main_bolt.iter().enumerate() {
-            let ch = self.bolt_chars.get(i).copied().unwrap_or('│');
-            let bolt_intensity = 1.0 - (i as f32 / self.main_bolt.len().max(1) as f32) * 0.3;
-
-            // Per-family rendering width
-            let extra_width: u16 = match self.bolt_family {
-                4 | 5 => 2, // Ribbon and Heavy: thick (2-3 wide)
-                _ => 1,     // Others: standard width
-            };
-
-            write_cell(col, line, ch, bolt_intensity, true);
-
-            // Horizontal fuzz / width
-            for w in 1..=extra_width {
-                if col >= w {
-                    write_cell(col - w, line, '┃', bolt_intensity * 0.4, false);
-                }
-                if col + w < self.cols {
-                    write_cell(col + w, line, '┃', bolt_intensity * 0.4, false);
-                }
-            }
-        }
-
-        // ── Render branches ──
-        let branch_brightness = match self.bolt_family {
-            2 => LIGHTNING_BRANCH_BRIGHTNESS * 1.2, // Forked: brighter branches
-            _ => LIGHTNING_BRANCH_BRIGHTNESS,
-        };
-
-        for branch in &self.branches {
-            for &(col, line) in branch.iter() {
-                write_cell(col, line, '╱', branch_brightness, false);
-            }
-        }
-
-        // ── Render flash (background glow) ──
-        let flash_phase = matches!(
-            self.phase,
-            LightningPhase::Flash | LightningPhase::ReturnStrokeFlash
-        );
-        if flash_phase {
-            for &(col, line, falloff) in &self.flash_cells {
-                if skip_msg(col, line) || col >= self.cols || line >= self.lines {
-                    continue;
-                }
-                let flash_intensity = match self.bolt_family {
-                    5 => LIGHTNING_FLASH_INTENSITY * 1.4, // Heavy: bigger glow
-                    4 => LIGHTNING_FLASH_INTENSITY * 1.2, // Ribbon: wider glow
-                    _ => LIGHTNING_FLASH_INTENSITY,
-                };
-                let glow = intensity * falloff * flash_intensity;
-                if glow < 0.015 {
-                    continue;
-                }
-                let Some(&base_color) = ctx.palette_colors.last() else {
-                    continue;
-                };
-                let Some((r, g, b)) = crate::palette::decode_color(base_color) else {
-                    continue;
-                };
-                let (r, g, b) = apply_white_blend(r, g, b, glow.clamp(0.0, 1.0));
-
-                frame.set_force(
-                    col,
-                    line,
-                    Cell {
-                        ch: ' ',
-                        fg: Some(Color::Rgb { r, g, b }),
-                        bg,
-                        bold: false,
-                    },
-                );
-            }
+            LightningPhase::Decay | LightningPhase::Finished => {}
         }
     }
 
@@ -870,47 +485,14 @@ impl AtmosphericEvent for LightningEvent {
 
     fn seed_phosphor(
         &self,
-        phosphor: &mut [u8],
-        phosphor_base_fg: &mut [Option<Color>],
-        phosphor_base_ch: &mut [char],
-        cols: u16,
-        lines: u16,
+        _phosphor: &mut [u8],
+        _phosphor_base_fg: &mut [Option<Color>],
+        _phosphor_base_ch: &mut [char],
+        _cols: u16,
+        _lines: u16,
     ) {
-        let total = (cols as usize) * (lines as usize);
-        if phosphor.len() != total || total == 0 {
-            return;
-        }
-        let seed_energy = EVENT_PHOSPHOR_SEED_ENERGY;
-
-        // Per-family phosphor energy
-        let bolt_energy = match self.bolt_family {
-            5 => seed_energy,                    // Heavy: full afterglow
-            4 => seed_energy.saturating_sub(20), // Ribbon: slightly less
-            3 => seed_energy.saturating_sub(40), // Broken: shorter afterglow
-            _ => seed_energy,
-        };
-
-        // Seed phosphor for main bolt cells
-        for &(col, line) in &self.main_bolt {
-            let pidx = col as usize * lines as usize + line as usize;
-            if pidx < total {
-                phosphor[pidx] = phosphor[pidx].max(bolt_energy);
-                if phosphor_base_fg[pidx].is_none() {
-                    phosphor_base_fg[pidx] = self.last_palette_color;
-                }
-                phosphor_base_ch[pidx] = '│';
-            }
-        }
-
-        // Seed phosphor for flash cells (lower energy)
-        for &(col, line, _falloff) in &self.flash_cells {
-            let pidx = col as usize * lines as usize + line as usize;
-            if pidx < total && phosphor[pidx] == 0 {
-                phosphor[pidx] = bolt_energy / 3;
-                if phosphor_base_fg[pidx].is_none() {
-                    phosphor_base_fg[pidx] = self.last_palette_color;
-                }
-            }
-        }
+        // Flash-only illumination leaves no line geometry to seed.
+        // Phosphor afterglow is handled naturally by the existing phosphor
+        // system from the rain cells that were illuminated.
     }
 }

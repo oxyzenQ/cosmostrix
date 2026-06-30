@@ -306,6 +306,23 @@ impl Cloud {
             }
         };
 
+        // ── Pre-rain event render (ghosts, behind droplets) ──
+        let lightning_intensity = self.event_manager.global_pulse_factor(now);
+        if !self.event_manager.is_empty() {
+            let palette_slice_pre: &[Color] = &self.palette.colors;
+            let pre_ctx = crate::cloud::atmospheric_events::EventCtx {
+                cols: self.cols,
+                lines: self.lines,
+                bg: self.palette.bg,
+                palette_colors: palette_slice_pre,
+                now,
+                message_bounds: None,
+                has_message: false,
+                lightning_intensity,
+            };
+            self.event_manager.render_pre_rain(&pre_ctx, frame);
+        }
+
         let ctx = DrawCtx {
             lines: self.lines,
             full_width: self.full_width,
@@ -442,6 +459,7 @@ impl Cloud {
                 now,
                 message_bounds: msg_bounds,
                 has_message: self.message_text.is_some(),
+                lightning_intensity,
             };
             self.event_manager.render(&event_ctx, frame);
 
@@ -456,11 +474,8 @@ impl Cloud {
             );
 
             // Global illumination pulse: subtle screen-wide brightness boost
-            // during lightning strike moments. Applied as a uniform +6% white
-            // blend on all dirty cells, decaying exponentially with the strike.
-            let pulse = self.event_manager.global_pulse_factor(now);
-            if pulse > 0.005 {
-                self.apply_global_illumination_pulse(frame, pulse);
+            if lightning_intensity > 0.005 {
+                self.apply_global_illumination_pulse(frame, lightning_intensity);
             }
         }
 

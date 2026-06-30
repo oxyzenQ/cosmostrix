@@ -1,39 +1,26 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Atmospheric Event Engine — trait-based cinematic event system.
+//! Atmospheric Event Engine — cinematic event system for lightning, ghosts.
 //!
 //! Future-proof: unused variants/methods are for upcoming event types.
 #![allow(dead_code)]
 //!
-//! Manages the lifecycle of discrete cinematic visual events (lightning,
-//! energy surges, ripple waves, etc.) as a Cloud submodule. Each event
-//! implements the `AtmosphericEvent` trait; new event types are added
-//! without modifying the renderer or event manager.
+//! Manages lifecycle of discrete cinematic visual events. Each event
+//! implements `AtmosphericEvent`; new types are added without modifying
+//! the renderer.
 //!
-//! ## Architecture
+//! ## Weather Director (v10.0.0)
 //!
-//! - **AtmosphericEvent**: Trait for event types (render, update, lifecycle).
-//! - **EventCtx**: Read-only rendering context, mirrors the DrawCtx pattern.
-//! - **AtmosphericEventManager**: Owns active events + trigger system + Weather Director.
-//! - **EventTrigger**: Registered trigger conditions, evaluated once per frame.
-//!
-//! ## Weather Director (v10.0.0 Phase 2D)
-//!
-//! Invisible electrical charge [0.0, 1.0] accumulates from idle rate,
-//! anomaly density, and Storm Mode. The Weather Director scales ambient
-//! strike probability by charge saturation (0.3 + charge × 1.4).
+//! Electrical charge [0.0, 1.0] accumulates from idle rate, anomaly density,
+//! and Storm Mode. Strike probability: 0.3 + charge × 1.4.
 //!
 //! ## Lifecycle
 //!
 //! ```text
-//! Idle  →  Pending  →  Spawn  →  Active  →  Decay  →  Finished  →  Idle
+//! Idle → Pending → Spawn → Active → Decay → Finished → Idle
 //! ```
-//!
-//! Triggers fire events into the Pending queue. On the next frame,
-//! Pending events spawn (precompute paths). Active events render each
-//! frame. After their active duration, events enter Decay (phosphor
-//! afterglow) then finish.
+use super::events::GhostEvent;
 use super::events::LightningEvent;
 use crate::constants::*;
 use crate::frame::Frame;
@@ -61,8 +48,6 @@ pub enum EventState {
 }
 
 /// Read-only rendering context passed to event `render()` methods.
-/// Mirrors the `DrawCtx` pattern — avoids borrow conflicts with Cloud's
-/// mutable state while providing everything events need to render.
 pub struct EventCtx<'a> {
     /// Terminal dimensions.
     pub cols: u16,
@@ -77,13 +62,14 @@ pub struct EventCtx<'a> {
     pub message_bounds: Option<(u16, u16, u16, u16)>,
     /// Whether a message is active (avoids recomputing bounds).
     pub has_message: bool,
+    /// Current lightning intensity [0.0, 1.0] for cross-event awareness.
+    pub lightning_intensity: f32,
 }
 
 /// Trait for atmospheric event types.
 ///
-/// Each event type is a struct that precomputes all rendering data at spawn
-/// time. The render() method iterates precomputed paths — zero per-frame
-/// allocation, zero per-cell allocation.
+/// Each event precomputes data at spawn; render() iterates stored data
+/// with zero per-frame allocation.
 pub trait AtmosphericEvent: Send {
     /// Returns the current lifecycle state.
     fn state(&self) -> EventState;
@@ -100,7 +86,7 @@ pub trait AtmosphericEvent: Send {
     fn render(&self, ctx: &EventCtx, frame: &mut Frame);
 
     /// Called when the event enters Decay phase. Seeds phosphor arrays
-    /// with afterglow energy so the existing phosphor system handles fade-out.
+    /// with afterglow energy.
     fn seed_phosphor(
         &self,
         phosphor: &mut [u8],
@@ -115,6 +101,13 @@ pub trait AtmosphericEvent: Send {
     /// Default implementation returns 0.0 (no pulse).
     fn pulse_factor(&self, _now: Instant) -> f32 {
         0.0
+    }
+
+    /// Returns true if this event should render before rain (behind droplets).
+    /// Ghost events render pre-rain so rain partially overwrites them.
+    /// Lightning events (default) render post-rain to modify existing cell colors.
+    fn is_pre_rain(&self) -> bool {
+        false
     }
 }
 
@@ -171,14 +164,9 @@ struct StrikeRecord {
 }
 
 // ── Event Manager ─────────────────────────────────────────────────────────
-/// Manages active atmospheric events and their trigger conditions.
-///
-/// Owned by Cloud. Evaluates triggers once per frame at the top of
-/// `rain_at()`. Renders active events after anomalies and before
-/// atmospheric frame effects.
-///
-/// The Weather Director adds an invisible electrical charge system
-/// that accumulates over time and drives probabilistic strike decisions.
+/// Manages active atmospheric events and trigger conditions.
+/// Owned by Cloud. The Weather Director accumulates charge and drives
+/// probabilistic strike decisions.
 pub(super) struct AtmosphericEventManager {
     /// Active events (trait objects for polymorphism).
     events: SmallVec<[Box<dyn AtmosphericEvent>; 2]>,
@@ -196,8 +184,8 @@ pub(super) struct AtmosphericEventManager {
     event_decay_frame: u64,
     /// Events are opt-in; disabled by default (tests, bench).
     events_enabled: bool,
-    /// Force immediate spawn next tick (Storm Mode activation).
-    force_spawn: bool,
+    /// Force immediate spawn count (Storm Mode activation).
+    force_spawn_count: u8,
 
     // ── Weather Director (v10.0.0 Phase 2D) ──
     /// Invisible electrical charge [0.0, 1.0].
@@ -229,7 +217,7 @@ impl AtmosphericEventManager {
             total_spawned: 0,
             event_decay_frame: 0,
             events_enabled: false,
-            force_spawn: false,
+            force_spawn_count: 0,
             weather_charge: 0.0,
             weather_last_tick: now,
             storm_mode_active: false,
@@ -377,14 +365,9 @@ impl AtmosphericEventManager {
         self.storm_mode_end =
             Some(now + std::time::Duration::from_secs_f32(STORM_MODE_DURATION_SECS));
         self.storm_mode_cooldown = None;
-        // Full charge + force immediate bolt on activation
+        // Force 3 immediate bolts + full charge on activation
         self.weather_charge = 1.0;
-        self.force_spawn = true;
-
-        // Boost charge to at least the strike threshold
-        if self.weather_charge < CHARGE_THRESHOLD_STRIKE {
-            self.weather_charge = CHARGE_THRESHOLD_STRIKE;
-        }
+        self.force_spawn_count = 3;
 
         true
     }
@@ -409,9 +392,7 @@ impl AtmosphericEventManager {
         let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) always valid");
         let roll: f32 = uniform.sample(&mut self.rng);
 
-        // Weighted selection with cumulative thresholds:
-        // 0: Long (30%), 1: Short (25%), 2: Diagonal (18%),
-        // 3: Fork (15%), 4: Massive (8%), 5: Sheet (4%)
+        // Weighted selection: Long 30%, Short 25%, Diagonal 18%, Fork 15%, Massive 8%, Sheet 4%
         let family = if roll < 0.30 {
             0u8
         } else if roll < 0.55 {
@@ -452,37 +433,31 @@ impl AtmosphericEventManager {
         let brightness: f32;
         match family {
             0 => {
-                // Long: 60-100% screen, normal brightness
                 len_min = 0.6;
                 len_max = 1.0;
                 brightness = 0.85;
             }
             1 => {
-                // Short: 15-35%, dimmer — overridden in generate_paths
                 len_min = 0.15;
                 len_max = 0.35;
                 brightness = 0.75;
             }
             2 => {
-                // Diagonal: 50-100%, slightly bright
                 len_min = 0.5;
                 len_max = 1.0;
                 brightness = 0.95;
             }
             3 => {
-                // Fork: 60-100%, normal brightness (branches carry drama)
                 len_min = 0.6;
                 len_max = 1.0;
                 brightness = 1.0;
             }
             4 => {
-                // Massive: 80-100%, bright (min 1.2)
                 len_min = 0.8;
                 len_max = 1.0;
                 brightness = 1.25;
             }
             _ => {
-                // Sheet: 60-100%, dimmer channels
                 len_min = 0.6;
                 len_max = 1.0;
                 brightness = 0.7;
@@ -502,23 +477,18 @@ impl AtmosphericEventManager {
             return false;
         }
 
-        // Probability scales with charge:
-        // At threshold (0.45): ~10% chance
-        // At high (0.75): ~60% chance
-        // At full (1.0): ~90% chance
+        // Probability scales with charge: 10% at threshold → 90% at full
         let probability = if self.weather_charge >= CHARGE_THRESHOLD_HIGH {
-            // High probability zone
             0.6 + (self.weather_charge - CHARGE_THRESHOLD_HIGH) / (1.0 - CHARGE_THRESHOLD_HIGH)
                 * 0.3
         } else {
-            // Threshold to high zone
             (self.weather_charge - CHARGE_THRESHOLD_STRIKE)
                 / (CHARGE_THRESHOLD_HIGH - CHARGE_THRESHOLD_STRIKE)
                 * 0.5
                 + 0.1
         };
 
-        // Storm Mode doubles the probability
+        // Storm Mode doubles probability
         let probability = if self.storm_mode_active {
             probability * 2.0
         } else {
@@ -607,11 +577,14 @@ impl AtmosphericEventManager {
         self.last_trigger_eval = now;
 
         // Force spawn: Storm Mode activation
-        if self.force_spawn {
-            self.force_spawn = false;
+        if self.force_spawn_count > 0 {
+            self.force_spawn_count -= 1;
             self.try_force_spawn(cols, lines, palette_color);
             return;
         }
+
+        // Ghost spawn: independent of normal trigger evaluation
+        self.try_spawn_ghost(now, cols, lines, is_paused);
 
         // Guard: max concurrent events
         if self.events.len() >= EVENT_MAX_CONCURRENT {
@@ -654,8 +627,8 @@ impl AtmosphericEventManager {
                     } => {
                         // Scale: base × (0.3 + charge × 1.4)
                         let charge_mult = 0.3 + self.weather_charge * 1.4;
-                        // Storm Mode: 5× probability boost for burst feel
-                        let storm_mult = if self.storm_mode_active { 5.0 } else { 1.0 };
+                        // Storm Mode: 6× probability boost for burst feel
+                        let storm_mult = if self.storm_mode_active { 6.0 } else { 1.0 };
                         let probability = (*chance_per_sec as f32)
                             * charge_mult
                             * storm_mult
@@ -754,7 +727,6 @@ impl AtmosphericEventManager {
                 let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
                     cols,
                     lines,
-                    &mut self.rng,
                     intensity,
                     palette_color,
                     best_family,
@@ -776,7 +748,6 @@ impl AtmosphericEventManager {
                 let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
                     cols,
                     lines,
-                    &mut self.rng,
                     intensity,
                     palette_color,
                     bolt_family,
@@ -828,7 +799,6 @@ impl AtmosphericEventManager {
         let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
             cols,
             lines,
-            &mut self.rng,
             1.0,
             palette_color,
             1,   // Jagged by default for scene entry
@@ -839,10 +809,22 @@ impl AtmosphericEventManager {
         self.total_spawned += 1;
     }
 
-    /// Render all active events. Called after anomalies, before atmospheric effects.
+    /// Render pre-rain events (ghosts, behind droplets).
+    pub fn render_pre_rain(&self, ctx: &EventCtx, frame: &mut Frame) {
+        self.render_phase(ctx, frame, true);
+    }
+
+    /// Render post-rain events (lightning, illuminates existing cells).
     pub fn render(&self, ctx: &EventCtx, frame: &mut Frame) {
+        self.render_phase(ctx, frame, false);
+    }
+
+    fn render_phase(&self, ctx: &EventCtx, frame: &mut Frame, pre_rain: bool) {
         for event in &self.events {
-            if !event.is_finished() && event.state() == EventState::Active {
+            if !event.is_finished()
+                && event.state() == EventState::Active
+                && event.is_pre_rain() == pre_rain
+            {
                 event.render(ctx, frame);
             }
         }
@@ -892,8 +874,7 @@ impl AtmosphericEventManager {
         }
     }
 
-    /// Clean up phosphor residue from events that have exceeded max decay frames.
-    /// Should be called periodically to prevent indefinite afterglow.
+    /// Clear phosphor residue from expired events to prevent indefinite afterglow.
     pub fn clean_stale_phosphor(
         &mut self,
         phosphor: &mut [u8],
@@ -914,10 +895,7 @@ impl AtmosphericEventManager {
             return;
         }
 
-        // Force-clear event phosphor cells by removing them from active set
-        // when no events are active or decaying. This prevents orphaned
-        // phosphor from accumulating over long sessions.
-        // We only clear cells seeded with EVENT_PHOSPHOR_SEED_ENERGY.
+        // Clear event-phosphor cells when no events are active/decaying
         let mut i = 0;
         while i < phosphor_active.len() {
             let pidx = phosphor_active[i];
@@ -936,6 +914,34 @@ impl AtmosphericEventManager {
     }
 
     // ── Private Helpers ────────────────────────────────────────────────────
+
+    /// Try to spawn a phosphor ghost kanji character.
+    fn try_spawn_ghost(&mut self, now: Instant, cols: u16, lines: u16, is_paused: bool) {
+        if !self.events_enabled || is_paused {
+            return;
+        }
+        // Max 1 ghost active
+        if self.events.iter().filter(|e| e.is_pre_rain()).count() >= GHOST_MAX_ACTIVE {
+            return;
+        }
+        let uniform = rand::distr::Uniform::new(0.0f64, 1.0f64).expect("[0,1) valid");
+        if uniform.sample(&mut self.rng) >= GHOST_SPAWN_CHANCE_PER_TICK {
+            return;
+        }
+        let col = if cols > 5 {
+            1 + (uniform.sample(&mut self.rng) * (cols - 5) as f64) as u16
+        } else {
+            1
+        };
+        let line = if lines > 3 {
+            1 + (uniform.sample(&mut self.rng) * (lines - 3) as f64) as u16
+        } else {
+            1
+        };
+        let event: Box<dyn AtmosphericEvent> = Box::new(GhostEvent::new(col, line, now));
+        self.events.push(event);
+    }
+
     /// Resolve brightness for a given bolt family (used during alternative
     /// position selection in anti-repetition path).
     fn resolve_family_params(&self, family: u8) -> (u8, f32, f32) {
@@ -979,7 +985,6 @@ impl AtmosphericEventManager {
             let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
                 cols,
                 lines,
-                &mut self.rng,
                 brightness,
                 palette_color,
                 bolt_family,

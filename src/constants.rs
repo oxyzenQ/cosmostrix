@@ -765,21 +765,26 @@ pub const LIGHTNING_ACTIVE_MS: u64 = 200;
 pub const LIGHTNING_DECAY_MS: u64 = 500;
 
 /// Lightning flash radius in columns from bolt path.
+#[allow(dead_code)]
 pub const LIGHTNING_FLASH_RADIUS: u16 = 12;
 
 /// Lightning flash intensity at bolt center (0.0-1.0).
+#[allow(dead_code)]
 pub const LIGHTNING_FLASH_INTENSITY: f32 = 0.35;
 
 /// Lightning strike phase duration fraction (portion of active phase).
 pub const LIGHTNING_STRIKE_FRACTION: f32 = 0.25;
 
 /// Lightning bolt core brightness boost (white blend factor).
+#[allow(dead_code)]
 pub const LIGHTNING_CORE_BOOST: f32 = 0.4;
 
 /// Lightning branch brightness multiplier (relative to main bolt).
+#[allow(dead_code)]
 pub const LIGHTNING_BRANCH_BRIGHTNESS: f32 = 0.55;
 
 /// Lightning flash gaussian sigma for brightness falloff.
+#[allow(dead_code)]
 pub const LIGHTNING_FLASH_SIGMA: f32 = 3.5;
 
 /// Phosphor seeding energy for event afterglow.
@@ -789,6 +794,7 @@ pub const EVENT_PHOSPHOR_SEED_ENERGY: u8 = 160;
 pub const EVENT_MAX_PHOSPHOR_DECAY_FRAMES: u64 = 90;
 
 /// Lightning horizontal wander factor (max fraction of screen width).
+#[allow(dead_code)]
 pub const LIGHTNING_WANDER_FRACTION: f32 = 0.25;
 
 /// Lightning zigzag frequency: direction change every N rows on average.
@@ -868,3 +874,12 @@ pub const STRIKE_HISTORY_COL_DISTANCE: u16 = 12;
 pub const RETURN_STROKE_CHANCE: f32 = 0.25;
 /// Maximum return strokes (flashes after the initial bolt).
 pub const RETURN_STROKE_MAX: usize = 2;
+
+// ---------------------------------------------------------------------------
+// Phosphor Ghost (v10.0.0 Flash Pivot)
+// ---------------------------------------------------------------------------
+
+/// Per-tick probability of spawning a phosphor ghost kanji character.
+pub const GHOST_SPAWN_CHANCE_PER_TICK: f64 = 0.003;
+/// Maximum number of active ghost events.
+pub const GHOST_MAX_ACTIVE: usize = 1;

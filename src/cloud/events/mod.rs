@@ -7,7 +7,9 @@
 //! defined in `super::atmospheric_events`. New event types are added here
 //! without modifying the renderer or event manager.
 
+pub(crate) mod ghost;
 pub(crate) mod helpers;
 pub(crate) mod lightning;
 
+pub(crate) use ghost::GhostEvent;
 pub(crate) use lightning::LightningEvent;
