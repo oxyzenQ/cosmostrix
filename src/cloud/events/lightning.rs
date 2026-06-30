@@ -324,39 +324,42 @@ impl LightningEvent {
                 let edge_falloff = 1.0 - dist_from_center.powf(1.5) * 0.7;
                 let col_intensity = col_intensity * edge_falloff;
 
+                // Decode cell foreground (or background if fg is empty) to RGB.
+                // Empty cells (fg=None, common in monolith scene) now flash
+                // via their bg instead of being skipped entirely.
                 let fg = cell.fg;
-                let (r, g, b) = match fg {
-                    // Use palette::color_to_rgb so that ALL Color variants are
-                    // decoded correctly:
-                    //   - Color::Rgb           (TrueColor)  -> direct destructure
-                    //   - Color::AnsiValue(v)  (Color256)   -> full 6x6x6 cube decode
-                    //                                          (previously bugged:
-                    //                                           treated as grayscale)
-                    //   - Color::Green/Cyan/.. (Color16)    -> named-color RGB table
-                    //                                          (previously skipped:
-                    //                                           `_ => continue`)
-                    //   - Color::White         (Mono)       -> (255,255,255)
-                    //                                          (previously skipped)
-                    // Skipping any of these made illuminate a no-op for entire
-                    // color modes, leaving lightning invisible.
+                let (r, g, b, blending_bg) = match fg {
                     Some(color) => {
                         let (rr, gg, bb) = crate::palette::color_to_rgb(color);
-                        (rr as f32, gg as f32, bb as f32)
+                        (rr as f32, gg as f32, bb as f32, false)
                     }
-                    None => continue,
+                    None => {
+                        // Empty cell: blend its bg toward white so the entire
+                        // flash region illuminates, not just cells with chars.
+                        let bg_color = cell.bg.unwrap_or(ctx.bg.unwrap_or(Color::Reset));
+                        let (rr, gg, bb) = crate::palette::color_to_rgb(bg_color);
+                        (rr as f32, gg as f32, bb as f32, true)
+                    }
                 };
 
                 if col_intensity > 0.0 {
-                    let blend = (col_intensity * 0.45).clamp(0.0, 0.70);
+                    // Strong blend toward white: 1.5× multiplier, max 95%.
+                    // This produces a visible flash even on dark palette colors.
+                    let blend = (col_intensity * 1.5).clamp(0.0, 0.95);
                     let nr = (r + (255.0 - r) * blend) as u8;
                     let ng = (g + (255.0 - g) * blend) as u8;
                     let nb = (b + (255.0 - b) * blend) as u8;
                     let mut new_cell = cell;
-                    new_cell.fg = Some(Color::Rgb {
+                    let new_color = Color::Rgb {
                         r: nr,
                         g: ng,
                         b: nb,
-                    });
+                    };
+                    if blending_bg {
+                        new_cell.bg = Some(new_color);
+                    } else {
+                        new_cell.fg = Some(new_color);
+                    }
                     frame.set_force(col, line, new_cell);
                 } else {
                     let dim = (-col_intensity).clamp(0.0, 0.5);
@@ -364,11 +367,16 @@ impl LightningEvent {
                     let ng = (g * (1.0 - dim)) as u8;
                     let nb = (b * (1.0 - dim)) as u8;
                     let mut new_cell = cell;
-                    new_cell.fg = Some(Color::Rgb {
+                    let new_color = Color::Rgb {
                         r: nr,
                         g: ng,
                         b: nb,
-                    });
+                    };
+                    if blending_bg {
+                        new_cell.bg = Some(new_color);
+                    } else {
+                        new_cell.fg = Some(new_color);
+                    }
                     frame.set_force(col, line, new_cell);
                 }
             }
@@ -486,9 +494,12 @@ impl AtmosphericEvent for LightningEvent {
 
         match self.phase {
             LightningPhase::Strike => {
-                let intensity = self.peak_intensity
-                    * self.family_brightness
-                    * (1.0 - (-phase_progress * 6.0).exp()); // exponential rise
+                // Fast rise with a 0.3 floor so the bolt is visible on
+                // the very first frame — eliminates the "L key feels
+                // delayed" perception. The exponential still adds punch
+                // as it ramps to peak within ~50ms.
+                let rise = 0.3 + 0.7 * (1.0 - (-phase_progress * 8.0).exp());
+                let intensity = self.peak_intensity * self.family_brightness * rise;
                 self.illuminate(frame, ctx, c0, c1, l0, l1, intensity);
             }
             LightningPhase::Flash => {

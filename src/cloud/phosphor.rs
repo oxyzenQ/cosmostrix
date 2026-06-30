@@ -498,87 +498,53 @@ impl Cloud {
     /// during lightning strike moments. Iterates dirty cells only; applies a
     /// uniform white blend proportional to the pulse factor.
     ///
-    /// Pulse intensity is capped at 6% (GLOBAL_PULSE_MAX_INTENSITY) to ensure
-    /// the Matrix rain remains the primary visual identity. The pulse fades
-    /// with the strike's exponential decay — only 2-3 frames are visibly affected.
+    /// Pulse intensity is capped at 30% (GLOBAL_PULSE_MAX_INTENSITY) to
+    /// produce a visible screen-wide flash when lightning strikes — the
+    /// "natural storm" feel where ambient light brightens momentarily.
+    /// The pulse fades with the strike's exponential decay.
     pub(super) fn apply_global_illumination_pulse(
         &self,
         frame: &mut crate::frame::Frame,
         pulse: f32,
     ) {
-        const GLOBAL_PULSE_MAX_INTENSITY: f32 = 0.06;
+        const GLOBAL_PULSE_MAX_INTENSITY: f32 = 0.30;
         let intensity = (pulse * GLOBAL_PULSE_MAX_INTENSITY).clamp(0.0, GLOBAL_PULSE_MAX_INTENSITY);
         if intensity < 0.002 {
             return;
         }
         let wf = (intensity * 256.0) as i32;
-        let bg = self.palette.bg;
 
-        if frame.is_dirty_all() {
-            // Full-grid scan (rare: only after clear_with_bg)
-            for line in 0..self.lines {
-                for col in 0..self.cols {
-                    let i = line as usize * frame.width as usize + col as usize;
-                    let cell = frame.cell_at_index(i);
-                    if let Some(fg) = cell.fg {
-                        if let Some((r, g, b)) = crate::palette::decode_color(fg) {
-                            let nr = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                            let ng = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                            let nb = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                            frame.set_force(
-                                col,
-                                line,
-                                crate::cell::Cell {
-                                    ch: cell.ch,
-                                    fg: Some(crossterm::style::Color::Rgb {
-                                        r: nr,
-                                        g: ng,
-                                        b: nb,
-                                    }),
-                                    bg,
-                                    bold: cell.bold,
-                                },
-                            );
-                        }
+        // Always full-grid scan during a pulse: the screen-wide flash must
+        // reach static background cells (common in monolith scene), not just
+        // dirty rain-droplet cells. The pulse only lasts 2-3 frames so the
+        // O(w×h) cost is acceptable.
+        for line in 0..self.lines {
+            for col in 0..self.cols {
+                let i = line as usize * frame.width as usize + col as usize;
+                let cell = frame.cell_at_index(i);
+                // Blend fg if present, otherwise blend bg toward white so
+                // empty cells (monolith scene) also flash.
+                let (color, is_bg) = if let Some(fg) = cell.fg {
+                    (fg, false)
+                } else {
+                    (cell.bg.unwrap_or(crossterm::style::Color::Reset), true)
+                };
+                if let Some((r, g, b)) = crate::palette::decode_color(color) {
+                    let nr = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    let ng = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    let nb = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    let new_color = crossterm::style::Color::Rgb {
+                        r: nr,
+                        g: ng,
+                        b: nb,
+                    };
+                    let mut new_cell = cell;
+                    if is_bg {
+                        new_cell.bg = Some(new_color);
+                    } else {
+                        new_cell.fg = Some(new_color);
                     }
-                }
-            }
-        } else {
-            // Dirty-index scan: only cells that changed this frame
-            let dirty_indices = frame.dirty_indices().to_vec();
-            for &dirty_idx in &dirty_indices {
-                let col = (dirty_idx % frame.width as usize) as u16;
-                let line = (dirty_idx / frame.width as usize) as u16;
-                if line >= self.lines || col >= self.cols {
-                    continue;
-                }
-                let cell = frame.cell_at_index(dirty_idx);
-                if let Some(fg) = cell.fg {
-                    if let Some((r, g, b)) = crate::palette::decode_color(fg) {
-                        let nr =
-                            (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        let ng =
-                            (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        let nb =
-                            (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        frame.set_force(
-                            col,
-                            line,
-                            crate::cell::Cell {
-                                ch: cell.ch,
-                                fg: Some(crossterm::style::Color::Rgb {
-                                    r: nr,
-                                    g: ng,
-                                    b: nb,
-                                }),
-                                bg,
-                                bold: cell.bold,
-                            },
-                        );
-                    }
+                    frame.set_force(col, line, new_cell);
                 }
             }
         }
