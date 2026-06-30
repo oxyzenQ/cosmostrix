@@ -468,7 +468,7 @@ struct LightningEvent {
     main_bolt: SmallVec<[(u16, u16); 200]>,    // (col, line) path
     branches: SmallVec<[SmallVec<[(u16, u16); 64]>; 3]>, // up to 3 branches
     flash_cells: SmallVec<[(u16, u16, f32); 1024]>, // (col, line, falloff_factor)
-    bolt_chars: SmallVec<[char; 200]>,          // Pre-selected bolt characters
+    bolt_chars: SmallVec<[char; 200]>,          // Preselected bolt characters
 
     // No per-frame allocation — all buffers precomputed at spawn
 }
