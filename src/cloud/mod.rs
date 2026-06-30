@@ -438,7 +438,9 @@ impl Cloud {
 
     /// Activate Storm Mode (L key). Delegates to Weather Director.
     pub fn activate_storm_mode(&mut self, now: Instant) -> bool {
-        self.event_manager.activate_storm_mode(now)
+        let palette_color = self.palette.colors.last().copied();
+        self.event_manager
+            .activate_storm_mode(now, self.cols, self.lines, palette_color)
     }
 
     /// Returns true if Storm Mode is currently active.

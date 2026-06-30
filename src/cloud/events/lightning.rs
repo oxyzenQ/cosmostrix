@@ -148,14 +148,37 @@ impl LightningEvent {
             _ => 0.7,  // Sheet: dimmer individual channels (the quantity creates impact)
         };
 
-        // Map bolt family to flash configuration
+        // Map bolt family to flash configuration with RANDOM column bands.
+        // Distant lightning illuminates a PORTION of the sky, not the entire screen.
+        // Only family 4 (Intense/Massive, 8% chance) gets full-screen.
+        let band_width = (cols as f32 * (0.25 + rand::random::<f32>() * 0.35)) as u16; // 25-60% of width
+        let band_start = (rand::random::<f32>() * (cols.saturating_sub(band_width)) as f32) as u16;
+        let band_end = (band_start + band_width).min(cols);
+
         let (flash_type, flash_region, mut peak_intensity) = match bolt_family {
-            0 => (FlashType::FullScreen, (0, cols, 0, lines), 0.7),
-            1 => (FlashType::CloudLayer, (0, cols, 0, lines * 35 / 100), 0.5),
-            2 => (FlashType::Sweep, (0, cols, 0, lines), 0.65),
-            3 => (FlashType::DualPeak, (0, cols, 0, lines), 0.7),
-            4 => (FlashType::Intense, (0, cols, 0, lines), 1.0),
-            _ => (FlashType::Diffuse, (0, cols, 0, lines), 0.45),
+            0 => (
+                FlashType::FullScreen,
+                (band_start, band_end, 0, lines),
+                0.20,
+            ),
+            1 => (
+                FlashType::CloudLayer,
+                (band_start, band_end, 0, lines * 35 / 100),
+                0.15,
+            ),
+            2 => (
+                FlashType::Sweep,
+                (
+                    band_start,
+                    (band_start + band_width * 2).min(cols),
+                    0,
+                    lines,
+                ),
+                0.18,
+            ),
+            3 => (FlashType::DualPeak, (band_start, band_end, 0, lines), 0.22),
+            4 => (FlashType::Intense, (0, cols, 0, lines), 0.55),
+            _ => (FlashType::Diffuse, (band_start, band_end, 0, lines), 0.12),
         };
 
         // 1% near-strike chance: override with full-screen, low-intensity flash
@@ -293,6 +316,14 @@ impl LightningEvent {
                     continue;
                 }
 
+                // Edge falloff: soft-edged glow instead of hard rectangular block
+                let band_mid = (c0 + c1) as f32 / 2.0;
+                let band_half = (c1 - c0) as f32 / 2.0;
+                let dist_from_center =
+                    ((col as f32 - band_mid).abs() / band_half.max(1.0)).min(1.0);
+                let edge_falloff = 1.0 - dist_from_center.powf(1.5) * 0.7;
+                let col_intensity = col_intensity * edge_falloff;
+
                 let fg = cell.fg;
                 let (r, g, b) = match fg {
                     Some(Color::Rgb { r, g, b }) => (r as f32, g as f32, b as f32),
@@ -304,7 +335,7 @@ impl LightningEvent {
                 };
 
                 if col_intensity > 0.0 {
-                    let blend = (col_intensity * 0.85).clamp(0.0, 0.95);
+                    let blend = (col_intensity * 0.45).clamp(0.0, 0.70);
                     let nr = (r + (255.0 - r) * blend) as u8;
                     let ng = (g + (255.0 - g) * blend) as u8;
                     let nb = (b + (255.0 - b) * blend) as u8;

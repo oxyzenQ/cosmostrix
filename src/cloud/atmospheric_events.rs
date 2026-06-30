@@ -184,8 +184,6 @@ pub(super) struct AtmosphericEventManager {
     event_decay_frame: u64,
     /// Events are opt-in; disabled by default (tests, bench).
     events_enabled: bool,
-    /// Force immediate spawn count (Storm Mode activation).
-    force_spawn_count: u8,
 
     // ── Weather Director (v10.0.0 Phase 2D) ──
     /// Invisible electrical charge [0.0, 1.0].
@@ -217,7 +215,6 @@ impl AtmosphericEventManager {
             total_spawned: 0,
             event_decay_frame: 0,
             events_enabled: false,
-            force_spawn_count: 0,
             weather_charge: 0.0,
             weather_last_tick: now,
             storm_mode_active: false,
@@ -349,7 +346,14 @@ impl AtmosphericEventManager {
     }
 
     /// Activate Storm Mode manually. Returns true if activated.
-    pub fn activate_storm_mode(&mut self, now: Instant) -> bool {
+    /// Spawns 3 bolts IMMEDIATELY — no waiting for evaluate_triggers tick.
+    pub fn activate_storm_mode(
+        &mut self,
+        now: Instant,
+        cols: u16,
+        lines: u16,
+        palette_color: Option<Color>,
+    ) -> bool {
         // Guard: already active
         if self.storm_mode_active {
             return false;
@@ -367,7 +371,22 @@ impl AtmosphericEventManager {
         self.storm_mode_cooldown = None;
         // Force 3 immediate bolts + full charge on activation
         self.weather_charge = 1.0;
-        self.force_spawn_count = 3;
+
+        // Spawn 3 bolts NOW — don't wait for evaluate_triggers tick
+        for _ in 0..3 {
+            let (bolt_family, length_pct, brightness) = self.select_bolt_family();
+            let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
+                cols,
+                lines,
+                brightness,
+                palette_color,
+                bolt_family,
+                length_pct,
+                1,
+            ));
+            self.events.push(event);
+            self.total_spawned += 1;
+        }
 
         true
     }
@@ -575,13 +594,6 @@ impl AtmosphericEventManager {
             .saturating_duration_since(self.last_trigger_eval)
             .as_secs_f64();
         self.last_trigger_eval = now;
-
-        // Force spawn: Storm Mode activation
-        if self.force_spawn_count > 0 {
-            self.force_spawn_count -= 1;
-            self.try_force_spawn(cols, lines, palette_color);
-            return;
-        }
 
         // Ghost spawn: independent of normal trigger evaluation
         self.try_spawn_ghost(now, cols, lines, is_paused);
@@ -968,32 +980,6 @@ impl AtmosphericEventManager {
             }
         } else {
             0
-        }
-    }
-
-    /// Force-spawn a bolt (called by Storm Mode activation).
-    fn try_force_spawn(&mut self, cols: u16, lines: u16, palette_color: Option<Color>) {
-        if self.events.len() >= EVENT_MAX_CONCURRENT {
-            return;
-        }
-        let (bolt_family, length_pct, brightness) = self.select_bolt_family();
-        let uniform = rand::distr::Uniform::new(0.0f32, 1.0f32).expect("[0,1) valid");
-        let start_col = (uniform.sample(&mut self.rng) * (cols - 1) as f32) as u16;
-        let direction: i8 = if start_col > cols / 2 { -1 } else { 1 };
-        if !self.avoid_repetition(bolt_family, start_col, direction, length_pct) {
-            let return_strokes = self.determine_return_strokes();
-            let event: Box<dyn AtmosphericEvent> = Box::new(LightningEvent::new(
-                cols,
-                lines,
-                brightness,
-                palette_color,
-                bolt_family,
-                length_pct,
-                return_strokes,
-            ));
-            self.events.push(event);
-            self.total_spawned += 1;
-            self.record_strike(bolt_family, start_col, direction, length_pct);
         }
     }
 }
