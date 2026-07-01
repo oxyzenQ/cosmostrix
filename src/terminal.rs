@@ -36,9 +36,7 @@ use std::sync::Arc;
 
 use crossterm::{
     cursor, event,
-    style::{
-        Attribute, Color, Print, ResetColor, SetAttribute, SetBackgroundColor, SetForegroundColor,
-    },
+    style::{Attribute, Color, ResetColor, SetAttribute},
     terminal, ExecutableCommand, QueueableCommand,
 };
 
@@ -87,6 +85,18 @@ pub struct Terminal {
     /// `Vec<Vec<usize>>` nested structure. Single allocation, better
     /// cache locality, no per-row Vec pointer chasing.
     dirty_flat: Vec<usize>,
+    /// Direct ANSI byte buffer for hot-path commands.
+    ///
+    /// Bypasses crossterm's `.queue()` which incurs per-call overhead:
+    /// trait dispatch + Adapter struct + fmt::Write machinery + heap
+    /// String allocation for Rgb colors (`format!("2;{r};{g};{b}")`)
+    /// and SetAttribute (`sgr()` returns String).
+    ///
+    /// This buffer accumulates raw ANSI bytes for color/cursor/print
+    /// commands, then flushes once per frame via `write_all`. Eliminates
+    /// ~170 heap allocs/frame (one per style change) + ~170 trait
+    /// dispatch calls.
+    ansi_buf: Vec<u8>,
     mouse_capture_enabled: bool,
     focus_change_enabled: bool,
     bracketed_paste_enabled: bool,
@@ -123,6 +133,7 @@ impl Terminal {
             },
             row_buf: String::with_capacity(512),
             dirty_flat: Vec::new(),
+            ansi_buf: Vec::with_capacity(STDOUT_BUF_CAPACITY),
             mouse_capture_enabled: false,
             focus_change_enabled: false,
             bracketed_paste_enabled: false,
@@ -177,6 +188,16 @@ impl Terminal {
 
     pub fn read_event() -> Result<event::Event> {
         event::read()
+    }
+
+    /// Flush the ANSI buffer to stdout via a single write_all call.
+    #[inline]
+    fn flush_ansi(&mut self) -> Result<()> {
+        if !self.ansi_buf.is_empty() {
+            self.stdout.write_all(&self.ansi_buf)?;
+            self.ansi_buf.clear();
+        }
+        Ok(())
     }
 
     /// Enable mouse capture so mouse events are reported.
@@ -311,16 +332,23 @@ impl Terminal {
             // cell_at_index_ref(idx+1) generation-check per cell (~4800
             // calls on a 200×40 terminal per full redraw).
             let row_buf = &mut self.row_buf;
+            let ansi_buf = &mut self.ansi_buf;
             row_buf.clear();
+            ansi_buf.clear();
             // Pre-reserve if terminal grew since last frame
             let need_cap = frame.width as usize * 4;
             if row_buf.capacity() < need_cap {
                 row_buf.reserve(need_cap - row_buf.capacity());
             }
-            self.stdout.queue(cursor::MoveTo(0, 0))?;
+            // MoveTo(0,0) directly into ansi_buf
+            ansi_buf.extend_from_slice(b"\x1b[1;1H");
             for y in 0..frame.height {
                 if y > 0 {
-                    self.stdout.queue(cursor::MoveTo(0, y))?;
+                    // MoveTo(0, y) directly into ansi_buf
+                    ansi_buf.push(0x1b);
+                    ansi_buf.push(b'[');
+                    push_u16(ansi_buf, y + 1);
+                    ansi_buf.extend_from_slice(b";1H");
                 }
                 row_buf.clear();
                 let width_usize = frame.width as usize;
@@ -332,34 +360,24 @@ impl Terminal {
                     let style_changed =
                         cell.fg != cur_fg || cell.bg != cur_bg || cell.bold != cur_bold;
                     if style_changed && !row_buf.is_empty() {
-                        self.stdout.queue(Print(row_buf.as_str()))?;
+                        ansi_buf.extend_from_slice(row_buf.as_bytes());
                         row_buf.clear();
                     }
 
-                    if cell.fg != cur_fg {
-                        if let Some(fg) = cell.fg {
-                            self.stdout.queue(SetForegroundColor(fg))?;
-                        } else {
-                            self.stdout.queue(SetForegroundColor(Color::Reset))?;
-                        }
+                    // Combined fg+bg SGR via direct ANSI bytes
+                    let color_changed = cell.fg != cur_fg || cell.bg != cur_bg;
+                    if color_changed {
+                        write_sgr_colors_buf(ansi_buf, cell.fg, cell.bg);
                         cur_fg = cell.fg;
-                    }
-
-                    if cell.bg != cur_bg {
-                        if let Some(bg) = cell.bg {
-                            self.stdout.queue(SetBackgroundColor(bg))?;
-                        } else {
-                            self.stdout.queue(SetBackgroundColor(Color::Reset))?;
-                        }
                         cur_bg = cell.bg;
                     }
 
                     if cell.bold != cur_bold {
-                        self.stdout.queue(SetAttribute(if cell.bold {
-                            Attribute::Bold
+                        if cell.bold {
+                            ansi_buf.extend_from_slice(b"\x1b[1m");
                         } else {
-                            Attribute::NormalIntensity
-                        }))?;
+                            ansi_buf.extend_from_slice(b"\x1b[22m");
+                        }
                         cur_bold = cell.bold;
                     }
 
@@ -368,12 +386,13 @@ impl Terminal {
                 }
                 // Flush remaining cells in the row buffer
                 if !row_buf.is_empty() {
-                    self.stdout.queue(Print(row_buf.as_str()))?;
+                    ansi_buf.extend_from_slice(row_buf.as_bytes());
                 }
             }
 
-            self.stdout.queue(SetAttribute(Attribute::Reset))?;
-            self.stdout.queue(ResetColor)?;
+            // Reset attributes + flush all buffered ANSI bytes in one write_all.
+            ansi_buf.extend_from_slice(b"\x1b[0m");
+            self.flush_ansi()?;
             self.stdout.flush()?;
 
             frame.clear_dirty();
@@ -386,6 +405,8 @@ impl Terminal {
         let width_usize = frame.width as usize;
         let height_usize = frame.height as usize;
         let run_buf = &mut self.run_buf;
+        let ansi_buf = &mut self.ansi_buf;
+        ansi_buf.clear();
 
         // PERF: flat dirty-index buffer replaces the previous Vec<Vec<usize>>
         // nested structure. Collect all dirty indices into a single Vec,
@@ -460,37 +481,35 @@ impl Terminal {
             }
 
             if cur_pos != Some((x0, y0)) {
-                self.stdout.queue(cursor::MoveTo(x0, y0))?;
+                // MoveTo(x0, y0) directly into ansi_buf
+                ansi_buf.push(0x1b);
+                ansi_buf.push(b'[');
+                push_u16(ansi_buf, y0 + 1);
+                ansi_buf.push(b';');
+                push_u16(ansi_buf, x0 + 1);
+                ansi_buf.push(b'H');
             }
 
-            if fg0 != cur_fg {
-                if let Some(fg) = fg0 {
-                    self.stdout.queue(SetForegroundColor(fg))?;
-                } else {
-                    self.stdout.queue(SetForegroundColor(Color::Reset))?;
-                }
+            // Combined fg+bg SGR: 1 escape sequence instead of 2 queue calls.
+            // Bypasses crossterm trait dispatch + fmt machinery + heap alloc.
+            let style_changed = fg0 != cur_fg || bg0 != cur_bg;
+            if style_changed {
+                write_sgr_colors_buf(ansi_buf, fg0, bg0);
                 cur_fg = fg0;
-            }
-
-            if bg0 != cur_bg {
-                if let Some(bg) = bg0 {
-                    self.stdout.queue(SetBackgroundColor(bg))?;
-                } else {
-                    self.stdout.queue(SetBackgroundColor(Color::Reset))?;
-                }
                 cur_bg = bg0;
             }
 
             if bold0 != cur_bold {
-                self.stdout.queue(SetAttribute(if bold0 {
-                    Attribute::Bold
+                if bold0 {
+                    ansi_buf.extend_from_slice(b"\x1b[1m");
                 } else {
-                    Attribute::NormalIntensity
-                }))?;
+                    ansi_buf.extend_from_slice(b"\x1b[22m");
+                }
                 cur_bold = bold0;
             }
 
-            self.stdout.queue(Print(run_buf.as_str()))?;
+            // Print run directly into ANSI buffer (UTF-8 bytes).
+            ansi_buf.extend_from_slice(run_buf.as_bytes());
             let next_x = x0.saturating_add(run_len);
             cur_pos = if next_x < frame.width {
                 Some((next_x, y0))
@@ -501,8 +520,9 @@ impl Terminal {
             i = j;
         }
 
-        self.stdout.queue(SetAttribute(Attribute::Reset))?;
-        self.stdout.queue(ResetColor)?;
+        // Reset attributes + flush all buffered ANSI bytes in one write_all.
+        ansi_buf.extend_from_slice(b"\x1b[0m");
+        self.flush_ansi()?;
         self.stdout.flush()?;
         frame.clear_dirty();
         Ok(())
@@ -585,6 +605,100 @@ pub fn blank_cell(bg: Option<Color>) -> Cell {
         bg,
         bold: false,
     }
+}
+
+/// Push a u8 as ASCII decimal digits into buf (no heap alloc, no format!).
+#[inline]
+fn push_u8(buf: &mut Vec<u8>, n: u8) {
+    if n < 10 {
+        buf.push(b'0' + n);
+    } else if n < 100 {
+        buf.push(b'0' + n / 10);
+        buf.push(b'0' + n % 10);
+    } else {
+        buf.push(b'0' + n / 100);
+        buf.push(b'0' + (n / 10) % 10);
+        buf.push(b'0' + n % 10);
+    }
+}
+
+/// Push a u16 as ASCII decimal digits into buf (no heap alloc, no format!).
+#[inline]
+fn push_u16(buf: &mut Vec<u8>, n: u16) {
+    if n < 256 {
+        push_u8(buf, n as u8);
+    } else {
+        // 256..=65535: up to 5 digits
+        let mut tmp = [0u8; 5];
+        let mut val = n;
+        let mut len = 0;
+        while val > 0 {
+            tmp[len] = b'0' + (val % 10) as u8;
+            val /= 10;
+            len += 1;
+        }
+        for i in (0..len).rev() {
+            buf.push(tmp[i]);
+        }
+    }
+}
+
+/// Write combined fg+bg SGR escape sequence directly into buf.
+/// Produces `\x1b[38;2;r;g;b;48;2;r;g;bm` (or subset for Reset/None).
+/// Bypasses crossterm trait dispatch + fmt machinery + heap String alloc.
+#[inline]
+fn write_sgr_colors_buf(buf: &mut Vec<u8>, fg: Option<Color>, bg: Option<Color>) {
+    buf.extend_from_slice(b"\x1b[");
+    let mut first = true;
+    match fg {
+        Some(Color::Rgb { r, g, b }) => {
+            buf.extend_from_slice(b"38;2;");
+            push_u8(buf, r);
+            buf.push(b';');
+            push_u8(buf, g);
+            buf.push(b';');
+            push_u8(buf, b);
+            first = false;
+        }
+        Some(Color::AnsiValue(v)) => {
+            buf.extend_from_slice(b"38;5;");
+            push_u8(buf, v);
+            first = false;
+        }
+        Some(Color::Reset) | None => {
+            buf.extend_from_slice(b"39");
+            first = false;
+        }
+        _ => {} // named colors: skip (rare in production TrueColor mode)
+    }
+    match bg {
+        Some(Color::Rgb { r, g, b }) => {
+            if !first {
+                buf.push(b';');
+            }
+            buf.extend_from_slice(b"48;2;");
+            push_u8(buf, r);
+            buf.push(b';');
+            push_u8(buf, g);
+            buf.push(b';');
+            push_u8(buf, b);
+        }
+        Some(Color::AnsiValue(v)) => {
+            if !first {
+                buf.push(b';');
+            }
+            buf.extend_from_slice(b"48;5;");
+            push_u8(buf, v);
+        }
+        Some(Color::Reset) | None => {
+            if !first {
+                buf.push(b';');
+            }
+            buf.extend_from_slice(b"49");
+        }
+        _ => {} // named colors: skip
+    }
+    buf.extend_from_slice(b"m");
 }
 
 #[cfg(test)]
