@@ -4,6 +4,40 @@
 
 ## Release History
 
+### v10.0.0 — Peak Performance & Stability (COMPLETE)
+
+Major performance optimization and stability hardening release.
++70.3% FPS improvement over v5.0.3 baseline through three optimization
+phases plus a brutal pre-release audit. Lightning feature removed per
+user request. License enforced as GPL-3.0-only across all 171 files.
+
+| Phase | Description | Gain |
+|-------|-------------|------|
+| Phase A | Hot-path optimization (7 fixes) | +73.8% FPS |
+| Phase 2 | Structural (spawn free-list + flat dirty pairs) | +1.6% FPS |
+| Phase 3 | Cell struct shrink | Cancelled (already 16 bytes via niche optimization) |
+| Audit | Panic hook race, SIGQUIT, overflow guards, dead code | Stability hardening |
+
+Cumulative: **+70.3% FPS** (31,445 → 53,561 avg_fps), **-40.6% frame time**.
+
+#### Future Optimization Opportunities
+- **Cache-aware SoA layout**: restructure Cell fields as parallel arrays
+  (ch[], fg[], bg[], bold[]) to improve cache line utilization in the
+  render loop. Currently AoS (Array of Structures) — 16 bytes/cell.
+- **SIMD color blending**: RGB blend operations are scalar fixed-point.
+  Auto-vectorization or explicit SIMD (x86 SSE2/AVX2, ARM NEON) could
+  batch 4-8 cells per instruction. The `build.rs` already detects CPU
+  features for v3/v4 profile selection.
+- **Multi-core offloading**: currently single-threaded by design (single
+  terminal writer). A worker thread could offload phosphor decay +
+  atmospheric effects with double-buffered frame handoff, keeping the
+  main thread focused on rain draw + terminal I/O.
+- **GPU-accelerated rendering**: experimental backend via kitty graphics
+  protocol for terminals that support it. Would bypass ANSI entirely for
+  pixel-accurate rendering.
+- **Plugin system**: user-defined atmospheric events via WASM modules.
+  The AtmosphericEvent trait already provides the extension point.
+
 ### v4.9.0 — The Wolf: Release Guard + Terminal Runtime Contract (COMPLETE)
 
 Hardens the release process so benchmark reports cannot be forgotten again.

@@ -77,7 +77,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v5.0.3"
+TAG="v10.0.0"
 PLATFORM="linux-x86_64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -248,6 +248,44 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
 ```
 
 See [benchmark/README.md](benchmark/README.md) for full reference results and interpretation notes.
+
+### v10.0.0 Performance Achievements
+
+Three optimization phases + pre-release audit yielded **+70.3% FPS** improvement over v5.0.3:
+
+| Metric | v5.0.3 baseline | v10.0.0 | Improvement |
+|---|---|---|---|
+| avg_fps | 31,445 | 53,561 | **+70.3%** |
+| avg_frame_time | 0.032ms | 0.019ms | -40.6% |
+| p99_frame_time | 0.045ms | 0.026ms | -42.2% |
+
+Key optimizations: O(1) phosphor dedup (BitVec), head_brightness hoist,
+DrawCtx glitch cache, viewport_edge_fade LUT, spawn free-list, flat
+terminal dirty pairs, incremental phosphor_fresh clear. See
+[CHANGELOG.md](CHANGELOG.md) for full details.
+
+## Roadmap
+
+### v10.0.0 — Peak Performance & Stability (current)
+- ✅ +70.3% FPS via hot-path + structural optimization
+- ✅ Brutal pre-release audit: panic hook race, SIGQUIT, overflow guards
+- ✅ GPL-3.0-only enforced across all 171 files
+- ✅ Lightning feature removed (never reached satisfying visual feel)
+- ✅ Dead code removed, memory ordering fixed, defense-in-depth added
+
+### Future Directions
+- **Cache-aware engine**: explore SoA (Structure of Arrays) layout for
+  Cell fields to improve cache line utilization in the render loop
+- **SIMD color blending**: investigate auto-vectorization of RGB blend
+  operations (currently scalar fixed-point; SIMD could batch 4-8 cells
+  per instruction)
+- **Multi-core offloading**: currently single-threaded by design (single
+  terminal writer). Future: offload phosphor decay + atmospheric effects
+  to a worker thread with double-buffered frame handoff
+- **GPU-accelerated rendering**: experimental backend via termbox/kitty
+  graphics protocol for terminals that support it
+- **Plugin system**: user-defined atmospheric events via WASM modules
+- **Profile presets**: community-contributed profiles in config format
 
 ## Version & Updates
 
