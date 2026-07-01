@@ -390,6 +390,23 @@ impl Droplet {
         let head_bright = self.head_brightness(now);
         let is_head_bright_cached = head_bright > 0.3;
 
+        // F6: hoist loop-invariant transition energy + F7: fractional_progress
+        let is_new_generation = self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
+        let transition_wf: Option<i32> = if is_new_generation {
+            self.last_time.and_then(|birth| {
+                let age = now.saturating_duration_since(birth).as_secs_f32();
+                if age < TRANSITION_ENERGY_DURATION_SECS {
+                    let t = 1.0 - (age / TRANSITION_ENERGY_DURATION_SECS);
+                    Some((t * TRANSITION_ENERGY_SATURATION_BOOST * 256.0) as i32)
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
+        let frac_progress = self.fractional_progress();
+
         for line in start_line..=self.head_put_line {
             if line >= ctx.lines {
                 break;
@@ -449,32 +466,17 @@ impl Droplet {
             // head_bright was hoisted out of the loop above — reuse cached value.
 
             // Apply visual effects to foreground color
-            let is_new_generation =
-                self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
-
             let edge_fade = ctx.edge_fade(line);
 
             let fg = fg.and_then(|c| {
                 // Decode color to RGB once; chain all effects on raw tuples.
-                // This eliminates 3-10 color_to_rgb() calls per cell.
                 let (mut r, mut g, mut b) = palette::decode_color(c)?;
 
-                // Transition energy: new-palette streams glow brighter when fresh
-                if is_new_generation {
-                    if let Some(birth) = self.last_time {
-                        let age = now.saturating_duration_since(birth).as_secs_f32();
-                        if age < TRANSITION_ENERGY_DURATION_SECS {
-                            let t = 1.0 - (age / TRANSITION_ENERGY_DURATION_SECS);
-                            let factor = t * TRANSITION_ENERGY_SATURATION_BOOST;
-                            let wf = (factor * 256.0) as i32;
-                            r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                            g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                            b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                        }
-                    }
+                // F6: transition energy uses hoisted transition_wf
+                if let Some(wf) = transition_wf {
+                    r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                 }
 
                 // Head bloom: exponential gaussian falloff for natural glow.
@@ -488,7 +490,7 @@ impl Droplet {
                         } else {
                             HEAD_BLOOM_INTENSITY
                         };
-                        let frac_bloom = 1.0 + self.fractional_progress() * FRACTIONAL_BLOOM_AMP;
+                        let frac_bloom = 1.0 + frac_progress * FRACTIONAL_BLOOM_AMP;
                         let factor = gaussian * bloom * frac_bloom;
                         let wf = (factor * 256.0) as i32;
                         r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
@@ -552,34 +554,29 @@ impl Droplet {
                 }
 
                 // Click flash: expanding ring of brightness from click point
-                if let Some(flash_time) = ctx.flash_time {
-                    let elapsed = flash_time.elapsed().as_secs_f32();
-                    if elapsed < MOUSE_FLASH_DURATION_SECS {
-                        let col_dist = if self.bound_col > ctx.flash_col {
-                            (self.bound_col - ctx.flash_col) as f32
-                        } else {
-                            (ctx.flash_col - self.bound_col) as f32
-                        };
-                        let line_dist = if line > ctx.flash_line {
-                            (line - ctx.flash_line) as f32
-                        } else {
-                            (ctx.flash_line - line) as f32
-                        };
-                        let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
-                        let ring_radius = elapsed * MOUSE_FLASH_SPEED;
-                        let ring_dist = (euclidean - ring_radius).abs();
-                        if ring_dist < MOUSE_FLASH_RING_WIDTH {
-                            let t = 1.0 - ring_dist / MOUSE_FLASH_RING_WIDTH;
-                            let fade = 1.0 - elapsed / MOUSE_FLASH_DURATION_SECS;
-                            let factor = t * MOUSE_FLASH_INTENSITY * fade;
-                            let wf = (factor * 256.0) as i32;
-                            r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                            g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                            b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255)
-                                as u8;
-                        }
+                // F4: use cached flash_elapsed instead of per-cell flash_time.elapsed()
+                if let Some(elapsed) = ctx.flash_elapsed {
+                    let col_dist = if self.bound_col > ctx.flash_col {
+                        (self.bound_col - ctx.flash_col) as f32
+                    } else {
+                        (ctx.flash_col - self.bound_col) as f32
+                    };
+                    let line_dist = if line > ctx.flash_line {
+                        (line - ctx.flash_line) as f32
+                    } else {
+                        (ctx.flash_line - line) as f32
+                    };
+                    let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
+                    let ring_radius = elapsed * MOUSE_FLASH_SPEED;
+                    let ring_dist = (euclidean - ring_radius).abs();
+                    if ring_dist < MOUSE_FLASH_RING_WIDTH {
+                        let t = 1.0 - ring_dist / MOUSE_FLASH_RING_WIDTH;
+                        let fade = 1.0 - elapsed / MOUSE_FLASH_DURATION_SECS;
+                        let factor = t * MOUSE_FLASH_INTENSITY * fade;
+                        let wf = (factor * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                     }
                 }
 

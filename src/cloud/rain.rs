@@ -375,6 +375,14 @@ impl Cloud {
             flash_col: self.flash_col,
             flash_line: self.flash_line,
             flash_time: self.flash_time,
+            flash_elapsed: self.flash_time.and_then(|ft| {
+                let e = ft.elapsed().as_secs_f32();
+                if e < MOUSE_FLASH_DURATION_SECS {
+                    Some(e)
+                } else {
+                    None
+                }
+            }),
             pool_is_binary,
         };
 

@@ -169,6 +169,7 @@ fn monolith_color_for_level_ghost_is_faintest() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        flash_elapsed: None,
         pool_is_binary: false,
     };
 
@@ -233,6 +234,7 @@ fn monolith_background_muddy_residue_guard() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        flash_elapsed: None,
         pool_is_binary: false,
     };
 

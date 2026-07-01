@@ -206,6 +206,7 @@ fn charset_wave_uses_old_rows_below_and_new_rows_above() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        flash_elapsed: None,
         pool_is_binary: false,
     };
 
@@ -422,6 +423,7 @@ fn color_uses_previous_palette_below_wave_line() {
         flash_col: u16::MAX,
         flash_line: u16::MAX,
         flash_time: None,
+        flash_elapsed: None,
         pool_is_binary: false,
     };
 

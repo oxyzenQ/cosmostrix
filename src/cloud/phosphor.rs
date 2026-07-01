@@ -537,6 +537,41 @@ impl Cloud {
             return;
         }
 
+        // PERF: precompute all loop-invariant float operations once per frame.
+        // Previously recomputed per dirty cell (~500×/frame).
+        let now_secs = now.elapsed().as_secs() as u32; // F1: hoist syscall
+        let total_lum = luminance + profile.luminance_offset + emergent.luminance_boost;
+        let lum_fi = if total_lum < 1.0 {
+            Some((total_lum.clamp(0.0, 1.0) * 256.0) as i32) // dim factor
+        } else {
+            None // no dim; boost handled by lum_wf below
+        };
+        let lum_wf = if total_lum > 1.0 {
+            Some(((total_lum - 1.0).clamp(0.0, 0.3) * 256.0) as i32) // boost factor
+        } else {
+            None
+        };
+        let sat_ti = if needs_saturation && saturation < 1.0 {
+            Some((saturation.clamp(0.0, 1.0) * 256.0) as i32)
+        } else {
+            None
+        };
+        let persist_wf = if needs_persistence && persistence > 0.0 {
+            Some(((persistence * 0.3).clamp(0.0, 1.0) * 256.0) as i32)
+        } else {
+            None
+        };
+        let instability_threshold = if instability > 0.15 {
+            Some((instability * 50.0) as u32)
+        } else {
+            None
+        };
+        let instability_wf = if instability > 0.15 {
+            Some(((instability * 0.1).clamp(0.0, 1.0) * 256.0) as i32)
+        } else {
+            None
+        };
+
         // Collect dirty indices first to release immutable borrow before frame.set()
         let dirty_indices: smallvec::SmallVec<[usize; 256]> =
             frame.dirty_indices().iter().copied().collect();
@@ -546,9 +581,10 @@ impl Cloud {
         // encode once at the end.  Eliminates 2-3 redundant color_to_rgb()
         // match+destructure cycles per cell when multiple effects are active.
         let bg = self.palette.bg;
+        let frame_width = frame.width as usize;
         for &dirty_idx in &dirty_indices {
-            let col = (dirty_idx % frame.width as usize) as u16;
-            let line = (dirty_idx / frame.width as usize) as u16;
+            let col = (dirty_idx % frame_width) as u16;
+            let line = (dirty_idx / frame_width) as u16;
             if line >= self.lines || col >= self.cols {
                 continue;
             }
@@ -560,27 +596,19 @@ impl Cloud {
                 };
 
                 if needs_luminance {
-                    let total_lum = luminance + profile.luminance_offset + emergent.luminance_boost;
-                    if total_lum < 1.0 {
-                        let f = total_lum.clamp(0.0, 1.0);
-                        let fi = (f * 256.0) as i32;
+                    if let Some(fi) = lum_fi {
                         r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                         g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                         b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    } else if total_lum > 1.0 {
-                        let boost = (total_lum - 1.0).clamp(0.0, 0.3);
-                        let wf = (boost * 256.0) as i32;
+                    } else if let Some(wf) = lum_wf {
                         r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                         g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                         b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                     }
                 }
 
-                if needs_saturation && saturation < 1.0 {
-                    let f = saturation.clamp(0.0, 1.0);
+                if let Some(ti) = sat_ti {
                     let gray = ((r as u16 + g as u16 + b as u16) / 3) as u8;
-                    // Inline lerp: gray + (channel - gray) * f  (8.8 fixed-point)
-                    let ti = (f * 256.0) as i32;
                     r = (gray as i32 + ((r as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255)
                         as u8;
                     g = (gray as i32 + ((g as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255)
@@ -589,19 +617,18 @@ impl Cloud {
                         as u8;
                 }
 
-                if needs_persistence && persistence > 0.0 {
-                    let wf = ((persistence * 0.3).clamp(0.0, 1.0) * 256.0) as i32;
+                if let Some(wf) = persist_wf {
                     r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                     g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                     b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                 }
 
-                if instability > 0.15 {
+                if let Some(threshold) = instability_threshold {
                     let hash = (col as u32).wrapping_mul(2654435761)
                         ^ (line as u32).wrapping_mul(2246822519)
-                        ^ (now.elapsed().as_secs() as u32);
-                    if hash % 1000 < (instability * 50.0) as u32 {
-                        let wf = ((instability * 0.1).clamp(0.0, 1.0) * 256.0) as i32;
+                        ^ now_secs; // F1: use hoisted value
+                    if hash % 1000 < threshold {
+                        let wf = instability_wf.unwrap();
                         r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                         g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                         b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;

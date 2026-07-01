@@ -90,7 +90,12 @@ pub struct DrawCtx<'a> {
     /// Flash effect click line.
     pub flash_line: u16,
     /// Flash effect start time (None if no active flash).
+    /// Kept for API compatibility; use `flash_elapsed` for per-cell logic.
+    #[allow(dead_code)]
     pub flash_time: Option<Instant>,
+    /// Cached flash elapsed seconds (None if no active flash or expired).
+    /// Precomputed once per frame to avoid per-cell `Instant::elapsed()` syscalls.
+    pub flash_elapsed: Option<f32>,
     /// Cached result of pool_is_binary check, computed once per DrawCtx
     /// construction to avoid per-cell iteration of the char pool.
     pub pool_is_binary: bool,

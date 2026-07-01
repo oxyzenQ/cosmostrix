@@ -623,6 +623,13 @@ fn draw_segments(
         let bottom = head_line - segment.offset as i32;
         let top = bottom - segment.len as i32 + 1;
 
+        // F8: hoist hero_pulse per segment (all args are segment-invariant)
+        let hero_pulse = if matches!(segment.kind, SegmentKind::Medium | SegmentKind::Hero) {
+            monolith_hero_pulse(stream.phase, segment.offset, frac)
+        } else {
+            1.0
+        };
+
         for line_i in top..=bottom {
             if line_i < 0 || line_i >= ctx.lines as i32 {
                 continue;
@@ -632,7 +639,7 @@ fn draw_segments(
             let level = segment_level(segment.kind, pos_from_bottom);
             let edge_fade = ctx.edge_fade(line);
             let pulse = if matches!(level, BrightnessLevel::Hot | BrightnessLevel::Core) {
-                monolith_hero_pulse(stream.phase, segment.offset, frac)
+                hero_pulse
             } else {
                 1.0
             };
@@ -822,19 +829,15 @@ fn clear_phosphor_metadata(cleanup: &mut MonolithCleanup<'_>, col: u16, line: u1
         return;
     }
     let pidx = col as usize * cleanup.lines as usize + line as usize;
+    // F9: all 4 arrays are co-sized (allocated together in reset()).
+    // Single bounds check suffices; skip 3 redundant get_mut() checks.
     if pidx >= cleanup.phosphor.len() {
         return;
     }
     cleanup.phosphor[pidx] = 0;
-    if let Some(base_fg) = cleanup.phosphor_base_fg.get_mut(pidx) {
-        *base_fg = None;
-    }
-    if let Some(base_ch) = cleanup.phosphor_base_ch.get_mut(pidx) {
-        *base_ch = '\0';
-    }
-    if let Some(layer) = cleanup.phosphor_layer.get_mut(pidx) {
-        *layer = 0;
-    }
+    cleanup.phosphor_base_fg[pidx] = None;
+    cleanup.phosphor_base_ch[pidx] = '\0';
+    cleanup.phosphor_layer[pidx] = 0;
 }
 
 fn visible_range(stream: &MonolithStream, lines: u16) -> Option<(u16, u16)> {

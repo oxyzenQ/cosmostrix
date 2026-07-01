@@ -283,20 +283,14 @@ combined fg+bg SGR, no-heap integer formatting. See
 ### Future Directions
 
 **Investigated and ruled out:**
-- ~~SoA layout~~: Net loss (4x more cache misses — cosmostrix reads all Cell fields together)
-- ~~SIMD blending~~: Not viable (random dirty-cell access + per-cell branches block vectorization)
-- ~~Multi-core offloading~~: Not worth it (0.1% frame budget used; bottleneck is I/O not CPU)
+- ~~SoA/SIMD/multi-core~~: Not viable (wrong access pattern, 0.1% budget used)
 
 **Real bottleneck: terminal I/O (optimized in v10.0.0)**
 - Direct ANSI byte buffer bypasses crossterm `.queue()` overhead
-- Combined fg+bg SGR in one escape sequence
-- Integer-to-ASCII without `format!` heap alloc
-- Single `write_all` flush per frame
+- Combined fg+bg SGR, no-heap integer formatting, single flush per frame
 
 **Remaining I/O research (post-v10.0.0):**
-- Terminal protocol detection (kitty/foot/wezterm faster protocols)
-- Color byte caching (pre-format palette colors at startup)
-- Output compression (DEFLATE for supported terminals)
+- Terminal protocol detection (kitty/foot/wezterm), color byte caching, output compression
 
 ## Version & Updates
 
