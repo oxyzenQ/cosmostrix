@@ -207,7 +207,15 @@ pub const ANSI_BYTES_PER_CELL_ESTIMATE: u64 = 19;
 pub const CONFIG_DIR_NAME: &str = "cosmostrix";
 
 /// Config file name.
-pub const CONFIG_FILE_NAME: &str = "config";
+/// Changed from "config" to "config.toml" in v10.0.0 for consistency
+/// with the template file and standard TOML convention.
+/// Backward compat: configfile.rs falls back to "config" if "config.toml"
+/// doesn't exist (for users upgrading from pre-v10).
+pub const CONFIG_FILE_NAME: &str = "config.toml";
+
+/// Legacy config file name (pre-v10.0.0). Used as fallback in
+/// default_config_file_path() if config.toml doesn't exist.
+pub const CONFIG_FILE_NAME_LEGACY: &str = "config";
 
 /// Default frame dirty capacity pre-allocation.  One Nth of total cells.
 /// 8 is conservative enough for 1024×500 terminals (≈64K pre-alloc) while

@@ -16,7 +16,7 @@ Usage: $0 [--system | --user] [--no-build]
 Install cosmostrix binary + default config.
 
 Modes:
-  --user     (default) Install to ~/.local/bin/, config to ~/.config/cosmostrix/config
+  --user     (default) Install to ~/.local/bin/, config to ~/.config/cosmostrix/config.toml
   --system   Install to /usr/local/bin/, config to /etc/cosmostrix/config (requires root)
 
 Options:
@@ -50,7 +50,7 @@ done
 if [[ "$MODE" == "--system" ]]; then
     PREFIX="${PREFIX:-/usr/local}"
     CONFIG_DIR="/etc/cosmostrix"
-    CONFIG_PATH="${CONFIG_DIR}/config"
+    CONFIG_PATH="${CONFIG_DIR}/config.toml"
     if [[ $EUID -ne 0 ]]; then
         echo "error: --system requires root (use sudo or run as root)" >&2
         exit 1
@@ -58,12 +58,12 @@ if [[ "$MODE" == "--system" ]]; then
 else
     PREFIX="${PREFIX:-${HOME}/.local}"
     CONFIG_DIR="${HOME}/.config/cosmostrix"
-    CONFIG_PATH="${CONFIG_DIR}/config"
+    CONFIG_PATH="${CONFIG_DIR}/config.toml"
 fi
 
 BINDIR="${DESTDIR:-}${PREFIX}/bin"
 CONFIG_DIR_STAGED="${DESTDIR:-}${CONFIG_DIR}"
-CONFIG_PATH_STAGED="${CONFIG_DIR_STAGED}/config"
+CONFIG_PATH_STAGED="${CONFIG_DIR_STAGED}/config.toml"
 
 cd "${REPO_ROOT}"
 

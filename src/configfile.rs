@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
+use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
 use crate::profile::is_profile_config_key;
 
 pub const USER_CONFIG_KEYS: &[&str] = &[
@@ -117,26 +117,53 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
 
 /// Returns the path to the config file.
 /// Uses `$XDG_CONFIG_HOME` if set, otherwise `~/.config`.
+///
+/// Looks for `config.toml` first (v10+), falls back to `config` (pre-v10)
+/// for backward compatibility with users upgrading from older versions.
 #[must_use]
 pub fn default_config_file_path() -> PathBuf {
-    config_file_path_from(env::var("XDG_CONFIG_HOME").ok(), env::var("HOME").ok())
+    let xdg = env::var("XDG_CONFIG_HOME").ok();
+    let home = env::var("HOME").ok();
+    let new_path = config_file_path_from_env(xdg.as_deref(), home.as_deref(), CONFIG_FILE_NAME);
+    // Backward compat: if config.toml doesn't exist, check for legacy "config"
+    if new_path.exists() {
+        return new_path;
+    }
+    let legacy_path =
+        config_file_path_from_env(xdg.as_deref(), home.as_deref(), CONFIG_FILE_NAME_LEGACY);
+    if legacy_path.exists() {
+        return legacy_path;
+    }
+    // Neither exists — return the new path (for --config-path display + --testconf)
+    new_path
 }
 
 #[must_use]
+#[allow(dead_code)]
 pub fn config_file_path_from(xdg_config_home: Option<String>, home: Option<String>) -> PathBuf {
+    config_file_path_from_env(
+        xdg_config_home.as_deref(),
+        home.as_deref(),
+        CONFIG_FILE_NAME,
+    )
+}
+
+fn config_file_path_from_env(
+    xdg_config_home: Option<&str>,
+    home: Option<&str>,
+    file_name: &str,
+) -> PathBuf {
     if let Some(xdg) = xdg_config_home.filter(|v| !v.is_empty()) {
-        PathBuf::from(xdg)
-            .join(CONFIG_DIR_NAME)
-            .join(CONFIG_FILE_NAME)
+        PathBuf::from(xdg).join(CONFIG_DIR_NAME).join(file_name)
     } else if let Some(home) = home.filter(|v| !v.is_empty()) {
         PathBuf::from(home)
             .join(".config")
             .join(CONFIG_DIR_NAME)
-            .join(CONFIG_FILE_NAME)
+            .join(file_name)
     } else {
         PathBuf::from(".config")
             .join(CONFIG_DIR_NAME)
-            .join(CONFIG_FILE_NAME)
+            .join(file_name)
     }
 }
 
@@ -144,8 +171,8 @@ pub fn config_file_path_from(xdg_config_home: Option<String>, home: Option<Strin
 pub fn dump_config_text() -> &'static str {
     r#"# Cosmostrix config
 # Location:
-#   $XDG_CONFIG_HOME/cosmostrix/config
-#   or ~/.config/cosmostrix/config
+#   $XDG_CONFIG_HOME/cosmostrix/config.toml
+#   or ~/.config/cosmostrix/config.toml
 #
 # Format:
 #   key = value
@@ -251,13 +278,16 @@ mod tests {
     fn default_path_prefers_xdg_config_home() {
         let path =
             config_file_path_from(Some("/tmp/xdg".to_string()), Some("/tmp/home".to_string()));
-        assert_eq!(path, PathBuf::from("/tmp/xdg/cosmostrix/config"));
+        assert_eq!(path, PathBuf::from("/tmp/xdg/cosmostrix/config.toml"));
     }
 
     #[test]
     fn default_path_falls_back_to_home_config() {
         let path = config_file_path_from(None, Some("/tmp/home".to_string()));
-        assert_eq!(path, PathBuf::from("/tmp/home/.config/cosmostrix/config"));
+        assert_eq!(
+            path,
+            PathBuf::from("/tmp/home/.config/cosmostrix/config.toml")
+        );
     }
 
     #[test]
