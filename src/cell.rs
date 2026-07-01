@@ -5,7 +5,9 @@
 //!
 //! A `Cell` is the atomic unit of the frame buffer — a single terminal
 //! position containing a character, foreground/background colors, and a
-//! bold flag. Cells are copied by value (~24 bytes) throughout the renderer.
+//! bold flag. Cells are copied by value (16 bytes) throughout the renderer.
+//! `Option<Color>` is niche-optimized to 4 bytes (same as `Color`), so the
+//! total is 4+4+4+1(+3 pad) = 16 bytes.
 
 use crossterm::style::Color;
 
