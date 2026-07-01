@@ -112,7 +112,7 @@ jobs:
         run: |
           cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
           cargo build --profile release --locked --jobs "${CARGO_BUILD_JOBS}"
-          RUSTFLAGS="-C target-cpu=x86-64" cargo build --profile pro-linux-v1 --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+          RUSTFLAGS="-C target-cpu=x86-64-v3" cargo build --profile pro-linux-v3 --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Run tests
         if: steps.changes.outputs.changed == 'true'

@@ -54,7 +54,7 @@ level. LLVM's auto-vectorizer is active with the most aggressive settings:
 - **Phosphor arrays** (column-major `Vec`): `Vec<u8>` (energy), `Vec<Option<Color>>`
   (base_fg), `Vec<char>` (base_ch), `BitVec` (fresh flags).
 
-### 2.3 Constraints (per `RULES.md`)
+### 2.3 Constraints (per `docs/RULES.md`)
 
 Rust 1.81.0 stable, Clippy `-D warnings`, no new unsafe in renderer/core paths
 unless explicitly audited, source files under 1,000 lines.

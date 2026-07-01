@@ -282,10 +282,8 @@ terminal dirty pairs, incremental phosphor_fresh clear. See
 - **Multi-core offloading**: currently single-threaded by design (single
   terminal writer). Future: offload phosphor decay + atmospheric effects
   to a worker thread with double-buffered frame handoff
-- **GPU-accelerated rendering**: experimental backend via termbox/kitty
-  graphics protocol for terminals that support it
-- **Plugin system**: user-defined atmospheric events via WASM modules
 - **Profile presets**: community-contributed profiles in config format
+  (custom user-defined values via `[profile.NAME]` sections)
 
 ## Version & Updates
 
@@ -327,7 +325,7 @@ Create a release by pushing a `v*` tag. See [workflow/about-ci.md](workflow/abou
 
 ## Contributing
 
-PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [RULES.md](RULES.md) for project conventions.
+PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [RULES.md](docs/RULES.md) for project conventions.
 
 ## Support
 
@@ -341,4 +339,4 @@ Support is optional. The project remains open-source.
 
 ## License
 
-GPL-3.0-only. See `LICENSE`. Brand usage governed by `TRADEMARK.md`.
+GPL-3.0-only. See `LICENSE`. Brand usage governed by `docs/TRADEMARK.md`.

@@ -412,12 +412,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - profile: pro-linux-v1
-            rustflags: "-C target-cpu=x86-64"
-            build: linux-x86_64-v1
-          - profile: pro-linux-v2
-            rustflags: "-C target-cpu=x86-64-v2"
-            build: linux-x86_64-v2
           - profile: pro-linux-v3
             rustflags: "-C target-cpu=x86-64-v3"
             build: linux-x86_64-v3

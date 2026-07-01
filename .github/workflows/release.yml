@@ -26,31 +26,24 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            platform: linux-x86_64-v1
-            profile: pro-linux-v1
-            rustflags: "-C target-cpu=x86-64"
-            build: linux-x86_64-v1
-            checks: true
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            platform: linux-x86_64-v2
-            profile: pro-linux-v2
-            rustflags: "-C target-cpu=x86-64-v2"
-            build: linux-x86_64-v2
-            checks: false
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
             platform: linux-x86_64-v3
             profile: pro-linux-v3
             rustflags: "-C target-cpu=x86-64-v3"
             build: linux-x86_64-v3
-            checks: false
+            checks: true
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             platform: linux-x86_64-v4
             profile: pro-linux-v4
             rustflags: "-C target-cpu=x86-64-v4"
             build: linux-x86_64-v4
+            checks: false
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            platform: linux-x86_64-musl
+            profile: pro-linux-musl
+            rustflags: "-C target-cpu=x86-64-v3"
+            build: linux-x86_64-musl
             checks: false
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
@@ -167,16 +160,21 @@ jobs:
       - name: Add Rust target
         run: rustup target add ${{ matrix.target }}
 
+      - name: Install musl cross-compiler (musl builds only)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
       - name: Verify Linux x86_64 CPU baseline inputs
-        if: startsWith(matrix.platform, 'linux-x86_64-v')
+        if: startsWith(matrix.platform, 'linux-x86_64-v') || matrix.platform == 'linux-x86_64-musl'
         shell: bash
         run: |
           set -euo pipefail
           case "${{ matrix.platform }}" in
-            linux-x86_64-v1) expected="-C target-cpu=x86-64" ;;
-            linux-x86_64-v2) expected="-C target-cpu=x86-64-v2" ;;
             linux-x86_64-v3) expected="-C target-cpu=x86-64-v3" ;;
             linux-x86_64-v4) expected="-C target-cpu=x86-64-v4" ;;
+            linux-x86_64-musl) expected="-C target-cpu=x86-64-v3" ;;
             *) echo "::error::Unknown Linux x86_64 platform ${{ matrix.platform }}"; exit 1 ;;
           esac
           if [[ "${{ matrix.rustflags }}" != "${expected}" ]]; then
@@ -261,10 +259,9 @@ jobs:
           BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
           BUILD_ID="${{ matrix.build }}"
           case "${BUILD_ID}" in
-            linux-x86_64-v1) BASELINE="x86-64-v1"; OPTIMIZATION="x86-64 baseline (SSE/SSE2)"; REQUIRED=""; DENIED="sse4.2 popcnt avx2 bmi2 fma avx512f" ;;
-            linux-x86_64-v2) BASELINE="x86-64-v2"; OPTIMIZATION="x86-64-v2 baseline (SSE3/SSSE3/SSE4.1/SSE4.2/POPCNT)"; REQUIRED="sse4.2 popcnt"; DENIED="avx2 bmi2 fma avx512f" ;;
             linux-x86_64-v3) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
             linux-x86_64-v4) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
+            linux-x86_64-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
             *) BASELINE=""; OPTIMIZATION=""; REQUIRED=""; DENIED="" ;;
           esac
 
@@ -790,7 +787,7 @@ jobs:
             echo
             echo '```bash'
             echo '# Quick install (Linux x86_64)'
-            echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-linux-x86_64-v1.tar.gz | tar -xzf -"
+            echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-linux-x86_64-v3.tar.gz | tar -xzf -"
             echo
             echo '# Quick install (macOS Apple Silicon)'
             echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-darwin-aarch64-native.tar.gz | tar -xzf -"

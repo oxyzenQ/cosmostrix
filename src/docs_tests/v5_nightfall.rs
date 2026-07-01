@@ -35,7 +35,7 @@ const CHARSET_SRC: &str = include_str!("../charset.rs");
 const PROFILE_SRC: &str = include_str!("../profile.rs");
 
 /// Example config file.
-const EXAMPLE_CONFIG: &str = include_str!("../../config/cosmostrix.example.toml");
+const EXAMPLE_CONFIG: &str = include_str!("../../config/config.toml");
 
 // ---------------------------------------------------------------------------
 // Roadmap guards
@@ -216,7 +216,7 @@ fn show_preset_impl_exists_in_preset_rs() {
 fn example_config_exists() {
     assert!(
         !EXAMPLE_CONFIG.is_empty(),
-        "config/cosmostrix.example.toml must exist and be non-empty"
+        "config/config.toml must exist and be non-empty"
     );
 }
 

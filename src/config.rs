@@ -324,6 +324,14 @@ pub struct Args {
     )]
     pub config_path: bool,
 
+    #[arg(
+        long = "testconf",
+        help_heading = "CONFIG",
+        display_order = 102,
+        help = "Validate ~/.config/cosmostrix/config.toml and report errors (typos, unknown keys, invalid values)"
+    )]
+    pub testconf: bool,
+
     // === DIAGNOSTICS (visible in --help) ===
     #[arg(
         long = "doctor",

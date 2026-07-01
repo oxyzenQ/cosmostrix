@@ -57,16 +57,13 @@ panic = "unwind"
 overflow-checks = false
 incremental = false
 
-[profile.pro-linux-v1]
-inherits = "pro"
-
-[profile.pro-linux-v2]
-inherits = "pro"
-
 [profile.pro-linux-v3]
 inherits = "pro"
 
 [profile.pro-linux-v4]
+inherits = "pro"
+
+[profile.pro-linux-musl]
 inherits = "pro"
 
 [profile.pro-macos-aarch64-native]

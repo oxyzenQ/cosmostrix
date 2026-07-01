@@ -112,8 +112,8 @@ pub(super) fn check_cpu_features() {
             eprintln!("       but your CPU does not support it.");
             eprintln!();
             eprintln!("Rebuild with a compatible target:");
-            eprintln!("  cargo pro-linux-v2    # x86-64-v2 (SSE4.2, POPCNT) — most CPUs");
             eprintln!("  cargo pro-linux-v3    # x86-64-v3 (AVX2) — modern CPUs");
+            eprintln!("  cargo pro-linux-musl  # x86-64-v3 + musl static");
             std::process::exit(1);
         }
     } else if build.contains("-v3") && !std::arch::is_x86_feature_detected!("avx2") {
@@ -121,8 +121,10 @@ pub(super) fn check_cpu_features() {
         eprintln!("       but your CPU does not support it.");
         eprintln!();
         eprintln!("Rebuild with:");
-        eprintln!("  cargo pro-linux-v1    # x86-64-v1 (baseline)");
-        eprintln!("  cargo pro-linux-v2    # x86-64-v2 (SSE4.2, POPCNT)");
+        eprintln!("  cargo pro-linux-musl  # x86-64-v3 + musl static (same baseline)");
+        eprintln!(
+            "  Note: v1/v2 profiles were dropped in v10.0.0. Use musl for max compatibility."
+        );
         std::process::exit(1);
     }
 }

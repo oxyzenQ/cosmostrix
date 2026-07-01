@@ -32,11 +32,8 @@ Cumulative: **+70.3% FPS** (31,445 → 53,561 avg_fps), **-40.6% frame time**.
   terminal writer). A worker thread could offload phosphor decay +
   atmospheric effects with double-buffered frame handoff, keeping the
   main thread focused on rain draw + terminal I/O.
-- **GPU-accelerated rendering**: experimental backend via kitty graphics
-  protocol for terminals that support it. Would bypass ANSI entirely for
-  pixel-accurate rendering.
-- **Plugin system**: user-defined atmospheric events via WASM modules.
-  The AtmosphericEvent trait already provides the extension point.
+- **Profile presets**: community-contributed profiles in config format
+  with custom user-defined values via `[profile.NAME]` sections.
 
 ### v4.9.0 — The Wolf: Release Guard + Terminal Runtime Contract (COMPLETE)
 

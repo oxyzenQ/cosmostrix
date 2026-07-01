@@ -78,7 +78,7 @@ The model is straightforward and deterministic:
 Users can verify any downloaded artifact with a single command:
 
 ```bash
-sha512sum --check cosmostrix-bin-v2.1.0-linux-x86_64-v1.tar.gz.sha512sum
+sha512sum --check cosmostrix-bin-v10.0.0-linux-x86_64-v3.tar.gz.sha512sum
 ```
 
 ### AUR Package Verification
@@ -248,7 +248,7 @@ The project uses a weekly automated update cycle powered by the `Maintenance dep
    source, and duplicate-version policies.
 5. **`cargo fmt --all -- --check`** — ensures no formatting drift was introduced
    by any dependency update affecting macro expansion.
-6. **`cargo build`** (dev, release, and `pro-linux-v1` profiles) — validates that
+6. **`cargo build`** (dev, release, and `pro-linux-v3` profiles) — validates that
    the project compiles cleanly with the updated crates.
 7. **`cargo test --all --locked`** — runs the full test suite to catch any
    behavioral regressions.

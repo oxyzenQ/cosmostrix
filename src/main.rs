@@ -91,6 +91,7 @@ mod report;
 mod runtime;
 mod scene;
 mod terminal;
+mod testconf;
 mod theme;
 mod update;
 mod validation;
@@ -291,6 +292,10 @@ fn main() -> std::io::Result<()> {
     if args.config_path {
         println!("{}", configfile::default_config_file_path().display());
         return Ok(());
+    }
+
+    if args.testconf {
+        return testconf::run(&args);
     }
 
     if args.list_profiles {
