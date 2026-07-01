@@ -16,6 +16,7 @@ ignore = []
 allow = [
   "Apache-2.0",
   "MIT",
+  "GPL-3.0-only",
   "GPL-3.0-or-later",
   "BSD-2-Clause",
   "BSD-3-Clause",
