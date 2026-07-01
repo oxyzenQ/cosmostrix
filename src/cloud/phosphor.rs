@@ -64,7 +64,14 @@ impl Cloud {
         };
 
         // Pass 1: Mark cells currently drawn by droplets as fresh.
-        self.phosphor_fresh.fill(false);
+        // PERF: incrementally clear only the bits that were set last frame
+        // (saved in `phosphor_last_fresh`), instead of O(W×H) `fill(false)`.
+        // For 200×60 terminal: 1,536 bytes memset → ~200 bit clears.
+        for &pidx in &self.phosphor_last_fresh {
+            if pidx < self.phosphor_fresh.len() {
+                self.phosphor_fresh.set(pidx, false);
+            }
+        }
         let current_gen = frame.current_gen();
         let mut tracked_fresh: smallvec::SmallVec<[usize; 256]> = smallvec::SmallVec::new();
 
@@ -156,12 +163,20 @@ impl Cloud {
             }
         }
 
-        // Track newly active phosphor cells (dedup to prevent unbounded growth).
+        // Track newly active phosphor cells (dedup via BitVec for O(1) check).
+        // PERF: previously used `phosphor_active.contains(&pidx)` which is
+        // O(N) linear scan per fresh cell — 5,000-100,000 wasted ops/frame.
+        // The BitVec membership check is O(1) and eliminates the bottleneck.
         for &pidx in &tracked_fresh {
-            if !self.phosphor_active.contains(&pidx) {
+            if !self.phosphor_in_active.get(pidx).is_some_and(|b| *b) {
                 self.phosphor_active.push(pidx);
+                self.phosphor_in_active.set(pidx, true);
             }
         }
+
+        // Save tracked_fresh for next frame's incremental phosphor_fresh clear.
+        // tracked_fresh is no longer needed after the dedup loop above, so move it.
+        self.phosphor_last_fresh = tracked_fresh;
 
         // PERF(v10): Precompute per-frame decay factors for all (layer, bottom)
         // combinations.  There are PARALLAX_LAYERS (3) × 2 (normal/bottom) = 6
@@ -183,6 +198,7 @@ impl Cloud {
             let pidx = self.phosphor_active[i];
             if pidx >= total {
                 self.phosphor_active.swap_remove(i);
+                self.phosphor_in_active.set(pidx, false);
                 continue;
             }
 
@@ -193,6 +209,7 @@ impl Cloud {
 
             if self.phosphor[pidx] == 0 {
                 self.phosphor_active.swap_remove(i);
+                self.phosphor_in_active.set(pidx, false);
                 continue;
             }
 
@@ -227,6 +244,7 @@ impl Cloud {
                 self.phosphor_base_fg[pidx] = None;
                 self.phosphor_base_ch[pidx] = '\0';
                 self.phosphor_active.swap_remove(i);
+                self.phosphor_in_active.set(pidx, false);
                 frame.set(col, line, blank_cell);
                 continue;
             }

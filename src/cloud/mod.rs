@@ -125,6 +125,11 @@ pub struct Cloud {
     pub(super) glitch_map: BitVec,
     pub(super) color_map: Vec<u8>,
 
+    /// Precomputed viewport edge fade factor per line. Indexed by `line`.
+    /// Eliminates per-cell float division in Droplet::draw and Monolith draw.
+    /// Resized in reset() on terminal resize.
+    pub(super) edge_fade_lut: Vec<f32>,
+
     pub(super) col_stat: Vec<ColumnStatus>,
 
     pub(super) mt: StdRng,
@@ -239,11 +244,22 @@ pub struct Cloud {
     pub(super) phosphor_layer: Vec<u8>,
     /// BitVec tracking which cells were refreshed by a droplet this frame.
     pub(super) phosphor_fresh: BitVec,
+    /// BitVec tracking which cells are currently in `phosphor_active`.
+    /// Provides O(1) membership check during dedup, replacing the
+    /// previous O(N) `phosphor_active.contains()` linear scan that ran
+    /// per fresh cell per frame (5,000-100,000 wasted ops/frame).
+    pub(super) phosphor_in_active: BitVec,
     /// Time of the last phosphor pass for frame-rate-independent decay.
     pub(super) last_phosphor_time: Instant,
     /// Active phosphor indices — cells with non-zero energy, tracked for O(active) decay.
     /// Typical frame has <100 active cells, eliminating 95%+ of Pass 3 iterations.
     pub(super) phosphor_active: SmallVec<[usize; 256]>,
+    /// Snapshot of `tracked_fresh` from the previous phosphor_decay_pass.
+    /// Used to incrementally clear `phosphor_fresh` bits at the start of
+    /// the next pass — replaces the previous O(W×H) `phosphor_fresh.fill(false)`
+    /// that scanned the entire grid every frame even when only ~200 cells
+    /// were dirty.
+    pub(super) phosphor_last_fresh: SmallVec<[usize; 256]>,
 
     // --- Rare anomaly events ---
     /// Active anomaly zones currently affecting the screen.
@@ -343,6 +359,7 @@ impl Cloud {
             glitch_pool_idx: 0,
             glitch_map: BitVec::new(),
             color_map: Vec::new(),
+            edge_fade_lut: Vec::new(),
             col_stat: Vec::new(),
             mt,
             rand_chance: Uniform::new(0.0, 1.0).expect("rand_chance: [0,1) always valid"),
@@ -393,7 +410,9 @@ impl Cloud {
             phosphor_base_ch: Vec::new(),
             phosphor_layer: Vec::new(),
             phosphor_fresh: BitVec::new(),
+            phosphor_in_active: BitVec::new(),
             phosphor_active: SmallVec::new(),
+            phosphor_last_fresh: SmallVec::new(),
             last_phosphor_time: now,
             anomaly_zones: Vec::new(),
             profile: BehaviorProfile::Monolith,

@@ -46,6 +46,12 @@ pub struct DrawCtx<'a> {
     pub next_glitch_time: Instant,
     /// Precomputed 1.0 / glitch duration for multiply (avoids per-cell division).
     pub glitch_inv_between: f64,
+    /// Cached `is_bright(now)` snapshot computed once per DrawCtx construction.
+    /// Avoids per-cell Instant::saturating_duration_since + nanos conversion
+    /// in get_attr's glitch branch (called 100-300×/frame when glitchy).
+    pub glitch_bright: bool,
+    /// Cached `is_dim(now)` snapshot computed once per DrawCtx construction.
+    pub glitch_dim: bool,
 
     /// Per-slot palette color arrays for generation-based rendering.
     /// Index by droplet's `palette_slot` to resolve its birth palette.
@@ -63,6 +69,10 @@ pub struct DrawCtx<'a> {
     pub glitch_map: &'a BitSlice,
     pub char_pool: &'a [char],
     pub previous_char_pool: &'a [char],
+    /// Precomputed viewport edge fade per line. Indexed by `line`.
+    /// Built once per terminal resize in Cloud::reset(); DrawCtx borrows it.
+    /// Replaces per-cell `viewport_edge_fade(line, lines)` float division.
+    pub edge_fade_lut: &'a [f32],
     pub charset_wave_line: Option<f32>,
 
     /// Color transition wave line: during a palette transition, rows above
@@ -88,6 +98,7 @@ pub struct DrawCtx<'a> {
 
 impl DrawCtx<'_> {
     #[inline]
+    #[allow(dead_code)]
     fn is_bright(&self, now: Instant) -> bool {
         if now < self.last_glitch_time || self.glitch_inv_between <= 0.0 {
             return false;
@@ -99,6 +110,7 @@ impl DrawCtx<'_> {
     }
 
     #[inline]
+    #[allow(dead_code)]
     fn is_dim(&self, now: Instant) -> bool {
         if now > self.next_glitch_time {
             return true;
@@ -119,6 +131,17 @@ impl DrawCtx<'_> {
         }
         let idx = col as usize * self.lines as usize + line as usize;
         self.glitch_map.get(idx).is_some_and(|b| *b)
+    }
+
+    /// Lookup precomputed viewport edge fade for a given line.
+    /// Falls back to 1.0 (no fade) if the LUT doesn't cover the line index,
+    /// which is safe — the LUT is rebuilt on every terminal resize.
+    #[inline]
+    pub fn edge_fade(&self, line: u16) -> f32 {
+        self.edge_fade_lut
+            .get(line as usize)
+            .copied()
+            .unwrap_or(1.0)
     }
 
     #[inline]
@@ -183,7 +206,6 @@ impl DrawCtx<'_> {
         col: u16,
         val: char,
         loc: CharLoc,
-        now: Instant,
         head_put_line: u16,
         length: u16,
     ) -> (Option<Color>, bool) {
@@ -232,10 +254,13 @@ impl DrawCtx<'_> {
         }
 
         if self.glitchy && self.glitch_map.get(idx).is_some_and(|b| *b) {
-            if self.is_bright(now) {
+            // PERF: glitch_bright/glitch_dim are cached once per DrawCtx
+            // construction (rain_at) — they depend only on `now`, not on
+            // cell position, so recomputing per-cell was pure waste.
+            if self.glitch_bright {
                 color_idx += 1;
                 bold = true;
-            } else if self.is_dim(now) {
+            } else if self.glitch_dim {
                 color_idx -= 1;
                 bold = false;
             }

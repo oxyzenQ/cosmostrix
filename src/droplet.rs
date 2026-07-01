@@ -355,7 +355,10 @@ impl Droplet {
     }
 
     /// Legacy binary helper kept for CharLoc::Head classification threshold.
+    /// Unused after the head_brightness hoisting optimization, but retained
+    /// as a thin wrapper for any future caller that needs the bool form.
     #[inline]
+    #[allow(dead_code)]
     fn is_head_bright(&self, now: Instant) -> bool {
         self.head_brightness(now) > 0.3
     }
@@ -379,6 +382,14 @@ impl Droplet {
             start_line = tp.saturating_add(1);
         }
 
+        // PERF: head_brightness() depends only on `self` and `now`, NOT on
+        // `line`. Previously it was called once per line inside the loop
+        // via is_head_bright() and again at line 440 via head_brightness() —
+        // 2× redundant Instant::elapsed() + exp() per line per droplet.
+        // Hoist both computations out of the loop.
+        let head_bright = self.head_brightness(now);
+        let is_head_bright_cached = head_bright > 0.3;
+
         for line in start_line..=self.head_put_line {
             if line >= ctx.lines {
                 break;
@@ -389,7 +400,7 @@ impl Droplet {
             // subtle "churn" that makes active cells feel alive without flicker.
             // The shimmer uses a time-based offset into the char_pool, so the
             // character changes smoothly at HEAD_SHIMMER_PERIOD_SECS intervals.
-            let is_head = line == self.head_put_line && self.is_head_bright(now);
+            let is_head = line == self.head_put_line && is_head_bright_cached;
             let val = if is_head && self.is_head_crawling {
                 let birth = self.birth_time.unwrap_or(now);
                 let age = now.saturating_duration_since(birth).as_secs_f32();
@@ -431,19 +442,17 @@ impl Droplet {
                 self.bound_col,
                 val,
                 loc,
-                now,
                 self.head_put_line,
                 self.length,
             );
 
-            // Smooth head brightness: fade head glow exponentially after stop
-            let head_bright = self.head_brightness(now);
+            // head_bright was hoisted out of the loop above — reuse cached value.
 
             // Apply visual effects to foreground color
             let is_new_generation =
                 self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
 
-            let edge_fade = viewport_edge_fade(line, ctx.lines);
+            let edge_fade = ctx.edge_fade(line);
 
             let fg = fg.and_then(|c| {
                 // Decode color to RGB once; chain all effects on raw tuples.

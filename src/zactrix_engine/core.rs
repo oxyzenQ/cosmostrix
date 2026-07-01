@@ -53,12 +53,14 @@ pub(crate) fn estimates_full_redraw(
 }
 
 #[must_use]
+#[inline]
 pub(crate) fn monolith_motion_factor(phase: f32, head: f32) -> f32 {
     let wave = triangle_wave01(phase + head * 0.041);
     (0.965 + wave * 0.070).clamp(0.965, 1.035)
 }
 
 #[must_use]
+#[inline]
 pub(crate) fn monolith_breathing_factor(phase: f32, head: f32, layer: u8) -> f32 {
     let amplitude = match layer {
         0 => 0.018,
@@ -70,16 +72,19 @@ pub(crate) fn monolith_breathing_factor(phase: f32, head: f32, layer: u8) -> f32
 }
 
 #[must_use]
+#[inline]
 pub(crate) fn monolith_hero_pulse(phase: f32, segment_offset: u16, head_fraction: f32) -> f32 {
     let wave = triangle_wave01(phase * 0.5 + segment_offset as f32 * 0.073 + head_fraction * 0.5);
     (0.992 + wave * 0.053).clamp(0.992, 1.045)
 }
 
 #[must_use]
+#[inline]
 pub(crate) fn monolith_spine_cadence(phase: f32, layer: u8) -> u16 {
     3 + (((phase.clamp(0.0, 1.0) * 11.0) as u16 + layer as u16) & 1)
 }
 
+#[inline]
 fn triangle_wave01(value: f32) -> f32 {
     let t = value.rem_euclid(1.0);
     1.0 - (t * 2.0 - 1.0).abs()

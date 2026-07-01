@@ -306,6 +306,29 @@ impl Cloud {
             }
         };
 
+        // PERF: precompute glitch bright/dim phase state once per frame.
+        // Previously is_bright(now)/is_dim(now) were called per-cell from
+        // DrawCtx::get_attr — but both depend only on `now` (not cell
+        // position), so the result is identical across all cells in the
+        // same frame. Caching saves ~100-300 Instant::saturating_duration_since
+        // + as_nanos + float multiply ops per frame when glitchy.
+        let glitch_bright = if now < self.last_glitch_time || glitch_inv_between <= 0.0 {
+            false
+        } else {
+            let since = now
+                .saturating_duration_since(self.last_glitch_time)
+                .as_nanos() as f64;
+            since * glitch_inv_between <= GLITCH_BRIGHT_RATIO
+        };
+        let glitch_dim = if now > self.next_glitch_time || glitch_inv_between <= 0.0 {
+            true
+        } else {
+            let since = now
+                .saturating_duration_since(self.last_glitch_time)
+                .as_nanos() as f64;
+            since * glitch_inv_between >= GLITCH_DIM_RATIO
+        };
+
         // ── Pre-rain event render (ghosts, behind droplets) ──
         if !self.event_manager.is_empty() {
             let palette_slice_pre: &[Color] = &self.palette.colors;
@@ -332,6 +355,8 @@ impl Cloud {
             last_glitch_time: self.last_glitch_time,
             next_glitch_time: self.next_glitch_time,
             glitch_inv_between,
+            glitch_bright,
+            glitch_dim,
             palette_slices,
             active_palette_slot: self.active_palette_slot,
             transitioning,
@@ -339,6 +364,7 @@ impl Cloud {
             glitch_map: &self.glitch_map,
             char_pool: &self.char_pool,
             previous_char_pool: &self.previous_char_pool,
+            edge_fade_lut: &self.edge_fade_lut,
             charset_wave_line,
             color_wave_line,
             mouse_col: self.mouse_col,

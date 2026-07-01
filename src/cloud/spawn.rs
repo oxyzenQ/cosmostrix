@@ -77,6 +77,16 @@ impl Cloud {
         self.set_column_speeds();
         self.update_droplet_speeds();
 
+        // Precompute viewport edge fade LUT for the new terminal height.
+        // Index by `line`; value is the fade factor in [EDGE_FADE_BOTTOM_MIN, 1.0].
+        // Eliminates per-cell float division in Droplet::draw and Monolith draw.
+        self.edge_fade_lut.clear();
+        self.edge_fade_lut.reserve(lines as usize);
+        for line in 0..lines {
+            self.edge_fade_lut
+                .push(crate::droplet::viewport_edge_fade(line, lines));
+        }
+
         // Reset phosphor state for new terminal size
         let total = (cols as usize) * (lines as usize);
         self.phosphor.clear();
@@ -89,6 +99,8 @@ impl Cloud {
         self.phosphor_layer.resize(total, 0);
         self.phosphor_fresh.clear();
         self.phosphor_fresh.resize(total, false);
+        self.phosphor_in_active.clear();
+        self.phosphor_in_active.resize(total, false);
         self.phosphor_active.clear();
 
         // Reset anomaly zones on terminal resize
