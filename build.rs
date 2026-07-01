@@ -401,6 +401,9 @@ fn optimization_label(build_id: &str, baseline: &str, features: &HashSet<String>
         return "native CPU tuned build";
     }
 
+    // musl builds: same CPU baseline + static linking note
+    let is_musl = build_id.ends_with("-musl");
+
     match baseline {
         "x86-64-v4"
             if has_all_features(
@@ -408,10 +411,18 @@ fn optimization_label(build_id: &str, baseline: &str, features: &HashSet<String>
                 &["avx512f", "avx512bw", "avx512cd", "avx512dq", "avx512vl"],
             ) =>
         {
-            "x86-64-v4 baseline (AVX-512)"
+            if is_musl {
+                "x86-64-v4 baseline (AVX-512) + musl static"
+            } else {
+                "x86-64-v4 baseline (AVX-512)"
+            }
         }
         "x86-64-v3" if has_all_features(features, &["avx", "avx2", "bmi1", "bmi2", "fma"]) => {
-            "x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"
+            if is_musl {
+                "x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"
+            } else {
+                "x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"
+            }
         }
         "x86-64-v2"
             if has_all_features(features, &["sse3", "ssse3", "sse4.1", "sse4.2", "popcnt"]) =>
