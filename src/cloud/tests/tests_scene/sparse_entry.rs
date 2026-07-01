@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Sparse fresh-entry density tests — alive-count bounded, ramp start/clear,
 //! repeated cycling stays sparse.

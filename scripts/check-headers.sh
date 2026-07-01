@@ -3,14 +3,14 @@
 # COSMOSTRIX SPDX HEADER CHECK
 # =============================================================================
 # Copyright (C) 2026 rezky_nightky
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-only
 # =============================================================================
 # Scans all core/code/config/script files for required SPDX-License-Identifier
 # headers. Fails if any included file is missing the header or has the wrong
 # license identifier.
 #
-# Required: SPDX-License-Identifier: GPL-3.0-or-later
-# Rejected: MIT (project is GPL-3.0-or-later licensed)
+# Required: SPDX-License-Identifier: GPL-3.0-only
+# Rejected: MIT (project is GPL-3.0-only licensed)
 #
 # Included file types: *.rs, *.sh, *.toml, *.yml, *.yaml
 # Excluded: target/, .git/, Cargo.lock, *.md, *.txt, assets, media
@@ -29,7 +29,7 @@ MISSING=0
 WRONG=0
 CHECKED=0
 
-EXPECTED_LICENSE="GPL-3.0-or-later"
+EXPECTED_LICENSE="GPL-3.0-only"
 REJECTED_LICENSE="MIT"
 
 while IFS= read -r -d '' file; do

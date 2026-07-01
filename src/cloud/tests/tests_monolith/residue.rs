@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Monolith residue tests: bottom residue, top clear, stale spine/phosphor
 //! cleanup, muddy residue guards, semantic invalidation residue.

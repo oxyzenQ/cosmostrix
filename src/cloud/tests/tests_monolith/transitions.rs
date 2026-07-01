@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Monolith transition tests: resize reset, semantic invalidation,
 //! previous cells clearing when stream moves, spine cell transitions.

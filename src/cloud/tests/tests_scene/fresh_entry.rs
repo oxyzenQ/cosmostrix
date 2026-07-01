@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Fresh-entry warm-start tests — upper-quarter seeding, top-biased visibility,
 //! short trails, no in-progress look.

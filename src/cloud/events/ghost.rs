@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Phosphor Ghost — kanji characters that appear on dim rain cells with
 //! fade-in/out animation. Ghosts render before rain so droplets partially

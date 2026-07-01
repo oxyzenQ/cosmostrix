@@ -1,5 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Build information, memory estimation, CPU feature detection, and
 //! environment variable helpers.
@@ -38,7 +38,7 @@ pub(super) fn version_report() -> String {
         "Version: v{version}\n\
          Build: {build} ({commit})\n\
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
-         License: GPL-3.0-or-later\n\
+         License: GPL-3.0-only\n\
          Source: https://github.com/oxyzenQ/cosmostrix"
     )
 }
