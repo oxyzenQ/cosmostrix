@@ -12,8 +12,8 @@
 # Required: SPDX-License-Identifier: GPL-3.0-only
 # Rejected: MIT (project is GPL-3.0-only licensed)
 #
-# Included file types: *.rs, *.sh, *.toml, *.yml, *.yaml
-# Excluded: target/, .git/, Cargo.lock, *.md, *.txt, assets, media
+# Included file types: *.rs, *.sh, *.toml, *.yml, *.yaml, *.md
+# Excluded: target/, .git/, Cargo.lock, *.txt, assets/media binary files
 #
 # Usage: bash scripts/check-headers.sh
 # =============================================================================
@@ -56,7 +56,7 @@ while IFS= read -r -d '' file; do
     fi
 done < <(
     find "$REPO_ROOT" \
-        \( -name '*.rs' -o -name '*.sh' -o -name '*.toml' -o -name '*.yml' -o -name '*.yaml' \) \
+        \( -name '*.rs' -o -name '*.sh' -o -name '*.toml' -o -name '*.yml' -o -name '*.yaml' -o -name '*.md' \) \
         -not -path '*/target/*' \
         -not -path '*/.git/*' \
         -not -name 'Cargo.lock' \

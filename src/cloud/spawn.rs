@@ -72,8 +72,6 @@ impl Cloud {
         self.column_palette_slot.clear();
         self.column_palette_slot
             .resize(cols as usize, self.active_palette_slot);
-        self.column_transition_delay_ms.clear();
-        self.column_transition_delay_ms.resize(cols as usize, 0);
         self.transition_start = None;
         self.previous_char_pool.clear();
         self.charset_transition_start = None;
@@ -270,10 +268,17 @@ impl Cloud {
         self.color_map.resize(size, 0);
 
         let n = self.palette.colors.len().max(1);
+        // Guard: palette size must fit u8 index range for color_map.
+        // Current max is 20 (Rainbow), but this prevents a latent panic
+        // if a future palette exceeds 257 colors.
+        debug_assert!(
+            n <= 257,
+            "palette too large for u8 color_map index: {n} colors"
+        );
         let (low, high) = match n {
             0..=2 => (0, 0),
             3 => (1, 1),
-            _ => (1, (n - 2) as u8),
+            _ => (1, ((n - 2).min(255)) as u8),
         };
         let dist =
             Uniform::new_inclusive(low, high).expect("fill_color_map: low <= high by construction");

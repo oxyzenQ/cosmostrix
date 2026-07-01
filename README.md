@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 <p align="center">
   <img src="assets/cosmostrix-logo.png" alt="cosmostrix logo" width="260">
 </p>
@@ -301,4 +303,4 @@ Support is optional. The project remains open-source.
 
 ## License
 
-GPL-3.0-or-later. See `LICENSE`. Brand usage governed by `TRADEMARK.md`.
+GPL-3.0-only. See `LICENSE`. Brand usage governed by `TRADEMARK.md`.

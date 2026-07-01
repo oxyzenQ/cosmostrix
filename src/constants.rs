@@ -730,12 +730,7 @@ pub const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
 // ---------------------------------------------------------------------------
 
 /// XOR seed offset for the event RNG (derived from Cloud's RNG seed).
-#[allow(dead_code)]
 pub const EVENT_RNG_XOR: u64 = 0xCAFE_BABE_1337_0420;
-
-/// Maximum number of concurrent atmospheric events.
-#[allow(dead_code)]
-pub const EVENT_MAX_CONCURRENT: usize = 2;
 
 /// Phosphor seeding energy for event afterglow.
 pub const EVENT_PHOSPHOR_SEED_ENERGY: u8 = 160;

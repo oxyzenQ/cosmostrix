@@ -1,4 +1,5 @@
 # Cosmostrix Performance & Correctness Audit
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 **Target**: >50% frame-time reduction without sacrificing cinematic render quality  
 **Codebase**: ~30,684 lines Rust, single-threaded terminal rain renderer  

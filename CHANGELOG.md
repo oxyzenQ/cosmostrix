@@ -1,4 +1,5 @@
 # Changelog
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 Cosmostrix uses [SemVer](https://semver.org/) for package versions (e.g. `4.0.0`).
 Git tags and GitHub Releases use a leading `v` (e.g. `v4.0.0`).

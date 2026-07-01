@@ -166,7 +166,11 @@ impl BenchProgress {
         Self {
             spinner_idx: 0,
             // Allow the first update immediately.
-            last_update: Instant::now() - UPDATE_INTERVAL,
+            // Use checked_sub to avoid panic if Instant epoch is very close
+            // to now (theoretically possible in containers/VMs at boot).
+            last_update: Instant::now()
+                .checked_sub(UPDATE_INTERVAL)
+                .unwrap_or_else(Instant::now),
             running_initialized: false,
             lines_written: 0,
             warmup_active: false,

@@ -1,4 +1,5 @@
 # Supply Chain Security
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 This document describes the policies, tooling, and procedures that govern the integrity
 of the Cosmostrix software supply chain — from dependency selection through release

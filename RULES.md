@@ -1,4 +1,5 @@
 # Cosmostrix Project Rules
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 ## Source file size
 

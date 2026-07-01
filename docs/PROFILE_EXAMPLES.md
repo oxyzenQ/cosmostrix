@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 # Profile Examples — v4.7.0
 

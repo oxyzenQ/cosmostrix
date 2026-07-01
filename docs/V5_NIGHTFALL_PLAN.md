@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 # v5.0.0 Nightfall Plan
 

@@ -1,4 +1,5 @@
 # Visual Stability — Depth Regression Lab
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 **Version**: v4.5.0 Phase 3  
 **Status**: Regression Lab (no visual redesign)  

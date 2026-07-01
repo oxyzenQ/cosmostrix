@@ -416,7 +416,7 @@ impl Droplet {
 
             let mut loc = CharLoc::Middle;
             if let Some(tp) = self.tail_put_line {
-                if line == tp + 1 {
+                if line == tp.saturating_add(1) {
                     loc = CharLoc::Tail;
                 }
             }

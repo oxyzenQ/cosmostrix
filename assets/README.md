@@ -1,4 +1,5 @@
 # Assets
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 Media assets used by Cosmostrix documentation and README.
 

@@ -1,4 +1,5 @@
 # GitHub Actions workflows
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 This repository uses GitHub Actions for CI and releases.
 

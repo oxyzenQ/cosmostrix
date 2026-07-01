@@ -1,4 +1,5 @@
 # Release Candidate Checklist
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 Cosmostrix follows [SemVer](https://semver.org/) for package versions. Git tags and
 GitHub Releases use a leading `v` (e.g. `v4.0.0`). Stable releases do not use

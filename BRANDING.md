@@ -1,4 +1,5 @@
 # Cosmostrix Brand Guidelines
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 This document defines the visual identity and communication standards for the
 Cosmostrix project. It ensures consistent branding across all touchpoints —

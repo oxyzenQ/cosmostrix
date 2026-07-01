@@ -208,11 +208,6 @@ pub struct Cloud {
     /// not column-based. This field is kept for spawn-time inheritance.
     pub(super) column_palette_slot: Vec<u8>,
 
-    /// Per-column delay (in ms) — legacy field kept for spawn-time reference.
-    /// No longer used for wave propagation; the row-based wave logic in
-    /// `color_wave_line_at()` drives the transition.
-    pub(super) column_transition_delay_ms: Vec<u16>,
-
     /// Mouse cursor column position (u16::MAX if no mouse).
     pub mouse_col: u16,
 
@@ -402,7 +397,6 @@ impl Cloud {
             active_palette_slot: 0,
             transition_start: None,
             column_palette_slot: Vec::new(),
-            column_transition_delay_ms: Vec::new(),
             mouse_col: u16::MAX,
             mouse_line: u16::MAX,
             mouse_enabled: false,

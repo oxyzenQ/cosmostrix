@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 use crossterm::event::{Event, KeyEventKind, MouseEventKind};
 
 #[cfg(unix)]
-use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGSTOP, SIGTERM, SIGTSTP};
+use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
 #[cfg(unix)]
 use signal_hook::iterator::Signals;
 #[cfg(unix)]
@@ -53,7 +53,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(unix)]
     {
         let se = signal_exit.clone();
-        if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP]) {
+        if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP, SIGQUIT]) {
             std::thread::spawn(move || {
                 if let Some(_sig) = signals.forever().next() {
                     // Request graceful shutdown via AtomicBool instead of
@@ -288,7 +288,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let mut pending_resize: Option<(u16, u16)> = None;
 
         #[cfg(unix)]
-        if term_reinit.swap(false, Ordering::Acquire) {
+        if term_reinit.swap(false, Ordering::AcqRel) {
             drop(term);
             term = Terminal::with_signal_exit(signal_exit.clone())?;
             if cfg.mouse && term.enable_mouse_capture().is_ok() {

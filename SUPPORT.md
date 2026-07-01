@@ -1,4 +1,5 @@
 # Support Policy
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 ## Supported platforms
 

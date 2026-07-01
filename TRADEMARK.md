@@ -1,4 +1,5 @@
 # Cosmostrix Trademark Policy
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 This document governs the use of the **Cosmostrix** name, logo, and associated
 branding assets. It supplements, but does not replace, the GPL v3 License that

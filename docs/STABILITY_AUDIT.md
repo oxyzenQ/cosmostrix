@@ -1,4 +1,5 @@
 # Cosmostrix Terminal Stability Audit Report
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 **Date**: Section C audit  
 **Scope**: Terminal safety, input safety, redraw safety, pause/resume, resize, signal handling  

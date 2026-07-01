@@ -229,8 +229,20 @@ fn main() -> std::io::Result<()> {
     #[cfg(target_arch = "x86_64")]
     info::check_cpu_features();
 
+    // Panic hook: write panic info to stderr ONLY.
+    //
+    // Do NOT call restore_terminal_best_effort() here — doing so writes
+    // restore sequences (LeaveAlternateScreen etc.) directly to stdout
+    // BEFORE unwinding runs Terminal::drop, which then flushes the
+    // BufWriter's pending frame data AFTER the alternate screen has been
+    // left. This leaks the partially-rendered rain onto the user's main
+    // terminal screen.
+    //
+    // Terminal restoration is handled by:
+    //   1. Terminal::drop (via panic=unwind) — normal case
+    //   2. Fork-based SIGKILL guard (Linux) — if process is killed
+    //   3. Watchdog thread — if main thread is hung
     std::panic::set_hook(Box::new(|info| {
-        restore_terminal_best_effort();
         eprintln!("{}", info);
     }));
 
@@ -590,11 +602,14 @@ fn main() -> std::io::Result<()> {
             std::process::exit(1);
         }
         if s > 0.0 {
+            // validate_err calls process::exit(2) on Err, so this always
+            // returns Ok. Use unwrap_or(s) for defense-in-depth in case
+            // validate_err is ever refactored to not exit.
             return validate_err(
                 "--duration",
                 validate_f64_range("--duration", s, 0.1, 86400.0),
             )
-            .unwrap();
+            .unwrap_or(s);
         }
         s
     });

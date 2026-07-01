@@ -1,4 +1,5 @@
 # Cosmostrix 72-Hour Endurance Analysis & Adaptive Learning Proposal
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 **Report date:** 2026-06-29  
 **Data source:** `cosmostrix-resource-1830630-20260626-021041.csv`  

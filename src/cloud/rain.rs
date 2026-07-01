@@ -240,7 +240,7 @@ impl Cloud {
                     };
                     let free_col = d.advance(adv_now, self.lines, self.resume_blend);
                     let col = d.bound_col;
-                    let start_line = d.tail_put_line.map(|v| v + 1).unwrap_or(0);
+                    let start_line = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
                     let hp = d.head_put_line;
                     let cp_idx = d.char_pool_idx;
                     let died = !d.is_alive;
