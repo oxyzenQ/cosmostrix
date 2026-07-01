@@ -343,10 +343,6 @@ fn claimed_x86_baseline(value: &str) -> Option<&'static str> {
         Some("x86-64-v4")
     } else if value.ends_with("-v3") {
         Some("x86-64-v3")
-    } else if value.ends_with("-v2") {
-        Some("x86-64-v2")
-    } else if value.ends_with("-v1") {
-        Some("x86-64-v1")
     } else {
         None
     }
@@ -398,31 +394,6 @@ fn verify_cpu_baseline(
             ),
         );
     }
-
-    if baseline == "x86-64-v1"
-        && has_any_features(
-            features,
-            &["sse4.2", "popcnt", "avx2", "bmi2", "fma", "avx512f"],
-        )
-    {
-        fail_cpu_baseline(
-            build_id,
-            profile_name,
-            baseline,
-            features,
-            "v1 artifact was built with newer x86_64 CPU features enabled",
-        );
-    }
-
-    if baseline == "x86-64-v2" && has_any_features(features, &["avx2", "bmi2", "fma", "avx512f"]) {
-        fail_cpu_baseline(
-            build_id,
-            profile_name,
-            baseline,
-            features,
-            "v2 artifact was built with v3/v4 CPU features enabled",
-        );
-    }
 }
 
 fn optimization_label(build_id: &str, baseline: &str, features: &HashSet<String>) -> &'static str {
@@ -468,7 +439,6 @@ fn missing_required_features(baseline: &str, features: &HashSet<String>) -> Vec<
     let required: &[&str] = match baseline {
         "x86-64-v4" => &["avx512f", "avx512bw", "avx512cd", "avx512dq", "avx512vl"],
         "x86-64-v3" => &["avx2", "bmi2", "fma"],
-        "x86-64-v2" => &["sse4.2", "popcnt"],
         _ => &[],
     };
 
@@ -481,10 +451,6 @@ fn missing_required_features(baseline: &str, features: &HashSet<String>) -> Vec<
 
 fn has_all_features(features: &HashSet<String>, required: &[&str]) -> bool {
     required.iter().all(|feature| features.contains(*feature))
-}
-
-fn has_any_features(features: &HashSet<String>, denied: &[&str]) -> bool {
-    denied.iter().any(|feature| features.contains(*feature))
 }
 
 fn fail_cpu_baseline(
