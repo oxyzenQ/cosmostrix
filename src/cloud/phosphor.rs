@@ -494,63 +494,6 @@ impl Cloud {
         }
     }
 
-    /// Global illumination pulse: very subtle screen-wide brightness boost
-    /// during lightning strike moments. Iterates dirty cells only; applies a
-    /// uniform white blend proportional to the pulse factor.
-    ///
-    /// Pulse intensity is capped at 12% (GLOBAL_PULSE_MAX_INTENSITY) to
-    /// produce a subtle screen-wide brightening when lightning strikes —
-    /// the "natural storm" feel where ambient light shifts momentarily
-    /// without blinding the viewer. The pulse fades with the strike's
-    /// exponential decay (2-3 frames visibly affected).
-    pub(super) fn apply_global_illumination_pulse(
-        &self,
-        frame: &mut crate::frame::Frame,
-        pulse: f32,
-    ) {
-        const GLOBAL_PULSE_MAX_INTENSITY: f32 = 0.12;
-        let intensity = (pulse * GLOBAL_PULSE_MAX_INTENSITY).clamp(0.0, GLOBAL_PULSE_MAX_INTENSITY);
-        if intensity < 0.002 {
-            return;
-        }
-        let wf = (intensity * 256.0) as i32;
-
-        // Always full-grid scan during a pulse: the screen-wide flash must
-        // reach static background cells (common in monolith scene), not just
-        // dirty rain-droplet cells. The pulse only lasts 2-3 frames so the
-        // O(w×h) cost is acceptable.
-        for line in 0..self.lines {
-            for col in 0..self.cols {
-                let i = line as usize * frame.width as usize + col as usize;
-                let cell = frame.cell_at_index(i);
-                // Blend fg if present, otherwise blend bg toward white so
-                // empty cells (monolith scene) also flash.
-                let (color, is_bg) = if let Some(fg) = cell.fg {
-                    (fg, false)
-                } else {
-                    (cell.bg.unwrap_or(crossterm::style::Color::Reset), true)
-                };
-                if let Some((r, g, b)) = crate::palette::decode_color(color) {
-                    let nr = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    let ng = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    let nb = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    let new_color = crossterm::style::Color::Rgb {
-                        r: nr,
-                        g: ng,
-                        b: nb,
-                    };
-                    let mut new_cell = cell;
-                    if is_bg {
-                        new_cell.bg = Some(new_color);
-                    } else {
-                        new_cell.fg = Some(new_color);
-                    }
-                    frame.set_force(col, line, new_cell);
-                }
-            }
-        }
-    }
-
     /// Apply global atmospheric effects to the frame.
     /// OPTIMIZED (v5.0.4): scans only dirty-cell indices instead of full O(w×h) grid.
     pub(super) fn apply_atmospheric_frame_effects(

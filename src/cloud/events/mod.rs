@@ -9,7 +9,5 @@
 
 pub(crate) mod ghost;
 pub(crate) mod helpers;
-pub(crate) mod lightning;
 
 pub(crate) use ghost::GhostEvent;
-pub(crate) use lightning::LightningEvent;

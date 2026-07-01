@@ -282,14 +282,11 @@ pub struct Cloud {
     /// `related_schemes()` drift, providing atmospheric color evolution.
     pub(super) auto_color_drift: bool,
 
-    /// When true, lightning events are disabled (--no-lightning flag).
-    pub(super) no_lightning: bool,
-
-    /// Runtime idle state (passed from event loop for weather tick).
+    /// Runtime idle state (passed from event loop).
     pub(super) is_idle: bool,
 
     // --- Atmospheric Event Engine ---
-    /// Event manager for cinematic atmospheric events (lightning, pulses, etc.).
+    /// Event manager for cinematic atmospheric events (ghosts, etc.).
     pub(super) event_manager: AtmosphericEventManager,
 }
 
@@ -409,7 +406,6 @@ impl Cloud {
             storytelling: StorytellingState::new(now),
             glyph_entry_time: None,
             auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
-            no_lightning: false,
             is_idle: false,
             event_manager: AtmosphericEventManager::new(now),
         }
@@ -431,45 +427,7 @@ impl Cloud {
 
     /// Enable atmospheric events (called when entering interactive mode).
     pub fn enable_events(&mut self) {
-        if !self.no_lightning {
-            self.event_manager.enable_events();
-        }
-    }
-
-    /// Activate Storm Mode (L key). Delegates to Weather Director.
-    pub fn activate_storm_mode(&mut self, now: Instant) -> bool {
-        let palette_color = self.palette.colors.last().copied();
-        self.event_manager
-            .activate_storm_mode(now, self.cols, self.lines, palette_color)
-    }
-
-    /// Force-spawn a single lightning bolt immediately (L key rapid-fire).
-    ///
-    /// Unlike `activate_storm_mode`, this does NOT enter the 18s Storm
-    /// Mode window and does NOT trigger the 60s cooldown — each call is
-    /// an independent, instant bolt. The only rate limit is the
-    /// `EVENT_MAX_CONCURRENT` cap on simultaneously-live bolts.
-    ///
-    /// Returns true if a bolt was spawned; false if the concurrent cap
-    /// was hit (rapid presses faster than bolt lifetime).
-    pub fn force_strike(&mut self, now: Instant) -> bool {
-        let palette_color = self.palette.colors.last().copied();
-        self.event_manager
-            .force_strike(now, self.cols, self.lines, palette_color)
-    }
-
-    /// Returns true if Storm Mode is currently active.
-    #[must_use]
-    pub fn is_storm_active(&self) -> bool {
-        self.event_manager.is_storm_active(Instant::now())
-    }
-
-    /// Returns the number of currently-live atmospheric events
-    /// (lightning bolts, ghosts, etc.). Used by tests to verify that
-    /// `force_strike` actually spawns a bolt.
-    #[must_use]
-    pub fn active_event_count(&self) -> usize {
-        self.event_manager.active_count()
+        self.event_manager.enable_events();
     }
 
     /// Set mouse cursor position for interaction effects.

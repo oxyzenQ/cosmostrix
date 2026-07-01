@@ -147,11 +147,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
-    // Enable atmospheric events for interactive mode.
-    // --no-lightning flag skips event activation.
-    if !cfg.no_lightning {
-        cloud.enable_events();
-    }
+    // Enable atmospheric events for interactive mode (ghosts, etc.).
+    cloud.enable_events();
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 

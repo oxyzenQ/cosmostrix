@@ -19,7 +19,6 @@ const GHOST_CHARS: &[char] = &['雨', '雷', '電', '風', '雲', '闇', '光'];
 const GHOST_FADE_IN_FRAC: f32 = 0.2;
 const GHOST_FADE_OUT_FRAC: f32 = 0.3;
 const GHOST_BASE_COLOR: (u8, u8, u8) = (18, 22, 18);
-const GHOST_FLASH_COLOR: (u8, u8, u8) = (60, 80, 60);
 
 pub(crate) struct GhostEvent {
     col: u16,
@@ -72,11 +71,7 @@ impl AtmosphericEvent for GhostEvent {
             1.0
         };
 
-        let (br, bg, bb) = if ctx.lightning_intensity > 0.3 {
-            GHOST_FLASH_COLOR
-        } else {
-            GHOST_BASE_COLOR
-        };
+        let (br, bg, bb) = GHOST_BASE_COLOR;
 
         let r = (br as f32 * opacity) as u8;
         let g = (bg as f32 * opacity) as u8;
@@ -111,10 +106,6 @@ impl AtmosphericEvent for GhostEvent {
                 },
             );
         }
-    }
-
-    fn pulse_factor(&self, _now: Instant) -> f32 {
-        0.0
     }
 
     fn is_pre_rain(&self) -> bool {

@@ -155,13 +155,6 @@ pub(super) fn handle_keybinding(
         (KeyCode::Char('g'), _) => {
             cloud.set_glitchy(!cloud.glitchy);
         }
-        (KeyCode::Char('l' | 'L'), _) => {
-            // Rapid-fire: each L press spawns one immediate bolt with
-            // no storm-mode lock-in or cooldown. Pressing L repeatedly
-            // produces natural "flash-flash" sequences; the only rate
-            // limit is EVENT_MAX_CONCURRENT on simultaneously-live bolts.
-            cloud.force_strike(Instant::now());
-        }
         (KeyCode::Char('p'), _) => {
             return cloud.toggle_pause();
         }

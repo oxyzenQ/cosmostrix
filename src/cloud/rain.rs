@@ -307,7 +307,6 @@ impl Cloud {
         };
 
         // ── Pre-rain event render (ghosts, behind droplets) ──
-        let lightning_intensity = self.event_manager.global_pulse_factor(now);
         if !self.event_manager.is_empty() {
             let palette_slice_pre: &[Color] = &self.palette.colors;
             let pre_ctx = crate::cloud::atmospheric_events::EventCtx {
@@ -318,7 +317,6 @@ impl Cloud {
                 now,
                 message_bounds: None,
                 has_message: false,
-                lightning_intensity,
             };
             self.event_manager.render_pre_rain(&pre_ctx, frame);
         }
@@ -459,7 +457,6 @@ impl Cloud {
                 now,
                 message_bounds: msg_bounds,
                 has_message: self.message_text.is_some(),
-                lightning_intensity,
             };
             self.event_manager.render(&event_ctx, frame);
 
@@ -472,11 +469,6 @@ impl Cloud {
                 self.cols,
                 self.lines,
             );
-
-            // Global illumination pulse: subtle screen-wide brightness boost
-            if lightning_intensity > 0.005 {
-                self.apply_global_illumination_pulse(frame, lightning_intensity);
-            }
         }
 
         // --- Autonomous cinematic ecosystem tick ---
@@ -527,11 +519,6 @@ impl Cloud {
             );
         }
         self.storytelling.expire_moments(now);
-
-        // ── Weather Director tick ──
-        let anomaly_count = self.anomaly_zones.len();
-        self.event_manager
-            .weather_tick(now, anomaly_count, self.is_idle);
 
         // 5. Profile interpolation (smooth transition)
         if let Some(transition_start) = self.profile_transition_start {
