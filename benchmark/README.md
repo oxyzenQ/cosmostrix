@@ -52,12 +52,12 @@ path (Zactrix engine runs single-threaded in headless benchmark mode).
 
 ## v10.0.0 — Peak Performance & Stability
 
-Release benchmark from `pro-linux-v3` binary (commit `3339724`,
+Release benchmark from `pro-linux-v3` binary (commit `93ed607`,
 2026-07-01). Default 120×40 terminal size. Three optimization phases
-plus pre-release audit + I/O bottleneck research.
+plus pre-release audit + I/O bottleneck research + final bottleneck hunt.
 
 - Binary version: `v10.0.0`
-- Commit: `3339724`
+- Commit: `93ed607`
 - Profile: `pro-linux-v3` (linux-x86_64-v3)
 - CPU: x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)
 
@@ -69,20 +69,21 @@ plus pre-release audit + I/O bottleneck research.
 | Phase 2 | Structural: spawn free-list (O(1)), flat terminal dirty pairs (single sort) | +1.6% FPS |
 | Audit | Panic hook race fix, SIGQUIT, overflow guards, memory ordering, dead code removal | Stability |
 | I/O | Direct ANSI byte buffer (bypass crossterm .queue()), combined fg+bg SGR, no-heap integer formatting | I/O path |
+| Final hunt | Hoist syscalls (now.elapsed, flash_time.elapsed), loop-invariant float hoisting, direct indexing | Waste elimination |
 
 ### Before/After Comparison (same machine, same profile)
 
 | Metric | v5.0.3 (old) | v10.0.0 (new) | Δ |
 |--------|-------------:|--------------:|------:|
-| avg_fps | 27,869 | **38,545** | **+38.3%** |
-| peak_fps | 42,801 | **54,783** | **+27.9%** |
+| avg_fps | 27,869 | **39,147** | **+40.5%** |
+| peak_fps | 42,801 | **55,451** | **+29.6%** |
 | avg_frame_time | 0.035 ms | **0.025 ms** | **-28.6%** |
-| p99_frame_time | 0.046 ms | **0.031 ms** | **-32.6%** |
-| p95_frame_time | 0.042 ms | **0.029 ms** | **-31.0%** |
-| median_fps | — | **40,624** | — |
-| total_frames (5s) | 139,344 | **192,727** | **+38.3%** |
-| dirty_glyphs/sec | 9.6M | **13.3M** | **+38.5%** |
-| ansi_bytes/sec | — | **253M** | — |
+| p99_frame_time | 0.046 ms | **0.030 ms** | **-34.8%** |
+| p95_frame_time | 0.042 ms | **0.028 ms** | **-33.3%** |
+| median_fps | — | **40,378** | — |
+| total_frames (5s) | 139,344 | **195,736** | **+40.5%** |
+| dirty_glyphs/sec | 9.6M | **13.5M** | **+40.6%** |
+| ansi_bytes/sec | — | **257M** | — |
 | frame_time_stability | excellent | excellent | — |
 | avg_dirty_cell_ratio | 7.21% | 7.21% | identical |
 | active_streams_avg | 41 | 41 | identical |
@@ -100,9 +101,9 @@ plus pre-release audit + I/O bottleneck research.
 
 ### Notes
 
-- **+38.3% avg FPS, +27.9% peak FPS** cumulative from v5.0.3 to v10.0.0.
-- Total gain from original v5.0.1 baseline: **+80.5% avg FPS** (21,359 → 38,545).
-- p99 frame time dropped 32.6% — critical for smoothness at 60fps target.
+- **+40.5% avg FPS, +29.6% peak FPS** cumulative from v5.0.3 to v10.0.0.
+- Total gain from original v5.0.1 baseline: **+83.3% avg FPS** (21,359 → 39,147).
+- p99 frame time dropped 34.8% — critical for smoothness at 60fps target.
 - Dirty-cell ratio and active streams identical — zero visual impact.
 - I/O optimization (direct ANSI byte buffer) bypasses crossterm `.queue()`
   overhead: eliminates ~170 trait dispatch + heap String alloc calls/frame.

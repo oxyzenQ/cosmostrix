@@ -255,15 +255,15 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 
 ### v10.0.0 Performance Achievements
 
-Three optimization phases + pre-release audit + I/O bottleneck research yielded **+38.3% FPS** improvement over v5.0.3 (cumulative **+80.5%** from v5.0.1):
+Three optimization phases + pre-release audit + I/O bottleneck research + final bottleneck hunt yielded **+40.5% FPS** improvement over v5.0.3 (cumulative **+83.3%** from v5.0.1):
 
 | Metric | v5.0.3 | v10.0.0 | Improvement |
 |---|---|---|---|
-| avg_fps | 27,869 | 38,545 | **+38.3%** |
-| peak_fps | 42,801 | 54,783 | **+27.9%** |
+| avg_fps | 27,869 | 39,147 | **+40.5%** |
+| peak_fps | 42,801 | 55,451 | **+29.6%** |
 | avg_frame_time | 0.035ms | 0.025ms | -28.6% |
-| p99_frame_time | 0.046ms | 0.031ms | -32.6% |
-| p95_frame_time | 0.042ms | 0.029ms | -31.0% |
+| p99_frame_time | 0.046ms | 0.030ms | -34.8% |
+| p95_frame_time | 0.042ms | 0.028ms | -33.3% |
 
 Key optimizations: O(1) phosphor dedup (BitVec), head_brightness hoist,
 DrawCtx glitch cache, viewport_edge_fade LUT, spawn free-list, flat

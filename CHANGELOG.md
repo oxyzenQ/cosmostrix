@@ -80,9 +80,9 @@ as GPL-3.0-only across all 171 source/doc/config files.
 ```
 v5.0.1 baseline:    avg_fps 21,359  | frame_time 0.046ms | p99 0.058ms
 v5.0.3:             avg_fps 27,869  | frame_time 0.035ms | p99 0.046ms
-v10.0.0:            avg_fps 38,545  | frame_time 0.025ms | p99 0.031ms
-Gain (v5.0.3→v10):  +38.3% FPS      | -28.6% frame time  | -32.6% p99
-Gain (v5.0.1→v10):  +80.5% FPS      | -45.7% frame time  | -46.6% p99
+v10.0.0:            avg_fps 39,147  | frame_time 0.025ms | p99 0.030ms
+Gain (v5.0.3→v10):  +40.5% FPS      | -28.6% frame time  | -34.8% p99
+Gain (v5.0.1→v10):  +83.3% FPS      | -45.7% frame time  | -48.3% p99
 ```
 
 ---
