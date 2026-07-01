@@ -105,15 +105,6 @@ pub struct Terminal {
 }
 
 impl Terminal {
-    /// Create a Terminal without signal-exit viewport cleanup.
-    /// On drop, the alternate screen is left non-destructively.
-    /// Use [`with_signal_exit`] for interactive mode where signal
-    /// exits should clear the viewport.
-    #[allow(dead_code)]
-    pub fn new() -> Result<Self> {
-        Self::with_signal_exit(Arc::new(AtomicBool::new(false)))
-    }
-
     /// Create a Terminal that clears the visible viewport on drop if the
     /// given `signal_exit` flag is set. This is used by the interactive
     /// event loop to distinguish signal-triggered exits (which need

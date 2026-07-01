@@ -138,8 +138,8 @@ fn colors_from_rgb(mode: ColorMode, list: &[(u8, u8, u8)]) -> Vec<Color> {
 /// When the color is already `Color::Rgb`, this is a zero-cost destructure.
 /// For other variants, it decodes the ANSI/named representation.
 ///
-/// Hot-path callers should prefer `apply_brightness_rgb` / `blend_toward_white_rgb`
-/// which accept pre-decoded `(u8, u8, u8)` tuples to avoid repeated decoding.
+/// Hot-path callers should prefer `apply_brightness_rgb`
+/// which accepts pre-decoded `(u8, u8, u8)` tuples to avoid repeated decoding.
 #[must_use]
 #[allow(unreachable_patterns)] // Catch-all guards against future crossterm Color variants
 pub(crate) fn color_to_rgb(color: Color) -> (u8, u8, u8) {
@@ -232,21 +232,6 @@ pub fn blend_toward_white(color: Color, factor: f32) -> Color {
     }
     let f = factor.clamp(0.0, 1.0);
     let (r, g, b) = color_to_rgb(color);
-    Color::Rgb {
-        r: lerp_u8(r, 255, f),
-        g: lerp_u8(g, 255, f),
-        b: lerp_u8(b, 255, f),
-    }
-}
-
-/// RGB-tuple version of `blend_toward_white`. Avoids `color_to_rgb()` decode
-/// when the caller already has the pre-decoded (r, g, b) values.
-/// This is the primary hot-path variant used by the rendering pipeline.
-#[inline]
-#[must_use]
-#[allow(dead_code)] // Reserved for future hot-path callers (atmospheric effects)
-pub(crate) fn blend_toward_white_rgb(r: u8, g: u8, b: u8, factor: f32) -> Color {
-    let f = factor.clamp(0.0, 1.0);
     Color::Rgb {
         r: lerp_u8(r, 255, f),
         g: lerp_u8(g, 255, f),

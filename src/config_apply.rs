@@ -34,15 +34,6 @@ use crate::validation::{
     parse_canonical_u8_range,
 };
 
-/// Parsed atmosphere config values from config/profile layers.
-/// Resolved through precedence: CLI > profile > config > defaults.
-#[derive(Debug, Clone, Default)]
-#[allow(dead_code)]
-pub(crate) struct AtmosphereConfigValues {
-    pub(crate) mode: Option<String>,
-    pub(crate) regime: Option<String>,
-}
-
 /// Validate atmosphere-mode config value.
 /// Allowed: disabled, controlled-live. Storm is NOT config-safe.
 fn parse_atmosphere_mode_config(name: &str, value: &str) -> Option<String> {

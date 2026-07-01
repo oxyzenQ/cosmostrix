@@ -802,8 +802,9 @@ mod color_detection_tests {
         let mut path = std::env::temp_dir();
         let unique = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .expect("system clock after unix epoch")
-            .as_nanos();
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+            .max(1); // never 0 to avoid path collisions with default temp names
         path.push(format!(
             "cosmostrix-main-color-test-{}-{unique}.conf",
             std::process::id(),
