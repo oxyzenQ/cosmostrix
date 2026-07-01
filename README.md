@@ -278,16 +278,22 @@ terminal dirty pairs, incremental phosphor_fresh clear. See
 - ✅ Dead code removed, memory ordering fixed, defense-in-depth added
 
 ### Future Directions
-- **Cache-aware engine**: explore SoA (Structure of Arrays) layout for
-  Cell fields to improve cache line utilization in the render loop
-- **SIMD color blending**: investigate auto-vectorization of RGB blend
-  operations (currently scalar fixed-point; SIMD could batch 4-8 cells
-  per instruction)
-- **Multi-core offloading**: currently single-threaded by design (single
-  terminal writer). Future: offload phosphor decay + atmospheric effects
-  to a worker thread with double-buffered frame handoff
-- **Profile presets**: community-contributed profiles in config format
-  (custom user-defined values via `[profile.NAME]` sections)
+
+**Investigated and ruled out:**
+- ~~SoA layout~~: Net loss (4x more cache misses — cosmostrix reads all Cell fields together)
+- ~~SIMD blending~~: Not viable (random dirty-cell access + per-cell branches block vectorization)
+- ~~Multi-core offloading~~: Not worth it (0.1% frame budget used; bottleneck is I/O not CPU)
+
+**Real bottleneck: terminal I/O (optimized in v10.0.0)**
+- Direct ANSI byte buffer bypasses crossterm `.queue()` overhead
+- Combined fg+bg SGR in one escape sequence
+- Integer-to-ASCII without `format!` heap alloc
+- Single `write_all` flush per frame
+
+**Remaining I/O research (post-v10.0.0):**
+- Terminal protocol detection (kitty/foot/wezterm faster protocols)
+- Color byte caching (pre-format palette colors at startup)
+- Output compression (DEFLATE for supported terminals)
 
 ## Version & Updates
 

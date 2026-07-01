@@ -21,19 +21,36 @@ user request. License enforced as GPL-3.0-only across all 171 files.
 Cumulative: **+70.3% FPS** (31,445 → 53,561 avg_fps), **-40.6% frame time**.
 
 #### Future Optimization Opportunities
-- **Cache-aware SoA layout**: restructure Cell fields as parallel arrays
-  (ch[], fg[], bg[], bold[]) to improve cache line utilization in the
-  render loop. Currently AoS (Array of Structures) — 16 bytes/cell.
-- **SIMD color blending**: RGB blend operations are scalar fixed-point.
-  Auto-vectorization or explicit SIMD (x86 SSE2/AVX2, ARM NEON) could
-  batch 4-8 cells per instruction. The `build.rs` already detects CPU
-  features for v3/v4 profile selection.
-- **Multi-core offloading**: currently single-threaded by design (single
-  terminal writer). A worker thread could offload phosphor decay +
-  atmospheric effects with double-buffered frame handoff, keeping the
-  main thread focused on rain draw + terminal I/O.
-- **Profile presets**: community-contributed profiles in config format
-  with custom user-defined values via `[profile.NAME]` sections.
+
+**Investigated and ruled out (not viable for current architecture):**
+- ~~Cache-aware SoA layout~~: Net LOSS. Cosmostrix always reads all 4 Cell
+  fields together (ch+fg+bg+bold). SoA = 4 cache line accesses vs AoS = 1.
+  SoA is 4x slower for this access pattern.
+- ~~SIMD color blending~~: Not viable. Dirty-cell access is random
+  (non-streamable), blend loop has per-cell branches (needs_luminance,
+  needs_saturation). Auto-vectorizer fails; explicit SIMD requires SoA
+  first.
+- ~~Multi-core offloading~~: Not worth it. Frame budget at 60fps = 16.67ms,
+  actual frame time = 0.019ms (0.1% of budget). Offloading 60µs compute
+  saves ~0% — bottleneck is terminal I/O, not CPU.
+
+**Real bottleneck: terminal I/O (investigated v10.0.0)**
+The actual bottleneck is ANSI escape sequence generation + stdout write.
+Optimized in v10.0.0 by bypassing crossterm's `.queue()` overhead:
+- Direct ANSI byte buffer (`ansi_buf: Vec<u8>`) replaces ~170 trait
+  dispatch + heap String alloc calls per frame
+- Combined fg+bg SGR in one escape sequence (saves ~3 bytes/change)
+- Integer-to-ASCII without `format!` macro (no heap alloc)
+- Single `write_all` flush per frame
+
+**Remaining I/O research directions (post-v10.0.0):**
+- Terminal protocol detection: detect kitty/foot/wezterm at startup and
+  use faster protocols (kitty graphics, synchronized output) where
+  available. Currently all terminals get the same ANSI output.
+- Color caching: pre-format ANSI bytes for the ~20 palette colors at
+  startup, lookup by index instead of formatting per cell.
+- Output compression: investigate if terminals support DEFLATE-compressed
+  output (some do via `ESC[?1004h` extensions).
 
 ### v4.9.0 — The Wolf: Release Guard + Terminal Runtime Contract (COMPLETE)
 
