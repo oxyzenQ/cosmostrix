@@ -37,7 +37,13 @@ impl Cloud {
             self.droplets.resize_with(pool_size, Droplet::new);
         }
         self.monolith_rain.reset(self.cols, self.full_width);
-        self.spawn_scan_idx = 0;
+
+        // Re-seed the droplet free-list: after clear+resize, all droplets
+        // are dead (Droplet::new defaults is_alive=false), so every index
+        // 0..len is free. This enables O(1) spawn slot lookup instead of
+        // the previous linear scan.
+        self.droplet_free_list.clear();
+        self.droplet_free_list.extend(0..self.droplets.len());
 
         let max_line = lines.saturating_sub(2);
         let max_len = max_line.max(1);
@@ -451,11 +457,6 @@ impl Cloud {
             return;
         }
 
-        let len = self.droplets.len();
-        if len == 0 {
-            return;
-        }
-
         for _ in 0..to_spawn {
             let mut col = self.rand_col.sample(&mut self.mt);
             if self.full_width {
@@ -496,29 +497,12 @@ impl Cloud {
                 continue;
             }
 
-            let start = self.spawn_scan_idx.min(len.saturating_sub(1));
-            let mut found = None;
-
-            let mut idx = start;
-            while idx < len {
-                if !self.droplets[idx].is_alive {
-                    found = Some(idx);
-                    break;
-                }
-                idx += 1;
-            }
-            if found.is_none() {
-                idx = 0;
-                while idx < start {
-                    if !self.droplets[idx].is_alive {
-                        found = Some(idx);
-                        break;
-                    }
-                    idx += 1;
-                }
-            }
-
-            let Some(di) = found else {
+            // PERF: O(1) free-list pop replaces the previous O(N) linear scan
+            // that searched droplets[] for the next !is_alive slot. The
+            // free-list is seeded in reset() with 0..len and maintained
+            // push-on-death / pop-on-spawn, so it always contains exactly
+            // the dead droplet indices.
+            let Some(di) = self.droplet_free_list.pop() else {
                 break;
             };
 
@@ -534,7 +518,6 @@ impl Cloud {
                 let jitter = self.rand_chance.sample(&mut self.mt);
                 d.apply_phase_jitter(jitter);
             }
-            self.spawn_scan_idx = (di + 1) % len;
 
             self.col_stat[col as usize].can_spawn = false;
             self.col_stat[col as usize].num_droplets += 1;
@@ -571,7 +554,10 @@ impl Cloud {
         let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
         self.droplets.clear();
         self.droplets.resize_with(pool_size, Droplet::new);
-        self.spawn_scan_idx = 0;
+
+        // Re-seed free-list: all fresh droplets are dead.
+        self.droplet_free_list.clear();
+        self.droplet_free_list.extend(0..self.droplets.len());
 
         // Reset column spawn state so all columns are eligible
         for cs in &mut self.col_stat {

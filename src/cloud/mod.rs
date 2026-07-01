@@ -113,7 +113,6 @@ pub struct Cloud {
 
     pub(super) droplets: Vec<Droplet>,
     pub(super) monolith_rain: MonolithRain,
-    pub(super) spawn_scan_idx: usize,
 
     pub(super) chars: Vec<char>,
     pub(super) char_pool: Vec<char>,
@@ -129,6 +128,12 @@ pub struct Cloud {
     /// Eliminates per-cell float division in Droplet::draw and Monolith draw.
     /// Resized in reset() on terminal resize.
     pub(super) edge_fade_lut: Vec<f32>,
+
+    /// Free-list of dead droplet indices for O(1) spawn slot lookup.
+    /// Replaces the previous linear scan in spawn_droplets that searched
+    /// `droplets[]` for the next `!is_alive` slot. Seeded in reset() with
+    /// 0..len (all droplets start dead). Popped on spawn, pushed on death.
+    pub(super) droplet_free_list: Vec<usize>,
 
     pub(super) col_stat: Vec<ColumnStatus>,
 
@@ -350,7 +355,6 @@ impl Cloud {
             max_droplets_per_column: 3,
             droplets: Vec::new(),
             monolith_rain: MonolithRain::new(),
-            spawn_scan_idx: 0,
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -360,6 +364,7 @@ impl Cloud {
             glitch_map: BitVec::new(),
             color_map: Vec::new(),
             edge_fade_lut: Vec::new(),
+            droplet_free_list: Vec::new(),
             col_stat: Vec::new(),
             mt,
             rand_chance: Uniform::new(0.0, 1.0).expect("rand_chance: [0,1) always valid"),

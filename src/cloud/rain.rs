@@ -252,6 +252,9 @@ impl Cloud {
                         cs.num_droplets = cs.num_droplets.saturating_sub(1);
                         cs.can_spawn = true;
                     }
+                    // Return the dead droplet's index to the free-list so
+                    // spawn_droplets can reuse it in O(1) on the next spawn.
+                    self.droplet_free_list.push(i);
                     continue;
                 }
 

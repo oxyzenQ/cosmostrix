@@ -82,8 +82,11 @@ pub struct Terminal {
     run_buf: String,
     /// Reusable buffer for full-redraw row batching (avoids per-frame allocation).
     row_buf: String,
-    row_dirty: Vec<Vec<usize>>,
-    touched_rows: Vec<u16>,
+    /// Flat reusable buffer for diff-redraw: holds dirty cell indices
+    /// sorted by index (= row-major order), replacing the previous
+    /// `Vec<Vec<usize>>` nested structure. Single allocation, better
+    /// cache locality, no per-row Vec pointer chasing.
+    dirty_flat: Vec<usize>,
     mouse_capture_enabled: bool,
     focus_change_enabled: bool,
     bracketed_paste_enabled: bool,
@@ -128,8 +131,7 @@ impl Terminal {
                 s
             },
             row_buf: String::with_capacity(512),
-            row_dirty: Vec::new(),
-            touched_rows: Vec::new(),
+            dirty_flat: Vec::new(),
             mouse_capture_enabled: false,
             focus_change_enabled: false,
             bracketed_paste_enabled: false,
@@ -391,123 +393,121 @@ impl Terminal {
 
         let dirty = frame.dirty_indices();
         let width_usize = frame.width as usize;
+        let height_usize = frame.height as usize;
         let run_buf = &mut self.run_buf;
 
-        if self.row_dirty.len() != frame.height as usize {
-            self.row_dirty.resize_with(frame.height as usize, Vec::new);
-        }
-        self.touched_rows.clear();
+        // PERF: flat dirty-index buffer replaces the previous Vec<Vec<usize>>
+        // nested structure. Collect all dirty indices into a single Vec,
+        // sort once (row-major index sort groups by row AND orders within
+        // row in one pass), then iterate contiguous runs. This eliminates
+        // per-row Vec allocations on resize and improves cache locality.
+        let dirty_flat = &mut self.dirty_flat;
+        dirty_flat.clear();
+        dirty_flat.extend(
+            dirty
+                .iter()
+                .copied()
+                .filter(|&idx| idx < height_usize * width_usize),
+        );
+        dirty_flat.sort_unstable();
 
-        for &idx in dirty {
-            let y = (idx / width_usize) as u16;
-            if y >= frame.height {
+        // Iterate the flat sorted array, detecting row boundaries and
+        // contiguous horizontal runs for RLE batching.
+        let mut i = 0usize;
+        while i < dirty_flat.len() {
+            let idx0 = dirty_flat[i];
+            // Borrow instead of copy: compare with last frame without allocating.
+            // Most dirty cells are unchanged (set to blank by tail pass);
+            // this avoids copying ~24 bytes per Cell for early-exit.
+            let cell0_ref = frame.cell_at_index_ref(idx0);
+            if last.cells.get(idx0) == Some(cell0_ref) {
+                i += 1;
                 continue;
             }
-            let b = &mut self.row_dirty[y as usize];
-            if b.is_empty() {
-                self.touched_rows.push(y);
+
+            let cell0 = *cell0_ref;
+            last.cells[idx0] = cell0;
+
+            let x0 = (idx0 % width_usize) as u16;
+            let y0 = (idx0 / width_usize) as u16;
+            let fg0 = cell0.fg;
+            let bg0 = cell0.bg;
+            let bold0 = cell0.bold;
+
+            run_buf.clear();
+            run_buf.push(cell0.ch);
+            let mut run_len: u16 = 1;
+            let mut last_idx_in_run = idx0;
+            let mut j = i + 1;
+
+            while j < dirty_flat.len() {
+                let idx1 = dirty_flat[j];
+                // Must be the next column on the same row (contiguous).
+                if idx1 != last_idx_in_run + 1 {
+                    break;
+                }
+                // Row boundary check: if we wrapped to the next row, the
+                // x-coordinate resets, so the run must flush here.
+                if idx1 / width_usize != idx0 / width_usize {
+                    break;
+                }
+
+                let cell1_ref = frame.cell_at_index_ref(idx1);
+                if last.cells.get(idx1) == Some(cell1_ref) {
+                    break;
+                }
+                if cell1_ref.fg != fg0 || cell1_ref.bg != bg0 || cell1_ref.bold != bold0 {
+                    break;
+                }
+
+                run_buf.push(cell1_ref.ch);
+                let cell1 = *cell1_ref;
+                last.cells[idx1] = cell1;
+                run_len = run_len.saturating_add(1);
+                last_idx_in_run = idx1;
+                j += 1;
             }
-            b.push(idx);
-        }
 
-        self.touched_rows.sort_unstable();
-        self.touched_rows.dedup();
-
-        for y0 in self.touched_rows.iter().copied() {
-            let b = &mut self.row_dirty[y0 as usize];
-            if b.len() > 1 {
-                b.sort_unstable();
+            if cur_pos != Some((x0, y0)) {
+                self.stdout.queue(cursor::MoveTo(x0, y0))?;
             }
-            let mut i = 0usize;
-            while i < b.len() {
-                let idx0 = b[i];
-                // Borrow instead of copy: compare with last frame without allocating.
-                // Most dirty cells are unchanged (set to blank by tail pass);
-                // this avoids copying ~24 bytes per Cell for early-exit.
-                let cell0_ref = frame.cell_at_index_ref(idx0);
-                if last.cells.get(idx0) == Some(cell0_ref) {
-                    i += 1;
-                    continue;
-                }
 
-                let cell0 = *cell0_ref;
-                last.cells[idx0] = cell0;
-
-                let x0 = (idx0 % width_usize) as u16;
-                let fg0 = cell0.fg;
-                let bg0 = cell0.bg;
-                let bold0 = cell0.bold;
-
-                run_buf.clear();
-                run_buf.push(cell0.ch);
-                let mut run_len: u16 = 1;
-                let mut last_idx_in_run = idx0;
-                let mut j = i + 1;
-
-                while j < b.len() {
-                    let idx1 = b[j];
-                    if idx1 != last_idx_in_run + 1 {
-                        break;
-                    }
-
-                    let cell1_ref = frame.cell_at_index_ref(idx1);
-                    if last.cells.get(idx1) == Some(cell1_ref) {
-                        break;
-                    }
-                    if cell1_ref.fg != fg0 || cell1_ref.bg != bg0 || cell1_ref.bold != bold0 {
-                        break;
-                    }
-
-                    run_buf.push(cell1_ref.ch);
-                    let cell1 = *cell1_ref;
-                    last.cells[idx1] = cell1;
-                    run_len = run_len.saturating_add(1);
-                    last_idx_in_run = idx1;
-                    j += 1;
-                }
-
-                if cur_pos != Some((x0, y0)) {
-                    self.stdout.queue(cursor::MoveTo(x0, y0))?;
-                }
-
-                if fg0 != cur_fg {
-                    if let Some(fg) = fg0 {
-                        self.stdout.queue(SetForegroundColor(fg))?;
-                    } else {
-                        self.stdout.queue(SetForegroundColor(Color::Reset))?;
-                    }
-                    cur_fg = fg0;
-                }
-
-                if bg0 != cur_bg {
-                    if let Some(bg) = bg0 {
-                        self.stdout.queue(SetBackgroundColor(bg))?;
-                    } else {
-                        self.stdout.queue(SetBackgroundColor(Color::Reset))?;
-                    }
-                    cur_bg = bg0;
-                }
-
-                if bold0 != cur_bold {
-                    self.stdout.queue(SetAttribute(if bold0 {
-                        Attribute::Bold
-                    } else {
-                        Attribute::NormalIntensity
-                    }))?;
-                    cur_bold = bold0;
-                }
-
-                self.stdout.queue(Print(run_buf.as_str()))?;
-                let next_x = x0.saturating_add(run_len);
-                cur_pos = if next_x < frame.width {
-                    Some((next_x, y0))
+            if fg0 != cur_fg {
+                if let Some(fg) = fg0 {
+                    self.stdout.queue(SetForegroundColor(fg))?;
                 } else {
-                    None
-                };
-
-                i = j;
+                    self.stdout.queue(SetForegroundColor(Color::Reset))?;
+                }
+                cur_fg = fg0;
             }
-            b.clear();
+
+            if bg0 != cur_bg {
+                if let Some(bg) = bg0 {
+                    self.stdout.queue(SetBackgroundColor(bg))?;
+                } else {
+                    self.stdout.queue(SetBackgroundColor(Color::Reset))?;
+                }
+                cur_bg = bg0;
+            }
+
+            if bold0 != cur_bold {
+                self.stdout.queue(SetAttribute(if bold0 {
+                    Attribute::Bold
+                } else {
+                    Attribute::NormalIntensity
+                }))?;
+                cur_bold = bold0;
+            }
+
+            self.stdout.queue(Print(run_buf.as_str()))?;
+            let next_x = x0.saturating_add(run_len);
+            cur_pos = if next_x < frame.width {
+                Some((next_x, y0))
+            } else {
+                None
+            };
+
+            i = j;
         }
 
         self.stdout.queue(SetAttribute(Attribute::Reset))?;
