@@ -50,6 +50,75 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## v10.0.0 — Peak Performance & Stability
+
+Release benchmark from `pro-linux-v3` binary (commit `3339724`,
+2026-07-01). Default 120×40 terminal size. Three optimization phases
+plus pre-release audit + I/O bottleneck research.
+
+- Binary version: `v10.0.0`
+- Commit: `3339724`
+- Profile: `pro-linux-v3` (linux-x86_64-v3)
+- CPU: x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)
+
+### Optimization Phases
+
+| Phase | Description | Gain |
+|-------|-------------|------|
+| Phase A | Hot-path: phosphor O(1) dedup, head_brightness hoist, glitch cache, edge_fade LUT, incremental phosphor_fresh clear, monolith dedup, #[inline] | +73.8% FPS |
+| Phase 2 | Structural: spawn free-list (O(1)), flat terminal dirty pairs (single sort) | +1.6% FPS |
+| Audit | Panic hook race fix, SIGQUIT, overflow guards, memory ordering, dead code removal | Stability |
+| I/O | Direct ANSI byte buffer (bypass crossterm .queue()), combined fg+bg SGR, no-heap integer formatting | I/O path |
+
+### Before/After Comparison (same machine, same profile)
+
+| Metric | v5.0.3 (old) | v10.0.0 (new) | Δ |
+|--------|-------------:|--------------:|------:|
+| avg_fps | 27,869 | **38,545** | **+38.3%** |
+| peak_fps | 42,801 | **54,783** | **+27.9%** |
+| avg_frame_time | 0.035 ms | **0.025 ms** | **-28.6%** |
+| p99_frame_time | 0.046 ms | **0.031 ms** | **-32.6%** |
+| p95_frame_time | 0.042 ms | **0.029 ms** | **-31.0%** |
+| median_fps | — | **40,624** | — |
+| total_frames (5s) | 139,344 | **192,727** | **+38.3%** |
+| dirty_glyphs/sec | 9.6M | **13.3M** | **+38.5%** |
+| ansi_bytes/sec | — | **253M** | — |
+| frame_time_stability | excellent | excellent | — |
+| avg_dirty_cell_ratio | 7.21% | 7.21% | identical |
+| active_streams_avg | 41 | 41 | identical |
+
+### Invariants
+
+| Field | Value |
+|-------|-------|
+| `actual_execution` | `single-threaded-renderer` |
+| `terminal_writer` | `single-owner` |
+| `frame_time_stability` | `excellent` |
+| `avg_dirty_cell_ratio` | 7.21% |
+| `active_streams_avg` | 41 |
+| `io_strategy` | `crossterm-queue-batch` (runtime) / direct-ANSI-buffer (optimized) |
+
+### Notes
+
+- **+38.3% avg FPS, +27.9% peak FPS** cumulative from v5.0.3 to v10.0.0.
+- Total gain from original v5.0.1 baseline: **+80.5% avg FPS** (21,359 → 38,545).
+- p99 frame time dropped 32.6% — critical for smoothness at 60fps target.
+- Dirty-cell ratio and active streams identical — zero visual impact.
+- I/O optimization (direct ANSI byte buffer) bypasses crossterm `.queue()`
+  overhead: eliminates ~170 trait dispatch + heap String alloc calls/frame.
+- Combined fg+bg SGR saves ~3 bytes per color change.
+- Single `write_all` flush per frame replaces ~170 individual queue calls.
+- Headless benchmark doesn't exercise Terminal::draw — real terminal I/O
+  gain is estimated 30-50% on the draw path.
+
+These numbers are local measurements on a single machine, not a portable
+promise. Benchmark FPS is **synthetic uncapped throughput** — it measures
+how many frames the renderer can compute per second in a tight loop, not
+the FPS the user will see at runtime. Treat stability, p95, and p99 as
+far more important than raw FPS.
+
+---
+
 ## v5.0.3 — Phosphor Optimization + Trail LUT + Dirty-Scan
 
 Release benchmark from `pro-linux-v3` binary

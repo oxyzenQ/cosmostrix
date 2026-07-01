@@ -255,18 +255,21 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 
 ### v10.0.0 Performance Achievements
 
-Three optimization phases + pre-release audit yielded **+70.3% FPS** improvement over v5.0.3:
+Three optimization phases + pre-release audit + I/O bottleneck research yielded **+38.3% FPS** improvement over v5.0.3 (cumulative **+80.5%** from v5.0.1):
 
-| Metric | v5.0.3 baseline | v10.0.0 | Improvement |
+| Metric | v5.0.3 | v10.0.0 | Improvement |
 |---|---|---|---|
-| avg_fps | 31,445 | 53,561 | **+70.3%** |
-| avg_frame_time | 0.032ms | 0.019ms | -40.6% |
-| p99_frame_time | 0.045ms | 0.026ms | -42.2% |
+| avg_fps | 27,869 | 38,545 | **+38.3%** |
+| peak_fps | 42,801 | 54,783 | **+27.9%** |
+| avg_frame_time | 0.035ms | 0.025ms | -28.6% |
+| p99_frame_time | 0.046ms | 0.031ms | -32.6% |
+| p95_frame_time | 0.042ms | 0.029ms | -31.0% |
 
 Key optimizations: O(1) phosphor dedup (BitVec), head_brightness hoist,
 DrawCtx glitch cache, viewport_edge_fade LUT, spawn free-list, flat
-terminal dirty pairs, incremental phosphor_fresh clear. See
-[CHANGELOG.md](CHANGELOG.md) for full details.
+terminal dirty pairs, direct ANSI byte buffer (bypass crossterm),
+combined fg+bg SGR, no-heap integer formatting. See
+[benchmark/README.md](benchmark/README.md) for full details.
 
 ## Roadmap
 
