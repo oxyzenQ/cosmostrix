@@ -462,8 +462,6 @@ jobs:
           BIN="target/x86_64-unknown-linux-gnu/${{ matrix.profile }}/cosmostrix"
           BUILD_ID="${{ matrix.build }}"
           case "${BUILD_ID}" in
-            linux-x86_64-v1) BASELINE="x86-64-v1"; OPTIMIZATION="x86-64 baseline (SSE/SSE2)"; REQUIRED=""; DENIED="sse4.2 popcnt avx2 bmi2 fma avx512f" ;;
-            linux-x86_64-v2) BASELINE="x86-64-v2"; OPTIMIZATION="x86-64-v2 baseline (SSE3/SSSE3/SSE4.1/SSE4.2/POPCNT)"; REQUIRED="sse4.2 popcnt"; DENIED="avx2 bmi2 fma avx512f" ;;
             linux-x86_64-v3) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
             linux-x86_64-v4) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
             *) echo "::error::Unknown Linux x86_64 build id ${BUILD_ID}"; exit 1 ;;

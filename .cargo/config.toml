@@ -24,32 +24,6 @@ pro-native = [
   "build.rustflags=[\"-C\",\"target-cpu=native\"]",
 ]
 
-pro-linux-v1 = [
-  "build",
-  "--profile",
-  "pro-linux-v1",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"linux-x86_64-v1\"",
-  "--config",
-  "env.COSMOSTRIX_PROFILE=\"pro-linux-v1\"",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64\"]",
-  "--target",
-  "x86_64-unknown-linux-gnu",
-]
-pro-linux-v2 = [
-  "build",
-  "--profile",
-  "pro-linux-v2",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"linux-x86_64-v2\"",
-  "--config",
-  "env.COSMOSTRIX_PROFILE=\"pro-linux-v2\"",
-  "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v2\"]",
-  "--target",
-  "x86_64-unknown-linux-gnu",
-]
 pro-linux-v3 = [
   "build",
   "--profile",
@@ -75,6 +49,19 @@ pro-linux-v4 = [
   "build.rustflags=[\"-C\",\"target-cpu=x86-64-v4\"]",
   "--target",
   "x86_64-unknown-linux-gnu",
+]
+pro-linux-musl = [
+  "build",
+  "--profile",
+  "pro-linux-musl",
+  "--config",
+  "env.COSMOSTRIX_BUILD=\"linux-x86_64-musl\"",
+  "--config",
+  "env.COSMOSTRIX_PROFILE=\"pro-linux-musl\"",
+  "--config",
+  "build.rustflags=[\"-C\",\"target-cpu=x86-64-v3\"]",
+  "--target",
+  "x86_64-unknown-linux-musl",
 ]
 
 pro-macos-aarch64-native = [

@@ -219,7 +219,7 @@ while (($#)); do
 done
 
 if ((${#profiles[@]} == 0)); then
-        profiles=(pro-linux-v1 pro-linux-v2 pro-linux-v3 pro-linux-v4)
+        profiles=(pro-linux-v3 pro-linux-v4 pro-linux-musl)
 fi
 
 for profile in "${profiles[@]}"; do

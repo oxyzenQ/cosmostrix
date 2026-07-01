@@ -74,10 +74,12 @@ Workflow files live under:
 
 Linux x86_64 release artifacts are built with explicit baselines:
 
-- `v1`: `-C target-cpu=x86-64`
-- `v2`: `-C target-cpu=x86-64-v2`
 - `v3`: `-C target-cpu=x86-64-v3`
 - `v4`: `-C target-cpu=x86-64-v4`
+- `musl`: `-C target-cpu=x86-64-v3` (statically linked, max portability)
+
+> **Note:** v1/v2 were dropped in v10.0.0. Modern CPUs (2013+) support v3.
+> Use `musl` for Alpine/containers/minimal base images.
 
 `target-cpu=native` is reserved for local/native non-x86_64 release jobs and
 developer aliases; it is not used for distributed Linux x86_64 artifacts.
@@ -97,10 +99,9 @@ Where `<tag>` is a git tag like `v1.0.0`.
 
 Where `<platform>` is one of:
 
-- `linux-x86_64-v1`
-- `linux-x86_64-v2`
 - `linux-x86_64-v3`
 - `linux-x86_64-v4`
+- `linux-x86_64-musl`
 - `linux-aarch64-native`
 - `darwin-aarch64-native`
 - `windows-x86_64`
@@ -124,7 +125,7 @@ Verification examples:
 
 ```bash
 # Linux
-sha512sum -c cosmostrix-bin-v1.0.0-linux-x86_64-v1.tar.gz.sha512sum
+sha512sum -c cosmostrix-bin-v10.0.0-linux-x86_64-v3.tar.gz.sha512sum
 
 # macOS
 shasum -a 512 -c cosmostrix-bin-v1.0.0-darwin-aarch64-native.tar.gz.sha512sum

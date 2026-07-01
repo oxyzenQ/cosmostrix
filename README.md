@@ -113,11 +113,15 @@ Artifact variants use explicit CPU baselines:
 
 | Variant | Baseline |
 |---|---|
-| `linux-x86_64-v1` | Maximum x86_64 compatibility |
-| `linux-x86_64-v2` | SSE4.2 / POPCNT-era CPUs |
-| `linux-x86_64-v3` | AVX2 / BMI2 / FMA-era CPUs |
-| `linux-x86_64-v4` | AVX-512 baseline |
+| `linux-x86_64-v3` | AVX2 / BMI2 / FMA-era CPUs (2013+, most modern x86_64) |
+| `linux-x86_64-v4` | AVX-512 baseline (high-end server/workstation) |
+| `linux-x86_64-musl` | v3 baseline + statically linked (max portability) |
 | `native` | Local-only build tuned for the current CPU |
+
+> **Note:** v1/v2 x86_64 variants were dropped in v10.0.0. Modern CPUs
+> (2013+) support v3. For maximum portability (Alpine, containers,
+> minimal base images), use the `musl` variant — it's statically linked
+> with no glibc dependency.
 
 Release/pro builds keep `panic = "unwind"` on purpose. Cosmostrix owns raw mode,
 alternate screen, cursor visibility, and line-wrap state while running; unwinding
@@ -316,7 +320,7 @@ cosmostrix --check-update
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
-scripts/verify-release-build.sh pro-linux-v1 pro-linux-v2 pro-linux-v3
+scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 ```
 
 ## Release Process
