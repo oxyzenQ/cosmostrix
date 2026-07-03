@@ -551,7 +551,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $bin = "target/x86_64-pc-windows-msvc/pro-win-x86_64/cosmostrix.exe"
+          $bin = "target/x86_64-pc-windows-msvc/pro-win-amd64/cosmostrix.exe"
           $build = "windows-x86_64"
           $outLines = & $bin -i
           $out = ($outLines | ForEach-Object { $_.TrimEnd("`r") }) -join "`n"

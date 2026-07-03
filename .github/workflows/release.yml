@@ -707,7 +707,6 @@ jobs:
           draft: false
           prerelease: ${{ steps.ver.outputs.prerelease }}
           make_latest: ${{ steps.ver.outputs.prerelease != 'true' }}
-          generate_release_notes: true
           files: |
             dist/**/*.tar.gz
             dist/**/*.tar.gz.sha512sum
