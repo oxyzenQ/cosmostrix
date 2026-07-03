@@ -62,7 +62,7 @@ jobs:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             platform: windows-x86_64
-            profile: pro-win-x86_64
+            profile: pro-win-amd64
             rustflags: "-C target-cpu=x86-64"
             build: windows-x86_64
             checks: false

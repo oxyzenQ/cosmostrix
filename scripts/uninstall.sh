@@ -6,7 +6,7 @@
 # user customizations). Pass --purge to also remove config.
 #
 # Auto-detects and removes the binary from:
-#   /usr/bin/, /usr/local/bin/, ~/.local/bin/
+#   /usr/bin/, ~/.local/bin/
 # Sudo is used ONLY for system paths. Run WITHOUT sudo.
 
 set -uo pipefail
@@ -17,9 +17,9 @@ usage() {
     cat <<EOF
 Usage: $0 [--system|--user|--all] [--purge]
 
-  (default)  Auto-detect: scan /usr/bin, /usr/local/bin, ~/.local/bin
+  (default)  Auto-detect: scan /usr/bin, ~/.local/bin
              and remove every ${PROJECT_NAME} binary found.
-  --system   Remove only from /usr/bin and /usr/local/bin (uses sudo).
+  --system   Remove only from /usr/bin (uses sudo).
   --user     Remove only from ~/.local/bin (no sudo).
   --all      Same as default.
   --purge    Also remove config files (/etc/${PROJECT_NAME},
@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-SYSTEM_PATHS=(/usr/bin /usr/local/bin)
+SYSTEM_PATHS=(/usr/bin)
 USER_PATH="${HOME}/.local/bin"
 removed=0
 

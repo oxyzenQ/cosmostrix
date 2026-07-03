@@ -64,7 +64,7 @@ the host system's `sha512sum` or `shasum -a 512` utility.
 The model is straightforward and deterministic:
 
 1. **Build** — The binary is compiled with the appropriate profile
-   (`pro-linux-vN`, `pro-macos-aarch64-native`, `pro-win-x86_64`, etc.) using
+   (`pro-linux-vN`, `pro-macos-aarch64-native`, `pro-win-amd64`, etc.) using
    fat LTO, a single codegen unit, and `strip = true` for a minimal, reproducible
    artifact.
 2. **Package** — The binary, `LICENSE`, and `README.md` are placed into a flat

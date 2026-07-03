@@ -69,7 +69,7 @@ inherits = "pro"
 [profile.pro-macos-aarch64-native]
 inherits = "pro"
 
-[profile.pro-win-x86_64]
+[profile.pro-win-amd64]
 inherits = "pro"
 
 [profile.pro-win-aarch64]

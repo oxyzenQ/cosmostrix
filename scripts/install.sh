@@ -17,7 +17,7 @@ usage() {
 Usage: $0 [--system|--user]
 
   --system   Install system-wide:
-               binary  → /usr/local/bin/${PROJECT_NAME}
+               binary  → /usr/bin/${PROJECT_NAME}
                config  → /etc/${PROJECT_NAME}/config.toml
              (script invokes sudo for the install steps)
   --user     Install to user-local (default, no sudo):
@@ -66,8 +66,8 @@ fi
 echo ">> [2/3] Installing binary (${MODE})"
 case "${MODE}" in
     --system)
-        sudo install -Dm755 "${BINARY}" "/usr/local/bin/${PROJECT_NAME}"
-        echo "   installed: /usr/local/bin/${PROJECT_NAME}"
+        sudo install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
+        echo "   installed: /usr/bin/${PROJECT_NAME}"
         ;;
     --user)
         user_bin="${HOME}/.local/bin"

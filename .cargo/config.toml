@@ -78,16 +78,16 @@ pro-macos-aarch64-native = [
   "build.rustflags=[\"-C\",\"target-cpu=native\"]",
 ]
 
-pro-win-x86_64 = [
+pro-win-amd64 = [
   "build",
   "--profile",
-  "pro-win-x86_64",
+  "pro-win-amd64",
   "--target",
   "x86_64-pc-windows-msvc",
   "--config",
   "env.COSMOSTRIX_BUILD=\"windows-x86_64\"",
   "--config",
-  "env.COSMOSTRIX_PROFILE=\"pro-win-x86_64\"",
+  "env.COSMOSTRIX_PROFILE=\"pro-win-amd64\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=x86-64\"]",
 ]

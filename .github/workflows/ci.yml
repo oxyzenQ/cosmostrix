@@ -543,9 +543,9 @@ jobs:
         shell: pwsh
         env:
           COSMOSTRIX_BUILD: windows-x86_64
-          COSMOSTRIX_PROFILE: pro-win-x86_64
+          COSMOSTRIX_PROFILE: pro-win-amd64
           RUSTFLAGS: "-C target-cpu=x86-64"
-        run: cargo build --profile pro-win-x86_64 --locked --target x86_64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
+        run: cargo build --profile pro-win-amd64 --locked --target x86_64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
 
       - name: Verify build metadata
         shell: pwsh
