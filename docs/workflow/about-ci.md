@@ -99,10 +99,10 @@ Where `<tag>` is a git tag like `v1.0.0`.
 
 Where `<platform>` is one of:
 
-- `linux-x86_64-v3`
-- `linux-x86_64-v4`
-- `linux-x86_64-musl`
-- `linux-aarch64-native`
+- `linux-amd64-v3`
+- `linux-amd64-v4`
+- `linux-amd64-musl`
+- `linux-aarch64`
 - `darwin-aarch64-native`
 - `windows-x86_64`
 - `windows-aarch64-native`
@@ -125,7 +125,7 @@ Verification examples:
 
 ```bash
 # Linux
-sha512sum -c cosmostrix-bin-v10.0.0-linux-x86_64-v3.tar.gz.sha512sum
+sha512sum -c cosmostrix-bin-v10.0.0-linux-amd64-v3.tar.gz.sha512sum
 
 # macOS
 shasum -a 512 -c cosmostrix-bin-v1.0.0-darwin-aarch64-native.tar.gz.sha512sum

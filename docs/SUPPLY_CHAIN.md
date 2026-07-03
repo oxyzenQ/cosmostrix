@@ -78,7 +78,7 @@ The model is straightforward and deterministic:
 Users can verify any downloaded artifact with a single command:
 
 ```bash
-sha512sum --check cosmostrix-bin-v10.0.0-linux-x86_64-v3.tar.gz.sha512sum
+sha512sum --check cosmostrix-bin-v10.0.0-linux-amd64-v3.tar.gz.sha512sum
 ```
 
 ### AUR Package Verification

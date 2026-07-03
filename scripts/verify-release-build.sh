@@ -57,9 +57,9 @@ have_avx512f() {
 
 build_id_for_profile() {
         case "$1" in
-        pro-linux-v3) printf 'linux-x86_64-v3' ;;
-        pro-linux-v4) printf 'linux-x86_64-v4' ;;
-        pro-linux-musl) printf 'linux-x86_64-musl' ;;
+        pro-linux-v3) printf 'linux-amd64-v3' ;;
+        pro-linux-v4) printf 'linux-amd64-v4' ;;
+        pro-linux-musl) printf 'linux-amd64-musl' ;;
         *) fail "Unsupported profile '$1'" ;;
         esac
 }
@@ -126,7 +126,7 @@ scan_binary() {
         if command -v strings >/dev/null 2>&1; then
                 text="$(strings "$bin")"
         else
-                text="$(grep -aE 'linux_x86_64|linux-x86_64|x86-64-v|static optimized build|fat|unwind|yes' "$bin" || true)"
+                text="$(grep -aE 'linux_amd64|linux-amd64|x86-64-v|static optimized build|fat|unwind|yes' "$bin" || true)"
         fi
 
         grep -Fq "$expected" <<<"$text" || fail "Missing embedded variant '$expected' in $bin"

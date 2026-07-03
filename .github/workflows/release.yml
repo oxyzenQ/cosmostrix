@@ -26,31 +26,31 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            platform: linux-x86_64-v3
+            platform: linux-amd64-v3
             profile: pro-linux-v3
             rustflags: "-C target-cpu=x86-64-v3"
-            build: linux-x86_64-v3
+            build: linux-amd64-v3
             checks: true
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            platform: linux-x86_64-v4
+            platform: linux-amd64-v4
             profile: pro-linux-v4
             rustflags: "-C target-cpu=x86-64-v4"
-            build: linux-x86_64-v4
+            build: linux-amd64-v4
             checks: false
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            platform: linux-x86_64-musl
+            platform: linux-amd64-musl
             profile: pro-linux-musl
             rustflags: "-C target-cpu=x86-64-v3"
-            build: linux-x86_64-musl
+            build: linux-amd64-musl
             checks: false
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
-            platform: linux-aarch64-native
+            platform: linux-aarch64
             profile: pro
             rustflags: "-C target-cpu=native"
-            build: linux-aarch64-native
+            build: linux-aarch64
             checks: false
           - os: macos-latest
             target: aarch64-apple-darwin
@@ -167,14 +167,14 @@ jobs:
           sudo apt-get install -y musl-tools
 
       - name: Verify Linux x86_64 CPU baseline inputs
-        if: startsWith(matrix.platform, 'linux-x86_64-v') || matrix.platform == 'linux-x86_64-musl'
+        if: startsWith(matrix.platform, 'linux-amd64-v') || matrix.platform == 'linux-amd64-musl'
         shell: bash
         run: |
           set -euo pipefail
           case "${{ matrix.platform }}" in
-            linux-x86_64-v3) expected="-C target-cpu=x86-64-v3" ;;
-            linux-x86_64-v4) expected="-C target-cpu=x86-64-v4" ;;
-            linux-x86_64-musl) expected="-C target-cpu=x86-64-v3" ;;
+            linux-amd64-v3) expected="-C target-cpu=x86-64-v3" ;;
+            linux-amd64-v4) expected="-C target-cpu=x86-64-v4" ;;
+            linux-amd64-musl) expected="-C target-cpu=x86-64-v3" ;;
             *) echo "::error::Unknown Linux x86_64 platform ${{ matrix.platform }}"; exit 1 ;;
           esac
           if [[ "${{ matrix.rustflags }}" != "${expected}" ]]; then
@@ -259,9 +259,9 @@ jobs:
           BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
           BUILD_ID="${{ matrix.build }}"
           case "${BUILD_ID}" in
-            linux-x86_64-v3) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
-            linux-x86_64-v4) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
-            linux-x86_64-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
+            linux-amd64-v3) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
+            linux-amd64-v4) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
+            linux-amd64-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
             *) BASELINE=""; OPTIMIZATION=""; REQUIRED=""; DENIED="" ;;
           esac
 
@@ -270,7 +270,7 @@ jobs:
             if command -v strings >/dev/null 2>&1; then
               TEXT="$(strings "${BIN}")"
             else
-              TEXT="$(grep -aE 'linux-x86_64-v4|x86-64-v4|static optimized build|fat|unwind|yes' "${BIN}" || true)"
+              TEXT="$(grep -aE 'linux-amd64-v4|x86-64-v4|static optimized build|fat|unwind|yes' "${BIN}" || true)"
             fi
             grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
             grep -Fq "${OPTIMIZATION}" <<<"${TEXT}" || { echo "::error::Expected embedded optimization ${OPTIMIZATION}"; exit 1; }
@@ -318,7 +318,7 @@ jobs:
           if command -v strings >/dev/null 2>&1; then
             TEXT="$(strings "${BIN}")"
           else
-            TEXT="$(grep -aE 'linux-aarch64-native|static optimized build|fat|unwind|yes' "${BIN}" || true)"
+            TEXT="$(grep -aE 'linux-aarch64|static optimized build|fat|unwind|yes' "${BIN}" || true)"
           fi
           grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
           grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
@@ -787,7 +787,7 @@ jobs:
             echo
             echo '```bash'
             echo '# Quick install (Linux x86_64)'
-            echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-linux-x86_64-v3.tar.gz | tar -xzf -"
+            echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-linux-amd64-v3.tar.gz | tar -xzf -"
             echo
             echo '# Quick install (macOS Apple Silicon)'
             echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-darwin-aarch64-native.tar.gz | tar -xzf -"

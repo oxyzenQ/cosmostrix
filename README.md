@@ -70,7 +70,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 
 **Available platforms:**
 
-- Linux x86_64: `v1` (compatible), `v2`, `v3`, `v4`
+- Linux amd64: `v3`, `v4`, `musl` (also `linux-aarch64` for arm64)
 - macOS: `darwin-aarch64-native` (Apple Silicon)
 - Windows: `windows-x86_64`, `windows-aarch64-native`
 - Android (Termux): `android-aarch64-native`
@@ -78,7 +78,7 @@ Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify
 ```bash
 REPO="oxyzenQ/cosmostrix"
 TAG="v10.0.0"
-PLATFORM="linux-x86_64-v3"
+PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
 sha512sum -c "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -113,9 +113,9 @@ Artifact variants use explicit CPU baselines:
 
 | Variant | Baseline |
 |---|---|
-| `linux-x86_64-v3` | AVX2 / BMI2 / FMA-era CPUs (2013+, most modern x86_64) |
-| `linux-x86_64-v4` | AVX-512 baseline (high-end server/workstation) |
-| `linux-x86_64-musl` | v3 baseline + statically linked (max portability) |
+| `linux-amd64-v3` | AVX2 / BMI2 / FMA-era CPUs (2013+, most modern x86_64) |
+| `linux-amd64-v4` | AVX-512 baseline (high-end server/workstation) |
+| `linux-amd64-musl` | v3 baseline + statically linked (max portability) |
 | `native` | Local-only build tuned for the current CPU |
 
 > **Note:** v1/v2 x86_64 variants were dropped in v10.0.0. Modern CPUs
@@ -315,7 +315,7 @@ cosmostrix --check-update
 - [Zactrix Core](docs/ZACTRIX_CORE.md) — internal Zactrix Core architecture
 - [Zactrix Engine](docs/ZACTRIX_ENGINE.md) — Zactrix engine design
 - [Zactrix Cache](docs/ZACTRIX_CACHE.md) — Zactrix cache layer
-- [CI & Release Workflow](workflow/about-ci.md) — CI pipeline and release process
+- [CI & Release Workflow](docs/workflow/about-ci.md) — CI pipeline and release process
 
 ## Development
 
@@ -328,7 +328,7 @@ scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 
 ## Release Process
 
-Create a release by pushing a `v*` tag. See [workflow/about-ci.md](workflow/about-ci.md) for CI and release workflow details.
+Create a release by pushing a `v*` tag. See [docs/workflow/about-ci.md](docs/workflow/about-ci.md) for CI and release workflow details.
 
 ## Contributing
 
@@ -344,6 +344,7 @@ If this project helped you, or saved development time, you can support future ma
 
 Support is optional. The project remains open-source.
 
-## License
+## Intellectual Property & Trademark
 
-GPL-3.0-only. See `LICENSE`. Brand usage governed by `docs/TRADEMARK.md`.
+**cosmostrix** is the exclusive intellectual property of **rezky_nightky (oxyzenQ)**. Source code: **GPL-3.0-only** (see [LICENSE](LICENSE)). Name, logo, and branding ("the Marks") are governed by [TRADEMARK.md](TRADEMARK.md), are NOT covered by the GPL, and are reserved by the owner. This project is **NOT for sale**; unauthorized rebranding, relicensing, or source-code theft is strictly prohibited. For trademark licensing or written permission, contact **rezky_nightky (oxyzenQ)** — https://github.com/oxyzenQ.
+© 2026 rezky_nightky (oxyzenQ). All rights reserved.

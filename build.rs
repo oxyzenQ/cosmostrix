@@ -371,7 +371,7 @@ fn verify_cpu_baseline(
 ) {
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
-    let official_linux_x86 = (build_id.starts_with("linux-x86_64-")
+    let official_linux_x86 = (build_id.starts_with("linux-amd64-")
         || profile_name.starts_with("pro-linux-v")
         || profile_name.starts_with("pro-linux-musl"))
         && os == "linux"
@@ -528,6 +528,14 @@ fn infer_build_id(features: &HashSet<String>) -> String {
     };
 
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_else(|_| "unknown".to_string());
+    // Linux uses normalized archive naming: "amd64" for x86_64 and bare
+    // "aarch64" (no -native suffix) for arm64, matching release asset names.
+    // Other platforms keep their original arch label and -native suffix.
+    let arch_label = if os == "linux" && arch == "x86_64" {
+        "amd64"
+    } else {
+        arch.as_str()
+    };
     if arch == "x86_64" {
         if os == "linux" {
             let variant = if features.contains("avx512f") {
@@ -539,10 +547,12 @@ fn infer_build_id(features: &HashSet<String>) -> String {
             } else {
                 "v1"
             };
-            format!("{os}-{arch}-{variant}")
+            format!("{os}-{arch_label}-{variant}")
         } else {
             format!("{os}-{arch}")
         }
+    } else if os == "linux" {
+        format!("{os}-{arch_label}")
     } else {
         format!("{os}-{arch}-native")
     }

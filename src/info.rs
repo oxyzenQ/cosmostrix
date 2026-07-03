@@ -8,7 +8,7 @@ use std::env;
 
 // --- Build info helpers ---
 
-/// Canonical build label (e.g. "linux-x86_64-v3", "darwin-aarch64-native").
+/// Canonical build label (e.g. "linux-amd64-v3", "darwin-aarch64-native").
 ///
 /// Source of truth: `COSMOSTRIX_BUILD` env var set at compile time by
 /// `build.rs` (which reads it from `.cargo/config.toml` aliases or the
@@ -137,10 +137,10 @@ mod tests {
     fn canonical_build_label_reads_cosmostrix_build_env() {
         // canonical_build_label must return the value of COSMOSTRIX_BUILD
         // at compile time. When built with `cargo pro-linux-v3`, this is
-        // "linux-x86_64-v3". This test verifies the function is wired
+        // "linux-amd64-v3". This test verifies the function is wired
         // correctly; the actual value depends on how the test binary was
         // compiled (plain `cargo test` sets COSMOSTRIX_BUILD via build.rs
-        // inference to e.g. "linux-x86_64-vN" or "unknown").
+        // inference to e.g. "linux-amd64-vN" or "unknown").
         let label = canonical_build_label();
         assert!(!label.is_empty(), "canonical_build_label must not be empty");
     }
