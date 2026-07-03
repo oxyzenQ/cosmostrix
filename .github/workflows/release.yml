@@ -697,132 +697,17 @@ jobs:
         with:
           path: dist
 
-      - name: Prepare release notes
-        id: prep
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.ver.outputs.tag }}"
-          VERSION="${{ steps.ver.outputs.version }}"
-          PRERELEASE="${{ steps.ver.outputs.prerelease }}"
-          REPO="${GITHUB_REPOSITORY}"
-
-          # Find previous STABLE tag (skip pre-releases for stable comparison)
-          if [ "${PRERELEASE}" = "false" ]; then
-            PREV_TAG=$(git tag --list 'v*' --sort=-creatordate | \
-              grep -v "^${TAG}$" | \
-              grep -v -E -- '-(alpha|beta|rc)\.' | \
-              head -n 1 || true)
-          else
-            PREV_TAG=$(git tag --list 'v*' --sort=-creatordate | \
-              grep -v "^${TAG}$" | \
-              head -n 1 || true)
-          fi
-
-          if [ -n "$PREV_TAG" ]; then
-            RANGE="${PREV_TAG}..${TAG}"
-            CHANGELOG_URL="https://github.com/${REPO}/compare/${PREV_TAG}...${TAG}"
-            CHANGELOG_LABEL="${PREV_TAG}...${TAG}"
-          else
-            RANGE="${TAG}"
-            CHANGELOG_URL="https://github.com/${REPO}/releases/tag/${TAG}"
-            CHANGELOG_LABEL="${TAG}"
-          fi
-
-          # Categorize commits
-          FEATURES=$(git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}" | grep "^- feat" || true)
-          FIXES=$(git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}" | grep "^- fix" || true)
-          CHORES=$(git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}" | grep "^- chore" || true)
-          OTHERS=$(git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}" | grep -v "^- feat" | grep -v "^- fix" | grep -v "^- chore" || true)
-
-          if [ "${PRERELEASE}" = "true" ]; then
-            RELEASE_BADGE="> **Pre-release** • Experimental features ahead"
-            KNOWN_ISSUES="⚠️ This is a pre-release. Report bugs via [Issues](https://github.com/${REPO}/issues)."
-            WHATS_NEW="A pre-release build with upcoming changes for testing."
-          else
-            RELEASE_BADGE="> **Stable Release** • Production ready"
-            KNOWN_ISSUES="🐛 Report bugs via [Issues](https://github.com/${REPO}/issues)."
-            WHATS_NEW="A stable release including all improvements from previous versions."
-          fi
-
-          {
-            echo "## 🌌 Cosmostrix ${TAG}"
-            echo
-            echo "${RELEASE_BADGE}"
-            echo
-            echo "### ✨ What's New"
-            echo
-            echo "${WHATS_NEW}"
-            echo
-
-            if [ -n "$FEATURES" ]; then
-              echo "### 🎉 New Features"
-              echo
-              echo "$FEATURES"
-              echo
-            fi
-
-            if [ -n "$FIXES" ]; then
-              echo "### 🐛 Bug Fixes"
-              echo
-              echo "$FIXES"
-              echo
-            fi
-
-            if [ -n "$CHORES" ]; then
-              echo "### 🔧 Maintenance"
-              echo
-              echo "$CHORES"
-              echo
-            fi
-
-            if [ -n "$OTHERS" ]; then
-              echo "### 📦 Other Changes"
-              echo
-              echo "$OTHERS"
-              echo
-            fi
-
-            echo "### 📥 Installation"
-            echo
-            echo '```bash'
-            echo '# Quick install (Linux x86_64)'
-            echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-linux-amd64-v3.tar.gz | tar -xzf -"
-            echo
-            echo '# Quick install (macOS Apple Silicon)'
-            echo "curl -L https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-darwin-aarch64-native.tar.gz | tar -xzf -"
-            echo
-            echo '# Quick install (Windows x86_64) (PowerShell)'
-            echo "curl.exe -L -o cosmostrix.zip https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-windows-x86_64.zip"
-            echo 'Expand-Archive -Force cosmostrix.zip .'
-            echo
-            echo '# Or download your platform-specific package from the assets below'
-            echo '```'
-            echo
-            echo "### 🐛 Feedback"
-            echo
-            echo "${KNOWN_ISSUES}"
-            echo
-            echo "---"
-            echo
-            echo "**Full Changelog**: [\`${CHANGELOG_LABEL}\`](${CHANGELOG_URL})"
-          } > release-notes.md
-
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
       - name: Create GitHub Release
         id: gh_release
         uses: softprops/action-gh-release@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.prep.outputs.tag }}
-          name: Cosmostrix ${{ steps.prep.outputs.tag }}
+          tag_name: ${{ steps.ver.outputs.tag }}
           draft: false
           prerelease: ${{ steps.ver.outputs.prerelease }}
           make_latest: ${{ steps.ver.outputs.prerelease != 'true' }}
-          body_path: release-notes.md
+          generate_release_notes: true
           files: |
             dist/**/*.tar.gz
             dist/**/*.tar.gz.sha512sum
