@@ -536,6 +536,21 @@ fn infer_build_id(features: &HashSet<String>) -> String {
     } else {
         arch.as_str()
     };
+    // Detect libc variant (gnu = glibc/dynamic, musl = static) for Linux builds.
+    // This matches the user-facing build label convention: linux-amd64-vN-gnu/musl
+    let env_suffix = if os == "linux" {
+        let env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+        if env == "musl" {
+            "-musl"
+        } else if env == "gnu" {
+            "-gnu"
+        } else {
+            ""
+        }
+    } else {
+        ""
+    };
+
     if arch == "x86_64" {
         if os == "linux" {
             let variant = if features.contains("avx512f") {
@@ -547,12 +562,12 @@ fn infer_build_id(features: &HashSet<String>) -> String {
             } else {
                 "v1"
             };
-            format!("{os}-{arch_label}-{variant}")
+            format!("{os}-{arch_label}-{variant}{env_suffix}")
         } else {
             format!("{os}-{arch}")
         }
     } else if os == "linux" {
-        format!("{os}-{arch_label}")
+        format!("{os}-{arch_label}{env_suffix}")
     } else {
         format!("{os}-{arch}-native")
     }
