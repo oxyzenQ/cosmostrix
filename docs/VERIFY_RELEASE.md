@@ -1,3 +1,6 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Copyright (C) 2026 rezky_nightky (oxyzenQ) -->
+
 # Verifying Release Artifacts
 
 Every release ships **three** checksum files per archive, covering

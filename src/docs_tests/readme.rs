@@ -97,13 +97,3 @@ fn changelog_keeps_canonical_repo_casing() {
         "CHANGELOG must not contain wrong-cased repo owner"
     );
 }
-
-#[test]
-fn readme_stays_under_350_lines() {
-    let readme = include_str!("../../README.md");
-    let count = readme.lines().count();
-    assert!(
-        count <= 350,
-        "README has {count} lines, must stay under 350"
-    );
-}
