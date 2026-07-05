@@ -426,11 +426,21 @@ jobs:
             if command -v b2sum >/dev/null 2>&1; then
               b2sum "${TARBALL}" > "${TARBALL}.b2sum"
             else
-              python3 -c "import hashlib; h=hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest(); print(f'{h}  ${TARBALL}')" > "${TARBALL}.b2sum"
+              python3 -c "
+                import hashlib
+                data = open('${TARBALL}', 'rb').read()
+                h = hashlib.blake2b(data).hexdigest()
+                print(f'{h}  ${TARBALL}')
+              " > "${TARBALL}.b2sum"
             fi
             # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
             # doesn't support -shake256, Windows ships LibreSSL too)
-            python3 -c "import hashlib; h=hashlib.shake_256(open('${TARBALL}','rb').read()).hexdigest(64); print(f'{h}  ${TARBALL}')" > "${TARBALL}.shake256"
+            python3 -c "
+              import hashlib
+              data = open('${TARBALL}', 'rb').read()
+              h = hashlib.shake_256(data).hexdigest(64)
+              print(f'{h}  ${TARBALL}')
+            " > "${TARBALL}.shake256"
           )
 
           # Verify archive layout
@@ -478,10 +488,10 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA512 "dist/$zip").Hash.ToLower()
           "$hash  $zip" | Out-File -Encoding ascii "dist/$zip.sha512sum"
 
-          # Quantum-resistant checksum (SHAKE256 via Python — cross-platform, always available)
-          # Windows ships LibreSSL which doesn't support -shake256, so use Python hashlib instead
+          # SHAKE256 via Python (Windows ships LibreSSL which doesn't support -shake256)
+          $py = "import hashlib; d=open('dist/$zip','rb').read(); print(hashlib.shake_256(d).hexdigest(64))"
           try {
-            $shakeHash = (python3 -c "import hashlib; print(hashlib.shake_256(open('dist/$zip','rb').read()).hexdigest(64))").Trim()
+            $shakeHash = (python3 -c $py).Trim()
             if ($shakeHash) {
               "$shakeHash  $zip" | Out-File -Encoding ascii "dist/$zip.shake256"
             }
@@ -656,11 +666,21 @@ jobs:
             if command -v b2sum >/dev/null 2>&1; then
               b2sum "${TARBALL}" > "${TARBALL}.b2sum"
             else
-              python3 -c "import hashlib; h=hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest(); print(f'{h}  ${TARBALL}')" > "${TARBALL}.b2sum"
+              python3 -c "
+                import hashlib
+                data = open('${TARBALL}', 'rb').read()
+                h = hashlib.blake2b(data).hexdigest()
+                print(f'{h}  ${TARBALL}')
+              " > "${TARBALL}.b2sum"
             fi
             # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
             # doesn't support -shake256, Windows ships LibreSSL too)
-            python3 -c "import hashlib; h=hashlib.shake_256(open('${TARBALL}','rb').read()).hexdigest(64); print(f'{h}  ${TARBALL}')" > "${TARBALL}.shake256"
+            python3 -c "
+              import hashlib
+              data = open('${TARBALL}', 'rb').read()
+              h = hashlib.shake_256(data).hexdigest(64)
+              print(f'{h}  ${TARBALL}')
+            " > "${TARBALL}.shake256"
           )
 
           # Verify archive layout
