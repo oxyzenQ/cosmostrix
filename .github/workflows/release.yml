@@ -265,7 +265,7 @@ jobs:
             *) BASELINE=""; OPTIMIZATION=""; REQUIRED=""; DENIED="" ;;
           esac
 
-          if [[ "${BUILD_ID}" == *-v4 ]]; then
+          if [[ "${BUILD_ID}" == *v4* ]]; then
             echo "Skipping execution for ${BUILD_ID} (may require AVX-512); verifying embedded build metadata in binary"
             if command -v strings >/dev/null 2>&1; then
               TEXT="$(strings "${BIN}")"
@@ -478,13 +478,15 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA512 "dist/$zip").Hash.ToLower()
           "$hash  $zip" | Out-File -Encoding ascii "dist/$zip.sha512sum"
 
-          # Quantum-resistant checksum (SHAKE256 via OpenSSL, if available)
-          if (Get-Command openssl -ErrorAction SilentlyContinue) {
-            $shakeOutput = openssl dgst -shake256 "dist/$zip" 2>$null
-            if ($shakeOutput -match '=\s*(\w+)$') {
-              $shakeHash = $matches[1]
+          # Quantum-resistant checksum (SHAKE256 via Python — cross-platform, always available)
+          # Windows ships LibreSSL which doesn't support -shake256, so use Python hashlib instead
+          try {
+            $shakeHash = (python3 -c "import hashlib; print(hashlib.shake_256(open('dist/$zip','rb').read()).hexdigest(64))").Trim()
+            if ($shakeHash) {
               "$shakeHash  $zip" | Out-File -Encoding ascii "dist/$zip.shake256"
             }
+          } catch {
+            # SHAKE256 generation failed — skip (sha512sum is still generated)
           }
 
       - name: Upload artifact
