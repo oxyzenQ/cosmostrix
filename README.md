@@ -80,8 +80,10 @@ sha512sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.sha512sum
 b2sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.b2sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via openssl)
-openssl dgst -shake256 cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz
-# Compare hash with: cat cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.shake256
+# openssl has no -c flag, so we wrap it for auto-verify:
+COMPUTED=$(openssl dgst -shake256 cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz | awk '{print $NF}')
+EXPECTED=$(awk '{print $1}' cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
+[ "$COMPUTED" = "$EXPECTED" ] && echo "OK" || echo "FAILED"
 ```
 
 **Available platforms:**
