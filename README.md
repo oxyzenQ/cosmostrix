@@ -68,6 +68,22 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 
 Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify the checksum, and place `cosmostrix` in your `PATH`.
 
+Each release ships **three** checksums: classical SHA-512 + quantum-resistant
+BLAKE2b-512 + SHAKE256. Full instructions in
+[docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md).
+
+```bash
+# Classical (universal)
+sha512sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.sha512sum
+
+# Quantum-resistant — BLAKE2b (fastest, in coreutils)
+b2sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.b2sum
+
+# Quantum-resistant — SHAKE256 (NIST PQ standard, via openssl)
+openssl dgst -shake256 cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz
+# Compare hash with: cat cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.shake256
+```
+
 **Available platforms:**
 
 - Linux amd64: `v3`, `v4`, `musl` (also `linux-aarch64` for arm64)
