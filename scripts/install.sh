@@ -42,6 +42,18 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Refuse to run as root — cargo build must run as the current user.
+# If run with sudo, cargo build would create root-owned files in target/,
+# breaking future `cargo clean` / `cargo build` for the normal user.
+# The script uses sudo internally only for the install step in --system mode.
+if [[ $EUID -eq 0 ]]; then
+    echo "error: do not run this script with sudo." >&2
+    echo "  cargo build would run as root, corrupting target/ ownership." >&2
+    echo "  Run: $0 --system" >&2
+    echo "  The script will use sudo internally only for the install step." >&2
+    exit 1
+fi
+
 cd "${REPO_ROOT}"
 
 if [[ ! -f Cargo.toml ]]; then
