@@ -714,6 +714,23 @@ jobs:
         with:
           path: dist
 
+      - name: Generate release body
+        shell: bash
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${{ steps.ver.outputs.tag }}$" | head -1 || true)
+          {
+            if [ -n "$PREV_TAG" ]; then
+              echo "## What's Changed"
+              echo ""
+              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${{ steps.ver.outputs.tag }}"
+              echo ""
+            else
+              echo "Initial release."
+            fi
+          } > release-body.md
+          echo "=== Release body ==="
+          cat release-body.md
+
       - name: Create GitHub Release
         id: gh_release
         uses: softprops/action-gh-release@v3.0.0
@@ -721,10 +738,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
+          body_path: release-body.md
           draft: false
           prerelease: ${{ steps.ver.outputs.prerelease }}
           make_latest: ${{ steps.ver.outputs.prerelease != 'true' }}
-          generate_release_notes: true
           files: |
             dist/**/*.tar.gz
             dist/**/*.tar.gz.sha512sum
