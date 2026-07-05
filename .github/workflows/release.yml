@@ -428,9 +428,9 @@ jobs:
             else
               python3 -c "import hashlib; h=hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest(); print(f'{h}  ${TARBALL}')" > "${TARBALL}.b2sum"
             fi
-            # SHAKE256 via openssl (available on all GitHub runners including macOS)
-            HASH=$(openssl dgst -shake256 "${TARBALL}" | awk -F'= ' '{print $2}')
-            echo "${HASH}  ${TARBALL}" > "${TARBALL}.shake256"
+            # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
+            # doesn't support -shake256, Windows ships LibreSSL too)
+            python3 -c "import hashlib; h=hashlib.shake_256(open('${TARBALL}','rb').read()).hexdigest(64); print(f'{h}  ${TARBALL}')" > "${TARBALL}.shake256"
           )
 
           # Verify archive layout
@@ -658,9 +658,9 @@ jobs:
             else
               python3 -c "import hashlib; h=hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest(); print(f'{h}  ${TARBALL}')" > "${TARBALL}.b2sum"
             fi
-            # SHAKE256 via openssl (available on all GitHub runners including macOS)
-            HASH=$(openssl dgst -shake256 "${TARBALL}" | awk -F'= ' '{print $2}')
-            echo "${HASH}  ${TARBALL}" > "${TARBALL}.shake256"
+            # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
+            # doesn't support -shake256, Windows ships LibreSSL too)
+            python3 -c "import hashlib; h=hashlib.shake_256(open('${TARBALL}','rb').read()).hexdigest(64); print(f'{h}  ${TARBALL}')" > "${TARBALL}.shake256"
           )
 
           # Verify archive layout
