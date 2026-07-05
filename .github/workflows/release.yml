@@ -232,7 +232,7 @@ jobs:
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
           RUSTFLAGS: ${{ matrix.rustflags }}
-        run: cargo build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+        run: cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Build (release)
         if: (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64') && runner.os != 'Windows'
@@ -240,7 +240,7 @@ jobs:
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
           RUSTFLAGS: ${{ matrix.rustflags }}
-        run: cargo build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+        run: cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Build (release)
         if: (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64') && runner.os == 'Windows'
@@ -249,7 +249,7 @@ jobs:
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
           RUSTFLAGS: ${{ matrix.rustflags }}
         shell: pwsh
-        run: cargo build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS"
+        run: cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS"
 
       - name: Verify build metadata
         if: runner.os != 'Windows' && (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64')
@@ -596,7 +596,7 @@ jobs:
           export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"
 
-          cargo build --profile pro-android-aarch64 --locked --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
+          cargo build --profile pro-android-aarch64 --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify embedded build metadata
         shell: bash
