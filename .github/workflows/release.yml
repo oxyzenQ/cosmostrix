@@ -421,6 +421,10 @@ jobs:
             else
               shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
             fi
+            # Quantum-resistant checksums: BLAKE2b-512 + SHAKE256
+            b2sum "${TARBALL}" > "${TARBALL}.b2sum"
+            HASH=$(openssl dgst -shake256 "${TARBALL}" | awk -F'= ' '{print $2}')
+            echo "${HASH}  ${TARBALL}" > "${TARBALL}.shake256"
           )
 
           # Verify archive layout
@@ -467,6 +471,15 @@ jobs:
 
           $hash = (Get-FileHash -Algorithm SHA512 "dist/$zip").Hash.ToLower()
           "$hash  $zip" | Out-File -Encoding ascii "dist/$zip.sha512sum"
+
+          # Quantum-resistant checksum (SHAKE256 via OpenSSL, if available)
+          if (Get-Command openssl -ErrorAction SilentlyContinue) {
+            $shakeOutput = openssl dgst -shake256 "dist/$zip" 2>$null
+            if ($shakeOutput -match '=\s*(\w+)$') {
+              $shakeHash = $matches[1]
+              "$shakeHash  $zip" | Out-File -Encoding ascii "dist/$zip.shake256"
+            }
+          }
 
       - name: Upload artifact
         if: runner.os != 'Windows'
@@ -630,6 +643,10 @@ jobs:
             else
               shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
             fi
+            # Quantum-resistant checksums: BLAKE2b-512 + SHAKE256
+            b2sum "${TARBALL}" > "${TARBALL}.b2sum"
+            HASH=$(openssl dgst -shake256 "${TARBALL}" | awk -F'= ' '{print $2}')
+            echo "${HASH}  ${TARBALL}" > "${TARBALL}.shake256"
           )
 
           # Verify archive layout
@@ -711,8 +728,11 @@ jobs:
           files: |
             dist/**/*.tar.gz
             dist/**/*.tar.gz.sha512sum
+            dist/**/*.tar.gz.b2sum
+            dist/**/*.tar.gz.shake256
             dist/**/*.zip
             dist/**/*.zip.sha512sum
+            dist/**/*.zip.shake256
 
       # ------------------------------------------------------------------
       # Trigger AUR synchronization after successful release
