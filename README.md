@@ -95,7 +95,7 @@ EXPECTED=$(awk '{print $1}' cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.shake2
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v10.0.1"
+TAG="v10.0.2"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -136,7 +136,7 @@ Artifact variants use explicit CPU baselines:
 | `linux-amd64-musl` | v3 baseline + statically linked (max portability) |
 | `native` | Local-only build tuned for the current CPU |
 
-> **Note:** v1/v2 x86_64 variants were dropped in v10.0.1. Modern CPUs
+> **Note:** v1/v2 x86_64 variants were dropped in v10.0.2. Modern CPUs
 > (2013+) support v3. For maximum portability (Alpine, containers,
 > minimal base images), use the `musl` variant — it's statically linked
 > with no glibc dependency.
@@ -275,7 +275,7 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 
 Three optimization phases + pre-release audit + I/O bottleneck research + final bottleneck hunt yielded **+40.5% FPS** improvement over v5.0.3 (cumulative **+83.3%** from v5.0.1):
 
-| Metric | v5.0.3 | v10.0.1 | Improvement |
+| Metric | v5.0.3 | v10.0.2 | Improvement |
 |---|---|---|---|
 | avg_fps | 27,869 | 39,147 | **+40.5%** |
 | peak_fps | 42,801 | 55,451 | **+29.6%** |
@@ -303,11 +303,11 @@ combined fg+bg SGR, no-heap integer formatting. See
 **Investigated and ruled out:**
 - ~~SoA/SIMD/multi-core~~: Not viable (wrong access pattern, 0.1% budget used)
 
-**Real bottleneck: terminal I/O (optimized in v10.0.1)**
+**Real bottleneck: terminal I/O (optimized in v10.0.2)**
 - Direct ANSI byte buffer bypasses crossterm `.queue()` overhead
 - Combined fg+bg SGR, no-heap integer formatting, single flush per frame
 
-**Remaining I/O research (post-v10.0.1):**
+**Remaining I/O research (post-v10.0.2):**
 - Terminal protocol detection (kitty/foot/wezterm), color byte caching, output compression
 
 ## Version & Updates
