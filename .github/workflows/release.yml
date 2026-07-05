@@ -422,7 +422,13 @@ jobs:
               shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
             fi
             # Quantum-resistant checksums: BLAKE2b-512 + SHAKE256
-            b2sum "${TARBALL}" > "${TARBALL}.b2sum"
+            # b2sum is GNU coreutils only — macOS/BSD fallback to Python hashlib
+            if command -v b2sum >/dev/null 2>&1; then
+              b2sum "${TARBALL}" > "${TARBALL}.b2sum"
+            else
+              python3 -c "import hashlib; h=hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest(); print(f'{h}  ${TARBALL}')" > "${TARBALL}.b2sum"
+            fi
+            # SHAKE256 via openssl (available on all GitHub runners including macOS)
             HASH=$(openssl dgst -shake256 "${TARBALL}" | awk -F'= ' '{print $2}')
             echo "${HASH}  ${TARBALL}" > "${TARBALL}.shake256"
           )
@@ -644,7 +650,13 @@ jobs:
               shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
             fi
             # Quantum-resistant checksums: BLAKE2b-512 + SHAKE256
-            b2sum "${TARBALL}" > "${TARBALL}.b2sum"
+            # b2sum is GNU coreutils only — macOS/BSD fallback to Python hashlib
+            if command -v b2sum >/dev/null 2>&1; then
+              b2sum "${TARBALL}" > "${TARBALL}.b2sum"
+            else
+              python3 -c "import hashlib; h=hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest(); print(f'{h}  ${TARBALL}')" > "${TARBALL}.b2sum"
+            fi
+            # SHAKE256 via openssl (available on all GitHub runners including macOS)
             HASH=$(openssl dgst -shake256 "${TARBALL}" | awk -F'= ' '{print $2}')
             echo "${HASH}  ${TARBALL}" > "${TARBALL}.shake256"
           )
