@@ -761,6 +761,12 @@ COMMON OPTIONS:
       Character preset. See --list-charsets for available presets.
       cosmostrix --charset binary
 
+  --charset-file <path>
+      Load custom characters from a file. Overrides --charset.
+      One character per line, or a single line of characters.
+      Wide/zero-width characters (emoji, CJK fullwidth) are auto-filtered.
+      cosmostrix --charset-file ~/my-chars.txt
+
   -f, --fps <1-240>
       Target FPS.
       cosmostrix --fps 30
@@ -822,7 +828,8 @@ COMMON OPTIONS:
 CONFIG:
   --config <path>
       Load config from an explicit path instead of the default
-      $XDG_CONFIG_HOME/cosmostrix/config or ~/.config/cosmostrix/config.
+      $XDG_CONFIG_HOME/cosmostrix/config.toml or ~/.config/cosmostrix/config.toml.
+      Falls back to legacy 'config' (no extension) for pre-v10 compatibility.
 
   --dump-config
       Print a complete, commented example config and exit.
@@ -834,6 +841,10 @@ CONFIG:
 
   --config-path
       Print the resolved default config path and exit.
+
+  --testconf
+      Validate ~/.config/cosmostrix/config.toml and report errors
+      (typos, unknown keys, invalid values). Exit 0 = pass, 2 = fail.
 
   Precedence:
       built-in defaults < config values < config preset < config scene
