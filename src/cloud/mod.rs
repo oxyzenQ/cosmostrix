@@ -185,6 +185,8 @@ pub struct Cloud {
     pub(super) message: Vec<MsgChr>,
     pub(super) message_text: Option<String>,
     pub(super) message_border: bool,
+    /// When the message was set — for typewriter reveal timing.
+    pub(super) message_start_time: Option<Instant>,
     pub(super) color_scheme: ColorScheme,
     pub(super) default_background: bool,
     scene_name: String,
@@ -390,6 +392,7 @@ impl Cloud {
             message: Vec::new(),
             message_text: None,
             message_border: true,
+            message_start_time: None,
             color_scheme,
             default_background,
             scene_name: String::new(),
@@ -431,6 +434,7 @@ impl Cloud {
 
     pub fn set_message(&mut self, msg: &str) {
         self.message_text = Some(msg.to_string());
+        self.message_start_time = Some(Instant::now());
         self.reset_message();
         self.force_draw_everything = true;
     }
@@ -736,21 +740,75 @@ impl Cloud {
     }
 
     fn draw_message(&self, frame: &mut Frame) {
+        use crate::palette;
+        use crossterm::style::Color as CtColor;
+
         let bg = self.palette.bg;
-        let fg = if self.color_mode == ColorMode::Mono {
+
+        // Glow: decode palette last color to RGB, blend 60% toward white.
+        // This makes message text "pop" like head characters — cinematic glow.
+        let glow_fg = if self.color_mode == ColorMode::Mono {
             None
         } else {
-            self.palette.colors.last().copied()
+            let base = self.palette.colors.last().copied();
+            base.map(|c| {
+                let (r, g, b) = palette::color_to_rgb(c);
+                // 60% white blend — same as head pop
+                let nr = (r as i32 + ((255 - r as i32) * 154 + 128) / 256).clamp(0, 255) as u8;
+                let ng = (g as i32 + ((255 - g as i32) * 154 + 128) / 256).clamp(0, 255) as u8;
+                let nb = (b as i32 + ((255 - b as i32) * 154 + 128) / 256).clamp(0, 255) as u8;
+                CtColor::Rgb {
+                    r: nr,
+                    g: ng,
+                    b: nb,
+                }
+            })
         };
+
+        // Typewriter: reveal characters progressively.
+        // Each char takes ~30ms to appear. Total reveal = chars * 30ms.
+        // After full reveal, all chars stay visible.
+        let reveal_count = if let Some(start) = self.message_start_time {
+            let elapsed_ms = start.elapsed().as_millis() as usize;
+            // 30ms per char, minimum 1 char on first frame
+            let count = (elapsed_ms / 30).max(1);
+            // Count only non-space content chars (border chars always visible)
+            let mut content_total = 0usize;
+            for mc in &self.message {
+                if mc.val != ' ' && mc.val != '+' && mc.val != '-' && mc.val != '|' {
+                    content_total += 1;
+                }
+            }
+            count.min(content_total)
+        } else {
+            usize::MAX // no timer = show all immediately
+        };
+
+        let mut content_idx = 0usize;
         for mc in &self.message {
-            frame.set(
+            let is_content = mc.val != ' ' && mc.val != '+' && mc.val != '-' && mc.val != '|';
+
+            let (ch, fg) = if is_content {
+                if content_idx < reveal_count {
+                    content_idx += 1;
+                    (mc.val, glow_fg)
+                } else {
+                    // Not yet revealed — show as space (invisible)
+                    (' ', None)
+                }
+            } else {
+                // Border chars: always visible with glow
+                (mc.val, glow_fg)
+            };
+
+            frame.set_force(
                 mc.col,
                 mc.line,
                 Cell {
-                    ch: mc.val,
-                    fg: if mc.val == ' ' { None } else { fg },
+                    ch,
+                    fg,
                     bg,
-                    bold: mc.val != ' ' && self.bold_mode != BoldMode::Off,
+                    bold: ch != ' ' && self.bold_mode != BoldMode::Off,
                 },
             );
         }

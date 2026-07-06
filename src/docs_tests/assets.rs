@@ -4,90 +4,59 @@
 //! Demo asset existence and ordering guards.
 
 #[test]
-fn readme_references_v4_demo_gif() {
+fn readme_references_v11_demo_gif() {
     let readme = include_str!("../../README.md");
     assert!(
-        readme.contains("assets/cosmostrix-v4-demo.gif"),
-        "README must reference the v4 demo GIF"
+        readme.contains("assets/cosmostrix-v11-demo.gif"),
+        "README must reference the v11 demo GIF"
     );
 }
 
 #[test]
-fn readme_references_v4_demo_video() {
-    let readme = include_str!("../../README.md");
-    assert!(
-        readme.contains("assets/cosmostrix-v4-demo.mp4"),
-        "README must reference the v4 demo video"
-    );
+fn v11_demo_gif_asset_exists() {
+    let path = std::path::Path::new("assets/cosmostrix-v11-demo.gif");
+    assert!(path.exists(), "assets/cosmostrix-v11-demo.gif must exist");
 }
 
 #[test]
-fn readme_references_v4_demo_binary_poster() {
-    let readme = include_str!("../../README.md");
-    assert!(
-        readme.contains("assets/cosmostrix-v4-demo-binary.png"),
-        "README must reference the v4 binary demo poster"
-    );
-}
-
-#[test]
-fn readme_references_v4_demo_retro_poster() {
-    let readme = include_str!("../../README.md");
-    assert!(
-        readme.contains("assets/cosmostrix-v4-demo-retro.png"),
-        "README must reference the v4 retro demo poster"
-    );
-}
-
-#[test]
-fn v4_demo_gif_asset_exists() {
-    let path = std::path::Path::new("assets/cosmostrix-v4-demo.gif");
-    assert!(path.exists(), "assets/cosmostrix-v4-demo.gif must exist");
-}
-
-#[test]
-fn v4_demo_video_asset_exists() {
-    let path = std::path::Path::new("assets/cosmostrix-v4-demo.mp4");
-    assert!(path.exists(), "assets/cosmostrix-v4-demo.mp4 must exist");
-}
-
-#[test]
-fn v4_demo_binary_poster_asset_exists() {
-    let path = std::path::Path::new("assets/cosmostrix-v4-demo-binary.png");
+fn v11_demo_retro_asset_exists() {
+    let path = std::path::Path::new("assets/cosmostrix-v11-demo-retro.png");
     assert!(
         path.exists(),
-        "assets/cosmostrix-v4-demo-binary.png must exist"
+        "assets/cosmostrix-v11-demo-retro.png must exist"
     );
 }
 
 #[test]
-fn v4_demo_retro_poster_asset_exists() {
-    let path = std::path::Path::new("assets/cosmostrix-v4-demo-retro.png");
+fn v11_demo_braille_asset_exists() {
+    let path = std::path::Path::new("assets/cosmostrix-v11-demo-braille.png");
     assert!(
         path.exists(),
-        "assets/cosmostrix-v4-demo-retro.png must exist"
+        "assets/cosmostrix-v11-demo-braille.png must exist"
     );
 }
 
 #[test]
-fn readme_gif_appears_before_poster_pngs() {
+fn v11_demo_hex_asset_exists() {
+    let path = std::path::Path::new("assets/cosmostrix-v11-demo-hex.png");
+    assert!(
+        path.exists(),
+        "assets/cosmostrix-v11-demo-hex.png must exist"
+    );
+}
+
+#[test]
+fn readme_gif_appears_before_screenshots() {
     let readme = include_str!("../../README.md");
     let gif_pos = readme
-        .find("cosmostrix-v4-demo.gif")
+        .find("cosmostrix-v11-demo.gif")
         .expect("README must contain GIF ref");
-    let binary_pos = readme
-        .find("cosmostrix-v4-demo-binary.png")
-        .expect("README must contain binary PNG ref");
     let retro_pos = readme
-        .find("cosmostrix-v4-demo-retro.png")
+        .find("cosmostrix-v11-demo-retro.png")
         .expect("README must contain retro PNG ref");
     assert!(
-        gif_pos < binary_pos,
-        "README GIF reference must appear before binary PNG"
-    );
-    assert!(
-        binary_pos < retro_pos,
-        "README binary PNG must appear before retro PNG"
+        gif_pos < retro_pos,
+        "README GIF reference must appear before screenshot PNGs"
     );
 }
 

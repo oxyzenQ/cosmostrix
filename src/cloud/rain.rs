@@ -412,9 +412,8 @@ impl Cloud {
             }
         }
 
-        if !self.message.is_empty() {
-            self.draw_message(frame);
-        }
+        // Message box drawn AFTER phosphor/anomaly/atmospheric effects
+        // so it survives all post-processing — glow + typewriter reveal.
 
         // --- Phosphor persistence post-process ---
         // Scale phosphor decay elapsed by resume_blend so afterglow fades at
@@ -578,6 +577,12 @@ impl Cloud {
 
         // 7. Apply global atmospheric frame effects (post-process)
         self.apply_atmospheric_frame_effects(frame, now);
+
+        // 8. Draw message box LAST — survives phosphor, anomaly, atmospheric.
+        // Glow (60% white blend) + typewriter reveal (30ms/char).
+        if !self.message.is_empty() {
+            self.draw_message(frame);
+        }
 
         // --- Periodic full redraw for ANSI drift correction ---
         // Every N frames, force a complete screen refresh. This corrects any
