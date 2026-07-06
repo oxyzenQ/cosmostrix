@@ -23,11 +23,11 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v11-demo.gif" alt="Cosmostrix v11 demo" width="640">
+  <img src="assets/cosmostrix-v11-demo.gif" alt="Cosmostrix v11 demo" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v11-demo-retro.png" alt="Cosmostrix v11 retro charset demo" width="900">
+  <img src="assets/cosmostrix-v11-demo-retro.png" alt="Cosmostrix v11 retro charset demo" width="800">
 </p>
 
 <p align="center">
