@@ -740,29 +740,14 @@ impl Cloud {
     }
 
     fn draw_message(&self, frame: &mut Frame) {
-        use crate::palette;
-        use crossterm::style::Color as CtColor;
-
         let bg = self.palette.bg;
 
-        // Glow: decode palette last color to RGB, blend 60% toward white.
-        // This makes message text "pop" like head characters — cinematic glow.
-        let glow_fg = if self.color_mode == ColorMode::Mono {
+        // Adaptive color: use palette last color (follows 'c' key cycling).
+        // No white blend — message matches current rain color scheme.
+        let fg = if self.color_mode == ColorMode::Mono {
             None
         } else {
-            let base = self.palette.colors.last().copied();
-            base.map(|c| {
-                let (r, g, b) = palette::color_to_rgb(c);
-                // 60% white blend — same as head pop
-                let nr = (r as i32 + ((255 - r as i32) * 154 + 128) / 256).clamp(0, 255) as u8;
-                let ng = (g as i32 + ((255 - g as i32) * 154 + 128) / 256).clamp(0, 255) as u8;
-                let nb = (b as i32 + ((255 - b as i32) * 154 + 128) / 256).clamp(0, 255) as u8;
-                CtColor::Rgb {
-                    r: nr,
-                    g: ng,
-                    b: nb,
-                }
-            })
+            self.palette.colors.last().copied()
         };
 
         // Typewriter: reveal characters progressively.
@@ -788,17 +773,17 @@ impl Cloud {
         for mc in &self.message {
             let is_content = mc.val != ' ' && mc.val != '+' && mc.val != '-' && mc.val != '|';
 
-            let (ch, fg) = if is_content {
+            let (ch, cell_fg) = if is_content {
                 if content_idx < reveal_count {
                     content_idx += 1;
-                    (mc.val, glow_fg)
+                    (mc.val, fg)
                 } else {
                     // Not yet revealed — show as space (invisible)
                     (' ', None)
                 }
             } else {
-                // Border chars: always visible with glow
-                (mc.val, glow_fg)
+                // Border chars: always visible with palette color
+                (mc.val, fg)
             };
 
             frame.set_force(
@@ -806,7 +791,7 @@ impl Cloud {
                 mc.line,
                 Cell {
                     ch,
-                    fg,
+                    fg: cell_fg,
                     bg,
                     bold: ch != ' ' && self.bold_mode != BoldMode::Off,
                 },

@@ -256,12 +256,36 @@ fn main() -> std::io::Result<()> {
     }
     cmd.build();
 
-    let mut argv: Vec<std::ffi::OsString> = env::args_os().collect();
-    for arg in argv.iter_mut().skip(1) {
+    let argv: Vec<std::ffi::OsString> = env::args_os().collect();
+    // Expand -mB "text" / -mb "text" into --message-no-border --message "text"
+    // Also handle -mB=text and -mb=text forms.
+    let mut expanded: Vec<std::ffi::OsString> = Vec::with_capacity(argv.len() + 1);
+    expanded.push(argv[0].clone());
+    let mut i = 1;
+    while i < argv.len() {
+        let arg = &argv[i];
         if arg == "-mB" || arg == "-mb" {
-            *arg = "--message-no-border".into();
+            expanded.push("--message-no-border".into());
+            // Next arg is the message text
+            if i + 1 < argv.len() {
+                expanded.push("--message".into());
+                expanded.push(argv[i + 1].clone());
+                i += 2;
+                continue;
+            }
+        } else if let Some(s) = arg.to_str() {
+            if let Some(rest) = s.strip_prefix("-mB=").or_else(|| s.strip_prefix("-mb=")) {
+                expanded.push("--message-no-border".into());
+                expanded.push("--message".into());
+                expanded.push(rest.into());
+                i += 1;
+                continue;
+            }
         }
+        expanded.push(arg.clone());
+        i += 1;
     }
+    let argv = expanded;
     if let Err(e) = prevalidate_cli_args(&argv) {
         eprintln!("{e}");
         std::process::exit(2);
