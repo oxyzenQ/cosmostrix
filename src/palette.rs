@@ -535,7 +535,7 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
         ColorScheme::Cosmos => match mode {
             ColorMode::Mono => vec![Color::White],
             ColorMode::Color16 => vec![Color::DarkBlue, Color::Blue, Color::Magenta, Color::White],
-            _ => from_ansi_list(&[17, 18, 19, 54, 55, 56, 57, 93, 129, 189, 225]),
+            _ => from_ansi_list(&[20, 27, 33, 57, 63, 93, 99, 129, 141, 189, 225]),
         },
         ColorScheme::Nebula => match mode {
             ColorMode::Mono => vec![Color::White],

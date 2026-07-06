@@ -589,9 +589,11 @@ impl Droplet {
                     b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
-                // Head self-bloom: 12% white blend toward white
+                // Head self-bloom: 45% white blend toward white.
+                // Cinematic head pop — head is OBVIOUSLY brighter than body.
+                // Was 12% (subtle), raised to 45% for film-quality head glow.
                 if matches!(loc, CharLoc::Head) {
-                    const HEAD_WF: i32 = 31; // 0.12 * 256 ≈ 31
+                    const HEAD_WF: i32 = 115; // 0.45 * 256 ≈ 115
                     r = (r as i32 + ((255 - r as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
                     g = (g as i32 + ((255 - g as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
                     b = (b as i32 + ((255 - b as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;

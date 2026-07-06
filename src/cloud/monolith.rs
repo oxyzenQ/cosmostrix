@@ -788,8 +788,10 @@ pub(super) fn color_for_level(
         b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
     }
     if matches!(level, BrightnessLevel::Core) {
-        // Core gets an additional 10% white blend
-        const CORE_WF: i32 = 26; // 0.10 * 256 ≈ 26
+        // Core gets 45% white blend — cinematic head pop.
+        // Was 10%, raised to 45% for film-quality head glow matching
+        // the glyph-mode head self-bloom.
+        const CORE_WF: i32 = 115; // 0.45 * 256 ≈ 115
         r = (r as i32 + ((255 - r as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
         g = (g as i32 + ((255 - g as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
         b = (b as i32 + ((255 - b as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;

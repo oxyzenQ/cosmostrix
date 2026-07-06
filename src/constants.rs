@@ -417,12 +417,11 @@ pub const PARALLAX_LAYERS: usize = 3;
 pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = dim, 2 = bright).
-/// Raised from [0.35, 0.8, 1.0] to [0.55, 0.90, 1.0] for improved body
-/// glyph readability. The old far-layer at 35% was perceptually ~12% (nearly
-/// invisible after other dimming); 55% is perceptually ~30% — still clearly
-/// dimmer than the near layer but actually readable. Mid-layer at 90% (was
-/// 80%) reduces excessive dimming on the most common layer.
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.90, 1.0];
+/// Raised from [0.55, 0.90, 1.0] to [0.70, 0.90, 1.0] for improved
+/// background rain visibility. The old far-layer at 55% was perceptually
+/// ~14% (nearly invisible after other dimming); 70% is perceptually ~18%
+/// — still clearly dimmer than the near layer but actually visible.
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.70, 0.90, 1.0];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
