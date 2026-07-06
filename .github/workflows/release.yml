@@ -411,7 +411,7 @@ jobs:
           cp -f "README.md" "$OUTDIR/"
           cp -f "LICENSE" "$OUTDIR/"
 
-          TARBALL="cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
+          TARBALL="cosmostrix-${TAG}-${PLATFORM}.tar.gz"
           tar -czf "dist/${TARBALL}" -C "$OUTDIR" cosmostrix LICENSE README.md
 
           (
@@ -481,7 +481,7 @@ jobs:
           Copy-Item -Force "README.md" "$outDir/"
           Copy-Item -Force "LICENSE" "$outDir/"
 
-          $zip = "cosmostrix-bin-$TAG-$PLATFORM.zip"
+          $zip = "cosmostrix-$TAG-$PLATFORM.zip"
           if (Test-Path "dist/$zip") { Remove-Item -Force "dist/$zip" }
           Compress-Archive -Force -Path "$outDir/*" -DestinationPath "dist/$zip"
 
@@ -651,7 +651,7 @@ jobs:
           cp -f "README.md" "$OUTDIR/"
           cp -f "LICENSE" "$OUTDIR/"
 
-          TARBALL="cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
+          TARBALL="cosmostrix-${TAG}-${PLATFORM}.tar.gz"
           tar -czf "dist/${TARBALL}" -C "$OUTDIR" cosmostrix LICENSE README.md
 
           (

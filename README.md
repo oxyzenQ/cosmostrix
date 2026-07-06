@@ -74,15 +74,15 @@ BLAKE2b-512 + SHAKE256. Full instructions in
 
 ```bash
 # Classical (universal)
-sha512sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.sha512sum
+sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.sha512sum
 
 # Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.b2sum
+b2sum -c cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.b2sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python)
 # openssl's -shake256 default output length varies; Python is consistent
-COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz','rb').read()).hexdigest(64))")
-EXPECTED=$(awk '{print $1}' cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
+COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz','rb').read()).hexdigest(64))")
+EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 [ "$COMPUTED" = "$EXPECTED" ] && echo "OK" || echo "FAILED"
 ```
 
@@ -97,10 +97,10 @@ EXPECTED=$(awk '{print $1}' cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.shake2
 REPO="oxyzenQ/cosmostrix"
 TAG="v10.0.2"
 PLATFORM="linux-amd64-v3"
-curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
-curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
-sha512sum -c "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
-tar -xzf "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
+curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
+curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
+sha512sum -c "cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
+tar -xzf "cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 ./cosmostrix -i
 ```
 

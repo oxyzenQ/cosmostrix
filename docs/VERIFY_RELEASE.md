@@ -36,8 +36,8 @@ EXPECTED=$(awk '{print $1}' project-vX.Y.Z-linux-amd64-gnu.tar.gz.shake256)
 ```
 
 Replace `project-vX.Y.Z-linux-amd64-gnu` with the actual archive name
-(e.g. `cosmostrix-bin-v10.0.1-linux-amd64-musl` or
-`cosmostrix-bin-v10.0.1-linux-amd64-v3-gnu`).
+(e.g. `cosmostrix-v10.0.1-linux-amd64-musl` or
+`cosmostrix-v10.0.1-linux-amd64-v3-gnu`).
 
 ## Why three algorithms
 
