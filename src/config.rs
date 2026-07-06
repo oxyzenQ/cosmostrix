@@ -683,6 +683,8 @@ pub fn print_list_charsets() {
     println!("  dna          DNA bases (ACGT)");
     println!("  braille      Braille");
     println!("  runic        Runic");
+    println!();
+    println!("  Or use --charset-file <path> to load custom characters from a file.");
 }
 
 pub fn print_list_colors() {
@@ -733,7 +735,7 @@ pub fn print_defaults() {
     println!("  --scene monolith \\");
     println!("  --fps 60 \\");
     println!("  --speed 20 \\");
-    println!("  --density 0.75 \\");
+    println!("  --density 0.85 \\");
     println!("  --color cosmos \\");
     println!("  --charset binary \\");
     println!("  --glitch-level subtle \\");
@@ -907,7 +909,8 @@ RUNTIME CONTROLS:
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             g          Toggle glitch
-  m             Cycle profile     Space      Reseed animation
+  m             Cycle profile     Space      Reset animation
+  a             Toggle async      1-0        Direct color scheme
 
 HELP:
   --help          Show common options.

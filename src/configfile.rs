@@ -195,6 +195,8 @@ preset = cinematic
 # Appearance
 color = cosmos
 charset = binary
+# Custom characters from file (CLI only, overrides charset):
+#   cosmostrix --charset-file ~/my-chars.txt
 color-bg = black
 
 # Motion
