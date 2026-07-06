@@ -23,18 +23,14 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v4-demo.gif" alt="Cosmostrix v4 demo" width="900">
+  <img src="assets/cosmostrix-v11-demo.gif" alt="Cosmostrix v11 demo" width="640">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v4-demo-binary.png" alt="Cosmostrix v4 binary demo" width="900">
-  <br>
-  <img src="assets/cosmostrix-v4-demo-retro.png" alt="Cosmostrix v4 retro demo" width="900">
+  <img src="assets/cosmostrix-v11-demo-retro.png" alt="Cosmostrix v11 retro charset demo" width="900">
 </p>
 
 <p align="center">
-  <a href="assets/cosmostrix-v4-demo.mp4">MP4 demo</a>
-  ·
   <a href="https://www.youtube.com/watch?v=KSk-DWFdg3A">YouTube</a>
 </p>
 
