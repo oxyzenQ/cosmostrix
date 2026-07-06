@@ -4,7 +4,7 @@
 
 ## Release History
 
-### v10.0.0 — Peak Performance & Stability (COMPLETE)
+### v11.0.0 — Peak Performance & Stability (COMPLETE)
 
 Major performance optimization and stability hardening release.
 +70.3% FPS improvement over v5.0.3 baseline through three optimization
@@ -34,16 +34,16 @@ Cumulative: **+70.3% FPS** (31,445 → 53,561 avg_fps), **-40.6% frame time**.
   actual frame time = 0.019ms (0.1% of budget). Offloading 60µs compute
   saves ~0% — bottleneck is terminal I/O, not CPU.
 
-**Real bottleneck: terminal I/O (investigated v10.0.0)**
+**Real bottleneck: terminal I/O (investigated v11.0.0)**
 The actual bottleneck is ANSI escape sequence generation + stdout write.
-Optimized in v10.0.0 by bypassing crossterm's `.queue()` overhead:
+Optimized in v11.0.0 by bypassing crossterm's `.queue()` overhead:
 - Direct ANSI byte buffer (`ansi_buf: Vec<u8>`) replaces ~170 trait
   dispatch + heap String alloc calls per frame
 - Combined fg+bg SGR in one escape sequence (saves ~3 bytes/change)
 - Integer-to-ASCII without `format!` macro (no heap alloc)
 - Single `write_all` flush per frame
 
-**Remaining I/O research directions (post-v10.0.0):**
+**Remaining I/O research directions (post-v11.0.0):**
 - Terminal protocol detection: detect kitty/foot/wezterm at startup and
   use faster protocols (kitty graphics, synchronized output) where
   available. Currently all terminals get the same ANSI output.

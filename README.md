@@ -136,7 +136,7 @@ Artifact variants use explicit CPU baselines:
 | `linux-amd64-musl` | v3 baseline + statically linked (max portability) |
 | `native` | Local-only build tuned for the current CPU |
 
-> **Note:** v1/v2 x86_64 variants were dropped in v10.0.2. Modern CPUs
+> **Note:** v1/v2 x86_64 variants were dropped in v11.0.0. Modern CPUs
 > (2013+) support v3. For maximum portability (Alpine, containers,
 > minimal base images), use the `musl` variant — it's statically linked
 > with no glibc dependency.
@@ -271,11 +271,11 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
 
 See [benchmark/README.md](benchmark/README.md) for full reference results and interpretation notes.
 
-### v11.0.0 Performance Achievements
+### v11.0.0 Performance & Cinematic Peak
 
 Three optimization phases + pre-release audit + I/O bottleneck research + final bottleneck hunt yielded **+40.5% FPS** improvement over v5.0.3 (cumulative **+83.3%** from v5.0.1):
 
-| Metric | v5.0.3 | v10.0.2 | Improvement |
+| Metric | v5.0.3 | v11.0.0 | Improvement |
 |---|---|---|---|
 | avg_fps | 27,869 | 39,147 | **+40.5%** |
 | peak_fps | 42,801 | 55,451 | **+29.6%** |
@@ -303,11 +303,11 @@ combined fg+bg SGR, no-heap integer formatting. See
 **Investigated and ruled out:**
 - ~~SoA/SIMD/multi-core~~: Not viable (wrong access pattern, 0.1% budget used)
 
-**Real bottleneck: terminal I/O (optimized in v10.0.2)**
+**Real bottleneck: terminal I/O (optimized in v11.0.0)**
 - Direct ANSI byte buffer bypasses crossterm `.queue()` overhead
 - Combined fg+bg SGR, no-heap integer formatting, single flush per frame
 
-**Remaining I/O research (post-v10.0.2):**
+**Remaining I/O research (post-v11.0.0):**
 - Terminal protocol detection (kitty/foot/wezterm), color byte caching, output compression
 
 ## Version & Updates
