@@ -137,7 +137,7 @@ fn invalid_profile_values_are_ignored_cleanly() {
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.speed, 20.0);
-    assert_eq!(args.density, 0.75);
+    assert_eq!(args.density, 0.85);
 }
 
 #[test]

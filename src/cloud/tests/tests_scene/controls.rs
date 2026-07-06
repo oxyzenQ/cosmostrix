@@ -45,8 +45,8 @@ fn density_updates_after_scene_switch() {
     let mut cloud = make_glyph_cloud();
     cloud.set_droplet_density(1.0);
     cloud.apply_scene_runtime("monolith", "binary", &[], false);
-    // Monolith scene sets density=0.75
-    assert!((cloud.droplet_density - 0.75).abs() < 0.001);
+    // Monolith scene sets density=0.85
+    assert!((cloud.droplet_density - 0.85).abs() < 0.001);
 }
 
 #[test]

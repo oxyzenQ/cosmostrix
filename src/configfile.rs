@@ -200,7 +200,7 @@ color-bg = black
 # Motion
 fps = 60
 speed = 20
-density = 0.75
+density = 0.85
 monolith-size = normal
 
 # Behavior

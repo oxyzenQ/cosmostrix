@@ -54,7 +54,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("binary"),
             fps: Some(60.0),
             speed: Some(20.0),
-            density: Some(0.75),
+            density: Some(0.85),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Monolith,
         },
@@ -178,7 +178,7 @@ mod tests {
     fn monolith_scene_uses_premium_motion_defaults() {
         let monolith = get_scene("monolith").expect("monolith scene");
         assert_eq!(monolith.config.speed, Some(20.0));
-        assert_eq!(monolith.config.density, Some(0.75));
+        assert_eq!(monolith.config.density, Some(0.85));
     }
 
     #[test]

@@ -431,16 +431,17 @@ pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 // ---------------------------------------------------------------------------
 
 /// Per-cell phosphor energy decay rate (higher = faster fade).
-/// At 3.0, a cell at energy 200 decays to ~10 in ~1.3 seconds.
-pub const PHOSPHOR_DECAY_RATE: f32 = 3.0;
+/// Raised from 3.0 to 5.0 for crisper, more energetic trail fade.
+/// Film Matrix afterglow is ~200ms; at 5.0, afterglow lasts ~400ms
+/// (still 2× film, but 2.7× faster than old 1094ms).
+pub const PHOSPHOR_DECAY_RATE: f32 = 5.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
-/// Lowered from 180 to 120 (then raised to 160) for improved ghost afterglow
-/// visibility. At 160 (~63% brightness), ghost cells are clearly visible for
-/// the first ~400ms of afterglow, creating a better CRT fadeout effect.
-/// The bottom-row "concrete wall" artifact is still prevented by the
-/// PHOSPHOR_GLYPH_THRESHOLD (96) and PHOSPHOR_BOTTOM_DECAY_MULT (2.5).
-pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 160;
+/// Lowered from 160 to 120 for crisper trail. At 120 (~47% brightness),
+/// ghost cells are visible for ~400ms then fade — matching film Matrix
+/// energy. The bottom-row "concrete wall" artifact is still prevented by
+/// the PHOSPHOR_GLYPH_THRESHOLD (96) and PHOSPHOR_BOTTOM_DECAY_MULT (2.5).
+pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 120;
 
 /// Below this energy, the cell is cleared to blank.
 pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
@@ -706,11 +707,10 @@ pub const EDGE_FADE_ROWS: u16 = 3;
 pub const EDGE_FADE_TOP_MIN: f32 = 0.55;
 
 /// Minimum brightness at the very bottom edge (last row).
-/// More aggressive than top (0.20 vs 0.55) to prevent bright head
-/// tips from lingering on the terminal's bottom border. Combined with
-/// fog (0.35), effective brightness at last row is ~0.20 × 0.35 ≈ 0.07 —
-/// nearly invisible, preventing the horizontal residue line artifact.
-pub const EDGE_FADE_BOTTOM_MIN: f32 = 0.20;
+/// Raised from 0.20 to 0.45 for visible bottom border. Combined with
+/// fog (0.35), effective brightness at last row is ~0.45 × 0.35 ≈ 0.16 —
+/// dim but visible, preserving cinema framing without near-invisible border.
+pub const EDGE_FADE_BOTTOM_MIN: f32 = 0.45;
 
 /// Threshold for bold suppression at viewport edges. When the edge
 /// fade factor is below this value, bold is forced off to prevent bold

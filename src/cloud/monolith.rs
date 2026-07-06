@@ -745,16 +745,13 @@ pub(super) fn color_for_level(
 
     let last = colors.len().saturating_sub(1);
     let first_visible = usize::from(last > 0);
+    let ghost_idx = (last / 5).max(first_visible); // visible ghost trace
     let idx = match level {
-        // Ghost: use first visible for clean zero-line distinction
-        // This ensures ghost spine cells are the faintest possible
-        // non-invisible color, creating clear visual separation
-        // between "empty space" and "spine trace."
-        BrightnessLevel::Ghost => first_visible,
-        // Dim: lowered from last/4 to first_visible for deeper separation
-        // When bg is None (transparent), this keeps Dim cells barely visible
-        // rather than muddy mid-range values.
-        BrightnessLevel::Dim => first_visible,
+        // Ghost: raised from first_visible to last/5 for visible trace.
+        // Was near-invisible after dimming; now ~25% perceptual brightness.
+        BrightnessLevel::Ghost => ghost_idx,
+        // Dim: same as ghost for consistent visible trace
+        BrightnessLevel::Dim => ghost_idx,
         // Mid: slightly raised from last/2 for clearer body readability
         // The body segment is the most common visual element and
         // benefits from slightly higher contrast.

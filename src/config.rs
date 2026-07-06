@@ -182,6 +182,15 @@ pub struct Args {
     pub charset: String,
 
     #[arg(
+        long = "charset-file",
+        value_name = "PATH",
+        help_heading = "COMMON OPTIONS",
+        display_order = 21,
+        help = "Load custom characters from a file (one character per line, or a single line of characters). Overrides --charset."
+    )]
+    pub charset_file: Option<String>,
+
+    #[arg(
         short = 'f',
         long = "fps",
         default_value_t = 60.0,

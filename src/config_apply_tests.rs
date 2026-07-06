@@ -108,7 +108,7 @@ fn default_scene_is_monolith() {
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.charset, "binary");
     assert_eq!(args.speed, 20.0);
-    assert_eq!(args.density, 0.75);
+    assert_eq!(args.density, 0.85);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
@@ -143,7 +143,7 @@ fn config_scene_monolith_applies() {
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.charset, "binary");
     assert_eq!(args.speed, 20.0);
-    assert!((args.density - 0.75).abs() < f32::EPSILON);
+    assert!((args.density - 0.85).abs() < f32::EPSILON);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
     assert_eq!(args.glitch_pct, 3.0);
 }
@@ -354,7 +354,7 @@ fn dump_config_mentions_supported_keys() {
     }
     assert!(dump.contains("scene = monolith"));
     assert!(dump.contains("speed = 20"));
-    assert!(dump.contains("density = 0.75"));
+    assert!(dump.contains("density = 0.85"));
     assert!(dump.contains("glitch-level = subtle"));
 }
 
@@ -574,7 +574,7 @@ fn disabled_plus_non_calm_regime_keeps_effective_runtime_identity() {
     let ctrl = crate::atmosphere::AtmosphereController::new();
     let app = ctrl.build_application();
     let modulation = crate::atmosphere_apply::apply_application(&app, mode);
-    let eff = crate::atmosphere_apply::derive_effective_runtime(20.0, 0.75, &modulation);
+    let eff = crate::atmosphere_apply::derive_effective_runtime(20.0, 0.85, &modulation);
     let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(mode, regime);
     assert_eq!(
         mode,
@@ -582,7 +582,7 @@ fn disabled_plus_non_calm_regime_keeps_effective_runtime_identity() {
     );
     assert!(modulation.is_identity());
     assert_eq!(eff.speed, 20.0);
-    assert_eq!(eff.density, 0.75);
+    assert_eq!(eff.density, 0.85);
     assert!(shadow.is_identity());
 }
 

@@ -685,17 +685,38 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    let charset = match charset_from_str(&args.charset, def_ascii) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("{}", e);
-            std::process::exit(1);
-        }
-    };
-
     let charset_preset = normalize_charset_preset_name(&args.charset);
 
-    let chars = build_chars(charset, &user_ranges, def_ascii);
+    // --charset-file: load custom characters from file, overriding preset
+    let chars = if let Some(ref cf) = args.charset_file {
+        match std::fs::read_to_string(cf) {
+            Ok(content) => {
+                let custom_chars: Vec<char> = content
+                    .lines()
+                    .flat_map(|line| line.chars())
+                    .filter(|c| !c.is_whitespace() || *c == ' ')
+                    .collect();
+                if custom_chars.is_empty() {
+                    eprintln!("error: --charset-file '{cf}' contains no characters");
+                    std::process::exit(1);
+                }
+                custom_chars
+            }
+            Err(e) => {
+                eprintln!("error: cannot read --charset-file '{cf}': {e}");
+                std::process::exit(1);
+            }
+        }
+    } else {
+        let charset = match charset_from_str(&args.charset, def_ascii) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
+        };
+        build_chars(charset, &user_ranges, def_ascii)
+    };
 
     let density_auto = matches.value_source("density") == Some(ValueSource::DefaultValue);
     let base_density = validate_err(
