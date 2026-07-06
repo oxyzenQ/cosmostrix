@@ -426,21 +426,13 @@ jobs:
             if command -v b2sum >/dev/null 2>&1; then
               b2sum "${TARBALL}" > "${TARBALL}.b2sum"
             else
-              python3 -c "
-              import hashlib
-              data = open('${TARBALL}', 'rb').read()
-              h = hashlib.blake2b(data).hexdigest()
-              print(f'{h}  ${TARBALL}')
-              " > "${TARBALL}.b2sum"
+              _b2=$(python3 -c "import hashlib;print(hashlib.blake2b(open(0,'rb').read()).hexdigest())" < "${TARBALL}")
+              echo "${_b2}  ${TARBALL}" > "${TARBALL}.b2sum"
             fi
             # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
             # doesn't support -shake256, Windows ships LibreSSL too)
-            python3 -c "
-            import hashlib
-            data = open('${TARBALL}', 'rb').read()
-            h = hashlib.shake_256(data).hexdigest(64)
-            print(f'{h}  ${TARBALL}')
-            " > "${TARBALL}.shake256"
+            _s=$(python3 -c "import hashlib;print(hashlib.shake_256(open(0,'rb').read()).hexdigest(64))" < "${TARBALL}")
+            echo "${_s}  ${TARBALL}" > "${TARBALL}.shake256"
           )
 
           # Verify archive layout
@@ -666,21 +658,13 @@ jobs:
             if command -v b2sum >/dev/null 2>&1; then
               b2sum "${TARBALL}" > "${TARBALL}.b2sum"
             else
-              python3 -c "
-              import hashlib
-              data = open('${TARBALL}', 'rb').read()
-              h = hashlib.blake2b(data).hexdigest()
-              print(f'{h}  ${TARBALL}')
-              " > "${TARBALL}.b2sum"
+              _b2=$(python3 -c "import hashlib;print(hashlib.blake2b(open(0,'rb').read()).hexdigest())" < "${TARBALL}")
+              echo "${_b2}  ${TARBALL}" > "${TARBALL}.b2sum"
             fi
             # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
             # doesn't support -shake256, Windows ships LibreSSL too)
-            python3 -c "
-            import hashlib
-            data = open('${TARBALL}', 'rb').read()
-            h = hashlib.shake_256(data).hexdigest(64)
-            print(f'{h}  ${TARBALL}')
-            " > "${TARBALL}.shake256"
+            _s=$(python3 -c "import hashlib;print(hashlib.shake_256(open(0,'rb').read()).hexdigest(64))" < "${TARBALL}")
+            echo "${_s}  ${TARBALL}" > "${TARBALL}.shake256"
           )
 
           # Verify archive layout
