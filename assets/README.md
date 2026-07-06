@@ -8,6 +8,8 @@ Media assets used by Cosmostrix documentation and README.
 | cosmostrix-logo.png | Project logo |
 | cosmostrix-v11-demo.gif | v11 demo animation (README primary) |
 | cosmostrix-v11-demo-retro.png | v11 retro charset demo screenshot (README inline) |
+| cosmostrix-v11-demo-braille.png | v11 braille charset demo screenshot (README inline) |
+| cosmostrix-v11-demo-hex.png | v11 hex charset demo screenshot (README inline) |
 | cosmostrix-v4-demo.gif | v4 demo animation (archive) |
 | cosmostrix-v4-demo.mp4 | v4 demo video (archive) |
 | cosmostrix-v4-demo-binary.png | v4 binary theme demo poster (archive) |

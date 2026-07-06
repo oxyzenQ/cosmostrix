@@ -28,6 +28,10 @@
 
 <p align="center">
   <img src="assets/cosmostrix-v11-demo-retro.png" alt="Cosmostrix v11 retro charset demo" width="800">
+  <br>
+  <img src="assets/cosmostrix-v11-demo-braille.png" alt="Cosmostrix v11 braille charset demo" width="800">
+  <br>
+  <img src="assets/cosmostrix-v11-demo-hex.png" alt="Cosmostrix v11 hex charset demo" width="800">
 </p>
 
 <p align="center">
