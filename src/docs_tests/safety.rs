@@ -133,10 +133,6 @@ fn docs_tests_modules_stay_under_1000_loc() {
         ("docs_tests/readme.rs", include_str!("readme.rs")),
         ("docs_tests/release.rs", include_str!("release.rs")),
         ("docs_tests/safety.rs", include_str!("safety.rs")),
-        (
-            "docs_tests/zactrix_integration.rs",
-            include_str!("zactrix_integration.rs"),
-        ),
     ];
     for (name, content) in files {
         let lines = content.lines().count();

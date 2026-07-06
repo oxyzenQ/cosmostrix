@@ -13,12 +13,10 @@
 //! - `readme` — README structure guards (release notes, changelog link, etc.)
 //! - `release` — release candidate doc, benchmark doc, release workflow auth
 //! - `safety` — unsafe audits, debt markers, source file hygiene
-//! - `zactrix_integration` — v4.8 lab integration audit guards
 //! - `atmosphere` — Controlled atmosphere preset doc guards (v4.6.0 Phase 3)
 //! - `profile` — Profile ecosystem contract guards (v4.7.0 Phase 1)
 //! - `terminal_lifecycle` — Terminal lifecycle matrix docs guards (v4.9.0 Phase 3)
 //! - `doctor_report` — Doctor/report polish source and docs guards (v4.9.0 Phase 4)
-//! - `v5_nightfall` — v5.0.0 Nightfall product identity foundation guards
 
 mod assets;
 mod atmosphere;
@@ -30,5 +28,3 @@ mod readme;
 mod release;
 mod safety;
 mod terminal_lifecycle;
-mod v5_nightfall;
-mod zactrix_integration;

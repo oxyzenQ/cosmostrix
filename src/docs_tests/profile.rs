@@ -147,7 +147,7 @@ fn v47p1_docs_test_modules_under_1000_loc() {
         include_str!("readme.rs"),
         include_str!("release.rs"),
         include_str!("safety.rs"),
-        include_str!("zactrix_integration.rs"),
+        include_str!("release.rs"),
     ];
     let names = [
         "mod.rs",
@@ -159,7 +159,7 @@ fn v47p1_docs_test_modules_under_1000_loc() {
         "readme.rs",
         "release.rs",
         "safety.rs",
-        "zactrix_integration.rs",
+        "release.rs",
     ];
     for (name, content) in names.iter().zip(files.iter()) {
         let loc = content.lines().count();
@@ -335,7 +335,7 @@ fn v47p2_docs_test_modules_under_1000_loc_phase2() {
         include_str!("readme.rs"),
         include_str!("release.rs"),
         include_str!("safety.rs"),
-        include_str!("zactrix_integration.rs"),
+        include_str!("release.rs"),
     ];
     let names = [
         "mod.rs",
@@ -347,7 +347,7 @@ fn v47p2_docs_test_modules_under_1000_loc_phase2() {
         "readme.rs",
         "release.rs",
         "safety.rs",
-        "zactrix_integration.rs",
+        "release.rs",
     ];
     for (name, content) in names.iter().zip(files.iter()) {
         let loc = content.lines().count();
@@ -553,7 +553,7 @@ fn v47p3_docs_test_modules_under_1000_loc_phase3() {
         include_str!("readme.rs"),
         include_str!("release.rs"),
         include_str!("safety.rs"),
-        include_str!("zactrix_integration.rs"),
+        include_str!("release.rs"),
     ];
     let names = [
         "mod.rs",
@@ -565,7 +565,7 @@ fn v47p3_docs_test_modules_under_1000_loc_phase3() {
         "readme.rs",
         "release.rs",
         "safety.rs",
-        "zactrix_integration.rs",
+        "release.rs",
     ];
     for (name, content) in names.iter().zip(files.iter()) {
         let loc = content.lines().count();
@@ -653,7 +653,7 @@ fn v47p4_docs_test_modules_under_1000_loc_phase4() {
         include_str!("readme.rs"),
         include_str!("release.rs"),
         include_str!("safety.rs"),
-        include_str!("zactrix_integration.rs"),
+        include_str!("release.rs"),
     ];
     let names = [
         "mod.rs",
@@ -665,7 +665,7 @@ fn v47p4_docs_test_modules_under_1000_loc_phase4() {
         "readme.rs",
         "release.rs",
         "safety.rs",
-        "zactrix_integration.rs",
+        "release.rs",
     ];
     for (name, content) in names.iter().zip(files.iter()) {
         let loc = content.lines().count();

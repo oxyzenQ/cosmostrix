@@ -5,7 +5,7 @@
 //!
 //! These tests verify that `docs/ATMOSPHERE_PRESETS.md` contains all required
 //! preset names, mappings, constraints, and safety invariants. A separate
-//! module is used because `docs_tests/zactrix_integration.rs` is at ~819 LOC and must
+//! module is used because `docs_tests/release.rs` is at ~819 LOC and must
 //! stay under 1000 LOC.
 
 const PRESET_NAMES: &[&str] = &[
@@ -238,10 +238,7 @@ fn v46p3_docs_test_files_under_1000_loc() {
             "src/docs_tests/atmosphere.rs",
             include_str!("atmosphere.rs"),
         ),
-        (
-            "src/docs_tests/zactrix_integration.rs",
-            include_str!("zactrix_integration.rs"),
-        ),
+        ("src/docs_tests/release.rs", include_str!("release.rs")),
     ];
     for (name, content) in &files {
         let loc = content.lines().count();
@@ -419,10 +416,7 @@ fn v46p5_docs_test_files_still_under_1000_loc() {
             "src/docs_tests/atmosphere.rs",
             include_str!("atmosphere.rs"),
         ),
-        (
-            "src/docs_tests/zactrix_integration.rs",
-            include_str!("zactrix_integration.rs"),
-        ),
+        ("src/docs_tests/release.rs", include_str!("release.rs")),
     ];
     for (name, content) in &files {
         let loc = content.lines().count();

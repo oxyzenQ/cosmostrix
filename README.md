@@ -273,15 +273,15 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 
 ### v11.0.0 Performance & Cinematic Peak
 
-Three optimization phases + pre-release audit + I/O bottleneck research + final bottleneck hunt yielded **+40.5% FPS** improvement over v5.0.3 (cumulative **+83.3%** from v5.0.1):
+Three optimization phases + pre-release audit + I/O bottleneck research + final bottleneck hunt + cinematic quality push yielded **+100% FPS** improvement over v5.0.3 (cumulative **+161%** from v5.0.1):
 
 | Metric | v5.0.3 | v11.0.0 | Improvement |
 |---|---|---|---|
-| avg_fps | 27,869 | 39,147 | **+40.5%** |
-| peak_fps | 42,801 | 55,451 | **+29.6%** |
-| avg_frame_time | 0.035ms | 0.025ms | -28.6% |
-| p99_frame_time | 0.046ms | 0.030ms | -34.8% |
-| p95_frame_time | 0.042ms | 0.028ms | -33.3% |
+| avg_fps | 27,869 | 55,718 | **+100%** |
+| peak_fps | 42,801 | 77,012 | **+80%** |
+| avg_frame_time | 0.035ms | 0.018ms | -48.6% |
+| p99_frame_time | 0.046ms | 0.027ms | -41.3% |
+| p95_frame_time | 0.042ms | 0.020ms | -52.4% |
 
 Key optimizations: O(1) phosphor dedup (BitVec), head_brightness hoist,
 DrawCtx glitch cache, viewport_edge_fade LUT, spawn free-list, flat
@@ -330,9 +330,6 @@ cosmostrix --check-update
 - [Supply Chain](docs/SUPPLY_CHAIN.md) — supply-chain hardening policy
 - [Stability Audit](docs/STABILITY_AUDIT.md) — terminal stability audit
 - [SIMD Feasibility](docs/SIMD_FEASIBILITY.md) — SIMD optimization feasibility
-- [Zactrix Core](docs/ZACTRIX_CORE.md) — internal Zactrix Core architecture
-- [Zactrix Engine](docs/ZACTRIX_ENGINE.md) — Zactrix engine design
-- [Zactrix Cache](docs/ZACTRIX_CACHE.md) — Zactrix cache layer
 - [CI & Release Workflow](docs/workflow/about-ci.md) — CI pipeline and release process
 
 ## Development

@@ -50,6 +50,45 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## v11.0.0 — Cinematic Peak
+
+Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
+2026-07-02). Default 120×40 terminal size. Cinematic visual quality push
++ zactrix engine dead code removal (1562 lines deleted).
+
+- Binary version: `v11.0.0`
+- Commit: `06799dd`
+- Profile: `pro-linux-v3` (linux-x86_64-v3)
+
+### Before/After Comparison (same machine, same profile)
+
+| Metric | v5.0.3 (old) | v11.0.0 (new) | Δ |
+|--------|-------------:|--------------:|------:|
+| avg_fps | 27,869 | **55,718** | **+100.0%** |
+| peak_fps | 42,801 | **77,012** | **+79.9%** |
+| avg_frame_time | 0.035 ms | **0.018 ms** | **-48.6%** |
+| p99_frame_time | 0.046 ms | **0.027 ms** | **-41.3%** |
+| p95_frame_time | 0.042 ms | **0.020 ms** | **-52.4%** |
+| median_fps | — | **57,369** | — |
+| dirty_glyphs/sec | 9.6M | **19.2M** | **+100.0%** |
+| ansi_bytes/sec | — | **365M** | — |
+| frame_time_stability | excellent | excellent | — |
+
+### v11.0.0 Changes
+
+- Zactrix engine dead code removed (1562 lines, 5 modules deleted)
+- Cosmos palette brightened (30% → 45% avg luminance)
+- Head white blend 12% → 45% (cinematic head pop)
+- Phosphor decay 3.0→5.0 (crisp 400ms trail, was 1094ms)
+- EdgeFade + Fog brighter borders
+- Ghost/Dim level raised (visible ghost trace)
+- Default density 0.75→0.85 (denser rain)
+- Head shimmer 0.12s→0.10s (more chaotic)
+- `--charset-file` custom characters from file
+- 10 stale/zactrix docs deleted
+
+---
+
 ## v10.0.0 — Peak Performance & Stability
 
 Release benchmark from `pro-linux-v3` binary (commit `93ed607`,
