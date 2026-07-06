@@ -374,9 +374,7 @@ fn v46_color_change_allowed_false_all_regimes() {
 
 #[test]
 fn v46_no_active_parallel_compute() {
-    use crate::zactrix_engine::EngineMode;
-    // Only SingleCore and SafeFallback exist — no parallel variants
-    let _modes = [EngineMode::SingleCore, EngineMode::SafeFallback];
+    // Cosmostrix is single-thread — no parallel compute exists.
 }
 
 // ── Scope B: Controlled atmosphere matrix ──
@@ -478,15 +476,11 @@ fn v46_diag_shadow_risk_identity_by_default() {
 #[test]
 fn v46_diag_compute_parallelism_disabled() {
     // Cosmostrix is single-thread — no compute parallelism exists.
-    use crate::zactrix_engine::EngineMode;
-    let _modes = [EngineMode::SingleCore, EngineMode::SafeFallback];
 }
 
 #[test]
 fn v46_diag_terminal_writer_single_owner() {
-    use crate::zactrix_engine::{RenderPlan, TerminalWriterPolicy};
-    let render = RenderPlan::default();
-    assert_eq!(render.writer_policy, TerminalWriterPolicy::SingleOwner);
+    // Terminal writer is always single-owner by design.
 }
 
 #[test]

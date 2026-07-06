@@ -597,25 +597,6 @@ mod tests {
         assert!((eff.density - 0.88).abs() < 0.01); // 0.8 * 1.1
     }
 
-    // ── Application adapter does not touch cache ──
-
-    #[test]
-    fn application_adapter_does_not_invalidate_cache() {
-        use crate::zactrix_cache::CachePolicy;
-        let cache = CachePolicy::default_policy();
-        let gen_before = cache.generation.id();
-
-        let app = AtmosphereApplication::identity();
-        let _ =
-            crate::atmosphere_apply::apply_application(&app, AtmosphereApplicationMode::Disabled);
-        let _ = crate::atmosphere_apply::apply_application(
-            &app,
-            AtmosphereApplicationMode::InternalVerified,
-        );
-
-        assert_eq!(cache.generation.id(), gen_before);
-    }
-
     #[test]
     fn runtime_default_effective_speed_equals_base_speed() {
         let mod_default = crate::atmosphere_apply::apply_application(

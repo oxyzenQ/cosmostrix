@@ -13,7 +13,6 @@
 //! - `readme` — README structure guards (release notes, changelog link, etc.)
 //! - `release` — release candidate doc, benchmark doc, release workflow auth
 //! - `safety` — unsafe audits, debt markers, source file hygiene
-//! - `zactrix` — Zactrix Engine/Cache/Core docs, planner tests, architecture
 //! - `zactrix_integration` — v4.8 lab integration audit guards
 //! - `atmosphere` — Controlled atmosphere preset doc guards (v4.6.0 Phase 3)
 //! - `profile` — Profile ecosystem contract guards (v4.7.0 Phase 1)
@@ -32,5 +31,4 @@ mod release;
 mod safety;
 mod terminal_lifecycle;
 mod v5_nightfall;
-mod zactrix;
 mod zactrix_integration;

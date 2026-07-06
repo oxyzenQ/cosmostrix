@@ -522,40 +522,4 @@ mod tests {
         assert!(app.glitch_pressure <= bounds.glitch_pressure_max);
         assert!(app.glitch_pressure >= 0.0);
     }
-
-    // ── Cache seam: verification does not touch cache ──
-
-    #[test]
-    fn verification_does_not_invalidate_cache() {
-        use crate::zactrix_cache::CachePolicy;
-        let cache = CachePolicy::default_policy();
-        let gen_before = cache.generation.id();
-
-        // Verification operates on application data only — no cache interaction.
-        let mut app = AtmosphereApplication {
-            speed_scale: 5.0,
-            density_scale: 3.0,
-            brightness_scale: 2.0,
-            glitch_pressure: 1.5,
-            color_change: true,
-        };
-        let bounds = AtmosphereBounds::conservative();
-        let _ = verify_application(&mut app, &bounds);
-
-        assert_eq!(cache.generation.id(), gen_before);
-    }
-
-    #[test]
-    fn accepted_regime_transition_still_invalidates_cache() {
-        use crate::atmosphere::{AtmosphereController, AtmosphereRegime};
-        use crate::zactrix_cache::CachePolicy;
-        let mut ctrl = AtmosphereController::new();
-        let mut cache = CachePolicy::default_policy();
-        let gen_before = cache.generation.id();
-
-        ctrl.advance(10.0);
-        let accepted = ctrl.transition_to(AtmosphereRegime::Storm, &mut cache);
-        assert!(accepted);
-        assert_ne!(cache.generation.id(), gen_before);
-    }
 }

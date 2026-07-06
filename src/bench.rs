@@ -35,15 +35,15 @@ use std::time::{Duration, Instant};
 use crossterm::cursor::{Hide, Show};
 use crossterm::execute;
 
+use crate::cinematic::{
+    classify_frame_jitter, classify_frame_time_stability, dirty_threshold_cells,
+    estimates_full_redraw,
+};
 use crate::constants::{
     ANSI_BYTES_PER_CELL_ESTIMATE, BENCH_ELAPSED_MIN_S, DENSITY_AUTO_DEFAULT_COLS,
     DENSITY_AUTO_DEFAULT_LINES, DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
 };
 use crate::frame::Frame;
-use crate::zactrix_core::{
-    classify_frame_jitter, classify_frame_time_stability, dirty_threshold_cells,
-    estimates_full_redraw,
-};
 
 use super::{effective_density, CloudConfig};
 

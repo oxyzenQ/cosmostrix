@@ -12,15 +12,15 @@ use rand::{
 };
 
 use crate::cell::Cell;
+use crate::cinematic::{
+    monolith_breathing_factor, monolith_hero_pulse, monolith_motion_factor, monolith_spine_cadence,
+};
 use crate::constants::EDGE_FADE_BOLD_THRESHOLD;
 use crate::constants::SPAWN_REMAINDER_CAP;
 use crate::frame::Frame;
 use crate::palette;
 use crate::runtime::{BoldMode, ColorMode, MonolithSize};
 use crate::terminal::blank_cell;
-use crate::zactrix_core::{
-    monolith_breathing_factor, monolith_hero_pulse, monolith_motion_factor, monolith_spine_cadence,
-};
 
 use super::monolith_glyphs::{segment_char, spine_char};
 use super::render::DrawCtx;

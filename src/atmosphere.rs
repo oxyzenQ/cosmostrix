@@ -38,7 +38,7 @@
 // integration progresses, individual allows can replace this module-level one.
 #![allow(dead_code)]
 
-use crate::zactrix_cache::{CachePolicy, InvalidationEvent};
+// AtmosphereRegime is defined in this module (below).
 
 // ── Regime Enum ────────────────────────────────────────────────────────────
 
@@ -368,14 +368,7 @@ impl AtmosphereController {
     ///
     /// Returns `true` if the transition was accepted, `false` if rejected
     /// due to dwell-time constraint or same-regime no-op.
-    ///
-    /// When accepted, invalidates the given cache policy with
-    /// AtmosphereRegimeChange.
-    pub(crate) fn transition_to(
-        &mut self,
-        target: AtmosphereRegime,
-        cache: &mut CachePolicy,
-    ) -> bool {
+    pub(crate) fn transition_to(&mut self, target: AtmosphereRegime) -> bool {
         // Calm-to-Calm is always a no-op.
         if target == self.state.current_regime && self.state.target_regime == target {
             return false;
@@ -389,9 +382,6 @@ impl AtmosphereController {
         self.state.target_regime = target;
         self.state.transition_progress = 0.0;
         self.time_since_last_change = 0.0;
-
-        // Invalidate cache generation for atmosphere regime change.
-        cache.invalidate(InvalidationEvent::AtmosphereRegimeChange);
 
         true
     }

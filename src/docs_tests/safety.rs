@@ -27,27 +27,6 @@ fn readme_links_terminal_compatibility_doc() {
 }
 
 #[test]
-fn zactrix_core_doc_exists_and_covers_architecture_terms() {
-    let docs = include_str!("../../docs/ZACTRIX_CORE.md");
-    let lowercase = docs.to_lowercase();
-    for term in ["probe", "map", "filter", "verifier", "bounded history"] {
-        assert!(
-            lowercase.contains(term),
-            "Zactrix Core docs should mention {term}"
-        );
-    }
-    assert!(docs.contains("not Linux eBPF"));
-    assert!(docs.contains("not a public API"));
-    assert!(docs.contains("must not introduce unsafe"));
-    assert!(docs.contains("no new unsafe in renderer/core paths"));
-    assert!(docs.contains("v3.9.0 Ultimate Subtle Monolith Rain"));
-    assert!(docs.contains("v4.0.0"));
-
-    let readme = include_str!("../../README.md");
-    assert!(readme.contains("docs/ZACTRIX_CORE.md"));
-}
-
-#[test]
 fn simd_docs_do_not_claim_global_zero_unsafe() {
     let docs = include_str!("../../docs/SIMD_FEASIBILITY.md");
     assert!(!docs.contains("zero `unsafe`"));
@@ -69,8 +48,11 @@ fn source_contains_only_audited_platform_recovery_unsafe() {
     assert_eq!(main_rs.matches("unsafe {").count(), 1);
     assert!(main_rs.contains("SAFETY: this Linux-only guard"));
 
-    let zactrix_core = include_str!("../zactrix_engine/core.rs");
-    assert!(!zactrix_core.contains("unsafe {"));
+    let atmosphere = include_str!("../atmosphere.rs");
+    assert!(
+        !atmosphere.contains("unsafe {"),
+        "atmosphere.rs must not contain unsafe"
+    );
 }
 
 #[test]
@@ -121,27 +103,6 @@ fn docs_mention_visual_stability_policy_if_exists() {
 }
 
 #[test]
-fn no_new_unsafe_in_zactrix_modules() {
-    let engine = include_str!("../zactrix_engine/scheduler.rs");
-    assert!(
-        !engine.contains("unsafe {"),
-        "zactrix_engine/scheduler.rs must not contain unsafe"
-    );
-
-    let cache = include_str!("../zactrix_engine/cache.rs");
-    assert!(
-        !cache.contains("unsafe {"),
-        "zactrix_engine/cache.rs must not contain unsafe"
-    );
-
-    let atmosphere = include_str!("../atmosphere.rs");
-    assert!(
-        !atmosphere.contains("unsafe {"),
-        "atmosphere.rs must not contain unsafe"
-    );
-}
-
-#[test]
 fn auto_color_drift_remains_default_false_in_constants() {
     let constants = include_str!("../constants.rs");
     assert!(
@@ -162,48 +123,6 @@ fn fixed_color_remains_sticky_by_default() {
 }
 
 #[test]
-fn all_zactrix_files_under_1000_loc() {
-    let files = [
-        (
-            "zactrix_engine/mod.rs",
-            include_str!("../zactrix_engine/mod.rs"),
-        ),
-        (
-            "zactrix_engine/scheduler.rs",
-            include_str!("../zactrix_engine/scheduler.rs"),
-        ),
-        (
-            "zactrix_engine/core.rs",
-            include_str!("../zactrix_engine/core.rs"),
-        ),
-        (
-            "zactrix_engine/cache.rs",
-            include_str!("../zactrix_engine/cache.rs"),
-        ),
-        (
-            "zactrix_engine/system.rs",
-            include_str!("../zactrix_engine/system.rs"),
-        ),
-        (
-            "zactrix_engine/render.rs",
-            include_str!("../zactrix_engine/render.rs"),
-        ),
-        (
-            "zactrix_engine/metrics.rs",
-            include_str!("../zactrix_engine/metrics.rs"),
-        ),
-        ("atmosphere.rs", include_str!("../atmosphere.rs")),
-    ];
-    for (name, content) in files {
-        let lines = content.lines().count();
-        assert!(
-            lines <= 1000,
-            "{name} has {lines} lines, must be under 1000"
-        );
-    }
-}
-
-#[test]
 fn docs_tests_modules_stay_under_1000_loc() {
     // Guard: all docs_tests/ submodules must stay under 1000 LOC.
     let files = [
@@ -214,7 +133,10 @@ fn docs_tests_modules_stay_under_1000_loc() {
         ("docs_tests/readme.rs", include_str!("readme.rs")),
         ("docs_tests/release.rs", include_str!("release.rs")),
         ("docs_tests/safety.rs", include_str!("safety.rs")),
-        ("docs_tests/zactrix.rs", include_str!("zactrix.rs")),
+        (
+            "docs_tests/zactrix_integration.rs",
+            include_str!("zactrix_integration.rs"),
+        ),
     ];
     for (name, content) in files {
         let lines = content.lines().count();

@@ -272,7 +272,6 @@ mod tests {
     use crate::atmosphere::AtmosphereRegime;
     use crate::atmosphere_apply::AtmosphereApplicationMode;
     use crate::atmosphere_visual::AtmosphereVisualWhisper;
-    use crate::zactrix_cache::CachePolicy;
 
     // ── Identity Tests ──
 
@@ -492,36 +491,6 @@ mod tests {
     fn max_abs_delta_percent_identity_is_zero() {
         let metrics = AtmosphereShadowMetrics::identity();
         assert_eq!(metrics.max_abs_delta_percent(), 0.0);
-    }
-
-    #[test]
-    fn shadow_evaluation_does_not_invalidate_cache() {
-        let cache = CachePolicy::new(100);
-        let initial_gen = cache.generation;
-
-        let _ = shadow_metrics_from_mode_and_regime(
-            AtmosphereApplicationMode::ControlledLive,
-            AtmosphereRegime::Pulse,
-        );
-        let _ = shadow_metrics_from_mode_and_regime(
-            AtmosphereApplicationMode::InternalVerified,
-            AtmosphereRegime::Storm,
-        );
-        let _ = shadow_metrics_from_application(
-            AtmosphereApplicationMode::TestOnly,
-            &AtmosphereApplication {
-                speed_scale: 1.5,
-                density_scale: 1.3,
-                brightness_scale: 1.1,
-                glitch_pressure: 0.4,
-                color_change: false,
-            },
-        );
-
-        assert_eq!(
-            cache.generation, initial_gen,
-            "shadow evaluation must not invalidate cache"
-        );
     }
 
     #[test]

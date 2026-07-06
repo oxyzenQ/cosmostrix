@@ -18,7 +18,6 @@ use crate::diagnostics;
 use crate::renderer_info;
 use crate::report::Report;
 use crate::runtime::ColorMode;
-use crate::zactrix_engine::{EnginePlan, EngineProbe};
 
 use super::{color_mode_label, detect_color_mode_auto};
 
@@ -246,51 +245,26 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("frames_with_changes", &data.drawn_frames.to_string());
     }
 
-    // ── Zactrix Engine diagnostics ───────────────────────────────────────
-    // Phase 1: The engine plans only — no worker threads are spawned.
-    // All fields prefixed with "planned_" to reflect this accurately.
+    // ── Engine diagnostics ─────────────────────────────────────────────
+    // Cosmostrix is single-thread by design — terminal writer is single-owner.
     {
-        let total_cells = (data.w as usize) * (data.h as usize);
-        let engine_probe = EngineProbe {
-            cols: data.w,
-            rows: data.h,
-            cell_count: total_cells,
-            target_fps: data.target_fps,
-            benchmark_mode: true,
-            active_streams: data.active_streams_avg as usize,
-            dirty_cell_ratio: data.avg_dirty_cell_ratio_percent / 100.0,
-            frame_time_pressure: data.p99_frame_time,
-        };
-        let engine_plan = EnginePlan::from_probe(&engine_probe);
-
-        let s = r.section("ZACTRIX ENGINE");
-        s.field("planned_mode", engine_plan.mode.as_str());
+        let s = r.section("ENGINE");
+        s.field("planned_mode", "single-core");
+        s.field("planned_worker_budget", "0");
         s.field(
-            "planned_worker_budget",
-            &engine_plan.worker_budget.to_string(),
+            "plan_reason",
+            "single-thread renderer — cosmostrix optimized for single-core execution",
         );
-        s.field("plan_reason", engine_plan.reason);
         s.field("actual_execution", "single-threaded-renderer");
-        s.field(
-            "terminal_writer",
-            if engine_plan.terminal_writer_single_owner {
-                "single-owner"
-            } else {
-                "shared"
-            },
-        );
+        s.field("terminal_writer", "single-owner");
     }
 
-    // ── Zactrix System diagnostics ────────────────────────────────────
-    // Cosmostrix is single-thread by design — no parallel compute.
+    // ── System diagnostics ─────────────────────────────────────────────
     {
-        use crate::zactrix_engine::{RenderPlan, ZactrixSystemConfig};
-        let sys = ZactrixSystemConfig::default();
-        let render = RenderPlan::default();
-        let s = r.section("ZACTRIX SYSTEM");
-        s.field("runtime_mode", sys.runtime_mode.as_str());
-        s.field("render_plan", render.writer_policy.as_str());
-        s.field("idle_policy", sys.idle_policy.as_str());
+        let s = r.section("SYSTEM");
+        s.field("runtime_mode", "normal");
+        s.field("render_plan", "single-owner");
+        s.field("idle_policy", "adaptive-sleep");
         s.field("architecture", "single-thread optimized");
     }
 
@@ -469,7 +443,7 @@ mod tests {
     }
 
     #[test]
-    fn bench_report_zactrix_engine_fields_are_planner_recommendations() {
+    fn bench_report_engine_fields_are_planner_recommendations() {
         // planned_mode and planned_worker_budget are prefixed with "planned_"
         // to indicate they are planner outputs, not actual runtime execution
         // state. plan_reason describes why the planner chose its mode.

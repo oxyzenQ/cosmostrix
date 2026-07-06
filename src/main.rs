@@ -62,6 +62,7 @@ mod bench;
 mod bench_report;
 mod cell;
 mod charset;
+mod cinematic;
 mod cli;
 mod cloud;
 mod config;
@@ -95,16 +96,6 @@ mod testconf;
 mod theme;
 mod update;
 mod validation;
-mod zactrix_engine;
-
-// Backward-compatible module aliases: existing code uses
-// crate::zactrix_cache::* and crate::zactrix_core::* internally.
-mod zactrix_cache {
-    pub(crate) use crate::zactrix_engine::cache::*;
-}
-mod zactrix_core {
-    pub(crate) use crate::zactrix_engine::core::*;
-}
 
 use std::env;
 
@@ -568,16 +559,13 @@ fn main() -> std::io::Result<()> {
                 },
             );
         }
-        // ── ZACTRIX SYSTEM diagnostics ──────────────────────────────────
+        // ── SYSTEM diagnostics ──────────────────────────────────────────
         // Cosmostrix is single-thread by design — terminal single-owner.
         {
-            use crate::zactrix_engine::{RenderPlan, ZactrixSystemConfig};
-            let sys = ZactrixSystemConfig::default();
-            let render = RenderPlan::default();
-            let s = r.section("ZACTRIX SYSTEM");
-            s.field("runtime_mode", sys.runtime_mode.as_str());
-            s.field("render_plan", render.writer_policy.as_str());
-            s.field("idle_policy", sys.idle_policy.as_str());
+            let s = r.section("SYSTEM");
+            s.field("runtime_mode", "normal");
+            s.field("render_plan", "single-owner");
+            s.field("idle_policy", "adaptive-sleep");
             s.field("architecture", "single-thread optimized");
         }
         r.print();

@@ -10,7 +10,6 @@ mod tests {
     use crate::atmosphere::AtmosphereController;
     use crate::atmosphere::AtmosphereRegime;
     use crate::atmosphere::AtmosphereState;
-    use crate::zactrix_cache::CachePolicy;
 
     // ── Regime basics ──
 
@@ -247,8 +246,7 @@ mod tests {
     fn controller_transition_rejected_by_dwell_time() {
         let mut ctrl = AtmosphereController::new();
         ctrl.advance(1.0);
-        let mut cache = CachePolicy::default_policy();
-        let accepted = ctrl.transition_to(AtmosphereRegime::Storm, &mut cache);
+        let accepted = ctrl.transition_to(AtmosphereRegime::Storm);
         assert!(!accepted);
         assert_eq!(ctrl.current_regime(), AtmosphereRegime::Calm);
         assert!(ctrl.is_stable());
@@ -258,8 +256,7 @@ mod tests {
     fn controller_calm_to_calm_transition_is_no_op() {
         let mut ctrl = AtmosphereController::new();
         ctrl.advance(10.0);
-        let mut cache = CachePolicy::default_policy();
-        let accepted = ctrl.transition_to(AtmosphereRegime::Calm, &mut cache);
+        let accepted = ctrl.transition_to(AtmosphereRegime::Calm);
         assert!(!accepted);
     }
 
@@ -283,8 +280,7 @@ mod tests {
     fn controller_transition_advances_progress() {
         let mut ctrl = AtmosphereController::new();
         ctrl.advance(10.0);
-        let mut cache = CachePolicy::default_policy();
-        let accepted = ctrl.transition_to(AtmosphereRegime::Storm, &mut cache);
+        let accepted = ctrl.transition_to(AtmosphereRegime::Storm);
         assert!(accepted);
         assert!(!ctrl.is_stable());
         assert_eq!(ctrl.transition_status(), "transitioning");
@@ -293,31 +289,6 @@ mod tests {
         ctrl.advance(crate::atmosphere::REGIME_TRANSITION_RAMP_SECS + 0.5);
         assert_eq!(ctrl.current_regime(), AtmosphereRegime::Storm);
         assert!(ctrl.is_stable());
-    }
-
-    #[test]
-    fn regime_change_invalidates_cache_generation() {
-        let mut ctrl = AtmosphereController::new();
-        let mut cache = CachePolicy::default_policy();
-        let initial_gen = cache.generation;
-
-        ctrl.advance(10.0);
-        ctrl.transition_to(AtmosphereRegime::Storm, &mut cache);
-
-        assert_ne!(cache.generation.id(), initial_gen.id());
-        assert!(!cache.is_generation_current(initial_gen));
-    }
-
-    #[test]
-    fn regime_change_uses_atmosphere_invalidation_event() {
-        let mut ctrl = AtmosphereController::new();
-        let mut cache = CachePolicy::default_policy();
-        let gen_before = cache.generation.id();
-
-        ctrl.advance(10.0);
-        ctrl.transition_to(AtmosphereRegime::Compression, &mut cache);
-
-        assert_eq!(cache.generation.id(), gen_before + 1);
     }
 
     #[test]
