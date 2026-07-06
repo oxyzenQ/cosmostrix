@@ -691,13 +691,37 @@ fn main() -> std::io::Result<()> {
     let chars = if let Some(ref cf) = args.charset_file {
         match std::fs::read_to_string(cf) {
             Ok(content) => {
-                let custom_chars: Vec<char> = content
-                    .lines()
-                    .flat_map(|line| line.chars())
-                    .filter(|c| !c.is_whitespace() || *c == ' ')
-                    .collect();
+                use unicode_width::UnicodeWidthChar;
+                let mut custom_chars: Vec<char> = Vec::new();
+                let mut skipped_wide: Vec<String> = Vec::new();
+                for ch in content.chars() {
+                    // Skip whitespace except space
+                    if ch.is_whitespace() && ch != ' ' {
+                        continue;
+                    }
+                    // Skip control characters
+                    if ch.is_control() {
+                        continue;
+                    }
+                    // Filter wide/zero-width characters (emoji, CJK fullwidth, etc.)
+                    // Same filter as charset.rs — renderer is column-based, assumes
+                    // 1 cell per character. Wide chars corrupt glyph alignment.
+                    match ch.width() {
+                        Some(1) => custom_chars.push(ch),
+                        _ => skipped_wide.push(format!("U+{:04X}", ch as u32)),
+                    }
+                }
+                if !skipped_wide.is_empty() {
+                    eprintln!(
+                        "[cosmostrix] warning: skipped {} wide/zero-width character(s) from --charset-file: {}",
+                        skipped_wide.len(),
+                        skipped_wide.join(", ")
+                    );
+                }
                 if custom_chars.is_empty() {
-                    eprintln!("error: --charset-file '{cf}' contains no characters");
+                    eprintln!(
+                        "error: --charset-file '{cf}' contains no usable single-width characters"
+                    );
                     std::process::exit(1);
                 }
                 custom_chars

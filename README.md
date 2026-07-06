@@ -95,7 +95,7 @@ EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v10.0.2"
+TAG="v11.0.0"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -271,7 +271,7 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
 
 See [benchmark/README.md](benchmark/README.md) for full reference results and interpretation notes.
 
-### v10.0.0 Performance Achievements
+### v11.0.0 Performance Achievements
 
 Three optimization phases + pre-release audit + I/O bottleneck research + final bottleneck hunt yielded **+40.5% FPS** improvement over v5.0.3 (cumulative **+83.3%** from v5.0.1):
 
@@ -291,7 +291,7 @@ combined fg+bg SGR, no-heap integer formatting. See
 
 ## Roadmap
 
-### v10.0.0 — Peak Performance & Stability (current)
+### v11.0.0 — Cinematic Peak (current)
 - ✅ +70.3% FPS via hot-path + structural optimization
 - ✅ Brutal pre-release audit: panic hook race, SIGQUIT, overflow guards
 - ✅ GPL-3.0-only enforced across all 171 files

@@ -376,7 +376,7 @@ pub const FOG_ROWS: u16 = 4;
 /// Raised from 0.25 to 0.35 — the old value made edge-row glyphs perceptually
 /// ~5% (effectively invisible). 0.35 (~14% perceptual) preserves the vignette
 /// effect while keeping edge glyphs faintly visible rather than lost entirely.
-pub const FOG_MIN_FACTOR: f32 = 0.35;
+pub const FOG_MIN_FACTOR: f32 = 0.45;
 
 // ---------------------------------------------------------------------------
 // Mouse interaction
@@ -523,7 +523,7 @@ pub const FRACTIONAL_BLOOM_AMP: f32 = 0.10;
 /// makes active cells feel alive without noisy flicker. At 0.12s, the head
 /// changes character ~8 times per second — frequent enough to notice but
 /// slow enough to avoid distraction.
-pub const HEAD_SHIMMER_PERIOD_SECS: f32 = 0.12;
+pub const HEAD_SHIMMER_PERIOD_SECS: f32 = 0.10;
 
 /// Whether to add random fractional phase offset when spawning a droplet.
 /// When true, new droplets start with a random `advance_remainder` so they

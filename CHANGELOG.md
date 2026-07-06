@@ -9,6 +9,75 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v11.0.0 — Cinematic Peak
+
+Visual quality push to peak cinematic Matrix rain. Pure tuning — no
+architecture changes, no new dependencies. Every change is a constant
+value adjustment or small feature addition.
+
+### Visual Quality Improvements
+
+**Cosmos palette brightened** (v10.0.0):
+- Old: `[17,18,19,54,55,56,57,93,129,189,225]` — avg 30.3% luminance
+- New: `[20,27,33,57,63,93,99,129,141,189,225]` — avg 45.5% luminance
+- Replaced 3 darkest entries with vibrant blue/purple mid-range colors.
+
+**Head white blend raised 12% → 45%** (v10.0.0):
+- Glyph mode (droplet.rs): HEAD_WF 31 → 115
+- Monolith mode (monolith.rs): CORE_WF 26 → 115
+- Head is now OBVIOUSLY brighter than body — film-quality head pop.
+
+**Parallax layer 0 raised 0.55 → 0.70** (v10.0.0):
+- Background rain now visible (was near-invisible after dimming).
+- 3-tier depth hierarchy: bright head → mid body → dim-but-visible background.
+
+**Phosphor decay faster** (v11.0.0):
+- PHOSPHOR_DECAY_RATE: 3.0 → 5.0 (afterglow 1094ms → ~400ms)
+- PHOSPHOR_TAIL_RESIDUAL: 160 → 120 (63% → 47% initial brightness)
+- Trail is now crisp and energetic — matches film Matrix energy.
+
+**EdgeFade bottom min raised 0.20 → 0.45** (v11.0.0):
+- Bottom border brightness: 7% → 16% (visible, was near-invisible).
+- Cinema framing preserved without over-aggressive dimming.
+
+**Fog min factor raised 0.35 → 0.45** (v11.0.0):
+- Border rows brighter, less aggressive vignette.
+- Combined with EdgeFade: bottom border now ~20% brightness (was 7%).
+
+**Monolith Ghost/Dim level raised** (v11.0.0):
+- Old: `first_visible` (index 1, 4-33% luminance)
+- New: `last/5` (index 2, ~42% luminance for cosmos)
+- Ghost trace now visible after dimming (~25% perceptual brightness).
+
+**Default density raised 0.75 → 0.85** (v11.0.0):
+- More columns active, denser rain — matches film Matrix density.
+- Updated: scene.rs, config.toml, dump_config_text, all test assertions.
+
+**Head shimmer period 0.12s → 0.10s** (v11.0.0):
+- Character changes 10/sec (was 8.3/sec) — more chaotic, film-like.
+
+### New Features
+
+**`--charset-file PATH`** (v11.0.0):
+- Load custom characters from a file. Overrides `--charset` preset.
+- File format: one char per line, or single line of characters.
+- UTF-8 supported (kanji, Latin, symbols).
+- Wide/zero-width characters (emoji, CJK fullwidth) are automatically
+  filtered with a warning — prevents screen corruption.
+- Usage: `cosmostrix --charset-file ~/my-chars.txt`
+
+### Bug Fixes
+
+**`--charset-file` wide-char crash** (v11.0.0):
+- Emoji (🐺) and CJK fullwidth characters caused screen corruption
+  (jitter, column misalignment) because the renderer is column-based
+  and assumes 1 cell per character.
+- Fix: filter wide/zero-width characters using `unicode_width` crate
+  (same filter as built-in charset presets). Warns on stderr with
+  skipped character codepoints.
+
+---
+
 ## v10.0.0 — Peak Performance & Stability
 
 Major performance optimization and stability hardening release.
