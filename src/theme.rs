@@ -78,7 +78,7 @@ pub const THEMES: &[ThemeInfo] = &[
         name: "green3",
         scheme: ColorScheme::Green3,
         category: ThemeCategory::Classic,
-        description: "Deep green variant",
+        description: "Deep teal-shifted forest green",
         aliases: &[],
     },
     ThemeInfo {
@@ -266,7 +266,7 @@ pub const THEMES: &[ThemeInfo] = &[
         name: "saturn",
         scheme: ColorScheme::Saturn,
         category: ThemeCategory::Planetary,
-        description: "Soft ringed-planet golds",
+        description: "Amber-gold ringed planet",
         aliases: &[],
     },
     ThemeInfo {
@@ -287,7 +287,7 @@ pub const THEMES: &[ThemeInfo] = &[
         name: "pluto",
         scheme: ColorScheme::Pluto,
         category: ThemeCategory::Planetary,
-        description: "Dim ice and umber tones",
+        description: "Nitrogen-ice blue dwarf",
         aliases: &[],
     },
     ThemeInfo {
@@ -308,7 +308,7 @@ pub const THEMES: &[ThemeInfo] = &[
         name: "comet",
         scheme: ColorScheme::Comet,
         category: ThemeCategory::Cosmic,
-        description: "Icy tail blue-white streaks",
+        description: "Deep-blue ion trail to cyan-white head",
         aliases: &[],
     },
     ThemeInfo {
@@ -350,7 +350,7 @@ pub const THEMES: &[ThemeInfo] = &[
         name: "meteor",
         scheme: ColorScheme::Meteor,
         category: ThemeCategory::Cosmic,
-        description: "Fast orange-white trail",
+        description: "Burning rock with ionized plasma tail",
         aliases: &[],
     },
     ThemeInfo {

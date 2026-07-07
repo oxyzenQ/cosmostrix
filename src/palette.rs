@@ -403,13 +403,15 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
             ColorMode::TrueColor => colors_from_stops(
                 mode,
                 &[
-                    (0, 25, 0),
-                    (0, 85, 5),
-                    (5, 150, 25),
-                    (30, 195, 65),
-                    (85, 235, 110),
-                    (150, 255, 175),
-                    (185, 255, 210),
+                    // Tuned: deep teal-shifted green (was nearly identical to Green).
+                    // Now reads as "forest at night" — distinct from Green's vivid lime.
+                    (0, 20, 15),
+                    (0, 60, 50),
+                    (5, 110, 80),
+                    (10, 165, 110),
+                    (40, 220, 150),
+                    (120, 255, 200),
+                    (180, 255, 230),
                 ],
                 7,
             ),
@@ -620,12 +622,9 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
         ),
         ColorScheme::Saturn => colors_from_stops(
             mode,
-            &[
-                (20, 20, 10),
-                (140, 120, 60),
-                (230, 210, 150),
-                (255, 255, 255),
-            ],
+            // Tuned: shifted from pale tan to richer amber-gold (was too
+            // close to Venus). Saturn now reads as distinctly golden.
+            &[(30, 15, 0), (160, 100, 20), (250, 200, 60), (255, 250, 200)],
             9,
         ),
         ColorScheme::Uranus => colors_from_stops(
@@ -640,7 +639,11 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
         ),
         ColorScheme::Pluto => colors_from_stops(
             mode,
-            &[(10, 5, 0), (90, 60, 40), (180, 190, 210), (255, 255, 255)],
+            // Tuned: pushed the icy-blue peak further (was too close to
+            // Mercury's pure grayscale). Pluto now reads as a cold, distant
+            // icy body with a pronounced nitrogen-ice blue tint rather
+            // than a generic gray ramp.
+            &[(5, 10, 20), (40, 60, 100), (120, 170, 230), (230, 245, 255)],
             9,
         ),
         ColorScheme::Moon => colors_from_stops(
@@ -655,7 +658,10 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
         ),
         ColorScheme::Comet => colors_from_stops(
             mode,
-            &[(0, 0, 20), (0, 100, 160), (180, 255, 255), (255, 255, 255)],
+            // Tuned: darker deep-blue with a brighter cyan-white head
+            // (was too close to Uranus's pure cyan). Now reads as a
+            // streaking ion trail against deep space.
+            &[(0, 0, 40), (0, 30, 120), (80, 180, 255), (255, 255, 255)],
             9,
         ),
         ColorScheme::Galaxy => colors_from_stops(
@@ -685,7 +691,10 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
         ),
         ColorScheme::Meteor => colors_from_stops(
             mode,
-            &[(20, 10, 0), (180, 60, 0), (255, 170, 0), (255, 255, 255)],
+            // Tuned: added a blue-white ion-trail head (was too close to
+            // Sun's pure fire gradient). Now reads as a burning rock with
+            // an ionized plasma tail — distinct from Sun's solar surface.
+            &[(20, 10, 0), (180, 60, 0), (255, 200, 80), (180, 220, 255)],
             9,
         ),
         ColorScheme::Eclipse => colors_from_stops(
@@ -705,4 +714,133 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
     }
 
     Palette { colors, bg }
+}
+
+#[cfg(test)]
+mod audit_tests {
+    use super::*;
+
+    /// A pair of schemes + their average RGB distance. Used by the audit
+    /// test to keep clippy's type_complexity lint happy.
+    type SchemePair = (ColorScheme, ColorScheme, f64);
+
+    /// A scheme + its TrueColor RGB stops. Factored out to satisfy
+    /// clippy's type_complexity lint on the Vec<(Scheme, Vec<...>)> type.
+    type SchemeStops = (ColorScheme, Vec<(u8, u8, u8)>);
+
+    /// Extract the TrueColor RGB stops for a scheme as a Vec<(u8,u8,u8)>.
+    fn truecolor_stops(scheme: ColorScheme) -> Vec<(u8, u8, u8)> {
+        let p = build_palette(scheme, ColorMode::TrueColor, true);
+        p.colors.iter().map(|c| color_to_rgb(*c)).collect()
+    }
+
+    /// Average per-stop RGB Euclidean distance between two palettes.
+    fn palette_distance(a: &[(u8, u8, u8)], b: &[(u8, u8, u8)]) -> f64 {
+        let n = a.len().min(b.len()).max(1);
+        let mut sum = 0.0_f64;
+        for i in 0..n {
+            let (r1, g1, b1) = a[i];
+            let (r2, g2, b2) = b[i];
+            let dr = (i32::from(r1) - i32::from(r2)) as f64;
+            let dg = (i32::from(g1) - i32::from(g2)) as f64;
+            let db = (i32::from(b1) - i32::from(b2)) as f64;
+            sum += (dr * dr + dg * dg + db * db).sqrt();
+        }
+        sum / n as f64
+    }
+
+    fn all_schemes() -> Vec<ColorScheme> {
+        use ColorScheme::*;
+        vec![
+            Green,
+            Green2,
+            Green3,
+            Yellow,
+            Orange,
+            Red,
+            Blue,
+            Cyan,
+            Gold,
+            Rainbow,
+            Purple,
+            Neon,
+            Fire,
+            Ocean,
+            Forest,
+            Vaporwave,
+            Gray,
+            Snow,
+            Aurora,
+            FancyDiamond,
+            Cosmos,
+            Nebula,
+            Spectrum20,
+            Stars,
+            Mars,
+            Venus,
+            Mercury,
+            Jupiter,
+            Saturn,
+            Uranus,
+            Neptune,
+            Pluto,
+            Moon,
+            Sun,
+            Comet,
+            Galaxy,
+            Supernova,
+            BlackHole,
+            Andromeda,
+            Stardust,
+            Meteor,
+            Eclipse,
+            DeepSpace,
+        ]
+    }
+
+    /// Audit test: identify near-duplicate themes (avg RGB distance < 30).
+    /// Prints findings to stderr so they're visible during `cargo test`.
+    /// Does NOT assert — this is an informational audit, not a pass/fail gate.
+    #[test]
+    fn audit_near_duplicate_themes() {
+        let schemes = all_schemes();
+        let stops: Vec<SchemeStops> = schemes.iter().map(|&s| (s, truecolor_stops(s))).collect();
+
+        let mut near_dups: Vec<SchemePair> = Vec::new();
+        for i in 0..stops.len() {
+            for j in (i + 1)..stops.len() {
+                let (s1, p1) = &stops[i];
+                let (s2, p2) = &stops[j];
+                let dist = palette_distance(p1, p2);
+                if dist < 30.0 {
+                    near_dups.push((*s1, *s2, dist));
+                }
+            }
+        }
+        near_dups.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+
+        eprintln!("\n=== Theme Audit: Near-Duplicate Pairs (avg RGB dist < 30) ===");
+        if near_dups.is_empty() {
+            eprintln!("  None found.");
+        } else {
+            for (s1, s2, dist) in &near_dups {
+                eprintln!("  {:?} <-> {:?}: {:.1}", s1, s2, dist);
+            }
+        }
+
+        // Also print the 5 closest pairs regardless of threshold, for context.
+        eprintln!("\n=== 5 Closest Pairs (for context) ===");
+        let mut all_dists: Vec<SchemePair> = Vec::new();
+        for i in 0..stops.len() {
+            for j in (i + 1)..stops.len() {
+                let (s1, p1) = &stops[i];
+                let (s2, p2) = &stops[j];
+                all_dists.push((*s1, *s2, palette_distance(p1, p2)));
+            }
+        }
+        all_dists.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap());
+        for (s1, s2, dist) in all_dists.iter().take(5) {
+            eprintln!("  {:?} <-> {:?}: {:.1}", s1, s2, dist);
+        }
+    }
 }
