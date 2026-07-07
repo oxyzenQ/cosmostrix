@@ -112,6 +112,75 @@ synchronized terminal output + unified error UX.
 - Component timing distribution (sim 55% / render 44% / io 1%) is healthy —
   no single hotspot.
 
+## v12.0.0 — AVX-512 (pro-linux-v4)
+
+Release benchmark from `pro-linux-v4` binary (commit `b662ede`,
+2026-07-08). Default 120×40 terminal size. AVX-512 target baseline
+(`x86-64-v4`) for high-end Intel Xeon / AMD Zen 4+ CPUs.
+
+- Binary version: `v12.0.0`
+- Commit: `b662ede`
+- Profile: `pro-linux-v4` (linux-amd64-v4-gnu)
+- CPU: Intel(R) Xeon(R) Platinum (x86_64-v4 native)
+- Target features: `avx512bw,avx512cd,avx512dq,avx512f,avx512vl`
+- Rustc: `1.96.1 (31fca3adb 2026-06-26)`
+- LTO: `fat`
+- PGO: `no`
+- Color mode: `16-color` (headless, no COLORTERM)
+
+### Performance
+
+| Metric | release (v1) | pro-linux-v4 (v4) | Δ |
+|--------|-------------:|------------------:|------:|
+| avg_fps | 28,292 | **23,023** | -18.6% |
+| peak_fps | 40,350 | **33,523** | -16.9% |
+| avg_frame_time | 0.036 ms | **0.044 ms** | +22.2% |
+| p95_frame_time | 0.051 ms | **0.063 ms** | +23.5% |
+| p99_frame_time | 0.057 ms | **0.075 ms** | +31.6% |
+| p99_9_frame_time | 0.077 ms | **0.090 ms** | +16.9% |
+| max_frame_time | 0.851 ms | **1.027 ms** | +20.7% |
+| median_fps | 29,299 | **24,259** | -17.2% |
+| dirty_glyphs/sec | 10.2M | **8.3M** | -18.6% |
+| ansi_bytes/sec | 194M | **158M** | -18.6% |
+| frame_time_stability | excellent | excellent | — |
+| avg_dirty_cell_ratio | 7.52% | 7.52% | identical |
+| active_streams_avg | 41 | 41 | identical |
+| peak_rss | 4.0 MiB | 4.0 MiB | — |
+| avg_cpu_percent | 95.4% | 95.4% | identical |
+| fps_drift_percent | +0.74% | +2.07% | — |
+| involuntary_ctxt | 49 | 46 | — |
+
+### Component Timing
+
+| Component | avg (ms) | Share |
+|-----------|---------:|------:|
+| sim | 0.0226 | 52.4% |
+| render | 0.0201 | 46.4% |
+| io | 0.0005 | 1.2% |
+
+### Notes
+
+- **AVX-512 does not benefit this workload.** Cosmostrix is a CPU + stdout
+  renderer with a single-threaded architecture. The tight 120×40 glyph
+  pipeline is dominated by scalar control flow, bitmap lookups, and
+  `terminal::draw` dirty tracking — none of which auto-vectorize to 512-bit
+  SIMD. Benchmark FPS drops ~18.6% relative to the `release` (x86-64-v1)
+  profile, likely from v4 code generation overhead (wider instructions,
+  AVX-512 clock-down, and larger function prologues for ZMM register save/
+  restore).
+- **x86-64-v4 is still correct.** The binary compiles and runs correctly on
+  AVX-512 capable hardware. It's the right profile for distribution to
+  modern servers; just don't expect FPS gains from SIMD width alone on this
+  workload.
+- `frame_time_stability: excellent` — identical across v1 and v4 profiles.
+- `peak_rss: 4.0 MiB` — zero memory regression.
+- Component timing shifts slightly: sim 52.4% / render 46.4% (vs 55/44 on
+  release). Render takes proportionally more time under v4, consistent with
+  wider code that doesn't help the dominant scalar paths.
+- `fps_drift_percent: +2.07%` — stable, well within noise band.
+- Same machine, same commit (`b662ede`), same rustc — only CPU baseline
+  differs.
+
 ---
 
 ## v11.0.0 — Cinematic Peak
