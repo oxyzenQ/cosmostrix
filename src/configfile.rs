@@ -46,6 +46,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "mouse",
     "fullwidth",
     "auto-color-drift",
+    "async-mode",
     "atmosphere-mode",
     "atmosphere-regime",
 ];
@@ -212,6 +213,11 @@ low-power = false
 mouse = false
 fullwidth = false
 auto-color-drift = false
+# Variable column speeds for organic rain (default: on).
+# Each column gets a random speed multiplier (33%-100% of base).
+# Despite the name, this is NOT Rust async/await — cosmostrix remains
+# single-threaded. "async" = "asynchronous column pacing".
+async-mode = true
 
 # Advanced style
 bold = 1

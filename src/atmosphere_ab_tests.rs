@@ -336,10 +336,16 @@ fn benchmark_fields_unchanged() {
 
 #[test]
 fn actual_execution_single_threaded_renderer() {
-    // Verify that the default config does not enable async mode.
+    // Verify that the default config now enables async mode (variable
+    // column speeds) for organic rain. This was flipped from off→on in
+    // v11.1.0 because the uniform-speed default felt less organic than
+    // the desynchronized streams that async mode produces.
     let cfg = crate::configfile::load_config_file(None);
-    let async_val = cfg.get("async_mode").map(|s| s.as_str()).unwrap_or("false");
-    assert_ne!(async_val, "true", "async_mode must not default to true");
+    let async_val = cfg.get("async_mode").map(|s| s.as_str()).unwrap_or("true");
+    assert_eq!(
+        async_val, "true",
+        "async_mode must default to true (organic rain) as of v11.1.0"
+    );
 }
 
 // ── Identity / Metadata Guards ─────────────────────────────────────────────

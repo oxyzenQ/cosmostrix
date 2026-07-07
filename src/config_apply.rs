@@ -342,6 +342,12 @@ fn apply_config_values(
             config_touched.insert("auto_color_drift");
         }
     }
+    if let Some(v) = config_value(matches, cfg, "async_mode", "async-mode") {
+        if let Some(b) = parse_bool_config("async-mode", &v) {
+            args.async_mode = b;
+            config_touched.insert("async_mode");
+        }
+    }
     if let Some(v) = config_value(matches, cfg, "atmosphere_mode_str", "atmosphere-mode") {
         if let Some(valid) = parse_atmosphere_mode_config("atmosphere-mode", &v) {
             args.atmosphere_mode_str = Some(valid);

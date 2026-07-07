@@ -118,6 +118,23 @@ Theme tuning makes the 43 built-in palettes more visually distinct.
   component_timing, drift, throughput, timing.
 - Option fields emit `null` when None; NaN/Inf emit `null` defensively.
 
+**Async mode now default ON + improved distribution** (organic, commit pending):
+- `--async` default flipped from `off` → `on`. The rain now feels
+  organic out of the box — columns fall at desynchronized speeds
+  instead of uniform pacing.
+- Speed distribution improved from flat `uniform[0.33, 1.0]` (mean 0.665)
+  to `max(two uniforms)` — a triangular distribution skewed toward 1.0
+  (mean ~0.78). Most columns run near full speed with occasional slow
+  streams, which feels more natural than the previous flat distribution.
+- Naming clarified in `--help-detail`: "async" means "asynchronous
+  column pacing", NOT Rust async/await. Cosmostrix remains single-threaded.
+- `async-mode = true` now appears in `--dump-config` and `config.toml`
+  with a clarification comment.
+- Config file key `async-mode` added to `USER_CONFIG_KEYS` so it's
+  recognized by the parser (previously only settable via CLI flag).
+- `config_apply.rs` now reads `async-mode` from config files.
+- Runtime toggle `a` still works for A/B comparison.
+
 ### Theme Audit
 
 **5 near-duplicate themes tuned** (commit 304a07b):

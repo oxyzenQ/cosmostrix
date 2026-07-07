@@ -42,7 +42,7 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 
 ## Features
 
-- **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy
+- **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
 - **3 scene atmospheres** (matrix, monolith, signal), including signature Cosmostrix Monolith Rain
 - **8 curated presets** (classic, cinematic, calm, monolith, storm, cosmos, neon, hacker) for one-command visual profiles
 - 43 built-in themes and 24 character set presets (5 themes — Green3, Saturn, Comet, Meteor, Pluto — re-tuned in v11.1.0 for visual distinctness; `--color-tune` turns all 43 into 43 × ∞ variants)

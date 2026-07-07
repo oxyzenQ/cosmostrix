@@ -496,16 +496,16 @@ pub struct Args {
     )]
     pub check_update: bool,
 
-    // === HIDDEN (functional but intentionally undocumented) ===
+    // === HIDDEN (functional but intentionally undocumented in --help) ===
     #[arg(
         short = 'a',
         long = "async",
-        default_value_t = false,
+        default_value_t = true,
         action = clap::ArgAction::Set,
         num_args = 0..=1,
         default_missing_value = "true",
         hide = true,
-        help = "Async rendering (default: off)"
+        help = "Variable column speeds for organic rain (default: on)"
     )]
     pub async_mode: bool,
 
@@ -917,8 +917,12 @@ APPEARANCE:
 
 GENERAL:
   -a, --async
-      Enable legacy async-style rain pacing compatibility mode.
-      Advanced option; default adaptive renderer is recommended.
+      Variable column speeds for organic rain (default: on).
+      Each column gets a random speed multiplier (33%-100% of base),
+      producing desynchronized streams. Despite the name, this is NOT
+      Rust async/await — cosmostrix remains single-threaded. The name
+      'async' means 'asynchronous column pacing' — a legacy naming for
+      the variable-speed visual effect. Press 'a' at runtime to toggle.
 
   -F, --fullwidth
       Use full terminal width.

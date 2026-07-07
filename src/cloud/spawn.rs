@@ -297,7 +297,14 @@ impl Cloud {
     pub(super) fn set_column_speeds(&mut self) {
         for cs in &mut self.col_stat {
             cs.max_speed_pct = if self.async_mode {
-                self.rand_speed.sample(&mut self.mt)
+                // Organic speed distribution: take the max of two uniform
+                // samples to get a triangular distribution skewed toward
+                // 1.0 (mean ~0.78, min 0.33, max 1.0). Most columns run
+                // near full speed with occasional slow streams — more
+                // natural than a flat uniform distribution.
+                let a = self.rand_speed.sample(&mut self.mt);
+                let b = self.rand_speed.sample(&mut self.mt);
+                a.max(b)
             } else {
                 1.0
             };
