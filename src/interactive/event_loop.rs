@@ -20,6 +20,7 @@ use signal_hook::iterator::Signals;
 #[cfg(unix)]
 use signal_hook::low_level;
 
+use crate::color_cache::ColorCache;
 use crate::constants::*;
 use crate::frame::Frame;
 use crate::report::Report;
@@ -150,6 +151,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.reset(w, h);
     // Enable atmospheric events for interactive mode (ghosts, etc.).
     cloud.enable_events();
+
+    // Build color byte cache from the palette so the draw hot path can
+    // emit pre-formatted ANSI SGR sequences instead of formatting on the fly.
+    term.set_color_cache(ColorCache::new(&cloud.palette));
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 

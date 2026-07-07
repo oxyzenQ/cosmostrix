@@ -41,11 +41,13 @@ use crossterm::{
 };
 
 use crate::cell::Cell;
+use crate::color_cache::ColorCache;
 use crate::constants::{
     DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, MIN_TERMINAL_COLS,
     MIN_TERMINAL_LINES, SHUTDOWN_TIMEOUT_SECS,
 };
 use crate::frame::Frame;
+use crate::termdetect::TerminalCaps;
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
 /// (centralized in constants.rs, imported above).
@@ -112,6 +114,10 @@ pub struct Terminal {
     /// before leaving the alternate screen. Normal q/esc exit leaves this
     /// `false` so the alternate screen switch is non-destructive.
     signal_exit: Arc<AtomicBool>,
+    /// Terminal protocol capabilities detected at startup.
+    term_caps: TerminalCaps,
+    /// Color byte cache for palette colors (built after palette is known).
+    color_cache: Option<ColorCache>,
 }
 
 impl Terminal {
@@ -123,6 +129,14 @@ impl Terminal {
         let raw = stdout();
         terminal::enable_raw_mode()?;
         let out = BufWriter::with_capacity(STDOUT_BUF_CAPACITY, raw);
+        let term_caps = crate::termdetect::detect();
+        if term_caps.sync_output {
+            // Enable synchronized output at the terminal level.
+            // The terminal now expects ESC[?2026h / ESC[?2026l framing
+            // around each logical update batch.  We wrap entire frames
+            // in the draw method.
+            let _ = out.get_ref().write_all(b"\x1b[?2026h");
+        }
         let mut term = Self {
             stdout: out,
             last: None,
@@ -144,6 +158,8 @@ impl Terminal {
             cleaned_up: false,
             shutdown_complete: Arc::new(AtomicBool::new(false)),
             signal_exit: signal_exit.clone(),
+            term_caps,
+            color_cache: None,
         };
 
         let init_res: Result<()> = (|| {
@@ -191,10 +207,18 @@ impl Terminal {
     }
 
     /// Flush the ANSI buffer to stdout via a single write_all call.
+    /// When synchronized output is supported, wraps the frame in
+    /// `ESC[?2026h` / `ESC[?2026l` markers for tear-free rendering.
     #[inline]
     fn flush_ansi(&mut self) -> Result<()> {
         if !self.ansi_buf.is_empty() {
-            self.stdout.write_all(&self.ansi_buf)?;
+            if self.term_caps.sync_output {
+                self.stdout.write_all(crate::termdetect::SYNC_START)?;
+                self.stdout.write_all(&self.ansi_buf)?;
+                self.stdout.write_all(crate::termdetect::SYNC_END)?;
+            } else {
+                self.stdout.write_all(&self.ansi_buf)?;
+            }
             self.ansi_buf.clear();
         }
         Ok(())
@@ -225,6 +249,37 @@ impl Terminal {
         }
         self.stdout.flush()?;
         Ok(())
+    }
+
+    /// Set the color byte cache for this terminal session.
+    /// Must be called after the palette is built and before the first draw.
+    pub fn set_color_cache(&mut self, cache: ColorCache) {
+        self.color_cache = Some(cache);
+    }
+
+    /// Return a reference to the terminal capabilities detected at startup.
+    #[allow(dead_code)]
+    pub fn capabilities(&self) -> &TerminalCaps {
+        &self.term_caps
+    }
+
+    /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
+    /// Uses the color cache when available, falling back to on-the-fly
+    /// formatting via `write_sgr_colors_buf`.
+    #[inline]
+    fn emit_sgr(
+        cache: Option<&ColorCache>,
+        buf: &mut Vec<u8>,
+        fg: Option<Color>,
+        bg: Option<Color>,
+    ) {
+        if let Some(cache) = cache {
+            if let Some(cached) = cache.sgr_for_cell(fg, bg) {
+                buf.extend_from_slice(cached);
+                return;
+            }
+        }
+        write_sgr_colors_buf(buf, fg, bg);
     }
 
     fn cleanup_terminal(&mut self) {
@@ -364,10 +419,10 @@ impl Terminal {
                         row_buf.clear();
                     }
 
-                    // Combined fg+bg SGR via direct ANSI bytes
+                    // Combined fg+bg SGR — cached when possible
                     let color_changed = cell.fg != cur_fg || cell.bg != cur_bg;
                     if color_changed {
-                        write_sgr_colors_buf(ansi_buf, cell.fg, cell.bg);
+                        Self::emit_sgr(self.color_cache.as_ref(), ansi_buf, cell.fg, cell.bg);
                         cur_fg = cell.fg;
                         cur_bg = cell.bg;
                     }
@@ -406,6 +461,7 @@ impl Terminal {
         let height_usize = frame.height as usize;
         let run_buf = &mut self.run_buf;
         let ansi_buf = &mut self.ansi_buf;
+        let cache_ref = self.color_cache.as_ref();
         ansi_buf.clear();
 
         // PERF: flat dirty-index buffer replaces the previous Vec<Vec<usize>>
@@ -490,11 +546,10 @@ impl Terminal {
                 ansi_buf.push(b'H');
             }
 
-            // Combined fg+bg SGR: 1 escape sequence instead of 2 queue calls.
-            // Bypasses crossterm trait dispatch + fmt machinery + heap alloc.
+            // Combined fg+bg SGR — cached when possible
             let style_changed = fg0 != cur_fg || bg0 != cur_bg;
             if style_changed {
-                write_sgr_colors_buf(ansi_buf, fg0, bg0);
+                Self::emit_sgr(cache_ref, ansi_buf, fg0, bg0);
                 cur_fg = fg0;
                 cur_bg = bg0;
             }
