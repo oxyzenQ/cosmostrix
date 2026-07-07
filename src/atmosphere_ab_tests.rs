@@ -309,7 +309,7 @@ fn benchmark_fields_unchanged() {
         monolith_size: crate::runtime::MonolithSize::Normal,
         chars: crate::charset::build_chars(crate::charset::Charset::ASCII_SAFE, &[], true),
         message: None,
-        message_no_border: false,
+        message_border: false,
         target_fps: 60.0,
         duration: None,
         duration_s: None,

@@ -252,7 +252,7 @@ pub struct Args {
         long = "message",
         help_heading = "COMMON OPTIONS",
         display_order = 70,
-        help = "Overlay message (with border). Use -mb for no border."
+        help = "Overlay message (no border). Use -mb for border."
     )]
     pub message: Option<String>,
 
@@ -572,11 +572,11 @@ pub struct Args {
     pub shading_mode: u8,
 
     #[arg(
-        long = "message-no-border",
+        long = "message-border",
         hide = true,
-        help = "Draw message box without border (use with --message; shorthand: -mb)"
+        help = "Draw message box with border (use with --message; shorthand: -mb)"
     )]
-    pub message_no_border: bool,
+    pub message_border: bool,
 
     #[arg(
         long = "maxdpc",
@@ -795,11 +795,11 @@ COMMON OPTIONS:
       after abrupt process termination.
 
   -m, --message <text>
-      Display overlay message with border.
+      Display overlay message (no border).
       cosmostrix -m \"hello\"
 
   -mb <text>
-      Display overlay message without border.
+      Display overlay message with border.
       cosmostrix -mb \"hello\"
 
   --low-power

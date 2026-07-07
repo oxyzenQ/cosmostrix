@@ -162,7 +162,7 @@ Run these interactively and verify clean exit with `q`:
 ```bash
 "$BIN"
 "$BIN" --color sun
-"$BIN" -mb --message "one world first seriously matrix rain"
+"$BIN" -mb "one world first seriously matrix rain"
 ```
 
 Verify:

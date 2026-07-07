@@ -238,7 +238,7 @@ mod cases {
             monolith_size: crate::runtime::MonolithSize::Normal,
             chars: vec!['0', '1'],
             message: None,
-            message_no_border: false,
+            message_border: false,
             target_fps: 60.0,
             duration: None,
             duration_s: None,

@@ -257,7 +257,9 @@ fn main() -> std::io::Result<()> {
     cmd.build();
 
     let argv: Vec<std::ffi::OsString> = env::args_os().collect();
-    // Expand -mb "text" into --message-no-border --message "text"
+    // Expand -mb "text" into --message-border --message "text"
+    // -m "text" = message without border (default)
+    // -mb "text" = message with border
     // Also handle -mb=text form.
     let mut expanded: Vec<std::ffi::OsString> = Vec::with_capacity(argv.len() + 1);
     expanded.push(argv[0].clone());
@@ -265,8 +267,7 @@ fn main() -> std::io::Result<()> {
     while i < argv.len() {
         let arg = &argv[i];
         if arg == "-mb" {
-            expanded.push("--message-no-border".into());
-            // Next arg is the message text
+            expanded.push("--message-border".into());
             if i + 1 < argv.len() {
                 expanded.push("--message".into());
                 expanded.push(argv[i + 1].clone());
@@ -275,7 +276,7 @@ fn main() -> std::io::Result<()> {
             }
         } else if let Some(s) = arg.to_str() {
             if let Some(rest) = s.strip_prefix("-mb=") {
-                expanded.push("--message-no-border".into());
+                expanded.push("--message-border".into());
                 expanded.push("--message".into());
                 expanded.push(rest.into());
                 i += 1;
@@ -814,7 +815,7 @@ fn main() -> std::io::Result<()> {
         monolith_size: args.monolith_size,
         chars,
         message: args.message.clone(),
-        message_no_border: args.message_no_border,
+        message_border: args.message_border,
         target_fps,
         duration: args.duration,
         duration_s,

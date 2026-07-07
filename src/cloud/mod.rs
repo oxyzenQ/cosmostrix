@@ -391,7 +391,7 @@ impl Cloud {
             shading_mode,
             message: Vec::new(),
             message_text: None,
-            message_border: true,
+            message_border: false,
             message_start_time: None,
             color_scheme,
             default_background,

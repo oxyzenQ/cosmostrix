@@ -184,7 +184,7 @@ stty sane
 pkill -TERM -f cosmostrix || true
 pgrep -af cosmostrix || echo "no cosmostrix process"
 
-cosmostrix -mb --message "one world first seriously matrix rain" \
+cosmostrix -mb "one world first seriously matrix rain" \
   --charset hacker --color forest --scene matrix
 
 # Terminal 2

@@ -37,7 +37,7 @@ pub struct CloudConfig {
     pub monolith_size: MonolithSize,
     pub chars: Vec<char>,
     pub message: Option<String>,
-    pub message_no_border: bool,
+    pub message_border: bool,
     pub target_fps: f64,
     pub duration: Option<f64>,
     pub duration_s: Option<f64>,
@@ -106,7 +106,7 @@ impl CloudConfig {
         cloud.auto_color_drift = self.auto_color_drift;
 
         if let Some(msg) = &self.message {
-            cloud.set_message_border(!self.message_no_border);
+            cloud.set_message_border(self.message_border);
             cloud.set_message(msg);
         }
 
