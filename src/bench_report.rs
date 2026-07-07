@@ -120,6 +120,11 @@ pub(crate) struct BenchReportData {
     // counters sampled at start + end, then subtracted.
     pub rusage_delta: Option<crate::usagestat::ResourceSnapshot>,
 
+    // Benchmark environment (reproducibility metadata). Collected once
+    // at benchmark start — no per-frame cost. Lets users compare reports
+    // across machines knowing the OS/governor/terminal context.
+    pub env: crate::envstat::EnvSnapshot,
+
     // Sub-component timing breakdown (averages + peaks, in ms).
     // sim_ms    = time in cloud.rain_at() before the first frame mutation
     //             (atmosphere events, spawn rate, droplet physics).
@@ -212,6 +217,15 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             color_mode_label(auto_color_mode),
         );
         s.field("io_strategy", ri.io_strategy);
+        // Explicit honest declaration that cosmostrix uses no GPU.
+        // Cosmostrix is a CPU + stdout renderer — no OpenGL/Vulkan/Metal/
+        // DirectX/WebGPU context is ever created. The terminal emulator
+        // may use GPU for compositing, but that is outside cosmostrix.
+        s.field("gpu_usage", "not_applicable");
+        s.field(
+            "gpu_basis",
+            "cosmostrix is a CPU + stdout renderer; no GPU context is ever created",
+        );
     }
 
     {
@@ -223,6 +237,12 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("TERM", &term);
         s.field("COLORTERM", &colorterm);
     }
+
+    // ── Benchmark environment (reproducibility metadata) ─────────────
+    // Lets users compare reports across machines knowing the OS/governor/
+    // terminal context. Rendering extracted to envstat.rs to keep this
+    // file under its 1000-LOC guard.
+    crate::envstat::render_section(&mut r, &data.env);
 
     {
         let s = r.section("PERFORMANCE");
@@ -831,6 +851,15 @@ mod tests {
                 voluntary_ctxt: 8,
                 involuntary_ctxt: 3,
             }),
+            env: crate::envstat::EnvSnapshot {
+                kernel_version: Some("6.8.0-1014-aws".to_string()),
+                libc_variant: "gnu",
+                term: Some("xterm-256color".to_string()),
+                term_program: Some("kitty".to_string()),
+                term_version: Some("0.36.0".to_string()),
+                cpu_governor: Some("performance".to_string()),
+                smt_active: Some("on".to_string()),
+            },
             avg_sim_ms: 0.040,
             avg_render_ms: 0.030,
             avg_io_ms: 0.007,

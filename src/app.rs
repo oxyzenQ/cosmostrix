@@ -48,6 +48,8 @@ pub struct CloudConfig {
     pub bench_duration: Option<u64>,
     /// Parsed --color-tune value. None means no tune (identity).
     pub color_tune: crate::color_tune::ColorTune,
+    /// Output benchmark report as JSON (--json flag).
+    pub json: bool,
     pub density_auto: bool,
     pub base_density: f32,
     pub perf_stats: bool,

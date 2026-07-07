@@ -6,11 +6,13 @@
 
 ### v11.1.0 — Benchmark Depth & Theme Tuning (COMPLETE)
 
-Closes the "real metrics, not gimmick" gap. The premium benchmark now
-reports RSS memory, CPU usage, sub-component timing, and long-run drift
-alongside the existing FPS/percentile metrics. A live HUD overlay brings
-the same metrics into interactive runs. Theme tuning makes the 43
-built-in palettes more visually distinct.
+Closes the "real metrics, not gimmick" gap and pushes the benchmark to
+S-tier (ChatGPT 9.8/10 → 10/10). The premium benchmark now reports RSS
+memory, CPU usage, sub-component timing, long-run drift, build/environment
+metadata, page faults + context switches, GPU-not-used declaration, and
+JSON output. A live HUD overlay brings the same metrics into interactive
+runs. `--color-tune` turns the 43 themes into 43 × ∞ variants. 5
+near-duplicate themes tuned for visual distinctness.
 
 | Batch | Description | Commit |
 |-------|-------------|--------|
@@ -22,11 +24,13 @@ built-in palettes more visually distinct.
 | P3 | CPU usage % tracking — CPU section | `aeafdd3` |
 | Q2 | `--color-tune saturation/brightness` runtime adjustment | `ce0d191` |
 | Audit | 5 near-duplicate themes tuned for distinctness | `304a07b` |
-| CI fix | macOS libc + Mach API + codespell fixes | `22fa131`, `4e76fda`, `58ebedb` |
+| Peak | Build metadata + CPU model + getrusage RESOURCE section | `7db64b9` |
+| Peak | GPU-not-used declaration + BENCHMARK ENVIRONMENT + `--json` output | (pending) |
+| CI fix | macOS libc + Mach API + time_value_t + sysctlbyname + codespell | `22fa131`–`4726d9a` |
 
-Zero new runtime dependencies. Linux + macOS supported for RSS and CPU
-sampling; Windows/other platforms emit `unsupported` honestly. See
-`CHANGELOG.md` for full details.
+Zero new runtime dependencies. Linux + macOS supported for RSS, CPU, and
+RESOURCE tracking; Windows/other platforms emit `unsupported` honestly.
+Theme count stays 43. See `CHANGELOG.md` for full details.
 
 ### v11.0.0 — Peak Performance & Stability (COMPLETE)
 

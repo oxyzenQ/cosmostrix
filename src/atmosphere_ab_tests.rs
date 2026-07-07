@@ -317,6 +317,7 @@ fn benchmark_fields_unchanged() {
         benchmark: false,
         bench_duration: None,
         color_tune: crate::color_tune::ColorTune::IDENTITY,
+        json: false,
         density_auto: false,
         base_density: 1.0,
         perf_stats: false,

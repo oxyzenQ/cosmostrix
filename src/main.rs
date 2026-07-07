@@ -61,6 +61,7 @@ mod atmosphere_visual;
 mod bench;
 mod bench_comp;
 mod bench_cpu;
+mod bench_json;
 mod bench_mem;
 mod bench_meta;
 mod bench_progress;
@@ -85,6 +86,7 @@ mod diagnostics;
 mod docs_tests;
 mod doctor;
 mod droplet;
+mod envstat;
 mod frame;
 mod info;
 mod interactive;
@@ -838,6 +840,7 @@ fn main() -> std::io::Result<()> {
         benchmark: args.benchmark,
         bench_duration: args.bench_duration,
         color_tune,
+        json: args.json,
         density_auto,
         base_density,
         perf_stats: args.perf_stats,

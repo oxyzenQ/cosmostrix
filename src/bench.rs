@@ -229,6 +229,11 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // from getrusage — we compute deltas for window attribution.
     let rusage_start = crate::usagestat::ResourceSnapshot::now();
 
+    // Benchmark environment (reproducibility metadata) — collected once
+    // at benchmark start. No per-frame cost. Lets users compare reports
+    // across machines knowing the OS/governor/terminal context.
+    let env = crate::envstat::EnvSnapshot::collect();
+
     // Drift detection: snapshot (frames, elapsed) at the halfway mark so
     // we can compare first-half FPS vs second-half FPS. A >10% drop
     // indicates thermal throttle, allocator fragmentation, or cache
@@ -528,6 +533,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         cpu_samples,
         cpu_supported,
         rusage_delta,
+        env,
         avg_sim_ms,
         avg_render_ms,
         avg_io_ms,
@@ -539,7 +545,11 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         fps_drift_percent,
         bench_duration_secs,
     };
-    crate::bench_report::build_premium_report(&report_data);
+    if cfg.json {
+        crate::bench_json::print_json_report(&report_data);
+    } else {
+        crate::bench_report::build_premium_report(&report_data);
+    }
     Ok(())
 }
 

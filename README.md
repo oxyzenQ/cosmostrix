@@ -194,6 +194,7 @@ DIAGNOSTICS
      --doctor               Compatibility report
      --benchmark            Renderer benchmark (5s default; override with --bench-duration)
      --bench-duration <1-600>  Benchmark duration in seconds (for long-run drift / leak detection)
+     --json                 Output benchmark as JSON (use with --benchmark; for CI/scripts)
   -i, --info                Build and runtime information
      --reset-terminal       Destructive terminal recovery (clears screen + scrollback)
 
@@ -278,6 +279,10 @@ timing (sim/render/io), and a DRIFT section for long-run analysis. The
 SYSTEM section records the CPU model, rustc version, LTO/PGO status, and
 git SHA so reports are self-documenting for cross-machine comparison. A
 RESOURCE section reports page faults + context switches via `getrusage`.
+A BENCHMARK ENVIRONMENT section records kernel, libc, terminal, CPU
+governor, and SMT status for reproducibility. The RENDERER section
+explicitly declares `gpu_usage: not_applicable` — cosmostrix is a CPU +
+stdout renderer, no GPU context is ever created.
 
 **Benchmark mode measures the engine without writing to the terminal.**
 FPS numbers are synthetic uncapped throughput — how many frames the
@@ -290,6 +295,12 @@ Use `--bench-duration N` (1–600s) for sustained drift / leak detection:
 
 ```bash
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-duration 60
+```
+
+Use `--json` for machine-readable output (CI/scripts):
+
+```bash
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --json | jq .performance.avg_fps
 ```
 
 See [benchmark/README.md](benchmark/README.md) for full reference results and interpretation notes.

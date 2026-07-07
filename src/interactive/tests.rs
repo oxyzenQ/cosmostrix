@@ -246,6 +246,7 @@ mod cases {
             benchmark: false,
             bench_duration: None,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
+            json: false,
             density_auto: false,
             base_density: 0.8,
             perf_stats: false,

@@ -48,11 +48,22 @@ v11.1.0+ benchmark output must include the following section headers
 (grep to verify):
 
 ```bash
-"$BIN" --benchmark 2>&1 | grep -E "^(MEMORY|CPU|COMPONENT TIMING|DRIFT):"
+"$BIN" --benchmark 2>&1 | grep -E "^(BENCHMARK ENVIRONMENT|MEMORY|CPU|COMPONENT TIMING|DRIFT|RESOURCE):"
 ```
 
-All four headers must appear. On Linux/macOS, `MEMORY` and `CPU` must
-report real numbers (not `unsupported`).
+All six headers must appear. On Linux/macOS, `MEMORY`, `CPU`, and
+`RESOURCE` must report real numbers (not `unsupported`). The `RENDERER`
+section must contain `gpu_usage: not_applicable`.
+
+### JSON output smoke
+
+```bash
+"$BIN" --benchmark --json | python3 -c "import json,sys; json.load(sys.stdin); print('valid JSON')"
+```
+
+Must print `valid JSON`. The JSON object must contain 13 top-level keys:
+status, system, renderer, config, environment, performance, memory, cpu,
+resource, component_timing, drift, throughput, timing.
 
 ## v11.x Benchmark & HUD RC Checklist
 
@@ -92,11 +103,24 @@ release. All must pass before tagging v11.1.0.
 "$BIN" --benchmark 2>&1 | grep -c "^CPU:"
 "$BIN" --benchmark 2>&1 | grep -c "^COMPONENT TIMING:"
 "$BIN" --benchmark 2>&1 | grep -c "^DRIFT:"
+"$BIN" --benchmark 2>&1 | grep -c "^RESOURCE:"
+"$BIN" --benchmark 2>&1 | grep -c "^BENCHMARK ENVIRONMENT:"
+"$BIN" --benchmark 2>&1 | grep -c "gpu_usage: not_applicable"
 ```
 
 Each must print `1` (exactly one section header). On Linux/macOS,
-`MEMORY` and `CPU` must report real numbers; on other platforms they
-emit `unsupported` with a reason field.
+`MEMORY`, `CPU`, and `RESOURCE` must report real numbers; on other
+platforms they emit `unsupported` with a reason field.
+
+### JSON output validation
+
+```bash
+# Must produce valid parseable JSON:
+"$BIN" --benchmark --json | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'performance' in d; assert d['renderer']['gpu_usage']=='not_applicable'; print('OK')"
+
+# Must print OK. Verifies JSON parses, has performance section, and
+# the GPU-not-used declaration is present.
+```
 
 ### Live HUD overlay (manual interactive smoke)
 

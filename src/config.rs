@@ -378,6 +378,15 @@ pub struct Args {
     pub bench_duration: Option<u64>,
 
     #[arg(
+        long = "json",
+        help_heading = "DIAGNOSTICS",
+        display_order = 112,
+        help = "Output benchmark report as JSON (use with --benchmark). \
+                Machine-readable for CI/scripts. Pairs with --bench-duration."
+    )]
+    pub json: bool,
+
+    #[arg(
         long = "info",
         short = 'i',
         help_heading = "DIAGNOSTICS",
@@ -927,6 +936,9 @@ DIAGNOSTICS:
       Benchmark duration in seconds (default 5). Use with --benchmark
       for long-run drift / leak / thermal-throttle detection. The DRIFT
       section of the report compares first-half FPS vs second-half FPS.
+  --json         Output benchmark as JSON (use with --benchmark).
+      Machine-readable single-line JSON for CI/scripts. Mirrors the text
+      report's 13 sections. Option fields emit null; NaN/Inf emit null.
   -i, --info     Build and runtime information.
   --reset-terminal
       Restore raw mode, alternate screen, cursor, focus, and mouse reporting
