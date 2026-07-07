@@ -354,9 +354,18 @@ pub struct Args {
         long = "benchmark",
         help_heading = "DIAGNOSTICS",
         display_order = 110,
-        help = "Renderer benchmark"
+        help = "Renderer benchmark (5s default; override with --bench-duration)"
     )]
     pub benchmark: bool,
+
+    #[arg(
+        long = "bench-duration",
+        help_heading = "DIAGNOSTICS",
+        display_order = 111,
+        help = "Benchmark duration in seconds (1-600, default 5). \
+                Use with --benchmark for long-run drift / leak detection."
+    )]
+    pub bench_duration: Option<u64>,
 
     #[arg(
         long = "info",

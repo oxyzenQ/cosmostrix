@@ -315,6 +315,7 @@ fn benchmark_fields_unchanged() {
         duration_s: None,
         bench_frames: None,
         benchmark: false,
+        bench_duration: None,
         density_auto: false,
         base_density: 1.0,
         perf_stats: false,

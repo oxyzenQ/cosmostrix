@@ -61,6 +61,7 @@ mod atmosphere_visual;
 mod bench;
 mod bench_comp;
 mod bench_mem;
+mod bench_progress;
 mod bench_report;
 mod cell;
 mod charset;
@@ -824,6 +825,7 @@ fn main() -> std::io::Result<()> {
         duration_s,
         bench_frames: args.bench_frames,
         benchmark: args.benchmark,
+        bench_duration: args.bench_duration,
         density_auto,
         base_density,
         perf_stats: args.perf_stats,

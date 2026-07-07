@@ -141,6 +141,17 @@ pub(crate) struct BenchReportData {
     pub max_sim_ms: f64,
     pub max_render_ms: f64,
     pub max_io_ms: f64,
+
+    // Long-run drift detection (None if benchmark was interrupted before
+    // the halfway mark). Compares first-half FPS vs second-half FPS.
+    // Positive drift_percent = FPS degraded over time (thermal throttle,
+    // allocator pressure, cache pollution). Negative = warmed up.
+    pub first_half_fps: Option<f64>,
+    pub second_half_fps: Option<f64>,
+    pub fps_drift_percent: Option<f64>,
+    /// Effective benchmark duration in seconds (may differ from default 5s
+    /// when --bench-duration N is supplied).
+    pub bench_duration_secs: u64,
 }
 
 // ── Report builder ───────────────────────────────────────────────────────────
@@ -378,6 +389,50 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 "io_share_percent",
                 &format!("{:.1}", data.avg_io_ms / total_avg * 100.0),
             );
+        }
+    }
+
+    // ── Long-run drift detection ──────────────────────────────────────
+    // Compares first-half FPS vs second-half FPS. Useful with
+    // --bench-duration N (long N) to detect thermal throttle, allocator
+    // fragmentation, or cache pressure that a 5s run would miss.
+    // None values indicate the benchmark was interrupted before halfway.
+    {
+        let s = r.section("DRIFT");
+        s.field("bench_duration_secs", &data.bench_duration_secs.to_string());
+        match (
+            data.first_half_fps,
+            data.second_half_fps,
+            data.fps_drift_percent,
+        ) {
+            (Some(f), Some(s2), Some(d)) => {
+                s.field("first_half_fps", &format!("{:.1}", f));
+                s.field("second_half_fps", &format!("{:.1}", s2));
+                s.field("fps_drift_percent", &format!("{:+.2}%", d));
+                // Interpret the drift value for the user.
+                let interpretation = if d > 10.0 {
+                    "degraded — possible thermal throttle / allocator pressure / cache pollution"
+                } else if d < -10.0 {
+                    "improved — warmup may have been insufficient; consider longer --bench-duration"
+                } else {
+                    "stable — no significant drift detected"
+                };
+                s.field("drift_interpretation", interpretation);
+                s.field(
+                    "drift_basis",
+                    "first_half_fps vs second_half_fps; positive = FPS dropped over time",
+                );
+            }
+            _ => {
+                s.field(
+                    "drift_status",
+                    "skipped — benchmark interrupted before halfway mark",
+                );
+                s.field(
+                    "drift_reason",
+                    "drift detection requires the benchmark to run past 50% of its target duration",
+                );
+            }
         }
     }
 
@@ -683,6 +738,10 @@ mod tests {
             max_sim_ms: 0.080,
             max_render_ms: 0.060,
             max_io_ms: 0.015,
+            first_half_fps: Some(13_000.0),
+            second_half_fps: Some(12_850.0),
+            fps_drift_percent: Some(1.15),
+            bench_duration_secs: 5,
         };
         // Basic sanity — if this compiles, all fields exist and have
         // the correct types.

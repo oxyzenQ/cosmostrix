@@ -244,6 +244,7 @@ mod cases {
             duration_s: None,
             bench_frames: None,
             benchmark: false,
+            bench_duration: None,
             density_auto: false,
             base_density: 0.8,
             perf_stats: false,

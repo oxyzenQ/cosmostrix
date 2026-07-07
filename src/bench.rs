@@ -27,13 +27,8 @@
 //!   partial results with an "interrupted" status note.
 
 use std::env;
-use std::io::{self, IsTerminal, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
-
-use crossterm::cursor::{Hide, Show};
-use crossterm::execute;
 
 use crate::cinematic::{
     classify_frame_jitter, classify_frame_time_stability, dirty_threshold_cells,
@@ -48,6 +43,7 @@ use crate::frame::Frame;
 use super::{effective_density, CloudConfig};
 use crate::bench_comp::ComponentTimer;
 use crate::bench_mem::RssTracker;
+use crate::bench_progress::{register_interrupt, BenchProgress};
 
 // Re-export metric meaning constants used by external modules
 // (e.g., cloud/tests/tests_visual_depth.rs) so that import paths
@@ -55,318 +51,21 @@ use crate::bench_mem::RssTracker;
 #[allow(unused_imports)]
 pub(crate) use crate::bench_report::{AVG_DIRTY_CELL_RATIO_MEANING, ESTIMATED_FULL_REDRAW_MEANING};
 
-/// Duration of the premium benchmark in seconds.
+/// Duration of the premium benchmark in seconds (default).
 const BENCHMARK_DURATION_SECS: u64 = 5;
+
+/// Minimum and maximum allowed --bench-duration values (seconds).
+/// 1s floor avoids meaningless sub-second runs; 600s (10min) ceiling
+/// prevents runaway processes in CI. Users wanting longer endurance
+/// runs should use the regular interactive mode with --duration.
+const BENCH_DURATION_MIN: u64 = 1;
+const BENCH_DURATION_MAX: u64 = 600;
 
 /// Warmup duration for the premium benchmark in seconds.
 const BENCHMARK_WARMUP_SECS: u64 = 2;
 
 /// Number of frame time samples for percentile calculations.
 const FRAME_TIME_SAMPLES: usize = 10_000;
-
-/// Braille spinner frames — subtle, modern, premium.
-const SPINNER: &[char] = &['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-
-/// Number of lines in the live rewrite region during benchmark.
-const LIVE_LINES: u16 = 4;
-
-/// Minimum interval between screen updates (~15 Hz).
-const UPDATE_INTERVAL: Duration = Duration::from_millis(66);
-
-/// Number of recent frame times to smooth for display.
-const DISPLAY_FT_WINDOW: usize = 16;
-
-// ── Cursor guard ─────────────────────────────────────────────────────────────
-
-/// RAII guard that ensures the terminal cursor is restored on drop.
-///
-/// Hides the cursor on creation and shows it again when dropped.
-/// This handles both normal completion and panic unwinding.
-struct CursorGuard;
-
-impl CursorGuard {
-    fn acquire() -> io::Result<Self> {
-        execute!(io::stderr(), Hide)?;
-        Ok(Self)
-    }
-}
-
-impl Drop for CursorGuard {
-    fn drop(&mut self) {
-        let _ = execute!(io::stderr(), Show);
-    }
-}
-
-// ── Interrupt flag ───────────────────────────────────────────────────────────
-
-/// Register a SIGINT/ctrl-c handler that sets the given flag.
-///
-/// Returns the Arc flag; the caller checks it periodically.
-fn register_interrupt() -> Arc<AtomicBool> {
-    let flag = Arc::new(AtomicBool::new(false));
-
-    #[cfg(unix)]
-    {
-        let f = flag.clone();
-        // Best-effort: if registration fails, the benchmark still runs;
-        // the user can always SIGKILL as a last resort.
-        let _ = signal_hook::flag::register(signal_hook::consts::SIGINT, f);
-    }
-
-    #[cfg(windows)]
-    {
-        let f = flag.clone();
-        let _ = ctrlc::set_handler(move || {
-            f.store(true, Ordering::SeqCst);
-        });
-    }
-
-    flag
-}
-
-// ── Live progress ────────────────────────────────────────────────────────────
-
-/// Manages the live benchmark progress UI on stderr.
-///
-/// The UI consists of a header, init/warmup indicators, and a compact
-/// live-metrics region that overwrites itself without scrolling:
-///
-/// ```text
-/// COSMOSTRIX BENCHMARK
-/// ────────────────────
-/// initializing renderer... done
-/// warming frame pipeline... done
-/// running benchmark... ⠧
-/// fps: ~12188
-/// frametime: 0.083ms
-/// elapsed: 3.1s / 5.0s
-/// ```
-///
-/// On finish the entire live region is erased and the final report
-/// is printed cleanly to stdout.
-struct BenchProgress {
-    spinner_idx: usize,
-    last_update: Instant,
-    running_initialized: bool,
-    /// Number of newline-terminated lines written to stderr.
-    /// Used by `finish()` to erase the correct number of lines.
-    lines_written: u16,
-    /// Whether the warmup spinner is active (line not yet newline-terminated).
-    warmup_active: bool,
-    /// Rolling window of recent frame times for display smoothing.
-    recent_ft: [f64; DISPLAY_FT_WINDOW],
-    recent_ft_idx: usize,
-    recent_ft_count: usize,
-    /// Whether stderr is an interactive terminal.
-    is_tty: bool,
-    /// RAII cursor guard.
-    _cursor_guard: Option<CursorGuard>,
-}
-
-impl BenchProgress {
-    fn new() -> Self {
-        Self {
-            spinner_idx: 0,
-            // Allow the first update immediately.
-            // Use checked_sub to avoid panic if Instant epoch is very close
-            // to now (theoretically possible in containers/VMs at boot).
-            last_update: Instant::now()
-                .checked_sub(UPDATE_INTERVAL)
-                .unwrap_or_else(Instant::now),
-            running_initialized: false,
-            lines_written: 0,
-            warmup_active: false,
-            recent_ft: [0.0; DISPLAY_FT_WINDOW],
-            recent_ft_idx: 0,
-            recent_ft_count: 0,
-            is_tty: io::stderr().is_terminal(),
-            _cursor_guard: None,
-        }
-    }
-
-    /// Advance the spinner and return the current frame character.
-    #[inline]
-    fn spin(&mut self) -> char {
-        let c = SPINNER[self.spinner_idx];
-        self.spinner_idx = (self.spinner_idx + 1) % SPINNER.len();
-        c
-    }
-
-    /// Print the header block and hide the cursor.
-    fn begin(&mut self) {
-        if !self.is_tty {
-            return;
-        }
-        self._cursor_guard = CursorGuard::acquire().ok();
-        let mut stderr = io::stderr().lock();
-        let _ = writeln!(stderr, "COSMOSTRIX BENCHMARK");
-        let _ = writeln!(stderr, "────────────────────");
-        let _ = stderr.flush();
-        self.lines_written = 2;
-    }
-
-    /// Print "initializing renderer... done" — this step is fast enough
-    /// that it appears as a single completed line.
-    fn init_done(&mut self) {
-        if !self.is_tty {
-            return;
-        }
-        let _ = writeln!(io::stderr(), "initializing renderer... done");
-        let _ = io::stderr().flush();
-        self.lines_written += 1;
-    }
-
-    /// Print the initial warmup line with a spinner frame.
-    fn warmup_start(&mut self) {
-        if !self.is_tty {
-            return;
-        }
-        let spinner = self.spin();
-        let _ = write!(io::stderr(), "warming frame pipeline... {}  ", spinner);
-        let _ = io::stderr().flush();
-        self.warmup_active = true;
-    }
-
-    /// Animate the warmup spinner. Rate-limited internally.
-    fn warmup_tick(&mut self) {
-        if !self.is_tty {
-            return;
-        }
-        let now = Instant::now();
-        if now.duration_since(self.last_update) < UPDATE_INTERVAL {
-            return;
-        }
-        self.last_update = now;
-        let spinner = self.spin();
-        let _ = write!(io::stderr(), "\rwarming frame pipeline... {}  ", spinner);
-        let _ = io::stderr().flush();
-    }
-
-    /// Mark warmup as complete.
-    fn warmup_done(&mut self) {
-        if !self.is_tty {
-            return;
-        }
-        let _ = write!(io::stderr(), "\x1b[2K\rwarming frame pipeline... done\n");
-        let _ = io::stderr().flush();
-        self.warmup_active = false;
-        self.lines_written += 1;
-    }
-
-    /// Record a frame time and update the live metrics if enough time has
-    /// elapsed.
-    ///
-    /// This is the hot-path call from the measurement loop. It is designed
-    /// to be cheap on the fast path (just a timestamp comparison + one array
-    /// write), so it does not distort benchmark results.
-    fn running_tick(
-        &mut self,
-        total_frames: u64,
-        elapsed_s: f64,
-        frame_time_ms: f64,
-        duration_s: f64,
-    ) {
-        if !self.is_tty {
-            return;
-        }
-
-        // Always record the frame time in the rolling buffer.
-        self.recent_ft[self.recent_ft_idx] = frame_time_ms;
-        self.recent_ft_idx = (self.recent_ft_idx + 1) % self.recent_ft.len();
-        if self.recent_ft_count < self.recent_ft.len() {
-            self.recent_ft_count += 1;
-        }
-
-        // Rate-limit screen updates.
-        let now = Instant::now();
-        if now.duration_since(self.last_update) < UPDATE_INTERVAL {
-            return;
-        }
-        self.last_update = now;
-
-        let fps = if elapsed_s > 0.0 {
-            total_frames as f64 / elapsed_s
-        } else {
-            0.0
-        };
-
-        let avg_ft = if self.recent_ft_count > 0 {
-            let sum: f64 = self.recent_ft[..self.recent_ft_count].iter().sum();
-            sum / self.recent_ft_count as f64
-        } else {
-            0.0
-        };
-
-        if !self.running_initialized {
-            let spinner = self.spin();
-            let _ = write!(
-                io::stderr(),
-                "running benchmark... {}\n\
-                 fps: ~{:.0}\n\
-                 frametime: {:.3}ms\n\
-                 elapsed: {:.1}s / {:.1}s\n",
-                spinner,
-                fps,
-                avg_ft,
-                elapsed_s,
-                duration_s,
-            );
-            self.running_initialized = true;
-            self.lines_written += LIVE_LINES;
-            let _ = io::stderr().flush();
-            return;
-        }
-
-        // Rewrite the live region: move up, clear and reprint each line.
-        let spinner = self.spin();
-        let _ = write!(
-            io::stderr(),
-            "\x1b[{}A\x1b[2K\rrunning benchmark... {}\n\
-             \x1b[2K\rfps: ~{:.0}\n\
-             \x1b[2K\rframetime: {:.3}ms\n\
-             \x1b[2K\relapsed: {:.1}s / {:.1}s\n",
-            LIVE_LINES,
-            spinner,
-            fps,
-            avg_ft,
-            elapsed_s,
-            duration_s,
-        );
-        let _ = io::stderr().flush();
-    }
-
-    /// Clear the entire live progress region and restore the terminal.
-    ///
-    /// After this call the terminal is left in a clean state with the
-    /// cursor positioned where the benchmark output originally started.
-    /// The final report should then be printed to **stdout**.
-    fn finish(&mut self) {
-        if !self.is_tty {
-            return;
-        }
-
-        // If the warmup spinner is still active (no newline), commit the
-        // line so we can count and clear it.
-        if self.warmup_active {
-            let _ = write!(io::stderr(), "\x1b[2K\r\n");
-            self.warmup_active = false;
-            self.lines_written += 1;
-        }
-
-        if self.lines_written > 0 {
-            // Move to the top of our output, clear each line, return to start.
-            let _ = write!(io::stderr(), "\x1b[{}A", self.lines_written);
-            for _ in 0..self.lines_written {
-                let _ = write!(io::stderr(), "\x1b[2K\x1b[1B");
-            }
-            let _ = write!(io::stderr(), "\x1b[{}A\r", self.lines_written);
-            let _ = io::stderr().flush();
-        }
-
-        // Drop cursor guard — restores cursor visibility via RAII.
-        self._cursor_guard = None;
-    }
-}
 
 // ── Legacy CI benchmark ─────────────────────────────────────────────────────
 
@@ -430,9 +129,39 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
 // ── Premium benchmark ────────────────────────────────────────────────────────
 
-/// Premium user-facing benchmark: runs for 5 seconds with live progress
-/// feedback and enhanced metrics in a Report-engine output.
+/// Resolve the effective benchmark duration from CLI override or default.
+///
+/// Validates the user-supplied `--bench-duration N` against
+/// `[BENCH_DURATION_MIN, BENCH_DURATION_MAX]` and returns a human-readable
+/// error message on out-of-range values. Returns the default
+/// `BENCHMARK_DURATION_SECS` when no override is supplied.
+fn resolve_bench_duration(override_secs: Option<u64>) -> Result<u64, String> {
+    match override_secs {
+        Some(n) if n < BENCH_DURATION_MIN => Err(format!(
+            "error: --bench-duration {n} is below the {BENCH_DURATION_MIN}-second minimum"
+        )),
+        Some(n) if n > BENCH_DURATION_MAX => Err(format!(
+            "error: --bench-duration {n} exceeds the {BENCH_DURATION_MAX}-second maximum \
+             (use interactive mode with --duration for longer endurance runs)"
+        )),
+        Some(n) => Ok(n),
+        None => Ok(BENCHMARK_DURATION_SECS),
+    }
+}
+
+/// Premium user-facing benchmark: runs for the configured duration (default
+/// 5s, override with `--bench-duration N`) with live progress feedback and
+/// enhanced metrics in a Report-engine output.
 pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
+    // Validate --bench-duration BEFORE allocating any resources so an
+    // out-of-range value fails fast without polluting the terminal.
+    let bench_duration_secs = resolve_bench_duration(cfg.bench_duration).map_err(|e| {
+        // Print to stderr so the error is visible; io::Error preserves
+        // the message for the caller.
+        eprintln!("{e}");
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+    })?;
+
     let mut progress = BenchProgress::new();
     let interrupted = register_interrupt();
 
@@ -490,8 +219,15 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // reported peak/avg reflect the benchmark window, not warmup.
     let mut rss = RssTracker::new();
 
+    // Drift detection: snapshot (frames, elapsed) at the halfway mark so
+    // we can compare first-half FPS vs second-half FPS. A >10% drop
+    // indicates thermal throttle, allocator fragmentation, or cache
+    // pressure; a >10% gain indicates warmup was insufficient.
+    let mut half_mark: Option<(u64, f64)> = None;
+
     let start = Instant::now();
-    let bench_end = start + Duration::from_secs(BENCHMARK_DURATION_SECS);
+    let bench_end = start + Duration::from_secs(bench_duration_secs);
+    let half_elapsed_target = (bench_duration_secs as f64) / 2.0;
 
     while Instant::now() < bench_end {
         if interrupted.load(Ordering::Relaxed) {
@@ -552,13 +288,23 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         // RSS sample (rate-limited internally; cheap when interval not elapsed).
         rss.tick();
 
+        // Capture the halfway mark once. We compare elapsed against the
+        // target half-duration rather than bench_end/2 because elapsed
+        // grows monotonically while bench_end is a fixed Instant.
+        if half_mark.is_none() {
+            let elapsed_s = start.elapsed().as_secs_f64();
+            if elapsed_s >= half_elapsed_target {
+                half_mark = Some((total_frames, elapsed_s));
+            }
+        }
+
         // Live progress update — AFTER frame time measurement to avoid skew.
         let elapsed_s = start.elapsed().as_secs_f64();
         progress.running_tick(
             total_frames,
             elapsed_s,
             frame_time_ms,
-            BENCHMARK_DURATION_SECS as f64,
+            bench_duration_secs as f64,
         );
     }
 
@@ -568,14 +314,40 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let (avg_sim_ms, avg_render_ms, avg_io_ms, max_sim_ms, max_render_ms, max_io_ms) =
         components.finalize();
 
+    // Total elapsed for drift computation. Computed here (before the
+    // `let elapsed = start.elapsed()` below) because the drift block
+    // needs it as f64 already.
+    let total_elapsed_s = start.elapsed().as_secs_f64();
+
+    // Drift detection: compute first-half vs second-half FPS.
+    // Positive drift_percent = FPS degraded over time (thermal throttle,
+    // allocator pressure, cache pollution). Negative = warmed up.
+    // Only meaningful if the half-mark was captured (i.e. the benchmark
+    // ran for at least ~half its target duration before interruption).
+    let (first_half_fps, second_half_fps, fps_drift_percent) = if let Some((hf, hs)) = half_mark {
+        let first_fps = if hs > 0.0 { hf as f64 / hs } else { 0.0 };
+        let second_frames = total_frames.saturating_sub(hf);
+        let second_elapsed = (total_elapsed_s - hs).max(BENCH_ELAPSED_MIN_S);
+        let second_fps = second_frames as f64 / second_elapsed;
+        let drift = if first_fps > 0.0 {
+            (first_fps - second_fps) / first_fps * 100.0
+        } else {
+            0.0
+        };
+        (Some(first_fps), Some(second_fps), Some(drift))
+    } else {
+        (None, None, None)
+    };
+
     let was_interrupted = interrupted.load(Ordering::Relaxed);
 
     // ── Clean up live UI ─────────────────────────────────────────────────
     progress.finish();
 
     // ── Compute metrics ──────────────────────────────────────────────────
-    let elapsed = start.elapsed();
-    let elapsed_s = elapsed.as_secs_f64().max(BENCH_ELAPSED_MIN_S);
+    // Reuse total_elapsed_s computed above for drift detection — calling
+    // start.elapsed() twice would yield slightly different values.
+    let elapsed_s = total_elapsed_s.max(BENCH_ELAPSED_MIN_S);
 
     let avg_fps = (total_frames as f64) / elapsed_s;
     let peak_fps = 1000.0
@@ -734,6 +506,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         max_sim_ms,
         max_render_ms,
         max_io_ms,
+        first_half_fps,
+        second_half_fps,
+        fps_drift_percent,
+        bench_duration_secs,
     };
     crate::bench_report::build_premium_report(&report_data);
     Ok(())
@@ -865,5 +641,43 @@ mod tests {
         // can still use `use crate::bench::AVG_DIRTY_CELL_RATIO_MEANING`.
         assert!(AVG_DIRTY_CELL_RATIO_MEANING.contains("dirty-cell coverage"));
         assert!(ESTIMATED_FULL_REDRAW_MEANING.contains("threshold estimate"));
+    }
+
+    #[test]
+    fn resolve_bench_duration_uses_default_when_none() {
+        assert_eq!(
+            resolve_bench_duration(None).unwrap(),
+            BENCHMARK_DURATION_SECS,
+            "None override must fall back to default duration"
+        );
+    }
+
+    #[test]
+    fn resolve_bench_duration_accepts_in_range_override() {
+        assert_eq!(resolve_bench_duration(Some(1)).unwrap(), 1, "min boundary");
+        assert_eq!(
+            resolve_bench_duration(Some(600)).unwrap(),
+            600,
+            "max boundary"
+        );
+        assert_eq!(resolve_bench_duration(Some(30)).unwrap(), 30, "mid-range");
+    }
+
+    #[test]
+    fn resolve_bench_duration_rejects_below_minimum() {
+        let err = resolve_bench_duration(Some(0)).unwrap_err();
+        assert!(
+            err.contains("below the"),
+            "below-minimum error must explain the floor: {err}"
+        );
+    }
+
+    #[test]
+    fn resolve_bench_duration_rejects_above_maximum() {
+        let err = resolve_bench_duration(Some(601)).unwrap_err();
+        assert!(
+            err.contains("exceeds the"),
+            "above-maximum error must explain the ceiling: {err}"
+        );
     }
 }

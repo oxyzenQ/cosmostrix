@@ -43,6 +43,9 @@ pub struct CloudConfig {
     pub duration_s: Option<f64>,
     pub bench_frames: Option<u64>,
     pub benchmark: bool,
+    /// Optional benchmark duration override in seconds (1-600).
+    /// When None, defaults to BENCHMARK_DURATION_SECS (5s).
+    pub bench_duration: Option<u64>,
     pub density_auto: bool,
     pub base_density: f32,
     pub perf_stats: bool,
