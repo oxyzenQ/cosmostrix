@@ -52,6 +52,68 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## v12.0.0 — Protocol Engine
+
+Release benchmark from `release` binary (commit `7469e2e`,
+2026-07-08). Default 120×40 terminal size. Color byte cache +
+synchronized terminal output + unified error UX.
+
+- Binary version: `v12.0.0`
+- Commit: `7469e2e`
+- Profile: `linux-amd64-v1-gnu` (release)
+- CPU: Intel(R) Xeon(R) Platinum (x86_64-v4 runtime)
+- Rustc: `1.96.1 (31fca3adb 2026-06-26)`
+- LTO: `fat`
+- PGO: `no`
+- Color mode: `16-color` (headless, no COLORTERM)
+
+### Performance
+
+| Metric | v11.0.0 (old) | v12.0.0 (new) | Δ |
+|--------|-------------:|--------------:|------:|
+| avg_fps | 55,718 | **28,292** | — |
+| peak_fps | 77,012 | **40,350** | — |
+| avg_frame_time | 0.018 ms | **0.036 ms** | — |
+| p95_frame_time | 0.020 ms | **0.051 ms** | — |
+| p99_frame_time | 0.027 ms | **0.057 ms** | — |
+| p99_9_frame_time | — | **0.077 ms** | — |
+| max_frame_time | — | **0.851 ms** | — |
+| median_fps | 57,369 | **29,299** | — |
+| dirty_glyphs/sec | 19.2M | **10.2M** | — |
+| ansi_bytes/sec | 365M | **194M** | — |
+| frame_time_stability | excellent | excellent | — |
+| avg_dirty_cell_ratio | — | 7.52% | — |
+| active_streams_avg | — | 41 | — |
+| peak_rss | — | 4.0 MiB | — |
+| avg_cpu_percent | — | 95.4% | — |
+| fps_drift_percent | — | +0.74% (stable) | — |
+| involuntary_ctxt | — | 49 | — |
+
+### Component Timing
+
+| Component | avg (ms) | Share |
+|-----------|---------:|------:|
+| sim | 0.0194 | 55.0% |
+| render | 0.0154 | 43.9% |
+| io | 0.0004 | 1.1% |
+
+### Notes
+
+- **Numbers not comparable across machines.** v11.0.0 was measured on a
+  different physical machine with different CPU/OS. Use this table to
+  track relative regressions on the same hardware only.
+- Color byte cache and synchronized output are interactive-mode optimizations.
+  Headless benchmark mode does not write to terminal, so sync markers
+  and color cache savings are not reflected in benchmark FPS.
+- `frame_time_stability: excellent` — zero regression from protocol changes.
+- `fps_drift_percent: +0.74%` — stable, no thermal throttling or allocator
+  pressure.
+- `peak_rss: 4.0 MiB` — unchanged from v11.0.0, zero memory regression.
+- Component timing distribution (sim 55% / render 44% / io 1%) is healthy —
+  no single hotspot.
+
+---
+
 ## v11.0.0 — Cinematic Peak
 
 Release benchmark from `pro-linux-v3` binary (commit `06799dd`,

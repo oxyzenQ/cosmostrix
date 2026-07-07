@@ -32,6 +32,20 @@ Zero new runtime dependencies. Linux + macOS supported for RSS, CPU, and
 RESOURCE tracking; Windows/other platforms emit `unsupported` honestly.
 Theme count stays 43. See `CHANGELOG.md` for full details.
 
+### v12.0.0 — Protocol Engine (COMPLETE)
+
+Terminal protocol intelligence and color pipeline optimization.
+
+| Feature | Module | Description |
+|---------|--------|-------------|
+| Terminal detection | `src/termdetect.rs` | Vendor detection + synchronized output |
+| Color byte cache | `src/color_cache.rs` | Pre-formatted SGR, ~300-400 ops/frame saved |
+| Unified error UX | `src/ux.rs` | Single source of truth, fixes double-print |
+| DEFLATE compression | — | Investigated, skipped — zero terminal support |
+
+`TerminalVendor` enum stored for future protocol-specific features
+(kitty graphics protocol, foot damage tracking, etc.).
+
 ### v11.0.0 — Peak Performance & Stability (COMPLETE)
 
 Major performance optimization and stability hardening release.

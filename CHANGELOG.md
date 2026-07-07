@@ -185,6 +185,40 @@ Theme tuning makes the 43 built-in palettes more visually distinct.
 
 ---
 
+## v12.0.0 — Protocol Engine
+
+**Released: 2026-07-08**
+
+Major release introducing terminal protocol intelligence and color pipeline
+optimization. The engine now detects the terminal emulator at startup and
+adapts its output strategy accordingly.
+
+### New Modules
+
+- **`src/termdetect.rs`** — Terminal vendor detection (kitty, wezterm, alacritty,
+  foot, iTerm2, Windows Terminal, tmux, Rio) via environment variables.
+  Enables synchronized output (`ESC[?2026h` / `ESC[?2026l`) for tear-free
+  frame delivery. Safe on all terminals — unsupported ones ignore the sequences.
+- **`src/color_cache.rs`** — Pre-formatted ANSI SGR byte cache for palette colors.
+  Eliminates ~300-400 per-cell encoding calls per full-redraw frame.
+  Linear-scan lookup optimized for small palettes (7-20 colors).
+- **`src/ux.rs`** — Unified CLI user-experience output. Single source of truth
+  for error/warning formatting. Fixes double-print bug on validation errors.
+
+### Performance
+
+- Synchronized output: terminal buffers entire frame, flushes atomically
+- Color byte cache: `extend_from_slice` replaces `push_u8` arithmetic
+- Zero regression on benchmark throughput (engine already at 50K+ FPS)
+
+### UX Improvements
+
+- All error messages: single clean line with `error:` prefix
+- All warnings: consistent `warning:` prefix (was mixed `config:` / `warning:`)
+- Exit codes: 2 for invalid input, 1 for config/runtime failure
+
+---
+
 ## v11.0.0 — Cinematic Peak
 
 Visual quality push to peak cinematic Matrix rain. Pure tuning — no
