@@ -181,6 +181,92 @@ Release benchmark from `pro-linux-v4` binary (commit `b662ede`,
 - Same machine, same commit (`b662ede`), same rustc — only CPU baseline
   differs.
 
+## v12.0.0 — Zen 3 Mobile (pro-linux-v3)
+
+Release benchmark from `pro-linux-v3` binary (commit `ba26150`,
+2026-07-08). Default 120×40 terminal size. x86-64-v3 target baseline
+on a AMD Ryzen 7 5800HS (Zen 3, 8C/16T) mobile APU with truecolor
+detection active.
+
+- Binary version: `v12.0.0`
+- Commit: `ba26150`
+- Profile: `pro-linux-v3` (linux-amd64-v3-gnu)
+- CPU: AMD Ryzen 7 5800HS with Radeon Graphics (x86_64-v3 native)
+- Rustc: `1.96.0 (ac68faa20 2026-05-25)`
+- LTO: `fat`
+- PGO: `no`
+- Color mode: `24-bit truecolor` (COLORTERM=truecolor, xterm-direct)
+- Kernel: `6.18.35-1-cachyos-lts`
+- Governor: `schedutil`
+- SMT: `on`
+
+### Performance
+
+| Metric | Value |
+|--------|------:|
+| avg_fps | **30,558** |
+| peak_fps | **42,276** |
+| median_fps | **30,974** |
+| avg_frame_time | 0.033 ms |
+| p95_frame_time | 0.037 ms |
+| p99_frame_time | 0.041 ms |
+| p99_9_frame_time | 0.069 ms |
+| max_frame_time | 0.110 ms |
+| frame_time_stability | excellent |
+| avg_dirty_cell_ratio | 7.53% |
+| active_streams_avg | 41 |
+| dirty_glyphs/sec | 11.0M |
+| ansi_bytes/sec | 210M |
+| peak_rss | 4.2 MiB |
+| avg_cpu_percent | 97.4% |
+| fps_drift_percent | -2.39% (stable) |
+| involuntary_ctxt | 315 |
+| draw_ratio | 100.0% |
+| active_frame_ratio | 100.0% |
+| glyphs_per_second | 146.7M |
+
+### Component Timing
+
+| Component | avg (ms) | max (ms) | Share |
+|-----------|---------:|--------:|------:|
+| sim | 0.0177 | 0.258 | 54.7% |
+| render | 0.0144 | 0.310 | 44.3% |
+| io | 0.0003 | 0.207 | 1.0% |
+
+### Notes
+
+- **Different machine, not comparable to Intel Xeon numbers above.**
+  AMD Ryzen 7 5800HS is a 35-54W Zen 3 mobile APU with `schedutil`
+  governor — mobile thermal/power envelope. The Intel Xeon Platinum
+  bench above is a server-class CPU with different frequency behavior.
+  Compare within the same machine only.
+- **pro-linux-v3 is the right profile for this APU.** Zen 3 supports
+  x86-64-v3 (AVX2, BMI1/2, FMA) but not AVX-512. The v3 profile yields
+  `avg_fps: 30,558` — ~33% ahead of the v1 baseline on Xeon, and the
+  mobile APU is only ~15% behind the Xeon v3 run despite the thermal
+  envelope difference.
+- `frame_time_stability: excellent` — consistent across all profiles and
+  machines.
+- `peak_rss: 4.2 MiB` — trivially small, zero concern.
+- `avg_cpu_percent: 97.4%` — nearly saturating one core, healthy for a
+  single-threaded renderer. `peak_cpu_percent: 105%` is a measurement
+  artifact (sample interval vs wall clock granularity), not actual
+  >100% utilization.
+- `fps_drift_percent: -2.39%` — slight *improvement* over the run
+  (negative = FPS increased), likely thermal governor ramping or
+  CPU freq settling. Well within stable band.
+- `involuntary_ctxt: 315` — higher than Xeon (46-49). The mobile
+  scheduler preempts more aggressively under `schedutil` with SMT on.
+  Does not affect benchmark FPS.
+- **Truecolor detected.** Unlike the headless Xeon runs (16-color),
+  this run had `COLORTERM=truecolor` in the environment. Benchmark
+  mode doesn't write to terminal, so color depth doesn't change FPS —
+  it only changes the `color_depth`/`effective_color_mode` labels in
+  the report.
+- Component timing split (sim 55% / render 44% / io 1%) is nearly
+  identical to the Xeon distribution — the render pipeline scales
+  proportionally across architectures.
+
 ---
 
 ## v11.0.0 — Cinematic Peak
