@@ -17,6 +17,11 @@
 name: "T-800 - AUR Sync"
 
 'on':
+  # repository_dispatch: backward compat for old release.yml that uses
+  # this trigger. Keep until all tagged releases use the new
+  # workflow_dispatch trigger from release.yml.
+  repository_dispatch:
+    types: [aur-sync]
   workflow_dispatch:
     inputs:
       tag:
@@ -28,7 +33,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: aur-sync-${{ inputs.tag }}
+  group: aur-sync-${{ github.event.client_payload.tag || inputs.tag }}
   cancel-in-progress: false
 
 env:
@@ -54,9 +59,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="${{ inputs.tag }}"
+          TAG="${{ github.event.client_payload.tag || inputs.tag }}"
           if [[ -z "${TAG}" ]]; then
-            echo "::error::No tag provided via workflow_dispatch inputs"
+            echo "::error::No tag provided via repository_dispatch or workflow_dispatch"
             exit 1
           fi
 
