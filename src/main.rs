@@ -62,6 +62,7 @@ mod bench;
 mod bench_comp;
 mod bench_cpu;
 mod bench_mem;
+mod bench_meta;
 mod bench_progress;
 mod bench_report;
 mod cell;
@@ -102,6 +103,7 @@ mod terminal;
 mod testconf;
 mod theme;
 mod update;
+mod usagestat;
 mod validation;
 
 use std::env;

@@ -445,6 +445,29 @@ or visual behavior also regress.
 
 ## Metric Notes
 
+### Build Environment (SYSTEM section, v11.1.0)
+
+The SYSTEM section now records the full build + toolchain context so
+benchmark reports are self-documenting for cross-machine comparison:
+
+- `variant`: runtime-detected CPU microarchitecture (e.g. `x86_64-v4`).
+- `optimization`: build-time optimization label (e.g. "x86-64-v4 baseline
+  (AVX-512)").
+- `build`: build variant ID (e.g. `linux-amd64-v3-gnu`).
+- `rustc_version`: the Rust compiler version (captured at build time).
+- `git_sha`: short git commit hash the binary was built from.
+- `cpu_baseline`: claimed CPU baseline (e.g. `x86-64-v3`).
+- `target_features`: compile-time enabled target features (e.g.
+  `avx2,bmi2,fma`).
+- `lto`: link-time optimization mode (`fat`, `thin`, or `off`).
+- `panic`: panic strategy (`unwind` or `abort`).
+- `strip`: symbol stripping (`yes`, `debuginfo`, or `no`).
+- `pgo`: profile-guided optimization status (`no` — not currently used).
+- `cpu_model`: runtime-detected CPU model string (e.g. "Intel(R) Core(TM)
+  i7-12700K CPU @ 3.60GHz"). Linux reads `/proc/cpuinfo`; macOS reads
+  `machdep.cpu.brand_string` via `sysctl`. Other platforms emit
+  `unknown`.
+
 - `draw_ratio` is a legacy compatibility field. It means frames with at least
   one dirty cell, not percentage of cell coverage.
 - `active_frame_ratio_percent` is the clearer name for that same active-frame
@@ -519,6 +542,33 @@ terminals).
 **Platform support**: Linux (`/proc/self/stat` utime + stime) and macOS
 (`mach_task_basic_info` `time_value_t`). Other platforms emit
 `unsupported`.
+
+### RESOURCE Section (v11.1.0)
+
+Reports process resource usage deltas via `getrusage(RUSAGE_SELF)`. No
+permissions required — cross-platform on all Unix systems.
+
+- `minor_faults`: page reclaims from the page cache (no disk I/O). High
+  values indicate memory pressure or frequent allocation patterns.
+- `major_faults`: page faults requiring disk I/O. Non-zero indicates the
+  process touched memory not resident in RAM (swap-in, cold-start file
+  mapping).
+- `voluntary_ctxt`: voluntary context switches (process yielded CPU via
+  a blocking syscall like `read`/`sleep`). High = IO-bound.
+- `involuntary_ctxt`: involuntary context switches (process preempted by
+  scheduler, time slice expired). High = CPU contention.
+
+Each field has a corresponding `*_meaning` string explaining it, plus a
+`resource_basis` field: "getrusage(RUSAGE_SELF) deltas over the
+measurement window".
+
+**Why getrusage (not perf_event_open)?** `perf_event_open` gives hardware
+counters (instructions, cycles, cache misses, branch misses, IPC) but is
+Linux-only and permission-gated (`/proc/sys/kernel/perf_event_paranoid`).
+`getrusage` is a POSIX syscall available on all Unix systems with no
+permissions required. It does not give hardware counters, but the page
+fault + context switch counters cover the scheduling-pressure story
+without elevated privileges.
 
 ### COMPONENT TIMING Section (v11.1.0)
 
@@ -637,6 +687,9 @@ Record at minimum:
 * version / commit
 * build variant
 * terminal size
+* cpu_model (v11.1.0, runtime-detected)
+* rustc_version (v11.1.0, from SYSTEM section)
+* lto / pgo status (v11.1.0, from SYSTEM section)
 * avg_fps
 * median_fps
 * p95_frame_time
@@ -649,6 +702,7 @@ Record at minimum:
 * peak_rss (v11.1.0, Linux/macOS only)
 * avg_cpu_percent (v11.1.0, Linux/macOS only)
 * fps_drift_percent (v11.1.0, from the DRIFT section)
+* involuntary_ctxt (v11.1.0, from the RESOURCE section — CPU contention indicator)
 
 For long-run drift verification, also run once with a longer duration:
 

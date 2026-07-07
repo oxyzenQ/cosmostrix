@@ -13,6 +13,7 @@
 
 use std::env;
 
+use crate::bench_meta::{cpu_model_label, format_rss_kb};
 use crate::constants::DIRTY_THRESHOLD_RATIO;
 use crate::diagnostics;
 use crate::renderer_info;
@@ -21,39 +22,15 @@ use crate::runtime::ColorMode;
 
 use super::{color_mode_label, detect_color_mode_auto};
 
-// ── Metric meaning constants ──────────────────────────────────────────────
-//
-// These document what each benchmark metric measures. They appear in the
-// premium benchmark output and are referenced by tests to prevent
-// accidental removal or misleading wording changes.
-
-pub(crate) const DRAW_RATIO_MEANING: &str =
-    "legacy compatibility: percentage of frames with >=1 dirty cell";
-pub(crate) const ACTIVE_FRAME_RATIO_MEANING: &str =
-    "frames that produced at least one dirty cell during measurement";
-pub(crate) const AVG_DIRTY_CELL_RATIO_MEANING: &str =
-    "average dirty-cell coverage across all measured frames";
-pub(crate) const DIRTY_ALL_FRAMES_MEANING: &str =
-    "logical frames where every cell was dirty; distinct from terminal redraw estimate";
-pub(crate) const ESTIMATED_FULL_REDRAW_MEANING: &str =
-    "threshold estimate of frames likely to use Terminal::draw full-redraw path";
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-/// Format a KiB RSS value as a human-readable string with binary suffix.
-///
-/// Examples: 512 → "512 KiB", 2048 → "2.0 MiB", 1572864 → "1.5 GiB".
-fn format_rss_kb(kib: u64) -> String {
-    const MIB: u64 = 1024;
-    const GIB: u64 = 1024 * 1024;
-    if kib >= GIB {
-        format!("{:.2} GiB", kib as f64 / GIB as f64)
-    } else if kib >= MIB {
-        format!("{:.1} MiB", kib as f64 / MIB as f64)
-    } else {
-        format!("{kib} KiB")
-    }
-}
+// Re-export the meaning constants so external modules (e.g.,
+// cloud/tests/tests_visual_depth.rs, bench.rs tests) can keep using
+// `crate::bench_report::*_MEANING` import paths after the constants
+// were extracted to bench_meta.rs.
+#[allow(unused_imports)]
+pub(crate) use crate::bench_meta::{
+    ACTIVE_FRAME_RATIO_MEANING, AVG_DIRTY_CELL_RATIO_MEANING, DIRTY_ALL_FRAMES_MEANING,
+    DRAW_RATIO_MEANING, ESTIMATED_FULL_REDRAW_MEANING,
+};
 
 // ── Report data struct ───────────────────────────────────────────────────────
 
@@ -138,6 +115,11 @@ pub(crate) struct BenchReportData {
     pub cpu_samples: u32,
     pub cpu_supported: bool,
 
+    // Resource usage deltas (page faults + context switches) over the
+    // measurement window. None on platforms without getrusage. Cumulative
+    // counters sampled at start + end, then subtracted.
+    pub rusage_delta: Option<crate::usagestat::ResourceSnapshot>,
+
     // Sub-component timing breakdown (averages + peaks, in ms).
     // sim_ms    = time in cloud.rain_at() before the first frame mutation
     //             (atmosphere events, spawn rate, droplet physics).
@@ -200,6 +182,22 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("variant", cpu.variant);
         s.field("optimization", env!("COSMOSTRIX_OPTIMIZATION"));
         s.field("build", cpu.build_variant);
+        // Build toolchain + profile metadata (captured at compile time by
+        // build.rs, surfaced here so benchmark reports are self-documenting
+        // for cross-machine comparison).
+        s.field("rustc_version", env!("COSMOSTRIX_RUSTC_VERSION"));
+        s.field("git_sha", env!("COSMOSTRIX_GIT_SHA"));
+        s.field("cpu_baseline", env!("COSMOSTRIX_CPU_BASELINE"));
+        s.field("target_features", env!("COSMOSTRIX_TARGET_FEATURES"));
+        s.field("lto", env!("COSMOSTRIX_LTO"));
+        s.field("panic", env!("COSMOSTRIX_PANIC"));
+        s.field("strip", env!("COSMOSTRIX_STRIP"));
+        s.field("pgo", "no");
+        // CPU model string (runtime detection) — distinct from the v1/v2/v3/v4
+        // variant above. This is the actual chip name, e.g. "Intel(R) Core(TM)
+        // i7-12700K CPU @ 3.60GHz". Useful for comparing benchmarks across
+        // machines. None on platforms without detection.
+        s.field("cpu_model", &cpu_model_label());
     }
 
     {
@@ -394,6 +392,49 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             s.field(
                 "cpu_reason",
                 "CPU sampling not implemented for this platform (Linux/macOS only)",
+            );
+        }
+    }
+
+    // ── Resource usage (page faults + context switches) ───────────────
+    // Cross-platform via getrusage(RUSAGE_SELF). No permissions required.
+    // Deltas computed over the measurement window (cumulative counters
+    // sampled at start + end, then subtracted).
+    {
+        let s = r.section("RESOURCE");
+        if let Some(delta) = &data.rusage_delta {
+            s.field("minor_faults", &delta.minor_faults.to_string());
+            s.field("major_faults", &delta.major_faults.to_string());
+            s.field("voluntary_ctxt", &delta.voluntary_ctxt.to_string());
+            s.field("involuntary_ctxt", &delta.involuntary_ctxt.to_string());
+            s.field(
+                "minor_faults_meaning",
+                "page reclaims from cache (no disk I/O); high values indicate memory pressure",
+            );
+            s.field(
+                "major_faults_meaning",
+                "page faults requiring disk I/O; non-zero means memory not resident",
+            );
+            s.field(
+                "voluntary_ctxt_meaning",
+                "process yielded CPU voluntarily (blocking syscall); high = IO-bound",
+            );
+            s.field(
+                "involuntary_ctxt_meaning",
+                "process preempted by scheduler (time slice expired); high = CPU contention",
+            );
+            s.field(
+                "resource_basis",
+                "getrusage(RUSAGE_SELF) deltas over the measurement window",
+            );
+        } else {
+            s.field("minor_faults", "unsupported");
+            s.field("major_faults", "unsupported");
+            s.field("voluntary_ctxt", "unsupported");
+            s.field("involuntary_ctxt", "unsupported");
+            s.field(
+                "resource_reason",
+                "getrusage not available on this platform (Unix only)",
             );
         }
     }
@@ -784,6 +825,12 @@ mod tests {
             peak_cpu_percent: Some(98.7),
             cpu_samples: 25,
             cpu_supported: true,
+            rusage_delta: Some(crate::usagestat::ResourceSnapshot {
+                minor_faults: 1500,
+                major_faults: 0,
+                voluntary_ctxt: 8,
+                involuntary_ctxt: 3,
+            }),
             avg_sim_ms: 0.040,
             avg_render_ms: 0.030,
             avg_io_ms: 0.007,
@@ -815,19 +862,6 @@ mod tests {
             lines < 1000,
             "bench_report.rs must stay under 1000 LOC (currently {lines})"
         );
-    }
-
-    #[test]
-    fn format_rss_kb_renders_human_readable_suffixes() {
-        assert_eq!(format_rss_kb(0), "0 KiB");
-        assert_eq!(format_rss_kb(512), "512 KiB");
-        assert_eq!(format_rss_kb(1023), "1023 KiB");
-        assert_eq!(format_rss_kb(1024), "1.0 MiB");
-        assert_eq!(format_rss_kb(2048), "2.0 MiB");
-        assert_eq!(format_rss_kb(1_572_864), "1.50 GiB");
-        // Rounding: 1.005 GiB should round to 1.00 or 1.01 — both acceptable
-        // as long as the GiB suffix appears. Just verify the suffix.
-        assert!(format_rss_kb(1_048_576).ends_with("GiB"));
     }
 
     #[test]

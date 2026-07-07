@@ -54,3 +54,98 @@ fn detect_variant() -> &'static str {
 fn detect_variant() -> &'static str {
     "unknown"
 }
+
+/// Detect the CPU model string at runtime (e.g. "Intel(R) Core(TM) i7-12700K
+/// CPU @ 3.60GHz" or "Apple M2 Pro").
+///
+/// Returns `None` on platforms without detection. Used by the benchmark
+/// report's SYSTEM section so users can compare results across machines
+/// without manually recording their hardware.
+///
+/// # Platform support
+/// - **Linux**: parses `/proc/cpuinfo` for the `model name` field.
+/// - **macOS**: queries `machdep.cpu.brand_string` via `sysctlbyname`.
+/// - **Other**: returns `None`.
+#[must_use]
+pub fn cpu_model_string() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        linux_cpu_model()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        macos_cpu_model()
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        None
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn linux_cpu_model() -> Option<String> {
+    let mut file = std::fs::File::open("/proc/cpuinfo").ok()?;
+    let mut buf = String::new();
+    std::io::Read::read_to_string(&mut file, &mut buf).ok()?;
+    for line in buf.lines() {
+        if let Some(rest) = line.strip_prefix("model name") {
+            // Format: "model name      : Intel(R) Core(TM) ..."
+            if let Some((_, value)) = rest.split_once(':') {
+                let trimmed = value.trim();
+                if !trimmed.is_empty() {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "macos")]
+fn macos_cpu_model() -> Option<String> {
+    #![allow(deprecated)]
+    use std::ffi::CStr;
+    use std::os::raw::c_char;
+
+    // SAFETY: sysctlbyname with a known string key writes into our buffer.
+    // machdep.cpu.brand_string returns a human-readable CPU model string.
+    unsafe {
+        let key = c"machdep.cpu.brand_string";
+        let mut len: usize = 0;
+        // First call with null/0 to get the required length.
+        let rc0 = libc::sysctlbyname(
+            key.as_ptr(),
+            std::ptr::null_mut(),
+            &mut len,
+            std::ptr::null(),
+            0,
+        );
+        if rc0 != 0 || len == 0 {
+            return None;
+        }
+        let mut buf: Vec<u8> = vec![0u8; len];
+        let rc1 = libc::sysctlbyname(
+            key.as_ptr(),
+            buf.as_mut_ptr() as *mut _,
+            &mut len,
+            std::ptr::null(),
+            0,
+        );
+        if rc1 != 0 {
+            return None;
+        }
+        // Trim trailing NULs.
+        while buf.last() == Some(&0) {
+            buf.pop();
+        }
+        CStr::from_bytes_with_nul(&{
+            let mut v = buf.clone();
+            v.push(0);
+            v
+        })
+        .ok()
+        .and_then(|c| c.to_str().ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+    }
+}

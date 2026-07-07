@@ -274,8 +274,19 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
 
 The `--benchmark` report (v11.1.0+) includes FPS, frame-time percentiles
 (avg → p95 → p99 → p99.9 → max), MEMORY (RSS), CPU usage %, sub-component
-timing (sim/render/io), and a DRIFT section for long-run analysis. Use
-`--bench-duration N` (1–600s) for sustained drift / leak detection:
+timing (sim/render/io), and a DRIFT section for long-run analysis. The
+SYSTEM section records the CPU model, rustc version, LTO/PGO status, and
+git SHA so reports are self-documenting for cross-machine comparison. A
+RESOURCE section reports page faults + context switches via `getrusage`.
+
+**Benchmark mode measures the engine without writing to the terminal.**
+FPS numbers are synthetic uncapped throughput — how many frames the
+renderer can *compute* per second, not how many frames the terminal
+*draws*. Real interactive FPS is bounded by the terminal emulator,
+refresh rate, and ANSI output bandwidth. Use `?` (live HUD) during a
+real run to see actual interactive FPS.
+
+Use `--bench-duration N` (1–600s) for sustained drift / leak detection:
 
 ```bash
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-duration 60

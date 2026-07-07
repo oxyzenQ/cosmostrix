@@ -224,6 +224,11 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // computes per-interval CPU% from process CPU time deltas.
     let mut cpu = CpuTracker::new();
 
+    // Resource usage snapshot (page faults + context switches) taken at
+    // the start and end of the measurement window. Cumulative counters
+    // from getrusage — we compute deltas for window attribution.
+    let rusage_start = crate::usagestat::ResourceSnapshot::now();
+
     // Drift detection: snapshot (frames, elapsed) at the halfway mark so
     // we can compare first-half FPS vs second-half FPS. A >10% drop
     // indicates thermal throttle, allocator fragmentation, or cache
@@ -320,6 +325,13 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // CPU% averages + peaks.
     let (avg_cpu_percent, peak_cpu_percent, cpu_samples, cpu_supported) = cpu.finalize();
+
+    // Resource usage delta (page faults + context switches) over the
+    // measurement window. None on unsupported platforms.
+    let rusage_delta = match (crate::usagestat::ResourceSnapshot::now(), rusage_start) {
+        (Some(end), Some(start)) => Some(end.delta_since(&start)),
+        _ => None,
+    };
 
     // Sub-component timing averages + peaks.
     let (avg_sim_ms, avg_render_ms, avg_io_ms, max_sim_ms, max_render_ms, max_io_ms) =
@@ -515,6 +527,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         peak_cpu_percent,
         cpu_samples,
         cpu_supported,
+        rusage_delta,
         avg_sim_ms,
         avg_render_ms,
         avg_io_ms,
