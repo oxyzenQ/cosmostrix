@@ -114,8 +114,9 @@ fn macos_cpu_ns() -> Option<u64> {
 
     // SAFETY: same Mach API pattern as memstat.rs. task_info with flavor
     // MACH_TASK_BASIC_INFO writes into our mach_task_basic_info struct.
-    // user_time + system_time are in Mach absolute time units; we convert
-    // to ns via mach_timebase_info.
+    // user_time + system_time are time_value_t structs {seconds, microseconds}
+    // — NOT Mach absolute time units. We convert directly to ns without
+    // needing mach_timebase_info.
     unsafe {
         let mut info: mach_task_basic_info = mem::zeroed();
         let mut count = (mem::size_of::<mach_task_basic_info>() / mem::size_of::<libc::natural_t>())
@@ -129,30 +130,25 @@ fn macos_cpu_ns() -> Option<u64> {
         if kr != KERN_SUCCESS {
             return None;
         }
-        // Mach time units → nanoseconds via mach_timebase_info.
-        let mut tb: libc::mach_timebase_info = mem::zeroed();
-        let tb_kr: c_int = libc::mach_timebase_info(&mut tb);
-        if tb_kr != KERN_SUCCESS {
-            return None;
-        }
-        // user_time + system_time are u32 (mach_task_basic_info fields).
-        // Convert each to ns via the timebase fraction, then sum.
-        let user_ns = mach_time_to_ns(info.user_time, tb.numer, tb.denom);
-        let system_ns = mach_time_to_ns(info.system_time, tb.numer, tb.denom);
+        // time_value_t { seconds: i32, microseconds: i32 } → nanoseconds.
+        let user_ns = time_value_to_ns(info.user_time);
+        let system_ns = time_value_to_ns(info.system_time);
         Some(user_ns.saturating_add(system_ns))
     }
 }
 
+/// Convert a Mach `time_value_t` (seconds + microseconds, wall-clock
+/// units) to nanoseconds. Used by the macOS CPU sampler.
+///
+/// `time_value_t` is `{ seconds: integer_t (i32), microseconds: integer_t (i32) }`.
+/// Negatives are clamped to 0 defensively (process CPU time should never
+/// be negative, but the OS could theoretically return stale/zeroed fields).
 #[cfg(target_os = "macos")]
-fn mach_time_to_ns(time: u32, numer: u32, denom: u32) -> u64 {
-    if denom == 0 {
-        return 0;
-    }
-    // ns = time * numer / denom
-    let time = u64::from(time);
-    let numer = u64::from(numer);
-    let denom = u64::from(denom);
-    time.saturating_mul(numer) / denom
+fn time_value_to_ns(tv: libc::time_value_t) -> u64 {
+    let secs = u64::try_from(tv.seconds.max(0)).unwrap_or(0);
+    let micros = u64::try_from(tv.microseconds.max(0)).unwrap_or(0);
+    secs.saturating_mul(1_000_000_000)
+        .saturating_add(micros.saturating_mul(1_000))
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -198,14 +194,31 @@ mod tests {
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn mach_time_to_ns_converts_correctly() {
-        // With numer=1, denom=1 the conversion is identity.
-        assert_eq!(mach_time_to_ns(1000, 1, 1), 1000);
-        // With numer=125, denom=3 (a plausible timebase fraction) the
-        // result is time * 125 / 3.
-        assert_eq!(mach_time_to_ns(3000, 125, 3), 125_000);
-        // Zero denom must not panic (returns 0 defensively).
-        assert_eq!(mach_time_to_ns(1000, 1, 0), 0);
+    fn time_value_to_ns_converts_correctly() {
+        // 1 second + 500_000 microseconds = 1.5 seconds = 1_500_000_000 ns.
+        let tv = libc::time_value_t {
+            seconds: 1,
+            microseconds: 500_000,
+        };
+        assert_eq!(time_value_to_ns(tv), 1_500_000_000);
+        // Zero time → 0 ns.
+        let zero = libc::time_value_t {
+            seconds: 0,
+            microseconds: 0,
+        };
+        assert_eq!(time_value_to_ns(zero), 0);
+        // Pure microseconds (no seconds): 1000 µs = 1_000_000 ns.
+        let micros_only = libc::time_value_t {
+            seconds: 0,
+            microseconds: 1000,
+        };
+        assert_eq!(time_value_to_ns(micros_only), 1_000_000);
+        // Negative values (shouldn't happen, but defensive) clamp to 0.
+        let neg = libc::time_value_t {
+            seconds: -1,
+            microseconds: -500,
+        };
+        assert_eq!(time_value_to_ns(neg), 0);
     }
 
     #[cfg(target_os = "linux")]
