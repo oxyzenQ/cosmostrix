@@ -22,9 +22,11 @@ unicode-width = "0.2"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
+libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2"
+# Linux-specific deps (none currently — libc lives under cfg(unix) above
+# because macOS also needs it for mach_task_basic_info in memstat.rs).
 
 [target.'cfg(windows)'.dependencies]
 ctrlc = "3.4"

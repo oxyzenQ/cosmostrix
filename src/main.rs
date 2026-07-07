@@ -117,7 +117,9 @@ use crate::config::{
 };
 use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
-use crate::terminal::{reset_terminal_emergency, restore_terminal_best_effort};
+use crate::terminal::reset_terminal_emergency;
+#[cfg(target_os = "linux")]
+use crate::terminal::restore_terminal_best_effort;
 use crate::validation::{
     prevalidate_cli_args, validate_f32_range, validate_f64_range, validate_speed,
     validate_u16_range, validate_u8_range,

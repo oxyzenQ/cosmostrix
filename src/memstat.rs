@@ -25,6 +25,7 @@
 //! process footprint", not as a precise allocator accounting. For allocator
 //! accounting, run under `valgrind --tool=massif` or `heaptrack` separately.
 
+#[cfg(target_os = "linux")]
 use std::io::Read;
 
 /// Sample the current process RSS in kibibytes (KiB), if available.
@@ -105,7 +106,7 @@ fn macos_rss_kb() -> Option<u64> {
             as libc::mach_msg_type_number_t;
         let kr: c_int = task_info(
             mach_task_self(),
-            TASK_BASIC_INFO as u32,
+            TASK_BASIC_INFO,
             &mut info as *mut _ as task_info_t,
             &mut count,
         );

@@ -212,6 +212,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // P5: Endurance health score tracker.
     let mut endurance_health = EnduranceHealth::new();
+    // Only Linux samples context-switch rate via /proc; on macOS this stays 0
+    // and the assignment inside the cfg block is skipped.
+    #[cfg(target_os = "linux")]
     let mut last_ctxt_switches: u64 = 0;
     let mut last_ctxt_sample = Instant::now();
     let mut perf_rss_samples: u64 = 0;
