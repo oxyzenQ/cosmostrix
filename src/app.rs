@@ -46,6 +46,8 @@ pub struct CloudConfig {
     /// Optional benchmark duration override in seconds (1-600).
     /// When None, defaults to BENCHMARK_DURATION_SECS (5s).
     pub bench_duration: Option<u64>,
+    /// Parsed --color-tune value. None means no tune (identity).
+    pub color_tune: crate::color_tune::ColorTune,
     pub density_auto: bool,
     pub base_density: f32,
     pub perf_stats: bool,
@@ -75,6 +77,16 @@ impl CloudConfig {
             self.default_bg,
             self.color_scheme,
             self.rain_style,
+        );
+
+        // Apply --color-tune (if non-identity) to the palette AFTER Cloud::new
+        // builds it. This turns the 43 fixed themes into 43 × ∞ by letting
+        // users adjust saturation/brightness at load time without editing
+        // source code.
+        crate::color_tune::apply_tune_to_palette(
+            &mut cloud.palette,
+            self.color_mode,
+            &self.color_tune,
         );
 
         cloud.glitchy = !self.noglitch;

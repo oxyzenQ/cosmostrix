@@ -173,6 +173,16 @@ pub struct Args {
     pub color: String,
 
     #[arg(
+        long = "color-tune",
+        help_heading = "COMMON OPTIONS",
+        display_order = 11,
+        help = "Tune any theme's saturation/brightness at load time. \
+                Example: --color-tune saturation=1.2,brightness=0.9 \
+                (keys: saturation/sat, brightness/bright; range 0.0-3.0)"
+    )]
+    pub color_tune: Option<String>,
+
+    #[arg(
         long = "charset",
         default_value = "binary",
         help_heading = "COMMON OPTIONS",
@@ -767,6 +777,16 @@ COMMON OPTIONS:
       Color theme. See --list-colors for compact names, or
       --list-colors-detail for grouped descriptions and aliases.
       cosmostrix --color rainbow
+
+  --color-tune <key=value[,key=value]>
+      Tune any theme's saturation/brightness at load time.
+      Accepted keys (case-insensitive): saturation/sat, brightness/bright.
+      Value range: 0.0 to 3.0 (1.0 = identity, no change).
+      cosmostrix --color green --color-tune saturation=1.5,brightness=0.9
+      cosmostrix --color aurora --color-tune sat=0.0     # grayscale
+      cosmostrix --color red --color-tune bright=1.3     # +30% brightness
+      This turns the 43 built-in themes into 43 x infinite variants
+      without adding new presets.
 
   --charset <name>
       Character preset. See --list-charsets for available presets.

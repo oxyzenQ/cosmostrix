@@ -68,6 +68,7 @@ mod charset;
 mod cinematic;
 mod cli;
 mod cloud;
+mod color_tune;
 mod config;
 mod config_apply;
 #[cfg(test)]
@@ -643,6 +644,10 @@ fn main() -> std::io::Result<()> {
             std::process::exit(1);
         }
     };
+    let color_tune = match args.color_tune.as_deref() {
+        Some(s) => validate_err("--color-tune", color_tune::parse_color_tune(s))?,
+        None => color_tune::ColorTune::IDENTITY,
+    };
     let rain_style = args
         .scene
         .as_deref()
@@ -826,6 +831,7 @@ fn main() -> std::io::Result<()> {
         bench_frames: args.bench_frames,
         benchmark: args.benchmark,
         bench_duration: args.bench_duration,
+        color_tune,
         density_auto,
         base_density,
         perf_stats: args.perf_stats,
