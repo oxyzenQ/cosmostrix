@@ -772,19 +772,23 @@ jobs:
       # ------------------------------------------------------------------
       # Trigger AUR synchronization after successful release
       # ------------------------------------------------------------------
+      # Uses workflow_dispatch via the Actions API with ref=<tag> so the
+      # AUR workflow run is associated with the tag commit and shows up
+      # as a check on the commit page (not just in the Actions tab).
+      # ------------------------------------------------------------------
       - name: Trigger AUR sync
         if: steps.gh_release.outputs.id != ''
         shell: bash
         run: |
           set -euo pipefail
           TAG="${{ steps.ver.outputs.tag }}"
-          echo "Triggering AUR sync for ${TAG}"
+          echo "Triggering AUR sync for ${TAG} via workflow_dispatch"
           curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/dispatches" \
-            -d "{\"event_type\":\"aur-sync\",\"client_payload\":{\"tag\":\"${TAG}\"}}"
-          echo "AUR sync triggered"
+            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/workflows/aur.yml/dispatches" \
+            -d "{\"ref\":\"${TAG}\",\"inputs\":{\"tag\":\"${TAG}\"}}"
+          echo "AUR sync triggered — check will appear on commit ${TAG}"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

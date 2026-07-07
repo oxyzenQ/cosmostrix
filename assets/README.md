@@ -6,12 +6,11 @@ Media assets used by Cosmostrix documentation and README.
 | File | Purpose |
 |---|---|
 | cosmostrix-logo.png | Project logo |
-| cosmostrix-v11-demo.gif | v11 demo animation (README primary) |
-| cosmostrix-v11-demo-retro.png | v11 retro charset demo screenshot (README inline) |
-| cosmostrix-v11-demo-braille.png | v11 braille charset demo screenshot (README inline) |
-| cosmostrix-v11-demo-hex.png | v11 hex charset demo screenshot (README inline) |
-| cosmostrix-v4-demo.gif | v4 demo animation (archive) |
-| cosmostrix-v4-demo.mp4 | v4 demo video (archive) |
-| cosmostrix-v4-demo-binary.png | v4 binary theme demo poster (archive) |
-| cosmostrix-v4-demo-retro.png | v4 retro theme demo poster (archive) |
+| cosmostrix-v12-demo.gif | v12 masterclass demo animation (README primary, 27s @ 25fps) |
+| cosmostrix-v12-demo-retro.png | v12 retro charset demo screenshot (README inline) |
+| cosmostrix-v12-demo-braille.png | v12 braille charset demo screenshot (README inline) |
+| cosmostrix-v12-demo-hacker.png | v12 hacker charset demo screenshot (README inline) |
+| cosmostrix-v12-demo-cyberpunk.png | v12 cyberpunk charset demo screenshot (README inline) |
+| cosmostrix-v12-demo-blocks.png | v12 blocks charset demo screenshot (README inline) |
 | cosmostrix-long-endurance.mp4 | Long-endurance recording |
+| logo.png | Alternative logo (mirror of cosmostrix-logo.png) |
