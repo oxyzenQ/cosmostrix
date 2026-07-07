@@ -39,6 +39,7 @@
 mod activity;
 mod adaptive;
 mod event_loop;
+mod hud;
 mod input;
 mod watchdog;
 

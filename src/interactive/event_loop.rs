@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyEventKind, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
 
 #[cfg(unix)]
 use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
@@ -31,6 +31,7 @@ use super::adaptive::{
     adaptive_resync_interval, local_secs_since_midnight, EnduranceHealth, PhasePredictor,
     ReclaimState,
 };
+use super::hud::HudState;
 use super::input::{handle_keybinding, PasteBurstGuard};
 use super::watchdog::{
     spawn_watchdog, FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN,
@@ -174,6 +175,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut perf_pressure_max: f32 = 0.0;
     let mut perf_overshoot_frames: u64 = 0;
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
+
+    // Live HUD overlay state — toggled with '?'. When visible, renders a
+    // compact FPS/p99/RSS overlay in the top-right corner at 4 Hz.
+    // Zero cost when off (all methods short-circuit on visible==false).
+    let mut hud_state: HudState = HudState::new();
 
     // Perceived-motion diagnostics: track how many frames produce visible
     // changes vs. frames where nothing visually changed. This helps diagnose
@@ -345,6 +351,21 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         if cfg.screensaver {
                             cloud.raining = false;
                             break;
+                        }
+
+                        // HUD toggle: handled here (not in handle_keybinding)
+                        // because it needs mutable access to hud_state, which
+                        // is local to the event loop. The keybinding dispatcher
+                        // would require widening its signature.
+                        if matches!(
+                            (k.code, k.modifiers),
+                            (KeyCode::Char('?'), _) | (KeyCode::Char('/'), KeyModifiers::SHIFT)
+                        ) {
+                            hud_state.toggle();
+                            // toggle() forces the next render to fire
+                            // immediately when turning on, so the HUD
+                            // appears without waiting for the 4 Hz tick.
+                            continue;
                         }
 
                         if handle_keybinding(
@@ -526,6 +547,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         FRAME_COUNTER.fetch_add(1, Ordering::Relaxed);
 
         let work_s = work_start.elapsed().as_secs_f32();
+
+        // Live HUD overlay: push frame time, maybe sample RSS, maybe render.
+        // All three methods short-circuit when the HUD is off (zero cost).
+        // Render happens AFTER term.draw() so the HUD survives differential
+        // redraws and sits on top of the rain.
+        hud_state.push_frame_time(work_s as f64 * 1000.0);
+        hud_state.maybe_sample_rss();
+        hud_state.render(cloud.cols);
+
         let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
         if overshoot > 0.0 {
             perf_pressure = (perf_pressure + (overshoot * PERF_PRESSURE_INCREMENT)).min(1.0);

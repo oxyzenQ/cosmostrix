@@ -119,4 +119,19 @@ impl FrameTimeTracker {
     pub(super) fn rolling_avg_ms(&self) -> f64 {
         self.rolling_avg()
     }
+
+    /// p99 frame time (ms) computed from the ring buffer.
+    ///
+    /// Sorts a snapshot of the buffer on every call — 60 elements is
+    /// ~300ns, negligible at the 4 Hz HUD redraw rate. Used by the live
+    /// HUD overlay to highlight tail spikes alongside the rolling avg.
+    pub(crate) fn p99_ms(&self) -> f64 {
+        if self.count == 0 {
+            return 0.0;
+        }
+        let mut snapshot: Vec<f64> = self.times[..self.count].to_vec();
+        snapshot.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let p99_idx = ((snapshot.len() as f64) * 0.99) as usize;
+        snapshot[p99_idx.min(snapshot.len() - 1)]
+    }
 }

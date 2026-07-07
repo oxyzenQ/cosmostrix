@@ -927,6 +927,7 @@ RUNTIME CONTROLS:
   Up / Down     Speed             g          Toggle glitch
   m             Cycle profile     Space      Reset animation
   a             Toggle async      1-0        Direct color scheme
+  ?             Toggle live HUD (FPS / p99 / max / RSS overlay)
 
 HELP:
   --help          Show common options.
