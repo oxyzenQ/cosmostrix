@@ -582,6 +582,25 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         0.0
     };
 
+    // p99.9 frame time and max — computed from the FULL sorted array, NOT
+    // the trimmed slice. Trimming exists to make p95/p99 robust to extreme
+    // outliers; p99.9 and max ARE the extreme-outlier measurements, so
+    // trimming them would defeat the purpose.
+    //
+    // p99.9 = 1 frame in 1000 exceeds this. For a 5s @ 60 FPS benchmark
+    // (~300 frames) p99.9 collapses toward max; on longer runs it diverges.
+    // max   = worst single-frame spike (page fault, OS scheduling glitch).
+    //         For real-time renderers, this is what users perceive as jank.
+    let (p99_9_frame_time, max_frame_time) = if !sorted_ft.is_empty() {
+        let len = sorted_ft.len();
+        let p99_9_idx = ((len as f64) * 0.999) as usize;
+        let p99_9 = sorted_ft[p99_9_idx.min(len - 1)];
+        let max = sorted_ft[len - 1];
+        (p99_9, max)
+    } else {
+        (0.0, 0.0)
+    };
+
     // Frame jitter: standard deviation of frame times
     let variance: f64 = if ft_index > 1 {
         let mean = avg_frame_time;
@@ -657,6 +676,8 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         avg_frame_time,
         p99_frame_time,
         p95_frame_time,
+        max_frame_time,
+        p99_9_frame_time,
         jitter_classification,
         median_fps,
         frame_time_stability,
@@ -755,6 +776,8 @@ mod tests {
             "avg_frame_time",
             "p95_frame_time",
             "p99_frame_time",
+            "p99_9_frame_time",
+            "max_frame_time",
             "frame_jitter",
             "median_fps",
             "frame_time_stability",

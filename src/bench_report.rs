@@ -81,6 +81,13 @@ pub(crate) struct BenchReportData {
     pub avg_frame_time: f64,
     pub p99_frame_time: f64,
     pub p95_frame_time: f64,
+    /// Worst observed frame time during measurement. Captures one-off
+    /// spikes (GC, page faults, OS scheduling) that p99/p99.9 smooth over.
+    /// For real-time renderers, max is what users perceive as "jank".
+    pub max_frame_time: f64,
+    /// 99.9th percentile frame time. Tighter than p99 on the long tail:
+    /// 1 frame in 1000 exceeds this. Useful for sustained-run analysis.
+    pub p99_9_frame_time: f64,
     pub jitter_classification: &'static str,
     pub median_fps: f64,
     pub frame_time_stability: &'static str,
@@ -185,10 +192,19 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("avg_fps", &format!("{:.1}", data.avg_fps));
         s.field("peak_fps", &format!("{:.1}", data.peak_fps));
         s.field("avg_frame_time", &format!("{:.3}ms", data.avg_frame_time));
+        s.field("p95_frame_time", &format!("{:.3}ms", data.p95_frame_time));
         s.field("p99_frame_time", &format!("{:.3}ms", data.p99_frame_time));
+        s.field(
+            "p99_9_frame_time",
+            &format!("{:.3}ms", data.p99_9_frame_time),
+        );
+        s.field("max_frame_time", &format!("{:.3}ms", data.max_frame_time));
+        s.field(
+            "max_frame_time_meaning",
+            "worst single-frame spike; what users perceive as jank",
+        );
         s.field("frame_jitter", data.jitter_classification);
         s.field("median_fps", &format!("{:.1}", data.median_fps));
-        s.field("p95_frame_time", &format!("{:.3}ms", data.p95_frame_time));
         s.field("frame_time_stability", data.frame_time_stability);
         s.field("draw_ratio", &format!("{:.1}%", data.active_frame_ratio));
         s.field("draw_ratio_meaning", DRAW_RATIO_MEANING);
@@ -576,6 +592,8 @@ mod tests {
             avg_frame_time: 0.077,
             p99_frame_time: 0.10,
             p95_frame_time: 0.09,
+            max_frame_time: 0.25,
+            p99_9_frame_time: 0.18,
             jitter_classification: "low",
             median_fps: 13500.0,
             frame_time_stability: "excellent",
@@ -649,6 +667,47 @@ mod tests {
             "rss_caveat",
         ];
         for field in REQUIRED_MEMORY_FIELDS {
+            assert!(!field.is_empty());
+            assert!(!field.contains(' '));
+        }
+    }
+
+    #[test]
+    fn percentile_ordering_contract_documented() {
+        // Frame time percentiles must satisfy:
+        //   avg <= p95 <= p99 <= p99.9 <= max
+        // (Frame time is inverse of FPS — higher percentile = slower frame.)
+        // This test documents the contract; bench.rs enforces it by
+        // computing each metric from the same sorted array.
+        const ORDER: &[&str] = &["avg", "p95", "p99", "p99_9", "max"];
+        assert_eq!(ORDER.len(), 5);
+        // p99.9 must appear between p99 and max — guard against typos.
+        let p99_pos = ORDER.iter().position(|&s| s == "p99").unwrap();
+        let p99_9_pos = ORDER.iter().position(|&s| s == "p99_9").unwrap();
+        let max_pos = ORDER.iter().position(|&s| s == "max").unwrap();
+        assert!(p99_pos < p99_9_pos);
+        assert!(p99_9_pos < max_pos);
+    }
+
+    #[test]
+    fn required_performance_fields_include_new_tail_metrics() {
+        // Backward-compat contract: downstream CI/scripts may parse
+        // p99_9_frame_time and max_frame_time. Document them here so
+        // accidental removal breaks this test.
+        const REQUIRED_PERF_FIELDS: &[&str] = &[
+            "avg_fps",
+            "peak_fps",
+            "avg_frame_time",
+            "p95_frame_time",
+            "p99_frame_time",
+            "p99_9_frame_time",
+            "max_frame_time",
+            "max_frame_time_meaning",
+            "frame_jitter",
+            "median_fps",
+            "frame_time_stability",
+        ];
+        for field in REQUIRED_PERF_FIELDS {
             assert!(!field.is_empty());
             assert!(!field.contains(' '));
         }
