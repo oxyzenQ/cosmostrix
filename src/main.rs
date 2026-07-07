@@ -257,14 +257,14 @@ fn main() -> std::io::Result<()> {
     cmd.build();
 
     let argv: Vec<std::ffi::OsString> = env::args_os().collect();
-    // Expand -mB "text" / -mb "text" into --message-no-border --message "text"
-    // Also handle -mB=text and -mb=text forms.
+    // Expand -mb "text" into --message-no-border --message "text"
+    // Also handle -mb=text form.
     let mut expanded: Vec<std::ffi::OsString> = Vec::with_capacity(argv.len() + 1);
     expanded.push(argv[0].clone());
     let mut i = 1;
     while i < argv.len() {
         let arg = &argv[i];
-        if arg == "-mB" || arg == "-mb" {
+        if arg == "-mb" {
             expanded.push("--message-no-border".into());
             // Next arg is the message text
             if i + 1 < argv.len() {
@@ -274,7 +274,7 @@ fn main() -> std::io::Result<()> {
                 continue;
             }
         } else if let Some(s) = arg.to_str() {
-            if let Some(rest) = s.strip_prefix("-mB=").or_else(|| s.strip_prefix("-mb=")) {
+            if let Some(rest) = s.strip_prefix("-mb=") {
                 expanded.push("--message-no-border".into());
                 expanded.push("--message".into());
                 expanded.push(rest.into());
