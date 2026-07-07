@@ -125,6 +125,22 @@ pub(crate) struct BenchReportData {
     pub avg_rss_kb: Option<u64>,
     pub rss_samples: u32,
     pub rss_supported: bool,
+
+    // Sub-component timing breakdown (averages + peaks, in ms).
+    // sim_ms    = time in cloud.rain_at() before the first frame mutation
+    //             (atmosphere events, spawn rate, droplet physics).
+    // render_ms = time in cloud.rain_at() during phosphor/anomaly/atmospheric
+    //             frame mutations.
+    // io_ms     = time OUTSIDE rain_at() within the frame loop — dirty
+    //             checks, clear_dirty, bookkeeping. In benchmark mode NO
+    //             terminal write happens, so this is dirty-tracking overhead,
+    //             not real IO. Labeled honestly in the report.
+    pub avg_sim_ms: f64,
+    pub avg_render_ms: f64,
+    pub avg_io_ms: f64,
+    pub max_sim_ms: f64,
+    pub max_render_ms: f64,
+    pub max_io_ms: f64,
 }
 
 // ── Report builder ───────────────────────────────────────────────────────────
@@ -319,6 +335,48 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             s.field(
                 "rss_reason",
                 "RSS sampling not implemented for this platform (Linux/macOS only)",
+            );
+        }
+    }
+
+    // ── Sub-component timing breakdown ─────────────────────────────────
+    // Distinguishes "benchmark mainan" from "profiling tool": shows where
+    // frame time is actually spent. sim = raindrop physics, render = frame
+    // mutations, io = dirty-tracking + bookkeeping (NO real terminal IO in
+    // benchmark mode — labeled honestly).
+    {
+        let s = r.section("COMPONENT TIMING");
+        s.field("avg_sim_ms", &format!("{:.4}", data.avg_sim_ms));
+        s.field("avg_render_ms", &format!("{:.4}", data.avg_render_ms));
+        s.field("avg_io_ms", &format!("{:.4}", data.avg_io_ms));
+        s.field("max_sim_ms", &format!("{:.4}", data.max_sim_ms));
+        s.field("max_render_ms", &format!("{:.4}", data.max_render_ms));
+        s.field("max_io_ms", &format!("{:.4}", data.max_io_ms));
+        s.field(
+            "sim_meaning",
+            "atmosphere events + spawn rate + droplet physics (cloud.rain_at pre-render)",
+        );
+        s.field(
+            "render_meaning",
+            "phosphor decay + anomaly zones + atmospheric fx + message box (frame mutations)",
+        );
+        s.field(
+            "io_meaning",
+            "dirty checks + clear_dirty + loop bookkeeping (NO terminal write in benchmark mode)",
+        );
+        let total_avg = data.avg_sim_ms + data.avg_render_ms + data.avg_io_ms;
+        if total_avg > 0.0 {
+            s.field(
+                "sim_share_percent",
+                &format!("{:.1}", data.avg_sim_ms / total_avg * 100.0),
+            );
+            s.field(
+                "render_share_percent",
+                &format!("{:.1}", data.avg_render_ms / total_avg * 100.0),
+            );
+            s.field(
+                "io_share_percent",
+                &format!("{:.1}", data.avg_io_ms / total_avg * 100.0),
             );
         }
     }
@@ -619,6 +677,12 @@ mod tests {
             avg_rss_kb: Some(11_200),
             rss_samples: 50,
             rss_supported: true,
+            avg_sim_ms: 0.040,
+            avg_render_ms: 0.030,
+            avg_io_ms: 0.007,
+            max_sim_ms: 0.080,
+            max_render_ms: 0.060,
+            max_io_ms: 0.015,
         };
         // Basic sanity — if this compiles, all fields exist and have
         // the correct types.
@@ -708,6 +772,27 @@ mod tests {
             "frame_time_stability",
         ];
         for field in REQUIRED_PERF_FIELDS {
+            assert!(!field.is_empty());
+            assert!(!field.contains(' '));
+        }
+    }
+
+    #[test]
+    fn component_timing_fields_documented() {
+        // COMPONENT TIMING section must emit these keys. This list is the
+        // backward-compat contract — downstream parsers can rely on it.
+        const REQUIRED_COMPONENT_FIELDS: &[&str] = &[
+            "avg_sim_ms",
+            "avg_render_ms",
+            "avg_io_ms",
+            "max_sim_ms",
+            "max_render_ms",
+            "max_io_ms",
+            "sim_meaning",
+            "render_meaning",
+            "io_meaning",
+        ];
+        for field in REQUIRED_COMPONENT_FIELDS {
             assert!(!field.is_empty());
             assert!(!field.contains(' '));
         }

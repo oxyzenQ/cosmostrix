@@ -59,6 +59,7 @@ mod atmosphere_tests;
 mod atmosphere_verifier;
 mod atmosphere_visual;
 mod bench;
+mod bench_comp;
 mod bench_mem;
 mod bench_report;
 mod cell;

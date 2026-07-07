@@ -306,6 +306,20 @@ pub struct Cloud {
     // --- Atmospheric Event Engine ---
     /// Event manager for cinematic atmospheric events (ghosts, etc.).
     pub(super) event_manager: AtmosphericEventManager,
+
+    // --- Per-frame component timing (set by rain_at, read by benchmark) ---
+    /// Wall-clock time spent in the simulation half of the most recent
+    /// `rain_at()` call, in milliseconds. "Simulation" = atmosphere events,
+    /// spawn rate computation, droplet physics advancement — everything
+    /// BEFORE the first frame-mutating render step (phosphor decay).
+    /// Zero until the first `rain_at()` call completes.
+    pub(super) last_sim_ms: f64,
+    /// Wall-clock time spent in the render half of the most recent
+    /// `rain_at()` call, in milliseconds. "Render" = phosphor decay,
+    /// anomaly zones, atmospheric post-processing, message box — every
+    /// step that mutates the frame buffer. Zero until the first
+    /// `rain_at()` call completes.
+    pub(super) last_render_ms: f64,
 }
 
 impl Cloud {
@@ -429,6 +443,8 @@ impl Cloud {
             auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
             is_idle: false,
             event_manager: AtmosphericEventManager::new(now),
+            last_sim_ms: 0.0,
+            last_render_ms: 0.0,
         }
     }
 
@@ -509,6 +525,33 @@ impl Cloud {
         } else {
             self.droplets.iter().filter(|d| d.is_alive).count()
         }
+    }
+
+    /// Wall-clock milliseconds spent in the simulation half of the most
+    /// recent `rain_at()` call. "Simulation" = atmosphere events, spawn
+    /// rate computation, droplet physics — everything before the first
+    /// frame-mutating render step (phosphor decay pass).
+    ///
+    /// Returns 0.0 until the first `rain_at()` call completes. Used by
+    /// the benchmark to produce sub-component timing breakdowns without
+    /// requiring the caller to instrument `rain_at` from the outside.
+    #[must_use]
+    pub fn last_sim_ms(&self) -> f64 {
+        self.last_sim_ms
+    }
+
+    /// Wall-clock milliseconds spent in the render half of the most
+    /// recent `rain_at()` call. "Render" = phosphor decay, anomaly zones,
+    /// atmospheric post-processing, message box — every step that mutates
+    /// the frame buffer.
+    ///
+    /// Returns 0.0 until the first `rain_at()` call completes. The sum
+    /// `last_sim_ms() + last_render_ms()` is the total `rain_at()` wall
+    /// time; the benchmark also measures IO overhead separately (dirty
+    /// checks + clear_dirty) which is NOT included in either value.
+    #[must_use]
+    pub fn last_render_ms(&self) -> f64 {
+        self.last_render_ms
     }
 
     /// Get the name of the active scene.

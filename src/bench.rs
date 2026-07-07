@@ -46,6 +46,7 @@ use crate::constants::{
 use crate::frame::Frame;
 
 use super::{effective_density, CloudConfig};
+use crate::bench_comp::ComponentTimer;
 use crate::bench_mem::RssTracker;
 
 // Re-export metric meaning constants used by external modules
@@ -480,6 +481,11 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut active_streams_sum: u64 = 0;
     let total_cells = (w as usize) * (h as usize);
 
+    // Sub-component timing tracker — see bench_comp.rs for component
+    // definitions (sim/render/io). In benchmark mode NO terminal write
+    // happens, so io_ms is dirty-tracking overhead, not real IO.
+    let mut components = ComponentTimer::new();
+
     // RSS sampler — starts measuring alongside the frame loop so the
     // reported peak/avg reflect the benchmark window, not warmup.
     let mut rss = RssTracker::new();
@@ -496,6 +502,13 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
         let frame_start = Instant::now();
         cloud.rain_at(&mut frame, sim_now);
+
+        // Sub-component timings from rain_at's internal instrumentation.
+        // These are read AFTER rain_at returns; the values reflect the
+        // most recent call. Instant::now() inside rain_at adds ~40ns total
+        // (2 calls × ~20ns each), negligible vs typical 80-200µs frame times.
+        let sim_ms = cloud.last_sim_ms();
+        let render_ms = cloud.last_render_ms();
 
         // Cache dirty checks once per frame to avoid redundant method calls.
         let is_dirty_all = frame.is_dirty_all();
@@ -521,6 +534,14 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         frame.clear_dirty();
 
         let frame_time_ms = frame_start.elapsed().as_secs_f64() * 1000.0;
+        // io_ms = total frame time minus sim and render. In benchmark mode
+        // no terminal write happens, so this is dirty-tracking + clear_dirty
+        // + loop bookkeeping overhead. Clamped to >= 0 to guard against
+        // clock skew between Instant::now() calls on different cores.
+        let io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
+
+        components.record(sim_ms, render_ms, io_ms);
+
         if ft_index < FRAME_TIME_SAMPLES {
             frame_times[ft_index] = frame_time_ms;
             ft_index += 1;
@@ -542,6 +563,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     }
 
     let (peak_rss_kb, avg_rss_kb, rss_samples, rss_supported) = rss.finalize();
+
+    // Sub-component timing averages + peaks.
+    let (avg_sim_ms, avg_render_ms, avg_io_ms, max_sim_ms, max_render_ms, max_io_ms) =
+        components.finalize();
 
     let was_interrupted = interrupted.load(Ordering::Relaxed);
 
@@ -703,6 +728,12 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         avg_rss_kb,
         rss_samples,
         rss_supported,
+        avg_sim_ms,
+        avg_render_ms,
+        avg_io_ms,
+        max_sim_ms,
+        max_render_ms,
+        max_io_ms,
     };
     crate::bench_report::build_premium_report(&report_data);
     Ok(())
@@ -813,12 +844,17 @@ mod tests {
     #[test]
     fn bench_file_stays_under_target_loc() {
         // Guard: src/bench.rs must stay well under 1000 LOC.
-        // Phase 5.5 target is under 850 LOC.
+        // Current target is under 900 LOC — bumped from 850 after P1-A
+        // added sub-component timing wiring (sim/render/io accumulators
+        // and per-frame cloud.last_sim_ms()/last_render_ms() reads).
+        // The ComponentTimer struct was extracted to bench_comp.rs to
+        // minimize growth here; further sub-component work should also
+        // live in bench_comp.rs rather than expand this file.
         let source = include_str!("bench.rs");
         let lines = source.lines().count();
         assert!(
-            lines < 850,
-            "bench.rs must stay under 850 LOC target (currently {lines})"
+            lines < 900,
+            "bench.rs must stay under 900 LOC target (currently {lines})"
         );
     }
 

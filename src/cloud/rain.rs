@@ -27,6 +27,16 @@ impl Cloud {
             return;
         }
 
+        // ── Per-frame component timing ──────────────────────────────────
+        // t0 = start of rain_at. t1 will be captured just before the first
+        // frame-mutating render step (phosphor_decay_pass). t2 = end of
+        // rain_at. sim_ms = (t1 - t0), render_ms = (t2 - t1). The benchmark
+        // reads these via last_sim_ms() / last_render_ms() to produce a
+        // sub-component timing breakdown without external instrumentation.
+        // Instant::now() is ~20ns on Linux, negligible vs typical 80-200µs
+        // frame times.
+        let t0 = Instant::now();
+
         // ── Atmospheric Event Engine: evaluate triggers ──
         let anomaly_density = self.anomaly_zones.len() as f32 / ANOMALY_MAX_ZONES.max(1) as f32;
         let in_transition = self.transition_start.is_some()
@@ -425,6 +435,15 @@ impl Cloud {
             .as_secs_f32()
             * self.resume_blend;
         self.last_phosphor_time = now;
+
+        // ── Component timing: sim → render boundary ────────────────────
+        // Everything above this line is "simulation" (atmosphere events,
+        // spawn rate, droplet physics). Everything below mutates the frame
+        // buffer — that is "render" (phosphor decay, anomaly zones,
+        // atmospheric post-processing, message box).
+        let t1 = Instant::now();
+        self.last_sim_ms = t1.saturating_duration_since(t0).as_secs_f64() * 1000.0;
+
         self.phosphor_decay_pass(frame, phosphor_elapsed);
         if matches!(self.rain_style, RainStyle::Monolith) {
             let mut cleanup = MonolithCleanup {
@@ -620,5 +639,12 @@ impl Cloud {
                 self.flash_time = None;
             }
         }
+
+        // ── Component timing: render end ────────────────────────────────
+        // Capture render_ms AFTER all frame mutations complete. Anything
+        // after this point (flash expiry bookkeeping) is trivial scalar
+        // work and not worth attributing to either half.
+        let t2 = Instant::now();
+        self.last_render_ms = t2.saturating_duration_since(t1).as_secs_f64() * 1000.0;
     }
 }
