@@ -337,7 +337,7 @@ pub struct Args {
         long = "testconf",
         help_heading = "CONFIG",
         display_order = 102,
-        help = "Validate ~/.config/cosmostrix/config.toml and report errors (typos, unknown keys, invalid values)"
+        help = "Validate config.toml and report errors (typos, unknown keys, invalid values). Run --config-path to see the location."
     )]
     pub testconf: bool,
 
@@ -734,7 +734,7 @@ pub fn print_defaults() {
     println!("cosmostrix \\");
     println!("  --scene monolith \\");
     println!("  --fps 60 \\");
-    println!("  --speed 20 \\");
+    println!("  --speed 30 \\");
     println!("  --density 0.85 \\");
     println!("  --color cosmos \\");
     println!("  --charset binary \\");
@@ -834,7 +834,9 @@ COMMON OPTIONS:
 CONFIG:
   --config <path>
       Load config from an explicit path instead of the default
-      $XDG_CONFIG_HOME/cosmostrix/config.toml or ~/.config/cosmostrix/config.toml.
+      $XDG_CONFIG_HOME/cosmostrix/config.toml (Linux) or
+      ~/.config/cosmostrix/config.toml (Linux/macOS) or
+      %APPDATA%/cosmostrix/config.toml (Windows).
       Falls back to legacy 'config' (no extension) for pre-v10 compatibility.
 
   --dump-config
@@ -849,8 +851,9 @@ CONFIG:
       Print the resolved default config path and exit.
 
   --testconf
-      Validate ~/.config/cosmostrix/config.toml and report errors
+      Validate config file and report errors
       (typos, unknown keys, invalid values). Exit 0 = pass, 2 = fail.
+      Run --config-path to see the resolved path for your platform.
 
   Precedence:
       built-in defaults < config values < config preset < config scene

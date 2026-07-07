@@ -30,7 +30,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         Err(e) => {
             println!("testconf: FAIL — cannot read config file: {e}");
             println!("testconf: hint: run `cosmostrix --config-path` to see the expected location");
-            println!("testconf: hint: mkdir -p ~/.config/cosmostrix && cosmostrix --dump-config > ~/.config/cosmostrix/config.toml");
+            println!("testconf: hint: cosmostrix --dump-config > <config-path>  (create parent dir first)");
             std::process::exit(2);
         }
     };

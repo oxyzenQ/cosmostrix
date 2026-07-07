@@ -53,7 +53,7 @@ pub const SCENES: &[SceneInfo] = &[
             color: Some("cosmos"),
             charset: Some("binary"),
             fps: Some(60.0),
-            speed: Some(20.0),
+            speed: Some(30.0),
             density: Some(0.85),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Monolith,
@@ -63,8 +63,8 @@ pub const SCENES: &[SceneInfo] = &[
         name: "signal",
         description: "Digital transmission feel with code-like cyan rain",
         config: SceneConfig {
-            color: Some("cyan"),
-            charset: Some("code"),
+            color: Some("aurora"),
+            charset: Some("retro"),
             fps: Some(60.0),
             speed: Some(10.0),
             density: Some(0.95),
@@ -177,7 +177,7 @@ mod tests {
     #[test]
     fn monolith_scene_uses_premium_motion_defaults() {
         let monolith = get_scene("monolith").expect("monolith scene");
-        assert_eq!(monolith.config.speed, Some(20.0));
+        assert_eq!(monolith.config.speed, Some(30.0));
         assert_eq!(monolith.config.density, Some(0.85));
     }
 

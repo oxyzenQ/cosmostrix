@@ -23,7 +23,7 @@ fn scene_cycle_to_signal_updates_cloud_scene() {
     let new_charset = cloud.apply_scene_runtime("signal", &charset, &[], false);
     assert_eq!(cloud.active_scene(), "signal");
     assert_eq!(cloud.rain_style(), RainStyle::Glyph);
-    assert_eq!(new_charset, "code"); // signal overrides charset to code
+    assert_eq!(new_charset, "retro"); // signal overrides charset to code
 }
 
 #[test]

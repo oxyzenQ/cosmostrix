@@ -74,7 +74,7 @@ fn profile_base_monolith_applies_monolith_foundation() {
     );
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
-    assert_eq!(args.speed, 20.0);
+    assert_eq!(args.speed, 30.0);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
@@ -136,16 +136,16 @@ fn invalid_profile_values_are_ignored_cleanly() {
     let args = args_with_config(config, &["--profile", "bad"]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
-    assert_eq!(args.speed, 20.0);
+    assert_eq!(args.speed, 30.0);
     assert_eq!(args.density, 0.85);
 }
 
 #[test]
 fn existing_config_without_profiles_still_works() {
-    let args = args_with_config("scene = signal\ncolor = cyan\n", &[]);
+    let args = args_with_config("scene = signal\ncolor = aurora\n", &[]);
     assert_eq!(args.profile, None);
     assert_eq!(args.scene.as_deref(), Some("signal"));
-    assert_eq!(args.color, "cyan");
+    assert_eq!(args.color, "aurora");
 }
 
 #[test]
@@ -153,7 +153,7 @@ fn default_plain_runtime_profile_remains_monolith() {
     let args = args_with_config("", &[]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
-    assert_eq!(args.speed, 20.0);
+    assert_eq!(args.speed, 30.0);
 }
 
 // ---------------------------------------------------------------------------

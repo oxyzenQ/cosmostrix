@@ -107,7 +107,7 @@ fn default_scene_is_monolith() {
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.charset, "binary");
-    assert_eq!(args.speed, 20.0);
+    assert_eq!(args.speed, 30.0);
     assert_eq!(args.density, 0.85);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
@@ -142,7 +142,7 @@ fn config_scene_monolith_applies() {
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.charset, "binary");
-    assert_eq!(args.speed, 20.0);
+    assert_eq!(args.speed, 30.0);
     assert!((args.density - 0.85).abs() < f32::EPSILON);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
     assert_eq!(args.glitch_pct, 3.0);
@@ -152,8 +152,8 @@ fn config_scene_monolith_applies() {
 fn cli_scene_overrides_config_scene() {
     let args = args_with_config("scene = monolith\n", &["--scene", "signal"]);
     assert_eq!(args.scene.as_deref(), Some("signal"));
-    assert_eq!(args.color, "cyan");
-    assert_eq!(args.charset, "code");
+    assert_eq!(args.color, "aurora");
+    assert_eq!(args.charset, "retro");
     assert_eq!(args.speed, 10.0);
 }
 
@@ -163,7 +163,7 @@ fn explicit_cli_flags_override_scene_managed_values() {
     assert_eq!(args.scene.as_deref(), Some("signal"));
     assert_eq!(args.color, "green");
     assert_eq!(args.fps, 120.0);
-    assert_eq!(args.charset, "code");
+    assert_eq!(args.charset, "retro");
     assert_eq!(args.speed, 10.0);
 }
 
@@ -198,7 +198,7 @@ fn monolith_scene_respects_explicit_motion_overrides() {
 fn config_speed_outside_safe_range_is_ignored() {
     for value in ["0", "0.5", "100.1", "1000", "100000"] {
         let args = args_with_config(&format!("speed = {value}\n"), &[]);
-        assert_eq!(args.speed, 20.0);
+        assert_eq!(args.speed, 30.0);
     }
 }
 
@@ -224,8 +224,8 @@ fn cli_scene_overrides_cli_preset_for_overlapping_values() {
     let args = args_from_cli(&["--preset", "calm", "--scene", "signal"]);
     assert_eq!(args.preset.as_deref(), Some("calm"));
     assert_eq!(args.scene.as_deref(), Some("signal"));
-    assert_eq!(args.color, "cyan");
-    assert_eq!(args.charset, "code");
+    assert_eq!(args.color, "aurora");
+    assert_eq!(args.charset, "retro");
     assert_eq!(args.speed, 10.0);
     assert!((args.density - 0.95).abs() < f32::EPSILON);
 }
@@ -302,7 +302,7 @@ fn invalid_config_values_are_ignored() {
     );
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.fps, 60.0);
-    assert_eq!(args.speed, 20.0);
+    assert_eq!(args.speed, 30.0);
     assert!(!args.low_power);
     assert!(args.preset.is_none());
 }
@@ -353,7 +353,7 @@ fn dump_config_mentions_supported_keys() {
         assert!(dump.contains(key), "dump config should contain {key}");
     }
     assert!(dump.contains("scene = monolith"));
-    assert!(dump.contains("speed = 20"));
+    assert!(dump.contains("speed = 30"));
     assert!(dump.contains("density = 0.85"));
     assert!(dump.contains("glitch-level = subtle"));
 }

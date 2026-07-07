@@ -171,8 +171,9 @@ fn config_file_path_from_env(
 pub fn dump_config_text() -> &'static str {
     r#"# Cosmostrix config
 # Location:
-#   $XDG_CONFIG_HOME/cosmostrix/config.toml
-#   or ~/.config/cosmostrix/config.toml
+#   Linux/macOS: ~/.config/cosmostrix/config.toml
+#   Windows:     %APPDATA%\cosmostrix\config.toml
+#   Or set $XDG_CONFIG_HOME (Linux/macOS).
 #
 # Format:
 #   key = value
@@ -201,7 +202,7 @@ color-bg = black
 
 # Motion
 fps = 60
-speed = 20
+speed = 30
 density = 0.85
 monolith-size = normal
 
