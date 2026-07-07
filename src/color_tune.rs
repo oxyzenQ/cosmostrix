@@ -77,11 +77,13 @@ pub fn parse_color_tune(s: &str) -> Result<ColorTune, String> {
         return Err("error: --color-tune value is empty".to_string());
     }
 
+    let mut found_any = false;
     for (i, part) in s.split(',').enumerate() {
         let part = part.trim();
         if part.is_empty() {
             continue;
         }
+        found_any = true;
         let (key, value) = part.split_once('=').ok_or_else(|| {
             format!(
                 "error: --color-tune segment {} '{}' is not key=value",
@@ -118,6 +120,14 @@ pub fn parse_color_tune(s: &str) -> Result<ColorTune, String> {
         } else {
             brightness = value;
         }
+    }
+
+    // If the input was non-empty but contained only commas/whitespace
+    // (e.g. ",,,"), no key=value pairs were found. Reject rather than
+    // silently returning identity — the user clearly intended to tune
+    // something but mistyped.
+    if !found_any {
+        return Err("error: --color-tune value contains no key=value pairs".to_string());
     }
 
     Ok(ColorTune {
@@ -235,6 +245,16 @@ mod tests {
     fn parse_empty_errors() {
         assert!(parse_color_tune("").is_err());
         assert!(parse_color_tune("   ").is_err());
+    }
+
+    #[test]
+    fn parse_only_commas_errors() {
+        // Input that is non-empty but contains only commas/whitespace
+        // should error, not silently return identity.
+        let err = parse_color_tune(",,,,").unwrap_err();
+        assert!(err.contains("no key=value pairs"), "got: {err}");
+        let err = parse_color_tune(" , , , ").unwrap_err();
+        assert!(err.contains("no key=value pairs"), "got: {err}");
     }
 
     #[test]

@@ -37,6 +37,7 @@ use crate::cinematic::{
 use crate::constants::{
     ANSI_BYTES_PER_CELL_ESTIMATE, BENCH_ELAPSED_MIN_S, DENSITY_AUTO_DEFAULT_COLS,
     DENSITY_AUTO_DEFAULT_LINES, DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
+    MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
 };
 use crate::frame::Frame;
 
@@ -554,17 +555,21 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 }
 
 /// Read benchmark dimensions from environment or use defaults.
+///
+/// Values are clamped to `[MIN_TERMINAL_COLS, MAX_TERMINAL_COLS]` and
+/// `[MIN_TERMINAL_LINES, MAX_TERMINAL_LINES]` to prevent panics from
+/// degenerate sizes (e.g. 1x1 causes bitvec index-out-of-range).
 fn bench_dimensions() -> (u16, u16) {
     let w = env::var("COSMOSTRIX_BENCH_COLS")
         .ok()
         .and_then(|v| v.parse::<u16>().ok())
         .unwrap_or(DENSITY_AUTO_DEFAULT_COLS)
-        .min(MAX_TERMINAL_COLS);
+        .clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
     let h = env::var("COSMOSTRIX_BENCH_LINES")
         .ok()
         .and_then(|v| v.parse::<u16>().ok())
         .unwrap_or(DENSITY_AUTO_DEFAULT_LINES)
-        .min(MAX_TERMINAL_LINES);
+        .clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
     (w, h)
 }
 
