@@ -102,20 +102,27 @@ fn linux_cpu_ns() -> Option<u64> {
 
 #[cfg(target_os = "macos")]
 fn macos_cpu_ns() -> Option<u64> {
-    use libc::{c_int, mach_task_self, task_info, task_info_t, KERN_SUCCESS, TASK_BASIC_INFO};
+    // See memstat.rs for the rationale on allow(deprecated) — the libc
+    // shims for mach_task_self() / mach_timebase_info() are marked
+    // deprecated in favor of `mach2`, but still work on macOS 12+.
+    #![allow(deprecated)]
+    use libc::{
+        c_int, mach_task_basic_info, mach_task_self, task_info, task_info_t, KERN_SUCCESS,
+        MACH_TASK_BASIC_INFO,
+    };
     use std::mem;
 
-    // SAFETY: same Mach API pattern as memstat.rs. task_info writes into
-    // our task_basic_info struct. user_time + system_time are in Mach
-    // absolute time units; we convert to ns via mach_timebase_info.
+    // SAFETY: same Mach API pattern as memstat.rs. task_info with flavor
+    // MACH_TASK_BASIC_INFO writes into our mach_task_basic_info struct.
+    // user_time + system_time are in Mach absolute time units; we convert
+    // to ns via mach_timebase_info.
     unsafe {
-        let mut info: libc::task_basic_info = mem::zeroed();
-        let mut count = (mem::size_of::<libc::task_basic_info>()
-            / mem::size_of::<libc::natural_t>())
+        let mut info: mach_task_basic_info = mem::zeroed();
+        let mut count = (mem::size_of::<mach_task_basic_info>() / mem::size_of::<libc::natural_t>())
             as libc::mach_msg_type_number_t;
         let kr: c_int = task_info(
             mach_task_self(),
-            TASK_BASIC_INFO,
+            MACH_TASK_BASIC_INFO,
             &mut info as *mut _ as task_info_t,
             &mut count,
         );
@@ -128,8 +135,8 @@ fn macos_cpu_ns() -> Option<u64> {
         if tb_kr != KERN_SUCCESS {
             return None;
         }
-        // user_time + system_time are u32 (task_basic_info fields). Convert
-        // each to ns via the timebase fraction, then sum.
+        // user_time + system_time are u32 (mach_task_basic_info fields).
+        // Convert each to ns via the timebase fraction, then sum.
         let user_ns = mach_time_to_ns(info.user_time, tb.numer, tb.denom);
         let system_ns = mach_time_to_ns(info.system_time, tb.numer, tb.denom);
         Some(user_ns.saturating_add(system_ns))

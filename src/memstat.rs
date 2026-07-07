@@ -92,21 +92,29 @@ fn linux_rss_kb() -> Option<u64> {
 
 #[cfg(target_os = "macos")]
 fn macos_rss_kb() -> Option<u64> {
-    use libc::{c_int, mach_task_self, task_info, task_info_t, TASK_BASIC_INFO};
+    // libc 0.2.x deprecated the old `task_basic_info` + `TASK_BASIC_INFO`
+    // flavor and points users at `mach2`. The `mach_task_self()` and
+    // `mach_timebase_info()` shims in libc are also marked deprecated in
+    // favor of `mach2`. We allow(deprecated) here to avoid adding a new
+    // dependency just for two syscalls — the libc shims still work fine
+    // on macOS 12+ and the underlying Mach APIs are stable.
+    #![allow(deprecated)]
+    use libc::{
+        c_int, mach_task_basic_info, mach_task_self, task_info, task_info_t, MACH_TASK_BASIC_INFO,
+    };
     use std::mem;
 
-    // SAFETY: `mach_task_self()` is a macro/inline that returns the current
-    // task port. `task_info` writes into our `task_basic_info` struct.
-    // The flavor constant TASK_BASIC_INFO matches the struct type. This
-    // is the documented Mach API usage.
+    // SAFETY: `mach_task_self()` returns the current task port.
+    // `task_info` with flavor MACH_TASK_BASIC_INFO writes into our
+    // `mach_task_basic_info` struct. This is the documented modern Mach
+    // API usage (replaces the removed TASK_BASIC_INFO / task_basic_info).
     unsafe {
-        let mut info: libc::task_basic_info = mem::zeroed();
-        let mut count = (mem::size_of::<libc::task_basic_info>()
-            / mem::size_of::<libc::natural_t>())
+        let mut info: mach_task_basic_info = mem::zeroed();
+        let mut count = (mem::size_of::<mach_task_basic_info>() / mem::size_of::<libc::natural_t>())
             as libc::mach_msg_type_number_t;
         let kr: c_int = task_info(
             mach_task_self(),
-            TASK_BASIC_INFO,
+            MACH_TASK_BASIC_INFO,
             &mut info as *mut _ as task_info_t,
             &mut count,
         );
