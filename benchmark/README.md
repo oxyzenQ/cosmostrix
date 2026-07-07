@@ -41,7 +41,7 @@ release artifact (`cosmostrix-bin v4.0.0 linux-x86_64-v3`, SHA512 verified).
 Treat them as a shape of output and interpretation guide, not as guaranteed
 numbers.
 
-| Size | Avg FPS | Median FPS | P95 frame time | P99 frame time | Stability | Avg dirty-cell coverage |
+| Size | Avg FPS | Median | P95 (ms) | P99 (ms) | Stability | Dirty % |
 |---|---:|---:|---:|---:|---|---:|
 | 120x40 | 16695.3 | 17010.1 | 0.070 ms | 0.075 ms | excellent | 7.22% |
 | 200x60 | 8190.8 | 8221.3 | 0.137 ms | 0.143 ms | excellent | 5.49% |
@@ -52,220 +52,49 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
-## v12.0.0 — Protocol Engine
+## v12.0.0 — Protocol Engine + Multi-Profile
 
-Release benchmark from `release` binary (commit `7469e2e`,
-2026-07-08). Default 120×40 terminal size. Color byte cache +
-synchronized terminal output + unified error UX.
+All benchmarks: 120×40, `--bench-duration 10`, headless mode.
 
-- Binary version: `v12.0.0`
-- Commit: `7469e2e`
-- Profile: `linux-amd64-v1-gnu` (release)
-- CPU: Intel(R) Xeon(R) Platinum (x86_64-v4 runtime)
-- Rustc: `1.96.1 (31fca3adb 2026-06-26)`
-- LTO: `fat`
-- PGO: `no`
-- Color mode: `16-color` (headless, no COLORTERM)
+| Machine | Intel Xeon Platinum | Intel Xeon Platinum | AMD Ryzen 7 5800HS |
+|---|---|---|---|
+| Profile | release (v1) | pro-linux-v4 | pro-linux-v3 |
+| Commit | `7469e2e` | `b662ede` | `ba26150` |
+| Rustc | 1.96.1 | 1.96.1 | 1.96.0 |
+| Color mode | 16-color | 16-color | 24-bit truecolor |
 
-### Performance
-
-| Metric | v11.0.0 (old) | v12.0.0 (new) | Δ |
-|--------|-------------:|--------------:|------:|
-| avg_fps | 55,718 | **28,292** | — |
-| peak_fps | 77,012 | **40,350** | — |
-| avg_frame_time | 0.018 ms | **0.036 ms** | — |
-| p95_frame_time | 0.020 ms | **0.051 ms** | — |
-| p99_frame_time | 0.027 ms | **0.057 ms** | — |
-| p99_9_frame_time | — | **0.077 ms** | — |
-| max_frame_time | — | **0.851 ms** | — |
-| median_fps | 57,369 | **29,299** | — |
-| dirty_glyphs/sec | 19.2M | **10.2M** | — |
-| ansi_bytes/sec | 365M | **194M** | — |
-| frame_time_stability | excellent | excellent | — |
-| avg_dirty_cell_ratio | — | 7.52% | — |
-| active_streams_avg | — | 41 | — |
-| peak_rss | — | 4.0 MiB | — |
-| avg_cpu_percent | — | 95.4% | — |
-| fps_drift_percent | — | +0.74% (stable) | — |
-| involuntary_ctxt | — | 49 | — |
-
-### Component Timing
-
-| Component | avg (ms) | Share |
-|-----------|---------:|------:|
-| sim | 0.0194 | 55.0% |
-| render | 0.0154 | 43.9% |
-| io | 0.0004 | 1.1% |
+| Metric | Xeon v1 | Xeon v4 | Ryzen v3 |
+|---|---:|---:|---:|
+| avg_fps | 28,292 | 23,023 | 30,558 |
+| peak_fps | 40,350 | 33,523 | 42,276 |
+| median_fps | 29,299 | 24,259 | 30,974 |
+| p95 (ms) | 0.051 | 0.063 | 0.037 |
+| p99 (ms) | 0.057 | 0.075 | 0.041 |
+| p99.9 (ms) | 0.077 | 0.090 | 0.069 |
+| max (ms) | 0.851 | 1.027 | 0.110 |
+| stability | excellent | excellent | excellent |
+| peak_rss | 4.0 MiB | 4.0 MiB | 4.2 MiB |
+| cpu % | 95.4 | 95.4 | 97.4 |
+| drift % | +0.74 | +2.07 | -2.39 |
+| inv_ctxt | 49 | 46 | 315 |
+| dirty ratio | 7.52% | 7.52% | 7.53% |
+| streams | 41 | 41 | 41 |
+| sim/render/io | 55/44/1 | 52/46/1 | 55/44/1 |
 
 ### Notes
 
-- **Numbers not comparable across machines.** v11.0.0 was measured on a
-  different physical machine with different CPU/OS. Use this table to
-  track relative regressions on the same hardware only.
-- Color byte cache and synchronized output are interactive-mode optimizations.
-  Headless benchmark mode does not write to terminal, so sync markers
-  and color cache savings are not reflected in benchmark FPS.
-- `frame_time_stability: excellent` — zero regression from protocol changes.
-- `fps_drift_percent: +0.74%` — stable, no thermal throttling or allocator
-  pressure.
-- `peak_rss: 4.0 MiB` — unchanged from v11.0.0, zero memory regression.
-- Component timing distribution (sim 55% / render 44% / io 1%) is healthy —
-  no single hotspot.
-
-## v12.0.0 — AVX-512 (pro-linux-v4)
-
-Release benchmark from `pro-linux-v4` binary (commit `b662ede`,
-2026-07-08). Default 120×40 terminal size. AVX-512 target baseline
-(`x86-64-v4`) for high-end Intel Xeon / AMD Zen 4+ CPUs.
-
-- Binary version: `v12.0.0`
-- Commit: `b662ede`
-- Profile: `pro-linux-v4` (linux-amd64-v4-gnu)
-- CPU: Intel(R) Xeon(R) Platinum (x86_64-v4 native)
-- Target features: `avx512bw,avx512cd,avx512dq,avx512f,avx512vl`
-- Rustc: `1.96.1 (31fca3adb 2026-06-26)`
-- LTO: `fat`
-- PGO: `no`
-- Color mode: `16-color` (headless, no COLORTERM)
-
-### Performance
-
-| Metric | release (v1) | pro-linux-v4 (v4) | Δ |
-|--------|-------------:|------------------:|------:|
-| avg_fps | 28,292 | **23,023** | -18.6% |
-| peak_fps | 40,350 | **33,523** | -16.9% |
-| avg_frame_time | 0.036 ms | **0.044 ms** | +22.2% |
-| p95_frame_time | 0.051 ms | **0.063 ms** | +23.5% |
-| p99_frame_time | 0.057 ms | **0.075 ms** | +31.6% |
-| p99_9_frame_time | 0.077 ms | **0.090 ms** | +16.9% |
-| max_frame_time | 0.851 ms | **1.027 ms** | +20.7% |
-| median_fps | 29,299 | **24,259** | -17.2% |
-| dirty_glyphs/sec | 10.2M | **8.3M** | -18.6% |
-| ansi_bytes/sec | 194M | **158M** | -18.6% |
-| frame_time_stability | excellent | excellent | — |
-| avg_dirty_cell_ratio | 7.52% | 7.52% | identical |
-| active_streams_avg | 41 | 41 | identical |
-| peak_rss | 4.0 MiB | 4.0 MiB | — |
-| avg_cpu_percent | 95.4% | 95.4% | identical |
-| fps_drift_percent | +0.74% | +2.07% | — |
-| involuntary_ctxt | 49 | 46 | — |
-
-### Component Timing
-
-| Component | avg (ms) | Share |
-|-----------|---------:|------:|
-| sim | 0.0226 | 52.4% |
-| render | 0.0201 | 46.4% |
-| io | 0.0005 | 1.2% |
-
-### Notes
-
-- **AVX-512 does not benefit this workload.** Cosmostrix is a CPU + stdout
-  renderer with a single-threaded architecture. The tight 120×40 glyph
-  pipeline is dominated by scalar control flow, bitmap lookups, and
-  `terminal::draw` dirty tracking — none of which auto-vectorize to 512-bit
-  SIMD. Benchmark FPS drops ~18.6% relative to the `release` (x86-64-v1)
-  profile, likely from v4 code generation overhead (wider instructions,
-  AVX-512 clock-down, and larger function prologues for ZMM register save/
-  restore).
-- **x86-64-v4 is still correct.** The binary compiles and runs correctly on
-  AVX-512 capable hardware. It's the right profile for distribution to
-  modern servers; just don't expect FPS gains from SIMD width alone on this
-  workload.
-- `frame_time_stability: excellent` — identical across v1 and v4 profiles.
-- `peak_rss: 4.0 MiB` — zero memory regression.
-- Component timing shifts slightly: sim 52.4% / render 46.4% (vs 55/44 on
-  release). Render takes proportionally more time under v4, consistent with
-  wider code that doesn't help the dominant scalar paths.
-- `fps_drift_percent: +2.07%` — stable, well within noise band.
-- Same machine, same commit (`b662ede`), same rustc — only CPU baseline
-  differs.
-
-## v12.0.0 — Zen 3 Mobile (pro-linux-v3)
-
-Release benchmark from `pro-linux-v3` binary (commit `ba26150`,
-2026-07-08). Default 120×40 terminal size. x86-64-v3 target baseline
-on a AMD Ryzen 7 5800HS (Zen 3, 8C/16T) mobile APU with truecolor
-detection active.
-
-- Binary version: `v12.0.0`
-- Commit: `ba26150`
-- Profile: `pro-linux-v3` (linux-amd64-v3-gnu)
-- CPU: AMD Ryzen 7 5800HS with Radeon Graphics (x86_64-v3 native)
-- Rustc: `1.96.0 (ac68faa20 2026-05-25)`
-- LTO: `fat`
-- PGO: `no`
-- Color mode: `24-bit truecolor` (COLORTERM=truecolor, xterm-direct)
-- Kernel: `6.18.35-1-cachyos-lts`
-- Governor: `schedutil`
-- SMT: `on`
-
-### Performance
-
-| Metric | Value |
-|--------|------:|
-| avg_fps | **30,558** |
-| peak_fps | **42,276** |
-| median_fps | **30,974** |
-| avg_frame_time | 0.033 ms |
-| p95_frame_time | 0.037 ms |
-| p99_frame_time | 0.041 ms |
-| p99_9_frame_time | 0.069 ms |
-| max_frame_time | 0.110 ms |
-| frame_time_stability | excellent |
-| avg_dirty_cell_ratio | 7.53% |
-| active_streams_avg | 41 |
-| dirty_glyphs/sec | 11.0M |
-| ansi_bytes/sec | 210M |
-| peak_rss | 4.2 MiB |
-| avg_cpu_percent | 97.4% |
-| fps_drift_percent | -2.39% (stable) |
-| involuntary_ctxt | 315 |
-| draw_ratio | 100.0% |
-| active_frame_ratio | 100.0% |
-| glyphs_per_second | 146.7M |
-
-### Component Timing
-
-| Component | avg (ms) | max (ms) | Share |
-|-----------|---------:|--------:|------:|
-| sim | 0.0177 | 0.258 | 54.7% |
-| render | 0.0144 | 0.310 | 44.3% |
-| io | 0.0003 | 0.207 | 1.0% |
-
-### Notes
-
-- **Different machine, not comparable to Intel Xeon numbers above.**
-  AMD Ryzen 7 5800HS is a 35-54W Zen 3 mobile APU with `schedutil`
-  governor — mobile thermal/power envelope. The Intel Xeon Platinum
-  bench above is a server-class CPU with different frequency behavior.
-  Compare within the same machine only.
-- **pro-linux-v3 is the right profile for this APU.** Zen 3 supports
-  x86-64-v3 (AVX2, BMI1/2, FMA) but not AVX-512. The v3 profile yields
-  `avg_fps: 30,558` — ~33% ahead of the v1 baseline on Xeon, and the
-  mobile APU is only ~15% behind the Xeon v3 run despite the thermal
-  envelope difference.
-- `frame_time_stability: excellent` — consistent across all profiles and
-  machines.
-- `peak_rss: 4.2 MiB` — trivially small, zero concern.
-- `avg_cpu_percent: 97.4%` — nearly saturating one core, healthy for a
-  single-threaded renderer. `peak_cpu_percent: 105%` is a measurement
-  artifact (sample interval vs wall clock granularity), not actual
-  >100% utilization.
-- `fps_drift_percent: -2.39%` — slight *improvement* over the run
-  (negative = FPS increased), likely thermal governor ramping or
-  CPU freq settling. Well within stable band.
-- `involuntary_ctxt: 315` — higher than Xeon (46-49). The mobile
-  scheduler preempts more aggressively under `schedutil` with SMT on.
-  Does not affect benchmark FPS.
-- **Truecolor detected.** Unlike the headless Xeon runs (16-color),
-  this run had `COLORTERM=truecolor` in the environment. Benchmark
-  mode doesn't write to terminal, so color depth doesn't change FPS —
-  it only changes the `color_depth`/`effective_color_mode` labels in
-  the report.
-- Component timing split (sim 55% / render 44% / io 1%) is nearly
-  identical to the Xeon distribution — the render pipeline scales
-  proportionally across architectures.
+- Xeon v1 vs v4: AVX-512 regresses ~18.6% on this scalar single-thread
+  workload — wider instructions and ZMM save/restore cost cycles without
+  auto-vectorization payoff. v4 binary is correct, just not faster here.
+- Ryzen v3: Zen 3 mobile APU (35-54W, schedutil) delivers 30.6K FPS —
+  beats Xeon v1 despite mobile thermal envelope. v3 (AVX2) is the right
+  profile for this chip.
+- Different machines — compare within same column only. Xeon is a server
+  CPU; Ryzen is a laptop APU. Kernel, governor, and SMT differ.
+- `frame_time_stability: excellent` across all three profiles.
+- Ryzen `peak_cpu: 105%` is a measurement artifact (sample granularity),
+  not actual >100% utilization.
+- All three profiles: `peak_rss ≤ 4.2 MiB`, zero memory concern.
 
 ---
 
@@ -323,11 +152,12 @@ plus pre-release audit + I/O bottleneck research + final bottleneck hunt.
 
 | Phase | Description | Gain |
 |-------|-------------|------|
-| Phase A | Hot-path: phosphor O(1) dedup, head_brightness hoist, glitch cache, edge_fade LUT, incremental phosphor_fresh clear, monolith dedup, #[inline] | +73.8% FPS |
-| Phase 2 | Structural: spawn free-list (O(1)), flat terminal dirty pairs (single sort) | +1.6% FPS |
-| Audit | Panic hook race fix, SIGQUIT, overflow guards, memory ordering, dead code removal | Stability |
-| I/O | Direct ANSI byte buffer (bypass crossterm .queue()), combined fg+bg SGR, no-heap integer formatting | I/O path |
-| Final hunt | Hoist syscalls (now.elapsed, flash_time.elapsed), loop-invariant float hoisting, direct indexing | Waste elimination |
+| Phase A | Hot-path: phosphor O(1) dedup, head_brightness hoist, glitch cache, | +73.8% FPS |
+| | edge_fade LUT, incremental phosphor_fresh clear, monolith dedup, #[inline] | |
+| Phase 2 | Structural: spawn free-list O(1), flat terminal dirty pairs | +1.6% FPS |
+| Audit | Panic hook race fix, SIGQUIT, overflow guards, dead code removal | Stability |
+| I/O | Direct ANSI byte buffer, combined fg+bg SGR, no-heap int format | I/O path |
+| Final hunt | Hoist syscalls, loop-invariant float hoisting, direct indexing | Waste elimination |
 
 ### Before/After Comparison (same machine, same profile)
 

@@ -22,10 +22,7 @@ fn readme_references_v12_demo_screenshots() {
         "cosmostrix-v12-demo-braille.png",
         "cosmostrix-v12-demo-blocks.png",
     ] {
-        assert!(
-            readme.contains(name),
-            "README must reference {name}"
-        );
+        assert!(readme.contains(name), "README must reference {name}");
     }
 }
 
@@ -38,31 +35,46 @@ fn v12_demo_gif_asset_exists() {
 #[test]
 fn v12_demo_cyberpunk_asset_exists() {
     let path = std::path::Path::new("assets/cosmostrix-v12-demo-cyberpunk.png");
-    assert!(path.exists(), "assets/cosmostrix-v12-demo-cyberpunk.png must exist");
+    assert!(
+        path.exists(),
+        "assets/cosmostrix-v12-demo-cyberpunk.png must exist"
+    );
 }
 
 #[test]
 fn v12_demo_hacker_asset_exists() {
     let path = std::path::Path::new("assets/cosmostrix-v12-demo-hacker.png");
-    assert!(path.exists(), "assets/cosmostrix-v12-demo-hacker.png must exist");
+    assert!(
+        path.exists(),
+        "assets/cosmostrix-v12-demo-hacker.png must exist"
+    );
 }
 
 #[test]
 fn v12_demo_retro_asset_exists() {
     let path = std::path::Path::new("assets/cosmostrix-v12-demo-retro.png");
-    assert!(path.exists(), "assets/cosmostrix-v12-demo-retro.png must exist");
+    assert!(
+        path.exists(),
+        "assets/cosmostrix-v12-demo-retro.png must exist"
+    );
 }
 
 #[test]
 fn v12_demo_braille_asset_exists() {
     let path = std::path::Path::new("assets/cosmostrix-v12-demo-braille.png");
-    assert!(path.exists(), "assets/cosmostrix-v12-demo-braille.png must exist");
+    assert!(
+        path.exists(),
+        "assets/cosmostrix-v12-demo-braille.png must exist"
+    );
 }
 
 #[test]
 fn v12_demo_blocks_asset_exists() {
     let path = std::path::Path::new("assets/cosmostrix-v12-demo-blocks.png");
-    assert!(path.exists(), "assets/cosmostrix-v12-demo-blocks.png must exist");
+    assert!(
+        path.exists(),
+        "assets/cosmostrix-v12-demo-blocks.png must exist"
+    );
 }
 
 #[test]
