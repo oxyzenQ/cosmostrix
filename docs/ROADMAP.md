@@ -4,6 +4,30 @@
 
 ## Release History
 
+### v11.1.0 — Benchmark Depth & Theme Tuning (COMPLETE)
+
+Closes the "real metrics, not gimmick" gap. The premium benchmark now
+reports RSS memory, CPU usage, sub-component timing, and long-run drift
+alongside the existing FPS/percentile metrics. A live HUD overlay brings
+the same metrics into interactive runs. Theme tuning makes the 43
+built-in palettes more visually distinct.
+
+| Batch | Description | Commit |
+|-------|-------------|--------|
+| P0-A | RSS memory tracking (peak + avg), MEMORY section | `34f22df` |
+| P0-B | max_frame_time + p99.9_frame_time tail metrics | `3afac82` |
+| P1-A | Sub-component timing (sim/render/io) — COMPONENT TIMING section | `6bc5035` |
+| P1-B | `--bench-duration N` flag + DRIFT section | `9e94527` |
+| P2 | Live HUD overlay (`?` toggle) — fps/p99/max/rss | `12a1d2f` |
+| P3 | CPU usage % tracking — CPU section | `aeafdd3` |
+| Q2 | `--color-tune saturation/brightness` runtime adjustment | `ce0d191` |
+| Audit | 5 near-duplicate themes tuned for distinctness | `304a07b` |
+| CI fix | macOS libc + Mach API + codespell fixes | `22fa131`, `4e76fda`, `58ebedb` |
+
+Zero new runtime dependencies. Linux + macOS supported for RSS and CPU
+sampling; Windows/other platforms emit `unsupported` honestly. See
+`CHANGELOG.md` for full details.
+
 ### v11.0.0 — Peak Performance & Stability (COMPLETE)
 
 Major performance optimization and stability hardening release.
@@ -149,17 +173,13 @@ by the Depth Regression Lab.
 
 ---
 
-## Active Development
+## Release History (older)
 
-### v5.0.0 — Nightfall: Cinematic UX + Product Identity Release
+### v5.0.0 — Nightfall: Cinematic UX + Product Identity Release (COMPLETE)
 
-A **medium** major release focused on polish, discoverability, and
-product-grade feel. No renderer hot-path rewrite. No benchmark output
-field changes. No 50k FPS promise. Terminal writer remains single-owner.
-Benchmark honesty preserved. Release benchmark must be updated before tag.
-
-Android/Cosmostrix Live remains a future sibling product and is explicitly
-out of scope for the main CLI repository in v5.0.0.
+A medium major release focused on polish, discoverability, and
+product-grade feel. All 6 phases shipped. Terminal writer remains
+single-owner. Benchmark honesty preserved.
 
 | Phase | Description | Commit |
 |-------|-------------|--------|
@@ -167,8 +187,8 @@ out of scope for the main CLI repository in v5.0.0.
 | Phase 2 | Preset/profile discoverability polish | `e9f7b3b` |
 | Phase 3 | Cinematic breathing language + docs contract | `6289f41` |
 | Phase 4 | Help/config UX polish | `20552f1` |
-| Phase 5 | Release candidate prep | pending |
-| Phase 6 | Signed tag / release / AUR | pending owner approval |
+| Phase 5 | Release candidate prep | shipped |
+| Phase 6 | Signed tag / release / AUR | shipped |
 
 Cinematic breathing vocabulary and pacing contract are defined in
 `docs/CINEMATIC_BREATHING.md`.
@@ -189,9 +209,15 @@ These invariants apply to every release. They must never regress:
 - **`compute_parallelism` remains `disabled`** unless a future release
   explicitly activates it through the Zactrix runtime planner.
 - **Benchmark field names unchanged.** No renaming of diagnostic labels.
+- **New benchmark sections (v11.1.0) are additive — must not be removed
+  without a contract change.** MEMORY, CPU, COMPONENT TIMING, and DRIFT
+  sections are part of the `--benchmark` output contract. Linux/macOS-only
+  fields emit `unsupported` on Windows rather than being silently absent.
 
 ## CPU Targets
 
-- Calm/idle target: < 1-3% realistic CPU usage.
+- Calm/idle target: < 1-3% realistic CPU usage. Verified via the `CPU`
+  section of `--benchmark` (`avg_cpu_percent`, `peak_cpu_percent`;
+  Linux/macOS only).
 - Benchmark/stress can use dynamic high CPU.
 - Paused should remain near 0%.

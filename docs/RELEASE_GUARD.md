@@ -80,8 +80,21 @@ done
 ```
 
 Record: avg_fps, median_fps, p95_frame_time, p99_frame_time,
-frame_time_stability, avg_dirty_cell_ratio, active_streams_avg,
-actual_execution, terminal_writer, compute_parallelism.
+p99_9_frame_time, max_frame_time, frame_time_stability,
+avg_dirty_cell_ratio, active_streams_avg, actual_execution,
+terminal_writer, compute_parallelism, peak_rss (Linux/macOS),
+avg_cpu_percent (Linux/macOS), fps_drift_percent (DRIFT section).
+
+For long-run drift verification, also run once with a longer duration:
+
+```bash
+"$BIN" --benchmark --bench-duration 60
+```
+
+Record the `fps_drift_percent` and `drift_interpretation` from the DRIFT
+section. A `stable` interpretation on the release machine is the expected
+baseline; `degraded` indicates thermal throttle or allocator pressure
+worth investigating before tagging.
 
 ### Gate 5 — Update benchmark/README.md
 
@@ -96,6 +109,10 @@ Add a release benchmark section for the new version to
 * Mean avg_fps
 * Invariants table
 * Notes about workload scope and honest FPS boundaries
+* v11.1.0+: MEMORY section (peak_rss), CPU section (avg_cpu_percent),
+  COMPONENT TIMING section (sim/render/io share), and DRIFT section
+  (fps_drift_percent + interpretation). These are additive — a release
+  that omits them fails this gate.
 
 This gate is **mandatory**.  Never tag before the benchmark report is
 committed.
@@ -112,6 +129,8 @@ the following guards must be satisfied (see `src/docs_tests/release.rs`):
 * Benchmark README states `compute_parallelism: disabled`
 * Benchmark README states 50k was not reached / not promised
 * Benchmark README reports `actual_execution: single-threaded-renderer`
+* v11.1.0+: Benchmark README mentions the MEMORY and DRIFT section names
+  (guard test to be added alongside the first v11.1.0 release report).
 
 ### Gate 7 — Terminal lifecycle verification
 

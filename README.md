@@ -45,7 +45,7 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 - **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy
 - **3 scene atmospheres** (matrix, monolith, signal), including signature Cosmostrix Monolith Rain
 - **8 curated presets** (classic, cinematic, calm, monolith, storm, cosmos, neon, hacker) for one-command visual profiles
-- 43 built-in themes and 24 character set presets
+- 43 built-in themes and 24 character set presets (5 themes — Green3, Saturn, Comet, Meteor, Pluto — re-tuned in v11.1.0 for visual distinctness; `--color-tune` turns all 43 into 43 × ∞ variants)
 - Phosphor persistence (CRT afterglow), depth fog, and 3-layer parallax
 - TrueColor green gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
@@ -174,6 +174,7 @@ Run `cosmostrix --help` for common options or `cosmostrix --help-detail` for the
 ```text
 COMMON OPTIONS
   -c, --color <name>        Color theme
+     --color-tune <k=v>     Tune saturation/brightness (e.g. saturation=1.5,brightness=0.9)
      --charset <name>       Character preset
   -f, --fps <1-240>         Target FPS
   -S, --speed <1-100>       Rain speed
@@ -191,7 +192,8 @@ COMMON OPTIONS
 
 DIAGNOSTICS
      --doctor               Compatibility report
-     --benchmark            Renderer benchmark
+     --benchmark            Renderer benchmark (5s default; override with --bench-duration)
+     --bench-duration <1-600>  Benchmark duration in seconds (for long-run drift / leak detection)
   -i, --info                Build and runtime information
      --reset-terminal       Destructive terminal recovery (clears screen + scrollback)
 
@@ -213,6 +215,7 @@ Explicit CLI flags always override preset, scene, and profile values.
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             g          Toggle glitch
   m             Cycle profile     Space      Reseed animation
+  ?             Toggle live HUD (FPS / p99 / max / RSS overlay)
 ```
 
 ## Scenes
@@ -269,6 +272,15 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
   target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
 ```
 
+The `--benchmark` report (v11.1.0+) includes FPS, frame-time percentiles
+(avg → p95 → p99 → p99.9 → max), MEMORY (RSS), CPU usage %, sub-component
+timing (sim/render/io), and a DRIFT section for long-run analysis. Use
+`--bench-duration N` (1–600s) for sustained drift / leak detection:
+
+```bash
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-duration 60
+```
+
 See [benchmark/README.md](benchmark/README.md) for full reference results and interpretation notes.
 
 ### v11.0.0 Performance & Cinematic Peak
@@ -291,7 +303,18 @@ combined fg+bg SGR, no-heap integer formatting. See
 
 ## Roadmap
 
-### v11.0.0 — Cinematic Peak (current)
+### v11.1.0 — Benchmark Depth & Theme Tuning (current)
+- ✅ RSS memory tracking (MEMORY section, Linux/macOS)
+- ✅ CPU usage % tracking (CPU section, Linux/macOS)
+- ✅ Sub-component timing (sim/render/io breakdown)
+- ✅ `max_frame_time` + `p99.9_frame_time` tail metrics
+- ✅ `--bench-duration N` flag + DRIFT section for long-run analysis
+- ✅ Live HUD overlay (`?` toggle) with fps/p99/max/rss
+- ✅ `--color-tune saturation/brightness` runtime theme adjustment
+- ✅ 5 near-duplicate themes tuned for visual distinctness
+- ✅ Zero new runtime dependencies
+
+### v11.0.0 — Cinematic Peak
 - ✅ +70.3% FPS via hot-path + structural optimization
 - ✅ Brutal pre-release audit: panic hook race, SIGQUIT, overflow guards
 - ✅ GPL-3.0-only enforced across all 171 files
@@ -307,7 +330,7 @@ combined fg+bg SGR, no-heap integer formatting. See
 - Direct ANSI byte buffer bypasses crossterm `.queue()` overhead
 - Combined fg+bg SGR, no-heap integer formatting, single flush per frame
 
-**Remaining I/O research (post-v11.0.0):**
+**Remaining I/O research (post-v11.1.0):**
 - Terminal protocol detection (kitty/foot/wezterm), color byte caching, output compression
 
 ## Version & Updates

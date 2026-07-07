@@ -922,7 +922,11 @@ GENERAL:
 
 DIAGNOSTICS:
   --doctor       System compatibility report.
-  --benchmark    Renderer benchmark (5 seconds).
+  --benchmark    Renderer benchmark (5 seconds default; override with --bench-duration).
+  --bench-duration <1-600>
+      Benchmark duration in seconds (default 5). Use with --benchmark
+      for long-run drift / leak / thermal-throttle detection. The DRIFT
+      section of the report compares first-half FPS vs second-half FPS.
   -i, --info     Build and runtime information.
   --reset-terminal
       Restore raw mode, alternate screen, cursor, focus, and mouse reporting

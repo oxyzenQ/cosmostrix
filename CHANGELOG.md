@@ -9,6 +9,119 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v11.1.0 — Benchmark Depth & Theme Tuning
+
+Closes the "real metrics, not gimmick" gap. The premium benchmark
+(`--benchmark`) now reports RSS memory, CPU usage, sub-component timing,
+and long-run drift alongside the existing FPS/percentile metrics. A live
+HUD overlay brings the same metrics into interactive runs. Theme tuning
+makes the 43 built-in palettes more visually distinct.
+
+### New Features
+
+**RSS memory tracking** (P0-A, commit 34f22df):
+- `--benchmark` now emits a `MEMORY` section with `peak_rss`, `avg_rss`,
+  `rss_samples`, `rss_basis`, and `rss_caveat`.
+- Zero new dependencies. Linux samples `/proc/self/status`; macOS uses
+  `mach_task_basic_info` via `libc`. Other platforms emit `unsupported`.
+- The benchmark report honestly states "RSS includes shared pages; treat
+  as order-of-magnitude footprint" so users do not over-interpret.
+
+**Tail frame-time metrics** (P0-B, commit 3afac82):
+- Added `p99_9_frame_time` (1-in-1000 worst frames) and `max_frame_time`
+  (single worst spike) to the `PERFORMANCE` section, plus
+  `max_frame_time_meaning`.
+- `max_frame_time` captures what users perceive as jank — page faults,
+  OS scheduling glitches — that p99 smooths over.
+- PERFORMANCE section reordered for monotonic display:
+  avg → p95 → p99 → p99.9 → max.
+
+**Sub-component timing** (P1-A, commit 6bc5035):
+- New `COMPONENT TIMING` section: `avg_sim_ms`, `avg_render_ms`,
+  `avg_io_ms`, plus maxes and `sim/render/io_share_percent`.
+- `sim_ms` = atmosphere events + spawn rate + droplet physics.
+- `render_ms` = phosphor decay + anomaly zones + atmospheric fx.
+- `io_ms` = dirty checks + clear_dirty + bookkeeping. Honestly labeled
+  "NO terminal write in benchmark mode" — not real IO.
+- Distinguishes "benchmark mainan" from "profiling tool".
+
+**`--bench-duration N` flag + drift detection** (P1-B, commit 9e94527):
+- New `--bench-duration <1-600>` flag (default 5s). Use with `--benchmark`
+  for long-run drift / leak / thermal-throttle detection.
+- New `DRIFT` section: `first_half_fps`, `second_half_fps`,
+  `fps_drift_percent`, `drift_interpretation`, `drift_basis`.
+- Interpretation: `> +10%` = degraded; `< -10%` = improved (warmup
+  insufficient); otherwise `stable`.
+
+**Live HUD overlay** (P2, commit 12a1d2f):
+- Press `?` during any interactive run to toggle a top-right overlay
+  showing `fps`, `avg`, `p99`, `max`, `rss` in real time.
+- Zero cost when off (all methods short-circuit on `visible == false`).
+- 4 Hz render rate, 1 Hz RSS sampling. ANSI-only output bypasses the
+  frame buffer to keep rain renderer's dirty tracking clean.
+
+**CPU usage % tracking** (P3, commit aeafdd3):
+- New `CPU` section in `--benchmark`: `avg_cpu_percent`,
+  `peak_cpu_percent`, `cpu_samples`, `cpu_basis`, `cpu_caveat`.
+- Linux samples `/proc/self/stat` (utime + stime); macOS uses
+  `mach_task_basic_info` (`time_value_t` seconds + microseconds).
+  Other platforms emit `unsupported`.
+- `cpu_caveat` honestly states "~100% = one core saturated; >100% would
+  indicate multi-threading or measurement error" (single-thread by design).
+
+**`--color-tune` runtime theme adjustment** (Q2, commit ce0d191):
+- New `--color-tune saturation=X,brightness=Y` flag. Keys: `saturation`/
+  `sat`, `brightness`/`bright`. Range 0.0–3.0 (1.0 = identity).
+- Linear-RGB transforms (no HSL round-trip): saturation scales distance
+  from Rec. 601 luminance; brightness multiplies each channel.
+- Turns the 43 built-in themes into 43 × infinite variants without adding
+  new presets. Background color is also tuned for visual consistency.
+
+### Theme Audit
+
+**5 near-duplicate themes tuned** (commit 304a07b):
+- Programmatic audit (pairwise average per-stop RGB distance < 30)
+  identified 5 pairs that were too similar. All tuned to be visually
+  distinct:
+  - `green3`: deep teal-shifted forest green (was nearly identical to `green`)
+  - `saturn`: amber-gold (was too close to `venus`)
+  - `comet`: deep-blue ion trail to cyan-white head (was too close to `uranus`)
+  - `meteor`: burning rock with ionized plasma tail (was too close to `sun`)
+  - `pluto`: nitrogen-ice blue dwarf (was too close to `mercury`)
+- Theme descriptions in `--list-colors-detail` updated to match.
+- Audit runs as an informational test (`palette::audit_tests::
+  audit_near_duplicate_themes`) — future theme additions can re-run it.
+- After tuning: no pairs remain under threshold. Closest is
+  `galaxy` ↔ `andromeda` at 30.0 (both purple-cosmic, meant to be related).
+
+### CI Fixes
+
+- `libc` moved from `cfg(target_os = "linux")` to `cfg(unix)` so macOS
+  builds can use `mach_task_basic_info` (commit 22fa131).
+- macOS Mach API migrated from removed `task_basic_info` /
+  `TASK_BASIC_INFO` to modern `mach_task_basic_info` /
+  `MACH_TASK_BASIC_INFO` (commit 4e76fda).
+- `cpustat.rs` macOS branch fixed: `time_value_t` is a struct
+  `{seconds, microseconds}`, not `u32` — removed incorrect
+  `mach_timebase_info` conversion (commit 58ebedb).
+- `.codespellrc` added `numer`, `denom` to ignore-words-list (legitimate
+  Mach timebase field names, not typos).
+
+### Internal
+
+- 5 new source files: `memstat.rs`, `cpustat.rs`, `bench_mem.rs`,
+  `bench_cpu.rs`, `bench_comp.rs`, `bench_progress.rs`, `color_tune.rs`,
+  `interactive/hud.rs`.
+- `bench.rs` extracted `BenchProgress` + `ComponentTimer` + `RssTracker`
+  + `CpuTracker` to keep the file under its 900-LOC guard.
+- `FrameTimeTracker` gained `p99_ms()` accessor for the live HUD.
+- `cloud/rain.rs` instrumented with 2 `Instant::now()` markers per frame
+  for sim/render split (~40ns overhead, negligible).
+- 837 → 845 tests (clippy + fmt clean on every commit).
+- Zero new runtime dependencies.
+
+---
+
 ## v11.0.0 — Cinematic Peak
 
 Visual quality push to peak cinematic Matrix rain. Pure tuning — no

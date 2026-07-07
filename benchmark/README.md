@@ -15,8 +15,10 @@ promise.
 Cosmostrix exposes two benchmark paths:
 
 - `--benchmark`: recommended human-readable benchmark. It runs a 2-second
-  warmup, then measures for 5 seconds and prints FPS, frame-time percentiles,
-  dirty-cell coverage, and throughput estimates.
+  warmup, then measures for 5 seconds (override with `--bench-duration N`,
+  1–600 seconds) and prints FPS, frame-time percentiles (p95 / p99 / p99.9 /
+  max), dirty-cell coverage, throughput estimates, MEMORY (RSS), CPU usage
+  %, sub-component timing (sim/render/io), and long-run drift detection.
 - `--bench-frames N`: legacy CI/regression benchmark. It runs a fixed number
   of headless frames and prints compact `BENCH:` output for scripts.
 
@@ -463,6 +465,15 @@ metrics alongside raw FPS:
 - `p95_frame_time` and `p99_frame_time` are percentile measurements of frame
   computation time, computed after trimming the top and bottom 1% of samples
   to eliminate cold-path and OS scheduling noise.
+- `p99_9_frame_time` (v11.1.0) is the 1-in-1000 worst frame time, computed
+  from the FULL sorted array (not trimmed). Tighter than p99 on the long
+  tail.
+- `max_frame_time` (v11.1.0) is the single worst frame spike — page faults,
+  OS scheduling glitches — that p99 smooths over. This is what users
+  perceive as jank. The accompanying `max_frame_time_meaning` field explains
+  this.
+- The PERFORMANCE section displays these in monotonic order:
+  `avg → p95 → p99 → p99.9 → max`.
 - `frame_time_stability` classifies jitter (frame time standard deviation)
   as excellent (< 0.3ms), good (< 0.5ms), moderate (< 2.0ms), or high.
 - `frame_jitter` reports the raw standard deviation in milliseconds.
@@ -471,6 +482,81 @@ metrics alongside raw FPS:
 `frame_time_stability` of "moderate" or "high" indicates uneven frame
 pacing that may cause visible micro-stutter despite the high average.
 Always check `p95_frame_time` and `p99_frame_time` alongside `avg_fps`.
+
+### MEMORY Section (v11.1.0)
+
+Reports process resident set size (RSS) sampled during the measurement
+window:
+
+- `peak_rss`: highest observed RSS (human-readable KiB/MiB/GiB).
+- `avg_rss`: mean of all samples.
+- `rss_samples`: number of samples collected (100 ms interval).
+- `rss_basis`: "resident set size sampled during measurement window".
+- `rss_caveat`: "RSS includes shared pages; treat as order-of-magnitude
+  footprint" — do not over-interpret as precise allocator accounting.
+
+**Platform support**: Linux (`/proc/self/status`) and macOS
+(`mach_task_basic_info`). Other platforms emit `unsupported` with a
+`rss_reason` field explaining the limitation.
+
+### CPU Section (v11.1.0)
+
+Reports process CPU usage as a percentage of one core:
+
+- `avg_cpu_percent`: mean per-interval CPU% over the measurement window.
+- `peak_cpu_percent`: highest single-interval CPU% reading.
+- `cpu_samples`: number of interval samples (200 ms interval).
+- `cpu_basis`: "per-interval (cpu_ns_delta / wall_ns_delta) * 100;
+  single-thread renderer".
+- `cpu_caveat`: "~100% = one core saturated; >100% would indicate
+  multi-threading or measurement error".
+
+Cosmostrix is single-threaded by design, so `cpu_percent` is bounded by
+~100% on a single-core measurement. Values approaching 100% indicate the
+renderer is saturating one core (expected at high `target_fps` on large
+terminals).
+
+**Platform support**: Linux (`/proc/self/stat` utime + stime) and macOS
+(`mach_task_basic_info` `time_value_t`). Other platforms emit
+`unsupported`.
+
+### COMPONENT TIMING Section (v11.1.0)
+
+Breaks down per-frame time into three components, distinguishing
+"benchmark mainan" from "profiling tool":
+
+- `avg_sim_ms` / `max_sim_ms`: atmosphere events + spawn rate + droplet
+  physics (everything in `cloud.rain_at()` before the first frame
+  mutation).
+- `avg_render_ms` / `max_render_ms`: phosphor decay + anomaly zones +
+  atmospheric fx + message box (frame mutations inside `cloud.rain_at()`).
+- `avg_io_ms` / `max_io_ms`: dirty checks + `clear_dirty` + loop
+  bookkeeping. **Honestly labeled** in the `io_meaning` field: "NO
+  terminal write in benchmark mode" — this is dirty-tracking overhead,
+  not real terminal IO. Real terminal IO timing requires `--perf-stats`
+  during live interactive runs.
+- `sim_share_percent`, `render_share_percent`, `io_share_percent`:
+  relative breakdown of the three components.
+
+### DRIFT Section (v11.1.0)
+
+Compares first-half FPS vs second-half FPS for long-run drift detection.
+Use `--bench-duration N` (1–600 seconds) with a longer `N` to detect
+thermal throttle, allocator fragmentation, or cache pressure that a 5s
+run would miss:
+
+- `first_half_fps`: FPS over the first half of the measurement window.
+- `second_half_fps`: FPS over the second half.
+- `fps_drift_percent`: `(first - second) / first * 100`. Positive = FPS
+  degraded over time; negative = warmed up.
+- `drift_interpretation`: `degraded` (> +10%), `improved` (< -10%), or
+  `stable`.
+- `drift_basis`: "first_half_fps vs second_half_fps; positive = FPS
+  dropped over time".
+
+If the benchmark is interrupted (Ctrl+C) before the halfway mark, the
+section emits `drift_status: skipped` with a `drift_reason` explaining
+that drift detection requires running past 50% of the target duration.
 
 For detailed visual depth expectations and stability metric interpretation,
 see [Visual Stability](../docs/VISUAL_STABILITY.md).
@@ -555,9 +641,25 @@ Record at minimum:
 * median_fps
 * p95_frame_time
 * p99_frame_time
+* p99_9_frame_time (v11.1.0)
+* max_frame_time (v11.1.0)
 * frame_time_stability
 * avg_dirty_cell_ratio_percent
 * actual_execution
+* peak_rss (v11.1.0, Linux/macOS only)
+* avg_cpu_percent (v11.1.0, Linux/macOS only)
+* fps_drift_percent (v11.1.0, from the DRIFT section)
+
+For long-run drift verification, also run once with a longer duration:
+
+```bash
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-duration 60
+```
+
+Record the `fps_drift_percent` and `drift_interpretation` from the DRIFT
+section. A `stable` interpretation on the release machine is the expected
+baseline; `degraded` indicates thermal throttle or allocator pressure
+worth investigating before tagging.
 
 After the tag is published, verify the GitHub Release/AUR artifact separately.
 Do not move or recreate a signed release tag just to update benchmark notes.

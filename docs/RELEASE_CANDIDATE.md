@@ -29,6 +29,8 @@ BIN="target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix"
 "$BIN" -i
 "$BIN" --doctor
 "$BIN" --benchmark
+"$BIN" --benchmark --bench-duration 3
+"$BIN" --color red --color-tune saturation=1.5 --benchmark
 ```
 
 Expected defaults:
@@ -41,6 +43,73 @@ Expected defaults:
 - `visual_runtime`: protected
 - `runtime_application`: identity
 - `actual_execution`: single-threaded-renderer
+
+v11.1.0+ benchmark output must include the following section headers
+(grep to verify):
+
+```bash
+"$BIN" --benchmark 2>&1 | grep -E "^(MEMORY|CPU|COMPONENT TIMING|DRIFT):"
+```
+
+All four headers must appear. On Linux/macOS, `MEMORY` and `CPU` must
+report real numbers (not `unsupported`).
+
+## v11.x Benchmark & HUD RC Checklist
+
+Additional smoke checks for the v11.1.0 benchmark depth + theme tuning
+release. All must pass before tagging v11.1.0.
+
+### `--bench-duration` validation
+
+```bash
+# In-range must succeed:
+"$BIN" --benchmark --bench-duration 3   # exits 0, DRIFT section present
+"$BIN" --benchmark --bench-duration 600 # exits 0 (max boundary)
+
+# Out-of-range must fail with a clear error:
+"$BIN" --benchmark --bench-duration 0     # "below the 1-second minimum"
+"$BIN" --benchmark --bench-duration 601   # "exceeds the 600-second maximum"
+```
+
+### `--color-tune` validation
+
+```bash
+# Valid syntax must launch (use --benchmark for headless verify):
+"$BIN" --color green --color-tune "saturation=1.5,brightness=0.9" --benchmark
+"$BIN" --color aurora --color-tune "sat=0.0" --benchmark        # grayscale
+"$BIN" --color red --color-tune "bright=1.3" --benchmark        # brightness only
+
+# Invalid must fail with a clear error:
+"$BIN" --color-tune "hue=30"          # "unknown key 'hue'"
+"$BIN" --color-tune "saturation=4.0"  # "out of range [0, 3]"
+"$BIN" --color-tune ""                # "value is empty"
+```
+
+### Benchmark section presence
+
+```bash
+"$BIN" --benchmark 2>&1 | grep -c "^MEMORY:"
+"$BIN" --benchmark 2>&1 | grep -c "^CPU:"
+"$BIN" --benchmark 2>&1 | grep -c "^COMPONENT TIMING:"
+"$BIN" --benchmark 2>&1 | grep -c "^DRIFT:"
+```
+
+Each must print `1` (exactly one section header). On Linux/macOS,
+`MEMORY` and `CPU` must report real numbers; on other platforms they
+emit `unsupported` with a reason field.
+
+### Live HUD overlay (manual interactive smoke)
+
+```bash
+"$BIN"
+```
+
+Then press `?` and verify:
+
+- A top-right overlay appears showing `fps`, `avg`, `p99`, `max`, `rss`.
+- The overlay updates ~4 times per second without flickering.
+- Press `?` again — the overlay disappears cleanly.
+- Press `q` — clean exit, terminal restored.
 
 ## v4.6 Atmosphere RC Checklist
 
@@ -163,7 +232,15 @@ Run these interactively and verify clean exit with `q`:
 "$BIN"
 "$BIN" --color sun
 "$BIN" -mb "one world first seriously matrix rain"
+"$BIN" --color green --color-tune "saturation=1.5,brightness=1.2"
 ```
+
+For the last command, verify the rain renders with visibly boosted
+saturation + brightness compared to `--color green` alone.
+
+Also test the live HUD overlay (v11.1.0+): launch `"$BIN"`, press `?`,
+verify a top-right overlay showing fps/avg/p99/max/rss appears; press
+`?` again to dismiss; verify clean exit with `q`.
 
 Verify:
 
