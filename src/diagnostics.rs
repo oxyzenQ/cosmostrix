@@ -105,7 +105,6 @@ fn linux_cpu_model() -> Option<String> {
 fn macos_cpu_model() -> Option<String> {
     #![allow(deprecated)]
     use std::ffi::CStr;
-    use std::os::raw::c_char;
 
     // SAFETY: sysctlbyname with a known string key writes into our buffer.
     // machdep.cpu.brand_string returns a human-readable CPU model string.
@@ -117,7 +116,7 @@ fn macos_cpu_model() -> Option<String> {
             key.as_ptr(),
             std::ptr::null_mut(),
             &mut len,
-            std::ptr::null(),
+            std::ptr::null_mut(),
             0,
         );
         if rc0 != 0 || len == 0 {
@@ -128,7 +127,7 @@ fn macos_cpu_model() -> Option<String> {
             key.as_ptr(),
             buf.as_mut_ptr() as *mut _,
             &mut len,
-            std::ptr::null(),
+            std::ptr::null_mut(),
             0,
         );
         if rc1 != 0 {
