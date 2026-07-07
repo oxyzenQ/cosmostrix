@@ -96,16 +96,33 @@ fn readme_gif_appears_before_screenshots() {
 fn readme_does_not_use_old_demo_gif_as_primary() {
     let readme = include_str!("../../README.md");
     assert!(
-        !readme.contains("cosmostrix-demo.gif"),
-        "README must not reference the old demo GIF"
+        !readme.contains("assets/cosmostrix-v11-demo"),
+        "README must not reference v11 demos"
+    );
+    assert!(
+        !readme.contains("assets/cosmostrix-v4-demo"),
+        "README must not reference v4 demos"
+    );
+    assert!(
+        !readme.contains("assets/cosmostrix-demo.gif"),
+        "README must not reference old generic demo"
     );
 }
 
 #[test]
-fn old_demo_gif_removed_from_assets() {
-    let path = std::path::Path::new("assets/cosmostrix-demo.gif");
-    assert!(
-        !path.exists(),
-        "Old assets/cosmostrix-demo.gif should have been removed"
-    );
+fn old_demo_assets_removed() {
+    for name in &[
+        "cosmostrix-v11-demo.gif",
+        "cosmostrix-v11-demo-retro.png",
+        "cosmostrix-v11-demo-braille.png",
+        "cosmostrix-v11-demo-hex.png",
+        "cosmostrix-v4-demo.gif",
+        "cosmostrix-v4-demo.mp4",
+        "cosmostrix-v4-demo-binary.png",
+        "cosmostrix-v4-demo-retro.png",
+        "cosmostrix-demo.gif",
+    ] {
+        let p = std::path::Path::new("assets").join(name);
+        assert!(!p.exists(), "Old asset must be removed: {name}");
+    }
 }

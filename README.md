@@ -29,8 +29,6 @@
 <p align="center">
   <img src="assets/cosmostrix-v12-demo-cyberpunk.png" alt="Cosmostrix v12 cyberpunk charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v12-demo-hacker.png" alt="Cosmostrix v12 hacker charset demo" width="800">
-  <br>
   <img src="assets/cosmostrix-v12-demo-retro.png" alt="Cosmostrix v12 retro charset demo" width="800">
   <br>
   <img src="assets/cosmostrix-v12-demo-braille.png" alt="Cosmostrix v12 braille charset demo" width="800">
