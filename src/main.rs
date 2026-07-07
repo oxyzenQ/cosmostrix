@@ -60,6 +60,7 @@ mod atmosphere_verifier;
 mod atmosphere_visual;
 mod bench;
 mod bench_comp;
+mod bench_cpu;
 mod bench_mem;
 mod bench_progress;
 mod bench_report;
@@ -77,6 +78,7 @@ mod config_apply_profiles_tests;
 mod config_apply_tests;
 mod configfile;
 mod constants;
+mod cpustat;
 mod diagnostics;
 #[cfg(test)]
 mod docs_tests;

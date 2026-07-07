@@ -126,6 +126,18 @@ pub(crate) struct BenchReportData {
     pub rss_samples: u32,
     pub rss_supported: bool,
 
+    // CPU usage — None on platforms without sampling support.
+    // avg_cpu_percent: mean per-interval CPU% over the measurement window.
+    // peak_cpu_percent: highest single-interval CPU% reading.
+    // cpu_samples: number of interval samples collected.
+    // cpu_supported: false on platforms where CPU sampling is unavailable.
+    // Single-thread renderer: ~100% = one core saturated; >100% would
+    // indicate multi-threading (not used) or measurement error.
+    pub avg_cpu_percent: Option<f64>,
+    pub peak_cpu_percent: Option<f64>,
+    pub cpu_samples: u32,
+    pub cpu_supported: bool,
+
     // Sub-component timing breakdown (averages + peaks, in ms).
     // sim_ms    = time in cloud.rain_at() before the first frame mutation
     //             (atmosphere events, spawn rate, droplet physics).
@@ -346,6 +358,42 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             s.field(
                 "rss_reason",
                 "RSS sampling not implemented for this platform (Linux/macOS only)",
+            );
+        }
+    }
+
+    // ── CPU usage ─────────────────────────────────────────────────────
+    // Per-interval CPU% from process CPU time deltas. Single-thread
+    // renderer: ~100% = one core saturated. Honest reporting: on
+    // unsupported platforms we emit "unsupported" rather than zero.
+    {
+        let s = r.section("CPU");
+        if data.cpu_supported {
+            let avg = data
+                .avg_cpu_percent
+                .map(|v| format!("{:.1}%", v))
+                .unwrap_or_else(|| "(no sample)".to_string());
+            let peak = data
+                .peak_cpu_percent
+                .map(|v| format!("{:.1}%", v))
+                .unwrap_or_else(|| "(no sample)".to_string());
+            s.field("avg_cpu_percent", &avg);
+            s.field("peak_cpu_percent", &peak);
+            s.field("cpu_samples", &data.cpu_samples.to_string());
+            s.field(
+                "cpu_basis",
+                "per-interval (cpu_ns_delta / wall_ns_delta) * 100; single-thread renderer",
+            );
+            s.field(
+                "cpu_caveat",
+                "~100% = one core saturated; >100% would indicate multi-threading or measurement error",
+            );
+        } else {
+            s.field("avg_cpu_percent", "unsupported");
+            s.field("peak_cpu_percent", "unsupported");
+            s.field(
+                "cpu_reason",
+                "CPU sampling not implemented for this platform (Linux/macOS only)",
             );
         }
     }
@@ -732,6 +780,10 @@ mod tests {
             avg_rss_kb: Some(11_200),
             rss_samples: 50,
             rss_supported: true,
+            avg_cpu_percent: Some(85.3),
+            peak_cpu_percent: Some(98.7),
+            cpu_samples: 25,
+            cpu_supported: true,
             avg_sim_ms: 0.040,
             avg_render_ms: 0.030,
             avg_io_ms: 0.007,
@@ -852,6 +904,22 @@ mod tests {
             "io_meaning",
         ];
         for field in REQUIRED_COMPONENT_FIELDS {
+            assert!(!field.is_empty());
+            assert!(!field.contains(' '));
+        }
+    }
+
+    #[test]
+    fn cpu_fields_documented() {
+        // CPU section must emit these keys on supported platforms.
+        const REQUIRED_CPU_FIELDS: &[&str] = &[
+            "avg_cpu_percent",
+            "peak_cpu_percent",
+            "cpu_samples",
+            "cpu_basis",
+            "cpu_caveat",
+        ];
+        for field in REQUIRED_CPU_FIELDS {
             assert!(!field.is_empty());
             assert!(!field.contains(' '));
         }

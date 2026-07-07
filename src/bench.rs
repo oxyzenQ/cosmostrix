@@ -42,6 +42,7 @@ use crate::frame::Frame;
 
 use super::{effective_density, CloudConfig};
 use crate::bench_comp::ComponentTimer;
+use crate::bench_cpu::CpuTracker;
 use crate::bench_mem::RssTracker;
 use crate::bench_progress::{register_interrupt, BenchProgress};
 
@@ -219,6 +220,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // reported peak/avg reflect the benchmark window, not warmup.
     let mut rss = RssTracker::new();
 
+    // CPU% sampler — 200ms interval. On supported platforms (Linux/macOS)
+    // computes per-interval CPU% from process CPU time deltas.
+    let mut cpu = CpuTracker::new();
+
     // Drift detection: snapshot (frames, elapsed) at the halfway mark so
     // we can compare first-half FPS vs second-half FPS. A >10% drop
     // indicates thermal throttle, allocator fragmentation, or cache
@@ -288,6 +293,9 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         // RSS sample (rate-limited internally; cheap when interval not elapsed).
         rss.tick();
 
+        // CPU% sample (200ms interval, rate-limited internally).
+        cpu.tick();
+
         // Capture the halfway mark once. We compare elapsed against the
         // target half-duration rather than bench_end/2 because elapsed
         // grows monotonically while bench_end is a fixed Instant.
@@ -309,6 +317,9 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     }
 
     let (peak_rss_kb, avg_rss_kb, rss_samples, rss_supported) = rss.finalize();
+
+    // CPU% averages + peaks.
+    let (avg_cpu_percent, peak_cpu_percent, cpu_samples, cpu_supported) = cpu.finalize();
 
     // Sub-component timing averages + peaks.
     let (avg_sim_ms, avg_render_ms, avg_io_ms, max_sim_ms, max_render_ms, max_io_ms) =
@@ -500,6 +511,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         avg_rss_kb,
         rss_samples,
         rss_supported,
+        avg_cpu_percent,
+        peak_cpu_percent,
+        cpu_samples,
+        cpu_supported,
         avg_sim_ms,
         avg_render_ms,
         avg_io_ms,
