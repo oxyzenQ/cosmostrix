@@ -23,15 +23,21 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v11-demo.gif" alt="Cosmostrix v11 demo" width="800">
+  <img src="assets/cosmostrix-v12-demo.gif" alt="Cosmostrix v12 masterclass demo" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v11-demo-retro.png" alt="Cosmostrix v11 retro charset demo" width="800">
+  <img src="assets/cosmostrix-v12-demo-cyberpunk.png" alt="Cosmostrix v12 cyberpunk charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v11-demo-braille.png" alt="Cosmostrix v11 braille charset demo" width="800">
+  <img src="assets/cosmostrix-v12-demo-hacker.png" alt="Cosmostrix v12 hacker charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v11-demo-hex.png" alt="Cosmostrix v11 hex charset demo" width="800">
+  <img src="assets/cosmostrix-v12-demo-retro.png" alt="Cosmostrix v12 retro charset demo" width="800">
+  <br>
+  <img src="assets/cosmostrix-v12-demo-braille.png" alt="Cosmostrix v12 braille charset demo" width="800">
+  <br>
+  <img src="assets/cosmostrix-v12-demo-hacker.png" alt="Cosmostrix v12 hacker charset demo" width="800">
+  <br>
+  <img src="assets/cosmostrix-v12-demo-blocks.png" alt="Cosmostrix v12 blocks charset demo" width="800">
 </p>
 
 <p align="center">
