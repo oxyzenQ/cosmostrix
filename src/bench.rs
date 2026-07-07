@@ -46,6 +46,7 @@ use crate::constants::{
 use crate::frame::Frame;
 
 use super::{effective_density, CloudConfig};
+use crate::bench_mem::RssTracker;
 
 // Re-export metric meaning constants used by external modules
 // (e.g., cloud/tests/tests_visual_depth.rs) so that import paths
@@ -479,6 +480,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut active_streams_sum: u64 = 0;
     let total_cells = (w as usize) * (h as usize);
 
+    // RSS sampler — starts measuring alongside the frame loop so the
+    // reported peak/avg reflect the benchmark window, not warmup.
+    let mut rss = RssTracker::new();
+
     let start = Instant::now();
     let bench_end = start + Duration::from_secs(BENCHMARK_DURATION_SECS);
 
@@ -523,6 +528,9 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         total_frames += 1;
         active_streams_sum += cloud.active_droplet_count() as u64;
 
+        // RSS sample (rate-limited internally; cheap when interval not elapsed).
+        rss.tick();
+
         // Live progress update — AFTER frame time measurement to avoid skew.
         let elapsed_s = start.elapsed().as_secs_f64();
         progress.running_tick(
@@ -532,6 +540,8 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             BENCHMARK_DURATION_SECS as f64,
         );
     }
+
+    let (peak_rss_kb, avg_rss_kb, rss_samples, rss_supported) = rss.finalize();
 
     let was_interrupted = interrupted.load(Ordering::Relaxed);
 
@@ -668,6 +678,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         elapsed_s,
         total_frames,
         drawn_frames,
+        peak_rss_kb,
+        avg_rss_kb,
+        rss_samples,
+        rss_supported,
     };
     crate::bench_report::build_premium_report(&report_data);
     Ok(())

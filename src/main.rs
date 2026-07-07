@@ -59,6 +59,7 @@ mod atmosphere_tests;
 mod atmosphere_verifier;
 mod atmosphere_visual;
 mod bench;
+mod bench_mem;
 mod bench_report;
 mod cell;
 mod charset;
@@ -83,6 +84,7 @@ mod info;
 mod interactive;
 #[cfg(test)]
 mod loc_tests;
+mod memstat;
 mod palette;
 mod preset;
 mod profile;

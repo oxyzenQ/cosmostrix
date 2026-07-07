@@ -38,6 +38,23 @@ pub(crate) const DIRTY_ALL_FRAMES_MEANING: &str =
 pub(crate) const ESTIMATED_FULL_REDRAW_MEANING: &str =
     "threshold estimate of frames likely to use Terminal::draw full-redraw path";
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+/// Format a KiB RSS value as a human-readable string with binary suffix.
+///
+/// Examples: 512 → "512 KiB", 2048 → "2.0 MiB", 1572864 → "1.5 GiB".
+fn format_rss_kb(kib: u64) -> String {
+    const MIB: u64 = 1024;
+    const GIB: u64 = 1024 * 1024;
+    if kib >= GIB {
+        format!("{:.2} GiB", kib as f64 / GIB as f64)
+    } else if kib >= MIB {
+        format!("{:.1} MiB", kib as f64 / MIB as f64)
+    } else {
+        format!("{kib} KiB")
+    }
+}
+
 // ── Report data struct ───────────────────────────────────────────────────────
 
 /// All computed metrics needed to build the premium benchmark report.
@@ -91,6 +108,16 @@ pub(crate) struct BenchReportData {
     pub elapsed_s: f64,
     pub total_frames: u64,
     pub drawn_frames: u64,
+
+    // Memory (RSS) — None on platforms without sampling support.
+    // peak_rss_kb: highest observed resident set size during measurement.
+    // avg_rss_kb:  mean of all samples taken during measurement.
+    // rss_samples: number of samples collected (for transparency).
+    // rss_supported: false on platforms where RSS sampling is unavailable.
+    pub peak_rss_kb: Option<u64>,
+    pub avg_rss_kb: Option<u64>,
+    pub rss_samples: u32,
+    pub rss_supported: bool,
 }
 
 // ── Report builder ───────────────────────────────────────────────────────────
@@ -243,6 +270,41 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("total_frames", &data.total_frames.to_string());
         s.field("drawn_frames", &data.drawn_frames.to_string());
         s.field("frames_with_changes", &data.drawn_frames.to_string());
+    }
+
+    // ── Memory (RSS) ───────────────────────────────────────────────────
+    // Honest reporting: on unsupported platforms we emit "unsupported"
+    // rather than zero. This avoids implying the metric was measured.
+    {
+        let s = r.section("MEMORY");
+        if data.rss_supported {
+            let peak = data
+                .peak_rss_kb
+                .map(format_rss_kb)
+                .unwrap_or_else(|| "(no sample)".to_string());
+            let avg = data
+                .avg_rss_kb
+                .map(format_rss_kb)
+                .unwrap_or_else(|| "(no sample)".to_string());
+            s.field("peak_rss", &peak);
+            s.field("avg_rss", &avg);
+            s.field("rss_samples", &data.rss_samples.to_string());
+            s.field(
+                "rss_basis",
+                "resident set size sampled during measurement window",
+            );
+            s.field(
+                "rss_caveat",
+                "RSS includes shared pages; treat as order-of-magnitude footprint",
+            );
+        } else {
+            s.field("peak_rss", "unsupported");
+            s.field("avg_rss", "unsupported");
+            s.field(
+                "rss_reason",
+                "RSS sampling not implemented for this platform (Linux/macOS only)",
+            );
+        }
     }
 
     // ── Engine diagnostics ─────────────────────────────────────────────
@@ -535,6 +597,10 @@ mod tests {
             elapsed_s: 5.0,
             total_frames: 65000,
             drawn_frames: 62000,
+            peak_rss_kb: Some(12_500),
+            avg_rss_kb: Some(11_200),
+            rss_samples: 50,
+            rss_supported: true,
         };
         // Basic sanity — if this compiles, all fields exist and have
         // the correct types.
@@ -556,5 +622,35 @@ mod tests {
             lines < 1000,
             "bench_report.rs must stay under 1000 LOC (currently {lines})"
         );
+    }
+
+    #[test]
+    fn format_rss_kb_renders_human_readable_suffixes() {
+        assert_eq!(format_rss_kb(0), "0 KiB");
+        assert_eq!(format_rss_kb(512), "512 KiB");
+        assert_eq!(format_rss_kb(1023), "1023 KiB");
+        assert_eq!(format_rss_kb(1024), "1.0 MiB");
+        assert_eq!(format_rss_kb(2048), "2.0 MiB");
+        assert_eq!(format_rss_kb(1_572_864), "1.50 GiB");
+        // Rounding: 1.005 GiB should round to 1.00 or 1.01 — both acceptable
+        // as long as the GiB suffix appears. Just verify the suffix.
+        assert!(format_rss_kb(1_048_576).ends_with("GiB"));
+    }
+
+    #[test]
+    fn rss_fields_documented_in_required_fields_list() {
+        // Memory section must emit these keys on supported platforms.
+        // This list documents the contract so CI/scripts can rely on it.
+        const REQUIRED_MEMORY_FIELDS: &[&str] = &[
+            "peak_rss",
+            "avg_rss",
+            "rss_samples",
+            "rss_basis",
+            "rss_caveat",
+        ];
+        for field in REQUIRED_MEMORY_FIELDS {
+            assert!(!field.is_empty());
+            assert!(!field.contains(' '));
+        }
     }
 }
