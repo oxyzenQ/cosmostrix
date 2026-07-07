@@ -625,7 +625,7 @@ fn main() -> std::io::Result<()> {
 
     let color_scheme = match parse_color_scheme(&args.color) {
         Ok(c) => c,
-        Err(e) => ux::die_config(e),
+        Err(e) => ux::die_input(e),
     };
     let color_tune = match args.color_tune.as_deref() {
         Some(s) => ux::or_exit(color_tune::parse_color_tune(s)),
@@ -741,7 +741,7 @@ fn main() -> std::io::Result<()> {
     } else {
         let charset = match charset_from_str(&args.charset, def_ascii) {
             Ok(c) => c,
-            Err(e) => ux::die_config(format!("error: {e}")),
+            Err(e) => ux::die_input(e),
         };
         build_chars(charset, &user_ranges, def_ascii)
     };
