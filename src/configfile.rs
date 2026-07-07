@@ -77,7 +77,7 @@ pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String>
     let parsed = parse_config_text(&content);
     for key in &parsed.unknown_keys {
         eprintln!(
-            "config: ignoring unknown key '{}' (known: {})",
+            "warning: ignoring unknown key '{}' (known: {})",
             key,
             known_keys().join(", ")
         );

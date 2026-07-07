@@ -157,12 +157,9 @@ fn resolve_bench_duration(override_secs: Option<u64>) -> Result<u64, String> {
 pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // Validate --bench-duration BEFORE allocating any resources so an
     // out-of-range value fails fast without polluting the terminal.
-    let bench_duration_secs = resolve_bench_duration(cfg.bench_duration).map_err(|e| {
-        // Print to stderr so the error is visible; io::Error preserves
-        // the message for the caller.
-        eprintln!("{e}");
-        std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
-    })?;
+    // Uses or_exit to print a single clean error line and exit; the
+    // resolve_bench_duration message already carries the "error:" prefix.
+    let bench_duration_secs = crate::ux::or_exit(resolve_bench_duration(cfg.bench_duration));
 
     let mut progress = BenchProgress::new();
     let interrupted = register_interrupt();

@@ -106,6 +106,7 @@ mod testconf;
 mod theme;
 mod update;
 mod usagestat;
+mod ux;
 mod validation;
 
 use std::env;
@@ -141,21 +142,12 @@ pub use cli::{
 pub use info::env_var_truthy;
 
 // --- Helpers kept in the crate root ---
-
-/// Convert a `Result<T, String>` validation error to `io::Error`.
-/// Side effect: prints the error message to stderr and exits with a CLI-style
-/// validation status instead of returning an `io::Error` that Rust would render
-/// as a debug-looking `Error: Custom { ... }`.
-fn validate_err<T>(name: &str, r: Result<T, String>) -> std::io::Result<T> {
-    match r {
-        Ok(value) => Ok(value),
-        Err(e) => {
-            let _ = name;
-            eprintln!("{e}");
-            std::process::exit(2);
-        }
-    }
-}
+//
+// Input validation uses `ux::or_exit()` instead of the old `validate_err`.
+// `or_exit` unwraps a Result whose Err carries a formatted error string,
+// prints it to stderr, and exits with code 2 — never propagating a
+// `std::io::Error` that Rust would render as a debug-looking
+// `Error: Custom { ... }`.
 
 #[cfg(target_os = "linux")]
 pub fn spawn_kill9_terminal_guard() {
@@ -301,8 +293,7 @@ fn main() -> std::io::Result<()> {
     }
     let argv = expanded;
     if let Err(e) = prevalidate_cli_args(&argv) {
-        eprintln!("{e}");
-        std::process::exit(2);
+        ux::die_input(e);
     }
 
     let matches = cmd.get_matches_from(argv);
@@ -339,17 +330,13 @@ fn main() -> std::io::Result<()> {
         let profiles = profile::collect_profiles(&cfg);
         match profile::dump_profile_text(&profiles, name) {
             Ok(text) => print!("{text}"),
-            Err(e) => {
-                eprintln!("{e}");
-                std::process::exit(1);
-            }
+            Err(e) => ux::die_config(e),
         }
         return Ok(());
     }
 
     if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
-        eprintln!("{}", e);
-        std::process::exit(1);
+        ux::die_config(e);
     }
     canonicalize_runtime_args(&mut args);
 
@@ -361,10 +348,7 @@ fn main() -> std::io::Result<()> {
     if let Some(ref name) = args.show_preset {
         match preset::print_show_preset(name) {
             Ok(()) => return Ok(()),
-            Err(e) => {
-                eprintln!("{e}");
-                std::process::exit(1);
-            }
+            Err(e) => ux::die_config(e),
         }
     }
 
@@ -437,8 +421,7 @@ fn main() -> std::io::Result<()> {
 
     if args.check_update {
         if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
-            eprintln!("update check failed: {e}");
-            std::process::exit(1);
+            ux::die_config(format!("error: update check failed: {e}"));
         }
         return Ok(());
     }
@@ -625,35 +608,25 @@ fn main() -> std::io::Result<()> {
         _ => BoldMode::Random,
     };
 
-    let target_fps = validate_err("--fps", validate_f64_range("--fps", args.fps, 1.0, 240.0))?;
+    let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
     let duration_s = args.duration.map(|s| {
         if !s.is_finite() {
-            eprintln!("failed to apply --duration {} (must be a finite number)", s);
-            std::process::exit(1);
+            ux::die_config(format!("--duration {s}: must be a finite number"));
         }
         if s > 0.0 {
-            // validate_err calls process::exit(2) on Err, so this always
-            // returns Ok. Use unwrap_or(s) for defense-in-depth in case
-            // validate_err is ever refactored to not exit.
-            return validate_err(
-                "--duration",
-                validate_f64_range("--duration", s, 0.1, 86400.0),
-            )
-            .unwrap_or(s);
+            // ux::or_exit never returns on Err; on Ok returns T directly.
+            return ux::or_exit(validate_f64_range("--duration", s, 0.1, 86400.0));
         }
         s
     });
 
     let color_scheme = match parse_color_scheme(&args.color) {
         Ok(c) => c,
-        Err(e) => {
-            eprintln!("{e}");
-            std::process::exit(1);
-        }
+        Err(e) => ux::die_config(e),
     };
     let color_tune = match args.color_tune.as_deref() {
-        Some(s) => validate_err("--color-tune", color_tune::parse_color_tune(s))?,
+        Some(s) => ux::or_exit(color_tune::parse_color_tune(s)),
         None => color_tune::ColorTune::IDENTITY,
     };
     let rain_style = args
@@ -662,56 +635,60 @@ fn main() -> std::io::Result<()> {
         .and_then(scene::rain_style_for_scene)
         .unwrap_or(rain_style::RainStyle::Glyph);
 
-    let glitch_pct = validate_err(
+    let glitch_pct = ux::or_exit(validate_f32_range(
         "--glitchpct",
-        validate_f32_range("--glitchpct", args.glitch_pct, 0.0, 100.0),
-    )?;
-    let glitch_low = validate_err(
+        args.glitch_pct,
+        0.0,
+        100.0,
+    ));
+    let glitch_low = ux::or_exit(validate_u16_range(
         "--glitchms low",
-        validate_u16_range("--glitchms low", args.glitch_ms.low, 1, 5000),
-    )?;
-    let glitch_high = validate_err(
+        args.glitch_ms.low,
+        1,
+        5000,
+    ));
+    let glitch_high = ux::or_exit(validate_u16_range(
         "--glitchms high",
-        validate_u16_range("--glitchms high", args.glitch_ms.high, 1, 5000),
-    )?;
-    let linger_low = validate_err(
+        args.glitch_ms.high,
+        1,
+        5000,
+    ));
+    let linger_low = ux::or_exit(validate_u16_range(
         "--lingerms low",
-        validate_u16_range("--lingerms low", args.linger_ms.low, 1, 60000),
-    )?;
-    let linger_high = validate_err(
+        args.linger_ms.low,
+        1,
+        60000,
+    ));
+    let linger_high = ux::or_exit(validate_u16_range(
         "--lingerms high",
-        validate_u16_range("--lingerms high", args.linger_ms.high, 1, 60000),
-    )?;
-    let short_pct = validate_err(
-        "--shortpct",
-        validate_f32_range("--shortpct", args.shortpct, 0.0, 100.0),
-    )?;
-    let die_early_pct = validate_err(
-        "--rippct",
-        validate_f32_range("--rippct", args.rippct, 0.0, 100.0),
-    )?;
-    let max_dpc = validate_err(
+        args.linger_ms.high,
+        1,
+        60000,
+    ));
+    let short_pct = ux::or_exit(validate_f32_range("--shortpct", args.shortpct, 0.0, 100.0));
+    let die_early_pct = ux::or_exit(validate_f32_range("--rippct", args.rippct, 0.0, 100.0));
+    let max_dpc = ux::or_exit(validate_u8_range(
         "--maxdpc",
-        validate_u8_range("--maxdpc", args.max_droplets_per_column, 1, 3),
-    )?;
-    let speed = validate_err("--speed", validate_speed(args.speed))?;
+        args.max_droplets_per_column,
+        1,
+        3,
+    ));
+    let speed = ux::or_exit(validate_speed(args.speed));
 
     let mut user_ranges: Vec<(char, char)> = Vec::new();
     if let Some(spec) = &args.chars {
         match parse_user_hex_chars(spec) {
             Ok(list) => {
                 if list.len() % 2 != 0 {
-                    eprintln!("--chars: odd number of unicode chars given (must be even)");
-                    std::process::exit(1);
+                    ux::die_config(
+                        "error: --chars: odd number of unicode chars given (must be even)",
+                    );
                 }
                 for pair in list.chunks(2) {
                     user_ranges.push((pair[0], pair[1]));
                 }
             }
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
+            Err(e) => ux::die_config(format!("error: {e}")),
         }
     }
 
@@ -742,46 +719,38 @@ fn main() -> std::io::Result<()> {
                     }
                 }
                 if !skipped_wide.is_empty() {
-                    eprintln!(
-                        "[cosmostrix] warning: skipped {} wide/zero-width character(s) from --charset-file: {}",
+                    ux::warn(format!(
+                        "skipped {} wide/zero-width character(s) from --charset-file: {}",
                         skipped_wide.len(),
                         skipped_wide.join(", ")
-                    );
+                    ));
                 }
                 if custom_chars.is_empty() {
-                    eprintln!(
+                    ux::die_config(format!(
                         "error: --charset-file '{cf}' contains no usable single-width characters"
-                    );
-                    std::process::exit(1);
+                    ));
                 }
                 custom_chars
             }
             Err(e) => {
-                eprintln!("error: cannot read --charset-file '{cf}': {e}");
-                std::process::exit(1);
+                ux::die_config(format!("error: cannot read --charset-file '{cf}': {e}"));
             }
         }
     } else {
         let charset = match charset_from_str(&args.charset, def_ascii) {
             Ok(c) => c,
-            Err(e) => {
-                eprintln!("{}", e);
-                std::process::exit(1);
-            }
+            Err(e) => ux::die_config(format!("error: {e}")),
         };
         build_chars(charset, &user_ranges, def_ascii)
     };
 
     let density_auto = matches.value_source("density") == Some(ValueSource::DefaultValue);
-    let base_density = validate_err(
+    let base_density = ux::or_exit(validate_f32_range(
         "--density",
-        validate_f32_range(
-            "--density",
-            args.density,
-            DENSITY_CLAMP_MIN,
-            DENSITY_CLAMP_MAX,
-        ),
-    )?;
+        args.density,
+        DENSITY_CLAMP_MIN,
+        DENSITY_CLAMP_MAX,
+    ));
 
     let default_bg = matches!(
         args.color_bg,

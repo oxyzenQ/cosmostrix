@@ -41,7 +41,7 @@ fn parse_atmosphere_mode_config(name: &str, value: &str) -> Option<String> {
         "disabled" | "controlled-live" => Some(value.trim().to_ascii_lowercase()),
         _ => {
             eprintln!(
-                "config: ignoring invalid {name}='{value}' (allowed: disabled, controlled-live)"
+                "warning: ignoring invalid {name}='{value}' (allowed: disabled, controlled-live)"
             );
             None
         }
@@ -57,12 +57,12 @@ fn parse_atmosphere_regime_config(name: &str, value: &str) -> Option<String> {
             Some(value.trim().to_ascii_lowercase())
         }
         "storm" => {
-            eprintln!("config: rejecting atmosphere-regime='storm' — storm is unavailable");
+            eprintln!("warning: rejecting atmosphere-regime='storm' — storm is unavailable");
             None
         }
         _ => {
             eprintln!(
-                "config: ignoring invalid {name}='{value}' (allowed: calm, pulse, signal, compression, void, monolith-pressure)"
+                "warning: ignoring invalid {name}='{value}' (allowed: calm, pulse, signal, compression, void, monolith-pressure)"
             );
             None
         }
@@ -218,7 +218,7 @@ fn apply_config_values(
                 args.preset = Some(name);
                 config_touched.insert("preset");
             }
-            Err(e) => eprintln!("config: ignoring invalid preset='{v}' ({e})"),
+            Err(e) => eprintln!("warning: ignoring invalid preset='{v}' ({e})"),
         }
     }
 
@@ -228,7 +228,7 @@ fn apply_config_values(
                 args.scene = Some(name);
                 config_touched.insert("scene");
             }
-            Err(e) => eprintln!("config: ignoring invalid scene='{v}' ({e})"),
+            Err(e) => eprintln!("warning: ignoring invalid scene='{v}' ({e})"),
         }
     }
 
@@ -239,7 +239,7 @@ fn apply_config_values(
                 config_touched.insert("profile");
             }
             Err(e) => {
-                eprintln!("config: ignoring unknown profile '{v}' ({e}; see --list-profiles)")
+                eprintln!("warning: ignoring unknown profile '{v}' ({e}; see --list-profiles)")
             }
         }
     }
@@ -249,7 +249,7 @@ fn apply_config_values(
             args.color = v;
             config_touched.insert("color");
         } else {
-            eprintln!("config: ignoring invalid color='{v}' (see --list-colors)");
+            eprintln!("warning: ignoring invalid color='{v}' (see --list-colors)");
         }
     }
     if let Some(v) = config_value(matches, cfg, "charset", "charset") {
@@ -257,7 +257,7 @@ fn apply_config_values(
             args.charset = v;
             config_touched.insert("charset");
         } else {
-            eprintln!("config: ignoring invalid charset='{v}' (see --list-charsets)");
+            eprintln!("warning: ignoring invalid charset='{v}' (see --list-charsets)");
         }
     }
     if let Some(v) = config_value(matches, cfg, "fps", "fps") {
@@ -285,7 +285,7 @@ fn apply_config_values(
                 config_touched.insert("monolith_size");
             }
             Err(_) => eprintln!(
-                "config: ignoring invalid monolith-size='{v}' (allowed: small, normal, large)"
+                "warning: ignoring invalid monolith-size='{v}' (allowed: small, normal, large)"
             ),
         }
     }
@@ -296,7 +296,7 @@ fn apply_config_values(
                 config_touched.insert("glitch_level");
             }
             Err(_) => eprintln!(
-                "config: ignoring invalid glitch-level='{v}' (allowed: none, subtle, default, intense)"
+                "warning: ignoring invalid glitch-level='{v}' (allowed: none, subtle, default, intense)"
             ),
         }
     }
@@ -622,7 +622,7 @@ fn parse_f32_config(name: &str, value: &str, min: f32, max: f32) -> Option<f32> 
         Ok(f) => Some(f),
         Err(_) => {
             eprintln!(
-                "config: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
+                "warning: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
             );
             None
         }
@@ -634,7 +634,7 @@ fn parse_f64_config(name: &str, value: &str, min: f64, max: f64) -> Option<f64> 
         Ok(f) => Some(f),
         Err(_) => {
             eprintln!(
-                "config: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
+                "warning: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
             );
             None
         }
@@ -646,7 +646,7 @@ fn parse_u8_config(name: &str, value: &str, min: u8, max: u8) -> Option<u8> {
         Ok(valid) => Some(valid),
         Err(_) => {
             eprintln!(
-                "config: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
+                "warning: ignoring invalid {name}='{value}' (expected: number in range {min}..={max})"
             );
             None
         }
@@ -658,7 +658,7 @@ fn parse_speed_config(name: &str, value: &str) -> Option<f32> {
         Ok(valid) => Some(valid),
         Err(_) => {
             eprintln!(
-                "config: ignoring invalid {name}='{value}' (expected: canonical integer in range {SPEED_MIN}..={SPEED_MAX})"
+                "warning: ignoring invalid {name}='{value}' (expected: canonical integer in range {SPEED_MIN}..={SPEED_MAX})"
             );
             None
         }
@@ -670,7 +670,7 @@ fn parse_bool_config(name: &str, value: &str) -> Option<bool> {
         "true" | "yes" | "on" | "1" => Some(true),
         "false" | "no" | "off" | "0" => Some(false),
         _ => {
-            eprintln!("config: ignoring invalid {name}='{value}' (expected true/false)");
+            eprintln!("warning: ignoring invalid {name}='{value}' (expected true/false)");
             None
         }
     }
@@ -683,7 +683,7 @@ fn parse_color_bg_config(value: &str) -> Option<ColorBg> {
         "transparent" => Some(ColorBg::Transparent),
         _ => {
             eprintln!(
-                "config: ignoring invalid color-bg='{value}' (allowed: black, default-background, transparent)"
+                "warning: ignoring invalid color-bg='{value}' (allowed: black, default-background, transparent)"
             );
             None
         }
