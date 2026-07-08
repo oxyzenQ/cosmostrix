@@ -23,11 +23,7 @@
 ## Demo
 
 <p align="center">
-  <a href="assets/cosmostrix-v13-demo-with-dragon.webm">
-    <img src="assets/cosmostrix-v13-demo-green-retro.png" alt="cosmostrix v13 demo video — click to play" width="800">
-  </a>
-  <br>
-  <sub>Click the image above to watch the v13 demo video (WebM, 7.3 MB)</sub>
+  <img src="assets/cosmostrix-v13-demo.gif" alt="cosmostrix v13 demo" width="480">
 </p>
 
 <p align="center">
