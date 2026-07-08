@@ -455,6 +455,17 @@ impl Cloud {
         self.force_draw_everything = true;
     }
 
+    /// Restart the message typewriter effect from the beginning.
+    /// Called when the user presses Space to reseed the rain — the
+    /// message replays its typewriter reveal for a premium cinematic
+    /// feel on every restart.
+    pub fn restart_message_typewriter(&mut self) {
+        if self.message_text.is_some() {
+            self.message_start_time = Some(Instant::now());
+            self.force_draw_everything = true;
+        }
+    }
+
     pub fn set_message_border(&mut self, on: bool) {
         self.message_border = on;
         if self.message_text.is_some() {
@@ -795,21 +806,19 @@ impl Cloud {
         let bg = self.palette.bg;
 
         // Adaptive color: use palette last color (follows 'c' key cycling).
-        // No white blend — message matches current rain color scheme.
         let fg = if self.color_mode == ColorMode::Mono {
             None
         } else {
             self.palette.colors.last().copied()
         };
 
-        // Typewriter: reveal characters progressively.
-        // Each char takes ~30ms to appear. Total reveal = chars * 30ms.
-        // After full reveal, all chars stay visible.
+        // Typewriter with fade-in: characters reveal progressively at 30ms/char,
+        // then each newly revealed character fades in from 30% to 100% brightness
+        // over ~100ms (3 frames at 30ms/char). This creates a premium "glow-in"
+        // effect instead of hard pop-in.
         let reveal_count = if let Some(start) = self.message_start_time {
             let elapsed_ms = start.elapsed().as_millis() as usize;
-            // 30ms per char, minimum 1 char on first frame
             let count = (elapsed_ms / 30).max(1);
-            // Count only non-space content chars (border chars always visible)
             let mut content_total = 0usize;
             for mc in &self.message {
                 if mc.val != ' ' && mc.val != '+' && mc.val != '-' && mc.val != '|' {
@@ -818,8 +827,14 @@ impl Cloud {
             }
             count.min(content_total)
         } else {
-            usize::MAX // no timer = show all immediately
+            usize::MAX
         };
+
+        // For fade-in: a character revealed at count N was revealed at
+        // elapsed_ms ≈ N*30. Its age = elapsed_ms - N*30. Fade completes
+        // at FADE_IN_MS (100ms). factor = min(age / FADE_IN_MS, 1.0).
+        const FADE_IN_MS: usize = 100;
+        const FADE_IN_START: f32 = 0.30; // start at 30% brightness
 
         let mut content_idx = 0usize;
         for mc in &self.message {
@@ -828,13 +843,32 @@ impl Cloud {
             let (ch, cell_fg) = if is_content {
                 if content_idx < reveal_count {
                     content_idx += 1;
-                    (mc.val, fg)
+                    // Calculate fade-in factor for this character.
+                    let cell_fg =
+                        if let (Some(start), Some(base_fg)) = (self.message_start_time, fg) {
+                            let elapsed_ms = start.elapsed().as_millis() as usize;
+                            let reveal_time_ms = content_idx * 30;
+                            let age_ms = elapsed_ms.saturating_sub(reveal_time_ms);
+                            if age_ms >= FADE_IN_MS {
+                                fg // fully faded in
+                            } else {
+                                // Fade from FADE_IN_START to 1.0 over FADE_IN_MS
+                                let progress = age_ms as f32 / FADE_IN_MS as f32;
+                                let factor = FADE_IN_START + (1.0 - FADE_IN_START) * progress;
+                                if let Some((r, g, b)) = crate::palette::decode_color(base_fg) {
+                                    Some(crate::palette::apply_brightness_rgb(r, g, b, factor))
+                                } else {
+                                    fg
+                                }
+                            }
+                        } else {
+                            fg
+                        };
+                    (mc.val, cell_fg)
                 } else {
-                    // Not yet revealed — show as space (invisible)
                     (' ', None)
                 }
             } else {
-                // Border chars: always visible with palette color
                 (mc.val, fg)
             };
 

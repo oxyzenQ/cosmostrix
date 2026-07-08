@@ -121,6 +121,9 @@ pub(super) fn handle_keybinding(
         (KeyCode::Char(' '), _) => {
             cloud.reset(frame.width, frame.height);
             cloud.force_draw_everything();
+            // Restart message typewriter so Space gives a full cinematic
+            // replay — rain reseed + message types out from scratch.
+            cloud.restart_message_typewriter();
         }
         (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
             cloud.raining = false;
