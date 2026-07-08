@@ -220,7 +220,9 @@ Explicit CLI flags always override preset, scene, and profile values.
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             g          Toggle glitch
   m             Cycle profile     Space      Reseed animation
-  ?             Toggle live HUD (FPS / p99 / max / RSS overlay)
+  a             Toggle async      1-0        Direct color scheme
+  ?             Toggle live HUD (FPS / p99 / max / RSS / uptime)
+  H             Move HUD to opposite corner (left ↔ right)
 ```
 
 ## Scenes

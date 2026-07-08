@@ -48,7 +48,7 @@ const HUD_RSS_INTERVAL: Duration = Duration::from_millis(1000);
 /// Width of the HUD overlay in terminal columns. Each line is padded
 /// to exactly this width with spaces so the black background covers
 /// only the HUD area — rain on the rest of the line stays intact.
-const HUD_WIDTH: u16 = 16;
+const HUD_WIDTH: u16 = 15;
 
 /// HUD position: left or right corner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -61,11 +61,11 @@ impl HudPosition {
     /// Compute the start column for this position given terminal width.
     fn start_col(self, cols: u16) -> u16 {
         match self {
-            // Left: flush against the edge (0).
+            // Left: flush against the edge (column 0).
             Self::Left => 0,
-            // Right: 1-char margin so HUD touches the border closely
-            // without overlapping scrollbars/gutters.
-            Self::Right => cols.saturating_sub(HUD_WIDTH + 1),
+            // Right: flush against the right border (0 margin).
+            // The last HUD character is at column cols-1.
+            Self::Right => cols.saturating_sub(HUD_WIDTH),
         }
     }
 }
@@ -209,20 +209,24 @@ impl HudState {
         // Dynamic color selection from the active palette.
         // Pick colors from different positions to get visual variety:
         // head (brightest), mid, trail (dimmest).
-        // Falls back to sensible defaults if palette is too short.
-        // This ties the HUD to the theme — green theme = green HUD,
-        // red theme = red HUD, cosmos theme = blue/white HUD.
+        // Each color is brightened by blending with white to ensure
+        // readability on the black background — some palette colors
+        // (e.g. dark green trail) are too dim to read as HUD text.
         let n = palette_colors.len();
-        let head = palette_colors
-            .get(n.saturating_sub(1))
-            .copied()
-            .unwrap_or(Color::White);
-        let mid = palette_colors.get(n / 2).copied().unwrap_or(Color::Cyan);
-        let trail = palette_colors
-            .get(n / 4)
-            .copied()
-            .unwrap_or(Color::DarkCyan);
-        let dim = palette_colors.get(1).copied().unwrap_or(Color::DarkGrey);
+        let head = brighten_color(
+            palette_colors
+                .get(n.saturating_sub(1))
+                .copied()
+                .unwrap_or(Color::White),
+        );
+        let mid = brighten_color(palette_colors.get(n / 2).copied().unwrap_or(Color::Cyan));
+        let trail = brighten_color(
+            palette_colors
+                .get(n / 4)
+                .copied()
+                .unwrap_or(Color::DarkCyan),
+        );
+        let dim = brighten_color(palette_colors.get(1).copied().unwrap_or(Color::DarkGrey));
 
         // Session uptime: mm:ss format.
         let uptime_secs = self.session_start.elapsed().as_secs();
@@ -352,6 +356,22 @@ fn pad_hud_line(s: &str) -> String {
         out.push_str(s);
         out.push_str(&" ".repeat(w - s.len()));
         out
+    }
+}
+
+/// Brighten a crossterm Color by blending it 50% with white.
+/// Ensures HUD text is always readable on the black background,
+/// even when the palette color is very dark (e.g. dark green trail).
+/// Non-RGB colors (AnsiValue, named) are returned as-is — they're
+/// already bright enough in practice.
+fn brighten_color(color: Color) -> Color {
+    match color {
+        Color::Rgb { r, g, b } => Color::Rgb {
+            r: r / 2 + 128,
+            g: g / 2 + 128,
+            b: b / 2 + 128,
+        },
+        other => other,
     }
 }
 
