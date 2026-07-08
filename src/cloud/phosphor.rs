@@ -281,6 +281,22 @@ impl Cloud {
                     base_fg
                 };
                 let ghost_ch = self.phosphor_base_ch[pidx];
+                // Trail character cycling: 2% chance per decay step to
+                // mutate the trail character to a new random glyph. This
+                // makes the rain feel "alive" throughout the trail, not
+                // just at the head — matching the film Matrix effect
+                // where background characters subtly shift.
+                let ghost_ch = if ghost_ch != '\0'
+                    && !self.char_pool.is_empty()
+                    && self.rand_chance.sample(&mut self.mt) < TRAIL_CYCLE_PROBABILITY
+                {
+                    let new_ch = self.char_pool
+                        [self.rand_cpidx.sample(&mut self.mt) as usize % self.char_pool.len()];
+                    self.phosphor_base_ch[pidx] = new_ch;
+                    new_ch
+                } else {
+                    ghost_ch
+                };
                 frame.set(
                     col,
                     line,

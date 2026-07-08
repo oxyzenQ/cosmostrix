@@ -490,6 +490,16 @@ pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.5];
 /// create visual separation without making far-layer glyphs disappear.
 pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [0.85, 1.0, 1.0];
 
+/// Per-layer contrast reduction (depth-of-field perceptual blur).
+/// Layer 0 (background) gets its foreground color blended toward the
+/// background by this factor, creating a "foggy/out-of-focus" look.
+/// 0.0 = no reduction (sharp), 0.5 = 50% blend toward bg (foggy).
+/// Only layer 0 has contrast reduction — layers 1-2 stay sharp.
+/// This is the terminal equivalent of depth-of-field blur: instead of
+/// blurring pixels (impossible in text), we reduce fg-bg contrast so
+/// the background rain reads as "behind a haze".
+pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.35, 0.0, 0.0];
+
 // ---------------------------------------------------------------------------
 // Velocity turbulence
 // ---------------------------------------------------------------------------
@@ -530,6 +540,16 @@ pub const HEAD_SHIMMER_PERIOD_SECS: f32 = 0.10;
 /// don't all advance on the same frame cadence. This breaks the "robotic"
 /// synchronized march where every stream moves its head on the same tick.
 pub const SPAWN_PHASE_JITTER: bool = true;
+
+/// Trail character cycling probability per decay step.
+/// Each time a phosphor trail cell is re-rendered during decay, there is
+/// this chance the character mutates to a new random glyph from the char
+/// pool. At 0.02 (2%), roughly 1 in 50 trail cells change character per
+/// decay step — subtle enough to feel organic, frequent enough to make
+/// the rain feel "alive" throughout the trail, not just at the head.
+/// This matches the film Matrix effect where background characters
+/// subtly shift.
+pub const TRAIL_CYCLE_PROBABILITY: f32 = 0.02;
 
 // ---------------------------------------------------------------------------
 // Rare anomaly events

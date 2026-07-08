@@ -41,8 +41,9 @@ use crate::constants::{
     HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS,
     HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_INTENSITY,
     MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS,
-    MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT, PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU,
-    STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
+    MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT, PARALLAX_CONTRAST_REDUCTION,
+    PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
+    TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
     TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ,
 };
 use crate::frame::Frame;
@@ -508,6 +509,19 @@ impl Droplet {
                     r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                     g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                     b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                }
+
+                // Depth-of-field: reduce fg-bg contrast for background layer.
+                // Blends the foreground color toward black (background) by
+                // PARALLAX_CONTRAST_REDUCTION[layer]. This creates a "foggy"
+                // perceptual blur — the terminal equivalent of depth-of-field.
+                // Only layer 0 (background) is affected; layers 1-2 stay sharp.
+                let contrast_reduction = PARALLAX_CONTRAST_REDUCTION[self.layer as usize];
+                if contrast_reduction > 0.0 {
+                    let cr = (contrast_reduction * 256.0) as i32;
+                    r = ((r as i32 * (256 - cr) + 128) >> 8).clamp(0, 255) as u8;
+                    g = ((g as i32 * (256 - cr) + 128) >> 8).clamp(0, 255) as u8;
+                    b = ((b as i32 * (256 - cr) + 128) >> 8).clamp(0, 255) as u8;
                 }
 
                 // Depth fog: dim top and bottom rows
