@@ -370,9 +370,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             (KeyCode::Char('?'), _) | (KeyCode::Char('/'), KeyModifiers::SHIFT)
                         ) {
                             hud_state.toggle();
-                            // toggle() forces the next render to fire
-                            // immediately when turning on, so the HUD
-                            // appears without waiting for the 4 Hz tick.
+                            continue;
+                        }
+
+                        // H (shift+h): toggle HUD position left ↔ right.
+                        if matches!((k.code, k.modifiers), (KeyCode::Char('H'), _)) {
+                            hud_state.toggle_position();
                             continue;
                         }
 

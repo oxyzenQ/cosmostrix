@@ -50,9 +50,30 @@ const HUD_RSS_INTERVAL: Duration = Duration::from_millis(1000);
 /// only the HUD area — rain on the rest of the line stays intact.
 const HUD_WIDTH: u16 = 16;
 
+/// HUD position: left or right corner.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum HudPosition {
+    Left,
+    Right,
+}
+
+impl HudPosition {
+    /// Compute the start column for this position given terminal width.
+    fn start_col(self, cols: u16) -> u16 {
+        match self {
+            Self::Left => 0,
+            // 2-char right margin so the HUD doesn't touch the edge.
+            Self::Right => cols.saturating_sub(HUD_WIDTH + 2),
+        }
+    }
+}
+
 /// Live HUD overlay state.
 pub(crate) struct HudState {
     visible: bool,
+    position: HudPosition,
+    /// Session start time for uptime display.
+    session_start: Instant,
     frame_times: FrameTimeTracker,
     last_metric_update: Instant,
     last_display_update: Instant,
@@ -65,7 +86,7 @@ pub(crate) struct HudState {
     /// Cached display strings — reformatted only at 4 Hz, written to
     /// stdout at up to 60 Hz to prevent rain flicker.
     cached_lines: [(Color, String); 5],
-    /// Cached start column for the HUD. Recomputed when cols changes.
+    /// Cached start column for the HUD. Recomputed when cols/position changes.
     cached_start_col: u16,
 }
 
@@ -73,6 +94,8 @@ impl HudState {
     pub(crate) fn new() -> Self {
         Self {
             visible: false,
+            position: HudPosition::Left,
+            session_start: Instant::now(),
             frame_times: FrameTimeTracker::new(),
             last_metric_update: Instant::now()
                 .checked_sub(HUD_METRIC_INTERVAL)
@@ -110,6 +133,17 @@ impl HudState {
                 .unwrap_or_else(Instant::now);
         }
         self.visible
+    }
+
+    /// Toggle HUD position between left and right corners.
+    /// Called when user presses 'H' (shift+h).
+    pub(crate) fn toggle_position(&mut self) {
+        self.position = match self.position {
+            HudPosition::Left => HudPosition::Right,
+            HudPosition::Right => HudPosition::Left,
+        };
+        // Force recompute of start_col on next render.
+        self.cached_start_col = u16::MAX;
     }
 
     /// Whether the HUD is currently visible.
@@ -170,15 +204,39 @@ impl HudState {
             .map(format_rss_kb)
             .unwrap_or_else(|| "—".to_string());
 
-        // Reformat cached display strings, padded to HUD_WIDTH so the
-        // black background covers exactly the HUD area. Rain on the
-        // rest of the line (columns 0..start_col) stays intact because
-        // render() does NOT clear the entire line.
-        self.cached_lines[0].1 = pad_hud_line(&format!(" fps: {:>7.0}  ", fps));
-        self.cached_lines[1].1 = pad_hud_line(&format!(" avg: {:>6.3}ms ", avg_ms));
-        self.cached_lines[2].1 = pad_hud_line(&format!(" p99: {:>6.3}ms ", self.p99_ms));
-        self.cached_lines[3].1 = pad_hud_line(&format!(" max: {:>6.3}ms ", self.max_ms));
-        self.cached_lines[4].1 = pad_hud_line(&format!(" rss: {:>8} ", rss_str));
+        // Color-code FPS: green >= 60, yellow 30-59, red < 30.
+        // Instant visual threshold — no need to read the number.
+        let fps_color = if fps >= 60.0 {
+            Color::Green
+        } else if fps >= 30.0 {
+            Color::Yellow
+        } else {
+            Color::Red
+        };
+
+        // Session uptime: mm:ss format.
+        let uptime_secs = self.session_start.elapsed().as_secs();
+        let uptime_str = format!("{:02}:{:02}", uptime_secs / 60, uptime_secs % 60);
+
+        // 5-line HUD: fps (color-coded), p99, max, rss, uptime.
+        // avg is dropped — fps = 1000/avg, so it's redundant.
+        self.cached_lines[0] = (fps_color, pad_hud_line(&format!(" fps: {:>7.0}  ", fps)));
+        self.cached_lines[1] = (
+            Color::Magenta,
+            pad_hud_line(&format!(" p99: {:>6.3}ms ", self.p99_ms)),
+        );
+        self.cached_lines[2] = (
+            Color::Green,
+            pad_hud_line(&format!(" max: {:>6.3}ms ", self.max_ms)),
+        );
+        self.cached_lines[3] = (
+            Color::DarkCyan,
+            pad_hud_line(&format!(" rss: {:>8} ", rss_str)),
+        );
+        self.cached_lines[4] = (
+            Color::DarkGrey,
+            pad_hud_line(&format!(" up: {:>5} ", uptime_str)),
+        );
     }
 
     /// Render the HUD overlay. Called every frame when visible, but
@@ -199,7 +257,7 @@ impl HudState {
         }
         self.last_display_update = now;
 
-        let start_col = cols.saturating_sub(HUD_WIDTH + 2);
+        let start_col = self.position.start_col(cols);
         if start_col != self.cached_start_col {
             self.cached_start_col = start_col;
         }
