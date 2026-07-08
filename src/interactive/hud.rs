@@ -61,9 +61,11 @@ impl HudPosition {
     /// Compute the start column for this position given terminal width.
     fn start_col(self, cols: u16) -> u16 {
         match self {
+            // Left: flush against the edge (0).
             Self::Left => 0,
-            // 2-char right margin so the HUD doesn't touch the edge.
-            Self::Right => cols.saturating_sub(HUD_WIDTH + 2),
+            // Right: 1-char margin so HUD touches the border closely
+            // without overlapping scrollbars/gutters.
+            Self::Right => cols.saturating_sub(HUD_WIDTH + 1),
         }
     }
 }
@@ -184,7 +186,7 @@ impl HudState {
     /// comparison + early return). When the interval elapses, reformats
     /// the cached display strings.
     #[inline]
-    pub(crate) fn update_metrics(&mut self) {
+    pub(crate) fn update_metrics(&mut self, palette_colors: &[crossterm::style::Color]) {
         if !self.visible {
             return;
         }
@@ -204,39 +206,38 @@ impl HudState {
             .map(format_rss_kb)
             .unwrap_or_else(|| "—".to_string());
 
-        // Color-code FPS: green >= 60, yellow 30-59, red < 30.
-        // Instant visual threshold — no need to read the number.
-        let fps_color = if fps >= 60.0 {
-            Color::Green
-        } else if fps >= 30.0 {
-            Color::Yellow
-        } else {
-            Color::Red
-        };
+        // Dynamic color selection from the active palette.
+        // Pick colors from different positions to get visual variety:
+        // head (brightest), mid, trail (dimmest).
+        // Falls back to sensible defaults if palette is too short.
+        // This ties the HUD to the theme — green theme = green HUD,
+        // red theme = red HUD, cosmos theme = blue/white HUD.
+        let n = palette_colors.len();
+        let head = palette_colors
+            .get(n.saturating_sub(1))
+            .copied()
+            .unwrap_or(Color::White);
+        let mid = palette_colors.get(n / 2).copied().unwrap_or(Color::Cyan);
+        let trail = palette_colors
+            .get(n / 4)
+            .copied()
+            .unwrap_or(Color::DarkCyan);
+        let dim = palette_colors.get(1).copied().unwrap_or(Color::DarkGrey);
 
         // Session uptime: mm:ss format.
         let uptime_secs = self.session_start.elapsed().as_secs();
         let uptime_str = format!("{:02}:{:02}", uptime_secs / 60, uptime_secs % 60);
 
-        // 5-line HUD: fps (color-coded), p99, max, rss, uptime.
+        // 5-line HUD: fps (palette head), p99 (mid), max (head), rss (trail), uptime (dim).
         // avg is dropped — fps = 1000/avg, so it's redundant.
-        self.cached_lines[0] = (fps_color, pad_hud_line(&format!(" fps: {:>7.0}  ", fps)));
-        self.cached_lines[1] = (
-            Color::Magenta,
-            pad_hud_line(&format!(" p99: {:>6.3}ms ", self.p99_ms)),
-        );
+        self.cached_lines[0] = (head, pad_hud_line(&format!(" fps: {:>7.0}  ", fps)));
+        self.cached_lines[1] = (mid, pad_hud_line(&format!(" p99: {:>6.3}ms ", self.p99_ms)));
         self.cached_lines[2] = (
-            Color::Green,
+            head,
             pad_hud_line(&format!(" max: {:>6.3}ms ", self.max_ms)),
         );
-        self.cached_lines[3] = (
-            Color::DarkCyan,
-            pad_hud_line(&format!(" rss: {:>8} ", rss_str)),
-        );
-        self.cached_lines[4] = (
-            Color::DarkGrey,
-            pad_hud_line(&format!(" up: {:>5} ", uptime_str)),
-        );
+        self.cached_lines[3] = (trail, pad_hud_line(&format!(" rss: {:>8} ", rss_str)));
+        self.cached_lines[4] = (dim, pad_hud_line(&format!(" up: {:>5} ", uptime_str)));
     }
 
     /// Render the HUD overlay. Called every frame when visible, but
@@ -247,6 +248,40 @@ impl HudState {
     /// starting at start_col, so rain on the rest of the line is
     /// preserved. This was the root cause of the "blank space above
     /// rain" bug: \x1b[2K cleared all columns, not just the HUD area.
+    /// Write HUD cells into the frame buffer. Called BEFORE term.draw()
+    /// so the HUD is part of the same frame flush as the rain — this
+    /// eliminates fullscreen flicker (two separate stdout writes were
+    /// causing double-repaint in fullscreen mode).
+    ///
+    /// Writes HUD_WIDTH cells per line, starting at start_col, for 5
+    /// lines. Each cell gets the line's fg color + black bg. Rain cells
+    /// outside the HUD area are untouched.
+    pub(crate) fn write_to_frame(&self, frame: &mut crate::frame::Frame, cols: u16) {
+        if !self.visible {
+            return;
+        }
+        let start_col = self.position.start_col(cols);
+        for (i, (color, text)) in self.cached_lines.iter().enumerate() {
+            let row = i as u16;
+            for (col_offset, ch) in text.chars().enumerate() {
+                let x = start_col + col_offset as u16;
+                if x >= cols {
+                    break;
+                }
+                let cell = crate::cell::Cell {
+                    ch,
+                    fg: Some(*color),
+                    bg: Some(Color::Black),
+                    bold: false,
+                };
+                frame.set_force(x, row, cell);
+            }
+        }
+    }
+
+    /// Legacy direct-stdout render. Kept for backward compat but no
+    /// longer called by the event loop — use write_to_frame() instead.
+    #[allow(dead_code)]
     pub(crate) fn render(&mut self, cols: u16) {
         if !self.visible {
             return;

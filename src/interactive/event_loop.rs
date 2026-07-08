@@ -548,6 +548,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Pass idle state to Cloud for Weather Director tick
         cloud.is_idle = is_idle;
         cloud.rain(&mut frame);
+
+        // Write HUD into the frame buffer BEFORE term.draw() so it's
+        // part of the same flush — eliminates fullscreen flicker.
+        hud_state.write_to_frame(&mut frame, cloud.cols);
+
         // Cache dirty checks once per frame to avoid redundant method calls.
         let is_dirty_all = frame.is_dirty_all();
         let dirty_len = frame.dirty_indices().len();
@@ -559,14 +564,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         let work_s = work_start.elapsed().as_secs_f32();
 
-        // Live HUD overlay: push frame time, maybe sample RSS, maybe render.
-        // All three methods short-circuit when the HUD is off (zero cost).
-        // Render happens AFTER term.draw() so the HUD survives differential
-        // redraws and sits on top of the rain.
+        // Live HUD: push frame time, sample RSS, recompute metrics.
+        // All methods short-circuit when HUD is off (zero cost).
+        // write_to_frame() above handles the actual display.
         hud_state.push_frame_time(work_s as f64 * 1000.0);
         hud_state.maybe_sample_rss();
-        hud_state.update_metrics();
-        hud_state.render(cloud.cols);
+        hud_state.update_metrics(cloud.hud_colors());
 
         let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
         if overshoot > 0.0 {

@@ -560,6 +560,15 @@ impl Cloud {
         &self.scene_name
     }
 
+    /// Get the active palette colors for HUD dynamic coloring.
+    /// Returns a slice of crossterm Colors from the current palette.
+    /// Used by the live HUD to color metrics with the theme's colors
+    /// instead of hardcoded static colors.
+    #[must_use]
+    pub fn hud_colors(&self) -> &[crossterm::style::Color] {
+        &self.palette.colors
+    }
+
     pub fn toggle_pause(&mut self) -> bool {
         self.pause = !self.pause;
         if self.pause {
