@@ -23,19 +23,21 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v12-demo.gif" alt="Cosmostrix v12 masterclass demo" width="800">
+  <video width="800" controls>
+    <source src="assets/cosmostrix-v13-demo-with-dragon.webm" type="video/webm">
+  </video>
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v12-demo-cyberpunk.png" alt="Cosmostrix v12 cyberpunk charset demo" width="800">
+  <img src="assets/cosmostrix-v13-demo-binary.png" alt="cosmostrix v13 binary charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v12-demo-retro.png" alt="Cosmostrix v12 retro charset demo" width="800">
+  <img src="assets/cosmostrix-v13-demo-retro.png" alt="cosmostrix v13 retro charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v12-demo-braille.png" alt="Cosmostrix v12 braille charset demo" width="800">
+  <img src="assets/cosmostrix-v13-demo-braille.png" alt="cosmostrix v13 braille charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v12-demo-hacker.png" alt="Cosmostrix v12 hacker charset demo" width="800">
+  <img src="assets/cosmostrix-v13-demo-hacker.png" alt="cosmostrix v13 hacker charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v12-demo-blocks.png" alt="Cosmostrix v12 blocks charset demo" width="800">
+  <img src="assets/cosmostrix-v13-demo-green-retro.png" alt="cosmostrix v13 green retro charset demo" width="800">
 </p>
 
 <p align="center">
