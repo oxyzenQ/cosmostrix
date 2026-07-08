@@ -562,6 +562,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // redraws and sits on top of the rain.
         hud_state.push_frame_time(work_s as f64 * 1000.0);
         hud_state.maybe_sample_rss();
+        hud_state.update_metrics();
         hud_state.render(cloud.cols);
 
         let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);

@@ -33,26 +33,31 @@ use crossterm::style::{Color, Print, SetBackgroundColor, SetForegroundColor};
 use crate::interactive::activity::FrameTimeTracker;
 use crate::memstat;
 
-/// Minimum interval between HUD redraws (~4 Hz).
-const HUD_UPDATE_INTERVAL: Duration = Duration::from_millis(250);
+/// Minimum interval between HUD metric recomputation (~4 Hz).
+/// The HUD *display* redraws every frame to prevent rain from
+/// flickering through the overlay area; only the expensive metric
+/// computation (p99 sort) is rate-limited.
+const HUD_METRIC_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Interval between RSS samples in interactive mode (1 Hz).
-/// Slower than the benchmark's 100ms because interactive mode runs
-/// indefinitely and /proc reads have measurable overhead at high rates.
 const HUD_RSS_INTERVAL: Duration = Duration::from_millis(1000);
 
 /// Live HUD overlay state.
 pub(crate) struct HudState {
     visible: bool,
     frame_times: FrameTimeTracker,
-    last_update: Instant,
+    last_metric_update: Instant,
     last_rss_sample: Instant,
     last_rss_kb: Option<u64>,
     /// Cached max frame time (ms) for display. Updated on every push.
     max_ms: f64,
-    /// Cached p99 frame time (ms) for display. Updated periodically by
-    /// sorting a copy of the ring buffer.
+    /// Cached p99 frame time (ms) for display. Updated at 4 Hz.
     p99_ms: f64,
+    /// Cached display strings — reformatted only at 4 Hz, written to
+    /// stdout every frame to prevent rain flicker.
+    cached_lines: [(Color, String); 5],
+    /// Cached start column for the HUD. Recomputed when cols changes.
+    cached_start_col: u16,
 }
 
 impl HudState {
@@ -60,9 +65,8 @@ impl HudState {
         Self {
             visible: false,
             frame_times: FrameTimeTracker::new(),
-            // Allow the first update immediately.
-            last_update: Instant::now()
-                .checked_sub(HUD_UPDATE_INTERVAL)
+            last_metric_update: Instant::now()
+                .checked_sub(HUD_METRIC_INTERVAL)
                 .unwrap_or_else(Instant::now),
             last_rss_sample: Instant::now()
                 .checked_sub(HUD_RSS_INTERVAL)
@@ -70,17 +74,24 @@ impl HudState {
             last_rss_kb: None,
             max_ms: 0.0,
             p99_ms: 0.0,
+            cached_lines: [
+                (Color::Cyan, String::new()),
+                (Color::Yellow, String::new()),
+                (Color::Magenta, String::new()),
+                (Color::Green, String::new()),
+                (Color::DarkCyan, String::new()),
+            ],
+            cached_start_col: 0,
         }
     }
 
     /// Toggle HUD visibility. Returns the new visibility state.
     pub(crate) fn toggle(&mut self) -> bool {
         self.visible = !self.visible;
-        // When turning on, force the next render() call to fire immediately
-        // by backdating last_update past the rate-limit window.
+        // When turning on, force immediate metric recompute + render.
         if self.visible {
-            self.last_update = Instant::now()
-                .checked_sub(HUD_UPDATE_INTERVAL * 2)
+            self.last_metric_update = Instant::now()
+                .checked_sub(HUD_METRIC_INTERVAL * 2)
                 .unwrap_or_else(Instant::now);
         }
         self.visible
@@ -119,8 +130,44 @@ impl HudState {
         self.last_rss_kb = memstat::current_rss_kb();
     }
 
-    /// Render the HUD overlay if visible and enough time has elapsed since
-    /// the last redraw. Writes ANSI escape sequences directly to stdout.
+    /// Recompute HUD metrics (rate-limited at 4 Hz). Called every frame
+    /// from the event loop. Cheap on the fast path (one timestamp
+    /// comparison + early return). When the interval elapses, reformats
+    /// the cached display strings.
+    #[inline]
+    pub(crate) fn update_metrics(&mut self) {
+        if !self.visible {
+            return;
+        }
+        let now = Instant::now();
+        if now.duration_since(self.last_metric_update) < HUD_METRIC_INTERVAL {
+            return;
+        }
+        self.last_metric_update = now;
+
+        // Recompute p99 from the ring buffer (~300ns, acceptable at 4 Hz).
+        self.p99_ms = self.frame_times.p99_ms();
+
+        let avg_ms = self.frame_times.rolling_avg_ms();
+        let fps = if avg_ms > 0.0 { 1000.0 / avg_ms } else { 0.0 };
+        let rss_str = self
+            .last_rss_kb
+            .map(format_rss_kb)
+            .unwrap_or_else(|| "—".to_string());
+
+        // Reformat cached display strings. These are written to stdout
+        // every frame by render() to prevent rain from flickering
+        // through the HUD area.
+        self.cached_lines[0].1 = format!(" fps: {:>7.0}  ", fps);
+        self.cached_lines[1].1 = format!(" avg: {:>6.3}ms ", avg_ms);
+        self.cached_lines[2].1 = format!(" p99: {:>6.3}ms ", self.p99_ms);
+        self.cached_lines[3].1 = format!(" max: {:>6.3}ms ", self.max_ms);
+        self.cached_lines[4].1 = format!(" rss: {:>8} ", rss_str);
+    }
+
+    /// Render the HUD overlay. Called EVERY FRAME when visible to
+    /// prevent rain from flickering through the overlay area. Writes
+    /// cached display strings (updated at 4 Hz by update_metrics()).
     ///
     /// `cols` is the terminal width in columns, used to position the HUD
     /// in the top-right corner.
@@ -128,60 +175,38 @@ impl HudState {
         if !self.visible {
             return;
         }
-        let now = Instant::now();
-        if now.duration_since(self.last_update) < HUD_UPDATE_INTERVAL {
-            return;
-        }
-        self.last_update = now;
 
-        // Recompute p99 from the ring buffer. FrameTimeTracker::p99_ms()
-        // sorts a 60-element snapshot — ~300ns, negligible at 4 Hz.
-        self.p99_ms = self.frame_times.p99_ms();
-
-        let avg_ms = self.frame_times.rolling_avg_ms();
-        let fps = if avg_ms > 0.0 { 1000.0 / avg_ms } else { 0.0 };
-        let jitter = self.frame_times.jitter_classification();
-        let rss_str = self
-            .last_rss_kb
-            .map(format_rss_kb)
-            .unwrap_or_else(|| "—".to_string());
-
-        // HUD layout: 4 lines, ~24 chars wide, top-right corner.
-        // Line 1: FPS (bold green)
-        // Line 2: avg frame time (ms)
-        // Line 3: p99 frame time (ms) — highlights tail spikes
-        // Line 4: RSS (KiB/MiB) — shows memory footprint
-        // Line 5: jitter classification
-        let lines: [(Color, &str); 5] = [
-            (Color::Cyan, &format!(" fps: {:>7.0}  ", fps)),
-            (Color::Yellow, &format!(" avg: {:>6.3}ms ", avg_ms)),
-            (Color::Magenta, &format!(" p99: {:>6.3}ms ", self.p99_ms)),
-            (Color::Green, &format!(" max: {:>6.3}ms ", self.max_ms)),
-            (Color::DarkCyan, &format!(" rss: {:>8} ", rss_str)),
-        ];
-        let _ = jitter; // Reserved for future use; not rendered to keep HUD compact.
-
-        // Position: top-right. The HUD is ~14 chars wide; place it at
-        // cols - 16 to leave a 2-char right margin.
+        // Recompute start column if terminal width changed.
         let hud_width: u16 = 14;
         let start_col = cols.saturating_sub(hud_width + 2);
+        if start_col != self.cached_start_col {
+            self.cached_start_col = start_col;
+        }
 
         let mut stdout = std::io::stdout();
-        // Save cursor, move to top-right, draw the HUD, restore cursor.
+        // Save cursor position — restored after the HUD is drawn.
         let _ = execute!(stdout, SavePosition);
-        for (i, (color, text)) in lines.iter().enumerate() {
+        for (i, (color, text)) in self.cached_lines.iter().enumerate() {
             let row = i as u16;
+            // Clear the line first, then write. This prevents leftover
+            // rain characters from showing through when text length
+            // changes between metric updates.
             let _ = execute!(
                 stdout,
-                MoveTo(start_col, row),
+                MoveTo(self.cached_start_col, row),
                 SetBackgroundColor(Color::Black),
                 SetForegroundColor(*color),
+                Print("\x1b[2K"), // clear entire line
                 Print(text),
-                SetBackgroundColor(Color::Reset),
-                SetForegroundColor(Color::Reset),
             );
         }
-        let _ = execute!(stdout, RestorePosition);
+        // Reset colors once after all lines are drawn.
+        let _ = execute!(
+            stdout,
+            SetBackgroundColor(Color::Reset),
+            SetForegroundColor(Color::Reset),
+            RestorePosition,
+        );
         let _ = stdout.flush();
     }
 
