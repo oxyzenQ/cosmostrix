@@ -23,7 +23,7 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v13-demo.gif" alt="cosmostrix v13 demo" width="480">
+  <img src="assets/cosmostrix-v13-demo.gif" alt="cosmostrix v13 demo" width="800">
 </p>
 
 <p align="center">
