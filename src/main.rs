@@ -816,7 +816,15 @@ fn main() -> std::io::Result<()> {
         speed,
         monolith_size: args.monolith_size,
         chars,
-        message: args.message.clone(),
+        message: args.message.as_deref().map(|m| {
+            if m.len() > MESSAGE_MAX_LEN {
+                ux::die_input(format!(
+                    "error: --message text exceeds {MESSAGE_MAX_LEN} character limit (got {})",
+                    m.len()
+                ));
+            }
+            m.to_string()
+        }),
         message_border: args.message_border,
         target_fps,
         duration: args.duration,

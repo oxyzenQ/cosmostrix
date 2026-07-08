@@ -235,7 +235,7 @@ Press `x` or `X` while running to cycle scenes forward: Monolith Rain → Matrix
 
 ## Configuration
 
-Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`). Use `--config <path>` to load a specific file.
+Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`). Use `--config <path>` to load a specific file. For security, `--config` and `--charset-file` only accept paths in: home directory (`~`), current directory (`.`), `/etc/cosmostrix/`, or `/tmp/`.
 
 ```
 scene = monolith

@@ -9,6 +9,81 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v13.0.0 — Alive Rain + Depth-of-Field + Security
+
+Visual quality + security hardening release. The rain now feels alive
+throughout the trail (not just at the head), background rain appears
+out-of-focus like film Matrix depth-of-field, the message typewriter
+glows in per character, and file-reading CLI flags are restricted to
+safe paths.
+
+### Visual Quality
+
+**Character cycling** (alive rain):
+- Trail characters now have a 2% chance per decay step to mutate to a
+  new random glyph from the char pool. At 60fps with ~1000 active trail
+  cells, ~20 characters change per second — subtle enough to feel
+  organic, frequent enough to make the rain feel "alive" throughout.
+- Previously only the head character cycled (every 100ms); the trail
+  was static after spawn. Now matches the film Matrix effect where
+  background characters subtly shift.
+- New constant: `TRAIL_CYCLE_PROBABILITY = 0.02` in constants.rs.
+
+**Depth-of-field** (perceptual blur):
+- Layer 0 (background) foreground color is blended 35% toward black,
+  creating a "foggy/out-of-focus" look. The terminal equivalent of
+  depth-of-field: instead of blurring pixels (impossible in text), we
+  reduce fg-bg contrast so background rain reads as "behind a haze".
+- Layers 1-2 stay sharp. 3-tier depth hierarchy: sharp foreground →
+  clear midground → hazy background.
+- New constant: `PARALLAX_CONTRAST_REDUCTION = [0.35, 0.0, 0.0]`.
+
+**Typewriter fade-in glow** (masterclass upgrade):
+- Each newly revealed message character now fades in from 30% to 100%
+  brightness over 100ms (3 frames at 30ms/char reveal rate). Creates a
+  premium "glow-in" effect — characters appear to illuminate rather
+  than snap into existence.
+- Previously characters popped in at full brightness (hard pop-in).
+
+**Space key restarts typewriter**:
+- When the user presses Space to reseed the rain, the message typewriter
+  also restarts from the beginning. Rain reseed + message types out
+  from scratch — consistent cinematic replay on every restart.
+- New method: `cloud::restart_message_typewriter()`.
+
+### Security
+
+**Safe path validation** (`--config` and `--charset-file`):
+- Prevents cosmostrix from being used as an arbitrary file reader.
+  Before: `--charset-file /etc/shadow` would read and display shadow
+  file contents as charset characters. `--config /proc/self/environ`
+  would parse environment variables as config.
+- Now: `is_safe_path()` validates the path before reading. Allowed:
+  home directory (`~`), current directory (`.`), `/etc/cosmostrix/`,
+  `/tmp/` (for testing/scripts). Rejected: `/etc/shadow`, `/proc/*`,
+  `/sys/*`, `/root/*`, `/var/log/*`, etc.
+- New file: `src/safepath.rs` (117 LOC) with 6 unit tests.
+
+**System-wide config fallback**:
+- `load_config_file()` now falls back to `/etc/cosmostrix/config.toml`
+  when no user-level config exists. Search order: user config → legacy
+  filename → /etc system default.
+
+**Message length limit**:
+- `--message` text is now limited to 200 characters. Prevents layout
+  overflow from excessively long messages. Clear error message on
+  violation.
+- New constant: `MESSAGE_MAX_LEN = 200`.
+
+### PKGBUILD Cleanup
+
+- Removed hardcoded config.toml from AUR package. Clean install: only
+  binary + license + docs. No config files installed — cosmostrix
+  ships sensible built-in defaults and generates a config on demand
+  via `cosmostrix --dump-config`.
+
+---
+
 ## v11.1.0 — Benchmark Depth & Theme Tuning
 
 Closes the "real metrics, not gimmick" gap and pushes the benchmark to

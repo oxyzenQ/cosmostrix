@@ -776,3 +776,13 @@ pub const EVENT_PERF_GATE: f32 = 0.5;
 pub const GHOST_SPAWN_CHANCE_PER_TICK: f64 = 0.003;
 /// Maximum number of active ghost events.
 pub const GHOST_MAX_ACTIVE: usize = 1;
+
+// ---------------------------------------------------------------------------
+// Message overlay limits
+// ---------------------------------------------------------------------------
+
+/// Maximum message text length (characters). Prevents excessively long
+/// messages from overflowing the terminal or causing layout issues.
+/// 200 chars is enough for a sentence or short phrase — the message
+/// box is a overlay, not a full-screen text editor.
+pub const MESSAGE_MAX_LEN: usize = 200;
