@@ -34,19 +34,28 @@ use crate::interactive::activity::FrameTimeTracker;
 use crate::memstat;
 
 /// Minimum interval between HUD metric recomputation (~4 Hz).
-/// The HUD *display* redraws every frame to prevent rain from
-/// flickering through the overlay area; only the expensive metric
-/// computation (p99 sort) is rate-limited.
 const HUD_METRIC_INTERVAL: Duration = Duration::from_millis(250);
+
+/// Maximum HUD display redraw rate (~60 Hz). Even when target_fps is
+/// 120 or 240, the HUD text is only rewritten at 60 Hz — the human eye
+/// cannot read text faster than this, and capping reduces ANSI escape
+/// overhead. Rain continues to render at full target_fps.
+const HUD_DISPLAY_MAX_HZ: Duration = Duration::from_millis(16);
 
 /// Interval between RSS samples in interactive mode (1 Hz).
 const HUD_RSS_INTERVAL: Duration = Duration::from_millis(1000);
+
+/// Width of the HUD overlay in terminal columns. Each line is padded
+/// to exactly this width with spaces so the black background covers
+/// only the HUD area — rain on the rest of the line stays intact.
+const HUD_WIDTH: u16 = 16;
 
 /// Live HUD overlay state.
 pub(crate) struct HudState {
     visible: bool,
     frame_times: FrameTimeTracker,
     last_metric_update: Instant,
+    last_display_update: Instant,
     last_rss_sample: Instant,
     last_rss_kb: Option<u64>,
     /// Cached max frame time (ms) for display. Updated on every push.
@@ -54,7 +63,7 @@ pub(crate) struct HudState {
     /// Cached p99 frame time (ms) for display. Updated at 4 Hz.
     p99_ms: f64,
     /// Cached display strings — reformatted only at 4 Hz, written to
-    /// stdout every frame to prevent rain flicker.
+    /// stdout at up to 60 Hz to prevent rain flicker.
     cached_lines: [(Color, String); 5],
     /// Cached start column for the HUD. Recomputed when cols changes.
     cached_start_col: u16,
@@ -67,6 +76,9 @@ impl HudState {
             frame_times: FrameTimeTracker::new(),
             last_metric_update: Instant::now()
                 .checked_sub(HUD_METRIC_INTERVAL)
+                .unwrap_or_else(Instant::now),
+            last_display_update: Instant::now()
+                .checked_sub(HUD_DISPLAY_MAX_HZ)
                 .unwrap_or_else(Instant::now),
             last_rss_sample: Instant::now()
                 .checked_sub(HUD_RSS_INTERVAL)
@@ -92,6 +104,9 @@ impl HudState {
         if self.visible {
             self.last_metric_update = Instant::now()
                 .checked_sub(HUD_METRIC_INTERVAL * 2)
+                .unwrap_or_else(Instant::now);
+            self.last_display_update = Instant::now()
+                .checked_sub(HUD_DISPLAY_MAX_HZ * 2)
                 .unwrap_or_else(Instant::now);
         }
         self.visible
@@ -155,52 +170,54 @@ impl HudState {
             .map(format_rss_kb)
             .unwrap_or_else(|| "—".to_string());
 
-        // Reformat cached display strings. These are written to stdout
-        // every frame by render() to prevent rain from flickering
-        // through the HUD area.
-        self.cached_lines[0].1 = format!(" fps: {:>7.0}  ", fps);
-        self.cached_lines[1].1 = format!(" avg: {:>6.3}ms ", avg_ms);
-        self.cached_lines[2].1 = format!(" p99: {:>6.3}ms ", self.p99_ms);
-        self.cached_lines[3].1 = format!(" max: {:>6.3}ms ", self.max_ms);
-        self.cached_lines[4].1 = format!(" rss: {:>8} ", rss_str);
+        // Reformat cached display strings, padded to HUD_WIDTH so the
+        // black background covers exactly the HUD area. Rain on the
+        // rest of the line (columns 0..start_col) stays intact because
+        // render() does NOT clear the entire line.
+        self.cached_lines[0].1 = pad_hud_line(&format!(" fps: {:>7.0}  ", fps));
+        self.cached_lines[1].1 = pad_hud_line(&format!(" avg: {:>6.3}ms ", avg_ms));
+        self.cached_lines[2].1 = pad_hud_line(&format!(" p99: {:>6.3}ms ", self.p99_ms));
+        self.cached_lines[3].1 = pad_hud_line(&format!(" max: {:>6.3}ms ", self.max_ms));
+        self.cached_lines[4].1 = pad_hud_line(&format!(" rss: {:>8} ", rss_str));
     }
 
-    /// Render the HUD overlay. Called EVERY FRAME when visible to
-    /// prevent rain from flickering through the overlay area. Writes
-    /// cached display strings (updated at 4 Hz by update_metrics()).
+    /// Render the HUD overlay. Called every frame when visible, but
+    /// rate-limited to ~60 Hz (HUD_DISPLAY_MAX_HZ) to avoid wasted ANSI
+    /// escapes at high target_fps. Rain continues at full target_fps.
     ///
-    /// `cols` is the terminal width in columns, used to position the HUD
-    /// in the top-right corner.
+    /// Does NOT clear entire lines — only writes HUD_WIDTH characters
+    /// starting at start_col, so rain on the rest of the line is
+    /// preserved. This was the root cause of the "blank space above
+    /// rain" bug: \x1b[2K cleared all columns, not just the HUD area.
     pub(crate) fn render(&mut self, cols: u16) {
         if !self.visible {
             return;
         }
+        let now = Instant::now();
+        if now.duration_since(self.last_display_update) < HUD_DISPLAY_MAX_HZ {
+            return;
+        }
+        self.last_display_update = now;
 
-        // Recompute start column if terminal width changed.
-        let hud_width: u16 = 14;
-        let start_col = cols.saturating_sub(hud_width + 2);
+        let start_col = cols.saturating_sub(HUD_WIDTH + 2);
         if start_col != self.cached_start_col {
             self.cached_start_col = start_col;
         }
 
         let mut stdout = std::io::stdout();
-        // Save cursor position — restored after the HUD is drawn.
         let _ = execute!(stdout, SavePosition);
         for (i, (color, text)) in self.cached_lines.iter().enumerate() {
             let row = i as u16;
-            // Clear the line first, then write. This prevents leftover
-            // rain characters from showing through when text length
-            // changes between metric updates.
+            // Move to HUD start position, set bg=black, write padded text.
+            // No line clear — only HUD_WIDTH chars are overwritten.
             let _ = execute!(
                 stdout,
                 MoveTo(self.cached_start_col, row),
                 SetBackgroundColor(Color::Black),
                 SetForegroundColor(*color),
-                Print("\x1b[2K"), // clear entire line
                 Print(text),
             );
         }
-        // Reset colors once after all lines are drawn.
         let _ = execute!(
             stdout,
             SetBackgroundColor(Color::Reset),
@@ -226,6 +243,22 @@ fn format_rss_kb(kib: u64) -> String {
         format!("{:.1}MiB", kib as f64 / MIB as f64)
     } else {
         format!("{kib}KiB")
+    }
+}
+
+/// Pad a HUD line to exactly HUD_WIDTH characters with trailing spaces.
+/// Truncate if longer (shouldn't happen with current format strings).
+/// This ensures the black background covers a consistent area and rain
+/// on the rest of the line is never touched.
+fn pad_hud_line(s: &str) -> String {
+    let w = HUD_WIDTH as usize;
+    if s.len() >= w {
+        s[..w].to_string()
+    } else {
+        let mut out = String::with_capacity(w);
+        out.push_str(s);
+        out.push_str(&" ".repeat(w - s.len()));
+        out
     }
 }
 
