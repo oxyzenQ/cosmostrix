@@ -64,6 +64,15 @@ pub struct ParsedConfig {
 /// Load config file and return a HashMap of key → value pairs.
 /// Returns empty HashMap if file doesn't exist or can't be read.
 /// Warns on stderr for unrecognized keys (likely typos).
+///
+/// Search order when no explicit path is given:
+/// 1. `$XDG_CONFIG_HOME/cosmostrix/config.toml` (or `~/.config/cosmostrix/config.toml`)
+/// 2. Legacy `config` filename (pre-v10 backward compat)
+/// 3. `/etc/cosmostrix/config.toml` (system-wide default, installed by AUR/package manager)
+///
+/// This means AUR users get a working default config out of the box —
+/// the package installs `/etc/cosmostrix/config.toml`, and cosmostrix
+/// reads it automatically if no user-level config exists.
 #[must_use]
 pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String> {
     let path = path_override
@@ -71,7 +80,22 @@ pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String>
         .unwrap_or_else(default_config_file_path);
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
-        Err(_) => return HashMap::new(),
+        Err(_) => {
+            // Fallback: try system-wide config at /etc/cosmostrix/config.toml.
+            // This is installed by AUR/PKGBUILD and other package managers.
+            // Only used when no user-level config exists and no explicit
+            // --config path was given.
+            if path_override.is_none() {
+                let system_path = PathBuf::from("/etc/cosmostrix/config.toml");
+                if let Ok(sys_content) = std::fs::read_to_string(&system_path) {
+                    sys_content
+                } else {
+                    return HashMap::new();
+                }
+            } else {
+                return HashMap::new();
+            }
+        }
     };
 
     let parsed = parse_config_text(&content);

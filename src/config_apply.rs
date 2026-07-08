@@ -107,6 +107,20 @@ pub(crate) fn apply_config_and_runtime_defaults(
     args: &mut Args,
 ) -> Result<(), String> {
     let mut config_touched = HashSet::new();
+
+    // Security: validate --config path is in a safe location.
+    // Only home (~), current directory (.), and /etc/cosmostrix/ are allowed.
+    // Prevents arbitrary file reading via --config /etc/shadow etc.
+    if let Some(ref config_path) = args.config {
+        let path_str = config_path.to_string_lossy();
+        if !crate::is_safe_path(&path_str) {
+            return Err(format!(
+                "error: --config '{path_str}' is outside allowed directories\n  \
+                 Allowed: home (~), current directory (.), /etc/cosmostrix/"
+            ));
+        }
+    }
+
     let cfg = load_config_file(args.config.as_deref());
     let profiles = collect_profiles(&cfg);
     if !cfg.is_empty() {

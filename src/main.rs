@@ -101,6 +101,7 @@ mod rain_style;
 mod renderer_info;
 mod report;
 mod runtime;
+mod safepath;
 mod scene;
 mod termdetect;
 mod terminal;
@@ -150,6 +151,9 @@ pub use info::env_var_truthy;
 // prints it to stderr, and exits with code 2 — never propagating a
 // `std::io::Error` that Rust would render as a debug-looking
 // `Error: Custom { ... }`.
+
+// Path security validation lives in src/safepath.rs.
+pub(crate) use crate::safepath::is_safe_path;
 
 #[cfg(target_os = "linux")]
 pub fn spawn_kill9_terminal_guard() {
@@ -696,8 +700,18 @@ fn main() -> std::io::Result<()> {
 
     let charset_preset = normalize_charset_preset_name(&args.charset);
 
-    // --charset-file: load custom characters from file, overriding preset
+    // --charset-file: load custom characters from file, overriding preset.
+    // Security: only allow reading from safe locations — home directory,
+    // current directory, or /etc/cosmostrix/. Prevents cosmostrix from
+    // being used as an arbitrary file reader (e.g., /etc/shadow).
     let chars = if let Some(ref cf) = args.charset_file {
+        // Validate path is in a safe location before reading.
+        if !is_safe_path(cf) {
+            ux::die_input(format!(
+                "error: --charset-file '{cf}' is outside allowed directories\n  \
+                 Allowed: home (~), current directory (.), /etc/cosmostrix/"
+            ));
+        }
         match std::fs::read_to_string(cf) {
             Ok(content) => {
                 use unicode_width::UnicodeWidthChar;
