@@ -63,8 +63,10 @@ impl HudPosition {
         match self {
             // Left: flush against the edge (column 0).
             Self::Left => 0,
-            // Right: flush against the right border (0 margin).
-            // The last HUD character is at column cols-1.
+            // Right: flush against the right border.
+            // The last HUD character sits at column cols-1.
+            // Using saturating_sub(HUD_WIDTH) places the HUD so its
+            // rightmost character is at cols-1 (the last column).
             Self::Right => cols.saturating_sub(HUD_WIDTH),
         }
     }
@@ -139,13 +141,16 @@ impl HudState {
 
     /// Toggle HUD position between left and right corners.
     /// Called when user presses 'H' (shift+h).
-    pub(crate) fn toggle_position(&mut self) {
+    /// Returns true to signal the event loop that a full redraw is
+    /// needed to clear the old HUD position's residue from the frame.
+    pub(crate) fn toggle_position(&mut self) -> bool {
         self.position = match self.position {
             HudPosition::Left => HudPosition::Right,
             HudPosition::Right => HudPosition::Left,
         };
         // Force recompute of start_col on next render.
         self.cached_start_col = u16::MAX;
+        true
     }
 
     /// Whether the HUD is currently visible.
@@ -234,14 +239,14 @@ impl HudState {
 
         // 5-line HUD: fps (palette head), p99 (mid), max (head), rss (trail), uptime (dim).
         // avg is dropped — fps = 1000/avg, so it's redundant.
-        self.cached_lines[0] = (head, pad_hud_line(&format!(" fps: {:>7.0}  ", fps)));
-        self.cached_lines[1] = (mid, pad_hud_line(&format!(" p99: {:>6.3}ms ", self.p99_ms)));
-        self.cached_lines[2] = (
-            head,
-            pad_hud_line(&format!(" max: {:>6.3}ms ", self.max_ms)),
-        );
-        self.cached_lines[3] = (trail, pad_hud_line(&format!(" rss: {:>8} ", rss_str)));
-        self.cached_lines[4] = (dim, pad_hud_line(&format!(" up: {:>5} ", uptime_str)));
+        // Format strings have NO trailing spaces — pad_hud_line handles
+        // width consistency. This ensures the last visible character
+        // sits flush against the border in right position.
+        self.cached_lines[0] = (head, pad_hud_line(&format!(" fps: {:>7.0}", fps)));
+        self.cached_lines[1] = (mid, pad_hud_line(&format!(" p99: {:>6.3}ms", self.p99_ms)));
+        self.cached_lines[2] = (head, pad_hud_line(&format!(" max: {:>6.3}ms", self.max_ms)));
+        self.cached_lines[3] = (trail, pad_hud_line(&format!(" rss: {:>8}", rss_str)));
+        self.cached_lines[4] = (dim, pad_hud_line(&format!(" up: {:>5}", uptime_str)));
     }
 
     /// Render the HUD overlay. Called every frame when visible, but

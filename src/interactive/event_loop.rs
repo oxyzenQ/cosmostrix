@@ -374,8 +374,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
 
                         // H (shift+h): toggle HUD position left ↔ right.
+                        // Force full redraw to clear the old position's residue.
                         if matches!((k.code, k.modifiers), (KeyCode::Char('H'), _)) {
-                            hud_state.toggle_position();
+                            if hud_state.toggle_position() {
+                                cloud.force_draw_everything();
+                            }
                             continue;
                         }
 
