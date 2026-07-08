@@ -3,32 +3,26 @@
 
 //! Live HUD overlay for interactive mode.
 //!
-//! Toggle with `?`. When visible, renders a compact 4-line overlay in the
-//! top-right corner showing real-time FPS, frame time, p99 frame time,
-//! and RSS. The overlay is drawn AFTER `terminal.draw()` so it survives
-//! differential redraws.
+//! Toggle with `?`. When visible, writes a compact 5-line overlay into
+//! the frame buffer (before `term.draw()`) showing real-time FPS, p99,
+//! max frame time, RSS, and session uptime. Press `H` to toggle
+//! position between left and right corners.
 //!
 //! ## Design constraints
 //! - **Zero cost when off**: `visible == false` short-circuits all work.
-//! - **Rate-limited when on**: HUD redraws at 4 Hz (every 250ms) regardless
-//!   of frame rate, so 60 FPS rendering does not pay 60× HUD redraw cost.
-//! - **Frame-time tracking reuses the existing `FrameTimeTracker`** from
-//!   `activity.rs` — no duplicate ring buffer.
-//! - **RSS sampling reuses `crate::memstat`** — same cross-platform logic
-//!   as the benchmark, sampling at 1 Hz (slower than benchmark's 100ms
-//!   because interactive mode has lower sampling budget).
-//! - **ANSI-only output**: no `term.draw()` integration, no frame buffer
-//!   mutation. The HUD writes directly to stdout via `execute!` and
-//!   restores the cursor position. This keeps the frame's dirty tracking
-//!   clean and prevents the HUD from polluting the rain renderer's
-//!   differential redraw bookkeeping.
+//! - **Metrics at 4 Hz**: p99 sort + string formatting only every 250ms.
+//! - **Frame buffer integration**: HUD cells written via `frame.set()`
+//!   (not `set_force`) so unchanged cells are NOT marked dirty — the
+//!   terminal skips re-sending them. When metrics are stable, only
+//!   the uptime seconds change between frames.
+//! - **Dynamic palette colors**: HUD colors come from the active theme,
+//!   brightened 50% with white for readability on black background.
+//! - **Auto-reset max**: max_ms resets every 60s to show recent peaks,
+//!   not a startup spike from 10 minutes ago.
 
-use std::io::Write;
 use std::time::{Duration, Instant};
 
-use crossterm::cursor::{MoveTo, RestorePosition, SavePosition};
-use crossterm::execute;
-use crossterm::style::{Color, Print, SetBackgroundColor, SetForegroundColor};
+use crossterm::style::Color;
 
 use crate::interactive::activity::FrameTimeTracker;
 use crate::memstat;
@@ -36,14 +30,12 @@ use crate::memstat;
 /// Minimum interval between HUD metric recomputation (~4 Hz).
 const HUD_METRIC_INTERVAL: Duration = Duration::from_millis(250);
 
-/// Maximum HUD display redraw rate (~60 Hz). Even when target_fps is
-/// 120 or 240, the HUD text is only rewritten at 60 Hz — the human eye
-/// cannot read text faster than this, and capping reduces ANSI escape
-/// overhead. Rain continues to render at full target_fps.
-const HUD_DISPLAY_MAX_HZ: Duration = Duration::from_millis(16);
-
 /// Interval between RSS samples in interactive mode (1 Hz).
 const HUD_RSS_INTERVAL: Duration = Duration::from_millis(1000);
+
+/// How often to reset max_ms (seconds). Prevents a startup spike from
+/// dominating the max display forever.
+const MAX_RESET_INTERVAL_SECS: u64 = 60;
 
 /// Width of the HUD overlay in terminal columns. Each line is padded
 /// to exactly this width with spaces so the black background covers
@@ -80,18 +72,19 @@ pub(crate) struct HudState {
     session_start: Instant,
     frame_times: FrameTimeTracker,
     last_metric_update: Instant,
-    last_display_update: Instant,
     last_rss_sample: Instant,
     last_rss_kb: Option<u64>,
     /// Cached max frame time (ms) for display. Updated on every push.
+    /// Auto-resets every MAX_RESET_INTERVAL_SECS to prevent startup
+    /// spikes from dominating forever.
     max_ms: f64,
+    /// When max_ms was last reset. Used for auto-reset.
+    max_reset_at: Instant,
     /// Cached p99 frame time (ms) for display. Updated at 4 Hz.
     p99_ms: f64,
     /// Cached display strings — reformatted only at 4 Hz, written to
-    /// stdout at up to 60 Hz to prevent rain flicker.
+    /// frame buffer every frame via write_to_frame().
     cached_lines: [(Color, String); 5],
-    /// Cached start column for the HUD. Recomputed when cols/position changes.
-    cached_start_col: u16,
 }
 
 impl HudState {
@@ -104,14 +97,12 @@ impl HudState {
             last_metric_update: Instant::now()
                 .checked_sub(HUD_METRIC_INTERVAL)
                 .unwrap_or_else(Instant::now),
-            last_display_update: Instant::now()
-                .checked_sub(HUD_DISPLAY_MAX_HZ)
-                .unwrap_or_else(Instant::now),
             last_rss_sample: Instant::now()
                 .checked_sub(HUD_RSS_INTERVAL)
                 .unwrap_or_else(Instant::now),
             last_rss_kb: None,
             max_ms: 0.0,
+            max_reset_at: Instant::now(),
             p99_ms: 0.0,
             cached_lines: [
                 (Color::Cyan, String::new()),
@@ -120,27 +111,21 @@ impl HudState {
                 (Color::Green, String::new()),
                 (Color::DarkCyan, String::new()),
             ],
-            cached_start_col: 0,
         }
     }
 
     /// Toggle HUD visibility. Returns the new visibility state.
     pub(crate) fn toggle(&mut self) -> bool {
         self.visible = !self.visible;
-        // When turning on, force immediate metric recompute + render.
         if self.visible {
             self.last_metric_update = Instant::now()
                 .checked_sub(HUD_METRIC_INTERVAL * 2)
-                .unwrap_or_else(Instant::now);
-            self.last_display_update = Instant::now()
-                .checked_sub(HUD_DISPLAY_MAX_HZ * 2)
                 .unwrap_or_else(Instant::now);
         }
         self.visible
     }
 
     /// Toggle HUD position between left and right corners.
-    /// Called when user presses 'H' (shift+h).
     /// Returns true to signal the event loop that a full redraw is
     /// needed to clear the old HUD position's residue from the frame.
     pub(crate) fn toggle_position(&mut self) -> bool {
@@ -148,8 +133,6 @@ impl HudState {
             HudPosition::Left => HudPosition::Right,
             HudPosition::Right => HudPosition::Left,
         };
-        // Force recompute of start_col on next render.
-        self.cached_start_col = u16::MAX;
         true
     }
 
@@ -161,12 +144,20 @@ impl HudState {
 
     /// Record a frame time. Called every frame from the event loop.
     /// Cheap when the HUD is off (just one bool check + early return).
+    /// Auto-resets max_ms every MAX_RESET_INTERVAL_SECS to prevent a
+    /// startup spike from dominating the display forever.
     #[inline]
     pub(crate) fn push_frame_time(&mut self, ms: f64) {
         if !self.visible {
             return;
         }
         self.frame_times.push(ms);
+        // Auto-reset max every 60s so the display shows recent peaks,
+        // not a startup spike from 10 minutes ago.
+        if self.max_reset_at.elapsed().as_secs() >= MAX_RESET_INTERVAL_SECS {
+            self.max_ms = 0.0;
+            self.max_reset_at = Instant::now();
+        }
         if ms > self.max_ms {
             self.max_ms = ms;
         }
@@ -262,9 +253,11 @@ impl HudState {
     /// eliminates fullscreen flicker (two separate stdout writes were
     /// causing double-repaint in fullscreen mode).
     ///
-    /// Writes HUD_WIDTH cells per line, starting at start_col, for 5
-    /// lines. Each cell gets the line's fg color + black bg. Rain cells
-    /// outside the HUD area are untouched.
+    /// Uses frame.set() (not set_force) so cells that haven't changed
+    /// since last frame are NOT marked dirty — the terminal skips
+    /// re-sending them. This is the key overhead optimization: when
+    /// metrics are stable (same fps/p99/max for 250ms), only the
+    /// changing cells (uptime seconds) get re-sent.
     pub(crate) fn write_to_frame(&self, frame: &mut crate::frame::Frame, cols: u16) {
         if !self.visible {
             return;
@@ -283,50 +276,9 @@ impl HudState {
                     bg: Some(Color::Black),
                     bold: false,
                 };
-                frame.set_force(x, row, cell);
+                frame.set(x, row, cell);
             }
         }
-    }
-
-    /// Legacy direct-stdout render. Kept for backward compat but no
-    /// longer called by the event loop — use write_to_frame() instead.
-    #[allow(dead_code)]
-    pub(crate) fn render(&mut self, cols: u16) {
-        if !self.visible {
-            return;
-        }
-        let now = Instant::now();
-        if now.duration_since(self.last_display_update) < HUD_DISPLAY_MAX_HZ {
-            return;
-        }
-        self.last_display_update = now;
-
-        let start_col = self.position.start_col(cols);
-        if start_col != self.cached_start_col {
-            self.cached_start_col = start_col;
-        }
-
-        let mut stdout = std::io::stdout();
-        let _ = execute!(stdout, SavePosition);
-        for (i, (color, text)) in self.cached_lines.iter().enumerate() {
-            let row = i as u16;
-            // Move to HUD start position, set bg=black, write padded text.
-            // No line clear — only HUD_WIDTH chars are overwritten.
-            let _ = execute!(
-                stdout,
-                MoveTo(self.cached_start_col, row),
-                SetBackgroundColor(Color::Black),
-                SetForegroundColor(*color),
-                Print(text),
-            );
-        }
-        let _ = execute!(
-            stdout,
-            SetBackgroundColor(Color::Reset),
-            SetForegroundColor(Color::Reset),
-            RestorePosition,
-        );
-        let _ = stdout.flush();
     }
 
     /// Reset max frame time. Called when the user wants to clear the
