@@ -3,143 +3,98 @@
 
 //! Path security validation for file-reading CLI flags.
 //!
-//! Prevents cosmostrix from being used as an arbitrary file reader.
+//! **Whitelist-only** approach: only explicitly allowed directories
+//! can be read. Everything else is rejected — no blacklist to maintain.
 //!
-//! ## Allowed locations
-//! - Home directory (`~` or `$HOME/...`) — **except** dangerous
-//!   subdirectories (`.ssh/`, `.gnupg/`, `.aws/`, etc.)
-//! - Current directory (relative paths not starting with `/`)
-//! - Cosmostrix config directory (`~/.config/cosmostrix/...`)
-//! - System config directory (`/etc/cosmostrix/...`)
-//! - Temp directory (`/tmp/...`) — for testing and scripts
+//! ## Allowed locations (cross-platform)
+//! - `~/.config/cosmostrix/` — cosmostrix config directory
+//! - Current directory (`.` or relative paths)
+//! - `/etc/cosmostrix/` — system-wide config (Linux/macOS)
+//! - `%APPDATA%\cosmostrix\` — Windows app data
+//! - `/tmp/` — temp directory (for testing/scripts)
 //!
 //! ## Rejected
-//! - `/etc/shadow`, `/etc/passwd`, `/proc/*`, `/sys/*`
-//! - `~/.ssh/`, `~/.gnupg/`, `~/.aws/`, `~/.docker/`, `~/.kube/`
-//! - `~/.bash_history`, `~/.bashrc`, `~/.profile`, `~/.netrc`
-//! - `/root/*`, `/var/log/*`
-//! - Any absolute path outside the allowed directories above
+//! Everything else, including: `~/.ssh/`, `/etc/shadow`, `~/.aws/`,
+//! `/proc/`, `/sys/`, `~/.bashrc`, etc. No blacklist needed — if
+//! it's not in the whitelist, it's denied.
 
 use std::path::PathBuf;
 
-/// Dangerous subdirectories within the home directory that must
-/// never be readable via `--config` or `--charset-file`, even though
-/// they are technically under `~`.
-///
-/// These contain private keys, credentials, command history, and
-/// other secrets that could be exfiltrated if cosmostrix were used
-/// as an arbitrary file reader.
-const DANGEROUS_HOME_SUBDIRS: &[&str] = &[
-    ".ssh",
-    ".gnupg",
-    ".aws",
-    ".docker",
-    ".kube",
-    ".config/keychain",
-    ".password-store",
-    ".cache",
-    ".local/share/keyrings",
-];
-
-/// Dangerous dot-files in the home directory root that contain
-/// credentials or shell history.
-const DANGEROUS_HOME_FILES: &[&str] = &[
-    ".bashrc",
-    ".bash_history",
-    ".bash_profile",
-    ".zshrc",
-    ".zsh_history",
-    ".profile",
-    ".netrc",
-    ".env",
-    ".gitconfig",
-    ".npmrc",
-    ".pypirc",
-];
-
 /// Check if a file path is in a safe location for reading.
+///
+/// Whitelist-only: returns `true` if the path is inside one of the
+/// explicitly allowed directories. Everything else returns `false`.
+///
+/// Cross-platform:
+/// - Linux/macOS: `~/.config/cosmostrix/`, `.`, `/etc/cosmostrix/`, `/tmp/`
+/// - Windows: `%APPDATA%\cosmostrix\`, `.`, temp dir
 pub(crate) fn is_safe_path(path: &str) -> bool {
-    // Expand ~ to $HOME if present.
-    let expanded = if path.starts_with("~/") {
-        if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
-            PathBuf::from(home).join(path.strip_prefix("~/").unwrap())
-        } else {
-            return false;
-        }
-    } else if path == "~" {
-        if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
-            PathBuf::from(home)
-        } else {
-            return false;
-        }
-    } else {
-        PathBuf::from(path)
-    };
-
+    // --- Relative paths: current directory — always allowed ---
+    let expanded = expand_tilde(path);
     let expanded_str = expanded.to_string_lossy();
 
-    // Relative paths (not starting with /) are in the current directory — allowed.
-    if !expanded_str.starts_with('/') {
+    if !expanded_str.starts_with('/') && !expanded_str.contains('\\') {
         return true;
     }
 
-    // Get HOME for home-directory checks.
-    let home = std::env::var("HOME").ok().filter(|h| !h.is_empty());
+    // --- Whitelist of allowed absolute path prefixes ---
+    let mut allowed_prefixes: Vec<String> = Vec::new();
 
-    // --- Home directory: allowed, but check for dangerous subdirs/files ---
-    if let Some(ref home) = home {
-        let home_prefix = format!("{}/", home);
-        if expanded_str == home.as_str() || expanded_str.starts_with(&home_prefix) {
-            // Path is inside home. Check if it's in a dangerous location.
-            let relative = &expanded_str[home.len()..]; // e.g. "/.ssh/id_rsa"
-            let relative = relative.strip_prefix('/').unwrap_or(relative);
+    // 1. ~/.config/cosmostrix/ (Linux/macOS)
+    if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
+        allowed_prefixes.push(format!("{home}/.config/cosmostrix/"));
+    }
 
-            // Check dangerous subdirectories: .ssh/, .gnupg/, .aws/, etc.
-            for dir in DANGEROUS_HOME_SUBDIRS {
-                let dir_prefix = format!("{dir}/");
-                if relative.starts_with(&dir_prefix) || relative == *dir {
-                    return false;
-                }
-            }
+    // 2. /etc/cosmostrix/ (Linux/macOS system-wide)
+    allowed_prefixes.push("/etc/cosmostrix/".to_string());
 
-            // Check dangerous dot-files in home root: .bashrc, .netrc, etc.
-            // Only match exact filenames at the root of home (no subdirectory).
-            if !relative.contains('/') {
-                for file in DANGEROUS_HOME_FILES {
-                    if relative == *file {
-                        return false;
-                    }
-                }
-            }
+    // 3. /tmp/ (Linux/macOS temp)
+    allowed_prefixes.push("/tmp/".to_string());
 
-            // Safe location within home directory.
+    // 4. Windows: %APPDATA%\cosmostrix\
+    if let Some(appdata) = std::env::var("APPDATA").ok().filter(|a| !a.is_empty()) {
+        allowed_prefixes.push(format!("{appdata}\\cosmostrix\\"));
+    }
+
+    // 5. Windows: temp directory
+    if let Some(temp) = std::env::var("TEMP").ok().filter(|t| !t.is_empty()) {
+        allowed_prefixes.push(format!("{temp}\\"));
+    }
+
+    // Check if the expanded path starts with any allowed prefix.
+    for prefix in &allowed_prefixes {
+        if expanded_str.starts_with(prefix.as_str()) {
             return true;
         }
     }
 
-    // --- System config directory: /etc/cosmostrix/ only ---
-    if expanded_str.starts_with("/etc/cosmostrix/") {
-        return true;
-    }
-
-    // --- Temp directory: /tmp/ ---
-    if expanded_str.starts_with("/tmp/") {
-        return true;
-    }
-
-    // Everything else is rejected.
     false
+}
+
+/// Expand `~` to `$HOME` if present. Returns the path as-is if no tilde.
+fn expand_tilde(path: &str) -> PathBuf {
+    if path.starts_with("~/") {
+        if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
+            return PathBuf::from(home).join(path.strip_prefix("~/").unwrap());
+        }
+    }
+    if path == "~" {
+        if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
+            return PathBuf::from(home);
+        }
+    }
+    PathBuf::from(path)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn set_test_home() {
+    fn set_test_env() {
         std::env::set_var("HOME", "/home/testuser");
     }
 
-    // --- Allowed paths ---
+    // --- Allowed: relative paths (current directory) ---
 
     #[test]
     fn relative_paths_are_safe() {
@@ -148,16 +103,19 @@ mod tests {
         assert!(is_safe_path("../shared/chars.txt"));
     }
 
+    // --- Allowed: ~/.config/cosmostrix/ ---
+
     #[test]
-    fn home_paths_are_safe() {
-        set_test_home();
-        assert!(is_safe_path("~/chars.txt"));
-        assert!(is_safe_path("/home/testuser/chars.txt"));
+    fn cosmostrix_config_dir_is_safe() {
+        set_test_env();
+        assert!(is_safe_path("~/.config/cosmostrix/config.toml"));
         assert!(is_safe_path(
-            "/home/testuser/.config/cosmostrix/config.toml"
+            "/home/testuser/.config/cosmostrix/my-chars.txt"
         ));
-        assert!(is_safe_path("~/Documents/my-charset.txt"));
+        assert!(is_safe_path("~/.config/cosmostrix/profiles/nightcore.toml"));
     }
+
+    // --- Allowed: /etc/cosmostrix/ ---
 
     #[test]
     fn etc_cosmostrix_is_safe() {
@@ -165,90 +123,67 @@ mod tests {
         assert!(is_safe_path("/etc/cosmostrix/chars.txt"));
     }
 
+    // --- Allowed: /tmp/ ---
+
     #[test]
     fn tmp_is_safe() {
         assert!(is_safe_path("/tmp/test-config.toml"));
+        assert!(is_safe_path("/tmp/cosmostrix-chars.txt"));
     }
 
-    // --- Dangerous system paths rejected ---
+    // --- Rejected: everything else ---
+
+    #[test]
+    fn home_root_rejected() {
+        set_test_env();
+        assert!(!is_safe_path("~"));
+        assert!(!is_safe_path("/home/testuser"));
+        assert!(!is_safe_path("/home/testuser/chars.txt"));
+        assert!(!is_safe_path("~/Documents/chars.txt"));
+    }
+
+    #[test]
+    fn ssh_dir_rejected() {
+        set_test_env();
+        assert!(!is_safe_path("~/.ssh/id_rsa"));
+        assert!(!is_safe_path("/home/testuser/.ssh/config"));
+    }
+
+    #[test]
+    fn aws_creds_rejected() {
+        set_test_env();
+        assert!(!is_safe_path("~/.aws/credentials"));
+    }
 
     #[test]
     fn system_secrets_rejected() {
         assert!(!is_safe_path("/etc/shadow"));
         assert!(!is_safe_path("/etc/passwd"));
-        assert!(!is_safe_path("/etc/hostname"));
         assert!(!is_safe_path("/proc/self/environ"));
         assert!(!is_safe_path("/sys/kernel/proc"));
         assert!(!is_safe_path("/root/.bashrc"));
         assert!(!is_safe_path("/var/log/auth.log"));
     }
 
-    // --- Dangerous home paths rejected ---
-
     #[test]
-    fn ssh_dir_rejected() {
-        set_test_home();
-        assert!(!is_safe_path("~/.ssh/id_rsa"));
-        assert!(!is_safe_path("~/.ssh/config"));
-        assert!(!is_safe_path("/home/testuser/.ssh/authorized_keys"));
-        assert!(!is_safe_path("~/.ssh/"));
-    }
-
-    #[test]
-    fn gnupg_dir_rejected() {
-        set_test_home();
-        assert!(!is_safe_path("~/.gnupg/secring.gpg"));
-        assert!(!is_safe_path("~/.gnupg/"));
-    }
-
-    #[test]
-    fn cloud_credential_dirs_rejected() {
-        set_test_home();
-        assert!(!is_safe_path("~/.aws/credentials"));
-        assert!(!is_safe_path("~/.docker/config.json"));
-        assert!(!is_safe_path("~/.kube/config"));
-    }
-
-    #[test]
-    fn shell_config_and_history_rejected() {
-        set_test_home();
+    fn shell_config_rejected() {
+        set_test_env();
         assert!(!is_safe_path("~/.bashrc"));
         assert!(!is_safe_path("~/.bash_history"));
-        assert!(!is_safe_path("~/.zshrc"));
-        assert!(!is_safe_path("~/.profile"));
         assert!(!is_safe_path("~/.netrc"));
         assert!(!is_safe_path("~/.env"));
-        assert!(!is_safe_path("~/.gitconfig"));
     }
 
     #[test]
-    fn password_store_rejected() {
-        set_test_home();
-        assert!(!is_safe_path("~/.password-store/email.gpg"));
+    fn arbitrary_paths_rejected() {
+        assert!(!is_safe_path("/opt/data/config.toml"));
+        assert!(!is_safe_path("/usr/share/chars.txt"));
+        assert!(!is_safe_path("/home/other-user/file.txt"));
     }
 
     #[test]
-    fn cache_and_keyring_rejected() {
-        set_test_home();
-        assert!(!is_safe_path("~/.cache/credentials"));
-        assert!(!is_safe_path("~/.local/share/keyrings/login.keyring"));
-    }
-
-    // --- Edge cases ---
-
-    #[test]
-    fn home_subdir_with_same_prefix_as_dangerous_is_safe() {
-        set_test_home();
-        // .sshbook/ should NOT be blocked just because it starts with .ssh
-        assert!(is_safe_path("~/.sshbook/config"));
-        // .aws_backup/ should NOT be blocked
-        assert!(is_safe_path("~/.aws_backup/credentials"));
-    }
-
-    #[test]
-    fn home_root_itself_is_safe() {
-        set_test_home();
-        assert!(is_safe_path("~"));
-        assert!(is_safe_path("/home/testuser"));
+    fn etc_non_cosmostrix_rejected() {
+        assert!(!is_safe_path("/etc/passwd"));
+        assert!(!is_safe_path("/etc/nginx/nginx.conf"));
     }
 }
