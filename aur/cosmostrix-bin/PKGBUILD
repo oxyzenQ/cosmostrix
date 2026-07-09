@@ -12,9 +12,9 @@
 # =============================================================================
 
 pkgname=cosmostrix-bin
-pkgver=13.1.0
+pkgver=13.1.1
 _tag=
-pkgrel=2
+pkgrel=1
 
 pkgdesc="Production-grade cinematic Matrix rain renderer for serious terminal environments."
 arch=('x86_64' 'aarch64')

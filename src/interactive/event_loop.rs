@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind};
 
 #[cfg(unix)]
 use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
@@ -181,9 +181,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut perf_overshoot_frames: u64 = 0;
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
 
-    // Live HUD overlay state — toggled with '?'. When visible, renders a
+    // Live HUD overlay state — toggled with 'i'. When visible, renders a
     // compact FPS/p99/RSS overlay in the top-right corner at 4 Hz.
     // Zero cost when off (all methods short-circuit on visible==false).
+    // 'i' is used instead of '?' because Android/Termux soft keyboards
+    // may send '?' as a multi-byte sequence or with unexpected modifier
+    // bits, which falls through to the screensaver exit path. A simple
+    // lowercase printable letter is sent reliably by every keyboard.
     let mut hud_state: HudState = HudState::new();
 
     // Perceived-motion diagnostics: track how many frames produce visible
@@ -345,16 +349,21 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             continue;
                         }
 
-                        // HUD toggle: check BEFORE screensaver exit so '?'
-                        // doesn't cause self-exit on Android/Termux where
-                        // the soft keyboard may send unexpected key events.
-                        // On Android, '?' may arrive as '/', '/', or '?'
-                        // with various modifier states — match all variants.
+                        // HUD toggle: check BEFORE screensaver exit so the
+                        // toggle key doesn't cause self-exit on Android/Termux
+                        // where the screensaver path would otherwise fire on
+                        // any unrecognized key event.
+                        //
+                        // 'i'/'I' is used instead of '?' because Android soft
+                        // keyboards send simple printable letters reliably,
+                        // while '?' may arrive with unexpected modifier bits
+                        // or as a different keycode entirely, causing the
+                        // keypress to fall through to the screensaver exit
+                        // path. 'I' is also accepted for keyboards where the
+                        // Shift state is sticky or set unexpectedly.
                         if matches!(
                             (k.code, k.modifiers),
-                            (KeyCode::Char('?'), _)
-                                | (KeyCode::Char('/'), KeyModifiers::SHIFT)
-                                | (KeyCode::Char('/'), _)
+                            (KeyCode::Char('i'), _) | (KeyCode::Char('I'), _)
                         ) {
                             hud_state.toggle();
                             let _ = register_activity(

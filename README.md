@@ -99,7 +99,7 @@ EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v13.1.0"
+TAG="v13.1.1"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -221,7 +221,7 @@ Explicit CLI flags always override preset, scene, and profile values.
   Up / Down     Speed             g          Toggle glitch
   m             Cycle profile     Space      Reseed animation
   a             Toggle async      1-0        Direct color scheme
-  ?             Toggle live HUD (FPS / p99 / max / RSS / uptime)
+  i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)
 ```
 
@@ -294,7 +294,7 @@ stdout renderer, no GPU context is ever created.
 FPS numbers are synthetic uncapped throughput — how many frames the
 renderer can *compute* per second, not how many frames the terminal
 *draws*. Real interactive FPS is bounded by the terminal emulator,
-refresh rate, and ANSI output bandwidth. Use `?` (live HUD) during a
+refresh rate, and ANSI output bandwidth. Use `i` (live HUD) during a
 real run to see actual interactive FPS.
 
 Use `--bench-duration N` (1–600s) for sustained drift / leak detection:

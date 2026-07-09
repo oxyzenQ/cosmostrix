@@ -9,6 +9,85 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v13.1.1 — Android HUD Toggle Fix
+
+Bug-fix release addressing a critical Android/Termux regression: pressing
+the HUD toggle key caused cosmostrix to self-exit instead of showing the
+live metrics overlay.
+
+### Bug Fixes
+
+**HUD toggle key changed from `?` to `i`**:
+- On Android/Termux soft keyboards, the `?` character may arrive with
+  unexpected modifier bits or as a different keycode entirely. When the
+  event did not match the HUD toggle arms, it fell through to the
+  screensaver exit path (`if cfg.screensaver { cloud.raining = false;
+  break; }`), causing cosmostrix to quit instead of toggling the HUD.
+- The fix replaces `?` (and the previous `/`-with-Shift fallback arms)
+  with a simple lowercase printable letter `i` (uppercase `I` also
+  accepted). Every Android keyboard sends simple printable letters
+  reliably; the modifier-bit ambiguity is eliminated entirely.
+- All docs, help text (`--help-detail`), README, ROADMAP, and
+  RELEASE_CANDIDATE updated to reflect the new key.
+
+### Documentation
+
+- `docs/ROADMAP.md`: added `P2-fix` row noting the v13.1.1 key change.
+- `docs/RELEASE_CANDIDATE.md`: HUD smoke-test steps updated to press `i`.
+- `src/help_detail.rs`: RUNTIME CONTROLS table updated.
+- `README.md`: keyboard shortcuts table + benchmark section updated.
+
+---
+
+## v13.1.0 — Shell Completions + Verbose + Help-Detail Polish
+
+UX polish release. Adds shell completions, a verbose diagnostic flag,
+strict .toml enforcement for `--config`, and clearer help text.
+
+### Features
+
+**Shell completions** (bash, zsh, fish, elvish):
+- New `--completions <shell>` flag generates a shell completion script
+  on stdout. Pipe to your shell's completions directory.
+- AUR `PKGBUILD` and `scripts/install.sh` auto-install bash + zsh
+  completions during package install.
+- Built with `clap_complete = "4"`.
+
+**Verbose diagnostic output** (`--verbose`):
+- Prints 30+ diagnostic fields to stderr before launching: config path,
+  resolved values, terminal detection, atmosphere state, color tune,
+  charset source, profile, etc.
+- For power users debugging config/loading issues.
+
+### Bug Fixes / Behavior Changes
+
+**Strict .toml extension check for `--config`**:
+- Previously `--config` would silently accept non-.toml files. Now it
+  enforces the .toml extension and exits with a clear error.
+
+**Invalid config values now say "error:" not "warning:"**:
+- Invalid config values are no longer silently ignored. They now print
+  `error: invalid <field>='<value>' (allowed: ...)` to stderr so users
+  immediately know cosmostrix didn't load their custom config.
+
+**Help-detail DIAGNOSTICS section**:
+- `--verbose` and `--completions <shell>` added to `--help-detail`
+  DIAGNOSTICS section with clear usage examples.
+- `--dump-config` text updated: "warn cleanly and are ignored" →
+  "error: messages are printed to stderr" (reflects the actual behavior).
+- `--config` text: removed "Falls back to legacy 'config' (no extension)"
+  since we now require .toml.
+
+### Documentation
+
+- `docs/ROADMAP.md`: removed future roadmap sections (secret — kept
+  private until features ship). Only completed history remains.
+- Test suite reduced from 882 to 723 by removing 159 doc-content tests
+  (-2178 LOC). The docs-tests module now only verifies asset integrity
+  and metadata, not prose content.
+
+---
+
 ## v13.0.0 — Alive Rain + Depth-of-Field + Security
 
 Visual quality + security hardening release. The rain now feels alive

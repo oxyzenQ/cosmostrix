@@ -20,8 +20,9 @@ near-duplicate themes tuned for visual distinctness.
 | P0-B | max_frame_time + p99.9_frame_time tail metrics | `3afac82` |
 | P1-A | Sub-component timing (sim/render/io) — COMPONENT TIMING section | `6bc5035` |
 | P1-B | `--bench-duration N` flag + DRIFT section | `9e94527` |
-| P2 | Live HUD overlay (`?` toggle) — fps/p99/max/rss | `12a1d2f` |
+| P2 | Live HUD overlay (`i` toggle) — fps/p99/max/rss | `12a1d2f` |
 | P3 | CPU usage % tracking — CPU section | `aeafdd3` |
+| P2-fix | HUD toggle key changed from `?` to `i` (Android/Termux reliability) | v13.1.1 |
 | Q2 | `--color-tune saturation/brightness` runtime adjustment | `ce0d191` |
 | Audit | 5 near-duplicate themes tuned for distinctness | `304a07b` |
 | Peak | Build metadata + CPU model + getrusage RESOURCE section | `7db64b9` |

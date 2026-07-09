@@ -128,11 +128,11 @@ platforms they emit `unsupported` with a reason field.
 "$BIN"
 ```
 
-Then press `?` and verify:
+Then press `i` and verify:
 
 - A top-right overlay appears showing `fps`, `avg`, `p99`, `max`, `rss`.
 - The overlay updates ~4 times per second without flickering.
-- Press `?` again — the overlay disappears cleanly.
+- Press `i` again — the overlay disappears cleanly.
 - Press `q` — clean exit, terminal restored.
 
 ## v4.6 Atmosphere RC Checklist
@@ -262,9 +262,9 @@ Run these interactively and verify clean exit with `q`:
 For the last command, verify the rain renders with visibly boosted
 saturation + brightness compared to `--color green` alone.
 
-Also test the live HUD overlay (v11.1.0+): launch `"$BIN"`, press `?`,
+Also test the live HUD overlay (v11.1.0+): launch `"$BIN"`, press `i`,
 verify a top-right overlay showing fps/avg/p99/max/rss appears; press
-`?` again to dismiss; verify clean exit with `q`.
+`i` again to dismiss; verify clean exit with `q`.
 
 Verify:
 
