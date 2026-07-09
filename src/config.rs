@@ -978,7 +978,7 @@ RUNTIME CONTROLS:
   m             Cycle profile     Space      Reset animation
   a             Toggle async      1-0        Direct color scheme
   ?             Toggle live HUD (FPS / p99 / max / RSS / uptime)
-  H             Move HUD to opposite corner (left ↔ right)
+  H or h        Move HUD to opposite corner (left ↔ right)
 
 HELP:
   --help          Show common options.

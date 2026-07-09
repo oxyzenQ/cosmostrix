@@ -345,6 +345,47 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             continue;
                         }
 
+                        // HUD toggle: check BEFORE screensaver exit so '?'
+                        // doesn't cause self-exit on Android/Termux where
+                        // the soft keyboard may send unexpected key events.
+                        // On Android, '?' may arrive as '/', '/', or '?'
+                        // with various modifier states — match all variants.
+                        if matches!(
+                            (k.code, k.modifiers),
+                            (KeyCode::Char('?'), _)
+                                | (KeyCode::Char('/'), KeyModifiers::SHIFT)
+                                | (KeyCode::Char('/'), _)
+                        ) {
+                            hud_state.toggle();
+                            let _ = register_activity(
+                                &mut last_input_time,
+                                &mut last_resync_time,
+                                activity_time,
+                                is_idle,
+                                false,
+                            );
+                            continue;
+                        }
+
+                        // H or h: toggle HUD position. Lowercase 'h' accepted
+                        // for Android soft keyboards where Shift may not work.
+                        if matches!(
+                            (k.code, k.modifiers),
+                            (KeyCode::Char('H'), _) | (KeyCode::Char('h'), _)
+                        ) {
+                            if hud_state.toggle_position() {
+                                cloud.force_draw_everything();
+                            }
+                            let _ = register_activity(
+                                &mut last_input_time,
+                                &mut last_resync_time,
+                                activity_time,
+                                is_idle,
+                                false,
+                            );
+                            continue;
+                        }
+
                         // Any user input resets idle timer for adaptive throttling.
                         if register_activity(
                             &mut last_input_time,
@@ -359,27 +400,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         if cfg.screensaver {
                             cloud.raining = false;
                             break;
-                        }
-
-                        // HUD toggle: handled here (not in handle_keybinding)
-                        // because it needs mutable access to hud_state, which
-                        // is local to the event loop. The keybinding dispatcher
-                        // would require widening its signature.
-                        if matches!(
-                            (k.code, k.modifiers),
-                            (KeyCode::Char('?'), _) | (KeyCode::Char('/'), KeyModifiers::SHIFT)
-                        ) {
-                            hud_state.toggle();
-                            continue;
-                        }
-
-                        // H (shift+h): toggle HUD position left ↔ right.
-                        // Force full redraw to clear the old position's residue.
-                        if matches!((k.code, k.modifiers), (KeyCode::Char('H'), _)) {
-                            if hud_state.toggle_position() {
-                                cloud.force_draw_everything();
-                            }
-                            continue;
                         }
 
                         if handle_keybinding(

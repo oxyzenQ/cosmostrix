@@ -222,7 +222,7 @@ Explicit CLI flags always override preset, scene, and profile values.
   m             Cycle profile     Space      Reseed animation
   a             Toggle async      1-0        Direct color scheme
   ?             Toggle live HUD (FPS / p99 / max / RSS / uptime)
-  H             Move HUD to opposite corner (left ↔ right)
+  H or h        Move HUD to opposite corner (left ↔ right)
 ```
 
 ## Scenes
