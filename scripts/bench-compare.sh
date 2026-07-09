@@ -208,14 +208,21 @@ run_interactive() {
 
     debug "running: $cmd ${args[*]} (PTY, ${DURATION}s)"
 
-    # Run inside PTY. timeout sends SIGINT after DURATION seconds.
+    # Run inside PTY. timeout sends SIGTERM after DURATION seconds, then
+    # SIGKILL after 5 more seconds if the process hasn't exited.
+    #
+    # We use SIGTERM (not SIGINT) because cosmostrix catches SIGINT in
+    # raw mode (Ctrl-C handler) and the cleanup path may hang in PTY
+    # context. SIGTERM is also caught but --kill-after=5 guarantees
+    # the process dies even if cleanup hangs.
+    #
     # TERM=xterm-256color so tools detect color support.
     # Build inner_cmd carefully: avoid trailing space when args is empty.
     local inner_cmd
     if [[ ${#args[@]} -gt 0 ]]; then
-        inner_cmd="timeout --signal=INT ${DURATION} ${cmd} ${args[*]}"
+        inner_cmd="timeout --signal=TERM --kill-after=5 ${DURATION} ${cmd} ${args[*]}"
     else
-        inner_cmd="timeout --signal=INT ${DURATION} ${cmd}"
+        inner_cmd="timeout --signal=TERM --kill-after=5 ${DURATION} ${cmd}"
     fi
     debug "PTY inner: $inner_cmd"
 
