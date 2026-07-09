@@ -59,6 +59,13 @@ Requirements:
   script         (util-linux — for PTY allocation)
   cmatrix        (optional — apt install cmatrix / pacman -S cmatrix)
   unimatrix      (optional — pip install unimatrix / paru -S unimatrix-git)
+  neo-matrix     (optional — paru -S neo-matrix)
+  tmatrix        (optional — paru -S tmatrix)
+  gmatrix        (optional — paru -S gmatrix)
+  fmatrix        (optional — paru -S fmatrix-git)
+  cxxmatrix      (optional — paru -S cxxmatrix-git)
+
+Only installed tools are benchmarked; missing tools are silently skipped.
 
 Output: Markdown table on stdout.
 EOF
@@ -203,7 +210,13 @@ run_interactive() {
 
     # Run inside PTY. timeout sends SIGINT after DURATION seconds.
     # TERM=xterm-256color so tools detect color support.
-    local inner_cmd="timeout --signal=INT ${DURATION} ${cmd} ${args[*]}"
+    # Build inner_cmd carefully: avoid trailing space when args is empty.
+    local inner_cmd
+    if [[ ${#args[@]} -gt 0 ]]; then
+        inner_cmd="timeout --signal=INT ${DURATION} ${cmd} ${args[*]}"
+    else
+        inner_cmd="timeout --signal=INT ${DURATION} ${cmd}"
+    fi
     debug "PTY inner: $inner_cmd"
 
     TERM=xterm-256color \
@@ -235,41 +248,47 @@ run_interactive() {
 
 # ── Run all interactive benchmarks ──────────────────────────────────────────
 
-# Build the list of competitors to benchmark.
-# Format: "label\tpath\targs"
-COMPETITORS=()
-COMPETITORS+=("cosmostrix       $COSMOSTRIX_BIN ")
+# Build the list of competitors using parallel arrays (bulletproof —
+# no string-splitting ambiguity with tabs/spaces in paths).
+COMP_LABELS=()
+COMP_PATHS=()
+COMP_ARGS=()
+
+COMP_LABELS+=("cosmostrix");      COMP_PATHS+=("$COSMOSTRIX_BIN");  COMP_ARGS+=("")
 if [[ "$HAVE_CMATRIX" == "true" ]]; then
-    COMPETITORS+=("cmatrix      $CMATRIX_PATH   -s")
+    COMP_LABELS+=("cmatrix");     COMP_PATHS+=("$CMATRIX_PATH");    COMP_ARGS+=("-s")
 fi
 if [[ "$HAVE_UNIMATRIX" == "true" ]]; then
-    COMPETITORS+=("unimatrix    $UNIMATRIX_PATH ")
+    COMP_LABELS+=("unimatrix");   COMP_PATHS+=("$UNIMATRIX_PATH");  COMP_ARGS+=("")
 fi
 if [[ "$HAVE_NEO_MATRIX" == "true" ]]; then
-    COMPETITORS+=("neo-matrix   $NEO_MATRIX_PATH        -s")
+    COMP_LABELS+=("neo-matrix");  COMP_PATHS+=("$NEO_MATRIX_PATH"); COMP_ARGS+=("-s")
 fi
 if [[ "$HAVE_TMATRIX" == "true" ]]; then
-    COMPETITORS+=("tmatrix      $TMATRIX_PATH   ")
+    COMP_LABELS+=("tmatrix");     COMP_PATHS+=("$TMATRIX_PATH");    COMP_ARGS+=("")
 fi
 if [[ "$HAVE_GMATRIX" == "true" ]]; then
-    COMPETITORS+=("gmatrix      $GMATRIX_PATH   ")
+    COMP_LABELS+=("gmatrix");     COMP_PATHS+=("$GMATRIX_PATH");    COMP_ARGS+=("")
 fi
 if [[ "$HAVE_FMATRIX" == "true" ]]; then
-    COMPETITORS+=("fmatrix      $FMATRIX_PATH   ")
+    COMP_LABELS+=("fmatrix");     COMP_PATHS+=("$FMATRIX_PATH");    COMP_ARGS+=("")
 fi
 if [[ "$HAVE_CXXMATRIX" == "true" ]]; then
-    COMPETITORS+=("cxxmatrix    $CXXMATRIX_PATH ")
+    COMP_LABELS+=("cxxmatrix");   COMP_PATHS+=("$CXXMATRIX_PATH");  COMP_ARGS+=("")
 fi
 
-TOTAL=${#COMPETITORS[@]}
+TOTAL=${#COMP_LABELS[@]}
 echo "Running interactive benchmarks (${DURATION}s each, PTY, ${TOTAL} tools)..." >&2
 echo "" >&2
 
 RESULTS=()
-for i in "${!COMPETITORS[@]}"; do
-    IFS=$'\t' read -r label path args <<< "${COMPETITORS[$i]}"
+for i in "${!COMP_LABELS[@]}"; do
+    label="${COMP_LABELS[$i]}"
+    path="${COMP_PATHS[$i]}"
+    args="${COMP_ARGS[$i]}"
     n=$((i + 1))
     echo "  [${n}/${TOTAL}] ${label}..." >&2
+    # shellcheck disable=SC2086 # intentional word-splitting of args
     RESULTS+=("$(run_interactive "$label" "$path" $args)")
 done
 
