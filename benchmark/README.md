@@ -116,6 +116,36 @@ At 28,000+ FPS headless, the engine has **467× headroom** over the 60 FPS
 interactive target. This means visual effects (glitch, phosphor,
 depth-of-field, atmosphere) consume <0.25% of the frame budget.
 
+### Bonus: Interactive Encoding Stats (`--perf-stats`)
+
+cosmostrix v13.3.0+ exposes an ENCODING section in the `--perf-stats`
+exit report showing actual measured ANSI bytes per frame, bandwidth,
+and SGR cache hit rate. Measured on AMD Ryzen 7 5800HS, Monolith scene,
+Cosmos palette, 120×40, 60 FPS, 11.7s run:
+
+| Metric | Value | Interpretation |
+|--------|------:|----------------|
+| total_ansi_bytes | 5,008,633 | 5 MB ANSI in 11.7s |
+| frames_flushed | 702 | 60 FPS × 11.7s |
+| **avg_bytes_per_frame** | **7,134.8** | **7 KB/frame actual** |
+| Naive full-redraw equivalent | ~48,000 | 120×40 × ~10 bytes/cell |
+| **RLE compression ratio** | **6.7×** | 48 KB → 7 KB |
+| bandwidth | 418.1 KiB/s | Real terminal I/O load |
+| sgr_cache_hits | 25,450 | Palette color lookups |
+| sgr_cache_misses | 114,846 | Non-palette (phosphor/DoF/glitch) |
+| sgr_cache_hit_rate | 18.1% | See RENDER_ENGINE.md §2.5 |
+
+**Key takeaway**: diff-based + RLE reduces 48 KB/frame naive to 7 KB/frame
+actual — a **6.7× compression ratio**. At 418 KiB/s, cosmostrix is well
+within any terminal's capacity (gnome-terminal handles ~2 MiB/s).
+
+The 18.1% SGR cache hit rate is expected for the Monolith scene:
+depth-of-field blending, phosphor afterglow, and glitch generate
+intermediate colors that aren't palette entries. The miss path is
+allocation-free (`write_sgr_colors_buf` with `push_u8`), so the cost
+is acceptable. See [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md) §2.5
+for full analysis.
+
 See [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md) for the formal
 architecture specification of cosmostrix's diff-based rendering engine,
 including complexity analysis, design rationale, and comparison vs

@@ -159,9 +159,26 @@ diff path's `emit_sgr()` checks the cache first; only cache misses
 fall through to `write_sgr_colors_buf()` (which formats the SGR
 on-the-fly via `push_u8` — no heap allocation).
 
-For the 43 built-in palettes, the cache covers ~95% of SGR emissions
-in practice. The remaining 5% are glitch/anomaly colors generated
-randomly at runtime, which miss the cache but are rare.
+For the 43 built-in palettes, the cache hit rate varies significantly
+by scene and visual effects enabled. Measured on AMD Ryzen 7 5800HS
+with `--perf-stats` (v13.3.0+):
+
+| Configuration | Hit Rate | Notes |
+|---------------|---------:|-------|
+| Monolith scene, Cosmos palette, depth-of-field, phosphor | 18.1% | Many intermediate shades from phosphor decay + DoF blending |
+| (matrix scene measurement — TODO) | — | Classic rain should hit higher due to fewer color variations |
+
+The Monolith scene's low hit rate is **expected, not a bug**: depth-of-field
+blends layer-0 colors 35% toward black, phosphor afterglow generates
+intermediate shades between palette entries, and glitch (3%) generates
+random colors. All of these produce colors that aren't palette entries,
+so they miss the cache and fall through to `write_sgr_colors_buf()`
+(which is still allocation-free — just slower than a cache hit).
+
+The cache remains valuable because the **palette-color cells** (rain
+heads, bright trail cells) still hit, and those are the most frequently
+re-rendered cells. The miss path is optimized: `write_sgr_colors_buf`
+uses `push_u8` (no heap alloc) and writes directly into `ansi_buf`.
 
 ### 2.6 Semantic generation counter
 
@@ -346,18 +363,37 @@ Spawn N threads, each renders one column, mux output.
 
 ## 6. Measured Performance
 
-Internal benchmark (`cosmostrix --benchmark --json`) on a reference
-machine (Linux 6.x, x86_64, gnome-terminal, 80×24):
+Internal benchmark (`cosmostrix --benchmark --json`) and interactive
+`--perf-stats` on AMD Ryzen 7 5800HS, Linux 6.18, 120×40 terminal:
 
-| Metric | Value |
-|--------|-------|
-| Synthetic FPS (no terminal write) | 8,000–15,000 |
-| Interactive FPS (real terminal) | 60 (capped by target) |
-| Avg dirty cells per frame | ~200–400 (10–20% of 1,920) |
-| Avg ANSI bytes per frame | ~4–8 KiB (vs 48 KiB naive) |
-| SGR cache hit rate | ~95% |
-| Full-redraw frequency | <0.1% of frames (only on theme/resize) |
-| RSS (peak) | ~8–12 MiB |
+| Metric | Value | Source |
+|--------|-------|--------|
+| Synthetic FPS (no terminal write) | 28,029 avg / 39,971 peak | `--benchmark --json` |
+| Interactive FPS (real terminal) | 60.003 (capped by target) | `--perf-stats` |
+| Avg dirty cells per frame | 332.8 (≈7% of 4,800) | `--perf-stats` |
+| **Avg ANSI bytes per frame** | **7,134.8 (≈7 KB)** | `--perf-stats` ENCODING |
+| Naive full-redraw equivalent | ~48 KB (120×40 × ~10 bytes/cell) | Calculated |
+| **RLE compression ratio** | **6.7× (48 KB → 7 KB)** | Derived |
+| Bandwidth to terminal | 418.1 KiB/s | `--perf-stats` ENCODING |
+| SGR cache hit rate (Monolith) | 18.1% | `--perf-stats` ENCODING |
+| Full-redraw frequency | <0.1% of frames (only on theme/resize) | `--perf-stats` |
+| RSS (peak) | 4.4 MiB | `--benchmark --json` |
+| Avg frame time | 0.109 ms | `--perf-stats` |
+| Max frame time | 0.303 ms | `--perf-stats` |
+| Jitter classification | low | `--perf-stats` |
+
+**Key takeaways**:
+
+- **6.7× RLE compression**: diff-based + RLE reduces 48 KB/frame naive
+  to 7 KB/frame actual. This is the bandwidth win that makes cosmostrix
+  fast on slow terminals.
+- **418 KiB/s bandwidth**: well within any terminal's capacity (gnome-terminal
+  handles ~2 MiB/s, Alacritty ~10 MiB/s).
+- **0.1 ms avg frame time**: engine computes a frame in 0.1 ms, leaving
+  15.6 ms of the 16.67 ms budget (at 60 FPS) for sleep/terminal I/O.
+- **18.1% SGR cache hit rate**: see §2.5 for why Monolith scene has a
+  low rate (intermediate shades from phosphor + depth-of-field). The
+  miss path is allocation-free, so the cost is acceptable.
 
 For competitor comparison data (cosmostrix vs cmatrix vs unimatrix),
 see `scripts/bench-compare.sh` and the results table in
