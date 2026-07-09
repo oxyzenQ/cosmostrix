@@ -120,31 +120,40 @@ depth-of-field, atmosphere) consume <0.25% of the frame budget.
 
 cosmostrix v13.3.0+ exposes an ENCODING section in the `--perf-stats`
 exit report showing actual measured ANSI bytes per frame, bandwidth,
-and SGR cache hit rate. Measured on AMD Ryzen 7 5800HS, Monolith scene,
-Cosmos palette, 120×40, 60 FPS, 11.7s run:
+and SGR cache hit rate. Measured on AMD Ryzen 7 5800HS, Cosmos palette,
+120×40, 60 FPS:
 
-| Metric | Value | Interpretation |
-|--------|------:|----------------|
-| total_ansi_bytes | 5,008,633 | 5 MB ANSI in 11.7s |
-| frames_flushed | 702 | 60 FPS × 11.7s |
-| **avg_bytes_per_frame** | **7,134.8** | **7 KB/frame actual** |
-| Naive full-redraw equivalent | ~48,000 | 120×40 × ~10 bytes/cell |
-| **RLE compression ratio** | **6.7×** | 48 KB → 7 KB |
-| bandwidth | 418.1 KiB/s | Real terminal I/O load |
-| sgr_cache_hits | 25,450 | Palette color lookups |
-| sgr_cache_misses | 114,846 | Non-palette (phosphor/DoF/glitch) |
-| sgr_cache_hit_rate | 18.1% | See RENDER_ENGINE.md §2.5 |
+| Metric | Monolith (Subtle glitch 3%) | Matrix (Default glitch 10%) |
+|--------|---------------------------:|----------------------------:|
+| Run duration | 11.7s | 13.5s |
+| Frames flushed | 702 | 812 |
+| Avg dirty cells/frame | 332.8 | 1,103.5 |
+| **Avg ANSI bytes/frame** | **7,134.8 (7 KB)** | **31,537.9 (31 KB)** |
+| Naive full-redraw equivalent | ~48 KB | ~48 KB |
+| **RLE compression vs naive** | **6.7×** | **1.5×** |
+| Bandwidth | 418.1 KiB/s | 1,847.4 KiB/s |
+| SGR cache hits | 25,450 | 350,896 |
+| SGR cache misses | 114,846 | 566,690 |
+| SGR cache hit rate | 18.1% | 38.2% |
+| Avg frame time | 0.109 ms | 0.450 ms |
+| Max frame time | 0.303 ms | 2.474 ms |
+| Endurance health | 89.8/100 | 57.8/100 |
 
-**Key takeaway**: diff-based + RLE reduces 48 KB/frame naive to 7 KB/frame
-actual — a **6.7× compression ratio**. At 418 KiB/s, cosmostrix is well
-within any terminal's capacity (gnome-terminal handles ~2 MiB/s).
+**Key takeaways**:
 
-The 18.1% SGR cache hit rate is expected for the Monolith scene:
-depth-of-field blending, phosphor afterglow, and glitch generate
-intermediate colors that aren't palette entries. The miss path is
-allocation-free (`write_sgr_colors_buf` with `push_u8`), so the cost
-is acceptable. See [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md) §2.5
-for full analysis.
+- **Monolith is the efficiency champion**: 6.7× RLE compression, 418 KiB/s
+  bandwidth. Sparse structured rain means most cells are stable per frame.
+- **Matrix is bandwidth-heavy** (4.4× Monolith): 1.8 MiB/s approaches
+  gnome-terminal's limit (~2 MiB/s), but stays well under Alacritty/kitty
+  capacity (~10 MiB/s).
+- **Both scenes stay under 16ms** frame budget — no visible jank.
+- **SGR cache hit rate is scene-dependent** (18–38%): not the ~95% originally
+  estimated, but the miss path is allocation-free. See
+  [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md) §2.5 for analysis.
+
+The diff-based + RLE engine reduces 48 KB/frame naive to 7–31 KB/frame
+actual depending on scene density. At worst (Matrix), cosmostrix still
+fits within modern terminal bandwidth.
 
 See [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md) for the formal
 architecture specification of cosmostrix's diff-based rendering engine,

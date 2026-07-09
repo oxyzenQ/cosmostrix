@@ -165,15 +165,19 @@ with `--perf-stats` (v13.3.0+):
 
 | Configuration | Hit Rate | Notes |
 |---------------|---------:|-------|
-| Monolith scene, Cosmos palette, depth-of-field, phosphor | 18.1% | Many intermediate shades from phosphor decay + DoF blending |
-| (matrix scene measurement — TODO) | — | Classic rain should hit higher due to fewer color variations |
+| Monolith scene, Cosmos palette, Subtle glitch (3%) | 18.1% | DoF + phosphor generate many intermediate shades |
+| Matrix scene, Cosmos palette, Default glitch (10%) | 38.2% | More palette-color cells, but glitch still misses |
 
-The Monolith scene's low hit rate is **expected, not a bug**: depth-of-field
+The Monolith scene's lower hit rate is **expected, not a bug**: depth-of-field
 blends layer-0 colors 35% toward black, phosphor afterglow generates
-intermediate shades between palette entries, and glitch (3%) generates
-random colors. All of these produce colors that aren't palette entries,
-so they miss the cache and fall through to `write_sgr_colors_buf()`
-(which is still allocation-free — just slower than a cache hit).
+intermediate shades between palette entries, and glitch generates random
+colors. All of these produce colors that aren't palette entries, so they
+miss the cache and fall through to `write_sgr_colors_buf()` (which is
+still allocation-free — just slower than a cache hit).
+
+The Matrix scene hits higher (38.2%) because it uses more palette-color
+cells directly (classic glyph rain), but still misses on glitch (10%)
+and bold/shading variations.
 
 The cache remains valuable because the **palette-color cells** (rain
 heads, bright trail cells) still hit, and those are the most frequently
@@ -366,34 +370,45 @@ Spawn N threads, each renders one column, mux output.
 Internal benchmark (`cosmostrix --benchmark --json`) and interactive
 `--perf-stats` on AMD Ryzen 7 5800HS, Linux 6.18, 120×40 terminal:
 
-| Metric | Value | Source |
-|--------|-------|--------|
-| Synthetic FPS (no terminal write) | 28,029 avg / 39,971 peak | `--benchmark --json` |
-| Interactive FPS (real terminal) | 60.003 (capped by target) | `--perf-stats` |
-| Avg dirty cells per frame | 332.8 (≈7% of 4,800) | `--perf-stats` |
-| **Avg ANSI bytes per frame** | **7,134.8 (≈7 KB)** | `--perf-stats` ENCODING |
-| Naive full-redraw equivalent | ~48 KB (120×40 × ~10 bytes/cell) | Calculated |
-| **RLE compression ratio** | **6.7× (48 KB → 7 KB)** | Derived |
-| Bandwidth to terminal | 418.1 KiB/s | `--perf-stats` ENCODING |
-| SGR cache hit rate (Monolith) | 18.1% | `--perf-stats` ENCODING |
-| Full-redraw frequency | <0.1% of frames (only on theme/resize) | `--perf-stats` |
-| RSS (peak) | 4.4 MiB | `--benchmark --json` |
-| Avg frame time | 0.109 ms | `--perf-stats` |
-| Max frame time | 0.303 ms | `--perf-stats` |
-| Jitter classification | low | `--perf-stats` |
+### Headless Engine Ceiling (`--benchmark --json`)
+
+| Metric | Value |
+|--------|------:|
+| Avg FPS (no terminal I/O) | 28,029 |
+| Peak FPS | 39,971 |
+| Total frames in 10s | 280,293 |
+| p99 frame time (ms) | 0.043 |
+| Peak RSS | 4.4 MiB |
+
+### Interactive Encoding by Scene (`--perf-stats`, 60 FPS)
+
+| Metric | Monolith | Matrix | Notes |
+|--------|---------:|-------:|-------|
+| Avg dirty cells/frame | 332.8 | 1,103.5 | Matrix is 3.3× denser |
+| **Avg ANSI bytes/frame** | **7,134.8** | **31,537.9** | Matrix is 4.4× more bandwidth |
+| Naive full-redraw equivalent | ~48 KB | ~48 KB | Same terminal size |
+| **RLE compression vs naive** | **6.7×** | **1.5×** | Monolith benefits more from RLE |
+| Bandwidth to terminal | 418.1 KiB/s | 1,847.4 KiB/s | Matrix nears gnome-terminal limit |
+| SGR cache hit rate | 18.1% | 38.2% | Matrix uses more palette colors |
+| Avg frame time | 0.109 ms | 0.450 ms | Both well under 16.67ms budget |
+| Max frame time | 0.303 ms | 2.474 ms | No visible jank |
+| Endurance health | 89.8/100 | 57.8/100 | Matrix triggers "investigate" |
 
 **Key takeaways**:
 
-- **6.7× RLE compression**: diff-based + RLE reduces 48 KB/frame naive
-  to 7 KB/frame actual. This is the bandwidth win that makes cosmostrix
-  fast on slow terminals.
-- **418 KiB/s bandwidth**: well within any terminal's capacity (gnome-terminal
-  handles ~2 MiB/s, Alacritty ~10 MiB/s).
-- **0.1 ms avg frame time**: engine computes a frame in 0.1 ms, leaving
-  15.6 ms of the 16.67 ms budget (at 60 FPS) for sleep/terminal I/O.
-- **18.1% SGR cache hit rate**: see §2.5 for why Monolith scene has a
-  low rate (intermediate shades from phosphor + depth-of-field). The
-  miss path is allocation-free, so the cost is acceptable.
+- **Engine ceiling 28K FPS = 467× headroom** over 60 FPS target. Visual
+  effects consume <0.25% of frame budget.
+- **Monolith is the efficiency champion**: 6.7× RLE compression, 418 KiB/s
+  bandwidth. Sparse structured rain means most cells are stable per frame,
+  so diff-based + RLE shines.
+- **Matrix is bandwidth-heavy**: 1.8 MiB/s (4.4× Monolith). Dense classic
+  rain means more dirty cells per frame. Still under Alacritty/kitty
+  capacity (~10 MiB/s), but approaches gnome-terminal's limit (~2 MiB/s).
+- **Both scenes stay under 16ms** frame budget — no visible jank even
+  at peak (max 2.47ms << 16.67ms).
+- **SGR cache hit rate is scene-dependent**: 18–38% measured. Not the
+  ~95% originally estimated, but the miss path is allocation-free so
+  the cost is acceptable. See §2.5 for analysis.
 
 For competitor comparison data (cosmostrix vs cmatrix vs unimatrix),
 see `scripts/bench-compare.sh` and the results table in
