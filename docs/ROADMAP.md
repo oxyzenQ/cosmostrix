@@ -62,38 +62,6 @@ user request. License enforced as GPL-3.0-only across all 171 files.
 
 Cumulative: **+70.3% FPS** (31,445 → 53,561 avg_fps), **-40.6% frame time**.
 
-#### Future Optimization Opportunities
-
-**Investigated and ruled out (not viable for current architecture):**
-- ~~Cache-aware SoA layout~~: Net LOSS. Cosmostrix always reads all 4 Cell
-  fields together (ch+fg+bg+bold). SoA = 4 cache line accesses vs AoS = 1.
-  SoA is 4x slower for this access pattern.
-- ~~SIMD color blending~~: Not viable. Dirty-cell access is random
-  (non-streamable), blend loop has per-cell branches (needs_luminance,
-  needs_saturation). Auto-vectorizer fails; explicit SIMD requires SoA
-  first.
-- ~~Multi-core offloading~~: Not worth it. Frame budget at 60fps = 16.67ms,
-  actual frame time = 0.019ms (0.1% of budget). Offloading 60µs compute
-  saves ~0% — bottleneck is terminal I/O, not CPU.
-
-**Real bottleneck: terminal I/O (investigated v11.0.0)**
-The actual bottleneck is ANSI escape sequence generation + stdout write.
-Optimized in v11.0.0 by bypassing crossterm's `.queue()` overhead:
-- Direct ANSI byte buffer (`ansi_buf: Vec<u8>`) replaces ~170 trait
-  dispatch + heap String alloc calls per frame
-- Combined fg+bg SGR in one escape sequence (saves ~3 bytes/change)
-- Integer-to-ASCII without `format!` macro (no heap alloc)
-- Single `write_all` flush per frame
-
-**Remaining I/O research directions (post-v11.0.0):**
-- Terminal protocol detection: detect kitty/foot/wezterm at startup and
-  use faster protocols (kitty graphics, synchronized output) where
-  available. Currently all terminals get the same ANSI output.
-- Color caching: pre-format ANSI bytes for the ~20 palette colors at
-  startup, lookup by index instead of formatting per cell.
-- Output compression: investigate if terminals support DEFLATE-compressed
-  output (some do via `ESC[?1004h` extensions).
-
 ### v4.9.0 — The Wolf: Release Guard + Terminal Runtime Contract (COMPLETE)
 
 Hardens the release process so benchmark reports cannot be forgotten again.
