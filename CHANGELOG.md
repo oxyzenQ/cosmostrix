@@ -9,6 +9,72 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v13.2.0 — Render Engine Formal Specification + Competitor Benchmark
+
+Documentation release formalizing cosmostrix's position as the
+definitive diff-based terminal rendering engine. No runtime behavior
+changes — purely additive documentation and tooling.
+
+### Documentation
+
+**Formal render engine specification** (`docs/RENDER_ENGINE.md`):
+- 9-section formal architecture document covering: problem statement,
+  strategy (differential rendering + RLE), data structures, complexity
+  analysis, output encoding details, alternative-engine comparison,
+  measured performance, failure modes, and future work.
+- Includes BibTeX citation block for academic reference.
+- Documents the existing `terminal.rs` `draw()` implementation:
+  - Cell equality fast path (24-byte derived `==`, ~4 cycles/cell)
+  - Dirty tracking via BitVec + dirty queue (O(1) mark, O(dirty) flush)
+  - Run-length encoding on both full-redraw and diff-redraw paths
+  - SGR state tracking across runs (`cur_fg`/`cur_bg`/`cur_bold`)
+  - `ColorCache` pre-computed SGR bytes per `(fg, bg)` pair
+  - `semantic_gen` counter for charset/theme invalidation
+  - `force_draw_everything()` escape hatch for overlay cleanup
+- Compares cosmostrix's diff-based engine against 5 alternatives:
+  full redraw (cmatrix), per-droplet cursor targeting, ANSI scroll
+  regions, Sixel/graphics protocol, PTY multiplexer — with explicit
+  trade-off analysis for each.
+
+**Competitor benchmark script** (`scripts/bench-compare.sh`):
+- Side-by-side resource comparison: cosmostrix vs cmatrix vs unimatrix.
+- Uses `/usr/bin/time -v` inside a PTY (`script`) to measure CPU time
+  and peak RSS under identical terminal conditions.
+- Outputs a Markdown table suitable for pasting into `benchmark/README.md`.
+- Honest about limitations: terminal-bound renderers cannot be
+  benchmarked for FPS via subprocess (FPS is determined by the terminal
+  emulator, not the process). The script measures **resource
+  efficiency** — the defensible axis for diff-based vs full-redraw
+  engine evaluation.
+- Gracefully handles missing competitors (cmatrix/unimatrix) with
+  clear install instructions.
+
+### README / Docs Cross-References
+
+- `README.md` Documentation section: added link to RENDER_ENGINE.md.
+- `benchmark/README.md`: added "Competitor Comparison" section
+  pointing to `scripts/bench-compare.sh` and `docs/RENDER_ENGINE.md`.
+
+### Why This Release
+
+Cosmostrix's `terminal.rs` `draw()` function has been at masterclass
+level since v10.x — RLE on both paths, SGR state tracking, color
+cache, direct ANSI byte buffer, no-heap integer formatting. But this
+was implicit knowledge scattered across code comments. v13.2.0 makes
+it **explicit and defensible**:
+
+1. **RENDER_ENGINE.md** makes the design citation-worthy — downstream
+   TUI authors can reference cosmostrix as a reference implementation
+   of diff-based terminal rendering.
+2. **bench-compare.sh** provides empirical evidence — without
+   competitor data, claims of "masterclass" are marketing, not
+   engineering.
+3. The formal spec also serves as onboarding for new contributors:
+   instead of reverse-engineering `terminal.rs`, they read one
+   document that explains the why behind every design choice.
+
+---
+
 ## v13.1.2 — HUD Toggle-Off Residue Fix
 
 Bug-fix release addressing a visual residue issue: when toggling the

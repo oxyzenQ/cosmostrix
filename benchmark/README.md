@@ -52,6 +52,27 @@ the frame changes under the current cinematic renderer and terminal redraw
 threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
+## Competitor Comparison
+
+For a side-by-side resource usage comparison (CPU time + peak RSS) of
+cosmostrix vs cmatrix vs unimatrix under identical terminal conditions,
+run:
+
+```bash
+./scripts/bench-compare.sh --duration 10
+```
+
+This produces a Markdown table comparing the three tools. Terminal-bound
+renderers cannot be benchmarked for FPS via subprocess (FPS is determined
+by the terminal emulator, not the process), so the comparison focuses on
+**resource efficiency** — the defensible axis for diff-based vs
+full-redraw engine evaluation.
+
+See [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md) for the formal
+architecture specification of cosmostrix's diff-based rendering engine,
+including complexity analysis, design rationale, and comparison vs
+alternative rendering strategies.
+
 ## v12.0.0 — Protocol Engine + Multi-Profile
 
 All benchmarks: 120×40, `--bench-duration 10`, headless mode.

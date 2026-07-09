@@ -99,7 +99,7 @@ EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v13.1.2"
+TAG="v13.2.0"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -318,6 +318,7 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 - [Visual Stability](docs/VISUAL_STABILITY.md) — visual depth and throughput stability
 - [Endurance](docs/ENDURANCE.md) — endurance testing and resource monitoring
 - [Atmosphere Engine](docs/ATMOSPHERE_ENGINE.md) — atmosphere and whisper engine internals
+- [Render Engine](docs/RENDER_ENGINE.md) — diff-based rendering architecture (formal spec)
 - [Supply Chain](docs/SUPPLY_CHAIN.md) — supply-chain hardening policy
 - [Stability Audit](docs/STABILITY_AUDIT.md) — terminal stability audit
 - [SIMD Feasibility](docs/SIMD_FEASIBILITY.md) — SIMD optimization feasibility
