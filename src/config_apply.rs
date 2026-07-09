@@ -109,19 +109,36 @@ pub(crate) fn apply_config_and_runtime_defaults(
     let mut config_touched = HashSet::new();
 
     // Security: validate --config path is in a safe location.
-    // Only home (~), current directory (.), and /etc/cosmostrix/ are allowed.
-    // Prevents arbitrary file reading via --config /etc/shadow etc.
     if let Some(ref config_path) = args.config {
         let path_str = config_path.to_string_lossy();
-        if !crate::is_safe_path(&path_str) {
+        let safe = crate::is_safe_path(&path_str);
+        if args.verbose {
+            eprintln!("[verbose] config path: {path_str} (safe: {safe})");
+        }
+        if !safe {
             return Err(format!(
                 "error: --config '{path_str}' is outside allowed directories\n  \
-                 Allowed: home (~), current directory (.), /etc/cosmostrix/"
+                 Allowed: ~/.config/cosmostrix/, current directory (.), /etc/cosmostrix/, /tmp/"
             ));
         }
     }
 
     let cfg = load_config_file(args.config.as_deref());
+    if args.verbose {
+        let config_path = args
+            .config
+            .as_deref()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_else(|| {
+                crate::configfile::default_config_file_path()
+                    .to_string_lossy()
+                    .into_owned()
+            });
+        eprintln!(
+            "[verbose] config loaded from: {config_path} ({} keys)",
+            cfg.len()
+        );
+    }
     let profiles = collect_profiles(&cfg);
     if !cfg.is_empty() {
         apply_config_values(matches, args, &cfg, &mut config_touched);

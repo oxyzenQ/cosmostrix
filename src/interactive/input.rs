@@ -99,8 +99,20 @@ pub(super) fn handle_keybinding(
     use crossterm::event::KeyCode;
     use crossterm::event::KeyModifiers;
 
+    // Android/Termux: volume keys and back button can send unexpected
+    // Esc/Ctrl-C key events, causing accidental self-exit. Detect Android
+    // and require a deliberate 'q' press (not Esc, not Ctrl-C) to quit.
+    // This prevents the "press key → self exit" bug on Android.
+    let is_android = std::env::var("TERMUX_VERSION").is_ok()
+        || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
+
     match (k.code, k.modifiers) {
-        (KeyCode::Esc, _) => cloud.raining = false,
+        (KeyCode::Esc, _) => {
+            if !is_android {
+                cloud.raining = false;
+            }
+            // On Android: ignore Esc (likely back button misfire).
+        }
         (KeyCode::Char('q'), _) => cloud.raining = false,
         (KeyCode::Char('z'), KeyModifiers::CONTROL) => {
             #[cfg(unix)]
@@ -126,7 +138,10 @@ pub(super) fn handle_keybinding(
             cloud.restart_message_typewriter();
         }
         (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
-            cloud.raining = false;
+            if !is_android {
+                cloud.raining = false;
+            }
+            // On Android: ignore Ctrl-C (likely volume key misfire).
         }
         (KeyCode::Char('c'), KeyModifiers::NONE) => {
             let next = cycle_color_scheme(cloud.color_scheme(), 1);

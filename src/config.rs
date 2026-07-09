@@ -496,6 +496,16 @@ pub struct Args {
     )]
     pub check_update: bool,
 
+    #[arg(
+        long = "verbose",
+        help_heading = "DIAGNOSTICS",
+        display_order = 130,
+        help = "Print diagnostic info to stderr (config resolution, path \
+                validation, terminal detection, atmosphere state). Useful \
+                for debugging config/loading issues."
+    )]
+    pub verbose: bool,
+
     // === HIDDEN (functional but intentionally undocumented in --help) ===
     #[arg(
         short = 'a',

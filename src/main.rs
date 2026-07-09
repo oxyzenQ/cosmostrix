@@ -631,6 +631,9 @@ fn main() -> std::io::Result<()> {
         Ok(c) => c,
         Err(e) => ux::die_input(e),
     };
+    if args.verbose {
+        eprintln!("[verbose] color scheme: {color_scheme:?}");
+    }
     let color_tune = match args.color_tune.as_deref() {
         Some(s) => ux::or_exit(color_tune::parse_color_tune(s)),
         None => color_tune::ColorTune::IDENTITY,
@@ -640,6 +643,13 @@ fn main() -> std::io::Result<()> {
         .as_deref()
         .and_then(scene::rain_style_for_scene)
         .unwrap_or(rain_style::RainStyle::Glyph);
+    if args.verbose {
+        eprintln!(
+            "[verbose] color-tune: saturation={:.2} brightness={:.2}",
+            color_tune.saturation, color_tune.brightness
+        );
+        eprintln!("[verbose] rain style: {rain_style:?}");
+    }
 
     let glitch_pct = ux::or_exit(validate_f32_range(
         "--glitchpct",
@@ -705,11 +715,13 @@ fn main() -> std::io::Result<()> {
     // current directory, or /etc/cosmostrix/. Prevents cosmostrix from
     // being used as an arbitrary file reader (e.g., /etc/shadow).
     let chars = if let Some(ref cf) = args.charset_file {
-        // Validate path is in a safe location before reading.
+        if args.verbose {
+            eprintln!("[verbose] charset-file: {cf} (safe: {})", is_safe_path(cf));
+        }
         if !is_safe_path(cf) {
             ux::die_input(format!(
                 "error: --charset-file '{cf}' is outside allowed directories\n  \
-                 Allowed: home (~), current directory (.), /etc/cosmostrix/"
+                 Allowed: ~/.config/cosmostrix/, current directory (.), /etc/cosmostrix/, /tmp/"
             ));
         }
         match std::fs::read_to_string(cf) {
@@ -834,6 +846,7 @@ fn main() -> std::io::Result<()> {
         bench_duration: args.bench_duration,
         color_tune,
         json: args.json,
+        verbose: args.verbose,
         density_auto,
         base_density,
         perf_stats: args.perf_stats,
