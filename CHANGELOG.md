@@ -9,6 +9,43 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v13.1.2 — HUD Toggle-Off Residue Fix
+
+Bug-fix release addressing a visual residue issue: when toggling the
+live HUD off (pressing `i` again), stale HUD text + black background
+cells remained visible in regions where the rain didn't actively write
+this frame.
+
+### Bug Fixes
+
+**HUD toggle-off now clears residue via force_draw_everything()**:
+- The rain renderer is diff-based (`frame.set()` skips cells whose
+  content matches the previously-sent state). When HUD turns off, the
+  frame buffer still contains the 5×15 HUD cells (text + black bg). On
+  the next frame, only cells the rain actively writes get refreshed —
+  cells in dead zones (no active droplet, no glitch, no phosphor decay
+  this frame) keep their stale HUD content, leaving visible "residue".
+- The fix calls `cloud.force_draw_everything()` when toggling OFF. This
+  triggers `frame.clear_with_bg()` on the next rain update, which:
+  1. Sets `dirty_all = true` (forces every cell to be re-sent)
+  2. Resets all cells to the bg color
+  3. The rain then redraws active cells on the clean canvas
+- Net effect: HUD cells are guaranteed to be cleared, regardless of
+  whether the rain happens to write them this frame. The user sees a
+  clean toggle-off with no leftover text.
+- Toggling ON does not need force_draw — the HUD writes via `set()`
+  which marks cells dirty because content differs from rain. Toggle ON
+  was already working correctly.
+
+### Code Changes
+
+- `src/interactive/event_loop.rs`: HUD toggle handler now captures the
+  return value of `hud_state.toggle()` (new visibility state) and calls
+  `cloud.force_draw_everything()` only when turning OFF. Added detailed
+  comment explaining the residue mechanism and why force_draw is needed.
+
+---
+
 ## v13.1.1 — Android HUD Toggle Fix
 
 Bug-fix release addressing a critical Android/Termux regression: pressing

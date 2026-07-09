@@ -361,11 +361,25 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // keypress to fall through to the screensaver exit
                         // path. 'I' is also accepted for keyboards where the
                         // Shift state is sticky or set unexpectedly.
+                        //
+                        // When toggling OFF, we MUST call force_draw_everything()
+                        // to clear stale HUD cells from the frame buffer. The
+                        // rain uses diff-based rendering (frame.set, not
+                        // set_force), so cells that the rain doesn't actively
+                        // write this frame keep their previous content —
+                        // including the HUD text + black bg cells. Without
+                        // force_draw, this leaves visible "HUD residue" in
+                        // regions with no active rain this frame. force_draw
+                        // triggers frame.clear_with_bg() on the next rain
+                        // update, wiping the stale HUD cells cleanly.
                         if matches!(
                             (k.code, k.modifiers),
                             (KeyCode::Char('i'), _) | (KeyCode::Char('I'), _)
                         ) {
-                            hud_state.toggle();
+                            let now_visible = hud_state.toggle();
+                            if !now_visible {
+                                cloud.force_draw_everything();
+                            }
                             let _ = register_activity(
                                 &mut last_input_time,
                                 &mut last_resync_time,
