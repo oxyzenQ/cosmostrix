@@ -151,6 +151,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.reset(w, h);
     // Enable atmospheric events for interactive mode (ghosts, etc.).
     cloud.enable_events();
+    // P1: enable per-component timing only when --perf-stats is requested.
+    // When off, rain_at() skips 2 Instant::now() calls per frame (~40ns).
+    cloud.set_component_timing(cfg.perf_stats);
 
     // Build color byte cache from the palette so the draw hot path can
     // emit pre-formatted ANSI SGR sequences instead of formatting on the fly.
@@ -593,7 +596,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let work_start = Instant::now();
         // Pass idle state to Cloud for Weather Director tick
         cloud.is_idle = is_idle;
-        cloud.rain(&mut frame);
+        // P1: call rain_at directly with work_start instead of cloud.rain()
+        // (which calls Instant::now() internally). Saves 1 Instant::now()
+        // per frame (~20ns).
+        cloud.rain_at(&mut frame, work_start);
 
         // Write HUD into the frame buffer BEFORE term.draw() so it's
         // part of the same flush — eliminates fullscreen flicker.
