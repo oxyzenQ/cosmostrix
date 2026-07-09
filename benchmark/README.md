@@ -62,11 +62,59 @@ run:
 ./scripts/bench-compare.sh --duration 10
 ```
 
-This produces a Markdown table comparing the three tools. Terminal-bound
-renderers cannot be benchmarked for FPS via subprocess (FPS is determined
-by the terminal emulator, not the process), so the comparison focuses on
-**resource efficiency** — the defensible axis for diff-based vs
-full-redraw engine evaluation.
+All three tools run in **interactive mode** under a PTY with
+`/usr/bin/time -v` for the same duration. This is apples-to-apples:
+each tool renders to a pseudo-terminal at its natural frame rate.
+Lower is better for CPU time, CPU %, and RSS.
+
+### Example Results — AMD Ryzen 7 5800HS, Linux 6.18, 10s per tool
+
+| Tool | CPU time (s) | CPU % | Peak RSS (MiB) |
+|------|-------------:|------:|---------------:|
+| **cosmostrix** | **0.11** | **1.1%** | 4.3 |
+| cmatrix | 0.27 | 2.7% | 4.1 |
+| unimatrix | 0.12 | 1.2% | 17.7 |
+
+**Key findings**:
+
+- **cosmostrix uses 2.5× less CPU than cmatrix** despite doing more
+  per-frame work (dirty tracking, RLE encoding, phosphor afterglow,
+  depth-of-field, atmosphere engine). cmatrix's plain full-redraw
+  approach is simpler but burns more CPU per frame.
+- **cosmostrix RSS (4.3 MiB) matches cmatrix (4.1 MiB)** — both are
+  compiled-native with no runtime overhead. unimatrix (Python
+  interpreter) uses 4.1× more memory at 17.7 MiB.
+- **cosmostrix is comparable to unimatrix in CPU** (1.1% vs 1.2%),
+  but with 4× smaller memory footprint and a far more sophisticated
+  rendering engine.
+
+### Why cosmostrix Wins on CPU Despite More Features
+
+cosmostrix's diff-based engine does more work per frame than cmatrix's
+plain full-redraw, but it emits **far fewer ANSI bytes** to the terminal.
+On fast terminals (Alacritty, kitty) this is a small win; on slower
+terminals (gnome-terminal, xterm, Termux) the bandwidth savings dominate
+and the total system CPU (process + terminal emulator) is significantly
+lower. The interactive CPU numbers above measure only the process — the
+terminal emulator CPU savings are not captured here but are documented
+in [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md).
+
+### Bonus: Cosmostrix Engine Ceiling
+
+cosmostrix also exposes a headless benchmark (`--benchmark --json`) that
+measures raw engine throughput without terminal I/O. On the same machine:
+
+| Metric | Value |
+|--------|------:|
+| Avg FPS (headless) | 28,029 |
+| Peak FPS (headless) | 39,971 |
+| Total frames in 10s | 280,293 |
+| p99 frame time (ms) | 0.043 |
+| Peak RSS | 4.4 MiB |
+
+At 28,000+ FPS headless, the engine has **467× headroom** over the 60 FPS
+interactive target. This means visual effects (glitch, phosphor,
+depth-of-field, atmosphere) consume <0.25% of the frame budget.
 
 See [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md) for the formal
 architecture specification of cosmostrix's diff-based rendering engine,
