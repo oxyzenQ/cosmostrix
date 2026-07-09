@@ -95,6 +95,16 @@ if ! "$COSMOSTRIX_BIN" --version &>/dev/null; then
     exit 1
 fi
 
+# Warn if the binary version doesn't match Cargo.toml — likely a stale build.
+BINARY_VERSION=$("$COSMOSTRIX_BIN" --version 2>&1 | head -1 | grep -oP 'v\d+\.\d+\.\d+' | head -1)
+CARGO_VERSION=$(grep -m1 '^version' Cargo.toml | grep -oP '\d+\.\d+\.\d+')
+if [[ -n "$BINARY_VERSION" ]] && [[ -n "$CARGO_VERSION" ]] && [[ "$BINARY_VERSION" != "v$CARGO_VERSION" ]]; then
+    echo "WARNING: cosmostrix binary is $BINARY_VERSION but Cargo.toml is v$CARGO_VERSION" >&2
+    echo "         The binary is stale. Run: cargo build --profile $PROFILE" >&2
+    echo "         Continuing with stale binary..." >&2
+    echo "" >&2
+fi
+
 HAVE_TIME=false
 if [[ -x /usr/bin/time ]]; then
     HAVE_TIME=true
@@ -150,30 +160,31 @@ run_interactive() {
     local args=("$@")
 
     if [[ "$HAVE_TIME" != "true" ]]; then
-        echo "${label}	—	—	—	(/usr/bin/time not installed)"
+        echo "${label}  —       —       —       (/usr/bin/time not installed)"
         return
     fi
 
     local time_log
     time_log="$(mktemp)"
 
-    # Run inside script (PTY) so terminal-aware tools render.
-    # /usr/bin/time -v captures RSS via wait4.
+    # Run inside a PTY (via 'script') so terminal-aware tools actually render.
+    # Use 'timeout' INSIDE the PTY to kill the tool after DURATION seconds.
+    # Previous approach ('cmd; sleep N') was broken: if the tool exited early,
+    # the sleep consumed the remaining wall time with ~0 CPU, making it look
+    # like the tool used no CPU. Now timeout sends SIGINT directly to the tool.
+    # Set TERM + COLUMNS + LINES so the tool can initialize its screen.
     if command -v script &>/dev/null; then
+        TERM=xterm-256color COLUMNS=120 LINES=40 \
         /usr/bin/time -v -o "$time_log" \
-            timeout $((DURATION + 2)) \
-            script -qec "$cmd ${args[*]}; sleep $DURATION" /dev/null \
-            >/dev/null 2>&1 &
+            script -qec "TERM=xterm-256color COLUMNS=120 LINES=40 timeout --signal=INT ${DURATION} ${cmd} ${args[*]}" /dev/null \
+            >/dev/null 2>&1 || true
     else
+        TERM=xterm-256color COLUMNS=120 LINES=40 \
         /usr/bin/time -v -o "$time_log" \
-            timeout $((DURATION + 2)) \
+            timeout --signal=INT $((DURATION + 2)) \
             "$cmd" "${args[@]}" \
-            >/dev/null 2>&1 &
+            >/dev/null 2>&1 || true
     fi
-    local pid=$!
-    sleep "$DURATION"
-    kill -INT "$pid" 2>/dev/null || true
-    wait "$pid" 2>/dev/null || true
 
     local cpu_user cpu_sys cpu_total rss_kb
     cpu_user=$(grep "User time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
@@ -182,7 +193,7 @@ run_interactive() {
     rss_kb=$(grep "Maximum resident set size" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
     rm -f "$time_log"
 
-    echo "${label}	${cpu_total}	${rss_kb}	—	—"
+    echo "${label}      ${cpu_total}    ${rss_kb}       —       —"
 }
 
 echo "Checking cmatrix..." >&2
@@ -266,7 +277,7 @@ echo ""
 echo "### Environment"
 echo ""
 echo "- Date: \`$(date -u +%Y-%m-%dT%H:%M:%SZ)\`"
-echo "- Host: \`$(hostname)\`"
+echo "- Host: \`$(uname -n 2>/dev/null || hostname 2>/dev/null || echo 'unknown')\`"
 echo "- Kernel: \`$(uname -sr)\`"
 echo "- CPU: \`$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | xargs || echo 'unknown')\`"
 echo "- Cosmostrix: \`$("$COSMOSTRIX_BIN" --version 2>&1 | head -1)\`"
