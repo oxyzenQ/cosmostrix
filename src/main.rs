@@ -104,6 +104,7 @@ mod report;
 mod runtime;
 mod safepath;
 mod scene;
+mod sgr_format;
 mod termdetect;
 mod terminal;
 mod testconf;

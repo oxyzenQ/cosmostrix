@@ -693,6 +693,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     SHUTDOWN.store(true, Ordering::Release);
 
     if cfg.perf_stats {
+        // Capture encoding stats BEFORE dropping the terminal — the stats
+        // live inside the Terminal/ColorCache and would be lost on drop.
+        let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
         drop(term);
         let elapsed = start_time.elapsed();
         let elapsed_s = elapsed.as_secs_f64().max(0.000_001);
@@ -794,6 +797,35 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 "phase_transitions",
                 &phase_predictor.transitions_observed().to_string(),
             );
+        }
+
+        // ENCODING: actual measured ANSI bytes/frame + SGR cache hit rate.
+        // These prove the diff-based + RLE + color cache optimizations work.
+        {
+            let s = r.section("ENCODING");
+            let total_sgr = sgr_hits + sgr_misses;
+            let hit_rate = if total_sgr > 0 {
+                (sgr_hits as f64 / total_sgr as f64) * 100.0
+            } else {
+                0.0
+            };
+            let avg_bytes_per_frame = if enc_flushes > 0 {
+                enc_bytes as f64 / enc_flushes as f64
+            } else {
+                0.0
+            };
+            let bandwidth_kib_s = (enc_bytes as f64 / 1024.0) / elapsed_s;
+
+            s.field("total_ansi_bytes", &enc_bytes.to_string());
+            s.field("frames_flushed", &enc_flushes.to_string());
+            s.field(
+                "avg_bytes_per_frame",
+                &format!("{:.1}", avg_bytes_per_frame),
+            );
+            s.field("bandwidth", &format!("{:.1} KiB/s", bandwidth_kib_s));
+            s.field("sgr_cache_hits", &sgr_hits.to_string());
+            s.field("sgr_cache_misses", &sgr_misses.to_string());
+            s.field("sgr_cache_hit_rate", &format!("{:.1}%", hit_rate));
         }
 
         r.print();

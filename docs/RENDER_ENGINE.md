@@ -436,9 +436,12 @@ Identified but not yet implemented:
    Estimated 2–3× faster `frame.set()` hot path, but early-exit on
    `ch` field limits real-world gain to <10%.
 
-3. **SGR cache hit-rate instrumentation**: expose cache hit/miss
-   counters via `--verbose` or a new `--encoding-stats` flag. Would
-   provide empirical evidence of cache effectiveness.
+3. **SGR cache hit-rate instrumentation** — **DONE in v13.3.0**.
+   The `ColorCache` now tracks atomic hit/miss counters, exposed via
+   `Terminal::encoding_stats()` and the `--perf-stats` exit report's
+   ENCODING section. The `Terminal` also tracks total ANSI bytes flushed
+   and frame count, so the report shows actual `avg_bytes_per_frame`
+   and `bandwidth (KiB/s)` instead of the previous estimate.
 
 4. **Adaptive dirty threshold**: dynamically tune
    `DIRTY_THRESHOLD_RATIO` based on observed full-redraw frequency

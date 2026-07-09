@@ -47,6 +47,7 @@ use crate::constants::{
     MIN_TERMINAL_LINES, SHUTDOWN_TIMEOUT_SECS,
 };
 use crate::frame::Frame;
+use crate::sgr_format::{push_u16, write_sgr_colors_buf};
 use crate::termdetect::TerminalCaps;
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
@@ -118,6 +119,13 @@ pub struct Terminal {
     term_caps: TerminalCaps,
     /// Color byte cache for palette colors (built after palette is known).
     color_cache: Option<ColorCache>,
+    /// Cumulative ANSI bytes flushed to stdout across all frames.
+    /// Incremented in `flush_ansi()` by `ansi_buf.len()` before clearing.
+    /// Used by `--perf-stats` to report average bytes/frame and total bandwidth.
+    total_ansi_bytes: u64,
+    /// Number of `flush_ansi()` calls (= number of frames drawn).
+    /// Used with `total_ansi_bytes` to compute average bytes/frame.
+    flush_count: u64,
 }
 
 impl Terminal {
@@ -160,6 +168,8 @@ impl Terminal {
             signal_exit: signal_exit.clone(),
             term_caps,
             color_cache: None,
+            total_ansi_bytes: 0,
+            flush_count: 0,
         };
 
         let init_res: Result<()> = (|| {
@@ -209,9 +219,19 @@ impl Terminal {
     /// Flush the ANSI buffer to stdout via a single write_all call.
     /// When synchronized output is supported, wraps the frame in
     /// `ESC[?2026h` / `ESC[?2026l` markers for tear-free rendering.
+    ///
+    /// Also accumulates `ansi_buf.len()` into `total_ansi_bytes` and
+    /// increments `flush_count` for `--perf-stats` reporting. The sync
+    /// wrapper bytes (12 bytes total when sync_output is enabled) are
+    /// NOT counted — only the actual frame content.
     #[inline]
     fn flush_ansi(&mut self) -> Result<()> {
         if !self.ansi_buf.is_empty() {
+            // Accumulate encoding stats BEFORE clearing the buffer.
+            // Only count frame content, not sync wrappers.
+            self.total_ansi_bytes += self.ansi_buf.len() as u64;
+            self.flush_count += 1;
+
             if self.term_caps.sync_output {
                 self.stdout.write_all(crate::termdetect::SYNC_START)?;
                 self.stdout.write_all(&self.ansi_buf)?;
@@ -255,6 +275,28 @@ impl Terminal {
     /// Must be called after the palette is built and before the first draw.
     pub fn set_color_cache(&mut self, cache: ColorCache) {
         self.color_cache = Some(cache);
+    }
+
+    /// Return encoding statistics as `(total_ansi_bytes, flush_count, sgr_hits, sgr_misses)`.
+    ///
+    /// - `total_ansi_bytes`: cumulative ANSI bytes flushed to stdout across all frames.
+    /// - `flush_count`: number of `flush_ansi()` calls (= number of frames drawn).
+    /// - `sgr_hits`: number of `ColorCache::sgr_for_cell()` calls that returned `Some`.
+    /// - `sgr_misses`: number that returned `None` (fell back to on-the-fly formatting).
+    ///
+    /// Used by the `--perf-stats` exit report to compute:
+    ///   - average bytes/frame = total_ansi_bytes / flush_count
+    ///   - total bandwidth = total_ansi_bytes / elapsed_seconds
+    ///   - SGR cache hit rate = sgr_hits / (sgr_hits + sgr_misses)
+    ///
+    /// Returns `(0, 0, 0, 0)` if no color cache is set.
+    #[must_use]
+    pub fn encoding_stats(&self) -> (u64, u64, u64, u64) {
+        let (hits, misses) = self
+            .color_cache
+            .as_ref()
+            .map_or((0, 0), |c| c.cache_stats());
+        (self.total_ansi_bytes, self.flush_count, hits, misses)
     }
 
     /// Return a reference to the terminal capabilities detected at startup.
@@ -663,98 +705,10 @@ pub fn blank_cell(bg: Option<Color>) -> Cell {
 }
 
 /// Push a u8 as ASCII decimal digits into buf (no heap alloc, no format!).
-#[inline]
-fn push_u8(buf: &mut Vec<u8>, n: u8) {
-    if n < 10 {
-        buf.push(b'0' + n);
-    } else if n < 100 {
-        buf.push(b'0' + n / 10);
-        buf.push(b'0' + n % 10);
-    } else {
-        buf.push(b'0' + n / 100);
-        buf.push(b'0' + (n / 10) % 10);
-        buf.push(b'0' + n % 10);
-    }
-}
-
-/// Push a u16 as ASCII decimal digits into buf (no heap alloc, no format!).
-#[inline]
-fn push_u16(buf: &mut Vec<u8>, n: u16) {
-    if n < 256 {
-        push_u8(buf, n as u8);
-    } else {
-        // 256..=65535: up to 5 digits
-        let mut tmp = [0u8; 5];
-        let mut val = n;
-        let mut len = 0;
-        while val > 0 {
-            tmp[len] = b'0' + (val % 10) as u8;
-            val /= 10;
-            len += 1;
-        }
-        for i in (0..len).rev() {
-            buf.push(tmp[i]);
-        }
-    }
-}
-
-/// Write combined fg+bg SGR escape sequence directly into buf.
-/// Produces `\x1b[38;2;r;g;b;48;2;r;g;bm` (or subset for Reset/None).
-/// Bypasses crossterm trait dispatch + fmt machinery + heap String alloc.
-#[inline]
-fn write_sgr_colors_buf(buf: &mut Vec<u8>, fg: Option<Color>, bg: Option<Color>) {
-    buf.extend_from_slice(b"\x1b[");
-    let mut first = true;
-    match fg {
-        Some(Color::Rgb { r, g, b }) => {
-            buf.extend_from_slice(b"38;2;");
-            push_u8(buf, r);
-            buf.push(b';');
-            push_u8(buf, g);
-            buf.push(b';');
-            push_u8(buf, b);
-            first = false;
-        }
-        Some(Color::AnsiValue(v)) => {
-            buf.extend_from_slice(b"38;5;");
-            push_u8(buf, v);
-            first = false;
-        }
-        Some(Color::Reset) | None => {
-            buf.extend_from_slice(b"39");
-            first = false;
-        }
-        _ => {} // named colors: skip (rare in production TrueColor mode)
-    }
-    match bg {
-        Some(Color::Rgb { r, g, b }) => {
-            if !first {
-                buf.push(b';');
-            }
-            buf.extend_from_slice(b"48;2;");
-            push_u8(buf, r);
-            buf.push(b';');
-            push_u8(buf, g);
-            buf.push(b';');
-            push_u8(buf, b);
-        }
-        Some(Color::AnsiValue(v)) => {
-            if !first {
-                buf.push(b';');
-            }
-            buf.extend_from_slice(b"48;5;");
-            push_u8(buf, v);
-        }
-        Some(Color::Reset) | None => {
-            if !first {
-                buf.push(b';');
-            }
-            buf.extend_from_slice(b"49");
-        }
-        _ => {} // named colors: skip
-    }
-    buf.extend_from_slice(b"m");
-}
+/// MOVED to sgr_format.rs — kept here as a re-export for any caller that
+/// imported it via `terminal::push_u8`. New code should use sgr_format directly.
+#[allow(unused_imports)]
+pub(crate) use crate::sgr_format::push_u8;
 
 #[cfg(test)]
 mod tests {

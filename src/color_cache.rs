@@ -25,6 +25,8 @@
 //! The cache also pre-formats the "reset to bg" combination (fg=palette
 //! color, bg=terminal bg) — the most common SGR pattern in full redraws.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use crossterm::style::Color;
 
 use crate::palette::Palette;
@@ -56,6 +58,14 @@ pub struct ColorCache {
     offsets: Vec<usize>,
     /// Number of palette colors (== offsets.len() - 1).
     num_colors: usize,
+    /// SGR cache hit counter — incremented each time `sgr_for_cell()`
+    /// returns `Some`. Used by `--perf-stats` to report cache hit rate.
+    /// Atomic for thread-safety (though cosmostrix is single-threaded,
+    /// this future-proofs the API).
+    sgr_hits: AtomicU64,
+    /// SGR cache miss counter — incremented each time `sgr_for_cell()`
+    /// returns `None` (cell has non-palette color or non-palette bg).
+    sgr_misses: AtomicU64,
 }
 
 impl ColorCache {
@@ -88,6 +98,8 @@ impl ColorCache {
             buf,
             offsets,
             num_colors,
+            sgr_hits: AtomicU64::new(0),
+            sgr_misses: AtomicU64::new(0),
         }
     }
 
@@ -140,15 +152,42 @@ impl ColorCache {
     /// Returns `None` when `bg` doesn't match the palette background
     /// (meaning the cell has a non-standard background) or `fg` is not
     /// a cached palette color.
+    ///
+    /// Increments internal hit/miss counters for `--perf-stats` reporting.
+    /// The counters are atomic, so the increment cost is ~2ns on x86
+    /// (relaxed ordering is sufficient — we only need eventual accuracy
+    /// for the perf report, not strict synchronization).
     #[inline]
     pub fn sgr_for_cell(&self, fg: Option<Color>, bg: Option<Color>) -> Option<&[u8]> {
         if bg != self.bg {
+            self.sgr_misses.fetch_add(1, Ordering::Relaxed);
             return None;
         }
-        match fg {
+        let result = match fg {
             Some(c) => self.sgr_for(c),
             None => Some(self.reset_sgr()),
+        };
+        if result.is_some() {
+            self.sgr_hits.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.sgr_misses.fetch_add(1, Ordering::Relaxed);
         }
+        result
+    }
+
+    /// Return cumulative SGR cache hit/miss counters as `(hits, misses)`.
+    ///
+    /// Used by the `--perf-stats` exit report to compute cache hit rate.
+    /// A high hit rate (>90%) indicates the palette colors dominate the
+    /// frame — the cache is doing its job. A low hit rate suggests many
+    /// non-palette colors (glitch, anomaly, atmosphere modulation) are
+    /// triggering the on-the-fly `write_sgr_colors_buf` path.
+    #[must_use]
+    pub fn cache_stats(&self) -> (u64, u64) {
+        (
+            self.sgr_hits.load(Ordering::Relaxed),
+            self.sgr_misses.load(Ordering::Relaxed),
+        )
     }
 }
 
@@ -356,5 +395,116 @@ mod tests {
         let cache = ColorCache::new(&palette);
         let sgr = std::str::from_utf8(cache.sgr(0)).unwrap();
         assert!(sgr.contains("48;2;10;10;10"), "missing bg rgb: {sgr}");
+    }
+
+    #[test]
+    fn cache_stats_start_at_zero() {
+        let palette = Palette {
+            colors: vec![Color::Rgb { r: 0, g: 255, b: 0 }],
+            bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        };
+        let cache = ColorCache::new(&palette);
+        let (hits, misses) = cache.cache_stats();
+        assert_eq!(hits, 0, "hits must start at 0");
+        assert_eq!(misses, 0, "misses must start at 0");
+    }
+
+    #[test]
+    fn cache_stats_counts_hits_on_palette_color_lookup() {
+        let palette = Palette {
+            colors: vec![Color::Rgb { r: 0, g: 255, b: 0 }],
+            bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        };
+        let cache = ColorCache::new(&palette);
+        // Lookup a palette fg color with matching bg → should be a hit.
+        let _ = cache.sgr_for_cell(
+            Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+            Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        );
+        let (hits, misses) = cache.cache_stats();
+        assert_eq!(hits, 1, "palette color lookup must count as hit");
+        assert_eq!(misses, 0, "no misses expected");
+    }
+
+    #[test]
+    fn cache_stats_counts_miss_on_non_palette_color() {
+        let palette = Palette {
+            colors: vec![Color::Rgb { r: 0, g: 255, b: 0 }],
+            bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        };
+        let cache = ColorCache::new(&palette);
+        // Lookup a color NOT in the palette → miss.
+        let _ = cache.sgr_for_cell(
+            Some(Color::Rgb { r: 255, g: 0, b: 0 }),
+            Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        );
+        let (hits, misses) = cache.cache_stats();
+        assert_eq!(hits, 0, "non-palette fg must not be a hit");
+        assert_eq!(misses, 1, "non-palette fg must count as miss");
+    }
+
+    #[test]
+    fn cache_stats_counts_miss_on_non_palette_bg() {
+        let palette = Palette {
+            colors: vec![Color::Rgb { r: 0, g: 255, b: 0 }],
+            bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        };
+        let cache = ColorCache::new(&palette);
+        // Lookup with a bg that doesn't match palette bg → miss.
+        let _ = cache.sgr_for_cell(
+            Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+            Some(Color::Rgb {
+                r: 99,
+                g: 99,
+                b: 99,
+            }),
+        );
+        let (hits, misses) = cache.cache_stats();
+        assert_eq!(hits, 0, "non-palette bg must not be a hit");
+        assert_eq!(misses, 1, "non-palette bg must count as miss");
+    }
+
+    #[test]
+    fn cache_stats_counts_reset_as_hit() {
+        let palette = Palette {
+            colors: vec![Color::Rgb { r: 0, g: 255, b: 0 }],
+            bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        };
+        let cache = ColorCache::new(&palette);
+        // Lookup with fg=None (blank cell) → reset SGR → hit.
+        let _ = cache.sgr_for_cell(None, Some(Color::Rgb { r: 0, g: 0, b: 0 }));
+        let (hits, misses) = cache.cache_stats();
+        assert_eq!(hits, 1, "reset SGR lookup must count as hit");
+        assert_eq!(misses, 0, "no misses expected");
+    }
+
+    #[test]
+    fn cache_stats_accumulate_across_calls() {
+        let palette = Palette {
+            colors: vec![Color::Rgb { r: 0, g: 255, b: 0 }],
+            bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        };
+        let cache = ColorCache::new(&palette);
+        // 3 hits + 2 misses
+        let _ = cache.sgr_for_cell(
+            Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+            Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        );
+        let _ = cache.sgr_for_cell(None, Some(Color::Rgb { r: 0, g: 0, b: 0 }));
+        let _ = cache.sgr_for_cell(
+            Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+            Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        );
+        let _ = cache.sgr_for_cell(
+            Some(Color::Rgb { r: 1, g: 1, b: 1 }),
+            Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        );
+        let _ = cache.sgr_for_cell(
+            Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+            Some(Color::Rgb { r: 9, g: 9, b: 9 }),
+        );
+        let (hits, misses) = cache.cache_stats();
+        assert_eq!(hits, 3, "expected 3 hits");
+        assert_eq!(misses, 2, "expected 2 misses");
     }
 }

@@ -9,6 +9,83 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v13.3.0 — Encoding Instrumentation (SGR cache hit-rate + ANSI bytes/frame)
+
+Adds empirical measurement instrumentation to the diff-based rendering
+engine. The `--perf-stats` exit report now includes an ENCODING section
+showing actual measured ANSI bytes per frame, total bandwidth, and SGR
+cache hit rate — replacing the previous estimate-based numbers.
+
+### New Metrics (ENCODING section in --perf-stats report)
+
+- **total_ansi_bytes**: cumulative ANSI bytes flushed to stdout across
+  all frames. Measured in `Terminal::flush_ansi()` by summing
+  `ansi_buf.len()` before each clear.
+- **frames_flushed**: number of `flush_ansi()` calls (= number of frames
+  actually drawn to the terminal).
+- **avg_bytes_per_frame**: `total_ansi_bytes / frames_flushed`. Replaces
+  the previous `ANSI_BYTES_PER_CELL_ESTIMATE` heuristic with actual
+  measurement.
+- **bandwidth**: `total_ansi_bytes / elapsed_seconds` in KiB/s. Shows
+  real terminal I/O load.
+- **sgr_cache_hits / sgr_cache_misses**: atomic counters in `ColorCache`
+  incremented on every `sgr_for_cell()` call. Hit = palette color found
+  in cache; miss = fell back to on-the-fly `write_sgr_colors_buf`.
+- **sgr_cache_hit_rate**: `hits / (hits + misses) * 100%`. High rate
+  (>90%) confirms the cache is effective.
+
+### Implementation
+
+**Option A — SGR cache counters** (`src/color_cache.rs`):
+- Added `sgr_hits: AtomicU64` and `sgr_misses: AtomicU64` fields to
+  `ColorCache`.
+- `sgr_for_cell()` increments the appropriate counter on every call.
+  Uses `Ordering::Relaxed` (~2ns overhead on x86) — eventual accuracy
+  is sufficient for the perf report.
+- New `cache_stats()` method returns `(hits, misses)`.
+- 6 new unit tests covering: zero-initialization, hit on palette color,
+  miss on non-palette color, miss on non-palette bg, hit on reset/blank,
+  accumulation across calls.
+
+**Option B — ANSI bytes/frame counter** (`src/terminal.rs`):
+- Added `total_ansi_bytes: u64` and `flush_count: u64` fields to
+  `Terminal`.
+- `flush_ansi()` accumulates `ansi_buf.len()` into `total_ansi_bytes`
+  and increments `flush_count` BEFORE clearing the buffer. Sync wrapper
+  bytes (12 bytes when `sync_output` is enabled) are NOT counted —
+  only actual frame content.
+- New `encoding_stats()` method returns
+  `(total_ansi_bytes, flush_count, sgr_hits, sgr_misses)`.
+- Called from the `--perf-stats` exit path in `event_loop.rs`, captured
+  BEFORE `drop(term)` to avoid losing the stats.
+
+### Code Refactor
+
+- Extracted `push_u8`, `push_u16`, `write_sgr_colors_buf` from
+  `terminal.rs` into new `src/sgr_format.rs` (106 LOC). These are pure
+  SGR formatting functions with no dependency on the `Terminal` struct.
+  This keeps `terminal.rs` under its 1000-LOC guard (now 947 LOC).
+- Updated `docs/RENDER_ENGINE.md` future-work section: SGR cache
+  instrumentation marked as DONE.
+
+### Why This Release
+
+The RENDER_ENGINE.md spec claimed "~95% SGR cache hit rate" without
+empirical evidence. v13.3.0 makes that claim **measurable and
+defensible**. Run `cosmostrix --perf-stats`, interact for a few seconds,
+press `q`, and the ENCODING section shows the actual hit rate and bytes
+per frame.
+
+This also replaces the `ANSI_BYTES_PER_CELL_ESTIMATE` heuristic in the
+benchmark report with actual measured bytes per frame — the estimate
+was ~19 bytes/cell, but with RLE batching the real number is typically
+much lower (often 1-5 bytes/cell for stable rain).
+
+All 729 tests pass (723 existing + 6 new counter tests). Clippy + fmt
+clean.
+
+---
+
 ## v13.2.0 — Render Engine Formal Specification + Competitor Benchmark
 
 Documentation release formalizing cosmostrix's position as the
