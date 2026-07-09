@@ -140,16 +140,36 @@ find_binary() {
 
 CMATRIX_PATH=""
 UNIMATRIX_PATH=""
+NEO_MATRIX_PATH=""
+TMATRIX_PATH=""
+GMATRIX_PATH=""
+FMATRIX_PATH=""
+CXXMATRIX_PATH=""
 HAVE_CMATRIX=false
 HAVE_UNIMATRIX=false
+HAVE_NEO_MATRIX=false
+HAVE_TMATRIX=false
+HAVE_GMATRIX=false
+HAVE_FMATRIX=false
+HAVE_CXXMATRIX=false
 if p=$(find_binary cmatrix); then HAVE_CMATRIX=true; CMATRIX_PATH="$p"; fi
 if p=$(find_binary unimatrix); then HAVE_UNIMATRIX=true; UNIMATRIX_PATH="$p"; fi
+if p=$(find_binary neo-matrix); then HAVE_NEO_MATRIX=true; NEO_MATRIX_PATH="$p"; fi
+if p=$(find_binary tmatrix); then HAVE_TMATRIX=true; TMATRIX_PATH="$p"; fi
+if p=$(find_binary gmatrix); then HAVE_GMATRIX=true; GMATRIX_PATH="$p"; fi
+if p=$(find_binary fmatrix); then HAVE_FMATRIX=true; FMATRIX_PATH="$p"; fi
+if p=$(find_binary cxxmatrix); then HAVE_CXXMATRIX=true; CXXMATRIX_PATH="$p"; fi
 
 echo "Detection:" >&2
 echo "  /usr/bin/time: $([ "$HAVE_TIME" == "true" ] && echo "found" || echo "NOT found")" >&2
 echo "  script (PTY):  $([ "$HAVE_SCRIPT" == "true" ] && echo "found" || echo "NOT found")" >&2
 echo "  cmatrix:       $([ "$HAVE_CMATRIX" == "true" ] && echo "$CMATRIX_PATH" || echo "NOT found")" >&2
 echo "  unimatrix:     $([ "$HAVE_UNIMATRIX" == "true" ] && echo "$UNIMATRIX_PATH" || echo "NOT found")" >&2
+echo "  neo-matrix:    $([ "$HAVE_NEO_MATRIX" == "true" ] && echo "$NEO_MATRIX_PATH" || echo "NOT found")" >&2
+echo "  tmatrix:       $([ "$HAVE_TMATRIX" == "true" ] && echo "$TMATRIX_PATH" || echo "NOT found")" >&2
+echo "  gmatrix:       $([ "$HAVE_GMATRIX" == "true" ] && echo "$GMATRIX_PATH" || echo "NOT found")" >&2
+echo "  fmatrix:       $([ "$HAVE_FMATRIX" == "true" ] && echo "$FMATRIX_PATH" || echo "NOT found")" >&2
+echo "  cxxmatrix:     $([ "$HAVE_CXXMATRIX" == "true" ] && echo "$CXXMATRIX_PATH" || echo "NOT found")" >&2
 echo "" >&2
 
 # ── Interactive benchmark runner ────────────────────────────────────────────
@@ -213,25 +233,45 @@ run_interactive() {
     printf '%s\t%s\t%s\t%s\n' "$label" "$cpu_total" "$cpu_pct" "$rss_kb"
 }
 
-# ── Run all three interactive benchmarks ────────────────────────────────────
+# ── Run all interactive benchmarks ──────────────────────────────────────────
 
-echo "Running interactive benchmarks (${DURATION}s each, PTY)..." >&2
+# Build the list of competitors to benchmark.
+# Format: "label\tpath\targs"
+COMPETITORS=()
+COMPETITORS+=("cosmostrix       $COSMOSTRIX_BIN ")
+if [[ "$HAVE_CMATRIX" == "true" ]]; then
+    COMPETITORS+=("cmatrix      $CMATRIX_PATH   -s")
+fi
+if [[ "$HAVE_UNIMATRIX" == "true" ]]; then
+    COMPETITORS+=("unimatrix    $UNIMATRIX_PATH ")
+fi
+if [[ "$HAVE_NEO_MATRIX" == "true" ]]; then
+    COMPETITORS+=("neo-matrix   $NEO_MATRIX_PATH        -s")
+fi
+if [[ "$HAVE_TMATRIX" == "true" ]]; then
+    COMPETITORS+=("tmatrix      $TMATRIX_PATH   ")
+fi
+if [[ "$HAVE_GMATRIX" == "true" ]]; then
+    COMPETITORS+=("gmatrix      $GMATRIX_PATH   ")
+fi
+if [[ "$HAVE_FMATRIX" == "true" ]]; then
+    COMPETITORS+=("fmatrix      $FMATRIX_PATH   ")
+fi
+if [[ "$HAVE_CXXMATRIX" == "true" ]]; then
+    COMPETITORS+=("cxxmatrix    $CXXMATRIX_PATH ")
+fi
+
+TOTAL=${#COMPETITORS[@]}
+echo "Running interactive benchmarks (${DURATION}s each, PTY, ${TOTAL} tools)..." >&2
 echo "" >&2
 
-echo "  [1/3] cosmostrix (interactive)..." >&2
-COSMOSTRIX_IX_RESULT=$(run_interactive "cosmostrix" "$COSMOSTRIX_BIN")
-
-echo "  [2/3] cmatrix..." >&2
-CMATRIX_RESULT="cmatrix	—	—	—"
-if [[ "$HAVE_CMATRIX" == "true" ]]; then
-    CMATRIX_RESULT=$(run_interactive "cmatrix" "$CMATRIX_PATH" "-s")
-fi
-
-echo "  [3/3] unimatrix..." >&2
-UNIMATRIX_RESULT="unimatrix	—	—	—"
-if [[ "$HAVE_UNIMATRIX" == "true" ]]; then
-    UNIMATRIX_RESULT=$(run_interactive "unimatrix" "$UNIMATRIX_PATH")
-fi
+RESULTS=()
+for i in "${!COMPETITORS[@]}"; do
+    IFS=$'\t' read -r label path args <<< "${COMPETITORS[$i]}"
+    n=$((i + 1))
+    echo "  [${n}/${TOTAL}] ${label}..." >&2
+    RESULTS+=("$(run_interactive "$label" "$path" $args)")
+done
 
 # ── Cosmostrix headless benchmark (engine ceiling) ──────────────────────────
 
@@ -270,7 +310,7 @@ CX_FRAMES=$(parse_json "$COSMOSTRIX_JSON" "timing.total_frames")
 echo ""
 echo "## Competitor Comparison — Fair Interactive Benchmark"
 echo ""
-echo "All three tools run in **interactive mode** under a PTY (\`script\`) with"
+echo "All tools run in **interactive mode** under a PTY (\`script\`) with"
 echo "\`/usr/bin/time -v\`, ${DURATION}s per tool. This is apples-to-apples:"
 echo "each tool renders to a pseudo-terminal at its natural frame rate."
 echo ""
@@ -286,47 +326,34 @@ else
     echo "| Tool | CPU time (s) | CPU % | Peak RSS (KiB) | Peak RSS (MiB) |"
     echo "|------|-------------:|------:|---------------:|---------------:|"
 
-    # Cosmostrix interactive
-    IFS=$'\t' read -r _ cpu cpu_pct rss <<< "$COSMOSTRIX_IX_RESULT"
-    rss_mib=$(awk "BEGIN {printf \"%.1f\", ${rss:-0} / 1024}" 2>/dev/null || echo "—")
-    echo "| cosmostrix | ${cpu} | ${cpu_pct} | ${rss} | ${rss_mib} |"
-
-    # cmatrix
-    IFS=$'\t' read -r _ cpu cpu_pct rss <<< "$CMATRIX_RESULT"
-    if [[ "$HAVE_CMATRIX" == "true" ]]; then
-        rss_mib=$(awk "BEGIN {printf \"%.1f\", ${rss:-0} / 1024}" 2>/dev/null || echo "—")
-        echo "| cmatrix | ${cpu} | ${cpu_pct} | ${rss} | ${rss_mib} |"
-    else
-        echo "| cmatrix | — | — | — | (not installed) |"
-    fi
-
-    # unimatrix
-    IFS=$'\t' read -r _ cpu cpu_pct rss <<< "$UNIMATRIX_RESULT"
-    if [[ "$HAVE_UNIMATRIX" == "true" ]]; then
-        rss_mib=$(awk "BEGIN {printf \"%.1f\", ${rss:-0} / 1024}" 2>/dev/null || echo "—")
-        echo "| unimatrix | ${cpu} | ${cpu_pct} | ${rss} | ${rss_mib} |"
-    else
-        echo "| unimatrix | — | — | — | (not installed) |"
-    fi
+    for r in "${RESULTS[@]}"; do
+        IFS=$'\t' read -r label cpu cpu_pct rss <<< "$r"
+        if [[ "$cpu" == "—" ]]; then
+            echo "| ${label} | — | — | — | (not installed) |"
+        else
+            rss_mib=$(awk "BEGIN {printf \"%.1f\", ${rss:-0} / 1024}" 2>/dev/null || echo "—")
+            echo "| ${label} | ${cpu} | ${cpu_pct} | ${rss} | ${rss_mib} |"
+        fi
+    done
 fi
 
 echo ""
 echo "### Interpretation"
 echo ""
-echo "- **CPU time / CPU%**: lower = more efficient. All three tools render"
+echo "- **CPU time / CPU%**: lower = more efficient. All tools render"
 echo "  to the same PTY at their natural frame rate. cosmostrix targets 60"
-echo "  FPS with adaptive sleep; cmatrix uses a fixed 4ms delay (-u 4);"
-echo "  unimatrix (Python) has its own frame timing."
-echo "- **Peak RSS**: lower = smaller memory footprint. Includes the"
-echo "  process heap + shared libraries. cosmostrix (Rust, no runtime) and"
-echo "  cmatrix (C, minimal) should be comparable; unimatrix (Python"
-echo "  interpreter) will be significantly larger."
-echo "- **Why cosmostrix CPU may be higher than cmatrix**: cosmostrix's"
-echo "  diff-based engine does more per-frame work (dirty tracking, RLE"
-echo "  encoding, phosphor afterglow, depth-of-field, atmosphere engine)"
-echo "  than cmatrix's plain full-redraw. The tradeoff: cosmostrix emits"
-echo "  far fewer ANSI bytes to the terminal, so terminal emulator CPU"
-echo "  is lower (not measured here — measured in the terminal process)."
+echo "  FPS with adaptive sleep; cmatrix/neo-matrix/tmatrix use fixed"
+echo "  delays; unimatrix (Python) has its own frame timing."
+echo "- **Peak RSS**: lower = smaller memory footprint. Compiled-native"
+echo "  tools (cosmostrix/Rust, cmatrix/C, tmatrix/C++, gmatrix/C,"
+echo "  fmatrix/C++, cxxmatrix/C++, neo-matrix/C) should be comparable;"
+echo "  unimatrix (Python interpreter) will be significantly larger."
+echo "- **Why cosmostrix CPU may be higher than some competitors**:"
+echo "  cosmostrix's diff-based engine does more per-frame work (dirty"
+echo "  tracking, RLE encoding, phosphor afterglow, depth-of-field,"
+echo "  atmosphere engine) than plain full-redraw tools. The tradeoff:"
+echo "  cosmostrix emits far fewer ANSI bytes to the terminal, so terminal"
+echo "  emulator CPU is lower (not measured here)."
 echo ""
 
 echo "### Bonus: Cosmostrix Engine Ceiling (headless benchmark)"

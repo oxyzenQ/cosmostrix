@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use clap::{CommandFactory, FromArgMatches};
 
@@ -10,14 +11,20 @@ use crate::config_apply::apply_config_and_runtime_defaults;
 use crate::configfile::dump_config_text;
 use crate::runtime::MonolithSize;
 
+/// Global counter for unique temp file names. Prevents collisions when
+/// multiple tests run in parallel and `SystemTime::now()` returns the
+/// same nanosecond on fast CI runners.
+static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 fn args_with_config(config: &str, cli: &[&str]) -> Args {
     let mut path = std::env::temp_dir();
-    let unique = std::time::SystemTime::now()
+    let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("system clock after unix epoch")
         .as_nanos();
+    let seq = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
     path.push(format!(
-        "cosmostrix-config-test-{}-{unique}.toml",
+        "cosmostrix-config-test-{}-{nanos}-{seq}.toml",
         std::process::id(),
     ));
     std::fs::write(&path, config).expect("write temp config");
@@ -60,12 +67,13 @@ fn args_from_cli_result(cli: &[&str]) -> Result<Args, String> {
     }
 
     let mut path = std::env::temp_dir();
-    let unique = std::time::SystemTime::now()
+    let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("system clock after unix epoch")
         .as_nanos();
+    let seq = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
     path.push(format!(
-        "cosmostrix-empty-config-test-{}-{unique}.toml",
+        "cosmostrix-empty-config-test-{}-{nanos}-{seq}.toml",
         std::process::id(),
     ));
     std::fs::write(&path, "").expect("write temp config");

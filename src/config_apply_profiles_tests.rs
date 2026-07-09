@@ -1,6 +1,8 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use clap::{CommandFactory, FromArgMatches};
 
 use crate::config::{Args, GlitchLevel};
@@ -8,14 +10,20 @@ use crate::config_apply::apply_config_and_runtime_defaults;
 use crate::rain_style::RainStyle;
 use crate::runtime::MonolithSize;
 
+/// Global counter for unique temp file names. Prevents collisions when
+/// multiple tests run in parallel and `SystemTime::now()` returns the
+/// same nanosecond on fast CI runners.
+static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 pub(crate) fn args_with_config_result(config: &str, cli: &[&str]) -> Result<Args, String> {
     let mut path = std::env::temp_dir();
-    let unique = std::time::SystemTime::now()
+    let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("system clock after unix epoch")
         .as_nanos();
+    let seq = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
     path.push(format!(
-        "cosmostrix-profile-test-{}-{unique}.toml",
+        "cosmostrix-profile-test-{}-{nanos}-{seq}.toml",
         std::process::id(),
     ));
     std::fs::write(&path, config).expect("write temp config");

@@ -5,6 +5,8 @@
 //!
 //! Extracted from main.rs to keep that file under 1000 LOC.
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use clap::{CommandFactory, FromArgMatches};
 
 use crate::cli::detect_color_mode_from_terms;
@@ -12,15 +14,21 @@ use crate::config::Args;
 use crate::config_apply::apply_config_and_runtime_defaults;
 use crate::runtime::ColorMode;
 
+/// Global counter for unique temp file names. Prevents collisions when
+/// multiple tests run in parallel and `SystemTime::now()` returns the
+/// same nanosecond on fast CI runners.
+static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
+
 fn args_from_empty_config(cli: &[&str]) -> Args {
     let mut path = std::env::temp_dir();
-    let unique = std::time::SystemTime::now()
+    let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0)
         .max(1);
+    let seq = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
     path.push(format!(
-        "cosmostrix-main-color-test-{}-{unique}.toml",
+        "cosmostrix-main-color-test-{}-{nanos}-{seq}.toml",
         std::process::id(),
     ));
     std::fs::write(&path, "").expect("write temp config");
