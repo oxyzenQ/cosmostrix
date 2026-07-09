@@ -130,10 +130,13 @@ impl Frame {
             return;
         }
 
+        // Dragon egg #5: use dirty_map.set(i, false) instead of .get_mut(i).
+        // The dirty indices are all valid (pushed by set()/set_force() which
+        // bounds-checked). BitVec::set() is the direct API — no Option alloc.
+        // BEFORE: for &i in &self.dirty { if let Some(mut v) = self.dirty_map.get_mut(i) { *v = false; } }
+        // AFTER:  for &i in &self.dirty { self.dirty_map.set(i, false); }
         for &i in &self.dirty {
-            if let Some(mut v) = self.dirty_map.get_mut(i) {
-                *v = false;
-            }
+            self.dirty_map.set(i, false);
         }
         self.dirty.clear();
     }
@@ -211,7 +214,14 @@ impl Frame {
 
             self.cells[i] = cell;
             self.cell_gen[i] = self.gen;
-            if !self.dirty_all && self.dirty_map.get(i).map_or(true, |b| !*b) {
+            // Dragon egg #4: direct BitVec indexing instead of .get().map_or().
+            // BitVec implements Index<usize> returning bool. Since i is already
+            // bounds-checked by index(), we can use direct indexing.
+            // BEFORE: self.dirty_map.get(i).map_or(true, |b| !*b)
+            //   = Option alloc + closure call + bool unwrap
+            // AFTER:  !self.dirty_map[i]
+            //   = direct bit load + bool NOT
+            if !self.dirty_all && !self.dirty_map[i] {
                 self.dirty_map.set(i, true);
                 self.dirty.push(i);
             }
@@ -226,11 +236,11 @@ impl Frame {
     #[inline]
     pub fn set_force(&mut self, x: u16, y: u16, cell: Cell) {
         if let Some(i) = self.index(x, y) {
+            // Dragon egg #1: direct indexing — index() already bounds-checked.
             self.cells[i] = cell;
-            if let Some(v) = self.cell_gen.get_mut(i) {
-                *v = self.gen;
-            }
-            if !self.dirty_all && self.dirty_map.get(i).map_or(true, |b| !*b) {
+            self.cell_gen[i] = self.gen;
+            // Dragon egg #4: direct BitVec indexing (same as set()).
+            if !self.dirty_all && !self.dirty_map[i] {
                 self.dirty_map.set(i, true);
                 self.dirty.push(i);
             }
