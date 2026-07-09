@@ -110,10 +110,52 @@ if [[ -x /usr/bin/time ]]; then
     HAVE_TIME=true
 fi
 
-HAVE_CMATRIX=false
-HAVE_UNIMATRIX=false
-command -v cmatrix &>/dev/null && HAVE_CMATRIX=true
-command -v unimatrix &>/dev/null && HAVE_UNIMATRIX=true
+# Robust binary detection: try multiple methods.
+# 'command -v' can fail in some bash contexts (e.g. when the binary is
+# a shell function in the parent zsh but not in bash). We fall back to
+# 'type -P' (bash builtin, external commands only), 'which', and direct
+# path checks.
+find_binary() {
+    local name="$1"
+    # Method 1: command -v (POSIX)
+    local p
+    p=$(command -v "$name" 2>/dev/null) && [[ -x "$p" ]] && { echo "$p"; return 0; }
+    # Method 2: type -P (bash builtin, finds external only)
+    p=$(type -P "$name" 2>/dev/null) && [[ -n "$p" ]] && { echo "$p"; return 0; }
+    # Method 3: which
+    p=$(which "$name" 2>/dev/null) && [[ -x "$p" ]] && { echo "$p"; return 0; }
+    # Method 4: direct path checks
+    for dir in /usr/bin /usr/local/bin /bin /opt/homebrew/bin /home/linuxbrew/.linuxbrew/bin; do
+        if [[ -x "$dir/$name" ]]; then
+            echo "$dir/$name"
+            return 0
+        fi
+    done
+    return 1
+}
+
+CMATRIX_PATH=""
+UNIMATRIX_PATH=""
+if p=$(find_binary cmatrix); then
+    HAVE_CMATRIX=true
+    CMATRIX_PATH="$p"
+else
+    HAVE_CMATRIX=false
+fi
+if p=$(find_binary unimatrix); then
+    HAVE_UNIMATRIX=true
+    UNIMATRIX_PATH="$p"
+else
+    HAVE_UNIMATRIX=false
+fi
+
+# Debug: show what was detected
+echo "Detection:" >&2
+echo "  /usr/bin/time: $([ "$HAVE_TIME" == "true" ] && echo "found" || echo "NOT found")" >&2
+echo "  cmatrix: $([ "$HAVE_CMATRIX" == "true" ] && echo "$CMATRIX_PATH" || echo "NOT found")" >&2
+echo "  unimatrix: $([ "$HAVE_UNIMATRIX" == "true" ] && echo "$UNIMATRIX_PATH" || echo "NOT found")" >&2
+echo "  PATH=$PATH" >&2
+echo "" >&2
 
 # ── 1. Cosmostrix headless benchmark ────────────────────────────────────────
 
@@ -193,19 +235,19 @@ run_interactive() {
     rss_kb=$(grep "Maximum resident set size" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
     rm -f "$time_log"
 
-    echo "${label}      ${cpu_total}    ${rss_kb}       —       —"
+    echo "${label}      ${cpu_total}    ${rss_kb}"
 }
 
 echo "Checking cmatrix..." >&2
 CMATRIX_RESULT="(not installed)"
 if [[ "$HAVE_CMATRIX" == "true" ]]; then
-    CMATRIX_RESULT=$(run_interactive "cmatrix" "cmatrix" "-s")
+    CMATRIX_RESULT=$(run_interactive "cmatrix" "$CMATRIX_PATH" "-s")
 fi
 
 echo "Checking unimatrix..." >&2
 UNIMATRIX_RESULT="(not installed)"
 if [[ "$HAVE_UNIMATRIX" == "true" ]]; then
-    UNIMATRIX_RESULT=$(run_interactive "unimatrix" "unimatrix")
+    UNIMATRIX_RESULT=$(run_interactive "unimatrix" "$UNIMATRIX_PATH")
 fi
 
 # ── Output ──────────────────────────────────────────────────────────────────
@@ -240,23 +282,23 @@ else
     echo "Lower is better for CPU time and RSS. cmatrix/unimatrix do not have"
     echo "headless benchmark modes, so only resource usage is comparable."
     echo ""
-    echo "| Tool | CPU time (s) | Peak RSS (KiB) | FPS | Frames |"
-    echo "|------|-------------:|---------------:|----:|-------:|"
+    echo "| Tool | CPU time (s) | Peak RSS (KiB) | Peak RSS (MiB) |"
+    echo "|------|--------------:|---------------:|---------------:|"
 
-    IFS=$'\t' read -r label cpu rss fps frames <<< "$CMATRIX_RESULT"
+    IFS=$'\t' read -r label cpu rss <<< "$CMATRIX_RESULT"
     if [[ "$label" == "cmatrix" ]]; then
         rss_mib=$(awk "BEGIN {printf \"%.1f\", $rss / 1024}" 2>/dev/null || echo "—")
-        echo "| cmatrix | $cpu | $rss | $rss_mib MiB | — | — |"
+        echo "| cmatrix | $cpu | $rss | $rss_mib |"
     else
-        echo "| cmatrix | — | — | — | (not installed) |"
+        echo "| cmatrix | — | — | (not installed) |"
     fi
 
-    IFS=$'\t' read -r label cpu rss fps frames <<< "$UNIMATRIX_RESULT"
+    IFS=$'\t' read -r label cpu rss <<< "$UNIMATRIX_RESULT"
     if [[ "$label" == "unimatrix" ]]; then
         rss_mib=$(awk "BEGIN {printf \"%.1f\", $rss / 1024}" 2>/dev/null || echo "—")
-        echo "| unimatrix | $cpu | $rss | $rss_mib MiB | — | — |"
+        echo "| unimatrix | $cpu | $rss | $rss_mib |"
     else
-        echo "| unimatrix | — | — | — | (not installed) |"
+        echo "| unimatrix | — | — | (not installed) |"
     fi
 fi
 echo ""
