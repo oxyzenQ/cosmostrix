@@ -6,59 +6,52 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # =============================================================================
 # Side-by-side comparison of cosmostrix vs cmatrix (and unimatrix if
-# available). Measures CPU time, peak RSS, and elapsed wall time for
-# a fixed-duration run. Output is a Markdown table suitable for
-# pasting into benchmark/README.md.
+# available).
+#
+# Cosmostrix has a built-in headless benchmark (--benchmark --json) that
+# measures raw engine throughput without a terminal. This script runs it
+# and parses the JSON for FPS, RSS, CPU%, and dirty-cell ratio.
+#
+# cmatrix and unimatrix do NOT have headless benchmark modes — they are
+# purely interactive terminal applications. For those, this script runs
+# them under a PTY with /usr/bin/time (if available) to measure CPU +
+# RSS during a fixed-duration interactive run. If /usr/bin/time is not
+# available, only cosmostrix data is reported.
+#
+# Output: Markdown table on stdout, suitable for pasting into
+# benchmark/README.md.
 #
 # Usage:
 #   ./scripts/bench-compare.sh [OPTIONS]
 #
 # Options:
-#   --duration N     Run duration in seconds (default: 10)
-#   --cosmostrix PATH  Path to cosmostrix binary (default: target/.../cosmostrix)
-#   --no-build       Skip cargo build
-#   --help           Show this help
-#
-# Requirements:
-#   - /usr/bin/time (GNU time, for RSS measurement)
-#   - cmatrix installed (apt install cmatrix / pacman -S cmatrix)
-#   - unimatrix installed (pip install unimatrix) — optional
-#
-# Note: terminal-bound tools (cmatrix, unimatrix, cosmostrix interactive)
-# cannot be benchmarked for FPS via subprocess — the FPS is determined by
-# the terminal emulator, not the process. This script measures RESOURCE
-# USAGE (CPU + RSS) under identical terminal conditions, which is the
-# defensible comparison axis.
+#   --duration N       Benchmark duration in seconds (default: 5)
+#   --cosmostrix PATH  Path to cosmostrix binary
+#   --no-build         Skip cargo build
+#   --profile NAME     Build profile (default: release)
+#   --help             Show this help
 # =============================================================================
 
 set -euo pipefail
 
-# ── Defaults ────────────────────────────────────────────────────────────────
-
-DURATION=10
+DURATION=5
 COSMOSTRIX_BIN=""
 NO_BUILD=false
-PROFILE="pro-linux-v3"
-
-# ── Argument parsing ────────────────────────────────────────────────────────
+PROFILE="release"
 
 usage() {
     cat <<'EOF'
 Usage: bench-compare.sh [OPTIONS]
 
-Side-by-side resource comparison: cosmostrix vs cmatrix vs unimatrix.
+Side-by-side resource comparison: cosmostrix (headless benchmark) vs
+cmatrix/unimatrix (interactive, if /usr/bin/time available).
 
 Options:
-  --duration N         Run duration in seconds (default: 10)
+  --duration N         Benchmark duration in seconds (default: 5)
   --cosmostrix PATH    Path to cosmostrix binary
   --no-build           Skip cargo build step
-  --profile NAME       Build profile (default: pro-linux-v3)
+  --profile NAME       Build profile (default: release)
   --help               Show this help
-
-Requirements:
-  /usr/bin/time  (GNU time, for RSS — usually /usr/bin/time on Linux)
-  cmatrix        (apt install cmatrix / pacman -S cmatrix)
-  unimatrix      (pip install unimatrix) — optional, skipped if absent
 
 Output: Markdown table on stdout.
 EOF
@@ -75,17 +68,14 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# ── Preflight checks ────────────────────────────────────────────────────────
-
-if ! command -v /usr/bin/time &>/dev/null; then
-    echo "ERROR: /usr/bin/time (GNU time) not found." >&2
-    echo "Install: apt install time  (Debian/Ubuntu)" >&2
-    echo "         pacman -S time     (Arch)" >&2
-    exit 1
-fi
+# ── Preflight ───────────────────────────────────────────────────────────────
 
 if [[ -z "$COSMOSTRIX_BIN" ]]; then
-    COSMOSTRIX_BIN="target/x86_64-unknown-linux-gnu/${PROFILE}/cosmostrix"
+    COSMOSTRIX_BIN="target/${PROFILE}/cosmostrix"
+    if [[ ! -x "$COSMOSTRIX_BIN" ]] && [[ "$PROFILE" == "release" ]]; then
+        # Default cargo release path
+        COSMOSTRIX_BIN="target/release/cosmostrix"
+    fi
 fi
 
 if [[ ! -x "$COSMOSTRIX_BIN" ]]; then
@@ -100,143 +90,178 @@ if [[ ! -x "$COSMOSTRIX_BIN" ]]; then
     fi
 fi
 
-# Verify the binary works
 if ! "$COSMOSTRIX_BIN" --version &>/dev/null; then
-    echo "ERROR: cosmostrix binary at $COSMOSTRIX_BIN is not executable or broken" >&2
+    echo "ERROR: cosmostrix binary broken" >&2
     exit 1
+fi
+
+HAVE_TIME=false
+if [[ -x /usr/bin/time ]]; then
+    HAVE_TIME=true
 fi
 
 HAVE_CMATRIX=false
 HAVE_UNIMATRIX=false
+command -v cmatrix &>/dev/null && HAVE_CMATRIX=true
+command -v unimatrix &>/dev/null && HAVE_UNIMATRIX=true
 
-if command -v cmatrix &>/dev/null; then
-    HAVE_CMATRIX=true
-else
-    echo "NOTE: cmatrix not found — install with 'apt install cmatrix' or 'pacman -S cmatrix' to include in comparison" >&2
-fi
+# ── 1. Cosmostrix headless benchmark ────────────────────────────────────────
 
-if command -v unimatrix &>/dev/null; then
-    HAVE_UNIMATRIX=true
-else
-    echo "NOTE: unimatrix not found — install with 'pip install unimatrix' to include in comparison" >&2
-fi
+echo "" >&2
+echo "Running cosmostrix headless benchmark (${DURATION}s)..." >&2
 
-# ── Helper: run a tool for N seconds, capture CPU + RSS ─────────────────────
+COSMOSTRIX_JSON=$("$COSMOSTRIX_BIN" --benchmark --bench-duration "$DURATION" --json 2>/dev/null)
 
-# We use a pseudo-terminal (script) so terminal-aware tools actually
-# render (cmatrix and unimatrix detect non-tty stdout and exit early).
-# /usr/bin/time -v captures peak RSS via wait4().
+# Parse JSON fields (use python3 if available, else grep/sed)
+parse_json() {
+    local json="$1"
+    local key="$2"
+    if command -v python3 &>/dev/null; then
+        python3 -c "
+import json, sys
+d = json.loads('''$json''')
+keys = '$key'.split('.')
+v = d
+for k in keys:
+    v = v.get(k, '') if isinstance(v, dict) else v
+print(v)
+" 2>/dev/null
+    else
+        # Fallback: regex extract
+        echo "$json" | grep -oP "\"$key\"\s*:\s*\"?\K[^\",}]+" | head -1
+    fi
+}
 
-run_bench() {
+COSMOSTRIX_FPS=$(parse_json "$COSMOSTRIX_JSON" "performance.avg_fps")
+COSMOSTRIX_PEAK_FPS=$(parse_json "$COSMOSTRIX_JSON" "performance.peak_fps")
+COSMOSTRIX_RSS=$(parse_json "$COSMOSTRIX_JSON" "memory.peak_rss")
+COSMOSTRIX_CPU=$(parse_json "$COSMOSTRIX_JSON" "cpu.avg_cpu_percent")
+COSMOSTRIX_P99=$(parse_json "$COSMOSTRIX_JSON" "performance.p99_frame_time_ms")
+COSMOSTRIX_DIRTY=$(parse_json "$COSMOSTRIX_JSON" "performance.active_frame_ratio_percent")
+COSMOSTRIX_FRAMES=$(parse_json "$COSMOSTRIX_JSON" "timing.total_frames")
+
+# ── 2. cmatrix / unimatrix interactive (if /usr/bin/time available) ─────────
+
+run_interactive() {
     local label="$1"
     shift
-    local cmd="$*"
-    local outfile
-    outfile="$(mktemp)"
+    local cmd="$1"
+    shift
+    local args=("$@")
 
-    # Use 'script' to allocate a PTY so terminal-aware tools render.
-    # Send 'q' after DURATION seconds to exit cleanly.
-    # /usr/bin/time -v wraps the whole thing for RSS.
+    if [[ "$HAVE_TIME" != "true" ]]; then
+        echo "${label}	—	—	—	(/usr/bin/time not installed)"
+        return
+    fi
+
     local time_log
     time_log="$(mktemp)"
 
-    # Build the command: run inside script, kill after DURATION+2s
-    # timeout as a safety net.
-    (
+    # Run inside script (PTY) so terminal-aware tools render.
+    # /usr/bin/time -v captures RSS via wait4.
+    if command -v script &>/dev/null; then
         /usr/bin/time -v -o "$time_log" \
             timeout $((DURATION + 2)) \
-            script -qec "$cmd; sleep $DURATION" /dev/null \
-            >"$outfile" 2>&1 &
-        local pid=$!
-        sleep "$DURATION"
-        kill -INT "$pid" 2>/dev/null || true
-        wait "$pid" 2>/dev/null || true
-    ) || true
+            script -qec "$cmd ${args[*]}; sleep $DURATION" /dev/null \
+            >/dev/null 2>&1 &
+    else
+        /usr/bin/time -v -o "$time_log" \
+            timeout $((DURATION + 2)) \
+            "$cmd" "${args[@]}" \
+            >/dev/null 2>&1 &
+    fi
+    local pid=$!
+    sleep "$DURATION"
+    kill -INT "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
 
-    # Parse /usr/bin/time -v output
-    local cpu_sys cpu_user cpu_total rss_kb wall_time
+    local cpu_user cpu_sys cpu_total rss_kb
     cpu_user=$(grep "User time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
     cpu_sys=$(grep "System time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
-    cpu_total=$(awk "BEGIN {print $cpu_user + $cpu_sys}")
+    cpu_total=$(awk "BEGIN {printf \"%.2f\", $cpu_user + $cpu_sys}" 2>/dev/null || echo "n/a")
     rss_kb=$(grep "Maximum resident set size" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
-    wall_time=$(grep "Elapsed (wall clock) time" "$time_log" 2>/dev/null | \
-        sed 's/Elapsed (wall clock) time (.*): //' || echo "0s")
+    rm -f "$time_log"
 
-    # Clean up
-    rm -f "$outfile" "$time_log"
-
-    # Return as TSV
-    printf '%s\t%s\t%s\t%s\t%s\n' "$label" "$cpu_total" "$rss_kb" "$wall_time" "$cmd"
+    echo "${label}	${cpu_total}	${rss_kb}	—	—"
 }
 
-# ── Run benchmarks ──────────────────────────────────────────────────────────
-
-echo "" >&2
-echo "Running benchmarks (${DURATION}s each)..." >&2
-echo "This will open each tool in a PTY for ${DURATION}s. Do not switch terminals." >&2
-echo "" >&2
-
-RESULTS=()
-
-# Cosmostrix (interactive mode, default settings)
-echo "  [1/3] cosmostrix..." >&2
-RESULTS+=("$(run_bench "cosmostrix" "$COSMOSTRIX_BIN")")
-sleep 1
-
-# cmatrix (if available)
+echo "Checking cmatrix..." >&2
+CMATRIX_RESULT="(not installed)"
 if [[ "$HAVE_CMATRIX" == "true" ]]; then
-    echo "  [2/3] cmatrix..." >&2
-    RESULTS+=("$(run_bench "cmatrix" "cmatrix -s")")
-    sleep 1
-else
-    RESULTS+=("cmatrix	—	—	—	(not installed)")
+    CMATRIX_RESULT=$(run_interactive "cmatrix" "cmatrix" "-s")
 fi
 
-# unimatrix (if available)
+echo "Checking unimatrix..." >&2
+UNIMATRIX_RESULT="(not installed)"
 if [[ "$HAVE_UNIMATRIX" == "true" ]]; then
-    echo "  [3/3] unimatrix..." >&2
-    RESULTS+=("$(run_bench "unimatrix" "unimatrix")")
-else
-    RESULTS+=("unimatrix	—	—	—	(not installed)")
+    UNIMATRIX_RESULT=$(run_interactive "unimatrix" "unimatrix")
 fi
 
-# ── Output Markdown table ───────────────────────────────────────────────────
+# ── Output ──────────────────────────────────────────────────────────────────
 
 echo ""
-echo "## Competitor Comparison — Resource Usage"
+echo "## Competitor Comparison — Engine Throughput & Resource Usage"
 echo ""
-echo "Measured with \`/usr/bin/time -v\` inside a PTY (\`script\`), ${DURATION}s per tool."
-echo "Lower is better for all columns. CPU time = user + system. RSS = peak resident set."
+echo "### Cosmostrix (headless benchmark — raw engine throughput)"
 echo ""
-echo "**Important**: terminal-bound renderers cannot be compared for FPS via subprocess —"
-echo "FPS is determined by the terminal emulator, not the process. This table measures"
-echo "**resource efficiency** (CPU + memory) under identical terminal conditions, which"
-echo "is the defensible comparison axis for diff-based vs full-redraw engines."
+echo "Measured with \`cosmostrix --benchmark --bench-duration ${DURATION} --json\`."
+echo "This is the **engine** throughput — frames computed per second without"
+echo "terminal I/O. Interactive FPS is bounded by the terminal emulator."
 echo ""
-echo "| Tool | CPU time (s) | Peak RSS (KiB) | Peak RSS (MiB) | Wall time |"
-echo "|------|-------------:|---------------:|---------------:|----------:|"
+echo "| Metric | Value |"
+echo "|--------|------:|"
+echo "| Avg FPS (headless) | ${COSMOSTRIX_FPS} |"
+echo "| Peak FPS (headless) | ${COSMOSTRIX_PEAK_FPS} |"
+echo "| Total frames in ${DURATION}s | ${COSMOSTRIX_FRAMES} |"
+echo "| p99 frame time (ms) | ${COSMOSTRIX_P99} |"
+echo "| Active frame ratio (%) | ${COSMOSTRIX_DIRTY} |"
+echo "| Peak RSS | ${COSMOSTRIX_RSS} |"
+echo "| Avg CPU (%) | ${COSMOSTRIX_CPU} |"
+echo ""
+echo "### Competitors (interactive, /usr/bin/time)"
+echo ""
+if [[ "$HAVE_TIME" != "true" ]]; then
+    echo "**Note**: \`/usr/bin/time\` not installed — interactive comparison skipped."
+    echo "Install with: \`apt install time\` (Debian/Ubuntu) or \`pacman -S time\` (Arch)."
+    echo ""
+else
+    echo "Measured under PTY (\`script\`) with \`/usr/bin/time -v\`, ${DURATION}s per tool."
+    echo "Lower is better for CPU time and RSS. cmatrix/unimatrix do not have"
+    echo "headless benchmark modes, so only resource usage is comparable."
+    echo ""
+    echo "| Tool | CPU time (s) | Peak RSS (KiB) | FPS | Frames |"
+    echo "|------|-------------:|---------------:|----:|-------:|"
 
-for r in "${RESULTS[@]}"; do
-    IFS=$'\t' read -r label cpu rss wall cmd <<< "$r"
-    if [[ "$rss" == "—" ]]; then
-        echo "| $label | — | — | — | — |"
+    IFS=$'\t' read -r label cpu rss fps frames <<< "$CMATRIX_RESULT"
+    if [[ "$label" == "cmatrix" ]]; then
+        rss_mib=$(awk "BEGIN {printf \"%.1f\", $rss / 1024}" 2>/dev/null || echo "—")
+        echo "| cmatrix | $cpu | $rss | $rss_mib MiB | — | — |"
     else
-        rss_mib=$(awk "BEGIN {printf \"%.1f\", $rss / 1024}")
-        echo "| $label | $cpu | $rss | $rss_mib | $wall |"
+        echo "| cmatrix | — | — | — | (not installed) |"
     fi
-done
 
+    IFS=$'\t' read -r label cpu rss fps frames <<< "$UNIMATRIX_RESULT"
+    if [[ "$label" == "unimatrix" ]]; then
+        rss_mib=$(awk "BEGIN {printf \"%.1f\", $rss / 1024}" 2>/dev/null || echo "—")
+        echo "| unimatrix | $cpu | $rss | $rss_mib MiB | — | — |"
+    else
+        echo "| unimatrix | — | — | — | (not installed) |"
+    fi
+fi
 echo ""
 echo "### Interpretation"
 echo ""
-echo "- **CPU time**: lower = more efficient rendering engine. Cosmostrix's"
-echo "  diff-based engine should use significantly less CPU than cmatrix's"
-echo "  full-redraw approach, especially at higher terminal sizes."
-echo "- **Peak RSS**: lower = smaller memory footprint. Includes the"
-echo "  terminal's PTY buffer, the process's own heap, and any shared"
-echo "  libraries."
-echo "- **Wall time**: should be ~${DURATION}s for all tools. Significant"
-echo "  deviation indicates the tool exited early or hung."
+echo "- **Cosmostrix headless FPS**: raw engine throughput. This is what the"
+echo "  diff-based rendering pipeline can compute per second. Real interactive"
+echo "  FPS is bounded by terminal I/O, but a higher headless FPS means more"
+echo "  headroom for visual effects (glitch, phosphor, depth-of-field)."
+echo "- **cmatrix/unimatrix**: full-redraw engines. They do not expose a"
+echo "  headless benchmark, so only resource usage (CPU + RSS) is directly"
+echo "  comparable. In interactive mode, their CPU usage will be higher"
+echo "  because they re-emit every cell every frame."
+echo "- **Active frame ratio**: percentage of frames where cosmostrix's"
+echo "  diff-based engine actually had work to do. Lower = more efficient"
+echo "  (more frames where the diff was empty or trivial)."
 echo ""
 echo "### Environment"
 echo ""
@@ -244,5 +269,5 @@ echo "- Date: \`$(date -u +%Y-%m-%dT%H:%M:%SZ)\`"
 echo "- Host: \`$(hostname)\`"
 echo "- Kernel: \`$(uname -sr)\`"
 echo "- CPU: \`$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | xargs || echo 'unknown')\`"
-echo "- Terminal: \`echo \$\{TERM:-unknown\}\`"
+echo "- Cosmostrix: \`$("$COSMOSTRIX_BIN" --version 2>&1 | head -1)\`"
 echo ""
