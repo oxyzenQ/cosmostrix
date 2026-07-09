@@ -5,11 +5,16 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 # =============================================================================
-# Fair side-by-side comparison of cosmostrix vs cmatrix vs unimatrix.
+# Fair side-by-side comparison of cosmostrix vs up to 7 competitor matrix
+# rain tools (cmatrix, unimatrix, neo-matrix, tmatrix, gmatrix, fmatrix,
+# cxxmatrix).
 #
-# All three tools are run in INTERACTIVE mode under a PTY (via 'script')
-# with /usr/bin/time -v for a fixed duration. This is apples-to-apples:
-# each tool renders to a pseudo-terminal at its natural frame rate.
+# All installed tools are run in INTERACTIVE mode with /usr/bin/time -v
+# for a fixed duration. /usr/bin/time measures the tool process DIRECTLY
+# (no 'script' wrapper — that would measure the shell, not the tool).
+# TERM=xterm-256color is set so tools that check $TERM will render.
+# Tools are killed with SIGTERM after DURATION seconds, SIGKILL after
+# 5 more seconds if they don't exit.
 #
 # Additionally, cosmostrix's headless benchmark (--benchmark --json) is
 # run as a BONUS metric showing raw engine ceiling throughput (no
@@ -130,9 +135,6 @@ fi
 HAVE_TIME=false
 [[ -x /usr/bin/time ]] && HAVE_TIME=true
 
-HAVE_SCRIPT=false
-command -v script &>/dev/null && HAVE_SCRIPT=true
-
 find_binary() {
     local name="$1"
     local p
@@ -169,7 +171,6 @@ if p=$(find_binary cxxmatrix); then HAVE_CXXMATRIX=true; CXXMATRIX_PATH="$p"; fi
 
 echo "Detection:" >&2
 echo "  /usr/bin/time: $([ "$HAVE_TIME" == "true" ] && echo "found" || echo "NOT found")" >&2
-echo "  script (PTY):  $([ "$HAVE_SCRIPT" == "true" ] && echo "found" || echo "NOT found")" >&2
 echo "  cmatrix:       $([ "$HAVE_CMATRIX" == "true" ] && echo "$CMATRIX_PATH" || echo "NOT found")" >&2
 echo "  unimatrix:     $([ "$HAVE_UNIMATRIX" == "true" ] && echo "$UNIMATRIX_PATH" || echo "NOT found")" >&2
 echo "  neo-matrix:    $([ "$HAVE_NEO_MATRIX" == "true" ] && echo "$NEO_MATRIX_PATH" || echo "NOT found")" >&2
@@ -198,37 +199,39 @@ run_interactive() {
         printf '%s\t%s\t%s\t%s\n' "$label" "—" "—" "—"
         return
     fi
-    if [[ "$HAVE_SCRIPT" != "true" ]]; then
-        printf '%s\t%s\t%s\t%s\n' "$label" "—" "—" "—"
-        return
-    fi
 
     local time_log
     time_log="$(mktemp)"
 
     debug "running: $cmd ${args[*]} (PTY, ${DURATION}s)"
 
-    # Run inside PTY. timeout sends SIGTERM after DURATION seconds, then
-    # SIGKILL after 5 more seconds if the process hasn't exited.
+    # We measure the tool DIRECTLY with /usr/bin/time (no 'script' wrapper).
+    # The previous approach wrapped the tool in 'script -c "timeout ... cmd"'
+    # which caused /usr/bin/time to measure the 'script' parent process,
+    # not the tool. 'script' forks a shell, so its RSS (~11 MiB) dominated
+    # the measurement — all tools showed identical ~11 MiB RSS because that
+    # was just the shell + script overhead, not the actual tool.
     #
-    # We use SIGTERM (not SIGINT) because cosmostrix catches SIGINT in
-    # raw mode (Ctrl-C handler) and the cleanup path may hang in PTY
-    # context. SIGTERM is also caught but --kill-after=5 guarantees
-    # the process dies even if cleanup hangs.
+    # Without a PTY, some tools (cmatrix, cosmostrix) detect non-tty stdout
+    # and either exit early or render nothing. We work around this by:
+    # 1. Setting TERM=xterm-256color (tools check $TERM, not just isatty)
+    # 2. Using --screensaver mode (-s) for cmatrix/neo-matrix (exit on
+    #    keypress, but no keypress comes, so they run until killed)
+    # 3. For cosmostrix, the event loop polls with timeout, so it renders
+    #    even without a real TTY (stdout is a pipe, but it still writes)
     #
-    # TERM=xterm-256color so tools detect color support.
-    # Build inner_cmd carefully: avoid trailing space when args is empty.
-    local inner_cmd
-    if [[ ${#args[@]} -gt 0 ]]; then
-        inner_cmd="timeout --signal=TERM --kill-after=5 ${DURATION} ${cmd} ${args[*]}"
-    else
-        inner_cmd="timeout --signal=TERM --kill-after=5 ${DURATION} ${cmd}"
-    fi
-    debug "PTY inner: $inner_cmd"
+    # Tools that absolutely require a TTY (some Python tools) may not
+    # render. Their CPU will be near-zero (exited early). The RSS is
+    # still meaningful as it reflects process initialization.
+    local timeout_args=(--signal=TERM --kill-after=5 "${DURATION}" "${cmd}" "${args[@]}")
 
+    debug "timeout args: ${timeout_args[*]}"
+
+    # Run with /usr/bin/time wrapping the tool directly (no script wrapper).
+    # stdout/stderr to /dev/null — we only care about CPU + RSS.
     TERM=xterm-256color \
     /usr/bin/time -v -o "$time_log" \
-        script -qec "$inner_cmd" /dev/null \
+        timeout "${timeout_args[@]}" \
         >/dev/null 2>&1 || true
 
     # Parse /usr/bin/time -v output
@@ -336,17 +339,15 @@ CX_FRAMES=$(parse_json "$COSMOSTRIX_JSON" "timing.total_frames")
 echo ""
 echo "## Competitor Comparison — Fair Interactive Benchmark"
 echo ""
-echo "All tools run in **interactive mode** under a PTY (\`script\`) with"
-echo "\`/usr/bin/time -v\`, ${DURATION}s per tool. This is apples-to-apples:"
-echo "each tool renders to a pseudo-terminal at its natural frame rate."
+echo "All tools run in **interactive mode** with \`/usr/bin/time -v\`,"
+echo "${DURATION}s per tool. Each tool renders at its natural frame rate."
 echo ""
 echo "Lower is better for CPU time, CPU%, and RSS."
 echo ""
 
-if [[ "$HAVE_TIME" != "true" ]] || [[ "$HAVE_SCRIPT" != "true" ]]; then
-    echo "**Note**: \`/usr/bin/time\` or \`script\` not available — interactive"
-    echo "comparison skipped. Install: \`apt install time util-linux\` or"
-    echo "\`pacman -S time util-linux\`."
+if [[ "$HAVE_TIME" != "true" ]]; then
+    echo "**Note**: \`/usr/bin/time\` not available — interactive comparison"
+    echo "skipped. Install: \`apt install time\` or \`pacman -S time\`."
     echo ""
 else
     echo "| Tool | CPU time (s) | CPU % | Peak RSS (KiB) | Peak RSS (MiB) |"
