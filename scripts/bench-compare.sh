@@ -9,12 +9,18 @@
 # rain tools (cmatrix, unimatrix, neo-matrix, tmatrix, gmatrix, fmatrix,
 # cxxmatrix).
 #
-# All installed tools are run in INTERACTIVE mode with /usr/bin/time -v
-# for a fixed duration. /usr/bin/time measures the tool process DIRECTLY
-# (no 'script' wrapper — that would measure the shell, not the tool).
-# TERM=xterm-256color is set so tools that check $TERM will render.
-# Tools are killed with SIGTERM after DURATION seconds, SIGKILL after
-# 5 more seconds if they don't exit.
+# All installed tools are spawned inside a real PTY (via Python's
+# pty.openpty) and measured DIRECTLY — not through a wrapper shell.
+# This is the only fair way: terminal-aware tools (cosmostrix, neo-matrix,
+# cxxmatrix) require a real TTY to run their event loops. Without a PTY,
+# they exit early and CPU=0. With a 'script' wrapper, /usr/bin/time
+# measures the shell, not the tool.
+#
+# The Python bench-runner (scripts/bench-runner.py):
+#   - Spawns the tool with PTY as stdout/stderr/stdin (isatty() = True)
+#   - Measures CPU via resource.getrusage(RUSAGE_CHILDREN) delta
+#   - Measures peak RSS via /proc/<pid>/status VmHWM polling at 10 Hz
+#   - Kills with SIGTERM after DURATION, SIGKILL after 5 more seconds
 #
 # Additionally, cosmostrix's headless benchmark (--benchmark --json) is
 # run as a BONUS metric showing raw engine ceiling throughput (no
@@ -48,8 +54,9 @@ usage() {
     cat <<'EOF'
 Usage: bench-compare.sh [OPTIONS]
 
-Fair side-by-side comparison: cosmostrix vs cmatrix vs unimatrix.
-All tools run in interactive mode under PTY with /usr/bin/time.
+Fair side-by-side comparison: cosmostrix vs up to 7 competitors.
+All tools run in interactive mode inside a real PTY (via Python).
+CPU + RSS measured directly on the tool process.
 
 Options:
   --duration N         Run duration in seconds (default: 10)
@@ -60,8 +67,8 @@ Options:
   --help               Show this help
 
 Requirements:
-  /usr/bin/time  (GNU time — for CPU + RSS measurement)
-  script         (util-linux — for PTY allocation)
+  python3         (for PTY-based fair measurement)
+  /proc           (Linux — for RSS polling)
   cmatrix        (optional — apt install cmatrix / pacman -S cmatrix)
   unimatrix      (optional — pip install unimatrix / paru -S unimatrix-git)
   neo-matrix     (optional — paru -S neo-matrix)
@@ -132,8 +139,8 @@ fi
 
 # ── Tool detection ──────────────────────────────────────────────────────────
 
-HAVE_TIME=false
-[[ -x /usr/bin/time ]] && HAVE_TIME=true
+HAVE_PYTHON3=false
+command -v python3 &>/dev/null && HAVE_PYTHON3=true
 
 find_binary() {
     local name="$1"
@@ -170,7 +177,7 @@ if p=$(find_binary fmatrix); then HAVE_FMATRIX=true; FMATRIX_PATH="$p"; fi
 if p=$(find_binary cxxmatrix); then HAVE_CXXMATRIX=true; CXXMATRIX_PATH="$p"; fi
 
 echo "Detection:" >&2
-echo "  /usr/bin/time: $([ "$HAVE_TIME" == "true" ] && echo "found" || echo "NOT found")" >&2
+echo "  python3:       $([ "$HAVE_PYTHON3" == "true" ] && echo "found" || echo "NOT found (required for PTY measurement)")" >&2
 echo "  cmatrix:       $([ "$HAVE_CMATRIX" == "true" ] && echo "$CMATRIX_PATH" || echo "NOT found")" >&2
 echo "  unimatrix:     $([ "$HAVE_UNIMATRIX" == "true" ] && echo "$UNIMATRIX_PATH" || echo "NOT found")" >&2
 echo "  neo-matrix:    $([ "$HAVE_NEO_MATRIX" == "true" ] && echo "$NEO_MATRIX_PATH" || echo "NOT found")" >&2
@@ -195,65 +202,36 @@ run_interactive() {
     shift 2
     local args=("$@")
 
-    if [[ "$HAVE_TIME" != "true" ]]; then
+    if [[ "$HAVE_PYTHON3" != "true" ]]; then
         printf '%s\t%s\t%s\t%s\n' "$label" "—" "—" "—"
         return
     fi
 
-    local time_log
-    time_log="$(mktemp)"
+    debug "running: $cmd ${args[*]} (PTY via Python, ${DURATION}s)"
 
-    debug "running: $cmd ${args[*]} (PTY, ${DURATION}s)"
-
-    # We measure the tool DIRECTLY with /usr/bin/time (no 'script' wrapper).
-    # The previous approach wrapped the tool in 'script -c "timeout ... cmd"'
-    # which caused /usr/bin/time to measure the 'script' parent process,
-    # not the tool. 'script' forks a shell, so its RSS (~11 MiB) dominated
-    # the measurement — all tools showed identical ~11 MiB RSS because that
-    # was just the shell + script overhead, not the actual tool.
+    # Use the Python bench-runner to spawn the tool in a real PTY and
+    # measure it DIRECTLY (not a wrapper shell). This is the fair way:
+    #   - PTY makes isatty() return True → terminal-aware tools run
+    #   - resource.getrusage(RUSAGE_CHILDREN) delta → accurate CPU
+    #   - /proc/<pid>/status VmHWM polling → accurate peak RSS
     #
-    # Without a PTY, some tools (cmatrix, cosmostrix) detect non-tty stdout
-    # and either exit early or render nothing. We work around this by:
-    # 1. Setting TERM=xterm-256color (tools check $TERM, not just isatty)
-    # 2. Using --screensaver mode (-s) for cmatrix/neo-matrix (exit on
-    #    keypress, but no keypress comes, so they run until killed)
-    # 3. For cosmostrix, the event loop polls with timeout, so it renders
-    #    even without a real TTY (stdout is a pipe, but it still writes)
-    #
-    # Tools that absolutely require a TTY (some Python tools) may not
-    # render. Their CPU will be near-zero (exited early). The RSS is
-    # still meaningful as it reflects process initialization.
-    local timeout_args=(--signal=TERM --kill-after=5 "${DURATION}" "${cmd}" "${args[@]}")
+    # Previous approaches failed:
+    #   - /usr/bin/time + script wrapper: measured 'script' (shell), not tool
+    #   - /usr/bin/time + direct: no PTY → cosmostrix/neo-matrix/cxxmatrix exit early
+    #   - This Python approach: PTY + direct measurement = fair for ALL tools
+    local runner
+    runner="$(dirname "${BASH_SOURCE[0]}")/bench-runner.py"
 
-    debug "timeout args: ${timeout_args[*]}"
+    # Run the Python runner. It outputs a single TSV line.
+    # Pass cmd + args as separate arguments to avoid quoting issues.
+    local result
+    result=$(python3 "$runner" "$label" "$DURATION" "$cmd" "${args[@]}" 2>/dev/null) || true
 
-    # Run with /usr/bin/time wrapping the tool directly (no script wrapper).
-    # stdout/stderr to /dev/null — we only care about CPU + RSS.
-    TERM=xterm-256color \
-    /usr/bin/time -v -o "$time_log" \
-        timeout "${timeout_args[@]}" \
-        >/dev/null 2>&1 || true
-
-    # Parse /usr/bin/time -v output
-    local cpu_user cpu_sys cpu_total rss_kb wall_raw
-    cpu_user=$(grep "User time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}')
-    cpu_sys=$(grep "System time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}')
-    wall_raw=$(grep "Elapsed (wall clock) time" "$time_log" 2>/dev/null | sed 's/.*): //')
-    rss_kb=$(grep "Maximum resident set size" "$time_log" 2>/dev/null | awk '{print $NF}')
-
-    cpu_user=${cpu_user:-0}
-    cpu_sys=${cpu_sys:-0}
-    rss_kb=${rss_kb:-0}
-    cpu_total=$(awk "BEGIN {printf \"%.2f\", ${cpu_user} + ${cpu_sys}}" 2>/dev/null || echo "n/a")
-
-    # Compute CPU% = cpu_total / duration * 100
-    local cpu_pct
-    cpu_pct=$(awk "BEGIN {printf \"%.1f\", (${cpu_user} + ${cpu_sys}) / ${DURATION} * 100}" 2>/dev/null || echo "—")
-
-    debug "$label: cpu=${cpu_total}s (${cpu_pct}%), rss=${rss_kb}KiB, wall='${wall_raw}'"
-
-    rm -f "$time_log"
-    printf '%s\t%s\t%s\t%s\n' "$label" "$cpu_total" "$cpu_pct" "$rss_kb"
+    if [[ -z "$result" ]]; then
+        printf '%s\t%s\t%s\t%s\n' "$label" "—" "—" "—"
+    else
+        printf '%s\n' "$result"
+    fi
 }
 
 # ── Run all interactive benchmarks ──────────────────────────────────────────
@@ -339,15 +317,18 @@ CX_FRAMES=$(parse_json "$COSMOSTRIX_JSON" "timing.total_frames")
 echo ""
 echo "## Competitor Comparison — Fair Interactive Benchmark"
 echo ""
-echo "All tools run in **interactive mode** with \`/usr/bin/time -v\`,"
-echo "${DURATION}s per tool. Each tool renders at its natural frame rate."
+echo "All tools run in **interactive mode** inside a real PTY (via Python"
+echo "\`pty.openpty()\`), ${DURATION}s per tool. Each tool's event loop runs"
+echo "normally — terminal-aware tools (cosmostrix, neo-matrix, cxxmatrix)"
+echo "render instead of exiting early. CPU time and peak RSS are measured"
+echo "**directly** on the tool process (not a wrapper shell)."
 echo ""
 echo "Lower is better for CPU time, CPU%, and RSS."
 echo ""
 
-if [[ "$HAVE_TIME" != "true" ]]; then
-    echo "**Note**: \`/usr/bin/time\` not available — interactive comparison"
-    echo "skipped. Install: \`apt install time\` or \`pacman -S time\`."
+if [[ "$HAVE_PYTHON3" != "true" ]]; then
+    echo "**Note**: \`python3\` not available — interactive comparison skipped."
+    echo "Install Python 3 to enable PTY-based fair measurement."
     echo ""
 else
     echo "| Tool | CPU time (s) | CPU % | Peak RSS (KiB) | Peak RSS (MiB) |"
