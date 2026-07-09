@@ -114,7 +114,12 @@ impl Frame {
     #[must_use]
     #[inline]
     pub fn cell_gen_at_index(&self, i: usize) -> u32 {
-        self.cell_gen.get(i).copied().unwrap_or(0)
+        // Dragon egg #6: direct indexing. Caller is expected to pass a valid
+        // index (from dirty_indices() or index()). Using .get().copied().unwrap_or(0)
+        // adds Option alloc + unwrap_or branching. Direct indexing is a single load.
+        // If i is out of bounds, this panics (same as cells[i] would) — which is
+        // the correct behavior for a bug in the caller.
+        self.cell_gen[i]
     }
 
     #[must_use]
@@ -155,7 +160,8 @@ impl Frame {
     #[allow(dead_code)]
     pub fn get(&self, x: u16, y: u16) -> Option<&Cell> {
         self.index(x, y).map(|i| {
-            if self.cell_gen.get(i).copied() == Some(self.gen) {
+            // Dragon egg #7: direct indexing — i from index() is bounds-checked.
+            if self.cell_gen[i] == self.gen {
                 &self.cells[i]
             } else {
                 &self.blank

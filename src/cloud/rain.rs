@@ -263,10 +263,12 @@ impl Cloud {
                 };
 
                 if died {
-                    if let Some(cs) = self.col_stat.get_mut(col as usize) {
-                        cs.num_droplets = cs.num_droplets.saturating_sub(1);
-                        cs.can_spawn = true;
-                    }
+                    // Dragon egg #12: direct indexing — col comes from d.col which
+                    // is guaranteed < cols (checked at spawn). col_stat is resized
+                    // to cols in spawn.rs.
+                    let cs = &mut self.col_stat[col as usize];
+                    cs.num_droplets = cs.num_droplets.saturating_sub(1);
+                    cs.can_spawn = true;
                     // Return the dead droplet's index to the free-list so
                     // spawn_droplets can reuse it in O(1) on the next spawn.
                     self.droplet_free_list.push(i);

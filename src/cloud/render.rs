@@ -143,10 +143,16 @@ impl DrawCtx<'_> {
     /// which is safe — the LUT is rebuilt on every terminal resize.
     #[inline]
     pub fn edge_fade(&self, line: u16) -> f32 {
-        self.edge_fade_lut
-            .get(line as usize)
-            .copied()
-            .unwrap_or(1.0)
+        // Dragon egg #13: direct indexing — edge_fade_lut is always sized to
+        // `lines` in spawn.rs, and callers pass line < lines (from droplet
+        // iteration). The .get().copied().unwrap_or(1.0) was defensive but
+        // adds Option alloc + unwrap_or branching.
+        let idx = line as usize;
+        if idx < self.edge_fade_lut.len() {
+            self.edge_fade_lut[idx]
+        } else {
+            1.0
+        }
     }
 
     #[inline]
@@ -156,10 +162,16 @@ impl DrawCtx<'_> {
         } else {
             self.char_pool
         };
-        let _len = pool.len().max(1);
         // OPTIMIZED: use bitmask instead of modulo (CHAR_POOL_SIZE is power of 2)
         let idx = ((char_pool_idx as usize) + (line as usize)) & (CHAR_POOL_SIZE - 1);
-        pool.get(idx).copied().unwrap_or('0')
+        // Dragon egg #11 (revised): char_pool is always CHAR_POOL_SIZE (2048),
+        // but previous_char_pool may be smaller during transition. Use .get()
+        // for safety when pool is smaller than CHAR_POOL_SIZE.
+        if pool.len() >= CHAR_POOL_SIZE {
+            pool[idx]
+        } else {
+            pool.get(idx).copied().unwrap_or('0')
+        }
     }
 
     #[inline]

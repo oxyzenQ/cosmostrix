@@ -146,7 +146,7 @@ impl Cloud {
                     self.phosphor_layer[pidx] = d.layer;
                 }
                 if pidx < self.phosphor_fresh.len()
-                    && !self.phosphor_fresh.get(pidx).is_some_and(|b| *b)
+                    && !self.phosphor_fresh[pidx]
                 {
                     self.phosphor_fresh.set(pidx, true);
                     self.phosphor[pidx] = captured_phosphor_energy(line, lines);
@@ -168,7 +168,9 @@ impl Cloud {
         // O(N) linear scan per fresh cell — 5,000-100,000 wasted ops/frame.
         // The BitVec membership check is O(1) and eliminates the bottleneck.
         for &pidx in &tracked_fresh {
-            if !self.phosphor_in_active.get(pidx).is_some_and(|b| *b) {
+            // Dragon egg #9: direct BitVec indexing — pidx from tracked_fresh
+            // was pushed after bounds-check in the loop above.
+            if !self.phosphor_in_active[pidx] {
                 self.phosphor_active.push(pidx);
                 self.phosphor_in_active.set(pidx, true);
             }
@@ -202,7 +204,9 @@ impl Cloud {
                 continue;
             }
 
-            if self.phosphor_fresh.get(pidx).is_some_and(|b| *b) {
+            // Dragon egg #10: direct BitVec indexing — pidx from phosphor_active
+            // was pushed after bounds-check.
+            if self.phosphor_fresh[pidx] {
                 i += 1;
                 continue;
             }
