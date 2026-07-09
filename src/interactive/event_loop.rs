@@ -302,7 +302,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
 
-        if end_time.is_some_and(|end| Instant::now() >= end) {
+        // P2: reuse loop_now (captured at top of loop) instead of another Instant::now().
+        if end_time.is_some_and(|end| loop_now >= end) {
             cloud.raining = false;
             break;
         }
@@ -658,8 +659,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     endurance_health.push_rss(rss as f64);
                 }
                 // Context switch rate sampling.
-                let now = Instant::now();
-                let elapsed = now
+                // P2: reuse work_start (captured just before cloud.rain_at) instead
+                // of another Instant::now(). The timing difference is <1ms, negligible
+                // for context switch rate measurement (sampled every 60 frames ≈ 1s).
+                let elapsed = work_start
                     .saturating_duration_since(last_ctxt_sample)
                     .as_secs_f64();
                 if elapsed > 0.0 {
@@ -672,7 +675,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
                         last_ctxt_switches = cur;
                     }
-                    last_ctxt_sample = now;
+                    last_ctxt_sample = work_start;
                 }
                 endurance_health.recompute();
             }
