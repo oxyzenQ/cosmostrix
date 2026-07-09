@@ -107,7 +107,7 @@ CONFIG:
   --dump-config
       Print a complete, commented example config and exit.
 
-      Config policy: invalid values warn cleanly and are ignored.
+      Config policy: invalid values print an error and fall back to defaults.
 
   --dump-profile <name>
       Print one user-defined profile from config and exit.
@@ -175,6 +175,13 @@ DIAGNOSTICS:
       Restore raw mode, alternate screen, cursor, focus, and mouse reporting
       after an interrupted run. Also clears the visible screen, moves the
       cursor home, and attempts scrollback purge when supported.
+  --verbose      Print diagnostic info to stderr before launching. Shows
+      config path, resolved values, terminal detection, atmosphere state.
+  --completions <shell>
+      Print shell completion script to stdout. Pipe to your shell's
+      completions directory.
+      Supported shells: bash, zsh, fish, elvish.
+      Example: cosmostrix --completions bash > /etc/bash_completion.d/cosmostrix
 
 DISCOVERY:
   --list-colors         Show compact color theme names.

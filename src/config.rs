@@ -510,7 +510,9 @@ pub struct Args {
         long = "completions",
         help_heading = "DIAGNOSTICS",
         display_order = 140,
-        help = "Print shell completions (bash, zsh, fish, elvish)."
+        help = "Print shell completion script. Usage: --completions <shell>\n\
+                Supported: bash, zsh, fish, elvish.\n\
+                Install: cosmostrix --completions bash > ~/.config/cosmostrix/completions.bash"
     )]
     pub completions: Option<String>,
 
