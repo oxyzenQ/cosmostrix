@@ -111,6 +111,7 @@ mod update;
 mod usagestat;
 mod ux;
 mod validation;
+mod verbose;
 
 use std::env;
 
@@ -631,9 +632,6 @@ fn main() -> std::io::Result<()> {
         Ok(c) => c,
         Err(e) => ux::die_input(e),
     };
-    if args.verbose {
-        eprintln!("[verbose] color scheme: {color_scheme:?}");
-    }
     let color_tune = match args.color_tune.as_deref() {
         Some(s) => ux::or_exit(color_tune::parse_color_tune(s)),
         None => color_tune::ColorTune::IDENTITY,
@@ -643,13 +641,6 @@ fn main() -> std::io::Result<()> {
         .as_deref()
         .and_then(scene::rain_style_for_scene)
         .unwrap_or(rain_style::RainStyle::Glyph);
-    if args.verbose {
-        eprintln!(
-            "[verbose] color-tune: saturation={:.2} brightness={:.2}",
-            color_tune.saturation, color_tune.brightness
-        );
-        eprintln!("[verbose] rain style: {rain_style:?}");
-    }
 
     let glitch_pct = ux::or_exit(validate_f32_range(
         "--glitchpct",
@@ -805,6 +796,45 @@ fn main() -> std::io::Result<()> {
             atmosphere::AtmosphereRegime::Calm,
         )
     };
+
+    // ── Verbose output (before CloudConfig moves values) ──
+    if args.verbose {
+        verbose::print_verbose(
+            env!("CARGO_PKG_VERSION"),
+            args.scene.as_deref(),
+            rain_style,
+            color_scheme,
+            color_mode,
+            color_tune,
+            default_bg,
+            &charset_preset,
+            &chars,
+            args.fullwidth,
+            target_fps,
+            speed,
+            base_density,
+            density_auto,
+            args.monolith_size,
+            args.async_mode,
+            bold_mode,
+            shading_mode,
+            args.noglitch,
+            glitch_pct,
+            glitch_low,
+            glitch_high,
+            &format!("{:?}", args.glitch_level),
+            args.mouse,
+            args.low_power,
+            args.screensaver,
+            args.auto_color_drift,
+            atmosphere_mode,
+            &atmosphere_modulation,
+            args.message.as_deref(),
+            args.message_border,
+            args.duration,
+            args.charset_file.as_deref(),
+        );
+    }
 
     let cloud_cfg = CloudConfig {
         color_mode,
