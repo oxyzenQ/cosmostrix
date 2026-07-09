@@ -66,7 +66,7 @@ if [[ ! -f "${CONFIG_SRC}" ]]; then
     exit 1
 fi
 
-echo ">> [1/3] Building ${PROJECT_NAME} (release, locked)"
+echo ">> [1/4] Building ${PROJECT_NAME} (release, locked)"
 cargo build --release --locked
 
 BINARY="target/release/${PROJECT_NAME}"
@@ -75,7 +75,7 @@ if [[ ! -f "${BINARY}" ]]; then
     exit 1
 fi
 
-echo ">> [2/3] Installing binary (${MODE})"
+echo ">> [2/4] Installing binary (${MODE})"
 case "${MODE}" in
     --system)
         sudo install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
@@ -89,7 +89,7 @@ case "${MODE}" in
         ;;
 esac
 
-echo ">> [3/3] Installing config.toml (${MODE})"
+echo ">> [3/4] Installing config.toml (${MODE})"
 case "${MODE}" in
     --system)
         sudo mkdir -p "/etc/${PROJECT_NAME}"
@@ -121,6 +121,33 @@ case "${MODE}" in
             install -m 644 "${CONFIG_SRC}" "${user_cfg}"
             echo "   installed: ${user_cfg}"
         fi
+        ;;
+esac
+
+echo ">> [4/4] Installing shell completions (${MODE})"
+case "${MODE}" in
+    --system)
+        # Bash
+        "${BINARY}" --completions bash 2>/dev/null | sudo tee \
+            "/usr/share/bash-completion/completions/${PROJECT_NAME}" >/dev/null 2>&1 || true
+        echo "   installed: /usr/share/bash-completion/completions/${PROJECT_NAME}"
+        # Zsh
+        sudo mkdir -p /usr/share/zsh/site-functions
+        "${BINARY}" --completions zsh 2>/dev/null | sudo tee \
+            "/usr/share/zsh/site-functions/_${PROJECT_NAME}" >/dev/null 2>&1 || true
+        echo "   installed: /usr/share/zsh/site-functions/_${PROJECT_NAME}"
+        ;;
+    --user)
+        # Bash
+        bash_comp_dir="${HOME}/.local/share/bash-completion/completions"
+        mkdir -p "${bash_comp_dir}"
+        "${BINARY}" --completions bash 2>/dev/null > "${bash_comp_dir}/${PROJECT_NAME}" 2>/dev/null || true
+        echo "   installed: ${bash_comp_dir}/${PROJECT_NAME}"
+        # Zsh
+        zsh_comp_dir="${HOME}/.local/share/zsh/site-functions"
+        mkdir -p "${zsh_comp_dir}"
+        "${BINARY}" --completions zsh 2>/dev/null > "${zsh_comp_dir}/_${PROJECT_NAME}" 2>/dev/null || true
+        echo "   installed: ${zsh_comp_dir}/_${PROJECT_NAME}"
         ;;
 esac
 

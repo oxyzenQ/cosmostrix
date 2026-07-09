@@ -89,6 +89,7 @@ mod doctor;
 mod droplet;
 mod envstat;
 mod frame;
+mod help_detail;
 mod info;
 mod interactive;
 #[cfg(test)]
@@ -123,8 +124,8 @@ use clap::{CommandFactory, FromArgMatches};
 
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
 use crate::config::{
-    color_enabled_stdout, print_defaults, print_help_detail, print_list_charsets,
-    print_list_colors, print_list_colors_detail, print_list_scenes, Args, ColorBg,
+    color_enabled_stdout, print_defaults, print_list_charsets, print_list_colors,
+    print_list_colors_detail, print_list_scenes, Args, ColorBg,
 };
 use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
@@ -321,6 +322,24 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
+    // --completions: print shell completions and exit.
+    if let Some(ref shell) = args.completions {
+        let shell = shell.to_lowercase();
+        let shell_id = match shell.as_str() {
+            "bash" => clap_complete::Shell::Bash,
+            "zsh" => clap_complete::Shell::Zsh,
+            "fish" => clap_complete::Shell::Fish,
+            "elvish" => clap_complete::Shell::Elvish,
+            _ => {
+                eprintln!("error: unknown shell '{shell}' (supported: bash, zsh, fish, elvish)");
+                std::process::exit(2);
+            }
+        };
+        let mut cmd = Args::command();
+        clap_complete::generate(shell_id, &mut cmd, "cosmostrix", &mut std::io::stdout());
+        return Ok(());
+    }
+
     if args.testconf {
         return testconf::run(&args);
     }
@@ -385,7 +404,7 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.help_detail {
-        print_help_detail();
+        help_detail::print_help_detail();
         return Ok(());
     }
 
@@ -909,85 +928,4 @@ fn canonicalize_runtime_args(args: &mut Args) {
 }
 
 #[cfg(test)]
-mod color_detection_tests {
-    use clap::{CommandFactory, FromArgMatches};
-
-    use crate::cli::detect_color_mode_from_terms;
-    use crate::config::Args;
-    use crate::config_apply::apply_config_and_runtime_defaults;
-    use crate::runtime::ColorMode;
-
-    fn args_from_empty_config(cli: &[&str]) -> Args {
-        let mut path = std::env::temp_dir();
-        let unique = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-            .max(1); // never 0 to avoid path collisions with default temp names
-        path.push(format!(
-            "cosmostrix-main-color-test-{}-{unique}.toml",
-            std::process::id(),
-        ));
-        std::fs::write(&path, "").expect("write temp config");
-
-        let path_string = path.to_string_lossy().into_owned();
-        let mut argv = vec!["cosmostrix", "--config", path_string.as_str()];
-        argv.extend_from_slice(cli);
-
-        let cmd = Args::command();
-        let matches = cmd.get_matches_from(argv);
-        let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
-        apply_config_and_runtime_defaults(&matches, &mut args).expect("apply config");
-        super::canonicalize_runtime_args(&mut args);
-
-        let _ = std::fs::remove_file(path);
-        args
-    }
-
-    #[test]
-    fn runtime_profile_color_display_uses_canonical_alias_names() {
-        for (alias, canonical) in [
-            ("white", "snow"),
-            ("silver", "gray"),
-            ("deepblue", "deepspace"),
-            ("deep-blue", "deepspace"),
-            ("deep_blue", "deepspace"),
-            ("grey", "gray"),
-        ] {
-            let args = args_from_empty_config(&["--color", alias, "-i"]);
-            assert_eq!(args.color, canonical);
-        }
-    }
-
-    #[test]
-    fn term_xterm_direct_detects_truecolor_without_colorterm() {
-        assert_eq!(
-            detect_color_mode_from_terms("", "xterm-direct"),
-            ColorMode::TrueColor
-        );
-    }
-
-    #[test]
-    fn term_tmux_direct_detects_truecolor_without_colorterm() {
-        assert_eq!(
-            detect_color_mode_from_terms("", "tmux-direct"),
-            ColorMode::TrueColor
-        );
-    }
-
-    #[test]
-    fn term_xterm_256color_preserves_256color_detection() {
-        assert_eq!(
-            detect_color_mode_from_terms("", "xterm-256color"),
-            ColorMode::Color256
-        );
-    }
-
-    #[test]
-    fn colorterm_truecolor_still_overrides_term() {
-        assert_eq!(
-            detect_color_mode_from_terms("truecolor", "xterm"),
-            ColorMode::TrueColor
-        );
-    }
-}
+mod color_detection_tests;

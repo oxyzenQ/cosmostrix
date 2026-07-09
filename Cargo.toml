@@ -14,6 +14,7 @@ build = "build.rs"
 
 [dependencies]
 clap = { version = ">=4.5, <4.6", features = ["derive"] }
+clap_complete = "4"
 crossterm = "0.29"
 rand = "0.9"
 bitvec = "1"
