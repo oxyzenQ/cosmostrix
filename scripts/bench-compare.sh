@@ -202,40 +202,51 @@ run_interactive() {
     local args=("$@")
 
     if [[ "$HAVE_TIME" != "true" ]]; then
-        echo "${label}  —       —       —       (/usr/bin/time not installed)"
+        echo "${label}  —       —"
         return
     fi
 
     local time_log
     time_log="$(mktemp)"
 
-    # Run inside a PTY (via 'script') so terminal-aware tools actually render.
-    # Use 'timeout' INSIDE the PTY to kill the tool after DURATION seconds.
-    # Previous approach ('cmd; sleep N') was broken: if the tool exited early,
-    # the sleep consumed the remaining wall time with ~0 CPU, making it look
-    # like the tool used no CPU. Now timeout sends SIGINT directly to the tool.
-    # Set TERM + COLUMNS + LINES so the tool can initialize its screen.
+    echo "    [debug] running: $cmd ${args[*]} (PTY=auto, ${DURATION}s)" >&2
+
+    # Strategy: run the tool inside a PTY (via 'script') so terminal-aware
+    # tools actually render. Use 'timeout' to kill after DURATION seconds.
+    # The PTY allocates a pseudo-terminal so isatty() returns true.
     if command -v script &>/dev/null; then
-        TERM=xterm-256color COLUMNS=120 LINES=40 \
+        # Build the inner command string for script -c
+        local inner_cmd="timeout --signal=INT ${DURATION} ${cmd} ${args[*]}"
+        echo "    [debug] PTY inner: $inner_cmd" >&2
+        TERM=xterm-256color \
         /usr/bin/time -v -o "$time_log" \
-            script -qec "TERM=xterm-256color COLUMNS=120 LINES=40 timeout --signal=INT ${DURATION} ${cmd} ${args[*]}" /dev/null \
+            script -qec "$inner_cmd" /dev/null \
             >/dev/null 2>&1 || true
     else
-        TERM=xterm-256color COLUMNS=120 LINES=40 \
+        echo "    [debug] no 'script' command — running directly (tool may exit early)" >&2
+        TERM=xterm-256color \
         /usr/bin/time -v -o "$time_log" \
             timeout --signal=INT $((DURATION + 2)) \
             "$cmd" "${args[@]}" \
             >/dev/null 2>&1 || true
     fi
 
+    # Debug: show raw time log
+    echo "    [debug] time_log contents:" >&2
+    grep -E "User time|System time|Maximum resident|Elapsed" "$time_log" 2>/dev/null | sed 's/^/      /' >&2 || echo "      (empty or missing)" >&2
+
     local cpu_user cpu_sys cpu_total rss_kb
-    cpu_user=$(grep "User time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
-    cpu_sys=$(grep "System time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
-    cpu_total=$(awk "BEGIN {printf \"%.2f\", $cpu_user + $cpu_sys}" 2>/dev/null || echo "n/a")
-    rss_kb=$(grep "Maximum resident set size" "$time_log" 2>/dev/null | awk '{print $NF}' || echo "0")
+    cpu_user=$(grep "User time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}')
+    cpu_sys=$(grep "System time (seconds)" "$time_log" 2>/dev/null | awk '{print $NF}')
+    cpu_user=${cpu_user:-0}
+    cpu_sys=${cpu_sys:-0}
+    cpu_total=$(awk "BEGIN {printf \"%.2f\", ${cpu_user} + ${cpu_sys}}" 2>/dev/null || echo "n/a")
+    rss_kb=$(grep "Maximum resident set size" "$time_log" 2>/dev/null | awk '{print $NF}')
+    rss_kb=${rss_kb:-0}
     rm -f "$time_log"
 
-    echo "${label}      ${cpu_total}    ${rss_kb}"
+    echo "    [debug] result: label='$label' cpu='$cpu_total' rss='$rss_kb'" >&2
+    printf '%s\t%s\t%s\n' "$label" "$cpu_total" "$rss_kb"
 }
 
 echo "Checking cmatrix..." >&2
