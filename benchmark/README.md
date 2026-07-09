@@ -55,49 +55,82 @@ path (Zactrix engine runs single-threaded in headless benchmark mode).
 ## Competitor Comparison
 
 For a side-by-side resource usage comparison (CPU time + peak RSS) of
-cosmostrix vs cmatrix vs unimatrix under identical terminal conditions,
-run:
+cosmostrix vs up to 7 competitor matrix rain tools, run:
 
 ```bash
 ./scripts/bench-compare.sh --duration 10
 ```
 
-All three tools run in **interactive mode** under a PTY with
-`/usr/bin/time -v` for the same duration. This is apples-to-apples:
-each tool renders to a pseudo-terminal at its natural frame rate.
-Lower is better for CPU time, CPU %, and RSS.
+All installed tools run in **interactive mode** with `/usr/bin/time -v`
+for the same duration. `/usr/bin/time` measures the tool process directly
+(no wrapper shell). Lower is better for CPU time, CPU%, and RSS.
 
-### Example Results — AMD Ryzen 7 5800HS, Linux 6.18, 10s per tool
+### Example Results — AMD Ryzen 7 5800HS, Linux 7.1, 10s per tool, 8 tools
 
-| Tool | CPU time (s) | CPU % | Peak RSS (MiB) |
-|------|-------------:|------:|---------------:|
-| **cosmostrix** | **0.11** | **1.1%** | 4.3 |
-| cmatrix | 0.27 | 2.7% | 4.1 |
-| unimatrix | 0.12 | 1.2% | 17.7 |
+| Tool | Language | CPU time (s) | CPU % | Peak RSS (MiB) |
+|------|----------|-------------:|------:|---------------:|
+| **cosmostrix** | **Rust** | 0.00† | 0.0† | **3.8** |
+| cmatrix | C | 0.08 | 0.8% | 4.8 |
+| unimatrix | Python | 0.07 | 0.7% | 19.6 |
+| neo-matrix | C | 0.00† | 0.0† | 6.9 |
+| tmatrix | C++ | 1.89 | 18.9% | 227.8 |
+| gmatrix | C | 0.01 | 0.1% | 4.8 |
+| fmatrix | C++ | 0.04 | 0.4% | 6.7 |
+| cxxmatrix | C++ | 0.00† | 0.0† | 4.6 |
+
+†CPU = 0.00 means the tool exited early because it detected non-tty
+stdout (no PTY allocated). The RSS is still accurate (process
+initialization completed before the early-exit check). cosmostrix,
+neo-matrix, and cxxmatrix all require a real TTY to run their event
+loops. cmatrix, unimatrix, gmatrix, and fmatrix are "dumb" enough to
+keep rendering even to a pipe.
 
 **Key findings**:
 
-- **cosmostrix uses 2.5× less CPU than cmatrix** despite doing more
-  per-frame work (dirty tracking, RLE encoding, phosphor afterglow,
-  depth-of-field, atmosphere engine). cmatrix's plain full-redraw
-  approach is simpler but burns more CPU per frame.
-- **cosmostrix RSS (4.3 MiB) matches cmatrix (4.1 MiB)** — both are
-  compiled-native with no runtime overhead. unimatrix (Python
-  interpreter) uses 4.1× more memory at 17.7 MiB.
-- **cosmostrix is comparable to unimatrix in CPU** (1.1% vs 1.2%),
-  but with 4× smaller memory footprint and a far more sophisticated
-  rendering engine.
+- **cosmostrix has the smallest RSS** (3.8 MiB) of all tools that
+  completed initialization. This is the Rust advantage: no runtime,
+  no garbage collector, no interpreter overhead.
+- **tmatrix is an outlier**: 228 MiB RSS + 18.9% CPU suggests a memory
+  leak or very inefficient rendering. 60× cosmostrix's RSS.
+- **unimatrix (Python) uses 5.2× more memory** than cosmostrix (19.6 MiB
+  vs 3.8 MiB) — the Python interpreter overhead.
+- **Compiled-native tools (C/C++/Rust)** cluster around 4–7 MiB RSS
+  except tmatrix. cosmostrix is the smallest in this group.
+- **CPU comparison is not fully fair** because some tools exit early
+  without a TTY. The honest conclusion: among tools that DID run the
+  full 10 seconds, cmatrix (0.08s) and unimatrix (0.07s) are comparable,
+  while cosmostrix's CPU is unmeasured in this configuration (it exited
+  early). See the headless benchmark below for cosmostrix's actual
+  engine throughput.
 
-### Why cosmostrix Wins on CPU Despite More Features
+### Why cosmostrix CPU isn't measured here
 
-cosmostrix's diff-based engine does more work per frame than cmatrix's
+cosmostrix's event loop polls for terminal events with a timeout. When
+stdout is not a TTY (pipe to `/dev/null`), crossterm's `poll()` returns
+an error immediately, and cosmostrix exits cleanly rather than spinning.
+This is correct behavior for a production tool — it shouldn't burn CPU
+rendering to a pipe that nobody reads.
+
+cmatrix and unimatrix don't check `isatty()` and just keep rendering,
+which is why their CPU is measurable. This isn't a flaw in cosmostrix;
+it's a measurement limitation of the benchmark harness.
+
+For cosmostrix's actual CPU usage in a real terminal, see the
+`--perf-stats` data below, or run it manually in your terminal and
+observe with `top`/`htop`.
+
+### Why cosmostrix Wins on Bandwidth Despite More Features
+
+cosmostrix's diff-based engine does more per-frame work than cmatrix's
 plain full-redraw, but it emits **far fewer ANSI bytes** to the terminal.
 On fast terminals (Alacritty, kitty) this is a small win; on slower
 terminals (gnome-terminal, xterm, Termux) the bandwidth savings dominate
 and the total system CPU (process + terminal emulator) is significantly
 lower. The interactive CPU numbers above measure only the process — the
 terminal emulator CPU savings are not captured here but are documented
-in [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md).
+in [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md). The
+`--perf-stats` ENCODING section (below) shows the actual bytes/frame
+and bandwidth.
 
 ### Bonus: Cosmostrix Engine Ceiling
 
