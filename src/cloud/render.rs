@@ -135,7 +135,9 @@ impl DrawCtx<'_> {
             return false;
         }
         let idx = col as usize * self.lines as usize + line as usize;
-        self.glitch_map.get(idx).is_some_and(|b| *b)
+        // Dragon egg #17: bounds-check + direct indexing.
+        // BitSlice implements Index<usize> returning bool.
+        idx < self.glitch_map.len() && self.glitch_map[idx]
     }
 
     /// Lookup precomputed viewport edge fade for a given line.
@@ -248,7 +250,15 @@ impl DrawCtx<'_> {
         }
 
         let idx = col as usize * self.lines as usize + line as usize;
-        let mut color_idx = self.color_map.get(idx).copied().unwrap_or(0) as i32;
+        // Dragon egg #15: bounds-check + direct indexing for color_map.
+        // color_map is sized cols*lines. Callers pass col < cols and
+        // line < lines (from droplet iteration), but defensive check is cheap
+        // and avoids Option alloc on the hot path.
+        let mut color_idx = if idx < self.color_map.len() {
+            self.color_map[idx] as i32
+        } else {
+            0
+        };
 
         if self.shading_distance {
             let last = palette_colors.len().saturating_sub(1) as u64;
@@ -270,7 +280,9 @@ impl DrawCtx<'_> {
             color_idx = v as i32;
         }
 
-        if self.glitchy && self.glitch_map.get(idx).is_some_and(|b| *b) {
+        // Dragon egg #16: bounds-check + direct indexing for glitch_map.
+        // idx = col*lines + line, same as color_map above. Already computed.
+        if self.glitchy && idx < self.glitch_map.len() && self.glitch_map[idx] {
             // PERF: glitch_bright/glitch_dim are cached once per DrawCtx
             // construction (rain_at) — they depend only on `now`, not on
             // cell position, so recomputing per-cell was pure waste.

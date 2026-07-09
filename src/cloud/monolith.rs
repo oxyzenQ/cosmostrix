@@ -16,6 +16,7 @@ use crate::cinematic::{
     monolith_breathing_factor, monolith_hero_pulse, monolith_motion_factor, monolith_spine_cadence,
 };
 use crate::constants::EDGE_FADE_BOLD_THRESHOLD;
+use crate::constants::MAX_PALETTE_SLOTS;
 use crate::constants::SPAWN_REMAINDER_CAP;
 use crate::frame::Frame;
 use crate::palette;
@@ -727,17 +728,21 @@ pub(super) fn color_for_level(
     } else {
         ctx.active_palette_slot
     };
-    let mut colors = ctx
-        .palette_slices
-        .get(effective_slot as usize)
-        .copied()
-        .unwrap_or(&[]);
+    // Dragon egg #18: direct indexing with bounds check instead of .get().copied().unwrap_or().
+    // palette_slices is a fixed array [T; MAX_PALETTE_SLOTS] (4 elements).
+    let slot_idx = effective_slot as usize;
+    let mut colors = if slot_idx < MAX_PALETTE_SLOTS {
+        ctx.palette_slices[slot_idx]
+    } else {
+        &[]
+    };
     if colors.is_empty() {
-        colors = ctx
-            .palette_slices
-            .get(ctx.active_palette_slot as usize)
-            .copied()
-            .unwrap_or(&[]);
+        let active_idx = ctx.active_palette_slot as usize;
+        colors = if active_idx < MAX_PALETTE_SLOTS {
+            ctx.palette_slices[active_idx]
+        } else {
+            &[]
+        };
     }
     if colors.is_empty() {
         return None;

@@ -336,8 +336,17 @@ impl Cloud {
         if !self.glitchy {
             return false;
         }
-        let idx = col as usize * self.lines as usize + line as usize;
-        self.glitch_map.get(idx).is_some_and(|b| *b)
+        // Dragon egg #14: bounds-check + direct indexing instead of .get().
+        // glitch_map is sized cols*lines. idx = col*lines + line.
+        // Callers ensure line < lines (checked in do_glitch_span loop),
+        // but col may not be checked. Use a single bounds check + direct index.
+        let col_usize = col as usize;
+        let line_usize = line as usize;
+        if col_usize >= self.cols as usize || line_usize >= self.lines as usize {
+            return false;
+        }
+        let idx = col_usize * self.lines as usize + line_usize;
+        self.glitch_map[idx]
     }
 
     pub(super) fn do_glitch_span(&mut self, start_line: u16, hp: u16, col: u16, cp_idx: u16) {
