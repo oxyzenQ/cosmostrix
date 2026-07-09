@@ -29,7 +29,7 @@ fn args_with_config(config: &str, cli: &[&str]) -> Args {
         .expect("system clock after unix epoch")
         .as_nanos();
     path.push(format!(
-        "cosmostrix-v46-test-{}-{unique}.conf",
+        "cosmostrix-v46-test-{}-{unique}.toml",
         std::process::id(),
     ));
     std::fs::write(&path, config).expect("write temp config");

@@ -925,7 +925,7 @@ mod color_detection_tests {
             .unwrap_or(0)
             .max(1); // never 0 to avoid path collisions with default temp names
         path.push(format!(
-            "cosmostrix-main-color-test-{}-{unique}.conf",
+            "cosmostrix-main-color-test-{}-{unique}.toml",
             std::process::id(),
         ));
         std::fs::write(&path, "").expect("write temp config");

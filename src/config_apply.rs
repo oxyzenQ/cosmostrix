@@ -108,7 +108,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
 ) -> Result<(), String> {
     let mut config_touched = HashSet::new();
 
-    // Security: validate --config path is in a safe location.
+    // Security: validate --config path is in a safe location AND has .toml extension.
     if let Some(ref config_path) = args.config {
         let path_str = config_path.to_string_lossy();
         let safe = crate::is_safe_path(&path_str);
@@ -119,6 +119,14 @@ pub(crate) fn apply_config_and_runtime_defaults(
             return Err(format!(
                 "error: --config '{path_str}' is outside allowed directories\n  \
                  Allowed: ~/.config/cosmostrix/, current directory (.), /etc/cosmostrix/, /tmp/"
+            ));
+        }
+        // Strict: only .toml files allowed. Prevents reading arbitrary
+        // file types (.c, .txt, .py, .sh, etc.) via --config.
+        if !path_str.ends_with(".toml") {
+            return Err(format!(
+                "error: --config '{path_str}' must have a .toml extension\n  \
+                 Only TOML config files are accepted."
             ));
         }
     }

@@ -17,7 +17,7 @@ fn args_with_config(config: &str, cli: &[&str]) -> Args {
         .expect("system clock after unix epoch")
         .as_nanos();
     path.push(format!(
-        "cosmostrix-config-test-{}-{unique}.conf",
+        "cosmostrix-config-test-{}-{unique}.toml",
         std::process::id(),
     ));
     std::fs::write(&path, config).expect("write temp config");
@@ -65,7 +65,7 @@ fn args_from_cli_result(cli: &[&str]) -> Result<Args, String> {
         .expect("system clock after unix epoch")
         .as_nanos();
     path.push(format!(
-        "cosmostrix-empty-config-test-{}-{unique}.conf",
+        "cosmostrix-empty-config-test-{}-{unique}.toml",
         std::process::id(),
     ));
     std::fs::write(&path, "").expect("write temp config");
@@ -321,8 +321,8 @@ fn legacy_keys_still_apply() {
 
 #[test]
 fn config_path_arg_is_stored() {
-    let args = args_from_cli(&["--config", "/tmp/cosmostrix.conf"]);
-    assert_eq!(args.config, Some(PathBuf::from("/tmp/cosmostrix.conf")));
+    let args = args_from_cli(&["--config", "/tmp/cosmostrix.toml"]);
+    assert_eq!(args.config, Some(PathBuf::from("/tmp/cosmostrix.toml")));
 }
 
 #[test]

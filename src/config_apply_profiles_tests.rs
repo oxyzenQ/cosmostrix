@@ -15,7 +15,7 @@ pub(crate) fn args_with_config_result(config: &str, cli: &[&str]) -> Result<Args
         .expect("system clock after unix epoch")
         .as_nanos();
     path.push(format!(
-        "cosmostrix-profile-test-{}-{unique}.conf",
+        "cosmostrix-profile-test-{}-{unique}.toml",
         std::process::id(),
     ));
     std::fs::write(&path, config).expect("write temp config");
