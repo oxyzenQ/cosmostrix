@@ -855,6 +855,12 @@ fn main() -> std::io::Result<()> {
             args.message_border,
             args.duration,
             args.charset_file.as_deref(),
+            args.screen_size
+                .as_deref()
+                .map(crate::cli_parse::parse_screen_size)
+                .transpose()
+                .ok()
+                .flatten(),
         );
     }
 

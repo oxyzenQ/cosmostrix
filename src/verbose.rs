@@ -48,6 +48,7 @@ pub(crate) fn print_verbose(
     message_border: bool,
     duration: Option<f64>,
     charset_file: Option<&str>,
+    screen_size: Option<(u16, u16)>,
 ) {
     eprintln!("[verbose] ════════════════════════════════════════════════════");
     eprintln!("[verbose]  cosmostrix v{version} — runtime configuration");
@@ -83,6 +84,16 @@ pub(crate) fn print_verbose(
     eprintln!("[verbose]  screensaver:  {screensaver}");
     eprintln!("[verbose]  auto_drift:   {auto_drift}");
     eprintln!("[verbose]  atmosphere:   {atmosphere_mode:?} / {atmosphere_modulation:?}");
+    // Screen size: fixed (--screen-size) or dynamic (terminal-detected)
+    let (sw, sh, size_mode) = match screen_size {
+        Some((w, h)) => (w, h, "fixed"),
+        None => {
+            // Detect actual terminal size for display
+            let (tw, th) = crossterm::terminal::size().unwrap_or((0, 0));
+            (tw, th, "auto")
+        }
+    };
+    eprintln!("[verbose]  screen_size:  {sw}x{sh} ({size_mode})");
     if let Some(msg) = message {
         eprintln!(
             "[verbose]  message:      \"{msg}\" ({} chars, border: {message_border})",
@@ -96,9 +107,19 @@ pub(crate) fn print_verbose(
     let term = std::env::var("TERM").unwrap_or_else(|_| "(unset)".into());
     let colorterm = std::env::var("COLORTERM").unwrap_or_else(|_| "(unset)".into());
     let term_program = std::env::var("TERM_PROGRAM").unwrap_or_else(|_| "(unset)".into());
+    let term_version = std::env::var("TERM_PROGRAM_VERSION").unwrap_or_else(|_| "(unset)".into());
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "(unset)".into());
+    let lang = std::env::var("LANG").unwrap_or_else(|_| "(unset)".into());
+    let is_tty = std::io::IsTerminal::is_terminal(&std::io::stderr());
+    let is_stdout_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
     eprintln!("[verbose]  TERM:         {term}");
     eprintln!("[verbose]  COLORTERM:    {colorterm}");
     eprintln!("[verbose]  TERM_PROGRAM: {term_program}");
+    eprintln!("[verbose]  TERM_VERSION: {term_version}");
+    eprintln!("[verbose]  SHELL:        {shell}");
+    eprintln!("[verbose]  LANG:         {lang}");
+    eprintln!("[verbose]  isatty(stderr): {is_tty}");
+    eprintln!("[verbose]  isatty(stdout): {is_stdout_tty}");
     let config_path = configfile::default_config_file_path();
     eprintln!("[verbose]  config_path:  {}", config_path.display());
     eprintln!("[verbose]  config exists: {}", config_path.exists());

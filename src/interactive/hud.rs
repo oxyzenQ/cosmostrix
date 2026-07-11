@@ -249,13 +249,12 @@ impl HudState {
         self.cached_lines[2] = (head, pad_hud_line(&format!(" max: {:>6.3}ms", self.max_ms)));
         self.cached_lines[3] = (trail, pad_hud_line(&format!(" rss: {:>8}", rss_str)));
         self.cached_lines[4] = (dim, pad_hud_line(&format!(" up: {:>5}", uptime_str)));
-        // Screen size line: "120x40" or "120x40*" (fixed)
+        // Screen size line: "120x40 auto" or "80x24 fix"
+        // HUD_WIDTH=15, so "120x40 auto" = 11 chars + leading space = 12 (fits).
+        // "120x40 fix" = 10 + space = 11 (fits).
         let (sw, sh, is_fixed) = self.screen_size;
-        let size_str = if is_fixed {
-            format!(" {sw}x{sh}*")
-        } else {
-            format!(" {sw}x{sh}")
-        };
+        let mode = if is_fixed { "fix" } else { "auto" };
+        let size_str = format!(" {sw}x{sh} {mode}");
         self.cached_lines[5] = (dim, pad_hud_line(&size_str));
     }
 
