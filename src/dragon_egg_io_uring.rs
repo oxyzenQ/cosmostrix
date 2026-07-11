@@ -70,8 +70,16 @@ mod tests {
 
         eprintln!("=== Dragon Egg: write() syscall overhead ===");
         eprintln!("  {} writes in {:.3?}", n, elapsed);
-        eprintln!("  per call: {:.0} ns = {:.3} µs", per_call_ns, per_call_ns / 1000.0);
-        eprintln!("  at 60 FPS (60 writes/s): {:.3} µs/s = {:.4}% CPU", per_call_ns * 60.0 / 1000.0, per_call_ns * 60.0 / 10_000_000.0);
+        eprintln!(
+            "  per call: {:.0} ns = {:.3} µs",
+            per_call_ns,
+            per_call_ns / 1000.0
+        );
+        eprintln!(
+            "  at 60 FPS (60 writes/s): {:.3} µs/s = {:.4}% CPU",
+            per_call_ns * 60.0 / 1000.0,
+            per_call_ns * 60.0 / 10_000_000.0
+        );
         eprintln!("  at 1000 FPS: {:.3} µs/s", per_call_ns * 1000.0 / 1000.0);
         eprintln!("  at 10000 FPS: {:.3} µs/s", per_call_ns * 10000.0 / 1000.0);
         eprintln!();
@@ -79,7 +87,11 @@ mod tests {
         // Assert: at 60 FPS, syscall overhead should be < 0.1% of CPU.
         // If it's higher, io_uring might be worth it.
         let cpu_fraction_at_60fps = (per_call_ns * 60.0) / 1_000_000_000.0; // fraction of 1 second
-        eprintln!("  CPU fraction at 60 FPS: {:.6} = {:.4}%", cpu_fraction_at_60fps, cpu_fraction_at_60fps * 100.0);
+        eprintln!(
+            "  CPU fraction at 60 FPS: {:.6} = {:.4}%",
+            cpu_fraction_at_60fps,
+            cpu_fraction_at_60fps * 100.0
+        );
 
         // Honest conclusion: if <0.01% CPU, io_uring is NOT worth it.
         if cpu_fraction_at_60fps < 0.0001 {
@@ -111,7 +123,9 @@ mod tests {
             let cpu_fraction = savings_per_write_ns * fps as f64 / 1_000_000_000.0;
             eprintln!(
                 "  at {:>6} FPS: save {:.3} µs/s = {:.4}% CPU",
-                fps, savings_per_sec_us, cpu_fraction * 100.0
+                fps,
+                savings_per_sec_us,
+                cpu_fraction * 100.0
             );
         }
         eprintln!();

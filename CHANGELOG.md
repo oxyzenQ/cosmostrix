@@ -9,6 +9,69 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v13.3.1 — Dragon Performance Merge (18 Dragon Eggs + P1/P2/P3)
+
+Performance-only patch release. Merges the `dragon-experimental`
+branch: 8 commits containing 18 "dragon egg" micro-optimizations
+plus 3 P-tier optimizations (P1/P2/P3). No color/render quality
+changes — all commits are pure performance work.
+
+### P1: Gate Component Timing Behind Flag
+
+`cloud.rain_at()` skips 2 `Instant::now()` calls (t1, t2) when
+`enable_component_timing` is false. Interactive mode leaves it off;
+`--benchmark` and `--perf-stats` enable it. Saves ~40ns/frame.
+
+### P2: Halve spin_wait Instant::now() Calls
+
+`activity.spin_wait()` cached `now` for both deadline + limit checks.
+Saves ~250µs/frame in interactive mode (50% reduction in spin timing).
+
+### P3: Combined flush_ansi + io_uring Dead End
+
+- `terminal.flush_ansi()` combines `SYNC_START + ansi_buf + SYNC_END`
+  into a single `write_all` via reusable buffer. Reduces syscalls 3→1.
+- `dragon_egg_io_uring.rs` proves io_uring NOT worth it: `write()`
+  syscall is 306ns/call = 0.0018% CPU at 60 FPS. Dead end.
+
+### 18 Dragon Eggs: Eliminate Redundant Bounds Checks + Option Allocs
+
+All 18 eggs: `.get(i)` → direct `[]` indexing when `i` was already
+bounds-checked. 2-3 cycles faster per call.
+
+| Eggs | File | Pattern |
+|------|------|---------|
+| #1-5 | frame.rs, terminal.rs | set(), set_force(), diff path, dirty_map, clear_dirty() |
+| #6-7 | frame.rs | cell_gen_at_index(), get() test accessor |
+| #8-10 | phosphor.rs | phosphor_fresh, phosphor_in_active |
+| #11-13 | render.rs | get_char(), col_stat, edge_fade LUT |
+| #14-18 | render.rs, spawn.rs, monolith.rs | glitch_map, color_map, palette_slices |
+
+Eggs #19-21 attempted but caused regression — compiler was already
+optimal in those paths. Reverted.
+
+### Performance Gains
+
+| Size | v13.3.0 avg FPS | v13.3.1 avg FPS | Delta |
+|------|----------------:|----------------:|------:|
+| 4×4 | 765,235 | 790,770 | +3.3% |
+| 80×24 | 105,256 | 108,572 | +3.2% |
+| 120×40 | 51,236 | 51,865 | +1.2% |
+| 200×60 | 28,138 | 28,582 | +1.6% |
+
+Peak 4×4: 1,082,251 → 1,122,334 FPS (+3.7%)
+
+### What Did NOT Change
+
+- No color palette changes
+- No rendering logic changes
+- No visual quality changes
+- 731 tests pass (729 existing + 2 dragon egg tests)
+- `supercharger.c`/`supercharger.rs` are research artifacts, gated
+  behind feature flag, NOT compiled by default
+
+---
+
 ## v13.3.0 — Encoding Instrumentation (SGR cache hit-rate + ANSI bytes/frame)
 
 Adds empirical measurement instrumentation to the diff-based rendering

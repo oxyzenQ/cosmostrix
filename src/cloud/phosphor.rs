@@ -145,9 +145,7 @@ impl Cloud {
                 if pidx < self.phosphor_layer.len() {
                     self.phosphor_layer[pidx] = d.layer;
                 }
-                if pidx < self.phosphor_fresh.len()
-                    && !self.phosphor_fresh[pidx]
-                {
+                if pidx < self.phosphor_fresh.len() && !self.phosphor_fresh[pidx] {
                     self.phosphor_fresh.set(pidx, true);
                     self.phosphor[pidx] = captured_phosphor_energy(line, lines);
                     let fidx = line as usize * frame_width as usize + d.bound_col as usize;
