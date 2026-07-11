@@ -245,6 +245,7 @@ mod cases {
             bench_frames: None,
             benchmark: false,
             bench_duration: None,
+            screen_size: None,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
             json: false,
             verbose: false,

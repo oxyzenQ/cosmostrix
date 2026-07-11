@@ -43,9 +43,13 @@ pub struct CloudConfig {
     pub duration_s: Option<f64>,
     pub bench_frames: Option<u64>,
     pub benchmark: bool,
-    /// Optional benchmark duration override in seconds (1-600).
+    /// Optional benchmark duration override in seconds.
     /// When None, defaults to BENCHMARK_DURATION_SECS (5s).
+    /// Resolved from --bench-duration (bare seconds) OR --duration (compound: 6s/1h30m).
     pub bench_duration: Option<u64>,
+    /// Parsed --screen-size WxH value. None means dynamic (use terminal size).
+    /// When set, benchmark uses this fixed size; interactive renders to fixed virtual size.
+    pub screen_size: Option<(u16, u16)>,
     /// Parsed --color-tune value. None means no tune (identity).
     pub color_tune: crate::color_tune::ColorTune,
     /// Output benchmark report as JSON (--json flag).

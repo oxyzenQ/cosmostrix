@@ -70,6 +70,7 @@ mod cell;
 mod charset;
 mod cinematic;
 mod cli;
+mod cli_parse;
 mod cloud;
 mod color_cache;
 mod color_tune;
@@ -894,7 +895,10 @@ fn main() -> std::io::Result<()> {
         duration_s,
         bench_frames: args.bench_frames,
         benchmark: args.benchmark,
-        bench_duration: args.bench_duration,
+        bench_duration: resolve_bench_duration_args(&args.bench_duration),
+        screen_size: crate::ux::or_exit(crate::cli_parse::parse_screen_size_optional(
+            &args.screen_size,
+        )),
         color_tune,
         json: args.json,
         verbose: args.verbose,
@@ -921,6 +925,14 @@ fn main() -> std::io::Result<()> {
     }
 
     interactive::run_interactive(&cloud_cfg)
+}
+
+/// Resolve bench duration from --bench-duration (now accepts compound format).
+/// Returns None if not specified (benchmark uses default 5s).
+fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
+    input
+        .as_ref()
+        .map(|s| crate::ux::or_exit(crate::cli_parse::parse_duration(s)))
 }
 
 fn canonicalize_runtime_args(args: &mut Args) {

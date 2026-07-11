@@ -61,6 +61,9 @@ const BENCHMARK_DURATION_SECS: u64 = 5;
 /// prevents runaway processes in CI. Users wanting longer endurance
 /// runs should use the regular interactive mode with --duration.
 const BENCH_DURATION_MIN: u64 = 1;
+/// Maximum benchmark duration for --bench-duration (legacy, no longer enforced).
+/// Kept for documentation; --duration has no max cap.
+#[allow(dead_code)]
 const BENCH_DURATION_MAX: u64 = 600;
 
 /// Warmup duration for the premium benchmark in seconds.
@@ -90,7 +93,7 @@ fn median_sorted(data: &[f64]) -> f64 {
 pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let bench_frames = cfg.bench_frames.expect("bench_frames must be set");
 
-    let (w, h) = bench_dimensions();
+    let (w, h) = bench_dimensions(cfg.screen_size);
 
     let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);
 
@@ -143,11 +146,7 @@ fn resolve_bench_duration(override_secs: Option<u64>) -> Result<u64, String> {
         Some(n) if n < BENCH_DURATION_MIN => Err(format!(
             "error: --bench-duration {n} is below the {BENCH_DURATION_MIN}-second minimum"
         )),
-        Some(n) if n > BENCH_DURATION_MAX => Err(format!(
-            "error: --bench-duration {n} exceeds the {BENCH_DURATION_MAX}-second maximum \
-             (use interactive mode with --duration for longer endurance runs)"
-        )),
-        Some(n) => Ok(n),
+        Some(n) => Ok(n), // No max cap — user can run endurance tests via --duration
         None => Ok(BENCHMARK_DURATION_SECS),
     }
 }
@@ -169,7 +168,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     progress.begin();
 
     // ── Initialization ───────────────────────────────────────────────────
-    let (w, h) = bench_dimensions();
+    let (w, h) = bench_dimensions(cfg.screen_size);
     let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
@@ -558,7 +557,14 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 /// Values are clamped to `[MIN_TERMINAL_COLS, MAX_TERMINAL_COLS]` and
 /// `[MIN_TERMINAL_LINES, MAX_TERMINAL_LINES]` to prevent panics from
 /// degenerate sizes (e.g. 1x1 causes bitvec index-out-of-range).
-fn bench_dimensions() -> (u16, u16) {
+fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
+    // --screen-size CLI flag takes precedence
+    if let Some((w, h)) = cli_size {
+        let w = w.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+        let h = h.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+        return (w, h);
+    }
+    // Fall back to env vars (backward compat)
     let w = env::var("COSMOSTRIX_BENCH_COLS")
         .ok()
         .and_then(|v| v.parse::<u16>().ok())
@@ -715,11 +721,10 @@ mod tests {
     }
 
     #[test]
-    fn resolve_bench_duration_rejects_above_maximum() {
-        let err = resolve_bench_duration(Some(601)).unwrap_err();
-        assert!(
-            err.contains("exceeds the"),
-            "above-maximum error must explain the ceiling: {err}"
-        );
+    fn resolve_bench_duration_accepts_above_legacy_maximum() {
+        // v13.4.0: no max cap — --duration allows unlimited endurance runs.
+        // 601s was previously rejected; now accepted.
+        assert_eq!(resolve_bench_duration(Some(601)).unwrap(), 601);
+        assert_eq!(resolve_bench_duration(Some(3600)).unwrap(), 3600);
     }
 }

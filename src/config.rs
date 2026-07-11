@@ -372,10 +372,22 @@ pub struct Args {
         long = "bench-duration",
         help_heading = "DIAGNOSTICS",
         display_order = 111,
-        help = "Benchmark duration in seconds (1-600, default 5). \
+        help = "Benchmark duration (default 5). Accepts bare seconds (5) or \
+                compound format (6s, 30m, 1h30m). Min: 1s. No max cap. \
                 Use with --benchmark for long-run drift / leak detection."
     )]
-    pub bench_duration: Option<u64>,
+    pub bench_duration: Option<String>,
+
+    #[arg(
+        long = "screen-size",
+        help_heading = "DIAGNOSTICS",
+        display_order = 113,
+        help = "Fixed screen size WxH (e.g. 120x40, 12x12). \
+                Benchmark: override terminal size. \
+                Interactive: render to fixed virtual size (ignores terminal resize). \
+                Minimum: 1x1. If larger than terminal, renders to top-left and clips."
+    )]
+    pub screen_size: Option<String>,
 
     #[arg(
         long = "json",

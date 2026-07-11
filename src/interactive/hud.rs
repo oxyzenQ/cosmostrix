@@ -82,9 +82,12 @@ pub(crate) struct HudState {
     max_reset_at: Instant,
     /// Cached p99 frame time (ms) for display. Updated at 4 Hz.
     p99_ms: f64,
+    /// Screen size for HUD display. Updated by event_loop when terminal
+    /// resizes or --screen-size is set. Format: (width, height, is_fixed).
+    screen_size: (u16, u16, bool),
     /// Cached display strings — reformatted only at 4 Hz, written to
     /// frame buffer every frame via write_to_frame().
-    cached_lines: [(Color, String); 5],
+    cached_lines: [(Color, String); 6],
 }
 
 impl HudState {
@@ -104,11 +107,13 @@ impl HudState {
             max_ms: 0.0,
             max_reset_at: Instant::now(),
             p99_ms: 0.0,
+            screen_size: (0, 0, false),
             cached_lines: [
                 (Color::Cyan, String::new()),
                 (Color::Yellow, String::new()),
                 (Color::Magenta, String::new()),
                 (Color::Green, String::new()),
+                (Color::DarkCyan, String::new()),
                 (Color::DarkCyan, String::new()),
             ],
         }
@@ -177,6 +182,12 @@ impl HudState {
         self.last_rss_kb = memstat::current_rss_kb();
     }
 
+    /// Set the screen size for HUD display. Called by event_loop on init
+    /// and resize. `is_fixed` = true when --screen-size was specified.
+    pub(crate) fn set_screen_size(&mut self, w: u16, h: u16, is_fixed: bool) {
+        self.screen_size = (w, h, is_fixed);
+    }
+
     /// Recompute HUD metrics (rate-limited at 4 Hz). Called every frame
     /// from the event loop. Cheap on the fast path (one timestamp
     /// comparison + early return). When the interval elapses, reformats
@@ -238,6 +249,14 @@ impl HudState {
         self.cached_lines[2] = (head, pad_hud_line(&format!(" max: {:>6.3}ms", self.max_ms)));
         self.cached_lines[3] = (trail, pad_hud_line(&format!(" rss: {:>8}", rss_str)));
         self.cached_lines[4] = (dim, pad_hud_line(&format!(" up: {:>5}", uptime_str)));
+        // Screen size line: "120x40" or "120x40*" (fixed)
+        let (sw, sh, is_fixed) = self.screen_size;
+        let size_str = if is_fixed {
+            format!(" {sw}x{sh}*")
+        } else {
+            format!(" {sw}x{sh}")
+        };
+        self.cached_lines[5] = (dim, pad_hud_line(&size_str));
     }
 
     /// Render the HUD overlay. Called every frame when visible, but

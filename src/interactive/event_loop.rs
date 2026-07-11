@@ -143,7 +143,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     if cfg.mouse && term.enable_mouse_capture().is_ok() {
         MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
     }
-    let (w, h) = term.size()?;
+    // --screen-size: use fixed virtual size if specified, else dynamic terminal size.
+    let (w, h) = if let Some(fixed) = cfg.screen_size {
+        let (tw, th) = term.size().unwrap_or((fixed.0, fixed.1));
+        if fixed.0 > tw || fixed.1 > th {
+            eprintln!(
+                "warning: --screen-size {}x{} exceeds terminal {}x{}; will clip to top-left",
+                fixed.0, fixed.1, tw, th
+            );
+        }
+        fixed
+    } else {
+        term.size()?
+    };
 
     let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);
 
@@ -192,6 +204,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // bits, which falls through to the screensaver exit path. A simple
     // lowercase printable letter is sent reliably by every keyboard.
     let mut hud_state: HudState = HudState::new();
+    hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
 
     // Perceived-motion diagnostics: track how many frames produce visible
     // changes vs. frames where nothing visually changed. This helps diagnose
@@ -329,14 +342,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 let ev = Terminal::read_event()?;
                 match ev {
                     Event::Resize(nw, nh) => {
-                        // Clamp to safe bounds before storing — raw crossterm
-                        // values can be degenerate (0×0, 65535×65535) during
-                        // window transitions and would panic in Uniform::new
-                        // or cause massive allocations inside cloud.reset().
-                        let cw = nw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
-                        let ch = nh.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
-                        pending_resize = Some((cw, ch));
-                        last_resize_event = Some(Instant::now());
+                        // --screen-size: ignore terminal resize when in fixed mode
+                        if cfg.screen_size.is_some() {
+                            // Fixed mode — ignore resize, keep virtual size
+                        } else {
+                            // Dynamic mode — clamp to safe bounds before storing
+                            let cw = nw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+                            let ch = nh.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+                            pending_resize = Some((cw, ch));
+                            last_resize_event = Some(Instant::now());
+                        }
                     }
                     Event::Key(k) if k.kind == KeyEventKind::Press => {
                         let activity_time = Instant::now();
@@ -563,6 +578,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
             cloud.force_draw_everything();
             last_resync_time = Instant::now();
+            // Update HUD screen size on dynamic resize (fixed mode ignores resize)
+            if cfg.screen_size.is_none() {
+                hud_state.set_screen_size(nw, nh, false);
+            }
         }
 
         // Key handling can toggle pause/resume after the frame period was

@@ -9,6 +9,78 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v13.4.0 — Screen Size + Duration Features
+
+New feature release. Adds `--screen-size WxH` for fixed virtual screen
+size and `--duration` for human-readable benchmark duration. HUD now
+shows screen size on the 6th line.
+
+### Features
+
+**`--screen-size WxH`** (e.g. `--screen-size 120x40`, `--screen-size 12x12`):
+- **Benchmark mode**: override terminal size. Replaces
+  `COSMOSTRIX_BENCH_COLS`/`COSMOSTRIX_BENCH_LINES` env vars.
+  Example: `cosmostrix --benchmark --screen-size 12x12 --json`
+- **Interactive mode**: render to fixed virtual size. Ignores terminal
+  resize events. If screen-size exceeds terminal, prints warning and
+  clips to top-left.
+- **Without `--screen-size`**: dynamic (current behavior — follows
+  terminal resize).
+- Minimum: `1x1`. Maximum: `65535x65535` (u16 range).
+- Case-insensitive: `120x40` or `120X40` both work.
+
+**`--duration` compound format** (e.g. `--duration 6s`, `--duration 1h30m`):
+- Human-readable duration: `6s`, `30m`, `1h`, `1h30m`, `2h15m30s`
+- Long forms: `6sec`, `30mins`, `1hour` also accepted
+- Bare number: `--duration 90` = 90 seconds (backward compat)
+- Minimum: `1s`. No maximum cap (user responsibility for long runs).
+- Alias for `--bench-duration` — `--duration` takes precedence if both
+  are specified.
+- `--bench-duration` 600s max cap REMOVED — unlimited endurance runs.
+
+**HUD screen size line**:
+- 6th HUD line shows current screen size: `120x40` (dynamic) or
+  `120x40*` (fixed via `--screen-size`).
+- Updates on terminal resize (dynamic mode) or stays constant (fixed mode).
+
+### Implementation
+
+- `src/cli_parse.rs` (new, 175 LOC): `parse_duration()` + `parse_screen_size()`
+  with 16 unit tests covering all formats + edge cases.
+- `src/config.rs`: added `--duration` + `--screen-size` CLI args.
+- `src/app.rs`: added `screen_size: Option<(u16, u16)>` to CloudConfig.
+- `src/main.rs`: `resolve_bench_duration_args()` — `--duration` takes
+  precedence over `--bench-duration`.
+- `src/bench.rs`: `bench_dimensions()` accepts CLI screen-size;
+  removed 600s max cap from `resolve_bench_duration()`.
+- `src/interactive/event_loop.rs`: fixed vs dynamic size logic;
+  resize events ignored in fixed mode; warning on size > terminal.
+- `src/interactive/hud.rs`: 6th HUD line for screen size;
+  `set_screen_size()` method.
+
+### Usage Examples
+
+```bash
+# Benchmark at fixed 12x12 size (tiny terminal = max FPS)
+cosmostrix --benchmark --screen-size 12x12 --json
+
+# Benchmark for 10 minutes
+cosmostrix --benchmark --duration 10m --json
+
+# Benchmark for 1h30m (endurance test)
+cosmostrix --benchmark --duration 1h30m --json
+
+# Interactive at fixed 80x24 (ignores terminal resize)
+cosmostrix --screen-size 80x24
+
+# Interactive dynamic (current behavior — follows terminal)
+cosmostrix
+```
+
+All 747 tests pass (731 existing + 16 new cli_parse tests). Clippy + fmt clean.
+
+---
+
 ## v13.3.1 — Dragon Performance Merge (18 Dragon Eggs + P1/P2/P3)
 
 Performance-only patch release. Merges the `dragon-experimental`
