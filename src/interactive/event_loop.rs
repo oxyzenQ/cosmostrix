@@ -151,6 +151,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.reset(w, h);
     // Enable atmospheric events for interactive mode (ghosts, etc.).
     cloud.enable_events();
+    // P1: enable per-component timing only when --perf-stats is requested.
+    // When off, rain_at() skips 2 Instant::now() calls per frame (~40ns).
+    cloud.set_component_timing(cfg.perf_stats);
 
     // Build color byte cache from the palette so the draw hot path can
     // emit pre-formatted ANSI SGR sequences instead of formatting on the fly.
@@ -299,7 +302,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
 
-        if end_time.is_some_and(|end| Instant::now() >= end) {
+        // P2: reuse loop_now (captured at top of loop) instead of another Instant::now().
+        if end_time.is_some_and(|end| loop_now >= end) {
             cloud.raining = false;
             break;
         }
@@ -593,7 +597,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let work_start = Instant::now();
         // Pass idle state to Cloud for Weather Director tick
         cloud.is_idle = is_idle;
-        cloud.rain(&mut frame);
+        // P1: call rain_at directly with work_start instead of cloud.rain()
+        // (which calls Instant::now() internally). Saves 1 Instant::now()
+        // per frame (~20ns).
+        cloud.rain_at(&mut frame, work_start);
 
         // Write HUD into the frame buffer BEFORE term.draw() so it's
         // part of the same flush — eliminates fullscreen flicker.
@@ -652,8 +659,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     endurance_health.push_rss(rss as f64);
                 }
                 // Context switch rate sampling.
-                let now = Instant::now();
-                let elapsed = now
+                // P2: reuse work_start (captured just before cloud.rain_at) instead
+                // of another Instant::now(). The timing difference is <1ms, negligible
+                // for context switch rate measurement (sampled every 60 frames ≈ 1s).
+                let elapsed = work_start
                     .saturating_duration_since(last_ctxt_sample)
                     .as_secs_f64();
                 if elapsed > 0.0 {
@@ -666,7 +675,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
                         last_ctxt_switches = cur;
                     }
-                    last_ctxt_sample = now;
+                    last_ctxt_sample = work_start;
                 }
                 endurance_health.recompute();
             }

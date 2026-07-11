@@ -126,6 +126,10 @@ pub struct Terminal {
     /// Number of `flush_ansi()` calls (= number of frames drawn).
     /// Used with `total_ansi_bytes` to compute average bytes/frame.
     flush_count: u64,
+    /// P3: reusable buffer for combining SYNC_START + ansi_buf + SYNC_END
+    /// into a single write_all call. Only used when sync_output is enabled.
+    /// Grows as needed, never shrinks. Avoids per-frame allocation.
+    combined_flush_buf: Vec<u8>,
 }
 
 impl Terminal {
@@ -170,6 +174,7 @@ impl Terminal {
             color_cache: None,
             total_ansi_bytes: 0,
             flush_count: 0,
+            combined_flush_buf: Vec::with_capacity(8192),
         };
 
         let init_res: Result<()> = (|| {
@@ -224,6 +229,15 @@ impl Terminal {
     /// increments `flush_count` for `--perf-stats` reporting. The sync
     /// wrapper bytes (12 bytes total when sync_output is enabled) are
     /// NOT counted — only the actual frame content.
+    ///
+    /// P3 optimization: when sync_output is enabled, combine the 3
+    /// write_all calls (SYNC_START + ansi_buf + SYNC_END) into a single
+    /// write_all via a combined buffer. This reduces syscalls from 3 to 1
+    /// per frame. At 60 FPS, saves 120 syscalls/second (3→1 × 60).
+    /// Each syscall is ~1µs, so saves ~120µs/second of syscall overhead.
+    ///
+    /// The combined buffer is reused across frames (self.combined_flush_buf)
+    /// to avoid per-frame allocation. It grows as needed but never shrinks.
     #[inline]
     fn flush_ansi(&mut self) -> Result<()> {
         if !self.ansi_buf.is_empty() {
@@ -233,9 +247,14 @@ impl Terminal {
             self.flush_count += 1;
 
             if self.term_caps.sync_output {
-                self.stdout.write_all(crate::termdetect::SYNC_START)?;
-                self.stdout.write_all(&self.ansi_buf)?;
-                self.stdout.write_all(crate::termdetect::SYNC_END)?;
+                // P3: combine SYNC_START + ansi_buf + SYNC_END into one write.
+                // Reuse the combined buffer to avoid per-frame allocation.
+                let combined = &mut self.combined_flush_buf;
+                combined.clear();
+                combined.extend_from_slice(crate::termdetect::SYNC_START);
+                combined.extend_from_slice(&self.ansi_buf);
+                combined.extend_from_slice(crate::termdetect::SYNC_END);
+                self.stdout.write_all(combined)?;
             } else {
                 self.stdout.write_all(&self.ansi_buf)?;
             }
@@ -530,7 +549,11 @@ impl Terminal {
             // Most dirty cells are unchanged (set to blank by tail pass);
             // this avoids copying ~24 bytes per Cell for early-exit.
             let cell0_ref = frame.cell_at_index_ref(idx0);
-            if last.cells.get(idx0) == Some(cell0_ref) {
+            // Dragon egg #2: direct indexing — dirty_flat was filtered to
+            // idx < height*width, so idx0 is guaranteed in bounds.
+            // BEFORE: last.cells.get(idx0) == Some(cell0_ref)
+            // AFTER:  &last.cells[idx0] == cell0_ref
+            if &last.cells[idx0] == cell0_ref {
                 i += 1;
                 continue;
             }
@@ -563,7 +586,8 @@ impl Terminal {
                 }
 
                 let cell1_ref = frame.cell_at_index_ref(idx1);
-                if last.cells.get(idx1) == Some(cell1_ref) {
+                // Dragon egg #3: direct indexing — idx1 from dirty_flat (filtered).
+                if &last.cells[idx1] == cell1_ref {
                     break;
                 }
                 if cell1_ref.fg != fg0 || cell1_ref.bg != bg0 || cell1_ref.bold != bold0 {

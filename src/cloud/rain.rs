@@ -33,9 +33,14 @@ impl Cloud {
         // rain_at. sim_ms = (t1 - t0), render_ms = (t2 - t1). The benchmark
         // reads these via last_sim_ms() / last_render_ms() to produce a
         // sub-component timing breakdown without external instrumentation.
-        // Instant::now() is ~20ns on Linux, negligible vs typical 80-200µs
-        // frame times.
-        let t0 = Instant::now();
+        //
+        // P1 optimization: t0 is just `now` (the caller already captured
+        // it). The two extra Instant::now() calls (t1, t2) are gated behind
+        // enable_component_timing — only the benchmark and --perf-stats
+        // paths need them. Interactive mode skips them for ~40ns/frame
+        // savings (2 calls × ~20ns each).
+        let t0 = now;
+        let enable_timing = self.enable_component_timing;
 
         // ── Atmospheric Event Engine: evaluate triggers ──
         let anomaly_density = self.anomaly_zones.len() as f32 / ANOMALY_MAX_ZONES.max(1) as f32;
@@ -258,10 +263,12 @@ impl Cloud {
                 };
 
                 if died {
-                    if let Some(cs) = self.col_stat.get_mut(col as usize) {
-                        cs.num_droplets = cs.num_droplets.saturating_sub(1);
-                        cs.can_spawn = true;
-                    }
+                    // Dragon egg #12: direct indexing — col comes from d.col which
+                    // is guaranteed < cols (checked at spawn). col_stat is resized
+                    // to cols in spawn.rs.
+                    let cs = &mut self.col_stat[col as usize];
+                    cs.num_droplets = cs.num_droplets.saturating_sub(1);
+                    cs.can_spawn = true;
                     // Return the dead droplet's index to the free-list so
                     // spawn_droplets can reuse it in O(1) on the next spawn.
                     self.droplet_free_list.push(i);
@@ -441,8 +448,13 @@ impl Cloud {
         // spawn rate, droplet physics). Everything below mutates the frame
         // buffer — that is "render" (phosphor decay, anomaly zones,
         // atmospheric post-processing, message box).
-        let t1 = Instant::now();
-        self.last_sim_ms = t1.saturating_duration_since(t0).as_secs_f64() * 1000.0;
+        //
+        // P1: only capture t1 when component timing is enabled (benchmark
+        // or --perf-stats). Interactive mode skips this Instant::now().
+        let t1 = if enable_timing { Instant::now() } else { t0 };
+        if enable_timing {
+            self.last_sim_ms = t1.saturating_duration_since(t0).as_secs_f64() * 1000.0;
+        }
 
         self.phosphor_decay_pass(frame, phosphor_elapsed);
         if matches!(self.rain_style, RainStyle::Monolith) {
@@ -644,7 +656,11 @@ impl Cloud {
         // Capture render_ms AFTER all frame mutations complete. Anything
         // after this point (flash expiry bookkeeping) is trivial scalar
         // work and not worth attributing to either half.
-        let t2 = Instant::now();
-        self.last_render_ms = t2.saturating_duration_since(t1).as_secs_f64() * 1000.0;
+        //
+        // P1: only capture t2 when component timing is enabled.
+        if enable_timing {
+            let t2 = Instant::now();
+            self.last_render_ms = t2.saturating_duration_since(t1).as_secs_f64() * 1000.0;
+        }
     }
 }

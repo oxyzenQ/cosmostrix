@@ -105,6 +105,7 @@ mod runtime;
 mod safepath;
 mod scene;
 mod sgr_format;
+mod dragon_egg_io_uring;
 mod termdetect;
 mod terminal;
 mod testconf;

@@ -96,6 +96,7 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
+    cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 
@@ -173,6 +174,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
+    cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 

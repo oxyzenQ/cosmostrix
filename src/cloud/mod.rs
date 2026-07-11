@@ -320,6 +320,14 @@ pub struct Cloud {
     /// step that mutates the frame buffer. Zero until the first
     /// `rain_at()` call completes.
     pub(super) last_render_ms: f64,
+    /// When true, `rain_at()` captures per-component timing (t1, t2 via
+    /// `Instant::now()`) for the sim/render split. When false (default),
+    /// those `Instant::now()` calls are skipped entirely — saving ~40ns
+    /// per frame (2 calls × ~20ns each) on the hot path.
+    ///
+    /// Set to true by `--benchmark` and `--perf-stats` paths. The
+    /// interactive event loop leaves it false for zero overhead.
+    pub(super) enable_component_timing: bool,
 }
 
 impl Cloud {
@@ -445,6 +453,7 @@ impl Cloud {
             event_manager: AtmosphericEventManager::new(now),
             last_sim_ms: 0.0,
             last_render_ms: 0.0,
+            enable_component_timing: false,
         }
     }
 
@@ -563,6 +572,17 @@ impl Cloud {
     #[must_use]
     pub fn last_render_ms(&self) -> f64 {
         self.last_render_ms
+    }
+
+    /// Enable or disable per-component timing instrumentation inside
+    /// `rain_at()`. When enabled, two `Instant::now()` calls are made
+    /// per frame to split sim/render time. When disabled (default),
+    /// those calls are skipped for zero overhead on the hot path.
+    ///
+    /// Enabled by `--benchmark` and `--perf-stats`. The interactive
+    /// event loop leaves it disabled unless perf-stats is requested.
+    pub fn set_component_timing(&mut self, enabled: bool) {
+        self.enable_component_timing = enabled;
     }
 
     /// Get the name of the active scene.
