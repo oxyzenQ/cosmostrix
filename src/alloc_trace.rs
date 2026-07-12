@@ -4,13 +4,17 @@
 //! Allocator tracing — global allocator wrapper that counts alloc/dealloc calls.
 //!
 //! Phase 5 of DeepSeek benchmark restructuring plan.
+//! Dragon Supercharger: now wraps mimalloc instead of System for
+//! reduced allocation latency and fragmentation.
 //!
-//! Wraps `std::alloc::System` with atomic counters for alloc/dealloc/realloc
+//! Wraps `mimalloc::MiMalloc` with atomic counters for alloc/dealloc/realloc
 //! calls and bytes. Always active (overhead = ~2ns per call from atomic increment).
 //! Stats are read by the benchmark to report allocation patterns.
 
-use std::alloc::{GlobalAlloc, Layout, System};
+use std::alloc::{GlobalAlloc, Layout};
 use std::sync::atomic::{AtomicU64, Ordering};
+
+use mimalloc::MiMalloc;
 
 static ALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
 static DEALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
@@ -18,27 +22,29 @@ static REALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
 static BYTES_ALLOCATED: AtomicU64 = AtomicU64::new(0);
 static BYTES_DEALLOCATED: AtomicU64 = AtomicU64::new(0);
 
-/// Global allocator that wraps System and tracks allocation statistics.
+/// Global allocator that wraps mimalloc and tracks allocation statistics.
 pub struct TraceAlloc;
+
+static MI: MiMalloc = MiMalloc;
 
 unsafe impl GlobalAlloc for TraceAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
         BYTES_ALLOCATED.fetch_add(layout.size() as u64, Ordering::Relaxed);
-        System.alloc(layout)
+        MI.alloc(layout)
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         DEALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
         BYTES_DEALLOCATED.fetch_add(layout.size() as u64, Ordering::Relaxed);
-        System.dealloc(ptr, layout);
+        MI.dealloc(ptr, layout);
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         REALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
         BYTES_ALLOCATED.fetch_add(new_size as u64, Ordering::Relaxed);
         BYTES_DEALLOCATED.fetch_add(layout.size() as u64, Ordering::Relaxed);
-        System.realloc(ptr, layout, new_size)
+        MI.realloc(ptr, layout, new_size)
     }
 }
 

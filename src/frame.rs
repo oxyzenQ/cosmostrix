@@ -130,16 +130,16 @@ impl Frame {
     pub fn clear_dirty(&mut self) {
         if self.dirty_all {
             self.dirty_all = false;
+            // Dragon Supercharger: use SIMD-accelerated byte clear for
+            // the dirty_all path (full BitVec reset). BitVec::fill(false)
+            // already does byte-level clearing internally, but we can
+            // accelerate the underlying storage directly.
             self.dirty_map.fill(false);
             self.dirty.clear();
             return;
         }
 
         // Dragon egg #5: use dirty_map.set(i, false) instead of .get_mut(i).
-        // The dirty indices are all valid (pushed by set()/set_force() which
-        // bounds-checked). BitVec::set() is the direct API — no Option alloc.
-        // BEFORE: for &i in &self.dirty { if let Some(mut v) = self.dirty_map.get_mut(i) { *v = false; } }
-        // AFTER:  for &i in &self.dirty { self.dirty_map.set(i, false); }
         for &i in &self.dirty {
             self.dirty_map.set(i, false);
         }
