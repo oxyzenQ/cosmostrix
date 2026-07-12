@@ -287,7 +287,7 @@ fn apply_config_values(
             Err(e) => {
                 crate::output::eprintln_error_labeled(&format!(
                     "unknown profile '{v}' ({e}; see --list-profiles)"
-                )),
+                ));
             }
         }
     }

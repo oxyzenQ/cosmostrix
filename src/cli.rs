@@ -32,7 +32,9 @@ pub(crate) const HELP_TEMPLATE_COLOR: &str = "\
 
 #[cfg(unix)]
 use clap::builder::styling::{AnsiColor as ClapAnsiColor, Color as ClapColor};
+#[cfg(unix)]
 use clap::builder::styling::{Effects as ClapEffects, Style as ClapStyle};
+#[cfg(unix)]
 use clap::builder::Styles as ClapStyles;
 
 #[must_use]

@@ -30,6 +30,7 @@ use crate::scene;
 use crate::terminal::restore_terminal_best_effort;
 
 use super::super::{cycle_charset_preset, cycle_color_scheme, CloudConfig};
+#[cfg(unix)]
 use super::watchdog::MOUSE_CAPTURE_ACTIVE;
 
 const PASTE_BURST_SUPPRESS_MS: u64 = 50;
