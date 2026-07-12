@@ -35,27 +35,25 @@ impl EnergySnapshot {
         let mut pkg_count: u32 = 0;
         let mut found = false;
 
-        // Try intel-rapl:* and amd-rapl:* patterns
-        for prefix in &["intel-rapl", "amd-rapl"] {
-            let base = format!("/sys/class/powercap/{prefix}");
-            if let Ok(entries) = fs::read_dir("/sys/class/powercap") {
-                for entry in entries.flatten() {
-                    let name = entry.file_name();
-                    let name_str = name.to_string_lossy();
-                    if name_str.starts_with(prefix) && name_str.contains(':') {
-                        let energy_path = entry.path().join("energy_uj");
-                        if let Ok(energy_str) = fs::read_to_string(&energy_path) {
-                            if let Ok(uj) = energy_str.trim().parse::<u64>() {
-                                total_uj = total_uj.saturating_add(uj);
-                                pkg_count += 1;
-                                found = true;
-                            }
+        // Scan /sys/class/powercap/ for any *-rapl:* entries with energy_uj
+        // AMD CPUs use the intel-rapl interface (kernel naming legacy)
+        if let Ok(entries) = fs::read_dir("/sys/class/powercap") {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let name_str = name.to_string_lossy();
+                // Match intel-rapl:0, amd-rapl:0, etc. (top-level packages only,
+                // not sub-domains like intel-rapl:0:0)
+                if name_str.contains("-rapl:") && !name_str.contains("-rapl:0:") {
+                    let energy_path = entry.path().join("energy_uj");
+                    if let Ok(energy_str) = fs::read_to_string(&energy_path) {
+                        if let Ok(uj) = energy_str.trim().parse::<u64>() {
+                            total_uj = total_uj.saturating_add(uj);
+                            pkg_count += 1;
+                            found = true;
                         }
                     }
                 }
-                break; // Only try one prefix
             }
-            let _ = &base; // suppress unused warning
         }
 
         Self {
