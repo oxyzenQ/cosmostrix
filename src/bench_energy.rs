@@ -37,6 +37,8 @@ impl EnergySnapshot {
 
         // Scan /sys/class/powercap/ for any *-rapl:* entries with energy_uj
         // AMD CPUs use the intel-rapl interface (kernel naming legacy)
+        // Note: entries in /sys/class/ are symlinks — fs::read_to_string
+        // follows symlinks automatically, so this works.
         if let Ok(entries) = fs::read_dir("/sys/class/powercap") {
             for entry in entries.flatten() {
                 let name = entry.file_name();
@@ -45,12 +47,19 @@ impl EnergySnapshot {
                 // not sub-domains like intel-rapl:0:0 which have 2 colons)
                 let colon_count = name_str.matches(':').count();
                 if name_str.contains("-rapl:") && colon_count == 1 {
-                    let energy_path = entry.path().join("energy_uj");
-                    if let Ok(energy_str) = fs::read_to_string(&energy_path) {
-                        if let Ok(uj) = energy_str.trim().parse::<u64>() {
-                            total_uj = total_uj.saturating_add(uj);
-                            pkg_count += 1;
-                            found = true;
+                    // Use the real path (resolve symlink) for reading
+                    let real_path = fs::canonicalize(entry.path()).unwrap_or_else(|_| entry.path());
+                    let energy_path = real_path.join("energy_uj");
+                    match fs::read_to_string(&energy_path) {
+                        Ok(energy_str) => {
+                            if let Ok(uj) = energy_str.trim().parse::<u64>() {
+                                total_uj = total_uj.saturating_add(uj);
+                                pkg_count += 1;
+                                found = true;
+                            }
+                        }
+                        Err(_) => {
+                            // Permission denied or file doesn't exist — skip silently
                         }
                     }
                 }
