@@ -332,7 +332,6 @@ fn color_capability(mode: ColorMode) -> &'static str {
 fn background_guidance(color_bg: ColorBg) -> &'static str {
     match color_bg {
         ColorBg::Black => "black paints solid black",
-        ColorBg::Transparent => "transparent follows terminal emulator background",
         ColorBg::DefaultBackground => "default-background uses terminal default background",
     }
 }
@@ -407,10 +406,6 @@ mod tests {
 
     #[test]
     fn doctor_background_guidance_mentions_modes() {
-        assert_eq!(
-            background_guidance(ColorBg::Transparent),
-            "transparent follows terminal emulator background"
-        );
         assert_eq!(
             background_guidance(ColorBg::Black),
             "black paints solid black"

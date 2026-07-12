@@ -9,6 +9,47 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v13.6.0 — Background Mode Cleanup (default-background as default, transparent removed)
+
+User-facing behavior change: cosmostrix no longer paints a solid black
+background by default. The new default is `--color-bg default-background`,
+which follows the terminal emulator's configured background. If your
+terminal is set to cyan, dark gray, or a wallpaper image, cosmostrix
+will blend with it instead of covering it with `#000000`.
+
+### Changed
+
+- **`--color-bg` default is now `default-background`** (was `black`).
+  Cosmostrix no longer emits `48;2;0;0;0m` background codes per cell by
+  default — only foreground ANSI sequences. This saves ~12 bytes/cell
+  in interactive mode and makes the renderer blend seamlessly with
+  terminal themes. Users who want the old behavior can pass
+  `--color-bg black` explicitly.
+
+### Removed
+
+- **`--color-bg transparent`** variant. It was a duplicate of
+  `default-background` (both set `palette.bg = None` and
+  `default_background = true`). The `ColorBg::Transparent` enum variant,
+  the `transparent` parse arm in profile/config_apply, the
+  `make_cloud_transparent_bg` test helper, and the
+  `transparent_color_bg_does_not_force_solid_black` test (duplicate of
+  `default_background_mode_keeps_bg_none`) have all been removed.
+  Existing configs that set `color-bg = transparent` will now print an
+  error and fall back to the new default.
+
+### Migration
+
+- If you previously passed `--color-bg transparent`, use
+  `--color-bg default-background` (or simply omit the flag — it's the
+  new default).
+- If you previously relied on the implicit solid-black background, pass
+  `--color-bg black` explicitly to restore the old behavior.
+- Config files with `color-bg = transparent` must be updated to
+  `color-bg = default-background` (or removed entirely).
+
+---
+
 ## v13.4.0 — Screen Size + Duration Features
 
 New feature release. Adds `--screen-size WxH` for fixed virtual screen

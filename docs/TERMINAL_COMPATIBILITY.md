@@ -21,7 +21,7 @@ it keeps recovery paths conservative and explicit.
 
 | Terminal | Expected result | Notes |
 | --- | --- | --- |
-| Alacritty | Excellent | Truecolor is expected. `color-bg = transparent` follows Alacritty's configured background and opacity. |
+| Alacritty | Excellent | Truecolor is expected. `color-bg = default-background` follows Alacritty's configured background and opacity. |
 | Konsole | Excellent | Truecolor is expected on modern Konsole. |
 | Kitty | Excellent | Truecolor and Unicode rendering are expected. |
 | Ghostty | Excellent | Truecolor and Unicode rendering are expected. |
@@ -35,9 +35,8 @@ it keeps recovery paths conservative and explicit.
 
 | Setting | What Cosmostrix does | What it does not do |
 | --- | --- | --- |
+| `color-bg = default-background` (default) | Does not paint a solid background; it follows the terminal emulator background. | It does not change terminal emulator opacity. |
 | `color-bg = black` | Paints a solid black background. | Does not use terminal transparency. |
-| `color-bg = transparent` | Does not paint a solid background; it follows the terminal emulator background. | It does not change terminal emulator opacity. |
-| `color-bg = default-background` | Uses the terminal default background color. | Does not force transparency or black. |
 
 ## Reset Behavior
 
@@ -59,7 +58,7 @@ version, and Cosmostrix build.
 ```bash
 cosmostrix --doctor
 cosmostrix --reset-terminal
-cosmostrix --color-bg transparent
+cosmostrix --color-bg default-background
 cosmostrix --colormode 256
 cosmostrix --charset minimal
 ```
@@ -92,11 +91,11 @@ support RGB. If in doubt, compare outside tmux first.
 Use:
 
 ```bash
-cosmostrix --color-bg transparent
+cosmostrix --color-bg default-background
 ```
 
-Transparent mode follows the terminal emulator background. It does not change
-terminal emulator opacity. Configure opacity in the terminal emulator itself.
+`default-background` mode follows the terminal emulator background. It does not
+change terminal emulator opacity. Configure opacity in the terminal emulator itself.
 
 ### Terminal Left Weird After Kill
 

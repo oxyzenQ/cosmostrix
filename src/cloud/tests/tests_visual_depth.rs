@@ -31,22 +31,6 @@ pub(super) fn make_cloud_black_bg() -> Cloud {
     cloud
 }
 
-pub(super) fn make_cloud_transparent_bg() -> Cloud {
-    let mut cloud = Cloud::new(
-        ColorMode::TrueColor,
-        false,
-        ShadingMode::DistanceFromHead,
-        BoldMode::Random,
-        false,
-        true, // default_background = true (transparent)
-        ColorScheme::Green,
-        RainStyle::Glyph,
-    );
-    cloud.init_chars(vec!['0', '1']);
-    cloud.reset(20, 10);
-    cloud
-}
-
 pub(super) fn make_cloud_default_bg() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
@@ -54,28 +38,13 @@ pub(super) fn make_cloud_default_bg() -> Cloud {
         ShadingMode::DistanceFromHead,
         BoldMode::Random,
         false,
-        true, // default_background = true
+        true, // default_background = true (follows terminal emulator bg)
         ColorScheme::Green,
         RainStyle::Glyph,
     );
     cloud.init_chars(vec!['0', '1']);
     cloud.reset(20, 10);
     cloud
-}
-
-#[test]
-fn transparent_color_bg_does_not_force_solid_black() {
-    let cloud = make_cloud_transparent_bg();
-    // Transparent mode means bg should be None
-    assert_eq!(
-        cloud.palette.bg, None,
-        "transparent color-bg must NOT paint a solid background"
-    );
-    // The cloud's default_background flag must be true
-    assert!(
-        cloud.default_background,
-        "transparent mode should set default_background=true"
-    );
 }
 
 #[test]

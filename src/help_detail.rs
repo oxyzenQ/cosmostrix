@@ -135,12 +135,13 @@ APPEARANCE:
   -M, --shadingmode <0|1>
       Shading mode (random, cinematic).
 
-  --color-bg <black|default-background|transparent>
-      Background rendering mode. 'transparent' means Cosmostrix does not
-      paint a solid background — it follows the terminal emulator
-      background. It does not change terminal emulator opacity.
-      Example: if Alacritty uses a black background, transparent will
-      still look black.
+  --color-bg <black|default-background>
+      Background rendering mode. 'default-background' (default) means
+      Cosmostrix does not paint a solid background — it follows the
+      terminal emulator background. It does not change terminal emulator
+      opacity.
+      Example: if Alacritty uses a cyan background, default-background
+      will show cyan behind the rain. 'black' forces solid #000000.
 
 GENERAL:
   -a, --async

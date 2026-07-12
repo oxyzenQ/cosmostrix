@@ -96,8 +96,6 @@ pub enum ColorBg {
     Black,
     #[value(name = "default-background")]
     DefaultBackground,
-    #[value(name = "transparent")]
-    Transparent,
 }
 
 /// Glitch intensity presets. Provides a grouped interface over individual
@@ -600,10 +598,10 @@ pub struct Args {
 
     #[arg(
         long = "color-bg",
-        default_value_t = ColorBg::Black,
+        default_value_t = ColorBg::DefaultBackground,
         value_enum,
         hide = true,
-        help = "Background mode (black, default-background, transparent)"
+        help = "Background mode (black, default-background)"
     )]
     pub color_bg: ColorBg,
 

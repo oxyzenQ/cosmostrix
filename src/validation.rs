@@ -212,7 +212,7 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
         "--color-bg" => CliSpec {
             name: "--color-bg",
             kind: CliKind::Enum {
-                allowed: &["black", "default-background", "transparent"],
+                allowed: &["black", "default-background"],
             },
         },
         "--glitch-level" => CliSpec {

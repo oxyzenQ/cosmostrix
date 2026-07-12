@@ -20,7 +20,7 @@ scene = monolith
 # ── Appearance ───────────────────────────────────────────────────────────
 color = cosmos
 charset = binary
-color-bg = black
+color-bg = default-background
 
 # ── Motion ───────────────────────────────────────────────────────────────
 fps = 60

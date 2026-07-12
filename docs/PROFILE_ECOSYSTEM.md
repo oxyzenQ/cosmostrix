@@ -43,7 +43,7 @@ the supported profile fields listed below.
 | `density` | Float | Rain density (0.01–5.0) |
 | `glitch-level` | Level name | Glitch intensity: `none`, `subtle`, `default`, `intense` |
 | `monolith-size` | Size name | Monolith pillar size: `small`, `normal`, `large` |
-| `color-bg` | Background | Background mode: `black`, `default-background`, `transparent` |
+| `color-bg` | Background | Background mode: `black`, `default-background` |
 | `atmosphere-mode` | Mode | `disabled` (default) or `controlled-live` (opt-in) |
 | `atmosphere-regime` | Regime | `calm`, `pulse`, `signal`, `compression`, `void`, `monolith-pressure` |
 

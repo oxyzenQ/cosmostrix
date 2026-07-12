@@ -808,10 +808,7 @@ fn main() -> std::io::Result<()> {
         DENSITY_CLAMP_MAX,
     ));
 
-    let default_bg = matches!(
-        args.color_bg,
-        ColorBg::DefaultBackground | ColorBg::Transparent
-    );
+    let default_bg = matches!(args.color_bg, ColorBg::DefaultBackground);
 
     // Phase 5 + Phase 10: Resolve atmosphere config from config/profile keys.
     // Default is Disabled/Calm — identical to v3.9.0 behavior.

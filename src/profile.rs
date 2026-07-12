@@ -444,7 +444,7 @@ fn apply_profile_overrides(
                 name,
                 "color-bg",
                 value,
-                "black, default-background, transparent",
+                "black, default-background",
             ),
         }
     }
@@ -513,7 +513,6 @@ fn parse_color_bg(value: &str) -> Option<ColorBg> {
     match value.trim().to_ascii_lowercase().as_str() {
         "black" => Some(ColorBg::Black),
         "default-background" | "default_background" => Some(ColorBg::DefaultBackground),
-        "transparent" => Some(ColorBg::Transparent),
         _ => None,
     }
 }

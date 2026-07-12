@@ -711,10 +711,9 @@ fn parse_color_bg_config(value: &str) -> Option<ColorBg> {
     match value.trim().to_ascii_lowercase().as_str() {
         "black" => Some(ColorBg::Black),
         "default-background" | "default_background" => Some(ColorBg::DefaultBackground),
-        "transparent" => Some(ColorBg::Transparent),
         _ => {
             eprintln!(
-                "error: invalid color-bg='{value}' (allowed: black, default-background, transparent)"
+                "error: invalid color-bg='{value}' (allowed: black, default-background)"
             );
             None
         }
