@@ -42,8 +42,9 @@ impl EnergySnapshot {
                 let name = entry.file_name();
                 let name_str = name.to_string_lossy();
                 // Match intel-rapl:0, amd-rapl:0, etc. (top-level packages only,
-                // not sub-domains like intel-rapl:0:0)
-                if name_str.contains("-rapl:") && !name_str.contains("-rapl:0:") {
+                // not sub-domains like intel-rapl:0:0 which have 2 colons)
+                let colon_count = name_str.matches(':').count();
+                if name_str.contains("-rapl:") && colon_count == 1 {
                     let energy_path = entry.path().join("energy_uj");
                     if let Ok(energy_str) = fs::read_to_string(&energy_path) {
                         if let Ok(uj) = energy_str.trim().parse::<u64>() {
