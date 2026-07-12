@@ -155,7 +155,7 @@ pub(crate) fn print_json_report(data: &BenchReportData) {
         o.push_kv("max_io_ms", data.max_io_ms);
     });
 
-    // ── cell_efficiency (P3: ChatGPT metrics) ──
+    // ── cell_efficiency (P3: DeepSeek metrics) ──
     json_object(&mut out, "cell_efficiency", |o| {
         o.push_kv("logical_cells_per_frame", data.logical_cells_per_frame);
         o.push_kv("dirty_cells_per_frame", data.avg_dirty_cells_per_frame);

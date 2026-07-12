@@ -80,7 +80,7 @@ pub(crate) struct BenchReportData {
     pub estimated_full_redraw_frames: u64,
     pub estimated_full_redraw_ratio_percent: f64,
 
-    // P3: Cells per frame (ChatGPT metrics)
+    // P3: Cells per frame (DeepSeek metrics)
     /// Total logical cells per frame = width × height.
     pub logical_cells_per_frame: u64,
     /// Nanoseconds per cell for the render phase (render_ms / dirty_cells).
@@ -512,7 +512,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         }
     }
 
-    // ── P3: Cell Efficiency (ChatGPT metrics) ──────────────────────
+    // ── P3: Cell Efficiency (DeepSeek metrics) ──────────────────────
     // Size-independent metrics: ns/cell lets you compare algorithm
     // efficiency across different terminal sizes. If ns/cell stays
     // constant as size grows, the algorithm is O(n). If it grows,

@@ -481,7 +481,7 @@ safe paths.
 ## v11.1.0 — Benchmark Depth & Theme Tuning
 
 Closes the "real metrics, not gimmick" gap and pushes the benchmark to
-S-tier (ChatGPT 9.8/10 → 10/10). The premium benchmark (`--benchmark`)
+S-tier (DeepSeek 9.8/10 → 10/10). The premium benchmark (`--benchmark`)
 now reports RSS memory, CPU usage, sub-component timing, long-run drift,
 build/environment metadata, page faults + context switches, and an
 explicit GPU-not-used declaration. A live HUD overlay brings the same

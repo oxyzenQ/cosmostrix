@@ -514,7 +514,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         dirty_threshold,
         estimated_full_redraw_frames,
         estimated_full_redraw_ratio_percent,
-        // P3: ChatGPT metrics — ns/cell + cells/frame
+        // P3: DeepSeek metrics — ns/cell + cells/frame
         logical_cells_per_frame: (w as u64) * (h as u64),
         render_ns_per_cell: if avg_dirty_cells_per_frame > 0.0 {
             (avg_render_ms * 1_000_000.0) / avg_dirty_cells_per_frame

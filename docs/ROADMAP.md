@@ -7,7 +7,7 @@
 ### v11.1.0 — Benchmark Depth & Theme Tuning (COMPLETE)
 
 Closes the "real metrics, not gimmick" gap and pushes the benchmark to
-S-tier (ChatGPT 9.8/10 → 10/10). The premium benchmark now reports RSS
+S-tier (DeepSeek 9.8/10 → 10/10). The premium benchmark now reports RSS
 memory, CPU usage, sub-component timing, long-run drift, build/environment
 metadata, page faults + context switches, GPU-not-used declaration, and
 JSON output. A live HUD overlay brings the same metrics into interactive
