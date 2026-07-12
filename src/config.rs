@@ -437,6 +437,16 @@ pub struct Args {
     pub bench_all: bool,
 
     #[arg(
+        long = "tune-visual",
+        help_heading = "DIAGNOSTICS",
+        display_order = 118,
+        help = "Auto-tune parameters to match target visual metrics. \
+                Format: entropy=5.2,gini=0.6. Runs iterative benchmark to find \
+                best density/glitch combination. Prints recommended config."
+    )]
+    pub tune_visual: Option<String>,
+
+    #[arg(
         long = "info",
         short = 'i',
         help_heading = "DIAGNOSTICS",

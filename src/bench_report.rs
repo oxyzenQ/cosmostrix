@@ -757,6 +757,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             }
             _ => {
                 s.field("status", "not available (RAPL requires Linux + powercap)");
+                s.field("hint", "See docs/RAPL_ACCESS.md for setup instructions");
             }
         }
     }
