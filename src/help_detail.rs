@@ -51,6 +51,12 @@ COMMON OPTIONS:
       Monolith-only terminal-cell segment scale, not pixel size.
       cosmostrix --scene monolith --monolith-size large
 
+  --uniform
+      Uniform column speeds. Disables the default async variable pacing
+      so all columns move at the same speed. Useful for testing or when
+      you want a rigid, mechanical look instead of organic rain.
+      cosmostrix --uniform
+
   -s, --screensaver
       Screensaver mode (exit on any keypress).
 
@@ -70,6 +76,7 @@ COMMON OPTIONS:
   --low-power
       Power-saving mode. Applies FPS 30, speed 5, density 0.5
       for parameters not explicitly provided.
+      Equivalent to --preset low-power (both produce the same values).
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.
@@ -78,8 +85,11 @@ COMMON OPTIONS:
       Apply a named parameter preset. Presets set color, charset,
       fps, speed, density, and glitch-level to curated values.
       Explicit CLI flags always override preset values.
+      Available presets: classic, cinematic, calm, monolith, storm,
+      cosmos, neon, hacker, low-power.
       cosmostrix --preset cinematic
       cosmostrix --preset storm --fps 60
+      cosmostrix --preset low-power
 
   --scene <matrix|monolith|signal>
       Apply a scene atmosphere. Monolith Rain is the default signature

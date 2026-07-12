@@ -39,6 +39,7 @@ pub const PRESET_NAMES: &[&str] = &[
     "cosmos",
     "neon",
     "hacker",
+    "low-power",
 ];
 
 /// Preset descriptions aligned with [`PRESET_NAMES`].
@@ -51,6 +52,7 @@ const PRESET_DESCRIPTIONS: &[&str] = &[
     "Cosmic binary with rich cosmos palette",
     "Vibrant cyberpunk with neon colors",
     "Green hacker aesthetic at high speed",
+    "Power-saving mode (30 FPS, reduced density/speed)",
 ];
 
 /// Look up a preset by case-insensitive name.
@@ -119,6 +121,14 @@ pub fn get_preset(name: &str) -> Option<PresetConfig> {
             fps: 60.0,
             speed: 11.0,
             density: 1.2,
+            glitch_level: GlitchLevel::Default,
+        }),
+        "low-power" => Some(PresetConfig {
+            color: "green",
+            charset: "binary",
+            fps: 30.0,
+            speed: 5.0,
+            density: 0.5,
             glitch_level: GlitchLevel::Default,
         }),
         _ => None,
@@ -231,8 +241,8 @@ mod tests {
 
     #[test]
     fn all_preset_names_present() {
-        assert_eq!(PRESET_NAMES.len(), 8);
-        assert_eq!(PRESET_DESCRIPTIONS.len(), 8);
+        assert_eq!(PRESET_NAMES.len(), 9);
+        assert_eq!(PRESET_DESCRIPTIONS.len(), 9);
     }
 
     #[test]
@@ -355,6 +365,17 @@ mod tests {
         assert_eq!(p.fps, 60.0);
         assert_eq!(p.speed, 11.0);
         assert!((p.density - 1.2).abs() < f32::EPSILON);
+        assert_eq!(p.glitch_level, GlitchLevel::Default);
+    }
+
+    #[test]
+    fn preset_values_low_power() {
+        let p = get_preset("low-power").unwrap();
+        assert_eq!(p.color, "green");
+        assert_eq!(p.charset, "binary");
+        assert_eq!(p.fps, 30.0, "low-power must cap fps at 30");
+        assert_eq!(p.speed, 5.0, "low-power must set speed to 5");
+        assert!((p.density - 0.5).abs() < f32::EPSILON, "low-power must set density to 0.5");
         assert_eq!(p.glitch_level, GlitchLevel::Default);
     }
 }

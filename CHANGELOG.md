@@ -9,7 +9,32 @@ All notable changes to this project are documented in this file.
 
 ---
 
-## v13.6.0 — Background Mode Cleanup (default-background as default, transparent removed)
+## v13.6.0 — CLI Simplification Stage 1 + Background Mode Cleanup
+
+### Stage 1: CLI Simplification (additive, zero breaking changes)
+
+Three additive improvements to the CLI, paving the way for future
+preset/profile unification (Stage 2-3 deferred to v13.7.0):
+
+**New: `low-power` preset** — `cosmostrix --preset low-power` now
+applies FPS 30, speed 5, density 0.5. This is the preset equivalent
+of the existing `--low-power` flag. Both produce identical values;
+the flag is kept for backward compatibility. The preset gives users
+a consistent `--preset` interface for all curated configurations.
+
+**New: `--uniform` flag** — `cosmostrix --uniform` disables the
+default async variable column pacing, making all columns move at the
+same speed. This is the inverse of the hidden `--async` flag (which
+is default-on). `--uniform` is visible in `--help` under the new
+ADVANCED heading. If both `--async` and `--uniform` are passed,
+`--uniform` wins (async off).
+
+**Help restructure: ADVANCED heading** — `--monolith-size` moved
+from COMMON OPTIONS to a new ADVANCED heading. `--uniform` is also
+in ADVANCED. This keeps COMMON OPTIONS focused on the most-used
+flags while making advanced tuning discoverable.
+
+### Background Mode Cleanup
 
 User-facing behavior change: cosmostrix no longer paints a solid black
 background by default. The new default is `--color-bg default-background`,

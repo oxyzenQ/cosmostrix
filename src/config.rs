@@ -232,11 +232,21 @@ pub struct Args {
         long = "monolith-size",
         default_value = "normal",
         value_enum,
-        help_heading = "COMMON OPTIONS",
-        display_order = 55,
+        help_heading = "ADVANCED",
+        display_order = 56,
         help = "Monolith segment cell scale"
     )]
     pub monolith_size: MonolithSize,
+
+    #[arg(
+        long = "uniform",
+        help_heading = "ADVANCED",
+        display_order = 57,
+        help = "Uniform column speeds (disables async variable pacing). \
+                By default cosmostrix uses variable column speeds for organic rain; \
+                --uniform makes all columns move at the same speed."
+    )]
+    pub uniform: bool,
 
     #[arg(
         short = 's',

@@ -540,6 +540,7 @@ fn main() -> std::io::Result<()> {
                 &format!("{:?}", args.glitch_level).to_lowercase(),
             );
             s.field_if("low_power", "on", args.low_power);
+            s.field_if("uniform", "on", args.uniform);
             if let Some(ref pname) = args.preset {
                 s.field("preset", pname);
             }
@@ -852,7 +853,7 @@ fn main() -> std::io::Result<()> {
             base_density,
             density_auto,
             args.monolith_size,
-            args.async_mode,
+            effective_async,
             bold_mode,
             shading_mode,
             args.noglitch,
@@ -879,12 +880,17 @@ fn main() -> std::io::Result<()> {
         );
     }
 
+    // --uniform flag disables async variable column speeds.
+    // --async (hidden, default on) is still respected for backward compat;
+    // --uniform takes precedence (if both are set, uniform wins = async off).
+    let effective_async = args.async_mode && !args.uniform;
+
     let cloud_cfg = CloudConfig {
         color_mode,
         fullwidth: args.fullwidth,
         shading_mode,
         bold_mode,
-        async_mode: args.async_mode,
+        async_mode: effective_async,
         default_bg,
         color_scheme,
         rain_style,

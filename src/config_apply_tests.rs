@@ -372,6 +372,35 @@ fn low_power_does_not_override_preset_values() {
     assert!((args.density - 1.35).abs() < f32::EPSILON);
 }
 
+// ── --uniform flag (v13.6.0 Stage 1 CLI simplification) ──
+
+#[test]
+fn uniform_flag_disables_async_mode() {
+    // --uniform sets args.uniform = true. The effective async_mode
+    // is computed in main.rs as `args.async_mode && !args.uniform`.
+    // Here we verify the flag parses correctly and defaults are sane.
+    let args = args_from_cli(&["--uniform"]);
+    assert!(args.uniform, "--uniform must set args.uniform = true");
+    assert!(args.async_mode, "async_mode default is still true (uniform overrides later)");
+}
+
+#[test]
+fn uniform_flag_defaults_to_false() {
+    let args = args_from_cli(&[]);
+    assert!(!args.uniform, "uniform must default to false");
+    assert!(args.async_mode, "async_mode must default to true");
+}
+
+#[test]
+fn low_power_preset_sets_expected_values() {
+    // The new low-power preset (Stage 1) must match the old --low-power
+    // flag behavior: fps=30, speed=5, density=0.5.
+    let args = args_from_cli(&["--preset", "low-power"]);
+    assert_eq!(args.fps, 30.0, "low-power preset must set fps=30");
+    assert_eq!(args.speed, 5.0, "low-power preset must set speed=5");
+    assert!((args.density - 0.5).abs() < f32::EPSILON, "low-power preset must set density=0.5");
+}
+
 #[test]
 fn invalid_config_values_are_ignored() {
     let args = args_with_config(
