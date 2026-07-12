@@ -80,6 +80,17 @@ pub(crate) struct BenchReportData {
     pub estimated_full_redraw_frames: u64,
     pub estimated_full_redraw_ratio_percent: f64,
 
+    // P3: Cells per frame (ChatGPT metrics)
+    /// Total logical cells per frame = width × height.
+    pub logical_cells_per_frame: u64,
+    /// Nanoseconds per cell for the render phase (render_ms / dirty_cells).
+    /// Lower = more efficient. Size-independent metric for algorithm comparison.
+    pub render_ns_per_cell: f64,
+    /// Nanoseconds per cell for the IO/bookkeeping phase (io_ms / dirty_cells).
+    pub io_ns_per_cell: f64,
+    /// Total nanoseconds per cell (render + io + sim) / dirty_cells.
+    pub total_ns_per_cell: f64,
+
     // Throughput
     pub glyphs_per_second: u64,
     pub dirty_glyphs_per_second: u64,
@@ -499,6 +510,36 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 &format!("{:.1}", data.avg_io_ms / total_avg * 100.0),
             );
         }
+    }
+
+    // ── P3: Cell Efficiency (ChatGPT metrics) ──────────────────────
+    // Size-independent metrics: ns/cell lets you compare algorithm
+    // efficiency across different terminal sizes. If ns/cell stays
+    // constant as size grows, the algorithm is O(n). If it grows,
+    // there's a super-linear component (O(n²) or worse).
+    {
+        let s = r.section("CELL EFFICIENCY");
+        s.field(
+            "logical_cells_per_frame",
+            &crate::humanize::humanize(data.logical_cells_per_frame),
+        );
+        s.field(
+            "dirty_cells_per_frame",
+            &format!("{:.1}", data.avg_dirty_cells_per_frame),
+        );
+        s.field(
+            "render_ns_per_cell",
+            &format!("{:.1}", data.render_ns_per_cell),
+        );
+        s.field("io_ns_per_cell", &format!("{:.1}", data.io_ns_per_cell));
+        s.field(
+            "total_ns_per_cell",
+            &format!("{:.1}", data.total_ns_per_cell),
+        );
+        s.field(
+            "ns_per_cell_meaning",
+            "nanoseconds per dirty cell; lower = more efficient; size-independent",
+        );
     }
 
     // ── Long-run drift detection ──────────────────────────────────────

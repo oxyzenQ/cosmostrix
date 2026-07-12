@@ -155,6 +155,15 @@ pub(crate) fn print_json_report(data: &BenchReportData) {
         o.push_kv("max_io_ms", data.max_io_ms);
     });
 
+    // ── cell_efficiency (P3: ChatGPT metrics) ──
+    json_object(&mut out, "cell_efficiency", |o| {
+        o.push_kv("logical_cells_per_frame", data.logical_cells_per_frame);
+        o.push_kv("dirty_cells_per_frame", data.avg_dirty_cells_per_frame);
+        o.push_kv("render_ns_per_cell", data.render_ns_per_cell);
+        o.push_kv("io_ns_per_cell", data.io_ns_per_cell);
+        o.push_kv("total_ns_per_cell", data.total_ns_per_cell);
+    });
+
     // ── drift ──
     json_object(&mut out, "drift", |o| {
         o.push_kv("bench_duration_secs", data.bench_duration_secs);
