@@ -59,6 +59,7 @@ mod atmosphere_tests;
 mod atmosphere_verifier;
 mod atmosphere_visual;
 mod bench;
+mod bench_baseline;
 mod bench_comp;
 mod bench_cpu;
 mod bench_json;
@@ -911,6 +912,9 @@ fn main() -> std::io::Result<()> {
         )),
         color_tune,
         json: args.json,
+        save_baseline: args.save_baseline.clone(),
+        compare_baseline: args.compare_baseline.clone(),
+        bench_io: args.bench_io,
         verbose: args.verbose,
         density_auto,
         base_density,

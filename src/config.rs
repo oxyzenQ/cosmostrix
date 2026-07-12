@@ -399,6 +399,34 @@ pub struct Args {
     pub json: bool,
 
     #[arg(
+        long = "save-baseline",
+        help_heading = "DIAGNOSTICS",
+        display_order = 114,
+        help = "Save benchmark JSON to file for later comparison. \
+                Use with --benchmark --json. Example: --save-baseline v13.5.0.json"
+    )]
+    pub save_baseline: Option<String>,
+
+    #[arg(
+        long = "compare-baseline",
+        help_heading = "DIAGNOSTICS",
+        display_order = 115,
+        help = "Compare current benchmark against saved baseline JSON. \
+                Flags regressions (>5% FPS drop) and improvements (>5% FPS gain). \
+                Example: --compare-baseline v13.4.0.json"
+    )]
+    pub compare_baseline: Option<String>,
+
+    #[arg(
+        long = "bench-io",
+        help_heading = "DIAGNOSTICS",
+        display_order = 116,
+        help = "Benchmark with wet terminal I/O (writes ANSI to /dev/null). \
+                Measures real write bandwidth + latency. Default: dry (no I/O)."
+    )]
+    pub bench_io: bool,
+
+    #[arg(
         long = "info",
         short = 'i',
         help_heading = "DIAGNOSTICS",

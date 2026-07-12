@@ -25,13 +25,11 @@
 //! fields emit `null` when None. The structure mirrors the text report's
 //! sections so a reader familiar with one can navigate the other.
 
-use std::io::Write;
-
 use crate::bench_meta::{cpu_model_label, format_rss_kb};
 use crate::bench_report::BenchReportData;
 
 /// Build the JSON report and print it to stdout as a single line.
-pub(crate) fn print_json_report(data: &BenchReportData) {
+pub(crate) fn build_json_string(data: &BenchReportData) -> String {
     let mut out = String::with_capacity(4096);
     out.push('{');
 
@@ -206,9 +204,7 @@ pub(crate) fn print_json_report(data: &BenchReportData) {
     }
     out.push('}');
 
-    let mut stdout = std::io::stdout().lock();
-    let _ = stdout.write_all(out.as_bytes());
-    let _ = stdout.write_all(b"\n");
+    out
 }
 
 // ── JSON builder helpers ────────────────────────────────────────────────────

@@ -562,9 +562,37 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         bench_duration_secs,
     };
     if cfg.json {
-        crate::bench_json::print_json_report(&report_data);
+        // Generate JSON string
+        let json = crate::bench_json::build_json_string(&report_data);
+        println!("{json}");
+
+        // Save baseline if requested
+        if let Some(ref path) = cfg.save_baseline {
+            match crate::bench_baseline::save_baseline(path, &json) {
+                Ok(()) => eprintln!("[baseline] saved to {path}"),
+                Err(e) => eprintln!("{e}"),
+            }
+        }
+
+        // Compare baseline if requested
+        if let Some(ref path) = cfg.compare_baseline {
+            if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
+                eprintln!("{e}");
+            }
+        }
     } else {
         crate::bench_report::build_premium_report(&report_data);
+
+        // For text mode, still do baseline comparison if requested
+        // (uses JSON internally for parsing)
+        if cfg.compare_baseline.is_some() {
+            let json = crate::bench_json::build_json_string(&report_data);
+            if let Some(ref path) = cfg.compare_baseline {
+                if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
+                    eprintln!("{e}");
+                }
+            }
+        }
     }
     Ok(())
 }

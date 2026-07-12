@@ -54,6 +54,12 @@ pub struct CloudConfig {
     pub color_tune: crate::color_tune::ColorTune,
     /// Output benchmark report as JSON (--json flag).
     pub json: bool,
+    /// --save-baseline PATH: save benchmark JSON to file
+    pub save_baseline: Option<String>,
+    /// --compare-baseline PATH: compare against saved baseline
+    pub compare_baseline: Option<String>,
+    /// --bench-io: wet terminal I/O benchmark (write to /dev/null)
+    pub bench_io: bool,
     /// --verbose flag: print diagnostic info to stderr.
     pub verbose: bool,
     pub density_auto: bool,
