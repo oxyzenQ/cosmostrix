@@ -20,9 +20,8 @@ const COMPARE_METRICS: &[(&str, &str, f64)] = &[
     ("peak_fps", "Peak FPS", 5.0),
     ("p99_frame_time_ms", "p99 frame time", 10.0),
     ("avg_frame_time_ms", "Avg frame time", 10.0),
-    ("avg_dirty_cells_per_frame", "Dirty cells/frame", 20.0),
+    ("dirty_cells_per_frame", "Dirty cells/frame", 20.0),
     ("total_ns_per_cell", "ns/cell", 10.0),
-    ("peak_rss", "Peak RSS", 20.0),
     ("avg_cpu_percent", "Avg CPU%", 15.0),
 ];
 
@@ -205,6 +204,8 @@ fn parse_json_flat(json: &str) -> HashMap<String, String> {
 }
 
 /// Extract a JSON value starting at position `start`. Returns (value_string, end_position).
+/// For nested objects/arrays, returns position right after the opening brace
+/// (not skipping the content — the main loop will scan through the keys inside).
 fn extract_value(json: &str, start: usize) -> (String, usize) {
     let bytes = json.as_bytes();
     if start >= bytes.len() {
@@ -224,18 +225,9 @@ fn extract_value(json: &str, start: usize) -> (String, usize) {
             (json[start + 1..end.min(bytes.len())].to_string(), end + 1)
         }
         b'{' | b'[' => {
-            // Nested object/array — skip for now
-            let mut end = start + 1;
-            let mut depth = 1;
-            while end < bytes.len() && depth > 0 {
-                match bytes[end] {
-                    b'{' | b'[' => depth += 1,
-                    b'}' | b']' => depth -= 1,
-                    _ => {}
-                }
-                end += 1;
-            }
-            (String::new(), end)
+            // Nested object/array — don't skip it. Return position after
+            // the opening brace so the main loop scans through the keys inside.
+            (String::new(), start + 1)
         }
         _ => {
             // Number or boolean or null
