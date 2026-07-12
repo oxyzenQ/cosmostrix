@@ -93,6 +93,18 @@ pub(crate) struct BenchReportData {
     // Phase 2: Terminal I/O wet metrics (None when --bench-io not used)
     pub terminal_io: Option<crate::bench_io::TerminalIoMetrics>,
 
+    // Phase 3: RAPL energy metrics (Linux only)
+    pub energy: Option<crate::bench_energy::EnergyMetrics>,
+
+    // Phase 4: Perf counter metrics (Linux x86 only)
+    pub perf: Option<crate::bench_perf::PerfMetrics>,
+
+    // Phase 5: Allocator tracing metrics
+    pub allocator: Option<crate::alloc_trace::AllocMetrics>,
+
+    // Phase 6: Visual objective metrics
+    pub visual: Option<crate::bench_visual::VisualMetrics>,
+
     // Throughput
     pub glyphs_per_second: u64,
     pub dirty_glyphs_per_second: u64,
@@ -721,6 +733,127 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             }
             _ => {
                 s.field("status", "dry (use --bench-io for wet mode)");
+            }
+        }
+    }
+
+    // ── Phase 3: ENERGY (RAPL, Linux only) ───────────────────────────
+    {
+        let s = r.section("ENERGY");
+        match &data.energy {
+            Some(e) if e.available => {
+                s.field("status", "available (RAPL)");
+                s.field("packages", &e.package_count.to_string());
+                s.field("total_energy", &format!("{:.2} J", e.total_energy_joules));
+                s.field("avg_power", &format!("{:.2} W", e.avg_power_watts));
+                s.field(
+                    "energy_per_frame",
+                    &format!("{:.1} µJ", e.energy_per_frame_uj),
+                );
+                s.field(
+                    "energy_per_cell",
+                    &format!("{:.1} nJ", e.energy_per_cell_nj),
+                );
+            }
+            _ => {
+                s.field("status", "not available (RAPL requires Linux + powercap)");
+            }
+        }
+    }
+
+    // ── Phase 4: MICROARCHITECTURE (perf counters, Linux x86 only) ───
+    {
+        let s = r.section("MICROARCHITECTURE");
+        match &data.perf {
+            Some(p) if p.available => {
+                s.field("status", "available (perf_event_open)");
+                s.field("cycles", &crate::humanize::humanize(p.cycles));
+                s.field("instructions", &crate::humanize::humanize(p.instructions));
+                s.field("ipc", &format!("{:.2}", p.instructions_per_cycle));
+                s.field(
+                    "branch_instructions",
+                    &crate::humanize::humanize(p.branch_instructions),
+                );
+                s.field("branch_misses", &crate::humanize::humanize(p.branch_misses));
+                s.field(
+                    "branch_mispredict_rate",
+                    &format!("{:.2}%", p.branch_mispredict_rate),
+                );
+                s.field("note", "Linux x86 perf counters; varies by CPU model");
+            }
+            _ => {
+                s.field(
+                    "status",
+                    "not available (perf counters require Linux x86 + perf_event_open)",
+                );
+            }
+        }
+    }
+
+    // ── Phase 5: ALLOCATOR ────────────────────────────────────────────
+    {
+        let s = r.section("ALLOCATOR");
+        match &data.allocator {
+            Some(a) => {
+                s.field("alloc_calls", &crate::humanize::humanize(a.alloc_calls));
+                s.field("dealloc_calls", &crate::humanize::humanize(a.dealloc_calls));
+                s.field("realloc_calls", &crate::humanize::humanize(a.realloc_calls));
+                s.field(
+                    "alloc_calls_per_frame",
+                    &format!("{:.1}", a.alloc_calls_per_frame),
+                );
+                s.field(
+                    "dealloc_calls_per_frame",
+                    &format!("{:.1}", a.dealloc_calls_per_frame),
+                );
+                s.field(
+                    "bytes_allocated",
+                    &crate::humanize::humanize(a.bytes_allocated_total),
+                );
+                s.field(
+                    "bytes_deallocated",
+                    &crate::humanize::humanize(a.bytes_deallocated_total),
+                );
+                s.field(
+                    "heap_retained",
+                    &crate::humanize::humanize(a.heap_retained_bytes),
+                );
+                if a.heap_virtual_kib > 0 {
+                    s.field("heap_virtual", &format!("{} KiB", a.heap_virtual_kib));
+                }
+            }
+            None => {
+                s.field("status", "not measured");
+            }
+        }
+    }
+
+    // ── Phase 6: VISUAL OBJECTIVE METRICS ────────────────────────────
+    {
+        let s = r.section("VISUAL OBJECTIVE");
+        match &data.visual {
+            Some(v) => {
+                s.field(
+                    "frame_entropy_bits",
+                    &format!("{:.2}", v.frame_entropy_bits),
+                );
+                s.field("density_gini", &format!("{:.4}", v.density_gini));
+                s.field(
+                    "color_transition_delta",
+                    &format!("{:.2}", v.color_transition_delta_avg),
+                );
+                s.field("samples", &v.samples.to_string());
+                s.field(
+                    "entropy_meaning",
+                    "Shannon entropy of dirty-cell column distribution; higher = more uniform",
+                );
+                s.field(
+                    "gini_meaning",
+                    "0 = perfectly uniform density, 1 = maximally concentrated",
+                );
+            }
+            None => {
+                s.field("status", "not measured");
             }
         }
     }

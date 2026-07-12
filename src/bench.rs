@@ -189,6 +189,13 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         None
     };
 
+    // ── Phase 3-6: Initialize measurement collectors ──────────────────
+    let alloc_before = crate::alloc_trace::AllocSnapshot::now();
+    let energy_before = crate::bench_energy::EnergySnapshot::now();
+    let perf_handle = crate::bench_perf::open_counters();
+    let perf_before = perf_handle.as_ref().map(|h| h.read()).unwrap_or_default();
+    let mut visual_sampler = crate::bench_visual::VisualSampler::new(10);
+
     // ── Warmup phase ─────────────────────────────────────────────────────
     progress.warmup_start();
     let warmup_end = Instant::now() + Duration::from_secs(bench_warmup_secs());
@@ -298,6 +305,9 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             io.write_frame(&frame);
         }
 
+        // Phase 6: visual objective metrics sampling
+        visual_sampler.sample(&frame);
+
         frame.clear_dirty();
 
         let frame_time_ms = frame_start.elapsed().as_secs_f64() * 1000.0;
@@ -390,6 +400,34 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // Phase 2: Finalize wet I/O metrics
     let terminal_io = io_writer.map(|io| io.finalize(total_elapsed_s));
+
+    // Phase 3-6: Finalize measurement collectors
+    let alloc_after = crate::alloc_trace::AllocSnapshot::now();
+    let energy_after = crate::bench_energy::EnergySnapshot::now();
+    let perf_after = perf_handle.as_ref().map(|h| h.read()).unwrap_or_default();
+    let visual_metrics = visual_sampler.finalize();
+
+    let mut alloc_metrics = alloc_after.delta(&alloc_before);
+    alloc_metrics.alloc_calls_per_frame = if total_frames > 0 {
+        alloc_metrics.alloc_calls as f64 / total_frames as f64
+    } else {
+        0.0
+    };
+    alloc_metrics.dealloc_calls_per_frame = if total_frames > 0 {
+        alloc_metrics.dealloc_calls as f64 / total_frames as f64
+    } else {
+        0.0
+    };
+    alloc_metrics.read_proc_heap();
+
+    let energy_metrics = energy_after.delta(
+        &energy_before,
+        total_elapsed_s,
+        total_frames,
+        total_drawn_cells,
+    );
+
+    let perf_metrics = perf_after.delta(&perf_before);
 
     // ── Compute metrics ──────────────────────────────────────────────────
     // Reuse total_elapsed_s computed above for drift detection — calling
@@ -552,6 +590,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             0.0
         },
         terminal_io,
+        energy: Some(energy_metrics),
+        perf: Some(perf_metrics),
+        allocator: Some(alloc_metrics),
+        visual: Some(visual_metrics),
         glyphs_per_second,
         dirty_glyphs_per_second,
         theoretical_full_frame_glyphs_per_second,

@@ -36,6 +36,10 @@
 //! and outlier trimming. Optimizations target real bottlenecks identified
 //! through profiling, not hypothetical micro-optimizations.
 
+// Phase 5: Global allocator tracing wrapper.
+#[global_allocator]
+static GLOBAL_ALLOC: crate::alloc_trace::TraceAlloc = crate::alloc_trace::TraceAlloc;
+mod alloc_trace;
 mod app;
 mod atmosphere;
 #[cfg(test)]
@@ -62,14 +66,17 @@ mod bench;
 mod bench_baseline;
 mod bench_comp;
 mod bench_cpu;
+mod bench_energy;
 mod bench_io;
 mod bench_json;
 mod bench_mem;
 mod bench_meta;
+mod bench_perf;
 mod bench_progress;
 mod bench_report;
 #[cfg(test)]
 mod bench_report_tests;
+mod bench_visual;
 mod cell;
 mod charset;
 mod cinematic;

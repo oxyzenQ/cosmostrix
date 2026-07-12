@@ -215,6 +215,68 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         }
     });
 
+    // ── energy (Phase 3: RAPL, Linux only) ──
+    json_object(&mut out, "energy", |o| match &data.energy {
+        Some(e) if e.available => {
+            o.push_kv("available", true);
+            o.push_kv("total_energy_joules", e.total_energy_joules);
+            o.push_kv("avg_power_watts", e.avg_power_watts);
+            o.push_kv("energy_per_frame_uj", e.energy_per_frame_uj);
+            o.push_kv("energy_per_cell_nj", e.energy_per_cell_nj);
+            o.push_kv("package_count", e.package_count);
+        }
+        _ => {
+            o.push_kv("available", false);
+        }
+    });
+
+    // ── microarchitecture (Phase 4: perf counters, Linux x86 only) ──
+    json_object(&mut out, "microarchitecture", |o| match &data.perf {
+        Some(p) if p.available => {
+            o.push_kv("available", true);
+            o.push_kv("cycles", p.cycles);
+            o.push_kv("instructions", p.instructions);
+            o.push_kv("ipc", p.instructions_per_cycle);
+            o.push_kv("branch_instructions", p.branch_instructions);
+            o.push_kv("branch_misses", p.branch_misses);
+            o.push_kv("branch_mispredict_rate", p.branch_mispredict_rate);
+        }
+        _ => {
+            o.push_kv("available", false);
+        }
+    });
+
+    // ── allocator (Phase 5: tracing) ──
+    json_object(&mut out, "allocator", |o| match &data.allocator {
+        Some(a) => {
+            o.push_kv("alloc_calls", a.alloc_calls);
+            o.push_kv("dealloc_calls", a.dealloc_calls);
+            o.push_kv("realloc_calls", a.realloc_calls);
+            o.push_kv("bytes_allocated_total", a.bytes_allocated_total);
+            o.push_kv("bytes_deallocated_total", a.bytes_deallocated_total);
+            o.push_kv("heap_retained_bytes", a.heap_retained_bytes);
+            o.push_kv("alloc_calls_per_frame", a.alloc_calls_per_frame);
+            o.push_kv("dealloc_calls_per_frame", a.dealloc_calls_per_frame);
+            o.push_kv("heap_virtual_kib", a.heap_virtual_kib);
+        }
+        None => {
+            o.push_kv("available", false);
+        }
+    });
+
+    // ── visual_objective (Phase 6) ──
+    json_object(&mut out, "visual_objective", |o| match &data.visual {
+        Some(v) => {
+            o.push_kv("frame_entropy_bits", v.frame_entropy_bits);
+            o.push_kv("density_gini", v.density_gini);
+            o.push_kv("color_transition_delta_avg", v.color_transition_delta_avg);
+            o.push_kv("samples", v.samples);
+        }
+        None => {
+            o.push_kv("available", false);
+        }
+    });
+
     // Remove trailing comma from the last section.
     if out.ends_with(',') {
         out.pop();
