@@ -223,6 +223,11 @@ pub fn dump_config_text() -> &'static str {
 # hardcoded default. Scenes only fill keys the user did NOT set.
 # This prevents surprises like `speed = 30` in config being silently
 # overwritten by a scene's `speed = 8`.
+#
+# All keys below are commented out. Uncomment the ones you want to
+# customize — cosmostrix's built-in defaults (shown for reference)
+# will be used for any key left commented. Run `cosmostrix --testconf`
+# to validate your config after editing.
 
 # ── Scene ────────────────────────────────────────────────────────────────────
 # Atmospheric template bundling sensible defaults.
@@ -230,7 +235,7 @@ pub fn dump_config_text() -> &'static str {
 #   matrix    — classic green Matrix rain, katakana glyphs
 #   signal    — aurora palette, retro glyphs, slow & dense
 # See: cosmostrix --list-scenes
-scene = monolith
+# scene = monolith
 
 # ── Preset (optional) ────────────────────────────────────────────────────────
 # Curated visual preset applied on top of config values.
@@ -244,47 +249,61 @@ scene = monolith
 
 # ── Appearance ───────────────────────────────────────────────────────────────
 # Color scheme (palette). See: cosmostrix --list-colors
-color = cosmos
+# color = cosmos
 
 # Character set for rain glyphs. See: cosmostrix --list-charsets
 # Custom characters from file (CLI only, overrides charset):
 #   cosmostrix --charset-file ~/my-chars.txt
-charset = binary
+# charset = binary
 
 # Background mode:
 #   default-background — follow terminal emulator bg (default; saves ANSI bytes)
 #   black              — force solid #000000 behind rain
-color-bg = default-background
+# color-bg = default-background
 
 # ── Motion ───────────────────────────────────────────────────────────────────
-fps = 60
-speed = 20
-density = 0.85
+# Target frames-per-second. Adaptive pacing may reduce under load.
+# fps = 60
+
+# Rain fall speed (1–100). Higher = faster rain.
+# speed = 20
+
+# Rain density (0.01–5.0). Higher = more columns active.
+# density = 0.85
 
 # Variable column speeds for organic rain (default: on).
 # Each column gets a random speed multiplier (33%-100% of base).
 # Despite the name, this is NOT Rust async/await — cosmostrix remains
 # single-threaded. "async" = "asynchronous column pacing".
-async-mode = true
+# async-mode = true
 
 # ── Monolith ─────────────────────────────────────────────────────────────────
 # Pillar size (only applies when scene=monolith or rain_style=monolith):
 #   small | normal (default) | large
-monolith-size = normal
+# monolith-size = normal
 
 # ── Behavior ─────────────────────────────────────────────────────────────────
 # Glitch intensity: none | subtle | default | intense
-glitch-level = subtle
-low-power = false
-mouse = false
-fullwidth = false
-auto-color-drift = false
+# glitch-level = subtle
+
+# Low-power mode: caps fps=30, speed=5, density=0.5 to reduce CPU use.
+# low-power = false
+
+# Mouse capture for interactive controls (default: off).
+# mouse = false
+
+# Full-width CJK glyph rendering (default: off).
+# fullwidth = false
+
+# Auto color drift: cycle color scheme over time (default: off).
+# auto-color-drift = false
 
 # ── Advanced Style ───────────────────────────────────────────────────────────
 # Bold style: 0=off, 1=random, 2=all
-bold = 1
+# bold = 1
+
 # Shading mode: 0=random, 1=cinematic (distance-from-head brightness)
-shadingmode = 1
+# shadingmode = 1
 
 # ── Atmosphere Engine (opt-in only) ──────────────────────────────────────────
 # atmosphere-mode: disabled (default) | controlled-live
