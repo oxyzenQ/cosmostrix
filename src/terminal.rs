@@ -73,9 +73,12 @@ impl LastFrame {
     }
 }
 
-/// Buffer size for stdout BufWriter. Dragon Supercharger: 256 KB for
-/// fewer write() syscalls during frame flush.
-const STDOUT_BUF_CAPACITY: usize = crate::dragon_supercharger::OUTPUT_BUFFER_SIZE;
+/// Buffer size for stdout BufWriter (256 KiB). Large enough to batch an
+/// entire frame's ANSI commands into a single `write()` syscall during
+/// interactive mode. Sized at 256 KiB (up from 64 KiB) so that even
+/// dense dirty-all frames (4.8K cells × ~30 bytes/cell ANSI ≈ 140 KB)
+/// fit without spilling a second syscall.
+const STDOUT_BUF_CAPACITY: usize = 256 * 1024;
 
 pub struct Terminal {
     stdout: BufWriter<Stdout>,

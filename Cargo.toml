@@ -25,17 +25,6 @@ unicode-width = "0.2"
 signal-hook = "0.3"
 libc = "0.2"
 
-[target.'cfg(target_os = "linux")'.dependencies]
-# Linux-specific deps (none currently — libc lives under cfg(unix) above
-# because macOS also needs it for mach_task_basic_info in memstat.rs).
-# mimalloc is gated to Linux only: libmimalloc-sys uses cc-rs to build C
-# source, and Android NDK r26d ships only llvm-ar (not the GNU-style
-# aarch64-linux-android-ar that cc-rs probes for). Android's scudo
-# allocator is already well-tuned for Termux, and macOS/Windows system
-# allocators are also good — the dragon_supercharger is a Linux-desktop
-# optimization where mimalloc beats glibc's malloc on latency.
-mimalloc = "0.1"
-
 [target.'cfg(windows)'.dependencies]
 ctrlc = "3.4"
 

@@ -130,10 +130,9 @@ impl Frame {
     pub fn clear_dirty(&mut self) {
         if self.dirty_all {
             self.dirty_all = false;
-            // Dragon Supercharger: use SIMD-accelerated byte clear for
-            // the dirty_all path (full BitVec reset). BitVec::fill(false)
-            // already does byte-level clearing internally, but we can
-            // accelerate the underlying storage directly.
+            // Full BitVec reset. BitVec::fill(false) clears the underlying
+            // storage at byte granularity (one byte = 8 cells), which the
+            // compiler auto-vectorizes into wide stores on AVX2 targets.
             self.dirty_map.fill(false);
             self.dirty.clear();
             return;

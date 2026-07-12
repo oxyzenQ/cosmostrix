@@ -4,25 +4,23 @@
 //! Allocator tracing — global allocator wrapper that counts alloc/dealloc calls.
 //!
 //! Phase 5 of DeepSeek benchmark restructuring plan.
-//! Dragon Supercharger: on Linux, wraps mimalloc instead of System for
-//! reduced allocation latency and fragmentation. On non-Linux targets
-//! (Android, macOS, Windows) falls back to the system allocator —
-//! libmimalloc-sys's cc-rs build requires platform-specific AR tooling
-//! that is fragile on Android NDK r26d (which ships only llvm-ar), and
-//! the system allocators on those platforms are already well-tuned.
 //!
-//! Wraps the platform allocator with atomic counters for alloc/dealloc/realloc
+//! Wraps `std::alloc::System` with atomic counters for alloc/dealloc/realloc
 //! calls and bytes. Always active (overhead = ~2ns per call from atomic increment).
 //! Stats are read by the benchmark to report allocation patterns.
+//!
+//! ## Why System (not mimalloc/jemalloc)
+//!
+//! Empirically verified on AMD Ryzen 7 5800HS (60s benchmark, 120x40): the
+//! cosmostrix workload does ~2 allocs/frame against a stable ~93 KB heap.
+//! At this allocation rate and heap size, glibc malloc beats mimalloc on
+//! tail latency (p99 frame time +15% with mimalloc). Custom allocators
+//! only win when there's heavy churn or large heap fragmentation to amortize
+//! — neither applies here. Keep it simple: System is best-in-class for this
+//! workload, and avoiding a C dependency keeps the build pure Rust.
 
-use std::alloc::{GlobalAlloc, Layout};
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicU64, Ordering};
-
-#[cfg(target_os = "linux")]
-use mimalloc::MiMalloc;
-
-#[cfg(not(target_os = "linux"))]
-use std::alloc::System;
 
 static ALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
 static DEALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
@@ -30,14 +28,10 @@ static REALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
 static BYTES_ALLOCATED: AtomicU64 = AtomicU64::new(0);
 static BYTES_DEALLOCATED: AtomicU64 = AtomicU64::new(0);
 
-/// Global allocator that wraps the platform allocator (mimalloc on Linux,
-/// System elsewhere) and tracks allocation statistics.
+/// Global allocator that wraps `std::alloc::System` and tracks allocation
+/// statistics.
 pub struct TraceAlloc;
 
-#[cfg(target_os = "linux")]
-static INNER: MiMalloc = MiMalloc;
-
-#[cfg(not(target_os = "linux"))]
 static INNER: System = System;
 
 unsafe impl GlobalAlloc for TraceAlloc {

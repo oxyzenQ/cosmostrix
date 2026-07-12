@@ -102,7 +102,6 @@ mod docs_tests;
 mod doctor;
 mod dragon_egg_io_uring;
 mod dragon_engine;
-mod dragon_supercharger;
 mod droplet;
 mod envstat;
 mod frame;
