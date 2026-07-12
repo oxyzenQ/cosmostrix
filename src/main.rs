@@ -66,6 +66,8 @@ mod bench_mem;
 mod bench_meta;
 mod bench_progress;
 mod bench_report;
+#[cfg(test)]
+mod bench_report_tests;
 mod cell;
 mod charset;
 mod cinematic;
@@ -92,6 +94,7 @@ mod droplet;
 mod envstat;
 mod frame;
 mod help_detail;
+mod humanize;
 mod info;
 mod interactive;
 #[cfg(test)]

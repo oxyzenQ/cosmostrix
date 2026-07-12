@@ -94,6 +94,14 @@ pub(crate) fn print_json_report(data: &BenchReportData) {
     json_object(&mut out, "performance", |o| {
         o.push_kv("avg_fps", data.avg_fps);
         o.push_kv("peak_fps", data.peak_fps);
+        o.push_kv_str(
+            "avg_fps_human",
+            &crate::humanize::humanize_f64(data.avg_fps),
+        );
+        o.push_kv_str(
+            "peak_fps_human",
+            &crate::humanize::humanize_f64(data.peak_fps),
+        );
         o.push_kv("avg_frame_time_ms", data.avg_frame_time);
         o.push_kv("p95_frame_time_ms", data.p95_frame_time);
         o.push_kv("p99_frame_time_ms", data.p99_frame_time);
@@ -162,6 +170,14 @@ pub(crate) fn print_json_report(data: &BenchReportData) {
         o.push_kv("ansi_bytes_per_second", data.ansi_bytes_per_second);
         o.push_kv("active_streams_avg", data.active_streams_avg);
         o.push_kv("total_drawn_cells", data.total_drawn_cells);
+        o.push_kv_str(
+            "glyphs_per_second_human",
+            &crate::humanize::humanize(data.glyphs_per_second),
+        );
+        o.push_kv_str(
+            "cells_drawn_total_human",
+            &crate::humanize::humanize(data.total_drawn_cells),
+        );
     });
 
     // ── timing ──
@@ -169,6 +185,10 @@ pub(crate) fn print_json_report(data: &BenchReportData) {
         o.push_kv("elapsed_s", data.elapsed_s);
         o.push_kv("total_frames", data.total_frames);
         o.push_kv("drawn_frames", data.drawn_frames);
+        o.push_kv_str(
+            "total_frames_human",
+            &crate::humanize::humanize(data.total_frames),
+        );
     });
 
     // Remove trailing comma from the last section.

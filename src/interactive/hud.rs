@@ -244,7 +244,13 @@ impl HudState {
         // Format strings have NO trailing spaces — pad_hud_line handles
         // width consistency. This ensures the last visible character
         // sits flush against the border in right position.
-        self.cached_lines[0] = (head, pad_hud_line(&format!(" fps: {:>7.0}", fps)));
+        // Humanize fps: show 791K instead of 791038 when >10K.
+        let fps_str = if fps >= 10_000.0 {
+            crate::humanize::humanize_f64(fps)
+        } else {
+            format!("{fps:.0}")
+        };
+        self.cached_lines[0] = (head, pad_hud_line(&format!(" fps: {fps_str:>7}")));
         self.cached_lines[1] = (mid, pad_hud_line(&format!(" p99: {:>6.3}ms", self.p99_ms)));
         self.cached_lines[2] = (head, pad_hud_line(&format!(" max: {:>6.3}ms", self.max_ms)));
         self.cached_lines[3] = (trail, pad_hud_line(&format!(" rss: {:>8}", rss_str)));
