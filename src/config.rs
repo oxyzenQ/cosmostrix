@@ -427,6 +427,16 @@ pub struct Args {
     pub bench_io: bool,
 
     #[arg(
+        long = "bench-all",
+        help_heading = "DIAGNOSTICS",
+        display_order = 117,
+        help = "Run benchmark across multiple screen sizes (6x6 to 200x60). \
+                Prints a SCALING SUMMARY table. Use with --bench-duration for \
+                per-size duration (default 2s each)."
+    )]
+    pub bench_all: bool,
+
+    #[arg(
         long = "info",
         short = 'i',
         help_heading = "DIAGNOSTICS",

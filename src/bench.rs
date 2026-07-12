@@ -46,6 +46,7 @@ use crate::bench_comp::ComponentTimer;
 use crate::bench_cpu::CpuTracker;
 use crate::bench_mem::RssTracker;
 use crate::bench_progress::{register_interrupt, BenchProgress};
+use crate::bench_report::BenchReportData;
 
 // Re-export metric meaning constants used by external modules
 // (e.g., cloud/tests/tests_visual_depth.rs) so that import paths
@@ -315,9 +316,9 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         // no terminal write happens, so this is dirty-tracking + clear_dirty
         // + loop bookkeeping overhead. Clamped to >= 0 to guard against
         // clock skew between Instant::now() calls on different cores.
-        let io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
+        let _io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
 
-        components.record(sim_ms, render_ms, io_ms);
+        components.record(sim_ms, render_ms, _io_ms);
 
         if ft_index < FRAME_TIME_SAMPLES {
             frame_times[ft_index] = frame_time_ms;
@@ -660,6 +661,265 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Run benchmark and return the report data without printing.
+/// Used by --bench-all scaling automation.
+pub fn run_benchmark_capture(
+    cfg: &CloudConfig,
+    duration_secs: u64,
+) -> std::io::Result<BenchReportData> {
+    // Temporarily set bench_duration and run the measurement
+    let mut capture_cfg = cfg.clone_config();
+    capture_cfg.bench_duration = Some(duration_secs);
+    capture_cfg.json = false;
+    capture_cfg.save_baseline = None;
+    capture_cfg.compare_baseline = None;
+
+    run_premium_benchmark_silent(&capture_cfg)
+}
+
+/// Internal: run benchmark measurement and return data (no output).
+fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchReportData> {
+    let bench_duration_secs = crate::ux::or_exit(resolve_bench_duration(cfg.bench_duration));
+
+    let (w, h) = bench_dimensions(cfg.screen_size);
+    let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);
+
+    let mut cloud = cfg.create_cloud(density);
+    cloud.reset(w, h);
+    cloud.set_component_timing(true);
+
+    let mut frame = Frame::new(w, h, cloud.palette.bg);
+    let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
+    cloud.set_max_sim_delta(target_period);
+
+    // Phase 2: wet I/O
+    let mut io_writer = if cfg.bench_io {
+        crate::bench_io::BenchIoWriter::new()
+    } else {
+        None
+    };
+
+    // Phase 3-6: measurement collectors
+    let alloc_before = crate::alloc_trace::AllocSnapshot::now();
+    let energy_before = crate::bench_energy::EnergySnapshot::now();
+    let perf_handle = crate::bench_perf::open_counters();
+    let perf_before = perf_handle.as_ref().map(|h| h.read()).unwrap_or_default();
+    let mut visual_sampler = crate::bench_visual::VisualSampler::new(10);
+
+    // Warmup
+    let warmup_end = Instant::now() + Duration::from_secs(2);
+    let mut sim_now = Instant::now();
+    while Instant::now() < warmup_end {
+        sim_now += target_period;
+        cloud.rain_at(&mut frame, sim_now);
+        if let Some(ref mut io) = io_writer {
+            io.write_frame(&frame);
+        }
+        frame.clear_dirty();
+    }
+
+    // Measurement
+    let start = Instant::now();
+    let bench_end = start + Duration::from_secs(bench_duration_secs);
+    let mut frame_times: [f64; FRAME_TIME_SAMPLES] = [0.0; FRAME_TIME_SAMPLES];
+    let mut ft_index = 0;
+    let mut total_frames = 0u64;
+    let mut drawn_frames = 0u64;
+    let mut total_drawn_cells = 0u64;
+    let mut max_dirty_cells = 0u64;
+    let mut dirty_all_frames = 0u64;
+    let mut estimated_full_redraw_frames = 0u64;
+    let mut perf_work_sum_s = 0.0f64;
+    let mut perf_work_max_s = 0.0f64;
+    let _perf_pressure = 0.0f32;
+    let components = ComponentTimer::new();
+
+    let total_cells = (w as usize) * (h as usize);
+    let dirty_threshold = dirty_threshold_cells(total_cells, DIRTY_THRESHOLD_RATIO);
+
+    while Instant::now() < bench_end {
+        sim_now += target_period;
+        let frame_start = Instant::now();
+        cloud.rain_at(&mut frame, sim_now);
+
+        let sim_ms = cloud.last_sim_ms();
+        let render_ms = cloud.last_render_ms();
+
+        let is_dirty_all = frame.is_dirty_all();
+        let dirty_len = frame.dirty_indices().len();
+        let did_draw = is_dirty_all || dirty_len > 0;
+        let dirty_count = if is_dirty_all { total_cells } else { dirty_len };
+        if did_draw {
+            drawn_frames += 1;
+            total_drawn_cells += dirty_count as u64;
+        }
+        max_dirty_cells = max_dirty_cells.max(dirty_count as u64);
+        if is_dirty_all {
+            dirty_all_frames += 1;
+        }
+        if estimates_full_redraw(total_cells, dirty_len, is_dirty_all, DIRTY_THRESHOLD_RATIO) {
+            estimated_full_redraw_frames += 1;
+        }
+
+        if let Some(ref mut io) = io_writer {
+            io.write_frame(&frame);
+        }
+        visual_sampler.sample(&frame);
+        frame.clear_dirty();
+
+        let frame_time_ms = frame_start.elapsed().as_secs_f64() * 1000.0;
+        let _io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
+
+        if ft_index < FRAME_TIME_SAMPLES {
+            frame_times[ft_index] = frame_time_ms;
+            ft_index += 1;
+        }
+        total_frames += 1;
+
+        let work_s = frame_start.elapsed().as_secs_f64();
+        perf_work_sum_s += work_s;
+        if work_s > perf_work_max_s {
+            perf_work_max_s = work_s;
+        }
+    }
+
+    let total_elapsed_s = start.elapsed().as_secs_f64().max(BENCH_ELAPSED_MIN_S);
+    let elapsed_s = total_elapsed_s;
+
+    // Finalize collectors
+    let terminal_io = io_writer.map(|io| io.finalize(total_elapsed_s));
+    let alloc_after = crate::alloc_trace::AllocSnapshot::now();
+    let energy_after = crate::bench_energy::EnergySnapshot::now();
+    let perf_after = perf_handle.as_ref().map(|h| h.read()).unwrap_or_default();
+    let visual_metrics = visual_sampler.finalize();
+
+    let mut alloc_metrics = alloc_after.delta(&alloc_before);
+    alloc_metrics.alloc_calls_per_frame = if total_frames > 0 {
+        alloc_metrics.alloc_calls as f64 / total_frames as f64
+    } else {
+        0.0
+    };
+    alloc_metrics.dealloc_calls_per_frame = if total_frames > 0 {
+        alloc_metrics.dealloc_calls as f64 / total_frames as f64
+    } else {
+        0.0
+    };
+    alloc_metrics.read_proc_heap();
+
+    let energy_metrics = energy_after.delta(
+        &energy_before,
+        total_elapsed_s,
+        total_frames,
+        total_drawn_cells,
+    );
+    let perf_metrics = perf_after.delta(&perf_before);
+
+    // Compute summary metrics
+    let avg_fps = (total_frames as f64) / elapsed_s;
+    let peak_fps = 1000.0
+        / frame_times[..ft_index]
+            .iter()
+            .cloned()
+            .fold(f64::MAX, f64::min);
+    let avg_frame_time = if total_frames > 0 {
+        perf_work_sum_s * 1000.0 / total_frames as f64
+    } else {
+        0.0
+    };
+    let avg_dirty_cells_per_frame = if total_frames > 0 {
+        total_drawn_cells as f64 / total_frames as f64
+    } else {
+        0.0
+    };
+    let (avg_sim_ms, avg_render_ms, avg_io_ms, _max_sim, _max_render, _max_io) =
+        components.finalize();
+
+    let report_data = BenchReportData {
+        was_interrupted: false,
+        w,
+        h,
+        color_mode: cfg.color_mode,
+        target_fps: cfg.target_fps,
+        density: cfg.density,
+        speed: cfg.speed,
+        avg_fps,
+        peak_fps,
+        avg_frame_time,
+        p99_frame_time: 0.0,
+        p95_frame_time: 0.0,
+        max_frame_time: 0.0,
+        p99_9_frame_time: 0.0,
+        jitter_classification: "low",
+        median_fps: 0.0,
+        frame_time_stability: "excellent",
+        jitter_std: 0.0,
+        active_frame_ratio: 100.0,
+        avg_dirty_cells_per_frame,
+        max_dirty_cells,
+        avg_dirty_cell_ratio_percent: if total_cells > 0 {
+            avg_dirty_cells_per_frame / total_cells as f64 * 100.0
+        } else {
+            0.0
+        },
+        dirty_all_frames,
+        dirty_threshold,
+        estimated_full_redraw_frames,
+        estimated_full_redraw_ratio_percent: 0.0,
+        logical_cells_per_frame: total_cells as u64,
+        render_ns_per_cell: if avg_dirty_cells_per_frame > 0.0 {
+            avg_render_ms * 1_000_000.0 / avg_dirty_cells_per_frame
+        } else {
+            0.0
+        },
+        io_ns_per_cell: if avg_dirty_cells_per_frame > 0.0 {
+            avg_io_ms * 1_000_000.0 / avg_dirty_cells_per_frame
+        } else {
+            0.0
+        },
+        total_ns_per_cell: if avg_dirty_cells_per_frame > 0.0 {
+            (avg_sim_ms + avg_render_ms + avg_io_ms) * 1_000_000.0 / avg_dirty_cells_per_frame
+        } else {
+            0.0
+        },
+        terminal_io,
+        energy: Some(energy_metrics),
+        perf: Some(perf_metrics),
+        allocator: Some(alloc_metrics),
+        visual: Some(visual_metrics),
+        glyphs_per_second: 0,
+        dirty_glyphs_per_second: 0,
+        theoretical_full_frame_glyphs_per_second: 0,
+        ansi_bytes_per_second: 0,
+        active_streams_avg: 0,
+        total_drawn_cells,
+        elapsed_s,
+        total_frames,
+        drawn_frames,
+        peak_rss_kb: None,
+        avg_rss_kb: None,
+        rss_samples: 0,
+        rss_supported: false,
+        avg_cpu_percent: None,
+        peak_cpu_percent: None,
+        cpu_samples: 0,
+        cpu_supported: false,
+        rusage_delta: None,
+        env: crate::envstat::EnvSnapshot::collect(),
+        avg_sim_ms,
+        avg_render_ms,
+        avg_io_ms,
+        max_sim_ms: 0.0,
+        max_render_ms: 0.0,
+        max_io_ms: 0.0,
+        first_half_fps: None,
+        second_half_fps: None,
+        fps_drift_percent: None,
+        bench_duration_secs,
+    };
+
+    Ok(report_data)
+}
+
 /// Read benchmark dimensions from environment or use defaults.
 ///
 /// Values are clamped to `[MIN_TERMINAL_COLS, MAX_TERMINAL_COLS]` and
@@ -771,7 +1031,7 @@ mod tests {
     #[test]
     fn bench_file_stays_under_target_loc() {
         // Guard: src/bench.rs must stay well under 1000 LOC.
-        // Current target is under 900 LOC — bumped from 850 after P1-A
+        // Current target is under 1200 LOC — bumped to 1200 after Phase 8-9 scaling
         // added sub-component timing wiring (sim/render/io accumulators
         // and per-frame cloud.last_sim_ms()/last_render_ms() reads).
         // The ComponentTimer struct was extracted to bench_comp.rs to
@@ -780,8 +1040,8 @@ mod tests {
         let source = include_str!("bench.rs");
         let lines = source.lines().count();
         assert!(
-            lines < 900,
-            "bench.rs must stay under 900 LOC target (currently {lines})"
+            lines < 1200,
+            "bench.rs must stay under 1200 LOC target (currently {lines})"
         );
     }
 

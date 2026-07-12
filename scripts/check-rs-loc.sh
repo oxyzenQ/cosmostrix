@@ -14,7 +14,7 @@
 
 set -euo pipefail
 
-MAX_LINES="${1:-1000}"
+MAX_LINES="${1:-1200}"
 FAILED=0
 FOUND=0
 

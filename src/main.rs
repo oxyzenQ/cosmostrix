@@ -76,6 +76,7 @@ mod bench_progress;
 mod bench_report;
 #[cfg(test)]
 mod bench_report_tests;
+mod bench_scale;
 mod bench_visual;
 mod cell;
 mod charset;
@@ -923,6 +924,7 @@ fn main() -> std::io::Result<()> {
         save_baseline: args.save_baseline.clone(),
         compare_baseline: args.compare_baseline.clone(),
         bench_io: args.bench_io,
+        bench_all: args.bench_all,
         verbose: args.verbose,
         density_auto,
         base_density,
@@ -937,6 +939,15 @@ fn main() -> std::io::Result<()> {
         atmosphere_modulation,
         atmosphere_mode,
     };
+
+    if args.bench_all {
+        let duration = resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
+        let results = crate::bench_scale::run_scaling_benchmark(&cloud_cfg, duration)?;
+        if args.json {
+            println!("{}", crate::bench_scale::build_scaling_json(&results));
+        }
+        return Ok(());
+    }
 
     if args.benchmark {
         return bench::run_premium_benchmark(&cloud_cfg);

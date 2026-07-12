@@ -60,6 +60,8 @@ pub struct CloudConfig {
     pub compare_baseline: Option<String>,
     /// --bench-io: wet terminal I/O benchmark (write to /dev/null)
     pub bench_io: bool,
+    /// --bench-all: run scaling benchmark across multiple sizes
+    pub bench_all: bool,
     /// --verbose flag: print diagnostic info to stderr.
     pub verbose: bool,
     pub density_auto: bool,
@@ -140,6 +142,61 @@ impl CloudConfig {
         }
 
         cloud
+    }
+
+    /// Clone the config for scaling benchmark (bench-all).
+    /// Only copies fields needed for benchmark, not interactive-only fields.
+    pub fn clone_config(&self) -> Self {
+        Self {
+            color_mode: self.color_mode,
+            fullwidth: self.fullwidth,
+            shading_mode: self.shading_mode,
+            bold_mode: self.bold_mode,
+            async_mode: self.async_mode,
+            default_bg: self.default_bg,
+            color_scheme: self.color_scheme,
+            rain_style: self.rain_style,
+            noglitch: self.noglitch,
+            glitch_pct: self.glitch_pct,
+            glitch_low: self.glitch_low,
+            glitch_high: self.glitch_high,
+            linger_low: self.linger_low,
+            linger_high: self.linger_high,
+            short_pct: self.short_pct,
+            die_early_pct: self.die_early_pct,
+            max_dpc: self.max_dpc,
+            density: self.density,
+            speed: self.speed,
+            monolith_size: self.monolith_size,
+            chars: self.chars.clone(),
+            message: self.message.clone(),
+            message_border: self.message_border,
+            target_fps: self.target_fps,
+            duration: self.duration,
+            duration_s: self.duration_s,
+            bench_frames: self.bench_frames,
+            benchmark: self.benchmark,
+            bench_duration: self.bench_duration,
+            screen_size: self.screen_size,
+            color_tune: self.color_tune,
+            json: false,
+            save_baseline: None,
+            compare_baseline: None,
+            bench_io: false,
+            bench_all: false,
+            verbose: false,
+            density_auto: self.density_auto,
+            base_density: self.base_density,
+            perf_stats: false,
+            screensaver: false,
+            mouse: false,
+            charset_preset: self.charset_preset.clone(),
+            user_ranges: self.user_ranges.clone(),
+            def_ascii: self.def_ascii,
+            auto_color_drift: self.auto_color_drift,
+            atmosphere_modulation: self.atmosphere_modulation,
+            atmosphere_mode: self.atmosphere_mode,
+        }
     }
 }
 

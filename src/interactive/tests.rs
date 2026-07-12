@@ -248,6 +248,7 @@ mod cases {
             save_baseline: None,
             compare_baseline: None,
             bench_io: false,
+            bench_all: false,
             screen_size: None,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
             json: false,

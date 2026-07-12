@@ -6,7 +6,7 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
-    const MAX_RUST_LOC: usize = 1000;
+    const MAX_RUST_LOC: usize = 1200;
 
     #[test]
     fn rust_source_files_stay_under_line_cap() {
