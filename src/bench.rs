@@ -647,10 +647,21 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     } else {
         crate::bench_report::build_premium_report(&report_data);
 
-        // For text mode, still do baseline comparison if requested
-        // (uses JSON internally for parsing)
-        if cfg.compare_baseline.is_some() {
+        // For text mode, still handle save/compare baseline if requested
+        // (generates JSON internally — does not print to stdout, so the
+        // premium text report stays clean). This matches the JSON-mode
+        // behavior so users don't have to pass --json just to save a
+        // baseline.
+        if cfg.save_baseline.is_some() || cfg.compare_baseline.is_some() {
             let json = crate::bench_json::build_json_string(&report_data);
+
+            if let Some(ref path) = cfg.save_baseline {
+                match crate::bench_baseline::save_baseline(path, &json) {
+                    Ok(()) => eprintln!("[baseline] saved to {path}"),
+                    Err(e) => eprintln!("{e}"),
+                }
+            }
+
             if let Some(ref path) = cfg.compare_baseline {
                 if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
                     eprintln!("{e}");

@@ -244,3 +244,103 @@ fn extract_value(json: &str, start: usize) -> (String, usize) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression test for the silent-no-op bug where `--save-baseline`
+    /// was ignored in text mode (without `--json`). The wiring fix lives
+    /// in bench.rs, but this test guards the public save→compare round-trip
+    /// contract so a future refactor can't silently break it again.
+    ///
+    /// Bug history: v13.5.0 — user ran
+    ///   `cosmostrix --benchmark --save-baseline v13.5.0-final.json`
+    /// without `--json`, the file was never written, and the subsequent
+    /// `--compare-baseline v13.5.0-final.json` failed with
+    /// "No such file or directory".
+    #[test]
+    fn save_then_compare_baseline_round_trip() {
+        // Synthesize a minimal benchmark JSON with the fields compare_with_baseline reads.
+        let baseline_json = r#"{
+            "avg_fps": 37000.0,
+            "peak_fps": 58000.0,
+            "p99_frame_time_ms": 0.032,
+            "avg_frame_time_ms": 0.027,
+            "dirty_cells_per_frame": 362.0,
+            "total_ns_per_cell": 74.0,
+            "avg_cpu_percent": 95.0,
+            "cols": 120,
+            "lines": 40
+        }"#;
+
+        let tmp = std::env::temp_dir().join(format!(
+            "cosmostrix-baseline-roundtrip-{}-{}.json",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+
+        // save_baseline must write the file.
+        save_baseline(tmp.to_str().unwrap(), baseline_json)
+            .expect("save_baseline must succeed for a writable temp path");
+        assert!(tmp.exists(), "baseline file must exist after save_baseline");
+
+        // compare_with_baseline must be able to read it back without error.
+        // (We don't care about the printed comparison here — only that
+        // reading + parsing doesn't fail. Any regression that breaks the
+        // save→compare path will surface as an Err here.)
+        let current_json = r#"{
+            "avg_fps": 38000.0,
+            "peak_fps": 57000.0,
+            "p99_frame_time_ms": 0.033,
+            "avg_frame_time_ms": 0.026,
+            "dirty_cells_per_frame": 361.0,
+            "total_ns_per_cell": 73.0,
+            "avg_cpu_percent": 98.0,
+            "cols": 120,
+            "lines": 40
+        }"#;
+        let result = compare_with_baseline(tmp.to_str().unwrap(), current_json);
+        assert!(
+            result.is_ok(),
+            "compare_with_baseline must succeed: {:?}",
+            result
+        );
+
+        std::fs::remove_file(&tmp).ok();
+    }
+
+    /// `save_baseline` must return an Err (not panic, not silently succeed)
+    /// when the target path is unwritable. This guards against future
+    /// "swallow the error" regressions.
+    #[test]
+    fn save_baseline_returns_err_on_unwritable_path() {
+        // A path inside a nonexistent directory is unwritable.
+        let bad_path = "/nonexistent_dir_for_cosmostrix_test/baseline.json";
+        let result = save_baseline(bad_path, "{}");
+        assert!(result.is_err(), "save_baseline must Err on unwritable path");
+        assert!(
+            result.unwrap_err().contains("cannot save baseline"),
+            "error message must explain what failed"
+        );
+    }
+
+    /// `compare_with_baseline` must return an Err when the baseline file
+    /// doesn't exist — and the error message must mention the path so the
+    /// user can diagnose. This is the exact error the user hit.
+    #[test]
+    fn compare_baseline_returns_err_on_missing_file() {
+        let missing = "/nonexistent_dir_for_cosmostrix_test/missing-baseline.json";
+        let result = compare_with_baseline(missing, "{}");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("cannot read baseline"), "got: {err}");
+        assert!(
+            err.contains(missing),
+            "error must mention the path; got: {err}"
+        );
+    }
+}
