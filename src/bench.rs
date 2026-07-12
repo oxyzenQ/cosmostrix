@@ -182,6 +182,13 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     progress.init_done();
 
+    // ── Phase 2: Initialize wet I/O writer if --bench-io ──────────────
+    let mut io_writer = if cfg.bench_io {
+        crate::bench_io::BenchIoWriter::new()
+    } else {
+        None
+    };
+
     // ── Warmup phase ─────────────────────────────────────────────────────
     progress.warmup_start();
     let warmup_end = Instant::now() + Duration::from_secs(bench_warmup_secs());
@@ -193,6 +200,11 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         }
         sim_now += target_period;
         cloud.rain_at(&mut frame, sim_now);
+        // Phase 2: wet I/O — write ANSI to /dev/null if --bench-io
+        if let Some(ref mut io) = io_writer {
+            io.write_frame(&frame);
+        }
+
         frame.clear_dirty();
         progress.warmup_tick();
     }
@@ -279,6 +291,11 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         }
         if estimates_full_redraw(total_cells, dirty_len, is_dirty_all, DIRTY_THRESHOLD_RATIO) {
             estimated_full_redraw_frames += 1;
+        }
+
+        // Phase 2: wet I/O — write ANSI to /dev/null if --bench-io
+        if let Some(ref mut io) = io_writer {
+            io.write_frame(&frame);
         }
 
         frame.clear_dirty();
@@ -370,6 +387,9 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // ── Clean up live UI ─────────────────────────────────────────────────
     progress.finish();
+
+    // Phase 2: Finalize wet I/O metrics
+    let terminal_io = io_writer.map(|io| io.finalize(total_elapsed_s));
 
     // ── Compute metrics ──────────────────────────────────────────────────
     // Reuse total_elapsed_s computed above for drift detection — calling
@@ -531,6 +551,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         } else {
             0.0
         },
+        terminal_io,
         glyphs_per_second,
         dirty_glyphs_per_second,
         theoretical_full_frame_glyphs_per_second,

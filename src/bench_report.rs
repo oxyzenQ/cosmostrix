@@ -90,6 +90,9 @@ pub(crate) struct BenchReportData {
     /// Total nanoseconds per cell (render + io + sim) / dirty_cells.
     pub total_ns_per_cell: f64,
 
+    // Phase 2: Terminal I/O wet metrics (None when --bench-io not used)
+    pub terminal_io: Option<crate::bench_io::TerminalIoMetrics>,
+
     // Throughput
     pub glyphs_per_second: u64,
     pub dirty_glyphs_per_second: u64,
@@ -689,6 +692,37 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             .advice("avg FPS alone is not enough; always check p99/p95 frame times.")
             .advice("dirty-cell ratio < 5% indicates efficient differential rendering.")
             .advice("p95 frame time < 2x avg frame time confirms throughput stability.");
+    }
+
+    // ── Phase 2: Terminal I/O (wet) ──────────────────────────────────
+    {
+        let s = r.section("TERMINAL I/O");
+        match &data.terminal_io {
+            Some(io) if io.enabled => {
+                s.field("status", "enabled (wet)");
+                s.field("target", &io.target);
+                s.field(
+                    "write_bandwidth",
+                    &format!("{:.1} MB/s", io.bandwidth_mbps()),
+                );
+                s.field(
+                    "avg_write_latency",
+                    &format!("{:.1} µs", io.avg_latency_us()),
+                );
+                s.field("backpressure_events", &io.backpressure_events.to_string());
+                s.field(
+                    "effective_write_fps",
+                    &crate::humanize::humanize_f64(io.effective_write_fps()),
+                );
+                s.field(
+                    "total_bytes_written",
+                    &crate::humanize::humanize(io.bytes_written),
+                );
+            }
+            _ => {
+                s.field("status", "dry (use --bench-io for wet mode)");
+            }
+        }
     }
 
     // Final report goes to stdout — clean, pipeable.

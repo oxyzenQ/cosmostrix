@@ -62,6 +62,7 @@ mod bench;
 mod bench_baseline;
 mod bench_comp;
 mod bench_cpu;
+mod bench_io;
 mod bench_json;
 mod bench_mem;
 mod bench_meta;

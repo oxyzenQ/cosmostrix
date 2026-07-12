@@ -164,6 +164,7 @@ mod tests {
             render_ns_per_cell: 30.0,
             io_ns_per_cell: 40.0,
             total_ns_per_cell: 70.0,
+            terminal_io: None,
             glyphs_per_second: 200_000,
             dirty_glyphs_per_second: 150_000,
             theoretical_full_frame_glyphs_per_second: 200_000,

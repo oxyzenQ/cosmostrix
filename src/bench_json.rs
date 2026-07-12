@@ -198,6 +198,23 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         );
     });
 
+    // ── terminal_io (Phase 2: wet I/O metrics) ──
+    json_object(&mut out, "terminal_io", |o| match &data.terminal_io {
+        Some(io) if io.enabled => {
+            o.push_kv("enabled", true);
+            o.push_kv_str("target", &io.target);
+            o.push_kv("bytes_written", io.bytes_written);
+            o.push_kv("write_calls", io.write_calls);
+            o.push_kv("backpressure_events", io.backpressure_events);
+            o.push_kv("bandwidth_mbps", io.bandwidth_mbps());
+            o.push_kv("avg_latency_us", io.avg_latency_us());
+            o.push_kv("effective_write_fps", io.effective_write_fps());
+        }
+        _ => {
+            o.push_kv("enabled", false);
+        }
+    });
+
     // Remove trailing comma from the last section.
     if out.ends_with(',') {
         out.pop();
