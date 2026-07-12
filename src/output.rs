@@ -49,9 +49,6 @@ pub const WARN_BOLD: &str = "\x1b[1;38;2;234;179;8m";
 /// ANSI reset. Restores terminal default color/style.
 pub const RESET: &str = "\x1b[0m";
 
-/// Dim/faint style. Used for secondary information.
-pub const DIM: &str = "\x1b[2m";
-
 // ── TTY detection ────────────────────────────────────────────────────────────
 
 /// Returns true if stdout is a terminal (and colors should be emitted).
@@ -68,31 +65,11 @@ pub fn stderr_is_tty() -> bool {
 
 // ── Color application helpers ────────────────────────────────────────────────
 
-/// Wrap `msg` in brand purple. Returns plain text if not a TTY.
-#[must_use]
-pub fn brand(msg: &str) -> String {
-    if stderr_is_tty() {
-        format!("{BRAND}{msg}{RESET}")
-    } else {
-        msg.to_string()
-    }
-}
-
 /// Wrap `msg` in bold brand purple. Returns plain text if not a TTY.
 #[must_use]
 pub fn brand_bold(msg: &str) -> String {
     if stderr_is_tty() {
         format!("{BRAND_BOLD}{msg}{RESET}")
-    } else {
-        msg.to_string()
-    }
-}
-
-/// Wrap `msg` in error red. Returns plain text if not a TTY.
-#[must_use]
-pub fn error(msg: &str) -> String {
-    if stderr_is_tty() {
-        format!("{ERROR}{msg}{RESET}")
     } else {
         msg.to_string()
     }
@@ -108,11 +85,11 @@ pub fn error_bold(msg: &str) -> String {
     }
 }
 
-/// Wrap `msg` in warning yellow. Returns plain text if not a TTY.
+/// Wrap `msg` in error red. Returns plain text if not a TTY.
 #[must_use]
-pub fn warn(msg: &str) -> String {
+pub fn error(msg: &str) -> String {
     if stderr_is_tty() {
-        format!("{WARN}{msg}{RESET}")
+        format!("{ERROR}{msg}{RESET}")
     } else {
         msg.to_string()
     }
@@ -128,56 +105,26 @@ pub fn warn_bold(msg: &str) -> String {
     }
 }
 
+/// Wrap `msg` in warning yellow. Returns plain text if not a TTY.
+#[must_use]
+pub fn warn(msg: &str) -> String {
+    if stderr_is_tty() {
+        format!("{WARN}{msg}{RESET}")
+    } else {
+        msg.to_string()
+    }
+}
+
 // ── Print helpers (stderr) ───────────────────────────────────────────────────
-
-/// Print a branded (purple) line to stderr.
-pub fn eprintln_brand(msg: &str) {
-    eprintln!("{}", brand(msg));
-}
-
-/// Print a bold-branded (bold purple) line to stderr.
-pub fn eprintln_brand_bold(msg: &str) {
-    eprintln!("{}", brand_bold(msg));
-}
-
-/// Print an error (red) line to stderr.
-pub fn eprintln_error(msg: &str) {
-    eprintln!("{}", error(msg));
-}
 
 /// Print a labeled error to stderr: "error: <msg>" in red.
 pub fn eprintln_error_labeled(msg: &str) {
     eprintln!("{} {}", error_bold("error:"), error(msg));
 }
 
-/// Print a warning (yellow) line to stderr.
-pub fn eprintln_warn(msg: &str) {
-    eprintln!("{}", warn(msg));
-}
-
 /// Print a labeled warning to stderr: "⚠ <msg>" in yellow.
 pub fn eprintln_warn_labeled(msg: &str) {
     eprintln!("{} {}", warn_bold("⚠"), warn(msg));
-}
-
-// ── Print helpers (stdout) ───────────────────────────────────────────────────
-
-/// Print a branded (purple) line to stdout.
-pub fn println_brand(msg: &str) {
-    if stdout_is_tty() {
-        println!("{BRAND}{msg}{RESET}");
-    } else {
-        println!("{msg}");
-    }
-}
-
-/// Print a branded (purple) string without trailing newline to stdout.
-pub fn print_brand(msg: &str) {
-    if stdout_is_tty() {
-        print!("{BRAND}{msg}{RESET}");
-    } else {
-        print!("{msg}");
-    }
 }
 
 // ── Verbose helpers ──────────────────────────────────────────────────────────
@@ -191,9 +138,7 @@ pub fn print_brand(msg: &str) {
 #[must_use]
 pub fn verbose_line(label: &str, value: &str) -> String {
     if stderr_is_tty() {
-        format!(
-            "{BRAND_BOLD}[verbose]{RESET} {BRAND}{label:<14}{RESET}{value}"
-        )
+        format!("{BRAND_BOLD}[verbose]{RESET} {BRAND}{label:<14}{RESET}{value}")
     } else {
         format!("[verbose] {label:<14}{value}")
     }
@@ -234,12 +179,15 @@ mod tests {
     }
 
     #[test]
-    fn brand_wraps_message_with_color_codes() {
-        // When stderr is a TTY, the wrapped string contains ANSI codes.
-        // When piped, it's plain text. Either way, the original message
-        // must be present.
-        let wrapped = brand("hello");
+    fn brand_bold_wraps_message() {
+        let wrapped = brand_bold("hello");
         assert!(wrapped.contains("hello"));
+    }
+
+    #[test]
+    fn error_bold_wraps_message() {
+        let wrapped = error_bold("error:");
+        assert!(wrapped.contains("error:"));
     }
 
     #[test]
@@ -255,12 +203,5 @@ mod tests {
         let sep = verbose_separator('═', 10);
         assert!(sep.contains("[verbose]"));
         assert!(sep.contains("══════════"));
-    }
-
-    #[test]
-    fn error_labeled_format_is_correct() {
-        // The error_bold function should produce a string containing "error:"
-        let labeled = error_bold("error:");
-        assert!(labeled.contains("error:"));
     }
 }
