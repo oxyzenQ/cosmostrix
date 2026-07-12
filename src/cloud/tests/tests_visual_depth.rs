@@ -11,7 +11,7 @@
 use crossterm::style::Color;
 
 use super::Cloud;
-use crate::bench::{AVG_DIRTY_CELL_RATIO_MEANING, ESTIMATED_FULL_REDRAW_MEANING};
+use crate::bench::AVG_DIRTY_CELL_RATIO_MEANING;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
@@ -152,7 +152,7 @@ fn benchmark_output_includes_required_fields() {
         "dirty_cell_ratio",
         "estimated_full_redraw",
     ];
-    let meanings = [AVG_DIRTY_CELL_RATIO_MEANING, ESTIMATED_FULL_REDRAW_MEANING];
+    let meanings = [AVG_DIRTY_CELL_RATIO_MEANING];
 
     for field in &required {
         assert!(!field.is_empty(), "required field name must be non-empty");

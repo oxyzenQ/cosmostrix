@@ -14,14 +14,17 @@
 // premium benchmark output and are referenced by tests to prevent
 // accidental removal or misleading wording changes.
 
+#[allow(dead_code)]
 pub(crate) const DRAW_RATIO_MEANING: &str =
     "legacy compatibility: percentage of frames with >=1 dirty cell";
 pub(crate) const ACTIVE_FRAME_RATIO_MEANING: &str =
     "frames that produced at least one dirty cell during measurement";
 pub(crate) const AVG_DIRTY_CELL_RATIO_MEANING: &str =
     "average dirty-cell coverage across all measured frames";
+#[allow(dead_code)]
 pub(crate) const DIRTY_ALL_FRAMES_MEANING: &str =
     "logical frames where every cell was dirty; distinct from terminal redraw estimate";
+#[allow(dead_code)]
 pub(crate) const ESTIMATED_FULL_REDRAW_MEANING: &str =
     "threshold estimate of frames likely to use Terminal::draw full-redraw path";
 

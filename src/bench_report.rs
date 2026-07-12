@@ -27,10 +27,7 @@ use super::{color_mode_label, detect_color_mode_auto};
 // `crate::bench_report::*_MEANING` import paths after the constants
 // were extracted to bench_meta.rs.
 #[allow(unused_imports)]
-pub(crate) use crate::bench_meta::{
-    ACTIVE_FRAME_RATIO_MEANING, AVG_DIRTY_CELL_RATIO_MEANING, DIRTY_ALL_FRAMES_MEANING,
-    DRAW_RATIO_MEANING, ESTIMATED_FULL_REDRAW_MEANING,
-};
+pub(crate) use crate::bench_meta::{ACTIVE_FRAME_RATIO_MEANING, AVG_DIRTY_CELL_RATIO_MEANING};
 
 // ── Report data struct ───────────────────────────────────────────────────────
 
@@ -77,7 +74,9 @@ pub(crate) struct BenchReportData {
     pub avg_dirty_cell_ratio_percent: f64,
     pub dirty_all_frames: u64,
     pub dirty_threshold: usize,
+    #[allow(dead_code)]
     pub estimated_full_redraw_frames: u64,
+    #[allow(dead_code)]
     pub estimated_full_redraw_ratio_percent: f64,
 
     // P3: Cells per frame (DeepSeek metrics)
@@ -255,6 +254,17 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // file under its 1000-LOC guard.
     crate::envstat::render_section(&mut r, &data.env);
 
+    // ── DRAGON ENGINE METRICS ─────────────────────────────────────────
+    // All engine-specific metrics grouped under this header.
+    {
+        let s = r.section("DRAGON ENGINE METRICS");
+        s.field(
+            "engine",
+            "cosmostrix dragon engine (diff-based + RLE + phosphor)",
+        );
+        s.field("version", env!("CARGO_PKG_VERSION"));
+    }
+
     {
         let s = r.section("PERFORMANCE");
         s.field("avg_fps", &format!("{:.1}", data.avg_fps));
@@ -274,8 +284,6 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("frame_jitter", data.jitter_classification);
         s.field("median_fps", &format!("{:.1}", data.median_fps));
         s.field("frame_time_stability", data.frame_time_stability);
-        s.field("draw_ratio", &format!("{:.1}%", data.active_frame_ratio));
-        s.field("draw_ratio_meaning", DRAW_RATIO_MEANING);
         s.field(
             "active_frame_ratio_percent",
             &format!("{:.1}%", data.active_frame_ratio),
@@ -302,27 +310,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field("avg_dirty_cell_ratio_meaning", AVG_DIRTY_CELL_RATIO_MEANING);
         s.field("dirty_all_frames", &data.dirty_all_frames.to_string());
-        s.field("dirty_all_frames_meaning", DIRTY_ALL_FRAMES_MEANING);
         s.field("dirty_threshold_cells", &data.dirty_threshold.to_string());
-        s.field(
-            "estimated_full_redraw_frames",
-            &data.estimated_full_redraw_frames.to_string(),
-        );
-        s.field(
-            "estimated_full_redraw_ratio_percent",
-            &format!("{:.1}%", data.estimated_full_redraw_ratio_percent),
-        );
-        s.field(
-            "estimated_full_redraw_basis",
-            &format!(
-                "dirty cells >= total cells / {} (terminal threshold estimate)",
-                DIRTY_THRESHOLD_RATIO
-            ),
-        );
-        s.field(
-            "estimated_full_redraw_meaning",
-            ESTIMATED_FULL_REDRAW_MEANING,
-        );
     }
 
     {

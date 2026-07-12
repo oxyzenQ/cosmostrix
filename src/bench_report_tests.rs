@@ -10,11 +10,8 @@ mod tests {
 
     #[test]
     fn bench_report_metric_meanings_distinguish_dirty_frame_concepts() {
-        assert!(DRAW_RATIO_MEANING.contains("legacy compatibility"));
         assert!(ACTIVE_FRAME_RATIO_MEANING.contains("at least one dirty cell"));
         assert!(AVG_DIRTY_CELL_RATIO_MEANING.contains("dirty-cell coverage"));
-        assert!(DIRTY_ALL_FRAMES_MEANING.contains("every cell was dirty"));
-        assert!(ESTIMATED_FULL_REDRAW_MEANING.contains("threshold estimate"));
     }
 
     #[test]
@@ -31,10 +28,9 @@ mod tests {
             "p99_frame_time",
             "frame_time_stability",
             "frame_jitter",
-            "draw_ratio",
+            "active_frame_ratio_percent",
             "avg_dirty_cell_ratio_percent",
             "dirty_all_frames",
-            "estimated_full_redraw_ratio_percent",
             // Throughput
             "glyphs_per_second",
             "dirty_glyphs_per_second",

@@ -51,7 +51,7 @@ use crate::bench_progress::{register_interrupt, BenchProgress};
 // (e.g., cloud/tests/tests_visual_depth.rs) so that import paths
 // remain stable after the split into bench_report.rs.
 #[allow(unused_imports)]
-pub(crate) use crate::bench_report::{AVG_DIRTY_CELL_RATIO_MEANING, ESTIMATED_FULL_REDRAW_MEANING};
+pub(crate) use crate::bench_report::AVG_DIRTY_CELL_RATIO_MEANING;
 
 /// Duration of the premium benchmark in seconds (default).
 const BENCHMARK_DURATION_SECS: u64 = 5;
@@ -608,17 +608,12 @@ fn bench_warmup_secs() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bench_report::{
-        ACTIVE_FRAME_RATIO_MEANING, DIRTY_ALL_FRAMES_MEANING, DRAW_RATIO_MEANING,
-    };
+    use crate::bench_report::ACTIVE_FRAME_RATIO_MEANING;
 
     #[test]
     fn benchmark_metric_meanings_distinguish_dirty_frame_concepts() {
-        assert!(DRAW_RATIO_MEANING.contains("legacy compatibility"));
         assert!(ACTIVE_FRAME_RATIO_MEANING.contains("at least one dirty cell"));
         assert!(AVG_DIRTY_CELL_RATIO_MEANING.contains("dirty-cell coverage"));
-        assert!(DIRTY_ALL_FRAMES_MEANING.contains("every cell was dirty"));
-        assert!(ESTIMATED_FULL_REDRAW_MEANING.contains("threshold estimate"));
     }
 
     #[test]
@@ -705,7 +700,6 @@ mod tests {
         // so external modules (e.g., cloud/tests/tests_visual_depth.rs)
         // can still use `use crate::bench::AVG_DIRTY_CELL_RATIO_MEANING`.
         assert!(AVG_DIRTY_CELL_RATIO_MEANING.contains("dirty-cell coverage"));
-        assert!(ESTIMATED_FULL_REDRAW_MEANING.contains("threshold estimate"));
     }
 
     #[test]
