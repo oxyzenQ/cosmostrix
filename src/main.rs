@@ -112,6 +112,7 @@ mod interactive;
 #[cfg(test)]
 mod loc_tests;
 mod memstat;
+mod output;
 mod palette;
 mod preset;
 mod profile;
@@ -349,7 +350,9 @@ fn main() -> std::io::Result<()> {
             "fish" => clap_complete::Shell::Fish,
             "elvish" => clap_complete::Shell::Elvish,
             _ => {
-                eprintln!("error: unknown shell '{shell}' (supported: bash, zsh, fish, elvish)");
+                crate::output::eprintln_error_labeled(&format!(
+                    "unknown shell '{shell}' (supported: bash, zsh, fish, elvish)"
+                ));
                 std::process::exit(2);
             }
         };

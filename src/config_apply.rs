@@ -45,7 +45,9 @@ fn parse_atmosphere_mode_config(name: &str, value: &str) -> Option<String> {
     match value.trim().to_ascii_lowercase().as_str() {
         "disabled" | "controlled-live" => Some(value.trim().to_ascii_lowercase()),
         _ => {
-            eprintln!("error: invalid {name}='{value}' (allowed: disabled, controlled-live)");
+            crate::output::eprintln_error_labeled(
+                &format!("invalid {name}='{value}' (allowed: disabled, controlled-live)"),
+            );
             None
         }
     }
@@ -60,7 +62,9 @@ fn parse_atmosphere_regime_config(name: &str, value: &str) -> Option<String> {
             Some(value.trim().to_ascii_lowercase())
         }
         "storm" => {
-            eprintln!("error: rejecting atmosphere-regime='storm' — storm is unavailable");
+            crate::output::eprintln_error_labeled(
+                "rejecting atmosphere-regime='storm' — storm is unavailable",
+            );
             None
         }
         _ => {
@@ -260,7 +264,7 @@ fn apply_config_values(
                 args.preset = Some(name);
                 config_touched.insert("preset");
             }
-            Err(e) => eprintln!("error: invalid preset='{v}' ({e})"),
+            Err(e) => crate::output::eprintln_error_labeled(&format!("invalid preset='{v}' ({e})")),
         }
     }
 
@@ -270,7 +274,7 @@ fn apply_config_values(
                 args.scene = Some(name);
                 config_touched.insert("scene");
             }
-            Err(e) => eprintln!("error: invalid scene='{v}' ({e})"),
+            Err(e) => crate::output::eprintln_error_labeled(&format!("invalid scene='{v}' ({e})")),
         }
     }
 
@@ -281,7 +285,9 @@ fn apply_config_values(
                 config_touched.insert("profile");
             }
             Err(e) => {
-                eprintln!("error: unknown profile '{v}' ({e}; see --list-profiles)")
+                crate::output::eprintln_error_labeled(&format!(
+                    "unknown profile '{v}' ({e}; see --list-profiles)"
+                )),
             }
         }
     }
@@ -291,7 +297,7 @@ fn apply_config_values(
             args.color = v;
             config_touched.insert("color");
         } else {
-            eprintln!("error: invalid color='{v}' (see --list-colors)");
+            crate::output::eprintln_error_labeled(&format!("invalid color='{v}' (see --list-colors)"));
         }
     }
     if let Some(v) = config_value(matches, cfg, "charset", "charset") {
@@ -299,7 +305,7 @@ fn apply_config_values(
             args.charset = v;
             config_touched.insert("charset");
         } else {
-            eprintln!("error: invalid charset='{v}' (see --list-charsets)");
+            crate::output::eprintln_error_labeled(&format!("invalid charset='{v}' (see --list-charsets)"));
         }
     }
     if let Some(v) = config_value(matches, cfg, "fps", "fps") {
@@ -327,7 +333,9 @@ fn apply_config_values(
                 config_touched.insert("monolith_size");
             }
             Err(_) => {
-                eprintln!("error: invalid monolith-size='{v}' (allowed: small, normal, large)")
+                crate::output::eprintln_error_labeled(&format!(
+                    "invalid monolith-size='{v}' (allowed: small, normal, large)"
+                ));
             }
         }
     }
@@ -530,9 +538,7 @@ fn apply_scene_values(
             }
         }
         if let Some(glitch_level) = cfg.glitch_level {
-            if !is_explicit(matches, "glitch_level")
-                && !config_touched.contains("glitch_level")
-            {
+            if !is_explicit(matches, "glitch_level") && !config_touched.contains("glitch_level") {
                 args.glitch_level = glitch_level;
                 scene_modified.insert("glitch_level");
             }
@@ -670,7 +676,9 @@ fn parse_f32_config(name: &str, value: &str, min: f32, max: f32) -> Option<f32> 
     match parse_canonical_f32_range(&format!("config {name}"), value, min, max) {
         Ok(f) => Some(f),
         Err(_) => {
-            eprintln!("error: invalid {name}='{value}' (expected: number in range {min}..={max})");
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid {name}='{value}' (expected: number in range {min}..={max})"
+            ));
             None
         }
     }
@@ -680,7 +688,9 @@ fn parse_f64_config(name: &str, value: &str, min: f64, max: f64) -> Option<f64> 
     match parse_canonical_f64_range(&format!("config {name}"), value, min, max) {
         Ok(f) => Some(f),
         Err(_) => {
-            eprintln!("error: invalid {name}='{value}' (expected: number in range {min}..={max})");
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid {name}='{value}' (expected: number in range {min}..={max})"
+            ));
             None
         }
     }
@@ -690,7 +700,9 @@ fn parse_u8_config(name: &str, value: &str, min: u8, max: u8) -> Option<u8> {
     match parse_canonical_u8_range(&format!("config {name}"), value, min, max) {
         Ok(valid) => Some(valid),
         Err(_) => {
-            eprintln!("error: invalid {name}='{value}' (expected: number in range {min}..={max})");
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid {name}='{value}' (expected: number in range {min}..={max})"
+            ));
             None
         }
     }
@@ -713,7 +725,9 @@ fn parse_bool_config(name: &str, value: &str) -> Option<bool> {
         "true" | "yes" | "on" | "1" => Some(true),
         "false" | "no" | "off" | "0" => Some(false),
         _ => {
-            eprintln!("error: invalid {name}='{value}' (expected true/false)");
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid {name}='{value}' (expected true/false)"
+            ));
             None
         }
     }
@@ -724,9 +738,9 @@ fn parse_color_bg_config(value: &str) -> Option<ColorBg> {
         "black" => Some(ColorBg::Black),
         "default-background" | "default_background" => Some(ColorBg::DefaultBackground),
         _ => {
-            eprintln!(
-                "error: invalid color-bg='{value}' (allowed: black, default-background)"
-            );
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid color-bg='{value}' (allowed: black, default-background)"
+            ));
             None
         }
     }

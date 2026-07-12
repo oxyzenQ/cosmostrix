@@ -6,9 +6,14 @@
 //! Extracted from main.rs to keep that file under 1000 LOC.
 //! Prints comprehensive runtime configuration to stderr for
 //! power users / hackers debugging config and loading issues.
+//!
+//! Uses branded purple output: [verbose] prefix is bold purple,
+//! field labels are purple, values stay in terminal default color
+//! for readability.
 
 use crate::atmosphere_apply::{AtmosphereApplicationMode, AtmosphereRuntimeModulation};
 use crate::color_tune::ColorTune;
+use crate::output;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, MonolithSize, ShadingMode};
 use crate::{configfile, is_safe_path};
@@ -50,40 +55,46 @@ pub(crate) fn print_verbose(
     charset_file: Option<&str>,
     screen_size: Option<(u16, u16)>,
 ) {
-    eprintln!("[verbose] ════════════════════════════════════════════════════");
-    eprintln!("[verbose]  cosmostrix v{version} — runtime configuration");
-    eprintln!("[verbose] ════════════════════════════════════════════════════");
-    eprintln!("[verbose]  scene:        {:?}", scene.unwrap_or("default"));
-    eprintln!("[verbose]  rain_style:   {rain_style:?}");
-    eprintln!("[verbose]  color_scheme: {color_scheme:?}");
-    eprintln!("[verbose]  color_mode:   {color_mode:?}");
+    output::eprintln_verbose_separator('═', 56);
     eprintln!(
-        "[verbose]  color_tune:   sat={:.2} bright={:.2}",
-        color_tune.saturation, color_tune.brightness
+        "{}",
+        output::brand_bold(&format!("[verbose]  cosmostrix v{version} — runtime configuration"))
     );
-    eprintln!("[verbose]  color_bg:     {default_bg:?}");
-    eprintln!(
-        "[verbose]  charset:      {charset_preset} ({} glyphs)",
-        chars.len()
+    output::eprintln_verbose_separator('═', 56);
+    output::eprintln_verbose("scene:", &format!(" {:?}", scene.unwrap_or("default")));
+    output::eprintln_verbose("rain_style:", &format!(" {rain_style:?}"));
+    output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?}"));
+    output::eprintln_verbose("color_mode:", &format!(" {color_mode:?}"));
+    output::eprintln_verbose(
+        "color_tune:",
+        &format!(" sat={:.2} bright={:.2}", color_tune.saturation, color_tune.brightness),
     );
-    eprintln!("[verbose]  fullwidth:    {fullwidth}");
-    eprintln!("[verbose]  fps:          {target_fps:.1}");
-    eprintln!("[verbose]  speed:        {speed:.1}");
-    eprintln!("[verbose]  density:      {base_density:.2} (auto: {density_auto})");
-    eprintln!("[verbose]  monolith:     {monolith_size:?}");
-    eprintln!("[verbose]  async_mode:   {async_mode} (variable column speeds)");
-    eprintln!("[verbose]  bold:         {bold_mode:?}");
-    eprintln!("[verbose]  shading:      {shading_mode:?}");
-    eprintln!(
-        "[verbose]  glitch:       {} ({glitch_pct}%, {glitch_low}-{glitch_high}ms)",
-        !noglitch
+    output::eprintln_verbose("color_bg:", &format!(" {default_bg:?}"));
+    output::eprintln_verbose(
+        "charset:",
+        &format!(" {charset_preset} ({} glyphs)", chars.len()),
     );
-    eprintln!("[verbose]  glitch_level: {glitch_level:?}");
-    eprintln!("[verbose]  mouse:        {mouse}");
-    eprintln!("[verbose]  low_power:    {low_power}");
-    eprintln!("[verbose]  screensaver:  {screensaver}");
-    eprintln!("[verbose]  auto_drift:   {auto_drift}");
-    eprintln!("[verbose]  atmosphere:   {atmosphere_mode:?} / {atmosphere_modulation:?}");
+    output::eprintln_verbose("fullwidth:", &format!(" {fullwidth}"));
+    output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
+    output::eprintln_verbose("speed:", &format!(" {speed:.1}"));
+    output::eprintln_verbose("density:", &format!(" {base_density:.2} (auto: {density_auto})"));
+    output::eprintln_verbose("monolith:", &format!(" {monolith_size:?}"));
+    output::eprintln_verbose("async_mode:", &format!(" {async_mode} (variable column speeds)"));
+    output::eprintln_verbose("bold:", &format!(" {bold_mode:?}"));
+    output::eprintln_verbose("shading:", &format!(" {shading_mode:?}"));
+    output::eprintln_verbose(
+        "glitch:",
+        &format!(" {} ({glitch_pct}%, {glitch_low}-{glitch_high}ms)", !noglitch),
+    );
+    output::eprintln_verbose("glitch_level:", &format!(" {glitch_level:?}"));
+    output::eprintln_verbose("mouse:", &format!(" {mouse}"));
+    output::eprintln_verbose("low_power:", &format!(" {low_power}"));
+    output::eprintln_verbose("screensaver:", &format!(" {screensaver}"));
+    output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
+    output::eprintln_verbose(
+        "atmosphere:",
+        &format!(" {atmosphere_mode:?} / {atmosphere_modulation:?}"),
+    );
     // Screen size: fixed (--screen-size) or dynamic (terminal-detected)
     let (sw, sh, size_mode) = match screen_size {
         Some((w, h)) => (w, h, "fixed"),
@@ -93,17 +104,17 @@ pub(crate) fn print_verbose(
             (tw, th, "auto")
         }
     };
-    eprintln!("[verbose]  screen_size:  {sw}x{sh} ({size_mode})");
+    output::eprintln_verbose("screen_size:", &format!(" {sw}x{sh} ({size_mode})"));
     if let Some(msg) = message {
-        eprintln!(
-            "[verbose]  message:      \"{msg}\" ({} chars, border: {message_border})",
-            msg.chars().count()
+        output::eprintln_verbose(
+            "message:",
+            &format!(" \"{msg}\" ({} chars, border: {message_border})", msg.chars().count()),
         );
     }
     if let Some(d) = duration {
-        eprintln!("[verbose]  duration:     {d:.1}s");
+        output::eprintln_verbose("duration:", &format!(" {d:.1}s"));
     }
-    eprintln!("[verbose] ──────────────────────────────────────────────────");
+    output::eprintln_verbose_separator('─', 56);
     let term = std::env::var("TERM").unwrap_or_else(|_| "(unset)".into());
     let colorterm = std::env::var("COLORTERM").unwrap_or_else(|_| "(unset)".into());
     let term_program = std::env::var("TERM_PROGRAM").unwrap_or_else(|_| "(unset)".into());
@@ -112,22 +123,22 @@ pub(crate) fn print_verbose(
     let lang = std::env::var("LANG").unwrap_or_else(|_| "(unset)".into());
     let is_tty = std::io::IsTerminal::is_terminal(&std::io::stderr());
     let is_stdout_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
-    eprintln!("[verbose]  TERM:         {term}");
-    eprintln!("[verbose]  COLORTERM:    {colorterm}");
-    eprintln!("[verbose]  TERM_PROGRAM: {term_program}");
-    eprintln!("[verbose]  TERM_VERSION: {term_version}");
-    eprintln!("[verbose]  SHELL:        {shell}");
-    eprintln!("[verbose]  LANG:         {lang}");
-    eprintln!("[verbose]  isatty(stderr): {is_tty}");
-    eprintln!("[verbose]  isatty(stdout): {is_stdout_tty}");
+    output::eprintln_verbose("TERM:", &format!(" {term}"));
+    output::eprintln_verbose("COLORTERM:", &format!(" {colorterm}"));
+    output::eprintln_verbose("TERM_PROGRAM:", &format!(" {term_program}"));
+    output::eprintln_verbose("TERM_VERSION:", &format!(" {term_version}"));
+    output::eprintln_verbose("SHELL:", &format!(" {shell}"));
+    output::eprintln_verbose("LANG:", &format!(" {lang}"));
+    output::eprintln_verbose("isatty(stderr):", &format!(" {is_tty}"));
+    output::eprintln_verbose("isatty(stdout):", &format!(" {is_stdout_tty}"));
     let config_path = configfile::default_config_file_path();
-    eprintln!("[verbose]  config_path:  {}", config_path.display());
-    eprintln!("[verbose]  config exists: {}", config_path.exists());
+    output::eprintln_verbose("config_path:", &format!(" {}", config_path.display()));
+    output::eprintln_verbose("config exists:", &format!(" {}", config_path.exists()));
     if let Some(cf) = charset_file {
-        eprintln!("[verbose]  charset_file: {cf} (safe: {})", is_safe_path(cf));
+        output::eprintln_verbose("charset_file:", &format!(" {cf} (safe: {})", is_safe_path(cf)));
     }
     let is_android = std::env::var("TERMUX_VERSION").is_ok()
         || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
-    eprintln!("[verbose]  android:      {is_android}");
-    eprintln!("[verbose] ════════════════════════════════════════════════════");
+    output::eprintln_verbose("android:", &format!(" {is_android}"));
+    output::eprintln_verbose_separator('═', 56);
 }

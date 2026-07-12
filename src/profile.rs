@@ -573,7 +573,9 @@ fn is_explicit(matches: &clap::ArgMatches, key: &str) -> bool {
 }
 
 fn warn_invalid(profile: &str, field: &str, value: &str, expected: &str) {
-    eprintln!("profile: invalid {field}='{value}' in profile '{profile}' (expected: {expected})");
+    crate::output::eprintln_warn_labeled(&format!(
+        "profile: invalid {field}='{value}' in profile '{profile}' (expected: {expected})"
+    ));
 }
 
 fn push_field(out: &mut String, profile: &str, field: &str, value: Option<&str>) {

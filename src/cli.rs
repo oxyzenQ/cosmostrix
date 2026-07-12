@@ -23,7 +23,7 @@ USAGE:
 pub(crate) const HELP_TEMPLATE_COLOR: &str = "\
 {name} {version}
 {about-with-newline}\
-\x1b[1;36mUSAGE:\x1b[0m
+\x1b[1;35mUSAGE:\x1b[0m
   {usage}
 
 {all-args}{after-help}";
@@ -38,19 +38,22 @@ use clap::builder::Styles as ClapStyles;
 #[must_use]
 #[cfg(unix)]
 pub(crate) fn clap_styles() -> ClapStyles {
+    // Purple brand identity: headers and usage in magenta (closest ANSI
+    // to #A855F7 purple). Literals stay yellow for contrast. Placeholders
+    // use cyan for readability against purple headers.
     ClapStyles::styled()
         .header(
             ClapStyle::new()
                 .effects(ClapEffects::BOLD)
-                .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Cyan))),
+                .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Magenta))),
         )
         .usage(
             ClapStyle::new()
                 .effects(ClapEffects::BOLD)
-                .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Green))),
+                .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Magenta))),
         )
         .literal(ClapStyle::new().fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Yellow))))
-        .placeholder(ClapStyle::new().fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Magenta))))
+        .placeholder(ClapStyle::new().fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Cyan))))
 }
 
 // --- Charset helpers ---
@@ -106,7 +109,9 @@ pub fn detect_color_mode(args: &Args) -> ColorMode {
             8 | 256 => ColorMode::Color256,
             24 | 32 => ColorMode::TrueColor,
             _ => {
-                eprintln!("invalid --colormode: {} (allowed: 0,16,8/256,24/32)", m);
+                crate::output::eprintln_error_labeled(&format!(
+                    "invalid --colormode: {m} (allowed: 0,16,8/256,24/32)"
+                ));
                 std::process::exit(1);
             }
         };

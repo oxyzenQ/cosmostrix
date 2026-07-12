@@ -221,8 +221,7 @@ fn config_speed_wins_over_monolith_scene_default() {
     assert_eq!(args.speed, 12.0, "config speed must win over monolith scene default 30");
     // Scene defaults for UNSET keys still apply:
     assert_eq!(args.color, "cosmos", "scene color default applies for unset key");
-    assert!((args.density - 0.85).abs() < f32::EPSILON,
-            "scene density default applies for unset key");
+    assert!((args.density - 0.85).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -231,8 +230,7 @@ fn config_density_wins_over_signal_scene_default() {
     let args = args_with_config("scene = signal\ndensity = 0.5\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("signal"));
     assert_eq!(args.speed, 10.0, "scene speed default applies for unset key");
-    assert!((args.density - 0.5).abs() < f32::EPSILON,
-            "config density must win over signal scene default 0.95");
+    assert!((args.density - 0.5).abs() < f32::EPSILON);
 }
 
 #[test]
