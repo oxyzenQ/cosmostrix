@@ -732,7 +732,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let mut perf_work_sum_s = 0.0f64;
     let mut perf_work_max_s = 0.0f64;
     let _perf_pressure = 0.0f32;
-    let components = ComponentTimer::new();
+    let mut components = ComponentTimer::new();
 
     let total_cells = (w as usize) * (h as usize);
     let dirty_threshold = dirty_threshold_cells(total_cells, DIRTY_THRESHOLD_RATIO);
@@ -768,7 +768,8 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         frame.clear_dirty();
 
         let frame_time_ms = frame_start.elapsed().as_secs_f64() * 1000.0;
-        let _io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
+        let io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
+        components.record(sim_ms, render_ms, io_ms);
 
         if ft_index < FRAME_TIME_SAMPLES {
             frame_times[ft_index] = frame_time_ms;
