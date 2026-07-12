@@ -82,24 +82,25 @@ mod linux {
                 config,
                 ..Default::default()
             };
-            // pid=0 (this process), cpu=-1 (inherit), group_fd=-1
+            // pid=0 (this process), cpu=0 (specific core — needed for perf_event_open),
+            // group_fd=-1, flags=0
             let fd = syscall(
                 SYS_PERF_EVENT_OPEN,
                 &attr as *const PerfEventAttr as *mut PerfEventAttr,
-                0i32,
-                -1i32,
-                -1i32,
-                0u64,
+                0i32,  // pid=0: measure this process
+                0i32,  // cpu=0: specific core (perf requires this, not -1)
+                -1i32, // group_fd=-1: standalone
+                0u64,  // flags=0
             );
             if fd < 0 {
                 None
             } else {
-                // Reset and enable
                 let fd = fd as i32;
-                const PERF_EVENT_IOC_RESET: u64 = 0x2400;
-                const PERF_EVENT_IOC_ENABLE: u64 = 0x2401;
-                libc::ioctl(fd, PERF_EVENT_IOC_RESET as _);
-                libc::ioctl(fd, PERF_EVENT_IOC_ENABLE as _);
+                // PERF_EVENT_IOC_ENABLE = _IO('$', 0) = 0x2400
+                // PERF_EVENT_IOC_DISABLE = _IO('$', 1) = 0x2401
+                // PERF_EVENT_IOC_RESET = _IO('$', 3) = 0x2403
+                // Enable the counter (it starts counting immediately)
+                libc::ioctl(fd, 0x2400u64 as _); // ENABLE
                 Some(fd)
             }
         }
@@ -110,8 +111,9 @@ mod linux {
             return 0;
         }
         let mut value: u64 = 0;
-        unsafe {
-            libc::read(fd, &mut value as *mut u64 as *mut libc::c_void, 8);
+        let ret = unsafe { libc::read(fd, &mut value as *mut u64 as *mut libc::c_void, 8) };
+        if ret != 8 {
+            return 0;
         }
         value
     }
