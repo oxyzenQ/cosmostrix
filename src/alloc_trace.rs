@@ -4,17 +4,25 @@
 //! Allocator tracing — global allocator wrapper that counts alloc/dealloc calls.
 //!
 //! Phase 5 of DeepSeek benchmark restructuring plan.
-//! Dragon Supercharger: now wraps mimalloc instead of System for
-//! reduced allocation latency and fragmentation.
+//! Dragon Supercharger: on Linux, wraps mimalloc instead of System for
+//! reduced allocation latency and fragmentation. On non-Linux targets
+//! (Android, macOS, Windows) falls back to the system allocator —
+//! libmimalloc-sys's cc-rs build requires platform-specific AR tooling
+//! that is fragile on Android NDK r26d (which ships only llvm-ar), and
+//! the system allocators on those platforms are already well-tuned.
 //!
-//! Wraps `mimalloc::MiMalloc` with atomic counters for alloc/dealloc/realloc
+//! Wraps the platform allocator with atomic counters for alloc/dealloc/realloc
 //! calls and bytes. Always active (overhead = ~2ns per call from atomic increment).
 //! Stats are read by the benchmark to report allocation patterns.
 
 use std::alloc::{GlobalAlloc, Layout};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+#[cfg(target_os = "linux")]
 use mimalloc::MiMalloc;
+
+#[cfg(not(target_os = "linux"))]
+use std::alloc::System;
 
 static ALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
 static DEALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
@@ -22,29 +30,34 @@ static REALLOC_CALLS: AtomicU64 = AtomicU64::new(0);
 static BYTES_ALLOCATED: AtomicU64 = AtomicU64::new(0);
 static BYTES_DEALLOCATED: AtomicU64 = AtomicU64::new(0);
 
-/// Global allocator that wraps mimalloc and tracks allocation statistics.
+/// Global allocator that wraps the platform allocator (mimalloc on Linux,
+/// System elsewhere) and tracks allocation statistics.
 pub struct TraceAlloc;
 
-static MI: MiMalloc = MiMalloc;
+#[cfg(target_os = "linux")]
+static INNER: MiMalloc = MiMalloc;
+
+#[cfg(not(target_os = "linux"))]
+static INNER: System = System;
 
 unsafe impl GlobalAlloc for TraceAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
         BYTES_ALLOCATED.fetch_add(layout.size() as u64, Ordering::Relaxed);
-        MI.alloc(layout)
+        INNER.alloc(layout)
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         DEALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
         BYTES_DEALLOCATED.fetch_add(layout.size() as u64, Ordering::Relaxed);
-        MI.dealloc(ptr, layout);
+        INNER.dealloc(ptr, layout);
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         REALLOC_CALLS.fetch_add(1, Ordering::Relaxed);
         BYTES_ALLOCATED.fetch_add(new_size as u64, Ordering::Relaxed);
         BYTES_DEALLOCATED.fetch_add(layout.size() as u64, Ordering::Relaxed);
-        MI.realloc(ptr, layout, new_size)
+        INNER.realloc(ptr, layout, new_size)
     }
 }
 
