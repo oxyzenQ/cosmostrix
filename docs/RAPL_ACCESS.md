@@ -30,26 +30,31 @@ cosmostrix --benchmark --screen-size 120x40 --bench-duration 5s
 
 **Note**: Permissions reset on reboot because `sysfs` is a virtual filesystem.
 
-## Method 2: udev Rule (Permanent, Recommended)
+## Method 2: systemd tmpfiles (Permanent, Recommended)
 
-Create a udev rule that sets permissions automatically on boot:
+The udev rule approach does NOT work for sysfs files like `energy_uj`
+(udev controls device nodes, not individual sysfs files). Instead, use
+systemd tmpfiles which runs at boot:
 
 ```bash
-# Create the rule file
-sudo tee /etc/udev/rules.d/99-rapl.rules << 'EOF'
-SUBSYSTEM=="powercap", KERNEL=="intel-rapl:*", MODE="0444"
+# Create tmpfiles config
+sudo tee /etc/tmpfiles.d/rapl.conf << 'EOF'
+f /sys/class/powercap/intel-rapl:0/energy_uj 0444 - - -
+f /sys/class/powercap/intel-rapl:0/intel-rapl:0:0/energy_uj 0444 - - -
 EOF
 
-# Reload udev rules
-sudo udevadm control --reload-rules
-sudo udevadm trigger
+# Apply immediately
+sudo systemd-tmpfiles --create
 
 # Verify
 cat /sys/class/powercap/intel-rapl:0/energy_uj
+# Should print a number
+
+# Reboot to verify persistence
 ```
 
 This is the recommended method — it persists across reboots and only
-grants read access to powercap files (no write, no other system files).
+grants read access to the specific energy_uj files.
 
 ## Method 3: setcap (Per-Binary)
 
