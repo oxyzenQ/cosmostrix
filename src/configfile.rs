@@ -194,7 +194,8 @@ fn config_file_path_from_env(
 
 #[must_use]
 pub fn dump_config_text() -> &'static str {
-    r#"# Cosmostrix config
+    r#"# Cosmostrix Configuration
+# ─────────────────────────────────────────────────────────────────────────────
 # Location:
 #   Linux/macOS: ~/.config/cosmostrix/config.toml
 #   Windows:     %APPDATA%\cosmostrix\config.toml
@@ -202,73 +203,111 @@ pub fn dump_config_text() -> &'static str {
 #
 # Format:
 #   key = value
-# Invalid values warn cleanly and are ignored.
+#   Flat keys — no TOML sections needed for globals.
+#   Profile blocks use profile.<name>.<field> = <value> syntax.
+#   Invalid values warn cleanly and are ignored.
 #
-# Precedence:
-#   built-in defaults < config values < config preset < config scene
-#   < config profile < CLI preset < CLI scene < CLI profile
-#   < low-power < explicit CLI flags
+# Precedence (highest wins):
+#   built-in defaults
+#   < scene defaults (fills unset keys only)
+#   < config values (always wins over scene defaults for user-set keys)
+#   < config preset
+#   < config profile
+#   < CLI preset
+#   < CLI scene
+#   < CLI profile
+#   < low-power
+#   < explicit CLI flags
+#
+# Key rule: a value set in config.toml ALWAYS wins over a scene's
+# hardcoded default. Scenes only fill keys the user did NOT set.
+# This prevents surprises like `speed = 30` in config being silently
+# overwritten by a scene's `speed = 8`.
 
-# Scene atmosphere. See: cosmostrix --list-scenes
+# ── Scene ────────────────────────────────────────────────────────────────────
+# Atmospheric template bundling sensible defaults.
+#   monolith  — premium motion, cosmos palette, binary glyphs (default)
+#   matrix    — classic green Matrix rain, katakana glyphs
+#   signal    — aurora palette, retro glyphs, slow & dense
+# See: cosmostrix --list-scenes
 scene = monolith
 
-# Curated preset. See: cosmostrix --list-presets
-preset = cinematic
+# ── Preset (optional) ────────────────────────────────────────────────────────
+# Curated visual preset applied on top of config values.
+# See: cosmostrix --list-presets, cosmostrix --show-preset cinematic
+# preset = cinematic
 
-# User-defined profile to apply by default. See: cosmostrix --list-profiles
+# ── Profile (optional) ───────────────────────────────────────────────────────
+# User-defined profile to apply by default.
+# See: cosmostrix --list-profiles
 # profile = nightcore
 
-# Appearance
+# ── Appearance ───────────────────────────────────────────────────────────────
+# Color scheme (palette). See: cosmostrix --list-colors
 color = cosmos
-charset = binary
+
+# Character set for rain glyphs. See: cosmostrix --list-charsets
 # Custom characters from file (CLI only, overrides charset):
 #   cosmostrix --charset-file ~/my-chars.txt
-color-bg = black
+charset = binary
 
-# Motion
+# Background mode:
+#   default-background — follow terminal emulator bg (default; saves ANSI bytes)
+#   black              — force solid #000000 behind rain
+color-bg = default-background
+
+# ── Motion ───────────────────────────────────────────────────────────────────
 fps = 60
-speed = 30
+speed = 20
 density = 0.85
-monolith-size = normal
 
-# Behavior
-glitch-level = subtle
-low-power = false
-mouse = false
-fullwidth = false
-auto-color-drift = false
 # Variable column speeds for organic rain (default: on).
 # Each column gets a random speed multiplier (33%-100% of base).
 # Despite the name, this is NOT Rust async/await — cosmostrix remains
 # single-threaded. "async" = "asynchronous column pacing".
 async-mode = true
 
-# Advanced style
+# ── Monolith ─────────────────────────────────────────────────────────────────
+# Pillar size (only applies when scene=monolith or rain_style=monolith):
+#   small | normal (default) | large
+monolith-size = normal
+
+# ── Behavior ─────────────────────────────────────────────────────────────────
+# Glitch intensity: none | subtle | default | intense
+glitch-level = subtle
+low-power = false
+mouse = false
+fullwidth = false
+auto-color-drift = false
+
+# ── Advanced Style ───────────────────────────────────────────────────────────
+# Bold style: 0=off, 1=random, 2=all
 bold = 1
+# Shading mode: 0=random, 1=cinematic (distance-from-head brightness)
 shadingmode = 1
 
-# Atmosphere engine (gated/internal-first — Phase 10).
+# ── Atmosphere Engine (opt-in only) ──────────────────────────────────────────
 # atmosphere-mode: disabled (default) | controlled-live
-# atmosphere-regime: calm (default) | pulse | signal | compression | void | monolith-pressure
+# atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure
 # Note: storm is unavailable and will be rejected.
 # These keys are opt-in; setting atmosphere-mode without controlled-live has no effect.
 # atmosphere-mode = disabled
 # atmosphere-regime = calm
 
-# Controlled atmosphere examples (opt-in only):
+# Controlled atmosphere example (opt-in only):
 # atmosphere-mode = controlled-live
 # atmosphere-regime = pulse
 # See docs/ATMOSPHERE_PRESETS.md for all 6 profile preset examples.
 
-# Legacy advanced keys kept for compatibility.
+# ── Legacy Advanced Keys (kept for compatibility) ────────────────────────────
 # Prefer glitch-level for normal use.
 # glitchpct = 10
 # shortpct = 50
 # rippct = 33.33333
 # maxdpc = 3
 
-# User scene/profile config.
-# Load with: cosmostrix --profile nightcore
+# ── User Profile Config ──────────────────────────────────────────────────────
+# Define named profiles and load with: cosmostrix --profile <name>
 # Invalid profile values warn cleanly and are ignored.
 # See docs/PROFILE_EXAMPLES.md for more profile examples.
 # profile.nightcore.base = monolith

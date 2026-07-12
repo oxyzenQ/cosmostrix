@@ -120,10 +120,14 @@ CONFIG:
       (typos, unknown keys, invalid values). Exit 0 = pass, 2 = fail.
       Run --config-path to see the resolved path for your platform.
 
-  Precedence:
-      built-in defaults < config values < config preset < config scene
-      < config profile < CLI preset < CLI scene < CLI profile
+  Precedence (highest wins):
+      built-in defaults < scene defaults (fills unset keys only)
+      < config values < config preset < config profile
+      < CLI preset < CLI scene < CLI profile
       < low-power < explicit CLI flags.
+
+      Key rule: a value set in config.toml ALWAYS wins over a scene's
+      hardcoded default. Scenes only fill keys the user did NOT set.
 
 APPEARANCE:
   --colormode <0|16|256|24>

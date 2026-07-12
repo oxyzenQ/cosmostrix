@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 rezky_nightky (oxyzenQ)
 #
-# Install cosmostrix: binary + config.toml (with auto-backup, never overwrite).
+# Install cosmostrix: binary + config.toml.
 # Supports --system (system-wide) and --user (default, ~/.local).
 # Run WITHOUT sudo: the script escalates via sudo ONLY for --system install steps.
 
@@ -20,13 +20,18 @@ Usage: $0 [--system|--user]
                binary  → /usr/bin/${PROJECT_NAME}
                config  → /etc/${PROJECT_NAME}/config.toml
              (script invokes sudo for the install steps)
+
+             Side effects when switching from --user to --system:
+               - Stale user-local binary (~/.local/bin/${PROJECT_NAME}) is removed
+               - Stale user-local systemd unit (~/.config/systemd/user/${PROJECT_NAME}.service) is removed
+               - System config (/etc/${PROJECT_NAME}/config.toml) is overwritten (no backup)
+               - User-local config (~/.config/${PROJECT_NAME}/config.toml) is preserved if customized
+
   --user     Install to user-local (default, no sudo):
                binary  → ~/.local/bin/${PROJECT_NAME}
                config  → ~/.config/${PROJECT_NAME}/config.toml
-
-The config file is NEVER overwritten. If it already exists, a timestamped
-backup is created as config.bak.<epoch> and the new template is installed
-as config.new for manual review.
+             The user-local config is NEVER overwritten. If it exists, the
+             new template is installed as config.new for manual review.
 
 The build step (cargo build --release --locked) ALWAYS runs as the current user.
 EOF
@@ -66,7 +71,68 @@ if [[ ! -f "${CONFIG_SRC}" ]]; then
     exit 1
 fi
 
-echo ">> [1/4] Building ${PROJECT_NAME} (release, locked)"
+# ── Helper: detect + clean stale user-local install when switching to --system ──
+# Removes ~/.local/bin/${PROJECT_NAME} and ~/.config/systemd/user/${PROJECT_NAME}.service
+# if they exist (leftover from a previous --user install). Prints a warning
+# before deleting. User-local config is NOT touched here — that's handled
+# separately by preserve_or_clean_user_config.
+cleanup_user_local_install() {
+    local stale_paths=()
+    local user_bin="${HOME}/.local/bin/${PROJECT_NAME}"
+    local user_unit="${HOME}/.config/systemd/user/${PROJECT_NAME}.service"
+
+    if [[ -f "${user_bin}" ]]; then
+        stale_paths+=("${user_bin}")
+    fi
+    if [[ -f "${user_unit}" ]]; then
+        stale_paths+=("${user_unit}")
+    fi
+
+    if [[ ${#stale_paths[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    echo "   ⚠ WARNING: Stale user-local install detected (from previous --user install)."
+    echo "   The following will be removed to prevent PATH confusion:"
+    for p in "${stale_paths[@]}"; do
+        echo "     - ${p}"
+    done
+    echo "   (User-local config at ~/.config/${PROJECT_NAME}/config.toml is preserved if customized.)"
+    for p in "${stale_paths[@]}"; do
+        rm -f "${p}"
+        echo "   removed: ${p}"
+    done
+}
+
+# ── Helper: preserve or clean user-local config when installing --system ──
+# If the user-local config matches the shipped default → remove it (bloat).
+# If it differs (user customized it) → preserve it (it takes precedence
+# over the system config in /etc due to XDG_CONFIG_HOME precedence).
+preserve_or_clean_user_config() {
+    local user_cfg="${HOME}/.config/${PROJECT_NAME}/config.toml"
+    if [[ ! -f "${user_cfg}" ]]; then
+        return 0
+    fi
+
+    # Strip blank lines + comments for fair comparison.
+    local user_normalized default_normalized
+    user_normalized=$(grep -vE '^\s*#|^\s*$' "${user_cfg}" 2>/dev/null || true)
+    default_normalized=$(grep -vE '^\s*#|^\s*$' "${CONFIG_SRC}" 2>/dev/null || true)
+
+    if [[ "${user_normalized}" == "${default_normalized}" ]]; then
+        echo "   user-local config matches default — removing to avoid bloat:"
+        echo "     ${user_cfg}"
+        rm -f "${user_cfg}"
+        # Also remove the parent dir if empty (don't leave empty ~/.config/cosmostrix).
+        rmdir "$(dirname "${user_cfg}")" 2>/dev/null || true
+    else
+        echo "   ✓ User-local config is customized — preserved at:"
+        echo "     ${user_cfg}"
+        echo "   (XDG_CONFIG_HOME precedence: user-local config overrides /etc config.)"
+    fi
+}
+
+echo ">> [1/5] Building ${PROJECT_NAME} (release, locked)"
 cargo build --release --locked
 
 BINARY="target/release/${PROJECT_NAME}"
@@ -75,9 +141,13 @@ if [[ ! -f "${BINARY}" ]]; then
     exit 1
 fi
 
-echo ">> [2/4] Installing binary (${MODE})"
+echo ">> [2/5] Installing binary (${MODE})"
 case "${MODE}" in
     --system)
+        # Clean up stale user-local install before installing system-wide.
+        # This prevents PATH confusion where ~/.local/bin/cosmostrix shadows
+        # /usr/bin/cosmostrix after a --system install.
+        cleanup_user_local_install
         sudo install -Dm755 "${BINARY}" "/usr/bin/${PROJECT_NAME}"
         echo "   installed: /usr/bin/${PROJECT_NAME}"
         ;;
@@ -89,34 +159,33 @@ case "${MODE}" in
         ;;
 esac
 
-echo ">> [3/4] Installing config.toml (${MODE})"
+echo ">> [3/5] Installing config.toml (${MODE})"
 case "${MODE}" in
     --system)
         sudo mkdir -p "/etc/${PROJECT_NAME}"
         config_path="/etc/${PROJECT_NAME}/config.toml"
         if sudo test -f "${config_path}"; then
-            backup="${config_path}.bak.$(date +%s)"
-            sudo cp -p "${config_path}" "${backup}"
-            sudo install -m 644 "${CONFIG_SRC}" "${config_path}.new"
-            echo "   existing config preserved: ${config_path}"
-            echo "   backup created at:            ${backup}"
-            echo "   new template installed at:    ${config_path}.new (review and merge manually)"
+            echo "   ⚠ WARNING: Overwriting existing system config: ${config_path}"
+            echo "   No backup will be created (--system policy: avoid bloat)."
+            echo "   If you need the old config, abort now (Ctrl+C) and back it up manually."
+            sleep 2
+            sudo install -m 644 "${CONFIG_SRC}" "${config_path}"
+            echo "   overwritten: ${config_path}"
         else
             sudo install -m 644 "${CONFIG_SRC}" "${config_path}"
             echo "   installed: ${config_path}"
         fi
+        # Preserve user-local config if customized; clean up if default.
+        preserve_or_clean_user_config
         ;;
     --user)
         user_cfg_dir="${HOME}/.config/${PROJECT_NAME}"
         user_cfg="${user_cfg_dir}/config.toml"
         mkdir -p "${user_cfg_dir}"
         if [[ -f "${user_cfg}" ]]; then
-            backup="${user_cfg}.bak.$(date +%s)"
-            cp -p "${user_cfg}" "${backup}"
             install -m 644 "${CONFIG_SRC}" "${user_cfg}.new"
             echo "   existing config preserved: ${user_cfg}"
-            echo "   backup created at:            ${backup}"
-            echo "   new template installed at:    ${user_cfg}.new (review and merge manually)"
+            echo "   new template installed at: ${user_cfg}.new (review and merge manually)"
         else
             install -m 644 "${CONFIG_SRC}" "${user_cfg}"
             echo "   installed: ${user_cfg}"
@@ -124,7 +193,7 @@ case "${MODE}" in
         ;;
 esac
 
-echo ">> [4/4] Installing shell completions (${MODE})"
+echo ">> [4/5] Installing shell completions (${MODE})"
 case "${MODE}" in
     --system)
         # Bash
@@ -151,16 +220,18 @@ case "${MODE}" in
         ;;
 esac
 
-echo
-echo ">> Done."
-echo
-echo "Next steps:"
+echo ">> [5/5] Post-install verification"
 case "${MODE}" in
-    --system) echo "  - Verify: ${PROJECT_NAME} --version" ;;
+    --system)
+        echo "  - Verify: ${PROJECT_NAME} --version"
+        echo "  - System config: /etc/${PROJECT_NAME}/config.toml"
+        ;;
     --user)
         echo "  - Ensure ~/.local/bin is on your PATH"
         echo "  - Verify: ${PROJECT_NAME} --version"
         ;;
 esac
 echo "  - Validate config: ${PROJECT_NAME} --testconf"
-echo "  - Uninstall: ./scripts/uninstall.sh"
+echo "  - Uninstall: ./scripts/uninstall.sh ${MODE}"
+echo
+echo ">> Done."

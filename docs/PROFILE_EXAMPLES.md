@@ -13,10 +13,16 @@ Values resolve through this chain (highest priority last):
 
 ```
 CLI flags > CLI profile > CLI scene > CLI preset > low-power
-  > config profile > config scene > config preset > config values > defaults
+  > config profile > config preset > config values
+  > scene defaults (fills unset keys only) > built-in defaults
 ```
 
-Shorthand: **CLI > profile > config > defaults**.
+Shorthand: **CLI > profile > config > scene defaults > built-in**.
+
+**Key rule**: a value explicitly set in `config.toml` ALWAYS wins over a
+scene's hardcoded default. Scenes only fill keys the user did NOT set.
+This prevents surprises like `speed = 30` in config being silently
+overwritten by a scene's `speed = 8`.
 
 ### `--color sun` override
 

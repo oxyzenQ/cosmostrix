@@ -3,17 +3,22 @@
 
 //! Apply config file values, presets, and low-power defaults to parsed CLI args.
 //!
-//! Precedence:
+//! Precedence (highest wins):
 //! 1. Built-in clap defaults
-//! 2. Config file values
-//! 3. Config preset
-//! 4. Config scene
+//! 2. Scene defaults (only for keys NOT set in config — fills the gaps)
+//! 3. Config file values (always wins over scene defaults for user-set keys)
+//! 4. Config preset
 //! 5. Config profile
 //! 6. CLI preset
-//! 7. CLI scene
+//! 7. CLI scene (still respects config-set keys; only fills unset keys)
 //! 8. CLI profile
 //! 9. Low-power values for fields not touched by curated layers or explicit CLI
 //! 10. Explicit CLI flags
+//!
+//! Key rule: a value explicitly set in config.toml ALWAYS wins over a scene's
+//! hardcoded default. Scenes are templates for *unset* keys, not overrides for
+//! user-set keys. This prevents the surprise where `speed = 30` in config gets
+//! silently overwritten by a scene's `speed = 8`.
 
 use std::collections::{HashMap, HashSet};
 
@@ -164,7 +169,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
         curated_modified.extend(apply_preset_values(matches, args)?);
     }
     if !scene_is_cli && !scene_is_default {
-        curated_modified.extend(apply_scene_values(matches, args)?);
+        curated_modified.extend(apply_scene_values(matches, args, &config_touched)?);
     }
     if !profile_is_cli {
         if let Some(profile_name) = args.profile.clone() {
@@ -181,7 +186,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
         curated_modified.extend(apply_preset_values(matches, args)?);
     }
     if scene_is_cli {
-        curated_modified.extend(apply_scene_values(matches, args)?);
+        curated_modified.extend(apply_scene_values(matches, args, &config_touched)?);
     }
     if profile_is_cli {
         if let Some(profile_name) = args.profile.clone() {
@@ -478,6 +483,7 @@ fn apply_preset_values(
 fn apply_scene_values(
     matches: &clap::ArgMatches,
     args: &mut Args,
+    config_touched: &HashSet<&'static str>,
 ) -> Result<HashSet<&'static str>, String> {
     let mut scene_modified = HashSet::new();
     let Some(ref scene_name) = args.scene else {
@@ -489,38 +495,44 @@ fn apply_scene_values(
 
     if let Some(scene) = get_scene(&name) {
         let cfg = scene.config;
+        // Scene defaults only apply to keys NOT explicitly set by the user
+        // in config.toml. This mirrors the apply_default_scene_values
+        // pattern: config-set keys win over scene defaults. CLI flags
+        // still win over both (checked via is_explicit).
         if let Some(color) = cfg.color {
-            if !is_explicit(matches, "color") {
+            if !is_explicit(matches, "color") && !config_touched.contains("color") {
                 args.color = color.to_string();
                 scene_modified.insert("color");
             }
         }
         if let Some(charset) = cfg.charset {
-            if !is_explicit(matches, "charset") {
+            if !is_explicit(matches, "charset") && !config_touched.contains("charset") {
                 args.charset = charset.to_string();
                 scene_modified.insert("charset");
             }
         }
         if let Some(fps) = cfg.fps {
-            if !is_explicit(matches, "fps") {
+            if !is_explicit(matches, "fps") && !config_touched.contains("fps") {
                 args.fps = fps;
                 scene_modified.insert("fps");
             }
         }
         if let Some(speed) = cfg.speed {
-            if !is_explicit(matches, "speed") {
+            if !is_explicit(matches, "speed") && !config_touched.contains("speed") {
                 args.speed = speed;
                 scene_modified.insert("speed");
             }
         }
         if let Some(density) = cfg.density {
-            if !is_explicit(matches, "density") {
+            if !is_explicit(matches, "density") && !config_touched.contains("density") {
                 args.density = density;
                 scene_modified.insert("density");
             }
         }
         if let Some(glitch_level) = cfg.glitch_level {
-            if !is_explicit(matches, "glitch_level") {
+            if !is_explicit(matches, "glitch_level")
+                && !config_touched.contains("glitch_level")
+            {
                 args.glitch_level = glitch_level;
                 scene_modified.insert("glitch_level");
             }

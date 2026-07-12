@@ -202,6 +202,78 @@ fn monolith_scene_respects_explicit_motion_overrides() {
     assert_eq!(args.color, "cosmos");
 }
 
+// ── Scene defaults respect config-set keys (v13.6.0 regression guards) ──
+//
+// Bug history: apply_scene_values did NOT check config_touched, so a scene's
+// hardcoded speed (e.g. monolith=30, signal=10) would silently overwrite a
+// user's `speed = N` set in config.toml. The fix: scene defaults only fill
+// keys the user did NOT set in config. Mirrors apply_default_scene_values.
+//
+// All tests below pair a config-set key with a scene that has a different
+// hardcoded default for the same key. The config value must win.
+
+#[test]
+fn config_speed_wins_over_monolith_scene_default() {
+    // Config sets speed=12; monolith scene hardcodes speed=30.
+    // Config must win — scene only fills unset keys.
+    let args = args_with_config("scene = monolith\nspeed = 12\n", &[]);
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.speed, 12.0, "config speed must win over monolith scene default 30");
+    // Scene defaults for UNSET keys still apply:
+    assert_eq!(args.color, "cosmos", "scene color default applies for unset key");
+    assert!((args.density - 0.85).abs() < f32::EPSILON,
+            "scene density default applies for unset key");
+}
+
+#[test]
+fn config_density_wins_over_signal_scene_default() {
+    // Config sets density=0.5; signal scene hardcodes density=0.95.
+    let args = args_with_config("scene = signal\ndensity = 0.5\n", &[]);
+    assert_eq!(args.scene.as_deref(), Some("signal"));
+    assert_eq!(args.speed, 10.0, "scene speed default applies for unset key");
+    assert!((args.density - 0.5).abs() < f32::EPSILON,
+            "config density must win over signal scene default 0.95");
+}
+
+#[test]
+fn config_color_wins_over_signal_scene_default() {
+    // Config sets color=green; signal scene hardcodes color=aurora.
+    let args = args_with_config("scene = signal\ncolor = green\n", &[]);
+    assert_eq!(args.scene.as_deref(), Some("signal"));
+    assert_eq!(args.color, "green", "config color must win over signal scene default aurora");
+    assert_eq!(args.charset, "retro", "scene charset default applies for unset key");
+}
+
+#[test]
+fn config_speed_wins_over_cli_scene_default() {
+    // CLI --scene monolith + config speed=15. Config speed must win
+    // over monolith's hardcoded 30 (CLI scene only fills unset keys).
+    let args = args_with_config("speed = 15\n", &["--scene", "monolith"]);
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.speed, 15.0, "config speed must win over CLI scene monolith default 30");
+    assert_eq!(args.color, "cosmos", "scene color default still applies for unset key");
+}
+
+#[test]
+fn cli_speed_flag_wins_over_config_and_scene() {
+    // CLI --speed 99 wins over both config speed AND scene default.
+    let args = args_with_config(
+        "scene = monolith\nspeed = 15\n",
+        &["--scene", "monolith", "--speed", "99"],
+    );
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.speed, 99.0, "CLI speed must win over config and scene");
+}
+
+#[test]
+fn config_speed_wins_over_scene_default() {
+    // The exact bug the user reported: config speed=30, scene=signal (default 10).
+    // Config must win.
+    let args = args_with_config("scene = signal\nspeed = 30\n", &[]);
+    assert_eq!(args.scene.as_deref(), Some("signal"));
+    assert_eq!(args.speed, 30.0, "config speed must win over signal scene default 10");
+}
+
 #[test]
 fn config_speed_outside_safe_range_is_ignored() {
     for value in ["0", "0.5", "100.1", "1000", "100000"] {
