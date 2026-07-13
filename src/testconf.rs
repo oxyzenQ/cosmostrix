@@ -41,7 +41,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
 
     let parsed = configfile::parse_config_text(&content);
     let mut errors = 0usize;
-    let mut warnings = 0usize;
+    let warnings = 0usize;
 
     // Check for malformed lines (non-empty, non-comment lines without 'key = value')
     if !parsed.malformed_lines.is_empty() {
@@ -70,22 +70,23 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         );
     }
 
-    // Check profile keys for correct format
+    // Check profile keys for correct format AND field value validity
     let profile_keys: Vec<_> = parsed
         .values
         .keys()
-        .filter(|k| k.starts_with("profile."))
+        .filter(|k| k.starts_with("profile.") || k.starts_with("scene-custom."))
         .collect();
     for pk in &profile_keys {
-        // profile.<name>.<field>
+        // profile.<name>.<field> or scene-custom.<name>.<field>
         let parts: Vec<&str> = pk.split('.').collect();
         if parts.len() != 3 {
             crate::output::eprintln_error_labeled(&format!(
-                "testconf: malformed profile key '{pk}' (expected profile.<name>.<field>)"
+                "testconf: malformed block key '{pk}' (expected <namespace>.<name>.<field>)"
             ));
             errors += 1;
         } else {
             let field = parts[2];
+            let value = parsed.values.get(*pk).map(String::as_str).unwrap_or("");
             let valid_fields = [
                 "base",
                 "scene",
@@ -103,25 +104,40 @@ pub fn run(args: &Args) -> std::io::Result<()> {
             ];
             if !valid_fields.contains(&field) {
                 crate::output::eprintln_error_labeled(&format!(
-                    "testconf: unknown profile field '{field}' in '{pk}'"
+                    "testconf: unknown block field '{field}' in '{pk}'"
                 ));
-                eprintln!(
-                    "testconf: valid profile fields: {}",
-                    valid_fields.join(", ")
-                );
+                eprintln!("testconf: valid block fields: {}", valid_fields.join(", "));
                 errors += 1;
+            } else {
+                // Field is recognized — now validate the VALUE using the same
+                // rules as top-level keys. Block fields accept the same value
+                // vocabulary (color, charset, scene, atmosphere-regime, etc.).
+                // 'base' and 'scene' are both scene names; 'preset' is treated
+                // as a scene name too (v14 deprecated alias).
+                let effective_field = match field {
+                    "base" | "preset" => "scene",
+                    other => other,
+                };
+                if let Some(msg) = validate_field_value(effective_field, value) {
+                    crate::output::eprintln_error_labeled(&format!(
+                        "testconf: {pk} = {value}: {msg}"
+                    ));
+                    errors += 1;
+                }
             }
         }
     }
 
-    // Validate known value-ranges for common keys
+    // Validate known value-ranges for top-level (non-block) keys.
+    // v14: invalid values are now ERRORS, not warnings — silent PASS for
+    // bad values is a bug. Owner requirement: strict value validation.
     for (key, value) in &parsed.values {
-        if key.starts_with("profile.") {
-            continue; // profile keys validated above
+        if key.starts_with("profile.") || key.starts_with("scene-custom.") {
+            continue; // block keys validated above
         }
-        if let Some(msg) = validate_config_value(key, value) {
-            crate::output::eprintln_warn_labeled(&format!("testconf: {key} = {value}: {msg}"));
-            warnings += 1;
+        if let Some(msg) = validate_field_value(key, value) {
+            crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
+            errors += 1;
         }
     }
 
@@ -146,14 +162,30 @@ pub fn run(args: &Args) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Basic value-range validation for known config keys.
-/// Returns Some(message) if the value looks suspicious, None if OK.
-fn validate_config_value(key: &str, value: &str) -> Option<String> {
+/// Strict value validation for a config key (top-level or block field).
+///
+/// Returns `Some(message)` if the value is invalid for the given key,
+/// `None` if it is acceptable. The message includes the list of valid
+/// values (or range) so the user can fix the typo without consulting docs.
+///
+/// Used for both top-level keys and `profile.<name>.<field>` /
+/// `scene-custom.<name>.<field>` block values. The caller is responsible
+/// for mapping block-specific field names (e.g. `base` -> `scene`) before
+/// calling this function.
+fn validate_field_value(key: &str, value: &str) -> Option<String> {
     let v = value.trim();
     match key {
+        // ── Numeric ranges ──
         "fps" => v.parse::<f64>().ok().and_then(|n| {
             if !(1.0..=240.0).contains(&n) {
                 Some(format!("out of range [1, 240], got {n}"))
+            } else {
+                None
+            }
+        }).or_else(|| {
+            // Non-numeric fps is also an error.
+            if v.parse::<f64>().is_err() {
+                Some(format!("expected number in [1, 240], got '{v}'"))
             } else {
                 None
             }
@@ -164,10 +196,74 @@ fn validate_config_value(key: &str, value: &str) -> Option<String> {
             } else {
                 None
             }
+        }).or_else(|| {
+            if v.parse::<i64>().is_err() {
+                Some(format!("expected integer in [1, 100], got '{v}'"))
+            } else {
+                None
+            }
         }),
         "density" => v.parse::<f64>().ok().and_then(|n| {
-            if !(0.0..=2.0).contains(&n) {
-                Some(format!("out of range [0.0, 2.0], got {n}"))
+            if !(0.01..=5.0).contains(&n) {
+                Some(format!("out of range [0.01, 5.0], got {n}"))
+            } else {
+                None
+            }
+        }).or_else(|| {
+            if v.parse::<f64>().is_err() {
+                Some(format!("expected number in [0.01, 5.0], got '{v}'"))
+            } else {
+                None
+            }
+        }),
+        "glitchpct" => v.parse::<f64>().ok().and_then(|n| {
+            if !(0.0..=100.0).contains(&n) {
+                Some(format!("out of range [0.0, 100.0], got {n}"))
+            } else {
+                None
+            }
+        }).or_else(|| {
+            if v.parse::<f64>().is_err() {
+                Some(format!("expected number in [0.0, 100.0], got '{v}'"))
+            } else {
+                None
+            }
+        }),
+        "shortpct" => v.parse::<f64>().ok().and_then(|n| {
+            if !(0.0..=100.0).contains(&n) {
+                Some(format!("out of range [0.0, 100.0], got {n}"))
+            } else {
+                None
+            }
+        }).or_else(|| {
+            if v.parse::<f64>().is_err() {
+                Some(format!("expected number in [0.0, 100.0], got '{v}'"))
+            } else {
+                None
+            }
+        }),
+        "rippct" => v.parse::<f64>().ok().and_then(|n| {
+            if !(0.0..=100.0).contains(&n) {
+                Some(format!("out of range [0.0, 100.0], got {n}"))
+            } else {
+                None
+            }
+        }).or_else(|| {
+            if v.parse::<f64>().is_err() {
+                Some(format!("expected number in [0.0, 100.0], got '{v}'"))
+            } else {
+                None
+            }
+        }),
+        "maxdpc" => v.parse::<i64>().ok().and_then(|n| {
+            if !(1..=3).contains(&n) {
+                Some(format!("out of range [1, 3], got {n}"))
+            } else {
+                None
+            }
+        }).or_else(|| {
+            if v.parse::<i64>().is_err() {
+                Some(format!("expected integer in [1, 3], got '{v}'"))
             } else {
                 None
             }
@@ -176,13 +272,29 @@ fn validate_config_value(key: &str, value: &str) -> Option<String> {
             "0" | "1" | "2" => None,
             _ => Some(format!("expected 0, 1, or 2, got '{v}'")),
         },
+        "shadingmode" => match v {
+            "0" | "1" => None,
+            _ => Some(format!("expected 0 or 1, got '{v}'")),
+        },
+
+        // ── Enum-like string values ──
         "color" => {
-            let valid = theme::canonical_name_for_input(v).is_some();
-            if valid {
+            if theme::canonical_name_for_input(v).is_some() {
                 None
             } else {
                 Some(format!(
                     "unknown color '{v}' (run `cosmostrix --list-colors` for valid names)"
+                ))
+            }
+        }
+        "charset" => {
+            // Reuse the production charset parser. false = don't auto-pick
+            // ASCII on unknown; we want the parse error.
+            if crate::charset::charset_from_str(v, false).is_ok() {
+                None
+            } else {
+                Some(format!(
+                    "unknown charset '{v}' (run `cosmostrix --list-charsets` for valid names)"
                 ))
             }
         }
@@ -195,6 +307,22 @@ fn validate_config_value(key: &str, value: &str) -> Option<String> {
                 ))
             }
         }
+        "atmosphere-regime" => match v {
+            "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure"
+            | "adaptive" => None,
+            "storm" => Some(
+                "storm is unavailable and will be rejected".to_string(),
+            ),
+            _ => Some(format!(
+                "unknown regime '{v}'. Available: calm, pulse, signal, compression, void, monolith-pressure, adaptive"
+            )),
+        },
+        "atmosphere-mode" => match v {
+            "disabled" | "controlled-live" => None,
+            _ => Some(format!(
+                "unknown mode '{v}'. Available: disabled, controlled-live"
+            )),
+        },
         "monolith-size" => match v {
             "small" | "normal" | "large" => None,
             _ => Some(format!("expected small/normal/large, got '{v}'")),
@@ -203,10 +331,194 @@ fn validate_config_value(key: &str, value: &str) -> Option<String> {
             "none" | "subtle" | "default" | "intense" => None,
             _ => Some(format!("expected none/subtle/default/intense, got '{v}'")),
         },
-        "low-power" | "mouse" | "fullwidth" | "auto-color-drift" => match v {
+        "color-bg" => match v {
+            "black" | "default-background" | "default_background" => None,
+            _ => Some(format!(
+                "expected black/default-background, got '{v}'"
+            )),
+        },
+        "low-power" | "mouse" | "fullwidth" | "auto-color-drift" | "async-mode" => match v {
             "true" | "false" => None,
             _ => Some(format!("expected true/false, got '{v}'")),
         },
-        _ => None, // unknown keys handled separately
+
+        // Keys we don't have a specific validator for — assume OK.
+        // Unknown keys are caught earlier by the unknown_keys check.
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Bug regression: atmosphere-regime = adaptivee must error ──
+
+    #[test]
+    fn atmosphere_regime_typo_is_rejected() {
+        let msg = validate_field_value("atmosphere-regime", "adaptivee");
+        assert!(
+            msg.is_some(),
+            "'adaptivee' (typo) must be rejected for atmosphere-regime"
+        );
+        let msg = msg.expect("checked Some above");
+        assert!(
+            msg.contains("unknown regime"),
+            "error must say 'unknown regime': {msg}"
+        );
+        assert!(
+            msg.contains("adaptive"),
+            "error must list 'adaptive' as valid: {msg}"
+        );
+    }
+
+    #[test]
+    fn atmosphere_regime_valid_values_pass() {
+        for v in [
+            "calm",
+            "pulse",
+            "signal",
+            "compression",
+            "void",
+            "monolith-pressure",
+            "adaptive",
+        ] {
+            assert!(
+                validate_field_value("atmosphere-regime", v).is_none(),
+                "'{v}' should be a valid atmosphere-regime"
+            );
+        }
+    }
+
+    #[test]
+    fn atmosphere_regime_storm_is_rejected() {
+        let msg = validate_field_value("atmosphere-regime", "storm");
+        assert!(
+            msg.is_some(),
+            "'storm' must be rejected for atmosphere-regime"
+        );
+    }
+
+    // ── Bug regression: charset = hackeres must error ──
+
+    #[test]
+    fn charset_typo_is_rejected() {
+        let msg = validate_field_value("charset", "hackeres");
+        assert!(
+            msg.is_some(),
+            "'hackeres' (typo) must be rejected for charset"
+        );
+        let msg = msg.expect("checked Some above");
+        assert!(
+            msg.contains("unknown charset"),
+            "error must say 'unknown charset': {msg}"
+        );
+        assert!(
+            msg.contains("--list-charsets"),
+            "error must point to --list-charsets: {msg}"
+        );
+    }
+
+    #[test]
+    fn charset_valid_values_pass() {
+        for v in ["binary", "matrix", "katakana", "hacker", "minimal", "retro"] {
+            assert!(
+                validate_field_value("charset", v).is_none(),
+                "'{v}' should be a valid charset"
+            );
+        }
+    }
+
+    // ── Numeric range validation ──
+
+    #[test]
+    fn fps_out_of_range_is_rejected() {
+        assert!(validate_field_value("fps", "0").is_some());
+        assert!(validate_field_value("fps", "241").is_some());
+        assert!(validate_field_value("fps", "60").is_none());
+    }
+
+    #[test]
+    fn fps_non_numeric_is_rejected() {
+        let msg = validate_field_value("fps", "fast");
+        assert!(msg.is_some(), "'fast' must be rejected for fps");
+    }
+
+    #[test]
+    fn speed_out_of_range_is_rejected() {
+        assert!(validate_field_value("speed", "0").is_some());
+        assert!(validate_field_value("speed", "101").is_some());
+        assert!(validate_field_value("speed", "30").is_none());
+    }
+
+    #[test]
+    fn density_out_of_range_is_rejected() {
+        assert!(validate_field_value("density", "0.001").is_some());
+        assert!(validate_field_value("density", "5.5").is_some());
+        assert!(validate_field_value("density", "0.85").is_none());
+    }
+
+    // ── Enum value validation ──
+
+    #[test]
+    fn color_unknown_is_rejected() {
+        let msg = validate_field_value("color", "not-a-color");
+        assert!(msg.is_some());
+        assert!(msg.unwrap().contains("unknown color"));
+    }
+
+    #[test]
+    fn scene_unknown_is_rejected() {
+        let msg = validate_field_value("scene", "nonexistent");
+        assert!(msg.is_some());
+        assert!(msg.unwrap().contains("unknown scene"));
+    }
+
+    #[test]
+    fn monolith_size_invalid_is_rejected() {
+        assert!(validate_field_value("monolith-size", "huge").is_some());
+        assert!(validate_field_value("monolith-size", "normal").is_none());
+    }
+
+    #[test]
+    fn glitch_level_invalid_is_rejected() {
+        assert!(validate_field_value("glitch-level", "extreme").is_some());
+        assert!(validate_field_value("glitch-level", "subtle").is_none());
+    }
+
+    #[test]
+    fn color_bg_invalid_is_rejected() {
+        assert!(validate_field_value("color-bg", "white").is_some());
+        assert!(validate_field_value("color-bg", "black").is_none());
+        assert!(validate_field_value("color-bg", "default-background").is_none());
+    }
+
+    #[test]
+    fn atmosphere_mode_invalid_is_rejected() {
+        assert!(validate_field_value("atmosphere-mode", "enabled").is_some());
+        assert!(validate_field_value("atmosphere-mode", "disabled").is_none());
+        assert!(validate_field_value("atmosphere-mode", "controlled-live").is_none());
+    }
+
+    #[test]
+    fn boolean_keys_reject_non_bool() {
+        assert!(validate_field_value("mouse", "yes").is_some());
+        assert!(validate_field_value("fullwidth", "1").is_some());
+        assert!(validate_field_value("mouse", "true").is_none());
+        assert!(validate_field_value("fullwidth", "false").is_none());
+    }
+
+    #[test]
+    fn block_field_base_uses_scene_validator() {
+        // 'base' in profile/scene-custom blocks is validated as a scene name.
+        // The caller maps 'base' -> 'scene' before calling validate_field_value.
+        assert!(validate_field_value("scene", "nonexistent").is_some());
+        assert!(validate_field_value("scene", "monolith").is_none());
+    }
+
+    #[test]
+    fn unknown_key_returns_none() {
+        // Unknown keys are caught by the unknown_keys check, not here.
+        assert!(validate_field_value("unknown-key", "anything").is_none());
     }
 }
