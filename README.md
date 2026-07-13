@@ -165,10 +165,10 @@ cosmostrix --color rainbow --speed 12   # color + speed
 cosmostrix --screensaver              # exit on keypress
 cosmostrix --message "wake up, neo"   # overlay message
 cosmostrix --charset katakana         # character set
-cosmostrix --preset cinematic          # curated preset
+cosmostrix --scene cinematic          # curated built-in scene
 cosmostrix --scene monolith --color deepspace
 cosmostrix --config ./cosmostrix.conf  # explicit config file
-cosmostrix --profile nightcore         # user-defined config profile
+cosmostrix --scene-custom nightcore   # user-defined custom scene
 ```
 
 ## CLI Reference
@@ -186,11 +186,9 @@ COMMON OPTIONS
   -s, --screensaver         Exit on keypress
      --mouse                Enable mouse hover/click effects
   -m, --message <text>      Overlay message
-     --low-power            Power-saving mode
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
-     --preset <name>       Apply a named preset
-     --scene <name>        Apply a scene atmosphere
-     --profile <name>      Apply a user-defined config profile
+     --scene <name>        Apply a built-in scene atmosphere
+     --scene-custom <name> Apply a user-defined custom scene from config
      --config <path>        Load config from an explicit file
      --dump-config          Print an example config and exit
 
@@ -205,12 +203,12 @@ DIAGNOSTICS
 DISCOVERY
      --list-colors          Show compact color theme names
      --list-charsets        Show available charset presets
-     --list-presets         Show available presets
-     --list-scenes          Show available scene atmospheres
+     --list-scenes          Show built-in and custom scenes
+     --show-scene <name>    Show full details for a scene
      --defaults             Show the default runtime profile
 ```
 
-Explicit CLI flags always override preset, scene, and profile values.
+Explicit CLI flags always override scene and scene-custom values.
 
 ## Runtime Controls
 
@@ -249,11 +247,11 @@ glitch-level = subtle
 mouse = false
 ```
 
-Precedence: defaults → config file → preset/scene/profile layers → explicit CLI flags.
+Precedence: defaults → config file → scene/scene-custom layers → explicit CLI flags.
 
 ```bash
 cosmostrix --dump-config        # print example config
-cosmostrix --list-profiles      # list user profiles
+cosmostrix --list-scenes        # list built-in and custom scenes
 cosmostrix --config-path        # print default config path
 ```
 

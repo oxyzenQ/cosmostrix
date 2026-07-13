@@ -89,18 +89,11 @@ COMMON OPTIONS:
       cosmostrix --scene storm
       cosmostrix --scene low-power
 
-  --profile <name>
-      Apply a user-defined profile from config. A profile starts from a
-      base scene and overrides existing validated runtime fields.
-      Explicit CLI flags always override profile values.
-      cosmostrix --profile nightcore
-
   --scene-custom <name>
       Apply a user-defined custom scene from config. Custom scenes use
-      the [scene-custom.<name>] namespace and are the modern replacement
-      for --profile. If --scene-custom references a name that only exists
-      as [profile.<name>], the profile is loaded with a deprecation
-      warning guiding migration to [scene-custom.<name>].
+      the [scene-custom.<name>] namespace. If --scene-custom references
+      a name that only exists as [profile.<name>], the profile is loaded
+      with a deprecation warning guiding migration to [scene-custom.<name>].
       Explicit CLI flags always override custom-scene values.
       cosmostrix --scene-custom hacker-mode
       cosmostrix --scene-custom nightcore --fps 60
@@ -117,9 +110,6 @@ CONFIG:
       Print a complete, commented example config and exit.
 
       Config policy: invalid values print an error and fall back to defaults.
-
-  --dump-profile <name>
-      Print one user-defined profile from config and exit.
 
   --config-path
       Print the resolved default config path and exit.
@@ -202,10 +192,8 @@ DISCOVERY:
                         There are 43 built-in themes.
   --list-colors-detail  Show grouped theme descriptions and aliases.
   --list-charsets       Show available charset presets.
-  --list-presets        Show available presets.
-  --show-preset <NAME>  Show full details for a named preset.
-  --list-scenes         Show available scene atmospheres.
-  --list-profiles       Show user-defined profiles from config.
+  --list-scenes         Show built-in and custom scenes (from config).
+  --show-scene <NAME>   Show full details for a built-in or custom scene.
   --defaults            Show the default runtime profile.
 
 RUNTIME CONTROLS:
