@@ -217,26 +217,27 @@ pub fn dump_config_text() -> &'static str {
     r#"# Cosmostrix Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 # Location:
-#   Linux/macOS: ~/.config/cosmostrix/config.toml
-#   Windows:     %APPDATA%\cosmostrix\config.toml
+#   Linux:   ~/.config/cosmostrix/config.toml
+#   macOS:   ~/.config/cosmostrix/config.toml
+#            (or ~/Library/Application Support/cosmostrix/config.toml)
+#   Windows: %APPDATA%\cosmostrix\config.toml
+#   System-wide: /etc/cosmostrix/config.toml (Linux/macOS)
+#                %ProgramData%\cosmostrix\config.toml (Windows)
 #   Or set $XDG_CONFIG_HOME (Linux/macOS).
 #
 # Format:
-#   key = value
-#   Flat keys — no TOML sections needed for globals.
-#   Profile blocks use profile.<name>.<field> = <value> syntax.
-#   Invalid values warn cleanly and are ignored.
+#   key = value          # one per line
+#   # comments           # blank lines ignored
+#   Custom scene blocks use scene-custom.<name>.<field> = <value> syntax.
+#   Malformed lines (no '=' or empty key/value) cause --testconf to FAIL.
 #
 # Precedence (highest wins):
 #   built-in defaults
 #   < scene defaults (fills unset keys only)
 #   < config values (always wins over scene defaults for user-set keys)
-#   < config preset
-#   < config profile
-#   < CLI preset
+#   < config scene-custom
 #   < CLI scene
-#   < CLI profile
-#   < low-power
+#   < CLI scene-custom
 #   < explicit CLI flags
 #
 # Key rule: a value set in config.toml ALWAYS wins over a scene's
@@ -250,29 +251,24 @@ pub fn dump_config_text() -> &'static str {
 # to validate your config after editing.
 
 # ── Scene ────────────────────────────────────────────────────────────────────
-# Atmospheric template bundling sensible defaults.
-#   monolith  — premium motion, cosmos palette, binary glyphs (default)
-#   matrix    — classic green Matrix rain, katakana glyphs
-#   signal    — aurora palette, retro glyphs, slow & dense
+# Built-in atmospheric template bundling sensible defaults.
+#   monolith   — premium motion, cosmos palette, binary glyphs (default)
+#   matrix     — classic green Matrix rain
+#   signal     — aurora palette, retro glyphs, slow & dense
+#   classic    — original green-on-black Matrix rain
+#   cinematic  — cosmic binary with cinematic feel
+#   calm       — gentle ocean tones, reduced density
+#   storm      — fast and intense purple cyberpunk
+#   cosmos     — cosmic binary, rich cosmos palette
+#   neon       — vibrant cyberpunk with neon colors
+#   hacker     — green hacker aesthetic, high speed
+#   low-power  — power-saving (30 FPS, reduced density/speed)
 # See: cosmostrix --list-scenes
 # scene = monolith
 
-# ── Preset (optional) ────────────────────────────────────────────────────────
-# Curated visual preset applied on top of config values.
-# See: cosmostrix --list-presets, cosmostrix --show-preset cinematic
-# preset = cinematic
-
-# ── Profile (optional) ───────────────────────────────────────────────────────
-# User-defined profile to apply by default.
-# See: cosmostrix --list-profiles
-# profile = nightcore
-
-# ── Scene-Custom (optional, preferred over profile) ──────────────────────────
+# ── Custom Scene (optional) ──────────────────────────────────────────────────
 # User-defined custom scene to apply by default. Custom scenes use the
-# [scene-custom.<name>] config namespace and are invoked via --scene-custom.
-# They are the modern replacement for --profile; --profile remains available
-# for backward compatibility and is loaded with a deprecation warning when
-# --scene-custom references a name that only exists as a [profile.<name>].
+# scene-custom.<name>.<field> = <value> syntax (see bottom of this file).
 # See: cosmostrix --list-scenes (lists built-in and custom scenes together)
 # scene-custom = nightcore
 
@@ -282,7 +278,7 @@ pub fn dump_config_text() -> &'static str {
 
 # Character set for rain glyphs. See: cosmostrix --list-charsets
 # Custom characters from file (CLI only, overrides charset):
-#   cosmostrix --charset-file ~/my-chars.txt
+#   cosmostrix --charset-file ~/.config/cosmostrix/my-chars.txt
 # charset = binary
 
 # Background mode:
@@ -295,15 +291,14 @@ pub fn dump_config_text() -> &'static str {
 # fps = 60
 
 # Rain fall speed (1–100). Higher = faster rain.
-# speed = 20
+# speed = 30
 
 # Rain density (0.01–5.0). Higher = more columns active.
 # density = 0.85
 
 # Variable column speeds for organic rain (default: on).
 # Each column gets a random speed multiplier (33%-100% of base).
-# Despite the name, this is NOT Rust async/await — cosmostrix remains
-# single-threaded. "async" = "asynchronous column pacing".
+# Disable with: cosmostrix --uniform
 # async-mode = true
 
 # ── Monolith ─────────────────────────────────────────────────────────────────
@@ -314,9 +309,6 @@ pub fn dump_config_text() -> &'static str {
 # ── Behavior ─────────────────────────────────────────────────────────────────
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
-
-# Low-power mode: caps fps=30, speed=5, density=0.5 to reduce CPU use.
-# low-power = false
 
 # Mouse capture for interactive controls (default: off).
 # mouse = false
@@ -345,7 +337,7 @@ pub fn dump_config_text() -> &'static str {
 # Controlled atmosphere example (opt-in only):
 # atmosphere-mode = controlled-live
 # atmosphere-regime = pulse
-# See docs/ATMOSPHERE_PRESETS.md for all 6 profile preset examples.
+# See docs/ATMOSPHERE_PRESETS.md for all 6 preset examples.
 
 # ── Legacy Advanced Keys (kept for compatibility) ────────────────────────────
 # Prefer glitch-level for normal use.
@@ -354,28 +346,27 @@ pub fn dump_config_text() -> &'static str {
 # rippct = 33.33333
 # maxdpc = 3
 
-# ── User Profile Config ──────────────────────────────────────────────────────
-# Define named profiles and load with: cosmostrix --profile <name>
-# Invalid profile values warn cleanly and are ignored.
-# See docs/PROFILE_EXAMPLES.md for more profile examples.
-# profile.nightcore.base = monolith
-# profile.nightcore.color = purple
-# profile.nightcore.charset = binary
-# profile.nightcore.speed = 24
-# profile.nightcore.density = 0.70
-# profile.nightcore.glitch-level = subtle
-# profile.nightcore.monolith-size = large
-
-# ── Custom Scene Config (preferred over profile) ─────────────────────────────
+# ── Custom Scene Definitions ─────────────────────────────────────────────────
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>
-# Fields are identical to [profile.<name>] — migration is a prefix rename.
+# Fields: base, scene, preset, color, charset, fps, speed, density,
+#         glitch-level, monolith-size, color-bg, atmosphere-mode, atmosphere-regime
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
+# See docs/PROFILE_EXAMPLES.md for more examples.
 # scene-custom.hacker-mode.base = storm
 # scene-custom.hacker-mode.color = green
 # scene-custom.hacker-mode.charset = hacker
 # scene-custom.hacker-mode.speed = 24
 # scene-custom.hacker-mode.density = 1.2
 # scene-custom.hacker-mode.glitch-level = intense
+
+# ── Quick Start ──────────────────────────────────────────────────────────────
+# cosmostrix                                       # run with defaults
+# cosmostrix --scene storm                         # built-in scene
+# cosmostrix --scene-custom hacker-mode            # user-defined custom scene
+# cosmostrix --list-scenes                         # list all scenes
+# cosmostrix --show-scene hacker-mode              # preview a scene
+# cosmostrix --testconf                            # validate this config
+# cosmostrix --doctor                              # diagnose terminal issues
 "#
 }
 
@@ -524,9 +515,16 @@ mod tests {
     #[test]
     fn dump_config_contains_all_supported_keys() {
         let dump = dump_config_text();
+        // Check non-deprecated keys are mentioned. Deprecated config aliases
+        // (preset, profile, low-power) are still valid config keys but are
+        // intentionally omitted from the dump template since v14.0.0.
+        let deprecated = ["preset", "profile", "low-power"];
         for key in USER_CONFIG_KEYS.iter().chain(LEGACY_CONFIG_KEYS.iter()) {
-            assert!(dump.contains(key), "dump config should mention {key}");
+            if deprecated.contains(key) {
+                continue;
+            }
+            assert!(dump.contains(*key), "dump config should mention {key}");
         }
-        assert!(dump.contains("profile.nightcore.base"));
+        assert!(dump.contains("scene-custom.hacker-mode.base"));
     }
 }
