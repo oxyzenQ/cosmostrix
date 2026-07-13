@@ -31,7 +31,9 @@ pub fn run(args: &Args) -> std::io::Result<()> {
             crate::output::eprintln_error_labeled(&format!(
                 "testconf: cannot read config file: {e}"
             ));
-            eprintln!("testconf: hint: run `cosmostrix --config-path` to see the expected location");
+            eprintln!(
+                "testconf: hint: run `cosmostrix --config-path` to see the expected location"
+            );
             eprintln!("testconf: hint: cosmostrix --dump-config > <config-path>  (create parent dir first)");
             std::process::exit(2);
         }
@@ -105,9 +107,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
             continue; // profile keys validated above
         }
         if let Some(msg) = validate_config_value(key, value) {
-            crate::output::eprintln_warn_labeled(&format!(
-                "testconf: {key} = {value}: {msg}"
-            ));
+            crate::output::eprintln_warn_labeled(&format!("testconf: {key} = {value}: {msg}"));
             warnings += 1;
         }
     }
@@ -121,7 +121,9 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         warnings
     );
     if errors > 0 {
-        crate::output::eprintln_error_labeled("testconf: FAIL — fix the errors above before running cosmostrix");
+        crate::output::eprintln_error_labeled(
+            "testconf: FAIL — fix the errors above before running cosmostrix",
+        );
         std::process::exit(2);
     } else if warnings > 0 {
         println!("testconf: PASS (with warnings) — config is usable but review the warnings");
