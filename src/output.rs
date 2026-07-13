@@ -51,12 +51,6 @@ pub const RESET: &str = "\x1b[0m";
 
 // ── TTY detection ────────────────────────────────────────────────────────────
 
-/// Returns true if stdout is a terminal (and colors should be emitted).
-#[inline]
-pub fn stdout_is_tty() -> bool {
-    std::io::stdout().is_terminal()
-}
-
 /// Returns true if stderr is a terminal (and colors should be emitted).
 #[inline]
 pub fn stderr_is_tty() -> bool {

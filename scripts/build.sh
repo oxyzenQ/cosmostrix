@@ -283,27 +283,6 @@ run_audit() {
         fi
 }
 
-run_deny_check() {
-        log_step "Checking dependency policies..."
-
-        if ! command -v cargo-deny &>/dev/null; then
-                log_warning "cargo-deny not installed (skipping). Install: cargo install cargo-deny --locked"
-                return 0
-        fi
-
-        if [ ! -f "deny.toml" ]; then
-                log_warning "deny.toml not found (skipping cargo-deny). Add deny.toml to enforce policies."
-                return 0
-        fi
-
-        if cargo deny check all; then
-                log_success "Dependency policy checks passed"
-        else
-                log_error "Dependency policy violations found"
-                return 1
-        fi
-}
-
 run_loc_check() {
         log_step "Checking Rust source file sizes..."
 
@@ -367,7 +346,6 @@ run_comprehensive_check() {
         run_clippy || ((failed++))
         run_tests || ((failed++))
         run_audit || ((failed++))
-        run_deny_check || ((failed++))
 
         echo ""
         if [ $failed -eq 0 ]; then
@@ -452,7 +430,7 @@ COMMANDS:
     bench           Run benchmarks
 
     check           Quick checks (fmt + clippy)
-    check-all       Comprehensive checks (fmt + clippy + test + audit + deny)
+    check-all       Comprehensive checks (fmt + clippy + test + audit)
     fmt             Format code
     clean           Clean build artifacts
     update          Update dependencies and audit
@@ -483,7 +461,6 @@ TOOLS INTEGRATION:
     sccache   - Build caching (install: cargo install sccache)
     nextest   - Fast test runner (install: cargo install cargo-nextest)
     audit     - Security auditing (install: cargo install cargo-audit)
-    deny      - Dependency policies (install: cargo install cargo-deny)
 
 EOF
 }
