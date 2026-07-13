@@ -29,7 +29,13 @@ use crate::config_apply::apply_config_and_runtime_defaults;
 /// same nanosecond (observed on fast CI runners with low-resolution timers).
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// Set COSMOSTRIX_TEST_CONFIG_DIR so is_safe_path allows /tmp during tests.
+fn ensure_test_config_dir_allowed() {
+    std::env::set_var("COSMOSTRIX_TEST_CONFIG_DIR", "/tmp");
+}
+
 fn args_with_config(config: &str, cli: &[&str]) -> Args {
+    ensure_test_config_dir_allowed();
     let mut path = std::env::temp_dir();
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

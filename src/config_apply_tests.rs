@@ -16,7 +16,15 @@ use crate::runtime::MonolithSize;
 /// same nanosecond on fast CI runners.
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// Set COSMOSTRIX_TEST_CONFIG_DIR so is_safe_path allows /tmp during tests.
+/// Idempotent — safe to call from parallel test threads.
+fn ensure_test_config_dir_allowed() {
+    // Setting the same value repeatedly is benign even under race conditions.
+    std::env::set_var("COSMOSTRIX_TEST_CONFIG_DIR", "/tmp");
+}
+
 fn args_with_config(config: &str, cli: &[&str]) -> Args {
+    ensure_test_config_dir_allowed();
     let mut path = std::env::temp_dir();
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -57,6 +65,7 @@ fn args_from_cli(cli: &[&str]) -> Args {
 
 fn args_from_cli_result(cli: &[&str]) -> Result<Args, String> {
     if cli.contains(&"--config") {
+        ensure_test_config_dir_allowed();
         let mut argv = vec!["cosmostrix"];
         argv.extend_from_slice(cli);
         let cmd = Args::command();
@@ -66,6 +75,7 @@ fn args_from_cli_result(cli: &[&str]) -> Result<Args, String> {
         return Ok(args);
     }
 
+    ensure_test_config_dir_allowed();
     let mut path = std::env::temp_dir();
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

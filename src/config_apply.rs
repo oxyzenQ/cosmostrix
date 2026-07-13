@@ -124,7 +124,8 @@ pub(crate) fn apply_config_and_runtime_defaults(
         if !safe {
             return Err(format!(
                 "error: --config '{path_str}' is outside allowed directories\n  \
-                 Allowed: ~/.config/cosmostrix/, current directory (.), /etc/cosmostrix/, /tmp/"
+                 Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/ (Linux/macOS);\n  \
+                 %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\ (Windows)"
             ));
         }
         // Strict: only .toml files allowed. Prevents reading arbitrary
