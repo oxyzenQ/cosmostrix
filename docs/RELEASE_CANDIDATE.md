@@ -140,7 +140,7 @@ Then press `i` and verify:
 Additional smoke checks for the controlled atmosphere expansion (v4.6.0):
 
 ```bash
-"$BIN" --list-profiles
+"$BIN" --list-scenes
 ```
 
 Expected:
@@ -167,7 +167,7 @@ Additional smoke checks for the profile ecosystem (v4.7.0):
   behavior matrix, and validation documentation.
 - `docs/PROFILE_EXAMPLES.md` exists with 9 profile examples and
   validation notes.
-- `--list-profiles` points to both `docs/PROFILE_ECOSYSTEM.md` and
+- `--list-scenes` points to both `docs/PROFILE_ECOSYSTEM.md` and
   `docs/PROFILE_EXAMPLES.md`.
 - `--dump-config` points to `docs/PROFILE_EXAMPLES.md` and atmosphere
   preset examples.

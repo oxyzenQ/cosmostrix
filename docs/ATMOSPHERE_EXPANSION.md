@@ -241,10 +241,10 @@ These constraints are absolute and must never regress:
 
 v4.6.0 Phase 3 added `docs/ATMOSPHERE_PRESETS.md` with user-facing examples,
 profile blocks, and config examples. Phase 4 adds runtime discoverability:
-`cosmostrix --list-profiles` now always shows the controlled atmosphere
+`cosmostrix --list-scenes` now always shows the controlled atmosphere
 preset section (all 6 presets with mode, regime, shadow) regardless of
 whether user profiles are defined. No new CLI flag was needed — the output
-appends to the existing `--list-profiles` path.
+appends to the existing `--list-scenes` path.
 
 Discoverability invariants:
 - Presets are opt-in only. Default remains disabled/protected/identity.
@@ -257,7 +257,7 @@ Discoverability invariants:
 ## RC Smoke / Closure (Phase 5)
 
 v4.6.0 Phase 5 closes the atmosphere implementation with release-candidate
-smoke coverage. `scripts/rc-smoke.sh` now verifies `--list-profiles` output
+smoke coverage. `scripts/rc-smoke.sh` now verifies `--list-scenes` output
 includes all six controlled atmosphere presets and excludes storm. The
 RELEASE_CANDIDATE.md checklist documents the v4.6 atmosphere RC requirements.
 No new runtime features are added.

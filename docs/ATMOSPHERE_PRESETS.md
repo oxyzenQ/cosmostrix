@@ -9,7 +9,7 @@ no preset is default, and the default behavior remains
 
 ## Discoverability
 
-Run `cosmostrix --list-profiles` to see both user-defined profiles and the
+Run `cosmostrix --list-scenes` to see both user-defined profiles and the
 controlled atmosphere presets. The output includes every preset name, its
 mode, regime, and expected shadow level. This works even when no user profiles
 are defined — the atmosphere preset section always appears.
@@ -104,7 +104,7 @@ To stay at default (no visual change):
 ## Profile Examples
 
 Profiles allow named configuration blocks that can be applied with
-`--profile <name>`. Each preset maps to a specific profile configuration:
+`--scene-custom <name>`. Each preset maps to a specific profile configuration:
 
 ### atmosphere-calm (disabled, calm, identity)
 
@@ -114,7 +114,7 @@ atmosphere-mode = disabled
 atmosphere-regime = calm
 ```
 
-Usage: `cosmostrix --profile atmosphere-calm`
+Usage: `cosmostrix --scene-custom atmosphere-calm`
 
 This profile produces the default v4.5.0 behavior: zero visual modulation,
 identity shadow, protected visual runtime.
@@ -127,7 +127,7 @@ atmosphere-mode = controlled-live
 atmosphere-regime = pulse
 ```
 
-Usage: `cosmostrix --profile atmosphere-pulse`
+Usage: `cosmostrix --scene-custom atmosphere-pulse`
 
 Periodic intensity waves with whisper-bounded modulation. Imperceptible
 visual change.
@@ -140,7 +140,7 @@ atmosphere-mode = controlled-live
 atmosphere-regime = signal
 ```
 
-Usage: `cosmostrix --profile atmosphere-signal`
+Usage: `cosmostrix --scene-custom atmosphere-signal`
 
 Focused directional convergence with whisper-bounded modulation.
 Imperceptible visual change.
@@ -153,7 +153,7 @@ atmosphere-mode = controlled-live
 atmosphere-regime = compression
 ```
 
-Usage: `cosmostrix --profile atmosphere-compression`
+Usage: `cosmostrix --scene-custom atmosphere-compression`
 
 Gradually increasing density and speed with whisper-bounded modulation.
 Imperceptible visual change.
@@ -166,7 +166,7 @@ atmosphere-mode = controlled-live
 atmosphere-regime = void
 ```
 
-Usage: `cosmostrix --profile atmosphere-void`
+Usage: `cosmostrix --scene-custom atmosphere-void`
 
 Minimal activity, sparse streams with whisper-bounded modulation.
 Imperceptible visual change.
@@ -179,7 +179,7 @@ atmosphere-mode = controlled-live
 atmosphere-regime = monolith-pressure
 ```
 
-Usage: `cosmostrix --profile atmosphere-monolith-pressure`
+Usage: `cosmostrix --scene-custom atmosphere-monolith-pressure`
 
 Enhanced monolith presence with whisper-bounded modulation.
 Imperceptible visual change.
@@ -190,10 +190,10 @@ CLI flags always override profile and config values:
 
 ```bash
 # Profile sets pulse, but CLI overrides to disabled
-cosmostrix --profile atmosphere-pulse --atmosphere-mode disabled
+cosmostrix --scene-custom atmosphere-pulse --atmosphere-mode disabled
 
 # Profile sets pulse, but --color sun stays sticky
-cosmostrix --profile atmosphere-pulse --color sun
+cosmostrix --scene-custom atmosphere-pulse --color sun
 ```
 
 ## Storm Preset Does Not Exist
@@ -213,7 +213,7 @@ or enable any Zactrix performance features from that branch.
 ## v4.6.0 Closure (Phase 5)
 
 v4.6.0 Phase 5 adds release-candidate smoke coverage for atmosphere presets.
-`scripts/rc-smoke.sh` now verifies `--list-profiles` output includes all six
+`scripts/rc-smoke.sh` now verifies `--list-scenes` output includes all six
 presets and excludes storm. `docs/RELEASE_CANDIDATE.md` documents the v4.6
 atmosphere RC checklist. All v4.6.0 phases (1–5) are complete. The version
 remains v4.5.0 until an authorized version tag.

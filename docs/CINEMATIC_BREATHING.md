@@ -61,7 +61,7 @@ atmosphere controller, if active, targets the calm regime. Speed
 multiplier is 1.0. Density multiplier is 1.0. Brightness multiplier is
 1.0. No visual parameter deviates from its explicit or default setting.
 
-**Example:** Running `cosmostrix --preset classic` with no atmosphere
+**Example:** Running `cosmostrix --scene classic` with no atmosphere
 flags produces Rest. The `atmosphere-calm` preset also produces Rest
 because it maps to `mode: disabled, regime: calm`, which means zero
 atmosphere modulation.
@@ -86,7 +86,7 @@ then interpolates back. The transition follows the pacing contract — no
 instant jumps.
 
 **Example:** The `atmosphere-pulse` preset demonstrates this regime.
-Activate it with `--profile atmosphere-pulse` and watch for periodic
+Activate it with `--scene-custom atmosphere-pulse` and watch for periodic
 waves of subtle intensity.
 
 ### Whisper
@@ -110,7 +110,7 @@ character. The `runtime_application: whisper` label in diagnostics
 indicates this safety bound is active.
 
 **Example:** Every controlled-live atmosphere preset uses whisper-bounded
-modulation. Run `cosmostrix --profile atmosphere-signal` and watch the
+modulation. Run `cosmostrix --scene-custom atmosphere-signal` and watch the
 rain carefully for several seconds to perceive the whisper effect.
 
 ### Compression
@@ -133,7 +133,7 @@ least one breath cycle. Total density remains within whisper-bounded safe
 ranges.
 
 **Example:** The `atmosphere-compression` preset demonstrates this. Run
-`--profile atmosphere-compression` and notice how the rain gradually
+`--scene-custom atmosphere-compression` and notice how the rain gradually
 fills more of the screen without speeding up.
 
 ### Void
@@ -156,7 +156,7 @@ runtime remains protected. The effect is bounded so that rain never fully
 disappears — some columns always remain visible.
 
 **Example:** The `atmosphere-void` preset demonstrates this. Run
-`--profile atmosphere-void` and watch the rain gradually thin and dim.
+`--scene-custom atmosphere-void` and watch the rain gradually thin and dim.
 
 ### Signal
 
@@ -178,7 +178,7 @@ emphasis, or coordinated brightness patterns. The effect is the most
 structurally intrusive of the non-storm regimes but remains bounded.
 
 **Example:** The `atmosphere-signal` preset demonstrates this. Run
-`--profile atmosphere-signal` and watch for columns that develop
+`--scene-custom atmosphere-signal` and watch for columns that develop
 coordinated behavior distinct from the surrounding rain.
 
 ### Storm
@@ -202,7 +202,7 @@ The atmosphere system enforces strict boundaries even during storm —
 parameters are capped at safe maximums that preserve terminal readability
 and performance.
 
-**Example:** The `--preset storm` curated preset demonstrates high-intensity
+**Example:** The `--scene storm` curated preset demonstrates high-intensity
 visual behavior. Note that this is a curated preset (color, charset, speed,
 density, glitch) and is distinct from the atmosphere storm regime. The
 atmosphere storm regime is not available through any preset or profile
@@ -230,7 +230,7 @@ of frames. The breath cycle concept applies regardless of the specific
 interpolation method — what matters is that the transition is gradual
 and perceptible, not instantaneous.
 
-**Example:** Switching from `--profile atmosphere-pulse` to `--profile
+**Example:** Switching from `--scene-custom atmosphere-pulse` to `--scene-custom
 atmosphere-void` would trigger a transition from the pulse state through
 rest to the void state, with each phase taking at least one breath cycle.
 
@@ -270,7 +270,7 @@ get Rest: the baseline rain at its configured speed, density, and color.
 This is not a special case — it is the default. Every other visual state
 requires an explicit user action to reach.
 
-**Storm is never default.** It requires explicit `--preset storm` or
+**Storm is never default.** It requires explicit `--scene storm` or
 an equivalent deliberate user action. Storm will never activate as a
 side effect of another configuration, as a fallback, or as a "better
 experience" recommendation. Storm is a conscious choice.
@@ -353,20 +353,20 @@ priority, is:
 4. **Config scene** — A scene applied via the config file's `scene` key.
 5. **Config profile** — A user-defined profile applied via the config
    file's `profile` key.
-6. **CLI preset** — A preset applied via `--preset <name>` on the
+6. **CLI preset** — A preset applied via `--scene <name>` on the
    command line.
 7. **CLI scene** — A scene applied via `--scene <name>` on the command
    line.
-8. **CLI profile** — A user-defined profile applied via `--profile
+8. **CLI profile** — A user-defined profile applied via `--scene-custom
    <name>` on the command line.
-9. **Low-power values** — When `--low-power` is active, a separate set
+9. **Low-power values** — When `--scene low-power` is active, a separate set
    of conservative values is applied for fields not already set by a
    higher layer.
 10. **Explicit CLI flags** — Individual flags like `--speed 20` or
     `--color purple` always win over every other layer.
 
 Higher layers override lower. No layer may break the pacing contract. Even
-when a higher layer sets an aggressive value (such as `--preset storm` with
+when a higher layer sets an aggressive value (such as `--scene storm` with
 its high speed and density), the pacing contract still applies: transitions
 are gradual, storm is never default, and the atmosphere controller respects
 breath cycle minimums.

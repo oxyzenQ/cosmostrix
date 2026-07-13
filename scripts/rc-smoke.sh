@@ -86,19 +86,16 @@ printf 'atmosphere-mode = disabled\natmosphere-regime = pulse\n' > "$TMP_DIS"
 pass "Disabled + non-Calm config smoke passed"
 rm -f "$TMP_DIS"
 
-# ── Atmosphere preset discoverability via --list-profiles ──────────────────
+# ── v14 Scene catalog discoverability via --list-scenes ───────────────────
 
-log "Checking --list-profiles atmosphere preset discoverability"
-LIST_OUT=$("$BIN" --list-profiles)
-echo "$LIST_OUT" | grep -Fq "CONTROLLED ATMOSPHERE PRESETS" || fail "--list-profiles must show CONTROLLED ATMOSPHERE PRESETS section"
-echo "$LIST_OUT" | grep -Fq "atmosphere-calm" || fail "--list-profiles must list atmosphere-calm"
-echo "$LIST_OUT" | grep -Fq "atmosphere-pulse" || fail "--list-profiles must list atmosphere-pulse"
-echo "$LIST_OUT" | grep -Fq "atmosphere-signal" || fail "--list-profiles must list atmosphere-signal"
-echo "$LIST_OUT" | grep -Fq "atmosphere-compression" || fail "--list-profiles must list atmosphere-compression"
-echo "$LIST_OUT" | grep -Fq "atmosphere-void" || fail "--list-profiles must list atmosphere-void"
-echo "$LIST_OUT" | grep -Fq "atmosphere-monolith-pressure" || fail "--list-profiles must list atmosphere-monolith-pressure"
-echo "$LIST_OUT" | grep -Fq "atmosphere-storm" && fail "--list-profiles must not list atmosphere-storm"
-pass "Atmosphere preset discoverability passed"
+log "Checking --list-scenes built-in scene discoverability"
+LIST_OUT=$("$BIN" --list-scenes)
+echo "$LIST_OUT" | grep -Fq "AVAILABLE SCENES" || fail "--list-scenes must show AVAILABLE SCENES section"
+echo "$LIST_OUT" | grep -Fq "monolith" || fail "--list-scenes must list monolith"
+echo "$LIST_OUT" | grep -Fq "storm" || fail "--list-scenes must list storm"
+echo "$LIST_OUT" | grep -Fq "low-power" || fail "--list-scenes must list low-power"
+echo "$LIST_OUT" | grep -Fq "hacker" || fail "--list-scenes must list hacker"
+pass "Scene catalog discoverability passed"
 
 # ── README / CHANGELOG / casing audit ────────────────────────────────────
 
@@ -135,33 +132,27 @@ if [[ "$BAD_CASING" -eq 1 ]]; then
 fi
 pass "Casing audit clean"
 
-# ── v4.7 Profile ecosystem RC smoke ──────────────────────────────────────
+# ── v14 Scene-custom ecosystem RC smoke ──────────────────────────────────
 
-log "Checking --list-profiles profile ecosystem pointers"
-LIST_V47=$("$BIN" --list-profiles)
-echo "$LIST_V47" | grep -Fq "USER PROFILES" || fail "--list-profiles must print USER PROFILES"
-echo "$LIST_V47" | grep -Fq "PROFILE_ECOSYSTEM" || fail "--list-profiles must point to docs/PROFILE_ECOSYSTEM.md"
-echo "$LIST_V47" | grep -Fq "PROFILE_EXAMPLES" || fail "--list-profiles must point to docs/PROFILE_EXAMPLES.md"
-pass "--list-profiles profile ecosystem pointers passed"
-
-log "Checking --dump-config profile pointers"
+log "Checking --dump-config scene-custom pointers"
 DUMP_V47=$("$BIN" --dump-config)
+echo "$DUMP_V47" | grep -Fq "scene-custom" || fail "--dump-config must document scene-custom namespace"
 echo "$DUMP_V47" | grep -Fq "PROFILE_EXAMPLES" || fail "--dump-config must point to docs/PROFILE_EXAMPLES.md"
 echo "$DUMP_V47" | grep -Fq "ATMOSPHERE_PRESETS" || fail "--dump-config must point to atmosphere preset examples"
-pass "--dump-config profile pointers passed"
+pass "--dump-config scene-custom pointers passed"
 
-log "Checking unknown profile error mentions --list-profiles"
+log "Checking unknown custom scene error mentions --list-scenes"
 TMP_UP="$(mktemp)"
-printf 'profile.test.base = monolith\n' > "$TMP_UP"
-UP_ERR=$("$BIN" --config "$TMP_UP" --profile nonexistent 2>&1 || true)
-echo "$UP_ERR" | grep -Fq "expected one of:" || fail "unknown profile error must list available profiles"
+printf 'scene-custom.test.base = monolith\n' > "$TMP_UP"
+UP_ERR=$("$BIN" --config "$TMP_UP" --scene-custom nonexistent 2>&1 || true)
+echo "$UP_ERR" | grep -Fq "expected one of:" || fail "unknown custom scene error must list available names"
 rm -f "$TMP_UP"
-pass "Unknown profile error passed"
+pass "Unknown custom scene error passed"
 
-log "Checking storm remains unavailable"
+log "Checking storm atmosphere-regime remains unavailable"
 TMP_STORM="$(mktemp)"
-printf 'profile.storm.base = monolith\nprofile.storm.atmosphere-regime = storm\n' > "$TMP_STORM"
-STORM_ERR=$("$BIN" --config "$TMP_STORM" --profile storm 2>&1 || true)
+printf 'scene-custom.storm.base = monolith\nscene-custom.storm.atmosphere-regime = storm\n' > "$TMP_STORM"
+STORM_ERR=$("$BIN" --config "$TMP_STORM" --scene-custom storm 2>&1 || true)
 echo "$STORM_ERR" | grep -Fq "storm is unavailable" || fail "storm must be reported as unavailable"
 rm -f "$TMP_STORM"
 pass "Storm unavailability passed"

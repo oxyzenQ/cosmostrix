@@ -4,7 +4,7 @@
 
 Concise examples for user-defined profiles and controlled atmosphere profiles.
 All profiles are opt-in only. The default remains `disabled / protected / identity`.
-No profile is applied unless explicitly selected with `--profile <name>` or
+No profile is applied unless explicitly selected with `--scene-custom <name>` or
 `profile = <name>` in the config file.
 
 ## Precedence
@@ -26,7 +26,7 @@ overwritten by a scene's `speed = 8`.
 
 ### `--color sun` override
 
-CLI color choice always wins. `cosmostrix --profile <any> --color sun` uses
+CLI color choice always wins. `cosmostrix --scene-custom <any> --color sun` uses
 `sun` regardless of what the profile sets for color.
 
 ### Auto color drift
@@ -54,7 +54,7 @@ A profile that only changes the scene foundation:
 profile.minimal.base = monolith
 ```
 
-Usage: `cosmostrix --profile minimal`
+Usage: `cosmostrix --scene-custom minimal`
 
 This applies the monolith scene defaults (cosmos color, binary charset,
 subtle glitch, speed 20). All other values remain at their built-in
@@ -68,7 +68,7 @@ Override just the color theme:
 profile.warm.color = sun
 ```
 
-Usage: `cosmostrix --profile warm`
+Usage: `cosmostrix --scene-custom warm`
 
 Only the color changes to `sun`. Scene, speed, density, and all other
 values remain at their defaults (monolith scene, cosmos color from scene,
@@ -88,7 +88,7 @@ profile.nightcore.glitch-level = subtle
 profile.nightcore.monolith-size = large
 ```
 
-Usage: `cosmostrix --profile nightcore`
+Usage: `cosmostrix --scene-custom nightcore`
 
 The `base = monolith` applies the monolith scene defaults first, then the
 profile overrides for color, charset, speed, density, glitch level, and
@@ -105,7 +105,7 @@ profile.my-pulse.atmosphere-mode = controlled-live
 profile.my-pulse.atmosphere-regime = pulse
 ```
 
-Usage: `cosmostrix --profile my-pulse`
+Usage: `cosmostrix --scene-custom my-pulse`
 
 This produces whisper-bounded periodic intensity waves. The visual change
 is imperceptible. Shadow risk is `whisper`. Terminal writer remains
@@ -121,7 +121,7 @@ profile.my-signal.atmosphere-mode = controlled-live
 profile.my-signal.atmosphere-regime = signal
 ```
 
-Usage: `cosmostrix --profile my-signal`
+Usage: `cosmostrix --scene-custom my-signal`
 
 Focused directional convergence with whisper-bounded modulation.
 Imperceptible visual change.
@@ -136,7 +136,7 @@ profile.my-void.atmosphere-mode = controlled-live
 profile.my-void.atmosphere-regime = void
 ```
 
-Usage: `cosmostrix --profile my-void`
+Usage: `cosmostrix --scene-custom my-void`
 
 Minimal activity, sparse streams with whisper-bounded modulation.
 Imperceptible visual change.
@@ -151,7 +151,7 @@ profile.my-mono.atmosphere-mode = controlled-live
 profile.my-mono.atmosphere-regime = monolith-pressure
 ```
 
-Usage: `cosmostrix --profile my-mono`
+Usage: `cosmostrix --scene-custom my-mono`
 
 Enhanced monolith presence with whisper-bounded modulation.
 Imperceptible visual change.
@@ -167,7 +167,7 @@ profile.my-pulse.atmosphere-mode = controlled-live
 profile.my-pulse.atmosphere-regime = pulse
 ```
 
-Usage: `cosmostrix --profile my-pulse --color sun`
+Usage: `cosmostrix --scene-custom my-pulse --color sun`
 
 Result: atmosphere is pulse (controlled-live/whisper), but color is `sun`
 because CLI `--color` always wins over the profile color.
@@ -187,10 +187,10 @@ profile.fast.color = green
 profile.fast.speed = 50
 ```
 
-Usage: `cosmostrix --profile fast`
+Usage: `cosmostrix --scene-custom fast`
 
 Result: color is `green` (profile beats config), speed is `50`
-(profile beats config). Without `--profile fast`, the config values
+(profile beats config). Without `--scene-custom fast`, the config values
 `ocean` and `10` would apply.
 
 ## Notes
@@ -199,7 +199,7 @@ Result: color is `green` (profile beats config), speed is `50`
   message. There is no storm profile.
 - All controlled atmosphere profiles are opt-in only.
   The default remains `disabled / protected / identity`.
-- **Unknown profiles fail cleanly.** CLI `--profile unknown` produces a
+- **Unknown profiles fail cleanly.** CLI `--scene-custom unknown` produces a
   clear error with no partial mutation. Config `profile = unknown` emits a
   warning and continues with defaults.
 - **Invalid profile values fail before runtime mutation.** Each invalid

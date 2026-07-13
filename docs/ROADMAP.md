@@ -131,7 +131,7 @@ change. Terminal writer remains single-owner. Storm unavailable.
 | Phase 1 | Controlled Atmosphere Expansion Contract |
 | Phase 2 | Controlled Atmosphere Profile Presets (6 presets) |
 | Phase 3 | Preset UX / Config Examples + Pressure-aware Tests |
-| Phase 4 | Preset CLI/Profile Discoverability (`--list-profiles`) |
+| Phase 4 | Preset CLI/Profile Discoverability (`--list-scenes`) |
 | Phase 5 | Atmosphere RC Smoke + v4.6 Closure |
 
 ### v4.5.0 — Zactrix Foundation + Depth Regression (COMPLETE)

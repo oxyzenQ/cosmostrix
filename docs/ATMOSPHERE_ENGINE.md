@@ -9,7 +9,7 @@ regime that modulates rendering parameters gradually over time.
 ## Status: v4.6.0 Phase 5 — Atmosphere RC Smoke + Closure
 
 v4.6.0 Phase 5 closes the atmosphere implementation with RC smoke coverage.
-`scripts/rc-smoke.sh` verifies `--list-profiles` includes all six presets and
+`scripts/rc-smoke.sh` verifies `--list-scenes` includes all six presets and
 excludes storm. No preset is default. No preset changes visual behavior without
 explicit opt-in. No storm preset exists. Version remains v4.5.0 until tag.
 

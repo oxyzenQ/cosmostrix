@@ -10,7 +10,7 @@ across all profile-related code paths.
 ## Purpose
 
 Profiles allow users to define named configuration blocks in their config
-file and apply them with `--profile <name>`. Each profile can override
+file and apply them with `--scene-custom <name>`. Each profile can override
 visual, motion, and atmosphere settings without changing the config file's
 global defaults. Profiles are lightweight — they reuse existing scenes and
 presets as foundations, then override only already-supported runtime fields.
@@ -49,15 +49,15 @@ the supported profile fields listed below.
 
 ## Built-in / Discoverable Presets
 
-Cosmostrix ships 8 curated presets (applied via `--preset` or `preset = <name>`
+Cosmostrix ships 8 curated presets (applied via `--scene` or `preset = <name>`
 in config). These are distinct from user-defined profiles. Presets provide
 complete visual configurations in a single named package. See
-`cosmostrix --list-presets` for the full list.
+`cosmostrix --list-scenes` for the full list.
 
 ## User Profiles
 
 User profiles are defined in the config file. Each profile is a named block
-of overrides. Profiles are applied with `--profile <name>` on the CLI or
+of overrides. Profiles are applied with `--scene-custom <name>` on the CLI or
 `profile = <name>` in the config file.
 
 Example:
@@ -72,11 +72,11 @@ profile.nightcore.glitch-level = subtle
 profile.nightcore.monolith-size = large
 ```
 
-Usage: `cosmostrix --profile nightcore`
+Usage: `cosmostrix --scene-custom nightcore`
 
 User profiles and controlled atmosphere presets are separate systems. User
 profiles are defined by the user in their config file. Controlled atmosphere
-presets are shipped with Cosmostrix and listed in `--list-profiles` output
+presets are shipped with Cosmostrix and listed in `--list-scenes` output
 for discoverability. See `docs/ATMOSPHERE_PRESETS.md` for atmosphere preset
 details.
 
@@ -95,7 +95,7 @@ No atmosphere preset is default. The default behavior remains
 | `atmosphere-void` | controlled-live | void | whisper |
 | `atmosphere-monolith-pressure` | controlled-live | monolith-pressure | whisper |
 
-Atmosphere presets are shown in `cosmostrix --list-profiles` output under the
+Atmosphere presets are shown in `cosmostrix --list-scenes` output under the
 "CONTROLLED ATMOSPHERE PRESETS (opt-in only)" section. Storm preset does not
 exist. See `docs/ATMOSPHERE_PRESETS.md` for full documentation including
 config examples and profile blocks.
@@ -126,13 +126,13 @@ Config values (step 2) override built-in defaults (step 1).
 When a config file sets both global values and a profile, the profile's
 values take precedence over the global config values. For example, if the
 config file sets `color = ocean` and `profile.nightcore.color = purple`,
-applying `--profile nightcore` results in `color = purple`.
+applying `--scene-custom nightcore` results in `color = purple`.
 
 ### CLI overrides profile
 
 When a CLI flag is explicitly provided, it always wins over the profile
 value. The `is_explicit()` check in profile application skips any field that
-was set by the user on the CLI. For example, `cosmostrix --profile nightcore
+was set by the user on the CLI. For example, `cosmostrix --scene-custom nightcore
 --color sun` uses `sun` for color regardless of what the profile sets.
 
 ## Color Stickiness Rules
@@ -162,7 +162,7 @@ happens when `apply_profile_layer` is called with a specific profile name.
 
 ### Unknown Profiles
 
-When an unknown profile is requested via CLI (`--profile unknown`), the
+When an unknown profile is requested via CLI (`--scene-custom unknown`), the
 application returns a clean error before any runtime mutation occurs:
 
 ```
@@ -177,7 +177,7 @@ When an unknown profile is referenced in config (`profile = unknown`), the
 config layer emits a warning and continues with defaults:
 
 ```
-config: ignoring unknown profile 'unknown' (available: <list>; see --list-profiles)
+config: ignoring unknown profile 'unknown' (available: <list>; see --list-scenes)
 ```
 
 This prevents a typo in the config file from breaking the entire
@@ -249,14 +249,14 @@ managed exclusively by the RAII terminal guard in the main application loop.
 
 ## Unknown Profile Behavior
 
-When an unknown profile is requested via CLI (`--profile unknown`), the
+When an unknown profile is requested via CLI (`--scene-custom unknown`), the
 application returns a clean error before any runtime mutation occurs (see
 [Profile Validation](#profile-validation) for details). The `Args` struct
 remains unmodified before the error is returned.
 
 When an unknown profile is referenced in config (`profile = unknown`), the
 config layer emits a warning with available profiles and a pointer to
-`--list-profiles`, then continues with defaults. This prevents a typo in
+`--list-scenes`, then continues with defaults. This prevents a typo in
 the config file from breaking the entire application.
 
 ## Zactrix Render Efficiency Parked for v4.8
@@ -268,9 +268,9 @@ reference, or enable any Zactrix performance features from that branch.
 
 ## Discoverability
 
-- `cosmostrix --list-profiles` — lists user profiles and controlled atmosphere presets
+- `cosmostrix --list-scenes` — lists user profiles and controlled atmosphere presets
 - `cosmostrix --dump-config` — prints example config with profile syntax
-- `cosmostrix --help-detail` — full CLI reference including `--profile`
+- `cosmostrix --help-detail` — full CLI reference including `--scene-custom`
 - `docs/ATMOSPHERE_PRESETS.md` — controlled atmosphere preset documentation
 - `docs/ATMOSPHERE_EXPANSION.md` — atmosphere contract and state matrix
 - `docs/PROFILE_ECOSYSTEM.md` — this document
