@@ -15,7 +15,6 @@ use crate::charset::charset_from_str;
 use crate::cli::parse_color_scheme;
 use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
-use crate::preset::{get_preset, validate_preset_name};
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
 use crate::validation::{
@@ -257,37 +256,14 @@ fn apply_profile_preset(
     preset: &str,
     modified: &mut HashSet<&'static str>,
 ) {
-    let Ok(name) = validate_preset_name(preset) else {
-        eprintln!("profile: invalid preset='{preset}' in profile (see --list-presets)");
-        return;
-    };
-    let Some(p) = get_preset(&name) else {
-        return;
-    };
-    if !is_explicit(matches, "color") {
-        args.color = p.color.to_string();
-        modified.insert("color");
-    }
-    if !is_explicit(matches, "charset") {
-        args.charset = p.charset.to_string();
-        modified.insert("charset");
-    }
-    if !is_explicit(matches, "fps") {
-        args.fps = p.fps;
-        modified.insert("fps");
-    }
-    if !is_explicit(matches, "speed") {
-        args.speed = p.speed;
-        modified.insert("speed");
-    }
-    if !is_explicit(matches, "density") {
-        args.density = p.density;
-        modified.insert("density");
-    }
-    if !is_explicit(matches, "glitch_level") {
-        args.glitch_level = p.glitch_level;
-        modified.insert("glitch_level");
-    }
+    // v14.0.0: `preset = X` in a [profile.<name>] or [scene-custom.<name>]
+    // block is a deprecated alias for `base = X`. All 8 former presets are
+    // now built-in scenes, so the value is treated as a scene name and
+    // dispatched to apply_profile_scene. A deprecation warning is emitted.
+    eprintln!(
+        "warning: 'preset = {preset}' in profile is deprecated; use 'base = {preset}' instead (presets are now scenes)"
+    );
+    apply_profile_scene(matches, args, preset, modified);
 }
 
 fn apply_profile_scene(

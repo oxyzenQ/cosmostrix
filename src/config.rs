@@ -281,14 +281,6 @@ pub struct Args {
     pub message: Option<String>,
 
     #[arg(
-        long = "low-power",
-        help_heading = "COMMON OPTIONS",
-        display_order = 80,
-        help = "Power-saving mode (30 FPS, reduced density/speed)"
-    )]
-    pub low_power: bool,
-
-    #[arg(
         long = "glitch-level",
         default_value = "default",
         value_enum,
@@ -297,14 +289,6 @@ pub struct Args {
         help = "Glitch intensity"
     )]
     pub glitch_level: GlitchLevel,
-
-    #[arg(
-        long = "preset",
-        help_heading = "COMMON OPTIONS",
-        display_order = 95,
-        help = "Apply a named preset (see --list-presets)"
-    )]
-    pub preset: Option<String>,
 
     #[arg(
         long = "scene",
@@ -518,23 +502,6 @@ pub struct Args {
         help = "Show the default runtime profile"
     )]
     pub defaults: bool,
-
-    #[arg(
-        long = "list-presets",
-        help_heading = "DISCOVERY",
-        display_order = 225,
-        help = "Show available presets"
-    )]
-    pub list_presets: bool,
-
-    #[arg(
-        long = "show-preset",
-        value_name = "NAME",
-        help_heading = "DISCOVERY",
-        display_order = 227,
-        help = "Show full details for a named preset"
-    )]
-    pub show_preset: Option<String>,
 
     #[arg(
         long = "list-scenes",

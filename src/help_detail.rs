@@ -73,23 +73,8 @@ COMMON OPTIONS:
       Display overlay message with border.
       cosmostrix -mb \"hello\"
 
-  --low-power
-      Power-saving mode. Applies FPS 30, speed 5, density 0.5
-      for parameters not explicitly provided.
-      Equivalent to --preset low-power (both produce the same values).
-
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.
-
-  --preset <name>
-      Apply a named parameter preset. Presets set color, charset,
-      fps, speed, density, and glitch-level to curated values.
-      Explicit CLI flags always override preset values.
-      Available presets: classic, cinematic, calm, monolith, storm,
-      cosmos, neon, hacker, low-power.
-      cosmostrix --preset cinematic
-      cosmostrix --preset storm --fps 60
-      cosmostrix --preset low-power
 
   --scene <name>
       Apply a built-in scene atmosphere. Scenes set color, charset,

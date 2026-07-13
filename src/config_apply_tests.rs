@@ -101,8 +101,10 @@ fn config_glitch_level_subtle_applies() {
 
 #[test]
 fn config_preset_calm_applies() {
+    // v14.0.0: `preset = calm` in config is a deprecated alias for `scene = calm`.
+    // The redirect emits a warning and sets args.scene = "calm".
     let args = args_with_config("preset = calm\n", &[]);
-    assert_eq!(args.preset.as_deref(), Some("calm"));
+    assert_eq!(args.scene.as_deref(), Some("calm"));
     assert_eq!(args.color, "ocean");
     assert_eq!(args.charset, "minimal");
     assert_eq!(args.speed, 5.0);
@@ -323,8 +325,9 @@ fn config_monolith_size_large_applies() {
 
 #[test]
 fn cli_scene_overrides_cli_preset_for_overlapping_values() {
-    let args = args_from_cli(&["--preset", "calm", "--scene", "signal"]);
-    assert_eq!(args.preset.as_deref(), Some("calm"));
+    // v14.0.0: --preset removed; presets are now scenes. This test now
+    // verifies that --scene signal alone applies signal values.
+    let args = args_from_cli(&["--scene", "signal"]);
     assert_eq!(args.scene.as_deref(), Some("signal"));
     assert_eq!(args.color, "aurora");
     assert_eq!(args.charset, "retro");
@@ -334,9 +337,10 @@ fn cli_scene_overrides_cli_preset_for_overlapping_values() {
 
 #[test]
 fn cli_preset_overrides_config_scene_for_overlapping_values() {
-    let args = args_with_config("scene = monolith\n", &["--preset", "storm"]);
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.preset.as_deref(), Some("storm"));
+    // v14.0.0: --preset removed; converted to --scene storm which wins
+    // over config scene = monolith.
+    let args = args_with_config("scene = monolith\n", &["--scene", "storm"]);
+    assert_eq!(args.scene.as_deref(), Some("storm"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.charset, "cyberpunk");
     assert_eq!(args.speed, 24.0);
@@ -354,8 +358,10 @@ fn explicit_cli_overrides_config_value() {
 
 #[test]
 fn explicit_cli_overrides_config_preset() {
+    // v14.0.0: `preset = storm` in config redirects to scene = storm.
+    // CLI --fps and --color override scene-managed values.
     let args = args_with_config("preset = storm\n", &["--fps", "60", "--color", "green"]);
-    assert_eq!(args.preset.as_deref(), Some("storm"));
+    assert_eq!(args.scene.as_deref(), Some("storm"));
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.color, "green");
     assert_eq!(args.speed, 24.0);
@@ -363,8 +369,10 @@ fn explicit_cli_overrides_config_preset() {
 
 #[test]
 fn cli_preset_overrides_config_preset() {
-    let args = args_with_config("preset = calm\n", &["--preset", "storm"]);
-    assert_eq!(args.preset.as_deref(), Some("storm"));
+    // v14.0.0: both preset= and --preset are deprecated/removed.
+    // Converted to scene= and --scene. CLI scene wins over config scene.
+    let args = args_with_config("scene = calm\n", &["--scene", "storm"]);
+    assert_eq!(args.scene.as_deref(), Some("storm"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.charset, "cyberpunk");
     assert_eq!(args.speed, 24.0);
@@ -372,25 +380,44 @@ fn cli_preset_overrides_config_preset() {
 
 #[test]
 fn preset_overrides_config_managed_fields() {
+    // v14.0.0: `preset = calm` redirects to scene = calm. Scenes only fill
+    // UNSET keys, so config-set color and speed are preserved (scene no
+    // longer overrides config-managed fields — that was old preset semantics).
     let args = args_with_config("preset = calm\ncolor = red\nspeed = 20\n", &[]);
-    assert_eq!(args.color, "ocean");
-    assert_eq!(args.speed, 5.0);
+    assert_eq!(args.scene.as_deref(), Some("calm"));
+    assert_eq!(
+        args.color, "red",
+        "config color must win over scene default"
+    );
+    assert_eq!(args.speed, 20.0, "config speed must win over scene default");
 }
 
 #[test]
 fn config_low_power_applies_after_config_without_preset() {
+    // v14.0.0: `low-power = true` redirects to scene = low-power. Scenes
+    // only fill UNSET keys, so config-set fps/speed/density are preserved.
+    // (Old behavior: low-power always forced its values. New behavior is
+    // consistent with how all scenes interact with config-set keys.)
     let args = args_with_config(
         "fps = 120\nspeed = 30\ndensity = 2\nlow-power = true\n",
         &[],
     );
-    assert_eq!(args.fps, 30.0);
-    assert_eq!(args.speed, 5.0);
-    assert_eq!(args.density, 0.5);
+    assert_eq!(args.scene.as_deref(), Some("low-power"));
+    assert_eq!(args.fps, 120.0, "config fps must win over scene default");
+    assert_eq!(args.speed, 30.0, "config speed must win over scene default");
+    assert_eq!(
+        args.density, 2.0,
+        "config density must win over scene default"
+    );
 }
 
 #[test]
 fn low_power_does_not_override_preset_values() {
-    let args = args_from_cli(&["--preset", "storm", "--low-power"]);
+    // v14.0.0: --preset and --low-power CLI flags removed. This scenario
+    // no longer exists. Converted to verify that --scene storm values are
+    // preserved when low-power is NOT also set (the new equivalent would
+    // be --scene low-power, which simply replaces storm entirely).
+    let args = args_from_cli(&["--scene", "storm"]);
     assert_eq!(args.fps, 120.0);
     assert_eq!(args.speed, 24.0);
     assert!((args.density - 1.35).abs() < f32::EPSILON);
@@ -420,14 +447,14 @@ fn uniform_flag_defaults_to_false() {
 
 #[test]
 fn low_power_preset_sets_expected_values() {
-    // The new low-power preset (Stage 1) must match the old --low-power
-    // flag behavior: fps=30, speed=5, density=0.5.
-    let args = args_from_cli(&["--preset", "low-power"]);
-    assert_eq!(args.fps, 30.0, "low-power preset must set fps=30");
-    assert_eq!(args.speed, 5.0, "low-power preset must set speed=5");
+    // v14.0.0: --preset low-power converted to --scene low-power.
+    // Values must match: fps=30, speed=5, density=0.5.
+    let args = args_from_cli(&["--scene", "low-power"]);
+    assert_eq!(args.fps, 30.0, "low-power scene must set fps=30");
+    assert_eq!(args.speed, 5.0, "low-power scene must set speed=5");
     assert!(
         (args.density - 0.5).abs() < f32::EPSILON,
-        "low-power preset must set density=0.5"
+        "low-power scene must set density=0.5"
     );
 }
 
@@ -440,8 +467,8 @@ fn invalid_config_values_are_ignored() {
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.speed, 30.0);
-    assert!(!args.low_power);
-    assert!(args.preset.is_none());
+    // v14.0.0: invalid `preset = unknown` does not set scene; default monolith applies.
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
 }
 
 #[test]

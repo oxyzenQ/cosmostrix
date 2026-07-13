@@ -30,7 +30,6 @@ use crate::cli::parse_color_scheme;
 use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::configfile::load_config_file;
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
-use crate::preset::{get_preset, validate_preset_name};
 use crate::profile::{apply_profile_layer, collect_profiles, validate_profile_name};
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
@@ -160,7 +159,6 @@ pub(crate) fn apply_config_and_runtime_defaults(
         apply_config_values(matches, args, &cfg, &mut config_touched);
     }
 
-    let preset_is_cli = is_explicit(matches, "preset");
     let scene_is_cli = is_explicit(matches, "scene");
     let profile_is_cli = is_explicit(matches, "profile");
     let scene_custom_is_cli = is_explicit(matches, "scene_custom");
@@ -171,9 +169,6 @@ pub(crate) fn apply_config_and_runtime_defaults(
     }
 
     let mut curated_modified = HashSet::new();
-    if !preset_is_cli {
-        curated_modified.extend(apply_preset_values(matches, args)?);
-    }
     if !scene_is_cli && !scene_is_default {
         curated_modified.extend(apply_scene_values(matches, args, &config_touched)?);
     }
@@ -198,9 +193,6 @@ pub(crate) fn apply_config_and_runtime_defaults(
                 false,
             )?);
         }
-    }
-    if preset_is_cli {
-        curated_modified.extend(apply_preset_values(matches, args)?);
     }
     if scene_is_cli {
         curated_modified.extend(apply_scene_values(matches, args, &config_touched)?);
@@ -228,7 +220,6 @@ pub(crate) fn apply_config_and_runtime_defaults(
         }
     }
 
-    apply_low_power_values(matches, args, &curated_modified);
     apply_glitch_level_values(matches, args, &config_touched, &curated_modified);
 
     Ok(())
@@ -282,13 +273,25 @@ fn apply_config_values(
     cfg: &HashMap<String, String>,
     config_touched: &mut HashSet<&'static str>,
 ) {
-    if let Some(v) = config_value(matches, cfg, "preset", "preset") {
-        match validate_preset_name(&v) {
+    // v14.0.0: `preset = X` in config is a deprecated alias for `scene = X`.
+    // All 8 former presets (classic, cinematic, calm, monolith, storm, cosmos,
+    // neon, hacker, low-power) are now built-in scenes, so the value is
+    // validated as a scene name and redirected. A deprecation warning is
+    // emitted on stderr.
+    if let Some(v) = config_value(matches, cfg, "scene", "preset") {
+        match validate_scene_name(&v) {
             Ok(name) => {
-                args.preset = Some(name);
-                config_touched.insert("preset");
+                eprintln!(
+                    "warning: 'preset = {v}' in config is deprecated; use 'scene = {name}' instead (all presets are now scenes)"
+                );
+                args.scene = Some(name);
+                config_touched.insert("scene");
             }
-            Err(e) => crate::output::eprintln_error_labeled(&format!("invalid preset='{v}' ({e})")),
+            Err(_) => {
+                crate::output::eprintln_error_labeled(&format!(
+                    "invalid preset='{v}' (use --list-scenes to see available scenes; presets are now scenes)"
+                ));
+            }
         }
     }
 
@@ -415,10 +418,18 @@ fn apply_config_values(
             config_touched.insert("color_bg");
         }
     }
-    if let Some(v) = config_value(matches, cfg, "low_power", "low-power") {
+    // v14.0.0: `low-power = true` in config is a deprecated alias for
+    // `scene = low-power`. Only `true` triggers the redirect; `false` is
+    // a no-op (low-power was opt-in only).
+    if let Some(v) = config_value(matches, cfg, "scene", "low-power") {
         if let Some(b) = parse_bool_config("low-power", &v) {
-            args.low_power = b;
-            config_touched.insert("low_power");
+            if b {
+                eprintln!(
+                    "warning: 'low-power = true' in config is deprecated; use 'scene = low-power' instead"
+                );
+                args.scene = Some("low-power".to_string());
+                config_touched.insert("scene");
+            }
         }
     }
     if let Some(v) = config_value(matches, cfg, "mouse", "mouse") {
@@ -493,48 +504,6 @@ fn apply_legacy_config(
     }
 }
 
-fn apply_preset_values(
-    matches: &clap::ArgMatches,
-    args: &mut Args,
-) -> Result<HashSet<&'static str>, String> {
-    let mut preset_modified = HashSet::new();
-    let Some(ref preset_name) = args.preset else {
-        return Ok(preset_modified);
-    };
-
-    let name = validate_preset_name(preset_name)?;
-    args.preset = Some(name.clone());
-
-    if let Some(p) = get_preset(&name) {
-        if !is_explicit(matches, "color") {
-            args.color = p.color.to_string();
-            preset_modified.insert("color");
-        }
-        if !is_explicit(matches, "charset") {
-            args.charset = p.charset.to_string();
-            preset_modified.insert("charset");
-        }
-        if !is_explicit(matches, "fps") {
-            args.fps = p.fps;
-            preset_modified.insert("fps");
-        }
-        if !is_explicit(matches, "speed") {
-            args.speed = p.speed;
-            preset_modified.insert("speed");
-        }
-        if !is_explicit(matches, "density") {
-            args.density = p.density;
-            preset_modified.insert("density");
-        }
-        if !is_explicit(matches, "glitch_level") {
-            args.glitch_level = p.glitch_level;
-            preset_modified.insert("glitch_level");
-        }
-    }
-
-    Ok(preset_modified)
-}
-
 fn apply_scene_values(
     matches: &clap::ArgMatches,
     args: &mut Args,
@@ -593,26 +562,6 @@ fn apply_scene_values(
     }
 
     Ok(scene_modified)
-}
-
-fn apply_low_power_values(
-    matches: &clap::ArgMatches,
-    args: &mut Args,
-    curated_modified: &HashSet<&'static str>,
-) {
-    if !args.low_power {
-        return;
-    }
-
-    if !is_explicit(matches, "fps") && !curated_modified.contains("fps") {
-        args.fps = 30.0;
-    }
-    if !is_explicit(matches, "speed") && !curated_modified.contains("speed") {
-        args.speed = 5.0;
-    }
-    if !is_explicit(matches, "density") && !curated_modified.contains("density") {
-        args.density = 0.5;
-    }
 }
 
 fn apply_glitch_level_values(

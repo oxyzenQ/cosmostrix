@@ -114,7 +114,6 @@ mod loc_tests;
 mod memstat;
 mod output;
 mod palette;
-mod preset;
 mod profile;
 mod rain_style;
 mod renderer_info;
@@ -388,18 +387,6 @@ fn main() -> std::io::Result<()> {
     }
     canonicalize_runtime_args(&mut args);
 
-    if args.list_presets {
-        preset::print_list_presets();
-        return Ok(());
-    }
-
-    if let Some(ref name) = args.show_preset {
-        match preset::print_show_preset(name) {
-            Ok(()) => return Ok(()),
-            Err(e) => ux::die_config(e),
-        }
-    }
-
     if args.list_scenes {
         print_list_scenes();
         return Ok(());
@@ -548,13 +535,12 @@ fn main() -> std::io::Result<()> {
                 "glitch_level",
                 &format!("{:?}", args.glitch_level).to_lowercase(),
             );
-            s.field_if("low_power", "on", args.low_power);
             s.field_if("uniform", "on", args.uniform);
-            if let Some(ref pname) = args.preset {
-                s.field("preset", pname);
-            }
             if let Some(ref pname) = args.profile {
                 s.field("profile", pname);
+            }
+            if let Some(ref pname) = args.scene_custom {
+                s.field("scene_custom", pname);
             }
             s.field(
                 "auto_color_drift",
@@ -876,7 +862,6 @@ fn main() -> std::io::Result<()> {
             glitch_high,
             &format!("{:?}", args.glitch_level),
             args.mouse,
-            args.low_power,
             args.screensaver,
             args.auto_color_drift,
             atmosphere_mode,
