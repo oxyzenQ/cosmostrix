@@ -352,7 +352,8 @@ pub fn dump_config_text() -> &'static str {
 # ── Custom Scene Definitions ─────────────────────────────────────────────────
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>
 # Fields: base, scene, preset, color, charset, fps, speed, density,
-#         glitch-level, monolith-size, color-bg, atmosphere-mode, atmosphere-regime
+#         density-map, glitch-level, monolith-size, color-bg,
+#         atmosphere-mode, atmosphere-regime
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
 # See docs/PROFILE_EXAMPLES.md for more examples.
 # scene-custom.hacker-mode.base = storm
@@ -361,6 +362,13 @@ pub fn dump_config_text() -> &'static str {
 # scene-custom.hacker-mode.speed = 24
 # scene-custom.hacker-mode.density = 1.2
 # scene-custom.hacker-mode.glitch-level = intense
+
+# Density Map: sculpt monolith pillar formation per-column.
+# Comma-separated weights (0.0..1.0). 0.0 = never spawn, 1.0 = always spawn.
+# Maps shorter than terminal width treat missing columns as 1.0.
+# Example: twin-tower formation (dense at cols 20-30 and 80-90, sparse elsewhere):
+# scene-custom.twin-towers.base = monolith
+# scene-custom.twin-towers.density-map = 0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1
 
 # ── Quick Start ──────────────────────────────────────────────────────────────
 # cosmostrix                                       # run with defaults

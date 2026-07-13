@@ -72,6 +72,7 @@ pub fn collect_custom_scenes(cfg: &HashMap<String, String>) -> BTreeMap<String, 
             "fps" => scene.fps = Some(value.clone()),
             "speed" => scene.speed = Some(value.clone()),
             "density" => scene.density = Some(value.clone()),
+            "density-map" => scene.density_map = Some(value.clone()),
             "glitch-level" => scene.glitch_level = Some(value.clone()),
             "monolith-size" => scene.monolith_size = Some(value.clone()),
             "color-bg" => scene.color_bg = Some(value.clone()),
@@ -177,6 +178,35 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 #[allow(dead_code)] // surfaced for future CLI helpers (Stage 3+)
 pub fn validate_scene_custom_name(name: &str) -> Result<String, String> {
     validate_profile_name(name)
+}
+
+/// Parse a comma-separated density-map string into a leaked `&'static [f64]`.
+///
+/// Format: `"1.0,0.5,0.0,0.8,..."` — each value is a weight in `[0.0, 1.0]`.
+/// Values outside this range are clamped. Empty/whitespace entries are skipped.
+/// Returns `None` if the string contains no valid numbers.
+///
+/// The returned slice is `'static` via `Box::leak` — the memory lives for the
+/// process lifetime. This is intentional: Cloud holds the slice for the entire
+/// session, and the total leaked memory is bounded by config size (a few KB).
+#[must_use]
+pub fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
+    let weights: Vec<f64> = csv
+        .split(',')
+        .filter_map(|s| {
+            let s = s.trim();
+            if s.is_empty() {
+                return None;
+            }
+            s.parse::<f64>().ok().map(|v| v.clamp(0.0, 1.0))
+        })
+        .collect();
+    if weights.is_empty() {
+        return None;
+    }
+    // Leak the Vec so its backing slice becomes &'static. Cloud holds this
+    // for the entire process lifetime — no dangling risk, bounded memory.
+    Some(Box::leak(weights.into_boxed_slice()))
 }
 
 /// Render a one-line-per-entry listing of custom scenes from config.
@@ -448,5 +478,61 @@ mod tests {
             text.contains("no fields set"),
             "empty profile should mention inheritance: {text}"
         );
+    }
+
+    // ── parse_density_map tests ──
+
+    #[test]
+    fn parse_density_map_valid_csv() {
+        let map = parse_density_map("1.0,0.5,0.0,0.8");
+        assert!(map.is_some());
+        let map = map.unwrap();
+        assert_eq!(map.len(), 4);
+        assert_eq!(map[0], 1.0);
+        assert_eq!(map[1], 0.5);
+        assert_eq!(map[2], 0.0);
+        assert_eq!(map[3], 0.8);
+    }
+
+    #[test]
+    fn parse_density_map_clamps_out_of_range() {
+        let map = parse_density_map("1.5,-0.3,2.0").unwrap();
+        assert_eq!(map[0], 1.0); // 1.5 clamped to 1.0
+        assert_eq!(map[1], 0.0); // -0.3 clamped to 0.0
+        assert_eq!(map[2], 1.0); // 2.0 clamped to 1.0
+    }
+
+    #[test]
+    fn parse_density_map_skips_empty_and_whitespace() {
+        let map = parse_density_map("1.0, , 0.5 ,, 0.0");
+        assert!(map.is_some());
+        assert_eq!(map.unwrap().len(), 3);
+    }
+
+    #[test]
+    fn parse_density_map_empty_string_returns_none() {
+        assert!(parse_density_map("").is_none());
+        assert!(parse_density_map("   ").is_none());
+    }
+
+    #[test]
+    fn parse_density_map_invalid_numbers_return_none() {
+        assert!(parse_density_map("abc,def").is_none());
+        assert!(parse_density_map("not_a_number").is_none());
+    }
+
+    #[test]
+    fn parse_density_map_single_value() {
+        let map = parse_density_map("0.7");
+        assert!(map.is_some());
+        assert_eq!(map.unwrap(), &[0.7]);
+    }
+
+    #[test]
+    fn parse_density_map_mixed_valid_invalid() {
+        // Valid numbers are kept; invalid entries are skipped.
+        let map = parse_density_map("1.0,abc,0.5");
+        assert!(map.is_some());
+        assert_eq!(map.unwrap(), &[1.0, 0.5]);
     }
 }

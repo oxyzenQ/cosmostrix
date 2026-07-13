@@ -30,6 +30,7 @@ pub const PROFILE_FIELDS: &[&str] = &[
     "fps",
     "speed",
     "density",
+    "density-map",
     "glitch-level",
     "monolith-size",
     "color-bg",
@@ -46,6 +47,9 @@ pub struct UserProfile {
     pub fps: Option<String>,
     pub speed: Option<String>,
     pub density: Option<String>,
+    /// Comma-separated f64 weights (0.0..1.0) for monolith pillar placement.
+    /// Parsed into a Vec<f64> and leaked to &'static for Cloud consumption.
+    pub density_map: Option<String>,
     pub glitch_level: Option<String>,
     pub monolith_size: Option<String>,
     pub color_bg: Option<String>,
@@ -89,6 +93,7 @@ pub fn collect_profiles(
             "fps" => profile.fps = Some(value.clone()),
             "speed" => profile.speed = Some(value.clone()),
             "density" => profile.density = Some(value.clone()),
+            "density-map" => profile.density_map = Some(value.clone()),
             "glitch-level" => profile.glitch_level = Some(value.clone()),
             "monolith-size" => profile.monolith_size = Some(value.clone()),
             "color-bg" => profile.color_bg = Some(value.clone()),

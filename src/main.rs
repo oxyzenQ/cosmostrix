@@ -863,6 +863,17 @@ fn main() -> std::io::Result<()> {
         );
     }
 
+    // v14 Peak Monolith: resolve per-column density map from the active
+    // scene-custom block (if any). The map sculpts monolith pillar formation.
+    let monolith_density_map = args.scene_custom.as_deref().and_then(|name| {
+        let cfg = configfile::load_config_file(args.config.as_deref());
+        let scenes = scene_custom::collect_custom_scenes(&cfg);
+        scenes
+            .get(name)
+            .and_then(|s| s.density_map.as_deref())
+            .and_then(scene_custom::parse_density_map)
+    });
+
     let cloud_cfg = CloudConfig {
         color_mode,
         fullwidth: args.fullwidth,
@@ -923,6 +934,7 @@ fn main() -> std::io::Result<()> {
         // Phase 10: atmosphere modulation resolved from config/profile.
         atmosphere_modulation,
         atmosphere_mode,
+        monolith_density_map,
     };
 
     if args.bench_all {

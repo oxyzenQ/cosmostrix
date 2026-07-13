@@ -264,6 +264,7 @@ mod cases {
             auto_color_drift: false,
             atmosphere_modulation: crate::atmosphere_apply::AtmosphereRuntimeModulation::identity(),
             atmosphere_mode: crate::atmosphere_apply::AtmosphereApplicationMode::Disabled,
+            monolith_density_map: None,
         }
     }
 

@@ -80,6 +80,10 @@ pub struct CloudConfig {
     /// Reserved for future phases where non-identity modulation is gated.
     #[allow(dead_code)]
     pub(crate) atmosphere_mode: AtmosphereApplicationMode,
+    /// Optional per-column density map for monolith pillar placement.
+    /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
+    /// None = uniform distribution (legacy behavior).
+    pub(crate) monolith_density_map: Option<&'static [f64]>,
 }
 
 impl CloudConfig {
@@ -126,6 +130,13 @@ impl CloudConfig {
 
         cloud.init_chars(self.chars.clone());
         cloud.reset(DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES);
+
+        // v14 Peak Monolith: apply per-column density map if set.
+        // This sculpts pillar formation — columns with weight 0.0 never spawn,
+        // 1.0 always spawn. Enables artistic compositions (twin towers, clusters).
+        if let Some(map) = self.monolith_density_map {
+            cloud.set_monolith_density_map(Some(map));
+        }
 
         // Mouse interaction is opt-in (--mouse flag). Default: disabled for
         // terminal safety (avoids mouse escape sequence leaks on crash).
@@ -196,6 +207,7 @@ impl CloudConfig {
             auto_color_drift: self.auto_color_drift,
             atmosphere_modulation: self.atmosphere_modulation,
             atmosphere_mode: self.atmosphere_mode,
+            monolith_density_map: self.monolith_density_map,
         }
     }
 }
