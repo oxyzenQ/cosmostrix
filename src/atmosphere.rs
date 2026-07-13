@@ -63,6 +63,8 @@ pub(crate) enum AtmosphereRegime {
     Signal,
     /// Enhanced Monolith Rain presence.
     MonolithPressure,
+    /// Time-driven adaptive regime (v14). Modulates based on local hour.
+    Adaptive,
 }
 
 impl AtmosphereRegime {
@@ -76,11 +78,12 @@ impl AtmosphereRegime {
             Self::Void => "void",
             Self::Signal => "signal",
             Self::MonolithPressure => "monolith-pressure",
+            Self::Adaptive => "adaptive",
         }
     }
 
     /// Total number of defined regimes.
-    pub(crate) const COUNT: usize = 7;
+    pub(crate) const COUNT: usize = 8;
 }
 
 // ── Regime Params ─────────────────────────────────────────────────────────
@@ -182,6 +185,11 @@ pub(crate) const fn params_for_regime(regime: AtmosphereRegime) -> RegimeParams 
             glitch_mult: 0.8,      // reduced glitch
             brightness_bias: 0.02, // subtle depth
         },
+        // Adaptive regime does not use static RegimeParams — its modulation is
+        // computed at runtime from the local hour by atmosphere_adaptive::update_modulation.
+        // Returning identity here is safe: the runtime modulation layer overrides
+        // these values for the adaptive path.
+        AtmosphereRegime::Adaptive => RegimeParams::calm(),
     }
 }
 

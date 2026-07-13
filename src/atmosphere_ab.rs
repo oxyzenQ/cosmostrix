@@ -315,6 +315,7 @@ pub(crate) fn smoke_all_regimes_under_controlled_live(
         AtmosphereRegime::Void,
         AtmosphereRegime::Signal,
         AtmosphereRegime::MonolithPressure,
+        AtmosphereRegime::Adaptive,
     ];
 
     regimes

@@ -46,6 +46,7 @@ mod atmosphere;
 mod atmosphere_ab;
 #[cfg(test)]
 mod atmosphere_ab_tests;
+mod atmosphere_adaptive;
 mod atmosphere_apply;
 #[cfg(test)]
 mod atmosphere_apply_cl_tests;
@@ -778,8 +779,9 @@ fn main() -> std::io::Result<()> {
 
     let default_bg = matches!(args.color_bg, ColorBg::DefaultBackground);
 
-    // Phase 5 + Phase 10: Resolve atmosphere config from config/profile keys.
+    // Phase 5 + Phase 10 + v14: Resolve atmosphere config from config/profile keys.
     // Default is Disabled/Calm — identical to v3.9.0 behavior.
+    // v14 adds the Adaptive regime: time-driven modulation from local hour.
     let atmosphere_mode =
         config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
     let atmosphere_regime =
@@ -787,11 +789,24 @@ fn main() -> std::io::Result<()> {
 
     // Build atmosphere modulation from resolved config.
     // When mode is Disabled, modulation is always identity regardless of regime.
+    // When regime is Adaptive, modulation is seeded from the current local hour
+    // via atmosphere_adaptive::adaptive_params(). The renderer reads these
+    // values once at startup; a future enhancement may re-poll per-frame.
     let (atmosphere_modulation, _resolved_regime) = if atmosphere_mode.allows_modulation() {
-        let modulation = crate::atmosphere_controlled_live::controlled_live_modulation_from_regime(
-            atmosphere_regime,
-        );
-        (modulation, atmosphere_regime)
+        if atmosphere_regime == atmosphere::AtmosphereRegime::Adaptive {
+            let target = atmosphere_adaptive::adaptive_params(atmosphere_adaptive::current_hour());
+            let mut modulation = atmosphere_apply::AtmosphereRuntimeModulation::identity();
+            // Snap to the adaptive target on startup so the rain matches the
+            // current time immediately. Per-frame updates can be added later.
+            atmosphere_adaptive::update_modulation(&mut modulation, &target, 1.0);
+            (modulation, atmosphere_regime)
+        } else {
+            let modulation =
+                crate::atmosphere_controlled_live::controlled_live_modulation_from_regime(
+                    atmosphere_regime,
+                );
+            (modulation, atmosphere_regime)
+        }
     } else {
         (
             atmosphere_apply::AtmosphereRuntimeModulation::identity(),

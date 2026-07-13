@@ -20,6 +20,7 @@ rand = "0.9"
 bitvec = "1"
 smallvec = "1"
 unicode-width = "0.2"
+chrono = { version = ">=0.4.38, <0.5", default-features = false, features = ["clock"] }
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"

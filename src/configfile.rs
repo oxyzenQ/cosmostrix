@@ -328,7 +328,10 @@ pub fn dump_config_text() -> &'static str {
 
 # ── Atmosphere Engine (opt-in only) ──────────────────────────────────────────
 # atmosphere-mode: disabled (default) | controlled-live
-# atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure
+# atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure | adaptive
+#   adaptive — time-driven: modulates rain based on local hour (v14).
+#              Deep Void at midnight, Pulse in the morning, Calm at noon,
+#              Signal at dusk. Smoothstep transitions, no jumps.
 # Note: storm is unavailable and will be rejected.
 # These keys are opt-in; setting atmosphere-mode without controlled-live has no effect.
 # atmosphere-mode = disabled
@@ -336,7 +339,7 @@ pub fn dump_config_text() -> &'static str {
 
 # Controlled atmosphere example (opt-in only):
 # atmosphere-mode = controlled-live
-# atmosphere-regime = pulse
+# atmosphere-regime = adaptive
 # See docs/ATMOSPHERE_PRESETS.md for all 6 preset examples.
 
 # ── Legacy Advanced Keys (kept for compatibility) ────────────────────────────

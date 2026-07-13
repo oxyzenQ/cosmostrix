@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn regime_count_matches_defined_variants() {
-        assert_eq!(AtmosphereRegime::COUNT, 7);
+        assert_eq!(AtmosphereRegime::COUNT, 8);
     }
 
     #[test]

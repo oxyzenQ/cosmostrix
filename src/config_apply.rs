@@ -53,11 +53,11 @@ fn parse_atmosphere_mode_config(name: &str, value: &str) -> Option<String> {
 }
 
 /// Validate atmosphere-regime config value.
-/// Allowed: calm, pulse, signal, compression, void, monolith-pressure.
+/// Allowed: calm, pulse, signal, compression, void, monolith-pressure, adaptive.
 /// Storm is unavailable and will be rejected.
 fn parse_atmosphere_regime_config(name: &str, value: &str) -> Option<String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" => {
+        "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" | "adaptive" => {
             Some(value.trim().to_ascii_lowercase())
         }
         "storm" => {
@@ -68,7 +68,7 @@ fn parse_atmosphere_regime_config(name: &str, value: &str) -> Option<String> {
         }
         _ => {
             eprintln!(
-                "error: invalid {name}='{value}' (allowed: calm, pulse, signal, compression, void, monolith-pressure)"
+                "error: invalid {name}='{value}' (allowed: calm, pulse, signal, compression, void, monolith-pressure, adaptive)"
             );
             None
         }
@@ -104,6 +104,7 @@ pub(crate) fn resolve_atmosphere_regime(
         Some("compression") => crate::atmosphere::AtmosphereRegime::Compression,
         Some("void") => crate::atmosphere::AtmosphereRegime::Void,
         Some("monolith-pressure") => crate::atmosphere::AtmosphereRegime::MonolithPressure,
+        Some("adaptive") => crate::atmosphere::AtmosphereRegime::Adaptive,
         _ => crate::atmosphere::AtmosphereRegime::Calm,
     }
 }

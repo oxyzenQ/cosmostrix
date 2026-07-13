@@ -132,6 +132,7 @@ fn all_regimes_evaluated_without_panic() {
         AtmosphereRegime::Void,
         AtmosphereRegime::Signal,
         AtmosphereRegime::MonolithPressure,
+        AtmosphereRegime::Adaptive,
     ];
     for regime in regimes {
         let _ = compare_identity_vs_regime(regime);

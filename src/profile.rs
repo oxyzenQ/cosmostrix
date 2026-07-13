@@ -504,7 +504,7 @@ fn parse_atmosphere_mode_profile(name: &str, value: &str) -> Option<String> {
 
 fn parse_atmosphere_regime_profile(name: &str, value: &str) -> Option<String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" => {
+        "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" | "adaptive" => {
             Some(value.trim().to_ascii_lowercase())
         }
         "storm" => {
@@ -518,7 +518,7 @@ fn parse_atmosphere_regime_profile(name: &str, value: &str) -> Option<String> {
                 name,
                 "atmosphere-regime",
                 value,
-                "calm, pulse, signal, compression, void, monolith-pressure",
+                "calm, pulse, signal, compression, void, monolith-pressure, adaptive",
             );
             None
         }
