@@ -159,12 +159,21 @@ mod tests {
 
     #[test]
     fn current_cpu_ns_returns_some_on_supported_platforms() {
+        // Burn some CPU cycles to guarantee the process has accumulated
+        // non-zero CPU time before sampling. Linux clock ticks are ~10ms,
+        // so a freshly-spawned test process may report 0 ticks if sampled
+        // too early. This loop ensures at least one tick elapses.
+        let mut accumulator: u64 = 0;
+        for i in 0..1_000_000u64 {
+            accumulator = accumulator.wrapping_add(i);
+        }
+        // Prevent the compiler from optimizing the loop away.
+        std::hint::black_box(accumulator);
+
         let cpu = current_cpu_ns();
         #[cfg(any(target_os = "linux", target_os = "macos"))]
         {
             assert!(cpu.is_some(), "CPU sampling must succeed on Unix");
-            // A running test process should have accumulated at least some
-            // CPU time (microseconds). Sanity-check the lower bound.
             let v = cpu.unwrap();
             assert!(
                 v > 0,
