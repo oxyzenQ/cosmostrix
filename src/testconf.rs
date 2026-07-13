@@ -43,6 +43,19 @@ pub fn run(args: &Args) -> std::io::Result<()> {
     let mut errors = 0usize;
     let mut warnings = 0usize;
 
+    // Check for malformed lines (non-empty, non-comment lines without 'key = value')
+    if !parsed.malformed_lines.is_empty() {
+        for line in &parsed.malformed_lines {
+            crate::output::eprintln_error_labeled(&format!(
+                "testconf: malformed line '{line}' (expected 'key = value' syntax)"
+            ));
+            errors += 1;
+        }
+        eprintln!(
+            "testconf: hint: comment lines start with '#', blank lines are ignored, all other lines must be 'key = value'"
+        );
+    }
+
     // Check for unknown keys (likely typos)
     if !parsed.unknown_keys.is_empty() {
         for key in &parsed.unknown_keys {

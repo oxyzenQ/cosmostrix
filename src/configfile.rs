@@ -62,6 +62,12 @@ const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base|scene|pres
 pub struct ParsedConfig {
     pub values: HashMap<String, String>,
     pub unknown_keys: Vec<String>,
+    /// Non-empty, non-comment lines that do not match `key = value` syntax.
+    ///
+    /// Tracked so `--testconf` can report them as errors and `load_config_file`
+    /// can warn on stderr. A line lands here when it has no `=` at all, or when
+    /// either side of `=` is empty after trimming.
+    pub malformed_lines: Vec<String>,
 }
 
 /// Load config file and return a HashMap of key → value pairs.
@@ -109,6 +115,9 @@ pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String>
             known_keys().join(", ")
         );
     }
+    for line in &parsed.malformed_lines {
+        eprintln!("warning: ignoring malformed line (expected 'key = value'): '{line}'");
+    }
     parsed.values
 }
 
@@ -116,30 +125,38 @@ pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String>
 pub fn parse_config_text(content: &str) -> ParsedConfig {
     let mut map = HashMap::new();
     let mut unknown_keys = Vec::new();
+    let mut malformed_lines = Vec::new();
 
     for line in content.lines() {
-        let line = strip_inline_comment(line).trim();
+        let stripped = strip_inline_comment(line).trim();
         // Skip comments and blank lines
-        if line.is_empty() {
+        if stripped.is_empty() {
             continue;
         }
         // Parse key = value
-        if let Some((key, value)) = line.split_once('=') {
+        if let Some((key, value)) = stripped.split_once('=') {
             let key = key.trim().to_ascii_lowercase();
             let value = value.trim().to_string();
-            if !key.is_empty() && !value.is_empty() {
-                if !is_known_key(&key) {
-                    unknown_keys.push(key);
-                    continue;
-                }
-                map.insert(key, value);
+            if key.is_empty() || value.is_empty() {
+                // Malformed: `= value` (no key) or `key =` (no value).
+                malformed_lines.push(stripped.to_string());
+                continue;
             }
+            if !is_known_key(&key) {
+                unknown_keys.push(key);
+                continue;
+            }
+            map.insert(key, value);
+        } else {
+            // No `=` at all on a non-empty, non-comment line — malformed.
+            malformed_lines.push(stripped.to_string());
         }
     }
 
     ParsedConfig {
         values: map,
         unknown_keys,
+        malformed_lines,
     }
 }
 
@@ -460,6 +477,48 @@ mod tests {
             Some("monolith")
         );
         assert!(parsed.unknown_keys.is_empty());
+        assert!(parsed.malformed_lines.is_empty());
+    }
+
+    #[test]
+    fn malformed_lines_without_equals_are_collected() {
+        // Lines with no '=' on a non-empty, non-comment line are malformed.
+        let parsed = parse_config_text("color = ocean\necho here should error\n");
+        assert_eq!(parsed.values.len(), 1);
+        assert_eq!(parsed.malformed_lines, vec!["echo here should error"]);
+    }
+
+    #[test]
+    fn malformed_lines_with_empty_value_are_collected() {
+        // `key =` (no value) is malformed.
+        let parsed = parse_config_text("color = ocean\nspeed =\n");
+        assert_eq!(parsed.values.len(), 1);
+        assert_eq!(parsed.malformed_lines, vec!["speed ="]);
+    }
+
+    #[test]
+    fn malformed_lines_with_empty_key_are_collected() {
+        // `= value` (no key) is malformed.
+        let parsed = parse_config_text("color = ocean\n= 60\n");
+        assert_eq!(parsed.values.len(), 1);
+        assert_eq!(parsed.malformed_lines, vec!["= 60"]);
+    }
+
+    #[test]
+    fn malformed_lines_skip_comments_and_blanks() {
+        // Comments and blank lines must NOT be flagged as malformed.
+        let parsed =
+            parse_config_text("# this is a comment\n\ncolor = ocean\n  # indented comment\n\n");
+        assert_eq!(parsed.values.len(), 1);
+        assert!(parsed.malformed_lines.is_empty());
+    }
+
+    #[test]
+    fn malformed_lines_inline_comment_stripped() {
+        // A malformed line with an inline comment should be reported without
+        // the comment portion.
+        let parsed = parse_config_text("echo bad line # this is a comment\n");
+        assert_eq!(parsed.malformed_lines, vec!["echo bad line"]);
     }
 
     #[test]
