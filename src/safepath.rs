@@ -223,8 +223,14 @@ mod tests {
             std::env::remove_var("HOME");
             // When HOME is unset, ~/... cannot expand. The literal "~/..."
             // must NOT be treated as a relative safe path.
-            assert!(!is_safe_path("~/.ssh/id_rsa"), "unexpanded ~/ must be rejected");
-            assert!(!is_safe_path("~/.aws/credentials"), "unexpanded ~/ must be rejected");
+            assert!(
+                !is_safe_path("~/.ssh/id_rsa"),
+                "unexpanded ~/ must be rejected"
+            );
+            assert!(
+                !is_safe_path("~/.aws/credentials"),
+                "unexpanded ~/ must be rejected"
+            );
             assert!(!is_safe_path("~/.bashrc"), "unexpanded ~/ must be rejected");
             assert!(!is_safe_path("~"), "unexpanded ~ must be rejected");
         });

@@ -28,9 +28,11 @@ pub fn run(args: &Args) -> std::io::Result<()> {
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(e) => {
-            println!("testconf: FAIL — cannot read config file: {e}");
-            println!("testconf: hint: run `cosmostrix --config-path` to see the expected location");
-            println!("testconf: hint: cosmostrix --dump-config > <config-path>  (create parent dir first)");
+            crate::output::eprintln_error_labeled(&format!(
+                "testconf: cannot read config file: {e}"
+            ));
+            eprintln!("testconf: hint: run `cosmostrix --config-path` to see the expected location");
+            eprintln!("testconf: hint: cosmostrix --dump-config > <config-path>  (create parent dir first)");
             std::process::exit(2);
         }
     };
@@ -42,10 +44,12 @@ pub fn run(args: &Args) -> std::io::Result<()> {
     // Check for unknown keys (likely typos)
     if !parsed.unknown_keys.is_empty() {
         for key in &parsed.unknown_keys {
-            println!("testconf: ERROR — unknown key '{key}' (likely typo)");
+            crate::output::eprintln_error_labeled(&format!(
+                "testconf: unknown key '{key}' (likely typo)"
+            ));
             errors += 1;
         }
-        println!(
+        eprintln!(
             "testconf: known keys: {}",
             configfile::known_keys().join(", ")
         );
@@ -61,9 +65,9 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         // profile.<name>.<field>
         let parts: Vec<&str> = pk.split('.').collect();
         if parts.len() != 3 {
-            println!(
-                "testconf: ERROR — malformed profile key '{pk}' (expected profile.<name>.<field>)"
-            );
+            crate::output::eprintln_error_labeled(&format!(
+                "testconf: malformed profile key '{pk}' (expected profile.<name>.<field>)"
+            ));
             errors += 1;
         } else {
             let field = parts[2];
@@ -83,8 +87,10 @@ pub fn run(args: &Args) -> std::io::Result<()> {
                 "atmosphere-regime",
             ];
             if !valid_fields.contains(&field) {
-                println!("testconf: ERROR — unknown profile field '{field}' in '{pk}'");
-                println!(
+                crate::output::eprintln_error_labeled(&format!(
+                    "testconf: unknown profile field '{field}' in '{pk}'"
+                ));
+                eprintln!(
                     "testconf: valid profile fields: {}",
                     valid_fields.join(", ")
                 );
@@ -99,12 +105,14 @@ pub fn run(args: &Args) -> std::io::Result<()> {
             continue; // profile keys validated above
         }
         if let Some(msg) = validate_config_value(key, value) {
-            println!("testconf: WARNING — {key} = {value}: {msg}");
+            crate::output::eprintln_warn_labeled(&format!(
+                "testconf: {key} = {value}: {msg}"
+            ));
             warnings += 1;
         }
     }
 
-    // Summary
+    // Summary (to stdout — machine-parseable)
     println!();
     println!(
         "testconf: {} keys parsed, {} errors, {} warnings",
@@ -113,7 +121,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         warnings
     );
     if errors > 0 {
-        println!("testconf: FAIL — fix the errors above before running cosmostrix");
+        crate::output::eprintln_error_labeled("testconf: FAIL — fix the errors above before running cosmostrix");
         std::process::exit(2);
     } else if warnings > 0 {
         println!("testconf: PASS (with warnings) — config is usable but review the warnings");
