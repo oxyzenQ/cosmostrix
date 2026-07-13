@@ -10,6 +10,76 @@ use std::ffi::OsString;
 
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 
+/// Migration map for CLI flags removed in v14.0.0.
+///
+/// Each entry maps a removed long-flag name to a single-line migration message
+/// that points the user to its replacement. Order matters: longer flag names
+/// (e.g. `--list-presets`) appear before shorter ones (e.g. `--low-power`) so
+/// the `starts_with`-based matcher in [`check_removed_flags`] picks the most
+/// specific match first.
+const REMOVED_FLAGS: &[(&str, &str)] = &[
+    (
+        "--list-presets",
+        "error: --list-presets has been removed in v14.0.0.\n  Use --list-scenes to see all built-in and custom scenes.",
+    ),
+    (
+        "--list-profiles",
+        "error: --list-profiles has been removed in v14.0.0.\n  Use --list-scenes to see all built-in and custom scenes.",
+    ),
+    (
+        "--show-preset",
+        "error: --show-preset has been removed in v14.0.0.\n  Use --show-scene <name> to preview a built-in or custom scene.",
+    ),
+    (
+        "--dump-profile",
+        "error: --dump-profile has been removed in v14.0.0.\n  Use --show-scene <name> to display a custom scene's configuration.",
+    ),
+    (
+        "--low-power",
+        "error: --low-power has been removed in v14.0.0.\n  Use --scene low-power instead.",
+    ),
+    (
+        "--preset",
+        "error: --preset has been removed in v14.0.0.\n  Use --scene <name> instead. All former presets (classic, cinematic, calm, monolith, storm, cosmos, neon, hacker, low-power) are now built-in scenes. Run --list-scenes to see them.",
+    ),
+    (
+        "--profile",
+        "error: --profile has been removed in v14.0.0.\n  Use --scene-custom <name> instead. Rename [profile.<name>] to [scene-custom.<name>] in config.toml (prefix-only rename — fields are identical).",
+    ),
+];
+
+/// Scan raw argv for any flag removed in v14.0.0 and return a migration error.
+///
+/// This runs before clap parsing so we can intercept the removed flag with a
+/// clear, actionable message rather than letting clap report it as an
+/// "unexpected argument". The matcher accepts both `--flag value` and
+/// `--flag=value` forms because we only inspect the flag token itself.
+///
+/// Returns `Ok(())` if no removed flag is found, or `Err(message)` with the
+/// migration hint for the first match. The check is case-sensitive on the
+/// long-flag prefix (clap long-flags are always lowercase).
+pub fn check_removed_flags(argv: &[OsString]) -> Result<(), String> {
+    for arg in argv.iter().skip(1) {
+        let Some(s) = arg.to_str() else {
+            continue;
+        };
+        // Normalize `--flag=value` to `--flag` for matching purposes.
+        let token = s.split_once('=').map_or(s, |(flag, _)| flag);
+        // Skip non-flag tokens (positional values, etc.).
+        if !token.starts_with("--") {
+            continue;
+        }
+        // Longest-match-first: REMOVED_FLAGS is ordered so multi-word flags
+        // (--list-presets) are checked before single-word ones (--preset).
+        for (flag, message) in REMOVED_FLAGS {
+            if token == *flag {
+                return Err((*message).to_string());
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Validate that a `f64` value is finite and within `[min, max]`.
 pub fn validate_f64_range(name: &str, v: f64, min: f64, max: f64) -> Result<f64, String> {
     if !v.is_finite() {
@@ -82,6 +152,11 @@ pub fn parse_canonical_f64_range(name: &str, raw: &str, min: f64, max: f64) -> R
 }
 
 pub fn prevalidate_cli_args(argv: &[OsString]) -> Result<(), String> {
+    // Stage 4b: intercept flags removed in v14.0.0 with migration hints.
+    // This runs before any other validation so users see the migration
+    // message instead of clap's generic "unexpected argument" error.
+    check_removed_flags(argv)?;
+
     let mut idx = 1usize;
     while idx < argv.len() {
         let Some(arg) = argv[idx].to_str() else {
@@ -386,5 +461,150 @@ mod tests {
             assert!(err.contains(expected), "{err}");
             assert!(!err.contains("Custom {"));
         }
+    }
+
+    // ── Stage 4b: removed-flag migration error tests ─────────────────────
+
+    #[test]
+    fn check_removed_flags_passes_clean_argv() {
+        let argv = ["cosmostrix", "--scene", "storm", "--fps", "60"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        assert!(check_removed_flags(&argv).is_ok());
+    }
+
+    #[test]
+    fn check_removed_flags_passes_empty_argv() {
+        let argv: Vec<OsString> = vec![OsString::from("cosmostrix")];
+        assert!(check_removed_flags(&argv).is_ok());
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_preset() {
+        let argv = ["cosmostrix", "--preset", "cinematic"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--preset must be intercepted");
+        assert!(err.contains("--preset has been removed"));
+        assert!(err.contains("--scene <name>"));
+        assert!(err.contains("v14.0.0"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_profile() {
+        let argv = ["cosmostrix", "--profile", "nightcore"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--profile must be intercepted");
+        assert!(err.contains("--profile has been removed"));
+        assert!(err.contains("--scene-custom <name>"));
+        assert!(err.contains("[profile.<name>]"));
+        assert!(err.contains("[scene-custom.<name>]"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_low_power() {
+        let argv = ["cosmostrix", "--low-power"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--low-power must be intercepted");
+        assert!(err.contains("--low-power has been removed"));
+        assert!(err.contains("--scene low-power"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_list_presets() {
+        let argv = ["cosmostrix", "--list-presets"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--list-presets must be intercepted");
+        assert!(err.contains("--list-presets has been removed"));
+        assert!(err.contains("--list-scenes"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_list_profiles() {
+        let argv = ["cosmostrix", "--list-profiles"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--list-profiles must be intercepted");
+        assert!(err.contains("--list-profiles has been removed"));
+        assert!(err.contains("--list-scenes"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_show_preset() {
+        let argv = ["cosmostrix", "--show-preset", "cinematic"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--show-preset must be intercepted");
+        assert!(err.contains("--show-preset has been removed"));
+        assert!(err.contains("--show-scene <name>"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_dump_profile() {
+        let argv = ["cosmostrix", "--dump-profile", "nightcore"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--dump-profile must be intercepted");
+        assert!(err.contains("--dump-profile has been removed"));
+        assert!(err.contains("--show-scene <name>"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_equals_form() {
+        // `--preset=cinematic` must also be intercepted.
+        let argv = ["cosmostrix", "--preset=cinematic"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--preset= form must be intercepted");
+        assert!(err.contains("--preset has been removed"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_first_match_only() {
+        // If multiple removed flags are present, the first one in argv wins.
+        let argv = ["cosmostrix", "--low-power", "--preset", "storm"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("must intercept");
+        assert!(
+            err.contains("--low-power has been removed"),
+            "should report --low-power first, got: {err}"
+        );
+    }
+
+    #[test]
+    fn check_removed_flags_ignores_non_flag_tokens() {
+        // Positional values that happen to contain "preset" must NOT match.
+        let argv = ["cosmostrix", "preset"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        assert!(check_removed_flags(&argv).is_ok());
+    }
+
+    #[test]
+    fn prevalidate_cli_args_intercepts_removed_flags_before_other_checks() {
+        // The full prevalidate_cli_args must also intercept removed flags
+        // (this verifies the integration — prevalidate calls check_removed_flags).
+        let argv = ["cosmostrix", "--preset", "storm"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = prevalidate_cli_args(&argv).expect_err("must intercept via prevalidate");
+        assert!(err.contains("--preset has been removed"));
+        assert!(err.contains("--scene <name>"));
     }
 }
