@@ -23,19 +23,19 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v13-demo.gif" alt="cosmostrix v13 demo" width="800">
+  <img src="assets/cosmostrix-v14-demo.gif" alt="cosmostrix v14 demo" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v13-demo-binary.png" alt="cosmostrix v13 binary charset demo" width="800">
+  <img src="assets/cosmostrix-v14-demo-binary.png" alt="cosmostrix v14 binary charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v13-demo-retro.png" alt="cosmostrix v13 retro charset demo" width="800">
+  <img src="assets/cosmostrix-v14-demo-retro.png" alt="cosmostrix v14 retro charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v13-demo-braille.png" alt="cosmostrix v13 braille charset demo" width="800">
+  <img src="assets/cosmostrix-v14-demo-braille.png" alt="cosmostrix v14 braille charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v13-demo-hacker.png" alt="cosmostrix v13 hacker charset demo" width="800">
+  <img src="assets/cosmostrix-v14-demo-hacker.png" alt="cosmostrix v14 hacker charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v13-demo-green-retro.png" alt="cosmostrix v13 green retro charset demo" width="800">
+  <img src="assets/cosmostrix-v14-demo-green-retro.png" alt="cosmostrix v14 green retro charset demo" width="800">
 </p>
 
 <p align="center">
@@ -99,7 +99,7 @@ EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v13.6.0"
+TAG="v14.0.0"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"

@@ -9,6 +9,75 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v14.0.0 — Scene-Custom Migration (Breaking CLI)
+
+### Breaking Changes
+
+This major release removes the legacy `--preset`, `--profile`, and
+`--low-power` flag family and replaces them with two clear flags:
+`--scene` (built-in themes) and `--scene-custom` (user-defined themes
+from `[scene-custom.<name>]` blocks in `config.toml`).
+
+**Removed flags** (each now produces a migration error pointing to its
+replacement):
+
+| Removed flag | Replacement |
+|---|---|
+| `--preset <name>` | `--scene <name>` (all 8 presets migrated to scenes) |
+| `--profile <name>` | `--scene-custom <name>` (rename `[profile.X]` → `[scene-custom.X]` in config) |
+| `--low-power` | `--scene low-power` |
+| `--list-presets` | `--list-scenes` |
+| `--list-profiles` | `--list-scenes` |
+| `--show-preset <name>` | `--show-scene <name>` |
+| `--dump-profile <name>` | `--show-scene <name>` |
+
+### Added
+
+- **`--scene-custom <NAME>`** — Apply a user-defined custom scene from
+  `config.toml`. Looks up `[scene-custom.<name>]` blocks. Backward
+  compatibility: if the name only exists as a `[profile.<name>]` block,
+  the profile is loaded with a deprecation warning guiding migration
+  (rename prefix only — fields are identical).
+
+- **`--show-scene <NAME>`** — Display full configuration details for a
+  built-in or custom scene. Built-in scenes show all field values plus
+  `rain-style`. Custom scenes show all 12 possible fields. Legacy
+  `[profile.<name>]` entries are surfaced with a migration note.
+
+- **8 new built-in scenes** (migrated from presets): `classic`,
+  `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`.
+  Combined with the original three (`matrix`, `monolith`, `signal`),
+  `--scene` now accepts 11 built-in names. `SCENE_ORDER` stays three-entry
+  to preserve interactive cycling behavior.
+
+- **`--list-scenes` supercharged** — Now shows two groups:
+  `BUILT-IN SCENES` (11 entries) and `CUSTOM SCENES (from config)`
+  (loaded from `[scene-custom.<name>]` blocks).
+
+- **Config namespace `[scene-custom.<name>]`** — New config block syntax
+  for user-defined scenes. Field set is identical to `[profile.<name>]`,
+  so migration is a pure prefix rename. Recognized by `--testconf`.
+
+### Migration Guide
+
+1. **`--preset storm`** → **`--scene storm`** (no behavior change)
+2. **`--profile nightcore`** → **`--scene-custom nightcore`** (rename
+   `[profile.nightcore]` → `[scene-custom.nightcore]` in config.toml)
+3. **`--low-power`** → **`--scene low-power`**
+4. **`preset = cinematic`** in config → **`scene = cinematic`** (with
+   deprecation warning during transition)
+5. **`profile = nightcore`** in config → **`scene-custom = nightcore`**
+   (with deprecation warning during transition)
+
+### Why
+
+`--preset` and `--profile` were a source of confusion. "What's the
+difference between a preset and a profile?" had no clean answer. The new
+design answers a simpler question instead: "Do you want a built-in theme
+or your own theme?" Two flags, two answers, no overlap.
+
+---
+
 ## v13.6.0 — CLI Simplification Stage 1 + Background Mode Cleanup
 
 ### Stage 1: CLI Simplification (additive, zero breaking changes)
