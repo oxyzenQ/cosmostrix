@@ -87,10 +87,12 @@ pub(crate) fn print_verbose(
         &format!(" {base_density:.2} (auto: {density_auto})"),
     );
     output::eprintln_verbose("monolith:", &format!(" {monolith_size:?}"));
-    output::eprintln_verbose(
-        "async_mode:",
-        &format!(" {async_mode} (variable column speeds)"),
-    );
+    let async_desc = if async_mode {
+        "on (variable column speeds)"
+    } else {
+        "off (uniform column speeds)"
+    };
+    output::eprintln_verbose("async_mode:", &format!(" {async_desc}"));
     output::eprintln_verbose("bold:", &format!(" {bold_mode:?}"));
     output::eprintln_verbose("shading:", &format!(" {shading_mode:?}"));
     output::eprintln_verbose(

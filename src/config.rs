@@ -43,7 +43,7 @@ pub(crate) fn colorize_help_detail(text: &str) -> String {
             !line.starts_with(' ') && line.ends_with(':') && line == line.to_ascii_uppercase();
 
         if is_heading {
-            out.push_str("\x1b[1;36m");
+            out.push_str("\x1b[1;35m");
             out.push_str(line);
             out.push_str("\x1b[0m");
             out.push_str(nl);

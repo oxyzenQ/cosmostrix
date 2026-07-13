@@ -33,18 +33,25 @@ use std::process;
 
 // ── Fatal exit helpers ─────────────────────────────────────────────────────
 
-/// Print `msg` to stderr and exit 2 (invalid input / usage error).
+/// Print `msg` to stderr in branded red and exit 2 (invalid input / usage error).
 #[cold]
 pub fn die_input(msg: impl AsRef<str>) -> ! {
-    eprintln!("{}", msg.as_ref());
+    print_branded_error(msg.as_ref());
     process::exit(2);
 }
 
-/// Print `msg` to stderr and exit 1 (config / runtime failure).
+/// Print `msg` to stderr in branded red and exit 1 (config / runtime failure).
 #[cold]
 pub fn die_config(msg: impl AsRef<str>) -> ! {
-    eprintln!("{}", msg.as_ref());
+    print_branded_error(msg.as_ref());
     process::exit(1);
+}
+
+/// Print an error message in branded red. Strips a leading "error: " prefix
+/// if present (since `eprintln_error_labeled` adds its own "error:" label).
+fn print_branded_error(msg: &str) {
+    let stripped = msg.strip_prefix("error: ").unwrap_or(msg);
+    crate::output::eprintln_error_labeled(stripped);
 }
 
 // ── Non-fatal helpers ──────────────────────────────────────────────────────

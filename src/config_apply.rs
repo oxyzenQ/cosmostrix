@@ -509,13 +509,7 @@ fn apply_scene_values(
 
     let name = match validate_scene_name(scene_name) {
         Ok(n) => n,
-        Err(e) => {
-            // Strip the "error: " prefix from validate_scene_name's message
-            // since eprintln_error_labeled adds its own "error:" label.
-            let msg = e.strip_prefix("error: ").unwrap_or(&e);
-            crate::output::eprintln_error_labeled(msg);
-            return Err(e);
-        }
+        Err(e) => return Err(e),
     };
     args.scene = Some(name.clone());
 
