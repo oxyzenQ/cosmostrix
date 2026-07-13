@@ -91,14 +91,18 @@ COMMON OPTIONS:
       cosmostrix --preset storm --fps 60
       cosmostrix --preset low-power
 
-  --scene <matrix|monolith|signal>
-      Apply a scene atmosphere. Monolith Rain is the default signature
-      structured segmented rain experience.
-      Charset cycling changes Monolith segment glyph style.
-      Explicit CLI flags always override scene-managed values.
+  --scene <name>
+      Apply a built-in scene atmosphere. Scenes set color, charset,
+      fps, speed, density, glitch-level, and rain style to curated
+      values. Explicit CLI flags always override scene-managed values.
+      Built-in scenes: matrix, monolith (default), signal, classic,
+      cinematic, calm, storm, cosmos, neon, hacker, low-power.
+      Use --list-scenes to see all entries with descriptions.
       cosmostrix
       cosmostrix --scene matrix
       cosmostrix --scene signal --fps 60
+      cosmostrix --scene storm
+      cosmostrix --scene low-power
 
   --profile <name>
       Apply a user-defined profile from config. A profile starts from a
