@@ -506,6 +506,7 @@ pub struct Args {
 
     #[arg(
         long = "verbose",
+        short = 'v',
         help_heading = "DIAGNOSTICS",
         display_order = 130,
         help = "Print diagnostic info to stderr (config resolution, path \

@@ -87,21 +87,10 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         } else {
             let field = parts[2];
             let value = parsed.values.get(*pk).map(String::as_str).unwrap_or("");
-            let valid_fields = [
-                "base",
-                "scene",
-                "preset",
-                "color",
-                "charset",
-                "fps",
-                "speed",
-                "density",
-                "glitch-level",
-                "monolith-size",
-                "color-bg",
-                "atmosphere-mode",
-                "atmosphere-regime",
-            ];
+            // Use the canonical PROFILE_FIELDS list so testconf never drifts
+            // from the actual config parser. Previously this was a hardcoded
+            // copy that missed 'density-map' when it was added to PROFILE_FIELDS.
+            let valid_fields: &[&str] = crate::profile::PROFILE_FIELDS;
             if !valid_fields.contains(&field) {
                 crate::output::eprintln_error_labeled(&format!(
                     "testconf: unknown block field '{field}' in '{pk}'"
