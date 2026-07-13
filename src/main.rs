@@ -365,23 +365,6 @@ fn main() -> std::io::Result<()> {
         return testconf::run(&args);
     }
 
-    if args.list_profiles {
-        let cfg = configfile::load_config_file(args.config.as_deref());
-        let profiles = profile::collect_profiles(&cfg);
-        print!("{}", profile::list_profiles_text(&profiles));
-        return Ok(());
-    }
-
-    if let Some(ref name) = args.dump_profile {
-        let cfg = configfile::load_config_file(args.config.as_deref());
-        let profiles = profile::collect_profiles(&cfg);
-        match profile::dump_profile_text(&profiles, name) {
-            Ok(text) => print!("{text}"),
-            Err(e) => ux::die_config(e),
-        }
-        return Ok(());
-    }
-
     if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
         ux::die_config(e);
     }
@@ -536,9 +519,6 @@ fn main() -> std::io::Result<()> {
                 &format!("{:?}", args.glitch_level).to_lowercase(),
             );
             s.field_if("uniform", "on", args.uniform);
-            if let Some(ref pname) = args.profile {
-                s.field("profile", pname);
-            }
             if let Some(ref pname) = args.scene_custom {
                 s.field("scene_custom", pname);
             }

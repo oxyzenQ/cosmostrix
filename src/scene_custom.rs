@@ -62,7 +62,7 @@ pub fn collect_custom_scenes(cfg: &HashMap<String, String>) -> BTreeMap<String, 
         let (_, rest) = key.split_once('.').expect("scene-custom key has prefix");
         let (name, field) = rest.rsplit_once('.').expect("scene-custom key has field");
         let scene = scenes
-            .entry(name.to_string())
+            .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
             "base" | "scene" => scene.base = Some(value.clone()),
@@ -91,10 +91,8 @@ pub fn collect_custom_scenes(cfg: &HashMap<String, String>) -> BTreeMap<String, 
 ///    instructing the user to migrate to the `scene-custom` namespace.
 /// 3. Neither — returns an error (or warning, depending on `strict_unknown`).
 ///
-/// On success, sets `args.scene_custom = Some(name)` and clears
-/// `args.profile` so subsequent profile-application logic does not re-run.
-/// The applied field set is returned as `HashSet<&'static str>` for
-/// downstream precedence tracking.
+/// On success, sets `args.scene_custom = Some(name)`. The applied field set
+/// is returned as `HashSet<&'static str>` for downstream precedence tracking.
 pub fn apply_scene_custom_layer(
     matches: &clap::ArgMatches,
     args: &mut Args,
@@ -103,25 +101,27 @@ pub fn apply_scene_custom_layer(
     strict_unknown: bool,
 ) -> Result<HashSet<&'static str>, String> {
     let custom_scenes = collect_custom_scenes(cfg);
+    // Normalize the lookup name to lowercase so it matches the lowercase
+    // keys stored by collect_custom_scenes / collect_profiles. The original
+    // `name` is preserved for display in error messages.
+    let normalized = name.trim().to_ascii_lowercase();
 
     // 1. Prefer the new [scene-custom.<name>] namespace.
-    if custom_scenes.contains_key(name) {
-        let modified = apply_profile_layer(matches, args, &custom_scenes, name, strict_unknown)?;
-        // apply_profile_layer sets args.profile; redirect to args.scene_custom.
-        args.profile = None;
-        args.scene_custom = Some(name.to_string());
+    if custom_scenes.contains_key(&normalized) {
+        let modified =
+            apply_profile_layer(matches, args, &custom_scenes, &normalized, strict_unknown)?;
+        args.scene_custom = Some(normalized);
         return Ok(modified);
     }
 
     // 2. Fallback: legacy [profile.<name>] with a deprecation warning.
     let profiles = collect_profiles(cfg);
-    if profiles.contains_key(name) {
+    if profiles.contains_key(&normalized) {
         eprintln!(
-            "warning: profile '{name}' is deprecated; migrate to [scene-custom.{name}] in config.toml (rename the prefix only — fields are unchanged)"
+            "warning: profile '{name}' is deprecated; migrate to [scene-custom.{normalized}] in config.toml (rename the prefix only — fields are unchanged)"
         );
-        let modified = apply_profile_layer(matches, args, &profiles, name, strict_unknown)?;
-        args.profile = None;
-        args.scene_custom = Some(name.to_string());
+        let modified = apply_profile_layer(matches, args, &profiles, &normalized, strict_unknown)?;
+        args.scene_custom = Some(normalized);
         return Ok(modified);
     }
 

@@ -30,7 +30,6 @@ use crate::cli::parse_color_scheme;
 use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::configfile::load_config_file;
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
-use crate::profile::{apply_profile_layer, collect_profiles, validate_profile_name};
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
 use crate::scene_custom::apply_scene_custom_layer;
@@ -154,13 +153,11 @@ pub(crate) fn apply_config_and_runtime_defaults(
             cfg.len()
         );
     }
-    let profiles = collect_profiles(&cfg);
     if !cfg.is_empty() {
         apply_config_values(matches, args, &cfg, &mut config_touched);
     }
 
     let scene_is_cli = is_explicit(matches, "scene");
-    let profile_is_cli = is_explicit(matches, "profile");
     let scene_custom_is_cli = is_explicit(matches, "scene_custom");
     let scene_is_default = args.scene.is_none();
     if scene_is_default {
@@ -171,17 +168,6 @@ pub(crate) fn apply_config_and_runtime_defaults(
     let mut curated_modified = HashSet::new();
     if !scene_is_cli && !scene_is_default {
         curated_modified.extend(apply_scene_values(matches, args, &config_touched)?);
-    }
-    if !profile_is_cli {
-        if let Some(profile_name) = args.profile.clone() {
-            curated_modified.extend(apply_profile_layer(
-                matches,
-                args,
-                &profiles,
-                &profile_name,
-                false,
-            )?);
-        }
     }
     if !scene_custom_is_cli {
         if let Some(scene_custom_name) = args.scene_custom.clone() {
@@ -196,17 +182,6 @@ pub(crate) fn apply_config_and_runtime_defaults(
     }
     if scene_is_cli {
         curated_modified.extend(apply_scene_values(matches, args, &config_touched)?);
-    }
-    if profile_is_cli {
-        if let Some(profile_name) = args.profile.clone() {
-            curated_modified.extend(apply_profile_layer(
-                matches,
-                args,
-                &profiles,
-                &profile_name,
-                true,
-            )?);
-        }
     }
     if scene_custom_is_cli {
         if let Some(scene_custom_name) = args.scene_custom.clone() {
@@ -310,15 +285,22 @@ fn apply_config_values(
         }
     }
 
-    if let Some(v) = config_value(matches, cfg, "profile", "profile") {
-        match validate_profile_name(&v) {
+    // v14.0.0: `profile = X` in config is a deprecated alias for `scene-custom = X`.
+    // The value is validated as a custom-scene name and redirected. A deprecation
+    // warning is emitted on stderr. The actual custom-scene block lookup happens
+    // later in apply_scene_custom_layer, which also falls back to [profile.X] blocks.
+    if let Some(v) = config_value(matches, cfg, "scene_custom", "profile") {
+        match crate::scene_custom::validate_custom_scene_name(&v) {
             Ok(name) => {
-                args.profile = Some(name);
-                config_touched.insert("profile");
+                eprintln!(
+                    "warning: 'profile = {v}' in config is deprecated; use 'scene-custom = {name}' instead (rename [profile.{name}] to [scene-custom.{name}] in config.toml)"
+                );
+                args.scene_custom = Some(name);
+                config_touched.insert("scene_custom");
             }
             Err(e) => {
                 crate::output::eprintln_error_labeled(&format!(
-                    "unknown profile '{v}' ({e}; see --list-profiles)"
+                    "unknown profile '{v}' ({e}; see --list-scenes)"
                 ));
             }
         }

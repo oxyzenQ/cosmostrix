@@ -79,7 +79,7 @@ pub fn collect_profiles(
         let (_, rest) = key.split_once('.').expect("profile key has prefix");
         let (name, field) = rest.rsplit_once('.').expect("profile key has field");
         let profile = profiles
-            .entry(name.to_string())
+            .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
             "base" | "scene" => profile.base = Some(value.clone()),
@@ -135,7 +135,8 @@ pub fn apply_profile_layer(
         return Ok(modified);
     };
 
-    args.profile = Some(normalized.clone());
+    // v14.0.0: args.profile field removed. The caller (apply_scene_custom_layer)
+    // sets args.scene_custom instead. We no longer write to args.profile here.
 
     if let Some(preset) = profile.preset.as_deref() {
         apply_profile_preset(matches, args, preset, &mut modified);
@@ -164,6 +165,7 @@ pub fn apply_profile_layer(
 /// This is appended to `--list-profiles` output so users discover the
 /// available atmosphere profiles without needing to read docs first.
 /// No preset is default; all are opt-in only.
+#[allow(dead_code)] // retained for test-only callers; --list-profiles removed in v14
 fn atmosphere_presets_section() -> String {
     use crate::atmosphere_presets::all_atmosphere_presets;
     let presets = all_atmosphere_presets();
@@ -181,6 +183,7 @@ fn atmosphere_presets_section() -> String {
 }
 
 #[must_use]
+#[allow(dead_code)] // retained for test-only callers; --list-profiles removed in v14
 pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
     let mut out = if profiles.is_empty() {
         String::from("USER PROFILES\n\n  (none defined)\n")
@@ -197,6 +200,7 @@ pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
     out
 }
 
+#[allow(dead_code)] // retained for test-only callers; --dump-profile removed in v14
 pub fn dump_profile_text(
     profiles: &BTreeMap<String, UserProfile>,
     name: &str,
@@ -549,6 +553,7 @@ fn warn_invalid(profile: &str, field: &str, value: &str, expected: &str) {
     ));
 }
 
+#[allow(dead_code)] // called only by dump_profile_text (test-only in v14)
 fn push_field(out: &mut String, profile: &str, field: &str, value: Option<&str>) {
     if let Some(value) = value {
         out.push_str(&format!("profile.{profile}.{field} = {value}\n"));

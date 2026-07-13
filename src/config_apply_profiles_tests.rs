@@ -57,8 +57,10 @@ fn nightcore_config() -> &'static str {
 
 #[test]
 fn cli_profile_loads_user_profile_from_config() {
-    let args = args_with_config(nightcore_config(), &["--profile", "nightcore"]);
-    assert_eq!(args.profile.as_deref(), Some("nightcore"));
+    // v14.0.0: --profile removed; use --scene-custom. Backward-compat:
+    // --scene-custom falls back to [profile.X] with deprecation warning.
+    let args = args_with_config(nightcore_config(), &["--scene-custom", "nightcore"]);
+    assert_eq!(args.scene_custom.as_deref(), Some("nightcore"));
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.charset, "binary");
@@ -78,7 +80,7 @@ fn cli_profile_loads_user_profile_from_config() {
 fn profile_base_monolith_applies_monolith_foundation() {
     let args = args_with_config(
         "profile.nightcore.base = monolith\n",
-        &["--profile", "nightcore"],
+        &["--scene-custom", "nightcore"],
     );
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
@@ -91,7 +93,7 @@ fn explicit_cli_flags_override_profile_values() {
     let args = args_with_config(
         nightcore_config(),
         &[
-            "--profile",
+            "--scene-custom",
             "nightcore",
             "--speed",
             "30",
@@ -121,7 +123,7 @@ fn config_profile_applies_after_config_scene() {
 fn cli_profile_overrides_cli_scene_for_profile_foundation() {
     let args = args_with_config(
         nightcore_config(),
-        &["--scene", "signal", "--profile", "nightcore"],
+        &["--scene", "signal", "--scene-custom", "nightcore"],
     );
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "purple");
@@ -130,9 +132,19 @@ fn cli_profile_overrides_cli_scene_for_profile_foundation() {
 
 #[test]
 fn unknown_cli_profile_has_clear_error() {
-    let err = args_with_config_result(nightcore_config(), &["--profile", "unknown"]).unwrap_err();
-    assert!(err.contains("error: unknown profile 'unknown'"));
-    assert!(err.contains("expected one of: nightcore"));
+    // v14.0.0: --profile removed; --scene-custom is the replacement.
+    // Unknown custom scene must produce a clear error.
+    let err =
+        args_with_config_result(nightcore_config(), &["--scene-custom", "unknown"]).unwrap_err();
+    assert!(
+        err.contains("error: unknown custom scene 'unknown'")
+            || err.contains("unknown profile 'unknown'"),
+        "error must mention unknown custom scene/profile: {err}"
+    );
+    assert!(
+        err.contains("nightcore"),
+        "error must list available names: {err}"
+    );
 }
 
 #[test]
@@ -141,7 +153,7 @@ fn invalid_profile_values_are_ignored_cleanly() {
                   profile.bad.color = not-a-color\n\
                   profile.bad.speed = 0\n\
                   profile.bad.density = nope\n";
-    let args = args_with_config(config, &["--profile", "bad"]);
+    let args = args_with_config(config, &["--scene-custom", "bad"]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.speed, 30.0);
@@ -151,7 +163,7 @@ fn invalid_profile_values_are_ignored_cleanly() {
 #[test]
 fn existing_config_without_profiles_still_works() {
     let args = args_with_config("scene = signal\ncolor = aurora\n", &[]);
-    assert_eq!(args.profile, None);
+    assert_eq!(args.scene_custom, None);
     assert_eq!(args.scene.as_deref(), Some("signal"));
     assert_eq!(args.color, "aurora");
 }
@@ -258,7 +270,7 @@ fn atmosphere_config_profile(name: &str, mode: &str, regime: &str) -> String {
 #[test]
 fn profile_controlled_live_pulse_works() {
     let config = atmosphere_config_profile("atmo1", "controlled-live", "pulse");
-    let args = args_with_config(&config, &["--profile", "atmo1"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo1"]);
     assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
     assert_eq!(args.atmosphere_regime_str.as_deref(), Some("pulse"));
 }
@@ -266,7 +278,7 @@ fn profile_controlled_live_pulse_works() {
 #[test]
 fn profile_controlled_live_signal_works() {
     let config = atmosphere_config_profile("atmo2", "controlled-live", "signal");
-    let args = args_with_config(&config, &["--profile", "atmo2"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo2"]);
     assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
     assert_eq!(args.atmosphere_regime_str.as_deref(), Some("signal"));
 }
@@ -280,7 +292,7 @@ fn profile_atmosphere_mode_overrides_base_config_mode() {
          {}",
         atmosphere_config_profile("atmo3", "disabled", "calm")
     );
-    let args = args_with_config(&config, &["--profile", "atmo3"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo3"]);
     assert_eq!(args.atmosphere_mode_str.as_deref(), Some("disabled"));
     assert_eq!(args.atmosphere_regime_str.as_deref(), Some("calm"));
 }
@@ -294,7 +306,7 @@ fn profile_atmosphere_regime_overrides_base_config_regime() {
          {}",
         atmosphere_config_profile("atmo4", "controlled-live", "signal")
     );
-    let args = args_with_config(&config, &["--profile", "atmo4"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo4"]);
     assert_eq!(args.atmosphere_regime_str.as_deref(), Some("signal"));
 }
 
@@ -307,14 +319,14 @@ fn profile_disabled_overrides_base_controlled_live() {
          {}",
         atmosphere_config_profile("atmo5", "disabled", "calm")
     );
-    let args = args_with_config(&config, &["--profile", "atmo5"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo5"]);
     assert_eq!(args.atmosphere_mode_str.as_deref(), Some("disabled"));
 }
 
 #[test]
 fn profile_calm_results_in_identity_modulation() {
     let config = atmosphere_config_profile("atmo6", "controlled-live", "calm");
-    let args = args_with_config(&config, &["--profile", "atmo6"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo6"]);
     let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
     let regime =
         crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
@@ -334,7 +346,7 @@ fn profile_calm_results_in_identity_modulation() {
 fn profile_storm_is_rejected_or_ignored_cleanly() {
     // Storm is not config-safe — should be rejected at profile parse layer
     let config = atmosphere_config_profile("atmo7", "controlled-live", "storm");
-    let args = args_with_config(&config, &["--profile", "atmo7"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo7"]);
     // storm should be rejected, so regime_str remains None or calm
     assert_eq!(
         args.atmosphere_regime_str.as_deref(),
@@ -346,7 +358,7 @@ fn profile_storm_is_rejected_or_ignored_cleanly() {
 #[test]
 fn profile_controlled_live_signal_produces_shadow_risk_whisper() {
     let config = atmosphere_config_profile("atmo8", "controlled-live", "signal");
-    let args = args_with_config(&config, &["--profile", "atmo8"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo8"]);
     let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
     let regime =
         crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
@@ -357,7 +369,7 @@ fn profile_controlled_live_signal_produces_shadow_risk_whisper() {
 #[test]
 fn profile_controlled_live_monolith_pressure_produces_shadow_risk_whisper() {
     let config = atmosphere_config_profile("atmo9", "controlled-live", "monolith-pressure");
-    let args = args_with_config(&config, &["--profile", "atmo9"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo9"]);
     let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
     let regime =
         crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
@@ -369,7 +381,7 @@ fn profile_controlled_live_monolith_pressure_produces_shadow_risk_whisper() {
 fn cli_color_sun_wins_even_when_profile_sets_scene_atmosphere() {
     // Profile sets controlled-live + pulse, but CLI --color sun still wins
     let config = atmosphere_config_profile("atmo10", "controlled-live", "pulse");
-    let args = args_with_config(&config, &["--profile", "atmo10", "--color", "sun"]);
+    let args = args_with_config(&config, &["--scene-custom", "atmo10", "--color", "sun"]);
     assert_eq!(args.color, "sun", "CLI --color must win over profile");
     assert_eq!(args.atmosphere_mode_str.as_deref(), Some("controlled-live"));
 }
@@ -379,7 +391,7 @@ fn cli_color_sun_wins_even_when_profile_sets_scene_atmosphere() {
 #[test]
 fn v46p2_profile_with_atmosphere_calm_is_identity() {
     let config = atmosphere_config_profile("apCalm", "disabled", "calm");
-    let args = args_with_config(&config, &["--profile", "apCalm"]);
+    let args = args_with_config(&config, &["--scene-custom", "apCalm"]);
     let mode = crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
     let regime =
         crate::config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
@@ -402,7 +414,7 @@ fn v46p2_profile_with_each_non_calm_preset_is_whisper() {
     ];
     for (name, mode_str, regime_str) in presets {
         let config = atmosphere_config_profile(name, mode_str, regime_str);
-        let args = args_with_config(&config, &[&format!("--profile={name}")]);
+        let args = args_with_config(&config, &[&format!("--scene-custom={name}")]);
         let mode =
             crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
         let regime =
@@ -425,7 +437,7 @@ fn v46p2_profile_still_no_color_or_terminal_effects() {
     ];
     for (name, mode_str, regime_str) in presets {
         let config = atmosphere_config_profile(name, mode_str, regime_str);
-        let args = args_with_config(&config, &[&format!("--profile={name}")]);
+        let args = args_with_config(&config, &[&format!("--scene-custom={name}")]);
         let mode =
             crate::config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
         let regime =
@@ -454,7 +466,7 @@ fn v46p2_profile_auto_color_drift_false_with_all_presets() {
     ];
     for (name, mode_str, regime_str) in presets {
         let config = atmosphere_config_profile(name, mode_str, regime_str);
-        let args = args_with_config(&config, &[&format!("--profile={name}")]);
+        let args = args_with_config(&config, &[&format!("--scene-custom={name}")]);
         assert!(
             !args.auto_color_drift,
             "profile '{name}' must not enable auto_color_drift"

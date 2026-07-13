@@ -299,14 +299,6 @@ pub struct Args {
     pub scene: Option<String>,
 
     #[arg(
-        long = "profile",
-        help_heading = "COMMON OPTIONS",
-        display_order = 97,
-        help = "Apply a user-defined profile from config (see --list-profiles)"
-    )]
-    pub profile: Option<String>,
-
-    #[arg(
         long = "scene-custom",
         value_name = "NAME",
         help_heading = "COMMON OPTIONS",
@@ -332,15 +324,6 @@ pub struct Args {
         help = "Print a complete example config and exit"
     )]
     pub dump_config: bool,
-
-    #[arg(
-        long = "dump-profile",
-        value_name = "NAME",
-        help_heading = "CONFIG",
-        display_order = 100,
-        help = "Print one user profile from config and exit"
-    )]
-    pub dump_profile: Option<String>,
 
     #[arg(
         long = "config-path",
@@ -519,14 +502,6 @@ pub struct Args {
         help = "Show full details for a built-in or custom scene"
     )]
     pub show_scene: Option<String>,
-
-    #[arg(
-        long = "list-profiles",
-        help_heading = "DISCOVERY",
-        display_order = 235,
-        help = "Show user-defined profiles from config"
-    )]
-    pub list_profiles: bool,
 
     // === HELP (visible in --help) ===
     #[arg(
