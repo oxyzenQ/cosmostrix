@@ -11,7 +11,7 @@
 //!
 //! Each cell carries a *generation counter* alongside its content. When a cell
 //! is written, its generation is updated to match the current frame generation.
-//! A separate [`BitVec`] provides O(1) dirty checks without scanning the full
+//! A separate `Vec<u8>` provides O(1) dirty checks without scanning the full
 //! grid. Dirty indices are collected into a [`SmallVec`] with 64 inline slots,
 //! covering small terminals without heap allocation.
 //!
@@ -26,7 +26,12 @@ use crate::constants::{
     DIRTY_CAPACITY_CAP, DIRTY_CAPACITY_DIVISOR, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
     MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
 };
-use bitvec::prelude::BitVec;
+
+// Note: dirty_map is now Vec<u8> (1 byte per cell) instead of BitVec.
+// Trade-off: 8x more memory (4.8 KiB vs 600 B for 120x40) but the partial-clear
+// hot path becomes a simple indexed byte store (no bit math) and the full-clear
+// is a memset that the compiler auto-vectorizes. BitVec's per-bit .set() has
+// overhead from read-modify-write on the containing byte.
 
 /// Inline capacity for dirty indices SmallVec (64 usize = 512 bytes on stack).
 /// Covers small terminals without heap allocation; spills to heap for large frames.
@@ -41,7 +46,7 @@ pub struct Frame {
     cell_gen: Vec<u32>,
     blank: Cell,
     dirty_all: bool,
-    dirty_map: BitVec,
+    dirty_map: Vec<u8>,
     dirty: SmallVec<[usize; DIRTY_INLINE_CAPACITY]>,
     /// Semantic generation counter: incremented when the renderer's semantic
     /// identity changes (charset switch, shading mode toggle, theme change).
@@ -67,7 +72,7 @@ impl Frame {
             cell_gen: vec![gen; len],
             blank,
             dirty_all: true,
-            dirty_map: BitVec::repeat(false, len),
+            dirty_map: vec![0u8; len],
             dirty: SmallVec::with_capacity((len / DIRTY_CAPACITY_DIVISOR).min(DIRTY_CAPACITY_CAP)),
             semantic_gen: 0,
         }
@@ -130,17 +135,18 @@ impl Frame {
     pub fn clear_dirty(&mut self) {
         if self.dirty_all {
             self.dirty_all = false;
-            // Full BitVec reset. BitVec::fill(false) clears the underlying
-            // storage at byte granularity (one byte = 8 cells), which the
-            // compiler auto-vectorizes into wide stores on AVX2 targets.
-            self.dirty_map.fill(false);
+            // Full Vec<u8> reset — compiler auto-vectorizes to wide SIMD stores
+            // (AVX2: 32 bytes/store). For 120x40=4800 cells this is 150 stores
+            // vs BitVec's 75 byte stores with bit-masking overhead.
+            self.dirty_map.fill(0);
             self.dirty.clear();
             return;
         }
 
-        // Dragon egg #5: use dirty_map.set(i, false) instead of .get_mut(i).
+        // Partial clear: only clear cells that were marked dirty this frame.
+        // Vec<u8> indexed store is a single byte mov; no read-modify-write.
         for &i in &self.dirty {
-            self.dirty_map.set(i, false);
+            self.dirty_map[i] = 0;
         }
         self.dirty.clear();
     }
@@ -219,15 +225,11 @@ impl Frame {
 
             self.cells[i] = cell;
             self.cell_gen[i] = self.gen;
-            // Dragon egg #4: direct BitVec indexing instead of .get().map_or().
-            // BitVec implements Index<usize> returning bool. Since i is already
-            // bounds-checked by index(), we can use direct indexing.
-            // BEFORE: self.dirty_map.get(i).map_or(true, |b| !*b)
-            //   = Option alloc + closure call + bool unwrap
-            // AFTER:  !self.dirty_map[i]
-            //   = direct bit load + bool NOT
-            if !self.dirty_all && !self.dirty_map[i] {
-                self.dirty_map.set(i, true);
+            // Vec<u8> dirty check: direct byte load (no bit math).
+            // Before (BitVec): read-modify-write on containing byte + mask.
+            // After (Vec<u8>): single byte load + store.
+            if !self.dirty_all && self.dirty_map[i] == 0 {
+                self.dirty_map[i] = 1;
                 self.dirty.push(i);
             }
         }
@@ -244,9 +246,8 @@ impl Frame {
             // Dragon egg #1: direct indexing — index() already bounds-checked.
             self.cells[i] = cell;
             self.cell_gen[i] = self.gen;
-            // Dragon egg #4: direct BitVec indexing (same as set()).
-            if !self.dirty_all && !self.dirty_map[i] {
-                self.dirty_map.set(i, true);
+            if !self.dirty_all && self.dirty_map[i] == 0 {
+                self.dirty_map[i] = 1;
                 self.dirty.push(i);
             }
         }

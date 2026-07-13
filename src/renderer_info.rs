@@ -30,7 +30,7 @@ pub fn renderer_info(color_mode: ColorMode) -> RendererInfo {
         pacing: "adaptive",
         unicode: "utf8-singlewidth",
         frame_strategy: "differential",
-        dirty_tracking: "bitvec+generation",
+        dirty_tracking: "byte_map+generation",
         io_strategy: "crossterm-queue-batch",
         color_depth: match color_mode {
             ColorMode::TrueColor => "truecolor",

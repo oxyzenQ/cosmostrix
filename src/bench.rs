@@ -936,7 +936,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
 ///
 /// Values are clamped to `[MIN_TERMINAL_COLS, MAX_TERMINAL_COLS]` and
 /// `[MIN_TERMINAL_LINES, MAX_TERMINAL_LINES]` to prevent panics from
-/// degenerate sizes (e.g. 1x1 causes bitvec index-out-of-range).
+/// degenerate sizes (e.g. 1x1 causes dirty_map index-out-of-range).
 fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
     // --screen-size CLI flag takes precedence
     if let Some((w, h)) = cli_size {
