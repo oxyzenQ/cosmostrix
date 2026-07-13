@@ -507,10 +507,7 @@ fn apply_scene_values(
         return Ok(scene_modified);
     };
 
-    let name = match validate_scene_name(scene_name) {
-        Ok(n) => n,
-        Err(e) => return Err(e),
-    };
+    let name = validate_scene_name(scene_name)?;
     args.scene = Some(name.clone());
 
     if let Some(scene) = get_scene(&name) {
