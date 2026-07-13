@@ -19,6 +19,7 @@ use clap::Parser;
 use crate::runtime::MonolithSize;
 use crate::scene;
 use crate::theme;
+use crate::{configfile, profile, scene_custom};
 
 #[must_use]
 pub fn color_enabled_stdout() -> bool {
@@ -544,6 +545,15 @@ pub struct Args {
     pub list_scenes: bool,
 
     #[arg(
+        long = "show-scene",
+        value_name = "NAME",
+        help_heading = "DISCOVERY",
+        display_order = 231,
+        help = "Show full details for a built-in or custom scene"
+    )]
+    pub show_scene: Option<String>,
+
+    #[arg(
         long = "list-profiles",
         help_heading = "DISCOVERY",
         display_order = 235,
@@ -852,6 +862,76 @@ pub fn print_list_scenes() {
     }
     println!();
     print!("{}", scene::list_scenes_text());
+
+    // Append custom scenes from config (if any) under a separate heading.
+    let cfg = configfile::load_config_file(None);
+    let custom_scenes = scene_custom::collect_custom_scenes(&cfg);
+    if !custom_scenes.is_empty() {
+        println!();
+        if color_enabled_stdout() {
+            println!("\x1b[1;35mCUSTOM SCENES (from config):\x1b[0m");
+        } else {
+            println!("CUSTOM SCENES (from config):");
+        }
+        println!();
+        print!("{}", scene_custom::list_custom_scenes_text(&custom_scenes));
+        println!();
+        println!("  Load with: cosmostrix --scene-custom <name>");
+    }
+}
+
+/// Print details for a single scene by name. Looks up built-in scenes first,
+/// then custom scenes from config. Returns `Ok(())` on success or an error
+/// message suitable for `ux::die_config`.
+pub fn print_show_scene(
+    name: &str,
+    cfg: &std::collections::HashMap<String, String>,
+) -> Result<(), String> {
+    // 1. Built-in scene lookup.
+    if let Some(info) = scene::get_scene(name) {
+        print!("{}", scene::show_scene_text(info));
+        return Ok(());
+    }
+
+    // 2. Custom scene lookup (also falls back to legacy [profile.X] entries).
+    let custom_scenes = scene_custom::collect_custom_scenes(cfg);
+    let profiles = profile::collect_profiles(cfg);
+    let normalized = name.trim().to_ascii_lowercase();
+    if let Some(custom) = custom_scenes.get(&normalized) {
+        print!(
+            "{}",
+            scene_custom::show_custom_scene_text(&normalized, custom, /*from_profile=*/ false)
+        );
+        return Ok(());
+    }
+    if let Some(legacy) = profiles.get(&normalized) {
+        eprintln!(
+            "warning: '{normalized}' is defined as [profile.{normalized}] — migrate to [scene-custom.{normalized}] (rename prefix only)"
+        );
+        print!(
+            "{}",
+            scene_custom::show_custom_scene_text(&normalized, legacy, /*from_profile=*/ true)
+        );
+        return Ok(());
+    }
+
+    // 3. Not found.
+    let mut available: Vec<String> = scene::all_scene_names()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    available.extend(custom_scenes.keys().cloned());
+    available.extend(profiles.keys().cloned());
+    available.sort();
+    available.dedup();
+    let list = if available.is_empty() {
+        "<none defined>".to_string()
+    } else {
+        available.join(", ")
+    };
+    Err(format!(
+        "error: unknown scene '{name}'\n\n  Available: {list}\n  Use --list-scenes to see all scenes."
+    ))
 }
 
 pub fn print_defaults() {

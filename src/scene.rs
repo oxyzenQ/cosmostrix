@@ -189,7 +189,6 @@ pub const SCENES: &[SceneInfo] = &[
 ];
 
 #[must_use]
-#[cfg(test)]
 pub fn all_scene_names() -> &'static [&'static str] {
     &[
         "calm",
@@ -250,6 +249,58 @@ pub fn list_scenes_text() -> String {
         out.push_str(&format!("  {:10} {}\n", scene.name, scene.description));
     }
     out
+}
+
+/// Render a detailed, human-readable description of a single built-in scene.
+///
+/// Output is intended for `--show-scene <name>` when `<name>` matches a
+/// built-in scene. Each field line is only printed when the scene actually
+/// sets that field (i.e. it is `Some(_)`), so partial scenes do not show
+/// misleading "default" placeholders.
+#[must_use]
+pub fn show_scene_text(info: &SceneInfo) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("SCENE: {}\n\n", info.name));
+    out.push_str(&format!("  Description: {}\n\n", info.description));
+    out.push_str("  Configuration:\n");
+
+    let cfg = info.config;
+    if let Some(color) = cfg.color {
+        out.push_str(&format!("    color        = {color}\n"));
+    }
+    if let Some(charset) = cfg.charset {
+        out.push_str(&format!("    charset      = {charset}\n"));
+    }
+    if let Some(fps) = cfg.fps {
+        out.push_str(&format!("    fps          = {fps}\n"));
+    }
+    if let Some(speed) = cfg.speed {
+        out.push_str(&format!("    speed        = {speed}\n"));
+    }
+    if let Some(density) = cfg.density {
+        out.push_str(&format!("    density      = {density}\n"));
+    }
+    if let Some(glitch) = cfg.glitch_level {
+        out.push_str(&format!("    glitch-level = {}\n", glitch_label(glitch)));
+    }
+    // rain_style is always set (it's not an Option), so always show it.
+    out.push_str(&format!("    rain-style   = {}\n", cfg.rain_style.as_str()));
+
+    out.push_str("\n  Use: cosmostrix --scene ");
+    out.push_str(info.name);
+    out.push('\n');
+    out
+}
+
+/// Map a `GlitchLevel` to its lowercase CLI string label.
+fn glitch_label(level: crate::config::GlitchLevel) -> &'static str {
+    use crate::config::GlitchLevel;
+    match level {
+        GlitchLevel::None => "none",
+        GlitchLevel::Subtle => "subtle",
+        GlitchLevel::Default => "default",
+        GlitchLevel::Intense => "intense",
+    }
 }
 
 #[cfg(test)]
@@ -412,5 +463,57 @@ mod tests {
             "list must include low-power scene"
         );
         assert!(text.contains("storm"), "list must include storm scene");
+    }
+
+    #[test]
+    fn show_scene_text_includes_header_and_usage() {
+        let info = get_scene("storm").expect("storm scene");
+        let text = show_scene_text(info);
+        assert!(text.starts_with("SCENE: storm"), "header missing: {text}");
+        assert!(
+            text.contains("Description:"),
+            "description label missing: {text}"
+        );
+        assert!(
+            text.contains("Configuration:"),
+            "config label missing: {text}"
+        );
+        assert!(
+            text.contains("color        = purple"),
+            "color field missing: {text}"
+        );
+        assert!(
+            text.contains("fps          = 120"),
+            "fps field missing: {text}"
+        );
+        assert!(
+            text.contains("rain-style   = glyph"),
+            "rain-style missing: {text}"
+        );
+        assert!(
+            text.contains("cosmostrix --scene storm"),
+            "usage hint missing: {text}"
+        );
+    }
+
+    #[test]
+    fn show_scene_text_handles_partial_scene() {
+        // matrix scene has all fields set to None except rain_style.
+        let info = get_scene("matrix").expect("matrix scene");
+        let text = show_scene_text(info);
+        assert!(text.contains("SCENE: matrix"), "header missing: {text}");
+        assert!(
+            text.contains("rain-style   = glyph"),
+            "rain-style missing: {text}"
+        );
+        // Should not contain field labels for unset fields
+        assert!(
+            !text.contains("color        ="),
+            "color should be absent: {text}"
+        );
+        assert!(
+            !text.contains("fps          ="),
+            "fps should be absent: {text}"
+        );
     }
 }

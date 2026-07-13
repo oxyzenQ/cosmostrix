@@ -145,7 +145,7 @@ use clap::{CommandFactory, FromArgMatches};
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
 use crate::config::{
     color_enabled_stdout, print_defaults, print_list_charsets, print_list_colors,
-    print_list_colors_detail, print_list_scenes, Args, ColorBg,
+    print_list_colors_detail, print_list_scenes, print_show_scene, Args, ColorBg,
 };
 use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
@@ -403,6 +403,14 @@ fn main() -> std::io::Result<()> {
     if args.list_scenes {
         print_list_scenes();
         return Ok(());
+    }
+
+    if let Some(ref name) = args.show_scene {
+        let cfg = configfile::load_config_file(args.config.as_deref());
+        match print_show_scene(name, &cfg) {
+            Ok(()) => return Ok(()),
+            Err(e) => ux::die_config(e),
+        }
     }
 
     if args.list_charsets {

@@ -179,6 +179,102 @@ pub fn validate_scene_custom_name(name: &str) -> Result<String, String> {
     validate_profile_name(name)
 }
 
+/// Render a one-line-per-entry listing of custom scenes from config.
+///
+/// Output is appended under the "CUSTOM SCENES (from config)" heading in
+/// `--list-scenes`. Mirrors the column layout of `scene::list_scenes_text`
+/// so the two groups visually align.
+#[must_use]
+pub fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
+    let mut out = String::new();
+    for (name, scene) in scenes {
+        let base = scene.base.as_deref().unwrap_or("monolith");
+        out.push_str(&format!("  {name:14} base={base}\n"));
+    }
+    out
+}
+
+/// Render a detailed description of a single custom scene.
+///
+/// `from_profile=true` indicates the entry was loaded from a legacy
+/// `[profile.<name>]` block (rather than `[scene-custom.<name>]`). The
+/// output includes a note guiding migration when this is the case.
+#[must_use]
+pub fn show_custom_scene_text(name: &str, scene: &UserProfile, from_profile: bool) -> String {
+    let kind = if from_profile {
+        "PROFILE (legacy)"
+    } else {
+        "CUSTOM SCENE"
+    };
+    let mut out = String::new();
+    out.push_str(&format!("{kind}: {name}\n\n"));
+    if from_profile {
+        out.push_str(
+            "  Note: defined as [profile.<name>] — migrate to [scene-custom.<name>]\n  (rename prefix only; fields are identical).\n\n",
+        );
+    }
+    out.push_str("  Configuration:\n");
+
+    let mut has_field = false;
+    if let Some(base) = scene.base.as_deref() {
+        out.push_str(&format!("    base               = {base}\n"));
+        has_field = true;
+    }
+    if let Some(preset) = scene.preset.as_deref() {
+        out.push_str(&format!("    preset             = {preset}\n"));
+        has_field = true;
+    }
+    if let Some(color) = scene.color.as_deref() {
+        out.push_str(&format!("    color              = {color}\n"));
+        has_field = true;
+    }
+    if let Some(charset) = scene.charset.as_deref() {
+        out.push_str(&format!("    charset            = {charset}\n"));
+        has_field = true;
+    }
+    if let Some(fps) = scene.fps.as_deref() {
+        out.push_str(&format!("    fps                = {fps}\n"));
+        has_field = true;
+    }
+    if let Some(speed) = scene.speed.as_deref() {
+        out.push_str(&format!("    speed              = {speed}\n"));
+        has_field = true;
+    }
+    if let Some(density) = scene.density.as_deref() {
+        out.push_str(&format!("    density            = {density}\n"));
+        has_field = true;
+    }
+    if let Some(glitch) = scene.glitch_level.as_deref() {
+        out.push_str(&format!("    glitch-level       = {glitch}\n"));
+        has_field = true;
+    }
+    if let Some(size) = scene.monolith_size.as_deref() {
+        out.push_str(&format!("    monolith-size      = {size}\n"));
+        has_field = true;
+    }
+    if let Some(bg) = scene.color_bg.as_deref() {
+        out.push_str(&format!("    color-bg           = {bg}\n"));
+        has_field = true;
+    }
+    if let Some(mode) = scene.atmosphere_mode.as_deref() {
+        out.push_str(&format!("    atmosphere-mode    = {mode}\n"));
+        has_field = true;
+    }
+    if let Some(regime) = scene.atmosphere_regime.as_deref() {
+        out.push_str(&format!("    atmosphere-regime  = {regime}\n"));
+        has_field = true;
+    }
+
+    if !has_field {
+        out.push_str("    (no fields set — inherits everything from base)\n");
+    }
+
+    out.push_str("\n  Use: cosmostrix --scene-custom ");
+    out.push_str(name);
+    out.push('\n');
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -263,5 +359,94 @@ mod tests {
         assert!(PROFILE_FIELDS.contains(&"color"));
         assert!(PROFILE_FIELDS.contains(&"atmosphere-regime"));
         assert!(!PROFILE_FIELDS.contains(&"nonexistent-field"));
+    }
+
+    #[test]
+    fn list_custom_scenes_text_shows_name_and_base() {
+        let cfg = HashMap::from([
+            ("scene-custom.alpha.base".to_string(), "storm".to_string()),
+            ("scene-custom.beta.color".to_string(), "neon".to_string()),
+        ]);
+        let scenes = collect_custom_scenes(&cfg);
+        let text = list_custom_scenes_text(&scenes);
+        assert!(text.contains("alpha"), "list must include alpha: {text}");
+        assert!(
+            text.contains("base=storm"),
+            "list must show base for alpha: {text}"
+        );
+        assert!(text.contains("beta"), "list must include beta: {text}");
+        // beta has no base set, so it should fall back to monolith
+        assert!(
+            text.contains("base=monolith"),
+            "list must default base to monolith: {text}"
+        );
+    }
+
+    #[test]
+    fn show_custom_scene_text_includes_fields_and_usage() {
+        let cfg = HashMap::from([
+            (
+                "scene-custom.hacker-mode.base".to_string(),
+                "storm".to_string(),
+            ),
+            (
+                "scene-custom.hacker-mode.color".to_string(),
+                "green".to_string(),
+            ),
+            (
+                "scene-custom.hacker-mode.speed".to_string(),
+                "24".to_string(),
+            ),
+        ]);
+        let scenes = collect_custom_scenes(&cfg);
+        let scene = &scenes["hacker-mode"];
+        let text = show_custom_scene_text("hacker-mode", scene, false);
+        assert!(
+            text.contains("CUSTOM SCENE: hacker-mode"),
+            "header missing: {text}"
+        );
+        assert!(
+            text.contains("base               = storm"),
+            "base field missing: {text}"
+        );
+        assert!(
+            text.contains("color              = green"),
+            "color field missing: {text}"
+        );
+        assert!(
+            text.contains("speed              = 24"),
+            "speed field missing: {text}"
+        );
+        assert!(
+            text.contains("cosmostrix --scene-custom hacker-mode"),
+            "usage hint missing: {text}"
+        );
+    }
+
+    #[test]
+    fn show_custom_scene_text_marks_legacy_profile_entries() {
+        let scene = UserProfile {
+            base: Some("monolith".to_string()),
+            ..Default::default()
+        };
+        let text = show_custom_scene_text("nightcore", &scene, true);
+        assert!(
+            text.contains("PROFILE (legacy)"),
+            "legacy header missing: {text}"
+        );
+        assert!(
+            text.contains("migrate to [scene-custom"),
+            "migration note missing: {text}"
+        );
+    }
+
+    #[test]
+    fn show_custom_scene_text_handles_empty_profile() {
+        let scene = UserProfile::default();
+        let text = show_custom_scene_text("empty", &scene, false);
+        assert!(
+            text.contains("no fields set"),
+            "empty profile should mention inheritance: {text}"
+        );
     }
 }
