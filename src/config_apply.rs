@@ -302,7 +302,9 @@ fn apply_config_values(
             args.color = v;
             config_touched.insert("color");
         } else {
-            crate::output::eprintln_error_labeled(&format!("invalid color='{v}' (see --list-colors)"));
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid color='{v}' (see --list-colors)"
+            ));
         }
     }
     if let Some(v) = config_value(matches, cfg, "charset", "charset") {
@@ -310,7 +312,9 @@ fn apply_config_values(
             args.charset = v;
             config_touched.insert("charset");
         } else {
-            crate::output::eprintln_error_labeled(&format!("invalid charset='{v}' (see --list-charsets)"));
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid charset='{v}' (see --list-charsets)"
+            ));
         }
     }
     if let Some(v) = config_value(matches, cfg, "fps", "fps") {
