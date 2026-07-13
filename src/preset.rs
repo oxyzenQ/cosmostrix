@@ -375,7 +375,10 @@ mod tests {
         assert_eq!(p.charset, "binary");
         assert_eq!(p.fps, 30.0, "low-power must cap fps at 30");
         assert_eq!(p.speed, 5.0, "low-power must set speed to 5");
-        assert!((p.density - 0.5).abs() < f32::EPSILON, "low-power must set density to 0.5");
+        assert!(
+            (p.density - 0.5).abs() < f32::EPSILON,
+            "low-power must set density to 0.5"
+        );
         assert_eq!(p.glitch_level, GlitchLevel::Default);
     }
 }

@@ -440,12 +440,7 @@ fn apply_profile_overrides(
                 args.color_bg = bg;
                 modified.insert("color_bg");
             }
-            None => warn_invalid(
-                name,
-                "color-bg",
-                value,
-                "black, default-background",
-            ),
+            None => warn_invalid(name, "color-bg", value, "black, default-background"),
         }
     }
     if let Some(value) = profile

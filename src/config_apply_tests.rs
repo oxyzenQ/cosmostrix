@@ -218,9 +218,15 @@ fn config_speed_wins_over_monolith_scene_default() {
     // Config must win — scene only fills unset keys.
     let args = args_with_config("scene = monolith\nspeed = 12\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.speed, 12.0, "config speed must win over monolith scene default 30");
+    assert_eq!(
+        args.speed, 12.0,
+        "config speed must win over monolith scene default 30"
+    );
     // Scene defaults for UNSET keys still apply:
-    assert_eq!(args.color, "cosmos", "scene color default applies for unset key");
+    assert_eq!(
+        args.color, "cosmos",
+        "scene color default applies for unset key"
+    );
     assert!((args.density - 0.85).abs() < f32::EPSILON);
 }
 
@@ -229,7 +235,10 @@ fn config_density_wins_over_signal_scene_default() {
     // Config sets density=0.5; signal scene hardcodes density=0.95.
     let args = args_with_config("scene = signal\ndensity = 0.5\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("signal"));
-    assert_eq!(args.speed, 10.0, "scene speed default applies for unset key");
+    assert_eq!(
+        args.speed, 10.0,
+        "scene speed default applies for unset key"
+    );
     assert!((args.density - 0.5).abs() < f32::EPSILON);
 }
 
@@ -238,8 +247,14 @@ fn config_color_wins_over_signal_scene_default() {
     // Config sets color=green; signal scene hardcodes color=aurora.
     let args = args_with_config("scene = signal\ncolor = green\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("signal"));
-    assert_eq!(args.color, "green", "config color must win over signal scene default aurora");
-    assert_eq!(args.charset, "retro", "scene charset default applies for unset key");
+    assert_eq!(
+        args.color, "green",
+        "config color must win over signal scene default aurora"
+    );
+    assert_eq!(
+        args.charset, "retro",
+        "scene charset default applies for unset key"
+    );
 }
 
 #[test]
@@ -248,8 +263,14 @@ fn config_speed_wins_over_cli_scene_default() {
     // over monolith's hardcoded 30 (CLI scene only fills unset keys).
     let args = args_with_config("speed = 15\n", &["--scene", "monolith"]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.speed, 15.0, "config speed must win over CLI scene monolith default 30");
-    assert_eq!(args.color, "cosmos", "scene color default still applies for unset key");
+    assert_eq!(
+        args.speed, 15.0,
+        "config speed must win over CLI scene monolith default 30"
+    );
+    assert_eq!(
+        args.color, "cosmos",
+        "scene color default still applies for unset key"
+    );
 }
 
 #[test]
@@ -269,7 +290,10 @@ fn config_speed_wins_over_scene_default() {
     // Config must win.
     let args = args_with_config("scene = signal\nspeed = 30\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("signal"));
-    assert_eq!(args.speed, 30.0, "config speed must win over signal scene default 10");
+    assert_eq!(
+        args.speed, 30.0,
+        "config speed must win over signal scene default 10"
+    );
 }
 
 #[test]
@@ -381,7 +405,10 @@ fn uniform_flag_disables_async_mode() {
     // Here we verify the flag parses correctly and defaults are sane.
     let args = args_from_cli(&["--uniform"]);
     assert!(args.uniform, "--uniform must set args.uniform = true");
-    assert!(args.async_mode, "async_mode default is still true (uniform overrides later)");
+    assert!(
+        args.async_mode,
+        "async_mode default is still true (uniform overrides later)"
+    );
 }
 
 #[test]
@@ -398,7 +425,10 @@ fn low_power_preset_sets_expected_values() {
     let args = args_from_cli(&["--preset", "low-power"]);
     assert_eq!(args.fps, 30.0, "low-power preset must set fps=30");
     assert_eq!(args.speed, 5.0, "low-power preset must set speed=5");
-    assert!((args.density - 0.5).abs() < f32::EPSILON, "low-power preset must set density=0.5");
+    assert!(
+        (args.density - 0.5).abs() < f32::EPSILON,
+        "low-power preset must set density=0.5"
+    );
 }
 
 #[test]

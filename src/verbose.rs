@@ -58,7 +58,9 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose_separator('═', 56);
     eprintln!(
         "{}",
-        output::brand_bold(&format!("[verbose]  cosmostrix v{version} — runtime configuration"))
+        output::brand_bold(&format!(
+            "[verbose]  cosmostrix v{version} — runtime configuration"
+        ))
     );
     output::eprintln_verbose_separator('═', 56);
     output::eprintln_verbose("scene:", &format!(" {:?}", scene.unwrap_or("default")));
@@ -67,7 +69,10 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("color_mode:", &format!(" {color_mode:?}"));
     output::eprintln_verbose(
         "color_tune:",
-        &format!(" sat={:.2} bright={:.2}", color_tune.saturation, color_tune.brightness),
+        &format!(
+            " sat={:.2} bright={:.2}",
+            color_tune.saturation, color_tune.brightness
+        ),
     );
     output::eprintln_verbose("color_bg:", &format!(" {default_bg:?}"));
     output::eprintln_verbose(
@@ -77,14 +82,23 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("fullwidth:", &format!(" {fullwidth}"));
     output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
     output::eprintln_verbose("speed:", &format!(" {speed:.1}"));
-    output::eprintln_verbose("density:", &format!(" {base_density:.2} (auto: {density_auto})"));
+    output::eprintln_verbose(
+        "density:",
+        &format!(" {base_density:.2} (auto: {density_auto})"),
+    );
     output::eprintln_verbose("monolith:", &format!(" {monolith_size:?}"));
-    output::eprintln_verbose("async_mode:", &format!(" {async_mode} (variable column speeds)"));
+    output::eprintln_verbose(
+        "async_mode:",
+        &format!(" {async_mode} (variable column speeds)"),
+    );
     output::eprintln_verbose("bold:", &format!(" {bold_mode:?}"));
     output::eprintln_verbose("shading:", &format!(" {shading_mode:?}"));
     output::eprintln_verbose(
         "glitch:",
-        &format!(" {} ({glitch_pct}%, {glitch_low}-{glitch_high}ms)", !noglitch),
+        &format!(
+            " {} ({glitch_pct}%, {glitch_low}-{glitch_high}ms)",
+            !noglitch
+        ),
     );
     output::eprintln_verbose("glitch_level:", &format!(" {glitch_level:?}"));
     output::eprintln_verbose("mouse:", &format!(" {mouse}"));
@@ -108,7 +122,10 @@ pub(crate) fn print_verbose(
     if let Some(msg) = message {
         output::eprintln_verbose(
             "message:",
-            &format!(" \"{msg}\" ({} chars, border: {message_border})", msg.chars().count()),
+            &format!(
+                " \"{msg}\" ({} chars, border: {message_border})",
+                msg.chars().count()
+            ),
         );
     }
     if let Some(d) = duration {
@@ -135,7 +152,10 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("config_path:", &format!(" {}", config_path.display()));
     output::eprintln_verbose("config exists:", &format!(" {}", config_path.exists()));
     if let Some(cf) = charset_file {
-        output::eprintln_verbose("charset_file:", &format!(" {cf} (safe: {})", is_safe_path(cf)));
+        output::eprintln_verbose(
+            "charset_file:",
+            &format!(" {cf} (safe: {})", is_safe_path(cf)),
+        );
     }
     let is_android = std::env::var("TERMUX_VERSION").is_ok()
         || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));

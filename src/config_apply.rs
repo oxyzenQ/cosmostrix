@@ -45,9 +45,9 @@ fn parse_atmosphere_mode_config(name: &str, value: &str) -> Option<String> {
     match value.trim().to_ascii_lowercase().as_str() {
         "disabled" | "controlled-live" => Some(value.trim().to_ascii_lowercase()),
         _ => {
-            crate::output::eprintln_error_labeled(
-                &format!("invalid {name}='{value}' (allowed: disabled, controlled-live)"),
-            );
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid {name}='{value}' (allowed: disabled, controlled-live)"
+            ));
             None
         }
     }
@@ -274,7 +274,12 @@ fn apply_config_values(
                 args.scene = Some(name);
                 config_touched.insert("scene");
             }
-            Err(e) => crate::output::eprintln_error_labeled(&format!("invalid scene='{v}' ({e})")),
+            Err(e) => {
+                // Strip the "error: " prefix from validate_scene_name's message
+                // since eprintln_error_labeled adds its own "error:" label.
+                let msg = e.strip_prefix("error: ").unwrap_or(&e);
+                crate::output::eprintln_error_labeled(msg);
+            }
         }
     }
 
@@ -498,7 +503,16 @@ fn apply_scene_values(
         return Ok(scene_modified);
     };
 
-    let name = validate_scene_name(scene_name)?;
+    let name = match validate_scene_name(scene_name) {
+        Ok(n) => n,
+        Err(e) => {
+            // Strip the "error: " prefix from validate_scene_name's message
+            // since eprintln_error_labeled adds its own "error:" label.
+            let msg = e.strip_prefix("error: ").unwrap_or(&e);
+            crate::output::eprintln_error_labeled(msg);
+            return Err(e);
+        }
+    };
     args.scene = Some(name.clone());
 
     if let Some(scene) = get_scene(&name) {

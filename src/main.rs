@@ -835,6 +835,11 @@ fn main() -> std::io::Result<()> {
         )
     };
 
+    // --uniform flag disables async variable column speeds.
+    // --async (hidden, default on) is still respected for backward compat;
+    // --uniform takes precedence (if both are set, uniform wins = async off).
+    let effective_async = args.async_mode && !args.uniform;
+
     // ── Verbose output (before CloudConfig moves values) ──
     if args.verbose {
         verbose::print_verbose(
@@ -879,11 +884,6 @@ fn main() -> std::io::Result<()> {
                 .flatten(),
         );
     }
-
-    // --uniform flag disables async variable column speeds.
-    // --async (hidden, default on) is still respected for backward compat;
-    // --uniform takes precedence (if both are set, uniform wins = async off).
-    let effective_async = args.async_mode && !args.uniform;
 
     let cloud_cfg = CloudConfig {
         color_mode,
