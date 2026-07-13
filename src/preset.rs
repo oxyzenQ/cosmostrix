@@ -225,7 +225,7 @@ pub fn print_show_preset(name: &str) -> Result<(), String> {
 /// Print all available presets with one-line descriptions.
 pub fn print_list_presets() {
     if color_enabled_stdout() {
-        println!("\x1b[1;36mAVAILABLE PRESETS:\x1b[0m");
+        println!("\x1b[1;35mAVAILABLE PRESETS:\x1b[0m");
     } else {
         println!("AVAILABLE PRESETS:");
     }

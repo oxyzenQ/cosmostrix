@@ -8,6 +8,7 @@ pkgbase = cosmostrix-bin
         license = GPL3
         depends = glibc
         depends = gcc-libs
+        depends = curl
         provides = cosmostrix
         conflicts = cosmostrix
         conflicts = cosmostrix-git

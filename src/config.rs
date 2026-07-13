@@ -43,6 +43,7 @@ pub(crate) fn colorize_help_detail(text: &str) -> String {
             !line.starts_with(' ') && line.ends_with(':') && line == line.to_ascii_uppercase();
 
         if is_heading {
+            // Bold magenta (purple) for section headings
             out.push_str("\x1b[1;35m");
             out.push_str(line);
             out.push_str("\x1b[0m");
@@ -51,21 +52,24 @@ pub(crate) fn colorize_help_detail(text: &str) -> String {
         }
 
         if let Some(rest) = line.strip_prefix("      Example:") {
-            out.push_str("      \x1b[32mExample:\x1b[0m");
+            // Bold white for "Example:" labels
+            out.push_str("      \x1b[1mExample:\x1b[0m");
             out.push_str(rest);
             out.push_str(nl);
             continue;
         }
 
         if let Some(rest) = line.strip_prefix("  cosmostrix") {
-            out.push_str("  \x1b[1;34mcosmostrix\x1b[0m");
+            // Bold white for command examples
+            out.push_str("  \x1b[1mcosmostrix\x1b[0m");
             out.push_str(rest);
             out.push_str(nl);
             continue;
         }
 
         if let Some(rest) = line.strip_prefix("  -") {
-            out.push_str("  \x1b[33m-");
+            // Bold white for short flags (-c, -S, etc.)
+            out.push_str("  \x1b[1m-");
             out.push_str(rest);
             out.push_str("\x1b[0m");
             out.push_str(nl);
@@ -73,7 +77,8 @@ pub(crate) fn colorize_help_detail(text: &str) -> String {
         }
 
         if let Some(rest) = line.strip_prefix("  --") {
-            out.push_str("  \x1b[33m--");
+            // Bold white for long flags (--color, --fps, etc.)
+            out.push_str("  \x1b[1m--");
             out.push_str(rest);
             out.push_str("\x1b[0m");
             out.push_str(nl);
@@ -770,7 +775,7 @@ pub struct Args {
 
 pub fn print_list_charsets() {
     if color_enabled_stdout() {
-        println!("\x1b[1;36mAVAILABLE CHARSET PRESETS:\x1b[0m");
+        println!("\x1b[1;35mAVAILABLE CHARSET PRESETS:\x1b[0m");
     } else {
         println!("AVAILABLE CHARSET PRESETS:");
     }
@@ -805,7 +810,7 @@ pub fn print_list_charsets() {
 
 pub fn print_list_colors() {
     if color_enabled_stdout() {
-        println!("\x1b[1;36mAVAILABLE COLOR THEMES:\x1b[0m");
+        println!("\x1b[1;35mAVAILABLE COLOR THEMES:\x1b[0m");
     } else {
         println!("AVAILABLE COLOR THEMES:");
     }
@@ -820,7 +825,7 @@ pub fn print_list_colors() {
 
 pub fn print_list_colors_detail() {
     if color_enabled_stdout() {
-        println!("\x1b[1;36mCOLOR THEME CATALOG:\x1b[0m");
+        println!("\x1b[1;35mCOLOR THEME CATALOG:\x1b[0m");
     } else {
         println!("COLOR THEME CATALOG:");
     }
@@ -832,7 +837,7 @@ pub fn print_list_colors_detail() {
 
 pub fn print_list_scenes() {
     if color_enabled_stdout() {
-        println!("\x1b[1;36mAVAILABLE SCENES:\x1b[0m");
+        println!("\x1b[1;35mAVAILABLE SCENES:\x1b[0m");
     } else {
         println!("AVAILABLE SCENES:");
     }
