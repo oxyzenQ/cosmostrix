@@ -34,6 +34,7 @@ use crate::preset::{get_preset, validate_preset_name};
 use crate::profile::{apply_profile_layer, collect_profiles, validate_profile_name};
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
+use crate::scene_custom::apply_scene_custom_layer;
 use crate::validation::{
     parse_canonical_f32_range, parse_canonical_f64_range, parse_canonical_speed,
     parse_canonical_u8_range,
@@ -162,6 +163,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
     let preset_is_cli = is_explicit(matches, "preset");
     let scene_is_cli = is_explicit(matches, "scene");
     let profile_is_cli = is_explicit(matches, "profile");
+    let scene_custom_is_cli = is_explicit(matches, "scene_custom");
     let scene_is_default = args.scene.is_none();
     if scene_is_default {
         args.scene = Some(DEFAULT_SCENE.to_string());
@@ -186,6 +188,17 @@ pub(crate) fn apply_config_and_runtime_defaults(
             )?);
         }
     }
+    if !scene_custom_is_cli {
+        if let Some(scene_custom_name) = args.scene_custom.clone() {
+            curated_modified.extend(apply_scene_custom_layer(
+                matches,
+                args,
+                &cfg,
+                &scene_custom_name,
+                false,
+            )?);
+        }
+    }
     if preset_is_cli {
         curated_modified.extend(apply_preset_values(matches, args)?);
     }
@@ -199,6 +212,17 @@ pub(crate) fn apply_config_and_runtime_defaults(
                 args,
                 &profiles,
                 &profile_name,
+                true,
+            )?);
+        }
+    }
+    if scene_custom_is_cli {
+        if let Some(scene_custom_name) = args.scene_custom.clone() {
+            curated_modified.extend(apply_scene_custom_layer(
+                matches,
+                args,
+                &cfg,
+                &scene_custom_name,
                 true,
             )?);
         }
@@ -292,6 +316,20 @@ fn apply_config_values(
             Err(e) => {
                 crate::output::eprintln_error_labeled(&format!(
                     "unknown profile '{v}' ({e}; see --list-profiles)"
+                ));
+            }
+        }
+    }
+
+    if let Some(v) = config_value(matches, cfg, "scene_custom", "scene-custom") {
+        match crate::scene_custom::validate_custom_scene_name(&v) {
+            Ok(name) => {
+                args.scene_custom = Some(name);
+                config_touched.insert("scene_custom");
+            }
+            Err(e) => {
+                crate::output::eprintln_error_labeled(&format!(
+                    "unknown custom scene '{v}' ({e}; see --list-scenes)"
                 ));
             }
         }

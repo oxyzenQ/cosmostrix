@@ -553,7 +553,7 @@ fn profile_name_list(profiles: &BTreeMap<String, UserProfile>) -> String {
     }
 }
 
-fn is_valid_profile_name(name: &str) -> bool {
+pub(crate) fn is_valid_profile_name(name: &str) -> bool {
     !name.is_empty()
         && name
             .bytes()

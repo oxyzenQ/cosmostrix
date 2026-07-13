@@ -321,6 +321,15 @@ pub struct Args {
     )]
     pub profile: Option<String>,
 
+    #[arg(
+        long = "scene-custom",
+        value_name = "NAME",
+        help_heading = "COMMON OPTIONS",
+        display_order = 98,
+        help = "Apply a user-defined custom scene from config (see --list-scenes)"
+    )]
+    pub scene_custom: Option<String>,
+
     // === CONFIG (visible in --help) ===
     #[arg(
         long = "config",

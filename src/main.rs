@@ -122,6 +122,7 @@ mod report;
 mod runtime;
 mod safepath;
 mod scene;
+mod scene_custom;
 mod sgr_format;
 mod termdetect;
 mod terminal;

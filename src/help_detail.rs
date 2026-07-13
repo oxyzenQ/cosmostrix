@@ -110,6 +110,16 @@ COMMON OPTIONS:
       Explicit CLI flags always override profile values.
       cosmostrix --profile nightcore
 
+  --scene-custom <name>
+      Apply a user-defined custom scene from config. Custom scenes use
+      the [scene-custom.<name>] namespace and are the modern replacement
+      for --profile. If --scene-custom references a name that only exists
+      as [profile.<name>], the profile is loaded with a deprecation
+      warning guiding migration to [scene-custom.<name>].
+      Explicit CLI flags always override custom-scene values.
+      cosmostrix --scene-custom hacker-mode
+      cosmostrix --scene-custom nightcore --fps 60
+
 CONFIG:
   --config <path>
       Load config from an explicit path instead of the default

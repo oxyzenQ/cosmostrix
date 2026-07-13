@@ -27,11 +27,13 @@ use std::path::{Path, PathBuf};
 
 use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
 use crate::profile::is_profile_config_key;
+use crate::scene_custom::is_scene_custom_config_key;
 
 pub const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
     "preset",
     "profile",
+    "scene-custom",
     "color",
     "charset",
     "fps",
@@ -54,6 +56,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
 pub const LEGACY_CONFIG_KEYS: &[&str] = &["glitchpct", "shortpct", "rippct", "maxdpc"];
 
 const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
+const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParsedConfig {
@@ -247,6 +250,15 @@ pub fn dump_config_text() -> &'static str {
 # See: cosmostrix --list-profiles
 # profile = nightcore
 
+# ── Scene-Custom (optional, preferred over profile) ──────────────────────────
+# User-defined custom scene to apply by default. Custom scenes use the
+# [scene-custom.<name>] config namespace and are invoked via --scene-custom.
+# They are the modern replacement for --profile; --profile remains available
+# for backward compatibility and is loaded with a deprecation warning when
+# --scene-custom references a name that only exists as a [profile.<name>].
+# See: cosmostrix --list-scenes (lists built-in and custom scenes together)
+# scene-custom = nightcore
+
 # ── Appearance ───────────────────────────────────────────────────────────────
 # Color scheme (palette). See: cosmostrix --list-colors
 # color = cosmos
@@ -336,6 +348,17 @@ pub fn dump_config_text() -> &'static str {
 # profile.nightcore.density = 0.70
 # profile.nightcore.glitch-level = subtle
 # profile.nightcore.monolith-size = large
+
+# ── Custom Scene Config (preferred over profile) ─────────────────────────────
+# Define named custom scenes and load with: cosmostrix --scene-custom <name>
+# Fields are identical to [profile.<name>] — migration is a prefix rename.
+# Custom scenes are listed alongside built-in scenes in --list-scenes output.
+# scene-custom.hacker-mode.base = storm
+# scene-custom.hacker-mode.color = green
+# scene-custom.hacker-mode.charset = hacker
+# scene-custom.hacker-mode.speed = 24
+# scene-custom.hacker-mode.density = 1.2
+# scene-custom.hacker-mode.glitch-level = intense
 "#
 }
 
@@ -345,6 +368,7 @@ pub fn known_keys() -> Vec<&'static str> {
         .iter()
         .chain(LEGACY_CONFIG_KEYS.iter())
         .chain(std::iter::once(&PROFILE_CONFIG_KEY_HINT))
+        .chain(std::iter::once(&SCENE_CUSTOM_CONFIG_KEY_HINT))
         .copied()
         .collect()
 }
@@ -354,6 +378,7 @@ fn is_known_key(key: &str) -> bool {
     USER_CONFIG_KEYS.contains(&key)
         || LEGACY_CONFIG_KEYS.contains(&key)
         || is_profile_config_key(key)
+        || is_scene_custom_config_key(key)
 }
 
 #[inline]
