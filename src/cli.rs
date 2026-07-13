@@ -40,9 +40,9 @@ use clap::builder::Styles as ClapStyles;
 #[must_use]
 #[cfg(unix)]
 pub(crate) fn clap_styles() -> ClapStyles {
-    // Purple brand identity: headers and usage in magenta (closest ANSI
-    // to #A855F7 purple). Literals stay yellow for contrast. Placeholders
-    // use cyan for readability against purple headers.
+    // Purple brand identity: headers and usage in bold magenta (closest
+    // ANSI to #A855F7 purple). Literals and placeholders use default
+    // terminal color (white) — no yellow, cyan, or green.
     ClapStyles::styled()
         .header(
             ClapStyle::new()
@@ -54,8 +54,8 @@ pub(crate) fn clap_styles() -> ClapStyles {
                 .effects(ClapEffects::BOLD)
                 .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Magenta))),
         )
-        .literal(ClapStyle::new().fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Yellow))))
-        .placeholder(ClapStyle::new().fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Cyan))))
+        .literal(ClapStyle::new().effects(ClapEffects::BOLD))
+        .placeholder(ClapStyle::new())
 }
 
 // --- Charset helpers ---
