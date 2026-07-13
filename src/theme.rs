@@ -13,6 +13,7 @@ use std::sync::LazyLock;
 use crate::runtime::ColorScheme;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(dead_code)] // category label used by detail_list_text (test-only in v14)
 pub enum ThemeCategory {
     Classic,
     Primary,
@@ -39,6 +40,7 @@ impl ThemeCategory {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[allow(dead_code)] // category/description fields used by detail_list_text (test-only in v14)
 pub struct ThemeInfo {
     pub name: &'static str,
     pub scheme: ColorScheme,
@@ -49,6 +51,7 @@ pub struct ThemeInfo {
 
 pub const THEME_COUNT: usize = 43;
 
+#[allow(dead_code)] // used by detail_list_text (test-only in v14)
 pub const THEME_CATEGORIES: &[ThemeCategory] = &[
     ThemeCategory::Classic,
     ThemeCategory::Primary,
@@ -448,6 +451,7 @@ pub fn compact_list_text() -> String {
 }
 
 #[must_use]
+#[allow(dead_code)] // retained for future use; --list-colors-detail removed in v14
 pub fn detail_list_text() -> String {
     let mut out = String::new();
     for category in THEME_CATEGORIES {

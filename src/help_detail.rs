@@ -10,8 +10,7 @@ pub fn print_help_detail() {
 
 COMMON OPTIONS:
   -c, --color <name>
-      Color theme. See --list-colors for compact names, or
-      --list-colors-detail for grouped descriptions and aliases.
+      Color theme. See --list-colors for available names.
       cosmostrix --color rainbow
 
   --color-tune <key=value[,key=value]>
@@ -161,9 +160,6 @@ GENERAL:
   --duration <seconds>
       Auto-stop after N seconds (0.1-86400).
 
-  --perf-stats
-      Print performance summary on exit.
-
 DIAGNOSTICS:
   --doctor       System compatibility report.
   --benchmark    Renderer benchmark (5 seconds default; override with --bench-duration).
@@ -188,13 +184,11 @@ DIAGNOSTICS:
       Example: cosmostrix --completions bash > /etc/bash_completion.d/cosmostrix
 
 DISCOVERY:
-  --list-colors         Show compact color theme names.
+  --list-colors         Show color theme names.
                         There are 43 built-in themes.
-  --list-colors-detail  Show grouped theme descriptions and aliases.
   --list-charsets       Show available charset presets.
   --list-scenes         Show built-in and custom scenes (from config).
   --show-scene <NAME>   Show full details for a built-in or custom scene.
-  --defaults            Show the default runtime profile.
 
 RUNTIME CONTROLS:
   q / Esc       Quit              p          Pause / resume

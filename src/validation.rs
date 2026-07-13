@@ -27,12 +27,24 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "error: --list-profiles has been removed in v14.0.0.\n  Use --list-scenes to see all built-in and custom scenes.",
     ),
     (
+        "--list-colors-detail",
+        "error: --list-colors-detail has been removed in v14.0.0.\n  Use --list-colors to see all color themes.",
+    ),
+    (
         "--show-preset",
         "error: --show-preset has been removed in v14.0.0.\n  Use --show-scene <name> to preview a built-in or custom scene.",
     ),
     (
         "--dump-profile",
         "error: --dump-profile has been removed in v14.0.0.\n  Use --show-scene <name> to display a custom scene's configuration.",
+    ),
+    (
+        "--tune-visual",
+        "error: --tune-visual has been removed in v14.0.0.\n  Use --benchmark for performance measurement.",
+    ),
+    (
+        "--defaults",
+        "error: --defaults has been removed in v14.0.0.\n  Use --dump-config to see the default configuration template.",
     ),
     (
         "--low-power",

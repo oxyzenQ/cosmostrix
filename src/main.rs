@@ -77,7 +77,6 @@ mod bench_report;
 #[cfg(test)]
 mod bench_report_tests;
 mod bench_scale;
-mod bench_tune;
 mod bench_visual;
 mod cell;
 mod charset;
@@ -143,8 +142,8 @@ use clap::{CommandFactory, FromArgMatches};
 
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
 use crate::config::{
-    color_enabled_stdout, print_defaults, print_list_charsets, print_list_colors,
-    print_list_colors_detail, print_list_scenes, print_show_scene, Args, ColorBg,
+    color_enabled_stdout, print_list_charsets, print_list_colors, print_list_scenes,
+    print_show_scene, Args, ColorBg,
 };
 use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
@@ -390,16 +389,6 @@ fn main() -> std::io::Result<()> {
 
     if args.list_colors {
         print_list_colors();
-        return Ok(());
-    }
-
-    if args.list_colors_detail {
-        print_list_colors_detail();
-        return Ok(());
-    }
-
-    if args.defaults {
-        print_defaults();
         return Ok(());
     }
 
@@ -920,13 +909,6 @@ fn main() -> std::io::Result<()> {
         atmosphere_modulation,
         atmosphere_mode,
     };
-
-    if let Some(ref tune_str) = args.tune_visual {
-        let target = crate::ux::or_exit(crate::bench_tune::parse_tune_target(tune_str));
-        let duration = resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
-        crate::bench_tune::auto_tune(&cloud_cfg, &target, duration)?;
-        return Ok(());
-    }
 
     if args.bench_all {
         let duration = resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);

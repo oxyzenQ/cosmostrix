@@ -427,16 +427,6 @@ pub struct Args {
     pub bench_all: bool,
 
     #[arg(
-        long = "tune-visual",
-        help_heading = "DIAGNOSTICS",
-        display_order = 118,
-        help = "Auto-tune parameters to match target visual metrics. \
-                Format: entropy=5.2,gini=0.6. Runs iterative benchmark to find \
-                best density/glitch combination. Prints recommended config."
-    )]
-    pub tune_visual: Option<String>,
-
-    #[arg(
         long = "info",
         short = 'i',
         help_heading = "DIAGNOSTICS",
@@ -463,28 +453,12 @@ pub struct Args {
     pub list_colors: bool,
 
     #[arg(
-        long = "list-colors-detail",
-        help_heading = "DISCOVERY",
-        display_order = 205,
-        help = "Show grouped color themes with descriptions and aliases"
-    )]
-    pub list_colors_detail: bool,
-
-    #[arg(
         long = "list-charsets",
         help_heading = "DISCOVERY",
         display_order = 210,
         help = "Show available charset presets"
     )]
     pub list_charsets: bool,
-
-    #[arg(
-        long = "defaults",
-        help_heading = "DISCOVERY",
-        display_order = 220,
-        help = "Show the default runtime profile"
-    )]
-    pub defaults: bool,
 
     #[arg(
         long = "list-scenes",
@@ -778,21 +752,6 @@ pub fn print_list_colors() {
     println!();
     print!("{}", theme::compact_list_text());
     println!();
-    println!(
-        "{} built-in themes. Use --list-colors-detail for descriptions and aliases.",
-        theme::theme_count()
-    );
-}
-
-pub fn print_list_colors_detail() {
-    if color_enabled_stdout() {
-        println!("\x1b[1;35mCOLOR THEME CATALOG:\x1b[0m");
-    } else {
-        println!("COLOR THEME CATALOG:");
-    }
-    println!();
-
-    print!("{}", theme::detail_list_text());
     println!("{} built-in themes.", theme::theme_count());
 }
 
@@ -874,24 +833,6 @@ pub fn print_show_scene(
     Err(format!(
         "error: unknown scene '{name}'\n\n  Available: {list}\n  Use --list-scenes to see all scenes."
     ))
-}
-
-pub fn print_defaults() {
-    if color_enabled_stdout() {
-        println!("\x1b[1mCOSMOSTRIX DEFAULT PROFILE\x1b[0m");
-    } else {
-        println!("COSMOSTRIX DEFAULT PROFILE");
-    }
-    println!("{}", "\u{2500}".repeat(27));
-    println!("cosmostrix \\");
-    println!("  --scene monolith \\");
-    println!("  --fps 60 \\");
-    println!("  --speed 30 \\");
-    println!("  --density 0.85 \\");
-    println!("  --color cosmos \\");
-    println!("  --charset binary \\");
-    println!("  --glitch-level subtle \\");
-    println!("  --monolith-size normal");
 }
 
 // ---------------------------------------------------------------------------
