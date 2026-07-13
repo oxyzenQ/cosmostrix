@@ -29,10 +29,17 @@ use std::path::PathBuf;
 /// - Linux/macOS: `~/.config/cosmostrix/`, `.`, `/etc/cosmostrix/`, `/tmp/`
 /// - Windows: `%APPDATA%\cosmostrix\`, `.`, temp dir
 pub(crate) fn is_safe_path(path: &str) -> bool {
-    // --- Relative paths: current directory — always allowed ---
     let expanded = expand_tilde(path);
     let expanded_str = expanded.to_string_lossy();
 
+    // --- Security: reject unexpanded ~ paths (HOME not set) ---
+    // If ~/... couldn't be expanded (HOME unset), the literal "~/..." is
+    // NOT safe — it's a directory traversal attempt or missing env.
+    if expanded_str.starts_with("~/") || expanded_str == "~" {
+        return false;
+    }
+
+    // --- Relative paths: current directory — always allowed ---
     if !expanded_str.starts_with('/') && !expanded_str.contains('\\') {
         return true;
     }
@@ -89,9 +96,25 @@ fn expand_tilde(path: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
 
-    fn set_test_env() {
-        std::env::set_var("HOME", "/home/testuser");
+    /// Mutex to serialize tests that mutate HOME env var.
+    /// Without this, parallel tests race on the global env state.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn with_test_home<F: FnOnce()>(home: &str, f: F) {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let old_home = std::env::var("HOME").ok();
+        std::env::set_var("HOME", home);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+        // Restore old HOME
+        match old_home {
+            Some(h) => std::env::set_var("HOME", h),
+            None => std::env::remove_var("HOME"),
+        }
+        if let Err(e) = result {
+            std::panic::resume_unwind(e);
+        }
     }
 
     // --- Allowed: relative paths (current directory) ---
@@ -107,12 +130,13 @@ mod tests {
 
     #[test]
     fn cosmostrix_config_dir_is_safe() {
-        set_test_env();
-        assert!(is_safe_path("~/.config/cosmostrix/config.toml"));
-        assert!(is_safe_path(
-            "/home/testuser/.config/cosmostrix/my-chars.txt"
-        ));
-        assert!(is_safe_path("~/.config/cosmostrix/profiles/nightcore.toml"));
+        with_test_home("/home/testuser", || {
+            assert!(is_safe_path("~/.config/cosmostrix/config.toml"));
+            assert!(is_safe_path(
+                "/home/testuser/.config/cosmostrix/my-chars.txt"
+            ));
+            assert!(is_safe_path("~/.config/cosmostrix/profiles/nightcore.toml"));
+        });
     }
 
     // --- Allowed: /etc/cosmostrix/ ---
@@ -135,24 +159,27 @@ mod tests {
 
     #[test]
     fn home_root_rejected() {
-        set_test_env();
-        assert!(!is_safe_path("~"));
-        assert!(!is_safe_path("/home/testuser"));
-        assert!(!is_safe_path("/home/testuser/chars.txt"));
-        assert!(!is_safe_path("~/Documents/chars.txt"));
+        with_test_home("/home/testuser", || {
+            assert!(!is_safe_path("~"));
+            assert!(!is_safe_path("/home/testuser"));
+            assert!(!is_safe_path("/home/testuser/chars.txt"));
+            assert!(!is_safe_path("~/Documents/chars.txt"));
+        });
     }
 
     #[test]
     fn ssh_dir_rejected() {
-        set_test_env();
-        assert!(!is_safe_path("~/.ssh/id_rsa"));
-        assert!(!is_safe_path("/home/testuser/.ssh/config"));
+        with_test_home("/home/testuser", || {
+            assert!(!is_safe_path("~/.ssh/id_rsa"));
+            assert!(!is_safe_path("/home/testuser/.ssh/config"));
+        });
     }
 
     #[test]
     fn aws_creds_rejected() {
-        set_test_env();
-        assert!(!is_safe_path("~/.aws/credentials"));
+        with_test_home("/home/testuser", || {
+            assert!(!is_safe_path("~/.aws/credentials"));
+        });
     }
 
     #[test]
@@ -167,11 +194,12 @@ mod tests {
 
     #[test]
     fn shell_config_rejected() {
-        set_test_env();
-        assert!(!is_safe_path("~/.bashrc"));
-        assert!(!is_safe_path("~/.bash_history"));
-        assert!(!is_safe_path("~/.netrc"));
-        assert!(!is_safe_path("~/.env"));
+        with_test_home("/home/testuser", || {
+            assert!(!is_safe_path("~/.bashrc"));
+            assert!(!is_safe_path("~/.bash_history"));
+            assert!(!is_safe_path("~/.netrc"));
+            assert!(!is_safe_path("~/.env"));
+        });
     }
 
     #[test]
@@ -185,5 +213,20 @@ mod tests {
     fn etc_non_cosmostrix_rejected() {
         assert!(!is_safe_path("/etc/passwd"));
         assert!(!is_safe_path("/etc/nginx/nginx.conf"));
+    }
+
+    // --- Security: unexpanded ~ when HOME is unset ---
+
+    #[test]
+    fn unexpanded_tilde_rejected_when_home_unset() {
+        with_test_home("", || {
+            std::env::remove_var("HOME");
+            // When HOME is unset, ~/... cannot expand. The literal "~/..."
+            // must NOT be treated as a relative safe path.
+            assert!(!is_safe_path("~/.ssh/id_rsa"), "unexpanded ~/ must be rejected");
+            assert!(!is_safe_path("~/.aws/credentials"), "unexpanded ~/ must be rejected");
+            assert!(!is_safe_path("~/.bashrc"), "unexpanded ~/ must be rejected");
+            assert!(!is_safe_path("~"), "unexpanded ~ must be rejected");
+        });
     }
 }
