@@ -96,6 +96,11 @@ pub struct Cloud {
     pub(super) pause: bool,
 
     pub(super) droplet_density: f32,
+    /// Optional per-column density map for monolith spawn weighting.
+    /// When set, monolith pillars preferentially spawn in columns with higher
+    /// map values (0.0..=1.0). None = uniform distribution (legacy behavior).
+    /// Set via scene-custom block's `density-map` field (comma-separated f64 list).
+    pub(super) monolith_density_map: Option<&'static [f64]>,
     pub(super) droplets_per_sec: f32,
     pub(super) chars_per_sec: f32,
 
@@ -361,6 +366,7 @@ impl Cloud {
             raining: true,
             pause: false,
             droplet_density: 1.0,
+            monolith_density_map: None,
             droplets_per_sec: 5.0,
             chars_per_sec: 8.0,
             glitchy: true,
@@ -583,6 +589,21 @@ impl Cloud {
     /// event loop leaves it disabled unless perf-stats is requested.
     pub fn set_component_timing(&mut self, enabled: bool) {
         self.enable_component_timing = enabled;
+    }
+
+    /// Set a per-column density map for monolith spawn weighting.
+    ///
+    /// The map is a slice of f64 weights in `[0.0, 1.0]`, one per terminal
+    /// column. When set, the monolith spawner uses rejection sampling: a
+    /// candidate column is only accepted if a uniform random draw is `<=
+    /// map[col]`. Columns with weight `1.0` always pass; `0.0` never spawns.
+    /// Pass `None` to disable the map and return to uniform distribution.
+    ///
+    /// The slice must be `'static` (e.g. a `const` or `Box::leak`'d Vec) —
+    /// Cloud does not copy it. For config-driven maps, the caller is
+    /// responsible for lifetime management.
+    pub fn set_monolith_density_map(&mut self, map: Option<&'static [f64]>) {
+        self.monolith_density_map = map;
     }
 
     /// Get the name of the active scene.

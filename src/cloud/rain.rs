@@ -157,6 +157,7 @@ impl Cloud {
                 spawn_scale,
                 mouse_enabled: self.mouse_enabled,
                 mouse_col: self.mouse_col,
+                density_map: self.monolith_density_map,
             };
             let mut random = MonolithRandom {
                 rng: &mut self.mt,

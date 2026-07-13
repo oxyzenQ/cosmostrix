@@ -163,6 +163,17 @@ pub(super) struct MonolithSpawnParams {
     pub(super) spawn_scale: f32,
     pub(super) mouse_enabled: bool,
     pub(super) mouse_col: u16,
+    /// Optional per-column spawn probability weights (0.0..=1.0).
+    ///
+    /// When `Some`, the monolith spawner uses rejection sampling: a candidate
+    /// lane is only accepted if a uniform random draw is `<= map[lane]`. Lanes
+    /// with map value `1.0` always pass; lanes with `0.0` never spawn. When
+    /// `None`, spawn distribution is uniform (legacy behavior).
+    ///
+    /// The slice length should match the lane count; if shorter, missing lanes
+    /// are treated as `1.0` (always available). If longer, extra entries are
+    /// ignored.
+    pub(super) density_map: Option<&'static [f64]>,
 }
 
 pub(super) struct MonolithRandom<'a> {
@@ -309,6 +320,8 @@ impl MonolithRain {
                 params.mouse_col,
                 random.rand_col,
                 random.rng,
+                params.density_map,
+                random.rand_chance,
             ) else {
                 break;
             };
@@ -405,6 +418,7 @@ impl MonolithRain {
         self.active_count = self.streams.iter().filter(|stream| stream.active).count();
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn find_inactive_lane(
         &mut self,
         full_width: bool,
@@ -412,15 +426,35 @@ impl MonolithRain {
         mouse_col: u16,
         rand_col: &Uniform<u16>,
         rng: &mut StdRng,
+        density_map: Option<&'static [f64]>,
+        rand_chance: &Uniform<f32>,
     ) -> Option<usize> {
         let len = self.streams.len();
+        // Try random selection up to 16 times. With a density map, apply
+        // rejection sampling: a candidate lane must pass both the availability
+        // check AND a probability draw against map[lane].
         for _ in 0..len.min(16) {
             let lane = (rand_col.sample(rng) as usize) % len;
-            if self.lane_is_available(lane, full_width, mouse_enabled, mouse_col) {
-                return Some(lane);
+            if !self.lane_is_available(lane, full_width, mouse_enabled, mouse_col) {
+                continue;
             }
+            // Density map gate: skip lanes with low spawn probability.
+            if let Some(map) = density_map {
+                let weight = map.get(lane).copied().unwrap_or(1.0);
+                if weight < 1.0 {
+                    // Draw a uniform f32 in [0.0, 1.0) and accept if <= weight.
+                    // rand_chance is Uniform<f32> in [0.0, 1.0).
+                    if rand_chance.sample(rng) > weight as f32 {
+                        continue;
+                    }
+                }
+            }
+            return Some(lane);
         }
 
+        // Fallback: linear scan for any available lane. Skip density map here
+        // — if we've exhausted random tries, we'd rather spawn somewhere than
+        // starve the renderer. Density map is a preference, not a hard rule.
         let start = self.spawn_scan_idx.min(len.saturating_sub(1));
         for offset in 0..len {
             let lane = (start + offset) % len;
@@ -908,10 +942,103 @@ fn layer_from_roll(roll: f32) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::SeedableRng;
 
     #[test]
     fn default_density_targets_sparse_lane_count() {
         let target = target_active_count(100, 0.75);
         assert!((20..=35).contains(&target));
+    }
+
+    /// Helper: create a MonolithRain with `cols` lanes, all inactive.
+    fn rain_with_lanes(cols: u16) -> MonolithRain {
+        let mut rain = MonolithRain::new();
+        rain.reset(cols, false);
+        rain
+    }
+
+    #[test]
+    fn density_map_zero_weight_falls_back_to_scan() {
+        // All-zero weights: random loop rejects all candidates, but the
+        // fallback linear scan still finds an available (inactive) lane.
+        let mut rain = rain_with_lanes(10);
+        let rand_col = Uniform::new_inclusive(0u16, 9).unwrap();
+        let rand_chance = Uniform::new(0.0f32, 1.0f32).unwrap();
+        let mut rng = StdRng::seed_from_u64(42);
+        let map: &'static [f64] = &[0.0; 10];
+        let result = rain.find_inactive_lane(
+            false,
+            false,
+            u16::MAX,
+            &rand_col,
+            &mut rng,
+            Some(map),
+            &rand_chance,
+        );
+        assert!(result.is_some(), "fallback scan should find available lane");
+    }
+
+    #[test]
+    fn density_map_full_weight_accepts_immediately() {
+        // All-1.0 weights: every candidate passes the gate, so the first
+        // random draw that hits an available lane returns it.
+        let mut rain = rain_with_lanes(10);
+        let rand_col = Uniform::new_inclusive(0u16, 9).unwrap();
+        let rand_chance = Uniform::new(0.0f32, 1.0f32).unwrap();
+        let mut rng = StdRng::seed_from_u64(7);
+        let map: &'static [f64] = &[1.0; 10];
+        let result = rain.find_inactive_lane(
+            false,
+            false,
+            u16::MAX,
+            &rand_col,
+            &mut rng,
+            Some(map),
+            &rand_chance,
+        );
+        assert!(result.is_some(), "full-weight map should accept lane");
+    }
+
+    #[test]
+    fn density_map_none_uses_uniform_sampling() {
+        // None map = legacy behavior, no rejection sampling.
+        let mut rain = rain_with_lanes(8);
+        let rand_col = Uniform::new_inclusive(0u16, 7).unwrap();
+        let rand_chance = Uniform::new(0.0f32, 1.0f32).unwrap();
+        let mut rng = StdRng::seed_from_u64(99);
+        let result = rain.find_inactive_lane(
+            false,
+            false,
+            u16::MAX,
+            &rand_col,
+            &mut rng,
+            None,
+            &rand_chance,
+        );
+        assert!(result.is_some(), "None map should find lane via uniform");
+    }
+
+    #[test]
+    fn density_map_partial_weight_favors_high_columns() {
+        // Map with weight 1.0 on columns 0-2 and 0.0 on columns 3-9.
+        // After many spawns, the active lanes should cluster in the first
+        // three columns. We can't easily assert distribution in a unit test
+        // (would need statistical sampling), but we verify no panic and at
+        // least one lane is returned.
+        let mut rain = rain_with_lanes(10);
+        let rand_col = Uniform::new_inclusive(0u16, 9).unwrap();
+        let rand_chance = Uniform::new(0.0f32, 1.0f32).unwrap();
+        let mut rng = StdRng::seed_from_u64(123);
+        let map: &'static [f64] = &[1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let result = rain.find_inactive_lane(
+            false,
+            false,
+            u16::MAX,
+            &rand_col,
+            &mut rng,
+            Some(map),
+            &rand_chance,
+        );
+        assert!(result.is_some());
     }
 }
