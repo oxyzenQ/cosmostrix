@@ -33,7 +33,15 @@ Usage: $0 [--system|--user]
              The user-local config is NEVER overwritten. If it exists, the
              new template is installed as config.new for manual review.
 
-The build step (cargo build --release --locked) ALWAYS runs as the current user.
+CPU autodetect (Linux/x86-64 only):
+  The build step auto-detects the CPU microarchitecture and picks the
+  optimal cargo profile:
+    AVX-512 (x86-64-v4) → cargo pro-linux-v4 --locked
+    AVX2    (x86-64-v3) → cargo pro-linux-v3 --locked
+    baseline / non-x86  → cargo build --release --locked
+  No manual profile selection needed — just run: $0
+
+The build step ALWAYS runs as the current user (never as root).
 EOF
 }
 
@@ -132,10 +140,52 @@ preserve_or_clean_user_config() {
     fi
 }
 
-echo ">> [1/5] Building ${PROJECT_NAME} (release, locked)"
-cargo build --release --locked
+echo ">> [1/5] Building ${PROJECT_NAME} (autodetect CPU, locked)"
 
-BINARY="target/release/${PROJECT_NAME}"
+# Detect CPU microarchitecture level and pick the optimal build profile.
+# x86-64-v4 (AVX-512) > x86-64-v3 (AVX2) > native release.
+# Falls back to plain 'cargo build --release' on non-x86 or older CPUs.
+detect_build_profile() {
+    local arch
+    arch="$(uname -m 2>/dev/null || echo unknown)"
+
+    if [[ "${arch}" != "x86_64" && "${arch}" != "amd64" ]]; then
+        echo "release"
+        return
+    fi
+
+    # Check /proc/cpuinfo for AVX-512 (v4) then AVX2 (v3).
+    local cpuinfo
+    cpuinfo="$(grep -m1 '^flags' /proc/cpuinfo 2>/dev/null || true)"
+
+    if echo "${cpuinfo}" | grep -qw avx512f; then
+        echo "pro-linux-v4"
+    elif echo "${cpuinfo}" | grep -qw avx2; then
+        echo "pro-linux-v3"
+    else
+        echo "release"
+    fi
+}
+
+BUILD_PROFILE="$(detect_build_profile)"
+case "${BUILD_PROFILE}" in
+    pro-linux-v4)
+        echo "   detected: x86-64-v4 (AVX-512) — using pro-linux-v4 profile"
+        cargo pro-linux-v4 --locked
+        BINARY="target/x86_64-unknown-linux-gnu/pro-linux-v4/${PROJECT_NAME}"
+        ;;
+    pro-linux-v3)
+        echo "   detected: x86-64-v3 (AVX2) — using pro-linux-v3 profile"
+        cargo pro-linux-v3 --locked
+        BINARY="target/x86_64-unknown-linux-gnu/pro-linux-v3/${PROJECT_NAME}"
+        ;;
+    *)
+        echo "   detected: baseline x86-64 or non-x86 — using release profile"
+        cargo build --release --locked
+        BINARY="target/release/${PROJECT_NAME}"
+        ;;
+esac
+
 if [[ ! -f "${BINARY}" ]]; then
     echo "error: build produced no binary at ${BINARY}" >&2
     exit 1
