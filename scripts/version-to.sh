@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# =============================================================================
+#
 # Cosmostrix Version Bump Helper
-# =============================================================================
+#
 # Updates all stable release version references consistently.
 #
 # Usage:
@@ -16,13 +16,13 @@
 #   - Does not commit, tag, or push automatically
 #   - Only edits version-related files
 #   - Stable SemVer only: X.Y.Z (no pre-release suffixes)
-# =============================================================================
+#
 
 set -euo pipefail
 
-# ---------------------------------------------------------------------------
+#
 # Constants
-# ---------------------------------------------------------------------------
+#
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -47,9 +47,9 @@ readonly WORKFLOW_FILES=(
     "${REPO_ROOT}/.github/workflows/ci.yml"
 )
 
-# ---------------------------------------------------------------------------
+#
 # Colors
-# ---------------------------------------------------------------------------
+#
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -61,9 +61,9 @@ log_ok()    { printf '%b[OK]%b %s\n'    "${GREEN}" "${NC}" "$*"; }
 log_warn()  { printf '%b[WARN]%b %s\n'  "${YELLOW}" "${NC}" "$*"; }
 log_err()   { printf '%b[ERROR]%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 
-# ---------------------------------------------------------------------------
+#
 # Usage
-# ---------------------------------------------------------------------------
+#
 show_help() {
     cat <<'HELP'
 Cosmostrix Version Bump Helper
@@ -111,9 +111,9 @@ NEXT STEPS AFTER BUMP:
 HELP
 }
 
-# ---------------------------------------------------------------------------
+#
 # Version validation
-# ---------------------------------------------------------------------------
+#
 validate_version() {
     local ver="$1"
 
@@ -145,9 +145,9 @@ validate_version() {
     fi
 }
 
-# ---------------------------------------------------------------------------
+#
 # Read current version from Cargo.toml
-# ---------------------------------------------------------------------------
+#
 read_current_version() {
     if [[ ! -f "${CARGO_TOML}" ]]; then
         log_err "Cargo.toml not found at ${CARGO_TOML}"
@@ -165,9 +165,9 @@ read_current_version() {
     echo "${ver}"
 }
 
-# ---------------------------------------------------------------------------
+#
 # Safety: check git working tree
-# ---------------------------------------------------------------------------
+#
 check_git_status() {
     if ! git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         log_warn "Not inside a git repository — skipping dirty check"
@@ -192,9 +192,9 @@ check_git_status() {
     fi
 }
 
-# ---------------------------------------------------------------------------
+#
 # Update Cargo.toml
-# ---------------------------------------------------------------------------
+#
 update_cargo_toml() {
     local old_ver="$1"
     local new_ver="$2"
@@ -216,9 +216,9 @@ update_cargo_toml() {
     log_ok "Cargo.toml updated: version = \"${new_ver}\""
 }
 
-# ---------------------------------------------------------------------------
+#
 # Update Cargo.lock
-# ---------------------------------------------------------------------------
+#
 update_cargo_lock() {
     local old_ver="$1"
     local new_ver="$2"
@@ -263,9 +263,9 @@ update_cargo_lock() {
     fi
 }
 
-# ---------------------------------------------------------------------------
+#
 # Generate .SRCINFO from PKGBUILD metadata
-# ---------------------------------------------------------------------------
+#
 generate_srcinfo_from_pkgbuild() {
     local pkgbuild_file="$1"
     local srcinfo_file="$2"
@@ -302,9 +302,9 @@ generate_srcinfo_from_pkgbuild() {
     ) > "${srcinfo_file}"
 }
 
-# ---------------------------------------------------------------------------
+#
 # Update PKGBUILD
-# ---------------------------------------------------------------------------
+#
 update_pkgbuild() {
     local old_ver="$1"
     local new_ver="$2"
@@ -351,9 +351,9 @@ update_pkgbuild() {
     fi
 }
 
-# ---------------------------------------------------------------------------
+#
 # Update docs/examples
-# ---------------------------------------------------------------------------
+#
 update_docs() {
     local old_ver="$1"
     local new_ver="$2"
@@ -404,9 +404,9 @@ update_docs() {
     done
 }
 
-# ---------------------------------------------------------------------------
+#
 # Audit workflow files for hardcoded versions
-# ---------------------------------------------------------------------------
+#
 audit_workflows() {
     local new_ver="$1"
 
@@ -440,9 +440,9 @@ audit_workflows() {
     log_ok "Workflow audit complete (workflows use dynamic version detection)"
 }
 
-# ---------------------------------------------------------------------------
+#
 # Verification
-# ---------------------------------------------------------------------------
+#
 verify_version() {
     local expected_ver="$1"
     local errors=0
@@ -541,9 +541,9 @@ verify_version() {
     fi
 }
 
-# ---------------------------------------------------------------------------
+#
 # Print summary
-# ---------------------------------------------------------------------------
+#
 print_summary() {
     local old_ver="$1"
     local new_ver="$2"
@@ -575,9 +575,9 @@ print_summary() {
     echo "=========================================="
 }
 
-# ---------------------------------------------------------------------------
+#
 # Main
-# ---------------------------------------------------------------------------
+#
 main() {
     local CHECK_MODE=0
     local ALLOW_DIRTY=0

@@ -299,9 +299,7 @@ fn monolith_background_muddy_residue_guard() {
     }
 }
 
-// ==========================================================================
 // v4.5.0 Phase 3 -- Monolith Depth Regression Lab
-// ==========================================================================
 
 #[test]
 fn depth_lab_monolith_sparse_lane_density_bounded_per_column() {

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# =============================================================================
+#
 # COSMOSTRIX eBPF PROFILER
-# =============================================================================
+#
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# =============================================================================
+#
 # Attaches uprobes to cosmostrix hot functions and reports timing.
 # Requires: bpftrace (pacman -S bpftrace / apt install bpftrace)
 # Requires: root (eBPF needs CAP_BPF)
@@ -20,7 +20,7 @@
 #
 # Run cosmostrix in another terminal while this runs. Press Ctrl-C to
 # stop and see the histograms.
-# =============================================================================
+#
 
 set -euo pipefail
 

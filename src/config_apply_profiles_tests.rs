@@ -182,9 +182,7 @@ fn default_plain_runtime_profile_remains_monolith() {
     assert_eq!(args.speed, 30.0);
 }
 
-// ---------------------------------------------------------------------------
 // Color precedence vs auto-drift clarity tests
-// ---------------------------------------------------------------------------
 
 #[test]
 fn config_color_overridden_by_config_preset_is_precedence_not_drift() {
@@ -255,9 +253,7 @@ fn cli_color_wins_over_config_preset_and_scene() {
     );
 }
 
-// ---------------------------------------------------------------------------
 // Phase 10.5: Profile atmosphere smoke hardening tests
-// ---------------------------------------------------------------------------
 
 fn atmosphere_config_profile(name: &str, mode: &str, regime: &str) -> String {
     format!(

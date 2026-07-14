@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# =============================================================================
+#
 # COSMOSTRIX SPDX HEADER CHECK
-# =============================================================================
+#
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# =============================================================================
+#
 # Scans all core/code/config/script files for required SPDX-License-Identifier
 # headers. Fails if any included file is missing the header or has the wrong
 # license identifier.
@@ -16,7 +16,7 @@
 # Excluded: target/, .git/, Cargo.lock, *.txt, assets/media binary files
 #
 # Usage: bash scripts/check-headers.sh
-# =============================================================================
+#
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

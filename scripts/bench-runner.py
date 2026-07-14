@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# =============================================================================
+#
 # COSMOSTRIX BENCH RUNNER — fair PTY measurement of a single tool
-# =============================================================================
+#
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# =============================================================================
+#
 # Spawns a tool inside a pseudo-terminal (PTY) so terminal-aware tools
 # (cosmostrix, neo-matrix, cxxmatrix) actually run their event loops
 # instead of exiting early on non-tty stdout.
@@ -25,7 +25,7 @@
 # Example:
 #   python3 bench-runner.py cosmostrix 30 ./target/release/cosmostrix
 #   python3 bench-runner.py cmatrix 30 cmatrix -s
-# =============================================================================
+#
 
 import os
 import pty

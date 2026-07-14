@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# =============================================================================
+#
 # COSMOSTRIX COMPETITOR BENCHMARK
-# =============================================================================
+#
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# =============================================================================
+#
 # Fair side-by-side comparison of cosmostrix vs up to 7 competitor matrix
 # rain tools (cmatrix, unimatrix, neo-matrix, tmatrix, gmatrix, fmatrix,
 # cxxmatrix).
@@ -40,7 +40,7 @@
 #   --profile NAME     Build profile (default: release)
 #   --debug            Show verbose debug output to stderr
 #   --help             Show this help
-# =============================================================================
+#
 
 set -euo pipefail
 

@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 #!/usr/bin/env bash
-# =============================================================================
+#
 # COSMOSTRIX ENDURANCE SUMMARY — SELF-TEST
-# =============================================================================
+#
 # Creates a temporary sample CSV with the extended header and a few rows,
 # runs the summary script, and asserts the output contains expected values.
 #
 # Usage: bash scripts/test-endurance-summary.sh
-# =============================================================================
+#
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

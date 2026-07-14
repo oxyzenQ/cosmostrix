@@ -61,9 +61,7 @@ pub(crate) fn has_dirty_cells(frame: &Frame) -> bool {
     frame.is_dirty_all() || !frame.dirty_indices().is_empty()
 }
 
-// ---------------------------------------------------------------------------
 // LOC guard — all scene split files must stay under 1000 LOC
-// ---------------------------------------------------------------------------
 
 /// All Rust source files must stay under 1000 LOC after the architecture split.
 #[test]
@@ -97,9 +95,7 @@ fn all_rust_files_under_loc_cap() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Phase 4 guards (preserved from original tests_scene.rs)
-// ---------------------------------------------------------------------------
 
 /// The monolith mod.rs facade must stay small (under 200 LOC).
 #[test]
@@ -183,9 +179,7 @@ fn phase4_no_monolith_coverage_category_removed() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Phase 5 guards — scene split integrity
-// ---------------------------------------------------------------------------
 
 /// The scene mod.rs facade must stay small (under 300 LOC).
 /// It contains shared helpers, the master LOC guard, Phase 4 preserved

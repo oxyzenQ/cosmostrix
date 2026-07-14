@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# =============================================================================
+#
 # COSMOSTRIX VERSION-ANTI-PATTERN GUARD
-# =============================================================================
+#
 # Fails if any source file re-introduces the hardcoded-version-string
 # anti-pattern that previously broke CI on every version bump.
 #
@@ -22,7 +22,7 @@
 # valid forever.
 #
 # Usage: bash scripts/check-version-anti-patterns.sh
-# =============================================================================
+#
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

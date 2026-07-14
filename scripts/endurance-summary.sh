@@ -2,9 +2,9 @@
 
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# =============================================================================
+#
 # COSMOSTRIX ENDURANCE SUMMARY
-# =============================================================================
+#
 # Reads a CSV resource log produced by the endurance sampling loop and prints
 # a summary table with memory growth, FD leak detection, CPU stats, I/O
 # deltas, and elapsed time.
@@ -15,7 +15,7 @@
 #
 # Columns are resolved by header name, not hardcoded positions.
 # Usage: scripts/endurance-summary.sh <csv_file> [csv_file ...]
-# =============================================================================
+#
 
 set -euo pipefail
 
@@ -418,13 +418,13 @@ for CSV_PATH in "${CSV_PATHS[@]}"; do
     # --- Print summary ---
 
     cat <<EOF
-================================================================================
+
   Cosmostrix Endurance Summary
-================================================================================
+
   Source:   ${CSV_PATH}
   Format:   ${FORMAT}
   Samples:  ${SAMPLE_COUNT} data rows
-================================================================================
+
 
   Elapsed Time
   ───────────────────────────────────────────

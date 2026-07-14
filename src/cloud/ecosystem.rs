@@ -13,9 +13,7 @@ use rand::{
 use crate::constants::*;
 use crate::runtime::ColorScheme;
 
-// ---------------------------------------------------------------------------
 // Autonomous cinematic ecosystem
-// ---------------------------------------------------------------------------
 
 /// Cinematic runtime behavior profiles — atmospheric identities that
 /// fundamentally alter how the renderer feels, moves, and breathes.

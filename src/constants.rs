@@ -6,9 +6,7 @@
 //! All magic numbers are extracted here to avoid duplication and
 //! provide a single source of truth for tuning parameters.
 
-// ---------------------------------------------------------------------------
 // Density & sizing
-// ---------------------------------------------------------------------------
 
 /// Default cols for density auto-calculation in bench mode.
 pub const DENSITY_AUTO_DEFAULT_COLS: u16 = 120;
@@ -49,9 +47,7 @@ pub const RUNTIME_SPEED_MAX: f32 = SPEED_MAX;
 /// Maximum effective Monolith speed, including CLI/config values.
 pub const MONOLITH_EFFECTIVE_SPEED_MAX: f32 = SPEED_MAX;
 
-// ---------------------------------------------------------------------------
 // Performance tuning (shared between interactive & cloud)
-// ---------------------------------------------------------------------------
 
 /// Pressure spawn scaling factor: reduces spawn rate under perf pressure.
 pub const PERF_PRESSURE_SPAWN_FACTOR: f32 = 0.75;
@@ -74,9 +70,7 @@ pub const PERF_PRESSURE_INCREMENT: f32 = 0.25;
 /// Performance pressure decay per normal frame.
 pub const PERF_PRESSURE_DECAY: f32 = 0.02;
 
-// ---------------------------------------------------------------------------
 // Cloud internals
-// ---------------------------------------------------------------------------
 
 /// Initial RNG seed.
 pub const RNG_INITIAL_SEED: u64 = 0x0123_4567;
@@ -103,9 +97,7 @@ pub const RNG_RESEED_INTERVAL_SECS: u64 = 600;
 /// within a few frames, undermining the head > body hierarchy.
 pub const HEAD_LINGER_BRIGHTNESS_MS: u64 = 300;
 
-// ---------------------------------------------------------------------------
 // Interactive mode tuning
-// ---------------------------------------------------------------------------
 
 /// Monotonic clock jump guard: skip frame if elapsed exceeds this.
 pub const CLOCK_JUMP_GUARD_SECS: f64 = 10.0;
@@ -136,9 +128,7 @@ pub const DENSITY_STEP: f32 = 0.25;
 /// Watchdog check interval in seconds.
 pub const WATCHDOG_INTERVAL_SECS: u64 = 5;
 
-// ---------------------------------------------------------------------------
 // Terminal / rendering
-// ---------------------------------------------------------------------------
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
 pub const DIRTY_THRESHOLD_RATIO: usize = 3;
@@ -185,9 +175,7 @@ pub const IDLE_FPS_FACTOR: f64 = 0.5;
 /// frame-count drift correction too sparse in real time.
 pub const IDLE_REDRAW_RESYNC_INTERVAL_SECS: f64 = 20.0;
 
-// ---------------------------------------------------------------------------
 // Benchmark
-// ---------------------------------------------------------------------------
 
 /// Minimum elapsed seconds denominator to avoid division by zero in bench.
 pub const BENCH_ELAPSED_MIN_S: f64 = 0.000_001;
@@ -199,9 +187,7 @@ pub const BENCH_ELAPSED_MIN_S: f64 = 0.000_001;
 ///   used for throughput reporting in the benchmark, not for frame pacing.
 pub const ANSI_BYTES_PER_CELL_ESTIMATE: u64 = 19;
 
-// ---------------------------------------------------------------------------
 // Config file
-// ---------------------------------------------------------------------------
 
 /// Config file directory name under XDG_CONFIG_HOME or ~/.config.
 pub const CONFIG_DIR_NAME: &str = "cosmostrix";
@@ -226,9 +212,7 @@ pub const DIRTY_CAPACITY_DIVISOR: usize = 8;
 /// Prevents wasting memory when terminal is very large.
 pub const DIRTY_CAPACITY_CAP: usize = 8192;
 
-// ---------------------------------------------------------------------------
 // Exponential trail fade & head bloom
-// ---------------------------------------------------------------------------
 
 /// Exponential decay rate for trail fading (higher = faster fade near head).
 /// Lowered from 3.0 to 1.8 for improved body glyph readability: at K=3.0,
@@ -289,9 +273,7 @@ pub const GLYPH_ENTRY_RAMP_MIN_SCALE: f32 = 0.25;
 /// bottom rows and creating permanent blocky residue.
 pub const ADVANCE_REMAINDER_CAP: f32 = 3.0;
 
-// ---------------------------------------------------------------------------
 // Cinematic color transition (generation-based palette propagation)
-// ---------------------------------------------------------------------------
 
 /// Maximum number of concurrent palette generations tracked simultaneously.
 /// Old palettes are kept alive until all droplets using them have died,
@@ -329,9 +311,7 @@ pub const TRANSITION_ENERGY_SATURATION_BOOST: f32 = 0.15;
 /// Makes the leading edge of the new color ecosystem feel more energetic.
 pub const TRANSITION_HEAD_GLOW_BOOST: f32 = 0.2;
 
-// ---------------------------------------------------------------------------
 // Gravity acceleration
-// ---------------------------------------------------------------------------
 
 /// Gravity acceleration for droplets (chars/s²).
 pub const DROPLET_GRAVITY: f32 = 2.0;
@@ -339,9 +319,7 @@ pub const DROPLET_GRAVITY: f32 = 2.0;
 /// Terminal velocity multiplier (fraction of chars_per_sec).
 pub const DROPLET_TERMINAL_VELOCITY_MULT: f32 = 1.8;
 
-// ---------------------------------------------------------------------------
 // Cinematic startup easing
-// ---------------------------------------------------------------------------
 
 /// Initial velocity as fraction of chars_per_sec when a stream is born.
 /// Much lower than the old 0.3 for a more gradual, organic appearance.
@@ -351,9 +329,7 @@ pub const STARTUP_VELOCITY_FRACTION: f32 = 0.05;
 /// Uses exponential ease: v = target × (1 - e^(-t/tau)).
 pub const STARTUP_EASE_TAU: f32 = 0.15;
 
-// ---------------------------------------------------------------------------
 // Head bloom (exponential gaussian falloff)
-// ---------------------------------------------------------------------------
 
 /// Bloom sigma (spread) for exponential gaussian head glow.
 /// Higher = wider, softer glow. 1.5 gives a natural falloff over ~3 cells.
@@ -365,9 +341,7 @@ pub const HEAD_BLOOM_INTENSITY: f32 = 0.4;
 /// Number of cells behind the head that receive bloom glow effect.
 pub const HEAD_BLOOM_CELLS: u16 = 3;
 
-// ---------------------------------------------------------------------------
 // Depth fog vignette
-// ---------------------------------------------------------------------------
 
 /// Number of rows at top and bottom for fog vignette effect.
 pub const FOG_ROWS: u16 = 4;
@@ -378,9 +352,7 @@ pub const FOG_ROWS: u16 = 4;
 /// effect while keeping edge glyphs faintly visible rather than lost entirely.
 pub const FOG_MIN_FACTOR: f32 = 0.45;
 
-// ---------------------------------------------------------------------------
 // Mouse interaction
-// ---------------------------------------------------------------------------
 
 /// Mouse interaction: radius around cursor (in columns) where droplets avoid.
 pub const MOUSE_AVOID_RADIUS_COLS: u16 = 5;
@@ -406,9 +378,7 @@ pub const MOUSE_FLASH_INTENSITY: f32 = 0.6;
 /// Click flash: total duration of the ripple effect in seconds.
 pub const MOUSE_FLASH_DURATION_SECS: f32 = 0.5;
 
-// ---------------------------------------------------------------------------
 // Parallax depth layers
-// ---------------------------------------------------------------------------
 
 /// Number of parallax depth layers.
 pub const PARALLAX_LAYERS: usize = 3;
@@ -426,9 +396,7 @@ pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.70, 0.90, 1.0];
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 
-// ---------------------------------------------------------------------------
 // Phosphor persistence (CRT afterglow)
-// ---------------------------------------------------------------------------
 
 /// Per-cell phosphor energy decay rate (higher = faster fade).
 /// Raised from 3.0 to 5.0 for crisper, more energetic trail fade.
@@ -475,9 +443,7 @@ pub const PHOSPHOR_BOTTOM_ROWS: u16 = 8;
 /// bottom, reducing afterglow duration from ~1.0s to ~0.4s.
 pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 2.5;
 
-// ---------------------------------------------------------------------------
 // Atmospheric depth layering enhancements
-// ---------------------------------------------------------------------------
 
 /// Per-layer spawn density multiplier (far = sparse, near = dense).
 pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.5];
@@ -500,9 +466,7 @@ pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [0.85, 1.0, 1.0];
 /// the background rain reads as "behind a haze".
 pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.35, 0.0, 0.0];
 
-// ---------------------------------------------------------------------------
 // Velocity turbulence
-// ---------------------------------------------------------------------------
 
 /// Maximum velocity perturbation as fraction of base chars_per_sec.
 pub const TURBULENCE_AMPLITUDE: f32 = 0.08;
@@ -510,9 +474,7 @@ pub const TURBULENCE_AMPLITUDE: f32 = 0.08;
 /// Turbulence oscillation frequency (Hz). Controls how often drift changes.
 pub const TURBULENCE_FREQ: f32 = 0.4;
 
-// ---------------------------------------------------------------------------
 // Cinematic perceived smoothness (fractional advance & shimmer)
-// ---------------------------------------------------------------------------
 
 /// Fractional head brightness amplitude: how much the head cell brightness
 /// varies based on fractional row progress between advances. 0.15 means the
@@ -551,9 +513,7 @@ pub const SPAWN_PHASE_JITTER: bool = true;
 /// subtly shift.
 pub const TRAIL_CYCLE_PROBABILITY: f32 = 0.02;
 
-// ---------------------------------------------------------------------------
 // Rare anomaly events
-// ---------------------------------------------------------------------------
 
 /// Probability of an anomaly occurring per second (~1 every 60s).
 pub const ANOMALY_CHANCE_PER_SEC: f64 = 0.017;
@@ -570,9 +530,7 @@ pub const ANOMALY_LUMINANCE_INTENSITY: f32 = 0.3;
 /// Anomaly corruption probability per cell in zone.
 pub const ANOMALY_CORRUPTION_CHANCE: f32 = 0.4;
 
-// ---------------------------------------------------------------------------
 // Temporal color ecosystems
-// ---------------------------------------------------------------------------
 
 /// How often the color ecosystem evaluates a drift (in seconds).
 /// Low-frequency — only checks every few seconds to avoid per-frame cost.
@@ -615,9 +573,7 @@ pub const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
 /// `auto-color-drift = true` in their config file.
 pub const AUTO_COLOR_DRIFT_DEFAULT: bool = false;
 
-// ---------------------------------------------------------------------------
 // Cinematic runtime behavior profiles
-// ---------------------------------------------------------------------------
 
 /// Duration for a profile transition (seconds).
 pub const PROFILE_TRANSITION_SECS: f32 = 30.0;
@@ -625,9 +581,7 @@ pub const PROFILE_TRANSITION_SECS: f32 = 30.0;
 /// How often the profile state interpolates toward target (in seconds).
 pub const PROFILE_INTERPOLATION_RATE: f32 = 0.02;
 
-// ---------------------------------------------------------------------------
 // Autonomous atmospheric evolution
-// ---------------------------------------------------------------------------
 
 /// How often the atmospheric evolution system ticks (in seconds).
 pub const ATMOSPHERE_TICK_SECS: f32 = 5.0;
@@ -644,9 +598,7 @@ pub const ATMOSPHERE_LUMINANCE_RANGE: f32 = 0.2;
 /// Maximum anomaly pressure shift from atmospheric evolution.
 pub const ATMOSPHERE_ANOMALY_RANGE: f32 = 0.5;
 
-// ---------------------------------------------------------------------------
 // Long-timescale renderer memory
-// ---------------------------------------------------------------------------
 
 /// Number of atmospheric history samples retained.
 pub const MEMORY_HISTORY_SAMPLES: usize = 32;
@@ -660,9 +612,7 @@ pub const MEMORY_ANOMALY_PRESSURE_WEIGHT: f32 = 0.3;
 /// How much historical calm increases persistence richness.
 pub const MEMORY_CALM_PERSISTENCE_BOOST: f32 = 0.15;
 
-// ---------------------------------------------------------------------------
 // Emergent visual storytelling
-// ---------------------------------------------------------------------------
 
 /// How often the storytelling system evaluates emergence (in seconds).
 pub const STORYTELLING_TICK_SECS: f32 = 10.0;
@@ -686,9 +636,7 @@ pub const EMERGENT_DENSITY_INTENSITY: f32 = 0.25;
 /// Intensity of emergent speed shift (slow-motion or acceleration).
 pub const EMERGENT_SPEED_SHIFT: f32 = 0.15;
 
-// ---------------------------------------------------------------------------
 // Cinematic resume easing (pause → resume transition)
-// ---------------------------------------------------------------------------
 
 /// Duration of the smoothstep resume ease-in curve (seconds).
 /// The simulation time scale interpolates from 0.0 → 1.0 over this period
@@ -697,9 +645,7 @@ pub const EMERGENT_SPEED_SHIFT: f32 = 0.15;
 /// 180ms is enough to eliminate catch-up harshness while keeping resume snappy.
 pub const RESUME_EASE_DURATION_SECS: f32 = 0.18;
 
-// ---------------------------------------------------------------------------
 // Hardening: drift correction & terminal safety
-// ---------------------------------------------------------------------------
 
 /// Interval (in frames) between forced full screen redraws.
 /// Prevents accumulated ANSI state desync over long sessions.
@@ -707,9 +653,7 @@ pub const RESUME_EASE_DURATION_SECS: f32 = 0.18;
 /// catch drift but rare enough for zero perceptual impact.
 pub const FULL_REDRAW_INTERVAL_FRAMES: u64 = 18000;
 
-// ---------------------------------------------------------------------------
 // Viewport edge fade (smooth entry/exit at terminal borders)
-// ---------------------------------------------------------------------------
 
 /// Number of rows from viewport edges for smooth entry/exit fade.
 /// Applied after all visual effects including head bloom, ensuring
@@ -752,9 +696,7 @@ pub const PHOSPHOR_EDGE_ENERGY_CAP: u8 = 64;
 /// afterglow energy as the rows above it.
 pub const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
 
-// ---------------------------------------------------------------------------
 // Atmospheric Event Engine (v10.0.0)
-// ---------------------------------------------------------------------------
 
 /// XOR seed offset for the event RNG (derived from Cloud's RNG seed).
 pub const EVENT_RNG_XOR: u64 = 0xCAFE_BABE_1337_0420;
@@ -768,18 +710,14 @@ pub const EVENT_MAX_PHOSPHOR_DECAY_FRAMES: u64 = 90;
 /// Trigger evaluation is skipped when perf_pressure exceeds this.
 pub const EVENT_PERF_GATE: f32 = 0.5;
 
-// ---------------------------------------------------------------------------
 // Phosphor Ghost (v10.0.0 Flash Pivot)
-// ---------------------------------------------------------------------------
 
 /// Per-tick probability of spawning a phosphor ghost kanji character.
 pub const GHOST_SPAWN_CHANCE_PER_TICK: f64 = 0.003;
 /// Maximum number of active ghost events.
 pub const GHOST_MAX_ACTIVE: usize = 1;
 
-// ---------------------------------------------------------------------------
 // Message overlay limits
-// ---------------------------------------------------------------------------
 
 /// Maximum message text length (characters). Prevents excessively long
 /// messages from overflowing the terminal or causing layout issues.

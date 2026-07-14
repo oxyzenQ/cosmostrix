@@ -1,10 +1,10 @@
 #!/bin/bash
-# =============================================================================
+#
 # COSMOSTRIX BUILD AUTOMATION SCRIPT
-# =============================================================================
+#
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# =============================================================================
+#
 # Optimized build script with intelligent core detection and advanced caching
 # Author: rezky_nightky (oxyzenQ)
 # Version: Stellar 4.0

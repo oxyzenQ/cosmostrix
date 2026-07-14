@@ -69,9 +69,7 @@ fn simulate_frames(cloud: &mut Cloud, num_frames: u64, start: Instant) -> ColorS
     cloud.color_scheme()
 }
 
-// ---------------------------------------------------------------------------
 // Test 1: Fixed CLI color (sun) stays sun across simulated minutes
-// ---------------------------------------------------------------------------
 
 #[test]
 fn fixed_color_sun_stays_sun_across_simulated_minutes() {
@@ -94,9 +92,7 @@ fn fixed_color_sun_stays_sun_across_simulated_minutes() {
     );
 }
 
-// ---------------------------------------------------------------------------
 // Test 2: Profile color (sun) stays sun across simulated minutes
-// ---------------------------------------------------------------------------
 
 #[test]
 fn profile_color_sun_stays_sun_across_simulated_minutes() {
@@ -115,9 +111,7 @@ fn profile_color_sun_stays_sun_across_simulated_minutes() {
     );
 }
 
-// ---------------------------------------------------------------------------
 // Test 3: Default monolith color does not drift without opt-in
-// ---------------------------------------------------------------------------
 
 #[test]
 fn default_monolith_color_does_not_drift_without_opt_in() {
@@ -155,9 +149,7 @@ fn default_monolith_color_does_not_drift_without_opt_in() {
     );
 }
 
-// ---------------------------------------------------------------------------
 // Test 4: Auto color drift is opt-in only
-// ---------------------------------------------------------------------------
 
 #[test]
 fn auto_color_drift_is_opt_in_only() {
@@ -201,9 +193,7 @@ fn auto_color_drift_is_opt_in_only() {
     );
 }
 
-// ---------------------------------------------------------------------------
 // Test 5: Pressing c/C still changes color intentionally
-// ---------------------------------------------------------------------------
 
 #[test]
 fn pressing_c_changes_color_intentionally() {
@@ -255,9 +245,7 @@ fn pressing_shift_c_changes_color_intentionally() {
     );
 }
 
-// ---------------------------------------------------------------------------
 // Test 6: Scene cycling still applies scene-managed color
-// ---------------------------------------------------------------------------
 
 #[test]
 fn scene_cycle_applies_scene_color_intentionally() {
@@ -284,9 +272,7 @@ fn scene_cycle_applies_scene_color_intentionally() {
     drop(charset_preset);
 }
 
-// ---------------------------------------------------------------------------
 // Test 7: Benchmark output fields completeness
-// ---------------------------------------------------------------------------
 
 #[test]
 fn benchmark_output_fields_complete() {
@@ -315,9 +301,7 @@ fn benchmark_output_fields_complete() {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Test 8: Endurance color stability — default-off gate is effective
-// ---------------------------------------------------------------------------
 
 #[test]
 fn endurance_color_sticky_default_off() {

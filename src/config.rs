@@ -92,9 +92,7 @@ pub(crate) fn colorize_help_detail(text: &str) -> String {
     out
 }
 
-// ---------------------------------------------------------------------------
 // Enums
-// ---------------------------------------------------------------------------
 
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorBg {
@@ -118,9 +116,7 @@ pub enum GlitchLevel {
     Intense,
 }
 
-// ---------------------------------------------------------------------------
 // U16Range
-// ---------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
 pub struct U16Range {
@@ -150,12 +146,10 @@ impl FromStr for U16Range {
     }
 }
 
-// ---------------------------------------------------------------------------
 // Args — curated two-tier help design
 //
 // VISIBLE args appear in --help (the first impression).
 // HIDDEN args are still fully functional but intentionally undocumented.
-// ---------------------------------------------------------------------------
 
 #[derive(Parser, Debug, Clone)]
 #[command(
@@ -705,9 +699,7 @@ pub struct Args {
     pub atmosphere_regime_str: Option<String>,
 }
 
-// ---------------------------------------------------------------------------
 // List printers — clean, no alias noise
-// ---------------------------------------------------------------------------
 
 pub fn print_list_charsets() {
     if color_enabled_stdout() {
@@ -836,11 +828,9 @@ pub fn print_show_scene(
     ))
 }
 
-// ---------------------------------------------------------------------------
 // --help-detail: curated advanced reference
 //
 // Design principle: guide, don't dump. No embedded catalogs, no schema dumps,
 // no verbose alias disclosures. Discovery commands handle discovery.
-// ---------------------------------------------------------------------------
 
 // print_help_detail() moved to src/help_detail.rs
