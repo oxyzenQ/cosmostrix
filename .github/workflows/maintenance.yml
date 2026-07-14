@@ -6,7 +6,7 @@
 # - validate: read-only token, dependency update, full checks, lockfile artifact
 # - commit: write token, no dependency code execution, Cargo.lock allowlist only
 
-name: Maintenance deps weekly
+name: Dragon - Dependency Maintenance
 
 'on':
   schedule:
@@ -22,7 +22,7 @@ env:
 
 jobs:
   validate:
-    name: Maintenance deps weekly validate
+    name: Dragon - Dependency Validate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -131,7 +131,7 @@ jobs:
           if-no-files-found: error
 
   commit:
-    name: Maintenance deps weekly commit
+    name: Dragon - Dependency Commit
     runs-on: ubuntu-latest
     needs: validate
     if: needs.validate.outputs.changed == 'true'

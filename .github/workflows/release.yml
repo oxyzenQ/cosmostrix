@@ -1,7 +1,7 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-name: T-800 - Release
+name: Dragon - Release
 
 'on':
   push:
@@ -17,7 +17,7 @@ env:
 
 jobs:
   build_packages:
-    name: T-800 - Build packages (${{ matrix.platform }})
+    name: Dragon - Build packages (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -508,7 +508,7 @@ jobs:
           if-no-files-found: error
 
   build_android:
-    name: T-800 - Build packages (android-aarch64-native)
+    name: Dragon - Build packages (android-aarch64-native)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -680,7 +680,7 @@ jobs:
           if-no-files-found: error
 
   publish_release:
-    name: T-800 - Publish GitHub Release
+    name: Dragon - Publish GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [build_packages, build_android]

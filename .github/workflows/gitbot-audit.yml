@@ -10,7 +10,7 @@
 # This workflow does NOT modify any repository files.
 # For dependency auto-updates, see: gitbot-deps.yml (weekly)
 
-name: "T-800 - Security Audit"
+name: "Dragon - Security Audit"
 
 'on':
   schedule:
@@ -87,7 +87,7 @@ jobs:
       - name: Summary
         run: |
           echo "════════════════════════════════════════════════════════"
-          echo "🔍 T-800 - DAILY SECURITY AUDIT SUMMARY"
+          echo "🔍 Dragon - DAILY SECURITY AUDIT SUMMARY"
           echo "════════════════════════════════════════════════════════"
           echo ""
           echo "Status: ${{ steps.audit.outputs.status }}"

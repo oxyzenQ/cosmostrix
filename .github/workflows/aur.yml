@@ -14,7 +14,7 @@
 #   This key is isolated, revocable, has no passphrase, and exists
 #   only for automated deployment.
 
-name: "T-800 - AUR Sync"
+name: "Dragon - AUR Sync"
 
 'on':
   # repository_dispatch: backward compat for old release.yml that uses
@@ -45,7 +45,7 @@ env:
 
 jobs:
   sync-aur:
-    name: "T-800 — Sync to AUR"
+    name: "Dragon — Sync to AUR"
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

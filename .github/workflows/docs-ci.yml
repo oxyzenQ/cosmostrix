@@ -1,7 +1,7 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-name: T-800 - Docs CI
+name: Dragon - Docs CI
 
 'on':
   push:
