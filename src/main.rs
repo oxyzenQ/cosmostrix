@@ -956,7 +956,16 @@ fn main() -> std::io::Result<()> {
         return bench::run_benchmark(&cloud_cfg);
     }
 
-    interactive::run_interactive(&cloud_cfg)
+    let result = interactive::run_interactive(&cloud_cfg);
+
+    // Live-reload exit: if watcher detected invalid config, exit with code 2.
+    // Terminal::drop already ran inside run_interactive (via Drop), so
+    // terminal state is restored before we exit.
+    if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
+        std::process::exit(2);
+    }
+
+    result
 }
 
 /// Resolve bench duration from --bench-duration (now accepts compound format).

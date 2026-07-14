@@ -29,6 +29,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicU8;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 use std::time::Duration;
@@ -36,6 +37,15 @@ use std::time::Duration;
 use notify::{event::EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::configfile;
+
+/// Global exit code set by live-reload when invalid config is detected.
+/// 0 = no error (default), 2 = live-reload validation failure.
+/// Main.rs checks this after run_interactive() returns and exits accordingly.
+pub static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
+
+/// Live config event sent from watcher to render thread.
+/// Ok = valid config, rebuild Cloud. Err = invalid, exit cosmostrix.
+pub type LiveConfigEvent = Result<HashMap<String, String>, String>;
 
 /// Validate ALL fields in a parsed config HashMap.
 ///
@@ -66,12 +76,12 @@ fn validate_config_strictly(cfg: &HashMap<String, String>) -> Result<(), String>
 /// sending — invalid configs are rejected with a stderr error message.
 ///
 /// If the config file doesn't exist or can't be watched, returns `None`.
-pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<HashMap<String, String>>> {
+pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> {
     if !config_path.exists() {
         return None;
     }
 
-    let (tx, rx) = mpsc::channel::<HashMap<String, String>>();
+    let (tx, rx) = mpsc::channel::<LiveConfigEvent>();
     let path = config_path.clone();
 
     std::thread::Builder::new()
@@ -85,7 +95,7 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<HashMap<String, St
 }
 
 /// Main watcher loop — blocks on filesystem events, reparses on change.
-fn watcher_loop(path: PathBuf, tx: Sender<HashMap<String, String>>) {
+fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     const DEBOUNCE_MS: u64 = 200;
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
@@ -156,14 +166,20 @@ fn watcher_loop(path: PathBuf, tx: Sender<HashMap<String, String>>) {
                 }
 
                 // Strict validation: reject entire config if ANY field is invalid.
-                if let Err(msg) = validate_config_strictly(&cfg) {
-                    eprintln!("[live-reload] ERROR: {msg}. Config NOT applied.");
-                    continue;
-                }
-
-                // Config is valid — send to render thread for Cloud rebuild.
-                if tx.send(cfg).is_err() {
-                    break;
+                // On invalid: send Err to event loop, which will print error and EXIT.
+                match validate_config_strictly(&cfg) {
+                    Ok(()) => {
+                        // Config is valid — send to render thread for Cloud rebuild.
+                        if tx.send(Ok(cfg)).is_err() {
+                            break;
+                        }
+                    }
+                    Err(msg) => {
+                        // Invalid config — send error. Event loop will print
+                        // and exit cosmostrix (not continue with old config).
+                        eprintln!("[live-reload] ERROR: {msg}");
+                        let _ = tx.send(Err(msg));
+                    }
                 }
             }
             Err(e) => {

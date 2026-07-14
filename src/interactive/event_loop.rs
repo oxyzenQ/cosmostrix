@@ -273,13 +273,21 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             break;
         }
 
-        // Live config reload: non-blocking check for config updates.
-        // try_recv() on an empty channel is ~1ns (atomic load). On update,
-        // store the new config for rebuild at the top of the NEXT frame
-        // (after current frame finishes rendering, avoiding mid-frame swap).
+        // Live config reload: non-blocking check for config events.
+        // Ok = valid config → rebuild Cloud. Err = invalid → EXIT cosmostrix.
         if let Some(ref rx) = config_rx {
-            while let Ok(new_cfg) = rx.try_recv() {
-                pending_config = Some(new_cfg);
+            while let Ok(event) = rx.try_recv() {
+                match event {
+                    Ok(cfg) => pending_config = Some(cfg),
+                    Err(_msg) => {
+                        // Error already printed by watcher thread.
+                        // Set exit code + stop rain. Terminal::drop will
+                        // restore terminal state before process exits.
+                        crate::live_config::LIVE_RELOAD_EXIT_CODE.store(2, Ordering::Release);
+                        cloud.raining = false;
+                        break;
+                    }
+                }
             }
         }
 
