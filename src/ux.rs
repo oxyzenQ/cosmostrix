@@ -40,11 +40,20 @@ pub fn die_input(msg: impl AsRef<str>) -> ! {
     process::exit(2);
 }
 
-/// Print `msg` to stderr in branded red and exit 1 (config / runtime failure).
+/// Print `msg` to stderr in branded red and exit 2 (config / runtime failure).
+/// Exit code 2 matches --testconf behavior for invalid config.
 #[cold]
 pub fn die_config(msg: impl AsRef<str>) -> ! {
-    print_branded_error(msg.as_ref());
-    process::exit(1);
+    // Use direct eprintln! to ensure output is always visible.
+    // The branded color path can sometimes render invisibly on certain
+    // terminal/color combinations. Plain stderr is always reliable.
+    let msg = msg.as_ref();
+    let stripped = msg.strip_prefix("error: ").unwrap_or(msg);
+    eprintln!("error: {stripped}");
+    // Flush stderr to ensure output is written before exit.
+    use std::io::Write;
+    let _ = std::io::stderr().flush();
+    process::exit(2);
 }
 
 /// Print an error message in branded red. Strips a leading "error: " prefix
