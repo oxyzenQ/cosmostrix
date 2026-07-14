@@ -35,15 +35,16 @@ pub(super) fn version_report() -> String {
     let commit = build_commit_short().unwrap_or("unknown");
     let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
 
-    // Brand purple: #A855F7. Wrap entire output when stdout is a TTY.
-    // When piped (non-TTY), output is plain text for scripts.
+    // Only the header line "cosmostrix: v{version}" is purple (brand color).
+    // Remaining lines are plain for readability. When piped (non-TTY),
+    // output is fully plain text for scripts.
     let purple = "\x1b[38;2;168;85;247m";
     let reset = "\x1b[0m";
     let is_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
 
+    let header = format!("cosmostrix: v{version}");
     let body = format!(
-        "Version: v{version}\n\
-         Build: {build} ({commit})\n\
+        "Build: {build} ({commit})\n\
          Build-time: {build_time}\n\
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
          License: GPL-3.0-only\n\
@@ -51,9 +52,9 @@ pub(super) fn version_report() -> String {
     );
 
     if is_tty {
-        format!("{purple}{body}{reset}")
+        format!("{purple}{header}{reset}\n{body}")
     } else {
-        body
+        format!("{header}\n{body}")
     }
 }
 
@@ -189,10 +190,14 @@ mod tests {
     fn version_report_contains_version_and_commit() {
         let report = version_report();
         assert!(
-            report.starts_with("Version: v"),
-            "report must start with Version: v"
+            report.contains("cosmostrix: v"),
+            "report must contain 'cosmostrix: v' header"
         );
         assert!(report.contains("Build:"), "report must contain Build: line");
+        assert!(
+            report.contains("Build-time:"),
+            "report must contain Build-time: line"
+        );
         assert!(
             report.contains("Copyright:"),
             "report must contain Copyright:"
