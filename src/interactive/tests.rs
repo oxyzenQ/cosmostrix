@@ -265,6 +265,7 @@ mod cases {
             atmosphere_modulation: crate::atmosphere_apply::AtmosphereRuntimeModulation::identity(),
             atmosphere_mode: crate::atmosphere_apply::AtmosphereApplicationMode::Disabled,
             monolith_density_map: None,
+            config_path_for_watcher: None,
         }
     }
 

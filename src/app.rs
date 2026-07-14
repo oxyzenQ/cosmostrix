@@ -84,6 +84,9 @@ pub struct CloudConfig {
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
     /// None = uniform distribution (legacy behavior).
     pub(crate) monolith_density_map: Option<&'static [f64]>,
+    /// Path to the config file being watched for live reload.
+    /// None = no watcher (CLI-only run, no config file).
+    pub(crate) config_path_for_watcher: Option<std::path::PathBuf>,
 }
 
 impl CloudConfig {
@@ -208,6 +211,7 @@ impl CloudConfig {
             atmosphere_modulation: self.atmosphere_modulation,
             atmosphere_mode: self.atmosphere_mode,
             monolith_density_map: self.monolith_density_map,
+            config_path_for_watcher: None, // watcher only for interactive, not benchmark
         }
     }
 }

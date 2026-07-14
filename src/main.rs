@@ -109,6 +109,7 @@ mod help_detail;
 mod humanize;
 mod info;
 mod interactive;
+mod live_config;
 #[cfg(test)]
 mod loc_tests;
 mod memstat;
@@ -935,6 +936,7 @@ fn main() -> std::io::Result<()> {
         atmosphere_modulation,
         atmosphere_mode,
         monolith_density_map,
+        config_path_for_watcher: Some(configfile::default_config_file_path()),
     };
 
     if args.bench_all {
