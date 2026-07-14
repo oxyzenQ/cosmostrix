@@ -279,10 +279,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             while let Ok(event) = rx.try_recv() {
                 match event {
                     Ok(cfg) => pending_config = Some(cfg),
-                    Err(_msg) => {
-                        // Error already printed by watcher thread.
-                        // Set exit code + stop rain. Terminal::drop will
-                        // restore terminal state before process exits.
+                    Err(msg) => {
+                        // Store error for main.rs to print AFTER terminal
+                        // restore. Printing here (alternate-screen) = invisible.
+                        if let Ok(mut guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
+                            *guard = Some(msg);
+                        }
                         crate::live_config::LIVE_RELOAD_EXIT_CODE.store(2, Ordering::Release);
                         cloud.raining = false;
                         break;

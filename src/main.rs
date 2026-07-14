@@ -958,10 +958,20 @@ fn main() -> std::io::Result<()> {
 
     let result = interactive::run_interactive(&cloud_cfg);
 
-    // Live-reload exit: if watcher detected invalid config, exit with code 2.
-    // Terminal::drop already ran inside run_interactive (via Drop), so
-    // terminal state is restored before we exit.
+    // Live-reload exit: if watcher detected invalid config, print error
+    // to stderr NOW (after Terminal::drop restored the terminal from
+    // alternate-screen mode). Printing during the rain loop would be
+    // swallowed by the alternate screen — user wouldn't see it.
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
+        if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
+            if let Some(ref msg) = *guard {
+                eprintln!("[live-reload] ERROR: {msg}");
+                eprintln!();
+                eprintln!("  Config NOT applied. Fix the error and restart cosmostrix.");
+            }
+        }
+        use std::io::Write;
+        let _ = std::io::stderr().flush();
         std::process::exit(2);
     }
 

@@ -31,7 +31,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU8;
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use notify::{event::EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -42,6 +42,12 @@ use crate::configfile;
 /// 0 = no error (default), 2 = live-reload validation failure.
 /// Main.rs checks this after run_interactive() returns and exits accordingly.
 pub static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
+
+/// Global error message captured during live-reload failure.
+/// Printed to stderr AFTER terminal restoration (in main.rs) so the user
+/// can actually see it — printing during alternate-screen mode swallows
+/// the output.
+pub static LIVE_RELOAD_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 /// Live config event sent from watcher to render thread.
 /// Ok = valid config, rebuild Cloud. Err = invalid, exit cosmostrix.
