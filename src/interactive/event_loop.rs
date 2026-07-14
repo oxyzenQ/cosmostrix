@@ -37,7 +37,6 @@ use super::input::{handle_keybinding, PasteBurstGuard};
 use super::watchdog::{
     spawn_watchdog, FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN,
 };
-use crate::cloud::Cloud;
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(target_os = "linux")]
@@ -252,14 +251,18 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut paste_guard = PasteBurstGuard::default();
 
     // Live config reload: spawn watcher for config.toml changes.
-    // The watcher thread sends ConfigUpdate snapshots via mpsc channel.
+    // The watcher thread sends validated config HashMaps via mpsc channel.
     // We try_recv() each frame (non-blocking, ~1ns on empty channel).
-    // On update, apply deltas to cloud via setters — no visual reset.
+    // On update, rebuild CloudConfig + Cloud (full rebuild, not delta).
     let config_rx = if let Some(path) = &cfg.config_path_for_watcher {
         crate::live_config::spawn_watcher(path.clone())
     } else {
         None
     };
+    // Store base CloudConfig for rebuilds (clone before any moves).
+    let base_cfg = cfg.clone();
+    // Pending rebuild: set when watcher sends new config, applied at top of next frame.
+    let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
     while cloud.raining {
         // Check for graceful shutdown request from signal handler.
@@ -272,11 +275,35 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // Live config reload: non-blocking check for config updates.
         // try_recv() on an empty channel is ~1ns (atomic load). On update,
-        // apply deltas to cloud via setters — rain streams are preserved.
+        // store the new config for rebuild at the top of the NEXT frame
+        // (after current frame finishes rendering, avoiding mid-frame swap).
         if let Some(ref rx) = config_rx {
-            while let Ok(update) = rx.try_recv() {
-                apply_config_update(&mut cloud, &update);
+            while let Ok(new_cfg) = rx.try_recv() {
+                pending_config = Some(new_cfg);
             }
+        }
+
+        // Apply pending Cloud rebuild (full rebuild, not delta).
+        // This swaps Cloud + Frame + color cache between frames — no mid-frame
+        // visual glitch. Rain streams reset (expected for color/charset changes).
+        if let Some(new_cfg_map) = pending_config.take() {
+            let new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
+            let density = effective_density(
+                new_cfg.base_density,
+                w,
+                h,
+                new_cfg.fullwidth,
+                new_cfg.density_auto,
+            );
+            cloud = new_cfg.create_cloud(density);
+            cloud.reset(w, h);
+            cloud.enable_events();
+            cloud.set_component_timing(new_cfg.perf_stats);
+            // Rebuild color cache + frame for new palette.
+            term.set_color_cache(ColorCache::new(&cloud.palette));
+            frame = Frame::new(w, h, cloud.palette.bg);
+            // Update charset_preset for runtime cycling.
+            charset_preset = new_cfg.charset_preset.clone();
         }
 
         // Adaptive throttling: detect idle state (no input for IDLE_THRESHOLD_SECS)
@@ -923,45 +950,4 @@ fn read_self_voluntary_ctxt() -> u64 {
     // After ')', field indices shift: field 3 in the original = fields[0] here.
     // voluntary_ctxt_switches is field 20 (1-indexed), so fields[17] (0-indexed).
     fields.get(17).and_then(|s| s.parse().ok()).unwrap_or(0)
-}
-
-/// Apply a config update (delta) to the running Cloud.
-///
-/// Called from the main event loop when `try_recv()` returns a ConfigUpdate.
-/// Each `Some` field is applied via the corresponding Cloud setter. `None`
-/// fields are skipped (not changed). This preserves visual state — rain
-/// streams continue without reset.
-fn apply_config_update(cloud: &mut Cloud, update: &crate::live_config::ConfigUpdate) {
-    if let Some(density) = update.density {
-        cloud.set_droplet_density(density);
-    }
-    if let Some(speed) = update.speed {
-        cloud.set_chars_per_sec(speed);
-    }
-    if let Some(glitch_pct) = update.glitch_pct {
-        cloud.set_glitch_pct(glitch_pct);
-    }
-    if let (Some(lo), Some(hi)) = (update.glitch_low_ms, update.glitch_high_ms) {
-        cloud.set_glitch_times(lo, hi);
-    }
-    if let (Some(lo), Some(hi)) = (update.linger_low_ms, update.linger_high_ms) {
-        cloud.set_linger_times(lo, hi);
-    }
-    if let Some(max_dpc) = update.max_dpc {
-        cloud.set_max_droplets_per_column(max_dpc);
-    }
-    if let Some(glitchy) = update.glitchy {
-        cloud.set_glitchy(glitchy);
-    }
-    if let Some(size) = update.monolith_size {
-        cloud.set_monolith_size(size);
-    }
-    // short_pct and die_early_pct are pub(super) fields, not setter methods.
-    // They can be set directly since we're in the same crate.
-    if let Some(short_pct) = update.short_pct {
-        cloud.short_pct = short_pct;
-    }
-    if let Some(die_early_pct) = update.die_early_pct {
-        cloud.die_early_pct = die_early_pct;
-    }
 }

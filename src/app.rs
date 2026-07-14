@@ -14,6 +14,7 @@ use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode
 /// Aggregated configuration for creating and running a `Cloud` instance.
 /// Collected from CLI args and config file, then passed to the interactive
 /// loop or benchmark runner.
+#[derive(Clone)]
 pub struct CloudConfig {
     pub color_mode: ColorMode,
     pub fullwidth: bool,

@@ -1,34 +1,33 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Live config reload — "The Dragon's Awakening".
+//! Live config reload — "The Dragon's true Awakening".
 //!
-//! Watches config.toml for changes and sends parsed updates to the render
-//! thread via a channel. The render thread applies deltas to the running
-//! Cloud via setters, preserving visual state (rain streams don't reset).
+//! Watches config.toml for changes, validates strictly, and sends the
+//! validated config HashMap to the render thread for a full Cloud rebuild.
 //!
 //! ## Architecture
 //!
 //! ```text
-//! config.toml ──► notify watcher thread ──► mpsc channel ──► render thread
-//!                (parse + validate)         (try_recv/frame)  (apply setters)
+//! config.toml → notify watcher thread → mpsc channel → render thread
+//!               (parse + validate)      (try_recv/frame)  (rebuild Cloud)
 //! ```
 //!
 //! - Watcher thread: blocks on filesystem events, reparses config on change.
-//!   On parse error, logs warning and keeps old config (no crash).
-//! - Render thread: `try_recv()` each frame (~1ns atomic check on empty channel).
-//!   If update pending, applies field deltas via Cloud setters.
-//! - Zero parsing on render thread. Zero locks on render thread.
+//!   Validates EVERY field strictly — any invalid value rejects the entire
+//!   config (no partial apply). On error, logs to stderr and keeps old config.
+//! - Render thread: `try_recv()` each frame (~1ns on empty channel).
+//!   If update pending, rebuilds CloudConfig from base + new config values,
+//!   then rebuilds Cloud (full create_cloud + reset). Visual state resets
+//!   (rain streams restart) but color/charset/scene changes take effect.
 //!
-//! ## Applied fields
+//! ## Strict validation
 //!
-//! Only fields with Cloud setters are hot-reloadable:
-//! density, speed (chars_per_sec), glitch_pct, glitch_times, linger_times,
-//! short_pct, die_early_pct, max_droplets_per_column, glitchy, monolith_size.
-//!
-//! Fields that CANNOT hot-reload (require Cloud rebuild): charset, color
-//! scheme, screen size, rain_style, fullwidth. These need a restart.
+//! Uses the same `validate_field_value` rules as `--testconf`. If ANY field
+//! has an invalid value (e.g. `speed = 100000`), the entire config is
+//! rejected with a clear error message. No silent fallback.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
@@ -37,131 +36,44 @@ use std::time::Duration;
 use notify::{event::EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use crate::configfile;
-use crate::runtime::MonolithSize;
 
-/// Snapshot of config fields that can be hot-reloaded.
+/// Validate ALL fields in a parsed config HashMap.
 ///
-/// Sent from watcher thread to render thread via mpsc channel. The render
-/// thread applies each `Some` field to Cloud via setters. `None` means
-/// "field not in config, don't change".
-#[derive(Debug, Clone, Default)]
-pub struct ConfigUpdate {
-    pub density: Option<f32>,
-    pub speed: Option<f32>,
-    pub fps: Option<f64>,
-    pub glitch_pct: Option<f32>,
-    pub glitch_low_ms: Option<u16>,
-    pub glitch_high_ms: Option<u16>,
-    pub linger_low_ms: Option<u16>,
-    pub linger_high_ms: Option<u16>,
-    pub short_pct: Option<f32>,
-    pub die_early_pct: Option<f32>,
-    pub max_dpc: Option<u8>,
-    pub glitchy: Option<bool>,
-    pub monolith_size: Option<MonolithSize>,
-    pub auto_color_drift: Option<bool>,
-}
-
-/// Parse a flat config HashMap into a ConfigUpdate snapshot.
+/// Returns `Ok(())` if every key has a valid value, or `Err(message)` with
+/// a human-readable error listing the first invalid field found.
 ///
-/// Reads only hot-reloadable fields. Unknown/invalid values are silently
-/// skipped (the watcher logs parse warnings via load_config_file already).
-fn parse_update(cfg: &std::collections::HashMap<String, String>) -> ConfigUpdate {
-    let mut update = ConfigUpdate::default();
-
-    if let Some(v) = cfg.get("density") {
-        if let Ok(n) = v.parse::<f32>() {
-            update.density = Some(n.clamp(0.01, 5.0));
+/// Reuses the same validation rules as `--testconf` (testconf::validate_field_value)
+/// so behavior is consistent: if `--testconf` would reject it, live-reload
+/// rejects it too.
+fn validate_config_strictly(cfg: &HashMap<String, String>) -> Result<(), String> {
+    for (key, value) in cfg {
+        // Skip block keys (profile.X.field, scene-custom.X.field) —
+        // they're validated separately and don't affect top-level Cloud rebuild.
+        if key.starts_with("profile.") || key.starts_with("scene-custom.") {
+            continue;
+        }
+        if let Some(msg) = crate::testconf::validate_field_value(key, value) {
+            return Err(format!("invalid value '{value}' for '{key}': {msg}"));
         }
     }
-    if let Some(v) = cfg.get("speed") {
-        if let Ok(n) = v.parse::<f32>() {
-            update.speed = Some(n.clamp(1.0, 100.0));
-        }
-    }
-    if let Some(v) = cfg.get("fps") {
-        if let Ok(n) = v.parse::<f64>() {
-            update.fps = Some(n.clamp(1.0, 240.0));
-        }
-    }
-    if let Some(v) = cfg.get("glitchpct") {
-        if let Ok(n) = v.parse::<f32>() {
-            update.glitch_pct = Some(n.clamp(0.0, 100.0) / 100.0);
-        }
-    }
-    if let Some(v) = cfg.get("glitchms") {
-        if let Some((lo, hi)) = parse_range(v) {
-            update.glitch_low_ms = Some(lo);
-            update.glitch_high_ms = Some(hi);
-        }
-    }
-    if let Some(v) = cfg.get("lingerms") {
-        if let Some((lo, hi)) = parse_range(v) {
-            update.linger_low_ms = Some(lo);
-            update.linger_high_ms = Some(hi);
-        }
-    }
-    if let Some(v) = cfg.get("shortpct") {
-        if let Ok(n) = v.parse::<f32>() {
-            update.short_pct = Some(n.clamp(0.0, 100.0) / 100.0);
-        }
-    }
-    if let Some(v) = cfg.get("rippct") {
-        if let Ok(n) = v.parse::<f32>() {
-            update.die_early_pct = Some(n.clamp(0.0, 100.0) / 100.0);
-        }
-    }
-    if let Some(v) = cfg.get("maxdpc") {
-        if let Ok(n) = v.parse::<u8>() {
-            update.max_dpc = Some(n.clamp(1, 3));
-        }
-    }
-    if let Some(v) = cfg.get("glitch-level") {
-        update.glitchy = Some(!matches!(v.trim().to_ascii_lowercase().as_str(), "none"));
-    }
-    if let Some(v) = cfg.get("monolith-size") {
-        update.monolith_size = match v.trim().to_ascii_lowercase().as_str() {
-            "small" => Some(MonolithSize::Small),
-            "large" => Some(MonolithSize::Large),
-            "normal" => Some(MonolithSize::Normal),
-            _ => None,
-        };
-    }
-    if let Some(v) = cfg.get("auto-color-drift") {
-        update.auto_color_drift = Some(v.trim() == "true");
-    }
-
-    update
-}
-
-/// Parse "LOW,HIGH" range string (e.g. "200,300" for glitchms).
-fn parse_range(s: &str) -> Option<(u16, u16)> {
-    let (lo, hi) = s.split_once(',')?;
-    let lo: u16 = lo.trim().parse().ok()?;
-    let hi: u16 = hi.trim().parse().ok()?;
-    Some((lo.min(hi), lo.max(hi)))
+    Ok(())
 }
 
 /// Spawn a config file watcher on a background thread.
 ///
-/// Returns a `Receiver<ConfigUpdate>` that the render thread polls with
-/// `try_recv()` each frame. The watcher thread blocks on filesystem events
-/// and exits when the sender is dropped (i.e. when the receiver is dropped
-/// at program exit).
+/// Returns a `Receiver<HashMap<String, String>>` that the render thread polls
+/// with `try_recv()` each frame. The watcher validates config strictly before
+/// sending — invalid configs are rejected with a stderr error message.
 ///
-/// If the config file doesn't exist or can't be watched, returns `None`
-/// and no watcher is spawned (graceful degradation).
-pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<ConfigUpdate>> {
+/// If the config file doesn't exist or can't be watched, returns `None`.
+pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<HashMap<String, String>>> {
     if !config_path.exists() {
         return None;
     }
 
-    let (tx, rx) = mpsc::channel::<ConfigUpdate>();
+    let (tx, rx) = mpsc::channel::<HashMap<String, String>>();
     let path = config_path.clone();
 
-    // Spawn watcher thread. It owns the RecommendedWatcher and blocks on
-    // events. When the main thread drops `rx`, the channel closes and the
-    // watcher's send() will fail, causing the thread to exit naturally.
     std::thread::Builder::new()
         .name("cosmostrix-config-watcher".to_string())
         .spawn(move || {
@@ -173,8 +85,7 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<ConfigUpdate>> {
 }
 
 /// Main watcher loop — blocks on filesystem events, reparses on change.
-fn watcher_loop(path: PathBuf, tx: Sender<ConfigUpdate>) {
-    // Debounce: coalesce rapid successive events (editors often write twice).
+fn watcher_loop(path: PathBuf, tx: Sender<HashMap<String, String>>) {
     const DEBOUNCE_MS: u64 = 200;
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
@@ -187,13 +98,12 @@ fn watcher_loop(path: PathBuf, tx: Sender<ConfigUpdate>) {
     ) {
         Ok(w) => w,
         Err(e) => {
-            eprintln!("live-config: failed to create watcher: {e}");
+            eprintln!("[live-reload] failed to create watcher: {e}");
             return;
         }
     };
 
-    // Watch the parent directory to catch atomic-save renames (editors that
-    // write to a temp file then rename over the original).
+    // Watch the parent directory to catch atomic-save renames.
     let watch_dir = path
         .parent()
         .map(|p| {
@@ -206,7 +116,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<ConfigUpdate>) {
         .unwrap_or_else(|| PathBuf::from("."));
 
     if let Err(e) = watcher.watch(&watch_dir, RecursiveMode::NonRecursive) {
-        eprintln!("live-config: failed to watch {}: {e}", watch_dir.display());
+        eprintln!("[live-reload] failed to watch {}: {e}", watch_dir.display());
         return;
     }
 
@@ -214,20 +124,13 @@ fn watcher_loop(path: PathBuf, tx: Sender<ConfigUpdate>) {
     let mut last_event = std::time::Instant::now();
 
     for event_result in notify_rx.iter() {
-        if tx.send(ConfigUpdate::default()).is_err() {
-            // Receiver dropped — program is exiting.
-            break;
-        }
-
         match event_result {
             Ok(event) => {
-                // Only process events that touch our config file.
                 let touches_target = event.paths.iter().any(|p| p == &*target_file);
                 if !touches_target {
                     continue;
                 }
 
-                // Only react to write/modify/create/rename events.
                 let relevant = matches!(
                     event.kind,
                     EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
@@ -236,35 +139,209 @@ fn watcher_loop(path: PathBuf, tx: Sender<ConfigUpdate>) {
                     continue;
                 }
 
-                // Debounce: ignore events within DEBOUNCE_MS of the last one.
+                // Debounce
                 let now = std::time::Instant::now();
                 if now.duration_since(last_event) < Duration::from_millis(DEBOUNCE_MS) {
                     continue;
                 }
                 last_event = now;
 
-                // Small delay to let the editor finish writing (atomic save
-                // may rename after the event fires).
+                // Small delay for atomic-save rename completion.
                 std::thread::sleep(Duration::from_millis(50));
 
                 // Reparse config.
                 let cfg = configfile::load_config_file(Some(&path));
                 if cfg.is_empty() {
-                    // Config might be momentarily empty during atomic save.
-                    // Skip this event — the next one will have content.
                     continue;
                 }
 
-                let update = parse_update(&cfg);
-                if tx.send(update).is_err() {
+                // Strict validation: reject entire config if ANY field is invalid.
+                if let Err(msg) = validate_config_strictly(&cfg) {
+                    eprintln!("[live-reload] ERROR: {msg}. Config NOT applied.");
+                    continue;
+                }
+
+                // Config is valid — send to render thread for Cloud rebuild.
+                if tx.send(cfg).is_err() {
                     break;
                 }
             }
             Err(e) => {
-                eprintln!("live-config: watch error: {e}");
+                eprintln!("[live-reload] watch error: {e}");
             }
         }
     }
+}
+
+/// Rebuild a CloudConfig from a base template + new config values.
+///
+/// Takes the original CloudConfig (built from CLI + initial config) and
+/// overrides config-derived fields with values from the new config HashMap.
+/// CLI-only fields (screen_size, color_tune, message, etc.) are preserved
+/// from the base.
+///
+/// For live reload, config values override CLI defaults (the user is
+/// actively editing config.toml and expects those values to take effect).
+#[must_use]
+pub fn rebuild_cloud_config(
+    base: &crate::app::CloudConfig,
+    cfg: &HashMap<String, String>,
+) -> crate::app::CloudConfig {
+    let mut new = base.clone();
+
+    // Color scheme
+    if let Some(v) = cfg.get("color") {
+        if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
+            new.color_scheme = scheme;
+        }
+    }
+
+    // Charset (requires rebuilding chars vector)
+    if let Some(v) = cfg.get("charset") {
+        if let Ok(charset) = crate::charset::charset_from_str(v, false) {
+            new.charset_preset = v.clone();
+            new.chars = crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
+        }
+    }
+
+    // Scene (affects rain_style)
+    if let Some(v) = cfg.get("scene") {
+        if let Some(scene_info) = crate::scene::get_scene(v) {
+            new.rain_style = scene_info.config.rain_style;
+            // Apply scene color/charset if set
+            if let Some(color) = scene_info.config.color {
+                if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
+                    new.color_scheme = scheme;
+                }
+            }
+            if let Some(charset_name) = scene_info.config.charset {
+                if let Ok(charset) = crate::charset::charset_from_str(charset_name, false) {
+                    new.charset_preset = charset_name.to_string();
+                    new.chars =
+                        crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
+                }
+            }
+            if let Some(speed) = scene_info.config.speed {
+                new.speed = speed;
+            }
+            if let Some(density) = scene_info.config.density {
+                new.density = density;
+                new.base_density = density;
+            }
+        }
+    }
+
+    // Speed
+    if let Some(v) = cfg.get("speed") {
+        if let Ok(n) = crate::validation::parse_canonical_speed("speed", v) {
+            new.speed = n;
+        }
+    }
+
+    // Density
+    if let Some(v) = cfg.get("density") {
+        if let Ok(n) = crate::validation::parse_canonical_f32_range("density", v, 0.01, 5.0) {
+            new.density = n;
+            new.base_density = n;
+        }
+    }
+
+    // FPS
+    if let Some(v) = cfg.get("fps") {
+        if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0) {
+            new.target_fps = n;
+        }
+    }
+
+    // Glitch level
+    if let Some(v) = cfg.get("glitch-level") {
+        new.noglitch = v.trim().eq_ignore_ascii_case("none");
+    }
+
+    // Glitch percent
+    if let Some(v) = cfg.get("glitchpct") {
+        if let Ok(n) = v.parse::<f32>() {
+            if (0.0..=100.0).contains(&n) {
+                new.glitch_pct = n;
+            }
+        }
+    }
+
+    // Glitch times (ms range)
+    if let Some(v) = cfg.get("glitchms") {
+        if let Some((lo, hi)) = parse_range(v) {
+            new.glitch_low = lo;
+            new.glitch_high = hi;
+        }
+    }
+
+    // Linger times
+    if let Some(v) = cfg.get("lingerms") {
+        if let Some((lo, hi)) = parse_range(v) {
+            new.linger_low = lo;
+            new.linger_high = hi;
+        }
+    }
+
+    // Short pct
+    if let Some(v) = cfg.get("shortpct") {
+        if let Ok(n) = v.parse::<f32>() {
+            if (0.0..=100.0).contains(&n) {
+                new.short_pct = n;
+            }
+        }
+    }
+
+    // Die early pct (rippct)
+    if let Some(v) = cfg.get("rippct") {
+        if let Ok(n) = v.parse::<f32>() {
+            if (0.0..=100.0).contains(&n) {
+                new.die_early_pct = n;
+            }
+        }
+    }
+
+    // Max droplets per column
+    if let Some(v) = cfg.get("maxdpc") {
+        if let Ok(n) = v.parse::<u8>() {
+            if (1..=3).contains(&n) {
+                new.max_dpc = n;
+            }
+        }
+    }
+
+    // Monolith size
+    if let Some(v) = cfg.get("monolith-size") {
+        use clap::ValueEnum;
+        if let Ok(size) = crate::runtime::MonolithSize::from_str(v, true) {
+            new.monolith_size = size;
+        }
+    }
+
+    // Auto color drift
+    if let Some(v) = cfg.get("auto-color-drift") {
+        new.auto_color_drift = v.trim() == "true";
+    }
+
+    // Monolith density map (from scene-custom blocks)
+    if let Some(v) = cfg.get("scene-custom") {
+        let scenes = crate::scene_custom::collect_custom_scenes(cfg);
+        if let Some(scene) = scenes.get(v.trim().to_ascii_lowercase().as_str()) {
+            if let Some(csv) = scene.density_map.as_deref() {
+                new.monolith_density_map = crate::scene_custom::parse_density_map(csv);
+            }
+        }
+    }
+
+    new
+}
+
+/// Parse "LOW,HIGH" range string.
+fn parse_range(s: &str) -> Option<(u16, u16)> {
+    let (lo, hi) = s.split_once(',')?;
+    let lo: u16 = lo.trim().parse().ok()?;
+    let hi: u16 = hi.trim().parse().ok()?;
+    Some((lo.min(hi), lo.max(hi)))
 }
 
 #[cfg(test)]
@@ -272,83 +349,66 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_update_extracts_density() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert("density".to_string(), "0.9".to_string());
-        let update = parse_update(&cfg);
-        assert_eq!(update.density, Some(0.9));
+    fn validate_rejects_invalid_speed() {
+        let mut cfg = HashMap::new();
+        cfg.insert("speed".to_string(), "100000".to_string());
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("speed"));
     }
 
     #[test]
-    fn parse_update_extracts_speed() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert("speed".to_string(), "25".to_string());
-        let update = parse_update(&cfg);
-        assert_eq!(update.speed, Some(25.0));
-    }
-
-    #[test]
-    fn parse_update_clamps_out_of_range() {
-        let mut cfg = std::collections::HashMap::new();
+    fn validate_rejects_invalid_density() {
+        let mut cfg = HashMap::new();
         cfg.insert("density".to_string(), "99.0".to_string());
-        let update = parse_update(&cfg);
-        assert_eq!(update.density, Some(5.0)); // clamped
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_err());
     }
 
     #[test]
-    fn parse_update_handles_invalid_values() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert("density".to_string(), "not_a_number".to_string());
-        let update = parse_update(&cfg);
-        assert_eq!(update.density, None); // invalid -> None
+    fn validate_accepts_valid_config() {
+        let mut cfg = HashMap::new();
+        cfg.insert("speed".to_string(), "30".to_string());
+        cfg.insert("density".to_string(), "0.85".to_string());
+        cfg.insert("fps".to_string(), "60".to_string());
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_ok());
     }
 
     #[test]
-    fn parse_update_extracts_glitch_range() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert("glitchms".to_string(), "200,300".to_string());
-        let update = parse_update(&cfg);
-        assert_eq!(update.glitch_low_ms, Some(200));
-        assert_eq!(update.glitch_high_ms, Some(300));
+    fn validate_skips_block_keys() {
+        let mut cfg = HashMap::new();
+        cfg.insert("scene-custom.test.base".to_string(), "monolith".to_string());
+        cfg.insert("speed".to_string(), "30".to_string());
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_ok());
     }
 
     #[test]
-    fn parse_update_extracts_monolith_size() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert("monolith-size".to_string(), "large".to_string());
-        let update = parse_update(&cfg);
-        assert_eq!(update.monolith_size, Some(MonolithSize::Large));
+    fn validate_rejects_invalid_charset() {
+        let mut cfg = HashMap::new();
+        cfg.insert("charset".to_string(), "hackeres".to_string());
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_err());
     }
 
     #[test]
-    fn parse_update_extracts_glitchy_from_level() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert("glitch-level".to_string(), "none".to_string());
-        let update = parse_update(&cfg);
-        assert_eq!(update.glitchy, Some(false));
-
-        cfg.insert("glitch-level".to_string(), "intense".to_string());
-        let update = parse_update(&cfg);
-        assert_eq!(update.glitchy, Some(true));
-    }
-
-    #[test]
-    fn parse_update_empty_config_returns_default() {
-        let cfg = std::collections::HashMap::new();
-        let update = parse_update(&cfg);
-        assert!(update.density.is_none());
-        assert!(update.speed.is_none());
+    fn validate_rejects_invalid_atmosphere_regime() {
+        let mut cfg = HashMap::new();
+        cfg.insert("atmosphere-regime".to_string(), "adaptivee".to_string());
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_err());
     }
 
     #[test]
     fn parse_range_handles_whitespace() {
         assert_eq!(parse_range(" 200 , 300 "), Some((200, 300)));
-        assert_eq!(parse_range("300,200"), Some((200, 300))); // ordered
+        assert_eq!(parse_range("300,200"), Some((200, 300)));
     }
 
     #[test]
     fn parse_range_rejects_invalid() {
         assert_eq!(parse_range("abc"), None);
-        assert_eq!(parse_range("200"), None); // no comma
+        assert_eq!(parse_range("200"), None);
     }
 }

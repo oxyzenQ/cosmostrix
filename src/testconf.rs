@@ -161,7 +161,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
 /// `scene-custom.<name>.<field>` block values. The caller is responsible
 /// for mapping block-specific field names (e.g. `base` -> `scene`) before
 /// calling this function.
-fn validate_field_value(key: &str, value: &str) -> Option<String> {
+pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
     let v = value.trim();
     match key {
         // ── Numeric ranges ──
