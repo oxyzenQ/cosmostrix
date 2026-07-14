@@ -21,6 +21,7 @@ static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Set COSMOSTRIX_TEST_CONFIG_DIR so is_safe_path allows /tmp during tests.
 fn ensure_test_config_dir_allowed() {
+    std::env::set_var("COSMOSTRIX_SKIP_STARTUP_VALIDATION", "1");
     std::env::set_var("COSMOSTRIX_TEST_CONFIG_DIR", "/tmp");
 }
 

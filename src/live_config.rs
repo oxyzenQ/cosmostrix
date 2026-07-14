@@ -47,28 +47,6 @@ pub static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
 /// Ok = valid config, rebuild Cloud. Err = invalid, exit cosmostrix.
 pub type LiveConfigEvent = Result<HashMap<String, String>, String>;
 
-/// Validate ALL fields in a parsed config HashMap.
-///
-/// Returns `Ok(())` if every key has a valid value, or `Err(message)` with
-/// a human-readable error listing the first invalid field found.
-///
-/// Reuses the same validation rules as `--testconf` (testconf::validate_field_value)
-/// so behavior is consistent: if `--testconf` would reject it, live-reload
-/// rejects it too.
-fn validate_config_strictly(cfg: &HashMap<String, String>) -> Result<(), String> {
-    for (key, value) in cfg {
-        // Skip block keys (profile.X.field, scene-custom.X.field) —
-        // they're validated separately and don't affect top-level Cloud rebuild.
-        if key.starts_with("profile.") || key.starts_with("scene-custom.") {
-            continue;
-        }
-        if let Some(msg) = crate::testconf::validate_field_value(key, value) {
-            return Err(format!("invalid value '{value}' for '{key}': {msg}"));
-        }
-    }
-    Ok(())
-}
-
 /// Spawn a config file watcher on a background thread.
 ///
 /// Returns a `Receiver<HashMap<String, String>>` that the render thread polls
@@ -167,7 +145,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
 
                 // Strict validation: reject entire config if ANY field is invalid.
                 // On invalid: send Err to event loop, which will print error and EXIT.
-                match validate_config_strictly(&cfg) {
+                match crate::testconf::validate_config_strictly(&cfg) {
                     Ok(()) => {
                         // Config is valid — send to render thread for Cloud rebuild.
                         if tx.send(Ok(cfg)).is_err() {
@@ -368,7 +346,7 @@ mod tests {
     fn validate_rejects_invalid_speed() {
         let mut cfg = HashMap::new();
         cfg.insert("speed".to_string(), "100000".to_string());
-        let result = validate_config_strictly(&cfg);
+        let result = crate::testconf::validate_config_strictly(&cfg);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("speed"));
     }
@@ -377,7 +355,7 @@ mod tests {
     fn validate_rejects_invalid_density() {
         let mut cfg = HashMap::new();
         cfg.insert("density".to_string(), "99.0".to_string());
-        let result = validate_config_strictly(&cfg);
+        let result = crate::testconf::validate_config_strictly(&cfg);
         assert!(result.is_err());
     }
 
@@ -387,7 +365,7 @@ mod tests {
         cfg.insert("speed".to_string(), "30".to_string());
         cfg.insert("density".to_string(), "0.85".to_string());
         cfg.insert("fps".to_string(), "60".to_string());
-        let result = validate_config_strictly(&cfg);
+        let result = crate::testconf::validate_config_strictly(&cfg);
         assert!(result.is_ok());
     }
 
@@ -396,7 +374,7 @@ mod tests {
         let mut cfg = HashMap::new();
         cfg.insert("scene-custom.test.base".to_string(), "monolith".to_string());
         cfg.insert("speed".to_string(), "30".to_string());
-        let result = validate_config_strictly(&cfg);
+        let result = crate::testconf::validate_config_strictly(&cfg);
         assert!(result.is_ok());
     }
 
@@ -404,7 +382,7 @@ mod tests {
     fn validate_rejects_invalid_charset() {
         let mut cfg = HashMap::new();
         cfg.insert("charset".to_string(), "hackeres".to_string());
-        let result = validate_config_strictly(&cfg);
+        let result = crate::testconf::validate_config_strictly(&cfg);
         assert!(result.is_err());
     }
 
@@ -412,7 +390,7 @@ mod tests {
     fn validate_rejects_invalid_atmosphere_regime() {
         let mut cfg = HashMap::new();
         cfg.insert("atmosphere-regime".to_string(), "adaptivee".to_string());
-        let result = validate_config_strictly(&cfg);
+        let result = crate::testconf::validate_config_strictly(&cfg);
         assert!(result.is_err());
     }
 

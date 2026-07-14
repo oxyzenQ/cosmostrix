@@ -155,6 +155,23 @@ pub(crate) fn apply_config_and_runtime_defaults(
             cfg.len()
         );
     }
+
+    // Strict startup validation: if config has ANY invalid value, exit.
+    // This matches --testconf behavior: invalid config = exit code 2, not
+    // silent fallback to defaults. Owner requirement: "if config has a
+    // invalid value should cannot run."
+    //
+    // Test bypass: COSMOSTRIX_SKIP_STARTUP_VALIDATION=1 skips this check
+    // so existing tests that verify apply/fallback logic with invalid values
+    // still work. Production builds never set this env var.
+    if !cfg.is_empty() && std::env::var("COSMOSTRIX_SKIP_STARTUP_VALIDATION").is_err() {
+        if let Err(msg) = crate::testconf::validate_config_strictly(&cfg) {
+            return Err(format!(
+                "error: invalid config — {msg}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details."
+            ));
+        }
+    }
+
     if !cfg.is_empty() {
         apply_config_values(matches, args, &cfg, &mut config_touched);
     }

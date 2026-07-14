@@ -151,6 +151,32 @@ pub fn run(args: &Args) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Validate ALL top-level fields in a parsed config HashMap.
+///
+/// Returns `Ok(())` if every top-level key has a valid value, or
+/// `Err(message)` with a human-readable error for the first invalid field.
+/// Block keys (profile.X.field, scene-custom.X.field) are skipped —
+/// they're validated separately by --testconf's block-field check.
+///
+/// Used by:
+/// - Startup: `apply_config_and_runtime_defaults` rejects invalid config
+///   before cosmostrix starts running (exit code 2).
+/// - Live reload: watcher rejects invalid config edits (exit code 2).
+/// - --testconf: validates and reports errors.
+pub fn validate_config_strictly(
+    cfg: &std::collections::HashMap<String, String>,
+) -> Result<(), String> {
+    for (key, value) in cfg {
+        if key.starts_with("profile.") || key.starts_with("scene-custom.") {
+            continue;
+        }
+        if let Some(msg) = validate_field_value(key, value) {
+            return Err(format!("invalid value '{value}' for '{key}': {msg}"));
+        }
+    }
+    Ok(())
+}
+
 /// Strict value validation for a config key (top-level or block field).
 ///
 /// Returns `Some(message)` if the value is invalid for the given key,
