@@ -143,25 +143,59 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
                 // Small delay for atomic-save rename completion.
                 std::thread::sleep(Duration::from_millis(50));
 
-                // Reparse config.
-                let cfg = configfile::load_config_file(Some(&path));
-                if cfg.is_empty() {
+                // Reparse config using parse_config_text (not load_config_file)
+                // so we can check malformed_lines AND unknown_keys.
+                let content = match std::fs::read_to_string(&path) {
+                    Ok(c) => c,
+                    Err(_) => continue,
+                };
+                let parsed = configfile::parse_config_text(&content);
+                if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
                     continue;
                 }
 
+                // Check malformed lines first — these are syntax errors.
+                if !parsed.malformed_lines.is_empty() {
+                    let lines: Vec<&str> = parsed
+                        .malformed_lines
+                        .iter()
+                        .take(3)
+                        .map(String::as_str)
+                        .collect();
+                    let msg = format!(
+                        "malformed line(s): '{}' (expected 'key = value' syntax)",
+                        lines.join(", ")
+                    );
+                    let _ = tx.send(Err(msg));
+                    continue;
+                }
+
+                // Check unknown keys.
+                if !parsed.unknown_keys.is_empty() {
+                    let keys: Vec<&str> = parsed
+                        .unknown_keys
+                        .iter()
+                        .take(3)
+                        .map(String::as_str)
+                        .collect();
+                    let msg = format!(
+                        "unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys)",
+                        keys.join(", ")
+                    );
+                    let _ = tx.send(Err(msg));
+                    continue;
+                }
+
+                let cfg = &parsed.values;
+
                 // Strict validation: reject entire config if ANY field is invalid.
-                // On invalid: send Err to event loop, which will print error and EXIT.
-                match crate::testconf::validate_config_strictly(&cfg) {
+                match crate::testconf::validate_config_strictly(cfg) {
                     Ok(()) => {
-                        // Config is valid — send to render thread for Cloud rebuild.
-                        if tx.send(Ok(cfg)).is_err() {
+                        if tx.send(Ok(cfg.clone())).is_err() {
                             break;
                         }
                     }
                     Err(msg) => {
-                        // Invalid config — send error. Event loop will print
-                        // and exit cosmostrix (not continue with old config).
-                        eprintln!("[live-reload] ERROR: {msg}");
                         let _ = tx.send(Err(msg));
                     }
                 }

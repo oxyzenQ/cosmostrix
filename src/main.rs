@@ -965,9 +965,11 @@ fn main() -> std::io::Result<()> {
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
         if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
             if let Some(ref msg) = *guard {
-                eprintln!("[live-reload] ERROR: {msg}");
-                eprintln!();
-                eprintln!("  Config NOT applied. Fix the error and restart cosmostrix.");
+                // Use basic ANSI red (\x1b[31m) — universally supported.
+                eprintln!("\x1b[31m[live-reload] ERROR: {msg}\x1b[0m");
+                eprintln!(
+                    "\x1b[31m  Config NOT applied. Fix the error and restart cosmostrix.\x1b[0m"
+                );
             }
         }
         use std::io::Write;

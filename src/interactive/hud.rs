@@ -235,9 +235,22 @@ impl HudState {
         );
         let dim = brighten_color(palette_colors.get(1).copied().unwrap_or(Color::DarkGrey));
 
-        // Session uptime: mm:ss format.
+        // Session uptime: compound time format.
+        // < 1h:  MM:SS    e.g. 59:03
+        // < 1d:  Xh:MM    e.g. 1h:03
+        // >= 1d: Xd:YYh   e.g. 2d:03h
         let uptime_secs = self.session_start.elapsed().as_secs();
-        let uptime_str = format!("{:02}:{:02}", uptime_secs / 60, uptime_secs % 60);
+        let uptime_str = if uptime_secs < 3600 {
+            format!("{:02}:{:02}", uptime_secs / 60, uptime_secs % 60)
+        } else if uptime_secs < 86_400 {
+            format!("{}h:{:02}", uptime_secs / 3600, (uptime_secs % 3600) / 60)
+        } else {
+            format!(
+                "{}d:{:02}h",
+                uptime_secs / 86_400,
+                (uptime_secs % 86_400) / 3600
+            )
+        };
 
         // 5-line HUD: fps (palette head), p99 (mid), max (head), rss (trail), uptime (dim).
         // avg is dropped — fps = 1000/avg, so it's redundant.
