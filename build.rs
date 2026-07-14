@@ -63,6 +63,13 @@ fn main() {
     println!("cargo:rustc-env=COSMOSTRIX_LTO={}", metadata.lto);
     println!("cargo:rustc-env=COSMOSTRIX_PANIC={}", metadata.panic);
     println!("cargo:rustc-env=COSMOSTRIX_STRIP={}", metadata.strip);
+
+    // Build timestamp: MM/DD/YYYY HH:MM (local time at compile).
+    // Uses chrono (already a dependency) for cross-platform local time.
+    // This is baked into the binary at compile time — not runtime.
+    let now = chrono::Local::now();
+    let build_time = now.format("%-m/%-d/%Y %H:%M").to_string();
+    println!("cargo:rustc-env=COSMOSTRIX_BUILD_TIME={build_time}");
 }
 
 fn emit_git_rerun_triggers() {

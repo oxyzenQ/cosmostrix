@@ -33,14 +33,28 @@ pub(super) fn version_report() -> String {
     let version = env!("CARGO_PKG_VERSION");
     let build = canonical_build_label();
     let commit = build_commit_short().unwrap_or("unknown");
+    let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
 
-    format!(
+    // Brand purple: #A855F7. Wrap entire output when stdout is a TTY.
+    // When piped (non-TTY), output is plain text for scripts.
+    let purple = "\x1b[38;2;168;85;247m";
+    let reset = "\x1b[0m";
+    let is_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
+
+    let body = format!(
         "Version: v{version}\n\
          Build: {build} ({commit})\n\
+         Build-time: {build_time}\n\
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
          License: GPL-3.0-only\n\
          Source: https://github.com/oxyzenQ/cosmostrix"
-    )
+    );
+
+    if is_tty {
+        format!("{purple}{body}{reset}")
+    } else {
+        body
+    }
 }
 
 // --- Environment variable helpers ---

@@ -12,6 +12,9 @@ license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/cosmostrix"
 build = "build.rs"
 
+[build-dependencies]
+chrono = { version = ">=0.4.38, <0.5", default-features = false, features = ["clock"] }
+
 [dependencies]
 clap = { version = ">=4.5, <4.6", features = ["derive"] }
 clap_complete = "4"
