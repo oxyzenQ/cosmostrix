@@ -215,7 +215,7 @@ fn config_file_path_from_env(
 #[must_use]
 pub fn dump_config_text() -> &'static str {
     r#"# Cosmostrix Configuration
-# ─────────────────────────────────────────────────────────────────────────────
+
 # Location:
 #   Linux:   ~/.config/cosmostrix/config.toml
 #   macOS:   ~/.config/cosmostrix/config.toml
@@ -250,7 +250,7 @@ pub fn dump_config_text() -> &'static str {
 # will be used for any key left commented. Run `cosmostrix --testconf`
 # to validate your config after editing.
 
-# ── Scene ────────────────────────────────────────────────────────────────────
+# Scene
 # Built-in atmospheric template bundling sensible defaults.
 #   monolith   — premium motion, cosmos palette, binary glyphs (default)
 #   matrix     — classic green Matrix rain
@@ -266,13 +266,13 @@ pub fn dump_config_text() -> &'static str {
 # See: cosmostrix --list-scenes
 # scene = monolith
 
-# ── Custom Scene (optional) ──────────────────────────────────────────────────
+# Custom Scene (optional)
 # User-defined custom scene to apply by default. Custom scenes use the
 # scene-custom.<name>.<field> = <value> syntax (see bottom of this file).
 # See: cosmostrix --list-scenes (lists built-in and custom scenes together)
 # scene-custom = nightcore
 
-# ── Appearance ───────────────────────────────────────────────────────────────
+# Appearance
 # Color scheme (palette). See: cosmostrix --list-colors
 # color = cosmos
 
@@ -286,7 +286,7 @@ pub fn dump_config_text() -> &'static str {
 #   black              — force solid #000000 behind rain
 # color-bg = default-background
 
-# ── Motion ───────────────────────────────────────────────────────────────────
+# Motion
 # Target frames-per-second. Adaptive pacing may reduce under load.
 # fps = 60
 
@@ -301,12 +301,12 @@ pub fn dump_config_text() -> &'static str {
 # Disable with: cosmostrix --uniform
 # async-mode = true
 
-# ── Monolith ─────────────────────────────────────────────────────────────────
+# Monolith
 # Pillar size (only applies when scene=monolith or rain_style=monolith):
 #   small | normal (default) | large
 # monolith-size = normal
 
-# ── Behavior ─────────────────────────────────────────────────────────────────
+# Behavior
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
 
@@ -319,14 +319,14 @@ pub fn dump_config_text() -> &'static str {
 # Auto color drift: cycle color scheme over time (default: off).
 # auto-color-drift = false
 
-# ── Advanced Style ───────────────────────────────────────────────────────────
+# Advanced Style
 # Bold style: 0=off, 1=random, 2=all
 # bold = 1
 
 # Shading mode: 0=random, 1=cinematic (distance-from-head brightness)
 # shadingmode = 1
 
-# ── Atmosphere Engine (opt-in only) ──────────────────────────────────────────
+# Atmosphere Engine (opt-in only)
 # atmosphere-mode: disabled (default) | controlled-live
 # atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure | adaptive
 #   adaptive — time-driven: modulates rain based on local hour (v14).
@@ -342,14 +342,14 @@ pub fn dump_config_text() -> &'static str {
 # atmosphere-regime = adaptive
 # See docs/ATMOSPHERE_PRESETS.md for all 6 preset examples.
 
-# ── Legacy Advanced Keys (kept for compatibility) ────────────────────────────
+# Legacy Advanced Keys (kept for compatibility)
 # Prefer glitch-level for normal use.
 # glitchpct = 10
 # shortpct = 50
 # rippct = 33.33333
 # maxdpc = 3
 
-# ── Custom Scene Definitions ─────────────────────────────────────────────────
+# Custom Scene Definitions
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>
 # Fields: base, scene, preset, color, charset, fps, speed, density,
 #         density-map, glitch-level, monolith-size, color-bg,
@@ -369,25 +369,25 @@ pub fn dump_config_text() -> &'static str {
 #
 # Three cinematic presets (120 columns each) — uncomment to use:
 #
-# ── Twin Towers ──
+# Twin Towers
 # Two dense pillar clusters at cols 20-35 and 85-100, sparse canyon between.
 # Symmetric, majestic — like twin monuments guarding a silent valley.
 # scene-custom.twin-towers.base = monolith
 # scene-custom.twin-towers.density-map = 0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.7,0.7,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.7,0.7,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.7,0.7,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.7,0.7,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08
 #
-# ── Cascade ──
+# Cascade
 # Smooth linear gradient: dense on left (col 0), sparse on right (col 119).
 # Creates a waterfall effect — rain pours from one side and fades into mist.
 # scene-custom.cascade.base = monolith
 # scene-custom.cascade.density-map = 1.0,0.992,0.984,0.976,0.968,0.96,0.952,0.944,0.936,0.928,0.92,0.912,0.904,0.896,0.888,0.88,0.872,0.864,0.856,0.848,0.84,0.832,0.824,0.816,0.808,0.8,0.792,0.784,0.776,0.768,0.761,0.753,0.745,0.737,0.729,0.721,0.713,0.705,0.697,0.689,0.681,0.673,0.665,0.657,0.649,0.641,0.633,0.625,0.617,0.609,0.601,0.593,0.585,0.577,0.569,0.561,0.553,0.545,0.537,0.529,0.521,0.513,0.505,0.497,0.489,0.481,0.473,0.465,0.457,0.449,0.441,0.433,0.425,0.417,0.409,0.401,0.393,0.385,0.377,0.369,0.361,0.353,0.345,0.337,0.329,0.321,0.313,0.305,0.297,0.289,0.282,0.274,0.266,0.258,0.25,0.242,0.234,0.226,0.218,0.21,0.202,0.194,0.186,0.178,0.17,0.162,0.154,0.146,0.138,0.13,0.122,0.114,0.106,0.098,0.09,0.082,0.074,0.066,0.058,0.05
 #
-# ── Throne ──
+# Throne
 # One massive pillar at center (cols 50-70), ringed by sparse court and wilderness.
 # All eyes drawn to the middle — the seat of power in a quiet kingdom.
 # scene-custom.throne.base = monolith
 # scene-custom.throne.density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
 
-# ── Quick Start ──────────────────────────────────────────────────────────────
+# Quick Start
 # cosmostrix                                       # run with defaults
 # cosmostrix --scene storm                         # built-in scene
 # cosmostrix --scene-custom hacker-mode            # user-defined custom scene
