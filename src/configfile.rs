@@ -108,16 +108,9 @@ pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String>
     };
 
     let parsed = parse_config_text(&content);
-    for key in &parsed.unknown_keys {
-        eprintln!(
-            "warning: ignoring unknown key '{}' (known: {})",
-            key,
-            known_keys().join(", ")
-        );
-    }
-    for line in &parsed.malformed_lines {
-        eprintln!("warning: ignoring malformed line (expected 'key = value'): '{line}'");
-    }
+    // No warnings printed here — startup validation (config_apply.rs) and
+    // live-reload (live_config.rs) handle malformed_lines + unknown_keys
+    // with strict errors. Printing warnings here caused duplicate output.
     parsed.values
 }
 
