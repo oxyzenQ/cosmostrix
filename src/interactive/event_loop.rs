@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
 
 #[cfg(unix)]
 use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
@@ -512,12 +512,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             cloud.force_draw_everything();
                             next_frame = activity_time;
                         }
-                        if cfg.screensaver {
-                            cloud.raining = false;
-                            break;
-                        }
 
-                        if handle_keybinding(
+                        // Process the keybinding FIRST. This lets interactive
+                        // keys (x, s, c, g, a, p, m, Space, Up/Down, etc.)
+                        // work even in --screensaver mode.
+                        let redraw_needed = handle_keybinding(
                             &mut cloud,
                             &mut frame,
                             &k,
@@ -528,7 +527,45 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             cfg,
                             #[cfg(unix)]
                             &term_reinit,
-                        ) {
+                        );
+
+                        if cfg.screensaver {
+                            // In screensaver mode:
+                            // - q/Esc: exit (handle_keybinding set raining=false)
+                            // - Interactive keys (x,s,c,g,a,p,m,Space,etc.):
+                            //   process and continue — DON'T exit
+                            // - Unrecognized keys (z without Ctrl, function keys):
+                            //   exit (classic screensaver behavior)
+                            if !cloud.raining {
+                                break;
+                            }
+                            // Check if this was a recognized interactive key.
+                            // If so, don't exit — let the user interact.
+                            let is_interactive_key = matches!(
+                                (k.code, k.modifiers),
+                                (KeyCode::Char('x' | 'X'), _)
+                                    | (KeyCode::Char('s' | 'S'), _)
+                                    | (KeyCode::Char('c'), KeyModifiers::NONE)
+                                    | (KeyCode::Char('C'), _)
+                                    | (KeyCode::Char('a'), _)
+                                    | (KeyCode::Char('g'), _)
+                                    | (KeyCode::Char('p'), _)
+                                    | (KeyCode::Char('m'), _)
+                                    | (KeyCode::Char('i' | 'I'), _)
+                                    | (KeyCode::Char('h' | 'H'), _)
+                                    | (KeyCode::Char(' '), _)
+                                    | (KeyCode::Up, _)
+                                    | (KeyCode::Down, _)
+                                    | (KeyCode::Left, _)
+                                    | (KeyCode::Right, _)
+                                    | (KeyCode::Char('[' | ']' | '-' | '+' | '=' | '_'), _)
+                                    | (KeyCode::Char('0'..='9'), _)
+                            );
+                            if !is_interactive_key {
+                                cloud.raining = false;
+                                break;
+                            }
+                        } else if redraw_needed {
                             next_frame = Instant::now();
                         }
                     }
