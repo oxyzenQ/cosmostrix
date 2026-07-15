@@ -847,21 +847,6 @@ fn main() -> std::io::Result<()> {
     // --uniform takes precedence (if both are set, uniform wins = async off).
     let effective_async = args.async_mode && !args.uniform;
 
-    // v15 Dragon: apply adaptive color temperature shift at STARTUP so
-    // the verbose output shows the correct color scheme (e.g. deepspace
-    // at midnight, not the config-set Green3). The event loop will
-    // continue to check every 30s for phase transitions.
-    let mut color_scheme = color_scheme;
-    if atmosphere_mode.allows_modulation()
-        && atmosphere_regime == atmosphere::AtmosphereRegime::Adaptive
-    {
-        if let Some(target) = atmosphere_adaptive::current_color_target() {
-            if let Ok(scheme) = parse_color_scheme(target) {
-                color_scheme = scheme;
-            }
-        }
-    }
-
     // ── Verbose output (before CloudConfig moves values) ──
     if args.verbose {
         verbose::print_verbose(
