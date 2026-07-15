@@ -1041,6 +1041,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         r.print();
     }
 
+    // Store final runtime state for post-exit verbose summary.
+    super::set_final_state(cloud.color_scheme(), &scene_name, &charset_preset);
+
     Ok(())
 }
 

@@ -706,6 +706,7 @@ fn main() -> std::io::Result<()> {
     }
 
     let charset_preset = normalize_charset_preset_name(&args.charset);
+    let startup_charset = charset_preset.clone();
 
     // --charset-file: load custom characters from file, overriding preset.
     // Security: only allow reading from safe locations — home directory,
@@ -984,6 +985,36 @@ fn main() -> std::io::Result<()> {
     }
 
     let result = interactive::run_interactive(&cloud_cfg);
+
+    // Live verbose: print final runtime state after exit.
+    // During rain, stderr output may be visually lost in the terminal.
+    // This summary ensures the user sees what changed during the session.
+    if args.verbose {
+        let final_color = interactive::last_color_scheme();
+        let final_scene = interactive::last_scene_name();
+        let final_charset = interactive::last_charset_preset();
+        let startup_color = color_scheme;
+        let startup_scene = args.scene.as_deref().unwrap_or("monolith").to_string();
+
+        if final_color != startup_color {
+            eprintln!(
+                "[verbose] final color_scheme: {:?} (was {:?} at startup)",
+                final_color, startup_color
+            );
+        }
+        if final_scene != startup_scene {
+            eprintln!(
+                "[verbose] final scene: {} (was {} at startup)",
+                final_scene, startup_scene
+            );
+        }
+        if final_charset != startup_charset {
+            eprintln!(
+                "[verbose] final charset: {} (was {} at startup)",
+                final_charset, startup_charset
+            );
+        }
+    }
 
     // Live-reload exit: if watcher detected invalid config, print error
     // to stderr NOW (after Terminal::drop restored the terminal from
