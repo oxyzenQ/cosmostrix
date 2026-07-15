@@ -268,7 +268,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // When the phase changes (e.g. Deep Void → Compression), the target
     // color changes. We apply it via cloud.set_color_scheme() which does
     // a smooth palette transition wave.
-    let mut last_color_check = Instant::now();
+    //
+    // Initialize last_color_check to 30s ago so the FIRST check fires
+    // immediately on frame 1 — the adaptive color should be applied at
+    // startup, not after a 30s delay.
+    let mut last_color_check = Instant::now() - Duration::from_secs(31);
     let mut last_adaptive_color: Option<&str> = None;
     const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
