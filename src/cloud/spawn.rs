@@ -234,6 +234,11 @@ impl Cloud {
         self.phosphor_layer.clear();
         self.phosphor_layer.resize(total, 0);
         self.phosphor_active.clear();
+        // Also clear phosphor_last_fresh — stale indices from a previous
+        // scene/charset transition could reference cells that are now in
+        // a different state. Clearing prevents the decay pass from
+        // unsetting phosphor_fresh on cells that were never set this frame.
+        self.phosphor_last_fresh.clear();
     }
 
     pub(super) fn recalc_droplets_per_sec(&mut self) {
