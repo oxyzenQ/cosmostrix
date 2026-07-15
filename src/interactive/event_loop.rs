@@ -410,7 +410,23 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             last_resize_event = Some(Instant::now());
                         }
                     }
-                    Event::Key(k) if k.kind == KeyEventKind::Press => {
+                    Event::Key(k) => {
+                        // On Android/Termux, key events may arrive with
+                        // KeyEventKind::Release or Repeat instead of Press.
+                        // The Press-only guard caused 'i' (HUD toggle) to
+                        // be silently dropped, falling through to the
+                        // screensaver exit path. On Android, accept Press
+                        // and Repeat but skip Release (prevents double-toggle).
+                        // On desktop, keep Press-only for precision.
+                        let is_android = std::env::var("TERMUX_VERSION").is_ok()
+                            || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
+                        if is_android {
+                            if k.kind == KeyEventKind::Release {
+                                continue;
+                            }
+                        } else if k.kind != KeyEventKind::Press {
+                            continue;
+                        }
                         let activity_time = Instant::now();
                         if paste_guard.ignore_plain_key(&k, activity_time) {
                             let _ = register_activity(
