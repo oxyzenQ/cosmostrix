@@ -42,6 +42,10 @@ pub struct AdaptiveParams {
     pub color_change_allowed: bool,
     /// Allow subtle terminal effects at night.
     pub terminal_effect_allowed: bool,
+    /// Target color scheme name for this phase (None = keep current).
+    /// The event loop checks this periodically and crossfades to the
+    /// suggested palette when color_change_allowed is true.
+    pub target_color: Option<&'static str>,
 }
 
 impl AdaptiveParams {
@@ -55,6 +59,7 @@ impl AdaptiveParams {
             glitch_pressure: 0.0,
             color_change_allowed: false,
             terminal_effect_allowed: false,
+            target_color: None,
         }
     }
 
@@ -83,6 +88,12 @@ impl AdaptiveParams {
                 a.terminal_effect_allowed
             } else {
                 b.terminal_effect_allowed
+            },
+            // Color target snaps to the nearer endpoint.
+            target_color: if t < 0.5 {
+                a.target_color
+            } else {
+                b.target_color
             },
         }
     }
@@ -130,7 +141,7 @@ pub fn current_hour() -> f64 {
 /// Index `i` describes the parameters at the *start* of phase `i`. The
 /// final entry (`SIGMA_END`) closes the loop back to phase 0 at 24:00.
 const PHASE_PARAMS: [AdaptiveParams; 6] = [
-    // 00:00 — Deep Void start
+    // 00:00 — Deep Void: cold dark purple/space
     AdaptiveParams {
         speed_scale: 0.55,
         density_scale: 1.25,
@@ -138,8 +149,9 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.9,
         color_change_allowed: true,
         terminal_effect_allowed: true,
+        target_color: Some("deepspace"),
     },
-    // 03:00 — Compression start
+    // 03:00 — Compression: intense black hole gravity
     AdaptiveParams {
         speed_scale: 0.80,
         density_scale: 1.40,
@@ -147,8 +159,9 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.85,
         color_change_allowed: true,
         terminal_effect_allowed: true,
+        target_color: Some("blackhole"),
     },
-    // 06:00 — Pulse start
+    // 06:00 — Pulse: fresh aurora dawn
     AdaptiveParams {
         speed_scale: 1.15,
         density_scale: 0.50,
@@ -156,8 +169,9 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.25,
         color_change_allowed: false,
         terminal_effect_allowed: false,
+        target_color: Some("aurora"),
     },
-    // 12:00 — Calm start
+    // 12:00 — Calm: stable cosmos midday
     AdaptiveParams {
         speed_scale: 0.95,
         density_scale: 0.65,
@@ -165,8 +179,9 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.15,
         color_change_allowed: false,
         terminal_effect_allowed: false,
+        target_color: Some("cosmos"),
     },
-    // 18:00 — Signal start
+    // 18:00 — Signal: vibrant neon dusk
     AdaptiveParams {
         speed_scale: 0.90,
         density_scale: 0.90,
@@ -174,8 +189,9 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.55,
         color_change_allowed: true,
         terminal_effect_allowed: false,
+        target_color: Some("neon"),
     },
-    // 24:00 — wraps back to Deep Void start (used as end-of-Signal target)
+    // 24:00 — wraps back to Deep Void start
     AdaptiveParams {
         speed_scale: 0.55,
         density_scale: 1.25,
@@ -183,6 +199,7 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.9,
         color_change_allowed: true,
         terminal_effect_allowed: true,
+        target_color: Some("deepspace"),
     },
 ];
 
@@ -268,6 +285,16 @@ pub fn update_modulation(
         current.color_change_allowed = target.color_change_allowed;
         current.terminal_effect_allowed = target.terminal_effect_allowed;
     }
+}
+
+/// Get the target color scheme name for the current local hour.
+///
+/// Returns `Some("deepspace")` at midnight, `Some("cosmos")` at noon, etc.
+/// Returns `None` if the phase doesn't specify a target color.
+#[must_use]
+pub fn current_color_target() -> Option<&'static str> {
+    let hour = current_hour();
+    adaptive_params(hour).target_color
 }
 
 #[cfg(test)]

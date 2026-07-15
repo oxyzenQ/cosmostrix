@@ -200,6 +200,19 @@ RUNTIME CONTROLS:
   i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)
 
+ADAPTIVE ATMOSPHERE (default, v15 Dragon):
+  Cosmostrix breathes with the local time of day. Five emotional phases
+  modulate rain density, speed, brightness, glitch, AND color scheme:
+
+  00:00-03:00  Deep Void     deepspace palette, dense + dark + glitchy
+  03:00-06:00  Compression   blackhole palette, extreme density
+  06:00-12:00  Pulse         aurora palette, sparse + fast + bright
+  12:00-18:00  Calm          cosmos palette, balanced + full brightness
+  18:00-24:00  Signal        neon palette, rising glitch at dusk
+
+  Color shifts every 30s via smooth palette transition wave.
+  Disable: atmosphere-mode = disabled in config.toml.
+
 HELP:
   --help          Show common options.
   --help-detail   Show this full reference.

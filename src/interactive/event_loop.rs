@@ -264,6 +264,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
+    // Adaptive color shift: check current hour's target color every 30s.
+    // When the phase changes (e.g. Deep Void → Compression), the target
+    // color changes. We apply it via cloud.set_color_scheme() which does
+    // a smooth palette transition wave.
+    let mut last_color_check = Instant::now();
+    let mut last_adaptive_color: Option<&str> = None;
+    const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
+
     while cloud.raining {
         // Check for graceful shutdown request from signal handler.
         // This allows clean exit via Terminal::drop() instead of racing
@@ -288,6 +296,26 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         crate::live_config::LIVE_RELOAD_EXIT_CODE.store(2, Ordering::Release);
                         cloud.raining = false;
                         break;
+                    }
+                }
+            }
+        }
+
+        // Adaptive color temperature shift: every 30s, check if the current
+        // time-of-day phase suggests a different color scheme. If so,
+        // apply it via a smooth palette transition wave. Only applies when
+        // atmosphere is active (controlled-live + adaptive) and the phase
+        // allows color changes (color_change_allowed = true at night).
+        if cfg.atmosphere_mode.allows_modulation() {
+            let now = Instant::now();
+            if now.duration_since(last_color_check) >= COLOR_CHECK_INTERVAL {
+                last_color_check = now;
+                if let Some(target) = crate::atmosphere_adaptive::current_color_target() {
+                    if last_adaptive_color != Some(target) {
+                        if let Ok(scheme) = crate::cli::parse_color_scheme(target) {
+                            cloud.set_color_scheme(scheme);
+                            last_adaptive_color = Some(target);
+                        }
                     }
                 }
             }
