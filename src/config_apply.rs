@@ -156,19 +156,60 @@ pub(crate) fn apply_config_and_runtime_defaults(
         );
     }
 
-    // Strict startup validation: if config has ANY invalid value, exit.
-    // This matches --testconf behavior: invalid config = exit code 2, not
-    // silent fallback to defaults. Owner requirement: "if config has a
-    // invalid value should cannot run."
+    // Strict startup validation: if config has ANY error (malformed lines,
+    // unknown keys, or invalid values), exit. This matches --testconf
+    // behavior: invalid config = exit code 2, not silent fallback.
+    //
+    // load_config_file() silently drops malformed_lines and unknown_keys
+    // (only prints warnings). We re-parse the raw file to catch them.
     //
     // Test bypass: COSMOSTRIX_SKIP_STARTUP_VALIDATION=1 skips this check
     // so existing tests that verify apply/fallback logic with invalid values
     // still work. Production builds never set this env var.
     if !cfg.is_empty() && std::env::var("COSMOSTRIX_SKIP_STARTUP_VALIDATION").is_err() {
-        if let Err(msg) = crate::testconf::validate_config_strictly(&cfg) {
-            return Err(format!(
-                "error: invalid config — {msg}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details."
-            ));
+        // Re-read raw file to check malformed lines + unknown keys.
+        let config_path = args
+            .config
+            .as_deref()
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(crate::configfile::default_config_file_path);
+        if let Ok(content) = std::fs::read_to_string(&config_path) {
+            let parsed = crate::configfile::parse_config_text(&content);
+
+            // Layer 1: malformed lines (stray text without 'key = value')
+            if !parsed.malformed_lines.is_empty() {
+                let lines: Vec<&str> = parsed
+                    .malformed_lines
+                    .iter()
+                    .take(3)
+                    .map(String::as_str)
+                    .collect();
+                return Err(format!(
+                    "error: invalid config — malformed line(s): '{}' (expected 'key = value' syntax)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
+                    lines.join(", ")
+                ));
+            }
+
+            // Layer 2: unknown keys (typos)
+            if !parsed.unknown_keys.is_empty() {
+                let keys: Vec<&str> = parsed
+                    .unknown_keys
+                    .iter()
+                    .take(3)
+                    .map(String::as_str)
+                    .collect();
+                return Err(format!(
+                    "error: invalid config — unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
+                    keys.join(", ")
+                ));
+            }
+
+            // Layer 3: invalid values (out of range, unknown enum, etc.)
+            if let Err(msg) = crate::testconf::validate_config_strictly(&cfg) {
+                return Err(format!(
+                    "error: invalid config — {msg}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details."
+                ));
+            }
         }
     }
 
