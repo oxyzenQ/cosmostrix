@@ -213,7 +213,7 @@ Explicit CLI flags always override scene and scene-custom values.
 ## Runtime Controls
 
 ```text
-  q / Esc       Quit              p          Pause / resume
+  q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             g          Toggle glitch
@@ -257,7 +257,7 @@ cosmostrix --config-path        # print default config path
 
 ## Terminal Recovery
 
-Quit with `q`, `Esc`, or Ctrl+C when possible. If a terminal is left in raw mode or alternate screen:
+Quit with `q` when possible. If a terminal is left in raw mode or alternate screen:
 
 ```bash
 cosmostrix --reset-terminal

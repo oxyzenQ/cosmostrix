@@ -191,7 +191,7 @@ DISCOVERY:
   --show-scene <NAME>   Show full details for a built-in or custom scene.
 
 RUNTIME CONTROLS:
-  q / Esc       Quit              p          Pause / resume
+  q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             g          Toggle glitch
