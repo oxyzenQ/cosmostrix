@@ -162,6 +162,19 @@ pub fn parse_screen_size(input: &str) -> Result<ScreenSize, String> {
         ));
     }
 
+    // Strict minimum: cosmostrix needs at least MIN_TERMINAL_COLS x
+    // MIN_TERMINAL_LINES to render meaningfully. Smaller sizes cause
+    // silent exit (no visible rain, degenerate cloud state).
+    // Reject at parse time so the user gets a clear error instead of
+    // a silent exit with code 0.
+    let min_cols = crate::constants::MIN_TERMINAL_COLS;
+    let min_lines = crate::constants::MIN_TERMINAL_LINES;
+    if w < min_cols || h < min_lines {
+        return Err(format!(
+            "error: --screen-size {w}x{h} is too small (minimum {min_cols}x{min_lines})"
+        ));
+    }
+
     Ok((w, h))
 }
 
@@ -247,7 +260,8 @@ mod tests {
     fn parse_screen_size_basic() {
         assert_eq!(parse_screen_size("120x40").unwrap(), (120, 40));
         assert_eq!(parse_screen_size("12x12").unwrap(), (12, 12));
-        assert_eq!(parse_screen_size("1x1").unwrap(), (1, 1));
+        // 1x1 is now rejected (minimum is 4x4)
+        assert!(parse_screen_size("1x1").is_err());
     }
 
     #[test]
@@ -267,6 +281,19 @@ mod tests {
         assert!(parse_screen_size("0x0").is_err());
         assert!(parse_screen_size("0x10").is_err());
         assert!(parse_screen_size("10x0").is_err());
+    }
+
+    #[test]
+    fn parse_screen_size_rejects_too_small() {
+        // Minimum is 4x4 (MIN_TERMINAL_COLS x MIN_TERMINAL_LINES)
+        assert!(parse_screen_size("1x1").is_err());
+        assert!(parse_screen_size("3x3").is_err());
+        assert!(parse_screen_size("12x1").is_err());
+        assert!(parse_screen_size("12x2").is_err());
+        assert!(parse_screen_size("12x3").is_err());
+        assert!(parse_screen_size("3x12").is_err());
+        // 4x4 is the minimum accepted
+        assert!(parse_screen_size("4x4").is_ok());
     }
 
     #[test]
