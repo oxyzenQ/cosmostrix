@@ -539,11 +539,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             if !cloud.raining {
                                 break;
                             }
-                            // Check if this was a recognized interactive key.
+                            // Check if this was a recognized key.
                             // If so, don't exit — let the user interact.
-                            let is_interactive_key = matches!(
+                            // Esc and Ctrl+C are now ignored (not exit keys),
+                            // so they must be in this list to prevent
+                            // screensaver from treating them as "unrecognized".
+                            let is_recognized_key = matches!(
                                 (k.code, k.modifiers),
-                                (KeyCode::Char('x' | 'X'), _)
+                                (KeyCode::Char('q'), _)
+                                    | (KeyCode::Esc, _)
+                                    | (KeyCode::Char('c'), KeyModifiers::CONTROL)
+                                    | (KeyCode::Char('x' | 'X'), _)
                                     | (KeyCode::Char('s' | 'S'), _)
                                     | (KeyCode::Char('c'), KeyModifiers::NONE)
                                     | (KeyCode::Char('C'), _)
@@ -561,7 +567,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                                     | (KeyCode::Char('[' | ']' | '-' | '+' | '=' | '_'), _)
                                     | (KeyCode::Char('0'..='9'), _)
                             );
-                            if !is_interactive_key {
+                            if !is_recognized_key {
                                 cloud.raining = false;
                                 break;
                             }
