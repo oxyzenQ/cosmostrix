@@ -139,7 +139,6 @@ use std::env;
 #[cfg(target_os = "linux")]
 use std::io::IsTerminal;
 
-use clap::parser::ValueSource;
 use clap::{CommandFactory, FromArgMatches};
 
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
@@ -780,13 +779,41 @@ fn main() -> std::io::Result<()> {
 
     let default_bg = matches!(args.color_bg, ColorBg::DefaultBackground);
 
-    // Phase 5 + Phase 10 + v14: Resolve atmosphere config from config/profile keys.
-    // Default is Disabled/Calm — identical to v3.9.0 behavior.
-    // v14 adds the Adaptive regime: time-driven modulation from local hour.
-    let atmosphere_mode =
-        config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
-    let atmosphere_regime =
-        config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
+    // v15 Dragon: atmosphere is ENABLED BY DEFAULT for the monolith scene.
+    // If user does NOT set atmosphere-mode or atmosphere-regime in config or CLI,
+    // cosmostrix runs with controlled-live + adaptive — the Dragon breathes
+    // immediately without any configuration.
+    //
+    // Priority: CLI flag > config file > built-in default (controlled-live/adaptive)
+    // If user explicitly sets atmosphere-mode = "disabled" in config, that wins.
+    let atmosphere_mode_str_resolved = args.atmosphere_mode_str.as_deref();
+    let atmosphere_regime_str_resolved = args.atmosphere_regime_str.as_deref();
+
+    // Check if atmosphere-mode was explicitly set (via config or CLI).
+    use clap::parser::ValueSource;
+    let atmosphere_mode_explicit = !matches!(
+        matches.value_source("atmosphere_mode_str"),
+        None | Some(ValueSource::DefaultValue)
+    ) || args.atmosphere_mode_str.is_some();
+    let atmosphere_regime_explicit = !matches!(
+        matches.value_source("atmosphere_regime_str"),
+        None | Some(ValueSource::DefaultValue)
+    ) || args.atmosphere_regime_str.is_some();
+
+    // Apply Dragon defaults: if not explicitly set, use controlled-live + adaptive.
+    let effective_mode_str = if atmosphere_mode_explicit {
+        atmosphere_mode_str_resolved
+    } else {
+        Some("controlled-live")
+    };
+    let effective_regime_str = if atmosphere_regime_explicit {
+        atmosphere_regime_str_resolved
+    } else {
+        Some("adaptive")
+    };
+
+    let atmosphere_mode = config_apply::resolve_atmosphere_mode(effective_mode_str);
+    let atmosphere_regime = config_apply::resolve_atmosphere_regime(effective_regime_str);
 
     // Build atmosphere modulation from resolved config.
     // When mode is Disabled, modulation is always identity regardless of regime.

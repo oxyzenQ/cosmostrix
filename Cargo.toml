@@ -24,6 +24,9 @@ bitvec = "1"
 smallvec = "1"
 unicode-width = "0.2"
 chrono = { version = ">=0.4.38, <0.5", default-features = false, features = ["clock"] }
+notify = { version = ">=6.1, <7", default-features = false }
+
+[target.'cfg(target_os = "macos")'.dependencies]
 notify = { version = ">=6.1, <7", default-features = false, features = ["macos_fsevent"] }
 
 [target.'cfg(unix)'.dependencies]
