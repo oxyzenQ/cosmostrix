@@ -333,6 +333,9 @@ pub struct Cloud {
     /// Set to true by `--benchmark` and `--perf-stats` paths. The
     /// interactive event loop leaves it false for zero overhead.
     pub(super) enable_component_timing: bool,
+    /// Reusable buffer for phosphor dirty indices — avoids per-frame
+    /// SmallVec allocation when dirty cell count exceeds inline capacity.
+    pub(super) phosphor_dirty_buf: Vec<usize>,
 }
 
 impl Cloud {
@@ -460,6 +463,7 @@ impl Cloud {
             last_sim_ms: 0.0,
             last_render_ms: 0.0,
             enable_component_timing: false,
+            phosphor_dirty_buf: Vec::with_capacity(512),
         }
     }
 

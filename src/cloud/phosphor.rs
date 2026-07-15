@@ -533,7 +533,7 @@ impl Cloud {
     /// Apply global atmospheric effects to the frame.
     /// OPTIMIZED (v5.0.4): scans only dirty-cell indices instead of full O(w×h) grid.
     pub(super) fn apply_atmospheric_frame_effects(
-        &self,
+        &mut self,
         frame: &mut crate::frame::Frame,
         now: Instant,
     ) {
@@ -590,9 +590,14 @@ impl Cloud {
             None
         };
 
-        // Collect dirty indices first to release immutable borrow before frame.set()
-        let dirty_indices: smallvec::SmallVec<[usize; 256]> =
-            frame.dirty_indices().iter().copied().collect();
+        // Collect dirty indices into a reusable buffer — avoids per-frame
+        // SmallVec allocation when dirty count exceeds inline capacity (256).
+        // The buffer is cleared and refilled each frame; capacity grows once
+        // and is reused for all subsequent frames.
+        self.phosphor_dirty_buf.clear();
+        self.phosphor_dirty_buf
+            .extend(frame.dirty_indices().iter().copied());
+        let dirty_indices = &self.phosphor_dirty_buf;
 
         // Apply to dirty cells only (O(dirty) not O(w×h))
         // PERF(v10): Decode color to RGB once, chain all effects on raw tuples,
@@ -600,7 +605,7 @@ impl Cloud {
         // match+destructure cycles per cell when multiple effects are active.
         let bg = self.palette.bg;
         let frame_width = frame.width as usize;
-        for &dirty_idx in &dirty_indices {
+        for &dirty_idx in dirty_indices.iter() {
             let col = (dirty_idx % frame_width) as u16;
             let line = (dirty_idx / frame_width) as u16;
             if line >= self.lines || col >= self.cols {
