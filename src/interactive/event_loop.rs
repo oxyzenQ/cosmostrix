@@ -276,9 +276,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_adaptive_color: Option<&str> = None;
     const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
-    // Helper: print a live verbose line to stderr when -v is active.
-    // This lets the user see runtime changes (color cycle, scene cycle,
-    // adaptive shift, live reload) in real-time, not just at startup.
+    // Helper: track runtime state changes for post-exit verbose summary.
+    // We do NOT eprintln during rain — that causes screen flicker because
+    // stderr output appears in the terminal during alternate-screen mode.
+    // Instead, we track changes silently and print a full summary after exit.
     let verbose = cfg.verbose;
     let mut last_color_scheme = cloud.color_scheme();
     let mut last_scene_name = scene_name.clone();
@@ -327,13 +328,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         if let Ok(scheme) = crate::cli::parse_color_scheme(target) {
                             cloud.set_color_scheme(scheme);
                             last_adaptive_color = Some(target);
-                            if verbose {
-                                eprintln!(
-                                    "[verbose] adaptive color shift: {:?} -> {:?}",
-                                    last_color_scheme, scheme
-                                );
-                                last_color_scheme = scheme;
-                            }
+                            last_color_scheme = scheme;
                         }
                     }
                 }
@@ -622,21 +617,18 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = Instant::now();
                         }
 
-                        // Live verbose: detect runtime changes and print
-                        // to stderr. Only fires when -v is active AND a
-                        // value actually changed (not every frame).
+                        // Track runtime changes silently (no eprintln
+                        // during rain — causes screen flicker). The
+                        // final summary is printed after exit by main.rs.
                         if verbose {
                             let cur_color = cloud.color_scheme();
                             if cur_color != last_color_scheme {
-                                eprintln!("[verbose] color_scheme: {:?}", cur_color);
                                 last_color_scheme = cur_color;
                             }
                             if scene_name != last_scene_name {
-                                eprintln!("[verbose] scene: {}", scene_name);
                                 last_scene_name = scene_name.clone();
                             }
                             if charset_preset != last_charset {
-                                eprintln!("[verbose] charset: {}", charset_preset);
                                 last_charset = charset_preset.clone();
                             }
                         }

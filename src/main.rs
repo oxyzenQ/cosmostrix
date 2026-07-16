@@ -986,9 +986,12 @@ fn main() -> std::io::Result<()> {
 
     let result = interactive::run_interactive(&cloud_cfg);
 
-    // Live verbose: print final runtime state after exit.
-    // During rain, stderr output may be visually lost in the terminal.
-    // This summary ensures the user sees what changed during the session.
+    // Live verbose: print FULL final runtime state after exit.
+    // During rain, stderr output causes screen flicker in alternate-screen
+    // mode. So we print the full verbose block AFTER Terminal::drop
+    // restores the terminal. This shows the user the FINAL state of all
+    // runtime parameters (after color cycles, scene changes, adaptive
+    // shifts, live config reloads, etc.).
     if args.verbose {
         let final_color = interactive::last_color_scheme();
         let final_scene = interactive::last_scene_name();
@@ -996,23 +999,37 @@ fn main() -> std::io::Result<()> {
         let startup_color = color_scheme;
         let startup_scene = args.scene.as_deref().unwrap_or("monolith").to_string();
 
-        if final_color != startup_color {
+        // Only print if something changed during the session.
+        let changed = final_color != startup_color
+            || final_scene != startup_scene
+            || final_charset != startup_charset;
+
+        if changed {
+            eprintln!("[verbose] ════════════════════════════════════════════════════════");
             eprintln!(
-                "[verbose] final color_scheme: {:?} (was {:?} at startup)",
-                final_color, startup_color
+                "[verbose]  cosmostrix v{} — final runtime state",
+                env!("CARGO_PKG_VERSION")
             );
-        }
-        if final_scene != startup_scene {
-            eprintln!(
-                "[verbose] final scene: {} (was {} at startup)",
-                final_scene, startup_scene
-            );
-        }
-        if final_charset != startup_charset {
-            eprintln!(
-                "[verbose] final charset: {} (was {} at startup)",
-                final_charset, startup_charset
-            );
+            eprintln!("[verbose] ════════════════════════════════════════════════════════");
+            if final_color != startup_color {
+                eprintln!(
+                    "[verbose]   color_scheme:  {:?} (was {:?})",
+                    final_color, startup_color
+                );
+            }
+            if final_scene != startup_scene {
+                eprintln!(
+                    "[verbose]   scene:         {} (was {})",
+                    final_scene, startup_scene
+                );
+            }
+            if final_charset != startup_charset {
+                eprintln!(
+                    "[verbose]   charset:       {} (was {})",
+                    final_charset, startup_charset
+                );
+            }
+            eprintln!("[verbose] ════════════════════════════════════════════════════════");
         }
     }
 
