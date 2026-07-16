@@ -419,6 +419,23 @@ fn is_known_key(key: &str) -> bool {
         || LEGACY_CONFIG_KEYS.contains(&key)
         || is_profile_config_key(key)
         || is_scene_custom_config_key(key)
+        || is_adaptive_custom_key(key)
+}
+
+/// Check if `key` matches the `adaptive-custom.HH-MM` pattern.
+#[inline]
+fn is_adaptive_custom_key(key: &str) -> bool {
+    let Some(rest) = key.strip_prefix("adaptive-custom.") else {
+        return false;
+    };
+    // Must be HH-MM format (digits, single dash, digits).
+    let Some((hh, mm)) = rest.split_once('-') else {
+        return false;
+    };
+    hh.len() == 2
+        && mm.len() == 2
+        && hh.chars().all(|c| c.is_ascii_digit())
+        && mm.chars().all(|c| c.is_ascii_digit())
 }
 
 #[inline]

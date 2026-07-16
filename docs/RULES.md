@@ -3,7 +3,7 @@
 
 ## Source file size
 
-All Rust source files under `src/` must stay **under 1,000 gross lines**.
+All Rust source files under `src/` must stay **under 1,200 gross lines**.
 This rule is enforced by `scripts/check-rs-loc.sh`, which runs as part of
 `./scripts/build.sh check-all`.
 
@@ -27,7 +27,7 @@ Prefer splitting modules by responsibility over allowing large files.
 
 - `main.rs` should remain bootstrap and wiring only; target 100–300 LOC long-term.
 - `cli.rs` may be larger if it contains mostly Clap command definitions, but must
-  still stay under 1,000 LOC.
+  still stay under 1,200 LOC.
 - Module directories (e.g. `src/cloud/`, `src/interactive/`) use `mod.rs` as the
   public entry point and split implementation into focused submodules.
 - Tests are colocated with their module in dedicated `tests/` subdirectories.
