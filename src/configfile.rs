@@ -386,6 +386,8 @@ pub fn dump_config_text() -> &'static str {
 # Parameters not specified are sticky (keep previous value).
 # Transition: smooth 5-minute blend before next time point.
 # If not defined, default adaptive engine (5 phases) is used.
+# Note: custom time map is checked every 30s at runtime.
+# Live config reload re-parses the map immediately on save.
 # adaptive-custom.00-00 = deepspace, monolith, speed=15, density=1.2
 # adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
 # adaptive-custom.12-00 = cosmos, monolith, speed=30, density=0.85
@@ -422,18 +424,18 @@ fn is_known_key(key: &str) -> bool {
         || is_adaptive_custom_key(key)
 }
 
-/// Check if `key` matches the `adaptive-custom.HH-MM` pattern.
+/// Check if `key` matches the `adaptive-custom.H-M` pattern.
+/// Accepts flexible digit counts: `2-3`, `02-03`, `2-03`, `02-3` all valid.
 #[inline]
 fn is_adaptive_custom_key(key: &str) -> bool {
     let Some(rest) = key.strip_prefix("adaptive-custom.") else {
         return false;
     };
-    // Must be HH-MM format (digits, single dash, digits).
     let Some((hh, mm)) = rest.split_once('-') else {
         return false;
     };
-    hh.len() == 2
-        && mm.len() == 2
+    !hh.is_empty()
+        && !mm.is_empty()
         && hh.chars().all(|c| c.is_ascii_digit())
         && mm.chars().all(|c| c.is_ascii_digit())
 }

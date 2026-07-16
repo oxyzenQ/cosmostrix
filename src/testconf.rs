@@ -124,6 +124,16 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         if key.starts_with("profile.") || key.starts_with("scene-custom.") {
             continue; // block keys validated above
         }
+        // adaptive-custom.HH-MM keys: validate via parse_custom_time_map.
+        if key.starts_with("adaptive-custom.") {
+            let mut single = std::collections::HashMap::new();
+            single.insert(key.clone(), value.clone());
+            if let Err(e) = crate::atmosphere_custom::parse_custom_time_map(&single) {
+                crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {e}"));
+                errors += 1;
+            }
+            continue;
+        }
         if let Some(msg) = validate_field_value(key, value) {
             crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
             errors += 1;
