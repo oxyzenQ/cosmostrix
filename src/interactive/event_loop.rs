@@ -287,7 +287,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // Parse custom time map from config (if [adaptive-custom] is defined).
     // This overrides the default 5-phase adaptive engine.
-    let custom_time_map: Option<crate::atmosphere_custom::CustomTimeMap> = {
+    let mut custom_time_map: Option<crate::atmosphere_custom::CustomTimeMap> = {
         let cfg_map = crate::configfile::load_config_file(cfg.config_path_for_watcher.as_deref());
         match crate::atmosphere_custom::parse_custom_time_map(&cfg_map) {
             Ok(map) if !map.is_empty() => Some(map),
@@ -413,6 +413,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             frame = Frame::new(w, h, cloud.palette.bg);
             // Update charset_preset for runtime cycling.
             charset_preset = new_cfg.charset_preset.clone();
+            // Re-parse custom time map from the new config (live reload
+            // may have added/changed/removed adaptive-custom entries).
+            custom_time_map = match crate::atmosphere_custom::parse_custom_time_map(&new_cfg_map) {
+                Ok(map) if !map.is_empty() => Some(map),
+                Ok(_) => None,
+                Err(e) => {
+                    eprintln!("[adaptive-custom] parse error after live reload: {e}. Using default adaptive.");
+                    None
+                }
+            };
         }
 
         // Adaptive throttling: detect idle state (no input for IDLE_THRESHOLD_SECS)

@@ -170,6 +170,14 @@ pub fn validate_config_strictly(
         if key.starts_with("profile.") || key.starts_with("scene-custom.") {
             continue;
         }
+        // adaptive-custom.HH-MM keys: validate via parse_custom_time_map.
+        // This catches invalid color/scene names, invalid parameters, etc.
+        if key.starts_with("adaptive-custom.") {
+            let mut single = std::collections::HashMap::new();
+            single.insert(key.clone(), value.clone());
+            crate::atmosphere_custom::parse_custom_time_map(&single)?;
+            continue;
+        }
         if let Some(msg) = validate_field_value(key, value) {
             return Err(format!("invalid value '{value}' for '{key}': {msg}"));
         }
