@@ -138,26 +138,10 @@ pub fn verbose_line(label: &str, value: &str) -> String {
     }
 }
 
-/// Format a verbose separator line (═══ or ───) in brand purple.
-#[must_use]
-pub fn verbose_separator(ch: char, count: usize) -> String {
-    let sep: String = std::iter::repeat(ch).take(count).collect();
-    if stderr_is_tty() {
-        format!("{BRAND_BOLD}[verbose] {sep}{RESET}")
-    } else {
-        format!("[verbose] {sep}")
-    }
-}
-
 /// Print a verbose line directly to stderr. Convenience wrapper for
 /// `eprintln!("{}", verbose_line(label, value))`.
 pub fn eprintln_verbose(label: &str, value: &str) {
     eprintln!("{}", verbose_line(label, value));
-}
-
-/// Print a verbose separator line directly to stderr.
-pub fn eprintln_verbose_separator(ch: char, count: usize) {
-    eprintln!("{}", verbose_separator(ch, count));
 }
 
 #[cfg(test)]
@@ -190,12 +174,5 @@ mod tests {
         assert!(line.contains("[verbose]"));
         assert!(line.contains("scene:"));
         assert!(line.contains("monolith"));
-    }
-
-    #[test]
-    fn verbose_separator_contains_repeated_char() {
-        let sep = verbose_separator('═', 10);
-        assert!(sep.contains("[verbose]"));
-        assert!(sep.contains("══════════"));
     }
 }

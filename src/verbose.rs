@@ -54,14 +54,12 @@ pub(crate) fn print_verbose(
     charset_file: Option<&str>,
     screen_size: Option<(u16, u16)>,
 ) {
-    output::eprintln_verbose_separator('═', 56);
     eprintln!(
         "{}",
         output::brand_bold(&format!(
             "[verbose]  cosmostrix v{version} — runtime configuration"
         ))
     );
-    output::eprintln_verbose_separator('═', 56);
     output::eprintln_verbose("scene:", &format!(" {:?}", scene.unwrap_or("default")));
     output::eprintln_verbose("rain_style:", &format!(" {rain_style:?}"));
     output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?}"));
@@ -131,7 +129,6 @@ pub(crate) fn print_verbose(
     if let Some(d) = duration {
         output::eprintln_verbose("duration:", &format!(" {d:.1}s"));
     }
-    output::eprintln_verbose_separator('─', 56);
     let term = std::env::var("TERM").unwrap_or_else(|_| "(unset)".into());
     let colorterm = std::env::var("COLORTERM").unwrap_or_else(|_| "(unset)".into());
     let term_program = std::env::var("TERM_PROGRAM").unwrap_or_else(|_| "(unset)".into());
@@ -160,5 +157,4 @@ pub(crate) fn print_verbose(
     let is_android = std::env::var("TERMUX_VERSION").is_ok()
         || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
     output::eprintln_verbose("android:", &format!(" {is_android}"));
-    output::eprintln_verbose_separator('═', 56);
 }
