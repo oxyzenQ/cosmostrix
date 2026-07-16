@@ -285,6 +285,20 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_scene_name = scene_name.clone();
     let mut last_charset = charset_preset.clone();
 
+    // Parse custom time map from config (if [adaptive-custom] is defined).
+    // This overrides the default 5-phase adaptive engine.
+    let custom_time_map: Option<crate::atmosphere_custom::CustomTimeMap> = {
+        let cfg_map = crate::configfile::load_config_file(cfg.config_path_for_watcher.as_deref());
+        match crate::atmosphere_custom::parse_custom_time_map(&cfg_map) {
+            Ok(map) if !map.is_empty() => Some(map),
+            Ok(_) => None,
+            Err(e) => {
+                eprintln!("[adaptive-custom] parse error: {e}. Using default adaptive.");
+                None
+            }
+        }
+    };
+
     while cloud.raining {
         // Check for graceful shutdown request from signal handler.
         // This allows clean exit via Terminal::drop() instead of racing
@@ -317,18 +331,61 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Adaptive color temperature shift: every 30s, check if the current
         // time-of-day phase suggests a different color scheme. If so,
         // apply it via a smooth palette transition wave. Only applies when
-        // atmosphere is active (controlled-live + adaptive) and the phase
-        // allows color changes (color_change_allowed = true at night).
+        // atmosphere is active (controlled-live + adaptive).
+        //
+        // v15 Dragon: custom time map takes priority over default adaptive.
+        // If [adaptive-custom] is defined in config, it overrides the
+        // default 5-phase adaptive engine. Otherwise, fallback to default.
         if cfg.atmosphere_mode.allows_modulation() {
             let now = Instant::now();
             if now.duration_since(last_color_check) >= COLOR_CHECK_INTERVAL {
                 last_color_check = now;
-                if let Some(target) = crate::atmosphere_adaptive::current_color_target() {
-                    if last_adaptive_color != Some(target) {
-                        if let Ok(scheme) = crate::cli::parse_color_scheme(target) {
-                            cloud.set_color_scheme(scheme);
-                            last_adaptive_color = Some(target);
-                            last_color_scheme = scheme;
+
+                // Check custom time map first (if loaded).
+                if let Some(ref custom_map) = custom_time_map {
+                    if let Some(cp) =
+                        custom_map.params_at(crate::atmosphere_adaptive::current_hour())
+                    {
+                        // Apply color if changed.
+                        if let Some(ref color_name) = cp.color {
+                            if let Ok(scheme) = crate::cli::parse_color_scheme(color_name) {
+                                if scheme != cloud.color_scheme() {
+                                    cloud.set_color_scheme(scheme);
+                                    last_color_scheme = scheme;
+                                }
+                            }
+                        }
+                        // Apply speed if changed.
+                        if let Some(speed) = cp.speed {
+                            cloud.set_chars_per_sec(speed);
+                        }
+                        // Apply density if changed.
+                        if let Some(density) = cp.density {
+                            cloud.set_droplet_density(density);
+                        }
+                        // Apply charset if changed.
+                        if let Some(ref charset_name) = cp.charset {
+                            if *charset_name != charset_preset {
+                                if let Ok(cs) =
+                                    crate::charset::charset_from_str(charset_name, false)
+                                {
+                                    let chars =
+                                        crate::charset::build_chars(cs, &user_ranges, def_ascii);
+                                    cloud.transition_chars(chars);
+                                    charset_preset = charset_name.clone();
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback: default adaptive engine.
+                    if let Some(target) = crate::atmosphere_adaptive::current_color_target() {
+                        if last_adaptive_color != Some(target) {
+                            if let Ok(scheme) = crate::cli::parse_color_scheme(target) {
+                                cloud.set_color_scheme(scheme);
+                                last_adaptive_color = Some(target);
+                                last_color_scheme = scheme;
+                            }
                         }
                     }
                 }

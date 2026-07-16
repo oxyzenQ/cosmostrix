@@ -51,6 +51,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "async-mode",
     "atmosphere-mode",
     "atmosphere-regime",
+    "adaptive-custom",
 ];
 
 pub const LEGACY_CONFIG_KEYS: &[&str] = &["glitchpct", "shortpct", "rippct", "maxdpc"];
@@ -379,6 +380,16 @@ pub fn dump_config_text() -> &'static str {
 # All eyes drawn to the middle — the seat of power in a quiet kingdom.
 # scene-custom.throne.base = monolith
 # scene-custom.throne.density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
+
+# Adaptive Custom Time Map (optional, overrides default adaptive engine)
+# Define your own time-to-parameter mapping. Format: HH-MM = color, scene, key=value, ...
+# Parameters not specified are sticky (keep previous value).
+# Transition: smooth 5-minute blend before next time point.
+# If not defined, default adaptive engine (5 phases) is used.
+# adaptive-custom.00-00 = deepspace, monolith, speed=15, density=1.2
+# adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
+# adaptive-custom.12-00 = cosmos, monolith, speed=30, density=0.85
+# adaptive-custom.18-00 = neon, storm, speed=24, density=1.1
 
 # Quick Start
 # cosmostrix                                       # run with defaults
