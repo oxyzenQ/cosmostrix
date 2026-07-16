@@ -126,3 +126,78 @@ are detected. The guard catches:
 If a future test genuinely needs the current package version, use
 `env!("CARGO_PKG_VERSION")` — never hardcode the literal string.
 
+## v15 Dragon Architecture
+
+The Dragon release introduces several major subsystems. All new code must
+follow these architectural rules.
+
+### Atmosphere Engine
+
+- Default: `controlled-live` + `adaptive` regime (no config needed).
+- 5 emotional phases: Deep Void (00-03), Compression (03-06), Pulse (06-12),
+  Calm (12-18), Signal (18-24).
+- Color temperature shift: each phase has a target color scheme (deepspace,
+  blackhole, aurora, cosmos, neon). Checked every 30s, applied via smooth
+  palette transition wave.
+- Custom time map: `[adaptive-custom.HH-MM]` overrides default phases.
+  Format: `adaptive-custom.00-00 = color, scene, key=value, ...`
+  Transition: smooth 5-minute blend before next point.
+- Disable: `atmosphere-mode = disabled` in config.
+- Modules: `atmosphere_adaptive.rs`, `atmosphere_custom.rs`.
+
+### Live Config Reload
+
+- Watches `config.toml` via `notify` crate (background thread).
+- Full Cloud rebuild on change (not delta apply).
+- Strict validation: malformed lines, unknown keys, invalid values → exit 2.
+- Error message printed to stderr AFTER terminal restore (not during rain).
+- Modules: `live_config.rs`, `testconf.rs` (shared validation).
+
+### Config Validation
+
+- `--testconf` validates all keys + values strictly.
+- Startup: rejects invalid config (exit 2, same as --testconf).
+- Live reload: rejects invalid config (exit 2, error printed after exit).
+- Malformed lines (no `=` or empty key/value) → error.
+- Unknown keys → error.
+- Invalid values (out of range, unknown enum) → error.
+- No silent fallback. No warnings. Errors only.
+
+### CLI Flag Policy (v14+)
+
+- Quit: only `q` exits. Esc and Ctrl+C are ignored (prevent accidental exit).
+- Screensaver mode: interactive keys (x, s, c, g, a, p, m, Space, arrows)
+  work normally. Only unrecognized keys exit.
+- Removed flags: `--preset`, `--profile`, `--low-power`, `--list-presets`,
+  `--list-profiles`, `--show-preset`, `--dump-profile`, `--list-colors-detail`,
+  `--defaults`, `--tune-visual`. Each has a migration error.
+- Android/Termux: accept Press + Repeat key events (skip Release).
+
+### Density Map
+
+- Per-column spawn probability weights (0.0-1.0) for monolith pillar formation.
+- Config: `scene-custom.<name>.density-map = 0.1,0.5,1.0,...`
+- Generator: `scripts/gen-density-presets.py` (twin-towers, cascade, throne).
+- Rejection sampling in `find_inactive_lane()`.
+
+### Config Path Whitelist (Security)
+
+- Linux: `~/.config/cosmostrix/`, `/etc/cosmostrix/`
+- macOS: `~/.config/cosmostrix/`, `~/Library/Application Support/cosmostrix/`, `/etc/cosmostrix/`
+- Windows: `%APPDATA%\cosmostrix\`, `%ProgramData%\cosmostrix\`
+- Rejected: current directory, `/tmp/`, `~/.local/`, `/usr/`, all others.
+- Enforced by `safepath.rs`.
+
+### Verbose Output
+
+- Startup: full config dump to stderr (no borders, purple brand color).
+- Runtime: changes tracked silently (no eprintln during rain — causes flicker).
+- After exit: final runtime state printed if any value changed.
+- Format: `[verbose] field: value (was old_value)`
+
+### Install Script
+
+- `./scripts/install` auto-detects CPU: AVX-512 → pro-linux-v4, AVX2 →
+  pro-linux-v3, baseline → release.
+- `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
+
