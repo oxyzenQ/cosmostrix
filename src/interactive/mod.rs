@@ -50,61 +50,50 @@ mod tests;
 pub(crate) use event_loop::run_interactive;
 pub(crate) use watchdog::clear_mouse_capture_flag;
 
-use crate::runtime::ColorScheme;
+use std::sync::Mutex;
 
-// Global state for final verbose summary after exit.
-// Set by the event loop when cloud.raining becomes false.
-use std::sync::atomic::{AtomicU8, Ordering};
-
-static LAST_COLOR_SCHEME: AtomicU8 = AtomicU8::new(0);
-static LAST_SCENE_NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-static LAST_CHARSET: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+// Final runtime state — stored as Strings to avoid enum discriminant issues
+// with 43 ColorScheme variants. Set by event loop before returning.
+static FINAL_COLOR: Mutex<Option<String>> = Mutex::new(None);
+static FINAL_SCENE: Mutex<Option<String>> = Mutex::new(None);
+static FINAL_CHARSET: Mutex<Option<String>> = Mutex::new(None);
 
 /// Store final runtime state for post-exit verbose summary.
-pub(crate) fn set_final_state(color: ColorScheme, scene: &str, charset: &str) {
-    LAST_COLOR_SCHEME.store(color as u8, Ordering::Relaxed);
-    let _ = LAST_SCENE_NAME.set(scene.to_string());
-    let _ = LAST_CHARSET.set(charset.to_string());
-}
-
-/// Get the final color scheme after the rain loop exited.
-pub(crate) fn last_color_scheme() -> ColorScheme {
-    // Reconstruct from u8 — ColorScheme is repr(u8) via clap ValueEnum.
-    // This is a simple approach: match the stored value.
-    match LAST_COLOR_SCHEME.load(Ordering::Relaxed) {
-        x if x == ColorScheme::Green as u8 => ColorScheme::Green,
-        x if x == ColorScheme::Green2 as u8 => ColorScheme::Green2,
-        x if x == ColorScheme::Green3 as u8 => ColorScheme::Green3,
-        x if x == ColorScheme::Yellow as u8 => ColorScheme::Yellow,
-        x if x == ColorScheme::Orange as u8 => ColorScheme::Orange,
-        x if x == ColorScheme::Red as u8 => ColorScheme::Red,
-        x if x == ColorScheme::Blue as u8 => ColorScheme::Blue,
-        x if x == ColorScheme::Cyan as u8 => ColorScheme::Cyan,
-        x if x == ColorScheme::Gold as u8 => ColorScheme::Gold,
-        x if x == ColorScheme::Rainbow as u8 => ColorScheme::Rainbow,
-        x if x == ColorScheme::Purple as u8 => ColorScheme::Purple,
-        x if x == ColorScheme::Neon as u8 => ColorScheme::Neon,
-        x if x == ColorScheme::Fire as u8 => ColorScheme::Fire,
-        x if x == ColorScheme::Ocean as u8 => ColorScheme::Ocean,
-        x if x == ColorScheme::Forest as u8 => ColorScheme::Forest,
-        x if x == ColorScheme::Vaporwave as u8 => ColorScheme::Vaporwave,
-        x if x == ColorScheme::Gray as u8 => ColorScheme::Gray,
-        x if x == ColorScheme::Snow as u8 => ColorScheme::Snow,
-        x if x == ColorScheme::Aurora as u8 => ColorScheme::Aurora,
-        x if x == ColorScheme::Cosmos as u8 => ColorScheme::Cosmos,
-        _ => ColorScheme::Cosmos,
+pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str) {
+    if let Ok(mut g) = FINAL_COLOR.lock() {
+        *g = Some(color.to_string());
+    }
+    if let Ok(mut g) = FINAL_SCENE.lock() {
+        *g = Some(scene.to_string());
+    }
+    if let Ok(mut g) = FINAL_CHARSET.lock() {
+        *g = Some(charset.to_string());
     }
 }
 
+/// Get the final color scheme name after the rain loop exited.
+pub(crate) fn last_color_scheme() -> String {
+    FINAL_COLOR
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+        .unwrap_or_else(|| "cosmos".to_string())
+}
+
 /// Get the final scene name after the rain loop exited.
-pub(crate) fn last_scene_name() -> &'static str {
-    LAST_SCENE_NAME
-        .get()
-        .map(String::as_str)
-        .unwrap_or("monolith")
+pub(crate) fn last_scene_name() -> String {
+    FINAL_SCENE
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+        .unwrap_or_else(|| "monolith".to_string())
 }
 
 /// Get the final charset preset after the rain loop exited.
-pub(crate) fn last_charset_preset() -> &'static str {
-    LAST_CHARSET.get().map(String::as_str).unwrap_or("binary")
+pub(crate) fn last_charset_preset() -> String {
+    FINAL_CHARSET
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+        .unwrap_or_else(|| "binary".to_string())
 }

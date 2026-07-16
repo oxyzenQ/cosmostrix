@@ -986,50 +986,42 @@ fn main() -> std::io::Result<()> {
 
     let result = interactive::run_interactive(&cloud_cfg);
 
-    // Live verbose: print FULL final runtime state after exit.
-    // During rain, stderr output causes screen flicker in alternate-screen
-    // mode. So we print the full verbose block AFTER Terminal::drop
-    // restores the terminal. This shows the user the FINAL state of all
-    // runtime parameters (after color cycles, scene changes, adaptive
-    // shifts, live config reloads, etc.).
+    // Final verbose: print changed runtime state after exit.
+    // No borders, purple brand color, simple format for easy analysis.
+    // Zero overhead during rain — only prints once after Terminal::drop.
     if args.verbose {
         let final_color = interactive::last_color_scheme();
         let final_scene = interactive::last_scene_name();
         let final_charset = interactive::last_charset_preset();
-        let startup_color = color_scheme;
+        let startup_color = format!("{:?}", color_scheme);
         let startup_scene = args.scene.as_deref().unwrap_or("monolith").to_string();
 
-        // Only print if something changed during the session.
         let changed = final_color != startup_color
             || final_scene != startup_scene
             || final_charset != startup_charset;
 
         if changed {
-            eprintln!("[verbose] ════════════════════════════════════════════════════════");
-            eprintln!(
-                "[verbose]  cosmostrix v{} — final runtime state",
-                env!("CARGO_PKG_VERSION")
-            );
-            eprintln!("[verbose] ════════════════════════════════════════════════════════");
+            let purple = "\x1b[38;2;168;85;247m";
+            let reset = "\x1b[0m";
+            eprintln!("{purple}[verbose] final runtime state{reset}");
             if final_color != startup_color {
                 eprintln!(
-                    "[verbose]   color_scheme:  {:?} (was {:?})",
+                    "{purple}[verbose]   color_scheme:  {} (was {}){reset}",
                     final_color, startup_color
                 );
             }
             if final_scene != startup_scene {
                 eprintln!(
-                    "[verbose]   scene:         {} (was {})",
+                    "{purple}[verbose]   scene:         {} (was {}){reset}",
                     final_scene, startup_scene
                 );
             }
             if final_charset != startup_charset {
                 eprintln!(
-                    "[verbose]   charset:       {} (was {})",
+                    "{purple}[verbose]   charset:       {} (was {}){reset}",
                     final_charset, startup_charset
                 );
             }
-            eprintln!("[verbose] ════════════════════════════════════════════════════════");
         }
     }
 
