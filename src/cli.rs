@@ -16,10 +16,10 @@ use crate::theme;
 // header lines. The header is reserved for `-V` / `--version` only, so the
 // help output opens straight with `USAGE:` for a clean first impression.
 //
-// The `USAGE:` label is rendered in brand purple (bold) when stdout is a
-// terminal; otherwise plain text. The exact purple escapes come from
-// `crate::output::BRAND_BOLD` / `RESET` so any future brand-color change
-// updates the help header automatically.
+// The `USAGE:` label is rendered in brand purple (bold) with capability-aware
+// escapes: truecolor RGB on modern terminals, 256-color palette index on
+// older 256-color terminals, basic 16-color magenta on legacy terminals,
+// and plain text when piped or NO_COLOR is set.
 
 /// Build the clap `help_template` string.
 ///
@@ -28,9 +28,9 @@ use crate::theme;
 pub(crate) fn help_template(color: bool) -> String {
     if color {
         format!(
-            "{brand_bold}USAGE:{reset}\n  {{usage}}\n\n{{all-args}}{{after-help}}",
-            brand_bold = crate::output::BRAND_BOLD,
-            reset = crate::output::RESET,
+            "{}USAGE:{}\n  {{usage}}\n\n{{all-args}}{{after-help}}",
+            crate::output::brand_bold_open(),
+            crate::output::reset(),
         )
     } else {
         "USAGE:\n  {usage}\n\n{all-args}{after-help}".to_string()

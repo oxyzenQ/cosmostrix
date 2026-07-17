@@ -950,8 +950,8 @@ fn main() -> std::io::Result<()> {
             || final_charset != startup_charset;
 
         if changed {
-            let purple = crate::output::BRAND_PURPLE;
-            let reset = crate::output::RESET;
+            let purple = crate::output::brand_open();
+            let reset = crate::output::reset();
             eprintln!("{purple}[verbose] final runtime state{reset}");
             if final_color != startup_color {
                 eprintln!(
@@ -981,10 +981,20 @@ fn main() -> std::io::Result<()> {
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
         if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
             if let Some(ref msg) = *guard {
-                // Use basic ANSI red (\x1b[31m) — universally supported.
-                eprintln!("\x1b[31m[live-reload] ERROR: {msg}\x1b[0m");
+                // Route through the centralized output helpers so the
+                // error color matches every other error path in the CLI
+                // (truecolor red on modern terminals, graceful fallback
+                // to 256/16-color on older ones, plain text when piped).
                 eprintln!(
-                    "\x1b[31m  Config NOT applied. Fix the error and restart cosmostrix.\x1b[0m"
+                    "{} [live-reload] ERROR: {}{}",
+                    crate::output::error_bold_open(),
+                    msg,
+                    crate::output::reset()
+                );
+                eprintln!(
+                    "{}  Config NOT applied. Fix the error and restart cosmostrix.{}",
+                    crate::output::error_open(),
+                    crate::output::reset()
                 );
             }
         }

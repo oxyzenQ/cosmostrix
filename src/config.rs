@@ -45,9 +45,9 @@ pub(crate) fn colorize_help_detail(text: &str) -> String {
 
         if is_heading {
             // Bold brand purple for section headings (matches --help USAGE:).
-            out.push_str(crate::output::BRAND_BOLD);
+            out.push_str(crate::output::brand_bold_open());
             out.push_str(line);
-            out.push_str(crate::output::RESET);
+            out.push_str(crate::output::reset());
             out.push_str(nl);
             continue;
         }
@@ -695,8 +695,8 @@ pub fn print_list_charsets() {
     if color_enabled_stdout() {
         println!(
             "{}AVAILABLE CHARSET PRESETS:{}",
-            crate::output::BRAND_BOLD,
-            crate::output::RESET
+            crate::output::brand_bold_open(),
+            crate::output::reset()
         );
     } else {
         println!("AVAILABLE CHARSET PRESETS:");
@@ -734,8 +734,8 @@ pub fn print_list_colors() {
     if color_enabled_stdout() {
         println!(
             "{}AVAILABLE COLOR THEMES:{}",
-            crate::output::BRAND_BOLD,
-            crate::output::RESET
+            crate::output::brand_bold_open(),
+            crate::output::reset()
         );
     } else {
         println!("AVAILABLE COLOR THEMES:");
@@ -750,8 +750,8 @@ pub fn print_list_scenes() {
     if color_enabled_stdout() {
         println!(
             "{}AVAILABLE SCENES:{}",
-            crate::output::BRAND_BOLD,
-            crate::output::RESET
+            crate::output::brand_bold_open(),
+            crate::output::reset()
         );
     } else {
         println!("AVAILABLE SCENES:");
@@ -767,8 +767,8 @@ pub fn print_list_scenes() {
         if color_enabled_stdout() {
             println!(
                 "{}CUSTOM SCENES (from config):{}",
-                crate::output::BRAND_BOLD,
-                crate::output::RESET
+                crate::output::brand_bold_open(),
+                crate::output::reset()
             );
         } else {
             println!("CUSTOM SCENES (from config):");

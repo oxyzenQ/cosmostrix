@@ -69,9 +69,9 @@ impl Report {
         if supports_ansi {
             println!(
                 "{}{}{}",
-                crate::output::BRAND_BOLD,
+                crate::output::brand_bold_open(),
                 self.title,
-                crate::output::RESET
+                crate::output::reset()
             );
         } else {
             println!("{}", self.title);

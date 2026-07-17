@@ -40,8 +40,10 @@ pub(super) fn version_report() -> String {
     // are rendered in brand purple. The remaining build/copyright/license
     // lines stay plain for readability. When piped (non-TTY), all output is
     // plain text so ANSI codes never leak into scripts or log files.
-    let purple = crate::output::BRAND_PURPLE;
-    let reset = crate::output::RESET;
+    //
+    // Color escapes are capability-aware: truecolor on modern terminals,
+    // 256-color on older ones, basic 16-color on legacy, plain text on
+    // mono/piped.
     let is_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
 
     let header = format!("cosmostrix: v{version}\n{description}");
@@ -54,7 +56,12 @@ pub(super) fn version_report() -> String {
     );
 
     if is_tty {
-        format!("{purple}{header}{reset}\n{body}")
+        format!(
+            "{}{}{}\n{body}",
+            crate::output::brand_open(),
+            header,
+            crate::output::reset()
+        )
     } else {
         format!("{header}\n{body}")
     }
@@ -121,22 +128,37 @@ pub(super) fn format_bytes(bytes: usize) -> String {
 #[cfg(target_arch = "x86_64")]
 pub(super) fn check_cpu_features() {
     let build = option_env!("COSMOSTRIX_BUILD").unwrap_or("");
+
+    // Helper: print the FATAL header + CPU feature requirement.
+    // The FATAL label uses error_bold() so the color matches every other
+    // error path in the CLI. The CPU feature name is bolded via a plain
+    // \x1b[1m wrapper (output.rs only exposes semantic colors, not generic
+    // bold, since bold-without-color is rare in CLI output).
+    let print_fatal = |feature: &str, target: &str| {
+        use crate::output::{color_capability, error_bold, reset, ColorCapability};
+        let (bold_on, bold_off) = if color_capability() == ColorCapability::Mono {
+            ("", "")
+        } else {
+            ("\x1b[1m", reset())
+        };
+        eprintln!(
+            "{} This binary requires {bold_on}{feature}{bold_off} ({target})",
+            error_bold("FATAL:")
+        );
+        eprintln!("       but your CPU does not support it.");
+        eprintln!();
+    };
+
     if build.contains("-v4") {
         if !std::arch::is_x86_feature_detected!("avx512f") {
-            eprintln!(
-                "\x1b[1;31mFATAL:\x1b[0m This binary requires \x1b[1mAVX-512\x1b[0m (x86-64-v4)"
-            );
-            eprintln!("       but your CPU does not support it.");
-            eprintln!();
+            print_fatal("AVX-512", "x86-64-v4");
             eprintln!("Rebuild with a compatible target:");
             eprintln!("  cargo pro-linux-v3    # x86-64-v3 (AVX2) — modern CPUs");
             eprintln!("  cargo pro-linux-musl  # x86-64-v3 + musl static");
             std::process::exit(1);
         }
     } else if build.contains("-v3") && !std::arch::is_x86_feature_detected!("avx2") {
-        eprintln!("\x1b[1;31mFATAL:\x1b[0m This binary requires \x1b[1mAVX2\x1b[0m (x86-64-v3)");
-        eprintln!("       but your CPU does not support it.");
-        eprintln!();
+        print_fatal("AVX2", "x86-64-v3");
         eprintln!("Rebuild with:");
         eprintln!("  cargo pro-linux-musl  # x86-64-v3 + musl static (same baseline)");
         eprintln!(
