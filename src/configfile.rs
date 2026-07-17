@@ -382,7 +382,8 @@ pub fn dump_config_text() -> &'static str {
 # scene-custom.throne.density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
 
 # Adaptive Custom Time Map (optional, overrides default adaptive engine)
-# Define your own time-to-parameter mapping. Format: HH-MM = color, scene, key=value, ...
+# Define your own time-to-parameter mapping. Format: H-M = color, scene, key=value, ...
+# Time format: flexible digits — 2-3, 02-03, 2-30, 14-5 all valid.
 # Parameters not specified are sticky (keep previous value).
 # Transition: smooth 5-minute blend before next time point.
 # If not defined, default adaptive engine (5 phases) is used.
