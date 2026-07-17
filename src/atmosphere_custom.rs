@@ -64,6 +64,19 @@ impl CustomTimeMap {
     ///
     /// Transition window: the last 5 minutes before the next point
     /// are used for smooth interpolation.
+    ///
+    /// # Wrap-around semantics
+    ///
+    /// The map is a closed 24-hour loop. If `current_minutes` is earlier
+    /// than the first defined point, the "current" point is the LAST
+    /// defined point (carried over from the previous day). If the next
+    /// point is earlier than the current point (next-day wrap), 1440
+    /// minutes are added to the next point's time for span/elapsed math.
+    ///
+    /// This is the fix for the underflow bug where a single point at
+    /// 22:00 with current time 21:54 caused `current_minutes - current.minutes`
+    /// to underflow u32, triggering an immediate transition to the next
+    /// point's color.
     pub fn params_at(&self, hour: f64) -> Option<CustomTimePoint> {
         if self.points.is_empty() {
             return None;
@@ -71,36 +84,63 @@ impl CustomTimeMap {
 
         let current_minutes = (hour * 60.0) as u32 % 1440;
 
-        // Find current and next points.
+        // Find the most recent point whose minutes <= current_minutes.
+        // If no such point exists (current_minutes is before the first
+        // defined point), wrap to the last point of the previous day.
         let mut current_idx = 0;
-        let mut next_idx = 0;
+        let mut found = false;
         for (i, p) in self.points.iter().enumerate() {
             if p.minutes <= current_minutes {
                 current_idx = i;
-                next_idx = if i + 1 < self.points.len() { i + 1 } else { 0 };
+                found = true;
             }
         }
+        if !found {
+            // current_minutes is before the first point — wrap to last point.
+            current_idx = self.points.len() - 1;
+        }
+        let next_idx = if current_idx + 1 < self.points.len() {
+            current_idx + 1
+        } else {
+            0 // wrap to first
+        };
 
         let current = &self.points[current_idx];
         let next = &self.points[next_idx];
 
-        // Calculate transition factor.
-        // Wrap-around: if next is earlier (next day), add 1440.
-        let next_minutes = if next.minutes <= current.minutes {
-            next.minutes + 1440
+        // Use signed arithmetic (i64) for elapsed/remaining so wrap-around
+        // never underflows. u32 subtraction like `1314 - 1320` would wrap
+        // to ~4 billion and cause an immediate transition to fire.
+        let current_min_i = i64::from(current.minutes);
+        let next_min_i = i64::from(next.minutes);
+        let cur_min_i = i64::from(current_minutes);
+
+        // Wrap next if it's earlier than current (next day).
+        let next_min_wrapped = if next_min_i <= current_min_i {
+            next_min_i + 1440
         } else {
-            next.minutes
+            next_min_i
         };
 
-        let span = (next_minutes - current.minutes).max(1);
-        let elapsed = current_minutes - current.minutes;
+        // Wrap current_minutes if it's earlier than the current point
+        // (we're in the next day relative to the current point).
+        let cur_min_wrapped = if cur_min_i < current_min_i {
+            cur_min_i + 1440
+        } else {
+            cur_min_i
+        };
+
+        let span = (next_min_wrapped - current_min_i).max(1);
+        let elapsed = cur_min_wrapped - current_min_i;
+        let remaining = next_min_wrapped - cur_min_wrapped;
+
         let t_raw = (elapsed as f32) / (span as f32);
         let _t = t_raw.clamp(0.0, 1.0);
 
         // Only transition in the last 5 minutes before next point.
         const TRANSITION_MINUTES: f32 = 5.0;
-        let t_smooth = if (span as f32) - (elapsed as f32) <= TRANSITION_MINUTES {
-            let local_t = 1.0 - ((span as f32) - (elapsed as f32)) / TRANSITION_MINUTES;
+        let t_smooth = if (remaining as f32) <= TRANSITION_MINUTES {
+            let local_t = 1.0 - (remaining as f32) / TRANSITION_MINUTES;
             local_t.clamp(0.0, 1.0)
         } else {
             0.0
@@ -482,6 +522,175 @@ mod tests {
         assert!(
             p.speed.unwrap() < 30.0,
             "speed should be transitioning down, got {}",
+            p.speed.unwrap()
+        );
+    }
+
+    /// Regression test for the u32 underflow bug.
+    ///
+    /// Before the fix: with a single point at 22:00 (1320 min) and current
+    /// time 21:54 (1314 min), `current_minutes - current.minutes` = 1314 - 1320
+    /// underflowed u32 to ~4 billion, causing the transition check to fire
+    /// immediately and return `next.color` (aurora) instead of `current.color`.
+    ///
+    /// After the fix: with a single point, the color is the point's color
+    /// 24/7 (because the single point wraps around the whole day). The
+    /// underflow no longer triggers a spurious transition.
+    #[test]
+    fn params_at_single_point_before_time_does_not_underflow() {
+        let map = CustomTimeMap {
+            points: vec![CustomTimePoint {
+                minutes: 1320, // 22:00
+                color: Some("aurora".to_string()),
+                scene: Some("signal".to_string()),
+                speed: Some(10.0),
+                density: Some(0.5),
+                fps: None,
+                charset: None,
+                glitch_level: None,
+            }],
+        };
+        // At 21:54 (1314 min) — 6 minutes BEFORE the only point at 22:00.
+        // Before the fix: underflow → transition fires → returns aurora with
+        // smoothed=1.0 (next.color). After the fix: single point wraps, color
+        // is aurora (current.color, not via transition), speed=10 (current's).
+        let p = map.params_at(21.9).unwrap(); // 21:54
+        assert_eq!(p.color.as_deref(), Some("aurora"));
+        assert_eq!(p.scene.as_deref(), Some("signal"));
+        assert_eq!(p.speed, Some(10.0));
+        assert_eq!(p.density, Some(0.5));
+        // Crucially: at 21:54 we're 6 min from 22:00 wrap, OUTSIDE the 5-min
+        // transition window. So speed should equal the current point's value
+        // exactly (no lerp toward next).
+        assert!(
+            (p.speed.unwrap() - 10.0).abs() < 1e-6,
+            "speed should be exactly current's, got {}",
+            p.speed.unwrap()
+        );
+    }
+
+    /// Regression test: when current_minutes is before the first defined
+    /// point, the "current" point should wrap to the LAST point (carried
+    /// over from the previous day). This is the multi-point version of the
+    /// underflow regression.
+    #[test]
+    fn params_at_before_first_point_wraps_to_last() {
+        let map = CustomTimeMap {
+            points: vec![
+                CustomTimePoint {
+                    minutes: 360, // 06:00 — aurora
+                    color: Some("aurora".to_string()),
+                    scene: None,
+                    speed: Some(20.0),
+                    density: None,
+                    fps: None,
+                    charset: None,
+                    glitch_level: None,
+                },
+                CustomTimePoint {
+                    minutes: 1320, // 22:00 — cosmos
+                    color: Some("cosmos".to_string()),
+                    scene: None,
+                    speed: Some(40.0),
+                    density: None,
+                    fps: None,
+                    charset: None,
+                    glitch_level: None,
+                },
+            ],
+        };
+        // At 04:00 (240 min) — before the first point (06:00).
+        // Current should wrap to the last point (22:00 cosmos).
+        // Next should be the first point (06:00 aurora), 120 min away.
+        // 120 > 5 (TRANSITION_MINUTES), so no transition → returns cosmos.
+        let p = map.params_at(4.0).unwrap();
+        assert_eq!(
+            p.color.as_deref(),
+            Some("cosmos"),
+            "at 04:00 (before first point 06:00), current should wrap to last point (22:00 cosmos)"
+        );
+        assert_eq!(p.speed, Some(40.0));
+    }
+
+    /// Verify transition fires correctly when within the 5-min window
+    /// before the next point (multi-point, no underflow).
+    #[test]
+    fn params_at_transition_within_window_multi_point() {
+        let map = CustomTimeMap {
+            points: vec![
+                CustomTimePoint {
+                    minutes: 0, // 00:00 — green
+                    color: Some("green".to_string()),
+                    scene: None,
+                    speed: Some(10.0),
+                    density: None,
+                    fps: None,
+                    charset: None,
+                    glitch_level: None,
+                },
+                CustomTimePoint {
+                    minutes: 600, // 10:00 — cosmos
+                    color: Some("cosmos".to_string()),
+                    scene: None,
+                    speed: Some(30.0),
+                    density: None,
+                    fps: None,
+                    charset: None,
+                    glitch_level: None,
+                },
+            ],
+        };
+        // At 09:58 (598 min) — 2 min before 10:00. Within 5-min window.
+        // Transition should be active, color should snap to next (cosmos)
+        // because smoothed >= 0.5 at 2 min remaining.
+        let p = map.params_at(9.9667).unwrap(); // ~09:58
+        assert_eq!(
+            p.color.as_deref(),
+            Some("cosmos"),
+            "at 09:58 (within 5-min window before 10:00), color should snap to next (cosmos)"
+        );
+        // Speed should be lerping toward 30.0 (next's speed).
+        assert!(
+            p.speed.unwrap() > 10.0 && p.speed.unwrap() < 30.0,
+            "speed should be transitioning toward 30.0, got {}",
+            p.speed.unwrap()
+        );
+    }
+
+    /// Verify transition does NOT fire when outside the 5-min window.
+    #[test]
+    fn params_at_no_transition_outside_window() {
+        let map = CustomTimeMap {
+            points: vec![
+                CustomTimePoint {
+                    minutes: 0, // 00:00 — green
+                    color: Some("green".to_string()),
+                    scene: None,
+                    speed: Some(10.0),
+                    density: None,
+                    fps: None,
+                    charset: None,
+                    glitch_level: None,
+                },
+                CustomTimePoint {
+                    minutes: 600, // 10:00 — cosmos
+                    color: Some("cosmos".to_string()),
+                    scene: None,
+                    speed: Some(30.0),
+                    density: None,
+                    fps: None,
+                    charset: None,
+                    glitch_level: None,
+                },
+            ],
+        };
+        // At 09:00 (540 min) — 60 min before 10:00. Outside 5-min window.
+        // No transition → color stays green, speed stays 10.0.
+        let p = map.params_at(9.0).unwrap();
+        assert_eq!(p.color.as_deref(), Some("green"));
+        assert!(
+            (p.speed.unwrap() - 10.0).abs() < 1e-6,
+            "speed should be exactly current's (no transition), got {}",
             p.speed.unwrap()
         );
     }

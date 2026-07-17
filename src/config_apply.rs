@@ -154,6 +154,17 @@ pub(crate) fn apply_config_and_runtime_defaults(
             "[verbose] config loaded from: {config_path} ({} keys)",
             cfg.len()
         );
+        // List the actual keys so the user can see exactly what is set.
+        // This is critical for debugging "why is the atmosphere engine
+        // running?" — the answer is almost always "atmosphere-mode and
+        // atmosphere-regime are uncommented in config.toml". Without this
+        // list, the user only sees "(2 keys)" and has to manually re-read
+        // the config file to figure out which 2.
+        if !cfg.is_empty() {
+            let mut keys: Vec<&str> = cfg.keys().map(String::as_str).collect();
+            keys.sort();
+            eprintln!("[verbose] config keys: {}", keys.join(", "));
+        }
     }
 
     // Strict startup validation: if config has ANY error (malformed lines,
