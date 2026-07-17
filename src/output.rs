@@ -29,7 +29,15 @@ use std::io::IsTerminal;
 // ── ANSI color constants ─────────────────────────────────────────────────────
 
 /// Brand purple: #A855F7 (168, 85, 247). Used for normal CLI output.
-pub const BRAND: &str = "\x1b[38;2;168;85;247m";
+///
+/// This is the canonical brand color for all non-render CLI text: help,
+/// verbose, errors, version, doctor, list printers. The rain renderer
+/// uses its own palette system — never import this into render code.
+pub const BRAND_PURPLE: &str = "\x1b[38;2;168;85;247m";
+
+/// Backwards-compatible alias for [`BRAND_PURPLE`]. Prefer the explicit
+/// `BRAND_PURPLE` name in new code.
+pub const BRAND: &str = BRAND_PURPLE;
 
 /// Bold brand purple. Used for verbose prefix and headers.
 pub const BRAND_BOLD: &str = "\x1b[1;38;2;168;85;247m";

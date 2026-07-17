@@ -205,60 +205,6 @@ pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
     out
 }
 
-#[allow(dead_code)] // retained for test-only callers; --dump-profile removed in v14
-pub fn dump_profile_text(
-    profiles: &BTreeMap<String, UserProfile>,
-    name: &str,
-) -> Result<String, String> {
-    let normalized = validate_profile_name(name)?;
-    let Some(profile) = profiles.get(&normalized) else {
-        return Err(format!(
-            "error: invalid profile: {name}\nexpected one of: {}\n\n  Use --list-profiles to see available profiles.",
-            profile_name_list(profiles)
-        ));
-    };
-
-    let mut out = String::new();
-    push_field(&mut out, &normalized, "base", profile.base.as_deref());
-    push_field(&mut out, &normalized, "preset", profile.preset.as_deref());
-    push_field(&mut out, &normalized, "color", profile.color.as_deref());
-    push_field(&mut out, &normalized, "charset", profile.charset.as_deref());
-    push_field(&mut out, &normalized, "fps", profile.fps.as_deref());
-    push_field(&mut out, &normalized, "speed", profile.speed.as_deref());
-    push_field(&mut out, &normalized, "density", profile.density.as_deref());
-    push_field(
-        &mut out,
-        &normalized,
-        "glitch-level",
-        profile.glitch_level.as_deref(),
-    );
-    push_field(
-        &mut out,
-        &normalized,
-        "monolith-size",
-        profile.monolith_size.as_deref(),
-    );
-    push_field(
-        &mut out,
-        &normalized,
-        "color-bg",
-        profile.color_bg.as_deref(),
-    );
-    push_field(
-        &mut out,
-        &normalized,
-        "atmosphere-mode",
-        profile.atmosphere_mode.as_deref(),
-    );
-    push_field(
-        &mut out,
-        &normalized,
-        "atmosphere-regime",
-        profile.atmosphere_regime.as_deref(),
-    );
-    Ok(out)
-}
-
 fn apply_profile_preset(
     matches: &clap::ArgMatches,
     args: &mut Args,
@@ -556,13 +502,6 @@ fn warn_invalid(profile: &str, field: &str, value: &str, expected: &str) {
     crate::output::eprintln_warn_labeled(&format!(
         "profile: invalid {field}='{value}' in profile '{profile}' (expected: {expected})"
     ));
-}
-
-#[allow(dead_code)] // called only by dump_profile_text (test-only in v14)
-fn push_field(out: &mut String, profile: &str, field: &str, value: Option<&str>) {
-    if let Some(value) = value {
-        out.push_str(&format!("profile.{profile}.{field} = {value}\n"));
-    }
 }
 
 #[cfg(test)]

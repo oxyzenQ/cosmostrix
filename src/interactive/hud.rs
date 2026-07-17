@@ -317,13 +317,6 @@ impl HudState {
             }
         }
     }
-
-    /// Reset max frame time. Called when the user wants to clear the
-    /// peak (e.g. after a known spike like a resize).
-    #[allow(dead_code)]
-    pub(crate) fn reset_max(&mut self) {
-        self.max_ms = 0.0;
-    }
 }
 
 /// Format a KiB value as a human-readable string (matches bench_report

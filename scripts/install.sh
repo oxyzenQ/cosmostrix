@@ -140,7 +140,7 @@ preserve_or_clean_user_config() {
     fi
 }
 
-echo ">> [1/5] Building ${PROJECT_NAME} (autodetect CPU, locked)"
+echo ">> [1/4] Building ${PROJECT_NAME} (autodetect CPU, locked)"
 
 # Detect CPU microarchitecture level and pick the optimal build profile.
 # x86-64-v4 (AVX-512) > x86-64-v3 (AVX2) > native release.
@@ -191,7 +191,7 @@ if [[ ! -f "${BINARY}" ]]; then
     exit 1
 fi
 
-echo ">> [2/5] Installing binary (${MODE})"
+echo ">> [2/4] Installing binary (${MODE})"
 case "${MODE}" in
     --system)
         # Clean up stale user-local install before installing system-wide.
@@ -209,7 +209,7 @@ case "${MODE}" in
         ;;
 esac
 
-echo ">> [3/5] Installing config.toml (${MODE})"
+echo ">> [3/4] Installing config.toml (${MODE})"
 case "${MODE}" in
     --system)
         sudo mkdir -p "/etc/${PROJECT_NAME}"
@@ -243,34 +243,7 @@ case "${MODE}" in
         ;;
 esac
 
-echo ">> [4/5] Installing shell completions (${MODE})"
-case "${MODE}" in
-    --system)
-        # Bash
-        "${BINARY}" --completions bash 2>/dev/null | sudo tee \
-            "/usr/share/bash-completion/completions/${PROJECT_NAME}" >/dev/null 2>&1 || true
-        echo "   installed: /usr/share/bash-completion/completions/${PROJECT_NAME}"
-        # Zsh
-        sudo mkdir -p /usr/share/zsh/site-functions
-        "${BINARY}" --completions zsh 2>/dev/null | sudo tee \
-            "/usr/share/zsh/site-functions/_${PROJECT_NAME}" >/dev/null 2>&1 || true
-        echo "   installed: /usr/share/zsh/site-functions/_${PROJECT_NAME}"
-        ;;
-    --user)
-        # Bash
-        bash_comp_dir="${HOME}/.local/share/bash-completion/completions"
-        mkdir -p "${bash_comp_dir}"
-        "${BINARY}" --completions bash 2>/dev/null > "${bash_comp_dir}/${PROJECT_NAME}" 2>/dev/null || true
-        echo "   installed: ${bash_comp_dir}/${PROJECT_NAME}"
-        # Zsh
-        zsh_comp_dir="${HOME}/.local/share/zsh/site-functions"
-        mkdir -p "${zsh_comp_dir}"
-        "${BINARY}" --completions zsh 2>/dev/null > "${zsh_comp_dir}/_${PROJECT_NAME}" 2>/dev/null || true
-        echo "   installed: ${zsh_comp_dir}/_${PROJECT_NAME}"
-        ;;
-esac
-
-echo ">> [5/5] Post-install verification"
+echo ">> [4/4] Post-install verification"
 case "${MODE}" in
     --system)
         echo "  - Verify: ${PROJECT_NAME} --version"

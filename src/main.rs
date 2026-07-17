@@ -102,7 +102,6 @@ mod diagnostics;
 mod docs_tests;
 mod doctor;
 mod dragon_egg_io_uring;
-mod dragon_engine;
 mod droplet;
 mod envstat;
 mod frame;
@@ -276,12 +275,7 @@ fn main() -> std::io::Result<()> {
     {
         cmd = cmd.styles(cli::clap_styles());
     }
-    let help_template = if color_enabled_stdout() {
-        cli::HELP_TEMPLATE_COLOR
-    } else {
-        cli::HELP_TEMPLATE_PLAIN
-    };
-    cmd = cmd.help_template(help_template);
+    cmd = cmd.help_template(cli::help_template(color_enabled_stdout()));
     cmd.build();
 
     if cmd.get_arguments().any(|a| a.get_id().as_str() == "help") {
@@ -339,26 +333,6 @@ fn main() -> std::io::Result<()> {
 
     if args.config_path {
         println!("{}", configfile::default_config_file_path().display());
-        return Ok(());
-    }
-
-    // --completions: print shell completions and exit.
-    if let Some(ref shell) = args.completions {
-        let shell = shell.to_lowercase();
-        let shell_id = match shell.as_str() {
-            "bash" => clap_complete::Shell::Bash,
-            "zsh" => clap_complete::Shell::Zsh,
-            "fish" => clap_complete::Shell::Fish,
-            "elvish" => clap_complete::Shell::Elvish,
-            _ => {
-                crate::output::eprintln_error_labeled(&format!(
-                    "unknown shell '{shell}' (supported: bash, zsh, fish, elvish)"
-                ));
-                std::process::exit(2);
-            }
-        };
-        let mut cmd = Args::command();
-        clap_complete::generate(shell_id, &mut cmd, "cosmostrix", &mut std::io::stdout());
         return Ok(());
     }
 
@@ -976,8 +950,8 @@ fn main() -> std::io::Result<()> {
             || final_charset != startup_charset;
 
         if changed {
-            let purple = "\x1b[38;2;168;85;247m";
-            let reset = "\x1b[0m";
+            let purple = crate::output::BRAND_PURPLE;
+            let reset = crate::output::RESET;
             eprintln!("{purple}[verbose] final runtime state{reset}");
             if final_color != startup_color {
                 eprintln!(

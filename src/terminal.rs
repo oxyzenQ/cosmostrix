@@ -150,7 +150,7 @@ impl Terminal {
             // The terminal now expects ESC[?2026h / ESC[?2026l framing
             // around each logical update batch.  We wrap entire frames
             // in the draw method.
-            let _ = out.get_ref().write_all(b"\x1b[?2026h");
+            let _ = out.get_ref().write_all(crate::termdetect::SYNC_START);
         }
         let mut term = Self {
             stdout: out,

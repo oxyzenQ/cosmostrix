@@ -177,11 +177,6 @@ DIAGNOSTICS:
       cursor home, and attempts scrollback purge when supported.
   --verbose      Print diagnostic info to stderr before launching. Shows
       config path, resolved values, terminal detection, atmosphere state.
-  --completions <shell>
-      Print shell completion script to stdout. Pipe to your shell's
-      completions directory.
-      Supported shells: bash, zsh, fish, elvish.
-      Example: cosmostrix --completions bash > /etc/bash_completion.d/cosmostrix
 
 DISCOVERY:
   --list-colors         Show color theme names.

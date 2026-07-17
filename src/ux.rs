@@ -44,11 +44,10 @@ pub fn die_input(msg: impl AsRef<str>) -> ! {
 /// Exit code 2 matches --testconf behavior for invalid config.
 #[cold]
 pub fn die_config(msg: impl AsRef<str>) -> ! {
-    let msg = msg.as_ref();
-    let stripped = msg.strip_prefix("error: ").unwrap_or(msg);
-    // Use basic ANSI red (\x1b[31m) — universally supported, unlike
-    // truecolor (\x1b[38;2;...) which can be invisible on some terminals.
-    eprintln!("\x1b[31merror: {stripped}\x1b[0m");
+    // Route through the same branded-error path as `die_input` so all
+    // fatal CLI errors share a single visual treatment (truecolor red
+    // "error:" label + red message). Both exit-2 paths must look alike.
+    print_branded_error(msg.as_ref());
     use std::io::Write;
     let _ = std::io::stderr().flush();
     process::exit(2);

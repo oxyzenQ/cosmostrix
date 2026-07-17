@@ -34,15 +34,17 @@ pub(super) fn version_report() -> String {
     let build = canonical_build_label();
     let commit = build_commit_short().unwrap_or("unknown");
     let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
+    let description = env!("CARGO_PKG_DESCRIPTION");
 
-    // Only the header line "cosmostrix: v{version}" is purple (brand color).
-    // Remaining lines are plain for readability. When piped (non-TTY),
-    // output is fully plain text for scripts.
-    let purple = "\x1b[38;2;168;85;247m";
-    let reset = "\x1b[0m";
+    // The two header lines (cosmostrix: v{version} + one-line description)
+    // are rendered in brand purple. The remaining build/copyright/license
+    // lines stay plain for readability. When piped (non-TTY), all output is
+    // plain text so ANSI codes never leak into scripts or log files.
+    let purple = crate::output::BRAND_PURPLE;
+    let reset = crate::output::RESET;
     let is_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
 
-    let header = format!("cosmostrix: v{version}");
+    let header = format!("cosmostrix: v{version}\n{description}");
     let body = format!(
         "Build: {build} ({commit})\n\
          Build-time: {build_time}\n\

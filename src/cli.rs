@@ -10,23 +10,32 @@ use crate::config::Args;
 use crate::runtime::{ColorMode, ColorScheme};
 use crate::theme;
 
-// --- Help template constants ---
+// --- Help template builder ---
+//
+// `--help` intentionally omits the `{name} {version}` and `{about-with-newline}`
+// header lines. The header is reserved for `-V` / `--version` only, so the
+// help output opens straight with `USAGE:` for a clean first impression.
+//
+// The `USAGE:` label is rendered in brand purple (bold) when stdout is a
+// terminal; otherwise plain text. The exact purple escapes come from
+// `crate::output::BRAND_BOLD` / `RESET` so any future brand-color change
+// updates the help header automatically.
 
-pub(crate) const HELP_TEMPLATE_PLAIN: &str = "\
-{name} {version}
-{about-with-newline}\
-USAGE:
-  {usage}
-
-{all-args}{after-help}";
-
-pub(crate) const HELP_TEMPLATE_COLOR: &str = "\
-{name} {version}
-{about-with-newline}\
-\x1b[1;35mUSAGE:\x1b[0m
-  {usage}
-
-{all-args}{after-help}";
+/// Build the clap `help_template` string.
+///
+/// `color` should be true when stdout is a TTY (and `NO_COLOR` is unset).
+#[must_use]
+pub(crate) fn help_template(color: bool) -> String {
+    if color {
+        format!(
+            "{brand_bold}USAGE:{reset}\n  {{usage}}\n\n{{all-args}}{{after-help}}",
+            brand_bold = crate::output::BRAND_BOLD,
+            reset = crate::output::RESET,
+        )
+    } else {
+        "USAGE:\n  {usage}\n\n{all-args}{after-help}".to_string()
+    }
+}
 
 // --- Clap styling ---
 

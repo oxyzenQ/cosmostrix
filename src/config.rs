@@ -44,10 +44,10 @@ pub(crate) fn colorize_help_detail(text: &str) -> String {
             !line.starts_with(' ') && line.ends_with(':') && line == line.to_ascii_uppercase();
 
         if is_heading {
-            // Bold magenta (purple) for section headings
-            out.push_str("\x1b[1;35m");
+            // Bold brand purple for section headings (matches --help USAGE:).
+            out.push_str(crate::output::BRAND_BOLD);
             out.push_str(line);
-            out.push_str("\x1b[0m");
+            out.push_str(crate::output::RESET);
             out.push_str(nl);
             continue;
         }
@@ -509,16 +509,6 @@ pub struct Args {
     )]
     pub verbose: bool,
 
-    #[arg(
-        long = "completions",
-        help_heading = "DIAGNOSTICS",
-        display_order = 140,
-        help = "Print shell completion script. Usage: --completions <shell>\n\
-                Supported: bash, zsh, fish, elvish.\n\
-                Install: cosmostrix --completions bash > ~/.config/cosmostrix/completions.bash"
-    )]
-    pub completions: Option<String>,
-
     // === HIDDEN (functional but intentionally undocumented in --help) ===
     #[arg(
         short = 'a',
@@ -703,7 +693,11 @@ pub struct Args {
 
 pub fn print_list_charsets() {
     if color_enabled_stdout() {
-        println!("\x1b[1;35mAVAILABLE CHARSET PRESETS:\x1b[0m");
+        println!(
+            "{}AVAILABLE CHARSET PRESETS:{}",
+            crate::output::BRAND_BOLD,
+            crate::output::RESET
+        );
     } else {
         println!("AVAILABLE CHARSET PRESETS:");
     }
@@ -738,7 +732,11 @@ pub fn print_list_charsets() {
 
 pub fn print_list_colors() {
     if color_enabled_stdout() {
-        println!("\x1b[1;35mAVAILABLE COLOR THEMES:\x1b[0m");
+        println!(
+            "{}AVAILABLE COLOR THEMES:{}",
+            crate::output::BRAND_BOLD,
+            crate::output::RESET
+        );
     } else {
         println!("AVAILABLE COLOR THEMES:");
     }
@@ -750,7 +748,11 @@ pub fn print_list_colors() {
 
 pub fn print_list_scenes() {
     if color_enabled_stdout() {
-        println!("\x1b[1;35mAVAILABLE SCENES:\x1b[0m");
+        println!(
+            "{}AVAILABLE SCENES:{}",
+            crate::output::BRAND_BOLD,
+            crate::output::RESET
+        );
     } else {
         println!("AVAILABLE SCENES:");
     }
@@ -763,7 +765,11 @@ pub fn print_list_scenes() {
     if !custom_scenes.is_empty() {
         println!();
         if color_enabled_stdout() {
-            println!("\x1b[1;35mCUSTOM SCENES (from config):\x1b[0m");
+            println!(
+                "{}CUSTOM SCENES (from config):{}",
+                crate::output::BRAND_BOLD,
+                crate::output::RESET
+            );
         } else {
             println!("CUSTOM SCENES (from config):");
         }

@@ -9,6 +9,141 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v15.0.0 — The Dragon (Pre-Release Polish)
+
+### Breaking Changes
+
+- **`--completions <shell>` removed.** The flag, its handler, the
+  `clap_complete` dependency, the AUR `PKGBUILD` install step, and the
+  `scripts/install.sh` completion-installation phase are all gone. Shell
+  completion scripts are no longer shipped. Users who relied on this
+  feature should generate completions externally (e.g. via
+  `clap_complete` in a downstream tool) or write them by hand from
+  `--help-detail`. This drops one transitive crate and removes a
+  maintenance surface that was rarely used.
+
+- **`--help` no longer prints the `cosmostrix 14.0.0` / about header.**
+  The help output now opens directly with `USAGE:` for a cleaner first
+  impression. The header is reserved for `-V` / `--version` only. If
+  you scripted against the old help layout, update your parser to skip
+  the now-absent two header lines.
+
+### Added
+
+- **`-V` description line.** The `-V` / `--version` output now includes
+  the one-line package description right under the version header:
+
+  ```text
+  cosmostrix: v14.0.0
+  Production-grade cinematic Matrix rain renderer for serious terminal environments.
+  Build: …
+  ```
+
+  Both header lines are rendered in brand purple (`#A855F7`) on a TTY.
+  When piped or redirected, the output is fully plain text — no ANSI
+  escape codes leak into scripts or log files.
+
+- **`BRAND_PURPLE` canonical constant** in `src/output.rs`. All CLI
+  helper text (help, verbose, errors, version, list printers, doctor
+  report titles, help-detail section headings) now flows through one
+  of the centralized brand constants (`BRAND_PURPLE`, `BRAND_BOLD`,
+  `ERROR`, `ERROR_BOLD`, `WARN`, `WARN_BOLD`, `RESET`). No hardcoded
+  `\x1b[1;35m` / `\x1b[38;2;168;85;247m` strings remain in CLI code.
+
+### Changed
+
+- **Atmosphere default reverted to `disabled`.** Cosmostrix no longer
+  silently shifts color schemes based on the local time of day when
+  the user hasn't explicitly enabled the atmosphere engine. The
+  adaptive color phases (Deep Void, Compression, Pulse, Calm, Signal)
+  are still available — opt in via `atmosphere-mode = controlled-live`
+  in `config.toml`. This fixes a regression introduced in commit
+  `5172f39` where `cosmostrix -v` showed `color_scheme: Cosmos` at
+  startup but `color_scheme: Neon` in the final runtime state.
+
+- **`ux::die_config` now routes through `output::eprintln_error_labeled`.**
+  Both fatal exit-2 paths (`die_input` and `die_config`) share the same
+  truecolor-red branded error treatment. Previously `die_config` used
+  basic ANSI red (`\x1b[31m`) with a comment about truecolor
+  invisibility on some terminals — but `die_input` already used
+  truecolor, so the inconsistency wasn't protecting anything.
+
+- **`scripts/install.sh` renumbered.** The install pipeline is now
+  4 steps instead of 5 (the completion-installation step was removed).
+
+### Removed (dead code)
+
+- **`src/dragon_engine/`** — 7-file pure re-export namespace wrapper
+  that nothing in the codebase ever consumed. Only the
+  `mod dragon_engine;` declaration in `main.rs` referenced it; the
+  submodules all carried `#![allow(unused_imports)]` because Rust's
+  own warning system flagged every re-export as unused.
+
+- **`profile::dump_profile_text` and `profile::push_field`** —
+  retained since v14 with `#[allow(dead_code)]` comments saying
+  "test-only in v14", but a full audit found zero callers anywhere
+  (production or test). The `--dump-profile` flag was removed in v14
+  and these helpers were its rendering backend; with no replacement
+  caller, they are deleted.
+
+- **`HudState::reset_max`** — `#[allow(dead_code)]`-tagged HUD helper
+  for clearing the peak frame-time counter. Never called by any
+  keybinding or runtime path. Deleted.
+
+- **`terminal.rs:153` literal `b"\x1b[?2026h"`** — replaced with
+  `crate::termdetect::SYNC_START`. The same constant was already
+  exported and used elsewhere in the file; the literal was a direct
+  duplicate.
+
+### Fixed
+
+- **Live-reload error visibility** — errors detected by the config
+  watcher during alternate-screen mode are now printed to stderr
+  after `Terminal::drop` restores the terminal, via a global
+  `LIVE_RELOAD_ERROR` mutex. Previously these errors were swallowed
+  by the alternate screen and never visible to the user.
+
+- **`--testconf` validates `[adaptive-custom]` entries** — flexible
+  `HH-MM` time ranges (e.g. `20-23` or `20:00-23:00`) are now parsed
+  and validated at startup and on live reload, not just at
+  `--testconf` time. The validation also catches typos in phase color
+  names (e.g. `greens3` → `neon`).
+
+- **Screensaver mode no longer exits on every keypress** — the
+  screensaver-exit check was moved after `handle_keybinding`, so
+  recognized keys (c/s/x/i/etc.) still work in screensaver mode.
+  Only unrecognized keys exit. Esc and Ctrl+C no longer exit at all
+  (only `q` quits) — this matches the documented policy.
+
+- **Android/Termux `i` key no longer exits** — `KeyEventKind::Release`
+  events are now skipped on Android (only `Press` + `Repeat` accepted),
+  so tapping `i` to toggle the HUD doesn't cause an immediate exit.
+
+- **`--colormode` screen-size guard** — `parse_screen_size` now
+  rejects dimensions below 4x4 (previously accepted `12x1` silently,
+  which crashed the renderer).
+
+### Documentation
+
+- `docs/RULES.md` updated with the v15 Dragon architecture and the
+  1200-LOC per-file cap is now enforced.
+- `docs/ATMOSPHERE_ENGINE.md` documents the 5-phase adaptive breath.
+- `docs/ATMOSPHERE_EXPANSION.md` covers custom time mapping via
+  `[adaptive-custom.HH-MM]` blocks.
+
+### Performance
+
+- **Peak Monolith optimization**: `dirty_map` migrated from `BitVec`
+  to `Vec<u8>` (+2.5% FPS), phosphor dirty buffer reuse gives -44%
+  allocations and -28% ns/cell. The Phosphor LUT optimization was
+  attempted and honestly reported as a 7.7% regression — reverted.
+- **Live config reload** uses a full Cloud rebuild via mpsc channel
+  with strict validation, replacing the previous delta-apply approach.
+- 864 tests pass. `cargo clippy --all-targets --all-features -- -D
+  warnings` is clean. `cargo fmt --all -- --check` is clean.
+
+---
+
 ## v14.0.0 — Scene-Custom Migration (Breaking CLI)
 
 ### Breaking Changes

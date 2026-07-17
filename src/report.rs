@@ -67,7 +67,12 @@ impl Report {
         let rule: String = "\u{2500}".repeat(self.title.len());
 
         if supports_ansi {
-            println!("\x1b[1m{}\x1b[0m", self.title);
+            println!(
+                "{}{}{}",
+                crate::output::BRAND_BOLD,
+                self.title,
+                crate::output::RESET
+            );
         } else {
             println!("{}", self.title);
         }
