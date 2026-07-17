@@ -165,6 +165,19 @@ pub(crate) fn apply_config_and_runtime_defaults(
             keys.sort();
             eprintln!("[verbose] config keys: {}", keys.join(", "));
         }
+        // Surface adaptive-custom entries explicitly. These run regardless
+        // of atmosphere-mode (defining them is an opt-in), so it's important
+        // the user sees that the schedule is active even when the built-in
+        // atmosphere engine is Disabled.
+        let adaptive_custom_count = cfg
+            .keys()
+            .filter(|k| k.starts_with("adaptive-custom."))
+            .count();
+        if adaptive_custom_count > 0 {
+            eprintln!(
+                "[verbose] adaptive-custom: {adaptive_custom_count} entries (active regardless of atmosphere-mode)"
+            );
+        }
     }
 
     // Strict startup validation: if config has ANY error (malformed lines,

@@ -40,7 +40,7 @@ pub(crate) fn help_template(color: bool) -> String {
 // --- Clap styling ---
 
 #[cfg(unix)]
-use clap::builder::styling::{AnsiColor as ClapAnsiColor, Color as ClapColor};
+use clap::builder::styling::{Color as ClapColor, RgbColor as ClapRgbColor};
 #[cfg(unix)]
 use clap::builder::styling::{Effects as ClapEffects, Style as ClapStyle};
 #[cfg(unix)]
@@ -49,19 +49,29 @@ use clap::builder::Styles as ClapStyles;
 #[must_use]
 #[cfg(unix)]
 pub(crate) fn clap_styles() -> ClapStyles {
-    // Purple brand identity: headers and usage in bold magenta (closest
-    // ANSI to #A855F7 purple). Literals and placeholders use default
-    // terminal color (white) — no yellow, cyan, or green.
+    // Purple brand identity: section headings (USAGE, COMMON OPTIONS,
+    // ADVANCED, CONFIG, DIAGNOSTICS, HELP) rendered in bold truecolor
+    // purple #A855F7 (168, 85, 247). This matches the BRAND_BOLD constant
+    // in crate::output, so every purple element in --help / --help-detail
+    // / -V / verbose / errors uses the exact same RGB value.
+    //
+    // Literals and placeholders use default terminal color (white) — no
+    // yellow, cyan, or green.
+    //
+    // Why truecolor and not Ansi(Magenta): the basic 16-color ANSI
+    // palette is mapped by the terminal emulator to whatever shade of
+    // magenta it prefers (usually #FF00FF or similar hot pink), which
+    // does NOT match #A855F7. Truecolor emits the exact RGB bytes.
     ClapStyles::styled()
         .header(
             ClapStyle::new()
                 .effects(ClapEffects::BOLD)
-                .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Magenta))),
+                .fg_color(Some(ClapColor::Rgb(ClapRgbColor(168, 85, 247)))),
         )
         .usage(
             ClapStyle::new()
                 .effects(ClapEffects::BOLD)
-                .fg_color(Some(ClapColor::Ansi(ClapAnsiColor::Magenta))),
+                .fg_color(Some(ClapColor::Rgb(ClapRgbColor(168, 85, 247)))),
         )
         .literal(ClapStyle::new().effects(ClapEffects::BOLD))
         .placeholder(ClapStyle::new())
