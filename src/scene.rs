@@ -8,11 +8,11 @@
 //!
 //! ## Catalog
 //!
-//! Built-in scenes combine the original three runtime scenes (`matrix`,
-//! `monolith`, `signal`) with the curated atmospheres previously exposed as
-//! presets (`classic`, `cinematic`, `calm`, `storm`, `cosmos`, `neon`,
-//! `hacker`, `low-power`). The interactive cycle (`SCENE_ORDER`) keeps the
-//! three original entries to preserve runtime cycling behavior.
+//! Built-in scenes combine the three core runtime atmospheres (`matrix`,
+//! `monolith`, `signal`) with eight curated visual scenes (`classic`,
+//! `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`).
+//! The interactive cycle (`SCENE_ORDER`) keeps the three original entries
+//! to preserve runtime cycling behavior.
 
 use crate::config::GlitchLevel;
 use crate::rain_style::RainStyle;
@@ -81,7 +81,7 @@ pub const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
-    // --- Migrated preset atmospheres ---
+    // --- Curated visual scenes ---
     SceneInfo {
         name: "classic",
         description: "The original green-on-black Matrix rain",
@@ -371,7 +371,7 @@ mod tests {
     }
 
     #[test]
-    fn classic_scene_uses_matrix_preset_values() {
+    fn classic_scene_uses_matrix_scene_values() {
         let s = get_scene("classic").expect("classic scene");
         assert_eq!(s.config.color, Some("green"));
         assert_eq!(s.config.charset, Some("matrix"));

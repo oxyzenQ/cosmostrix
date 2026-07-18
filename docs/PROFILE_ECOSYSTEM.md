@@ -35,7 +35,6 @@ the supported profile fields listed below.
 | Field | Type | Description |
 |-------|------|-------------|
 | `base` / `scene` | Scene name | Foundation scene (e.g. `monolith`, `matrix`, `signal`) |
-| `preset` | Preset name | Curated preset applied before profile overrides |
 | `color` | Color name | Color theme (e.g. `cosmos`, `purple`, `sun`) |
 | `charset` | Charset name | Character set (e.g. `binary`, `katakana`) |
 | `fps` | Number | Target frames per second (1–240) |
@@ -47,11 +46,12 @@ the supported profile fields listed below.
 | `atmosphere-mode` | Mode | `disabled` (default) or `controlled-live` (opt-in) |
 | `atmosphere-regime` | Regime | `calm`, `pulse`, `signal`, `compression`, `void`, `monolith-pressure` |
 
-## Built-in / Discoverable Presets
+## Built-in Scenes
 
-Cosmostrix ships 8 curated presets (applied via `--scene` or `preset = <name>`
-in config). These are distinct from user-defined profiles. Presets provide
-complete visual configurations in a single named package. See
+Cosmostrix ships 11 built-in scenes applied via `--scene <name>`. Three core
+atmospheres (matrix, monolith, signal) plus eight curated scenes (classic,
+cinematic, calm, storm, cosmos, neon, hacker, low-power) provide complete
+visual configurations in a single named package. See
 `cosmostrix --list-scenes` for the full list.
 
 ## User Profiles
@@ -106,19 +106,17 @@ Values resolve through this chain (highest priority last):
 
 1. Built-in clap defaults
 2. Config file values
-3. Config preset
-4. Config scene
-5. Config profile
-6. CLI preset
-7. CLI scene
-8. CLI profile
-9. Low-power values
-10. Explicit CLI flags
+3. Config scene
+4. Config profile
+5. CLI scene
+6. CLI profile
+7. Low-power values
+8. Explicit CLI flags
 
 ### CLI > profile > config > defaults
 
-CLI flags (step 10) always win. A CLI profile (step 8) overrides a config
-profile (step 5). A profile (step 5) overrides config values (step 2).
+CLI flags (step 8) always win. A CLI profile (step 6) overrides a config
+profile (step 4). A profile (step 4) overrides config values (step 2).
 Config values (step 2) override built-in defaults (step 1).
 
 ### Profile overrides config

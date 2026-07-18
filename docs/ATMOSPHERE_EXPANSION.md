@@ -122,16 +122,14 @@ Config and profile values resolve through this precedence order:
 
 1. Built-in clap defaults
 2. Config file values
-3. Config preset
-4. Config scene
-5. Config profile
-6. CLI preset
-7. CLI scene
-8. CLI profile
-9. Low-power values
-10. Explicit CLI flags
+3. Config scene
+4. Config profile
+5. CLI scene
+6. CLI profile
+7. Low-power values
+8. Explicit CLI flags
 
-CLI flags (step 10) always win. Profile (step 5 or 8) overrides config
+CLI flags (step 8) always win. Profile (step 4 or 6) overrides config
 (step 2). This means a profile can set `atmosphere-mode = disabled` to
 override a config's `atmosphere-mode = controlled-live`.
 

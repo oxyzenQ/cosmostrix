@@ -3,8 +3,8 @@
 
 //! User-defined profile support for flat `key = value` config files.
 //!
-//! Profiles are intentionally lightweight. They reuse existing scenes and
-//! presets as foundations, then override only already-supported runtime fields.
+//! Profiles are intentionally lightweight. They reuse existing scenes
+//! as foundations, then override only already-supported runtime fields.
 
 use std::collections::{BTreeMap, HashSet};
 

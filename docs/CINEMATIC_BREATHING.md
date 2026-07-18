@@ -202,10 +202,10 @@ The atmosphere system enforces strict boundaries even during storm —
 parameters are capped at safe maximums that preserve terminal readability
 and performance.
 
-**Example:** The `--scene storm` curated preset demonstrates high-intensity
-visual behavior. Note that this is a curated preset (color, charset, speed,
+**Example:** The `--scene storm` built-in scene demonstrates high-intensity
+visual behavior. Note that this is a scene (color, charset, speed,
 density, glitch) and is distinct from the atmosphere storm regime. The
-atmosphere storm regime is not available through any preset or profile
+atmosphere storm regime is not available through any scene or profile
 and is explicitly blocked at every parsing layer.
 
 ### Breath Cycle
@@ -302,8 +302,8 @@ These conventions govern how presets, scenes, and atmosphere effects are
 named throughout Cosmostrix. Consistency in naming helps users form
 correct expectations and helps developers maintain a coherent codebase.
 
-**Preset names are single words, lowercase, evocative:** classic,
-cinematic, calm, monolith, storm, cosmos, neon, hacker. Preset names
+**Scene names are single words, lowercase, evocative:** classic,
+cinematic, calm, monolith, storm, cosmos, neon, hacker, low-power. Scene names
 should suggest the visual character without overpromising. "cinematic"
 suggests a particular mood; it does not promise 24fps film grain.
 "storm" suggests intensity; it does not promise thunder sound effects.
@@ -325,8 +325,8 @@ profiles anything that the config parser accepts (letters, digits, hyphens,
 underscores). Profile names are not part of the product vocabulary and do
 not need to follow any convention.
 
-**No preset or scene name may imply a promise the renderer cannot keep.**
-A preset called "60fps-guaranteed" would violate this rule because
+**No scene or profile name may imply a promise the renderer cannot keep.**
+A scene called "60fps-guaranteed" would violate this rule because
 Cosmostrix does not guarantee frame rates. A scene called "photorealistic"
 would violate this rule because the renderer produces terminal character
 rain, not photorealistic images. Names must be honest about what the
@@ -348,21 +348,17 @@ priority, is:
    value.
 2. **Config file values** — Global settings from the user's config file
    (`~/.config/cosmostrix/config.toml`).
-3. **Config preset** — A preset applied via the config file's `preset`
-   key.
-4. **Config scene** — A scene applied via the config file's `scene` key.
-5. **Config profile** — A user-defined profile applied via the config
+3. **Config scene** — A scene applied via the config file's `scene` key.
+4. **Config profile** — A user-defined profile applied via the config
    file's `profile` key.
-6. **CLI preset** — A preset applied via `--scene <name>` on the
-   command line.
-7. **CLI scene** — A scene applied via `--scene <name>` on the command
+5. **CLI scene** — A scene applied via `--scene <name>` on the command
    line.
-8. **CLI profile** — A user-defined profile applied via `--scene-custom
+6. **CLI profile** — A user-defined profile applied via `--scene-custom
    <name>` on the command line.
-9. **Low-power values** — When `--scene low-power` is active, a separate set
+7. **Low-power values** — When `--scene low-power` is active, a separate set
    of conservative values is applied for fields not already set by a
    higher layer.
-10. **Explicit CLI flags** — Individual flags like `--speed 20` or
+8. **Explicit CLI flags** — Individual flags like `--speed 20` or
     `--color purple` always win over every other layer.
 
 Higher layers override lower. No layer may break the pacing contract. Even

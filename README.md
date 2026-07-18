@@ -48,8 +48,8 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 
 - **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
 - **3 scene atmospheres** (matrix, monolith, signal), including signature Cosmostrix Monolith Rain
-- **8 curated presets** (classic, cinematic, calm, monolith, storm, cosmos, neon, hacker) for one-command visual profiles
-- 43 built-in themes and 24 character set presets (5 themes — Green3, Saturn, Comet, Meteor, Pluto — re-tuned in v11.1.0 for visual distinctness; `--color-tune` turns all 43 into 43 × ∞ variants)
+- **11 built-in scenes** — one-command visual profiles including 3 core atmospheres (matrix, monolith, signal) and 8 curated scenes (classic, cinematic, calm, storm, cosmos, neon, hacker, low-power)
+- 43 built-in themes and 24 character sets (5 themes — Green3, Saturn, Comet, Meteor, Pluto — re-tuned in v11.1.0 for visual distinctness; `--color-tune` turns all 43 into 43 × ∞ variants)
 - Phosphor persistence (CRT afterglow), depth fog, and 3-layer parallax
 - TrueColor green gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
@@ -165,7 +165,7 @@ cosmostrix --color rainbow --speed 12   # color + speed
 cosmostrix --screensaver              # only q exits (all other keys ignored)
 cosmostrix --message "wake up, neo"   # overlay message
 cosmostrix --charset katakana         # character set
-cosmostrix --scene cinematic          # curated built-in scene
+cosmostrix --scene cinematic          # built-in scene
 cosmostrix --scene monolith --color deepspace
 cosmostrix --config ~/.config/cosmostrix/config.toml  # explicit config (whitelist-enforced)
 cosmostrix --scene-custom nightcore   # user-defined custom scene
@@ -179,7 +179,7 @@ Run `cosmostrix --help` for common options or `cosmostrix --help-detail` for the
 COMMON OPTIONS
   -c, --color <name>        Color theme
      --color-tune <k=v>     Tune saturation/brightness (e.g. saturation=1.5,brightness=0.9)
-     --charset <name>       Character preset
+     --charset <name>       Character set
   -f, --fps <1-240>         Target FPS
   -S, --speed <1-100>       Rain speed
   -d, --density <0.01-5.0>  Rain density
@@ -202,7 +202,7 @@ DIAGNOSTICS
 
 DISCOVERY
      --list-colors          Show compact color theme names
-     --list-charsets        Show available charset presets
+     --list-charsets        Show available character sets
      --list-scenes          Show built-in and custom scenes
      --show-scene <name>    Show full details for a scene
      --defaults             Show the default runtime profile
@@ -252,7 +252,6 @@ Shell redirection (`cosmostrix --dump-config > file`) is **blocked** — cosmost
 
 ```
 scene = monolith
-preset = cinematic
 color = cosmos
 charset = binary
 fps = 60

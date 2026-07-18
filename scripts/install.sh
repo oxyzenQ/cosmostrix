@@ -10,7 +10,13 @@ set -euo pipefail
 
 PROJECT_NAME="cosmostrix"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONFIG_SRC="${REPO_ROOT}/config/config.toml"
+
+# Generate config template from the built binary via --dump-config.
+# This ensures the installed config always matches the binary's defaults.
+generate_config_template() {
+    local binary="$1"
+    "${binary}" --dump-config 2>/dev/null
+}
 
 usage() {
     cat <<EOF
@@ -74,11 +80,6 @@ if [[ ! -f Cargo.toml ]]; then
     exit 1
 fi
 
-if [[ ! -f "${CONFIG_SRC}" ]]; then
-    echo "error: config template not found: ${CONFIG_SRC}" >&2
-    exit 1
-fi
-
 # ── Helper: detect + clean stale user-local install when switching to --system ──
 # Removes ~/.local/bin/${PROJECT_NAME} and ~/.config/systemd/user/${PROJECT_NAME}.service
 # if they exist (leftover from a previous --user install). Prints a warning
@@ -100,7 +101,7 @@ cleanup_user_local_install() {
         return 0
     fi
 
-    echo "   ⚠ WARNING: Stale user-local install detected (from previous --user install)."
+    echo "   WARNING: Stale user-local install detected (from previous --user install)."
     echo "   The following will be removed to prevent PATH confusion:"
     for p in "${stale_paths[@]}"; do
         echo "     - ${p}"
@@ -113,10 +114,11 @@ cleanup_user_local_install() {
 }
 
 # ── Helper: preserve or clean user-local config when installing --system ──
-# If the user-local config matches the shipped default → remove it (bloat).
+# If the user-local config matches the generated default → remove it (bloat).
 # If it differs (user customized it) → preserve it (it takes precedence
 # over the system config in /etc due to XDG_CONFIG_HOME precedence).
 preserve_or_clean_user_config() {
+    local binary="$1"
     local user_cfg="${HOME}/.config/${PROJECT_NAME}/config.toml"
     if [[ ! -f "${user_cfg}" ]]; then
         return 0
@@ -125,7 +127,7 @@ preserve_or_clean_user_config() {
     # Strip blank lines + comments for fair comparison.
     local user_normalized default_normalized
     user_normalized=$(grep -vE '^\s*#|^\s*$' "${user_cfg}" 2>/dev/null || true)
-    default_normalized=$(grep -vE '^\s*#|^\s*$' "${CONFIG_SRC}" 2>/dev/null || true)
+    default_normalized=$(generate_config_template "${binary}" | grep -vE '^\s*#|^\s*$' 2>/dev/null || true)
 
     if [[ "${user_normalized}" == "${default_normalized}" ]]; then
         echo "   user-local config matches default — removing to avoid bloat:"
@@ -134,7 +136,7 @@ preserve_or_clean_user_config() {
         # Also remove the parent dir if empty (don't leave empty ~/.config/cosmostrix).
         rmdir "$(dirname "${user_cfg}")" 2>/dev/null || true
     else
-        echo "   ✓ User-local config is customized — preserved at:"
+        echo "   User-local config is customized — preserved at:"
         echo "     ${user_cfg}"
         echo "   (XDG_CONFIG_HOME precedence: user-local config overrides /etc config.)"
     fi
@@ -215,29 +217,26 @@ case "${MODE}" in
         sudo mkdir -p "/etc/${PROJECT_NAME}"
         config_path="/etc/${PROJECT_NAME}/config.toml"
         if sudo test -f "${config_path}"; then
-            echo "   ⚠ WARNING: Overwriting existing system config: ${config_path}"
+            echo "   WARNING: Overwriting existing system config: ${config_path}"
             echo "   No backup will be created (--system policy: avoid bloat)."
             echo "   If you need the old config, abort now (Ctrl+C) and back it up manually."
             sleep 2
-            sudo install -m 644 "${CONFIG_SRC}" "${config_path}"
-            echo "   overwritten: ${config_path}"
-        else
-            sudo install -m 644 "${CONFIG_SRC}" "${config_path}"
-            echo "   installed: ${config_path}"
         fi
+        generate_config_template "${BINARY}" | sudo tee "${config_path}" >/dev/null
+        echo "   installed: ${config_path}"
         # Preserve user-local config if customized; clean up if default.
-        preserve_or_clean_user_config
+        preserve_or_clean_user_config "${BINARY}"
         ;;
     --user)
         user_cfg_dir="${HOME}/.config/${PROJECT_NAME}"
         user_cfg="${user_cfg_dir}/config.toml"
         mkdir -p "${user_cfg_dir}"
         if [[ -f "${user_cfg}" ]]; then
-            install -m 644 "${CONFIG_SRC}" "${user_cfg}.new"
+            generate_config_template "${BINARY}" > "${user_cfg}.new"
             echo "   existing config preserved: ${user_cfg}"
             echo "   new template installed at: ${user_cfg}.new (review and merge manually)"
         else
-            install -m 644 "${CONFIG_SRC}" "${user_cfg}"
+            generate_config_template "${BINARY}" > "${user_cfg}"
             echo "   installed: ${user_cfg}"
         fi
         ;;

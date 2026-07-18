@@ -12,8 +12,8 @@ No profile is applied unless explicitly selected with `--scene-custom <name>` or
 Values resolve through this chain (highest priority last):
 
 ```
-CLI flags > CLI profile > CLI scene > CLI preset > low-power
-  > config profile > config preset > config values
+CLI flags > CLI profile > CLI scene > low-power
+  > config profile > config scene > config values
   > scene defaults (fills unset keys only) > built-in defaults
 ```
 
