@@ -53,6 +53,7 @@ fn args_with_config(config: &str, cli: &[&str]) -> Args {
 
 fn args_from_cli(cli: &[&str]) -> Args {
     if cli.contains(&"--config") {
+        ensure_test_config_dir_allowed();
         let mut argv = vec!["cosmostrix"];
         argv.extend_from_slice(cli);
         let cmd = Args::command();

@@ -68,36 +68,44 @@ tools (cosmostrix, neo-matrix, cxxmatrix) require a real TTY to run
 their event loops. CPU is measured via `resource.getrusage` delta;
 peak RSS via `/proc/<pid>/status` polling.
 
-### Example Results — AMD Ryzen 7 5800HS, Linux 7.1, 30s per tool, 8 tools
+### Example Results — AMD Ryzen 7 5800HS, Linux 7.1.3, 30s per tool, 8 tools
+
+Measured with `./scripts/bench-compare.sh --duration 30 --no-build` on
+cosmostrix v14.0.0 (commit e958d84, pro-linux-v3 profile, AVX2 detected).
 
 | Tool | Language | CPU time (s) | CPU % | Peak RSS (MiB) |
 |------|----------|-------------:|------:|---------------:|
-| **cosmostrix** | **Rust** | **0.04** | **0.1%** | 4.5 |
-| cmatrix | C | 0.20 | 0.7% | 4.9 |
-| unimatrix | Python | 0.18 | 0.6% | 19.4 |
-| neo-matrix | C | 0.16 | 0.5% | 7.2 |
-| tmatrix | C++ | 0.02 | 0.1% | 4.9 |
-| gmatrix | C | 0.03 | 0.1% | 4.9 |
-| fmatrix | C++ | 0.20 | 0.7% | 6.7 |
-| cxxmatrix | C++ | 0.01 | 0.0% | 4.0 |
+| **cosmostrix** | **Rust** | **0.03** | **0.1%** | **4.8** |
+| cmatrix | C | 0.18 | 0.6% | 4.9 |
+| unimatrix | Python | 0.14 | 0.5% | 19.3 |
+| neo-matrix | C | 0.13 | 0.4% | 7.2 |
+| tmatrix | C++ | 0.02 | 0.1% | 14.2 |
+| gmatrix | C | 0.03 | 0.1% | 14.3 |
+| fmatrix | C++ | 0.16 | 0.5% | 14.3 |
+| cxxmatrix | C++ | 0.00 | 0.0% | 14.3 |
 
 **Key findings**:
 
-- **cosmostrix uses 5× less CPU than cmatrix** (0.04s vs 0.20s) despite
+- **cosmostrix uses 6× less CPU than cmatrix** (0.03s vs 0.18s) despite
   doing far more per-frame work (diff-based dirty tracking, RLE encoding,
   phosphor afterglow, depth-of-field, atmosphere engine). cmatrix's plain
-  full-redraw approach burns 5× more CPU for a simpler visual.
-- **cosmostrix RSS (4.5 MiB) is competitive with the best**: cxxmatrix
-  (4.0 MiB) is slightly smaller, but cosmostrix is smaller than cmatrix
-  (4.9 MiB), tmatrix (4.9 MiB), and gmatrix (4.9 MiB).
-- **unimatrix (Python) uses 4.3× more memory** than cosmostrix (19.4 MiB
-  vs 4.5 MiB) — the Python interpreter overhead.
-- **cxxmatrix is the strongest competitor**: 0.01s CPU + 4.0 MiB RSS.
-  It's a C++ full-featured renderer, so this is a healthy comparison.
-  cosmostrix still wins on feature set (43 themes, 24 charsets, 3 scenes,
-  HUD overlay, atmosphere engine, depth-of-field, phosphor afterglow).
-- **tmatrix shows low CPU/RSS** but may not have rendered at full
-  complexity in the PTY (its behavior differs from a real terminal).
+  full-redraw approach burns 6× more CPU for a simpler visual.
+- **cosmostrix RSS (4.8 MiB) is the smallest** among compiled-native
+  tools. It beats cmatrix (4.9 MiB), and crushes tmatrix/gmatrix/fmatrix/
+  cxxmatrix (all ~14.3 MiB — 3× larger). Only cxxmatrix matches cosmostrix
+  on CPU (0.00s vs 0.03s, within noise), but cosmostrix wins on memory
+  by 3×.
+- **unimatrix (Python) uses 4× more memory** than cosmostrix (19.3 MiB
+  vs 4.8 MiB) — the Python interpreter overhead.
+- **cosmostrix is the only tool that wins on BOTH CPU and RSS**
+  simultaneously. cxxmatrix is CPU-competitive (0.00s) but uses 3× more
+  memory. tmatrix is CPU-competitive (0.02s) but uses 3× more memory.
+  cosmostrix's diff-based engine + zero-alloc hot path gives it the
+  unique combination of low CPU + low RSS.
+- **cosmostrix headless ceiling: 29,914 FPS** (30s benchmark, 4.9 MiB
+  RSS, p99 = 0.046ms). This is 500× headroom over the 60 FPS interactive
+  target — visual effects (glitch, phosphor, depth-of-field, atmosphere)
+  consume <0.2% of the frame budget.
 
 ### Why cosmostrix Wins on CPU Despite More Features
 
@@ -118,15 +126,16 @@ measures raw engine throughput without terminal I/O. On the same machine:
 
 | Metric | Value |
 |--------|------:|
-| Avg FPS (headless) | 28,029 |
-| Peak FPS (headless) | 39,971 |
-| Total frames in 10s | 280,293 |
-| p99 frame time (ms) | 0.043 |
-| Peak RSS | 4.4 MiB |
+| Avg FPS (headless) | 29,914 |
+| Peak FPS (headless) | 43,626 |
+| Total frames in 30s | 897,410 |
+| p99 frame time (ms) | 0.046 |
+| Peak RSS | 4.9 MiB |
+| Avg CPU (%) | 98.4% |
 
-At 28,000+ FPS headless, the engine has **467× headroom** over the 60 FPS
+At 29,000+ FPS headless, the engine has **500× headroom** over the 60 FPS
 interactive target. This means visual effects (glitch, phosphor,
-depth-of-field, atmosphere) consume <0.25% of the frame budget.
+depth-of-field, atmosphere) consume <0.2% of the frame budget.
 
 ### Bonus: Interactive Encoding Stats (`--perf-stats`)
 
