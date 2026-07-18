@@ -62,7 +62,9 @@ Options:
   --duration N         Run duration in seconds (default: 10)
   --cosmostrix PATH    Path to cosmostrix binary
   --no-build           Skip cargo build step
-  --profile NAME       Build profile (default: release)
+  --profile NAME       Build profile (default: autodetect from CPU)
+                       Autodetect: AVX-512 → pro-linux-v4,
+                       AVX2 → pro-linux-v3, else release.
   --debug              Show verbose debug output to stderr
   --help               Show this help
 
@@ -101,12 +103,72 @@ debug() {
     fi
 }
 
+# ── Architecture autodetection ──────────────────────────────────────────────
+#
+# Detect CPU microarchitecture level and pick the optimal build profile.
+# The user can override with --profile, but by default we autodetect:
+#   x86-64-v4 (AVX-512)  → pro-linux-v4
+#   x86-64-v3 (AVX2)     → pro-linux-v3
+#   other / non-x86      → release
+#
+# This ensures the benchmark runs the FASTEST possible cosmostrix binary
+# for the host CPU, giving a fair "best of" comparison.
+detect_arch_profile() {
+    # Only autodetect if profile wasn't explicitly set by --profile flag.
+    # If the user passed --profile release, respect that.
+    if [[ "$PROFILE" != "release" ]]; then
+        return  # user explicitly chose a profile
+    fi
+
+    # Check for AVX-512 (x86-64-v4)
+    if grep -q 'avx512f' /proc/cpuinfo 2>/dev/null; then
+        PROFILE="pro-linux-v4"
+        echo "  CPU: AVX-512 detected → using pro-linux-v4 profile" >&2
+        return
+    fi
+
+    # Check for AVX2 (x86-64-v3)
+    if grep -q 'avx2' /proc/cpuinfo 2>/dev/null; then
+        PROFILE="pro-linux-v3"
+        echo "  CPU: AVX2 detected → using pro-linux-v3 profile" >&2
+        return
+    fi
+
+    # Fallback: plain release (x86-64-v1 baseline, works everywhere)
+    echo "  CPU: no AVX2/AVX-512 → using release profile" >&2
+}
+
 # ── Preflight ───────────────────────────────────────────────────────────────
 
+# Autodetect optimal build profile (unless --profile was explicitly given).
+# This finds the fastest cosmostrix binary for the host CPU.
+# Runs even with --no-build, because we need the right profile to locate
+# the existing binary.
 if [[ -z "$COSMOSTRIX_BIN" ]]; then
+    detect_arch_profile
+fi
+
+if [[ -z "$COSMOSTRIX_BIN" ]]; then
+    # Try the detected profile first, then fall back to release.
     COSMOSTRIX_BIN="target/${PROFILE}/cosmostrix"
-    if [[ ! -x "$COSMOSTRIX_BIN" ]] && [[ "$PROFILE" == "release" ]]; then
+    if [[ ! -x "$COSMOSTRIX_BIN" ]] && [[ "$PROFILE" != "release" ]]; then
+        debug "binary not found at $COSMOSTRIX_BIN, trying release"
         COSMOSTRIX_BIN="target/release/cosmostrix"
+    fi
+    if [[ ! -x "$COSMOSTRIX_BIN" ]]; then
+        # Also check common cross-compiled paths (install.sh output).
+        for candidate in \
+            "target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix" \
+            "target/x86_64-unknown-linux-gnu/pro-linux-v4/cosmostrix" \
+            "target/release/cosmostrix" \
+            "target/pro-linux-v3/cosmostrix" \
+            "target/pro-linux-v4/cosmostrix"; do
+            if [[ -x "$candidate" ]]; then
+                COSMOSTRIX_BIN="$candidate"
+                debug "found binary at $COSMOSTRIX_BIN"
+                break
+            fi
+        done
     fi
 fi
 

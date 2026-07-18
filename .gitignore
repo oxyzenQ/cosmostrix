@@ -30,6 +30,3 @@ other ai/
 /logs/
 /benchmark/logs/
 *-resource-*.csv
-
-# Competitor benchmark build artifacts
-scripts/refmatrix
