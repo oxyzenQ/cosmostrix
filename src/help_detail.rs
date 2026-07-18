@@ -119,8 +119,27 @@ CONFIG:
   --dump-config [path]
       Print a complete, commented example config and exit.
       With a path argument, writes to that file instead of stdout.
-      The path must be inside ~/.config/cosmostrix/ or /etc/cosmostrix/
-      (strict whitelist, same as --config). Everything else is rejected.
+
+      Without a path: prints to stdout. Shell redirection (>, >|) is
+      BLOCKED — cosmostrix detects stdout-redirected-to-file and refuses
+      to write, because the shell bypasses the whitelist. Use the
+      explicit path form for file output. Piping to another command
+      (cosmostrix --dump-config | less) is allowed.
+
+      With a path: writes to that file. The path must:
+        1. Be inside ~/.config/cosmostrix/ or /etc/cosmostrix/
+           (strict whitelist, same as --config)
+        2. Have a .toml extension (strict, same as --config)
+      Everything else is rejected.
+
+      Examples (correct):
+        cosmostrix --dump-config                                   # view on TTY
+        cosmostrix --dump-config | less                            # pipe to pager
+        cosmostrix --dump-config ~/.config/cosmostrix/config.toml  # write to file
+      Examples (rejected):
+        cosmostrix --dump-config > /tmp/a.txt                      # blocked (shell redirect)
+        cosmostrix --dump-config ~/.config/cosmostrix/test.conf    # wrong extension
+        cosmostrix --dump-config /tmp/a.toml                       # outside whitelist
 
       Config policy: invalid values print an error and exit (code 2).
       No silent fallback — strict validation.

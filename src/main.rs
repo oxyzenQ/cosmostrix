@@ -176,6 +176,38 @@ pub use info::env_var_truthy;
 // Path security validation lives in src/safepath.rs.
 pub(crate) use crate::safepath::is_safe_path;
 
+/// Check if stdout is redirected to a regular file (shell `>` or `>|` operator).
+///
+/// Returns `true` if stdout is connected to a regular file on disk. This
+/// happens when the user runs `cosmostrix --dump-config > /tmp/a.txt` —
+/// the shell opens /tmp/a.txt and connects it to stdout before cosmostrix
+/// starts. We detect this via `fstat(1)` and check `S_IFREG` in `st_mode`.
+///
+/// Returns `false` for:
+/// - TTY (terminal) — normal interactive use
+/// - Pipe (FIFO) — `cosmostrix --dump-config | less` (piping is allowed)
+/// - Character device — `cosmostrix --dump-config > /dev/null` (harmless)
+/// - Socket — rare, treated as non-file
+///
+/// This is used by `--dump-config` to block shell redirection that would
+/// bypass the strict path whitelist. The user must use the explicit path
+/// form (`--dump-config <path>`) for file output, which enforces the
+/// whitelist + .toml extension.
+#[cfg(unix)]
+fn stdout_is_redirected_to_file() -> bool {
+    use std::os::unix::io::AsRawFd;
+    let fd = std::io::stdout().as_raw_fd();
+    // Safety: fstat on a valid fd (stdout=1, always open). The stat struct
+    // is zeroed and overwritten by the syscall.
+    let mut st: libc::stat = unsafe { std::mem::zeroed() };
+    if unsafe { libc::fstat(fd, &mut st) } == 0 {
+        return (st.st_mode & libc::S_IFMT) == libc::S_IFREG;
+    }
+    // If fstat fails (shouldn't happen on stdout), don't block — let the
+    // write proceed. Better to be permissive than to break a valid use case.
+    false
+}
+
 #[cfg(target_os = "linux")]
 pub fn spawn_kill9_terminal_guard() {
     if env_var_truthy("COSMOSTRIX_NO_FORK_GUARD") {
@@ -326,23 +358,51 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
-    // --dump-config: print example config to stdout, OR write to a file
-    // if a path argument was given. The path is validated against the same
-    // strict whitelist as --config (~/.config/cosmostrix/ and /etc/cosmostrix/
-    // on Linux/macOS). This prevents --dump-config from being used to write
-    // arbitrary files (e.g., overwriting ~/.bashrc or /etc/cron.d/evil).
+    // --dump-config: print example config to stdout (TTY only), OR write to
+    // a file if a path argument was given.
+    //
+    // Security (v15 strict policy):
+    //   1. Path must be inside the strict whitelist (~/.config/cosmostrix/
+    //      or /etc/cosmostrix/) — same as --config.
+    //   2. Path must have a .toml extension — same as --config.
+    //   3. Shell redirection (>, >|) is BLOCKED: if --dump-config is used
+    //      without a path argument AND stdout is redirected to a regular
+    //      file, cosmostrix refuses to write. This prevents bypassing the
+    //      whitelist via `cosmostrix --dump-config > /tmp/a.txt`.
+    //      The user MUST use the explicit path form:
+    //        cosmostrix --dump-config ~/.config/cosmostrix/config.toml
+    //      Piping to another command (cosmostrix --dump-config | less) is
+    //      still allowed — only file redirection is blocked.
     //
     // The flag uses clap's num_args=0..=1 pattern:
-    //   --dump-config            → Some("") → print to stdout
+    //   --dump-config            → Some("") → print to stdout (TTY or pipe only)
     //   --dump-config <path>     → Some("<path>") → write to file (validated)
     //   (not passed)             → None → skip
     if let Some(ref dump_path) = args.dump_config {
         if dump_path.is_empty() {
-            // No path argument: print to stdout (original behavior).
+            // No path argument: print to stdout. But BLOCK if stdout is
+            // redirected to a file (shell > or >| operator). This forces
+            // the user to use --dump-config <path> for file output, which
+            // enforces the whitelist.
+            #[cfg(unix)]
+            {
+                if stdout_is_redirected_to_file() {
+                    crate::output::eprintln_error_labeled(
+                        "refusing to write --dump-config to a redirected file\n  \
+                         Shell redirection (>, >|) bypasses the strict whitelist.\n  \
+                         Use the explicit path form instead:\n    \
+                         cosmostrix --dump-config ~/.config/cosmostrix/config.toml\n  \
+                         The path must be inside ~/.config/cosmostrix/ or /etc/cosmostrix/ \
+                         and have a .toml extension.\n  \
+                         Piping to another command (cosmostrix --dump-config | less) is allowed.",
+                    );
+                    std::process::exit(2);
+                }
+            }
             print!("{}", configfile::dump_config_text());
             return Ok(());
         }
-        // Path argument given: validate against strict whitelist before writing.
+        // Path argument given: validate whitelist + .toml extension.
         let path_str = dump_path;
         let safe = is_safe_path(path_str);
         if args.verbose {
@@ -355,6 +415,13 @@ fn main() -> std::io::Result<()> {
                 "error: --dump-config '{path_str}' is outside allowed directories\n  \
                  Allowed (strict whitelist): ~/.config/cosmostrix/, /etc/cosmostrix/\n  \
                  Rejected: current directory (.), /tmp/, ~/, /usr/, all others"
+            ));
+        }
+        // Strict: .toml extension required (same as --config).
+        if !path_str.ends_with(".toml") {
+            ux::die_input(format!(
+                "error: --dump-config '{path_str}' must have a .toml extension\n  \
+                 The config file format is TOML. Other extensions are rejected."
             ));
         }
         // Write the example config to the validated path.
