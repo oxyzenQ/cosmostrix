@@ -162,12 +162,12 @@ scripts/verify-release-build.sh pro-linux-v3
 ```bash
 cosmostrix                           # signature Monolith Rain default
 cosmostrix --color rainbow --speed 12   # color + speed
-cosmostrix --screensaver              # exit on keypress
+cosmostrix --screensaver              # only q exits (all other keys ignored)
 cosmostrix --message "wake up, neo"   # overlay message
 cosmostrix --charset katakana         # character set
 cosmostrix --scene cinematic          # curated built-in scene
 cosmostrix --scene monolith --color deepspace
-cosmostrix --config ./cosmostrix.conf  # explicit config file
+cosmostrix --config ~/.config/cosmostrix/config.toml  # explicit config (whitelist-enforced)
 cosmostrix --scene-custom nightcore   # user-defined custom scene
 ```
 

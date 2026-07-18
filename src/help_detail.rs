@@ -21,10 +21,10 @@ COMMON OPTIONS:
       cosmostrix --color aurora --color-tune sat=0.0     # grayscale
       cosmostrix --color red --color-tune bright=1.3     # +30% brightness
       This turns the 43 built-in themes into 43 x infinite variants
-      without adding new presets.
+      without adding new themes.
 
   --charset <name>
-      Character preset. See --list-charsets for available presets.
+      Character set. See --list-charsets for available sets.
       cosmostrix --charset binary
 
   --charset-file <path>
@@ -154,9 +154,9 @@ CONFIG:
 
   Precedence (highest wins):
       built-in defaults < scene defaults (fills unset keys only)
-      < config values < config preset < config profile
-      < CLI preset < CLI scene < CLI profile
-      < low-power < explicit CLI flags.
+      < config values < config scene-custom
+      < CLI scene < CLI scene-custom
+      < explicit CLI flags.
 
       Key rule: a value set in config.toml ALWAYS wins over a scene's
       hardcoded default. Scenes only fill keys the user did NOT set.
@@ -215,7 +215,7 @@ DIAGNOSTICS:
 DISCOVERY:
   --list-colors         Show color theme names.
                         There are 43 built-in themes.
-  --list-charsets       Show available charset presets.
+  --list-charsets       Show available character sets.
   --list-scenes         Show built-in and custom scenes (from config).
   --show-scene <NAME>   Show full details for a built-in or custom scene.
 
@@ -224,7 +224,7 @@ RUNTIME CONTROLS:
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             g          Toggle glitch
-  m             Cycle profile     Space      Reset animation
+  m             Cycle behavior    Space      Reset animation
   a             Toggle async      1-0        Direct color scheme
   i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)

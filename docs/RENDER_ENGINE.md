@@ -513,7 +513,7 @@ academic work or another project, please cite:
   title        = {Cosmostrix: Production-grade cinematic Matrix rain renderer},
   year         = {2026},
   url          = {https://github.com/oxyzenQ/cosmostrix},
-  note         = {Diff-based terminal rendering engine, v13.x},
+  note         = {Diff-based terminal rendering engine, v14.x},
 }
 ```
 
