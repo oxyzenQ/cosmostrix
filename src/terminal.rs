@@ -693,16 +693,95 @@ pub fn restore_terminal_best_effort() {
     let _ = out.flush();
 }
 
-pub const TERMINAL_RESTORE_SEQUENCE: &str =
-    "\x1b[0m\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?2004l\x1b[?1004l\x1b[?1049l\x1b[?25h\x1b[0m";
+/// Best-effort terminal restore sequence.
+///
+/// Disables all optional terminal modes that cosmostrix may have enabled:
+/// - Mouse reporting (1000, 1002, 1003, 1006, 1015)
+/// - Bracketed paste (2004)
+/// - Focus events (1004)
+/// - Alternate screen (1049)
+/// - Synchronized output (2026) — added v15, prevents stuck sync mode
+/// - Cursor hide (25 → show)
+/// - SGR reset (0m)
+///
+/// Also resets:
+/// - Scroll region to full screen (`\x1b[r`) — in case cosmostrix set one
+/// - Character set to US ASCII (`\x1b(B`) — in case cosmostrix changed it
+/// - Auto-wrap enabled (`\x1b[?7h`) — in case it was disabled
+///
+/// Does NOT clear screen or scrollback — that's the destructive
+/// TERMINAL_RESET_SEQUENCE used only by --reset-terminal.
+pub const TERMINAL_RESTORE_SEQUENCE: &str = "\x1b[0m\
+     \x1b[?2026l\
+     \x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\
+     \x1b[?2004l\
+     \x1b[?1004l\
+     \x1b[?1049l\
+     \x1b[r\
+     \x1b(B\
+     \x1b[?7h\
+     \x1b[?25h\
+     \x1b[0m";
 
-pub const TERMINAL_RESET_SEQUENCE: &str =
-    "\x1b[0m\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\x1b[?2004l\x1b[?1004l\x1b[?1049l\x1b[?25h\x1b[H\x1b[2J\x1b[3J\x1b[H\x1b[0m";
+/// Destructive terminal reset sequence (used by --reset-terminal).
+///
+/// Includes everything in TERMINAL_RESTORE_SEQUENCE plus:
+/// - Cursor home (`\x1b[H`)
+/// - Clear screen (`\x1b[2J`)
+/// - Clear scrollback (`\x1b[3J`)
+/// - Cursor home again (after clear)
+///
+/// This is the "nuclear option" — it wipes the visible screen AND the
+/// scrollback buffer. Use only when the terminal is in a broken state
+/// (e.g., after SIGKILL left cosmostrix's alternate screen + raw mode
+/// active and the user can't see their shell prompt).
+pub const TERMINAL_RESET_SEQUENCE: &str = "\x1b[0m\
+     \x1b[?2026l\
+     \x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\
+     \x1b[?2004l\
+     \x1b[?1004l\
+     \x1b[?1049l\
+     \x1b[r\
+     \x1b(B\
+     \x1b[?7h\
+     \x1b[?25h\
+     \x1b[H\x1b[2J\x1b[3J\x1b[H\
+     \x1b[0m";
 
+/// Emergency terminal reset — the "nuclear option" for broken terminals.
+///
+/// Called by `--reset-terminal`. This is the most aggressive recovery
+/// path, used when cosmostrix (or any terminal app) was killed with
+/// SIGKILL and left the terminal in a broken state:
+/// - Alternate screen still active (rain visible, shell hidden)
+/// - Raw mode still on (no echo, can't type commands)
+/// - Mouse reporting still on (clicks do weird things)
+/// - Cursor hidden
+/// - Synchronized output stuck (terminal buffers output)
+///
+/// Recovery sequence (defense-in-depth, 5 layers):
+///
+/// 1. **ANSI restore sequence** — disables all optional modes
+/// 2. **ANSI reset sequence** — clears screen + scrollback + cursor home
+/// 3. **crossterm commands** — LeaveAlternateScreen, Clear, Show cursor
+/// 4. **stty sane** — restores terminal line discipline (raw mode off)
+/// 5. **reset** — external utility that does a full terminal reset
+///    (clears screen, resets modes, restores tabs, etc.)
+///
+/// Each layer is best-effort — failures are silently ignored because
+/// the terminal may be in a state where some operations don't work.
+/// The goal is maximum recovery probability, not perfection.
 pub fn reset_terminal_emergency() {
+    // Layer 1: ANSI restore sequence (disable all optional modes)
     restore_terminal_best_effort();
+
     let mut out = stdout();
+
+    // Layer 2: ANSI reset sequence (clear screen + scrollback)
     let _ = out.write_all(TERMINAL_RESET_SEQUENCE.as_bytes());
+    let _ = out.flush();
+
+    // Layer 3: crossterm commands (redundant with ANSI but belt-and-suspenders)
     let _ = out.execute(SetAttribute(Attribute::Reset));
     let _ = out.execute(ResetColor);
     let _ = out.execute(cursor::Show);
@@ -711,12 +790,29 @@ pub fn reset_terminal_emergency() {
     let _ = out.execute(terminal::Clear(terminal::ClearType::All));
     let _ = out.execute(terminal::Clear(terminal::ClearType::Purge));
     let _ = out.execute(cursor::MoveTo(0, 0));
+    let _ = out.execute(terminal::EnableLineWrap);
     let _ = out.flush();
+
+    // Layer 4+5: external utilities (Unix only)
     #[cfg(unix)]
     {
         if stdin().is_terminal() || stdout().is_terminal() {
+            // stty sane: restores terminal line discipline (raw mode off,
+            // echo on, canonical mode on, etc.). This is critical after
+            // SIGKILL because raw mode persists in the kernel's termios
+            // state — ANSI escapes alone cannot fix it.
             let _ = Command::new("stty").arg("sane").status();
+
+            // reset: full external terminal reset utility. Clears screen,
+            // resets modes, restores tab stops, sends terminal init string.
+            // May not exist on all systems (embedded, minimal containers)
+            // — failure is silently ignored.
             let _ = Command::new("reset").status();
+
+            // tput reset: alternative if 'reset' not available. Uses
+            // terminfo database to send the appropriate reset sequences.
+            // Some systems have tput but not reset.
+            let _ = Command::new("tput").arg("reset").status();
         }
     }
 }
@@ -806,12 +902,28 @@ mod tests {
     fn normal_restore_sequence_disables_terminal_reporting_modes() {
         for mode in [
             "?1000l", "?1002l", "?1003l", "?1006l", "?1015l", "?2004l", "?1004l", "?1049l", "?25h",
+            "?2026l", // synchronized output (added v15)
         ] {
             assert!(
                 TERMINAL_RESTORE_SEQUENCE.contains(mode),
                 "missing terminal restore mode {mode}"
             );
         }
+        // Scroll region reset
+        assert!(
+            TERMINAL_RESTORE_SEQUENCE.contains("\x1b[r"),
+            "restore must reset scroll region to full screen"
+        );
+        // Character set reset to US ASCII
+        assert!(
+            TERMINAL_RESTORE_SEQUENCE.contains("\x1b(B"),
+            "restore must reset character set to US ASCII"
+        );
+        // Auto-wrap enabled
+        assert!(
+            TERMINAL_RESTORE_SEQUENCE.contains("\x1b[?7h"),
+            "restore must enable auto-wrap"
+        );
         assert!(TERMINAL_RESTORE_SEQUENCE.ends_with("\x1b[0m"));
     }
 
@@ -835,12 +947,26 @@ mod tests {
     fn reset_terminal_sequence_disables_terminal_reporting_modes() {
         for mode in [
             "?1000l", "?1002l", "?1003l", "?1006l", "?1015l", "?2004l", "?1004l", "?1049l", "?25h",
+            "?2026l", // synchronized output (added v15)
         ] {
             assert!(
                 TERMINAL_RESET_SEQUENCE.contains(mode),
                 "missing terminal reset mode {mode}"
             );
         }
+        // Reset sequence must also reset scroll region, charset, auto-wrap
+        assert!(
+            TERMINAL_RESET_SEQUENCE.contains("\x1b[r"),
+            "reset must reset scroll region"
+        );
+        assert!(
+            TERMINAL_RESET_SEQUENCE.contains("\x1b(B"),
+            "reset must reset character set to US ASCII"
+        );
+        assert!(
+            TERMINAL_RESET_SEQUENCE.contains("\x1b[?7h"),
+            "reset must enable auto-wrap"
+        );
         assert!(TERMINAL_RESET_SEQUENCE.ends_with("\x1b[0m"));
     }
 

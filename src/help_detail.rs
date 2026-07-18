@@ -206,9 +206,16 @@ DIAGNOSTICS:
       report's 13 sections. Option fields emit null; NaN/Inf emit null.
   -i, --info     Build and runtime information.
   --reset-terminal
-      Restore raw mode, alternate screen, cursor, focus, and mouse reporting
-      after an interrupted run. Also clears the visible screen, moves the
-      cursor home, and attempts scrollback purge when supported.
+      Emergency terminal recovery — the nuclear option.
+      Use after SIGKILL (kill -9) or crash leaves the terminal broken.
+      5-layer defense-in-depth recovery:
+        1. ANSI restore: disable mouse, focus, paste, alt screen, sync output
+        2. ANSI reset: clear screen + scrollback + cursor home
+        3. crossterm: LeaveAlternateScreen, Clear, Show cursor, EnableLineWrap
+        4. stty sane: restore terminal line discipline (raw mode off)
+        5. reset + tput reset: external terminal reset utilities
+      Also resets scroll region, character set, and auto-wrap.
+      cosmostrix --reset-terminal
   --verbose      Print diagnostic info to stderr before launching. Shows
       config path, resolved values, terminal detection, atmosphere state.
 
