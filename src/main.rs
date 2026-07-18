@@ -101,7 +101,7 @@ mod diagnostics;
 #[cfg(test)]
 mod docs_tests;
 mod doctor;
-mod dragon_egg_io_uring;
+mod dragon;
 mod droplet;
 mod envstat;
 mod frame;
