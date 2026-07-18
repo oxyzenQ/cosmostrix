@@ -1,6 +1,4 @@
 # Machine-specific profiling outputs (do not commit)
 perf.data*
 *.out
-*.txt
-hyperfine.md
 *.log

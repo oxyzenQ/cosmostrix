@@ -1,0 +1,20 @@
+
+ Performance counter stats for '/home/rezky/Desktop/labs-coding/cosmostrix/target/pro/cosmostrix --fps 60 --bench-frames 784836':
+
+               612      context-switches                 #     24.6 cs/sec  cs_per_second     
+               189      cpu-migrations                   #      7.6 migrations/sec  migrations_per_second
+               205      page-faults                      #      8.2 faults/sec  page_faults_per_second
+         24,851.64 msec task-clock                       #      1.0 CPUs  CPUs_utilized       
+     3,851,059,653      L1-dcache-load-misses            #      4.9 %  l1d_miss_rate            (42.87%)
+       447,421,729      branch-misses                    #      1.2 %  branch_miss_rate         (42.87%)
+    38,013,189,944      branches                         #   1529.6 M/sec  branch_frequency     (57.15%)
+    74,996,314,592      cpu-cycles                       #      3.0 GHz  cycles_frequency       (57.14%)
+   239,966,778,308      instructions                     #      3.2 instructions  insn_per_cycle  (57.13%)
+     3,463,764,035      stalled-cycles-frontend          #     0.05 frontend_cycles_idle        (57.13%)
+
+      24.912988156 seconds time elapsed
+
+      24.551916000 seconds user
+       0.005917000 seconds sys
+
+
