@@ -23,19 +23,19 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v14-demo.gif" alt="cosmostrix v14 demo" width="800">
+  <img src="assets/cosmostrix-v15-demo.gif" alt="cosmostrix v15 demo" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v14-demo-binary.png" alt="cosmostrix v14 binary charset demo" width="800">
+  <img src="assets/cosmostrix-v15-demo-binary.png" alt="cosmostrix v15 binary charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v14-demo-retro.png" alt="cosmostrix v14 retro charset demo" width="800">
+  <img src="assets/cosmostrix-v15-demo-retro.png" alt="cosmostrix v15 retro charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v14-demo-braille.png" alt="cosmostrix v14 braille charset demo" width="800">
+  <img src="assets/cosmostrix-v15-demo-braille.png" alt="cosmostrix v15 braille charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v14-demo-hacker.png" alt="cosmostrix v14 hacker charset demo" width="800">
+  <img src="assets/cosmostrix-v15-demo-hacker.png" alt="cosmostrix v15 hacker charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v14-demo-green-retro.png" alt="cosmostrix v14 green retro charset demo" width="800">
+  <img src="assets/cosmostrix-v15-demo-green-retro.png" alt="cosmostrix v15 green retro charset demo" width="800">
 </p>
 
 <p align="center">
@@ -47,17 +47,19 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 ## Features
 
 - **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
-- **3 scene atmospheres** (matrix, monolith, signal), including signature Cosmostrix Monolith Rain
-- **11 built-in scenes** — one-command visual profiles including 3 core atmospheres (matrix, monolith, signal) and 8 curated scenes (classic, cinematic, calm, storm, cosmos, neon, hacker, low-power)
+- **11 built-in scenes** — one-command visual profiles: 3 core atmospheres (matrix, monolith, signal) and 8 curated scenes (classic, cinematic, calm, storm, cosmos, neon, hacker, low-power), including signature Cosmostrix Monolith Rain
+- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`
 - 43 built-in themes and 24 character sets (5 themes — Green3, Saturn, Comet, Meteor, Pluto — re-tuned in v11.1.0 for visual distinctness; `--color-tune` turns all 43 into 43 × ∞ variants)
 - Phosphor persistence (CRT afterglow), depth fog, and 3-layer parallax
 - TrueColor green gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
 - Alternate screen with diff-based rendering — no scrollback spam
 - Adaptive throttling: reduces CPU usage when idle
+- Live config reload via filesystem watch (optional, `notify` crate)
 - Screensaver mode
 - Optional mouse hover/click effects (`--mouse`)
-- Safe terminal cleanup and recovery (`--reset-terminal`)
+- 5-layer destructive terminal recovery (`--reset-terminal`)
+- Controlled atmosphere engine with 6 opt-in regimes (pulse, signal, compression, void, monolith-pressure, calm)
 - Cross-platform: Linux, macOS, Windows, Android (Termux)
 
 ## Requirements
@@ -225,11 +227,15 @@ Explicit CLI flags always override scene and scene-custom values.
 
 ## Scenes
 
-- `matrix` — classic Matrix glyph rain
+**Core atmospheres** (interactive cycle with `x`/`X`):
 - `monolith` — default signature Cosmostrix Monolith Rain with sparse structured segments
+- `matrix` — classic Matrix glyph rain
 - `signal` — digital transmission / code-signal atmosphere
 
-Press `x` or `X` while running to cycle scenes forward: Monolith Rain → Matrix → Signal → Monolith.
+**Curated scenes** (via `--scene <name>`):
+- `classic`, `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`
+
+Press `x` or `X` while running to cycle core atmospheres: Monolith → Matrix → Signal → Monolith.
 
 ## Configuration
 
