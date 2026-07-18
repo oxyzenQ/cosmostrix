@@ -100,14 +100,13 @@ pub(super) fn handle_keybinding(
     use crossterm::event::KeyCode;
     use crossterm::event::KeyModifiers;
 
+    // Quit policy: only 'q' exits. Esc, Ctrl+C, and any other unrecognized
+    // key are silently ignored (fall through to the `_ => {}` arm at the
+    // end of this match). This prevents accidental exits from terminal
+    // menu Esc, Ctrl+C muscle memory, or stray function keys. The user
+    // must press 'q' deliberately to quit.
     match (k.code, k.modifiers) {
-        // Only 'q' quits. Esc and Ctrl+C are intentionally NOT exit keys
-        // — owner wants a single, deliberate quit key to avoid accidental
-        // exits (Esc from terminal menus, Ctrl+C from muscle memory).
         (KeyCode::Char('q'), _) => cloud.raining = false,
-        (KeyCode::Esc, _) => {
-            // Esc is ignored — use 'q' to quit.
-        }
         (KeyCode::Char('z'), KeyModifiers::CONTROL) => {
             #[cfg(unix)]
             {
@@ -130,10 +129,6 @@ pub(super) fn handle_keybinding(
             // Restart message typewriter so Space gives a full cinematic
             // replay — rain reseed + message types out from scratch.
             cloud.restart_message_typewriter();
-        }
-        (KeyCode::Char('c'), KeyModifiers::CONTROL) => {
-            // Ctrl+C is ignored — use 'q' to quit.
-            // This prevents accidental exits from Ctrl+C muscle memory.
         }
         (KeyCode::Char('c'), KeyModifiers::NONE) => {
             let next = cycle_color_scheme(cloud.color_scheme(), 1);

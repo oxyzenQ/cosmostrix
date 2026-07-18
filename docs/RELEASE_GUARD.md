@@ -139,13 +139,13 @@ lifecycle matrix paths:
 
 1. Run `--doctor` and confirm the report includes lifecycle contract
    fields (signal_exit, sigkill, terminal_writer, reset_terminal).
-2. Test normal `q` / `Esc` exit — no visible residue, prompt clean.
-3. Test Ctrl-C (SIGINT) — no visible residue on main screen.
-4. Test `pkill -TERM -f cosmostrix` — no visible residue (v4.8 Phase 4B
+2. Test normal `q` exit — no visible residue, prompt clean.
+   (Esc and Ctrl+C are intentionally ignored — only `q` quits.)
+3. Test `pkill -TERM -f cosmostrix` — no visible residue (v4.8 Phase 4B
    cleanup).
-5. Run `cosmostrix --reset-terminal` — confirms destructive recovery works.
-6. Review `docs/TERMINAL_LIFECYCLE_MATRIX.md` for accuracy.
-7. **Do not claim SIGKILL cleanup.** SIGKILL cannot be caught. The fork
+4. Run `cosmostrix --reset-terminal` — confirms destructive recovery works.
+5. Review `docs/TERMINAL_LIFECYCLE_MATRIX.md` for accuracy.
+6. **Do not claim SIGKILL cleanup.** SIGKILL cannot be caught. The fork
    guard is best-effort and Linux-only. Document honestly.
 
 If no terminal code changed since the last release, this gate is a

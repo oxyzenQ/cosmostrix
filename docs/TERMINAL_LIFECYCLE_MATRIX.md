@@ -11,8 +11,8 @@ non-destructive behavior.
 
 | # | Path | Cleanup | Visible Screen Cleared | Scrollback Purged | Terminal Mode Restored | Catchable | Owner/Manual Verification | Destructive |
 |---|------|---------|----------------------|-------------------|----------------------|-----------|--------------------------|-------------|
-| 1 | Normal `q` / `Esc` exit | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
-| 2 | Ctrl-C / SIGINT | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
+| 1 | Normal `q` exit | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
+| 2 | SIGINT (Ctrl-C is ignored at key level; SIGINT from `kill -INT` still caught) | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
 | 3 | SIGTERM / `pkill -TERM` | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
 | 4 | SIGHUP | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
 | 5 | SIGTSTP / Ctrl-Z | Partial — terminal mode suspended, no explicit cleanup | No | No | Deferred (on SIGCONT) | Yes | No | No |
@@ -28,9 +28,9 @@ non-destructive behavior.
 
 ## Detailed Path Descriptions
 
-### 1. Normal `q` / `Esc` Exit
+### 1. Normal `q` Exit
 
-The user presses `q` or `Esc` during interactive rendering. The main loop
+The user presses `q` during interactive rendering. The main loop
 detects the quit key, sets `SHUTDOWN`, exits the render loop, and
 `Terminal::drop()` runs the full cleanup sequence:
 
@@ -202,8 +202,11 @@ mode, and does not modify terminal state. No cleanup is needed.
 - **`--reset-terminal` is explicitly destructive recovery.** It clears
   the screen and purges scrollback. It is not part of normal operation.
 
-- **Normal `q`/`Esc` exit is non-destructive.** The alternate screen
+- **Normal `q` exit is non-destructive.** The alternate screen
   buffer preserves original terminal content. No scrollback modification.
+  (Esc and Ctrl+C are intentionally ignored at the key level — only `q`
+  quits. SIGINT/SIGTERM/SIGHUP from `kill` are still caught and trigger
+  the signal-exit cleanup path.)
 
 - **SIGTERM should be clean for visible residue after v4.8 Phase 4B.**
   The signal-exit viewport clear prevents rain frame residue on the

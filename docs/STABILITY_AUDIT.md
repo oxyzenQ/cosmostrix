@@ -66,10 +66,10 @@ In the event loop (event_loop.rs:243–254), suppressed keys still trigger `regi
 ### Control Character Handling
 
 Control character handling is straightforward:
-- **Ctrl+C**: Explicitly mapped to `cloud.raining = false` (input.rs:113–115), providing an alternative exit path to Escape/Q
-- **Ctrl+Z**: Explicitly mapped to SIGSTOP with full terminal restore (input.rs:93–108), identical behavior to SIGTSTP signal handler
-- **Escape**: Maps to `cloud.raining = false` (input.rs:91)
-- **Tab/BackTab**: Explicitly ignored (input.rs:178–185) with detailed comment explaining the historical bug that motivated this: Tab previously toggled shading mode, which caused a ghost background glyph flood via `set_shading_mode()` → `semantic_invalidate` → `invalidate_semantic()` → frame clear without clearing `phosphor_base_ch`
+- **Ctrl+C**: Silently ignored — only `q` quits (prevents accidental exit from Ctrl+C muscle memory)
+- **Ctrl+Z**: Explicitly mapped to SIGSTOP with full terminal restore (input.rs), identical behavior to SIGTSTP signal handler
+- **Escape**: Silently ignored — only `q` quits (prevents accidental exit from terminal menu Esc)
+- **Tab/BackTab**: Explicitly ignored with detailed comment explaining the historical bug that motivated this: Tab previously toggled shading mode, which caused a ghost background glyph flood via `set_shading_mode()` → `semantic_invalidate` → `invalidate_semantic()` → frame clear without clearing `phosphor_base_ch`
 
 ### Assessment
 
