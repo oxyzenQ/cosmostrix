@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 | Command | Mean [s] | Min [s] | Max [s] | Relative |
 |:---|---:|---:|---:|---:|
 | `COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 /home/rezky/Desktop/labs-coding/cosmostrix/target/release/cosmostrix --fps 60 --bench-frames 784836` | 28.289 ± 0.574 | 27.633 | 28.702 | 1.06 ± 0.02 |
