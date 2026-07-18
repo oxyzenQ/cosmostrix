@@ -57,11 +57,12 @@ COMMON OPTIONS:
       cosmostrix --uniform
 
   -s, --screensaver
-      Screensaver mode. Exit on unrecognized keypress or mouse click.
-      Recognized keys (c/s/x/g/a/p/m/i/h, Space, Up/Down, 0-9, etc.)
-      still work for interactive control — cycle colors, toggle HUD,
-      pause, etc. — so the user can adjust the visuals without exiting.
-      Mouse clicks exit only when --mouse is also enabled.
+      Screensaver mode. Only 'q' exits — all other keys are silently
+      ignored (no glitch, no accidental exit). Recognized keys
+      (c/s/x/g/a/p/m/i/h, Space, Up/Down, 0-9, etc.) still work for
+      interactive control — cycle colors, toggle HUD, pause, etc.
+      Mouse click exits only when --mouse is also enabled.
+      This matches the only-q-quits policy enforced in normal mode.
       cosmostrix --screensaver
       cosmostrix --screensaver --mouse    # click to dismiss
 
@@ -109,12 +110,17 @@ CONFIG:
       $XDG_CONFIG_HOME/cosmostrix/config.toml (Linux) or
       ~/.config/cosmostrix/config.toml (Linux/macOS) or
       %APPDATA%/cosmostrix/config.toml (Windows).
-      Falls back to legacy 'config' (no extension) for pre-v10 compatibility.
+      Security: strict whitelist — path must be inside
+      ~/.config/cosmostrix/ or /etc/cosmostrix/ (Linux/macOS),
+      %APPDATA%/cosmostrix/ or %ProgramData%/cosmostrix/ (Windows).
+      Everything else is rejected (current directory, /tmp/, ~/, etc.).
+      Must have .toml extension.
 
   --dump-config
       Print a complete, commented example config and exit.
 
-      Config policy: invalid values print an error and fall back to defaults.
+      Config policy: invalid values print an error and exit (code 2).
+      No silent fallback — strict validation.
 
   --config-path
       Print the resolved default config path and exit.

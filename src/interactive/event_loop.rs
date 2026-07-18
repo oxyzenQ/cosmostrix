@@ -648,29 +648,35 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         );
 
                         if cfg.screensaver {
-                            // Screensaver mode (world-class behavior):
+                            // Screensaver mode (v15 "only q quits" policy):
                             //
                             // - q: quit (handle_keybinding set raining=false)
                             // - Recognized interactive keys (c/s/x/g/a/p/m/i/h,
                             //   Space, Up/Down, 0-9, etc.): process and continue.
                             //   The user can still cycle colors, toggle HUD, etc.
                             //   while the screensaver is active.
-                            // - Unrecognized keys (z, F1-F12, Home/End, PageUp/Down,
-                            //   etc.): exit (classic screensaver behavior).
+                            // - Unrecognized keys (B/b, z, F1-F12, Home/End,
+                            //   PageUp/Down, Esc, Ctrl+C, etc.): SILENTLY IGNORED.
+                            //   They do NOT exit the screensaver and do NOT cause
+                            //   any visual glitch. The user must press 'q' to quit.
+                            //   This matches the "only q quits" policy enforced
+                            //   in normal (non-screensaver) mode — consistency
+                            //   is the world-class invariant.
                             //
-                            // The recognized-key set is defined in
-                            // `input::is_recognized_key()` — the single source
-                            // of truth. Any new keybinding added to
-                            // handle_keybinding MUST be registered there too,
-                            // otherwise the screensaver would self-exit when
-                            // the user presses the new key.
+                            // Mouse click (if --mouse enabled) still exits —
+                            // classic screensaver convention. See Event::Mouse
+                            // handler below.
+                            //
+                            // The "unrecognized key exits" behavior was REMOVED
+                            // in v15 because it was surprising: pressing B/b
+                            // or any letter not in the recognized set would
+                            // kick the user out. Now only q exits.
                             if !cloud.raining {
                                 break;
                             }
-                            if !crate::interactive::input::is_recognized_key(k.code, k.modifiers) {
-                                cloud.raining = false;
-                                break;
-                            }
+                            // No is_recognized_key check — all unrecognized
+                            // keys fall through to handle_keybinding's
+                            // `_ => {}` catch-all and are silently ignored.
                         } else if redraw_needed {
                             next_frame = Instant::now();
                         }

@@ -684,9 +684,10 @@ fn main() -> std::io::Result<()> {
     let startup_charset = charset_preset.clone();
 
     // --charset-file: load custom characters from file, overriding preset.
-    // Security: only allow reading from safe locations — home directory,
-    // current directory, or /etc/cosmostrix/. Prevents cosmostrix from
-    // being used as an arbitrary file reader (e.g., /etc/shadow).
+    // Security: strict whitelist-only — only ~/.config/cosmostrix/ and
+    // /etc/cosmostrix/ are allowed. Everything else (current directory,
+    // /tmp/, ~/, ~/.local/, /usr/, etc.) is rejected. Prevents cosmostrix
+    // from being used as an arbitrary file reader (e.g., /etc/shadow).
     let chars = if let Some(ref cf) = args.charset_file {
         if args.verbose {
             crate::output::eprintln_verbose_raw(&format!(
@@ -697,7 +698,8 @@ fn main() -> std::io::Result<()> {
         if !is_safe_path(cf) {
             ux::die_input(format!(
                 "error: --charset-file '{cf}' is outside allowed directories\n  \
-                 Allowed: ~/.config/cosmostrix/, current directory (.), /etc/cosmostrix/, /tmp/"
+                 Allowed (strict whitelist): ~/.config/cosmostrix/, /etc/cosmostrix/\n  \
+                 Rejected: current directory (.), /tmp/, ~/, /usr/, all others"
             ));
         }
         match std::fs::read_to_string(cf) {

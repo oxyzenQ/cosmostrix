@@ -233,7 +233,14 @@ Press `x` or `X` while running to cycle scenes forward: Monolith Rain → Matrix
 
 ## Configuration
 
-Persistent defaults can be set in `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`). Use `--config <path>` to load a specific file. For security, `--config` and `--charset-file` only accept paths in: home directory (`~`), current directory (`.`), `/etc/cosmostrix/`, or `/tmp/`.
+Persistent defaults can be set in `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`). Use `--config <path>` to load a specific file. For security, `--config` and `--charset-file` enforce a **strict whitelist** — only these directories are allowed:
+
+- `~/.config/cosmostrix/` (Linux/macOS, user config)
+- `/etc/cosmostrix/` (Linux/macOS, system-wide)
+- `%APPDATA%\cosmostrix\` (Windows, user config)
+- `%ProgramData%\cosmostrix\` (Windows, system-wide)
+
+Everything else is rejected: current directory (`.`), `/tmp/`, home root (`~`), `~/.local/`, `/usr/`, `/opt/`, `/var/`, all relative paths, and all other absolute paths. `--config` files must also have a `.toml` extension.
 
 ```
 scene = monolith
