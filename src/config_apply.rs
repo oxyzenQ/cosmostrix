@@ -120,7 +120,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
         let path_str = config_path.to_string_lossy();
         let safe = crate::is_safe_path(&path_str);
         if args.verbose {
-            eprintln!("[verbose] config path: {path_str} (safe: {safe})");
+            crate::output::eprintln_verbose_raw(&format!("config path: {path_str} (safe: {safe})"));
         }
         if !safe {
             return Err(format!(
@@ -150,10 +150,10 @@ pub(crate) fn apply_config_and_runtime_defaults(
                     .to_string_lossy()
                     .into_owned()
             });
-        eprintln!(
-            "[verbose] config loaded from: {config_path} ({} keys)",
+        crate::output::eprintln_verbose_raw(&format!(
+            "config loaded from: {config_path} ({} keys)",
             cfg.len()
-        );
+        ));
         // List the actual keys so the user can see exactly what is set.
         // This is critical for debugging "why is the atmosphere engine
         // running?" — the answer is almost always "atmosphere-mode and
@@ -163,7 +163,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
         if !cfg.is_empty() {
             let mut keys: Vec<&str> = cfg.keys().map(String::as_str).collect();
             keys.sort();
-            eprintln!("[verbose] config keys: {}", keys.join(", "));
+            crate::output::eprintln_verbose_raw(&format!("config keys: {}", keys.join(", ")));
         }
         // Surface adaptive-custom entries explicitly. These run regardless
         // of atmosphere-mode (defining them is an opt-in), so it's important
@@ -174,8 +174,8 @@ pub(crate) fn apply_config_and_runtime_defaults(
             .filter(|k| k.starts_with("adaptive-custom."))
             .count();
         if adaptive_custom_count > 0 {
-            eprintln!(
-                "[verbose] adaptive-custom: {adaptive_custom_count} entries (active regardless of atmosphere-mode)"
+            crate::output::eprintln_verbose_raw(
+                &format!("adaptive-custom: {adaptive_custom_count} entries (active regardless of atmosphere-mode)")
             );
         }
     }

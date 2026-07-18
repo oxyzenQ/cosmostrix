@@ -57,7 +57,8 @@ pub(crate) fn print_verbose(
     eprintln!(
         "{}",
         output::brand_bold(&format!(
-            "[verbose]  cosmostrix v{version} — runtime configuration"
+            "[verbose] {}  cosmostrix v{version} — runtime configuration",
+            output::now_hhmm()
         ))
     );
     output::eprintln_verbose("scene:", &format!(" {:?}", scene.unwrap_or("default")));

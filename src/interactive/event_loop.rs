@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, MouseEventKind};
+use crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind};
 
 #[cfg(unix)]
 use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
@@ -648,44 +648,26 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         );
 
                         if cfg.screensaver {
-                            // In screensaver mode:
-                            // - q/Esc: exit (handle_keybinding set raining=false)
-                            // - Interactive keys (x,s,c,g,a,p,m,Space,etc.):
-                            //   process and continue — DON'T exit
-                            // - Unrecognized keys (z without Ctrl, function keys):
-                            //   exit (classic screensaver behavior)
+                            // Screensaver mode (world-class behavior):
+                            //
+                            // - q: quit (handle_keybinding set raining=false)
+                            // - Recognized interactive keys (c/s/x/g/a/p/m/i/h,
+                            //   Space, Up/Down, 0-9, etc.): process and continue.
+                            //   The user can still cycle colors, toggle HUD, etc.
+                            //   while the screensaver is active.
+                            // - Unrecognized keys (z, F1-F12, Home/End, PageUp/Down,
+                            //   etc.): exit (classic screensaver behavior).
+                            //
+                            // The recognized-key set is defined in
+                            // `input::is_recognized_key()` — the single source
+                            // of truth. Any new keybinding added to
+                            // handle_keybinding MUST be registered there too,
+                            // otherwise the screensaver would self-exit when
+                            // the user presses the new key.
                             if !cloud.raining {
                                 break;
                             }
-                            // Check if this was a recognized key.
-                            // If so, don't exit — let the user interact.
-                            // Esc and Ctrl+C are now ignored (not exit keys),
-                            // so they must be in this list to prevent
-                            // screensaver from treating them as "unrecognized".
-                            let is_recognized_key = matches!(
-                                (k.code, k.modifiers),
-                                (KeyCode::Char('q'), _)
-                                    | (KeyCode::Esc, _)
-                                    | (KeyCode::Char('c'), KeyModifiers::CONTROL)
-                                    | (KeyCode::Char('x' | 'X'), _)
-                                    | (KeyCode::Char('s' | 'S'), _)
-                                    | (KeyCode::Char('c'), KeyModifiers::NONE)
-                                    | (KeyCode::Char('C'), _)
-                                    | (KeyCode::Char('a'), _)
-                                    | (KeyCode::Char('g'), _)
-                                    | (KeyCode::Char('p'), _)
-                                    | (KeyCode::Char('m'), _)
-                                    | (KeyCode::Char('i' | 'I'), _)
-                                    | (KeyCode::Char('h' | 'H'), _)
-                                    | (KeyCode::Char(' '), _)
-                                    | (KeyCode::Up, _)
-                                    | (KeyCode::Down, _)
-                                    | (KeyCode::Left, _)
-                                    | (KeyCode::Right, _)
-                                    | (KeyCode::Char('[' | ']' | '-' | '+' | '=' | '_'), _)
-                                    | (KeyCode::Char('0'..='9'), _)
-                            );
-                            if !is_recognized_key {
+                            if !crate::interactive::input::is_recognized_key(k.code, k.modifiers) {
                                 cloud.raining = false;
                                 break;
                             }
@@ -723,6 +705,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         next_frame = activity_time;
                     }
                     Event::Mouse(m) if cfg.mouse => {
+                        // Screensaver mouse-click exit: classic screensaver
+                        // behavior. Any mouse button click exits the
+                        // screensaver. Mouse movement alone does NOT exit
+                        // (too sensitive — accidental trackpad jitter would
+                        // kick the user out). This matches macOS/iOS/Linux
+                        // screensaver convention: click or key to dismiss.
+                        if cfg.screensaver && matches!(m.kind, MouseEventKind::Down(_)) {
+                            cloud.raining = false;
+                            break;
+                        }
                         // Mouse interaction resets idle timer.
                         let activity_time = Instant::now();
                         if register_activity(

@@ -57,7 +57,13 @@ COMMON OPTIONS:
       cosmostrix --uniform
 
   -s, --screensaver
-      Screensaver mode (exit on any keypress).
+      Screensaver mode. Exit on unrecognized keypress or mouse click.
+      Recognized keys (c/s/x/g/a/p/m/i/h, Space, Up/Down, 0-9, etc.)
+      still work for interactive control — cycle colors, toggle HUD,
+      pause, etc. — so the user can adjust the visuals without exiting.
+      Mouse clicks exit only when --mouse is also enabled.
+      cosmostrix --screensaver
+      cosmostrix --screensaver --mouse    # click to dismiss
 
   --mouse
       Enable mouse hover/click effects. This turns on terminal mouse reporting

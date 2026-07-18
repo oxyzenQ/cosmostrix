@@ -253,7 +253,7 @@ pub struct Args {
         long = "screensaver",
         help_heading = "COMMON OPTIONS",
         display_order = 60,
-        help = "Screensaver mode (exit on keypress)"
+        help = "Screensaver mode: exit on unrecognized key or mouse click"
     )]
     pub screensaver: bool,
 

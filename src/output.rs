@@ -326,18 +326,33 @@ pub fn eprintln_warn_labeled(msg: &str) {
 
 // ── Verbose helpers ──────────────────────────────────────────────────────────
 
-/// Format a verbose line: bold purple `[verbose]` prefix + purple label +
-/// default-color value. Not "boring" because the prefix is bold and the
-/// value stays readable in terminal default color.
+/// Get the current local time as `[HH:MM]` (24-hour, zero-padded).
+///
+/// Returns `[--:--]` if the system clock is unavailable (extremely rare —
+/// only happens on platforms without a working localtime). This keeps
+/// verbose output readable even in degraded environments.
+#[must_use]
+pub fn now_hhmm() -> String {
+    use chrono::Timelike;
+    let now = chrono::Local::now();
+    format!("[{:02}:{:02}]", now.hour(), now.minute())
+}
+
+/// Format a verbose line: bold purple `[verbose] [HH:MM]` prefix + purple
+/// label + default-color value.
+///
+/// The timestamp is captured once per call so all lines in a single verbose
+/// dump show the same minute (unless the dump spans a minute boundary).
 ///
 /// Example: `verbose_line("scene:", " monolith")`
-/// → `[verbose]  scene:        monolith` (prefix bold purple, label purple, value default)
+/// → `[verbose] [12:01] scene:       monolith`
 #[must_use]
 pub fn verbose_line(label: &str, value: &str) -> String {
+    let ts = now_hhmm();
     match color_capability() {
-        ColorCapability::Mono => format!("[verbose] {label:<14}{value}"),
+        ColorCapability::Mono => format!("[verbose] {ts} {label:<14}{value}"),
         _ => format!(
-            "{}[verbose]{} {}{label:<14}{}{value}",
+            "{}[verbose]{} {ts} {}{label:<14}{}{value}",
             brand_bold_open(),
             reset(),
             brand_open(),
@@ -350,6 +365,18 @@ pub fn verbose_line(label: &str, value: &str) -> String {
 /// `eprintln!("{}", verbose_line(label, value))`.
 pub fn eprintln_verbose(label: &str, value: &str) {
     eprintln!("{}", verbose_line(label, value));
+}
+
+/// Print a raw verbose message (no label/value split) with the
+/// `[verbose] [HH:MM]` prefix. Use this for one-off verbose lines that
+/// don't fit the label:value pattern (e.g. multi-line dumps, free-form
+/// diagnostics).
+pub fn eprintln_verbose_raw(msg: &str) {
+    let ts = now_hhmm();
+    match color_capability() {
+        ColorCapability::Mono => eprintln!("[verbose] {ts} {msg}"),
+        _ => eprintln!("{}[verbose]{} {ts} {msg}", brand_bold_open(), reset()),
+    }
 }
 
 #[cfg(test)]

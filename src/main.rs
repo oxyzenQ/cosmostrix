@@ -689,7 +689,10 @@ fn main() -> std::io::Result<()> {
     // being used as an arbitrary file reader (e.g., /etc/shadow).
     let chars = if let Some(ref cf) = args.charset_file {
         if args.verbose {
-            eprintln!("[verbose] charset-file: {cf} (safe: {})", is_safe_path(cf));
+            crate::output::eprintln_verbose_raw(&format!(
+                "charset-file: {cf} (safe: {})",
+                is_safe_path(cf)
+            ));
         }
         if !is_safe_path(cf) {
             ux::die_input(format!(
@@ -950,24 +953,25 @@ fn main() -> std::io::Result<()> {
             || final_charset != startup_charset;
 
         if changed {
+            let ts = crate::output::now_hhmm();
             let purple = crate::output::brand_open();
             let reset = crate::output::reset();
-            eprintln!("{purple}[verbose] final runtime state{reset}");
+            eprintln!("{purple}[verbose]{reset} {ts} final runtime state");
             if final_color != startup_color {
                 eprintln!(
-                    "{purple}[verbose]   color_scheme:  {} (was {}){reset}",
+                    "{purple}[verbose]{reset} {ts}   color_scheme:  {} (was {})",
                     final_color, startup_color
                 );
             }
             if final_scene != startup_scene {
                 eprintln!(
-                    "{purple}[verbose]   scene:         {} (was {}){reset}",
+                    "{purple}[verbose]{reset} {ts}   scene:         {} (was {})",
                     final_scene, startup_scene
                 );
             }
             if final_charset != startup_charset {
                 eprintln!(
-                    "{purple}[verbose]   charset:       {} (was {}){reset}",
+                    "{purple}[verbose]{reset} {ts}   charset:       {} (was {})",
                     final_charset, startup_charset
                 );
             }

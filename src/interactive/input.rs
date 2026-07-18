@@ -242,6 +242,79 @@ pub(super) fn handle_keybinding(
     false
 }
 
+/// Check if a key is "recognized" by cosmostrix's interactive keybindings.
+///
+/// This is the single source of truth for the screensaver exit logic: in
+/// `--screensaver` mode, recognized keys are processed normally (cycle color,
+/// toggle HUD, etc.) and do NOT exit; unrecognized keys exit the screensaver.
+///
+/// The set mirrors `handle_keybinding`'s match arms plus the HUD toggle keys
+/// (`i`/`I`/`h`/`H`) which are handled earlier in the event loop. Any new
+/// keybinding added to `handle_keybinding` or the HUD handlers MUST be added
+/// here too — otherwise the screensaver would exit when the user presses the
+/// new key, which is surprising and broken behavior.
+///
+/// Keys that are intentionally ignored (Esc, Ctrl+C, Tab) are listed as
+/// recognized so they don't cause screensaver exit. The user must press a
+/// genuinely unrecognized key (e.g. `z`, `F1`, `Home`) to exit screensaver.
+pub(super) fn is_recognized_key(
+    code: crossterm::event::KeyCode,
+    modifiers: crossterm::event::KeyModifiers,
+) -> bool {
+    use crossterm::event::{KeyCode, KeyModifiers};
+
+    match (code, modifiers) {
+        // Quit key
+        (KeyCode::Char('q'), _) => true,
+        // Ignored-but-recognized (don't exit screensaver)
+        (KeyCode::Esc, _) => true,
+        (KeyCode::Tab, _) | (KeyCode::BackTab, _) => true,
+        (KeyCode::Char('c'), KeyModifiers::CONTROL) => true, // Ctrl+C ignored
+        // Suspend (Ctrl+Z, Unix only — but recognize everywhere for consistency)
+        (KeyCode::Char('z'), KeyModifiers::CONTROL) => true,
+        // Reset
+        (KeyCode::Char(' '), _) => true,
+        // Color cycle
+        (KeyCode::Char('c'), KeyModifiers::NONE) | (KeyCode::Char('C'), _) => true,
+        // Charset cycle
+        (KeyCode::Char('s'), _) | (KeyCode::Char('S'), _) => true,
+        // Async toggle
+        (KeyCode::Char('a'), _) => true,
+        // Glitch toggle
+        (KeyCode::Char('g'), _) => true,
+        // Pause
+        (KeyCode::Char('p'), _) => true,
+        // Profile cycle
+        (KeyCode::Char('m'), _) => true,
+        // Scene cycle
+        (KeyCode::Char('x'), _) | (KeyCode::Char('X'), _) => true,
+        // HUD toggle + position (handled in event_loop before keybinding)
+        (KeyCode::Char('i'), _) | (KeyCode::Char('I'), _) => true,
+        (KeyCode::Char('h'), _) | (KeyCode::Char('H'), _) => true,
+        // Speed
+        (KeyCode::Up, _) | (KeyCode::Down, _) => true,
+        // Glitch pct (only effective when glitchy, but always recognized)
+        (KeyCode::Left, _) | (KeyCode::Right, _) => true,
+        // Density
+        (KeyCode::Char('['), _)
+        | (KeyCode::Char(']'), _)
+        | (KeyCode::Char('-'), _)
+        | (KeyCode::Char('+'), _)
+        | (KeyCode::Char('='), _)
+        | (KeyCode::Char('_'), _) => true,
+        // Direct color schemes (0-9)
+        (KeyCode::Char('0'..='9'), _) => true,
+        // Shifted direct color schemes (! @ # $ %)
+        (KeyCode::Char('!'), _)
+        | (KeyCode::Char('@'), _)
+        | (KeyCode::Char('#'), _)
+        | (KeyCode::Char('$'), _)
+        | (KeyCode::Char('%'), _) => true,
+        // Anything else is unrecognized → screensaver exits
+        _ => false,
+    }
+}
+
 pub(super) fn runtime_speed_clamp(cps: f32, rain_style: RainStyle) -> f32 {
     let max = if matches!(rain_style, RainStyle::Monolith) {
         MONOLITH_EFFECTIVE_SPEED_MAX

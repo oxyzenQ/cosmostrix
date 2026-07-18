@@ -137,7 +137,21 @@ impl CustomTimeMap {
         let t_raw = (elapsed as f32) / (span as f32);
         let _t = t_raw.clamp(0.0, 1.0);
 
-        // Only transition in the last 5 minutes before next point.
+        // Numeric fields (speed, density, fps) get a smooth transition in the
+        // last 5 minutes before the next scheduled point. This gives a gentle
+        // perceptual ramp instead of a hard jump.
+        //
+        // Enum fields (color, scene, charset, glitch_level) snap AT the
+        // scheduled boundary — NOT at the midpoint of the transition window.
+        // The current_idx lookup already ensures `current` is the most recent
+        // point whose minutes <= current_minutes, so returning current's enum
+        // values directly means the change happens exactly when the clock
+        // crosses the next point's time. The renderer's palette crossfade
+        // (cloud.set_color_scheme) handles the visual smoothness.
+        //
+        // This is the fix for the "color snaps 2.5 min early" bug: the old
+        // code used `if smoothed >= 0.5` for enums, which fired at the
+        // midpoint of the 5-min window = 2.5 min before the scheduled time.
         const TRANSITION_MINUTES: f32 = 5.0;
         let t_smooth = if (remaining as f32) <= TRANSITION_MINUTES {
             let local_t = 1.0 - (remaining as f32) / TRANSITION_MINUTES;
@@ -147,21 +161,16 @@ impl CustomTimeMap {
         };
         let smoothed = t_smooth * t_smooth * (3.0 - 2.0 * t_smooth);
 
-        // Lerp numeric fields, snap enums at t >= 0.5.
         let lerp = |a: f32, b: f32, t: f32| -> f32 { a + (b - a) * t };
 
         Some(CustomTimePoint {
             minutes: current_minutes,
-            color: if smoothed >= 0.5 {
-                next.color.clone().or(current.color.clone())
-            } else {
-                current.color.clone()
-            },
-            scene: if smoothed >= 0.5 {
-                next.scene.clone().or(current.scene.clone())
-            } else {
-                current.scene.clone()
-            },
+            // Enums snap at boundary — return current's value directly.
+            // current_idx advances when current_minutes >= next.minutes,
+            // so this is the exact scheduled-time change.
+            color: current.color.clone(),
+            scene: current.scene.clone(),
+            // Numerics lerp for smooth visual ramp.
             speed: match (current.speed, next.speed) {
                 (Some(a), Some(b)) => Some(lerp(a, b, smoothed)),
                 (Some(a), None) => Some(a),
@@ -180,16 +189,9 @@ impl CustomTimeMap {
                 (None, Some(b)) => Some(b),
                 (None, None) => None,
             },
-            charset: if smoothed >= 0.5 {
-                next.charset.clone().or(current.charset.clone())
-            } else {
-                current.charset.clone()
-            },
-            glitch_level: if smoothed >= 0.5 {
-                next.glitch_level.clone().or(current.glitch_level.clone())
-            } else {
-                current.glitch_level.clone()
-            },
+            // Enums snap at boundary.
+            charset: current.charset.clone(),
+            glitch_level: current.glitch_level.clone(),
         })
     }
 }
@@ -516,9 +518,16 @@ mod tests {
             ],
         };
         // At 23:58 (1438 min), we're 2 min before 00:00 wrap.
-        // Transition should be active (within 5 min window), speed approaching 10.0.
+        // Speed (numeric) should be transitioning toward 10.0 (green's speed).
+        // Color (enum) must still be cosmos (current's value at 12:00) — it
+        // snaps to green exactly at 00:00, NOT at the midpoint of the 5-min
+        // window.
         let p = map.params_at(23.9667).unwrap(); // ~23:58
-                                                 // Should be transitioning toward green/speed=10.
+        assert_eq!(
+            p.color.as_deref(),
+            Some("cosmos"),
+            "at 23:58 (2 min before 00:00 wrap), color must still be cosmos — snaps AT 00:00"
+        );
         assert!(
             p.speed.unwrap() < 30.0,
             "speed should be transitioning down, got {}",
@@ -641,19 +650,77 @@ mod tests {
             ],
         };
         // At 09:58 (598 min) — 2 min before 10:00. Within 5-min window.
-        // Transition should be active, color should snap to next (cosmos)
-        // because smoothed >= 0.5 at 2 min remaining.
+        //
+        // v15 fix: color/scene/charset/glitch_level snap AT the scheduled
+        // boundary, NOT at the midpoint of the transition window. So at
+        // 09:58 (2 min before 10:00), color is still green (current's
+        // value) — it will change to cosmos exactly at 10:00 when
+        // current_idx advances.
+        //
+        // Speed (numeric) still lerps smoothly toward 30.0 in the last
+        // 5 minutes for a perceptual ramp.
         let p = map.params_at(9.9667).unwrap(); // ~09:58
         assert_eq!(
             p.color.as_deref(),
-            Some("cosmos"),
-            "at 09:58 (within 5-min window before 10:00), color should snap to next (cosmos)"
+            Some("green"),
+            "at 09:58 (2 min before 10:00), color must still be green — snaps AT 10:00, not 2.5 min early"
         );
         // Speed should be lerping toward 30.0 (next's speed).
         assert!(
             p.speed.unwrap() > 10.0 && p.speed.unwrap() < 30.0,
             "speed should be transitioning toward 30.0, got {}",
             p.speed.unwrap()
+        );
+    }
+
+    /// Verify color snaps EXACTLY at the scheduled boundary (not 2.5 min early).
+    /// This is the regression test for the "color snaps early" bug.
+    #[test]
+    fn params_at_color_snaps_at_boundary_not_midpoint() {
+        let map = CustomTimeMap {
+            points: vec![
+                CustomTimePoint {
+                    minutes: 0, // 00:00 — green
+                    color: Some("green".to_string()),
+                    scene: None,
+                    speed: Some(10.0),
+                    density: None,
+                    fps: None,
+                    charset: None,
+                    glitch_level: None,
+                },
+                CustomTimePoint {
+                    minutes: 600, // 10:00 — cosmos
+                    color: Some("cosmos".to_string()),
+                    scene: None,
+                    speed: Some(30.0),
+                    density: None,
+                    fps: None,
+                    charset: None,
+                    glitch_level: None,
+                },
+            ],
+        };
+        // Just before 10:00 (09:59:59 = 599.98 min) — color must still be green.
+        let p = map.params_at(9.9997).unwrap();
+        assert_eq!(
+            p.color.as_deref(),
+            Some("green"),
+            "at 09:59:59, color must still be green — snaps AT 10:00 exactly"
+        );
+        // At exactly 10:00 (600 min) — color must now be cosmos.
+        let p = map.params_at(10.0).unwrap();
+        assert_eq!(
+            p.color.as_deref(),
+            Some("cosmos"),
+            "at 10:00:00, color must snap to cosmos"
+        );
+        // At 10:01 — color must remain cosmos (current's value now).
+        let p = map.params_at(10.0167).unwrap();
+        assert_eq!(
+            p.color.as_deref(),
+            Some("cosmos"),
+            "at 10:01, color must remain cosmos"
         );
     }
 
