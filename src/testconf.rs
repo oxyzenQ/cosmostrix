@@ -34,7 +34,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
             eprintln!(
                 "testconf: hint: run `cosmostrix --config-path` to see the expected location"
             );
-            eprintln!("testconf: hint: cosmostrix --dump-config > <config-path>  (create parent dir first)");
+            eprintln!("testconf: hint: cosmostrix --dump-config <config-path>  (writes directly, whitelist-enforced)");
             std::process::exit(2);
         }
     };

@@ -326,9 +326,53 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
-    if args.dump_config {
-        print!("{}", configfile::dump_config_text());
-        return Ok(());
+    // --dump-config: print example config to stdout, OR write to a file
+    // if a path argument was given. The path is validated against the same
+    // strict whitelist as --config (~/.config/cosmostrix/ and /etc/cosmostrix/
+    // on Linux/macOS). This prevents --dump-config from being used to write
+    // arbitrary files (e.g., overwriting ~/.bashrc or /etc/cron.d/evil).
+    //
+    // The flag uses clap's num_args=0..=1 pattern:
+    //   --dump-config            → Some("") → print to stdout
+    //   --dump-config <path>     → Some("<path>") → write to file (validated)
+    //   (not passed)             → None → skip
+    if let Some(ref dump_path) = args.dump_config {
+        if dump_path.is_empty() {
+            // No path argument: print to stdout (original behavior).
+            print!("{}", configfile::dump_config_text());
+            return Ok(());
+        }
+        // Path argument given: validate against strict whitelist before writing.
+        let path_str = dump_path;
+        let safe = is_safe_path(path_str);
+        if args.verbose {
+            crate::output::eprintln_verbose_raw(&format!(
+                "dump-config path: {path_str} (safe: {safe})"
+            ));
+        }
+        if !safe {
+            ux::die_input(format!(
+                "error: --dump-config '{path_str}' is outside allowed directories\n  \
+                 Allowed (strict whitelist): ~/.config/cosmostrix/, /etc/cosmostrix/\n  \
+                 Rejected: current directory (.), /tmp/, ~/, /usr/, all others"
+            ));
+        }
+        // Write the example config to the validated path.
+        match std::fs::write(path_str, configfile::dump_config_text()) {
+            Ok(()) => {
+                if args.verbose {
+                    crate::output::eprintln_verbose_raw(&format!(
+                        "dump-config: wrote example config to {path_str}"
+                    ));
+                }
+                return Ok(());
+            }
+            Err(e) => {
+                ux::die_config(format!(
+                    "error: cannot write --dump-config to '{path_str}': {e}"
+                ));
+            }
+        }
     }
 
     if args.config_path {

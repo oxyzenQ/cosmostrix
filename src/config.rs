@@ -315,9 +315,14 @@ pub struct Args {
         long = "dump-config",
         help_heading = "CONFIG",
         display_order = 99,
-        help = "Print a complete example config and exit"
+        num_args = 0..=1,
+        default_missing_value = "",
+        help = "Print a complete example config and exit. \
+                With a path argument, writes to that file instead of stdout. \
+                The path must be inside ~/.config/cosmostrix/ or /etc/cosmostrix/ \
+                (strict whitelist, same as --config)."
     )]
-    pub dump_config: bool,
+    pub dump_config: Option<String>,
 
     #[arg(
         long = "config-path",

@@ -116,8 +116,11 @@ CONFIG:
       Everything else is rejected (current directory, /tmp/, ~/, etc.).
       Must have .toml extension.
 
-  --dump-config
+  --dump-config [path]
       Print a complete, commented example config and exit.
+      With a path argument, writes to that file instead of stdout.
+      The path must be inside ~/.config/cosmostrix/ or /etc/cosmostrix/
+      (strict whitelist, same as --config). Everything else is rejected.
 
       Config policy: invalid values print an error and exit (code 2).
       No silent fallback — strict validation.
