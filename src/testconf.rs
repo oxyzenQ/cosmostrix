@@ -134,6 +134,15 @@ pub fn run(args: &Args) -> std::io::Result<()> {
             }
             continue;
         }
+        // colors-custom.* keys: validate hex format (same as validate_config_strictly).
+        // Without this, --testconf passes invalid hex that crashes at startup.
+        if key.starts_with("colors-custom.") {
+            if let Some(msg) = validate_colors_custom_value(key, value) {
+                crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
+                errors += 1;
+            }
+            continue;
+        }
         if let Some(msg) = validate_field_value(key, value) {
             crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
             errors += 1;
