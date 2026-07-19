@@ -49,14 +49,21 @@ use crate::palette::Palette;
 pub struct CustomPaletteDef {
     /// Background color (optional).
     pub bg: Option<Color>,
-    /// Explicit head (brightest) color (optional, cosmostrix-specific).
+    /// Head (brightest) color — the leading character of each rain stream.
     pub head: Option<Color>,
-    /// Explicit gradient stops (optional, cosmostrix-specific).
-    /// If set, takes priority over normal/bright interpolation.
+    /// Body color — mid-gradient color for the rain trail body.
+    pub body: Option<Color>,
+    /// Tail color — dimmest color at the end of the rain trail.
+    pub tail: Option<Color>,
+    /// Gradient stops for the full rain trail (replaces stops, v16).
+    /// Comma-separated hex colors from tail (darkest) to head (brightest).
+    /// If set, takes priority over head/body/tail interpolation.
+    pub rain: Vec<Color>,
+    /// Legacy gradient stops (alias for rain, kept for backward compat).
     pub stops: Vec<Color>,
-    /// Normal ANSI colors (Alacritty-style).
+    /// Normal ANSI colors (Alacritty-style, advanced/optional).
     pub normal: AnsiColors,
-    /// Bright ANSI colors (Alacritty-style).
+    /// Bright ANSI colors (Alacritty-style, advanced/optional).
     pub bright: AnsiColors,
 }
 
@@ -78,6 +85,9 @@ impl CustomPaletteDef {
     pub fn is_empty(&self) -> bool {
         self.bg.is_none()
             && self.head.is_none()
+            && self.body.is_none()
+            && self.tail.is_none()
+            && self.rain.is_empty()
             && self.stops.is_empty()
             && self.normal.black.is_none()
             && self.normal.red.is_none()
@@ -100,17 +110,25 @@ impl CustomPaletteDef {
     /// Build a cosmostrix `Palette` from this definition.
     ///
     /// Construction priority:
-    /// 1. If `stops` is non-empty, use stops directly as the gradient.
-    /// 2. Otherwise, interpolate from normal/bright ANSI colors.
-    /// 3. Background comes from `bg` (or `background` alias).
+    /// 1. If `rain` is non-empty, use rain stops directly as the gradient.
+    /// 2. If `stops` is non-empty (legacy alias), use stops directly.
+    /// 3. If head/body/tail are set, build a 3-stop gradient from them.
+    /// 4. Otherwise, interpolate from normal/bright ANSI colors.
+    /// 5. Background comes from `bg` (or `background` alias).
     pub fn to_palette(&self) -> Result<Palette, String> {
         if self.is_empty() {
             return Err("custom palette has no color definitions".to_string());
         }
 
-        let colors = if !self.stops.is_empty() {
-            // Stops mode: use directly (trail → head order).
+        let colors = if !self.rain.is_empty() {
+            // rain mode (v16 primary): use directly (tail → head order).
+            self.rain.clone()
+        } else if !self.stops.is_empty() {
+            // Legacy stops mode (backward compat): same as rain.
             self.stops.clone()
+        } else if self.head.is_some() || self.body.is_some() || self.tail.is_some() {
+            // head/body/tail mode: build a simple gradient.
+            self.build_hbt_gradient()?
         } else {
             // Alacritty mode: interpolate from ANSI colors.
             self.interpolate_gradient()?
@@ -120,6 +138,47 @@ impl CustomPaletteDef {
             colors,
             bg: self.bg,
         })
+    }
+
+    /// Build a gradient from head/body/tail colors.
+    ///
+    /// If all three are set: [tail → body → head] interpolated to ~24 stops.
+    /// If only two are set: interpolate between them.
+    /// If only one is set: use it as a single-color palette.
+    fn build_hbt_gradient(&self) -> Result<Vec<Color>, String> {
+        let mut stops: Vec<Color> = Vec::new();
+        if let Some(tail) = self.tail {
+            stops.push(tail);
+        }
+        if let Some(body) = self.body {
+            stops.push(body);
+        }
+        if let Some(head) = self.head {
+            stops.push(head);
+        }
+
+        if stops.is_empty() {
+            return Err("no head/body/tail colors set".to_string());
+        }
+
+        if stops.len() <= 2 {
+            return Ok(stops);
+        }
+
+        // Interpolate to ~24 entries for a smooth rain trail.
+        let target_len = 24usize;
+        let mut gradient: Vec<Color> = Vec::with_capacity(target_len);
+        for i in 0..stops.len().saturating_sub(1) {
+            let a = stops[i];
+            let b = stops[i + 1];
+            let steps = target_len / (stops.len() - 1).max(1);
+            for s in 0..steps {
+                let t = s as f32 / steps as f32;
+                gradient.push(lerp_color(a, b, t));
+            }
+        }
+        gradient.push(*stops.last().unwrap());
+        Ok(gradient)
     }
 
     /// Interpolate a gradient from normal/bright ANSI colors.
@@ -309,8 +368,26 @@ pub fn collect_colors_custom(cfg: &HashMap<String, String>) -> BTreeMap<String, 
                     palette.head = Some(color);
                 }
             }
+            "body" => {
+                if let Ok(color) = parse_hex_color(value) {
+                    palette.body = Some(color);
+                }
+            }
+            "tail" => {
+                if let Ok(color) = parse_hex_color(value) {
+                    palette.tail = Some(color);
+                }
+            }
+            "rain" => {
+                // v16: Comma-separated gradient stops (primary format).
+                for stop in value.split(',') {
+                    if let Ok(color) = parse_hex_color(stop) {
+                        palette.rain.push(color);
+                    }
+                }
+            }
             "stops" => {
-                // Comma-separated list of hex colors.
+                // Legacy alias for rain (backward compat).
                 for stop in value.split(',') {
                     if let Ok(color) = parse_hex_color(stop) {
                         palette.stops.push(color);

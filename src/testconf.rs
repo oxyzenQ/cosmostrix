@@ -220,8 +220,8 @@ fn validate_colors_custom_value(key: &str, value: &str) -> Option<String> {
         return Some("empty color value".to_string());
     }
 
-    // stops field: comma-separated hex list
-    if key.ends_with(".stops") {
+    // stops/rain field: comma-separated hex list
+    if key.ends_with(".stops") || key.ends_with(".rain") {
         for stop in trimmed.split(',') {
             // Strip quotes from each stop individually (the config parser
             // preserves quotes in values since v16 step 2).

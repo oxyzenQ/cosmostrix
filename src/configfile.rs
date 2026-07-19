@@ -433,27 +433,36 @@ pub fn dump_config_text() -> &'static str {
 
 # Custom Color Palettes (optional, v16+)
 # Define named custom palettes usable from --colors-custom or adaptive-custom.
-# Format: colors-custom.<name>.<field> = <hex>
+# Uses TOML table format (Alacritty-style) for clean readability.
 # Hex values use standard #rrggbb notation (quoted to protect # from comment stripping).
+#
 # Fields:
-#   bg / background    — background color
-#   head               — brightest head color (cosmostrix-specific)
-#   stops              — comma-separated gradient stops (cosmostrix-specific)
-#   normal.red/green/blue/yellow/cyan/magenta/white/black  — Alacritty-style
-#   bright.red/green/blue/yellow/cyan/magenta/white/black  — Alacritty-style
+#   bg       — background color
+#   head     — brightest head color (leading character of each stream)
+#   body     — mid-gradient body color
+#   tail     — dimmest tail color (end of rain trail)
+#   rain     — comma-separated gradient stops (tail → head order)
+#
+# Two modes:
+#   1. rain mode: specify full gradient directly
+#   2. head/body/tail mode: specify 3 colors, cosmostrix interpolates
+#
 # Load with: cosmostrix --colors-custom mytheme
 # Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith
+
+# Example: rain mode (full gradient)
+# [colors-custom.sunset]
+# bg = "#0a0a12"
+# rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"
+
+# Example: head/body/tail mode (3 colors interpolated)
+# [colors-custom.ocean]
+# bg = "#001020"
+# tail = "#001a33"
+# body = "#0066cc"
+# head = "#aaddff"
+
 # colors-custom = mytheme
-# colors-custom = mytheme
-# colors-custom.mytheme.bg = "#0a0a12"
-# colors-custom.mytheme.head = "#ffffff"
-# colors-custom.mytheme.stops = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"
-# colors-custom.mytheme.normal.red = "#fe0100"
-# colors-custom.mytheme.normal.green = "#33ff00"
-# colors-custom.mytheme.normal.blue = "#0066ff"
-# colors-custom.mytheme.bright.red = "#ff4444"
-# colors-custom.mytheme.bright.green = "#66ff66"
-# colors-custom.mytheme.bright.blue = "#4499ff"
 
 # Quick Start
 # cosmostrix                                       # run with defaults
@@ -531,6 +540,9 @@ fn is_valid_colors_custom_field(field: &str) -> bool {
         field,
         "bg" | "background"
             | "head"
+            | "body"
+            | "tail"
+            | "rain"
             | "stops"
             | "normal.red"
             | "normal.green"

@@ -776,8 +776,12 @@ pub fn print_list_colors() {
         }
         println!();
         for (name, def) in &custom_palettes {
-            let mode = if !def.stops.is_empty() {
+            let mode = if !def.rain.is_empty() {
+                "rain"
+            } else if !def.stops.is_empty() {
                 "stops"
+            } else if def.head.is_some() || def.body.is_some() || def.tail.is_some() {
+                "hbt"
             } else {
                 "alacritty"
             };
