@@ -189,47 +189,69 @@ Run `cosmostrix --help` for common options or `cosmostrix --help-detail` for the
 
 ```text
 COMMON OPTIONS
-  -c, --color <name>        Color theme
+  -c, --color <name>        Color theme (see --list-colors)
      --color-tune <k=v>     Tune saturation/brightness (e.g. saturation=1.5,brightness=0.9)
-     --charset <name>       Character set
+     --charset <name>       Character set (see --list-charsets)
+     --charset-file <path>  Load custom characters from a file (whitelist-enforced)
   -f, --fps <1-240>         Target FPS
   -S, --speed <1-100>       Rain speed
   -d, --density <0.01-5.0>  Rain density
-  -s, --screensaver         Exit on keypress
+  -s, --screensaver         Only q exits (all other keys ignored). Mouse click exits if --mouse enabled
      --mouse                Enable mouse hover/click effects
-  -m, --message <text>      Overlay message
+  -m, --message <text>      Overlay message (use -mb for border)
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
-     --scene <name>        Apply a built-in scene atmosphere
-     --scene-custom <name> Apply a user-defined custom scene from config
-     --config <path>        Load config from an explicit file
-     --dump-config          Print an example config and exit
+     --scene <name>         Apply a built-in scene atmosphere (see --list-scenes)
+     --scene-custom <name>  Apply a user-defined custom scene from config
+
+ADVANCED
+     --monolith-size <size> Monolith segment cell scale (small|normal|large)
+     --uniform              Uniform column speeds (disables async variable pacing)
+
+CONFIG
+     --config <path>        Load config from an explicit file (strict whitelist + .toml)
+     --dump-config [path]   Print example config to stdout, or write to file (whitelist + .toml)
+     --config-path          Print the resolved default config path
+     --testconf             Validate config.toml and report errors (exit 0 = pass, 2 = fail)
 
 DIAGNOSTICS
      --doctor               Compatibility report
      --benchmark            Renderer benchmark (5s default; override with --bench-duration)
-     --bench-duration <1-600>  Benchmark duration in seconds (for long-run drift / leak detection)
+     --bench-duration <dur> Benchmark duration (e.g. 5, 6s, 30m, 1h30m; min 1s)
      --json                 Output benchmark as JSON (use with --benchmark; for CI/scripts)
+     --screen-size <WxH>    Fixed screen size (e.g. 120x40; min 1x1)
+     --bench-io             Benchmark with wet terminal I/O (writes ANSI to /dev/null)
+     --bench-all            Run benchmark across multiple screen sizes (6x6 to 200x60)
+     --save-baseline <path> Save benchmark JSON for later comparison
+     --compare-baseline <p> Compare against saved baseline (flags >5% FPS regressions)
   -i, --info                Build and runtime information
-     --reset-terminal       Destructive terminal recovery (clears screen + scrollback)
+     --reset-terminal       Emergency terminal recovery (5-layer: ANSI + crossterm + stty + reset)
+  -v, --verbose             Print diagnostic info to stderr (with [HH:MM] timestamps)
 
 DISCOVERY
-     --list-colors          Show compact color theme names
-     --list-charsets        Show available character sets
+     --list-colors          Show compact color theme names (43 built-in themes)
+     --list-charsets        Show available character sets (24 built-in sets)
      --list-scenes          Show built-in and custom scenes
      --show-scene <name>    Show full details for a scene
-     --defaults             Show the default runtime profile
+
+HELP
+     --help-detail          Full advanced documentation
+  -V, --version             Print complete version and build information
+     --check-update         Check the latest upstream release
+  -h, --help                Print help
 ```
 
 Explicit CLI flags always override scene and scene-custom values.
 
 ## Runtime Controls
 
+Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no accidental exit). In screensaver mode, mouse click also exits (requires `--mouse`).
+
 ```text
   q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             g          Toggle glitch
-  m             Cycle profile     Space      Reseed animation
+  m             Cycle behavior    Space      Reseed animation
   a             Toggle async      1-0        Direct color scheme
   i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)
