@@ -286,22 +286,9 @@ fn main() -> std::io::Result<()> {
     #[cfg(target_arch = "x86_64")]
     info::check_cpu_features();
 
-    // Panic hook: write panic info to stderr ONLY.
-    //
-    // Do NOT call restore_terminal_best_effort() here — doing so writes
-    // restore sequences (LeaveAlternateScreen etc.) directly to stdout
-    // BEFORE unwinding runs Terminal::drop, which then flushes the
-    // BufWriter's pending frame data AFTER the alternate screen has been
-    // left. This leaks the partially-rendered rain onto the user's main
-    // terminal screen.
-    //
-    // Terminal restoration is handled by:
-    //   1. Terminal::drop (via panic=unwind) — normal case
-    //   2. Fork-based SIGKILL guard (Linux) — if process is killed
-    //   3. Watchdog thread — if main thread is hung
-    std::panic::set_hook(Box::new(|info| {
-        eprintln!("{}", info);
-    }));
+    // Panic hook: restore the terminal BEFORE printing the panic message.
+    // See `install_panic_hook()` for the full rationale.
+    install_panic_hook();
 
     let mut cmd = Args::command();
     #[cfg(unix)]
@@ -1090,10 +1077,16 @@ fn main() -> std::io::Result<()> {
 
     let result = interactive::run_interactive(&cloud_cfg);
 
-    // Final verbose: print changed runtime state after exit.
-    // No borders, purple brand color, simple format for easy analysis.
-    // Zero overhead during rain — only prints once after Terminal::drop.
-    if args.verbose {
+    // v16 audit: Explicitly print run_interactive errors to stderr (after
+    // Terminal::drop restored the terminal). See install_panic_hook().
+    if let Err(ref e) = result {
+        use std::io::Write;
+        crate::terminal::restore_terminal_best_effort();
+        eprintln!("error: {e}");
+        let _ = std::io::stderr().flush();
+    }
+
+    if args.verbose && result.is_ok() {
         let final_color = interactive::last_color_scheme();
         let final_scene = interactive::last_scene_name();
         let final_charset = interactive::last_charset_preset();
@@ -1180,6 +1173,27 @@ fn canonicalize_runtime_args(args: &mut Args) {
     if let Some(canonical) = theme::canonical_name_for_input(&args.color) {
         args.color = canonical.to_string();
     }
+}
+
+/// Install the global panic hook (v16 audit: Windows silent-exit fix).
+///
+/// The alternate screen captures BOTH stdout AND stderr. The old hook
+/// printed to stderr without restoring the terminal first, so the panic
+/// message was trapped in the alt screen and discarded when
+/// Terminal::drop called LeaveAlternateScreen — "silent exit".
+///
+/// Fix: restore the terminal BEFORE printing, and set a global flag
+/// (`TERMINAL_RESTORED_BY_PANIC`) so Terminal::drop skips its own
+/// cleanup (prevents BufWriter rain data from leaking to the main screen).
+fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        use std::io::Write;
+        crate::terminal::TERMINAL_RESTORED_BY_PANIC
+            .store(true, std::sync::atomic::Ordering::Release);
+        crate::terminal::restore_terminal_best_effort();
+        eprintln!("{info}");
+        let _ = std::io::stderr().flush();
+    }));
 }
 
 #[cfg(test)]

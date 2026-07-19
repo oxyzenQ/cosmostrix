@@ -513,6 +513,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             if !now_visible {
                                 cloud.force_draw_everything();
                             }
+                            // v16 audit: Update next_frame so the HUD appears
+                            // immediately. Without this, if the user was in
+                            // idle mode (reduced FPS), pressing 'i' would
+                            // schedule the HUD render at the next idle-frame
+                            // time (potentially seconds away). On Windows,
+                            // the long poll_event wait during idle could
+                            // trigger a console error that silently exits
+                            // the program. Setting next_frame = activity_time
+                            // forces an immediate frame render, bypassing
+                            // the long wait.
                             let _ = register_activity(
                                 &mut last_input_time,
                                 &mut last_resync_time,
@@ -520,6 +530,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                                 is_idle,
                                 false,
                             );
+                            next_frame = activity_time;
                             continue;
                         }
 
@@ -539,6 +550,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                                 is_idle,
                                 false,
                             );
+                            // v16 audit: Update next_frame for immediate redraw
+                            // (same fix as 'i' handler — see comment above).
+                            next_frame = activity_time;
                             continue;
                         }
 

@@ -34,6 +34,28 @@ use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
+/// Global flag set by the panic hook when it has already restored the
+/// terminal (called `restore_terminal_best_effort()`). Terminal::drop
+/// checks this flag and skips its own cleanup if the terminal was already
+/// restored — otherwise the BufWriter's pending frame data would be
+/// flushed to the MAIN screen (after LeaveAlternateScreen), leaking
+/// partially-rendered rain onto the user's terminal.
+///
+/// ## Why this exists (v16 audit)
+///
+/// On Windows (and most Unix terminals), the alternate screen buffer
+/// captures BOTH stdout AND stderr. When a panic occurs:
+///   1. Panic hook runs → prints message to stderr (trapped in alt screen)
+///   2. Unwind starts → Terminal::drop runs → LeaveAlternateScreen
+///   3. The panic message (in the alt screen buffer) is DISCARDED
+///   4. User sees a "silent exit" — no error, no crash message
+///
+/// Fix: the panic hook restores the terminal BEFORE printing, so the
+/// message goes to the main screen. This flag prevents Terminal::drop
+/// from double-restoring AND from flushing stale rain data to the main
+/// screen.
+pub(crate) static TERMINAL_RESTORED_BY_PANIC: AtomicBool = AtomicBool::new(false);
+
 use crossterm::{
     cursor, event,
     style::{Attribute, Color, ResetColor, SetAttribute, SetBackgroundColor},
@@ -688,7 +710,17 @@ impl Drop for Terminal {
                     std::process::exit(0);
                 }
             });
-        self.cleanup_terminal();
+
+        // v16 audit: If the panic hook already restored the terminal
+        // (TERMINAL_RESTORED_BY_PANIC is set), skip cleanup_terminal().
+        // This prevents the BufWriter's pending frame data from being
+        // flushed to the MAIN screen (after LeaveAlternateScreen), which
+        // would leak partially-rendered rain onto the user's terminal.
+        // The panic hook already called restore_terminal_best_effort(),
+        // so the terminal is in a clean state.
+        if !TERMINAL_RESTORED_BY_PANIC.load(std::sync::atomic::Ordering::Acquire) {
+            self.cleanup_terminal();
+        }
         self.shutdown_complete
             .store(true, std::sync::atomic::Ordering::Release);
     }
