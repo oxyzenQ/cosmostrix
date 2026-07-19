@@ -969,6 +969,19 @@ fn main() -> std::io::Result<()> {
             .and_then(scene_custom::parse_density_map)
     });
 
+    // v16: Load custom palette if --color-custom is set.
+    // The palette is loaded from config.toml's [colors-custom] section.
+    // If loading fails, exit with a clear error (no silent fallback).
+    let custom_palette = if let Some(ref name) = args.color_custom {
+        let cfg_map = configfile::load_config_file(args.config.as_deref());
+        match colors_custom::load_custom_palette(&cfg_map, name) {
+            Ok(p) => Some(p),
+            Err(e) => ux::die_input(format!("error: --color-custom '{name}': {e}")),
+        }
+    } else {
+        None
+    };
+
     let cloud_cfg = CloudConfig {
         color_mode,
         fullwidth: args.fullwidth,
@@ -977,6 +990,7 @@ fn main() -> std::io::Result<()> {
         async_mode: effective_async,
         default_bg,
         color_scheme,
+        custom_palette,
         rain_style,
         noglitch: args.noglitch,
         glitch_pct,

@@ -171,6 +171,15 @@ pub struct Args {
     pub color: String,
 
     #[arg(
+        long = "color-custom",
+        value_name = "NAME",
+        help_heading = "COMMON OPTIONS",
+        display_order = 12,
+        help = "Load a user-defined custom color palette from config (see --list-colors)"
+    )]
+    pub color_custom: Option<String>,
+
+    #[arg(
         long = "color-tune",
         help_heading = "COMMON OPTIONS",
         display_order = 11,

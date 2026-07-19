@@ -215,7 +215,7 @@ pub fn validate_config_strictly(
 ///
 /// For `stops` field: comma-separated list of the above.
 fn validate_colors_custom_value(key: &str, value: &str) -> Option<String> {
-    let trimmed = value.trim().trim_matches('"').trim();
+    let trimmed = value.trim();
     if trimmed.is_empty() {
         return Some("empty color value".to_string());
     }
@@ -223,7 +223,9 @@ fn validate_colors_custom_value(key: &str, value: &str) -> Option<String> {
     // stops field: comma-separated hex list
     if key.ends_with(".stops") {
         for stop in trimmed.split(',') {
-            let s = stop.trim();
+            // Strip quotes from each stop individually (the config parser
+            // preserves quotes in values since v16 step 2).
+            let s = stop.trim().trim_matches('"').trim();
             if !is_valid_hex_color(s) {
                 return Some(format!(
                     "invalid hex color '{s}' in stops (expected #rrggbb or rrggbb)"
@@ -233,10 +235,11 @@ fn validate_colors_custom_value(key: &str, value: &str) -> Option<String> {
         return None;
     }
 
-    // single color field
-    if !is_valid_hex_color(trimmed) {
+    // single color field — strip quotes before validation
+    let unquoted = trimmed.trim_matches('"').trim();
+    if !is_valid_hex_color(unquoted) {
         return Some(format!(
-            "invalid hex color '{trimmed}' (expected #rrggbb or rrggbb)"
+            "invalid hex color '{unquoted}' (expected #rrggbb or rrggbb)"
         ));
     }
     None

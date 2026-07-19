@@ -223,6 +223,7 @@ mod cases {
             async_mode: false,
             default_bg: true,
             color_scheme: crate::runtime::ColorScheme::Green,
+            custom_palette: None,
             rain_style: crate::rain_style::RainStyle::Glyph,
             noglitch: true,
             glitch_pct: 0.0,

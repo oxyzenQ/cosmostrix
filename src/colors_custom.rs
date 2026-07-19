@@ -35,11 +35,8 @@
 //!    — the 16 ANSI colors are interpolated into a gradient from darkest
 //!    (normal.black) to brightest (bright.white or head).
 
-// This module is built in v16 step 4. Production callers (main.rs,
-// event_loop.rs) are wired in steps 5-7. Until then, all functions
-// are dead code — this allow suppresses the warning and will be
-// removed once the first production caller lands.
-#![allow(dead_code)]
+// Production callers: main.rs (--color-custom), live_config.rs (live reload),
+// event_loop.rs (adaptive-custom integration — step 7).
 
 use std::collections::{BTreeMap, HashMap};
 

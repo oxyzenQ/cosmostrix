@@ -38,7 +38,33 @@ impl Cloud {
         self.color_scheme = scheme;
         use crate::palette::build_palette;
         let new_palette = build_palette(scheme, self.color_mode, self.default_background);
+        self.apply_new_palette(new_palette);
+    }
 
+    /// Set a custom palette directly (v16 --color-custom path).
+    ///
+    /// This bypasses the `ColorScheme` enum entirely — the palette is
+    /// injected directly from user config. The `color_scheme` field stays
+    /// unchanged (for verbose display / cycling), but the actual colors
+    /// come from the provided palette.
+    ///
+    /// The palette transition wave (cinematic top-to-bottom cascade) works
+    /// identically to `set_color_scheme` — the old streams keep their birth
+    /// palette below the wave line, and the new palette propagates visually.
+    pub fn set_palette(&mut self, palette: crate::palette::Palette) {
+        self.apply_new_palette(palette);
+    }
+
+    /// Internal: apply a new palette with the transition wave effect.
+    ///
+    /// Shared between `set_color_scheme` (built-in themes) and `set_palette`
+    /// (custom themes). Handles:
+    /// - Palette slot rotation (circular buffer for cross-fade)
+    /// - Color map regeneration (per-cell random index into new palette)
+    /// - Column slot reset (all columns adopt new palette for spawning)
+    /// - Transition start time (for wave animation)
+    /// - Monolith draw history + phosphor reset
+    fn apply_new_palette(&mut self, new_palette: crate::palette::Palette) {
         // Advance to next palette slot (circular buffer)
         let next_slot = ((self.active_palette_slot as usize + 1) % MAX_PALETTE_SLOTS) as u8;
         self.palette_table[next_slot as usize] = Some(new_palette.clone());

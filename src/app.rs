@@ -23,6 +23,11 @@ pub struct CloudConfig {
     pub async_mode: bool,
     pub default_bg: bool,
     pub color_scheme: ColorScheme,
+    /// Custom palette override (v16). When Some, the cloud uses this palette
+    /// instead of the built-in palette from color_scheme. The color_scheme
+    /// enum is still tracked for verbose output + cycling, but the actual
+    /// colors come from this palette.
+    pub custom_palette: Option<crate::palette::Palette>,
     pub rain_style: RainStyle,
     pub noglitch: bool,
     pub glitch_pct: f32,
@@ -103,6 +108,14 @@ impl CloudConfig {
             self.rain_style,
         );
 
+        // v16: If a custom palette is set (--color-custom), override the
+        // built-in palette via set_palette (handles color_map regen +
+        // transition wave). color-tune is applied after this, so users
+        // can tune custom palettes the same way as built-in ones.
+        if let Some(ref custom) = self.custom_palette {
+            cloud.set_palette(custom.clone());
+        }
+
         // Apply --color-tune (if non-identity) to the palette AFTER Cloud::new
         // builds it. This turns the 43 fixed themes into 43 × ∞ by letting
         // users adjust saturation/brightness at load time without editing
@@ -170,6 +183,7 @@ impl CloudConfig {
             async_mode: self.async_mode,
             default_bg: self.default_bg,
             color_scheme: self.color_scheme,
+            custom_palette: self.custom_palette.clone(),
             rain_style: self.rain_style,
             noglitch: self.noglitch,
             glitch_pct: self.glitch_pct,
