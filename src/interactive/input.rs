@@ -219,7 +219,7 @@ pub(super) fn handle_keybinding(
         // v16: Digit-key color shortcuts (1-0, !@#$%) removed.
         // Use 'c'/'C' to cycle through all 43 themes instead — it's
         // more discoverable and doesn't require memorizing a mapping.
-        // --color-custom is also available for user-defined palettes.
+        // --colors-custom is also available for user-defined palettes.
         _ => {}
     }
 

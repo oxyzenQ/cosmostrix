@@ -171,13 +171,13 @@ pub struct Args {
     pub color: String,
 
     #[arg(
-        long = "color-custom",
+        long = "colors-custom",
         value_name = "NAME",
         help_heading = "COMMON OPTIONS",
         display_order = 12,
         help = "Load a user-defined custom color palette from config (see --list-colors)"
     )]
-    pub color_custom: Option<String>,
+    pub colors_custom: Option<String>,
 
     #[arg(
         long = "color-tune",
@@ -784,7 +784,7 @@ pub fn print_list_colors() {
             println!("  {name:<20} custom palette ({mode} mode)");
         }
         println!();
-        println!("  Load with: cosmostrix --color-custom <name>");
+        println!("  Load with: cosmostrix --colors-custom <name>");
         println!("  Use in adaptive-custom: adaptive-custom.HH-MM = <name>, <scene>");
     }
 }

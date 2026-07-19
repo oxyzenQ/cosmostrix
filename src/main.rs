@@ -955,7 +955,7 @@ fn main() -> std::io::Result<()> {
                 .transpose()
                 .ok()
                 .flatten(),
-            args.color_custom.as_deref(),
+            args.colors_custom.as_deref(),
         );
     }
 
@@ -970,14 +970,14 @@ fn main() -> std::io::Result<()> {
             .and_then(scene_custom::parse_density_map)
     });
 
-    // v16: Load custom palette if --color-custom is set.
+    // v16: Load custom palette if --colors-custom is set.
     // The palette is loaded from config.toml's [colors-custom] section.
     // If loading fails, exit with a clear error (no silent fallback).
-    let custom_palette = if let Some(ref name) = args.color_custom {
+    let custom_palette = if let Some(ref name) = args.colors_custom {
         let cfg_map = configfile::load_config_file(args.config.as_deref());
         match colors_custom::load_custom_palette(&cfg_map, name) {
             Ok(p) => Some(p),
-            Err(e) => ux::die_input(format!("error: --color-custom '{name}': {e}")),
+            Err(e) => ux::die_input(format!("error: --colors-custom '{name}': {e}")),
         }
     } else {
         None

@@ -41,7 +41,7 @@ impl Cloud {
         self.apply_new_palette(new_palette);
     }
 
-    /// Set a custom palette directly (v16 --color-custom path).
+    /// Set a custom palette directly (v16 --colors-custom path).
     ///
     /// This bypasses the `ColorScheme` enum entirely — the palette is
     /// injected directly from user config. The `color_scheme` field stays

@@ -35,7 +35,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "profile",
     "scene-custom",
     "color",
-    "color-custom",
+    "colors-custom",
     "charset",
     "fps",
     "speed",
@@ -399,7 +399,7 @@ pub fn dump_config_text() -> &'static str {
 # adaptive-custom.18-00 = neon, storm, speed=24, density=1.1
 
 # Custom Color Palettes (optional, v16+)
-# Define named custom palettes usable from --color-custom or adaptive-custom.
+# Define named custom palettes usable from --colors-custom or adaptive-custom.
 # Format: colors-custom.<name>.<field> = <hex>
 # Hex values use standard #rrggbb notation (quoted to protect # from comment stripping).
 # Fields:
@@ -408,10 +408,10 @@ pub fn dump_config_text() -> &'static str {
 #   stops              — comma-separated gradient stops (cosmostrix-specific)
 #   normal.red/green/blue/yellow/cyan/magenta/white/black  — Alacritty-style
 #   bright.red/green/blue/yellow/cyan/magenta/white/black  — Alacritty-style
-# Load with: cosmostrix --color-custom mytheme
+# Load with: cosmostrix --colors-custom mytheme
 # Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith
 # colors-custom = mytheme
-# color-custom = mytheme
+# colors-custom = mytheme
 # colors-custom.mytheme.bg = "#0a0a12"
 # colors-custom.mytheme.head = "#ffffff"
 # colors-custom.mytheme.stops = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"

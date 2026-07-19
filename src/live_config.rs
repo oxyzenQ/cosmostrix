@@ -230,8 +230,8 @@ pub fn rebuild_cloud_config(
         }
     }
 
-    // v16: Custom color palette (--color-custom or color-custom config key)
-    if let Some(v) = cfg.get("color-custom") {
+    // v16: Custom color palette (--colors-custom or color-custom config key)
+    if let Some(v) = cfg.get("colors-custom") {
         match crate::colors_custom::load_custom_palette(cfg, v) {
             Ok(palette) => new.custom_palette = Some(palette),
             Err(_) => { /* leave existing palette — don't break live reload */ }
