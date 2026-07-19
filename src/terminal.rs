@@ -36,7 +36,7 @@ use std::sync::Arc;
 
 use crossterm::{
     cursor, event,
-    style::{Attribute, Color, ResetColor, SetAttribute},
+    style::{Attribute, Color, ResetColor, SetAttribute, SetBackgroundColor},
     terminal, ExecutableCommand, QueueableCommand,
 };
 
@@ -427,6 +427,13 @@ impl Terminal {
             .unwrap_or((true, true));
 
         if needs_clear {
+            // v16: If the frame has a bg color, set it BEFORE Clear(All)
+            // so cleared cells get the correct bg. Without this, Clear(All)
+            // fills with terminal default bg (None), creating visible gaps
+            // at screen edges.
+            if let Some(bg) = frame.blank.bg {
+                self.stdout.queue(SetBackgroundColor(bg))?;
+            }
             self.stdout
                 .queue(terminal::Clear(terminal::ClearType::All))?;
         }

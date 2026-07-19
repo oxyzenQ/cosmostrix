@@ -44,7 +44,7 @@ pub struct Frame {
     pub cells: Vec<Cell>,
     gen: u32,
     cell_gen: Vec<u32>,
-    blank: Cell,
+    pub(crate) blank: Cell,
     dirty_all: bool,
     dirty_map: Vec<u8>,
     dirty: SmallVec<[usize; DIRTY_INLINE_CAPACITY]>,
