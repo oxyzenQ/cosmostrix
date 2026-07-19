@@ -460,8 +460,9 @@ impl Cloud {
                             let cell = frame.cell_at_index_ref(fidx);
                             if cell.fg.is_some() && !self.glitch_pool.is_empty() {
                                 let cell_owned = frame.cell_at_index(fidx);
-                                let glitch_idx = (col as usize + line as usize + elapsed as usize)
-                                    % self.glitch_pool.len();
+                                let glitch_idx =
+                                    (col as usize + line as usize + (elapsed * 8.0) as usize)
+                                        % self.glitch_pool.len();
                                 frame.set(
                                     col,
                                     line,

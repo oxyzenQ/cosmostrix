@@ -221,6 +221,10 @@ impl Cloud {
             let idx = dist.sample(&mut self.mt);
             self.glitch_pool[i] = self.chars[idx];
         }
+
+        // v16: Cache binary check — eliminates O(2048) scan per frame.
+        self.char_pool_is_binary =
+            !self.char_pool.is_empty() && self.char_pool.iter().all(|ch| matches!(ch, '0' | '1'));
     }
 
     pub(super) fn reset_phosphor_state(&mut self) {

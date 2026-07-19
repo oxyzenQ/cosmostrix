@@ -15,7 +15,7 @@ use crate::terminal::restore_terminal_best_effort;
 
 /// Global flag set when mouse capture was successfully enabled.
 /// Signal handlers check this to decide whether DisableMouseCapture is needed.
-pub(super) static MOUSE_CAPTURE_ACTIVE: std::sync::atomic::AtomicBool =
+pub(crate) static MOUSE_CAPTURE_ACTIVE: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
 /// Clear the global `MOUSE_CAPTURE_ACTIVE` flag. Called by `Terminal` when

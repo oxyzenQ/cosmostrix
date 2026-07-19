@@ -122,6 +122,10 @@ pub struct Cloud {
     pub(super) chars: Vec<char>,
     pub(super) char_pool: Vec<char>,
     pub(super) previous_char_pool: Vec<char>,
+    /// v16: Cached check if char_pool is all '0'/'1' (binary charset).
+    /// Recomputed in rebuild_char_pools() and transition_chars().
+    /// Eliminates O(2048) scan per frame in rain.rs.
+    pub(super) char_pool_is_binary: bool,
     pub(super) charset_transition_start: Option<Instant>,
     pub(super) glitch_pool: Vec<char>,
     pub(super) glitch_pool_idx: usize,
@@ -386,6 +390,7 @@ impl Cloud {
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
+            char_pool_is_binary: false,
             charset_transition_start: None,
             glitch_pool: Vec::new(),
             glitch_pool_idx: 0,

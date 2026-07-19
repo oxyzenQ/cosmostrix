@@ -306,14 +306,8 @@ impl Cloud {
 
         // Draw pass (split-borrows via DrawCtx)
         let draw_everything = force_draw_everything || time_for_glitch;
-        // Pre-compute pool_is_binary once per frame instead of per-cell.
-        let active_pool = if self.char_pool.is_empty() {
-            &self.previous_char_pool
-        } else {
-            &self.char_pool
-        };
-        let pool_is_binary =
-            !active_pool.is_empty() && active_pool.iter().all(|ch| matches!(ch, '0' | '1'));
+        // v16: pool_is_binary cached in Cloud, recomputed only on charset change.
+        let pool_is_binary = self.char_pool_is_binary;
 
         let glitch_inv_between = {
             let between = self

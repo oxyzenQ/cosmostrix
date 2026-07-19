@@ -7,24 +7,16 @@
 //! interactive mode: signal handling, frame pacing, input dispatch,
 //! simulation stepping, rendering, and performance reporting.
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind};
-
-#[cfg(unix)]
-use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
-#[cfg(unix)]
-use signal_hook::iterator::Signals;
-#[cfg(unix)]
-use signal_hook::low_level;
 
 use crate::color_cache::ColorCache;
 use crate::constants::*;
 use crate::frame::Frame;
 use crate::report::Report;
-use crate::terminal::{restore_terminal_best_effort, Terminal};
+use crate::terminal::Terminal;
 
 use super::super::{effective_density, CloudConfig};
 use super::activity::{is_runtime_idle, register_activity, spin_wait, FrameTimeTracker};
@@ -34,108 +26,14 @@ use super::adaptive::{
 };
 use super::hud::HudState;
 use super::input::{handle_keybinding, PasteBurstGuard};
-use super::watchdog::{
-    spawn_watchdog, FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN,
-};
+use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(target_os = "linux")]
     crate::spawn_kill9_terminal_guard();
 
-    #[cfg(unix)]
-    let term_reinit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-
-    // Signal-exit flag: shared between signal handler threads and Terminal.
-    // Created before signal handlers so the handler closure can capture a
-    // clone. When set, Terminal::drop() clears the alternate screen viewport
-    // before switching back, preventing rain frame residue. Normal q/esc
-    // exit never sets this flag.
-    let signal_exit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-
-    #[cfg(unix)]
-    {
-        let se = signal_exit.clone();
-        if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP, SIGQUIT]) {
-            std::thread::spawn(move || {
-                if let Some(_sig) = signals.forever().next() {
-                    // Request graceful shutdown via AtomicBool instead of
-                    // directly writing ANSI restore sequences to stdout.
-                    // This avoids racing with the main thread on the same fd.
-                    GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
-                    // Mark this as a signal-triggered exit so Terminal::drop()
-                    // clears the visible viewport before leaving the alternate
-                    // screen. This prevents rain frame residue on the main
-                    // screen after pkill -TERM or Ctrl-C.
-                    se.store(true, Ordering::Release);
-                    // Wait for the main loop to notice GRACEFUL_SHUTDOWN, set
-                    // SHUTDOWN, and run Terminal::drop().  Do NOT call
-                    // restore_terminal_best_effort() + process::exit() here —
-                    // that races on stdout with the main loop's buffered writer
-                    // and skips Terminal::drop(), which is the only path that
-                    // flushes the final frame before leaving the alternate
-                    // screen.  If the main loop is truly stuck (e.g. deadlock
-                    // inside a syscall), the watchdog thread (20s timeout)
-                    // will handle the hard restore instead.
-                    loop {
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                        if SHUTDOWN.load(Ordering::Acquire) {
-                            break;
-                        }
-                    }
-                }
-            });
-        }
-
-        let term_reinit = term_reinit.clone();
-        if let Ok(mut signals) = Signals::new([SIGTSTP, SIGCONT]) {
-            std::thread::spawn(move || {
-                for sig in signals.forever() {
-                    match sig {
-                        SIGTSTP => {
-                            // Disable mouse capture before suspending so the
-                            // terminal is usable while cosmostrix is stopped.
-                            if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
-                                use crossterm::ExecutableCommand;
-                                let _ = std::io::stdout()
-                                    .execute(crossterm::event::DisableMouseCapture);
-                                MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
-                            }
-                            restore_terminal_best_effort();
-                            term_reinit.store(true, Ordering::Release);
-                            let _ = low_level::raise(SIGSTOP);
-                        }
-                        SIGCONT => {
-                            term_reinit.store(true, Ordering::Release);
-                        }
-                        _ => {}
-                    }
-                }
-            });
-        }
-    }
-
-    #[cfg(windows)]
-    {
-        let se = signal_exit.clone();
-        if let Err(e) = ctrlc::set_handler(move || {
-            GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
-            se.store(true, Ordering::Release);
-            std::thread::sleep(std::time::Duration::from_secs(1));
-            if !SHUTDOWN.load(Ordering::Acquire) {
-                if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
-                    use crossterm::ExecutableCommand;
-                    let _ = std::io::stdout().execute(crossterm::event::DisableMouseCapture);
-                }
-                restore_terminal_best_effort();
-                std::process::exit(130);
-            }
-        }) {
-            eprintln!("failed to install Ctrl-C handler: {}", e);
-        }
-    }
-
-    // Spawn watchdog thread
-    spawn_watchdog();
+    // Install signal handlers + watchdog (extracted to signal_handlers.rs).
+    let (signal_exit, term_reinit) = super::signal_handlers::install_signal_handlers();
 
     let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
     // Mouse reporting is opt-in because abrupt process death can leave some
