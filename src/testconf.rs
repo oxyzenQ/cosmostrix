@@ -188,11 +188,64 @@ pub fn validate_config_strictly(
             crate::atmosphere_custom::parse_custom_time_map(&single)?;
             continue;
         }
+        // colors-custom.<name>.<field> keys: validate hex format.
+        // The key pattern is already validated by is_known_key() in
+        // configfile.rs, so we only need to check the value is valid hex.
+        if key.starts_with("colors-custom.") {
+            if let Some(msg) = validate_colors_custom_value(key, value) {
+                return Err(format!("invalid value '{value}' for '{key}': {msg}"));
+            }
+            continue;
+        }
         if let Some(msg) = validate_field_value(key, value) {
             return Err(format!("invalid value '{value}' for '{key}': {msg}"));
         }
     }
     Ok(())
+}
+
+/// Validate a colors-custom value (hex color or comma-separated hex stops).
+///
+/// Accepted formats:
+/// - `#rrggbb` (standard hex with #)
+/// - `rrggbb` (hex without #)
+/// - `#rgb` (short hex with #)
+/// - `rgb` (short hex without #)
+/// - `"#rrggbb"` (quoted — quotes stripped before parsing)
+///
+/// For `stops` field: comma-separated list of the above.
+fn validate_colors_custom_value(key: &str, value: &str) -> Option<String> {
+    let trimmed = value.trim().trim_matches('"').trim();
+    if trimmed.is_empty() {
+        return Some("empty color value".to_string());
+    }
+
+    // stops field: comma-separated hex list
+    if key.ends_with(".stops") {
+        for stop in trimmed.split(',') {
+            let s = stop.trim();
+            if !is_valid_hex_color(s) {
+                return Some(format!(
+                    "invalid hex color '{s}' in stops (expected #rrggbb or rrggbb)"
+                ));
+            }
+        }
+        return None;
+    }
+
+    // single color field
+    if !is_valid_hex_color(trimmed) {
+        return Some(format!(
+            "invalid hex color '{trimmed}' (expected #rrggbb or rrggbb)"
+        ));
+    }
+    None
+}
+
+/// Check if a string is a valid hex color (#rrggbb, rrggbb, #rgb, or rgb).
+fn is_valid_hex_color(s: &str) -> bool {
+    let s = s.strip_prefix('#').unwrap_or(s);
+    s.len() == 6 || s.len() == 3 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 /// Strict value validation for a config key (top-level or block field).

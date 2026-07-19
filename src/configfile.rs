@@ -35,6 +35,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "profile",
     "scene-custom",
     "color",
+    "color-custom",
     "charset",
     "fps",
     "speed",
@@ -52,12 +53,15 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "atmosphere-mode",
     "atmosphere-regime",
     "adaptive-custom",
+    "colors-custom",
 ];
 
 pub const LEGACY_CONFIG_KEYS: &[&str] = &["glitchpct", "shortpct", "rippct", "maxdpc"];
 
 const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
+const COLORS_CUSTOM_CONFIG_KEY_HINT: &str =
+    "colors-custom.<name>.<bg|head|stops|normal.red|normal.green|normal.blue|...|bright.red|...>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParsedConfig {
@@ -208,7 +212,7 @@ fn config_file_path_from_env(
 
 #[must_use]
 pub fn dump_config_text() -> &'static str {
-    r#"# Cosmostrix Configuration
+    r##"# Cosmostrix Configuration
 
 # Location:
 #   Linux:   ~/.config/cosmostrix/config.toml
@@ -394,6 +398,30 @@ pub fn dump_config_text() -> &'static str {
 # adaptive-custom.12-00 = cosmos, monolith, speed=30, density=0.85
 # adaptive-custom.18-00 = neon, storm, speed=24, density=1.1
 
+# Custom Color Palettes (optional, v16+)
+# Define named custom palettes usable from --color-custom or adaptive-custom.
+# Format: colors-custom.<name>.<field> = <hex>
+# Hex values use standard #rrggbb notation (quoted to protect # from comment stripping).
+# Fields:
+#   bg / background    — background color
+#   head               — brightest head color (cosmostrix-specific)
+#   stops              — comma-separated gradient stops (cosmostrix-specific)
+#   normal.red/green/blue/yellow/cyan/magenta/white/black  — Alacritty-style
+#   bright.red/green/blue/yellow/cyan/magenta/white/black  — Alacritty-style
+# Load with: cosmostrix --color-custom mytheme
+# Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith
+# colors-custom = mytheme
+# color-custom = mytheme
+# colors-custom.mytheme.bg = "#0a0a12"
+# colors-custom.mytheme.head = "#ffffff"
+# colors-custom.mytheme.stops = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"
+# colors-custom.mytheme.normal.red = "#fe0100"
+# colors-custom.mytheme.normal.green = "#33ff00"
+# colors-custom.mytheme.normal.blue = "#0066ff"
+# colors-custom.mytheme.bright.red = "#ff4444"
+# colors-custom.mytheme.bright.green = "#66ff66"
+# colors-custom.mytheme.bright.blue = "#4499ff"
+
 # Quick Start
 # cosmostrix                                       # run with defaults
 # cosmostrix --scene storm                         # built-in scene
@@ -402,7 +430,7 @@ pub fn dump_config_text() -> &'static str {
 # cosmostrix --show-scene hacker-mode              # preview a scene
 # cosmostrix --testconf                            # validate this config
 # cosmostrix --doctor                              # diagnose terminal issues
-"#
+"##
 }
 
 #[must_use]
@@ -412,6 +440,7 @@ pub fn known_keys() -> Vec<&'static str> {
         .chain(LEGACY_CONFIG_KEYS.iter())
         .chain(std::iter::once(&PROFILE_CONFIG_KEY_HINT))
         .chain(std::iter::once(&SCENE_CUSTOM_CONFIG_KEY_HINT))
+        .chain(std::iter::once(&COLORS_CUSTOM_CONFIG_KEY_HINT))
         .copied()
         .collect()
 }
@@ -423,6 +452,70 @@ fn is_known_key(key: &str) -> bool {
         || is_profile_config_key(key)
         || is_scene_custom_config_key(key)
         || is_adaptive_custom_key(key)
+        || is_colors_custom_key(key)
+}
+
+/// Check if `key` matches the `colors-custom.<name>.<field>` pattern.
+///
+/// Recognized fields (v16):
+/// - `bg` / `background` — background color (hex)
+/// - `normal.red`, `normal.green`, `normal.blue` — core normal colors
+/// - `normal.yellow`, `normal.cyan`, `normal.magenta`, `normal.white` — extended normal
+/// - `bright.red`, `bright.green`, `bright.blue` — core bright colors
+/// - `bright.yellow`, `bright.cyan`, `bright.magenta`, `bright.white` — extended bright
+/// - `head` — head (brightest) color (hex) — cosmostrix-specific
+/// - `stops` — comma-separated hex gradient stops — cosmostrix-specific
+///
+/// Name must be non-empty, ASCII alphanumeric + `-`/`_` only.
+#[inline]
+fn is_colors_custom_key(key: &str) -> bool {
+    let Some(rest) = key.strip_prefix("colors-custom.") else {
+        return false;
+    };
+    // Must have at least name.field (2+ segments after the prefix).
+    let Some((name, field)) = rest.split_once('.') else {
+        return false;
+    };
+    if name.is_empty() || !is_valid_custom_name(name) {
+        return false;
+    }
+    is_valid_colors_custom_field(field)
+}
+
+/// Check if a custom palette name is valid (non-empty, alphanumeric + -/_).
+#[inline]
+fn is_valid_custom_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Check if a colors-custom field name is recognized.
+#[inline]
+fn is_valid_colors_custom_field(field: &str) -> bool {
+    matches!(
+        field,
+        "bg" | "background"
+            | "head"
+            | "stops"
+            | "normal.red"
+            | "normal.green"
+            | "normal.blue"
+            | "normal.yellow"
+            | "normal.cyan"
+            | "normal.magenta"
+            | "normal.white"
+            | "normal.black"
+            | "bright.red"
+            | "bright.green"
+            | "bright.blue"
+            | "bright.yellow"
+            | "bright.cyan"
+            | "bright.magenta"
+            | "bright.white"
+            | "bright.black"
+    )
 }
 
 /// Check if `key` matches the `adaptive-custom.H-M` pattern.
