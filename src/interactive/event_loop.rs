@@ -34,6 +34,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // Install signal handlers + watchdog (extracted to signal_handlers.rs).
     let (signal_exit, term_reinit) = super::signal_handlers::install_signal_handlers();
+    // On non-Unix (Windows), term_reinit is unused — no SIGCONT/SIGTSTP.
+    // Consume it here to suppress the unused_variable warning. On Unix,
+    // this line is cfg'd out and term_reinit is used later for SIGCONT.
+    #[cfg(not(unix))]
+    let _ = term_reinit;
 
     let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
     // Mouse reporting is opt-in because abrupt process death can leave some

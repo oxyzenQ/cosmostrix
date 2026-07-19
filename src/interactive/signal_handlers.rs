@@ -14,7 +14,9 @@ use std::sync::Arc;
 
 use super::watchdog::{spawn_watchdog, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
 
-#[cfg(unix)]
+// restore_terminal_best_effort is used by BOTH the Unix SIGTSTP handler
+// AND the Windows Ctrl+C handler, so the import must be unconditional.
+// The function itself is defined without a cfg gate in terminal.rs.
 use crate::terminal::restore_terminal_best_effort;
 
 #[cfg(unix)]
