@@ -175,7 +175,7 @@ pub use info::env_var_truthy;
 // `Error: Custom { ... }`.
 
 // Path security validation lives in src/safepath.rs.
-pub(crate) use crate::safepath::is_safe_path;
+pub(crate) use crate::safepath::{is_safe_path, validate_config_path};
 
 /// Check if stdout is redirected to a regular file (shell `>` or `>|` operator).
 ///
@@ -388,7 +388,11 @@ fn main() -> std::io::Result<()> {
             #[cfg(unix)]
             {
                 if stdout_is_redirected_to_file() {
-                    crate::output::eprintln_error_labeled(
+                    // Route through ux::die_input so the exit code (2) and
+                    // error formatting match every other CLI input error.
+                    // Previously this used process::exit(2) directly, bypassing
+                    // the ux module's centralized error handling.
+                    ux::die_input(
                         "refusing to write --dump-config to a redirected file\n  \
                          Shell redirection (>, >|) bypasses the strict whitelist.\n  \
                          Use the explicit path form instead:\n    \
@@ -397,7 +401,6 @@ fn main() -> std::io::Result<()> {
                          and have a .toml extension.\n  \
                          Piping to another command (cosmostrix --dump-config | less) is allowed.",
                     );
-                    std::process::exit(2);
                 }
             }
             print!("{}", configfile::dump_config_text());
@@ -463,6 +466,17 @@ fn main() -> std::io::Result<()> {
     }
 
     if let Some(ref name) = args.show_scene {
+        // Security (v16 audit): validate --config path BEFORE reading.
+        // Previously --show-scene called load_config_file directly without
+        // is_safe_path, allowing `cosmostrix --show-scene X --config /etc/passwd`
+        // to parse arbitrary files as TOML and leak their content via
+        // error messages. Now applies the same check as the main startup path.
+        if let Some(ref config_path) = args.config {
+            let path_str = config_path.to_string_lossy();
+            if let Err(e) = validate_config_path(&path_str, args.verbose) {
+                ux::die_input(e);
+            }
+        }
         let cfg = configfile::load_config_file(args.config.as_deref());
         match print_show_scene(name, &cfg) {
             Ok(()) => return Ok(()),
@@ -931,6 +945,17 @@ fn main() -> std::io::Result<()> {
     // --uniform takes precedence (if both are set, uniform wins = async off).
     let effective_async = args.async_mode && !args.uniform;
 
+    // Parse --screen-size once here so the verbose block and CloudConfig
+    // both see the same validated value. Previously the verbose block used
+    // `.ok().flatten()` which silently swallowed parse errors, while
+    // CloudConfig used `ux::or_exit` which exited on error. If the user
+    // passed an invalid screen-size with --verbose, they'd see verbose
+    // output with a None screen_size and then a separate parse error from
+    // CloudConfig — confusing. Now we error out once, upfront.
+    let screen_size = crate::ux::or_exit(crate::cli_parse::parse_screen_size_optional(
+        &args.screen_size,
+    ));
+
     // ── Verbose output (before CloudConfig moves values) ──
     if args.verbose {
         verbose::print_verbose(
@@ -966,12 +991,7 @@ fn main() -> std::io::Result<()> {
             args.message_border,
             args.duration,
             args.charset_file.as_deref(),
-            args.screen_size
-                .as_deref()
-                .map(crate::cli_parse::parse_screen_size)
-                .transpose()
-                .ok()
-                .flatten(),
+            screen_size,
             custom_palette_name.as_deref(),
         );
     }
@@ -1027,9 +1047,7 @@ fn main() -> std::io::Result<()> {
         bench_frames: args.bench_frames,
         benchmark: args.benchmark,
         bench_duration: resolve_bench_duration_args(&args.bench_duration),
-        screen_size: crate::ux::or_exit(crate::cli_parse::parse_screen_size_optional(
-            &args.screen_size,
-        )),
+        screen_size,
         color_tune,
         json: args.json,
         save_baseline: args.save_baseline.clone(),
@@ -1080,7 +1098,13 @@ fn main() -> std::io::Result<()> {
         let final_scene = interactive::last_scene_name();
         let final_charset = interactive::last_charset_preset();
         let startup_color = format!("{:?}", color_scheme);
-        let startup_scene = args.scene.as_deref().unwrap_or("monolith").to_string();
+        // Use DEFAULT_SCENE constant rather than hard-coded "monolith" so
+        // any future change to the default scene is reflected consistently.
+        let startup_scene = args
+            .scene
+            .as_deref()
+            .unwrap_or(crate::scene::DEFAULT_SCENE)
+            .to_string();
 
         let changed = final_color != startup_color
             || final_scene != startup_scene

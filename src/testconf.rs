@@ -17,6 +17,20 @@ use crate::Args;
 
 /// Run the `--testconf` validation.
 pub fn run(args: &Args) -> std::io::Result<()> {
+    // Security (v16 audit): validate --config path BEFORE reading.
+    // Previously testconf::run called std::fs::read_to_string directly
+    // without is_safe_path, allowing `cosmostrix --testconf --config /etc/passwd`
+    // to parse arbitrary files as TOML and leak their content via
+    // malformed-line / unknown-key error messages. Now uses the same
+    // validate_config_path helper as apply_config_and_runtime_defaults.
+    if let Some(ref config_path) = args.config {
+        let path_str = config_path.to_string_lossy();
+        if let Err(e) = crate::validate_config_path(&path_str, args.verbose) {
+            crate::output::eprintln_error_labeled(&e);
+            std::process::exit(2);
+        }
+    }
+
     let path = args
         .config
         .as_ref()

@@ -130,10 +130,13 @@ pub fn detect_color_mode(args: &Args) -> ColorMode {
             8 | 256 => ColorMode::Color256,
             24 | 32 => ColorMode::TrueColor,
             _ => {
-                crate::output::eprintln_error_labeled(&format!(
+                // Route through ux::die_input so the error message and exit
+                // code (2) match every other CLI input error in the codebase.
+                // Previously this used process::exit(1) + eprintln_error_labeled,
+                // which bypassed the ux module and used the wrong exit code.
+                crate::ux::die_input(format!(
                     "invalid --colormode: {m} (allowed: 0,16,8/256,24/32)"
                 ));
-                std::process::exit(1);
             }
         };
     }

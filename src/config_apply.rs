@@ -116,27 +116,11 @@ pub(crate) fn apply_config_and_runtime_defaults(
     let mut config_touched = HashSet::new();
 
     // Security: validate --config path is in a safe location AND has .toml extension.
+    // Centralized in safepath::validate_config_path so testconf, --show-scene,
+    // --colors-custom, and --scene-custom all apply the same check consistently.
     if let Some(ref config_path) = args.config {
         let path_str = config_path.to_string_lossy();
-        let safe = crate::is_safe_path(&path_str);
-        if args.verbose {
-            crate::output::eprintln_verbose_raw(&format!("config path: {path_str} (safe: {safe})"));
-        }
-        if !safe {
-            return Err(format!(
-                "error: --config '{path_str}' is outside allowed directories\n  \
-                 Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/ (Linux/macOS);\n  \
-                 %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\ (Windows)"
-            ));
-        }
-        // Strict: only .toml files allowed. Prevents reading arbitrary
-        // file types (.c, .txt, .py, .sh, etc.) via --config.
-        if !path_str.ends_with(".toml") {
-            return Err(format!(
-                "error: --config '{path_str}' must have a .toml extension\n  \
-                 Only TOML config files are accepted."
-            ));
-        }
+        crate::validate_config_path(&path_str, args.verbose)?;
     }
 
     let cfg = load_config_file(args.config.as_deref());

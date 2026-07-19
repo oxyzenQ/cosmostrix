@@ -13,10 +13,13 @@ use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 /// Migration map for CLI flags removed in v14.0.0.
 ///
 /// Each entry maps a removed long-flag name to a single-line migration message
-/// that points the user to its replacement. Order matters: longer flag names
-/// (e.g. `--list-presets`) appear before shorter ones (e.g. `--low-power`) so
-/// the `starts_with`-based matcher in [`check_removed_flags`] picks the most
-/// specific match first.
+/// that points the user to its replacement.
+///
+/// The matcher in [`check_removed_flags`] uses exact token equality
+/// (`token == *flag`), so the order of entries in this table does not affect
+/// matching — `--preset` and `--list-presets` are distinct tokens and never
+/// collide. Entries are kept in a roughly longest-first order for human
+/// readability when scanning the table.
 const REMOVED_FLAGS: &[(&str, &str)] = &[
     (
         "--list-presets",
@@ -81,8 +84,9 @@ pub fn check_removed_flags(argv: &[OsString]) -> Result<(), String> {
         if !token.starts_with("--") {
             continue;
         }
-        // Longest-match-first: REMOVED_FLAGS is ordered so multi-word flags
-        // (--list-presets) are checked before single-word ones (--preset).
+        // Exact-match lookup: token is normalized to "--flag" form above
+        // (split on '='), and REMOVED_FLAGS contains only exact flag names.
+        // No prefix matching, so order does not affect correctness.
         for (flag, message) in REMOVED_FLAGS {
             if token == *flag {
                 return Err((*message).to_string());
