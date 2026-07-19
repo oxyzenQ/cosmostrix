@@ -74,9 +74,12 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 
 ## Requirements
 
-- Rust stable toolchain to build from source
+- Rust 1.81+ (MSRV) to build from source
+- Linux kernel 2.6.27+ / macOS 10.12+ / Windows 10 1809+
 - A terminal supporting ANSI escape sequences, alternate screen, and raw mode
 - Best results with 256-color or truecolor terminals
+
+For the full compatibility matrix (kernel versions, glibc/musl, CPU architectures, terminal capabilities), see [System Requirements](docs/SYSTEM_REQUIREMENTS.md).
 
 ## Installation
 
@@ -365,6 +368,7 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 ## Documentation
 
 - [Changelog](CHANGELOG.md) — release history
+- [System Requirements](docs/SYSTEM_REQUIREMENTS.md) — kernel, glibc/musl, CPU, terminal compatibility matrix
 - [Terminal Compatibility](docs/TERMINAL_COMPATIBILITY.md) — terminal behavior, tmux/SSH, recovery
 - [Visual Stability](docs/VISUAL_STABILITY.md) — visual depth and throughput stability
 - [Endurance](docs/ENDURANCE.md) — endurance testing and resource monitoring

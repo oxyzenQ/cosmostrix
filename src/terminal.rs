@@ -117,6 +117,13 @@ pub struct Terminal {
     /// When set (by signal handlers), cleanup clears the visible viewport
     /// before leaving the alternate screen. Normal q/esc exit leaves this
     /// `false` so the alternate screen switch is non-destructive.
+    ///
+    /// v16: This field is no longer read by cleanup_terminal() — viewport
+    /// clear now happens unconditionally. The field is kept for the fork
+    /// guard's signal-exit detection path (spawn_kill9_terminal_guard)
+    /// which sets it on SIGTERM/SIGKILL. May be used by future cleanup
+    /// logic to distinguish normal vs signal-triggered exit.
+    #[allow(dead_code)]
     signal_exit: Arc<AtomicBool>,
     /// Terminal protocol capabilities detected at startup.
     term_caps: TerminalCaps,
@@ -367,16 +374,19 @@ impl Terminal {
             let _ = self.stdout.execute(terminal::EnableLineWrap);
             self.line_wrap_disabled = false;
         }
-        // On signal-triggered exit (SIGINT/SIGTERM/SIGHUP), clear the
-        // visible viewport inside the alternate screen before switching
-        // back to the main screen. This prevents the last rain frame
-        // from being momentarily visible on the main screen when the
-        // terminal emulator processes the LeaveAlternateScreen escape.
-        // Normal q/esc exit skips this — the alternate screen switch
-        // alone cleanly restores the original terminal content.
-        if self.alternate_screen_enabled
-            && self.signal_exit.load(std::sync::atomic::Ordering::Acquire)
-        {
+        // Always clear the visible viewport inside the alternate screen
+        // before switching back to the main screen. This prevents the last
+        // rain frame from being momentarily visible on the main screen when
+        // the terminal emulator processes the LeaveAlternateScreen escape.
+        //
+        // v16: Previously this only ran on signal-triggered exit (SIGTERM/
+        // SIGKILL). Normal q exit skipped it, assuming LeaveAlternateScreen
+        // alone would cleanly restore the original content. But some
+        // terminal emulators (especially with color-bg = default-background)
+        // don't fully restore — rain residue bleeds through. Now we always
+        // clear, which is a cheap operation (one Clear All escape) and
+        // eliminates the residue class of bugs entirely.
+        if self.alternate_screen_enabled {
             let _ = self.stdout.queue(cursor::MoveTo(0, 0));
             let _ = self.stdout.queue(terminal::Clear(terminal::ClearType::All));
             let _ = self.stdout.flush();
@@ -880,11 +890,14 @@ mod tests {
                 plan.push("enable-wrap");
                 self.wrap = false;
             }
-            // Signal-exit viewport clear happens BEFORE leave-alternate
-            // but only when signal_exit flag is set.
-            if self.alternate && signal_exit {
+            // v16: Always clear viewport before leaving alternate screen.
+            // Previously only on signal_exit — now always, to prevent
+            // rain residue on normal q exit.
+            if self.alternate {
                 plan.push("clear-viewport");
-                self.signal_exit_clear = true;
+                if signal_exit {
+                    self.signal_exit_clear = true;
+                }
             }
             if self.alternate {
                 plan.push("leave-alternate");
@@ -1019,6 +1032,7 @@ mod tests {
                 "disable-bracketed-paste",
                 "show-cursor",
                 "enable-wrap",
+                "clear-viewport",
                 "leave-alternate",
                 "disable-raw",
             ]
@@ -1035,7 +1049,8 @@ mod tests {
             ..Default::default()
         };
         let plan = flags.cleanup_plan(false);
-        assert!(!plan.contains(&"clear-viewport"));
+        // v16: normal exit now ALSO clears viewport (always, not just signal)
+        assert!(plan.contains(&"clear-viewport"));
         assert!(!plan.contains(&"purge-scrollback"));
         assert!(!plan.contains(&"cursor-home"));
         assert!(flags.cleanup_plan(false).is_empty());
@@ -1069,7 +1084,9 @@ mod tests {
     }
 
     #[test]
-    fn normal_exit_cleanup_skips_viewport_clear() {
+    fn normal_exit_cleanup_always_clears_viewport_v16() {
+        // v16: normal exit now ALSO clears viewport (always, not just
+        // signal exit). This prevents rain residue on some terminals.
         let mut flags = CleanupFlags {
             mouse: true,
             focus: true,
@@ -1084,9 +1101,11 @@ mod tests {
 
         let plan = flags.cleanup_plan(false);
         assert!(
-            !plan.contains(&"clear-viewport"),
-            "normal exit must NOT clear viewport"
+            plan.contains(&"clear-viewport"),
+            "v16: normal exit must clear viewport (always)"
         );
+        // But must NOT set signal_exit_clear (that's signal-only)
+        assert!(!flags.signal_exit_clear);
     }
 
     #[test]

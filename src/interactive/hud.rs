@@ -295,7 +295,12 @@ impl HudState {
     /// re-sending them. This is the key overhead optimization: when
     /// metrics are stable (same fps/p99/max for 250ms), only the
     /// changing cells (uptime seconds) get re-sent.
-    pub(crate) fn write_to_frame(&self, frame: &mut crate::frame::Frame, cols: u16) {
+    pub(crate) fn write_to_frame(
+        &self,
+        frame: &mut crate::frame::Frame,
+        cols: u16,
+        bg: Option<Color>,
+    ) {
         if !self.visible {
             return;
         }
@@ -310,7 +315,12 @@ impl HudState {
                 let cell = crate::cell::Cell {
                     ch,
                     fg: Some(*color),
-                    bg: Some(Color::Black),
+                    // v16: HUD background follows the palette's bg color.
+                    // When --color-bg = default-background, the palette bg
+                    // is None, so the HUD uses the terminal's native
+                    // background (transparent). When --color-bg = black,
+                    // the palette bg is Some(Black) and the HUD uses black.
+                    bg,
                     bold: false,
                 };
                 frame.set(x, row, cell);

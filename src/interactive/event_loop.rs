@@ -888,7 +888,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // Write HUD into the frame buffer BEFORE term.draw() so it's
         // part of the same flush — eliminates fullscreen flicker.
-        hud_state.write_to_frame(&mut frame, cloud.cols);
+        // v16: Pass palette bg so HUD background follows --color-bg setting.
+        hud_state.write_to_frame(&mut frame, cloud.cols, cloud.palette.bg);
 
         // Cache dirty checks once per frame to avoid redundant method calls.
         let is_dirty_all = frame.is_dirty_all();
