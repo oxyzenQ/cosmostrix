@@ -38,6 +38,7 @@
 
 mod activity;
 mod adaptive;
+mod bg_fill;
 mod event_loop;
 mod hud;
 mod input;
@@ -47,6 +48,7 @@ mod watchdog;
 mod tests;
 
 // Re-export public API for the rest of the crate
+pub(crate) use bg_fill::fill_terminal_bg;
 pub(crate) use event_loop::run_interactive;
 pub(crate) use watchdog::clear_mouse_capture_flag;
 
