@@ -181,11 +181,12 @@ pub struct Args {
     pub color_tune: Option<String>,
 
     #[arg(
+        short = 'C',
         long = "charset",
         default_value = "binary",
         help_heading = "COMMON OPTIONS",
         display_order = 20,
-        help = "Character preset (see --list-charsets)"
+        help = "Character set (see --list-charsets)"
     )]
     pub charset: String,
 
