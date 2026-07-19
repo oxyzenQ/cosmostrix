@@ -134,6 +134,14 @@ impl CustomPaletteDef {
             self.interpolate_gradient()?
         };
 
+        // Defensive: ensure colors is never empty — this would cause
+        // downstream panics in fill_color_map (gen_range on empty range)
+        // and get_attr (index into empty slice). If all parsing silently
+        // failed, we must error here rather than crash later.
+        if colors.is_empty() {
+            return Err("custom palette produced no valid colors — check hex values".to_string());
+        }
+
         Ok(Palette {
             colors,
             bg: self.bg,

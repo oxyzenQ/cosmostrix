@@ -296,6 +296,7 @@ fn benchmark_fields_unchanged() {
         default_bg: true,
         color_scheme: crate::runtime::ColorScheme::Green,
         custom_palette: None,
+        custom_palette_name: None,
         rain_style: crate::rain_style::RainStyle::Glyph,
         noglitch: false,
         glitch_pct: 0.0,

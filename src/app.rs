@@ -28,6 +28,10 @@ pub struct CloudConfig {
     /// enum is still tracked for verbose output + cycling, but the actual
     /// colors come from this palette.
     pub custom_palette: Option<crate::palette::Palette>,
+    /// Name of the active custom palette (for live reload). When Some,
+    /// rebuild_cloud_config reloads the palette definition from config
+    /// so editing colors-custom entries takes effect immediately.
+    pub custom_palette_name: Option<String>,
     pub rain_style: RainStyle,
     pub noglitch: bool,
     pub glitch_pct: f32,
@@ -182,6 +186,7 @@ impl CloudConfig {
             default_bg: self.default_bg,
             color_scheme: self.color_scheme,
             custom_palette: self.custom_palette.clone(),
+            custom_palette_name: self.custom_palette_name.clone(),
             rain_style: self.rain_style,
             noglitch: self.noglitch,
             glitch_pct: self.glitch_pct,
