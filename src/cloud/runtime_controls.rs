@@ -84,16 +84,22 @@ impl Cloud {
         }
         self.transition_start = Some(std::time::Instant::now());
 
+        // v16: Force full redraw when palette changes so the background
+        // fills the entire screen (including borders). Without this, cells
+        // that were never written to (edges, bottom rows) keep their old
+        // background, causing visible "gap" lines around the rain area.
+        self.force_draw_everything = true;
+        self.semantic_invalidate = true;
+
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.monolith_rain.clear_draw_history();
             self.reset_phosphor_state();
-            self.semantic_invalidate = true;
         }
 
-        // Do NOT force a full redraw — old streams must persist with their
-        // birth palette below the wave line.  The new palette propagates
-        // visually via the row-based wave in get_attr(), creating the
-        // cinematic top-to-bottom cascade.
+        // v16: force_draw_everything is set above so the background
+        // fills the whole screen on palette change. The transition wave
+        // still works because force_draw clears to the new bg first,
+        // then rain cells are written on top.
     }
 
     pub fn set_async(&mut self, on: bool) {

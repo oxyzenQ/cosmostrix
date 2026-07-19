@@ -284,100 +284,82 @@ pub fn dump_config_text() -> &'static str {
 # will be used for any key left commented. Run `cosmostrix --testconf`
 # to validate your config after editing.
 
-# Scene
-# Built-in atmospheric template bundling sensible defaults.
-#   monolith   — premium motion, cosmos palette, binary glyphs (default)
-#   matrix     — classic green Matrix rain
-#   signal     — aurora palette, retro glyphs, slow & dense
-#   classic    — original green-on-black Matrix rain
-#   cinematic  — cosmic binary with cinematic feel
-#   calm       — gentle ocean tones, reduced density
-#   storm      — fast and intense purple cyberpunk
-#   cosmos     — cosmic binary, rich cosmos palette
-#   neon       — vibrant cyberpunk with neon colors
-#   hacker     — green hacker aesthetic, high speed
-#   low-power  — power-saving (30 FPS, reduced density/speed)
-# See: cosmostrix --list-scenes
+# ── Core Settings ──────────────────────────────────────────────────
+
+# Scene — built-in atmospheric template
+#   monolith (default) | matrix | signal | classic | cinematic | calm
+#   storm | cosmos | neon | hacker | low-power
 # scene = monolith
 
-# Custom Scene (optional)
-# User-defined custom scene to apply by default. Custom scenes use the
-# scene-custom.<name>.<field> = <value> syntax (see bottom of this file).
-# See: cosmostrix --list-scenes (lists built-in and custom scenes together)
+# Custom scene from config (optional, see [scene-custom] section below)
 # scene-custom = nightcore
 
-# Appearance
 # Color scheme (palette). See: cosmostrix --list-colors
 # color = cosmos
 
+# Custom color palette from config (optional, see [colors-custom] section below)
+# colors-custom = sunset
+
 # Character set for rain glyphs. See: cosmostrix --list-charsets
-# Custom characters from file (CLI only, overrides charset):
-#   cosmostrix --charset-file ~/.config/cosmostrix/my-chars.txt
 # charset = binary
 
-# Background mode:
-#   default-background — follow terminal emulator bg (default; saves ANSI bytes)
-#   black              — force solid #000000 behind rain
+# Background mode: default-background (follow terminal) | black (solid #000000)
 # color-bg = default-background
 
-# Motion
-# Target frames-per-second. Adaptive pacing may reduce under load.
+# ── Motion ─────────────────────────────────────────────────────────
+
+# Target FPS. Adaptive pacing may reduce under load.
 # fps = 60
 
-# Rain fall speed (1–100). Higher = faster rain.
+# Rain fall speed (1–100)
 # speed = 30
 
-# Rain density (0.01–5.0). Higher = more columns active.
+# Rain density (0.01–5.0)
 # density = 0.85
 
-# Variable column speeds for organic rain (default: on).
-# Each column gets a random speed multiplier (33%-100% of base).
-# Disable with: cosmostrix --uniform
+# Variable column speeds for organic rain (default: on)
 # async-mode = true
 
-# Monolith
-# Pillar size (only applies when scene=monolith or rain_style=monolith):
-#   small | normal (default) | large
+# ── Monolith ───────────────────────────────────────────────────────
+
+# Pillar size (small | normal | large, only for monolith scene)
 # monolith-size = normal
 
-# Behavior
+# ── Behavior ───────────────────────────────────────────────────────
+
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
 
-# Mouse capture for interactive controls (default: off).
+# Mouse capture (default: off)
 # mouse = false
 
-# Full-width CJK glyph rendering (default: off).
+# Full-width CJK glyphs (default: off)
 # fullwidth = false
 
-# Auto color drift: cycle color scheme over time (default: off).
+# Auto color drift (default: off)
 # auto-color-drift = false
 
-# Advanced Style
+# ── Advanced Style ─────────────────────────────────────────────────
+
 # Bold style: 0=off, 1=random, 2=all
 # bold = 1
 
-# Shading mode: 0=random, 1=cinematic (distance-from-head brightness)
+# Shading: 0=random, 1=cinematic
 # shadingmode = 1
 
-# Atmosphere Engine (opt-in only)
+# ── Atmosphere Engine (opt-in) ─────────────────────────────────────
+
 # atmosphere-mode: disabled (default) | controlled-live
 # atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure | adaptive
-#   adaptive — time-driven: modulates rain based on local hour (v14).
-#              Deep Void at midnight, Pulse in the morning, Calm at noon,
-#              Signal at dusk. Smoothstep transitions, no jumps.
-# Note: storm is unavailable and will be rejected.
-# These keys are opt-in; setting atmosphere-mode without controlled-live has no effect.
 # atmosphere-mode = disabled
 # atmosphere-regime = calm
 
-# Controlled atmosphere example (opt-in only):
+# Controlled atmosphere example:
 # atmosphere-mode = controlled-live
 # atmosphere-regime = adaptive
-# See docs/ATMOSPHERE_PRESETS.md for all 6 preset examples.
 
-# Legacy Advanced Keys (kept for compatibility)
-# Prefer glitch-level for normal use.
+# ── Legacy Advanced (kept for compat, prefer glitch-level) ─────────
+
 # glitchpct = 10
 # shortpct = 50
 # rippct = 33.33333
@@ -434,34 +416,18 @@ pub fn dump_config_text() -> &'static str {
 
 # Custom Color Palettes (optional, v16+)
 # Define named custom palettes usable from --colors-custom or adaptive-custom.
-# Uses TOML table format (Alacritty-style) for clean readability.
-# Hex values use standard #rrggbb notation (quoted to protect # from comment stripping).
+# Uses TOML table format. Hex values use standard #rrggbb notation.
 #
 # Fields:
-#   bg       — background color
-#   head     — brightest head color (leading character of each stream)
-#   body     — mid-gradient body color
-#   tail     — dimmest tail color (end of rain trail)
-#   rain     — comma-separated gradient stops (tail → head order)
-#
-# Two modes:
-#   1. rain mode: specify full gradient directly
-#   2. head/body/tail mode: specify 3 colors, cosmostrix interpolates
+#   bg   — background color (optional)
+#   rain — comma-separated gradient stops (tail → head order, min 2)
 #
 # Load with: cosmostrix --colors-custom mytheme
 # Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith
 
-# Example: rain mode (full gradient)
 # [colors-custom.sunset]
 # bg = "#0a0a12"
 # rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"
-
-# Example: head/body/tail mode (3 colors interpolated)
-# [colors-custom.ocean]
-# bg = "#001020"
-# tail = "#001a33"
-# body = "#0066cc"
-# head = "#aaddff"
 
 # colors-custom = mytheme
 
@@ -537,31 +503,7 @@ fn is_valid_custom_name(name: &str) -> bool {
 /// Check if a colors-custom field name is recognized.
 #[inline]
 fn is_valid_colors_custom_field(field: &str) -> bool {
-    matches!(
-        field,
-        "bg" | "background"
-            | "head"
-            | "body"
-            | "tail"
-            | "rain"
-            | "stops"
-            | "normal.red"
-            | "normal.green"
-            | "normal.blue"
-            | "normal.yellow"
-            | "normal.cyan"
-            | "normal.magenta"
-            | "normal.white"
-            | "normal.black"
-            | "bright.red"
-            | "bright.green"
-            | "bright.blue"
-            | "bright.yellow"
-            | "bright.cyan"
-            | "bright.magenta"
-            | "bright.white"
-            | "bright.black"
-    )
+    matches!(field, "bg" | "background" | "rain")
 }
 
 /// Check if `key` matches the `adaptive-custom.H-M` pattern.

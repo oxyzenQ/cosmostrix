@@ -775,17 +775,8 @@ pub fn print_list_colors() {
             println!("CUSTOM COLOR PALETTES (from config):");
         }
         println!();
-        for (name, def) in &custom_palettes {
-            let mode = if !def.rain.is_empty() {
-                "rain"
-            } else if !def.stops.is_empty() {
-                "stops"
-            } else if def.head.is_some() || def.body.is_some() || def.tail.is_some() {
-                "hbt"
-            } else {
-                "alacritty"
-            };
-            println!("  {name:<20} custom palette ({mode} mode)");
+        for name in custom_palettes.keys() {
+            println!("  {name:<20} custom palette");
         }
         println!();
         println!("  Load with: cosmostrix --colors-custom <name>");
