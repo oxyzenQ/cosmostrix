@@ -125,12 +125,38 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
     let mut unknown_keys = Vec::new();
     let mut malformed_lines = Vec::new();
 
+    // v16: TOML table header tracking. When a line like
+    // [colors-custom.mytheme] is seen, subsequent key=value lines
+    // are prefixed with "colors-custom.mytheme." so they land in
+    // the flat HashMap as if the user wrote the full dotted key.
+    // This enables the clean Alacritty-style format:
+    //   [colors-custom.sunset]
+    //   bg = "#0a0a12"
+    //   rain = "#1a0033", "#4d0080"
+    // → stored as colors-custom.sunset.bg, colors-custom.sunset.rain
+    let mut current_section: String = String::new();
+
     for line in content.lines() {
         let stripped = strip_inline_comment(line).trim();
         // Skip comments and blank lines
         if stripped.is_empty() {
             continue;
         }
+
+        // v16: TOML table header detection.
+        // Matches [section.subsection] or [section] patterns.
+        // Brackets must be at start and end of the stripped line.
+        if stripped.starts_with('[') && stripped.ends_with(']') && stripped.len() > 2 {
+            let section = &stripped[1..stripped.len() - 1];
+            let section = section.trim().to_ascii_lowercase();
+            if section.is_empty() {
+                malformed_lines.push(stripped.to_string());
+                continue;
+            }
+            current_section = section;
+            continue;
+        }
+
         // Parse key = value
         if let Some((key, value)) = stripped.split_once('=') {
             let key = key.trim().to_ascii_lowercase();
@@ -140,13 +166,20 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
                 malformed_lines.push(stripped.to_string());
                 continue;
             }
-            if !is_known_key(&key) {
-                unknown_keys.push(key);
+            // v16: If inside a TOML table section, prefix the key.
+            let full_key = if !current_section.is_empty() {
+                format!("{current_section}.{key}")
+            } else {
+                key
+            };
+            if !is_known_key(&full_key) {
+                unknown_keys.push(full_key);
                 continue;
             }
-            map.insert(key, value);
+            map.insert(full_key, value);
         } else {
             // No `=` at all on a non-empty, non-comment line — malformed.
+            // (TOML table headers are handled above, so this is truly malformed.)
             malformed_lines.push(stripped.to_string());
         }
     }
