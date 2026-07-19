@@ -373,11 +373,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                                 crate::colors_custom::load_custom_palette(&cfg_map, color_name)
                             {
                                 // Custom palette found — apply via set_palette.
-                                // Note: last_color_scheme (ColorScheme enum) is NOT
-                                // updated for custom palettes since they don't have
-                                // an enum variant. The verbose exit summary will
-                                // show the last built-in scheme, which is acceptable.
                                 cloud.set_palette(palette);
+                                // Update frame's blank bg so clear_with_bg fills
+                                // the entire screen with the new background color.
+                                frame.clear_with_bg(cloud.palette.bg);
                             }
                         }
                     }

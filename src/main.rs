@@ -868,7 +868,7 @@ fn main() -> std::io::Result<()> {
     // custom_palette_name is stored for live reload — when config changes,
     // rebuild_cloud_config reloads the palette definition by name.
     // This runs BEFORE verbose print so the verbose output can show the
-    // correct palette name (whether from CLI or config key).
+    // correct palette name.
     let (custom_palette, custom_palette_name) = if let Some(ref name) = args.colors_custom {
         let cfg_map = configfile::load_config_file(args.config.as_deref());
         match colors_custom::load_custom_palette(&cfg_map, name) {
@@ -876,16 +876,7 @@ fn main() -> std::io::Result<()> {
             Err(e) => ux::die_input(format!("error: --colors-custom '{name}': {e}")),
         }
     } else {
-        // Also check config key 'colors-custom' (without CLI flag)
-        let cfg_map = configfile::load_config_file(args.config.as_deref());
-        if let Some(name) = cfg_map.get("colors-custom") {
-            match colors_custom::load_custom_palette(&cfg_map, name) {
-                Ok(p) => (Some(p), Some(name.clone())),
-                Err(e) => ux::die_input(format!("error: colors-custom '{name}': {e}")),
-            }
-        } else {
-            (None, None)
-        }
+        (None, None)
     };
 
     let density_auto =

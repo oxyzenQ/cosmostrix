@@ -231,30 +231,13 @@ pub fn rebuild_cloud_config(
     }
 
     // v16: Custom color palette live reload.
-    // If a custom palette was active at startup (via --colors-custom or
-    // colors-custom config key), reload its definition from the new config
-    // so editing color values takes effect immediately.
-    // Also check if the config key changed (user switched palettes).
+    // If a custom palette was active at startup (via --colors-custom),
+    // reload its definition from the new config so editing color values
+    // takes effect immediately.
     if let Some(ref name) = new.custom_palette_name {
-        // The palette name came from CLI or previous config. Reload the
-        // palette definition from the new config — this picks up color
-        // value changes without requiring a restart.
         match crate::colors_custom::load_custom_palette(cfg, name) {
             Ok(palette) => new.custom_palette = Some(palette),
             Err(_) => { /* leave existing palette — don't break live reload */ }
-        }
-    }
-    // Also check if the config key 'colors-custom' changed (user switched
-    // to a different palette name via config edit).
-    if let Some(v) = cfg.get("colors-custom") {
-        if new.custom_palette_name.as_deref() != Some(v.as_str()) {
-            match crate::colors_custom::load_custom_palette(cfg, v) {
-                Ok(palette) => {
-                    new.custom_palette = Some(palette);
-                    new.custom_palette_name = Some(v.clone());
-                }
-                Err(_) => { /* leave existing palette */ }
-            }
         }
     }
 
