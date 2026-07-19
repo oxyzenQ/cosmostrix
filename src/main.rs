@@ -955,6 +955,7 @@ fn main() -> std::io::Result<()> {
                 .transpose()
                 .ok()
                 .flatten(),
+            args.color_custom.as_deref(),
         );
     }
 

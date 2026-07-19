@@ -53,6 +53,7 @@ pub(crate) fn print_verbose(
     duration: Option<f64>,
     charset_file: Option<&str>,
     screen_size: Option<(u16, u16)>,
+    custom_palette_name: Option<&str>,
 ) {
     eprintln!(
         "{}",
@@ -63,7 +64,12 @@ pub(crate) fn print_verbose(
     );
     output::eprintln_verbose("scene:", &format!(" {:?}", scene.unwrap_or("default")));
     output::eprintln_verbose("rain_style:", &format!(" {rain_style:?}"));
-    output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?}"));
+    // v16: show custom palette name if set, otherwise show built-in scheme
+    if let Some(name) = custom_palette_name {
+        output::eprintln_verbose("color_palette:", &format!(" {name} (custom)"));
+    } else {
+        output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?}"));
+    }
     output::eprintln_verbose("color_mode:", &format!(" {color_mode:?}"));
     output::eprintln_verbose(
         "color_tune:",

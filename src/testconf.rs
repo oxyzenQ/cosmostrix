@@ -248,7 +248,7 @@ fn validate_colors_custom_value(key: &str, value: &str) -> Option<String> {
 /// Check if a string is a valid hex color (#rrggbb, rrggbb, #rgb, or rgb).
 fn is_valid_hex_color(s: &str) -> bool {
     let s = s.strip_prefix('#').unwrap_or(s);
-    s.len() == 6 || s.len() == 3 && s.chars().all(|c| c.is_ascii_hexdigit())
+    (s.len() == 6 || s.len() == 3) && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 /// Strict value validation for a config key (top-level or block field).
@@ -609,5 +609,90 @@ mod tests {
     fn unknown_key_returns_none() {
         // Unknown keys are caught by the unknown_keys check, not here.
         assert!(validate_field_value("unknown-key", "anything").is_none());
+    }
+
+    // ── v16: colors-custom hex validation ──
+
+    #[test]
+    fn hex_color_valid_full_with_hash() {
+        assert!(is_valid_hex_color("#ff0000"));
+        assert!(is_valid_hex_color("#00ff88"));
+        assert!(is_valid_hex_color("#abcdef"));
+    }
+
+    #[test]
+    fn hex_color_valid_full_without_hash() {
+        assert!(is_valid_hex_color("ff0000"));
+        assert!(is_valid_hex_color("00ff88"));
+    }
+
+    #[test]
+    fn hex_color_valid_short_with_hash() {
+        assert!(is_valid_hex_color("#f00"));
+        assert!(is_valid_hex_color("#abc"));
+    }
+
+    #[test]
+    fn hex_color_valid_short_without_hash() {
+        assert!(is_valid_hex_color("f00"));
+        assert!(is_valid_hex_color("abc"));
+    }
+
+    #[test]
+    fn hex_color_invalid_non_hex_chars() {
+        assert!(!is_valid_hex_color("#gg0000"));
+        assert!(!is_valid_hex_color("#xyz123"));
+        assert!(!is_valid_hex_color("hello!"));
+    }
+
+    #[test]
+    fn hex_color_invalid_wrong_length() {
+        assert!(!is_valid_hex_color("#ff00"));
+        assert!(!is_valid_hex_color("#ff000000"));
+        assert!(!is_valid_hex_color(""));
+    }
+
+    #[test]
+    fn colors_custom_value_validates_single_hex() {
+        assert!(
+            validate_colors_custom_value("colors-custom.mytheme.normal.red", "#ff0000").is_none()
+        );
+        assert!(
+            validate_colors_custom_value("colors-custom.mytheme.normal.red", "\"#ff0000\"")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn colors_custom_value_rejects_invalid_hex() {
+        assert!(
+            validate_colors_custom_value("colors-custom.mytheme.normal.red", "#gg0000").is_some()
+        );
+        assert!(
+            validate_colors_custom_value("colors-custom.mytheme.normal.red", "notacolor").is_some()
+        );
+    }
+
+    #[test]
+    fn colors_custom_stops_validates_each() {
+        assert!(validate_colors_custom_value(
+            "colors-custom.mytheme.stops",
+            "\"#1a0033\", \"#4d0080\", \"#9933ff\""
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn colors_custom_stops_rejects_one_bad() {
+        assert!(validate_colors_custom_value(
+            "colors-custom.mytheme.stops",
+            "\"#1a0033\", \"#gg0080\", \"#9933ff\""
+        )
+        .is_some());
+    }
+
+    #[test]
+    fn colors_custom_stops_rejects_empty() {
+        assert!(validate_colors_custom_value("colors-custom.mytheme.stops", "").is_some());
     }
 }

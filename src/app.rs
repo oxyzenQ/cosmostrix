@@ -108,24 +108,6 @@ impl CloudConfig {
             self.rain_style,
         );
 
-        // v16: If a custom palette is set (--color-custom), override the
-        // built-in palette via set_palette (handles color_map regen +
-        // transition wave). color-tune is applied after this, so users
-        // can tune custom palettes the same way as built-in ones.
-        if let Some(ref custom) = self.custom_palette {
-            cloud.set_palette(custom.clone());
-        }
-
-        // Apply --color-tune (if non-identity) to the palette AFTER Cloud::new
-        // builds it. This turns the 43 fixed themes into 43 × ∞ by letting
-        // users adjust saturation/brightness at load time without editing
-        // source code.
-        crate::color_tune::apply_tune_to_palette(
-            &mut cloud.palette,
-            self.color_mode,
-            &self.color_tune,
-        );
-
         cloud.glitchy = !self.noglitch;
         cloud.set_glitch_pct(self.glitch_pct / 100.0);
         cloud.set_glitch_times(self.glitch_low, self.glitch_high);
@@ -147,6 +129,22 @@ impl CloudConfig {
 
         cloud.init_chars(self.chars.clone());
         cloud.reset(DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES);
+
+        // v16: Apply custom palette AFTER cloud.reset() to guarantee no
+        // initialization code overwrites it. set_palette handles color_map
+        // regen + transition wave + monolith reset internally.
+        if let Some(ref custom) = self.custom_palette {
+            cloud.set_palette(custom.clone());
+        }
+
+        // Apply --color-tune (if non-identity) to the palette AFTER custom
+        // palette injection. This lets users tune custom palettes the same
+        // way as built-in ones.
+        crate::color_tune::apply_tune_to_palette(
+            &mut cloud.palette,
+            self.color_mode,
+            &self.color_tune,
+        );
 
         // v14 Peak Monolith: apply per-column density map if set.
         // This sculpts pillar formation — columns with weight 0.0 never spawn,
