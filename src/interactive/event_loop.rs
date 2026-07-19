@@ -173,6 +173,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 
+    // v16: Fill the entire alternate screen with the palette's background
+    // color before the first frame. Without this, edges/margins keep the
+    // terminal's native bg, creating visible gaps.
+    fill_terminal_bg(cloud.palette.bg);
+
     let start_time = Instant::now();
     let end_time = cfg.duration_s.and_then(|s| {
         if !s.is_finite() || s <= 0.0 {
@@ -377,6 +382,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                                 // Update frame's blank bg so clear_with_bg fills
                                 // the entire screen with the new background color.
                                 frame.clear_with_bg(cloud.palette.bg);
+                                // Also fill terminal edges with new bg.
+                                fill_terminal_bg(cloud.palette.bg);
                             }
                         }
                     }
@@ -436,6 +443,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // Rebuild color cache + frame for new palette.
             term.set_color_cache(ColorCache::new(&cloud.palette));
             frame = Frame::new(w, h, cloud.palette.bg);
+            // v16: Fill terminal with new bg on live reload too.
+            fill_terminal_bg(cloud.palette.bg);
             // Update charset_preset for runtime cycling.
             charset_preset = new_cfg.charset_preset.clone();
             // Re-parse custom time map from the new config (live reload
@@ -1172,4 +1181,20 @@ fn read_self_voluntary_ctxt() -> u64 {
     // After ')', field indices shift: field 3 in the original = fields[0] here.
     // voluntary_ctxt_switches is field 20 (1-indexed), so fields[17] (0-indexed).
     fields.get(17).and_then(|s| s.parse().ok()).unwrap_or(0)
+}
+
+/// v16: Fill the entire terminal screen with a background color.
+///
+/// Sets the terminal's default bg via SGR, then clears the screen.
+/// This ensures edges, margins, and any cells outside the frame area
+/// all get the correct background — eliminating visible "gap" borders.
+fn fill_terminal_bg(bg: Option<crossterm::style::Color>) {
+    if let Some(bg) = bg {
+        use crossterm::execute;
+        use crossterm::style::SetBackgroundColor;
+        use crossterm::terminal;
+        let mut out = std::io::stdout();
+        let _ = execute!(out, SetBackgroundColor(bg));
+        let _ = execute!(out, terminal::Clear(terminal::ClearType::All));
+    }
 }
