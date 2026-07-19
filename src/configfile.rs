@@ -441,9 +441,33 @@ fn is_adaptive_custom_key(key: &str) -> bool {
         && mm.chars().all(|c| c.is_ascii_digit())
 }
 
+/// Strip inline comments (`# ...`) from a config line, respecting quoted strings.
+///
+/// A `#` inside a double-quoted or single-quoted string is NOT treated as a
+/// comment — it's part of the value. This is critical for hex color values
+/// like `red = "#ff0000"` where `#` is the standard hex prefix.
+///
+/// Example:
+///   `color = green # my favorite`     → `color = green`
+///   `red = "#ff0000" # comment`       → `red = "#ff0000"`
+///   `msg = "it's #1" # note`          → `msg = "it's #1"`
+///
+/// Unquoted `#` still works as before for backward compatibility.
 #[inline]
 fn strip_inline_comment(line: &str) -> &str {
-    line.split_once('#').map_or(line, |(before, _)| before)
+    let mut in_dquote = false;
+    let mut in_squote = false;
+    for (i, ch) in line.char_indices() {
+        match ch {
+            '"' if !in_squote => in_dquote = !in_dquote,
+            '\'' if !in_dquote => in_squote = !in_squote,
+            '#' if !in_dquote && !in_squote => {
+                return &line[..i];
+            }
+            _ => {}
+        }
+    }
+    line
 }
 
 #[cfg(test)]
