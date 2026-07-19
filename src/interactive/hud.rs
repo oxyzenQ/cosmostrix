@@ -37,10 +37,12 @@ const HUD_RSS_INTERVAL: Duration = Duration::from_millis(1000);
 /// dominating the max display forever.
 const MAX_RESET_INTERVAL_SECS: u64 = 60;
 
-/// Width of the HUD overlay in terminal columns. Each line is padded
-/// to exactly this width with spaces so the black background covers
-/// only the HUD area — rain on the rest of the line stays intact.
-const HUD_WIDTH: u16 = 15;
+/// Minimum width of the HUD overlay (for short values).
+/// The actual width is dynamic — grows when values are long (e.g. high FPS).
+const HUD_MIN_WIDTH: u16 = 12;
+
+/// Maximum width cap (prevents HUD from eating the whole terminal).
+const HUD_MAX_WIDTH: u16 = 20;
 
 /// HUD position: left or right corner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,16 +52,14 @@ pub(crate) enum HudPosition {
 }
 
 impl HudPosition {
-    /// Compute the start column for this position given terminal width.
-    fn start_col(self, cols: u16) -> u16 {
+    /// Compute the start column for this position given terminal width
+    /// and the current dynamic HUD width.
+    fn start_col(self, cols: u16, hud_width: u16) -> u16 {
         match self {
             // Left: flush against the edge (column 0).
             Self::Left => 0,
             // Right: flush against the right border.
-            // The last HUD character sits at column cols-1.
-            // Using saturating_sub(HUD_WIDTH) places the HUD so its
-            // rightmost character is at cols-1 (the last column).
-            Self::Right => cols.saturating_sub(HUD_WIDTH),
+            Self::Right => cols.saturating_sub(hud_width),
         }
     }
 }
@@ -88,6 +88,10 @@ pub(crate) struct HudState {
     /// Cached display strings — reformatted only at 4 Hz, written to
     /// frame buffer every frame via write_to_frame().
     cached_lines: [(Color, String); 6],
+    /// Current dynamic HUD width (in terminal columns). Recomputed
+    /// every metric update to fit the longest line. Grows when FPS
+    /// or RSS values are long, shrinks when they're short.
+    current_width: u16,
 }
 
 impl HudState {
@@ -116,6 +120,7 @@ impl HudState {
                 (Color::DarkCyan, String::new()),
                 (Color::DarkCyan, String::new()),
             ],
+            current_width: HUD_MIN_WIDTH,
         }
     }
 
@@ -252,36 +257,44 @@ impl HudState {
             )
         };
 
-        // 5-line HUD: fps (palette head), p99 (mid), max (head), rss (trail), uptime (dim).
-        // avg is dropped — fps = 1000/avg, so it's redundant.
-        // Format strings have NO trailing spaces — pad_hud_line handles
-        // width consistency. This ensures the last visible character
-        // sits flush against the border in right position.
-        // Humanize fps: show 791K instead of 791038 when >10K.
+        // v16: Dynamic-width HUD. Lines are formatted WITHOUT fixed-width
+        // padding — the HUD width grows/shrinks to fit the longest line.
+        // This prevents truncation when FPS is high (e.g. "45132" needs
+        // more space than "60") and avoids wasted space when values are short.
+        //
+        // Format: " label: value" (no trailing padding — pad is added
+        // dynamically in write_to_frame based on current_width).
         let fps_str = if fps >= 10_000.0 {
             crate::humanize::humanize_f64(fps)
-        } else {
+        } else if fps >= 100.0 {
             format!("{fps:.0}")
+        } else {
+            format!("{fps:.1}")
         };
-        self.cached_lines[0] = (head, pad_hud_line(&format!(" fps: {fps_str:>7}")));
-        self.cached_lines[1] = (mid, pad_hud_line(&format!(" p99: {:>6.3}ms", self.p99_ms)));
-        self.cached_lines[2] = (head, pad_hud_line(&format!(" max: {:>6.3}ms", self.max_ms)));
-        self.cached_lines[3] = (trail, pad_hud_line(&format!(" rss: {:>8}", rss_str)));
-        self.cached_lines[4] = (dim, pad_hud_line(&format!(" up: {:>5}", uptime_str)));
-        // Screen size line: "120x40 auto" or "80x24 fix"
-        // HUD_WIDTH=15, so "120x40 auto" = 11 chars + leading space = 12 (fits).
-        // "120x40 fix" = 10 + space = 11 (fits).
+        self.cached_lines[0] = (head, format!(" fps: {fps_str}"));
+        self.cached_lines[1] = (mid, format!(" p99: {:.3}ms", self.p99_ms));
+        self.cached_lines[2] = (head, format!(" max: {:.3}ms", self.max_ms));
+        self.cached_lines[3] = (trail, format!(" rss: {rss_str}"));
+        self.cached_lines[4] = (dim, format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
-        let size_str = format!(" {sw}x{sh} {mode}");
-        self.cached_lines[5] = (dim, pad_hud_line(&size_str));
+        self.cached_lines[5] = (dim, format!(" {sw}x{sh} {mode}"));
+
+        // Compute dynamic width: find the longest line, clamp to [min, max].
+        let max_len = self
+            .cached_lines
+            .iter()
+            .map(|(_, s)| s.chars().count())
+            .max()
+            .unwrap_or(HUD_MIN_WIDTH as usize) as u16;
+        self.current_width = max_len.clamp(HUD_MIN_WIDTH, HUD_MAX_WIDTH);
     }
 
     /// Render the HUD overlay. Called every frame when visible, but
     /// rate-limited to ~60 Hz (HUD_DISPLAY_MAX_HZ) to avoid wasted ANSI
     /// escapes at high target_fps. Rain continues at full target_fps.
     ///
-    /// Does NOT clear entire lines — only writes HUD_WIDTH characters
+    /// Does NOT clear entire lines — only writes current_width characters
     /// starting at start_col, so rain on the rest of the line is
     /// preserved. This was the root cause of the "blank space above
     /// rain" bug: \x1b[2K cleared all columns, not just the HUD area.
@@ -304,9 +317,11 @@ impl HudState {
         if !self.visible {
             return;
         }
-        let start_col = self.position.start_col(cols);
+        let w = self.current_width;
+        let start_col = self.position.start_col(cols, w);
         for (i, (color, text)) in self.cached_lines.iter().enumerate() {
             let row = i as u16;
+            // Write the text characters.
             for (col_offset, ch) in text.chars().enumerate() {
                 let x = start_col + col_offset as u16;
                 if x >= cols {
@@ -315,11 +330,22 @@ impl HudState {
                 let cell = crate::cell::Cell {
                     ch,
                     fg: Some(*color),
-                    // v16: HUD background follows the palette's bg color.
-                    // When --color-bg = default-background, the palette bg
-                    // is None, so the HUD uses the terminal's native
-                    // background (transparent). When --color-bg = black,
-                    // the palette bg is Some(Black) and the HUD uses black.
+                    bg,
+                    bold: false,
+                };
+                frame.set(x, row, cell);
+            }
+            // Pad the rest of the line with spaces to current_width
+            // so the background covers the full HUD area consistently.
+            let text_len = text.chars().count() as u16;
+            for col_offset in text_len..w {
+                let x = start_col + col_offset;
+                if x >= cols {
+                    break;
+                }
+                let cell = crate::cell::Cell {
+                    ch: ' ',
+                    fg: None,
                     bg,
                     bold: false,
                 };
@@ -337,22 +363,6 @@ fn format_rss_kb(kib: u64) -> String {
         format!("{:.1}MiB", kib as f64 / MIB as f64)
     } else {
         format!("{kib}KiB")
-    }
-}
-
-/// Pad a HUD line to exactly HUD_WIDTH characters with trailing spaces.
-/// Truncate if longer (shouldn't happen with current format strings).
-/// This ensures the black background covers a consistent area and rain
-/// on the rest of the line is never touched.
-fn pad_hud_line(s: &str) -> String {
-    let w = HUD_WIDTH as usize;
-    if s.len() >= w {
-        s[..w].to_string()
-    } else {
-        let mut out = String::with_capacity(w);
-        out.push_str(s);
-        out.push_str(&" ".repeat(w - s.len()));
-        out
     }
 }
 

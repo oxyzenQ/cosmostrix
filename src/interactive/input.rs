@@ -24,7 +24,7 @@ use crate::cloud::Cloud;
 use crate::constants::*;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
-use crate::runtime::ColorScheme;
+
 use crate::scene;
 #[cfg(unix)]
 use crate::terminal::restore_terminal_best_effort;
@@ -216,21 +216,10 @@ pub(super) fn handle_keybinding(
             let d = (cloud.droplet_density + DENSITY_STEP).min(5.0);
             cloud.set_droplet_density(d);
         }
-        (KeyCode::Char('1'), _) => cloud.set_color_scheme(ColorScheme::Green),
-        (KeyCode::Char('2'), _) => cloud.set_color_scheme(ColorScheme::Green2),
-        (KeyCode::Char('3'), _) => cloud.set_color_scheme(ColorScheme::Green3),
-        (KeyCode::Char('4'), _) => cloud.set_color_scheme(ColorScheme::Gold),
-        (KeyCode::Char('5'), _) => cloud.set_color_scheme(ColorScheme::Neon),
-        (KeyCode::Char('6'), _) => cloud.set_color_scheme(ColorScheme::Red),
-        (KeyCode::Char('7'), _) => cloud.set_color_scheme(ColorScheme::Blue),
-        (KeyCode::Char('8'), _) => cloud.set_color_scheme(ColorScheme::Cyan),
-        (KeyCode::Char('9'), _) => cloud.set_color_scheme(ColorScheme::Purple),
-        (KeyCode::Char('0'), _) => cloud.set_color_scheme(ColorScheme::Gray),
-        (KeyCode::Char('!'), _) => cloud.set_color_scheme(ColorScheme::Rainbow),
-        (KeyCode::Char('@'), _) => cloud.set_color_scheme(ColorScheme::Yellow),
-        (KeyCode::Char('#'), _) => cloud.set_color_scheme(ColorScheme::Orange),
-        (KeyCode::Char('$'), _) => cloud.set_color_scheme(ColorScheme::Fire),
-        (KeyCode::Char('%'), _) => cloud.set_color_scheme(ColorScheme::Vaporwave),
+        // v16: Digit-key color shortcuts (1-0, !@#$%) removed.
+        // Use 'c'/'C' to cycle through all 43 themes instead — it's
+        // more discoverable and doesn't require memorizing a mapping.
+        // --color-custom is also available for user-defined palettes.
         _ => {}
     }
 
