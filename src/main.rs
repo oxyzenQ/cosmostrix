@@ -88,6 +88,7 @@ mod cli_parse;
 mod cloud;
 mod color_cache;
 mod color_tune;
+mod colors_custom;
 mod config;
 mod config_apply;
 #[cfg(test)]
