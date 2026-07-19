@@ -19,7 +19,7 @@ use clap::Parser;
 use crate::runtime::MonolithSize;
 use crate::scene;
 use crate::theme;
-use crate::{configfile, profile, scene_custom};
+use crate::{colors_custom, configfile, profile, scene_custom};
 
 #[must_use]
 pub fn color_enabled_stdout() -> bool {
@@ -759,6 +759,34 @@ pub fn print_list_colors() {
     print!("{}", theme::compact_list_text());
     println!();
     println!("{} built-in themes.", theme::theme_count());
+
+    // v16: Show custom color palettes from config (if any).
+    let cfg = configfile::load_config_file(None);
+    let custom_palettes = colors_custom::collect_colors_custom(&cfg);
+    if !custom_palettes.is_empty() {
+        println!();
+        if color_enabled_stdout() {
+            println!(
+                "{}CUSTOM COLOR PALETTES (from config):{}",
+                crate::output::brand_bold_open(),
+                crate::output::reset()
+            );
+        } else {
+            println!("CUSTOM COLOR PALETTES (from config):");
+        }
+        println!();
+        for (name, def) in &custom_palettes {
+            let mode = if !def.stops.is_empty() {
+                "stops"
+            } else {
+                "alacritty"
+            };
+            println!("  {name:<20} custom palette ({mode} mode)");
+        }
+        println!();
+        println!("  Load with: cosmostrix --color-custom <name>");
+        println!("  Use in adaptive-custom: adaptive-custom.HH-MM = <name>, <scene>");
+    }
 }
 
 pub fn print_list_scenes() {

@@ -190,8 +190,9 @@ Run `cosmostrix --help` for common options or `cosmostrix --help-detail` for the
 ```text
 COMMON OPTIONS
   -c, --color <name>        Color theme (see --list-colors)
+     --color-custom <name>  Load a user-defined custom color palette from config (v16)
      --color-tune <k=v>     Tune saturation/brightness (e.g. saturation=1.5,brightness=0.9)
-     --charset <name>       Character set (see --list-charsets)
+  -C, --charset <name>      Character set (see --list-charsets)
      --charset-file <path>  Load custom characters from a file (whitelist-enforced)
   -f, --fps <1-240>         Target FPS
   -S, --speed <1-100>       Rain speed

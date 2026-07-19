@@ -320,9 +320,14 @@ pub fn parse_custom_time_map(cfg: &HashMap<String, String>) -> Result<CustomTime
                     }
                 }
             } else if i == 0 {
-                // First positional: color
-                if crate::theme::canonical_name_for_input(part).is_none() {
-                    return Err(format!("adaptive-custom: unknown color '{part}'"));
+                // First positional: color (built-in theme name OR custom color name)
+                // v16: accept custom color names defined in [colors-custom] blocks.
+                // The parser doesn't have access to the config HashMap here, so it
+                // accepts any non-empty string. The runtime resolver in event_loop.rs
+                // will try built-in themes first, then fall back to custom colors.
+                // Validation that the name exists happens at runtime, not parse time.
+                if part.is_empty() {
+                    return Err("adaptive-custom: empty color name".to_string());
                 }
                 point.color = Some(part.to_string());
             } else if i == 1 {
@@ -394,13 +399,30 @@ mod tests {
     }
 
     #[test]
-    fn parse_rejects_invalid_color() {
+    fn parse_accepts_any_color_name_v16() {
+        // v16: the parser accepts any non-empty color name (built-in or
+        // custom). Unknown color names are validated at runtime (event_loop.rs
+        // tries parse_color_scheme first, then colors_custom::load_custom_palette).
+        // Empty parts are silently skipped (standard comma-split behavior).
         let mut cfg = HashMap::new();
         cfg.insert(
             "adaptive-custom.00-00".to_string(),
-            "notacolor, matrix".to_string(),
+            "mycustomtheme, matrix".to_string(),
         );
-        assert!(parse_custom_time_map(&cfg).is_err());
+        let map = parse_custom_time_map(&cfg).unwrap();
+        assert_eq!(map.points[0].color.as_deref(), Some("mycustomtheme"));
+    }
+
+    #[test]
+    fn parse_accepts_custom_color_name() {
+        // v16: custom color names (not in the 43 built-in themes) are
+        // accepted at parse time. They'll be resolved at runtime.
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "adaptive-custom.00-00".to_string(),
+            "mycustomtheme, matrix".to_string(),
+        );
+        assert!(parse_custom_time_map(&cfg).is_ok());
     }
 
     #[test]

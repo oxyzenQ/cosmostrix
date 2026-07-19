@@ -356,11 +356,28 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // The user explicitly defined a schedule, so we honor it.
                 if let Some(cp) = custom_map.params_at(crate::atmosphere_adaptive::current_hour()) {
                     // Apply color if changed.
+                    // v16: Try built-in theme first, then fall back to custom color.
                     if let Some(ref color_name) = cp.color {
                         if let Ok(scheme) = crate::cli::parse_color_scheme(color_name) {
+                            // Built-in theme found.
                             if scheme != cloud.color_scheme() {
                                 cloud.set_color_scheme(scheme);
                                 last_color_scheme = scheme;
+                            }
+                        } else {
+                            // Not a built-in theme — try custom color from config.
+                            let cfg_map = crate::configfile::load_config_file(
+                                cfg.config_path_for_watcher.as_deref(),
+                            );
+                            if let Ok(palette) =
+                                crate::colors_custom::load_custom_palette(&cfg_map, color_name)
+                            {
+                                // Custom palette found — apply via set_palette.
+                                // Note: last_color_scheme (ColorScheme enum) is NOT
+                                // updated for custom palettes since they don't have
+                                // an enum variant. The verbose exit summary will
+                                // show the last built-in scheme, which is acceptable.
+                                cloud.set_palette(palette);
                             }
                         }
                     }
