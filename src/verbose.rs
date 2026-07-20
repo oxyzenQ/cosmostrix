@@ -16,12 +16,45 @@ use crate::color_tune::ColorTune;
 use crate::output;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, MonolithSize, ShadingMode};
-use crate::{configfile, is_safe_path};
+use crate::{configfile, is_safe_path, scene};
+
+/// Determine color provenance for verbose annotation.
+/// Returns None when a custom palette is active (it has its own line).
+#[must_use]
+fn resolve_color_source(
+    custom_palette_name: Option<&str>,
+    cli_explicit_color: bool,
+    scene: &Option<String>,
+    config_path: Option<&std::path::Path>,
+) -> Option<&'static str> {
+    if custom_palette_name.is_some() {
+        return None;
+    }
+    if cli_explicit_color {
+        return Some("CLI flag");
+    }
+    let cfg_has_color = configfile::load_config_file(config_path)
+        .keys()
+        .any(|k| k == "color" || k.starts_with("color."));
+    match scene {
+        Some(name)
+            if scene::get_scene(name)
+                .and_then(|s| s.config.color)
+                .is_some() =>
+        {
+            Some("scene override")
+        }
+        Some(_) if cfg_has_color => Some("config file"),
+        Some(_) => Some("CLI default — scene has no color override"),
+        None if cfg_has_color => Some("config file"),
+        None => Some("CLI default"),
+    }
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn print_verbose(
     version: &str,
-    scene: Option<&str>,
+    scene_name: Option<&str>,
     rain_style: RainStyle,
     color_scheme: crate::runtime::ColorScheme,
     color_mode: ColorMode,
@@ -54,7 +87,16 @@ pub(crate) fn print_verbose(
     charset_file: Option<&str>,
     screen_size: Option<(u16, u16)>,
     custom_palette_name: Option<&str>,
+    scene_arg: &Option<String>,
+    config_path: Option<&std::path::Path>,
+    cli_explicit_color: bool,
 ) {
+    let color_source = resolve_color_source(
+        custom_palette_name,
+        cli_explicit_color,
+        scene_arg,
+        config_path,
+    );
     eprintln!(
         "{}",
         output::brand_bold(&format!(
@@ -62,11 +104,15 @@ pub(crate) fn print_verbose(
             output::now_hhmm()
         ))
     );
-    output::eprintln_verbose("scene:", &format!(" {:?}", scene.unwrap_or("default")));
+    output::eprintln_verbose("scene:", &format!(" {:?}", scene_name.unwrap_or("default")));
     output::eprintln_verbose("rain_style:", &format!(" {rain_style:?}"));
-    // v16: show custom palette name if set, otherwise show built-in scheme
+    // v16: show custom palette name if set, otherwise show built-in scheme.
+    // v17: annotate color source so the user knows WHY the color is what
+    // it is (scene override, config file, CLI flag, or CLI default).
     if let Some(name) = custom_palette_name {
         output::eprintln_verbose("color_palette:", &format!(" {name} (custom)"));
+    } else if let Some(src) = color_source {
+        output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?} ({src})"));
     } else {
         output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?}"));
     }

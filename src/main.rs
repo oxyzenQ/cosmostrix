@@ -602,7 +602,6 @@ fn main() -> std::io::Result<()> {
         {
             let ctrl = atmosphere::AtmosphereController::new();
             let app = ctrl.build_application();
-            // Phase 10: Resolve atmosphere config for diagnostics.
             let diag_mode =
                 config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
             let diag_regime =
@@ -611,14 +610,8 @@ fn main() -> std::io::Result<()> {
             let s = r.section("ATMOSPHERE");
             s.field("regime", diag_regime.as_str());
             s.field("engine", "phase-10-config-gated");
-            s.field(
-                "effective",
-                if modulation.is_identity() {
-                    "identity"
-                } else {
-                    "modulated"
-                },
-            );
+            let idm = |v: bool| if v { "identity" } else { "modulated" };
+            s.field("effective", idm(modulation.is_identity()));
             s.field("verifier", "pass");
             s.field(
                 "application",
@@ -629,23 +622,14 @@ fn main() -> std::io::Result<()> {
                 },
             );
             s.field("application_mode", diag_mode.as_str());
-            // Phase 5: effective runtime seam
             let eff =
                 atmosphere_apply::derive_effective_runtime(args.speed, args.density, &modulation);
-            s.field(
-                "effective_runtime",
-                if eff.speed == args.speed && eff.density == args.density {
-                    "identity"
-                } else {
-                    "modulated"
-                },
-            );
-            // Phase 8: shadow metrics
+            let runtime_id = eff.speed == args.speed && eff.density == args.density;
+            s.field("effective_runtime", idm(runtime_id));
             let shadow =
                 atmosphere_shadow::shadow_metrics_from_mode_and_regime(diag_mode, diag_regime);
             s.field("shadow_metrics", shadow.risk_label());
             s.field("shadow_risk", shadow.risk_label());
-            // Phase 10.5: diagnostic honesty fields
             s.field(
                 "config_gate",
                 if diag_mode.allows_modulation() {
@@ -656,11 +640,7 @@ fn main() -> std::io::Result<()> {
             );
             s.field(
                 "visual_runtime",
-                if eff.speed == args.speed && eff.density == args.density {
-                    "protected"
-                } else {
-                    "active"
-                },
+                if runtime_id { "protected" } else { "active" },
             );
             s.field(
                 "runtime_application",
@@ -671,8 +651,6 @@ fn main() -> std::io::Result<()> {
                 },
             );
         }
-        // ── SYSTEM diagnostics ──────────────────────────────────────────
-        // Cosmostrix is single-thread by design — terminal single-owner.
         {
             let s = r.section("SYSTEM");
             s.field("runtime_mode", "normal");
@@ -944,6 +922,10 @@ fn main() -> std::io::Result<()> {
     ));
 
     // ── Verbose output (before CloudConfig moves values) ──
+    let cli_explicit_color = matches!(
+        matches.value_source("color"),
+        Some(clap::parser::ValueSource::CommandLine)
+    );
     if args.verbose {
         verbose::print_verbose(
             env!("CARGO_PKG_VERSION"),
@@ -980,6 +962,9 @@ fn main() -> std::io::Result<()> {
             args.charset_file.as_deref(),
             screen_size,
             custom_palette_name.as_deref(),
+            &args.scene,
+            args.config.as_deref(),
+            cli_explicit_color,
         );
     }
 
@@ -1056,6 +1041,11 @@ fn main() -> std::io::Result<()> {
         atmosphere_mode,
         monolith_density_map,
         config_path_for_watcher: Some(configfile::default_config_file_path()),
+        scene_name: args
+            .scene
+            .as_deref()
+            .unwrap_or(crate::scene::DEFAULT_SCENE)
+            .to_string(),
     };
 
     if args.bench_all {

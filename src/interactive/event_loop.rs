@@ -164,7 +164,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut perf_rss_samples: u64 = 0;
 
     let mut charset_preset = cfg.charset_preset.clone();
-    let mut scene_name = crate::scene::DEFAULT_SCENE.to_string();
+    let mut scene_name = cfg.scene_name.clone();
     let user_ranges = cfg.user_ranges.clone();
     let def_ascii = cfg.def_ascii;
     let mut paste_guard = PasteBurstGuard::default();

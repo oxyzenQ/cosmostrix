@@ -268,6 +268,7 @@ mod cases {
             atmosphere_mode: crate::atmosphere_apply::AtmosphereApplicationMode::Disabled,
             monolith_density_map: None,
             config_path_for_watcher: None,
+            scene_name: "monolith".to_string(),
         }
     }
 

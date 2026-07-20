@@ -97,6 +97,9 @@ pub struct CloudConfig {
     /// Path to the config file being watched for live reload.
     /// None = no watcher (CLI-only run, no config file).
     pub(crate) config_path_for_watcher: Option<std::path::PathBuf>,
+    /// Resolved scene name for this session. Used to initialize the
+    /// event loop's scene_name (for verbose output and interactive cycling).
+    pub(crate) scene_name: String,
 }
 
 impl CloudConfig {
@@ -231,6 +234,7 @@ impl CloudConfig {
             atmosphere_mode: self.atmosphere_mode,
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
+            scene_name: self.scene_name.clone(),
         }
     }
 }
