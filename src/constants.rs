@@ -448,12 +448,20 @@ pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.6, 1.0, 0.7];
 /// "concrete wall" because droplets end there and fewer new streams
 /// overwrite the residue. Accelerating decay in this region clears
 /// afterglow faster without affecting the cinematic look elsewhere.
-pub const PHOSPHOR_BOTTOM_ROWS: u16 = 8;
+///
+/// v17: extended from 8 to 12 to match EDGE_FADE_BOTTOM_ROWS. The bottom
+/// shadow zone now spans 12 rows; phosphor trails in this zone decay at
+/// 3.0× the normal rate (PHOSPHOR_BOTTOM_DECAY_MULT raised 2.5→3.0) so
+/// ghost residue dissolves in sync with the visual fade.
+pub const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
 
-/// Phosphor decay rate multiplier applied to bottom rows. Combined with
-/// PHOSPHOR_DECAY_RATE=3.0, this yields an effective rate of 7.5 at the
-/// bottom, reducing afterglow duration from ~1.0s to ~0.4s.
-pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 2.5;
+/// Phosphor decay rate multiplier applied to bottom rows.
+///
+/// v17: raised from 2.5 to 3.0 to sync with the wider EDGE_FADE_BOTTOM_ROWS
+/// zone. Combined with PHOSPHOR_DECAY_RATE=5.0, effective rate at the
+/// bottom is 15.0, reducing afterglow duration from ~400ms to ~270ms —
+/// closer to the film Matrix's ~200ms afterglow.
+pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 // Atmospheric depth layering enhancements
 
@@ -667,12 +675,33 @@ pub const FULL_REDRAW_INTERVAL_FRAMES: u64 = 18000;
 
 // Viewport edge fade (smooth entry/exit at terminal borders)
 
-/// Number of rows from viewport edges for smooth entry/exit fade.
+/// Number of rows from the TOP viewport edge for smooth entry fade.
 /// Applied after all visual effects including head bloom, ensuring
-/// the fade takes priority over head brightness at edges. Covers a
-/// smaller zone than FOG_ROWS so the two effects complement without
-/// excessive stacking (fog handles rows 3; edge fade handles rows 0-2).
+/// the fade takes priority over head brightness at edges. The bottom
+/// edge uses a separate, wider EDGE_FADE_BOTTOM_ROWS for the cinematic
+/// dissolve-into-shadow effect (v17).
 pub const EDGE_FADE_ROWS: u16 = 3;
+
+/// v17: Number of rows from the BOTTOM viewport edge for the deep shadow
+/// dissolve. Wider than EDGE_FADE_ROWS (top) because the cinematic
+/// bottom-shadow effect needs a gradual fade across ~30% of the screen
+/// height on a 40-line terminal. The fade curve is split into two zones:
+/// Zone 1 (rows [lines-EDGE_FADE_BOTTOM_ROWS .. lines-EDGE_FADE_ROWS]):
+///   gentle pre-fade from 1.0 down to EDGE_FADE_BOTTOM_LIP (smoothstep).
+/// Zone 2 (rows [lines-EDGE_FADE_ROWS .. lines-1]):
+///   sharp lip fade from EDGE_FADE_BOTTOM_LIP down to EDGE_FADE_BOTTOM_MIN
+///   (linear).
+/// This produces a film-like dissolve where rain visibly thins and darkens
+/// before reaching the bottom border, eliminating the "concrete wall"
+/// artifact where dying heads pile up at the last row.
+pub const EDGE_FADE_BOTTOM_ROWS: u16 = 12;
+
+/// v17: Brightness at the boundary between the gentle pre-fade zone and
+/// the sharp lip zone (row lines-EDGE_FADE_ROWS). The pre-fade smoothsteps
+/// from 1.0 down to this value; the lip then fades linearly to
+/// EDGE_FADE_BOTTOM_MIN. Set to 0.75 so the pre-fade is subtle (rain still
+/// clearly visible) and the lip does the heavy lifting.
+pub const EDGE_FADE_BOTTOM_LIP: f32 = 0.75;
 
 /// Minimum brightness at the very top edge (row 0).
 /// At 0.55, the first visible row is moderately dimmed, creating a
@@ -683,10 +712,15 @@ pub const EDGE_FADE_ROWS: u16 = 3;
 pub const EDGE_FADE_TOP_MIN: f32 = 0.55;
 
 /// Minimum brightness at the very bottom edge (last row).
-/// Raised from 0.20 to 0.45 for visible bottom border. Combined with
-/// fog (0.35), effective brightness at last row is ~0.45 × 0.35 ≈ 0.16 —
-/// dim but visible, preserving cinema framing without near-invisible border.
-pub const EDGE_FADE_BOTTOM_MIN: f32 = 0.45;
+///
+/// v17: lowered from 0.45 to 0.20 for the cinematic bottom-shadow
+/// dissolve. The old 0.45 was "raised for visible bottom border" — a
+/// counter-cinematic choice. The new 0.20 produces a deep shadow where
+/// rain dissolves into darkness at the bottom of the frame, matching
+/// the Matrix film's bottom-edge vignette. Combined with fog (0.45),
+/// effective brightness at last row is ~0.20 × 0.45 ≈ 0.09 — near-black,
+/// the rain visibly disappears before hitting the border.
+pub const EDGE_FADE_BOTTOM_MIN: f32 = 0.20;
 
 /// Threshold for bold suppression at viewport edges. When the edge
 /// fade factor is below this value, bold is forced off to prevent bold

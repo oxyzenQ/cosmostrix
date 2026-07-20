@@ -36,13 +36,13 @@ use crossterm::style::Color;
 use crate::cloud::{CharLoc, DrawCtx};
 use crate::constants::{
     ADVANCE_REMAINDER_CAP, DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT,
-    EDGE_FADE_BOLD_THRESHOLD, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN,
-    FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP, FRACTIONAL_HEAD_BRIGHTNESS_AMP,
-    HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS,
-    HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_INTENSITY,
-    MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS,
-    MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT, PARALLAX_CONTRAST_REDUCTION,
-    PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
+    EDGE_FADE_BOLD_THRESHOLD, EDGE_FADE_BOTTOM_LIP, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS,
+    EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP,
+    FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA,
+    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_DURATION_SECS,
+    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
+    MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
+    PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
     TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
     TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ,
 };
@@ -69,15 +69,41 @@ pub(crate) fn viewport_edge_fade(line: u16, lines: u16) -> f32 {
     if lines == 0 || EDGE_FADE_ROWS == 0 {
         return 1.0;
     }
+    // Top edge: linear fade over EDGE_FADE_ROWS rows.
     let top_fade = if line < EDGE_FADE_ROWS {
         EDGE_FADE_TOP_MIN + (1.0 - EDGE_FADE_TOP_MIN) * (line as f32 / EDGE_FADE_ROWS as f32)
     } else {
         1.0
     };
+    // v17: Bottom edge — 2-zone cinematic dissolve.
+    //
+    // Zone 1 (gentle pre-fade): rows [lines-EDGE_FADE_BOTTOM_ROWS .. lines-EDGE_FADE_ROWS]
+    //   smoothstep from 1.0 down to EDGE_FADE_BOTTOM_LIP. Subtle — rain still
+    //   clearly visible but starting to darken.
+    //
+    // Zone 2 (sharp lip): rows [lines-EDGE_FADE_ROWS .. lines-1]
+    //   linear from EDGE_FADE_BOTTOM_LIP down to EDGE_FADE_BOTTOM_MIN. Heavy
+    //   fade — rain dissolves into shadow before the border.
+    //
+    // The 2-zone design produces a film-like vignette where rain gradually
+    // fades across the bottom 30% of the screen (on a 40-line terminal),
+    // eliminating the "concrete wall" artifact where dying heads pile up.
     let bottom_dist = lines.saturating_sub(line).saturating_sub(1);
     let bottom_fade = if bottom_dist < EDGE_FADE_ROWS {
-        EDGE_FADE_BOTTOM_MIN
-            + (1.0 - EDGE_FADE_BOTTOM_MIN) * (bottom_dist as f32 / EDGE_FADE_ROWS as f32)
+        // Zone 2: sharp lip fade. bottom_dist in [0, EDGE_FADE_ROWS).
+        // Linear from EDGE_FADE_BOTTOM_MIN (at bottom_dist=0) to
+        // EDGE_FADE_BOTTOM_LIP (at bottom_dist=EDGE_FADE_ROWS).
+        let t = bottom_dist as f32 / EDGE_FADE_ROWS as f32;
+        EDGE_FADE_BOTTOM_MIN + (EDGE_FADE_BOTTOM_LIP - EDGE_FADE_BOTTOM_MIN) * t
+    } else if bottom_dist < EDGE_FADE_BOTTOM_ROWS {
+        // Zone 1: gentle pre-fade. bottom_dist in [EDGE_FADE_ROWS, EDGE_FADE_BOTTOM_ROWS).
+        // Smoothstep from EDGE_FADE_BOTTOM_LIP (at bottom_dist=EDGE_FADE_ROWS)
+        // up to 1.0 (at bottom_dist=EDGE_FADE_BOTTOM_ROWS).
+        let span = (EDGE_FADE_BOTTOM_ROWS - EDGE_FADE_ROWS) as f32;
+        let t = (bottom_dist - EDGE_FADE_ROWS) as f32 / span;
+        // Smoothstep: 3t² - 2t³ (slow start, fast middle, slow end).
+        let smooth = t * t * (3.0 - 2.0 * t);
+        EDGE_FADE_BOTTOM_LIP + (1.0 - EDGE_FADE_BOTTOM_LIP) * smooth
     } else {
         1.0
     };

@@ -9,23 +9,32 @@ use std::time::{Duration, Instant};
 use crossterm::style::Color;
 
 use crate::constants::{
-    EDGE_FADE_BOTTOM_MIN, EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, PHOSPHOR_EDGE_ENERGY_CAP,
-    PHOSPHOR_EDGE_ROW_TAPER,
+    EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS, EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN,
+    PHOSPHOR_EDGE_ENERGY_CAP, PHOSPHOR_EDGE_ROW_TAPER,
 };
 
 #[test]
 fn viewport_edge_fade_is_bounded_and_smooth() {
     // Verify the viewport_edge_fade function produces expected values:
-    // - Interior rows return 1.0
+    // - Interior rows (outside both top and bottom fade zones) return 1.0
     // - Row 0 returns EDGE_FADE_TOP_MIN
     // - Last row returns EDGE_FADE_BOTTOM_MIN
-    // - Values increase monotonically from edges to interior
+    // - Values increase monotonically from top edge to interior
+    // - Values decrease monotonically from interior to last row
+    //
+    // v17: the bottom fade zone is now EDGE_FADE_BOTTOM_ROWS (12) wide,
+    // wider than EDGE_FADE_ROWS (3). Use lines=40 so a real interior
+    // region exists between the top zone (rows 0-2) and the bottom zone
+    // (rows 28-39).
     use crate::droplet::viewport_edge_fade;
 
-    let lines: u16 = 20;
+    let lines: u16 = 40;
 
-    // Interior rows should return 1.0
-    for line in EDGE_FADE_ROWS..(lines - EDGE_FADE_ROWS) {
+    // Interior rows: between top fade zone (EDGE_FADE_ROWS) and bottom
+    // fade zone (EDGE_FADE_BOTTOM_ROWS). These should return exactly 1.0.
+    let interior_start = EDGE_FADE_ROWS;
+    let interior_end = lines.saturating_sub(EDGE_FADE_BOTTOM_ROWS);
+    for line in interior_start..interior_end {
         let fade = viewport_edge_fade(line, lines);
         assert!(
             (fade - 1.0).abs() < 0.001,
@@ -68,10 +77,12 @@ fn viewport_edge_fade_is_bounded_and_smooth() {
         prev = fade;
     }
 
-    // Bottom edge: monotonic decrease from interior to last row
-    let mut prev = viewport_edge_fade(lines - 1 - EDGE_FADE_ROWS, lines);
-    for offset in 1..=EDGE_FADE_ROWS {
-        let line = lines - 1 - EDGE_FADE_ROWS + offset;
+    // Bottom edge: monotonic decrease from interior to last row.
+    // v17: the bottom zone is now EDGE_FADE_BOTTOM_ROWS wide, so start
+    // from the row just above the bottom zone.
+    let bottom_zone_start = lines.saturating_sub(EDGE_FADE_BOTTOM_ROWS);
+    let mut prev = viewport_edge_fade(bottom_zone_start, lines);
+    for line in (bottom_zone_start + 1)..lines {
         let fade = viewport_edge_fade(line, lines);
         assert!(
             fade < prev,
