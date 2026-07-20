@@ -254,6 +254,14 @@ HELP:
   --help-detail   Show this full reference.
   -V, --version    Print complete version and build information.
   --check-update   Check the latest upstream release.
+
+RENDERING PHILOSOPHY:
+  Cosmostrix is CPU-only by design. The terminal is a text medium —
+  ANSI escape sequences are the brush, glyphs are the pixels. No GPU
+  context (OpenGL/Vulkan/Metal/DirectX/WebGPU) is ever created. GPU
+  image-mode would change Cosmostrix from \"terminal rain\" to \"image
+  rain\" — a different program. See --info RENDERER for the field-level
+  declaration and docs/PHILOSOPHY.md for the full rationale.
 ";
 
     if crate::config::color_enabled_stdout() {

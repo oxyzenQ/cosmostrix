@@ -562,6 +562,12 @@ fn main() -> std::io::Result<()> {
             s.field("io_strategy", ri.io_strategy);
             s.field("color_depth", ri.color_depth);
             s.field("identity", ri.identity);
+            // v17: port gpu_usage + gpu_basis from --benchmark for consistency.
+            s.field("gpu_usage", "not_applicable");
+            s.field(
+                "gpu_basis",
+                "CPU + stdout renderer; no GPU context is ever created",
+            );
         }
         {
             let s = r.section("CAPACITY");
@@ -1175,16 +1181,13 @@ fn canonicalize_runtime_args(args: &mut Args) {
     }
 }
 
-/// Install the global panic hook (v16 audit: Windows silent-exit fix).
+/// Install the global panic hook (v16: Windows silent-exit fix).
 ///
-/// The alternate screen captures BOTH stdout AND stderr. The old hook
-/// printed to stderr without restoring the terminal first, so the panic
-/// message was trapped in the alt screen and discarded when
-/// Terminal::drop called LeaveAlternateScreen — "silent exit".
-///
-/// Fix: restore the terminal BEFORE printing, and set a global flag
-/// (`TERMINAL_RESTORED_BY_PANIC`) so Terminal::drop skips its own
-/// cleanup (prevents BufWriter rain data from leaking to the main screen).
+/// The alt screen captures stdout AND stderr. The old hook printed to stderr
+/// without restoring the terminal first, so the panic message was trapped in
+/// the alt screen and discarded on LeaveAlternateScreen — "silent exit".
+/// Fix: restore the terminal BEFORE printing, and set a global flag so
+/// Terminal::drop skips its own cleanup (prevents rain data leaking to main).
 fn install_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
         use std::io::Write;

@@ -72,6 +72,10 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 - Terminal diagnostics (`--doctor`) and config validation (`--testconf`)
 - Cross-platform: Linux, macOS, Windows, Android (Termux)
 
+## Philosophy
+
+Cosmostrix is a CPU-only terminal renderer by design. The terminal is a text medium — its soul is ANSI escape sequences, copy-pasteable glyphs, and the slow poetry of a phosphor decay. A GPU would paint an image; Cosmostrix writes a sentence. No GPU context (OpenGL, Vulkan, Metal, DirectX, WebGPU) is ever created — the benchmark reports `gpu_usage: not_applicable`. GPU image-mode via the kitty graphics protocol was evaluated and rejected because it would change Cosmostrix from "terminal rain" to "image rain", which is a different program. See [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md) for the full rationale.
+
 ## Requirements
 
 - Rust 1.81+ (MSRV) to build from source
