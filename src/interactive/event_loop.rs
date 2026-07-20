@@ -618,9 +618,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             //   in normal (non-screensaver) mode — consistency
                             //   is the world-class invariant.
                             //
-                            // Mouse click (if --mouse enabled) still exits —
-                            // classic screensaver convention. See Event::Mouse
-                            // handler below.
+                            // v17: Mouse click does NOT exit either. The old
+                            // "classic screensaver click to dismiss" behavior
+                            // was removed for policy consistency. See Event::Mouse
+                            // handler below for the rationale.
                             //
                             // The "unrecognized key exits" behavior was REMOVED
                             // in v15 because it was surprising: pressing B/b
@@ -672,16 +673,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // ephemeral screensaver aesthetic. The --mouse flag
                         // controls only hover/click VISUAL EFFECTS.
                         //
-                        // Screensaver mouse-click exit: classic screensaver
-                        // behavior. Any mouse button click exits the screensaver.
-                        // Mouse movement alone does NOT exit (too sensitive —
-                        // accidental trackpad jitter would kick the user out).
-                        // v17: this now works WITHOUT --mouse (mouse reporting
-                        // is always active), matching macOS/iOS/Linux convention.
-                        if cfg.screensaver && matches!(m.kind, MouseEventKind::Down(_)) {
-                            cloud.raining = false;
-                            break;
-                        }
+                        // v17 audit: REMOVED screensaver click-exit. The old
+                        // behavior (click anywhere exits screensaver) violated
+                        // the "only q quits" policy established in v15 (commit
+                        // cae82fb). Owner reported: 'click langsung exit seperti
+                        // click key q padahal cuma click touchpad'. Now mouse
+                        // click NEVER exits — only 'q' quits, consistent across
+                        // normal and screensaver modes. Classic screensaver
+                        // "click to dismiss" behavior is intentionally dropped
+                        // for policy consistency.
+                        //
                         // Mouse interaction resets idle timer (all modes).
                         let activity_time = Instant::now();
                         if register_activity(

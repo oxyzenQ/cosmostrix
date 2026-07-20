@@ -216,7 +216,7 @@ COMMON OPTIONS
   -f, --fps <1-240>         Target FPS
   -S, --speed <1-100>       Rain speed
   -d, --density <0.01-5.0>  Rain density
-  -s, --screensaver         Only q exits (all other keys ignored). Mouse click exits if --mouse enabled
+  -s, --screensaver         Only q exits (all other keys ignored). Mouse events captured to block selection
      --mouse                Enable mouse hover/click effects
   -m, --message <text>      Overlay message (use -mb for border)
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
@@ -264,7 +264,7 @@ Explicit CLI flags always override scene and scene-custom values.
 
 ## Runtime Controls
 
-Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no accidental exit). In screensaver mode, mouse click also exits (requires `--mouse`).
+Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no accidental exit). Mouse click does NOT exit (v17: removed for consistency with the "only q quits" policy). Mouse events are still captured to block text selection.
 
 ```text
   q             Quit              p          Pause / resume

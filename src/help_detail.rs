@@ -61,11 +61,11 @@ COMMON OPTIONS:
       ignored (no glitch, no accidental exit). Recognized keys
       (c/s/x/g/a/p/m/i/h, Space, Up/Down, 0-9, etc.) still work for
       interactive control — cycle colors, toggle HUD, pause, etc.
-      Mouse click also exits (classic screensaver behavior, works
-      without --mouse). This matches the only-q-quits policy enforced
-      in normal mode.
+      Mouse click does NOT exit (v17: removed for consistency with the
+      only-q-quits policy). Mouse events are still captured to block
+      text selection (see --mouse).
       cosmostrix --screensaver
-      cosmostrix --screensaver --mouse    # click to dismiss + hover effects
+      cosmostrix --screensaver --mouse    # + hover effects
 
   --mouse
       Enable mouse hover/click visual effects (cursor glow, click flash).

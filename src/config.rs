@@ -263,7 +263,7 @@ pub struct Args {
         long = "screensaver",
         help_heading = "COMMON OPTIONS",
         display_order = 60,
-        help = "Screensaver mode: only q exits (all other keys ignored). Mouse click exits if --mouse enabled"
+        help = "Screensaver mode: only q exits (all other keys and mouse clicks ignored)"
     )]
     pub screensaver: bool,
 
