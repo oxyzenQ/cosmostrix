@@ -41,9 +41,20 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let _ = term_reinit;
 
     let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
-    // Mouse reporting is opt-in because abrupt process death can leave some
-    // terminals echoing raw mouse escape sequences until they are reset.
-    if cfg.mouse && term.enable_mouse_capture().is_ok() {
+    // v17: Mouse reporting is ALWAYS enabled to block text selection (copy)
+    // in the alternate screen. This prevents users from drag-selecting rain
+    // text, preserving the ephemeral screensaver aesthetic. The --mouse flag
+    // now controls only hover/click VISUAL EFFECTS, not mouse reporting itself.
+    //
+    // Terminal safety (was the old opt-in rationale): abrupt process death
+    // could leave mouse escape sequences leaking. This is now mitigated by:
+    //   1. Terminal::drop calls disable_mouse_capture() on normal exit
+    //   2. Panic hook calls restore_terminal_best_effort() (v16)
+    //   3. Signal handlers (SIGINT/SIGTERM/SIGTSTP) disable mouse
+    //   4. Watchdog calls restore_terminal_best_effort() on stuck main loop
+    //   5. Fork-based SIGKILL guard (Linux) restores terminal
+    // Shift+drag bypass is terminal-controlled and cannot be disabled.
+    if term.enable_mouse_capture().is_ok() {
         MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
     }
     // --screen-size: use fixed virtual size if specified, else dynamic terminal size.
@@ -429,7 +440,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         if term_reinit.swap(false, Ordering::AcqRel) {
             drop(term);
             term = Terminal::with_signal_exit(signal_exit.clone())?;
-            if cfg.mouse && term.enable_mouse_capture().is_ok() {
+            // v17: always re-enable mouse reporting after SIGCONT (see
+            // startup comment for rationale — block copy in all modes).
+            if term.enable_mouse_capture().is_ok() {
                 MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
             }
             let (nw, nh) = term.size()?;
@@ -652,18 +665,24 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         cloud.force_draw_everything();
                         next_frame = activity_time;
                     }
-                    Event::Mouse(m) if cfg.mouse => {
+                    Event::Mouse(m) => {
+                        // v17: Mouse events are ALWAYS captured (mouse reporting
+                        // is always on — see startup comment). This blocks plain
+                        // drag-select text copy in ALL modes, preserving the
+                        // ephemeral screensaver aesthetic. The --mouse flag
+                        // controls only hover/click VISUAL EFFECTS.
+                        //
                         // Screensaver mouse-click exit: classic screensaver
-                        // behavior. Any mouse button click exits the
-                        // screensaver. Mouse movement alone does NOT exit
-                        // (too sensitive — accidental trackpad jitter would
-                        // kick the user out). This matches macOS/iOS/Linux
-                        // screensaver convention: click or key to dismiss.
+                        // behavior. Any mouse button click exits the screensaver.
+                        // Mouse movement alone does NOT exit (too sensitive —
+                        // accidental trackpad jitter would kick the user out).
+                        // v17: this now works WITHOUT --mouse (mouse reporting
+                        // is always active), matching macOS/iOS/Linux convention.
                         if cfg.screensaver && matches!(m.kind, MouseEventKind::Down(_)) {
                             cloud.raining = false;
                             break;
                         }
-                        // Mouse interaction resets idle timer.
+                        // Mouse interaction resets idle timer (all modes).
                         let activity_time = Instant::now();
                         if register_activity(
                             &mut last_input_time,
@@ -675,9 +694,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             cloud.force_draw_everything();
                             next_frame = activity_time;
                         }
-                        cloud.set_mouse_position(m.column, m.row);
-                        if matches!(m.kind, MouseEventKind::Down(_)) {
-                            cloud.set_mouse_click(m.column, m.row);
+                        // Hover/click visual effects are opt-in via --mouse.
+                        // In non-mouse mode, we drain the event (blocking
+                        // selection) but don't apply visual effects.
+                        if cfg.mouse {
+                            cloud.set_mouse_position(m.column, m.row);
+                            if matches!(m.kind, MouseEventKind::Down(_)) {
+                                cloud.set_mouse_click(m.column, m.row);
+                            }
                         }
                     }
                     Event::FocusGained => {

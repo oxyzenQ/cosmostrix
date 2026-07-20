@@ -157,8 +157,9 @@ impl CloudConfig {
             cloud.set_monolith_density_map(Some(map));
         }
 
-        // Mouse interaction is opt-in (--mouse flag). Default: disabled for
-        // terminal safety (avoids mouse escape sequence leaks on crash).
+        // Hover/click visual effects are opt-in (--mouse flag). Mouse reporting
+        // itself is always on (terminal-level, blocks text selection) — see
+        // event_loop.rs startup. This field controls only the visual effects.
         cloud.mouse_enabled = self.mouse;
 
         // Color drift: disabled by default. When off, autonomous palette drift

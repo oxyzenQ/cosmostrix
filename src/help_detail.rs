@@ -61,15 +61,19 @@ COMMON OPTIONS:
       ignored (no glitch, no accidental exit). Recognized keys
       (c/s/x/g/a/p/m/i/h, Space, Up/Down, 0-9, etc.) still work for
       interactive control — cycle colors, toggle HUD, pause, etc.
-      Mouse click exits only when --mouse is also enabled.
-      This matches the only-q-quits policy enforced in normal mode.
+      Mouse click also exits (classic screensaver behavior, works
+      without --mouse). This matches the only-q-quits policy enforced
+      in normal mode.
       cosmostrix --screensaver
-      cosmostrix --screensaver --mouse    # click to dismiss
+      cosmostrix --screensaver --mouse    # click to dismiss + hover effects
 
   --mouse
-      Enable mouse hover/click effects. This turns on terminal mouse reporting
-      while Cosmostrix is running; it is off by default for safer recovery
-      after abrupt process termination.
+      Enable mouse hover/click visual effects (cursor glow, click flash).
+      Mouse reporting is ALWAYS active in interactive mode to block
+      text selection (drag-select is captured; Shift+drag still selects
+      in most terminals — this is a terminal-emulator feature that
+      cannot be disabled). Use --mouse to add hover/click visual
+      effects on top of the always-on selection blocking.
 
   -m, --message <text>
       Display overlay message (no border).

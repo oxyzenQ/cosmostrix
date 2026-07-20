@@ -116,7 +116,10 @@ pub fn print_doctor_report(args: &Args) {
         s.field("signal_exit", "catchable cleanup (SIGINT/SIGTERM/SIGHUP)");
         s.field("sigkill", "cannot be caught or guaranteed");
         s.field("terminal_writer", "single-owner");
-        s.field("mouse_mode", "opt-in only via --mouse");
+        s.field(
+            "mouse_mode",
+            "always-on (blocks selection); hover effects opt-in via --mouse",
+        );
         let hints = environment_hints(&term, &colorterm, locale_utf8, tmux, ssh, headless);
         let hint_text = if hints.is_empty() {
             "none".to_string()

@@ -271,7 +271,7 @@ pub struct Args {
         long = "mouse",
         help_heading = "COMMON OPTIONS",
         display_order = 65,
-        help = "Enable mouse hover/click effects"
+        help = "Enable mouse hover/click visual effects (mouse reporting is always active to block text selection)"
     )]
     pub mouse: bool,
 
