@@ -76,6 +76,18 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 
 Cosmostrix is a CPU-only terminal renderer by design. The terminal is a text medium — its soul is ANSI escape sequences, copy-pasteable glyphs, and the slow poetry of a phosphor decay. A GPU would paint an image; Cosmostrix writes a sentence. No GPU context (OpenGL, Vulkan, Metal, DirectX, WebGPU) is ever created — the benchmark reports `gpu_usage: not_applicable`. GPU image-mode via the kitty graphics protocol was evaluated and rejected because it would change Cosmostrix from "terminal rain" to "image rain", which is a different program. See [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md) for the full rationale.
 
+## Limitations
+
+Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below is honest about what it does not do — most of these are design choices, not missing features.
+
+- **CPU-only, no GPU.** Rain is rendered as ANSI text over a PTY; no GPU context is ever created (the benchmark reports `gpu_usage: not_applicable`). GPU bitmap rendering was evaluated and rejected because it changes the character-grid aesthetic. See [docs/DRAGON_EXPLORATION.md](docs/DRAGON_EXPLORATION.md).
+- **Interactive FPS is terminal-bounded.** The engine computes ~50,000 FPS headless at 120×40; real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). This is a fundamental limit of terminal rendering.
+- **`kill -9` cannot be caught.** No process can intercept SIGKILL. On Linux, a fork-based guard restores `termios` best-effort; on macOS and Windows, run `cosmostrix --reset-terminal` for 5-layer recovery.
+- **SIGTSTP (Ctrl-Z) suspends in raw mode.** The terminal stays in raw mode while cosmostrix is backgrounded. Recovery is automatic on `fg`/SIGCONT as long as nothing else wrote to the TTY.
+- **Windows Terminal cleanup is best-effort** (tracked in issue #15). Beyond what crossterm provides, cosmostrix does not claim specific guarantees for Windows forced-termination paths.
+- **RSS and CPU metrics are Linux/macOS only.** `--benchmark` emits `unsupported` on Windows rather than fake values.
+- **No audio.** Cosmostrix is a visual screensaver.
+
 ## Requirements
 
 - Rust 1.81+ (MSRV) to build from source
