@@ -44,13 +44,13 @@ pub const SCENES: &[SceneInfo] = &[
     // --- Original runtime scenes (interactive cycle entries) ---
     SceneInfo {
         name: "matrix",
-        description: "Classic Matrix glyph rain behavior",
+        description: "Classic Matrix glyph rain — cinematic sparse cascade",
         config: SceneConfig {
             color: None,
             charset: None,
             fps: None,
-            speed: None,
-            density: None,
+            speed: Some(8.0),
+            density: Some(0.55),
             glitch_level: None,
             rain_style: RainStyle::Glyph,
         },

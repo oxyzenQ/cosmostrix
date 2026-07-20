@@ -141,7 +141,9 @@ fn explicit_matrix_scene_restores_classic_defaults() {
     assert_eq!(args.color, "green");
     assert_eq!(args.charset, "binary");
     assert_eq!(args.speed, 8.0);
-    assert_eq!(args.density, 1.0);
+    // v17: matrix scene now sets explicit density=0.55 for cinematic
+    // sparse rain (was None → CLI default 1.0, which was too crowded).
+    assert_eq!(args.density, 0.55);
     assert_eq!(args.glitch_level, GlitchLevel::Default);
 }
 
