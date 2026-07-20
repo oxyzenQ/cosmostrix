@@ -358,13 +358,19 @@ pub const FOG_MIN_FACTOR: f32 = 0.45;
 pub const MOUSE_AVOID_RADIUS_COLS: u16 = 5;
 
 /// Cursor glow: horizontal radius (in columns) for the brightness boost.
-pub const MOUSE_GLOW_RADIUS_COLS: f32 = 8.0;
+pub const MOUSE_GLOW_RADIUS_COLS: f32 = 6.0;
 
 /// Cursor glow: vertical radius (in lines) for the brightness boost.
-pub const MOUSE_GLOW_RADIUS_LINES: f32 = 6.0;
+pub const MOUSE_GLOW_RADIUS_LINES: f32 = 4.0;
 
 /// Cursor glow: peak intensity at cursor center (0.0 = off, 1.0 = full white).
-pub const MOUSE_GLOW_INTENSITY: f32 = 0.35;
+///
+/// v17 audit: lowered from 0.35 to 0.15. The old value combined with the
+/// head cell's 0.45 self-bloom produced ~64% white blend on head cells under
+/// the cursor — brighter than the `storm` scene's `Intense` glitch. The new
+/// value produces a subtle ambient halo (~53% combined) that reads as a
+/// cursor cue rather than a "storm of bright comets". See research item 6.
+pub const MOUSE_GLOW_INTENSITY: f32 = 0.15;
 
 /// Click flash: ring expansion speed (columns per second).
 pub const MOUSE_FLASH_SPEED: f32 = 25.0;
@@ -373,7 +379,13 @@ pub const MOUSE_FLASH_SPEED: f32 = 25.0;
 pub const MOUSE_FLASH_RING_WIDTH: f32 = 3.0;
 
 /// Click flash: peak intensity at ring center (0.0 = off, 1.0 = full white).
-pub const MOUSE_FLASH_INTENSITY: f32 = 0.6;
+///
+/// v17 audit: lowered from 0.60 to 0.30. The old value combined with cursor
+/// glow + head self-bloom produced up to 86% white blend on click-under-cursor
+/// cells — visually indistinguishable from a glitch flash. The new value
+/// gives a visible but gentle ripple (~58% combined peak) that does not
+/// compete with the rain's natural brightness hierarchy.
+pub const MOUSE_FLASH_INTENSITY: f32 = 0.30;
 
 /// Click flash: total duration of the ripple effect in seconds.
 pub const MOUSE_FLASH_DURATION_SECS: f32 = 0.5;
