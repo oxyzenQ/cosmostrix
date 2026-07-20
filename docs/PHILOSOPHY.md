@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Cosmostrix Rendering Philosophy
 
 > Cosmostrix is a CPU-only terminal renderer by design. The terminal is a text

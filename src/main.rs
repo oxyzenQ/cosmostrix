@@ -135,12 +135,12 @@ mod ux;
 mod validation;
 mod verbose;
 
-use std::env;
+use clap::{CommandFactory, FromArgMatches};
 
 #[cfg(target_os = "linux")]
 use std::io::IsTerminal;
 
-use clap::{CommandFactory, FromArgMatches};
+use std::env;
 
 use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
 use crate::config::{
@@ -167,7 +167,6 @@ pub use cli::{
 pub use info::env_var_truthy;
 
 // --- Helpers kept in the crate root ---
-//
 // Input validation uses `ux::or_exit()` instead of the old `validate_err`.
 // `or_exit` unwraps a Result whose Err carries a formatted error string,
 // prints it to stderr, and exits with code 2 — never propagating a
@@ -178,22 +177,9 @@ pub use info::env_var_truthy;
 pub(crate) use crate::safepath::{is_safe_path, validate_config_path};
 
 /// Check if stdout is redirected to a regular file (shell `>` or `>|` operator).
-///
-/// Returns `true` if stdout is connected to a regular file on disk. This
-/// happens when the user runs `cosmostrix --dump-config > /tmp/a.txt` —
-/// the shell opens /tmp/a.txt and connects it to stdout before cosmostrix
-/// starts. We detect this via `fstat(1)` and check `S_IFREG` in `st_mode`.
-///
-/// Returns `false` for:
-/// - TTY (terminal) — normal interactive use
-/// - Pipe (FIFO) — `cosmostrix --dump-config | less` (piping is allowed)
-/// - Character device — `cosmostrix --dump-config > /dev/null` (harmless)
-/// - Socket — rare, treated as non-file
-///
-/// This is used by `--dump-config` to block shell redirection that would
-/// bypass the strict path whitelist. The user must use the explicit path
-/// form (`--dump-config <path>`) for file output, which enforces the
-/// whitelist + .toml extension.
+/// Returns `true` if stdout is a regular file (shell redirect bypassing whitelist).
+/// Returns `false` for TTY, pipe (allowed), char device, socket.
+/// Used by `--dump-config` to block shell redirection that bypasses the path whitelist.
 #[cfg(unix)]
 fn stdout_is_redirected_to_file() -> bool {
     use std::os::unix::io::AsRawFd;
@@ -732,7 +718,21 @@ fn main() -> std::io::Result<()> {
     };
     let color_tune = match args.color_tune.as_deref() {
         Some(s) => ux::or_exit(color_tune::parse_color_tune(s)),
-        None => color_tune::ColorTune::IDENTITY,
+        None => {
+            // Build from --brightness / --saturation convenience flags.
+            let sat = args
+                .saturation
+                .map(|v| ux::or_exit(validate_f32_range("--saturation", v, 0.0, 3.0)))
+                .unwrap_or(1.0);
+            let bright = args
+                .brightness
+                .map(|v| ux::or_exit(validate_f32_range("--brightness", v, 0.0, 3.0)))
+                .unwrap_or(1.0);
+            color_tune::ColorTune {
+                saturation: sat,
+                brightness: bright,
+            }
+        }
     };
     let rain_style = args
         .scene

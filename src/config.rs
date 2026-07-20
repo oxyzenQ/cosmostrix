@@ -190,6 +190,26 @@ pub struct Args {
     pub color_tune: Option<String>,
 
     #[arg(
+        long = "brightness",
+        value_name = "FACTOR",
+        help_heading = "COMMON OPTIONS",
+        display_order = 11,
+        help = "Brightness multiplier for any theme (0.0-3.0, default 1.0 = no change). \
+                Shorthand for --color-tune brightness=N"
+    )]
+    pub brightness: Option<f32>,
+
+    #[arg(
+        long = "saturation",
+        value_name = "FACTOR",
+        help_heading = "COMMON OPTIONS",
+        display_order = 11,
+        help = "Saturation multiplier for any theme (0.0-3.0, default 1.0 = no change). \
+                Shorthand for --color-tune saturation=N"
+    )]
+    pub saturation: Option<f32>,
+
+    #[arg(
         short = 'C',
         long = "charset",
         default_value = "binary",

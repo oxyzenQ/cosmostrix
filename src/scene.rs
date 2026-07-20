@@ -76,7 +76,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("retro"),
             fps: Some(60.0),
             speed: Some(10.0),
-            density: Some(0.95),
+            density: Some(0.75),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
@@ -84,79 +84,79 @@ pub const SCENES: &[SceneInfo] = &[
     // --- Curated visual scenes ---
     SceneInfo {
         name: "classic",
-        description: "The original green-on-black Matrix rain",
+        description: "The original green-on-black Matrix rain — cinematic sparse cascade",
         config: SceneConfig {
             color: Some("green"),
             charset: Some("matrix"),
             fps: Some(60.0),
             speed: Some(8.0),
-            density: Some(1.0),
-            glitch_level: Some(GlitchLevel::Default),
+            density: Some(0.6),
+            glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "cinematic",
-        description: "Cosmic binary with cinematic feel",
+        description: "Cosmic binary with cinematic pacing and breathing room",
         config: SceneConfig {
             color: Some("cosmos"),
             charset: Some("binary"),
             fps: Some(60.0),
-            speed: Some(8.0),
-            density: Some(1.0),
-            glitch_level: Some(GlitchLevel::Default),
+            speed: Some(6.0),
+            density: Some(0.6),
+            glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "calm",
-        description: "Gentle ocean tones with reduced density",
+        description: "Gentle ocean tones with zen minimal density",
         config: SceneConfig {
             color: Some("ocean"),
             charset: Some("minimal"),
             fps: Some(60.0),
-            speed: Some(5.0),
-            density: Some(0.65),
+            speed: Some(4.0),
+            density: Some(0.45),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "storm",
-        description: "Fast and intense purple cyberpunk",
+        description: "Fast and intense purple cyberpunk — dense and aggressive",
         config: SceneConfig {
             color: Some("purple"),
             charset: Some("cyberpunk"),
             fps: Some(120.0),
-            speed: Some(24.0),
-            density: Some(1.35),
+            speed: Some(22.0),
+            density: Some(1.15),
             glitch_level: Some(GlitchLevel::Intense),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "cosmos",
-        description: "Cosmic binary with rich cosmos palette",
+        description: "Cosmic binary with vast, spacious cosmos palette",
         config: SceneConfig {
             color: Some("cosmos"),
             charset: Some("binary"),
             fps: Some(60.0),
-            speed: Some(9.0),
-            density: Some(1.05),
-            glitch_level: Some(GlitchLevel::Default),
+            speed: Some(7.0),
+            density: Some(0.65),
+            glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "neon",
-        description: "Vibrant cyberpunk with neon colors",
+        description: "Vibrant cyberpunk with neon pop and visual breathing room",
         config: SceneConfig {
             color: Some("neon"),
             charset: Some("cyberpunk"),
             fps: Some(60.0),
             speed: Some(10.0),
-            density: Some(1.1),
-            glitch_level: Some(GlitchLevel::Default),
+            density: Some(0.75),
+            glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
@@ -168,21 +168,21 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("hacker"),
             fps: Some(60.0),
             speed: Some(11.0),
-            density: Some(1.2),
+            density: Some(0.85),
             glitch_level: Some(GlitchLevel::Default),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "low-power",
-        description: "Power-saving mode (30 FPS, reduced density/speed)",
+        description: "Ultra power-saving mode (30 FPS, minimal density/speed)",
         config: SceneConfig {
             color: Some("green"),
             charset: Some("binary"),
             fps: Some(30.0),
-            speed: Some(5.0),
-            density: Some(0.5),
-            glitch_level: Some(GlitchLevel::Default),
+            speed: Some(4.0),
+            density: Some(0.35),
+            glitch_level: Some(GlitchLevel::None),
             rain_style: RainStyle::Glyph,
         },
     },
@@ -371,14 +371,14 @@ mod tests {
     }
 
     #[test]
-    fn classic_scene_uses_matrix_scene_values() {
+    fn classic_scene_uses_cinematic_sparse_values() {
         let s = get_scene("classic").expect("classic scene");
         assert_eq!(s.config.color, Some("green"));
         assert_eq!(s.config.charset, Some("matrix"));
         assert_eq!(s.config.fps, Some(60.0));
         assert_eq!(s.config.speed, Some(8.0));
-        assert_eq!(s.config.density, Some(1.0));
-        assert_eq!(s.config.glitch_level, Some(GlitchLevel::Default));
+        assert_eq!(s.config.density, Some(0.6));
+        assert_eq!(s.config.glitch_level, Some(GlitchLevel::Subtle));
         assert_eq!(s.config.rain_style, RainStyle::Glyph);
     }
 
@@ -388,8 +388,8 @@ mod tests {
         assert_eq!(s.config.color, Some("purple"));
         assert_eq!(s.config.charset, Some("cyberpunk"));
         assert_eq!(s.config.fps, Some(120.0));
-        assert_eq!(s.config.speed, Some(24.0));
-        assert_eq!(s.config.density, Some(1.35));
+        assert_eq!(s.config.speed, Some(22.0));
+        assert_eq!(s.config.density, Some(1.15));
         assert_eq!(s.config.glitch_level, Some(GlitchLevel::Intense));
     }
 
@@ -397,10 +397,11 @@ mod tests {
     fn low_power_scene_caps_fps_at_thirty() {
         let s = get_scene("low-power").expect("low-power scene");
         assert_eq!(s.config.fps, Some(30.0));
-        assert_eq!(s.config.speed, Some(5.0));
-        assert_eq!(s.config.density, Some(0.5));
+        assert_eq!(s.config.speed, Some(4.0));
+        assert_eq!(s.config.density, Some(0.35));
         assert_eq!(s.config.color, Some("green"));
         assert_eq!(s.config.charset, Some("binary"));
+        assert_eq!(s.config.glitch_level, Some(GlitchLevel::None));
     }
 
     #[test]
@@ -408,14 +409,16 @@ mod tests {
         let s = get_scene("hacker").expect("hacker scene");
         assert_eq!(s.config.charset, Some("hacker"));
         assert_eq!(s.config.speed, Some(11.0));
-        assert_eq!(s.config.density, Some(1.2));
+        assert_eq!(s.config.density, Some(0.85));
     }
 
     #[test]
-    fn calm_scene_uses_ocean_and_subtle_glitch() {
+    fn calm_scene_uses_ocean_zen_density() {
         let s = get_scene("calm").expect("calm scene");
         assert_eq!(s.config.color, Some("ocean"));
         assert_eq!(s.config.charset, Some("minimal"));
+        assert_eq!(s.config.speed, Some(4.0));
+        assert_eq!(s.config.density, Some(0.45));
         assert_eq!(s.config.glitch_level, Some(GlitchLevel::Subtle));
     }
 

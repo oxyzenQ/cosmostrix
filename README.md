@@ -84,7 +84,7 @@ Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 - **Interactive FPS is terminal-bounded.** The engine computes ~50,000 FPS headless at 120×40; real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). This is a fundamental limit of terminal rendering.
 - **`kill -9` cannot be caught.** No process can intercept SIGKILL. On Linux, a fork-based guard restores `termios` best-effort; on macOS and Windows, run `cosmostrix --reset-terminal` for 5-layer recovery.
 - **SIGTSTP (Ctrl-Z) suspends in raw mode.** The terminal stays in raw mode while cosmostrix is backgrounded. Recovery is automatic on `fg`/SIGCONT as long as nothing else wrote to the TTY.
-- **Windows Terminal cleanup is best-effort** (tracked in issue #15). Beyond what crossterm provides, cosmostrix does not claim specific guarantees for Windows forced-termination paths.
+- **Windows Terminal cleanup is best-effort** (issue #15). Forced termination (task kill, close window, signout) on Windows Terminal / ConHost may leave the terminal in a degraded state (scrolled buffer visible, cursor hidden). Beyond what crossterm provides, cosmostrix does not claim specific guarantees for Windows forced-termination paths. Run `cosmostrix --reset-terminal` to recover.
 - **RSS and CPU metrics are Linux/macOS only.** `--benchmark` emits `unsupported` on Windows rather than fake values.
 - **No audio.** Cosmostrix is a visual screensaver.
 
@@ -211,6 +211,8 @@ COMMON OPTIONS
   -c, --color <name>        Color theme (see --list-colors)
      --color-custom <name>  Load a user-defined custom color palette from config (v16)
      --color-tune <k=v>     Tune saturation/brightness (e.g. saturation=1.5,brightness=0.9)
+     --brightness <0.0-3.0>  Brightness multiplier (1.0 = no change)
+     --saturation <0.0-3.0>  Saturation multiplier (1.0 = no change; 0.0 = grayscale)
   -C, --charset <name>      Character set (see --list-charsets)
      --charset-file <path>  Load custom characters from a file (whitelist-enforced)
   -f, --fps <1-240>         Target FPS

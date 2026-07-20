@@ -23,6 +23,20 @@ COMMON OPTIONS:
       This turns the 43 built-in themes into 43 x infinite variants
       without adding new themes.
 
+  --brightness <0.0-3.0>
+      Simple brightness multiplier (shorthand for --color-tune brightness=N).
+      1.0 = no change, 0.5 = half brightness, 1.5 = +50%.
+      cosmostrix --brightness 1.5
+      cosmostrix --color neon --brightness 0.8
+      Combines with --saturation. --color-tune overrides both when specified.
+
+  --saturation <0.0-3.0>
+      Simple saturation multiplier (shorthand for --color-tune saturation=N).
+      1.0 = no change, 0.0 = grayscale, 2.0 = double saturation.
+      cosmostrix --saturation 0.0       # grayscale any theme
+      cosmostrix --color ocean --saturation 1.5
+      Combines with --brightness. --color-tune overrides both when specified.
+
   --charset <name>
       Character set. See --list-charsets for available sets.
       cosmostrix --charset binary

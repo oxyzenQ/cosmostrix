@@ -53,8 +53,8 @@ fn density_updates_after_scene_switch() {
 fn signal_density_is_high() {
     let mut cloud = make_glyph_cloud();
     cloud.apply_scene_runtime("signal", "binary", &[], false);
-    // Signal scene sets density=0.95
-    assert!((cloud.droplet_density - 0.95).abs() < 0.001);
+    // Signal scene sets density=0.75
+    assert!((cloud.droplet_density - 0.75).abs() < 0.001);
 }
 
 #[test]
