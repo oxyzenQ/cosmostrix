@@ -236,21 +236,60 @@ impl CloudConfig {
 
 // --- Density calculation helpers ---
 
+/// Auto-density factor for the current terminal size.
+///
+/// v17 audit: the old formula was `sqrt(area / (80*25))` clamped to [0.5, 2.0].
+/// This was conceptually wrong for cosmostrix's per-column density model:
+///
+///   - cosmostrix's `density` means "fraction of columns active" (glyph) or
+///     "active lane ratio scale" (monolith). Both are inherently scale-
+///     invariant quantities — a 200x60 terminal should have the SAME column
+///     density as an 80x24 terminal, just with more columns.
+///   - The old `sqrt(area)` formula double-counted width scaling (cols ×
+///     density already scales with width) and added bogus height scaling
+///     (more rows = longer droplet lifetime = fewer spawns needed, already
+///     handled by recalc_droplets_per_sec).
+///   - At 200x60, the old formula gave factor=2.0, so base_density=0.85
+///     became effective=1.7 — 62% above the monolith ceiling (1.04), maxing
+///     out the 35% active-lane cap on every non-trivial terminal.
+///
+/// The new formula is a **width-only dampener** for small terminals:
+///
+///   factor = clamp(cols / 80, 0.6, 1.0)
+///
+/// - At 80+ cols: factor = 1.0 (identity — no amplification, no reduction)
+/// - At 48 cols: factor = 0.6 (small terminals get slightly sparser rain
+///   to avoid over-saturation when each column is more visible)
+/// - Never amplifies above 1.0 — the per-column model is already scale-
+///   invariant, so amplification was always a bug.
+///
+/// `fullwidth` mode halves the effective column count (each glyph takes 2
+/// cells), so we account for that before computing the factor.
+///
+/// `lines` is now unused but kept in the signature for backward compat
+/// (callers in event_loop.rs, bench.rs, and bench_scale.rs pass it).
 #[must_use]
-pub fn auto_density_factor(cols: u16, lines: u16, fullwidth: bool) -> f32 {
+pub fn auto_density_factor(cols: u16, _lines: u16, fullwidth: bool) -> f32 {
     let eff_cols = if fullwidth {
         (cols / 2).max(1)
     } else {
         cols.max(1)
     } as f32;
-    let eff_lines = lines.max(1) as f32;
-
-    let area = eff_cols * eff_lines;
-    let base = DENSITY_BASE_COLS * DENSITY_BASE_LINES;
-    let factor = (area / base).sqrt();
-    factor.clamp(DENSITY_AUTO_MIN, DENSITY_AUTO_MAX)
+    // Width-only dampener: terminals smaller than 80 cols get slightly
+    // sparser rain; 80+ cols get identity (factor=1.0). Never amplifies.
+    let factor = eff_cols / DENSITY_BASE_COLS;
+    factor.clamp(DENSITY_AUTO_MIN, 1.0)
 }
 
+/// Compute the effective droplet density for the current terminal.
+///
+/// When `auto` is true (user did NOT pass `--density` explicitly), the
+/// base density is multiplied by `auto_density_factor()` — a width-only
+/// dampener that never amplifies. When `auto` is false (user passed
+/// `--density N`), the base is returned as-is (clamped to safe bounds).
+///
+/// See `auto_density_factor()` for the v17 rationale on why the old
+/// `sqrt(area)` amplifier was removed.
 #[must_use]
 pub fn effective_density(base: f32, cols: u16, lines: u16, fullwidth: bool, auto: bool) -> f32 {
     let base = base.clamp(DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX);

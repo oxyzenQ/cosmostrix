@@ -18,12 +18,24 @@ pub const DENSITY_AUTO_DEFAULT_LINES: u16 = 40;
 pub const DENSITY_BASE_COLS: f32 = 80.0;
 
 /// Base terminal height for auto-density scaling.
+/// v17: unused — the new auto_density_factor() is width-only (height
+/// scaling was a conceptual bug). Kept for backward compat in case
+/// external code or future formulas reference it.
+#[allow(dead_code)]
 pub const DENSITY_BASE_LINES: f32 = 25.0;
 
 /// Auto-density clamp range (min factor).
+/// v17: the auto-density factor is now a width-only dampener
+/// (clamp(cols/80, DENSITY_AUTO_MIN, 1.0)). It never amplifies above
+/// 1.0 — the old sqrt(area) amplifier was removed (see app.rs docs).
 pub const DENSITY_AUTO_MIN: f32 = 0.5;
 
 /// Auto-density clamp range (max factor).
+/// v17: unused — the auto factor is now capped at 1.0 (identity) instead
+/// of DENSITY_AUTO_MAX. The old 2.0 cap allowed the sqrt(area) amplifier
+/// to double density on large terminals, which was a conceptual bug
+/// (per-column density is scale-invariant). Kept for backward compat.
+#[allow(dead_code)]
 pub const DENSITY_AUTO_MAX: f32 = 2.0;
 
 /// Absolute density clamp range (min).
