@@ -248,6 +248,14 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // from getrusage — we compute deltas for window attribution.
     let rusage_start = crate::usagestat::ResourceSnapshot::now();
 
+    // v17 audit: track terminal resize during benchmark. The benchmark's
+    // size is captured ONCE at start (for metric reproducibility — see
+    // bench_dimensions). If the user resizes the terminal mid-benchmark,
+    // the metrics remain computed at the original size, but we detect the
+    // resize and print a warning at the end so the user understands why
+    // the report doesn't match their current terminal size.
+    let mut terminal_resized_during_bench = false;
+
     // Benchmark environment (reproducibility metadata) — collected once
     // at benchmark start. No per-frame cost. Lets users compare reports
     // across machines knowing the OS/governor/terminal context.
@@ -351,6 +359,18 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             frame_time_ms,
             bench_duration_secs as f64,
         );
+
+        // v17 audit: non-blocking drain of terminal events to detect resize.
+        // poll(Duration::from_millis(0)) returns immediately; we drain ALL
+        // pending events so the queue doesn't fill up. Only Event::Resize
+        // sets the flag — keypresses/mouse are silently consumed (the user
+        // shouldn't be interacting during a benchmark anyway). Cost: ~1µs
+        // per frame, negligible vs the 80-200µs frame times.
+        while crossterm::event::poll(Duration::from_millis(0)).unwrap_or(false) {
+            if let Ok(crossterm::event::Event::Resize(_, _)) = crossterm::event::read() {
+                terminal_resized_during_bench = true;
+            }
+        }
     }
 
     let (peak_rss_kb, avg_rss_kb, rss_samples, rss_supported) = rss.finalize();
@@ -398,6 +418,17 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // ── Clean up live UI ─────────────────────────────────────────────────
     progress.finish();
+
+    // v17 audit: warn if the terminal was resized during the benchmark.
+    // The metrics are computed at the original captured size (for
+    // reproducibility), so a resize means the report won't match the user's
+    // current terminal. Print to stderr so it doesn't pollute JSON output.
+    if terminal_resized_during_bench {
+        eprintln!(
+            "  \u{26a0} Terminal resized during benchmark \u{2014} metrics computed at original size {w}x{h}."
+        );
+        eprintln!("     Restart benchmark for size-accurate results at the new terminal size.");
+    }
 
     // Phase 2: Finalize wet I/O metrics
     let terminal_io = io_writer.map(|io| io.finalize(total_elapsed_s));
@@ -944,18 +975,38 @@ fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
         let h = h.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
         return (w, h);
     }
-    // Fall back to env vars (backward compat)
-    let w = env::var("COSMOSTRIX_BENCH_COLS")
-        .ok()
-        .and_then(|v| v.parse::<u16>().ok())
-        .unwrap_or(DENSITY_AUTO_DEFAULT_COLS)
-        .clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
-    let h = env::var("COSMOSTRIX_BENCH_LINES")
-        .ok()
-        .and_then(|v| v.parse::<u16>().ok())
-        .unwrap_or(DENSITY_AUTO_DEFAULT_LINES)
-        .clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
-    (w, h)
+    // Fall back to env vars (backward compat for CI)
+    if let (Ok(w_str), Ok(h_str)) = (
+        env::var("COSMOSTRIX_BENCH_COLS"),
+        env::var("COSMOSTRIX_BENCH_LINES"),
+    ) {
+        if let (Ok(w), Ok(h)) = (w_str.parse::<u16>(), h_str.parse::<u16>()) {
+            return (
+                w.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS),
+                h.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES),
+            );
+        }
+    }
+    // v17 audit: query the ACTUAL terminal size before falling back to the
+    // hardcoded 120x40 default. Previously the benchmark never queried the
+    // terminal at all — a user running `cosmostrix --benchmark` in a 200x50
+    // terminal would get a report claiming "120x40", which was misleading.
+    // crossterm::terminal::size() is a pure query (no terminal state change),
+    // safe to call in headless benchmark mode. Returns Err on non-TTY (pipes,
+    // CI without PTY) — in that case we fall through to the 120x40 default.
+    if let Ok((w, h)) = crossterm::terminal::size() {
+        if w >= MIN_TERMINAL_COLS && h >= MIN_TERMINAL_LINES {
+            return (
+                w.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS),
+                h.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES),
+            );
+        }
+    }
+    // Last-resort default: 120x40 (for non-TTY / piped / CI without PTY).
+    (
+        DENSITY_AUTO_DEFAULT_COLS.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS),
+        DENSITY_AUTO_DEFAULT_LINES.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES),
+    )
 }
 
 /// Read configurable warmup duration from environment, falling back to the
