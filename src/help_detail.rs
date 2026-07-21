@@ -80,6 +80,13 @@ COMMON OPTIONS:
       text selection and trigger the always-on glow/click wave effects.
       cosmostrix --screensaver
 
+  --intro
+      Dragon Render startup animation. Types \"COSMOSTRIX\" at center
+      screen in the brightest palette color, holds, then fades out.
+      Duration: 1.5s. Skip with any key. Auto-skipped in --screensaver.
+      cosmostrix --intro
+      cosmostrix --intro --scene matrix
+
   Mouse interaction (always on, no flag needed)
       Cursor glow: cells near the mouse cursor get a subtle brightness
       boost (ambient halo). Click flash: a strong dual-ring glow wave

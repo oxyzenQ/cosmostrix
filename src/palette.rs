@@ -390,7 +390,23 @@ fn colors_from_stops(mode: ColorMode, stops: &[(u8, u8, u8)], steps: usize) -> V
     if matches!(mode, ColorMode::Mono) {
         return vec![Color::White];
     }
-    let rgb = gradient_from_stops(stops, steps);
+    let mut rgb = gradient_from_stops(stops, steps);
+    // v17 mastery: global brightness floor. Any palette color with RGB sum
+    // below 180 gets boosted so it's visible (not invisible dark). This fixes
+    // the 'dim/dark' complaint across ALL themes — the darkest trail colors
+    // are now clearly visible instead of blending into the background.
+    // The floor preserves the head→body→tail hierarchy: head is still much
+    // brighter (RGB sum 500+) than the floored trail (RGB sum 180+).
+    const MIN_RGB_SUM: u16 = 180;
+    for (r, g, b) in &mut rgb {
+        let sum = *r as u16 + *g as u16 + *b as u16;
+        if sum < MIN_RGB_SUM {
+            let scale = MIN_RGB_SUM as f32 / sum.max(1) as f32;
+            *r = ((*r as f32) * scale).min(255.0) as u8;
+            *g = ((*g as f32) * scale).min(255.0) as u8;
+            *b = ((*b as f32) * scale).min(255.0) as u8;
+        }
+    }
     colors_from_rgb(mode, &rgb)
 }
 
