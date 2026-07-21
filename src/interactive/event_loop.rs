@@ -668,33 +668,27 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     }
                     Event::Mouse(m) => {
                         // v17: Mouse events are ALWAYS captured (mouse reporting
-                        // is always on — see startup comment). This blocks plain
-                        // drag-select text copy in ALL modes, preserving the
-                        // ephemeral screensaver aesthetic. The --mouse flag
-                        // controls only hover/click VISUAL EFFECTS.
+                        // is always on). This blocks plain drag-select text copy
+                        // in ALL modes, preserving the ephemeral screensaver
+                        // aesthetic.
                         //
-                        // v17 audit: REMOVED screensaver click-exit. The old
-                        // behavior (click anywhere exits screensaver) violated
-                        // the "only q quits" policy established in v15 (commit
-                        // cae82fb). Owner reported: 'click langsung exit seperti
-                        // click key q padahal cuma click touchpad'. Now mouse
-                        // click NEVER exits — only 'q' quits, consistent across
-                        // normal and screensaver modes. Classic screensaver
-                        // "click to dismiss" behavior is intentionally dropped
-                        // for policy consistency.
-                        //
-                        // Mouse interaction resets idle timer (all modes).
+                        // v17 mastery: REMOVED force_draw_everything on mouse
+                        // move. The old code called force_draw on idle→active
+                        // transition, which rendered ALL cells (including trail
+                        // middles that normally skip) + seeded phosphor everywhere.
+                        // This produced a visible brightness flash that persisted
+                        // ~400ms until phosphor decayed — the owner reported
+                        // 'bright colors when moving mouse'. Now we only update
+                        // the idle timer (for FPS throttling) and mouse position.
+                        // The next regular diff frame handles rendering naturally.
                         let activity_time = Instant::now();
-                        if register_activity(
+                        let _ = register_activity(
                             &mut last_input_time,
                             &mut last_resync_time,
                             activity_time,
                             is_idle,
                             false,
-                        ) {
-                            cloud.force_draw_everything();
-                            next_frame = activity_time;
-                        }
+                        );
                         // v17 mastery: hover/click visual effects are ALWAYS ON
                         // (--mouse flag deleted). No cfg.mouse gate.
                         cloud.set_mouse_position(m.column, m.row);

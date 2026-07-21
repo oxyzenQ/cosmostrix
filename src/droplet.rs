@@ -597,10 +597,14 @@ impl Droplet {
                 // Click flash: expanding glow wave from click point (v17 mastery).
                 // F4: use cached flash_elapsed instead of per-cell flash_time.elapsed()
                 //
-                // v17 mastery: dual-ring wave effect. A primary bright ring
-                // expands outward, followed by a secondary dimmer ring at half
-                // speed — creating a layered "stone in water" cinematic ripple
-                // that makes clicks feel deliberate and energetic.
+                // v17 mastery: dual-ring water-drop ripple. A primary bright ring
+                // expands outward at 60 cells/s, followed by a secondary dimmer
+                // ring at half speed — creating a layered "stone in water"
+                // cinematic ripple that propagates to the screen edge.
+                //
+                // The fade uses a quadratic curve (fade^1.5) for natural energy
+                // dissipation — the wave starts strong and decays gradually like
+                // a real water ripple, not a linear cutoff.
                 if let Some(elapsed) = ctx.flash_elapsed {
                     let col_dist = if self.bound_col > ctx.flash_col {
                         (self.bound_col - ctx.flash_col) as f32
@@ -613,15 +617,21 @@ impl Droplet {
                         (ctx.flash_line - line) as f32
                     };
                     let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
-                    let fade = 1.0 - elapsed / MOUSE_FLASH_DURATION_SECS;
+                    // Quadratic fade: natural energy dissipation (fade^1.5).
+                    // The wave starts strong and decays gradually like a real
+                    // water ripple, rather than a linear cutoff.
+                    let raw_fade = (1.0 - elapsed / MOUSE_FLASH_DURATION_SECS).max(0.0);
+                    let fade = raw_fade * raw_fade.sqrt();
 
                     // Primary ring: fast, bright, full intensity.
                     let primary_radius = elapsed * MOUSE_FLASH_SPEED;
                     let primary_dist = (euclidean - primary_radius).abs();
                     let mut factor = 0.0;
                     if primary_dist < MOUSE_FLASH_RING_WIDTH {
+                        // Sharp leading edge, soft trailing tail (squared falloff).
                         let t = 1.0 - primary_dist / MOUSE_FLASH_RING_WIDTH;
-                        factor = t * MOUSE_FLASH_INTENSITY * fade;
+                        let t_smooth = t * t;
+                        factor = t_smooth * MOUSE_FLASH_INTENSITY * fade;
                     }
 
                     // Secondary ring: slower, dimmer, layered echo.
@@ -630,7 +640,9 @@ impl Droplet {
                     let secondary_dist = (euclidean - secondary_radius).abs();
                     if secondary_dist < MOUSE_FLASH_RING_WIDTH {
                         let t = 1.0 - secondary_dist / MOUSE_FLASH_RING_WIDTH;
-                        factor += t * MOUSE_FLASH_INTENSITY * MOUSE_FLASH_SECONDARY_FRAC * fade;
+                        let t_smooth = t * t;
+                        factor +=
+                            t_smooth * MOUSE_FLASH_INTENSITY * MOUSE_FLASH_SECONDARY_FRAC * fade;
                     }
 
                     if factor > 0.0 {

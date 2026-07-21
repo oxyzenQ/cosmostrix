@@ -389,33 +389,31 @@ pub const MOUSE_GLOW_INTENSITY: f32 = 0.0;
 
 /// Click flash: ring expansion speed (columns per second).
 ///
-/// v17 mastery: raised from 25.0 to 32.0. Faster wave expansion makes the
-/// click feel responsive and energetic — the wave radiates outward in a
-/// visible burst rather than a slow creep.
-pub const MOUSE_FLASH_SPEED: f32 = 32.0;
+/// v17 mastery: raised from 32.0 to 60.0. The wave now propagates at 60
+/// cells/s — fast enough to reach the screen edge on a 120-col terminal
+/// in ~1 second. The owner wanted 'merambat sampai ujung' (propagate to
+/// the edge) for a natural water-drop ripple effect.
+pub const MOUSE_FLASH_SPEED: f32 = 60.0;
 
 /// Click flash: thickness of the glowing ring (in columns).
 ///
-/// v17 mastery: raised from 3.0 to 4.5. A thicker ring produces a more
-/// visible wave front that reads as a deliberate "glow wave" effect rather
-/// than a thin flicker.
-pub const MOUSE_FLASH_RING_WIDTH: f32 = 4.5;
+/// v17 mastery: raised from 4.5 to 6.0. A thicker wave front reads as a
+/// more substantial water-drop ripple rather than a thin flicker.
+pub const MOUSE_FLASH_RING_WIDTH: f32 = 6.0;
 
 /// Click flash: peak intensity at ring center (0.0 = off, 1.0 = full white).
 ///
-/// v17 mastery: raised from 0.30 to 0.55. The owner wanted "strong glow
-/// effect wave when clicked, not boring". The new value produces a bright
-/// wave (~70% combined peak) that is clearly visible as a cinematic ripple
-/// radiating from the click point. Combined with the thicker ring and
-/// faster speed, the click now feels like a deliberate visual event.
-pub const MOUSE_FLASH_INTENSITY: f32 = 0.55;
+/// v17 mastery: raised from 0.55 to 0.65. Stronger wave for a more
+/// dramatic water-drop effect. The quadratic fade (see droplet.rs) ensures
+/// the wave dissipates naturally without abrupt cutoff.
+pub const MOUSE_FLASH_INTENSITY: f32 = 0.65;
 
 /// Click flash: total duration of the ripple effect in seconds.
 ///
-/// v17 mastery: raised from 0.5 to 0.7. Longer duration lets the wave
-/// fully expand across the terminal (at 32 cells/s × 0.7s = 22.4 cells,
-/// covering most terminal widths). The fade-out is smooth, not abrupt.
-pub const MOUSE_FLASH_DURATION_SECS: f32 = 0.7;
+/// v17 mastery: raised from 0.7 to 1.2. At 60 cells/s × 1.2s = 72 cells,
+/// the wave travels far enough to reach the screen edge on most terminals.
+/// The quadratic fade curve ensures the tail dissolves naturally.
+pub const MOUSE_FLASH_DURATION_SECS: f32 = 1.2;
 
 /// v17 mastery: secondary ripple intensity (fraction of primary flash).
 ///
