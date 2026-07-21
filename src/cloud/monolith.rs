@@ -468,18 +468,17 @@ impl MonolithRain {
     fn lane_is_available(
         &self,
         lane: usize,
-        full_width: bool,
-        mouse_enabled: bool,
-        mouse_col: u16,
+        _full_width: bool,
+        _mouse_enabled: bool,
+        _mouse_col: u16,
     ) -> bool {
         if self.streams[lane].active {
             return false;
         }
-        if !mouse_enabled || mouse_col == u16::MAX {
-            return true;
-        }
-        let col = lane_col(lane, full_width);
-        col.abs_diff(mouse_col) > crate::constants::MOUSE_AVOID_RADIUS_COLS
+        // v17 mastery: mouse spawn avoidance REMOVED. Owner reported rain
+        // becoming empty under the cursor. The old MOUSE_AVOID_RADIUS_COLS
+        // check created a moving empty zone. Removed for visual continuity.
+        true
     }
 }
 

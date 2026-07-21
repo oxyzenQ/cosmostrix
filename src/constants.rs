@@ -367,6 +367,9 @@ pub const FOG_MIN_FACTOR: f32 = 0.45;
 // Mouse interaction (v17: always-on, --mouse flag deleted)
 
 /// Mouse interaction: radius around cursor (in columns) where droplets avoid.
+///
+/// v17 mastery: UNUSED — spawn avoidance removed. Kept for backward compat.
+#[allow(dead_code)]
 pub const MOUSE_AVOID_RADIUS_COLS: u16 = 5;
 
 /// Cursor glow: horizontal radius (in columns) for the brightness boost.
@@ -377,11 +380,12 @@ pub const MOUSE_GLOW_RADIUS_LINES: f32 = 5.0;
 
 /// Cursor glow: peak intensity at cursor center (0.0 = off, 1.0 = full white).
 ///
-/// v17 mastery: raised from 0.15 to 0.22. The --mouse flag is deleted, so
-/// hover glow is always-on. The new value produces a visible but tasteful
-/// ambient halo (~57% combined with head self-bloom) that reads as a cursor
-/// cue without competing with the rain's brightness hierarchy.
-pub const MOUSE_GLOW_INTENSITY: f32 = 0.22;
+/// v17 mastery: set to 0.0 — hover glow DISABLED. Owner reported bright
+/// colors when moving mouse over rain ('warnanya jadi terang dan tinggi
+/// sekali'). The glow made cells near the cursor visually bright, breaking
+/// the dim/dark cinematic default. Click wave (MOUSE_FLASH_INTENSITY)
+/// remains strong for click feedback; hover glow is removed entirely.
+pub const MOUSE_GLOW_INTENSITY: f32 = 0.0;
 
 /// Click flash: ring expansion speed (columns per second).
 ///
