@@ -700,7 +700,23 @@ pub const EMERGENT_SPEED_SHIFT: f32 = 0.15;
 /// using a smoothstep S-curve, producing a cinematic inertia recovery that
 /// starts gently (no snap) and ends smoothly (no jank at full speed).
 /// 180ms is enough to eliminate catch-up harshness while keeping resume snappy.
-pub const RESUME_EASE_DURATION_SECS: f32 = 0.18;
+/// v17 mastery: duration of the resume (unpause) smoothstep ramp.
+///
+/// Raised from 0.18 to 0.45 — the old 0.18s was only ~11 frames at 60fps,
+/// too fast for cinematic smoothness. The new 0.45s (~27 frames) gives the
+/// rain time to visibly accelerate from frozen to full speed, producing a
+/// cinematic "inertia recovery" that feels like a film restarting in slow
+/// motion. The easing curve is also upgraded from smoothstep (C1) to
+/// smootherstep (C2 continuous — no velocity discontinuity at start/end).
+pub const RESUME_EASE_DURATION_SECS: f32 = 0.45;
+
+/// v17 mastery: duration of the pause (deceleration) smoothstep ramp.
+///
+/// When the user presses 'p' to pause, the rain doesn't snap to a halt —
+/// it decelerates over PAUSE_EASE_DURATION_SECS using a smootherstep curve,
+/// producing a cinematic "time slow" effect. This is the mirror of
+/// RESUME_EASE_DURATION_SECS. Set to 0.0 for instant freeze (legacy behavior).
+pub const PAUSE_EASE_DURATION_SECS: f32 = 0.30;
 
 // Hardening: drift correction & terminal safety
 

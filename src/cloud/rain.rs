@@ -27,6 +27,33 @@ impl Cloud {
             return;
         }
 
+        // v17 mastery: pause ease-OUT (deceleration).
+        // If pause_start is set, compute pause_blend ramping 1→0 over
+        // PAUSE_EASE_DURATION_SECS. Scale the effective resume_blend by
+        // pause_blend so the rain decelerates smoothly. When pause_blend
+        // reaches 0, set self.pause = true (fully frozen).
+        if let Some(ps) = self.pause_start {
+            let t = now.saturating_duration_since(ps).as_secs_f32();
+            let normalized = (t / PAUSE_EASE_DURATION_SECS).min(1.0);
+            // Smootherstep: 6t⁵ - 15t⁴ + 10t³ (C2 continuous).
+            let smoother = normalized
+                * normalized
+                * normalized
+                * (normalized * (normalized * 6.0 - 15.0) + 10.0);
+            // pause_blend goes 1→0 (deceleration). Multiply with resume_blend
+            // (which is 1.0 during active play) to get the effective time scale.
+            let pause_blend = 1.0 - smoother;
+            self.resume_blend = pause_blend;
+            if normalized >= 1.0 {
+                // Deceleration complete — fully paused now.
+                self.pause = true;
+                self.pause_start = None;
+                self.pause_time = Some(now);
+                self.resume_blend = 0.0;
+                return;
+            }
+        }
+
         // ── Per-frame component timing ──────────────────────────────────
         // t0 = start of rain_at. t1 will be captured just before the first
         // frame-mutating render step (phosphor_decay_pass). t2 = end of
@@ -103,8 +130,14 @@ impl Cloud {
         if let Some(rs) = self.resume_start {
             let t = now.saturating_duration_since(rs).as_secs_f32();
             let normalized = (t / RESUME_EASE_DURATION_SECS).min(1.0);
-            // Smoothstep: 3t² - 2t³ — slow start, fast middle, slow end.
-            self.resume_blend = normalized * normalized * (3.0 - 2.0 * normalized);
+            // v17 mastery: smootherstep (C2 continuous) — 6t⁵ - 15t⁴ + 10t³.
+            // Smoother than smoothstep (C1) — zero velocity AND zero acceleration
+            // at start/end, eliminating all perceptual discontinuity.
+            let smoother = normalized
+                * normalized
+                * normalized
+                * (normalized * (normalized * 6.0 - 15.0) + 10.0);
+            self.resume_blend = smoother;
             if normalized >= 1.0 {
                 self.resume_blend = 1.0;
                 self.resume_start = None; // Transition complete — stop tracking

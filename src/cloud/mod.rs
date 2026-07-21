@@ -172,6 +172,12 @@ pub struct Cloud {
     /// the smoothstep S-curve for `resume_blend`.
     pub(super) resume_start: Option<Instant>,
 
+    /// v17 mastery: timestamp when the most recent pause-transition started.
+    /// When set, the rain decelerates from full speed to a freeze over
+    /// PAUSE_EASE_DURATION_SECS using a smootherstep curve. When the blend
+    /// reaches 0, `self.pause` is set to true and this is cleared.
+    pub(super) pause_start: Option<Instant>,
+
     pub(super) force_draw_everything: bool,
 
     /// Pending semantic invalidation: set to true when the renderer's semantic
@@ -419,6 +425,7 @@ impl Cloud {
             pause_time: None,
             resume_blend: 1.0,
             resume_start: None,
+            pause_start: None,
             force_draw_everything: false,
             semantic_invalidate: false,
             frames_since_full_redraw: 0,
@@ -631,56 +638,78 @@ impl Cloud {
     }
 
     pub fn toggle_pause(&mut self) -> bool {
-        self.pause = !self.pause;
+        // v17 mastery: pause now has a smooth deceleration transition.
+        // When pausing: start pause_start (decelerate 1→0 over PAUSE_EASE_DURATION_SECS).
+        // When resuming: existing resume_start logic (accelerate 0→1 over RESUME_EASE_DURATION_SECS).
+        // If user presses 'p' mid-pause-transition: cancel the pause (resume immediately).
+        if self.pause_start.is_some() {
+            // Mid-pause-transition: user pressed 'p' again to cancel.
+            // Resume from current pause_blend (which is between 0 and 1).
+            self.pause_start = None;
+            self.pause = false;
+            self.pause_time = None;
+            // Start resume from current blend value (partial deceleration → re-acceleration).
+            self.resume_blend = self.resume_blend.max(0.1); // floor at 0.1 so it's visible
+            self.resume_start = Some(Instant::now());
+            // Note: we don't shift timers here because no time was spent paused.
+            return true;
+        }
         if self.pause {
-            self.pause_time = Some(Instant::now());
-            true
-        } else if let Some(pt) = self.pause_time.take() {
-            let now = Instant::now();
-            let elapsed = now.saturating_duration_since(pt);
-            // Drop all spawn debt on resume. The next frame starts from this
-            // instant and the smoothstep resume ramp reintroduces motion.
-            self.last_spawn_time = now;
-            self.spawn_remainder = 0.0;
-            for d in &mut self.droplets {
-                if d.is_alive {
-                    d.increment_time(elapsed);
-                    d.last_time = Some(now);
-                    d.advance_remainder = 0.0;
+            // Currently paused → resume (existing logic).
+            self.pause = false;
+            if let Some(pt) = self.pause_time.take() {
+                let now = Instant::now();
+                let elapsed = now.saturating_duration_since(pt);
+                // Drop all spawn debt on resume. The next frame starts from this
+                // instant and the smoothstep resume ramp reintroduces motion.
+                self.last_spawn_time = now;
+                self.spawn_remainder = 0.0;
+                for d in &mut self.droplets {
+                    if d.is_alive {
+                        d.increment_time(elapsed);
+                        d.last_time = Some(now);
+                        d.advance_remainder = 0.0;
+                    }
                 }
+                // Shift all atmospheric subsystem timers so they don't burst-fire
+                // on the first tick after unpause (each sees a large elapsed).
+                self.last_phosphor_time += elapsed;
+                self.last_glitch_time += elapsed;
+                self.next_glitch_time += elapsed;
+                self.last_reseed_time += elapsed;
+                self.color_ecosystem.last_tick += elapsed;
+                self.atmosphere.last_tick += elapsed;
+                self.memory.last_sample += elapsed;
+                self.storytelling.last_tick += elapsed;
+                if let Some(ref mut cd) = self.storytelling.cooldown_until {
+                    *cd += elapsed;
+                }
+                // Shift palette transition and profile interpolation timers
+                // so they don't jump on resume. Without this, a transition in
+                // progress during pause would see a large elapsed and instantly
+                // complete, causing a visible visual discontinuity.
+                if let Some(ref mut ts) = self.transition_start {
+                    *ts += elapsed;
+                }
+                if let Some(ref mut pt) = self.profile_transition_start {
+                    *pt += elapsed;
+                }
+                if let Some(ref mut ct) = self.charset_transition_start {
+                    *ct += elapsed;
+                }
+                // Initialize cinematic resume easing: simulation time scale ramps
+                // from 0→1 over RESUME_EASE_DURATION_SECS using smootherstep.
+                self.resume_blend = 0.0;
+                self.resume_start = Some(now);
+                true
+            } else {
+                true
             }
-            // Shift all atmospheric subsystem timers so they don't burst-fire
-            // on the first tick after unpause (each sees a large elapsed).
-            self.last_phosphor_time += elapsed;
-            self.last_glitch_time += elapsed;
-            self.next_glitch_time += elapsed;
-            self.last_reseed_time += elapsed;
-            self.color_ecosystem.last_tick += elapsed;
-            self.atmosphere.last_tick += elapsed;
-            self.memory.last_sample += elapsed;
-            self.storytelling.last_tick += elapsed;
-            if let Some(ref mut cd) = self.storytelling.cooldown_until {
-                *cd += elapsed;
-            }
-            // Shift palette transition and profile interpolation timers
-            // so they don't jump on resume. Without this, a transition in
-            // progress during pause would see a large elapsed and instantly
-            // complete, causing a visible visual discontinuity.
-            if let Some(ref mut ts) = self.transition_start {
-                *ts += elapsed;
-            }
-            if let Some(ref mut pt) = self.profile_transition_start {
-                *pt += elapsed;
-            }
-            if let Some(ref mut ct) = self.charset_transition_start {
-                *ct += elapsed;
-            }
-            // Initialize cinematic resume easing: simulation time scale ramps
-            // from 0→1 over RESUME_EASE_DURATION_SECS using smoothstep S-curve.
-            self.resume_blend = 0.0;
-            self.resume_start = Some(now);
-            true
         } else {
+            // v17 mastery: start pause-transition (deceleration) instead of instant freeze.
+            // rain_at() will continue running with simulation scaled by pause_blend
+            // until it reaches 0, then set self.pause = true.
+            self.pause_start = Some(Instant::now());
             true
         }
     }

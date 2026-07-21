@@ -62,7 +62,10 @@ fn pause_stops_rain_and_unpause_resumes() {
     assert!(frame.is_dirty_all() || !frame.dirty_indices().is_empty());
 
     frame.clear_dirty();
-    cloud.toggle_pause();
+    // v17 mastery: toggle_pause() now starts a deceleration transition.
+    // For instant freeze in tests, set self.pause = true directly.
+    cloud.pause = true;
+    cloud.pause_time = Some(Instant::now());
     cloud.rain(&mut frame);
     assert!(!frame.is_dirty_all() && frame.dirty_indices().is_empty());
 
@@ -252,7 +255,9 @@ fn resume_resets_timing_debt() {
     let mut cloud = make_cloud();
     let now = Instant::now();
 
-    assert!(cloud.toggle_pause());
+    // v17 mastery: toggle_pause() now starts a deceleration transition.
+    // For instant freeze in tests, set self.pause = true directly.
+    cloud.pause = true;
     cloud.pause_time = Some(now - Duration::from_secs(5));
     cloud.spawn_remainder = 42.0;
     assert!(cloud.toggle_pause());
@@ -270,7 +275,9 @@ fn repeated_pause_resume_does_not_accumulate_timing_debt() {
     let now = Instant::now();
 
     for seconds in 1..=3 {
-        assert!(cloud.toggle_pause());
+        // v17 mastery: toggle_pause() now starts a deceleration transition.
+        // For instant freeze in tests, set self.pause = true directly.
+        cloud.pause = true;
         cloud.pause_time = Some(now - Duration::from_secs(seconds));
         cloud.spawn_remainder = seconds as f32;
         assert!(cloud.toggle_pause());
