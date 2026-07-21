@@ -281,6 +281,14 @@ pub struct Args {
     )]
     pub screensaver: bool,
 
+    #[arg(
+        long = "intro",
+        help_heading = "COMMON OPTIONS",
+        display_order = 61,
+        help = "Show Dragon Render startup animation before rain begins"
+    )]
+    pub intro: bool,
+
     // v17 mastery: --mouse flag DELETED. Mouse hover/click visual effects are
     // now ALWAYS ON (cursor glow + strong dual-ring click wave). Mouse reporting
     // is also always on (blocks text selection). No flag needed — the effect

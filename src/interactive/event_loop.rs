@@ -27,6 +27,7 @@ use super::adaptive::{
 use super::hud::HudState;
 use super::input::{handle_keybinding, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
+use crate::cloud::Cloud;
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(target_os = "linux")]
@@ -91,6 +92,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // color before the first frame. Without this, edges/margins keep the
     // terminal's native bg, creating visible gaps.
     super::fill_terminal_bg(cloud.palette.bg);
+
+    // v17: Dragon Render intro animation (--intro flag).
+    if cfg.intro && !cfg.screensaver {
+        run_intro(&mut term, &mut frame, &cloud, w, h)?;
+        cloud.force_draw_everything();
+        frame.clear_with_bg(cloud.palette.bg);
+    }
 
     let start_time = Instant::now();
     let end_time = cfg.duration_s.and_then(|s| {
@@ -1114,4 +1122,78 @@ fn read_self_voluntary_ctxt() -> u64 {
     // After ')', field indices shift: field 3 in the original = fields[0] here.
     // voluntary_ctxt_switches is field 20 (1-indexed), so fields[17] (0-indexed).
     fields.get(17).and_then(|s| s.parse().ok()).unwrap_or(0)
+}
+
+/// v17: Dragon Render intro. Types "COSMOSTRIX" at center, fades out.
+/// Skip with any key. Reuses Frame+Terminal. Increments FRAME_COUNTER
+/// so the watchdog doesn't kill the process during the 1.5s animation.
+fn run_intro(
+    term: &mut Terminal,
+    frame: &mut Frame,
+    cloud: &Cloud,
+    w: u16,
+    h: u16,
+) -> std::io::Result<()> {
+    use crossterm::event::Event;
+    let text = "COSMOSTRIX";
+    let chars: Vec<char> = text.chars().collect();
+    let start_row = h / 2;
+    let start_col = w.saturating_sub(chars.len() as u16) / 2;
+    let color = cloud
+        .palette
+        .colors
+        .last()
+        .copied()
+        .unwrap_or(crossterm::style::Color::White);
+    let bg = cloud.palette.bg;
+    let intro_start = Instant::now();
+    let duration_ms = 1500u64;
+    let frame_period = Duration::from_millis(33); // ~30 FPS
+
+    loop {
+        let elapsed = intro_start.elapsed().as_millis() as u64;
+        if elapsed >= duration_ms {
+            break;
+        }
+        if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
+            break;
+        }
+        while Terminal::poll_event(Duration::from_millis(0))? {
+            if let Ok(Event::Key(_)) = Terminal::read_event() {
+                return Ok(());
+            }
+        }
+        // Phase: typewriter fade-in (0-800ms), hold (800-1200ms), fade-out (1200-1500ms).
+        let visible = if elapsed < 800 {
+            ((elapsed as f32 / 800.0) * chars.len() as f32).ceil() as usize
+        } else if elapsed < 1200 {
+            chars.len()
+        } else {
+            // Fade-out: reduce visible chars from the left
+            let fade = (elapsed - 1200) as f32 / 300.0;
+            chars
+                .len()
+                .saturating_sub((fade * chars.len() as f32) as usize)
+        };
+        frame.clear_with_bg(bg);
+        for (i, &ch) in chars.iter().enumerate().take(visible) {
+            let x = start_col + i as u16;
+            if x < w {
+                frame.set_force(
+                    x,
+                    start_row,
+                    crate::cell::Cell {
+                        ch,
+                        fg: Some(color),
+                        bg,
+                        bold: true,
+                    },
+                );
+            }
+        }
+        term.draw(frame)?;
+        FRAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+        std::thread::sleep(frame_period);
+    }
+    Ok(())
 }

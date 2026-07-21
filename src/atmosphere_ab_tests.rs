@@ -331,6 +331,7 @@ fn benchmark_fields_unchanged() {
         base_density: 1.0,
         perf_stats: false,
         screensaver: false,
+        intro: false,
         mouse: false,
         charset_preset: "ascii".to_string(),
         user_ranges: vec![],

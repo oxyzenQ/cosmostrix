@@ -259,6 +259,7 @@ mod cases {
             base_density: 0.8,
             perf_stats: false,
             screensaver: false,
+            intro: false,
             mouse: false,
             charset_preset: String::from("binary"),
             user_ranges: vec![],
