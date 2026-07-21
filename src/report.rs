@@ -85,7 +85,17 @@ impl Report {
             }
             first = false;
 
-            println!("{}", section.name);
+            // v17: section headers in brand purple
+            if supports_ansi {
+                println!(
+                    "{}{}{}",
+                    crate::output::brand_bold_open(),
+                    section.name,
+                    crate::output::reset()
+                );
+            } else {
+                println!("{}", section.name);
+            }
             for field in &section.fields {
                 println!("  {}: {}", field.key, field.value);
             }

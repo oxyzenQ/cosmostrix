@@ -209,7 +209,7 @@ pub struct Args {
         value_name = "PATH",
         help_heading = "COMMON OPTIONS",
         display_order = 21,
-        help = "Load custom characters from a file (overrides --charset)"
+        help = "Load custom characters from a file (whitelist-enforced, overrides --charset)"
     )]
     pub charset_file: Option<String>,
 

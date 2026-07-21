@@ -555,13 +555,12 @@ fn main() -> std::io::Result<()> {
         }
         {
             let s = r.section("CAPACITY");
+            // v17: use actual terminal size instead of hardcoded 120x40/200x60
+            let (tw, th) = crossterm::terminal::size().unwrap_or((120, 40));
+            s.field("terminal_size", &format!("{tw}x{th}"));
             s.field(
-                "est_memory_per_frame (120x40)",
-                &info::format_bytes(info::estimate_memory_budget(120, 40)),
-            );
-            s.field(
-                "est_memory_per_frame (200x60)",
-                &info::format_bytes(info::estimate_memory_budget(200, 60)),
+                "est_memory_per_frame",
+                &info::format_bytes(info::estimate_memory_budget(tw, th)),
             );
         }
         {
@@ -608,46 +607,15 @@ fn main() -> std::io::Result<()> {
                 config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
             let modulation = atmosphere_apply::apply_application(&app, diag_mode);
             let s = r.section("ATMOSPHERE");
+            // v17: simplified — removed redundant verifier/shadow/visual_runtime fields
             s.field("regime", diag_regime.as_str());
-            s.field("engine", "phase-10-config-gated");
-            let idm = |v: bool| if v { "identity" } else { "modulated" };
-            s.field("effective", idm(modulation.is_identity()));
-            s.field("verifier", "pass");
+            s.field("mode", diag_mode.as_str());
             s.field(
-                "application",
-                if app.is_identity() {
-                    "identity"
-                } else {
-                    "verified"
-                },
-            );
-            s.field("application_mode", diag_mode.as_str());
-            let eff =
-                atmosphere_apply::derive_effective_runtime(args.speed, args.density, &modulation);
-            let runtime_id = eff.speed == args.speed && eff.density == args.density;
-            s.field("effective_runtime", idm(runtime_id));
-            let shadow =
-                atmosphere_shadow::shadow_metrics_from_mode_and_regime(diag_mode, diag_regime);
-            s.field("shadow_metrics", shadow.risk_label());
-            s.field("shadow_risk", shadow.risk_label());
-            s.field(
-                "config_gate",
-                if diag_mode.allows_modulation() {
-                    "armed"
-                } else {
-                    "disabled"
-                },
-            );
-            s.field(
-                "visual_runtime",
-                if runtime_id { "protected" } else { "active" },
-            );
-            s.field(
-                "runtime_application",
+                "status",
                 if modulation.is_identity() {
-                    "identity"
+                    "identity (disabled)"
                 } else {
-                    "non-identity"
+                    "active (modulated)"
                 },
             );
         }

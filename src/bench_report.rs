@@ -783,9 +783,10 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 s.field("note", "Linux x86 perf counters; varies by CPU model");
             }
             _ => {
+                s.field("status", "not available (perf counters require Linux x86)");
                 s.field(
-                    "status",
-                    "not available (perf counters require Linux x86 + perf_event_open)",
+                    "hint",
+                    "See docs/SIMD_FEASIBILITY.md for CPU analysis details",
                 );
             }
         }
