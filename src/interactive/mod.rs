@@ -42,6 +42,7 @@ mod bg_fill;
 mod event_loop;
 mod hud;
 mod input;
+mod intro;
 mod signal_handlers;
 mod watchdog;
 

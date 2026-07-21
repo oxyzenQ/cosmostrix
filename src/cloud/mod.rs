@@ -37,6 +37,8 @@ mod ecosystem;
 mod events;
 mod monolith;
 mod monolith_glyphs;
+#[cfg(test)]
+mod monolith_tests;
 mod phosphor;
 mod rain;
 mod render;

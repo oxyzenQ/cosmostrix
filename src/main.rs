@@ -69,6 +69,7 @@ mod bench_baseline;
 mod bench_comp;
 mod bench_cpu;
 mod bench_energy;
+mod bench_helpers;
 mod bench_io;
 mod bench_json;
 mod bench_mem;
@@ -127,6 +128,8 @@ mod scene_custom;
 mod sgr_format;
 mod termdetect;
 mod terminal;
+#[cfg(test)]
+mod terminal_tests;
 mod testconf;
 mod theme;
 mod update;

@@ -27,7 +27,6 @@ use super::adaptive::{
 use super::hud::HudState;
 use super::input::{handle_keybinding, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
-use crate::cloud::Cloud;
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(target_os = "linux")]
@@ -95,7 +94,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // v17: Dragon Render intro animation (--intro flag).
     if cfg.intro && !cfg.screensaver {
-        run_intro(&mut term, &mut frame, &cloud, w, h)?;
+        super::intro::run_intro(&mut term, &mut frame, &cloud, w, h)?;
         cloud.force_draw_everything();
         frame.clear_with_bg(cloud.palette.bg);
     }
@@ -889,7 +888,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             if perf_rss_samples % 60 == 0 {
                 #[cfg(target_os = "linux")]
                 {
-                    let rss = read_self_rss_kb();
+                    let rss = super::intro::read_self_rss_kb();
                     endurance_health.push_rss(rss as f64);
                 }
                 // Context switch rate sampling.
@@ -902,7 +901,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 if elapsed > 0.0 {
                     #[cfg(target_os = "linux")]
                     {
-                        let cur = read_self_voluntary_ctxt();
+                        let cur = super::intro::read_self_voluntary_ctxt();
                         if last_ctxt_switches > 0 {
                             let rate = (cur.saturating_sub(last_ctxt_switches)) as f64 / elapsed;
                             endurance_health.push_ctxt_rate(rate);
@@ -1078,122 +1077,5 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let final_color_name = format!("{:?}", cloud.color_scheme());
     super::set_final_state(&final_color_name, &scene_name, &charset_preset);
 
-    Ok(())
-}
-
-/// Read this process's current RSS from `/proc/self/status` (Linux only).
-#[cfg(target_os = "linux")]
-fn read_self_rss_kb() -> u64 {
-    // Read VmRSS from /proc/self/status. Lightweight: single line match.
-    // Falls back to 0 if unavailable (shouldn't happen on Linux).
-    use std::io::BufRead;
-    let f = match std::fs::File::open("/proc/self/status") {
-        Ok(f) => f,
-        Err(_) => return 0,
-    };
-    for l in std::io::BufReader::new(f).lines().map_while(Result::ok) {
-        if l.starts_with("VmRSS:") {
-            // Format: "VmRSS:    2800 kB"
-            return l
-                .split_whitespace()
-                .nth(1)
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(0);
-        }
-    }
-    0
-}
-
-/// Read voluntary context switches from `/proc/self/stat` (Linux only).
-#[cfg(target_os = "linux")]
-fn read_self_voluntary_ctxt() -> u64 {
-    // /proc/self/stat field 20 = voluntary_ctxt_switches
-    let stat = match std::fs::read_to_string("/proc/self/stat") {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-    // Fields are space-separated; field 20 (1-indexed) is voluntary_ctxt_switches.
-    // But comm (field 2) may contain spaces inside parens, so split after the closing paren.
-    let after_paren = match stat.rfind(')') {
-        Some(idx) => &stat[idx + 1..],
-        None => return 0,
-    };
-    let fields: Vec<&str> = after_paren.split_whitespace().collect();
-    // After ')', field indices shift: field 3 in the original = fields[0] here.
-    // voluntary_ctxt_switches is field 20 (1-indexed), so fields[17] (0-indexed).
-    fields.get(17).and_then(|s| s.parse().ok()).unwrap_or(0)
-}
-
-/// v17: Dragon Render intro. Types "COSMOSTRIX" at center, fades out.
-/// Skip with any key. Reuses Frame+Terminal. Increments FRAME_COUNTER
-/// so the watchdog doesn't kill the process during the 1.5s animation.
-fn run_intro(
-    term: &mut Terminal,
-    frame: &mut Frame,
-    cloud: &Cloud,
-    w: u16,
-    h: u16,
-) -> std::io::Result<()> {
-    use crossterm::event::Event;
-    let text = "COSMOSTRIX";
-    let chars: Vec<char> = text.chars().collect();
-    let start_row = h / 2;
-    let start_col = w.saturating_sub(chars.len() as u16) / 2;
-    let color = cloud
-        .palette
-        .colors
-        .last()
-        .copied()
-        .unwrap_or(crossterm::style::Color::White);
-    let bg = cloud.palette.bg;
-    let intro_start = Instant::now();
-    let duration_ms = 1500u64;
-    let frame_period = Duration::from_millis(33); // ~30 FPS
-
-    loop {
-        let elapsed = intro_start.elapsed().as_millis() as u64;
-        if elapsed >= duration_ms {
-            break;
-        }
-        if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
-            break;
-        }
-        while Terminal::poll_event(Duration::from_millis(0))? {
-            if let Ok(Event::Key(_)) = Terminal::read_event() {
-                return Ok(());
-            }
-        }
-        // Phase: typewriter fade-in (0-800ms), hold (800-1200ms), fade-out (1200-1500ms).
-        let visible = if elapsed < 800 {
-            ((elapsed as f32 / 800.0) * chars.len() as f32).ceil() as usize
-        } else if elapsed < 1200 {
-            chars.len()
-        } else {
-            // Fade-out: reduce visible chars from the left
-            let fade = (elapsed - 1200) as f32 / 300.0;
-            chars
-                .len()
-                .saturating_sub((fade * chars.len() as f32) as usize)
-        };
-        frame.clear_with_bg(bg);
-        for (i, &ch) in chars.iter().enumerate().take(visible) {
-            let x = start_col + i as u16;
-            if x < w {
-                frame.set_force(
-                    x,
-                    start_row,
-                    crate::cell::Cell {
-                        ch,
-                        fg: Some(color),
-                        bg,
-                        bold: true,
-                    },
-                );
-            }
-        }
-        term.draw(frame)?;
-        FRAME_COUNTER.fetch_add(1, Ordering::Relaxed);
-        std::thread::sleep(frame_period);
-    }
     Ok(())
 }

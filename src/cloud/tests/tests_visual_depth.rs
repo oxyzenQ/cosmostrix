@@ -11,7 +11,7 @@
 use crossterm::style::Color;
 
 use super::Cloud;
-use crate::bench::AVG_DIRTY_CELL_RATIO_MEANING;
+use crate::bench_meta::AVG_DIRTY_CELL_RATIO_MEANING;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
