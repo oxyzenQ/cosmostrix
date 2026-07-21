@@ -63,6 +63,7 @@ pub const LEGACY_CONFIG_KEYS: &[&str] = &[];
 const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain>";
+const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParsedConfig {
@@ -347,6 +348,15 @@ pub fn dump_config_text() -> &'static str {
 
 # ── Advanced Style ─────────────────────────────────────────────────
 
+# Color tuning (adjust rain brightness/saturation/head/body/tail)
+# All values: 0.0-3.0, default 1.0 = no change
+# [color.tune]
+# brightness = 1.0   # global brightness (dim-rain: use < 1.0)
+# saturation = 1.0   # color saturation (0.0 = grayscale)
+# head = 1.0         # head segment brightness
+# body = 1.0         # body segment brightness
+# tail = 1.0         # tail segment brightness
+
 # Bold style: 0=off, 1=random (default), 2=all
 # bold = 1
 
@@ -452,6 +462,7 @@ pub fn known_keys() -> Vec<&'static str> {
         .chain(std::iter::once(&PROFILE_CONFIG_KEY_HINT))
         .chain(std::iter::once(&SCENE_CUSTOM_CONFIG_KEY_HINT))
         .chain(std::iter::once(&COLORS_CUSTOM_CONFIG_KEY_HINT))
+        .chain(std::iter::once(&COLOR_TUNE_CONFIG_KEY_HINT))
         .copied()
         .collect()
 }
@@ -464,6 +475,7 @@ fn is_known_key(key: &str) -> bool {
         || is_scene_custom_config_key(key)
         || is_adaptive_custom_key(key)
         || is_colors_custom_key(key)
+        || is_color_tune_key(key)
 }
 
 /// Check if `key` matches the `colors-custom.<name>.<field>` pattern.
@@ -479,6 +491,18 @@ fn is_known_key(key: &str) -> bool {
 ///
 /// Name must be non-empty, ASCII alphanumeric + `-`/`_` only.
 #[inline]
+/// v17: Check if key matches `color.tune.<field>` pattern.
+fn is_color_tune_key(key: &str) -> bool {
+    matches!(
+        key,
+        "color.tune.brightness"
+            | "color.tune.saturation"
+            | "color.tune.head"
+            | "color.tune.body"
+            | "color.tune.tail"
+    )
+}
+
 fn is_colors_custom_key(key: &str) -> bool {
     let Some(rest) = key.strip_prefix("colors-custom.") else {
         return false;

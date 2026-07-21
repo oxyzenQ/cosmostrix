@@ -210,9 +210,7 @@ Run `cosmostrix --help` for common options or `cosmostrix --help-detail` for the
 COMMON OPTIONS
   -c, --color <name>        Color theme (see --list-colors)
      --color-custom <name>  Load a user-defined custom color palette from config (v16)
-     --color-tune <k=v>     Tune saturation/brightness (e.g. saturation=1.5,brightness=0.9)
-     --brightness <0.0-3.0>  Brightness multiplier (1.0 = no change)
-     --saturation <0.0-3.0>  Saturation multiplier (1.0 = no change; 0.0 = grayscale)
+     --color-tune <k=v>     Tune theme colors (keys: sat=, bright=, head=, body=, tail=)
   -C, --charset <name>      Character set (see --list-charsets)
      --charset-file <path>  Load custom characters from a file (whitelist-enforced)
   -f, --fps <1-240>         Target FPS

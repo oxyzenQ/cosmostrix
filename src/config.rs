@@ -183,26 +183,15 @@ pub struct Args {
         long = "color-tune",
         help_heading = "COMMON OPTIONS",
         display_order = 11,
-        help = "Tune theme saturation/brightness (keys: sat, bright; range 0.0-3.0)"
+        help = "Tune theme colors (keys: sat=, bright=, head=, body=, tail=; range 0.0-3.0)"
     )]
     pub color_tune: Option<String>,
 
-    #[arg(
-        long = "brightness",
-        value_name = "FACTOR",
-        help_heading = "COMMON OPTIONS",
-        display_order = 11,
-        help = "Brightness multiplier (0.0-3.0, default 1.0). Shorthand for --color-tune"
-    )]
+    // v17: --brightness/--saturation CLI flags REMOVED. Use --color-tune
+    // or [color.tune] config section instead.
+    #[arg(skip)]
     pub brightness: Option<f32>,
-
-    #[arg(
-        long = "saturation",
-        value_name = "FACTOR",
-        help_heading = "COMMON OPTIONS",
-        display_order = 11,
-        help = "Saturation multiplier (0.0-3.0, default 1.0; 0.0 = grayscale). Shorthand for --color-tune"
-    )]
+    #[arg(skip)]
     pub saturation: Option<f32>,
 
     #[arg(

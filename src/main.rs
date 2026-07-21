@@ -697,19 +697,9 @@ fn main() -> std::io::Result<()> {
     let color_tune = match args.color_tune.as_deref() {
         Some(s) => ux::or_exit(color_tune::parse_color_tune(s)),
         None => {
-            // Build from --brightness / --saturation convenience flags.
-            let sat = args
-                .saturation
-                .map(|v| ux::or_exit(validate_f32_range("--saturation", v, 0.0, 3.0)))
-                .unwrap_or(1.0);
-            let bright = args
-                .brightness
-                .map(|v| ux::or_exit(validate_f32_range("--brightness", v, 0.0, 3.0)))
-                .unwrap_or(1.0);
-            color_tune::ColorTune {
-                saturation: sat,
-                brightness: bright,
-            }
+            // v17: read [color.tune] from config.toml.
+            let cfg_map = configfile::load_config_file(args.config.as_deref());
+            color_tune::color_tune_from_config(&cfg_map)
         }
     };
     let rain_style = args

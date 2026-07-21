@@ -14,28 +14,12 @@ COMMON OPTIONS:
       cosmostrix --color rainbow
 
   --color-tune <key=value[,key=value]>
-      Tune any theme's saturation/brightness at load time.
-      Accepted keys (case-insensitive): saturation/sat, brightness/bright.
-      Value range: 0.0 to 3.0 (1.0 = identity, no change).
-      cosmostrix --color green --color-tune saturation=1.5,brightness=0.9
-      cosmostrix --color aurora --color-tune sat=0.0     # grayscale
-      cosmostrix --color red --color-tune bright=1.3     # +30% brightness
-      This turns the 43 built-in themes into 43 x infinite variants
-      without adding new themes.
-
-  --brightness <0.0-3.0>
-      Simple brightness multiplier (shorthand for --color-tune brightness=N).
-      1.0 = no change, 0.5 = half brightness, 1.5 = +50%.
-      cosmostrix --brightness 1.5
-      cosmostrix --color neon --brightness 0.8
-      Combines with --saturation. --color-tune overrides both when specified.
-
-  --saturation <0.0-3.0>
-      Simple saturation multiplier (shorthand for --color-tune saturation=N).
-      1.0 = no change, 0.0 = grayscale, 2.0 = double saturation.
-      cosmostrix --saturation 0.0       # grayscale any theme
-      cosmostrix --color ocean --saturation 1.5
-      Combines with --brightness. --color-tune overrides both when specified.
+      Tune theme colors. Accepted keys: sat, bright, head, body, tail.
+      Range 0.0-3.0 (1.0 = no change).
+      cosmostrix --color-tune sat=1.5,bright=0.9
+      cosmostrix --color-tune sat=0.0           # grayscale
+      cosmostrix --color-tune head=1.5,tail=0.5 # bright head, dim tail
+      Also configurable in config.toml via [color.tune] section.
 
   --charset <name>
       Character set. See --list-charsets for available sets.
