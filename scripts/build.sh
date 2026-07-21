@@ -551,11 +551,23 @@ build_pgo() {
 
         # Merge profile data
         local profdata_file="${pgo_dir}/cosmostrix.profdata"
+        local profdata_tool=""
         if command -v llvm-profdata >/dev/null 2>&1; then
-                log_info "Merging profile data with llvm-profdata..."
-                llvm-profdata merge -o "${profdata_file}" "${pgo_dir}"/*.profraw
+                profdata_tool="llvm-profdata"
         else
-                log_warn "llvm-profdata not found, using raw profdata directory"
+                # Try rustup llvm-tools
+                local rustup_profdata
+                rustup_profdata="$(rustc --print sysroot 2>/dev/null)/lib/rustlib/$(rustc -vV 2>/dev/null | sed -n 's/^host: //p')/bin/llvm-profdata"
+                if [ -x "${rustup_profdata}" ]; then
+                        profdata_tool="${rustup_profdata}"
+                fi
+        fi
+        if [ -n "${profdata_tool}" ]; then
+                log_info "Merging profile data with ${profdata_tool}..."
+                "${profdata_tool}" merge -o "${profdata_file}" "${pgo_dir}"/*.profraw
+        else
+                log_warn "llvm-profdata not found. Install with: rustup component add llvm-tools-preview"
+                log_info "Using raw profdata directory (rustc can handle this)"
                 profdata_file="${pgo_dir}"
         fi
 
