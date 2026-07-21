@@ -1,6 +1,11 @@
 # Rust
 target/
 
+# PGO profile data
+target/pgo-data/
+*.profraw
+*.profdata
+
 # IDE
 .idea/
 .vscode/

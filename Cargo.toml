@@ -87,6 +87,27 @@ inherits = "pro"
 [profile.pro-freebsd-amd64]
 inherits = "pro"
 
+# v18: PGO (Profile-Guided Optimization) nitro build.
+# Two-stage: instrument → run benchmark → recompile with profile data.
+# Use: ./scripts/build.sh pgo
+# Or manually:
+#   1. COSMOSTRIX_BUILD=nitro cargo build --profile pgo-instrument
+#   2. ./target/debug/cosmostrix --benchmark --bench-duration 10
+#   3. COSMOSTRIX_BUILD=nitro COSMOSTRIX_LTO=fat cargo build --profile pgo-use
+[profile.pgo-instrument]
+inherits = "pro"
+debug = false
+strip = false
+# Instrumentation flags set via RUSTFLAGS in build.sh
+incremental = false
+
+[profile.pgo-use]
+inherits = "pro"
+debug = false
+strip = true
+# Profile-use flag set via RUSTFLAGS in build.sh
+incremental = false
+
 [profile.release-with-debug]
 inherits = "release"
 debug = true

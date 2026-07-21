@@ -425,6 +425,7 @@ COMMANDS:
     debug           Build debug version (default)
     release         Build optimized release version
     release-debug   Build release with debug symbols
+    pgo             PGO nitro build (instrument → benchmark → optimize, +5-15% FPS)
     verify-release  Build and verify Linux x86_64 release variants
     test            Run test suite
     bench           Run benchmarks
@@ -503,6 +504,84 @@ if [ "${VERBOSE}" -eq 1 ]; then
         set -x
 fi
 
+# ── PGO (Profile-Guided Optimization) nitro build ───────────────────────
+# Two-stage: instrument → benchmark → recompile with profile data.
+# Expected gain: 5-15% FPS improvement over the pro profile.
+build_pgo() {
+        log_step "Starting PGO nitro build (2-stage: instrument → profile → optimize)"
+
+        local pgo_dir="${PWD}/target/pgo-data"
+        local instrument_bin="target/${TARGET}/pgo-instrument/${PROJECT_NAME}"
+        local nitro_bin="target/${TARGET}/pgo-use/${PROJECT_NAME}"
+
+        # Stage 1: Build instrumented binary
+        log_info "Stage 1/3: Building instrumented binary..."
+        mkdir -p "${pgo_dir}"
+        export COSMOSTRIX_BUILD="nitro-pgo-instrument"
+        export COSMOSTRIX_PROFILE="pgo-instrument"
+        export COSMOSTRIX_LTO="off"
+        export COSMOSTRIX_STRIP="no"
+        export RUSTFLAGS="-C profile-generate=${pgo_dir}"
+
+        if ! cargo build --profile pgo-instrument --target "${TARGET}" --jobs "${MAX_JOBS}"; then
+                log_error "Stage 1 failed: instrumented build failed"
+                exit 1
+        fi
+        log_success "Stage 1 complete: instrumented binary built"
+
+        # Stage 2: Run benchmark to collect profile data
+        log_info "Stage 2/3: Running benchmark to collect profile data (10s)..."
+        if [ ! -f "${instrument_bin}" ]; then
+                log_error "Stage 2 failed: instrumented binary not found at ${instrument_bin}"
+                exit 1
+        fi
+
+        if ! "${instrument_bin}" --benchmark --bench-duration 10 2>/dev/null; then
+                log_warn "Benchmark exited with non-zero status (may be normal in CI)"
+        fi
+
+        local profile_count
+        profile_count=$(find "${pgo_dir}" -name "*.profraw" 2>/dev/null | wc -l)
+        if [ "${profile_count}" -eq 0 ]; then
+                log_error "Stage 2 failed: no profile data collected in ${pgo_dir}"
+                log_info "Hint: ensure the benchmark ran for at least 5 seconds"
+                exit 1
+        fi
+        log_success "Stage 2 complete: ${profile_count} profile file(s) collected"
+
+        # Merge profile data
+        local profdata_file="${pgo_dir}/cosmostrix.profdata"
+        if command -v llvm-profdata >/dev/null 2>&1; then
+                log_info "Merging profile data with llvm-profdata..."
+                llvm-profdata merge -o "${profdata_file}" "${pgo_dir}"/*.profraw
+        else
+                log_warn "llvm-profdata not found, using raw profdata directory"
+                profdata_file="${pgo_dir}"
+        fi
+
+        # Stage 3: Build optimized binary with profile data
+        log_info "Stage 3/3: Building PGO-optimized nitro binary..."
+        export COSMOSTRIX_BUILD="nitro-pgo"
+        export COSMOSTRIX_PROFILE="pgo-use"
+        export COSMOSTRIX_LTO="fat"
+        export COSMOSTRIX_STRIP="yes"
+        export RUSTFLAGS="-C profile-use=${profdata_file}"
+
+        if ! cargo build --profile pgo-use --target "${TARGET}" --jobs "${MAX_JOBS}"; then
+                log_error "Stage 3 failed: PGO-optimized build failed"
+                exit 1
+        fi
+
+        local size
+        size=$(du -h "${nitro_bin}" | cut -f1)
+        log_success "PGO nitro build complete (${size})"
+        log_info "Binary: ${nitro_bin}"
+        log_info "Profile data: ${pgo_dir}"
+        echo ""
+        log_info "PGO gain: expected 5-15% FPS improvement over pro profile"
+        log_info "Run: ${nitro_bin} --benchmark to measure"
+}
+
 # Main execution
 main() {
         # Ensure we're in a Rust project
@@ -559,6 +638,11 @@ main() {
                 ;;
         check-all|--check-all)
                 run_comprehensive_check
+                ;;
+        pgo)
+                check_rust_toolchain
+                show_system_info
+                build_pgo
                 ;;
         ci)
                 run_comprehensive_check
