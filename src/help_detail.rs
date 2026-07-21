@@ -199,14 +199,6 @@ APPEARANCE:
       will show cyan behind the rain. 'black' forces solid #000000.
 
 GENERAL:
-  -a, --async
-      Variable column speeds for organic rain (default: on).
-      Each column gets a random speed multiplier (33%-100% of base),
-      producing desynchronized streams. Despite the name, this is NOT
-      Rust async/await — cosmostrix remains single-threaded. The name
-      'async' means 'asynchronous column pacing' — a legacy naming for
-      the variable-speed visual effect. Press 'a' at runtime to toggle.
-
   -F, --fullwidth
       Use full terminal width.
 

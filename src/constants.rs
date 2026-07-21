@@ -336,7 +336,7 @@ pub const STARTUP_EASE_TAU: f32 = 0.15;
 pub const HEAD_BLOOM_SIGMA: f32 = 1.5;
 
 /// Bloom glow intensity at the head cell itself (0.0 = off, 1.0 = full white blend).
-pub const HEAD_BLOOM_INTENSITY: f32 = 0.4;
+pub const HEAD_BLOOM_INTENSITY: f32 = 0.50;
 
 /// Number of cells behind the head that receive bloom glow effect.
 pub const HEAD_BLOOM_CELLS: u16 = 3;
@@ -350,7 +350,7 @@ pub const FOG_ROWS: u16 = 4;
 /// Raised from 0.25 to 0.35 — the old value made edge-row glyphs perceptually
 /// ~5% (effectively invisible). 0.35 (~14% perceptual) preserves the vignette
 /// effect while keeping edge glyphs faintly visible rather than lost entirely.
-pub const FOG_MIN_FACTOR: f32 = 0.45;
+pub const FOG_MIN_FACTOR: f32 = 0.65;
 
 // Mouse interaction (v17: always-on, --mouse flag deleted)
 // v17: MOUSE_AVOID_RADIUS_COLS removed — spawn avoidance deleted.
@@ -426,7 +426,7 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 /// background rain visibility. The old far-layer at 55% was perceptually
 /// ~14% (nearly invisible after other dimming); 70% is perceptually ~18%
 /// — still clearly dimmer than the near layer but actually visible.
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.70, 0.90, 1.0];
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.80, 0.95, 1.0];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
@@ -444,7 +444,7 @@ pub const PHOSPHOR_DECAY_RATE: f32 = 5.0;
 /// ghost cells are visible for ~400ms then fade — matching film Matrix
 /// energy. The bottom-row "concrete wall" artifact is still prevented by
 /// the PHOSPHOR_GLYPH_THRESHOLD (96) and PHOSPHOR_BOTTOM_DECAY_MULT (2.5).
-pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 120;
+pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 140;
 
 /// Below this energy, the cell is cleared to blank.
 pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
@@ -748,7 +748,7 @@ pub const EDGE_FADE_BOTTOM_LIP: f32 = 0.75;
 /// border. Combined with the existing fog vignette (FOG_MIN_FACTOR=0.35),
 /// the effective brightness at row 0 is ~0.55 × 0.35 ≈ 0.19 — visible
 /// but subdued, giving the cinematic "entering the frame" feel.
-pub const EDGE_FADE_TOP_MIN: f32 = 0.55;
+pub const EDGE_FADE_TOP_MIN: f32 = 0.70;
 
 /// Minimum brightness at the very bottom edge (last row).
 ///
@@ -759,7 +759,7 @@ pub const EDGE_FADE_TOP_MIN: f32 = 0.55;
 /// the Matrix film's bottom-edge vignette. Combined with fog (0.45),
 /// effective brightness at last row is ~0.20 × 0.45 ≈ 0.09 — near-black,
 /// the rain visibly disappears before hitting the border.
-pub const EDGE_FADE_BOTTOM_MIN: f32 = 0.20;
+pub const EDGE_FADE_BOTTOM_MIN: f32 = 0.35;
 
 /// Threshold for bold suppression at viewport edges. When the edge
 /// fade factor is below this value, bold is forced off to prevent bold

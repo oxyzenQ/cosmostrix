@@ -183,9 +183,7 @@ pub struct Args {
         long = "color-tune",
         help_heading = "COMMON OPTIONS",
         display_order = 11,
-        help = "Tune any theme's saturation/brightness at load time. \
-                Example: --color-tune saturation=1.2,brightness=0.9 \
-                (keys: saturation/sat, brightness/bright; range 0.0-3.0)"
+        help = "Tune theme saturation/brightness (keys: sat, bright; range 0.0-3.0)"
     )]
     pub color_tune: Option<String>,
 
@@ -194,8 +192,7 @@ pub struct Args {
         value_name = "FACTOR",
         help_heading = "COMMON OPTIONS",
         display_order = 11,
-        help = "Brightness multiplier for any theme (0.0-3.0, default 1.0 = no change). \
-                Shorthand for --color-tune brightness=N"
+        help = "Brightness multiplier (0.0-3.0, default 1.0). Shorthand for --color-tune"
     )]
     pub brightness: Option<f32>,
 
@@ -204,8 +201,7 @@ pub struct Args {
         value_name = "FACTOR",
         help_heading = "COMMON OPTIONS",
         display_order = 11,
-        help = "Saturation multiplier for any theme (0.0-3.0, default 1.0 = no change). \
-                Shorthand for --color-tune saturation=N"
+        help = "Saturation multiplier (0.0-3.0, default 1.0; 0.0 = grayscale). Shorthand for --color-tune"
     )]
     pub saturation: Option<f32>,
 
@@ -224,7 +220,7 @@ pub struct Args {
         value_name = "PATH",
         help_heading = "COMMON OPTIONS",
         display_order = 21,
-        help = "Load custom characters from a file (one character per line, or a single line of characters). Overrides --charset."
+        help = "Load custom characters from a file (overrides --charset)"
     )]
     pub charset_file: Option<String>,
 
@@ -272,9 +268,7 @@ pub struct Args {
         long = "uniform",
         help_heading = "ADVANCED",
         display_order = 57,
-        help = "Uniform column speeds (disables async variable pacing). \
-                By default cosmostrix uses variable column speeds for organic rain; \
-                --uniform makes all columns move at the same speed."
+        help = "Uniform column speeds (disables variable pacing for organic rain)"
     )]
     pub uniform: bool,
 
@@ -283,7 +277,7 @@ pub struct Args {
         long = "screensaver",
         help_heading = "COMMON OPTIONS",
         display_order = 60,
-        help = "Screensaver mode: only q exits (all other keys and mouse clicks ignored)"
+        help = "Screensaver mode: only q exits (all other input ignored)"
     )]
     pub screensaver: bool,
 
@@ -343,10 +337,7 @@ pub struct Args {
         display_order = 99,
         num_args = 0..=1,
         default_missing_value = "",
-        help = "Print a complete example config and exit. \
-                With a path argument, writes to that file instead of stdout. \
-                The path must be inside ~/.config/cosmostrix/ or /etc/cosmostrix/ \
-                (strict whitelist, same as --config)."
+        help = "Print example config to stdout, or write to <path> (whitelist-enforced)"
     )]
     pub dump_config: Option<String>,
 
@@ -362,7 +353,7 @@ pub struct Args {
         long = "testconf",
         help_heading = "CONFIG",
         display_order = 102,
-        help = "Validate config.toml and report errors (typos, unknown keys, invalid values). Run --config-path to see the location."
+        help = "Validate config.toml and report errors"
     )]
     pub testconf: bool,
 
@@ -387,9 +378,7 @@ pub struct Args {
         long = "bench-duration",
         help_heading = "DIAGNOSTICS",
         display_order = 111,
-        help = "Benchmark duration (default 5). Accepts bare seconds (5) or \
-                compound format (6s, 30m, 1h30m). Min: 1s. No max cap. \
-                Use with --benchmark for long-run drift / leak detection."
+        help = "Benchmark duration (default 5s). Accepts: 5, 6s, 30m, 1h30m"
     )]
     pub bench_duration: Option<String>,
 
@@ -397,10 +386,7 @@ pub struct Args {
         long = "screen-size",
         help_heading = "DIAGNOSTICS",
         display_order = 113,
-        help = "Fixed screen size WxH (e.g. 120x40, 12x12). \
-                Benchmark: override terminal size. \
-                Interactive: render to fixed virtual size (ignores terminal resize). \
-                Minimum: 1x1. If larger than terminal, renders to top-left and clips."
+        help = "Fixed screen size WxH (e.g. 120x40). Min 4x4"
     )]
     pub screen_size: Option<String>,
 
@@ -408,8 +394,7 @@ pub struct Args {
         long = "json",
         help_heading = "DIAGNOSTICS",
         display_order = 112,
-        help = "Output benchmark report as JSON (use with --benchmark). \
-                Machine-readable for CI/scripts. Pairs with --bench-duration."
+        help = "Output benchmark as JSON (use with --benchmark)"
     )]
     pub json: bool,
 
@@ -417,8 +402,7 @@ pub struct Args {
         long = "save-baseline",
         help_heading = "DIAGNOSTICS",
         display_order = 114,
-        help = "Save benchmark JSON to file for later comparison. \
-                Use with --benchmark --json. Example: --save-baseline v13.5.0.json"
+        help = "Save benchmark JSON to file (whitelist-enforced)"
     )]
     pub save_baseline: Option<String>,
 
@@ -426,9 +410,7 @@ pub struct Args {
         long = "compare-baseline",
         help_heading = "DIAGNOSTICS",
         display_order = 115,
-        help = "Compare current benchmark against saved baseline JSON. \
-                Flags regressions (>5% FPS drop) and improvements (>5% FPS gain). \
-                Example: --compare-baseline v13.4.0.json"
+        help = "Compare benchmark against saved baseline JSON"
     )]
     pub compare_baseline: Option<String>,
 
@@ -534,9 +516,7 @@ pub struct Args {
         short = 'v',
         help_heading = "DIAGNOSTICS",
         display_order = 130,
-        help = "Print diagnostic info to stderr (config resolution, path \
-                validation, terminal detection, atmosphere state). Useful \
-                for debugging config/loading issues."
+        help = "Print diagnostic info to stderr (for debugging)"
     )]
     pub verbose: bool,
 
