@@ -287,14 +287,10 @@ pub struct Args {
     )]
     pub screensaver: bool,
 
-    #[arg(
-        long = "mouse",
-        help_heading = "COMMON OPTIONS",
-        display_order = 65,
-        help = "Enable mouse hover/click visual effects (mouse reporting is always active to block text selection)"
-    )]
-    pub mouse: bool,
-
+    // v17 mastery: --mouse flag DELETED. Mouse hover/click visual effects are
+    // now ALWAYS ON (cursor glow + strong dual-ring click wave). Mouse reporting
+    // is also always on (blocks text selection). No flag needed — the effect
+    // is part of cosmostrix's signature interactive experience.
     #[arg(
         short = 'm',
         long = "message",

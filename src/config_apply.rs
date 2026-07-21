@@ -482,12 +482,8 @@ fn apply_config_values(
             }
         }
     }
-    if let Some(v) = config_value(matches, cfg, "mouse", "mouse") {
-        if let Some(b) = parse_bool_config("mouse", &v) {
-            args.mouse = b;
-            config_touched.insert("mouse");
-        }
-    }
+    // v17 mastery: --mouse flag deleted. Mouse effects are always-on.
+    // The config key "mouse" is no longer read — ignored if present.
     if let Some(v) = config_value(matches, cfg, "fullwidth", "fullwidth") {
         if let Some(b) = parse_bool_config("fullwidth", &v) {
             args.fullwidth = b;

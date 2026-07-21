@@ -76,7 +76,6 @@ pub(crate) fn print_verbose(
     glitch_low: u16,
     glitch_high: u16,
     glitch_level: &str,
-    mouse: bool,
     screensaver: bool,
     auto_drift: bool,
     atmosphere_mode: AtmosphereApplicationMode,
@@ -153,7 +152,7 @@ pub(crate) fn print_verbose(
         ),
     );
     output::eprintln_verbose("glitch_level:", &format!(" {glitch_level:?}"));
-    output::eprintln_verbose("mouse:", &format!(" {mouse}"));
+    output::eprintln_verbose("mouse:", " always-on (glow + click wave)");
     output::eprintln_verbose("screensaver:", &format!(" {screensaver}"));
     output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
     output::eprintln_verbose(

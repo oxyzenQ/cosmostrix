@@ -364,43 +364,68 @@ pub const FOG_ROWS: u16 = 4;
 /// effect while keeping edge glyphs faintly visible rather than lost entirely.
 pub const FOG_MIN_FACTOR: f32 = 0.45;
 
-// Mouse interaction
+// Mouse interaction (v17: always-on, --mouse flag deleted)
 
 /// Mouse interaction: radius around cursor (in columns) where droplets avoid.
 pub const MOUSE_AVOID_RADIUS_COLS: u16 = 5;
 
 /// Cursor glow: horizontal radius (in columns) for the brightness boost.
-pub const MOUSE_GLOW_RADIUS_COLS: f32 = 6.0;
+pub const MOUSE_GLOW_RADIUS_COLS: f32 = 7.0;
 
 /// Cursor glow: vertical radius (in lines) for the brightness boost.
-pub const MOUSE_GLOW_RADIUS_LINES: f32 = 4.0;
+pub const MOUSE_GLOW_RADIUS_LINES: f32 = 5.0;
 
 /// Cursor glow: peak intensity at cursor center (0.0 = off, 1.0 = full white).
 ///
-/// v17 audit: lowered from 0.35 to 0.15. The old value combined with the
-/// head cell's 0.45 self-bloom produced ~64% white blend on head cells under
-/// the cursor — brighter than the `storm` scene's `Intense` glitch. The new
-/// value produces a subtle ambient halo (~53% combined) that reads as a
-/// cursor cue rather than a "storm of bright comets". See research item 6.
-pub const MOUSE_GLOW_INTENSITY: f32 = 0.15;
+/// v17 mastery: raised from 0.15 to 0.22. The --mouse flag is deleted, so
+/// hover glow is always-on. The new value produces a visible but tasteful
+/// ambient halo (~57% combined with head self-bloom) that reads as a cursor
+/// cue without competing with the rain's brightness hierarchy.
+pub const MOUSE_GLOW_INTENSITY: f32 = 0.22;
 
 /// Click flash: ring expansion speed (columns per second).
-pub const MOUSE_FLASH_SPEED: f32 = 25.0;
+///
+/// v17 mastery: raised from 25.0 to 32.0. Faster wave expansion makes the
+/// click feel responsive and energetic — the wave radiates outward in a
+/// visible burst rather than a slow creep.
+pub const MOUSE_FLASH_SPEED: f32 = 32.0;
 
 /// Click flash: thickness of the glowing ring (in columns).
-pub const MOUSE_FLASH_RING_WIDTH: f32 = 3.0;
+///
+/// v17 mastery: raised from 3.0 to 4.5. A thicker ring produces a more
+/// visible wave front that reads as a deliberate "glow wave" effect rather
+/// than a thin flicker.
+pub const MOUSE_FLASH_RING_WIDTH: f32 = 4.5;
 
 /// Click flash: peak intensity at ring center (0.0 = off, 1.0 = full white).
 ///
-/// v17 audit: lowered from 0.60 to 0.30. The old value combined with cursor
-/// glow + head self-bloom produced up to 86% white blend on click-under-cursor
-/// cells — visually indistinguishable from a glitch flash. The new value
-/// gives a visible but gentle ripple (~58% combined peak) that does not
-/// compete with the rain's natural brightness hierarchy.
-pub const MOUSE_FLASH_INTENSITY: f32 = 0.30;
+/// v17 mastery: raised from 0.30 to 0.55. The owner wanted "strong glow
+/// effect wave when clicked, not boring". The new value produces a bright
+/// wave (~70% combined peak) that is clearly visible as a cinematic ripple
+/// radiating from the click point. Combined with the thicker ring and
+/// faster speed, the click now feels like a deliberate visual event.
+pub const MOUSE_FLASH_INTENSITY: f32 = 0.55;
 
 /// Click flash: total duration of the ripple effect in seconds.
-pub const MOUSE_FLASH_DURATION_SECS: f32 = 0.5;
+///
+/// v17 mastery: raised from 0.5 to 0.7. Longer duration lets the wave
+/// fully expand across the terminal (at 32 cells/s × 0.7s = 22.4 cells,
+/// covering most terminal widths). The fade-out is smooth, not abrupt.
+pub const MOUSE_FLASH_DURATION_SECS: f32 = 0.7;
+
+/// v17 mastery: secondary ripple intensity (fraction of primary flash).
+///
+/// A second, dimmer ring follows the primary wave at half the speed,
+/// creating a layered "echo" effect that makes the click feel more
+/// cinematic — like a stone dropped into water with a secondary ripple.
+/// Set to 0.0 to disable the secondary ripple.
+pub const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.35;
+
+/// v17 mastery: secondary ripple speed (fraction of primary speed).
+///
+/// The secondary ring expands at 0.5× the primary speed, so it lags
+/// behind and creates a layered wave effect.
+pub const MOUSE_FLASH_SECONDARY_SPEED_FRAC: f32 = 0.5;
 
 // Parallax depth layers
 

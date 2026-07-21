@@ -61,6 +61,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--profile",
         "error: --profile has been removed in v14.0.0.\n  Use --scene-custom <name> instead. Rename [profile.<name>] to [scene-custom.<name>] in config.toml (prefix-only rename — fields are identical).",
     ),
+    (
+        "--mouse",
+        "error: --mouse has been removed in v17.0.0.\n  Mouse hover/click visual effects are now ALWAYS ON (cursor glow + dual-ring click wave).\n  Mouse reporting is also always active (blocks text selection).\n  No flag needed — the effect is part of cosmostrix's signature interactive experience.",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.

@@ -118,7 +118,7 @@ pub fn print_doctor_report(args: &Args) {
         s.field("terminal_writer", "single-owner");
         s.field(
             "mouse_mode",
-            "always-on (blocks selection); hover effects opt-in via --mouse",
+            "always-on (glow + click wave; blocks selection)",
         );
         let hints = environment_hints(&term, &colorterm, locale_utf8, tmux, ssh, headless);
         let hint_text = if hints.is_empty() {

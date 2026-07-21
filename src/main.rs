@@ -951,7 +951,6 @@ fn main() -> std::io::Result<()> {
             glitch_low,
             glitch_high,
             &format!("{:?}", args.glitch_level),
-            args.mouse,
             args.screensaver,
             args.auto_color_drift,
             atmosphere_mode,
@@ -1031,7 +1030,7 @@ fn main() -> std::io::Result<()> {
         base_density,
         perf_stats: args.perf_stats,
         screensaver: args.screensaver,
-        mouse: args.mouse,
+        mouse: true, // v17: always-on (--mouse flag deleted)
         charset_preset,
         user_ranges,
         def_ascii,

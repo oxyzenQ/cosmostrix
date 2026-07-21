@@ -64,7 +64,7 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 - Adaptive throttling: reduces CPU usage when idle
 - Live config reload via filesystem watch (optional, `notify` crate) — full Cloud rebuild with strict validation on save
 - Screensaver mode — only `q` exits; recognized keys (c/s/x/i/etc.) still work
-- Optional mouse hover/click effects (`--mouse`)
+- Always-on mouse glow + click wave effects (cursor halo + dual-ring ripple)
 - Fixed virtual screen size (`--screen-size WxH`) for benchmarking at exact dimensions or rendering independent of terminal resize
 - 5-layer destructive terminal recovery (`--reset-terminal`)
 - Controlled atmosphere engine with 6 opt-in regimes (pulse, signal, compression, void, monolith-pressure, calm)
@@ -219,7 +219,7 @@ COMMON OPTIONS
   -S, --speed <1-100>       Rain speed
   -d, --density <0.01-5.0>  Rain density
   -s, --screensaver         Only q exits (all other keys ignored). Mouse events captured to block selection
-     --mouse                Enable mouse hover/click effects
+     --mouse                (deleted v17: effects always on)
   -m, --message <text>      Overlay message (use -mb for border)
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
      --scene <name>         Apply a built-in scene atmosphere (see --list-scenes)
@@ -318,7 +318,6 @@ fps = 60
 speed = 20
 density = 0.75
 glitch-level = subtle
-mouse = false
 ```
 
 Precedence: defaults → config file → scene/scene-custom layers → explicit CLI flags.

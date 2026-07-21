@@ -695,14 +695,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             cloud.force_draw_everything();
                             next_frame = activity_time;
                         }
-                        // Hover/click visual effects are opt-in via --mouse.
-                        // In non-mouse mode, we drain the event (blocking
-                        // selection) but don't apply visual effects.
-                        if cfg.mouse {
-                            cloud.set_mouse_position(m.column, m.row);
-                            if matches!(m.kind, MouseEventKind::Down(_)) {
-                                cloud.set_mouse_click(m.column, m.row);
-                            }
+                        // v17 mastery: hover/click visual effects are ALWAYS ON
+                        // (--mouse flag deleted). No cfg.mouse gate.
+                        cloud.set_mouse_position(m.column, m.row);
+                        if matches!(m.kind, MouseEventKind::Down(_)) {
+                            cloud.set_mouse_click(m.column, m.row);
                         }
                     }
                     Event::FocusGained => {

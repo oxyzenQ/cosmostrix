@@ -160,10 +160,10 @@ impl CloudConfig {
             cloud.set_monolith_density_map(Some(map));
         }
 
-        // Hover/click visual effects are opt-in (--mouse flag). Mouse reporting
-        // itself is always on (terminal-level, blocks text selection) — see
-        // event_loop.rs startup. This field controls only the visual effects.
-        cloud.mouse_enabled = self.mouse;
+        // v17 mastery: hover/click visual effects are ALWAYS ON (--mouse flag
+        // deleted). Mouse reporting is also always on (terminal-level, blocks
+        // text selection). cloud.mouse_enabled now always true.
+        cloud.mouse_enabled = true;
 
         // Color drift: disabled by default. When off, autonomous palette drift
         // from ColorEcosystem is suppressed so that explicit CLI/config/profile

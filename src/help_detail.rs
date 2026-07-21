@@ -77,17 +77,18 @@ COMMON OPTIONS:
       interactive control — cycle colors, toggle HUD, pause, etc.
       Mouse click does NOT exit (v17: removed for consistency with the
       only-q-quits policy). Mouse events are still captured to block
-      text selection (see --mouse).
+      text selection and trigger the always-on glow/click wave effects.
       cosmostrix --screensaver
-      cosmostrix --screensaver --mouse    # + hover effects
 
-  --mouse
-      Enable mouse hover/click visual effects (cursor glow, click flash).
-      Mouse reporting is ALWAYS active in interactive mode to block
-      text selection (drag-select is captured; Shift+drag still selects
-      in most terminals — this is a terminal-emulator feature that
-      cannot be disabled). Use --mouse to add hover/click visual
-      effects on top of the always-on selection blocking.
+  Mouse interaction (always on, no flag needed)
+      Cursor glow: cells near the mouse cursor get a subtle brightness
+      boost (ambient halo). Click flash: a strong dual-ring glow wave
+      radiates from the click point — a primary bright ring followed by
+      a secondary dimmer echo, creating a cinematic stone-in-water
+      ripple effect. Mouse reporting is always active to block text
+      selection (drag-select is captured; Shift+drag still selects in
+      most terminals — this is a terminal-emulator feature that cannot
+      be disabled).
 
   -m, --message <text>
       Display overlay message (no border).

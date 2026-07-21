@@ -40,7 +40,8 @@ use crate::constants::{
     EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP,
     FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA,
     HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_DURATION_SECS,
-    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
+    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC,
+    MOUSE_FLASH_SECONDARY_SPEED_FRAC, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
     PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
     TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
@@ -593,8 +594,13 @@ impl Droplet {
                     }
                 }
 
-                // Click flash: expanding ring of brightness from click point
+                // Click flash: expanding glow wave from click point (v17 mastery).
                 // F4: use cached flash_elapsed instead of per-cell flash_time.elapsed()
+                //
+                // v17 mastery: dual-ring wave effect. A primary bright ring
+                // expands outward, followed by a secondary dimmer ring at half
+                // speed — creating a layered "stone in water" cinematic ripple
+                // that makes clicks feel deliberate and energetic.
                 if let Some(elapsed) = ctx.flash_elapsed {
                     let col_dist = if self.bound_col > ctx.flash_col {
                         (self.bound_col - ctx.flash_col) as f32
@@ -607,12 +613,27 @@ impl Droplet {
                         (ctx.flash_line - line) as f32
                     };
                     let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
-                    let ring_radius = elapsed * MOUSE_FLASH_SPEED;
-                    let ring_dist = (euclidean - ring_radius).abs();
-                    if ring_dist < MOUSE_FLASH_RING_WIDTH {
-                        let t = 1.0 - ring_dist / MOUSE_FLASH_RING_WIDTH;
-                        let fade = 1.0 - elapsed / MOUSE_FLASH_DURATION_SECS;
-                        let factor = t * MOUSE_FLASH_INTENSITY * fade;
+                    let fade = 1.0 - elapsed / MOUSE_FLASH_DURATION_SECS;
+
+                    // Primary ring: fast, bright, full intensity.
+                    let primary_radius = elapsed * MOUSE_FLASH_SPEED;
+                    let primary_dist = (euclidean - primary_radius).abs();
+                    let mut factor = 0.0;
+                    if primary_dist < MOUSE_FLASH_RING_WIDTH {
+                        let t = 1.0 - primary_dist / MOUSE_FLASH_RING_WIDTH;
+                        factor = t * MOUSE_FLASH_INTENSITY * fade;
+                    }
+
+                    // Secondary ring: slower, dimmer, layered echo.
+                    let secondary_radius =
+                        elapsed * MOUSE_FLASH_SPEED * MOUSE_FLASH_SECONDARY_SPEED_FRAC;
+                    let secondary_dist = (euclidean - secondary_radius).abs();
+                    if secondary_dist < MOUSE_FLASH_RING_WIDTH {
+                        let t = 1.0 - secondary_dist / MOUSE_FLASH_RING_WIDTH;
+                        factor += t * MOUSE_FLASH_INTENSITY * MOUSE_FLASH_SECONDARY_FRAC * fade;
+                    }
+
+                    if factor > 0.0 {
                         let wf = (factor * 256.0) as i32;
                         r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                         g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
