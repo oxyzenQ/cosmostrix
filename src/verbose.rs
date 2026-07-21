@@ -103,11 +103,11 @@ pub(crate) fn print_verbose(
             output::now_hhmm()
         ))
     );
+
+    // ── Scene & Color ──────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Scene & Color ──"));
     output::eprintln_verbose("scene:", &format!(" {:?}", scene_name.unwrap_or("default")));
     output::eprintln_verbose("rain_style:", &format!(" {rain_style:?}"));
-    // v16: show custom palette name if set, otherwise show built-in scheme.
-    // v17: annotate color source so the user knows WHY the color is what
-    // it is (scene override, config file, CLI flag, or CLI default).
     if let Some(name) = custom_palette_name {
         output::eprintln_verbose("color_palette:", &format!(" {name} (custom)"));
     } else if let Some(src) = color_source {
@@ -124,11 +124,23 @@ pub(crate) fn print_verbose(
         ),
     );
     output::eprintln_verbose("color_bg:", &format!(" {default_bg:?}"));
+
+    // ── Glyphs ────────────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Glyphs ──"));
     output::eprintln_verbose(
         "charset:",
         &format!(" {charset_preset} ({} glyphs)", chars.len()),
     );
     output::eprintln_verbose("fullwidth:", &format!(" {fullwidth}"));
+    if let Some(cf) = charset_file {
+        output::eprintln_verbose(
+            "charset_file:",
+            &format!(" {cf} (safe: {})", is_safe_path(cf)),
+        );
+    }
+
+    // ── Motion ────────────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Motion ──"));
     output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
     output::eprintln_verbose("speed:", &format!(" {speed:.1}"));
     output::eprintln_verbose(
@@ -142,6 +154,9 @@ pub(crate) fn print_verbose(
         "off (uniform column speeds)"
     };
     output::eprintln_verbose("async_mode:", &format!(" {async_desc}"));
+
+    // ── Style ─────────────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Style ──"));
     output::eprintln_verbose("bold:", &format!(" {bold_mode:?}"));
     output::eprintln_verbose("shading:", &format!(" {shading_mode:?}"));
     output::eprintln_verbose(
@@ -152,23 +167,11 @@ pub(crate) fn print_verbose(
         ),
     );
     output::eprintln_verbose("glitch_level:", &format!(" {glitch_level:?}"));
+
+    // ── Interaction ───────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Interaction ──"));
     output::eprintln_verbose("mouse:", " always-on (glow + click wave)");
     output::eprintln_verbose("screensaver:", &format!(" {screensaver}"));
-    output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
-    output::eprintln_verbose(
-        "atmosphere:",
-        &format!(" {atmosphere_mode:?} / {atmosphere_modulation:?}"),
-    );
-    // Screen size: fixed (--screen-size) or dynamic (terminal-detected)
-    let (sw, sh, size_mode) = match screen_size {
-        Some((w, h)) => (w, h, "fixed"),
-        None => {
-            // Detect actual terminal size for display
-            let (tw, th) = crossterm::terminal::size().unwrap_or((0, 0));
-            (tw, th, "auto")
-        }
-    };
-    output::eprintln_verbose("screen_size:", &format!(" {sw}x{sh} ({size_mode})"));
     if let Some(msg) = message {
         output::eprintln_verbose(
             "message:",
@@ -181,6 +184,25 @@ pub(crate) fn print_verbose(
     if let Some(d) = duration {
         output::eprintln_verbose("duration:", &format!(" {d:.1}s"));
     }
+
+    // ── Atmosphere ────────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Atmosphere ──"));
+    output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
+    output::eprintln_verbose(
+        "atmosphere:",
+        &format!(" {atmosphere_mode:?} / {atmosphere_modulation:?}"),
+    );
+
+    // ── Terminal ──────────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Terminal ──"));
+    let (sw, sh, size_mode) = match screen_size {
+        Some((w, h)) => (w, h, "fixed"),
+        None => {
+            let (tw, th) = crossterm::terminal::size().unwrap_or((0, 0));
+            (tw, th, "auto")
+        }
+    };
+    output::eprintln_verbose("screen_size:", &format!(" {sw}x{sh} ({size_mode})"));
     let term = std::env::var("TERM").unwrap_or_else(|_| "(unset)".into());
     let colorterm = std::env::var("COLORTERM").unwrap_or_else(|_| "(unset)".into());
     let term_program = std::env::var("TERM_PROGRAM").unwrap_or_else(|_| "(unset)".into());
@@ -197,16 +219,13 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("LANG:", &format!(" {lang}"));
     output::eprintln_verbose("isatty(stderr):", &format!(" {is_tty}"));
     output::eprintln_verbose("isatty(stdout):", &format!(" {is_stdout_tty}"));
-    let config_path = configfile::default_config_file_path();
-    output::eprintln_verbose("config_path:", &format!(" {}", config_path.display()));
-    output::eprintln_verbose("config exists:", &format!(" {}", config_path.exists()));
-    if let Some(cf) = charset_file {
-        output::eprintln_verbose(
-            "charset_file:",
-            &format!(" {cf} (safe: {})", is_safe_path(cf)),
-        );
-    }
     let is_android = std::env::var("TERMUX_VERSION").is_ok()
         || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
     output::eprintln_verbose("android:", &format!(" {is_android}"));
+
+    // ── Config ────────────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Config ──"));
+    let config_path = configfile::default_config_file_path();
+    output::eprintln_verbose("config_path:", &format!(" {}", config_path.display()));
+    output::eprintln_verbose("config exists:", &format!(" {}", config_path.exists()));
 }

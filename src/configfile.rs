@@ -66,8 +66,8 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
 /// known_keys() chain without breaking existing callers.
 pub const LEGACY_CONFIG_KEYS: &[&str] = &[];
 
-const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
-const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
+const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base-scene|base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
+const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str =
     "colors-custom.<name>.<bg|head|stops|normal.red|normal.green|normal.blue|...|bright.red|...>";
 
@@ -321,10 +321,12 @@ pub fn dump_config_text() -> &'static str {
 # Target FPS. Adaptive pacing may reduce under load.
 # fps = 60
 
-# Rain fall speed (1–100)
+# Rain fall speed (1–100). Default depends on scene:
+#   monolith=30, matrix=8, signal=10, storm=22, calm=4, low-power=4
 # speed = 30
 
-# Rain density (0.01–5.0)
+# Rain density (0.01–5.0). Default depends on scene:
+#   monolith=0.85, matrix=0.55, signal=0.75, storm=1.15, calm=0.45
 # density = 0.85
 
 # Variable column speeds for organic rain (default: on)
@@ -340,8 +342,9 @@ pub fn dump_config_text() -> &'static str {
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
 
-# Mouse capture (default: off)
-# mouse = false
+# v17: --mouse flag DELETED. Mouse glow + click wave effects are always on.
+# Mouse reporting is always active (blocks text selection).
+# No config key needed — the effect is part of cosmostrix's signature.
 
 # Full-width CJK glyphs (default: off)
 # fullwidth = false
@@ -351,10 +354,10 @@ pub fn dump_config_text() -> &'static str {
 
 # ── Advanced Style ─────────────────────────────────────────────────
 
-# Bold style: 0=off, 1=random, 2=all
+# Bold style: 0=off, 1=random (default), 2=all
 # bold = 1
 
-# Shading: 0=random, 1=cinematic
+# Shading mode: 0=random, 1=cinematic (default — distance from head)
 # shadingmode = 1
 
 # ── Atmosphere Engine (opt-in) ─────────────────────────────────────
@@ -375,13 +378,13 @@ pub fn dump_config_text() -> &'static str {
 
 # Custom Scene Definitions (TOML table format)
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>
-# Fields: base, scene, preset, color, charset, fps, speed, density,
-#         density-map, glitch-level, monolith-size, color-bg,
+# Fields: base-scene (or alias: base), scene, preset, color, charset, fps, speed,
+#         density, density-map, glitch-level, monolith-size, color-bg,
 #         atmosphere-mode, atmosphere-regime
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
 # See docs/PROFILE_EXAMPLES.md for more examples.
 # [scene-custom.hacker-mode]
-# base = storm
+# base-scene = storm
 # color = green
 # charset = hacker
 # speed = 24
@@ -396,17 +399,17 @@ pub fn dump_config_text() -> &'static str {
 #
 # Twin Towers — two dense pillar clusters, sparse canyon between.
 # [scene-custom.twin-towers]
-# base = monolith
+# base-scene = monolith
 # density-map = 0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.7,0.7,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.7,0.7,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.7,0.7,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.7,0.7,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08
 #
 # Cascade — smooth linear gradient: dense left, sparse right (waterfall).
 # [scene-custom.cascade]
-# base = monolith
+# base-scene = monolith
 # density-map = 1.0,0.992,0.984,0.976,0.968,0.96,0.952,0.944,0.936,0.928,0.92,0.912,0.904,0.896,0.888,0.88,0.872,0.864,0.856,0.848,0.84,0.832,0.824,0.816,0.808,0.8,0.792,0.784,0.776,0.768,0.761,0.753,0.745,0.737,0.729,0.721,0.713,0.705,0.697,0.689,0.681,0.673,0.665,0.657,0.649,0.641,0.633,0.625,0.617,0.609,0.601,0.593,0.585,0.577,0.569,0.561,0.553,0.545,0.537,0.529,0.521,0.513,0.505,0.497,0.489,0.481,0.473,0.465,0.457,0.449,0.441,0.433,0.425,0.417,0.409,0.401,0.393,0.385,0.377,0.369,0.361,0.353,0.345,0.337,0.329,0.321,0.313,0.305,0.297,0.289,0.282,0.274,0.266,0.258,0.25,0.242,0.234,0.226,0.218,0.21,0.202,0.194,0.186,0.178,0.17,0.162,0.154,0.146,0.138,0.13,0.122,0.114,0.106,0.098,0.09,0.082,0.074,0.066,0.058,0.05
 #
 # Throne — massive pillar at center, ringed by sparse court.
 # [scene-custom.throne]
-# base = monolith
+# base-scene = monolith
 # density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
 
 # Adaptive Custom Time Map (optional, overrides default adaptive engine)

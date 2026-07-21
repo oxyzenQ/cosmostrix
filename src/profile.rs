@@ -22,6 +22,9 @@ use crate::validation::{
 };
 
 pub const PROFILE_FIELDS: &[&str] = &[
+    // v17: "base-scene" is the primary key (clearer naming).
+    // "base" kept as alias for backward compat.
+    "base-scene",
     "base",
     "scene",
     "preset",

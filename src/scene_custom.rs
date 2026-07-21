@@ -65,7 +65,9 @@ pub fn collect_custom_scenes(cfg: &HashMap<String, String>) -> BTreeMap<String, 
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
-            "base" | "scene" => scene.base = Some(value.clone()),
+            // v17: "base-scene" is the primary key (clearer naming).
+            // "base" kept as alias for backward compat.
+            "base-scene" | "base" | "scene" => scene.base = Some(value.clone()),
             "preset" => scene.preset = Some(value.clone()),
             "color" => scene.color = Some(value.clone()),
             "charset" => scene.charset = Some(value.clone()),
