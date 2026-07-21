@@ -33,7 +33,9 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
     "preset",
     "profile",
-    "scene-custom",
+    // v17 mastery: "scene-custom" selector key REMOVED.
+    // Use --scene-custom CLI flag instead. The [scene-custom.<name>] table
+    // definitions are still parsed — only the top-level selector key is gone.
     "color",
     "charset",
     "fps",
@@ -52,7 +54,9 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "atmosphere-mode",
     "atmosphere-regime",
     "adaptive-custom",
-    "colors-custom",
+    // v17 mastery: "colors-custom" selector key REMOVED (same as scene-custom).
+    // Use --colors-custom CLI flag. The [colors-custom.<name>] table definitions
+    // are still parsed — only the top-level selector key is gone.
 ];
 
 /// v17 mastery: legacy advanced config keys REMOVED.
@@ -295,14 +299,16 @@ pub fn dump_config_text() -> &'static str {
 #   storm | cosmos | neon | hacker | low-power
 # scene = monolith
 
-# Custom scene from config (optional, see [scene-custom] section below)
-# scene-custom = nightcore
+# Custom scene from CLI: cosmostrix --scene-custom <name>
+# (v17: selector key removed from config.toml — use the CLI flag)
+# See [scene-custom] section below to define custom scenes.
 
 # Color scheme (palette). See: cosmostrix --list-colors
 # color = cosmos
 
-# Custom color palette from config (optional, see [colors-custom] section below)
-# colors-custom = sunset
+# Custom color palette from CLI: cosmostrix --colors-custom <name>
+# (v17: selector key removed from config.toml — use the CLI flag)
+# See [colors-custom] section below to define custom palettes.
 
 # Character set for rain glyphs. See: cosmostrix --list-charsets
 # charset = binary

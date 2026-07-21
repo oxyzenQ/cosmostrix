@@ -336,15 +336,9 @@ pub fn rebuild_cloud_config(
         new.auto_color_drift = v.trim() == "true";
     }
 
-    // Monolith density map (from scene-custom blocks)
-    if let Some(v) = cfg.get("scene-custom") {
-        let scenes = crate::scene_custom::collect_custom_scenes(cfg);
-        if let Some(scene) = scenes.get(v.trim().to_ascii_lowercase().as_str()) {
-            if let Some(csv) = scene.density_map.as_deref() {
-                new.monolith_density_map = crate::scene_custom::parse_density_map(csv);
-            }
-        }
-    }
+    // v17 mastery: scene-custom selector key REMOVED from config.toml.
+    // Density map is now loaded only via --scene-custom CLI flag in main.rs.
+    // Live reload no longer reads the 'scene-custom' config key.
 
     new
 }

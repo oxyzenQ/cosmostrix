@@ -374,19 +374,12 @@ fn apply_config_values(
         }
     }
 
-    if let Some(v) = config_value(matches, cfg, "scene_custom", "scene-custom") {
-        match crate::scene_custom::validate_custom_scene_name(&v) {
-            Ok(name) => {
-                args.scene_custom = Some(name);
-                config_touched.insert("scene_custom");
-            }
-            Err(e) => {
-                crate::output::eprintln_error_labeled(&format!(
-                    "unknown custom scene '{v}' ({e}; see --list-scenes)"
-                ));
-            }
-        }
-    }
+    // v17 mastery: scene-custom selector key REMOVED from config.toml.
+    // Use the CLI flag: cosmostrix --scene-custom <name>
+    // The [scene-custom.<name>] table definitions are still parsed — only
+    // the top-level 'scene-custom = name' selector key is removed.
+    // Rationale: having two ways to select a custom scene (CLI flag + config
+    // key) was confusing. The CLI flag is the single source of truth.
 
     if let Some(v) = config_value(matches, cfg, "color", "color") {
         if parse_color_scheme(&v).is_ok() {
