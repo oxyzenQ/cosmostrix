@@ -193,9 +193,9 @@ jobs:
           set -euo pipefail
           BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
           BUILD_ID="${{ matrix.build }}"
-          OUT="$(${BIN} -i)"
+          OUT="$(${BIN} --doctor)"
           echo "${OUT}"
-          echo "${OUT}" | grep -E "^  variant: ${BUILD_ID}$" || { echo "::error::Expected variant ${BUILD_ID}"; exit 1; }
+          echo "${OUT}" | grep -E "^  build: ${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
           echo "${OUT}" | grep -E "^  dispatch: static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
           echo "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
           echo "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
@@ -496,9 +496,9 @@ jobs:
             grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
             grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
           else
-            OUT="$(${BIN} -i)"
+            OUT="$(${BIN} --doctor)"
             echo "${OUT}"
-            echo "${OUT}" | grep -E "^  variant: ${BUILD_ID}$" || { echo "::error::Expected variant ${BUILD_ID}"; exit 1; }
+            echo "${OUT}" | grep -E "^  build: ${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
             echo "${OUT}" | grep -Fx "  optimization: ${OPTIMIZATION}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
             echo "${OUT}" | grep -E "^  dispatch: static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
             echo "${OUT}" | grep -E "^  cpu_baseline: ${BASELINE}$" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
@@ -569,9 +569,10 @@ jobs:
           $outLines = & $bin --doctor
           $out = ($outLines | ForEach-Object { $_.TrimEnd("`r") }) -join "`n"
           $out
-          $pat = "(?m)^  variant: " + [regex]::Escape($build) + "\s*$"
+          # v17: --doctor has 'build:' field in SYSTEM section (not 'variant:' in BUILD)
+          $pat = "(?m)^  build: " + [regex]::Escape($build) + "\s*$"
           if ($out -notmatch $pat) {
-            throw "Expected variant '$build' in cosmostrix --doctor output"
+            throw "Expected build '$build' in cosmostrix --doctor output"
           }
           foreach ($pat in @(
             "(?m)^  dispatch: static optimized build\s*$",

@@ -283,9 +283,9 @@ jobs:
             grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
             grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
           else
-            OUT="$(${BIN} -i)"
+            OUT="$(${BIN} --doctor)"
             echo "${OUT}"
-            echo "${OUT}" | grep -E "^  variant: ${BUILD_ID}$" || { echo "::error::Expected variant ${BUILD_ID}"; exit 1; }
+            echo "${OUT}" | grep -E "^  build: ${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
             if [[ -n "${OPTIMIZATION}" ]]; then
               echo "${OUT}" | grep -Fx "  optimization: ${OPTIMIZATION}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
             fi
@@ -350,9 +350,10 @@ jobs:
             $outLines = & $bin --doctor
             $out = ($outLines | ForEach-Object { $_.TrimEnd("`r") }) -join "`n"
             $out
-            $pat = "(?m)^  variant: " + [regex]::Escape($build) + "\s*$"
+            # v17: --doctor has 'build:' field in SYSTEM section
+            $pat = "(?m)^  build: " + [regex]::Escape($build) + "\s*$"
             if ($out -notmatch $pat) {
-              throw "Expected variant '$build' in cosmostrix --doctor output"
+              throw "Expected build '$build' in cosmostrix --doctor output"
             }
             foreach ($pat in @(
               "(?m)^  dispatch: static optimized build\s*$",
