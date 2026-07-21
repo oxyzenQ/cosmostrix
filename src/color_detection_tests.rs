@@ -64,7 +64,7 @@ fn runtime_profile_color_display_uses_canonical_alias_names() {
         ("deep_blue", "deepspace"),
         ("grey", "gray"),
     ] {
-        let args = args_from_empty_config(&["--color", alias, "-i"]);
+        let args = args_from_empty_config(&["--color", alias, "--doctor"]);
         assert_eq!(args.color, canonical);
     }
 }

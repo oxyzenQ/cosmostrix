@@ -48,6 +48,53 @@ pub fn print_doctor_report(args: &Args) {
 
     let mut r = Report::new("COSMOSTRIX DIAGNOSTICS REPORT");
 
+    // v17: BUILD section (merged from --info)
+    {
+        let s = r.section("BUILD");
+        s.field("version", &format!("v{}", env!("CARGO_PKG_VERSION")));
+        if let Some(sha) = crate::info::build_commit_short() {
+            s.field("commit", sha);
+        }
+        s.field("variant", cpu.variant);
+        s.field("optimization", env!("COSMOSTRIX_OPTIMIZATION"));
+        s.field("dispatch", cpu.dispatch);
+        s.field("cpu_baseline", env!("COSMOSTRIX_CPU_BASELINE"));
+        s.field("target_features", env!("COSMOSTRIX_TARGET_FEATURES"));
+        s.field("rustc", env!("COSMOSTRIX_RUSTC_VERSION"));
+        s.field("lto", env!("COSMOSTRIX_LTO"));
+        s.field("panic", env!("COSMOSTRIX_PANIC"));
+        s.field("strip", env!("COSMOSTRIX_STRIP"));
+    }
+
+    // v17: RENDERER section (merged from --info)
+    {
+        let s = r.section("RENDERER");
+        s.field("backend", ri.backend);
+        s.field("pacing", ri.pacing);
+        s.field("unicode", ri.unicode);
+        s.field("frame_strategy", ri.frame_strategy);
+        s.field("dirty_tracking", ri.dirty_tracking);
+        s.field("io_strategy", ri.io_strategy);
+        s.field("color_depth", ri.color_depth);
+        s.field("identity", ri.identity);
+        s.field("gpu_usage", "not_applicable");
+        s.field(
+            "gpu_basis",
+            "CPU+stdout renderer; no GPU context is ever created",
+        );
+    }
+
+    // v17: CAPACITY section (merged from --info — uses actual terminal size)
+    {
+        let s = r.section("CAPACITY");
+        let (tw, th) = crossterm::terminal::size().unwrap_or((120, 40));
+        s.field("terminal_size", &format!("{tw}x{th}"));
+        s.field(
+            "est_memory_per_frame",
+            &crate::info::format_bytes(crate::info::estimate_memory_budget(tw, th)),
+        );
+    }
+
     // SYSTEM section
     {
         let s = r.section("SYSTEM");

@@ -430,13 +430,8 @@ pub struct Args {
     )]
     pub bench_all: bool,
 
-    #[arg(
-        long = "info",
-        short = 'i',
-        help_heading = "DIAGNOSTICS",
-        display_order = 120,
-        help = "Build and runtime information"
-    )]
+    // v17: --info/-i REMOVED. Merged into --doctor.
+    #[arg(skip)]
     pub info: bool,
 
     #[arg(

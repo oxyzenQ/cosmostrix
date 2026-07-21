@@ -117,6 +117,7 @@ impl Section {
     }
 
     /// Add a conditional field (only if `condition` is true).
+    #[allow(dead_code)]
     pub fn field_if(&mut self, key: &str, value: &str, condition: bool) -> &mut Self {
         if condition {
             self.field(key, value);

@@ -206,7 +206,8 @@ DIAGNOSTICS:
   --json         Output benchmark as JSON (use with --benchmark).
       Machine-readable single-line JSON for CI/scripts. Mirrors the text
       report's 13 sections. Option fields emit null; NaN/Inf emit null.
-  -i, --info     Build and runtime information.
+  --doctor       Build info, renderer details, environment diagnostics, and
+      terminal compatibility check. (v17: --info merged into --doctor)
   --reset-terminal
       Emergency terminal recovery — the nuclear option.
       Use after SIGKILL (kill -9) or crash leaves the terminal broken.
@@ -261,7 +262,7 @@ RENDERING PHILOSOPHY:
   ANSI escape sequences are the brush, glyphs are the pixels. No GPU
   context (OpenGL/Vulkan/Metal/DirectX/WebGPU) is ever created. GPU
   image-mode would change Cosmostrix from \"terminal rain\" to \"image
-  rain\" — a different program. See --info RENDERER for the field-level
+  rain\" — a different program. See --doctor RENDERER for the field-level
   declaration and docs/PHILOSOPHY.md for the full rationale.
 ";
 
