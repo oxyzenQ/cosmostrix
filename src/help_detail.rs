@@ -243,7 +243,6 @@ RUNTIME CONTROLS:
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             g          Toggle glitch
   m             Cycle behavior    Space      Reset animation
-  a             Toggle async
   i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)
 

@@ -783,22 +783,19 @@ pub(super) fn color_for_level(
 
     let last = colors.len().saturating_sub(1);
     let first_visible = usize::from(last > 0);
-    let ghost_idx = (last / 5).max(first_visible); // visible ghost trace
+    // v17 mastery: raised palette indices for vivid high-contrast rain.
+    // Old values were too dim — body cells (Ghost/Dim/Mid) were at 20-40%
+    // of palette brightness, making the rain look dark/dim.
+    // New values: Ghost/Dim at 33%, Mid at 60%, Hot at 85%, Core at 100%.
+    let ghost_idx = (last / 3).max(first_visible); // visible trace at 33%
     let idx = match level {
-        // Ghost: raised from first_visible to last/5 for visible trace.
-        // Was near-invisible after dimming; now ~25% perceptual brightness.
         BrightnessLevel::Ghost => ghost_idx,
-        // Dim: same as ghost for consistent visible trace
         BrightnessLevel::Dim => ghost_idx,
-        // Mid: slightly raised from last/2 for clearer body readability
-        // The body segment is the most common visual element and
-        // benefits from slightly higher contrast.
-        BrightnessLevel::Mid => (last * 2) / 5,
-        // Hot: raised from last*3/4 for sharper afterglow contrast
-        // The hot zone marks the bottom of hero segments and
-        // benefits from stronger contrast to separate from body.
-        BrightnessLevel::Hot => (last * 4) / 5,
-        // Core: unchanged — always the brightest
+        // Mid: raised from 40% to 60% for clear body visibility
+        BrightnessLevel::Mid => (last * 3) / 5,
+        // Hot: raised from 80% to 85% for sharper afterglow contrast
+        BrightnessLevel::Hot => (last * 17) / 20,
+        // Core: always brightest
         BrightnessLevel::Core => last,
     };
     let base_color = colors[idx];
@@ -816,17 +813,19 @@ pub(super) fn color_for_level(
         b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
     }
     if factor > 1.0 {
-        let white_factor = (factor - 1.0).min(0.12);
+        // v17 mastery: raised white_factor cap from 0.12 to 0.20 for
+        // stronger pulse/breath brightness boost on Core/Hot cells.
+        let white_factor = (factor - 1.0).min(0.20);
         let wf = (white_factor * 256.0) as i32;
         r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
         g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
         b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
     }
     if matches!(level, BrightnessLevel::Core) {
-        // Core gets 45% white blend — cinematic head pop.
-        // Was 10%, raised to 45% for film-quality head glow matching
-        // the glyph-mode head self-bloom.
-        const CORE_WF: i32 = 115; // 0.45 * 256 ≈ 115
+        // v17 mastery: CORE_WF = 140 (0.55 white blend). Was 115 (0.45).
+        // Head/core cell is dramatically brighter than body/tail —
+        // the high-contrast vivid hierarchy the owner wants.
+        const CORE_WF: i32 = 140; // 0.55 * 256 ≈ 140
         r = (r as i32 + ((255 - r as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
         g = (g as i32 + ((255 - g as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
         b = (b as i32 + ((255 - b as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;

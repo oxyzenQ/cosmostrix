@@ -680,14 +680,14 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
         let dim_sum = rgb_sum(&dim);
 
         assert!(
-            ghost_sum < 80,
-            "profile {}: ghost cell RGB sum {} must be < 80 on dark bg (anti-muddy)",
+            ghost_sum < 120,
+            "profile {}: ghost cell RGB sum {} must be < 120 on dark bg (v17: raised from 80 for vivid rain)",
             profile_idx,
             ghost_sum
         );
         assert!(
-            dim_sum < 80,
-            "profile {}: dim cell RGB sum {} must be < 80 on dark bg (anti-muddy)",
+            dim_sum < 120,
+            "profile {}: dim cell RGB sum {} must be < 120 on dark bg (v17: raised from 80 for vivid rain)",
             profile_idx,
             dim_sum
         );
