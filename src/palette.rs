@@ -30,11 +30,11 @@ pub struct Palette {
     pub bg: Option<Color>,
 }
 
-fn from_ansi_list(list: &[u8]) -> Vec<Color> {
+pub(crate) fn from_ansi_list(list: &[u8]) -> Vec<Color> {
     list.iter().map(|&v| Color::AnsiValue(v)).collect()
 }
 
-fn from_rgb_list(list: &[(u8, u8, u8)]) -> Vec<Color> {
+pub(crate) fn from_rgb_list(list: &[(u8, u8, u8)]) -> Vec<Color> {
     list.iter()
         .map(|&(r, g, b)| Color::Rgb { r, g, b })
         .collect()
@@ -117,7 +117,7 @@ fn rgb_to_color16(r: u8, g: u8, b: u8) -> Color {
     best
 }
 
-fn colors_from_rgb(mode: ColorMode, list: &[(u8, u8, u8)]) -> Vec<Color> {
+pub(crate) fn colors_from_rgb(mode: ColorMode, list: &[(u8, u8, u8)]) -> Vec<Color> {
     match mode {
         ColorMode::Mono => vec![Color::White],
         ColorMode::TrueColor => from_rgb_list(list),
@@ -351,7 +351,7 @@ pub fn apply_saturation(color: Color, factor: f32) -> Color {
     }
 }
 
-fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
+pub(crate) fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
     if steps == 0 || stops.is_empty() {
         return Vec::new();
     }
@@ -386,7 +386,11 @@ fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)
     out
 }
 
-fn colors_from_stops(mode: ColorMode, stops: &[(u8, u8, u8)], steps: usize) -> Vec<Color> {
+pub(crate) fn colors_from_stops(
+    mode: ColorMode,
+    stops: &[(u8, u8, u8)],
+    steps: usize,
+) -> Vec<Color> {
     if matches!(mode, ColorMode::Mono) {
         return vec![Color::White];
     }
