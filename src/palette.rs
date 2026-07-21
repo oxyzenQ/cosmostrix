@@ -223,6 +223,54 @@ fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
     result.clamp(0, 255) as u8
 }
 
+// ── v17 mastery: gamma-correct color interpolation ──────────────────────────
+//
+// Human eyes perceive brightness non-linearly. Linear RGB interpolation
+// (lerp_u8) produces muddy mid-tones and uneven brightness steps — the
+// middle of a black→white gradient looks gray instead of 50% brightness.
+//
+// Gamma-correct interpolation converts sRGB → linear light, interpolates
+// in linear space, then converts back. This produces perceptually uniform
+// gradients that match how eyes actually see color transitions.
+//
+// Cost: ~5 multiplies + 2 pow() per channel. Called ONLY at palette build
+// time (gradient_from_stops), NOT in the hot render path. Negligible.
+
+/// Convert an sRGB byte (0-255) to linear light (0.0-1.0).
+/// Uses the exact sRGB transfer function (IEC 61966-2-1).
+#[inline]
+fn srgb_to_linear(c: u8) -> f32 {
+    let cs = c as f32 / 255.0;
+    if cs <= 0.04045 {
+        cs / 12.92
+    } else {
+        ((cs + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// Convert linear light (0.0-1.0) to an sRGB byte (0-255).
+/// Uses the exact sRGB transfer function (IEC 61966-2-1).
+#[inline]
+fn linear_to_srgb(c: f32) -> u8 {
+    let cs = if c <= 0.0031308 {
+        12.92 * c
+    } else {
+        1.055 * c.powf(1.0 / 2.4) - 0.055
+    };
+    (cs * 255.0).round().clamp(0.0, 255.0) as u8
+}
+
+/// Gamma-correct linear interpolation between two sRGB bytes.
+/// Converts to linear light, interpolates, converts back to sRGB.
+/// Produces perceptually uniform gradients (no muddy mid-tones).
+#[inline]
+fn lerp_u8_gamma(a: u8, b: u8, t: f32) -> u8 {
+    let la = srgb_to_linear(a);
+    let lb = srgb_to_linear(b);
+    let lerped = la + (lb - la) * t;
+    linear_to_srgb(lerped)
+}
+
 /// Blend a color toward white by the given factor (0.0 = no change, 1.0 = pure white).
 /// Works with all color types (Rgb, AnsiValue, Ansi16).
 #[must_use]
@@ -326,10 +374,13 @@ fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)
         let lt = pos - (seg as f32);
         let (r0, g0, b0) = stops[seg];
         let (r1, g1, b1) = stops[seg + 1];
+        // v17 mastery: gamma-correct interpolation for perceptually uniform
+        // gradients. Linear interpolation (lerp_u8) produces muddy mid-tones;
+        // lerp_u8_gamma converts to linear light, interpolates, converts back.
         out.push((
-            lerp_u8(r0, r1, lt),
-            lerp_u8(g0, g1, lt),
-            lerp_u8(b0, b1, lt),
+            lerp_u8_gamma(r0, r1, lt),
+            lerp_u8_gamma(g0, g1, lt),
+            lerp_u8_gamma(b0, b1, lt),
         ));
     }
     out

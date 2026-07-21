@@ -171,21 +171,38 @@ fn apply_tune_to_color(color: Color, mode: ColorMode, tune: &ColorTune) -> Color
 }
 
 /// Apply saturation + brightness to an RGB triple.
+///
+/// v17 mastery: brightness is applied in LINEAR light space (gamma-correct),
+/// not sRGB space. Human eyes perceive brightness non-linearly — applying
+/// `*= 1.5` in sRGB produces uneven perceptual steps and clips too early.
+/// Converting to linear, scaling, and converting back matches how eyes
+/// actually perceive brightness changes. Saturation stays in sRGB (Rec. 709
+/// luminance weights) since saturation is a color-difference operation, not
+/// a brightness operation.
 fn apply_tune_rgb(r: u8, g: u8, b: u8, tune: &ColorTune) -> (u8, u8, u8) {
     let r = f32::from(r);
     let g = f32::from(g);
     let b = f32::from(b);
 
-    // Saturation: scale distance from luminance (Rec. 601 weights).
-    let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+    // Saturation: scale distance from luminance (Rec. 709 HDTV weights —
+    // more accurate than Rec. 601 for modern displays).
+    let gray = 0.2126 * r + 0.7152 * g + 0.0722 * b;
     let mut nr = gray + (r - gray) * tune.saturation;
     let mut ng = gray + (g - gray) * tune.saturation;
     let mut nb = gray + (b - gray) * tune.saturation;
 
-    // Brightness: scale each channel.
-    nr *= tune.brightness;
-    ng *= tune.brightness;
-    nb *= tune.brightness;
+    // Brightness: apply in LINEAR light space (gamma-correct).
+    // Convert sRGB → linear, scale, convert back. This produces perceptually
+    // uniform brightness changes — `brightness=2.0` looks like "twice as
+    // bright" to the eye, not "clipped to white".
+    if (tune.brightness - 1.0).abs() > 1e-6 {
+        nr = srgb_to_linear_f32(nr) * tune.brightness;
+        ng = srgb_to_linear_f32(ng) * tune.brightness;
+        nb = srgb_to_linear_f32(nb) * tune.brightness;
+        nr = linear_to_srgb_f32(nr);
+        ng = linear_to_srgb_f32(ng);
+        nb = linear_to_srgb_f32(nb);
+    }
 
     // Clamp to [0, 255] and round.
     (
@@ -193,6 +210,26 @@ fn apply_tune_rgb(r: u8, g: u8, b: u8, tune: &ColorTune) -> (u8, u8, u8) {
         ng.round().clamp(0.0, 255.0) as u8,
         nb.round().clamp(0.0, 255.0) as u8,
     )
+}
+
+/// sRGB byte (0-255) → linear light (0.0-1.0). Exact IEC 61966-2-1 transfer.
+fn srgb_to_linear_f32(c: f32) -> f32 {
+    let cs = c / 255.0;
+    if cs <= 0.04045 {
+        cs / 12.92
+    } else {
+        ((cs + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// Linear light (0.0-1.0) → sRGB byte (0-255). Exact IEC 61966-2-1 transfer.
+fn linear_to_srgb_f32(c: f32) -> f32 {
+    let cs = if c <= 0.0031308 {
+        12.92 * c
+    } else {
+        1.055 * c.powf(1.0 / 2.4) - 0.055
+    };
+    (cs * 255.0).clamp(0.0, 255.0)
 }
 
 /// Re-encode an RGB triple back to the active color mode.
@@ -313,26 +350,49 @@ mod tests {
 
     #[test]
     fn apply_tune_rgb_brightness_half_doubles_check() {
+        // v17 mastery: brightness is now gamma-correct (linear light space).
+        // brightness=0.5 on R=200 gives ~146 (not 100) because 50% perceptual
+        // brightness ≠ 50% sRGB value. The eye perceives non-linearly.
         let tune = ColorTune {
             saturation: 1.0,
             brightness: 0.5,
         };
         let (r, g, b) = apply_tune_rgb(200, 100, 50, &tune);
-        assert_eq!(r, 100, "brightness 0.5 must halve R");
-        assert_eq!(g, 50, "brightness 0.5 must halve G");
-        assert_eq!(b, 25, "brightness 0.5 must halve B");
+        // Gamma-correct: values are HIGHER than linear halving because
+        // the eye is more sensitive to dark changes than bright changes.
+        // R=200 → ~146, G=100 → ~71, B=50 → ~34 (computed via IEC 61966-2-1).
+        assert!(
+            r > 130 && r < 160,
+            "brightness 0.5 on R=200: {r} (expected ~146)"
+        );
+        assert!(
+            g > 60 && g < 80,
+            "brightness 0.5 on G=100: {g} (expected ~71)"
+        );
+        assert!(
+            b > 25 && b < 45,
+            "brightness 0.5 on B=50: {b} (expected ~34)"
+        );
     }
 
     #[test]
     fn apply_tune_rgb_clamps_to_255() {
+        // v17 mastery: brightness=3.0 in linear space. R=200 clamps to 255
+        // (linear > 1.0). G=100 does NOT clamp (linear * 3 < 1.0) — the old
+        // linear test expected 255, but gamma-correct gives a lower value.
         let tune = ColorTune {
             saturation: 1.0,
             brightness: 3.0,
         };
         let (r, g, b) = apply_tune_rgb(200, 100, 50, &tune);
-        assert_eq!(r, 255, "clamped to 255");
-        assert_eq!(g, 255, "clamped to 255");
-        assert_eq!(b, 150, "50 * 3 = 150, no clamp needed");
+        assert_eq!(r, 255, "R=200 * 3.0 clamps to 255 in linear space");
+        // G=100: linear ≈ 0.127, × 3.0 = 0.382 → sRGB ≈ 168 (not clamped)
+        assert!(
+            g > 150 && g < 200,
+            "G=100 * 3.0: {g} (expected ~168, not clamped)"
+        );
+        // B=50: linear ≈ 0.031, × 3.0 = 0.094 → sRGB ≈ 100
+        assert!(b > 80 && b < 120, "B=50 * 3.0: {b} (expected ~100)");
     }
 
     #[test]
