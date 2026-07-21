@@ -84,6 +84,9 @@ inherits = "pro"
 [profile.pro-android-aarch64]
 inherits = "pro"
 
+[profile.pro-freebsd-amd64]
+inherits = "pro"
+
 [profile.release-with-debug]
 inherits = "release"
 debug = true

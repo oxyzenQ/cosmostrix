@@ -414,6 +414,59 @@ jobs:
             }
           }
 
+  freebsd_amd64_build:
+    name: Dragon - Build (freebsd amd64)
+    runs-on: ubuntu-latest
+    needs: build_test
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.81.0
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2.9.1
+        with:
+          cache-on-failure: true
+
+      - name: Set cargo build jobs
+        shell: bash
+        run: echo "CARGO_BUILD_JOBS=$(nproc)" >> $GITHUB_ENV
+
+      - name: Add FreeBSD target
+        run: rustup target add x86_64-unknown-freebsd
+
+      - name: Build (freebsd-amd64 cross-compile)
+        shell: bash
+        env:
+          COSMOSTRIX_BUILD: freebsd-amd64
+          COSMOSTRIX_PROFILE: pro-freebsd-amd64
+        run: |
+          set -euo pipefail
+          cargo build --profile pro-freebsd-amd64 --locked --target x86_64-unknown-freebsd --jobs "${CARGO_BUILD_JOBS}"
+
+      - name: Verify embedded build metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="target/x86_64-unknown-freebsd/pro-freebsd-amd64/cosmostrix"
+          BUILD_ID="freebsd-amd64"
+          echo "Verifying embedded build metadata in binary: ${BUILD_ID}"
+          if command -v strings >/dev/null 2>&1; then
+            TEXT="$(strings "${BIN}")"
+          else
+            TEXT="$(grep -aE 'freebsd-amd64|static optimized build|fat|unwind|yes' "${BIN}" || true)"
+          fi
+          grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
+          grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
+          grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
+          grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
+          grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
+
   linux_cpu_variants:
     name: Dragon - Build (linux x86_64 variants)
     runs-on: ubuntu-latest
