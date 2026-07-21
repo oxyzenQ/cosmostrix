@@ -661,17 +661,29 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         let json = crate::bench_json::build_json_string(&report_data);
         println!("{json}");
 
-        // Save baseline if requested
+        // Save baseline if requested (v17: path whitelist enforced)
         if let Some(ref path) = cfg.save_baseline {
-            match crate::bench_baseline::save_baseline(path, &json) {
-                Ok(()) => eprintln!("[baseline] saved to {path}"),
-                Err(e) => eprintln!("{e}"),
+            if !crate::is_safe_path(path) {
+                eprintln!(
+                    "error: --save-baseline '{path}' is outside allowed directories\n  \
+                     Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
+                );
+            } else {
+                match crate::bench_baseline::save_baseline(path, &json) {
+                    Ok(()) => eprintln!("[baseline] saved to {path}"),
+                    Err(e) => eprintln!("{e}"),
+                }
             }
         }
 
-        // Compare baseline if requested
+        // Compare baseline if requested (v17: path whitelist enforced)
         if let Some(ref path) = cfg.compare_baseline {
-            if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
+            if !crate::is_safe_path(path) {
+                eprintln!(
+                    "error: --compare-baseline '{path}' is outside allowed directories\n  \
+                     Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
+                );
+            } else if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
                 eprintln!("{e}");
             }
         }
@@ -686,15 +698,28 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         if cfg.save_baseline.is_some() || cfg.compare_baseline.is_some() {
             let json = crate::bench_json::build_json_string(&report_data);
 
+            // v17: path whitelist enforced for baseline save/compare
             if let Some(ref path) = cfg.save_baseline {
-                match crate::bench_baseline::save_baseline(path, &json) {
-                    Ok(()) => eprintln!("[baseline] saved to {path}"),
-                    Err(e) => eprintln!("{e}"),
+                if !crate::is_safe_path(path) {
+                    eprintln!(
+                        "error: --save-baseline '{path}' is outside allowed directories\n  \
+                         Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
+                    );
+                } else {
+                    match crate::bench_baseline::save_baseline(path, &json) {
+                        Ok(()) => eprintln!("[baseline] saved to {path}"),
+                        Err(e) => eprintln!("{e}"),
+                    }
                 }
             }
 
             if let Some(ref path) = cfg.compare_baseline {
-                if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
+                if !crate::is_safe_path(path) {
+                    eprintln!(
+                        "error: --compare-baseline '{path}' is outside allowed directories\n  \
+                         Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
+                    );
+                } else if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
                     eprintln!("{e}");
                 }
             }

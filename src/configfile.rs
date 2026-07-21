@@ -60,10 +60,9 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
 /// known_keys() chain without breaking existing callers.
 pub const LEGACY_CONFIG_KEYS: &[&str] = &[];
 
-const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base-scene|base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
-const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
-const COLORS_CUSTOM_CONFIG_KEY_HINT: &str =
-    "colors-custom.<name>.<bg|head|stops|normal.red|normal.green|normal.blue|...|bright.red|...>";
+const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
+const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
+const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ParsedConfig {

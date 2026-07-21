@@ -74,6 +74,7 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         o.push_kv("cols", data.w);
         o.push_kv("lines", data.h);
         o.push_kv("target_fps", data.target_fps);
+        o.push_kv("speed", data.speed);
         o.push_kv("density", data.density);
     });
 
