@@ -666,7 +666,9 @@ impl Droplet {
                 // Cinematic head pop — head is OBVIOUSLY brighter than body.
                 // Was 12% (subtle), raised to 45% for film-quality head glow.
                 if matches!(loc, CharLoc::Head) {
-                    const HEAD_WF: i32 = 115; // 0.45 * 256 ≈ 115
+                    // v17 mastery: HEAD_WF = 140 (0.55 white blend) — head is
+                    // the brightest cell, high contrast vs body/tail. Was 115 (0.45).
+                    const HEAD_WF: i32 = 140; // 0.55 * 256 ≈ 140
                     r = (r as i32 + ((255 - r as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
                     g = (g as i32 + ((255 - g as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
                     b = (b as i32 + ((255 - b as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;

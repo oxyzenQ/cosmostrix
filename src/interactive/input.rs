@@ -154,9 +154,9 @@ pub(super) fn handle_keybinding(
                 cloud.transition_chars(chars);
             }
         }
-        (KeyCode::Char('a'), _) => {
-            cloud.set_async(!cloud.async_mode);
-        }
+        // v17: 'a' (toggle async) REMOVED. Async is always on; use --uniform
+        // to disable. The 'a' key now falls through to the _ => {} catch-all
+        // (silently ignored, like all other unrecognized keys).
         (KeyCode::Char('g'), _) => {
             cloud.set_glitchy(!cloud.glitchy);
         }

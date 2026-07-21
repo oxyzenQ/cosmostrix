@@ -220,7 +220,16 @@ pub const DIRTY_CAPACITY_CAP: usize = 8192;
 /// K=1.8, the same region is at 41% — clearly visible while still fading
 /// smoothly toward the tail. This preserves the head > body > tail hierarchy
 /// without making the trail body muddy and invisible.
-pub const TRAIL_EXPONENTIAL_K: f64 = 1.8;
+/// Exponential decay constant for trail brightness (distance from head).
+///
+/// v17 mastery: lowered from 1.8 to 1.2. The old value made the body
+/// fade too quickly — at 50% down the stream, brightness was only 41%
+/// (exp(-0.9)). The new value gives 55% at midpoint, producing a
+/// gradual head→body→tail fade that's clearly visible at all positions.
+/// Head is brightest, body is medium-bright, tail is dim — the cinematic
+/// hierarchy the owner wants: "head paling terang, body agak kurang,
+/// ekor redup".
+pub const TRAIL_EXPONENTIAL_K: f64 = 1.2;
 
 /// Hard cap on spawn remainder to prevent spawn debt accumulation
 /// at high speeds or after timing spikes. Without this, a long stall
@@ -336,7 +345,11 @@ pub const STARTUP_EASE_TAU: f32 = 0.15;
 pub const HEAD_BLOOM_SIGMA: f32 = 1.5;
 
 /// Bloom glow intensity at the head cell itself (0.0 = off, 1.0 = full white blend).
-pub const HEAD_BLOOM_INTENSITY: f32 = 0.50;
+///
+/// v17 mastery: raised from 0.4 to 0.55. Stronger head bloom for vivid
+/// high-contrast head visibility. Combined with HEAD_WF=0.55, the head
+/// cell is dramatically brighter than body/tail.
+pub const HEAD_BLOOM_INTENSITY: f32 = 0.55;
 
 /// Number of cells behind the head that receive bloom glow effect.
 pub const HEAD_BLOOM_CELLS: u16 = 3;
@@ -440,11 +453,12 @@ pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 pub const PHOSPHOR_DECAY_RATE: f32 = 5.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
-/// Lowered from 160 to 120 for crisper trail. At 120 (~47% brightness),
-/// ghost cells are visible for ~400ms then fade — matching film Matrix
-/// energy. The bottom-row "concrete wall" artifact is still prevented by
-/// the PHOSPHOR_GLYPH_THRESHOLD (96) and PHOSPHOR_BOTTOM_DECAY_MULT (2.5).
-pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 140;
+/// v17 mastery: raised from 120 to 160. Trail brightness at ~63% (was 47%).
+/// Body cells are clearly visible as colored rain, not dim ghosts. The
+/// head→body→tail hierarchy is: head = brightest (55% white blend), body
+/// = medium-bright (palette color at 55-80% brightness via exp decay),
+/// tail = dim (palette color at 0-30% brightness).
+pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 160;
 
 /// Below this energy, the cell is cleared to blank.
 pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
