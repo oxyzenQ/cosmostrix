@@ -119,9 +119,18 @@ pub fn collect_colors_custom(cfg: &HashMap<String, String>) -> BTreeMap<String, 
 pub fn load_custom_palette(cfg: &HashMap<String, String>, name: &str) -> Result<Palette, String> {
     let palettes = collect_colors_custom(cfg);
     let normalized = name.trim().to_ascii_lowercase();
-    let def = palettes
-        .get(&normalized)
-        .ok_or_else(|| format!("custom color '{name}' not found in config"))?;
+    let def = palettes.get(&normalized).ok_or_else(|| {
+        let mut available: Vec<String> = palettes.keys().cloned().collect();
+        available.sort();
+        let list = if available.is_empty() {
+            "<none defined>".to_string()
+        } else {
+            available.join(", ")
+        };
+        format!(
+            "custom color '{name}' not found in config\nexpected one of: {list}\n\n  Use --list-colors to see built-in and custom palettes."
+        )
+    })?;
     def.to_palette()
 }
 

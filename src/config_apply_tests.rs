@@ -144,7 +144,9 @@ fn explicit_matrix_scene_restores_classic_defaults() {
     // v17: matrix scene now sets explicit density=0.55 for cinematic
     // sparse rain (was None → CLI default 1.0, which was too crowded).
     assert_eq!(args.density, 0.55);
-    assert_eq!(args.glitch_level, GlitchLevel::Default);
+    // v17 hardening: matrix scene now sets glitch_level=Subtle (was None →
+    // Default 10%). Subtle (3%) matches cinematic sparse cascade identity.
+    assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
 #[test]

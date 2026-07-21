@@ -51,7 +51,7 @@ pub const SCENES: &[SceneInfo] = &[
             fps: None,
             speed: Some(8.0),
             density: Some(0.55),
-            glitch_level: None,
+            glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
