@@ -328,58 +328,10 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 None
             }
         }),
-        "glitchpct" => v.parse::<f64>().ok().and_then(|n| {
-            if !(0.0..=100.0).contains(&n) {
-                Some(format!("out of range [0.0, 100.0], got {n}"))
-            } else {
-                None
-            }
-        }).or_else(|| {
-            if v.parse::<f64>().is_err() {
-                Some(format!("expected number in [0.0, 100.0], got '{v}'"))
-            } else {
-                None
-            }
-        }),
-        "shortpct" => v.parse::<f64>().ok().and_then(|n| {
-            if !(0.0..=100.0).contains(&n) {
-                Some(format!("out of range [0.0, 100.0], got {n}"))
-            } else {
-                None
-            }
-        }).or_else(|| {
-            if v.parse::<f64>().is_err() {
-                Some(format!("expected number in [0.0, 100.0], got '{v}'"))
-            } else {
-                None
-            }
-        }),
-        "rippct" => v.parse::<f64>().ok().and_then(|n| {
-            if !(0.0..=100.0).contains(&n) {
-                Some(format!("out of range [0.0, 100.0], got {n}"))
-            } else {
-                None
-            }
-        }).or_else(|| {
-            if v.parse::<f64>().is_err() {
-                Some(format!("expected number in [0.0, 100.0], got '{v}'"))
-            } else {
-                None
-            }
-        }),
-        "maxdpc" => v.parse::<i64>().ok().and_then(|n| {
-            if !(1..=3).contains(&n) {
-                Some(format!("out of range [1, 3], got {n}"))
-            } else {
-                None
-            }
-        }).or_else(|| {
-            if v.parse::<i64>().is_err() {
-                Some(format!("expected integer in [1, 3], got '{v}'"))
-            } else {
-                None
-            }
-        }),
+        // v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct,
+        // maxdpc) REMOVED from --testconf validation. These are now fully
+        // controlled by --glitch-level. If present in config.toml, they are
+        // silently ignored (not validated, not flagged as unknown).
         "bold" => match v {
             "0" | "1" | "2" => None,
             _ => Some(format!("expected 0, 1, or 2, got '{v}'")),

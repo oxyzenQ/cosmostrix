@@ -303,14 +303,9 @@ pub fn rebuild_cloud_config(
         new.noglitch = v.trim().eq_ignore_ascii_case("none");
     }
 
-    // Glitch percent
-    if let Some(v) = cfg.get("glitchpct") {
-        if let Ok(n) = v.parse::<f32>() {
-            if (0.0..=100.0).contains(&n) {
-                new.glitch_pct = n;
-            }
-        }
-    }
+    // v17 mastery: legacy advanced config keys (glitchpct, shortpct, rippct,
+    // maxdpc) REMOVED from live reload. These are now fully controlled by
+    // --glitch-level. The old keys are silently ignored on live reload.
 
     // Glitch times (ms range)
     if let Some(v) = cfg.get("glitchms") {
@@ -325,33 +320,6 @@ pub fn rebuild_cloud_config(
         if let Some((lo, hi)) = parse_range(v) {
             new.linger_low = lo;
             new.linger_high = hi;
-        }
-    }
-
-    // Short pct
-    if let Some(v) = cfg.get("shortpct") {
-        if let Ok(n) = v.parse::<f32>() {
-            if (0.0..=100.0).contains(&n) {
-                new.short_pct = n;
-            }
-        }
-    }
-
-    // Die early pct (rippct)
-    if let Some(v) = cfg.get("rippct") {
-        if let Ok(n) = v.parse::<f32>() {
-            if (0.0..=100.0).contains(&n) {
-                new.die_early_pct = n;
-            }
-        }
-    }
-
-    // Max droplets per column
-    if let Some(v) = cfg.get("maxdpc") {
-        if let Ok(n) = v.parse::<u8>() {
-            if (1..=3).contains(&n) {
-                new.max_dpc = n;
-            }
         }
     }
 

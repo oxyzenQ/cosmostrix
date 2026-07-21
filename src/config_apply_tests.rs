@@ -486,15 +486,32 @@ fn invalid_config_values_are_ignored() {
 }
 
 #[test]
-fn legacy_keys_still_apply() {
+fn legacy_keys_no_longer_apply_v17() {
+    // v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct, maxdpc)
+    // are REMOVED. They are silently ignored — values come from --glitch-level
+    // preset only. Default glitch_level is Subtle (from monolith scene default).
     let args = args_with_config(
         "glitchpct = 7\nshortpct = 22\nrippct = 11\nmaxdpc = 2\n",
         &[],
     );
-    assert_eq!(args.glitch_pct, 7.0);
-    assert_eq!(args.shortpct, 22.0);
-    assert_eq!(args.rippct, 11.0);
-    assert_eq!(args.max_droplets_per_column, 2);
+    // Default scene is monolith which sets glitch_level = Subtle.
+    // Subtle preset: glitch_pct=3.0, shortpct=60.0, rippct=45.0, maxdpc=3.
+    assert_eq!(
+        args.glitch_pct, 3.0,
+        "glitchpct config key ignored, uses Subtle preset"
+    );
+    assert_eq!(
+        args.shortpct, 60.0,
+        "shortpct config key ignored, uses Subtle preset"
+    );
+    assert_eq!(
+        args.rippct, 45.0,
+        "rippct config key ignored, uses Subtle preset"
+    );
+    assert_eq!(
+        args.max_droplets_per_column, 3,
+        "maxdpc config key ignored, uses default"
+    );
 }
 
 #[test]
@@ -523,10 +540,8 @@ fn dump_config_mentions_supported_keys() {
         "mouse",
         "fullwidth",
         "auto-color-drift",
-        "glitchpct",
-        "shortpct",
-        "rippct",
-        "maxdpc",
+        // v17 mastery: legacy keys (glitchpct, shortpct, rippct, maxdpc)
+        // REMOVED from dump config. Use --glitch-level instead.
     ] {
         assert!(dump.contains(key), "dump config should contain {key}");
     }

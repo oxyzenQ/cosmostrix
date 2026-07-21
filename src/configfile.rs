@@ -55,7 +55,12 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "colors-custom",
 ];
 
-pub const LEGACY_CONFIG_KEYS: &[&str] = &["glitchpct", "shortpct", "rippct", "maxdpc"];
+/// v17 mastery: legacy advanced config keys REMOVED.
+/// These keys (glitchpct, shortpct, rippct, maxdpc) are no longer read
+/// from config.toml. Use --glitch-level (none|subtle|default|intense) for
+/// all glitch tuning. The empty slice preserves the const signature for
+/// known_keys() chain without breaking existing callers.
+pub const LEGACY_CONFIG_KEYS: &[&str] = &[];
 
 const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base|scene|preset|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
@@ -357,12 +362,10 @@ pub fn dump_config_text() -> &'static str {
 # atmosphere-mode = controlled-live
 # atmosphere-regime = adaptive
 
-# ── Legacy Advanced (kept for compat, prefer glitch-level) ─────────
-
-# glitchpct = 10
-# shortpct = 50
-# rippct = 33.33333
-# maxdpc = 3
+# v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct, maxdpc)
+# REMOVED. Use --glitch-level (none|subtle|default|intense) for all glitch
+# tuning. The --glitch-level preset controls glitch percent, stream decay,
+# fragmented stream chance, and stream layering automatically.
 
 # Custom Scene Definitions (TOML table format)
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>
@@ -603,10 +606,26 @@ mod tests {
     }
 
     #[test]
-    fn legacy_keys_are_known() {
+    fn legacy_keys_removed_v17() {
+        // v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct,
+        // maxdpc) are REMOVED. They are now flagged as unknown by --testconf
+        // so users know to migrate to --glitch-level. They do NOT go into
+        // parsed.values (only known keys do).
         let parsed = parse_config_text("glitchpct = 3\nshortpct = 60\nrippct = 45\nmaxdpc = 2\n");
-        assert_eq!(parsed.values.len(), 4);
-        assert!(parsed.unknown_keys.is_empty());
+        assert_eq!(
+            parsed.values.len(),
+            0,
+            "legacy keys should not be in values"
+        );
+        assert_eq!(
+            parsed.unknown_keys.len(),
+            4,
+            "legacy keys should be flagged as unknown"
+        );
+        assert!(parsed.unknown_keys.contains(&"glitchpct".to_string()));
+        assert!(parsed.unknown_keys.contains(&"shortpct".to_string()));
+        assert!(parsed.unknown_keys.contains(&"rippct".to_string()));
+        assert!(parsed.unknown_keys.contains(&"maxdpc".to_string()));
     }
 
     #[test]

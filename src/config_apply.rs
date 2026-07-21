@@ -519,35 +519,16 @@ fn apply_config_values(
 }
 
 fn apply_legacy_config(
-    matches: &clap::ArgMatches,
-    args: &mut Args,
+    _matches: &clap::ArgMatches,
+    _args: &mut Args,
     cfg: &HashMap<String, String>,
-    config_touched: &mut HashSet<&'static str>,
+    _config_touched: &mut HashSet<&'static str>,
 ) {
-    if let Some(v) = config_value(matches, cfg, "glitch_pct", "glitchpct") {
-        if let Some(f) = parse_f32_config("glitchpct", &v, 0.0, 100.0) {
-            args.glitch_pct = f;
-            config_touched.insert("glitch_pct");
-        }
-    }
-    if let Some(v) = config_value(matches, cfg, "shortpct", "shortpct") {
-        if let Some(f) = parse_f32_config("shortpct", &v, 0.0, 100.0) {
-            args.shortpct = f;
-            config_touched.insert("shortpct");
-        }
-    }
-    if let Some(v) = config_value(matches, cfg, "rippct", "rippct") {
-        if let Some(f) = parse_f32_config("rippct", &v, 0.0, 100.0) {
-            args.rippct = f;
-            config_touched.insert("rippct");
-        }
-    }
-    if let Some(v) = config_value(matches, cfg, "max_droplets_per_column", "maxdpc") {
-        if let Some(n) = parse_u8_config("maxdpc", &v, 1, 3) {
-            args.max_droplets_per_column = n;
-            config_touched.insert("max_droplets_per_column");
-        }
-    }
+    // v17 mastery: legacy advanced config keys (glitchpct, shortpct, rippct,
+    // maxdpc) REMOVED. These are now fully controlled by --glitch-level.
+    // The old keys are silently ignored if present in config.toml.
+    // Use --glitch-level (none|subtle|default|intense) for all glitch tuning.
+    let _ = cfg; // suppress unused warning
 }
 
 fn apply_scene_values(
@@ -634,61 +615,40 @@ fn apply_glitch_level_values(
             if !should_skip("noglitch") {
                 args.noglitch = false;
             }
-            if !should_skip("glitch_pct") {
-                args.glitch_pct = 3.0;
-            }
-            if !should_skip("glitch_ms") {
-                args.glitch_ms = crate::config::U16Range {
-                    low: 200,
-                    high: 300,
-                };
-            }
-            if !should_skip("shortpct") {
-                args.shortpct = 60.0;
-            }
-            if !should_skip("rippct") {
-                args.rippct = 45.0;
-            }
+            // v17 mastery: glitch_pct, shortpct, rippct, max_dpc are no longer
+            // CLI flags or config keys (removed legacy). Always set from the
+            // glitch_level preset — no should_skip needed.
+            args.glitch_pct = 3.0;
+            args.glitch_ms = crate::config::U16Range {
+                low: 200,
+                high: 300,
+            };
+            args.shortpct = 60.0;
+            args.rippct = 45.0;
         }
         GlitchLevel::Default => {
             if !should_skip("noglitch") {
                 args.noglitch = false;
             }
-            if !should_skip("glitch_pct") {
-                args.glitch_pct = 10.0;
-            }
-            if !should_skip("glitch_ms") {
-                args.glitch_ms = crate::config::U16Range {
-                    low: 300,
-                    high: 400,
-                };
-            }
-            if !should_skip("shortpct") {
-                args.shortpct = 50.0;
-            }
-            if !should_skip("rippct") {
-                args.rippct = 33.33333;
-            }
+            args.glitch_pct = 10.0;
+            args.glitch_ms = crate::config::U16Range {
+                low: 300,
+                high: 400,
+            };
+            args.shortpct = 50.0;
+            args.rippct = 33.33333;
         }
         GlitchLevel::Intense => {
             if !should_skip("noglitch") {
                 args.noglitch = false;
             }
-            if !should_skip("glitch_pct") {
-                args.glitch_pct = 25.0;
-            }
-            if !should_skip("glitch_ms") {
-                args.glitch_ms = crate::config::U16Range {
-                    low: 500,
-                    high: 800,
-                };
-            }
-            if !should_skip("shortpct") {
-                args.shortpct = 30.0;
-            }
-            if !should_skip("rippct") {
-                args.rippct = 20.0;
-            }
+            args.glitch_pct = 25.0;
+            args.glitch_ms = crate::config::U16Range {
+                low: 500,
+                high: 800,
+            };
+            args.shortpct = 30.0;
+            args.rippct = 20.0;
         }
     }
 }

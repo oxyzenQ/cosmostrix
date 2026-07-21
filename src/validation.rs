@@ -240,10 +240,24 @@ struct CliSpec {
 #[derive(Clone, Copy)]
 enum CliKind {
     Speed,
-    Integer { min: u32, max: u32 },
-    DecimalF32 { min: f32, max: f32 },
-    DecimalF64 { min: f64, max: f64 },
-    Enum { allowed: &'static [&'static str] },
+    // v17 mastery: Integer variant kept for future use (was used by --maxdpc
+    // before removal). Marked #[allow(dead_code)] to suppress the warning.
+    #[allow(dead_code)]
+    Integer {
+        min: u32,
+        max: u32,
+    },
+    DecimalF32 {
+        min: f32,
+        max: f32,
+    },
+    DecimalF64 {
+        min: f64,
+        max: f64,
+    },
+    Enum {
+        allowed: &'static [&'static str],
+    },
 }
 
 fn cli_spec(flag: &str) -> Option<CliSpec> {
@@ -273,31 +287,8 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
                 max: 86400.0,
             },
         },
-        "--glitchpct" => CliSpec {
-            name: "--glitchpct",
-            kind: CliKind::DecimalF32 {
-                min: 0.0,
-                max: 100.0,
-            },
-        },
-        "--shortpct" => CliSpec {
-            name: "--shortpct",
-            kind: CliKind::DecimalF32 {
-                min: 0.0,
-                max: 100.0,
-            },
-        },
-        "--rippct" | "-r" => CliSpec {
-            name: "--rippct",
-            kind: CliKind::DecimalF32 {
-                min: 0.0,
-                max: 100.0,
-            },
-        },
-        "--maxdpc" => CliSpec {
-            name: "--maxdpc",
-            kind: CliKind::Integer { min: 1, max: 3 },
-        },
+        // v17 mastery: --glitchpct, --shortpct, --rippct, --maxdpc CLI flags
+        // REMOVED. Use --glitch-level instead. Removed from prevalidator.
         "--monolith-size" => CliSpec {
             name: "--monolith-size",
             kind: CliKind::Enum {
@@ -462,10 +453,11 @@ mod tests {
 
     #[test]
     fn representative_cli_values_reject_cleanly() {
+        // v17 mastery: --maxdpc removed from CLI. Replaced with --fps edge case.
         let cases = [
             ("--fps", "0", "expected: number in range 1..=240"),
             ("--density", "nope", "expected: number in range 0.01..=5"),
-            ("--maxdpc", "4", "expected: number in range 1..=3"),
+            ("--fps", "500", "expected: number in range 1..=240"),
             (
                 "--monolith-size",
                 "huge",

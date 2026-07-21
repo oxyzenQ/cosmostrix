@@ -616,13 +616,9 @@ pub struct Args {
     )]
     pub glitch_ms: U16Range,
 
-    #[arg(
-        short = 'G',
-        long = "glitchpct",
-        default_value_t = 10.0,
-        hide = true,
-        help = "Glitch chance in percent (min 0 max 100)"
-    )]
+    // v17 mastery: --glitchpct CLI flag REMOVED. Use --glitch-level instead.
+    // Field kept for internal use (set by glitch_level preset via config_apply).
+    #[arg(skip = 10.0_f32)]
     pub glitch_pct: f32,
 
     #[arg(
@@ -650,12 +646,8 @@ pub struct Args {
     )]
     pub message_border: bool,
 
-    #[arg(
-        long = "maxdpc",
-        default_value_t = 3,
-        hide = true,
-        help = "Stream layering (min 1 max 3)"
-    )]
+    // v17 mastery: --maxdpc CLI flag REMOVED. Use --glitch-level instead.
+    #[arg(skip = 3u8)]
     pub max_droplets_per_column: u8,
 
     #[arg(
@@ -669,21 +661,12 @@ pub struct Args {
     )]
     pub noglitch: bool,
 
-    #[arg(
-        short = 'r',
-        long = "rippct",
-        default_value_t = 33.33333,
-        hide = true,
-        help = "Stream decay chance in percent (min 0 max 100)"
-    )]
+    // v17 mastery: --rippct / -r CLI flag REMOVED. Use --glitch-level instead.
+    #[arg(skip = 33.33333_f32)]
     pub rippct: f32,
 
-    #[arg(
-        long = "shortpct",
-        default_value_t = 50.0,
-        hide = true,
-        help = "Fragmented stream chance in percent (min 0 max 100)"
-    )]
+    // v17 mastery: --shortpct CLI flag REMOVED. Use --glitch-level instead.
+    #[arg(skip = 50.0_f32)]
     pub shortpct: f32,
 
     #[arg(long = "chars", hide = true, help = "Custom characters override")]
