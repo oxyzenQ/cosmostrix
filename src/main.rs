@@ -909,9 +909,8 @@ fn main() -> std::io::Result<()> {
         )
     };
 
-    // --uniform flag disables async variable column speeds.
-    // --async (hidden, default on) is still respected for backward compat;
-    // --uniform takes precedence (if both are set, uniform wins = async off).
+    // v17: --async flag removed. Async is always on (default true).
+    // --uniform disables it (uniform wins = async off).
     let effective_async = args.async_mode && !args.uniform;
 
     // Parse --screen-size once here so verbose block and CloudConfig both

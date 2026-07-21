@@ -112,10 +112,9 @@ fn config_glitch_level_subtle_applies() {
 }
 
 #[test]
-fn config_preset_calm_applies() {
-    // v14.0.0: `preset = calm` in config is a deprecated alias for `scene = calm`.
-    // The redirect emits a warning and sets args.scene = "calm".
-    let args = args_with_config("preset = calm\n", &[]);
+fn config_scene_calm_applies() {
+    // v17: 'preset' deprecated alias removed. Use 'scene = calm' directly.
+    let args = args_with_config("scene = calm\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("calm"));
     assert_eq!(args.color, "ocean");
     assert_eq!(args.charset, "minimal");
@@ -373,10 +372,9 @@ fn explicit_cli_overrides_config_value() {
 }
 
 #[test]
-fn explicit_cli_overrides_config_preset() {
-    // v14.0.0: `preset = storm` in config redirects to scene = storm.
-    // CLI --fps and --color override scene-managed values.
-    let args = args_with_config("preset = storm\n", &["--fps", "60", "--color", "green"]);
+fn explicit_cli_overrides_config_scene() {
+    // v17: 'preset' removed. Use 'scene = storm' directly.
+    let args = args_with_config("scene = storm\n", &["--fps", "60", "--color", "green"]);
     assert_eq!(args.scene.as_deref(), Some("storm"));
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.color, "green");
@@ -396,10 +394,10 @@ fn cli_preset_overrides_config_preset() {
 
 #[test]
 fn preset_overrides_config_managed_fields() {
-    // v14.0.0: `preset = calm` redirects to scene = calm. Scenes only fill
+    // v17: 'preset' removed. Use 'scene = calm' directly.
     // UNSET keys, so config-set color and speed are preserved (scene no
     // longer overrides config-managed fields — that was old preset semantics).
-    let args = args_with_config("preset = calm\ncolor = red\nspeed = 20\n", &[]);
+    let args = args_with_config("scene = calm\ncolor = red\nspeed = 20\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("calm"));
     assert_eq!(
         args.color, "red",
@@ -410,12 +408,12 @@ fn preset_overrides_config_managed_fields() {
 
 #[test]
 fn config_low_power_applies_after_config_without_preset() {
-    // v14.0.0: `low-power = true` redirects to scene = low-power. Scenes
+    // v17: 'low-power = true' removed. Use 'scene = low-power'.
     // only fill UNSET keys, so config-set fps/speed/density are preserved.
     // (Old behavior: low-power always forced its values. New behavior is
     // consistent with how all scenes interact with config-set keys.)
     let args = args_with_config(
-        "fps = 120\nspeed = 30\ndensity = 2\nlow-power = true\n",
+        "fps = 120\nspeed = 30\ndensity = 2\nscene = low-power\n",
         &[],
     );
     assert_eq!(args.scene.as_deref(), Some("low-power"));
@@ -477,13 +475,13 @@ fn low_power_preset_sets_expected_values() {
 #[test]
 fn invalid_config_values_are_ignored() {
     let args = args_with_config(
-        "color = not-a-color\nfps = 0\nspeed = nope\nlow-power = maybe\npreset = unknown\n",
+        "color = not-a-color\nfps = 0\nspeed = nope\nscene = unknown\n",
         &[],
     );
     assert_eq!(args.color, "cosmos");
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.speed, 30.0);
-    // v14.0.0: invalid `preset = unknown` does not set scene; default monolith applies.
+    // v14.0.0: invalid `scene = unknown` does not set scene; default monolith applies.
     assert_eq!(args.scene.as_deref(), Some("monolith"));
 }
 

@@ -540,17 +540,9 @@ pub struct Args {
     )]
     pub verbose: bool,
 
-    // === HIDDEN (functional but intentionally undocumented in --help) ===
-    #[arg(
-        short = 'a',
-        long = "async",
-        default_value_t = true,
-        action = clap::ArgAction::Set,
-        num_args = 0..=1,
-        default_missing_value = "true",
-        hide = true,
-        help = "Variable column speeds for organic rain (default: on)"
-    )]
+    // v17: --async / -a CLI flag REMOVED. Async is always on; use --uniform
+    // to disable. Field kept for internal use.
+    #[arg(skip = true)]
     pub async_mode: bool,
 
     #[arg(

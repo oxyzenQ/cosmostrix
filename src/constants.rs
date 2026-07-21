@@ -17,26 +17,14 @@ pub const DENSITY_AUTO_DEFAULT_LINES: u16 = 40;
 /// Base terminal width for auto-density scaling.
 pub const DENSITY_BASE_COLS: f32 = 80.0;
 
-/// Base terminal height for auto-density scaling.
-/// v17: unused — the new auto_density_factor() is width-only (height
-/// scaling was a conceptual bug). Kept for backward compat in case
-/// external code or future formulas reference it.
-#[allow(dead_code)]
-pub const DENSITY_BASE_LINES: f32 = 25.0;
+// v17: DENSITY_BASE_LINES removed — auto-density is now width-only.
+// v17: DENSITY_AUTO_MAX removed — auto factor capped at 1.0 (identity).
 
 /// Auto-density clamp range (min factor).
 /// v17: the auto-density factor is now a width-only dampener
 /// (clamp(cols/80, DENSITY_AUTO_MIN, 1.0)). It never amplifies above
-/// 1.0 — the old sqrt(area) amplifier was removed (see app.rs docs).
+/// 1.0 — the old sqrt(area) amplifier was removed.
 pub const DENSITY_AUTO_MIN: f32 = 0.5;
-
-/// Auto-density clamp range (max factor).
-/// v17: unused — the auto factor is now capped at 1.0 (identity) instead
-/// of DENSITY_AUTO_MAX. The old 2.0 cap allowed the sqrt(area) amplifier
-/// to double density on large terminals, which was a conceptual bug
-/// (per-column density is scale-invariant). Kept for backward compat.
-#[allow(dead_code)]
-pub const DENSITY_AUTO_MAX: f32 = 2.0;
 
 /// Absolute density clamp range (min).
 pub const DENSITY_CLAMP_MIN: f32 = 0.01;
@@ -365,12 +353,8 @@ pub const FOG_ROWS: u16 = 4;
 pub const FOG_MIN_FACTOR: f32 = 0.45;
 
 // Mouse interaction (v17: always-on, --mouse flag deleted)
-
-/// Mouse interaction: radius around cursor (in columns) where droplets avoid.
-///
-/// v17 mastery: UNUSED — spawn avoidance removed. Kept for backward compat.
-#[allow(dead_code)]
-pub const MOUSE_AVOID_RADIUS_COLS: u16 = 5;
+// v17: MOUSE_AVOID_RADIUS_COLS removed — spawn avoidance deleted.
+// MOUSE_GLOW_INTENSITY = 0.0 — hover glow disabled (dim/dark default).
 
 /// Cursor glow: horizontal radius (in columns) for the brightness boost.
 pub const MOUSE_GLOW_RADIUS_COLS: f32 = 7.0;

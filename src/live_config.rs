@@ -385,7 +385,10 @@ mod tests {
     #[test]
     fn validate_skips_block_keys() {
         let mut cfg = HashMap::new();
-        cfg.insert("scene-custom.test.base".to_string(), "monolith".to_string());
+        cfg.insert(
+            "scene-custom.test.base-scene".to_string(),
+            "monolith".to_string(),
+        );
         cfg.insert("speed".to_string(), "30".to_string());
         let result = crate::testconf::validate_config_strictly(&cfg);
         assert!(result.is_ok());

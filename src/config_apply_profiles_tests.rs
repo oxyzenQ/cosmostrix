@@ -53,7 +53,7 @@ pub(crate) fn args_with_config(config: &str, cli: &[&str]) -> Args {
 }
 
 fn nightcore_config() -> &'static str {
-    "profile.nightcore.base = monolith\n\
+    "profile.nightcore.base-scene = monolith\n\
      profile.nightcore.color = purple\n\
      profile.nightcore.charset = binary\n\
      profile.nightcore.speed = 24\n\
@@ -86,7 +86,7 @@ fn cli_profile_loads_user_profile_from_config() {
 #[test]
 fn profile_base_monolith_applies_monolith_foundation() {
     let args = args_with_config(
-        "profile.nightcore.base = monolith\n",
+        "profile.nightcore.base-scene = monolith\n",
         &["--scene-custom", "nightcore"],
     );
     assert_eq!(args.scene.as_deref(), Some("monolith"));
@@ -116,11 +116,9 @@ fn explicit_cli_flags_override_profile_values() {
 
 #[test]
 fn config_profile_applies_after_config_scene() {
-    let config = format!(
-        "scene = signal\nprofile = nightcore\n{}",
-        nightcore_config()
-    );
-    let args = args_with_config(&config, &[]);
+    // v17: 'profile = X' config key removed. Use --scene-custom CLI flag.
+    let config = format!("scene = signal\n{}", nightcore_config());
+    let args = args_with_config(&config, &["--scene-custom", "nightcore"]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.speed, 24.0);
@@ -156,7 +154,7 @@ fn unknown_cli_profile_has_clear_error() {
 
 #[test]
 fn invalid_profile_values_are_ignored_cleanly() {
-    let config = "profile.bad.base = monolith\n\
+    let config = "profile.bad.base-scene = monolith\n\
                   profile.bad.color = not-a-color\n\
                   profile.bad.speed = 0\n\
                   profile.bad.density = nope\n";
@@ -215,21 +213,18 @@ fn config_color_overridden_by_config_preset_is_precedence_not_drift() {
 
 #[test]
 fn profile_color_resolves_sun_after_preset_and_scene() {
-    // Config profile color should override preset/scene color because
-    // config profile (step 5) has higher precedence than config preset (step 3)
-    // and config scene (step 4).
+    // v17: 'preset' and 'profile' config keys removed.
+    // Use 'scene = monolith' + --scene-custom CLI flag.
     let args = args_with_config(
-        "preset = cinematic\n\
-         scene = monolith\n\
-         profile = nightcore\n\
-         profile.nightcore.base = monolith\n\
+        "scene = monolith\n\
+         profile.nightcore.base-scene = monolith\n\
          profile.nightcore.color = sun\n\
          profile.nightcore.charset = binary\n\
          profile.nightcore.speed = 24\n\
          profile.nightcore.density = 0.70\n\
          profile.nightcore.glitch-level = subtle\n\
          profile.nightcore.monolith-size = large\n",
-        &[],
+        &["--scene-custom", "nightcore"],
     );
     assert_eq!(
         args.color, "sun",
@@ -258,7 +253,7 @@ fn cli_color_wins_over_config_preset_and_scene() {
 
 fn atmosphere_config_profile(name: &str, mode: &str, regime: &str) -> String {
     format!(
-        "profile.{name}.base = monolith\n\
+        "profile.{name}.base-scene = monolith\n\
          profile.{name}.color = purple\n\
          profile.{name}.charset = binary\n\
          profile.{name}.speed = 24\n\

@@ -316,27 +316,9 @@ fn apply_config_values(
     cfg: &HashMap<String, String>,
     config_touched: &mut HashSet<&'static str>,
 ) {
-    // v14.0.0: `preset = X` in config is a deprecated alias for `scene = X`.
-    // All 8 former presets (classic, cinematic, calm, monolith, storm, cosmos,
-    // neon, hacker, low-power) are now built-in scenes, so the value is
-    // validated as a scene name and redirected. A deprecation warning is
-    // emitted on stderr.
-    if let Some(v) = config_value(matches, cfg, "scene", "preset") {
-        match validate_scene_name(&v) {
-            Ok(name) => {
-                eprintln!(
-                    "warning: 'preset = {v}' in config is deprecated; use 'scene = {name}' instead (all presets are now scenes)"
-                );
-                args.scene = Some(name);
-                config_touched.insert("scene");
-            }
-            Err(_) => {
-                crate::output::eprintln_error_labeled(&format!(
-                    "invalid preset='{v}' (use --list-scenes to see available scenes; presets are now scenes)"
-                ));
-            }
-        }
-    }
+    // v17: 'preset' deprecated alias REMOVED. Use 'scene' instead.
+    // Existing configs with 'preset = X' will flag it as unknown key
+    // via --testconf, prompting migration to 'scene = X'.
 
     if let Some(v) = config_value(matches, cfg, "scene", "scene") {
         match validate_scene_name(&v) {
@@ -353,26 +335,8 @@ fn apply_config_values(
         }
     }
 
-    // v14.0.0: `profile = X` in config is a deprecated alias for `scene-custom = X`.
-    // The value is validated as a custom-scene name and redirected. A deprecation
-    // warning is emitted on stderr. The actual custom-scene block lookup happens
-    // later in apply_scene_custom_layer, which also falls back to [profile.X] blocks.
-    if let Some(v) = config_value(matches, cfg, "scene_custom", "profile") {
-        match crate::scene_custom::validate_custom_scene_name(&v) {
-            Ok(name) => {
-                eprintln!(
-                    "warning: 'profile = {v}' in config is deprecated; use 'scene-custom = {name}' instead (rename [profile.{name}] to [scene-custom.{name}] in config.toml)"
-                );
-                args.scene_custom = Some(name);
-                config_touched.insert("scene_custom");
-            }
-            Err(e) => {
-                crate::output::eprintln_error_labeled(&format!(
-                    "unknown profile '{v}' ({e}; see --list-scenes)"
-                ));
-            }
-        }
-    }
+    // v17: 'profile' deprecated alias REMOVED. Use --scene-custom CLI flag.
+    // The [profile.<name>] table format is also REMOVED — use [scene-custom.<name>].
 
     // v17 mastery: scene-custom selector key REMOVED from config.toml.
     // Use the CLI flag: cosmostrix --scene-custom <name>
@@ -461,22 +425,8 @@ fn apply_config_values(
             config_touched.insert("color_bg");
         }
     }
-    // v14.0.0: `low-power = true` in config is a deprecated alias for
-    // `scene = low-power`. Only `true` triggers the redirect; `false` is
-    // a no-op (low-power was opt-in only).
-    if let Some(v) = config_value(matches, cfg, "scene", "low-power") {
-        if let Some(b) = parse_bool_config("low-power", &v) {
-            if b {
-                eprintln!(
-                    "warning: 'low-power = true' in config is deprecated; use 'scene = low-power' instead"
-                );
-                args.scene = Some("low-power".to_string());
-                config_touched.insert("scene");
-            }
-        }
-    }
+    // v17: 'low-power = true' deprecated alias REMOVED. Use 'scene = low-power'.
     // v17 mastery: --mouse flag deleted. Mouse effects are always-on.
-    // The config key "mouse" is no longer read — ignored if present.
     if let Some(v) = config_value(matches, cfg, "fullwidth", "fullwidth") {
         if let Some(b) = parse_bool_config("fullwidth", &v) {
             args.fullwidth = b;
@@ -489,8 +439,11 @@ fn apply_config_values(
             config_touched.insert("auto_color_drift");
         }
     }
-    if let Some(v) = config_value(matches, cfg, "async_mode", "async-mode") {
-        if let Some(b) = parse_bool_config("async-mode", &v) {
+    // v17: --async flag removed (always on). Config key 'async-mode' still
+    // respected for users who want to disable it via config. No is_explicit
+    // check needed since the CLI flag is gone.
+    if let Some(v) = cfg.get("async-mode") {
+        if let Some(b) = parse_bool_config("async-mode", v) {
             args.async_mode = b;
             config_touched.insert("async_mode");
         }

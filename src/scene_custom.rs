@@ -65,9 +65,7 @@ pub fn collect_custom_scenes(cfg: &HashMap<String, String>) -> BTreeMap<String, 
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
-            // v17: "base-scene" is the primary key (clearer naming).
-            // "base" kept as alias for backward compat.
-            "base-scene" | "base" | "scene" => scene.base = Some(value.clone()),
+            "base-scene" => scene.base = Some(value.clone()),
             "preset" => scene.preset = Some(value.clone()),
             "color" => scene.color = Some(value.clone()),
             "charset" => scene.charset = Some(value.clone()),
@@ -156,12 +154,14 @@ pub fn apply_scene_custom_layer(
 /// Validate a custom-scene name. Shares the same rules as profile names
 /// (letters, digits, `-`, `_`) so migration is frictionless.
 #[must_use]
+#[allow(dead_code)]
 pub fn is_valid_custom_scene_name(name: &str) -> bool {
     is_valid_profile_name(name)
 }
 
 /// Normalize and validate a custom-scene name. Returns the lowercased name
 /// on success or an error message on failure.
+#[allow(dead_code)]
 pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
     let normalized = name.trim().to_ascii_lowercase();
     if is_valid_custom_scene_name(&normalized) {
@@ -313,7 +313,9 @@ mod tests {
 
     #[test]
     fn scene_custom_keys_are_recognized() {
-        assert!(is_scene_custom_config_key("scene-custom.hacker-mode.base"));
+        assert!(is_scene_custom_config_key(
+            "scene-custom.hacker-mode.base-scene"
+        ));
         assert!(is_scene_custom_config_key(
             "scene-custom.nightcore.glitch-level"
         ));
@@ -328,7 +330,7 @@ mod tests {
     fn collect_custom_scenes_groups_fields_by_name() {
         let cfg = HashMap::from([
             (
-                "scene-custom.hacker-mode.base".to_string(),
+                "scene-custom.hacker-mode.base-scene".to_string(),
                 "storm".to_string(),
             ),
             (
@@ -385,9 +387,9 @@ mod tests {
 
     #[test]
     fn profile_fields_are_reusable_for_custom_scenes() {
-        // Custom scenes accept the same field set as profiles so migration
-        // is a pure prefix rename (`profile.` → `scene-custom.`).
-        assert!(PROFILE_FIELDS.contains(&"base"));
+        // v17: 'base' removed, 'base-scene' is the sole key.
+        assert!(PROFILE_FIELDS.contains(&"base-scene"));
+        assert!(!PROFILE_FIELDS.contains(&"base"));
         assert!(PROFILE_FIELDS.contains(&"color"));
         assert!(PROFILE_FIELDS.contains(&"atmosphere-regime"));
         assert!(!PROFILE_FIELDS.contains(&"nonexistent-field"));
@@ -396,7 +398,10 @@ mod tests {
     #[test]
     fn list_custom_scenes_text_shows_name_and_base() {
         let cfg = HashMap::from([
-            ("scene-custom.alpha.base".to_string(), "storm".to_string()),
+            (
+                "scene-custom.alpha.base-scene".to_string(),
+                "storm".to_string(),
+            ),
             ("scene-custom.beta.color".to_string(), "neon".to_string()),
         ]);
         let scenes = collect_custom_scenes(&cfg);
@@ -418,7 +423,7 @@ mod tests {
     fn show_custom_scene_text_includes_fields_and_usage() {
         let cfg = HashMap::from([
             (
-                "scene-custom.hacker-mode.base".to_string(),
+                "scene-custom.hacker-mode.base-scene".to_string(),
                 "storm".to_string(),
             ),
             (

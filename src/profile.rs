@@ -22,11 +22,7 @@ use crate::validation::{
 };
 
 pub const PROFILE_FIELDS: &[&str] = &[
-    // v17: "base-scene" is the primary key (clearer naming).
-    // "base" kept as alias for backward compat.
     "base-scene",
-    "base",
-    "scene",
     "preset",
     "color",
     "charset",
@@ -89,7 +85,7 @@ pub fn collect_profiles(
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
-            "base" | "scene" => profile.base = Some(value.clone()),
+            "base-scene" => profile.base = Some(value.clone()),
             "preset" => profile.preset = Some(value.clone()),
             "color" => profile.color = Some(value.clone()),
             "charset" => profile.charset = Some(value.clone()),
@@ -515,7 +511,7 @@ mod tests {
 
     #[test]
     fn profile_keys_are_recognized() {
-        assert!(is_profile_config_key("profile.nightcore.base"));
+        assert!(is_profile_config_key("profile.nightcore.base-scene"));
         assert!(is_profile_config_key("profile.nightcore.glitch-level"));
         assert!(!is_profile_config_key("profile.nightcore.unknown"));
         assert!(!is_profile_config_key("profile..base"));
@@ -524,7 +520,10 @@ mod tests {
     #[test]
     fn collect_profiles_groups_fields_by_name() {
         let cfg = HashMap::from([
-            ("profile.nightcore.base".to_string(), "monolith".to_string()),
+            (
+                "profile.nightcore.base-scene".to_string(),
+                "monolith".to_string(),
+            ),
             ("profile.nightcore.color".to_string(), "purple".to_string()),
             ("profile.day.speed".to_string(), "12".to_string()),
         ]);
@@ -536,7 +535,10 @@ mod tests {
 
     #[test]
     fn list_profiles_includes_defined_names() {
-        let cfg = HashMap::from([("profile.nightcore.base".to_string(), "monolith".to_string())]);
+        let cfg = HashMap::from([(
+            "profile.nightcore.base-scene".to_string(),
+            "monolith".to_string(),
+        )]);
         let text = list_profiles_text(&collect_profiles(&cfg));
         assert!(text.contains("nightcore"));
         assert!(text.contains("base=monolith"));

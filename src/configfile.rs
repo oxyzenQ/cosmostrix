@@ -31,11 +31,9 @@ use crate::scene_custom::is_scene_custom_config_key;
 
 pub const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
-    "preset",
-    "profile",
-    // v17 mastery: "scene-custom" selector key REMOVED.
-    // Use --scene-custom CLI flag instead. The [scene-custom.<name>] table
-    // definitions are still parsed — only the top-level selector key is gone.
+    // v17: 'preset', 'profile', 'low-power', 'mouse' removed — no longer
+    // aliases or valid config keys. Use 'scene = X', --scene-custom CLI flag,
+    // 'scene = low-power', and mouse is always-on (no flag).
     "color",
     "charset",
     "fps",
@@ -46,17 +44,13 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "bold",
     "shadingmode",
     "color-bg",
-    "low-power",
-    "mouse",
     "fullwidth",
     "auto-color-drift",
     "async-mode",
     "atmosphere-mode",
     "atmosphere-regime",
     "adaptive-custom",
-    // v17 mastery: "colors-custom" selector key REMOVED (same as scene-custom).
-    // Use --colors-custom CLI flag. The [colors-custom.<name>] table definitions
-    // are still parsed — only the top-level selector key is gone.
+    // v17: "colors-custom" selector key REMOVED. Use --colors-custom CLI flag.
 ];
 
 /// v17 mastery: legacy advanced config keys REMOVED.
@@ -640,12 +634,12 @@ mod tests {
     #[test]
     fn profile_keys_are_known() {
         let parsed = parse_config_text(
-            "profile.nightcore.base = monolith\nprofile.nightcore.color = purple\n",
+            "profile.nightcore.base-scene = monolith\nprofile.nightcore.color = purple\n",
         );
         assert_eq!(
             parsed
                 .values
-                .get("profile.nightcore.base")
+                .get("profile.nightcore.base-scene")
                 .map(String::as_str),
             Some("monolith")
         );
