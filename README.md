@@ -219,7 +219,6 @@ COMMON OPTIONS
   -S, --speed <1-100>       Rain speed
   -d, --density <0.01-5.0>  Rain density
   -s, --screensaver         Only q exits (all other keys ignored). Mouse events captured to block selection
-     --mouse                (deleted v17: effects always on)
   -m, --message <text>      Overlay message (use -mb for border)
      --glitch-level <level> Glitch intensity (none|subtle|default|intense)
      --scene <name>         Apply a built-in scene atmosphere (see --list-scenes)
