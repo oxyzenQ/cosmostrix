@@ -197,7 +197,8 @@ GENERAL:
       Auto-stop after N seconds (0.1-86400).
 
 DIAGNOSTICS:
-  --doctor       System compatibility report.
+  --doctor       Build info, renderer details, environment diagnostics, and
+      terminal compatibility check. (v17: --info merged into --doctor)
   --benchmark    Renderer benchmark (5 seconds default; override with --bench-duration).
   --bench-duration <1-600>
       Benchmark duration in seconds (default 5). Use with --benchmark
@@ -206,8 +207,6 @@ DIAGNOSTICS:
   --json         Output benchmark as JSON (use with --benchmark).
       Machine-readable single-line JSON for CI/scripts. Mirrors the text
       report's 13 sections. Option fields emit null; NaN/Inf emit null.
-  --doctor       Build info, renderer details, environment diagnostics, and
-      terminal compatibility check. (v17: --info merged into --doctor)
   --reset-terminal
       Emergency terminal recovery — the nuclear option.
       Use after SIGKILL (kill -9) or crash leaves the terminal broken.

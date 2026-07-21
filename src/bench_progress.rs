@@ -155,7 +155,9 @@ impl BenchProgress {
         }
         self._cursor_guard = CursorGuard::acquire().ok();
         let mut stderr = io::stderr().lock();
-        let _ = writeln!(stderr, "COSMOSTRIX BENCHMARK");
+        // v17: purple header for benchmark title
+        let _ = write!(stderr, "{}", crate::output::brand_bold_open());
+        let _ = writeln!(stderr, "COSMOSTRIX BENCHMARK{}", crate::output::reset());
         let _ = writeln!(stderr, "────────────────────");
         let _ = stderr.flush();
         self.lines_written = 2;

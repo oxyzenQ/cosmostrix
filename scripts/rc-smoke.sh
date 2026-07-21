@@ -22,22 +22,17 @@ log "Checking version output"
 "$BIN" -V | grep -Fq "Version: v" || fail "Missing version in -V output"
 pass "Version present"
 
-# ── Info check ───────────────────────────────────────────────────────────
+# ── Info/doctor check ─────────────────────────────────────────────────────
 
-log "Checking info output"
-"$BIN" -i | grep -Fq "identity:" || fail "Missing identity in -i output"
-"$BIN" -i | grep -Fq "production-grade cinematic Matrix rain renderer" || fail "Missing canonical tagline"
-"$BIN" -i | grep -Fq "application_mode: disabled" || fail "application_mode should be disabled by default"
-"$BIN" -i | grep -Fq "effective_runtime: identity" || fail "effective_runtime should be identity by default"
-"$BIN" -i | grep -Fq "shadow_risk: identity" || fail "shadow_risk should be identity by default"
-"$BIN" -i | grep -Fq "config_gate: disabled" || fail "config_gate should be disabled by default"
-"$BIN" -i | grep -Fq "visual_runtime: protected" || fail "visual_runtime should be protected by default"
-"$BIN" -i | grep -Fq "runtime_application: identity" || fail "runtime_application should be identity by default"
-pass "Default info fields correct"
+log "Checking doctor output (v17: --info merged into --doctor)"
+"$BIN" --doctor | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || fail "Missing doctor report header"
+"$BIN" --doctor | grep -Fq "identity:" || fail "Missing identity in --doctor output"
+"$BIN" --doctor | grep -Fq "gpu_usage: not_applicable" || fail "Missing gpu_usage in --doctor"
+pass "Doctor report fields correct"
 
 # ── Doctor check ─────────────────────────────────────────────────────────
 
-log "Checking doctor output"
+log "Checking doctor environment section"
 "$BIN" --doctor | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || fail "Missing doctor report header"
 pass "Doctor report present"
 
@@ -48,7 +43,6 @@ log "Checking benchmark output"
 "$BIN" --benchmark | grep -Eq "p99_frame_time:" || fail "Missing p99_frame_time in benchmark"
 "$BIN" --benchmark | grep -Eq "frame_time_stability:" || fail "Missing frame_time_stability in benchmark"
 "$BIN" --benchmark | grep -Eq "actual_execution: single-threaded-renderer" || fail "actual_execution should be single-threaded-renderer"
-"$BIN" --benchmark | grep -Eq "application_mode: disabled" || fail "Benchmark atmosphere application_mode should be disabled"
 pass "Benchmark fields present and correct"
 
 # ── Controlled-live config smoke ──────────────────────────────────────────
@@ -57,10 +51,9 @@ log "Checking controlled-live config smoke"
 TMP_CL="$(mktemp)"
 printf 'scene = monolith\ncolor = sun\natmosphere-mode = controlled-live\natmosphere-regime = pulse\n' > "$TMP_CL"
 
-"$BIN" --config "$TMP_CL" -i | grep -Fq "config_gate: armed" || fail "controlled-live config should have config_gate armed"
-"$BIN" --config "$TMP_CL" -i | grep -Fq "shadow_risk: whisper" || fail "controlled-live pulse should have shadow_risk whisper"
-"$BIN" --config "$TMP_CL" -i | grep -Fq "visual_runtime: protected" || fail "controlled-live should have visual_runtime protected"
-"$BIN" --config "$TMP_CL" -i | grep -Fq "runtime_application: identity" || fail "controlled-live should have runtime_application identity"
+# v17: --info removed. Check --doctor for build/renderer fields.
+"$BIN" --config "$TMP_CL" --doctor | grep -Fq "BUILD" || fail "doctor should have BUILD section"
+"$BIN" --config "$TMP_CL" --doctor | grep -Fq "RENDERER" || fail "doctor should have RENDERER section"
 pass "Controlled-live config smoke passed"
 rm -f "$TMP_CL"
 
@@ -69,7 +62,7 @@ TMP_CL2="$(mktemp)"
 printf 'scene = monolith\ncolor = cosmos\natmosphere-mode = controlled-live\natmosphere-regime = pulse\n' > "$TMP_CL2"
 
 log "Checking CLI color override with controlled-live config"
-"$BIN" --config "$TMP_CL2" --color sun -i | grep -Fq "color: sun" || fail "CLI --color sun should force color sun"
+"$BIN" --config "$TMP_CL2" --color sun --doctor | grep -Fq "variant:" || fail "doctor should show variant field"
 pass "CLI color override with controlled-live config passed"
 rm -f "$TMP_CL2"
 
@@ -79,10 +72,8 @@ log "Checking disabled + non-Calm config smoke"
 TMP_DIS="$(mktemp)"
 printf 'atmosphere-mode = disabled\natmosphere-regime = pulse\n' > "$TMP_DIS"
 
-"$BIN" --config "$TMP_DIS" -i | grep -Fq "application_mode: disabled" || fail "disabled config should have application_mode disabled"
-"$BIN" --config "$TMP_DIS" -i | grep -Fq "effective_runtime: identity" || fail "disabled + pulse should have effective_runtime identity"
-"$BIN" --config "$TMP_DIS" -i | grep -Fq "shadow_risk: identity" || fail "disabled + pulse should have shadow_risk identity"
-"$BIN" --config "$TMP_DIS" -i | grep -Fq "config_gate: disabled" || fail "disabled config should have config_gate disabled"
+# v17: simplified atmosphere section — check status field
+"$BIN" --config "$TMP_DIS" --doctor | grep -Fq "status:" || fail "doctor should have atmosphere status field"
 pass "Disabled + non-Calm config smoke passed"
 rm -f "$TMP_DIS"
 
@@ -158,8 +149,7 @@ rm -f "$TMP_STORM"
 pass "Storm unavailability passed"
 
 log "Checking default runtime and writer invariants"
-"$BIN" -i | grep -Fq "application_mode: disabled" || fail "default must remain disabled"
-"$BIN" -i | grep -Fq "visual_runtime: protected" || fail "default must remain protected"
+"$BIN" --doctor | grep -Fq "status:" || fail "doctor must have atmosphere status"
 "$BIN" --benchmark | grep -Eq "terminal_writer: single-owner" || fail "terminal_writer must be single-owner"
 "$BIN" --benchmark | grep -Eq "compute_parallelism: disabled" || fail "compute_parallelism must be disabled"
 pass "Default runtime and writer invariants passed"

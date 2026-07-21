@@ -136,7 +136,7 @@ curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
 sha512sum -c "cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
 tar -xzf "cosmostrix-${TAG}-${PLATFORM}.tar.gz"
-./cosmostrix -i
+./cosmostrix --doctor
 ```
 
 ### AUR (Arch Linux)
@@ -151,7 +151,7 @@ paru -S cosmostrix-bin    # or: yay -S cosmostrix-bin
 git clone https://github.com/oxyzenQ/cosmostrix.git
 cd cosmostrix
 cargo install --path .
-cosmostrix -i
+cosmostrix --doctor
 ```
 
 ### Optimized local builds
@@ -183,7 +183,7 @@ lets the RAII terminal guard and panic hook restore the terminal on panic.
 To verify an optimized artifact:
 
 ```bash
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix -i
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --doctor
 file target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix
 scripts/verify-release-build.sh pro-linux-v3
 ```
@@ -242,7 +242,6 @@ DIAGNOSTICS
      --bench-all            Run benchmark across multiple screen sizes (6x6 to 200x60)
      --save-baseline <path> Save benchmark JSON for later comparison
      --compare-baseline <p> Compare against saved baseline (flags >5% FPS regressions)
-  -i, --info                Build and runtime information
      --reset-terminal       Emergency terminal recovery (5-layer: ANSI + crossterm + stty + reset)
   -v, --verbose             Print diagnostic info to stderr (with [HH:MM] timestamps)
 
