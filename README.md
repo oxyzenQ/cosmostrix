@@ -61,7 +61,7 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 - Auto color drift — cycle color scheme over time (`--color-drift` / `auto-color-drift` in config)
 - Message overlay — display custom text on the rain (`--message "wake up, neo"`)
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output
-- Live HUD — real-time FPS, p99, max frame-time, RSS, and uptime overlay (toggle with `?`, move with `H`)
+- Live HUD — real-time FPS, p99, max frame-time, RSS, and uptime overlay (toggle with `i`, move with `H`)
 - **Phase-aware endurance subsystem** — EMA-based activity prediction (PAP), idle coalescing (IPAC), memory reclaim hints (MPAR via `madvise` on Linux), and Endurance Health Score (EHS, 0–100) for long-running sessions. RSS and context-switch sampling are Linux-only; other platforms get frame-jitter-only EHS
 - Adaptive throttling — reduces CPU usage when idle (30s no-input → 0.5× FPS factor)
 - Live config reload via filesystem watch (optional, `notify` crate) — full Cloud rebuild with strict validation on save
