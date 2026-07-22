@@ -25,7 +25,7 @@ pub struct RendererInfo {
 pub fn renderer_info(color_mode: ColorMode) -> RendererInfo {
     RendererInfo {
         identity:
-            "production-grade cinematic Matrix rain renderer for serious terminal environments.",
+            "professional-grade cinematic Matrix rain renderer for serious terminal environments.",
         backend: "ansi-stream",
         pacing: "adaptive",
         unicode: "utf8-singlewidth",

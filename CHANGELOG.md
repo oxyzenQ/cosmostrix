@@ -35,7 +35,7 @@ All notable changes to this project are documented in this file.
 
   ```text
   cosmostrix: v14.0.0
-  Production-grade cinematic Matrix rain renderer for serious terminal environments.
+  Professional-grade cinematic Matrix rain renderer for serious terminal environments.
   Build: …
   ```
 

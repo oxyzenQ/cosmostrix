@@ -9,7 +9,7 @@
 fn cargo_toml_uses_canonical_tagline() {
     let cargo = include_str!("../../Cargo.toml");
     assert!(
-        cargo.contains("description = \"Production-grade cinematic Matrix rain renderer for serious terminal environments.\""),
+        cargo.contains("description = \"Professional-grade cinematic Matrix rain renderer for serious terminal environments.\""),
         "Cargo.toml description must use the canonical tagline"
     );
 }
@@ -19,7 +19,7 @@ fn readme_uses_canonical_tagline() {
     let readme = include_str!("../../README.md");
     assert!(
         readme.contains(
-            "Production-grade cinematic Matrix rain renderer for serious terminal environments."
+            "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
         ),
         "README.md must contain the canonical tagline"
     );
@@ -30,7 +30,7 @@ fn runtime_identity_uses_canonical_tagline() {
     let ri = include_str!("../renderer_info.rs");
     assert!(
         ri.contains(
-            "production-grade cinematic Matrix rain renderer for serious terminal environments."
+            "professional-grade cinematic Matrix rain renderer for serious terminal environments."
         ),
         "renderer_info.rs identity must use the canonical tagline"
     );

@@ -7,7 +7,7 @@
 <h1 align="center">cosmostrix</h1>
 
 <p align="center">
-  <strong>Production-grade cinematic Matrix rain renderer for serious terminal environments.</strong>
+  <strong>Professional-grade cinematic Matrix rain renderer for serious terminal environments.</strong>
 </p>
 
 <p align="center">
@@ -46,31 +46,34 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 
 ## Features
 
-- **Cinematic terminal rain** — calm, organic, premium visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
+- **Cinematic terminal rain** — calm, organic visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
 - **11 built-in scenes** — one-command visual profiles: 3 core atmospheres (matrix, monolith, signal) and 8 curated scenes (classic, cinematic, calm, storm, cosmos, neon, hacker, low-power), including signature Cosmostrix Monolith Rain
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
 - **Adaptive custom time scheduling** — `adaptive-custom.HH-MM` config entries define your own 24-hour time-to-parameter mapping (color, scene, speed, density, FPS, charset, glitch-level) with smoothstep 5-minute blend transitions; overrides the default 5-phase adaptive engine when defined; sticky parameters keep previous values when unspecified; live config reload re-parses immediately on save
 - **Default adaptive atmosphere engine** — 5-phase time-driven modulation (Deep Void → Compression → Pulse → Calm → Signal) that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time; opt-in via `atmosphere-mode = controlled-live`
-- 43 built-in themes and 24 character sets (5 themes — Green3, Saturn, Comet, Meteor, Pluto — re-tuned in v11.1.0 for visual distinctness; `--color-tune` turns all 43 into 43 × ∞ variants)
-- Phosphor persistence (CRT afterglow), depth fog, and 3-layer parallax
-- TrueColor green gradients with luminous head glow
+- 43 built-in themes and 24 character sets (`--color-tune` turns all 43 into 43 × ∞ variants)
+- **3-layer parallax depth** — far/mid/near layers with per-layer speed `[0.35, 1.0, 1.7]`, brightness `[0.80, 0.95, 1.0]`, length `[0.5, 1.0, 1.4]`, density `[0.5, 1.0, 1.5]`, and phosphor decay `[1.6, 1.0, 0.7]`. 3 layers is the cinema-standard deep/mid/ground composition; more layers collapse perceptually in a 24-row terminal
+- **Phosphor persistence (CRT afterglow)** — `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0` with per-layer decay mult, bottom-row 3× acceleration, and edge energy cap. Creates ~400ms afterglow per glyph — most terminal rain renderers have zero afterglow
+- **Depth fog** — 4-row bottom vignette (`FOG_MIN_FACTOR=0.65`) + per-layer contrast reduction `[0.35, 0.0, 0.0]` (depth-of-field perceptual blur for far layer only)
+- TrueColor gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
 - Density map sculpting — per-column weight maps (0.0–1.0) for cinematic monolith formations (e.g. twin pillars, cascading waterfall, central throne)
 - Auto color drift — cycle color scheme over time (`--color-drift` / `auto-color-drift` in config)
 - Message overlay — display custom text on the rain (`--message "wake up, neo"`)
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output
-- Live HUD — real-time FPS, p99, max frame-time, RSS, and uptime overlay (toggle with `i`, move with `H`)
-- Phase-aware endurance subsystem — EMA-based activity prediction (PAP), idle coalescing (IPAC), memory reclaim hints (MPAR), and Endurance Health Score (EHS, 0–100) for long-running sessions
-- Adaptive throttling: reduces CPU usage when idle
+- Live HUD — real-time FPS, p99, max frame-time, RSS, and uptime overlay (toggle with `?`, move with `H`)
+- **Phase-aware endurance subsystem** — EMA-based activity prediction (PAP), idle coalescing (IPAC), memory reclaim hints (MPAR via `madvise` on Linux), and Endurance Health Score (EHS, 0–100) for long-running sessions. RSS and context-switch sampling are Linux-only; other platforms get frame-jitter-only EHS
+- Adaptive throttling — reduces CPU usage when idle (30s no-input → 0.5× FPS factor)
 - Live config reload via filesystem watch (optional, `notify` crate) — full Cloud rebuild with strict validation on save
 - Screensaver mode — only `q` exits; recognized keys (c/s/x/i/etc.) still work
-- Always-on mouse glow + click wave effects (cursor halo + dual-ring ripple)
+- Always-on mouse glow + click wave effects (cursor halo + dual-ring ripple). Note: always-on mouse reporting blocks text selection in all modes
 - Fixed virtual screen size (`--screen-size WxH`) for benchmarking at exact dimensions or rendering independent of terminal resize
 - 5-layer destructive terminal recovery (`--reset-terminal`)
 - Controlled atmosphere engine with 6 opt-in regimes (pulse, signal, compression, void, monolith-pressure, calm)
 - Benchmark mode with JSON output, compound duration format (`--duration 1h30m`), self-documenting reports (CPU model, rustc, LTO/PGO, git SHA)
 - Terminal diagnostics (`--doctor`) and config validation (`--testconf`)
-- Cross-platform: Linux, macOS, Windows, Android (Termux)
+- PGO (Profile-Guided Optimization) nitro build via `./scripts/build.sh pgo` (3-stage: instrument → benchmark → optimize)
+- Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD
 
 ## Philosophy
 

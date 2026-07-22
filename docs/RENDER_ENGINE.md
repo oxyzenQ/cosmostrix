@@ -510,7 +510,7 @@ academic work or another project, please cite:
 ```bibtex
 @software{cosmostrix,
   author       = {rezky\_nightky (oxyzenQ)},
-  title        = {Cosmostrix: Production-grade cinematic Matrix rain renderer},
+  title        = {Cosmostrix: Professional-grade cinematic Matrix rain renderer},
   year         = {2026},
   url          = {https://github.com/oxyzenQ/cosmostrix},
   note         = {Diff-based terminal rendering engine, v14.x},
