@@ -44,7 +44,29 @@ workspace-default-features = "allow"
 external-default-features = "allow"
 allow = []
 deny = []
-skip = []
+# Transitive dependency duplicates that cannot be resolved without upstream
+# changes. These are caused by the dependency tree pulling in different
+# major versions of the same crate through different paths:
+#
+# - bitflags 1.3.2 (via inotify → notify) vs 2.13.1 (via crossterm, ctrlc, etc.)
+#   notify v6 pulls inotify which still uses bitflags 1.x; cannot force
+#   notify to use bitflags 2.x without upstream PR.
+#
+# - mio 0.8.11 (via notify) vs 1.2.2 (via crossterm, signal-hook-mio)
+#   notify v6 depends on mio 0.8 for its event loop; crossterm v0.29 uses
+#   mio 1.x. Different major versions — cannot be deduped.
+#
+# - windows-sys 0.48.0 (via mio 0.8 / notify) vs 0.61.2 (via ctrlc, rustix,
+#   anstream, etc.) Same root cause: mio 0.8 pins windows-sys 0.48.
+#
+# All three are Windows-specific or transitive-only — they don't affect
+# the cosmostrix binary on Linux/macOS/FreeBSD at runtime. Skipping them
+# here silences the duplicate-versions warning without hiding real issues.
+skip = [
+    { name = "bitflags", version = "1.3.2" },
+    { name = "mio", version = "0.8.11" },
+    { name = "windows-sys", version = "0.48.0" },
+]
 skip-tree = []
 
 [sources]

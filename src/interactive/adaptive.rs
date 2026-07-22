@@ -302,6 +302,11 @@ impl EnduranceHealth {
     }
 
     /// Push a new RSS reading (KB).
+    ///
+    /// Only called on Linux (reads /proc/self/status). Cfg-gated to avoid
+    /// dead_code warnings on FreeBSD/macOS/Windows where RSS sampling is
+    /// not implemented.
+    #[cfg(target_os = "linux")]
     pub(crate) fn push_rss(&mut self, rss_kb: f64) {
         self.rss_samples[self.rss_idx] = rss_kb;
         self.rss_idx = (self.rss_idx + 1) % 60;
@@ -320,6 +325,10 @@ impl EnduranceHealth {
     }
 
     /// Update context switch rate EMA. `switches_per_sec` is the current rate.
+    ///
+    /// Only called on Linux (reads /proc/self/stat for voluntary ctxt switches).
+    /// Cfg-gated to avoid dead_code warnings on non-Linux platforms.
+    #[cfg(target_os = "linux")]
     pub(crate) fn push_ctxt_rate(&mut self, switches_per_sec: f64) {
         if self.updates == 0 {
             self.ctxt_switch_ema = switches_per_sec;
@@ -527,6 +536,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn health_score_stays_100_with_stable_rss() {
         let mut h = EnduranceHealth::new();
         // Push 10 identical RSS readings — variance = 0.
@@ -544,6 +554,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn health_score_drops_with_high_jitter() {
         let mut h = EnduranceHealth::new();
         for _ in 0..10 {
@@ -559,6 +570,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn health_score_drops_with_rss_variance() {
         let mut h = EnduranceHealth::new();
         // Push wildly varying RSS readings.
@@ -577,6 +589,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "linux")]
     fn health_score_needs_min_samples() {
         let mut h = EnduranceHealth::new();
         h.push_rss(2800.0); // Only 1 sample
