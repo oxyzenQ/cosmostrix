@@ -44,20 +44,21 @@ pub const SCENES: &[SceneInfo] = &[
     // --- Original runtime scenes (interactive cycle entries) ---
     SceneInfo {
         name: "matrix",
-        description: "Classic Matrix glyph rain — cinematic sparse cascade",
+        description: "Classic Matrix glyph rain — organic cascade with katakana flow",
         config: SceneConfig {
-            color: None,
-            charset: None,
-            fps: None,
-            speed: Some(8.0),
-            density: Some(0.55),
+            color: Some("green"),
+            charset: Some("matrix"),
+            fps: Some(60.0),
+            speed: Some(18.0),
+            density: Some(0.65),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "monolith",
-        description: "Signature structured segmented rain with premium pacing",
+        description:
+            "Signature structured segmented rain — dense binary pillars with premium pacing",
         config: SceneConfig {
             color: Some("cosmos"),
             charset: Some("binary"),
@@ -70,117 +71,117 @@ pub const SCENES: &[SceneInfo] = &[
     },
     SceneInfo {
         name: "signal",
-        description: "Digital transmission feel with code-like cyan rain",
+        description: "Digital transmission — cyan aurora glyphs in box-draw frames",
         config: SceneConfig {
             color: Some("aurora"),
             charset: Some("retro"),
             fps: Some(60.0),
-            speed: Some(10.0),
-            density: Some(0.75),
-            glitch_level: Some(GlitchLevel::Subtle),
+            speed: Some(14.0),
+            density: Some(0.70),
+            glitch_level: Some(GlitchLevel::Default),
             rain_style: RainStyle::Glyph,
         },
     },
     // --- Curated visual scenes ---
     SceneInfo {
         name: "classic",
-        description: "The original green-on-black Matrix rain — cinematic sparse cascade",
+        description: "Original green-on-black — slow contemplative katakana cascade",
         config: SceneConfig {
             color: Some("green"),
             charset: Some("matrix"),
             fps: Some(60.0),
-            speed: Some(8.0),
-            density: Some(0.6),
+            speed: Some(12.0),
+            density: Some(0.55),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "cinematic",
-        description: "Cosmic binary with cinematic pacing and breathing room",
+        description: "Cosmic binary — slow vast pacing with deep-space breathing room",
         config: SceneConfig {
             color: Some("cosmos"),
             charset: Some("binary"),
             fps: Some(60.0),
-            speed: Some(6.0),
-            density: Some(0.6),
+            speed: Some(9.0),
+            density: Some(0.50),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "calm",
-        description: "Gentle ocean tones with zen minimal density",
+        description: "Gentle ocean — zen minimal density, slow meditative flow",
         config: SceneConfig {
             color: Some("ocean"),
             charset: Some("minimal"),
             fps: Some(60.0),
-            speed: Some(4.0),
-            density: Some(0.45),
-            glitch_level: Some(GlitchLevel::Subtle),
+            speed: Some(6.0),
+            density: Some(0.40),
+            glitch_level: Some(GlitchLevel::None),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "storm",
-        description: "Fast and intense purple cyberpunk — dense and aggressive",
+        description: "Fast intense purple cyberpunk — dense aggressive neon chaos",
         config: SceneConfig {
             color: Some("purple"),
             charset: Some("cyberpunk"),
             fps: Some(120.0),
-            speed: Some(22.0),
-            density: Some(1.15),
+            speed: Some(28.0),
+            density: Some(1.20),
             glitch_level: Some(GlitchLevel::Intense),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "cosmos",
-        description: "Cosmic binary with vast, spacious cosmos palette",
+        description: "Deep-space cosmos — nebula gradient with spacious starlit drift",
         config: SceneConfig {
-            color: Some("cosmos"),
+            color: Some("nebula"),
             charset: Some("binary"),
             fps: Some(60.0),
-            speed: Some(7.0),
-            density: Some(0.65),
+            speed: Some(11.0),
+            density: Some(0.60),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "neon",
-        description: "Vibrant cyberpunk with neon pop and visual breathing room",
+        description: "Vibrant cyberpunk — neon pop with breathing room and medium flow",
         config: SceneConfig {
             color: Some("neon"),
             charset: Some("cyberpunk"),
             fps: Some(60.0),
-            speed: Some(10.0),
-            density: Some(0.75),
-            glitch_level: Some(GlitchLevel::Subtle),
+            speed: Some(16.0),
+            density: Some(0.70),
+            glitch_level: Some(GlitchLevel::Default),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "hacker",
-        description: "Green hacker aesthetic at high speed",
+        description: "Green hacker aesthetic — dense high-speed terminal overflow",
         config: SceneConfig {
             color: Some("green"),
             charset: Some("hacker"),
             fps: Some(60.0),
-            speed: Some(11.0),
-            density: Some(0.85),
+            speed: Some(24.0),
+            density: Some(0.90),
             glitch_level: Some(GlitchLevel::Default),
             rain_style: RainStyle::Glyph,
         },
     },
     SceneInfo {
         name: "low-power",
-        description: "Ultra power-saving mode (30 FPS, minimal density/speed)",
+        description: "Ultra power-saving — 30 FPS, minimal density, no glitch",
         config: SceneConfig {
             color: Some("green"),
             charset: Some("binary"),
             fps: Some(30.0),
-            speed: Some(4.0),
+            speed: Some(5.0),
             density: Some(0.35),
             glitch_level: Some(GlitchLevel::None),
             rain_style: RainStyle::Glyph,
@@ -376,8 +377,8 @@ mod tests {
         assert_eq!(s.config.color, Some("green"));
         assert_eq!(s.config.charset, Some("matrix"));
         assert_eq!(s.config.fps, Some(60.0));
-        assert_eq!(s.config.speed, Some(8.0));
-        assert_eq!(s.config.density, Some(0.6));
+        assert_eq!(s.config.speed, Some(12.0));
+        assert_eq!(s.config.density, Some(0.55));
         assert_eq!(s.config.glitch_level, Some(GlitchLevel::Subtle));
         assert_eq!(s.config.rain_style, RainStyle::Glyph);
     }
@@ -388,8 +389,8 @@ mod tests {
         assert_eq!(s.config.color, Some("purple"));
         assert_eq!(s.config.charset, Some("cyberpunk"));
         assert_eq!(s.config.fps, Some(120.0));
-        assert_eq!(s.config.speed, Some(22.0));
-        assert_eq!(s.config.density, Some(1.15));
+        assert_eq!(s.config.speed, Some(28.0));
+        assert_eq!(s.config.density, Some(1.20));
         assert_eq!(s.config.glitch_level, Some(GlitchLevel::Intense));
     }
 
@@ -397,7 +398,7 @@ mod tests {
     fn low_power_scene_caps_fps_at_thirty() {
         let s = get_scene("low-power").expect("low-power scene");
         assert_eq!(s.config.fps, Some(30.0));
-        assert_eq!(s.config.speed, Some(4.0));
+        assert_eq!(s.config.speed, Some(5.0));
         assert_eq!(s.config.density, Some(0.35));
         assert_eq!(s.config.color, Some("green"));
         assert_eq!(s.config.charset, Some("binary"));
@@ -408,8 +409,8 @@ mod tests {
     fn hacker_scene_uses_hacker_charset() {
         let s = get_scene("hacker").expect("hacker scene");
         assert_eq!(s.config.charset, Some("hacker"));
-        assert_eq!(s.config.speed, Some(11.0));
-        assert_eq!(s.config.density, Some(0.85));
+        assert_eq!(s.config.speed, Some(24.0));
+        assert_eq!(s.config.density, Some(0.90));
     }
 
     #[test]
@@ -417,9 +418,9 @@ mod tests {
         let s = get_scene("calm").expect("calm scene");
         assert_eq!(s.config.color, Some("ocean"));
         assert_eq!(s.config.charset, Some("minimal"));
-        assert_eq!(s.config.speed, Some(4.0));
-        assert_eq!(s.config.density, Some(0.45));
-        assert_eq!(s.config.glitch_level, Some(GlitchLevel::Subtle));
+        assert_eq!(s.config.speed, Some(6.0));
+        assert_eq!(s.config.density, Some(0.40));
+        assert_eq!(s.config.glitch_level, Some(GlitchLevel::None));
     }
 
     #[test]
@@ -501,7 +502,8 @@ mod tests {
 
     #[test]
     fn show_scene_text_handles_partial_scene() {
-        // matrix scene has all fields set to None except rain_style.
+        // v18: all scenes now set all fields. This test verifies that
+        // show_scene_text correctly renders a fully-populated scene.
         let info = get_scene("matrix").expect("matrix scene");
         let text = show_scene_text(info);
         assert!(text.contains("SCENE: matrix"), "header missing: {text}");
@@ -509,14 +511,18 @@ mod tests {
             text.contains("rain-style   = glyph"),
             "rain-style missing: {text}"
         );
-        // Should not contain field labels for unset fields
+        // v18: matrix now sets color, charset, fps, speed, density
         assert!(
-            !text.contains("color        ="),
-            "color should be absent: {text}"
+            text.contains("color        = green"),
+            "color field missing: {text}"
         );
         assert!(
-            !text.contains("fps          ="),
-            "fps should be absent: {text}"
+            text.contains("charset      = matrix"),
+            "charset field missing: {text}"
+        );
+        assert!(
+            text.contains("fps          = 60"),
+            "fps field missing: {text}"
         );
     }
 }

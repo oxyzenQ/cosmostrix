@@ -118,8 +118,8 @@ fn config_scene_calm_applies() {
     assert_eq!(args.scene.as_deref(), Some("calm"));
     assert_eq!(args.color, "ocean");
     assert_eq!(args.charset, "minimal");
-    assert_eq!(args.speed, 4.0);
-    assert!((args.density - 0.45).abs() < f32::EPSILON);
+    assert_eq!(args.speed, 6.0);
+    assert!((args.density - 0.40).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -138,11 +138,11 @@ fn explicit_matrix_scene_restores_classic_defaults() {
     let args = args_from_cli(&["--scene", "matrix"]);
     assert_eq!(args.scene.as_deref(), Some("matrix"));
     assert_eq!(args.color, "green");
-    assert_eq!(args.charset, "binary");
-    assert_eq!(args.speed, 8.0);
-    // v17: matrix scene now sets explicit density=0.55 for cinematic
-    // sparse rain (was None → CLI default 1.0, which was too crowded).
-    assert_eq!(args.density, 0.55);
+    assert_eq!(args.charset, "matrix");
+    assert_eq!(args.speed, 18.0);
+    // v18: matrix scene now sets explicit density=0.65 for cinematic
+    // organic cascade (was 0.55 in v17, raised for richer flow).
+    assert_eq!(args.density, 0.65);
     // v17 hardening: matrix scene now sets glitch_level=Subtle (was None →
     // Default 10%). Subtle (3%) matches cinematic sparse cascade identity.
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
@@ -179,7 +179,7 @@ fn cli_scene_overrides_config_scene() {
     assert_eq!(args.scene.as_deref(), Some("signal"));
     assert_eq!(args.color, "aurora");
     assert_eq!(args.charset, "retro");
-    assert_eq!(args.speed, 10.0);
+    assert_eq!(args.speed, 14.0);
 }
 
 #[test]
@@ -189,7 +189,7 @@ fn explicit_cli_flags_override_scene_managed_values() {
     assert_eq!(args.color, "green");
     assert_eq!(args.fps, 120.0);
     assert_eq!(args.charset, "retro");
-    assert_eq!(args.speed, 10.0);
+    assert_eq!(args.speed, 14.0);
 }
 
 #[test]
@@ -249,11 +249,11 @@ fn config_speed_wins_over_monolith_scene_default() {
 
 #[test]
 fn config_density_wins_over_signal_scene_default() {
-    // Config sets density=0.5; signal scene hardcodes density=0.75.
+    // Config sets density=0.5; signal scene hardcodes density=0.70.
     let args = args_with_config("scene = signal\ndensity = 0.5\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("signal"));
     assert_eq!(
-        args.speed, 10.0,
+        args.speed, 14.0,
         "scene speed default applies for unset key"
     );
     assert!((args.density - 0.5).abs() < f32::EPSILON);
@@ -346,8 +346,8 @@ fn cli_scene_overrides_cli_preset_for_overlapping_values() {
     assert_eq!(args.scene.as_deref(), Some("signal"));
     assert_eq!(args.color, "aurora");
     assert_eq!(args.charset, "retro");
-    assert_eq!(args.speed, 10.0);
-    assert!((args.density - 0.75).abs() < f32::EPSILON);
+    assert_eq!(args.speed, 14.0);
+    assert!((args.density - 0.70).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -358,7 +358,7 @@ fn cli_preset_overrides_config_scene_for_overlapping_values() {
     assert_eq!(args.scene.as_deref(), Some("storm"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.charset, "cyberpunk");
-    assert_eq!(args.speed, 22.0);
+    assert_eq!(args.speed, 28.0);
 }
 
 #[test]
@@ -378,7 +378,7 @@ fn explicit_cli_overrides_config_scene() {
     assert_eq!(args.scene.as_deref(), Some("storm"));
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.color, "green");
-    assert_eq!(args.speed, 22.0);
+    assert_eq!(args.speed, 28.0);
 }
 
 #[test]
@@ -389,7 +389,7 @@ fn cli_preset_overrides_config_preset() {
     assert_eq!(args.scene.as_deref(), Some("storm"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.charset, "cyberpunk");
-    assert_eq!(args.speed, 22.0);
+    assert_eq!(args.speed, 28.0);
 }
 
 #[test]
@@ -433,8 +433,8 @@ fn low_power_does_not_override_preset_values() {
     // be --scene low-power, which simply replaces storm entirely).
     let args = args_from_cli(&["--scene", "storm"]);
     assert_eq!(args.fps, 120.0);
-    assert_eq!(args.speed, 22.0);
-    assert!((args.density - 1.15).abs() < f32::EPSILON);
+    assert_eq!(args.speed, 28.0);
+    assert!((args.density - 1.20).abs() < f32::EPSILON);
 }
 
 // ── --uniform flag (v13.6.0 Stage 1 CLI simplification) ──
@@ -462,10 +462,10 @@ fn uniform_flag_defaults_to_false() {
 #[test]
 fn low_power_preset_sets_expected_values() {
     // v14.0.0: --preset low-power converted to --scene low-power.
-    // Values must match: fps=30, speed=4, density=0.35.
+    // Values must match: fps=30, speed=5, density=0.35.
     let args = args_from_cli(&["--scene", "low-power"]);
     assert_eq!(args.fps, 30.0, "low-power scene must set fps=30");
-    assert_eq!(args.speed, 4.0, "low-power scene must set speed=4");
+    assert_eq!(args.speed, 5.0, "low-power scene must set speed=5");
     assert!(
         (args.density - 0.35).abs() < f32::EPSILON,
         "low-power scene must set density=0.35"

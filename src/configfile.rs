@@ -316,11 +316,11 @@ pub fn dump_config_text() -> &'static str {
 # fps = 60
 
 # Rain fall speed (1–100). Default depends on scene:
-#   monolith=30, matrix=8, signal=10, storm=22, calm=4, low-power=4
+#   monolith=30, matrix=18, signal=14, storm=28, calm=6, low-power=5
 # speed = 30
 
 # Rain density (0.01–5.0). Default depends on scene:
-#   monolith=0.85, matrix=0.55, signal=0.75, storm=1.15, calm=0.45
+#   monolith=0.85, matrix=0.65, signal=0.70, storm=1.20, calm=0.40
 # density = 0.85
 
 # Variable column speeds for organic rain (default: on)
@@ -381,16 +381,16 @@ pub fn dump_config_text() -> &'static str {
 
 # Custom Scene Definitions (TOML table format)
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>
-# Fields: base-scene (or alias: base), scene, preset, color, charset, fps, speed,
-#         density, density-map, glitch-level, monolith-size, color-bg,
-#         atmosphere-mode, atmosphere-regime
+# Fields: base-scene, color, charset, fps, speed, density, density-map,
+#         glitch-level, monolith-size, color-bg, atmosphere-mode, atmosphere-regime
+# (preset is deprecated — use base-scene instead)
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
 # See docs/PROFILE_EXAMPLES.md for more examples.
 # [scene-custom.hacker-mode]
 # base-scene = storm
 # color = green
 # charset = hacker
-# speed = 24
+# speed = 28
 # density = 1.2
 # glitch-level = intense
 

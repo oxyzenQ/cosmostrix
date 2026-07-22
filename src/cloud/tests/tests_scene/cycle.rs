@@ -13,7 +13,7 @@ fn scene_cycle_forward_updates_cloud_scene() {
     let new_charset = cloud.apply_scene_runtime("matrix", &charset, &[], false);
     assert_eq!(cloud.active_scene(), "matrix");
     assert_eq!(cloud.rain_style(), RainStyle::Glyph);
-    assert_eq!(new_charset, "binary"); // matrix has no charset override
+    assert_eq!(new_charset, "matrix"); // v18: matrix now overrides charset to matrix
 }
 
 #[test]
