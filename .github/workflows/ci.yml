@@ -200,6 +200,11 @@ jobs:
           echo "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
           echo "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
           echo "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
+          # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
+          echo "${OUT}" | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
+          echo "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
+          echo "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
+          echo "${OUT}" | grep -Fq "hud_overlay" || { echo "::error::hud_overlay missing"; exit 1; }
 
   android_build:
     name: Dragon - Build (android-aarch64)
@@ -487,7 +492,12 @@ jobs:
           run: |
             . "$HOME/.cargo/env"
             set -euo pipefail
-            cd /root/work/cosmostrix
+            # vmactions/freebsd-vm syncs the GitHub workspace into the VM
+            # at $GITHUB_WORKSPACE (default: /home/runner/work/cosmostrix).
+            # Do NOT hardcode /root/work/cosmostrix — that path does not exist.
+            cd "$GITHUB_WORKSPACE"
+            echo "Working directory: $(pwd)"
+            ls -la Cargo.toml || { echo "::error::Cargo.toml missing in $GITHUB_WORKSPACE"; exit 1; }
             COSMOSTRIX_BUILD=freebsd-amd64 \
             COSMOSTRIX_PROFILE=pro-freebsd-amd64 \
             COSMOSTRIX_LTO=fat \
@@ -509,6 +519,9 @@ jobs:
             # Quick smoke test
             "${BIN}" --doctor | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
             "${BIN}" --doctor | grep -Fq "BUILD" || { echo "::error::BUILD section missing"; exit 1; }
+            "${BIN}" --doctor | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
+            "${BIN}" --doctor | grep -Fq "parallax_layers" || { echo "::error::parallax_layers missing"; exit 1; }
+            "${BIN}" --doctor | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
             echo "FreeBSD smoke test passed."
 
   linux_cpu_variants:
@@ -612,6 +625,10 @@ jobs:
             echo "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
             echo "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
           fi
+          # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
+          echo "${OUT}" | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
+          echo "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
+          echo "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
           if file "${BIN}" | grep -qiE 'not stripped'; then
             echo "::error::Metadata says strip: yes, but file reports not stripped: ${BIN}"
             exit 1

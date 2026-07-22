@@ -7,8 +7,9 @@
 # Updates all stable release version references consistently.
 #
 # Usage:
-#   ./scripts/version-to.sh 2.5.0          # Bump to 2.5.0
-#   ./scripts/version-to.sh --check 2.5.0  # Verify version is 2.5.0 (no changes)
+#   ./scripts/version-to.sh 18.0.0         # Bump to 18.0.0
+#   ./scripts/version-to.sh v18.0.0        # Same — 'v' prefix accepted & stripped
+#   ./scripts/version-to.sh --check 18.0.0 # Verify version is 18.0.0 (no changes)
 #   ./scripts/version-to.sh --help         # Show help
 #
 # Safety:
@@ -79,12 +80,15 @@ ARGUMENTS:
     <VERSION>   Target stable SemVer version, e.g. 2.5.0
 
 EXAMPLES:
-    ./scripts/version-to.sh 2.5.0              # Bump from current to 2.5.0
-    ./scripts/version-to.sh --check 2.5.0      # Verify repo is at 2.5.0
+    ./scripts/version-to.sh 18.0.0             # Bump from current to 18.0.0
+    ./scripts/version-to.sh v18.0.0            # Same — 'v' prefix auto-stripped
+    ./scripts/version-to.sh --check 18.0.0     # Verify repo is at 18.0.0
+    ./scripts/version-to.sh --check v18.0.0    # Same — 'v' prefix auto-stripped
 
 VALIDATION:
     - Version must be stable SemVer: X.Y.Z (digits only)
-    - Rejects: v2.5.0, 2.5, 2.5.0-stable.1, 2.5.0-beta.1, empty input
+    - Optional 'v' prefix is accepted and stripped (v18.0.0 → 18.0.0)
+    - Rejects: 2.5, 2.5.0-stable.1, 2.5.0-beta.1, empty input
 
 WHAT IT UPDATES:
     1. Cargo.toml (package version)
@@ -122,11 +126,14 @@ validate_version() {
         exit 1
     fi
 
-    # Reject versions with leading 'v'
+    # Accept and strip optional leading 'v' prefix (e.g. v18.0.0 → 18.0.0).
+    # This is a convenience: tags use the 'v' prefix by convention, so
+    # users naturally type `./scripts/version-to.sh v18.0.0`. Internally
+    # we always store the bare X.Y.Z form in Cargo.toml.
+    # NOTE: This function only validates. The caller is responsible for
+    # applying the strip to its own TARGET_VERSION variable.
     if [[ "${ver}" == v* ]]; then
-        log_err "Version must not include 'v' prefix. Got: ${ver}"
-        log_err "Use: ${SCRIPT_NAME} ${ver#v}"
-        exit 1
+        ver="${ver#v}"
     fi
 
     # Reject pre-release suffixes
@@ -619,6 +626,13 @@ main() {
         echo ""
         show_help
         exit 1
+    fi
+
+    # Strip optional 'v' prefix BEFORE validation (e.g. v18.0.0 → 18.0.0).
+    # This keeps the rest of the script dealing with the bare X.Y.Z form.
+    if [[ "${TARGET_VERSION}" == v* ]]; then
+        log_info "Stripped 'v' prefix — using ${TARGET_VERSION#v}"
+        TARGET_VERSION="${TARGET_VERSION#v}"
     fi
 
     # Validate version format

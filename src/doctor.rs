@@ -95,6 +95,65 @@ pub fn print_doctor_report(args: &Args) {
         );
     }
 
+    // v18: FEATURES section — surfaces the cinematic & endurance subsystems
+    // so users can verify claims (HUD, parallax, phosphor, endurance) via
+    // `cosmostrix --doctor`. Previously these were invisible at runtime.
+    {
+        let s = r.section("FEATURES");
+        s.field(
+            "hud_overlay",
+            "yes (toggle with '?' key, position with 'H')",
+        );
+        s.field(
+            "parallax_layers",
+            &format!(
+                "{} (far/mid/near: speed {:?}, brightness {:?})",
+                crate::constants::PARALLAX_LAYERS,
+                crate::constants::PARALLAX_SPEED_MULT
+                    .iter()
+                    .map(|v| format!("{v:.2}"))
+                    .collect::<Vec<_>>(),
+                crate::constants::PARALLAX_BRIGHTNESS_MULT
+                    .iter()
+                    .map(|v| format!("{v:.2}"))
+                    .collect::<Vec<_>>(),
+            ),
+        );
+        s.field(
+            "phosphor_persistence",
+            &format!(
+                "yes (tail_residual={}, decay_rate={:.1}, bottom_rows={})",
+                crate::constants::PHOSPHOR_TAIL_RESIDUAL,
+                crate::constants::PHOSPHOR_DECAY_RATE,
+                crate::constants::PHOSPHOR_BOTTOM_ROWS,
+            ),
+        );
+        s.field(
+            "depth_fog",
+            &format!(
+                "yes (rows={}, min_factor={:.2})",
+                crate::constants::FOG_ROWS,
+                crate::constants::FOG_MIN_FACTOR,
+            ),
+        );
+        s.field(
+            "idle_throttling",
+            &format!(
+                "yes (threshold={:.0}s, fps_factor={:.2})",
+                crate::constants::IDLE_THRESHOLD_SECS,
+                crate::constants::IDLE_FPS_FACTOR,
+            ),
+        );
+        s.field(
+            "endurance_subsystem",
+            "PAP (phase prediction) + IPAC (idle coalescing) + MPAR (memory reclaim) + EHS (health score 0-100)",
+        );
+        s.field(
+            "color_tuning",
+            "yes ([color.tune] config section: head/body/tail brightness & saturation)",
+        );
+    }
+
     // SYSTEM section
     {
         let s = r.section("SYSTEM");
