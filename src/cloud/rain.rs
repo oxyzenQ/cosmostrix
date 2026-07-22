@@ -338,7 +338,7 @@ impl Cloud {
         let color_wave_line = self.color_wave_line_at(now);
 
         // Draw pass (split-borrows via DrawCtx)
-        let draw_everything = force_draw_everything || time_for_glitch;
+        let draw_everything = force_draw_everything;
         // v16: pool_is_binary cached in Cloud, recomputed only on charset change.
         let pool_is_binary = self.char_pool_is_binary;
 
