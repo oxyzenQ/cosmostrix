@@ -286,7 +286,7 @@ pub fn dump_config_text() -> &'static str {
 # will be used for any key left commented. Run `cosmostrix --testconf`
 # to validate your config after editing.
 
-# ── Core Settings ──────────────────────────────────────────────────
+# Core Settings
 
 # Scene — built-in atmospheric template
 #   monolith (default) | matrix | signal | classic | cinematic | calm
@@ -310,7 +310,7 @@ pub fn dump_config_text() -> &'static str {
 # Background mode: default-background (follow terminal) | black (solid #000000)
 # color-bg = default-background
 
-# ── Motion ─────────────────────────────────────────────────────────
+# Motion
 
 # Target FPS. Adaptive pacing may reduce under load.
 # fps = 60
@@ -326,12 +326,12 @@ pub fn dump_config_text() -> &'static str {
 # Variable column speeds for organic rain (default: on)
 # async-mode = true
 
-# ── Monolith ───────────────────────────────────────────────────────
+# Monolith
 
 # Pillar size (small | normal | large, only for monolith scene)
 # monolith-size = normal
 
-# ── Behavior ───────────────────────────────────────────────────────
+# Behavior
 
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
@@ -346,7 +346,7 @@ pub fn dump_config_text() -> &'static str {
 # Auto color drift (default: off)
 # auto-color-drift = false
 
-# ── Advanced Style ─────────────────────────────────────────────────
+# Advanced Style
 
 # Color tuning (adjust rain brightness/saturation/head/body/tail)
 # All values: 0.0-3.0, default 1.0 = no change
@@ -363,7 +363,7 @@ pub fn dump_config_text() -> &'static str {
 # Shading mode: 0=random, 1=cinematic (default — distance from head)
 # shadingmode = 1
 
-# ── Atmosphere Engine (opt-in) ─────────────────────────────────────
+# Atmosphere Engine (opt-in)
 
 # atmosphere-mode: disabled (default) | controlled-live
 # atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure | adaptive

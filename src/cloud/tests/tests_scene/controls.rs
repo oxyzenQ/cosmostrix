@@ -11,7 +11,7 @@ use crate::runtime::ColorScheme;
 #[test]
 fn monolith_scene_applies_cosmos_color() {
     let mut cloud = make_glyph_cloud();
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     assert_eq!(cloud.color_scheme(), ColorScheme::Cosmos);
 }
 
@@ -26,7 +26,7 @@ fn signal_scene_applies_aurora_color() {
 fn speed_updates_after_scene_switch() {
     let mut cloud = make_glyph_cloud();
     cloud.set_chars_per_sec(5.0);
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     // Monolith scene sets speed=30
     assert_eq!(cloud.chars_per_sec, 30.0);
 }
@@ -34,7 +34,7 @@ fn speed_updates_after_scene_switch() {
 #[test]
 fn speed_remains_clamped_after_scene_switch() {
     let mut cloud = make_glyph_cloud();
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     // Speed should be within valid range
     assert!(cloud.chars_per_sec >= 1.0);
     assert!(cloud.chars_per_sec <= RUNTIME_SPEED_MAX);
@@ -44,7 +44,7 @@ fn speed_remains_clamped_after_scene_switch() {
 fn density_updates_after_scene_switch() {
     let mut cloud = make_glyph_cloud();
     cloud.set_droplet_density(1.0);
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     // Monolith scene sets density=0.85
     assert!((cloud.droplet_density - 0.85).abs() < 0.001);
 }
@@ -62,7 +62,7 @@ fn glitch_level_subtle_applied_from_monolith() {
     let mut cloud = make_glyph_cloud();
     cloud.glitchy = false;
     cloud.glitch_pct = 0.0;
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     assert!(cloud.glitchy);
     // Subtle glitch: pct=0.03
     assert!((cloud.glitch_pct - 0.03).abs() < 0.001);

@@ -58,7 +58,7 @@ fn sparse_entry_ramp_cleared_on_monolith_switch() {
     let mut cloud = make_monolith_cloud();
     cloud.apply_scene_runtime("matrix", "binary", &[], false);
     assert!(cloud.glyph_entry_time.is_some());
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     assert!(
         cloud.glyph_entry_time.is_none(),
         "glyph_entry_time must be cleared when switching to monolith"

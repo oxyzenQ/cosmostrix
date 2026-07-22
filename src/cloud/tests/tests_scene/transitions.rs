@@ -22,7 +22,7 @@ fn monolith_to_matrix_changes_rain_style_to_glyph() {
 fn matrix_to_monolith_changes_rain_style_to_monolith() {
     let mut cloud = make_glyph_cloud();
     assert_eq!(cloud.rain_style(), RainStyle::Glyph);
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     assert_eq!(cloud.rain_style(), RainStyle::Monolith);
 }
 
@@ -40,7 +40,7 @@ fn switching_from_monolith_clears_draw_history() {
 fn switching_into_monolith_initializes_state_cleanly() {
     let mut cloud = make_glyph_cloud();
     cloud.droplets.clear();
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     // Monolith should be reset and ready
     assert_eq!(cloud.rain_style(), RainStyle::Monolith);
     assert_eq!(cloud.monolith_rain.draw_history_count_for_test(), 0);
@@ -81,7 +81,7 @@ fn scene_switch_drops_spawn_debt() {
     cloud.spawn_remainder = 100.0;
     cloud.last_spawn_time = Instant::now() - Duration::from_secs(5);
     // Switching to monolith resets spawn debt
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     assert!(
         cloud.spawn_remainder < 1.0,
         "monolith scene switch should drop spawn debt"
@@ -126,7 +126,7 @@ fn monolith_to_signal_produces_dirty_glyph_frame() {
 fn signal_to_monolith_produces_visible_frame() {
     let mut cloud = make_glyph_cloud();
     let mut frame = Frame::new(40, 20, cloud.palette.bg);
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     let now = Instant::now();
     cloud.last_spawn_time = now;
     cloud.rain_at(&mut frame, now + Duration::from_millis(16));

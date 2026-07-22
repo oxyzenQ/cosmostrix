@@ -159,19 +159,21 @@ pub(super) fn handle_keybinding(
         // (silently ignored, like all other unrecognized keys).
         (KeyCode::Char('g'), _) => {
             // v18: cycle glitch intensity (off → default → intense → off).
-            // The old toggle (glitchy on/off) was invisible at Subtle level
-            // (3%). Cycling through visible levels makes the key useful.
+            // Non-monolith scenes: strengthened multi-stage cycle with aggressive
+            // timing so the user sees the effect immediately on press.
             let pct = cloud.glitch_pct();
             if !cloud.glitchy || pct < 0.05 {
-                // off or subtle → default (10%)
+                // off or subtle → default (20%)
                 cloud.set_glitchy(true);
-                cloud.set_glitch_pct(0.10);
-            } else if pct < 0.20 {
-                // default (10%) → intense (25%)
+                cloud.set_glitch_pct(0.20);
+                cloud.set_glitch_times(150, 250);
+            } else if pct < 0.30 {
+                // default (20%) → intense (45%)
                 cloud.set_glitchy(true);
-                cloud.set_glitch_pct(0.25);
+                cloud.set_glitch_pct(0.45);
+                cloud.set_glitch_times(80, 200);
             } else {
-                // intense (25%) → off
+                // intense (45%) → off
                 cloud.set_glitchy(false);
             }
         }

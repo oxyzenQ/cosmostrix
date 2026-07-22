@@ -253,7 +253,7 @@ fn scene_cycle_applies_scene_color_intentionally() {
     assert!(!cloud.auto_color_drift);
 
     // Apply monolith scene — it sets color if specified
-    let charset_preset = cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    let charset_preset = cloud.apply_scene_runtime("monolith", "braille", &[], false);
 
     // The monolith scene may or may not set color — check the scene definition
     // The important thing is: no crash, and the drift gate doesn't interfere.

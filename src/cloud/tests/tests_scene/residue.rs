@@ -126,7 +126,7 @@ fn depth_lab_scene_switch_glyph_to_monolith_renders_clean() {
     cloud.rain_at(&mut frame, start);
 
     // Switch to monolith
-    cloud.apply_scene_runtime("monolith", "binary", &[], false);
+    cloud.apply_scene_runtime("monolith", "braille", &[], false);
     assert_eq!(cloud.rain_style(), RainStyle::Monolith);
     frame.clear_dirty();
 

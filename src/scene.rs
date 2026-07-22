@@ -58,10 +58,10 @@ pub const SCENES: &[SceneInfo] = &[
     SceneInfo {
         name: "monolith",
         description:
-            "Signature structured segmented rain — dense binary pillars with premium pacing",
+            "Signature structured segmented rain — dense braille pillars with premium pacing",
         config: SceneConfig {
             color: Some("cosmos"),
-            charset: Some("binary"),
+            charset: Some("braille"),
             fps: Some(60.0),
             speed: Some(30.0),
             density: Some(0.85),
@@ -435,6 +435,7 @@ mod tests {
         let monolith = get_scene("monolith").expect("monolith scene");
         assert_eq!(monolith.config.speed, Some(30.0));
         assert_eq!(monolith.config.density, Some(0.85));
+        assert_eq!(monolith.config.charset, Some("braille"));
     }
 
     #[test]
