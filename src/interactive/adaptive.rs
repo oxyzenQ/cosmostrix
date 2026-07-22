@@ -269,6 +269,7 @@ impl Default for ReclaimState {
 /// The score is designed to be a single number operators can monitor.
 /// A score > 80 means healthy; 60–80 means degraded; < 60 means investigate.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub(crate) struct EnduranceHealth {
     /// Ring buffer of recent RSS readings (KB).
     rss_samples: [f64; 60],

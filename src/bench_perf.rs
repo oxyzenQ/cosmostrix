@@ -255,6 +255,7 @@ pub struct PerfCounterHandle {
     #[cfg(target_os = "linux")]
     inner: Option<linux::PerfCounters>,
     #[cfg(not(target_os = "linux"))]
+    #[allow(dead_code)]
     inner: Option<()>,
 }
 
