@@ -128,6 +128,7 @@ EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 
 - Linux amd64: `v3`, `v4`, `musl` (also `linux-aarch64` for arm64)
 - macOS: `darwin-aarch64-native` (Apple Silicon)
+- FreeBSD: `freebsd-amd64` (requires libexecinfo on 15+, see [System Requirements](docs/SYSTEM_REQUIREMENTS.md))
 - Windows: `windows-x86_64`, `windows-aarch64-native`
 - Android (Termux): `android-aarch64-native`
 
@@ -165,6 +166,12 @@ For a modern Linux x86_64 machine, the recommended optimized build is:
 cargo pro-linux-v3
 ```
 
+On FreeBSD (after installing libexecinfo — see [System Requirements](docs/SYSTEM_REQUIREMENTS.md#freebsd)):
+
+```bash
+cargo pro-freebsd-amd64
+```
+
 Artifact variants use explicit CPU baselines:
 
 | Variant | Baseline |
@@ -172,6 +179,7 @@ Artifact variants use explicit CPU baselines:
 | `linux-amd64-v3` | AVX2 / BMI2 / FMA-era CPUs (2013+, most modern x86_64) |
 | `linux-amd64-v4` | AVX-512 baseline (high-end server/workstation) |
 | `linux-amd64-musl` | v3 baseline + statically linked (max portability) |
+| `freebsd-amd64` | x86-64 (FreeBSD 13+, GhostBSD) |
 | `native` | Local-only build tuned for the current CPU |
 
 > **Note:** v1/v2 x86_64 variants were dropped in v11.0.0. Modern CPUs

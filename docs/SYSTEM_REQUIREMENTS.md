@@ -95,6 +95,38 @@ These are available on all macOS versions. The `#allow(deprecated)` in
 `memstat.rs` and `cpustat.rs` handles the libc 0.2.x deprecation of
 the old `mach` shim in favor of `mach2`.
 
+### FreeBSD
+
+| FreeBSD version | Status | Notes |
+|---------------|--------|-------|
+| 13.x | Supported | libexecinfo in base |
+| 14.x | Supported | libexecinfo in base |
+| 15.0+ | Supported (requires libexecinfo) | libexecinfo removed from base system |
+| GhostBSD 15 | Supported (requires libexecinfo) | Based on FreeBSD 15 |
+
+**FreeBSD 15 / GhostBSD 15: `libexecinfo` was removed from the base system.**
+The Rust standard library links against `-lexecinfo` for backtrace support.
+Without it, every Rust build (not just cosmostrix) fails with:
+
+```
+ld: error: unable to find library -lexecinfo
+```
+
+**Fix — build libexecinfo from source (takes ~5 seconds):**
+
+```bash
+cd /tmp
+curl -LO https://github.com/freebsd/libexecinfo/archive/refs/heads/main.zip
+unzip main.zip
+cd libexecinfo-main
+make -f Makefile.libexecinfo
+sudo make -f Makefile.libexecinfo install
+sudo ldconfig
+```
+
+After that, `cargo pro-freebsd-amd64` (or `cargo build --release`) works
+normally. This is a one-time system setup — all Rust projects benefit.
+
 ## Rust Toolchain (MSRV)
 
 | Component | Version | Notes |
@@ -121,12 +153,15 @@ handling idioms used throughout the codebase require 1.81+. The `notify`
 | x86-64-v4 | `pro-linux-v4` | AVX-512 (2017) | Server/workstation CPUs |
 | aarch64 | `pro-android-aarch64` | NEON | Android/Termux, Apple Silicon |
 | aarch64 macOS | `pro-macos-aarch64-native` | NEON | Apple M1/M2/M3 |
+| x86-64 FreeBSD | `pro-freebsd-amd64` | x86-64 | FreeBSD 13+, GhostBSD |
 
 **`install.sh` auto-detects** the CPU microarchitecture level and builds
-the optimal profile:
+the optimal profile (Linux only):
 - AVX-512 detected → `pro-linux-v4`
 - AVX2 detected → `pro-linux-v3`
 - Neither → `release` (v1 baseline, works everywhere)
+
+On FreeBSD, use `cargo pro-freebsd-amd64` directly.
 
 The runtime CPU check in `info.rs::check_cpu_features()` verifies the
 CPU supports the compiled target level. If not, it prints a clear error
