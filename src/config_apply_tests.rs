@@ -127,7 +127,7 @@ fn default_scene_is_monolith() {
     let args = args_from_cli(&[]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
-    assert_eq!(args.charset, "binary");
+    assert_eq!(args.charset, "braille");
     assert_eq!(args.speed, 30.0);
     assert_eq!(args.density, 0.85);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
@@ -166,7 +166,7 @@ fn config_scene_monolith_applies() {
     let args = args_with_config("scene = monolith\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "cosmos");
-    assert_eq!(args.charset, "binary");
+    assert_eq!(args.charset, "braille");
     assert_eq!(args.speed, 30.0);
     assert!((args.density - 0.85).abs() < f32::EPSILON);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
@@ -197,7 +197,7 @@ fn monolith_scene_respects_explicit_color_override() {
     let args = args_from_cli(&["--scene", "monolith", "--color", "deepspace"]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "deepspace");
-    assert_eq!(args.charset, "binary");
+    assert_eq!(args.charset, "braille");
 }
 
 #[test]

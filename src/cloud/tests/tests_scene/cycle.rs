@@ -9,7 +9,7 @@ use crate::rain_style::RainStyle;
 #[test]
 fn scene_cycle_forward_updates_cloud_scene() {
     let mut cloud = make_monolith_cloud();
-    let charset = "binary".to_string();
+    let charset = "braille".to_string();
     let new_charset = cloud.apply_scene_runtime("matrix", &charset, &[], false);
     assert_eq!(cloud.active_scene(), "matrix");
     assert_eq!(cloud.rain_style(), RainStyle::Glyph);
@@ -19,7 +19,7 @@ fn scene_cycle_forward_updates_cloud_scene() {
 #[test]
 fn scene_cycle_to_signal_updates_cloud_scene() {
     let mut cloud = make_monolith_cloud();
-    let charset = "binary".to_string();
+    let charset = "braille".to_string();
     let new_charset = cloud.apply_scene_runtime("signal", &charset, &[], false);
     assert_eq!(cloud.active_scene(), "signal");
     assert_eq!(cloud.rain_style(), RainStyle::Glyph);
@@ -29,7 +29,7 @@ fn scene_cycle_to_signal_updates_cloud_scene() {
 #[test]
 fn cycle_monolith_signal_monolith_roundtrip() {
     let mut cloud = make_monolith_cloud();
-    let mut charset = "binary".to_string();
+    let mut charset = "braille".to_string();
     // monolith -> signal
     let c = cloud.apply_scene_runtime("signal", &charset, &[], false);
     charset = c.to_string();
@@ -40,5 +40,5 @@ fn cycle_monolith_signal_monolith_roundtrip() {
     charset = c.to_string();
     assert_eq!(cloud.rain_style(), RainStyle::Monolith);
     assert_eq!(cloud.active_scene(), "monolith");
-    assert_eq!(charset, "binary");
+    assert_eq!(charset, "braille");
 }
