@@ -226,7 +226,7 @@ pub struct Args {
     #[arg(
         short = 'S',
         long = "speed",
-        default_value_t = 8.0,
+        default_value_t = 30.0,
         help_heading = "COMMON OPTIONS",
         display_order = 40,
         help = "Rain speed"

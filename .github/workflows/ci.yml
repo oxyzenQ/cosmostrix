@@ -205,6 +205,7 @@ jobs:
           echo "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
           echo "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
           echo "${OUT}" | grep -Fq "hud_overlay" || { echo "::error::hud_overlay missing"; exit 1; }
+          echo "${OUT}" | grep -Fq "click_wave" || { echo "::error::click_wave missing"; exit 1; }
 
   android_build:
     name: Dragon - Build (android-aarch64)
@@ -485,6 +486,7 @@ jobs:
             echo "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
             echo "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
             echo "${OUT}" | grep -Fq "hud_overlay" || { echo "::error::hud_overlay missing"; exit 1; }
+            echo "${OUT}" | grep -Fq "click_wave" || { echo "::error::click_wave missing"; exit 1; }
 
             # Quick benchmark smoke test (10 frames, verifies runtime works)
             echo "=== Benchmark smoke test (10 frames) ==="
@@ -585,6 +587,7 @@ jobs:
             echo "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
             echo "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
             echo "${OUT}" | grep -Fq "hud_overlay" || { echo "::error::hud_overlay missing"; exit 1; }
+            echo "${OUT}" | grep -Fq "click_wave" || { echo "::error::click_wave missing"; exit 1; }
           else
             # Binary crashed (likely SIGILL on AVX-512-unsupported runner).
             # Fall back to strings-based verification of embedded metadata.

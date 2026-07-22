@@ -145,6 +145,16 @@ pub fn print_doctor_report(args: &Args) {
             ),
         );
         s.field(
+            "click_wave",
+            &format!(
+                "yes (speed={:.0} cells/s, intensity={:.2}, duration={:.1}s, ring_width={:.0})",
+                crate::constants::MOUSE_FLASH_SPEED,
+                crate::constants::MOUSE_FLASH_INTENSITY,
+                crate::constants::MOUSE_FLASH_DURATION_SECS,
+                crate::constants::MOUSE_FLASH_RING_WIDTH,
+            ),
+        );
+        s.field(
             "endurance_subsystem",
             "PAP (phase prediction) + IPAC (idle coalescing) + MPAR (memory reclaim) + EHS (health score 0-100)",
         );

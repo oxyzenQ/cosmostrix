@@ -269,12 +269,20 @@ pub const WARM_START_SPAWN_DEBT: f32 = 0.5;
 /// after switching to a glyph scene, spawn rate gradually increases from
 /// GLYPH_ENTRY_RAMP_MIN_SCALE to full speed via smoothstep interpolation,
 /// creating a cinematic top-entry cascade instead of an instant wall.
-pub const GLYPH_ENTRY_RAMP_DURATION_MS: u32 = 500;
+///
+/// v18 mastery: raised from 500 to 700. The longer ramp gives scene
+/// transitions a more deliberate, cinematic fill-in. Combined with the
+/// lower min scale (0.15), the first second of a new scene is a gradual
+/// bloom of rain rather than a quick pop.
+pub const GLYPH_ENTRY_RAMP_DURATION_MS: u32 = 700;
 
 /// Minimum spawn scale at the start of the glyph entry ramp (fraction of
 /// normal spawn rate). At the moment of scene switch, spawn begins at this
 /// rate and smoothly ramps to 1.0 over GLYPH_ENTRY_RAMP_DURATION_MS.
-pub const GLYPH_ENTRY_RAMP_MIN_SCALE: f32 = 0.25;
+///
+/// v18 mastery: lowered from 0.25 to 0.15. Scene entry now starts even
+/// sparser, making the ramp more visible and the fill-in more graceful.
+pub const GLYPH_ENTRY_RAMP_MIN_SCALE: f32 = 0.15;
 
 /// Hard cap on droplet advance remainder per frame. Without this,
 /// high speed settings can cause a single advance() call to move
@@ -332,11 +340,22 @@ pub const DROPLET_TERMINAL_VELOCITY_MULT: f32 = 1.8;
 
 /// Initial velocity as fraction of chars_per_sec when a stream is born.
 /// Much lower than the old 0.3 for a more gradual, organic appearance.
-pub const STARTUP_VELOCITY_FRACTION: f32 = 0.05;
+///
+/// v18 mastery: lowered from 0.05 to 0.03. Streams now start even slower,
+/// giving the rain a softer "fade in from stillness" feel rather than an
+/// instant jump. Combined with the longer ease tau (0.3s), the first
+/// second of each stream's life is a graceful acceleration.
+pub const STARTUP_VELOCITY_FRACTION: f32 = 0.03;
 
 /// Time in seconds for startup easing to reach ~95% of full velocity.
 /// Uses exponential ease: v = target × (1 - e^(-t/tau)).
-pub const STARTUP_EASE_TAU: f32 = 0.15;
+///
+/// v18 mastery: raised from 0.15 to 0.30. The old 0.15s tau meant streams
+/// reached full speed in 0.45s — too fast, read as an instant start. The
+/// new 0.30s tau gives 0.9s to reach 95% velocity, creating a visible
+/// cinematic acceleration curve. New streams now "emerge" from the top
+/// of the screen with a gentle ramp instead of snapping to full speed.
+pub const STARTUP_EASE_TAU: f32 = 0.30;
 
 // Head bloom (exponential gaussian falloff)
 
@@ -386,45 +405,53 @@ pub const MOUSE_GLOW_INTENSITY: f32 = 0.0;
 
 /// Click flash: ring expansion speed (columns per second).
 ///
-/// v17 mastery: raised from 32.0 to 60.0. The wave now propagates at 60
-/// cells/s — fast enough to reach the screen edge on a 120-col terminal
-/// in ~1 second. The owner wanted 'merambat sampai ujung' (propagate to
-/// the edge) for a natural water-drop ripple effect.
-pub const MOUSE_FLASH_SPEED: f32 = 60.0;
+/// v18 mastery: lowered from 60.0 to 32.0. The previous 60 cells/s was too
+/// fast — it read as a flicker, not a ripple. 32 cells/s gives a slow,
+/// elegant water-drop propagation that reaches a 120-col terminal edge in
+/// ~2 seconds, matching the natural pace of a stone dropped into still
+/// water. Combined with the longer duration (1.8s) the wave now travels
+/// 58 cells — enough to cross mid-size terminals with a graceful arc.
+pub const MOUSE_FLASH_SPEED: f32 = 32.0;
 
 /// Click flash: thickness of the glowing ring (in columns).
 ///
-/// v17 mastery: raised from 4.5 to 6.0. A thicker wave front reads as a
-/// more substantial water-drop ripple rather than a thin flicker.
-pub const MOUSE_FLASH_RING_WIDTH: f32 = 6.0;
+/// v18 mastery: raised from 6.0 to 8.0. A thicker wave front reads as a
+/// more substantial glowing band rather than a thin line. The extra width
+/// also gives the brightness ramp more room to breathe, so the glow fades
+/// smoothly instead of cutting off.
+pub const MOUSE_FLASH_RING_WIDTH: f32 = 8.0;
 
 /// Click flash: peak intensity at ring center (0.0 = off, 1.0 = full white).
 ///
-/// v17 mastery: raised from 0.55 to 0.65. Stronger wave for a more
-/// dramatic water-drop effect. The quadratic fade (see droplet.rs) ensures
-/// the wave dissipates naturally without abrupt cutoff.
-pub const MOUSE_FLASH_INTENSITY: f32 = 0.65;
+/// v18 mastery: raised from 0.65 to 0.85. Owner reported the wave was too
+/// dim — now the ring peaks at 85% white blend, giving a bright luminous
+/// glow that reads clearly against the dark cinematic background. The
+/// quadratic fade ensures the bright peak doesn't blow out harshly.
+pub const MOUSE_FLASH_INTENSITY: f32 = 0.85;
 
 /// Click flash: total duration of the ripple effect in seconds.
 ///
-/// v17 mastery: raised from 0.7 to 1.2. At 60 cells/s × 1.2s = 72 cells,
-/// the wave travels far enough to reach the screen edge on most terminals.
-/// The quadratic fade curve ensures the tail dissolves naturally.
-pub const MOUSE_FLASH_DURATION_SECS: f32 = 1.2;
+/// v18 mastery: raised from 1.2 to 1.8. The longer duration gives the
+/// slower wave (32 cells/s) time to propagate fully and dissolve naturally.
+/// The quadratic fade curve means the last 0.6s is a gentle tail-off,
+/// creating the "lingering shimmer" of a real water drop.
+pub const MOUSE_FLASH_DURATION_SECS: f32 = 1.8;
 
-/// v17 mastery: secondary ripple intensity (fraction of primary flash).
+/// v18 mastery: secondary ripple intensity (fraction of primary flash).
 ///
-/// A second, dimmer ring follows the primary wave at half the speed,
-/// creating a layered "echo" effect that makes the click feel more
-/// cinematic — like a stone dropped into water with a secondary ripple.
-/// Set to 0.0 to disable the secondary ripple.
-pub const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.35;
+/// Raised from 0.35 to 0.45. The secondary echo ring is now brighter,
+/// making the layered "stone in water" effect more visible. The secondary
+/// ring still trails the primary at half speed, creating a two-wave
+/// cascade that reads as a single elegant event.
+pub const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.45;
 
-/// v17 mastery: secondary ripple speed (fraction of primary speed).
+/// v18 mastery: secondary ripple speed (fraction of primary speed).
 ///
-/// The secondary ring expands at 0.5× the primary speed, so it lags
-/// behind and creates a layered wave effect.
-pub const MOUSE_FLASH_SECONDARY_SPEED_FRAC: f32 = 0.5;
+/// Lowered from 0.5 to 0.4. The secondary ring now lags further behind
+/// (40% of primary speed), giving the two rings more visual separation.
+/// This makes the echo distinct from the primary wave rather than
+/// blending into a single thick pulse.
+pub const MOUSE_FLASH_SECONDARY_SPEED_FRAC: f32 = 0.4;
 
 // Parallax depth layers
 
