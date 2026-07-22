@@ -592,7 +592,7 @@ jobs:
             if command -v strings >/dev/null 2>&1; then
               TEXT="$(strings "${BIN}")"
             else
-              TEXT="$(grep -aE '${BUILD_ID}|${OPTIMIZATION}|static optimized build|${BASELINE}|fat|unwind|yes' "${BIN}" || true)"
+              TEXT="$(grep -aF -e "${BUILD_ID}" -e "${OPTIMIZATION}" -e "static optimized build" -e "${BASELINE}" -e "fat" -e "unwind" -e "yes" "${BIN}" || true)"
             fi
             grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded build ${BUILD_ID}"; exit 1; }
             grep -Fq "${OPTIMIZATION}" <<<"${TEXT}" || { echo "::error::Expected embedded optimization ${OPTIMIZATION}"; exit 1; }
