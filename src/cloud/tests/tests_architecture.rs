@@ -160,7 +160,8 @@ fn architecture_runtime_controls_work_after_split() {
     assert!((cloud.droplet_density - 0.5).abs() < 0.001);
 
     // Glitch control
-    cloud.set_glitchy(false);
+    cloud.glitchy = false;
+    cloud.fill_glitch_map();
     assert!(!cloud.glitchy);
 
     // Shading mode

@@ -97,6 +97,4 @@ fn existing_controls_still_work_after_scene_switch() {
     assert!(cloud.chars_per_sec > original_cps);
     // Density should still work
     cloud.set_droplet_density(cloud.droplet_density + 0.1);
-    // Glitch toggle should still work
-    cloud.set_glitchy(!cloud.glitchy);
 }

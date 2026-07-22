@@ -119,9 +119,6 @@ pub const SIM_MAX_CAP_SECS: f64 = 1.0 / 30.0;
 /// Multiplier for frame_period to get sim_base.
 pub const SIM_BASE_MULTIPLIER: f64 = 3.0;
 
-/// Glitch percent step for Left/Right keys.
-pub const GLITCH_PCT_STEP: f32 = 0.05;
-
 /// Density step for `[`/`]` keys.
 pub const DENSITY_STEP: f32 = 0.25;
 

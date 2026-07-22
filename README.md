@@ -271,8 +271,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
   q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
-  Up / Down     Speed             g          Cycle glitch (off → default → intense)
-  Space         Reseed animation
+  Up / Down     Speed             Space      Reseed animation
   i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)
 ```

@@ -138,11 +138,10 @@ impl Cloud {
             let ms = self.rand_glitch_ms.sample(&mut self.mt) as u64;
             self.next_glitch_time = now + Duration::from_millis(ms);
         }
-        self.force_draw_everything = true;
+        self.semantic_invalidate = true;
     }
 
     /// Current glitch intensity (0.0 = off, 0.25 = intense).
-    /// Used by the 'g' key handler to cycle through levels.
     #[must_use]
     pub fn glitch_pct(&self) -> f32 {
         self.glitch_pct

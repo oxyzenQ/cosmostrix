@@ -157,26 +157,9 @@ pub(super) fn handle_keybinding(
         // v17: 'a' (toggle async) REMOVED. Async is always on; use --uniform
         // to disable. The 'a' key now falls through to the _ => {} catch-all
         // (silently ignored, like all other unrecognized keys).
-        (KeyCode::Char('g'), _) => {
-            // v18: cycle glitch intensity (off → default → intense → off).
-            // Non-monolith scenes: strengthened multi-stage cycle with aggressive
-            // timing so the user sees the effect immediately on press.
-            let pct = cloud.glitch_pct();
-            if !cloud.glitchy || pct < 0.05 {
-                // off or subtle → default (20%)
-                cloud.set_glitchy(true);
-                cloud.set_glitch_pct(0.20);
-                cloud.set_glitch_times(150, 250);
-            } else if pct < 0.30 {
-                // default (20%) → intense (45%)
-                cloud.set_glitchy(true);
-                cloud.set_glitch_pct(0.45);
-                cloud.set_glitch_times(80, 200);
-            } else {
-                // intense (45%) → off
-                cloud.set_glitchy(false);
-            }
-        }
+        // v18: 'g' (toggle glitch) REMOVED. Glitch is controlled via config
+        // (glitch-level, glitch-low, glitch-high) and scene defaults — not
+        // runtime toggle. Falls through to _ => {} (silently ignored).
         (KeyCode::Char('p'), _) => {
             return cloud.toggle_pause();
         }
@@ -203,14 +186,6 @@ pub(super) fn handle_keybinding(
                 cps -= 1.0;
             }
             cloud.set_chars_per_sec(runtime_speed_clamp(cps, cloud.rain_style()));
-        }
-        (KeyCode::Left, _) if cloud.glitchy => {
-            let gp = (cloud.glitch_pct - GLITCH_PCT_STEP).max(0.0);
-            cloud.set_glitch_pct(gp);
-        }
-        (KeyCode::Right, _) if cloud.glitchy => {
-            let gp = (cloud.glitch_pct + GLITCH_PCT_STEP).min(1.0);
-            cloud.set_glitch_pct(gp);
         }
         (KeyCode::Tab, _) | (KeyCode::BackTab, _) => {
             // Tab and Shift+Tab are explicitly ignored. Previously Tab
