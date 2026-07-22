@@ -112,16 +112,59 @@ Without it, every Rust build (not just cosmostrix) fails with:
 ld: error: unable to find library -lexecinfo
 ```
 
-**Fix — build libexecinfo from source (takes ~5 seconds):**
+**Fix — build libexecinfo from source inline (takes ~10 seconds):**
 
 ```bash
-cd /tmp
-curl -LO https://github.com/freebsd/libexecinfo/archive/refs/heads/main.zip
-unzip main.zip
-cd libexecinfo-main
-make -f Makefile.libexecinfo
-sudo make -f Makefile.libexecinfo install
-sudo ldconfig
+cd /tmp && mkdir -p libexecinfo-build && cd libexecinfo-build
+cat > execinfo.c << 'SRC'
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+int backtrace(void **buffer, int size) {
+    void *fp = __builtin_frame_address(1);
+    int i = 0;
+    while (i < size && fp) {
+        buffer[i++] = __builtin_return_address(0);
+        fp = __builtin_frame_address(0) ? *(void **)fp : NULL;
+    }
+    return i;
+}
+
+char **backtrace_symbols(void *const *buffer, int size) {
+    if (size <= 0) return NULL;
+    char **strings = calloc(size, sizeof(char *));
+    for (int i = 0; i < size; i++)
+        asprintf(&strings[i], "%p", buffer[i]);
+    return strings;
+}
+
+void backtrace_symbols_fd(void *const *buffer, int size, int fd) {
+    char **strings = backtrace_symbols(buffer, size);
+    if (!strings) return;
+    for (int i = 0; i < size; i++) {
+        write(fd, strings[i], strlen(strings[i]));
+        write(fd, "\n", 1);
+        free(strings[i]);
+    }
+    free(strings);
+}
+SRC
+cat > execinfo.h << 'HDR'
+#ifndef _EXECINFO_H_
+#define _EXECINFO_H_
+int backtrace(void **buffer, int size);
+char **backtrace_symbols(void *const *buffer, int size);
+void backtrace_symbols_fd(void *const *buffer, int size, int fd);
+#endif
+HDR
+cc -c -O2 -o execinfo.o execinfo.c && \
+ar rcs libexecinfo.a execinfo.o && \
+sudo cp libexecinfo.a /usr/local/lib/ && \
+sudo cp execinfo.h /usr/local/include/ && \
+sudo ldconfig && \
+echo 'libexecinfo installed successfully'
 ```
 
 After that, `cargo pro-freebsd-amd64` (or `cargo build --release`) works
