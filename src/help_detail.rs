@@ -57,7 +57,7 @@ COMMON OPTIONS:
   -s, --screensaver
       Screensaver mode. Only 'q' exits — all other keys are silently
       ignored (no glitch, no accidental exit). Recognized keys
-      (c/s/x/g/a/p/m/i/h, Space, Up/Down, 0-9, etc.) still work for
+      (c/s/x/g/a/p/i/h, Space, Up/Down, 0-9, etc.) still work for
       interactive control — cycle colors, toggle HUD, pause, etc.
       Mouse click does NOT exit (v17: removed for consistency with the
       only-q-quits policy). Mouse events are still captured to block
@@ -232,7 +232,7 @@ RUNTIME CONTROLS:
   q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
-  Up / Down     Speed             g          Toggle glitch
+  Up / Down     Speed             g          Cycle glitch (off → default → intense)
   Space         Reset animation
   i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)

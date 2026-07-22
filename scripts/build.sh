@@ -521,7 +521,13 @@ build_pgo() {
         export COSMOSTRIX_PROFILE="pgo-instrument"
         export COSMOSTRIX_LTO="off"
         export COSMOSTRIX_STRIP="no"
-        export RUSTFLAGS="-C profile-generate=${pgo_dir}"
+        # Preserve target-cpu if set via COSMOSTRIX_TARGET_CPU (for v3/v4 PGO)
+        local cpu_flag=""
+        if [ -n "${COSMOSTRIX_TARGET_CPU:-}" ]; then
+            cpu_flag="-C target-cpu=${COSMOSTRIX_TARGET_CPU}"
+            log_info "PGO target CPU: ${COSMOSTRIX_TARGET_CPU}"
+        fi
+        export RUSTFLAGS="${cpu_flag} -C profile-generate=${pgo_dir}"
 
         if ! cargo build --profile pgo-instrument --target "${TARGET}" --jobs "${MAX_JOBS}"; then
                 log_error "Stage 1 failed: instrumented build failed"
@@ -577,7 +583,7 @@ build_pgo() {
         export COSMOSTRIX_PROFILE="pgo-use"
         export COSMOSTRIX_LTO="fat"
         export COSMOSTRIX_STRIP="yes"
-        export RUSTFLAGS="-C profile-use=${profdata_file}"
+        export RUSTFLAGS="${cpu_flag} -C profile-use=${profdata_file}"
 
         if ! cargo build --profile pgo-use --target "${TARGET}" --jobs "${MAX_JOBS}"; then
                 log_error "Stage 3 failed: PGO-optimized build failed"

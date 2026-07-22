@@ -158,7 +158,22 @@ pub(super) fn handle_keybinding(
         // to disable. The 'a' key now falls through to the _ => {} catch-all
         // (silently ignored, like all other unrecognized keys).
         (KeyCode::Char('g'), _) => {
-            cloud.set_glitchy(!cloud.glitchy);
+            // v18: cycle glitch intensity (off → default → intense → off).
+            // The old toggle (glitchy on/off) was invisible at Subtle level
+            // (3%). Cycling through visible levels makes the key useful.
+            let pct = cloud.glitch_pct();
+            if !cloud.glitchy || pct < 0.05 {
+                // off or subtle → default (10%)
+                cloud.set_glitchy(true);
+                cloud.set_glitch_pct(0.10);
+            } else if pct < 0.20 {
+                // default (10%) → intense (25%)
+                cloud.set_glitchy(true);
+                cloud.set_glitch_pct(0.25);
+            } else {
+                // intense (25%) → off
+                cloud.set_glitchy(false);
+            }
         }
         (KeyCode::Char('p'), _) => {
             return cloud.toggle_pause();
