@@ -504,25 +504,26 @@ jobs:
             COSMOSTRIX_STRIP=yes \
             cargo build --profile pro-freebsd-amd64 --locked --jobs "$(sysctl -n hw.ncpu)"
 
-            # Verify embedded build metadata
+            # Verify embedded build metadata via --doctor (reliable post-strip;
+            # strings-based grep is fragile after LTO+strip merges constants).
             BIN="target/pro-freebsd-amd64/cosmostrix"
             BUILD_ID="freebsd-amd64"
-            echo "Verifying embedded build metadata: ${BUILD_ID}"
-            TEXT="$(strings "${BIN}")"
-            echo "${TEXT}" | grep -Fq "${BUILD_ID}" || { echo "::error::Expected variant ${BUILD_ID}"; exit 1; }
-            echo "${TEXT}" | grep -Fq "static optimized build" || { echo "::error::Expected dispatch metadata"; exit 1; }
-            echo "${TEXT}" | grep -Fq "fat" || { echo "::error::Expected lto fat"; exit 1; }
-            echo "${TEXT}" | grep -Fq "unwind" || { echo "::error::Expected panic unwind"; exit 1; }
-            echo "${TEXT}" | grep -Fq "yes" || { echo "::error::Expected strip yes"; exit 1; }
-            echo "FreeBSD native build verified successfully."
-
-            # Quick smoke test
-            "${BIN}" --doctor | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
-            "${BIN}" --doctor | grep -Fq "BUILD" || { echo "::error::BUILD section missing"; exit 1; }
-            "${BIN}" --doctor | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
-            "${BIN}" --doctor | grep -Fq "parallax_layers" || { echo "::error::parallax_layers missing"; exit 1; }
-            "${BIN}" --doctor | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
-            echo "FreeBSD smoke test passed."
+            echo "Verifying build metadata via --doctor: ${BUILD_ID}"
+            OUT="$("${BIN}" --doctor)"
+            echo "${OUT}"
+            echo "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
+            echo "${OUT}" | grep -Fq "BUILD" || { echo "::error::BUILD section missing"; exit 1; }
+            echo "${OUT}" | grep -E "^  build: ${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
+            echo "${OUT}" | grep -E "^  dispatch: static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+            echo "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
+            echo "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
+            echo "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
+            # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
+            echo "${OUT}" | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
+            echo "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
+            echo "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
+            echo "${OUT}" | grep -Fq "hud_overlay" || { echo "::error::hud_overlay missing"; exit 1; }
+            echo "FreeBSD native build + smoke test passed."
 
   linux_cpu_variants:
     name: Dragon - Build (linux x86_64 variants)
@@ -624,11 +625,11 @@ jobs:
             echo "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
             echo "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
             echo "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
+            # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
+            echo "${OUT}" | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
+            echo "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
+            echo "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
           fi
-          # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
-          echo "${OUT}" | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
-          echo "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
-          echo "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
           if file "${BIN}" | grep -qiE 'not stripped'; then
             echo "::error::Metadata says strip: yes, but file reports not stripped: ${BIN}"
             exit 1
