@@ -461,8 +461,29 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
 
         loop {
-            while Terminal::poll_event(Duration::from_millis(0))? {
-                let ev = Terminal::read_event()?;
+            // Drain all pending events. On Windows (ConPTY) and Termux
+            // (Android PTY), crossterm's event::poll/read can fail with
+            // transient I/O errors (console handle invalidation, PTY state
+            // changes). Using `?` here would propagate the error to
+            // run_interactive() and exit the program silently — the user
+            // sees cosmostrix disappear without any error message because
+            // Terminal::drop restores the alternate screen before main.rs
+            // can print the error.
+            //
+            // Fix: treat event I/O errors as non-fatal. Break out of the
+            // event drain loop and proceed to frame rendering. The next
+            // iteration will retry. Persistent failures are caught by the
+            // watchdog (10s stuck detection) and GRACEFUL_SHUTDOWN.
+            loop {
+                match Terminal::poll_event(Duration::from_millis(0)) {
+                    Ok(false) => break,
+                    Err(_) => break,
+                    Ok(true) => {}
+                }
+                let ev = match Terminal::read_event() {
+                    Ok(e) => e,
+                    Err(_) => break,
+                };
                 match ev {
                     Event::Resize(nw, nh) => {
                         // --screen-size: ignore terminal resize when in fixed mode
@@ -594,7 +615,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
 
                         // Process the keybinding FIRST. This lets interactive
-                        // keys (x, s, c, g, a, p, m, Space, Up/Down, etc.)
+                        // keys (x, s, c, a, p, m, Space, Up/Down, etc.)
                         // work even in --screensaver mode.
                         let redraw_needed = handle_keybinding(
                             &mut cloud,
@@ -613,7 +634,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             // Screensaver mode (v15 "only q quits" policy):
                             //
                             // - q: quit (handle_keybinding set raining=false)
-                            // - Recognized interactive keys (c/s/x/g/a/p/m/i/h,
+                            // - Recognized interactive keys (c/s/x/a/p/m/i/h,
                             //   Space, Up/Down, 0-9, etc.): process and continue.
                             //   The user can still cycle colors, toggle HUD, etc.
                             //   while the screensaver is active.
