@@ -115,7 +115,7 @@ pro-freebsd-amd64 = [
   "--config",
   "env.COSMOSTRIX_PROFILE=\"pro-freebsd-amd64\"",
   "--config",
-  "build.rustflags=[\"-C\",\"target-cpu=x86-64\"]",
+  "build.rustflags=[\"-C\",\"target-cpu=native\"]",
   "--target",
   "x86_64-unknown-freebsd",
 ]

@@ -118,6 +118,7 @@ ld: error: unable to find library -lexecinfo
 cd /tmp && mkdir -p libexecinfo-build && cd libexecinfo-build
 cat > execinfo.c << 'SRC'
 #include <stddef.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -196,7 +197,7 @@ handling idioms used throughout the codebase require 1.81+. The `notify`
 | x86-64-v4 | `pro-linux-v4` | AVX-512 (2017) | Server/workstation CPUs |
 | aarch64 | `pro-android-aarch64` | NEON | Android/Termux, Apple Silicon |
 | aarch64 macOS | `pro-macos-aarch64-native` | NEON | Apple M1/M2/M3 |
-| x86-64 FreeBSD | `pro-freebsd-amd64` | x86-64 | FreeBSD 13+, GhostBSD |
+| x86-64 FreeBSD | `pro-freebsd-amd64` | native (host CPU) | FreeBSD 13+, GhostBSD |
 
 **`install.sh` auto-detects** the CPU microarchitecture level and builds
 the optimal profile (Linux only):

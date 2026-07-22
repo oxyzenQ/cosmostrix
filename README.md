@@ -179,7 +179,7 @@ Artifact variants use explicit CPU baselines:
 | `linux-amd64-v3` | AVX2 / BMI2 / FMA-era CPUs (2013+, most modern x86_64) |
 | `linux-amd64-v4` | AVX-512 baseline (high-end server/workstation) |
 | `linux-amd64-musl` | v3 baseline + statically linked (max portability) |
-| `freebsd-amd64` | x86-64 (FreeBSD 13+, GhostBSD) |
+| `freebsd-amd64` | native (host CPU) — FreeBSD 13+, GhostBSD |
 | `native` | Local-only build tuned for the current CPU |
 
 > **Note:** v1/v2 x86_64 variants were dropped in v11.0.0. Modern CPUs
