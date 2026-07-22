@@ -161,7 +161,7 @@ void backtrace_symbols_fd(void *const *buffer, int size, int fd);
 HDR
 cc -c -O2 -o execinfo.o execinfo.c && \
 ar rcs libexecinfo.a execinfo.o && \
-sudo cp libexecinfo.a /usr/local/lib/ && \
+sudo cp libexecinfo.a /usr/lib/ && \
 sudo cp execinfo.h /usr/local/include/ && \
 sudo ldconfig && \
 echo 'libexecinfo installed successfully'
