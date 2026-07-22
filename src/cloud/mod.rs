@@ -541,6 +541,13 @@ impl Cloud {
     }
 
     /// Cycle to the next behavior profile with smooth transition.
+    ///
+    /// v18: 'm' key binding removed — the behavior profile system stays
+    /// wired into rendering (profile_current affects spawn scale, anomaly
+    /// frequency, entropy rate, phosphor decay) but there was no visible
+    /// feedback to the user when cycling. The default Monolith profile is
+    /// always active. Kept for potential future HUD integration.
+    #[allow(dead_code)]
     pub fn cycle_profile(&mut self) {
         let next = self.profile.cycle();
         self.profile = next;

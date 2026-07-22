@@ -163,9 +163,6 @@ pub(super) fn handle_keybinding(
         (KeyCode::Char('p'), _) => {
             return cloud.toggle_pause();
         }
-        (KeyCode::Char('m'), _) => {
-            cloud.cycle_profile();
-        }
         (KeyCode::Char('x' | 'X'), _) => {
             let next = scene::cycle_scene(scene_name, 1);
             *scene_name = next.to_string();
