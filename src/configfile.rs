@@ -320,7 +320,7 @@ pub fn dump_config_text() -> &'static str {
 # speed = 30
 
 # Rain density (0.01–5.0). Default depends on scene:
-#   monolith=0.85, matrix=0.65, signal=0.70, storm=1.20, calm=0.40
+#   monolith=0.85, matrix=0.65, signal=0.55, storm=1.10, calm=0.40
 # density = 0.85
 
 # Variable column speeds for organic rain (default: on)

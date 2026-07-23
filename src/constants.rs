@@ -602,35 +602,38 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// Final micro-polish: rebalanced for more equitable light distribution
-/// while preserving cinematic depth. The front layer was slightly too
-/// bright relative to mid/back, making the mid layer feel "starved" of
-/// light. New values:
-///   - Back  (0): 0.40 (was 0.25 — raised so distant rain is more visible)
-///   - Mid   (1): 0.75 (was 0.65 — raised so mid-layer rain reads clearly)
-///   - Front (2): 0.95 (was 1.00 — slight reduction to balance composition)
+/// Final calibration: front layer restored to full 1.0 brightness. The
+/// front layer must be the brightest, most vivid layer — it is the neon
+/// "dragon's breath" that defines the scene. Reducing it muted the whole
+/// composition. Back and mid keep their previously tuned values so the
+/// depth hierarchy (back < mid < front) is preserved.
+///   - Back  (0): 0.40 (kept — distant rain visible as atmospheric depth)
+///   - Mid   (1): 0.75 (kept — mid-layer rain reads clearly)
+///   - Front (2): 1.00 (restored — full neon brightness, no dimming)
 ///
 /// The relative hierarchy (back < mid < front) is preserved, so depth
 /// of field is maintained. Back-layer heads are still triple-dimmed via
 /// brightness × self-bloom × saturation, keeping the "white dot" artifact
 /// suppressed — but the back layer as a whole is now visible enough to
 /// read as atmospheric depth rather than near-empty space.
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.75, 0.95];
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.75, 1.00];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// Final micro-polish: rebalanced in parallel with PARALLAX_BRIGHTNESS_MULT
-/// so back/mid layers regain color presence without losing depth haze.
-/// New values:
-///   - Back  (0): 0.40 (was 0.30 — distant rain keeps more color identity)
-///   - Mid   (1): 0.80 (was 0.70 — mid-layer neon reads as vivid rain)
-///   - Front (2): 0.95 (was 1.00 — slight reduction to match brightness)
+/// Final calibration: front layer saturation restored to full 1.0 to
+/// match the brightness restoration. The front layer must carry full
+/// color identity — its neon glyphs are the visual centerpiece. Back
+/// and mid keep their previously tuned haze levels so the depth-of-field
+/// gradient reads naturally.
+///   - Back  (0): 0.40 (kept — distant rain has haze, "rain in fog" feel)
+///   - Mid   (1): 0.80 (kept — mid-layer neon reads as vivid rain)
+///   - Front (2): 1.00 (restored — full saturation, no color bleed-out)
 ///
 /// Implemented in droplet.rs as a blend toward gray (luminance) by
 /// `1.0 - saturation_mult`. The back layer still has measurable haze
 /// (60% desaturation), preserving the "rain in fog" depth cue without
 /// flattening the back layer into pure gray.
-pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.80, 0.95];
+pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.80, 1.00];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///

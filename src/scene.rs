@@ -77,7 +77,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("retro"),
             fps: Some(60.0),
             speed: Some(14.0),
-            density: Some(0.70),
+            density: Some(0.55),
             glitch_level: Some(GlitchLevel::Default),
             rain_style: RainStyle::Glyph,
         },
@@ -91,7 +91,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("matrix"),
             fps: Some(60.0),
             speed: Some(12.0),
-            density: Some(0.55),
+            density: Some(0.70),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
@@ -104,7 +104,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("binary"),
             fps: Some(60.0),
             speed: Some(9.0),
-            density: Some(0.50),
+            density: Some(0.75),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
@@ -130,7 +130,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("cyberpunk"),
             fps: Some(120.0),
             speed: Some(28.0),
-            density: Some(1.20),
+            density: Some(1.10),
             glitch_level: Some(GlitchLevel::Intense),
             rain_style: RainStyle::Glyph,
         },
@@ -143,7 +143,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("binary"),
             fps: Some(60.0),
             speed: Some(11.0),
-            density: Some(0.60),
+            density: Some(0.80),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
@@ -156,7 +156,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("cyberpunk"),
             fps: Some(60.0),
             speed: Some(16.0),
-            density: Some(0.70),
+            density: Some(0.90),
             glitch_level: Some(GlitchLevel::Default),
             rain_style: RainStyle::Glyph,
         },
@@ -169,7 +169,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("hacker"),
             fps: Some(60.0),
             speed: Some(24.0),
-            density: Some(0.90),
+            density: Some(0.95),
             glitch_level: Some(GlitchLevel::Default),
             rain_style: RainStyle::Glyph,
         },
@@ -182,7 +182,7 @@ pub const SCENES: &[SceneInfo] = &[
             charset: Some("binary"),
             fps: Some(30.0),
             speed: Some(5.0),
-            density: Some(0.35),
+            density: Some(0.45),
             glitch_level: Some(GlitchLevel::None),
             rain_style: RainStyle::Glyph,
         },
@@ -378,7 +378,7 @@ mod tests {
         assert_eq!(s.config.charset, Some("matrix"));
         assert_eq!(s.config.fps, Some(60.0));
         assert_eq!(s.config.speed, Some(12.0));
-        assert_eq!(s.config.density, Some(0.55));
+        assert_eq!(s.config.density, Some(0.70));
         assert_eq!(s.config.glitch_level, Some(GlitchLevel::Subtle));
         assert_eq!(s.config.rain_style, RainStyle::Glyph);
     }
@@ -390,7 +390,7 @@ mod tests {
         assert_eq!(s.config.charset, Some("cyberpunk"));
         assert_eq!(s.config.fps, Some(120.0));
         assert_eq!(s.config.speed, Some(28.0));
-        assert_eq!(s.config.density, Some(1.20));
+        assert_eq!(s.config.density, Some(1.10));
         assert_eq!(s.config.glitch_level, Some(GlitchLevel::Intense));
     }
 
@@ -399,7 +399,7 @@ mod tests {
         let s = get_scene("low-power").expect("low-power scene");
         assert_eq!(s.config.fps, Some(30.0));
         assert_eq!(s.config.speed, Some(5.0));
-        assert_eq!(s.config.density, Some(0.35));
+        assert_eq!(s.config.density, Some(0.45));
         assert_eq!(s.config.color, Some("green"));
         assert_eq!(s.config.charset, Some("binary"));
         assert_eq!(s.config.glitch_level, Some(GlitchLevel::None));
@@ -410,7 +410,7 @@ mod tests {
         let s = get_scene("hacker").expect("hacker scene");
         assert_eq!(s.config.charset, Some("hacker"));
         assert_eq!(s.config.speed, Some(24.0));
-        assert_eq!(s.config.density, Some(0.90));
+        assert_eq!(s.config.density, Some(0.95));
     }
 
     #[test]

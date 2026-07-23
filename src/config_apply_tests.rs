@@ -248,7 +248,7 @@ fn config_speed_wins_over_monolith_scene_default() {
 
 #[test]
 fn config_density_wins_over_signal_scene_default() {
-    // Config sets density=0.5; signal scene hardcodes density=0.70.
+    // Config sets density=0.5; signal scene hardcodes density=0.55.
     let args = args_with_config("scene = signal\ndensity = 0.5\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("signal"));
     assert_eq!(
@@ -346,7 +346,7 @@ fn cli_scene_overrides_cli_preset_for_overlapping_values() {
     assert_eq!(args.color, "aurora");
     assert_eq!(args.charset, "retro");
     assert_eq!(args.speed, 14.0);
-    assert!((args.density - 0.70).abs() < f32::EPSILON);
+    assert!((args.density - 0.55).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -433,7 +433,7 @@ fn low_power_does_not_override_preset_values() {
     let args = args_from_cli(&["--scene", "storm"]);
     assert_eq!(args.fps, 120.0);
     assert_eq!(args.speed, 28.0);
-    assert!((args.density - 1.20).abs() < f32::EPSILON);
+    assert!((args.density - 1.10).abs() < f32::EPSILON);
 }
 
 // ── --uniform flag (v13.6.0 Stage 1 CLI simplification) ──
@@ -461,13 +461,13 @@ fn uniform_flag_defaults_to_false() {
 #[test]
 fn low_power_preset_sets_expected_values() {
     // v14.0.0: --preset low-power converted to --scene low-power.
-    // Values must match: fps=30, speed=5, density=0.35.
+    // Values must match: fps=30, speed=5, density=0.45.
     let args = args_from_cli(&["--scene", "low-power"]);
     assert_eq!(args.fps, 30.0, "low-power scene must set fps=30");
     assert_eq!(args.speed, 5.0, "low-power scene must set speed=5");
     assert!(
-        (args.density - 0.35).abs() < f32::EPSILON,
-        "low-power scene must set density=0.35"
+        (args.density - 0.45).abs() < f32::EPSILON,
+        "low-power scene must set density=0.45"
     );
 }
 
