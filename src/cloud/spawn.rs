@@ -415,6 +415,32 @@ impl Cloud {
         // droplet would saturate the column for many seconds.
         len = len.clamp(MIN_DROPLET_LENGTH, MAX_DROPLET_LENGTH_CAP);
 
+        // Front-layer dynamic tail allocation: assign a per-droplet tail
+        // cell count with organic random variation. This restores visible
+        // multi-cell tails on front-layer droplets (layer 2) — previously
+        // they showed only head+body with no tail, or body dominated too
+        // long. Mid/back layers keep tail_cells=1 (existing single-cell
+        // tail) to preserve the 3-2-2 distribution.
+        //
+        // For front layer with len >= 5: base=2 cells, varied by [0.5, 1.5]→
+        // actual tail in [1, 3]. For len == 4 (minimum): force 2 tail cells
+        // (1 head, 1 body, 2 tail). This creates rhythmic variation: some
+        // droplets have very short tails, others slightly longer.
+        let tail_cells: u8 = if layer == 2 {
+            if len >= 5 {
+                let variation = self.rand_chance.sample(&mut self.mt);
+                let factor = FRONT_LAYER_TAIL_VARIATION_MIN
+                    + variation * (FRONT_LAYER_TAIL_VARIATION_MAX - FRONT_LAYER_TAIL_VARIATION_MIN);
+                let raw = FRONT_LAYER_BASE_TAIL_CELLS * factor;
+                raw.round().clamp(1.0, FRONT_LAYER_MAX_TAIL_STOPS as f32) as u8
+            } else {
+                // len == 4 (MIN_DROPLET_LENGTH): 1 head, 1 body, 2 tail
+                2
+            }
+        } else {
+            1
+        };
+
         let mut ttl = Duration::from_millis(1);
         if end_line <= len {
             let ms = self.rand_linger_ms.sample(&mut self.mt) as u64;
@@ -457,6 +483,7 @@ impl Cloud {
             chars_per_sec: speed,
             time_to_linger: ttl,
             layer,
+            tail_cells,
             palette_slot,
             turb_phase,
         }

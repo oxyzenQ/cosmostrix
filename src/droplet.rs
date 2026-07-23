@@ -49,10 +49,10 @@ use crate::constants::{
     MOUSE_FLASH_SECONDARY_SPEED_FRAC, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
     PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, PARALLAX_HEAD_BLOOM_MULT,
-    PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT, RAIN_SHADOW_PCT, STARTUP_EASE_TAU,
-    STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
-    TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ, VIGNETTE_INNER_RADIUS,
-    VIGNETTE_INTENSITY,
+    PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT, RAIN_SHADOW_LAYER_MULT,
+    RAIN_SHADOW_PCT, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS,
+    TRANSITION_ENERGY_SATURATION_BOOST, TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE,
+    TURBULENCE_FREQ, VIGNETTE_INNER_RADIUS, VIGNETTE_INTENSITY, VIGNETTE_LAYER_MULT,
 };
 use crate::frame::Frame;
 use crate::palette;
@@ -220,6 +220,15 @@ pub struct Droplet {
     /// Which parallax layer this droplet belongs to (0=far, 1=mid, 2=near).
     pub layer: u8,
 
+    /// Number of tail cells for this droplet. For front layer (2), this is
+    /// a dynamic value in [1, 3] set at spawn time via random variation —
+    /// creates organic tail length rhythm. For mid/back layers, this is 1
+    /// (preserving the existing single-cell tail behavior).
+    ///
+    /// Used in draw() to assign CharLoc::TailN(i) for the first `tail_cells`
+    /// cells of the visible trail, mapping them to palette tail color stops.
+    pub tail_cells: u8,
+
     /// Which palette generation slot this droplet was born with.
     /// Streams retain their birth palette for their entire lifecycle;
     /// the new palette propagates only through newly spawned streams.
@@ -256,6 +265,7 @@ impl Droplet {
             advance_remainder: 0.0,
             velocity: 0.0,
             layer: 0,
+            tail_cells: 1,
             palette_slot: 0,
             turb_phase: 0.0,
             turb_time: 0.0,
@@ -539,8 +549,21 @@ impl Droplet {
             };
 
             let mut loc = CharLoc::Middle;
-            if let Some(tp) = self.tail_put_line {
-                if line == tp.saturating_add(1) {
+            // Front-layer dynamic tail: for layer 2 droplets with tail_cells > 1,
+            // assign the first `tail_cells` cells of the visible trail to
+            // CharLoc::TailN(i), mapping them to palette tail color stops
+            // (0=darkest/furthest, up to FRONT_LAYER_MAX_TAIL_STOPS-1). This
+            // restores visible multi-cell tails that were missing — previously
+            // front-layer droplets showed only head+body with no tail.
+            //
+            // Mid/back layers (tail_cells == 1) retain the existing single-cell
+            // CharLoc::Tail assignment to preserve the 3-2-2 distribution.
+            let visible_start = self.tail_put_line.map_or(0, |tp| tp.saturating_add(1));
+            if line < self.head_put_line && line >= visible_start {
+                let dist_from_tail = line.saturating_sub(visible_start);
+                if self.tail_cells > 1 && dist_from_tail < self.tail_cells as u16 {
+                    loc = CharLoc::TailN(dist_from_tail as u8);
+                } else if self.tail_put_line.is_some() && dist_from_tail == 0 {
                     loc = CharLoc::Tail;
                 }
             }
@@ -794,7 +817,7 @@ impl Droplet {
                     b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                 }
 
-                // Rain shadow: quadratic fade-out across bottom 20% of screen.
+                // Rain shadow: quadratic fade-out across bottom 15% of screen.
                 // Applied BEFORE the edge_fade (which is a sharper lip) and
                 // BEFORE the vignette (which is a radial effect). The shadow
                 // is the broadest, softest bottom dim — gives the frame
@@ -802,7 +825,13 @@ impl Droplet {
                 // rather than "rain hitting a wall". Applied here in the
                 // droplet color pipeline so phosphor captures the already-
                 // dimmed color (afterglow fades in sync with shadow).
-                let shadow = rain_shadow_factor(line, ctx.lines);
+                //
+                // Front-layer exclusion: RAIN_SHADOW_LAYER_MULT[2] = 0.0 means
+                // front-layer neon is NOT dimmed by the shadow — it stays at
+                // full fidelity across the entire screen height. Mid/back
+                // layers (mult=1.0) get the full shadow for depth.
+                let shadow_raw = rain_shadow_factor(line, ctx.lines);
+                let shadow = 1.0 - (1.0 - shadow_raw) * RAIN_SHADOW_LAYER_MULT[self.layer as usize];
                 if shadow < 1.0 {
                     let fi = (shadow * 256.0) as i32;
                     r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
@@ -825,9 +854,16 @@ impl Droplet {
                 // Cinematic radial vignette — applied LAST, AFTER all other
                 // effects (including edge_fade). This is the photographic
                 // "lens darkening" that frames the image: corners dimmed
-                // smoothly toward 60% of their post-effects brightness,
+                // smoothly toward 70% of their post-effects brightness,
                 // drawing the eye to the focused center. O(1) per cell.
-                let vignette = vignette_factor(self.bound_col, line, ctx.cols, ctx.lines);
+                //
+                // Front-layer exclusion: VIGNETTE_LAYER_MULT[2] = 0.0 means
+                // front-layer neon is NOT dimmed by the vignette — it stays at
+                // full fidelity even at screen corners. Mid/back layers
+                // (mult=1.0) get the full vignette for depth.
+                let vignette_raw = vignette_factor(self.bound_col, line, ctx.cols, ctx.lines);
+                let vignette =
+                    1.0 - (1.0 - vignette_raw) * VIGNETTE_LAYER_MULT[self.layer as usize];
                 if vignette < 1.0 {
                     let fi = (vignette * 256.0) as i32;
                     r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;

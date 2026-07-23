@@ -24,6 +24,9 @@ pub(super) struct DropletSpawnSpec {
     pub(super) chars_per_sec: f32,
     pub(super) time_to_linger: Duration,
     pub(super) layer: u8,
+    /// Dynamic tail cell count for front-layer droplets (1 for mid/back).
+    /// See `Droplet::tail_cells` for semantics.
+    pub(super) tail_cells: u8,
     pub(super) palette_slot: u8,
     pub(super) turb_phase: f32,
 }
@@ -37,6 +40,7 @@ impl DropletSpawnSpec {
         d.chars_per_sec = self.chars_per_sec;
         d.time_to_linger = self.time_to_linger;
         d.layer = self.layer;
+        d.tail_cells = self.tail_cells;
         d.palette_slot = self.palette_slot;
         d.head_put_line = 0;
         d.head_cur_line = 0;

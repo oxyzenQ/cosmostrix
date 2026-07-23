@@ -427,11 +427,16 @@ pub const FOG_MIN_FACTOR: f32 = 0.65;
 // Cinematic vignette (radial edge darkening)
 
 /// Maximum dimming intensity at the screen corners (0.0 = no dimming,
-/// 1.0 = full black). 0.4 means corner cells are dimmed to 60% of their
+/// 1.0 = full black). 0.30 means corner cells are dimmed to 70% of their
 /// post-effects brightness — a soft photographic vignette that draws the
 /// eye toward the center of the frame without darkening the focused
 /// middle region. Matches the look of a real anamorphic lens.
-pub const VIGNETTE_INTENSITY: f32 = 0.4;
+///
+/// Final polish: reduced from 0.4 to 0.30 (25% reduction) to let colors
+/// breathe more. Combined with the front-layer vignette exclusion
+/// (VIGNETTE_LAYER_MULT[2] = 0.0), the overall image is brighter and
+/// more vivid while preserving depth in the mid/back layers.
+pub const VIGNETTE_INTENSITY: f32 = 0.30;
 
 /// Normalized radius at which vignette dimming begins (0.0 = center,
 /// 1.0 = corner). 0.7 means the inner 70% of the screen (by Euclidean
@@ -443,11 +448,68 @@ pub const VIGNETTE_INNER_RADIUS: f32 = 0.7;
 // Rain shadow (bottom quadratic fade-out)
 
 /// Fraction of screen height (from the bottom) covered by the rain
-/// shadow. 0.20 means the bottom 20% of rows fade out quadratically —
+/// shadow. 0.15 means the bottom 15% of rows fade out quadratically —
 /// a longer, softer fade than EDGE_FADE_BOTTOM (which is a sharp 12-row
 /// lip). The shadow reads as "rain dissipating into shadow at the
 /// ground" rather than "rain hitting a wall", giving the frame depth.
-pub const RAIN_SHADOW_PCT: f32 = 0.20;
+///
+/// Final polish: reduced from 0.20 to 0.15 (25% reduction) to let
+/// colors breathe more. Combined with the front-layer shadow exclusion
+/// (RAIN_SHADOW_LAYER_MULT[2] = 0.0), the front layer now shines at
+/// full fidelity across the entire screen height.
+pub const RAIN_SHADOW_PCT: f32 = 0.15;
+
+// ── Front-layer dimming exclusion (final polish) ────────────────────────────
+//
+// Front layer (layer 2 = near) must render at full fidelity — it is the
+// brightest, most vivid layer and the visual focus of the parallax depth
+// stack. Vignette and rain shadow are photographic depth effects that
+// should NOT touch the front layer; they exist to push mid/back layers
+// deeper into the background. Applying them to layer 2 mutes the neon
+// colors and undermines the depth hierarchy.
+//
+// These multipliers scale the dimming AMOUNT per layer (0.0 = no dimming,
+// 1.0 = full dimming). The effective factor is computed as:
+//   effective = 1.0 - (1.0 - raw_factor) * layer_mult
+// So mult=0.0 → effective=1.0 (no dimming), mult=1.0 → effective=raw (full).
+
+/// Per-layer vignette dimming multiplier (0.0 = skip, 1.0 = full).
+/// Front layer (2) excluded to keep neon at full fidelity.
+pub const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
+
+/// Per-layer rain shadow dimming multiplier (0.0 = skip, 1.0 = full).
+/// Front layer (2) excluded to keep neon at full fidelity.
+pub const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
+
+// ── Front-layer dynamic tail allocation (final polish) ──────────────────────
+//
+// Front layer droplets previously showed only head+body with no visible
+// tail, or body dominated too long. These constants configure the dynamic
+// multi-cell tail that restores organic visual rhythm to front-layer rain.
+
+/// Base number of tail cells for front-layer droplets (layer 2). The
+/// actual tail length is this base multiplied by a per-droplet random
+/// factor in [FRONT_LAYER_TAIL_VARIATION_MIN, FRONT_LAYER_TAIL_VARIATION_MAX],
+/// then clamped to [1, 3]. This creates organic variation: some droplets
+/// have very short tails (1 cell), others slightly longer (up to 3).
+///
+/// Only affects front layer. Mid/back layers retain the existing
+/// single-cell tail (CharLoc::Tail → color_idx=0).
+pub const FRONT_LAYER_BASE_TAIL_CELLS: f32 = 2.0;
+
+/// Minimum random variation factor for front-layer tail length.
+/// 0.5 means the shortest possible tail is base × 0.5 = 1 cell.
+pub const FRONT_LAYER_TAIL_VARIATION_MIN: f32 = 0.5;
+
+/// Maximum random variation factor for front-layer tail length.
+/// 1.5 means the longest possible tail is base × 1.5 = 3 cells.
+pub const FRONT_LAYER_TAIL_VARIATION_MAX: f32 = 1.5;
+
+/// Maximum number of tail color stops to use for front-layer multi-cell
+/// tails. Tail cells are mapped to palette indices 0..=this_value, where
+/// 0 is the darkest (furthest from head) and this value is the brightest
+/// tail stop (closest to body). 3 gives a smooth 3-step tail gradient.
+pub const FRONT_LAYER_MAX_TAIL_STOPS: u8 = 3;
 
 // Mouse interaction (v17: always-on, --mouse flag deleted)
 // v17: MOUSE_AVOID_RADIUS_COLS removed — spawn avoidance deleted.

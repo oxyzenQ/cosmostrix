@@ -27,6 +27,14 @@ static TRAIL_EXP_LUT: std::sync::LazyLock<[f32; 256]> = std::sync::LazyLock::new
 pub enum CharLoc {
     Middle,
     Tail,
+    /// Multi-cell tail segment for front-layer droplets. The u8 index is the
+    /// position within the tail region (0 = furthest from head = darkest,
+    /// increasing toward body). Mapped to palette color stops 0, 1, 2 so
+    /// the tail fades smoothly from the darkest stop to the body transition.
+    ///
+    /// Only used for layer 2 (front). Mid/back layers use `CharLoc::Tail`
+    /// (single cell, color_idx=0) to preserve the existing 3-2-2 distribution.
+    TailN(u8),
     Head,
 }
 
@@ -302,6 +310,15 @@ impl DrawCtx<'_> {
         match loc {
             CharLoc::Tail => {
                 color_idx = 0;
+                bold = false;
+            }
+            CharLoc::TailN(seg) => {
+                // Front-layer multi-cell tail: map segment index to palette
+                // color stops 0..FRONT_LAYER_MAX_TAIL_STOPS. seg=0 → darkest
+                // (furthest from head), seg=2 → brightest tail stop (closest
+                // to body). Clamped to valid palette range.
+                let max_stop = (crate::constants::FRONT_LAYER_MAX_TAIL_STOPS as i32).min(last);
+                color_idx = (seg as i32).min(max_stop).max(0);
                 bold = false;
             }
             CharLoc::Head => {
