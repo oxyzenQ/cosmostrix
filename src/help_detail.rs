@@ -70,7 +70,7 @@ COMMON OPTIONS:
       the fire morphs into Matrix rain as the dragon fades away —
       handing off seamlessly to the rain engine. Duration: ~6.5s.
       Skip with any key. Auto-skipped in --screensaver and on terminals
-      smaller than 100x24 (dragon art needs ~92 cols of width).
+      smaller than 80x24.
       cosmostrix --intro
       cosmostrix --intro --scene matrix
 

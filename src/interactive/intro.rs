@@ -91,7 +91,7 @@ pub(crate) fn read_self_voluntary_ctxt() -> u64 {
 // ```
 //
 // Total: ~6.5 s. Any key (q / Enter / etc.) skips instantly. The intro is
-// skipped entirely on terminals smaller than 100×24 with a stderr notice.
+// skipped entirely on terminals smaller than 80×24 with a stderr notice.
 //
 // ## Constraints
 //
@@ -104,9 +104,9 @@ pub(crate) fn read_self_voluntary_ctxt() -> u64 {
 //   during the 6.5 s cinematic.
 
 /// Minimum terminal size for the intro to play. Below this, skip with a
-/// stderr notice. Width 100 accommodates the 92-char dragon art with
+/// stderr notice. Width 80 accommodates the 75-char dragon art with
 /// margin; height 24 is the classic VT100 baseline.
-const MIN_INTRO_COLS: u16 = 100;
+const MIN_INTRO_COLS: u16 = 80;
 const MIN_INTRO_LINES: u16 = 24;
 
 /// Phase boundaries (milliseconds from intro start).
@@ -150,14 +150,15 @@ const PARTICLE_BASE_VY: f32 = 12.0;
 /// form a cone rather than a column.
 const PARTICLE_SPREAD_VX: f32 = 6.0;
 
-/// The majestic ASCII dragon — a top-down view of a flying dragon with
-/// wings spread horizontally, body in the central column, and tail
-/// tapering downward. The mouth sits at the bottom of the head (upper
-/// third of the body column) so fire breath emerges downward naturally.
+/// The majestic ASCII dragon — a 3/4 view dragon with spread wings, body
+/// coil, and tail tapering downward. The head sits in the upper portion
+/// (rows 4-10) with the mouth at the bottom of the head cluster
+/// (the `U-` glyphs at row 10). Fire breath emerges downward from the
+/// mouth, falls through the wing area, and cascades through the body
+/// coil to the tail tip.
 ///
-/// Dimensions: 53 lines tall × 92 chars max width. Requires a terminal
-/// at least 100×24 — the intro auto-skips below that with a stderr
-/// notice.
+/// Dimensions: 43 lines tall × 75 chars max width. Fits comfortably in
+/// an 80×24 terminal with horizontal margin (centered dynamically).
 ///
 /// The mouth position (row, col) within the art is encoded in
 /// [`DRAGON_MOUTH_ROW`] / [`DRAGON_MOUTH_COL`] so the fire-spawn point
@@ -165,72 +166,63 @@ const PARTICLE_SPREAD_VX: f32 = 6.0;
 /// [`dragon_art_tests::mouth_position_is_valid`] test guards against
 /// drift.
 const DRAGON_ART: &str = concat!(
-    "+                                                        +\n",
-    "                   ++                                                          +÷\n",
-    "                  ++                                                            ++\n",
-    "                 -+                                                             +++\n",
-    "               + ++                              ≠                               +++\n",
-    "                ++                               +-                              ++++\n",
-    "              ++++                               ++                               ++ +\n",
-    "             + +++                              +++                               +++ -\n",
-    "               ++                               ++ +                              +++ +\n",
-    "            +  +++              ++             +√+  +             +               +++ +\n",
-    "            + =++-              +              + ++       +       ++              +++\n",
-    "            +  +++             ++        +   +  ++   +    +        +             =+++ -π\n",
-    "            +  +++∞             +       +++  +  +     +  ++       +++            ++++\n",
-    "      +      +  +++-          ≠ +       +++ + += +   + ∞++-+      ++            ++++  +     +÷\n",
-    "      ++     +  ++++            ++      + ++÷   +++    +++ +      ++            ++++  +     +\n",
-    "       +     +   ++++    ≠      ++    +   ++    ++++   ++÷   +   +++          +++++  ∞≠     +\n",
-    "       ++     +   ++++   +    ÷  ++    +   ++  ++  +   ++   ++   ++ +     +   ++++   +     ++\n",
-    "       =++        ×++++  +       +++   ++   + ++ +  +  ∞+ +++   ++  +     + +++++   +     ++\n",
-    "         ++    +   +++++ ++    +  +++   ++      -++  ≠+  -++  ≠+++       ++-++++   +     +++\n",
-    "        +≠++         +++++++    =  ++++  ++     ++++      +  ++++  ∞   +++++++    +     ++√\n",
-    "         ÷√++    ++    ++++++π  +   ++++  ÷+   ++  +    +×  ++++  +   +++++++   -+     ++\n",
-    "            ++×    +    +++++++  ≠   +++=  ++  + +  + +++   +++  ×   +++++++    +    +++ +\n",
-    "             +++    +     -+++-+  +   +++   ++   ++   ++   +++  +   +++++     ++   ++++\n",
-    "              -+++    ≠     +++    +   ++       ++++       ++       +++      +    +++  +\n",
-    "                 +++   ++    ++++   +  √+++    ++  +     +++   +   +++     ++  ++++   +\n",
-    "        +     +   +++    +     +++  ÷+  =+   + + ++   + ≠++   ∞+ ++++     +   +++\n",
-    "         +      +   ++++   +     +++ -   +++    +++     ++   +  +++     +   +++=   +     ++\n",
-    "          ++     +    ++     +   ++++  +  +++    + +  ≈++  ++  ++++  ++     ++   +      ++\n",
-    "           +++          +  +  ÷   +++  +++ ++  + +  +  +  ++   ++       + ++         -+++\n",
-    "            +++++        -+ ++  +  ++++ ++  -+  -++   +  ++ √+++-  +  +  +        ++++-π\n",
-    "               ++++++        π   +   +++  +  +++ ∞  ++  ++ ++++   +            +++++\n",
-    "               ≠  =+++     ++ ≈    +  ++++  ++   +≈÷  ++∞ +++   +    ÷-++     +++   ÷\n",
-    "                 +     ++     ++       ×++++ ++  +  + - ++++ ×      ++     ++     +\n",
-    "                          ++++  +++×  ++ +++++ +     ++++++ ++   +++  +++\n",
-    "               ++               ++++  ++++ ++-+ ×  ++++++ +++   ++++               +\n",
-    "                 ++++++≈ +++++     ++++  =  ×+      ÷++  √≠   +++     ++++  ÷++++++\n",
-    "                      ++=   +++    ++++++     = +++× π    ÷++++++    ++    +++\n",
-    "                                +      ++++  +++++++++   +++×     ≠+\n",
-    "                         +++++    ++     +++ +++++++++ ++++     +     ++++\n",
-    "                                     +    +++ ++++++++++++\n",
-    "                             ×++++    +    ++++++++++++++  +-+    ++++\n",
-    "                                       +   +÷ ++++++++ +∞ √++\n",
-    "                                 ++++   ++ ++÷ +++++   + ++√   ++++\n",
-    "                                      +  ++ ++   +    ++ ++  +\n",
-    "                                       +  +  ÷          ++ ++\n",
-    "                                        ++++ +++    ++  + +\n",
-    "                                          ++÷ +   +  + ++=\n",
-    "                                           ÷ +       + +\n",
-    "                                           +  ++     + +\n",
-    "                                            √π-++++ +÷+\n",
-    "                                             ++  ÷π  ++\n",
-    "                                              + +  + +\n",
-    "                                                 ++\n",
+    "                  .\n",
+    "                Q`                                            Ir\n",
+    "              +O^                                              ir^\n",
+    "             u#!                                                C\\i\n",
+    "            xca                        _`                       .@i~\n",
+    "           1^BI                        B|                        0@':\n",
+    "          ^+#B.                        @W                        `@[C.\n",
+    "          j:Z&            \",          >Bl`          I             %o'l\n",
+    "          `v\"@B'          ^U          UJu^u;          Z           ;@W.O\n",
+    "         `}@a.          tt     l_  X< B0!?!  Q.     Y\\          `BB'c\n",
+    "    .,   ,1 U8u         lY\\     Cd .> U- ` f  &{     Yj          8*v p'   !\n",
+    "    'X   .c (BB[        \\un    .ba|n_``r\"~(~>m[c     a)i        x@8\"\"(    t\n",
+    "     p    J '#8n'       -tM   ['[~az I @% ' 0*'v !  <%;{       'kBf `~   +t\n",
+    "     1L   'j 'x&B^ ,~   f,Bn  /1 ,BrI 8{`j 'pL^.J?  bbl_   ]  I@ax  /    bl\n",
+    "     ,Q1   1  ^&@%<:u   -`v%+ .Ou'?Z x0:`CIIxi.w)' v@{<`   d n@@q( {:   OX.\n",
+    "      /%_   L! )kMo!d_  .\\.O%- ;*<^.,. @* X]I _k .zBr f   cQ?8aJ'._-   Jm+\n",
+    "      ;!@{   c. 'u%&v8x  I~'OkY <0\"  'Z*xI!  [Y !whr ?. .w#p8#<:'II   0#1'\n",
+    "       ?,@q   Y<  )jBBhW' ( '8@C` 8j \"8\" W' p) 1p@z ') ~BJ@ozj  cl   W&'l\n",
+    "        \\`MB_  I+. ,<WB0vi [ 'W81 !\\}] 8t ,db' c@v.`1 (jd@b+  :v   n@J.~\n",
+    "         u {BB\"  z....{CJ., \\ .*i` -i {j*^.:` ,tv  + `lpv;>\".;X  ~@B:.~\n",
+    "          ]  (@B/ ~Z ';?#vn {J ;JMIr ^W'.#. <\\OL ,t\" wvMI` :L^.J@@; ,;\n",
+    "      ,)   ^_  /@j. tr  ^J&WI;- -MI^-' BZ .U fh\" li(BMr. I/; `hB:  U.   v\n",
+    "       ~a    <' .b_\"  ){ .pWC.{Y >Bb  }B_^ '*B'.a:,aWn ^f!  :Xj  -:   ;8\"\n",
+    "        ibd^   ;  ^m^}; |^.ua)Iv%l_u Z j^~<+dIvB~lXh! \"/ <}!O   1   >WY^\n",
+    "         ,:%Bk'     ?_,Y\"t!^rwB?)p !a .%j  8`'w_c@a[ +-;J.f\"     ;o@O|.\n",
+    "           ) uB@d(. :;.i:+<x ,b%/lYC!:<:.U-,lp<U@0 !x\">!..i  `jh@&) ?\n",
+    "             \\  ^pw.  <w1 1''}'}@8m~*{ cU !8^k@B,>} i;.uzi  :&v   r\n",
+    "               I'  `?zc1\"]%\\}\"vj\\#@vO-'\"'+:Mw@W<m?^+J#:I|Xj>;  ;;\n",
+    "            |\\'  `  ^` .^\"m@C!;WB{tB{^r'.\\~YM|m@Q:IhBL.:  \". ..  :Z:\n",
+    "              \\)MW*c,zWb> \"QW8ut\"  '_`.i, il   i[QBan  {h&1\"0*&h]_\n",
+    "                ~l      \\q/. I[ku{^ <8~B*vp\" ;tm0|^ `xO_     '!,\n",
+    "                    +ppj,  (? _!;#d.|m08BQ-:|*L^l` x<  >zkZ:\n",
+    "                        .    <i'`?kU{BdmJOWfr*<:'1^   .'\n",
+    "                      ]*obz,  Izr'!m%q<B@0MBL] -w   ~Qk*b,\n",
+    "                          ^xX` lw(I\\.{u%Bu:;?^uJ' !C)\n",
+    "                              _.<r d,{;8,'~])lp'>!\n",
+    "                             ',_-(<:nl    ;?,ni{<\".\n",
+    "                                <Cd>x:!I{hJix)Z\"\n",
+    "                                 >\\\\[     ;:QZ^\n",
+    "                                  l-?I   >JIQ.\n",
+    "                                   I+z-ZW|1p.\n",
+    "                                   'l`\"  }C\\\n",
+    "                                     -'co .\n",
 );
 
 /// Row index (0-based, within `DRAGON_ART` lines) of the mouth opening —
-/// the bottom of the head in the body column where fire particles
-/// originate. Keep in sync with the art above;
-/// [`dragon_art_tests::mouth_position_is_valid`] guards against drift.
-const DRAGON_MOUTH_ROW: usize = 7;
+/// the bottom of the head cluster where fire particles originate. Keep
+/// in sync with the art above; [`dragon_art_tests::mouth_position_is_valid`]
+/// guards against drift.
+const DRAGON_MOUTH_ROW: usize = 10;
 
 /// Column index (0-based) of the mouth opening within the mouth row.
-/// Points at the middle `+` of the `+++` body cluster at row 7. Fire
-/// particles spawn at this (row, col) within the centered dragon, then
-/// fall downward.
-const DRAGON_MOUTH_COL: usize = 49;
+/// Points at the `-` glyph in the `U-` cluster at row 10 (the mouth
+/// line under the upper lip `U`). Fire particles spawn at this
+/// (row, col) within the centered dragon, then fall downward through
+/// the wing area, body coil, and tail.
+const DRAGON_MOUTH_COL: usize = 39;
 
 /// Parsed dragon art: each line as a `&'static str`, with the max line width
 /// precomputed. Done once at module load (compile-time constant via inline
@@ -362,7 +354,7 @@ fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
 /// fades in, breathes fire, the fire morphs into Matrix rain, and the
 /// dragon fades away leaving the rain engine to take over.
 ///
-/// Skip with any key. On terminals smaller than 100×24 the intro is
+/// Skip with any key. On terminals smaller than 80×24 the intro is
 /// skipped entirely with a stderr notice.
 ///
 /// Reuses the existing `Terminal` / `Frame` / `Cell` pipeline. Zero
@@ -374,7 +366,7 @@ pub(crate) fn run_intro(
     w: u16,
     h: u16,
 ) -> std::io::Result<()> {
-    // Terminal-size guard. Below 100×24 the dragon art would clip badly;
+    // Terminal-size guard. Below 80×24 the dragon art would clip badly;
     // print a notice and skip the cinematic.
     if w < MIN_INTRO_COLS || h < MIN_INTRO_LINES {
         eprintln!(
