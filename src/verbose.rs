@@ -106,7 +106,7 @@ pub(crate) fn print_verbose(
 
     // ── Scene & Color ──────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Scene & Color ──"));
-    output::eprintln_verbose("scene:", &format!(" {:?}", scene_name.unwrap_or("default")));
+    output::eprintln_verbose("scene:", &format!(" {}", scene_name.unwrap_or("default")));
     output::eprintln_verbose("rain_style:", &format!(" {rain_style:?}"));
     if let Some(name) = custom_palette_name {
         output::eprintln_verbose("color_palette:", &format!(" {name} (custom)"));
@@ -119,8 +119,12 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose(
         "color_tune:",
         &format!(
-            " sat={:.2} bright={:.2}",
-            color_tune.saturation, color_tune.brightness
+            " sat={:.2} bright={:.2} head={:.2} body={:.2} tail={:.2}",
+            color_tune.saturation,
+            color_tune.brightness,
+            color_tune.head,
+            color_tune.body,
+            color_tune.tail
         ),
     );
     output::eprintln_verbose("color_bg:", &format!(" {default_bg:?}"));
@@ -166,7 +170,7 @@ pub(crate) fn print_verbose(
             !noglitch
         ),
     );
-    output::eprintln_verbose("glitch_level:", &format!(" {glitch_level:?}"));
+    output::eprintln_verbose("glitch_level:", &format!(" {glitch_level}"));
 
     // ── Interaction ───────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Interaction ──"));
@@ -188,10 +192,27 @@ pub(crate) fn print_verbose(
     // ── Atmosphere ────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Atmosphere ──"));
     output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
-    output::eprintln_verbose(
-        "atmosphere:",
-        &format!(" {atmosphere_mode:?} / {atmosphere_modulation:?}"),
-    );
+    // Compact atmosphere summary: show mode label + modulation values on a
+    // single line. When mode is Disabled, modulation is always identity, so
+    // we skip the modulation dump to avoid noise.
+    if atmosphere_mode.allows_modulation() {
+        output::eprintln_verbose(
+            "atmosphere:",
+            &format!(
+                " {} (speed={:.2} density={:.2} bright={:.2} glitch_pressure={:.2})",
+                atmosphere_mode.as_str(),
+                atmosphere_modulation.speed_scale,
+                atmosphere_modulation.density_scale,
+                atmosphere_modulation.brightness_scale,
+                atmosphere_modulation.glitch_pressure
+            ),
+        );
+    } else {
+        output::eprintln_verbose(
+            "atmosphere:",
+            &format!(" {} (modulation inactive)", atmosphere_mode.as_str()),
+        );
+    }
 
     // ── Terminal ──────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Terminal ──"));
@@ -214,7 +235,7 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("TERM:", &format!(" {term}"));
     output::eprintln_verbose("COLORTERM:", &format!(" {colorterm}"));
     output::eprintln_verbose("TERM_PROGRAM:", &format!(" {term_program}"));
-    output::eprintln_verbose("TERM_VERSION:", &format!(" {term_version}"));
+    output::eprintln_verbose("TERM_PROGRAM_VERSION:", &format!(" {term_version}"));
     output::eprintln_verbose("SHELL:", &format!(" {shell}"));
     output::eprintln_verbose("LANG:", &format!(" {lang}"));
     output::eprintln_verbose("isatty(stderr):", &format!(" {is_tty}"));
