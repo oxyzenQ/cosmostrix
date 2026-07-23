@@ -46,7 +46,7 @@ pub const SCENES: &[SceneInfo] = &[
         name: "matrix",
         description: "Classic Matrix glyph rain — organic cascade with katakana flow",
         config: SceneConfig {
-            color: Some("green"),
+            color: Some("neon-green"),
             charset: Some("matrix"),
             fps: Some(60.0),
             speed: Some(18.0),
@@ -514,7 +514,7 @@ mod tests {
         );
         // v18: matrix now sets color, charset, fps, speed, density
         assert!(
-            text.contains("color        = green"),
+            text.contains("color        = neon-green"),
             "color field missing: {text}"
         );
         assert!(

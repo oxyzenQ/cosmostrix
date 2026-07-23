@@ -159,7 +159,7 @@ diff path's `emit_sgr()` checks the cache first; only cache misses
 fall through to `write_sgr_colors_buf()` (which formats the SGR
 on-the-fly via `push_u8` — no heap allocation).
 
-For the 43 built-in palettes, the cache hit rate varies significantly
+For the 44 built-in palettes, the cache hit rate varies significantly
 by scene and visual effects enabled. Measured on AMD Ryzen 7 5800HS
 with `--perf-stats` (v13.3.0+):
 

@@ -137,11 +137,10 @@ fn default_scene_is_monolith() {
 fn explicit_matrix_scene_restores_classic_defaults() {
     let args = args_from_cli(&["--scene", "matrix"]);
     assert_eq!(args.scene.as_deref(), Some("matrix"));
-    assert_eq!(args.color, "green");
+    assert_eq!(args.color, "neon-green");
     assert_eq!(args.charset, "matrix");
     assert_eq!(args.speed, 18.0);
-    // v18: matrix scene now sets explicit density=0.65 for cinematic
-    // organic cascade (was 0.55 in v17, raised for richer flow).
+    // Matrix scene uses neon-green for futuristic cinematic glow.
     assert_eq!(args.density, 0.65);
     // v17 hardening: matrix scene now sets glitch_level=Subtle (was None →
     // Default 10%). Subtle (3%) matches cinematic sparse cascade identity.

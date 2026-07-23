@@ -136,6 +136,23 @@ pub static THEMES: &[ThemeDef] = &[
         },
     },
     ThemeDef {
+        scheme: ColorScheme::NeonGreen,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (0, 40, 0),
+                (0, 180, 20),
+                (20, 255, 60),
+                (80, 255, 120),
+                (160, 255, 180),
+                (220, 255, 220),
+                (255, 255, 255),
+            ],
+            steps: 7,
+            c16: &[Color::Green, Color::White],
+            ansi: &[22, 34, 46, 82, 120, 157, 231],
+        },
+    },
+    ThemeDef {
         scheme: ColorScheme::Gold,
         def: ThemeColors::AnsiWithC16 {
             ansi: &[58, 94, 172, 178, 228, 230, 231],
@@ -561,6 +578,7 @@ mod tests {
             ColorScheme::Green,
             ColorScheme::Green2,
             ColorScheme::Green3,
+            ColorScheme::NeonGreen,
             ColorScheme::Gold,
             ColorScheme::Yellow,
             ColorScheme::Orange,
@@ -609,12 +627,12 @@ mod tests {
                 scheme
             );
         }
-        assert_eq!(theme_count(), 43);
+        assert_eq!(theme_count(), 44);
     }
 
     #[test]
     fn unknown_scheme_returns_greyscale() {
-        // ColorScheme has exactly 43 variants. If a 44th is added without
+        // ColorScheme has exactly 44 variants. If a 45th is added without
         // a THEMES entry, build_colors returns greyscale (not panic).
         // This is the graceful degradation guarantee.
         let colors = build_colors(ColorScheme::Green, ColorMode::TrueColor);

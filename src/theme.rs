@@ -49,7 +49,7 @@ pub struct ThemeInfo {
     pub aliases: &'static [&'static str],
 }
 
-pub const THEME_COUNT: usize = 43;
+pub const THEME_COUNT: usize = 44;
 
 #[allow(dead_code)] // used by detail_list_text (test-only in v14)
 pub const THEME_CATEGORIES: &[ThemeCategory] = &[
@@ -83,6 +83,13 @@ pub const THEMES: &[ThemeInfo] = &[
         category: ThemeCategory::Classic,
         description: "Deep teal-shifted forest green",
         aliases: &[],
+    },
+    ThemeInfo {
+        name: "neon-green",
+        scheme: ColorScheme::NeonGreen,
+        category: ThemeCategory::Classic,
+        description: "Futuristic neon green glow",
+        aliases: &["neon_green", "neongreen"],
     },
     ThemeInfo {
         name: "yellow",
@@ -488,6 +495,7 @@ mod tests {
             ColorScheme::Green,
             ColorScheme::Green2,
             ColorScheme::Green3,
+            ColorScheme::NeonGreen,
             ColorScheme::Yellow,
             ColorScheme::Orange,
             ColorScheme::Red,
@@ -534,7 +542,7 @@ mod tests {
     #[test]
     fn catalog_count_is_current_theme_count() {
         assert_eq!(theme_count(), THEME_COUNT);
-        assert_eq!(theme_count(), 43);
+        assert_eq!(theme_count(), 44);
     }
 
     #[test]
@@ -693,6 +701,6 @@ mod tests {
         let readme = include_str!("../README.md");
         assert!(!readme.contains("42 themes"));
         assert!(!readme.contains("42 built-in color schemes"));
-        assert!(readme.contains("43 built-in themes"));
+        assert!(readme.contains("44 built-in themes"));
     }
 }

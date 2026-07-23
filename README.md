@@ -51,7 +51,7 @@ Signature Monolith Rain, cinematic themes, and message mode in a real terminal s
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
 - **Adaptive custom time scheduling** — `adaptive-custom.HH-MM` config entries define your own 24-hour time-to-parameter mapping (color, scene, speed, density, FPS, charset, glitch-level) with smoothstep 5-minute blend transitions; overrides the default 5-phase adaptive engine when defined; sticky parameters keep previous values when unspecified; live config reload re-parses immediately on save
 - **Default adaptive atmosphere engine** — 5-phase time-driven modulation (Deep Void → Compression → Pulse → Calm → Signal) that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time; opt-in via `atmosphere-mode = controlled-live`
-- 43 built-in themes and 24 character sets (`--color-tune` turns all 43 into 43 × ∞ variants)
+- 44 built-in themes and 24 character sets (`--color-tune` turns all 44 into 44 × ∞ variants)
 - **3-layer parallax depth** — far/mid/near layers with per-layer speed `[0.35, 1.0, 1.7]`, brightness `[0.80, 0.95, 1.0]`, length `[0.5, 1.0, 1.4]`, density `[0.5, 1.0, 1.5]`, and phosphor decay `[1.6, 1.0, 0.7]`. 3 layers is the cinema-standard deep/mid/ground composition; more layers collapse perceptually in a 24-row terminal
 - **Phosphor persistence (CRT afterglow)** — `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0` with per-layer decay mult, bottom-row 3× acceleration, and edge energy cap. Creates ~400ms afterglow per glyph — most terminal rain renderers have zero afterglow
 - **Depth fog** — 4-row bottom vignette (`FOG_MIN_FACTOR=0.65`) + per-layer contrast reduction `[0.35, 0.0, 0.0]` (depth-of-field perceptual blur for far layer only)
@@ -257,7 +257,7 @@ DIAGNOSTICS
   -v, --verbose             Print diagnostic info to stderr (with [HH:MM] timestamps)
 
 DISCOVERY
-     --list-colors          Show compact color theme names (43 built-in themes)
+     --list-colors          Show compact color theme names (44 built-in themes)
      --list-charsets        Show available character sets (24 built-in sets)
      --list-scenes          Show built-in and custom scenes
      --show-scene <name>    Show full details for a scene

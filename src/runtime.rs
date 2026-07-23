@@ -48,6 +48,7 @@ pub enum ColorScheme {
     Green,
     Green2,
     Green3,
+    NeonGreen,
     Yellow,
     Orange,
     Red,

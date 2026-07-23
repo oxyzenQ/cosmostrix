@@ -117,6 +117,7 @@ ld: error: unable to find library -lexecinfo
 ```bash
 cd /tmp && mkdir -p libexecinfo-build && cd libexecinfo-build
 cat > execinfo.c << 'SRC'
+#define _GNU_SOURCE
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -477,6 +477,7 @@ mod audit_tests {
             Green,
             Green2,
             Green3,
+            NeonGreen,
             Yellow,
             Orange,
             Red,

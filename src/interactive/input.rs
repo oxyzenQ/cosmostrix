@@ -154,12 +154,7 @@ pub(super) fn handle_keybinding(
                 cloud.transition_chars(chars);
             }
         }
-        // v17: 'a' (toggle async) REMOVED. Async is always on; use --uniform
-        // to disable. The 'a' key now falls through to the _ => {} catch-all
-        // (silently ignored, like all other unrecognized keys).
-        // v18: 'g' (toggle glitch) REMOVED. Glitch is controlled via config
-        // (glitch-level, glitch-low, glitch-high) and scene defaults — not
-        // runtime toggle. Falls through to _ => {} (silently ignored).
+
         (KeyCode::Char('p'), _) => {
             return cloud.toggle_pause();
         }
@@ -205,10 +200,7 @@ pub(super) fn handle_keybinding(
             let d = (cloud.droplet_density + DENSITY_STEP).min(5.0);
             cloud.set_droplet_density(d);
         }
-        // v16: Digit-key color shortcuts (1-0, !@#$%) removed.
-        // Use 'c'/'C' to cycle through all 43 themes instead — it's
-        // more discoverable and doesn't require memorizing a mapping.
-        // --colors-custom is also available for user-defined palettes.
+
         _ => {}
     }
 

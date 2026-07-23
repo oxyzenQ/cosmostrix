@@ -14,7 +14,7 @@
 //! Format: `adaptive-custom.HH-MM = <color>, <scene>, [key=value, ...]`
 //!
 //! - HH-MM: time in 24h format (00-00 to 23-59)
-//! - First value: color scheme name (43 built-in themes)
+//! - First value: color scheme name (44 built-in themes)
 //! - Second value: scene name (11 built-in scenes)
 //! - Optional key=value pairs: speed, density, fps, charset, glitch-level
 //! - Parameters not specified are sticky (keep previous value)
@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn parse_accepts_custom_color_name() {
-        // v16: custom color names (not in the 43 built-in themes) are
+        // v16: custom color names (not in the 44 built-in themes) are
         // accepted at parse time. They'll be resolved at runtime.
         let mut cfg = HashMap::new();
         cfg.insert(

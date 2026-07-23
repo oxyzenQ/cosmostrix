@@ -57,7 +57,7 @@ COMMON OPTIONS:
   -s, --screensaver
       Screensaver mode. Only 'q' exits — all other keys are silently
       ignored (no accidental exit). Recognized keys
-      (c/s/x/a/p/i/h, Space, Up/Down, 0-9, etc.) still work for
+      (c/s/x/p/i/h, Space, Up/Down, 0-9, etc.) still work for
       interactive control — cycle colors, toggle HUD, pause, etc.
       Mouse click does NOT exit (v17: removed for consistency with the
       only-q-quits policy). Mouse events are still captured to block
@@ -223,7 +223,7 @@ DIAGNOSTICS:
 
 DISCOVERY:
   --list-colors         Show color theme names.
-                        There are 43 built-in themes.
+                        There are 44 built-in themes.
   --list-charsets       Show available character sets.
   --list-scenes         Show built-in and custom scenes (from config).
   --show-scene <NAME>   Show full details for a built-in or custom scene.

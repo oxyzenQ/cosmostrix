@@ -57,7 +57,7 @@ pub(crate) use watchdog::clear_mouse_capture_flag;
 use std::sync::Mutex;
 
 // Final runtime state — stored as Strings to avoid enum discriminant issues
-// with 43 ColorScheme variants. Set by event loop before returning.
+// with 44 ColorScheme variants. Set by event loop before returning.
 static FINAL_COLOR: Mutex<Option<String>> = Mutex::new(None);
 static FINAL_SCENE: Mutex<Option<String>> = Mutex::new(None);
 static FINAL_CHARSET: Mutex<Option<String>> = Mutex::new(None);

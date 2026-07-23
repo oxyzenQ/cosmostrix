@@ -71,9 +71,9 @@ fn glitch_level_subtle_applied_from_monolith() {
 #[test]
 fn matrix_scene_keeps_current_color() {
     let mut cloud = make_glyph_cloud();
-    // Matrix has color=None, so it should keep current color (Green)
+    // Matrix scene applies neon-green color.
     cloud.apply_scene_runtime("matrix", "binary", &[], false);
-    assert_eq!(cloud.color_scheme(), ColorScheme::Green);
+    assert_eq!(cloud.color_scheme(), ColorScheme::NeonGreen);
 }
 
 #[test]
