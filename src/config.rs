@@ -383,7 +383,8 @@ pub struct Args {
         long = "screen-size",
         help_heading = "DIAGNOSTICS",
         display_order = 113,
-        help = "Fixed screen size WxH (e.g. 120x40). Min 4x4"
+        help = "Fixed screen size WxH (e.g. 120x40). Min 4x4, \
+                max 1024x500 interactive / 7680x4320 (8K UHD) bench"
     )]
     pub screen_size: Option<String>,
 

@@ -123,15 +123,20 @@ pub type ScreenSize = (u16, u16);
 /// Accepted formats:
 ///   - `120x40` → (120, 40)
 ///   - `12x12` → (12, 12)
-///   - `1x1` → (1, 1) (minimum)
+///   - `4x4` → (4, 4) (minimum, enforced by MIN_TERMINAL_COLS/LINES)
 ///   - `200X60` → (200, 60) (case-insensitive 'x')
 ///
-/// Minimum: 1x1. Maximum: 65535x65535 (u16 range).
+/// Format range: 1x1 to 65535x65535 (u16 range). However, the renderer
+/// enforces a stricter floor of MIN_TERMINAL_COLS × MIN_TERMINAL_LINES
+/// (4×4) — sizes below this are rejected at parse time with a clear
+/// error. The renderer also clamps to a per-mode ceiling at runtime:
+///   - Interactive mode: MAX_TERMINAL_COLS × MAX_TERMINAL_LINES (1024×500)
+///   - Benchmark mode:   BENCH_MAX_COLS × BENCH_MAX_LINES (7680×4320 = 8K UHD)
 ///
 /// # Errors
 /// Returns `Err(String)` with a human-readable error message if:
 ///   - Format is invalid (missing 'x', non-numeric, extra characters)
-///   - Value is below minimum (0x0, 0x10, 10x0)
+///   - Value is below minimum (0x0, 0x10, 10x0, or below 4x4)
 pub fn parse_screen_size(input: &str) -> Result<ScreenSize, String> {
     let input = input.trim();
 
@@ -158,7 +163,7 @@ pub fn parse_screen_size(input: &str) -> Result<ScreenSize, String> {
 
     if w == 0 || h == 0 {
         return Err(format!(
-            "error: --screen-size '{input}' is below minimum 1x1 (got {w}x{h})"
+            "error: --screen-size '{input}' has a zero dimension (got {w}x{h}, both must be ≥ 1)"
         ));
     }
 

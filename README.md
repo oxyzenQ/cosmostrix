@@ -90,6 +90,12 @@ Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 - **Windows Terminal cleanup is best-effort** ([#15](https://github.com/oxyzenQ/cosmostrix/issues/15)). Forced termination (task kill, close window, signout) on Windows Terminal / ConHost may leave the terminal in a degraded state (scrolled buffer visible, cursor hidden). Beyond what crossterm provides, cosmostrix does not claim specific guarantees for Windows forced-termination paths. Run `cosmostrix --reset-terminal` to recover.
 - **RSS and CPU metrics are Linux/macOS only.** `--benchmark` emits `unsupported` on Windows rather than fake values.
 - **No audio.** Cosmostrix is a visual screensaver.
+- **Screen size limits (v18).** `--screen-size WxH` clamps to a per-mode ceiling:
+  - **Interactive mode**: `4×4` minimum, `1024×500` maximum (`MAX_TERMINAL_COLS/LINES`). Larger sizes would allocate >24 MiB of cell grid and degrade interactive FPS.
+  - **Benchmark mode**: `4×4` minimum, `7680×4320` (8K UHD) maximum (`BENCH_MAX_COLS/LINES`). 8K is the largest meaningful stress resolution — anything larger (e.g. 50000×50000) measures the OOM killer, not the renderer. 4K UHD (3840×2160) is the recommended daily-driver for stress tests; 8K is the ceiling.
+  - `--bench-all` runs a fixed ladder of sizes (`6×6` → `20×20` → `40×20` → `80×24` → `120×40` → `200×60`) and is unaffected by the bench ceiling.
+
+  See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for platform-specific quirks and mitigations.
 
 ## Requirements
 
@@ -248,7 +254,7 @@ DIAGNOSTICS
      --benchmark            Renderer benchmark (5s default; override with --bench-duration)
      --bench-duration <dur> Benchmark duration (e.g. 5, 6s, 30m, 1h30m; min 1s)
      --json                 Output benchmark as JSON (use with --benchmark; for CI/scripts)
-     --screen-size <WxH>    Fixed screen size (e.g. 120x40; min 1x1)
+     --screen-size <WxH>    Fixed screen size (e.g. 120x40; min 4x4, max 1024x500 interactive / 7680x4320 bench)
      --bench-io             Benchmark with wet terminal I/O (writes ANSI to /dev/null)
      --bench-all            Run benchmark across multiple screen sizes (6x6 to 200x60)
      --save-baseline <path> Save benchmark JSON for later comparison
@@ -390,6 +396,7 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 ## Documentation
 
 - [Changelog](CHANGELOG.md) — release history
+- [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks, workarounds, and planned fixes
 - [System Requirements](docs/SYSTEM_REQUIREMENTS.md) — kernel, glibc/musl, CPU, terminal compatibility matrix
 - [Terminal Compatibility](docs/TERMINAL_COMPATIBILITY.md) — terminal behavior, tmux/SSH, recovery
 - [Visual Stability](docs/VISUAL_STABILITY.md) — visual depth and throughput stability
