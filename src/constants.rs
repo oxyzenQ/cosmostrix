@@ -133,13 +133,21 @@ pub const DIRTY_THRESHOLD_RATIO: usize = 3;
 /// Graceful shutdown timeout in seconds (force-exit if flush blocks).
 pub const SHUTDOWN_TIMEOUT_SECS: u64 = 2;
 
-/// Maximum allowed terminal width (columns).  Prevents OOM from wildly
-/// misreported terminal sizes (e.g. 65535 × 65535 → hundreds of GiB).
+/// Maximum allowed terminal width (columns) for interactive mode.
+/// Prevents OOM from wildly misreported terminal sizes (e.g. 65535 × 65535 → hundreds of GiB).
 /// 1024 cols × 500 lines × ~48 bytes/cell ≈ 24 MiB — still comfortable.
 pub const MAX_TERMINAL_COLS: u16 = 1024;
 
-/// Maximum allowed terminal height (lines).  Same rationale as above.
+/// Maximum allowed terminal height (lines) for interactive mode.  Same rationale as above.
 pub const MAX_TERMINAL_LINES: u16 = 500;
+
+/// Maximum screen size for benchmark mode. Allows stress-testing at extreme
+/// resolutions (e.g. 8K = 7680x4320, or even 65535x65535). The OS OOM killer
+/// is the ultimate limiter — cosmostrix does not artificially restrict.
+pub const BENCH_MAX_COLS: u16 = u16::MAX;
+
+/// Maximum screen size for benchmark mode (lines). See BENCH_MAX_COLS.
+pub const BENCH_MAX_LINES: u16 = u16::MAX;
 
 /// Minimum usable terminal width (columns). Below this, the renderer
 /// refuses to start to avoid degenerate edge cases (empty frame, zero

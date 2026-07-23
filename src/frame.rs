@@ -23,7 +23,7 @@ use smallvec::SmallVec;
 
 use crate::cell::Cell;
 use crate::constants::{
-    DIRTY_CAPACITY_CAP, DIRTY_CAPACITY_DIVISOR, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
+    BENCH_MAX_COLS, BENCH_MAX_LINES, DIRTY_CAPACITY_CAP, DIRTY_CAPACITY_DIVISOR,
     MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
 };
 
@@ -58,9 +58,9 @@ pub struct Frame {
 
 impl Frame {
     pub fn new(width: u16, height: u16, bg: Option<crossterm::style::Color>) -> Self {
-        // Safety clamp: prevent OOM from absurd terminal sizes
-        let width = width.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
-        let height = height.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+        // Safety clamp: uses BENCH_MAX (u16::MAX) so benchmark mode can stress-test
+        let width = width.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS);
+        let height = height.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES);
         let len = width as usize * height as usize;
         let blank = Cell::blank_with_bg(bg);
         let gen = 1u32;

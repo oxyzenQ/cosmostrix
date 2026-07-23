@@ -139,34 +139,136 @@ pub static THEMES: &[ThemeDef] = &[
         scheme: ColorScheme::NeonGreen,
         def: ThemeColors::StopsWithC16 {
             stops: &[
-                (0, 40, 0),
-                (0, 180, 20),
-                (20, 255, 60),
-                (80, 255, 120),
-                (160, 255, 180),
-                (220, 255, 220),
+                (0, 30, 0),
+                (0, 160, 10),
+                (10, 255, 40),
+                (60, 255, 100),
+                (140, 255, 170),
+                (210, 255, 220),
                 (255, 255, 255),
             ],
             steps: 7,
             c16: &[Color::Green, Color::White],
-            ansi: &[22, 34, 46, 82, 120, 157, 231],
+            ansi: &[22, 28, 46, 82, 120, 157, 231],
         },
     },
     ThemeDef {
         scheme: ColorScheme::NeonPurple,
         def: ThemeColors::StopsWithC16 {
             stops: &[
-                (40, 0, 60),
-                (120, 0, 200),
-                (180, 40, 255),
-                (220, 120, 255),
-                (240, 180, 255),
-                (250, 220, 255),
+                (30, 0, 50),
+                (100, 0, 180),
+                (170, 30, 255),
+                (210, 100, 255),
+                (235, 170, 255),
+                (248, 215, 255),
                 (255, 255, 255),
             ],
             steps: 7,
             c16: &[Color::Magenta, Color::White],
-            ansi: &[54, 90, 135, 177, 219, 225, 231],
+            ansi: &[53, 90, 135, 177, 219, 225, 231],
+        },
+    },
+    ThemeDef {
+        scheme: ColorScheme::NeonWhite,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (10, 10, 20),
+                (60, 65, 80),
+                (130, 140, 160),
+                (190, 200, 215),
+                (225, 230, 240),
+                (245, 248, 255),
+                (255, 255, 255),
+            ],
+            steps: 7,
+            c16: &[Color::Grey, Color::White],
+            ansi: &[236, 240, 244, 248, 252, 254, 255],
+        },
+    },
+    ThemeDef {
+        scheme: ColorScheme::NeonBlue,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (0, 0, 40),
+                (0, 30, 160),
+                (0, 80, 255),
+                (60, 150, 255),
+                (130, 200, 255),
+                (200, 230, 255),
+                (255, 255, 255),
+            ],
+            steps: 7,
+            c16: &[Color::Blue, Color::White],
+            ansi: &[17, 21, 33, 69, 111, 153, 231],
+        },
+    },
+    ThemeDef {
+        scheme: ColorScheme::NeonRed,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (40, 0, 0),
+                (160, 0, 10),
+                (255, 20, 40),
+                (255, 80, 100),
+                (255, 150, 160),
+                (255, 215, 220),
+                (255, 255, 255),
+            ],
+            steps: 7,
+            c16: &[Color::Red, Color::White],
+            ansi: &[52, 88, 160, 196, 217, 224, 231],
+        },
+    },
+    ThemeDef {
+        scheme: ColorScheme::NeonOrange,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (40, 10, 0),
+                (160, 50, 0),
+                (255, 120, 0),
+                (255, 170, 40),
+                (255, 210, 100),
+                (255, 235, 180),
+                (255, 255, 255),
+            ],
+            steps: 7,
+            c16: &[Color::DarkYellow, Color::White],
+            ansi: &[52, 130, 166, 208, 222, 230, 231],
+        },
+    },
+    ThemeDef {
+        scheme: ColorScheme::NeonYellow,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (30, 30, 0),
+                (120, 100, 0),
+                (255, 240, 0),
+                (255, 250, 60),
+                (255, 255, 130),
+                (255, 255, 200),
+                (255, 255, 255),
+            ],
+            steps: 7,
+            c16: &[Color::Yellow, Color::White],
+            ansi: &[100, 142, 226, 227, 229, 230, 231],
+        },
+    },
+    ThemeDef {
+        scheme: ColorScheme::NeonCyan,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (0, 20, 30),
+                (0, 100, 120),
+                (0, 220, 255),
+                (60, 240, 255),
+                (140, 250, 255),
+                (210, 255, 255),
+                (255, 255, 255),
+            ],
+            steps: 7,
+            c16: &[Color::Cyan, Color::White],
+            ansi: &[23, 31, 51, 87, 123, 195, 231],
         },
     },
     ThemeDef {
@@ -614,6 +716,12 @@ mod tests {
             ColorScheme::Green3,
             ColorScheme::NeonGreen,
             ColorScheme::NeonPurple,
+            ColorScheme::NeonWhite,
+            ColorScheme::NeonBlue,
+            ColorScheme::NeonRed,
+            ColorScheme::NeonOrange,
+            ColorScheme::NeonYellow,
+            ColorScheme::NeonCyan,
             ColorScheme::Carbon,
             ColorScheme::Gold,
             ColorScheme::Yellow,
@@ -663,12 +771,12 @@ mod tests {
                 scheme
             );
         }
-        assert_eq!(theme_count(), 46);
+        assert_eq!(theme_count(), 52);
     }
 
     #[test]
     fn unknown_scheme_returns_greyscale() {
-        // ColorScheme has exactly 46 variants. If a 47th is added without
+        // ColorScheme has exactly 52 variants. If a 53rd is added without
         // a THEMES entry, build_colors returns greyscale (not panic).
         // This is the graceful degradation guarantee.
         let colors = build_colors(ColorScheme::Green, ColorMode::TrueColor);

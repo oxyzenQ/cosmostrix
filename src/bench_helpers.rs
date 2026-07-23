@@ -6,15 +6,15 @@
 use std::env;
 
 use crate::constants::{
-    DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES,
+    BENCH_MAX_COLS, BENCH_MAX_LINES, DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES,
     MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
 };
 
 pub(crate) fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
     // --screen-size CLI flag takes precedence
     if let Some((w, h)) = cli_size {
-        let w = w.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
-        let h = h.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+        let w = w.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS);
+        let h = h.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES);
         return (w, h);
     }
     // Fall back to env vars (backward compat for CI)
@@ -24,8 +24,8 @@ pub(crate) fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
     ) {
         if let (Ok(w), Ok(h)) = (w_str.parse::<u16>(), h_str.parse::<u16>()) {
             return (
-                w.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS),
-                h.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES),
+                w.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS),
+                h.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES),
             );
         }
     }
@@ -39,15 +39,15 @@ pub(crate) fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
     if let Ok((w, h)) = crossterm::terminal::size() {
         if w >= MIN_TERMINAL_COLS && h >= MIN_TERMINAL_LINES {
             return (
-                w.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS),
-                h.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES),
+                w.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS),
+                h.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES),
             );
         }
     }
     // Last-resort default: 120x40 (for non-TTY / piped / CI without PTY).
     (
-        DENSITY_AUTO_DEFAULT_COLS.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS),
-        DENSITY_AUTO_DEFAULT_LINES.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES),
+        DENSITY_AUTO_DEFAULT_COLS.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS),
+        DENSITY_AUTO_DEFAULT_LINES.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES),
     )
 }
 

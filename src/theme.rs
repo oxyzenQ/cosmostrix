@@ -49,7 +49,7 @@ pub struct ThemeInfo {
     pub aliases: &'static [&'static str],
 }
 
-pub const THEME_COUNT: usize = 46;
+pub const THEME_COUNT: usize = 52;
 
 #[allow(dead_code)] // used by detail_list_text (test-only in v14)
 pub const THEME_CATEGORIES: &[ThemeCategory] = &[
@@ -97,6 +97,48 @@ pub const THEMES: &[ThemeInfo] = &[
         category: ThemeCategory::Cinematic,
         description: "Vivid neon violet glow",
         aliases: &["neon_purple", "neonpurple"],
+    },
+    ThemeInfo {
+        name: "neon-white",
+        scheme: ColorScheme::NeonWhite,
+        category: ThemeCategory::Cinematic,
+        description: "Pure white neon ice glow",
+        aliases: &["neon_white", "neonwhite"],
+    },
+    ThemeInfo {
+        name: "neon-blue",
+        scheme: ColorScheme::NeonBlue,
+        category: ThemeCategory::Cinematic,
+        description: "Electric blue neon pulse",
+        aliases: &["neon_blue", "neonblue"],
+    },
+    ThemeInfo {
+        name: "neon-red",
+        scheme: ColorScheme::NeonRed,
+        category: ThemeCategory::Cinematic,
+        description: "Vivid crimson neon flare",
+        aliases: &["neon_red", "neonred"],
+    },
+    ThemeInfo {
+        name: "neon-orange",
+        scheme: ColorScheme::NeonOrange,
+        category: ThemeCategory::Cinematic,
+        description: "Amber neon ember glow",
+        aliases: &["neon_orange", "neonorange"],
+    },
+    ThemeInfo {
+        name: "neon-yellow",
+        scheme: ColorScheme::NeonYellow,
+        category: ThemeCategory::Cinematic,
+        description: "Electric yellow neon beam",
+        aliases: &["neon_yellow", "neonyellow"],
+    },
+    ThemeInfo {
+        name: "neon-cyan",
+        scheme: ColorScheme::NeonCyan,
+        category: ThemeCategory::Cinematic,
+        description: "Electric cyan neon flash",
+        aliases: &["neon_cyan", "neoncyan"],
     },
     ThemeInfo {
         name: "carbon",
@@ -511,6 +553,12 @@ mod tests {
             ColorScheme::Green3,
             ColorScheme::NeonGreen,
             ColorScheme::NeonPurple,
+            ColorScheme::NeonWhite,
+            ColorScheme::NeonBlue,
+            ColorScheme::NeonRed,
+            ColorScheme::NeonOrange,
+            ColorScheme::NeonYellow,
+            ColorScheme::NeonCyan,
             ColorScheme::Carbon,
             ColorScheme::Yellow,
             ColorScheme::Orange,
@@ -558,7 +606,7 @@ mod tests {
     #[test]
     fn catalog_count_is_current_theme_count() {
         assert_eq!(theme_count(), THEME_COUNT);
-        assert_eq!(theme_count(), 46);
+        assert_eq!(theme_count(), 52);
     }
 
     #[test]
@@ -717,6 +765,6 @@ mod tests {
         let readme = include_str!("../README.md");
         assert!(!readme.contains("42 themes"));
         assert!(!readme.contains("42 built-in color schemes"));
-        assert!(readme.contains("46 built-in themes"));
+        assert!(readme.contains("52 built-in themes"));
     }
 }
