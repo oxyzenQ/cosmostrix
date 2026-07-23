@@ -65,9 +65,12 @@ COMMON OPTIONS:
       cosmostrix --screensaver
 
   --intro
-      Dragon Render startup animation. Types \"COSMOSTRIX\" at center
-      screen in the brightest palette color, holds, then fades out.
-      Duration: 1.5s. Skip with any key. Auto-skipped in --screensaver.
+      Dragon's Awakening cinematic intro. A majestic ASCII dragon fades
+      in at center, breathes a stream of fire particles downward, and
+      the fire morphs into Matrix rain as the dragon fades away —
+      handing off seamlessly to the rain engine. Duration: ~6.5s.
+      Skip with any key. Auto-skipped in --screensaver and on terminals
+      smaller than 80x24.
       cosmostrix --intro
       cosmostrix --intro --scene matrix
 

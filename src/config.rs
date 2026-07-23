@@ -274,7 +274,7 @@ pub struct Args {
         long = "intro",
         help_heading = "COMMON OPTIONS",
         display_order = 61,
-        help = "Show Dragon Render startup animation before rain begins"
+        help = "Show Dragon's Awakening cinematic intro before rain begins"
     )]
     pub intro: bool,
 
