@@ -91,7 +91,7 @@ pub(crate) fn read_self_voluntary_ctxt() -> u64 {
 // ```
 //
 // Total: ~6.5 s. Any key (q / Enter / etc.) skips instantly. The intro is
-// skipped entirely on terminals smaller than 80×24 with a stderr notice.
+// skipped entirely on terminals smaller than 100×24 with a stderr notice.
 //
 // ## Constraints
 //
@@ -104,8 +104,9 @@ pub(crate) fn read_self_voluntary_ctxt() -> u64 {
 //   during the 6.5 s cinematic.
 
 /// Minimum terminal size for the intro to play. Below this, skip with a
-/// stderr notice. Matches the classic 80×24 VT100 baseline.
-const MIN_INTRO_COLS: u16 = 80;
+/// stderr notice. Width 100 accommodates the 92-char dragon art with
+/// margin; height 24 is the classic VT100 baseline.
+const MIN_INTRO_COLS: u16 = 100;
 const MIN_INTRO_LINES: u16 = 24;
 
 /// Phase boundaries (milliseconds from intro start).
@@ -149,60 +150,87 @@ const PARTICLE_BASE_VY: f32 = 12.0;
 /// form a cone rather than a column.
 const PARTICLE_SPREAD_VX: f32 = 6.0;
 
-/// The majestic ASCII dragon — a front-view Western dragon with spread
-/// wings, horned head, open mouth at the bottom of the head (fire breath
-/// origin), armored body, and clawed feet.
+/// The majestic ASCII dragon — a top-down view of a flying dragon with
+/// wings spread horizontally, body in the central column, and tail
+/// tapering downward. The mouth sits at the bottom of the head (upper
+/// third of the body column) so fire breath emerges downward naturally.
 ///
-/// Dimensions: 30 lines tall × 54 chars max width. Fits comfortably in
-/// an 80×24 terminal with horizontal margin (centered dynamically).
+/// Dimensions: 53 lines tall × 92 chars max width. Requires a terminal
+/// at least 100×24 — the intro auto-skips below that with a stderr
+/// notice.
 ///
-/// The mouth opening (the standalone `V` on its own line) marks the fire
-/// breath origin. Its (row, col) within the art is encoded in
-/// [`DRAGON_MOUTH_ROW`] / [`DRAGON_MOUTH_COL`] so the spawn point stays
-/// correct even if the art is later edited.
+/// The mouth position (row, col) within the art is encoded in
+/// [`DRAGON_MOUTH_ROW`] / [`DRAGON_MOUTH_COL`] so the fire-spawn point
+/// stays correct even if the art is later edited. The
+/// [`dragon_art_tests::mouth_position_is_valid`] test guards against
+/// drift.
 const DRAGON_ART: &str = concat!(
-    "              ___                              ___\n",
-    "            /`   `\\                          /`   `\\\n",
-    "           /   _   \\                        /   _   \\\n",
-    "          |   |o|   |                      |   |o|   |\n",
-    "          |   \\_/   |                      |   \\_/   |\n",
-    "           \\       /        _______         \\       /\n",
-    "            \\_____/         /`     `\\         \\_____/\n",
-    "                            /  _   _  \\\n",
-    "                           |  / \\ / \\  |\n",
-    "                           | |  V V  | |\n",
-    "                           |  \\_/ \\_/  |\n",
-    "                            \\  o o o  /\n",
-    "                             \\___V___/\n",
-    "                                 |\n",
-    "                                 V\n",
-    "                                 |\n",
-    "                          ________|________\n",
-    "                         /   _    | |    _   \\\n",
-    "                        |   / \\  | |  / \\   |\n",
-    "                        |  |  o| | | |o  |  |\n",
-    "                        |  \\__/  | |  \\__/  |\n",
-    "                         \\      _|_|_      /\n",
-    "                          \\___/  | |  \\___/\n",
-    "                          /      | |      \\\n",
-    "                         /       | |       \\\n",
-    "                         |_______|_|_______|\n",
-    "                         |       | |       |\n",
-    "                         |_______|_|_______|\n",
-    "                         / |   | | | |   | \\\n",
-    "                        /__|___|_|_|_|___|__\\\n",
+    "+                                                        +\n",
+    "                   ++                                                          +÷\n",
+    "                  ++                                                            ++\n",
+    "                 -+                                                             +++\n",
+    "               + ++                              ≠                               +++\n",
+    "                ++                               +-                              ++++\n",
+    "              ++++                               ++                               ++ +\n",
+    "             + +++                              +++                               +++ -\n",
+    "               ++                               ++ +                              +++ +\n",
+    "            +  +++              ++             +√+  +             +               +++ +\n",
+    "            + =++-              +              + ++       +       ++              +++\n",
+    "            +  +++             ++        +   +  ++   +    +        +             =+++ -π\n",
+    "            +  +++∞             +       +++  +  +     +  ++       +++            ++++\n",
+    "      +      +  +++-          ≠ +       +++ + += +   + ∞++-+      ++            ++++  +     +÷\n",
+    "      ++     +  ++++            ++      + ++÷   +++    +++ +      ++            ++++  +     +\n",
+    "       +     +   ++++    ≠      ++    +   ++    ++++   ++÷   +   +++          +++++  ∞≠     +\n",
+    "       ++     +   ++++   +    ÷  ++    +   ++  ++  +   ++   ++   ++ +     +   ++++   +     ++\n",
+    "       =++        ×++++  +       +++   ++   + ++ +  +  ∞+ +++   ++  +     + +++++   +     ++\n",
+    "         ++    +   +++++ ++    +  +++   ++      -++  ≠+  -++  ≠+++       ++-++++   +     +++\n",
+    "        +≠++         +++++++    =  ++++  ++     ++++      +  ++++  ∞   +++++++    +     ++√\n",
+    "         ÷√++    ++    ++++++π  +   ++++  ÷+   ++  +    +×  ++++  +   +++++++   -+     ++\n",
+    "            ++×    +    +++++++  ≠   +++=  ++  + +  + +++   +++  ×   +++++++    +    +++ +\n",
+    "             +++    +     -+++-+  +   +++   ++   ++   ++   +++  +   +++++     ++   ++++\n",
+    "              -+++    ≠     +++    +   ++       ++++       ++       +++      +    +++  +\n",
+    "                 +++   ++    ++++   +  √+++    ++  +     +++   +   +++     ++  ++++   +\n",
+    "        +     +   +++    +     +++  ÷+  =+   + + ++   + ≠++   ∞+ ++++     +   +++\n",
+    "         +      +   ++++   +     +++ -   +++    +++     ++   +  +++     +   +++=   +     ++\n",
+    "          ++     +    ++     +   ++++  +  +++    + +  ≈++  ++  ++++  ++     ++   +      ++\n",
+    "           +++          +  +  ÷   +++  +++ ++  + +  +  +  ++   ++       + ++         -+++\n",
+    "            +++++        -+ ++  +  ++++ ++  -+  -++   +  ++ √+++-  +  +  +        ++++-π\n",
+    "               ++++++        π   +   +++  +  +++ ∞  ++  ++ ++++   +            +++++\n",
+    "               ≠  =+++     ++ ≈    +  ++++  ++   +≈÷  ++∞ +++   +    ÷-++     +++   ÷\n",
+    "                 +     ++     ++       ×++++ ++  +  + - ++++ ×      ++     ++     +\n",
+    "                          ++++  +++×  ++ +++++ +     ++++++ ++   +++  +++\n",
+    "               ++               ++++  ++++ ++-+ ×  ++++++ +++   ++++               +\n",
+    "                 ++++++≈ +++++     ++++  =  ×+      ÷++  √≠   +++     ++++  ÷++++++\n",
+    "                      ++=   +++    ++++++     = +++× π    ÷++++++    ++    +++\n",
+    "                                +      ++++  +++++++++   +++×     ≠+\n",
+    "                         +++++    ++     +++ +++++++++ ++++     +     ++++\n",
+    "                                     +    +++ ++++++++++++\n",
+    "                             ×++++    +    ++++++++++++++  +-+    ++++\n",
+    "                                       +   +÷ ++++++++ +∞ √++\n",
+    "                                 ++++   ++ ++÷ +++++   + ++√   ++++\n",
+    "                                      +  ++ ++   +    ++ ++  +\n",
+    "                                       +  +  ÷          ++ ++\n",
+    "                                        ++++ +++    ++  + +\n",
+    "                                          ++÷ +   +  + ++=\n",
+    "                                           ÷ +       + +\n",
+    "                                           +  ++     + +\n",
+    "                                            √π-++++ +÷+\n",
+    "                                             ++  ÷π  ++\n",
+    "                                              + +  + +\n",
+    "                                                 ++\n",
 );
 
 /// Row index (0-based, within `DRAGON_ART` lines) of the mouth opening —
-/// the standalone `V` line where fire particles originate. Keep in sync
-/// with the art above; [`dragon_art_tests::mouth_position_is_valid`]
-/// guards against drift.
-const DRAGON_MOUTH_ROW: usize = 14;
+/// the bottom of the head in the body column where fire particles
+/// originate. Keep in sync with the art above;
+/// [`dragon_art_tests::mouth_position_is_valid`] guards against drift.
+const DRAGON_MOUTH_ROW: usize = 7;
 
 /// Column index (0-based) of the mouth opening within the mouth row.
-/// Points at the `V` character itself. Fire particles spawn at this
-/// (row, col) within the centered dragon, then fall downward.
-const DRAGON_MOUTH_COL: usize = 33;
+/// Points at the middle `+` of the `+++` body cluster at row 7. Fire
+/// particles spawn at this (row, col) within the centered dragon, then
+/// fall downward.
+const DRAGON_MOUTH_COL: usize = 49;
 
 /// Parsed dragon art: each line as a `&'static str`, with the max line width
 /// precomputed. Done once at module load (compile-time constant via inline
@@ -334,7 +362,7 @@ fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
 /// fades in, breathes fire, the fire morphs into Matrix rain, and the
 /// dragon fades away leaving the rain engine to take over.
 ///
-/// Skip with any key. On terminals smaller than 80×24 the intro is
+/// Skip with any key. On terminals smaller than 100×24 the intro is
 /// skipped entirely with a stderr notice.
 ///
 /// Reuses the existing `Terminal` / `Frame` / `Cell` pipeline. Zero
@@ -346,7 +374,7 @@ pub(crate) fn run_intro(
     w: u16,
     h: u16,
 ) -> std::io::Result<()> {
-    // Terminal-size guard. Below 80×24 the dragon art would clip badly;
+    // Terminal-size guard. Below 100×24 the dragon art would clip badly;
     // print a notice and skip the cinematic.
     if w < MIN_INTRO_COLS || h < MIN_INTRO_LINES {
         eprintln!(
@@ -739,17 +767,18 @@ mod tests {
     #[test]
     fn dragon_art_has_reasonable_size() {
         let (lines, max_w) = parse_dragon_art();
-        // Requirements: 40-60 chars wide, 20-30 lines tall. The art must
-        // also fit on an 80×24 terminal with horizontal margin to spare
-        // (the intro auto-skips below 80×24, so we only need to fit at
-        // that minimum).
+        // Requirements: 40-100 chars wide, 20-60 lines tall. The art is a
+        // detailed top-down dragon with spread wings (wider than tall in
+        // terms of horizontal extent). Width 100 accommodates the wingspan
+        // while still fitting in most modern terminals; height 60 leaves
+        // room for the body+tail without crowding the screen.
         assert!(
-            (40..=70).contains(&max_w),
-            "dragon width {max_w} outside [40, 70]"
+            (40..=100).contains(&max_w),
+            "dragon width {max_w} outside [40, 100]"
         );
         assert!(
-            (20..=30).contains(&lines.len()),
-            "dragon height {} outside [20, 30]",
+            (20..=60).contains(&lines.len()),
+            "dragon height {} outside [20, 60]",
             lines.len()
         );
     }
@@ -777,20 +806,16 @@ mod tests {
         let ch = mouth_line[DRAGON_MOUTH_COL];
         assert!(
             ch != ' ',
-            "DRAGON_MOUTH_COL points at a space; must point at the mouth V"
-        );
-        assert!(
-            ch == 'V' || ch == 'v',
-            "DRAGON_MOUTH_COL should point at the mouth 'V', got {ch:?}"
+            "DRAGON_MOUTH_COL points at a space; must point at a visible mouth glyph"
         );
     }
 
     #[test]
     fn mouth_row_is_above_body_center() {
         // Sanity: the mouth should be in the upper half of the dragon
-        // (head area), not at the bottom (claws). This catches accidental
-        // mouth-position regressions that would make fire emerge from the
-        // dragon's feet.
+        // (head/neck area), not at the bottom (tail tip). This catches
+        // accidental mouth-position regressions that would make fire
+        // emerge from the dragon's tail.
         let (lines, _) = parse_dragon_art();
         let height = lines.len();
         assert!(
