@@ -55,7 +55,9 @@ pub enum ThemeColors {
         steps: usize,
     },
     /// ANSI 256-color indices + explicit Color16 fallback.
-    /// Used by classic themes (Gold, Red, Blue, etc.)
+    /// Legacy format — all themes have been migrated to `Stops`/`StopsWithC16`.
+    /// Retained for any future theme that wants explicit ANSI fallback control.
+    #[allow(dead_code)]
     AnsiWithC16 {
         ansi: &'static [u8],
         c16: &'static [Color],
@@ -135,21 +137,21 @@ pub static THEMES: &[ThemeDef] = &[
             ansi: &[22, 28, 34, 70, 76, 82, 157],
         },
     },
+    // ── 11 NEON THEMES (masterclass tuning) ─────────────────────────────
+    // Principle: head stays tinted (not pure white), body is deeply saturated,
+    // tail is near-black with a faint hue. Stops the classic 'neon fade to
+    // grey' failure mode and gives each theme a recognizable tube-glow.
     ThemeDef {
         scheme: ColorScheme::NeonGreen,
         def: ThemeColors::StopsWithC16 {
-            // Peak mastery: 7-stop neon-green ramp. Deep void-green origin →
-            // saturated neon core → near-white hot head. Tuned so the bright
-            // stops pop against a black background without bleeding into
-            // yellow (the classic neon-green failure mode).
             stops: &[
-                (0, 50, 5),
-                (0, 160, 30),
-                (20, 240, 80),
-                (90, 255, 140),
-                (170, 255, 200),
-                (220, 255, 230),
-                (245, 255, 250),
+                (0, 25, 3),
+                (0, 140, 25),
+                (15, 220, 60),
+                (80, 255, 110),
+                (170, 255, 160),
+                (220, 255, 200),
+                (235, 255, 225),
             ],
             steps: 7,
             c16: &[Color::DarkGreen, Color::Green, Color::White],
@@ -159,18 +161,14 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::NeonPurple,
         def: ThemeColors::StopsWithC16 {
-            // Peak mastery: 7-stop neon-violet ramp. Deep cosmic violet →
-            // saturated magenta-violet core → near-lavender hot head. The
-            // magenta-shifted mid-stops (220, 120, 255) prevent the
-            // "just blue" flatness that plagued the prior gradient.
             stops: &[
-                (20, 0, 50),
-                (90, 0, 180),
-                (160, 30, 240),
-                (210, 100, 255),
-                (235, 170, 255),
-                (248, 215, 255),
-                (255, 245, 255),
+                (15, 0, 35),
+                (80, 0, 160),
+                (140, 20, 230),
+                (195, 90, 255),
+                (220, 150, 255),
+                (240, 200, 255),
+                (250, 235, 255),
             ],
             steps: 7,
             c16: &[Color::Magenta, Color::White],
@@ -180,17 +178,14 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::NeonWhite,
         def: ThemeColors::StopsWithC16 {
-            // Neon-white: cold spectral glow — deep blue-black origin →
-            // ice-blue mid → pure white head. Reads as "phosphor white"
-            // rather than flat monochrome grey.
             stops: &[
                 (5, 8, 14),
                 (40, 50, 70),
-                (110, 130, 165),
-                (180, 200, 230),
-                (225, 235, 250),
-                (245, 248, 255),
-                (255, 255, 255),
+                (100, 120, 155),
+                (170, 190, 220),
+                (215, 225, 240),
+                (240, 245, 252),
+                (252, 253, 255),
             ],
             steps: 7,
             c16: &[Color::DarkGrey, Color::White],
@@ -200,17 +195,14 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::NeonBlue,
         def: ThemeColors::StopsWithC16 {
-            // Neon-blue: electric sapphire — near-black indigo origin →
-            // saturated electric blue core → ice-white head. Hot stops
-            // pushed toward cyan so the head "glows" rather than dims.
             stops: &[
                 (0, 5, 30),
-                (0, 50, 180),
-                (10, 120, 255),
-                (70, 180, 255),
-                (150, 215, 255),
-                (210, 235, 255),
-                (245, 250, 255),
+                (0, 45, 170),
+                (8, 110, 250),
+                (60, 170, 255),
+                (140, 205, 255),
+                (200, 228, 255),
+                (235, 245, 255),
             ],
             steps: 7,
             c16: &[Color::DarkBlue, Color::Blue, Color::White],
@@ -220,18 +212,14 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::NeonRed,
         def: ThemeColors::StopsWithC16 {
-            // Neon-red: plasma-crimson — deep oxblood origin → saturated
-            // fire-red core → coral-pink hot head. The pink shift at the
-            // head is what gives "neon red" its characteristic tube-glow
-            // instead of flat arterial red.
             stops: &[
                 (30, 0, 0),
-                (130, 0, 10),
-                (220, 20, 30),
-                (255, 70, 80),
-                (255, 130, 140),
-                (255, 180, 190),
-                (255, 230, 235),
+                (130, 0, 8),
+                (210, 15, 25),
+                (255, 65, 75),
+                (255, 120, 130),
+                (255, 175, 185),
+                (255, 225, 230),
             ],
             steps: 7,
             c16: &[Color::DarkRed, Color::Red, Color::White],
@@ -241,18 +229,14 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::NeonOrange,
         def: ThemeColors::StopsWithC16 {
-            // Neon-orange: sodium-lamp orange — burnt umber origin →
-            // saturated sodium-orange core → warm cream head. Tuned so
-            // the mid-stops don't drift into yellow (the orange-theme
-            // failure mode).
             stops: &[
                 (30, 5, 0),
                 (140, 30, 0),
-                (220, 70, 0),
-                (255, 130, 20),
-                (255, 180, 80),
-                (255, 215, 140),
-                (255, 240, 210),
+                (215, 65, 0),
+                (255, 125, 18),
+                (255, 175, 75),
+                (255, 210, 135),
+                (255, 235, 205),
             ],
             steps: 7,
             c16: &[Color::DarkRed, Color::DarkYellow, Color::White],
@@ -262,18 +246,14 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::NeonYellow,
         def: ThemeColors::StopsWithC16 {
-            // Neon-yellow: electric sulfur — dark olive-brown origin →
-            // saturated sulfur-yellow core → near-white lemon head.
-            // Origin shifted to olive (not pure black) so the ramp
-            // preserves perceived hue continuity.
             stops: &[
                 (25, 20, 0),
                 (110, 90, 0),
-                (200, 170, 0),
-                (250, 225, 30),
-                (255, 245, 120),
-                (255, 252, 195),
-                (255, 255, 240),
+                (195, 165, 0),
+                (245, 220, 28),
+                (255, 242, 115),
+                (255, 251, 190),
+                (255, 254, 238),
             ],
             steps: 7,
             c16: &[Color::DarkYellow, Color::Yellow, Color::White],
@@ -283,18 +263,14 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::NeonCyan,
         def: ThemeColors::StopsWithC16 {
-            // Neon-cyan: liquid-mercury cyan — deep teal-black origin →
-            // saturated aqua-cyan core → frost-white head. Pushed toward
-            // green-cyan (not blue-cyan) so it reads as "neon" rather
-            // than "light blue".
             stops: &[
                 (0, 20, 25),
                 (0, 90, 110),
-                (0, 200, 220),
-                (60, 240, 250),
-                (150, 250, 255),
-                (210, 253, 255),
-                (245, 255, 255),
+                (0, 195, 215),
+                (55, 235, 245),
+                (145, 245, 252),
+                (205, 250, 255),
+                (240, 254, 255),
             ],
             steps: 7,
             c16: &[Color::DarkCyan, Color::Cyan, Color::White],
@@ -308,179 +284,341 @@ pub static THEMES: &[ThemeDef] = &[
                 (10, 10, 10),
                 (30, 35, 40),
                 (60, 68, 75),
-                (100, 110, 120),
-                (150, 160, 170),
-                (200, 210, 215),
-                (240, 245, 248),
+                (95, 105, 115),
+                (140, 150, 160),
+                (190, 200, 205),
+                (235, 240, 243),
             ],
             steps: 7,
             c16: &[Color::DarkGrey, Color::Grey, Color::White],
             ansi: &[232, 236, 240, 244, 248, 252, 255],
         },
     },
+    // ── 19 LEGACY THEMES (migrated from AnsiWithC16 to Stops) ──────────
+    // Each theme was originally a hand-picked ANSI 256-color index list.
+    // Migrated to RGB Stops with masterclass tuning: deep tinted origin →
+    // saturated body → tinted head (not pure white). RGB is now the primary
+    // truth; Color16/ANSI fallbacks are auto-derived by colors_from_stops.
     ThemeDef {
         scheme: ColorScheme::Gold,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[58, 94, 172, 178, 228, 230, 231],
-            c16: &[
-                Color::DarkGrey,
-                Color::DarkYellow,
-                Color::Yellow,
-                Color::White,
+        def: ThemeColors::Stops {
+            // Polished gold: near-black brown origin → burnished amber →
+            // luminous pale-gold head.
+            stops: &[
+                (20, 12, 0),
+                (90, 55, 0),
+                (180, 130, 20),
+                (230, 185, 60),
+                (248, 220, 110),
+                (253, 240, 175),
+                (255, 250, 220),
             ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Yellow,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[100, 142, 184, 226, 227, 229, 230],
-            c16: &[Color::DarkGrey, Color::Yellow, Color::White],
+        def: ThemeColors::Stops {
+            // Warm signal yellow: dark olive origin → rich amber-yellow →
+            // pale buttercream head.
+            stops: &[
+                (20, 18, 0),
+                (85, 70, 0),
+                (165, 140, 10),
+                (220, 195, 35),
+                (245, 225, 90),
+                (253, 245, 165),
+                (255, 252, 220),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Orange,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[52, 94, 130, 166, 202, 208, 231],
-            c16: &[Color::Red, Color::Grey],
+        def: ThemeColors::Stops {
+            // Amber-orange: burnt umber origin → tangerine → warm peach head.
+            stops: &[
+                (25, 8, 0),
+                (110, 35, 0),
+                (185, 80, 5),
+                (230, 130, 25),
+                (250, 175, 70),
+                (255, 210, 130),
+                (255, 235, 195),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Red,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[234, 52, 88, 124, 160, 196, 217],
-            c16: &[Color::DarkRed, Color::Red, Color::White],
+        def: ThemeColors::Stops {
+            // High-alert red: oxblood origin → arterial red → coral-blush head.
+            stops: &[
+                (25, 0, 0),
+                (95, 0, 5),
+                (165, 20, 20),
+                (215, 60, 55),
+                (240, 110, 100),
+                (252, 165, 155),
+                (255, 215, 205),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Blue,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[234, 17, 18, 19, 20, 21, 75, 159],
-            c16: &[Color::DarkBlue, Color::Blue, Color::White],
+        def: ThemeColors::Stops {
+            // Clean electric blue: near-black indigo → royal blue →
+            // pale sky-blue head.
+            stops: &[
+                (0, 5, 25),
+                (0, 35, 110),
+                (10, 80, 180),
+                (50, 130, 220),
+                (110, 175, 240),
+                (175, 210, 250),
+                (220, 235, 255),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Cyan,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[24, 25, 31, 32, 38, 45, 159],
-            c16: &[Color::DarkCyan, Color::Cyan, Color::White],
+        def: ThemeColors::Stops {
+            // Cool cyan: deep teal-black → aqua → frosty pale-cyan head.
+            stops: &[
+                (0, 15, 20),
+                (0, 60, 80),
+                (0, 130, 150),
+                (40, 185, 200),
+                (110, 220, 230),
+                (175, 240, 245),
+                (220, 250, 252),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Purple,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[60, 61, 62, 63, 69, 111, 225],
-            c16: &[Color::Magenta, Color::Grey],
+        def: ThemeColors::Stops {
+            // Saturated royal purple: dark plum → regal violet →
+            // pale lavender-rose head.
+            stops: &[
+                (15, 0, 25),
+                (65, 10, 90),
+                (120, 30, 160),
+                (165, 70, 200),
+                (205, 120, 225),
+                (230, 170, 240),
+                (248, 215, 250),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Neon,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[17, 18, 19, 54, 93, 129, 201, 51, 231],
-            c16: &[Color::Blue, Color::Magenta, Color::Cyan, Color::White],
+        def: ThemeColors::Stops {
+            // Synthwave neon: deep indigo → magenta → cyan → pale rose head.
+            // Multi-hue ramp preserves the synthwave dual-color identity.
+            stops: &[
+                (10, 0, 30),
+                (60, 0, 110),
+                (140, 20, 180),
+                (220, 60, 200),
+                (90, 180, 230),
+                (170, 230, 245),
+                (245, 230, 250),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Fire,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[52, 88, 124, 160, 196, 202, 208, 214, 226, 231],
-            c16: &[
-                Color::DarkRed,
-                Color::Red,
-                Color::DarkYellow,
-                Color::Yellow,
-                Color::White,
+        def: ThemeColors::Stops {
+            // Hot ember and flame: deep maroon origin → blood-red →
+            // ember orange → pale yellow-white head.
+            stops: &[
+                (20, 0, 0),
+                (90, 5, 0),
+                (170, 30, 0),
+                (220, 75, 10),
+                (250, 140, 30),
+                (255, 200, 90),
+                (255, 240, 190),
             ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Ocean,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[17, 18, 19, 24, 30, 37, 44, 51, 87, 159, 231],
-            c16: &[
-                Color::DarkBlue,
-                Color::Blue,
-                Color::DarkCyan,
-                Color::Cyan,
-                Color::White,
+        def: ThemeColors::Stops {
+            // Deep-sea blue-green: abyssal black-blue → ocean teal →
+            // pale surf-foam head.
+            stops: &[
+                (0, 5, 20),
+                (0, 35, 70),
+                (0, 80, 110),
+                (20, 130, 145),
+                (80, 180, 190),
+                (150, 220, 225),
+                (220, 245, 248),
             ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Forest,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[22, 28, 34, 40, 46, 82, 118, 154, 190, 229, 231],
-            c16: &[Color::DarkGreen, Color::Green, Color::Yellow, Color::White],
+        def: ThemeColors::Stops {
+            // Moss and canopy: forest-floor brown → moss green →
+            // sunlit pale-lime head.
+            stops: &[
+                (10, 12, 0),
+                (35, 55, 10),
+                (60, 110, 25),
+                (100, 165, 50),
+                (155, 210, 85),
+                (200, 235, 140),
+                (235, 250, 200),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Vaporwave,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[
-                53, 54, 55, 134, 177, 219, 214, 220, 227, 229, 87, 123, 159, 195, 231,
+        def: ThemeColors::Stops {
+            // Retro pink-cyan haze: deep magenta-violet → hot pink →
+            // cyan-mist head. The signature vaporwave dual-tone ramp.
+            stops: &[
+                (15, 0, 40),
+                (90, 20, 110),
+                (180, 50, 160),
+                (230, 100, 180),
+                (140, 180, 220),
+                (190, 220, 240),
+                (240, 240, 250),
             ],
-            c16: &[
-                Color::Magenta,
-                Color::Magenta,
-                Color::Yellow,
-                Color::Cyan,
-                Color::White,
-            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Gray,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[234, 237, 240, 243, 246, 249, 251, 252, 231],
-            c16: &[Color::DarkGrey, Color::Grey, Color::White],
+        def: ThemeColors::Stops {
+            // Neutral monochrome gray: near-black → mid grey →
+            // near-white with a faint cool tint (not pure neutral).
+            stops: &[
+                (10, 10, 12),
+                (45, 46, 50),
+                (90, 92, 98),
+                (140, 142, 148),
+                (185, 187, 192),
+                (220, 222, 226),
+                (245, 246, 248),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Rainbow,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[196, 208, 226, 46, 21, 93, 201],
-            c16: &[
-                Color::Red,
-                Color::Blue,
-                Color::Yellow,
-                Color::Green,
-                Color::Cyan,
-                Color::Magenta,
+        def: ThemeColors::Stops {
+            // Full-spectrum hue cycle. Origin dark red → red → orange →
+            // yellow → green → cyan → blue → magenta head. Preserves
+            // the original hue-cycling identity in RGB space.
+            stops: &[
+                (80, 0, 0),
+                (220, 30, 0),
+                (250, 130, 0),
+                (240, 220, 0),
+                (40, 200, 60),
+                (0, 180, 220),
+                (130, 60, 230),
             ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Snow,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[234, 240, 250, 252, 231, 117, 159],
-            c16: &[Color::DarkGrey, Color::Grey, Color::White, Color::Cyan],
+        def: ThemeColors::Stops {
+            // Cold white-blue shimmer: deep blue-black → ice blue →
+            // frosty pale-cyan head.
+            stops: &[
+                (5, 10, 20),
+                (30, 50, 80),
+                (90, 130, 170),
+                (150, 185, 215),
+                (200, 220, 240),
+                (230, 240, 250),
+                (250, 252, 255),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Aurora,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[22, 28, 34, 40, 45, 51, 93, 129, 159],
-            c16: &[Color::DarkGreen, Color::Green, Color::Cyan, Color::Magenta],
+        def: ThemeColors::Stops {
+            // Northern-lights: dark green origin → emerald →
+            // cyan-violet shimmer → pale auroral-green head.
+            stops: &[
+                (0, 15, 10),
+                (0, 70, 50),
+                (10, 140, 90),
+                (40, 200, 160),
+                (80, 200, 220),
+                (140, 180, 240),
+                (200, 230, 250),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::FancyDiamond,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[45, 51, 87, 123, 159, 195, 231, 225],
-            c16: &[Color::Cyan, Color::White, Color::Magenta],
+        def: ThemeColors::Stops {
+            // Prismatic diamond: deep teal origin → cyan-magenta shift →
+            // pale iridescent head. Captures the multi-color sparkle
+            // identity of the original prismatic palette.
+            stops: &[
+                (5, 15, 25),
+                (20, 60, 100),
+                (40, 130, 170),
+                (90, 180, 210),
+                (170, 180, 230),
+                (220, 200, 245),
+                (245, 235, 255),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Cosmos,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[20, 27, 33, 57, 63, 93, 99, 129, 141, 189, 225],
-            c16: &[Color::DarkBlue, Color::Blue, Color::Magenta, Color::White],
+        def: ThemeColors::Stops {
+            // Cosmic blue-purple: deep void-blue → royal indigo →
+            // magenta-violet → pale cosmic-lilac head.
+            stops: &[
+                (5, 5, 20),
+                (20, 25, 70),
+                (50, 50, 140),
+                (90, 70, 180),
+                (140, 100, 210),
+                (195, 150, 235),
+                (235, 210, 250),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Nebula,
-        def: ThemeColors::AnsiWithC16 {
-            ansi: &[53, 54, 90, 126, 162, 198, 201, 207, 213, 219, 225],
-            c16: &[Color::Magenta, Color::Red, Color::Blue, Color::White],
+        def: ThemeColors::Stops {
+            // Nebula magenta-blue: deep magenta-black → rose-violet →
+            // blue-mist → pale nebular-lavender head.
+            stops: &[
+                (15, 0, 25),
+                (70, 20, 80),
+                (130, 50, 140),
+                (170, 90, 180),
+                (140, 130, 220),
+                (190, 180, 240),
+                (235, 220, 250),
+            ],
+            steps: 9,
         },
     },
     ThemeDef {
@@ -536,143 +674,147 @@ pub static THEMES: &[ThemeDef] = &[
             ],
         },
     },
+    // ── 18 PLANET & SPACE THEMES (masterclass tuning) ───────────────────
+    // 4-stop gradients with 9-step interpolation. Head stays tinted with
+    // the body hue (not pure white) so each planet reads as itself rather
+    // than collapsing to a generic white-bright core.
     ThemeDef {
         scheme: ColorScheme::Stars,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 0), (10, 10, 40), (80, 160, 255), (255, 255, 255)],
+            stops: &[(0, 0, 0), (8, 8, 35), (70, 150, 245), (220, 240, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Mars,
         def: ThemeColors::Stops {
-            stops: &[(20, 0, 0), (120, 10, 10), (220, 60, 20), (255, 235, 220)],
+            stops: &[(20, 0, 0), (110, 8, 8), (210, 55, 18), (245, 220, 210)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Venus,
         def: ThemeColors::Stops {
-            stops: &[(10, 10, 0), (120, 90, 30), (255, 220, 120), (255, 255, 255)],
+            stops: &[(10, 10, 0), (110, 85, 28), (245, 210, 110), (255, 250, 240)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Mercury,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 0), (64, 64, 64), (160, 160, 160), (255, 255, 255)],
+            stops: &[(0, 0, 0), (60, 60, 60), (150, 150, 150), (245, 245, 245)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Jupiter,
         def: ThemeColors::Stops {
-            stops: &[(20, 10, 0), (120, 60, 20), (200, 140, 90), (255, 255, 255)],
+            stops: &[(20, 10, 0), (110, 55, 18), (190, 130, 85), (250, 245, 240)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Saturn,
         def: ThemeColors::Stops {
-            stops: &[(30, 15, 0), (160, 100, 20), (250, 200, 60), (255, 250, 200)],
+            stops: &[(30, 15, 0), (150, 95, 18), (240, 190, 55), (255, 248, 195)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Uranus,
         def: ThemeColors::Stops {
-            stops: &[(0, 10, 10), (0, 120, 130), (120, 255, 255), (255, 255, 255)],
+            stops: &[(0, 10, 10), (0, 115, 125), (110, 245, 250), (240, 255, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Neptune,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 20), (0, 40, 140), (0, 140, 255), (240, 255, 255)],
+            stops: &[(0, 0, 20), (0, 38, 135), (0, 135, 250), (230, 248, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Pluto,
         def: ThemeColors::Stops {
-            stops: &[(5, 10, 20), (40, 60, 100), (120, 170, 230), (230, 245, 255)],
+            stops: &[(5, 10, 20), (38, 58, 95), (115, 165, 225), (225, 240, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Moon,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 0), (90, 100, 120), (200, 210, 220), (255, 255, 255)],
+            stops: &[(0, 0, 0), (85, 95, 115), (195, 205, 215), (255, 255, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Sun,
         def: ThemeColors::Stops {
-            stops: &[(40, 0, 0), (200, 60, 0), (255, 200, 0), (255, 255, 255)],
+            stops: &[(40, 0, 0), (190, 55, 0), (250, 195, 0), (255, 255, 240)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Comet,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 40), (0, 30, 120), (80, 180, 255), (255, 255, 255)],
+            stops: &[(0, 0, 40), (0, 28, 115), (75, 170, 250), (240, 250, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Galaxy,
         def: ThemeColors::Stops {
-            stops: &[(10, 0, 20), (60, 0, 120), (180, 60, 255), (255, 255, 255)],
+            stops: &[(10, 0, 20), (55, 0, 115), (170, 55, 250), (250, 240, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Supernova,
         def: ThemeColors::Stops {
-            stops: &[(20, 0, 40), (180, 0, 60), (255, 120, 0), (255, 255, 255)],
+            stops: &[(20, 0, 40), (170, 0, 55), (250, 115, 0), (255, 250, 245)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::BlackHole,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 0), (20, 0, 40), (40, 0, 80), (200, 120, 255)],
+            stops: &[(0, 0, 0), (18, 0, 35), (38, 0, 75), (190, 115, 250)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Andromeda,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 20), (50, 0, 120), (255, 80, 200), (255, 255, 255)],
+            stops: &[(0, 0, 20), (45, 0, 115), (245, 75, 195), (255, 245, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Stardust,
         def: ThemeColors::Stops {
-            stops: &[(10, 0, 20), (120, 60, 200), (80, 200, 255), (255, 255, 255)],
+            stops: &[(10, 0, 20), (115, 55, 195), (75, 195, 250), (245, 250, 255)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Meteor,
         def: ThemeColors::Stops {
-            stops: &[(20, 10, 0), (180, 60, 0), (255, 200, 80), (180, 220, 255)],
+            stops: &[(20, 10, 0), (170, 55, 0), (245, 195, 75), (170, 215, 250)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::Eclipse,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 0), (40, 0, 60), (255, 120, 0), (255, 255, 255)],
+            stops: &[(0, 0, 0), (38, 0, 55), (245, 115, 0), (255, 250, 245)],
             steps: 9,
         },
     },
     ThemeDef {
         scheme: ColorScheme::DeepSpace,
         def: ThemeColors::Stops {
-            stops: &[(0, 0, 0), (0, 10, 40), (0, 80, 160), (200, 120, 255)],
+            stops: &[(0, 0, 0), (0, 8, 35), (0, 75, 150), (190, 115, 250)],
             steps: 9,
         },
     },
