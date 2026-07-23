@@ -158,7 +158,7 @@ fn color_transition_starts_immediately_and_completes() {
 }
 
 #[test]
-fn charset_change_enters_transition_state_without_full_swap() {
+fn charset_change_triggers_visible_wave_redraw() {
     let mut cloud = make_cloud();
     cloud.semantic_invalidate = false;
     cloud.force_draw_everything = false;
@@ -169,8 +169,13 @@ fn charset_change_enters_transition_state_without_full_swap() {
     assert!(cloud.charset_transition_start.is_some());
     assert_eq!(cloud.previous_char_pool, old_pool);
     assert_ne!(cloud.char_pool, old_pool);
-    assert!(!cloud.semantic_invalidate);
-    assert!(!cloud.force_draw_everything);
+    // v18 cinematic unification: transition_chars now triggers a forced
+    // full redraw (same pattern as set_color_scheme) so the charset wave
+    // is visible on the next frame across all rain styles. The previous
+    // behavior left glyph-mode cells untouched until droplets passed
+    // through, making the wave invisible.
+    assert!(cloud.semantic_invalidate);
+    assert!(cloud.force_draw_everything);
 }
 
 #[test]

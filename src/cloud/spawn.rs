@@ -162,10 +162,22 @@ impl Cloud {
         self.rebuild_char_pools(chars);
         self.charset_transition_start = Some(Instant::now());
 
+        // v18 cinematic unification: force a full redraw on the next frame
+        // so the charset wave is visible on EVERY rain style, not just
+        // Monolith. Without this, glyph-mode cells only update when
+        // droplets happen to pass through them — the wave stays invisible
+        // and the screen appears to swap instantly. This mirrors the same
+        // pattern used by `apply_new_palette()` for color transitions:
+        // `force_draw_everything` clears the frame and wipes stale
+        // phosphor_base_ch, then the per-cell `get_char()` consults
+        // `charset_wave_line` to pick old-pool chars below the wave and
+        // new-pool chars above it, producing the top-to-bottom sweep.
+        self.force_draw_everything = true;
+        self.semantic_invalidate = true;
+
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.monolith_rain.clear_draw_history();
             self.reset_phosphor_state();
-            self.semantic_invalidate = true;
         }
     }
 

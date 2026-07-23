@@ -336,7 +336,7 @@ The project has a comprehensive test suite covering terminal safety mechanisms:
 ### Redraw Safety Tests
 - `periodic_full_redraw_survives_until_next_frame`: Full redraw counter triggers correctly
 - `color_transition_starts_immediately_and_completes`: Transition mechanism works
-- `charset_change_enters_transition_state_without_full_swap`: Charset transition doesn't force full swap
+- `charset_change_triggers_visible_wave_redraw`: Charset transition forces a full redraw so the top-to-bottom wave is visible across all rain styles (v18 cinematic unification)
 - `top_row_glyph_to_blank_is_dirty` and `blank_cells_are_marked_dirty_for_redraw` (`frame.rs`): Dirty tracking correctness
 
 ### Phosphor Safety Tests
