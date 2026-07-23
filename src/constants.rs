@@ -481,34 +481,46 @@ pub const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 /// Front layer (2) excluded to keep neon at full fidelity.
 pub const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 
-// ── Front-layer dynamic tail allocation (final polish) ──────────────────────
+// ── Front-layer proportional tail allocation (final micro-polish) ──────────
 //
-// Front layer droplets previously showed only head+body with no visible
-// tail, or body dominated too long. These constants configure the dynamic
-// multi-cell tail that restores organic visual rhythm to front-layer rain.
+// Front layer droplets previously used a fixed tail cell count in [1, 3]
+// regardless of total droplet length. This worked for short droplets but
+// failed for very long front-layer streams: a 20-cell droplet with only
+// 2-3 tail cells showed a long head+body section with an almost invisible
+// tail, reading as an unnatural "line" rather than a cinematic rain
+// streak with a proper head→body→tail gradient.
+//
+// The new allocation is percentage-based: tail = max(1, round(len * PCT))
+// with a hard cap to prevent degenerate values on huge screens. This
+// guarantees that even very long droplets always have a proportional,
+// visible tail.
 
-/// Base number of tail cells for front-layer droplets (layer 2). The
-/// actual tail length is this base multiplied by a per-droplet random
-/// factor in [FRONT_LAYER_TAIL_VARIATION_MIN, FRONT_LAYER_TAIL_VARIATION_MAX],
-/// then clamped to [1, 3]. This creates organic variation: some droplets
-/// have very short tails (1 cell), others slightly longer (up to 3).
+/// Fraction of total droplet length allocated to the tail for front-layer
+/// (layer 2) droplets. 0.45 means 45% of cells are tail, matching the
+/// cinematic rain streak ratio (15% head, 40% body, 45% tail). Combined
+/// with FRONT_LAYER_TAIL_MAX_CELLS, this ensures both short and long
+/// front-layer droplets have visually proportional tails.
 ///
 /// Only affects front layer. Mid/back layers retain the existing
 /// single-cell tail (CharLoc::Tail → color_idx=0).
-pub const FRONT_LAYER_BASE_TAIL_CELLS: f32 = 2.0;
+pub const FRONT_LAYER_TAIL_PCT: f32 = 0.45;
 
-/// Minimum random variation factor for front-layer tail length.
-/// 0.5 means the shortest possible tail is base × 0.5 = 1 cell.
-pub const FRONT_LAYER_TAIL_VARIATION_MIN: f32 = 0.5;
-
-/// Maximum random variation factor for front-layer tail length.
-/// 1.5 means the longest possible tail is base × 1.5 = 3 cells.
-pub const FRONT_LAYER_TAIL_VARIATION_MAX: f32 = 1.5;
+/// Hard cap on front-layer tail cell count. Prevents huge-screen droplets
+/// (e.g., 200-cell streams on 8K UHD benches) from allocating 90 tail
+/// cells, which would saturate the column with low-energy cells. 12 is
+/// the largest tail that still reads as a discrete streak on standard
+/// terminals; tail cells beyond this count are mapped to body cells
+/// (handled implicitly by the shading_distance color gradient).
+pub const FRONT_LAYER_TAIL_MAX_CELLS: u8 = 12;
 
 /// Maximum number of tail color stops to use for front-layer multi-cell
 /// tails. Tail cells are mapped to palette indices 0..=this_value, where
 /// 0 is the darkest (furthest from head) and this value is the brightest
 /// tail stop (closest to body). 3 gives a smooth 3-step tail gradient.
+///
+/// When the proportional tail allocation produces more tail cells than
+/// this stop count, the seg index is scaled linearly across [0, MAX_STOPS]
+/// so cells are distributed evenly among the available stops.
 pub const FRONT_LAYER_MAX_TAIL_STOPS: u8 = 3;
 
 // Mouse interaction (v17: always-on, --mouse flag deleted)
@@ -590,33 +602,35 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// Cinematic final polish: back layer (0) dimmed further to 25% (was 35%)
-/// because the head self-bloom (55% white blend toward white) was being
-/// applied AFTER the brightness dimming, re-brightening back-layer heads
-/// into visible "white dots" against the dark background. Lowering to 25%
-/// pre-compensates so even after the self-bloom, back-layer heads stay
-/// below the front-layer body visibility floor. Mid layer (1) at 65%
-/// unchanged; near layer (2) at 100%.
+/// Final micro-polish: rebalanced for more equitable light distribution
+/// while preserving cinematic depth. The front layer was slightly too
+/// bright relative to mid/back, making the mid layer feel "starved" of
+/// light. New values:
+///   - Back  (0): 0.40 (was 0.25 — raised so distant rain is more visible)
+///   - Mid   (1): 0.75 (was 0.65 — raised so mid-layer rain reads clearly)
+///   - Front (2): 0.95 (was 1.00 — slight reduction to balance composition)
 ///
-/// Prior value [0.35, 0.65, 1.0] still let back-layer heads pop because
-/// the head self-bloom was layer-agnostic. Combined with the new
-/// PARALLAX_HEAD_SELFBLOOM_MULT (which scales the self-bloom itself),
-/// back-layer heads are now triple-dimmed: brightness × self-bloom ×
-/// saturation, killing the "white dot" artifact decisively.
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.25, 0.65, 1.0];
+/// The relative hierarchy (back < mid < front) is preserved, so depth
+/// of field is maintained. Back-layer heads are still triple-dimmed via
+/// brightness × self-bloom × saturation, keeping the "white dot" artifact
+/// suppressed — but the back layer as a whole is now visible enough to
+/// read as atmospheric depth rather than near-empty space.
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.75, 0.95];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// Cinematic final polish: back layer (0) desaturated further to 30%
-/// (was 40%) for stronger atmospheric haze. Even after the head
-/// self-bloom blends toward white, the low saturation means the head
-/// color is still mostly gray-tinted rather than vivid neon — making it
-/// read as "distant rain in fog" rather than "bright pixel artifact".
-/// Mid layer (1) at 70% unchanged; near layer (2) at 100%.
+/// Final micro-polish: rebalanced in parallel with PARALLAX_BRIGHTNESS_MULT
+/// so back/mid layers regain color presence without losing depth haze.
+/// New values:
+///   - Back  (0): 0.40 (was 0.30 — distant rain keeps more color identity)
+///   - Mid   (1): 0.80 (was 0.70 — mid-layer neon reads as vivid rain)
+///   - Front (2): 0.95 (was 1.00 — slight reduction to match brightness)
 ///
 /// Implemented in droplet.rs as a blend toward gray (luminance) by
-/// `1.0 - saturation_mult`.
-pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.30, 0.70, 1.0];
+/// `1.0 - saturation_mult`. The back layer still has measurable haze
+/// (60% desaturation), preserving the "rain in fog" depth cue without
+/// flattening the back layer into pure gray.
+pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.80, 0.95];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -685,8 +699,17 @@ pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 /// Masterclass depth-of-field tuning: back layer decays at 2.2× the base
 /// rate (was 1.6×) so back-layer head glow fades fast and doesn't linger
 /// as a persistent "bright spot". Mid layer at 1.2× keeps a slight
-/// recession. Near layer at 0.7× retains the long cinematic trail.
-pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.2, 1.2, 0.7];
+/// recession. Front layer at 0.5× (was 0.7×) for the final micro-polish:
+/// slows the phosphor fade at the body→tail transition so the color
+/// shift from saturated body to dim tail is bridged by a longer
+/// afterglow, eliminating the visible flicker at the boundary.
+///
+/// The 0.5× value means front-layer phosphor decays at exactly 0.5× the
+/// base rate (PHOSPHOR_DECAY_RATE=5.0 → effective 2.5/sec), matching
+/// the body-tail transition decay target: "no faster than 0.5× the
+/// normal decay rate". The slower fade gives the eye a smooth gradient
+/// from body brightness to tail dimness instead of a 1-frame color jump.
+pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.2, 1.2, 0.5];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated. Ghost cells near the bottom accumulate into a static

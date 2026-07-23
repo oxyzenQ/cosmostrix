@@ -27,14 +27,23 @@ static TRAIL_EXP_LUT: std::sync::LazyLock<[f32; 256]> = std::sync::LazyLock::new
 pub enum CharLoc {
     Middle,
     Tail,
-    /// Multi-cell tail segment for front-layer droplets. The u8 index is the
+    /// Multi-cell tail segment for front-layer droplets. `seg` is the
     /// position within the tail region (0 = furthest from head = darkest,
-    /// increasing toward body). Mapped to palette color stops 0, 1, 2 so
-    /// the tail fades smoothly from the darkest stop to the body transition.
+    /// increasing toward body). `total` is the total number of tail cells
+    /// for this droplet (1..=FRONT_LAYER_TAIL_MAX_CELLS).
+    ///
+    /// The seg index is scaled linearly across palette color stops
+    /// 0..FRONT_LAYER_MAX_TAIL_STOPS so the tail fades smoothly from the
+    /// darkest stop to the body transition regardless of how many tail
+    /// cells the droplet has. This keeps the 3-stop tail gradient while
+    /// allowing long front-layer droplets to have proportional tails.
     ///
     /// Only used for layer 2 (front). Mid/back layers use `CharLoc::Tail`
     /// (single cell, color_idx=0) to preserve the existing 3-2-2 distribution.
-    TailN(u8),
+    TailN {
+        seg: u8,
+        total: u8,
+    },
     Head,
 }
 
@@ -312,13 +321,20 @@ impl DrawCtx<'_> {
                 color_idx = 0;
                 bold = false;
             }
-            CharLoc::TailN(seg) => {
-                // Front-layer multi-cell tail: map segment index to palette
-                // color stops 0..FRONT_LAYER_MAX_TAIL_STOPS. seg=0 → darkest
-                // (furthest from head), seg=2 → brightest tail stop (closest
-                // to body). Clamped to valid palette range.
+            CharLoc::TailN { seg, total } => {
+                // Front-layer multi-cell tail: scale seg across palette color
+                // stops 0..FRONT_LAYER_MAX_TAIL_STOPS. seg=0 → darkest
+                // (furthest from head), seg=total-1 → brightest tail stop
+                // (closest to body). When total > MAX_STOPS, multiple cells
+                // share a stop, producing a smooth gradient even for long
+                // proportional tails. Clamped to valid palette range.
                 let max_stop = (crate::constants::FRONT_LAYER_MAX_TAIL_STOPS as i32).min(last);
-                color_idx = (seg as i32).min(max_stop).max(0);
+                let total_cells = (total as i32).max(1);
+                // Map seg [0, total-1] to color_idx [0, max_stop] linearly.
+                // Using (max_stop + 1) as numerator ensures seg=total-1 maps
+                // exactly to max_stop (no off-by-one at the bright end).
+                let scaled = (seg as i32 * (max_stop + 1)) / total_cells;
+                color_idx = scaled.min(max_stop).max(0);
                 bold = false;
             }
             CharLoc::Head => {

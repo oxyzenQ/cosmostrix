@@ -562,7 +562,10 @@ impl Droplet {
             if line < self.head_put_line && line >= visible_start {
                 let dist_from_tail = line.saturating_sub(visible_start);
                 if self.tail_cells > 1 && dist_from_tail < self.tail_cells as u16 {
-                    loc = CharLoc::TailN(dist_from_tail as u8);
+                    loc = CharLoc::TailN {
+                        seg: dist_from_tail as u8,
+                        total: self.tail_cells,
+                    };
                 } else if self.tail_put_line.is_some() && dist_from_tail == 0 {
                     loc = CharLoc::Tail;
                 }
