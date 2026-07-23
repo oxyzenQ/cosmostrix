@@ -23,8 +23,8 @@ use smallvec::SmallVec;
 
 use crate::cell::Cell;
 use crate::constants::{
-    BENCH_MAX_COLS, BENCH_MAX_LINES, DIRTY_CAPACITY_CAP, DIRTY_CAPACITY_DIVISOR,
-    MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
+    BENCH_MAX_COLS, BENCH_MAX_LINES, DIRTY_CAPACITY_CAP, DIRTY_CAPACITY_DIVISOR, MIN_TERMINAL_COLS,
+    MIN_TERMINAL_LINES,
 };
 
 // Note: dirty_map is now Vec<u8> (1 byte per cell) instead of BitVec.
