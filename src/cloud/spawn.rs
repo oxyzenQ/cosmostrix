@@ -403,6 +403,18 @@ impl Cloud {
         let len_mult = PARALLAX_LENGTH_MULT[layer as usize];
         len = ((len as f32) * len_mult).max(1.0) as u16;
 
+        // Cinematic final polish: enforce minimum trail length so every
+        // droplet has visible head→body→tail structure. Without this floor,
+        // short back-layer droplets (length=1 or 2) appeared as bare heads
+        // with no fade-out — reading as "stuck pixels" rather than rain
+        // streaks. MIN_DROPLET_LENGTH=4 is the smallest length that
+        // produces a recognizable gradient.
+        //
+        // Also cap at MAX_DROPLET_LENGTH_CAP to prevent degenerate values
+        // on huge screens (8K UHD bench = 4320 lines) where a full-column
+        // droplet would saturate the column for many seconds.
+        len = len.clamp(MIN_DROPLET_LENGTH, MAX_DROPLET_LENGTH_CAP);
+
         let mut ttl = Duration::from_millis(1);
         if end_line <= len {
             let ms = self.rand_linger_ms.sample(&mut self.mt) as u64;

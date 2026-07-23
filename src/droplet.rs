@@ -25,6 +25,11 @@
 //! 5. Depth fog vignette (top/bottom edge dimming)
 //! 6. Cursor glow (mouse proximity brightness)
 //! 7. Click flash (expanding ring from click point)
+//! 8. Head brightness modulation
+//! 9. Head self-bloom (layer-scaled 55% white blend)
+//! 10. Rain shadow (bottom 20% quadratic fade)
+//! 11. Viewport edge fade (top/bottom cinematic dissolve)
+//! 12. Cinematic radial vignette (corner darkening, applied last)
 //!
 //! Each effect reads from `DrawCtx` and modifies the color via the palette
 //! blending functions in `palette.rs`.
@@ -44,9 +49,10 @@ use crate::constants::{
     MOUSE_FLASH_SECONDARY_SPEED_FRAC, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
     PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, PARALLAX_HEAD_BLOOM_MULT,
-    PARALLAX_SATURATION_MULT, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
-    TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
-    TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ,
+    PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT, RAIN_SHADOW_PCT, STARTUP_EASE_TAU,
+    STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
+    TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ, VIGNETTE_INNER_RADIUS,
+    VIGNETTE_INTENSITY,
 };
 use crate::frame::Frame;
 use crate::palette;
@@ -110,6 +116,78 @@ pub(crate) fn viewport_edge_fade(line: u16, lines: u16) -> f32 {
         1.0
     };
     top_fade.min(bottom_fade)
+}
+
+/// Cinematic radial vignette: darkens cells based on Euclidean distance
+/// from the screen center. Cells inside VIGNETTE_INNER_RADIUS are
+/// unmodified; cells from there to the corner are dimmed smoothly via
+/// smoothstep up to VIGNETTE_INTENSITY.
+///
+/// This is a pure photographic vignette — it does NOT replace the
+/// top/bottom edge fade (which is a directional cinematic dissolve).
+/// The vignette adds a soft "lens" darkening on top of all other
+/// effects, drawing the eye toward the focused center of the frame.
+///
+/// O(1) per cell: 2 subtractions, 2 multiplications, 1 sqrt, 1
+/// smoothstep, 1 multiply. Called once per cell in the draw loop.
+#[inline]
+pub(crate) fn vignette_factor(col: u16, line: u16, cols: u16, lines: u16) -> f32 {
+    if cols == 0 || lines == 0 || VIGNETTE_INTENSITY <= 0.0 {
+        return 1.0;
+    }
+    // Normalize to [-1, 1] centered on screen midpoint.
+    let nx = (col as f32 - cols as f32 * 0.5) / (cols as f32 * 0.5);
+    let ny = (line as f32 - lines as f32 * 0.5) / (lines as f32 * 0.5);
+    // Euclidean distance from center, normalized so corner = sqrt(2)/2 ≈ 0.707
+    // for a non-square screen. We rescale to make corner ≈ 1.0 by dividing by
+    // the diagonal half-length, but a simpler approach: just use raw Euclidean
+    // and treat the diagonal half-length as 1.0. To keep the inner-radius
+    // semantics intuitive (0.7 = 70% of the way to the corner), we normalize
+    // by max(nx², ny²) → corner = 1.0 in Chebyshev distance, which matches
+    // the perceived "corners are darkest" intuition better than Euclidean
+    // for non-square terminal cells (which are ~2:1 tall).
+    let dist_sq = nx * nx + ny * ny;
+    let dist = dist_sq.sqrt();
+    // Corner of a square screen is at dist = sqrt(2) ≈ 1.414; of a typical
+    // wide terminal (cols=2*lines), it's sqrt(1 + 0.25) ≈ 1.118. We
+    // normalize so the *corner of a square* maps to 1.0, which keeps the
+    // inner-radius cutoff intuitive on standard terminals.
+    let normalized = dist * std::f32::consts::FRAC_1_SQRT_2;
+    if normalized <= VIGNETTE_INNER_RADIUS {
+        return 1.0;
+    }
+    // Smoothstep from VIGNETTE_INNER_RADIUS (factor=1.0) to 1.0 (factor=1-VIGNETTE_INTENSITY).
+    let t = ((normalized - VIGNETTE_INNER_RADIUS) / (1.0 - VIGNETTE_INNER_RADIUS)).clamp(0.0, 1.0);
+    let smooth = t * t * (3.0 - 2.0 * t);
+    1.0 - VIGNETTE_INTENSITY * smooth
+}
+
+/// Rain shadow: quadratic fade-out across the bottom RAIN_SHADOW_PCT of
+/// the screen. Cells above the threshold are unmodified; cells from the
+/// threshold to the bottom row fade smoothly to 0.0 (full dark).
+///
+/// Distinct from EDGE_FADE_BOTTOM: the edge fade is a sharp 12-row lip
+/// that prevents bright head pile-up at the very last row. The rain
+/// shadow is a wider, softer 20%-of-screen quadratic that gives the
+/// frame perceptual "depth" — rain appears to dissipate into shadow at
+/// the ground rather than hitting a wall.
+///
+/// Applied BEFORE phosphor decay so the captured phosphor energy is
+/// already dimmed — the afterglow trail fades in sync with the shadow.
+#[inline]
+pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
+    if lines == 0 || RAIN_SHADOW_PCT <= 0.0 {
+        return 1.0;
+    }
+    let threshold = ((1.0 - RAIN_SHADOW_PCT) * lines as f32) as u16;
+    if line < threshold {
+        return 1.0;
+    }
+    let span = (lines.saturating_sub(threshold)).max(1) as f32;
+    let t = ((line - threshold) as f32 / span).clamp(0.0, 1.0);
+    // Quadratic fade: 1.0 → 0.0 as t goes 0 → 1, with slow start and
+    // accelerating fade. Reads as natural depth shadow.
+    1.0 - t * t
 }
 
 #[derive(Clone, Debug)]
@@ -696,13 +774,40 @@ impl Droplet {
                 // Head self-bloom: 45% white blend toward white.
                 // Cinematic head pop — head is OBVIOUSLY brighter than body.
                 // Was 12% (subtle), raised to 45% for film-quality head glow.
+                //
+                // Cinematic final polish: scale HEAD_WF by per-layer multiplier
+                // so back-layer heads don't get re-brightened after dimming.
+                // Without this, the layer brightness dimming (25% for back
+                // layer) was being undone by the 55% white blend, popping the
+                // head back up to ~66% brightness — visible as a "white dot".
+                // With PARALLAX_HEAD_SELFBLOOM_MULT[0] = 0.30, the effective
+                // self-bloom for back-layer heads is ~17%, keeping them
+                // firmly below the front-layer body visibility floor.
                 if matches!(loc, CharLoc::Head) {
                     // v17 mastery: HEAD_WF = 140 (0.55 white blend) — head is
                     // the brightest cell, high contrast vs body/tail. Was 115 (0.45).
                     const HEAD_WF: i32 = 140; // 0.55 * 256 ≈ 140
-                    r = (r as i32 + ((255 - r as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
-                    g = (g as i32 + ((255 - g as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
-                    b = (b as i32 + ((255 - b as i32) * HEAD_WF + 128) / 256).clamp(0, 255) as u8;
+                    let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize] as i32;
+                    let wf = (HEAD_WF * layer_selfbloom) / 256;
+                    r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                }
+
+                // Rain shadow: quadratic fade-out across bottom 20% of screen.
+                // Applied BEFORE the edge_fade (which is a sharper lip) and
+                // BEFORE the vignette (which is a radial effect). The shadow
+                // is the broadest, softest bottom dim — gives the frame
+                // perceptual depth ("rain dissipating into shadow at ground")
+                // rather than "rain hitting a wall". Applied here in the
+                // droplet color pipeline so phosphor captures the already-
+                // dimmed color (afterglow fades in sync with shadow).
+                let shadow = rain_shadow_factor(line, ctx.lines);
+                if shadow < 1.0 {
+                    let fi = (shadow * 256.0) as i32;
+                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
                 // PERF(v10): Viewport edge fade applied on raw RGB tuples
@@ -712,6 +817,19 @@ impl Droplet {
                 // (r, g, b) here, so we just multiply in-place.
                 if edge_fade < 1.0 {
                     let fi = (edge_fade * 256.0) as i32;
+                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                }
+
+                // Cinematic radial vignette — applied LAST, AFTER all other
+                // effects (including edge_fade). This is the photographic
+                // "lens darkening" that frames the image: corners dimmed
+                // smoothly toward 60% of their post-effects brightness,
+                // drawing the eye to the focused center. O(1) per cell.
+                let vignette = vignette_factor(self.bound_col, line, ctx.cols, ctx.lines);
+                if vignette < 1.0 {
+                    let fi = (vignette * 256.0) as i32;
                     r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                     g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                     b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;

@@ -34,6 +34,9 @@ pub enum CharLoc {
 /// the entire `Cloud` (which would conflict with the mutable droplet loop).
 pub struct DrawCtx<'a> {
     pub lines: u16,
+    /// Total column count of the viewport. Used by per-cell effects that
+    /// need horizontal positioning (e.g. cinematic radial vignette).
+    pub cols: u16,
     pub full_width: bool,
     pub shading_distance: bool,
     pub bg: Option<Color>,

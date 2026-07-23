@@ -143,6 +143,7 @@ fn monolith_color_for_level_ghost_is_faintest() {
     let glitch_map = bitvec::bitvec![0; 100];
     let ctx = DrawCtx {
         lines: 10,
+        cols: 10,
         full_width: false,
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
@@ -208,6 +209,7 @@ fn monolith_background_muddy_residue_guard() {
     let glitch_map = bitvec::bitvec![0; 100];
     let ctx = DrawCtx {
         lines: 10,
+        cols: 10,
         full_width: false,
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),

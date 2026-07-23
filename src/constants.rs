@@ -78,6 +78,24 @@ pub const RNG_INITIAL_SEED: u64 = 0x0123_4567;
 /// Droplet count multiplier (N * columns).
 pub const DROPLET_COUNT_FACTOR: f32 = 1.5;
 
+/// Minimum droplet trail length (cells). Cinematic final polish: every
+/// droplet must have at least 1 head + 1 body + 2 tail cells so the
+/// trail has visible fade-out structure. Without this floor, short
+/// back-layer droplets (length=1 or 2) appeared as bare heads with no
+/// tail — visually reading as "stuck pixels" rather than rain streaks.
+/// 4 is the smallest length that produces a recognizable head→body→tail
+/// gradient; smaller values collapse the gradient into a single cell.
+pub const MIN_DROPLET_LENGTH: u16 = 4;
+
+/// Maximum droplet trail length cap (cells). Sanity ceiling to prevent
+/// degenerate values when `lines` is very large (e.g. 8K UHD bench with
+/// 4320 lines). A 4320-cell droplet would saturate the column for many
+/// seconds, blocking new spawns in that column and creating visual
+/// "stalactites". 200 cells is well above any natural droplet length
+/// (typical max is ~80 cells on a 50-line terminal) while still
+/// bounding the worst-case phosphor footprint.
+pub const MAX_DROPLET_LENGTH_CAP: u16 = 200;
+
 /// Character pool size.
 pub const CHAR_POOL_SIZE: usize = 2048;
 
@@ -406,6 +424,31 @@ pub const FOG_ROWS: u16 = 4;
 /// effect while keeping edge glyphs faintly visible rather than lost entirely.
 pub const FOG_MIN_FACTOR: f32 = 0.65;
 
+// Cinematic vignette (radial edge darkening)
+
+/// Maximum dimming intensity at the screen corners (0.0 = no dimming,
+/// 1.0 = full black). 0.4 means corner cells are dimmed to 60% of their
+/// post-effects brightness — a soft photographic vignette that draws the
+/// eye toward the center of the frame without darkening the focused
+/// middle region. Matches the look of a real anamorphic lens.
+pub const VIGNETTE_INTENSITY: f32 = 0.4;
+
+/// Normalized radius at which vignette dimming begins (0.0 = center,
+/// 1.0 = corner). 0.7 means the inner 70% of the screen (by Euclidean
+/// distance from center) is unmodified; dimming ramps smoothly from
+/// there to the corner via smoothstep. This preserves full readability
+/// of the focused center while darkening only the periphery.
+pub const VIGNETTE_INNER_RADIUS: f32 = 0.7;
+
+// Rain shadow (bottom quadratic fade-out)
+
+/// Fraction of screen height (from the bottom) covered by the rain
+/// shadow. 0.20 means the bottom 20% of rows fade out quadratically —
+/// a longer, softer fade than EDGE_FADE_BOTTOM (which is a sharp 12-row
+/// lip). The shadow reads as "rain dissipating into shadow at the
+/// ground" rather than "rain hitting a wall", giving the frame depth.
+pub const RAIN_SHADOW_PCT: f32 = 0.20;
+
 // Mouse interaction (v17: always-on, --mouse flag deleted)
 // v17: MOUSE_AVOID_RADIUS_COLS removed — spawn avoidance deleted.
 // MOUSE_GLOW_INTENSITY = 0.0 — hover glow disabled (dim/dark default).
@@ -485,26 +528,33 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// Masterclass depth-of-field tuning: back layer (0) is dimmed aggressively
-/// to 35% so its heads cannot outshine front-layer bodies. Mid layer (1) at
-/// 65% keeps it readable but clearly recessed. Near layer (2) at 100%.
+/// Cinematic final polish: back layer (0) dimmed further to 25% (was 35%)
+/// because the head self-bloom (55% white blend toward white) was being
+/// applied AFTER the brightness dimming, re-brightening back-layer heads
+/// into visible "white dots" against the dark background. Lowering to 25%
+/// pre-compensates so even after the self-bloom, back-layer heads stay
+/// below the front-layer body visibility floor. Mid layer (1) at 65%
+/// unchanged; near layer (2) at 100%.
 ///
-/// Prior value [0.80, 0.95, 1.0] kept the back layer too bright — short
-/// back-layer droplets showed as bright "spot" artifacts on the dark
-/// background because their heads had no body/tail to fade into.
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.35, 0.65, 1.0];
+/// Prior value [0.35, 0.65, 1.0] still let back-layer heads pop because
+/// the head self-bloom was layer-agnostic. Combined with the new
+/// PARALLAX_HEAD_SELFBLOOM_MULT (which scales the self-bloom itself),
+/// back-layer heads are now triple-dimmed: brightness × self-bloom ×
+/// saturation, killing the "white dot" artifact decisively.
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.25, 0.65, 1.0];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// Back layers are tinted toward neutral gray to simulate atmospheric
-/// haze — the eye reads desaturated colors as "further away". Combined
-/// with brightness dimming, this is what kills the "bright spot" effect
-/// on back-layer head-only droplets: even if the head is bright, it's
-/// pale gray instead of vivid color, so it no longer pops as a hot pixel.
+/// Cinematic final polish: back layer (0) desaturated further to 30%
+/// (was 40%) for stronger atmospheric haze. Even after the head
+/// self-bloom blends toward white, the low saturation means the head
+/// color is still mostly gray-tinted rather than vivid neon — making it
+/// read as "distant rain in fog" rather than "bright pixel artifact".
+/// Mid layer (1) at 70% unchanged; near layer (2) at 100%.
 ///
 /// Implemented in droplet.rs as a blend toward gray (luminance) by
 /// `1.0 - saturation_mult`.
-pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.70, 1.0];
+pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.30, 0.70, 1.0];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -515,6 +565,22 @@ pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.70, 1.0];
 /// gaussian factor before it's applied to RGB. Back layer at 0.40 means
 /// the head glow is reduced by 60%; mid layer at 0.70 by 30%.
 pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.70, 1.0];
+
+/// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
+///
+/// Cinematic final polish: the head self-bloom (HEAD_WF 55% white blend
+/// applied to head cells) was previously layer-agnostic, which re-brightened
+/// back-layer heads AFTER the brightness dimming had already brought them
+/// down to 25%. This created the persistent "white dot" artifact: a
+/// back-layer head would dim to ~25%, then get boosted back up to ~66%
+/// by the white blend, popping out as a hot pixel.
+///
+/// This multiplier scales HEAD_WF per layer so the self-bloom is also
+/// depth-aware. Back layer at 0.30 means head self-bloom is reduced by
+/// 70% — a back-layer head now has effective self-bloom of ~17% (vs 55%
+/// for front layer), keeping it firmly in the background. Mid layer at
+/// 0.65; near layer at 1.0 (full cinematic head pop).
+pub const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.30, 0.65, 1.0];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];

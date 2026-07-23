@@ -3,11 +3,34 @@
 
 //! Phosphor, ghost, and droplet afterglow tests for the cloud module.
 
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
 use super::make_cloud;
 use crate::frame::Frame;
 use crate::runtime::ShadingMode;
+
+/// Collect the set of phosphor-grid indices covered by any currently-alive
+/// droplet's trail. Used to filter "stale" ghost cells from "active" ones
+/// in phosphor invariant tests. The phosphor grid is indexed as
+/// `col * lines + line` (column-major), matching `Cloud::phosphor`.
+fn collect_active_trail_indices(cloud: &super::super::Cloud) -> HashSet<usize> {
+    let lines = cloud.lines as usize;
+    let mut active = HashSet::new();
+    for d in &cloud.droplets {
+        if d.bound_col == u16::MAX || !d.is_alive {
+            continue;
+        }
+        let start = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
+        let col_base = d.bound_col as usize * lines;
+        for line in start..=d.head_put_line {
+            if (line as usize) < lines {
+                active.insert(col_base + line as usize);
+            }
+        }
+    }
+    active
+}
 
 #[test]
 fn active_trail_cells_are_protected_from_phosphor_decay() {
@@ -256,11 +279,15 @@ fn paste_discard_does_not_increase_background_ghost_fill() {
         frame.clear_dirty();
     }
 
-    // Count ghost glyph cells before force_draw_everything
+    // Count ghost glyph cells before force_draw_everything, filtering out
+    // cells that are part of any currently-alive droplet's trail. Only
+    // stale (decaying) cells count toward the "background ghost fill".
+    let active_before = collect_active_trail_indices(&cloud);
     let ghost_fill_before: usize = cloud
         .phosphor_base_ch
         .iter()
-        .filter(|&&ch| ch != '\0')
+        .enumerate()
+        .filter(|(i, &ch)| ch != '\0' && !active_before.contains(i))
         .count();
 
     // Trigger force_draw_everything (simulating paste/focus event)
@@ -271,18 +298,20 @@ fn paste_discard_does_not_increase_background_ghost_fill() {
     // that are NOT part of active droplet trails (i.e., stale cells).
     // Active trail cells will have been repopulated by Pass 1 & 2.
     // The key invariant: stale cells should NOT have phosphor_base_ch set.
+    let active_after = collect_active_trail_indices(&cloud);
     let ghost_fill_after: usize = cloud
         .phosphor_base_ch
         .iter()
-        .filter(|&&ch| ch != '\0')
+        .enumerate()
+        .filter(|(i, &ch)| ch != '\0' && !active_after.contains(i))
         .count();
 
-    // The ghost fill after should be LESS than or equal to before,
-    // because force_draw_everything clears all phosphor_base_ch and
-    // only active trail cells get repopulated.
+    // The stale (non-active) ghost fill after should be LESS than or equal
+    // to before, because force_draw_everything clears all phosphor_base_ch
+    // and only active trail cells get repopulated. Stale cells stay cleared.
     assert!(
         ghost_fill_after <= ghost_fill_before,
-        "force_draw_everything should not increase background ghost fill (before={}, after={})",
+        "force_draw_everything should not increase stale (non-active) ghost fill (before={}, after={})",
         ghost_fill_before,
         ghost_fill_after
     );

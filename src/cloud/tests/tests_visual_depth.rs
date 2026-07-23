@@ -156,6 +156,7 @@ fn hero_spine_trail_empty_space_have_distinct_brightness() {
     let glitch_map = bitvec::bitvec![0; 100];
     let ctx = DrawCtx {
         lines: 20,
+        cols: 40,
         full_width: false,
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
@@ -489,6 +490,7 @@ fn depth_lab_brightness_level_four_tier_hierarchy() {
     let glitch_map = bitvec::bitvec![0; 100];
     let ctx = DrawCtx {
         lines: 24,
+        cols: 48,
         full_width: false,
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
@@ -635,6 +637,7 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
         let glitch_map = bitvec::bitvec![0; 100];
         let ctx = DrawCtx {
             lines: 20,
+            cols: 40,
             full_width: false,
             shading_distance: false,
             bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),

@@ -394,6 +394,7 @@ impl Cloud {
 
         let ctx = DrawCtx {
             lines: self.lines,
+            cols: self.cols,
             full_width: self.full_width,
             shading_distance: self.shading_distance,
             bg: self.palette.bg,
