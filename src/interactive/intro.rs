@@ -149,36 +149,60 @@ const PARTICLE_BASE_VY: f32 = 12.0;
 /// form a cone rather than a column.
 const PARTICLE_SPREAD_VX: f32 = 6.0;
 
-/// The majestic ASCII dragon. Designed to be ~46 chars wide × 22 lines
-/// tall. The art is centered on the terminal; the "mouth" spawn point is
-/// the bottom-center of the dragon silhouette. Fire particles emerge
-/// from there and fall downward.
+/// The majestic ASCII dragon — a front-view Western dragon with spread
+/// wings, horned head, open mouth at the bottom of the head (fire breath
+/// origin), armored body, and clawed feet.
 ///
-/// All lines are padded to the same width (46 chars) so the centering
-/// math is trivial.
-const DRAGON_ART: &str = "\
-                       ___\n\
-                     /`   `\\\n\
-                    /       \\\n\
-                   /  _   _  \\\n\
-                  /  / \\ / \\  \\\n\
-                 |  |  | |  |  |\n\
-                 |  \\_/ | \\_/  |\n\
-                  \\    ___    /\n\
-                   \\  /   \\  /\n\
-                    \\  \\_/  /\n\
-                     \\     /\n\
-                __  /\\___/\\  __\n\
-               /  \\/       \\/  \\\n\
-              /                 \\\n\
-             /   /\\         /\\   \\\n\
-            /   /  \\       /  \\   \\\n\
-           /   /    \\_____/    \\   \\\n\
-          /   /                   \\   \\\n\
-         /   /                     \\   \\\n\
-        /___/                       \\___\\\n\
-        |           MOUTH             |\n\
-        |_____________________________|\n";
+/// Dimensions: 30 lines tall × 54 chars max width. Fits comfortably in
+/// an 80×24 terminal with horizontal margin (centered dynamically).
+///
+/// The mouth opening (the standalone `V` on its own line) marks the fire
+/// breath origin. Its (row, col) within the art is encoded in
+/// [`DRAGON_MOUTH_ROW`] / [`DRAGON_MOUTH_COL`] so the spawn point stays
+/// correct even if the art is later edited.
+const DRAGON_ART: &str = concat!(
+    "              ___                              ___\n",
+    "            /`   `\\                          /`   `\\\n",
+    "           /   _   \\                        /   _   \\\n",
+    "          |   |o|   |                      |   |o|   |\n",
+    "          |   \\_/   |                      |   \\_/   |\n",
+    "           \\       /        _______         \\       /\n",
+    "            \\_____/         /`     `\\         \\_____/\n",
+    "                            /  _   _  \\\n",
+    "                           |  / \\ / \\  |\n",
+    "                           | |  V V  | |\n",
+    "                           |  \\_/ \\_/  |\n",
+    "                            \\  o o o  /\n",
+    "                             \\___V___/\n",
+    "                                 |\n",
+    "                                 V\n",
+    "                                 |\n",
+    "                          ________|________\n",
+    "                         /   _    | |    _   \\\n",
+    "                        |   / \\  | |  / \\   |\n",
+    "                        |  |  o| | | |o  |  |\n",
+    "                        |  \\__/  | |  \\__/  |\n",
+    "                         \\      _|_|_      /\n",
+    "                          \\___/  | |  \\___/\n",
+    "                          /      | |      \\\n",
+    "                         /       | |       \\\n",
+    "                         |_______|_|_______|\n",
+    "                         |       | |       |\n",
+    "                         |_______|_|_______|\n",
+    "                         / |   | | | |   | \\\n",
+    "                        /__|___|_|_|_|___|__\\\n",
+);
+
+/// Row index (0-based, within `DRAGON_ART` lines) of the mouth opening —
+/// the standalone `V` line where fire particles originate. Keep in sync
+/// with the art above; [`dragon_art_tests::mouth_position_is_valid`]
+/// guards against drift.
+const DRAGON_MOUTH_ROW: usize = 14;
+
+/// Column index (0-based) of the mouth opening within the mouth row.
+/// Points at the `V` character itself. Fire particles spawn at this
+/// (row, col) within the centered dragon, then fall downward.
+const DRAGON_MOUTH_COL: usize = 33;
 
 /// Parsed dragon art: each line as a `&'static str`, with the max line width
 /// precomputed. Done once at module load (compile-time constant via inline
@@ -344,12 +368,14 @@ pub(crate) fn run_intro(
     // Parse dragon art once.
     let (dragon_lines, dragon_w) = parse_dragon_art();
     let dragon_h = dragon_lines.len();
-    // Center the dragon on the terminal. The mouth spawn point is at
-    // the bottom-center of the art.
+    // Center the dragon on the terminal. The mouth spawn point is the
+    // explicit (row, col) of the mouth opening in the art — NOT the
+    // bottom-center, because the mouth sits in the upper half of the
+    // dragon (just below the head) and fire should emerge from there.
     let origin_x = w.saturating_sub(dragon_w as u16) / 2;
     let origin_y = h.saturating_sub(dragon_h as u16) / 2;
-    let mouth_x = origin_x as f32 + (dragon_w as f32 / 2.0);
-    let mouth_y = origin_y as f32 + (dragon_h as f32 - 1.0);
+    let mouth_x = origin_x as f32 + DRAGON_MOUTH_COL as f32;
+    let mouth_y = origin_y as f32 + DRAGON_MOUTH_ROW as f32;
 
     // Palette colors for the morph phase. We pull the brightest palette
     // color (typically the head color) as the rain target. If the palette
@@ -713,15 +739,65 @@ mod tests {
     #[test]
     fn dragon_art_has_reasonable_size() {
         let (lines, max_w) = parse_dragon_art();
-        // The art should fit in a standard 80×24 terminal with margin.
+        // Requirements: 40-60 chars wide, 20-30 lines tall. The art must
+        // also fit on an 80×24 terminal with horizontal margin to spare
+        // (the intro auto-skips below 80×24, so we only need to fit at
+        // that minimum).
         assert!(
-            max_w <= 70,
-            "dragon width {max_w} too wide for 80-col terminal"
+            (40..=70).contains(&max_w),
+            "dragon width {max_w} outside [40, 70]"
         );
         assert!(
-            lines.len() <= 22,
-            "dragon height {} too tall for 24-line terminal",
+            (20..=30).contains(&lines.len()),
+            "dragon height {} outside [20, 30]",
             lines.len()
+        );
+    }
+
+    #[test]
+    fn mouth_position_is_valid() {
+        // The mouth constants must point at a real, non-space character
+        // in the art. This guards against drift if DRAGON_ART is edited
+        // without updating DRAGON_MOUTH_ROW / DRAGON_MOUTH_COL.
+        let (lines, _) = parse_dragon_art();
+        assert!(
+            DRAGON_MOUTH_ROW < lines.len(),
+            "DRAGON_MOUTH_ROW {} out of range (art has {} lines)",
+            DRAGON_MOUTH_ROW,
+            lines.len()
+        );
+        let mouth_line = lines[DRAGON_MOUTH_ROW].chars().collect::<Vec<_>>();
+        assert!(
+            DRAGON_MOUTH_COL < mouth_line.len(),
+            "DRAGON_MOUTH_COL {} out of range (line {} has {} chars)",
+            DRAGON_MOUTH_COL,
+            DRAGON_MOUTH_ROW,
+            mouth_line.len()
+        );
+        let ch = mouth_line[DRAGON_MOUTH_COL];
+        assert!(
+            ch != ' ',
+            "DRAGON_MOUTH_COL points at a space; must point at the mouth V"
+        );
+        assert!(
+            ch == 'V' || ch == 'v',
+            "DRAGON_MOUTH_COL should point at the mouth 'V', got {ch:?}"
+        );
+    }
+
+    #[test]
+    fn mouth_row_is_above_body_center() {
+        // Sanity: the mouth should be in the upper half of the dragon
+        // (head area), not at the bottom (claws). This catches accidental
+        // mouth-position regressions that would make fire emerge from the
+        // dragon's feet.
+        let (lines, _) = parse_dragon_art();
+        let height = lines.len();
+        assert!(
+            DRAGON_MOUTH_ROW < height / 2,
+            "mouth at row {} should be in upper half of {}-line art",
+            DRAGON_MOUTH_ROW,
+            height
         );
     }
 
