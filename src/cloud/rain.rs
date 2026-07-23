@@ -150,6 +150,10 @@ impl Cloud {
         spawn_scale *= 1.0 + self.atmosphere.density_offset;
         // Apply profile density modulation
         spawn_scale *= self.profile_current.density_mult;
+        // Apply wind-gust multiplier (1.0 when idle, up to GUST_PEAK_MAX
+        // during a gust). Independent of `atmosphere.density_offset`
+        // (slow entropy cycle) — gusts are short, sharp surges.
+        spawn_scale *= self.gust.tick(now, &mut self.mt);
         // Apply emergent density boost
         spawn_scale += self.storytelling.active_effects(now).density_boost;
         // Apply resume time-scale easing: spawn rate ramps with the smoothstep

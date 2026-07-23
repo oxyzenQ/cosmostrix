@@ -135,6 +135,7 @@ impl Cloud {
         self.storytelling = StorytellingState::new(now);
         self.profile_transition_start = None;
         self.event_manager.reset(now);
+        self.gust = crate::cloud::living_rain::GustState::new(now);
         // Note: profile and profile params are preserved across resets
     }
 
@@ -568,7 +569,14 @@ impl Cloud {
             };
             // Far layer (0) spawns less frequently
             let density_mult = PARALLAX_DENSITY_MULT[layer as usize];
-            if self.rand_chance.sample(&mut self.mt) > density_mult {
+            // Dynamic density noise: each column has a spatial modifier
+            // in [DENSITY_NOISE_MIN, DENSITY_NOISE_MAX] that re-rolls every
+            // DENSITY_NOISE_PERIOD_SECS. Kills the "uniform grid" feel
+            // without per-frame allocation — single O(1) hash per spawn.
+            let col_modifier =
+                super::living_rain::column_density_modifier(col, now.elapsed().as_secs_f64());
+            let effective_density = density_mult * col_modifier;
+            if self.rand_chance.sample(&mut self.mt) > effective_density {
                 continue;
             }
 

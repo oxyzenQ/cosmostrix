@@ -911,6 +911,72 @@ pub const ATMOSPHERE_LUMINANCE_RANGE: f32 = 0.2;
 /// Maximum anomaly pressure shift from atmospheric evolution.
 pub const ATMOSPHERE_ANOMALY_RANGE: f32 = 0.5;
 
+// ── Living rain: dynamic density noise ──
+
+/// Period (in seconds) at which the per-column density noise pattern is
+/// re-seeded. The pattern is stable within each window so columns keep a
+/// consistent "this column is dense / this column is sparse" identity for
+/// a few seconds — long enough to perceive the spatial variety, short
+/// enough that it never feels frozen. 10 seconds matches the spec.
+pub const DENSITY_NOISE_PERIOD_SECS: f64 = 10.0;
+
+/// Lower bound of the per-column density noise modifier. 0.6 means the
+/// sparsest columns spawn droplets at 60% of their nominal rate.
+pub const DENSITY_NOISE_MIN: f32 = 0.6;
+
+/// Upper bound of the per-column density noise modifier. 1.4 means the
+/// densest columns spawn droplets at 140% of their nominal rate.
+pub const DENSITY_NOISE_MAX: f32 = 1.4;
+
+/// Knuth's multiplicative hash constant for 32-bit values. Used in the
+/// O(1) per-column density noise hash: `col.wrapping_mul(K) ^
+/// seed.wrapping_mul(1103515245)`. Cheap, branchless, well-distributed.
+pub const DENSITY_NOISE_HASH_K: u32 = 2_654_435_761;
+
+/// LCG multiplier used in the seed half of the density-noise hash.
+/// Pairs with DENSITY_NOISE_HASH_K to mix column + time-seed into a
+/// uniformly distributed u32 from which we extract a float in
+/// [DENSITY_NOISE_MIN, DENSITY_NOISE_MAX].
+pub const DENSITY_NOISE_HASH_SEED_K: u32 = 1_103_515_245;
+
+// ── Living rain: wind gusts ──
+
+/// Minimum idle time (seconds) between consecutive gusts. Combined with
+/// the max, this gives a 30-120s random idle window — long enough that
+/// gusts feel like organic weather events rather than a rhythmic pulse.
+pub const GUST_IDLE_MIN_SECS: f64 = 30.0;
+
+/// Maximum idle time (seconds) between consecutive gusts.
+pub const GUST_IDLE_MAX_SECS: f64 = 120.0;
+
+/// Minimum attack ramp duration (seconds) — time from 1.0 → peak.
+pub const GUST_ATTACK_MIN_SECS: f64 = 1.0;
+
+/// Maximum attack ramp duration (seconds). 1-2s feels like a gust
+/// front arriving rather than a sudden slap.
+pub const GUST_ATTACK_MAX_SECS: f64 = 2.0;
+
+/// Minimum hold duration (seconds) — time at peak before decay starts.
+pub const GUST_HOLD_MIN_SECS: f64 = 0.5;
+
+/// Maximum hold duration (seconds).
+pub const GUST_HOLD_MAX_SECS: f64 = 1.0;
+
+/// Minimum decay duration (seconds) — time from peak back to 1.0.
+/// 3-5s decay gives a long tail-off, like real wind dying down.
+pub const GUST_DECAY_MIN_SECS: f64 = 3.0;
+
+/// Maximum decay duration (seconds).
+pub const GUST_DECAY_MAX_SECS: f64 = 5.0;
+
+/// Minimum peak multiplier. 1.2 means the weakest gusts still surge to
+/// 120% of nominal spawn density + speed.
+pub const GUST_PEAK_MIN: f32 = 1.2;
+
+/// Maximum peak multiplier. 1.5 means the strongest gusts hit 150%.
+/// Above this the rain starts to feel chaotic rather than gusty.
+pub const GUST_PEAK_MAX: f32 = 1.5;
+
 // Long-timescale renderer memory
 
 /// Number of atmospheric history samples retained.

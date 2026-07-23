@@ -35,6 +35,7 @@
 mod atmospheric_events;
 mod ecosystem;
 mod events;
+mod living_rain;
 mod monolith;
 mod monolith_glyphs;
 #[cfg(test)]
@@ -324,6 +325,13 @@ pub struct Cloud {
     /// Event manager for cinematic atmospheric events (ghosts, etc.).
     pub(super) event_manager: AtmosphericEventManager,
 
+    // --- Living rain: wind gusts ---
+    /// Wind-gust state machine. Advanced once per `rain_at` frame; output
+    /// multiplier (always in `[1.0, GUST_PEAK_MAX]`) is folded into the
+    /// global `spawn_scale`. Independent of `atmosphere` (which is a
+    /// slow entropy-cycle drift) — gusts are short, sharp surges.
+    pub(super) gust: living_rain::GustState,
+
     // --- Per-frame component timing (set by rain_at, read by benchmark) ---
     /// Wall-clock time spent in the simulation half of the most recent
     /// `rain_at()` call, in milliseconds. "Simulation" = atmosphere events,
@@ -474,6 +482,7 @@ impl Cloud {
             auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
             is_idle: false,
             event_manager: AtmosphericEventManager::new(now),
+            gust: living_rain::GustState::new(now),
             last_sim_ms: 0.0,
             last_render_ms: 0.0,
             enable_component_timing: false,
