@@ -43,7 +43,8 @@ use crate::constants::{
     MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC,
     MOUSE_FLASH_SECONDARY_SPEED_FRAC, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
-    PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
+    PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, PARALLAX_HEAD_BLOOM_MULT,
+    PARALLAX_SATURATION_MULT, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION,
     TRANSITION_ENERGY_DURATION_SECS, TRANSITION_ENERGY_SATURATION_BOOST,
     TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE, TURBULENCE_FREQ,
 };
@@ -518,8 +519,13 @@ impl Droplet {
                         } else {
                             HEAD_BLOOM_INTENSITY
                         };
+                        // Depth-of-field: scale head bloom by layer so back-layer
+                        // heads don't out-bloom front-layer bodies. Without this,
+                        // a short back-layer droplet (head + 1 body cell) shows as
+                        // a bright bloom spot against the dark background.
+                        let layer_bloom = PARALLAX_HEAD_BLOOM_MULT[self.layer as usize];
                         let frac_bloom = 1.0 + frac_progress * FRACTIONAL_BLOOM_AMP;
-                        let factor = gaussian * bloom * frac_bloom;
+                        let factor = gaussian * bloom * frac_bloom * layer_bloom;
                         let wf = (factor * 256.0) as i32;
                         r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                         g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
@@ -536,6 +542,31 @@ impl Droplet {
                     r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                     g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                     b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                }
+
+                // Depth-of-field saturation: blend toward luminance (gray) by
+                // `1.0 - saturation_mult`. Back layers lose color vividness so
+                // they read as "atmospheric haze" instead of "same rain but
+                // dimmer". This is what kills the bright-spot effect most
+                // decisively — even an unsuppressed bright head becomes pale
+                // gray instead of vivid color, so it no longer pops as a hot
+                // pixel against the dark background.
+                //
+                // Luminance is computed via the standard Rec. 601 weighting
+                // (0.299R + 0.587G + 0.114B) using integer math.
+                let saturation_mult = PARALLAX_SATURATION_MULT[self.layer as usize];
+                if saturation_mult < 1.0 {
+                    let lum = (r as u32 * 77 + g as u32 * 150 + b as u32 * 29 + 128) >> 8;
+                    let lum = lum.min(255) as u8;
+                    // Blend: out = color * sat + lum * (1 - sat)
+                    // Equivalent to: out = color - (color - lum) * (1 - sat)
+                    let inv_sat = ((1.0 - saturation_mult) * 256.0) as i32;
+                    let dr = (r as i32 - lum as i32) * inv_sat;
+                    let dg = (g as i32 - lum as i32) * inv_sat;
+                    let db = (b as i32 - lum as i32) * inv_sat;
+                    r = (r as i32 - (dr + 128) / 256).clamp(0, 255) as u8;
+                    g = (g as i32 - (dg + 128) / 256).clamp(0, 255) as u8;
+                    b = (b as i32 - (db + 128) / 256).clamp(0, 255) as u8;
                 }
 
                 // Depth-of-field: reduce fg-bg contrast for background layer.

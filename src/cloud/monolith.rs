@@ -845,10 +845,17 @@ fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, col: u16) -
     }
 }
 
+/// Per-layer brightness multiplier for the Monolith scene.
+///
+/// Masterclass depth-of-field tuning — matches the parallax layer
+/// philosophy: back layer is dimmed aggressively so its glyph streams
+/// read as background depth rather than competing with foreground rain.
+/// Values track PARALLAX_BRIGHTNESS_MULT (slightly raised because the
+/// Monolith glyph streams are wider and benefit from a bit more body).
 fn layer_brightness(layer: u8) -> f32 {
     match layer {
-        0 => 0.62,
-        1 => 0.84,
+        0 => 0.42,
+        1 => 0.74,
         _ => 1.0,
     }
 }

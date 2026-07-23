@@ -483,12 +483,38 @@ pub const PARALLAX_LAYERS: usize = 3;
 /// Per-layer speed multiplier (layer 0 = far, 2 = near).
 pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
-/// Per-layer brightness multiplier (layer 0 = dim, 2 = bright).
-/// Raised from [0.55, 0.90, 1.0] to [0.70, 0.90, 1.0] for improved
-/// background rain visibility. The old far-layer at 55% was perceptually
-/// ~14% (nearly invisible after other dimming); 70% is perceptually ~18%
-/// — still clearly dimmer than the near layer but actually visible.
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.80, 0.95, 1.0];
+/// Per-layer brightness multiplier (layer 0 = far, 2 = near).
+///
+/// Masterclass depth-of-field tuning: back layer (0) is dimmed aggressively
+/// to 35% so its heads cannot outshine front-layer bodies. Mid layer (1) at
+/// 65% keeps it readable but clearly recessed. Near layer (2) at 100%.
+///
+/// Prior value [0.80, 0.95, 1.0] kept the back layer too bright — short
+/// back-layer droplets showed as bright "spot" artifacts on the dark
+/// background because their heads had no body/tail to fade into.
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.35, 0.65, 1.0];
+
+/// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
+///
+/// Back layers are tinted toward neutral gray to simulate atmospheric
+/// haze — the eye reads desaturated colors as "further away". Combined
+/// with brightness dimming, this is what kills the "bright spot" effect
+/// on back-layer head-only droplets: even if the head is bright, it's
+/// pale gray instead of vivid color, so it no longer pops as a hot pixel.
+///
+/// Implemented in droplet.rs as a blend toward gray (luminance) by
+/// `1.0 - saturation_mult`.
+pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.70, 1.0];
+
+/// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
+///
+/// Head bloom (HEAD_BLOOM_INTENSITY gaussian glow behind the head) is
+/// normally the same across all layers. For depth-of-field, back-layer
+/// heads should NOT glow as brightly — otherwise they become the
+/// aforementioned "bright spots". This multiplier scales the bloom
+/// gaussian factor before it's applied to RGB. Back layer at 0.40 means
+/// the head glow is reduced by 60%; mid layer at 0.70 by 30%.
+pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.70, 1.0];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
@@ -527,7 +553,12 @@ pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
 pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
-pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.6, 1.0, 0.7];
+///
+/// Masterclass depth-of-field tuning: back layer decays at 2.2× the base
+/// rate (was 1.6×) so back-layer head glow fades fast and doesn't linger
+/// as a persistent "bright spot". Mid layer at 1.2× keeps a slight
+/// recession. Near layer at 0.7× retains the long cinematic trail.
+pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.2, 1.2, 0.7];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated. Ghost cells near the bottom accumulate into a static
@@ -552,25 +583,38 @@ pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 // Atmospheric depth layering enhancements
 
 /// Per-layer spawn density multiplier (far = sparse, near = dense).
-pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.5];
+///
+/// Masterclass depth-of-field tuning: back layer spawns at 30% of base
+/// (was 50%) to thin out the "bright spot" population. Mid layer at 60%
+/// (was 100%) — mid-layer rain should feel clearly less dense than front.
+/// Near layer at 100% (was 150% — that oversaturated front and made the
+/// whole frame feel crowded; 100% is the natural base rate).
+///
+/// The combined effect with PARALLAX_BRIGHTNESS_MULT and
+/// PARALLAX_SATURATION_MULT: back-layer heads are now 30% as frequent,
+/// 35% as bright, AND 40% as saturated — three independent reductions
+/// stack to push them firmly into the background.
+pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.30, 0.60, 1.0];
 
 /// Per-layer glyph simplicity: far layer chars are less visually dense.
-/// Implemented as a brightness modifier on top of PARALLAX_BRIGHTNESS_MULT.
-/// Raised from [0.7, 1.0, 1.0] to [0.85, 1.0, 1.0] — the far layer is
-/// already dimmed significantly by PARALLAX_BRIGHTNESS_MULT; stacking an
-/// additional 30% dim on top made it nearly invisible. 15% is enough to
-/// create visual separation without making far-layer glyphs disappear.
-pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [0.85, 1.0, 1.0];
+///
+/// Set to [1.0, 1.0, 1.0] — glyph dimming is now subsumed by
+/// PARALLAX_BRIGHTNESS_MULT and PARALLAX_SATURATION_MULT. Stacking a
+/// third dimming pass on the back layer made it drop below the
+/// visibility floor; the new brightness+saturation combo is sufficient.
+pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 
 /// Per-layer contrast reduction (depth-of-field perceptual blur).
-/// Layer 0 (background) gets its foreground color blended toward the
-/// background by this factor, creating a "foggy/out-of-focus" look.
-/// 0.0 = no reduction (sharp), 0.5 = 50% blend toward bg (foggy).
-/// Only layer 0 has contrast reduction — layers 1-2 stay sharp.
+///
+/// Masterclass depth-of-field tuning: back layer (0) at 0.55 — fg color
+/// is blended 55% toward black (background), creating heavy haze. Mid
+/// layer (1) at 0.20 — slight recession but still readable. Near layer
+/// (2) at 0.0 — sharp foreground, no fog.
+///
 /// This is the terminal equivalent of depth-of-field blur: instead of
 /// blurring pixels (impossible in text), we reduce fg-bg contrast so
-/// the background rain reads as "behind a haze".
-pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.35, 0.0, 0.0];
+/// background rain reads as "behind a haze".
+pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.55, 0.20, 0.0];
 
 // Velocity turbulence
 
