@@ -153,6 +153,40 @@ pub static THEMES: &[ThemeDef] = &[
         },
     },
     ThemeDef {
+        scheme: ColorScheme::NeonPurple,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (40, 0, 60),
+                (120, 0, 200),
+                (180, 40, 255),
+                (220, 120, 255),
+                (240, 180, 255),
+                (250, 220, 255),
+                (255, 255, 255),
+            ],
+            steps: 7,
+            c16: &[Color::Magenta, Color::White],
+            ansi: &[54, 90, 135, 177, 219, 225, 231],
+        },
+    },
+    ThemeDef {
+        scheme: ColorScheme::Carbon,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (10, 10, 10),
+                (30, 35, 40),
+                (60, 68, 75),
+                (100, 110, 120),
+                (150, 160, 170),
+                (200, 210, 215),
+                (240, 245, 248),
+            ],
+            steps: 7,
+            c16: &[Color::DarkGrey, Color::Grey, Color::White],
+            ansi: &[232, 236, 240, 244, 248, 252, 255],
+        },
+    },
+    ThemeDef {
         scheme: ColorScheme::Gold,
         def: ThemeColors::AnsiWithC16 {
             ansi: &[58, 94, 172, 178, 228, 230, 231],
@@ -579,6 +613,8 @@ mod tests {
             ColorScheme::Green2,
             ColorScheme::Green3,
             ColorScheme::NeonGreen,
+            ColorScheme::NeonPurple,
+            ColorScheme::Carbon,
             ColorScheme::Gold,
             ColorScheme::Yellow,
             ColorScheme::Orange,
@@ -627,12 +663,12 @@ mod tests {
                 scheme
             );
         }
-        assert_eq!(theme_count(), 44);
+        assert_eq!(theme_count(), 46);
     }
 
     #[test]
     fn unknown_scheme_returns_greyscale() {
-        // ColorScheme has exactly 44 variants. If a 45th is added without
+        // ColorScheme has exactly 46 variants. If a 47th is added without
         // a THEMES entry, build_colors returns greyscale (not panic).
         // This is the graceful degradation guarantee.
         let colors = build_colors(ColorScheme::Green, ColorMode::TrueColor);

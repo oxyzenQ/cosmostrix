@@ -126,7 +126,7 @@ fn config_scene_calm_applies() {
 fn default_scene_is_monolith() {
     let args = args_from_cli(&[]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.color, "neon-purple");
     assert_eq!(args.charset, "braille");
     assert_eq!(args.speed, 30.0);
     assert_eq!(args.density, 0.85);
@@ -164,7 +164,7 @@ fn invalid_cli_scene_is_clear_error() {
 fn config_scene_monolith_applies() {
     let args = args_with_config("scene = monolith\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.color, "neon-purple");
     assert_eq!(args.charset, "braille");
     assert_eq!(args.speed, 30.0);
     assert!((args.density - 0.85).abs() < f32::EPSILON);
@@ -215,7 +215,7 @@ fn monolith_scene_respects_explicit_motion_overrides() {
     assert_eq!(args.fps, 120.0);
     assert_eq!(args.speed, 9.0);
     assert!((args.density - 0.25).abs() < f32::EPSILON);
-    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.color, "neon-purple");
 }
 
 // ── Scene defaults respect config-set keys (v13.6.0 regression guards) ──
@@ -240,7 +240,7 @@ fn config_speed_wins_over_monolith_scene_default() {
     );
     // Scene defaults for UNSET keys still apply:
     assert_eq!(
-        args.color, "cosmos",
+        args.color, "neon-purple",
         "scene color default applies for unset key"
     );
     assert!((args.density - 0.85).abs() < f32::EPSILON);
@@ -284,7 +284,7 @@ fn config_speed_wins_over_cli_scene_default() {
         "config speed must win over CLI scene monolith default 30"
     );
     assert_eq!(
-        args.color, "cosmos",
+        args.color, "neon-purple",
         "scene color default still applies for unset key"
     );
 }
@@ -477,7 +477,7 @@ fn invalid_config_values_are_ignored() {
         "color = not-a-color\nfps = 0\nspeed = nope\nscene = unknown\n",
         &[],
     );
-    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.color, "neon-purple");
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.speed, 30.0);
     // v14.0.0: invalid `scene = unknown` does not set scene; default monolith applies.

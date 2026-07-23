@@ -90,7 +90,7 @@ fn profile_base_monolith_applies_monolith_foundation() {
         &["--scene-custom", "nightcore"],
     );
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.color, "neon-purple");
     assert_eq!(args.speed, 30.0);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
@@ -160,7 +160,7 @@ fn invalid_profile_values_are_ignored_cleanly() {
                   profile.bad.density = nope\n";
     let args = args_with_config(config, &["--scene-custom", "bad"]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.color, "neon-purple");
     assert_eq!(args.speed, 30.0);
     assert_eq!(args.density, 0.85);
 }
@@ -177,7 +177,7 @@ fn existing_config_without_profiles_still_works() {
 fn default_plain_runtime_profile_remains_monolith() {
     let args = args_with_config("", &[]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.color, "cosmos");
+    assert_eq!(args.color, "neon-purple");
     assert_eq!(args.speed, 30.0);
 }
 

@@ -635,7 +635,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             //
                             // - q: quit (handle_keybinding set raining=false)
                             // - Recognized interactive keys (c/s/x/p/i/h,
-                            //   Space, Up/Down, 0-9, etc.): process and continue.
+                            //   Space, Up/Down, etc.): process and continue.
                             //   The user can still cycle colors, toggle HUD, etc.
                             //   while the screensaver is active.
                             // - Unrecognized keys (B/b, z, F1-F12, Home/End,

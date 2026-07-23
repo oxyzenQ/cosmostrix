@@ -38,7 +38,7 @@ pub struct SceneInfo {
 pub const DEFAULT_SCENE: &str = "monolith";
 
 /// Ordered scene cycle: monolith -> matrix -> signal -> monolith.
-pub const SCENE_ORDER: &[&str] = &["monolith", "matrix", "signal"];
+pub const SCENE_ORDER: &[&str] = &["monolith", "matrix", "cinematic"];
 
 pub const SCENES: &[SceneInfo] = &[
     // --- Original runtime scenes (interactive cycle entries) ---
@@ -60,7 +60,7 @@ pub const SCENES: &[SceneInfo] = &[
         description:
             "Signature structured segmented rain — dense braille pillars with premium pacing",
         config: SceneConfig {
-            color: Some("cosmos"),
+            color: Some("neon-purple"),
             charset: Some("braille"),
             fps: Some(60.0),
             speed: Some(30.0),
@@ -100,7 +100,7 @@ pub const SCENES: &[SceneInfo] = &[
         name: "cinematic",
         description: "Cosmic binary — slow vast pacing with deep-space breathing room",
         config: SceneConfig {
-            color: Some("cosmos"),
+            color: Some("neon-purple"),
             charset: Some("binary"),
             fps: Some(60.0),
             speed: Some(9.0),
@@ -208,8 +208,8 @@ pub fn all_scene_names() -> &'static [&'static str] {
 
 /// Cycle to the next or previous scene in the ordered cycle.
 /// Returns the next scene name.
-/// Forward:  monolith -> matrix -> signal -> monolith
-/// Backward: monolith -> signal -> matrix -> monolith
+/// Forward:  monolith -> matrix -> cinematic -> monolith
+/// Backward: monolith -> cinematic -> matrix -> monolith
 #[must_use]
 pub fn cycle_scene(current: &str, dir: i32) -> &'static str {
     let Some(pos) = SCENE_ORDER.iter().position(|&n| n == current) else {
@@ -311,14 +311,14 @@ mod tests {
     #[test]
     fn cycle_scene_forward_order() {
         assert_eq!(cycle_scene("monolith", 1), "matrix");
-        assert_eq!(cycle_scene("matrix", 1), "signal");
-        assert_eq!(cycle_scene("signal", 1), "monolith");
+        assert_eq!(cycle_scene("matrix", 1), "cinematic");
+        assert_eq!(cycle_scene("cinematic", 1), "monolith");
     }
 
     #[test]
     fn cycle_scene_backward_order() {
-        assert_eq!(cycle_scene("monolith", -1), "signal");
-        assert_eq!(cycle_scene("signal", -1), "matrix");
+        assert_eq!(cycle_scene("monolith", -1), "cinematic");
+        assert_eq!(cycle_scene("cinematic", -1), "matrix");
         assert_eq!(cycle_scene("matrix", -1), "monolith");
     }
 
@@ -331,7 +331,7 @@ mod tests {
     #[test]
     fn cycle_scene_wraps_around() {
         // Double forward from monolith
-        assert_eq!(cycle_scene(cycle_scene("monolith", 1), 1), "signal");
+        assert_eq!(cycle_scene(cycle_scene("monolith", 1), 1), "cinematic");
         // Double backward from monolith
         assert_eq!(cycle_scene(cycle_scene("monolith", -1), -1), "matrix");
     }
@@ -368,7 +368,7 @@ mod tests {
     #[test]
     fn scene_cycle_order_is_preserved() {
         // SCENE_ORDER stays three-entry to keep interactive cycling stable.
-        assert_eq!(SCENE_ORDER, &["monolith", "matrix", "signal"]);
+        assert_eq!(SCENE_ORDER, &["monolith", "matrix", "cinematic"]);
     }
 
     #[test]

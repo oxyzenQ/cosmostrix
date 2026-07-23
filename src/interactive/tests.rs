@@ -392,7 +392,7 @@ mod cases {
             visited.push(scene_name.clone());
         }
 
-        assert_eq!(visited, ["matrix", "signal", "monolith"]);
+        assert_eq!(visited, ["matrix", "cinematic", "monolith"]);
         assert_eq!(cloud.active_scene(), "monolith");
     }
 
