@@ -76,7 +76,7 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.reset(w, h);
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
 
-    let mut frame = Frame::new(w, h, cloud.palette.bg);
+    let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
     let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
     cloud.set_max_sim_delta(target_period);
@@ -150,7 +150,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.reset(w, h);
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
 
-    let mut frame = Frame::new(w, h, cloud.palette.bg);
+    let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
     let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
     cloud.set_max_sim_delta(target_period);
@@ -730,7 +730,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     cloud.reset(w, h);
     cloud.set_component_timing(true);
 
-    let mut frame = Frame::new(w, h, cloud.palette.bg);
+    let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
     let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
     cloud.set_max_sim_delta(target_period);
 

@@ -23,8 +23,8 @@ use smallvec::SmallVec;
 
 use crate::cell::Cell;
 use crate::constants::{
-    BENCH_MAX_COLS, BENCH_MAX_LINES, DIRTY_CAPACITY_CAP, DIRTY_CAPACITY_DIVISOR, MIN_TERMINAL_COLS,
-    MIN_TERMINAL_LINES,
+    BENCH_MAX_COLS, BENCH_MAX_LINES, DIRTY_CAPACITY_CAP, DIRTY_CAPACITY_DIVISOR, MAX_TERMINAL_COLS,
+    MAX_TERMINAL_LINES, MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
 };
 
 // Note: dirty_map is now Vec<u8> (1 byte per cell) instead of BitVec.
@@ -58,9 +58,33 @@ pub struct Frame {
 
 impl Frame {
     pub fn new(width: u16, height: u16, bg: Option<crossterm::style::Color>) -> Self {
-        // Safety clamp: uses BENCH_MAX (u16::MAX) so benchmark mode can stress-test
-        let width = width.clamp(MIN_TERMINAL_COLS, BENCH_MAX_COLS);
-        let height = height.clamp(MIN_TERMINAL_LINES, BENCH_MAX_LINES);
+        // Interactive safety clamp: prevent OOM from absurd terminal sizes
+        // (e.g. 65535 × 65535). 1024×500 = 512K cells × ~48 B ≈ 24 MiB.
+        Self::new_with_bounds(width, height, bg, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES)
+    }
+
+    /// Benchmark constructor: clamps to `bench_max_cols` × `bench_max_lines`
+    /// (8K UHD = 7680×4320 by default). Use this for stress benchmarks that
+    /// need to exceed the interactive 1024×500 safety cap.
+    ///
+    /// The bench_helpers layer already clamps CLI `--screen-size` against
+    /// `BENCH_MAX_COLS/LINES`, so callers can pass raw values here.
+    pub fn new_bench(width: u16, height: u16, bg: Option<crossterm::style::Color>) -> Self {
+        Self::new_with_bounds(width, height, bg, BENCH_MAX_COLS, BENCH_MAX_LINES)
+    }
+
+    /// Core constructor: clamps `width`/`height` to `[MIN, max]` and allocates
+    /// the cell grid. Factored out so interactive and benchmark paths share
+    /// one allocation routine.
+    fn new_with_bounds(
+        width: u16,
+        height: u16,
+        bg: Option<crossterm::style::Color>,
+        max_cols: u16,
+        max_lines: u16,
+    ) -> Self {
+        let width = width.clamp(MIN_TERMINAL_COLS, max_cols);
+        let height = height.clamp(MIN_TERMINAL_LINES, max_lines);
         let len = width as usize * height as usize;
         let blank = Cell::blank_with_bg(bg);
         let gen = 1u32;

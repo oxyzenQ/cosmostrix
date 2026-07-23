@@ -141,13 +141,30 @@ pub const MAX_TERMINAL_COLS: u16 = 1024;
 /// Maximum allowed terminal height (lines) for interactive mode.  Same rationale as above.
 pub const MAX_TERMINAL_LINES: u16 = 500;
 
-/// Maximum screen size for benchmark mode. Allows stress-testing at extreme
-/// resolutions (e.g. 8K = 7680x4320, or even 65535x65535). The OS OOM killer
-/// is the ultimate limiter — cosmostrix does not artificially restrict.
-pub const BENCH_MAX_COLS: u16 = u16::MAX;
+/// Maximum screen size for benchmark mode (columns).
+///
+/// Set to 8K UHD width (7680). This is the largest *meaningful* benchmark
+/// resolution for a CPU + stdout renderer:
+///   - 8K UHD (7680 × 4320) = 33.2M cells × ~48 B/cell ≈ 1.6 GiB — pushes the
+///     allocator and dirty-cell pipeline hard without entering OOM-killer territory.
+///   - 4K UHD (3840 × 2160) = 8.3M cells — comfortable, but doesn't stress the
+///     differential-renderer paths the way 8K does.
+///   - 50000 × 50000 = 2.5 Gcells × ~48 B ≈ 120 GiB — impossible on any real
+///     single machine; the benchmark would be measuring the OOM killer, not the
+///     renderer. u16 nominally supports up to 65535, but the cell-grid allocation
+///     is the hard floor.
+///
+/// Cosmic dragon verdict to "8k or 4k?": **8K UHD is the maximum.** 4K is the
+/// recommended daily-driver; 8K is the ceiling for stress benchmarks. Anything
+/// larger is a memory benchmark, not a render benchmark.
+pub const BENCH_MAX_COLS: u16 = 7680;
 
-/// Maximum screen size for benchmark mode (lines). See BENCH_MAX_COLS.
-pub const BENCH_MAX_LINES: u16 = u16::MAX;
+/// Maximum screen size for benchmark mode (lines). See `BENCH_MAX_COLS`.
+///
+/// 4320 = 8K UHD height. Same rationale: largest meaningful stress resolution
+/// before the cell-grid allocation becomes the bottleneck instead of the
+/// renderer itself.
+pub const BENCH_MAX_LINES: u16 = 4320;
 
 /// Minimum usable terminal width (columns). Below this, the renderer
 /// refuses to start to avoid degenerate edge cases (empty frame, zero
