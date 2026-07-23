@@ -339,18 +339,27 @@ pub const ADVANCE_REMAINDER_CAP: f32 = 3.0;
 pub const MAX_PALETTE_SLOTS: usize = 4;
 
 /// Palette transition duration in milliseconds.
-/// Fast enough that a keypress feels confirmed immediately while still leaving
-/// room for a visible cinematic cascade.
-pub const COLOR_TRANSITION_DURATION_MS: u16 = 150;
+/// Doubled from 150ms to 300ms so the cinematic top-to-bottom cascade is
+/// clearly visible rather than reading as an instant snap. At 150ms the
+/// wave crossed the whole screen in ~9 frames at 60fps — too fast for the
+/// eye to perceive motion. At 300ms (~18 frames) the sweep reads as
+/// intentional rain-following motion while still feeling
+/// responsive to a keypress.
+pub const COLOR_TRANSITION_DURATION_MS: u16 = 300;
 
 /// Minimum fraction of columns that adopt a new palette on the first
 /// transition frame. This avoids the "one tiny column changed" perception.
 pub const COLOR_TRANSITION_INITIAL_VISIBLE_PCT: f32 = 0.12;
 
 /// Charset transition duration in milliseconds.
-/// Uses a top-to-bottom wave so glyph identity changes read as intentional
-/// motion instead of an instant full-screen snap.
-pub const CHARSET_TRANSITION_DURATION_MS: u16 = 240;
+/// Doubled from 240ms to 500ms so glyph identity changes read as a
+/// deliberate top-to-bottom wave. The previous 240ms value (about 14
+/// frames at 60fps) was fast enough that the eye saw it as an instant
+/// swap rather than a sweep. At 500ms (~30 frames) the wave motion is
+/// unmistakable and matches the rhythm of falling rain. Slightly slower
+/// than the color wave because glyph identity changes are more visually
+/// demanding than palette shifts.
+pub const CHARSET_TRANSITION_DURATION_MS: u16 = 500;
 
 /// Velocity boost for new-generation streams during an active transition.
 /// Creates a subtle feeling of an incoming wave (3-8% range, 5% default).
