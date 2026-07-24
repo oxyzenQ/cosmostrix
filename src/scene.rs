@@ -37,7 +37,7 @@ pub struct SceneInfo {
 
 pub const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle: monolith -> matrix -> signal -> monolith.
+/// Ordered scene cycle: monolith -> matrix -> cinematic -> monolith.
 pub const SCENE_ORDER: &[&str] = &["monolith", "matrix", "cinematic"];
 
 pub const SCENES: &[SceneInfo] = &[
