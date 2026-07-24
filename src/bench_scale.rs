@@ -24,8 +24,9 @@ pub fn run_scaling_benchmark(
     let mut results = Vec::with_capacity(SCALE_SIZES.len());
 
     eprintln!(
-        "[bench-all] Running {size_count} benchmarks ({effective_duration}s each)...",
-        size_count = SCALE_SIZES.len()
+        "[bench-all] Running {size_count} benchmarks ({effective_duration}s each) with scene \"{scene}\"...",
+        size_count = SCALE_SIZES.len(),
+        scene = cfg.scene_name
     );
     eprintln!();
 
@@ -76,7 +77,7 @@ pub fn run_scaling_benchmark(
     }
 
     // Print summary table
-    print_scaling_summary(&results);
+    print_scaling_summary(&results, &cfg.scene_name);
 
     Ok(results)
 }
@@ -113,10 +114,10 @@ pub struct ScaleResult {
 }
 
 /// Print the scaling summary table.
-fn print_scaling_summary(results: &[ScaleResult]) {
+fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
     println!();
-    println!("SCALING SUMMARY");
-    println!("───────────────");
+    println!("SCALING SUMMARY (scene: {scene})");
+    println!("──────────────────────────────────");
     println!(
         "  {:<8} {:>6} {:>10} {:>10} {:>6} {:>8} {:>8} {:>8}",
         "Size", "Cells", "FPS", "ns/cell", "IPC", "Alloc/f", "Entropy", "Gini"
@@ -156,9 +157,15 @@ fn print_scaling_summary(results: &[ScaleResult]) {
 }
 
 /// Build JSON array from scaling results.
-pub fn build_scaling_json(results: &[ScaleResult]) -> String {
+///
+/// `scene` is the active scene name (e.g. "cinematic"); it is included as a
+/// top-level field so JSON consumers can tell which scene generated the
+/// metrics without parsing the human-readable SCALING SUMMARY header.
+pub fn build_scaling_json(results: &[ScaleResult], scene: &str) -> String {
     let mut out = String::with_capacity(2048);
-    out.push('[');
+    out.push('{');
+    out.push_str(&format!("\"scene\":\"{}\",", scene));
+    out.push_str("\"sizes\":[");
     for (i, r) in results.iter().enumerate() {
         if i > 0 {
             out.push(',');
@@ -179,5 +186,6 @@ pub fn build_scaling_json(results: &[ScaleResult]) -> String {
         ));
     }
     out.push(']');
+    out.push('}');
     out
 }

@@ -412,23 +412,15 @@ show_help() {
 Cosmostrix build script
 
 USAGE:
-    ./scripts/build.sh [VERSION] [COMMAND] [OPTIONS]
+    ./scripts/build.sh [COMMAND] [OPTIONS]
 
-VERSION (optional, first positional arg):
-    v20.0.0         Bump repo to v20.0.0 across all files BEFORE building.
-                    Accepted forms: "20.0.0" or "v20.0.0" (stable SemVer X.Y.Z).
-                    Delegates to ./scripts/version-to.sh, which updates:
-                      - Cargo.toml [package] version (single source of truth)
-                      - Cargo.lock cosmostrix entry
-                      - aur/cosmostrix-bin/PKGBUILD (pkgver=, _tag=)
-                      - aur/cosmostrix-bin/.SRCINFO (regenerated from PKGBUILD)
-                      - README.md install example TAG="vX.Y.Z"
-                    If the repo is already at VERSION, the bump is a no-op
-                    (verification only — no files changed).
-    Default COMMAND when VERSION is given: release
+Version bumping is handled by ./scripts/version-to.sh — see its --help for
+details. The recommended one-shot bump+build flow is:
+
+    ./scripts/version-to.sh vX.Y.Z && ./scripts/build.sh release
 
 COMMANDS (essentials):
-    debug           Build debug version (default when no VERSION given)
+    debug           Build debug version (default)
     release         Build optimized release version
     pgo             PGO nitro build (instrument → benchmark → optimize, +5-15% FPS)
                     Pass --auto to auto-detect the best CPU target for this host.
@@ -436,7 +428,7 @@ COMMANDS (essentials):
     test            Run test suite
     check           Quick checks (fmt + clippy)
     check-all       Comprehensive checks (fmt + clippy + test + audit + headers + LOC
-                    + version anti-pattern guard)
+                    + version anti-pattern guard + version-sync)
     version-sync    Verify all active version refs agree with Cargo.toml
                     (no build — fails fast on desync; same as
                     ./scripts/version-to.sh --check <cargo-toml-version>)
@@ -478,12 +470,11 @@ EXAMPLES:
     ./scripts/build.sh pgo --auto               # PGO with auto CPU detection
     cargo use-pgo                               # same as above
     COSMOSTRIX_JOBS=4 ./scripts/build.sh all    # full pipeline, 4 cores
-
-    ./scripts/build.sh v20.0.0                  # bump to v20.0.0, then release build
-    ./scripts/build.sh v20.0.0 debug            # bump to v20.0.0, then debug build
-    ./scripts/build.sh v20.0.0 pgo --auto       # bump to v20.0.0, then PGO build
-    ./scripts/build.sh 20.0.0 release           # same (v prefix optional)
     ./scripts/build.sh version-sync             # verify all version refs in sync
+
+    # Bump version + build in one flow (version-to.sh handles the bump):
+    ./scripts/version-to.sh vX.Y.Z && ./scripts/build.sh release
+    ./scripts/version-to.sh vX.Y.Z && ./scripts/build.sh pgo --auto
 
 OPTIONAL TOOLS (auto-detected, silently skipped if absent):
     sccache   - Build caching       (cargo install sccache)
@@ -494,23 +485,12 @@ OPTIONAL TOOLS (auto-detected, silently skipped if absent):
 EOF
 }
 
-# ── Version detection ─────────────────────────────────────────────────
-# Accept an optional leading VERSION argument (e.g. `v20.0.0` or `20.0.0`).
-# If present and shaped like stable SemVer X.Y.Z, the repo is bumped to that
-# version via ./scripts/version-to.sh BEFORE the build command runs. This
-# eliminates the two-step "version-to.sh then build.sh" dance — one command
-# updates everything and builds.
-#
-# Detection rules (only the FIRST positional arg is inspected):
-#   - matches ^v?[0-9]+\.[0-9]+\.[0-9]+$  → treated as VERSION, stripped from argv
-#   - anything else                         → treated as COMMAND (legacy behavior)
-#
-# The 'v' prefix is accepted (and stripped by version-to.sh) but never
-# required. Pre-release suffixes (e.g. -beta.1) are rejected by version-to.sh.
-is_version_arg() {
-        local arg="$1"
-        [[ "${arg}" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]
-}
+# ── Version sync (verification only) ───────────────────────────────────
+# Version bumping is owned by ./scripts/version-to.sh — see its --help for
+# the full list of files it touches (Cargo.toml, Cargo.lock, PKGBUILD,
+# .SRCINFO, README.md, docs/workflow/about-ci.md). build.sh only exposes
+# the `version-sync` subcommand, which verifies all active version refs
+# agree with Cargo.toml without writing anything.
 
 # Read the current package version from Cargo.toml (single source of truth).
 # Used by `version-sync` to know what to verify against.
@@ -527,47 +507,6 @@ read_cargo_version() {
                 return 1
         fi
         echo "${ver}"
-}
-
-# Bump the repo to VERSION using version-to.sh. Idempotent: if already at
-# VERSION, version-to.sh runs verification only and exits 0 without writing.
-bump_version_if_requested() {
-        local target_version="$1"
-        local bumper="${PWD}/scripts/version-to.sh"
-        if [ ! -x "${bumper}" ]; then
-                log_error "Version bumper not found or not executable: ${bumper}"
-                return 1
-        fi
-
-        local current
-        current="$(read_cargo_version)" || return 1
-
-        if [ "${current}" = "${target_version}" ]; then
-                log_info "Repo already at v${target_version} — verifying sync (no writes)"
-        else
-                log_step "Bumping version: v${current} → v${target_version}"
-        fi
-
-        # version-to.sh handles: Cargo.toml, Cargo.lock, PKGBUILD, .SRCINFO,
-        # README, workflow audit, plus verification. It refuses to run on a
-        # dirty tree unless --allow-dirty is passed, but build.sh callers
-        # expect a one-shot flow, so we pass --allow-dirty to avoid blocking
-        # legitimate dev workflows (e.g. owner running build.sh v20.0.0
-        # right after editing some files).
-        #
-        # --allow-dirty is safe here: version-to.sh only edits version fields,
-        # never code, so it cannot corrupt unrelated uncommitted work.
-        if ! "${bumper}" --allow-dirty "${target_version}"; then
-                log_error "Version bump to v${target_version} failed"
-                log_info "Run './scripts/version-to.sh ${target_version}' manually for details"
-                return 1
-        fi
-
-        if [ "${current}" = "${target_version}" ]; then
-                log_success "Version sync verified: v${target_version}"
-        else
-                log_success "Version bumped to v${target_version}"
-        fi
 }
 
 # Verify all active version refs agree with Cargo.toml. No build, no writes.
@@ -587,7 +526,7 @@ run_version_sync() {
         if "${bumper}" --check "${current}"; then
                 log_success "All active version refs agree with Cargo.toml (v${current})"
         else
-                log_error "Version desync detected — run './scripts/build.sh v${current}' to fix"
+                log_error "Version desync detected — run './scripts/version-to.sh v${current}' to fix"
                 return 1
         fi
 }
@@ -597,7 +536,6 @@ VERBOSE=0
 NO_CACHE=0
 PGO_AUTO=0
 COMMAND=""
-REQUESTED_VERSION=""
 
 ARGS=()
 while [ $# -gt 0 ]; do
@@ -625,19 +563,6 @@ while [ $# -gt 0 ]; do
                 shift
                 ;;
         *)
-                # First positional arg can be a VERSION (e.g. v20.0.0) or a
-                # COMMAND (e.g. release). Detect VERSION by shape and consume
-                # it separately so it doesn't pollute the command slot.
-                if [ -z "${REQUESTED_VERSION}" ] && [ -z "${COMMAND}" ] && is_version_arg "$1"; then
-                        # Strip optional 'v' prefix — version-to.sh handles
-                        # either form, but normalizing here keeps the log
-                        # messages and stored value clean.
-                        v="$1"
-                        v="${v#v}"
-                        REQUESTED_VERSION="${v}"
-                        shift
-                        continue
-                fi
                 if [ -z "${COMMAND}" ]; then
                         COMMAND="$1"
                         shift
@@ -845,20 +770,6 @@ main() {
         fi
 
         local command="${COMMAND:-debug}"
-
-        # If a VERSION was given as the first positional arg, bump the repo
-        # to that version BEFORE doing anything else. This must happen before
-        # any build so cargo reads the freshly-updated Cargo.toml.
-        #
-        # When a VERSION is present and no explicit COMMAND was given, default
-        # to `release` (the most common case for a tagged release build).
-        # Without a VERSION, the default remains `debug` (dev workflow).
-        if [ -n "${REQUESTED_VERSION}" ]; then
-                bump_version_if_requested "${REQUESTED_VERSION}" || exit 1
-                if [ -z "${COMMAND}" ]; then
-                        command="release"
-                fi
-        fi
 
         if [ ${#ARGS[@]} -ne 0 ]; then
                 log_error "Unexpected extra arguments: ${ARGS[*]}"

@@ -71,6 +71,7 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
 
     // ── config ──
     json_object(&mut out, "config", |o| {
+        o.push_kv_str("scene", &data.scene);
         o.push_kv("cols", data.w);
         o.push_kv("lines", data.h);
         o.push_kv("target_fps", data.target_fps);

@@ -132,7 +132,7 @@ mod tests {
     fn bench_report_data_struct_fields_are_all_used() {
         // Verify the BenchReportData struct has the expected field count
         // to guard against accidental removal of fields during refactoring.
-        // Count: status(1) + dims/config(5) + perf(8) + dirty(8) + throughput(6) + timing(3) = 31
+        // Count: status(1) + dims/config(6) + perf(8) + dirty(8) + throughput(6) + timing(3) = 32
         let data = BenchReportData {
             was_interrupted: false,
             w: 80,
@@ -141,6 +141,7 @@ mod tests {
             target_fps: 60.0,
             density: 1.0_f32,
             speed: 1.0_f32,
+            scene: "cinematic".to_string(),
             avg_fps: 13000.0,
             peak_fps: 15000.0,
             avg_frame_time: 0.077,
@@ -219,6 +220,7 @@ mod tests {
         assert_eq!(data.h, 24);
         assert!(data.avg_fps > 0.0);
         assert!(data.ansi_bytes_per_second > 0);
+        assert_eq!(data.scene, "cinematic");
     }
 
     #[test]

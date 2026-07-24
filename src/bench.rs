@@ -100,6 +100,7 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let fps = (bench_frames as f64) / elapsed_s;
 
     println!("BENCH:");
+    println!("  scene: {}", cfg.scene_name);
     println!("  cols: {}", w);
     println!("  lines: {}", h);
     println!("  frames: {}", bench_frames);
@@ -560,6 +561,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         target_fps: cfg.target_fps,
         density: cfg.density,
         speed: cfg.speed,
+        scene: cfg.scene_name.clone(),
         avg_fps,
         peak_fps,
         avg_frame_time,
@@ -885,6 +887,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         target_fps: cfg.target_fps,
         density: cfg.density,
         speed: cfg.speed,
+        scene: cfg.scene_name.clone(),
         avg_fps,
         peak_fps,
         avg_frame_time,

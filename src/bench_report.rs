@@ -48,6 +48,10 @@ pub(crate) struct BenchReportData {
     pub target_fps: f64,
     pub density: f32,
     pub speed: f32,
+    /// Active scene name for this benchmark run (e.g. "cinematic", "monolith",
+    /// "signal"). Resolved from `CloudConfig::scene_name` so the report makes
+    /// clear which scene generated the metrics — critical for comparing runs.
+    pub scene: String,
 
     // Performance
     pub avg_fps: f64,
@@ -255,6 +259,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
 
     {
         let s = r.section("CONFIG");
+        s.field("scene", &data.scene);
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());
         s.field("target_fps", &format!("{:.1}", data.target_fps));

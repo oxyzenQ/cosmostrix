@@ -925,7 +925,10 @@ fn main() -> std::io::Result<()> {
         let duration = resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
         let results = crate::bench_scale::run_scaling_benchmark(&cloud_cfg, duration)?;
         if args.json {
-            println!("{}", crate::bench_scale::build_scaling_json(&results));
+            println!(
+                "{}",
+                crate::bench_scale::build_scaling_json(&results, &cloud_cfg.scene_name)
+            );
         }
         return Ok(());
     }

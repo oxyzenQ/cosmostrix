@@ -187,24 +187,22 @@ git push origin v4.0.0
 
 ## Version bump
 
-The single source of truth for the package version is `Cargo.toml`'s `[package] version` field. Every other active version reference in the repo is derived from it — either at compile time via `env!("CARGO_PKG_VERSION")` in Rust source, or by `./scripts/version-to.sh` for files that must contain a literal version string (PKGBUILD, .SRCINFO, README install example).
+The single source of truth for the package version is `Cargo.toml`'s `[package] version` field. Every other active version reference in the repo is derived from it — either at compile time via `env!("CARGO_PKG_VERSION")` in Rust source, or by `./scripts/version-to.sh` for files that must contain a literal version string (PKGBUILD, .SRCINFO, README install example, docs/workflow/about-ci.md).
 
-### One-shot bump + build (recommended)
+### Bump + build (recommended)
 
-`./scripts/build.sh` accepts an optional leading VERSION argument that bumps the repo and then builds in a single command:
+Bump the repo with `./scripts/version-to.sh`, then trigger a build separately with `./scripts/build.sh`:
 
 ```bash
-./scripts/build.sh v20.0.0             # bump to v20.0.0, then release build
-./scripts/build.sh v20.0.0 debug       # bump, then debug build
-./scripts/build.sh v20.0.0 pgo --auto  # bump, then PGO build with auto CPU
-./scripts/build.sh version-sync        # verify all version refs agree (no build)
+./scripts/version-to.sh v20.0.0         # bump to v20.0.0 across all active files
+./scripts/build.sh release              # then build a release binary
+./scripts/build.sh pgo --auto           # or a PGO nitro build
+./scripts/build.sh version-sync         # verify all version refs agree (no build)
 ```
 
-If the repo is already at the requested version, the bump step is a no-op (verification only, no writes).
+If the repo is already at the requested version, `version-to.sh` is a no-op (verification only, no writes).
 
-### Two-step bump (explicit)
-
-Use the `version-to.sh` helper to bump without building:
+### What version-to.sh updates
 
 ```bash
 ./scripts/version-to.sh 20.0.0
@@ -220,6 +218,7 @@ The script updates:
 - `aur/cosmostrix-bin/PKGBUILD` (`pkgver=`, `_tag=`)
 - `aur/cosmostrix-bin/.SRCINFO` (regenerated from PKGBUILD)
 - `README.md` (active version examples)
+- `docs/workflow/about-ci.md` (active version examples)
 
 It skips changelog headings (e.g. `### v20.0.0`) to preserve historical release notes, and audits workflow files for hardcoded versions (workflows should derive versions dynamically from `GITHUB_REF_NAME`).
 
