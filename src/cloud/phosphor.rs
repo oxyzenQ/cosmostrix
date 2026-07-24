@@ -73,7 +73,22 @@ impl Cloud {
             }
         }
         let current_gen = frame.current_gen();
-        let mut tracked_fresh: smallvec::SmallVec<[usize; 256]> = smallvec::SmallVec::new();
+        // Reuse the heap capacity from last frame's `phosphor_last_fresh`
+        // instead of allocating a fresh SmallVec every frame. The
+        // `mem::take` + `clear()` pattern preserves any heap capacity the
+        // SmallVec grew on a previous frame, so steady-state per-frame
+        // allocation drops to ZERO after the first spill. Without this,
+        // each frame allocates a new SmallVec (1 alloc + 1 dealloc) once
+        // the fresh-cell count exceeds the 256-element inline capacity —
+        // which happens at ~80×24 and larger, exactly the sizes where the
+        // scaling audit showed 3-5 allocs/frame.
+        //
+        // We take the field (replacing it with the empty default) and use
+        // it as our working buffer for this frame; at the end of the
+        // function we leave it in place (no re-assignment) so the
+        // capacity carries forward to the next frame.
+        let mut tracked_fresh = std::mem::take(&mut self.phosphor_last_fresh);
+        tracked_fresh.clear();
 
         // OPTIMIZED: use dirty-index scan when available, full-grid as fallback.
         if frame.is_dirty_all() {
@@ -174,8 +189,10 @@ impl Cloud {
             }
         }
 
-        // Save tracked_fresh for next frame's incremental phosphor_fresh clear.
-        // tracked_fresh is no longer needed after the dedup loop above, so move it.
+        // Save tracked_fresh for next frame's incremental phosphor_fresh
+        // clear. Since we `mem::take`-d the field at the top of the
+        // function and reused it as our working buffer, we just move it
+        // back into place here — no allocation, capacity carries forward.
         self.phosphor_last_fresh = tracked_fresh;
 
         // PERF(v10): Precompute per-frame decay factors for all (layer, bottom)

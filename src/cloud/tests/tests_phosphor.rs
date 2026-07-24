@@ -695,3 +695,90 @@ fn tab_after_phosphor_activity_does_not_increase_ghost_fill() {
         }
     }
 }
+
+// ── phosphor_last_fresh capacity reuse (zero per-frame allocation) ─────────
+//
+// The phosphor decay pass uses `phosphor_last_fresh` as a scratch buffer
+// for tracking freshly-phosphored cells each frame. The optimization
+// (std::mem::take + clear + reuse) preserves the SmallVec's heap capacity
+// across frames so steady-state per-frame allocation is zero. These tests
+// pin that contract so a future refactor doesn't regress to per-frame
+// allocation.
+
+#[test]
+fn phosphor_last_fresh_is_reused_across_frames() {
+    // After running multiple frames, phosphor_last_fresh should have
+    // non-empty content (cells were tracked) but should NOT grow unboundedly
+    // — it gets cleared and refilled each frame.
+    let mut cloud = super::make_cloud();
+    cloud.reset(80, 24);
+    let mut frame = Frame::new(80, 24, None);
+
+    let now = Instant::now();
+    // Run enough frames for droplets to spawn and start producing phosphor.
+    for i in 0..30 {
+        cloud.rain_at(&mut frame, now + Duration::from_millis(i * 16));
+        frame.clear_dirty();
+    }
+
+    // After 30 frames, phosphor_last_fresh should contain whatever fresh
+    // cells were tracked in the LAST frame. It should be non-empty (rain
+    // is active) and bounded by the cell count.
+    let last_fresh_len = cloud.phosphor_last_fresh.len();
+    assert!(
+        last_fresh_len > 0,
+        "phosphor_last_fresh should have tracked fresh cells after 30 frames of rain"
+    );
+    assert!(
+        last_fresh_len <= 80 * 24,
+        "phosphor_last_fresh length {last_fresh_len} should not exceed cell count {}",
+        80 * 24
+    );
+}
+
+#[test]
+fn phosphor_last_fresh_capacity_preserved_across_frames() {
+    // The key optimization property: after the SmallVec spills to heap
+    // (which happens when fresh cells > 256 inline capacity), the heap
+    // capacity should be preserved across frames rather than being
+    // dropped and re-allocated each frame.
+    //
+    // We verify this indirectly: run many frames, then check that
+    // phosphor_last_fresh has a stable capacity (it was reused, not
+    // reallocated from scratch each frame).
+    let mut cloud = super::make_cloud();
+    cloud.reset(120, 40); // large enough to spill >256 fresh cells
+    let mut frame = Frame::new(120, 40, None);
+
+    let now = Instant::now();
+    // Warm up — run enough frames for the SmallVec to spill and stabilize.
+    for i in 0..60 {
+        cloud.rain_at(&mut frame, now + Duration::from_millis(i * 16));
+        frame.clear_dirty();
+    }
+
+    let capacity_after_warmup = cloud.phosphor_last_fresh.capacity();
+
+    // Run more frames — capacity should NOT shrink (we're reusing the
+    // buffer) and should NOT grow unboundedly (no leak).
+    for i in 0..60 {
+        cloud.rain_at(&mut frame, now + Duration::from_millis((60 + i) * 16));
+        frame.clear_dirty();
+    }
+
+    let capacity_after_more_frames = cloud.phosphor_last_fresh.capacity();
+    assert!(
+        capacity_after_more_frames >= capacity_after_warmup,
+        "phosphor_last_fresh capacity should not shrink across frames \
+         (warmup={}, after={}): the reuse optimization must preserve capacity",
+        capacity_after_warmup,
+        capacity_after_more_frames
+    );
+    // Capacity should not grow unboundedly (no leak). Allow some slack
+    // for growth during the first spill, but it should stabilize.
+    assert!(
+        capacity_after_more_frames <= 80_000,
+        "phosphor_last_fresh capacity {capacity_after_more_frames} should be bounded \
+         (no unbounded growth / leak)"
+    );
+}

@@ -35,6 +35,14 @@ pub struct VisualSampler {
     prev_cells: Vec<crate::cell::Cell>,
     sample_interval: u32,
     frame_counter: u32,
+    // Reusable scratch buffers for per-sample column-distribution analysis.
+    // Hoisted out of `sample()` so they are allocated once and `clear()`-ed
+    // per sample instead of `vec![...]`-allocated every sample. This keeps
+    // the benchmark's `alloc_calls_per_frame` metric honest — without this,
+    // the visual sampler alone contributes ~0.2 allocs/frame of noise that
+    // does not reflect the real rendering hot path.
+    col_counts: Vec<u32>,
+    sorted_counts: Vec<u32>,
 }
 
 impl VisualSampler {
@@ -48,6 +56,8 @@ impl VisualSampler {
             prev_cells: Vec::new(),
             sample_interval,
             frame_counter: 0,
+            col_counts: Vec::new(),
+            sorted_counts: Vec::new(),
         }
     }
 
@@ -66,22 +76,25 @@ impl VisualSampler {
         let width = frame.width as usize;
         let height = frame.height as usize;
 
-        // Count dirty cells per column
-        let mut col_counts = vec![0u32; width];
+        // Count dirty cells per column. Reuse the hoisted `col_counts`
+        // buffer — `clear()` preserves capacity, `resize()` only allocates
+        // if the width grew (terminal resize). Steady state: zero allocs.
+        self.col_counts.clear();
+        self.col_counts.resize(width, 0u32);
         if frame.is_dirty_all() {
-            col_counts.fill(height as u32);
+            self.col_counts.fill(height as u32);
         } else {
             for &idx in dirty {
                 let col = idx % width;
-                col_counts[col] += 1;
+                self.col_counts[col] += 1;
             }
         }
 
         // 1. Shannon entropy of column distribution
-        let total: u32 = col_counts.iter().sum();
+        let total: u32 = self.col_counts.iter().sum();
         if total > 0 {
             let mut entropy = 0.0;
-            for &count in &col_counts {
+            for &count in &self.col_counts {
                 if count > 0 {
                     let p = count as f64 / total as f64;
                     entropy -= p * p.log2();
@@ -90,14 +103,17 @@ impl VisualSampler {
             self.entropy_sum += entropy;
         }
 
-        // 2. Gini coefficient
-        let mut sorted = col_counts.clone();
-        sorted.sort_unstable();
-        let n = sorted.len() as f64;
-        let sum: u32 = sorted.iter().sum();
+        // 2. Gini coefficient. Reuse `sorted_counts` buffer — clone into
+        // it (capacity preserved), then sort in place. Steady state: zero
+        // allocs.
+        self.sorted_counts.clear();
+        self.sorted_counts.extend_from_slice(&self.col_counts);
+        self.sorted_counts.sort_unstable();
+        let n = self.sorted_counts.len() as f64;
+        let sum: u32 = self.sorted_counts.iter().sum();
         if sum > 0 && n > 0.0 {
             let mut weighted_sum = 0.0;
-            for (i, &val) in sorted.iter().enumerate() {
+            for (i, &val) in self.sorted_counts.iter().enumerate() {
                 weighted_sum += (i as f64 + 1.0) * val as f64;
             }
             let gini = (2.0 * weighted_sum) / (n * sum as f64) - (n + 1.0) / n;
