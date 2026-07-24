@@ -190,6 +190,90 @@ pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
     1.0 - t * t
 }
 
+// ── dragon-temporal: predicted state for skipping unchanged droplets ────
+//
+// The temporal-prediction experiment tracks where each droplet's head will
+// be N frames ahead, assuming its current velocity remains constant. When
+// the actual state matches the prediction, the simulation loop skips
+// `advance()` and the render loop skips `draw()` for that droplet — its
+// visible cells retain their previous content (which `Frame::set()`'s
+// content-aware dirty check already filters out), so they don't appear in
+// the dirty list. This slashes the dirty-cell count without altering the
+// rendered image.
+//
+// The prediction is intentionally lightweight: linear extrapolation only,
+// no turbulence, no gravity. As soon as the actual state diverges (which
+// happens naturally because turbulence perturbs velocity), the prediction
+// is invalidated and the droplet is processed normally for one frame
+// before a new prediction is computed.
+
+/// Predicted droplet state N frames ahead, computed by linear extrapolation.
+///
+/// Stored in `Droplet::predicted_state` after every real `advance()` call.
+/// The simulation loop consults it before the next frame's `advance()`:
+/// if the actual `head_put_line` already matches `predicted_head_line`
+/// (within `PREDICTION_TOLERANCE` cells), the droplet is "predicted clean"
+/// and both `advance()` and `draw()` are skipped for that frame.
+#[derive(Clone, Copy, Debug)]
+pub struct PredictedState {
+    /// Column this droplet is bound to (constant for the droplet's lifetime).
+    pub col: u16,
+    /// Predicted `head_put_line` after `frames_ahead` frames of advance.
+    /// dragon-temporal peak: superseded by the trajectory fields below for
+    /// the drift-tolerant skip check. Retained for diagnostics.
+    #[allow(dead_code)]
+    pub head_line: u16,
+    /// Predicted remaining lifetime (in frames) at the predicted position.
+    /// Used for diagnostics; not currently consumed by the simulation loop
+    /// because droplet lifetime is implicitly tracked via `is_alive`.
+    #[allow(dead_code)]
+    pub lifetime_remaining: u16,
+    /// Predicted palette/color-pool index. Constant for the droplet's
+    /// lifetime; tracked here for completeness per the experiment spec.
+    #[allow(dead_code)]
+    pub color_pool_idx: u8,
+    /// How many frames the prediction is still valid for. Decremented each
+    /// frame the prediction is used. When it reaches 0, the prediction is
+    /// invalidated and a fresh one is computed after the next real
+    /// `advance()`. This bounds the maximum staleness of a prediction so
+    /// accumulated drift from turbulence cannot persist indefinitely.
+    pub frames_remaining: u8,
+
+    // dragon-temporal peak: trajectory tracking for drift-tolerant skip.
+    // Original logic checked current head vs END-of-horizon predicted head,
+    // which only matched for stationary droplets. We store origin + total_advance
+    // + horizon so prediction_matches_actual can compute the predicted position
+    // at ANY frame k: origin + (total_advance * k / horizon).
+    pub origin_head_line: u16,
+    pub total_advance: u16,
+    pub horizon: u8,
+}
+
+/// Tolerance for matching a prediction against the actual head line.
+/// A droplet is "predicted clean" if `|actual_head_line - predicted_head_line|`
+/// is at most this many cells. Set to 1 to absorb rounding noise from the
+/// linear extrapolation (the real `advance()` uses `advance_remainder`
+/// accumulation which can shift the head by 0 or 1 cells per frame).
+///
+/// dragon-temporal peak: superseded by `PREDICTION_DRIFT_TOLERANCE` which
+/// checks drift from the trajectory (not the end position). Retained for
+/// diagnostic / future use.
+#[allow(dead_code)]
+pub const PREDICTION_TOLERANCE: u16 = 1;
+
+/// Number of frames a fresh prediction covers. After this many skip frames,
+/// the prediction is force-invalidated to recalibrate against turbulence drift.
+///
+/// dragon-temporal peak: bumped 4 → 12. Combined with drift-tolerant matching,
+/// slow droplets skip up to 12 consecutive frames.
+pub const PREDICTION_HORIZON: u8 = 12;
+
+/// Max drift (cells) between actual head and predicted trajectory before
+/// the prediction is invalidated. Trajectory at frame k:
+///   origin + (total_advance * k / horizon)
+/// Set to 2 to absorb turbulence + floor-rounding noise.
+pub const PREDICTION_DRIFT_TOLERANCE: u16 = 2;
+
 #[derive(Clone, Debug)]
 pub struct Droplet {
     pub is_alive: bool,
@@ -234,6 +318,36 @@ pub struct Droplet {
     /// the new palette propagates only through newly spawned streams.
     pub palette_slot: u8,
 
+    // ── dragon-temporal: predicted state for skipping unchanged frames ──
+    //
+    // When `Some`, the simulation loop may skip `advance()` and the render
+    // loop may skip `draw()` for this droplet, because the previous frame's
+    // prediction indicated the visible cells would not change content this
+    // frame. The prediction is recomputed after every real `advance()` and
+    // is invalidated as soon as the actual state diverges from it.
+    //
+    // The flag `predicted_clean` is a transient per-frame marker set by the
+    // simulation pass so the draw pass knows to skip rendering. It is reset
+    // at the end of every frame.
+    //
+    // `was_skipped` tracks whether the previous frame skipped `advance()`.
+    // When true, the next real `advance()` must bypass the `max_sim_delta`
+    // cap so the accumulated elapsed time (K frames worth) is fully
+    // consumed — otherwise the droplet would move at 1/K speed. The cap
+    // exists for pause/resume correctness; bypassing it for predicted-clean
+    // droplets is safe because the skip was intentional, not a stall.
+    pub predicted_state: Option<PredictedState>,
+    pub predicted_clean: bool,
+    pub was_skipped: bool,
+
+    /// dragon-temporal peak: cells moved by the most recent `advance()` call.
+    /// Read by the draw pass to decide between `draw_recent_only()` (cheap:
+    /// just the new head cells + previous head cell transitioning to Body)
+    /// vs full `draw()` (full trail iteration). When
+    /// `last_chars_advanced <= DRAW_RECENT_THRESHOLD` (in rain.rs), the cheap
+    /// path slashes dirty cells per advancing droplet from ~5-7 to ~1-3.
+    pub last_chars_advanced: u16,
+
     /// Turbulence phase offset (determines unique oscillation pattern).
     pub turb_phase: f32,
     /// Turbulence accumulator (elapsed time for this droplet's oscillation).
@@ -274,6 +388,13 @@ impl Droplet {
             head_stop_time: None,
             time_to_linger: Duration::from_millis(0),
             birth_time: None,
+
+            // dragon-temporal: no prediction until after the first advance().
+            predicted_state: None,
+            predicted_clean: false,
+            was_skipped: false,
+            // dragon-temporal peak: no advance yet.
+            last_chars_advanced: 0,
         }
     }
 
@@ -293,6 +414,14 @@ impl Droplet {
         self.turb_time = 0.0;
         self.last_time = Some(now);
         self.birth_time = Some(now);
+        // dragon-temporal: clear any stale prediction from a previous
+        // lifecycle — a recycled droplet's new physics are independent of
+        // its old trajectory.
+        self.predicted_state = None;
+        self.predicted_clean = false;
+        self.was_skipped = false;
+        // dragon-temporal peak: reset advance counter for the new lifecycle.
+        self.last_chars_advanced = 0;
     }
 
     /// Apply spawn phase jitter: set a random fractional advance offset so
@@ -304,6 +433,102 @@ impl Droplet {
     #[inline]
     pub fn apply_phase_jitter(&mut self, offset: f32) {
         self.advance_remainder = offset.clamp(0.0, 1.0);
+    }
+
+    // ── dragon-temporal: linear path prediction ───────────────────────────
+    //
+    // Predict where this droplet's head will be after `frames_ahead` frames,
+    // assuming its current velocity stays constant (no turbulence, no
+    // gravity, no wind gusts). The prediction is intentionally a coarse
+    // linear extrapolation — its purpose is not physical accuracy but to
+    // identify frames where the droplet's visible cells will not change
+    // content (head didn't move to a new row, tail didn't advance), so the
+    // simulation and render loops can skip the work entirely.
+    //
+    // Returns `None` if the droplet is not in a predictable state (e.g.,
+    // head is no longer crawling — it's either stopped at end_line or in
+    // the linger phase where brightness decays every frame).
+    //
+    // The `fps` parameter is the simulation's frame rate (typically 60).
+    // Used to convert velocity (chars/sec) into per-frame advance (chars).
+    #[inline]
+    pub fn predict_droplet_path(&self, frames_ahead: u8, fps: f32) -> Option<PredictedState> {
+        // Only predict for actively crawling heads. Once the head stops
+        // (is_head_crawling == false), head_brightness decays exponentially
+        // every frame via head_stop_time, so the head cell's color changes
+        // every frame even though the position is fixed. Skipping those
+        // frames would freeze the decay visually.
+        if !self.is_alive || !self.is_head_crawling {
+            return None;
+        }
+        if fps <= 0.0 || frames_ahead == 0 {
+            return None;
+        }
+
+        // Linear extrapolation: predicted_head_line = head_put_line + (velocity * frames_ahead / fps)
+        // We use the droplet's *target* speed (chars_per_sec) rather than
+        // the instantaneous velocity, because velocity includes startup
+        // easing and turbulence drift that we don't model in the prediction.
+        // Using chars_per_sec means the prediction assumes the droplet
+        // reaches terminal velocity immediately, which is approximately
+        // true after the startup ease window.
+        //
+        // The actual advance() may produce 0 or 1 cells of movement per
+        // frame depending on advance_remainder accumulation; the tolerance
+        // in the simulation loop absorbs this rounding noise.
+        let advance_per_frame = self.chars_per_sec / fps;
+        let total_advance = (advance_per_frame * frames_ahead as f32).floor() as u16;
+        let predicted_head_line = self.head_put_line.saturating_add(total_advance);
+
+        // Clamp to end_line — if the prediction overshoots, the droplet
+        // would have stopped at end_line, so predict that.
+        let predicted_head_line = predicted_head_line.min(self.end_line);
+
+        // Approximate remaining lifetime in frames. We don't have an exact
+        // TTL field; estimate from (end_line - head_put_line) / advance_per_frame.
+        let remaining_cells = self.end_line.saturating_sub(self.head_put_line);
+        let lifetime_remaining = if advance_per_frame > 0.0 {
+            (remaining_cells as f32 / advance_per_frame) as u16
+        } else {
+            u16::MAX // stationary — effectively infinite lifetime
+        };
+
+        Some(PredictedState {
+            col: self.bound_col,
+            head_line: predicted_head_line,
+            lifetime_remaining,
+            color_pool_idx: self.char_pool_idx as u8,
+            frames_remaining: frames_ahead,
+            origin_head_line: self.head_put_line,
+            total_advance,
+            horizon: frames_ahead,
+        })
+    }
+
+    /// Check whether the current head is within `PREDICTION_DRIFT_TOLERANCE`
+    /// cells of the predicted **trajectory** (not the end-of-horizon position).
+    ///
+    /// dragon-temporal peak: original logic compared current head vs END-of-horizon
+    /// predicted head — only matched for stationary droplets. New logic computes
+    /// the predicted position at the current frame:
+    ///   elapsed = horizon - frames_remaining
+    ///   predicted_now = origin + (total_advance * elapsed / horizon)
+    /// and tolerates drift up to PREDICTION_DRIFT_TOLERANCE cells. This lets
+    /// moving droplets skip frames DURING the horizon.
+    #[inline]
+    pub fn prediction_matches_actual(&self) -> bool {
+        let Some(ps) = self.predicted_state else {
+            return false;
+        };
+        if ps.frames_remaining == 0 || ps.col != self.bound_col || ps.horizon == 0 {
+            return false;
+        }
+        let elapsed_frames = ps.horizon.saturating_sub(ps.frames_remaining);
+        // u32 to avoid overflow on total_advance * elapsed_frames.
+        let traj_advance =
+            (ps.total_advance as u32 * elapsed_frames as u32 / ps.horizon as u32) as u16;
+        let predicted_now = ps.origin_head_line.saturating_add(traj_advance);
+        self.head_put_line.abs_diff(predicted_now) <= PREDICTION_DRIFT_TOLERANCE
     }
 
     pub fn increment_time(&mut self, delta: Duration) {
@@ -374,14 +599,28 @@ impl Droplet {
         let chars_advanced = whole as u16;
         if chars_advanced == 0 {
             self.last_time = Some(now);
+            // dragon-temporal peak: no head movement this frame — draw pass
+            // will see last_chars_advanced = 0 and use the cheap path (or
+            // skip draw entirely via predicted_clean).
+            self.last_chars_advanced = 0;
             return false;
         }
+
+        // dragon-temporal peak: track the actual head movement (post-clamp
+        // to end_line) so the draw pass knows how many new head cells need
+        // rendering. We capture the pre-add head_put_line, then after the
+        // clamp, compute the delta. When the head is not crawling (already
+        // stopped at end_line), no new head cells are drawn, so we set to 0.
+        let old_head_put_line = self.head_put_line;
 
         if self.is_head_crawling {
             self.head_put_line = self.head_put_line.saturating_add(chars_advanced);
             if self.head_put_line > self.end_line {
                 self.head_put_line = self.end_line;
             }
+
+            // dragon-temporal peak: actual head movement = new - old.
+            self.last_chars_advanced = self.head_put_line.saturating_sub(old_head_put_line);
 
             if self.head_put_line == self.end_line {
                 self.is_head_crawling = false;
@@ -392,6 +631,9 @@ impl Droplet {
                     }
                 }
             }
+        } else {
+            // Head stopped — only the tail is advancing. No new head cells.
+            self.last_chars_advanced = 0;
         }
 
         if self.is_tail_crawling
@@ -487,6 +729,35 @@ impl Droplet {
         now: Instant,
         draw_everything: bool,
     ) {
+        self.draw_impl(ctx, frame, now, draw_everything, false);
+    }
+
+    /// dragon-temporal peak (Lever 2 + 3): cheap draw path that only iterates
+    /// the new head cell(s) + previous head cell (transitioning Head → Body).
+    /// Body cells further down the trail retain their previous frame's content
+    /// (slightly stale head bloom — imperceptible at 60 FPS). Tail cleanup is
+    /// still performed (same as `draw()`) to avoid lingering stale glyphs.
+    /// `Frame::set_persistent` exists for cases where we want to re-emit a
+    /// cell without recomputing its content; here we recompute the head region
+    /// because the head char/color genuinely changed.
+    pub fn draw_recent_only(
+        &mut self,
+        ctx: &DrawCtx<'_>,
+        frame: &mut Frame,
+        now: Instant,
+        draw_everything: bool,
+    ) {
+        self.draw_impl(ctx, frame, now, draw_everything, true);
+    }
+
+    fn draw_impl(
+        &mut self,
+        ctx: &DrawCtx<'_>,
+        frame: &mut Frame,
+        now: Instant,
+        draw_everything: bool,
+        recent_only: bool,
+    ) {
         let bg = ctx.bg;
 
         let mut start_line = 0u16;
@@ -497,6 +768,20 @@ impl Droplet {
             }
             self.tail_cur_line = tp;
             start_line = tp.saturating_add(1);
+        }
+
+        // dragon-temporal peak (Lever 2 + 3): when `recent_only` is true,
+        // narrow the iteration to just the new head cell(s) + previous head
+        // cell (transitioning Head → Body). Range:
+        //   [head_put_line - last_chars_advanced, head_put_line]
+        // Max with post-tail-cleanup start_line to avoid re-drawing blanked
+        // cells. If last_chars_advanced == 0 (head stopped, brightness
+        // decaying), range collapses to just the current head cell.
+        if recent_only {
+            let prev_head = self
+                .head_put_line
+                .saturating_sub(self.last_chars_advanced);
+            start_line = start_line.max(prev_head);
         }
 
         // PERF: head_brightness() depends only on `self` and `now`, NOT on

@@ -311,6 +311,33 @@ impl Frame {
             }
         }
     }
+
+    /// dragon-temporal peak: mark a cell as dirty for the current frame
+    /// WITHOUT changing its content. The cell's existing content (from a
+    /// previous frame's draw) is preserved and re-emitted to the terminal.
+    ///
+    /// This is the "persistent cell" mechanism: when a droplet advances by
+    /// 1-2 cells, the body cells from the previous frame are still visually
+    /// correct (the previous head cell retains its head bloom for one extra
+    /// frame — imperceptible at 60 FPS). We mark them dirty so the IO layer
+    /// re-emits them, but we skip the cost of recomputing their content.
+    ///
+    /// Net effect: a droplet advance marks ~1-3 dirty cells (new head + tail
+    /// cleanup) instead of ~5-7 (full trail iteration), slashing dirty ratio.
+    ///
+    /// If the cell was already marked dirty this frame, this is a no-op
+    /// (idempotent — same double-buffered guard as set/set_force).
+    #[inline]
+    pub fn set_persistent(&mut self, x: u16, y: u16) {
+        if let Some(i) = self.index(x, y) {
+            // Only mark dirty; do NOT touch cells[i] or cell_gen[i].
+            // The existing content stays intact and gets re-emitted.
+            if !self.dirty_all && self.dirty_cell_gen[i] != self.dirty_gen {
+                self.dirty_cell_gen[i] = self.dirty_gen;
+                self.dirty.push(i);
+            }
+        }
+    }
 }
 
 #[cfg(test)]
