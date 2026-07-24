@@ -27,7 +27,7 @@ use clap::ValueEnum;
 
 use crate::charset::charset_from_str;
 use crate::cli::parse_color_scheme;
-use crate::config::{Args, ColorBg, GlitchLevel};
+use crate::config::{Args, ColorBg, GlitchLevel, IntroType};
 use crate::configfile::load_config_file;
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::runtime::MonolithSize;
@@ -405,6 +405,19 @@ fn apply_config_values(
             Err(_) => eprintln!(
                 "error: invalid glitch-level='{v}' (allowed: none, subtle, default, intense)"
             ),
+        }
+    }
+    if let Some(v) = config_value(matches, cfg, "intro", "intro") {
+        // Parse the intro type using clap's ValueEnum machinery so the
+        // accepted values stay in sync with the --intro CLI flag.
+        // Precedence: CLI --intro flag wins over this config key (handled
+        // by `config_value` returning None when the flag is explicit).
+        match IntroType::from_str(&v, true) {
+            Ok(t) => {
+                args.intro = Some(t);
+                config_touched.insert("intro");
+            }
+            Err(_) => eprintln!("error: invalid intro='{v}' (allowed: cosmic, logo, none)"),
         }
     }
     if let Some(v) = config_value(matches, cfg, "bold", "bold") {

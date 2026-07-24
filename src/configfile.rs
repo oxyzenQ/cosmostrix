@@ -50,6 +50,9 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "atmosphere-mode",
     "atmosphere-regime",
     "adaptive-custom",
+    // v20: Cinematic intro selector. Values: "logo" | "cosmic" | "none".
+    // Default: "logo". CLI --intro flag wins over this config key.
+    "intro",
     // v17: "colors-custom" selector key REMOVED. Use --colors-custom CLI flag.
 ];
 
@@ -309,6 +312,9 @@ pub fn dump_config_text() -> &'static str {
 
 # Background mode: default-background (follow terminal) | black (solid #000000)
 # color-bg = default-background
+
+# Cinematic intro animation played before the rain engine starts.
+# intro = "logo"  # Intro animation: logo | cosmic | none
 
 # Motion
 

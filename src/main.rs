@@ -879,7 +879,7 @@ fn main() -> std::io::Result<()> {
         base_density,
         perf_stats: args.perf_stats,
         screensaver: args.screensaver,
-        intro: args.intro.unwrap_or(crate::config::IntroType::None),
+        intro: args.intro.unwrap_or(crate::config::IntroType::Logo),
         mouse: true, // v17: always-on (--mouse flag deleted)
         charset_preset,
         user_ranges,

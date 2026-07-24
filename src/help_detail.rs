@@ -66,8 +66,8 @@ COMMON OPTIONS:
 
   --intro [cosmic|logo|none]
       Cinematic intro played before the rain engine starts. Pick one
-      of three modes (default: logo when --intro is given without a
-      value, none when the flag is omitted entirely).
+      of three modes (default: logo). The intro plays automatically
+      when cosmostrix starts; pass --intro none to skip it entirely.
         logo    Cosmostrix Logo intro (~4.5s). The ASCII logo fades in
                 character by character, a spark falls from the top of
                 the screen and ignites the logo on impact, then the
@@ -82,7 +82,10 @@ COMMON OPTIONS:
         none    Skip the intro entirely.
       Any key skips the intro mid-animation. Auto-skipped in
       --screensaver mode and on terminals smaller than 80x24.
-      cosmostrix --intro              # default: logo
+      The intro choice can be set permanently in config.toml via
+      the 'intro' key (e.g. intro = \"cosmic\"). CLI flag wins over
+      config.
+      cosmostrix                       # default: logo
       cosmostrix --intro logo
       cosmostrix --intro cosmic --scene matrix
       cosmostrix --intro none

@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use clap::{CommandFactory, FromArgMatches};
 
-use crate::config::{Args, GlitchLevel};
+use crate::config::{Args, GlitchLevel, IntroType};
 use crate::config_apply::apply_config_and_runtime_defaults;
 use crate::configfile::dump_config_text;
 use crate::runtime::MonolithSize;
@@ -996,3 +996,68 @@ fn benchmark_fields_remain_backward_compatible() {
 }
 
 // ── v4.6.0 Phase 1 contract tests live in atmosphere_expansion_tests.rs ──
+
+// ── v20 intro config key tests ──────────────────────────────────────────────
+
+#[test]
+fn config_intro_logo_applies() {
+    // Setting intro = "logo" in config sets args.intro to Some(Logo).
+    let args = args_with_config("intro = logo\n", &[]);
+    assert_eq!(args.intro, Some(IntroType::Logo));
+}
+
+#[test]
+fn config_intro_cosmic_applies() {
+    // Setting intro = "cosmic" in config sets args.intro to Some(Cosmic).
+    let args = args_with_config("intro = cosmic\n", &[]);
+    assert_eq!(args.intro, Some(IntroType::Cosmic));
+}
+
+#[test]
+fn config_intro_none_applies() {
+    // Setting intro = "none" in config sets args.intro to Some(None).
+    // This is different from leaving the key unset (which leaves
+    // args.intro as None and falls back to the Logo default in main.rs).
+    let args = args_with_config("intro = none\n", &[]);
+    assert_eq!(args.intro, Some(IntroType::None));
+}
+
+#[test]
+fn config_intro_missing_leaves_args_none() {
+    // When the config key is absent and no CLI flag is provided,
+    // args.intro stays None — main.rs resolves the Logo default via
+    // unwrap_or(IntroType::Logo). This test verifies the config layer
+    // does NOT eagerly set a default.
+    let args = args_with_config("", &[]);
+    assert_eq!(args.intro, None);
+}
+
+#[test]
+fn cli_intro_flag_wins_over_config() {
+    // CLI --intro flag takes precedence over the config key.
+    let args = args_with_config("intro = cosmic\n", &["--intro", "none"]);
+    assert_eq!(args.intro, Some(IntroType::None));
+}
+
+#[test]
+fn cli_intro_bare_flag_wins_over_config() {
+    // Bare --intro (no value) uses default_missing_value = "logo" and
+    // still wins over the config key.
+    let args = args_with_config("intro = cosmic\n", &["--intro"]);
+    assert_eq!(args.intro, Some(IntroType::Logo));
+}
+
+#[test]
+fn dump_config_mentions_intro_key() {
+    // The dump-config template should document the new `intro` key so
+    // users discover it via `cosmostrix --dump-config`.
+    let dump = dump_config_text();
+    assert!(
+        dump.contains("intro"),
+        "dump-config should mention the 'intro' key"
+    );
+    // Should mention all three valid values.
+    assert!(dump.contains("logo"));
+    assert!(dump.contains("cosmic"));
+    assert!(dump.contains("none"));
+}

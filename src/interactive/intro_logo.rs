@@ -42,11 +42,11 @@ use crate::terminal::Terminal;
 
 use super::intro::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
-    should_skip, Particle, ParticlePool, XorShift,
+    should_skip, Particle, ParticlePool, XorShift, PARTICLE_POOL_SIZE,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Logo art
+// Logo art + brand color
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// The Cosmostrix logo as ASCII art. Single-width Unicode density
@@ -54,9 +54,16 @@ use super::intro::{
 /// leading indentation (which forms the visual shape); trailing
 /// whitespace is stripped at parse time.
 ///
-/// Dimensions: 19 lines × 46 chars wide (max). See [`LOGO_HEIGHT`] and
+/// Dimensions: 19 lines × 39 chars wide (max). See [`LOGO_HEIGHT`] and
 /// [`LOGO_WIDTH`] — both are computed at parse time so they always match
 /// the actual art. Rendering centers the logo at the terminal center.
+///
+/// # Centering math
+///
+/// All lines start at the same `logo_x = (term_cols - LOGO_WIDTH) / 2`
+/// offset (integer math, truncating). Each line's leading spaces in the
+/// string literal form the visual shape — they are NOT source-code
+/// indentation. Centering is purely from the offset, never per-line.
 //
 // Note: codespell may complain about substrings inside this art. We keep
 // the .codespellrc ignore-list updated to suppress false positives.
@@ -80,6 +87,28 @@ const LOGO_ART: &str = "\
             .=II-I..  :  <≥I:,,il
                ,××.;  ;i>;:;i+
                        ..";
+
+/// Brand purple — the Cosmostrix signature color (`#A855F7` / RGB
+/// 168,85,247). The logo always renders in this color, regardless of
+/// the user's `--color` flag, so the brand mark stays consistent across
+/// all palette themes. During the dissolve phase, droplets interpolate
+/// from this purple toward the active rain palette's brightest stop,
+/// creating a cinematic "brand → rain" handoff.
+///
+/// The `Color` enum form is kept as the canonical brand reference and
+/// is exercised by unit tests; rendering uses [`LOGO_COLOR_RGB`] for
+/// cheaper lerp math.
+#[allow(dead_code)]
+const LOGO_COLOR: Color = Color::Rgb {
+    r: 168,
+    g: 85,
+    b: 247,
+};
+
+/// RGB triple form of [`LOGO_COLOR`] for efficient lerp math. Kept as a
+/// constant so we don't pay the cost of matching the `Color` enum each
+/// frame for every logo cell.
+const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase + spawn constants
@@ -107,6 +136,13 @@ const FLASH_DECAY_RATE: f32 = 4.0;
 /// Lower than Cosmic Burst's morph range so the rain curtain feels calm.
 const DISSOLVE_SPEED_MIN: f32 = 8.0;
 const DISSOLVE_SPEED_MAX: f32 = 16.0;
+
+/// Horizontal velocity jitter range for dissolve droplets. Each droplet
+/// gets a random `vx` in `[-JITTER_VX, +JITTER_VX]` cells/sec so the
+/// curtain spreads organically before falling, instead of dropping in
+/// perfectly straight columns. ±2 cells/sec is subtle enough to feel
+/// natural without breaking the rain silhouette.
+const JITTER_VX: f32 = 2.0;
 
 /// Fade-in granularity — the logo appears in N reveal steps spread
 /// across Phase 1. Each step reveals another batch of cells. Higher =
@@ -209,7 +245,11 @@ pub(super) fn run_logo_intro(
     let palette_rgb = palette_target_rgb(cloud);
     let rain_charset = rain_chars(cloud);
 
-    // Logo top-left position so it's centered on the terminal.
+    // Logo top-left position so it's centered on the terminal. Integer
+    // math with signed casts so truncation rounds toward zero (correct
+    // for both even and odd terminal widths). All lines start at this
+    // same `logo_x`; per-line shape comes from the leading spaces
+    // baked into `LOGO_ART`. There is no per-line offset adjustment.
     let logo_x = (w as i32 - logo_w as i32) / 2;
     let logo_y = (h as i32 - logo_h as i32) / 2;
     // Center of the logo in terminal coordinates (for the spark target).
@@ -336,8 +376,11 @@ pub(super) fn run_logo_intro(
                 } else {
                     (base_brightness + flash).clamp(0.0, 1.5)
                 };
-                // Color = palette_rgb scaled by brightness, clamped.
-                let color = lerp_rgb((0, 0, 0), palette_rgb, cell_brightness.clamp(0.0, 1.0));
+                // Color = brand purple scaled by brightness, clamped.
+                // Logo always renders in LOGO_COLOR_RGB regardless of
+                // the user's --color flag — the brand mark stays purple
+                // across all palette themes.
+                let color = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, cell_brightness.clamp(0.0, 1.0));
                 // During the flash, lean the color toward white.
                 let color = if flash > 0.0 {
                     let flash_t = (flash / 1.5).clamp(0.0, 1.0);
@@ -409,9 +452,11 @@ pub(super) fn run_logo_intro(
         if phase == 3 {
             let target_dissolved = (phase_t * logo_cells.len() as f32).round() as usize;
             // Per-frame budget so we don't spawn 300 particles in one
-            // frame. 16 droplets/frame at 30 FPS = 480 droplets/sec,
-            // which comfortably covers ~300 cells over the 1 s phase.
-            const PER_FRAME_BUDGET: usize = 16;
+            // frame. 24 droplets/frame at 30 FPS = 720 droplets/sec,
+            // which comfortably covers ~300 cells over the 1 s phase
+            // and gives a denser, more dramatic curtain than the
+            // previous 16/frame.
+            const PER_FRAME_BUDGET: usize = 24;
             let mut spawned_this_frame = 0usize;
             while dissolved_count < target_dissolved
                 && dissolved_count < logo_cells.len()
@@ -427,7 +472,6 @@ pub(super) fn run_logo_intro(
                         tx as f32,
                         ty as f32,
                         &rain_charset,
-                        palette_rgb,
                     );
                 }
                 dissolved_count += 1;
@@ -435,12 +479,17 @@ pub(super) fn run_logo_intro(
             }
         }
 
-        // Render all active rain droplets.
+        // Render all active rain droplets. Each droplet's color is
+        // interpolated from LOGO_COLOR_RGB (at spawn, life_t = 1.0)
+        // toward the active palette's brightest stop (at death,
+        // life_t = 0.0). This creates the cinematic "brand purple →
+        // rain color" transition as droplets fall.
         for p in pool.particles.iter() {
             if !p.active {
                 continue;
             }
             let life_t = (p.life / p.max_life).clamp(0.0, 1.0);
+            let droplet_rgb = lerp_rgb(palette_rgb, LOGO_COLOR_RGB, life_t);
             render_particle_cell(
                 frame,
                 w,
@@ -448,7 +497,7 @@ pub(super) fn run_logo_intro(
                 p.x,
                 p.y,
                 p.ch,
-                (p.r, p.g, p.b),
+                droplet_rgb,
                 palette_bg,
                 life_t,
                 true,
@@ -456,7 +505,7 @@ pub(super) fn run_logo_intro(
             // Dim trailing cell directly above the droplet for a streak.
             let trail_y = p.y - 1.0;
             let trail_brightness = life_t * 0.4;
-            let trail_rgb = lerp_rgb((0, 0, 0), (p.r, p.g, p.b), trail_brightness);
+            let trail_rgb = lerp_rgb((0, 0, 0), droplet_rgb, trail_brightness);
             render_particle_cell(
                 frame,
                 w,
@@ -482,18 +531,24 @@ pub(super) fn run_logo_intro(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Spawn a rain droplet at `(x, y)` — used during the dissolve phase.
-/// The droplet inherits the rain palette color and a random glyph from
-/// `rain_charset`. Initial velocity is straight down with a randomized
-/// speed in `[DISSOLVE_SPEED_MIN, DISSOLVE_SPEED_MAX)`. Life is set so
-/// the droplet lives ~2 s — long enough to fall through a 24-row
-/// terminal even at the slow end of the speed range.
+/// The droplet starts with the brand purple color ([`LOGO_COLOR_RGB`])
+/// and a random glyph from `rain_charset`. The render loop interpolates
+/// the color toward the active rain palette as the droplet ages — see
+/// the render section in [`run_logo_intro`].
+///
+/// Initial velocity is mostly straight down (randomized speed in
+/// `[DISSOLVE_SPEED_MIN, DISSOLVE_SPEED_MAX)`) with a small horizontal
+/// jitter (`vx ∈ [-JITTER_VX, +JITTER_VX]`) so the curtain spreads
+/// organically instead of dropping in perfectly straight columns.
+///
+/// Life is set so the droplet lives ~2 s — long enough to fall through
+/// a 24-row terminal even at the slow end of the speed range.
 fn spawn_rain_droplet(
     pool: &mut ParticlePool,
     rng: &mut XorShift,
     x: f32,
     y: f32,
     rain_charset: &[char],
-    palette_rgb: (u8, u8, u8),
 ) -> bool {
     let speed = lerp(DISSOLVE_SPEED_MIN, DISSOLVE_SPEED_MAX, rng.next_f32());
     let ch = if rain_charset.is_empty() {
@@ -501,18 +556,22 @@ fn spawn_rain_droplet(
     } else {
         rain_charset[(rng.next_u32() as usize) % rain_charset.len()]
     };
-    // Slight horizontal jitter to feel less mechanical.
+    // Slight positional jitter so droplets don't spawn on the exact
+    // same column as the logo cell they came from.
     let jitter_x = (rng.next_f32() - 0.5) * 0.6;
+    // Horizontal velocity jitter so droplets spread a bit before
+    // falling — creates a more organic curtain effect.
+    let vx = (rng.next_f32() - 0.5) * 2.0 * JITTER_VX;
     let life = 2.0;
     pool.spawn(Particle {
         x: x + jitter_x,
         y,
-        vx: 0.0,
+        vx,
         vy: speed,
         ch,
-        r: palette_rgb.0,
-        g: palette_rgb.1,
-        b: palette_rgb.2,
+        r: LOGO_COLOR_RGB.0,
+        g: LOGO_COLOR_RGB.1,
+        b: LOGO_COLOR_RGB.2,
         life,
         max_life: life,
         angle: std::f32::consts::FRAC_PI_2, // 90° = down
@@ -523,10 +582,22 @@ fn spawn_rain_droplet(
 }
 
 /// Advance all active rain droplets by `dt` seconds. Droplets fall
-/// straight down; those that leave the bottom of the screen or expire
-/// are killed and returned to the free-list.
+/// (with their horizontal jitter carrying them sideways); those that
+/// leave the bottom of the screen or expire are killed and returned to
+/// the free-list.
+///
+/// # Zero per-frame allocation
+///
+/// The kill list is a stack-allocated `[usize; PARTICLE_POOL_SIZE]`
+/// array (4 KiB on 64-bit) with a length counter. No `Vec` is
+/// allocated per frame — this is critical for the intro's zero-alloc
+/// guarantee.
 fn update_rain_droplets(pool: &mut ParticlePool, dt: f32, screen_h: f32) {
-    let mut to_kill: Vec<usize> = Vec::new();
+    // Stack-allocated kill list — zero per-frame heap allocation.
+    // PARTICLE_POOL_SIZE is 512, so this is 4 KiB on the stack.
+    let mut to_kill: [usize; PARTICLE_POOL_SIZE] = [0; PARTICLE_POOL_SIZE];
+    let mut kill_count: usize = 0;
+
     for (i, p) in pool.particles.iter_mut().enumerate() {
         if !p.active {
             continue;
@@ -535,11 +606,18 @@ fn update_rain_droplets(pool: &mut ParticlePool, dt: f32, screen_h: f32) {
         p.y += p.vy * dt;
         p.life -= dt;
         if p.y > screen_h + 2.0 || p.life <= 0.0 {
-            to_kill.push(i);
+            // The pool size bounds kill_count — every active particle
+            // could die in one frame in the worst case, but the pool
+            // never has more than PARTICLE_POOL_SIZE slots total.
+            if kill_count < PARTICLE_POOL_SIZE {
+                to_kill[kill_count] = i;
+                kill_count += 1;
+            }
         }
     }
-    for i in to_kill {
-        pool.kill(i);
+
+    for &idx in to_kill.iter().take(kill_count) {
+        pool.kill(idx);
     }
 }
 
@@ -550,6 +628,22 @@ fn update_rain_droplets(pool: &mut ParticlePool, dt: f32, screen_h: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn logo_color_matches_rgb_constant() {
+        // The Color enum form and the RGB tuple form must agree so the
+        // brand purple is consistent everywhere it's referenced.
+        match LOGO_COLOR {
+            Color::Rgb { r, g, b } => assert_eq!((r, g, b), LOGO_COLOR_RGB),
+            _ => panic!("LOGO_COLOR must be Color::Rgb"),
+        }
+    }
+
+    #[test]
+    fn logo_color_is_brand_purple() {
+        // Spec: #A855F7 = RGB(168, 85, 247).
+        assert_eq!(LOGO_COLOR_RGB, (168, 85, 247));
+    }
 
     #[test]
     fn logo_art_is_non_empty() {
@@ -662,7 +756,7 @@ mod tests {
         let mut pool = ParticlePool::new();
         let mut rng = XorShift::new(42);
         let charset = ['0', '1', 'x', 'z'];
-        let ok = spawn_rain_droplet(&mut pool, &mut rng, 10.0, 5.0, &charset, (57, 255, 20));
+        let ok = spawn_rain_droplet(&mut pool, &mut rng, 10.0, 5.0, &charset);
         assert!(ok);
         assert_eq!(pool.active_count(), 1);
         let p = pool
@@ -670,22 +764,25 @@ mod tests {
             .iter()
             .find(|p| p.active)
             .expect("spawned droplet should be active");
-        // Velocity should be straight down.
+        // Velocity should be mostly downward with optional horizontal jitter.
         assert!(p.vy > 0.0, "droplet should move downward");
         assert!(
-            p.vx.abs() < 0.01,
-            "droplet should have no horizontal velocity"
+            p.vx.abs() <= JITTER_VX + 0.01,
+            "horizontal velocity should be within jitter range, got {}",
+            p.vx
         );
         assert!(p.speed >= DISSOLVE_SPEED_MIN * 0.95);
         assert!(p.speed <= DISSOLVE_SPEED_MAX * 1.05);
         assert!(charset.contains(&p.ch), "glyph should come from charset");
+        // Particle should start with the brand purple color.
+        assert_eq!((p.r, p.g, p.b), LOGO_COLOR_RGB);
     }
 
     #[test]
     fn spawn_rain_droplet_handles_empty_charset() {
         let mut pool = ParticlePool::new();
         let mut rng = XorShift::new(7);
-        let ok = spawn_rain_droplet(&mut pool, &mut rng, 10.0, 5.0, &[], (57, 255, 20));
+        let ok = spawn_rain_droplet(&mut pool, &mut rng, 10.0, 5.0, &[]);
         assert!(ok);
         let p = pool
             .particles
