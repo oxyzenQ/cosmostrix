@@ -23,19 +23,19 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v15-demo.gif" alt="cosmostrix v15 demo" width="800">
+  <img src="assets/cosmostrix-v20-demo.gif" alt="cosmostrix v20 demo" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v15-demo-binary.png" alt="cosmostrix v15 binary charset demo" width="800">
+  <img src="assets/cosmostrix-v20-demo-binary.png" alt="cosmostrix v20 binary charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v15-demo-retro.png" alt="cosmostrix v15 retro charset demo" width="800">
+  <img src="assets/cosmostrix-v20-demo-retro.png" alt="cosmostrix v20 retro charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v15-demo-braille.png" alt="cosmostrix v15 braille charset demo" width="800">
+  <img src="assets/cosmostrix-v20-demo-braille.png" alt="cosmostrix v20 braille charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v15-demo-hacker.png" alt="cosmostrix v15 hacker charset demo" width="800">
+  <img src="assets/cosmostrix-v20-demo-hacker.png" alt="cosmostrix v20 hacker charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v15-demo-green-retro.png" alt="cosmostrix v15 green retro charset demo" width="800">
+  <img src="assets/cosmostrix-v20-demo-green-retro.png" alt="cosmostrix v20 green retro charset demo" width="800">
 </p>
 
 <p align="center">
@@ -58,7 +58,7 @@ The engine is structured as five cooperating subsystems, each profiled and tuned
 4. **Density noise & wind gusts** (`cloud/density.rs`, `cloud/wind.rs`) — Perlin-style density maps for cinematic monolith formations, gust-driven column acceleration for organic motion that never repeats.
 5. **Adaptive atmosphere engine** (`cloud/atmospheric_events.rs`) — 5-phase time-driven modulation that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time.
 
-Run `cosmostrix --architecture` for the full technical breakdown, or `cosmostrix --benchmark` for reproducible performance measurements on your own hardware.
+Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --benchmark` for reproducible performance measurements on your own hardware.
 
 ## Features
 
@@ -156,7 +156,7 @@ EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v15.0.0"
+TAG="v20.0.0"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -267,6 +267,7 @@ CONFIG
 
 DIAGNOSTICS
      --doctor               Compatibility report
+     --docs                 Print engine documentation and architecture overview
      --benchmark            Renderer benchmark (5s default; override with --bench-duration)
      --bench-duration <dur> Benchmark duration (e.g. 5, 6s, 30m, 1h30m; min 1s)
      --json                 Output benchmark as JSON (use with --benchmark; for CI/scripts)
@@ -415,9 +416,8 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 - [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks, workarounds, and planned fixes
 - [System Requirements](docs/SYSTEM_REQUIREMENTS.md) — kernel, glibc/musl, CPU, terminal compatibility matrix
 - [Terminal Compatibility](docs/TERMINAL_COMPATIBILITY.md) — terminal behavior, tmux/SSH, recovery
-- [Visual Stability](docs/VISUAL_STABILITY.md) — visual depth and throughput stability
 - [Endurance](docs/ENDURANCE.md) — endurance testing and resource monitoring
-- [Atmosphere Engine](docs/ATMOSPHERE_ENGINE.md) — atmosphere and whisper engine internals
+- [Atmosphere Engine](docs/ATMOSPHERE_ENGINE.md) — atmosphere, color stability, and throughput stability
 - [Render Engine](docs/RENDER_ENGINE.md) — diff-based rendering architecture (formal spec)
 - [Supply Chain](docs/SUPPLY_CHAIN.md) — supply-chain hardening policy
 - [Stability Audit](docs/STABILITY_AUDIT.md) — terminal stability audit

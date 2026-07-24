@@ -128,8 +128,7 @@ pass "Casing audit clean"
 log "Checking --dump-config scene-custom pointers"
 DUMP_V47=$("$BIN" --dump-config)
 echo "$DUMP_V47" | grep -Fq "scene-custom" || fail "--dump-config must document scene-custom namespace"
-echo "$DUMP_V47" | grep -Fq "PROFILE_EXAMPLES" || fail "--dump-config must point to docs/PROFILE_EXAMPLES.md"
-echo "$DUMP_V47" | grep -Fq "ATMOSPHERE_PRESETS" || fail "--dump-config must point to atmosphere preset examples"
+echo "$DUMP_V47" | grep -Fq "ATMOSPHERE_ENGINE" || fail "--dump-config must point to docs/ATMOSPHERE_ENGINE.md"
 pass "--dump-config scene-custom pointers passed"
 
 log "Checking unknown custom scene error mentions --list-scenes"

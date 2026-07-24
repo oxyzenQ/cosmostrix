@@ -236,7 +236,7 @@ Memory is stable under load — 60-second endurance tests show zero growth
 | Sync output (ESC[?2026h) | Optional | Optional (tear-free) |
 | Bracketed paste | Optional | Optional |
 | Focus events | Optional | Optional |
-| Mouse | Optional (`--mouse`) | Optional |
+| Mouse | Optional (always-on glow + click wave) | Optional |
 
 Cosmostrix auto-detects terminal capability via `COLORTERM`, `TERM`, and
 TTY checks. See `docs/TERMINAL_COMPATIBILITY.md` for the full terminal

@@ -15,7 +15,8 @@ it keeps recovery paths conservative and explicit.
 - 256-color fallback for terminals such as `xterm-256color`.
 - 16-color and mono fallback for minimal terminals.
 - Bracketed paste cleanup after interrupted sessions.
-- Mouse mode only when `--mouse` is enabled.
+- Mouse reporting always on (cursor glow + click wave effects; also
+  blocks text selection in all modes).
 
 ## Terminal Matrix
 
@@ -40,9 +41,11 @@ it keeps recovery paths conservative and explicit.
 
 ## Reset Behavior
 
-Normal exit is non-destructive. Quit with `q`, `Esc`, Ctrl-C, or duration end
-and Cosmostrix restores modes/styles without clearing your visible shell
-history.
+Normal exit is non-destructive. Quit with `q` or duration end and Cosmostrix
+restores modes/styles without clearing your visible shell history. Only `q`
+quits — Esc, Ctrl-C, and all other unrecognized keys are silently ignored
+(prevent accidental exit). Mouse click does NOT exit (v17: removed for
+consistency with the only-q-quits policy).
 
 `--reset-terminal` is explicit destructive recovery. It resets styles, shows the
 cursor, leaves the alternate screen, disables mouse/focus/bracketed-paste modes,
@@ -129,6 +132,5 @@ match the local terminal. For headless environments, prefer:
 
 ```bash
 cosmostrix --benchmark
-cosmostrix --info
 cosmostrix --doctor
 ```

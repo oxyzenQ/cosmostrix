@@ -391,7 +391,7 @@ pub fn dump_config_text() -> &'static str {
 #         glitch-level, monolith-size, color-bg, atmosphere-mode, atmosphere-regime
 # (preset is deprecated — use base-scene instead)
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
-# See docs/PROFILE_EXAMPLES.md for more examples.
+# See docs/ATMOSPHERE_ENGINE.md for more examples.
 # [scene-custom.hacker-mode]
 # base-scene = storm
 # color = green

@@ -535,16 +535,11 @@ fn v46p2_every_preset_exists_in_registry() {
     );
 }
 
-#[test]
-fn v46p2_every_preset_documented_in_expansion_doc() {
-    let docs = include_str!("../docs/ATMOSPHERE_EXPANSION.md");
-    for name in crate::atmosphere_presets::ATMOSPHERE_PRESET_NAMES {
-        assert!(
-            docs.contains(name),
-            "ATMOSPHERE_EXPANSION.md must document preset '{name}'"
-        );
-    }
-}
+// v20: The v46p2_every_preset_documented_in_expansion_doc test was removed
+// when docs/ATMOSPHERE_EXPANSION.md was deleted (stale v4.6.0 contract doc).
+// The companion test v46p2_every_preset_documented_in_engine_doc still
+// verifies every preset name appears in docs/ATMOSPHERE_ENGINE.md, which
+// is the canonical v20 atmosphere documentation.
 
 #[test]
 fn v46p2_every_preset_documented_in_engine_doc() {
@@ -653,12 +648,9 @@ fn v46p2_no_preset_enables_terminal_effects() {
 
 #[test]
 fn v46p2_no_preset_claims_active_visual_runtime() {
-    // Verify docs explicitly say visual_runtime remains protected
-    let expansion = include_str!("../docs/ATMOSPHERE_EXPANSION.md");
-    assert!(
-        expansion.contains("visual_runtime") && expansion.contains("protected"),
-        "ATMOSPHERE_EXPANSION.md must state visual_runtime remains protected"
-    );
+    // v20: docs/ATMOSPHERE_EXPANSION.md was deleted (stale v4.6.0 contract).
+    // We still verify docs/ATMOSPHERE_ENGINE.md states visual_runtime remains
+    // protected — that is the canonical v20 atmosphere documentation.
     let engine = include_str!("../docs/ATMOSPHERE_ENGINE.md");
     assert!(
         engine.contains("visual_runtime") && engine.contains("protected"),

@@ -175,8 +175,8 @@ fn atmosphere_presets_section() -> String {
     let presets = all_atmosphere_presets();
     let mut out = String::from("\nCONTROLLED ATMOSPHERE PRESETS (opt-in only)\n\n");
     out.push_str("  Presets are opt-in. Default remains disabled/protected/identity.\n");
-    out.push_str("  Storm preset does not exist. See docs/ATMOSPHERE_PRESETS.md\n");
-    out.push_str("  See also: docs/PROFILE_ECOSYSTEM.md\n\n");
+    out.push_str("  Storm preset does not exist. See docs/ATMOSPHERE_ENGINE.md\n");
+    out.push_str("  See also: docs/RULES.md for the v15 Dragon architecture contract\n\n");
     for p in &presets {
         out.push_str(&format!(
             "  {:30} mode={} regime={} shadow={}\n",
@@ -199,7 +199,7 @@ pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
         }
         s
     };
-    out.push_str("\n  See docs/PROFILE_EXAMPLES.md for profile examples.\n");
+    out.push_str("\n  See docs/ATMOSPHERE_ENGINE.md for atmosphere preset examples.\n");
     out.push_str(&atmosphere_presets_section());
     out
 }

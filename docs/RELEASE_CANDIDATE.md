@@ -159,24 +159,20 @@ Expected:
 Note: The benchmark and README guard checks in `rc-smoke.sh` must still pass
 before any version tag is created.
 
-## v4.7 Profile RC Checklist
+## v4.7 Profile RC Checklist (Historical)
 
-Additional smoke checks for the profile ecosystem (v4.7.0):
+The v4.7.0 profile ecosystem was superseded in v14.0.0 by the scene-custom
+system (`--scene-custom <name>`). Profile RC checks are retained here only
+as historical record. Modern equivalent:
 
-- `docs/PROFILE_ECOSYSTEM.md` exists with full profile contract,
-  behavior matrix, and validation documentation.
-- `docs/PROFILE_EXAMPLES.md` exists with 9 profile examples and
-  validation notes.
-- `--list-scenes` points to both `docs/PROFILE_ECOSYSTEM.md` and
-  `docs/PROFILE_EXAMPLES.md`.
-- `--dump-config` points to `docs/PROFILE_EXAMPLES.md` and atmosphere
-  preset examples.
-- Unknown profile produces a clean error listing available profiles.
+- `--list-scenes` lists both built-in scenes and user-defined `[scene-custom.<name>]` blocks.
+- `--dump-config` documents the `[scene-custom.<name>]` namespace.
+- Unknown custom scene produces a clean error listing available names.
 - Storm remains unavailable at every layer with a clear message.
-- `CLI > profile > config > defaults` precedence is documented and tested.
+- `CLI > scene-custom > config > scene defaults > built-in` precedence is
+  documented in `--help-detail` and tested.
 - Terminal writer remains `single-owner`.
 - `compute_parallelism` remains `disabled`.
-- `zactrix-20k-lab` branch is parked for v4.8.
 - Benchmark and README rules in `rc-smoke.sh` must still pass before
   any version tag is created.
 
