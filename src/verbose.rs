@@ -89,6 +89,8 @@ pub(crate) fn print_verbose(
     scene_arg: &Option<String>,
     config_path: Option<&std::path::Path>,
     cli_explicit_color: bool,
+    intro_type_label: &str,
+    commit_sha: &str,
 ) {
     let color_source = resolve_color_source(
         custom_palette_name,
@@ -176,6 +178,7 @@ pub(crate) fn print_verbose(
     eprintln!("{}", output::brand_bold("  ── Interaction ──"));
     output::eprintln_verbose("mouse:", " always-on (glow + click wave)");
     output::eprintln_verbose("screensaver:", &format!(" {screensaver}"));
+    output::eprintln_verbose("intro:", &format!(" {intro_type_label}"));
     if let Some(msg) = message {
         output::eprintln_verbose(
             "message:",
@@ -249,4 +252,5 @@ pub(crate) fn print_verbose(
     let config_path = configfile::default_config_file_path();
     output::eprintln_verbose("config_path:", &format!(" {}", config_path.display()));
     output::eprintln_verbose("config exists:", &format!(" {}", config_path.exists()));
+    output::eprintln_verbose("commit:", &format!(" {commit_sha}"));
 }
