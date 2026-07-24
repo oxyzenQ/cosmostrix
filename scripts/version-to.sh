@@ -33,7 +33,7 @@ readonly CARGO_LOCK="${REPO_ROOT}/Cargo.lock"
 readonly PKGBUILD="${REPO_ROOT}/aur/cosmostrix-bin/PKGBUILD"
 readonly SRCINFO="${REPO_ROOT}/aur/cosmostrix-bin/.SRCINFO"
 readonly README="${REPO_ROOT}/README.md"
-readonly ABOUT_CI="${REPO_ROOT}/workflow/about-ci.md"
+readonly ABOUT_CI="${REPO_ROOT}/docs/workflow/about-ci.md"
 
 # Files that contain active version references to update
 readonly DOC_FILES=(
@@ -95,7 +95,7 @@ WHAT IT UPDATES:
     2. Cargo.lock (via cargo metadata refresh)
     3. aur/cosmostrix-bin/PKGBUILD (pkgver=, _tag=)
     4. README.md (active version examples)
-    5. workflow/about-ci.md (active version examples)
+    5. docs/workflow/about-ci.md (active version examples)
 
 SAFETY:
     - Warns if git working tree is dirty (use --allow-dirty to proceed)
@@ -534,10 +534,40 @@ verify_version() {
         fi
     fi
 
-    # 5. Check for stale references to old current version in active docs
-    # We only check docs, not changelog/history sections
-    # This is a best-effort check — some historical references are expected
-    log_ok "Stale reference check: see git diff for full details"
+    # 6. README install example TAG="vX.Y.Z"
+    # The README install snippet uses TAG="v<VERSION>" — this is an active
+    # version reference that must agree with Cargo.toml. Without this check,
+    # a README-only desync would silently pass `version-to.sh --check` and
+    # only be caught later by the Rust test suite (docs_tests::metadata).
+    if [[ -f "${README}" ]]; then
+        local expected_tag="TAG=\"v${expected_ver}\""
+        if grep -qF "${expected_tag}" "${README}"; then
+            log_ok "README.md: ${expected_tag}"
+        else
+            log_err "README.md: missing or stale install tag (expected ${expected_tag})"
+            log_err "  Run './scripts/build.sh v${expected_ver}' to sync all active files"
+            ((errors++))
+        fi
+    fi
+
+    # 7. Active doc files (README, about-ci.md) must reference the current
+    # version at least once — if neither vX.Y.Z nor X.Y.Z appears, the file
+    # has likely been edited to remove the install example, or the version
+    # bump missed it. Historical CHANGELOG.md refs are NOT scanned (only
+    # DOC_FILES are checked, which exclude CHANGELOG.md).
+    local doc_file
+    for doc_file in "${DOC_FILES[@]}"; do
+        [[ -f "${doc_file}" ]] || continue
+        local doc_name
+        doc_name="$(basename "${doc_file}")"
+        if grep -qF "v${expected_ver}" "${doc_file}" 2>/dev/null; then
+            log_ok "${doc_name}: references v${expected_ver}"
+        else
+            log_err "${doc_name}: no reference to v${expected_ver} found"
+            log_err "  Run './scripts/build.sh v${expected_ver}' to sync"
+            ((errors++))
+        fi
+    done
 
     echo ""
     if [[ "${errors}" -eq 0 ]]; then
@@ -663,11 +693,17 @@ main() {
     # Check mode
     if [[ "${CHECK_MODE}" -eq 1 ]]; then
         log_info "Check mode: verifying current version matches ${NEW_VER}"
-        if [[ "${OLD_VER}" == "${NEW_VER}" ]]; then
-            verify_version "${NEW_VER}"
+        if [[ "${OLD_VER}" != "${NEW_VER}" ]]; then
+            log_err "Version mismatch: current=${OLD_VER}, expected=${NEW_VER}"
+            exit 1
+        fi
+        # verify_version returns 0 on full sync, 1 on any desync (PKGBUILD,
+        # .SRCINFO, README TAG, doc refs, etc.). Propagate its exit code so
+        # CI fails fast on partial desyncs that match Cargo.toml but miss
+        # other files.
+        if verify_version "${NEW_VER}"; then
             exit 0
         else
-            log_err "Version mismatch: current=${OLD_VER}, expected=${NEW_VER}"
             exit 1
         fi
     fi

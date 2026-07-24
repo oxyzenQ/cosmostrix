@@ -438,6 +438,19 @@ scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 
 Create a release by pushing a `v*` tag. See [docs/workflow/about-ci.md](docs/workflow/about-ci.md) for CI and release workflow details.
 
+### One-shot version bump + build
+
+The owner can bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD, .SRCINFO, README install tag) AND trigger a build in a single command:
+
+```bash
+./scripts/build.sh v20.0.0             # bump to v20.0.0, then release build
+./scripts/build.sh v20.0.0 debug       # bump, then debug build
+./scripts/build.sh v20.0.0 pgo --auto  # bump, then PGO build with auto CPU
+./scripts/build.sh version-sync        # verify all version refs agree (no build)
+```
+
+`Cargo.toml` `[package] version` is the single source of truth. Every other active version reference is derived from it — either at compile time via `env!("CARGO_PKG_VERSION")` in source, or by `./scripts/version-to.sh` for files that need a literal version string (PKGBUILD, README install example). CI runs `version-sync` as a fail-fast guard before any Rust builds, so a desync breaks the pipeline in seconds rather than after a full test job. The `scripts/check-version-anti-patterns.sh` guard blocks re-introduction of hardcoded version assertions in `src/`.
+
 ## Contributing
 
 PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [RULES.md](docs/RULES.md) for project conventions.
