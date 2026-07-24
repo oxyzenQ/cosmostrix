@@ -51,7 +51,7 @@ pub(super) fn version_report() -> String {
     // is the Dragon diff-based renderer, not a generic Matrix clone. Kept
     // on its own line so it's easy to grep from scripts (`cosmostrix -V |
     // grep Engine`).
-    let engine_line = "Engine: Dragon Diff-Based Rendering (v20)";
+    let engine_line = "Engine: Dragon Diff-Based Rendering";
     let body = format!(
         "{engine_line}\n\
          Build: {build} ({commit})\n\
@@ -73,9 +73,9 @@ pub(super) fn version_report() -> String {
     }
 }
 
-/// Detailed technical overview of the Dragon diff-based rendering engine.
+/// Detailed engine documentation and architecture overview.
 ///
-/// Printed by `cosmostrix --architecture`. Intended for curious developers,
+/// Printed by `cosmostrix --docs`. Intended for curious developers,
 /// benchmarking enthusiasts, and anyone evaluating cosmostrix against other
 /// terminal rain renderers. Output is plain text (no ANSI) so it pipes
 /// cleanly into `less`, `grep`, or documentation generators.
@@ -84,7 +84,7 @@ pub(super) fn version_report() -> String {
 /// because it never varies — the architecture is a fixed property of the
 /// binary, not a runtime-computed value.
 #[must_use]
-pub(super) fn architecture_report() -> &'static str {
+pub(super) fn docs_report() -> &'static str {
     "\
 COSMOSTRIX — Dragon Diff-Based Rendering Engine (v20)
 ======================================================
@@ -392,9 +392,11 @@ mod tests {
         // architecture so users immediately see this is not a Matrix
         // clone. It must appear on its own line, between the description
         // header and the Build: line, so it's easy to grep from scripts.
+        // The Engine line must NOT hardcode a version number — the version
+        // is already shown on the `cosmostrix: v{VERSION}` line above.
         let report = version_report();
         assert!(
-            report.contains("Engine: Dragon Diff-Based Rendering (v20)"),
+            report.contains("Engine: Dragon Diff-Based Rendering"),
             "version_report must declare the Dragon engine line. Full report:\n{report}"
         );
         // Sanity: the Engine line appears before the Build line so users
@@ -408,62 +410,62 @@ mod tests {
     }
 
     #[test]
-    fn architecture_report_is_non_empty() {
-        let report = architecture_report();
-        assert!(!report.is_empty(), "architecture_report must not be empty");
+    fn docs_report_is_non_empty() {
+        let report = docs_report();
+        assert!(!report.is_empty(), "docs_report must not be empty");
         assert!(
             report.lines().count() > 50,
-            "architecture_report should be a substantial document (got {} lines)",
+            "docs_report should be a substantial document (got {} lines)",
             report.lines().count()
         );
     }
 
     #[test]
-    fn architecture_report_mentions_all_five_subsystems() {
+    fn docs_report_mentions_all_five_subsystems() {
         // The report must describe all five cooperating subsystems so a
         // curious developer gets the complete picture from one command.
-        let report = architecture_report();
+        let report = docs_report();
         assert!(
             report.contains("DIFF-BASED CELL RENDERER"),
-            "architecture_report must describe the diff-based cell renderer"
+            "docs_report must describe the diff-based cell renderer"
         );
         assert!(
             report.contains("THREE-LAYER PARALLAX") || report.contains("PARALLAX"),
-            "architecture_report must describe the 3-layer parallax"
+            "docs_report must describe the 3-layer parallax"
         );
         assert!(
             report.contains("PHOSPHOR PERSISTENCE"),
-            "architecture_report must describe phosphor persistence"
+            "docs_report must describe phosphor persistence"
         );
         assert!(
             report.contains("DENSITY NOISE") && report.contains("WIND GUSTS"),
-            "architecture_report must describe density noise and wind gusts"
+            "docs_report must describe density noise and wind gusts"
         );
         assert!(
             report.contains("ADAPTIVE ATMOSPHERE ENGINE"),
-            "architecture_report must describe the adaptive atmosphere engine"
+            "docs_report must describe the adaptive atmosphere engine"
         );
     }
 
     #[test]
-    fn architecture_report_references_performance_doc() {
+    fn docs_report_references_performance_doc() {
         // The report should point readers at the detailed scaling audit
         // for reproducible benchmark numbers.
-        let report = architecture_report();
+        let report = docs_report();
         assert!(
             report.contains("PERFORMANCE_ACROSS_SCALES.md"),
-            "architecture_report should reference docs/PERFORMANCE_ACROSS_SCALES.md"
+            "docs_report should reference docs/PERFORMANCE_ACROSS_SCALES.md"
         );
     }
 
     #[test]
-    fn architecture_report_declares_not_a_clone() {
+    fn docs_report_declares_not_a_clone() {
         // The manifesto line — must be present so the architecture
         // declaration is unambiguous.
-        let report = architecture_report();
+        let report = docs_report();
         assert!(
             report.contains("not a Matrix clone"),
-            "architecture_report must declare that cosmostrix is not a Matrix clone"
+            "docs_report must declare that cosmostrix is not a Matrix clone"
         );
     }
 

@@ -218,6 +218,14 @@ GENERAL:
 DIAGNOSTICS:
   --doctor       Build info, renderer details, environment diagnostics, and
       terminal compatibility check. (v17: --info merged into --doctor)
+  --docs         Print engine documentation and architecture overview.
+      Plain-text dump of the Dragon diff-based rendering engine: the
+      five cooperating subsystems (diff-based cell renderer, 3-layer
+      parallax, phosphor persistence, density noise + wind gusts,
+      adaptive atmosphere engine), the performance profile, and the
+      design constraints. Pipes cleanly into less, grep, or docs
+      generators (no ANSI codes).
+      cosmostrix --docs
   --benchmark    Renderer benchmark (5 seconds default; override with --bench-duration).
   --bench-duration <1-600>
       Benchmark duration in seconds (default 5). Use with --benchmark

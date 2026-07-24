@@ -513,11 +513,11 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
-    if args.architecture {
-        // Print the full Dragon diff-based rendering engine architecture
-        // overview and exit. Plain text only (no ANSI) so it pipes cleanly
-        // into `less`, `grep`, or documentation generators.
-        println!("{}", info::architecture_report());
+    if args.docs {
+        // Print the full engine documentation and architecture overview,
+        // then exit. Plain text only (no ANSI) so it pipes cleanly into
+        // `less`, `grep`, or documentation generators.
+        println!("{}", info::docs_report());
         return Ok(());
     }
 
@@ -784,6 +784,20 @@ fn main() -> std::io::Result<()> {
         Some(clap::parser::ValueSource::CommandLine)
     );
     if args.verbose {
+        // Resolve the intro type label for verbose output. Mirrors the
+        // resolution in CloudConfig below: CLI --intro wins, else default
+        // Logo. We emit the lowercase value-enum name to match the
+        // --intro flag's accepted values (cosmic|logo|none).
+        let resolved_intro = args.intro.unwrap_or(crate::config::IntroType::Logo);
+        let intro_label = match resolved_intro {
+            crate::config::IntroType::Cosmic => "cosmic",
+            crate::config::IntroType::Logo => "logo",
+            crate::config::IntroType::None => "none",
+        };
+        // Commit SHA: same source as -V output (COSMOSTRIX_GIT_SHA env var
+        // injected at compile time by build.rs). Falls back to "unknown"
+        // for local builds without git metadata.
+        let commit_sha = option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown");
         verbose::print_verbose(
             env!("CARGO_PKG_VERSION"),
             args.scene.as_deref(),
@@ -821,6 +835,8 @@ fn main() -> std::io::Result<()> {
             &args.scene,
             args.config.as_deref(),
             cli_explicit_color,
+            intro_label,
+            commit_sha,
         );
     }
 
