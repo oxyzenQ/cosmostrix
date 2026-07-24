@@ -205,11 +205,11 @@ fn v46_config_unknown_regime_rejected() {
 
 #[test]
 fn v46_profile_disabled_overrides_config_controlled_live() {
+    // v20.1: use scene-custom namespace (profile namespace no longer loaded).
     let config = "atmosphere-mode = controlled-live\n\
                   atmosphere-regime = pulse\n\
-                  profile.v46d.base = monolith\n\
-                  profile.v46d.atmosphere-mode = disabled\n\
-                  profile.v46d.atmosphere-regime = calm\n";
+                  scene-custom.v46d.atmosphere-mode = disabled\n\
+                  scene-custom.v46d.atmosphere-regime = calm\n";
     let args = args_with_config(config, &["--scene-custom", "v46d"]);
     assert_eq!(args.atmosphere_mode_str.as_deref(), Some("disabled"));
     assert_eq!(args.atmosphere_regime_str.as_deref(), Some("calm"));
@@ -219,12 +219,10 @@ fn v46_profile_disabled_overrides_config_controlled_live() {
 
 #[test]
 fn v46_cli_color_overrides_profile_atmosphere() {
-    // v14.0.0: --profile removed; converted to --scene-custom. Profile blocks
-    // are still loaded via backward-compat fallback with deprecation warning.
-    let config = "profile.v46e.base = monolith\n\
-                  profile.v46e.color = purple\n\
-                  profile.v46e.atmosphere-mode = controlled-live\n\
-                  profile.v46e.atmosphere-regime = pulse\n";
+    // v20.1: use scene-custom namespace (profile namespace no longer loaded).
+    let config = "scene-custom.v46e.color = purple\n\
+                  scene-custom.v46e.atmosphere-mode = controlled-live\n\
+                  scene-custom.v46e.atmosphere-regime = pulse\n";
     let args = args_with_config(config, &["--scene-custom", "v46e", "--color", "sun"]);
     assert_eq!(
         args.color, "sun",
@@ -745,16 +743,14 @@ fn v46p2_preset_precedence_below_cli_override() {
     // Profile sets controlled-live + pulse, CLI --atmosphere-mode disabled overrides
     let config = "atmosphere-mode = controlled-live\n\
          atmosphere-regime = pulse\n\
-         profile.v46p2a.base = monolith\n\
-         profile.v46p2a.atmosphere-mode = disabled\n\
-         profile.v46p2a.atmosphere-regime = calm\n"
+         scene-custom.v46p2a.atmosphere-mode = disabled\n\
+         scene-custom.v46p2a.atmosphere-regime = calm\n"
         .to_string();
     let args = args_with_config(&config, &["--scene-custom", "v46p2a"]);
     assert_eq!(args.atmosphere_mode_str.as_deref(), Some("disabled"));
     // CLI override should win if provided
-    let config2 = "profile.v46p2b.base = monolith\n\
-                   profile.v46p2b.atmosphere-mode = controlled-live\n\
-                   profile.v46p2b.atmosphere-regime = pulse\n";
+    let config2 = "scene-custom.v46p2b.atmosphere-mode = controlled-live\n\
+                   scene-custom.v46p2b.atmosphere-regime = pulse\n";
     let args2 = args_with_config(
         config2,
         &["--scene-custom", "v46p2b", "--atmosphere-mode", "disabled"],

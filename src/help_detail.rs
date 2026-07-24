@@ -136,13 +136,13 @@ COMMON OPTIONS:
 
   --scene-custom <name>
       Apply a user-defined custom scene from config. Custom scenes use
-      the [scene-custom.<name>] namespace. If --scene-custom references
-      a name that only exists as [profile.<name>], the profile is loaded
-      with a deprecation warning guiding migration to [scene-custom.<name>].
-      Explicit CLI flags always override custom-scene values.
+      the [scene-custom.<name>] namespace. v20.1 removed the
+      [profile.<name>] fallback — users with legacy profile blocks must
+      rename the prefix to `scene-custom`. Explicit CLI flags always
+      override custom-scene values.
 
-      v20: custom scenes are first-class citizens. They stand on their
-      own — no `base-scene` inheritance. Missing fields fall back to the
+      Custom scenes are first-class citizens. They stand on their own —
+      no `base-scene` inheritance. Missing fields fall back to the
       global default scene (cinematic). When active, the verbose output
       shows `scene: <name>` and live reload applies edits to the block
       immediately (color/charset/speed/density/density-map/glitch-level).

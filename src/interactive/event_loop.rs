@@ -71,7 +71,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         term.size()?
     };
 
-    let density = effective_density(cfg.base_density, w, h, cfg.fullwidth, cfg.density_auto);
+    let density = effective_density(cfg.base_density, w, cfg.fullwidth, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
@@ -353,7 +353,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             let density = effective_density(
                 new_cfg.base_density,
                 w,
-                h,
                 new_cfg.fullwidth,
                 new_cfg.density_auto,
             );
@@ -805,7 +804,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 cloud.set_droplet_density(effective_density(
                     cfg.base_density,
                     nw,
-                    nh,
                     cfg.fullwidth,
                     true,
                 ));

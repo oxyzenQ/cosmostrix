@@ -4,12 +4,12 @@
 //! Configuration file support for Cosmostrix.
 //!
 //! Reads an explicit `--config <PATH>` file or the default
-//! `~/.config/cosmostrix/config` (or `$XDG_CONFIG_HOME/cosmostrix/config`).
+//! `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`).
 //!
 //! ## Philosophy
 //!
-//! The config file exposes daily-driver settings and a small compatibility set
-//! of legacy advanced keys. It stays intentionally flat and predictable.
+//! The config file exposes daily-driver settings. It stays intentionally
+//! flat and predictable.
 //!
 //! ## Format
 //!
@@ -25,15 +25,12 @@ use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME, CONFIG_FILE_NAME_LEGACY};
+use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
 use crate::profile::is_profile_config_key;
 use crate::scene_custom::is_scene_custom_config_key;
 
 pub const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
-    // v17: 'preset', 'profile', 'low-power', 'mouse' removed — no longer
-    // aliases or valid config keys. Use 'scene = X', --scene-custom CLI flag,
-    // 'scene = low-power', and mouse is always-on (no flag).
     "color",
     "charset",
     "fps",
@@ -53,15 +50,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     // v20: Cinematic intro selector. Values: "logo" | "cosmic" | "none".
     // Default: "logo". CLI --intro flag wins over this config key.
     "intro",
-    // v17: "colors-custom" selector key REMOVED. Use --colors-custom CLI flag.
 ];
-
-/// v17 mastery: legacy advanced config keys REMOVED.
-/// These keys (glitchpct, shortpct, rippct, maxdpc) are no longer read
-/// from config.toml. Use --glitch-level (none|subtle|default|intense) for
-/// all glitch tuning. The empty slice preserves the const signature for
-/// known_keys() chain without breaking existing callers.
-pub const LEGACY_CONFIG_KEYS: &[&str] = &[];
 
 const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<color|charset|fps|speed|density|density-map|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
@@ -199,24 +188,14 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
 /// Returns the path to the config file.
 /// Uses `$XDG_CONFIG_HOME` if set, otherwise `~/.config`.
 ///
-/// Looks for `config.toml` first (v10+), falls back to `config` (pre-v10)
-/// for backward compatibility with users upgrading from older versions.
+/// Looks for `config.toml`. v20.1 removed the pre-v10 `config` (no
+/// extension) fallback — users upgrading from pre-v10 must rename their
+/// file to `config.toml`.
 #[must_use]
 pub fn default_config_file_path() -> PathBuf {
     let xdg = env::var("XDG_CONFIG_HOME").ok();
     let home = env::var("HOME").ok();
-    let new_path = config_file_path_from_env(xdg.as_deref(), home.as_deref(), CONFIG_FILE_NAME);
-    // Backward compat: if config.toml doesn't exist, check for legacy "config"
-    if new_path.exists() {
-        return new_path;
-    }
-    let legacy_path =
-        config_file_path_from_env(xdg.as_deref(), home.as_deref(), CONFIG_FILE_NAME_LEGACY);
-    if legacy_path.exists() {
-        return legacy_path;
-    }
-    // Neither exists — return the new path (for --config-path display + --testconf)
-    new_path
+    config_file_path_from_env(xdg.as_deref(), home.as_deref(), CONFIG_FILE_NAME)
 }
 
 #[must_use]
@@ -381,17 +360,17 @@ pub fn dump_config_text() -> &'static str {
 # atmosphere-mode = controlled-live
 # atmosphere-regime = adaptive
 
-# v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct, maxdpc)
-# REMOVED. Use --glitch-level (none|subtle|default|intense) for all glitch
-# tuning. The --glitch-level preset controls glitch percent, stream decay,
-# fragmented stream chance, and stream layering automatically.
+# Glitch behavior is fully owned by --glitch-level (none|subtle|default|intense).
+# The preset controls glitch percent, stream decay, fragmented stream chance,
+# and stream layering automatically — there are no separate config keys.
 
 # Custom Scene Definitions (TOML table format)
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>
 # Fields: color, charset, fps, speed, density, density-map,
 #         glitch-level, monolith-size, color-bg, atmosphere-mode, atmosphere-regime
-# (preset and base-scene are deprecated — custom scenes stand on their own.
-#  Missing fields fall back to cinematic's defaults.)
+# Custom scenes stand on their own — missing fields fall back to cinematic's
+# defaults. (base-scene and preset were removed in v20.1; if present in
+# config.toml, --testconf will flag them as unknown keys.)
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
 # See docs/ATMOSPHERE_ENGINE.md for more examples.
 # [scene-custom.hacker-mode]
@@ -474,7 +453,6 @@ pub fn dump_config_text() -> &'static str {
 pub fn known_keys() -> Vec<&'static str> {
     USER_CONFIG_KEYS
         .iter()
-        .chain(LEGACY_CONFIG_KEYS.iter())
         .chain(std::iter::once(&PROFILE_CONFIG_KEY_HINT))
         .chain(std::iter::once(&SCENE_CUSTOM_CONFIG_KEY_HINT))
         .chain(std::iter::once(&COLORS_CUSTOM_CONFIG_KEY_HINT))
@@ -486,7 +464,6 @@ pub fn known_keys() -> Vec<&'static str> {
 #[inline]
 fn is_known_key(key: &str) -> bool {
     USER_CONFIG_KEYS.contains(&key)
-        || LEGACY_CONFIG_KEYS.contains(&key)
         || is_profile_config_key(key)
         || is_scene_custom_config_key(key)
         || is_adaptive_custom_key(key)
@@ -672,17 +649,24 @@ mod tests {
 
     #[test]
     fn profile_keys_are_known() {
+        // v20.1: `base-scene` is no longer a recognized profile field — it
+        // must be flagged as unknown. `color` is still recognized.
         let parsed = parse_config_text(
             "profile.nightcore.base-scene = monolith\nprofile.nightcore.color = purple\n",
         );
+        // base-scene is unknown and therefore NOT stored in values.
+        assert_eq!(parsed.values.get("profile.nightcore.base-scene"), None);
+        assert!(parsed
+            .unknown_keys
+            .contains(&"profile.nightcore.base-scene".to_string()));
+        // color is recognized and stored.
         assert_eq!(
             parsed
                 .values
-                .get("profile.nightcore.base-scene")
+                .get("profile.nightcore.color")
                 .map(String::as_str),
-            Some("monolith")
+            Some("purple")
         );
-        assert!(parsed.unknown_keys.is_empty());
         assert!(parsed.malformed_lines.is_empty());
     }
 
@@ -730,14 +714,7 @@ mod tests {
     #[test]
     fn dump_config_contains_all_supported_keys() {
         let dump = dump_config_text();
-        // Check non-deprecated keys are mentioned. Deprecated config aliases
-        // (preset, profile, low-power) are still valid config keys but are
-        // intentionally omitted from the dump template since v14.0.0.
-        let deprecated = ["preset", "profile", "low-power"];
-        for key in USER_CONFIG_KEYS.iter().chain(LEGACY_CONFIG_KEYS.iter()) {
-            if deprecated.contains(key) {
-                continue;
-            }
+        for key in USER_CONFIG_KEYS.iter() {
             assert!(dump.contains(*key), "dump config should mention {key}");
         }
         assert!(dump.contains("[scene-custom.hacker-mode]"));

@@ -19,7 +19,7 @@ use clap::Parser;
 use crate::runtime::MonolithSize;
 use crate::scene;
 use crate::theme;
-use crate::{colors_custom, configfile, profile, scene_custom};
+use crate::{colors_custom, configfile, scene_custom};
 
 #[must_use]
 pub fn color_enabled_stdout() -> bool {
@@ -824,24 +824,14 @@ pub fn print_show_scene(
         return Ok(());
     }
 
-    // 2. Custom scene lookup (also falls back to legacy [profile.X] entries).
+    // 2. Custom scene lookup (scene-custom namespace only — v20.1 removed
+    //    the [profile.<name>] fallback; users must rename the prefix).
     let custom_scenes = scene_custom::collect_custom_scenes(cfg);
-    let profiles = profile::collect_profiles(cfg);
     let normalized = name.trim().to_ascii_lowercase();
     if let Some(custom) = custom_scenes.get(&normalized) {
         print!(
             "{}",
-            scene_custom::show_custom_scene_text(&normalized, custom, /*from_profile=*/ false)
-        );
-        return Ok(());
-    }
-    if let Some(legacy) = profiles.get(&normalized) {
-        eprintln!(
-            "warning: '{normalized}' is defined as [profile.{normalized}] — migrate to [scene-custom.{normalized}] (rename prefix only)"
-        );
-        print!(
-            "{}",
-            scene_custom::show_custom_scene_text(&normalized, legacy, /*from_profile=*/ true)
+            scene_custom::show_custom_scene_text(&normalized, custom)
         );
         return Ok(());
     }
@@ -852,7 +842,6 @@ pub fn print_show_scene(
         .map(|s| s.to_string())
         .collect();
     available.extend(custom_scenes.keys().cloned());
-    available.extend(profiles.keys().cloned());
     available.sort();
     available.dedup();
     let list = if available.is_empty() {

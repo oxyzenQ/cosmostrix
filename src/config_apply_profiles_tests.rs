@@ -53,26 +53,24 @@ pub(crate) fn args_with_config(config: &str, cli: &[&str]) -> Args {
 }
 
 fn nightcore_config() -> &'static str {
-    // v20: `base-scene` removed — custom scenes stand on their own.
-    // nightcore sets all the fields it needs directly (no inheritance).
-    // The `base-scene` line is kept as a regression test for backward
-    // compat: it should be silently ignored, not break the config.
-    "profile.nightcore.base-scene = monolith\n\
-     profile.nightcore.color = purple\n\
-     profile.nightcore.charset = binary\n\
-     profile.nightcore.speed = 24\n\
-     profile.nightcore.density = 0.70\n\
-     profile.nightcore.glitch-level = subtle\n\
-     profile.nightcore.monolith-size = large\n"
+    // v20.1: `base-scene` and `preset` are removed entirely. Custom scenes
+    // stand on their own; missing fields fall back to cinematic's defaults.
+    // The config namespace is `[scene-custom.<name>]` (the [profile.<name>]
+    // fallback was also removed in v20.1 — users must rename the prefix).
+    "scene-custom.nightcore.color = purple\n\
+     scene-custom.nightcore.charset = binary\n\
+     scene-custom.nightcore.speed = 24\n\
+     scene-custom.nightcore.density = 0.70\n\
+     scene-custom.nightcore.glitch-level = subtle\n\
+     scene-custom.nightcore.monolith-size = large\n"
 }
 
 #[test]
 fn cli_profile_loads_user_profile_from_config() {
-    // v14.0.0: --profile removed; use --scene-custom. Backward-compat:
-    // --scene-custom falls back to [profile.X] with deprecation warning.
-    // v20: `base-scene` is silently dropped; custom scenes stand on their
-    // own. args.scene is set to the custom scene name ("nightcore"),
-    // not to a base-scene.
+    // v20.1: `--scene-custom` resolves ONLY `[scene-custom.<name>]` blocks.
+    // The [profile.<name>] fallback was removed. Custom scenes stand on
+    // their own — missing fields fall back to cinematic's defaults.
+    // args.scene is set to the custom scene name ("nightcore").
     let args = args_with_config(nightcore_config(), &["--scene-custom", "nightcore"]);
     assert_eq!(args.scene_custom.as_deref(), Some("nightcore"));
     assert_eq!(args.scene.as_deref(), Some("nightcore"));
@@ -93,18 +91,21 @@ fn cli_profile_loads_user_profile_from_config() {
 }
 
 #[test]
-fn profile_base_monolith_is_silently_dropped() {
-    // v20: `base-scene` is deprecated and silently dropped. A profile that
-    // only sets `base-scene = monolith` (no other fields) now falls back
-    // to the DEFAULT_SCENE (cinematic) values. args.scene is set to the
-    // custom scene name, not to monolith.
+fn profile_base_monolith_is_unknown_key() {
+    // v20.1: `base-scene` is no longer a recognized field. A config that
+    // sets `base-scene` plus one valid field results in a scene-custom
+    // block with just that one field; args falls back to DEFAULT_SCENE
+    // (cinematic) for everything else. args.scene is set to the custom
+    // scene name.
     let args = args_with_config(
-        "profile.nightcore.base-scene = monolith\n",
+        "scene-custom.nightcore.base-scene = monolith\n\
+         scene-custom.nightcore.color = green\n",
         &["--scene-custom", "nightcore"],
     );
     assert_eq!(args.scene.as_deref(), Some("nightcore"));
-    // Cinematic defaults: color=neon-purple, speed=9, density=0.75, glitch=Subtle.
-    assert_eq!(args.color, "neon-purple");
+    // color is set by the custom scene (the only recognized field).
+    assert_eq!(args.color, "green");
+    // Cinematic defaults for the rest: speed=9, density=0.75, glitch=Subtle.
     assert_eq!(args.speed, 9.0);
     assert!((args.density - 0.75).abs() < f32::EPSILON);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
@@ -131,10 +132,9 @@ fn explicit_cli_flags_override_profile_values() {
 
 #[test]
 fn config_profile_applies_after_config_scene() {
-    // v17: 'profile = X' config key removed. Use --scene-custom CLI flag.
-    // v20: `base-scene` is silently dropped. args.scene is set to the
-    // custom scene name ("nightcore"), and the custom scene's own fields
-    // override the cinematic defaults.
+    // v20.1: --scene-custom CLI flag wins over `scene = signal` config key.
+    // args.scene is set to the custom scene name ("nightcore"), and the
+    // custom scene's own fields override the cinematic defaults.
     let config = format!("scene = signal\n{}", nightcore_config());
     let args = args_with_config(&config, &["--scene-custom", "nightcore"]);
     assert_eq!(args.scene.as_deref(), Some("nightcore"));
@@ -144,8 +144,8 @@ fn config_profile_applies_after_config_scene() {
 
 #[test]
 fn cli_profile_overrides_cli_scene_for_profile_foundation() {
-    // v20: `base-scene` is silently dropped. --scene-custom wins over
-    // --scene for the args.scene value (custom scenes are first-class).
+    // v20.1: --scene-custom wins over --scene for the args.scene value
+    // (custom scenes are first-class).
     let args = args_with_config(
         nightcore_config(),
         &["--scene", "signal", "--scene-custom", "nightcore"],
@@ -157,14 +157,14 @@ fn cli_profile_overrides_cli_scene_for_profile_foundation() {
 
 #[test]
 fn unknown_cli_profile_has_clear_error() {
-    // v14.0.0: --profile removed; --scene-custom is the replacement.
-    // Unknown custom scene must produce a clear error.
+    // v20.1: --scene-custom resolves only [scene-custom.<name>] blocks.
+    // Unknown custom scene must produce a clear error mentioning the
+    // available names.
     let err =
         args_with_config_result(nightcore_config(), &["--scene-custom", "unknown"]).unwrap_err();
     assert!(
-        err.contains("error: unknown custom scene 'unknown'")
-            || err.contains("unknown profile 'unknown'"),
-        "error must mention unknown custom scene/profile: {err}"
+        err.contains("error: unknown custom scene 'unknown'"),
+        "error must mention unknown custom scene: {err}"
     );
     assert!(
         err.contains("nightcore"),
@@ -174,13 +174,13 @@ fn unknown_cli_profile_has_clear_error() {
 
 #[test]
 fn invalid_profile_values_are_ignored_cleanly() {
-    // v20: `base-scene` is silently dropped. Only the invalid color/speed/
-    // density fields are present; they fail to parse, so args retains the
+    // v20.1: `base-scene` is unknown and filtered out. The remaining
+    // color/speed/density values fail to parse, so args retains the
     // DEFAULT_SCENE (cinematic) defaults.
-    let config = "profile.bad.base-scene = monolith\n\
-                  profile.bad.color = not-a-color\n\
-                  profile.bad.speed = 0\n\
-                  profile.bad.density = nope\n";
+    let config = "scene-custom.bad.base-scene = monolith\n\
+                  scene-custom.bad.color = not-a-color\n\
+                  scene-custom.bad.speed = 0\n\
+                  scene-custom.bad.density = nope\n";
     let args = args_with_config(config, &["--scene-custom", "bad"]);
     assert_eq!(args.scene.as_deref(), Some("bad"));
     // Cinematic defaults: color=neon-purple, speed=9, density=0.75.
@@ -237,22 +237,22 @@ fn config_color_overridden_by_config_preset_is_precedence_not_drift() {
 
 #[test]
 fn profile_color_resolves_sun_after_preset_and_scene() {
-    // v17: 'preset' and 'profile' config keys removed.
-    // Use 'scene = monolith' + --scene-custom CLI flag.
+    // v20.1: [profile.<name>] fallback removed; use [scene-custom.<name>].
+    // 'scene = monolith' is the config-level default, but --scene-custom
+    // nightcore wins (custom scenes are first-class) and sets color = sun.
     let args = args_with_config(
         "scene = monolith\n\
-         profile.nightcore.base-scene = monolith\n\
-         profile.nightcore.color = sun\n\
-         profile.nightcore.charset = binary\n\
-         profile.nightcore.speed = 24\n\
-         profile.nightcore.density = 0.70\n\
-         profile.nightcore.glitch-level = subtle\n\
-         profile.nightcore.monolith-size = large\n",
+         scene-custom.nightcore.color = sun\n\
+         scene-custom.nightcore.charset = binary\n\
+         scene-custom.nightcore.speed = 24\n\
+         scene-custom.nightcore.density = 0.70\n\
+         scene-custom.nightcore.glitch-level = subtle\n\
+         scene-custom.nightcore.monolith-size = large\n",
         &["--scene-custom", "nightcore"],
     );
     assert_eq!(
         args.color, "sun",
-        "profile color must override preset/scene color per precedence"
+        "custom scene color must override config scene color per precedence"
     );
     assert!(
         !args.auto_color_drift,
@@ -276,19 +276,19 @@ fn cli_color_wins_over_config_preset_and_scene() {
 // Phase 10.5: Profile atmosphere smoke hardening tests
 
 fn atmosphere_config_profile(name: &str, mode: &str, regime: &str) -> String {
-    // v20: `base-scene` removed; custom scenes stand on their own.
-    // Set color/charset/speed/density/glitch directly so the profile is
-    // non-trivial.
+    // v20.1: `base-scene` removed; custom scenes stand on their own.
+    // Set color/charset/speed/density/glitch directly so the scene is
+    // non-trivial. Uses the scene-custom namespace (the profile namespace
+    // is no longer loaded by --scene-custom).
     format!(
-        "profile.{name}.base-scene = monolith\n\
-         profile.{name}.color = purple\n\
-         profile.{name}.charset = binary\n\
-         profile.{name}.speed = 24\n\
-         profile.{name}.density = 0.70\n\
-         profile.{name}.glitch-level = subtle\n\
-         profile.{name}.monolith-size = large\n\
-         profile.{name}.atmosphere-mode = {mode}\n\
-         profile.{name}.atmosphere-regime = {regime}\n"
+        "scene-custom.{name}.color = purple\n\
+         scene-custom.{name}.charset = binary\n\
+         scene-custom.{name}.speed = 24\n\
+         scene-custom.{name}.density = 0.70\n\
+         scene-custom.{name}.glitch-level = subtle\n\
+         scene-custom.{name}.monolith-size = large\n\
+         scene-custom.{name}.atmosphere-mode = {mode}\n\
+         scene-custom.{name}.atmosphere-regime = {regime}\n"
     )
 }
 

@@ -363,8 +363,10 @@ pub fn rebuild_cloud_config(
 /// This mirrors the startup-time behavior in `apply_profile_overrides`
 /// but operates on CloudConfig instead of Args.
 ///
-/// `base-scene` is deprecated and silently ignored (v20: custom scenes
-/// stand on their own).
+/// v20.1: `base-scene` and `preset` are no longer recognized fields, so
+/// they never reach this function — `is_scene_custom_config_key` rejects
+/// them and `collect_custom_scenes` skips them. They will instead show up
+/// as unknown keys via `--testconf`.
 fn apply_scene_custom_to_cloud_config(
     new: &mut crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
@@ -380,10 +382,9 @@ fn apply_scene_custom_to_cloud_config(
         let Some(field) = key.strip_prefix(&prefix) else {
             continue;
         };
-        // Skip the deprecated base-scene field — it has no effect.
-        if field == "base-scene" {
-            continue;
-        }
+        // v20.1: base-scene and preset are no longer recognized; they are
+        // filtered upstream by is_scene_custom_config_key. Unknown fields
+        // are ignored here.
         touched_any = true;
         match field {
             "color" => {
@@ -434,11 +435,10 @@ fn apply_scene_custom_to_cloud_config(
                     new.monolith_density_map = Some(map);
                 }
             }
-            // preset is deprecated — silently ignored.
             // color-bg / atmosphere-mode / atmosphere-regime are not yet
             // applied to CloudConfig at runtime; they remain as-is from the
             // startup-time resolution. Future work can wire them in.
-            "preset" | "color-bg" | "atmosphere-mode" | "atmosphere-regime" => {}
+            "color-bg" | "atmosphere-mode" | "atmosphere-regime" => {}
             _ => {}
         }
     }
@@ -651,21 +651,23 @@ mod tests {
     }
 
     #[test]
-    fn rebuild_ignores_scene_custom_base_scene_deprecated_field() {
-        // v20: `base-scene` is deprecated and must have no effect on the
-        // rebuilt CloudConfig. The color_scheme should remain the base's
-        // NeonPurple, not be changed to whatever base-scene points at.
+    fn rebuild_ignores_scene_custom_base_scene_unknown_field() {
+        // v20.1: `base-scene` is no longer a recognized field. The
+        // apply_scene_custom_to_cloud_config helper iterates raw cfg keys
+        // (including unknown ones) but only acts on known fields, so the
+        // color_scheme should remain the base's NeonPurple.
         let mut cfg = HashMap::new();
         cfg.insert(
             "scene-custom.test-scene.base-scene".to_string(),
             "storm".to_string(),
         );
-        let base = minimal_cloud_config();
+        let mut base = minimal_cloud_config();
+        base.scene_custom_name = Some("test-scene".to_string());
         let new = rebuild_cloud_config(&base, &cfg);
         assert_eq!(
             new.color_scheme,
             crate::runtime::ColorScheme::NeonPurple,
-            "base-scene must be silently ignored"
+            "base-scene must have no effect"
         );
     }
 

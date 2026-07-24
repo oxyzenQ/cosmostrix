@@ -3,8 +3,12 @@
 
 //! User-defined profile support for flat `key = value` config files.
 //!
-//! Profiles are intentionally lightweight. They reuse existing scenes
-//! as foundations, then override only already-supported runtime fields.
+//! Profiles are intentionally lightweight collections of override fields.
+//! They no longer inherit from a `base-scene` — custom scenes stand on
+//! their own, and missing fields fall back to global defaults
+//! (`DEFAULT_SCENE` = cinematic). The `base-scene` and `preset` fields
+//! were removed in v20.1 and are now reported as unknown keys by
+//! `--testconf`, prompting migration.
 
 use std::collections::{BTreeMap, HashSet};
 
@@ -16,13 +20,11 @@ use crate::cli::parse_color_scheme;
 use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::runtime::MonolithSize;
-use crate::scene::get_scene;
 use crate::validation::{
     parse_canonical_f32_range, parse_canonical_f64_range, parse_canonical_speed,
 };
 
 pub const PROFILE_FIELDS: &[&str] = &[
-    "preset",
     "color",
     "charset",
     "fps",
@@ -36,29 +38,14 @@ pub const PROFILE_FIELDS: &[&str] = &[
     "atmosphere-regime",
 ];
 
-/// Fields that used to be recognized but are now deprecated.
-/// Kept here so `configfile::is_known_key` can still recognize them in
-/// existing user configs without rejecting the entire file. The values
-/// are silently dropped during `collect_profiles` / `collect_custom_scenes`
-/// — they have no effect on the resulting `UserProfile`.
-///
-/// Migration: `base-scene` was removed in v20 because custom scenes are
-/// now first-class citizens that stand on their own. Missing fields fall
-/// back to global defaults (DEFAULT_SCENE = cinematic), not to a named
-/// base scene. Users who relied on `base-scene = monolith` should set
-/// the individual fields they want (color, charset, speed, density,
-/// glitch-level) directly in the scene-custom block.
-pub const DEPRECATED_PROFILE_FIELDS: &[&str] = &["base-scene"];
-
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct UserProfile {
-    pub preset: Option<String>,
     pub color: Option<String>,
     pub charset: Option<String>,
     pub fps: Option<String>,
     pub speed: Option<String>,
     pub density: Option<String>,
-    /// Comma-separated f64 weights (0.0..1.0) for monolith pillar placement.
+    /// Comma-separated f64 weights (0.0..=1.0) for monolith pillar placement.
     /// Parsed into a Vec<f64> and leaked to &'static for Cloud consumption.
     pub density_map: Option<String>,
     pub glitch_level: Option<String>,
@@ -79,12 +66,7 @@ pub fn is_profile_config_key(key: &str) -> bool {
     let Some((name, field)) = rest.rsplit_once('.') else {
         return false;
     };
-    // Accept both current and deprecated fields so existing user configs
-    // don't fail validation. Deprecated fields (`base-scene`) are silently
-    // dropped during collect_profiles — they have no effect on the
-    // resulting UserProfile.
-    is_valid_profile_name(name)
-        && (PROFILE_FIELDS.contains(&field) || DEPRECATED_PROFILE_FIELDS.contains(&field))
+    is_valid_profile_name(name) && PROFILE_FIELDS.contains(&field)
 }
 
 #[must_use]
@@ -102,11 +84,6 @@ pub fn collect_profiles(
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
-            // `base-scene` is deprecated and silently dropped. Custom scenes
-            // now stand on their own — missing fields fall back to global
-            // defaults (DEFAULT_SCENE = cinematic), not to a named base.
-            "base-scene" => {}
-            "preset" => profile.preset = Some(value.clone()),
             "color" => profile.color = Some(value.clone()),
             "charset" => profile.charset = Some(value.clone()),
             "fps" => profile.fps = Some(value.clone()),
@@ -159,21 +136,13 @@ pub fn apply_profile_layer(
         return Ok(modified);
     };
 
-    // v14.0.0: args.profile field removed. The caller (apply_scene_custom_layer)
-    // sets args.scene_custom instead. We no longer write to args.profile here.
-    //
-    // v20.0.0: `base-scene` is removed. Custom scenes stand on their own —
-    // their own fields override args.* directly via apply_profile_overrides,
-    // and missing fields fall back to whatever args already has (typically
-    // DEFAULT_SCENE = cinematic's values from apply_default_scene_values).
-    // The caller is responsible for setting args.scene to the custom scene
-    // name so verbose output shows `scene: <custom_name>` instead of the
-    // fallback foundation scene.
-
-    if let Some(preset) = profile.preset.as_deref() {
-        apply_profile_preset(matches, args, preset, &mut modified);
-    }
-
+    // v20.1: `base-scene` and `preset` are gone — custom scenes stand on
+    // their own. Their own fields override args.* directly via
+    // apply_profile_overrides, and missing fields fall back to whatever
+    // args already has (DEFAULT_SCENE = cinematic's values from
+    // apply_default_scene_values). The caller is responsible for setting
+    // args.scene to the custom scene name so verbose output shows
+    // `scene: <custom_name>` instead of a fallback foundation scene.
     apply_profile_overrides(matches, args, &normalized, profile, &mut modified);
     Ok(modified)
 }
@@ -208,8 +177,6 @@ pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
     } else {
         let mut s = String::from("USER PROFILES\n\n");
         for name in profiles.keys() {
-            // v20: `base` field removed; custom scenes stand on their own.
-            // Show just the name (matching the new independent identity).
             s.push_str(&format!("  {name}\n"));
         }
         s
@@ -217,76 +184,6 @@ pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
     out.push_str("\n  See docs/ATMOSPHERE_ENGINE.md for atmosphere preset examples.\n");
     out.push_str(&atmosphere_presets_section());
     out
-}
-
-fn apply_profile_preset(
-    matches: &clap::ArgMatches,
-    args: &mut Args,
-    preset: &str,
-    modified: &mut HashSet<&'static str>,
-) {
-    // v20.0.0: `preset` is a deprecated alias for `base-scene`, and both are
-    // now removed. We keep the deprecation warning so existing user configs
-    // surface a clear migration path, but the preset value is now applied as
-    // a built-in scene foundation (color/charset/speed/density/glitch) so the
-    // custom scene still inherits those defaults rather than being empty.
-    //
-    // Migration: users should remove `preset` from their config and set the
-    // individual fields they want (color, charset, speed, density,
-    // glitch-level) directly in the scene-custom block. Custom scenes are
-    // first-class citizens and no longer need to inherit from a base scene.
-    eprintln!(
-        "warning: 'preset = {preset}' in profile is deprecated; remove it and set fields (color, charset, speed, density, glitch-level) directly in the scene-custom block (custom scenes are now standalone)"
-    );
-    apply_profile_scene(matches, args, preset, modified);
-}
-
-fn apply_profile_scene(
-    matches: &clap::ArgMatches,
-    args: &mut Args,
-    scene_name: &str,
-    modified: &mut HashSet<&'static str>,
-) {
-    let Some(scene) = get_scene(scene_name) else {
-        return;
-    };
-    let cfg = scene.config;
-    if let Some(color) = cfg.color {
-        if !is_explicit(matches, "color") {
-            args.color = color.to_string();
-            modified.insert("color");
-        }
-    }
-    if let Some(charset) = cfg.charset {
-        if !is_explicit(matches, "charset") {
-            args.charset = charset.to_string();
-            modified.insert("charset");
-        }
-    }
-    if let Some(fps) = cfg.fps {
-        if !is_explicit(matches, "fps") {
-            args.fps = fps;
-            modified.insert("fps");
-        }
-    }
-    if let Some(speed) = cfg.speed {
-        if !is_explicit(matches, "speed") {
-            args.speed = speed;
-            modified.insert("speed");
-        }
-    }
-    if let Some(density) = cfg.density {
-        if !is_explicit(matches, "density") {
-            args.density = density;
-            modified.insert("density");
-        }
-    }
-    if let Some(glitch) = cfg.glitch_level {
-        if !is_explicit(matches, "glitch_level") {
-            args.glitch_level = glitch;
-            modified.insert("glitch_level");
-        }
-    }
 }
 
 fn apply_profile_overrides(
@@ -532,10 +429,10 @@ mod tests {
 
     #[test]
     fn profile_keys_are_recognized() {
-        // v20: `base-scene` is deprecated but still recognized (so existing
-        // user configs don't fail validation). It is silently dropped
-        // during collect_profiles.
-        assert!(is_profile_config_key("profile.nightcore.base-scene"));
+        // v20.1: `base-scene` is gone — it must NOT be recognized as a valid
+        // profile key. --testconf will flag it as unknown, prompting migration.
+        assert!(!is_profile_config_key("profile.nightcore.base-scene"));
+        assert!(!is_profile_config_key("profile.nightcore.preset"));
         assert!(is_profile_config_key("profile.nightcore.glitch-level"));
         assert!(!is_profile_config_key("profile.nightcore.unknown"));
         assert!(!is_profile_config_key("profile..base"));
@@ -544,10 +441,6 @@ mod tests {
     #[test]
     fn collect_profiles_groups_fields_by_name() {
         let cfg = HashMap::from([
-            (
-                "profile.nightcore.base-scene".to_string(),
-                "monolith".to_string(),
-            ),
             ("profile.nightcore.color".to_string(), "purple".to_string()),
             ("profile.day.speed".to_string(), "12".to_string()),
         ]);

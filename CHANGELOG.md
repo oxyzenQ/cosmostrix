@@ -9,6 +9,91 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v20.1.0 — Legacy / Backward-Compat Purge
+
+### Headline
+
+The remaining backward-compatibility shims accumulated across v14–v20 are
+gone. `base-scene`, `preset`, the `[profile.<name>]` fallback, the pre-v10
+`config` filename fallback, and several dead-code helpers have been
+removed. Custom scenes are now first-class citizens with a single config
+namespace (`[scene-custom.<name>]`) and a single set of recognized fields.
+`--testconf` now flags any leftover `base-scene`, `preset`, or
+`[profile.<name>]` keys as unknown, prompting users to migrate.
+
+### Removed
+
+- **`base-scene` field** — no longer recognized in `[scene-custom.<name>]`
+  or `[profile.<name>]` blocks. `--testconf` flags it as unknown.
+- **`preset` field** — same treatment as `base-scene`. The
+  `apply_profile_preset` deprecation-warning path is gone.
+- **`[profile.<name>]` fallback for `--scene-custom`** — the loader now
+  resolves only `[scene-custom.<name>]` blocks. Users with legacy
+  `[profile.<name>]` blocks must rename the prefix.
+- **`DEPRECATED_PROFILE_FIELDS` const** — replaced by direct rejection.
+- **`UserProfile.preset` field** — struct field removed.
+- **`apply_profile_preset` / `apply_profile_scene` helpers** — deleted.
+- **`apply_legacy_config` stub** — empty function removed from
+  `config_apply.rs` (no callers, no body).
+- **`LEGACY_CONFIG_KEYS` const** — empty array removed from
+  `configfile.rs`; `known_keys()` and `is_known_key()` no longer chain it.
+- **`CONFIG_FILE_NAME_LEGACY` (`"config"`) constant** — pre-v10 fallback
+  filename removed. `default_config_file_path()` now returns only the
+  `config.toml` path.
+- **`from_profile` parameter on `show_custom_scene_text`** — the
+  `PROFILE (legacy)` migration marker is gone; the function renders only
+  the `CUSTOM SCENE:` header.
+- **`auto_density_factor(_, _lines, _)` parameter** — the unused `lines`
+  arg was kept only for backward compat with callers; signature is now
+  `auto_density_factor(cols, fullwidth)`. `effective_density` likewise
+  loses its `lines` parameter.
+- **`is_head_bright` legacy helper** in `droplet.rs` — dead-code wrapper
+  deleted.
+- **testconf `base` / `preset` → `scene` alias mapping** — `base` and
+  `preset` are no longer treated as scene-name aliases during value
+  validation.
+- **Test scaffolding** — `nightcore_config()` and `atmosphere_config_profile`
+  helpers migrated from `[profile.<name>]` to `[scene-custom.<name>]`.
+  `profile_base_monolith_is_silently_dropped` renamed to
+  `profile_base_monolith_is_unknown_key` (asserts new rejection behavior).
+
+### Kept (NOT legacy shims)
+
+The following "legacy"-labelled items are intentional, active code or
+stable downstream contracts — they are NOT removed:
+
+- `bench_helpers.rs` `COSMOSTRIX_BENCH_COLS` / `COSMOSTRIX_BENCH_LINES`
+  env vars — active CI integration, not a deprecated feature.
+- `bench_report_tests.rs` "backward-compat" field contract — enforces the
+  stable benchmark JSON schema for downstream parsers.
+- `cli_parse.rs` bare-number duration (`90` → 90 secs) — active UX
+  feature, not a deprecated alias.
+- `#![allow(deprecated)]` in `memstat.rs` / `cpustat.rs` /
+  `diagnostics.rs` — required because libc 0.2.x deprecates the macOS
+  `mach_timebase_info` shims in favor of `mach2`. System-level, not
+  project-level legacy.
+- "Legacy themes" comment in `central_colors.rs` — describes migrated
+  theme names that are still active.
+- `monolith.rs` / `cloud/mod.rs` / `app.rs` "legacy behavior" comments
+  describing `None` density-map → uniform distribution — describes the
+  active default behavior, not a shim.
+
+### Migration
+
+If your `config.toml` contains any of these keys, run
+`cosmostrix --testconf` to find them, then:
+
+| Old                                | New                                       |
+|------------------------------------|-------------------------------------------|
+| `[profile.<name>]`                 | `[scene-custom.<name>]`                   |
+| `profile.<name>.base-scene = X`    | (delete — set fields directly instead)    |
+| `profile.<name>.preset = X`        | (delete — set fields directly instead)    |
+| `scene-custom.<name>.base-scene`   | (delete — set fields directly instead)    |
+| `scene-custom.<name>.preset`       | (delete — set fields directly instead)    |
+| `~/.config/cosmostrix/config`      | `~/.config/cosmostrix/config.toml`        |
+
+---
+
 ## v20.0.0 — Temporal-Prediction Milestone (cosmic_dragon)
 
 ### Headline

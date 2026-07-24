@@ -115,13 +115,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
                 // Field is recognized — now validate the VALUE using the same
                 // rules as top-level keys. Block fields accept the same value
                 // vocabulary (color, charset, scene, atmosphere-regime, etc.).
-                // 'base' and 'scene' are both scene names; 'preset' is treated
-                // as a scene name too (v14 deprecated alias).
-                let effective_field = match field {
-                    "base" | "preset" => "scene",
-                    other => other,
-                };
-                if let Some(msg) = validate_field_value(effective_field, value) {
+                if let Some(msg) = validate_field_value(field, value) {
                     crate::output::eprintln_error_labeled(&format!(
                         "testconf: {pk} = {value}: {msg}"
                     ));

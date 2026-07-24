@@ -316,10 +316,6 @@ fn apply_config_values(
     cfg: &HashMap<String, String>,
     config_touched: &mut HashSet<&'static str>,
 ) {
-    // v17: 'preset' deprecated alias REMOVED. Use 'scene' instead.
-    // Existing configs with 'preset = X' will flag it as unknown key
-    // via --testconf, prompting migration to 'scene = X'.
-
     if let Some(v) = config_value(matches, cfg, "scene", "scene") {
         match validate_scene_name(&v) {
             Ok(name) => {
@@ -334,16 +330,6 @@ fn apply_config_values(
             }
         }
     }
-
-    // v17: 'profile' deprecated alias REMOVED. Use --scene-custom CLI flag.
-    // The [profile.<name>] table format is also REMOVED — use [scene-custom.<name>].
-
-    // v17 mastery: scene-custom selector key REMOVED from config.toml.
-    // Use the CLI flag: cosmostrix --scene-custom <name>
-    // The [scene-custom.<name>] table definitions are still parsed — only
-    // the top-level 'scene-custom = name' selector key is removed.
-    // Rationale: having two ways to select a custom scene (CLI flag + config
-    // key) was confusing. The CLI flag is the single source of truth.
 
     if let Some(v) = config_value(matches, cfg, "color", "color") {
         if parse_color_scheme(&v).is_ok() {
@@ -438,8 +424,6 @@ fn apply_config_values(
             config_touched.insert("color_bg");
         }
     }
-    // v17: 'low-power = true' deprecated alias REMOVED. Use 'scene = low-power'.
-    // v17 mastery: --mouse flag deleted. Mouse effects are always-on.
     if let Some(v) = config_value(matches, cfg, "fullwidth", "fullwidth") {
         if let Some(b) = parse_bool_config("fullwidth", &v) {
             args.fullwidth = b;
@@ -473,21 +457,6 @@ fn apply_config_values(
             config_touched.insert("atmosphere_regime_str");
         }
     }
-
-    apply_legacy_config(matches, args, cfg, config_touched);
-}
-
-fn apply_legacy_config(
-    _matches: &clap::ArgMatches,
-    _args: &mut Args,
-    cfg: &HashMap<String, String>,
-    _config_touched: &mut HashSet<&'static str>,
-) {
-    // v17 mastery: legacy advanced config keys (glitchpct, shortpct, rippct,
-    // maxdpc) REMOVED. These are now fully controlled by --glitch-level.
-    // The old keys are silently ignored if present in config.toml.
-    // Use --glitch-level (none|subtle|default|intense) for all glitch tuning.
-    let _ = cfg; // suppress unused warning
 }
 
 fn apply_scene_values(
@@ -574,9 +543,8 @@ fn apply_glitch_level_values(
             if !should_skip("noglitch") {
                 args.noglitch = false;
             }
-            // v17 mastery: glitch_pct, shortpct, rippct, max_dpc are no longer
-            // CLI flags or config keys (removed legacy). Always set from the
-            // glitch_level preset — no should_skip needed.
+            // Glitch percentages are fully owned by the glitch_level
+            // preset — there are no CLI flags or config keys for them.
             args.glitch_pct = 3.0;
             args.glitch_ms = crate::config::U16Range {
                 low: 200,
