@@ -67,26 +67,33 @@ use super::intro::{
 //
 // Note: codespell may complain about substrings inside this art. We keep
 // the .codespellrc ignore-list updated to suppress false positives.
-const LOGO_ART: &str = "\
-                  .,>- .=i,.
-              .÷×->>+=l.l>≈≈≥≠i.
-            l÷><±i;,.!.:    .i≈≤×,
-          ,≈<>;.   .    .      .-≤!
-         <>!>;     , I  i        .,:
-        >!!;    ;   .>∂i,       i<;<≠.
-       +<l:     i <,.i+li;:     ,  .-×
-      .<I!   .  ii;;!   I:,:÷   .   >=,
-      .!<:      I<:       :il       .>l
-      .>!i       ;I,  ±   ;i    ;   .×.
-       ,.       ,l:.  l    .±   >  I≈!×
-       li, .    l;.,;   .<;;=     :<il,
-       IIi,.      ;::;!::::,     .≠:;I
-        !i<.         l÷×i  .  , .-::I.
-         iii!.             ×  ::+,,±
-           I;I:       .     .!!:,;,
-            .=II-I..  :  <≥I:,,il
-               ,××.;  ;i>;:;i+
-                       ..";
+//
+// IMPORTANT: We use `concat!()` instead of a `"\`-continued string literal.
+// Rust's `\<newline>` line continuation strips leading whitespace from the
+// NEXT line, which would silently eat the first line's indentation and
+// shift the top of the logo flush-left relative to the body. `concat!()`
+// preserves every byte verbatim.
+const LOGO_ART: &str = concat!(
+    "                  .,>- .=i,.\n",
+    "              .÷×->>+=l.l>≈≈≥≠i.\n",
+    "            l÷><±i;,.!.:    .i≈≤×,\n",
+    "          ,≈<>;.   .    .      .-≤!\n",
+    "         <>!>;     , I  i        .,:\n",
+    "        >!!;    ;   .>∂i,       i<;<≠.\n",
+    "       +<l:     i <,.i+li;:     ,  .-×\n",
+    "      .<I!   .  ii;;!   I:,:÷   .   >=,\n",
+    "      .!<:      I<:       :il       .>l\n",
+    "      .>!i       ;I,  ±   ;i    ;   .×.\n",
+    "       ,.       ,l:.  l    .±   >  I≈!×\n",
+    "       li, .    l;.,;   .<;;=     :<il,\n",
+    "       IIi,.      ;::;!::::,     .≠:;I\n",
+    "        !i<.         l÷×i  .  , .-::I.\n",
+    "         iii!.             ×  ::+,,±\n",
+    "           I;I:       .     .!!:,;,\n",
+    "            .=II-I..  :  <≥I:,,il\n",
+    "               ,××.;  ;i>;:;i+\n",
+    "                       ..",
+);
 
 /// Brand purple — the Cosmostrix signature color (`#A855F7` / RGB
 /// 168,85,247). The logo always renders in this color, regardless of
