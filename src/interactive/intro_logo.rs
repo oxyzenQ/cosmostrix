@@ -170,8 +170,9 @@ struct LogoCell {
     bx: u16,
     /// Cell Y within the logo bounding box (0 = top row).
     by: u16,
-    /// Distance from the logo center, squared. Used to order the
-    /// dissolve from outermost ring inward. Stored as f32 for sorting.
+    /// Squared distance from the logo's *visual centroid* (ink
+    /// center-of-mass), used to order the dissolve from outermost ring
+    /// inward. Stored as f32 for sorting. See [`visual_centroid`].
     dist_sq: f32,
     /// Original glyph from the art.
     ch: char,
@@ -187,12 +188,17 @@ fn parse_logo_art() -> (Vec<&'static str>, u16, u16) {
 }
 
 /// Collect every non-blank cell from the parsed art, along with its
-/// squared distance from the logo's center. Cells are returned in
-/// arbitrary order — callers sort by `dist_sq` descending for the
+/// squared distance from the logo's visual centroid. Cells are returned
+/// in arbitrary order — callers sort by `dist_sq` descending for the
 /// dissolve-from-outside-inward effect.
-fn collect_logo_cells(lines: &[&'static str], width: u16, height: u16) -> Vec<LogoCell> {
-    let cx = width as f32 * 0.5;
-    let cy = height as f32 * 0.5;
+///
+/// `cx` / `cy` are the visual centroid coordinates (ink center-of-mass)
+/// in the logo's local frame, computed by [`visual_centroid`]. Using the
+/// visual centroid rather than the bounding-box center keeps the
+/// dissolve "rings" centered on what the eye perceives as the logo's
+/// core, which is especially important for asymmetric art where the
+/// ink mass is offset from the bbox center.
+fn collect_logo_cells(lines: &[&'static str], cx: f32, cy: f32) -> Vec<LogoCell> {
     let mut out = Vec::with_capacity(256);
     for (y, line) in lines.iter().enumerate() {
         for (x, ch) in line.chars().enumerate() {
@@ -211,6 +217,42 @@ fn collect_logo_cells(lines: &[&'static str], width: u16, height: u16) -> Vec<Lo
         }
     }
     out
+}
+
+/// Compute the visual centroid (center of mass) of all non-blank ink
+/// cells in the parsed logo art. Returns `(cx, cy)` in the logo's local
+/// coordinate frame (0..width, 0..height).
+///
+/// The visual centroid is what the eye perceives as the logo's center.
+/// For asymmetric art — where the ink mass is offset from the bounding-
+/// box center — placing the logo by its bbox center causes the visual
+/// ink to sit off-center on the terminal, and a spark falling onto the
+/// bbox center misses the visual core of the logo.
+///
+/// Using the centroid for both placement and the spark target keeps the
+/// falling spark visually aligned with the logo's perceived center,
+/// regardless of how the art is shaped.
+fn visual_centroid(lines: &[&'static str]) -> (f32, f32) {
+    let mut sum_x: f32 = 0.0;
+    let mut sum_y: f32 = 0.0;
+    let mut count: f32 = 0.0;
+    for (y, line) in lines.iter().enumerate() {
+        for (x, ch) in line.chars().enumerate() {
+            if ch == ' ' {
+                continue;
+            }
+            sum_x += x as f32;
+            sum_y += y as f32;
+            count += 1.0;
+        }
+    }
+    if count == 0.0 {
+        // Defensive: empty art → fall back to (0, 0) so the caller's
+        // clamping logic still produces a valid (if degenerate) layout.
+        (0.0, 0.0)
+    } else {
+        (sum_x / count, sum_y / count)
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -236,11 +278,19 @@ pub(super) fn run_logo_intro(
         return Ok(());
     }
 
-    let mut logo_cells = collect_logo_cells(&lines, logo_w, logo_h);
-    // Sort cells by squared distance from center, descending — the
-    // dissolve phase walks this list in order, so outer cells dissolve
-    // first. This sort happens once at intro start; per-frame cost is
-    // a simple index walk.
+    // Compute the visual centroid (ink center-of-mass) before collecting
+    // cells, so both the dissolve ordering and the placement math use the
+    // same notion of "center". For asymmetric art like ours, the centroid
+    // is offset from the bounding-box center, which is exactly why we
+    // need it — placing the logo by its bbox center would shift the
+    // visual ink off-center on the terminal.
+    let (centroid_x, centroid_y) = visual_centroid(&lines);
+
+    let mut logo_cells = collect_logo_cells(&lines, centroid_x, centroid_y);
+    // Sort cells by squared distance from the visual centroid, descending
+    // — the dissolve phase walks this list in order, so outer cells
+    // dissolve first. This sort happens once at intro start; per-frame
+    // cost is a simple index walk.
     logo_cells.sort_by(|a, b| {
         b.dist_sq
             .partial_cmp(&a.dist_sq)
@@ -252,19 +302,32 @@ pub(super) fn run_logo_intro(
     let palette_rgb = palette_target_rgb(cloud);
     let rain_charset = rain_chars(cloud);
 
-    // Logo top-left position so it's centered on the terminal. Integer
-    // math with signed casts so truncation rounds toward zero (correct
-    // for both even and odd terminal widths). All lines start at this
-    // same `logo_x`; per-line shape comes from the leading spaces
-    // baked into `LOGO_ART`. There is no per-line offset adjustment.
-    let logo_x = (w as i32 - logo_w as i32) / 2;
-    let logo_y = (h as i32 - logo_h as i32) / 2;
-    // Center of the logo in terminal coordinates (for the spark target).
-    let logo_center_x = logo_x as f32 + logo_w as f32 * 0.5;
-    let logo_center_y = logo_y as f32 + logo_h as f32 * 0.5;
+    // Logo placement: shift the bounding box so the *visual centroid*
+    // sits at the terminal center, then clamp to keep the bbox fully
+    // on-screen. Integer math with signed casts so truncation rounds
+    // toward zero (correct for both even and odd terminal sizes).
+    //
+    // Previous code used `logo_x = (w - logo_w) / 2`, which centers the
+    // bbox — but our logo's ink mass is offset right of the bbox center,
+    // so the visual logo sat to the right of terminal-center while the
+    // spark fell straight down the terminal center. The two appeared
+    // misaligned. Centering on the centroid fixes this.
+    let target_x = (w as f32 * 0.5 - centroid_x).round() as i32;
+    let target_y = (h as f32 * 0.5 - centroid_y).round() as i32;
+    let max_x = (w as i32).saturating_sub(logo_w as i32);
+    let max_y = (h as i32).saturating_sub(logo_h as i32);
+    let logo_x = target_x.clamp(0, max_x);
+    let logo_y = target_y.clamp(0, max_y);
+    // Spark target = visual centroid in terminal coordinates. When no
+    // clamping kicked in, this equals `(w/2, h/2)` exactly; when the
+    // bbox was too close to an edge to place the centroid dead-center,
+    // the spark falls onto the centroid wherever it landed.
+    let logo_center_x = logo_x as f32 + centroid_x;
+    let logo_center_y = logo_y as f32 + centroid_y;
 
     // Spark spawn position: top of the terminal, horizontally aligned
-    // with the logo center. The spark falls straight down to the center.
+    // with the logo's visual centroid. The spark falls straight down
+    // to the centroid.
     let spark_start_y = 0.0f32;
 
     let mut pool = ParticlePool::new();
@@ -675,8 +738,9 @@ mod tests {
 
     #[test]
     fn collect_logo_cells_skips_blanks() {
-        let (lines, w, h) = parse_logo_art();
-        let cells = collect_logo_cells(&lines, w, h);
+        let (lines, _w, _h) = parse_logo_art();
+        let (cx, cy) = visual_centroid(&lines);
+        let cells = collect_logo_cells(&lines, cx, cy);
         // Every collected cell must have a non-blank glyph.
         for c in &cells {
             assert_ne!(c.ch, ' ', "blank cell should not be collected");
@@ -690,17 +754,17 @@ mod tests {
     }
 
     #[test]
-    fn collect_logo_cells_computes_center_distance() {
-        let (lines, w, h) = parse_logo_art();
-        let cells = collect_logo_cells(&lines, w, h);
+    fn collect_logo_cells_computes_centroid_distance() {
+        let (lines, _w, _h) = parse_logo_art();
+        let (cx, cy) = visual_centroid(&lines);
+        let cells = collect_logo_cells(&lines, cx, cy);
         // The centermost cell should have a small dist_sq; the outermost
         // should have a large dist_sq.
-        let cx = w as f32 * 0.5;
-        let cy = h as f32 * 0.5;
         let mut min_d = f32::MAX;
         let mut max_d = f32::MIN;
         for c in &cells {
-            // Verify the stored dist_sq matches a fresh computation.
+            // Verify the stored dist_sq matches a fresh computation
+            // against the visual centroid (not the bbox center).
             let xf = c.bx as f32;
             let yf = c.by as f32;
             let expected = (xf - cx) * (xf - cx) + (yf - cy) * (yf - cy);
@@ -714,6 +778,111 @@ mod tests {
             max_d = max_d.max(c.dist_sq);
         }
         assert!(min_d < max_d, "logo should have spatial extent");
+    }
+
+    #[test]
+    fn visual_centroid_is_within_bounding_box() {
+        let (lines, w, h) = parse_logo_art();
+        let (cx, cy) = visual_centroid(&lines);
+        // The centroid must lie inside the bounding box.
+        assert!(
+            (0.0..=w as f32).contains(&cx),
+            "centroid x {} must be inside [0, {}]",
+            cx,
+            w
+        );
+        assert!(
+            (0.0..=h as f32).contains(&cy),
+            "centroid y {} must be inside [0, {}]",
+            cy,
+            h
+        );
+    }
+
+    #[test]
+    fn visual_centroid_differs_from_bbox_center() {
+        // This is the property the placement fix relies on: the logo's
+        // ink mass is asymmetric, so the visual centroid is offset from
+        // the bounding-box center. If this assertion ever fails, it
+        // means the art became symmetric (and the centroid-based
+        // placement would be a no-op — still correct, just unnecessary).
+        let (lines, w, h) = parse_logo_art();
+        let (cx, cy) = visual_centroid(&lines);
+        let bbox_cx = w as f32 * 0.5;
+        let bbox_cy = h as f32 * 0.5;
+        let dx = (cx - bbox_cx).abs();
+        let dy = (cy - bbox_cy).abs();
+        // We expect a non-trivial offset on at least one axis.
+        assert!(
+            dx > 0.5 || dy > 0.5,
+            "centroid ({cx}, {cy}) should differ from bbox center ({bbox_cx}, {bbox_cy}) \
+             by more than 0.5 cells on at least one axis"
+        );
+    }
+
+    #[test]
+    fn visual_centroid_handles_empty_art() {
+        // Defensive: an empty art string must not panic.
+        let lines: Vec<&'static str> = vec!["   ", "  "];
+        let (cx, cy) = visual_centroid(&lines);
+        assert_eq!((cx, cy), (0.0, 0.0));
+    }
+
+    #[test]
+    fn visual_centroid_of_single_cell() {
+        let lines: Vec<&'static str> = vec!["     X     "];
+        let (cx, cy) = visual_centroid(&lines);
+        assert!(
+            (cx - 5.0).abs() < 0.01,
+            "centroid x of single cell at col 5"
+        );
+        assert!((cy - 0.0).abs() < 0.01, "centroid y of single row");
+    }
+
+    #[test]
+    fn placement_uses_centroid_not_bbox_center() {
+        // Sanity-check the placement math by reconstructing it. For a
+        // typical 80×24 terminal, the spark target (logo_center_x)
+        // should equal w/2 exactly when no clamping kicks in — which
+        // happens as long as the centroid is at least `logo_w/2` from
+        // the right edge of the bbox.
+        let (lines, logo_w, logo_h) = parse_logo_art();
+        let (centroid_x, centroid_y) = visual_centroid(&lines);
+        let w: u16 = 80;
+        let h: u16 = 24;
+        let target_x = (w as f32 * 0.5 - centroid_x).round() as i32;
+        let target_y = (h as f32 * 0.5 - centroid_y).round() as i32;
+        let max_x = (w as i32).saturating_sub(logo_w as i32);
+        let max_y = (h as i32).saturating_sub(logo_h as i32);
+        let logo_x = target_x.clamp(0, max_x);
+        let logo_y = target_y.clamp(0, max_y);
+        let logo_center_x = logo_x as f32 + centroid_x;
+        let logo_center_y = logo_y as f32 + centroid_y;
+        // On 80×24, the logo (40×19) easily fits, so no clamping should
+        // occur and the centroid lands dead-center on both axes.
+        assert!(
+            (logo_center_x - w as f32 * 0.5).abs() < 1.0,
+            "spark x {logo_center_x} should be within 1 cell of terminal center {}",
+            w as f32 * 0.5
+        );
+        assert!(
+            (logo_center_y - h as f32 * 0.5).abs() < 1.0,
+            "spark y {logo_center_y} should be within 1 cell of terminal center {}",
+            h as f32 * 0.5
+        );
+        // And the logo bbox stays fully on-screen.
+        assert!(logo_x >= 0, "logo_x must be non-negative");
+        let logo_right = logo_x + logo_w as i32;
+        assert!(
+            logo_right <= w as i32,
+            "logo right edge {logo_right} must not exceed terminal width {w}"
+        );
+        assert!(logo_y >= 0, "logo_y must be non-negative");
+        let logo_bottom = logo_y + logo_h as i32;
+        assert!(
+            logo_bottom <= h as i32,
+            "logo bottom edge {logo_bottom} must not exceed terminal height {h}"
+        );
     }
 
     #[test]
