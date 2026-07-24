@@ -1,6 +1,8 @@
 # Scaling Benchmark Results (raw)
 
-Binary: `/home/z/my-project/cosmostrix/target/release/cosmostrix`  
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
+Binary: `/home/z/my-project/cosmostrix/target/release/cosmostrix`
 Bench duration: 2s per size  
 Total sizes: 8
 

@@ -1,0 +1,21 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+[package]
+name = "pgo-runner"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+publish = false
+autobins = true
+autoexamples = false
+autotests = false
+description = "Tiny cargo-use-pgo alias runner — delegates to scripts/build.sh pgo --auto."
+
+[[bin]]
+name = "pgo-runner"
+path = "src/main.rs"
+
+# Standalone crate — intentionally NOT a member of the cosmostrix workspace.
+# This keeps it out of `cargo build --workspace` and `cargo test --all`,
+# so it only compiles when the user actually invokes `cargo use-pgo`.

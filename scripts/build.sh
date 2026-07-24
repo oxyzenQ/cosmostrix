@@ -426,6 +426,8 @@ COMMANDS:
     release         Build optimized release version
     release-debug   Build release with debug symbols
     pgo             PGO nitro build (instrument → benchmark → optimize, +5-15% FPS)
+                    Pass --auto to auto-detect the best CPU target for this host.
+                    Equivalent shortcut: cargo use-pgo
     verify-release  Build and verify Linux x86_64 release variants
     test            Run test suite
     bench           Run benchmarks
@@ -444,17 +446,22 @@ COMMANDS:
 OPTIONS:
     --no-cache      Disable build caching
     --verbose       Enable verbose output
+    --auto          Auto-detect best CPU target for PGO build (v4/v3/native)
 
 ENVIRONMENT VARIABLES:
-    COSMOSTRIX_JOBS     Override CPU core limit (default: auto)
-    COSMOSTRIX_TARGET   Override build target (default: rustc host target)
-    RUST_BACKTRACE      Control backtrace verbosity (default: 1)
+    COSMOSTRIX_JOBS         Override CPU core limit (default: auto)
+    COSMOSTRIX_TARGET       Override build target (default: rustc host target)
+    COSMOSTRIX_TARGET_CPU   Override -C target-cpu for PGO (default: native,
+                            or auto-detected when --auto is passed)
+    RUST_BACKTRACE          Control backtrace verbosity (default: 1)
 
 EXAMPLES:
     ./scripts/build.sh release                  # Build release version
     ./scripts/build.sh verify-release           # Build and verify v1/v2/v3/v4 artifacts
     ./scripts/build.sh check-all                # Run all quality checks
     ./scripts/build.sh ci                       # Run CI pipeline
+    ./scripts/build.sh pgo --auto               # PGO build, auto-detect CPU
+    cargo use-pgo                               # Same as above, via cargo alias
     COSMOSTRIX_JOBS=4 ./scripts/build.sh all    # Full build with 4 cores
     ./scripts/build.sh --verbose release        # Verbose release build
 
@@ -469,6 +476,7 @@ EOF
 # Parse options (options can appear anywhere)
 VERBOSE=0
 NO_CACHE=0
+PGO_AUTO=0
 COMMAND=""
 
 ARGS=()
@@ -482,6 +490,14 @@ while [ $# -gt 0 ]; do
         --no-cache)
                 NO_CACHE=1
                 unset RUSTC_WRAPPER
+                shift
+                ;;
+        --auto)
+                # Used by `pgo` subcommand: auto-detect best CPU target
+                # (x86-64-v4 / x86-64-v3 / native) instead of defaulting
+                # to -C target-cpu=native. Also exposed via the
+                # `cargo use-pgo` alias.
+                PGO_AUTO=1
                 shift
                 ;;
         help | -h | --help)
@@ -507,12 +523,68 @@ fi
 # ── PGO (Profile-Guided Optimization) nitro build ───────────────────────
 # Two-stage: instrument → benchmark → recompile with profile data.
 # Expected gain: 5-15% FPS improvement over the pro profile.
+
+# Detect the best -C target-cpu value for the host machine.
+#   - Linux x86_64: reads /proc/cpuinfo for avx512f / avx2 flags
+#   - macOS x86_64: uses sysctl machdep.cpu.features
+#   - aarch64 / other: returns "native" (LLVM already tunes well for ARM)
+# Echoes the target-cpu value (suitable for COSMOSTRIX_TARGET_CPU).
+detect_cpu_target() {
+        local arch
+        arch="$(uname -m 2>/dev/null || echo unknown)"
+
+        # ARM and other non-x86 architectures: LLVM's codegen already
+        # produces excellent ARM64 code without PGO-specific tuning, and
+        # there is no equivalent of the x86-64-vN microarchitecture
+        # levels. Stick with native.
+        if [ "${arch}" != "x86_64" ] && [ "${arch}" != "amd64" ]; then
+                echo "native"
+                return 0
+        fi
+
+        local flags=""
+        if [ -r /proc/cpuinfo ]; then
+                # Linux: grep the flags line from the first CPU entry.
+                # The line is space-separated, so grep -o is safe.
+                flags="$(grep -m1 -E '^flags' /proc/cpuinfo 2>/dev/null | cut -d: -f2- || true)"
+        elif command -v sysctl >/dev/null 2>&1; then
+                # macOS: machdep.cpu.features is a space-separated list,
+                # uppercased (e.g. AVX2, AVX512F).
+                flags="$(sysctl -n machdep.cpu.features 2>/dev/null || true)"
+        fi
+
+        # Normalize to lowercase for case-insensitive matching.
+        flags="$(echo "${flags}" | tr '[:upper:]' '[:lower:]')"
+
+        if echo "${flags}" | grep -qw avx512f; then
+                echo "x86-64-v4"
+        elif echo "${flags}" | grep -qw avx2; then
+                echo "x86-64-v3"
+        else
+                # No AVX2 — fall back to native rather than guessing v1/v2.
+                # native lets rustc pick the host's actual feature set.
+                echo "native"
+        fi
+}
+
 build_pgo() {
         log_step "Starting PGO nitro build (2-stage: instrument → profile → optimize)"
 
         local pgo_dir="${PWD}/target/pgo-data"
         local instrument_bin="target/${TARGET}/pgo-instrument/${PROJECT_NAME}"
         local nitro_bin="target/${TARGET}/pgo-use/${PROJECT_NAME}"
+
+        # PGO target CPU resolution (priority: explicit env > --auto detect > native default).
+        # The --auto flag (set by `cargo use-pgo`) probes the host CPU and
+        # selects the highest x86-64 microarchitecture level it supports.
+        # This is bulletproof: a v4-capable CI runner gets v4, a v3-only
+        # runner gets v3, and we never fall through to SSE2 again.
+        if [ -z "${COSMOSTRIX_TARGET_CPU:-}" ] && [ "${PGO_AUTO}" -eq 1 ]; then
+                local detected
+                detected="$(detect_cpu_target)"
+                export COSMOSTRIX_TARGET_CPU="${detected}"
+                log_info "Auto-detected CPU target: ${detected}"
+        fi
 
         # Stage 1: Build instrumented binary
         log_info "Stage 1/3: Building instrumented binary..."

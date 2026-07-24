@@ -1,5 +1,7 @@
 # Performance Across Scales — Deep Audit
 
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 > **Engine:** Dragon Diff-Based Rendering (v20)
 > **Methodology:** `cosmostrix --benchmark --json --screen-size WxH --bench-duration 2`
 > **Hardware:** Intel(R) Xeon(R) Processor, x86-64-v1 baseline, single core

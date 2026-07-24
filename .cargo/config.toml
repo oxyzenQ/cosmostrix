@@ -121,3 +121,19 @@ pro-freebsd-amd64 = [
 ]
 
 pro-android-aarch64 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?ANDROID_NDK_HOME is required}"; TARGET="aarch64-linux-android"; TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"; export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"; export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"; COSMOSTRIX_BUILD="android-aarch64-native" COSMOSTRIX_PROFILE="pro-android-aarch64" cargo build --profile pro-android-aarch64 --target "${TARGET}"'"""
+
+# Build the fastest possible local binary via Profile-Guided Optimization.
+# Runs the full 3-stage PGO pipeline (instrument → benchmark → recompile
+# with profile data) and auto-detects the best CPU target for the host
+# (x86-64-v4 on AVX-512, x86-64-v3 on AVX2, native on ARM/other). The
+# resulting binary lands in target/<host>/pgo-use/cosmostrix and reports
+# `pgo: yes` in `--benchmark` output.
+#
+# Equivalent to: ./scripts/build.sh pgo --auto
+#
+# Implementation note: we use a tiny runner crate (scripts/pgo-runner/)
+# instead of cargo's `!`-prefix shell-alias feature, because the latter
+# is not reliably available across cargo versions. The runner crate is
+# a standalone package (not a workspace member) so it only compiles when
+# the user actually invokes this alias.
+use-pgo = "run --manifest-path scripts/pgo-runner/Cargo.toml --release --"

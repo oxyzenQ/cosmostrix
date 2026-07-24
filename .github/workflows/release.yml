@@ -682,6 +682,16 @@ jobs:
 
   build_pgo:
     name: Dragon - Build PGO nitro (${{ matrix.platform }})
+    # PGO is Linux x86_64-only by design:
+    #   - macOS, Windows, FreeBSD, and ARM targets either lack PGO toolchain
+    #     support, gain nothing from PGO (ARM is already well-tuned by LLVM),
+    #     or would burn CI minutes on builds that cannot be distributed.
+    #   - The matrix below only lists linux-amd64-v3 / v4, and this guard is
+    #     defense-in-depth: even if a future maintainer adds another platform
+    #     to the matrix, the job will skip instead of producing a broken
+    #     binary. Other platforms fall through to the standard `build_packages`
+    #     job which uses their normal optimized profile.
+    if: runner.os == 'Linux'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
