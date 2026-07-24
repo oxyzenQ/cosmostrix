@@ -686,12 +686,13 @@ jobs:
     #   - macOS, Windows, FreeBSD, and ARM targets either lack PGO toolchain
     #     support, gain nothing from PGO (ARM is already well-tuned by LLVM),
     #     or would burn CI minutes on builds that cannot be distributed.
-    #   - The matrix below only lists linux-amd64-v3 / v4, and this guard is
-    #     defense-in-depth: even if a future maintainer adds another platform
-    #     to the matrix, the job will skip instead of producing a broken
-    #     binary. Other platforms fall through to the standard `build_packages`
-    #     job which uses their normal optimized profile.
-    if: runner.os == 'Linux'
+    #   - The matrix below only lists linux-amd64-v3 / v4 and `runs-on` is
+    #     pinned to ubuntu-latest, so this job is structurally Linux-only.
+    #     Other platforms fall through to the standard `build_packages` job
+    #     which uses their normal optimized profile.
+    #   - A job-level `if:` cannot reference the `runner` context (it is only
+    #     populated after the runner is allocated), so the Linux guard is
+    #     enforced structurally via `runs-on` rather than via an expression.
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
