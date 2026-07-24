@@ -211,11 +211,13 @@ fn apply_profile_preset(
     modified: &mut HashSet<&'static str>,
 ) {
     // v14.0.0: `preset = X` in a [profile.<name>] or [scene-custom.<name>]
-    // block is a deprecated alias for `base = X`. All 8 former presets are
-    // now built-in scenes, so the value is treated as a scene name and
+    // block is a deprecated alias for `base-scene = X`. All 8 former presets
+    // are now built-in scenes, so the value is treated as a scene name and
     // dispatched to apply_profile_scene. A deprecation warning is emitted.
+    // (v17 note: the bare `base` alias was removed — `base-scene` is the
+    // sole accepted key, so the warning now directs users there.)
     eprintln!(
-        "warning: 'preset = {preset}' in profile is deprecated; use 'base = {preset}' instead (presets are now scenes)"
+        "warning: 'preset = {preset}' in profile is deprecated; use 'base-scene = {preset}' instead (presets are now scenes)"
     );
     apply_profile_scene(matches, args, preset, modified);
 }

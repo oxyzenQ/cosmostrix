@@ -274,7 +274,7 @@ fn clean_exit_frame_has_no_persistent_ghost_in_bottom_rows() {
 // ═══════════════════════════════════════════════════════════════════════════
 // v4.5.0 Phase 3 — Depth Regression Lab
 //
-// These tests lock down the v4.0.1/v4.5 visual identity. Future v4.8.0
+// These tests lock down the v4.0.1/v4.5 visual identity. Any future
 // optimization MUST pass these before merge. No flattening cinematic depth.
 // ═══════════════════════════════════════════════════════════════════════════
 

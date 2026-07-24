@@ -12,7 +12,8 @@
 //!                                           over seamlessly.
 //! ```
 //!
-//! Total: ~5 s. Any key (q / Enter / etc.) skips instantly. The intro is
+//! Total: ~5 s. Press `q` (or `Q`) to skip instantly — no other key
+//! skips, so stray keypresses can't cut the cinematic short. The intro is
 //! skipped entirely on terminals smaller than 80×24 with a stderr notice
 //! (handled by [`super::intro::run_intro`]).
 //!

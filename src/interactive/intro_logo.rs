@@ -18,7 +18,8 @@
 //!                                         rain engine takes over seamlessly.
 //! ```
 //!
-//! Total: ~6.25 s. Any key (q / Enter / etc.) skips instantly. The intro
+//! Total: ~6.25 s. Press `q` (or `Q`) to skip instantly — no other key
+//! skips, so stray keypresses can't cut the cinematic short. The intro
 //! is skipped entirely on terminals smaller than 80×24 with a stderr
 //! notice (handled by [`super::intro::run_intro`]).
 //!
@@ -264,7 +265,7 @@ fn visual_centroid(lines: &[&'static str]) -> (f32, f32) {
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Entry point for the Cosmostrix Logo intro. Plays a ~4.5 s cinematic.
+/// Entry point for the Cosmostrix Logo intro. Plays a ~6.25 s cinematic.
 ///
 /// See the module docs for the phase breakdown. The caller (intro
 /// dispatcher) has already validated terminal size and `IntroType`.

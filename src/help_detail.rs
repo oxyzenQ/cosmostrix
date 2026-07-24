@@ -68,7 +68,7 @@ COMMON OPTIONS:
       Cinematic intro played before the rain engine starts. Pick one
       of three modes (default: logo). The intro plays automatically
       when cosmostrix starts; pass --intro none to skip it entirely.
-        logo    Cosmostrix Logo intro (~4.5s). The ASCII logo fades in
+        logo    Cosmostrix Logo intro (~6.25s). The ASCII logo fades in
                 character by character, a spark falls from the top of
                 the screen and ignites the logo on impact, then the
                 logo dissolves into Matrix rain starting from the
@@ -80,11 +80,12 @@ COMMON OPTIONS:
                 that spiral outward. The particles slow and morph
                 into Matrix rain.
         none    Skip the intro entirely.
-      Any key skips the intro mid-animation. Auto-skipped in
-      --screensaver mode and on terminals smaller than 80x24.
-      The intro choice can be set permanently in config.toml via
-      the 'intro' key (e.g. intro = \"cosmic\"). CLI flag wins over
-      config.
+      Press q (or Q) to skip the intro mid-animation. No other key
+      skips — stray keypresses can't cut the cinematic short. Auto-
+      skipped in --screensaver mode and on terminals smaller than
+      80x24. The intro choice can be set permanently in config.toml
+      via the 'intro' key (e.g. intro = \"cosmic\"). CLI flag wins
+      over config.
       cosmostrix                       # default: logo
       cosmostrix --intro logo
       cosmostrix --intro cosmic --scene matrix

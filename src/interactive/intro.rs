@@ -378,13 +378,13 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 /// insensitive) or when [`GRACEFUL_SHUTDOWN`] is set (Ctrl+C / SIGTERM).
 ///
 /// All other key events are drained and ignored. This is deliberate: the
-/// intro is a ~4.5 s cinematic, and accidental presses of space / enter
-/// / arrow keys should not cut it short. The user always has a fast exit
-/// via `q` or Ctrl+C.
+/// intros run for 5–6.25 s (Cosmic Burst ~5 s, Logo ~6.25 s), and accidental
+/// presses of space / enter / arrow keys should not cut them short. The user
+/// always has a fast exit via `q` or Ctrl+C.
 ///
 /// # Why not "any key skips"?
 ///
-/// * The intro is short enough that an "any key" skip is a footgun — a
+/// * The intros are short enough that an "any key" skip is a footgun — a
 ///   stray keypress from a window manager focus change would abort it.
 /// * `q` is the canonical "quit" key throughout cosmostrix's interactive
 ///   mode, so reusing it here keeps the mental model consistent.
