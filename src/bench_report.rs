@@ -222,7 +222,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("lto", env!("COSMOSTRIX_LTO"));
         s.field("panic", env!("COSMOSTRIX_PANIC"));
         s.field("strip", env!("COSMOSTRIX_STRIP"));
-        s.field("pgo", "no");
+        s.field("pgo", env!("COSMOSTRIX_PGO"));
         // CPU model string (runtime detection) — distinct from the v1/v2/v3/v4
         // variant above. This is the actual chip name, e.g. "Intel(R) Core(TM)
         // i7-12700K CPU @ 3.60GHz". Useful for comparing benchmarks across

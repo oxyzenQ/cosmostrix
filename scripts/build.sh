@@ -521,11 +521,19 @@ build_pgo() {
         export COSMOSTRIX_PROFILE="pgo-instrument"
         export COSMOSTRIX_LTO="off"
         export COSMOSTRIX_STRIP="no"
-        # Preserve target-cpu if set via COSMOSTRIX_TARGET_CPU (for v3/v4 PGO)
+        # PGO target CPU: default to native so the build inherits the host's
+        # full feature set (AVX2/FMA on v3, AVX-512 on v4). Without this,
+        # rustc falls back to the baseline x86-64 target (SSE2 only), which
+        # causes a catastrophic performance regression — the PGO build ends
+        # up slower than a non-PGO v3 build. Override with
+        # COSMOSTRIX_TARGET_CPU=x86-64-v3 if you need a distributable binary.
         local cpu_flag=""
         if [ -n "${COSMOSTRIX_TARGET_CPU:-}" ]; then
             cpu_flag="-C target-cpu=${COSMOSTRIX_TARGET_CPU}"
             log_info "PGO target CPU: ${COSMOSTRIX_TARGET_CPU}"
+        else
+            cpu_flag="-C target-cpu=native"
+            log_info "PGO target CPU: native (host CPU features)"
         fi
         export RUSTFLAGS="${cpu_flag} -C profile-generate=${pgo_dir}"
 

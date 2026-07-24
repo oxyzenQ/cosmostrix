@@ -44,11 +44,13 @@ fn main() {
     let cpu_baseline = cpu_baseline(&build_id, &profile_name, &target_features);
     verify_cpu_baseline(&build_id, &profile_name, cpu_baseline, &target_features);
     let optimization = optimization_label(&build_id, cpu_baseline, &target_features);
+    let pgo_label = pgo_label(&build_id);
 
     println!("cargo:rustc-env=COSMOSTRIX_BUILD={build_id}");
     println!("cargo:rustc-env=COSMOSTRIX_OPTIMIZATION={optimization}");
     println!("cargo:rustc-env=COSMOSTRIX_CPU_BASELINE={cpu_baseline}");
     println!("cargo:rustc-env=COSMOSTRIX_TARGET_FEATURES={target_features_display}");
+    println!("cargo:rustc-env=COSMOSTRIX_PGO={pgo_label}");
 
     let sha = git_short_sha()
         .or_else(|| env_short_sha("GITHUB_SHA"))
@@ -453,6 +455,21 @@ fn is_native_tuned_build(build_id: &str) -> bool {
     rustflags.contains("target-cpu=native") || encoded_rustflags.contains("target-cpu=native")
 }
 
+/// Returns `"yes"` if the current build was compiled with PGO profile data
+/// (the `nitro-pgo` stage of `./scripts/build.sh pgo`), `"no"` otherwise.
+///
+/// The instrumentation stage (`nitro-pgo-instrument`) is NOT a PGO-optimized
+/// build — it carries profiling overhead and is slower than a plain release
+/// build. Only the final `nitro-pgo` stage, which consumes the collected
+/// `.profdata`, should report `pgo: yes`.
+fn pgo_label(build_id: &str) -> &'static str {
+    if build_id == "nitro-pgo" {
+        "yes"
+    } else {
+        "no"
+    }
+}
+
 fn missing_required_features(baseline: &str, features: &HashSet<String>) -> Vec<&'static str> {
     let required: &[&str] = match baseline {
         "x86-64-v4" => &["avx512f", "avx512bw", "avx512cd", "avx512dq", "avx512vl"],
@@ -647,5 +664,19 @@ mod tests {
         assert_eq!(normalize_strip("symbols"), "yes");
         assert_eq!(normalize_strip("debuginfo"), "debuginfo");
         assert_eq!(normalize_strip("false"), "no");
+    }
+
+    #[test]
+    fn pgo_label_recognizes_nitro_pgo_final_stage() {
+        // Only the final PGO stage (profile-use) reports pgo=yes.
+        // The instrumentation stage carries profiling overhead and is
+        // slower than a plain release build, so it must NOT report pgo=yes.
+        assert_eq!(pgo_label("nitro-pgo"), "yes");
+        assert_eq!(pgo_label("nitro-pgo-instrument"), "no");
+        assert_eq!(pgo_label("linux-amd64-v3"), "no");
+        assert_eq!(pgo_label("linux-amd64-v3-musl"), "no");
+        assert_eq!(pgo_label("pro-linux-v3"), "no");
+        assert_eq!(pgo_label("unknown"), "no");
+        assert_eq!(pgo_label(""), "no");
     }
 }

@@ -51,7 +51,7 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         o.push_kv_str("lto", env!("COSMOSTRIX_LTO"));
         o.push_kv_str("panic", env!("COSMOSTRIX_PANIC"));
         o.push_kv_str("strip", env!("COSMOSTRIX_STRIP"));
-        o.push_kv_str("pgo", "no");
+        o.push_kv_str("pgo", env!("COSMOSTRIX_PGO"));
         o.push_kv_str("cpu_model", &cpu_model_label());
     });
 
