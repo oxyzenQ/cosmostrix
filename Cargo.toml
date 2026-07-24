@@ -25,6 +25,18 @@ unicode-width = "0.2"
 chrono = { version = ">=0.4.38, <0.5", default-features = false, features = ["clock"] }
 notify = { version = ">=6.1, <7", default-features = false }
 
+# dragon-multicore experiment: parallel droplet simulation.
+# Behind a feature flag so the experiment can be A/B tested without
+# affecting the default build.
+rayon = { version = ">=1.10, <2", optional = true }
+
+[features]
+# Default build: single-threaded simulation (unchanged behavior).
+default = []
+# dragon-multicore: parallelize Droplet::advance across cores via rayon.
+# The draw pass and dirty-check remain serial (stdout is not thread-safe).
+multicore = ["dep:rayon"]
+
 [target.'cfg(target_os = "macos")'.dependencies]
 notify = { version = ">=6.1, <7", default-features = false, features = ["macos_fsevent"] }
 

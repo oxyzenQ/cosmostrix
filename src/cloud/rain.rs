@@ -17,6 +17,38 @@ use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
 use super::render::DrawCtx;
 use super::Cloud;
 
+/// Result of advancing a single droplet's physics in the simulation pass.
+///
+/// `rain_at` produces one `SimUpdate` per alive droplet in Phase A (which
+/// may run in parallel under the `multicore` feature), then applies them
+/// serially in Phase B. Splitting the two phases lets the simulation step
+/// itself run on multiple cores while shared-state mutations
+/// (`col_stat`, `droplet_free_list`, glitch span writes into `char_pool`)
+/// stay on a single thread where they belong.
+///
+/// Fields are `Copy` so the parallel collector can move them by value —
+/// no per-droplet heap allocation.
+#[derive(Clone, Copy)]
+struct SimUpdate {
+    /// Index into `Cloud::droplets` — used to push back onto the free-list
+    /// when the droplet died this frame.
+    idx: usize,
+    /// `droplet.bound_col` after advance — drives `set_column_spawn` and
+    /// `do_glitch_span`. Guaranteed < cols (checked at spawn time).
+    col: u16,
+    /// First line of the droplet's trail this frame — drives glitch span.
+    start_line: u16,
+    /// Head line after advance — drives glitch span's upper bound.
+    hp: u16,
+    /// Character pool index — drives glitch character replacement.
+    cp_idx: u16,
+    /// True if the droplet's column was freed (column can re-spawn).
+    free_col: bool,
+    /// True if the droplet died this frame (caller must update col_stat
+    /// and free-list).
+    died: bool,
+}
+
 impl Cloud {
     pub fn rain(&mut self, frame: &mut Frame) {
         self.rain_at(frame, Instant::now());
@@ -270,13 +302,68 @@ impl Cloud {
                 self.resume_blend,
             );
         } else {
-            for i in 0..self.droplets.len() {
-                if !self.droplets[i].is_alive {
-                    continue;
-                }
+            // ── dragon-multicore experiment ──────────────────────────────
+            // The droplet simulation pass is split into two phases:
+            //
+            //   Phase A: compute a SimUpdate per alive droplet (pure
+            //            Droplet::advance call — only mutates the droplet
+            //            itself, no shared state).
+            //
+            //   Phase B: apply the SimUpdate list serially. This touches
+            //            shared Cloud state: col_stat, droplet_free_list,
+            //            set_column_spawn, do_glitch_span. These cannot be
+            //            parallelized without locks that would dwarf the
+            //            gains.
+            //
+            // When the `multicore` feature is enabled, Phase A runs via
+            // rayon's par_iter_mut; otherwise it falls back to the
+            // original serial loop. The behavior is identical — only the
+            // scheduling of Phase A changes.
+            #[cfg(feature = "multicore")]
+            let updates: Vec<SimUpdate> = {
+                use rayon::prelude::*;
+                self.droplets
+                    .par_iter_mut()
+                    .enumerate()
+                    .filter_map(|(i, d)| {
+                        if !d.is_alive {
+                            return None;
+                        }
+                        let adv_now = if use_sim_cap {
+                            if let Some(last) = d.last_time {
+                                let max_now = last + max_sim_delta;
+                                if now > max_now {
+                                    max_now
+                                } else {
+                                    now
+                                }
+                            } else {
+                                now
+                            }
+                        } else {
+                            now
+                        };
+                        let free_col = d.advance(adv_now, self.lines, self.resume_blend);
+                        Some(SimUpdate {
+                            idx: i,
+                            col: d.bound_col,
+                            start_line: d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0),
+                            hp: d.head_put_line,
+                            cp_idx: d.char_pool_idx,
+                            free_col,
+                            died: !d.is_alive,
+                        })
+                    })
+                    .collect()
+            };
 
-                let (col, start_line, hp, cp_idx, free_col, died) = {
-                    let d = &mut self.droplets[i];
+            #[cfg(not(feature = "multicore"))]
+            let updates: Vec<SimUpdate> = {
+                let mut out = Vec::with_capacity(self.droplets.len());
+                for (i, d) in self.droplets.iter_mut().enumerate() {
+                    if !d.is_alive {
+                        continue;
+                    }
                     let adv_now = if use_sim_cap {
                         if let Some(last) = d.last_time {
                             let max_now = last + max_sim_delta;
@@ -292,33 +379,40 @@ impl Cloud {
                         now
                     };
                     let free_col = d.advance(adv_now, self.lines, self.resume_blend);
-                    let col = d.bound_col;
-                    let start_line = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
-                    let hp = d.head_put_line;
-                    let cp_idx = d.char_pool_idx;
-                    let died = !d.is_alive;
-                    (col, start_line, hp, cp_idx, free_col, died)
-                };
+                    out.push(SimUpdate {
+                        idx: i,
+                        col: d.bound_col,
+                        start_line: d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0),
+                        hp: d.head_put_line,
+                        cp_idx: d.char_pool_idx,
+                        free_col,
+                        died: !d.is_alive,
+                    });
+                }
+                out
+            };
 
-                if died {
+            // Phase B: serial application of shared-state mutations.
+            for u in updates {
+                if u.died {
                     // Dragon egg #12: direct indexing — col comes from d.col which
                     // is guaranteed < cols (checked at spawn). col_stat is resized
                     // to cols in spawn.rs.
-                    let cs = &mut self.col_stat[col as usize];
+                    let cs = &mut self.col_stat[u.col as usize];
                     cs.num_droplets = cs.num_droplets.saturating_sub(1);
                     cs.can_spawn = true;
                     // Return the dead droplet's index to the free-list so
                     // spawn_droplets can reuse it in O(1) on the next spawn.
-                    self.droplet_free_list.push(i);
+                    self.droplet_free_list.push(u.idx);
                     continue;
                 }
 
-                if free_col {
-                    self.set_column_spawn(col, true);
+                if u.free_col {
+                    self.set_column_spawn(u.col, true);
                 }
 
                 if time_for_glitch {
-                    self.do_glitch_span(start_line, hp, col, cp_idx);
+                    self.do_glitch_span(u.start_line, u.hp, u.col, u.cp_idx);
                 }
             }
         }
