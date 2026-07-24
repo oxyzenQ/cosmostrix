@@ -422,6 +422,7 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 - [Supply Chain](docs/SUPPLY_CHAIN.md) — supply-chain hardening policy
 - [Stability Audit](docs/STABILITY_AUDIT.md) — terminal stability audit
 - [SIMD Feasibility](docs/SIMD_FEASIBILITY.md) — SIMD optimization feasibility
+- [Advanced Benchmarking](docs/BENCHMARK_ADVANCED.md) — enable MICROARCHITECTURE and ENERGY metrics, interpret key benchmark fields
 - [CI & Release Workflow](docs/workflow/about-ci.md) — CI pipeline and release process
 
 ## Development

@@ -5,20 +5,20 @@
 //! project's ASCII logo and dissolves it into Matrix rain.
 //!
 //! ```text
-//! Phase 1: Fade In    (0    – 1000 ms)  Logo appears line by line, fading
+//! Phase 1: Fade In    (0    – 2000 ms)  Logo appears line by line, fading
 //!                                         from black to the palette color.
-//! Phase 2: Ignition   (1000 – 2500 ms)  A spark falls from the top of the
+//! Phase 2: Ignition   (2000 – 4250 ms)  A spark falls from the top of the
 //!                                         screen to the logo's center; on
 //!                                         impact the logo flashes bright.
-//! Phase 3: Dissolve   (2500 – 3500 ms)  Logo characters turn into rain
+//! Phase 3: Dissolve   (4250 – 5250 ms)  Logo characters turn into rain
 //!                                         droplets starting from the outer
 //!                                         edge and moving inward; droplets
 //!                                         fall toward the bottom.
-//! Phase 4: Rain       (3500 – 4500 ms)  The last droplets fall off-screen;
+//! Phase 4: Rain       (5250 – 6250 ms)  The last droplets fall off-screen;
 //!                                         rain engine takes over seamlessly.
 //! ```
 //!
-//! Total: ~4.5 s. Any key (q / Enter / etc.) skips instantly. The intro
+//! Total: ~6.25 s. Any key (q / Enter / etc.) skips instantly. The intro
 //! is skipped entirely on terminals smaller than 80×24 with a stderr
 //! notice (handled by [`super::intro::run_intro`]).
 //!
@@ -122,10 +122,15 @@ const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Phase boundaries (milliseconds from intro start).
-const PHASE1_FADEIN_END_MS: u64 = 1_000;
-const PHASE2_IGNITION_END_MS: u64 = 2_500;
-const PHASE3_DISSOLVE_END_MS: u64 = 3_500;
-const PHASE4_RAIN_END_MS: u64 = 4_500;
+///
+/// Tuned for an elegant, cinematic feel: the early phases (fade-in and
+/// ignition) are intentionally slow so the logo reveals itself with
+/// deliberate grace rather than snapping into view. Total intro runs
+/// ~6.25 s, comfortably under the 8 s ceiling.
+const PHASE1_FADEIN_END_MS: u64 = 2_000;
+const PHASE2_IGNITION_END_MS: u64 = 4_250;
+const PHASE3_DISSOLVE_END_MS: u64 = 5_250;
+const PHASE4_RAIN_END_MS: u64 = 6_250;
 
 /// Frame period in seconds, computed at runtime to avoid MSRV issues
 /// with `Duration::as_secs_f32()` in const context (stable since 1.83,
@@ -154,7 +159,7 @@ const JITTER_VX: f32 = 2.0;
 /// Fade-in granularity — the logo appears in N reveal steps spread
 /// across Phase 1. Each step reveals another batch of cells. Higher =
 /// smoother but more CPU; lower = chunkier but cheaper. 32 feels
-/// smooth at 30 FPS over a 1 s phase.
+/// smooth at 30 FPS over a 2 s phase.
 const FADEIN_STEPS: u32 = 32;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -900,11 +905,11 @@ mod tests {
 
     #[test]
     fn phase_boundaries_match_spec() {
-        // Spec: 0-1s fade in, 1-2.5s ignition, 2.5-3.5s dissolve, 3.5-4.5s rain.
-        assert_eq!(PHASE1_FADEIN_END_MS, 1_000);
-        assert_eq!(PHASE2_IGNITION_END_MS, 2_500);
-        assert_eq!(PHASE3_DISSOLVE_END_MS, 3_500);
-        assert_eq!(PHASE4_RAIN_END_MS, 4_500);
+        // Spec: 0-2s fade in, 2-4.25s ignition, 4.25-5.25s dissolve, 5.25-6.25s rain.
+        assert_eq!(PHASE1_FADEIN_END_MS, 2_000);
+        assert_eq!(PHASE2_IGNITION_END_MS, 4_250);
+        assert_eq!(PHASE3_DISSOLVE_END_MS, 5_250);
+        assert_eq!(PHASE4_RAIN_END_MS, 6_250);
     }
 
     #[test]

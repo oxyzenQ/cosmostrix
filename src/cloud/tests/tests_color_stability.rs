@@ -171,11 +171,14 @@ fn auto_color_drift_is_opt_in_only() {
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
     let frame_dt = Duration::from_micros(16_667);
 
-    // Simulate 5 minutes with drift ON — the ecosystem ticks every 3 seconds
-    // with AUTONOMOUS_PALETTE_DRIFT_CHANCE = 0.03, so over 5 minutes we
-    // get ~100 drift attempts. Statistically reliable with this seed (~95% success).
+    // Simulate 40 minutes with drift ON — the ecosystem ticks every 3 seconds
+    // with AUTONOMOUS_PALETTE_DRIFT_CHANCE = 0.03, so over 40 minutes we
+    // get ~800 drift attempts. Probability of zero drifts is 0.97^800 ≈ 3e-11,
+    // which is effectively impossible and removes the flakiness that plagued
+    // this test on slow FreeBSD CI runners (previously only 5 minutes / ~100
+    // ticks, which still had a ~5% chance of no drift).
     let mut drifted = false;
-    for i in 0..18_000u64 {
+    for i in 0..144_000u64 {
         let now = start + frame_dt.saturating_mul(i as u32);
         cloud.last_spawn_time = now - Duration::from_millis(16);
         cloud.last_phosphor_time = now;
@@ -189,7 +192,7 @@ fn auto_color_drift_is_opt_in_only() {
     assert!(
         drifted,
         "With auto_color_drift=true, the ecosystem should eventually drift \
-         to a related scheme (expected at least one drift in 20 simulated minutes)"
+         to a related scheme (expected at least one drift in 40 simulated minutes)"
     );
 }
 

@@ -757,7 +757,10 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             }
             _ => {
                 s.field("status", "not available (RAPL requires Linux + powercap)");
-                s.field("hint", "See docs/RAPL_ACCESS.md for setup instructions");
+                s.field(
+                    "hint",
+                    "See docs/BENCHMARK_ADVANCED.md for setup instructions",
+                );
             }
         }
     }
@@ -786,7 +789,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 s.field("status", "not available (perf counters require Linux x86)");
                 s.field(
                     "hint",
-                    "See docs/SIMD_FEASIBILITY.md for CPU analysis details",
+                    "See docs/BENCHMARK_ADVANCED.md for setup instructions",
                 );
             }
         }
