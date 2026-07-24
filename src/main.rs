@@ -954,7 +954,7 @@ fn main() -> std::io::Result<()> {
         let final_scene = interactive::last_scene_name();
         let final_charset = interactive::last_charset_preset();
         let startup_color = format!("{:?}", color_scheme);
-        // Use DEFAULT_SCENE constant rather than hard-coded "monolith" so
+        // Use DEFAULT_SCENE constant rather than a hard-coded scene name so
         // any future change to the default scene is reflected consistently.
         let startup_scene = args
             .scene

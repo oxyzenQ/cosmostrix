@@ -123,13 +123,13 @@ fn config_scene_calm_applies() {
 }
 
 #[test]
-fn default_scene_is_monolith() {
+fn default_scene_is_cinematic() {
     let args = args_from_cli(&[]);
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.scene.as_deref(), Some("cinematic"));
     assert_eq!(args.color, "neon-purple");
-    assert_eq!(args.charset, "braille");
-    assert_eq!(args.speed, 30.0);
-    assert_eq!(args.density, 0.85);
+    assert_eq!(args.charset, "binary");
+    assert_eq!(args.speed, 9.0);
+    assert_eq!(args.density, 0.75);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
@@ -316,7 +316,8 @@ fn config_speed_wins_over_scene_default() {
 fn config_speed_outside_safe_range_is_ignored() {
     for value in ["0", "0.5", "100.1", "1000", "100000"] {
         let args = args_with_config(&format!("speed = {value}\n"), &[]);
-        assert_eq!(args.speed, 30.0);
+        // Default scene is cinematic, which sets speed=9.0.
+        assert_eq!(args.speed, 9.0);
     }
 }
 
@@ -479,21 +480,22 @@ fn invalid_config_values_are_ignored() {
     );
     assert_eq!(args.color, "neon-purple");
     assert_eq!(args.fps, 60.0);
-    assert_eq!(args.speed, 30.0);
-    // v14.0.0: invalid `scene = unknown` does not set scene; default monolith applies.
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    // Default scene is cinematic, which sets speed=9.0.
+    assert_eq!(args.speed, 9.0);
+    // v14.0.0: invalid `scene = unknown` does not set scene; default cinematic applies.
+    assert_eq!(args.scene.as_deref(), Some("cinematic"));
 }
 
 #[test]
 fn legacy_keys_no_longer_apply_v17() {
     // v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct, maxdpc)
     // are REMOVED. They are silently ignored — values come from --glitch-level
-    // preset only. Default glitch_level is Subtle (from monolith scene default).
+    // preset only. Default glitch_level is Subtle (from cinematic scene default).
     let args = args_with_config(
         "glitchpct = 7\nshortpct = 22\nrippct = 11\nmaxdpc = 2\n",
         &[],
     );
-    // Default scene is monolith which sets glitch_level = Subtle.
+    // Default scene is cinematic which sets glitch_level = Subtle.
     // Subtle preset: glitch_pct=3.0, shortpct=60.0, rippct=45.0, maxdpc=3.
     assert_eq!(
         args.glitch_pct, 3.0,

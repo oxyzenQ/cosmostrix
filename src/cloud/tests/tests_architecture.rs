@@ -95,12 +95,12 @@ fn architecture_scene_rain_style_mappings_unchanged() {
     assert_eq!(cloud2.rain_style(), RainStyle::Glyph);
 }
 
-/// Default runtime profile is preserved: monolith scene defaults remain
-/// cosmos color, binary charset, monolith rain style, speed 20, density 0.75.
+/// Monolith scene defaults are preserved: cosmos color, binary charset,
+/// monolith rain style, speed 20, density 0.75.
 #[test]
-fn architecture_default_runtime_profile_unchanged() {
+fn architecture_monolith_runtime_profile_unchanged() {
     let mut cloud = make_monolith_cloud();
-    // These are the default values set by the monolith scene
+    // These are the values set by the monolith scene (not the project default)
     assert_eq!(cloud.rain_style(), RainStyle::Monolith);
     assert_eq!(cloud.color_scheme(), ColorScheme::Cosmos);
     assert_eq!(cloud.chars_per_sec, 20.0);

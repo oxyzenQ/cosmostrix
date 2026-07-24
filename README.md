@@ -224,7 +224,7 @@ scripts/verify-release-build.sh pro-linux-v3
 ## Quickstart
 
 ```bash
-cosmostrix                           # signature Monolith Rain default
+cosmostrix                           # signature Cinematic Cosmic default
 cosmostrix --color rainbow --speed 12   # color + speed
 cosmostrix --screensaver              # only q exits (all other keys ignored)
 cosmostrix --message "wake up, neo"   # overlay message
@@ -310,12 +310,13 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 ## Scenes
 
 **Core atmospheres** (interactive cycle with `x`/`X`):
-- `monolith` — default signature Cosmostrix Monolith Rain with sparse structured segments
+- `cinematic` — default signature Cosmic Binary with slow vast pacing and deep-space breathing room
 - `matrix` — classic Matrix glyph rain
+- `monolith` — structured Cosmostrix Monolith Rain with sparse structured segments
 - `signal` — digital transmission / code-signal atmosphere
 
 **Curated scenes** (via `--scene <name>`):
-- `classic`, `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`
+- `classic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`
 
 Press `x` or `X` while running to cycle core atmospheres: Monolith → Matrix → Signal → Monolith.
 

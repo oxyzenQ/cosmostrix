@@ -292,9 +292,9 @@ pub fn dump_config_text() -> &'static str {
 # Core Settings
 
 # Scene — built-in atmospheric template
-#   monolith (default) | matrix | signal | classic | cinematic | calm
+#   cinematic (default) | matrix | monolith | signal | classic | calm
 #   storm | cosmos | neon | hacker | low-power
-# scene = monolith
+# scene = cinematic
 
 # Custom scene from CLI: cosmostrix --scene-custom <name>
 # (v17: selector key removed from config.toml — use the CLI flag)

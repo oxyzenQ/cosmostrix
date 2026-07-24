@@ -116,8 +116,8 @@ COMMON OPTIONS:
       Apply a built-in scene atmosphere. Scenes set color, charset,
       fps, speed, density, glitch-level, and rain style to curated
       values. Explicit CLI flags always override scene-managed values.
-      Built-in scenes: matrix, monolith (default), signal, classic,
-      cinematic, calm, storm, cosmos, neon, hacker, low-power.
+      Built-in scenes: cinematic (default), matrix, monolith, signal, classic,
+      calm, storm, cosmos, neon, hacker, low-power.
       Use --list-scenes to see all entries with descriptions.
       cosmostrix
       cosmostrix --scene matrix

@@ -35,7 +35,7 @@ pub struct SceneInfo {
     pub config: SceneConfig,
 }
 
-pub const DEFAULT_SCENE: &str = "monolith";
+pub const DEFAULT_SCENE: &str = "cinematic";
 
 /// Ordered scene cycle: monolith -> matrix -> signal -> monolith.
 pub const SCENE_ORDER: &[&str] = &["monolith", "matrix", "cinematic"];
@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn scene_names_are_present() {
-        assert_eq!(DEFAULT_SCENE, "monolith");
+        assert_eq!(DEFAULT_SCENE, "cinematic");
         assert_eq!(
             all_scene_names(),
             &[

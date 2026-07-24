@@ -174,11 +174,11 @@ fn existing_config_without_profiles_still_works() {
 }
 
 #[test]
-fn default_plain_runtime_profile_remains_monolith() {
+fn default_plain_runtime_profile_remains_cinematic() {
     let args = args_with_config("", &[]);
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.scene.as_deref(), Some("cinematic"));
     assert_eq!(args.color, "neon-purple");
-    assert_eq!(args.speed, 30.0);
+    assert_eq!(args.speed, 9.0);
 }
 
 // Color precedence vs auto-drift clarity tests

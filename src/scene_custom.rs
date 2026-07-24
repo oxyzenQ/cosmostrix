@@ -220,7 +220,7 @@ pub fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
 pub fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
     let mut out = String::new();
     for (name, scene) in scenes {
-        let base = scene.base.as_deref().unwrap_or("monolith");
+        let base = scene.base.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE);
         out.push_str(&format!("  {name:14} base={base}\n"));
     }
     out
@@ -412,10 +412,11 @@ mod tests {
             "list must show base for alpha: {text}"
         );
         assert!(text.contains("beta"), "list must include beta: {text}");
-        // beta has no base set, so it should fall back to monolith
+        // beta has no base set, so it should fall back to the default scene
+        // (currently 'cinematic' — see crate::scene::DEFAULT_SCENE).
         assert!(
-            text.contains("base=monolith"),
-            "list must default base to monolith: {text}"
+            text.contains("base=cinematic"),
+            "list must default base to the current default scene (cinematic): {text}"
         );
     }
 
