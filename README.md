@@ -42,7 +42,7 @@
   <a href="https://www.youtube.com/watch?v=KSk-DWFdg3A">YouTube</a>
 </p>
 
-Signature Monolith Rain, cinematic themes, and message mode in a real terminal session.
+Signature Cinematic Cosmic, Monolith Rain, and message mode in a real terminal session.
 
 ## Architecture — Not Just Matrix Rain
 
@@ -63,7 +63,7 @@ Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --bench
 ## Features
 
 - **Cinematic terminal rain** — calm, organic visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
-- **11 built-in scenes** — one-command visual profiles: 3 core atmospheres (matrix, monolith, signal) and 8 curated scenes (classic, cinematic, calm, storm, cosmos, neon, hacker, low-power), including signature Cosmostrix Monolith Rain
+- **11 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith) and 8 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, low-power), including signature Cosmostrix Cinematic Cosmic
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
 - **Adaptive custom time scheduling** — `adaptive-custom.HH-MM` config entries define your own 24-hour time-to-parameter mapping (color, scene, speed, density, FPS, charset, glitch-level) with smoothstep 5-minute blend transitions; overrides the default 5-phase adaptive engine when defined; sticky parameters keep previous values when unspecified; live config reload re-parses immediately on save
 - **Default adaptive atmosphere engine** — 5-phase time-driven modulation (Deep Void → Compression → Pulse → Calm → Signal) that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time; opt-in via `atmosphere-mode = controlled-live`
@@ -313,12 +313,11 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 - `cinematic` — default signature Cosmic Binary with slow vast pacing and deep-space breathing room
 - `matrix` — classic Matrix glyph rain
 - `monolith` — structured Cosmostrix Monolith Rain with sparse structured segments
-- `signal` — digital transmission / code-signal atmosphere
 
 **Curated scenes** (via `--scene <name>`):
-- `classic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`
+- `signal`, `classic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`
 
-Press `x` or `X` while running to cycle core atmospheres: Monolith → Matrix → Signal → Monolith.
+Press `x` or `X` while running to cycle core atmospheres (cinematic ↔ matrix ↔ monolith).
 
 ## Configuration
 
