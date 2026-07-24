@@ -513,6 +513,14 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
+    if args.architecture {
+        // Print the full Dragon diff-based rendering engine architecture
+        // overview and exit. Plain text only (no ANSI) so it pipes cleanly
+        // into `less`, `grep`, or documentation generators.
+        println!("{}", info::architecture_report());
+        return Ok(());
+    }
+
     if args.check_update {
         if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
             ux::die_config(format!("error: update check failed: {e}"));

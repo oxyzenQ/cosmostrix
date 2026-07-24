@@ -173,7 +173,8 @@ impl FromStr for U16Range {
     name = "cosmostrix",
     version,
     disable_version_flag = true,
-    about = "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
+    about = "Professional-grade cinematic Matrix rain renderer for serious terminal environments.",
+    after_help = "Cosmostrix uses a diff-based rendering engine — only changed cells are redrawn, not the full screen.\nSee `cosmostrix --architecture` for the full technical breakdown."
 )]
 pub struct Args {
     // === COMMON OPTIONS (visible in --help) ===
@@ -382,6 +383,14 @@ pub struct Args {
         help = "System compatibility report"
     )]
     pub doctor: bool,
+
+    #[arg(
+        long = "architecture",
+        help_heading = "DIAGNOSTICS",
+        display_order = 105,
+        help = "Print the Dragon diff-based rendering engine architecture overview and exit"
+    )]
+    pub architecture: bool,
 
     #[arg(
         long = "benchmark",
