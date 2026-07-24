@@ -187,12 +187,15 @@ fn consecutive_frames_produce_visual_changes() {
     cloud.last_phosphor_time = base;
     cloud.rain_at(&mut frame, base);
 
-    // Run 10 more ticks (~170ms total). At default speed, each droplet
-    // advances ~1.4 rows over this window — at least one row advance is
-    // guaranteed for most droplets, producing dirty cells in at least
-    // one frame.
+    // Run 20 more ticks (~333ms total). At default speed (8 chars/sec),
+    // each droplet advances ~2.7 rows over this window. With dragon-temporal
+    // peak (PREDICTION_HORIZON=12), droplets skip up to 12 consecutive frames
+    // between real advances — so a 10-frame window could legitimately produce
+    // zero dirty cells (fully covered by the prediction horizon). The 20-frame
+    // window guarantees at least one prediction expiry + real advance, which
+    // produces dirty cells in at least one frame.
     let mut max_dirty = 0usize;
-    for i in 1..=10 {
+    for i in 1..=20 {
         let tick_time = base + Duration::from_micros(i as u64 * 16_667);
         frame.clear_dirty();
         cloud.last_phosphor_time = base + Duration::from_micros((i - 1) as u64 * 16_667);
@@ -205,10 +208,10 @@ fn consecutive_frames_produce_visual_changes() {
 
     // At least one frame in the window should have visual changes
     // (row advance, phosphor ghost characters, head brightness modulation,
-    // etc.). The max across 10 frames should be > 0.
+    // etc.). The max across 20 frames should be > 0.
     assert!(
         max_dirty > 0,
-        "at least one frame in a 10-frame window at default speed should produce visual changes (max_dirty={})",
+        "at least one frame in a 20-frame window at default speed should produce visual changes (max_dirty={})",
         max_dirty
     );
 }

@@ -559,7 +559,41 @@ impl Cloud {
                 }
 
                 if d.is_alive || needs_tail_cleanup {
-                    d.draw(&ctx, frame, now, draw_everything);
+                    // dragon-temporal peak (Lever 2 + 3): when the droplet
+                    // advanced by a small number of cells this frame, use
+                    // the cheap `draw_recent_only()` path. It only iterates
+                    // over the new head cell(s) + the previous head cell
+                    // (which transitions from Head to Body loc), skipping
+                    // the full trail iteration. Body cells retain their
+                    // previous frame's content (slightly stale head bloom,
+                    // imperceptible at 60 FPS).
+                    //
+                    // Threshold: last_chars_advanced <= DRAW_RECENT_THRESHOLD.
+                    // Above this, the advance is large enough that the full
+                    // trail needs refreshing (multiple body cells changed
+                    // content, and the stale bloom would be too visible).
+                    // We also fall back to full draw() when:
+                    //   - draw_everything is true (forced full redraw —
+                    //     e.g., resume from pause, palette transition)
+                    //   - the droplet needs tail cleanup (just died) —
+                    //     draw_recent_only does handle tail cleanup, but
+                    //     dying droplets may have other state transitions
+                    //     that benefit from a full refresh
+                    //   - ctx is in a transitioning state (palette/charset
+                    //     transition) — full draw ensures all cells get
+                    //     the transition effect applied consistently
+                    const DRAW_RECENT_THRESHOLD: u16 = 3;
+                    let use_recent = d.is_alive
+                        && !draw_everything
+                        && !needs_tail_cleanup
+                        && !ctx.transitioning
+                        && !ctx.charset_transitioning()
+                        && d.last_chars_advanced <= DRAW_RECENT_THRESHOLD;
+                    if use_recent {
+                        d.draw_recent_only(&ctx, frame, now, draw_everything);
+                    } else {
+                        d.draw(&ctx, frame, now, draw_everything);
+                    }
                 }
 
                 if !d.is_alive {
