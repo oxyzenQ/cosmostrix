@@ -1,22 +1,37 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Differential frame buffer with generation-based dirty tracking.
+//! Differential frame buffer with double-buffered (generation-based) dirty
+//! tracking.
 //!
 //! The frame buffer is the central data structure between simulation and
 //! output. It stores a 2D grid of [`Cell`] values and tracks which cells
 //! have changed since the last draw call.
 //!
-//! ## Dirty Tracking Strategy
+//! ## Dirty Tracking Strategy — Double-Buffered Generations
 //!
-//! Each cell carries a *generation counter* alongside its content. When a cell
-//! is written, its generation is updated to match the current frame generation.
-//! A separate `Vec<u8>` provides O(1) dirty checks without scanning the full
-//! grid. Dirty indices are collected into a [`SmallVec`] with 64 inline slots,
-//! covering small terminals without heap allocation.
+//! Two independent generation systems coexist:
+//!
+//! 1. **Content generation** (`gen` + `cell_gen: Vec<u32>`): tracks whether
+//!    each cell holds live content for the current logical frame or is
+//!    effectively blank. Bumped by [`clear_with_bg`] on semantic resets
+//!    (resize, theme change). See existing docs below.
+//!
+//! 2. **Dirty generation** (`dirty_gen` + `dirty_cell_gen: Vec<u32>`): tracks
+//!    which cells were dirtied *this render frame*. Bumped by [`clear_dirty`]
+//!    at end of every frame. This is the double-buffer trick: instead of
+//!    memset-clearing a per-cell dirty flag array (O(N) every frame), we bump
+//!    a single u32 counter. All previous dirty stamps become "stale"
+//!    (don't match the new counter) and are effectively clean. Cost: one
+//!    integer add. No memset, no iteration.
+//!
+//! Dirty indices are still collected into a [`SmallVec`] with 64 inline slots
+//! for fast iteration — the dirty *list* is needed by renderers that iterate
+//! only-changed cells. The SmallVec's `clear()` is O(1) (just resets len), so
+//! the per-frame cost is dominated by the generation bump.
 //!
 //! The generation system allows cells to be "logically cleared" without
-//! physically overwriting them — [`clear_with_bg`] bumps the generation,
+//! physically overwriting them — [`clear_with_bg`] bumps the content generation,
 //! making all previous cells appear blank without a full buffer zeroing.
 
 use smallvec::SmallVec;
@@ -27,11 +42,14 @@ use crate::constants::{
     MAX_TERMINAL_LINES, MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
 };
 
-// Note: dirty_map is now Vec<u8> (1 byte per cell) instead of BitVec.
-// Trade-off: 8x more memory (4.8 KiB vs 600 B for 120x40) but the partial-clear
-// hot path becomes a simple indexed byte store (no bit math) and the full-clear
-// is a memset that the compiler auto-vectorizes. BitVec's per-bit .set() has
-// overhead from read-modify-write on the containing byte.
+// Note: dirty tracking uses a double-buffered generation system.
+// Previously this was a Vec<u8> dirty_map (1 byte per cell) that had to be
+// memset-cleared every frame. The generation system replaces that memset with
+// a single u32 bump — old dirty stamps become stale instantly. Memory cost
+// is 4x (4 bytes/cell vs 1 byte/cell), but the per-frame clear drops from
+// O(N) memset to O(1) integer add. At 200x60=12000 cells, the old memset was
+// ~150 AVX2 stores; the new bump is 1 add. Net win on every frame, especially
+// the dirty_all path which previously forced a full memset.
 
 /// Inline capacity for dirty indices SmallVec (64 usize = 512 bytes on stack).
 /// Covers small terminals without heap allocation; spills to heap for large frames.
@@ -46,7 +64,12 @@ pub struct Frame {
     cell_gen: Vec<u32>,
     pub(crate) blank: Cell,
     dirty_all: bool,
-    dirty_map: Vec<u8>,
+    /// Current dirty generation. Bumped by `clear_dirty()` at end of every
+    /// frame. A cell is "dirty this frame" iff `dirty_cell_gen[i] == dirty_gen`.
+    /// Replaces the old `dirty_map: Vec<u8>` which required an O(N) memset
+    /// every frame. The bump is O(1).
+    dirty_gen: u32,
+    dirty_cell_gen: Vec<u32>,
     dirty: SmallVec<[usize; DIRTY_INLINE_CAPACITY]>,
     /// Semantic generation counter: incremented when the renderer's semantic
     /// identity changes (charset switch, shading mode toggle, theme change).
@@ -88,6 +111,9 @@ impl Frame {
         let len = width as usize * height as usize;
         let blank = Cell::blank_with_bg(bg);
         let gen = 1u32;
+        // dirty_gen starts at 1; all dirty_cell_gen entries start at 0 (stale).
+        // So every cell is initially "clean" from the dirty-tracking POV,
+        // and dirty_all=true forces the first frame to be a full redraw.
         Self {
             width,
             height,
@@ -96,7 +122,8 @@ impl Frame {
             cell_gen: vec![gen; len],
             blank,
             dirty_all: true,
-            dirty_map: vec![0u8; len],
+            dirty_gen: 1,
+            dirty_cell_gen: vec![0u32; len],
             dirty: SmallVec::with_capacity((len / DIRTY_CAPACITY_DIVISOR).min(DIRTY_CAPACITY_CAP)),
             semantic_gen: 0,
         }
@@ -157,21 +184,27 @@ impl Frame {
     }
 
     pub fn clear_dirty(&mut self) {
-        if self.dirty_all {
-            self.dirty_all = false;
-            // Full Vec<u8> reset — compiler auto-vectorizes to wide SIMD stores
-            // (AVX2: 32 bytes/store). For 120x40=4800 cells this is 150 stores
-            // vs BitVec's 75 byte stores with bit-masking overhead.
-            self.dirty_map.fill(0);
-            self.dirty.clear();
-            return;
+        // Double-buffered clear: bump the dirty generation counter. All
+        // previous `dirty_cell_gen[i]` values become stale (don't match the
+        // new `dirty_gen`) and are instantly "clean" — no memset, no
+        // iteration over cells. The dirty SmallVec's `clear()` is O(1)
+        // (just resets len).
+        //
+        // This replaces the old `dirty_map.fill(0)` which was O(N) every
+        // frame. At 200x60=12000 cells, the old memset was ~150 AVX2 stores;
+        // the new bump is 1 integer add. Net win on every frame.
+        //
+        // dirty_all is also reset here — the renderer's full-redraw flag
+        // applies per-frame, not across frames.
+        self.dirty_gen = self.dirty_gen.wrapping_add(1);
+        if self.dirty_gen == 0 {
+            // Overflow: u32::MAX frames at 60 FPS ≈ 2 years. Reset all
+            // stamps to 0 and restart the counter at 1. Cost: one O(N)
+            // memset every ~2 years — negligible.
+            self.dirty_cell_gen.fill(0);
+            self.dirty_gen = 1;
         }
-
-        // Partial clear: only clear cells that were marked dirty this frame.
-        // Vec<u8> indexed store is a single byte mov; no read-modify-write.
-        for &i in &self.dirty {
-            self.dirty_map[i] = 0;
-        }
+        self.dirty_all = false;
         self.dirty.clear();
     }
 
@@ -249,11 +282,12 @@ impl Frame {
 
             self.cells[i] = cell;
             self.cell_gen[i] = self.gen;
-            // Vec<u8> dirty check: direct byte load (no bit math).
-            // Before (BitVec): read-modify-write on containing byte + mask.
-            // After (Vec<u8>): single byte load + store.
-            if !self.dirty_all && self.dirty_map[i] == 0 {
-                self.dirty_map[i] = 1;
+            // Double-buffered dirty mark: stamp the cell with the current dirty
+            // generation. If the stamp already matches (cell already dirty this
+            // frame), skip the push to avoid duplicate entries in the dirty list.
+            // Replaces the old `dirty_map[i] == 0` byte check with a u32 compare.
+            if !self.dirty_all && self.dirty_cell_gen[i] != self.dirty_gen {
+                self.dirty_cell_gen[i] = self.dirty_gen;
                 self.dirty.push(i);
             }
         }
@@ -270,8 +304,9 @@ impl Frame {
             // Dragon egg #1: direct indexing — index() already bounds-checked.
             self.cells[i] = cell;
             self.cell_gen[i] = self.gen;
-            if !self.dirty_all && self.dirty_map[i] == 0 {
-                self.dirty_map[i] = 1;
+            // Double-buffered dirty mark — see set() for explanation.
+            if !self.dirty_all && self.dirty_cell_gen[i] != self.dirty_gen {
+                self.dirty_cell_gen[i] = self.dirty_gen;
                 self.dirty.push(i);
             }
         }
