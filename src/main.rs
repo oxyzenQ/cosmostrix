@@ -919,6 +919,9 @@ fn main() -> std::io::Result<()> {
             .as_deref()
             .unwrap_or(crate::scene::DEFAULT_SCENE)
             .to_string(),
+        // v20: track active custom scene name so live reload can re-apply
+        // its fields when the user edits [scene-custom.<name>] in config.
+        scene_custom_name: args.scene_custom.clone(),
     };
 
     if args.bench_all {

@@ -102,6 +102,13 @@ pub struct CloudConfig {
     /// Resolved scene name for this session. Used to initialize the
     /// event loop's scene_name (for verbose output and interactive cycling).
     pub(crate) scene_name: String,
+    /// Name of the active custom scene (set via `--scene-custom <name>`).
+    /// When Some, `rebuild_cloud_config` looks up `[scene-custom.<name>]`
+    /// in the new config and applies its fields on top of the base
+    /// CloudConfig so live-edits to a custom scene take effect immediately.
+    /// v20: custom scenes are first-class citizens — this field is the
+    /// bridge that lets live reload track which custom scene is active.
+    pub(crate) scene_custom_name: Option<String>,
 }
 
 impl CloudConfig {
@@ -238,6 +245,7 @@ impl CloudConfig {
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),
+            scene_custom_name: self.scene_custom_name.clone(),
         }
     }
 }

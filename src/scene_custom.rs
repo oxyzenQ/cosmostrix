@@ -3,9 +3,12 @@
 
 //! User-defined custom scene support for `[scene-custom.<name>]` config blocks.
 //!
-//! Custom scenes are user-authored themes that start from a base scene (or
-//! preset) and override individual runtime fields. They replace the legacy
-//! `[profile.<name>]` namespace with a clearer name that mirrors `--scene`.
+//! Custom scenes are user-authored themes that stand on their own — they
+//! no longer inherit from a `base-scene`. Missing fields fall back to
+//! global defaults (`DEFAULT_SCENE` = cinematic), not to another named scene.
+//! This makes custom scenes first-class citizens: when invoked via
+//! `--scene-custom <name>`, the verbose output shows `scene: <name>` and
+//! live reload applies edits to the block immediately.
 //!
 //! ## Backward compatibility
 //!
@@ -14,13 +17,22 @@
 //! `[profile.<name>]` and emits a deprecation warning guiding migration to
 //! the new namespace. This keeps existing user configs working without
 //! silent breakage.
+//!
+//! ## v20.0.0 changes
+//!
+//! `base-scene` is deprecated and silently dropped. Existing configs that
+//! still contain `base-scene = <name>` will load without error, but the
+//! value has no effect — the custom scene's own fields determine its
+//! appearance. Users who relied on `base-scene = monolith` should set the
+//! individual fields they want (color, charset, speed, density,
+//! glitch-level) directly in the scene-custom block.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::config::Args;
 use crate::profile::{
     apply_profile_layer, collect_profiles, is_valid_profile_name, validate_profile_name,
-    UserProfile, PROFILE_FIELDS,
+    UserProfile, DEPRECATED_PROFILE_FIELDS, PROFILE_FIELDS,
 };
 
 /// Config namespace prefix for custom scene blocks.
@@ -31,7 +43,10 @@ pub const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 /// Mirrors [`crate::profile::is_profile_config_key`] but for the
 /// `scene-custom` namespace. The accepted `<field>` set is identical to
 /// `PROFILE_FIELDS` so users can migrate a profile block to a custom-scene
-/// block by renaming the prefix only.
+/// block by renaming the prefix only. Deprecated fields
+/// (`DEPRECATED_PROFILE_FIELDS`) are also accepted so existing user configs
+/// don't fail validation — they are silently dropped during
+/// `collect_custom_scenes`.
 #[must_use]
 pub fn is_scene_custom_config_key(key: &str) -> bool {
     let Some((prefix, rest)) = key.split_once('.') else {
@@ -43,7 +58,8 @@ pub fn is_scene_custom_config_key(key: &str) -> bool {
     let Some((name, field)) = rest.rsplit_once('.') else {
         return false;
     };
-    is_valid_profile_name(name) && PROFILE_FIELDS.contains(&field)
+    is_valid_profile_name(name)
+        && (PROFILE_FIELDS.contains(&field) || DEPRECATED_PROFILE_FIELDS.contains(&field))
 }
 
 /// Collect all `[scene-custom.<name>]` blocks from a flat config map.
@@ -65,7 +81,10 @@ pub fn collect_custom_scenes(cfg: &HashMap<String, String>) -> BTreeMap<String, 
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
-            "base-scene" => scene.base = Some(value.clone()),
+            // `base-scene` is deprecated and silently dropped. Custom scenes
+            // now stand on their own — missing fields fall back to global
+            // defaults (DEFAULT_SCENE = cinematic), not to a named base.
+            "base-scene" => {}
             "preset" => scene.preset = Some(value.clone()),
             "color" => scene.color = Some(value.clone()),
             "charset" => scene.charset = Some(value.clone()),
@@ -111,7 +130,15 @@ pub fn apply_scene_custom_layer(
     if custom_scenes.contains_key(&normalized) {
         let modified =
             apply_profile_layer(matches, args, &custom_scenes, &normalized, strict_unknown)?;
-        args.scene_custom = Some(normalized);
+        args.scene_custom = Some(normalized.clone());
+        // v20: custom scenes are first-class — args.scene should reflect the
+        // custom scene name (not a base-scene) so verbose output and
+        // CloudConfig.scene_name both show `<name>`. Built-in scene defaults
+        // (color/charset/speed/density/glitch) are NOT applied here because
+        // the custom scene is expected to set its own fields. Missing fields
+        // retain whatever args already has (DEFAULT_SCENE = cinematic's
+        // values from apply_default_scene_values).
+        args.scene = Some(normalized);
         return Ok(modified);
     }
 
@@ -122,7 +149,8 @@ pub fn apply_scene_custom_layer(
             "warning: profile '{name}' is deprecated; migrate to [scene-custom.{normalized}] in config.toml (rename the prefix only — fields are unchanged)"
         );
         let modified = apply_profile_layer(matches, args, &profiles, &normalized, strict_unknown)?;
-        args.scene_custom = Some(normalized);
+        args.scene_custom = Some(normalized.clone());
+        args.scene = Some(normalized);
         return Ok(modified);
     }
 
@@ -216,12 +244,15 @@ pub fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
 /// Output is appended under the "CUSTOM SCENES (from config)" heading in
 /// `--list-scenes`. Mirrors the column layout of `scene::list_scenes_text`
 /// so the two groups visually align.
+///
+/// v20: `base-scene` is removed — custom scenes stand on their own. The
+/// listing shows just the scene name (no `base=` prefix), reflecting the
+/// new independent identity.
 #[must_use]
 pub fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
     let mut out = String::new();
-    for (name, scene) in scenes {
-        let base = scene.base.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE);
-        out.push_str(&format!("  {name:14} base={base}\n"));
+    for name in scenes.keys() {
+        out.push_str(&format!("  {name}\n"));
     }
     out
 }
@@ -248,12 +279,8 @@ pub fn show_custom_scene_text(name: &str, scene: &UserProfile, from_profile: boo
     out.push_str("  Configuration:\n");
 
     let mut has_field = false;
-    if let Some(base) = scene.base.as_deref() {
-        out.push_str(&format!("    base               = {base}\n"));
-        has_field = true;
-    }
     if let Some(preset) = scene.preset.as_deref() {
-        out.push_str(&format!("    preset             = {preset}\n"));
+        out.push_str(&format!("    preset             = {preset} (deprecated)\n"));
         has_field = true;
     }
     if let Some(color) = scene.color.as_deref() {
@@ -298,7 +325,7 @@ pub fn show_custom_scene_text(name: &str, scene: &UserProfile, from_profile: boo
     }
 
     if !has_field {
-        out.push_str("    (no fields set — inherits everything from base)\n");
+        out.push_str("    (no fields set — using global defaults from cinematic)\n");
     }
 
     out.push_str("\n  Use: cosmostrix --scene-custom ");
@@ -313,6 +340,9 @@ mod tests {
 
     #[test]
     fn scene_custom_keys_are_recognized() {
+        // `base-scene` is now deprecated but still recognized (so existing
+        // user configs don't fail validation). It is silently dropped
+        // during collect_custom_scenes.
         assert!(is_scene_custom_config_key(
             "scene-custom.hacker-mode.base-scene"
         ));
@@ -342,14 +372,19 @@ mod tests {
         let scenes = collect_custom_scenes(&cfg);
         assert_eq!(scenes.len(), 2);
         assert_eq!(scenes["hacker-mode"].color.as_deref(), Some("green"));
-        assert_eq!(scenes["hacker-mode"].base.as_deref(), Some("storm"));
+        // v20: `base` field removed — base-scene value is silently dropped.
+        // The custom scene stands on its own.
+        assert_eq!(scenes["hacker-mode"].preset, None);
         assert_eq!(scenes["nightcore"].speed.as_deref(), Some("24"));
     }
 
     #[test]
     fn collect_custom_scenes_ignores_profile_keys() {
         let cfg = HashMap::from([
-            ("profile.nightcore.base".to_string(), "monolith".to_string()),
+            (
+                "profile.nightcore.base-scene".to_string(),
+                "monolith".to_string(),
+            ),
             (
                 "scene-custom.nightcore.color".to_string(),
                 "purple".to_string(),
@@ -358,7 +393,8 @@ mod tests {
         let scenes = collect_custom_scenes(&cfg);
         assert_eq!(scenes.len(), 1);
         assert_eq!(scenes["nightcore"].color.as_deref(), Some("purple"));
-        assert!(scenes["nightcore"].base.is_none());
+        // v20: `base` field removed from UserProfile; there is no base to be Some.
+        assert_eq!(scenes["nightcore"].preset, None);
     }
 
     #[test]
@@ -387,16 +423,17 @@ mod tests {
 
     #[test]
     fn profile_fields_are_reusable_for_custom_scenes() {
-        // v17: 'base' removed, 'base-scene' is the sole key.
-        assert!(PROFILE_FIELDS.contains(&"base-scene"));
-        assert!(!PROFILE_FIELDS.contains(&"base"));
+        // v20: `base-scene` is no longer in PROFILE_FIELDS (it's deprecated).
+        // It lives in DEPRECATED_PROFILE_FIELDS so existing configs still load.
+        assert!(!PROFILE_FIELDS.contains(&"base-scene"));
+        assert!(DEPRECATED_PROFILE_FIELDS.contains(&"base-scene"));
         assert!(PROFILE_FIELDS.contains(&"color"));
         assert!(PROFILE_FIELDS.contains(&"atmosphere-regime"));
         assert!(!PROFILE_FIELDS.contains(&"nonexistent-field"));
     }
 
     #[test]
-    fn list_custom_scenes_text_shows_name_and_base() {
+    fn list_custom_scenes_text_shows_name_without_base_prefix() {
         let cfg = HashMap::from([
             (
                 "scene-custom.alpha.base-scene".to_string(),
@@ -407,26 +444,17 @@ mod tests {
         let scenes = collect_custom_scenes(&cfg);
         let text = list_custom_scenes_text(&scenes);
         assert!(text.contains("alpha"), "list must include alpha: {text}");
+        // v20: `base=` prefix removed — custom scenes stand on their own.
         assert!(
-            text.contains("base=storm"),
-            "list must show base for alpha: {text}"
+            !text.contains("base="),
+            "list must NOT show base= prefix: {text}"
         );
         assert!(text.contains("beta"), "list must include beta: {text}");
-        // beta has no base set, so it should fall back to the default scene
-        // (currently 'cinematic' — see crate::scene::DEFAULT_SCENE).
-        assert!(
-            text.contains("base=cinematic"),
-            "list must default base to the current default scene (cinematic): {text}"
-        );
     }
 
     #[test]
     fn show_custom_scene_text_includes_fields_and_usage() {
         let cfg = HashMap::from([
-            (
-                "scene-custom.hacker-mode.base-scene".to_string(),
-                "storm".to_string(),
-            ),
             (
                 "scene-custom.hacker-mode.color".to_string(),
                 "green".to_string(),
@@ -443,9 +471,10 @@ mod tests {
             text.contains("CUSTOM SCENE: hacker-mode"),
             "header missing: {text}"
         );
+        // v20: `base` field removed — show_custom_scene_text no longer emits it.
         assert!(
-            text.contains("base               = storm"),
-            "base field missing: {text}"
+            !text.contains("base"),
+            "base field should NOT appear: {text}"
         );
         assert!(
             text.contains("color              = green"),
@@ -463,8 +492,10 @@ mod tests {
 
     #[test]
     fn show_custom_scene_text_marks_legacy_profile_entries() {
+        // v20: UserProfile no longer has a `base` field. Use `color` to make
+        // the entry non-empty so the legacy marker path is exercised.
         let scene = UserProfile {
-            base: Some("monolith".to_string()),
+            color: Some("purple".to_string()),
             ..Default::default()
         };
         let text = show_custom_scene_text("nightcore", &scene, true);

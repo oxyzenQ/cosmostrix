@@ -342,6 +342,7 @@ fn benchmark_fields_unchanged() {
         monolith_density_map: None,
         config_path_for_watcher: None,
         scene_name: "monolith".to_string(),
+        scene_custom_name: None,
     };
     assert!(!cfg.benchmark);
     assert!(!cfg.auto_color_drift);

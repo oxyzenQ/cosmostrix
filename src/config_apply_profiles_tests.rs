@@ -53,6 +53,10 @@ pub(crate) fn args_with_config(config: &str, cli: &[&str]) -> Args {
 }
 
 fn nightcore_config() -> &'static str {
+    // v20: `base-scene` removed — custom scenes stand on their own.
+    // nightcore sets all the fields it needs directly (no inheritance).
+    // The `base-scene` line is kept as a regression test for backward
+    // compat: it should be silently ignored, not break the config.
     "profile.nightcore.base-scene = monolith\n\
      profile.nightcore.color = purple\n\
      profile.nightcore.charset = binary\n\
@@ -66,32 +70,43 @@ fn nightcore_config() -> &'static str {
 fn cli_profile_loads_user_profile_from_config() {
     // v14.0.0: --profile removed; use --scene-custom. Backward-compat:
     // --scene-custom falls back to [profile.X] with deprecation warning.
+    // v20: `base-scene` is silently dropped; custom scenes stand on their
+    // own. args.scene is set to the custom scene name ("nightcore"),
+    // not to a base-scene.
     let args = args_with_config(nightcore_config(), &["--scene-custom", "nightcore"]);
     assert_eq!(args.scene_custom.as_deref(), Some("nightcore"));
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.scene.as_deref(), Some("nightcore"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.charset, "binary");
     assert_eq!(args.speed, 24.0);
     assert!((args.density - 0.70).abs() < f32::EPSILON);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
     assert_eq!(args.monolith_size, MonolithSize::Large);
+    // v20: args.scene is now the custom scene name, so rain_style_for_scene
+    // returns None (custom scenes are not built-in) and falls back to Glyph.
     assert_eq!(
-        args.scene
-            .as_deref()
-            .and_then(crate::scene::rain_style_for_scene),
-        Some(RainStyle::Monolith)
+        crate::scene::rain_style_for_scene(args.scene.as_deref().unwrap_or("")),
+        None,
+        "custom scene name should not resolve to a built-in rain_style"
     );
+    let _ = RainStyle::Glyph; // ensure RainStyle import is used
 }
 
 #[test]
-fn profile_base_monolith_applies_monolith_foundation() {
+fn profile_base_monolith_is_silently_dropped() {
+    // v20: `base-scene` is deprecated and silently dropped. A profile that
+    // only sets `base-scene = monolith` (no other fields) now falls back
+    // to the DEFAULT_SCENE (cinematic) values. args.scene is set to the
+    // custom scene name, not to monolith.
     let args = args_with_config(
         "profile.nightcore.base-scene = monolith\n",
         &["--scene-custom", "nightcore"],
     );
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.scene.as_deref(), Some("nightcore"));
+    // Cinematic defaults: color=neon-purple, speed=9, density=0.75, glitch=Subtle.
     assert_eq!(args.color, "neon-purple");
-    assert_eq!(args.speed, 30.0);
+    assert_eq!(args.speed, 9.0);
+    assert!((args.density - 0.75).abs() < f32::EPSILON);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
@@ -117,20 +132,25 @@ fn explicit_cli_flags_override_profile_values() {
 #[test]
 fn config_profile_applies_after_config_scene() {
     // v17: 'profile = X' config key removed. Use --scene-custom CLI flag.
+    // v20: `base-scene` is silently dropped. args.scene is set to the
+    // custom scene name ("nightcore"), and the custom scene's own fields
+    // override the cinematic defaults.
     let config = format!("scene = signal\n{}", nightcore_config());
     let args = args_with_config(&config, &["--scene-custom", "nightcore"]);
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.scene.as_deref(), Some("nightcore"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.speed, 24.0);
 }
 
 #[test]
 fn cli_profile_overrides_cli_scene_for_profile_foundation() {
+    // v20: `base-scene` is silently dropped. --scene-custom wins over
+    // --scene for the args.scene value (custom scenes are first-class).
     let args = args_with_config(
         nightcore_config(),
         &["--scene", "signal", "--scene-custom", "nightcore"],
     );
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.scene.as_deref(), Some("nightcore"));
     assert_eq!(args.color, "purple");
     assert_eq!(args.speed, 24.0);
 }
@@ -154,15 +174,19 @@ fn unknown_cli_profile_has_clear_error() {
 
 #[test]
 fn invalid_profile_values_are_ignored_cleanly() {
+    // v20: `base-scene` is silently dropped. Only the invalid color/speed/
+    // density fields are present; they fail to parse, so args retains the
+    // DEFAULT_SCENE (cinematic) defaults.
     let config = "profile.bad.base-scene = monolith\n\
                   profile.bad.color = not-a-color\n\
                   profile.bad.speed = 0\n\
                   profile.bad.density = nope\n";
     let args = args_with_config(config, &["--scene-custom", "bad"]);
-    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.scene.as_deref(), Some("bad"));
+    // Cinematic defaults: color=neon-purple, speed=9, density=0.75.
     assert_eq!(args.color, "neon-purple");
-    assert_eq!(args.speed, 30.0);
-    assert_eq!(args.density, 0.85);
+    assert_eq!(args.speed, 9.0);
+    assert!((args.density - 0.75).abs() < f32::EPSILON);
 }
 
 #[test]
@@ -252,6 +276,9 @@ fn cli_color_wins_over_config_preset_and_scene() {
 // Phase 10.5: Profile atmosphere smoke hardening tests
 
 fn atmosphere_config_profile(name: &str, mode: &str, regime: &str) -> String {
+    // v20: `base-scene` removed; custom scenes stand on their own.
+    // Set color/charset/speed/density/glitch directly so the profile is
+    // non-trivial.
     format!(
         "profile.{name}.base-scene = monolith\n\
          profile.{name}.color = purple\n\

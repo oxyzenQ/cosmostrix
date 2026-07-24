@@ -778,9 +778,7 @@ impl Droplet {
         // cells. If last_chars_advanced == 0 (head stopped, brightness
         // decaying), range collapses to just the current head cell.
         if recent_only {
-            let prev_head = self
-                .head_put_line
-                .saturating_sub(self.last_chars_advanced);
+            let prev_head = self.head_put_line.saturating_sub(self.last_chars_advanced);
             start_line = start_line.max(prev_head);
         }
 
