@@ -18,8 +18,8 @@ For each size, captures:
   - total_frames
 
 Output:
-  /home/z/my-project/scripts/scaling_results.json  — raw per-size JSON
-  /home/z/my-project/scripts/scaling_results.md    — markdown table
+  /home/z/my-project/benchmark/scaling_results.json  — raw per-size JSON
+  /home/z/my-project/benchmark/scaling_results.md    — markdown table
 """
 import json
 import re
@@ -29,6 +29,8 @@ import time
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+# Output goes to benchmark/, not scripts/ — these are benchmark artifacts.
+OUTPUT_DIR = SCRIPT_DIR.parent / "benchmark"
 BINARY = Path("/home/z/my-project/cosmostrix/target/release/cosmostrix")
 SIZES = [
     (6, 6),
@@ -153,7 +155,7 @@ def main() -> int:
         results.append(record)
 
     # Save raw JSON
-    raw_path = SCRIPT_DIR / "scaling_results.json"
+    raw_path = OUTPUT_DIR / "scaling_results.json"
     with raw_path.open("w") as f:
         json.dump({
             "binary": str(BINARY),
@@ -164,7 +166,7 @@ def main() -> int:
     print(f"\nRaw JSON: {raw_path}", file=sys.stderr)
 
     # Emit Markdown table
-    md_path = SCRIPT_DIR / "scaling_results.md"
+    md_path = OUTPUT_DIR / "scaling_results.md"
     with md_path.open("w") as f:
         f.write("# Scaling Benchmark Results (raw)\n\n")
         f.write(f"Binary: `{BINARY}`  \n")

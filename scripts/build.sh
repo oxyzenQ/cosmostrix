@@ -5,9 +5,8 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
-# Optimized build script with intelligent core detection and advanced caching
-# Author: rezky_nightky (oxyzenQ)
-# Version: Stellar 4.0
+# Optimized build script with intelligent core detection and advanced caching.
+# See `./scripts/build.sh help` for the command list.
 
 set -euo pipefail
 
@@ -103,53 +102,48 @@ check_rust_toolchain() {
 }
 
 setup_build_cache() {
-        log_step "Configuring build acceleration..."
+        # Detect available build accelerators and emit a single quiet summary
+        # line. Missing tools (sccache/mold/lld/nextest) are silently skipped
+        # — install them if you want faster builds; their absence is not an
+        # error condition worth a warning per tool.
+        local bits=()
 
-        # Check and setup sccache
         if command -v sccache &>/dev/null; then
-                # Disable incremental compilation when using sccache (they conflict)
+                # sccache and incremental compilation conflict; sccache wins.
                 export CARGO_INCREMENTAL=0
                 export RUSTC_WRAPPER=sccache
-                # Start sccache server if not running
                 sccache --start-server 2>/dev/null || true
-                log_success "sccache enabled (build caching active)"
+                bits+=("sccache")
         else
-                # Enable incremental compilation when not using sccache
                 export CARGO_INCREMENTAL=1
-                log_warning "sccache not found. Install: cargo install sccache --locked"
         fi
 
-        # Check for mold linker
         if command -v mold &>/dev/null; then
                 export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-fuse-ld=mold"
-                log_success "mold linker enabled (faster linking)"
+                bits+=("mold")
         elif command -v lld &>/dev/null; then
                 export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-fuse-ld=lld"
-                log_success "lld linker enabled"
-        else
-                log_warning "Fast linker not found (mold/lld)."
+                bits+=("lld")
         fi
 
-        # Setup cargo-nextest if available
         if command -v cargo-nextest &>/dev/null; then
                 NEXTEST_AVAILABLE=1
-                log_success "cargo-nextest available (faster testing)"
+                bits+=("nextest")
         else
                 NEXTEST_AVAILABLE=0
-                log_warning "cargo-nextest not found. Install: cargo install cargo-nextest --locked"
+        fi
+
+        if [ ${#bits[@]} -gt 0 ]; then
+                log_info "Build cache: $(IFS=', '; echo "${bits[*]}")"
+        else
+                log_info "Build cache: none (install sccache + mold/lld for faster rebuilds)"
         fi
 }
 
 show_system_info() {
-        log_info "Build Configuration:"
-        echo "  ├─ OS: $(uname -s) $(uname -m)"
-        echo "  ├─ CPU Cores: $(nproc)"
-        echo "  ├─ Build Jobs: ${MAX_JOBS}"
-        echo "  ├─ Target: ${TARGET}"
-        echo "  ├─ Rust: $(rustc --version)"
-        echo "  ├─ Cargo: $(cargo --version)"
-        echo "  ├─ Incremental: ${CARGO_INCREMENTAL:-1}"
-        echo "  └─ Cache: ${RUSTC_WRAPPER:-none}"
+        # One-line summary — full `cargo --version` etc. is already on the
+        # stdout/stderr of the actual build command that follows.
+        log_info "Target: ${TARGET} | Jobs: ${MAX_JOBS} | $(rustc --version)"
 }
 
 update_dependencies() {
@@ -414,61 +408,57 @@ verify_release_builds() {
 
 show_help() {
         cat <<'EOF'
-╔════════════════════════════════════════════════════════════════╗
-║          Cosmostrix Build Script - Stellar 4.0                ║
-╚════════════════════════════════════════════════════════════════╝
+Cosmostrix build script
 
 USAGE:
     ./scripts/build.sh [COMMAND] [OPTIONS]
 
-COMMANDS:
+COMMANDS (essentials):
     debug           Build debug version (default)
     release         Build optimized release version
-    release-debug   Build release with debug symbols
     pgo             PGO nitro build (instrument → benchmark → optimize, +5-15% FPS)
                     Pass --auto to auto-detect the best CPU target for this host.
-                    Equivalent shortcut: cargo use-pgo
-    verify-release  Build and verify Linux x86_64 release variants
+                    Shortcut: cargo use-pgo
     test            Run test suite
-    bench           Run benchmarks
-
     check           Quick checks (fmt + clippy)
-    check-all       Comprehensive checks (fmt + clippy + test + audit)
+    check-all       Comprehensive checks (fmt + clippy + test + audit + headers + LOC)
     fmt             Format code
     clean           Clean build artifacts
-    update          Update dependencies and audit
+    help            Show this help
 
+COMMANDS (secondary):
+    release-debug   Build release with debug symbols
+    verify-release  Build and verify Linux x86_64 release variants (v1/v2/v3/v4)
+    bench           Run benchmarks via benchmark/benchmark.sh
+    update          Update dependencies and audit
     all             Full pipeline (check + debug + release + test)
     ci              CI pipeline (check-all + release)
     stats           Show build cache statistics
-    help            Show this help
 
 OPTIONS:
     --no-cache      Disable build caching
-    --verbose       Enable verbose output
-    --auto          Auto-detect best CPU target for PGO build (v4/v3/native)
+    --verbose       Enable verbose output (set -x)
+    --auto          Auto-detect best CPU target for PGO (v4/v3/native)
 
-ENVIRONMENT VARIABLES:
-    COSMOSTRIX_JOBS         Override CPU core limit (default: auto)
+ENVIRONMENT:
+    COSMOSTRIX_JOBS         Override CPU core limit (default: 75% of cores, max 8)
     COSMOSTRIX_TARGET       Override build target (default: rustc host target)
     COSMOSTRIX_TARGET_CPU   Override -C target-cpu for PGO (default: native,
                             or auto-detected when --auto is passed)
     RUST_BACKTRACE          Control backtrace verbosity (default: 1)
 
 EXAMPLES:
-    ./scripts/build.sh release                  # Build release version
-    ./scripts/build.sh verify-release           # Build and verify v1/v2/v3/v4 artifacts
-    ./scripts/build.sh check-all                # Run all quality checks
-    ./scripts/build.sh ci                       # Run CI pipeline
-    ./scripts/build.sh pgo --auto               # PGO build, auto-detect CPU
-    cargo use-pgo                               # Same as above, via cargo alias
-    COSMOSTRIX_JOBS=4 ./scripts/build.sh all    # Full build with 4 cores
-    ./scripts/build.sh --verbose release        # Verbose release build
+    ./scripts/build.sh release                  # optimized release build
+    ./scripts/build.sh check-all                # all quality gates
+    ./scripts/build.sh pgo --auto               # PGO with auto CPU detection
+    cargo use-pgo                               # same as above
+    COSMOSTRIX_JOBS=4 ./scripts/build.sh all    # full pipeline, 4 cores
 
-TOOLS INTEGRATION:
-    sccache   - Build caching (install: cargo install sccache)
-    nextest   - Fast test runner (install: cargo install cargo-nextest)
-    audit     - Security auditing (install: cargo install cargo-audit)
+OPTIONAL TOOLS (auto-detected, silently skipped if absent):
+    sccache   - Build caching       (cargo install sccache)
+    mold/lld  - Fast linker         (system package manager)
+    nextest   - Fast test runner    (cargo install cargo-nextest)
+    audit     - Security auditing   (cargo install cargo-audit)
 
 EOF
 }
@@ -623,7 +613,7 @@ build_pgo() {
         fi
 
         if ! "${instrument_bin}" --benchmark --bench-duration 10 2>/dev/null; then
-                log_warn "Benchmark exited with non-zero status (may be normal in CI)"
+                log_warning "Benchmark exited with non-zero status (may be normal in CI)"
         fi
 
         local profile_count
@@ -652,7 +642,7 @@ build_pgo() {
                 log_info "Merging profile data with ${profdata_tool}..."
                 "${profdata_tool}" merge -o "${profdata_file}" "${pgo_dir}"/*.profraw
         else
-                log_warn "llvm-profdata not found. Install with: rustup component add llvm-tools-preview"
+                log_warning "llvm-profdata not found. Install with: rustup component add llvm-tools-preview"
                 log_info "Using raw profdata directory (rustc can handle this)"
                 profdata_file="${pgo_dir}"
         fi
@@ -688,11 +678,6 @@ main() {
                 exit 1
         fi
 
-        # Setup environment
-        if [ $NO_CACHE -eq 0 ]; then
-                setup_build_cache
-        fi
-
         local command="${COMMAND:-debug}"
 
         if [ ${#ARGS[@]} -ne 0 ]; then
@@ -700,6 +685,17 @@ main() {
                 echo ""
                 show_help
                 exit 1
+        fi
+
+        # `help` is pure documentation — skip cache setup so it stays quiet.
+        if [ "$command" = "help" ] || [ "$command" = "-h" ] || [ "$command" = "--help" ]; then
+                show_help
+                exit 0
+        fi
+
+        # Setup environment for anything that actually builds or tests.
+        if [ $NO_CACHE -eq 0 ]; then
+                setup_build_cache
         fi
 
         case "$command" in

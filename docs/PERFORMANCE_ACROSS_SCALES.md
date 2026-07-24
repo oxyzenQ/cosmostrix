@@ -252,5 +252,5 @@ Or use the automation script:
 python3 scripts/run_scaling_benchmarks.py
 ```
 
-Raw JSON and Markdown outputs are written to `scripts/scaling_results.json`
-and `scripts/scaling_results.md`.
+Raw JSON and Markdown outputs are written to `benchmark/scaling_results.json`
+and `benchmark/scaling_results.md`.

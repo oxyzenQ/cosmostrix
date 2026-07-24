@@ -134,7 +134,7 @@ to stdout directly. They're for observability.
 ### Verdict
 
 **eBPF is valuable for profiling cosmostrix**, not for boosting FPS.
-A `scripts/ebpf-profile.sh` that attaches uprobes to hot functions
+A future `scripts/ebpf-profile.sh` that attaches uprobes to hot functions
 and reports a flame graph would be a real contribution. But it won't
 make cosmostrix faster — it'll show us WHERE to optimize next.
 
@@ -324,9 +324,9 @@ exploring** on this branch:
 - Benchmark: does headless FPS go from 28K to 35K+?
 - Risk: niche optimization on `Option<Color>` ergonomics
 
-### 4.2 eBPF Profiling Script (P1 — zero risk, high insight)
+### 4.2 eBPF Profiling Script (P1 — zero risk, high insight, future work)
 
-- `scripts/ebpf-profile.sh` using bpftrace
+- Future `scripts/ebpf-profile.sh` using bpftrace
 - Attach uprobes to `frame::set`, `terminal::draw`, `flush_ansi`
 - Output: flame graph + hot function timing
 - Reveals the NEXT bottleneck after v13.3.0
