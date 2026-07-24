@@ -116,6 +116,23 @@ pub enum GlitchLevel {
     Intense,
 }
 
+/// Which cinematic intro to play before the rain engine takes over.
+/// Exposed as a clap `ValueEnum` for CLI parsing and consumed by the
+/// runtime intro dispatcher in `crate::interactive::intro`.
+///
+/// * `Cosmic` — Cosmic Burst: singularity → explosion → morph → rain.
+/// * `Logo`   — Cosmostrix Logo: fade in → ignition → dissolve → rain.
+/// * `None`   — No intro; skip straight to the rain engine.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntroType {
+    #[value(name = "cosmic")]
+    Cosmic,
+    #[value(name = "logo")]
+    Logo,
+    #[value(name = "none")]
+    None,
+}
+
 // U16Range
 
 #[derive(Clone, Copy, Debug)]
@@ -274,9 +291,12 @@ pub struct Args {
         long = "intro",
         help_heading = "COMMON OPTIONS",
         display_order = 61,
-        help = "Show Cosmic Burst cinematic intro before rain begins"
+        value_enum,
+        num_args = 0..=1,
+        default_missing_value = "logo",
+        help = "Show cinematic intro before rain begins (cosmic|logo|none, default: logo)"
     )]
-    pub intro: bool,
+    pub intro: Option<IntroType>,
 
     // v17 mastery: --mouse flag DELETED. Mouse hover/click visual effects are
     // now ALWAYS ON (cursor glow + strong dual-ring click wave). Mouse reporting

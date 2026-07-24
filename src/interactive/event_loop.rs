@@ -92,9 +92,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // terminal's native bg, creating visible gaps.
     super::fill_terminal_bg(cloud.palette.bg);
 
-    // v17: Dragon Render intro animation (--intro flag).
-    if cfg.intro && !cfg.screensaver {
-        super::intro::run_intro(&mut term, &mut frame, &cloud, w, h)?;
+    // v20: Modular cinematic intro (--intro <type> flag).
+    if cfg.intro != crate::config::IntroType::None && !cfg.screensaver {
+        super::intro::run_intro(&mut term, &mut frame, &cloud, w, h, cfg.intro)?;
         cloud.force_draw_everything();
         frame.clear_with_bg(cloud.palette.bg);
     }

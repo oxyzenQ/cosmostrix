@@ -64,15 +64,28 @@ COMMON OPTIONS:
       text selection and trigger the always-on glow/click wave effects.
       cosmostrix --screensaver
 
-  --intro
-      Cosmic Burst cinematic intro. A singularity appears at center
-      screen, pulses with rising frequency, then explodes into cosmic
-      particles (gold, purple, cyan) that spiral outward. The particles
-      slow and morph into Matrix rain, handing off seamlessly to the
-      rain engine. Duration: ~5s. Skip with any key. Auto-skipped in
-      --screensaver and on terminals smaller than 80x24.
-      cosmostrix --intro
-      cosmostrix --intro --scene matrix
+  --intro [cosmic|logo|none]
+      Cinematic intro played before the rain engine starts. Pick one
+      of three modes (default: logo when --intro is given without a
+      value, none when the flag is omitted entirely).
+        logo    Cosmostrix Logo intro (~4.5s). The ASCII logo fades in
+                character by character, a spark falls from the top of
+                the screen and ignites the logo on impact, then the
+                logo dissolves into Matrix rain starting from the
+                outer edges and moving inward. Rain engine takes
+                over seamlessly.
+        cosmic  Cosmic Burst intro (~5s). A singularity appears at
+                center screen, pulses with rising frequency, then
+                explodes into cosmic particles (gold, purple, cyan)
+                that spiral outward. The particles slow and morph
+                into Matrix rain.
+        none    Skip the intro entirely.
+      Any key skips the intro mid-animation. Auto-skipped in
+      --screensaver mode and on terminals smaller than 80x24.
+      cosmostrix --intro              # default: logo
+      cosmostrix --intro logo
+      cosmostrix --intro cosmic --scene matrix
+      cosmostrix --intro none
 
   Mouse interaction (always on, no flag needed)
       Cursor glow: cells near the mouse cursor get a subtle brightness

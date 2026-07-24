@@ -43,6 +43,8 @@ mod event_loop;
 mod hud;
 mod input;
 mod intro;
+mod intro_cosmic;
+mod intro_logo;
 mod signal_handlers;
 mod watchdog;
 

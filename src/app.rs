@@ -5,6 +5,7 @@
 
 use crate::atmosphere_apply::{AtmosphereApplicationMode, AtmosphereRuntimeModulation};
 use crate::cloud::Cloud;
+use crate::config::IntroType;
 use crate::constants::*;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
@@ -78,7 +79,7 @@ pub struct CloudConfig {
     pub base_density: f32,
     pub perf_stats: bool,
     pub screensaver: bool,
-    pub intro: bool,
+    pub intro: IntroType,
     pub mouse: bool,
     pub charset_preset: String,
     pub user_ranges: Vec<(char, char)>,
@@ -226,7 +227,7 @@ impl CloudConfig {
             base_density: self.base_density,
             perf_stats: false,
             screensaver: false,
-            intro: false,
+            intro: IntroType::None,
             mouse: false,
             charset_preset: self.charset_preset.clone(),
             user_ranges: self.user_ranges.clone(),
