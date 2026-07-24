@@ -441,11 +441,18 @@ OPTIONS:
     --auto          Auto-detect best CPU target for PGO (v4/v3/native)
 
 ENVIRONMENT:
-    COSMOSTRIX_JOBS         Override CPU core limit (default: 75% of cores, max 8)
-    COSMOSTRIX_TARGET       Override build target (default: rustc host target)
-    COSMOSTRIX_TARGET_CPU   Override -C target-cpu for PGO (default: native,
-                            or auto-detected when --auto is passed)
-    RUST_BACKTRACE          Control backtrace verbosity (default: 1)
+    COSMOSTRIX_JOBS             Override CPU core limit (default: 75% of cores, max 8)
+    COSMOSTRIX_TARGET           Override build target (default: rustc host target)
+    COSMOSTRIX_TARGET_CPU       Override -C target-cpu for the FINAL PGO binary
+                                (default: native, or auto-detected when --auto is passed).
+                                This binary ships to users — can target v4 even on
+                                a v3-only build host.
+    COSMOSTRIX_INSTRUMENT_CPU   Override -C target-cpu for the INSTRUMENTED PGO binary
+                                (default: x86-64-v3 on x86_64, native elsewhere).
+                                This binary must RUN on the build host to collect
+                                profile data — keep it conservative. Override only
+                                if you know the host supports a higher target.
+    RUST_BACKTRACE              Control backtrace verbosity (default: 1)
 
 EXAMPLES:
     ./scripts/build.sh release                  # optimized release build
@@ -564,17 +571,49 @@ build_pgo() {
         local instrument_bin="target/${TARGET}/pgo-instrument/${PROJECT_NAME}"
         local nitro_bin="target/${TARGET}/pgo-use/${PROJECT_NAME}"
 
-        # PGO target CPU resolution (priority: explicit env > --auto detect > native default).
+        # PGO target CPU resolution — TWO separate targets:
+        #
+        #   instrument_cpu  → used for the Stage 1 instrumented binary, which
+        #                     MUST EXECUTE on the build host to collect profile
+        #                     data. Must be a target the host can actually run.
+        #   final_cpu       → used for the Stage 3 optimized binary, which is
+        #                     shipped to users. Can be more aggressive than
+        #                     instrument_cpu because it never runs on the host.
+        #
+        # Why split them? Profile data captures branch frequencies and hot
+        # paths — it is independent of SIMD codegen. So a v3-built instrumented
+        # binary produces valid profile data for a v4-built final binary.
+        # This lets CI build v4 PGO binaries even when the runner lacks
+        # AVX-512 (which would otherwise SIGILL the instrumented binary and
+        # abort Stage 2 with no profile data collected).
+        #
+        # final_cpu priority: COSMOSTRIX_TARGET_CPU env > --auto detect > native.
         # The --auto flag (set by `cargo use-pgo`) probes the host CPU and
         # selects the highest x86-64 microarchitecture level it supports.
-        # This is bulletproof: a v4-capable CI runner gets v4, a v3-only
-        # runner gets v3, and we never fall through to SSE2 again.
         if [ -z "${COSMOSTRIX_TARGET_CPU:-}" ] && [ "${PGO_AUTO}" -eq 1 ]; then
                 local detected
                 detected="$(detect_cpu_target)"
                 export COSMOSTRIX_TARGET_CPU="${detected}"
-                log_info "Auto-detected CPU target: ${detected}"
+                log_info "Auto-detected final CPU target: ${detected}"
         fi
+        local final_cpu="${COSMOSTRIX_TARGET_CPU:-native}"
+
+        # instrument_cpu priority: COSMOSTRIX_INSTRUMENT_CPU env > safe default.
+        # Safe default: x86-64-v3 on x86_64 (universally supported on every
+        # modern x86_64 host including GitHub Actions runners, which lack
+        # AVX-512), native elsewhere (LLVM handles ARM tuning well).
+        local instrument_cpu="${COSMOSTRIX_INSTRUMENT_CPU:-}"
+        if [ -z "${instrument_cpu}" ]; then
+                local instr_arch
+                instr_arch="$(uname -m 2>/dev/null || echo unknown)"
+                if [ "${instr_arch}" = "x86_64" ] || [ "${instr_arch}" = "amd64" ]; then
+                        instrument_cpu="x86-64-v3"
+                else
+                        instrument_cpu="native"
+                fi
+        fi
+        log_info "Instrument CPU: ${instrument_cpu} (must run on build host)"
+        log_info "Final CPU: ${final_cpu}"
 
         # Stage 1: Build instrumented binary
         log_info "Stage 1/3: Building instrumented binary..."
@@ -583,21 +622,9 @@ build_pgo() {
         export COSMOSTRIX_PROFILE="pgo-instrument"
         export COSMOSTRIX_LTO="off"
         export COSMOSTRIX_STRIP="no"
-        # PGO target CPU: default to native so the build inherits the host's
-        # full feature set (AVX2/FMA on v3, AVX-512 on v4). Without this,
-        # rustc falls back to the baseline x86-64 target (SSE2 only), which
-        # causes a catastrophic performance regression — the PGO build ends
-        # up slower than a non-PGO v3 build. Override with
-        # COSMOSTRIX_TARGET_CPU=x86-64-v3 if you need a distributable binary.
-        local cpu_flag=""
-        if [ -n "${COSMOSTRIX_TARGET_CPU:-}" ]; then
-            cpu_flag="-C target-cpu=${COSMOSTRIX_TARGET_CPU}"
-            log_info "PGO target CPU: ${COSMOSTRIX_TARGET_CPU}"
-        else
-            cpu_flag="-C target-cpu=native"
-            log_info "PGO target CPU: native (host CPU features)"
-        fi
-        export RUSTFLAGS="${cpu_flag} -C profile-generate=${pgo_dir}"
+        # Use instrument_cpu (safe target) so the binary can execute on the
+        # build host. The final binary (Stage 3) uses final_cpu for shipping.
+        export RUSTFLAGS="-C target-cpu=${instrument_cpu} -C profile-generate=${pgo_dir}"
 
         if ! cargo build --profile pgo-instrument --target "${TARGET}" --jobs "${MAX_JOBS}"; then
                 log_error "Stage 1 failed: instrumented build failed"
@@ -653,7 +680,10 @@ build_pgo() {
         export COSMOSTRIX_PROFILE="pgo-use"
         export COSMOSTRIX_LTO="fat"
         export COSMOSTRIX_STRIP="yes"
-        export RUSTFLAGS="${cpu_flag} -C profile-use=${profdata_file}"
+        # Use final_cpu (the matrix-specified or auto-detected target) for the
+        # shipping binary. This may be more aggressive than instrument_cpu
+        # (e.g., v4 vs v3) — that's fine, the binary never runs on the host.
+        export RUSTFLAGS="-C target-cpu=${final_cpu} -C profile-use=${profdata_file}"
 
         if ! cargo build --profile pgo-use --target "${TARGET}" --jobs "${MAX_JOBS}"; then
                 log_error "Stage 3 failed: PGO-optimized build failed"

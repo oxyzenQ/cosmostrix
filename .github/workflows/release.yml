@@ -741,7 +741,14 @@ jobs:
           set -euo pipefail
           # Use the build.sh pgo command which handles all 3 stages
           # including llvm-profdata auto-detection from rustup.
-          # COSMOSTRIX_TARGET_CPU is passed to RUSTFLAGS for v3/v4 targeting.
+          #
+          # COSMOSTRIX_TARGET_CPU sets the FINAL binary's target-cpu.
+          # The instrumented binary (Stage 1) uses a safe default
+          # (x86-64-v3 on x86_64) so it can execute on the runner to
+          # collect profile data — even when matrix.target_cpu is v4
+          # and the runner lacks AVX-512. Profile data is CPU-feature-
+          # independent (it captures branch frequencies, not SIMD
+          # codegen), so v3 instrumentation + v4 final is sound.
           ./scripts/build.sh pgo
 
       - name: Verify PGO binary
