@@ -109,8 +109,23 @@ pub(super) const PARTICLE_POOL_SIZE: usize = 512;
 /// `intro_type`. Returns `Ok(())` immediately for `None` or when the
 /// terminal is too small.
 ///
-/// Skippable at any time by pressing any key. Below `MIN_INTRO_COLS ×
-/// MIN_INTRO_LINES`, the intro is skipped with a stderr notice.
+/// # Skip behavior
+///
+/// The intro can be exited early by pressing **`q`** (case-insensitive)
+/// or by sending Ctrl+C / SIGTERM (handled via [`GRACEFUL_SHUTDOWN`]).
+/// No other key skips — the intro ignores stray keypresses so accidental
+/// presses of space / enter / arrows don't cut the cinematic short.
+///
+/// # Benchmark mode
+///
+/// `--benchmark`, `--bench-frames`, and `--bench-all` all `return` from
+/// `main.rs` before `interactive::run_interactive()` is ever called, so
+/// this function is never reached in benchmark mode. The intro therefore
+/// cannot perturb benchmark measurements — no extra CPU, no terminal
+/// writes, no particle allocation.
+///
+/// Below `MIN_INTRO_COLS × MIN_INTRO_LINES`, the intro is skipped with
+/// a stderr notice.
 ///
 /// Reuses the existing `Terminal` / `Frame` / `Cell` pipeline. Zero
 /// per-frame heap allocation (particle pool is pre-allocated and reused).
@@ -340,16 +355,52 @@ pub(super) fn rng_freehand() -> f32 {
     (s >> 8) as f32 / (1u32 << 24) as f32
 }
 
+/// Returns `true` if a key event should cause the intro to skip.
+///
+/// Extracted from [`should_skip`] so the skip policy is unit-testable
+/// without a real TTY: only `q` / `Q` (case-insensitive quit) skips.
+/// Every other key — including modifiers, arrows, function keys, and
+/// `Enter` / `Space` — is ignored.
+///
+/// Ctrl+C is handled separately by the signal handler setting
+/// [`GRACEFUL_SHUTDOWN`], so we don't need to match it here.
+#[inline]
+fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
+    if let crossterm::event::KeyCode::Char(c) = key_event.code {
+        c == 'q' || c == 'Q'
+    } else {
+        false
+    }
+}
+
 /// Drain the terminal event queue non-blocking. Returns `true` if the
-/// intro should skip (any key was pressed). Also returns `true` if the
-/// graceful-shutdown flag is set.
+/// intro should skip — but **only** when the user pressed `q` (case-
+/// insensitive) or when [`GRACEFUL_SHUTDOWN`] is set (Ctrl+C / SIGTERM).
+///
+/// All other key events are drained and ignored. This is deliberate: the
+/// intro is a ~4.5 s cinematic, and accidental presses of space / enter
+/// / arrow keys should not cut it short. The user always has a fast exit
+/// via `q` or Ctrl+C.
+///
+/// # Why not "any key skips"?
+///
+/// * The intro is short enough that an "any key" skip is a footgun — a
+///   stray keypress from a window manager focus change would abort it.
+/// * `q` is the canonical "quit" key throughout cosmostrix's interactive
+///   mode, so reusing it here keeps the mental model consistent.
+/// * Ctrl+C / SIGTERM remain hard exits for users who can't or won't
+///   press `q` (e.g. piped input, scripted kills).
 pub(super) fn should_skip() -> std::io::Result<bool> {
     if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
         return Ok(true);
     }
     while Terminal::poll_event(Duration::from_millis(0))? {
-        if let Ok(Event::Key(_)) = Terminal::read_event() {
-            return Ok(true);
+        if let Ok(Event::Key(key_event)) = Terminal::read_event() {
+            if is_skip_key(&key_event) {
+                return Ok(true);
+            }
+            // All other keys are drained and ignored — the intro
+            // continues playing. See `is_skip_key` for the rationale.
         }
     }
     Ok(false)
@@ -523,5 +574,91 @@ mod tests {
             let f = rng_freehand();
             assert!((0.0..1.0).contains(&f), "rng_freehand returned {f}");
         }
+    }
+
+    // ── skip-key policy ──────────────────────────────────────────────────
+    //
+    // The intro must ONLY skip on `q` / `Q` (case-insensitive quit) —
+    // every other key is drained and ignored. These tests pin the policy
+    // so a future "make any key skip" refactor would fail loudly.
+
+    fn key(code: crossterm::event::KeyCode) -> crossterm::event::KeyEvent {
+        crossterm::event::KeyEvent::new(code, crossterm::event::KeyModifiers::NONE)
+    }
+
+    #[test]
+    fn skip_key_accepts_lowercase_q() {
+        assert!(is_skip_key(&key(crossterm::event::KeyCode::Char('q'))));
+    }
+
+    #[test]
+    fn skip_key_accepts_uppercase_q() {
+        assert!(is_skip_key(&key(crossterm::event::KeyCode::Char('Q'))));
+    }
+
+    #[test]
+    fn skip_key_rejects_space() {
+        assert!(!is_skip_key(&key(crossterm::event::KeyCode::Char(' '))));
+    }
+
+    #[test]
+    fn skip_key_rejects_enter() {
+        assert!(!is_skip_key(&key(crossterm::event::KeyCode::Enter)));
+    }
+
+    #[test]
+    fn skip_key_rejects_escape() {
+        assert!(!is_skip_key(&key(crossterm::event::KeyCode::Esc)));
+    }
+
+    #[test]
+    fn skip_key_rejects_arrows() {
+        use crossterm::event::KeyCode::*;
+        assert!(!is_skip_key(&key(Up)));
+        assert!(!is_skip_key(&key(Down)));
+        assert!(!is_skip_key(&key(Left)));
+        assert!(!is_skip_key(&key(Right)));
+    }
+
+    #[test]
+    fn skip_key_rejects_other_letters() {
+        // Sanity: only `q` / `Q` skip — not any other letter.
+        for c in ['a', 'A', 'z', 'Z', 'x', 'X', 'p', 'P'] {
+            assert!(
+                !is_skip_key(&key(crossterm::event::KeyCode::Char(c))),
+                "char {c:?} should NOT skip the intro"
+            );
+        }
+    }
+
+    #[test]
+    fn skip_key_rejects_function_keys() {
+        use crossterm::event::KeyCode::*;
+        assert!(!is_skip_key(&key(F(1))));
+        assert!(!is_skip_key(&key(F(12))));
+    }
+
+    #[test]
+    fn skip_key_rejects_tab_and_backspace() {
+        use crossterm::event::KeyCode::*;
+        assert!(!is_skip_key(&key(Tab)));
+        assert!(!is_skip_key(&key(Backspace)));
+    }
+
+    // ── intro type bypass ────────────────────────────────────────────────
+    //
+    // `IntroType::None` must short-circuit before any rendering happens.
+    // This is the contract `--benchmark` and friends rely on implicitly
+    // (they bypass `run_interactive` entirely, but the intro entry point
+    // must still be a no-op for `None` so a misconfigured config file
+    // cannot accidentally invoke the cinematic).
+
+    #[test]
+    fn intro_type_none_equality_short_circuits() {
+        // The run_intro early-out uses `==`. Confirm the enum supports it
+        // and that `None` matches itself.
+        assert!(IntroType::None == IntroType::None);
+        assert!(IntroType::Logo != IntroType::None);
+        assert!(IntroType::Cosmic != IntroType::None);
     }
 }
