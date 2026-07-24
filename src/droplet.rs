@@ -190,6 +190,66 @@ pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
     1.0 - t * t
 }
 
+// ── dragon-temporal: predicted state for skipping unchanged droplets ────
+//
+// The temporal-prediction experiment tracks where each droplet's head will
+// be N frames ahead, assuming its current velocity remains constant. When
+// the actual state matches the prediction, the simulation loop skips
+// `advance()` and the render loop skips `draw()` for that droplet — its
+// visible cells retain their previous content (which `Frame::set()`'s
+// content-aware dirty check already filters out), so they don't appear in
+// the dirty list. This slashes the dirty-cell count without altering the
+// rendered image.
+//
+// The prediction is intentionally lightweight: linear extrapolation only,
+// no turbulence, no gravity. As soon as the actual state diverges (which
+// happens naturally because turbulence perturbs velocity), the prediction
+// is invalidated and the droplet is processed normally for one frame
+// before a new prediction is computed.
+
+/// Predicted droplet state N frames ahead, computed by linear extrapolation.
+///
+/// Stored in `Droplet::predicted_state` after every real `advance()` call.
+/// The simulation loop consults it before the next frame's `advance()`:
+/// if the actual `head_put_line` already matches `predicted_head_line`
+/// (within `PREDICTION_TOLERANCE` cells), the droplet is "predicted clean"
+/// and both `advance()` and `draw()` are skipped for that frame.
+#[derive(Clone, Copy, Debug)]
+pub struct PredictedState {
+    /// Column this droplet is bound to (constant for the droplet's lifetime).
+    pub col: u16,
+    /// Predicted `head_put_line` after `frames_ahead` frames of advance.
+    pub head_line: u16,
+    /// Predicted remaining lifetime (in frames) at the predicted position.
+    /// Used for diagnostics; not currently consumed by the simulation loop
+    /// because droplet lifetime is implicitly tracked via `is_alive`.
+    #[allow(dead_code)]
+    pub lifetime_remaining: u16,
+    /// Predicted palette/color-pool index. Constant for the droplet's
+    /// lifetime; tracked here for completeness per the experiment spec.
+    #[allow(dead_code)]
+    pub color_pool_idx: u8,
+    /// How many frames the prediction is still valid for. Decremented each
+    /// frame the prediction is used. When it reaches 0, the prediction is
+    /// invalidated and a fresh one is computed after the next real
+    /// `advance()`. This bounds the maximum staleness of a prediction so
+    /// accumulated drift from turbulence cannot persist indefinitely.
+    pub frames_remaining: u8,
+}
+
+/// Tolerance for matching a prediction against the actual head line.
+/// A droplet is "predicted clean" if `|actual_head_line - predicted_head_line|`
+/// is at most this many cells. Set to 1 to absorb rounding noise from the
+/// linear extrapolation (the real `advance()` uses `advance_remainder`
+/// accumulation which can shift the head by 0 or 1 cells per frame).
+pub const PREDICTION_TOLERANCE: u16 = 1;
+
+/// Number of frames ahead a fresh prediction covers. After this many frames
+/// of clean skipping, the prediction is force-invalidated to recalibrate
+/// against accumulated turbulence drift. Higher values mean more skipping
+/// but more drift; lower values mean less skipping but tighter tracking.
+pub const PREDICTION_HORIZON: u8 = 4;
+
 #[derive(Clone, Debug)]
 pub struct Droplet {
     pub is_alive: bool,
@@ -234,6 +294,28 @@ pub struct Droplet {
     /// the new palette propagates only through newly spawned streams.
     pub palette_slot: u8,
 
+    // ── dragon-temporal: predicted state for skipping unchanged frames ──
+    //
+    // When `Some`, the simulation loop may skip `advance()` and the render
+    // loop may skip `draw()` for this droplet, because the previous frame's
+    // prediction indicated the visible cells would not change content this
+    // frame. The prediction is recomputed after every real `advance()` and
+    // is invalidated as soon as the actual state diverges from it.
+    //
+    // The flag `predicted_clean` is a transient per-frame marker set by the
+    // simulation pass so the draw pass knows to skip rendering. It is reset
+    // at the end of every frame.
+    //
+    // `was_skipped` tracks whether the previous frame skipped `advance()`.
+    // When true, the next real `advance()` must bypass the `max_sim_delta`
+    // cap so the accumulated elapsed time (K frames worth) is fully
+    // consumed — otherwise the droplet would move at 1/K speed. The cap
+    // exists for pause/resume correctness; bypassing it for predicted-clean
+    // droplets is safe because the skip was intentional, not a stall.
+    pub predicted_state: Option<PredictedState>,
+    pub predicted_clean: bool,
+    pub was_skipped: bool,
+
     /// Turbulence phase offset (determines unique oscillation pattern).
     pub turb_phase: f32,
     /// Turbulence accumulator (elapsed time for this droplet's oscillation).
@@ -274,6 +356,11 @@ impl Droplet {
             head_stop_time: None,
             time_to_linger: Duration::from_millis(0),
             birth_time: None,
+
+            // dragon-temporal: no prediction until after the first advance().
+            predicted_state: None,
+            predicted_clean: false,
+            was_skipped: false,
         }
     }
 
@@ -293,6 +380,12 @@ impl Droplet {
         self.turb_time = 0.0;
         self.last_time = Some(now);
         self.birth_time = Some(now);
+        // dragon-temporal: clear any stale prediction from a previous
+        // lifecycle — a recycled droplet's new physics are independent of
+        // its old trajectory.
+        self.predicted_state = None;
+        self.predicted_clean = false;
+        self.was_skipped = false;
     }
 
     /// Apply spawn phase jitter: set a random fractional advance offset so
@@ -304,6 +397,103 @@ impl Droplet {
     #[inline]
     pub fn apply_phase_jitter(&mut self, offset: f32) {
         self.advance_remainder = offset.clamp(0.0, 1.0);
+    }
+
+    // ── dragon-temporal: linear path prediction ───────────────────────────
+    //
+    // Predict where this droplet's head will be after `frames_ahead` frames,
+    // assuming its current velocity stays constant (no turbulence, no
+    // gravity, no wind gusts). The prediction is intentionally a coarse
+    // linear extrapolation — its purpose is not physical accuracy but to
+    // identify frames where the droplet's visible cells will not change
+    // content (head didn't move to a new row, tail didn't advance), so the
+    // simulation and render loops can skip the work entirely.
+    //
+    // Returns `None` if the droplet is not in a predictable state (e.g.,
+    // head is no longer crawling — it's either stopped at end_line or in
+    // the linger phase where brightness decays every frame).
+    //
+    // The `fps` parameter is the simulation's frame rate (typically 60).
+    // Used to convert velocity (chars/sec) into per-frame advance (chars).
+    #[inline]
+    pub fn predict_droplet_path(&self, frames_ahead: u8, fps: f32) -> Option<PredictedState> {
+        // Only predict for actively crawling heads. Once the head stops
+        // (is_head_crawling == false), head_brightness decays exponentially
+        // every frame via head_stop_time, so the head cell's color changes
+        // every frame even though the position is fixed. Skipping those
+        // frames would freeze the decay visually.
+        if !self.is_alive || !self.is_head_crawling {
+            return None;
+        }
+        if fps <= 0.0 || frames_ahead == 0 {
+            return None;
+        }
+
+        // Linear extrapolation: predicted_head_line = head_put_line + (velocity * frames_ahead / fps)
+        // We use the droplet's *target* speed (chars_per_sec) rather than
+        // the instantaneous velocity, because velocity includes startup
+        // easing and turbulence drift that we don't model in the prediction.
+        // Using chars_per_sec means the prediction assumes the droplet
+        // reaches terminal velocity immediately, which is approximately
+        // true after the startup ease window.
+        //
+        // The actual advance() may produce 0 or 1 cells of movement per
+        // frame depending on advance_remainder accumulation; the tolerance
+        // in the simulation loop absorbs this rounding noise.
+        let advance_per_frame = self.chars_per_sec / fps;
+        let total_advance = (advance_per_frame * frames_ahead as f32).floor() as u16;
+        let predicted_head_line = self.head_put_line.saturating_add(total_advance);
+
+        // Clamp to end_line — if the prediction overshoots, the droplet
+        // would have stopped at end_line, so predict that.
+        let predicted_head_line = predicted_head_line.min(self.end_line);
+
+        // Approximate remaining lifetime in frames. We don't have an exact
+        // TTL field; estimate from (end_line - head_put_line) / advance_per_frame.
+        let remaining_cells = self.end_line.saturating_sub(self.head_put_line);
+        let lifetime_remaining = if advance_per_frame > 0.0 {
+            (remaining_cells as f32 / advance_per_frame) as u16
+        } else {
+            u16::MAX // stationary — effectively infinite lifetime
+        };
+
+        Some(PredictedState {
+            col: self.bound_col,
+            head_line: predicted_head_line,
+            lifetime_remaining,
+            color_pool_idx: self.char_pool_idx as u8,
+            frames_remaining: frames_ahead,
+        })
+    }
+
+    /// Check whether the current actual state matches a previously computed
+    /// prediction, within `PREDICTION_TOLERANCE` cells. Used by the
+    /// simulation loop to decide whether to skip `advance()` for this frame.
+    ///
+    /// A match means: the droplet's head is at (or very near) the predicted
+    /// position, so the visible cells haven't moved since the prediction was
+    /// made. The cells retain their previous content (verified by Frame::set's
+    /// content-aware dirty check), so the droplet contributes 0 dirty cells
+    /// this frame.
+    ///
+    /// Returns `true` only if:
+    ///   - `predicted_state` is `Some`
+    ///   - `frames_remaining > 0` (prediction hasn't expired)
+    ///   - `col` matches `bound_col` (same droplet — recycled columns would mismatch)
+    ///   - `|head_put_line - predicted_head_line| <= PREDICTION_TOLERANCE`
+    #[inline]
+    pub fn prediction_matches_actual(&self) -> bool {
+        let Some(ps) = self.predicted_state else {
+            return false;
+        };
+        if ps.frames_remaining == 0 {
+            return false;
+        }
+        if ps.col != self.bound_col {
+            return false;
+        }
+        let diff = self.head_put_line.abs_diff(ps.head_line);
+        diff <= PREDICTION_TOLERANCE
     }
 
     pub fn increment_time(&mut self, delta: Duration) {

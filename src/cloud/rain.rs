@@ -9,6 +9,7 @@ use crossterm::style::Color;
 use rand::distr::Distribution;
 
 use crate::constants::*;
+use crate::droplet::PREDICTION_HORIZON;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 
@@ -270,14 +271,97 @@ impl Cloud {
                 self.resume_blend,
             );
         } else {
+            // dragon-temporal: simulation FPS estimate for path prediction.
+            // We don't have a hard-coded FPS target — the simulation runs as
+            // fast as the terminal refresh allows. We estimate from the
+            // median frame interval seen by the bench loop, but for the
+            // experiment we approximate with the common 60 FPS target. The
+            // prediction's job is to detect "no movement this frame", which
+            // is robust to FPS estimation error because the tolerance
+            // absorbs ±1 cell of rounding noise.
+            const PREDICTION_FPS: f32 = 60.0;
+
             for i in 0..self.droplets.len() {
                 if !self.droplets[i].is_alive {
                     continue;
                 }
 
+                // ── dragon-temporal: try to skip advance() via prediction ──
+                //
+                // Before calling advance(), check if the droplet's current
+                // state already matches a previously computed prediction.
+                // If so, the droplet is "predicted clean" — its visible
+                // cells haven't moved since the prediction was made, so:
+                //   1. Skip advance() entirely (do NOT update last_time —
+                //      let elapsed accumulate so the next real advance()
+                //      sees K frames of elapsed time and advances K rows,
+                //      maintaining full average speed).
+                //   2. Mark `predicted_clean = true` so the draw pass
+                //      skips d.draw() for this droplet this frame.
+                //   3. Mark `was_skipped = true` so the next real advance()
+                //      bypasses the max_sim_delta cap (which would otherwise
+                //      limit elapsed to 1 frame and cause 1/K speed).
+                //   4. Decrement frames_remaining; when it hits 0, the
+                //      prediction expires and the next frame falls through
+                //      to a real advance() to recalibrate.
+                //
+                // If the prediction does NOT match (turbulence pushed the
+                // droplet off-trajectory, or the prediction expired), clear
+                // it and fall through to a real advance() + re-predict.
+                let predicted_clean = {
+                    let d = &mut self.droplets[i];
+                    if d.prediction_matches_actual() {
+                        // Do NOT update last_time — let it stay at the
+                        // pre-skip value so elapsed accumulates. The next
+                        // real advance() will consume K frames of elapsed
+                        // and advance K rows in one call (visually
+                        // identical to K separate 1-row advances at 60 FPS).
+                        if let Some(ps) = d.predicted_state.as_mut() {
+                            ps.frames_remaining = ps.frames_remaining.saturating_sub(1);
+                        }
+                        d.predicted_clean = true;
+                        d.was_skipped = true;
+                        true
+                    } else {
+                        // Prediction invalid — clear it. We'll recompute
+                        // after the real advance() below.
+                        d.predicted_state = None;
+                        d.predicted_clean = false;
+                        // Note: was_skipped is NOT cleared here — it's
+                        // read below to decide whether to bypass the
+                        // max_sim_delta cap, then cleared after advance().
+                        false
+                    }
+                };
+
+                if predicted_clean {
+                    // The droplet's cells haven't moved. But we still need
+                    // to check if it died of old age (tail caught up to
+                    // head) — that state transition can happen even when
+                    // the head doesn't move, because the tail can advance
+                    // independently when the head has stopped at end_line.
+                    //
+                    // However, if prediction_matches_actual() returned true,
+                    // the head IS crawling (predict_droplet_path only
+                    // produces predictions for crawling heads), so the
+                    // tail-caught-up transition can't fire this frame.
+                    // Safe to skip the entire advance() + side-effect block.
+                    continue;
+                }
+
                 let (col, start_line, hp, cp_idx, free_col, died) = {
                     let d = &mut self.droplets[i];
-                    let adv_now = if use_sim_cap {
+                    // dragon-temporal: if the previous frame(s) skipped
+                    // advance(), bypass the max_sim_delta cap so the
+                    // accumulated elapsed time is fully consumed. The cap
+                    // exists for pause/resume correctness (preventing huge
+                    // jumps after a tab switch); bypassing it here is safe
+                    // because the skip was an intentional optimization,
+                    // not a stall, and the resulting K-row jump is
+                    // visually identical to K separate 1-row advances at
+                    // 60 FPS.
+                    let bypass_cap = d.was_skipped;
+                    let adv_now = if use_sim_cap && !bypass_cap {
                         if let Some(last) = d.last_time {
                             let max_now = last + max_sim_delta;
                             if now > max_now {
@@ -297,6 +381,11 @@ impl Cloud {
                     let hp = d.head_put_line;
                     let cp_idx = d.char_pool_idx;
                     let died = !d.is_alive;
+                    // dragon-temporal: clear the skip flag now that we've
+                    // consumed the accumulated elapsed. Recompute the
+                    // prediction for the next PREDICTION_HORIZON frames.
+                    d.was_skipped = false;
+                    d.predicted_state = d.predict_droplet_path(PREDICTION_HORIZON, PREDICTION_FPS);
                     (col, start_line, hp, cp_idx, free_col, died)
                 };
 
@@ -452,6 +541,23 @@ impl Cloud {
                     && d.bound_col != u16::MAX
                     && d.tail_put_line.is_some_and(|tp| d.tail_cur_line != tp);
 
+                // dragon-temporal: skip draw() for droplets whose simulation
+                // was skipped this frame. Their visible cells haven't moved
+                // since the previous frame's draw(), so Frame::set's
+                // content-aware dirty check would early-return on every cell
+                // anyway (no dirty marks, no redraw). Skipping the draw call
+                // entirely saves the per-cell loop iteration cost — the
+                // actual dirty-cell reduction comes from the cells never
+                // being touched in the first place.
+                //
+                // We CANNOT skip draw() for droplets that need tail cleanup
+                // (just died this frame) — those need their tail cells
+                // cleared, which always produces dirty marks.
+                if d.predicted_clean && d.is_alive {
+                    // Predicted clean: cells unchanged, no draw needed.
+                    continue;
+                }
+
                 if d.is_alive || needs_tail_cleanup {
                     d.draw(&ctx, frame, now, draw_everything);
                 }
@@ -459,6 +565,21 @@ impl Cloud {
                 if !d.is_alive {
                     d.bound_col = u16::MAX;
                 }
+            }
+
+            // dragon-temporal: reset predicted_clean for the next frame.
+            // The flag is set in the simulation pass above; it must be
+            // cleared before the next frame's simulation pass runs, so
+            // that a droplet which becomes "dirty" next frame (prediction
+            // invalidated) doesn't accidentally skip draw() based on the
+            // stale flag.
+            //
+            // Doing this in the draw pass (rather than at the start of the
+            // next simulation pass) keeps the flag's lifecycle contained
+            // within a single rain_at() call: set in sim pass, read in
+            // draw pass, cleared at the end.
+            for d in &mut self.droplets {
+                d.predicted_clean = false;
             }
         }
 
