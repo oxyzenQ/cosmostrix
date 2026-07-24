@@ -31,6 +31,10 @@ codex/
 agent/
 other ai/
 
+# Local clones / system skill libraries — must never be tracked
+/cosmostrix/
+/skills/
+
 # log monitor
 /logs/
 /benchmark/logs/
