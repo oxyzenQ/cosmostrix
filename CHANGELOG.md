@@ -9,6 +9,51 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v20.0.0 — Temporal-Prediction Milestone (cosmic_dragon)
+
+### Headline
+
+The Dragon now sees its own future. Three levers — `PREDICTION_HORIZON`
+raised from 4 to 12, skip-draw on small droplet advances, and a new
+`set_persistent()` mechanism in `frame.rs` — collapsed the dirty-cell
+ratio from 18.33% to 0.39% on the cinematic baseline (200×60). Average
+FPS climbed from 7,843 to 29,773 (+280%), and total drawn cells per run
+dropped from 1.035B to 3.3M (−99.6%). The IO bottleneck is effectively
+gone: `avg_io_ms` fell from 0.0428 to 0.0014.
+
+### New Scene — `cosmic_dragon`
+
+A new built-in scene commemorates the temporal-prediction breakthrough.
+It uses the `deepspace` palette, `binary` charset, speed 12, density
+0.65 — a deep, futuristic look that mirrors the cinematic base while
+standing apart as a milestone reward. It is not part of the interactive
+`x`/`X` cycle; invoke it explicitly with `cosmostrix --scene cosmic_dragon`.
+
+This is the twelfth built-in scene, joining cinematic, matrix, monolith,
+signal, classic, calm, storm, cosmos, neon, hacker, and low-power.
+
+### Trade-off
+
+Gini coefficient drops from 0.702 to 0.248 on the cinematic baseline
+because skip-draw reduces the structured pillar formations. This is
+acceptable for the cinematic scene (which favors breathing room over
+dense structure) and is the explicit reason `cosmic_dragon` exists as
+a separate scene rather than a replacement.
+
+### Internal
+
+- `src/cloud/rain.rs`: temporal-prediction loop with skip-draw gating.
+- `src/droplet.rs`: `PredictedState` struct + `predicted_clean` flag.
+- `src/frame.rs`: new `set_persistent(col, line)` method — marks a cell
+  dirty for the current generation without recomputing its content.
+- `src/scene.rs`: `cosmic_dragon` scene registered as a milestone entry.
+- `src/help_detail.rs`: `--scene` documentation updated.
+- `README.md`: scene count and curated list updated.
+- `src/configfile.rs`: config template scene list updated.
+- `src/atmosphere_custom.rs`: doc comment scene count updated.
+
+---
+
 ## v15.0.0 — The Dragon (Pre-Release Polish)
 
 ### Breaking Changes

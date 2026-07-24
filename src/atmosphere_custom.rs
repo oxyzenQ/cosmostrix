@@ -15,7 +15,7 @@
 //!
 //! - HH-MM: time in 24h format (00-00 to 23-59)
 //! - First value: color scheme name (52 built-in themes)
-//! - Second value: scene name (11 built-in scenes)
+//! - Second value: scene name (12 built-in scenes)
 //! - Optional key=value pairs: speed, density, fps, charset, glitch-level
 //! - Parameters not specified are sticky (keep previous value)
 //! - If no [adaptive-custom] block: fallback to default adaptive engine
