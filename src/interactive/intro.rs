@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v18: Dragon's Awakening intro cinematic + Linux process metrics helpers.
+//! v19: Cosmic Burst intro + Linux process metrics helpers.
 //!
 //! Two unrelated concerns coexist in this file:
 //!
@@ -9,7 +9,7 @@
 //!    — lightweight `/proc` readers used by the HUD overlay. Kept here because
 //!    the file already exists; the helpers are tiny and have no dependencies.
 //!
-//! 2. **Dragon's Awakening intro** (`run_intro`) — a cinematic studio-logo-style
+//! 2. **Cosmic Burst intro** (`run_intro`) — a cinematic studio-logo-style
 //!    animation played before the rain engine takes over. Triggered by
 //!    `cosmostrix --intro`. See the [`run_intro`] docs for the full phase
 //!    breakdown.
@@ -75,7 +75,7 @@ pub(crate) fn read_self_voluntary_ctxt() -> u64 {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Dragon's Awakening intro
+// Cosmic Burst intro
 // ─────────────────────────────────────────────────────────────────────────────
 //
 // A four-phase cinematic studio logo for cosmostrix. Triggered by `--intro`.
@@ -83,160 +83,97 @@ pub(crate) fn read_self_voluntary_ctxt() -> u64 {
 // ## Phases
 //
 // ```text
-// Phase 1: Dragon Reveal   (0    – 1500 ms)  Dragon fades in, centered.
-// Phase 2: Fire Breath     (1500 – 3500 ms)  Mouth emits fire particles ↓.
-// Phase 3: Morph           (3500 – 5500 ms)  Fire → rain; cone widens to full
-//                                            screen; dragon dims.
-// Phase 4: Fade Out        (5500 – 6500 ms)  Dragon gone; particles decay.
+// Phase 1: Singularity  (0    – 1000 ms)  A point of light pulses at center.
+// Phase 2: Burst         (1000 – 2500 ms)  Particles explode outward + spiral.
+// Phase 3: Morph         (2500 – 4000 ms)  Particles slow + turn downward,
+//                                           colors shift cosmic → palette.
+// Phase 4: Rain Handoff  (4000 – 5000 ms)  Particles fade; rain engine takes
+//                                           over seamlessly.
 // ```
 //
-// Total: ~6.5 s. Any key (q / Enter / etc.) skips instantly. The intro is
+// Total: ~5 s. Any key (q / Enter / etc.) skips instantly. The intro is
 // skipped entirely on terminals smaller than 80×24 with a stderr notice.
 //
 // ## Constraints
 //
 // * Zero per-frame heap allocation — the particle pool is pre-allocated and
 //   reused via a free-list stack.
-// * Linear interpolation only (no sin/cos) for color morph and dragon dim.
 // * Reuses the existing `Terminal` / `Frame` / `Cell` pipeline — no separate
 //   renderer.
 // * `FRAME_COUNTER` is bumped each frame so the watchdog doesn't kill us
-//   during the 6.5 s cinematic.
+//   during the 5 s cinematic.
 
 /// Minimum terminal size for the intro to play. Below this, skip with a
-/// stderr notice. Width 80 accommodates the 75-char dragon art with
-/// margin; height 24 is the classic VT100 baseline.
+/// stderr notice. Matches the classic 80×24 VT100 baseline.
 const MIN_INTRO_COLS: u16 = 80;
 const MIN_INTRO_LINES: u16 = 24;
 
 /// Phase boundaries (milliseconds from intro start).
-const PHASE1_REVEAL_END_MS: u64 = 1_500;
-const PHASE2_FIRE_END_MS: u64 = 3_500;
-const PHASE3_MORPH_END_MS: u64 = 5_500;
-const PHASE4_FADE_END_MS: u64 = 6_500;
+const PHASE1_SINGULARITY_END_MS: u64 = 1_000;
+const PHASE2_BURST_END_MS: u64 = 2_500;
+const PHASE3_MORPH_END_MS: u64 = 4_000;
+const PHASE4_RAIN_END_MS: u64 = 5_000;
 
 /// Frame period for the intro animation. ~30 FPS — the intro is mostly
-/// static art + slow particle motion, so high FPS is wasteful.
+/// particle motion, so 30 FPS is smooth without burning CPU.
 const INTRO_FRAME_PERIOD: Duration = Duration::from_millis(33);
 
 /// Particle pool capacity. Pre-allocated once; reused via free-list.
-/// 512 × 40 B = 20 KiB — negligible. The peak concurrent particle count
-/// during Phase 3 (full-screen morph) is ~400, leaving headroom.
+/// 512 × 48 B = 24 KiB — negligible. The peak concurrent particle count
+/// during Phase 2 (burst) is ~120, leaving ample headroom.
 const PARTICLE_POOL_SIZE: usize = 512;
 
-/// Fire particle characters — varied glyphs so the stream looks like
-/// ember/flame rather than a uniform dotted line.
-const FIRE_CHARS: [char; 5] = ['*', '+', '#', '%', '&'];
+/// Burst particle characters — varied glyphs so the explosion looks like
+/// cosmic debris rather than a uniform dotted cloud.
+const BURST_CHARS: [char; 6] = ['*', '+', '#', '%', '&', '@'];
 
-/// Fire color stops (RGB). Sampled by a per-particle random index — the
-/// stream alternates red → orange → yellow → white-hot.
-/// Derived from the Fire theme's stop list (see `central_colors.rs`).
-const FIRE_COLORS_RGB: [(u8, u8, u8); 4] = [
-    (255, 80, 10),   // ember red
-    (255, 145, 35),  // flame orange
-    (255, 200, 90),  // bright yellow
-    (255, 235, 170), // white-hot
+/// Cosmic color stops (RGB). Sampled by per-particle random index — the
+/// burst alternates gold (energy), purple (brand), and cyan (plasma).
+const COSMIC_COLORS_RGB: [(u8, u8, u8); 3] = [
+    (255, 200, 0),  // bright gold
+    (168, 85, 247), // purple (brand)
+    (0, 255, 255),  // cyan
 ];
 
+/// Singularity color — pure white-hot at the center of the burst.
+const SINGULARITY_RGB: (u8, u8, u8) = (255, 255, 255);
+
 /// Particle lifetime in seconds. Short enough to feel like a phosphor
-/// afterglow; long enough to leave a visible trail.
-const PARTICLE_LIFE_SECS: f32 = 0.9;
+/// afterglow; long enough to leave a visible trail during the burst.
+const PARTICLE_LIFE_SECS: f32 = 1.4;
 
-/// Downward base velocity (cells per second). Fire breath accelerates
-/// slightly with phase progress to sell the "breath intensity" build.
-const PARTICLE_BASE_VY: f32 = 12.0;
+/// Burst particle speed range (cells per second). Particles fan out at
+/// random speeds within this range.
+const BURST_SPEED_MIN: f32 = 10.0;
+const BURST_SPEED_MAX: f32 = 30.0;
 
-/// Horizontal spread (cells per second). Particles fan out slightly to
-/// form a cone rather than a column.
-const PARTICLE_SPREAD_VX: f32 = 6.0;
+/// Morph-phase target speed range. Particles decelerate to this range
+/// as they transition to rain behavior.
+const MORPH_SPEED_MIN: f32 = 5.0;
+const MORPH_SPEED_MAX: f32 = 15.0;
 
-/// The majestic ASCII dragon — a 3/4 view dragon with spread wings, body
-/// coil, and tail tapering downward. The head sits in the upper portion
-/// (rows 4-10) with the mouth at the bottom of the head cluster
-/// (the `U-` glyphs at row 10). Fire breath emerges downward from the
-/// mouth, falls through the wing area, and cascades through the body
-/// coil to the tail tip.
-///
-/// Dimensions: 43 lines tall × 75 chars max width. Fits comfortably in
-/// an 80×24 terminal with horizontal margin (centered dynamically).
-///
-/// The mouth position (row, col) within the art is encoded in
-/// [`DRAGON_MOUTH_ROW`] / [`DRAGON_MOUTH_COL`] so the fire-spawn point
-/// stays correct even if the art is later edited. The
-/// [`dragon_art_tests::mouth_position_is_valid`] test guards against
-/// drift.
-const DRAGON_ART: &str = concat!(
-    "                  .\n",
-    "                Q`                                            Ir\n",
-    "              +O^                                              ir^\n",
-    "             u#!                                                C\\i\n",
-    "            xca                        _`                       .@i~\n",
-    "           1^BI                        B|                        0@':\n",
-    "          ^+#B.                        @W                        `@[C.\n",
-    "          j:Z&            \",          >Bl`          I             %o'l\n",
-    "          `v\"@B'          ^U          UJu^u;          Z           ;@W.O\n",
-    "         `}@a.          tt     l_  X< B0!?!  Q.     Y\\          `BB'c\n",
-    "    .,   ,1 U8u         lY\\     Cd .> U- ` f  &{     Yj          8*v p'   !\n",
-    "    'X   .c (BB[        \\un    .ba|n_``r\"~(~>m[c     a)i        x@8\"\"(    t\n",
-    "     p    J '#8n'       -tM   ['[~az I @% ' 0*'v !  <%;{       'kBf `~   +t\n",
-    "     1L   'j 'x&B^ ,~   f,Bn  /1 ,BrI 8{`j 'pL^.J?  bbl_   ]  I@ax  /    bl\n",
-    "     ,Q1   1  ^&@%<:u   -`v%+ .Ou'?Z x0:`CIIxi.w)' v@{<`   d n@@q( {:   OX.\n",
-    "      /%_   L! )kMo!d_  .\\.O%- ;*<^.,. @* X]I _k .zBr f   cQ?8aJ'._-   Jm+\n",
-    "      ;!@{   c. 'u%&v8x  I~'OkY <0\"  'Z*xI!  [Y !whr ?. .w#p8#<:'II   0#1'\n",
-    "       ?,@q   Y<  )jBBhW' ( '8@C` 8j \"8\" W' p) 1p@z ') ~BJ@ozj  cl   W&'l\n",
-    "        \\`MB_  I+. ,<WB0vi [ 'W81 !\\}] 8t ,db' c@v.`1 (jd@b+  :v   n@J.~\n",
-    "         u {BB\"  z....{CJ., \\ .*i` -i {j*^.:` ,tv  + `lpv;>\".;X  ~@B:.~\n",
-    "          ]  (@B/ ~Z ';?#vn {J ;JMIr ^W'.#. <\\OL ,t\" wvMI` :L^.J@@; ,;\n",
-    "      ,)   ^_  /@j. tr  ^J&WI;- -MI^-' BZ .U fh\" li(BMr. I/; `hB:  U.   v\n",
-    "       ~a    <' .b_\"  ){ .pWC.{Y >Bb  }B_^ '*B'.a:,aWn ^f!  :Xj  -:   ;8\"\n",
-    "        ibd^   ;  ^m^}; |^.ua)Iv%l_u Z j^~<+dIvB~lXh! \"/ <}!O   1   >WY^\n",
-    "         ,:%Bk'     ?_,Y\"t!^rwB?)p !a .%j  8`'w_c@a[ +-;J.f\"     ;o@O|.\n",
-    "           ) uB@d(. :;.i:+<x ,b%/lYC!:<:.U-,lp<U@0 !x\">!..i  `jh@&) ?\n",
-    "             \\  ^pw.  <w1 1''}'}@8m~*{ cU !8^k@B,>} i;.uzi  :&v   r\n",
-    "               I'  `?zc1\"]%\\}\"vj\\#@vO-'\"'+:Mw@W<m?^+J#:I|Xj>;  ;;\n",
-    "            |\\'  `  ^` .^\"m@C!;WB{tB{^r'.\\~YM|m@Q:IhBL.:  \". ..  :Z:\n",
-    "              \\)MW*c,zWb> \"QW8ut\"  '_`.i, il   i[QBan  {h&1\"0*&h]_\n",
-    "                ~l      \\q/. I[ku{^ <8~B*vp\" ;tm0|^ `xO_     '!,\n",
-    "                    +ppj,  (? _!;#d.|m08BQ-:|*L^l` x<  >zkZ:\n",
-    "                        .    <i'`?kU{BdmJOWfr*<:'1^   .'\n",
-    "                      ]*obz,  Izr'!m%q<B@0MBL] -w   ~Qk*b,\n",
-    "                          ^xX` lw(I\\.{u%Bu:;?^uJ' !C)\n",
-    "                              _.<r d,{;8,'~])lp'>!\n",
-    "                             ',_-(<:nl    ;?,ni{<\".\n",
-    "                                <Cd>x:!I{hJix)Z\"\n",
-    "                                 >\\\\[     ;:QZ^\n",
-    "                                  l-?I   >JIQ.\n",
-    "                                   I+z-ZW|1p.\n",
-    "                                   'l`\"  }C\\\n",
-    "                                     -'co .\n",
-);
+/// Spiral rate range (radians per second). Each particle's angle rotates
+/// by a small random amount per frame, giving the explosion a cosmic
+/// spiral feel rather than a straight radial spread.
+const SPIRAL_RATE_MIN: f32 = 0.5; // ~29 deg/sec
+const SPIRAL_RATE_MAX: f32 = 1.5; // ~86 deg/sec
 
-/// Row index (0-based, within `DRAGON_ART` lines) of the mouth opening —
-/// the bottom of the head cluster where fire particles originate. Keep
-/// in sync with the art above; [`dragon_art_tests::mouth_position_is_valid`]
-/// guards against drift.
-const DRAGON_MOUTH_ROW: usize = 10;
+/// Number of burst particles to spawn during Phase 2.
+const BURST_PARTICLE_COUNT: u32 = 100;
 
-/// Column index (0-based) of the mouth opening within the mouth row.
-/// Points at the `-` glyph in the `U-` cluster at row 10 (the mouth
-/// line under the upper lip `U`). Fire particles spawn at this
-/// (row, col) within the centered dragon, then fall downward through
-/// the wing area, body coil, and tail.
-const DRAGON_MOUTH_COL: usize = 39;
+/// Downward base velocity (cells per second) during the morph phase.
+/// Gravity-like acceleration pulling particles toward the rain direction.
+const MORPH_DOWNWARD_VY: f32 = 14.0;
 
-/// Parsed dragon art: each line as a `&'static str`, with the max line width
-/// precomputed. Done once at module load (compile-time constant via inline
-/// parsing — the result is a `Vec<&'static str>` constructed lazily on first
-/// `run_intro` call).
-fn parse_dragon_art() -> (Vec<&'static str>, usize) {
-    let lines: Vec<&'static str> = DRAGON_ART.split('\n').filter(|l| !l.is_empty()).collect();
-    let max_w = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
-    (lines, max_w)
-}
-
-/// Compact particle representation. 40 bytes — fits 16 per cache line.
+/// Parsed particle representation. 48 bytes — fits ~1.3 per cache line.
 /// `active` is the free-list flag; dead particles are skipped during
 /// update and render.
+///
+/// `angle` and `speed` are the polar-coordinate form of velocity. We
+/// store them alongside `vx`/`vy` because:
+/// * Phase 2 (burst) needs `angle` for spiral motion (angle += spiral_rate).
+/// * Phase 3 (morph) needs `speed` for deceleration.
+/// * `vx`/`vy` are kept as the cartesian cache for rendering.
 #[derive(Clone, Copy)]
 struct Particle {
     x: f32,
@@ -245,12 +182,20 @@ struct Particle {
     vy: f32,
     ch: char,
     /// Particle color stored as RGB triple. Avoids `Color` enum tag overhead
-    /// and lets us lerp between fire and palette colors trivially.
+    /// and lets us lerp between cosmic and palette colors trivially.
     r: u8,
     g: u8,
     b: u8,
     life: f32,
     max_life: f32,
+    /// Current direction in radians (0 = right, π/2 = down). Updated each
+    /// frame by `spiral_rate` during Phase 2.
+    angle: f32,
+    /// Current speed in cells per second. Decelerates during Phase 3.
+    speed: f32,
+    /// Per-particle angular velocity (radians per second). Sampled at
+    /// spawn time from `[SPIRAL_RATE_MIN, SPIRAL_RATE_MAX)`.
+    spiral_rate: f32,
     active: bool,
 }
 
@@ -266,6 +211,9 @@ impl Particle {
         b: 0,
         life: 0.0,
         max_life: 0.0,
+        angle: 0.0,
+        speed: 0.0,
+        spiral_rate: 0.0,
         active: false,
     };
 }
@@ -350,9 +298,10 @@ fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
     )
 }
 
-/// v18: Dragon's Awakening intro. Plays a ~6.5 s cinematic — ASCII dragon
-/// fades in, breathes fire, the fire morphs into Matrix rain, and the
-/// dragon fades away leaving the rain engine to take over.
+/// v19: Cosmic Burst intro. Plays a ~5 s cinematic — a singularity
+/// appears at center, pulses, explodes into cosmic particles, the
+/// particles slow and morph into Matrix rain, and the rain engine
+/// takes over seamlessly.
 ///
 /// Skip with any key. On terminals smaller than 80×24 the intro is
 /// skipped entirely with a stderr notice.
@@ -366,7 +315,7 @@ pub(crate) fn run_intro(
     w: u16,
     h: u16,
 ) -> std::io::Result<()> {
-    // Terminal-size guard. Below 80×24 the dragon art would clip badly;
+    // Terminal-size guard. Below 80×24 the burst would clip badly;
     // print a notice and skip the cinematic.
     if w < MIN_INTRO_COLS || h < MIN_INTRO_LINES {
         eprintln!(
@@ -385,17 +334,9 @@ pub(crate) fn run_intro(
         .wrapping_add(0x1234_5678) as u32;
     let mut rng = XorShift::new(seed);
 
-    // Parse dragon art once.
-    let (dragon_lines, dragon_w) = parse_dragon_art();
-    let dragon_h = dragon_lines.len();
-    // Center the dragon on the terminal. The mouth spawn point is the
-    // explicit (row, col) of the mouth opening in the art — NOT the
-    // bottom-center, because the mouth sits in the upper half of the
-    // dragon (just below the head) and fire should emerge from there.
-    let origin_x = w.saturating_sub(dragon_w as u16) / 2;
-    let origin_y = h.saturating_sub(dragon_h as u16) / 2;
-    let mouth_x = origin_x as f32 + DRAGON_MOUTH_COL as f32;
-    let mouth_y = origin_y as f32 + DRAGON_MOUTH_ROW as f32;
+    // Center of the screen — the singularity point.
+    let center_x = w as f32 * 0.5;
+    let center_y = h as f32 * 0.5;
 
     // Palette colors for the morph phase. We pull the brightest palette
     // color (typically the head color) as the rain target. If the palette
@@ -408,12 +349,6 @@ pub(crate) fn run_intro(
         .copied()
         .map(color_to_rgb)
         .unwrap_or((57, 255, 20)); // NeonGreen fallback
-    let dragon_rgb: (u8, u8, u8) = palette_rgb;
-    let dragon_dim_rgb: (u8, u8, u8) = (
-        (palette_rgb.0 as u32 / 6) as u8,
-        (palette_rgb.1 as u32 / 6) as u8,
-        (palette_rgb.2 as u32 / 6) as u8,
-    );
 
     // Rain charset for the morph phase. Empty pool → binary fallback.
     let rain_chars: Vec<char> = if cloud.char_pool.is_empty() {
@@ -427,7 +362,7 @@ pub(crate) fn run_intro(
 
     loop {
         let elapsed_ms = intro_start.elapsed().as_millis() as u64;
-        if elapsed_ms >= PHASE4_FADE_END_MS {
+        if elapsed_ms >= PHASE4_RAIN_END_MS {
             break;
         }
         if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
@@ -441,25 +376,25 @@ pub(crate) fn run_intro(
         }
 
         // Determine current phase and progress within phase.
-        let (phase, phase_t) = if elapsed_ms < PHASE1_REVEAL_END_MS {
-            (1u8, elapsed_ms as f32 / PHASE1_REVEAL_END_MS as f32)
-        } else if elapsed_ms < PHASE2_FIRE_END_MS {
+        let (phase, phase_t) = if elapsed_ms < PHASE1_SINGULARITY_END_MS {
+            (1u8, elapsed_ms as f32 / PHASE1_SINGULARITY_END_MS as f32)
+        } else if elapsed_ms < PHASE2_BURST_END_MS {
             (
                 2,
-                (elapsed_ms - PHASE1_REVEAL_END_MS) as f32
-                    / (PHASE2_FIRE_END_MS - PHASE1_REVEAL_END_MS) as f32,
+                (elapsed_ms - PHASE1_SINGULARITY_END_MS) as f32
+                    / (PHASE2_BURST_END_MS - PHASE1_SINGULARITY_END_MS) as f32,
             )
         } else if elapsed_ms < PHASE3_MORPH_END_MS {
             (
                 3,
-                (elapsed_ms - PHASE2_FIRE_END_MS) as f32
-                    / (PHASE3_MORPH_END_MS - PHASE2_FIRE_END_MS) as f32,
+                (elapsed_ms - PHASE2_BURST_END_MS) as f32
+                    / (PHASE3_MORPH_END_MS - PHASE2_BURST_END_MS) as f32,
             )
         } else {
             (
                 4,
                 (elapsed_ms - PHASE3_MORPH_END_MS) as f32
-                    / (PHASE4_FADE_END_MS - PHASE3_MORPH_END_MS) as f32,
+                    / (PHASE4_RAIN_END_MS - PHASE3_MORPH_END_MS) as f32,
             )
         };
 
@@ -467,135 +402,140 @@ pub(crate) fn run_intro(
         let dt = INTRO_FRAME_PERIOD.as_secs_f32();
         match phase {
             1 => {
-                // Phase 1: No particles yet — dragon is just appearing.
+                // Phase 1: No particles yet — singularity is just appearing.
             }
             2 => {
-                // Phase 2: Fire breath. Spawn rate ramps 20 → 40 over the phase.
-                let rate = lerp(20.0, 40.0, phase_t);
-                spawn_fire_burst(
-                    &mut pool,
-                    &mut rng,
-                    mouth_x,
-                    mouth_y,
-                    rate as u32,
-                    PARTICLE_BASE_VY,
-                    PARTICLE_SPREAD_VX,
-                    0.0, // morph_t = 0 — pure fire
-                );
+                // Phase 2: Burst. Spawn all particles in the first 200 ms of
+                // the phase so the explosion feels instantaneous.
+                if phase_t < 0.08 {
+                    spawn_burst(
+                        &mut pool,
+                        &mut rng,
+                        center_x,
+                        center_y,
+                        BURST_PARTICLE_COUNT,
+                    );
+                }
             }
             3 => {
-                // Phase 3: Morph. Spawn rate ramps 40 → 80. The cone widens
-                // horizontally to fill the screen. morph_t goes 0 → 1 so
-                // particles shift from fire → rain.
-                let rate = lerp(40.0, 80.0, phase_t);
-                let cone_widen = phase_t * (w as f32 * 0.5);
-                spawn_morph_burst(
-                    &mut pool,
-                    &mut rng,
-                    mouth_x,
-                    mouth_y,
-                    cone_widen,
-                    rate as u32,
-                    PARTICLE_BASE_VY + phase_t * 4.0, // slight acceleration
-                    PARTICLE_SPREAD_VX,
-                    phase_t,
-                    &rain_chars,
-                    palette_rgb,
-                );
+                // Phase 3: Morph. No new spawns; existing particles
+                // decelerate and turn downward.
             }
             4 => {
-                // Phase 4: Fade out. No new spawns; existing particles decay.
+                // Phase 4: Rain handoff. No new spawns; existing particles
+                // fade out.
             }
             _ => {}
         }
 
-        // Update + cull particles.
-        update_particles(&mut pool, dt, h as f32);
+        // Update + cull particles. Phase 3 applies morph deceleration.
+        let morph_t = if phase == 3 {
+            phase_t
+        } else if phase == 4 {
+            1.0
+        } else {
+            0.0
+        };
+        update_particles(&mut pool, dt, h as f32, morph_t, palette_rgb, &rain_chars);
 
         // ── Render ──────────────────────────────────────────────────────
         frame.clear_with_bg(palette_bg);
 
-        // Dragon render. Brightness depends on phase:
-        //   Phase 1: ramp up from dim → full (reveal).
-        //   Phase 2: full brightness.
-        //   Phase 3: ramp down from full → dim (morph).
-        //   Phase 4: ramp down from dim → invisible (fade out).
-        let dragon_color = match phase {
-            1 => {
-                let t = phase_t.clamp(0.0, 1.0);
-                lerp_rgb(dragon_dim_rgb, dragon_rgb, t)
-            }
-            2 => dragon_rgb,
-            3 => {
-                let t = phase_t.clamp(0.0, 1.0);
-                lerp_rgb(dragon_rgb, dragon_dim_rgb, t)
-            }
-            4 => {
-                let t = phase_t.clamp(0.0, 1.0);
-                lerp_rgb(dragon_dim_rgb, (0, 0, 0), t)
-            }
-            _ => dragon_rgb,
-        };
-        let dragon_visible = !(phase == 4 && phase_t > 0.85);
-        if dragon_visible {
-            for (row_idx, line) in dragon_lines.iter().enumerate() {
-                let y = origin_y + row_idx as u16;
-                if y >= h {
-                    break;
+        // Singularity render (Phase 1 + early Phase 2). Brightness pulses
+        // three times with increasing frequency during Phase 1, then fades
+        // out as the burst takes over.
+        let singularity_visible = phase == 1 || (phase == 2 && phase_t < 0.3);
+        if singularity_visible {
+            let brightness = if phase == 1 {
+                // Triangle wave with chirped frequency: 3 Hz → 9 Hz over 1 s.
+                let pulse_freq = 3.0 + 6.0 * phase_t;
+                let phase_angle = (pulse_freq * phase_t).fract();
+                if phase_angle < 0.5 {
+                    0.5 + phase_angle
+                } else {
+                    1.5 - phase_angle
                 }
-                for (col_idx, ch) in line.chars().enumerate() {
-                    if ch == ' ' {
-                        continue;
-                    }
-                    let x = origin_x + col_idx as u16;
-                    if x >= w {
-                        break;
-                    }
-                    frame.set_force(
-                        x,
-                        y,
-                        Cell {
-                            ch,
-                            fg: Some(Color::Rgb {
-                                r: dragon_color.0,
-                                g: dragon_color.1,
-                                b: dragon_color.2,
-                            }),
-                            bg: palette_bg,
-                            bold: true,
-                        },
-                    );
-                }
+            } else {
+                // Phase 2: fade out 1.0 → 0.0 over the first 30% of burst.
+                1.0 - (phase_t / 0.3)
+            };
+            let brightness = brightness.clamp(0.0, 1.0);
+            let color = lerp_rgb((0, 0, 0), SINGULARITY_RGB, brightness);
+            let cx = center_x as u16;
+            let cy = center_y as u16;
+            if cx < w && cy < h {
+                frame.set_force(
+                    cx,
+                    cy,
+                    Cell {
+                        ch: '@',
+                        fg: Some(Color::Rgb {
+                            r: color.0,
+                            g: color.1,
+                            b: color.2,
+                        }),
+                        bg: palette_bg,
+                        bold: true,
+                    },
+                );
             }
         }
 
         // Render particles. Each active particle becomes a single cell.
+        // During Phase 2, render a 2-cell trail behind each particle for
+        // a streaking effect.
         for p in pool.particles.iter() {
             if !p.active {
                 continue;
             }
             let x = p.x as u16;
             let y = p.y as u16;
-            if x >= w || y >= h {
-                continue;
-            }
             // Fade particle alpha by remaining life ratio.
             let life_t = (p.life / p.max_life).clamp(0.0, 1.0);
             let faded = lerp_rgb((0, 0, 0), (p.r, p.g, p.b), life_t);
-            frame.set_force(
-                x,
-                y,
-                Cell {
-                    ch: p.ch,
-                    fg: Some(Color::Rgb {
-                        r: faded.0,
-                        g: faded.1,
-                        b: faded.2,
-                    }),
-                    bg: palette_bg,
-                    bold: true,
-                },
-            );
+            if x < w && y < h {
+                frame.set_force(
+                    x,
+                    y,
+                    Cell {
+                        ch: p.ch,
+                        fg: Some(Color::Rgb {
+                            r: faded.0,
+                            g: faded.1,
+                            b: faded.2,
+                        }),
+                        bg: palette_bg,
+                        bold: true,
+                    },
+                );
+            }
+            // Trail: 2 trailing cells behind the particle (only during
+            // burst phase when particles are fast-moving). Trail cells
+            // are dimmer and use the same glyph.
+            if phase == 2 || (phase == 3 && phase_t < 0.5) {
+                for trail_step in 1..=2u16 {
+                    let tx = (p.x - p.vx * dt * trail_step as f32) as u16;
+                    let ty = (p.y - p.vy * dt * trail_step as f32) as u16;
+                    if tx < w && ty < h {
+                        let trail_brightness = life_t * (0.4 / trail_step as f32);
+                        let trail_color = lerp_rgb((0, 0, 0), (p.r, p.g, p.b), trail_brightness);
+                        frame.set_force(
+                            tx,
+                            ty,
+                            Cell {
+                                ch: p.ch,
+                                fg: Some(Color::Rgb {
+                                    r: trail_color.0,
+                                    g: trail_color.1,
+                                    b: trail_color.2,
+                                }),
+                                bg: palette_bg,
+                                bold: false,
+                            },
+                        );
+                    }
+                }
+            }
         }
 
         term.draw(frame)?;
@@ -606,38 +546,26 @@ pub(crate) fn run_intro(
     Ok(())
 }
 
-/// Spawn a burst of fire particles from the mouth point.
+/// Spawn a burst of particles at `(cx, cy)` — the cosmic explosion.
 ///
-/// `morph_t` = 0 means pure fire; `morph_t` > 0 lerps each particle's color
-/// and glyph toward the rain palette. Used by both Phase 2 (morph_t = 0)
-/// and Phase 3 (morph_t > 0).
-#[allow(clippy::too_many_arguments)]
-fn spawn_fire_burst(
-    pool: &mut ParticlePool,
-    rng: &mut XorShift,
-    cx: f32,
-    cy: f32,
-    count: u32,
-    base_vy: f32,
-    spread_vx: f32,
-    morph_t: f32,
-) {
-    let _ = morph_t; // unused in pure fire path; kept for symmetry with spawn_morph_burst.
+/// Each particle gets a random angle (0..2π), random speed within
+/// `[BURST_SPEED_MIN, BURST_SPEED_MAX)`, and a random spiral rate
+/// within `[SPIRAL_RATE_MIN, SPIRAL_RATE_MAX)`. Color is sampled from
+/// [`COSMIC_COLORS_RGB`]; glyph from [`BURST_CHARS`].
+fn spawn_burst(pool: &mut ParticlePool, rng: &mut XorShift, cx: f32, cy: f32, count: u32) {
     for _ in 0..count {
-        // Sample a fire color. Bias toward the lower (red) end for a
-        // hotter core, with occasional bright (yellow/white) flecks.
-        let color_idx = (rng.next_u32() % 4) as usize;
-        let (r, g, b) = FIRE_COLORS_RGB[color_idx];
-        let ch = FIRE_CHARS[(rng.next_u32() % FIRE_CHARS.len() as u32) as usize];
-        // Slight horizontal jitter so the stream isn't a perfect column.
-        let vx = (rng.next_f32() - 0.5) * 2.0 * spread_vx;
-        // Slight vertical velocity variation — some particles are slower
-        // embers, others are fast sparks.
-        let vy = base_vy * (0.7 + rng.next_f32() * 0.6);
-        // Spawn at the mouth with a small horizontal jitter.
-        let x = cx + (rng.next_f32() - 0.5) * 2.0;
-        let y = cy + rng.next_f32() * 1.5;
-        let life = PARTICLE_LIFE_SECS * (0.6 + rng.next_f32() * 0.6);
+        let angle = rng.next_f32() * std::f32::consts::TAU;
+        let speed = lerp(BURST_SPEED_MIN, BURST_SPEED_MAX, rng.next_f32());
+        let spiral_rate = lerp(SPIRAL_RATE_MIN, SPIRAL_RATE_MAX, rng.next_f32())
+            * if rng.next_f32() < 0.5 { -1.0 } else { 1.0 };
+        let (vx, vy) = (angle.cos() * speed, angle.sin() * speed);
+        let color_idx = (rng.next_u32() % COSMIC_COLORS_RGB.len() as u32) as usize;
+        let (r, g, b) = COSMIC_COLORS_RGB[color_idx];
+        let ch = BURST_CHARS[(rng.next_u32() % BURST_CHARS.len() as u32) as usize];
+        // Slight positional jitter so particles don't all overlap at spawn.
+        let x = cx + (rng.next_f32() - 0.5) * 1.5;
+        let y = cy + (rng.next_f32() - 0.5) * 1.5;
+        let life = PARTICLE_LIFE_SECS * (0.7 + rng.next_f32() * 0.6);
         let spawned = pool.spawn(Particle {
             x,
             y,
@@ -649,6 +577,9 @@ fn spawn_fire_burst(
             b,
             life,
             max_life: life,
+            angle,
+            speed,
+            spiral_rate,
             active: true,
         });
         if !spawned {
@@ -657,72 +588,67 @@ fn spawn_fire_burst(
     }
 }
 
-/// Spawn a morphing burst — particles fan out across the cone width and
-/// lerp from fire → rain as `morph_t` goes 0 → 1.
-#[allow(clippy::too_many_arguments)]
-fn spawn_morph_burst(
+/// Advance all active particles by `dt` seconds.
+///
+/// During Phase 3 (`morph_t > 0`), each particle's `angle` rotates
+/// toward the downward direction (π/2), its `speed` decelerates toward
+/// the morph range, and its color/glyph lerp toward the rain palette.
+/// Particles whose life drops to ≤ 0 or that leave the screen are
+/// killed and returned to the free-list.
+fn update_particles(
     pool: &mut ParticlePool,
-    rng: &mut XorShift,
-    cx: f32,
-    cy: f32,
-    cone_widen: f32,
-    count: u32,
-    base_vy: f32,
-    spread_vx: f32,
+    dt: f32,
+    screen_h: f32,
     morph_t: f32,
-    rain_chars: &[char],
     palette_rgb: (u8, u8, u8),
+    rain_chars: &[char],
 ) {
-    for _ in 0..count {
-        // Pick a fire color, then lerp toward palette based on morph_t.
-        let fire_idx = (rng.next_u32() % 4) as usize;
-        let fire_rgb = FIRE_COLORS_RGB[fire_idx];
-        let (r, g, b) = lerp_rgb(fire_rgb, palette_rgb, morph_t);
-
-        // Glyph: pick fire char early, rain char late.
-        let ch = if rng.next_f32() < morph_t {
-            // Rain char.
-            let idx = (rng.next_u32() as usize) % rain_chars.len().max(1);
-            *rain_chars.get(idx).unwrap_or(&'0')
-        } else {
-            FIRE_CHARS[(rng.next_u32() % FIRE_CHARS.len() as u32) as usize]
-        };
-
-        // Horizontal velocity scales with cone widening.
-        let vx = (rng.next_f32() - 0.5) * 2.0 * (spread_vx + cone_widen);
-        let vy = base_vy * (0.7 + rng.next_f32() * 0.6);
-        // Spawn X is spread across the widening cone mouth.
-        let x = cx + (rng.next_f32() - 0.5) * 2.0 * (1.0 + cone_widen);
-        let y = cy + rng.next_f32() * 1.5;
-        let life = PARTICLE_LIFE_SECS * (0.6 + rng.next_f32() * 0.6);
-        let spawned = pool.spawn(Particle {
-            x,
-            y,
-            vx,
-            vy,
-            ch,
-            r,
-            g,
-            b,
-            life,
-            max_life: life,
-            active: true,
-        });
-        if !spawned {
-            break;
-        }
-    }
-}
-
-/// Advance all active particles by `dt` seconds. Particles whose life
-/// drops to ≤ 0 or that leave the screen are killed and returned to the
-/// free-list. We iterate by index so we can call `kill` without borrow
-/// conflicts.
-fn update_particles(pool: &mut ParticlePool, dt: f32, screen_h: f32) {
     let mut to_kill: Vec<usize> = Vec::new();
+    let downward_angle = std::f32::consts::FRAC_PI_2; // 90° = down
     for (i, p) in pool.particles.iter_mut().enumerate() {
         if !p.active {
             continue;
+        }
+        // Apply spiral motion (always; rate scales down during morph).
+        let spiral_scale = 1.0 - morph_t * 0.7;
+        p.angle += p.spiral_rate * spiral_scale * dt;
+        // During morph, lerp angle toward downward direction.
+        if morph_t > 0.0 {
+            // Compute the shortest signed angular delta to downward.
+            let mut delta = downward_angle - p.angle;
+            // Wrap to [-π, π].
+            while delta > std::f32::consts::PI {
+                delta -= std::f32::consts::TAU;
+            }
+            while delta < -std::f32::consts::PI {
+                delta += std::f32::consts::TAU;
+            }
+            p.angle += delta * morph_t * dt * 2.0;
+            // Decelerate toward morph speed range.
+            let target_speed = lerp(MORPH_SPEED_MIN, MORPH_SPEED_MAX, 0.5);
+            p.speed = lerp(p.speed, target_speed, morph_t * dt * 2.0);
+            // Lerp color toward palette.
+            let cur_rgb = (p.r, p.g, p.b);
+            let new_rgb = lerp_rgb(cur_rgb, palette_rgb, morph_t * dt * 1.5);
+            (p.r, p.g, p.b) = new_rgb;
+            // Occasionally swap glyph to a rain char.
+            if morph_t > 0.5 && !rain_chars.is_empty() {
+                let swap_chance = (morph_t - 0.5) * 2.0 * dt * 4.0;
+                if rng_freehand() < swap_chance {
+                    // Knuth multiplicative hash for a deterministic but
+                    // well-distributed per-index glyph pick. wrapping_mul
+                    // avoids overflow on large pool indices.
+                    let idx = (i as u32).wrapping_mul(2654435761u32) as usize % rain_chars.len();
+                    p.ch = *rain_chars.get(idx).unwrap_or(&'0');
+                }
+            }
+        }
+        // Recompute cartesian velocity from polar.
+        p.vx = p.angle.cos() * p.speed;
+        p.vy = p.angle.sin() * p.speed;
+        // During morph, add a downward bias to vy so particles fall.
+        if morph_t > 0.0 {
+            p.vy += MORPH_DOWNWARD_VY * morph_t * dt * 4.0;
         }
         p.x += p.vx * dt;
         p.y += p.vy * dt;
@@ -737,6 +663,26 @@ fn update_particles(pool: &mut ParticlePool, dt: f32, screen_h: f32) {
     }
 }
 
+/// Deterministic pseudo-random float in `[0, 1)` used by the glyph-swap
+/// path in [`update_particles`]. We avoid threading the RNG through
+/// `update_particles` to keep the function signature small; this helper
+/// uses a per-call linear congruential step seeded by `Instant` nanos,
+/// which is good enough for cosmetic glyph variation.
+#[inline]
+fn rng_freehand() -> f32 {
+    use std::sync::atomic::{AtomicU32, Ordering as AOrdering};
+    static STATE: AtomicU32 = AtomicU32::new(0x1357_9BDF);
+    let mut s = STATE.load(AOrdering::Relaxed);
+    if s == 0 {
+        s = 0x2468_ACE0;
+    }
+    s ^= s << 13;
+    s ^= s >> 17;
+    s ^= s << 5;
+    STATE.store(s, AOrdering::Relaxed);
+    (s >> 8) as f32 / (1u32 << 24) as f32
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -746,76 +692,96 @@ mod tests {
     use super::*;
 
     #[test]
-    fn dragon_art_is_nonempty_and_rectangular_isn() {
-        let (lines, max_w) = parse_dragon_art();
-        assert!(!lines.is_empty(), "dragon art must have lines");
-        assert!(max_w > 0, "dragon art must have width");
-        // All lines should be ≤ max_w (some may be shorter — that's fine).
-        for line in &lines {
-            assert!(line.chars().count() <= max_w);
+    fn burst_chars_are_distinct() {
+        let mut sorted: Vec<char> = BURST_CHARS.to_vec();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(
+            sorted.len(),
+            BURST_CHARS.len(),
+            "burst chars must be distinct"
+        );
+    }
+
+    #[test]
+    fn cosmic_colors_are_valid() {
+        // Sanity: cosmic colors should have at least one bright channel.
+        for &(r, g, b) in &COSMIC_COLORS_RGB {
+            let max = r.max(g).max(b);
+            assert!(max >= 200, "cosmic color ({r},{g},{b}) should be bright");
         }
     }
 
     #[test]
-    fn dragon_art_has_reasonable_size() {
-        let (lines, max_w) = parse_dragon_art();
-        // Requirements: 40-100 chars wide, 20-60 lines tall. The art is a
-        // detailed top-down dragon with spread wings (wider than tall in
-        // terms of horizontal extent). Width 100 accommodates the wingspan
-        // while still fitting in most modern terminals; height 60 leaves
-        // room for the body+tail without crowding the screen.
-        assert!(
-            (40..=100).contains(&max_w),
-            "dragon width {max_w} outside [40, 100]"
-        );
-        assert!(
-            (20..=60).contains(&lines.len()),
-            "dragon height {} outside [20, 60]",
-            lines.len()
-        );
+    fn cosmic_colors_match_brand_palette() {
+        // Verify the brand purple is exactly the spec'd RGB.
+        assert_eq!(COSMIC_COLORS_RGB[1], (168, 85, 247));
+        // Verify gold and cyan match spec.
+        assert_eq!(COSMIC_COLORS_RGB[0], (255, 200, 0));
+        assert_eq!(COSMIC_COLORS_RGB[2], (0, 255, 255));
     }
 
     #[test]
-    fn mouth_position_is_valid() {
-        // The mouth constants must point at a real, non-space character
-        // in the art. This guards against drift if DRAGON_ART is edited
-        // without updating DRAGON_MOUTH_ROW / DRAGON_MOUTH_COL.
-        let (lines, _) = parse_dragon_art();
-        assert!(
-            DRAGON_MOUTH_ROW < lines.len(),
-            "DRAGON_MOUTH_ROW {} out of range (art has {} lines)",
-            DRAGON_MOUTH_ROW,
-            lines.len()
-        );
-        let mouth_line = lines[DRAGON_MOUTH_ROW].chars().collect::<Vec<_>>();
-        assert!(
-            DRAGON_MOUTH_COL < mouth_line.len(),
-            "DRAGON_MOUTH_COL {} out of range (line {} has {} chars)",
-            DRAGON_MOUTH_COL,
-            DRAGON_MOUTH_ROW,
-            mouth_line.len()
-        );
-        let ch = mouth_line[DRAGON_MOUTH_COL];
-        assert!(
-            ch != ' ',
-            "DRAGON_MOUTH_COL points at a space; must point at a visible mouth glyph"
-        );
+    fn phase_boundaries_are_monotonic() {
+        const {
+            assert!(PHASE1_SINGULARITY_END_MS < PHASE2_BURST_END_MS);
+        }
+        const {
+            assert!(PHASE2_BURST_END_MS < PHASE3_MORPH_END_MS);
+        }
+        const {
+            assert!(PHASE3_MORPH_END_MS < PHASE4_RAIN_END_MS);
+        }
     }
 
     #[test]
-    fn mouth_row_is_above_body_center() {
-        // Sanity: the mouth should be in the upper half of the dragon
-        // (head/neck area), not at the bottom (tail tip). This catches
-        // accidental mouth-position regressions that would make fire
-        // emerge from the dragon's tail.
-        let (lines, _) = parse_dragon_art();
-        let height = lines.len();
-        assert!(
-            DRAGON_MOUTH_ROW < height / 2,
-            "mouth at row {} should be in upper half of {}-line art",
-            DRAGON_MOUTH_ROW,
-            height
-        );
+    fn phase_boundaries_match_spec() {
+        // Spec: 0-1s singularity, 1-2.5s burst, 2.5-4s morph, 4-5s handoff.
+        assert_eq!(PHASE1_SINGULARITY_END_MS, 1_000);
+        assert_eq!(PHASE2_BURST_END_MS, 2_500);
+        assert_eq!(PHASE3_MORPH_END_MS, 4_000);
+        assert_eq!(PHASE4_RAIN_END_MS, 5_000);
+    }
+
+    #[test]
+    fn burst_speed_range_is_valid() {
+        const {
+            assert!(BURST_SPEED_MIN < BURST_SPEED_MAX);
+            assert!(BURST_SPEED_MIN >= 1.0);
+            assert!(BURST_SPEED_MAX <= 100.0);
+        }
+    }
+
+    #[test]
+    fn morph_speed_range_is_valid() {
+        const {
+            assert!(MORPH_SPEED_MIN < MORPH_SPEED_MAX);
+            assert!(MORPH_SPEED_MIN < BURST_SPEED_MIN, "morph should be slower");
+        }
+    }
+
+    #[test]
+    fn spiral_rate_range_is_valid() {
+        const {
+            assert!(SPIRAL_RATE_MIN < SPIRAL_RATE_MAX);
+            assert!(SPIRAL_RATE_MIN > 0.0);
+        }
+    }
+
+    #[test]
+    fn burst_particle_count_fits_pool() {
+        const {
+            assert!(
+                BURST_PARTICLE_COUNT as usize <= PARTICLE_POOL_SIZE,
+                "burst particle count must fit in pool"
+            );
+        }
+    }
+
+    #[test]
+    fn min_intro_size_matches_vt100() {
+        assert_eq!(MIN_INTRO_COLS, 80);
+        assert_eq!(MIN_INTRO_LINES, 24);
     }
 
     #[test]
@@ -894,6 +860,9 @@ mod tests {
             b: 50,
             life: 0.5,
             max_life: 0.5,
+            angle: 0.0,
+            speed: 10.0,
+            spiral_rate: 1.0,
             active: true,
         };
         assert!(pool.spawn(p));
@@ -930,10 +899,13 @@ mod tests {
             b: 255,
             life: 1.0,
             max_life: 1.0,
+            angle: std::f32::consts::FRAC_PI_2,
+            speed: 100.0,
+            spiral_rate: 0.0,
             active: true,
         });
         // Screen height 24 — particle at y=50 is already off-screen.
-        update_particles(&mut pool, 0.1, 24.0);
+        update_particles(&mut pool, 0.1, 24.0, 0.0, (57, 255, 20), &['0', '1']);
         assert_eq!(pool.active_count(), 0);
     }
 
@@ -951,10 +923,13 @@ mod tests {
             b: 255,
             life: 0.05,
             max_life: 0.05,
+            angle: 0.0,
+            speed: 0.0,
+            spiral_rate: 0.0,
             active: true,
         });
         // After 0.1s, life = 0.05 - 0.1 = negative → killed.
-        update_particles(&mut pool, 0.1, 24.0);
+        update_particles(&mut pool, 0.1, 24.0, 0.0, (57, 255, 20), &['0', '1']);
         assert_eq!(pool.active_count(), 0);
     }
 
@@ -972,30 +947,147 @@ mod tests {
             b: 255,
             life: 1.0,
             max_life: 1.0,
+            angle: std::f32::consts::FRAC_PI_2,
+            speed: 1.0,
+            spiral_rate: 0.0,
             active: true,
         });
-        update_particles(&mut pool, 0.1, 24.0);
+        update_particles(&mut pool, 0.1, 24.0, 0.0, (57, 255, 20), &['0', '1']);
         assert_eq!(pool.active_count(), 1);
     }
 
     #[test]
-    fn fire_colors_are_warm() {
-        // Sanity: all fire colors should have R > G > B (warm tones).
-        for &(r, g, b) in &FIRE_COLORS_RGB {
-            assert!(r >= g, "fire color ({r},{g},{b}) should have r >= g");
-            assert!(g >= b, "fire color ({r},{g},{b}) should have g >= b");
+    fn update_particles_morph_shifts_color_toward_palette() {
+        let mut pool = ParticlePool::new();
+        let _ = pool.spawn(Particle {
+            x: 5.0,
+            y: 5.0,
+            vx: 10.0,
+            vy: 0.0,
+            ch: '*',
+            r: 255,
+            g: 200,
+            b: 0, // gold
+            life: 5.0,
+            max_life: 5.0,
+            angle: 0.0,
+            speed: 10.0,
+            spiral_rate: 0.0,
+            active: true,
+        });
+        // Find the spawned particle's index (free-list pops from the end,
+        // so first spawn goes to PARTICLE_POOL_SIZE - 1, not 0).
+        let active_idx = pool
+            .particles
+            .iter()
+            .position(|p| p.active)
+            .expect("spawned particle should be active");
+        let before = (
+            pool.particles[active_idx].r,
+            pool.particles[active_idx].g,
+            pool.particles[active_idx].b,
+        );
+        // Run several iterations of morph at morph_t = 1.0 (full morph).
+        for _ in 0..30 {
+            update_particles(&mut pool, 0.05, 50.0, 1.0, (57, 255, 20), &['0', '1']);
+        }
+        let after = (
+            pool.particles[active_idx].r,
+            pool.particles[active_idx].g,
+            pool.particles[active_idx].b,
+        );
+        // Color should have shifted away from pure gold.
+        assert_ne!(before, after, "morph should change particle color");
+        // The green channel should have increased (target is 57,255,20).
+        assert!(after.1 > before.1, "green channel should increase");
+    }
+
+    #[test]
+    fn update_particles_morph_adds_downward_bias() {
+        let mut pool = ParticlePool::new();
+        let _ = pool.spawn(Particle {
+            x: 5.0,
+            y: 5.0,
+            vx: 20.0,
+            vy: 0.0, // moving right, not down
+            ch: '*',
+            r: 255,
+            g: 200,
+            b: 0,
+            life: 5.0,
+            max_life: 5.0,
+            angle: 0.0,
+            speed: 20.0,
+            spiral_rate: 0.0,
+            active: true,
+        });
+        let active_idx = pool
+            .particles
+            .iter()
+            .position(|p| p.active)
+            .expect("spawned particle should be active");
+        let vy_before = pool.particles[active_idx].vy;
+        update_particles(&mut pool, 0.1, 50.0, 1.0, (57, 255, 20), &['0', '1']);
+        let vy_after = pool.particles[active_idx].vy;
+        // vy should have increased (become more positive = more downward).
+        assert!(
+            vy_after > vy_before,
+            "morph should add downward bias: before={vy_before}, after={vy_after}"
+        );
+    }
+
+    #[test]
+    fn rng_freehand_returns_unit_range() {
+        for _ in 0..1000 {
+            let f = rng_freehand();
+            assert!((0.0..1.0).contains(&f), "rng_freehand returned {f}");
         }
     }
 
     #[test]
-    fn fire_chars_are_distinct() {
-        let mut sorted: Vec<char> = FIRE_CHARS.to_vec();
-        sorted.sort();
-        sorted.dedup();
-        assert_eq!(
-            sorted.len(),
-            FIRE_CHARS.len(),
-            "fire chars must be distinct"
+    fn spawn_burst_populates_pool() {
+        let mut pool = ParticlePool::new();
+        let mut rng = XorShift::new(123);
+        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50);
+        assert_eq!(pool.active_count(), 50);
+        // Each spawned particle should have valid polar + cartesian fields.
+        for p in &pool.particles {
+            if !p.active {
+                continue;
+            }
+            assert!(p.speed >= BURST_SPEED_MIN * 0.95);
+            assert!(p.speed <= BURST_SPEED_MAX * 1.05);
+            // vx, vy should be consistent with angle/speed.
+            let expected_vx = p.angle.cos() * p.speed;
+            let expected_vy = p.angle.sin() * p.speed;
+            assert!(
+                (p.vx - expected_vx).abs() < 0.1,
+                "vx inconsistent with angle/speed"
+            );
+            assert!(
+                (p.vy - expected_vy).abs() < 0.1,
+                "vy inconsistent with angle/speed"
+            );
+        }
+    }
+
+    #[test]
+    fn spawn_burst_handles_full_pool() {
+        let mut pool = ParticlePool::new();
+        // Fill the pool.
+        for _ in 0..PARTICLE_POOL_SIZE {
+            assert!(pool.spawn(Particle::INACTIVE));
+        }
+        let mut rng = XorShift::new(456);
+        // spawn_burst should silently bail when the pool is full.
+        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50);
+        // No new particles spawned — i.e., no particle should have
+        // `active == true` since we filled the pool with INACTIVE (which
+        // has `active: false`) and spawn_burst couldn't replace any of them.
+        let any_active = pool.particles.iter().any(|p| p.active);
+        assert!(
+            !any_active,
+            "spawn_burst should not have spawned any active particles when pool is full"
         );
     }
 }

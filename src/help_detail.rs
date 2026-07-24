@@ -65,12 +65,12 @@ COMMON OPTIONS:
       cosmostrix --screensaver
 
   --intro
-      Dragon's Awakening cinematic intro. A majestic ASCII dragon fades
-      in at center, breathes a stream of fire particles downward, and
-      the fire morphs into Matrix rain as the dragon fades away —
-      handing off seamlessly to the rain engine. Duration: ~6.5s.
-      Skip with any key. Auto-skipped in --screensaver and on terminals
-      smaller than 80x24.
+      Cosmic Burst cinematic intro. A singularity appears at center
+      screen, pulses with rising frequency, then explodes into cosmic
+      particles (gold, purple, cyan) that spiral outward. The particles
+      slow and morph into Matrix rain, handing off seamlessly to the
+      rain engine. Duration: ~5s. Skip with any key. Auto-skipped in
+      --screensaver and on terminals smaller than 80x24.
       cosmostrix --intro
       cosmostrix --intro --scene matrix
 
