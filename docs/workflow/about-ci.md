@@ -187,27 +187,48 @@ git push origin v4.0.0
 
 ## Version bump
 
-Use the `version-to.sh` helper to bump the stable release version consistently:
+The single source of truth for the package version is `Cargo.toml`'s `[package] version` field. Every other active version reference in the repo is derived from it — either at compile time via `env!("CARGO_PKG_VERSION")` in Rust source, or by `./scripts/version-to.sh` for files that must contain a literal version string (PKGBUILD, .SRCINFO, README install example).
+
+### One-shot bump + build (recommended)
+
+`./scripts/build.sh` accepts an optional leading VERSION argument that bumps the repo and then builds in a single command:
 
 ```bash
-./scripts/version-to.sh 4.0.0
+./scripts/build.sh v20.0.0             # bump to v20.0.0, then release build
+./scripts/build.sh v20.0.0 debug       # bump, then debug build
+./scripts/build.sh v20.0.0 pgo --auto  # bump, then PGO build with auto CPU
+./scripts/build.sh version-sync        # verify all version refs agree (no build)
+```
+
+If the repo is already at the requested version, the bump step is a no-op (verification only, no writes).
+
+### Two-step bump (explicit)
+
+Use the `version-to.sh` helper to bump without building:
+
+```bash
+./scripts/version-to.sh 20.0.0
 git diff
-git commit -m "chore: bump version to v4.0.0"
-git tag v4.0.0
-git push origin main v4.0.0
+git commit -m "chore: bump version to v20.0.0"
+git tag v20.0.0
+git push origin main v20.0.0
 ```
 
 The script updates:
 - `Cargo.toml` (package version)
 - `Cargo.lock` (root package version only, no dependency changes)
 - `aur/cosmostrix-bin/PKGBUILD` (`pkgver=`, `_tag=`)
+- `aur/cosmostrix-bin/.SRCINFO` (regenerated from PKGBUILD)
 - `README.md` (active version examples)
-- `workflow/about-ci.md` (release flow examples)
 
-It skips changelog headings (e.g. `### v4.0.0`) to preserve historical release notes.
+It skips changelog headings (e.g. `### v20.0.0`) to preserve historical release notes, and audits workflow files for hardcoded versions (workflows should derive versions dynamically from `GITHUB_REF_NAME`).
 
 Verify the current version without making changes:
 
 ```bash
-./scripts/version-to.sh --check 4.0.0
+./scripts/version-to.sh --check 20.0.0
 ```
+
+### CI fail-fast guard
+
+CI runs `./scripts/build.sh version-sync` as a dedicated job (`Dragon - Version sync guard`) BEFORE any Rust build, so a desync fails the pipeline in seconds rather than after a full test job. The `scripts/check-version-anti-patterns.sh` guard also runs there to block re-introduction of hardcoded version assertions in `src/`. The compile-time test guard in `src/docs_tests/metadata.rs` provides a third layer of defense: it asserts that `Cargo.toml`, `PKGBUILD`, `.SRCINFO`, and the README install tag all agree with `env!("CARGO_PKG_VERSION")`.
