@@ -401,19 +401,35 @@ pub const STARTUP_EASE_TAU: f32 = 0.30;
 
 // Head bloom (exponential gaussian falloff)
 
-/// Bloom sigma (spread) for exponential gaussian head glow.
-/// Higher = wider, softer glow. 1.5 gives a natural falloff over ~3 cells.
-pub const HEAD_BLOOM_SIGMA: f32 = 1.5;
+/// Target head proportion: head occupies the top 20% of the droplet's
+/// visible cells (cinematic contract: 20% head / 60% body / 20% tail).
+/// `CharLoc::Head` is always a single cell; this bounds the bloom
+/// cascade behind it. Currently informational — HEAD_BLOOM_CELLS below
+/// is the enforced bound (2 cells for typical droplet lengths 10-15).
+#[allow(dead_code)]
+pub const HEAD_FRACTION: f32 = 0.20;
 
-/// Bloom glow intensity at the head cell itself (0.0 = off, 1.0 = full white blend).
-///
-/// v17 mastery: raised from 0.4 to 0.55. Stronger head bloom for vivid
-/// high-contrast head visibility. Combined with HEAD_WF=0.55, the head
-/// cell is dramatically brighter than body/tail.
-pub const HEAD_BLOOM_INTENSITY: f32 = 0.55;
+/// Bloom sigma (spread) for exponential gaussian head glow.
+/// v25 calibration: reduced from 1.5 to 1.2 — tighter falloff keeps
+/// the bloom localized to the immediate head vicinity (2 cells) instead
+/// of spreading 3+ cells behind, which made the head perceptually
+/// occupy 30-40% of the droplet instead of the target 20%.
+pub const HEAD_BLOOM_SIGMA: f32 = 1.2;
+
+/// Bloom glow intensity at the head cell (0.0 = off, 1.0 = full white).
+/// v25 calibration: reduced from 0.55 to 0.45. The previous 0.55 made
+/// the bloom overpower body color, creating a washed-out appearance.
+/// 0.45 keeps the head visibly brighter than the body while letting the
+/// body's saturated color show through.
+pub const HEAD_BLOOM_INTENSITY: f32 = 0.45;
 
 /// Number of cells behind the head that receive bloom glow effect.
-pub const HEAD_BLOOM_CELLS: u16 = 3;
+/// v25 calibration: reduced from 3 to 2. Honors the HEAD_FRACTION=0.20
+/// contract — a typical droplet (length 10-15) should have only 2-3
+/// cells of head bloom. 3 cells made the head occupy 30%+ of short
+/// droplets; 2 keeps the bloom tight while still producing a visible
+/// glow gradient.
+pub const HEAD_BLOOM_CELLS: u16 = 2;
 
 // Depth fog vignette
 
@@ -450,7 +466,7 @@ pub const CRT_VIGNETTE_HEIGHT: u16 = 5;
 /// first/last row is dimmed to 80% of its computed brightness — a
 /// subtle dim, not a hard cutoff. The dim eases out via smoothstep
 /// to 1.0 (no dim) at row `CRT_VIGNETTE_HEIGHT` inward from the edge.
-pub const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.8;
+pub const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.9;
 
 // Cinematic vignette (radial edge darkening)
 

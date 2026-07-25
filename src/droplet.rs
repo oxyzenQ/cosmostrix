@@ -810,9 +810,15 @@ impl Droplet {
                 // self-bloom for back-layer heads is ~17%, keeping them
                 // firmly below the front-layer body visibility floor.
                 if matches!(loc, CharLoc::Head) {
-                    // v17 mastery: HEAD_WF = 140 (0.55 white blend) — head is
-                    // the brightest cell, high contrast vs body/tail. Was 115 (0.45).
-                    const HEAD_WF: i32 = 140; // 0.55 * 256 ≈ 140
+                    // v25 vivid calibration: HEAD_WF = 115 (0.45 white blend).
+                    // Reduced from 140 (0.55) — the previous value made the head
+                    // cell blend too far toward white, washing out the theme hue
+                    // and creating the "faded/long white head" symptom. 0.45
+                    // keeps the head visibly brighter than the body while
+                    // preserving the theme's color identity (head reads as a
+                    // luminous tint of the body color, not pure white).
+                    // Matches HEAD_BLOOM_INTENSITY=0.45 for consistency.
+                    const HEAD_WF: i32 = 115; // 0.45 * 256 ≈ 115
                     let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize] as i32;
                     let wf = (HEAD_WF * layer_selfbloom) / 256;
                     r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
