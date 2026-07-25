@@ -407,6 +407,15 @@ fn validate_and_send(
 ///
 /// For live reload, config values override CLI defaults (the user is
 /// actively editing config.toml and expects those values to take effect).
+///
+/// **Priority contract (CLI > config.toml > scene defaults)**: when the
+/// scene was set via CLI (`--scene <name>`), all scene-managed fields
+/// (color, charset, speed, density, fps, glitch_level) are treated as
+/// CLI-explicit by proxy — config.toml cannot override them. This
+/// matches the startup behavior in `apply_scene_values` (config_apply.rs).
+/// Without this, `cosmostrix --scene cinematic` with `color = "Carbon"`
+/// in config.toml would have Carbon applied on live reload, clobbering
+/// cinematic's neon-purple.
 #[must_use]
 pub fn rebuild_cloud_config(
     base: &crate::app::CloudConfig,
@@ -418,9 +427,14 @@ pub fn rebuild_cloud_config(
     // applying — CLI-explicit fields are preserved across live reload,
     // enforcing the CLI > config.toml > scene priority contract.
     let cli = new.cli_explicit.clone();
+    // When the scene was set via CLI, all scene-managed fields are
+    // CLI-explicit by proxy. This prevents config.toml from overriding
+    // them during live reload. The base config already holds the
+    // scene's values from startup, so we just skip the config override.
+    let scene_managed_explicit = cli.scene;
 
-    // Color scheme — skip if CLI explicitly set --color
-    if !cli.color {
+    // Color scheme — skip if CLI explicitly set --color OR scene is CLI
+    if !cli.color && !scene_managed_explicit {
         if let Some(v) = cfg.get("color") {
             if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
                 new.color_scheme = scheme;
@@ -439,8 +453,8 @@ pub fn rebuild_cloud_config(
         }
     }
 
-    // Charset (requires rebuilding chars vector) — skip if CLI --charset
-    if !cli.charset {
+    // Charset (requires rebuilding chars vector) — skip if CLI --charset OR scene is CLI
+    if !cli.charset && !scene_managed_explicit {
         if let Some(v) = cfg.get("charset") {
             if let Ok(charset) = crate::charset::charset_from_str(v, false) {
                 new.charset_preset = v.clone();
@@ -490,8 +504,8 @@ pub fn rebuild_cloud_config(
         }
     }
 
-    // Speed — skip if CLI --speed was explicit
-    if !cli.speed {
+    // Speed — skip if CLI --speed was explicit OR scene is CLI
+    if !cli.speed && !scene_managed_explicit {
         if let Some(v) = cfg.get("speed") {
             if let Ok(n) = crate::validation::parse_canonical_speed("speed", v) {
                 new.speed = n;
@@ -499,8 +513,8 @@ pub fn rebuild_cloud_config(
         }
     }
 
-    // Density — skip if CLI --density was explicit
-    if !cli.density {
+    // Density — skip if CLI --density was explicit OR scene is CLI
+    if !cli.density && !scene_managed_explicit {
         if let Some(v) = cfg.get("density") {
             if let Ok(n) = crate::validation::parse_canonical_f32_range("density", v, 0.01, 5.0) {
                 new.density = n;
@@ -509,8 +523,8 @@ pub fn rebuild_cloud_config(
         }
     }
 
-    // FPS — skip if CLI --fps was explicit
-    if !cli.fps {
+    // FPS — skip if CLI --fps was explicit OR scene is CLI
+    if !cli.fps && !scene_managed_explicit {
         if let Some(v) = cfg.get("fps") {
             if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0) {
                 new.target_fps = n;
@@ -518,8 +532,8 @@ pub fn rebuild_cloud_config(
         }
     }
 
-    // Glitch level — skip if CLI --glitch-level was explicit
-    if !cli.glitch_level {
+    // Glitch level — skip if CLI --glitch-level was explicit OR scene is CLI
+    if !cli.glitch_level && !scene_managed_explicit {
         if let Some(v) = cfg.get("glitch-level") {
             new.noglitch = v.trim().eq_ignore_ascii_case("none");
         }

@@ -274,14 +274,17 @@ fn config_color_wins_over_signal_scene_default() {
 }
 
 #[test]
-fn config_speed_wins_over_cli_scene_default() {
-    // CLI --scene monolith + config speed=15. Config speed must win
-    // over monolith's hardcoded 30 (CLI scene only fills unset keys).
+fn cli_scene_wins_over_config_for_scene_managed_speed() {
+    // v25 priority fix: CLI --scene monolith makes ALL scene-managed fields
+    // CLI-explicit by proxy. Config speed=15 must NOT override monolith's
+    // speed=30 because the user explicitly chose the monolith scene via CLI.
+    // (Old behavior — config speed wins over CLI scene default — was a
+    // priority contract breach, fixed in the v25 release.)
     let args = args_with_config("speed = 15\n", &["--scene", "monolith"]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(
-        args.speed, 15.0,
-        "config speed must win over CLI scene monolith default 30"
+        args.speed, 30.0,
+        "CLI --scene monolith speed=30 must win over config speed=15"
     );
     assert_eq!(
         args.color, "neon-purple",
@@ -379,6 +382,70 @@ fn explicit_cli_overrides_config_scene() {
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.color, "green");
     assert_eq!(args.speed, 28.0);
+}
+
+/// Priority contract: CLI > config.toml > scene defaults.
+/// When the user runs `cosmostrix --scene cinematic`, the CLI scene
+/// flag makes ALL scene-managed fields (color, charset, fps, speed,
+/// density, glitch_level) CLI-explicit by proxy. Config.toml values
+/// for those fields MUST NOT override the scene's values.
+///
+/// Without this fix, `cosmostrix --scene cinematic` with
+/// `color = carbon`, `fps = 240`, `speed = 50` in config.toml would
+/// incorrectly use Carbon/240/50 instead of cinematic's
+/// neon-purple/60/9.
+#[test]
+fn cli_scene_overrides_config_for_all_scene_managed_fields() {
+    let args = args_with_config(
+        "color = carbon\nfps = 240\nspeed = 50\ndensity = 2.0\n",
+        &["--scene", "cinematic"],
+    );
+    assert_eq!(args.scene.as_deref(), Some("cinematic"));
+    // cinematic's color is neon-purple — must win over config's carbon
+    assert_eq!(
+        args.color, "neon-purple",
+        "CLI --scene cinematic must win over config color=carbon"
+    );
+    // cinematic's charset is binary — must win over config (config didn't set charset)
+    assert_eq!(
+        args.charset, "binary",
+        "CLI --scene cinematic must apply scene charset"
+    );
+    // cinematic's fps is 60 — must win over config's 240
+    assert_eq!(
+        args.fps, 60.0,
+        "CLI --scene cinematic must win over config fps=240"
+    );
+    // cinematic's speed is 9 — must win over config's 50
+    assert_eq!(
+        args.speed, 9.0,
+        "CLI --scene cinematic must win over config speed=50"
+    );
+    // cinematic's density is 0.75 — must win over config's 2.0
+    assert_eq!(
+        args.density, 0.75,
+        "CLI --scene cinematic must win over config density=2.0"
+    );
+}
+
+/// Per-field CLI flags still win over scene defaults when --scene is CLI-explicit.
+/// `cosmostrix --scene cinematic --speed 100` should use speed=100 (CLI),
+/// not cinematic's speed=9.
+#[test]
+fn per_field_cli_flag_overrides_scene_default_when_scene_is_cli() {
+    let args = args_with_config(
+        "color = carbon\n",
+        &["--scene", "cinematic", "--speed", "100"],
+    );
+    assert_eq!(args.scene.as_deref(), Some("cinematic"));
+    // CLI --speed 100 wins over cinematic's speed=9
+    assert_eq!(args.speed, 100.0);
+    // cinematic's color (neon-purple) still wins over config's carbon
+    // because --color was NOT set per-field; it comes from the scene
+    assert_eq!(
+        args.color, "neon-purple",
+        "CLI scene color must win over config color when --color not set"
+    );
 }
 
 #[test]

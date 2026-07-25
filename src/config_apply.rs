@@ -472,44 +472,68 @@ fn apply_scene_values(
     let name = validate_scene_name(scene_name)?;
     args.scene = Some(name.clone());
 
+    // When the scene is set via CLI (`--scene <name>`), the scene's
+    // managed fields (color, charset, fps, speed, density, glitch_level)
+    // MUST win over config.toml values. This enforces the priority
+    // contract: CLI > config.toml > scene defaults.
+    //
+    // Without this, `cosmostrix --scene cinematic` with `color = "Carbon"`
+    // in config.toml would incorrectly use Carbon instead of cinematic's
+    // neon-purple. The user explicitly chose the cinematic scene via CLI,
+    // so all its managed fields are CLI-explicit by proxy.
+    //
+    // The `scene_is_cli` flag below is computed from `is_explicit("scene")`
+    // and passed to a helper that skips the `config_touched` check when
+    // true. The `is_explicit(matches, key)` check (did the user set THIS
+    // field via CLI, e.g. `--speed 100`?) is ALWAYS respected — explicit
+    // per-field CLI flags win over scene defaults.
+    let scene_is_cli = is_explicit(matches, "scene");
+
     if let Some(scene) = get_scene(&name) {
         let cfg = scene.config;
-        // Scene defaults only apply to keys NOT explicitly set by the user
-        // in config.toml. This mirrors the apply_default_scene_values
-        // pattern: config-set keys win over scene defaults. CLI flags
-        // still win over both (checked via is_explicit).
+        // Apply scene value if the user did NOT set this field via an
+        // explicit CLI flag. When scene_is_cli, the config_touched check
+        // is bypassed — the scene wins over config.toml.
         if let Some(color) = cfg.color {
-            if !is_explicit(matches, "color") && !config_touched.contains("color") {
+            if !is_explicit(matches, "color") && (scene_is_cli || !config_touched.contains("color"))
+            {
                 args.color = color.to_string();
                 scene_modified.insert("color");
             }
         }
         if let Some(charset) = cfg.charset {
-            if !is_explicit(matches, "charset") && !config_touched.contains("charset") {
+            if !is_explicit(matches, "charset")
+                && (scene_is_cli || !config_touched.contains("charset"))
+            {
                 args.charset = charset.to_string();
                 scene_modified.insert("charset");
             }
         }
         if let Some(fps) = cfg.fps {
-            if !is_explicit(matches, "fps") && !config_touched.contains("fps") {
+            if !is_explicit(matches, "fps") && (scene_is_cli || !config_touched.contains("fps")) {
                 args.fps = fps;
                 scene_modified.insert("fps");
             }
         }
         if let Some(speed) = cfg.speed {
-            if !is_explicit(matches, "speed") && !config_touched.contains("speed") {
+            if !is_explicit(matches, "speed") && (scene_is_cli || !config_touched.contains("speed"))
+            {
                 args.speed = speed;
                 scene_modified.insert("speed");
             }
         }
         if let Some(density) = cfg.density {
-            if !is_explicit(matches, "density") && !config_touched.contains("density") {
+            if !is_explicit(matches, "density")
+                && (scene_is_cli || !config_touched.contains("density"))
+            {
                 args.density = density;
                 scene_modified.insert("density");
             }
         }
         if let Some(glitch_level) = cfg.glitch_level {
-            if !is_explicit(matches, "glitch_level") && !config_touched.contains("glitch_level") {
+            if !is_explicit(matches, "glitch_level")
+                && (scene_is_cli || !config_touched.contains("glitch_level"))
+            {
                 args.glitch_level = glitch_level;
                 scene_modified.insert("glitch_level");
             }
