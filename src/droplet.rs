@@ -289,6 +289,17 @@ pub struct Droplet {
     /// path slashes dirty cells per advancing droplet from ~5-7 to ~1-3.
     pub last_chars_advanced: u16,
 
+    /// Forensic fix (Task 2): number of consecutive frames this droplet
+    /// has skipped `draw()` via temporal prediction. When this counter
+    /// reaches `MAX_PREDICTED_CLEAN_FRAMES`, the draw pass is forced to
+    /// run regardless of whether `prediction_matches_actual()` returns
+    /// true — refreshing the cell colors and painting any cell-boundary
+    /// crossings that the prediction's drift tolerance had masked.
+    ///
+    /// Reset to 0 every time `draw()` actually runs (predicted_clean=false
+    /// in the simulation pass).
+    pub frames_since_last_draw: u16,
+
     /// Turbulence phase offset (determines unique oscillation pattern).
     pub turb_phase: f32,
     /// Turbulence accumulator (elapsed time for this droplet's oscillation).
@@ -336,6 +347,8 @@ impl Droplet {
             was_skipped: false,
             // dragon-temporal peak: no advance yet.
             last_chars_advanced: 0,
+            // Forensic fix (Task 2): no frames skipped yet.
+            frames_since_last_draw: 0,
         }
     }
 
@@ -363,6 +376,8 @@ impl Droplet {
         self.was_skipped = false;
         // dragon-temporal peak: reset advance counter for the new lifecycle.
         self.last_chars_advanced = 0;
+        // Forensic fix (Task 2): reset staleness counter for the new lifecycle.
+        self.frames_since_last_draw = 0;
     }
 
     /// Apply spawn phase jitter: set a random fractional advance offset so

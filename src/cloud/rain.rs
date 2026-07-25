@@ -11,6 +11,7 @@ use rand::distr::Distribution;
 use crate::constants::*;
 use crate::droplet_prediction::{
     adaptive_prediction_horizon, is_prediction_disabled_by_context, PredictionContext,
+    MAX_PREDICTED_CLEAN_FRAMES,
 };
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
@@ -368,16 +369,32 @@ impl Cloud {
                     let died = !d.is_alive;
 
                     // After advance(), decide whether the draw pass may
-                    // skip this droplet. Three cases:
+                    // skip this droplet. Four cases (forensic Task 2 adds
+                    // the chars_advanced + staleness checks):
                     //   1. Context forbids (mouse halo / click wave / rain
                     //      shadow): force a real draw() this frame. Clear
                     //      any stale prediction.
-                    //   2. Prediction matches actual trajectory AND still
+                    //   2. Head moved this frame (last_chars_advanced > 0):
+                    //      force a real draw() so the new head cell gets
+                    //      painted with head color/bloom, and the previous
+                    //      head cell transitions to body color. Skipping
+                    //      draw() here was the root cause of the "putus-putus"
+                    //      (fragmented) rain + "longer white head" symptom —
+                    //      prediction_matches_actual() tolerated drift of up
+                    //      to PREDICTION_DRIFT_TOLERANCE cells, so a 1-cell
+                    //      head advance still counted as "predicted clean"
+                    //      and skipped the paint.
+                    //   3. Staleness cap exceeded (frames_since_last_draw >=
+                    //      MAX_PREDICTED_CLEAN_FRAMES): force a redraw to
+                    //      refresh cell colors that may have decayed via
+                    //      phosphor pass + head brightness modulation
+                    //      between actual cell crossings.
+                    //   4. Prediction matches actual trajectory AND still
                     //      has frames_remaining: mark `predicted_clean`
                     //      so draw pass skips `d.draw()`. Decrement
                     //      frames_remaining so the prediction eventually
                     //      expires and recalibrates.
-                    //   3. Prediction invalid (head crossed a cell, or
+                    //   5. Prediction invalid (head crossed a cell, or
                     //      expired): clear it and re-predict with an
                     //      adaptive horizon tuned to layer + speed. The
                     //      draw pass will run because predicted_clean is
@@ -388,9 +405,20 @@ impl Cloud {
                         d.head_cur_line,
                         d.layer,
                     );
-                    if in_context_forbid {
+                    let head_moved = d.last_chars_advanced > 0;
+                    let stale = d.frames_since_last_draw >= MAX_PREDICTED_CLEAN_FRAMES;
+                    if in_context_forbid || head_moved || stale {
+                        // Force draw() this frame. Reset the staleness
+                        // counter because draw() will run. Clear any stale
+                        // prediction so we don't accidentally keep using a
+                        // trajectory that no longer reflects reality.
                         d.predicted_state = None;
                         d.predicted_clean = false;
+                        d.frames_since_last_draw = 0;
+                        // Recompute prediction so the next frame's check
+                        // has a fresh trajectory to compare against.
+                        let horizon = adaptive_prediction_horizon(d.layer, d.chars_per_sec);
+                        d.predicted_state = d.predict_droplet_path(horizon, PREDICTION_FPS);
                     } else if d.prediction_matches_actual() {
                         // Decrement frames_remaining to bound staleness.
                         // Do NOT touch `was_skipped` — we never skip
@@ -399,9 +427,17 @@ impl Cloud {
                             ps.frames_remaining = ps.frames_remaining.saturating_sub(1);
                         }
                         d.predicted_clean = true;
+                        // Increment the staleness counter — draw() will be
+                        // skipped this frame, so the cell content is one
+                        // frame staler than the previous draw.
+                        d.frames_since_last_draw = d.frames_since_last_draw.saturating_add(1);
                     } else {
+                        // Prediction invalid — the head drifted off the
+                        // predicted trajectory (or the prediction expired).
+                        // Force a draw() this frame and re-predict.
                         d.predicted_state = None;
                         d.predicted_clean = false;
+                        d.frames_since_last_draw = 0;
                         let horizon = adaptive_prediction_horizon(d.layer, d.chars_per_sec);
                         d.predicted_state = d.predict_droplet_path(horizon, PREDICTION_FPS);
                     }
@@ -958,7 +994,22 @@ impl Cloud {
 
         let glow_rc = MOUSE_GLOW_RADIUS_COLS.ceil() as u16;
         let glow_rl = MOUSE_GLOW_RADIUS_LINES.ceil() as u16;
-        if mouse_enabled && mouse_col != u16::MAX && mouse_line != u16::MAX {
+        // Forensic fix (Task 1): only include the cursor halo in the
+        // bounding box when it can actually change cell colors. The
+        // default `MOUSE_GLOW_INTENSITY = 0.0` (dim cinematic mode) means
+        // the halo adds zero brightness — but the previous code still
+        // iterated the 15×11 box around the cursor every frame, dirty-
+        // marking blank cells by rewriting their `fg: None` to
+        // `fg: Some(Color::Rgb{bg_color})` (same visual, different Cell
+        // representation, but equality check fails so the dirty mark
+        // fires). Skipping the branch entirely when intensity is 0
+        // eliminates the phantom dirty marks AND the per-frame bounding-
+        // box iteration cost.
+        let glow_active = mouse_enabled
+            && mouse_col != u16::MAX
+            && mouse_line != u16::MAX
+            && MOUSE_GLOW_INTENSITY > 0.0;
+        if glow_active {
             min_col = min_col.min(mouse_col.saturating_sub(glow_rc));
             max_col = max_col.max(mouse_col.saturating_add(glow_rc));
             min_line = min_line.min(mouse_line.saturating_sub(glow_rl));
@@ -1028,7 +1079,10 @@ impl Cloud {
 
                 // Cursor halo: elliptical Chebyshev-style falloff (matches
                 // the original per-cell formula in Droplet::draw()).
-                if mouse_enabled && mouse_col != u16::MAX && mouse_line != u16::MAX {
+                // Skipped entirely when MOUSE_GLOW_INTENSITY = 0.0 (the
+                // bounding-box check above already excluded this case, but
+                // we guard here too for defense-in-depth).
+                if glow_active {
                     let col_dist = if col > mouse_col {
                         (col - mouse_col) as f32
                     } else {
@@ -1048,7 +1102,14 @@ impl Cloud {
                         r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                         g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
                         b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        touched = true;
+                        // Only mark touched if the color actually changed
+                        // (wf > 0). When intensity=0, wf=0 and the RGB is
+                        // unchanged — but we still fall through to write
+                        // back the cell with `fg: Some(Color::Rgb{...})`
+                        // which would dirty-mark blank cells unnecessarily.
+                        if wf > 0 {
+                            touched = true;
+                        }
                     }
                 }
 

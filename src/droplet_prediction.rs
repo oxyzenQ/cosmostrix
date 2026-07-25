@@ -130,6 +130,31 @@ pub const HORIZON_REF_SPEED: f32 = 8.0;
 pub const HORIZON_SCALE_MIN: f32 = 1.0;
 pub const HORIZON_SCALE_MAX: f32 = 4.0;
 
+/// Maximum consecutive frames a droplet may skip `draw()` via temporal
+/// prediction before being force-redrawn.
+///
+/// Forensic fix (Task 2 from the visual-quality audit): without this
+/// cap, `prediction_matches_actual()` could keep returning true for many
+/// frames after a head crossed a cell boundary — the new head cell at
+/// L+1 was never painted (because draw() was skipped), creating the
+/// "putus-putus" (fragmented) rain the owner observed. The stale head
+/// cell at L retained its 45% white-bloom "head" coloring instead of
+/// transitioning to body color, producing the "longer/whiter head"
+/// symptom.
+///
+/// The cap forces a full redraw every `MAX_PREDICTED_CLEAN_FRAMES` at
+/// most. Even if prediction_matches_actual() keeps returning true, the
+/// draw pass runs and refreshes every cell in the droplet's trail —
+/// painting the new head position correctly and transitioning the old
+/// head cell to body color.
+///
+/// Set to 4 to match the original d114275 PREDICTION_HORIZON value:
+/// at default speed=8 chars/sec and 60 FPS, droplets advance ~1 cell
+/// every 7 frames. A 4-frame cap means at most ~2 frames of staleness
+/// between actual cell crossings — visually indistinguishable from the
+/// no-prediction baseline.
+pub const MAX_PREDICTED_CLEAN_FRAMES: u16 = 4;
+
 /// Screen region (fraction from top) below which prediction is disabled.
 ///
 /// The bottom 15% of the screen is the "rain shadow zone" — droplet tails
