@@ -97,11 +97,35 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
 /// When the native watcher fails to initialize OR fails to register
 /// the watch path, we still log a warning — but the polling heartbeat
 /// runs unconditionally, so live reload always works.
+///
+/// **Dedup mechanism (Task 1 fix)**: when both the native watcher
+/// and the polling heartbeat detect the same file modification, the
+/// unified event loop must process it only ONCE. We track the last
+/// processed mtime in `last_processed_mtime`. Before processing any
+/// event, we read the file's current mtime; if it equals
+/// `last_processed_mtime`, the event is a duplicate (the other source
+/// already processed this mtime) and is silently dropped. This also
+/// skips the startup reload — `last_processed_mtime` is initialized
+/// to the file's current mtime at loop start, so no event for the
+/// initial state fires.
 fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
+    // Debounce window MUST be longer than the polling interval (2s) so
+    // that a polling heartbeat event arriving 2s after a native event
+    // for the same mtime is deduplicated via the mtime check below
+    // (not just the time-based debounce). The time-based debounce
+    // catches bursts of native events (atomic-save produces 3-5 events
+    // within 50ms); the mtime check catches cross-source duplicates.
     const DEBOUNCE_MS: u64 = 200;
     const POLL_INTERVAL_MS: u64 = 2000;
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
+
+    // Initialize last_processed_mtime to the file's current mtime.
+    // This ensures the polling heartbeat's first check (2s after start)
+    // does NOT trigger an unnecessary startup reload — the mtime hasn't
+    // changed since we initialized the tracker.
+    let initial_mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+    let last_processed_mtime = Arc::new(Mutex::new(initial_mtime));
 
     // Spawn the polling heartbeat on a background thread. It feeds
     // synthetic events into notify_tx when mtime changes, so the
@@ -163,10 +187,9 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     let mut last_event = std::time::Instant::now();
 
     // Unified event loop: processes BOTH native events AND synthetic
-    // polling events (which arrive as Ok(Event) with kind=Modify and
-    // the target path). The polling heartbeat feeds synthetic events
-    // into notify_tx, so this loop doesn't need a separate branch.
-    // The watcher is held alive for the loop's lifetime via `_watcher`.
+    // polling events. The dedup logic in handle_notify_event ensures
+    // that when both sources detect the same mtime, only the first
+    // event triggers a reload.
     let _watcher = watcher;
     for event_result in notify_rx.iter() {
         if !handle_notify_event(
@@ -176,6 +199,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             &tx,
             &mut last_event,
             DEBOUNCE_MS,
+            &last_processed_mtime,
         ) {
             break;
         }
@@ -191,6 +215,11 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
 /// The synthetic event uses `EventKind::Modify(ModifyKind::Any)` with
 /// the target file as the path, so the unified event loop in
 /// `watcher_loop` treats it identically to a native modify event.
+///
+/// **Startup reload prevention**: `last_mtime` is initialized to the
+/// file's current mtime at heartbeat start. The first poll (2s later)
+/// compares against this initial value — if the file hasn't changed,
+/// no event is sent. This prevents an unnecessary startup reload.
 fn polling_heartbeat(path: PathBuf, tx: Sender<notify::Result<notify::Event>>, interval_ms: u64) {
     let mut last_mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
     loop {
@@ -222,6 +251,13 @@ fn polling_heartbeat(path: PathBuf, tx: Sender<notify::Result<notify::Event>>, i
 
 /// Process a single notify event. Returns `false` if the channel is closed
 /// and the watcher loop should exit.
+///
+/// **Dedup mechanism (Task 1 fix)**: before processing, reads the file's
+/// current mtime and compares against `last_processed_mtime`. If they
+/// match, the event is a duplicate (the other source already processed
+/// this mtime) and is silently dropped. This guarantees a single config
+/// change triggers exactly one reload, even when both the native watcher
+/// and polling heartbeat detect it.
 fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
     target_file: &Arc<PathBuf>,
@@ -229,6 +265,7 @@ fn handle_notify_event(
     tx: &Sender<LiveConfigEvent>,
     last_event: &mut std::time::Instant,
     debounce_ms: u64,
+    last_processed_mtime: &Arc<Mutex<Option<std::time::SystemTime>>>,
 ) -> bool {
     match event_result {
         Ok(event) => {
@@ -245,7 +282,10 @@ fn handle_notify_event(
                 return true;
             }
 
-            // Debounce
+            // Debounce: catch bursts of native events (atomic-save
+            // produces 3-5 events within 50ms). This is a TIME-based
+            // dedup; the MTIME-based dedup below catches cross-source
+            // duplicates (native + polling for the same mtime).
             let now = std::time::Instant::now();
             if now.duration_since(*last_event) < Duration::from_millis(debounce_ms) {
                 return true;
@@ -254,6 +294,31 @@ fn handle_notify_event(
 
             // Small delay for atomic-save rename completion.
             std::thread::sleep(Duration::from_millis(50));
+
+            // MTIME DEDUP (Task 1 fix): read the file's current mtime.
+            // If it equals last_processed_mtime, this event is a
+            // duplicate — the other source (native or polling) already
+            // processed this mtime. Silently drop it.
+            let current_mtime = match std::fs::metadata(path).and_then(|m| m.modified()) {
+                Ok(t) => t,
+                Err(_) => return true,
+            };
+            {
+                let mut guard = match last_processed_mtime.lock() {
+                    Ok(g) => g,
+                    Err(_) => return true,
+                };
+                if let Some(prev) = *guard {
+                    if prev == current_mtime {
+                        // Duplicate event for an already-processed mtime.
+                        // Both the native watcher and polling heartbeat
+                        // detected the same change; only the first
+                        // should trigger a reload.
+                        return true;
+                    }
+                }
+                *guard = Some(current_mtime);
+            }
 
             // Reparse config using parse_config_text (not load_config_file)
             // so we can check malformed_lines AND unknown_keys.
