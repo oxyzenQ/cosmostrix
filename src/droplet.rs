@@ -44,10 +44,7 @@ use crate::constants::{
     EDGE_FADE_BOLD_THRESHOLD, EDGE_FADE_BOTTOM_LIP, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS,
     EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP,
     FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA,
-    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_DURATION_SECS,
-    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC,
-    MOUSE_FLASH_SECONDARY_SPEED_FRAC, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
-    MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
+    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, PARALLAX_BRIGHTNESS_MULT,
     PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, PARALLAX_HEAD_BLOOM_MULT,
     PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT, RAIN_SHADOW_LAYER_MULT,
     RAIN_SHADOW_PCT, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS,
@@ -405,36 +402,6 @@ impl Droplet {
     #[inline]
     pub fn prediction_matches_actual(&self) -> bool {
         prediction_matches_actual(self)
-    }
-
-    /// Commit a prediction-driven skip for this frame.
-    ///
-    /// Called by the simulation loop when `prediction_matches_actual()`
-    /// returned true and the surrounding context (mouse halo, click wave,
-    /// rain shadow) permits skipping. Performs the three side effects
-    /// documented in `rain.rs`'s simulation pass:
-    ///
-    /// 1. Decrement `frames_remaining` on the stored prediction so its
-    ///    staleness is bounded — once it reaches 0 the next frame will
-    ///    fall through to a real `advance()` and re-predict.
-    /// 2. Set `predicted_clean = true` so the draw pass knows to skip
-    ///    `draw()` for this droplet this frame (its visible cells are
-    ///    unchanged since the previous frame's draw).
-    /// 3. Set `was_skipped = true` so the next real `advance()` bypasses
-    ///    the `max_sim_delta` cap (the cap exists for pause/resume
-    ///    correctness; bypassing it for an intentional skip is safe and
-    ///    ensures the accumulated elapsed time is consumed in one call,
-    ///    keeping the average speed at 1× rather than 1/K×).
-    ///
-    /// No-op if no prediction is stored — the caller is expected to have
-    /// already checked via `prediction_matches_actual()`.
-    #[inline]
-    pub fn apply_prediction(&mut self) {
-        if let Some(ps) = self.predicted_state.as_mut() {
-            ps.frames_remaining = ps.frames_remaining.saturating_sub(1);
-        }
-        self.predicted_clean = true;
-        self.was_skipped = true;
     }
 
     pub fn increment_time(&mut self, delta: Duration) {
@@ -885,88 +852,14 @@ impl Droplet {
                     b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
-                // Cursor glow: cells near mouse cursor get brighter (elliptical falloff)
-                if ctx.mouse_col != u16::MAX {
-                    let col_dist = if self.bound_col > ctx.mouse_col {
-                        (self.bound_col - ctx.mouse_col) as f32
-                    } else {
-                        (ctx.mouse_col - self.bound_col) as f32
-                    };
-                    let line_dist = if line > ctx.mouse_line {
-                        (line - ctx.mouse_line) as f32
-                    } else {
-                        (ctx.mouse_line - line) as f32
-                    };
-                    let norm_col = col_dist / MOUSE_GLOW_RADIUS_COLS;
-                    let norm_line = line_dist / MOUSE_GLOW_RADIUS_LINES;
-                    let dist_sq = norm_col * norm_col + norm_line * norm_line;
-                    if dist_sq < 1.0 {
-                        let glow = (1.0 - dist_sq) * MOUSE_GLOW_INTENSITY;
-                        let wf = (glow * 256.0) as i32;
-                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    }
-                }
-
-                // Click flash: expanding glow wave from click point (v17 mastery).
-                // F4: use cached flash_elapsed instead of per-cell flash_time.elapsed()
-                //
-                // v17 mastery: dual-ring water-drop ripple. A primary bright ring
-                // expands outward at 60 cells/s, followed by a secondary dimmer
-                // ring at half speed — creating a layered "stone in water"
-                // cinematic ripple that propagates to the screen edge.
-                //
-                // The fade uses a quadratic curve (fade^1.5) for natural energy
-                // dissipation — the wave starts strong and decays gradually like
-                // a real water ripple, not a linear cutoff.
-                if let Some(elapsed) = ctx.flash_elapsed {
-                    let col_dist = if self.bound_col > ctx.flash_col {
-                        (self.bound_col - ctx.flash_col) as f32
-                    } else {
-                        (ctx.flash_col - self.bound_col) as f32
-                    };
-                    let line_dist = if line > ctx.flash_line {
-                        (line - ctx.flash_line) as f32
-                    } else {
-                        (ctx.flash_line - line) as f32
-                    };
-                    let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
-                    // Quadratic fade: natural energy dissipation (fade^1.5).
-                    // The wave starts strong and decays gradually like a real
-                    // water ripple, rather than a linear cutoff.
-                    let raw_fade = (1.0 - elapsed / MOUSE_FLASH_DURATION_SECS).max(0.0);
-                    let fade = raw_fade * raw_fade.sqrt();
-
-                    // Primary ring: fast, bright, full intensity.
-                    let primary_radius = elapsed * MOUSE_FLASH_SPEED;
-                    let primary_dist = (euclidean - primary_radius).abs();
-                    let mut factor = 0.0;
-                    if primary_dist < MOUSE_FLASH_RING_WIDTH {
-                        // Sharp leading edge, soft trailing tail (squared falloff).
-                        let t = 1.0 - primary_dist / MOUSE_FLASH_RING_WIDTH;
-                        let t_smooth = t * t;
-                        factor = t_smooth * MOUSE_FLASH_INTENSITY * fade;
-                    }
-
-                    // Secondary ring: slower, dimmer, layered echo.
-                    let secondary_radius =
-                        elapsed * MOUSE_FLASH_SPEED * MOUSE_FLASH_SECONDARY_SPEED_FRAC;
-                    let secondary_dist = (euclidean - secondary_radius).abs();
-                    if secondary_dist < MOUSE_FLASH_RING_WIDTH {
-                        let t = 1.0 - secondary_dist / MOUSE_FLASH_RING_WIDTH;
-                        let t_smooth = t * t;
-                        factor +=
-                            t_smooth * MOUSE_FLASH_INTENSITY * MOUSE_FLASH_SECONDARY_FRAC * fade;
-                    }
-
-                    if factor > 0.0 {
-                        let wf = (factor * 256.0) as i32;
-                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    }
-                }
+                // Cursor glow + click flash were previously applied here per
+                // cell. They have been MOVED to a global post-process pass
+                // (`Cloud::apply_interactive_glow()` in `src/cloud/rain.rs`)
+                // that runs AFTER the droplet draw pass. This guarantees the
+                // halo + ripple are always applied even when a droplet's
+                // `draw()` was skipped via temporal prediction, AND extends
+                // the glow to background cells (between droplets) that were
+                // previously unreachable from per-droplet rendering.
 
                 // Head brightness modulation
                 if matches!(loc, CharLoc::Head) && head_bright < 1.0 {

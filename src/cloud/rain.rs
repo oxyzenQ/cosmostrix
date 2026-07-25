@@ -308,107 +308,45 @@ impl Cloud {
                     continue;
                 }
 
-                // ── adaptive temporal prediction: try to skip advance() ──
+                // ── adaptive temporal prediction: ALWAYS advance() ──
                 //
-                // Before calling advance(), check if (a) the droplet's
-                // current state already matches a previously computed
-                // prediction, AND (b) the surrounding context permits
-                // skipping. The context check disables prediction near
-                // interactive hotspots (mouse halo, click wave) and in the
-                // rain shadow at the bottom of the screen — those regions
-                // must update every frame for cinematic / responsive feel.
+                // Forensic fix (Fix 1): the previous implementation skipped
+                // `advance()` along with `draw()` when a droplet was
+                // "predicted clean". This froze `advance_remainder`, which
+                // in turn froze the per-frame `head_brightness()` ramp and
+                // the `frac_progress`-modulated head bloom cascade —
+                // producing the "long white head" + stuttering motion that
+                // the dragon suffered.
                 //
-                // If both checks pass, the droplet is "predicted clean":
-                //   1. Skip advance() entirely (do NOT update last_time —
-                //      let elapsed accumulate so the next real advance()
-                //      sees K frames of elapsed time and advances K rows,
-                //      maintaining full average speed).
-                //   2. Mark `predicted_clean = true` so the draw pass
-                //      skips d.draw() for this droplet this frame.
-                //   3. Mark `was_skipped = true` so the next real advance()
-                //      bypasses the max_sim_delta cap (which would otherwise
-                //      limit elapsed to 1 frame and cause 1/K speed).
-                //   4. Decrement frames_remaining; when it hits 0, the
-                //      prediction expires and the next frame falls through
-                //      to a real advance() to recalibrate.
+                // The fix is to ALWAYS call `advance()`. The function is
+                // cheap (just math — gravity, turbulence, fractional
+                // accumulator update — no drawing). It grows
+                // `advance_remainder` every frame, keeping the brightness
+                // + bloom pulse alive even on frames where the head doesn't
+                // cross a cell boundary.
                 //
-                // If the prediction does NOT match OR the context disables
-                // skipping, clear the prediction and fall through to a real
-                // advance() + re-predict with an adaptive horizon tuned to
-                // this droplet's layer + speed.
-                let predicted_clean = {
-                    let d = &mut self.droplets[i];
-                    // Context check uses the droplet's CURRENT head position
-                    // (head_cur_line is the visible row; bound_col is the
-                    // column). head_cur_line tracks the rendered position
-                    // even when the head is crawling, so it's the right
-                    // reference for "is this droplet inside the mouse halo
-                    // right now?".
-                    let in_context_forbid = is_prediction_disabled_by_context(
-                        &pred_ctx,
-                        d.bound_col,
-                        d.head_cur_line,
-                        d.layer,
-                    );
-                    if in_context_forbid {
-                        // Interactive / cinematic hotspot — force a real
-                        // advance() + draw() this frame. Clear any stale
-                        // prediction so we don't accidentally re-enter the
-                        // skip path next frame with stale trajectory data.
-                        d.predicted_state = None;
-                        d.predicted_clean = false;
-                        // Note: was_skipped is NOT cleared here — it's
-                        // read below to decide whether to bypass the
-                        // max_sim_delta cap, then cleared after advance().
-                        false
-                    } else if d.prediction_matches_actual() {
-                        // Do NOT update last_time — let it stay at the
-                        // pre-skip value so elapsed accumulates. The next
-                        // real advance() will consume K frames of elapsed
-                        // and advance K rows in one call (visually
-                        // identical to K separate 1-row advances at 60 FPS).
-                        d.apply_prediction();
-                        true
-                    } else {
-                        // Prediction invalid — clear it. We'll recompute
-                        // after the real advance() below.
-                        d.predicted_state = None;
-                        d.predicted_clean = false;
-                        // Note: was_skipped is NOT cleared here — it's
-                        // read below to decide whether to bypass the
-                        // max_sim_delta cap, then cleared after advance().
-                        false
-                    }
-                };
-
-                if predicted_clean {
-                    // The droplet's cells haven't moved. But we still need
-                    // to check if it died of old age (tail caught up to
-                    // head) — that state transition can happen even when
-                    // the head doesn't move, because the tail can advance
-                    // independently when the head has stopped at end_line.
-                    //
-                    // However, if prediction_matches_actual() returned true,
-                    // the head IS crawling (predict_droplet_path only
-                    // produces predictions for crawling heads), so the
-                    // tail-caught-up transition can't fire this frame.
-                    // Safe to skip the entire advance() + side-effect block.
-                    continue;
-                }
-
+                // The prediction is still consulted AFTER `advance()` to
+                // decide whether `draw()` may be skipped: if the head
+                // position hasn't moved to a new row (prediction matches
+                // actual trajectory) AND the surrounding context (mouse
+                // halo, click wave, rain shadow) permits skipping, the
+                // draw pass skips `d.draw()` for this droplet this frame.
+                // The head cell's brightness still pulses because
+                // `advance_remainder` grew — the next time `draw()` runs
+                // (on cell-crossing), it paints the new brightness value.
+                //
+                // Context check uses the droplet's CURRENT head position
+                // (head_cur_line is the visible row; bound_col is the
+                // column). head_cur_line tracks the rendered position
+                // even when the head is crawling, so it's the right
+                // reference for "is this droplet inside the mouse halo
+                // right now?".
                 let (col, start_line, hp, cp_idx, free_col, died) = {
                     let d = &mut self.droplets[i];
-                    // dragon-temporal: if the previous frame(s) skipped
-                    // advance(), bypass the max_sim_delta cap so the
-                    // accumulated elapsed time is fully consumed. The cap
-                    // exists for pause/resume correctness (preventing huge
-                    // jumps after a tab switch); bypassing it here is safe
-                    // because the skip was an intentional optimization,
-                    // not a stall, and the resulting K-row jump is
-                    // visually identical to K separate 1-row advances at
-                    // 60 FPS.
-                    let bypass_cap = d.was_skipped;
-                    let adv_now = if use_sim_cap && !bypass_cap {
+                    // Always respect the max_sim_delta cap. We never skip
+                    // advance() now, so there's no accumulated elapsed to
+                    // bypass — every frame's elapsed is exactly 1 frame.
+                    let adv_now = if use_sim_cap {
                         if let Some(last) = d.last_time {
                             let max_now = last + max_sim_delta;
                             if now > max_now {
@@ -428,16 +366,46 @@ impl Cloud {
                     let hp = d.head_put_line;
                     let cp_idx = d.char_pool_idx;
                     let died = !d.is_alive;
-                    // adaptive temporal prediction: clear the skip flag now
-                    // that we've consumed the accumulated elapsed, then
-                    // recompute the prediction with an ADAPTIVE horizon
-                    // tuned to this droplet's layer + speed. The back layer
-                    // (slow, far) gets a long horizon so it can skip many
-                    // frames; the front layer (fast, near) gets a short
-                    // horizon so its motion stays visually fresh.
-                    d.was_skipped = false;
-                    let horizon = adaptive_prediction_horizon(d.layer, d.chars_per_sec);
-                    d.predicted_state = d.predict_droplet_path(horizon, PREDICTION_FPS);
+
+                    // After advance(), decide whether the draw pass may
+                    // skip this droplet. Three cases:
+                    //   1. Context forbids (mouse halo / click wave / rain
+                    //      shadow): force a real draw() this frame. Clear
+                    //      any stale prediction.
+                    //   2. Prediction matches actual trajectory AND still
+                    //      has frames_remaining: mark `predicted_clean`
+                    //      so draw pass skips `d.draw()`. Decrement
+                    //      frames_remaining so the prediction eventually
+                    //      expires and recalibrates.
+                    //   3. Prediction invalid (head crossed a cell, or
+                    //      expired): clear it and re-predict with an
+                    //      adaptive horizon tuned to layer + speed. The
+                    //      draw pass will run because predicted_clean is
+                    //      false.
+                    let in_context_forbid = is_prediction_disabled_by_context(
+                        &pred_ctx,
+                        d.bound_col,
+                        d.head_cur_line,
+                        d.layer,
+                    );
+                    if in_context_forbid {
+                        d.predicted_state = None;
+                        d.predicted_clean = false;
+                    } else if d.prediction_matches_actual() {
+                        // Decrement frames_remaining to bound staleness.
+                        // Do NOT touch `was_skipped` — we never skip
+                        // advance(), so the cap-bypass flag is irrelevant.
+                        if let Some(ps) = d.predicted_state.as_mut() {
+                            ps.frames_remaining = ps.frames_remaining.saturating_sub(1);
+                        }
+                        d.predicted_clean = true;
+                    } else {
+                        d.predicted_state = None;
+                        d.predicted_clean = false;
+                        let horizon = adaptive_prediction_horizon(d.layer, d.chars_per_sec);
+                        d.predicted_state = d.predict_droplet_path(horizon, PREDICTION_FPS);
+                    }
+
                     (col, start_line, hp, cp_idx, free_col, died)
                 };
 
@@ -668,6 +636,28 @@ impl Cloud {
                 d.predicted_clean = false;
             }
         }
+
+        // ── forensic fix (Fix 2): interactive glow post-process ──
+        //
+        // The mouse cursor halo and click wave ripple used to live INSIDE
+        // `Droplet::draw()`. When temporal prediction skipped `draw()` for
+        // a "predicted clean" droplet, the halo + ripple were skipped too
+        // — making the glow appear patchy (only on currently-advancing
+        // droplets) and entirely absent on background cells between
+        // droplets.
+        //
+        // Moving the glow to a global post-process pass fixes both:
+        //   1. The halo is always applied every frame, regardless of
+        //      which droplets were skipped by temporal prediction.
+        //   2. The halo extends to ALL cells in the glow region —
+        //      including background cells (blank between droplets) that
+        //      were previously unreachable from per-droplet rendering.
+        //
+        // Runs AFTER the droplet draw pass (so it overlays on top of
+        // freshly painted droplet cells) and BEFORE the phosphor decay
+        // pass (so the glow doesn't get baked into phosphor afterglow,
+        // which would persist after the cursor moves away).
+        self.apply_interactive_glow(frame, now);
 
         // Message box drawn AFTER phosphor/anomaly/atmospheric effects
         // so it survives all post-processing — glow + typewriter reveal.
@@ -901,6 +891,227 @@ impl Cloud {
         if enable_timing {
             let t2 = Instant::now();
             self.last_render_ms = t2.saturating_duration_since(t1).as_secs_f64() * 1000.0;
+        }
+    }
+
+    /// Apply mouse cursor halo + click wave ripple as a global post-process.
+    ///
+    /// Forensic fix (Fix 2): the cursor halo and click flash used to live
+    /// inside `Droplet::draw()`, applied per-cell as the droplet's trail
+    /// was painted. When temporal prediction skipped `draw()` for a
+    /// "predicted clean" droplet, the halo + ripple were skipped too —
+    /// making the glow appear patchy (only on currently-advancing
+    /// droplets) and entirely absent on background cells between
+    /// droplets.
+    ///
+    /// This post-process pass fixes both problems by iterating over the
+    /// screen region around the cursor / click origin and applying the
+    /// brightness boost to every cell in range — regardless of which
+    /// droplet owns it (or whether any droplet owns it at all).
+    ///
+    /// The math mirrors the original per-cell logic in `Droplet::draw()`
+    /// (now removed): elliptical Chebyshev-distance falloff for the
+    /// cursor halo, dual-ring euclidean-distance ripple for the click
+    /// wave. The only difference is the iteration driver: instead of
+    /// "for each droplet, for each trail cell", it's "for each cell in
+    /// the glow bounding box".
+    ///
+    /// Runs AFTER the droplet draw pass (so it overlays freshly painted
+    /// cells) and BEFORE phosphor decay (so the glow doesn't get baked
+    /// into afterglow, which would persist after the cursor moves away).
+    fn apply_interactive_glow(&mut self, frame: &mut Frame, now: Instant) {
+        // Snapshot the interactive state we need. Borrowed immutably via
+        // the local snapshot so we can mutably borrow `frame` for set()
+        // calls without conflict.
+        let mouse_enabled = self.mouse_enabled;
+        let mouse_col = self.mouse_col;
+        let mouse_line = self.mouse_line;
+        let flash_col = self.flash_col;
+        let flash_line = self.flash_line;
+        let flash_time = self.flash_time;
+        let cols = self.cols;
+        let lines = self.lines;
+        let bg = self.palette.bg;
+
+        // Compute the click wave's elapsed time once. If no flash is
+        // active, skip the click-wave branch entirely.
+        let flash_elapsed_secs =
+            flash_time.map(|ft| now.saturating_duration_since(ft).as_secs_f32());
+        let flash_active = flash_elapsed_secs
+            .map(|e| e < MOUSE_FLASH_DURATION_SECS)
+            .unwrap_or(false);
+
+        // Determine the bounding box of cells that need to be touched.
+        // The cursor halo covers a (2*MOUSE_GLOW_RADIUS_COLS+1) ×
+        // (2*MOUSE_GLOW_RADIUS_LINES+1) rectangle around the cursor.
+        // The click wave at peak expansion reaches
+        // `MOUSE_FLASH_DURATION_SECS × MOUSE_FLASH_SPEED` cells —
+        // we compute the active radius from the remaining fade window.
+        //
+        // We union both regions into one bounding box so we only iterate
+        // the affected cells once (a cell in both regions gets both
+        // contributions in a single pass).
+        let mut min_col = cols;
+        let mut max_col = 0u16;
+        let mut min_line = lines;
+        let mut max_line = 0u16;
+
+        let glow_rc = MOUSE_GLOW_RADIUS_COLS.ceil() as u16;
+        let glow_rl = MOUSE_GLOW_RADIUS_LINES.ceil() as u16;
+        if mouse_enabled && mouse_col != u16::MAX && mouse_line != u16::MAX {
+            min_col = min_col.min(mouse_col.saturating_sub(glow_rc));
+            max_col = max_col.max(mouse_col.saturating_add(glow_rc));
+            min_line = min_line.min(mouse_line.saturating_sub(glow_rl));
+            max_line = max_line.max(mouse_line.saturating_add(glow_rl));
+        }
+
+        if flash_active {
+            let elapsed = flash_elapsed_secs.unwrap_or(0.0);
+            let raw_fade = (1.0 - elapsed / MOUSE_FLASH_DURATION_SECS).max(0.0);
+            let fade = raw_fade * raw_fade.sqrt();
+            // Active ring radius — primary ring is the leading edge, but
+            // we touch the full disc from origin to (primary_radius +
+            // ring_width) so trailing cells inside the disc still get the
+            // squared-falloff contribution.
+            let primary_radius = elapsed * MOUSE_FLASH_SPEED;
+            let reach = (primary_radius + MOUSE_FLASH_RING_WIDTH).ceil() as u16;
+            min_col = min_col.min(flash_col.saturating_sub(reach));
+            max_col = max_col.max(flash_col.saturating_add(reach));
+            min_line = min_line.min(flash_line.saturating_sub(reach));
+            max_line = max_line.max(flash_line.saturating_add(reach));
+            // Suppress unused-warning when fade isn't read elsewhere — the
+            // per-cell branch below consumes it.
+            let _ = fade;
+        }
+
+        // If neither region is active (no mouse, no flash), bail.
+        if min_col > max_col || min_line > max_line {
+            return;
+        }
+
+        // Clamp the bounding box to the actual screen.
+        let c0 = min_col.min(cols);
+        let c1 = max_col.min(cols.saturating_sub(1));
+        let l0 = min_line.min(lines);
+        let l1 = max_line.min(lines.saturating_sub(1));
+        if c0 > c1 || l0 > l1 {
+            return;
+        }
+
+        // Iterate the bounding box. For each cell, read the current
+        // content, apply the cursor halo + click wave brightness boost
+        // to the foreground color, and write back via Frame::set (which
+        // performs the content-aware dirty check — cells whose RGB
+        // didn't actually change after rounding won't be marked dirty).
+        for line in l0..=l1 {
+            for col in c0..=c1 {
+                let idx = match frame.index(col, line) {
+                    Some(i) => i,
+                    None => continue,
+                };
+                let cell = frame.cell_at_index(idx);
+
+                // Decode the cell's foreground color. If the cell has no
+                // foreground (blank cell with only bg), treat its
+                // foreground as the background color so the glow can
+                // brighten background cells too — this is what makes
+                // the halo visible on cells between droplets.
+                let fg_color = cell.fg.or(bg);
+                let Some(fg_color) = fg_color else {
+                    continue;
+                };
+                let Some((mut r, mut g, mut b)) = crate::palette::decode_color(fg_color) else {
+                    continue;
+                };
+
+                let mut touched = false;
+
+                // Cursor halo: elliptical Chebyshev-style falloff (matches
+                // the original per-cell formula in Droplet::draw()).
+                if mouse_enabled && mouse_col != u16::MAX && mouse_line != u16::MAX {
+                    let col_dist = if col > mouse_col {
+                        (col - mouse_col) as f32
+                    } else {
+                        (mouse_col - col) as f32
+                    };
+                    let line_dist = if line > mouse_line {
+                        (line - mouse_line) as f32
+                    } else {
+                        (mouse_line - line) as f32
+                    };
+                    let norm_col = col_dist / MOUSE_GLOW_RADIUS_COLS;
+                    let norm_line = line_dist / MOUSE_GLOW_RADIUS_LINES;
+                    let dist_sq = norm_col * norm_col + norm_line * norm_line;
+                    if dist_sq < 1.0 {
+                        let glow = (1.0 - dist_sq) * MOUSE_GLOW_INTENSITY;
+                        let wf = (glow * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        touched = true;
+                    }
+                }
+
+                // Click wave: dual-ring euclidean ripple.
+                if flash_active && flash_col != u16::MAX && flash_line != u16::MAX {
+                    let elapsed = flash_elapsed_secs.unwrap_or(0.0);
+                    let col_dist = if col > flash_col {
+                        (col - flash_col) as f32
+                    } else {
+                        (flash_col - col) as f32
+                    };
+                    let line_dist = if line > flash_line {
+                        (line - flash_line) as f32
+                    } else {
+                        (flash_line - line) as f32
+                    };
+                    let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
+                    let raw_fade = (1.0 - elapsed / MOUSE_FLASH_DURATION_SECS).max(0.0);
+                    let fade = raw_fade * raw_fade.sqrt();
+
+                    let primary_radius = elapsed * MOUSE_FLASH_SPEED;
+                    let primary_dist = (euclidean - primary_radius).abs();
+                    let mut factor = 0.0;
+                    if primary_dist < MOUSE_FLASH_RING_WIDTH {
+                        let t = 1.0 - primary_dist / MOUSE_FLASH_RING_WIDTH;
+                        let t_smooth = t * t;
+                        factor = t_smooth * MOUSE_FLASH_INTENSITY * fade;
+                    }
+
+                    let secondary_radius =
+                        elapsed * MOUSE_FLASH_SPEED * MOUSE_FLASH_SECONDARY_SPEED_FRAC;
+                    let secondary_dist = (euclidean - secondary_radius).abs();
+                    if secondary_dist < MOUSE_FLASH_RING_WIDTH {
+                        let t = 1.0 - secondary_dist / MOUSE_FLASH_RING_WIDTH;
+                        let t_smooth = t * t;
+                        factor +=
+                            t_smooth * MOUSE_FLASH_INTENSITY * MOUSE_FLASH_SECONDARY_FRAC * fade;
+                    }
+
+                    if factor > 0.0 {
+                        let wf = (factor * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        touched = true;
+                    }
+                }
+
+                if !touched {
+                    continue;
+                }
+
+                // Write the boosted color back. Preserve the cell's
+                // character and bold flag — we only changed fg.
+                let new_fg = Color::Rgb { r, g, b };
+                let new_cell = crate::cell::Cell {
+                    ch: cell.ch,
+                    fg: Some(new_fg),
+                    bg: cell.bg,
+                    bold: cell.bold,
+                };
+                frame.set(col, line, new_cell);
+            }
         }
     }
 }
