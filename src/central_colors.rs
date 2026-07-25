@@ -644,7 +644,15 @@ pub static THEMES: &[ThemeDef] = &[
                 (128, 0, 255),
                 (191, 0, 255),
                 (255, 0, 255),
-                (255, 255, 255),
+                // Off-white (255,255,230) instead of pure white (255,255,255).
+                // The head-cell color of every theme must not be pure white —
+                // the cinematic head bloom (HEAD_WF=45% blend toward white)
+                // expects a non-white base so the head retains hue. Pure
+                // white as the head stop would make the head indistinguishable
+                // from the bloom transition, collapsing the 3-2-2 color
+                // distribution. (255,255,230) is visually almost identical
+                // to white on a dark background but preserves the hue hint.
+                (255, 255, 230),
             ],
             c16: &[
                 Color::DarkGrey,
