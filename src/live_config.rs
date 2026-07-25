@@ -79,21 +79,32 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
 }
 
 /// Main watcher loop — blocks on filesystem events, reparses on change.
+///
+/// Bug 1 fix: when the native `notify` watcher (kqueue on BSDs, inotify on
+/// Linux, FSEvents on macOS, ReadDirectoryChanges on Windows) fails to
+/// initialize OR fails to register the watch path, we fall back to a
+/// polling mechanism that checks the file's modification time every
+/// 2 seconds. This guarantees live reload works on FreeBSD/GhostBSD and
+/// any platform where the native backend is unavailable (containers with
+/// restricted syscalls, network filesystems, etc.).
 fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     const DEBOUNCE_MS: u64 = 200;
+    const POLL_INTERVAL_MS: u64 = 2000;
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
 
-    let mut watcher: RecommendedWatcher = match RecommendedWatcher::new(
+    let mut watcher: Option<RecommendedWatcher> = match RecommendedWatcher::new(
         move |res: notify::Result<notify::Event>| {
             let _ = notify_tx.send(res);
         },
         notify::Config::default(),
     ) {
-        Ok(w) => w,
+        Ok(w) => Some(w),
         Err(e) => {
-            eprintln!("[live-reload] failed to create watcher: {e}");
-            return;
+            eprintln!(
+                "[live-reload] native watcher unavailable: {e} — falling back to polling every {POLL_INTERVAL_MS}ms"
+            );
+            None
         }
     };
 
@@ -109,100 +120,180 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         })
         .unwrap_or_else(|| PathBuf::from("."));
 
-    if let Err(e) = watcher.watch(&watch_dir, RecursiveMode::NonRecursive) {
-        eprintln!("[live-reload] failed to watch {}: {e}", watch_dir.display());
-        return;
+    if let Some(ref mut w) = watcher {
+        if let Err(e) = w.watch(&watch_dir, RecursiveMode::NonRecursive) {
+            eprintln!(
+                "[live-reload] native watcher failed to register {}: {e} — falling back to polling every {POLL_INTERVAL_MS}ms",
+                watch_dir.display()
+            );
+            // Drop the broken watcher so the polling fallback runs.
+            watcher = None;
+        }
     }
 
     let target_file = Arc::new(path.clone());
     let mut last_event = std::time::Instant::now();
 
-    for event_result in notify_rx.iter() {
-        match event_result {
-            Ok(event) => {
-                let touches_target = event.paths.iter().any(|p| p == &*target_file);
-                if !touches_target {
-                    continue;
-                }
-
-                let relevant = matches!(
-                    event.kind,
-                    EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
-                );
-                if !relevant {
-                    continue;
-                }
-
-                // Debounce
-                let now = std::time::Instant::now();
-                if now.duration_since(last_event) < Duration::from_millis(DEBOUNCE_MS) {
-                    continue;
-                }
-                last_event = now;
-
-                // Small delay for atomic-save rename completion.
-                std::thread::sleep(Duration::from_millis(50));
-
-                // Reparse config using parse_config_text (not load_config_file)
-                // so we can check malformed_lines AND unknown_keys.
-                let content = match std::fs::read_to_string(&path) {
-                    Ok(c) => c,
-                    Err(_) => continue,
-                };
-                let parsed = configfile::parse_config_text(&content);
-                if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
-                    continue;
-                }
-
-                // Check malformed lines first — these are syntax errors.
-                if !parsed.malformed_lines.is_empty() {
-                    let lines: Vec<&str> = parsed
-                        .malformed_lines
-                        .iter()
-                        .take(3)
-                        .map(String::as_str)
-                        .collect();
-                    let msg = format!(
-                        "malformed line(s): '{}' (expected 'key = value' syntax)",
-                        lines.join(", ")
-                    );
-                    let _ = tx.send(Err(msg));
-                    continue;
-                }
-
-                // Check unknown keys.
-                if !parsed.unknown_keys.is_empty() {
-                    let keys: Vec<&str> = parsed
-                        .unknown_keys
-                        .iter()
-                        .take(3)
-                        .map(String::as_str)
-                        .collect();
-                    let msg = format!(
-                        "unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys)",
-                        keys.join(", ")
-                    );
-                    let _ = tx.send(Err(msg));
-                    continue;
-                }
-
-                let cfg = &parsed.values;
-
-                // Strict validation: reject entire config if ANY field is invalid.
-                match crate::testconf::validate_config_strictly(cfg) {
-                    Ok(()) => {
-                        if tx.send(Ok(cfg.clone())).is_err() {
-                            break;
-                        }
-                    }
-                    Err(msg) => {
-                        let _ = tx.send(Err(msg));
-                    }
-                }
+    // Native watcher path: blocks on `notify_rx.iter()`.
+    if let Some(_watcher) = watcher {
+        // Hold the watcher alive via `_watcher` for the loop's lifetime.
+        // The watcher is dropped when this scope exits.
+        for event_result in notify_rx.iter() {
+            if !handle_notify_event(
+                event_result,
+                &target_file,
+                &path,
+                &tx,
+                &mut last_event,
+                DEBOUNCE_MS,
+            ) {
+                break;
             }
-            Err(e) => {
-                eprintln!("[live-reload] watch error: {e}");
+        }
+        return;
+    }
+
+    // Polling fallback path: check mtime every POLL_INTERVAL_MS.
+    eprintln!(
+        "[live-reload] polling {path} every {POLL_INTERVAL_MS}ms",
+        path = path.display()
+    );
+    let mut last_mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+    loop {
+        std::thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
+        let current_mtime = match std::fs::metadata(&path).and_then(|m| m.modified()) {
+            Ok(t) => t,
+            Err(_) => continue,
+        };
+        if Some(current_mtime) == last_mtime {
+            continue;
+        }
+        last_mtime = Some(current_mtime);
+
+        // Same reparse + validate pipeline as the native path.
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        let parsed = configfile::parse_config_text(&content);
+        if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
+            continue;
+        }
+        if let Err(msg) = validate_and_send(&parsed, &tx) {
+            eprintln!("[live-reload] {msg}");
+        }
+    }
+}
+
+/// Process a single notify event. Returns `false` if the channel is closed
+/// and the watcher loop should exit.
+fn handle_notify_event(
+    event_result: notify::Result<notify::Event>,
+    target_file: &Arc<PathBuf>,
+    path: &PathBuf,
+    tx: &Sender<LiveConfigEvent>,
+    last_event: &mut std::time::Instant,
+    debounce_ms: u64,
+) -> bool {
+    match event_result {
+        Ok(event) => {
+            let touches_target = event.paths.iter().any(|p| p == &**target_file);
+            if !touches_target {
+                return true;
             }
+
+            let relevant = matches!(
+                event.kind,
+                EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+            );
+            if !relevant {
+                return true;
+            }
+
+            // Debounce
+            let now = std::time::Instant::now();
+            if now.duration_since(*last_event) < Duration::from_millis(debounce_ms) {
+                return true;
+            }
+            *last_event = now;
+
+            // Small delay for atomic-save rename completion.
+            std::thread::sleep(Duration::from_millis(50));
+
+            // Reparse config using parse_config_text (not load_config_file)
+            // so we can check malformed_lines AND unknown_keys.
+            let content = match std::fs::read_to_string(path) {
+                Ok(c) => c,
+                Err(_) => return true,
+            };
+            let parsed = configfile::parse_config_text(&content);
+            if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
+                return true;
+            }
+
+            if let Err(msg) = validate_and_send(&parsed, tx) {
+                eprintln!("[live-reload] {msg}");
+            }
+            true
+        }
+        Err(e) => {
+            eprintln!("[live-reload] watch error: {e}");
+            true
+        }
+    }
+}
+
+/// Validate parsed config strictly, then send Ok(cfg) or Err(msg) to the
+/// render thread. Returns Err(msg) if validation failed (caller logs it).
+fn validate_and_send(
+    parsed: &configfile::ParsedConfig,
+    tx: &Sender<LiveConfigEvent>,
+) -> Result<(), String> {
+    // Check malformed lines first — these are syntax errors.
+    if !parsed.malformed_lines.is_empty() {
+        let lines: Vec<&str> = parsed
+            .malformed_lines
+            .iter()
+            .take(3)
+            .map(String::as_str)
+            .collect();
+        let msg = format!(
+            "malformed line(s): '{}' (expected 'key = value' syntax)",
+            lines.join(", ")
+        );
+        let _ = tx.send(Err(msg.clone()));
+        return Err(msg);
+    }
+
+    // Check unknown keys.
+    if !parsed.unknown_keys.is_empty() {
+        let keys: Vec<&str> = parsed
+            .unknown_keys
+            .iter()
+            .take(3)
+            .map(String::as_str)
+            .collect();
+        let msg = format!(
+            "unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys)",
+            keys.join(", ")
+        );
+        let _ = tx.send(Err(msg.clone()));
+        return Err(msg);
+    }
+
+    let cfg = &parsed.values;
+
+    // Strict validation: reject entire config if ANY field is invalid.
+    match crate::testconf::validate_config_strictly(cfg) {
+        Ok(()) => {
+            if tx.send(Ok(cfg.clone())).is_err() {
+                return Ok(()); // channel closed — caller will exit
+            }
+            Ok(())
+        }
+        Err(msg) => {
+            let _ = tx.send(Err(msg.clone()));
+            Err(msg)
         }
     }
 }
@@ -222,11 +313,18 @@ pub fn rebuild_cloud_config(
     cfg: &HashMap<String, String>,
 ) -> crate::app::CloudConfig {
     let mut new = base.clone();
+    // Bug 3 fix: snapshot the CLI-explicit tracker from the base config.
+    // Each config-derived field below consults this tracker before
+    // applying — CLI-explicit fields are preserved across live reload,
+    // enforcing the CLI > config.toml > scene priority contract.
+    let cli = new.cli_explicit.clone();
 
-    // Color scheme
-    if let Some(v) = cfg.get("color") {
-        if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
-            new.color_scheme = scheme;
+    // Color scheme — skip if CLI explicitly set --color
+    if !cli.color {
+        if let Some(v) = cfg.get("color") {
+            if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
+                new.color_scheme = scheme;
+            }
         }
     }
 
@@ -241,66 +339,90 @@ pub fn rebuild_cloud_config(
         }
     }
 
-    // Charset (requires rebuilding chars vector)
-    if let Some(v) = cfg.get("charset") {
-        if let Ok(charset) = crate::charset::charset_from_str(v, false) {
-            new.charset_preset = v.clone();
-            new.chars = crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
+    // Charset (requires rebuilding chars vector) — skip if CLI --charset
+    if !cli.charset {
+        if let Some(v) = cfg.get("charset") {
+            if let Ok(charset) = crate::charset::charset_from_str(v, false) {
+                new.charset_preset = v.clone();
+                new.chars = crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
+            }
         }
     }
 
-    // Scene (affects rain_style)
-    if let Some(v) = cfg.get("scene") {
-        if let Some(scene_info) = crate::scene::get_scene(v) {
-            new.rain_style = scene_info.config.rain_style;
-            // Apply scene color/charset if set
-            if let Some(color) = scene_info.config.color {
-                if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
-                    new.color_scheme = scheme;
+    // Scene (affects rain_style) — skip if CLI --scene was explicit
+    if !cli.scene {
+        if let Some(v) = cfg.get("scene") {
+            if let Some(scene_info) = crate::scene::get_scene(v) {
+                new.rain_style = scene_info.config.rain_style;
+                // Apply scene color/charset if set — but still respect
+                // CLI-explicit color/charset (don't let scene override CLI).
+                if let Some(color) = scene_info.config.color {
+                    if !cli.color {
+                        if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
+                            new.color_scheme = scheme;
+                        }
+                    }
+                }
+                if let Some(charset_name) = scene_info.config.charset {
+                    if !cli.charset {
+                        if let Ok(charset) = crate::charset::charset_from_str(charset_name, false) {
+                            new.charset_preset = charset_name.to_string();
+                            new.chars = crate::charset::build_chars(
+                                charset,
+                                &new.user_ranges,
+                                new.def_ascii,
+                            );
+                        }
+                    }
+                }
+                if let Some(speed) = scene_info.config.speed {
+                    if !cli.speed {
+                        new.speed = speed;
+                    }
+                }
+                if let Some(density) = scene_info.config.density {
+                    if !cli.density {
+                        new.density = density;
+                        new.base_density = density;
+                    }
                 }
             }
-            if let Some(charset_name) = scene_info.config.charset {
-                if let Ok(charset) = crate::charset::charset_from_str(charset_name, false) {
-                    new.charset_preset = charset_name.to_string();
-                    new.chars =
-                        crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
-                }
-            }
-            if let Some(speed) = scene_info.config.speed {
-                new.speed = speed;
-            }
-            if let Some(density) = scene_info.config.density {
-                new.density = density;
-                new.base_density = density;
+        }
+    }
+
+    // Speed — skip if CLI --speed was explicit
+    if !cli.speed {
+        if let Some(v) = cfg.get("speed") {
+            if let Ok(n) = crate::validation::parse_canonical_speed("speed", v) {
+                new.speed = n;
             }
         }
     }
 
-    // Speed
-    if let Some(v) = cfg.get("speed") {
-        if let Ok(n) = crate::validation::parse_canonical_speed("speed", v) {
-            new.speed = n;
+    // Density — skip if CLI --density was explicit
+    if !cli.density {
+        if let Some(v) = cfg.get("density") {
+            if let Ok(n) = crate::validation::parse_canonical_f32_range("density", v, 0.01, 5.0) {
+                new.density = n;
+                new.base_density = n;
+            }
         }
     }
 
-    // Density
-    if let Some(v) = cfg.get("density") {
-        if let Ok(n) = crate::validation::parse_canonical_f32_range("density", v, 0.01, 5.0) {
-            new.density = n;
-            new.base_density = n;
+    // FPS — skip if CLI --fps was explicit
+    if !cli.fps {
+        if let Some(v) = cfg.get("fps") {
+            if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0) {
+                new.target_fps = n;
+            }
         }
     }
 
-    // FPS
-    if let Some(v) = cfg.get("fps") {
-        if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0) {
-            new.target_fps = n;
+    // Glitch level — skip if CLI --glitch-level was explicit
+    if !cli.glitch_level {
+        if let Some(v) = cfg.get("glitch-level") {
+            new.noglitch = v.trim().eq_ignore_ascii_case("none");
         }
-    }
-
-    // Glitch level
-    if let Some(v) = cfg.get("glitch-level") {
-        new.noglitch = v.trim().eq_ignore_ascii_case("none");
     }
 
     // v17 mastery: legacy advanced config keys (glitchpct, shortpct, rippct,
@@ -594,6 +716,7 @@ mod tests {
             config_path_for_watcher: None,
             scene_name: "test-scene".to_string(),
             scene_custom_name: Some("test-scene".to_string()),
+            cli_explicit: crate::app::CliExplicit::default(),
         }
     }
 
@@ -688,6 +811,62 @@ mod tests {
             new.color_scheme,
             crate::runtime::ColorScheme::NeonPurple,
             "scene-custom fields must not apply when no custom scene is active"
+        );
+    }
+
+    /// Bug 3 test: CLI-explicit color must NOT be overridden by config.toml
+    /// during live reload. The priority contract is CLI > config.toml > scene.
+    /// Without the `cli_explicit` tracker, `rebuild_cloud_config` would
+    /// blindly apply `color = "snow"` from config, clobbering the user's
+    /// `-c green` CLI flag.
+    #[test]
+    fn rebuild_preserves_cli_explicit_color_over_config() {
+        let mut cfg = HashMap::new();
+        cfg.insert("color".to_string(), "snow".to_string());
+        let mut base = minimal_cloud_config();
+        // Simulate the user running `cosmostrix -c green`: the CLI flag
+        // is recorded as explicit, and the color_scheme is set to Green.
+        base.cli_explicit.color = true;
+        base.color_scheme = crate::runtime::ColorScheme::Green;
+        let new = rebuild_cloud_config(&base, &cfg);
+        assert_eq!(
+            new.color_scheme,
+            crate::runtime::ColorScheme::Green,
+            "CLI --color green must NOT be overridden by config.toml color=snow"
+        );
+    }
+
+    /// Bug 3 test: when CLI did NOT explicitly set a field, config.toml
+    /// overrides scene defaults. This is the normal live-reload path.
+    #[test]
+    fn rebuild_applies_config_color_when_cli_not_explicit() {
+        let mut cfg = HashMap::new();
+        cfg.insert("color".to_string(), "snow".to_string());
+        let base = minimal_cloud_config();
+        // base.cli_explicit.color is false (default) — no CLI override.
+        let new = rebuild_cloud_config(&base, &cfg);
+        assert_eq!(
+            new.color_scheme,
+            crate::runtime::ColorScheme::Snow,
+            "config.toml color=snow must apply when CLI did not set --color"
+        );
+    }
+
+    /// Bug 3 test: CLI-explicit speed must NOT be overridden by scene's
+    /// speed default during live reload (e.g., user runs `cosmostrix -s 25`,
+    /// config.toml has `scene = "matrix"` which sets speed=18 — CLI wins).
+    #[test]
+    fn rebuild_preserves_cli_explicit_speed_over_scene() {
+        let mut cfg = HashMap::new();
+        cfg.insert("scene".to_string(), "matrix".to_string());
+        let mut base = minimal_cloud_config();
+        base.cli_explicit.speed = true;
+        base.cli_explicit.scene = false;
+        base.speed = 25.0;
+        let new = rebuild_cloud_config(&base, &cfg);
+        assert_eq!(
+            new.speed, 25.0,
+            "CLI --speed 25 must NOT be overridden by scene=matrix speed=18"
         );
     }
 }

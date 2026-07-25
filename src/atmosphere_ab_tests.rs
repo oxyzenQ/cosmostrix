@@ -343,6 +343,7 @@ fn benchmark_fields_unchanged() {
         config_path_for_watcher: None,
         scene_name: "monolith".to_string(),
         scene_custom_name: None,
+        cli_explicit: crate::app::CliExplicit::default(),
     };
     assert!(!cfg.benchmark);
     assert!(!cfg.auto_color_drift);

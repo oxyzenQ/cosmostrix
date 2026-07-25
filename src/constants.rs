@@ -426,6 +426,32 @@ pub const FOG_ROWS: u16 = 4;
 /// effect while keeping edge glyphs faintly visible rather than lost entirely.
 pub const FOG_MIN_FACTOR: f32 = 0.65;
 
+// Cinematic CRT vignette (top & bottom edge dim)
+
+/// Number of rows at the very top and very bottom of the screen that
+/// receive the cinematic CRT vignette dim. The dimming creates a retro
+/// CRT-glow feel — the screen edges look slightly darker, drawing the
+/// eye toward the center where the rain is densest.
+///
+/// Bug 2 fix: this is a SEPARATE effect from the existing depth fog
+/// (`FOG_ROWS`). The depth fog applies per-cell inside `Droplet::draw()`
+/// (cell-level brightness modulation). The CRT vignette is a global
+/// post-process that runs AFTER all droplets are drawn and AFTER rain
+/// shadow, but BEFORE phosphor decay — so the glow is also dimmed
+/// (preventing edge cells from retaining afterglow when the cursor
+/// passes through them).
+///
+/// The cost is O(width × CRT_VIGNETTE_HEIGHT × 2) per frame, NOT
+/// O(width × height) — only the top and bottom bands are iterated.
+pub const CRT_VIGNETTE_HEIGHT: u16 = 5;
+
+/// Minimum brightness factor at the extreme top/bottom edge of the
+/// screen (0.0 = full black, 1.0 = no dimming). 0.8 means the very
+/// first/last row is dimmed to 80% of its computed brightness — a
+/// subtle dim, not a hard cutoff. The dim eases out via smoothstep
+/// to 1.0 (no dim) at row `CRT_VIGNETTE_HEIGHT` inward from the edge.
+pub const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.8;
+
 // Cinematic vignette (radial edge darkening)
 
 /// Maximum dimming intensity at the screen corners (0.0 = no dimming,

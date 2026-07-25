@@ -465,6 +465,25 @@ impl Cloud {
         // Message box drawn AFTER phosphor/anomaly/atmospheric effects
         // so it survives all post-processing — glow + typewriter reveal.
 
+        // ── Bug 2: cinematic CRT vignette post-process ──
+        //
+        // Apply a subtle dim to the top and bottom CRT_VIGNETTE_HEIGHT
+        // rows. Creates a retro CRT-glow feel — the screen edges look
+        // slightly darker, drawing the eye toward the center where the
+        // rain is densest. Eases out via smoothstep so the dim is
+        // imperceptible at the inner boundary (row CRT_VIGNETTE_HEIGHT
+        // from the edge), preventing a hard cutoff.
+        //
+        // Runs AFTER the droplet draw pass + rain shadow (already
+        // applied per-cell inside Droplet::draw()), but BEFORE phosphor
+        // decay — so the glow is also dimmed, preventing edge cells
+        // from retaining afterglow when the cursor passes through them.
+        //
+        // Cost: O(cols × CRT_VIGNETTE_HEIGHT × 2) per frame. At
+        // 200×60 with CRT_VIGNETTE_HEIGHT=5, that's 2000 cells/frame
+        // — negligible vs the ~2200 dirty cells/frame average.
+        self.apply_crt_vignette(frame);
+
         // --- Phosphor persistence post-process ---
         // Scale phosphor decay elapsed by resume_blend so afterglow fades at
         // the same rate as the rain wakes up. Without this, phosphor trails
@@ -695,5 +714,114 @@ impl Cloud {
             let t2 = Instant::now();
             self.last_render_ms = t2.saturating_duration_since(t1).as_secs_f64() * 1000.0;
         }
+    }
+
+    /// Apply the cinematic CRT vignette: dim the top and bottom
+    /// `CRT_VIGNETTE_HEIGHT` rows.
+    ///
+    /// Bug 2 fix: a subtle dimming at the screen edges creates a retro
+    /// CRT-glow feel — the screen edges look slightly darker, drawing
+    /// the eye toward the center where the rain is densest. The dim
+    /// eases out via smoothstep so the inner boundary is imperceptible
+    /// (no hard cutoff).
+    ///
+    /// The factor goes from `CRT_VIGNETTE_EDGE_FACTOR` (0.8) at the
+    /// extreme edge row to 1.0 (no dim) at row `CRT_VIGNETTE_HEIGHT`
+    /// inward from the edge:
+    ///
+    ///   t = row_index / CRT_VIGNETTE_HEIGHT          (0 → 1)
+    ///   smoothstep(t) = t * t * (3 - 2t)             (0 → 1, C1 continuous)
+    ///   factor = EDGE + (1 - EDGE) * smoothstep(t)
+    ///
+    /// Runs AFTER the droplet draw pass + rain shadow, but BEFORE
+    /// phosphor decay. This ensures the CRT dim propagates into the
+    /// phosphor afterglow — edge cells retain less energy when the
+    /// cursor passes through them, preventing edge-pile-up artifacts.
+    ///
+    /// Cost: O(cols × CRT_VIGNETTE_HEIGHT × 2) per frame. At
+    /// 200×60 with CRT_VIGNETTE_HEIGHT=5, that's 2000 cells/frame —
+    /// negligible vs the ~2200 dirty cells/frame average.
+    fn apply_crt_vignette(&self, frame: &mut Frame) {
+        // Bail early if the screen is too short for the vignette to make
+        // sense (would dim the entire screen).
+        if self.lines < 2 * CRT_VIGNETTE_HEIGHT {
+            return;
+        }
+
+        let cols = self.cols;
+        let lines = self.lines;
+        let bg = self.palette.bg;
+
+        // Top band: rows 0..CRT_VIGNETTE_HEIGHT.
+        for v in 0..CRT_VIGNETTE_HEIGHT {
+            let row = v;
+            // t goes 0 (extreme edge) → 1 (inner boundary).
+            let t = v as f32 / CRT_VIGNETTE_HEIGHT as f32;
+            // smoothstep for C1-continuous ease-out (no perceptible
+            // boundary line where the vignette meets the un-dimmed area).
+            let smooth = t * t * (3.0 - 2.0 * t);
+            let factor = CRT_VIGNETTE_EDGE_FACTOR + (1.0 - CRT_VIGNETTE_EDGE_FACTOR) * smooth;
+            apply_crt_dim_row(frame, cols, row, factor, bg);
+        }
+
+        // Bottom band: rows (lines - CRT_VIGNETTE_HEIGHT)..lines.
+        for v in 0..CRT_VIGNETTE_HEIGHT {
+            // row 0 (closest to edge) = lines - 1; row (H-1) = lines - H.
+            let row = lines - 1 - v;
+            let t = v as f32 / CRT_VIGNETTE_HEIGHT as f32;
+            let smooth = t * t * (3.0 - 2.0 * t);
+            let factor = CRT_VIGNETTE_EDGE_FACTOR + (1.0 - CRT_VIGNETTE_EDGE_FACTOR) * smooth;
+            apply_crt_dim_row(frame, cols, row, factor, bg);
+        }
+    }
+}
+
+/// Helper: dim every cell in a single row by `factor` (0.0 = full black,
+/// 1.0 = no dim). Cells without a foreground color (blank cells) are
+/// skipped — the dim only applies to painted cells (droplet trail + head).
+/// The background is preserved so the dim reads as a darkening of the
+/// glyph, not a tint of the empty space.
+fn apply_crt_dim_row(frame: &mut Frame, cols: u16, row: u16, factor: f32, bg: Option<Color>) {
+    // Integer-friendly brightness scale: factor * 256, rounded.
+    // factor=0.8 → 205; factor=1.0 → 256 (no dim, but we skip writes
+    // entirely when factor >= 1.0 via the early-return below).
+    if factor >= 1.0 {
+        return;
+    }
+    let fi = (factor * 256.0) as i32;
+    for col in 0..cols {
+        let Some(idx) = frame.index(col, row) else {
+            continue;
+        };
+        let cell = frame.cell_at_index(idx);
+        // Skip blank cells (no foreground) — dimming empty space would
+        // tint the background, which is NOT the CRT-vignette aesthetic.
+        let Some(fg) = cell.fg else {
+            continue;
+        };
+        let Some((r, g, b)) = crate::palette::decode_color(fg) else {
+            continue;
+        };
+        // Integer multiply: (color * fi + 128) >> 8 — same pattern as
+        // other brightness modulations in Droplet::draw() (fog, parallax).
+        let nr = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+        let ng = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+        let nb = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+        let new_fg = Color::Rgb {
+            r: nr,
+            g: ng,
+            b: nb,
+        };
+        let new_cell = crate::cell::Cell {
+            ch: cell.ch,
+            fg: Some(new_fg),
+            bg: cell.bg,
+            bold: cell.bold,
+        };
+        // Suppress unused-warning: `bg` is referenced for future
+        // extension (e.g., dimming blank cells toward bg instead of
+        // skipping them). Currently we skip blank cells.
+        let _ = bg;
+        frame.set(col, row, new_cell);
     }
 }

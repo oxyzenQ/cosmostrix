@@ -783,6 +783,46 @@ fn main() -> std::io::Result<()> {
         matches.value_source("color"),
         Some(clap::parser::ValueSource::CommandLine)
     );
+    // Bug 3 fix: capture which CLI flags were explicitly set so
+    // rebuild_cloud_config can enforce the CLI > config.toml > scene
+    // priority contract during live reload. Without this, a CLI flag
+    // like `-c green` would be silently overridden the moment the
+    // user edits `color = "snow"` in config.toml.
+    let cli_explicit = crate::app::CliExplicit {
+        color: cli_explicit_color,
+        charset: matches!(
+            matches.value_source("charset"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        speed: matches!(
+            matches.value_source("speed"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        density: matches!(
+            matches.value_source("density"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        fps: matches!(
+            matches.value_source("fps"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        scene: matches!(
+            matches.value_source("scene"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        scene_custom: matches!(
+            matches.value_source("scene_custom"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        glitch_level: matches!(
+            matches.value_source("glitch_level"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        monolith_size: matches!(
+            matches.value_source("monolith_size"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+    };
     if args.verbose {
         // Resolve the intro type label for verbose output. Mirrors the
         // resolution in CloudConfig below: CLI --intro wins, else default
@@ -922,6 +962,9 @@ fn main() -> std::io::Result<()> {
         // v20: track active custom scene name so live reload can re-apply
         // its fields when the user edits [scene-custom.<name>] in config.
         scene_custom_name: args.scene_custom.clone(),
+        // Bug 3: tracker for CLI-explicit flags, used by rebuild_cloud_config
+        // to enforce CLI > config.toml > scene priority during live reload.
+        cli_explicit,
     };
 
     if args.bench_all {
