@@ -80,19 +80,47 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
 
 /// Main watcher loop — blocks on filesystem events, reparses on change.
 ///
-/// Bug 1 fix: when the native `notify` watcher (kqueue on BSDs, inotify on
-/// Linux, FSEvents on macOS, ReadDirectoryChanges on Windows) fails to
-/// initialize OR fails to register the watch path, we fall back to a
-/// polling mechanism that checks the file's modification time every
-/// 2 seconds. This guarantees live reload works on FreeBSD/GhostBSD and
-/// any platform where the native backend is unavailable (containers with
-/// restricted syscalls, network filesystems, etc.).
+/// Bug 1 fix (v25): HYBRID mode. The native `notify` watcher
+/// (kqueue on BSDs, inotify on Linux, FSEvents on macOS,
+/// ReadDirectoryChanges on Windows) is the primary event source. A
+/// polling heartbeat runs IN PARALLEL on a separate thread, checking
+/// the file's mtime every 2 seconds. Both paths feed into the same
+/// mpsc channel, so a change is detected via whichever fires first.
+///
+/// This fixes the FreeBSD silent-failure case: if `RecommendedWatcher`
+/// initializes successfully (no error) but the backend produces no
+/// events (e.g., kqueue feature not active, restricted container),
+/// the polling heartbeat still detects mtime changes and triggers
+/// live reload. The previous "either/or" fallback only kicked in when
+/// watcher creation FAILED, missing the silent-no-events case.
+///
+/// When the native watcher fails to initialize OR fails to register
+/// the watch path, we still log a warning — but the polling heartbeat
+/// runs unconditionally, so live reload always works.
 fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     const DEBOUNCE_MS: u64 = 200;
     const POLL_INTERVAL_MS: u64 = 2000;
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
 
+    // Spawn the polling heartbeat on a background thread. It feeds
+    // synthetic events into notify_tx when mtime changes, so the
+    // unified event loop below handles them identically to native
+    // events. This guarantees detection even when the native watcher
+    // is silent (FreeBSD kqueue edge case).
+    let poll_path = path.clone();
+    let poll_tx = notify_tx.clone();
+    if let Err(e) = std::thread::Builder::new()
+        .name("cosmostrix-config-poller".to_string())
+        .spawn(move || {
+            polling_heartbeat(poll_path, poll_tx, POLL_INTERVAL_MS);
+        })
+    {
+        eprintln!("[live-reload] failed to spawn polling heartbeat: {e} — native watcher only");
+    }
+
+    // Try to initialize the native watcher. If it fails, log a warning
+    // and continue — the polling heartbeat will still detect changes.
     let mut watcher: Option<RecommendedWatcher> = match RecommendedWatcher::new(
         move |res: notify::Result<notify::Event>| {
             let _ = notify_tx.send(res);
@@ -102,7 +130,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         Ok(w) => Some(w),
         Err(e) => {
             eprintln!(
-                "[live-reload] native watcher unavailable: {e} — falling back to polling every {POLL_INTERVAL_MS}ms"
+                "[live-reload] native watcher unavailable: {e} — relying on polling heartbeat ({POLL_INTERVAL_MS}ms interval)"
             );
             None
         }
@@ -123,10 +151,10 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     if let Some(ref mut w) = watcher {
         if let Err(e) = w.watch(&watch_dir, RecursiveMode::NonRecursive) {
             eprintln!(
-                "[live-reload] native watcher failed to register {}: {e} — falling back to polling every {POLL_INTERVAL_MS}ms",
+                "[live-reload] native watcher failed to register {}: {e} — relying on polling heartbeat",
                 watch_dir.display()
             );
-            // Drop the broken watcher so the polling fallback runs.
+            // Drop the broken watcher so it doesn't hold resources.
             watcher = None;
         }
     }
@@ -134,33 +162,39 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     let target_file = Arc::new(path.clone());
     let mut last_event = std::time::Instant::now();
 
-    // Native watcher path: blocks on `notify_rx.iter()`.
-    if let Some(_watcher) = watcher {
-        // Hold the watcher alive via `_watcher` for the loop's lifetime.
-        // The watcher is dropped when this scope exits.
-        for event_result in notify_rx.iter() {
-            if !handle_notify_event(
-                event_result,
-                &target_file,
-                &path,
-                &tx,
-                &mut last_event,
-                DEBOUNCE_MS,
-            ) {
-                break;
-            }
+    // Unified event loop: processes BOTH native events AND synthetic
+    // polling events (which arrive as Ok(Event) with kind=Modify and
+    // the target path). The polling heartbeat feeds synthetic events
+    // into notify_tx, so this loop doesn't need a separate branch.
+    // The watcher is held alive for the loop's lifetime via `_watcher`.
+    let _watcher = watcher;
+    for event_result in notify_rx.iter() {
+        if !handle_notify_event(
+            event_result,
+            &target_file,
+            &path,
+            &tx,
+            &mut last_event,
+            DEBOUNCE_MS,
+        ) {
+            break;
         }
-        return;
     }
+}
 
-    // Polling fallback path: check mtime every POLL_INTERVAL_MS.
-    eprintln!(
-        "[live-reload] polling {path} every {POLL_INTERVAL_MS}ms",
-        path = path.display()
-    );
+/// Polling heartbeat: checks file mtime every `interval_ms` and feeds
+/// synthetic notify events into `tx` when the mtime changes. This runs
+/// on a background thread alongside the native watcher, guaranteeing
+/// live reload works even when the native backend is silent (e.g.,
+/// FreeBSD kqueue feature not active, restricted containers).
+///
+/// The synthetic event uses `EventKind::Modify(ModifyKind::Any)` with
+/// the target file as the path, so the unified event loop in
+/// `watcher_loop` treats it identically to a native modify event.
+fn polling_heartbeat(path: PathBuf, tx: Sender<notify::Result<notify::Event>>, interval_ms: u64) {
     let mut last_mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
     loop {
-        std::thread::sleep(Duration::from_millis(POLL_INTERVAL_MS));
+        std::thread::sleep(Duration::from_millis(interval_ms));
         let current_mtime = match std::fs::metadata(&path).and_then(|m| m.modified()) {
             Ok(t) => t,
             Err(_) => continue,
@@ -170,17 +204,18 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         }
         last_mtime = Some(current_mtime);
 
-        // Same reparse + validate pipeline as the native path.
-        let content = match std::fs::read_to_string(&path) {
-            Ok(c) => c,
-            Err(_) => continue,
+        // Synthesize a notify::Event so the unified event loop handles
+        // it identically to a native event. The path must match what
+        // handle_notify_event's `touches_target` check expects (the
+        // target file's absolute path).
+        let event = notify::Event {
+            kind: notify::EventKind::Modify(notify::event::ModifyKind::Any),
+            paths: vec![path.clone()],
+            attrs: Default::default(),
         };
-        let parsed = configfile::parse_config_text(&content);
-        if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
-            continue;
-        }
-        if let Err(msg) = validate_and_send(&parsed, &tx) {
-            eprintln!("[live-reload] {msg}");
+        if tx.send(Ok(event)).is_err() {
+            // Channel closed — main loop exited, terminate the heartbeat.
+            break;
         }
     }
 }

@@ -264,8 +264,14 @@ fn clean_exit_frame_has_no_persistent_ghost_in_bottom_rows() {
         }
     }
     let ratio = non_blank_count as f32 / total as f32;
+    // v25 "windshield" calibration: threshold raised from 35% to 50%
+    // because the front-layer spawn probability was increased from 25%
+    // to 55% (rain-on-windshield effect). More front-layer droplets
+    // means more active trails reaching the bottom 5 rows during the
+    // 30-frame decay window. 50% still catches unbounded residue
+    // accumulation (which would push toward 100%).
     assert!(
-        ratio < 0.35,
+        ratio < 0.50,
         "bottom 5 rows after clean exit should not have persistent ghost glyphs (got {:.1}%)",
         ratio * 100.0
     );

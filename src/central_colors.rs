@@ -168,7 +168,14 @@ pub static THEMES: &[ThemeDef] = &[
                 (180, 90, 255),
                 (198, 120, 255),
                 (215, 150, 255),
-                (235, 195, 255),
+                // v25 calibration: head stop toned down from (235, 195, 255)
+                // to (220, 180, 255). The previous value's high luminance
+                // (sum 685) made the head dominate the body in the cinematic
+                // scene (which uses neon-purple), creating the "head too
+                // long/white" symptom. (220, 180, 255) (sum 655) matches
+                // NeonGreen's head luminance, preserving the 20% head / 60%
+                // body proportion contract.
+                (220, 180, 255),
             ],
             steps: 7,
             c16: &[Color::Magenta, Color::White],
