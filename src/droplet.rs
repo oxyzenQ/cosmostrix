@@ -44,7 +44,10 @@ use crate::constants::{
     EDGE_FADE_BOLD_THRESHOLD, EDGE_FADE_BOTTOM_LIP, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS,
     EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP,
     FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA,
-    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, PARALLAX_BRIGHTNESS_MULT,
+    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_DURATION_SECS,
+    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC,
+    MOUSE_FLASH_SECONDARY_SPEED_FRAC, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
+    MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
     PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, PARALLAX_HEAD_BLOOM_MULT,
     PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT, RAIN_SHADOW_LAYER_MULT,
     RAIN_SHADOW_PCT, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS,
@@ -187,34 +190,6 @@ pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
     1.0 - t * t
 }
 
-// ── adaptive temporal prediction ────────────────────────────────────────
-//
-// The temporal-prediction engine tracks where each droplet's head will be
-// N frames ahead, assuming its current velocity remains constant. When the
-// actual state matches the prediction, the simulation loop skips
-// `advance()` and the render loop skips `draw()` for that droplet — its
-// visible cells retain their previous content (which `Frame::set()`'s
-// content-aware dirty check already filters out), so they don't appear in
-// the dirty list. This slashes the dirty-cell count without altering the
-// rendered image.
-//
-// The adaptive layer (`droplet_prediction`) tunes the horizon per parallax
-// layer (gentle on the front, aggressive on the back) and disables
-// prediction entirely near the mouse halo, click wave fronts, and the
-// bottom-of-screen rain shadow — interactive / cinematic hotspots that
-// must update every frame.
-//
-// `Droplet` keeps the `predicted_state` field + `predicted_clean` /
-// `was_skipped` flags here, but the actual prediction math lives in
-// `droplet_prediction` to keep this file under the 1200-LOC ceiling.
-
-// Re-export the prediction symbols that `Droplet`'s own method bodies
-// need. The full prediction API lives in `droplet_prediction`; callers
-// outside this module import directly from there.
-use crate::droplet_prediction::{
-    compute_predicted_state, prediction_matches_actual, PredictedState,
-};
-
 #[derive(Clone, Debug)]
 pub struct Droplet {
     pub is_alive: bool,
@@ -259,47 +234,6 @@ pub struct Droplet {
     /// the new palette propagates only through newly spawned streams.
     pub palette_slot: u8,
 
-    // ── dragon-temporal: predicted state for skipping unchanged frames ──
-    //
-    // When `Some`, the simulation loop may skip `advance()` and the render
-    // loop may skip `draw()` for this droplet, because the previous frame's
-    // prediction indicated the visible cells would not change content this
-    // frame. The prediction is recomputed after every real `advance()` and
-    // is invalidated as soon as the actual state diverges from it.
-    //
-    // The flag `predicted_clean` is a transient per-frame marker set by the
-    // simulation pass so the draw pass knows to skip rendering. It is reset
-    // at the end of every frame.
-    //
-    // `was_skipped` tracks whether the previous frame skipped `advance()`.
-    // When true, the next real `advance()` must bypass the `max_sim_delta`
-    // cap so the accumulated elapsed time (K frames worth) is fully
-    // consumed — otherwise the droplet would move at 1/K speed. The cap
-    // exists for pause/resume correctness; bypassing it for predicted-clean
-    // droplets is safe because the skip was intentional, not a stall.
-    pub predicted_state: Option<PredictedState>,
-    pub predicted_clean: bool,
-    pub was_skipped: bool,
-
-    /// dragon-temporal peak: cells moved by the most recent `advance()` call.
-    /// Read by the draw pass to decide between `draw_recent_only()` (cheap:
-    /// just the new head cells + previous head cell transitioning to Body)
-    /// vs full `draw()` (full trail iteration). When
-    /// `last_chars_advanced <= DRAW_RECENT_THRESHOLD` (in rain.rs), the cheap
-    /// path slashes dirty cells per advancing droplet from ~5-7 to ~1-3.
-    pub last_chars_advanced: u16,
-
-    /// Forensic fix (Task 2): number of consecutive frames this droplet
-    /// has skipped `draw()` via temporal prediction. When this counter
-    /// reaches `MAX_PREDICTED_CLEAN_FRAMES`, the draw pass is forced to
-    /// run regardless of whether `prediction_matches_actual()` returns
-    /// true — refreshing the cell colors and painting any cell-boundary
-    /// crossings that the prediction's drift tolerance had masked.
-    ///
-    /// Reset to 0 every time `draw()` actually runs (predicted_clean=false
-    /// in the simulation pass).
-    pub frames_since_last_draw: u16,
-
     /// Turbulence phase offset (determines unique oscillation pattern).
     pub turb_phase: f32,
     /// Turbulence accumulator (elapsed time for this droplet's oscillation).
@@ -340,15 +274,6 @@ impl Droplet {
             head_stop_time: None,
             time_to_linger: Duration::from_millis(0),
             birth_time: None,
-
-            // dragon-temporal: no prediction until after the first advance().
-            predicted_state: None,
-            predicted_clean: false,
-            was_skipped: false,
-            // dragon-temporal peak: no advance yet.
-            last_chars_advanced: 0,
-            // Forensic fix (Task 2): no frames skipped yet.
-            frames_since_last_draw: 0,
         }
     }
 
@@ -368,16 +293,6 @@ impl Droplet {
         self.turb_time = 0.0;
         self.last_time = Some(now);
         self.birth_time = Some(now);
-        // dragon-temporal: clear any stale prediction from a previous
-        // lifecycle — a recycled droplet's new physics are independent of
-        // its old trajectory.
-        self.predicted_state = None;
-        self.predicted_clean = false;
-        self.was_skipped = false;
-        // dragon-temporal peak: reset advance counter for the new lifecycle.
-        self.last_chars_advanced = 0;
-        // Forensic fix (Task 2): reset staleness counter for the new lifecycle.
-        self.frames_since_last_draw = 0;
     }
 
     /// Apply spawn phase jitter: set a random fractional advance offset so
@@ -389,34 +304,6 @@ impl Droplet {
     #[inline]
     pub fn apply_phase_jitter(&mut self, offset: f32) {
         self.advance_remainder = offset.clamp(0.0, 1.0);
-    }
-
-    // ── adaptive temporal prediction ─────────────────────────────────────
-    //
-    // The heavy prediction math lives in `droplet_prediction` (free
-    // functions operating on `&Droplet`). These method wrappers preserve
-    // the original call sites (`d.predict_droplet_path(...)`,
-    // `d.prediction_matches_actual()`) so the simulation loop reads
-    // naturally. `apply_prediction()` is new — it encapsulates the
-    // "skip this frame" side effects so `rain.rs` doesn't poke at three
-    // separate fields when committing a prediction-driven skip.
-
-    /// Predict where this droplet's head will be after `frames_ahead`
-    /// frames. Thin wrapper over
-    /// [`compute_predicted_state`](crate::droplet_prediction::compute_predicted_state).
-    /// See that function for the full prediction model.
-    #[inline]
-    pub fn predict_droplet_path(&self, frames_ahead: u8, fps: f32) -> Option<PredictedState> {
-        compute_predicted_state(self, frames_ahead, fps)
-    }
-
-    /// Check whether the current head is within `PREDICTION_DRIFT_TOLERANCE`
-    /// cells of the predicted **trajectory** (not the end-of-horizon
-    /// position). Thin wrapper over
-    /// [`prediction_matches_actual`](crate::droplet_prediction::prediction_matches_actual).
-    #[inline]
-    pub fn prediction_matches_actual(&self) -> bool {
-        prediction_matches_actual(self)
     }
 
     pub fn increment_time(&mut self, delta: Duration) {
@@ -487,28 +374,14 @@ impl Droplet {
         let chars_advanced = whole as u16;
         if chars_advanced == 0 {
             self.last_time = Some(now);
-            // dragon-temporal peak: no head movement this frame — draw pass
-            // will see last_chars_advanced = 0 and use the cheap path (or
-            // skip draw entirely via predicted_clean).
-            self.last_chars_advanced = 0;
             return false;
         }
-
-        // dragon-temporal peak: track the actual head movement (post-clamp
-        // to end_line) so the draw pass knows how many new head cells need
-        // rendering. We capture the pre-add head_put_line, then after the
-        // clamp, compute the delta. When the head is not crawling (already
-        // stopped at end_line), no new head cells are drawn, so we set to 0.
-        let old_head_put_line = self.head_put_line;
 
         if self.is_head_crawling {
             self.head_put_line = self.head_put_line.saturating_add(chars_advanced);
             if self.head_put_line > self.end_line {
                 self.head_put_line = self.end_line;
             }
-
-            // dragon-temporal peak: actual head movement = new - old.
-            self.last_chars_advanced = self.head_put_line.saturating_sub(old_head_put_line);
 
             if self.head_put_line == self.end_line {
                 self.is_head_crawling = false;
@@ -519,9 +392,6 @@ impl Droplet {
                     }
                 }
             }
-        } else {
-            // Head stopped — only the tail is advancing. No new head cells.
-            self.last_chars_advanced = 0;
         }
 
         if self.is_tail_crawling
@@ -601,41 +471,21 @@ impl Droplet {
         0.0
     }
 
+    /// Legacy binary helper kept for CharLoc::Head classification threshold.
+    /// Unused after the head_brightness hoisting optimization, but retained
+    /// as a thin wrapper for any future caller that needs the bool form.
+    #[inline]
+    #[allow(dead_code)]
+    fn is_head_bright(&self, now: Instant) -> bool {
+        self.head_brightness(now) > 0.3
+    }
+
     pub fn draw(
         &mut self,
         ctx: &DrawCtx<'_>,
         frame: &mut Frame,
         now: Instant,
         draw_everything: bool,
-    ) {
-        self.draw_impl(ctx, frame, now, draw_everything, false);
-    }
-
-    /// dragon-temporal peak (Lever 2 + 3): cheap draw path that only iterates
-    /// the new head cell(s) + previous head cell (transitioning Head → Body).
-    /// Body cells further down the trail retain their previous frame's content
-    /// (slightly stale head bloom — imperceptible at 60 FPS). Tail cleanup is
-    /// still performed (same as `draw()`) to avoid lingering stale glyphs.
-    /// `Frame::set_persistent` exists for cases where we want to re-emit a
-    /// cell without recomputing its content; here we recompute the head region
-    /// because the head char/color genuinely changed.
-    pub fn draw_recent_only(
-        &mut self,
-        ctx: &DrawCtx<'_>,
-        frame: &mut Frame,
-        now: Instant,
-        draw_everything: bool,
-    ) {
-        self.draw_impl(ctx, frame, now, draw_everything, true);
-    }
-
-    fn draw_impl(
-        &mut self,
-        ctx: &DrawCtx<'_>,
-        frame: &mut Frame,
-        now: Instant,
-        draw_everything: bool,
-        recent_only: bool,
     ) {
         let bg = ctx.bg;
 
@@ -647,18 +497,6 @@ impl Droplet {
             }
             self.tail_cur_line = tp;
             start_line = tp.saturating_add(1);
-        }
-
-        // dragon-temporal peak (Lever 2 + 3): when `recent_only` is true,
-        // narrow the iteration to just the new head cell(s) + previous head
-        // cell (transitioning Head → Body). Range:
-        //   [head_put_line - last_chars_advanced, head_put_line]
-        // Max with post-tail-cleanup start_line to avoid re-drawing blanked
-        // cells. If last_chars_advanced == 0 (head stopped, brightness
-        // decaying), range collapses to just the current head cell.
-        if recent_only {
-            let prev_head = self.head_put_line.saturating_sub(self.last_chars_advanced);
-            start_line = start_line.max(prev_head);
         }
 
         // PERF: head_brightness() depends only on `self` and `now`, NOT on
@@ -867,14 +705,88 @@ impl Droplet {
                     b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
-                // Cursor glow + click flash were previously applied here per
-                // cell. They have been MOVED to a global post-process pass
-                // (`Cloud::apply_interactive_glow()` in `src/cloud/rain.rs`)
-                // that runs AFTER the droplet draw pass. This guarantees the
-                // halo + ripple are always applied even when a droplet's
-                // `draw()` was skipped via temporal prediction, AND extends
-                // the glow to background cells (between droplets) that were
-                // previously unreachable from per-droplet rendering.
+                // Cursor glow: cells near mouse cursor get brighter (elliptical falloff)
+                if ctx.mouse_col != u16::MAX {
+                    let col_dist = if self.bound_col > ctx.mouse_col {
+                        (self.bound_col - ctx.mouse_col) as f32
+                    } else {
+                        (ctx.mouse_col - self.bound_col) as f32
+                    };
+                    let line_dist = if line > ctx.mouse_line {
+                        (line - ctx.mouse_line) as f32
+                    } else {
+                        (ctx.mouse_line - line) as f32
+                    };
+                    let norm_col = col_dist / MOUSE_GLOW_RADIUS_COLS;
+                    let norm_line = line_dist / MOUSE_GLOW_RADIUS_LINES;
+                    let dist_sq = norm_col * norm_col + norm_line * norm_line;
+                    if dist_sq < 1.0 {
+                        let glow = (1.0 - dist_sq) * MOUSE_GLOW_INTENSITY;
+                        let wf = (glow * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    }
+                }
+
+                // Click flash: expanding glow wave from click point (v17 mastery).
+                // F4: use cached flash_elapsed instead of per-cell flash_time.elapsed()
+                //
+                // v17 mastery: dual-ring water-drop ripple. A primary bright ring
+                // expands outward at 60 cells/s, followed by a secondary dimmer
+                // ring at half speed — creating a layered "stone in water"
+                // cinematic ripple that propagates to the screen edge.
+                //
+                // The fade uses a quadratic curve (fade^1.5) for natural energy
+                // dissipation — the wave starts strong and decays gradually like
+                // a real water ripple, not a linear cutoff.
+                if let Some(elapsed) = ctx.flash_elapsed {
+                    let col_dist = if self.bound_col > ctx.flash_col {
+                        (self.bound_col - ctx.flash_col) as f32
+                    } else {
+                        (ctx.flash_col - self.bound_col) as f32
+                    };
+                    let line_dist = if line > ctx.flash_line {
+                        (line - ctx.flash_line) as f32
+                    } else {
+                        (ctx.flash_line - line) as f32
+                    };
+                    let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
+                    // Quadratic fade: natural energy dissipation (fade^1.5).
+                    // The wave starts strong and decays gradually like a real
+                    // water ripple, rather than a linear cutoff.
+                    let raw_fade = (1.0 - elapsed / MOUSE_FLASH_DURATION_SECS).max(0.0);
+                    let fade = raw_fade * raw_fade.sqrt();
+
+                    // Primary ring: fast, bright, full intensity.
+                    let primary_radius = elapsed * MOUSE_FLASH_SPEED;
+                    let primary_dist = (euclidean - primary_radius).abs();
+                    let mut factor = 0.0;
+                    if primary_dist < MOUSE_FLASH_RING_WIDTH {
+                        // Sharp leading edge, soft trailing tail (squared falloff).
+                        let t = 1.0 - primary_dist / MOUSE_FLASH_RING_WIDTH;
+                        let t_smooth = t * t;
+                        factor = t_smooth * MOUSE_FLASH_INTENSITY * fade;
+                    }
+
+                    // Secondary ring: slower, dimmer, layered echo.
+                    let secondary_radius =
+                        elapsed * MOUSE_FLASH_SPEED * MOUSE_FLASH_SECONDARY_SPEED_FRAC;
+                    let secondary_dist = (euclidean - secondary_radius).abs();
+                    if secondary_dist < MOUSE_FLASH_RING_WIDTH {
+                        let t = 1.0 - secondary_dist / MOUSE_FLASH_RING_WIDTH;
+                        let t_smooth = t * t;
+                        factor +=
+                            t_smooth * MOUSE_FLASH_INTENSITY * MOUSE_FLASH_SECONDARY_FRAC * fade;
+                    }
+
+                    if factor > 0.0 {
+                        let wf = (factor * 256.0) as i32;
+                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    }
+                }
 
                 // Head brightness modulation
                 if matches!(loc, CharLoc::Head) && head_bright < 1.0 {

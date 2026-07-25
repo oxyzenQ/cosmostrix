@@ -102,20 +102,12 @@ pub struct DrawCtx<'a> {
     pub color_wave_line: Option<f32>,
 
     /// Mouse cursor column (u16::MAX if no mouse).
-    ///
-    /// Kept for API compatibility — the cursor halo is now applied as a
-    /// global post-process (`Cloud::apply_interactive_glow`) rather than
-    /// per-cell in `Droplet::draw()`.
-    #[allow(dead_code)]
     pub mouse_col: u16,
     /// Mouse cursor line (u16::MAX if no mouse).
-    #[allow(dead_code)]
     pub mouse_line: u16,
     /// Flash effect click column.
-    #[allow(dead_code)]
     pub flash_col: u16,
     /// Flash effect click line.
-    #[allow(dead_code)]
     pub flash_line: u16,
     /// Flash effect start time (None if no active flash).
     /// Kept for API compatibility; use `flash_elapsed` for per-cell logic.
@@ -123,7 +115,6 @@ pub struct DrawCtx<'a> {
     pub flash_time: Option<Instant>,
     /// Cached flash elapsed seconds (None if no active flash or expired).
     /// Precomputed once per frame to avoid per-cell `Instant::elapsed()` syscalls.
-    #[allow(dead_code)]
     pub flash_elapsed: Option<f32>,
     /// Cached result of pool_is_binary check, computed once per DrawCtx
     /// construction to avoid per-cell iteration of the char pool.

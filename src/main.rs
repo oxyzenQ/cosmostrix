@@ -106,7 +106,6 @@ mod docs_tests;
 mod doctor;
 mod dragon;
 mod droplet;
-mod droplet_prediction;
 mod envstat;
 mod frame;
 mod help_detail;
