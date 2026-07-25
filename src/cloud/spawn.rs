@@ -403,20 +403,22 @@ impl Cloud {
 
         // Assign parallax layer (0=far, 1=mid, 2=near)
         //
-        // v25 "windshield" calibration: front layer (2) now gets the
-        // highest spawn probability (55%) so it feels like rain hitting
-        // a car windshield — prominent, dense, immediate. Mid layer (1)
-        // is the secondary band (30%), and back layer (0) is the
-        // atmospheric depth haze (15%).
+        // v25 "deep atmospheric" calibration: back layer (0) now gets
+        // the highest spawn probability (50%) so the background is
+        // the most active band — deep, atmospheric, with constant
+        // motion. Mid layer (1) is sparse (15%) for accent depth.
+        // Front layer (2) is 35% — prominent enough to read as rain
+        // hitting a windshield, but not dominating the frame.
         //
-        // Previous distribution was [0.35, 0.40, 0.25] — back-heavy,
-        // making the front layer feel sparse and the rain appear distant.
-        // The new [0.15, 0.30, 0.55] inverts the priority: front layer
-        // is now the visual centerpiece, with mid/back providing depth.
+        // Previous "windshield" distribution was [0.15, 0.30, 0.55] —
+        // front-heavy, making the back layer feel empty and the rain
+        // appear too immediate. The new [0.50, 0.15, 0.35] inverts the
+        // priority: back layer is the active atmospheric depth, mid is
+        // a sparse accent, front is the windshield touch.
         let layer_roll = self.rand_chance.sample(&mut self.mt);
-        let layer: u8 = if layer_roll < 0.15 {
+        let layer: u8 = if layer_roll < 0.50 {
             0
-        } else if layer_roll < 0.45 {
+        } else if layer_roll < 0.65 {
             1
         } else {
             2
