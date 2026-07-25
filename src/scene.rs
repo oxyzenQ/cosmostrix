@@ -209,12 +209,43 @@ pub const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
+    // --- Tribute scene: carbonic ---
+    //
+    // Honors the +280% FPS achievement of the temporal-prediction
+    // experiment (v20.0.0: 7,843 → 29,773 FPS, dirty_ratio 18.33% →
+    // 0.39%). The experiment was ultimately reverted in v25 because
+    // it compromised the cinematic visual quality, but the lessons
+    // learned — about prediction, drift tolerance, and the
+    // tension between performance and beauty — remain invaluable.
+    //
+    // `carbonic` evokes the aesthetic of carbon fiber: dark, dense,
+    // futuristic, and resilient. The `carbon` palette (dark-grey-to-
+    // silver ramp, head RGB 230/240/250 — compliant with the
+    // head-not-pure-white invariant) gives a sleek metallic feel.
+    // `binary` charset keeps the visual high-tech and minimal.
+    // Speed 18 + density 0.95 produce a dense, energetic rain that
+    // showcases the engine's throughput. Subtle glitch hints at the
+    // controlled chaos of the prediction experiment.
+    SceneInfo {
+        name: "carbonic",
+        description: "Carbonic — tribute to the temporal-prediction experiment; dense metallic carbon-fiber binary rain",
+        config: SceneConfig {
+            color: Some("carbon"),
+            charset: Some("binary"),
+            fps: Some(60.0),
+            speed: Some(18.0),
+            density: Some(0.95),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Glyph,
+        },
+    },
 ];
 
 #[must_use]
 pub fn all_scene_names() -> &'static [&'static str] {
     &[
         "calm",
+        "carbonic",
         "cinematic",
         "classic",
         "cosmic_dragon",
@@ -366,6 +397,7 @@ mod tests {
             all_scene_names(),
             &[
                 "calm",
+                "carbonic",
                 "cinematic",
                 "classic",
                 "cosmic_dragon",
@@ -385,8 +417,8 @@ mod tests {
     }
 
     #[test]
-    fn scene_catalog_has_twelve_entries() {
-        assert_eq!(SCENES.len(), 12, "catalog must contain 12 built-in scenes");
+    fn scene_catalog_has_thirteen_entries() {
+        assert_eq!(SCENES.len(), 13, "catalog must contain 13 built-in scenes");
     }
 
     #[test]

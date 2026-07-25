@@ -117,7 +117,7 @@ COMMON OPTIONS:
       fps, speed, density, glitch-level, and rain style to curated
       values. Explicit CLI flags always override scene-managed values.
       Built-in scenes: cinematic (default), matrix, monolith, signal, classic,
-      calm, storm, cosmos, neon, hacker, low-power, cosmic_dragon.
+      calm, storm, cosmos, neon, hacker, low-power, cosmic_dragon, carbonic.
       Use --list-scenes to see all entries with descriptions.
 
       cosmic_dragon is the temporal-prediction milestone scene — a
@@ -127,12 +127,23 @@ COMMON OPTIONS:
       (+280%). It is the visible reward for the achievement, not part
       of the interactive x/X cycle.
 
+      carbonic is a tribute to that same experiment. The temporal-
+      prediction code was ultimately reverted in v25 because it
+      compromised the cinematic visual quality, but the lessons learned
+      about prediction, drift tolerance, and the tension between
+      performance and beauty remain invaluable. `carbonic` evokes the
+      aesthetic of carbon fiber: dark, dense, futuristic, and resilient.
+      Palette `carbon` (dark-grey-to-silver ramp) + charset `binary`
+      + speed 18 + density 0.95 produce a dense, energetic metallic
+      rain that showcases the engine's throughput.
+
       cosmostrix
       cosmostrix --scene matrix
       cosmostrix --scene signal --fps 60
       cosmostrix --scene storm
       cosmostrix --scene low-power
       cosmostrix --scene cosmic_dragon
+      cosmostrix --scene carbonic
 
   --scene-custom <name>
       Apply a user-defined custom scene from config. Custom scenes use
