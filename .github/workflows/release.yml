@@ -834,7 +834,7 @@ jobs:
                 echo "Use format: vX.Y.Z for stable releases, e.g. v2.1.0"
                 exit 1
                 ;;
-              alpha.*|beta.*|rc.*) PRE="true";;
+              alpha.*|beta.*|rc.*|pre.*) PRE="true";;
               *) PRE="true";;
             esac
           fi
@@ -853,12 +853,38 @@ jobs:
       - name: Generate release body
         shell: bash
         run: |
-          PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${{ steps.ver.outputs.tag }}$" | head -1 || true)
+          # Pre-release tags (alpha/beta/rc/pre) are excluded from the
+          # changelog base when computing a FINAL release. This ensures
+          # the final v25.0.0 changelog spans from the last STABLE
+          # release (e.g. v15) to v25.0.0, ignoring intermediate
+          # pre-releases (v25.0.0-alpha.1, v25.0.0-rc.1, etc.).
+          #
+          # For pre-release versions themselves, the prev tag can be
+          # any (the changelog from last final or prev pre-release is
+          # acceptable — users testing pre-releases want to see what
+          # changed since the last build).
+          TAG="${{ steps.ver.outputs.tag }}"
+          IS_PRERELEASE="${{ steps.ver.outputs.prerelease }}"
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            # Pre-release: use the most recent tag of any kind.
+            PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1 || true)
+          else
+            # Final release: skip pre-release tags when finding prev.
+            # Pre-release tags match: v*-alpha*, v*-beta*, v*-rc*, v*-pre*
+            PREV_TAG=$(git tag --sort=-creatordate \
+              | grep -v "^${TAG}$" \
+              | grep -vE '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre)[\.\-]' \
+              | head -1 || true)
+          fi
           {
             if [ -n "$PREV_TAG" ]; then
               echo "## What's Changed"
               echo ""
-              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${{ steps.ver.outputs.tag }}"
+              if [ "$IS_PRERELEASE" = "true" ]; then
+                echo "> **Pre-release build** — not a stable release. Expect bugs."
+                echo ""
+              fi
+              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${TAG}"
               echo ""
             else
               echo "Initial release."
@@ -874,6 +900,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
+          # Release title: append "(Pre-Release)" for pre-release versions
+          # so users can distinguish them at a glance in the GitHub releases
+          # list. Final releases use the bare tag name as the title.
+          name: ${{ steps.ver.outputs.tag }}${{ steps.ver.outputs.prerelease == 'true' && ' (Pre-Release)' || '' }}
           body_path: release-body.md
           draft: false
           prerelease: ${{ steps.ver.outputs.prerelease }}
