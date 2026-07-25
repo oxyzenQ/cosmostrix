@@ -9,7 +9,9 @@ use crossterm::style::Color;
 use rand::distr::Distribution;
 
 use crate::constants::*;
-use crate::droplet::PREDICTION_HORIZON;
+use crate::droplet_prediction::{
+    adaptive_prediction_horizon, is_prediction_disabled_by_context, PredictionContext,
+};
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 
@@ -281,17 +283,42 @@ impl Cloud {
             // absorbs ±1 cell of rounding noise.
             const PREDICTION_FPS: f32 = 60.0;
 
+            // ── adaptive temporal prediction: build context once per frame ──
+            //
+            // `PredictionContext` snapshots all the state the prediction
+            // engine needs to decide whether a droplet MAY skip a frame:
+            // screen dimensions, mouse cursor position, active click wave.
+            // Building it once per frame (rather than per-droplet) keeps the
+            // simulation loop tight — every droplet just reads from the
+            // snapshot via `is_prediction_disabled_by_context()`.
+            let pred_ctx = PredictionContext {
+                cols: self.cols,
+                lines: self.lines,
+                mouse_enabled: self.mouse_enabled,
+                mouse_col: self.mouse_col,
+                mouse_line: self.mouse_line,
+                flash_col: self.flash_col,
+                flash_line: self.flash_line,
+                flash_time: self.flash_time,
+                now,
+            };
+
             for i in 0..self.droplets.len() {
                 if !self.droplets[i].is_alive {
                     continue;
                 }
 
-                // ── dragon-temporal: try to skip advance() via prediction ──
+                // ── adaptive temporal prediction: try to skip advance() ──
                 //
-                // Before calling advance(), check if the droplet's current
-                // state already matches a previously computed prediction.
-                // If so, the droplet is "predicted clean" — its visible
-                // cells haven't moved since the prediction was made, so:
+                // Before calling advance(), check if (a) the droplet's
+                // current state already matches a previously computed
+                // prediction, AND (b) the surrounding context permits
+                // skipping. The context check disables prediction near
+                // interactive hotspots (mouse halo, click wave) and in the
+                // rain shadow at the bottom of the screen — those regions
+                // must update every frame for cinematic / responsive feel.
+                //
+                // If both checks pass, the droplet is "predicted clean":
                 //   1. Skip advance() entirely (do NOT update last_time —
                 //      let elapsed accumulate so the next real advance()
                 //      sees K frames of elapsed time and advances K rows,
@@ -305,22 +332,42 @@ impl Cloud {
                 //      prediction expires and the next frame falls through
                 //      to a real advance() to recalibrate.
                 //
-                // If the prediction does NOT match (turbulence pushed the
-                // droplet off-trajectory, or the prediction expired), clear
-                // it and fall through to a real advance() + re-predict.
+                // If the prediction does NOT match OR the context disables
+                // skipping, clear the prediction and fall through to a real
+                // advance() + re-predict with an adaptive horizon tuned to
+                // this droplet's layer + speed.
                 let predicted_clean = {
                     let d = &mut self.droplets[i];
-                    if d.prediction_matches_actual() {
+                    // Context check uses the droplet's CURRENT head position
+                    // (head_cur_line is the visible row; bound_col is the
+                    // column). head_cur_line tracks the rendered position
+                    // even when the head is crawling, so it's the right
+                    // reference for "is this droplet inside the mouse halo
+                    // right now?".
+                    let in_context_forbid = is_prediction_disabled_by_context(
+                        &pred_ctx,
+                        d.bound_col,
+                        d.head_cur_line,
+                        d.layer,
+                    );
+                    if in_context_forbid {
+                        // Interactive / cinematic hotspot — force a real
+                        // advance() + draw() this frame. Clear any stale
+                        // prediction so we don't accidentally re-enter the
+                        // skip path next frame with stale trajectory data.
+                        d.predicted_state = None;
+                        d.predicted_clean = false;
+                        // Note: was_skipped is NOT cleared here — it's
+                        // read below to decide whether to bypass the
+                        // max_sim_delta cap, then cleared after advance().
+                        false
+                    } else if d.prediction_matches_actual() {
                         // Do NOT update last_time — let it stay at the
                         // pre-skip value so elapsed accumulates. The next
                         // real advance() will consume K frames of elapsed
                         // and advance K rows in one call (visually
                         // identical to K separate 1-row advances at 60 FPS).
-                        if let Some(ps) = d.predicted_state.as_mut() {
-                            ps.frames_remaining = ps.frames_remaining.saturating_sub(1);
-                        }
-                        d.predicted_clean = true;
-                        d.was_skipped = true;
+                        d.apply_prediction();
                         true
                     } else {
                         // Prediction invalid — clear it. We'll recompute
@@ -381,11 +428,16 @@ impl Cloud {
                     let hp = d.head_put_line;
                     let cp_idx = d.char_pool_idx;
                     let died = !d.is_alive;
-                    // dragon-temporal: clear the skip flag now that we've
-                    // consumed the accumulated elapsed. Recompute the
-                    // prediction for the next PREDICTION_HORIZON frames.
+                    // adaptive temporal prediction: clear the skip flag now
+                    // that we've consumed the accumulated elapsed, then
+                    // recompute the prediction with an ADAPTIVE horizon
+                    // tuned to this droplet's layer + speed. The back layer
+                    // (slow, far) gets a long horizon so it can skip many
+                    // frames; the front layer (fast, near) gets a short
+                    // horizon so its motion stays visually fresh.
                     d.was_skipped = false;
-                    d.predicted_state = d.predict_droplet_path(PREDICTION_HORIZON, PREDICTION_FPS);
+                    let horizon = adaptive_prediction_horizon(d.layer, d.chars_per_sec);
+                    d.predicted_state = d.predict_droplet_path(horizon, PREDICTION_FPS);
                     (col, start_line, hp, cp_idx, free_col, died)
                 };
 
