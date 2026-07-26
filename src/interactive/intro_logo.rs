@@ -186,13 +186,98 @@ struct LogoCell {
     ch: char,
 }
 
-/// Parse [`LOGO_ART`] into lines, computing the bounding-box width and
-/// height. Trailing whitespace is stripped from each line.
-fn parse_logo_art() -> (Vec<&'static str>, u16, u16) {
-    let lines: Vec<&'static str> = LOGO_ART.lines().collect();
-    let height = lines.len() as u16;
-    let width = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0) as u16;
-    (lines, width, height)
+/// Parse [`LOGO_ART`] into lines + bounding-box dims. v25 responsive:
+/// if the terminal is smaller than the art, scale it down via
+/// pixel-averaging (see [`scale_art`]). Lets the intro play on small
+/// terminals (down to 10×5) instead of being skipped.
+fn parse_logo_art(term_w: u16, term_h: u16) -> (Vec<String>, u16, u16) {
+    let raw_lines: Vec<&'static str> = LOGO_ART.lines().collect();
+    let raw_height = raw_lines.len() as u16;
+    let raw_width = raw_lines
+        .iter()
+        .map(|l| l.chars().count())
+        .max()
+        .unwrap_or(0) as u16;
+
+    // Art fits — return as-is (owned Strings for type uniformity).
+    if raw_width <= term_w && raw_height <= term_h {
+        let owned: Vec<String> = raw_lines.iter().map(|s| s.to_string()).collect();
+        return (owned, raw_width, raw_height);
+    }
+
+    // Scale to fit with 1-cell margin, preserving aspect ratio.
+    let avail_w = term_w.saturating_sub(2).max(1);
+    let avail_h = term_h.saturating_sub(2).max(1);
+    let scale_x = avail_w as f32 / raw_width as f32;
+    let scale_y = avail_h as f32 / raw_height as f32;
+    let scale = scale_x.min(scale_y).min(1.0);
+
+    let scaled = scale_art(&raw_lines, raw_width, raw_height, scale);
+    let scaled_height = scaled.len() as u16;
+    let scaled_width = scaled.iter().map(|l| l.chars().count()).max().unwrap_or(0) as u16;
+    (scaled, scaled_width, scaled_height)
+}
+
+/// Scale ASCII art down by a factor in (0.0, 1.0] via pixel-averaging.
+/// Samples each block, picks the densest (most ink) character. Preserves
+/// the logo's visual structure when shrunk. Runs once at intro start.
+fn scale_art(raw_lines: &[&'static str], raw_w: u16, raw_h: u16, scale: f32) -> Vec<String> {
+    if scale >= 1.0 || raw_w == 0 || raw_h == 0 {
+        return raw_lines.iter().map(|s| s.to_string()).collect();
+    }
+    let new_w = ((raw_w as f32 * scale).ceil() as u16).max(1);
+    let new_h = ((raw_h as f32 * scale).ceil() as u16).max(1);
+    let inv_scale_x = raw_w as f32 / new_w as f32;
+    let inv_scale_y = raw_h as f32 / new_h as f32;
+
+    let mut out: Vec<String> = Vec::with_capacity(new_h as usize);
+    for ny in 0..new_h {
+        let y0 = (ny as f32 * inv_scale_y).floor() as u16;
+        let y1 = ((ny + 1) as f32 * inv_scale_y).ceil() as u16;
+        let mut row = String::with_capacity(new_w as usize);
+        for nx in 0..new_w {
+            let x0 = (nx as f32 * inv_scale_x).floor() as u16;
+            let x1 = ((nx + 1) as f32 * inv_scale_x).ceil() as u16;
+            row.push(sample_block(raw_lines, x0, y0, x1, y1));
+        }
+        out.push(row);
+    }
+    out
+}
+
+/// Sample a block of the original art, return the densest character.
+fn sample_block(raw_lines: &[&'static str], x0: u16, y0: u16, x1: u16, y1: u16) -> char {
+    let mut best_char = ' ';
+    let mut best_density = 0u8;
+    for y in y0..y1.max(y0 + 1) {
+        let Some(line) = raw_lines.get(y as usize) else {
+            continue;
+        };
+        for x in x0..x1.max(x0 + 1) {
+            let Some(ch) = line.chars().nth(x as usize) else {
+                continue;
+            };
+            let density = char_density(ch);
+            if density > best_density {
+                best_density = density;
+                best_char = ch;
+            }
+        }
+    }
+    best_char
+}
+
+/// Density ranking: whitespace=0, light=1, medium=2, heavy=3, solid=4.
+fn char_density(ch: char) -> u8 {
+    match ch {
+        ' ' => 0,
+        '·' | '•' | '.' | ',' | '\'' | '`' => 1,
+        '░' | '-' | '_' | '|' | '/' | '\\' | ':' => 2,
+        '▒' | '+' | 'x' | '*' | 'o' => 3,
+        '▓' | '█' | '#' | '@' | '%' | '&' | '=' | '$' => 4,
+        _ if ch.is_ascii_graphic() => 2,
+        _ => 0,
+    }
 }
 
 /// Collect every non-blank cell from the parsed art, along with its
@@ -206,7 +291,7 @@ fn parse_logo_art() -> (Vec<&'static str>, u16, u16) {
 /// dissolve "rings" centered on what the eye perceives as the logo's
 /// core, which is especially important for asymmetric art where the
 /// ink mass is offset from the bbox center.
-fn collect_logo_cells(lines: &[&'static str], cx: f32, cy: f32) -> Vec<LogoCell> {
+fn collect_logo_cells(lines: &[String], cx: f32, cy: f32) -> Vec<LogoCell> {
     let mut out = Vec::with_capacity(256);
     for (y, line) in lines.iter().enumerate() {
         for (x, ch) in line.chars().enumerate() {
@@ -240,7 +325,7 @@ fn collect_logo_cells(lines: &[&'static str], cx: f32, cy: f32) -> Vec<LogoCell>
 /// Using the centroid for both placement and the spark target keeps the
 /// falling spark visually aligned with the logo's perceived center,
 /// regardless of how the art is shaped.
-fn visual_centroid(lines: &[&'static str]) -> (f32, f32) {
+fn visual_centroid(lines: &[String]) -> (f32, f32) {
     let mut sum_x: f32 = 0.0;
     let mut sum_y: f32 = 0.0;
     let mut count: f32 = 0.0;
@@ -278,10 +363,8 @@ pub(super) fn run_logo_intro(
     w: u16,
     h: u16,
 ) -> std::io::Result<()> {
-    let (lines, logo_w, logo_h) = parse_logo_art();
-    // If the logo is somehow wider than the terminal, abort gracefully.
-    // (The dispatcher already enforces 80×24 minimum, but defensively
-    // re-check here in case of future logo edits.)
+    let (lines, logo_w, logo_h) = parse_logo_art(w, h);
+    // Defensive: parse_logo_art scales to fit, so this is a fallback.
     if logo_w > w || logo_h > h {
         return Ok(());
     }
@@ -734,7 +817,7 @@ mod tests {
 
     #[test]
     fn parse_logo_art_returns_consistent_dimensions() {
-        let (lines, w, h) = parse_logo_art();
+        let (lines, w, h) = parse_logo_art(80, 24);
         assert_eq!(lines.len() as u16, h, "height must match line count");
         // Width is the max char count across lines.
         let computed_w = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0) as u16;
@@ -744,9 +827,42 @@ mod tests {
         assert!(h <= 24, "logo height {h} must fit in 24-row terminal");
     }
 
+    /// v25 responsive: parse_logo_art scales art to fit small terminals.
+    #[test]
+    fn parse_logo_art_scales_down_for_small_terminal() {
+        let (lines, w, h) = parse_logo_art(30, 20);
+        assert!(w <= 30, "scaled logo width {w} must fit in 30-col terminal");
+        assert!(
+            h <= 20,
+            "scaled logo height {h} must fit in 20-row terminal"
+        );
+        // Scaled art should still have content (not empty).
+        assert!(!lines.is_empty(), "scaled art must not be empty");
+        let total_ink: usize = lines
+            .iter()
+            .map(|l| l.chars().filter(|&c| c != ' ').count())
+            .sum();
+        assert!(total_ink > 0, "scaled art must retain some ink cells");
+    }
+
+    /// v25 responsive: no upscaling when terminal exceeds art size.
+    #[test]
+    fn parse_logo_art_does_not_scale_up_for_large_terminal() {
+        let (lines_large, w_large, h_large) = parse_logo_art(200, 50);
+        let (lines_default, w_default, h_default) = parse_logo_art(80, 24);
+        // Both should produce identical output (no upscaling).
+        assert_eq!(w_large, w_default, "no upscaling for large terminal");
+        assert_eq!(h_large, h_default, "no upscaling for large terminal");
+        assert_eq!(
+            lines_large.len(),
+            lines_default.len(),
+            "line count must match"
+        );
+    }
+
     #[test]
     fn collect_logo_cells_skips_blanks() {
-        let (lines, _w, _h) = parse_logo_art();
+        let (lines, _w, _h) = parse_logo_art(80, 24);
         let (cx, cy) = visual_centroid(&lines);
         let cells = collect_logo_cells(&lines, cx, cy);
         // Every collected cell must have a non-blank glyph.
@@ -763,7 +879,7 @@ mod tests {
 
     #[test]
     fn collect_logo_cells_computes_centroid_distance() {
-        let (lines, _w, _h) = parse_logo_art();
+        let (lines, _w, _h) = parse_logo_art(80, 24);
         let (cx, cy) = visual_centroid(&lines);
         let cells = collect_logo_cells(&lines, cx, cy);
         // The centermost cell should have a small dist_sq; the outermost
@@ -790,7 +906,7 @@ mod tests {
 
     #[test]
     fn visual_centroid_is_within_bounding_box() {
-        let (lines, w, h) = parse_logo_art();
+        let (lines, w, h) = parse_logo_art(80, 24);
         let (cx, cy) = visual_centroid(&lines);
         // The centroid must lie inside the bounding box.
         assert!(
@@ -814,7 +930,7 @@ mod tests {
         // the bounding-box center. If this assertion ever fails, it
         // means the art became symmetric (and the centroid-based
         // placement would be a no-op — still correct, just unnecessary).
-        let (lines, w, h) = parse_logo_art();
+        let (lines, w, h) = parse_logo_art(80, 24);
         let (cx, cy) = visual_centroid(&lines);
         let bbox_cx = w as f32 * 0.5;
         let bbox_cy = h as f32 * 0.5;
@@ -831,14 +947,14 @@ mod tests {
     #[test]
     fn visual_centroid_handles_empty_art() {
         // Defensive: an empty art string must not panic.
-        let lines: Vec<&'static str> = vec!["   ", "  "];
+        let lines: Vec<String> = vec!["   ".to_string(), "  ".to_string()];
         let (cx, cy) = visual_centroid(&lines);
         assert_eq!((cx, cy), (0.0, 0.0));
     }
 
     #[test]
     fn visual_centroid_of_single_cell() {
-        let lines: Vec<&'static str> = vec!["     X     "];
+        let lines: Vec<String> = vec!["     X     ".to_string()];
         let (cx, cy) = visual_centroid(&lines);
         assert!(
             (cx - 5.0).abs() < 0.01,
@@ -854,7 +970,7 @@ mod tests {
         // should equal w/2 exactly when no clamping kicks in — which
         // happens as long as the centroid is at least `logo_w/2` from
         // the right edge of the bbox.
-        let (lines, logo_w, logo_h) = parse_logo_art();
+        let (lines, logo_w, logo_h) = parse_logo_art(80, 24);
         let (centroid_x, centroid_y) = visual_centroid(&lines);
         let w: u16 = 80;
         let h: u16 = 24;

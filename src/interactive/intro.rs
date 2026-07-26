@@ -91,9 +91,13 @@ pub(crate) fn read_self_voluntary_ctxt() -> u64 {
 pub(crate) use crate::config::IntroType;
 
 /// Minimum terminal size for any intro to play. Below this, skip with a
-/// stderr notice. Matches the classic 80×24 VT100 baseline.
-pub(super) const MIN_INTRO_COLS: u16 = 80;
-pub(super) const MIN_INTRO_LINES: u16 = 24;
+/// stderr notice. v25 responsive: lowered from 80×24 to 10×5 — the
+/// intros now dynamically scale their ASCII art to fit the terminal
+/// (see intro_logo::scale_art and intro_cosmic::scale_cosmic_art), so
+/// the hard floor is only for absurdly tiny terminals where even a
+/// scaled-down logo would be unreadable.
+pub(super) const MIN_INTRO_COLS: u16 = 10;
+pub(super) const MIN_INTRO_LINES: u16 = 5;
 
 /// Frame period for all intro animations. ~30 FPS — intros are mostly
 /// particle motion, so 30 FPS is smooth without burning CPU.
@@ -462,9 +466,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn min_intro_size_matches_vt100() {
-        assert_eq!(MIN_INTRO_COLS, 80);
-        assert_eq!(MIN_INTRO_LINES, 24);
+    fn min_intro_size_allows_responsive_scaling() {
+        // v25 responsive: MIN_INTRO lowered from 80×24 to 10×5 so the
+        // intros can play on small terminals via dynamic art scaling
+        // (see intro_logo::scale_art). The hard floor is only for
+        // absurdly tiny terminals where even a scaled-down logo would
+        // be unreadable.
+        assert_eq!(MIN_INTRO_COLS, 10);
+        assert_eq!(MIN_INTRO_LINES, 5);
     }
 
     #[test]
