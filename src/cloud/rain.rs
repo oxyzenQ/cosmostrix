@@ -796,6 +796,19 @@ impl Cloud {
         let cols = self.cols;
         let lines = self.lines;
         let bg = self.palette.bg;
+        // Dynamic particle color: use the palette's brightest stop (head)
+        // instead of hardcoded purple. This makes the ripple follow the
+        // rain's active color theme.
+        let (pr, pg, pb) = self
+            .palette
+            .colors
+            .last()
+            .and_then(|c| crate::palette::decode_color(*c))
+            .unwrap_or((
+                QUANTUM_BRAND_PURPLE_R,
+                QUANTUM_BRAND_PURPLE_G,
+                QUANTUM_BRAND_PURPLE_B,
+            ));
 
         for p in &mut self.quantum_particles {
             if !p.active {
@@ -806,18 +819,13 @@ impl Cloud {
                 p.active = false;
                 continue;
             }
-            // Move particle by velocity × elapsed since birth (simple
-            // linear motion; no gravity — these are energy particles).
-            p.x += p.vx * (1.0 / 60.0); // assume ~60 FPS for motion step
+            p.x += p.vx * (1.0 / 60.0);
             p.y += p.vy * (1.0 / 60.0);
 
-            // Fade: 1.0 at birth → 0.0 at lifespan. Quadratic for
-            // natural energy dissipation (bright peak, gentle tail).
             let life_frac = age / QUANTUM_RIPPLE_LIFETIME_SECS;
             let fade = 1.0 - life_frac;
             let brightness = fade * fade;
 
-            // Compute integer cell position.
             let col = p.x as u16;
             let line = p.y as u16;
             if col >= cols || line >= lines {
@@ -825,40 +833,47 @@ impl Cloud {
                 continue;
             }
 
-            // Read existing cell, blend brand purple onto it.
             let Some(idx) = frame.index(col, line) else {
                 continue;
             };
             let cell = frame.cell_at_index(idx);
-            // Decode existing fg (fallback to bg for blank cells).
-            let base_fg = cell.fg.or(bg);
-            let Some(base_fg) = base_fg else {
-                continue;
+
+            // Base color: use cell's fg if present, else bg, else the
+            // palette's head color (so particles are visible even on
+            // transparent backgrounds with no rain at that cell).
+            let (br, bg_, bb) = if let Some(fg) = cell.fg {
+                crate::palette::decode_color(fg).unwrap_or((pr, pg, pb))
+            } else if let Some(bg_color) = bg {
+                crate::palette::decode_color(bg_color).unwrap_or((pr, pg, pb))
+            } else {
+                // Blank cell on transparent bg — use palette head color
+                // as the base so the particle is visible.
+                (pr, pg, pb)
             };
-            let Some((br, bg_, bb)) = crate::palette::decode_color(base_fg) else {
-                continue;
-            };
-            // Blend toward brand purple by `brightness` factor.
+
+            // Blend toward the dynamic particle color by brightness.
             let wf = (brightness * 256.0) as i32;
-            let nr = (br as i32 + ((QUANTUM_BRAND_PURPLE_R as i32 - br as i32) * wf + 128) / 256)
-                .clamp(0, 255) as u8;
-            let ng = (bg_ as i32 + ((QUANTUM_BRAND_PURPLE_G as i32 - bg_ as i32) * wf + 128) / 256)
-                .clamp(0, 255) as u8;
-            let nb = (bb as i32 + ((QUANTUM_BRAND_PURPLE_B as i32 - bb as i32) * wf + 128) / 256)
-                .clamp(0, 255) as u8;
+            let nr = (br as i32 + ((pr as i32 - br as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+            let ng = (bg_ as i32 + ((pg as i32 - bg_ as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+            let nb = (bb as i32 + ((pb as i32 - bb as i32) * wf + 128) / 256).clamp(0, 255) as u8;
             let new_fg = Color::Rgb {
                 r: nr,
                 g: ng,
                 b: nb,
             };
-            // Use the particle's char (*, +, ·) instead of the cell's.
-            let new_cell = crate::cell::Cell {
-                ch: p.ch,
-                fg: Some(new_fg),
-                bg: cell.bg,
-                bold: true,
-            };
-            frame.set(col, line, new_cell);
+            // Use force-set so the particle always writes, even if the
+            // cell was blank. This ensures visibility on transparent bg.
+            // The next frame's clear_with_bg() will clean the cell.
+            frame.set_force(
+                col,
+                line,
+                crate::cell::Cell {
+                    ch: p.ch,
+                    fg: Some(new_fg),
+                    bg: cell.bg,
+                    bold: true,
+                },
+            );
         }
     }
 }

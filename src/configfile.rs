@@ -119,48 +119,62 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
     let mut unknown_keys = Vec::new();
     let mut malformed_lines = Vec::new();
 
-    // v16: TOML table header tracking. When a line like
-    // [colors-custom.mytheme] is seen, subsequent key=value lines
-    // are prefixed with "colors-custom.mytheme." so they land in
-    // the flat HashMap as if the user wrote the full dotted key.
-    // This enables the clean Alacritty-style format:
-    //   [colors-custom.mythme]
-    //   bg = "#0a0a12"
-    //   rain = ["#1a0033", "#4d0080", ...]
-    // → stored as colors-custom.mythme.bg, colors-custom.mythme.rain
     let mut current_section: String = String::new();
 
-    for line in content.lines() {
+    // Collect lines into a Vec so we can advance the index for multi-line
+    // array values (e.g. rain = [\n  "#1a0033",\n  ...\n]).
+    let lines: Vec<&str> = content.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
         let stripped = strip_inline_comment(line).trim();
-        // Skip comments and blank lines
         if stripped.is_empty() {
+            i += 1;
             continue;
         }
 
-        // v16: TOML table header detection.
-        // Matches [section.subsection] or [section] patterns.
-        // Brackets must be at start and end of the stripped line.
         if stripped.starts_with('[') && stripped.ends_with(']') && stripped.len() > 2 {
             let section = &stripped[1..stripped.len() - 1];
             let section = section.trim().to_ascii_lowercase();
             if section.is_empty() {
                 malformed_lines.push(stripped.to_string());
+                i += 1;
                 continue;
             }
             current_section = section;
+            i += 1;
             continue;
         }
 
-        // Parse key = value
         if let Some((key, value)) = stripped.split_once('=') {
             let key = key.trim().to_ascii_lowercase();
-            let value = value.trim().to_string();
+            let mut value = value.trim().to_string();
             if key.is_empty() || value.is_empty() {
-                // Malformed: `= value` (no key) or `key =` (no value).
                 malformed_lines.push(stripped.to_string());
+                i += 1;
                 continue;
             }
-            // v16: If inside a TOML table section, prefix the key.
+
+            // v25: Handle multi-line TOML arrays. If the value starts with
+            // '[' but doesn't end with ']', keep consuming subsequent lines
+            // until we find the closing ']'. Join all lines into a single
+            // string so the colors-custom parser can handle it.
+            if value.starts_with('[') && !value.ends_with(']') {
+                while i + 1 < lines.len() {
+                    let next_line = strip_inline_comment(lines[i + 1]).trim();
+                    if next_line.is_empty() {
+                        i += 1;
+                        continue;
+                    }
+                    value.push(' ');
+                    value.push_str(next_line);
+                    i += 1;
+                    if next_line.ends_with(']') {
+                        break;
+                    }
+                }
+            }
+
             let full_key = if !current_section.is_empty() {
                 format!("{current_section}.{key}")
             } else {
@@ -168,14 +182,16 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
             };
             if !is_known_key(&full_key) {
                 unknown_keys.push(full_key);
+                i += 1;
                 continue;
             }
             map.insert(full_key, value);
         } else {
-            // No `=` at all on a non-empty, non-comment line — malformed.
-            // (TOML table headers are handled above, so this is truly malformed.)
+            // No `=` — malformed (unless we're inside a multi-line array,
+            // but those are consumed above).
             malformed_lines.push(stripped.to_string());
         }
+        i += 1;
     }
 
     ParsedConfig {
