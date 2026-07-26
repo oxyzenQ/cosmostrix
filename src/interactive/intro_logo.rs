@@ -126,14 +126,14 @@ const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 
 /// Phase boundaries (milliseconds from intro start).
 ///
-/// v25 "Quantum Lightning" calibration: Phase 1 is now a lightning
-/// strike (0-1500ms) instead of a slow fade-in. The logo appears
-/// via a bright purple flash that decays, creating the "struck by
-/// energy" effect. Total intro runs ~6.25 s.
+/// v25 "Elegant Laser Glow": Phase 1 = laser charge (0-1.5s).
+/// Phase 2 = the glow (1.5-3.5s): logo peaks at 120%, fades to 0%.
+/// Phase 3 = rain fade-in (3.5-4.5s): rain takes over as logo fades.
+/// Phase 4 = full rain (4.5-5.0s): rain visible, intro ends.
 const PHASE1_FADEIN_END_MS: u64 = 1_500;
-const PHASE2_IGNITION_END_MS: u64 = 4_250;
-const PHASE3_DISSOLVE_END_MS: u64 = 5_250;
-const PHASE4_RAIN_END_MS: u64 = 6_250;
+const PHASE2_IGNITION_END_MS: u64 = 3_500;
+const PHASE3_DISSOLVE_END_MS: u64 = 4_500;
+const PHASE4_RAIN_END_MS: u64 = 5_000;
 
 /// Frame period in seconds, computed at runtime to avoid MSRV issues
 /// with `Duration::as_secs_f32()` in const context (stable since 1.83,
@@ -145,6 +145,7 @@ fn frame_period_secs() -> f32 {
 
 /// Ignition flash duration (seconds). The logo briefly brightens past
 /// its base color when the spark impacts, then decays back.
+#[allow(dead_code)]
 const FLASH_DECAY_RATE: f32 = 4.0;
 
 /// Rain droplet speed range (cells per second) for the dissolve phase.
@@ -413,19 +414,16 @@ pub(super) fn run_logo_intro(
     // clamping kicked in, this equals `(w/2, h/2)` exactly; when the
     // bbox was too close to an edge to place the centroid dead-center,
     // the spark falls onto the centroid wherever it landed.
-    let logo_center_x = logo_x as f32 + centroid_x;
-    let logo_center_y = logo_y as f32 + centroid_y;
+    let _logo_center_x = logo_x as f32 + centroid_x;
+    let _logo_center_y = logo_y as f32 + centroid_y;
 
     // Spark spawn position: top of the terminal, horizontally aligned
     // with the logo's visual centroid. The spark falls straight down
     // to the centroid.
-    let spark_start_y = 0.0f32;
+    let _spark_start_y = 0.0f32;
 
     let mut pool = ParticlePool::new();
     let intro_start = Instant::now();
-
-    // Reusable dissolve index — how many cells have already dissolved.
-    let mut dissolved_count: usize = 0;
 
     loop {
         let elapsed_ms = intro_start.elapsed().as_millis() as u64;
@@ -467,55 +465,38 @@ pub(super) fn run_logo_intro(
         // ── Render ──────────────────────────────────────────────────────
         frame.clear_with_bg(palette_bg);
 
-        // Brightness: Phase 1 = strike curve (peak 1.5 at t≈0.3, decay, settle 1.0).
-        // Phase 2 = 1.0 + flash. Phase 3 = 1.0 (visible cells). Phase 4 = none.
+        // Brightness: Phase 1 = strike (peak 1.5, settle 1.0).
+        // Phase 2 = glow (peak 1.2 overdrive, then smooth fade to 0).
+        // Phase 3 = logo gone (0.0).
         let base_brightness = if phase == 1 {
-            // Strike curve: peak at t=0.3, exponential decay, floor at 1.0.
-            // At t=0: 0.0 (dark). At t=0.3: 1.5 (peak strike). At t=1.0: 1.0 (settled).
             let strike_peak = 1.5_f32 * (-3.0 * phase_t).exp();
             let settle = phase_t.min(1.0);
             (strike_peak + settle).clamp(0.0, 1.5)
-        } else {
-            1.0
-        };
-
-        // Ignition flash: bright spike just after the spark lands.
-        // The spark lands at phase_t ≈ 0.5 (middle of Phase 2). After
-        // impact, brightness spikes to 1.5 and decays exponentially.
-        let flash = if phase == 2 && phase_t > 0.5 {
-            let since_impact = phase_t - 0.5;
-            (1.5_f32 * (-FLASH_DECAY_RATE * since_impact).exp()).max(0.0)
+        } else if phase == 2 {
+            // The Glow: brief overdrive peak at 1.2, then smooth fade to 0.
+            // First 10% of phase: hold at 1.2 (overdrive).
+            // Remaining 90%: smoothstep fade from 1.0 to 0.0.
+            if phase_t < 0.1 {
+                1.2
+            } else {
+                let fade_t = (phase_t - 0.1) / 0.9;
+                let smooth = 1.0 - (fade_t * fade_t * (3.0 - 2.0 * fade_t));
+                smooth.max(0.0)
+            }
         } else {
             0.0
         };
 
-        let logo_visible = phase != 4;
-        if logo_visible {
-            // Determine how many cells are still rendered as logo (i.e.
-            // not yet dissolved). During Phase 1, also gate visibility
-            // by the fade-in step counter so cells appear progressively.
-            let reveal_count = if phase == 1 {
-                // Reveal cells from center outward as the fade-in
-                // progresses. We sort by dist_sq *ascending* for the
-                // fade-in (inner cells appear first), which is the
-                // opposite of the dissolve order. To avoid re-sorting,
-                // we walk the sorted-descending list from the END.
-                let total = logo_cells.len();
-                ((phase_t * FADEIN_STEPS as f32).round() as usize * total / FADEIN_STEPS as usize)
-                    .min(total)
-            } else {
-                logo_cells.len()
-            };
+        let _flash = 0.0;
 
-            // For Phase 3 (dissolve), the cells we still render are the
-            // last `(len - dissolved_count)` entries of the sorted-desc
-            // list (i.e., the innermost cells). For other phases, all
-            // `reveal_count` cells are rendered — but during fade-in we
-            // only render the last `reveal_count` entries (innermost).
+        let logo_visible = phase == 1 || phase == 2;
+        if logo_visible {
             let active_window_start = if phase == 1 {
-                logo_cells.len().saturating_sub(reveal_count)
-            } else if phase == 3 {
-                dissolved_count
+                let total = logo_cells.len();
+                let reveal = ((phase_t * FADEIN_STEPS as f32).round() as usize * total
+                    / FADEIN_STEPS as usize)
+                    .min(total);
+                total.saturating_sub(reveal)
             } else {
                 0
             };
@@ -531,24 +512,8 @@ pub(super) fn run_logo_intro(
                 if tx >= w || ty >= h {
                     continue;
                 }
-                // Phase 1: strike brightness (no per-cell fade).
-                let cell_brightness = if phase == 1 {
-                    base_brightness
-                } else {
-                    (base_brightness + flash).clamp(0.0, 1.5)
-                };
-                // Color = brand purple scaled by brightness, clamped.
-                // Logo always renders in LOGO_COLOR_RGB regardless of
-                // the user's --color flag — the brand mark stays purple
-                // across all palette themes.
+                let cell_brightness = base_brightness;
                 let color = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, cell_brightness.clamp(0.0, 1.0));
-                // During the flash, lean the color toward white.
-                let color = if flash > 0.0 {
-                    let flash_t = (flash / 1.5).clamp(0.0, 1.0);
-                    lerp_rgb(color, (255, 255, 255), flash_t * 0.6)
-                } else {
-                    color
-                };
                 frame.set_force(
                     tx,
                     ty,
@@ -560,83 +525,27 @@ pub(super) fn run_logo_intro(
                             b: color.2,
                         }),
                         bg: palette_bg,
-                        bold: flash > 0.1,
+                        bold: cell_brightness > 1.0,
                     },
                 );
             }
         }
 
-        // Spark render during Phase 2 (until impact at phase_t ≈ 0.5).
-        if phase == 2 && phase_t < 0.5 {
-            // Spark falls from top to logo center over the first half
-            // of Phase 2 (0 → 0.5).
-            let spark_t = phase_t / 0.5;
-            let spark_y = lerp(spark_start_y, logo_center_y, spark_t);
-            let spark_x = logo_center_x;
-            let spark_color = (255, 255, 220); // warm white
-            render_particle_cell(
-                frame,
-                w,
-                h,
-                spark_x,
-                spark_y,
-                '*',
-                spark_color,
-                palette_bg,
-                1.0,
-                true,
-            );
-            // Spark trail: 3 dimmer cells above.
-            for trail_step in 1..=3u16 {
-                let trail_y = spark_y - trail_step as f32;
-                let trail_brightness = 1.0 / (trail_step as f32 + 1.0);
-                let trail_rgb = lerp_rgb((0, 0, 0), spark_color, trail_brightness);
-                render_particle_cell(
-                    frame,
-                    w,
-                    h,
-                    spark_x,
-                    trail_y,
-                    '.',
-                    trail_rgb,
-                    palette_bg,
-                    trail_brightness,
-                    false,
-                );
-            }
-        }
-
-        // Spawn new rain droplets during Phase 3 (dissolve). Walk the
-        // sorted-descending list from `dissolved_count` forward, up to a
-        // per-frame budget. Each dissolved cell converts to a falling
-        // rain particle.
-        if phase == 3 {
-            let target_dissolved = (phase_t * logo_cells.len() as f32).round() as usize;
-            // Per-frame budget so we don't spawn 300 particles in one
-            // frame. 24 droplets/frame at 30 FPS = 720 droplets/sec,
-            // which comfortably covers ~300 cells over the 1 s phase
-            // and gives a denser, more dramatic curtain than the
-            // previous 16/frame.
-            const PER_FRAME_BUDGET: usize = 24;
-            let mut spawned_this_frame = 0usize;
-            while dissolved_count < target_dissolved
-                && dissolved_count < logo_cells.len()
-                && spawned_this_frame < PER_FRAME_BUDGET
-            {
-                let cell = logo_cells[dissolved_count];
-                let tx = logo_x + cell.bx as i32;
-                let ty = logo_y + cell.by as i32;
-                if tx >= 0 && ty >= 0 {
-                    let _ = spawn_rain_droplet(
-                        &mut pool,
-                        &mut rng,
-                        tx as f32,
-                        ty as f32,
-                        &rain_charset,
-                    );
+        // Spawn rain droplets during Phase 2 (as logo fades) + Phase 3.
+        if phase == 2 || phase == 3 {
+            let spawn_rate = if phase == 2 {
+                ((phase_t - 0.1) / 0.4).clamp(0.0, 1.0)
+            } else {
+                1.0
+            };
+            const PER_FRAME_BUDGET: usize = 8;
+            let mut spawned = 0usize;
+            while spawned < PER_FRAME_BUDGET && rng.next_f32() < spawn_rate * 0.5 {
+                let col = (rng.next_f32() * w as f32) as i32;
+                if col >= 0 && col < w as i32 {
+                    let _ = spawn_rain_droplet(&mut pool, &mut rng, col as f32, 0.0, &rain_charset);
                 }
-                dissolved_count += 1;
-                spawned_this_frame += 1;
+                spawned += 1;
             }
         }
 
@@ -1024,11 +933,11 @@ mod tests {
 
     #[test]
     fn phase_boundaries_match_spec() {
-        // v25 Quantum Lightning: Phase 1 is now 0-1.5s (strike, was 2s fade).
+        // v25 Elegant Laser Glow: Phase 1=1.5s, Phase 2=3.5s, Phase 3=4.5s, Phase 4=5.0s.
         assert_eq!(PHASE1_FADEIN_END_MS, 1_500);
-        assert_eq!(PHASE2_IGNITION_END_MS, 4_250);
-        assert_eq!(PHASE3_DISSOLVE_END_MS, 5_250);
-        assert_eq!(PHASE4_RAIN_END_MS, 6_250);
+        assert_eq!(PHASE2_IGNITION_END_MS, 3_500);
+        assert_eq!(PHASE3_DISSOLVE_END_MS, 4_500);
+        assert_eq!(PHASE4_RAIN_END_MS, 5_000);
     }
 
     #[test]

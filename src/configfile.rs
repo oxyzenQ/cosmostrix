@@ -459,7 +459,7 @@ pub fn dump_config_text() -> &'static str {
 
 # [colors-custom.sunset]
 # bg = "#0a0a12"
-# rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"
+# rain = ["#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"]
 "##
 }
 

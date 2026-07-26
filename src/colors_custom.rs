@@ -43,12 +43,9 @@ impl CustomPaletteDef {
         if self.rain.is_empty() {
             return Err("custom palette needs 'rain' field with at least 2 hex colors".to_string());
         }
-
-        // Defensive: ensure colors is never empty — causes downstream panics.
         if self.rain.len() < 2 {
             return Err("rain needs at least 2 hex colors for a gradient".to_string());
         }
-
         Ok(Palette {
             colors: self.rain.clone(),
             bg: self.bg,
@@ -102,7 +99,15 @@ pub fn collect_colors_custom(cfg: &HashMap<String, String>) -> BTreeMap<String, 
                 }
             }
             "rain" => {
-                for stop in value.split(',') {
+                // v25 masterclass: support both CSV string and TOML array format.
+                // CSV: "#1a0033", "#4d0080", "#9933ff"
+                // Array: ["#1a0033", "#4d0080", "#9933ff", ...] (7-stop)
+                let stops = if value.trim_start().starts_with('[') {
+                    parse_rain_array(value)
+                } else {
+                    value.split(',').map(|s| s.trim()).collect()
+                };
+                for stop in &stops {
                     if let Ok(color) = parse_hex_color(stop) {
                         palette.rain.push(color);
                     }
@@ -113,6 +118,18 @@ pub fn collect_colors_custom(cfg: &HashMap<String, String>) -> BTreeMap<String, 
     }
 
     palettes
+}
+
+/// Parse a TOML array-style rain value: `["#1a0033", "#4d0080", ...]`.
+/// Strips brackets, splits by comma, trims whitespace + quotes from each element.
+/// Returns the list of stop strings (caller parses hex).
+fn parse_rain_array(value: &str) -> Vec<&str> {
+    let s = value.trim();
+    let s = s.strip_prefix('[').unwrap_or(s);
+    let s = s.strip_suffix(']').unwrap_or(s);
+    s.split(',')
+        .map(|e| e.trim().trim_matches('"').trim())
+        .collect()
 }
 
 /// Look up a custom palette by name and convert it to a cosmostrix Palette.
@@ -272,5 +289,30 @@ mod tests {
         );
         let palette = load_custom_palette(&cfg, "mytheme").unwrap();
         assert_eq!(palette.colors.len(), 2);
+    }
+
+    /// v25 masterclass: TOML array format for rain field.
+    #[test]
+    fn rain_array_format_parses_7_stops() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "colors-custom.mythme.rain".to_string(),
+            "[\"#1a0033\", \"#4d0080\", \"#9933ff\", \"#cc66ff\", \"#e6b3ff\", \"#f2ccff\", \"#ffffff\"]"
+                .to_string(),
+        );
+        let palette = load_custom_palette(&cfg, "mythme").unwrap();
+        assert_eq!(palette.colors.len(), 7, "array format must produce 7 stops");
+    }
+
+    /// v25 masterclass: CSV format still works (backward compat).
+    #[test]
+    fn rain_csv_format_still_works() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "colors-custom.oldstyle.rain".to_string(),
+            "#000000, #ffffff".to_string(),
+        );
+        let palette = load_custom_palette(&cfg, "oldstyle").unwrap();
+        assert_eq!(palette.colors.len(), 2, "CSV format must still work");
     }
 }
