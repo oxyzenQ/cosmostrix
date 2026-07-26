@@ -164,6 +164,7 @@ const JITTER_VX: f32 = 2.0;
 /// across Phase 1. Each step reveals another batch of cells. Higher =
 /// smoother but more CPU; lower = chunkier but cheaper. 32 feels
 /// smooth at 30 FPS over a 2 s phase.
+#[allow(dead_code)]
 const FADEIN_STEPS: u32 = 32;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -414,13 +415,8 @@ pub(super) fn run_logo_intro(
     // clamping kicked in, this equals `(w/2, h/2)` exactly; when the
     // bbox was too close to an edge to place the centroid dead-center,
     // the spark falls onto the centroid wherever it landed.
-    let _logo_center_x = logo_x as f32 + centroid_x;
-    let _logo_center_y = logo_y as f32 + centroid_y;
-
-    // Spark spawn position: top of the terminal, horizontally aligned
-    // with the logo's visual centroid. The spark falls straight down
-    // to the centroid.
-    let _spark_start_y = 0.0f32;
+    let logo_center_x = logo_x as f32 + centroid_x;
+    let logo_center_y = logo_y as f32 + centroid_y;
 
     let mut pool = ParticlePool::new();
     let intro_start = Instant::now();
@@ -465,17 +461,20 @@ pub(super) fn run_logo_intro(
         // ── Render ──────────────────────────────────────────────────────
         frame.clear_with_bg(palette_bg);
 
-        // Brightness: Phase 1 = strike (peak 1.5, settle 1.0).
-        // Phase 2 = glow (peak 1.2 overdrive, then smooth fade to 0).
-        // Phase 3 = logo gone (0.0).
+        // Phase 1: Laser travels from top to logo center (t=0..0.9).
+        // At impact (t=0.9), logo flashes to brilliant white.
+        // After impact (t=0.9..1.0), white begins transitioning to purple.
+        // Phase 2: Glow — white→purple complete, then smooth fade to 0.
         let base_brightness = if phase == 1 {
-            let strike_peak = 1.5_f32 * (-3.0 * phase_t).exp();
-            let settle = phase_t.min(1.0);
-            (strike_peak + settle).clamp(0.0, 1.5)
+            if phase_t < 0.9 {
+                // Laser traveling — logo not yet visible (brightness 0).
+                0.0
+            } else {
+                // Impact flash: brilliant white at 1.5, hold briefly.
+                let impact_t = (phase_t - 0.9) / 0.1;
+                1.5 - impact_t * 0.3 // 1.5 → 1.2 as it transitions to Phase 2
+            }
         } else if phase == 2 {
-            // The Glow: brief overdrive peak at 1.2, then smooth fade to 0.
-            // First 10% of phase: hold at 1.2 (overdrive).
-            // Remaining 90%: smoothstep fade from 1.0 to 0.0.
             if phase_t < 0.1 {
                 1.2
             } else {
@@ -487,21 +486,22 @@ pub(super) fn run_logo_intro(
             0.0
         };
 
-        let _flash = 0.0;
+        // White-to-purple blend factor: 0 = pure white, 1 = pure purple.
+        // At impact (end of Phase 1): 0 (white). Transitions to 1 (purple)
+        // over first 20% of Phase 2, then stays purple as it fades.
+        let white_blend = if phase == 1 {
+            let impact_t = ((phase_t - 0.9) / 0.1).clamp(0.0, 1.0);
+            1.0 - impact_t // 1.0 (white) at impact → 0.0 (transitioning) at end
+        } else if phase == 2 {
+            // Transition white→purple over first 20% of Phase 2.
+            (phase_t / 0.2).clamp(0.0, 1.0)
+        } else {
+            1.0 // fully purple
+        };
 
-        let logo_visible = phase == 1 || phase == 2;
+        let logo_visible = (phase == 1 && phase_t >= 0.9) || phase == 2;
         if logo_visible {
-            let active_window_start = if phase == 1 {
-                let total = logo_cells.len();
-                let reveal = ((phase_t * FADEIN_STEPS as f32).round() as usize * total
-                    / FADEIN_STEPS as usize)
-                    .min(total);
-                total.saturating_sub(reveal)
-            } else {
-                0
-            };
-
-            for cell in logo_cells.iter().skip(active_window_start) {
+            for cell in logo_cells.iter() {
                 let tx = logo_x + cell.bx as i32;
                 let ty = logo_y + cell.by as i32;
                 if tx < 0 || ty < 0 {
@@ -513,7 +513,9 @@ pub(super) fn run_logo_intro(
                     continue;
                 }
                 let cell_brightness = base_brightness;
-                let color = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, cell_brightness.clamp(0.0, 1.0));
+                // Blend between white (impact) and purple (logo color).
+                let purple = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, cell_brightness.clamp(0.0, 1.0));
+                let color = lerp_rgb((255, 255, 255), purple, white_blend);
                 frame.set_force(
                     tx,
                     ty,
@@ -526,6 +528,45 @@ pub(super) fn run_logo_intro(
                         }),
                         bg: palette_bg,
                         bold: cell_brightness > 1.0,
+                    },
+                );
+            }
+        }
+
+        // Render laser beam during Phase 1 (t < 0.9: traveling; t >= 0.9: gone).
+        if phase == 1 && phase_t < 0.9 {
+            let laser_x = logo_center_x as u16;
+            let laser_tip_y = (phase_t / 0.9 * logo_center_y) as u16;
+            for y in 0..=laser_tip_y.min(h.saturating_sub(1)) {
+                let dist_from_tip = laser_tip_y.saturating_sub(y);
+                // Core (bright white-purple) within 0-1 cells of tip;
+                // glow (dimmer purple) extends further.
+                let (ch, brightness) = if dist_from_tip == 0 {
+                    ('┃', 1.0)
+                } else if dist_from_tip <= 2 {
+                    ('│', 0.7)
+                } else {
+                    ('│', 0.3)
+                };
+                let laser_color = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, brightness);
+                // Blend toward white for the bright core.
+                let laser_color = if dist_from_tip == 0 {
+                    lerp_rgb(laser_color, (255, 255, 255), 0.5)
+                } else {
+                    laser_color
+                };
+                frame.set_force(
+                    laser_x.min(w.saturating_sub(1)),
+                    y,
+                    Cell {
+                        ch,
+                        fg: Some(Color::Rgb {
+                            r: laser_color.0,
+                            g: laser_color.1,
+                            b: laser_color.2,
+                        }),
+                        bg: palette_bg,
+                        bold: dist_from_tip == 0,
                     },
                 );
             }
