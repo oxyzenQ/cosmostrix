@@ -63,9 +63,10 @@ use std::sync::Mutex;
 static FINAL_COLOR: Mutex<Option<String>> = Mutex::new(None);
 static FINAL_SCENE: Mutex<Option<String>> = Mutex::new(None);
 static FINAL_CHARSET: Mutex<Option<String>> = Mutex::new(None);
+static FINAL_SPEED: Mutex<Option<f32>> = Mutex::new(None);
 
 /// Store final runtime state for post-exit verbose summary.
-pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str) {
+pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str, speed: f32) {
     if let Ok(mut g) = FINAL_COLOR.lock() {
         *g = Some(color.to_string());
     }
@@ -74,6 +75,9 @@ pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str) {
     }
     if let Ok(mut g) = FINAL_CHARSET.lock() {
         *g = Some(charset.to_string());
+    }
+    if let Ok(mut g) = FINAL_SPEED.lock() {
+        *g = Some(speed);
     }
 }
 
@@ -102,4 +106,9 @@ pub(crate) fn last_charset_preset() -> String {
         .ok()
         .and_then(|g| g.clone())
         .unwrap_or_else(|| "binary".to_string())
+}
+
+/// Get the final rain speed after the rain loop exited.
+pub(crate) fn last_speed() -> f32 {
+    FINAL_SPEED.lock().ok().and_then(|g| *g).unwrap_or(9.0)
 }

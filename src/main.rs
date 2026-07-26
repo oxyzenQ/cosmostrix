@@ -1002,18 +1002,19 @@ fn main() -> std::io::Result<()> {
         let final_color = interactive::last_color_scheme();
         let final_scene = interactive::last_scene_name();
         let final_charset = interactive::last_charset_preset();
+        let final_speed = interactive::last_speed();
         let startup_color = format!("{:?}", color_scheme);
-        // Use DEFAULT_SCENE constant rather than a hard-coded scene name so
-        // any future change to the default scene is reflected consistently.
         let startup_scene = args
             .scene
             .as_deref()
             .unwrap_or(crate::scene::DEFAULT_SCENE)
             .to_string();
+        let startup_speed = cloud_cfg.speed;
 
         let changed = final_color != startup_color
             || final_scene != startup_scene
-            || final_charset != startup_charset;
+            || final_charset != startup_charset
+            || (final_speed - startup_speed).abs() >= 0.01;
 
         if changed {
             let ts = crate::output::now_hhmm();
@@ -1036,6 +1037,12 @@ fn main() -> std::io::Result<()> {
                 eprintln!(
                     "{purple}[verbose]{reset} {ts}   charset:       {} (was {})",
                     final_charset, startup_charset
+                );
+            }
+            if (final_speed - startup_speed).abs() >= 0.01 {
+                eprintln!(
+                    "{purple}[verbose]{reset} {ts}   speed:         {:.1} (was {:.1})",
+                    final_speed, startup_speed
                 );
             }
         }

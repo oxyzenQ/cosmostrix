@@ -10,7 +10,7 @@ stop 3 (body peak) is typically +250-275 in fast themes (storm, hacker,
 neon), creating a visible "line" or gap in the rain.
 
 This script smooths the transition by pulling stop 2 ~30% toward stop 3:
-  new_stop2 = lerp(stop2, stop3, 0.3)
+  new_stop2 = lerp(stop2, stop3, 0.5)
 
 This reduces the gap by 30% without dramatically changing the tail's
 hue identity. The body peak (stop 3) and head stops are untouched.
@@ -64,7 +64,7 @@ def smooth_file(path):
         # This reduces the tail→body luminance gap by 30%.
         old_stop2 = tuples[2]
         stop3 = tuples[3]
-        new_stop2 = lerp(old_stop2, stop3, 0.3)
+        new_stop2 = lerp(old_stop2, stop3, 0.5)
         tuples[2] = new_stop2
 
         if len(tuples) == 7:
@@ -92,7 +92,7 @@ def main():
         return 1
 
     print(f"Smoothing body-tail gap in {target}...")
-    print("  Transformation: new_stop2 = lerp(old_stop2, stop3, 0.3)")
+    print("  Transformation: new_stop2 = lerp(old_stop2, stop3, 0.5)")
     print()
     stats = smooth_file(target)
     print(f"  7-stop themes smoothed: {stats['smoothed_7']}")

@@ -452,7 +452,10 @@ pub fn dump_config_text() -> &'static str {
 #
 # Fields:
 #   bg   — background color (optional)
-#   rain — comma-separated gradient stops (tail → head order, min 2)
+#   rain — array of 7 hex gradient stops (tail → head order).
+#   Format: rain = ["#stop0", "#stop1", ..., "#stop6"]
+#   Also accepts CSV string: rain = "#stop0, #stop1, ..."
+#   Minimum 2 stops required; 7 stops recommended for full 3-2-2 distribution.
 #
 # Load with: cosmostrix --colors-custom mytheme
 # Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith

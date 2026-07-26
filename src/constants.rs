@@ -421,7 +421,7 @@ pub const HEAD_BLOOM_SIGMA: f32 = 1.2;
 /// the bloom overpower body color, creating a washed-out appearance.
 /// 0.45 keeps the head visibly brighter than the body while letting the
 /// body's saturated color show through.
-pub const HEAD_BLOOM_INTENSITY: f32 = 0.45;
+pub const HEAD_BLOOM_INTENSITY: f32 = 0.40;
 
 /// Number of cells behind the head that receive bloom glow effect.
 /// v25 calibration: reduced from 3 to 2. Honors the HEAD_FRACTION=0.20

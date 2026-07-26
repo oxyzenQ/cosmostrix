@@ -210,6 +210,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_color_scheme = cloud.color_scheme();
     let mut last_scene_name = scene_name.clone();
     let mut last_charset = charset_preset.clone();
+    let mut last_speed = cloud.chars_per_sec;
 
     // Parse custom time map from config (if [adaptive-custom] is defined).
     // This overrides the default 5-phase adaptive engine.
@@ -678,6 +679,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             if charset_preset != last_charset {
                                 last_charset = charset_preset.clone();
                             }
+                            let cur_speed = cloud.chars_per_sec;
+                            if cur_speed != last_speed {
+                                last_speed = cur_speed;
+                            }
                         }
                     }
                     Event::Paste(_) => {
@@ -1094,7 +1099,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // Store final runtime state for post-exit verbose summary.
     let final_color_name = format!("{:?}", cloud.color_scheme());
-    super::set_final_state(&final_color_name, &scene_name, &charset_preset);
+    super::set_final_state(
+        &final_color_name,
+        &scene_name,
+        &charset_preset,
+        cloud.chars_per_sec,
+    );
 
     Ok(())
 }
