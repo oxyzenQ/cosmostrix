@@ -527,17 +527,21 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Rainbow,
         def: ThemeColors::Stops {
-            // Full-spectrum hue cycle. Origin dark red → red → orange →
-            // yellow → green → cyan → blue → magenta head. Preserves
-            // the original hue-cycling identity in RGB space.
+            // v25 masterclass rebuild: true saturated spectrum using
+            // pure RGB hues. Red → Orange → Yellow → Green → Blue →
+            // Indigo → Violet. Each stop is at full saturation (one
+            // channel at 255, others at 0 or 127) so the rainbow
+            // "pops" with maximum vibrancy. Head stop (violet 143,0,255)
+            // sum=398 — well under the 655 head-luminance cap, so the
+            // head bloom doesn't wash it out.
             stops: &[
-                (40, 0, 0),
-                (140, 10, 0),
-                (154, 146, 24),
-                (50, 240, 80),
-                (25, 220, 168),
-                (0, 200, 255),
-                (170, 100, 255),
+                (255, 0, 0),   // red
+                (255, 127, 0), // orange
+                (255, 255, 0), // yellow
+                (0, 255, 0),   // green
+                (0, 0, 255),   // blue
+                (75, 0, 130),  // indigo
+                (143, 0, 255), // violet (head)
             ],
             steps: 9,
         },
