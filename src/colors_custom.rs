@@ -129,6 +129,7 @@ fn parse_rain_array(value: &str) -> Vec<&str> {
     let s = s.strip_suffix(']').unwrap_or(s);
     s.split(',')
         .map(|e| e.trim().trim_matches('"').trim())
+        .filter(|e| !e.is_empty())
         .collect()
 }
 

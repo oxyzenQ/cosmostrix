@@ -760,4 +760,25 @@ mod tests {
         }
         assert!(dump.contains("[scene-custom.hacker-mode]"));
     }
+
+    #[test]
+    fn parse_multiline_array_joins_correctly() {
+        let content = "[colors-custom.mythme]\nbg = \"#0a0a12\"\nrain = [\n  \"#1a0033\",\n  \"#4d0080\",\n  \"#9933ff\",\n  \"#cc66ff\",\n  \"#e6b3ff\",\n  \"#f2ccff\",\n  \"#ffffff\",\n]\n";
+        let parsed = parse_config_text(content);
+        assert!(
+            parsed.malformed_lines.is_empty(),
+            "no malformed lines, got: {:?}",
+            parsed.malformed_lines
+        );
+        assert!(
+            parsed.unknown_keys.is_empty(),
+            "no unknown keys, got: {:?}",
+            parsed.unknown_keys
+        );
+        let rain = parsed.values.get("colors-custom.mythme.rain");
+        assert!(rain.is_some(), "rain key should be parsed");
+        let rain = rain.unwrap();
+        assert!(rain.starts_with('['), "rain value should start with [");
+        assert!(rain.ends_with(']'), "rain value should end with ]");
+    }
 }

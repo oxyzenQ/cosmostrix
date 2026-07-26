@@ -237,12 +237,24 @@ fn validate_colors_custom_value(key: &str, value: &str) -> Option<String> {
         return Some("empty color value".to_string());
     }
 
-    // stops/rain field: comma-separated hex list
+    // stops/rain field: hex list (array or CSV format).
     if key.ends_with(".stops") || key.ends_with(".rain") {
-        for stop in trimmed.split(',') {
-            // Strip quotes from each stop individually (the config parser
-            // preserves quotes in values since v16 step 2).
+        // v25: handle TOML array format. If value starts with '[', strip
+        // the brackets before splitting by comma. This matches the
+        // parse_rain_array logic in colors_custom.rs.
+        let inner = if trimmed.starts_with('[') {
+            let s = trimmed.strip_prefix('[').unwrap_or(trimmed);
+            let s = s.strip_suffix(']').unwrap_or(s);
+            s
+        } else {
+            trimmed
+        };
+        for stop in inner.split(',') {
             let s = stop.trim().trim_matches('"').trim();
+            // Skip empty stops (trailing comma after ] strip).
+            if s.is_empty() {
+                continue;
+            }
             if !is_valid_hex_color(s) {
                 return Some(format!(
                     "invalid hex color '{s}' in stops (expected #rrggbb or rrggbb)"
