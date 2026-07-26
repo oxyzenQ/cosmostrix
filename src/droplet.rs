@@ -810,17 +810,21 @@ impl Droplet {
                 // self-bloom for back-layer heads is ~17%, keeping them
                 // firmly below the front-layer body visibility floor.
                 if matches!(loc, CharLoc::Head) {
-                    // v25 calibration: HEAD_WF = 102 (0.40 white blend).
-                    // Reduced from 115 (0.45) — prevents head from blowing
-                    // out to white at high speed (speed=100) where brightness
-                    // amplification stacks with the white blend. 0.40 retains
-                    // more of the theme hue.
-                    const HEAD_WF: i32 = 102; // 0.40 * 256 ≈ 102
+                    // v25 "glow with color" calibration: instead of blending
+                    // toward pure white (255,255,255), boost the head's own
+                    // color channels. This makes the head glow brighter in its
+                    // theme hue (green → brighter green, not white) at high
+                    // speed. The boost factor is scaled by layer via
+                    // PARALLAX_HEAD_SELFBLOOM_MULT.
+                    const HEAD_BOOST: i32 = 60; // ~0.23 * 256
                     let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize] as i32;
-                    let wf = (HEAD_WF * layer_selfbloom) / 256;
-                    r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                    let wf = (HEAD_BOOST * layer_selfbloom) / 256;
+                    // Boost each channel toward 255 but proportionally to its
+                    // current value — this preserves hue (green gets greener,
+                    // not whiter) while increasing luminance.
+                    r = (r as i32 + (r as i32 * wf + 128) / 256).clamp(0, 255) as u8;
+                    g = (g as i32 + (g as i32 * wf + 128) / 256).clamp(0, 255) as u8;
+                    b = (b as i32 + (b as i32 * wf + 128) / 256).clamp(0, 255) as u8;
                 }
 
                 // Rain shadow: quadratic fade-out across bottom 15% of screen.

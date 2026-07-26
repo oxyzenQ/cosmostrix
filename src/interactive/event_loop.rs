@@ -211,6 +211,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_scene_name = scene_name.clone();
     let mut last_charset = charset_preset.clone();
     let mut last_speed = cloud.chars_per_sec;
+    let mut last_density = cloud.droplet_density;
+    // Track all runtime changes for post-exit verbose summary.
+    let mut runtime_changes: Vec<String> = Vec::new();
 
     // Parse custom time map from config (if [adaptive-custom] is defined).
     // This overrides the default 5-phase adaptive engine.
@@ -671,17 +674,37 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         if verbose {
                             let cur_color = cloud.color_scheme();
                             if cur_color != last_color_scheme {
+                                runtime_changes.push(format!(
+                                    "color_scheme: {:?} → {:?}",
+                                    last_color_scheme, cur_color
+                                ));
                                 last_color_scheme = cur_color;
                             }
                             if scene_name != last_scene_name {
+                                runtime_changes
+                                    .push(format!("scene: {} → {}", last_scene_name, scene_name));
                                 last_scene_name = scene_name.clone();
                             }
                             if charset_preset != last_charset {
+                                runtime_changes.push(format!(
+                                    "charset: {} → {}",
+                                    last_charset, charset_preset
+                                ));
                                 last_charset = charset_preset.clone();
                             }
                             let cur_speed = cloud.chars_per_sec;
                             if cur_speed != last_speed {
+                                runtime_changes
+                                    .push(format!("speed: {:.1} → {:.1}", last_speed, cur_speed));
                                 last_speed = cur_speed;
+                            }
+                            let cur_density = cloud.droplet_density;
+                            if (cur_density - last_density).abs() >= 0.01 {
+                                runtime_changes.push(format!(
+                                    "density: {:.2} → {:.2}",
+                                    last_density, cur_density
+                                ));
+                                last_density = cur_density;
                             }
                         }
                     }
@@ -1104,6 +1127,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         &scene_name,
         &charset_preset,
         cloud.chars_per_sec,
+        cloud.droplet_density,
+        runtime_changes,
     );
 
     Ok(())

@@ -1003,6 +1003,8 @@ fn main() -> std::io::Result<()> {
         let final_scene = interactive::last_scene_name();
         let final_charset = interactive::last_charset_preset();
         let final_speed = interactive::last_speed();
+        let final_density = interactive::last_density();
+        let changes = interactive::runtime_changes();
         let startup_color = format!("{:?}", color_scheme);
         let startup_scene = args
             .scene
@@ -1010,13 +1012,15 @@ fn main() -> std::io::Result<()> {
             .unwrap_or(crate::scene::DEFAULT_SCENE)
             .to_string();
         let startup_speed = cloud_cfg.speed;
+        let startup_density = cloud_cfg.density;
 
         let changed = final_color != startup_color
             || final_scene != startup_scene
             || final_charset != startup_charset
-            || (final_speed - startup_speed).abs() >= 0.01;
+            || (final_speed - startup_speed).abs() >= 0.01
+            || (final_density - startup_density).abs() >= 0.01;
 
-        if changed {
+        if changed || !changes.is_empty() {
             let ts = crate::output::now_hhmm();
             let purple = crate::output::brand_open();
             let reset = crate::output::reset();
@@ -1044,6 +1048,22 @@ fn main() -> std::io::Result<()> {
                     "{purple}[verbose]{reset} {ts}   speed:         {:.1} (was {:.1})",
                     final_speed, startup_speed
                 );
+            }
+            if (final_density - startup_density).abs() >= 0.01 {
+                eprintln!(
+                    "{purple}[verbose]{reset} {ts}   density:       {:.2} (was {:.2})",
+                    final_density, startup_density
+                );
+            }
+            // Print full runtime change history if any changes were recorded.
+            if !changes.is_empty() {
+                eprintln!(
+                    "{purple}[verbose]{reset} {ts}   runtime changes ({} total):",
+                    changes.len()
+                );
+                for (i, change) in changes.iter().enumerate() {
+                    eprintln!("{purple}[verbose]{reset} {ts}     {}. {}", i + 1, change);
+                }
             }
         }
     }

@@ -124,10 +124,10 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
     // are prefixed with "colors-custom.mytheme." so they land in
     // the flat HashMap as if the user wrote the full dotted key.
     // This enables the clean Alacritty-style format:
-    //   [colors-custom.sunset]
+    //   [colors-custom.mythme]
     //   bg = "#0a0a12"
-    //   rain = "#1a0033", "#4d0080"
-    // → stored as colors-custom.sunset.bg, colors-custom.sunset.rain
+    //   rain = ["#1a0033", "#4d0080", ...]
+    // → stored as colors-custom.mythme.bg, colors-custom.mythme.rain
     let mut current_section: String = String::new();
 
     for line in content.lines() {
@@ -460,9 +460,17 @@ pub fn dump_config_text() -> &'static str {
 # Load with: cosmostrix --colors-custom mytheme
 # Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith
 
-# [colors-custom.sunset]
+# [colors-custom.mythme]
 # bg = "#0a0a12"
-# rain = ["#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"]
+# rain = [
+#   "#1a0033",  # tail dimmer
+#   "#4d0080",  # tail dim
+#   "#9933ff",  # semi-body dark
+#   "#cc66ff",  # body peak
+#   "#e6b3ff",  # semi-body light
+#   "#f2ccff",  # semi-white
+#   "#ffffff",  # head glow
+# ]
 "##
 }
 
@@ -497,7 +505,7 @@ fn is_known_key(key: &str) -> bool {
 /// - `bright.red`, `bright.green`, `bright.blue` — core bright colors
 /// - `bright.yellow`, `bright.cyan`, `bright.magenta`, `bright.white` — extended bright
 /// - `head` — head (brightest) color (hex) — cosmostrix-specific
-/// - `stops` — comma-separated hex gradient stops — cosmostrix-specific
+/// - `stops` — hex gradient stops (array or CSV format) — cosmostrix-specific
 ///
 /// Name must be non-empty, ASCII alphanumeric + `-`/`_` only.
 #[inline]

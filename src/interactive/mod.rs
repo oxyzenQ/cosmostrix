@@ -64,9 +64,18 @@ static FINAL_COLOR: Mutex<Option<String>> = Mutex::new(None);
 static FINAL_SCENE: Mutex<Option<String>> = Mutex::new(None);
 static FINAL_CHARSET: Mutex<Option<String>> = Mutex::new(None);
 static FINAL_SPEED: Mutex<Option<f32>> = Mutex::new(None);
+static FINAL_DENSITY: Mutex<Option<f32>> = Mutex::new(None);
+static FINAL_CHANGES: Mutex<Option<Vec<String>>> = Mutex::new(None);
 
 /// Store final runtime state for post-exit verbose summary.
-pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str, speed: f32) {
+pub(crate) fn set_final_state(
+    color: &str,
+    scene: &str,
+    charset: &str,
+    speed: f32,
+    density: f32,
+    changes: Vec<String>,
+) {
     if let Ok(mut g) = FINAL_COLOR.lock() {
         *g = Some(color.to_string());
     }
@@ -78,6 +87,12 @@ pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str, speed: f3
     }
     if let Ok(mut g) = FINAL_SPEED.lock() {
         *g = Some(speed);
+    }
+    if let Ok(mut g) = FINAL_DENSITY.lock() {
+        *g = Some(density);
+    }
+    if let Ok(mut g) = FINAL_CHANGES.lock() {
+        *g = Some(changes);
     }
 }
 
@@ -111,4 +126,18 @@ pub(crate) fn last_charset_preset() -> String {
 /// Get the final rain speed after the rain loop exited.
 pub(crate) fn last_speed() -> f32 {
     FINAL_SPEED.lock().ok().and_then(|g| *g).unwrap_or(9.0)
+}
+
+/// Get the final density after the rain loop exited.
+pub(crate) fn last_density() -> f32 {
+    FINAL_DENSITY.lock().ok().and_then(|g| *g).unwrap_or(0.75)
+}
+
+/// Get the list of runtime changes recorded during the session.
+pub(crate) fn runtime_changes() -> Vec<String> {
+    FINAL_CHANGES
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+        .unwrap_or_default()
 }
