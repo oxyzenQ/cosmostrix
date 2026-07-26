@@ -403,20 +403,19 @@ impl Cloud {
 
         // Assign parallax layer (0=far, 1=mid, 2=near)
         //
-        // v25 "deep atmospheric" calibration: back layer (0) now gets
-        // the highest spawn probability (50%) so the background is
-        // the most active band — deep, atmospheric, with constant
-        // motion. Mid layer (1) is sparse (15%) for accent depth.
-        // Front layer (2) is 35% — prominent enough to read as rain
-        // hitting a windshield, but not dominating the frame.
+        // v25 "cinematic depth" final calibration: [0.35, 0.30, 0.35].
+        // Back and front layers share equal 35% spawn probability, mid
+        // is 30%. This balanced distribution creates depth via *speed*
+        // and *brightness* (PARALLAX_SPEED_MULT, PARALLAX_BRIGHTNESS_MULT)
+        // rather than via droplet count — the secret to a realistic,
+        // organic, cinematic rain field where all three layers feel
+        // equally alive.
         //
-        // Previous "windshield" distribution was [0.15, 0.30, 0.55] —
-        // front-heavy, making the back layer feel empty and the rain
-        // appear too immediate. The new [0.50, 0.15, 0.35] inverts the
-        // priority: back layer is the active atmospheric depth, mid is
-        // a sparse accent, front is the windshield touch.
+        // History: [0.35,0.40,0.25] (back-heavy) → [0.15,0.30,0.55]
+        // (windshield) → [0.50,0.15,0.35] (deep atmospheric) →
+        // [0.35,0.30,0.35] (cinematic depth, final).
         let layer_roll = self.rand_chance.sample(&mut self.mt);
-        let layer: u8 = if layer_roll < 0.50 {
+        let layer: u8 = if layer_roll < 0.35 {
             0
         } else if layer_roll < 0.65 {
             1

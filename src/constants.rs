@@ -612,20 +612,35 @@ pub const MOUSE_FLASH_RING_WIDTH: f32 = 8.0;
 /// quadratic fade ensures the bright peak doesn't blow out harshly.
 pub const MOUSE_FLASH_INTENSITY: f32 = 0.85;
 
-/// Click flash: total duration of the ripple effect in seconds.
-///
-/// v18 mastery: raised from 1.2 to 1.8. The longer duration gives the
-/// slower wave (32 cells/s) time to propagate fully and dissolve naturally.
-/// The quadratic fade curve means the last 0.6s is a gentle tail-off,
-/// creating the "lingering shimmer" of a real water drop.
+/// Click flash duration (1.8s for full ripple propagation).
 pub const MOUSE_FLASH_DURATION_SECS: f32 = 1.8;
 
-/// v18 mastery: secondary ripple intensity (fraction of primary flash).
-///
-/// Raised from 0.35 to 0.45. The secondary echo ring is now brighter,
-/// making the layered "stone in water" effect more visible. The secondary
-/// ring still trails the primary at half speed, creating a two-wave
-/// cascade that reads as a single elegant event.
+// ── Quantum Ripple particle burst (v25 masterclass) ──
+
+/// Maximum concurrent Quantum Ripple particles. Pre-allocated once at
+/// Cloud init; reused via free-list. 32 covers the peak case of 2-3
+/// rapid clicks (each spawns up to 25) with overlap.
+pub const QUANTUM_RIPPLE_POOL_SIZE: usize = 64;
+
+/// Particles spawned per click (fixed 20 for determinism).
+pub const QUANTUM_RIPPLE_PARTICLE_COUNT: usize = 20;
+
+/// Particle lifespan in seconds (0.8s midpoint).
+pub const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 0.8;
+
+/// Particle outward radial speed (cells/sec).
+pub const QUANTUM_RIPPLE_SPEED: f32 = 18.0;
+
+/// Brand purple RGB (same as logo color) for Quantum effects.
+pub const QUANTUM_BRAND_PURPLE_R: u8 = 168;
+pub const QUANTUM_BRAND_PURPLE_G: u8 = 85;
+pub const QUANTUM_BRAND_PURPLE_B: u8 = 247;
+
+/// Rain interaction duration (reserved for future use).
+#[allow(dead_code)]
+pub const QUANTUM_RIPPLE_RAIN_INTERACTION_SECS: f32 = 0.2;
+
+/// Secondary ripple intensity (fraction of primary, 0.45).
 pub const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.45;
 
 /// v18 mastery: secondary ripple speed (fraction of primary speed).

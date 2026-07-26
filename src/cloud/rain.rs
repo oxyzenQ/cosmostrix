@@ -484,6 +484,13 @@ impl Cloud {
         // — negligible vs the ~2200 dirty cells/frame average.
         self.apply_crt_vignette(frame);
 
+        // ── Quantum Ripple particle update + render (v25 masterclass) ──
+        //
+        // Update active particles (move outward, expire by lifespan),
+        // then render each as a brand-purple glyph with fade based on
+        // age. Runs O(active_particles) per frame — typically 0-20.
+        self.apply_quantum_ripple(frame, now);
+
         // --- Phosphor persistence post-process ---
         // Scale phosphor decay elapsed by resume_blend so afterglow fades at
         // the same rate as the rain wakes up. Without this, phosphor trails
@@ -772,6 +779,86 @@ impl Cloud {
             let smooth = t * t * (3.0 - 2.0 * t);
             let factor = CRT_VIGNETTE_EDGE_FACTOR + (1.0 - CRT_VIGNETTE_EDGE_FACTOR) * smooth;
             apply_crt_dim_row(frame, cols, row, factor, bg);
+        }
+    }
+
+    /// Update + render Quantum Ripple particles (v25 masterclass).
+    ///
+    /// Active particles move outward radially, fade based on age
+    /// (bright at birth → dim at lifespan end), and are rendered as
+    /// brand-purple glyphs (*, +, ·). Expired particles are
+    /// deactivated (returned to the free-list).
+    ///
+    /// Runs O(active_particles) per frame. Cost is negligible —
+    /// typically 0-20 active particles, peaking at ~40 during rapid
+    /// multi-click bursts.
+    fn apply_quantum_ripple(&mut self, frame: &mut Frame, now: Instant) {
+        let cols = self.cols;
+        let lines = self.lines;
+        let bg = self.palette.bg;
+
+        for p in &mut self.quantum_particles {
+            if !p.active {
+                continue;
+            }
+            let age = now.saturating_duration_since(p.birth).as_secs_f32();
+            if age >= QUANTUM_RIPPLE_LIFETIME_SECS {
+                p.active = false;
+                continue;
+            }
+            // Move particle by velocity × elapsed since birth (simple
+            // linear motion; no gravity — these are energy particles).
+            p.x += p.vx * (1.0 / 60.0); // assume ~60 FPS for motion step
+            p.y += p.vy * (1.0 / 60.0);
+
+            // Fade: 1.0 at birth → 0.0 at lifespan. Quadratic for
+            // natural energy dissipation (bright peak, gentle tail).
+            let life_frac = age / QUANTUM_RIPPLE_LIFETIME_SECS;
+            let fade = 1.0 - life_frac;
+            let brightness = fade * fade;
+
+            // Compute integer cell position.
+            let col = p.x as u16;
+            let line = p.y as u16;
+            if col >= cols || line >= lines {
+                p.active = false;
+                continue;
+            }
+
+            // Read existing cell, blend brand purple onto it.
+            let Some(idx) = frame.index(col, line) else {
+                continue;
+            };
+            let cell = frame.cell_at_index(idx);
+            // Decode existing fg (fallback to bg for blank cells).
+            let base_fg = cell.fg.or(bg);
+            let Some(base_fg) = base_fg else {
+                continue;
+            };
+            let Some((br, bg_, bb)) = crate::palette::decode_color(base_fg) else {
+                continue;
+            };
+            // Blend toward brand purple by `brightness` factor.
+            let wf = (brightness * 256.0) as i32;
+            let nr = (br as i32 + ((QUANTUM_BRAND_PURPLE_R as i32 - br as i32) * wf + 128) / 256)
+                .clamp(0, 255) as u8;
+            let ng = (bg_ as i32 + ((QUANTUM_BRAND_PURPLE_G as i32 - bg_ as i32) * wf + 128) / 256)
+                .clamp(0, 255) as u8;
+            let nb = (bb as i32 + ((QUANTUM_BRAND_PURPLE_B as i32 - bb as i32) * wf + 128) / 256)
+                .clamp(0, 255) as u8;
+            let new_fg = Color::Rgb {
+                r: nr,
+                g: ng,
+                b: nb,
+            };
+            // Use the particle's char (*, +, ·) instead of the cell's.
+            let new_cell = crate::cell::Cell {
+                ch: p.ch,
+                fg: Some(new_fg),
+                bg: cell.bg,
+                bold: true,
+            };
+            frame.set(col, line, new_cell);
         }
     }
 }

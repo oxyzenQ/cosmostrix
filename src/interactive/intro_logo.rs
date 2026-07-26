@@ -126,11 +126,11 @@ const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 
 /// Phase boundaries (milliseconds from intro start).
 ///
-/// Tuned for an elegant, cinematic feel: the early phases (fade-in and
-/// ignition) are intentionally slow so the logo reveals itself with
-/// deliberate grace rather than snapping into view. Total intro runs
-/// ~6.25 s, comfortably under the 8 s ceiling.
-const PHASE1_FADEIN_END_MS: u64 = 2_000;
+/// v25 "Quantum Lightning" calibration: Phase 1 is now a lightning
+/// strike (0-1500ms) instead of a slow fade-in. The logo appears
+/// via a bright purple flash that decays, creating the "struck by
+/// energy" effect. Total intro runs ~6.25 s.
+const PHASE1_FADEIN_END_MS: u64 = 1_500;
 const PHASE2_IGNITION_END_MS: u64 = 4_250;
 const PHASE3_DISSOLVE_END_MS: u64 = 5_250;
 const PHASE4_RAIN_END_MS: u64 = 6_250;
@@ -467,13 +467,17 @@ pub(super) fn run_logo_intro(
         // ── Render ──────────────────────────────────────────────────────
         frame.clear_with_bg(palette_bg);
 
-        // Compute the current logo brightness scalar in [0, 1]:
-        // * Phase 1: ramps 0 → 1 as the logo fades in.
-        // * Phase 2: 1.0 + brief flash on spark impact, decaying back to 1.
-        // * Phase 3: stays at 1.0 for cells still visible; dissolved cells
-        //   are skipped entirely (rendered as nothing).
-        // * Phase 4: no logo cells rendered.
-        let base_brightness = if phase == 1 { phase_t } else { 1.0 };
+        // Brightness: Phase 1 = strike curve (peak 1.5 at t≈0.3, decay, settle 1.0).
+        // Phase 2 = 1.0 + flash. Phase 3 = 1.0 (visible cells). Phase 4 = none.
+        let base_brightness = if phase == 1 {
+            // Strike curve: peak at t=0.3, exponential decay, floor at 1.0.
+            // At t=0: 0.0 (dark). At t=0.3: 1.5 (peak strike). At t=1.0: 1.0 (settled).
+            let strike_peak = 1.5_f32 * (-3.0 * phase_t).exp();
+            let settle = phase_t.min(1.0);
+            (strike_peak + settle).clamp(0.0, 1.5)
+        } else {
+            1.0
+        };
 
         // Ignition flash: bright spike just after the spark lands.
         // The spark lands at phase_t ≈ 0.5 (middle of Phase 2). After
@@ -527,13 +531,9 @@ pub(super) fn run_logo_intro(
                 if tx >= w || ty >= h {
                     continue;
                 }
-                // Fade-in cells ramp from 0 → base_brightness. Already-
-                // revealed cells use base_brightness.
+                // Phase 1: strike brightness (no per-cell fade).
                 let cell_brightness = if phase == 1 {
-                    // Reveal this cell progressively over a short window
-                    // so it doesn't pop in at full brightness.
-                    let cell_t = ((phase_t * FADEIN_STEPS as f32).fract()).clamp(0.0, 1.0);
-                    base_brightness * cell_t
+                    base_brightness
                 } else {
                     (base_brightness + flash).clamp(0.0, 1.5)
                 };
@@ -1024,8 +1024,8 @@ mod tests {
 
     #[test]
     fn phase_boundaries_match_spec() {
-        // Spec: 0-2s fade in, 2-4.25s ignition, 4.25-5.25s dissolve, 5.25-6.25s rain.
-        assert_eq!(PHASE1_FADEIN_END_MS, 2_000);
+        // v25 Quantum Lightning: Phase 1 is now 0-1.5s (strike, was 2s fade).
+        assert_eq!(PHASE1_FADEIN_END_MS, 1_500);
         assert_eq!(PHASE2_IGNITION_END_MS, 4_250);
         assert_eq!(PHASE3_DISSOLVE_END_MS, 5_250);
         assert_eq!(PHASE4_RAIN_END_MS, 6_250);

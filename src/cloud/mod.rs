@@ -4,33 +4,14 @@
 //! Core simulation engine for Cosmostrix.
 //!
 //! This module implements the entire atmospheric rendering pipeline:
-//! droplet spawning, advancement, palette management, phosphor persistence,
-//! anomaly events, and the autonomous cinematic ecosystem.
 //!
 //! ## Key Systems
 //!
 //! - **DrawCtx**: A read-only snapshot of renderer state passed to each
-//!   droplet's `draw()` method, avoiding borrow conflicts with the mutable
-//!   droplet iteration loop.
-//! - **Behavior Profiles**: Seven cinematic identities (Monolith, Void, Neural,
-//!   Decay, Eclipse, Static, Pulse) that define fundamentally different
-//!   atmospheric behaviors — not mere recolors.
-//! - **Color Ecosystem**: Slow autonomous drift of luminance, saturation, and
-//!   hue that makes the renderer feel organically alive over long sessions.
-//! - **Atmospheric Evolution**: Entropy cycles that modulate density, luminance
-//!   and anomaly pressure on minute-scale timescales.
-//! - **Renderer Memory**: Long-timescale history that influences emergent
-//!   behavior based on past atmospheric conditions.
-//! - **Storytelling State**: Watches for convergence across other systems and
-//!   occasionally produces emotionally resonant emergent moments.
 //!
 //! ## Palette Transition System
 //!
 //! When the color scheme changes, new droplets inherit the new palette while
-//! existing streams retain their birth palette for their entire lifecycle.
-//! Rows adopt the new palette via a top-to-bottom wave (matching the charset
-//! transition visual language), creating an organic propagation cascade
-//! instead of a robotic simultaneous switch.
 
 mod atmospheric_events;
 mod ecosystem;
@@ -51,14 +32,17 @@ mod state;
 #[cfg(test)]
 mod tests;
 
-// Re-export public types needed by other modules (droplet.rs uses CharLoc + DrawCtx)
 pub(super) use render::{CharLoc, DrawCtx};
 
 use std::time::{Duration, Instant};
 
 use bitvec::prelude::BitVec;
 use crossterm::style::Color;
-use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
+use rand::{
+    distr::{Distribution, Uniform},
+    rngs::StdRng,
+    SeedableRng,
+};
 use smallvec::SmallVec;
 
 use crate::cell::Cell;
@@ -78,8 +62,17 @@ use state::{AnomalyZone, ColumnStatus, MsgChr};
 
 use atmospheric_events::AtmosphericEventManager;
 
-// Cloud is crate-facing but exposes internal state to split submodules/tests.
-// Boolean fields mirror existing CLI/runtime flags and are kept explicit.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct QuantumParticle {
+    pub active: bool,
+    pub x: f32,
+    pub y: f32,
+    pub vx: f32,
+    pub vy: f32,
+    pub birth: Instant,
+    pub ch: char,
+}
+
 #[allow(private_interfaces, clippy::struct_excessive_bools)]
 pub struct Cloud {
     pub(super) lines: u16,
@@ -99,10 +92,6 @@ pub struct Cloud {
     pub(super) pause: bool,
 
     pub(super) droplet_density: f32,
-    /// Optional per-column density map for monolith spawn weighting.
-    /// When set, monolith pillars preferentially spawn in columns with higher
-    /// map values (0.0..=1.0). None = uniform distribution (legacy behavior).
-    /// Set via scene-custom block's `density-map` field (comma-separated f64 list).
     pub(super) monolith_density_map: Option<&'static [f64]>,
     pub(super) droplets_per_sec: f32,
     pub(super) chars_per_sec: f32,
@@ -125,9 +114,6 @@ pub struct Cloud {
     pub(super) chars: Vec<char>,
     pub(super) char_pool: Vec<char>,
     pub(super) previous_char_pool: Vec<char>,
-    /// v16: Cached check if char_pool is all '0'/'1' (binary charset).
-    /// Recomputed in rebuild_char_pools() and transition_chars().
-    /// Eliminates O(2048) scan per frame in rain.rs.
     pub(super) char_pool_is_binary: bool,
     pub(super) charset_transition_start: Option<Instant>,
     pub(super) glitch_pool: Vec<char>,
@@ -136,15 +122,8 @@ pub struct Cloud {
     pub(super) glitch_map: BitVec,
     pub(super) color_map: Vec<u8>,
 
-    /// Precomputed viewport edge fade factor per line. Indexed by `line`.
-    /// Eliminates per-cell float division in Droplet::draw and Monolith draw.
-    /// Resized in reset() on terminal resize.
     pub(super) edge_fade_lut: Vec<f32>,
 
-    /// Free-list of dead droplet indices for O(1) spawn slot lookup.
-    /// Replaces the previous linear scan in spawn_droplets that searched
-    /// `droplets[]` for the next `!is_alive` slot. Seeded in reset() with
-    /// 0..len (all droplets start dead). Popped on spawn, pushed on death.
     pub(super) droplet_free_list: Vec<usize>,
 
     pub(super) col_stat: Vec<ColumnStatus>,
@@ -166,33 +145,15 @@ pub struct Cloud {
     pub(super) spawn_remainder: f32,
     pub(super) pause_time: Option<Instant>,
 
-    /// Resume time-scale factor: 0.0 (just resumed) → 1.0 (fully active).
-    /// Scales the simulation clock for all droplets during the smoothstep
-    /// resume transition, producing cinematic inertia recovery — the rain
-    /// decelerates into the pause and accelerates smoothly out of it.
     pub(super) resume_blend: f32,
-    /// Timestamp when the most recent unpause occurred. Used to compute
-    /// the smoothstep S-curve for `resume_blend`.
     pub(super) resume_start: Option<Instant>,
 
-    /// v17 mastery: timestamp when the most recent pause-transition started.
-    /// When set, the rain decelerates from full speed to a freeze over
-    /// PAUSE_EASE_DURATION_SECS using a smootherstep curve. When the blend
-    /// reaches 0, `self.pause` is set to true and this is cleared.
     pub(super) pause_start: Option<Instant>,
 
     pub(super) force_draw_everything: bool,
 
-    /// Pending semantic invalidation: set to true when the renderer's semantic
-    /// identity changes (charset switch, shading mode toggle). On the next
-    /// `rain_at()`, this triggers `frame.invalidate_semantic()` which bumps
-    /// the frame's `semantic_gen`, forcing the Terminal to do a full redraw
-    /// and properly synchronize its LastFrame cache with the new semantics.
     pub(super) semantic_invalidate: bool,
 
-    /// Frame counter for periodic full redraw (ANSI drift correction).
-    /// Every `FULL_REDRAW_INTERVAL_FRAMES`, forces a complete screen refresh
-    /// to correct any accumulated terminal state desync.
     pub(super) frames_since_full_redraw: u64,
 
     pub(super) perf_pressure: f32,
@@ -203,164 +164,74 @@ pub struct Cloud {
     pub(super) message: Vec<MsgChr>,
     pub(super) message_text: Option<String>,
     pub(super) message_border: bool,
-    /// When the message was set — for typewriter reveal timing.
     pub(super) message_start_time: Option<Instant>,
     pub(super) color_scheme: ColorScheme,
     pub(super) default_background: bool,
     scene_name: String,
 
-    /// Palette generation table: stores up to MAX_PALETTE_SLOTS palettes for
-    /// generation-based transitions.  Each droplet carries a `palette_slot`
-    /// that indexes into this table, so old streams retain their birth palette
-    /// while new streams inherit the latest one.
     pub(super) palette_table: [Option<Palette>; MAX_PALETTE_SLOTS],
 
-    /// Index of the currently active palette slot (where new streams inherit).
     pub(super) active_palette_slot: u8,
 
-    /// Time when the current palette transition started (None if not transitioning).
-    /// Used for row-based top-to-bottom wave progression.
     pub(super) transition_start: Option<Instant>,
 
-    /// Per-column palette slot: tracks which palette each column is currently
-    /// using for spawning.  During a transition, all columns adopt the new
-    /// palette simultaneously since the wave is row-based (top-to-bottom),
-    /// not column-based. This field is kept for spawn-time inheritance.
     pub(super) column_palette_slot: Vec<u8>,
 
-    /// Mouse cursor column position (u16::MAX if no mouse).
     pub mouse_col: u16,
 
-    /// Mouse cursor line position (u16::MAX if no mouse).
     pub mouse_line: u16,
 
-    /// Whether mouse interaction is enabled.
     pub mouse_enabled: bool,
 
-    /// Flash effect: click column.
     pub(super) flash_col: u16,
 
-    /// Flash effect: click line.
     pub(super) flash_line: u16,
 
-    /// Flash effect: start time (None if no active flash).
     pub(super) flash_time: Option<Instant>,
+
+    pub(super) quantum_particles: Vec<QuantumParticle>,
 
     pub(super) last_reseed_time: Instant,
 
-    // --- Phosphor persistence state ---
-    /// Per-cell phosphor energy (0 = dead, 255 = full). Tracks residual
-    /// luminance for CRT-style afterglow after a droplet's tail passes.
     pub(super) phosphor: Vec<u8>,
-    /// Per-cell base foreground color captured when phosphor was activated.
     pub(super) phosphor_base_fg: Vec<Option<Color>>,
-    /// Per-cell base character captured when phosphor was activated.
-    /// Used to render ghost cells with the original character at dimmed
-    /// brightness instead of a blank space — this makes trail afterglow
-    /// look like fading text rather than dim colored patches, which is
-    /// critical for perceived smoothness and cinematic quality.
     pub(super) phosphor_base_ch: Vec<char>,
-    /// Per-cell layer identifier for layer-aware phosphor decay.
     pub(super) phosphor_layer: Vec<u8>,
-    /// BitVec tracking which cells were refreshed by a droplet this frame.
     pub(super) phosphor_fresh: BitVec,
-    /// BitVec tracking which cells are currently in `phosphor_active`.
-    /// Provides O(1) membership check during dedup, replacing the
-    /// previous O(N) `phosphor_active.contains()` linear scan that ran
-    /// per fresh cell per frame (5,000-100,000 wasted ops/frame).
     pub(super) phosphor_in_active: BitVec,
-    /// Time of the last phosphor pass for frame-rate-independent decay.
     pub(super) last_phosphor_time: Instant,
-    /// Active phosphor indices — cells with non-zero energy, tracked for O(active) decay.
-    /// Typical frame has <100 active cells, eliminating 95%+ of Pass 3 iterations.
     pub(super) phosphor_active: SmallVec<[usize; 256]>,
-    /// Snapshot of `tracked_fresh` from the previous phosphor_decay_pass.
-    /// Used to incrementally clear `phosphor_fresh` bits at the start of
-    /// the next pass — replaces the previous O(W×H) `phosphor_fresh.fill(false)`
-    /// that scanned the entire grid every frame even when only ~200 cells
-    /// were dirty.
     pub(super) phosphor_last_fresh: SmallVec<[usize; 256]>,
 
-    // --- Rare anomaly events ---
-    /// Active anomaly zones currently affecting the screen.
     pub(super) anomaly_zones: Vec<AnomalyZone>,
 
-    // --- Autonomous cinematic ecosystem ---
-    /// Active cinematic behavior profile.
     pub(super) profile: BehaviorProfile,
-    /// Interpolated profile params (current, transitioning toward target).
     pub(super) profile_current: ProfileParams,
-    /// Target profile params (what we're transitioning toward).
     pub(super) profile_target: ProfileParams,
-    /// Time when profile transition started.
     pub(super) profile_transition_start: Option<Instant>,
 
-    /// Temporal color ecosystem.
     pub(super) color_ecosystem: ColorEcosystem,
-    /// Autonomous atmospheric evolution.
     pub(super) atmosphere: AtmosphericEvolution,
-    /// Long-timescale renderer memory.
     pub(super) memory: RendererMemory,
-    /// Emergent visual storytelling.
     pub(super) storytelling: StorytellingState,
 
-    // --- Scene-entry ramp ---
-    /// Timestamp when the glyph scene-entry ramp started. During the ramp
-    /// period (GLYPH_ENTRY_RAMP_DURATION_MS), spawn rate is gradually
-    /// increased from GLYPH_ENTRY_RAMP_MIN_SCALE to 1.0 via smoothstep,
-    /// creating a cinematic top-entry cascade. None when no ramp is active.
     pub(super) glyph_entry_time: Option<Instant>,
 
-    // --- Color drift gate ---
-    /// When false (default), autonomous palette drift from ColorEcosystem is
-    /// suppressed so that explicit CLI/config/profile color remains sticky.
-    /// When true, the ecosystem may spontaneously change color schemes via
-    /// `related_schemes()` drift, providing atmospheric color evolution.
     pub(super) auto_color_drift: bool,
 
-    /// Runtime idle state (passed from event loop).
     pub(super) is_idle: bool,
 
-    // --- Atmospheric Event Engine ---
-    /// Event manager for cinematic atmospheric events (ghosts, etc.).
     pub(super) event_manager: AtmosphericEventManager,
 
-    // --- Living rain: wind gusts ---
-    /// Wind-gust state machine. Advanced once per `rain_at` frame; output
-    /// multiplier (always in `[1.0, GUST_PEAK_MAX]`) is folded into the
-    /// global `spawn_scale`. Independent of `atmosphere` (which is a
-    /// slow entropy-cycle drift) — gusts are short, sharp surges.
     pub(super) gust: living_rain::GustState,
 
-    // --- Per-frame component timing (set by rain_at, read by benchmark) ---
-    /// Wall-clock time spent in the simulation half of the most recent
-    /// `rain_at()` call, in milliseconds. "Simulation" = atmosphere events,
-    /// spawn rate computation, droplet physics advancement — everything
-    /// BEFORE the first frame-mutating render step (phosphor decay).
-    /// Zero until the first `rain_at()` call completes.
     pub(super) last_sim_ms: f64,
-    /// Wall-clock time spent in the render half of the most recent
-    /// `rain_at()` call, in milliseconds. "Render" = phosphor decay,
-    /// anomaly zones, atmospheric post-processing, message box — every
-    /// step that mutates the frame buffer. Zero until the first
-    /// `rain_at()` call completes.
     pub(super) last_render_ms: f64,
-    /// When true, `rain_at()` captures per-component timing (t1, t2 via
-    /// `Instant::now()`) for the sim/render split. When false (default),
-    /// those `Instant::now()` calls are skipped entirely — saving ~40ns
-    /// per frame (2 calls × ~20ns each) on the hot path.
-    ///
-    /// Set to true by `--benchmark` and `--perf-stats` paths. The
-    /// interactive event loop leaves it false for zero overhead.
     pub(super) enable_component_timing: bool,
-    /// Reusable buffer for phosphor dirty indices — avoids per-frame
-    /// SmallVec allocation when dirty cell count exceeds inline capacity.
     pub(super) phosphor_dirty_buf: Vec<usize>,
 }
 
 impl Cloud {
-    // Constructor mirrors the public runtime config knobs; grouping them now
-    // would churn stable call sites without reducing renderer complexity.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         color_mode: ColorMode,
@@ -459,6 +330,18 @@ impl Cloud {
             flash_col: u16::MAX,
             flash_line: u16::MAX,
             flash_time: None,
+            quantum_particles: vec![
+                QuantumParticle {
+                    active: false,
+                    x: 0.0,
+                    y: 0.0,
+                    vx: 0.0,
+                    vy: 0.0,
+                    birth: now,
+                    ch: '*'
+                };
+                QUANTUM_RIPPLE_POOL_SIZE
+            ],
             last_reseed_time: now,
             phosphor: Vec::new(),
             phosphor_base_fg: Vec::new(),
@@ -497,10 +380,6 @@ impl Cloud {
         self.force_draw_everything = true;
     }
 
-    /// Restart the message typewriter effect from the beginning.
-    /// Called when the user presses Space to reseed the rain — the
-    /// message replays its typewriter reveal for a premium cinematic
-    /// feel on every restart.
     pub fn restart_message_typewriter(&mut self) {
         if self.message_text.is_some() {
             self.message_start_time = Some(Instant::now());
@@ -516,22 +395,48 @@ impl Cloud {
         }
     }
 
-    /// Enable atmospheric events (called when entering interactive mode).
     pub fn enable_events(&mut self) {
         self.event_manager.enable_events();
     }
 
-    /// Set mouse cursor position for interaction effects.
     pub fn set_mouse_position(&mut self, col: u16, line: u16) {
         self.mouse_col = col;
         self.mouse_line = line;
     }
 
-    /// Trigger a click flash effect at the given position.
     pub fn set_mouse_click(&mut self, col: u16, line: u16) {
         self.flash_col = col;
         self.flash_line = line;
         self.flash_time = Some(Instant::now());
+        self.spawn_quantum_ripple(col, line);
+    }
+
+    fn spawn_quantum_ripple(&mut self, col: u16, line: u16) {
+        let cx = col as f32 + 0.5;
+        let cy = line as f32 + 0.5;
+        let now = Instant::now();
+        let chars = ['*', '+', '·'];
+        let mut spawned = 0usize;
+        for p in &mut self.quantum_particles {
+            if spawned >= QUANTUM_RIPPLE_PARTICLE_COUNT {
+                break;
+            }
+            if p.active {
+                continue;
+            }
+            let angle: f32 = self.rand_chance.sample(&mut self.mt) * std::f32::consts::TAU;
+            let speed = QUANTUM_RIPPLE_SPEED * (0.8 + self.rand_chance.sample(&mut self.mt) * 0.4);
+
+            let char_idx = (self.rand_chance.sample(&mut self.mt) * chars.len() as f32) as usize;
+            p.active = true;
+            p.x = cx;
+            p.y = cy;
+            p.vx = angle.cos() * speed;
+            p.vy = angle.sin() * speed;
+            p.birth = now;
+            p.ch = chars[char_idx.min(chars.len() - 1)];
+            spawned += 1;
+        }
     }
 
     #[must_use]
@@ -544,18 +449,10 @@ impl Cloud {
         self.rain_style
     }
 
-    /// Get current behavior profile.
     pub fn profile(&self) -> BehaviorProfile {
         self.profile
     }
 
-    /// Cycle to the next behavior profile with smooth transition.
-    ///
-    /// v18: 'm' key binding removed — the behavior profile system stays
-    /// wired into rendering (profile_current affects spawn scale, anomaly
-    /// frequency, entropy rate, phosphor decay) but there was no visible
-    /// feedback to the user when cycling. The default behavior profile is
-    /// always active. Kept for potential future HUD integration.
     #[allow(dead_code)]
     pub fn cycle_profile(&mut self) {
         let next = self.profile.cycle();
@@ -564,20 +461,15 @@ impl Cloud {
         self.profile_transition_start = Some(Instant::now());
     }
 
-    /// Get the name of the current behavior profile.
     pub fn profile_name(&self) -> &'static str {
         self.profile.name()
     }
 
-    /// Return the total number of droplet slots (alive + dead).
     #[must_use]
     pub fn droplet_count(&self) -> usize {
         self.droplets.len()
     }
 
-    /// Return the number of currently active (alive) droplets.
-    /// More accurate for performance metrics than `droplet_count()`
-    /// which includes recycled slots waiting to be reused.
     #[must_use]
     pub fn active_droplet_count(&self) -> usize {
         if matches!(self.rain_style, RainStyle::Monolith) {
@@ -587,99 +479,48 @@ impl Cloud {
         }
     }
 
-    /// Wall-clock milliseconds spent in the simulation half of the most
-    /// recent `rain_at()` call. "Simulation" = atmosphere events, spawn
-    /// rate computation, droplet physics — everything before the first
-    /// frame-mutating render step (phosphor decay pass).
-    ///
-    /// Returns 0.0 until the first `rain_at()` call completes. Used by
-    /// the benchmark to produce sub-component timing breakdowns without
-    /// requiring the caller to instrument `rain_at` from the outside.
     #[must_use]
     pub fn last_sim_ms(&self) -> f64 {
         self.last_sim_ms
     }
 
-    /// Wall-clock milliseconds spent in the render half of the most
-    /// recent `rain_at()` call. "Render" = phosphor decay, anomaly zones,
-    /// atmospheric post-processing, message box — every step that mutates
-    /// the frame buffer.
-    ///
-    /// Returns 0.0 until the first `rain_at()` call completes. The sum
-    /// `last_sim_ms() + last_render_ms()` is the total `rain_at()` wall
-    /// time; the benchmark also measures IO overhead separately (dirty
-    /// checks + clear_dirty) which is NOT included in either value.
     #[must_use]
     pub fn last_render_ms(&self) -> f64 {
         self.last_render_ms
     }
 
-    /// Enable or disable per-component timing instrumentation inside
-    /// `rain_at()`. When enabled, two `Instant::now()` calls are made
-    /// per frame to split sim/render time. When disabled (default),
-    /// those calls are skipped for zero overhead on the hot path.
-    ///
-    /// Enabled by `--benchmark` and `--perf-stats`. The interactive
-    /// event loop leaves it disabled unless perf-stats is requested.
     pub fn set_component_timing(&mut self, enabled: bool) {
         self.enable_component_timing = enabled;
     }
 
-    /// Set a per-column density map for monolith spawn weighting.
-    ///
-    /// The map is a slice of f64 weights in `[0.0, 1.0]`, one per terminal
-    /// column. When set, the monolith spawner uses rejection sampling: a
-    /// candidate column is only accepted if a uniform random draw is `<=
-    /// map[col]`. Columns with weight `1.0` always pass; `0.0` never spawns.
-    /// Pass `None` to disable the map and return to uniform distribution.
-    ///
-    /// The slice must be `'static` (e.g. a `const` or `Box::leak`'d Vec) —
-    /// Cloud does not copy it. For config-driven maps, the caller is
-    /// responsible for lifetime management.
     pub fn set_monolith_density_map(&mut self, map: Option<&'static [f64]>) {
         self.monolith_density_map = map;
     }
 
-    /// Get the name of the active scene.
     #[must_use]
     pub fn active_scene(&self) -> &str {
         &self.scene_name
     }
 
-    /// Get the active palette colors for HUD dynamic coloring.
-    /// Returns a slice of crossterm Colors from the current palette.
-    /// Used by the live HUD to color metrics with the theme's colors
-    /// instead of hardcoded static colors.
     #[must_use]
     pub fn hud_colors(&self) -> &[crossterm::style::Color] {
         &self.palette.colors
     }
 
     pub fn toggle_pause(&mut self) -> bool {
-        // v17 mastery: pause now has a smooth deceleration transition.
-        // When pausing: start pause_start (decelerate 1→0 over PAUSE_EASE_DURATION_SECS).
-        // When resuming: existing resume_start logic (accelerate 0→1 over RESUME_EASE_DURATION_SECS).
-        // If user presses 'p' mid-pause-transition: cancel the pause (resume immediately).
         if self.pause_start.is_some() {
-            // Mid-pause-transition: user pressed 'p' again to cancel.
-            // Resume from current pause_blend (which is between 0 and 1).
             self.pause_start = None;
             self.pause = false;
             self.pause_time = None;
-            // Start resume from current blend value (partial deceleration → re-acceleration).
             self.resume_blend = self.resume_blend.max(0.1); // floor at 0.1 so it's visible
             self.resume_start = Some(Instant::now());
-            // Note: we don't shift timers here because no time was spent paused.
             return true;
         }
         if self.pause {
-            // Currently paused → resume (existing logic).
             self.pause = false;
             if let Some(pt) = self.pause_time.take() {
                 let now = Instant::now();
                 let elapsed = now.saturating_duration_since(pt);
-                // Drop all spawn debt on resume. The next frame starts from this
-                // instant and the smoothstep resume ramp reintroduces motion.
                 self.last_spawn_time = now;
                 self.spawn_remainder = 0.0;
                 for d in &mut self.droplets {
@@ -689,8 +530,6 @@ impl Cloud {
                         d.advance_remainder = 0.0;
                     }
                 }
-                // Shift all atmospheric subsystem timers so they don't burst-fire
-                // on the first tick after unpause (each sees a large elapsed).
                 self.last_phosphor_time += elapsed;
                 self.last_glitch_time += elapsed;
                 self.next_glitch_time += elapsed;
@@ -702,10 +541,6 @@ impl Cloud {
                 if let Some(ref mut cd) = self.storytelling.cooldown_until {
                     *cd += elapsed;
                 }
-                // Shift palette transition and profile interpolation timers
-                // so they don't jump on resume. Without this, a transition in
-                // progress during pause would see a large elapsed and instantly
-                // complete, causing a visible visual discontinuity.
                 if let Some(ref mut ts) = self.transition_start {
                     *ts += elapsed;
                 }
@@ -715,8 +550,6 @@ impl Cloud {
                 if let Some(ref mut ct) = self.charset_transition_start {
                     *ct += elapsed;
                 }
-                // Initialize cinematic resume easing: simulation time scale ramps
-                // from 0→1 over RESUME_EASE_DURATION_SECS using smootherstep.
                 self.resume_blend = 0.0;
                 self.resume_start = Some(now);
                 true
@@ -724,33 +557,21 @@ impl Cloud {
                 true
             }
         } else {
-            // v17 mastery: start pause-transition (deceleration) instead of instant freeze.
-            // rain_at() will continue running with simulation scaled by pause_blend
-            // until it reaches 0, then set self.pause = true.
             self.pause_start = Some(Instant::now());
             true
         }
     }
 
-    /// Returns whether a full redraw is pending. Used by tests to verify
-    /// that ignored keys don't trigger destructive redraws.
     #[cfg(test)]
     pub fn is_force_draw_everything(&self) -> bool {
         self.force_draw_everything
     }
 
-    /// Returns whether a semantic invalidation is pending. Used by tests to
-    /// verify that ignored keys don't trigger frame invalidation.
     #[cfg(test)]
     pub fn is_semantic_invalidate(&self) -> bool {
         self.semantic_invalidate
     }
 
-    /// Clear all pending redraw flags for test setup. After init_chars() and
-    /// reset(), both semantic_invalidate and force_draw_everything are set.
-    /// Tests that verify "key X does not trigger redraw" need these cleared
-    /// first, or the assertion fails due to initialization residue rather
-    /// than the tested key's behavior.
     #[cfg(test)]
     pub fn clear_redraw_flags_for_test(&mut self) {
         self.semantic_invalidate = false;
@@ -902,17 +723,12 @@ impl Cloud {
     fn draw_message(&self, frame: &mut Frame) {
         let bg = self.palette.bg;
 
-        // Adaptive color: use palette last color (follows 'c' key cycling).
         let fg = if self.color_mode == ColorMode::Mono {
             None
         } else {
             self.palette.colors.last().copied()
         };
 
-        // Typewriter with fade-in: characters reveal progressively at 30ms/char,
-        // then each newly revealed character fades in from 30% to 100% brightness
-        // over ~100ms (3 frames at 30ms/char). This creates a premium "glow-in"
-        // effect instead of hard pop-in.
         let reveal_count = if let Some(start) = self.message_start_time {
             let elapsed_ms = start.elapsed().as_millis() as usize;
             let count = (elapsed_ms / 30).max(1);
@@ -927,9 +743,6 @@ impl Cloud {
             usize::MAX
         };
 
-        // For fade-in: a character revealed at count N was revealed at
-        // elapsed_ms ≈ N*30. Its age = elapsed_ms - N*30. Fade completes
-        // at FADE_IN_MS (100ms). factor = min(age / FADE_IN_MS, 1.0).
         const FADE_IN_MS: usize = 100;
         const FADE_IN_START: f32 = 0.30; // start at 30% brightness
 
@@ -940,7 +753,6 @@ impl Cloud {
             let (ch, cell_fg) = if is_content {
                 if content_idx < reveal_count {
                     content_idx += 1;
-                    // Calculate fade-in factor for this character.
                     let cell_fg =
                         if let (Some(start), Some(base_fg)) = (self.message_start_time, fg) {
                             let elapsed_ms = start.elapsed().as_millis() as usize;
@@ -949,7 +761,6 @@ impl Cloud {
                             if age_ms >= FADE_IN_MS {
                                 fg // fully faded in
                             } else {
-                                // Fade from FADE_IN_START to 1.0 over FADE_IN_MS
                                 let progress = age_ms as f32 / FADE_IN_MS as f32;
                                 let factor = FADE_IN_START + (1.0 - FADE_IN_START) * progress;
                                 if let Some((r, g, b)) = crate::palette::decode_color(base_fg) {
