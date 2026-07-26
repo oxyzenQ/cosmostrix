@@ -534,41 +534,54 @@ pub(super) fn run_logo_intro(
         }
 
         // Render laser beam during Phase 1 (t < 0.9: traveling; t >= 0.9: gone).
+        // v25 wide beam: 3 columns (center + 1 left + 1 right) for 2x visual width.
         if phase == 1 && phase_t < 0.9 {
-            let laser_x = logo_center_x as u16;
+            let laser_cx = logo_center_x as i32;
             let laser_tip_y = (phase_t / 0.9 * logo_center_y) as u16;
             for y in 0..=laser_tip_y.min(h.saturating_sub(1)) {
                 let dist_from_tip = laser_tip_y.saturating_sub(y);
-                // Core (bright white-purple) within 0-1 cells of tip;
-                // glow (dimmer purple) extends further.
-                let (ch, brightness) = if dist_from_tip == 0 {
-                    ('┃', 1.0)
-                } else if dist_from_tip <= 2 {
-                    ('│', 0.7)
-                } else {
-                    ('│', 0.3)
-                };
-                let laser_color = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, brightness);
-                // Blend toward white for the bright core.
-                let laser_color = if dist_from_tip == 0 {
-                    lerp_rgb(laser_color, (255, 255, 255), 0.5)
-                } else {
-                    laser_color
-                };
-                frame.set_force(
-                    laser_x.min(w.saturating_sub(1)),
-                    y,
-                    Cell {
-                        ch,
-                        fg: Some(Color::Rgb {
-                            r: laser_color.0,
-                            g: laser_color.1,
-                            b: laser_color.2,
-                        }),
-                        bg: palette_bg,
-                        bold: dist_from_tip == 0,
-                    },
-                );
+                for dx in -1..=1i32 {
+                    let x = laser_cx + dx;
+                    if x < 0 || x >= w as i32 {
+                        continue;
+                    }
+                    let x = x as u16;
+                    // Core column (dx=0): brightest. Side columns: glow.
+                    let is_core = dx == 0;
+                    let (ch, brightness) = if is_core && dist_from_tip == 0 {
+                        ('┃', 1.0)
+                    } else if is_core && dist_from_tip <= 2 {
+                        ('┃', 0.8)
+                    } else if is_core {
+                        ('┃', 0.4)
+                    } else if dist_from_tip == 0 {
+                        ('║', 0.6)
+                    } else if dist_from_tip <= 2 {
+                        ('║', 0.4)
+                    } else {
+                        ('║', 0.2)
+                    };
+                    let laser_color = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, brightness);
+                    let laser_color = if is_core && dist_from_tip == 0 {
+                        lerp_rgb(laser_color, (255, 255, 255), 0.5)
+                    } else {
+                        laser_color
+                    };
+                    frame.set_force(
+                        x,
+                        y,
+                        Cell {
+                            ch,
+                            fg: Some(Color::Rgb {
+                                r: laser_color.0,
+                                g: laser_color.1,
+                                b: laser_color.2,
+                            }),
+                            bg: palette_bg,
+                            bold: is_core && dist_from_tip <= 2,
+                        },
+                    );
+                }
             }
         }
 
