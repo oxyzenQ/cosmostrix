@@ -206,14 +206,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // We do NOT eprintln during rain — that causes screen flicker because
     // stderr output appears in the terminal during alternate-screen mode.
     // Instead, we track changes silently and print a full summary after exit.
-    let verbose = cfg.verbose;
-    let mut last_color_scheme = cloud.color_scheme();
-    let mut last_scene_name = scene_name.clone();
-    let mut last_charset = charset_preset.clone();
-    let mut last_speed = cloud.chars_per_sec;
-    let mut last_density = cloud.droplet_density;
-    // Track all runtime changes for post-exit verbose summary.
-    let mut runtime_changes: Vec<String> = Vec::new();
+    let _verbose = cfg.verbose;
 
     // Parse custom time map from config (if [adaptive-custom] is defined).
     // This overrides the default 5-phase adaptive engine.
@@ -292,7 +285,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             // Built-in theme found.
                             if scheme != cloud.color_scheme() {
                                 cloud.set_color_scheme(scheme);
-                                last_color_scheme = scheme;
+                                // color scheme updated via cloud.set_color_scheme()
                             }
                         } else {
                             // Not a built-in theme — try custom color from config.
@@ -342,7 +335,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         if let Ok(scheme) = crate::cli::parse_color_scheme(target) {
                             cloud.set_color_scheme(scheme);
                             last_adaptive_color = Some(target);
-                            last_color_scheme = scheme;
+                            // color scheme updated via cloud.set_color_scheme()
                         }
                     }
                 }
@@ -666,46 +659,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             // `_ => {}` catch-all and are silently ignored.
                         } else if redraw_needed {
                             next_frame = Instant::now();
-                        }
-
-                        // Track runtime changes silently (no eprintln
-                        // during rain — causes screen flicker). The
-                        // final summary is printed after exit by main.rs.
-                        if verbose {
-                            let cur_color = cloud.color_scheme();
-                            if cur_color != last_color_scheme {
-                                runtime_changes.push(format!(
-                                    "color_scheme: {:?} → {:?}",
-                                    last_color_scheme, cur_color
-                                ));
-                                last_color_scheme = cur_color;
-                            }
-                            if scene_name != last_scene_name {
-                                runtime_changes
-                                    .push(format!("scene: {} → {}", last_scene_name, scene_name));
-                                last_scene_name = scene_name.clone();
-                            }
-                            if charset_preset != last_charset {
-                                runtime_changes.push(format!(
-                                    "charset: {} → {}",
-                                    last_charset, charset_preset
-                                ));
-                                last_charset = charset_preset.clone();
-                            }
-                            let cur_speed = cloud.chars_per_sec;
-                            if cur_speed != last_speed {
-                                runtime_changes
-                                    .push(format!("speed: {:.1} → {:.1}", last_speed, cur_speed));
-                                last_speed = cur_speed;
-                            }
-                            let cur_density = cloud.droplet_density;
-                            if (cur_density - last_density).abs() >= 0.01 {
-                                runtime_changes.push(format!(
-                                    "density: {:.2} → {:.2}",
-                                    last_density, cur_density
-                                ));
-                                last_density = cur_density;
-                            }
                         }
                     }
                     Event::Paste(_) => {
@@ -1128,7 +1081,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         &charset_preset,
         cloud.chars_per_sec,
         cloud.droplet_density,
-        runtime_changes,
     );
 
     Ok(())
