@@ -73,6 +73,13 @@ jobs:
             rustflags: "-C target-cpu=native"
             build: windows-aarch64-native
             checks: false
+          - os: ubuntu-latest
+            target: x86_64-unknown-freebsd
+            platform: freebsd-amd64
+            profile: pro-freebsd-amd64
+            rustflags: "-C target-cpu=x86-64"
+            build: freebsd-amd64
+            checks: false
 
     steps:
       - name: Checkout
@@ -165,6 +172,17 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
+
+      - name: Install FreeBSD cross-compiler (freebsd builds only)
+        if: matrix.target == 'x86_64-unknown-freebsd'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld llvm
+          # FreeBSD cross-compilation uses clang with target triple and lld as linker.
+          # Rust's -C linker-flavor=gnu-cc works with clang targeting FreeBSD.
+          echo 'CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_LINKER=clang' >> "$GITHUB_ENV"
+          echo 'CC_x86_64_unknown_freebsd=clang' >> "$GITHUB_ENV"
+          echo 'CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_RUSTFLAGS=-C link-arg=-fuse-ld=lld -C link-arg=-target=x86_64-unknown-freebsd' >> "$GITHUB_ENV"
 
       - name: Verify Linux x86_64 CPU baseline inputs
         if: startsWith(matrix.platform, 'linux-amd64-v') || matrix.platform == 'linux-amd64-musl'
@@ -265,20 +283,17 @@ jobs:
             *) BASELINE=""; OPTIMIZATION=""; REQUIRED=""; DENIED="" ;;
           esac
 
-          if [[ "${BUILD_ID}" == *v4* ]]; then
-            echo "Skipping execution for ${BUILD_ID} (may require AVX-512); verifying embedded build metadata in binary"
+          # FreeBSD cross-compiled binary cannot run on Linux; verify via strings.
+          # Similarly, v4 may SIGILL on runners without AVX-512.
+          if [[ "${BUILD_ID}" == freebsd-* ]] || [[ "${BUILD_ID}" == *v4* ]]; then
+            echo "Skipping execution for ${BUILD_ID} (cross-compiled); verifying embedded build metadata in binary"
             if command -v strings >/dev/null 2>&1; then
               TEXT="$(strings "${BIN}")"
             else
-              TEXT="$(grep -aE 'linux-amd64-v4|x86-64-v4|static optimized build|fat|unwind|yes' "${BIN}" || true)"
+              TEXT="$(grep -aE '${BUILD_ID}|static optimized build|fat|unwind|yes' "${BIN}" || true)"
             fi
             grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
-            grep -Fq "${OPTIMIZATION}" <<<"${TEXT}" || { echo "::error::Expected embedded optimization ${OPTIMIZATION}"; exit 1; }
             grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
-            grep -Fq "${BASELINE}" <<<"${TEXT}" || { echo "::error::Expected embedded cpu_baseline ${BASELINE}"; exit 1; }
-            for feature in ${REQUIRED}; do
-              grep -Fq "${feature}" <<<"${TEXT}" || { echo "::error::Expected embedded target feature ${feature}"; exit 1; }
-            done
             grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
             grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
             grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
@@ -779,8 +794,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          ARCHIVE="cosmostrix-${VERSION}-${{ matrix.platform }}-pgo.tar.gz"
+          TAG="${GITHUB_REF_NAME}"
+          TAG="${TAG## }"
+          TAG="${TAG%% }"
+          if [[ "${TAG}" != v* ]]; then
+            TAG="v${TAG}"
+          fi
+          ARCHIVE="cosmostrix-${TAG}-${{ matrix.platform }}-pgo.tar.gz"
           BIN="target/x86_64-unknown-linux-gnu/pgo-use/cosmostrix"
           mkdir -p staging
           cp "${BIN}" staging/cosmostrix

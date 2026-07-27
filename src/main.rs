@@ -394,7 +394,9 @@ fn main() -> std::io::Result<()> {
         if !safe {
             ux::die_input(format!(
                 "error: --dump-config '{path_str}' is outside allowed directories\n  \
-                 Allowed (strict whitelist): ~/.config/cosmostrix/, /etc/cosmostrix/\n  \
+                 Allowed (strict whitelist):\n    \
+                 Linux/macOS: ~/.config/cosmostrix/, /etc/cosmostrix/\n    \
+                 Windows: %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\\n  \
                  Rejected: current directory (.), /tmp/, ~/, /usr/, all others"
             ));
         }

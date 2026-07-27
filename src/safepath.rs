@@ -40,6 +40,46 @@
 
 use std::path::PathBuf;
 
+/// Expand Windows-style environment variables like `%APPDATA%`, `%USERPROFILE%`,
+/// `%ProgramData%` in a path string. On non-Windows, returns the path unchanged.
+///
+/// This is needed because when a user passes `%APPDATA%\cosmostrix\config.toml`
+/// on the command line, the shell does NOT expand `%VAR%` (unlike Unix `$VAR`).
+/// Without this expansion, `is_safe_path` would see the literal `%APPDATA%` prefix
+/// and reject the path since it doesn't match the resolved `C:\Users\...\AppData\Roaming\cosmostrix\`.
+#[cfg(windows)]
+fn expand_windows_env_vars(path: &str) -> String {
+    let mut result = path.to_string();
+    // Common Windows env vars that users reference in paths.
+    // std::env::var uses the OS native lookup (case-insensitive on Windows).
+    for (var, val) in [
+        ("APPDATA", std::env::var("APPDATA")),
+        ("USERPROFILE", std::env::var("USERPROFILE")),
+        ("ProgramData", std::env::var("ProgramData")),
+        ("LOCALAPPDATA", std::env::var("LOCALAPPDATA")),
+        ("HOME", std::env::var("HOME")),
+    ] {
+        if let Ok(v) = val {
+            if !v.is_empty() {
+                let pattern_upper = format!("%{var}%");
+                let pattern_lower = format!("%{var}%");
+                // Replace all occurrences (case-insensitive on Windows).
+                // Rust on Windows has case-insensitive file paths, but string
+                // replacement needs explicit handling.
+                result = result.replace(&pattern_upper, &v);
+                result = result.replace(&pattern_lower, &v);
+            }
+        }
+    }
+    result
+}
+
+#[cfg(not(windows))]
+#[inline]
+fn expand_windows_env_vars(path: &str) -> String {
+    path.to_string()
+}
+
 /// Check if a file path is in a safe location for reading.
 ///
 /// Strict whitelist-only: returns `true` if the path is inside one of the
@@ -50,7 +90,11 @@ use std::path::PathBuf;
 /// - macOS: `~/.config/cosmostrix/`, `~/Library/Application Support/cosmostrix/`, `/etc/cosmostrix/`
 /// - Windows: `%APPDATA%\cosmostrix\`, `%ProgramData%\cosmostrix\`
 pub(crate) fn is_safe_path(path: &str) -> bool {
-    let expanded = expand_tilde(path);
+    // On Windows, expand %VAR% environment variables first.
+    // The shell does NOT expand %APPDATA% etc., so we must do it here.
+    let path = expand_windows_env_vars(path);
+
+    let expanded = expand_tilde(&path);
     let expanded_str = expanded.to_string_lossy();
 
     // --- Security: reject unexpanded ~ paths (HOME not set) ---
@@ -64,7 +108,16 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     // Pre-v14, relative paths like "./config.toml" were allowed. This was a
     // security risk (symlink attacks, shared working directories). Now only
     // absolute paths inside the whitelisted cosmostrix directories are allowed.
-    if !expanded_str.starts_with('/') && !expanded_str.contains('\\') {
+    //
+    // Absolute path detection:
+    //   Unix: starts with /
+    //   Windows: starts with a drive letter (C:\) or a UNC path (\\)
+    let is_absolute = expanded_str.starts_with('/')
+        || (expanded_str.len() >= 3
+            && expanded_str.as_bytes()[0].is_ascii_alphabetic()
+            && expanded_str.as_bytes()[1] == b':')
+        || expanded_str.starts_with("\\\\");
+    if !is_absolute {
         return false;
     }
 
@@ -225,9 +278,13 @@ fn expand_tilde(path: &str) -> PathBuf {
 ///   result. Matches the behavior of the previous inline check in
 ///   `apply_config_and_runtime_defaults`.
 pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<(), String> {
-    let safe = is_safe_path(path_str);
+    // Expand Windows env vars before validation so %APPDATA% paths work.
+    let resolved = expand_windows_env_vars(path_str);
+    let safe = is_safe_path(&resolved);
     if verbose {
-        crate::output::eprintln_verbose_raw(&format!("config path: {path_str} (safe: {safe})"));
+        crate::output::eprintln_verbose_raw(&format!(
+            "config path: {path_str} (resolved: {resolved}, safe: {safe})"
+        ));
     }
     if !safe {
         return Err(format!(

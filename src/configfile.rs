@@ -202,18 +202,42 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
 }
 
 /// Returns the path to the config file.
-/// Uses `$XDG_CONFIG_HOME` if set, otherwise `~/.config`.
+///
+/// Platform-specific resolution:
+/// - **Linux/macOS**: Uses `$XDG_CONFIG_HOME` if set, otherwise `~/.config`.
+/// - **Windows**: Uses `%APPDATA%\cosmostrix\config.toml` (always absolute).
 ///
 /// Looks for `config.toml`. v20.1 removed the pre-v10 `config` (no
 /// extension) fallback — users upgrading from pre-v10 must rename their
 /// file to `config.toml`.
 #[must_use]
 pub fn default_config_file_path() -> PathBuf {
-    let xdg = env::var("XDG_CONFIG_HOME").ok();
-    let home = env::var("HOME").ok();
-    config_file_path_from_env(xdg.as_deref(), home.as_deref(), CONFIG_FILE_NAME)
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(appdata) = env::var("APPDATA").ok().filter(|v| !v.is_empty()) {
+            return PathBuf::from(appdata)
+                .join(CONFIG_DIR_NAME)
+                .join(CONFIG_FILE_NAME);
+        }
+        // Fallback: USERPROFILE is always set on modern Windows.
+        if let Some(userprofile) = env::var("USERPROFILE").ok().filter(|v| !v.is_empty()) {
+            return PathBuf::from(userprofile)
+                .join("AppData")
+                .join("Roaming")
+                .join(CONFIG_DIR_NAME)
+                .join(CONFIG_FILE_NAME);
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let xdg = env::var("XDG_CONFIG_HOME").ok();
+        let home = env::var("HOME").ok();
+        config_file_path_from_env(xdg.as_deref(), home.as_deref(), CONFIG_FILE_NAME)
+    }
 }
 
+#[cfg(not(target_os = "windows"))]
 #[must_use]
 #[allow(dead_code)]
 pub fn config_file_path_from(xdg_config_home: Option<String>, home: Option<String>) -> PathBuf {
@@ -224,6 +248,7 @@ pub fn config_file_path_from(xdg_config_home: Option<String>, home: Option<Strin
     )
 }
 
+#[cfg(not(target_os = "windows"))]
 fn config_file_path_from_env(
     xdg_config_home: Option<&str>,
     home: Option<&str>,
