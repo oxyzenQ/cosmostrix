@@ -353,6 +353,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 new_cfg.fullwidth,
                 new_cfg.density_auto,
             );
+            // v25 (Task 1): bulletproof trace so users can verify the
+            // rebuild actually reached the render thread. Uses the same
+            // env-gated path as live_config's lr_trace (no perf cost
+            // when COSMOSTRIX_LIVE_RELOAD_DEBUG is unset).
+            crate::live_config::trace_rebuild_applied(
+                &new_cfg.color_scheme,
+                new_cfg.charset_preset.as_str(),
+                new_cfg.speed,
+                new_cfg.density,
+                new_cfg.target_fps,
+            );
             cloud = new_cfg.create_cloud(density);
             cloud.reset(w, h);
             cloud.enable_events();

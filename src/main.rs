@@ -957,7 +957,19 @@ fn main() -> std::io::Result<()> {
         atmosphere_modulation,
         atmosphere_mode,
         monolith_density_map,
-        config_path_for_watcher: Some(configfile::default_config_file_path()),
+        config_path_for_watcher: Some(
+            // v25 fix (Task 1): watch the actual file the user is editing.
+            // Previously this hardcoded `default_config_file_path()`, so
+            // a user who launched with `--config /custom/path.toml` and
+            // edited that file saw NO live reload — the watcher was
+            // watching the default path, which the user was not touching.
+            // This was a major contributor to "live reload doesn't work
+            // on any platform" reports: any user with a non-default
+            // config path was silently affected.
+            args.config
+                .clone()
+                .unwrap_or_else(configfile::default_config_file_path),
+        ),
         scene_name: args
             .scene
             .as_deref()

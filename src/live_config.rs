@@ -43,6 +43,69 @@ use crate::configfile;
 /// Main.rs checks this after run_interactive() returns and exits accordingly.
 pub static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
 
+/// Opt-in debug tracing for live reload. Set `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`
+/// to emit a trace of every step (event detection, mtime dedup, parse,
+/// validation, rebuild) to stderr. Default off — no perf cost when disabled.
+///
+/// All trace writes go through the bulletproof `write_fmt` path so they
+/// cannot panic on broken stderr (terminal closed mid-session).
+fn debug_trace(args: std::fmt::Arguments<'_>) {
+    use std::io::Write;
+    let _ = std::io::stderr().write_fmt(args);
+}
+
+/// True when `COSMOSTRIX_LIVE_RELOAD_DEBUG=1` is set in the environment.
+/// Read once at first call and cached in an AtomicU8 (0=unknown, 1=off, 2=on).
+fn live_reload_debug_enabled() -> bool {
+    static STATE: AtomicU8 = AtomicU8::new(0);
+    match STATE.load(Ordering::Acquire) {
+        1 => false,
+        2 => true,
+        _ => {
+            let on = matches!(
+                std::env::var("COSMOSTRIX_LIVE_RELOAD_DEBUG")
+                    .ok()
+                    .as_deref(),
+                Some("1") | Some("true") | Some("TRUE") | Some("yes")
+            );
+            STATE.store(if on { 2 } else { 1 }, Ordering::Release);
+            on
+        }
+    }
+}
+
+/// Emit a debug trace line if `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`. No-op otherwise.
+macro_rules! lr_trace {
+    ($($arg:tt)*) => {
+        if live_reload_debug_enabled() {
+            debug_trace(format_args!("[live-reload-trace] {}\n", format_args!($($arg)*)));
+        }
+    };
+}
+
+/// Public trace hook for callers outside this module (e.g. the render
+/// thread in `event_loop.rs`) to confirm a rebuild was actually applied
+/// to the live Cloud. Same env-gated path as `lr_trace!` — zero cost
+/// when `COSMOSTRIX_LIVE_RELOAD_DEBUG` is unset.
+///
+/// We accept the resolved field values (not the CloudConfig itself) so
+/// the trace line shows what the user actually sees post-rebuild:
+/// `color=?`, `charset=?`, `speed`, `density`, `fps`.
+pub fn trace_rebuild_applied(
+    color_scheme: &crate::runtime::ColorScheme,
+    charset_preset: &str,
+    speed: f32,
+    density: f32,
+    fps: f64,
+) {
+    if live_reload_debug_enabled() {
+        debug_trace(format_args!(
+            "[live-reload-trace] Cloud rebuilt — color={:?} charset='{}' speed={:.2} density={:.3} fps={:.2}\n",
+            color_scheme, charset_preset, speed, density, fps
+        ));
+    }
+}
+
 /// Global error message captured during live-reload failure.
 /// Printed to stderr AFTER terminal restoration (in main.rs) so the user
 /// can actually see it — printing during alternate-screen mode swallows
@@ -229,11 +292,27 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         // mpsc's iter() returns None (ending the loop) only when ALL
         // senders drop — that's the channel-close case, not Err.
         //
-        // On Err, the watcher is in a degraded state; break and let
-        // the polling heartbeat continue alone (if its thread is still
-        // alive — its poll_tx clone keeps the channel open).
+        // v25 fix (Task 1): on Err, `continue` instead of `break`.
+        // The previous `break` was the root cause of "live reload silently
+        // stops working after some time" on Linux/FreeBSD/macOS. A single
+        // transient watcher Err (kqueue/inotify resync, OS buffer overflow,
+        // race on file rename) would terminate the consumer loop. The
+        // polling heartbeat thread keeps producing synthetic events into
+        // the channel, but no one reads them — the channel buffer grows
+        // unbounded and the polling thread eventually observes send-Err
+        // (receiver dropped) and exits. Net result: live reload is dead
+        // even though the polling thread was nominally still running.
+        //
+        // The fix: log the Err and keep consuming. The polling heartbeat
+        // (which is the more reliable source) continues to drive reloads.
         if event_result.is_err() {
-            break;
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[live-reload] transient watcher error (continuing — polling heartbeat still active): {:?}\n",
+                event_result.as_ref().err()
+            ));
+            lr_trace!("watcher Err, continuing loop");
+            continue;
         }
         if !handle_notify_event(
             event_result,
@@ -247,6 +326,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             break;
         }
     }
+    lr_trace!("watcher_loop exited");
 }
 
 /// Polling heartbeat: checks file mtime every `interval_ms` and feeds
@@ -314,6 +394,11 @@ fn handle_notify_event(
         Ok(event) => {
             let touches_target = event.paths.iter().any(|p| p == &**target_file);
             if !touches_target {
+                lr_trace!(
+                    "event ignored (does not touch target): kind={:?} paths={:?}",
+                    event.kind,
+                    event.paths
+                );
                 return true;
             }
 
@@ -322,6 +407,7 @@ fn handle_notify_event(
                 EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
             );
             if !relevant {
+                lr_trace!("event ignored (kind not relevant): {:?}", event.kind);
                 return true;
             }
 
@@ -331,6 +417,11 @@ fn handle_notify_event(
             // duplicates (native + polling for the same mtime).
             let now = std::time::Instant::now();
             if now.duration_since(*last_event) < Duration::from_millis(debounce_ms) {
+                lr_trace!(
+                    "event debounced (within {}ms of last): kind={:?}",
+                    debounce_ms,
+                    event.kind
+                );
                 return true;
             }
             *last_event = now;
@@ -357,11 +448,17 @@ fn handle_notify_event(
                         // Both the native watcher and polling heartbeat
                         // detected the same change; only the first
                         // should trigger a reload.
+                        lr_trace!("mtime dedup: dropping duplicate for {:?}", current_mtime);
                         return true;
                     }
                 }
                 *guard = Some(current_mtime);
             }
+            lr_trace!(
+                "accepted event for {:?} (kind={:?})",
+                current_mtime,
+                event.kind
+            );
 
             // Reparse config using parse_config_text (not load_config_file)
             // so we can check malformed_lines AND unknown_keys.
@@ -370,7 +467,14 @@ fn handle_notify_event(
                 Err(_) => return true,
             };
             let parsed = configfile::parse_config_text(&content);
+            lr_trace!(
+                "parsed: {} values, {} malformed, {} unknown",
+                parsed.values.len(),
+                parsed.malformed_lines.len(),
+                parsed.unknown_keys.len()
+            );
             if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
+                lr_trace!("empty parse result — skipping (likely empty/whitespace-only file)");
                 return true;
             }
 
@@ -433,12 +537,15 @@ fn validate_and_send(
     // Strict validation: reject entire config if ANY field is invalid.
     match crate::testconf::validate_config_strictly(cfg) {
         Ok(()) => {
+            lr_trace!("strict validation OK — sending config to render thread");
             if tx.send(Ok(cfg.clone())).is_err() {
+                lr_trace!("channel closed during send (Ok) — caller will exit");
                 return Ok(()); // channel closed — caller will exit
             }
             Ok(())
         }
         Err(msg) => {
+            lr_trace!("strict validation FAILED: {msg}");
             let _ = tx.send(Err(msg.clone()));
             Err(msg)
         }
@@ -474,13 +581,27 @@ pub fn rebuild_cloud_config(
     // overrides apply normally for them.
     let cli = new.cli_explicit.clone();
 
+    lr_trace!(
+        "rebuild_cloud_config: cli_explicit = {{color:{}, charset:{}, speed:{}, density:{}, fps:{}, scene:{}, glitch:{}}}",
+        cli.color, cli.charset, cli.speed, cli.density, cli.fps, cli.scene, cli.glitch_level
+    );
+
     // Color scheme — skip if CLI explicitly set --color
     if !cli.color {
         if let Some(v) = cfg.get("color") {
             if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
+                lr_trace!("apply color='{}' -> {:?}", v, scheme);
                 new.color_scheme = scheme;
+            } else {
+                lr_trace!(
+                    "color='{}' failed to parse — keeping {:?}",
+                    v,
+                    new.color_scheme
+                );
             }
         }
+    } else {
+        lr_trace!("skip color (CLI explicit) — keeping {:?}", new.color_scheme);
     }
 
     // v16: Custom color palette live reload.
@@ -489,8 +610,21 @@ pub fn rebuild_cloud_config(
     // takes effect immediately.
     if let Some(ref name) = new.custom_palette_name {
         match crate::colors_custom::load_custom_palette(cfg, name) {
-            Ok(palette) => new.custom_palette = Some(palette),
-            Err(_) => { /* leave existing palette — don't break live reload */ }
+            Ok(palette) => {
+                lr_trace!(
+                    "reloaded custom palette '{}': {} stops",
+                    name,
+                    palette.colors.len()
+                );
+                new.custom_palette = Some(palette);
+            }
+            Err(e) => {
+                lr_trace!(
+                    "custom palette '{}' reload failed (keeping old): {}",
+                    name,
+                    e
+                );
+            }
         }
     }
 
@@ -498,10 +632,22 @@ pub fn rebuild_cloud_config(
     if !cli.charset {
         if let Some(v) = cfg.get("charset") {
             if let Ok(charset) = crate::charset::charset_from_str(v, false) {
+                lr_trace!("apply charset='{}' (built-in)", v);
                 new.charset_preset = v.clone();
                 new.chars = crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
+            } else {
+                lr_trace!(
+                    "charset='{}' failed to parse — keeping '{}'",
+                    v,
+                    new.charset_preset
+                );
             }
         }
+    } else {
+        lr_trace!(
+            "skip charset (CLI explicit) — keeping '{}'",
+            new.charset_preset
+        );
     }
 
     // Scene (affects rain_style) — skip if CLI --scene was explicit
@@ -549,35 +695,56 @@ pub fn rebuild_cloud_config(
     if !cli.speed {
         if let Some(v) = cfg.get("speed") {
             if let Ok(n) = crate::validation::parse_canonical_speed("speed", v) {
+                lr_trace!("apply speed='{}' -> {}", v, n);
                 new.speed = n;
+            } else {
+                lr_trace!("speed='{}' failed to parse — keeping {}", v, new.speed);
             }
         }
+    } else {
+        lr_trace!("skip speed (CLI explicit) — keeping {}", new.speed);
     }
 
     // Density — skip if CLI --density was explicit
     if !cli.density {
         if let Some(v) = cfg.get("density") {
             if let Ok(n) = crate::validation::parse_canonical_f32_range("density", v, 0.01, 5.0) {
+                lr_trace!("apply density='{}' -> {}", v, n);
                 new.density = n;
                 new.base_density = n;
+            } else {
+                lr_trace!("density='{}' failed to parse — keeping {}", v, new.density);
             }
         }
+    } else {
+        lr_trace!("skip density (CLI explicit) — keeping {}", new.density);
     }
 
     // FPS — skip if CLI --fps was explicit
     if !cli.fps {
         if let Some(v) = cfg.get("fps") {
             if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0) {
+                lr_trace!("apply fps='{}' -> {}", v, n);
                 new.target_fps = n;
+            } else {
+                lr_trace!("fps='{}' failed to parse — keeping {}", v, new.target_fps);
             }
         }
+    } else {
+        lr_trace!("skip fps (CLI explicit) — keeping {}", new.target_fps);
     }
 
     // Glitch level — skip if CLI --glitch-level was explicit
     if !cli.glitch_level {
         if let Some(v) = cfg.get("glitch-level") {
+            lr_trace!("apply glitch-level='{}'", v);
             new.noglitch = v.trim().eq_ignore_ascii_case("none");
         }
+    } else {
+        lr_trace!(
+            "skip glitch-level (CLI explicit) — noglitch={}",
+            new.noglitch
+        );
     }
 
     // v17 mastery: legacy advanced config keys (glitchpct, shortpct, rippct,
