@@ -4,19 +4,22 @@
 #
 # Cosmostrix Version Bump Helper
 #
-# Updates all stable release version references consistently.
+# Updates all version references consistently across the repo.
 #
-# Usage:
-#   ./scripts/version-to.sh 18.0.0         # Bump to 18.0.0
-#   ./scripts/version-to.sh v18.0.0        # Same — 'v' prefix accepted & stripped
-#   ./scripts/version-to.sh --check 18.0.0 # Verify version is 18.0.0 (no changes)
-#   ./scripts/version-to.sh --help         # Show help
+# USAGE:
+#   ./scripts/version-to.sh v*<VERSION>              Bump to VERSION (stable or pre-release)
+#   ./scripts/version-to.sh --check <VERSION>     Verify version is VERSION (no changes)
+#   ./scripts/version-to.sh --help                Show this help
+#
+# EXAMPLES:
+#   ./scripts/version-to.sh v25.0.0                # Stable release
+#   ./scripts/version-to.sh v25.0.0-alpha.1        # Pre-release
+#   ./scripts/version-to.sh bump-alpha             # Shortcut: X.Y.Z → X.Y.Z-alpha.1
 #
 # Safety:
 #   - Refuses to run if git working tree has unrelated changes
 #   - Does not commit, tag, or push automatically
 #   - Only edits version-related files
-#   - Stable SemVer only: X.Y.Z (no pre-release suffixes)
 #
 
 set -euo pipefail
@@ -346,12 +349,15 @@ update_pkgbuild() {
     local old_ver="$1"
     local new_ver="$2"
 
-    log_info "Updating PKGBUILD: pkgver=${old_ver} -> ${new_ver}, _tag= (empty for stable)"
+    log_info "Updating PKGBUILD: pkgver=${old_ver} -> ${new_ver}, _tag= (tag derived from pkgver)"
 
-    # Update pkgver
+    # Update pkgver — includes the full version (stable or pre-release).
+    # The PKGBUILD prepare() function constructs the download tag as v${pkgver}
+    # when _tag is empty, so pre-release versions like 25.0.0-alpha.1 work
+    # correctly with _tag= (tag becomes v25.0.0-alpha.1).
     sed -i -E "s|^pkgver=.*|pkgver=${new_ver}|" "${PKGBUILD}"
 
-    # Ensure _tag is empty for stable releases
+    # Ensure _tag is empty — the download tag is always v${pkgver}
     sed -i -E 's|^_tag=.*|_tag=|' "${PKGBUILD}"
 
     # Verify
@@ -413,17 +419,27 @@ update_docs() {
         fi
 
         # Strategy:
-        # 1. Replace tag references (vOLD -> vNEW) where they appear as the
-        #    current version (download URLs, examples), but NOT in changelog
-        #    headings like "### v2.1.0" which document a specific release.
-        # 2. Replace bare version references (OLD -> NEW) only in active
-        #    contexts, skipping changelog/history sections.
+        # 1. Replace bare version references (OLD -> NEW) FIRST, only in
+        #    active contexts, skipping changelog/history sections.
+        # 2. Replace tag references (vOLD -> vNEW) AFTER, where they appear
+        #    as the current version (download URLs, examples), but NOT in
+        #    changelog headings.
+        #
+        # Ordering matters: bare replacement MUST run before v-prefix
+        #    replacement when old_ver is a prefix of new_ver (e.g.
+        #    25.0.0 → 25.0.0-alpha.1). If v-prefix runs first, the bare
+        #    sed then finds old_ver inside new_ver and double-replaces,
+        #    producing 25.0.0-alpha.1-alpha.1.
         #
         # We use sed to skip lines starting with "### " (markdown headings)
         # which are typically changelog entries documenting a specific release.
-        # This is a simple heuristic that works for the current repo structure.
 
-        # Replace vOLD_VERSION (with 'v' prefix) — skip markdown headings
+        # Step 1: Replace bare OLD_VERSION — skip markdown headings and changelog
+        # section markers. This covers download URLs, example commands,
+        # versioning notes, etc. without touching historical changelog entries.
+        sed -i "/^### /!s|${old_ver}|${new_ver}|g" "${f}"
+
+        # Step 2: Replace vOLD_VERSION (with 'v' prefix) — skip markdown headings
         # Handle vOLD followed by non-version characters (not dash, digit, dot)
         sed -i -E "/^### /!s|v${old_ver}([^0-9.-])|v${new_ver}\1|g" "${f}"
         # Handle vOLD at end of line — skip markdown headings
@@ -431,11 +447,6 @@ update_docs() {
         # Handle vOLD followed by quote characters — skip markdown headings
         sed -i "/^### /!s|v${old_ver}\"|v${new_ver}\"|g" "${f}"
         sed -i "/^### /!s|v${old_ver}'|v${new_ver}'|g" "${f}"
-
-        # Replace bare OLD_VERSION — skip markdown headings and changelog
-        # section markers. This covers download URLs, example commands,
-        # versioning notes, etc. without touching historical changelog entries.
-        sed -i "/^### /!s|${old_ver}|${new_ver}|g" "${f}"
 
         log_ok "  Updated $(basename "${f}")"
     done
@@ -632,10 +643,9 @@ verify_version() {
         ((errors++))
     fi
     if [[ -z "${pkg_tag}" ]]; then
-        log_ok "PKGBUILD: _tag= (empty, correct for stable)"
+        log_ok "PKGBUILD: _tag= (empty, tag=v${pkg_ver})"
     else
-        log_err "PKGBUILD: _tag=${pkg_tag} (should be empty for stable)"
-        ((errors++))
+        log_ok "PKGBUILD: _tag=${pkg_tag} (tag=v${pkg_ver}-${pkg_tag})"
     fi
 
     # 4. .SRCINFO
