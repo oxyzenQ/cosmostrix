@@ -1,7 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use clap::{CommandFactory, FromArgMatches};
@@ -566,8 +565,21 @@ fn legacy_keys_no_longer_apply_v17() {
 
 #[test]
 fn config_path_arg_is_stored() {
-    let args = args_from_cli(&["--config", "/tmp/cosmostrix.toml"]);
-    assert_eq!(args.config, Some(PathBuf::from("/tmp/cosmostrix.toml")));
+    // Use a real temp file in std::env::temp_dir() instead of hardcoding
+    // "/tmp/cosmostrix.toml" — parallel safepath tests can clear
+    // COSMOSTRIX_TEST_CONFIG_DIR between set_var and is_safe_path,
+    // rejecting a static /tmp path. A dynamic path always matches the
+    // COSMOSTRIX_TEST_CONFIG_DIR prefix set by ensure_test_config_dir_allowed().
+    ensure_test_config_dir_allowed();
+    let mut path = std::env::temp_dir();
+    path.push("cosmostrix-config-path-test.toml");
+    std::fs::write(&path, "").expect("write temp config");
+    let path_str = path.to_string_lossy().into_owned();
+
+    let args = args_from_cli(&["--config", &path_str]);
+    assert_eq!(args.config, Some(path.clone()));
+
+    let _ = std::fs::remove_file(&path);
 }
 
 #[test]
