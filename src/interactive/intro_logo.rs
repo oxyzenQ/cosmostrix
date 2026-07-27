@@ -150,7 +150,9 @@ const FLASH_DECAY_RATE: f32 = 4.0;
 
 /// Rain droplet speed range (cells per second) for the dissolve phase.
 /// Lower than Cosmic Burst's morph range so the rain curtain feels calm.
+#[allow(dead_code)]
 const DISSOLVE_SPEED_MIN: f32 = 8.0;
+#[allow(dead_code)]
 const DISSOLVE_SPEED_MAX: f32 = 16.0;
 
 /// Horizontal velocity jitter range for dissolve droplets. Each droplet
@@ -158,6 +160,7 @@ const DISSOLVE_SPEED_MAX: f32 = 16.0;
 /// curtain spreads organically before falling, instead of dropping in
 /// perfectly straight columns. ±2 cells/sec is subtle enough to feel
 /// natural without breaking the rain silhouette.
+#[allow(dead_code)]
 const JITTER_VX: f32 = 2.0;
 
 /// Fade-in granularity — the logo appears in N reveal steps spread
@@ -390,10 +393,10 @@ pub(super) fn run_logo_intro(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let mut rng = seed_rng();
+    let _rng = seed_rng();
     let palette_bg = cloud.palette.bg;
     let palette_rgb = palette_target_rgb(cloud);
-    let rain_charset = rain_chars(cloud);
+    let _rain_charset = rain_chars(cloud);
 
     // Logo placement: shift the bounding box so the *visual centroid*
     // sits at the terminal center, then clamp to keep the bbox fully
@@ -585,23 +588,9 @@ pub(super) fn run_logo_intro(
             }
         }
 
-        // Spawn rain droplets during Phase 2 (as logo fades) + Phase 3.
-        if phase == 2 || phase == 3 {
-            let spawn_rate = if phase == 2 {
-                ((phase_t - 0.1) / 0.4).clamp(0.0, 1.0)
-            } else {
-                1.0
-            };
-            const PER_FRAME_BUDGET: usize = 8;
-            let mut spawned = 0usize;
-            while spawned < PER_FRAME_BUDGET && rng.next_f32() < spawn_rate * 0.5 {
-                let col = (rng.next_f32() * w as f32) as i32;
-                if col >= 0 && col < w as i32 {
-                    let _ = spawn_rain_droplet(&mut pool, &mut rng, col as f32, 0.0, &rain_charset);
-                }
-                spawned += 1;
-            }
-        }
+        // v25: No rain droplets during intro. The intro is purely the laser
+        // strike + logo glow + fade. Normal rain starts only after the intro
+        // ends (Phase 4 / post-intro).
 
         // Render all active rain droplets. v25: droplets use the normal
         // palette color (no laser purple). Simple, clean transition.
@@ -653,6 +642,7 @@ pub(super) fn run_logo_intro(
 
 /// Spawn a rain droplet at `(x, y)` — used during the rain phase.
 /// v25: droplets use the normal palette color (no laser purple).
+#[allow(dead_code)]
 fn spawn_rain_droplet(
     pool: &mut ParticlePool,
     rng: &mut XorShift,

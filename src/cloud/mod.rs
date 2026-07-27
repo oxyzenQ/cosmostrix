@@ -682,12 +682,19 @@ impl Cloud {
                     let is_bottom = y + 1 == box_h;
                     let is_left = x == 0;
                     let is_right = x + 1 == box_w;
-                    ch = if (is_top || is_bottom) && (is_left || is_right) {
-                        '+'
+                    // v25 cinematic border: rounded corners + smooth lines.
+                    ch = if is_top && is_left {
+                        '╭'
+                    } else if is_top && is_right {
+                        '╮'
+                    } else if is_bottom && is_left {
+                        '╰'
+                    } else if is_bottom && is_right {
+                        '╯'
                     } else if is_top || is_bottom {
-                        '-'
+                        '─'
                     } else if is_left || is_right {
-                        '|'
+                        '│'
                     } else {
                         ' '
                     };
@@ -735,10 +742,10 @@ impl Cloud {
 
         let reveal_count = if let Some(start) = self.message_start_time {
             let elapsed_ms = start.elapsed().as_millis() as usize;
-            let count = (elapsed_ms / 30).max(1);
+            let count = (elapsed_ms / 80).max(1);
             let mut content_total = 0usize;
             for mc in &self.message {
-                if mc.val != ' ' && mc.val != '+' && mc.val != '-' && mc.val != '|' {
+                if !is_border_char(mc.val) {
                     content_total += 1;
                 }
             }
@@ -748,11 +755,11 @@ impl Cloud {
         };
 
         const FADE_IN_MS: usize = 100;
-        const FADE_IN_START: f32 = 0.30; // start at 30% brightness
+        const FADE_IN_START: f32 = 0.30;
 
         let mut content_idx = 0usize;
         for mc in &self.message {
-            let is_content = mc.val != ' ' && mc.val != '+' && mc.val != '-' && mc.val != '|';
+            let is_content = !is_border_char(mc.val);
 
             let (ch, cell_fg) = if is_content {
                 if content_idx < reveal_count {
@@ -760,7 +767,7 @@ impl Cloud {
                     let cell_fg =
                         if let (Some(start), Some(base_fg)) = (self.message_start_time, fg) {
                             let elapsed_ms = start.elapsed().as_millis() as usize;
-                            let reveal_time_ms = content_idx * 30;
+                            let reveal_time_ms = content_idx * 80;
                             let age_ms = elapsed_ms.saturating_sub(reveal_time_ms);
                             if age_ms >= FADE_IN_MS {
                                 fg // fully faded in
@@ -781,6 +788,7 @@ impl Cloud {
                     (' ', None)
                 }
             } else {
+                // v25: border chars use palette head color (dynamic glow).
                 (mc.val, fg)
             };
 
@@ -796,4 +804,14 @@ impl Cloud {
             );
         }
     }
+}
+
+/// Check if a character is a border character (not content).
+/// v25: includes rounded box-drawing chars.
+#[inline]
+fn is_border_char(ch: char) -> bool {
+    matches!(
+        ch,
+        ' ' | '+' | '-' | '|' | '╭' | '╮' | '╰' | '╯' | '─' | '│'
+    )
 }
