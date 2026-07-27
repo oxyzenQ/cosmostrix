@@ -336,55 +336,36 @@ update_pkgbuild() {
 update_docs() {
     local old_ver="$1"
     local new_ver="$2"
+
+    # Strict-versioning policy: the ONLY active version reference in any
+    # doc file is the single `TAG="vX.Y.Z"` line in the README install
+    # snippet. Every other version-shaped string in the docs is either
+    # historical narrative (e.g. "variants were dropped in an earlier
+    # release") or an illustrative example (`docs/workflow/about-ci.md`
+    # shows `git tag v4.0.0` as a teaching example, not the current
+    # release). Those must NOT be touched on a version bump.
+    #
+    # This function therefore replaces ONLY the literal TAG="v<OLD>" →
+    # TAG="v<NEW>" substring. Anything else is left alone.
+    local old_tag="TAG=\"v${old_ver}\""
+    local new_tag="TAG=\"v${new_ver}\""
+
     for f in "${DOC_FILES[@]}"; do
         if [[ ! -f "${f}" ]]; then
             log_warn "Doc file not found: ${f}"
             continue
         fi
 
-        log_info "Updating version references in $(basename "${f}")"
+        log_info "Updating TAG= install line in $(basename "${f}")"
 
-        # Count occurrences before
-        local count_old
-        count_old="$(grep -cF "${old_ver}" "${f}" 2>/dev/null || true)"
-        count_old="${count_old:-0}"
-
-        if [[ "${count_old}" -eq 0 ]]; then
-            log_info "  No references to ${old_ver} in $(basename "${f}")"
-            continue
+        if grep -qF "${old_tag}" "${f}"; then
+            sed -i "s|${old_tag}|${new_tag}|g" "${f}"
+            log_ok "  Updated $(basename "${f}"): ${old_tag} → ${new_tag}"
+        else
+            # Expected for doc files that have no install snippet
+            # (e.g. about-ci.md). Not an error — silently skipped.
+            log_info "  No TAG= line in $(basename "${f}") (skipped)"
         fi
-
-        # Strategy:
-        # 1. Replace bare version references (OLD -> NEW) FIRST, only in
-        #    active contexts, skipping changelog/history sections.
-        # 2. Replace tag references (vOLD -> vNEW) AFTER, where they appear
-        #    as the current version (download URLs, examples), but NOT in
-        #    changelog headings.
-        #
-        # Ordering matters: bare replacement MUST run before v-prefix
-        #    replacement when old_ver is a prefix of new_ver (e.g.
-        #    25.0.0 → 25.0.0-alpha.1). If v-prefix runs first, the bare
-        #    sed then finds old_ver inside new_ver and double-replaces,
-        #    producing 25.0.0-alpha.1-alpha.1.
-        #
-        # We use sed to skip lines starting with "### " (markdown headings)
-        # which are typically changelog entries documenting a specific release.
-
-        # Step 1: Replace bare OLD_VERSION — skip markdown headings and changelog
-        # section markers. This covers download URLs, example commands,
-        # versioning notes, etc. without touching historical changelog entries.
-        sed -i "/^### /!s|${old_ver}|${new_ver}|g" "${f}"
-
-        # Step 2: Replace vOLD_VERSION (with 'v' prefix) — skip markdown headings
-        # Handle vOLD followed by non-version characters (not dash, digit, dot)
-        sed -i -E "/^### /!s|v${old_ver}([^0-9.-])|v${new_ver}\1|g" "${f}"
-        # Handle vOLD at end of line — skip markdown headings
-        sed -i -E "/^### /!s|v${old_ver}$|v${new_ver}|g" "${f}"
-        # Handle vOLD followed by quote characters — skip markdown headings
-        sed -i "/^### /!s|v${old_ver}\"|v${new_ver}\"|g" "${f}"
-        sed -i "/^### /!s|v${old_ver}'|v${new_ver}'|g" "${f}"
-
-        log_ok "  Updated $(basename "${f}")"
     done
 }
 
@@ -463,8 +444,13 @@ update_assets() {
 # This function updates both the src path and alt text to use the new
 # major version prefix. It is separate from update_docs() because the
 # demo asset naming convention is "v{MAJOR}" (major only), not the full
-# version — update_docs() replaces the full vX.Y.Z, which doesn't match
-# the asset filenames.
+# version — update_docs() only replaces the single TAG="vX.Y.Z" line
+# (strict-versioning policy) and does not touch demo asset filenames.
+#
+# Under the strict-versioning policy, this function is the ONLY place
+# that touches README.md content other than the TAG line bumped by
+# update_docs(). It only fires on a major-version change; same-major
+# bumps (e.g. 25.0.0 → 25.1.0) leave the demo refs untouched.
 #
 update_readme_demo_refs() {
     local old_ver="$1"
@@ -621,39 +607,28 @@ verify_version() {
     fi
 
     # 6. README install example TAG="vX.Y.Z"
-    # The README install snippet uses TAG="v<VERSION>" — this is an active
-    # version reference that must agree with Cargo.toml. Without this check,
-    # a README-only desync would silently pass `version-to.sh --check` and
-    # only be caught later by the Rust test suite (docs_tests::metadata).
+    # The README install snippet uses TAG="v<VERSION>" — this is the ONLY
+    # active version reference in any doc file (strict-versioning policy).
+    # It must agree with Cargo.toml. Without this check, a README-only
+    # desync would silently pass `version-to.sh --check` and only be
+    # caught later by the Rust test suite (docs_tests::metadata).
+    #
+    # Other doc files (about-ci.md) intentionally do NOT contain the
+    # current version — they use illustrative examples (`git tag v4.0.0`)
+    # that are not meant to track the release version. Step 7 below used
+    # to require every doc file to reference vX.Y.Z at least once; that
+    # was removed when the strict-versioning policy made TAG the single
+    # source of truth.
     if [[ -f "${README}" ]]; then
         local expected_tag="TAG=\"v${expected_ver}\""
         if grep -qF "${expected_tag}" "${README}"; then
             log_ok "README.md: ${expected_tag}"
         else
             log_err "README.md: missing or stale install tag (expected ${expected_tag})"
-            log_err "  Run './scripts/build.sh v${expected_ver}' to sync all active files"
+            log_err "  Run './scripts/version-to.sh v${expected_ver}' to sync all active files"
             ((errors++))
         fi
     fi
-
-    # 7. Active doc files (README, about-ci.md) must reference the current
-    # version at least once — if neither vX.Y.Z nor X.Y.Z appears, the file
-    # has likely been edited to remove the install example, or the version
-    # bump missed it. Historical CHANGELOG.md refs are NOT scanned (only
-    # DOC_FILES are checked, which exclude CHANGELOG.md).
-    local doc_file
-    for doc_file in "${DOC_FILES[@]}"; do
-        [[ -f "${doc_file}" ]] || continue
-        local doc_name
-        doc_name="$(basename "${doc_file}")"
-        if grep -qF "v${expected_ver}" "${doc_file}" 2>/dev/null; then
-            log_ok "${doc_name}: references v${expected_ver}"
-        else
-            log_err "${doc_name}: no reference to v${expected_ver} found"
-            log_err "  Run './scripts/build.sh v${expected_ver}' to sync"
-            ((errors++))
-        fi
-    done
 
     echo ""
     if [[ "${errors}" -eq 0 ]]; then
@@ -844,10 +819,13 @@ main() {
         changed_files+=("aur/cosmostrix-bin/.SRCINFO")
     fi
 
-    # 4. Update docs/examples
+    # 4. Update docs/examples (only the TAG= line is touched under the
+    # strict-versioning policy). Only report a doc file as "changed" if
+    # update_docs actually modified it — about-ci.md has no TAG= line
+    # and is left untouched, so it should not appear in the summary.
     update_docs "${OLD_VER}" "${NEW_VER}"
     for f in "${DOC_FILES[@]}"; do
-        if [[ -f "${f}" ]]; then
+        if [[ -f "${f}" ]] && ! git -C "${REPO_ROOT}" diff --quiet -- "${f}"; then
             changed_files+=("$(basename "${f}")")
         fi
     done
