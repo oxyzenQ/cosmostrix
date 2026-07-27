@@ -762,7 +762,25 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // OS scheduling jitter from the frame cadence.
             let spin_budget = Duration::from_micros(500);
             if timeout > spin_budget {
-                let _ = Terminal::poll_event(timeout - spin_budget)?;
+                // v25: poll_event can return Err when the terminal is
+                // closed/destroyed (SIGHUP / PTY gone — crossterm's mio
+                // source returns EIO or BadFd). Propagating via `?` sends
+                // the error to main.rs, which calls `eprintln!` on broken
+                // stderr → double-panic → abort → coredump.
+                //
+                // Treat EIO/BrokenPipe as "terminal gone": stop the rain
+                // and break out of the loop, mirroring the draw() EIO
+                // guard below. The post-loop shutdown path drops Terminal
+                // (which uses `let _ =` everywhere in cleanup) and exits
+                // cleanly without writing to stderr.
+                match Terminal::poll_event(timeout - spin_budget) {
+                    Ok(_) => {}
+                    Err(e) if is_terminal_gone(&e) => {
+                        cloud.raining = false;
+                        break;
+                    }
+                    Err(e) => return Err(e),
+                }
                 // Spin-wait the remaining time for precise deadline alignment.
                 // The spin is capped at 1ms internally to handle edge cases.
                 spin_wait(next_frame);
@@ -770,7 +788,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // Already close to deadline (< 500μs away): spin-wait to hit
                 // it precisely, then drain any events that arrived.
                 spin_wait(next_frame);
-                let _ = Terminal::poll_event(Duration::from_millis(0))?;
+                match Terminal::poll_event(Duration::from_millis(0)) {
+                    Ok(_) => {}
+                    Err(e) if is_terminal_gone(&e) => {
+                        cloud.raining = false;
+                        break;
+                    }
+                    Err(e) => return Err(e),
+                }
             }
         }
 
@@ -849,12 +874,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // BrokenPipe = write to closed pipe (macOS, some Linux).
                 // In both cases, the terminal is gone — exit gracefully
                 // instead of continuing to write to a dead fd.
-                #[cfg(unix)]
-                let is_terminal_gone = e.raw_os_error() == Some(libc::EIO)
-                    || e.kind() == std::io::ErrorKind::BrokenPipe;
-                #[cfg(not(unix))]
-                let is_terminal_gone = e.kind() == std::io::ErrorKind::BrokenPipe;
-                if is_terminal_gone {
+                if is_terminal_gone(&e) {
                     cloud.raining = false;
                     break;
                 }
@@ -1100,4 +1120,30 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     );
 
     Ok(())
+}
+
+/// Check if an `io::Error` indicates the terminal (PTY) was closed/destroyed.
+///
+/// Used by the main loop's `poll_event` and `draw` calls to detect that the
+/// user has closed the terminal (SIGHUP scenario). When the terminal is gone,
+/// cosmostrix must exit gracefully — any further write to stdout/stderr will
+/// fail, and `eprintln!`/`println!` would panic on the broken pipe, triggering
+/// the panic hook which (if it also uses `eprintln!`) double-panics → `abort()`
+/// → systemd-coredump.
+///
+/// Detection (cross-platform):
+/// - Unix: `EIO` (PTY master closed) or `BrokenPipe` (closed pipe)
+/// - Non-Unix: `BrokenPipe` only
+#[inline]
+fn is_terminal_gone(e: &std::io::Error) -> bool {
+    #[cfg(unix)]
+    {
+        e.raw_os_error() == Some(libc::EIO)
+            || e.raw_os_error() == Some(libc::EBADF)
+            || e.kind() == std::io::ErrorKind::BrokenPipe
+    }
+    #[cfg(not(unix))]
+    {
+        e.kind() == std::io::ErrorKind::BrokenPipe
+    }
 }

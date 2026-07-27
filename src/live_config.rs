@@ -161,7 +161,13 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             }));
         })
     {
-        eprintln!("[live-reload] failed to spawn polling heartbeat: {e} — native watcher only");
+        // v25: bulletproof write — eprintln! panics on broken stderr,
+        // which would fire the panic hook (catch_unwind catches after,
+        // but bulletproof write avoids the panic entirely).
+        use std::io::Write;
+        let _ = std::io::stderr().write_fmt(format_args!(
+            "[live-reload] failed to spawn polling heartbeat: {e} — native watcher only\n"
+        ));
     }
 
     // Try to initialize the native watcher. If it fails, log a warning
@@ -174,9 +180,11 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     ) {
         Ok(w) => Some(w),
         Err(e) => {
-            eprintln!(
-                "[live-reload] native watcher unavailable: {e} — relying on polling heartbeat ({POLL_INTERVAL_MS}ms interval)"
-            );
+            // v25: bulletproof write (see spawn_watcher above).
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[live-reload] native watcher unavailable: {e} — relying on polling heartbeat ({POLL_INTERVAL_MS}ms interval)\n"
+            ));
             None
         }
     };
@@ -195,10 +203,12 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
 
     if let Some(ref mut w) = watcher {
         if let Err(e) = w.watch(&watch_dir, RecursiveMode::NonRecursive) {
-            eprintln!(
-                "[live-reload] native watcher failed to register {}: {e} — relying on polling heartbeat",
+            // v25: bulletproof write (see spawn_watcher above).
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[live-reload] native watcher failed to register {}: {e} — relying on polling heartbeat\n",
                 watch_dir.display()
-            );
+            ));
             // Drop the broken watcher so it doesn't hold resources.
             watcher = None;
         }
@@ -213,12 +223,18 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     // event triggers a reload.
     let _watcher = watcher;
     for event_result in notify_rx.iter() {
-        // If the channel was closed (sender dropped), stop the loop.
-        // This happens when the watcher thread panicked due to terminal close.
-        let event_result = match event_result {
-            Ok(e) => Ok(e),
-            Err(_) => break,
-        };
+        // notify_rx.iter() yields notify::Result<notify::Event>:
+        //   Ok(Event) = filesystem event (create/modify/remove)
+        //   Err(Error) = watcher error (e.g., watch removed, OS error)
+        // mpsc's iter() returns None (ending the loop) only when ALL
+        // senders drop — that's the channel-close case, not Err.
+        //
+        // On Err, the watcher is in a degraded state; break and let
+        // the polling heartbeat continue alone (if its thread is still
+        // alive — its poll_tx clone keeps the channel open).
+        if event_result.is_err() {
+            break;
+        }
         if !handle_notify_event(
             event_result,
             &target_file,
@@ -359,12 +375,16 @@ fn handle_notify_event(
             }
 
             if let Err(msg) = validate_and_send(&parsed, tx) {
-                eprintln!("[live-reload] {msg}");
+                // v25: bulletproof write — runs in watcher worker thread.
+                use std::io::Write;
+                let _ = std::io::stderr().write_fmt(format_args!("[live-reload] {msg}\n"));
             }
             true
         }
         Err(e) => {
-            eprintln!("[live-reload] watch error: {e}");
+            // v25: bulletproof write — runs in watcher worker thread.
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!("[live-reload] watch error: {e}\n"));
             true
         }
     }
@@ -704,7 +724,11 @@ fn apply_scene_custom_to_cloud_config(
         // The scene_name stays as the custom scene name (already set at
         // startup). No need to re-assign — custom scenes are first-class
         // citizens and their identity doesn't change on live reload.
-        eprintln!("[live-reload] scene-custom '{normalized}': re-applied fields from config");
+        // v25: bulletproof write — runs in watcher worker thread.
+        use std::io::Write;
+        let _ = std::io::stderr().write_fmt(format_args!(
+            "[live-reload] scene-custom '{normalized}': re-applied fields from config\n"
+        ));
     }
 }
 

@@ -71,16 +71,24 @@ pub(super) fn spawn_watchdog() {
                 // Attempt to restore the terminal so the user isn't left
                 // with a broken shell, then exit.
                 restore_terminal_best_effort();
-                eprintln!(
-                    "[watchdog] main loop stuck for {}s — restoring terminal and exiting",
+                // v25: use write_fmt with error discarded — eprintln!
+                // panics on broken stderr (terminal closed) → double-panic
+                // → abort → coredump. The watchdog specifically fires
+                // when the main loop is stuck, which is often caused by
+                // the terminal being gone, so this path is hot.
+                use std::io::Write;
+                let _ = std::io::stderr().write_fmt(format_args!(
+                    "[watchdog] main loop stuck for {}s — restoring terminal and exiting\n",
                     WATCHDOG_INTERVAL_SECS * 2 * stuck_count as u64
-                );
+                ));
+                let _ = std::io::stderr().flush();
                 std::process::exit(1);
             }
-            eprintln!(
-                "[watchdog] main loop appears stuck (frame counter unchanged for {}s)",
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[watchdog] main loop appears stuck (frame counter unchanged for {}s)\n",
                 WATCHDOG_INTERVAL_SECS * 2
-            );
+            ));
         } else {
             stuck_count = 0;
         }
