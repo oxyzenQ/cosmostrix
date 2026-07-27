@@ -1,7 +1,6 @@
+#!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-
-#!/usr/bin/env bash
 set -euo pipefail
 
 TARGET="x86_64-unknown-linux-gnu"

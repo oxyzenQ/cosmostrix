@@ -335,10 +335,11 @@ RESULTS=()
 for i in "${!COMP_LABELS[@]}"; do
     label="${COMP_LABELS[$i]}"
     path="${COMP_PATHS[$i]}"
+    # shellcheck disable=SC2178  # string assigned from single array element for word-splitting
     args="${COMP_ARGS[$i]}"
     n=$((i + 1))
     echo "  [${n}/${TOTAL}] ${label}..." >&2
-    # shellcheck disable=SC2086 # intentional word-splitting of args
+    # shellcheck disable=SC2086,SC2128 # intentional word-splitting of args
     RESULTS+=("$(run_interactive "$label" "$path" $args)")
 done
 

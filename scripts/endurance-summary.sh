@@ -108,13 +108,15 @@ int_max() {
 # Simple sort-based approach; good enough for summary stats.
 percentile() {
     local pct="$1"; shift
-    local vals=($*)
+    local vals
+    read -ra vals <<< "$*"
     local n=${#vals[@]}
     if [[ "$n" -eq 0 ]]; then echo "0"; return; fi
     # Sort numerically
     local sorted
     sorted=$(printf '%s\n' "${vals[@]}" | sort -n | tr '\n' ' ')
-    local sorted_arr=($sorted)
+    local sorted_arr
+    read -ra sorted_arr <<< "$sorted"
     local idx=$(( n * pct / 100 ))
     # Clamp
     (( idx < 0 )) && idx=0

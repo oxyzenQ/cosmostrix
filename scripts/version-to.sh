@@ -27,8 +27,7 @@ set -euo pipefail
 #
 # Constants
 #
-SCRIPT_NAME="$(basename "$0")"
-readonly SCRIPT_NAME
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 readonly REPO_ROOT
 readonly CARGO_TOML="${REPO_ROOT}/Cargo.toml"
@@ -74,77 +73,19 @@ show_help() {
     cat <<'HELP'
 Cosmostrix Version Bump Helper
 
-Updates all stable AND pre-release version references consistently across
-the repo.
-
 USAGE:
-    ./scripts/version-to.sh <VERSION>              Bump to VERSION (stable)
-    ./scripts/version-to.sh bump-alpha             Bump to X.Y.Z-alpha.1 (fresh)
-    ./scripts/version-to.sh bump-beta             Bump to X.Y.Z-beta.1 (fresh)
-    ./scripts/version-to.sh bump-rc               Bump to X.Y.Z-rc.1 (fresh)
-    ./scripts/version-to.sh bump-pre              Bump to X.Y.Z-pre.1 (fresh)
-    ./scripts/version-to.sh bump-prerelease       Increment pre-release number
-    ./scripts/version-to.sh --check <VERSION>     Verify version is VERSION (no changes)
-    ./scripts/version-to.sh --help                Show this help
-
-ARGUMENTS:
-    <VERSION>   Target SemVer version, e.g. 2.5.0 (stable) or 25.0.0-alpha.1 (pre-release)
-
-PRE-RELEASE COMMANDS:
-    bump-alpha        Start/switch to alpha channel at .1 (X.Y.Z-alpha.1)
-    bump-beta         Start/switch to beta channel at .1 (X.Y.Z-beta.1)
-    bump-rc           Start/switch to rc channel at .1 (X.Y.Z-rc.1)
-    bump-pre          Start/switch to pre channel at .1 (X.Y.Z-pre.1)
-    bump-prerelease   Increment existing pre-release number (alpha.1 → alpha.2)
-                      Requires current version to already be a pre-release.
-
-    Pre-release versions trigger the CI pre-release pipeline:
-      - GitHub Release is marked as prerelease (make_latest: false)
-      - Release title appends " (Pre-Release)"
-      - The "latest release" pointer stays on the last stable version
-      - Changelog for a final release spans from the last STABLE tag,
-        ignoring intermediate pre-release tags
+    ./scripts/version-to.sh <VERSION>              Bump to VERSION (stable or pre-release)
+    ./scripts/version-to.sh bump-alpha             X.Y.Z → X.Y.Z-alpha.1
+    ./scripts/version-to.sh bump-beta              X.Y.Z → X.Y.Z-beta.1
+    ./scripts/version-to.sh bump-rc                X.Y.Z → X.Y.Z-rc.1
+    ./scripts/version-to.sh bump-prerelease        Increment pre-release number
+    ./scripts/version-to.sh --check <VERSION>      Verify version is VERSION
+    ./scripts/version-to.sh --help                 Show this help
 
 EXAMPLES:
-    ./scripts/version-to.sh 18.0.0               # Bump from current to 18.0.0
-    ./scripts/version-to.sh v18.0.0               # Same — 'v' prefix auto-stripped
-    ./scripts/version-to.sh --check 18.0.0        # Verify repo is at 18.0.0
-    ./scripts/version-to.sh --check v18.0.0       # Same — 'v' prefix auto-stripped
-    ./scripts/version-to.sh bump-alpha            # 25.0.0 → 25.0.0-alpha.1
-    ./scripts/version-to.sh bump-prerelease        # 25.0.0-alpha.1 → 25.0.0-alpha.2
-    ./scripts/version-to.sh bump-rc                # 25.0.0-alpha.2 → 25.0.0-rc.1
-    ./scripts/version-to.sh 25.0.0                 # Final: 25.0.0-rc.1 → 25.0.0 (stable)
-
-VALIDATION:
-    - Stable: X.Y.Z (digits only)
-    - Pre-release: X.Y.Z-{alpha|beta|rc|pre}.N
-    - Optional 'v' prefix is accepted and stripped (v18.0.0 → 18.0.0)
-    - Rejects: 2.5, 2.5.0-stable.1, empty input
-
-WHAT IT UPDATES:
-    1. Cargo.toml (package version)
-    2. Cargo.lock (via cargo metadata refresh)
-    3. aur/cosmostrix-bin/PKGBUILD (pkgver=, _tag=)
-    4. README.md (active version examples)
-    5. docs/workflow/about-ci.md (active version examples)
-    6. assets/cosmostrix-v{MAJOR}-demo* (auto git mv on major change)
-    7. README.md demo img refs (auto on major change)
-
-SAFETY:
-    - Warns if git working tree is dirty (use --allow-dirty to proceed)
-    - Does NOT commit, tag, or push
-    - Only edits version-related fields
-
-NEXT STEPS AFTER BUMP:
-    cargo fmt --all
-    cargo test --all --locked
-    cargo clippy --locked --all-targets --all-features -- -D warnings
-    cargo pro-linux-v3
-    target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix -i
-    git diff
-    git commit -m "chore: bump version to vNEW"
-    git tag vNEW
-    git push origin main vNEW
+    ./scripts/version-to.sh v25.0.0               # Stable release
+    ./scripts/version-to.sh v25.0.0-alpha.1       # Pre-release
+    ./scripts/version-to.sh bump-alpha            # Shortcut: current → alpha.1
 HELP
 }
 
@@ -310,6 +251,7 @@ generate_srcinfo_from_pkgbuild() {
     local pkgbuild_file="$1"
     local srcinfo_file="$2"
 
+    # shellcheck disable=SC2154  # variables from sourced PKGBUILD
     (
         set -euo pipefail
         # shellcheck disable=SC1090
