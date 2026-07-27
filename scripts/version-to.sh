@@ -7,14 +7,13 @@
 # Updates all version references consistently across the repo.
 #
 # USAGE:
-#   ./scripts/version-to.sh v*<VERSION>              Bump to VERSION (stable or pre-release)
+#   ./scripts/version-to.sh <VERSION>              Bump to VERSION (stable or pre-release)
 #   ./scripts/version-to.sh --check <VERSION>     Verify version is VERSION (no changes)
 #   ./scripts/version-to.sh --help                Show this help
 #
 # EXAMPLES:
 #   ./scripts/version-to.sh v25.0.0                # Stable release
 #   ./scripts/version-to.sh v25.0.0-alpha.1        # Pre-release
-#   ./scripts/version-to.sh bump-alpha             # Shortcut: X.Y.Z → X.Y.Z-alpha.1
 #
 # Safety:
 #   - Refuses to run if git working tree has unrelated changes
@@ -75,17 +74,12 @@ Cosmostrix Version Bump Helper
 
 USAGE:
     ./scripts/version-to.sh <VERSION>              Bump to VERSION (stable or pre-release)
-    ./scripts/version-to.sh bump-alpha             X.Y.Z → X.Y.Z-alpha.1
-    ./scripts/version-to.sh bump-beta              X.Y.Z → X.Y.Z-beta.1
-    ./scripts/version-to.sh bump-rc                X.Y.Z → X.Y.Z-rc.1
-    ./scripts/version-to.sh bump-prerelease        Increment pre-release number
     ./scripts/version-to.sh --check <VERSION>      Verify version is VERSION
     ./scripts/version-to.sh --help                 Show this help
 
 EXAMPLES:
     ./scripts/version-to.sh v25.0.0               # Stable release
     ./scripts/version-to.sh v25.0.0-alpha.1       # Pre-release
-    ./scripts/version-to.sh bump-alpha            # Shortcut: current → alpha.1
 HELP
 }
 
@@ -705,26 +699,8 @@ print_summary() {
 }
 
 #
-# Pre-release version support
+# Pre-release version validation
 #
-# These helpers compute pre-release version targets from the current
-# stable version in Cargo.toml. They enable the CI pre-release pipeline:
-#   1. bump-alpha  → X.Y.Z-alpha.1  (first alpha from stable X.Y.Z)
-#   2. bump-prerelease → X.Y.Z-alpha.2  (increment the pre-release number)
-#   ... or bump-beta, bump-rc for channel switches.
-#
-# Pre-release versions use the SemVer build metadata format:
-#   X.Y.Z-alpha.N
-#   X.Y.Z-beta.N
-#   X.Y.Z-rc.N
-#   X.Y.Z-pre.N
-#
-# The CI release workflow (release.yml) detects these suffixes and marks
-# the GitHub Release as a pre-release (make_latest: false) so the
-# "latest release" pointer stays on the last stable version.
-#
-
-# Validate a pre-release version string.
 # Accepts: X.Y.Z-alpha.N, X.Y.Z-beta.N, X.Y.Z-rc.N, X.Y.Z-pre.N
 # Rejects: anything else (including stable X.Y.Z — use validate_version for that)
 validate_prerelease_version() {
@@ -744,67 +720,6 @@ validate_prerelease_version() {
     fi
 }
 
-# Compute the pre-release target version from the current Cargo.toml version.
-# Args:
-#   $1 = channel (alpha|beta|rc|pre)
-# Output: target version string (e.g. 25.0.0-alpha.1)
-# Exit 1 on error (e.g. current version is already a pre-release of a different channel)
-compute_prerelease_target() {
-    local channel="$1"
-    local current
-    current="$(read_current_version)"
-
-    # Strip optional 'v' prefix from current
-    local bare="${current#v}"
-
-    # If current is already a pre-release of the SAME channel, increment the number.
-    if [[ "${bare}" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-${channel}\.([0-9]+)$ ]]; then
-        local base="${BASH_REMATCH[1]}"
-        local num="${BASH_REMATCH[2]}"
-        local new_num=$((num + 1))
-        echo "${base}-${channel}.${new_num}"
-        return 0
-    fi
-
-    # If current is a pre-release of a DIFFERENT channel, error — use the
-    # specific channel command (bump-alpha/bump-beta/bump-rc) to switch.
-    if [[ "${bare}" == *-* ]]; then
-        log_err "Current version ${bare} is already a pre-release of a different channel."
-        log_err "To switch channels, run: ./scripts/version-to.sh bump-${channel}"
-        log_err "(This resets the pre-release number to 1 for the new channel.)"
-        exit 1
-    fi
-
-    # Current is stable X.Y.Z — start a new pre-release at .1
-    if ! [[ "${bare}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        log_err "Current Cargo.toml version is not stable SemVer: ${bare}"
-        log_err "Cannot compute pre-release target from a non-stable base."
-        exit 1
-    fi
-
-    echo "${bare}-${channel}.1"
-}
-
-# Compute a fresh pre-release target (always .1, even if already in a channel).
-# Used by bump-alpha/bump-beta/bump-rc to switch channels or start fresh.
-compute_fresh_prerelease_target() {
-    local channel="$1"
-    local current
-    current="$(read_current_version)"
-    local bare="${current#v}"
-
-    # Extract the stable base (X.Y.Z) from either stable or pre-release current.
-    local base
-    if [[ "${bare}" =~ ^([0-9]+\.[0-9]+\.[0-9]+) ]]; then
-        base="${BASH_REMATCH[1]}"
-    else
-        log_err "Cannot extract stable base from current version: ${bare}"
-        exit 1
-    fi
-
-    echo "${base}-${channel}.1"
-}
-
 #
 # Main
 #
@@ -812,54 +727,6 @@ main() {
     local CHECK_MODE=0
     local ALLOW_DIRTY=0
     local TARGET_VERSION=""
-
-    # Pre-release subcommand detection.
-    # These commands compute the target version from the current Cargo.toml
-    # version + the requested channel, then fall through to the normal
-    # apply pipeline. They enable the CI pre-release workflow.
-    if [[ $# -ge 1 ]]; then
-        case "$1" in
-            bump-alpha)
-                shift
-                TARGET_VERSION="$(compute_fresh_prerelease_target "alpha")"
-                log_info "bump-alpha: target = ${TARGET_VERSION}"
-                ;;
-            bump-beta)
-                shift
-                TARGET_VERSION="$(compute_fresh_prerelease_target "beta")"
-                log_info "bump-beta: target = ${TARGET_VERSION}"
-                ;;
-            bump-rc)
-                shift
-                TARGET_VERSION="$(compute_fresh_prerelease_target "rc")"
-                log_info "bump-rc: target = ${TARGET_VERSION}"
-                ;;
-            bump-pre)
-                shift
-                TARGET_VERSION="$(compute_fresh_prerelease_target "pre")"
-                log_info "bump-pre: target = ${TARGET_VERSION}"
-                ;;
-            bump-prerelease)
-                # Increment the existing pre-release number (same channel).
-                # Detects the current channel from Cargo.toml and bumps N → N+1.
-                shift
-                local current
-                current="$(read_current_version)"
-                local bare="${current#v}"
-                local channel=""
-                if [[ "${bare}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre)\.[0-9]+$ ]]; then
-                    channel="${BASH_REMATCH[1]}"
-                else
-                    log_err "bump-prerelease requires current version to be a pre-release."
-                    log_err "Current: ${bare}"
-                    log_err "Use: ./scripts/version-to.sh bump-alpha (or bump-beta / bump-rc)"
-                    exit 1
-                fi
-                TARGET_VERSION="$(compute_prerelease_target "${channel}")"
-                log_info "bump-prerelease: ${current} → ${TARGET_VERSION}"
-                ;;
-        esac
-    fi
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do

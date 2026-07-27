@@ -99,7 +99,8 @@ def transform_file(path):
 
 
 def main():
-    target = Path("/home/z/my-project/cosmostrix/src/central_colors.rs")
+    REPO_ROOT = Path(__file__).resolve().parent.parent
+    target = REPO_ROOT / "src" / "central_colors.rs"
     if not target.exists():
         print(f"error: {target} not found", file=sys.stderr)
         return 1

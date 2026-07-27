@@ -18,8 +18,8 @@ For each size, captures:
   - total_frames
 
 Output:
-  /home/z/my-project/benchmark/scaling_results.json  — raw per-size JSON
-  /home/z/my-project/benchmark/scaling_results.md    — markdown table
+  <repo-root>/benchmark/scaling_results.json  — raw per-size JSON
+  <repo-root>/benchmark/scaling_results.md    — markdown table
 """
 
 import json
@@ -32,7 +32,8 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 # Output goes to benchmark/, not scripts/ — these are benchmark artifacts.
 OUTPUT_DIR = SCRIPT_DIR.parent / "benchmark"
-BINARY = Path("/home/z/my-project/cosmostrix/target/release/cosmostrix")
+REPO_ROOT = SCRIPT_DIR.parent
+BINARY = REPO_ROOT / "target" / "release" / "cosmostrix"
 SIZES = [
     (6, 6),
     (20, 20),
