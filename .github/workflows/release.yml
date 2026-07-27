@@ -285,26 +285,26 @@ jobs:
           else
             OUT="$(${BIN} --doctor)"
             echo "${OUT}"
-            echo "${OUT}" | grep -E "^  build: ${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
+            grep -E "^  build: ${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
             if [[ -n "${OPTIMIZATION}" ]]; then
-              echo "${OUT}" | grep -Fx "  optimization: ${OPTIMIZATION}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
+              grep -Fx "  optimization: ${OPTIMIZATION}" <<<"${OUT}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
             fi
-            echo "${OUT}" | grep -E "^  dispatch: static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+            grep -E "^  dispatch: static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
             if [[ -n "${BASELINE}" ]]; then
-              echo "${OUT}" | grep -E "^  cpu_baseline: ${BASELINE}$" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
+              grep -E "^  cpu_baseline: ${BASELINE}$" <<<"${OUT}" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
               for feature in ${REQUIRED}; do
-                echo "${OUT}" | grep -F "  target_features:" | grep -Fq "${feature}" || { echo "::error::Expected target feature ${feature}"; exit 1; }
+                grep -F "  target_features:" <<<"${OUT}" | grep -Fq "${feature}" || { echo "::error::Expected target feature ${feature}"; exit 1; }
               done
               for feature in ${DENIED}; do
-                if echo "${OUT}" | grep -F "  target_features:" | grep -Fq "${feature}"; then
+                if grep -F "  target_features:" <<<"${OUT}" | grep -Fq "${feature}"; then
                   echo "::error::Unexpected target feature ${feature} for ${BUILD_ID}"
                   exit 1
                 fi
               done
             fi
-            echo "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
-            echo "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
-            echo "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
+            grep -E "^  lto: fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
+            grep -E "^  panic: unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
+            grep -E "^  strip: yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
           fi
 
       - name: Verify embedded build metadata
@@ -765,13 +765,13 @@ jobs:
           # which is pure computation (no SIMD hot path). If it crashes, fall
           # back to strings verification.
           if OUT="$("${BIN}" --doctor 2>&1)"; then
-            echo "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
-            echo "${OUT}" | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
+            grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" <<<"${OUT}" || { echo "::error::Doctor report missing"; exit 1; }
+            grep -Fq "FEATURES" <<<"${OUT}" || { echo "::error::FEATURES section missing"; exit 1; }
             echo "PGO binary verified via --doctor."
           else
             echo "::warning::${BIN} --doctor exited non-zero (likely AVX-512 SIGILL). Verifying via strings."
             TEXT="$(strings "${BIN}")"
-            echo "${TEXT}" | grep -Fq "static optimized build" || { echo "::error::Expected dispatch metadata"; exit 1; }
+            grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected dispatch metadata"; exit 1; }
             echo "PGO binary verified via strings (v4 fallback)."
           fi
 
