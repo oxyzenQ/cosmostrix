@@ -36,28 +36,28 @@ def lerp(a, b, t):
 def smooth_file(path):
     """Smooth the body-tail gap (stop 2 → stop 3) in all stop-based themes."""
     content = path.read_text()
-    stats = {'smoothed_7': 0, 'smoothed_9': 0, 'skipped_other': 0}
+    stats = {"smoothed_7": 0, "smoothed_9": 0, "skipped_other": 0}
 
     # Find each stops array. Strip comments before extracting tuples.
     pattern = re.compile(
-        r'(stops:\s*&\[)\s*(?P<inner>(?:\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)\s*,?\s*)+)\]',
-        re.DOTALL
+        r"(stops:\s*&\[)\s*(?P<inner>(?:\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)\s*,?\s*)+)\]",
+        re.DOTALL,
     )
 
     def replacer(m):
         prefix = m.group(1)
-        inner = m.group('inner')
+        inner = m.group("inner")
         # Strip comments before extracting tuples
-        inner_clean = re.sub(r'//[^\n]*', '', inner)
-        tuples = re.findall(r'\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)', inner_clean)
+        inner_clean = re.sub(r"//[^\n]*", "", inner)
+        tuples = re.findall(r"\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", inner_clean)
         if not tuples:
-            stats['skipped_other'] += 1
+            stats["skipped_other"] += 1
             return m.group(0)
         tuples = [(int(r), int(g), int(b)) for r, g, b in tuples]
 
         if len(tuples) < 4:
             # Need at least 4 stops (0,1,2,3) to smooth the 2→3 gap
-            stats['skipped_other'] += 1
+            stats["skipped_other"] += 1
             return m.group(0)
 
         # Smooth stop 2 toward stop 3 by 30%.
@@ -68,11 +68,11 @@ def smooth_file(path):
         tuples[2] = new_stop2
 
         if len(tuples) == 7:
-            stats['smoothed_7'] += 1
+            stats["smoothed_7"] += 1
         elif len(tuples) == 9:
-            stats['smoothed_9'] += 1
+            stats["smoothed_9"] += 1
         else:
-            stats['skipped_other'] += 1
+            stats["skipped_other"] += 1
             return m.group(0)
 
         # Reconstruct with 16-space indent
@@ -86,7 +86,7 @@ def smooth_file(path):
 
 
 def main():
-    target = Path('/home/z/my-project/cosmostrix/src/central_colors.rs')
+    target = Path("/home/z/my-project/cosmostrix/src/central_colors.rs")
     if not target.exists():
         print(f"error: {target} not found", file=sys.stderr)
         return 1
@@ -101,5 +101,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

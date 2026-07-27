@@ -754,23 +754,33 @@ jobs:
         run: cargo deny check all
 
   workflow_quality:
-    name: Workflow lint + codespell
+    name: Lint + format + codespell
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install workflow lint tools
+      - name: Install lint tools
         run: |
-          python3 -m pip install --user yamllint codespell
+          python3 -m pip install --user yamllint codespell ruff
           go install github.com/rhysd/actionlint/cmd/actionlint@latest
           echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
+          sudo apt-get install -y shellcheck
 
       - name: Run actionlint
         run: actionlint .github/workflows/*.yml
 
       - name: Run yamllint
         run: yamllint .github/workflows
+
+      - name: Run shellcheck
+        run: shellcheck scripts/*.sh
+
+      - name: Run ruff check (Python lint)
+        run: ruff check scripts/*.py
+
+      - name: Run ruff format --check (Python format)
+        run: ruff format --check scripts/*.py
 
       - name: Run codespell
         run: |

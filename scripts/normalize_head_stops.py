@@ -42,12 +42,12 @@ def scale_to_benchmark(r, g, b, target=NEON_GREEN_BENCHMARK):
     if ns != target:
         diff = target - ns
         # Pick the largest channel to absorb the diff.
-        vals = [(nr, 'r'), (ng, 'g'), (nb, 'b')]
+        vals = [(nr, "r"), (ng, "g"), (nb, "b")]
         vals.sort(reverse=True)
         largest = vals[0][1]
-        if largest == 'r':
+        if largest == "r":
             nr = max(0, min(255, nr + diff))
-        elif largest == 'g':
+        elif largest == "g":
             ng = max(0, min(255, ng + diff))
         else:
             nb = max(0, min(255, nb + diff))
@@ -57,22 +57,22 @@ def scale_to_benchmark(r, g, b, target=NEON_GREEN_BENCHMARK):
 def transform_file(path):
     """Apply head-stop normalization to all stop-based themes."""
     content = path.read_text()
-    stats = {'normalized': 0, 'skipped_ok': 0, 'skipped_other': 0}
+    stats = {"normalized": 0, "skipped_ok": 0, "skipped_other": 0}
 
     # Find each stops array. The head stop is the LAST tuple in the array.
     # Pattern: stops: &[ ... (r, g, b), (r, g, b), ..., (HEAD_R, HEAD_G, HEAD_B) ]
     pattern = re.compile(
-        r'(stops:\s*&\[)\s*(?P<inner>(?:\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)\s*,?\s*)+)\]',
-        re.DOTALL
+        r"(stops:\s*&\[)\s*(?P<inner>(?:\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)\s*,?\s*)+)\]",
+        re.DOTALL,
     )
 
     def replacer(m):
         prefix = m.group(1)
-        inner = m.group('inner')
+        inner = m.group("inner")
         # Parse all tuples
-        tuples = re.findall(r'\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)', inner)
+        tuples = re.findall(r"\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", inner)
         if not tuples:
-            stats['skipped_other'] += 1
+            stats["skipped_other"] += 1
             return m.group(0)
 
         # Convert to ints
@@ -80,13 +80,13 @@ def transform_file(path):
         head = tuples[-1]
         head_sum = sum(head)
         if head_sum <= NEON_GREEN_BENCHMARK:
-            stats['skipped_ok'] += 1
+            stats["skipped_ok"] += 1
             return m.group(0)
 
         # Scale head to benchmark
         new_head = scale_to_benchmark(*head)
         tuples[-1] = new_head
-        stats['normalized'] += 1
+        stats["normalized"] += 1
 
         # Reconstruct the stops array with 16-space indent
         lines = [f"                ({r}, {g}, {b})," for r, g, b in tuples]
@@ -99,7 +99,7 @@ def transform_file(path):
 
 
 def main():
-    target = Path('/home/z/my-project/cosmostrix/src/central_colors.rs')
+    target = Path("/home/z/my-project/cosmostrix/src/central_colors.rs")
     if not target.exists():
         print(f"error: {target} not found", file=sys.stderr)
         return 1
@@ -108,11 +108,15 @@ def main():
     print(f"Benchmark: NeonGreen head sum = {NEON_GREEN_BENCHMARK}")
     print()
     stats = transform_file(target)
-    print(f"  Themes normalized (head sum > {NEON_GREEN_BENCHMARK}): {stats['normalized']}")
-    print(f"  Themes already compliant (head sum <= {NEON_GREEN_BENCHMARK}): {stats['skipped_ok']}")
+    print(
+        f"  Themes normalized (head sum > {NEON_GREEN_BENCHMARK}): {stats['normalized']}"
+    )
+    print(
+        f"  Themes already compliant (head sum <= {NEON_GREEN_BENCHMARK}): {stats['skipped_ok']}"
+    )
     print(f"  Skipped (empty/other): {stats['skipped_other']}")
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

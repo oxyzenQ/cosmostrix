@@ -109,7 +109,9 @@ def main():
             if cols < 10 or cols > 500:
                 raise ValueError
         except ValueError:
-            print(f"error: columns must be 10-500, got '{sys.argv[2]}'", file=sys.stderr)
+            print(
+                f"error: columns must be 10-500, got '{sys.argv[2]}'", file=sys.stderr
+            )
             sys.exit(1)
 
     weights = PRESETS[name](cols)

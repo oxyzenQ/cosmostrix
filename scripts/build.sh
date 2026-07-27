@@ -325,6 +325,49 @@ run_version_anti_pattern_check() {
         fi
 }
 
+run_shellcheck() {
+        log_step "Running shellcheck on scripts/*.sh..."
+
+        if ! command -v shellcheck >/dev/null 2>&1; then
+                log_warning "shellcheck not installed (skipping). Install: apt install shellcheck or brew install shellcheck"
+                return 0
+        fi
+
+        if shellcheck scripts/*.sh; then
+                log_success "Shellcheck passed"
+        else
+                log_error "Shellcheck failed — fix warnings before committing"
+                return 1
+        fi
+}
+
+run_python_lint() {
+        log_step "Running ruff check + format on scripts/*.py..."
+
+        if ! command -v ruff >/dev/null 2>&1; then
+                log_warning "ruff not installed (skipping Python lint). Install: pip install ruff"
+                return 0
+        fi
+
+        local py_failed=0
+        if ! ruff check scripts/*.py; then
+                log_error "ruff check failed — fix Python lint issues"
+                ((py_failed++))
+        fi
+
+        if ! ruff format --check scripts/*.py; then
+                log_error "ruff format check failed — run 'ruff format scripts/*.py' to fix"
+                ((py_failed++))
+        fi
+
+        if [ $py_failed -eq 0 ]; then
+                log_success "Python lint + format passed"
+                return 0
+        else
+                return 1
+        fi
+}
+
 run_comprehensive_check() {
         local failed=0
 
@@ -337,6 +380,8 @@ run_comprehensive_check() {
         run_loc_check || ((failed++))
         run_header_check || ((failed++))
         run_version_anti_pattern_check || ((failed++))
+        run_shellcheck || ((failed++))
+        run_python_lint || ((failed++))
         run_version_sync || ((failed++))
         run_clippy || ((failed++))
         run_tests || ((failed++))

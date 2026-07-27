@@ -21,6 +21,7 @@ Output:
   /home/z/my-project/benchmark/scaling_results.json  — raw per-size JSON
   /home/z/my-project/benchmark/scaling_results.md    — markdown table
 """
+
 import json
 import re
 import subprocess
@@ -59,25 +60,37 @@ def parse_rss_mib(s: str) -> float:
 def run_one(cols: int, lines: int) -> dict:
     """Run a single benchmark and parse JSON output."""
     size_str = f"{cols}x{lines}"
-    print(f"  benchmarking {size_str} ({cols*lines} cells)...", file=sys.stderr, flush=True)
+    print(
+        f"  benchmarking {size_str} ({cols * lines} cells)...",
+        file=sys.stderr,
+        flush=True,
+    )
     t0 = time.time()
     result = subprocess.run(
         [
             str(BINARY),
             "--benchmark",
             "--json",
-            "--screen-size", size_str,
-            "--bench-duration", str(BENCH_DURATION),
+            "--screen-size",
+            size_str,
+            "--bench-duration",
+            str(BENCH_DURATION),
         ],
         capture_output=True,
         text=True,
         timeout=BENCH_DURATION * 5 + 10,
+        check=False,
     )
     elapsed = time.time() - t0
     if result.returncode != 0:
         print(f"    FAILED (exit {result.returncode})", file=sys.stderr)
         print(f"    stderr: {result.stderr[:500]}", file=sys.stderr)
-        return {"size": size_str, "cols": cols, "lines": lines, "error": result.stderr[:500]}
+        return {
+            "size": size_str,
+            "cols": cols,
+            "lines": lines,
+            "error": result.stderr[:500],
+        }
     try:
         data = json.loads(result.stdout)
     except json.JSONDecodeError as e:
@@ -146,8 +159,11 @@ def main() -> int:
         print("run: cargo build --release", file=sys.stderr)
         return 1
 
-    print(f"Running scaling benchmark across {len(SIZES)} sizes "
-          f"({BENCH_DURATION}s each)...", file=sys.stderr)
+    print(
+        f"Running scaling benchmark across {len(SIZES)} sizes "
+        f"({BENCH_DURATION}s each)...",
+        file=sys.stderr,
+    )
 
     results = []
     for cols, lines in SIZES:
@@ -157,12 +173,16 @@ def main() -> int:
     # Save raw JSON
     raw_path = OUTPUT_DIR / "scaling_results.json"
     with raw_path.open("w") as f:
-        json.dump({
-            "binary": str(BINARY),
-            "bench_duration_s": BENCH_DURATION,
-            "sizes": SIZES,
-            "results": results,
-        }, f, indent=2)
+        json.dump(
+            {
+                "binary": str(BINARY),
+                "bench_duration_s": BENCH_DURATION,
+                "sizes": SIZES,
+                "results": results,
+            },
+            f,
+            indent=2,
+        )
     print(f"\nRaw JSON: {raw_path}", file=sys.stderr)
 
     # Emit Markdown table
@@ -172,15 +192,21 @@ def main() -> int:
         f.write(f"Binary: `{BINARY}`  \n")
         f.write(f"Bench duration: {BENCH_DURATION}s per size  \n")
         f.write(f"Total sizes: {len(SIZES)}\n\n")
-        f.write("| Size | Cells | avg_fps | total_ns/cell | render_ns/cell | "
-                "io_ns/cell | io_share% | allocs/frame | peak_rss(MiB) | "
-                "dirty_ratio% |\n")
-        f.write("|------|-------|---------|---------------|----------------|"
-                "------------|-----------|--------------|---------------|"
-                "--------------|\n")
+        f.write(
+            "| Size | Cells | avg_fps | total_ns/cell | render_ns/cell | "
+            "io_ns/cell | io_share% | allocs/frame | peak_rss(MiB) | "
+            "dirty_ratio% |\n"
+        )
+        f.write(
+            "|------|-------|---------|---------------|----------------|"
+            "------------|-----------|--------------|---------------|"
+            "--------------|\n"
+        )
         for r in results:
             if "error" in r:
-                f.write(f"| {r['size']} | {r['cell_count']} | ERROR | - | - | - | - | - | - | - |\n")
+                f.write(
+                    f"| {r['size']} | {r['cell_count']} | ERROR | - | - | - | - | - | - | - |\n"
+                )
                 continue
             f.write(
                 f"| {r['size']} | {r['cell_count']} | "

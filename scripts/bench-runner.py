@@ -113,10 +113,9 @@ def main():
                         parts = line.split()
                         if len(parts) >= 2:
                             rss = int(parts[1])
-                            if rss > peak_rss_kib:
-                                peak_rss_kib = rss
+                            peak_rss_kib = max(peak_rss_kib, rss)
                         break
-        except (IOError, ValueError, ProcessLookupError):
+        except (OSError, ValueError, ProcessLookupError):
             # Process may have just exited — ignore
             pass
 
