@@ -496,19 +496,19 @@ jobs:
             echo "Verifying build metadata via --doctor: ${BUILD_ID}"
             OUT=$("${BIN}" --doctor) || { echo "::error::--doctor failed for ${BUILD_ID}"; exit 1; }
             echo "${OUT}"
-            grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" <<<"${OUT}" || { echo "::error::Doctor report missing"; exit 1; }
-            grep -Fq "BUILD" <<<"${OUT}" || { echo "::error::BUILD section missing"; exit 1; }
-            grep -E "^  build: ${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
-            grep -E "^  dispatch: static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
-            grep -E "^  lto: fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
-            grep -E "^  panic: unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
-            grep -E "^  strip: yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "BUILD" || { echo "::error::BUILD section missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^  build: ${BUILD_ID}$" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^  dispatch: static optimized build$" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^  lto: fat$" || { echo "::error::Expected lto: fat"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^  panic: unwind$" || { echo "::error::Expected panic: unwind"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^  strip: yes$" || { echo "::error::Expected strip: yes"; exit 1; }
             # v18: Verify FEATURES section surfaces cinematic & endurance subsystems
-            grep -Fq "FEATURES" <<<"${OUT}" || { echo "::error::FEATURES section missing"; exit 1; }
-            grep -Fq "parallax_layers: 3" <<<"${OUT}" || { echo "::error::parallax_layers must be 3"; exit 1; }
-            grep -Fq "endurance_subsystem" <<<"${OUT}" || { echo "::error::endurance_subsystem missing"; exit 1; }
-            grep -Fq "hud_overlay" <<<"${OUT}" || { echo "::error::hud_overlay missing"; exit 1; }
-            grep -Fq "click_wave" <<<"${OUT}" || { echo "::error::click_wave missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "FEATURES" || { echo "::error::FEATURES section missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "parallax_layers: 3" || { echo "::error::parallax_layers must be 3"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "endurance_subsystem" || { echo "::error::endurance_subsystem missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "hud_overlay" || { echo "::error::hud_overlay missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "click_wave" || { echo "::error::click_wave missing"; exit 1; }
 
             # Quick benchmark smoke test (10 frames, verifies runtime works)
             echo "=== Benchmark smoke test (10 frames) ==="
