@@ -38,7 +38,7 @@ pub(super) fn make_monolith_cloud(cols: u16, lines: u16) -> Cloud {
         BoldMode::Off,
         false,
         true,
-        ColorScheme::BlackHole,
+        ColorScheme::Cosmos,
         RainStyle::Monolith,
     );
     cloud.init_chars(vec!['0', '1']);

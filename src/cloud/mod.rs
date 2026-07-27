@@ -379,14 +379,14 @@ impl Cloud {
         // The message is set immediately, but message_start_time is set
         // 3s in the future so the typewriter reveal doesn't begin until
         // the intro animation has completed.
-        self.message_start_time = Some(Instant::now() + Duration::from_secs(3));
+        self.message_start_time = Some(Instant::now() + Duration::from_secs(6));
         self.reset_message();
         self.force_draw_everything = true;
     }
 
     pub fn restart_message_typewriter(&mut self) {
         if self.message_text.is_some() {
-            self.message_start_time = Some(Instant::now() + Duration::from_secs(3));
+            self.message_start_time = Some(Instant::now() + Duration::from_secs(6));
             self.force_draw_everything = true;
         }
     }

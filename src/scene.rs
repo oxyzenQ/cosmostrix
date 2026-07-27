@@ -200,7 +200,7 @@ pub const SCENES: &[SceneInfo] = &[
         name: "cosmic_dragon",
         description: "Cosmic Dragon — temporal-prediction milestone; deep-space binary rain that sees its own future",
         config: SceneConfig {
-            color: Some("deepspace"),
+            color: Some("cosmos"),
             charset: Some("binary"),
             fps: Some(60.0),
             speed: Some(12.0),
@@ -424,7 +424,7 @@ mod tests {
     #[test]
     fn cosmic_dragon_scene_marks_temporal_prediction_milestone() {
         let s = get_scene("cosmic_dragon").expect("cosmic_dragon scene");
-        assert_eq!(s.config.color, Some("deepspace"));
+        assert_eq!(s.config.color, Some("cosmos"));
         assert_eq!(s.config.charset, Some("binary"));
         assert_eq!(s.config.fps, Some(60.0));
         assert_eq!(s.config.speed, Some(12.0));

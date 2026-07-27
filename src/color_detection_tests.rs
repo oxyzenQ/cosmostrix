@@ -56,14 +56,7 @@ fn args_from_empty_config(cli: &[&str]) -> Args {
 
 #[test]
 fn runtime_profile_color_display_uses_canonical_alias_names() {
-    for (alias, canonical) in [
-        ("white", "snow"),
-        ("silver", "gray"),
-        ("deepblue", "deepspace"),
-        ("deep-blue", "deepspace"),
-        ("deep_blue", "deepspace"),
-        ("grey", "gray"),
-    ] {
+    for (alias, canonical) in [("white", "snow"), ("silver", "gray"), ("grey", "gray")] {
         let args = args_from_empty_config(&["--color", alias, "--doctor"]);
         assert_eq!(args.color, canonical);
     }

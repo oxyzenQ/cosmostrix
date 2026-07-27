@@ -88,13 +88,4 @@ pub enum ColorScheme {
     Pluto,
     Moon,
     Sun,
-    Comet,
-    Galaxy,
-    Supernova,
-    BlackHole,
-    Andromeda,
-    Stardust,
-    Meteor,
-    Eclipse,
-    DeepSpace,
 }

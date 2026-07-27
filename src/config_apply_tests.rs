@@ -193,9 +193,9 @@ fn explicit_cli_flags_override_scene_managed_values() {
 
 #[test]
 fn monolith_scene_respects_explicit_color_override() {
-    let args = args_from_cli(&["--scene", "monolith", "--color", "deepspace"]);
+    let args = args_from_cli(&["--scene", "monolith", "--color", "cosmos"]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.color, "deepspace");
+    assert_eq!(args.color, "cosmos");
     assert_eq!(args.charset, "braille");
 }
 

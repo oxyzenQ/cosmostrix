@@ -457,7 +457,7 @@ pub fn dump_config_text() -> &'static str {
 # If not defined, default adaptive engine (5 phases) is used.
 # Note: custom time map is checked every 30s at runtime.
 # Live config reload re-parses the map immediately on save.
-# adaptive-custom.00-00 = deepspace, monolith, speed=15, density=1.2
+# adaptive-custom.00-00 = cosmos, monolith, speed=15, density=1.2
 # adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
 # adaptive-custom.12-00 = cosmos, monolith, speed=30, density=0.85
 # adaptive-custom.18-00 = neon, storm, speed=24, density=1.1

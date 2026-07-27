@@ -884,159 +884,6 @@ pub static THEMES: &[ThemeDef] = &[
             steps: 9,
         },
     },
-    ThemeDef {
-        scheme: ColorScheme::Comet,
-        def: ThemeColors::Stops {
-            stops: &[
-                (0, 0, 30),
-                (0, 10, 60),
-                (0, 59, 172),
-                (0, 60, 175),
-                (40, 130, 230),
-                (110, 190, 255),
-                (165, 215, 255),
-                (220, 240, 255),
-                (211, 220, 224),
-            ],
-            steps: 9,
-        },
-    },
-    ThemeDef {
-        scheme: ColorScheme::Galaxy,
-        def: ThemeColors::Stops {
-            stops: &[
-                (8, 0, 18),
-                (25, 0, 55),
-                (98, 24, 158),
-                (100, 25, 160),
-                (180, 60, 230),
-                (220, 110, 255),
-                (235, 160, 255),
-                (250, 210, 255),
-                (223, 207, 225),
-            ],
-            steps: 9,
-        },
-    },
-    ThemeDef {
-        scheme: ColorScheme::Supernova,
-        def: ThemeColors::Stops {
-            stops: &[
-                (18, 0, 30),
-                (60, 0, 35),
-                (197, 39, 10),
-                (200, 40, 10),
-                (255, 95, 15),
-                (255, 155, 35),
-                (255, 192, 90),
-                (255, 230, 145),
-                (239, 229, 187),
-            ],
-            steps: 9,
-        },
-    },
-    ThemeDef {
-        scheme: ColorScheme::BlackHole,
-        def: ThemeColors::Stops {
-            stops: &[
-                (0, 0, 0),
-                (5, 0, 18),
-                (34, 5, 74),
-                (35, 5, 75),
-                (110, 40, 180),
-                (170, 80, 235),
-                (205, 130, 245),
-                (240, 180, 255),
-                (226, 199, 230),
-            ],
-            steps: 9,
-        },
-    },
-    ThemeDef {
-        scheme: ColorScheme::Andromeda,
-        def: ThemeColors::Stops {
-            stops: &[
-                (0, 0, 18),
-                (15, 0, 55),
-                (98, 24, 172),
-                (100, 25, 175),
-                (190, 60, 240),
-                (230, 110, 255),
-                (241, 155, 255),
-                (252, 200, 255),
-                (225, 204, 226),
-            ],
-            steps: 9,
-        },
-    },
-    ThemeDef {
-        scheme: ColorScheme::Stardust,
-        def: ThemeColors::Stops {
-            stops: &[
-                (8, 0, 18),
-                (20, 5, 50),
-                (108, 49, 172),
-                (110, 50, 175),
-                (95, 145, 235),
-                (140, 200, 255),
-                (180, 222, 255),
-                (220, 245, 255),
-                (210, 221, 224),
-            ],
-            steps: 9,
-        },
-    },
-    ThemeDef {
-        scheme: ColorScheme::Meteor,
-        def: ThemeColors::Stops {
-            stops: &[
-                (15, 5, 0),
-                (50, 18, 0),
-                (177, 69, 10),
-                (180, 70, 10),
-                (245, 130, 30),
-                (255, 180, 60),
-                (228, 200, 148),
-                (200, 220, 235),
-                (206, 220, 229),
-            ],
-            steps: 9,
-        },
-    },
-    ThemeDef {
-        scheme: ColorScheme::Eclipse,
-        def: ThemeColors::Stops {
-            stops: &[
-                (0, 0, 0),
-                (15, 0, 30),
-                (108, 20, 15),
-                (110, 20, 15),
-                (220, 60, 0),
-                (255, 130, 25),
-                (255, 175, 88),
-                (255, 220, 150),
-                (237, 223, 195),
-            ],
-            steps: 9,
-        },
-    },
-    ThemeDef {
-        scheme: ColorScheme::DeepSpace,
-        def: ThemeColors::Stops {
-            stops: &[
-                (0, 0, 0),
-                (0, 5, 25),
-                (0, 39, 108),
-                (0, 40, 110),
-                (0, 90, 190),
-                (60, 120, 235),
-                (120, 160, 245),
-                (180, 200, 255),
-                (206, 215, 234),
-            ],
-            steps: 9,
-        },
-    },
 ];
 
 /// Look up a theme by ColorScheme and build its color list for the given mode.
@@ -1145,15 +992,6 @@ mod tests {
             ColorScheme::Pluto,
             ColorScheme::Moon,
             ColorScheme::Sun,
-            ColorScheme::Comet,
-            ColorScheme::Galaxy,
-            ColorScheme::Supernova,
-            ColorScheme::BlackHole,
-            ColorScheme::Andromeda,
-            ColorScheme::Stardust,
-            ColorScheme::Meteor,
-            ColorScheme::Eclipse,
-            ColorScheme::DeepSpace,
         ];
         for &scheme in &schemes {
             assert!(
@@ -1162,7 +1000,7 @@ mod tests {
                 scheme
             );
         }
-        assert_eq!(theme_count(), 52);
+        assert_eq!(theme_count(), 43);
     }
 
     #[test]

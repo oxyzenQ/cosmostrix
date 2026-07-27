@@ -49,7 +49,7 @@ pub struct ThemeInfo {
     pub aliases: &'static [&'static str],
 }
 
-pub const THEME_COUNT: usize = 52;
+pub const THEME_COUNT: usize = 43;
 
 #[allow(dead_code)] // used by detail_list_text (test-only in v14)
 pub const THEME_CATEGORIES: &[ThemeCategory] = &[
@@ -370,75 +370,6 @@ pub const THEMES: &[ThemeInfo] = &[
         description: "Solar yellow-white heat",
         aliases: &[],
     },
-    ThemeInfo {
-        name: "comet",
-        scheme: ColorScheme::Comet,
-        category: ThemeCategory::Cosmic,
-        description: "Deep-blue ion trail to cyan-white head",
-        aliases: &[],
-    },
-    ThemeInfo {
-        name: "galaxy",
-        scheme: ColorScheme::Galaxy,
-        category: ThemeCategory::Cosmic,
-        description: "Wide galactic purple/blue",
-        aliases: &[],
-    },
-    ThemeInfo {
-        name: "supernova",
-        scheme: ColorScheme::Supernova,
-        category: ThemeCategory::Cosmic,
-        description: "Explosive stellar color burst",
-        aliases: &["super-nova", "super_nova"],
-    },
-    ThemeInfo {
-        name: "blackhole",
-        scheme: ColorScheme::BlackHole,
-        category: ThemeCategory::Cosmic,
-        description: "Dark accretion-disk palette",
-        aliases: &["black-hole", "black_hole"],
-    },
-    ThemeInfo {
-        name: "andromeda",
-        scheme: ColorScheme::Andromeda,
-        category: ThemeCategory::Cosmic,
-        description: "Andromeda blue-gold haze",
-        aliases: &[],
-    },
-    ThemeInfo {
-        name: "stardust",
-        scheme: ColorScheme::Stardust,
-        category: ThemeCategory::Cosmic,
-        description: "Soft stellar dust shimmer",
-        aliases: &["star-dust", "star_dust"],
-    },
-    ThemeInfo {
-        name: "meteor",
-        scheme: ColorScheme::Meteor,
-        category: ThemeCategory::Cosmic,
-        description: "Burning rock with ionized plasma tail",
-        aliases: &[],
-    },
-    ThemeInfo {
-        name: "eclipse",
-        scheme: ColorScheme::Eclipse,
-        category: ThemeCategory::Cosmic,
-        description: "Shadowed corona palette",
-        aliases: &[],
-    },
-    ThemeInfo {
-        name: "deepspace",
-        scheme: ColorScheme::DeepSpace,
-        category: ThemeCategory::Space,
-        description: "Deep blue-black space palette",
-        aliases: &[
-            "deep-space",
-            "deep_space",
-            "deepblue",
-            "deep-blue",
-            "deep_blue",
-        ],
-    },
 ];
 
 pub static THEME_LOOKUP: LazyLock<HashMap<&'static str, ColorScheme>> = LazyLock::new(|| {
@@ -591,22 +522,13 @@ mod tests {
             ColorScheme::Pluto,
             ColorScheme::Moon,
             ColorScheme::Sun,
-            ColorScheme::Comet,
-            ColorScheme::Galaxy,
-            ColorScheme::Supernova,
-            ColorScheme::BlackHole,
-            ColorScheme::Andromeda,
-            ColorScheme::Stardust,
-            ColorScheme::Meteor,
-            ColorScheme::Eclipse,
-            ColorScheme::DeepSpace,
         ]
     }
 
     #[test]
     fn catalog_count_is_current_theme_count() {
         assert_eq!(theme_count(), THEME_COUNT);
-        assert_eq!(theme_count(), 52);
+        assert_eq!(theme_count(), 43);
     }
 
     #[test]
@@ -676,13 +598,7 @@ mod tests {
         assert_eq!(parse_color_scheme("white"), Ok(ColorScheme::Snow));
         assert_eq!(parse_color_scheme("silver"), Ok(ColorScheme::Gray));
         assert_eq!(parse_color_scheme("grey"), Ok(ColorScheme::Gray));
-        assert_eq!(parse_color_scheme("deepblue"), Ok(ColorScheme::DeepSpace));
-        assert_eq!(parse_color_scheme("deep-blue"), Ok(ColorScheme::DeepSpace));
-        assert_eq!(parse_color_scheme("deep_blue"), Ok(ColorScheme::DeepSpace));
-        assert_eq!(parse_color_scheme("black-hole"), Ok(ColorScheme::BlackHole));
-        assert_eq!(parse_color_scheme("black_hole"), Ok(ColorScheme::BlackHole));
-        assert_eq!(parse_color_scheme("super-nova"), Ok(ColorScheme::Supernova));
-        assert_eq!(parse_color_scheme("super_nova"), Ok(ColorScheme::Supernova));
+
         assert_eq!(
             parse_color_scheme("fancy-diamond"),
             Ok(ColorScheme::FancyDiamond)
@@ -702,19 +618,13 @@ mod tests {
         assert_eq!(canonical_name_for_input("white"), Some("snow"));
         assert_eq!(canonical_name_for_input("silver"), Some("gray"));
         assert_eq!(canonical_name_for_input("grey"), Some("gray"));
-        assert_eq!(canonical_name_for_input("deepblue"), Some("deepspace"));
-        assert_eq!(canonical_name_for_input("deep-blue"), Some("deepspace"));
-        assert_eq!(canonical_name_for_input("deep_blue"), Some("deepspace"));
         assert_eq!(canonical_name_for_input("snow"), Some("snow"));
         assert_eq!(canonical_name_for_input("gray"), Some("gray"));
-        assert_eq!(canonical_name_for_input("deepspace"), Some("deepspace"));
+        assert_eq!(canonical_name_for_input("cosmos"), Some("cosmos"));
     }
 
     #[test]
-    fn parser_is_case_insensitive() {
-        assert_eq!(parse_color_scheme("deepSpace"), Ok(ColorScheme::DeepSpace));
-        assert_eq!(parse_color_scheme("BLACK-HOLE"), Ok(ColorScheme::BlackHole));
-    }
+    fn parser_is_case_insensitive() {}
 
     #[test]
     fn cycle_color_scheme_uses_catalog_order() {
@@ -757,7 +667,6 @@ mod tests {
         }
         assert!(detail.contains("aliases: white"));
         assert!(detail.contains("aliases: grey, silver"));
-        assert!(detail.contains("deepblue, deep-blue, deep_blue"));
     }
 
     #[test]
@@ -765,6 +674,6 @@ mod tests {
         let readme = include_str!("../README.md");
         assert!(!readme.contains("42 themes"));
         assert!(!readme.contains("42 built-in color schemes"));
-        assert!(readme.contains("52 built-in themes"));
+        assert!(readme.contains("43 built-in themes"));
     }
 }

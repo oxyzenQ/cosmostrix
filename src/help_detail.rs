@@ -278,7 +278,7 @@ DIAGNOSTICS:
 
 DISCOVERY:
   --list-colors         Show color theme names.
-                        There are 52 built-in themes.
+                        There are 43 built-in themes.
   --list-charsets       Show available character sets.
   --list-scenes         Show built-in and custom scenes (from config).
   --show-scene <NAME>   Show full details for a built-in or custom scene.

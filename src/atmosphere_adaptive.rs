@@ -149,7 +149,7 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.9,
         color_change_allowed: true,
         terminal_effect_allowed: true,
-        target_color: Some("deepspace"),
+        target_color: Some("cosmos"),
     },
     // 03:00 — Compression: intense black hole gravity
     AdaptiveParams {
@@ -159,7 +159,7 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.85,
         color_change_allowed: true,
         terminal_effect_allowed: true,
-        target_color: Some("blackhole"),
+        target_color: Some("gray"),
     },
     // 06:00 — Pulse: fresh aurora dawn
     AdaptiveParams {
@@ -199,7 +199,7 @@ const PHASE_PARAMS: [AdaptiveParams; 6] = [
         glitch_pressure: 0.9,
         color_change_allowed: true,
         terminal_effect_allowed: true,
-        target_color: Some("deepspace"),
+        target_color: Some("cosmos"),
     },
 ];
 
@@ -289,7 +289,7 @@ pub fn update_modulation(
 
 /// Get the target color scheme name for the current local hour.
 ///
-/// Returns `Some("deepspace")` at midnight, `Some("cosmos")` at noon, etc.
+/// Returns `Some("cosmos")` at midnight, `Some("cosmos")` at noon, etc.
 /// Returns `None` if the phase doesn't specify a target color.
 #[must_use]
 pub fn current_color_target() -> Option<&'static str> {

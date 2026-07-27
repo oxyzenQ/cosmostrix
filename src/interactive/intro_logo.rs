@@ -603,17 +603,14 @@ pub(super) fn run_logo_intro(
             }
         }
 
-        // Render all active rain droplets. Each droplet's color is
-        // interpolated from LOGO_COLOR_RGB (at spawn, life_t = 1.0)
-        // toward the active palette's brightest stop (at death,
-        // life_t = 0.0). This creates the cinematic "brand purple →
-        // rain color" transition as droplets fall.
+        // Render all active rain droplets. v25: droplets use the normal
+        // palette color (no laser purple). Simple, clean transition.
         for p in pool.particles.iter() {
             if !p.active {
                 continue;
             }
             let life_t = (p.life / p.max_life).clamp(0.0, 1.0);
-            let droplet_rgb = lerp_rgb(palette_rgb, LOGO_COLOR_RGB, life_t);
+            let droplet_rgb = palette_rgb;
             render_particle_cell(
                 frame,
                 w,
@@ -654,19 +651,8 @@ pub(super) fn run_logo_intro(
 // Particle helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Spawn a rain droplet at `(x, y)` — used during the dissolve phase.
-/// The droplet starts with the brand purple color ([`LOGO_COLOR_RGB`])
-/// and a random glyph from `rain_charset`. The render loop interpolates
-/// the color toward the active rain palette as the droplet ages — see
-/// the render section in [`run_logo_intro`].
-///
-/// Initial velocity is mostly straight down (randomized speed in
-/// `[DISSOLVE_SPEED_MIN, DISSOLVE_SPEED_MAX)`) with a small horizontal
-/// jitter (`vx ∈ [-JITTER_VX, +JITTER_VX]`) so the curtain spreads
-/// organically instead of dropping in perfectly straight columns.
-///
-/// Life is set so the droplet lives ~2 s — long enough to fall through
-/// a 24-row terminal even at the slow end of the speed range.
+/// Spawn a rain droplet at `(x, y)` — used during the rain phase.
+/// v25: droplets use the normal palette color (no laser purple).
 fn spawn_rain_droplet(
     pool: &mut ParticlePool,
     rng: &mut XorShift,
@@ -680,11 +666,7 @@ fn spawn_rain_droplet(
     } else {
         rain_charset[(rng.next_u32() as usize) % rain_charset.len()]
     };
-    // Slight positional jitter so droplets don't spawn on the exact
-    // same column as the logo cell they came from.
     let jitter_x = (rng.next_f32() - 0.5) * 0.6;
-    // Horizontal velocity jitter so droplets spread a bit before
-    // falling — creates a more organic curtain effect.
     let vx = (rng.next_f32() - 0.5) * 2.0 * JITTER_VX;
     let life = 2.0;
     pool.spawn(Particle {
@@ -693,12 +675,14 @@ fn spawn_rain_droplet(
         vx,
         vy: speed,
         ch,
-        r: LOGO_COLOR_RGB.0,
-        g: LOGO_COLOR_RGB.1,
-        b: LOGO_COLOR_RGB.2,
+        // v25: use palette_rgb via the render loop; particle color stored
+        // here is not used since render uses palette_rgb directly.
+        r: 0,
+        g: 0,
+        b: 0,
         life,
         max_life: life,
-        angle: std::f32::consts::FRAC_PI_2, // 90° = down
+        angle: std::f32::consts::FRAC_PI_2,
         speed,
         spiral_rate: 0.0,
         active: true,
@@ -1038,7 +1022,7 @@ mod tests {
         assert!(p.speed <= DISSOLVE_SPEED_MAX * 1.05);
         assert!(charset.contains(&p.ch), "glyph should come from charset");
         // Particle should start with the brand purple color.
-        assert_eq!((p.r, p.g, p.b), LOGO_COLOR_RGB);
+        assert!(p.active);
     }
 
     #[test]

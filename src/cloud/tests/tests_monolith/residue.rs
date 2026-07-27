@@ -121,7 +121,7 @@ fn monolith_color_and_charset_transitions_clear_stale_residue() {
     cloud.last_phosphor_time = start;
     cloud.rain_at(&mut frame, start);
     seed_stale_phosphor(&mut cloud);
-    cloud.set_color_scheme(ColorScheme::DeepSpace);
+    cloud.set_color_scheme(ColorScheme::Cosmos);
     assert_eq!(cloud.monolith_rain.draw_history_count_for_test(), 0);
     cloud.rain_at(&mut frame, start + Duration::from_millis(16));
     assert_eq!(seeded_residue_count(&cloud), 0);

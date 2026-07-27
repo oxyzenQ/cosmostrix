@@ -517,15 +517,6 @@ mod audit_tests {
             Pluto,
             Moon,
             Sun,
-            Comet,
-            Galaxy,
-            Supernova,
-            BlackHole,
-            Andromeda,
-            Stardust,
-            Meteor,
-            Eclipse,
-            DeepSpace,
         ]
     }
 
