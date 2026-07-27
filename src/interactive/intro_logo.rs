@@ -126,14 +126,14 @@ const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 
 /// Phase boundaries (milliseconds from intro start).
 ///
-/// v25 "Elegant Laser Glow": Phase 1 = laser charge (0-1.5s).
-/// Phase 2 = the glow (1.5-3.5s): logo peaks at 120%, fades to 0%.
-/// Phase 3 = rain fade-in (3.5-4.5s): rain takes over as logo fades.
-/// Phase 4 = full rain (4.5-5.0s): rain visible, intro ends.
-const PHASE1_FADEIN_END_MS: u64 = 1_500;
-const PHASE2_IGNITION_END_MS: u64 = 3_500;
-const PHASE3_DISSOLVE_END_MS: u64 = 4_500;
-const PHASE4_RAIN_END_MS: u64 = 5_000;
+/// v25 balanced: Phase 1 = laser charge (0-1.2s).
+/// Phase 2 = the glow (1.2-3.0s): logo peaks at 120%, fades to 0%.
+/// Phase 3 = rain fade-in (3.0-4.0s): rain takes over as logo fades.
+/// Phase 4 = full rain (4.0-4.5s): rain visible, intro ends.
+const PHASE1_FADEIN_END_MS: u64 = 1_200;
+const PHASE2_IGNITION_END_MS: u64 = 3_000;
+const PHASE3_DISSOLVE_END_MS: u64 = 4_000;
+const PHASE4_RAIN_END_MS: u64 = 4_500;
 
 /// Frame period in seconds, computed at runtime to avoid MSRV issues
 /// with `Duration::as_secs_f32()` in const context (stable since 1.83,
@@ -961,11 +961,11 @@ mod tests {
 
     #[test]
     fn phase_boundaries_match_spec() {
-        // v25 Elegant Laser Glow: Phase 1=1.5s, Phase 2=3.5s, Phase 3=4.5s, Phase 4=5.0s.
-        assert_eq!(PHASE1_FADEIN_END_MS, 1_500);
-        assert_eq!(PHASE2_IGNITION_END_MS, 3_500);
-        assert_eq!(PHASE3_DISSOLVE_END_MS, 4_500);
-        assert_eq!(PHASE4_RAIN_END_MS, 5_000);
+        // v25 balanced: Phase 1=1.2s, Phase 2=3.0s, Phase 3=4.0s, Phase 4=4.5s.
+        assert_eq!(PHASE1_FADEIN_END_MS, 1_200);
+        assert_eq!(PHASE2_IGNITION_END_MS, 3_000);
+        assert_eq!(PHASE3_DISSOLVE_END_MS, 4_000);
+        assert_eq!(PHASE4_RAIN_END_MS, 4_500);
     }
 
     #[test]

@@ -733,33 +733,58 @@ impl Cloud {
 
     fn draw_message(&self, frame: &mut Frame) {
         let bg = self.palette.bg;
-
         let fg = if self.color_mode == ColorMode::Mono {
             None
         } else {
             self.palette.colors.last().copied()
         };
 
+        // Count total text (content) chars and border chars.
+        let total_text: usize = self
+            .message
+            .iter()
+            .filter(|mc| !is_border_char(mc.val))
+            .count();
+        let total_border: usize = self
+            .message
+            .iter()
+            .filter(|mc| is_border_char(mc.val) && mc.val != ' ')
+            .count();
+
         let reveal_count = if let Some(start) = self.message_start_time {
             let elapsed_ms = start.elapsed().as_millis() as usize;
             let count = (elapsed_ms / 80).max(1);
-            let mut content_total = 0usize;
-            for mc in &self.message {
-                if !is_border_char(mc.val) {
-                    content_total += 1;
-                }
-            }
-            count.min(content_total)
+            count.min(total_text.max(1))
         } else {
             usize::MAX
         };
+
+        // v25 progressive border: border cells are revealed clockwise,
+        // tracking the text reveal progress.
+        let progress = if total_text > 0 {
+            reveal_count as f32 / total_text as f32
+        } else {
+            1.0
+        };
+        let border_show = (progress * total_border as f32).floor() as usize;
+
+        // Build clockwise-ordered list of border cell indices.
+        // Order: top-left → top → top-right → right → bottom-right → bottom → bottom-left → left.
+        let border_order = build_border_order(&self.message);
+
+        // Create a set of border indices that should be visible.
+        let mut visible_border: std::collections::HashSet<usize> = std::collections::HashSet::new();
+        for &idx in border_order.iter().take(border_show) {
+            visible_border.insert(idx);
+        }
 
         const FADE_IN_MS: usize = 100;
         const FADE_IN_START: f32 = 0.30;
 
         let mut content_idx = 0usize;
-        for mc in &self.message {
+        for (idx, mc) in self.message.iter().enumerate() {
             let is_content = !is_border_char(mc.val);
+            let is_visible_border = mc.val != ' ' && visible_border.contains(&idx);
 
             let (ch, cell_fg) = if is_content {
                 if content_idx < reveal_count {
@@ -770,7 +795,7 @@ impl Cloud {
                             let reveal_time_ms = content_idx * 80;
                             let age_ms = elapsed_ms.saturating_sub(reveal_time_ms);
                             if age_ms >= FADE_IN_MS {
-                                fg // fully faded in
+                                fg
                             } else {
                                 let progress = age_ms as f32 / FADE_IN_MS as f32;
                                 let factor = FADE_IN_START + (1.0 - FADE_IN_START) * progress;
@@ -787,9 +812,10 @@ impl Cloud {
                 } else {
                     (' ', None)
                 }
-            } else {
-                // v25: border chars use palette head color (dynamic glow).
+            } else if is_visible_border {
                 (mc.val, fg)
+            } else {
+                (' ', None)
             };
 
             frame.set_force(
@@ -814,4 +840,66 @@ fn is_border_char(ch: char) -> bool {
         ch,
         ' ' | '+' | '-' | '|' | '╭' | '╮' | '╰' | '╯' | '─' | '│'
     )
+}
+
+/// Build a clockwise-ordered list of border cell indices from the message.
+/// Order: top-left corner → top edge → top-right → right edge →
+///        bottom-right → bottom edge → bottom-left → left edge.
+/// Non-border and blank cells are excluded.
+fn build_border_order(message: &[MsgChr]) -> Vec<usize> {
+    if message.is_empty() {
+        return Vec::new();
+    }
+    // Find bounding box of border cells.
+    let mut min_line = u16::MAX;
+    let mut max_line = 0u16;
+    let mut min_col = u16::MAX;
+    let mut max_col = 0u16;
+    for mc in message {
+        if is_border_char(mc.val) && mc.val != ' ' {
+            min_line = min_line.min(mc.line);
+            max_line = max_line.max(mc.line);
+            min_col = min_col.min(mc.col);
+            max_col = max_col.max(mc.col);
+        }
+    }
+    if min_line == u16::MAX {
+        return Vec::new();
+    }
+
+    // Collect border cells in clockwise order.
+    let mut order: Vec<usize> = Vec::new();
+    // 1. Top edge: left to right (includes corners)
+    for col in min_col..=max_col {
+        for (idx, mc) in message.iter().enumerate() {
+            if mc.line == min_line && mc.col == col && is_border_char(mc.val) && mc.val != ' ' {
+                order.push(idx);
+            }
+        }
+    }
+    // 2. Right edge: top+1 to bottom-1 (corners already added)
+    for line in (min_line + 1)..max_line {
+        for (idx, mc) in message.iter().enumerate() {
+            if mc.line == line && mc.col == max_col && is_border_char(mc.val) && mc.val != ' ' {
+                order.push(idx);
+            }
+        }
+    }
+    // 3. Bottom edge: left to right (includes corners)
+    for col in min_col..=max_col {
+        for (idx, mc) in message.iter().enumerate() {
+            if mc.line == max_line && mc.col == col && is_border_char(mc.val) && mc.val != ' ' {
+                order.push(idx);
+            }
+        }
+    }
+    // 4. Left edge: bottom-1 to top+1 (corners already added)
+    for line in ((min_line + 1)..max_line).rev() {
+        for (idx, mc) in message.iter().enumerate() {
+            if mc.line == line && mc.col == min_col && is_border_char(mc.val) && mc.val != ' ' {
+                order.push(idx);
+            }
+        }
+    }
+    order
 }
