@@ -15,10 +15,17 @@ use crate::runtime::MonolithSize;
 /// same nanosecond on fast CI runners.
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-/// Set COSMOSTRIX_TEST_CONFIG_DIR so is_safe_path allows /tmp during tests.
+/// Set COSMOSTRIX_TEST_CONFIG_DIR so is_safe_path allows the actual temp
+/// directory during tests. Uses `std::env::temp_dir()` instead of hardcoding
+/// `/tmp` because on some CI runners (macOS Arch packaging) temp_dir()
+/// returns `/var/cache/makepkg-build/tmp/` rather than `/tmp`, causing
+/// path validation to reject config files in the "wrong" temp location.
 fn ensure_test_config_dir_allowed() {
     std::env::set_var("COSMOSTRIX_SKIP_STARTUP_VALIDATION", "1");
-    std::env::set_var("COSMOSTRIX_TEST_CONFIG_DIR", "/tmp");
+    std::env::set_var(
+        "COSMOSTRIX_TEST_CONFIG_DIR",
+        std::env::temp_dir().to_string_lossy().into_owned(),
+    );
 }
 
 pub(crate) fn args_with_config_result(config: &str, cli: &[&str]) -> Result<Args, String> {
