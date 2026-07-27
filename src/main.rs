@@ -81,6 +81,7 @@ mod bench_report;
 mod bench_report_tests;
 mod bench_scale;
 mod bench_visual;
+mod branding;
 mod cell;
 mod central_colors;
 mod charset;

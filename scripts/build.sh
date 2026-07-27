@@ -140,6 +140,62 @@ setup_build_cache() {
         fi
 }
 
+# Append hardened RUSTFLAGS for release/pro/pgo builds.
+#
+# These flags remove local filesystem paths from the produced binary
+# (so release artifacts do not leak the builder's cargo registry path
+# or project working directory) and preserve frame pointers for
+# post-mortem debugging without sacrificing runtime performance.
+#
+# Idempotent: skips flags already present in $RUSTFLAGS so it is safe
+# to call after the PGO stage sets its own -C target-cpu / profile-use
+# flags.
+#
+# To opt out (e.g. local dev iteration with full path info), set
+# COSMOSTRIX_NO_HARDEN=1 in the environment.
+apply_hardened_rustflags() {
+        if [ "${COSMOSTRIX_NO_HARDEN:-0}" = "1" ]; then
+                return 0
+        fi
+
+        local cargo_home="${HOME}/.cargo"
+        local pwd_path="${PWD}"
+
+        # --remap-path-prefix is order-sensitive: first matching prefix
+        # wins, so remap the deeper cargo registry path before the
+        # project working directory.
+        local extra=(
+                "--remap-path-prefix=${cargo_home}=redacted"
+                "--remap-path-prefix=${pwd_path}=redacted"
+                "-C" "force-frame-pointers=yes"
+        )
+
+        local existing="${RUSTFLAGS:-}"
+        local merged=""
+        local flag
+        for flag in "${extra[@]}"; do
+                # Skip if the flag is already present (idempotent).
+                if [[ "${existing}" == *"${flag}"* ]]; then
+                        continue
+                fi
+                if [ -n "${merged}" ]; then
+                        merged+=" "
+                fi
+                merged+="${flag}"
+        done
+
+        if [ -z "${merged}" ]; then
+                return 0
+        fi
+
+        if [ -n "${existing}" ]; then
+                export RUSTFLAGS="${existing} ${merged}"
+        else
+                export RUSTFLAGS="${merged}"
+        fi
+        log_info "Hardened RUSTFLAGS applied: ${merged}"
+}
+
 show_system_info() {
         # One-line summary — full `cargo --version` etc. is already on the
         # stdout/stderr of the actual build command that follows.
@@ -186,6 +242,7 @@ build_debug() {
 build_release() {
         log_step "Building optimized release binary..."
 
+        apply_hardened_rustflags
         if cargo build --profile release --target "${TARGET}" --jobs "${MAX_JOBS}"; then
                 local binary="target/${TARGET}/release/${PROJECT_NAME}"
                 local size
@@ -790,6 +847,11 @@ build_pgo() {
         # shipping binary. This may be more aggressive than instrument_cpu
         # (e.g., v4 vs v3) — that's fine, the binary never runs on the host.
         export RUSTFLAGS="-C target-cpu=${final_cpu} -C profile-use=${profdata_file}"
+        # Append hardened flags (path remap + frame pointers) for the
+        # shipping binary. Idempotent — safe to call after RUSTFLAGS is
+        # set above. The instrumented binary (Stage 1) is never shipped
+        # so it skips hardening.
+        apply_hardened_rustflags
 
         if ! cargo build --profile pgo-use --target "${TARGET}" --jobs "${MAX_JOBS}"; then
                 log_error "Stage 3 failed: PGO-optimized build failed"

@@ -247,20 +247,34 @@ jobs:
 
       - name: Build (release) (aarch64 cross)
         if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.arch == 'X64'
+        shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-          RUSTFLAGS: ${{ matrix.rustflags }}
-        run: cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+        run: |
+          set -euo pipefail
+          # Hardened RUSTFLAGS: remap cargo + project paths out of the
+          # binary (supply-chain hygiene) and keep frame pointers for
+          # post-mortem debugging without performance cost. $HOME and
+          # $PWD are expanded by bash here so the matrix.rustflags
+          # literal is concatenated with expanded path prefixes.
+          export RUSTFLAGS="${{ matrix.rustflags }} --remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
+          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Build (release)
         if: (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64') && runner.os != 'Windows'
+        shell: bash
         env:
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-          RUSTFLAGS: ${{ matrix.rustflags }}
-        run: cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+        run: |
+          set -euo pipefail
+          # Hardened RUSTFLAGS: remap cargo + project paths out of the
+          # binary (supply-chain hygiene) and keep frame pointers for
+          # post-mortem debugging without performance cost.
+          export RUSTFLAGS="${{ matrix.rustflags }} --remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
+          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Build (release)
         if: (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64') && runner.os == 'Windows'
@@ -624,6 +638,10 @@ jobs:
           export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"
 
+          # Hardened RUSTFLAGS: remap cargo + project paths out of the
+          # binary (supply-chain hygiene) and keep frame pointers for
+          # post-mortem debugging without performance cost.
+          export RUSTFLAGS="--remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
           cargo build --profile pro-android-aarch64 --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify embedded build metadata
@@ -872,6 +890,56 @@ jobs:
         with:
           path: dist
 
+      - name: Import GPG signing key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${GPG_PRIVATE_KEY}" ]; then
+            echo "GPG_PRIVATE_KEY secret not configured — skipping GPG signing"
+            exit 0
+          fi
+          # Import the armored private key. --batch + --yes prevents
+          # interactive prompts. --pinentry-mode loopback allows
+          # passwordless import for keys without passphrase protection.
+          echo "${GPG_PRIVATE_KEY}" | gpg --import --batch --yes \
+            --pinentry-mode loopback 2>/dev/null
+          # Extract the key ID of the first imported secret key.
+          KEY_ID="$(gpg --list-secret-keys --with-colons \
+            | awk -F: '/^sec:/ {print $5; exit}')"
+          if [ -z "${KEY_ID}" ]; then
+            echo "::error::Failed to import GPG secret key"
+            exit 1
+          fi
+          echo "GPG_KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
+          echo "Imported GPG signing key: ${KEY_ID}"
+
+      - name: Sign artifacts (detached GPG signatures)
+        if: env.GPG_KEY_ID != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          # Sign every .tar.gz and .zip artifact with a detached
+          # ASCII-armored signature. Skip files that already have an
+          # .asc sibling (idempotent re-runs).
+          find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) ! -name '*.asc' -print0 \
+            | while IFS= read -r -d '' artifact; do
+                if [ -f "${artifact}.asc" ]; then
+                  echo "  (existing sig) ${artifact}.asc"
+                  continue
+                fi
+                echo "  signing ${artifact}"
+                gpg --batch --yes --detach-sign --armor \
+                    --local-user "${GPG_KEY_ID}" \
+                    --pinentry-mode loopback \
+                    --output "${artifact}.asc" "${artifact}"
+              done
+          echo "--- Signed artifacts ---"
+          find . -name '*.asc' -print | sort
+          echo "--- End signed artifacts ---"
+
       - name: Generate release body
         shell: bash
         run: |
@@ -935,9 +1003,11 @@ jobs:
             dist/**/*.tar.gz.sha512sum
             dist/**/*.tar.gz.b2sum
             dist/**/*.tar.gz.shake256
+            dist/**/*.tar.gz.asc
             dist/**/*.zip
             dist/**/*.zip.sha512sum
             dist/**/*.zip.shake256
+            dist/**/*.zip.asc
 
       # ------------------------------------------------------------------
       # Trigger AUR synchronization after successful release

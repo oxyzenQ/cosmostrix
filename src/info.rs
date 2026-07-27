@@ -35,6 +35,10 @@ pub(super) fn version_report() -> String {
     let commit = build_commit_short().unwrap_or("unknown");
     let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
     let description = env!("CARGO_PKG_DESCRIPTION");
+    // Pull the official-build signature into the version report so the
+    // linker cannot dead-strip `branding::DRAGON_SIGNATURE` from the
+    // final binary. The string is also discoverable via `strings(1)`.
+    let signature = crate::branding::dragon_signature();
 
     // The two header lines (cosmostrix: v{version} + one-line description)
     // are rendered in brand purple. The remaining build/copyright/license
@@ -56,6 +60,7 @@ pub(super) fn version_report() -> String {
         "{engine_line}\n\
          Build: {build} ({commit})\n\
          Build-time: {build_time}\n\
+         Signature: {signature}\n\
          Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
          License: GPL-3.0-only\n\
          Source: https://github.com/oxyzenQ/cosmostrix"
