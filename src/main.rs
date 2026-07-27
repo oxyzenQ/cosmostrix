@@ -121,6 +121,7 @@ mod interactive;
 #[macro_use]
 mod live_config_trace;
 mod live_config;
+mod live_config_poll;
 #[cfg(test)]
 mod loc_tests;
 mod memstat;

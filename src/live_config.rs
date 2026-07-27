@@ -36,6 +36,13 @@ use std::time::Duration;
 
 use notify::{event::EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
+// v25.1 Termux fix: polling heartbeat + snapshot dedup live in
+// live_config_poll.rs (split out so this file stays under the 1200-LOC
+// source cap enforced by loc_tests). The triple-signal change detection
+// (mtime + size + content hash) handles Android Termux's unreliable
+// FUSE mtime without losing dedup correctness.
+use crate::live_config_poll::{polling_heartbeat, snapshot_file_state, FileStateSnapshot};
+
 use crate::configfile;
 
 /// Global exit code set by live-reload when invalid config is detected.
@@ -131,39 +138,75 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
 /// to the file's current mtime at loop start, so no event for the
 /// initial state fires.
 fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
-    // Debounce window MUST be longer than the polling interval (2s) so
-    // that a polling heartbeat event arriving 2s after a native event
-    // for the same mtime is deduplicated via the mtime check below
-    // (not just the time-based debounce). The time-based debounce
-    // catches bursts of native events (atomic-save produces 3-5 events
-    // within 50ms); the mtime check catches cross-source duplicates.
+    // Debounce window. The time-based debounce catches bursts of native
+    // events (atomic-save produces 3-5 events within 50ms); the mtime +
+    // content-hash check catches cross-source duplicates (native + polling
+    // for the same change).
     const DEBOUNCE_MS: u64 = 200;
-    const POLL_INTERVAL_MS: u64 = 2000;
+
+    // v25.1 Termux fix: polling interval reduced from 2000ms to 750ms.
+    // The previous 2s interval made live reload feel broken on platforms
+    // where the native watcher is unreliable (Android/Termux inotify can
+    // silently drop events under SELinux pressure or app-standby
+    // throttling). With 750ms polling, a config save is detected in under
+    // a second even when inotify is dead. The mtime+hash dedup in
+    // handle_notify_event prevents duplicate processing.
+    const POLL_INTERVAL_MS: u64 = 750;
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
 
-    // Initialize last_processed_mtime to the file's current mtime.
-    // This ensures the polling heartbeat's first check (2s after start)
-    // does NOT trigger an unnecessary startup reload — the mtime hasn't
-    // changed since we initialized the tracker.
-    let initial_mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
-    let last_processed_mtime = Arc::new(Mutex::new(initial_mtime));
+    // Initialize last_processed_state to the file's current state.
+    // This ensures the polling heartbeat's first check (750ms after start)
+    // does NOT trigger an unnecessary startup reload — neither mtime,
+    // size, nor content hash has changed since we initialized the tracker.
+    let initial_state = snapshot_file_state(&path);
+    let last_processed_state = Arc::new(Mutex::new(initial_state));
 
     // Spawn the polling heartbeat on a background thread. It feeds
-    // synthetic events into notify_tx when mtime changes, so the
-    // unified event loop below handles them identically to native
+    // synthetic events into notify_tx when mtime/size/content changes,
+    // so the unified event loop below handles them identically to native
     // events. This guarantees detection even when the native watcher
-    // is silent (FreeBSD kqueue edge case).
+    // is silent (FreeBSD kqueue edge case, Android Termux inotify
+    // throttling, restricted containers).
+    //
+    // v25.1 Termux fix: the polling thread is now wrapped in an outer
+    // recovery loop that restarts `polling_heartbeat` if it panics.
+    // Previously, a single panic (e.g., from a transient I/O error
+    // during catch_unwind's drop glue) would silently kill the polling
+    // thread, leaving only the native watcher — which is exactly the
+    // unreliable component on Termux. The recovery loop runs forever
+    // (until the channel closes), restarting with a 1s backoff.
     let poll_path = path.clone();
     let poll_tx = notify_tx.clone();
     if let Err(e) = std::thread::Builder::new()
         .name("cosmostrix-config-poller".to_string())
         .spawn(move || {
-            // Catch panics in the polling thread — same terminal-close guard
-            // as the watcher thread above.
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                polling_heartbeat(poll_path, poll_tx, POLL_INTERVAL_MS);
-            }));
+            loop {
+                let path_inner = poll_path.clone();
+                let tx_inner = poll_tx.clone();
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    polling_heartbeat(path_inner, tx_inner, POLL_INTERVAL_MS);
+                }));
+                match result {
+                    Ok(()) => {
+                        // polling_heartbeat returned normally — this only
+                        // happens when the channel closed (tx.send err).
+                        // No point restarting; exit the recovery loop.
+                        lr_trace!("polling heartbeat returned normally — channel closed, exiting recovery loop");
+                        break;
+                    }
+                    Err(_) => {
+                        // Polling heartbeat panicked. Log and back off
+                        // before restarting. Bulletproof write — eprintln!
+                        // panics on broken stderr.
+                        use std::io::Write;
+                        let _ = std::io::stderr().write_fmt(format_args!(
+                            "[live-reload] polling heartbeat panicked — restarting after 1s backoff\n"
+                        ));
+                        std::thread::sleep(Duration::from_secs(1));
+                    }
+                }
+            }
         })
     {
         // v25: bulletproof write — eprintln! panics on broken stderr,
@@ -263,7 +306,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             &tx,
             &mut last_event,
             DEBOUNCE_MS,
-            &last_processed_mtime,
+            &last_processed_state,
         ) {
             break;
         }
@@ -271,58 +314,23 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     lr_trace!("watcher_loop exited");
 }
 
-/// Polling heartbeat: checks file mtime every `interval_ms` and feeds
-/// synthetic notify events into `tx` when the mtime changes. This runs
-/// on a background thread alongside the native watcher, guaranteeing
-/// live reload works even when the native backend is silent (e.g.,
-/// FreeBSD kqueue feature not active, restricted containers).
-///
-/// The synthetic event uses `EventKind::Modify(ModifyKind::Any)` with
-/// the target file as the path, so the unified event loop in
-/// `watcher_loop` treats it identically to a native modify event.
-///
-/// **Startup reload prevention**: `last_mtime` is initialized to the
-/// file's current mtime at heartbeat start. The first poll (2s later)
-/// compares against this initial value — if the file hasn't changed,
-/// no event is sent. This prevents an unnecessary startup reload.
-fn polling_heartbeat(path: PathBuf, tx: Sender<notify::Result<notify::Event>>, interval_ms: u64) {
-    let mut last_mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
-    loop {
-        std::thread::sleep(Duration::from_millis(interval_ms));
-        let current_mtime = match std::fs::metadata(&path).and_then(|m| m.modified()) {
-            Ok(t) => t,
-            Err(_) => continue,
-        };
-        if Some(current_mtime) == last_mtime {
-            continue;
-        }
-        last_mtime = Some(current_mtime);
-
-        // Synthesize a notify::Event so the unified event loop handles
-        // it identically to a native event. The path must match what
-        // handle_notify_event's `touches_target` check expects (the
-        // target file's absolute path).
-        let event = notify::Event {
-            kind: notify::EventKind::Modify(notify::event::ModifyKind::Any),
-            paths: vec![path.clone()],
-            attrs: Default::default(),
-        };
-        if tx.send(Ok(event)).is_err() {
-            // Channel closed — main loop exited, terminate the heartbeat.
-            break;
-        }
-    }
-}
-
 /// Process a single notify event. Returns `false` if the channel is closed
 /// and the watcher loop should exit.
 ///
-/// **Dedup mechanism (Task 1 fix)**: before processing, reads the file's
-/// current mtime and compares against `last_processed_mtime`. If they
-/// match, the event is a duplicate (the other source already processed
-/// this mtime) and is silently dropped. This guarantees a single config
-/// change triggers exactly one reload, even when both the native watcher
-/// and polling heartbeat detect it.
+/// **Dedup mechanism (v25.1 Termux fix)**: before processing, snapshots
+/// the file's current state (mtime + size + content hash) and compares
+/// against `last_processed_state`. If they match on ALL THREE signals,
+/// the event is a duplicate (the other source already processed this
+/// state) and is silently dropped. This guarantees a single config
+/// change triggers exactly one reload, even when both the native
+/// watcher and polling heartbeat detect it.
+///
+/// The triple-signal comparison is critical on Android Termux where
+/// mtime may be unreliable but content hash always reflects the actual
+/// file state. Without it, a content change that didn't update mtime
+/// would either be (a) processed twice (once by native, once by polling)
+/// or (b) silently dropped by mtime-only dedup. The snapshot approach
+/// handles both cases correctly.
 fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
     target_file: &Arc<PathBuf>,
@@ -330,7 +338,7 @@ fn handle_notify_event(
     tx: &Sender<LiveConfigEvent>,
     last_event: &mut std::time::Instant,
     debounce_ms: u64,
-    last_processed_mtime: &Arc<Mutex<Option<std::time::SystemTime>>>,
+    last_processed_state: &Arc<Mutex<FileStateSnapshot>>,
 ) -> bool {
     match event_result {
         Ok(event) => {
@@ -355,8 +363,8 @@ fn handle_notify_event(
 
             // Debounce: catch bursts of native events (atomic-save
             // produces 3-5 events within 50ms). This is a TIME-based
-            // dedup; the MTIME-based dedup below catches cross-source
-            // duplicates (native + polling for the same mtime).
+            // dedup; the SNAPSHOT-based dedup below catches cross-source
+            // duplicates (native + polling for the same state).
             let now = std::time::Instant::now();
             if now.duration_since(*last_event) < Duration::from_millis(debounce_ms) {
                 lr_trace!(
@@ -371,34 +379,44 @@ fn handle_notify_event(
             // Small delay for atomic-save rename completion.
             std::thread::sleep(Duration::from_millis(50));
 
-            // MTIME DEDUP (Task 1 fix): read the file's current mtime.
-            // If it equals last_processed_mtime, this event is a
+            // SNAPSHOT DEDUP (v25.1 Termux fix): snapshot the file's
+            // current state (mtime + size + content hash). If it equals
+            // last_processed_state on ALL THREE signals, this event is a
             // duplicate — the other source (native or polling) already
-            // processed this mtime. Silently drop it.
-            let current_mtime = match std::fs::metadata(path).and_then(|m| m.modified()) {
-                Ok(t) => t,
-                Err(_) => return true,
-            };
+            // processed this state. Silently drop it.
+            //
+            // The triple-signal comparison is essential: on FUSE
+            // filesystems where mtime is unreliable, two distinct saves
+            // may share the same mtime. The content hash distinguishes
+            // them. Conversely, an atomic save may produce a new inode
+            // with a new mtime but identical content (e.g., the editor
+            // wrote the same buffer twice) — the content hash dedup
+            // prevents a redundant reload.
+            let current_state = snapshot_file_state(path);
+            if current_state.size.is_none() {
+                // File doesn't exist (atomic save in progress, file
+                // deleted). Skip — the next event will catch the new file.
+                lr_trace!("snapshot: file unreadable — skipping event");
+                return true;
+            }
             {
-                let mut guard = match last_processed_mtime.lock() {
+                let mut guard = match last_processed_state.lock() {
                     Ok(g) => g,
                     Err(_) => return true,
                 };
-                if let Some(prev) = *guard {
-                    if prev == current_mtime {
-                        // Duplicate event for an already-processed mtime.
-                        // Both the native watcher and polling heartbeat
-                        // detected the same change; only the first
-                        // should trigger a reload.
-                        lr_trace!("mtime dedup: dropping duplicate for {:?}", current_mtime);
-                        return true;
-                    }
+                if *guard == current_state {
+                    // Duplicate event for an already-processed state.
+                    // Both the native watcher and polling heartbeat
+                    // detected the same change; only the first
+                    // should trigger a reload.
+                    lr_trace!("snapshot dedup: dropping duplicate for {:?}", current_state);
+                    return true;
                 }
-                *guard = Some(current_mtime);
+                *guard = current_state;
             }
             lr_trace!(
                 "accepted event for {:?} (kind={:?})",
-                current_mtime,
+                current_state,
                 event.kind
             );
 
@@ -949,6 +967,10 @@ mod tests {
         assert_eq!(parse_range("abc"), None);
         assert_eq!(parse_range("200"), None);
     }
+
+    // ── v25.1 Termux fix: triple-signal change detection tests live
+    // in `live_config_poll::tests` (same module as the implementation).
+    // The split keeps this file under the 1200-LOC source cap.
 
     // ── v20: scene-custom live reload tests ──
 
