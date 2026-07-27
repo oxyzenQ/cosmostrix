@@ -180,9 +180,11 @@ jobs:
           sudo apt-get install -y clang lld llvm
           # FreeBSD cross-compilation uses clang with target triple and lld as linker.
           # Rust's -C linker-flavor=gnu-cc works with clang targeting FreeBSD.
-          echo 'CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_LINKER=clang' >> "$GITHUB_ENV"
-          echo 'CC_x86_64_unknown_freebsd=clang' >> "$GITHUB_ENV"
-          echo 'CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_RUSTFLAGS=-C link-arg=-fuse-ld=lld -C link-arg=-target=x86_64-unknown-freebsd' >> "$GITHUB_ENV"
+          {
+            echo 'CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_LINKER=clang'
+            echo 'CC_x86_64_unknown_freebsd=clang'
+            echo 'CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_RUSTFLAGS=-C link-arg=-fuse-ld=lld -C link-arg=-target=x86_64-unknown-freebsd'
+          } >> "$GITHUB_ENV"
 
       - name: Verify Linux x86_64 CPU baseline inputs
         if: startsWith(matrix.platform, 'linux-amd64-v') || matrix.platform == 'linux-amd64-musl'
@@ -290,7 +292,7 @@ jobs:
             if command -v strings >/dev/null 2>&1; then
               TEXT="$(strings "${BIN}")"
             else
-              TEXT="$(grep -aE '${BUILD_ID}|static optimized build|fat|unwind|yes' "${BIN}" || true)"
+              TEXT="$(grep -aE "${BUILD_ID}|static optimized build|fat|unwind|yes" "${BIN}" || true)"
             fi
             grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
             grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }

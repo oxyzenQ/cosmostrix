@@ -844,7 +844,23 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let dirty_len = frame.dirty_indices().len();
         let did_draw = is_dirty_all || dirty_len > 0;
         if did_draw {
-            term.draw(&mut frame)?;
+            if let Err(e) = term.draw(&mut frame) {
+                // EIO on Linux = terminal (PTY) was closed/destroyed.
+                // BrokenPipe = write to closed pipe (macOS, some Linux).
+                // In both cases, the terminal is gone — exit gracefully
+                // instead of continuing to write to a dead fd.
+                #[cfg(unix)]
+                let is_terminal_gone = e.raw_os_error() == Some(libc::EIO)
+                    || e.kind() == std::io::ErrorKind::BrokenPipe;
+                #[cfg(not(unix))]
+                let is_terminal_gone = e.kind() == std::io::ErrorKind::BrokenPipe;
+                if is_terminal_gone {
+                    cloud.raining = false;
+                    break;
+                }
+                // Other I/O errors: propagate normally.
+                return Err(e);
+            }
         }
         FRAME_COUNTER.fetch_add(1, Ordering::Relaxed);
 

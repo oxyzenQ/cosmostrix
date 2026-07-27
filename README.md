@@ -171,6 +171,31 @@ tar -xzf "cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 paru -S cosmostrix-bin    # or: yay -S cosmostrix-bin
 ```
 
+### Android (Termux)
+
+Cosmostrix runs on Android via [Termux](https://termux.dev). Install the Termux app, then:
+
+```bash
+# Allow storage access (for /sdcard/cosmostrix/ config path)
+termux-setup-storage
+
+# Download the android-aarch64-native binary
+REPO="oxyzenQ/cosmostrix"
+TAG="v25.0.0-alpha.1"
+curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-android-aarch64-native.tar.gz"
+tar -xzf "cosmostrix-${TAG}-android-aarch64-native.tar.gz"
+
+# Config (Termux uses standard Linux paths)
+cosmostrix --dump-config ~/.config/cosmostrix/config.toml
+
+# Run
+./cosmostrix
+```
+
+Config paths on Android/Termux:
+- **Default**: `~/.config/cosmostrix/config.toml` (Termux HOME)
+- **External storage**: `/sdcard/cosmostrix/config.toml` (accessible from other apps)
+
 ### From source
 
 ```bash
@@ -329,10 +354,11 @@ Press `x` or `X` while running to cycle core atmospheres (cinematic ↔ matrix �
 
 Persistent defaults can be set in `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`). Use `--config <path>` to load a specific file. For security, `--config`, `--charset-file`, and `--dump-config <path>` enforce a **strict whitelist** — only these directories are allowed:
 
-- `~/.config/cosmostrix/` (Linux/macOS, user config)
+- `~/.config/cosmostrix/` (Linux/macOS/Android Termux, user config)
 - `/etc/cosmostrix/` (Linux/macOS, system-wide)
 - `%APPDATA%\cosmostrix\` (Windows, user config)
 - `%ProgramData%\cosmostrix\` (Windows, system-wide)
+- `/sdcard/cosmostrix/` (Android Termux, external storage)
 
 Everything else is rejected: current directory (`.`), `/tmp/`, home root (`~`), `~/.local/`, `/usr/`, `/opt/`, `/var/`, all relative paths, and all other absolute paths. `--config` and `--dump-config <path>` files must also have a `.toml` extension.
 

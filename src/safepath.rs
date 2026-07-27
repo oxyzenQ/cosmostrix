@@ -21,6 +21,11 @@
 //! - `%APPDATA%\cosmostrix\` — user config (Roaming)
 //! - `%ProgramData%\cosmostrix\` — system-wide config
 //!
+//! Android (via Termux):
+//! - `~/.config/cosmostrix/` — user config (Termux HOME)
+//! - `/data/data/com.termux/files/home/.config/cosmostrix/` — Termux app storage
+//! - `/sdcard/cosmostrix/` — external storage (writable without root)
+//!
 //! ## Rejected (v14.0.0 strict policy)
 //!
 //! Everything else, including: `.` / current directory / relative paths
@@ -89,6 +94,7 @@ fn expand_windows_env_vars(path: &str) -> String {
 /// - Linux: `~/.config/cosmostrix/`, `/etc/cosmostrix/`
 /// - macOS: `~/.config/cosmostrix/`, `~/Library/Application Support/cosmostrix/`, `/etc/cosmostrix/`
 /// - Windows: `%APPDATA%\cosmostrix\`, `%ProgramData%\cosmostrix\`
+/// - Android (Termux): `~/.config/cosmostrix/`, `/sdcard/cosmostrix/`
 pub(crate) fn is_safe_path(path: &str) -> bool {
     // On Windows, expand %VAR% environment variables first.
     // The shell does NOT expand %APPDATA% etc., so we must do it here.
@@ -156,9 +162,15 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
         allowed_prefixes.push(format!("{home}/Library/Application Support/cosmostrix/"));
     }
 
-    // Linux/macOS: /etc/cosmostrix/ (system-wide)
+    // Linux/macOS/Android: /etc/cosmostrix/ (system-wide)
     #[cfg(unix)]
     allowed_prefixes.push("/etc/cosmostrix/".to_string());
+
+    // Android (Termux): /sdcard/cosmostrix/ (external storage)
+    // Termux provides a full Linux-like environment with HOME set.
+    // Users can also store config on external storage for backup/transfer.
+    #[cfg(target_os = "android")]
+    allowed_prefixes.push("/sdcard/cosmostrix/".to_string());
 
     // Windows: %APPDATA%\cosmostrix\ (user)
     #[cfg(windows)]
@@ -289,8 +301,9 @@ pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<(), 
     if !safe {
         return Err(format!(
             "error: --config '{path_str}' is outside allowed directories\n  \
-             Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/ (Linux/macOS);\n  \
-             %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\ (Windows)"
+             Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/ (Linux/macOS/Android);\n  \
+             %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\ (Windows);\n  \
+             /sdcard/cosmostrix/ (Android/Termux)"
         ));
     }
     // Strict: only .toml files allowed. Prevents reading arbitrary

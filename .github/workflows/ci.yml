@@ -494,7 +494,7 @@ jobs:
             BIN="target/pro-freebsd-amd64/cosmostrix"
             BUILD_ID="freebsd-amd64"
             echo "Verifying build metadata via --doctor: ${BUILD_ID}"
-            OUT="$("${BIN}" --doctor)"
+            OUT=$("${BIN}" --doctor) || { echo "::error::--doctor failed for ${BUILD_ID}"; exit 1; }
             echo "${OUT}"
             grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" <<<"${OUT}" || { echo "::error::Doctor report missing"; exit 1; }
             grep -Fq "BUILD" <<<"${OUT}" || { echo "::error::BUILD section missing"; exit 1; }

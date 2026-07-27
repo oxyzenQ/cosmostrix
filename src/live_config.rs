@@ -29,7 +29,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicU8;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -71,7 +71,24 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
     std::thread::Builder::new()
         .name("cosmostrix-config-watcher".to_string())
         .spawn(move || {
-            watcher_loop(path, tx);
+            // Catch panics in the watcher thread to prevent core dumps.
+            // When the terminal is closed, notify's internal inotify/kqueue
+            // file descriptors become invalid (EIO), which can trigger panics
+            // in notify's internal thread. We catch and convert to graceful shutdown.
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                watcher_loop(path, tx);
+            }));
+            if let Err(_e) = result {
+                // Watcher thread panicked — likely terminal closed.
+                // Set a flag so the main loop detects the failure and exits.
+                LIVE_RELOAD_ERROR
+                    .lock()
+                    .map(|mut guard| {
+                        *guard = Some("watcher thread terminated unexpectedly".to_string())
+                    })
+                    .ok();
+                LIVE_RELOAD_EXIT_CODE.store(2, Ordering::Release);
+            }
         })
         .ok()?;
 
@@ -137,7 +154,11 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     if let Err(e) = std::thread::Builder::new()
         .name("cosmostrix-config-poller".to_string())
         .spawn(move || {
-            polling_heartbeat(poll_path, poll_tx, POLL_INTERVAL_MS);
+            // Catch panics in the polling thread — same terminal-close guard
+            // as the watcher thread above.
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                polling_heartbeat(poll_path, poll_tx, POLL_INTERVAL_MS);
+            }));
         })
     {
         eprintln!("[live-reload] failed to spawn polling heartbeat: {e} — native watcher only");
@@ -192,6 +213,12 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     // event triggers a reload.
     let _watcher = watcher;
     for event_result in notify_rx.iter() {
+        // If the channel was closed (sender dropped), stop the loop.
+        // This happens when the watcher thread panicked due to terminal close.
+        let event_result = match event_result {
+            Ok(e) => Ok(e),
+            Err(_) => break,
+        };
         if !handle_notify_event(
             event_result,
             &target_file,

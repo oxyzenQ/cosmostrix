@@ -220,6 +220,8 @@ pub fn default_config_file_path() -> PathBuf {
                 .join(CONFIG_FILE_NAME);
         }
         // Fallback: USERPROFILE is always set on modern Windows.
+        // If both env vars are somehow unset, use a relative path as last resort
+        // (matches the Unix fallback behavior).
         if let Some(userprofile) = env::var("USERPROFILE").ok().filter(|v| !v.is_empty()) {
             return PathBuf::from(userprofile)
                 .join("AppData")
@@ -227,6 +229,10 @@ pub fn default_config_file_path() -> PathBuf {
                 .join(CONFIG_DIR_NAME)
                 .join(CONFIG_FILE_NAME);
         }
+        // Ultimate fallback: C:\cosmostrix\ (guaranteed absolute on Windows).
+        PathBuf::from("C:\\cosmostrix")
+            .join(CONFIG_DIR_NAME)
+            .join(CONFIG_FILE_NAME)
     }
 
     #[cfg(not(target_os = "windows"))]
