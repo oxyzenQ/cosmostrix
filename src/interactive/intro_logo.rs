@@ -127,9 +127,9 @@ const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 /// Phase boundaries (milliseconds from intro start).
 ///
 /// v25 balanced: Phase 1 = laser charge (0-1.2s).
-/// Phase 2 = the glow (1.2-3.0s): logo peaks at 120%, fades to 0%.
-/// Phase 3 = rain fade-in (3.0-4.0s): rain takes over as logo fades.
-/// Phase 4 = full rain (4.0-4.5s): rain visible, intro ends.
+/// Phase 2 = the glow (1.2-3.0s): logo HOLDS at full glow, rain falls from top.
+/// Phase 3 = the fade (3.0-4.0s): rain nearly reaches logo, logo fades smoothly.
+/// Phase 4 = full rain (4.0-4.5s): logo gone, rain visible, intro ends.
 const PHASE1_FADEIN_END_MS: u64 = 1_200;
 const PHASE2_IGNITION_END_MS: u64 = 3_000;
 const PHASE3_DISSOLVE_END_MS: u64 = 4_000;
@@ -393,10 +393,10 @@ pub(super) fn run_logo_intro(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let _rng = seed_rng();
+    let mut rng = seed_rng();
     let palette_bg = cloud.palette.bg;
     let palette_rgb = palette_target_rgb(cloud);
-    let _rain_charset = rain_chars(cloud);
+    let rain_charset = rain_chars(cloud);
 
     // Logo placement: shift the bounding box so the *visual centroid*
     // sits at the terminal center, then clamp to keep the bbox fully
@@ -466,43 +466,38 @@ pub(super) fn run_logo_intro(
 
         // Phase 1: Laser travels from top to logo center (t=0..0.9).
         // At impact (t=0.9), logo flashes to brilliant white.
-        // After impact (t=0.9..1.0), white begins transitioning to purple.
-        // Phase 2: Glow — white→purple complete, then smooth fade to 0.
+        // Phase 2: Logo HOLDS at full glow while rain falls from top.
+        // Phase 3: Rain nearly reaches logo → logo fades smoothly.
+        // Phase 4: Full rain, logo gone.
         let base_brightness = if phase == 1 {
             if phase_t < 0.9 {
-                // Laser traveling — logo not yet visible (brightness 0).
                 0.0
             } else {
-                // Impact flash: brilliant white at 1.5, hold briefly.
                 let impact_t = (phase_t - 0.9) / 0.1;
-                1.5 - impact_t * 0.3 // 1.5 → 1.2 as it transitions to Phase 2
+                1.5 - impact_t * 0.3
             }
         } else if phase == 2 {
-            if phase_t < 0.1 {
-                1.2
-            } else {
-                let fade_t = (phase_t - 0.1) / 0.9;
-                let smooth = 1.0 - (fade_t * fade_t * (3.0 - 2.0 * fade_t));
-                smooth.max(0.0)
-            }
+            // HOLD at full glow — logo stays bright while rain descends.
+            1.0
+        } else if phase == 3 {
+            // Rain approaching — logo fades smoothly.
+            let smooth = 1.0 - (phase_t * phase_t * (3.0 - 2.0 * phase_t));
+            smooth.max(0.0)
         } else {
             0.0
         };
 
-        // White-to-purple blend factor: 0 = pure white, 1 = pure purple.
-        // At impact (end of Phase 1): 0 (white). Transitions to 1 (purple)
-        // over first 20% of Phase 2, then stays purple as it fades.
+        // White-to-purple blend: white at impact → purple by mid-Phase 2.
         let white_blend = if phase == 1 {
             let impact_t = ((phase_t - 0.9) / 0.1).clamp(0.0, 1.0);
-            1.0 - impact_t // 1.0 (white) at impact → 0.0 (transitioning) at end
+            1.0 - impact_t
         } else if phase == 2 {
-            // Transition white→purple over first 20% of Phase 2.
-            (phase_t / 0.2).clamp(0.0, 1.0)
+            (phase_t / 0.3).clamp(0.0, 1.0)
         } else {
-            1.0 // fully purple
+            1.0
         };
 
-        let logo_visible = (phase == 1 && phase_t >= 0.9) || phase == 2;
+        let logo_visible = (phase == 1 && phase_t >= 0.9) || phase == 2 || phase == 3;
         if logo_visible {
             for cell in logo_cells.iter() {
                 let tx = logo_x + cell.bx as i32;
@@ -588,9 +583,26 @@ pub(super) fn run_logo_intro(
             }
         }
 
-        // v25: No rain droplets during intro. The intro is purely the laser
-        // strike + logo glow + fade. Normal rain starts only after the intro
-        // ends (Phase 4 / post-intro).
+        // v25: Rain falls during Phase 2 (logo holds) + Phase 3 (logo fades).
+        // Rain starts from top, descends toward logo. By Phase 3, rain
+        // has nearly reached the logo — triggering the fade.
+        if phase == 2 || phase == 3 {
+            let spawn_rate = if phase == 2 {
+                // Ramp up during Phase 2: 0 at start → full at 50%.
+                (phase_t / 0.5).clamp(0.0, 1.0)
+            } else {
+                1.0 // Full spawn during Phase 3.
+            };
+            const PER_FRAME_BUDGET: usize = 8;
+            let mut spawned = 0usize;
+            while spawned < PER_FRAME_BUDGET && rng.next_f32() < spawn_rate * 0.5 {
+                let col = (rng.next_f32() * w as f32) as i32;
+                if col >= 0 && col < w as i32 {
+                    let _ = spawn_rain_droplet(&mut pool, &mut rng, col as f32, 0.0, &rain_charset);
+                }
+                spawned += 1;
+            }
+        }
 
         // Render all active rain droplets. v25: droplets use the normal
         // palette color (no laser purple). Simple, clean transition.

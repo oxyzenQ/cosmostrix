@@ -760,13 +760,17 @@ impl Cloud {
         };
 
         // v25 progressive border: border cells are revealed clockwise,
-        // tracking the text reveal progress.
-        let progress = if total_text > 0 {
+        // LAGGING behind the text reveal for a cinematic experience.
+        let text_progress = if total_text > 0 {
             reveal_count as f32 / total_text as f32
         } else {
             1.0
         };
-        let border_show = (progress * total_border as f32).floor() as usize;
+        // Border progress = text_progress ^ 1.5 (ease-out curve): border
+        // starts slowly, catches up as text nears completion. Creates a
+        // deliberate, drawn-out border reveal.
+        let border_progress = text_progress.powf(1.5);
+        let border_show = (border_progress * total_border as f32).floor() as usize;
 
         // Build clockwise-ordered list of border cell indices.
         // Order: top-left → top → top-right → right → bottom-right → bottom → bottom-left → left.
