@@ -63,7 +63,7 @@ Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --bench
 ## Features
 
 - **Cinematic terminal rain** — calm, organic visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
-- **13 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith), 8 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, low-power), the `cosmic_dragon` milestone scene commemorating the v20.0.0 temporal-prediction breakthrough (dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), and the `carbonic` tribute scene (dense metallic carbon-fiber binary rain honoring the experiment that was reverted for cinematic quality)
+- **13 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith), 8 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, low-power), the `cosmic_dragon` milestone scene commemorating the v25.0.0 temporal-prediction breakthrough (dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), and the `carbonic` tribute scene (dense metallic carbon-fiber binary rain honoring the experiment that was reverted for cinematic quality)
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
 - **Adaptive custom time scheduling** — `adaptive-custom.HH-MM` config entries define your own 24-hour time-to-parameter mapping (color, scene, speed, density, FPS, charset, glitch-level) with smoothstep 5-minute blend transitions; overrides the default 5-phase adaptive engine when defined; sticky parameters keep previous values when unspecified; live config reload re-parses immediately on save
 - **Default adaptive atmosphere engine** — 5-phase time-driven modulation (Deep Void → Compression → Pulse → Calm → Signal) that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time; opt-in via `atmosphere-mode = controlled-live`
@@ -156,7 +156,7 @@ EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v20.0.0"
+TAG="v25.0.0"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
@@ -318,7 +318,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 - `signal`, `classic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`
 
 **Milestone scene**:
-- `cosmic_dragon` — deep-space binary rain commemorating the v20.0.0 temporal-prediction breakthrough (horizon=12 + skip-draw + persistent cells: dirty_ratio 18.33% → 0.39%, FPS +280%). Use `cosmostrix --scene cosmic_dragon`.
+- `cosmic_dragon` — deep-space binary rain commemorating the v25.0.0 temporal-prediction breakthrough (horizon=12 + skip-draw + persistent cells: dirty_ratio 18.33% → 0.39%, FPS +280%). Use `cosmostrix --scene cosmic_dragon`.
 
 **Tribute scene**:
 - `carbonic` — dense metallic carbon-fiber binary rain (palette `carbon` + charset `binary` + speed 18 + density 0.95). A tribute to the temporal-prediction experiment that was ultimately reverted for cinematic visual quality, but whose lessons about prediction, drift tolerance, and the tension between performance and beauty remain invaluable. Use `cosmostrix --scene carbonic`.
@@ -449,7 +449,7 @@ Create a release by pushing a `v*` tag. See [docs/workflow/about-ci.md](docs/wor
 Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD, .SRCINFO, README install tag, docs/workflow/about-ci.md), then build:
 
 ```bash
-./scripts/version-to.sh v20.0.0         # bump to v20.0.0 across all active files
+./scripts/version-to.sh v25.0.0         # bump to v25.0.0 across all active files
 ./scripts/build.sh release              # optimized release build
 ./scripts/build.sh version-sync         # verify all version refs agree (no build)
 ```
