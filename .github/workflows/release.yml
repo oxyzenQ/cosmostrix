@@ -924,9 +924,14 @@ jobs:
       # default GITHUB_TOKEN has permission to create repository_dispatch
       # events but NOT workflow_dispatch events (403 "Resource not
       # accessible by integration"). aur.yml listens for this event type.
+      #
+      # Only triggers for STABLE releases (not pre-release/alpha/rc/beta).
+      # AUR only accepts stable packages — pre-release versions use _tag
+      # which the AUR helpers may not resolve correctly, and users expect
+      # the AUR package to track the latest stable release only.
       # ------------------------------------------------------------------
       - name: Trigger AUR sync
-        if: steps.gh_release.outputs.id != ''
+        if: steps.gh_release.outputs.id != '' && steps.ver.outputs.prerelease != 'true'
         shell: bash
         run: |
           set -euo pipefail

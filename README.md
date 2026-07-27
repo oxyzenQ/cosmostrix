@@ -23,19 +23,19 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v20-demo.gif" alt="cosmostrix v20 demo" width="800">
+  <img src="assets/cosmostrix-v25-demo.gif" alt="cosmostrix v25 demo" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v20-demo-binary.png" alt="cosmostrix v20 binary charset demo" width="800">
+  <img src="assets/cosmostrix-v25-demo-binary.png" alt="cosmostrix v25 binary charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v20-demo-retro.png" alt="cosmostrix v20 retro charset demo" width="800">
+  <img src="assets/cosmostrix-v25-demo-retro.png" alt="cosmostrix v25 retro charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v20-demo-braille.png" alt="cosmostrix v20 braille charset demo" width="800">
+  <img src="assets/cosmostrix-v25-demo-braille.png" alt="cosmostrix v25 braille charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v20-demo-hacker.png" alt="cosmostrix v20 hacker charset demo" width="800">
+  <img src="assets/cosmostrix-v25-demo-hacker.png" alt="cosmostrix v25 hacker charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v20-demo-green-retro.png" alt="cosmostrix v20 green retro charset demo" width="800">
+  <img src="assets/cosmostrix-v25-demo-green-retro.png" alt="cosmostrix v25 green retro charset demo" width="800">
 </p>
 
 <p align="center">

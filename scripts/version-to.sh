@@ -35,6 +35,8 @@ readonly SRCINFO="${REPO_ROOT}/aur/cosmostrix-bin/.SRCINFO"
 readonly README="${REPO_ROOT}/README.md"
 readonly ABOUT_CI="${REPO_ROOT}/docs/workflow/about-ci.md"
 
+readonly ASSETS_DIR="${REPO_ROOT}/assets"
+
 # Files that contain active version references to update
 readonly DOC_FILES=(
     "${README}"
@@ -122,6 +124,8 @@ WHAT IT UPDATES:
     3. aur/cosmostrix-bin/PKGBUILD (pkgver=, _tag=)
     4. README.md (active version examples)
     5. docs/workflow/about-ci.md (active version examples)
+    6. assets/cosmostrix-v{MAJOR}-demo* (auto git mv on major change)
+    7. README.md demo img refs (auto on major change)
 
 SAFETY:
     - Warns if git working tree is dirty (use --allow-dirty to proceed)
@@ -435,6 +439,116 @@ update_docs() {
 
         log_ok "  Updated $(basename "${f}")"
     done
+}
+
+#
+# Rename demo assets to match the new major version
+#
+# Demo assets follow the naming convention:
+#   cosmostrix-v{MAJOR}-demo.gif
+#   cosmostrix-v{MAJOR}-demo-{variant}.png
+#
+# When the major version changes (e.g. v20 → v25), this function
+# renames all matching asset files using `git mv` so the history
+# is preserved. If the major version stays the same (e.g. 20.0.0 → 20.1.0),
+# no renaming is needed — the assets already have the correct prefix.
+#
+update_assets() {
+    local old_ver="$1"
+    local new_ver="$2"
+
+    local old_major
+    old_major="$(echo "${old_ver}" | sed -E 's/^([0-9]+)\..*/\1/')"
+    local new_major
+    new_major="$(echo "${new_ver}" | sed -E 's/^([0-9]+)\..*/\1/')"
+
+    # Only rename when the major version changes
+    if [[ "${old_major}" == "${new_major}" ]]; then
+        log_info "Major version unchanged (v${old_major} → v${new_major}) — no asset rename needed"
+        return 0
+    fi
+
+    local old_prefix="cosmostrix-v${old_major}-demo"
+    local new_prefix="cosmostrix-v${new_major}-demo"
+
+    if [[ ! -d "${ASSETS_DIR}" ]]; then
+        log_warn "assets/ directory not found — skipping asset rename"
+        return 0
+    fi
+
+    log_info "Renaming demo assets: ${old_prefix} → ${new_prefix}"
+
+    local renamed=0
+    for old_file in "${ASSETS_DIR}/${old_prefix}"*; do
+        if [[ ! -e "${old_file}" ]]; then
+            continue
+        fi
+
+        local basename
+        basename="$(basename "${old_file}")"
+        local new_basename="${basename/${old_prefix}/${new_prefix}}"
+        local new_file="${ASSETS_DIR}/${new_basename}"
+
+        if [[ -e "${new_file}" ]]; then
+            log_warn "  Target already exists: ${new_basename} — skipping"
+            continue
+        fi
+
+        git -C "${REPO_ROOT}" mv "${old_file}" "${new_file}"
+        renamed=$((renamed + 1))
+    done
+
+    if [[ "${renamed}" -eq 0 ]]; then
+        log_warn "No demo assets matching ${old_prefix}* found in assets/"
+        return 0
+    fi
+
+    log_ok "Renamed ${renamed} demo asset(s) (v${old_major} → v${new_major})"
+}
+
+#
+# Update README demo image references
+#
+# README.md contains <img> tags referencing demo assets:
+#   <img src="assets/cosmostrix-v{MAJOR}-demo.gif" alt="cosmostrix v{MAJOR} demo" ...>
+#   <img src="assets/cosmostrix-v{MAJOR}-demo-{variant}.png" alt="cosmostrix v{MAJOR} ..." ...>
+#
+# This function updates both the src path and alt text to use the new
+# major version prefix. It is separate from update_docs() because the
+# demo asset naming convention is "v{MAJOR}" (major only), not the full
+# version — update_docs() replaces the full vX.Y.Z, which doesn't match
+# the asset filenames.
+#
+update_readme_demo_refs() {
+    local old_ver="$1"
+    local new_ver="$2"
+
+    local old_major
+    old_major="$(echo "${old_ver}" | sed -E 's/^([0-9]+)\..*/\1/')"
+    local new_major
+    new_major="$(echo "${new_ver}" | sed -E 's/^([0-9]+)\..*/\1/')"
+
+    # Only update when the major version changes (same logic as update_assets)
+    if [[ "${old_major}" == "${new_major}" ]]; then
+        log_info "Major version unchanged — no README demo ref update needed"
+        return 0
+    fi
+
+    if [[ ! -f "${README}" ]]; then
+        log_warn "README.md not found — skipping demo reference update"
+        return 0
+    fi
+
+    log_info "Updating README demo refs: v${old_major} → v${new_major}"
+
+    # Replace asset path references: cosmostrix-vOLD_MAJOR-demo → cosmostrix-vNEW_MAJOR-demo
+    sed -i -E "s|cosmostrix-v${old_major}-demo|cosmostrix-v${new_major}-demo|g" "${README}"
+
+    # Replace alt text: "cosmostrix vOLD_MAJOR" → "cosmostrix vNEW_MAJOR"
+    # This covers patterns like: alt="cosmostrix v20 demo", alt="cosmostrix v20 binary charset demo"
+    sed -i -E "s|cosmostrix v${old_major}|cosmostrix v${new_major}|g" "${README}"
+
+    log_ok "README demo refs updated (v${old_major} → v${new_major})"
 }
 
 #
@@ -919,13 +1033,28 @@ main() {
         fi
     done
 
-    # 5. Audit workflows
+    # 5. Rename demo assets (only on major version change)
+    update_assets "${OLD_VER}" "${NEW_VER}"
+    # Track assets directory if files were renamed
+    if [[ -d "${ASSETS_DIR}" ]]; then
+        # Check if any renamed files exist (git mv already staged them)
+        local new_major
+        new_major="$(echo "${NEW_VER}" | sed -E 's/^([0-9]+)\..*/\1/')"
+        if ls "${ASSETS_DIR}/cosmostrix-v${new_major}-demo"* >/dev/null 2>&1; then
+            changed_files+=("assets/")
+        fi
+    fi
+
+    # 6. Update README demo image refs (only on major version change)
+    update_readme_demo_refs "${OLD_VER}" "${NEW_VER}"
+
+    # 7. Audit workflows
     audit_workflows "${NEW_VER}"
 
-    # 6. Run verification
+    # 8. Run verification
     verify_version "${NEW_VER}"
 
-    # 7. Print summary
+    # 9. Print summary
     print_summary "${OLD_VER}" "${NEW_VER}" "${changed_files[@]}"
 }
 

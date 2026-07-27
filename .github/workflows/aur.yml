@@ -79,9 +79,21 @@ jobs:
             exit 1
           fi
 
-          # Validate tag format: vX.Y.Z or vX.Y.Z-<channel>.N
-          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
-            echo "::error::Tag '${TAG}' does not match required format vX.Y.Z or vX.Y.Z-<channel>.N"
+          # Reject pre-release tags — AUR only accepts stable packages.
+          # Pre-release/alpha/rc/beta tags should NOT trigger this workflow.
+          # This guard is belt-and-suspenders: release.yml already conditions
+          # the AUR trigger on stable-only, but a manual workflow_dispatch
+          # or stale repository_dispatch could slip through.
+          if [[ "${TAG}" =~ -[a-zA-Z]+\.[0-9]+$ ]]; then
+            echo "::error::Pre-release tags are not allowed for AUR sync: ${TAG}"
+            echo "AUR only accepts stable packages. Use vX.Y.Z format (e.g. v25.0.0)"
+            exit 1
+          fi
+
+          # Validate tag format: vX.Y.Z (stable only, pre-release already rejected)
+          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag '${TAG}' does not match required stable format vX.Y.Z"
+            echo "Pre-release tags (vX.Y.Z-alpha.N etc.) are rejected by AUR policy"
             exit 1
           fi
 
