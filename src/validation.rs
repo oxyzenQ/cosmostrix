@@ -65,6 +65,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--mouse",
         "error: --mouse has been removed in v17.0.0.\n  Mouse hover/click visual effects are now ALWAYS ON (cursor glow + dual-ring click wave).\n  Mouse reporting is also always active (blocks text selection).\n  No flag needed — the effect is part of cosmostrix's signature interactive experience.",
     ),
+    (
+        "--charset-file",
+        "error: --charset-file has been removed in v25.0.0.\n  Custom charsets now live in config.toml under [charset-custom.<name>] and are loaded via --charset <name>.\n  Migration: move your custom characters from the file into a [charset-custom.<name>] block, then activate with --charset <name> or `charset = \"<name>\"` in config.\n  Example:\n    [charset-custom.cat]\n    set = \"x9\"\n  Then: cosmostrix --charset cat\n  See `cosmostrix --dump-config` for the full template.",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.

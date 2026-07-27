@@ -284,8 +284,7 @@ COMMON OPTIONS
   -c, --color <name>        Color theme (see --list-colors)
      --color-custom <name>  Load a user-defined custom color palette from config (v16)
      --color-tune <k=v>     Tune theme colors (keys: sat=, bright=, head=, body=, tail=)
-  -C, --charset <name>      Character set (see --list-charsets)
-     --charset-file <path>  Load custom characters from a file (whitelist-enforced)
+  -C, --charset <name>      Character set (see --list-charsets; custom via [charset-custom])
   -f, --fps <1-240>         Target FPS
   -S, --speed <1-100>       Rain speed
   -d, --density <0.01-5.0>  Rain density
@@ -367,7 +366,7 @@ Press `x` or `X` while running to cycle core atmospheres (cinematic ↔ matrix �
 
 ## Configuration
 
-Persistent defaults can be set in `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`). Use `--config <path>` to load a specific file. For security, `--config`, `--charset-file`, and `--dump-config <path>` enforce a **strict whitelist** — only these directories are allowed:
+Persistent defaults can be set in `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`). Use `--config <path>` to load a specific file. For security, `--config` and `--dump-config <path>` enforce a **strict whitelist** — only these directories are allowed:
 
 - `~/.config/cosmostrix/` (Linux/macOS/Android Termux, user config)
 - `/etc/cosmostrix/` (Linux/macOS, system-wide)
@@ -397,9 +396,29 @@ glitch-level = subtle
 
 Precedence: defaults → config file → scene/scene-custom layers → explicit CLI flags.
 
+### Custom Character Sets
+
+Custom charsets live in `config.toml` under `[charset-custom.<name>]` and replace the legacy `--charset-file <path>` CLI flag (removed in v25). Define a named glyph pool once, then activate it from the CLI or config:
+
+```toml
+[charset-custom.cat]
+set = "x9"
+
+[charset-custom.greek-letters]
+set = "αβγδεζηθικλμνξοπρστυφχψω"
+```
+
+```bash
+cosmostrix --charset cat              # CLI activation
+# or in config.toml: charset = "cat"
+```
+
+Custom names take precedence over built-in presets with the same name. Validation: max 256 characters per `set`, control characters are rejected, wide/zero-width characters (emoji, CJK fullwidth) are auto-filtered with a warning. Editing a `[charset-custom]` block while cosmostrix is running takes effect on the next live reload — no restart needed.
+
 ```bash
 cosmostrix --dump-config        # print example config
 cosmostrix --list-scenes        # list built-in and custom scenes
+cosmostrix --list-charsets      # list built-in and custom charsets
 cosmostrix --config-path        # print default config path
 ```
 

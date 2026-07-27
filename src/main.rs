@@ -85,6 +85,7 @@ mod branding;
 mod cell;
 mod central_colors;
 mod charset;
+mod charset_custom;
 mod cinematic;
 mod cli;
 mod cli_parse;
@@ -113,6 +114,12 @@ mod help_detail;
 mod humanize;
 mod info;
 mod interactive;
+// live_config_trace MUST be declared before live_config so the
+// `lr_trace!` macro it exports is in scope for live_config.rs.
+// `#[macro_use]` re-exports the macro crate-wide as a defense-in-depth
+// (it is also `#[macro_export]`-ed from inside the module).
+#[macro_use]
+mod live_config_trace;
 mod live_config;
 #[cfg(test)]
 mod loc_tests;
@@ -640,65 +647,26 @@ fn main() -> std::io::Result<()> {
     let charset_preset = normalize_charset_preset_name(&args.charset);
     let startup_charset = charset_preset.clone();
 
-    // --charset-file: load custom characters from file, overriding preset.
-    // Security: strict whitelist-only — only ~/.config/cosmostrix/ and
-    // /etc/cosmostrix/ are allowed. Everything else (current directory,
-    // /tmp/, ~/, ~/.local/, /usr/, etc.) is rejected. Prevents cosmostrix
-    // from being used as an arbitrary file reader (e.g., /etc/shadow).
-    let chars = if let Some(ref cf) = args.charset_file {
+    // v25: Custom charset loading from [charset-custom.<name>] in config.toml.
+    // Replaces the legacy --charset-file CLI flag. If `args.charset` (after
+    // normalization) matches a custom block name, load its char pool;
+    // otherwise fall through to the built-in charset_from_str path.
+    //
+    // This runs BEFORE the verbose print so the verbose output can show
+    // whether a custom charset was used. The custom_palette block below
+    // follows the same pattern for --colors-custom.
+    let cfg_for_charset = configfile::load_config_file(args.config.as_deref());
+    let chars = if let Some(custom_chars) =
+        charset_custom::load_custom_charset_if_matches(&cfg_for_charset, &charset_preset)
+    {
         if args.verbose {
             crate::output::eprintln_verbose_raw(&format!(
-                "charset-file: {cf} (safe: {})",
-                is_safe_path(cf)
+                "charset: {} (custom, {} chars)",
+                charset_preset,
+                custom_chars.len()
             ));
         }
-        if !is_safe_path(cf) {
-            ux::die_input(format!(
-                "error: --charset-file '{cf}' is outside allowed directories\n  \
-                 Allowed (strict whitelist): ~/.config/cosmostrix/, /etc/cosmostrix/\n  \
-                 Rejected: current directory (.), /tmp/, ~/, /usr/, all others"
-            ));
-        }
-        match std::fs::read_to_string(cf) {
-            Ok(content) => {
-                use unicode_width::UnicodeWidthChar;
-                let mut custom_chars: Vec<char> = Vec::new();
-                let mut skipped_wide: Vec<String> = Vec::new();
-                for ch in content.chars() {
-                    // Skip whitespace except space
-                    if ch.is_whitespace() && ch != ' ' {
-                        continue;
-                    }
-                    // Skip control characters
-                    if ch.is_control() {
-                        continue;
-                    }
-                    // Filter wide/zero-width characters (emoji, CJK fullwidth, etc.)
-                    // Same filter as charset.rs — renderer is column-based, assumes
-                    // 1 cell per character. Wide chars corrupt glyph alignment.
-                    match ch.width() {
-                        Some(1) => custom_chars.push(ch),
-                        _ => skipped_wide.push(format!("U+{:04X}", ch as u32)),
-                    }
-                }
-                if !skipped_wide.is_empty() {
-                    ux::warn(format!(
-                        "skipped {} wide/zero-width character(s) from --charset-file: {}",
-                        skipped_wide.len(),
-                        skipped_wide.join(", ")
-                    ));
-                }
-                if custom_chars.is_empty() {
-                    ux::die_config(format!(
-                        "error: --charset-file '{cf}' contains no usable single-width characters"
-                    ));
-                }
-                custom_chars
-            }
-            Err(e) => {
-                ux::die_config(format!("error: cannot read --charset-file '{cf}': {e}"));
-            }
-        }
+        custom_chars
     } else {
         let charset = match charset_from_str(&args.charset, def_ascii) {
             Ok(c) => c,
@@ -873,7 +841,6 @@ fn main() -> std::io::Result<()> {
             args.message.as_deref(),
             args.message_border,
             args.duration,
-            args.charset_file.as_deref(),
             screen_size,
             custom_palette_name.as_deref(),
             &args.scene,

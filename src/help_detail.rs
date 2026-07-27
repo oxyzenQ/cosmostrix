@@ -25,11 +25,18 @@ COMMON OPTIONS:
       Character set. See --list-charsets for available sets.
       cosmostrix --charset binary
 
-  --charset-file <path>
-      Load custom characters from a file. Overrides --charset.
-      One character per line, or a single line of characters.
-      Wide/zero-width characters (emoji, CJK fullwidth) are auto-filtered.
-      cosmostrix --charset-file ~/my-chars.txt
+      Custom charsets can be defined in config.toml under
+      [charset-custom.<name>] and loaded by name. Custom names take
+      precedence over built-in presets with the same name. Example:
+
+        [charset-custom.cat]
+        set = \"x9\"
+
+      Then: cosmostrix --charset cat
+      Or set in config: charset = \"cat\"
+
+      Live reload: editing the [charset-custom] block takes effect on
+      the next config save (no restart needed).
 
   -f, --fps <1-240>
       Target FPS.

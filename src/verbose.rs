@@ -16,7 +16,7 @@ use crate::color_tune::ColorTune;
 use crate::output;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, MonolithSize, ShadingMode};
-use crate::{configfile, is_safe_path, scene};
+use crate::{configfile, scene};
 
 /// Determine color provenance for verbose annotation.
 /// Returns None when a custom palette is active (it has its own line).
@@ -83,7 +83,6 @@ pub(crate) fn print_verbose(
     message: Option<&str>,
     message_border: bool,
     duration: Option<f64>,
-    charset_file: Option<&str>,
     screen_size: Option<(u16, u16)>,
     custom_palette_name: Option<&str>,
     scene_arg: &Option<String>,
@@ -138,12 +137,6 @@ pub(crate) fn print_verbose(
         &format!(" {charset_preset} ({} glyphs)", chars.len()),
     );
     output::eprintln_verbose("fullwidth:", &format!(" {fullwidth}"));
-    if let Some(cf) = charset_file {
-        output::eprintln_verbose(
-            "charset_file:",
-            &format!(" {cf} (safe: {})", is_safe_path(cf)),
-        );
-    }
 
     // ── Motion ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Motion ──"));

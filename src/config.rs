@@ -222,15 +222,10 @@ pub struct Args {
     )]
     pub charset: String,
 
-    #[arg(
-        long = "charset-file",
-        value_name = "PATH",
-        help_heading = "COMMON OPTIONS",
-        display_order = 21,
-        help = "Load custom characters from a file (whitelist-enforced, overrides --charset)"
-    )]
-    pub charset_file: Option<String>,
-
+    // v25: --charset-file CLI flag REMOVED. Custom charsets now live in
+    // config.toml under [charset-custom.<name>] and are loaded via
+    // --charset <name> (or `charset = "<name>"` in config). See
+    // --help-detail and `cosmostrix --dump-config` for the new format.
     #[arg(
         short = 'f',
         long = "fps",
@@ -735,7 +730,30 @@ pub fn print_list_charsets() {
     println!("  braille      Braille");
     println!("  runic        Runic");
     println!();
-    println!("  Or use --charset-file <path> to load custom characters from a file.");
+    println!("  Or define a custom charset in config.toml via [charset-custom.<name>] (see --dump-config).");
+
+    // v25: Show custom charsets from config (if any).
+    let cfg = configfile::load_config_file(None);
+    let custom_charsets = crate::charset_custom::collect_charset_custom(&cfg);
+    if !custom_charsets.is_empty() {
+        println!();
+        if color_enabled_stdout() {
+            println!(
+                "{}CUSTOM CHARACTER SETS (from config):{}",
+                crate::output::brand_bold_open(),
+                crate::output::reset()
+            );
+        } else {
+            println!("CUSTOM CHARACTER SETS (from config):");
+        }
+        println!();
+        for (name, def) in &custom_charsets {
+            println!("  {name:<20} {} chars", def.chars.len());
+        }
+        println!();
+        println!("  Load with: cosmostrix --charset <name>");
+        println!("  Or set in config: charset = \"<name>\"");
+    }
 }
 
 pub fn print_list_colors() {

@@ -43,68 +43,10 @@ use crate::configfile;
 /// Main.rs checks this after run_interactive() returns and exits accordingly.
 pub static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
 
-/// Opt-in debug tracing for live reload. Set `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`
-/// to emit a trace of every step (event detection, mtime dedup, parse,
-/// validation, rebuild) to stderr. Default off — no perf cost when disabled.
-///
-/// All trace writes go through the bulletproof `write_fmt` path so they
-/// cannot panic on broken stderr (terminal closed mid-session).
-fn debug_trace(args: std::fmt::Arguments<'_>) {
-    use std::io::Write;
-    let _ = std::io::stderr().write_fmt(args);
-}
-
-/// True when `COSMOSTRIX_LIVE_RELOAD_DEBUG=1` is set in the environment.
-/// Read once at first call and cached in an AtomicU8 (0=unknown, 1=off, 2=on).
-fn live_reload_debug_enabled() -> bool {
-    static STATE: AtomicU8 = AtomicU8::new(0);
-    match STATE.load(Ordering::Acquire) {
-        1 => false,
-        2 => true,
-        _ => {
-            let on = matches!(
-                std::env::var("COSMOSTRIX_LIVE_RELOAD_DEBUG")
-                    .ok()
-                    .as_deref(),
-                Some("1") | Some("true") | Some("TRUE") | Some("yes")
-            );
-            STATE.store(if on { 2 } else { 1 }, Ordering::Release);
-            on
-        }
-    }
-}
-
-/// Emit a debug trace line if `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`. No-op otherwise.
-macro_rules! lr_trace {
-    ($($arg:tt)*) => {
-        if live_reload_debug_enabled() {
-            debug_trace(format_args!("[live-reload-trace] {}\n", format_args!($($arg)*)));
-        }
-    };
-}
-
-/// Public trace hook for callers outside this module (e.g. the render
-/// thread in `event_loop.rs`) to confirm a rebuild was actually applied
-/// to the live Cloud. Same env-gated path as `lr_trace!` — zero cost
-/// when `COSMOSTRIX_LIVE_RELOAD_DEBUG` is unset.
-///
-/// We accept the resolved field values (not the CloudConfig itself) so
-/// the trace line shows what the user actually sees post-rebuild:
-/// `color=?`, `charset=?`, `speed`, `density`, `fps`.
-pub fn trace_rebuild_applied(
-    color_scheme: &crate::runtime::ColorScheme,
-    charset_preset: &str,
-    speed: f32,
-    density: f32,
-    fps: f64,
-) {
-    if live_reload_debug_enabled() {
-        debug_trace(format_args!(
-            "[live-reload-trace] Cloud rebuilt — color={:?} charset='{}' speed={:.2} density={:.3} fps={:.2}\n",
-            color_scheme, charset_preset, speed, density, fps
-        ));
-    }
-}
+// v25: opt-in debug tracing lives in `live_config_trace.rs` (split out so
+// this file stays under the 1200-LOC source cap enforced by loc_tests).
+// The `lr_trace!` macro is brought into scope by `#[macro_use]` on the
+// `mod live_config_trace;` declaration in main.rs.
 
 /// Global error message captured during live-reload failure.
 /// Printed to stderr AFTER terminal restoration (in main.rs) so the user
@@ -631,7 +573,20 @@ pub fn rebuild_cloud_config(
     // Charset (requires rebuilding chars vector) — skip if CLI --charset
     if !cli.charset {
         if let Some(v) = cfg.get("charset") {
-            if let Ok(charset) = crate::charset::charset_from_str(v, false) {
+            // v25: charset-custom.<name> takes precedence over built-in
+            // presets when the name matches a [charset-custom.<name>]
+            // block in the config. Falls back to built-in charset_from_str.
+            if let Some(custom_chars) =
+                crate::charset_custom::load_custom_charset_if_matches(cfg, v)
+            {
+                lr_trace!(
+                    "apply charset='{}' (custom, {} chars)",
+                    v,
+                    custom_chars.len()
+                );
+                new.charset_preset = v.clone();
+                new.chars = custom_chars;
+            } else if let Ok(charset) = crate::charset::charset_from_str(v, false) {
                 lr_trace!("apply charset='{}' (built-in)", v);
                 new.charset_preset = v.clone();
                 new.chars = crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
@@ -666,7 +621,16 @@ pub fn rebuild_cloud_config(
                 }
                 if let Some(charset_name) = scene_info.config.charset {
                     if !cli.charset {
-                        if let Ok(charset) = crate::charset::charset_from_str(charset_name, false) {
+                        // v25: scene-defined charset name may resolve to a
+                        // [charset-custom.<name>] block — check custom first.
+                        if let Some(custom_chars) =
+                            crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
+                        {
+                            new.charset_preset = charset_name.to_string();
+                            new.chars = custom_chars;
+                        } else if let Ok(charset) =
+                            crate::charset::charset_from_str(charset_name, false)
+                        {
                             new.charset_preset = charset_name.to_string();
                             new.chars = crate::charset::build_chars(
                                 charset,
@@ -837,7 +801,15 @@ fn apply_scene_custom_to_cloud_config(
                 }
             }
             "charset" => {
-                if let Ok(charset) = crate::charset::charset_from_str(value, false) {
+                // v25: scene-custom blocks may reference a custom charset
+                // name (charset-custom.<name>). Check custom first, then
+                // fall back to built-in presets.
+                if let Some(custom_chars) =
+                    crate::charset_custom::load_custom_charset_if_matches(cfg, value)
+                {
+                    new.charset_preset = value.clone();
+                    new.chars = custom_chars;
+                } else if let Ok(charset) = crate::charset::charset_from_str(value, false) {
                     new.charset_preset = value.clone();
                     new.chars =
                         crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);

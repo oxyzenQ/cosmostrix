@@ -175,7 +175,6 @@ All file-reading/writing CLI flags enforce the same strict whitelist:
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  --config <path>          → whitelist + .toml extension │
-│  --charset-file <path>    → whitelist (any extension)   │
 │  --dump-config <path>     → whitelist + .toml extension │
 │  --dump-config (no arg)   → stdout only, redirect blocked│
 └─────────────────────────────────────────────────────────┘

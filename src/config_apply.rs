@@ -342,7 +342,12 @@ fn apply_config_values(
         }
     }
     if let Some(v) = config_value(matches, cfg, "charset", "charset") {
-        if charset_from_str(&v, false).is_ok() {
+        // v25: charset may be a built-in preset OR a [charset-custom.<name>]
+        // block. Check both — `validate_config_strictly` already accepted
+        // the value, so we should not silently reject a custom name here.
+        if charset_from_str(&v, false).is_ok()
+            || crate::charset_custom::load_custom_charset_if_matches(cfg, &v).is_some()
+        {
             args.charset = v;
             config_touched.insert("charset");
         } else {

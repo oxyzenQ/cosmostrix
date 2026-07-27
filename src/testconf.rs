@@ -151,6 +151,25 @@ pub fn run(args: &Args) -> std::io::Result<()> {
             }
             continue;
         }
+        // v25: charset-custom.* keys — validate content (length, control
+        // chars, wide-char filter). Mirrors the strict-validation path.
+        if key.starts_with("charset-custom.") {
+            if let Some(msg) = crate::charset_custom::validate_charset_custom_value(value) {
+                crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
+                errors += 1;
+            }
+            continue;
+        }
+        // v25: top-level `charset` may name a custom block. Accept if the
+        // block exists in this same config — the block's content was
+        // validated in the branch above.
+        if key == "charset" {
+            let normalized = value.trim().to_ascii_lowercase();
+            let custom_key = format!("charset-custom.{normalized}.set");
+            if parsed.values.contains_key(&custom_key) {
+                continue;
+            }
+        }
         if let Some(msg) = validate_field_value(key, value) {
             crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
             errors += 1;
@@ -213,6 +232,27 @@ pub fn validate_config_strictly(
                 return Err(format!("invalid value '{value}' for '{key}': {msg}"));
             }
             continue;
+        }
+        // v25: charset-custom.<name>.set keys — validate the charset
+        // content (length cap, control char rejection, wide-char filter).
+        // Same idea as colors-custom: is_known_key() already verified the
+        // key pattern, we only need to validate the value.
+        if key.starts_with("charset-custom.") {
+            if let Some(msg) = crate::charset_custom::validate_charset_custom_value(value) {
+                return Err(format!("invalid value for '{key}': {msg}"));
+            }
+            continue;
+        }
+        // v25: the top-level `charset` key may reference a custom charset
+        // block (charset-custom.<name>) instead of a built-in preset.
+        // Accept the value if it matches a defined custom block — the
+        // block's content was already validated above.
+        if key == "charset" {
+            let normalized = value.trim().to_ascii_lowercase();
+            let custom_key = format!("charset-custom.{normalized}.set");
+            if cfg.contains_key(&custom_key) {
+                continue;
+            }
         }
         if let Some(msg) = validate_field_value(key, value) {
             return Err(format!("invalid value '{value}' for '{key}': {msg}"));

@@ -55,6 +55,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
 const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<color|charset|fps|speed|density|density-map|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain>";
+const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -518,6 +519,28 @@ pub fn dump_config_text() -> &'static str {
 #   "#f2ccff",  # semi-white
 #   "#ffffff",  # head glow
 # ]
+
+# ── Custom Character Sets (optional, v25+) ────────────────────────────
+# Define named custom charsets usable from --charset or charset = "name".
+# Replaces the legacy --charset-file CLI flag — the charset now lives in
+# config.toml next to every other setting, no external file needed.
+#
+# Fields:
+#   set — the literal string of characters to use as the rain glyph pool.
+#   Whitespace (except ASCII space) is skipped. Control characters and
+#   characters longer than the 256-char cap are rejected with an error.
+#   Wide/zero-width characters (emoji, CJK fullwidth) are auto-filtered.
+#
+# Load with: cosmostrix --charset cat
+# Or set in config: charset = "cat"
+# Custom names take precedence over built-in presets with the same name.
+# Live reload: editing the block takes effect on the next config save.
+
+# [charset-custom.cat]
+# set = "x9"
+
+# [charset-custom.greek-letters]
+# set = "αβγδεζηθικλμνξοπρστυφχψω"
 "##
 }
 
@@ -528,6 +551,7 @@ pub fn known_keys() -> Vec<&'static str> {
         .chain(std::iter::once(&PROFILE_CONFIG_KEY_HINT))
         .chain(std::iter::once(&SCENE_CUSTOM_CONFIG_KEY_HINT))
         .chain(std::iter::once(&COLORS_CUSTOM_CONFIG_KEY_HINT))
+        .chain(std::iter::once(&CHARSET_CUSTOM_CONFIG_KEY_HINT))
         .chain(std::iter::once(&COLOR_TUNE_CONFIG_KEY_HINT))
         .copied()
         .collect()
@@ -540,6 +564,7 @@ fn is_known_key(key: &str) -> bool {
         || is_scene_custom_config_key(key)
         || is_adaptive_custom_key(key)
         || is_colors_custom_key(key)
+        || is_charset_custom_key(key)
         || is_color_tune_key(key)
 }
 
@@ -595,6 +620,29 @@ fn is_valid_custom_name(name: &str) -> bool {
 #[inline]
 fn is_valid_colors_custom_field(field: &str) -> bool {
     matches!(field, "bg" | "background" | "rain")
+}
+
+/// Check if `key` matches the `charset-custom.<name>.set` pattern.
+///
+/// v25: replaces the legacy `--charset-file <PATH>` CLI flag with an
+/// in-config block. Only the `set` field is recognized — any other
+/// field under `[charset-custom.<name>]` is rejected as unknown by
+/// `is_known_key()` so the user gets a clear `--testconf` error.
+///
+/// Name must be non-empty, ASCII alphanumeric + `-`/`_` only (same rule
+/// as `colors-custom`).
+#[inline]
+fn is_charset_custom_key(key: &str) -> bool {
+    let Some(rest) = key.strip_prefix("charset-custom.") else {
+        return false;
+    };
+    let Some((name, field)) = rest.split_once('.') else {
+        return false;
+    };
+    if name.is_empty() || !is_valid_custom_name(name) {
+        return false;
+    }
+    field == "set"
 }
 
 /// Check if `key` matches the `adaptive-custom.H-M` pattern.

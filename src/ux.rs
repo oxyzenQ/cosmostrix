@@ -63,6 +63,7 @@ fn print_branded_error(msg: &str) {
 // ── Non-fatal helpers ──────────────────────────────────────────────────────
 
 /// Print `msg` to stderr (non-fatal). Does not exit.
+#[allow(dead_code)]
 pub fn warn(msg: impl AsRef<str>) {
     eprintln!("{}", msg.as_ref());
 }

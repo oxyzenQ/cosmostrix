@@ -402,7 +402,7 @@ Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
 - Ghost/Dim level raised (visible ghost trace)
 - Default density 0.75→0.85 (denser rain)
 - Head shimmer 0.12s→0.10s (more chaotic)
-- `--charset-file` custom characters from file
+- `[charset-custom.<name>]` blocks in config (replaces `--charset-file`)
 - 10 stale/zactrix docs deleted
 
 ---

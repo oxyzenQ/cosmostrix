@@ -357,7 +357,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // rebuild actually reached the render thread. Uses the same
             // env-gated path as live_config's lr_trace (no perf cost
             // when COSMOSTRIX_LIVE_RELOAD_DEBUG is unset).
-            crate::live_config::trace_rebuild_applied(
+            crate::live_config_trace::trace_rebuild_applied(
                 &new_cfg.color_scheme,
                 new_cfg.charset_preset.as_str(),
                 new_cfg.speed,
