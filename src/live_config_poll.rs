@@ -75,10 +75,30 @@ pub fn polling_heartbeat(
         last_state
     );
 
+    // v25.3: cycle counter for periodic liveness tracing. Every 5th
+    // cycle (~3.75s at 750ms interval), emit a heartbeat trace so the
+    // user can verify the polling thread is actually alive. Without
+    // this, a dead polling thread produces ZERO trace output, making
+    // Termux debugging impossible.
+    let mut cycle: u64 = 0;
+
     loop {
         std::thread::sleep(Duration::from_millis(interval_ms));
+        cycle += 1;
 
         let current_state = snapshot_file_state(&path);
+
+        // v25.3: periodic liveness trace every 5 cycles. This is the
+        // KEY diagnostic for Termux — if the user sees these lines,
+        // the polling thread is alive and reading the file. If they
+        // DON'T see them, the polling thread is dead/panicked.
+        if cycle % 5 == 1 {
+            lr_trace!(
+                "poll cycle #{} alive — current_state={:?}",
+                cycle,
+                current_state
+            );
+        }
 
         // If we can't even read the file's metadata, the file may have
         // been deleted (atomic save in progress, editor temp-file swap).
@@ -114,6 +134,7 @@ pub fn polling_heartbeat(
             lr_trace!("poll: channel closed during send — exiting heartbeat");
             break;
         }
+        lr_trace!("poll: synthetic event sent to channel successfully");
     }
 }
 

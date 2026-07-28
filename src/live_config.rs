@@ -91,19 +91,21 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
     let (tx, rx) = mpsc::channel::<LiveConfigEvent>();
     let path = config_path.clone();
 
-    std::thread::Builder::new()
+    let spawn_result = std::thread::Builder::new()
         .name("cosmostrix-config-watcher".to_string())
         .spawn(move || {
             // Catch panics in the watcher thread to prevent core dumps.
             // When the terminal is closed, notify's internal inotify/kqueue
             // file descriptors become invalid (EIO), which can trigger panics
             // in notify's internal thread. We catch and convert to graceful shutdown.
+            lr_trace!("watcher thread started — entering watcher_loop");
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 watcher_loop(path, tx);
             }));
             if let Err(_e) = result {
                 // Watcher thread panicked — likely terminal closed.
                 // Set a flag so the main loop detects the failure and exits.
+                lr_trace!("watcher thread PANICKED — setting exit code");
                 LIVE_RELOAD_ERROR
                     .lock()
                     .map(|mut guard| {
@@ -112,77 +114,49 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
                     .ok();
                 LIVE_RELOAD_EXIT_CODE.store(2, Ordering::Release);
             }
-        })
-        .ok()?;
+        });
+
+    match spawn_result {
+        Ok(_) => {
+            lr_trace!("watcher thread spawned successfully — live reload active");
+        }
+        Err(e) => {
+            lr_trace!("FAILED to spawn watcher thread: {e} — live reload disabled");
+            // v25.3: bulletproof write — eprintln! panics on broken stderr.
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[live-reload] FAILED to spawn watcher thread: {e} — live reload disabled\n"
+            ));
+            return None;
+        }
+    }
 
     Some(rx)
 }
 
 /// Main watcher loop — blocks on filesystem events, reparses on change.
 ///
-/// Bug 1 fix (v25): HYBRID mode. The native `notify` watcher
-/// (kqueue on BSDs, inotify on Linux, FSEvents on macOS,
-/// ReadDirectoryChanges on Windows) is the primary event source. A
-/// polling heartbeat runs IN PARALLEL on a separate thread, checking
-/// the file's mtime every 750ms. Both paths feed into the same
-/// mpsc channel, so a change is detected via whichever fires first.
-///
-/// This fixes the FreeBSD silent-failure case: if `RecommendedWatcher`
-/// initializes successfully (no error) but the backend produces no
-/// events (e.g., kqueue feature not active, restricted container),
-/// the polling heartbeat still detects mtime changes and triggers
-/// live reload.
-///
-/// **Dedup mechanism (Task 1 fix)**: when both the native watcher
-/// and the polling heartbeat detect the same file modification, the
-/// unified event loop must process it only ONCE. We track the last
-/// processed state (mtime + size + content hash) and drop duplicates.
-/// This also skips the startup reload — `last_processed_state` is
-/// initialized to the file's current state at loop start.
+/// HYBRID mode: native `notify` watcher (inotify/kqueue/FSEvents) +
+/// polling heartbeat (750ms mtime/size/content-hash check). Both feed
+/// the same mpsc channel. Dedup via triple-signal snapshot comparison.
 fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
-    // Debounce window. The time-based debounce catches bursts of native
-    // events (atomic-save produces 3-5 events within 50ms); the mtime +
-    // content-hash check catches cross-source duplicates (native + polling
-    // for the same change).
     const DEBOUNCE_MS: u64 = 200;
-
-    // v25.1 Termux fix: polling interval reduced from 2000ms to 750ms.
-    // The previous 2s interval made live reload feel broken on platforms
-    // where the native watcher is unreliable (Android/Termux inotify can
-    // silently drop events under SELinux pressure or app-standby
-    // throttling). With 750ms polling, a config save is detected in under
-    // a second even when inotify is dead. The mtime+hash dedup in
-    // handle_notify_event prevents duplicate processing.
     const POLL_INTERVAL_MS: u64 = 750;
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
 
-    // Initialize last_processed_state to the file's current state.
-    // This ensures the polling heartbeat's first check (750ms after start)
-    // does NOT trigger an unnecessary startup reload — neither mtime,
-    // size, nor content hash has changed since we initialized the tracker.
+    // Initialize last_processed_state to the file's current state so
+    // the polling heartbeat's first check doesn't trigger a startup reload.
     let initial_state = snapshot_file_state(&path);
     let last_processed_state = Arc::new(Mutex::new(initial_state));
 
-    // Spawn the polling heartbeat on a background thread. It feeds
-    // synthetic events into notify_tx when mtime/size/content changes,
-    // so the unified event loop below handles them identically to native
-    // events. This guarantees detection even when the native watcher
-    // is silent (FreeBSD kqueue edge case, Android Termux inotify
-    // throttling, restricted containers).
-    //
-    // v25.1 Termux fix: the polling thread is now wrapped in an outer
-    // recovery loop that restarts `polling_heartbeat` if it panics.
-    // Previously, a single panic (e.g., from a transient I/O error
-    // during catch_unwind's drop glue) would silently kill the polling
-    // thread, leaving only the native watcher — which is exactly the
-    // unreliable component on Termux. The recovery loop runs forever
-    // (until the channel closes), restarting with a 1s backoff.
+    // Spawn the polling heartbeat. Recovery loop restarts on panic (1s backoff).
     let poll_path = path.clone();
     let poll_tx = notify_tx.clone();
-    if let Err(e) = std::thread::Builder::new()
+    let poll_spawn_result = std::thread::Builder::new()
         .name("cosmostrix-config-poller".to_string())
         .spawn(move || {
+            lr_trace!("polling heartbeat thread started — interval={}ms", POLL_INTERVAL_MS);
             loop {
                 let path_inner = poll_path.clone();
                 let tx_inner = poll_tx.clone();
@@ -191,16 +165,14 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
                 }));
                 match result {
                     Ok(()) => {
-                        // polling_heartbeat returned normally — this only
-                        // happens when the channel closed (tx.send err).
-                        // No point restarting; exit the recovery loop.
-                        lr_trace!("polling heartbeat returned normally — channel closed, exiting recovery loop");
+                        lr_trace!("polling heartbeat returned normally — channel closed, exiting");
                         break;
                     }
                     Err(_) => {
                         // Polling heartbeat panicked. Log and back off
                         // before restarting. Bulletproof write — eprintln!
                         // panics on broken stderr.
+                        lr_trace!("polling heartbeat PANICKED — restarting after 1s backoff");
                         use std::io::Write;
                         let _ = std::io::stderr().write_fmt(format_args!(
                             "[live-reload] polling heartbeat panicked — restarting after 1s backoff\n"
@@ -209,27 +181,39 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
                     }
                 }
             }
-        })
-    {
-        // v25: bulletproof write — eprintln! panics on broken stderr,
-        // which would fire the panic hook (catch_unwind catches after,
-        // but bulletproof write avoids the panic entirely).
-        use std::io::Write;
-        let _ = std::io::stderr().write_fmt(format_args!(
-            "[live-reload] failed to spawn polling heartbeat: {e} — native watcher only\n"
-        ));
+        });
+
+    match poll_spawn_result {
+        Ok(_) => {
+            lr_trace!("polling heartbeat thread spawned successfully");
+        }
+        Err(e) => {
+            lr_trace!("FAILED to spawn polling heartbeat: {e} — native watcher only");
+            // v25: bulletproof write — eprintln! panics on broken stderr,
+            // which would fire the panic hook (catch_unwind catches after,
+            // but bulletproof write avoids the panic entirely).
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[live-reload] failed to spawn polling heartbeat: {e} — native watcher only\n"
+            ));
+        }
     }
 
     // Try to initialize the native watcher. If it fails, log a warning
     // and continue — the polling heartbeat will still detect changes.
+    lr_trace!("initializing native RecommendedWatcher");
     let mut watcher: Option<RecommendedWatcher> = match RecommendedWatcher::new(
         move |res: notify::Result<notify::Event>| {
             let _ = notify_tx.send(res);
         },
         notify::Config::default(),
     ) {
-        Ok(w) => Some(w),
+        Ok(w) => {
+            lr_trace!("native RecommendedWatcher created successfully");
+            Some(w)
+        }
         Err(e) => {
+            lr_trace!("native watcher unavailable: {e} — relying on polling heartbeat only");
             // v25: bulletproof write (see spawn_watcher above).
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!(
@@ -252,7 +236,12 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         .unwrap_or_else(|| PathBuf::from("."));
 
     if let Some(ref mut w) = watcher {
+        lr_trace!(
+            "registering native watch on directory: {}",
+            watch_dir.display()
+        );
         if let Err(e) = w.watch(&watch_dir, RecursiveMode::NonRecursive) {
+            lr_trace!("native watch registration FAILED: {e} — polling heartbeat only");
             // v25: bulletproof write (see spawn_watcher above).
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!(
@@ -261,7 +250,11 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             ));
             // Drop the broken watcher so it doesn't hold resources.
             watcher = None;
+        } else {
+            lr_trace!("native watch registered on: {}", watch_dir.display());
         }
+    } else {
+        lr_trace!("no native watcher — polling heartbeat is the sole change detector");
     }
 
     let target_file = Arc::new(path.clone());
@@ -272,6 +265,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     // that when both sources detect the same mtime, only the first
     // event triggers a reload.
     let _watcher = watcher;
+    lr_trace!("event loop started — waiting for events on notify_rx");
     for event_result in notify_rx.iter() {
         // notify_rx.iter() yields notify::Result<notify::Event>:
         //   Ok(Event) = filesystem event (create/modify/remove)
@@ -293,14 +287,24 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         // The fix: log the Err and keep consuming. The polling heartbeat
         // (which is the more reliable source) continues to drive reloads.
         if event_result.is_err() {
+            lr_trace!("watcher Err received: {:?}", event_result.as_ref().err());
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!(
                 "[live-reload] transient watcher error (continuing — polling heartbeat still active): {:?}\n",
                 event_result.as_ref().err()
             ));
-            lr_trace!("watcher Err, continuing loop");
             continue;
         }
+        // v25.3: trace event receipt so the user can see events arriving
+        // at the event loop. This is critical for Termux debugging — if
+        // the polling heartbeat sends events but the event loop never
+        // receives them, there's a channel issue.
+        let event = event_result.as_ref().expect("checked is_err above");
+        lr_trace!(
+            "event loop received event: kind={:?} paths={:?}",
+            event.kind,
+            event.paths
+        );
         if !handle_notify_event(
             event_result,
             &target_file,

@@ -235,9 +235,23 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Ok = valid config → rebuild Cloud. Err = invalid → EXIT cosmostrix.
         if let Some(ref rx) = config_rx {
             while let Ok(event) = rx.try_recv() {
+                // v25.3: trace event receipt in the render thread so the
+                // user can verify the full pipeline: watcher → channel →
+                // render thread → rebuild. If this trace appears, the
+                // config change WAS detected and IS being applied.
+                crate::lr_trace!("render thread received config event from watcher channel");
                 match event {
-                    Ok(cfg) => pending_config = Some(cfg),
+                    Ok(cfg) => {
+                        crate::lr_trace!(
+                            "render thread: pending config set ({} keys) — will rebuild next frame",
+                            cfg.len()
+                        );
+                        pending_config = Some(cfg);
+                    }
                     Err(msg) => {
+                        crate::lr_trace!(
+                            "render thread: config validation error — requesting exit"
+                        );
                         // Store error for main.rs to print AFTER terminal
                         // restore. Printing here (alternate-screen) = invisible.
                         if let Ok(mut guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
