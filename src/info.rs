@@ -85,13 +85,17 @@ pub(super) fn version_report() -> String {
 /// terminal rain renderers. Output is plain text (no ANSI) so it pipes
 /// cleanly into `less`, `grep`, or documentation generators.
 ///
-/// The text is a single `&'static str` (no allocation, no formatting cost)
-/// because it never varies — the architecture is a fixed property of the
-/// binary, not a runtime-computed value.
+/// The version line is the single source of truth — it pulls
+/// `CARGO_PKG_VERSION` at compile time so the docs_report never drifts
+/// from the actual binary version. The architecture description itself
+/// is a fixed `&'static str` because it never varies.
 #[must_use]
-pub(super) fn docs_report() -> &'static str {
-    "\
-COSMOSTRIX — Cosmic Dragon Diff-Based Rendering Engine (v20)
+pub(super) fn docs_report() -> String {
+    // Single source of truth: the version comes from CARGO_PKG_VERSION,
+    // never hardcoded. The body is a fixed &'static str so we keep the
+    // zero-allocation property for the architecture description.
+    let version = env!("CARGO_PKG_VERSION");
+    let body = "\
 ======================================================
 
 Cosmostrix is not a Matrix clone. It is a novel diff-based terminal
@@ -225,7 +229,8 @@ DESIGN CONSTRAINTS
 
 Source: https://github.com/oxyzenQ/cosmostrix
 License: GPL-3.0-only
-"
+";
+    format!("COSMOSTRIX — Cosmic Dragon Diff-Based Rendering Engine (v{version})\n{body}")
 }
 
 // --- Environment variable helpers ---
@@ -422,6 +427,26 @@ mod tests {
             report.lines().count() > 50,
             "docs_report should be a substantial document (got {} lines)",
             report.lines().count()
+        );
+    }
+
+    #[test]
+    fn docs_report_uses_cargo_pkg_version_single_source_of_truth() {
+        // The docs_report header line must embed the actual CARGO_PKG_VERSION
+        // — never a hardcoded version literal. This is the single source of
+        // truth: if Cargo.toml version bumps, the docs_report must follow
+        // automatically. A hardcoded "(v20)" here would silently drift.
+        let report = docs_report();
+        let expected = format!(
+            "COSMOSTRIX — Cosmic Dragon Diff-Based Rendering Engine (v{ver})",
+            ver = env!("CARGO_PKG_VERSION")
+        );
+        assert!(
+            report.starts_with(&expected),
+            "docs_report must start with the single-source version header.\n\
+             Expected: {expected}\n\
+             Got first line: {}",
+            report.lines().next().unwrap_or("(empty)")
         );
     }
 

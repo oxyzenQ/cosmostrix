@@ -299,7 +299,7 @@ RUNTIME CONTROLS:
   i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)
 
-ADAPTIVE ATMOSPHERE (default, v15 Cosmic Dragon):
+ADAPTIVE ATMOSPHERE (default, Cosmic Dragon):
   Cosmostrix breathes with the local time of day. Five emotional phases
   modulate rain density, speed, brightness, glitch, AND color scheme:
 

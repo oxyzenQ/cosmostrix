@@ -12,14 +12,21 @@
 #   - contains("pkgver=X.Y.Z")          (PKGBUILD version check)
 #   - contains("pkgver = X.Y.Z")        (.SRCINFO version check)
 #   - contains(r#"TAG="vX.Y.Z""#)       (README install tag)
+#   - "Engine (v[0-9])" / "Engine(v[0-9])"  (stale hardcoded engine version
+#     in user-facing strings — must use env!("CARGO_PKG_VERSION") instead)
+#   - "v[0-9]+ Cosmic Dragon" / "v[0-9]+ Dragon"  (hardcoded release-name
+#     version prefix in user-facing strings — the brand is "Cosmic Dragon"
+#     without a version prefix; the version comes from --version output)
 #
 # Correct pattern (allowed):
 #   const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #   ... contains(&format!("version = \"{}\"", CURRENT_VERSION)) ...
+#   format!("Engine (v{ver})", ver = env!("CARGO_PKG_VERSION"))
 #
 # Historical CHANGELOG assertions (e.g. contains("## v4.0.0")) are NOT
 # blocked — those verify a historical release entry exists and remain
-# valid forever.
+# valid forever. Migration messages like "removed in v14.0.0" are also
+# NOT blocked — they reference a fixed historical event.
 #
 # Usage: bash scripts/check-version-anti-patterns.sh
 #
@@ -32,6 +39,10 @@ NC='\033[0m'
 
 # Patterns that indicate a hardcoded current-version assertion.
 # Each pattern matches the literal version-string form (not the env! form).
+#
+# Note: comments are stripped before matching, so historical references
+# in `// v15 Cosmic Dragon: ...` code comments are NOT flagged. Only
+# patterns inside string literals (which reach the binary) are blocked.
 PATTERNS=(
     'contains(r#"version = "[0-9]'
     'contains("version = \\"[0-9]'
@@ -39,20 +50,40 @@ PATTERNS=(
     'contains("pkgver = [0-9]'
     'contains(r#"TAG="v[0-9]'
     'contains("TAG=\\"v[0-9]'
+    # Hardcoded engine version in user-facing strings.
+    # Catches: "Engine (v20)", "Engine(v20)", "Engine: ... (v20)"
+    # Allowed: format!("Engine (v{ver})", ver = env!("CARGO_PKG_VERSION"))
+    'Engine \(v[0-9]'
+    # Hardcoded release-name version prefix in user-facing strings.
+    # Catches: "v15 Cosmic Dragon", "v20 Dragon" — the brand is just
+    # "Cosmic Dragon" without a version prefix.
+    'v[0-9]+ (Cosmic )?Dragon'
 )
 
 VIOLATIONS=0
 FILES_CHECKED=0
 
+# Strip Rust line comments (// ...) and doc comments (//! ..., /// ...)
+# before matching. This ensures historical references in code comments
+# (e.g. `// v15 Cosmic Dragon: ...`) are NOT flagged — only patterns
+# inside string literals (which actually reach the binary) are blocked.
+strip_rust_comments() {
+    local file="$1"
+    # Remove // comments but preserve strings (best-effort: a // inside
+    # a string literal would be wrongly stripped, but version patterns
+    # don't appear inside such strings in this codebase).
+    sed -E 's|//.*$||' "$file"
+}
+
 while IFS= read -r -d '' file; do
     FILES_CHECKED=$((FILES_CHECKED + 1))
+    # Pre-strip comments so the patterns only match string-literal content.
+    stripped=$(strip_rust_comments "$file")
     for pattern in "${PATTERNS[@]}"; do
-        # Use grep -F for literal patterns that contain no regex metachars,
-        # otherwise use grep -E. All our patterns contain regex metachars
-        # ([0-9], ", =), so use grep -E.
-        if grep -nE -- "$pattern" "$file" >/dev/null 2>&1; then
+        # Use grep -E on the comment-stripped content.
+        if printf '%s\n' "$stripped" | grep -nE -- "$pattern" >/dev/null 2>&1; then
             echo -e "${RED}VIOLATION: ${file}${NC}"
-            grep -nE -- "$pattern" "$file" | head -5 | sed 's/^/    /'
+            printf '%s\n' "$stripped" | grep -nE -- "$pattern" | head -5 | sed 's/^/    /'
             VIOLATIONS=$((VIOLATIONS + 1))
         fi
     done

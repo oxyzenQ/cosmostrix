@@ -2,7 +2,7 @@
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> **Engine:** Cosmic Dragon Diff-Based Rendering (v20)
+> **Engine:** Cosmic Dragon Diff-Based Rendering
 > **Methodology:** `cosmostrix --benchmark --json --screen-size WxH --bench-duration 2`
 > **Hardware:** Intel(R) Xeon(R) Processor, x86-64-v1 baseline, single core
 > **Build:** `cargo build --release` (LTO fat, panic unwind, strip yes)
