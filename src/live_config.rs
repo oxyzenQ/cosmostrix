@@ -176,8 +176,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         }
     }
 
-    // Try to initialize the native watcher. If it fails, log a warning
-    // and continue — the polling heartbeat will still detect changes.
+    // Try native watcher; on failure, log + continue (polling heartbeat covers).
     lr_trace!("initializing native RecommendedWatcher");
     let mut watcher: Option<RecommendedWatcher> = match RecommendedWatcher::new(
         move |res: notify::Result<notify::Event>| {
@@ -367,10 +366,7 @@ fn handle_notify_event(
                     Err(_) => return true,
                 };
                 if *guard == current_state {
-                    // Duplicate event for an already-processed state.
-                    // Both the native watcher and polling heartbeat
-                    // detected the same change; only the first
-                    // should trigger a reload.
+                    // Duplicate event — both native + poll detected same change.
                     lr_trace!("snapshot dedup: dropping duplicate for {:?}", current_state);
                     return true;
                 }
@@ -455,6 +451,28 @@ fn validate_and_send(
         );
         let _ = tx.send(Err(msg.clone()));
         return Err(msg);
+    }
+
+    // v25.7: auto-promoted keys are NOT errors — parser re-homed them to
+    // root scope. Surface as info so user knows TOML was structurally off.
+    if !parsed.promoted_keys.is_empty() {
+        let preview = parsed
+            .promoted_keys
+            .iter()
+            .take(2)
+            .map(|(from, to)| format!("{from} -> {to}"))
+            .collect::<Vec<_>>()
+            .join("; ");
+        let extra = parsed.promoted_keys.len().saturating_sub(2);
+        lr_trace!(
+            "auto-promoted {} key(s): {preview}{}",
+            parsed.promoted_keys.len(),
+            if extra > 0 {
+                format!(" (+{extra} more)")
+            } else {
+                String::new()
+            }
+        );
     }
 
     let cfg = &parsed.values;
@@ -755,7 +773,7 @@ fn apply_scene_custom_to_cloud_config(
         let Some(field) = key.strip_prefix(&prefix) else {
             continue;
         };
-        // v20.1: base-scene and preset filtered upstream; unknown fields ignored.
+        // v20.1: base-scene/preset filtered upstream; unknown fields ignored.
         touched_any = true;
         match field {
             "color" => {
@@ -764,9 +782,7 @@ fn apply_scene_custom_to_cloud_config(
                 }
             }
             "charset" => {
-                // v25: scene-custom blocks may reference a custom charset
-                // name (charset-custom.<name>). Check custom first, then
-                // fall back to built-in presets.
+                // v25: scene-custom may reference charset-custom.<name>.
                 if let Some(custom_chars) =
                     crate::charset_custom::load_custom_charset_if_matches(cfg, value)
                 {
@@ -807,25 +823,20 @@ fn apply_scene_custom_to_cloud_config(
                 }
             }
             "density-map" => {
-                // Re-parse density map from new config. parse_density_map
-                // leaks the Vec so it lives for the process lifetime — this
-                // is intentional (bounded by config size, a few KB total).
+                // Re-parse density map. parse_density_map leaks the Vec
+                // (intentional, bounded by config size).
                 if let Some(map) = crate::scene_custom::parse_density_map(value) {
                     new.monolith_density_map = Some(map);
                 }
             }
-            // color-bg / atmosphere-mode / atmosphere-regime are not yet
-            // applied to CloudConfig at runtime; they remain as-is from the
-            // startup-time resolution. Future work can wire them in.
+            // color-bg / atmosphere-mode / atmosphere-regime: not yet wired.
             "color-bg" | "atmosphere-mode" | "atmosphere-regime" => {}
             _ => {}
         }
     }
 
     if touched_any {
-        // The scene_name stays as the custom scene name (already set at
-        // startup). No need to re-assign — custom scenes are first-class
-        // citizens and their identity doesn't change on live reload.
+        // scene_name stays as the custom scene name (set at startup).
         // v25: bulletproof write — runs in watcher worker thread.
         use std::io::Write;
         let _ = std::io::stderr().write_fmt(format_args!(
@@ -913,9 +924,8 @@ mod tests {
         assert_eq!(parse_range("200"), None);
     }
 
-    // ── v25.1 Termux fix: triple-signal change detection tests live
-    // in `live_config_poll::tests` (same module as the implementation).
-    // The split keeps this file under the 1200-LOC source cap.
+    // ── v25.1 Termux fix: triple-signal tests live in
+    // `live_config_poll::tests` (split keeps this file under LOC cap).
 
     // ── v20: scene-custom live reload tests ──
 
@@ -1086,10 +1096,8 @@ mod tests {
 
     #[test]
     fn rebuild_ignores_scene_custom_base_scene_unknown_field() {
-        // v20.1: `base-scene` is no longer a recognized field. The
-        // apply_scene_custom_to_cloud_config helper iterates raw cfg keys
-        // (including unknown ones) but only acts on known fields, so the
-        // color_scheme should remain the base's NeonPurple.
+        // v20.1: `base-scene` is no longer recognized. The helper iterates
+        // raw cfg keys but only acts on known fields — color_scheme stays NeonPurple.
         let mut cfg = HashMap::new();
         cfg.insert(
             "scene-custom.test-scene.base-scene".to_string(),
@@ -1147,8 +1155,8 @@ mod tests {
         );
     }
 
-    /// Bug 3 test: when CLI did NOT explicitly set a field, config.toml
-    /// overrides scene defaults. This is the normal live-reload path.
+    /// Bug 3 test: config.toml overrides scene defaults when CLI did NOT
+    /// explicitly set the field. This is the normal live-reload path.
     #[test]
     fn rebuild_applies_config_color_when_cli_not_explicit() {
         let mut cfg = HashMap::new();
@@ -1156,16 +1164,11 @@ mod tests {
         let base = minimal_cloud_config();
         // base.cli_explicit.color is false (default) — no CLI override.
         let new = rebuild_cloud_config(&base, &cfg);
-        assert_eq!(
-            new.color_scheme,
-            crate::runtime::ColorScheme::Snow,
-            "config.toml color=snow must apply when CLI did not set --color"
-        );
+        assert_eq!(new.color_scheme, crate::runtime::ColorScheme::Snow);
     }
 
     /// Bug 3 test: CLI-explicit speed must NOT be overridden by scene's
-    /// speed default during live reload (e.g., user runs `cosmostrix -s 25`,
-    /// config.toml has `scene = "matrix"` which sets speed=18 — CLI wins).
+    /// speed default during live reload (CLI wins).
     #[test]
     fn rebuild_preserves_cli_explicit_speed_over_scene() {
         let mut cfg = HashMap::new();
@@ -1180,10 +1183,7 @@ mod tests {
 
     /// v25.6 FIX D: validate_and_send returns Err on bad config, but the
     /// render thread NO LONGER sets LIVE_RELOAD_EXIT_CODE — only true
-    /// watcher-thread panics do. Verifies Err(msg) is returned AND exit
-    /// code remains 0 (caller stores in LIVE_RELOAD_ERROR, doesn't
-    /// escalate). v25.6 FIX E: the error also includes a targeted hint
-    /// explaining `bold` is top-level, not a [color.tune] field.
+    /// watcher-thread panics do. v25.6 FIX E: error includes a hint.
     #[test]
     fn validate_and_send_returns_err_without_setting_exit_code() {
         let (tx, _rx) = std::sync::mpsc::channel();

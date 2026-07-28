@@ -91,6 +91,23 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         );
     }
 
+    // v25.7: Info-only notice for auto-promoted keys (forgiving parser).
+    // These are NOT errors — the keys were silently re-homed to root scope.
+    // We surface them so users know their TOML structure was off and can
+    // optionally fix it for clarity (move the key BEFORE any [section] header).
+    if !parsed.promoted_keys.is_empty() {
+        println!(
+            "testconf: info: {} key(s) auto-promoted to root scope (TOML mis-nesting, fixed):",
+            parsed.promoted_keys.len()
+        );
+        for (from, to) in &parsed.promoted_keys {
+            println!("testconf:   {from}  →  {to}");
+        }
+        println!(
+            "testconf: hint: move these keys BEFORE any [section] header to silence this notice"
+        );
+    }
+
     // Check profile keys for correct format AND field value validity
     let profile_keys: Vec<_> = parsed
         .values

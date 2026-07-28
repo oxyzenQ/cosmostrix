@@ -287,40 +287,56 @@ mod tests {
         assert!(block.contains("color.tune.bold"));
     }
 
-    // ── Integration: parse_config_text produces the expected unknown keys ─
+    // ── Integration: parse_config_text promotes mis-nested top-level keys ─
 
     #[test]
-    fn parse_color_tune_section_with_bold_produces_unknown_key() {
-        // Verify the parser actually feeds the right key into unknown_keys
-        // when the user writes [color.tune] then bold = true. This is the
-        // exact pattern from the v25.6 depth test.
+    fn parse_color_tune_section_with_bold_promotes_to_root() {
+        // v25.7: [color.tune] + `bold = true` no longer lands in unknown_keys.
+        // The parser auto-promotes `bold` to root scope (it's a known top-level
+        // key) and records the promotion. The hint function still fires when
+        // explicitly given the would-be-nested form, so users who see the
+        // promotion notice in --testconf can understand what happened.
         let parsed = crate::configfile::parse_config_text("[color.tune]\nbold = true\n");
         assert!(
-            parsed.unknown_keys.contains(&"color.tune.bold".to_string()),
-            "expected color.tune.bold in unknown_keys, got: {:?}",
+            parsed.unknown_keys.is_empty(),
+            "expected no unknown keys (auto-promoted), got: {:?}",
             parsed.unknown_keys
         );
-        // Hint should fire on the produced key.
+        assert!(
+            parsed
+                .promoted_keys
+                .iter()
+                .any(|(from, to)| from == "color.tune.bold" && to == "bold"),
+            "expected color.tune.bold -> bold promotion, got: {:?}",
+            parsed.promoted_keys
+        );
+        // Hint still works on the would-be-nested form (for testconf display).
         assert!(suggest_for_unknown_key("color.tune.bold").is_some());
     }
 
     #[test]
-    fn parse_scene_custom_section_with_nested_adaptive_custom_produces_unknown_key() {
-        // Verify the parser feeds the right key when the user writes
-        // [scene-custom.hacker-mode.adaptive-custom.10-00] then color = cosmos.
+    fn parse_scene_custom_section_with_nested_adaptive_custom_promotes_to_root() {
+        // v25.7: [scene-custom.hacker-mode.adaptive-custom.10-00] + color = cosmos
+        // — both `adaptive-custom.10-00` (segment of the section path) AND
+        // `color` (the flat key under it) are recognized top-level keys, so
+        // the auto-promote fires for `color` (the flat key). No unknown_keys.
+        // The hint function still fires when given the would-be-nested form
+        // (e.g. for --testconf display when the user explicitly wrote the
+        // mis-nested form without a flat key underneath).
         let content = "[scene-custom.hacker-mode.adaptive-custom.10-00]\ncolor = cosmos\n";
         let parsed = crate::configfile::parse_config_text(content);
         assert!(
-            !parsed.unknown_keys.is_empty(),
-            "expected unknown keys for nested adaptive-custom, got: {:?}",
+            parsed.unknown_keys.is_empty(),
+            "expected no unknown keys (color auto-promoted to root), got: {:?}",
             parsed.unknown_keys
         );
+        // `color = cosmos` was promoted to root scope.
+        assert_eq!(
+            parsed.values.get("color").map(String::as_str),
+            Some("cosmos")
+        );
+        // Hint still fires on the would-be-nested form (for testconf display).
         let full_key = "scene-custom.hacker-mode.adaptive-custom.10-00.color";
-        assert!(
-            parsed.unknown_keys.contains(&full_key.to_string()),
-            "expected {full_key} in unknown_keys, got: {:?}",
-            parsed.unknown_keys
-        );
         assert!(suggest_for_unknown_key(full_key).is_some());
     }
 }

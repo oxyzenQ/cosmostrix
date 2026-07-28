@@ -68,6 +68,16 @@ pub struct ParsedConfig {
     /// can warn on stderr. A line lands here when it has no `=` at all, or when
     /// either side of `=` is empty after trimming.
     pub malformed_lines: Vec<String>,
+    /// v25.7: keys that were auto-promoted from a nested section to root scope.
+    ///
+    /// Each tuple is `(original_nested_key, promoted_root_key)`. Populated when
+    /// the user writes a top-level key (e.g. `adaptive-custom.02-00`) AFTER a
+    /// `[scene-custom.<name>]` table header — TOML parses it as
+    /// `scene-custom.<name>.adaptive-custom.02-00`, but we detect the un-prefixed
+    /// form is a known top-level key and silently re-home it. This lets
+    /// scene-custom + adaptive-custom coexist in the same file without forcing
+    /// the user to learn TOML scope rules.
+    pub promoted_keys: Vec<(String, String)>,
 }
 
 /// Load config file and return a HashMap of key → value pairs.
@@ -119,6 +129,7 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
     let mut map = HashMap::new();
     let mut unknown_keys = Vec::new();
     let mut malformed_lines = Vec::new();
+    let mut promoted_keys: Vec<(String, String)> = Vec::new();
 
     let mut current_section: String = String::new();
 
@@ -179,10 +190,23 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
             let full_key = if !current_section.is_empty() {
                 format!("{current_section}.{key}")
             } else {
-                key
+                key.clone()
             };
             if !is_known_key(&full_key) {
-                unknown_keys.push(full_key);
+                // v25.7: Auto-promote forgiving parser. If the un-prefixed
+                // key is itself a known top-level key, the user accidentally
+                // nested it under a [section] header (very common when
+                // mixing [scene-custom.<name>] with adaptive-custom.HH-MM).
+                // Silently re-home it to root scope and record the promotion
+                // so --testconf can warn the user about the structural fix.
+                if !current_section.is_empty() && is_known_key(&key) {
+                    promoted_keys.push((full_key.clone(), key.clone()));
+                    // Don't overwrite an explicit root-scope value — first
+                    // writer wins (matches TOML semantics for duplicate keys).
+                    map.entry(key).or_insert(value);
+                } else {
+                    unknown_keys.push(full_key);
+                }
                 i += 1;
                 continue;
             }
@@ -199,6 +223,7 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
         values: map,
         unknown_keys,
         malformed_lines,
+        promoted_keys,
     }
 }
 
@@ -449,7 +474,6 @@ pub fn dump_config_text() -> &'static str {
 #
 # Quick Start & Override Priority
 #
-#
 # The easiest way to customize is via CLI flags:
 #   cosmostrix -c neon-green --speed 20
 #
@@ -461,10 +485,8 @@ pub fn dump_config_text() -> &'static str {
 #   2. config.toml         (this file — values set here)      ← MEDIUM
 #   3. scene defaults      (built-in scenes like cinematic)   ← LOWEST
 #
-# Key rule: a value set in config.toml ALWAYS wins over a scene's
-# hardcoded default. Scenes only fill keys the user did NOT set.
-# This prevents surprises like `speed = 30` in config being silently
-# overwritten by a scene's `speed = 8`.
+# Key rule: config.toml ALWAYS wins over a scene's hardcoded default.
+# Scenes only fill keys the user did NOT set.
 #
 # Examples:
 #   cosmostrix                                       # run with defaults
@@ -477,7 +499,6 @@ pub fn dump_config_text() -> &'static str {
 
 #
 # File Location
-#
 #
 #   Linux:   ~/.config/cosmostrix/config.toml
 #   macOS:   ~/.config/cosmostrix/config.toml
@@ -521,9 +542,8 @@ pub fn dump_config_text() -> &'static str {
 
 # Background mode: default-background (follow terminal) | black (solid #000000)
 # color-bg = default-background
-
-# Cinematic intro animation played before the rain engine starts.
-# intro = "logo"  # Intro animation: logo | cosmic | none
+# Cinematic intro animation: logo | cosmic | none (default: logo)
+# intro = "logo"
 
 # Motion
 
@@ -551,9 +571,8 @@ pub fn dump_config_text() -> &'static str {
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
 
-# v17: --mouse flag DELETED. Mouse glow + click wave effects are always on.
-# Mouse reporting is always active (blocks text selection).
-# No config key needed — the effect is part of cosmostrix's signature.
+# v17: --mouse flag DELETED. Mouse glow + click wave effects are always on
+# (mouse reporting always active — blocks text selection). No config key needed.
 
 # Full-width CJK glyphs (default: off)
 # fullwidth = false
@@ -600,14 +619,28 @@ pub fn dump_config_text() -> &'static str {
 # affect the standard settings above. Moved to the bottom of the file
 # to keep the main config clean and the override priority obvious.
 #
+# Ordering Rules (v25.7 — forgiving parser):
+#   Once you write a [section] header (e.g. [scene-custom.hacker-mode]),
+#   every flat key AFTER it belongs to that section until the next header.
+#   This is TOML standard behavior. If you accidentally nest a top-level
+#   key (e.g. adaptive-custom.02-00) under a [section], cosmostrix v25.7+
+#   auto-promotes it to root scope and tells you via --testconf.
+#   For clarity, prefer writing top-level keys BEFORE any [section] block.
+#
+# Working Example (scene-custom + adaptive-custom together):
+#   adaptive-custom.02-00 = cosmos, monolith, speed=15
+#
+#   [scene-custom.hacker-mode]
+#   color = green
+#   speed = 28
+#
 # Custom Scene Definitions
 #
-# Define named custom scenes and load with: cosmostrix --scene-custom <name>
-# Fields: color, charset, fps, speed, density, density-map,
-#         glitch-level, monolith-size, color-bg, atmosphere-mode, atmosphere-regime
-# Custom scenes stand on their own — missing fields fall back to cinematic's
-# defaults. (base-scene and preset were removed in v20.1; if present in
-# config.toml, --testconf will flag them as unknown keys.)
+# Define named custom scenes and load with: cosmostrix --scene-custom <name>.
+# Fields: color, charset, fps, speed, density, density-map, glitch-level,
+#         monolith-size, color-bg, atmosphere-mode, atmosphere-regime.
+# Missing fields fall back to cinematic's defaults. (base-scene and preset
+# were removed in v20.1; --testconf flags them as unknown keys.)
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
 # See docs/ATMOSPHERE_ENGINE.md for more examples.
 
@@ -621,7 +654,6 @@ pub fn dump_config_text() -> &'static str {
 # Density Map: sculpt monolith pillar formation per-column.
 # Comma-separated weights (0.0..1.0). 0.0 = never spawn, 1.0 = always spawn.
 # Maps shorter than terminal width treat missing columns as 1.0.
-#
 # Three cinematic presets (120 columns each) — uncomment to use:
 
 # Twin Towers — two dense pillar clusters, sparse canyon between.
@@ -651,13 +683,10 @@ pub fn dump_config_text() -> &'static str {
 # Adaptive Custom Time Map
 #
 # Optional. Overrides the default 5-phase adaptive engine.
-# Define your own time-to-parameter mapping. Format: H-M = color, scene, key=value, ...
-# Time format: flexible digits — 2-3, 02-03, 2-30, 14-5 all valid.
+# Format: H-M = color, scene, key=value, ... (flexible digits: 2-3, 02-03, 14-5)
 # Parameters not specified are sticky (keep previous value).
 # Transition: smooth 5-minute blend before next time point.
-# If not defined, default adaptive engine (5 phases) is used.
-# Note: custom time map is checked every 30s at runtime.
-# Live config reload re-parses the map immediately on save.
+# Checked every 30s at runtime; live config reload re-parses immediately.
 
 # adaptive-custom.00-00 = cosmos, monolith, speed=15, density=1.2
 # adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
@@ -667,7 +696,7 @@ pub fn dump_config_text() -> &'static str {
 # Custom Color Palettes (optional, v16+)
 #
 # Define named custom palettes usable from --colors-custom or adaptive-custom.
-# Uses TOML table format. Hex values use standard #rrggbb notation.
+# Hex values use standard #rrggbb notation.
 #
 # Fields:
 #   bg   — background color (optional)
@@ -694,17 +723,14 @@ pub fn dump_config_text() -> &'static str {
 # Custom Character Sets (optional, v25+)
 #
 # Define named custom charsets usable from --charset or charset = "name".
-# Replaces the legacy --charset-file CLI flag — the charset now lives in
-# config.toml next to every other setting, no external file needed.
+# Replaces the legacy --charset-file CLI flag — charset lives in config.toml.
 #
 # Fields:
-#   set — the literal string of characters to use as the rain glyph pool.
-#   Whitespace (except ASCII space) is skipped. Control characters and
-#   characters longer than the 256-char cap are rejected with an error.
-#   Wide/zero-width characters (emoji, CJK fullwidth) are auto-filtered.
+#   set — literal string of characters to use as the rain glyph pool.
+#   Whitespace (except ASCII space) skipped. Control chars + chars >256-cap
+#   rejected with error. Wide/zero-width (emoji, CJK fullwidth) auto-filtered.
 #
-# Load with: cosmostrix --charset cat
-# Or set in config: charset = "cat"
+# Load with: cosmostrix --charset cat   (or: charset = "cat" in config)
 # Custom names take precedence over built-in presets with the same name.
 # Live reload: editing the block takes effect on the next config save.
 
