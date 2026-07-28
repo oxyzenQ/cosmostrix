@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  Powered by the Dragon diff-based rendering engine — only changed cells are redrawn, not the full screen.
+  Powered by the Cosmic Dragon diff-based rendering engine — only changed cells are redrawn, not the full screen.
 </p>
 
 <p align="center">
@@ -46,7 +46,7 @@ Signature Cinematic Cosmic, Monolith Rain, and message mode in a real terminal s
 
 ## Architecture — Not Just Matrix Rain
 
-Cosmostrix is **not a clone**. It uses a novel **diff-based rendering engine** (the `dragon` architecture) that computes only the ~7.5% of cells that change between frames, rather than redrawing the entire screen. This enables cinematic effects — phosphor decay, depth fog, 3-layer parallax, density maps — at **38,000+ FPS** while using only **4.7 MiB of RAM** and a single CPU core. No GPU. No bloat.
+Cosmostrix is **not a clone**. It uses a novel **diff-based rendering engine** (the `cosmic dragon` architecture) that computes only the ~7.5% of cells that change between frames, rather than redrawing the entire screen. This enables cinematic effects — phosphor decay, depth fog, 3-layer parallax, density maps — at **38,000+ FPS** while using only **4.7 MiB of RAM** and a single CPU core. No GPU. No bloat.
 
 Every other Matrix rain renderer redraws every cell every frame. Cosmostrix keeps a persistent back-buffer, compares each cell against the previous frame, and emits only the ANSI sequences for cells that actually changed. On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells), the savings exceed 90%.
 
@@ -99,7 +99,7 @@ Cosmostrix is a CPU-only terminal renderer by design. The terminal is a text med
 
 Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below is honest about what it does not do — most of these are design choices, not missing features.
 
-- **CPU-only, no GPU.** Rain is rendered as ANSI text over a PTY; no GPU context is ever created (the benchmark reports `gpu_usage: not_applicable`). GPU bitmap rendering was evaluated and rejected because it changes the character-grid aesthetic. See [docs/DRAGON_EXPLORATION.md](docs/DRAGON_EXPLORATION.md).
+- **CPU-only, no GPU.** Rain is rendered as ANSI text over a PTY; no GPU context is ever created (the benchmark reports `gpu_usage: not_applicable`). GPU bitmap rendering was evaluated and rejected because it changes the character-grid aesthetic. See [docs/COSMIC_DRAGON_EXPLORATION.md](docs/COSMIC_DRAGON_EXPLORATION.md).
 - **Interactive FPS is terminal-bounded.** The engine computes ~50,000 FPS headless at 120×40; real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). This is a fundamental limit of terminal rendering.
 - **`kill -9` cannot be caught.** No process can intercept SIGKILL. On Linux, a fork-based guard restores `termios` best-effort; on macOS and Windows, run `cosmostrix --reset-terminal` for 5-layer recovery.
 - **SIGTSTP (Ctrl-Z) suspends in raw mode.** The terminal stays in raw mode while cosmostrix is backgrounded. Recovery is automatic on `fg`/SIGCONT as long as nothing else wrote to the TTY.

@@ -1,7 +1,7 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-name: Dragon - Release
+name: Cosmic Dragon - Release
 
 'on':
   push:
@@ -17,7 +17,7 @@ env:
 
 jobs:
   build_packages:
-    name: Dragon - Build packages (${{ matrix.platform }})
+    name: Cosmic Dragon - Build packages (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -540,7 +540,7 @@ jobs:
           if-no-files-found: error
 
   build_android:
-    name: Dragon - Build packages (android-aarch64-native)
+    name: Cosmic Dragon - Build packages (android-aarch64-native)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -716,7 +716,7 @@ jobs:
           if-no-files-found: error
 
   build_pgo:
-    name: Dragon - Build PGO nitro (${{ matrix.platform }})
+    name: Cosmic Dragon - Build PGO nitro (${{ matrix.platform }})
     # PGO is Linux x86_64-only by design:
     #   - macOS, Windows, FreeBSD, and ARM targets either lack PGO toolchain
     #     support, gain nothing from PGO (ARM is already well-tuned by LLVM),
@@ -838,7 +838,7 @@ jobs:
           retention-days: 30
 
   publish_release:
-    name: Dragon - Publish GitHub Release
+    name: Cosmic Dragon - Publish GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [build_packages, build_android, build_pgo]

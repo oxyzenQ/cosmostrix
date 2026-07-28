@@ -36,9 +36,9 @@ pub(super) fn version_report() -> String {
     let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
     let description = env!("CARGO_PKG_DESCRIPTION");
     // Pull the official-build signature into the version report so the
-    // linker cannot dead-strip `branding::DRAGON_SIGNATURE` from the
+    // linker cannot dead-strip `branding::COSMIC_DRAGON_SIGNATURE` from the
     // final binary. The string is also discoverable via `strings(1)`.
-    let signature = crate::branding::dragon_signature();
+    let signature = crate::branding::cosmic_dragon_signature();
 
     // The two header lines (cosmostrix: v{version} + one-line description)
     // are rendered in brand purple. The remaining build/copyright/license
@@ -52,10 +52,10 @@ pub(super) fn version_report() -> String {
 
     let header = format!("cosmostrix: v{version}\n{description}");
     // Engine line declares the architecture so users immediately see this
-    // is the Dragon diff-based renderer, not a generic Matrix clone. Kept
+    // is the Cosmic Dragon diff-based renderer, not a generic Matrix clone. Kept
     // on its own line so it's easy to grep from scripts (`cosmostrix -V |
     // grep Engine`).
-    let engine_line = "Engine: Dragon Diff-Based Rendering";
+    let engine_line = "Engine: Cosmic Dragon Diff-Based Rendering";
     let body = format!(
         "{engine_line}\n\
          Build: {build} ({commit})\n\
@@ -91,7 +91,7 @@ pub(super) fn version_report() -> String {
 #[must_use]
 pub(super) fn docs_report() -> &'static str {
     "\
-COSMOSTRIX — Dragon Diff-Based Rendering Engine (v20)
+COSMOSTRIX — Cosmic Dragon Diff-Based Rendering Engine (v20)
 ======================================================
 
 Cosmostrix is not a Matrix clone. It is a novel diff-based terminal
@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn version_report_declares_engine_line() {
-        // The Engine: line declares the Dragon diff-based rendering
+        // The Engine: line declares the Cosmic Dragon diff-based rendering
         // architecture so users immediately see this is not a Matrix
         // clone. It must appear on its own line, between the description
         // header and the Build: line, so it's easy to grep from scripts.
@@ -401,8 +401,8 @@ mod tests {
         // is already shown on the `cosmostrix: v{VERSION}` line above.
         let report = version_report();
         assert!(
-            report.contains("Engine: Dragon Diff-Based Rendering"),
-            "version_report must declare the Dragon engine line. Full report:\n{report}"
+            report.contains("Engine: Cosmic Dragon Diff-Based Rendering"),
+            "version_report must declare the Cosmic Dragon engine line. Full report:\n{report}"
         );
         // Sanity: the Engine line appears before the Build line so users
         // see the architecture declaration first.

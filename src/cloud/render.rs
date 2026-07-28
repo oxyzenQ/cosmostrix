@@ -155,7 +155,7 @@ impl DrawCtx<'_> {
             return false;
         }
         let idx = col as usize * self.lines as usize + line as usize;
-        // Dragon egg #17: bounds-check + direct indexing.
+        // Cosmic Dragon egg #17: bounds-check + direct indexing.
         // BitSlice implements Index<usize> returning bool.
         idx < self.glitch_map.len() && self.glitch_map[idx]
     }
@@ -165,7 +165,7 @@ impl DrawCtx<'_> {
     /// which is safe — the LUT is rebuilt on every terminal resize.
     #[inline]
     pub fn edge_fade(&self, line: u16) -> f32 {
-        // Dragon egg #13: direct indexing — edge_fade_lut is always sized to
+        // Cosmic Dragon egg #13: direct indexing — edge_fade_lut is always sized to
         // `lines` in spawn.rs, and callers pass line < lines (from droplet
         // iteration). The .get().copied().unwrap_or(1.0) was defensive but
         // adds Option alloc + unwrap_or branching.
@@ -186,7 +186,7 @@ impl DrawCtx<'_> {
         };
         // OPTIMIZED: use bitmask instead of modulo (CHAR_POOL_SIZE is power of 2)
         let idx = ((char_pool_idx as usize) + (line as usize)) & (CHAR_POOL_SIZE - 1);
-        // Dragon egg #11 (revised): char_pool is always CHAR_POOL_SIZE (2048),
+        // Cosmic Dragon egg #11 (revised): char_pool is always CHAR_POOL_SIZE (2048),
         // but previous_char_pool may be smaller during transition. Use .get()
         // for safety when pool is smaller than CHAR_POOL_SIZE.
         if pool.len() >= CHAR_POOL_SIZE {
@@ -270,7 +270,7 @@ impl DrawCtx<'_> {
         }
 
         let idx = col as usize * self.lines as usize + line as usize;
-        // Dragon egg #15: bounds-check + direct indexing for color_map.
+        // Cosmic Dragon egg #15: bounds-check + direct indexing for color_map.
         // color_map is sized cols*lines. Callers pass col < cols and
         // line < lines (from droplet iteration), but defensive check is cheap
         // and avoids Option alloc on the hot path.
@@ -300,7 +300,7 @@ impl DrawCtx<'_> {
             color_idx = v as i32;
         }
 
-        // Dragon egg #16: bounds-check + direct indexing for glitch_map.
+        // Cosmic Dragon egg #16: bounds-check + direct indexing for glitch_map.
         // idx = col*lines + line, same as color_map above. Already computed.
         if self.glitchy && idx < self.glitch_map.len() && self.glitch_map[idx] {
             // PERF: glitch_bright/glitch_dim are cached once per DrawCtx

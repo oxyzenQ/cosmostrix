@@ -301,7 +301,7 @@ impl Cloud {
                 };
 
                 if died {
-                    // Dragon egg #12: direct indexing — col comes from d.col which
+                    // Cosmic Dragon egg #12: direct indexing — col comes from d.col which
                     // is guaranteed < cols (checked at spawn). col_stat is resized
                     // to cols in spawn.rs.
                     let cs = &mut self.col_stat[col as usize];

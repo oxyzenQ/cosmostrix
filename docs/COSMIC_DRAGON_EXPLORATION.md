@@ -1,8 +1,8 @@
-# Dragon Experimental — Future Technology Explorations
+# Cosmic Dragon Experimental — Future Technology Explorations
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> **Branch**: `dragon-experimental`
+> **Branch**: `cosmic-dragon-experimental`
 > **Status**: research / prototyping / NOT for production
 > **Purpose**: explore bleeding-edge technologies to push cosmostrix
 > beyond v13.3.0's 28K FPS headless ceiling.
@@ -312,7 +312,7 @@ identity from "terminal rain" to "image rain". Not for main branch.
 
 ---
 
-## 4. Real Experimental Directions for dragon-experimental
+## 4. Real Experimental Directions for cosmic-dragon-experimental
 
 Based on the above, here are directions that are **actually worth
 exploring** on this branch:

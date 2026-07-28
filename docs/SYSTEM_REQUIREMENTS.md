@@ -36,7 +36,7 @@ Cosmostrix uses these Linux syscalls, each with a minimum kernel version:
 | `epoll` | 2.6 (2003) | `mio` event loop (crossterm) | Yes |
 | `timerfd` | 2.6.25 (2008) | `mio` timer (crossterm) | Yes |
 | `getrandom` | 3.17 (2015) | `rand` crate entropy | Fallback to `/dev/urandom` |
-| `io_uring` | 5.1 (2019) | NOT used — dragon-egg experiment only | No |
+| `io_uring` | 5.1 (2019) | NOT used — cosmic-dragon-egg experiment only | No |
 
 **Practical minimum: Linux 2.6.27** (December 2008). This covers:
 - CentOS 6+ (2.6.32)
@@ -249,7 +249,7 @@ matrix.
 - **systemd** — uses `signal_hook` + `fork`, not systemd notify
 - **D-Bus** — no desktop integration dependencies
 - **X11/Wayland** — terminal-only, no display server
-- **io_uring** — investigated (dragon-egg experiment), rejected as not
+- **io_uring** — investigated (cosmic-dragon-egg experiment), rejected as not
   worth the complexity at 60 FPS
 - **Network** — fully offline, no telemetry or update checks by default
   (`--check-update` is opt-in)

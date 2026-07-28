@@ -98,7 +98,7 @@ If your `config.toml` contains any of these keys, run
 
 ### Headline
 
-The Dragon now sees its own future. Three levers — `PREDICTION_HORIZON`
+The Cosmic Dragon now sees its own future. Three levers — `PREDICTION_HORIZON`
 raised from 4 to 12, skip-draw on small droplet advances, and a new
 `set_persistent()` mechanism in `frame.rs` — collapsed the dirty-cell
 ratio from 18.33% to 0.39% on the cinematic baseline (200×60). Average
@@ -139,7 +139,7 @@ a separate scene rather than a replacement.
 
 ---
 
-## v15.0.0 — The Dragon (Pre-Release Polish)
+## v15.0.0 — The Cosmic Dragon (Pre-Release Polish)
 
 ### Breaking Changes
 
@@ -203,9 +203,9 @@ a separate scene rather than a replacement.
 
 ### Removed (dead code)
 
-- **`src/dragon_engine/`** — 7-file pure re-export namespace wrapper
+- **`src/cosmic_dragon_engine/`** — 7-file pure re-export namespace wrapper
   that nothing in the codebase ever consumed. Only the
-  `mod dragon_engine;` declaration in `main.rs` referenced it; the
+  `mod cosmic_dragon_engine;` declaration in `main.rs` referenced it; the
   submodules all carried `#![allow(unused_imports)]` because Rust's
   own warning system flagged every re-export as unused.
 
@@ -255,7 +255,7 @@ a separate scene rather than a replacement.
 
 ### Documentation
 
-- `docs/RULES.md` updated with the v15 Dragon architecture and the
+- `docs/RULES.md` updated with the v15 Cosmic Dragon architecture and the
   1200-LOC per-file cap is now enforced.
 - `docs/ATMOSPHERE_ENGINE.md` documents the 5-phase adaptive breath.
 - `docs/ATMOSPHERE_EXPANSION.md` covers custom time mapping via
@@ -481,10 +481,10 @@ All 747 tests pass (731 existing + 16 new cli_parse tests). Clippy + fmt clean.
 
 ---
 
-## v13.3.1 — Dragon Performance Merge (18 Dragon Eggs + P1/P2/P3)
+## v13.3.1 — Cosmic Dragon Performance Merge (18 Cosmic Dragon Eggs + P1/P2/P3)
 
-Performance-only patch release. Merges the `dragon-experimental`
-branch: 8 commits containing 18 "dragon egg" micro-optimizations
+Performance-only patch release. Merges the `cosmic-dragon-experimental`
+branch: 8 commits containing 18 "cosmic dragon egg" micro-optimizations
 plus 3 P-tier optimizations (P1/P2/P3). No color/render quality
 changes — all commits are pure performance work.
 
@@ -503,10 +503,10 @@ Saves ~250µs/frame in interactive mode (50% reduction in spin timing).
 
 - `terminal.flush_ansi()` combines `SYNC_START + ansi_buf + SYNC_END`
   into a single `write_all` via reusable buffer. Reduces syscalls 3→1.
-- `dragon_egg_io_uring.rs` proves io_uring NOT worth it: `write()`
+- `cosmic_dragon_egg_io_uring.rs` proves io_uring NOT worth it: `write()`
   syscall is 306ns/call = 0.0018% CPU at 60 FPS. Dead end.
 
-### 18 Dragon Eggs: Eliminate Redundant Bounds Checks + Option Allocs
+### 18 Cosmic Dragon Eggs: Eliminate Redundant Bounds Checks + Option Allocs
 
 All 18 eggs: `.get(i)` → direct `[]` indexing when `i` was already
 bounds-checked. 2-3 cycles faster per call.
@@ -538,7 +538,7 @@ Peak 4×4: 1,082,251 → 1,122,334 FPS (+3.7%)
 - No color palette changes
 - No rendering logic changes
 - No visual quality changes
-- 731 tests pass (729 existing + 2 dragon egg tests)
+- 731 tests pass (729 existing + 2 cosmic dragon egg tests)
 - `supercharger.c`/`supercharger.rs` are research artifacts, gated
   behind feature flag, NOT compiled by default
 

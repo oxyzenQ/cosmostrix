@@ -663,7 +663,7 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 ///
 /// Final calibration: front layer restored to full 1.0 brightness. The
 /// front layer must be the brightest, most vivid layer — it is the neon
-/// "dragon's breath" that defines the scene. Reducing it muted the whole
+/// "cosmic dragon's breath" that defines the scene. Reducing it muted the whole
 /// composition. Back and mid keep their previously tuned values so the
 /// depth hierarchy (back < mid < front) is preserved.
 ///   - Back  (0): 0.40 (kept — distant rain visible as atmospheric depth)

@@ -591,7 +591,7 @@ impl Terminal {
             // Most dirty cells are unchanged (set to blank by tail pass);
             // this avoids copying ~24 bytes per Cell for early-exit.
             let cell0_ref = frame.cell_at_index_ref(idx0);
-            // Dragon egg #2: direct indexing — dirty_flat was filtered to
+            // Cosmic Dragon egg #2: direct indexing — dirty_flat was filtered to
             // idx < height*width, so idx0 is guaranteed in bounds.
             // BEFORE: last.cells.get(idx0) == Some(cell0_ref)
             // AFTER:  &last.cells[idx0] == cell0_ref
@@ -628,7 +628,7 @@ impl Terminal {
                 }
 
                 let cell1_ref = frame.cell_at_index_ref(idx1);
-                // Dragon egg #3: direct indexing — idx1 from dirty_flat (filtered).
+                // Cosmic Dragon egg #3: direct indexing — idx1 from dirty_flat (filtered).
                 if &last.cells[idx1] == cell1_ref {
                     break;
                 }

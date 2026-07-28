@@ -1,9 +1,9 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Dragon Egg: io_uring vs write() syscall comparison.
+//! Cosmic Dragon Egg: io_uring vs write() syscall comparison.
 //!
-//! EXPERIMENTAL — dragon-experimental branch only.
+//! EXPERIMENTAL — cosmic-dragon-experimental branch only.
 //!
 //! This is a standalone benchmark comparing:
 //! 1. Standard write() syscall (what cosmostrix uses now)
@@ -25,8 +25,8 @@
 //!
 //! ## Build (standalone)
 //! ```sh
-//! gcc -O2 -o dragon_egg_io_uring src/dragon_egg_io_uring.c -luring
-//! ./dragon_egg_io_uring
+//! gcc -O2 -o cosmic_dragon_egg_io_uring src/cosmic_dragon_egg_io_uring.c -luring
+//! ./cosmic_dragon_egg_io_uring
 //! ```
 //!
 //! ## Output
@@ -40,7 +40,7 @@ mod tests {
     /// Measure write() syscall overhead to /dev/null.
     /// This is the baseline — what cosmostrix currently does.
     #[test]
-    fn dragon_egg_measure_write_syscall_overhead() {
+    fn cosmic_dragon_egg_measure_write_syscall_overhead() {
         let data = [0u8; 8192];
         let dev_null = std::fs::OpenOptions::new()
             .write(true)
@@ -68,7 +68,7 @@ mod tests {
         let elapsed = start.elapsed();
         let per_call_ns = elapsed.as_nanos() as f64 / n as f64;
 
-        eprintln!("=== Dragon Egg: write() syscall overhead ===");
+        eprintln!("=== Cosmic Dragon Egg: write() syscall overhead ===");
         eprintln!("  {} writes in {:.3?}", n, elapsed);
         eprintln!(
             "  per call: {:.0} ns = {:.3} µs",
@@ -107,12 +107,12 @@ mod tests {
     /// write() = ~1000ns (syscall + kernel context switch).
     /// Savings per write = ~900ns.
     #[test]
-    fn dragon_egg_theoretical_io_uring_savings() {
+    fn cosmic_dragon_egg_theoretical_io_uring_savings() {
         let write_cost_ns = 1000.0; // measured above (approx)
         let io_uring_cost_ns = 100.0; // literature value for submission
         let savings_per_write_ns = write_cost_ns - io_uring_cost_ns;
 
-        eprintln!("=== Dragon Egg: theoretical io_uring savings ===");
+        eprintln!("=== Cosmic Dragon Egg: theoretical io_uring savings ===");
         eprintln!("  write() cost: {:.0} ns/call", write_cost_ns);
         eprintln!("  io_uring submit cost: {:.0} ns/call", io_uring_cost_ns);
         eprintln!("  savings per write: {:.0} ns", savings_per_write_ns);

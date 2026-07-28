@@ -761,7 +761,7 @@ pub(super) fn color_for_level(
     } else {
         ctx.active_palette_slot
     };
-    // Dragon egg #18: direct indexing with bounds check instead of .get().copied().unwrap_or().
+    // Cosmic Dragon egg #18: direct indexing with bounds check instead of .get().copied().unwrap_or().
     // palette_slices is a fixed array [T; MAX_PALETTE_SLOTS] (4 elements).
     let slot_idx = effective_slot as usize;
     let mut colors = if slot_idx < MAX_PALETTE_SLOTS {

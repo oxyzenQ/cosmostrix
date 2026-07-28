@@ -181,7 +181,7 @@ impl Cloud {
         // O(N) linear scan per fresh cell — 5,000-100,000 wasted ops/frame.
         // The BitVec membership check is O(1) and eliminates the bottleneck.
         for &pidx in &tracked_fresh {
-            // Dragon egg #9: direct BitVec indexing — pidx from tracked_fresh
+            // Cosmic Dragon egg #9: direct BitVec indexing — pidx from tracked_fresh
             // was pushed after bounds-check in the loop above.
             if !self.phosphor_in_active[pidx] {
                 self.phosphor_active.push(pidx);
@@ -219,7 +219,7 @@ impl Cloud {
                 continue;
             }
 
-            // Dragon egg #10: direct BitVec indexing — pidx from phosphor_active
+            // Cosmic Dragon egg #10: direct BitVec indexing — pidx from phosphor_active
             // was pushed after bounds-check.
             if self.phosphor_fresh[pidx] {
                 i += 1;

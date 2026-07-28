@@ -254,7 +254,7 @@ DIAGNOSTICS:
   --doctor       Build info, renderer details, environment diagnostics, and
       terminal compatibility check. (v17: --info merged into --doctor)
   --docs         Print engine documentation and architecture overview.
-      Plain-text dump of the Dragon diff-based rendering engine: the
+      Plain-text dump of the Cosmic Dragon diff-based rendering engine: the
       five cooperating subsystems (diff-based cell renderer, 3-layer
       parallax, phosphor persistence, density noise + wind gusts,
       adaptive atmosphere engine), the performance profile, and the
@@ -299,7 +299,7 @@ RUNTIME CONTROLS:
   i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
   H or h        Move HUD to opposite corner (left ↔ right)
 
-ADAPTIVE ATMOSPHERE (default, v15 Dragon):
+ADAPTIVE ATMOSPHERE (default, v15 Cosmic Dragon):
   Cosmostrix breathes with the local time of day. Five emotional phases
   modulate rain density, speed, brightness, glitch, AND color scheme:
 

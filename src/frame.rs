@@ -170,7 +170,7 @@ impl Frame {
     #[must_use]
     #[inline]
     pub fn cell_gen_at_index(&self, i: usize) -> u32 {
-        // Dragon egg #6: direct indexing. Caller is expected to pass a valid
+        // Cosmic Dragon egg #6: direct indexing. Caller is expected to pass a valid
         // index (from dirty_indices() or index()). Using .get().copied().unwrap_or(0)
         // adds Option alloc + unwrap_or branching. Direct indexing is a single load.
         // If i is out of bounds, this panics (same as cells[i] would) — which is
@@ -222,7 +222,7 @@ impl Frame {
     #[allow(dead_code)]
     pub fn get(&self, x: u16, y: u16) -> Option<&Cell> {
         self.index(x, y).map(|i| {
-            // Dragon egg #7: direct indexing — i from index() is bounds-checked.
+            // Cosmic Dragon egg #7: direct indexing — i from index() is bounds-checked.
             if self.cell_gen[i] == self.gen {
                 &self.cells[i]
             } else {
@@ -258,7 +258,7 @@ impl Frame {
     #[inline]
     pub fn set(&mut self, x: u16, y: u16, cell: Cell) {
         if let Some(i) = self.index(x, y) {
-            // P3 dragon egg: direct indexing instead of .get().copied() == Some().
+            // P3 cosmic dragon egg: direct indexing instead of .get().copied() == Some().
             // The index() call above already bounds-checked i. Using direct
             // indexing here avoids the redundant bounds check in .get() and
             // the Option allocation in .copied().
@@ -301,7 +301,7 @@ impl Frame {
     #[inline]
     pub fn set_force(&mut self, x: u16, y: u16, cell: Cell) {
         if let Some(i) = self.index(x, y) {
-            // Dragon egg #1: direct indexing — index() already bounds-checked.
+            // Cosmic Dragon egg #1: direct indexing — index() already bounds-checked.
             self.cells[i] = cell;
             self.cell_gen[i] = self.gen;
             // Double-buffered dirty mark — see set() for explanation.
@@ -312,7 +312,7 @@ impl Frame {
         }
     }
 
-    /// dragon-temporal peak: mark a cell as dirty for the current frame
+    /// cosmic-dragon-temporal peak: mark a cell as dirty for the current frame
     /// WITHOUT changing its content. The cell's existing content (from a
     /// previous frame's draw) is preserved and re-emitted to the terminal.
     ///

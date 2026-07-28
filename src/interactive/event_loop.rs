@@ -197,7 +197,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     //
     // Owner design: start with the user's config color (e.g. Green3),
     // then after 30s shift to the adaptive target. This gives the user
-    // a brief moment to see their chosen color before the Dragon breathes.
+    // a brief moment to see their chosen color before the Cosmic Dragon breathes.
     let mut last_color_check = Instant::now();
     let mut last_adaptive_color: Option<&str> = None;
     const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
@@ -268,7 +268,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         //      "color auto-changes without my consent" bug from commit
         //      5172f39's default-flip.
         //
-        // v15 Dragon: custom time map is decoupled from atmosphere_mode so
+        // v15 Cosmic Dragon: custom time map is decoupled from atmosphere_mode so
         // defining adaptive-custom.* is sufficient to enable scheduling.
         let now = Instant::now();
         if now.duration_since(last_color_check) >= COLOR_CHECK_INTERVAL {

@@ -126,9 +126,9 @@ are detected. The guard catches:
 If a future test genuinely needs the current package version, use
 `env!("CARGO_PKG_VERSION")` — never hardcode the literal string.
 
-## v15 Dragon Architecture
+## v15 Cosmic Dragon Architecture
 
-The Dragon release introduces several major subsystems. All new code must
+The Cosmic Dragon release introduces several major subsystems. All new code must
 follow these architectural rules.
 
 ### Atmosphere Engine

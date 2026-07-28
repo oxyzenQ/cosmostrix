@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! # Dragon Egg — Experimental Benchmarks
+//! # Cosmic Dragon Egg — Experimental Benchmarks
 //!
 //! Standalone benchmarks that probe the cost of low-level operations
 //! (syscalls, allocator behavior, cache effects) to inform future
@@ -17,10 +17,10 @@
 //!
 //! ## Policy
 //!
-//! Dragon-egg benchmarks are **honest experiments**: they measure, report
+//! Cosmic Dragon-egg benchmarks are **honest experiments**: they measure, report
 //! findings, and inform decisions. They do NOT become production code paths.
 //! When an experiment concludes, its findings are documented in
-//! `docs/DRAGON_FINDINGS.md` and the benchmark itself stays here as a
+//! `docs/COSMIC_DRAGON_FINDINGS.md` and the benchmark itself stays here as a
 //! reproducible record.
 
 #[cfg(test)]

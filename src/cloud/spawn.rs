@@ -358,7 +358,7 @@ impl Cloud {
         if !self.glitchy {
             return false;
         }
-        // Dragon egg #14: bounds-check + direct indexing instead of .get().
+        // Cosmic Dragon egg #14: bounds-check + direct indexing instead of .get().
         // glitch_map is sized cols*lines. idx = col*lines + line.
         // Callers ensure line < lines (checked in do_glitch_span loop),
         // but col may not be checked. Use a single bounds check + direct index.

@@ -158,7 +158,7 @@ benefits from large-screen amortization — a 12×12 micro-screen benchmark:
 | Alloc calls per frame | 0.2 |
 | Energy per frame | 27.4 µJ |
 
-At **1M+ peak FPS**, the engine proves the Dragon architecture has no
+At **1M+ peak FPS**, the engine proves the Cosmic Dragon architecture has no
 structural bottlenecks — the ~16× FPS increase from 120×40 to 12×12
 tracks the ~13.3× cell count reduction (4800 → 144), confirming linear
 scaling. RSS stays at 4.7 MiB regardless of screen size.
@@ -207,7 +207,7 @@ architecture specification of cosmostrix's diff-based rendering engine,
 including complexity analysis, design rationale, and comparison vs
 alternative rendering strategies.
 
-## v15.0.0 — The Dragon (Pre-Release Polish)
+## v15.0.0 — The Cosmic Dragon (Pre-Release Polish)
 
 Release benchmark from `pro-linux-v3` binary (commit `ef15930`,
 2026-07-19). Default 120×40 terminal size. 30s duration, two consecutive
@@ -269,7 +269,7 @@ governor, SMT on.
 ### Notes
 
 - **+3.7% avg FPS, +5.4% peak FPS** over v14 on the same machine.
-  Dead code removal (dragon_engine namespace, dump_profile,
+  Dead code removal (cosmic_dragon_engine namespace, dump_profile,
     reset_max) and dirty_map `BitVec` → `Vec<u8>` migration
   contribute. No algorithmic changes — pure cleanup dividend.
 - **RSS dropped 2.0%** (4.9 → 4.8 MiB) despite more runtime features

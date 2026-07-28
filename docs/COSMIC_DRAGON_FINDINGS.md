@@ -1,8 +1,8 @@
-# Dragon Experimental — Limit Finding Results
+# Cosmic Dragon Experimental — Limit Finding Results
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> **Branch**: `dragon-experimental`
+> **Branch**: `cosmic-dragon-experimental`
 > **Date**: 2026-07-09
 > **Hardware**: Intel Xeon (sandbox), 3 GHz class
 > **Build**: `cargo build --release` (x86-64-v1 baseline, SSE2)
@@ -224,7 +224,7 @@ is a dead end (<5% gain, high complexity).
 
 All experiments run with:
 ```
-cosmostrix v13.3.0 (commit f676143, dragon-experimental branch)
+cosmostrix v13.3.0 (commit f676143, cosmic-dragon-experimental branch)
 Build: linux-amd64-v1-gnu (release profile, SSE2 baseline)
 Hardware: Intel Xeon, 3 GHz class, Linux 5.10
 Rustc: 1.96.1

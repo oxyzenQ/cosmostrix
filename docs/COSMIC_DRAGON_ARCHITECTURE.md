@@ -1,18 +1,18 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Deep Dragon Architecture
+# Deep Cosmic Dragon Architecture
 
-Cosmostrix v15 "The Dragon" is built on a **defense-in-depth** philosophy.
+Cosmostrix v15 "The Cosmic Dragon" is built on a **defense-in-depth** philosophy.
 Every critical path has multiple recovery layers, so if one fails, the next
-catches it. This document maps the Dragon's anatomy to the actual codebase
+catches it. This document maps the Cosmic Dragon's anatomy to the actual codebase
 layers and explains how the "deep" structure provides world-class reliability.
 
-## The 7-Layer Dragon
+## The 7-Layer Cosmic Dragon
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Layer 7: Dragon Incubator (src/dragon/)                        │
+│  Layer 7: Cosmic Dragon Incubator (src/cosmic_dragon/)                        │
 │  Experimental features, future v15+ subsystems                  │
 │  → Never touches stable engine internals                         │
 ├─────────────────────────────────────────────────────────────────┤
@@ -45,7 +45,7 @@ layers and explains how the "deep" structure provides world-class reliability.
 
 ## Defense-in-Depth: Terminal Recovery
 
-The `--reset-terminal` feature is the exemplar of the Dragon's defense-in-depth
+The `--reset-terminal` feature is the exemplar of the Cosmic Dragon's defense-in-depth
 philosophy. When `kill -9` (SIGKILL) hits cosmostrix, the process dies instantly
 — no cleanup runs. The terminal is left in a broken state:
 
@@ -95,7 +95,7 @@ The restore/reset sequences were expanded with 4 additional mode resets:
 
 ## Defense-in-Depth: Process Lifecycle
 
-The Dragon survives every kill signal through a 3-layer process guard:
+The Cosmic Dragon survives every kill signal through a 3-layer process guard:
 
 ```
                     ┌──────────────────────────────┐
@@ -229,7 +229,7 @@ Only `q` or a mouse click (screensaver + --mouse) exits.
 
 ## Module Organization
 
-The Dragon's codebase is organized by responsibility:
+The Cosmic Dragon's codebase is organized by responsibility:
 
 | Layer | Modules | LOC | Tests |
 |-------|---------|-----|-------|
@@ -240,11 +240,11 @@ The Dragon's codebase is organized by responsibility:
 | Config System | config.rs, config_apply.rs, configfile.rs, testconf.rs, safepath.rs | ~2,500 | 100+ |
 | CLI + Helpers | cli.rs, output.rs, help_detail.rs, info.rs, ux.rs, verbose.rs | ~1,500 | 30+ |
 | Diagnostics | bench*.rs (16 files), doctor.rs, report.rs | ~4,000 | 40+ |
-| Dragon Incubator | dragon/ (egg/) | ~200 | 2 |
+| Cosmic Dragon Incubator | cosmic_dragon/ (egg/) | ~200 | 2 |
 
 **Total: 128 files, 45K+ LOC, 874 tests.**
 
-## The Dragon's Promise
+## The Cosmic Dragon's Promise
 
 1. **No silent failures** — every error prints a message and exits with
    a meaningful code (0 = success, 1 = runtime error, 2 = config/input error)

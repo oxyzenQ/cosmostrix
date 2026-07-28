@@ -274,13 +274,13 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // file under its 1000-LOC guard.
     crate::envstat::render_section(&mut r, &data.env);
 
-    // ── DRAGON ENGINE METRICS ─────────────────────────────────────────
+    // ── COSMIC DRAGON ENGINE METRICS ─────────────────────────────────────────
     // All engine-specific metrics grouped under this header.
     {
-        let s = r.section("DRAGON ENGINE METRICS");
+        let s = r.section("COSMIC DRAGON ENGINE METRICS");
         s.field(
             "engine",
-            "cosmostrix dragon engine (diff-based + RLE + phosphor)",
+            "cosmostrix cosmic dragon engine (diff-based + RLE + phosphor)",
         );
         s.field("version", env!("CARGO_PKG_VERSION"));
     }

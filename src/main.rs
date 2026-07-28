@@ -101,12 +101,12 @@ mod config_apply_profiles_tests;
 mod config_apply_tests;
 mod configfile;
 mod constants;
+mod cosmic_dragon;
 mod cpustat;
 mod diagnostics;
 #[cfg(test)]
 mod docs_tests;
 mod doctor;
-mod dragon;
 mod droplet;
 mod envstat;
 mod frame;
@@ -706,7 +706,7 @@ fn main() -> std::io::Result<()> {
 
     // Atmosphere resolution: default is Disabled (no auto color change).
     // User must explicitly set atmosphere-mode = controlled-live + regime
-    // in config or CLI to enable the Dragon's adaptive breathing.
+    // in config or CLI to enable the Cosmic Dragon's adaptive breathing.
     // This prevents unwanted color shifts when the user just wants static rain.
     let atmosphere_mode =
         config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Live config reload — "The Dragon's true Awakening".
+//! Live config reload — "The Cosmic Dragon's true Awakening".
 //!
 //! Watches config.toml for changes, validates strictly, and sends the
 //! validated config HashMap to the render thread for a full Cloud rebuild.
