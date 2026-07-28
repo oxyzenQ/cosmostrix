@@ -802,4 +802,29 @@ mod tests {
         assert_eq!(p.charset.as_deref(), Some("katakana"));
         assert_eq!(p.glitch_level.as_deref(), Some("none"));
     }
+
+    /// v25.6 depth-test fix: regression guard for `cp.scene` application.
+    /// Depth-test reported `adaptive-custom.10-00 = cosmos, monolith, ...`
+    /// at 10:18 WIB didn't switch scene to monolith. Root cause: cp.scene
+    /// was parsed but never applied in event_loop. The fix calls
+    /// cloud.apply_scene_runtime when cp.scene != current scene_name. This
+    /// test verifies the parser produces a non-None scene field that the
+    /// event loop can honor — the actual application is exercised via the
+    /// integration smoke test in event_loop_tests.
+    #[test]
+    fn params_at_returns_scene_field_for_event_loop_application() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "adaptive-custom.10-00".to_string(),
+            "cosmos, monolith, speed=15, density=1.2".to_string(),
+        );
+        let map = parse_custom_time_map(&cfg).unwrap();
+        assert_eq!(map.points.len(), 1);
+        assert_eq!(map.points[0].minutes, 600); // 10*60+0
+        let p = map.params_at(10.3).unwrap();
+        assert_eq!(p.scene.as_deref(), Some("monolith"));
+        assert_eq!(p.color.as_deref(), Some("cosmos"));
+        assert_eq!(p.speed, Some(15.0));
+        assert_eq!(p.density, Some(1.2));
+    }
 }

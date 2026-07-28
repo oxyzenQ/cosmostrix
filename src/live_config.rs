@@ -260,7 +260,6 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             ));
             continue;
         }
-        // v25.3: trace event receipt (Termux debugging).
         let event = event_result.as_ref().expect("checked is_err above");
         lr_trace!(
             "event loop received event: kind={:?} paths={:?}",
@@ -268,7 +267,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             event.paths
         );
 
-        // v25.5 strengthening: classify event source for liveness.
+        // v25.5: classify event source for liveness diagnostic.
         let is_native_event = matches!(
             event.kind,
             EventKind::Modify(notify::event::ModifyKind::Data(_))
@@ -309,10 +308,8 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
 }
 
 /// Process a single notify event. Returns `false` if the channel is closed.
-///
-/// **Dedup (v25.1)**: snapshots mtime + size + content hash. If equal to
-/// `last_processed_state` on all three signals, drops as duplicate.
-/// Critical on Android Termux where mtime is unreliable.
+/// Dedup (v25.1): mtime + size + content hash; drops if all three equal
+/// `last_processed_state`. Critical on Android Termux where mtime is unreliable.
 #[allow(clippy::too_many_arguments)]
 fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
@@ -391,13 +388,11 @@ fn handle_notify_event(
                 event.kind
             );
 
-            // v25.4 strengthening: signal the polling heartbeat that a
-            // change was accepted, so it enters burst mode (200ms × 5
-            // cycles) to catch rapid follow-up edits from formatters.
+            // v25.4 strengthening: signal polling heartbeat to enter burst
+            // mode (200ms × 5 cycles) to catch rapid follow-up edits.
             change_counter.fetch_add(1, Ordering::AcqRel);
 
-            // Reparse config using parse_config_text (not load_config_file)
-            // so we can check malformed_lines AND unknown_keys.
+            // Reparse via parse_config_text to catch malformed_lines AND unknown_keys.
             let content = match std::fs::read_to_string(path) {
                 Ok(c) => c,
                 Err(_) => return true,
@@ -410,8 +405,7 @@ fn handle_notify_event(
                 parsed.unknown_keys.len()
             );
             if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
-                lr_trace!("empty parse result — skipping (likely empty/whitespace-only file)");
-                return true;
+                return true; // empty parse — likely empty/whitespace-only file
             }
 
             if let Err(msg) = validate_and_send(&parsed, tx) {
@@ -473,8 +467,8 @@ fn validate_and_send(
         Ok(()) => {
             lr_trace!("strict validation OK — sending config to render thread");
             if tx.send(Ok(cfg.clone())).is_err() {
-                lr_trace!("channel closed during send (Ok) — caller will exit");
-                return Ok(()); // channel closed — caller will exit
+                lr_trace!("channel closed during send (Ok)");
+                return Ok(());
             }
             Ok(())
         }
@@ -1184,9 +1178,23 @@ mod tests {
         base.cli_explicit.scene = false;
         base.speed = 25.0;
         let new = rebuild_cloud_config(&base, &cfg);
-        assert_eq!(
-            new.speed, 25.0,
-            "CLI --speed 25 must NOT be overridden by scene=matrix speed=18"
-        );
+        assert_eq!(new.speed, 25.0, "CLI --speed wins over scene default");
+    }
+
+    /// v25.6 FIX D: validate_and_send returns Err on bad config, but the
+    /// render thread NO LONGER sets LIVE_RELOAD_EXIT_CODE — only true
+    /// watcher-thread panics do. Verifies Err(msg) is returned AND exit
+    /// code remains 0 (caller stores in LIVE_RELOAD_ERROR, doesn't
+    /// escalate). Without this guard, a single typo mid-edit would kill
+    /// the entire session.
+    #[test]
+    fn validate_and_send_returns_err_without_setting_exit_code() {
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut parsed = configfile::ParsedConfig::default();
+        parsed.unknown_keys.push("color.tune.bold".to_string());
+        let result = validate_and_send(&parsed, &tx);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("color.tune.bold"));
+        assert_eq!(LIVE_RELOAD_EXIT_CODE.load(Ordering::Acquire), 0);
     }
 }

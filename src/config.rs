@@ -215,10 +215,19 @@ pub struct Args {
     #[arg(
         short = 'C',
         long = "charset",
+        // v25.6 depth-test fix: --charset-custom as alias. Depth-test user
+        // expected `--charset-custom cat` to work by analogy with
+        // --colors-custom and --scene-custom. The existing --charset flag
+        // already handles BOTH built-in presets AND custom names (loaded
+        // from [charset-custom.<name>] in config.toml), so the alias is
+        // pure UX parity — no behavioral difference. Clap's `alias`
+        // (not `long_alias`) makes the alternate name visible in --help
+        // suggestions and error tips.
+        alias = "charset-custom",
         default_value = "binary",
         help_heading = "COMMON OPTIONS",
         display_order = 20,
-        help = "Character set (see --list-charsets)"
+        help = "Character set (see --list-charsets). Accepts built-in presets or custom names from [charset-custom.<name>]."
     )]
     pub charset: String,
 

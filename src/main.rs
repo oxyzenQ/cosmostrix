@@ -444,13 +444,27 @@ fn main() -> std::io::Result<()> {
         return testconf::run(&args);
     }
 
-    if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
-        ux::die_config(e);
-    }
-    canonicalize_runtime_args(&mut args);
-
+    // v25.6 depth-test fix: --list-* and --show-scene bypass strict config
+    // validation. Depth-test user with `charset-custom.long2.set` exceeding
+    // the 256-char limit could not run `--list-charsets` because the strict
+    // validation in apply_config_and_runtime_defaults killed the process
+    // before list-commands ran. List/show commands only need to READ the
+    // config (non-strict — bad keys are silently dropped by load_config_file),
+    // not validate it. They use load_config_file(None) internally so the
+    // user-supplied --config path is irrelevant for them. Path-security
+    // validation for --show-scene is preserved (its existing inline check).
     if args.list_scenes {
         print_list_scenes();
+        return Ok(());
+    }
+
+    if args.list_charsets {
+        print_list_charsets();
+        return Ok(());
+    }
+
+    if args.list_colors {
+        print_list_colors();
         return Ok(());
     }
 
@@ -473,15 +487,10 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    if args.list_charsets {
-        print_list_charsets();
-        return Ok(());
+    if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
+        ux::die_config(e);
     }
-
-    if args.list_colors {
-        print_list_colors();
-        return Ok(());
-    }
+    canonicalize_runtime_args(&mut args);
 
     if args.help_detail {
         help_detail::print_help_detail();
@@ -1063,10 +1072,15 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Live-reload exit: if watcher detected invalid config, print error
-    // to stderr NOW (after Terminal::drop restored the terminal from
-    // alternate-screen mode). Printing during the rain loop would be
-    // swallowed by the alternate screen — user wouldn't see it.
+    // Live-reload fatal exit: only fires when the watcher THREAD itself
+    // panicked (e.g. terminal closed mid-event). v25.6 depth-test fix:
+    // validation errors (unknown keys, malformed lines, invalid values)
+    // NO LONGER set the exit code — the rain keeps running on the last
+    // valid config and the user can fix the typo and save again. Only
+    // true watcher-thread panics reach this path. Print to stderr NOW
+    // (after Terminal::drop restored the terminal from alternate-screen
+    // mode). Printing during the rain loop would be swallowed by the
+    // alternate screen — user wouldn't see it.
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
         if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
             if let Some(ref msg) = *guard {

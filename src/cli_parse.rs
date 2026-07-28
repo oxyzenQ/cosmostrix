@@ -321,4 +321,39 @@ mod tests {
         assert_eq!(parse_screen_size("65535x65535").unwrap(), (65535, 65535));
         assert_eq!(parse_screen_size("1000x1000").unwrap(), (1000, 1000));
     }
+
+    // ── v25.6 depth-test: --charset-custom alias tests ────────────────
+
+    /// v25.6 depth-test fix: --charset-custom is now an alias for --charset.
+    /// Depth-test user expected `--charset-custom cat` to work by analogy
+    /// with --colors-custom and --scene-custom. The existing --charset
+    /// already handles BOTH built-in presets AND custom names, so the alias
+    /// is pure UX parity. These tests verify clap accepts both forms and
+    /// routes them to the same `charset` field.
+    #[test]
+    fn charset_custom_alias_resolves_to_charset_field() {
+        use crate::config::Args;
+        use clap::Parser;
+        // Long form --charset-custom
+        let args = Args::try_parse_from(["cosmostrix", "--charset-custom", "cat"]).unwrap();
+        assert_eq!(args.charset, "cat");
+    }
+
+    #[test]
+    fn charset_long_form_still_works() {
+        use crate::config::Args;
+        use clap::Parser;
+        // Original --charset long form must still work after alias addition.
+        let args = Args::try_parse_from(["cosmostrix", "--charset", "hex"]).unwrap();
+        assert_eq!(args.charset, "hex");
+    }
+
+    #[test]
+    fn charset_short_form_still_works() {
+        use crate::config::Args;
+        use clap::Parser;
+        // Short -C form must still work.
+        let args = Args::try_parse_from(["cosmostrix", "-C", "binary"]).unwrap();
+        assert_eq!(args.charset, "binary");
+    }
 }

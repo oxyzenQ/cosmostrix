@@ -184,9 +184,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
-    // v25.5 strengthening: track last-applied config map for diff trace.
+    // v25.5: track last-applied config map for diff trace.
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> = None;
-
     // Adaptive color shift: check current hour's target color every 30s.
     let mut last_color_check = Instant::now();
     let mut last_adaptive_color: Option<&str> = None;
@@ -232,17 +231,18 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         pending_config = Some(cfg);
                     }
                     Err(msg) => {
+                        // v25.6 depth-test fix: validation errors NO LONGER kill
+                        // the process. A typo mid-edit shouldn't destroy the
+                        // session. Watcher already wrote `[live-reload] {msg}` to
+                        // stderr. Keep cloud.raining true, retain last valid
+                        // config (pending_config not overwritten). Next save
+                        // fires another watcher event; if valid, reload proceeds.
                         crate::lr_trace!(
-                            "render thread: config validation error — requesting exit"
+                            "render thread: config validation error — retained last valid config, rain continues"
                         );
-                        // Store error for main.rs to print AFTER terminal
-                        // restore. Printing here (alternate-screen) = invisible.
                         if let Ok(mut guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
                             *guard = Some(msg);
                         }
-                        crate::live_config::LIVE_RELOAD_EXIT_CODE.store(2, Ordering::Release);
-                        cloud.raining = false;
-                        break;
                     }
                 }
             }
@@ -267,7 +267,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             // Built-in theme found.
                             if scheme != cloud.color_scheme() {
                                 cloud.set_color_scheme(scheme);
-                                // color scheme updated via cloud.set_color_scheme()
                             }
                         } else {
                             // Not a built-in theme — try custom color from config.
@@ -306,18 +305,29 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             }
                         }
                     }
+                    // v25.6 depth-test fix: apply scene if changed. cp.scene
+                    // was parsed but never applied; `adaptive-custom.10-00 =
+                    // cosmos, monolith` at 10:18 stayed on cinematic.
+                    if let Some(ref scene_name_from_cp) = cp.scene {
+                        if *scene_name_from_cp != scene_name {
+                            let new_charset = cloud.apply_scene_runtime(
+                                scene_name_from_cp,
+                                &charset_preset,
+                                &user_ranges,
+                                def_ascii,
+                            );
+                            scene_name = scene_name_from_cp.clone();
+                            charset_preset = new_charset;
+                        }
+                    }
                 }
             } else if cfg.atmosphere_mode.allows_modulation() {
-                // Built-in adaptive engine — only when atmosphere is
-                // explicitly enabled (controlled-live + adaptive regime).
-                // When atmosphere_mode = Disabled (the default), this branch
-                // is skipped and the rain keeps the user's startup color.
+                // Built-in adaptive engine (controlled-live + adaptive regime).
                 if let Some(target) = crate::atmosphere_adaptive::current_color_target() {
                     if last_adaptive_color != Some(target) {
                         if let Ok(scheme) = crate::cli::parse_color_scheme(target) {
                             cloud.set_color_scheme(scheme);
                             last_adaptive_color = Some(target);
-                            // color scheme updated via cloud.set_color_scheme()
                         }
                     }
                 }
@@ -342,7 +352,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 new_cfg.target_fps,
             );
 
-            // v25.5 strengthening: field-level config diff trace.
+            // v25.5: field-level config diff trace.
             let mut changed: Vec<String> = Vec::new();
             let mut added: Vec<String> = Vec::new();
             let mut removed: Vec<String> = Vec::new();
@@ -420,10 +430,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     None
                 }
             };
-            // v25.5 depth-test fix: recompute target_period/idle_period
-            // from new target_fps. Guard against fps <= 0.
-            let safe_fps = if new_cfg.target_fps > 0.0 {
-                new_cfg.target_fps
+            // v25.5 depth-test fix: recompute target/idle_period from new
+            // target_fps. Guard against fps <= 0.
+            let safe_fps = new_cfg.target_fps.max(0.0);
+            let safe_fps = if safe_fps > 0.0 {
+                safe_fps
             } else {
                 cfg.target_fps.max(1.0)
             };
@@ -507,19 +518,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
 
         loop {
-            // Drain all pending events. On Windows (ConPTY) and Termux
-            // (Android PTY), crossterm's event::poll/read can fail with
-            // transient I/O errors (console handle invalidation, PTY state
-            // changes). Using `?` here would propagate the error to
-            // run_interactive() and exit the program silently — the user
-            // sees cosmostrix disappear without any error message because
-            // Terminal::drop restores the alternate screen before main.rs
-            // can print the error.
-            //
-            // Fix: treat event I/O errors as non-fatal. Break out of the
-            // event drain loop and proceed to frame rendering. The next
-            // iteration will retry. Persistent failures are caught by the
-            // watchdog (10s stuck detection) and GRACEFUL_SHUTDOWN.
+            // Drain pending events. On Windows (ConPTY) and Termux (Android
+            // PTY), crossterm's event::poll/read can fail with transient I/O
+            // errors. Using `?` would propagate to run_interactive() and exit
+            // silently — Terminal::drop restores alt-screen before main.rs can
+            // print. Fix: treat event I/O errors as non-fatal; break the drain
+            // loop and proceed to frame rendering. Persistent failures are
+            // caught by the watchdog (10s stuck detection) + GRACEFUL_SHUTDOWN.
             loop {
                 match Terminal::poll_event(Duration::from_millis(0)) {
                     Ok(false) => break,
@@ -806,23 +811,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 timeout = timeout.min(end - now);
             }
 
-            // Spin-sleep hybrid: use poll_event for the bulk of the wait
-            // (which also processes input events), then spin-wait the final
-            // ~500μs for sub-millisecond deadline accuracy. This eliminates
-            // OS scheduling jitter from the frame cadence.
+            // Spin-sleep hybrid: poll_event for the bulk of the wait (also
+            // processes input events), then spin-wait the final ~500μs for
+            // sub-millisecond deadline accuracy. Eliminates OS scheduling
+            // jitter from the frame cadence.
             let spin_budget = Duration::from_micros(500);
             if timeout > spin_budget {
-                // v25: poll_event can return Err when the terminal is
-                // closed/destroyed (SIGHUP / PTY gone — crossterm's mio
-                // source returns EIO or BadFd). Propagating via `?` sends
-                // the error to main.rs, which calls `eprintln!` on broken
-                // stderr → double-panic → abort → coredump.
-                //
-                // Treat EIO/BrokenPipe as "terminal gone": stop the rain
-                // and break out of the loop, mirroring the draw() EIO
-                // guard below. The post-loop shutdown path drops Terminal
-                // (which uses `let _ =` everywhere in cleanup) and exits
-                // cleanly without writing to stderr.
+                // v25: poll_event can return Err when the terminal is closed
+                // (SIGHUP / PTY gone — crossterm's mio returns EIO/BadFd).
+                // Propagating via `?` sends the error to main.rs, which calls
+                // eprintln! on broken stderr → double-panic → abort → coredump.
+                // Treat EIO/BrokenPipe as "terminal gone": stop rain and break,
+                // mirroring the draw() EIO guard below. Post-loop shutdown
+                // drops Terminal (uses `let _ =` in cleanup) and exits cleanly.
                 match Terminal::poll_event(timeout - spin_budget) {
                     Ok(_) => {}
                     Err(e) if is_terminal_gone(&e) => {
