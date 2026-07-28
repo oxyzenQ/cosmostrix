@@ -444,11 +444,11 @@ fn config_file_path_from_env(
 
 #[must_use]
 pub fn dump_config_text() -> &'static str {
-    r##"# Cosmostrix Configuration
+    r##"# cosmostrix configuration
 
-# ═══════════════════════════════════════════════════════════════════════
+#
 # Quick Start & Override Priority
-# ═══════════════════════════════════════════════════════════════════════
+#
 #
 # The easiest way to customize is via CLI flags:
 #   cosmostrix -c neon-green --speed 20
@@ -475,9 +475,9 @@ pub fn dump_config_text() -> &'static str {
 #   cosmostrix --testconf                            # validate this config
 #   cosmostrix --doctor                              # diagnose terminal issues
 
-# ═══════════════════════════════════════════════════════════════════════
+#
 # File Location
-# ═══════════════════════════════════════════════════════════════════════
+#
 #
 #   Linux:   ~/.config/cosmostrix/config.toml
 #   macOS:   ~/.config/cosmostrix/config.toml
@@ -501,17 +501,17 @@ pub fn dump_config_text() -> &'static str {
 # will be used for any key left commented. Run `cosmostrix --testconf`
 # to validate your config after editing.
 
-# ═══════════════════════════════════════════════════════════════════════
+#
 # Standard Settings (flat key = value)
-# ═══════════════════════════════════════════════════════════════════════
+#
 
-# ── Core ──────────────────────────────────────────────────────────────
+# Core
 
 # Scene — built-in atmospheric template
 #   cinematic (default) | matrix | monolith | signal | classic | calm
 #   storm | cosmos | neon | hacker | low-power | cosmic_dragon | carbonic
-# scene = cinematic
 # Examples: scene = monolith, scene = matrix, scene = cosmic_dragon
+# scene = cinematic
 
 # Color scheme (palette). See: cosmostrix --list-colors
 # color = cosmos
@@ -525,7 +525,7 @@ pub fn dump_config_text() -> &'static str {
 # Cinematic intro animation played before the rain engine starts.
 # intro = "logo"  # Intro animation: logo | cosmic | none
 
-# ── Motion ───────────────────────────────────────────────────────────
+# Motion
 
 # Target FPS. Adaptive pacing may reduce under load.
 # fps = 60
@@ -541,12 +541,12 @@ pub fn dump_config_text() -> &'static str {
 # Variable column speeds for organic rain (default: on)
 # async-mode = true
 
-# ── Monolith ──────────────────────────────────────────────────────────
+# Monolith
 
 # Pillar size (small | normal | large, only for monolith scene)
 # monolith-size = normal
 
-# ── Behavior ──────────────────────────────────────────────────────────
+# Behavior
 
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
@@ -561,7 +561,7 @@ pub fn dump_config_text() -> &'static str {
 # Auto color drift (default: off)
 # auto-color-drift = false
 
-# ── Advanced Style ───────────────────────────────────────────────────
+# Advanced Style
 
 # Color tuning (adjust rain brightness/saturation/head/body/tail)
 # All values: 0.0-3.0, default 1.0 = no change
@@ -578,7 +578,7 @@ pub fn dump_config_text() -> &'static str {
 # Shading mode: 0=random, 1=cinematic (default — distance from head)
 # shadingmode = 1
 
-# ── Atmosphere Engine (opt-in) ──────────────────────────────────────
+# Atmosphere Engine (opt-in)
 
 # atmosphere-mode: disabled (default) | controlled-live
 # atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure | adaptive
@@ -593,15 +593,15 @@ pub fn dump_config_text() -> &'static str {
 # The preset controls glitch percent, stream decay, fragmented stream chance,
 # and stream layering automatically — there are no separate config keys.
 
-# ═══════════════════════════════════════════════════════════════════════
 # Custom Configuration (advanced, optional)
-# ═══════════════════════════════════════════════════════════════════════
+#
 # The sections below define user-named custom resources. They are
 # loaded via CLI flags (--scene-custom, --colors-custom) and do not
 # affect the standard settings above. Moved to the bottom of the file
 # to keep the main config clean and the override priority obvious.
-
-# ── Custom Scene Definitions ──────────────────────────────────────────
+#
+# Custom Scene Definitions
+#
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>
 # Fields: color, charset, fps, speed, density, density-map,
 #         glitch-level, monolith-size, color-bg, atmosphere-mode, atmosphere-regime
@@ -610,6 +610,7 @@ pub fn dump_config_text() -> &'static str {
 # config.toml, --testconf will flag them as unknown keys.)
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
 # See docs/ATMOSPHERE_ENGINE.md for more examples.
+
 # [scene-custom.hacker-mode]
 # color = green
 # charset = hacker
@@ -622,7 +623,7 @@ pub fn dump_config_text() -> &'static str {
 # Maps shorter than terminal width treat missing columns as 1.0.
 #
 # Three cinematic presets (120 columns each) — uncomment to use:
-#
+
 # Twin Towers — two dense pillar clusters, sparse canyon between.
 # [scene-custom.twin-towers]
 # charset = braille
@@ -630,7 +631,7 @@ pub fn dump_config_text() -> &'static str {
 # speed = 30
 # density = 0.85
 # density-map = 0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.7,0.7,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.7,0.7,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.7,0.7,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.7,0.7,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08
-#
+
 # Cascade — smooth linear gradient: dense left, sparse right (waterfall).
 # [scene-custom.cascade]
 # charset = braille
@@ -638,7 +639,7 @@ pub fn dump_config_text() -> &'static str {
 # speed = 30
 # density = 0.85
 # density-map = 1.0,0.992,0.984,0.976,0.968,0.96,0.952,0.944,0.936,0.928,0.92,0.912,0.904,0.896,0.888,0.88,0.872,0.864,0.856,0.848,0.84,0.832,0.824,0.816,0.808,0.8,0.792,0.784,0.776,0.768,0.761,0.753,0.745,0.737,0.729,0.721,0.713,0.705,0.697,0.689,0.681,0.673,0.665,0.657,0.649,0.641,0.633,0.625,0.617,0.609,0.601,0.593,0.585,0.577,0.569,0.561,0.553,0.545,0.537,0.529,0.521,0.513,0.505,0.497,0.489,0.481,0.473,0.465,0.457,0.449,0.441,0.433,0.425,0.417,0.409,0.401,0.393,0.385,0.377,0.369,0.361,0.353,0.345,0.337,0.329,0.321,0.313,0.305,0.297,0.289,0.282,0.274,0.266,0.258,0.25,0.242,0.234,0.226,0.218,0.21,0.202,0.194,0.186,0.178,0.17,0.162,0.154,0.146,0.138,0.13,0.122,0.114,0.106,0.098,0.09,0.082,0.074,0.066,0.058,0.05
-#
+
 # Throne — massive pillar at center, ringed by sparse court.
 # [scene-custom.throne]
 # charset = braille
@@ -647,7 +648,8 @@ pub fn dump_config_text() -> &'static str {
 # density = 0.85
 # density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
 
-# ── Adaptive Custom Time Map ──────────────────────────────────────────
+# Adaptive Custom Time Map
+#
 # Optional. Overrides the default 5-phase adaptive engine.
 # Define your own time-to-parameter mapping. Format: H-M = color, scene, key=value, ...
 # Time format: flexible digits — 2-3, 02-03, 2-30, 14-5 all valid.
@@ -656,12 +658,14 @@ pub fn dump_config_text() -> &'static str {
 # If not defined, default adaptive engine (5 phases) is used.
 # Note: custom time map is checked every 30s at runtime.
 # Live config reload re-parses the map immediately on save.
+
 # adaptive-custom.00-00 = cosmos, monolith, speed=15, density=1.2
 # adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
 # adaptive-custom.12-00 = cosmos, monolith, speed=30, density=0.85
 # adaptive-custom.18-00 = neon, storm, speed=24, density=1.1
 
-# ── Custom Color Palettes (optional, v16+) ────────────────────────────
+# Custom Color Palettes (optional, v16+)
+#
 # Define named custom palettes usable from --colors-custom or adaptive-custom.
 # Uses TOML table format. Hex values use standard #rrggbb notation.
 #
@@ -687,7 +691,8 @@ pub fn dump_config_text() -> &'static str {
 #   "#ffffff",  # head glow
 # ]
 
-# ── Custom Character Sets (optional, v25+) ────────────────────────────
+# Custom Character Sets (optional, v25+)
+#
 # Define named custom charsets usable from --charset or charset = "name".
 # Replaces the legacy --charset-file CLI flag — the charset now lives in
 # config.toml next to every other setting, no external file needed.
@@ -703,8 +708,8 @@ pub fn dump_config_text() -> &'static str {
 # Custom names take precedence over built-in presets with the same name.
 # Live reload: editing the block takes effect on the next config save.
 
-# [charset-custom.cat]
-# set = "x9"
+# [charset-custom.zen]
+# set = "|"
 
 # [charset-custom.greek-letters]
 # set = "αβγδεζηθικλμνξοπρστυφχψω"
