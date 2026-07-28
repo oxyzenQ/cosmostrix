@@ -31,7 +31,9 @@
 //! ~50µs overhead per poll — negligible at 750ms intervals.
 
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 use std::time::Duration;
 
 use notify::EventKind;
@@ -41,12 +43,49 @@ use notify::EventKind;
 #[allow(unused_imports)]
 use crate::live_config_trace::*;
 
-/// Polling heartbeat: checks file mtime/size/content every `interval_ms`
+/// Default base polling interval (ms). Used when
+/// `COSMOSTRIX_LIVE_RELOAD_POLL_MS` env var is unset or invalid.
+const DEFAULT_POLL_INTERVAL_MS: u64 = 750;
+
+/// Burst polling interval (ms) — used for `BURST_CYCLES` cycles immediately
+/// after any change is detected (by either the native watcher or the
+/// polling heartbeat itself). Catches rapid successive edits from
+/// formatters, linters, and multi-step atomic saves without increasing
+/// steady-state CPU usage.
+const BURST_POLL_INTERVAL_MS: u64 = 200;
+
+/// Number of fast-poll cycles after a detected change. At 200ms each,
+/// this covers a 1-second burst window — enough for the typical
+/// "save → formatter → re-save" sequence.
+const BURST_CYCLES: u8 = 5;
+
+/// Read the polling interval from `COSMOSTRIX_LIVE_RELOAD_POLL_MS` env var,
+/// clamped to `[50, 5000]` ms. Returns `DEFAULT_POLL_INTERVAL_MS` (750) if
+/// unset or invalid. Power users on slow filesystems can raise it; users
+/// wanting faster reload can lower it (at the cost of more I/O per second).
+#[must_use]
+pub fn env_poll_interval_ms() -> u64 {
+    std::env::var("COSMOSTRIX_LIVE_RELOAD_POLL_MS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .filter(|&ms| (50..=5000).contains(&ms))
+        .unwrap_or(DEFAULT_POLL_INTERVAL_MS)
+}
+
+/// Polling heartbeat: checks file mtime/size/content every `base_interval_ms`
 /// and feeds synthetic notify events into `tx` when ANY of them changes.
 /// This runs on a background thread alongside the native watcher,
 /// guaranteeing live reload works even when the native backend is silent
 /// (e.g., FreeBSD kqueue feature not active, Android Termux inotify
 /// throttling, restricted containers).
+///
+/// **Adaptive burst mode (v25.4 strengthening)**: after ANY change is
+/// detected — whether by the polling heartbeat itself or by the native
+/// watcher (signalled via `change_counter`) — the poll interval drops to
+/// `BURST_POLL_INTERVAL_MS` (200ms) for `BURST_CYCLES` (5) cycles. This
+/// catches rapid successive edits (formatters, linters, multi-step atomic
+/// saves) without increasing steady-state CPU usage. After the burst
+/// window, the interval returns to `base_interval_ms`.
 ///
 /// The synthetic event uses `EventKind::Modify(ModifyKind::Any)` with
 /// the target file as the path, so the unified event loop in
@@ -54,12 +93,13 @@ use crate::live_config_trace::*;
 /// native modify event.
 ///
 /// **Startup reload prevention**: all three signals are snapshotted at
-/// heartbeat start. The first poll (`interval_ms` later) compares
+/// heartbeat start. The first poll (`base_interval_ms` later) compares
 /// against these initial values — if nothing changed, no event is sent.
 pub fn polling_heartbeat(
     path: std::path::PathBuf,
     tx: Sender<notify::Result<notify::Event>>,
-    interval_ms: u64,
+    base_interval_ms: u64,
+    change_counter: Arc<AtomicU64>,
 ) {
     // Snapshot the initial state. Each field is `Option` because any
     // individual signal may be unavailable (e.g., `modified()` Err on
@@ -69,9 +109,20 @@ pub fn polling_heartbeat(
     // replaced by an atomic save).
     let mut last_state = snapshot_file_state(&path);
 
+    // Track the last-seen change_counter value to detect when the native
+    // watcher has accepted an event (which increments the counter). On
+    // such detection, enter burst mode to catch follow-up edits.
+    let mut last_change_count = change_counter.load(Ordering::Acquire);
+
+    // Burst mode counter: when > 0, poll at BURST_POLL_INTERVAL_MS.
+    // Decremented each cycle. Reset to BURST_CYCLES on any change.
+    let mut burst_cycles_remaining: u8 = 0;
+
     lr_trace!(
-        "polling heartbeat started: interval={}ms initial={:?}",
-        interval_ms,
+        "polling heartbeat started: base_interval={}ms burst={}ms×{}cycles initial={:?}",
+        base_interval_ms,
+        BURST_POLL_INTERVAL_MS,
+        BURST_CYCLES,
         last_state
     );
 
@@ -83,8 +134,31 @@ pub fn polling_heartbeat(
     let mut cycle: u64 = 0;
 
     loop {
+        // Adaptive interval: burst mode uses fast interval, otherwise base.
+        let interval_ms = if burst_cycles_remaining > 0 {
+            burst_cycles_remaining -= 1;
+            BURST_POLL_INTERVAL_MS
+        } else {
+            base_interval_ms
+        };
         std::thread::sleep(Duration::from_millis(interval_ms));
         cycle += 1;
+
+        // Check if the native watcher (or a prior poll cycle) accepted
+        // an event since our last cycle. If so, enter burst mode to
+        // catch follow-up edits from formatters/linters.
+        let current_change_count = change_counter.load(Ordering::Acquire);
+        if current_change_count != last_change_count {
+            last_change_count = current_change_count;
+            if burst_cycles_remaining == 0 {
+                lr_trace!(
+                    "poll: external change detected (counter={}) — entering burst mode for {} cycles",
+                    current_change_count,
+                    BURST_CYCLES
+                );
+            }
+            burst_cycles_remaining = BURST_CYCLES;
+        }
 
         let current_state = snapshot_file_state(&path);
 
@@ -94,8 +168,9 @@ pub fn polling_heartbeat(
         // DON'T see them, the polling thread is dead/panicked.
         if cycle % 5 == 1 {
             lr_trace!(
-                "poll cycle #{} alive — current_state={:?}",
+                "poll cycle #{} alive (interval={}ms) — current_state={:?}",
                 cycle,
+                interval_ms,
                 current_state
             );
         }
@@ -120,6 +195,10 @@ pub fn polling_heartbeat(
         );
         last_state = current_state;
 
+        // Enter burst mode after detecting a change ourselves, so we
+        // catch rapid follow-up edits (e.g., formatter re-save).
+        burst_cycles_remaining = BURST_CYCLES;
+
         // Synthesize a notify::Event so the unified event loop handles
         // it identically to a native event. The path must match what
         // handle_notify_event's `touches_target` check expects (the
@@ -134,6 +213,11 @@ pub fn polling_heartbeat(
             lr_trace!("poll: channel closed during send — exiting heartbeat");
             break;
         }
+        // Increment the shared change counter so the native watcher's
+        // event loop (if it's still running) also knows a change was
+        // accepted — though the native watcher doesn't currently use
+        // this signal, future liveness diagnostics may.
+        change_counter.fetch_add(1, Ordering::AcqRel);
         lr_trace!("poll: synthetic event sent to channel successfully");
     }
 }
@@ -246,6 +330,47 @@ pub fn fnv1a_64(data: &[u8]) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `env_poll_interval_ms` returns the default (750ms) when the env var
+    /// is unset. This is the common case — most users don't override.
+    #[test]
+    fn env_poll_interval_ms_default_when_unset() {
+        std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+        assert_eq!(
+            env_poll_interval_ms(),
+            DEFAULT_POLL_INTERVAL_MS,
+            "must return default (750ms) when env var is unset"
+        );
+    }
+
+    /// `env_poll_interval_ms` honors a valid override within [50, 5000].
+    #[test]
+    fn env_poll_interval_ms_honors_valid_override() {
+        std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "300");
+        assert_eq!(env_poll_interval_ms(), 300, "300ms is within range");
+        std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "5000");
+        assert_eq!(env_poll_interval_ms(), 5000, "5000ms is the upper bound");
+        std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "50");
+        assert_eq!(env_poll_interval_ms(), 50, "50ms is the lower bound");
+        std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+    }
+
+    /// `env_poll_interval_ms` falls back to default on invalid input:
+    /// non-numeric, below 50, above 5000. This prevents foot-guns where
+    /// a typo silently disables polling (interval=0) or makes it thrash
+    /// (interval=1).
+    #[test]
+    fn env_poll_interval_ms_falls_back_on_invalid() {
+        for bad in &["not-a-number", "0", "49", "5001", "99999", "-1"] {
+            std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", bad);
+            assert_eq!(
+                env_poll_interval_ms(),
+                DEFAULT_POLL_INTERVAL_MS,
+                "invalid value '{bad}' must fall back to default"
+            );
+        }
+        std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
+    }
 
     /// FNV-1a 64-bit hash known-answer test against published test vectors.
     /// Source: https://datatracker.ietf.org/doc/html/draft-eastlake-fnv

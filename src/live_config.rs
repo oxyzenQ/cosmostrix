@@ -29,7 +29,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -41,7 +41,9 @@ use notify::{event::EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 // source cap enforced by loc_tests). The triple-signal change detection
 // (mtime + size + content hash) handles Android Termux's unreliable
 // FUSE mtime without losing dedup correctness.
-use crate::live_config_poll::{polling_heartbeat, snapshot_file_state, FileStateSnapshot};
+use crate::live_config_poll::{
+    env_poll_interval_ms, polling_heartbeat, snapshot_file_state, FileStateSnapshot,
+};
 
 use crate::configfile;
 
@@ -141,7 +143,12 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
 /// the same mpsc channel. Dedup via triple-signal snapshot comparison.
 fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     const DEBOUNCE_MS: u64 = 200;
-    const POLL_INTERVAL_MS: u64 = 750;
+    // v25.4 strengthening: env-configurable poll interval + adaptive burst.
+    // Base interval can be overridden via COSMOSTRIX_LIVE_RELOAD_POLL_MS
+    // (clamped to [50, 5000] ms). The polling heartbeat enters burst mode
+    // (200ms × 5 cycles) after any change, signaled via `change_counter`.
+    let poll_interval_ms = env_poll_interval_ms();
+    let change_counter = Arc::new(AtomicU64::new(0));
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
 
@@ -153,15 +160,20 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     // Spawn the polling heartbeat. Recovery loop restarts on panic (1s backoff).
     let poll_path = path.clone();
     let poll_tx = notify_tx.clone();
+    let poll_counter = change_counter.clone();
     let poll_spawn_result = std::thread::Builder::new()
         .name("cosmostrix-config-poller".to_string())
         .spawn(move || {
-            lr_trace!("polling heartbeat thread started — interval={}ms", POLL_INTERVAL_MS);
+            lr_trace!(
+                "polling heartbeat thread started — base_interval={}ms",
+                poll_interval_ms
+            );
             loop {
                 let path_inner = poll_path.clone();
                 let tx_inner = poll_tx.clone();
+                let counter_inner = poll_counter.clone();
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    polling_heartbeat(path_inner, tx_inner, POLL_INTERVAL_MS);
+                    polling_heartbeat(path_inner, tx_inner, poll_interval_ms, counter_inner);
                 }));
                 match result {
                     Ok(()) => {
@@ -217,7 +229,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             // v25: bulletproof write (see spawn_watcher above).
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!(
-                "[live-reload] native watcher unavailable: {e} — relying on polling heartbeat ({POLL_INTERVAL_MS}ms interval)\n"
+                "[live-reload] native watcher unavailable: {e} — relying on polling heartbeat ({poll_interval_ms}ms base interval)\n"
             ));
             None
         }
@@ -261,31 +273,18 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     let mut last_event = std::time::Instant::now();
 
     // Unified event loop: processes BOTH native events AND synthetic
-    // polling events. The dedup logic in handle_notify_event ensures
-    // that when both sources detect the same mtime, only the first
-    // event triggers a reload.
+    // polling events. Dedup in handle_notify_event ensures only the
+    // first source triggers a reload.
     let _watcher = watcher;
     lr_trace!("event loop started — waiting for events on notify_rx");
     for event_result in notify_rx.iter() {
-        // notify_rx.iter() yields notify::Result<notify::Event>:
-        //   Ok(Event) = filesystem event (create/modify/remove)
-        //   Err(Error) = watcher error (e.g., watch removed, OS error)
-        // mpsc's iter() returns None (ending the loop) only when ALL
-        // senders drop — that's the channel-close case, not Err.
-        //
-        // v25 fix (Task 1): on Err, `continue` instead of `break`.
-        // The previous `break` was the root cause of "live reload silently
-        // stops working after some time" on Linux/FreeBSD/macOS. A single
-        // transient watcher Err (kqueue/inotify resync, OS buffer overflow,
-        // race on file rename) would terminate the consumer loop. The
-        // polling heartbeat thread keeps producing synthetic events into
-        // the channel, but no one reads them — the channel buffer grows
-        // unbounded and the polling thread eventually observes send-Err
-        // (receiver dropped) and exits. Net result: live reload is dead
-        // even though the polling thread was nominally still running.
-        //
-        // The fix: log the Err and keep consuming. The polling heartbeat
-        // (which is the more reliable source) continues to drive reloads.
+        // mpsc iter() returns None (ending loop) only when ALL senders
+        // drop. Err here = transient watcher error (kqueue/inotify
+        // resync, OS buffer overflow, file rename race). v25 fix:
+        // `continue` instead of `break` — the previous `break` killed
+        // live reload silently because the polling thread kept sending
+        // but no one consumed. The polling heartbeat (more reliable)
+        // continues to drive reloads after a transient Err.
         if event_result.is_err() {
             lr_trace!("watcher Err received: {:?}", event_result.as_ref().err());
             use std::io::Write;
@@ -313,6 +312,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             &mut last_event,
             DEBOUNCE_MS,
             &last_processed_state,
+            &change_counter,
         ) {
             break;
         }
@@ -337,6 +337,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
 /// would either be (a) processed twice (once by native, once by polling)
 /// or (b) silently dropped by mtime-only dedup. The snapshot approach
 /// handles both cases correctly.
+#[allow(clippy::too_many_arguments)]
 fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
     target_file: &Arc<PathBuf>,
@@ -345,6 +346,7 @@ fn handle_notify_event(
     last_event: &mut std::time::Instant,
     debounce_ms: u64,
     last_processed_state: &Arc<Mutex<FileStateSnapshot>>,
+    change_counter: &Arc<AtomicU64>,
 ) -> bool {
     match event_result {
         Ok(event) => {
@@ -385,23 +387,15 @@ fn handle_notify_event(
             // Small delay for atomic-save rename completion.
             std::thread::sleep(Duration::from_millis(50));
 
-            // SNAPSHOT DEDUP (v25.1 Termux fix): snapshot the file's
-            // current state (mtime + size + content hash). If it equals
-            // last_processed_state on ALL THREE signals, this event is a
-            // duplicate — the other source (native or polling) already
-            // processed this state. Silently drop it.
-            //
-            // The triple-signal comparison is essential: on FUSE
-            // filesystems where mtime is unreliable, two distinct saves
-            // may share the same mtime. The content hash distinguishes
-            // them. Conversely, an atomic save may produce a new inode
-            // with a new mtime but identical content (e.g., the editor
-            // wrote the same buffer twice) — the content hash dedup
-            // prevents a redundant reload.
+            // SNAPSHOT DEDUP (v25.1 Termux fix): snapshot mtime + size +
+            // content hash. If equal to last_processed_state on ALL THREE
+            // signals, this is a duplicate — drop it. Triple-signal is
+            // essential on FUSE where mtime is unreliable; content hash
+            // also dedups atomic saves that produced identical content.
             let current_state = snapshot_file_state(path);
             if current_state.size.is_none() {
-                // File doesn't exist (atomic save in progress, file
-                // deleted). Skip — the next event will catch the new file.
+                // File doesn't exist (atomic save in progress). Skip —
+                // the next event catches the new file.
                 lr_trace!("snapshot: file unreadable — skipping event");
                 return true;
             }
@@ -425,6 +419,11 @@ fn handle_notify_event(
                 current_state,
                 event.kind
             );
+
+            // v25.4 strengthening: signal the polling heartbeat that a
+            // change was accepted, so it enters burst mode (200ms × 5
+            // cycles) to catch rapid follow-up edits from formatters.
+            change_counter.fetch_add(1, Ordering::AcqRel);
 
             // Reparse config using parse_config_text (not load_config_file)
             // so we can check malformed_lines AND unknown_keys.
