@@ -72,10 +72,21 @@ pub type LiveConfigEvent = Result<HashMap<String, String>, String>;
 /// sending — invalid configs are rejected with a stderr error message.
 ///
 /// If the config file doesn't exist or can't be watched, returns `None`.
+///
+/// **v25.2 Termux fix**: when the config file doesn't exist, log a diagnostic
+/// message (gated by `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`) so users can see WHY
+/// live reload isn't working. The previous silent return-None made Termux
+/// debugging impossible.
 pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> {
     if !config_path.exists() {
+        lr_trace!(
+            "config file does not exist — watcher NOT spawned: {}",
+            config_path.display()
+        );
         return None;
     }
+
+    lr_trace!("spawning watcher for: {}", config_path.display());
 
     let (tx, rx) = mpsc::channel::<LiveConfigEvent>();
     let path = config_path.clone();
@@ -113,30 +124,21 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
 /// (kqueue on BSDs, inotify on Linux, FSEvents on macOS,
 /// ReadDirectoryChanges on Windows) is the primary event source. A
 /// polling heartbeat runs IN PARALLEL on a separate thread, checking
-/// the file's mtime every 2 seconds. Both paths feed into the same
+/// the file's mtime every 750ms. Both paths feed into the same
 /// mpsc channel, so a change is detected via whichever fires first.
 ///
 /// This fixes the FreeBSD silent-failure case: if `RecommendedWatcher`
 /// initializes successfully (no error) but the backend produces no
 /// events (e.g., kqueue feature not active, restricted container),
 /// the polling heartbeat still detects mtime changes and triggers
-/// live reload. The previous "either/or" fallback only kicked in when
-/// watcher creation FAILED, missing the silent-no-events case.
-///
-/// When the native watcher fails to initialize OR fails to register
-/// the watch path, we still log a warning — but the polling heartbeat
-/// runs unconditionally, so live reload always works.
+/// live reload.
 ///
 /// **Dedup mechanism (Task 1 fix)**: when both the native watcher
 /// and the polling heartbeat detect the same file modification, the
 /// unified event loop must process it only ONCE. We track the last
-/// processed mtime in `last_processed_mtime`. Before processing any
-/// event, we read the file's current mtime; if it equals
-/// `last_processed_mtime`, the event is a duplicate (the other source
-/// already processed this mtime) and is silently dropped. This also
-/// skips the startup reload — `last_processed_mtime` is initialized
-/// to the file's current mtime at loop start, so no event for the
-/// initial state fires.
+/// processed state (mtime + size + content hash) and drop duplicates.
+/// This also skips the startup reload — `last_processed_state` is
+/// initialized to the file's current state at loop start.
 fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     // Debounce window. The time-based debounce catches bursts of native
     // events (atomic-save produces 3-5 events within 50ms); the mtime +

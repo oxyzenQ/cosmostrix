@@ -925,19 +925,34 @@ fn main() -> std::io::Result<()> {
         atmosphere_modulation,
         atmosphere_mode,
         monolith_density_map,
-        config_path_for_watcher: Some(
-            // v25 fix (Task 1): watch the actual file the user is editing.
-            // Previously this hardcoded `default_config_file_path()`, so
-            // a user who launched with `--config /custom/path.toml` and
-            // edited that file saw NO live reload — the watcher was
-            // watching the default path, which the user was not touching.
-            // This was a major contributor to "live reload doesn't work
-            // on any platform" reports: any user with a non-default
-            // config path was silently affected.
-            args.config
-                .clone()
-                .unwrap_or_else(configfile::default_config_file_path),
-        ),
+        config_path_for_watcher: {
+            // v25.2 Termux fix: use multi-candidate path resolution so
+            // the watcher always watches the file the user is ACTUALLY
+            // editing. On Termux, when XDG_CONFIG_HOME is set to
+            // $PREFIX/etc, the old `args.config.unwrap_or_else(default_config_file_path)`
+            // resolved to a system path the user wasn't editing — causing
+            // "live reload doesn't work on Termux" reports. The new
+            // resolver picks the first existing candidate from a list
+            // that prioritizes $HOME/.config/cosmostrix/config.toml.
+            let (resolved, existed) =
+                configfile::resolve_watcher_config_path(args.config.as_deref());
+            // v25.2: bulletproof diagnostic logging so users can verify
+            // the watcher is watching the right file. Uses the same
+            // env-gated path as live_config's lr_trace! (zero cost when
+            // COSMOSTRIX_LIVE_RELOAD_DEBUG is unset).
+            if crate::live_config_trace::live_reload_debug_enabled() {
+                crate::live_config_trace::debug_trace(format_args!(
+                    "[live-reload-trace] watcher path resolved: {} (existed candidates: {})\n",
+                    resolved.display(),
+                    existed
+                        .iter()
+                        .map(|p| p.display().to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            }
+            Some(resolved)
+        },
         scene_name: args
             .scene
             .as_deref()

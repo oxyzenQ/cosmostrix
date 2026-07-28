@@ -245,5 +245,24 @@ pub(crate) fn print_verbose(
     let config_path = configfile::default_config_file_path();
     output::eprintln_verbose("config_path:", &format!(" {}", config_path.display()));
     output::eprintln_verbose("config exists:", &format!(" {}", config_path.exists()));
+    // v25.2 Termux fix: show ALL candidate paths the live-reload watcher
+    // considers, so users can verify which file is being watched. This is
+    // critical for Termux debugging where XDG_CONFIG_HOME may point to a
+    // different location than $HOME/.config.
+    let candidates = configfile::config_candidate_paths();
+    output::eprintln_verbose(
+        "config candidates:",
+        &format!(
+            " {}",
+            candidates
+                .iter()
+                .map(|p| {
+                    let marker = if p.exists() { " [exists]" } else { "" };
+                    format!("{}{marker}", p.display())
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    );
     output::eprintln_verbose("commit:", &format!(" {commit_sha}"));
 }
