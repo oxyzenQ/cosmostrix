@@ -206,8 +206,11 @@ pub(crate) fn apply_config_and_runtime_defaults(
                     .take(3)
                     .map(String::as_str)
                     .collect();
+                // v25.6 depth-test fix: targeted "did you mean" hints for
+                // structural TOML mistakes (e.g. bold under [color.tune]).
+                let hints = crate::config_hints::format_hints_block(&parsed.unknown_keys);
                 return Err(format!(
-                    "error: invalid config — unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
+                    "error: invalid config — unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys){hints}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
                     keys.join(", ")
                 ));
             }

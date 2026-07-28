@@ -82,7 +82,6 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
             }));
             if let Err(_e) = result {
                 // Watcher thread panicked — likely terminal closed.
-                // Set a flag so the main loop detects the failure and exits.
                 lr_trace!("watcher thread PANICKED — setting exit code");
                 LIVE_RELOAD_ERROR
                     .lock()
@@ -95,9 +94,7 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
         });
 
     match spawn_result {
-        Ok(_) => {
-            lr_trace!("watcher thread spawned successfully — live reload active");
-        }
+        Ok(_) => lr_trace!("watcher thread spawned successfully — live reload active"),
         Err(e) => {
             lr_trace!("FAILED to spawn watcher thread: {e} — live reload disabled");
             // v25.3: bulletproof write — eprintln! panics on broken stderr.
@@ -171,9 +168,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         }
         Err(e) => {
             lr_trace!("FAILED to spawn polling heartbeat: {e} — native watcher only");
-            // v25: bulletproof write — eprintln! panics on broken stderr,
-            // which would fire the panic hook (catch_unwind catches after,
-            // but bulletproof write avoids the panic entirely).
+            // v25: bulletproof write — eprintln! panics on broken stderr.
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!(
                 "[live-reload] failed to spawn polling heartbeat: {e} — native watcher only\n"
@@ -239,7 +234,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     let target_file = Arc::new(path.clone());
     let mut last_event = std::time::Instant::now();
 
-    // v25.5 strengthening: native watcher liveness diagnostic.
+    // v25.5: native watcher liveness diagnostic.
     const NATIVE_SILENCE_WARN_SECS: u64 = 30;
     let loop_start = std::time::Instant::now();
     let mut last_native_event: Option<std::time::Instant> = None;
@@ -249,8 +244,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     lr_trace!("event loop started — waiting for events on notify_rx");
     for event_result in notify_rx.iter() {
         // mpsc iter() returns None only when ALL senders drop. Err here =
-        // transient watcher error. v25 fix: `continue` (not `break`) so
-        // polling heartbeat keeps driving reloads.
+        // transient watcher error; `continue` (not `break`) keeps poll alive.
         if event_result.is_err() {
             lr_trace!("watcher Err received: {:?}", event_result.as_ref().err());
             use std::io::Write;
@@ -452,8 +446,11 @@ fn validate_and_send(
             .take(3)
             .map(String::as_str)
             .collect();
+        // v25.6 depth-test fix: append "did you mean" hints for structural
+        // mistakes (e.g. color.tune.bold). Returns "" when no hints apply.
+        let hints = crate::config_hints::format_hints_block(&parsed.unknown_keys);
         let msg = format!(
-            "unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys)",
+            "unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys){hints}",
             keys.join(", ")
         );
         let _ = tx.send(Err(msg.clone()));
@@ -574,8 +571,8 @@ pub fn rebuild_cloud_config(
         );
     }
 
-    // Scene — skip if CLI --scene explicit. v25.5: scene color/charset
-    // are defaults; user config values win.
+    // Scene — skip if CLI --scene explicit. v25.5: scene color/charset are
+    // defaults; user config values win.
     if !cli.scene {
         if let Some(v) = cfg.get("scene") {
             if let Some(scene_info) = crate::scene::get_scene(v) {
@@ -692,7 +689,7 @@ pub fn rebuild_cloud_config(
         );
     }
 
-    // v25.5: color-bg live reload. default_bg=true = terminal default; false = solid black.
+    // v25.5: color-bg live reload (true = terminal default; false = solid black).
     if let Some(v) = cfg.get("color-bg") {
         new.default_bg = match v.trim().to_ascii_lowercase().as_str() {
             "black" => false,
@@ -1185,8 +1182,8 @@ mod tests {
     /// render thread NO LONGER sets LIVE_RELOAD_EXIT_CODE — only true
     /// watcher-thread panics do. Verifies Err(msg) is returned AND exit
     /// code remains 0 (caller stores in LIVE_RELOAD_ERROR, doesn't
-    /// escalate). Without this guard, a single typo mid-edit would kill
-    /// the entire session.
+    /// escalate). v25.6 FIX E: the error also includes a targeted hint
+    /// explaining `bold` is top-level, not a [color.tune] field.
     #[test]
     fn validate_and_send_returns_err_without_setting_exit_code() {
         let (tx, _rx) = std::sync::mpsc::channel();
@@ -1194,7 +1191,10 @@ mod tests {
         parsed.unknown_keys.push("color.tune.bold".to_string());
         let result = validate_and_send(&parsed, &tx);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("color.tune.bold"));
+        let msg = result.unwrap_err();
+        assert!(msg.contains("color.tune.bold"));
+        assert!(msg.contains("top-level"), "need structural hint: {msg}");
+        assert!(msg.contains("[color.tune]"), "need section ref: {msg}");
         assert_eq!(LIVE_RELOAD_EXIT_CODE.load(Ordering::Acquire), 0);
     }
 }

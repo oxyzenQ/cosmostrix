@@ -99,6 +99,7 @@ mod config_apply;
 mod config_apply_profiles_tests;
 #[cfg(test)]
 mod config_apply_tests;
+mod config_hints;
 mod configfile;
 mod constants;
 mod cosmic_dragon;

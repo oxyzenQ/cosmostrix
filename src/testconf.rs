@@ -76,6 +76,13 @@ pub fn run(args: &Args) -> std::io::Result<()> {
             crate::output::eprintln_error_labeled(&format!(
                 "testconf: unknown key '{key}' (likely typo)"
             ));
+            // v25.6 depth-test fix: targeted hint for structural TOML
+            // mistakes (e.g. `bold` under [color.tune], or adaptive-custom
+            // nested under [scene-custom.<name>]). Generic typos get no
+            // hint — they fall through to the known-keys list below.
+            if let Some(hint) = crate::config_hints::suggest_for_unknown_key(key) {
+                eprintln!("testconf: hint: {hint}");
+            }
             errors += 1;
         }
         eprintln!(
