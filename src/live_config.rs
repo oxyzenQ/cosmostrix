@@ -14,18 +14,13 @@
 //! ```
 //!
 //! - Watcher thread: blocks on filesystem events, reparses config on change.
-//!   Validates EVERY field strictly — any invalid value rejects the entire
-//!   config (no partial apply). On error, logs to stderr and keeps old config.
-//! - Render thread: `try_recv()` each frame (~1ns on empty channel).
-//!   If update pending, rebuilds CloudConfig from base + new config values,
-//!   then rebuilds Cloud (full create_cloud + reset). Visual state resets
-//!   (rain streams restart) but color/charset/scene changes take effect.
+//!   Strict validation — any invalid value rejects the entire config.
+//! - Render thread: `try_recv()` each frame; rebuilds Cloud on update.
 //!
 //! ## Strict validation
 //!
-//! Uses the same `validate_field_value` rules as `--testconf`. If ANY field
-//! has an invalid value (e.g. `speed = 100000`), the entire config is
-//! rejected with a clear error message. No silent fallback.
+//! Uses the same `validate_field_value` rules as `--testconf`. Invalid
+//! values reject the entire config with a clear error message.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -36,11 +31,7 @@ use std::time::Duration;
 
 use notify::{event::EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
-// v25.1 Termux fix: polling heartbeat + snapshot dedup live in
-// live_config_poll.rs (split out so this file stays under the 1200-LOC
-// source cap enforced by loc_tests). The triple-signal change detection
-// (mtime + size + content hash) handles Android Termux's unreliable
-// FUSE mtime without losing dedup correctness.
+// Polling heartbeat + snapshot dedup live in live_config_poll.rs.
 use crate::live_config_poll::{
     env_poll_interval_ms, polling_heartbeat, snapshot_file_state, FileStateSnapshot,
 };
@@ -52,15 +43,8 @@ use crate::configfile;
 /// Main.rs checks this after run_interactive() returns and exits accordingly.
 pub static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
 
-// v25: opt-in debug tracing lives in `live_config_trace.rs` (split out so
-// this file stays under the 1200-LOC source cap enforced by loc_tests).
-// The `lr_trace!` macro is brought into scope by `#[macro_use]` on the
-// `mod live_config_trace;` declaration in main.rs.
-
 /// Global error message captured during live-reload failure.
-/// Printed to stderr AFTER terminal restoration (in main.rs) so the user
-/// can actually see it — printing during alternate-screen mode swallows
-/// the output.
+/// Printed to stderr AFTER terminal restoration so the user can see it.
 pub static LIVE_RELOAD_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 /// Live config event sent from watcher to render thread.
@@ -74,11 +58,6 @@ pub type LiveConfigEvent = Result<HashMap<String, String>, String>;
 /// sending — invalid configs are rejected with a stderr error message.
 ///
 /// If the config file doesn't exist or can't be watched, returns `None`.
-///
-/// **v25.2 Termux fix**: when the config file doesn't exist, log a diagnostic
-/// message (gated by `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`) so users can see WHY
-/// live reload isn't working. The previous silent return-None made Termux
-/// debugging impossible.
 pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> {
     if !config_path.exists() {
         lr_trace!(
@@ -96,10 +75,7 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
     let spawn_result = std::thread::Builder::new()
         .name("cosmostrix-config-watcher".to_string())
         .spawn(move || {
-            // Catch panics in the watcher thread to prevent core dumps.
-            // When the terminal is closed, notify's internal inotify/kqueue
-            // file descriptors become invalid (EIO), which can trigger panics
-            // in notify's internal thread. We catch and convert to graceful shutdown.
+            // Catch panics — notify's internal FDs can panic on terminal close.
             lr_trace!("watcher thread started — entering watcher_loop");
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 watcher_loop(path, tx);
@@ -143,21 +119,17 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
 /// the same mpsc channel. Dedup via triple-signal snapshot comparison.
 fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     const DEBOUNCE_MS: u64 = 200;
-    // v25.4 strengthening: env-configurable poll interval + adaptive burst.
-    // Base interval can be overridden via COSMOSTRIX_LIVE_RELOAD_POLL_MS
-    // (clamped to [50, 5000] ms). The polling heartbeat enters burst mode
-    // (200ms × 5 cycles) after any change, signaled via `change_counter`.
+    // v25.4: env-configurable poll interval + adaptive burst.
     let poll_interval_ms = env_poll_interval_ms();
     let change_counter = Arc::new(AtomicU64::new(0));
 
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
 
-    // Initialize last_processed_state to the file's current state so
-    // the polling heartbeat's first check doesn't trigger a startup reload.
+    // Snapshot initial state to avoid startup reload.
     let initial_state = snapshot_file_state(&path);
     let last_processed_state = Arc::new(Mutex::new(initial_state));
 
-    // Spawn the polling heartbeat. Recovery loop restarts on panic (1s backoff).
+    // Spawn polling heartbeat (recovery loop restarts on panic).
     let poll_path = path.clone();
     let poll_tx = notify_tx.clone();
     let poll_counter = change_counter.clone();
@@ -181,9 +153,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
                         break;
                     }
                     Err(_) => {
-                        // Polling heartbeat panicked. Log and back off
-                        // before restarting. Bulletproof write — eprintln!
-                        // panics on broken stderr.
+                        // Polling heartbeat panicked — back off + restart.
                         lr_trace!("polling heartbeat PANICKED — restarting after 1s backoff");
                         use std::io::Write;
                         let _ = std::io::stderr().write_fmt(format_args!(
@@ -226,7 +196,6 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         }
         Err(e) => {
             lr_trace!("native watcher unavailable: {e} — relying on polling heartbeat only");
-            // v25: bulletproof write (see spawn_watcher above).
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!(
                 "[live-reload] native watcher unavailable: {e} — relying on polling heartbeat ({poll_interval_ms}ms base interval)\n"
@@ -235,7 +204,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         }
     };
 
-    // Watch the parent directory to catch atomic-save renames.
+    // Watch parent directory to catch atomic-save renames.
     let watch_dir = path
         .parent()
         .map(|p| {
@@ -254,13 +223,11 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         );
         if let Err(e) = w.watch(&watch_dir, RecursiveMode::NonRecursive) {
             lr_trace!("native watch registration FAILED: {e} — polling heartbeat only");
-            // v25: bulletproof write (see spawn_watcher above).
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!(
                 "[live-reload] native watcher failed to register {}: {e} — relying on polling heartbeat\n",
                 watch_dir.display()
             ));
-            // Drop the broken watcher so it doesn't hold resources.
             watcher = None;
         } else {
             lr_trace!("native watch registered on: {}", watch_dir.display());
@@ -272,19 +239,18 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     let target_file = Arc::new(path.clone());
     let mut last_event = std::time::Instant::now();
 
-    // Unified event loop: processes BOTH native events AND synthetic
-    // polling events. Dedup in handle_notify_event ensures only the
-    // first source triggers a reload.
+    // v25.5 strengthening: native watcher liveness diagnostic.
+    const NATIVE_SILENCE_WARN_SECS: u64 = 30;
+    let loop_start = std::time::Instant::now();
+    let mut last_native_event: Option<std::time::Instant> = None;
+    let mut native_silence_warned = false;
+
     let _watcher = watcher;
     lr_trace!("event loop started — waiting for events on notify_rx");
     for event_result in notify_rx.iter() {
-        // mpsc iter() returns None (ending loop) only when ALL senders
-        // drop. Err here = transient watcher error (kqueue/inotify
-        // resync, OS buffer overflow, file rename race). v25 fix:
-        // `continue` instead of `break` — the previous `break` killed
-        // live reload silently because the polling thread kept sending
-        // but no one consumed. The polling heartbeat (more reliable)
-        // continues to drive reloads after a transient Err.
+        // mpsc iter() returns None only when ALL senders drop. Err here =
+        // transient watcher error. v25 fix: `continue` (not `break`) so
+        // polling heartbeat keeps driving reloads.
         if event_result.is_err() {
             lr_trace!("watcher Err received: {:?}", event_result.as_ref().err());
             use std::io::Write;
@@ -294,16 +260,38 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             ));
             continue;
         }
-        // v25.3: trace event receipt so the user can see events arriving
-        // at the event loop. This is critical for Termux debugging — if
-        // the polling heartbeat sends events but the event loop never
-        // receives them, there's a channel issue.
+        // v25.3: trace event receipt (Termux debugging).
         let event = event_result.as_ref().expect("checked is_err above");
         lr_trace!(
             "event loop received event: kind={:?} paths={:?}",
             event.kind,
             event.paths
         );
+
+        // v25.5 strengthening: classify event source for liveness.
+        let is_native_event = matches!(
+            event.kind,
+            EventKind::Modify(notify::event::ModifyKind::Data(_))
+                | EventKind::Modify(notify::event::ModifyKind::Name(_))
+                | EventKind::Create(_)
+                | EventKind::Remove(_)
+        );
+        if is_native_event {
+            last_native_event = Some(std::time::Instant::now());
+            native_silence_warned = false;
+        } else if last_native_event.is_none()
+            && loop_start.elapsed().as_secs() > NATIVE_SILENCE_WARN_SECS
+            && !native_silence_warned
+        {
+            native_silence_warned = true;
+            let elapsed = loop_start.elapsed().as_secs();
+            lr_trace!("LIVENESS: native silent {elapsed}s — poll-only (OK)");
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[live-reload] native watcher silent {elapsed}s — polling heartbeat sole detector (informational)\n"
+            ));
+        }
+
         if !handle_notify_event(
             event_result,
             &target_file,
@@ -320,23 +308,11 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     lr_trace!("watcher_loop exited");
 }
 
-/// Process a single notify event. Returns `false` if the channel is closed
-/// and the watcher loop should exit.
+/// Process a single notify event. Returns `false` if the channel is closed.
 ///
-/// **Dedup mechanism (v25.1 Termux fix)**: before processing, snapshots
-/// the file's current state (mtime + size + content hash) and compares
-/// against `last_processed_state`. If they match on ALL THREE signals,
-/// the event is a duplicate (the other source already processed this
-/// state) and is silently dropped. This guarantees a single config
-/// change triggers exactly one reload, even when both the native
-/// watcher and polling heartbeat detect it.
-///
-/// The triple-signal comparison is critical on Android Termux where
-/// mtime may be unreliable but content hash always reflects the actual
-/// file state. Without it, a content change that didn't update mtime
-/// would either be (a) processed twice (once by native, once by polling)
-/// or (b) silently dropped by mtime-only dedup. The snapshot approach
-/// handles both cases correctly.
+/// **Dedup (v25.1)**: snapshots mtime + size + content hash. If equal to
+/// `last_processed_state` on all three signals, drops as duplicate.
+/// Critical on Android Termux where mtime is unreliable.
 #[allow(clippy::too_many_arguments)]
 fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
@@ -369,10 +345,8 @@ fn handle_notify_event(
                 return true;
             }
 
-            // Debounce: catch bursts of native events (atomic-save
-            // produces 3-5 events within 50ms). This is a TIME-based
-            // dedup; the SNAPSHOT-based dedup below catches cross-source
-            // duplicates (native + polling for the same state).
+            // Debounce: catch native event bursts (atomic-save = 3-5 events/50ms).
+            // Snapshot dedup below catches cross-source duplicates.
             let now = std::time::Instant::now();
             if now.duration_since(*last_event) < Duration::from_millis(debounce_ms) {
                 lr_trace!(
@@ -387,11 +361,8 @@ fn handle_notify_event(
             // Small delay for atomic-save rename completion.
             std::thread::sleep(Duration::from_millis(50));
 
-            // SNAPSHOT DEDUP (v25.1 Termux fix): snapshot mtime + size +
-            // content hash. If equal to last_processed_state on ALL THREE
-            // signals, this is a duplicate — drop it. Triple-signal is
-            // essential on FUSE where mtime is unreliable; content hash
-            // also dedups atomic saves that produced identical content.
+            // SNAPSHOT DEDUP (v25.1): mtime + size + content hash. Drop if
+            // equal to last_processed_state on all three signals.
             let current_state = snapshot_file_state(path);
             if current_state.size.is_none() {
                 // File doesn't exist (atomic save in progress). Skip —
@@ -444,14 +415,12 @@ fn handle_notify_event(
             }
 
             if let Err(msg) = validate_and_send(&parsed, tx) {
-                // v25: bulletproof write — runs in watcher worker thread.
                 use std::io::Write;
                 let _ = std::io::stderr().write_fmt(format_args!("[live-reload] {msg}\n"));
             }
             true
         }
         Err(e) => {
-            // v25: bulletproof write — runs in watcher worker thread.
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!("[live-reload] watch error: {e}\n"));
             true
@@ -517,33 +486,17 @@ fn validate_and_send(
     }
 }
 
-/// Rebuild a CloudConfig from a base template + new config values.
-///
-/// Takes the original CloudConfig (built from CLI + initial config) and
-/// overrides config-derived fields with values from the new config HashMap.
-/// CLI-only fields (screen_size, color_tune, message, etc.) are preserved
-/// from the base.
-///
-/// For live reload, config values override CLI defaults (the user is
-/// actively editing config.toml and expects those values to take effect).
-///
-/// v25 priority contract (corrected): `--scene <name>` selects the base
-/// scene but does NOT make its managed fields CLI-explicit. config.toml
-/// CAN override scene-managed fields when --scene is set via CLI. Only
-/// per-field CLI flags (e.g. `-c snow`, `--speed 100`) block config
-/// overrides during live reload — they are tracked in `cli_explicit`
-/// and remain immutable across reloads.
+/// Rebuild a CloudConfig from base + new config values.
+/// CLI-only fields are preserved from base. Config values override CLI
+/// defaults during live reload. Per-field CLI flags (tracked in
+/// `cli_explicit`) remain immutable across reloads.
 #[must_use]
 pub fn rebuild_cloud_config(
     base: &crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
 ) -> crate::app::CloudConfig {
     let mut new = base.clone();
-    // Bug 3 fix: snapshot the CLI-explicit tracker from the base config.
-    // Each config-derived field below consults this tracker before
-    // applying — CLI-explicit per-field flags are preserved across live
-    // reload. Scene-managed fields are NOT CLI-explicit by proxy; config
-    // overrides apply normally for them.
+    // Snapshot CLI-explicit tracker — preserved across reloads.
     let cli = new.cli_explicit.clone();
 
     lr_trace!(
@@ -551,7 +504,11 @@ pub fn rebuild_cloud_config(
         cli.color, cli.charset, cli.speed, cli.density, cli.fps, cli.scene, cli.glitch_level
     );
 
-    // Color scheme — skip if CLI explicitly set --color
+    // v25.5 depth-test fix: user-set color/charset must win over scene defaults.
+    let user_set_color = cfg.contains_key("color");
+    let user_set_charset = cfg.contains_key("charset");
+
+    // Color scheme — skip if CLI --color was explicit.
     if !cli.color {
         if let Some(v) = cfg.get("color") {
             if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
@@ -569,10 +526,7 @@ pub fn rebuild_cloud_config(
         lr_trace!("skip color (CLI explicit) — keeping {:?}", new.color_scheme);
     }
 
-    // v16: Custom color palette live reload.
-    // If a custom palette was active at startup (via --colors-custom),
-    // reload its definition from the new config so editing color values
-    // takes effect immediately.
+    // v16: Custom color palette live reload (if active at startup).
     if let Some(ref name) = new.custom_palette_name {
         match crate::colors_custom::load_custom_palette(cfg, name) {
             Ok(palette) => {
@@ -593,12 +547,10 @@ pub fn rebuild_cloud_config(
         }
     }
 
-    // Charset (requires rebuilding chars vector) — skip if CLI --charset
+    // Charset — skip if CLI --charset
     if !cli.charset {
         if let Some(v) = cfg.get("charset") {
-            // v25: charset-custom.<name> takes precedence over built-in
-            // presets when the name matches a [charset-custom.<name>]
-            // block in the config. Falls back to built-in charset_from_str.
+            // v25: charset-custom.<name> takes precedence over built-in.
             if let Some(custom_chars) =
                 crate::charset_custom::load_custom_charset_if_matches(cfg, v)
             {
@@ -628,32 +580,42 @@ pub fn rebuild_cloud_config(
         );
     }
 
-    // Scene (affects rain_style) — skip if CLI --scene was explicit
+    // Scene — skip if CLI --scene explicit. v25.5: scene color/charset
+    // are defaults; user config values win.
     if !cli.scene {
         if let Some(v) = cfg.get("scene") {
             if let Some(scene_info) = crate::scene::get_scene(v) {
                 new.rain_style = scene_info.config.rain_style;
-                // Apply scene color/charset if set — but still respect
-                // CLI-explicit color/charset (don't let scene override CLI).
                 if let Some(color) = scene_info.config.color {
-                    if !cli.color {
+                    if !cli.color && !user_set_color {
                         if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
+                            lr_trace!("scene '{}' applies default color={:?}", v, scheme);
                             new.color_scheme = scheme;
                         }
+                    } else {
+                        lr_trace!("scene '{}' color skipped — user/CLI set", v);
                     }
                 }
                 if let Some(charset_name) = scene_info.config.charset {
-                    if !cli.charset {
-                        // v25: scene-defined charset name may resolve to a
-                        // [charset-custom.<name>] block — check custom first.
+                    if !cli.charset && !user_set_charset {
                         if let Some(custom_chars) =
                             crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
                         {
+                            lr_trace!(
+                                "scene '{}' applies default charset='{}' (custom)",
+                                v,
+                                charset_name
+                            );
                             new.charset_preset = charset_name.to_string();
                             new.chars = custom_chars;
                         } else if let Ok(charset) =
                             crate::charset::charset_from_str(charset_name, false)
                         {
+                            lr_trace!(
+                                "scene '{}' applies default charset='{}' (built-in)",
+                                v,
+                                charset_name
+                            );
                             new.charset_preset = charset_name.to_string();
                             new.chars = crate::charset::build_chars(
                                 charset,
@@ -661,6 +623,8 @@ pub fn rebuild_cloud_config(
                                 new.def_ascii,
                             );
                         }
+                    } else {
+                        lr_trace!("scene '{}' charset skipped — user/CLI set", v);
                     }
                 }
                 if let Some(speed) = scene_info.config.speed {
@@ -734,9 +698,15 @@ pub fn rebuild_cloud_config(
         );
     }
 
-    // v17 mastery: legacy advanced config keys (glitchpct, shortpct, rippct,
-    // maxdpc) REMOVED from live reload. These are now fully controlled by
-    // --glitch-level. The old keys are silently ignored on live reload.
+    // v25.5: color-bg live reload. default_bg=true = terminal default; false = solid black.
+    if let Some(v) = cfg.get("color-bg") {
+        new.default_bg = match v.trim().to_ascii_lowercase().as_str() {
+            "black" => false,
+            "default-background" | "default_background" => true,
+            _ => new.default_bg,
+        };
+        lr_trace!("apply color-bg='{}' → default_bg={}", v, new.default_bg);
+    }
 
     // Glitch times (ms range)
     if let Some(v) = cfg.get("glitchms") {
@@ -745,7 +715,6 @@ pub fn rebuild_cloud_config(
             new.glitch_high = hi;
         }
     }
-
     // Linger times
     if let Some(v) = cfg.get("lingerms") {
         if let Some((lo, hi)) = parse_range(v) {
@@ -767,17 +736,9 @@ pub fn rebuild_cloud_config(
         new.auto_color_drift = v.trim() == "true";
     }
 
-    // v17 mastery: scene-custom selector key REMOVED from config.toml.
-    // Density map is now loaded only via --scene-custom CLI flag in main.rs.
-    // Live reload no longer reads the 'scene-custom' config key.
-
     // v20: scene-custom live reload. If a custom scene is active (set via
     // --scene-custom <name>), re-apply its fields from the new config so
-    // editing [scene-custom.<name>] takes effect immediately. Color/charset
-    // changes are applied to the CloudConfig; density-map changes will be
-    // picked up by main.rs's monolith_density_map re-resolution on the next
-    // Cloud rebuild (the watcher path in event_loop.rs already calls
-    // create_cloud + cloud.reset()).
+    // editing [scene-custom.<name>] takes effect immediately.
     if let Some(ref custom_name) = base.scene_custom_name {
         apply_scene_custom_to_cloud_config(&mut new, cfg, custom_name);
     }
@@ -787,17 +748,7 @@ pub fn rebuild_cloud_config(
 
 /// Apply a `[scene-custom.<name>]` block from config to a CloudConfig in
 /// place. Used by live reload so edits to a custom scene take effect
-/// without restarting cosmostrix.
-///
-/// Fields override the CloudConfig directly. Missing fields are left
-/// unchanged (the CloudConfig retains whatever it had before the reload).
-/// This mirrors the startup-time behavior in `apply_profile_overrides`
-/// but operates on CloudConfig instead of Args.
-///
-/// v20.1: `base-scene` and `preset` are no longer recognized fields, so
-/// they never reach this function — `is_scene_custom_config_key` rejects
-/// them and `collect_custom_scenes` skips them. They will instead show up
-/// as unknown keys via `--testconf`.
+/// without restarting. Missing fields are left unchanged.
 fn apply_scene_custom_to_cloud_config(
     new: &mut crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
@@ -813,9 +764,7 @@ fn apply_scene_custom_to_cloud_config(
         let Some(field) = key.strip_prefix(&prefix) else {
             continue;
         };
-        // v20.1: base-scene and preset are no longer recognized; they are
-        // filtered upstream by is_scene_custom_config_key. Unknown fields
-        // are ignored here.
+        // v20.1: base-scene and preset filtered upstream; unknown fields ignored.
         touched_any = true;
         match field {
             "color" => {
@@ -1054,13 +1003,59 @@ mod tests {
         );
         let base = minimal_cloud_config();
         let new = rebuild_cloud_config(&base, &cfg);
-        assert_eq!(
-            new.color_scheme,
-            crate::runtime::ColorScheme::Green,
-            "live reload must apply scene-custom color change"
-        );
-        // scene_name must remain the custom scene name (not be overwritten).
+        assert_eq!(new.color_scheme, crate::runtime::ColorScheme::Green);
         assert_eq!(new.scene_name, "test-scene");
+    }
+
+    /// v25.5: user color wins over scene default (depth-test bug fix).
+    #[test]
+    fn rebuild_user_color_wins_over_scene_default() {
+        let mut cfg = HashMap::new();
+        cfg.insert("color".to_string(), "cosmos".to_string());
+        cfg.insert("scene".to_string(), "carbonic".to_string());
+        let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+        assert_eq!(new.color_scheme, crate::runtime::ColorScheme::Cosmos);
+    }
+
+    /// v25.5: user charset wins over scene default (depth-test bug fix).
+    #[test]
+    fn rebuild_user_charset_wins_over_scene_default() {
+        let mut cfg = HashMap::new();
+        cfg.insert("charset".to_string(), "retro".to_string());
+        cfg.insert("scene".to_string(), "carbonic".to_string());
+        let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+        assert_eq!(new.charset_preset, "retro");
+    }
+
+    /// v25.5: color-bg live reload (was startup-only — depth-test bug fix).
+    #[test]
+    fn rebuild_applies_color_bg_live_reload() {
+        let base = minimal_cloud_config();
+        assert!(base.default_bg);
+        let mut cfg = HashMap::new();
+        cfg.insert("color-bg".to_string(), "black".to_string());
+        assert!(
+            !rebuild_cloud_config(&base, &cfg).default_bg,
+            "black → solid black"
+        );
+        let mut cfg2 = HashMap::new();
+        cfg2.insert("color-bg".to_string(), "default-background".to_string());
+        assert!(
+            rebuild_cloud_config(&base, &cfg2).default_bg,
+            "default-background → terminal default"
+        );
+    }
+
+    /// v25.5: unrecognized color-bg keeps old setting.
+    #[test]
+    fn rebuild_color_bg_unrecognized_keeps_old() {
+        let base = minimal_cloud_config();
+        let mut cfg = HashMap::new();
+        cfg.insert("color-bg".to_string(), "purple".to_string());
+        assert_eq!(
+            rebuild_cloud_config(&base, &cfg).default_bg,
+            base.default_bg
+        );
     }
 
     #[test]

@@ -59,6 +59,19 @@ const BURST_POLL_INTERVAL_MS: u64 = 200;
 /// "save → formatter → re-save" sequence.
 const BURST_CYCLES: u8 = 5;
 
+/// v25.5 strengthening: when a NEW change is detected DURING an active
+/// burst, extend the burst by this many cycles (rather than resetting to
+/// BURST_CYCLES). This catches chain-editing scenarios (formatter →
+/// linter → save → editor auto-save) without dropping out of burst mode
+/// between each step. Capped at BURST_CYCLES_MAX to bound worst-case
+/// burst duration.
+const BURST_CYCLES_EXTEND: u8 = 3;
+
+/// Hard cap on burst cycles. At 200ms each, this bounds the worst-case
+/// burst window to ~2 seconds of fast polling — after that, the burst
+/// decays naturally even if changes keep arriving.
+const BURST_CYCLES_MAX: u8 = 10;
+
 /// Read the polling interval from `COSMOSTRIX_LIVE_RELOAD_POLL_MS` env var,
 /// clamped to `[50, 5000]` ms. Returns `DEFAULT_POLL_INTERVAL_MS` (750) if
 /// unset or invalid. Power users on slow filesystems can raise it; users
@@ -145,19 +158,35 @@ pub fn polling_heartbeat(
         cycle += 1;
 
         // Check if the native watcher (or a prior poll cycle) accepted
-        // an event since our last cycle. If so, enter burst mode to
-        // catch follow-up edits from formatters/linters.
+        // an event since our last cycle. If so, enter/extend burst mode
+        // to catch follow-up edits from formatters/linters.
         let current_change_count = change_counter.load(Ordering::Acquire);
         if current_change_count != last_change_count {
             last_change_count = current_change_count;
-            if burst_cycles_remaining == 0 {
+            // v25.5 strengthening: extend burst by BURST_CYCLES_EXTEND if
+            // already in burst (chain-editing scenario), otherwise start
+            // fresh burst at BURST_CYCLES. Capped at BURST_CYCLES_MAX.
+            let prev = burst_cycles_remaining;
+            burst_cycles_remaining = if prev > 0 {
+                (prev + BURST_CYCLES_EXTEND).min(BURST_CYCLES_MAX)
+            } else {
+                BURST_CYCLES
+            };
+            if prev == 0 {
                 lr_trace!(
                     "poll: external change detected (counter={}) — entering burst mode for {} cycles",
                     current_change_count,
                     BURST_CYCLES
                 );
+            } else {
+                lr_trace!(
+                    "poll: external change during burst (counter={}) — extending burst {}→{} cycles (cap={})",
+                    current_change_count,
+                    prev,
+                    burst_cycles_remaining,
+                    BURST_CYCLES_MAX
+                );
             }
-            burst_cycles_remaining = BURST_CYCLES;
         }
 
         let current_state = snapshot_file_state(&path);
@@ -195,9 +224,15 @@ pub fn polling_heartbeat(
         );
         last_state = current_state;
 
-        // Enter burst mode after detecting a change ourselves, so we
-        // catch rapid follow-up edits (e.g., formatter re-save).
-        burst_cycles_remaining = BURST_CYCLES;
+        // Enter/extend burst mode after detecting a change ourselves,
+        // so we catch rapid follow-up edits (e.g., formatter re-save).
+        // Same extend-vs-reset logic as the external-change path above.
+        let prev = burst_cycles_remaining;
+        burst_cycles_remaining = if prev > 0 {
+            (prev + BURST_CYCLES_EXTEND).min(BURST_CYCLES_MAX)
+        } else {
+            BURST_CYCLES
+        };
 
         // Synthesize a notify::Event so the unified event loop handles
         // it identically to a native event. The path must match what
@@ -473,5 +508,15 @@ mod tests {
         );
 
         std::fs::remove_file(&path).ok();
+    }
+
+    /// v25.5 strengthening: worst-case burst duration must stay under 3s.
+    #[test]
+    fn burst_cycle_constants_are_sane() {
+        // 10 cycles × 200ms = 2s ≤ 3s.
+        assert!(
+            BURST_CYCLES_MAX as u64 * BURST_POLL_INTERVAL_MS <= 3000,
+            "worst-case burst must stay under 3s"
+        );
     }
 }

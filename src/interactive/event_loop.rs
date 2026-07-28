@@ -108,7 +108,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         Some(start_time + Duration::from_secs_f64(s))
     });
 
-    let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
+    let mut target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
     let pause_period = Duration::from_millis(PAUSE_PERIOD_MS);
     let mut next_frame = Instant::now();
     let mut perf_pressure: f32 = 0.0;
@@ -132,24 +132,18 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut hud_state: HudState = HudState::new();
     hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
 
-    // Perceived-motion diagnostics: track how many frames produce visible
-    // changes vs. frames where nothing visually changed. This helps diagnose
-    // the "feels like 10 FPS" problem where the renderer runs at 60 FPS but
-    // row advances only happen every ~8 frames.
+    // Perceived-motion diagnostics: track visible-change frames vs idle frames.
     let mut perf_idle_frames: u64 = 0; // frames where dirty_count == 0
     let mut perf_dirty_sum: u64 = 0; // total dirty cells across all frames
     let mut perf_dirty_samples: u64 = 0; // number of frames sampled for dirty avg
 
-    // Resize debounce: track when the last resize event arrived so rapid
-    // resize storms (e.g. window drag) are coalesced into a single apply.
+    // Resize debounce: coalesce rapid resize storms into a single apply.
     let mut last_resize_event: Option<Instant> = None;
 
-    // Adaptive throttling: track last user input time for idle detection.
-    // After IDLE_THRESHOLD_SECS with no input, effective FPS is reduced to
-    // IDLE_FPS_FACTOR × target_fps. Any input event instantly restores.
+    // Adaptive throttling: reduce effective FPS after IDLE_THRESHOLD_SECS idle.
     let mut last_input_time = Instant::now();
     let mut last_resync_time = last_input_time;
-    let idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
+    let mut idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
 
     // P1: Phase predictor — learns daily activity cycle for proactive idle.
     let mut phase_predictor = PhasePredictor::new();
@@ -190,22 +184,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
+    // v25.5 strengthening: track last-applied config map for diff trace.
+    let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> = None;
+
     // Adaptive color shift: check current hour's target color every 30s.
-    // When the phase changes (e.g. Deep Void → Compression), the target
-    // color changes. We apply it via cloud.set_color_scheme() which does
-    // a smooth palette transition wave.
-    //
-    // Owner design: start with the user's config color (e.g. Green3),
-    // then after 30s shift to the adaptive target. This gives the user
-    // a brief moment to see their chosen color before the Cosmic Dragon breathes.
     let mut last_color_check = Instant::now();
     let mut last_adaptive_color: Option<&str> = None;
     const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
-    // Helper: track runtime state changes for post-exit verbose summary.
-    // We do NOT eprintln during rain — that causes screen flicker because
-    // stderr output appears in the terminal during alternate-screen mode.
-    // Instead, we track changes silently and print a full summary after exit.
+    // Track runtime state changes for post-exit verbose summary.
+    // No eprintln during rain — would flicker in alternate-screen mode.
     let _verbose = cfg.verbose;
 
     // Parse custom time map from config (if [adaptive-custom] is defined).
@@ -232,13 +220,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
 
         // Live config reload: non-blocking check for config events.
-        // Ok = valid config → rebuild Cloud. Err = invalid → EXIT cosmostrix.
         if let Some(ref rx) = config_rx {
             while let Ok(event) = rx.try_recv() {
-                // v25.3: trace event receipt in the render thread so the
-                // user can verify the full pipeline: watcher → channel →
-                // render thread → rebuild. If this trace appears, the
-                // config change WAS detected and IS being applied.
                 crate::lr_trace!("render thread received config event from watcher channel");
                 match event {
                     Ok(cfg) => {
@@ -265,25 +248,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
 
-        // Time-driven color/scene/speed/density shift: every 30s, check the
-        // current time against the configured schedule and apply changes via
-        // a smooth palette transition wave.
-        //
-        // Two sources of schedule, in priority order:
-        //   1. Custom time map ([adaptive-custom.HH-MM] entries in config).
-        //      Runs whenever any entry is defined — this is an explicit user
-        //      opt-in that overrides atmosphere-mode. The user defined a
-        //      schedule, so we follow it regardless of whether the built-in
-        //      atmosphere engine is enabled.
-        //   2. Built-in 5-phase adaptive engine (Deep Void / Compression /
-        //      Pulse / Calm / Signal). Only runs when the user explicitly
-        //      opts in via atmosphere-mode = controlled-live AND
-        //      atmosphere-regime = adaptive in config. This prevents the
-        //      "color auto-changes without my consent" bug from commit
-        //      5172f39's default-flip.
-        //
-        // v15 Cosmic Dragon: custom time map is decoupled from atmosphere_mode so
-        // defining adaptive-custom.* is sufficient to enable scheduling.
+        // Time-driven color/scene/speed/density shift every 30s. Two sources:
+        //   1. Custom time map ([adaptive-custom.HH-MM] entries — explicit opt-in).
+        //   2. Built-in 5-phase adaptive engine (requires atmosphere-mode =
+        //      controlled-live AND atmosphere-regime = adaptive).
         let now = Instant::now();
         if now.duration_since(last_color_check) >= COLOR_CHECK_INTERVAL {
             last_color_check = now;
@@ -356,9 +324,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
 
-        // Apply pending Cloud rebuild (full rebuild, not delta).
-        // This swaps Cloud + Frame + color cache between frames — no mid-frame
-        // visual glitch. Rain streams reset (expected for color/charset changes).
+        // Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
         if let Some(new_cfg_map) = pending_config.take() {
             let new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
             let density = effective_density(
@@ -367,10 +333,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 new_cfg.fullwidth,
                 new_cfg.density_auto,
             );
-            // v25 (Task 1): bulletproof trace so users can verify the
-            // rebuild actually reached the render thread. Uses the same
-            // env-gated path as live_config's lr_trace (no perf cost
-            // when COSMOSTRIX_LIVE_RELOAD_DEBUG is unset).
+            // v25: bulletproof trace that rebuild reached render thread.
             crate::live_config_trace::trace_rebuild_applied(
                 &new_cfg.color_scheme,
                 new_cfg.charset_preset.as_str(),
@@ -378,6 +341,64 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 new_cfg.density,
                 new_cfg.target_fps,
             );
+
+            // v25.5 strengthening: field-level config diff trace.
+            let mut changed: Vec<String> = Vec::new();
+            let mut added: Vec<String> = Vec::new();
+            let mut removed: Vec<String> = Vec::new();
+            match &last_applied_cfg_map {
+                None => {
+                    let mut keys: Vec<&String> = new_cfg_map.keys().collect();
+                    keys.sort();
+                    for k in keys {
+                        crate::lr_trace!("config diff [initial]: {} = {}", k, new_cfg_map[k]);
+                    }
+                }
+                Some(old_map) => {
+                    let all_keys: std::collections::BTreeSet<&String> =
+                        old_map.keys().chain(new_cfg_map.keys()).collect();
+                    for k in &all_keys {
+                        match (old_map.get(*k), new_cfg_map.get(*k)) {
+                            (Some(o), Some(n)) => {
+                                if o != n {
+                                    changed.push(format!("{}: {} → {}", k, o, n));
+                                }
+                            }
+                            (None, Some(n)) => added.push(format!("{}: {}", k, n)),
+                            (Some(o), None) => removed.push(format!("{}: {}", k, o)),
+                            (None, None) => unreachable!(),
+                        }
+                    }
+                    if !changed.is_empty() {
+                        crate::lr_trace!(
+                            "config diff [changed {}]: {}",
+                            changed.len(),
+                            changed.join(", ")
+                        );
+                    }
+                    if !added.is_empty() {
+                        crate::lr_trace!(
+                            "config diff [added {}]: {}",
+                            added.len(),
+                            added.join(", ")
+                        );
+                    }
+                    if !removed.is_empty() {
+                        crate::lr_trace!(
+                            "config diff [removed {}]: {}",
+                            removed.len(),
+                            removed.join(", ")
+                        );
+                    }
+                    if changed.is_empty() && added.is_empty() && removed.is_empty() {
+                        crate::lr_trace!(
+                            "config diff: no field-level changes (whitespace/comment edit)"
+                        );
+                    }
+                }
+            }
+            last_applied_cfg_map = Some(new_cfg_map.clone());
+
             cloud = new_cfg.create_cloud(density);
             cloud.reset(w, h);
             cloud.enable_events();
@@ -399,15 +420,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     None
                 }
             };
+            // v25.5 depth-test fix: recompute target_period/idle_period
+            // from new target_fps. Guard against fps <= 0.
+            let safe_fps = if new_cfg.target_fps > 0.0 {
+                new_cfg.target_fps
+            } else {
+                cfg.target_fps.max(1.0)
+            };
+            target_period = Duration::from_secs_f64(1.0 / safe_fps);
+            idle_period = Duration::from_secs_f64(1.0 / (safe_fps * IDLE_FPS_FACTOR));
         }
 
-        // Adaptive throttling: detect idle state (no input for IDLE_THRESHOLD_SECS)
-        // and reduce effective FPS to conserve CPU/battery. Any input event
-        // instantly restores full performance.
-        //
-        // P1: Phase predictor can proactively suggest idle before the 30s
-        // threshold if it has learned the daily pattern.
-        // P2: Resync interval adapts based on sustained idle duration.
+        // Adaptive throttling: detect idle state (no input for
+        // IDLE_THRESHOLD_SECS) and reduce effective FPS to save CPU.
         let loop_now = Instant::now();
         let reactive_idle = is_runtime_idle(last_input_time, loop_now);
         let predicted_idle = phase_predictor
