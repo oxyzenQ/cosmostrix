@@ -3,8 +3,6 @@
 
 //! DrawCtx — read-only drawing context passed to Droplet::draw.
 
-use std::time::Instant;
-
 use bitvec::prelude::BitSlice;
 use crossterm::style::Color;
 
@@ -61,10 +59,6 @@ pub struct DrawCtx<'a> {
     pub bold_mode: BoldMode,
     pub glitchy: bool,
 
-    pub last_glitch_time: Instant,
-    pub next_glitch_time: Instant,
-    /// Precomputed 1.0 / glitch duration for multiply (avoids per-cell division).
-    pub glitch_inv_between: f64,
     /// Cached `is_bright(now)` snapshot computed once per DrawCtx construction.
     /// Avoids per-cell Instant::saturating_duration_since + nanos conversion
     /// in get_attr's glitch branch (called 100-300×/frame when glitchy).
@@ -108,10 +102,6 @@ pub struct DrawCtx<'a> {
     pub flash_col: u16,
     /// Flash effect click line.
     pub flash_line: u16,
-    /// Flash effect start time (None if no active flash).
-    /// Kept for API compatibility; use `flash_elapsed` for per-cell logic.
-    #[allow(dead_code)]
-    pub flash_time: Option<Instant>,
     /// Cached flash elapsed seconds (None if no active flash or expired).
     /// Precomputed once per frame to avoid per-cell `Instant::elapsed()` syscalls.
     pub flash_elapsed: Option<f32>,
@@ -121,33 +111,6 @@ pub struct DrawCtx<'a> {
 }
 
 impl DrawCtx<'_> {
-    #[inline]
-    #[allow(dead_code)]
-    fn is_bright(&self, now: Instant) -> bool {
-        if now < self.last_glitch_time || self.glitch_inv_between <= 0.0 {
-            return false;
-        }
-        let since = now
-            .saturating_duration_since(self.last_glitch_time)
-            .as_nanos() as f64;
-        since * self.glitch_inv_between <= GLITCH_BRIGHT_RATIO
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    fn is_dim(&self, now: Instant) -> bool {
-        if now > self.next_glitch_time {
-            return true;
-        }
-        if self.glitch_inv_between <= 0.0 {
-            return true;
-        }
-        let since = now
-            .saturating_duration_since(self.last_glitch_time)
-            .as_nanos() as f64;
-        since * self.glitch_inv_between >= GLITCH_DIM_RATIO
-    }
-
     #[inline]
     pub fn is_glitched(&self, line: u16, col: u16) -> bool {
         if !self.glitchy {

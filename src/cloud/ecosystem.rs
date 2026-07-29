@@ -42,18 +42,6 @@ impl BehaviorProfile {
         }
     }
 
-    pub(super) fn cycle(self) -> Self {
-        match self {
-            BehaviorProfile::Monolith => BehaviorProfile::Void,
-            BehaviorProfile::Void => BehaviorProfile::Neural,
-            BehaviorProfile::Neural => BehaviorProfile::Decay,
-            BehaviorProfile::Decay => BehaviorProfile::Eclipse,
-            BehaviorProfile::Eclipse => BehaviorProfile::Static,
-            BehaviorProfile::Static => BehaviorProfile::Pulse,
-            BehaviorProfile::Pulse => BehaviorProfile::Monolith,
-        }
-    }
-
     pub(super) fn params(self) -> ProfileParams {
         match self {
             BehaviorProfile::Monolith => ProfileParams {

@@ -120,13 +120,6 @@ impl GustState {
         self.multiplier
     }
 
-    /// Read-only access to the current multiplier. Use this from draw
-    /// paths that must not advance the state machine.
-    #[allow(dead_code)]
-    pub(super) fn multiplier(&self) -> f32 {
-        self.multiplier
-    }
-
     // ── Phase transitions ──
 
     fn transition_to_attack<R: Rng>(&mut self, now: Instant, rng: &mut R) {

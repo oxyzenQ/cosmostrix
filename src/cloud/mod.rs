@@ -465,14 +465,6 @@ impl Cloud {
         self.profile
     }
 
-    #[allow(dead_code)]
-    pub fn cycle_profile(&mut self) {
-        let next = self.profile.cycle();
-        self.profile = next;
-        self.profile_target = next.params();
-        self.profile_transition_start = Some(Instant::now());
-    }
-
     pub fn profile_name(&self) -> &'static str {
         self.profile.name()
     }

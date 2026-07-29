@@ -403,9 +403,6 @@ impl Cloud {
             color_mode: self.color_mode,
             bold_mode: self.bold_mode,
             glitchy: self.glitchy,
-            last_glitch_time: self.last_glitch_time,
-            next_glitch_time: self.next_glitch_time,
-            glitch_inv_between,
             glitch_bright,
             glitch_dim,
             palette_slices,
@@ -422,7 +419,6 @@ impl Cloud {
             mouse_line: self.mouse_line,
             flash_col: self.flash_col,
             flash_line: self.flash_line,
-            flash_time: self.flash_time,
             flash_elapsed: self.flash_time.and_then(|ft| {
                 let e = ft.elapsed().as_secs_f32();
                 if e < MOUSE_FLASH_DURATION_SECS {
