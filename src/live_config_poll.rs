@@ -38,11 +38,6 @@ use std::time::Duration;
 
 use notify::EventKind;
 
-// Bring the lr_trace! macro into scope (declared in main.rs via
-// #[macro_use] on mod live_config_trace).
-#[allow(unused_imports)]
-use crate::live_config_trace::*;
-
 /// Default base polling interval (ms). Used when
 /// `COSMOSTRIX_LIVE_RELOAD_POLL_MS` env var is unset or invalid.
 const DEFAULT_POLL_INTERVAL_MS: u64 = 750;
