@@ -105,7 +105,75 @@ pub fn suggest_for_unknown_key(key: &str) -> Option<String> {
         }
     }
 
+    // Pattern 4 (v25.11 / bug #13): top-level key typo. If the unknown key
+    // is a simple word (no dots) that is edit-distance ≤ 2 from a known
+    // top-level USER_CONFIG_KEYS entry, suggest the closest match. This
+    // catches common typos like `collor` → `color`, `speeed` → `speed`,
+    // `densit` → `density`, `charaset` → `charset`, etc.
+    //
+    // Only triggered for keys WITHOUT dots — dotted keys are handled by
+    // the patterns above (color.tune.*, scene-custom.*, colors-custom.*).
+    // A dotted key like `collor.tune.brightness` would NOT trigger this
+    // (it would fall through to None), which is correct because the user
+    // likely mis-nested the entire section, not just typo'd the prefix.
+    if !key.contains('.') && !key.is_empty() {
+        if let Some(suggestion) = closest_top_level_key(key) {
+            return Some(format!(
+                "'{key}': unknown key (likely typo). Did you mean '{suggestion}'? \
+                 Run 'cosmostrix --testconf' to see all valid config keys."
+            ));
+        }
+    }
+
     None
+}
+
+/// Find the closest match in `USER_CONFIG_KEYS` to `input` using edit distance.
+/// Returns `Some(suggestion)` if the best match has edit distance ≤ 2, or
+/// `None` if no key is close enough (avoiding false positives for keys that
+/// are genuinely unrelated).
+#[must_use]
+fn closest_top_level_key(input: &str) -> Option<&'static str> {
+    let input_lower = input.to_ascii_lowercase();
+    let mut best: Option<(&'static str, usize)> = None;
+    for &candidate in USER_CONFIG_KEYS.iter() {
+        let dist = edit_distance(&input_lower, candidate);
+        // Only accept if distance ≤ 2 AND the candidate is at least 3 chars
+        // (avoiding false matches for very short keys like `fps`).
+        if dist <= 2 && candidate.len() >= 3 {
+            match best {
+                None => best = Some((candidate, dist)),
+                Some((_, best_dist)) if dist < best_dist => best = Some((candidate, dist)),
+                _ => {}
+            }
+        }
+    }
+    best.map(|(s, _)| s)
+}
+
+/// Compute Levenshtein edit distance between two strings.
+/// Used for "did you mean" typo suggestions.
+fn edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let (m, n) = (a.len(), b.len());
+    if m == 0 {
+        return n;
+    }
+    if n == 0 {
+        return m;
+    }
+    let mut prev: Vec<usize> = (0..=n).collect();
+    let mut curr: Vec<usize> = vec![0; n + 1];
+    for i in 1..=m {
+        curr[0] = i;
+        for j in 1..=n {
+            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+    prev[n]
 }
 
 /// Returns `true` if `field` is a recognized colors-custom field name.
@@ -309,9 +377,11 @@ mod tests {
 
     #[test]
     fn generic_typo_returns_none() {
-        // Genuine typos have no structural hint to give.
-        assert_eq!(suggest_for_unknown_key("colro"), None);
-        assert_eq!(suggest_for_unknown_key("colour"), None);
+        // v25.11: 'colro' and 'colour' now match 'color' (edit distance ≤ 2)
+        // so they DO get a did-you-mean hint. Use genuinely unrelated keys
+        // that are edit-distance > 2 from any known key.
+        assert_eq!(suggest_for_unknown_key("xyzqwerty"), None);
+        assert_eq!(suggest_for_unknown_key("zzzzzzzzz"), None);
         assert_eq!(
             suggest_for_unknown_key("scene-custom.hacker-mode.totally-fake-field"),
             None
@@ -322,7 +392,9 @@ mod tests {
 
     #[test]
     fn format_hints_block_empty_for_no_hints() {
-        let keys = vec!["colro".to_string(), "colour".to_string()];
+        // v25.11: use keys that are NOT close to any known key (edit distance > 2).
+        // 'colro'/'colour' now match 'color' and would produce hints.
+        let keys = vec!["xyzqwerty".to_string(), "zzzzzzzzz".to_string()];
         assert_eq!(format_hints_block(&keys), "");
     }
 
@@ -354,16 +426,18 @@ mod tests {
 
     #[test]
     fn format_hints_block_mixed_keys_only_emits_for_known_patterns() {
+        // v25.11: 'colro'/'colour' now match 'color' and produce hints.
+        // Use genuinely unrelated keys for the no-hint cases.
         let keys = vec![
-            "colro".to_string(),           // no hint
-            "color.tune.bold".to_string(), // hint
-            "colour".to_string(),          // no hint
+            "xyzqwerty".to_string(),       // no hint (edit dist > 2 from all keys)
+            "color.tune.bold".to_string(), // hint (structural pattern)
+            "zzzzzzzzz".to_string(),       // no hint
         ];
         let block = format_hints_block(&keys);
         let hint_count = block.matches("\n  hint: ").count();
         assert_eq!(
             hint_count, 1,
-            "only the recognized pattern should produce a hint"
+            "only the recognized pattern should produce a hint: {block}"
         );
         assert!(block.contains("color.tune.bold"));
     }
@@ -553,5 +627,90 @@ mod tests {
         );
         let hint = suggest_for_unknown_key("colors-custom.foo.background");
         assert!(hint.is_some(), "hint should fire for background");
+    }
+
+    // ── v25.11 (bug #13): top-level key typo "did you mean" hints ──
+
+    #[test]
+    fn typo_collor_suggests_color() {
+        let hint = suggest_for_unknown_key("collor");
+        assert!(hint.is_some(), "should suggest for 'collor'");
+        let h = hint.unwrap();
+        assert!(h.contains("color"), "hint should suggest 'color': {h}");
+        assert!(h.contains("Did you mean"), "should be a did-you-mean: {h}");
+    }
+
+    #[test]
+    fn typo_speeed_suggests_speed() {
+        let hint = suggest_for_unknown_key("speeed");
+        assert!(hint.is_some(), "should suggest for 'speeed'");
+        assert!(
+            hint.unwrap().contains("speed"),
+            "hint should suggest 'speed'"
+        );
+    }
+
+    #[test]
+    fn typo_densit_suggests_density() {
+        let hint = suggest_for_unknown_key("densit");
+        assert!(hint.is_some(), "should suggest for 'densit'");
+        assert!(
+            hint.unwrap().contains("density"),
+            "hint should suggest 'density'"
+        );
+    }
+
+    #[test]
+    fn typo_charaset_suggests_charset() {
+        let hint = suggest_for_unknown_key("charaset");
+        assert!(hint.is_some(), "should suggest for 'charaset'");
+        assert!(
+            hint.unwrap().contains("charset"),
+            "hint should suggest 'charset'"
+        );
+    }
+
+    #[test]
+    fn typo_glitchlevel_suggests_glitch_level() {
+        let hint = suggest_for_unknown_key("glitchlevel");
+        assert!(hint.is_some(), "should suggest for 'glitchlevel'");
+        assert!(
+            hint.unwrap().contains("glitch-level"),
+            "hint should suggest 'glitch-level'"
+        );
+    }
+
+    #[test]
+    fn typo_with_dot_does_not_trigger_top_level_suggestion() {
+        // Dotted keys should NOT trigger the top-level typo suggestion —
+        // they're handled by the structural patterns above, or they're
+        // genuinely unknown dotted keys.
+        let hint = suggest_for_unknown_key("collor.tune");
+        assert!(
+            hint.is_none(),
+            "dotted key should not get top-level typo hint"
+        );
+    }
+
+    #[test]
+    fn completely_unrelated_key_gets_no_suggestion() {
+        // A key that's edit-distance > 2 from any known key should get None.
+        let hint = suggest_for_unknown_key("xyzqwrstuv");
+        assert!(
+            hint.is_none(),
+            "unrelated key should not get a false suggestion"
+        );
+    }
+
+    #[test]
+    fn edit_distance_basic_cases() {
+        assert_eq!(edit_distance("color", "color"), 0);
+        assert_eq!(edit_distance("collor", "color"), 1); // extra 'l'
+        assert_eq!(edit_distance("speeed", "speed"), 1); // extra 'e'
+        assert_eq!(edit_distance("charaset", "charset"), 1); // swap a/e
+        assert_eq!(edit_distance("density", "densit"), 1); // missing 'y'
+        assert_eq!(edit_distance("abc", "xyz"), 3); // completely different
+        assert_eq!(edit_distance("", "color"), 5); // empty to non-empty
+        assert_eq!(edit_distance("color", ""), 5); // non-empty to empty
     }
 }

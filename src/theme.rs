@@ -676,4 +676,72 @@ mod tests {
         assert!(!readme.contains("42 built-in color schemes"));
         assert!(readme.contains("43 built-in themes"));
     }
+
+    // ── v25.11 (bug #13): "did you mean" color name suggestions ──
+
+    #[test]
+    fn unknown_color_comet_suggests_cosmos() {
+        // 'cosmos' is the closest match — edit distance from 'cosmos' to 'cosmos' is 0.
+        // Use 'cosmos' (missing last char) which is distance 1.
+        let err = parse_color_scheme("cosmo").unwrap_err();
+        assert!(
+            err.contains("Did you mean 'cosmos'?"),
+            "should suggest cosmos for 'cosmo': {err}"
+        );
+    }
+
+    #[test]
+    fn unknown_color_supernova_suggests_closest() {
+        // 'supernova' is too far from any color (edit distance > 2).
+        // Use 'nebala' (missing 'u') which is distance 1 from 'nebula'.
+        let err = parse_color_scheme("nebala").unwrap_err();
+        assert!(
+            err.contains("Did you mean 'nebula'?"),
+            "should suggest nebula for 'nebala': {err}"
+        );
+    }
+
+    #[test]
+    fn unknown_color_galaxy_suggests_closest() {
+        // 'galaxy' is too far from any color (edit distance > 2).
+        // Use 'vaporwav' (missing 'e') which is distance 1 from 'vaporwave'.
+        let err = parse_color_scheme("vaporwav").unwrap_err();
+        assert!(
+            err.contains("Did you mean 'vaporwave'?"),
+            "should suggest vaporwave for 'vaporwav': {err}"
+        );
+    }
+
+    #[test]
+    fn unknown_color_gren_suggests_green() {
+        let err = parse_color_scheme("gren").unwrap_err();
+        assert!(
+            err.contains("Did you mean 'green'"),
+            "should suggest green for 'gren': {err}"
+        );
+    }
+
+    #[test]
+    fn unknown_color_completely_unrelated_no_suggestion() {
+        // A string that's edit-distance > 2 from every color name should
+        // NOT get a "did you mean" suggestion — just the plain error.
+        let err = parse_color_scheme("xyzqwerty").unwrap_err();
+        assert!(
+            !err.contains("Did you mean"),
+            "should not suggest for unrelated input: {err}"
+        );
+        assert!(
+            err.contains("Use --list-colors"),
+            "should still mention --list-colors: {err}"
+        );
+    }
+
+    #[test]
+    fn unknown_color_empty_input_no_suggestion() {
+        let err = parse_color_scheme("").unwrap_err();
+        assert!(
+            !err.contains("Did you mean"),
+            "empty input should not suggest: {err}"
+        );
+    }
 }

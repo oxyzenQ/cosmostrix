@@ -231,6 +231,78 @@ pub fn cycle_charset_preset(current: &str, dir: i32) -> &'static str {
 
 pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
     theme::lookup_theme(s).ok_or_else(|| {
-        format!("error: unknown color '{s}'\n\n  Use --list-colors to see available colors.")
+        // v25.11 (bug #13): add "did you mean" suggestion for close matches.
+        // Catches common typos like `comet` → `cosmos`, `galaxy` → `gray`/`cosmos`,
+        // `supernova` → `nebula`/`snow`, etc. Only suggests if edit distance ≤ 2.
+        let suggestion = closest_color_name(s);
+        if let Some(name) = suggestion {
+            format!(
+                "error: unknown color '{s}'\n\n  Did you mean '{name}'?\n  Use --list-colors to see all available colors."
+            )
+        } else {
+            format!("error: unknown color '{s}'\n\n  Use --list-colors to see available colors.")
+        }
     })
+}
+
+/// v25.11 (bug #13): find the closest built-in color name to `input` using
+/// edit distance. Returns `Some(name)` if the best match has distance ≤ 2,
+/// or `None` if no color is close enough. Also checks theme aliases (e.g.
+/// `deep-sea` is an alias for `ocean`), so a typo like `deap-sea` would
+/// suggest `deep-sea` (the alias).
+#[must_use]
+fn closest_color_name(input: &str) -> Option<&'static str> {
+    let input_lower = input.trim().to_ascii_lowercase();
+    if input_lower.is_empty() {
+        return None;
+    }
+    let mut best: Option<(&'static str, usize)> = None;
+    for theme in theme::themes().iter() {
+        // Check canonical name
+        let dist = edit_distance(&input_lower, theme.name);
+        if dist <= 2 {
+            match best {
+                None => best = Some((theme.name, dist)),
+                Some((_, d)) if dist < d => best = Some((theme.name, dist)),
+                _ => {}
+            }
+        }
+        // Check aliases
+        for &alias in theme.aliases {
+            let dist = edit_distance(&input_lower, alias);
+            if dist <= 2 {
+                match best {
+                    None => best = Some((theme.name, dist)),
+                    Some((_, d)) if dist < d => best = Some((theme.name, dist)),
+                    _ => {}
+                }
+            }
+        }
+    }
+    best.map(|(name, _)| name)
+}
+
+/// Levenshtein edit distance between two strings.
+#[inline]
+fn edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let (m, n) = (a.len(), b.len());
+    if m == 0 {
+        return n;
+    }
+    if n == 0 {
+        return m;
+    }
+    let mut prev: Vec<usize> = (0..=n).collect();
+    let mut curr: Vec<usize> = vec![0; n + 1];
+    for i in 1..=m {
+        curr[0] = i;
+        for j in 1..=n {
+            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+    prev[n]
 }
