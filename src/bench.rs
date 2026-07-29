@@ -70,7 +70,7 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let (w, h) = crate::bench_helpers::bench_dimensions(cfg.screen_size);
 
-    let density = effective_density(cfg.base_density, w, cfg.fullwidth, cfg.density_auto);
+    let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
@@ -155,7 +155,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // ── Initialization ───────────────────────────────────────────────────
     let (w, h) = crate::bench_helpers::bench_dimensions(cfg.screen_size);
-    let density = effective_density(cfg.base_density, w, cfg.fullwidth, cfg.density_auto);
+    let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
@@ -736,7 +736,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let bench_duration_secs = crate::ux::or_exit(resolve_bench_duration(cfg.bench_duration));
 
     let (w, h) = crate::bench_helpers::bench_dimensions(cfg.screen_size);
-    let density = effective_density(cfg.base_density, w, cfg.fullwidth, cfg.density_auto);
+    let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);

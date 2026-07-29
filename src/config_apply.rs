@@ -432,12 +432,6 @@ fn apply_config_values(
             config_touched.insert("color_bg");
         }
     }
-    if let Some(v) = config_value(matches, cfg, "fullwidth", "fullwidth") {
-        if let Some(b) = parse_bool_config("fullwidth", &v) {
-            args.fullwidth = b;
-            config_touched.insert("fullwidth");
-        }
-    }
     if let Some(v) = config_value(matches, cfg, "auto_color_drift", "auto-color-drift") {
         if let Some(b) = parse_bool_config("auto-color-drift", &v) {
             args.auto_color_drift = b;

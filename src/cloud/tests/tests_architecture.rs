@@ -14,7 +14,6 @@ use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 fn make_monolith_cloud() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::Mono,
-        false,
         ShadingMode::Random,
         BoldMode::Off,
         false,
@@ -32,7 +31,6 @@ fn make_monolith_cloud() -> Cloud {
 fn make_glyph_cloud() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::Mono,
-        false,
         ShadingMode::Random,
         BoldMode::Off,
         false,

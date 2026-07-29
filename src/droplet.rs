@@ -896,19 +896,6 @@ impl Droplet {
                     bold,
                 },
             );
-
-            if ctx.full_width && self.bound_col + 1 < frame.width {
-                frame.set_force(
-                    self.bound_col + 1,
-                    line,
-                    crate::cell::Cell {
-                        ch: ' ',
-                        fg: None,
-                        bg,
-                        bold: false,
-                    },
-                );
-            }
         }
 
         self.head_cur_line = self.head_put_line;

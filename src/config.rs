@@ -570,14 +570,6 @@ pub struct Args {
     pub color_bg: ColorBg,
 
     #[arg(
-        short = 'F',
-        long = "fullwidth",
-        hide = true,
-        help = "Use full terminal width"
-    )]
-    pub fullwidth: bool,
-
-    #[arg(
         long = "duration",
         hide = true,
         help = "Stop after N seconds (min 0.1 max 86400; <=0 disables)"

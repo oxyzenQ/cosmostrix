@@ -857,7 +857,6 @@ fn main() -> std::io::Result<()> {
             default_bg,
             &charset_preset,
             &chars,
-            args.fullwidth,
             target_fps,
             speed,
             base_density,
@@ -901,7 +900,6 @@ fn main() -> std::io::Result<()> {
 
     let cloud_cfg = CloudConfig {
         color_mode,
-        fullwidth: args.fullwidth,
         shading_mode,
         bold_mode,
         async_mode: effective_async,

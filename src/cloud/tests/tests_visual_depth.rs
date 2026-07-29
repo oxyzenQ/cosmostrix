@@ -18,7 +18,6 @@ use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 pub(super) fn make_cloud_black_bg() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
-        false,
         ShadingMode::DistanceFromHead,
         BoldMode::Random,
         false,
@@ -34,7 +33,6 @@ pub(super) fn make_cloud_black_bg() -> Cloud {
 pub(super) fn make_cloud_default_bg() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
-        false,
         ShadingMode::DistanceFromHead,
         BoldMode::Random,
         false,
@@ -157,7 +155,6 @@ fn hero_spine_trail_empty_space_have_distinct_brightness() {
     let ctx = DrawCtx {
         lines: 20,
         cols: 40,
-        full_width: false,
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
         color_mode: crate::runtime::ColorMode::TrueColor,
@@ -327,7 +324,6 @@ fn depth_lab_glyph_rain_not_dense_wall() {
     // glyph rain can be denser, but should never approach 100% fill.
     let mut cloud = Cloud::new(
         ColorMode::Mono,
-        false,
         ShadingMode::Random,
         BoldMode::Off,
         false,
@@ -497,7 +493,6 @@ fn depth_lab_brightness_level_four_tier_hierarchy() {
     let ctx = DrawCtx {
         lines: 24,
         cols: 48,
-        full_width: false,
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
         color_mode: crate::runtime::ColorMode::TrueColor,
@@ -644,7 +639,6 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
         let ctx = DrawCtx {
             lines: 20,
             cols: 40,
-            full_width: false,
             shading_distance: false,
             bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
             color_mode: crate::runtime::ColorMode::TrueColor,

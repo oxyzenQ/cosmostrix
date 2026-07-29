@@ -41,7 +41,6 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
     "bold",
     "shadingmode",
     "color-bg",
-    "fullwidth",
     "auto-color-drift",
     "async-mode",
     "atmosphere-mode",
@@ -572,11 +571,10 @@ pub fn dump_config_text() -> &'static str {
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
 # v17: --mouse flag DELETED. Mouse glow + click wave effects are always on.
-# --fullwidth (default: off): render each single-width glyph at 2 cells
-# visually (a horizontal spacing mode). NOT to be confused with CJK
-# fullwidth glyph support — the Cosmic Dragon principle forbids wide
-# chars; this flag only doubles the column stride.
-# fullwidth = false
+# v25.0.0-alpha.3: --fullwidth flag DELETED. The legacy horizontal-spacing
+# mode (which doubled the column stride for monolith streams) was removed.
+# The Cosmic Dragon principle forbids wide chars permanently; the charset
+# is always single-width.
 # Auto color drift (default: off)
 # auto-color-drift = false
 

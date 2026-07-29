@@ -73,6 +73,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--completions",
         "error: --completions <shell> has been removed in v15.0.0.\n  Shell completion scripts are no longer shipped. The `clap_complete` dependency was dropped to reduce maintenance surface.\n  To regenerate completions externally, use `clap_complete` in a downstream tool, or write them by hand from `cosmostrix --help-detail`.",
     ),
+    (
+        "--fullwidth",
+        "error: --fullwidth has been removed in v25.0.0-alpha.3.\n  The legacy horizontal-spacing mode (which doubled the column stride for monolith streams) was purged.\n  The Cosmic Dragon principle forbids wide chars permanently; the charset is always single-width.\n  No replacement needed — monolith streams now render at the natural single-cell stride, which is the only mode that has ever been the default.",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.

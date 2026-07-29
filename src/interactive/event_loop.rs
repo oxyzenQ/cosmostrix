@@ -75,7 +75,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     w = w_init;
     h = h_init;
 
-    let density = effective_density(cfg.base_density, w, cfg.fullwidth, cfg.density_auto);
+    let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
@@ -123,12 +123,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     cloud.reset(cw, ch);
                     frame = Frame::new(cw, ch, cloud.palette.bg);
                     if cfg.density_auto {
-                        cloud.set_droplet_density(effective_density(
-                            cfg.base_density,
-                            cw,
-                            cfg.fullwidth,
-                            true,
-                        ));
+                        cloud.set_droplet_density(effective_density(cfg.base_density, cw, true));
                     }
                     cloud.force_draw_everything();
                     super::fill_terminal_bg(cloud.palette.bg);
@@ -385,12 +380,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
         if let Some(new_cfg_map) = pending_config.take() {
             let new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
-            let density = effective_density(
-                new_cfg.base_density,
-                w,
-                new_cfg.fullwidth,
-                new_cfg.density_auto,
-            );
+            let density = effective_density(new_cfg.base_density, w, new_cfg.density_auto);
             // v25: bulletproof trace that rebuild reached render thread.
             crate::live_config_trace::trace_rebuild_applied(
                 &new_cfg.color_scheme,
@@ -910,12 +900,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.reset(nw, nh);
             frame = Frame::new(nw, nh, cloud.palette.bg);
             if cfg.density_auto {
-                cloud.set_droplet_density(effective_density(
-                    cfg.base_density,
-                    nw,
-                    cfg.fullwidth,
-                    true,
-                ));
+                cloud.set_droplet_density(effective_density(cfg.base_density, nw, true));
             }
             cloud.force_draw_everything();
             last_resync_time = Instant::now();

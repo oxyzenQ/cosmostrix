@@ -99,7 +99,7 @@ impl Cloud {
         }
         self.rain_style = new_style;
         if matches!(new_style, RainStyle::Monolith) {
-            self.monolith_rain.reset(self.cols, self.full_width);
+            self.monolith_rain.reset(self.cols);
             self.droplets.clear();
             self.spawn_remainder = 0.0;
             self.glyph_entry_time = None;

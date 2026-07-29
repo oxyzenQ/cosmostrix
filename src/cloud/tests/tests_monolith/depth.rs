@@ -144,7 +144,6 @@ fn monolith_color_for_level_ghost_is_faintest() {
     let ctx = DrawCtx {
         lines: 10,
         cols: 10,
-        full_width: false,
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
         color_mode: ColorMode::TrueColor,
@@ -210,7 +209,6 @@ fn monolith_background_muddy_residue_guard() {
     let ctx = DrawCtx {
         lines: 10,
         cols: 10,
-        full_width: false,
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
         color_mode: ColorMode::TrueColor,

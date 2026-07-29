@@ -509,7 +509,7 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 "expected black/default-background, got '{v}'"
             )),
         },
-        "low-power" | "mouse" | "fullwidth" | "auto-color-drift" | "async-mode" => match v {
+        "low-power" | "mouse" | "auto-color-drift" | "async-mode" => match v {
             "true" | "false" => None,
             _ => Some(format!("expected true/false, got '{v}'")),
         },
@@ -803,9 +803,8 @@ mod tests {
     #[test]
     fn boolean_keys_reject_non_bool() {
         assert!(validate_field_value("mouse", "yes").is_some());
-        assert!(validate_field_value("fullwidth", "1").is_some());
         assert!(validate_field_value("mouse", "true").is_none());
-        assert!(validate_field_value("fullwidth", "false").is_none());
+        assert!(validate_field_value("auto-color-drift", "false").is_none());
     }
 
     #[test]

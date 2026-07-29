@@ -83,7 +83,6 @@ pub struct Cloud {
     pub(super) rain_style: RainStyle,
     monolith_size: MonolithSize,
 
-    pub(super) full_width: bool,
     pub(super) shading_distance: bool,
     pub(super) bold_mode: BoldMode,
 
@@ -241,7 +240,6 @@ impl Cloud {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         color_mode: ColorMode,
-        full_width: bool,
         shading_mode: ShadingMode,
         bold_mode: BoldMode,
         async_mode: bool,
@@ -259,7 +257,6 @@ impl Cloud {
             color_mode,
             rain_style,
             monolith_size: MonolithSize::Normal,
-            full_width,
             shading_distance: matches!(shading_mode, ShadingMode::DistanceFromHead),
             bold_mode,
             async_mode,

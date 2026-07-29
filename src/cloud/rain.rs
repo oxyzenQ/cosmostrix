@@ -187,7 +187,6 @@ impl Cloud {
             let params = MonolithSpawnParams {
                 cols: self.cols,
                 lines: self.lines,
-                full_width: self.full_width,
                 density: self.droplet_density,
                 size: self.monolith_size,
                 active_palette_slot: self.active_palette_slot,
@@ -399,7 +398,6 @@ impl Cloud {
         let ctx = DrawCtx {
             lines: self.lines,
             cols: self.cols,
-            full_width: self.full_width,
             shading_distance: self.shading_distance,
             bg: self.palette.bg,
             color_mode: self.color_mode,

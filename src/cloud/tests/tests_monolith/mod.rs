@@ -33,7 +33,6 @@ pub(super) use std::time::{Duration, Instant};
 pub(super) fn make_monolith_cloud(cols: u16, lines: u16) -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::Mono,
-        false,
         ShadingMode::Random,
         BoldMode::Off,
         false,

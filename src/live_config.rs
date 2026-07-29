@@ -1041,7 +1041,6 @@ mod tests {
 
         crate::app::CloudConfig {
             color_mode: ColorMode::TrueColor,
-            fullwidth: false,
             shading_mode: ShadingMode::Random,
             bold_mode: BoldMode::Random,
             async_mode: true,

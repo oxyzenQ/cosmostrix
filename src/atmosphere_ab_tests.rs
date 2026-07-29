@@ -289,7 +289,6 @@ fn benchmark_fields_unchanged() {
     // that the CloudConfig struct still has the expected fields.
     let cfg = crate::app::CloudConfig {
         color_mode: crate::runtime::ColorMode::TrueColor,
-        fullwidth: false,
         shading_mode: crate::runtime::ShadingMode::Random,
         bold_mode: crate::runtime::BoldMode::Random,
         async_mode: false,

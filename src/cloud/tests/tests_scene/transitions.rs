@@ -30,7 +30,7 @@ fn matrix_to_monolith_changes_rain_style_to_monolith() {
 fn switching_from_monolith_clears_draw_history() {
     let mut cloud = make_monolith_cloud();
     // Simulate some monolith draw activity
-    cloud.monolith_rain.reset(40, false);
+    cloud.monolith_rain.reset(40);
     cloud.apply_scene_runtime("matrix", "binary", &[], false);
     // Draw history should be empty after switching away from monolith
     assert_eq!(cloud.monolith_rain.draw_history_count_for_test(), 0);
@@ -141,7 +141,7 @@ fn signal_to_monolith_produces_visible_frame() {
 #[test]
 fn monolith_to_matrix_clears_monolith_history_no_blank() {
     let mut cloud = make_monolith_cloud();
-    cloud.monolith_rain.reset(40, false);
+    cloud.monolith_rain.reset(40);
     let mut frame = Frame::new(40, 20, cloud.palette.bg);
     cloud.apply_scene_runtime("matrix", "binary", &[], false);
     // Monolith history must be empty
@@ -164,7 +164,7 @@ fn monolith_to_matrix_clears_monolith_history_no_blank() {
 #[test]
 fn monolith_to_signal_clears_monolith_history_no_blank() {
     let mut cloud = make_monolith_cloud();
-    cloud.monolith_rain.reset(40, false);
+    cloud.monolith_rain.reset(40);
     let mut frame = Frame::new(40, 20, cloud.palette.bg);
     cloud.apply_scene_runtime("signal", "binary", &[], false);
     assert_eq!(cloud.monolith_rain.draw_history_count_for_test(), 0);

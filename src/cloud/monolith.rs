@@ -156,7 +156,6 @@ pub(super) struct MonolithRain {
 pub(super) struct MonolithSpawnParams {
     pub(super) cols: u16,
     pub(super) lines: u16,
-    pub(super) full_width: bool,
     pub(super) density: f32,
     pub(super) size: MonolithSize,
     pub(super) active_palette_slot: u8,
@@ -202,21 +201,20 @@ impl MonolithRain {
         }
     }
 
-    pub(super) fn reset(&mut self, cols: u16, full_width: bool) {
-        let lane_count = lane_count(cols, full_width);
+    pub(super) fn reset(&mut self, cols: u16) {
+        let lane_count = lane_count(cols);
         if self.streams.len() != lane_count {
             self.streams.clear();
             self.streams.reserve(lane_count);
             for lane in 0..lane_count {
-                self.streams
-                    .push(MonolithStream::new(lane_col(lane, full_width)));
+                self.streams.push(MonolithStream::new(lane_col(lane)));
             }
             let reserve = lane_count.saturating_mul(DRAWN_CELLS_PER_LANE_RESERVE);
             self.previous_cells = Vec::with_capacity(reserve);
             self.current_cells = Vec::with_capacity(reserve);
         } else {
             for (lane, stream) in self.streams.iter_mut().enumerate() {
-                stream.reset_for_lane(lane_col(lane, full_width));
+                stream.reset_for_lane(lane_col(lane));
             }
             self.previous_cells.clear();
             self.current_cells.clear();
@@ -315,7 +313,6 @@ impl MonolithRain {
 
         for _ in 0..to_spawn {
             let Some(idx) = self.find_inactive_lane(
-                params.full_width,
                 params.mouse_enabled,
                 params.mouse_col,
                 random.rand_col,
@@ -384,9 +381,6 @@ impl MonolithRain {
     ) {
         for cell in &self.previous_cells {
             clear_cell(frame, cleanup, cell.col, cell.line);
-            if ctx.full_width && cell.col + 1 < frame.width {
-                clear_cell(frame, cleanup, cell.col + 1, cell.line);
-            }
         }
         self.current_cells.clear();
 
@@ -418,10 +412,8 @@ impl MonolithRain {
         self.active_count = self.streams.iter().filter(|stream| stream.active).count();
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn find_inactive_lane(
         &mut self,
-        full_width: bool,
         mouse_enabled: bool,
         mouse_col: u16,
         rand_col: &Uniform<u16>,
@@ -435,7 +427,7 @@ impl MonolithRain {
         // check AND a probability draw against map[lane].
         for _ in 0..len.min(16) {
             let lane = (rand_col.sample(rng) as usize) % len;
-            if !self.lane_is_available(lane, full_width, mouse_enabled, mouse_col) {
+            if !self.lane_is_available(lane, mouse_enabled, mouse_col) {
                 continue;
             }
             // Density map gate: skip lanes with low spawn probability.
@@ -458,20 +450,14 @@ impl MonolithRain {
         let start = self.spawn_scan_idx.min(len.saturating_sub(1));
         for offset in 0..len {
             let lane = (start + offset) % len;
-            if self.lane_is_available(lane, full_width, mouse_enabled, mouse_col) {
+            if self.lane_is_available(lane, mouse_enabled, mouse_col) {
                 return Some(lane);
             }
         }
         None
     }
 
-    fn lane_is_available(
-        &self,
-        lane: usize,
-        _full_width: bool,
-        _mouse_enabled: bool,
-        _mouse_col: u16,
-    ) -> bool {
+    fn lane_is_available(&self, lane: usize, _mouse_enabled: bool, _mouse_col: u16) -> bool {
         if self.streams[lane].active {
             return false;
         }
@@ -699,9 +685,6 @@ fn draw_segments(
                     bold,
                 },
             );
-            if ctx.full_width && stream.col + 1 < frame.width {
-                frame.set(stream.col + 1, line, blank_cell(ctx.bg));
-            }
             drawn_cells.push(DrawnCell {
                 col: stream.col,
                 line,
@@ -906,20 +889,12 @@ pub(super) fn target_active_count(lanes: usize, density: f32) -> usize {
     ((lanes as f32 * ratio).round() as usize).clamp(1, lanes)
 }
 
-fn lane_count(cols: u16, full_width: bool) -> usize {
-    if full_width {
-        (cols / 2).max(1) as usize
-    } else {
-        cols.max(1) as usize
-    }
+fn lane_count(cols: u16) -> usize {
+    cols.max(1) as usize
 }
 
-fn lane_col(lane: usize, full_width: bool) -> u16 {
-    if full_width {
-        (lane as u16).saturating_mul(2)
-    } else {
-        lane as u16
-    }
+fn lane_col(lane: usize) -> u16 {
+    lane as u16
 }
 
 fn varied_speed_mult(roll: f32) -> f32 {

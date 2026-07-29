@@ -196,7 +196,6 @@ mod cases {
     fn make_test_cloud() -> Cloud {
         let mut cloud = Cloud::new(
             crate::runtime::ColorMode::Mono,
-            false,
             crate::runtime::ShadingMode::Random,
             crate::runtime::BoldMode::Off,
             false,
@@ -217,7 +216,6 @@ mod cases {
     fn make_test_config() -> CloudConfig {
         CloudConfig {
             color_mode: crate::runtime::ColorMode::Mono,
-            fullwidth: false,
             shading_mode: crate::runtime::ShadingMode::Random,
             bold_mode: crate::runtime::BoldMode::Off,
             async_mode: false,

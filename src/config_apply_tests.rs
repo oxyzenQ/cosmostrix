@@ -678,7 +678,6 @@ fn dump_config_mentions_supported_keys() {
         "color-bg",
         "low-power",
         "mouse",
-        "fullwidth",
         "auto-color-drift",
         // v17 mastery: legacy keys (glitchpct, shortpct, rippct, maxdpc)
         // REMOVED from dump config. Use --glitch-level instead.

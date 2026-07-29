@@ -28,7 +28,6 @@ use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 pub(super) fn make_cloud() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::Mono,
-        false,
         ShadingMode::Random,
         BoldMode::Off,
         false,
@@ -189,7 +188,6 @@ fn charset_wave_uses_old_rows_below_and_new_rows_above() {
     let ctx = DrawCtx {
         lines: 10,
         cols: 20,
-        full_width: false,
         shading_distance: false,
         bg: None,
         color_mode: ColorMode::Mono,
@@ -411,7 +409,6 @@ fn color_uses_previous_palette_below_wave_line() {
     let ctx = DrawCtx {
         lines: 10,
         cols: 20,
-        full_width: false,
         shading_distance: false,
         bg: None,
         color_mode: ColorMode::Mono,

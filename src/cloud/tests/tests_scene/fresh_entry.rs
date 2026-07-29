@@ -189,7 +189,7 @@ fn fresh_entry_repeated_uppercase_forward_never_scattered() {
 #[test]
 fn fresh_entry_no_monolith_residue_phosphor() {
     let mut cloud = make_monolith_cloud();
-    cloud.monolith_rain.reset(40, false);
+    cloud.monolith_rain.reset(40);
     let mut frame = Frame::new(40, 20, cloud.palette.bg);
     cloud.apply_scene_runtime("matrix", "binary", &[], false);
     // Monolith history must be empty

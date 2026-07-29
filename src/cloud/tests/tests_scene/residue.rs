@@ -14,7 +14,7 @@ use crate::rain_style::RainStyle;
 fn no_monolith_residue_after_switching_to_glyph() {
     let mut cloud = make_monolith_cloud();
     // Activate some monolith streams
-    cloud.monolith_rain.reset(40, false);
+    cloud.monolith_rain.reset(40);
     let mut frame = Frame::new(40, 20, cloud.palette.bg);
     // Switch to matrix
     cloud.apply_scene_runtime("matrix", "binary", &[], false);
@@ -106,7 +106,7 @@ fn depth_lab_scene_switch_monolith_to_matrix_clears_phosphor() {
 fn depth_lab_scene_switch_monolith_to_signal_clears_drawn_cells() {
     // Switching monolith → signal must clear all drawn cells immediately.
     let mut cloud = make_monolith_cloud();
-    cloud.monolith_rain.reset(40, false);
+    cloud.monolith_rain.reset(40);
     let _frame = Frame::new(40, 20, cloud.palette.bg);
 
     cloud.apply_scene_runtime("signal", "binary", &[], false);

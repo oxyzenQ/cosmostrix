@@ -23,7 +23,6 @@ use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 fn make_sun_cloud() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
-        false,
         ShadingMode::DistanceFromHead,
         BoldMode::Off,
         false,
@@ -40,7 +39,6 @@ fn make_sun_cloud() -> Cloud {
 fn make_green_cloud() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
-        false,
         ShadingMode::DistanceFromHead,
         BoldMode::Off,
         false,
@@ -117,7 +115,6 @@ fn profile_color_sun_stays_sun_across_simulated_minutes() {
 fn monolith_color_does_not_drift_without_opt_in() {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
-        false,
         ShadingMode::DistanceFromHead,
         BoldMode::Off,
         false,

@@ -62,7 +62,6 @@ pub(crate) fn print_verbose(
     default_bg: bool,
     charset_preset: &str,
     chars: &[char],
-    fullwidth: bool,
     target_fps: f64,
     speed: f32,
     base_density: f32,
@@ -136,7 +135,6 @@ pub(crate) fn print_verbose(
         "charset:",
         &format!(" {charset_preset} ({} glyphs)", chars.len()),
     );
-    output::eprintln_verbose("fullwidth:", &format!(" {fullwidth}"));
 
     // ── Motion ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Motion ──"));

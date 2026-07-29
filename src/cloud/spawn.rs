@@ -36,7 +36,7 @@ impl Cloud {
             self.droplets.clear();
             self.droplets.resize_with(pool_size, Droplet::new);
         }
-        self.monolith_rain.reset(self.cols, self.full_width);
+        self.monolith_rain.reset(self.cols);
 
         // Re-seed the droplet free-list: after clear+resize, all droplets
         // are dead (Droplet::new defaults is_alive=false), so every index
@@ -546,10 +546,7 @@ impl Cloud {
         }
 
         for _ in 0..to_spawn {
-            let mut col = self.rand_col.sample(&mut self.mt);
-            if self.full_width {
-                col &= 0xFFFE;
-            }
+            let col = self.rand_col.sample(&mut self.mt);
 
             if col as usize >= self.col_stat.len() {
                 continue;
@@ -673,12 +670,6 @@ impl Cloud {
         let col_step = (self.cols as usize / seed_limit.max(1)).max(1);
         for i in 0..seed_limit {
             let col = ((i * col_step) as u16).min(self.cols.saturating_sub(1));
-            if self.full_width {
-                let col_adj = col & 0xFFFE;
-                if col_adj as usize >= self.col_stat.len() {
-                    continue;
-                }
-            }
             if col as usize >= self.col_stat.len() {
                 continue;
             }

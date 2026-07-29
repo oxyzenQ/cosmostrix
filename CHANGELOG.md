@@ -9,6 +9,161 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v25.0.0-alpha.3 — Legacy `--fullwidth` Parameter Purge
+
+### Headline
+
+The legacy `--fullwidth` CLI flag (and its `fullwidth = false` config.toml
+equivalent) has been removed from the codebase. This was a hidden
+(`hide = true`), never-documented, never-defaulted-true flag that doubled
+the column stride for monolith streams — rendering each single-width
+glyph at 2 cells visually. Its misleading help text ("Use full terminal
+width") suggested a different behavior than what it actually did, and
+the only mode it ever enabled was never the default. The Cosmic Dragon
+principle forbids wide chars permanently; the charset is always
+single-width, so the flag was a vestigial horizontal-spacing mode
+without a real use case.
+
+### Changes
+
+- **CLI flag `--fullwidth` / `-F` removed** (`src/config.rs`). The flag
+  was `hide = true` (never shown in `--help`), never defaulted to `true`,
+  and never documented publicly. Users who try the old flag now get a
+  clear migration error via the `REMOVED_FLAGS` table in
+  `src/validation.rs` ("error: --fullwidth has been removed in
+  v25.0.0-alpha.3...").
+
+- **`CloudConfig::fullwidth` field removed** (`src/app.rs`). All call
+  sites that read this field (3 in `interactive/event_loop.rs`, 3 in
+  `bench.rs`, 1 in `main.rs`) were updated.
+
+- **`Cloud::full_width` field removed** (`src/cloud/mod.rs`). The
+  `Cloud::new()` constructor signature drops the `full_width: bool`
+  parameter — 11 test call sites updated.
+
+- **`DrawCtx::full_width` field removed** (`src/cloud/render.rs`). All
+  DrawCtx construction sites and dead-code branches that read
+  `ctx.full_width` were updated (5 sites in `cloud/rain.rs`, `droplet.rs`,
+  `cloud/monolith.rs`).
+
+- **`MonolithRain` simplified** (`src/cloud/monolith.rs`):
+  - `MonolithSpawnParams::full_width` field removed.
+  - `MonolithRain::reset(cols, full_width)` → `reset(cols)`.
+  - `find_inactive_lane(full_width, ...)` → `find_inactive_lane(...)`.
+  - `lane_is_available(lane, _full_width, ...)` → `lane_is_available(lane, ...)`.
+  - `lane_count(cols, full_width)` → `lane_count(cols)` (always returns
+    `cols.max(1)`).
+  - `lane_col(lane, full_width)` → `lane_col(lane)` (always returns
+    `lane as u16`).
+  - Dead-code branches removed:
+    - `if ctx.full_width && cell.col + 1 < frame.width { clear_cell(...) }`
+      in `MonolithRain::draw`.
+    - `if ctx.full_width && stream.col + 1 < frame.width { frame.set(...) }`
+      in `draw_segments`.
+    - `#[allow(clippy::too_many_arguments)]` on `find_inactive_lane`
+      removed (now 6 args, below the 7+ threshold).
+
+- **`Droplet::draw` simplified** (`src/droplet.rs`): removed the
+  `if ctx.full_width && self.bound_col + 1 < frame.width` block that
+  wrote a blank cell to the right of each glyph-mode droplet.
+
+- **`Cloud::spawn_droplets` simplified** (`src/cloud/spawn.rs`): removed
+  the `if self.full_width { col &= 0xFFFE; }` column-stride adjustment
+  in both the main spawn loop and the warm-start seeding loop. The
+  `let mut col` was demoted to `let col` since it's no longer mutated.
+
+- **Density helpers simplified** (`src/app.rs`):
+  - `auto_density_factor(cols, fullwidth)` → `auto_density_factor(cols)`.
+    The `eff_cols = (cols / 2).max(1)` branch was removed; columns are
+    always single-width now.
+  - `effective_density(base, cols, fullwidth, auto)` →
+    `effective_density(base, cols, auto)`.
+
+- **Config schema purged** (`src/configfile.rs`): `fullwidth` removed
+  from `USER_CONFIG_KEYS`. The `--fullwidth` documentation comment in
+  the `--dump-config` template was replaced with a v25.0.0-alpha.3
+  removal note.
+
+- **Config apply purged** (`src/config_apply.rs`): the
+  `if let Some(v) = config_value(matches, cfg, "fullwidth", "fullwidth")`
+  block removed. The `fullwidth` config.toml key is no longer read.
+
+- **`--testconf` purged** (`src/testconf.rs`): `fullwidth` removed from
+  the bool-validator pattern (`"low-power" | "mouse" | "fullwidth" | ...`
+  → `"low-power" | "mouse" | ...`). The two `validate_field_value`
+  test cases for `fullwidth` were replaced with `auto-color-drift`
+  test cases.
+
+- **Verbose output purged** (`src/verbose.rs`): the `fullwidth: bool`
+  parameter removed from `print_verbose()`, and the
+  `output::eprintln_verbose("fullwidth:", ...)` line removed from the
+  "Glyphs" section.
+
+- **`--help-detail` purged** (`src/help_detail.rs`): the
+  `-F, --fullwidth` entry removed from the GENERAL section.
+
+- **Tests updated**:
+  - 13 `Cloud::new(...)` call sites in test files: removed the `false`
+    (full_width) 2nd positional arg via a Python script
+    (`scripts/remove_fullwidth_arg.py`).
+  - 5 `monolith_rain.reset(40, false)` call sites: simplified to
+    `monolith_rain.reset(40)`.
+  - 4 `find_inactive_lane(false, false, ...)` call sites: simplified to
+    `find_inactive_lane(false, ...)`.
+  - 8 `DrawCtx { ..., full_width: false, ... }` literals in test files:
+    removed the field.
+  - 4 `CloudConfig { ..., fullwidth: false, ... }` literals in test
+    files: removed the field.
+  - `config_apply_tests.rs`: removed `fullwidth` from the
+    `dump_should_contain_all_keys` test's expected-keys list.
+
+### Why Remove It
+
+1. **Misleading help text**: "Use full terminal width" suggested a
+   different behavior (expand to full width) than what it actually did
+   (halve the effective column count by doubling the column stride).
+2. **Never the default**: The flag was `false` by default and never
+   enabled automatically — no user could have been relying on it
+   without explicitly opting in.
+3. **Hidden from help**: `hide = true` meant it never appeared in
+   `--help` or `--help-detail` until this commit removed it.
+4. **Cosmic Dragon principle**: The codebase has a hard rule that
+   "the charset is always single-width" — wide chars are forbidden
+   permanently. The `--fullwidth` flag violated this principle in
+   spirit by introducing a horizontal-spacing mode that mimicked
+   wide-char rendering.
+5. **Code complexity**: The flag's `bool` threaded through 6 structs
+   (Args, CloudConfig, Cloud, DrawCtx, MonolithSpawnParams,
+   MonolithRain) and gated dead-code branches in 5 functions. Removing
+   it eliminates ~50 lines of conditional logic without changing any
+   user-visible behavior.
+
+### Migration
+
+- **CLI users**: Remove `--fullwidth` / `-F` from your scripts. The
+  flag was hidden and never documented, so this should affect no one.
+  If you do try the old flag, you'll get a clear error message
+  explaining the removal.
+- **Config.toml users**: Remove `fullwidth = false` (or `true`) from
+  your config. The key is no longer recognized; if left in, it will
+  be reported as an unknown key (with a did-you-mean hint if you
+  typo'd).
+- **Visual behavior**: No change. The flag was always `false` by
+  default, so removing it changes nothing about how cosmostrix renders.
+  Monolith streams continue to render at the natural single-cell
+  stride, exactly as they always have when `--fullwidth` was not
+  passed.
+
+### Verification
+
+- `cargo build`: OK
+- `cargo test --all`: 1140 passed, 0 failed
+- `cargo clippy --all-targets`: clean
+- `cargo fmt`: clean
+- `./scripts/build.sh check-all`: All quality checks passed
+
+---
+
 ## v25.0.0-alpha.2 — Cross-Scene Performance Audit (Monolith-Style Optimizations)
 
 ### Headline

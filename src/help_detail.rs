@@ -244,9 +244,6 @@ APPEARANCE:
       will show cyan behind the rain. 'black' forces solid #000000.
 
 GENERAL:
-  -F, --fullwidth
-      Use full terminal width.
-
   --duration <seconds>
       Auto-stop after N seconds (0.1-86400).
 

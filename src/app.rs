@@ -18,7 +18,6 @@ use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode
 #[derive(Clone)]
 pub struct CloudConfig {
     pub color_mode: ColorMode,
-    pub fullwidth: bool,
     pub shading_mode: ShadingMode,
     pub bold_mode: BoldMode,
     pub async_mode: bool,
@@ -156,7 +155,6 @@ impl CloudConfig {
     pub fn create_cloud(&self, density: f32) -> Cloud {
         let mut cloud = Cloud::new(
             self.color_mode,
-            self.fullwidth,
             self.shading_mode,
             self.bold_mode,
             self.async_mode,
@@ -233,7 +231,6 @@ impl CloudConfig {
     pub fn clone_config(&self) -> Self {
         Self {
             color_mode: self.color_mode,
-            fullwidth: self.fullwidth,
             shading_mode: self.shading_mode,
             bold_mode: self.bold_mode,
             async_mode: self.async_mode,
@@ -321,18 +318,14 @@ impl CloudConfig {
 /// - Never amplifies above 1.0 — the per-column model is already scale-
 ///   invariant, so amplification was always a bug.
 ///
-/// `fullwidth` mode halves the effective column count (each single-width
-/// glyph takes 2 cells visually), so we account for that before computing
-/// the factor. This is a horizontal spacing mode — NOT wide-char support.
-/// The Cosmic Dragon principle forbids wide chars permanently; the charset
-/// is always single-width, this flag only doubles the column stride.
+/// v25.0.0-alpha.3: the legacy `--fullwidth` parameter (which doubled the
+/// column stride for monolith streams) was removed. The `fullwidth` flag
+/// is gone, so this function no longer needs a `fullwidth` parameter —
+/// columns are always single-width (the Cosmic Dragon principle forbids
+/// wide chars permanently; the charset is always single-width).
 #[must_use]
-pub fn auto_density_factor(cols: u16, fullwidth: bool) -> f32 {
-    let eff_cols = if fullwidth {
-        (cols / 2).max(1)
-    } else {
-        cols.max(1)
-    } as f32;
+pub fn auto_density_factor(cols: u16) -> f32 {
+    let eff_cols = cols.max(1) as f32;
     // Width-only dampener: terminals smaller than 80 cols get slightly
     // sparser rain; 80+ cols get identity (factor=1.0). Never amplifies.
     let factor = eff_cols / DENSITY_BASE_COLS;
@@ -349,10 +342,10 @@ pub fn auto_density_factor(cols: u16, fullwidth: bool) -> f32 {
 /// See `auto_density_factor()` for the rationale on why the old
 /// `sqrt(area)` amplifier was removed.
 #[must_use]
-pub fn effective_density(base: f32, cols: u16, fullwidth: bool, auto: bool) -> f32 {
+pub fn effective_density(base: f32, cols: u16, auto: bool) -> f32 {
     let base = base.clamp(DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX);
     if !auto {
         return base;
     }
-    (base * auto_density_factor(cols, fullwidth)).clamp(DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX)
+    (base * auto_density_factor(cols)).clamp(DENSITY_CLAMP_MIN, DENSITY_CLAMP_MAX)
 }
