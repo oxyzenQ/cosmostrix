@@ -44,8 +44,13 @@ pub(super) fn is_runtime_idle(last_input_time: Instant, now: Instant) -> bool {
     now.saturating_duration_since(last_input_time).as_secs_f64() >= IDLE_THRESHOLD_SECS
 }
 
+/// Whether the runtime is idle long enough to warrant an adaptive
+/// resync. Test-only — the production event loop inlines the
+/// idle-and-interval check directly (event_loop.rs) rather than
+/// calling this helper. Tests use it to verify the idle-detection
+/// threshold logic in isolation.
 #[inline]
-#[allow(dead_code)]
+#[cfg(test)]
 pub(super) fn idle_resync_due(is_idle: bool, last_resync_time: Instant, now: Instant) -> bool {
     is_idle
         && now

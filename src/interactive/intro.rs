@@ -280,8 +280,12 @@ impl ParticlePool {
         self.free.push(i);
     }
 
+    /// Number of particles currently active in the pool. Test-only —
+    /// production rendering uses the free-list length directly when
+    /// deciding whether to spawn. Tests use this to assert pool state
+    /// after spawn/kill operations.
     #[inline]
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(super) fn active_count(&self) -> usize {
         PARTICLE_POOL_SIZE - self.free.len()
     }

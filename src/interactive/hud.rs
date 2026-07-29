@@ -146,8 +146,11 @@ impl HudState {
         true
     }
 
-    /// Whether the HUD is currently visible.
-    #[allow(dead_code)]
+    /// Whether the HUD is currently visible. Test-only — production
+    /// code reads the `visible` field directly (cheaper than a method
+    /// call in the hot render path). Tests use this accessor to verify
+    /// toggle behavior without reaching into private fields.
+    #[cfg(test)]
     pub(crate) fn visible(&self) -> bool {
         self.visible
     }
