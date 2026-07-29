@@ -66,7 +66,7 @@ In the event loop (event_loop.rs:243–254), suppressed keys still trigger `regi
 ### Control Character Handling
 
 Control character handling is straightforward:
-- **Ctrl+C**: Silently ignored — only `q` quits (prevents accidental exit from Ctrl+C muscle memory)
+- **Ctrl+C**: Silently ignored — only `q` quits (prevents accidental exit from Ctrl+C muscle memory). v25.13: SIGINT is also deprecated at the signal level — no longer in the graceful-shutdown signal list.
 - **Ctrl+Z**: Explicitly mapped to SIGSTOP with full terminal restore (input.rs), identical behavior to SIGTSTP signal handler
 - **Escape**: Silently ignored — only `q` quits (prevents accidental exit from terminal menu Esc)
 - **Tab/BackTab**: Explicitly ignored with detailed comment explaining the historical bug that motivated this: Tab previously toggled shading mode, which caused a ghost background glyph flood via `set_shading_mode()` → `semantic_invalidate` → `invalidate_semantic()` → frame clear without clearing `phosphor_base_ch`
@@ -252,7 +252,12 @@ Resize handling is **robust**. The combination of immediate clamping, debouncing
 
 ## 6. Signal Handling
 
-### SIGINT/SIGTERM/SIGHUP — Graceful Shutdown
+### SIGTERM/SIGHUP/SIGQUIT — Graceful Shutdown (v25.13: SIGINT deprecated)
+
+v25.13: SIGINT (Ctrl+C) is no longer in the graceful-shutdown signal list.
+Only `q` exits cosmostrix. SIGTERM/SIGHUP/SIGQUIT remain caught for
+system-initiated shutdown. See `signal_handlers.rs` and
+`TERMINAL_LIFECYCLE_MATRIX.md` for details.
 
 Signal handling (event_loop.rs:49–72) uses the `signal-hook` crate to register a dedicated signal thread. The signal handler does **not** directly write ANSI sequences to stdout (which would race with the main thread). Instead, it:
 

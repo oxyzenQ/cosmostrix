@@ -166,6 +166,9 @@ follow these architectural rules.
 ### CLI Flag Policy (v14+)
 
 - Quit: only `q` exits. Esc and Ctrl+C are ignored (prevent accidental exit).
+  v25.13: SIGINT (Ctrl+C) is deprecated at the signal level too — only
+  SIGTERM/SIGHUP/SIGQUIT trigger graceful shutdown. The user must press
+  `q` deliberately to quit the cinematic experience.
 - Screensaver mode: interactive keys (x, s, c, g, a, p, m, Space, arrows)
   work normally. Only unrecognized keys exit.
 - Removed flags: `--preset`, `--profile`, `--low-power`, `--list-presets`,

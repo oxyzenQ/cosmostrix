@@ -116,7 +116,8 @@ pub(super) const PARTICLE_POOL_SIZE: usize = 512;
 /// # Skip behavior
 ///
 /// The intro can be exited early by pressing **`q`** (case-insensitive)
-/// or by sending Ctrl+C / SIGTERM (handled via [`GRACEFUL_SHUTDOWN`]).
+/// or by sending SIGTERM / SIGHUP / SIGQUIT (handled via [`GRACEFUL_SHUTDOWN`]).
+/// v25.13: Ctrl+C (SIGINT) is deprecated — only 'q' exits cosmostrix.
 /// No other key skips — the intro ignores stray keypresses so accidental
 /// presses of space / enter / arrows don't cut the cinematic short.
 ///
@@ -366,8 +367,9 @@ pub(super) fn rng_freehand() -> f32 {
 /// Every other key — including modifiers, arrows, function keys, and
 /// `Enter` / `Space` — is ignored.
 ///
-/// Ctrl+C is handled separately by the signal handler setting
-/// [`GRACEFUL_SHUTDOWN`], so we don't need to match it here.
+/// v25.13: Ctrl+C (SIGINT) is deprecated — only 'q' exits cosmostrix.
+/// SIGTERM/SIGHUP/SIGQUIT are handled separately by the signal handler
+/// setting [`GRACEFUL_SHUTDOWN`], so we don't need to match them here.
 #[inline]
 fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
     if let crossterm::event::KeyCode::Char(c) = key_event.code {
@@ -379,12 +381,12 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 
 /// Drain the terminal event queue non-blocking. Returns `true` if the
 /// intro should skip — but **only** when the user pressed `q` (case-
-/// insensitive) or when [`GRACEFUL_SHUTDOWN`] is set (Ctrl+C / SIGTERM).
+/// insensitive) or when [`GRACEFUL_SHUTDOWN`] is set (SIGTERM / SIGHUP / SIGQUIT).
 ///
 /// All other key events are drained and ignored. This is deliberate: the
 /// intros run for 5–6.25 s (Cosmic Burst ~5 s, Logo ~6.25 s), and accidental
 /// presses of space / enter / arrow keys should not cut them short. The user
-/// always has a fast exit via `q` or Ctrl+C.
+/// always has a fast exit via `q`. v25.13: Ctrl+C (SIGINT) is deprecated.
 ///
 /// # Why not "any key skips"?
 ///
@@ -392,8 +394,9 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 ///   stray keypress from a window manager focus change would abort it.
 /// * `q` is the canonical "quit" key throughout cosmostrix's interactive
 ///   mode, so reusing it here keeps the mental model consistent.
-/// * Ctrl+C / SIGTERM remain hard exits for users who can't or won't
-///   press `q` (e.g. piped input, scripted kills).
+/// * SIGTERM / SIGHUP / SIGQUIT remain hard exits for users who can't or
+///   won't press `q` (e.g. piped input, scripted kills). v25.13: Ctrl+C
+///   (SIGINT) is deprecated — only 'q' exits cosmostrix.
 pub(super) fn should_skip() -> std::io::Result<bool> {
     if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
         return Ok(true);

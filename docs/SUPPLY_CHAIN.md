@@ -24,7 +24,7 @@ build. No dependency enters the lockfile without passing both gates.
 | `bitvec` | `1` | Compact bit-vector storage for per-column state tracking | _YYYY-MM-DD_ |
 | `smallvec` | `1` | Stack-allocated small vectors — avoids heap allocation in hot paths | _YYYY-MM-DD_ |
 | `unicode-width` | `0.2` | Correct character width calculation for CJK and wide glyphs | _YYYY-MM-DD_ |
-| `signal-hook` | `0.3` (Unix only) | Graceful shutdown on SIGINT/SIGTERM via POSIX signal handlers | _YYYY-MM-DD_ |
+| `signal-hook` | `0.3` (Unix only) | Graceful shutdown on SIGTERM/SIGHUP/SIGQUIT via POSIX signal handlers (v25.13: SIGINT deprecated) | _YYYY-MM-DD_ |
 | `libc` | `0.2` (Linux only) | Low-level syscall bindings for terminal size queries on Linux | _YYYY-MM-DD_ |
 | `ctrlc` | `3.4` (Windows only) | Graceful shutdown handler for Windows console Ctrl-C/SIGBREAK events | _YYYY-MM-DD_ |
 

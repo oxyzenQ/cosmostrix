@@ -100,11 +100,13 @@ pub(super) fn handle_keybinding(
     use crossterm::event::KeyCode;
     use crossterm::event::KeyModifiers;
 
-    // Quit policy: only 'q' exits. Esc, Ctrl+C, and any other unrecognized
-    // key are silently ignored (fall through to the `_ => {}` arm at the
-    // end of this match). This prevents accidental exits from terminal
-    // menu Esc, Ctrl+C muscle memory, or stray function keys. The user
-    // must press 'q' deliberately to quit.
+    // Quit policy: only 'q' exits. Esc, Ctrl+C (SIGINT is deprecated),
+    // and any other unrecognized key are silently ignored (fall through
+    // to the `_ => {}` arm at the end of this match). This prevents
+    // accidental exits from terminal menu Esc, Ctrl+C muscle memory, or
+    // stray function keys. The user must press 'q' deliberately to quit.
+    // v25.13: SIGINT (Ctrl+C) is no longer in the graceful-shutdown
+    // signal list — see signal_handlers.rs.
     match (k.code, k.modifiers) {
         (KeyCode::Char('q'), _) => cloud.raining = false,
         (KeyCode::Char('z'), KeyModifiers::CONTROL) => {

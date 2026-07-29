@@ -50,7 +50,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // could leave mouse escape sequences leaking. This is now mitigated by:
     //   1. Terminal::drop calls disable_mouse_capture() on normal exit
     //   2. Panic hook calls restore_terminal_best_effort() (v16)
-    //   3. Signal handlers (SIGINT/SIGTERM/SIGTSTP) disable mouse
+    //   3. Signal handlers (SIGTERM/SIGHUP/SIGQUIT/SIGTSTP) disable mouse
     //   4. Watchdog calls restore_terminal_best_effort() on stuck main loop
     //   5. Fork-based SIGKILL guard (Linux) restores terminal
     // Shift+drag bypass is terminal-controlled and cannot be disabled.
@@ -738,7 +738,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             //   The user can still cycle colors, toggle HUD, etc.
                             //   while the screensaver is active.
                             // - Unrecognized keys (B/b, z, F1-F12, Home/End,
-                            //   PageUp/Down, Esc, Ctrl+C, etc.): SILENTLY IGNORED.
+                            //   PageUp/Down, Esc, etc.): SILENTLY IGNORED.
                             //   They do NOT exit the screensaver and do NOT cause
                             //   any visual glitch. The user must press 'q' to quit.
                             //   This matches the "only q quits" policy enforced

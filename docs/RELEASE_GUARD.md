@@ -140,7 +140,9 @@ lifecycle matrix paths:
 1. Run `--doctor` and confirm the report includes lifecycle contract
    fields (signal_exit, sigkill, terminal_writer, reset_terminal).
 2. Test normal `q` exit — no visible residue, prompt clean.
-   (Esc and Ctrl+C are intentionally ignored — only `q` quits.)
+   (Esc and Ctrl+C are intentionally ignored — only `q` quits.
+   v25.13: SIGINT is also deprecated at the signal level — `kill -INT`
+   uses OS default; use `kill -TERM` for graceful shutdown.)
 3. Test `pkill -TERM -f cosmostrix` — no visible residue (v4.8 Phase 4B
    cleanup).
 4. Run `cosmostrix --reset-terminal` — confirms destructive recovery works.

@@ -24,8 +24,9 @@
 //!
 //! ## Signal Handling
 //!
-//! Unix signals (SIGINT, SIGTERM, SIGHUP, SIGTSTP, SIGCONT) are handled via
+//! Unix signals (SIGTERM, SIGHUP, SIGQUIT, SIGTSTP, SIGCONT) are handled via
 //! a dedicated signal thread that sets an atomic `GRACEFUL_SHUTDOWN` flag.
+//! v25.13: SIGINT (Ctrl+C) is deprecated — only 'q' exits cosmostrix.
 //! The main loop checks this flag each iteration and exits cleanly, allowing
 //! `Terminal::drop()` to restore the terminal without racing on stdout.
 //! A fallback force-restore fires after 1 second if the main loop is stuck.

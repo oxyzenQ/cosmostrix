@@ -229,7 +229,10 @@ pub fn print_doctor_report(args: &Args) {
             "reset_terminal",
             "explicit destructive recovery: clears visible screen and attempts scrollback purge",
         );
-        s.field("signal_exit", "catchable cleanup (SIGINT/SIGTERM/SIGHUP)");
+        s.field(
+            "signal_exit",
+            "catchable cleanup (SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated v25.13)",
+        );
         s.field("sigkill", "cannot be caught or guaranteed");
         s.field("terminal_writer", "single-owner");
         s.field(

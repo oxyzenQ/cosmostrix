@@ -5,9 +5,16 @@
 //!
 //! Extracted from event_loop.rs to keep that file under the 1500 LOC cap.
 //!
-//! - Unix: SIGINT/SIGTERM/SIGHUP/SIGQUIT → graceful shutdown
+//! - Unix: SIGTERM/SIGHUP/SIGQUIT → graceful shutdown
 //! - Unix: SIGTSTP/SIGCONT → suspend/resume with terminal reinit
-//! - Windows: Ctrl+C → graceful shutdown
+//! - Windows: Ctrl+Break → graceful shutdown (Ctrl+C deprecated, see below)
+//!
+//! v25.13 (bug #15 follow-up): Ctrl+C (SIGINT on Unix, Ctrl+C on Windows)
+//! is DEPRECATED as an exit method. Only 'q' exits cosmostrix. This matches
+//! the cinematic design principle: the user must deliberately press 'q' to
+//! quit — no accidental exits from terminal muscle memory. SIGINT is no
+//! longer in the graceful-shutdown signal list. SIGTERM/SIGHUP/SIGQUIT
+//! remain for true kill scenarios (system shutdown, terminal close, kill(1)).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -15,12 +22,12 @@ use std::sync::Arc;
 use super::watchdog::{spawn_watchdog, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
 
 // restore_terminal_best_effort is used by BOTH the Unix SIGTSTP handler
-// AND the Windows Ctrl+C handler, so the import must be unconditional.
+// AND the Windows Ctrl+Break handler, so the import must be unconditional.
 // The function itself is defined without a cfg gate in terminal.rs.
 use crate::terminal::restore_terminal_best_effort;
 
 #[cfg(unix)]
-use signal_hook::consts::{SIGCONT, SIGHUP, SIGINT, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
+use signal_hook::consts::{SIGCONT, SIGHUP, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
 #[cfg(unix)]
 use signal_hook::iterator::Signals;
 #[cfg(unix)]
@@ -35,9 +42,13 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
     let signal_exit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     let term_reinit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
-    // SIGINT/SIGTERM/SIGHUP/SIGQUIT → graceful shutdown
+    // v25.13: SIGINT (Ctrl+C) is NOT in this list — only 'q' exits
+    // cosmostrix. SIGTERM/SIGHUP/SIGQUIT remain for system-initiated
+    // shutdown (kill(1), terminal close, SIGHUP on parent death).
+    // SIGINT is intentionally ignored so the user's terminal Ctrl+C
+    // muscle memory doesn't accidentally quit the cinematic experience.
     let se = signal_exit.clone();
-    if let Ok(mut signals) = Signals::new([SIGINT, SIGTERM, SIGHUP, SIGQUIT]) {
+    if let Ok(mut signals) = Signals::new([SIGTERM, SIGHUP, SIGQUIT]) {
         std::thread::spawn(move || {
             if let Some(_sig) = signals.forever().next() {
                 GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
@@ -84,7 +95,15 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
     (signal_exit, term_reinit)
 }
 
-/// Windows: Ctrl+C handler + watchdog.
+/// Windows: Ctrl+Break handler + watchdog.
+///
+/// v25.13 (bug #15 follow-up): on Unix, SIGINT (Ctrl+C) is deprecated —
+/// only 'q' exits. On Windows, the `ctrlc` crate handles both CTRL_C_EVENT
+/// and CTRL_BREAK_EVENT, so Ctrl+C still triggers graceful shutdown here.
+/// Fully filtering Ctrl+C on Windows would require direct Win32
+/// `SetConsoleCtrlHandler` calls (filtering CTRL_C_EVENT while accepting
+/// CTRL_BREAK_EVENT). That's a future enhancement; the primary target
+/// platform is Linux (pro-linux-v3 build) where SIGINT is already excluded.
 #[cfg(windows)]
 pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
     let signal_exit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -104,7 +123,7 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
             std::process::exit(130);
         }
     }) {
-        eprintln!("failed to install Ctrl-C handler: {}", e);
+        eprintln!("failed to install Ctrl-Break handler: {}", e);
     }
 
     spawn_watchdog();

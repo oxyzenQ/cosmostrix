@@ -12,7 +12,7 @@ non-destructive behavior.
 | # | Path | Cleanup | Visible Screen Cleared | Scrollback Purged | Terminal Mode Restored | Catchable | Owner/Manual Verification | Destructive |
 |---|------|---------|----------------------|-------------------|----------------------|-----------|--------------------------|-------------|
 | 1 | Normal `q` exit | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
-| 2 | SIGINT (Ctrl-C is ignored at key level; SIGINT from `kill -INT` still caught) | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
+| 2 | SIGINT (Ctrl+C) — **DEPRECATED v25.13**: SIGINT is no longer caught. Only `q` exits. Ctrl+C at the key level is ignored; `kill -INT` will use OS default (terminate without cleanup). Use SIGTERM/SIGHUP/SIGQUIT for graceful signal exit. | N/A (signal not caught) | No | No | No (OS default) | No | N/A | Depends on OS |
 | 3 | SIGTERM / `pkill -TERM` | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
 | 4 | SIGHUP | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
 | 5 | SIGTSTP / Ctrl-Z | Partial — terminal mode suspended, no explicit cleanup | No | No | Deferred (on SIGCONT) | Yes | No | No |
@@ -47,25 +47,25 @@ preserves the original terminal content underneath the rain. This path is
 intentionally non-destructive — the user's shell history and previous
 output are fully intact.
 
-### 2. Ctrl-C / SIGINT
+### 2. Ctrl-C / SIGINT (DEPRECATED v25.13)
 
-The OS delivers SIGINT to the process. The signal handler sets
-`GRACEFUL_SHUTDOWN` and `signal_exit`. The main loop notices
-`GRACEFUL_SHUTDOWN`, exits, sets `SHUTDOWN`, and `Terminal::drop()` runs
-with the signal-exit flag active. This adds a viewport clear step before
-leaving the alternate screen:
+**v25.13 change**: SIGINT (Ctrl+C) is no longer in the graceful-shutdown
+signal list. Only `q` exits cosmostrix. This deprecation aligns with the
+cinematic design principle: the user must deliberately press `q` to quit —
+no accidental exits from terminal Ctrl+C muscle memory.
 
-- `MoveTo(0, 0)` + `Clear(All)` + flush inside the alternate buffer,
-  then `LeaveAlternateScreen`.
+- Ctrl+C at the key level: ignored (crossterm key event, no match in
+  `input.rs` — falls through to `_ => {}`).
+- `kill -INT cosmostrix`: OS default SIGINT disposition applies (terminate
+  without graceful cleanup). The user should use `kill -TERM` instead for
+  graceful shutdown, or press `q`.
 
-This prevents the last rain frame from momentarily appearing on the main
-screen during the buffer switch. The signal handler thread blocks until
-`SHUTDOWN` is observed. Scrollback is not modified. This path is
-non-destructive for scrollback but clears the visible viewport.
+SIGTERM/SIGHUP/SIGQUIT remain caught for system-initiated shutdown
+(terminal close, parent death, `kill(1)`).
 
 ### 3. SIGTERM / `pkill -TERM`
 
-Same signal-exit path as SIGINT. The signal handler sets
+Same signal-exit path as SIGTERM. The signal handler sets
 `GRACEFUL_SHUTDOWN` and `signal_exit`. Both the parent process and the
 fork guard child receive SIGTERM. The child checks `getppid()` — if the
 parent is still alive (ppid != 1), the child exits silently without
@@ -79,7 +79,7 @@ after v4.8 Phase 4B fix.
 
 SIGHUP is delivered when the controlling terminal is disconnected (e.g.
 SSH session drops, terminal emulator closes). Same signal-exit path as
-SIGINT/SIGTERM. The signal handler sets `GRACEFUL_SHUTDOWN` and
+SIGTERM/SIGQUIT. The signal handler sets `GRACEFUL_SHUTDOWN` and
 `signal_exit`, and the main loop runs the full cleanup including the
 viewport clear. Note that if the terminal is already disconnected, the
 ANSI escape sequences may not reach a display — but the terminal mode
@@ -205,7 +205,8 @@ mode, and does not modify terminal state. No cleanup is needed.
 - **Normal `q` exit is non-destructive.** The alternate screen
   buffer preserves original terminal content. No scrollback modification.
   (Esc and Ctrl+C are intentionally ignored at the key level — only `q`
-  quits. SIGINT/SIGTERM/SIGHUP from `kill` are still caught and trigger
+  quits. v25.13: SIGINT is no longer caught at the signal level either.
+  SIGTERM/SIGHUP/SIGQUIT from `kill` are still caught and trigger
   the signal-exit cleanup path.)
 
 - **SIGTERM should be clean for visible residue after v4.8 Phase 4B.**
