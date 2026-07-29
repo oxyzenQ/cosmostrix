@@ -398,6 +398,32 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 None
             }
         }),
+        // v25.8 (bug #6): color.tune.* fields must be in [0.0, 3.0].
+        // Previously these were silently accepted by --testconf and silently
+        // defaulted to 1.0 at runtime (see color_tune_from_config's filter).
+        // Now they fail loudly, matching the v14 strictness for fps/speed/density.
+        "color.tune.brightness"
+        | "color.tune.saturation"
+        | "color.tune.head"
+        | "color.tune.body"
+        | "color.tune.tail" => {
+            if v.trim().is_empty() {
+                return Some(format!("expected number in [0.0, 3.0], got '{v}'"));
+            }
+            v.parse::<f64>().ok().and_then(|n| {
+                if !(0.0..=3.0).contains(&n) {
+                    Some(format!("out of range [0.0, 3.0], got {n}"))
+                } else {
+                    None
+                }
+            }).or_else(|| {
+                if v.parse::<f64>().is_err() {
+                    Some(format!("expected number in [0.0, 3.0], got '{v}'"))
+                } else {
+                    None
+                }
+            })
+        }
         // v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct,
         // maxdpc) REMOVED from --testconf validation. These are now fully
         // controlled by --glitch-level. If present in config.toml, they are
@@ -739,5 +765,87 @@ mod tests {
     #[test]
     fn colors_custom_stops_rejects_empty() {
         assert!(validate_colors_custom_value("colors-custom.mytheme.stops", "").is_some());
+    }
+
+    // ── v25.8 (bug #6): color.tune.* range validation ──
+    //
+    // Previously, `color.tune.brightness = 999` was silently accepted by
+    // --testconf (PASS) and silently defaulted to 1.0 at runtime — the user
+    // got zero feedback that their value was out of range. This mirrors the
+    // v14 fix that made fps/speed/density strict. Now all five color.tune
+    // fields reject values outside [0.0, 3.0] (matching TUNE_MIN/TUNE_MAX
+    // in color_tune.rs).
+
+    #[test]
+    fn color_tune_brightness_out_of_range_is_rejected() {
+        assert!(validate_field_value("color.tune.brightness", "3.1").is_some());
+        assert!(validate_field_value("color.tune.brightness", "-0.1").is_some());
+        assert!(validate_field_value("color.tune.brightness", "999").is_some());
+        assert!(validate_field_value("color.tune.brightness", "1.5").is_none());
+        assert!(validate_field_value("color.tune.brightness", "0.0").is_none());
+        assert!(validate_field_value("color.tune.brightness", "3.0").is_none());
+    }
+
+    #[test]
+    fn color_tune_saturation_out_of_range_is_rejected() {
+        assert!(validate_field_value("color.tune.saturation", "3.5").is_some());
+        assert!(validate_field_value("color.tune.saturation", "-1.0").is_some());
+        assert!(validate_field_value("color.tune.saturation", "1.0").is_none());
+    }
+
+    #[test]
+    fn color_tune_head_body_tail_out_of_range_is_rejected() {
+        for field in &["head", "body", "tail"] {
+            let key = format!("color.tune.{field}");
+            assert!(
+                validate_field_value(&key, "5.0").is_some(),
+                "{key} = 5.0 should be rejected"
+            );
+            assert!(
+                validate_field_value(&key, "-0.01").is_some(),
+                "{key} = -0.01 should be rejected"
+            );
+            assert!(
+                validate_field_value(&key, "2.0").is_none(),
+                "{key} = 2.0 should be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn color_tune_non_numeric_is_rejected() {
+        let msg = validate_field_value("color.tune.brightness", "bright");
+        assert!(
+            msg.is_some(),
+            "'bright' must be rejected for color.tune.brightness"
+        );
+        assert!(msg.unwrap().contains("expected number"));
+    }
+
+    #[test]
+    fn color_tune_empty_value_is_rejected() {
+        assert!(validate_field_value("color.tune.brightness", "").is_some());
+        assert!(validate_field_value("color.tune.brightness", "   ").is_some());
+    }
+
+    #[test]
+    fn color_tune_end_to_end_via_validate_config_strictly() {
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("color.tune.brightness".to_string(), "999".to_string());
+        let result = validate_config_strictly(&cfg);
+        assert!(
+            result.is_err(),
+            "validate_config_strictly must reject color.tune.brightness=999"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("out of range"),
+            "error must mention range, got: {err}"
+        );
+
+        // Valid value passes.
+        let mut cfg2 = std::collections::HashMap::new();
+        cfg2.insert("color.tune.brightness".to_string(), "1.5".to_string());
+        assert!(validate_config_strictly(&cfg2).is_ok());
     }
 }
