@@ -226,7 +226,6 @@ pub(crate) unsafe fn hint_reclaim_pages(ptr: *const u8, len: usize) {
 }
 
 #[cfg(not(target_os = "linux"))]
-#[allow(dead_code)]
 pub(crate) unsafe fn hint_reclaim_pages(_ptr: *const u8, _len: usize) {
     // No-op on non-Linux platforms.
 }
