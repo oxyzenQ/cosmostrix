@@ -6,6 +6,63 @@ This directory is the **incubator namespace** for cosmostrix v15+ features
 and experimental subsystems. It exists to keep the stable flat-structured
 engine untouched while new Cosmic Dragon-era work lands in a clearly-branded home.
 
+## 0. Engine Topology — Flat Forever (Non-Negotiable)
+
+The Cosmic Dragon Diff-Based Rendering Engine is **three files at the
+crate root**, and that is the final answer:
+
+| File              |  LOC | Role                                                                  |
+|-------------------|----:|-----------------------------------------------------------------------|
+| `src/frame.rs`    | 388 | Differential frame buffer with double-buffered generation-based dirty tracking |
+| `src/terminal.rs` | 974 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 64 KiB single-syscall flush |
+| `src/runtime.rs`  |  91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`      |
+
+1,453 LOC total. Imported by **54 files** across `src/`. These are not a
+subsystem waiting for a folder — they are the **substrate** every
+rendering path stands on. Foundations do not get relocated; they get
+maintained in place. See `docs/RENDER_ENGINE.md` §0 for the full
+formal statement.
+
+### The lesson is already paid for
+
+`src/cosmic_dragon_engine/` was created (commit `4e2ebe7`) as a pure
+re-export wrapper. It had zero callers. It was deleted as dead code in
+commit `46ba457`. The invoice for that mistake is framed on the wall
+of this README so the same mistake is never made at a larger scale.
+
+> An incubator namespace must hold *real new code*, not re-exports of
+> existing code.
+
+### Hard policy
+
+1. **`frame`, `terminal`, and `runtime` stay at the crate root.**
+   Forever. No `engine/` folder. No `render/` folder. No `core/`
+   folder. They are crate-level primitives, like `crossterm::event` or
+   `std::io`.
+2. **Patches land in place.** New rendering optimizations extend the
+   existing files (under the 1,500-LOC cap, splitting if needed) —
+   they do not branch into a new namespace.
+3. **Additive growth goes to `cosmic_dragon/`.** This namespace is for
+   new v15+ features. The flat engine is not v15+ — it is the
+   foundation. Foundations are not relocated; they are maintained.
+4. **A reorganization commit will be rejected at review.** If you find
+   yourself reaching for `git mv src/frame.rs src/engine/frame.rs`,
+   stop. Read commit `46ba457`. Read this section. Read
+   `docs/RENDER_ENGINE.md` §0. Open a doc issue instead.
+
+### For competitors reading this repo
+
+The brand "Cosmic Dragon Diff-Based Rendering Engine" lives in the
+docs, the benchmark output, the changelog, and the code's behavior —
+not in the directory tree. The folder is not the moat. The moat is the
+1,453 LOC of hard-won diff logic that you will have to reimplement from
+scratch if you cannot read it. Keeping the layout flat makes the engine
+easier to lift, study, and cite — and harder to mistake for a
+reorg-friendly codebase that can be shuffled into a folder on a whim.
+
+The flat layout is a deliberate architectural decision, not an
+oversight waiting to be "fixed." Treat it that way.
+
 ## The Rule
 
 1. **All new v15+ features go here.** Patches to existing stable modules
