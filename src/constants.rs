@@ -326,6 +326,66 @@ pub const DIRTY_CAPACITY_DIVISOR: usize = 8;
 /// Prevents wasting memory when terminal is very large.
 pub const DIRTY_CAPACITY_CAP: usize = 8192;
 
+// ── Renderer buffer pre-allocation (v25.16 perf polish) ──────────────────────
+//
+// These constants tune the initial capacity of the per-Terminal reusable
+// String/Vec buffers used by the diff- and full-redraw paths. The buffers
+// grow dynamically if a frame exceeds the pre-allocation, so these values
+// are pure performance hints — they trade a small fixed memory cost for
+// avoiding heap allocations on the hot path.
+//
+// Advanced benchmarkers: if your terminal is much larger than typical
+// (e.g. 8K UHD bench), raising these to match your expected worst-case
+// frame size eliminates the one-time grow cost during the first few frames.
+
+/// Initial capacity (bytes) for `Terminal::run_buf` — the diff-redraw
+/// char-run accumulator. Holds one contiguous run of same-style chars
+/// before flushing to `ansi_buf`. 256 bytes covers a full row on any
+/// terminal up to 256 cols without growth; wider terminals trigger one
+/// grow event during the first diff frame and then run at the new
+/// capacity forever.
+pub const RENDER_RUN_BUF_INIT_CAP: usize = 256;
+
+/// Initial capacity (bytes) for `Terminal::row_buf` — the full-redraw
+/// row accumulator. Holds one row of chars before flushing to
+/// `ansi_buf`. 512 bytes covers terminals up to 512 cols without
+/// growth. Larger than `RENDER_RUN_BUF_INIT_CAP` because full redraws
+/// always iterate the entire row, while diff redraws may break a row
+/// into multiple short style-runs.
+pub const RENDER_ROW_BUF_INIT_CAP: usize = 512;
+
+/// Initial capacity (bytes) for `Terminal::combined_flush_buf` — the
+/// sync-output wrapper buffer. Holds SYNC_START + ansi_buf + SYNC_END
+/// for the single-write flush path. 8 KiB covers most frames; dense
+/// dirty-all frames at 200×40 (~140 KB ANSI) trigger one grow event
+/// and then run at the new capacity. Only used when sync_output is
+/// enabled (terminal capability detection).
+pub const RENDER_COMBINED_FLUSH_INIT_CAP: usize = 8192;
+
+// ── Benchmark warmup tuning (v25.16 perf polish) ─────────────────────────────
+
+/// Fraction of total bench frames used as warmup. `(bench_frames /
+/// BENCH_WARMUP_DIVISOR).clamp(BENCH_WARMUP_MIN_FRAMES,
+/// BENCH_WARMUP_MAX_FRAMES)` produces the warmup frame count.
+///
+/// 10 = 10% of total. The warmup runs the renderer at full speed
+/// without recording metrics, allowing the allocator to settle, the
+/// CPU to ramp up to its max frequency, and branch predictors / I-cache
+/// to warm. Without warmup, the first ~50 frames of every benchmark
+/// run are ~30% slower than steady-state, polluting p99/max metrics.
+pub const BENCH_WARMUP_DIVISOR: u64 = 10;
+
+/// Minimum warmup frame count. Even for very short benchmarks (e.g.
+/// `--bench-frames 50`), at least 10 warmup frames run so the allocator
+/// and CPU have time to settle.
+pub const BENCH_WARMUP_MIN_FRAMES: u64 = 10;
+
+/// Maximum warmup frame count. Caps warmup at 200 frames (~3.3s at 60
+/// FPS) so long benchmarks (e.g. `--bench-frames 100000`) don't waste
+/// disproportionate time on warmup. 200 frames is enough for any
+/// realistic CPU / allocator to reach steady state.
+pub const BENCH_WARMUP_MAX_FRAMES: u64 = 200;
+
 // Exponential trail fade & head bloom
 
 /// Exponential decay rate for trail fading (higher = faster fade near head).

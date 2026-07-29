@@ -81,7 +81,8 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
     cloud.set_max_sim_delta(target_period);
 
-    let warmup_frames = (bench_frames / 10).clamp(10, 200);
+    let warmup_frames = (bench_frames / BENCH_WARMUP_DIVISOR)
+        .clamp(BENCH_WARMUP_MIN_FRAMES, BENCH_WARMUP_MAX_FRAMES);
     let mut sim_now = Instant::now();
 
     for _ in 0..warmup_frames {

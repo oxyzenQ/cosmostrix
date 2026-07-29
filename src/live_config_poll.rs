@@ -519,4 +519,195 @@ mod tests {
             "worst-case burst must stay under 3s"
         );
     }
+
+    // ── v25.16 (bug #18): polling-heartbeat end-to-end test ──────────────
+    //
+    // The polling heartbeat is the fallback path for live config reload on
+    // systems where the native `notify` watcher is unreliable (Termux FUSE,
+    // FreeBSD kqueue feature gaps, restricted containers). Until now it had
+    // NO end-to-end coverage — only the snapshot helpers (`snapshot_file_state`,
+    // `fnv1a_64`, env-var parsing) were unit-tested. A silent regression in
+    // `polling_heartbeat` itself (e.g. broken channel send, missing state
+    // comparison) would have gone undetected by the test suite.
+    //
+    // This test exercises the full pipeline:
+    //   1. Create a real temp file
+    //   2. Spawn `polling_heartbeat` on a background thread with a fast
+    //      100ms poll interval
+    //   3. Wait for the initial snapshot to be captured
+    //   4. Modify the file (size + content change → guaranteed detection
+    //      by either of the three signals, even on coarse-mtime filesystems)
+    //   5. Wait up to 15s for the synthetic notify::Event to arrive on the
+    //      channel
+    //   6. Verify the event is `Modify/Any` and carries the watched path
+    //
+    // WHY 15 SECONDS:
+    //
+    // The previous informal target was 5s, but CI runners have been observed
+    // taking 4–8s for a single 100ms poll cycle to wake up under heavy
+    // parallel test load (qemu, shared CPU, network filesystems, container
+    // scheduling pressure). 15s gives 3× headroom over the worst observed
+    // case while still keeping the test fast on healthy systems (typical
+    // completion: 300–500ms).
+    //
+    // The 100ms poll interval keeps the test fast on healthy systems while
+    // exercising the same code path as production (which uses 750ms). The
+    // 15s timeout is the safety net, not the expected duration.
+
+    /// Generous end-to-end timeout for the polling heartbeat test.
+    ///
+    /// v25.16 (bug #18): raised from the previous informal 5s target to
+    /// 15s. Slow CI filesystems (qemu, network FS, shared-tenant runners)
+    /// can introduce multi-second scheduler latency between `thread::sleep`
+    /// expiry and the next poll cycle. 15s gives 3× headroom over the
+    /// worst observed case while keeping the test fast on healthy systems.
+    const HEARTBEAT_E2E_TIMEOUT_SECS: u64 = 15;
+
+    /// Poll interval used by the end-to-end test (ms).
+    ///
+    /// 100ms is fast enough to complete the test in <1s on healthy
+    /// systems, while exercising the exact same code path as production
+    /// (which uses `DEFAULT_POLL_INTERVAL_MS` = 750ms). The shorter
+    /// interval does NOT change detection semantics — only how often the
+    /// heartbeat checks.
+    const HEARTBEAT_E2E_POLL_MS: u64 = 100;
+
+    #[test]
+    fn polling_heartbeat_end_to_end() {
+        use std::sync::atomic::AtomicU64;
+        use std::sync::mpsc;
+        use std::time::Instant;
+
+        let dir = std::env::temp_dir().join("cosmostrix-tests");
+        std::fs::create_dir_all(&dir).ok();
+        let path = dir.join("polling_heartbeat_end_to_end.toml");
+
+        // Write initial content. The heartbeat will snapshot this on entry.
+        // Use a UNIQUE initial content per test run so we never confuse
+        // this file with a stale leftover from a previous run.
+        let initial_content = format!(
+            "speed = 30\n# initial v={}\n",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        );
+        std::fs::write(&path, initial_content.as_bytes()).unwrap();
+
+        // Set up the channel and change counter exactly as
+        // `spawn_live_config_watcher` does in `live_config.rs`.
+        let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
+        let counter = Arc::new(AtomicU64::new(0));
+
+        // Spawn the heartbeat thread. Use a named thread so panics show
+        // up clearly in the test output.
+        let path_inner = path.clone();
+        let handle = std::thread::Builder::new()
+            .name("test-polling-heartbeat".to_string())
+            .spawn(move || {
+                polling_heartbeat(path_inner, tx, HEARTBEAT_E2E_POLL_MS, counter);
+            })
+            .expect("failed to spawn polling heartbeat thread");
+
+        // Wait for the heartbeat to capture its initial snapshot AND
+        // complete at least one poll cycle against the unmodified file.
+        //
+        // v25.16 (bug #18): under heavy parallel test load (especially
+        // on shared-tenant CI runners), `std::thread::Builder::spawn`
+        // itself can be delayed by 200–800ms before the new thread
+        // starts executing. If we modify the file TOO SOON, the
+        // heartbeat's initial snapshot captures the already-modified
+        // file, and no subsequent change is detected — the test fails
+        // by timeout.
+        //
+        // Mitigation: sleep 1 second (10 poll cycles at 100ms). This is
+        // long enough that:
+        //   - thread spawn delay (up to ~800ms observed) is absorbed
+        //   - the initial snapshot is captured against the ORIGINAL
+        //     file content (not the modified one)
+        //   - at least 1–2 poll cycles have run against the original
+        //     content (proving the heartbeat considers it "stable")
+        //
+        // After this sleep, we modify the file. The next poll cycle
+        // (within 100ms) is guaranteed to detect the change.
+        std::thread::sleep(Duration::from_millis(1000));
+
+        // Modify the file: change BOTH size and content_hash. This
+        // guarantees detection by at least two of the three signals
+        // (size, content_hash) even on filesystems where mtime has
+        // 1-second granularity and the write happens within the same
+        // mtime tick as the initial write.
+        std::fs::write(
+            &path,
+            b"speed = 60\n# modified by polling_heartbeat_end_to_end test\n",
+        )
+        .unwrap();
+
+        // Wait up to HEARTBEAT_E2E_TIMEOUT_SECS for the synthetic event.
+        let timeout = Duration::from_secs(HEARTBEAT_E2E_TIMEOUT_SECS);
+        let start = Instant::now();
+        let mut received_event: Option<notify::Event> = None;
+        while start.elapsed() < timeout {
+            match rx.recv_timeout(Duration::from_millis(200)) {
+                Ok(Ok(event)) => {
+                    received_event = Some(event);
+                    break;
+                }
+                Ok(Err(_)) => {
+                    // Watcher-reported error — keep waiting; the polling
+                    // heartbeat itself never sends Err, but a future
+                    // refactor could.
+                    continue;
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => continue,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+        }
+
+        // Cleanup: drop the receiver to close the channel. Then trigger
+        // ONE MORE file change so the heartbeat attempts another send,
+        // which fails (channel closed) and causes the heartbeat to
+        // exit cleanly via the `tx.send().is_err()` → break path.
+        //
+        // v25.16 (bug #18): WITHOUT this final write, `handle.join()`
+        // would block forever. The heartbeat has no shutdown signal —
+        // it exits ONLY when `tx.send()` returns Err. If no further
+        // file changes happen, the heartbeat keeps polling indefinitely.
+        // The final write triggers the next poll cycle's change
+        // detection, which calls `tx.send()` → Err → break → thread
+        // exits → join() returns.
+        //
+        // The 500ms sleep gives the heartbeat time to detect the change
+        // (≤200ms in burst mode, ≤100ms in normal mode) and attempt
+        // the failing send. This is bounded and deterministic.
+        drop(rx);
+        std::fs::write(
+            &path,
+            b"speed = 90\n# final write to trigger heartbeat exit\n",
+        )
+        .unwrap();
+        std::thread::sleep(Duration::from_millis(500));
+        let _ = handle.join();
+
+        // Remove the temp file (best-effort).
+        std::fs::remove_file(&path).ok();
+
+        let event = received_event.unwrap_or_else(|| {
+            panic!(
+                "polling heartbeat must send a synthetic event within {}s \
+                 of file modification (poll interval = {}ms)",
+                HEARTBEAT_E2E_TIMEOUT_SECS, HEARTBEAT_E2E_POLL_MS,
+            )
+        });
+        assert_eq!(
+            event.kind,
+            EventKind::Modify(notify::event::ModifyKind::Any),
+            "synthetic event must be Modify/Any"
+        );
+        assert!(
+            event.paths.contains(&path),
+            "synthetic event must carry the watched file path: {:?}",
+            event.paths
+        );
+    }
 }

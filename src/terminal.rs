@@ -66,7 +66,8 @@ use crate::cell::Cell;
 use crate::color_cache::ColorCache;
 use crate::constants::{
     DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, MIN_TERMINAL_COLS,
-    MIN_TERMINAL_LINES, SHUTDOWN_TIMEOUT_SECS,
+    MIN_TERMINAL_LINES, RENDER_COMBINED_FLUSH_INIT_CAP, RENDER_ROW_BUF_INIT_CAP,
+    RENDER_RUN_BUF_INIT_CAP, SHUTDOWN_TIMEOUT_SECS,
 };
 use crate::frame::Frame;
 use crate::sgr_format::{push_u16, write_sgr_colors_buf};
@@ -92,6 +93,44 @@ impl LastFrame {
             cells: vec![Cell::blank_with_bg(None); len],
             semantic_gen: 0,
         }
+    }
+
+    /// v25.16 (perf polish): reuse the existing Vec allocation when the
+    /// new dimensions fit within the old capacity. Avoids a heap
+    /// alloc/dealloc pair every time the terminal is resized to a
+    /// smaller or equal size — common during window-drag resize storms
+    /// where the user overshoots and settles back to the original size.
+    ///
+    /// When the new size exceeds the existing capacity, falls back to a
+    /// fresh allocation (same as `new`). When no existing frame is
+    /// provided, also falls back to `new`.
+    ///
+    /// **Safety of `resize_with`**: `Vec::resize_with(new_len, || blank)`
+    /// first truncates if `new_len < old.len()`, then extends by calling
+    /// the closure for each new element. We `clear()` first to drop all
+    /// old cell values (which contained previous-frame content) so the
+    /// resulting Vec is uniformly blank. The underlying allocation is
+    /// reused — only the length changes.
+    fn reuse_or_new(existing: Option<Self>, width: u16, height: u16) -> Self {
+        let Some(mut old) = existing else {
+            return Self::new(width, height);
+        };
+        let new_len = width as usize * height as usize;
+        if old.cells.capacity() < new_len {
+            // Need a bigger buffer — allocate fresh. The old Vec is
+            // dropped, freeing its allocation.
+            return Self::new(width, height);
+        }
+        // Reuse the allocation. Clear drops all existing cells (which
+        // contained previous-frame content), then resize_with extends
+        // back to new_len using the blank-cell closure. The Vec's
+        // capacity is preserved across clear+resize_with.
+        old.cells.clear();
+        old.cells.resize_with(new_len, || Cell::blank_with_bg(None));
+        old.width = width;
+        old.height = height;
+        old.semantic_gen = 0;
+        old
     }
 }
 
@@ -186,10 +225,10 @@ impl Terminal {
             last: None,
             run_buf: {
                 let mut s = String::new();
-                s.reserve(256);
+                s.reserve(RENDER_RUN_BUF_INIT_CAP);
                 s
             },
-            row_buf: String::with_capacity(512),
+            row_buf: String::with_capacity(RENDER_ROW_BUF_INIT_CAP),
             dirty_flat: Vec::new(),
             ansi_buf: Vec::with_capacity(STDOUT_BUF_CAPACITY),
             mouse_capture_enabled: false,
@@ -206,7 +245,7 @@ impl Terminal {
             color_cache: None,
             total_ansi_bytes: 0,
             flush_count: 0,
-            combined_flush_buf: Vec::with_capacity(8192),
+            combined_flush_buf: Vec::with_capacity(RENDER_COMBINED_FLUSH_INIT_CAP),
         };
 
         let init_res: Result<()> = (|| {
@@ -478,7 +517,12 @@ impl Terminal {
                 })
                 .unwrap_or(true);
             if needs_new_last {
-                self.last = Some(LastFrame::new(frame.width, frame.height));
+                // v25.16 (perf polish): reuse the old LastFrame's Vec
+                // allocation when the new dimensions fit. This avoids
+                // heap churn during resize-drag storms where the user
+                // overshoots and settles back to a smaller size.
+                let old = self.last.take();
+                self.last = Some(LastFrame::reuse_or_new(old, frame.width, frame.height));
             }
             let last = self.last.as_mut().expect("set above");
             // Synchronize semantic generation so future differential frames
@@ -588,13 +632,27 @@ impl Terminal {
         let dirty_flat = &mut self.dirty_flat;
         dirty_flat.clear();
         dirty_flat.extend(dirty.iter().copied());
+        dirty_flat.sort_unstable();
+        // v25.16 (perf polish): the previous O(N) `dirty_flat.iter().all()`
+        // checked every index every frame in debug builds (~4800
+        // comparisons on a 200×40 terminal). Since `dirty_flat` is now
+        // sorted ascending (we just called `sort_unstable()`), only the
+        // LAST (largest) index needs to be checked — if it's in bounds,
+        // all smaller indices are too. This drops the debug-build cost
+        // from O(N) to O(1) per frame, with zero release-build impact
+        // (debug_assert! is elided in release).
+        //
+        // SAFETY: `Frame::set()` / `set_force()` / `set_persistent()`
+        // all call `self.index(x, y)` first and only push `Some(i)`
+        // results, so every dirty index is guaranteed in-bounds. This
+        // assert catches the unlikely case where a future caller
+        // bypasses `index()` and pushes an OOB index.
         debug_assert!(
             dirty_flat
-                .iter()
-                .all(|&idx| idx < height_usize * width_usize),
+                .last()
+                .map_or(true, |&idx| idx < height_usize * width_usize),
             "dirty_indices must be in-bounds — Frame::set guarantees this"
         );
-        dirty_flat.sort_unstable();
 
         // Iterate the flat sorted array, detecting row boundaries and
         // contiguous horizontal runs for RLE batching.
