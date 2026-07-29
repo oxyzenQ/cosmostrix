@@ -234,8 +234,7 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("LANG:", &format!(" {lang}"));
     output::eprintln_verbose("isatty(stderr):", &format!(" {is_tty}"));
     output::eprintln_verbose("isatty(stdout):", &format!(" {is_stdout_tty}"));
-    let is_android = std::env::var("TERMUX_VERSION").is_ok()
-        || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
+    let is_android = configfile::is_termux_environment();
     output::eprintln_verbose("android:", &format!(" {is_android}"));
 
     // ── Config ────────────────────────────────────────────────────

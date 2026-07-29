@@ -179,13 +179,12 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     // actually allowed in Termux — the README and docs claimed Android
     // support, but the implementation silently rejected it.
     //
-    // Match the same Termux detection used elsewhere in the codebase
-    // (event_loop.rs, verbose.rs): check `TERMUX_VERSION` env var or
-    // `PREFIX` containing "com.termux". This is set by the Termux
-    // runtime at app launch and is the canonical way to detect Termux
-    // at runtime.
-    let is_termux = std::env::var("TERMUX_VERSION").is_ok()
-        || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
+    // Termux detection is centralized in `configfile::is_termux_environment()`
+    // — the canonical runtime check (`TERMUX_VERSION` env var or `PREFIX`
+    // containing "com.termux"). verbose.rs calls the same function; the
+    // single source of truth prevents drift if the detection heuristic ever
+    // needs to change.
+    let is_termux = crate::configfile::is_termux_environment();
     if is_termux {
         allowed_prefixes.push("/sdcard/cosmostrix/".to_string());
     }

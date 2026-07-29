@@ -345,8 +345,9 @@ pub fn default_config_file_path() -> PathBuf {
 /// Runtime detection via env vars is the canonical approach.
 ///
 /// Returns `true` if either `TERMUX_VERSION` is set OR `PREFIX` contains
-/// "com.termux". This matches the detection used elsewhere in the
-/// codebase (safepath.rs, verbose.rs, event_loop.rs).
+/// "com.termux". This is the single source of truth for Termux detection
+/// in the codebase — `safepath.rs` and `verbose.rs` both call this
+/// function instead of inlining their own env-var checks.
 #[must_use]
 pub fn is_termux_environment() -> bool {
     env::var("TERMUX_VERSION").is_ok()
