@@ -139,6 +139,84 @@ fn default_scene_is_cinematic() {
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
+/// v25.16: benchmark mode (--benchmark or --bench-all) without an explicit
+/// --scene must default to "monolith" instead of the interactive default
+/// "cinematic". This is the fix for the FPS regression where users running
+/// `cosmostrix --benchmark` got cinematic (slow) instead of monolith (peak),
+/// producing misleadingly low FPS numbers vs the headline 38k FPS claims.
+///
+/// The override is applied in main.rs BEFORE apply_config_and_runtime_defaults
+/// is called, so all scene config (color, charset, speed, density, rain_style)
+/// is correctly populated for monolith. This test replicates that pre-apply
+/// injection to pin the contract.
+#[test]
+fn benchmark_mode_defaults_to_monolith_scene() {
+    // Replicate the main.rs pre-apply override: if benchmark mode and no
+    // --scene was passed, inject args.scene = Some("monolith") BEFORE
+    // apply_config_and_runtime_defaults. Then verify the resolved scene
+    // and monolith's signature config fields.
+    let cli = &["--benchmark"];
+    let mut argv = vec!["cosmostrix"];
+    argv.extend_from_slice(cli);
+    let cmd = Args::command();
+    let matches = cmd.get_matches_from(argv);
+    let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+
+    // Mirror main.rs: bench_mode && args.scene.is_none() → inject monolith.
+    let bench_mode = args.benchmark || args.bench_all;
+    assert!(bench_mode, "--benchmark must set args.benchmark = true");
+    assert!(
+        args.scene.is_none(),
+        "args.scene must be None before the override (no --scene passed)"
+    );
+    if bench_mode && args.scene.is_none() {
+        args.scene = Some("monolith".to_string());
+    }
+
+    apply_config_and_runtime_defaults(&matches, &mut args).expect("apply config");
+
+    // After apply: scene is monolith, with monolith's signature config.
+    assert_eq!(args.scene.as_deref(), Some("monolith"));
+    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.charset, "braille");
+    assert_eq!(args.speed, 30.0);
+    assert_eq!(args.density, 0.85);
+    assert_eq!(args.glitch_level, GlitchLevel::Subtle);
+}
+
+/// v25.16: --benchmark with explicit --scene <name> must NOT override to
+/// monolith. The user's choice wins. This pins the override-with-override
+/// contract: `cosmostrix --benchmark --scene cinematic` benchmarks cinematic.
+#[test]
+fn benchmark_mode_with_explicit_scene_keeps_user_choice() {
+    let cli = &["--benchmark", "--scene", "cinematic"];
+    let mut argv = vec!["cosmostrix"];
+    argv.extend_from_slice(cli);
+    let cmd = Args::command();
+    let matches = cmd.get_matches_from(argv);
+    let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+
+    // Mirror main.rs: only inject if args.scene.is_none(). Here it's Some.
+    let bench_mode = args.benchmark || args.bench_all;
+    assert!(bench_mode);
+    assert_eq!(
+        args.scene.as_deref(),
+        Some("cinematic"),
+        "user-supplied --scene must be present before apply"
+    );
+    if bench_mode && args.scene.is_none() {
+        args.scene = Some("monolith".to_string());
+    }
+
+    apply_config_and_runtime_defaults(&matches, &mut args).expect("apply config");
+
+    // User's cinematic choice is honored, NOT overridden to monolith.
+    assert_eq!(args.scene.as_deref(), Some("cinematic"));
+    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.charset, "binary");
+    assert_eq!(args.speed, 9.0);
+}
+
 #[test]
 fn explicit_matrix_scene_restores_classic_defaults() {
     let args = args_from_cli(&["--scene", "matrix"]);

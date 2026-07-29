@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  Powered by the Cosmic Dragon diff-based rendering engine — only changed cells are redrawn, not the full screen.
+  Powered by The Cosmic Dragon Diff-Based Rendering Engine — only changed cells are redrawn, not the full screen.
 </p>
 
 <p align="center">
@@ -62,7 +62,7 @@ Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --bench
 
 ## Philosophy — Not a Toy, But a Masterpiece
 
-Cosmostrix is the **Cosmic Dragon Engine** — a serious diff-based rendering masterpiece, not a hobbyist project or a toy. It stands in relation to ordinary Matrix rain renderers the way the *Mona Lisa* stands to a paint-by-numbers kit: same medium, completely different discipline.
+Cosmostrix is powered by **The Cosmic Dragon Diff-Based Rendering Engine** — a serious diff-based rendering masterpiece, not a hobbyist project or a toy. It stands in relation to ordinary Matrix rain renderers the way the *Mona Lisa* stands to a paint-by-numbers kit: same medium, completely different discipline.
 
 Every design decision in Cosmostrix is governed by one question: *does this serve the cinematic aesthetic?* Features that compromise that aesthetic are rejected on principle, no matter how popular or how easy they would be to add.
 

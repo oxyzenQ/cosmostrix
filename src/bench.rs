@@ -102,6 +102,15 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     println!("BENCH:");
     println!("  scene: {}", cfg.scene_name);
+    // v25.16: disclose that monolith is the default + how to override, so
+    // CI logs and human users can interpret FPS numbers correctly.
+    println!("  scene_note: default is 'monolith' (peak throughput); override with --scene <name>");
+    if cfg.scene_name != "monolith" {
+        println!(
+            "  disclaimer: scene '{}' is not peak-throughput; compare with 'monolith' for headline FPS",
+            cfg.scene_name
+        );
+    }
     println!("  cols: {}", w);
     println!("  lines: {}", h);
     println!("  frames: {}", bench_frames);

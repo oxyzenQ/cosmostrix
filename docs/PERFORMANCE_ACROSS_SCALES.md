@@ -2,13 +2,13 @@
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> **Engine:** Cosmic Dragon Diff-Based Rendering
+> **Engine:** The Cosmic Dragon Diff-Based Rendering Engine
 > **Methodology:** `cosmostrix --benchmark --json --screen-size WxH --bench-duration 2`
 > **Hardware:** Intel(R) Xeon(R) Processor, x86-64-v1 baseline, single core
 > **Build:** `cargo build --release` (LTO fat, panic unwind, strip yes)
 > **Date:** 2026-07-24
 
-This document proves the Cosmic Dragon diff-based rendering engine scales linearly
+This document proves The Cosmic Dragon Diff-Based Rendering Engine scales linearly
 from 6×6 (36 cells) to 400×200 (80,000 cells) — a 2,222× range in cell count.
 The key finding: **`total_ns_per_cell` stays constant at ~80 ns/cell** across
 all sizes from 20×20 onward, confirming O(1) per-cell cost. Fixed costs
@@ -218,7 +218,7 @@ inflating the metric without reflecting real rendering cost.
 
 ## Conclusion
 
-The Cosmic Dragon diff-based rendering engine scales **linearly** across the full
+The Cosmic Dragon Diff-Based Rendering Engine scales **linearly** across the full
 range of practical terminal sizes:
 
 1. **`total_ns_per_cell` is O(1) constant** at ~80 ns/cell from 20×20 to

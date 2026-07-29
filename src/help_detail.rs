@@ -254,7 +254,7 @@ DIAGNOSTICS:
   --doctor       Build info, renderer details, environment diagnostics, and
       terminal compatibility check. (v17: --info merged into --doctor)
   --docs         Print engine documentation and architecture overview.
-      Plain-text dump of the Cosmic Dragon diff-based rendering engine: the
+      Plain-text dump of The Cosmic Dragon Diff-Based Rendering Engine: the
       five cooperating subsystems (diff-based cell renderer, 3-layer
       parallax, phosphor persistence, density noise + wind gusts,
       adaptive atmosphere engine), the performance profile, and the

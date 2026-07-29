@@ -52,10 +52,10 @@ pub(super) fn version_report() -> String {
 
     let header = format!("cosmostrix: v{version}\n{description}");
     // Engine line declares the architecture so users immediately see this
-    // is the Cosmic Dragon diff-based renderer, not a generic Matrix clone. Kept
-    // on its own line so it's easy to grep from scripts (`cosmostrix -V |
-    // grep Engine`).
-    let engine_line = "Engine: Cosmic Dragon Diff-Based Rendering";
+    // is The Cosmic Dragon Diff-Based Rendering Engine, not a generic
+    // Matrix clone. Kept on its own line so it's easy to grep from scripts
+    // (`cosmostrix -V | grep Engine`).
+    let engine_line = "Engine: The Cosmic Dragon Diff-Based Rendering Engine";
     let body = format!(
         "{engine_line}\n\
          Build: {build} ({commit})\n\
@@ -93,8 +93,8 @@ pub(super) fn version_report() -> String {
 #[must_use]
 pub(super) fn docs_report() -> &'static str {
     "\
-COSMOSTRIX — Cosmic Dragon Diff-Based Rendering Engine
-======================================================
+COSMOSTRIX — The Cosmic Dragon Diff-Based Rendering Engine
+==========================================================
 
 Cosmostrix is not a Matrix clone. It is a novel diff-based terminal
 renderer that computes only the cells which change between frames,
@@ -225,11 +225,12 @@ DESIGN CONSTRAINTS
   - No unsafe in the renderer hot path.
   - Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD.
 
-Cosmostrix is the Cosmic Dragon Engine — a serious diff-based rendering
-masterpiece. It is designed for cinematic art, not for toys. By
-principle, it will never support emoji or wide characters (CJK fullwidth,
-zero-width combining marks), as its focus is on pure, elegant, and
-exclusive visual quality built on single-cell glyphs.
+Cosmostrix is powered by The Cosmic Dragon Diff-Based Rendering
+Engine — a serious diff-based rendering masterpiece. It is designed
+for cinematic art, not for toys. By principle, it will never support
+emoji or wide characters (CJK fullwidth, zero-width combining marks),
+as its focus is on pure, elegant, and exclusive visual quality built
+on single-cell glyphs.
 
 Source: https://github.com/oxyzenQ/cosmostrix
 License: GPL-3.0-only
@@ -409,7 +410,7 @@ mod tests {
         // is already shown on the `cosmostrix: v{VERSION}` line above.
         let report = version_report();
         assert!(
-            report.contains("Engine: Cosmic Dragon Diff-Based Rendering"),
+            report.contains("Engine: The Cosmic Dragon Diff-Based Rendering Engine"),
             "version_report must declare the Cosmic Dragon engine line. Full report:\n{report}"
         );
         // Sanity: the Engine line appears before the Build line so users
@@ -443,7 +444,7 @@ mod tests {
         let report = docs_report();
         let first_line = report.lines().next().unwrap_or("");
         assert!(
-            first_line.contains("Cosmic Dragon Diff-Based Rendering Engine"),
+            first_line.contains("The Cosmic Dragon Diff-Based Rendering Engine"),
             "docs_report first line must contain the engine name: {first_line}"
         );
         // The header must NOT contain a version number — no "(v25)",
@@ -517,7 +518,7 @@ mod tests {
         let report = docs_report();
         let normalized: String = report.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(
-            normalized.contains("Cosmostrix is the Cosmic Dragon Engine"),
+            normalized.contains("Cosmostrix is powered by The Cosmic Dragon Diff-Based Rendering"),
             "docs_report must open the philosophy with the engine name"
         );
         assert!(

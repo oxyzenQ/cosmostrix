@@ -280,9 +280,33 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         let s = r.section("COSMIC DRAGON ENGINE METRICS");
         s.field(
             "engine",
-            "cosmostrix cosmic dragon engine (diff-based + RLE + phosphor)",
+            "The Cosmic Dragon Diff-Based Rendering Engine (diff-based + RLE + phosphor)",
         );
         s.field("version", env!("CARGO_PKG_VERSION"));
+        // v25.16: disclose the active scene so users can interpret FPS
+        // numbers correctly. Different scenes have wildly different
+        // throughput characteristics (monolith is ~3-5x faster than
+        // cinematic on most terminals). The scene field + scene_note
+        // prevents users from comparing apples to oranges across runs.
+        s.field("scene", &data.scene);
+        s.field(
+            "scene_note",
+            "FPS varies significantly by scene. The default benchmark scene \
+             is 'monolith' (peak throughput). Override with --scene <name>. \
+             Other scenes (cinematic, signal, etc.) are heavier and run slower.",
+        );
+        if data.scene != "monolith" {
+            s.field(
+                "disclaimer",
+                &format!(
+                    "Scene '{}' is not the peak-throughput scene. Compare with \
+                     'monolith' (the default) for headline FPS claims. The \
+                     number above reflects this scene's actual workload, not \
+                     the engine's peak capacity.",
+                    data.scene
+                ),
+            );
+        }
     }
 
     {

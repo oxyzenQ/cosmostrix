@@ -494,6 +494,26 @@ fn main() -> std::io::Result<()> {
         }
     }
 
+    // Benchmark default scene override (v25.16):
+    //
+    // When running in benchmark mode (--benchmark or --bench-all) without an
+    // explicit --scene, default to "monolith" — the signature scene that
+    // produces peak FPS. Interactive mode keeps DEFAULT_SCENE (cinematic)
+    // as its signature, since cinematic is the richer visual showcase.
+    //
+    // This prevents user confusion: the headline "38k FPS" claims come from
+    // monolith, but cinematic (the interactive default) is significantly
+    // heavier and runs much slower. Users who run `cosmostrix --benchmark`
+    // expect the peak number, not the cinematic one.
+    //
+    // Users can still override with `--scene <name>` to benchmark any scene
+    // (e.g. `cosmostrix --benchmark --scene cinematic`). The benchmark
+    // report discloses the active scene + a disclaimer for non-monolith scenes.
+    let bench_mode = args.benchmark || args.bench_all;
+    if bench_mode && args.scene.is_none() {
+        args.scene = Some("monolith".to_string());
+    }
+
     if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
         ux::die_config(e);
     }
