@@ -9,6 +9,145 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v25.0.0-alpha.4 — Cloud Dead-Code Audit
+
+### Headline
+
+Two-pass dead-code audit of the `cloud/` subsystem (11,866 LOC across
+14 source files plus 7 test files) removed **134 lines** of dead code
+across 10 files. Every removal was confirmed unused via compiler
+warnings and `rg` grep — no behavior change, all 1140 tests still pass.
+The audit also corrected a misleading `#[allow(dead_code)]` attribute
+on `DrawCtx::flash_time` that had been papering over a genuinely dead
+field since the field was introduced.
+
+### Pass 1 — Atmospheric Event Engine (`45c641c`)
+
+The atmospheric event engine (`src/cloud/atmospheric_events.rs`) is the
+cinematic ghost-event system that spawns fading kanji characters on dim
+rain cells. The trait and lifecycle enum had aspirational scaffolding
+for a 6-phase pipeline (`Idle → Pending → Spawn → Active → Decay →
+Finished → Idle`) that was never implemented — only `Active` and
+`Decay` are actually produced by event implementations, and
+`is_finished()` drives recycling.
+
+Changes:
+- **`EventState`**: removed `Idle`, `Pending`, `Spawn`, `Finished`
+  variants. Only `Active` and `Decay` are set or compared anywhere in
+  the codebase (4 call sites in `atmospheric_events.rs`, 1 in
+  `events/ghost.rs`).
+- **`AtmosphericEvent` trait**: removed `phase_durations_ms()` and
+  `memory_footprint()` methods. Both had `#[allow(dead_code)]` since
+  inception and zero callers anywhere in `src/`, `tests/`, or `benches/`.
+  The `GhostEvent` impl returned hard-coded stubs `(2000, 2000)` and
+  `128` — not real measurements.
+- **`AtmosphericEventManager`**: removed `active_count()` method.
+  Compiler confirmed it is unused after the trait methods were removed.
+- Removed 4 `#[allow(dead_code)]` attributes that were papering over
+  the above.
+- Updated module doc: replaced the aspirational lifecycle diagram with
+  the actually-implemented `Active → Decay → (recycle when
+  is_finished())` and a note explaining the audit.
+
+Changes (`events/ghost.rs`):
+- Removed `phase_durations_ms()` impl (returned `(2000, 2000)` stub).
+- Removed `memory_footprint()` impl (returned `128` stub).
+
+LOC impact: −28 lines. Trait surface shrinks from 8 methods to 6 —
+easier to implement new event types.
+
+### Pass 2 — Unused Accessors + Cascade Cleanup (`0832b5c`)
+
+Four unused accessor methods plus the cascade of dead fields they were
+keeping alive.
+
+Primary removals (each had `#[allow(dead_code)]` with zero callers):
+- **`LivingRain::multiplier()`** — read-only accessor for the gust
+  multiplier. The draw path calls `LivingRain::sample()` which
+  advances the state machine and returns the multiplier; the read-only
+  accessor was never used.
+- **`Cloud::cycle_profile()`** — manually cycles `BehaviorProfile` to
+  the next variant. Zero callers anywhere. The autonomous ecosystem
+  evolves profiles via lerp transitions, not manual cycling.
+- **`DrawCtx::is_bright()` / `DrawCtx::is_dim()`** — per-cell glitch
+  phase queries. A comment at `rain.rs:361` documents these were
+  replaced by cached `glitch_bright` / `glitch_dim` snapshots computed
+  once per `DrawCtx` construction (avoids per-cell
+  `Instant::saturating_duration_since` + nanos conversion in
+  `get_attr`'s glitch branch, called 100–300×/frame when glitchy).
+
+Cascade cleanup (dead code surfaced by the above removals):
+- **`BehaviorProfile::cycle()`** — was only called by
+  `Cloud::cycle_profile()`. With its sole caller removed, the compiler
+  flagged it as dead. Removed the 8-variant match + method.
+- **`DrawCtx::last_glitch_time`, `next_glitch_time`,
+  `glitch_inv_between`** — were only read by `is_bright()` /
+  `is_dim()`. With both methods removed, the compiler flagged all
+  three fields as never read. The `Cloud` struct keeps its own copies
+  (used to compute the `glitch_bright` / `glitch_dim` snapshots in
+  `rain.rs`); only the `DrawCtx` mirror copies were dead.
+- **`DrawCtx::flash_time`** — had `#[allow(dead_code)]` with a
+  misleading "Kept for API compatibility" comment. Verified via `rg`
+  that no `ctx.flash_time` / `draw_ctx.flash_time` reads exist
+  anywhere; the field was only constructed (`rain.rs:425`) but never
+  consumed. The precomputed `flash_elapsed` field is what per-cell
+  logic reads. Removed the field, the construction copy, and the
+  misleading comment + allow attribute.
+- **`std::time::Instant` import in `render.rs`** — became unused after
+  the three `Instant`-typed `DrawCtx` fields were removed.
+
+Test sites updated (6 `DrawCtx` constructions across 3 test files):
+- Removed 3 glitch-timing field literals per site (18 lines total)
+- Removed 1 `flash_time: None` literal per site (6 lines total)
+
+LOC impact: −96 lines across 8 files. `DrawCtx` shrinks by 4 fields
+(3 glitch timing + `flash_time`) — smaller struct, better cache
+locality in the per-cell `get_attr` hot path.
+
+### Verification
+
+Both passes verified via:
+- `cargo build --release` — OK, zero warnings (the cascade warnings
+  surfaced by pass 2 were resolved in the same commit)
+- `cargo test --all` — 1140 passed, 0 failed
+- `cargo clippy` — clean
+- `cargo fmt` — clean
+- `./scripts/build.sh check-all` — All quality checks passed
+
+### Audit Methodology
+
+1. **Compiler-driven**: built with `cargo build --release` and captured
+   all `warning: method/field/variant is never used` diagnostics. The
+   compiler is the source of truth — manual `#[allow(dead_code)]`
+   attributes were treated as suspect.
+2. **Grep-verified**: every removal was confirmed via `rg` to have zero
+   callers in `src/`, `tests/`, and `benches/`. The `ctx.field` /
+   `draw_ctx.field` access patterns were distinguished from `self.field`
+   access on the source struct (`Cloud`) to avoid false positives.
+3. **Cascade-aware**: after each removal, rebuilt to surface newly-dead
+   code that had been kept alive by the removed code. Pass 2's cascade
+   cleanup (3 `DrawCtx` fields + `BehaviorProfile::cycle` + unused
+   import) was discovered this way.
+4. **Test-site sweep**: all `DrawCtx` construction sites in tests were
+   updated to match the new field set, then re-verified by the full
+   test suite.
+
+### What Was NOT Touched
+
+- `EventCtx` struct in `atmospheric_events.rs` retains its
+  `#[allow(dead_code)]` — its fields are populated by
+  `AtmosphericEventManager` but not yet consumed by the current
+  `GhostEvent` impl. This is intentional scaffolding for future event
+  types and was left untouched.
+- `glitch_bright` / `glitch_dim` cached snapshots in `DrawCtx` — these
+  ARE read per-cell at `render.rs:277,280` and are the replacement for
+  the removed `is_bright()` / `is_dim()` methods.
+- `Cloud::last_glitch_time` / `next_glitch_time` (on the `Cloud`
+  struct, not `DrawCtx`) — used to compute the cached snapshots and to
+  drive glitch spawn timing in `spawn.rs:352`.
+
+---
+
 ## v25.0.0-alpha.3 — Legacy `--fullwidth` Parameter Purge
 
 ### Headline
