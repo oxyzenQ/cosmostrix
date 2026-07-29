@@ -47,6 +47,45 @@ pub static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
 /// Printed to stderr AFTER terminal restoration so the user can see it.
 pub static LIVE_RELOAD_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
+/// v25.12 (bug #14): Accumulated validation rejections during the session.
+///
+/// Each entry is one rejected config reload (with timestamp + error message).
+/// Drained and printed in the post-exit verbose summary so the user can see
+/// EVERY silent rejection that happened while they were editing config.toml
+/// mid-session. Without this, OOR values like `color.tune.tail = 5.0` get
+/// silently rejected by `validate_config_strictly`, the watcher continues
+/// watching, the rain keeps running on the last valid config — and the user
+/// has no idea their edit was rejected. The verbose mode (`-v`) must not
+/// silently swallow any runtime config change attempt.
+///
+/// Cap at 64 entries to avoid unbounded growth on a misbehaving editor that
+/// saves 1000 times per second.
+pub static LIVE_RELOAD_VALIDATION_REJECTIONS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+const MAX_REJECTION_LOG: usize = 64;
+
+/// Append a validation rejection to the session log.
+/// Called from `validate_and_send` when `validate_config_strictly` rejects
+/// the new config. Bulletproof — never panics on poisoned mutex.
+pub fn push_validation_rejection(msg: &str) {
+    let ts = crate::output::now_hhmm();
+    let entry = format!("{ts} {msg}");
+    if let Ok(mut guard) = LIVE_RELOAD_VALIDATION_REJECTIONS.lock() {
+        if guard.len() < MAX_REJECTION_LOG {
+            guard.push(entry);
+        }
+    }
+}
+
+/// Drain the session rejection log. Returns owned Vec (empty if no rejections
+/// or mutex poisoned). Caller prints them in the post-exit verbose summary.
+pub fn drain_validation_rejections() -> Vec<String> {
+    LIVE_RELOAD_VALIDATION_REJECTIONS
+        .lock()
+        .map(|mut guard| std::mem::take(&mut *guard))
+        .unwrap_or_default()
+}
+
 /// Live config event sent from watcher to render thread.
 /// Ok = valid config, rebuild Cloud. Err = invalid, exit cosmostrix.
 pub type LiveConfigEvent = Result<HashMap<String, String>, String>;
@@ -430,6 +469,8 @@ fn validate_and_send(
             "malformed line(s): '{}' (expected 'key = value' syntax)",
             lines.join(", ")
         );
+        // v25.12 (bug #14): surface to session rejection log.
+        push_validation_rejection(&msg);
         let _ = tx.send(Err(msg.clone()));
         return Err(msg);
     }
@@ -449,6 +490,8 @@ fn validate_and_send(
             "unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys){hints}",
             keys.join(", ")
         );
+        // v25.12 (bug #14): surface to session rejection log.
+        push_validation_rejection(&msg);
         let _ = tx.send(Err(msg.clone()));
         return Err(msg);
     }
@@ -488,7 +531,13 @@ fn validate_and_send(
             Ok(())
         }
         Err(msg) => {
+            // v25.12 (bug #14): surface the rejection to the session log so
+            // the post-exit verbose summary can show it. Without this, the
+            // user gets zero feedback that their edit was rejected — the rain
+            // just keeps running on the last valid config and they're left
+            // wondering why `color.tune.tail = 5.0` had no effect.
             lr_trace!("strict validation FAILED: {msg}");
+            push_validation_rejection(&msg);
             let _ = tx.send(Err(msg.clone()));
             Err(msg)
         }
@@ -1287,6 +1336,112 @@ mod tests {
         assert_eq!(
             new.color_tune.brightness, 2.0,
             "no color.tune.* in config → keep base tune (CLI --color-tune wins)"
+        );
+    }
+
+    /// v25.12 (bug #14): `validate_and_send` must push every rejection to
+    /// the session log so the post-exit verbose summary can surface silent
+    /// rejections. Before the fix, an OOR value like `color.tune.tail = 5.0`
+    /// got silently rejected by `validate_config_strictly` — the watcher
+    /// kept watching, the rain kept running on the last valid config, and
+    /// the user had no idea their edit was rejected.
+    #[test]
+    fn validate_and_send_pushes_oor_rejection_to_session_log() {
+        // Drain any prior rejections from earlier tests in this process.
+        let _ = drain_validation_rejections();
+
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut parsed = configfile::ParsedConfig::default();
+        parsed
+            .values
+            .insert("color.tune.tail".to_string(), "5.0".to_string());
+        let result = validate_and_send(&parsed, &tx);
+        assert!(result.is_err(), "OOR color.tune.tail must be rejected");
+
+        let rejections = drain_validation_rejections();
+        assert_eq!(
+            rejections.len(),
+            1,
+            "exactly one rejection should be in the session log"
+        );
+        let entry = &rejections[0];
+        assert!(
+            entry.contains("color.tune.tail"),
+            "rejection must name the bad field: {entry}"
+        );
+        assert!(
+            entry.contains("out of range"),
+            "rejection must mention range: {entry}"
+        );
+
+        // Drain must empty the log — next call returns empty Vec.
+        let again = drain_validation_rejections();
+        assert!(again.is_empty(), "drain must empty the log");
+    }
+
+    /// v25.12 (bug #14): malformed lines and unknown keys must ALSO push to
+    /// the session log, not just strict value validation failures. All three
+    /// rejection paths in `validate_and_send` must be visible under `-v`.
+    #[test]
+    fn validate_and_send_pushes_unknown_key_to_session_log() {
+        let _ = drain_validation_rejections();
+
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut parsed = configfile::ParsedConfig::default();
+        parsed.unknown_keys.push("collor".to_string());
+        let result = validate_and_send(&parsed, &tx);
+        assert!(result.is_err());
+
+        let rejections = drain_validation_rejections();
+        assert_eq!(rejections.len(), 1);
+        assert!(
+            rejections[0].contains("collor"),
+            "unknown-key rejection must be in session log: {}",
+            rejections[0]
+        );
+    }
+
+    /// v25.12 (bug #14): cap at MAX_REJECTION_LOG (64) to avoid unbounded
+    /// growth on a misbehaving editor that saves 1000 times per second.
+    #[test]
+    fn rejection_log_caps_at_max() {
+        let _ = drain_validation_rejections();
+
+        for _ in 0..100 {
+            push_validation_rejection("test rejection");
+        }
+        let rejections = drain_validation_rejections();
+        assert_eq!(
+            rejections.len(),
+            MAX_REJECTION_LOG,
+            "log must cap at MAX_REJECTION_LOG (64), got {}",
+            rejections.len()
+        );
+
+        // Drain must reset — fresh log after drain.
+        let again = drain_validation_rejections();
+        assert!(again.is_empty());
+    }
+
+    /// v25.12 (bug #14): valid config does NOT push to the session log.
+    /// Only rejections are logged; valid reloads are silent (the rebuild
+    /// trace already covers the success path).
+    #[test]
+    fn validate_and_send_does_not_log_valid_config() {
+        let _ = drain_validation_rejections();
+
+        let (tx, _rx) = std::sync::mpsc::channel();
+        let mut parsed = configfile::ParsedConfig::default();
+        parsed
+            .values
+            .insert("color.tune.brightness".to_string(), "1.5".to_string());
+        let result = validate_and_send(&parsed, &tx);
+        assert!(result.is_ok(), "1.5 is in range [0.0, 3.0]");
+
+        let rejections = drain_validation_rejections();
+        assert!(
+            rejections.is_empty(),
+            "valid config must not push to rejection log, got: {rejections:?}"
         );
     }
 }

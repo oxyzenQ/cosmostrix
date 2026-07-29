@@ -1035,6 +1035,33 @@ fn main() -> std::io::Result<()> {
         let startup_speed = cloud_cfg.speed;
         let startup_density = cloud_cfg.density;
 
+        // v25.12 (bug #14): drain live-reload validation rejections collected
+        // during the session. Without this, the user gets ZERO feedback when
+        // they edit config.toml mid-session with an OOR value (e.g.
+        // `color.tune.tail = 5.0`) — the watcher silently rejects the change,
+        // the rain keeps running on the last valid config, and the user has
+        // no idea why their edit had no effect. Verbose mode must not silently
+        // swallow any runtime config change attempt.
+        let rejections = live_config::drain_validation_rejections();
+        if !rejections.is_empty() {
+            let ts = crate::output::now_hhmm();
+            let purple = crate::output::brand_open();
+            let reset = crate::output::reset();
+            eprintln!(
+                "{purple}[verbose]{reset} {ts} live-reload rejections during session: {}",
+                rejections.len()
+            );
+            eprintln!(
+                "{purple}[verbose]{reset} {ts}   (config changes that were rejected — rain continued on last valid config)"
+            );
+            for entry in &rejections {
+                eprintln!("{purple}[verbose]{reset} {ts}   - {entry}");
+            }
+            eprintln!(
+                "{purple}[verbose]{reset} {ts}   fix the config and save again — the watcher will retry on next change",
+            );
+        }
+
         let changed = final_color != startup_color
             || final_scene != startup_scene
             || final_charset != startup_charset

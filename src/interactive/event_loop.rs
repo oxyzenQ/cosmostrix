@@ -271,13 +271,23 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     Err(msg) => {
                         // v25.6 depth-test fix: validation errors NO LONGER kill
                         // the process. A typo mid-edit shouldn't destroy the
-                        // session. Watcher already wrote `[live-reload] {msg}` to
-                        // stderr. Keep cloud.raining true, retain last valid
-                        // config (pending_config not overwritten). Next save
-                        // fires another watcher event; if valid, reload proceeds.
+                        // session. The watcher's `validate_and_send` already
+                        // pushed the rejection to the session log via
+                        // `push_validation_rejection` (v25.12 bug #14) — that
+                        // log is drained and printed in the post-exit verbose
+                        // summary so `-v` users see every silent rejection.
+                        // Keep cloud.raining true, retain last valid config
+                        // (pending_config not overwritten). Next save fires
+                        // another watcher event; if valid, reload proceeds.
                         crate::lr_trace!(
                             "render thread: config validation error — retained last valid config, rain continues"
                         );
+                        // v25.12: still mirror to LIVE_RELOAD_ERROR for the
+                        // fatal-exit path (used by main.rs only when
+                        // LIVE_RELOAD_EXIT_CODE != 0, i.e. watcher panic).
+                        // Validation rejections do NOT set the exit code, so
+                        // this write is harmless — it just keeps the last
+                        // rejection visible if the watcher later panics.
                         if let Ok(mut guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
                             *guard = Some(msg);
                         }
