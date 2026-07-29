@@ -1285,11 +1285,21 @@ mod tests {
         assert_eq!(new.speed, 25.0, "CLI --speed wins over scene default");
     }
 
+    /// v25.14 (bug #16): Serialize every test that touches the global
+    /// `LIVE_RELOAD_VALIDATION_REJECTIONS` log (directly or indirectly via
+    /// `validate_and_send`). Without this lock, cargo test's default
+    /// thread-pool runs these tests in parallel and one test drains another
+    /// test's expected rejection — `assert_eq!(rejections.len(), 1)` then
+    /// sees 0 or 2+ and fails spuriously.
+    static TEST_REJECTION_LOCK: Mutex<()> = Mutex::new(());
+
     /// v25.6 FIX D: validate_and_send returns Err on bad config, but the
     /// render thread NO LONGER sets LIVE_RELOAD_EXIT_CODE — only true
     /// watcher-thread panics do. v25.6 FIX E: error includes a hint.
     #[test]
     fn validate_and_send_returns_err_without_setting_exit_code() {
+        let _guard = TEST_REJECTION_LOCK.lock().unwrap();
+        let _ = drain_validation_rejections();
         let (tx, _rx) = std::sync::mpsc::channel();
         let mut parsed = configfile::ParsedConfig::default();
         parsed.unknown_keys.push("color.tune.bold".to_string());
@@ -1365,6 +1375,9 @@ mod tests {
     /// the user had no idea their edit was rejected.
     #[test]
     fn validate_and_send_pushes_oor_rejection_to_session_log() {
+        // v25.14 (bug #16): hold the serialization lock so parallel tests
+        // cannot drain our rejection mid-test.
+        let _guard = TEST_REJECTION_LOCK.lock().unwrap();
         // Drain any prior rejections from earlier tests in this process.
         let _ = drain_validation_rejections();
 
@@ -1402,6 +1415,7 @@ mod tests {
     /// rejection paths in `validate_and_send` must be visible under `-v`.
     #[test]
     fn validate_and_send_pushes_unknown_key_to_session_log() {
+        let _guard = TEST_REJECTION_LOCK.lock().unwrap();
         let _ = drain_validation_rejections();
 
         let (tx, _rx) = std::sync::mpsc::channel();
@@ -1423,6 +1437,7 @@ mod tests {
     /// growth on a misbehaving editor that saves 1000 times per second.
     #[test]
     fn rejection_log_caps_at_max() {
+        let _guard = TEST_REJECTION_LOCK.lock().unwrap();
         let _ = drain_validation_rejections();
 
         for _ in 0..100 {
@@ -1446,6 +1461,7 @@ mod tests {
     /// trace already covers the success path).
     #[test]
     fn validate_and_send_does_not_log_valid_config() {
+        let _guard = TEST_REJECTION_LOCK.lock().unwrap();
         let _ = drain_validation_rejections();
 
         let (tx, _rx) = std::sync::mpsc::channel();
