@@ -93,12 +93,15 @@ pub fn collect_colors_custom(cfg: &HashMap<String, String>) -> BTreeMap<String, 
         let palette = palettes.entry(name).or_default();
 
         match field {
-            "bg" | "background" => {
+            "bg" => {
                 if let Ok(color) = parse_hex_color(value) {
                     palette.bg = Some(color);
                 }
             }
-            "rain" => {
+            // v25.10 (bug #8): `stops` is a deprecated alias for `rain`.
+            // The validator still accepts it (with a --testconf deprecation
+            // warning); the runtime parser treats it identically to `rain`.
+            "rain" | "stops" => {
                 // v25 masterclass: support both CSV string and TOML array format.
                 // CSV: "#1a0033", "#4d0080", "#9933ff"
                 // Array: ["#1a0033", "#4d0080", "#9933ff", ...] (7-stop)

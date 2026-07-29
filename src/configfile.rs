@@ -54,7 +54,7 @@ pub const USER_CONFIG_KEYS: &[&str] = &[
 
 const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<color|charset|fps|speed|density|density-map|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
-const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain>";
+const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain|stops>";
 const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
 
@@ -747,11 +747,8 @@ fn is_known_key(key: &str) -> bool {
         || is_color_tune_key(key)
 }
 
-/// Check if `key` matches `colors-custom.<name>.<field>` pattern.
-/// Recognized fields: bg/background, rain (and legacy normal/bright/head/stops).
-/// Name must be non-empty, ASCII alphanumeric + `-`/`_` only.
-#[inline]
 /// v17: Check if key matches `color.tune.<field>` pattern.
+#[inline]
 fn is_color_tune_key(key: &str) -> bool {
     matches!(
         key,
@@ -763,6 +760,10 @@ fn is_color_tune_key(key: &str) -> bool {
     )
 }
 
+/// Check if `key` matches `colors-custom.<name>.<field>` pattern.
+/// Recognized fields: `bg`, `rain` (canonical), `stops` (deprecated alias for `rain`).
+/// Invalid fields surface as `unknown_keys` so `config_hints` can attach a hint.
+/// Name must be non-empty, ASCII alphanumeric + `-`/`_` only.
 fn is_colors_custom_key(key: &str) -> bool {
     let Some(rest) = key.strip_prefix("colors-custom.") else {
         return false;
@@ -787,9 +788,15 @@ fn is_valid_custom_name(name: &str) -> bool {
 }
 
 /// Check if a colors-custom field name is recognized.
+///
+/// v25.10 (bug #8): tightened from `bg | background | rain` to
+/// `bg | rain | stops`. `background` (undocumented alias) was removed —
+/// use `bg`. `stops` is a deprecated alias for `rain` (still accepted,
+/// `--testconf` emits a deprecation warning). Brings the key-checker in
+/// sync with `validate_colors_custom_value`, which already handled `.stops`.
 #[inline]
 fn is_valid_colors_custom_field(field: &str) -> bool {
-    matches!(field, "bg" | "background" | "rain")
+    matches!(field, "bg" | "rain" | "stops")
 }
 
 /// Check if `key` matches `charset-custom.<name>.set` pattern.

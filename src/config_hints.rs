@@ -77,7 +77,88 @@ pub fn suggest_for_unknown_key(key: &str) -> Option<String> {
         }
     }
 
+    // Pattern 3 (v25.10 / bug #8): invalid colors-custom field. Triggered
+    // by `colors-custom.<name>.<field>` where `<field>` is not one of the
+    // three accepted values (`bg`, `rain`, `stops`). Previously this surfaced
+    // as a generic "unknown key (likely typo)" with no hint about which
+    // fields are valid — common user mistake is writing `head`/`body`/`tail`
+    // (which belong to built-in palette internals, NOT colors-custom blocks)
+    // or `background` (removed alias — use `bg`), or attempting nested
+    // sub-tables like `colors-custom.foo.normal.red` (not supported — use
+    // flat `bg`/`rain` fields only).
+    if let Some(rest) = key.strip_prefix("colors-custom.") {
+        // rest looks like "<name>.<field>" or "<name>.<sub>.<...>".
+        // Split off the name; everything after is the "field" portion.
+        if let Some((name, field)) = rest.split_once('.') {
+            if !name.is_empty()
+                && name
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+            {
+                // Defensive guard: if the field is one of the three valid
+                // ones, the key wouldn't have reached unknown_keys in normal
+                // flow — but be paranoid and don't emit a misleading hint.
+                if !is_valid_colors_custom_field_str(field) {
+                    return Some(colors_custom_field_hint(key, field));
+                }
+            }
+        }
+    }
+
     None
+}
+
+/// Returns `true` if `field` is a recognized colors-custom field name.
+/// Mirrors `configfile::is_valid_colors_custom_field` (which is private).
+/// Kept in sync via tests in this module.
+#[inline]
+fn is_valid_colors_custom_field_str(field: &str) -> bool {
+    matches!(field, "bg" | "rain" | "stops")
+}
+
+/// Build a targeted hint for an invalid `colors-custom.<name>.<field>` key.
+///
+/// `field` is everything after the second `.` (e.g. `head`, `body`,
+/// `normal.red`, `background`). The hint explains the valid fields and
+/// calls out common confusions (`head`/`body`/`tail` belong to built-in
+/// palette internals; `background` was removed; nested sub-tables not
+/// supported).
+fn colors_custom_field_hint(key: &str, field: &str) -> String {
+    // Common confusion: user thinks colors-custom supports the same
+    // head/body/tail triple as the built-in palette spec.
+    if field == "head" || field == "body" || field == "tail" {
+        return format!(
+            "'{key}': '{field}' is not a colors-custom field. \
+             The 'head'/'body'/'tail' triple belongs to built-in palette internals and is not \
+             user-configurable. Valid fields: bg (background color), rain (gradient stops). \
+             Example: [colors-custom.<name>]\n  bg = \"#0a0a12\"\n  rain = [\"#1a0033\", \"#9933ff\", \"#ffffff\"]"
+        );
+    }
+    // Removed alias — point users to the canonical name.
+    if field == "background" {
+        return format!(
+            "'{key}': 'background' was removed in v25.10 — use 'bg' instead. \
+             Example: bg = \"#0a0a12\""
+        );
+    }
+    // Nested sub-table attempt (e.g. colors-custom.foo.normal.red).
+    // `field` here contains a dot — e.g. "normal.red" or "bright.green".
+    if field.contains('.') {
+        let top = field.split('.').next().unwrap_or(field);
+        return format!(
+            "'{key}': nested sub-table '{top}' is not supported under [colors-custom.<name>]. \
+             colors-custom only accepts flat 'bg' and 'rain' fields — there is no 'normal'/'bright' \
+             sub-table. Use the top-level color tune ([color.tune]) for per-segment brightness \
+             adjustments, or define a separate colors-custom palette for each variant."
+        );
+    }
+    // Generic invalid field — list the valid ones.
+    format!(
+        "'{key}': '{field}' is not a recognized colors-custom field. \
+         Valid fields: bg (background color), rain (gradient stops), \
+         stops (deprecated alias for 'rain'). \
+         Example: [colors-custom.<name>]\n  bg = \"#0a0a12\"\n  rain = [\"#1a0033\", \"#9933ff\", \"#ffffff\"]"
+    )
 }
 
 /// Build a multi-line hint block for a list of unknown keys.
@@ -338,5 +419,139 @@ mod tests {
         // Hint still fires on the would-be-nested form (for testconf display).
         let full_key = "scene-custom.hacker-mode.adaptive-custom.10-00.color";
         assert!(suggest_for_unknown_key(full_key).is_some());
+    }
+
+    // ── Pattern 3 (v25.10 / bug #8): invalid colors-custom fields ──────────
+
+    #[test]
+    fn colors_custom_head_field_returns_hint() {
+        // `head` belongs to built-in palette internals, NOT colors-custom.
+        let hint = suggest_for_unknown_key("colors-custom.foo.head").expect("expected hint");
+        assert!(hint.contains("head"), "hint mentions the field: {hint}");
+        assert!(hint.contains("bg"), "hint lists bg as valid: {hint}");
+        assert!(hint.contains("rain"), "hint lists rain as valid: {hint}");
+        assert!(
+            hint.contains("palette internals"),
+            "hint explains head/body/tail belong to palette internals: {hint}"
+        );
+    }
+
+    #[test]
+    fn colors_custom_body_and_tail_get_same_hint_as_head() {
+        for field in &["body", "tail"] {
+            let key = format!("colors-custom.foo.{field}");
+            let hint = suggest_for_unknown_key(&key).expect("expected hint");
+            assert!(hint.contains("palette internals"), "field {field}: {hint}");
+        }
+    }
+
+    #[test]
+    fn colors_custom_background_field_returns_removal_hint() {
+        // `background` was an undocumented alias removed in v25.10.
+        let hint = suggest_for_unknown_key("colors-custom.foo.background").expect("expected hint");
+        assert!(
+            hint.contains("removed"),
+            "hint should mention removal: {hint}"
+        );
+        assert!(hint.contains("bg"), "hint should suggest bg: {hint}");
+    }
+
+    #[test]
+    fn colors_custom_nested_normal_subtable_returns_hint() {
+        // colors-custom.foo.normal.red — user thought normal/bright subtables existed.
+        let hint = suggest_for_unknown_key("colors-custom.foo.normal.red").expect("expected hint");
+        assert!(hint.contains("nested"), "hint mentions nested: {hint}");
+        assert!(
+            hint.contains("normal"),
+            "hint mentions the sub-table: {hint}"
+        );
+        assert!(
+            hint.contains("color.tune"),
+            "hint points to color.tune for per-segment adjustments: {hint}"
+        );
+    }
+
+    #[test]
+    fn colors_custom_nested_bright_subtable_returns_hint() {
+        let hint =
+            suggest_for_unknown_key("colors-custom.foo.bright.green").expect("expected hint");
+        assert!(hint.contains("nested"));
+        assert!(hint.contains("bright"));
+    }
+
+    #[test]
+    fn colors_custom_generic_invalid_field_returns_hint_listing_valid_fields() {
+        let hint = suggest_for_unknown_key("colors-custom.foo.color").expect("expected hint");
+        assert!(hint.contains("color"), "hint mentions the field: {hint}");
+        assert!(hint.contains("bg"));
+        assert!(hint.contains("rain"));
+        assert!(
+            hint.contains("stops"),
+            "hint should also mention the deprecated alias: {hint}"
+        );
+    }
+
+    #[test]
+    fn colors_custom_valid_fields_return_none() {
+        // Defensive guard: valid keys should never produce a hint, even if
+        // a caller accidentally invokes suggest_for_unknown_key on them.
+        assert_eq!(suggest_for_unknown_key("colors-custom.foo.bg"), None);
+        assert_eq!(suggest_for_unknown_key("colors-custom.foo.rain"), None);
+        assert_eq!(suggest_for_unknown_key("colors-custom.foo.stops"), None);
+    }
+
+    #[test]
+    fn colors_custom_invalid_name_does_not_trigger_hint() {
+        // If the name segment is invalid (e.g. contains a dot or non-alnum
+        // char), the key doesn't match the colors-custom.<name>.<field>
+        // pattern — no hint. The caller falls back to the generic message.
+        // `colors-custom.foo.bar.baz.qux` — name="foo", field="bar.baz.qux"
+        // (contains dots). The hint should still fire (field is invalid).
+        let hint = suggest_for_unknown_key("colors-custom.foo.bar.baz.qux");
+        assert!(hint.is_some(), "multi-dot field should still get a hint");
+    }
+
+    #[test]
+    fn parse_colors_custom_head_lands_in_unknown_keys_with_hint() {
+        // End-to-end: user writes head=#fff, gets unknown key + hint.
+        let parsed = crate::configfile::parse_config_text("[colors-custom.foo]\nhead = \"#fff\"\n");
+        assert!(
+            parsed
+                .unknown_keys
+                .contains(&"colors-custom.foo.head".to_string()),
+            "head should be in unknown_keys: {:?}",
+            parsed.unknown_keys
+        );
+        let hint = suggest_for_unknown_key("colors-custom.foo.head");
+        assert!(hint.is_some(), "hint should fire for head");
+    }
+
+    #[test]
+    fn parse_colors_custom_stops_accepted_not_in_unknown_keys() {
+        // v25.10: stops is now a deprecated alias for rain — accepted.
+        let parsed =
+            crate::configfile::parse_config_text("[colors-custom.foo]\nstops = \"#ff0000\"\n");
+        assert!(
+            parsed.unknown_keys.is_empty(),
+            "stops should NOT be in unknown_keys: {:?}",
+            parsed.unknown_keys
+        );
+        assert!(parsed.values.contains_key("colors-custom.foo.stops"));
+    }
+
+    #[test]
+    fn parse_colors_custom_background_lands_in_unknown_keys_with_hint() {
+        // v25.10: background alias removed — surfaces as unknown key.
+        let parsed =
+            crate::configfile::parse_config_text("[colors-custom.foo]\nbackground = \"#fff\"\n");
+        assert!(
+            parsed
+                .unknown_keys
+                .contains(&"colors-custom.foo.background".to_string()),
+            "background should be in unknown_keys: {:?}",
+            parsed.unknown_keys
+        );
+        let hint = suggest_for_unknown_key("colors-custom.foo.background");
+        assert!(hint.is_some(), "hint should fire for background");
     }
 }

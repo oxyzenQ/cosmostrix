@@ -55,7 +55,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
 
     let parsed = configfile::parse_config_text(&content);
     let mut errors = 0usize;
-    let warnings = 0usize;
+    let mut warnings = 0usize;
 
     // Check for malformed lines (non-empty, non-comment lines without 'key = value')
     if !parsed.malformed_lines.is_empty() {
@@ -169,6 +169,16 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         // colors-custom.* keys: validate hex format (same as validate_config_strictly).
         // Without this, --testconf passes invalid hex that crashes at startup.
         if key.starts_with("colors-custom.") {
+            // v25.10 (bug #8): deprecation notice for `.stops` (alias for `rain`).
+            // The value is still accepted, but users should migrate to `rain`
+            // for clarity — `stops` was an undocumented alias that's now
+            // explicitly deprecated.
+            if key.ends_with(".stops") {
+                println!(
+                    "testconf: warning: '{key}' uses deprecated field 'stops' — rename to 'rain' (alias removed in a future release)"
+                );
+                warnings += 1;
+            }
             if let Some(msg) = validate_colors_custom_value(key, value) {
                 crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
                 errors += 1;
