@@ -584,7 +584,16 @@ impl Terminal {
 
         // Iterate the flat sorted array, detecting row boundaries and
         // contiguous horizontal runs for RLE batching.
+        // v25.11 (bug #12): track the current row to force a MoveTo at
+        // each row boundary. This prevents cursor desync where the terminal
+        // autowraps or drifts at row boundaries (especially the bottom rows
+        // where phosphor decay writes many ghost cells). Without this, a
+        // single-cell "row shift right" glitch can appear transiently at
+        // the bottom of the screen and self-correct only when the periodic
+        // full-redraw kicks in (~5 minutes). Forcing MoveTo at each row
+        // start costs ~6 bytes/row (negligible) and eliminates the desync.
         let mut i = 0usize;
+        let mut last_row: u16 = u16::MAX;
         while i < dirty_flat.len() {
             let idx0 = dirty_flat[i];
             // Borrow instead of copy: compare with last frame without allocating.
@@ -608,6 +617,16 @@ impl Terminal {
             let fg0 = cell0.fg;
             let bg0 = cell0.bg;
             let bold0 = cell0.bold;
+
+            // v25.11 (bug #12): force cursor resync at each row boundary.
+            // When we cross from one row to the next, invalidate cur_pos so
+            // a MoveTo is always emitted for the first dirty cell in the
+            // new row. This corrects any terminal-side autowrap or cursor
+            // drift that accumulated during the previous row's run.
+            if y0 != last_row {
+                cur_pos = None;
+                last_row = y0;
+            }
 
             run_buf.clear();
             run_buf.push(cell0.ch);
