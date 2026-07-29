@@ -269,28 +269,28 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         pending_config = Some(cfg);
                     }
                     Err(msg) => {
-                        // v25.6 depth-test fix: validation errors NO LONGER kill
-                        // the process. A typo mid-edit shouldn't destroy the
-                        // session. The watcher's `validate_and_send` already
-                        // pushed the rejection to the session log via
-                        // `push_validation_rejection` (v25.12 bug #14) — that
-                        // log is drained and printed in the post-exit verbose
-                        // summary so `-v` users see every silent rejection.
-                        // Keep cloud.raining true, retain last valid config
-                        // (pending_config not overwritten). Next save fires
-                        // another watcher event; if valid, reload proceeds.
+                        // v25.13 (bug #15): config validation errors during
+                        // live reload now cause IMMEDIATE exit. The previous
+                        // v25.6 design ("don't kill the process, keep rain
+                        // running on last valid config") was reversed because
+                        // it caused verbose rejection text to leak into the
+                        // rain matrix — the watcher thread's stderr writes
+                        // appeared as "weird text" in the alternate-screen
+                        // buffer, polluting the cinematic render. Now: set
+                        // the exit code, store the error, break the rain
+                        // loop. main.rs prints the error AFTER terminal
+                        // restoration (post-exit), so it never touches the
+                        // alternate screen.
                         crate::lr_trace!(
-                            "render thread: config validation error — retained last valid config, rain continues"
+                            "render thread: config validation error — setting exit code + breaking rain loop"
                         );
-                        // v25.12: still mirror to LIVE_RELOAD_ERROR for the
-                        // fatal-exit path (used by main.rs only when
-                        // LIVE_RELOAD_EXIT_CODE != 0, i.e. watcher panic).
-                        // Validation rejections do NOT set the exit code, so
-                        // this write is harmless — it just keeps the last
-                        // rejection visible if the watcher later panics.
                         if let Ok(mut guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
                             *guard = Some(msg);
                         }
+                        crate::live_config::LIVE_RELOAD_EXIT_CODE
+                            .store(2, std::sync::atomic::Ordering::Release);
+                        cloud.raining = false;
+                        break;
                     }
                 }
             }

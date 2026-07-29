@@ -1035,32 +1035,12 @@ fn main() -> std::io::Result<()> {
         let startup_speed = cloud_cfg.speed;
         let startup_density = cloud_cfg.density;
 
-        // v25.12 (bug #14): drain live-reload validation rejections collected
-        // during the session. Without this, the user gets ZERO feedback when
-        // they edit config.toml mid-session with an OOR value (e.g.
-        // `color.tune.tail = 5.0`) — the watcher silently rejects the change,
-        // the rain keeps running on the last valid config, and the user has
-        // no idea why their edit had no effect. Verbose mode must not silently
-        // swallow any runtime config change attempt.
-        let rejections = live_config::drain_validation_rejections();
-        if !rejections.is_empty() {
-            let ts = crate::output::now_hhmm();
-            let purple = crate::output::brand_open();
-            let reset = crate::output::reset();
-            eprintln!(
-                "{purple}[verbose]{reset} {ts} live-reload rejections during session: {}",
-                rejections.len()
-            );
-            eprintln!(
-                "{purple}[verbose]{reset} {ts}   (config changes that were rejected — rain continued on last valid config)"
-            );
-            for entry in &rejections {
-                eprintln!("{purple}[verbose]{reset} {ts}   - {entry}");
-            }
-            eprintln!(
-                "{purple}[verbose]{reset} {ts}   fix the config and save again — the watcher will retry on next change",
-            );
-        }
+        // v25.13 (bug #15): the bug #14 post-exit verbose rejection summary
+        // was removed. Config validation errors during live reload now cause
+        // IMMEDIATE exit (see event_loop.rs Err handler). The error is printed
+        // by the LIVE_RELOAD_EXIT_CODE path below — after terminal restoration,
+        // never during rain. No session-log drain needed since we exit on the
+        // first error rather than accumulating.
 
         let changed = final_color != startup_color
             || final_scene != startup_scene
@@ -1106,15 +1086,17 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Live-reload fatal exit: only fires when the watcher THREAD itself
-    // panicked (e.g. terminal closed mid-event). v25.6 depth-test fix:
-    // validation errors (unknown keys, malformed lines, invalid values)
-    // NO LONGER set the exit code — the rain keeps running on the last
-    // valid config and the user can fix the typo and save again. Only
-    // true watcher-thread panics reach this path. Print to stderr NOW
-    // (after Terminal::drop restored the terminal from alternate-screen
-    // mode). Printing during the rain loop would be swallowed by the
-    // alternate screen — user wouldn't see it.
+    // Live-reload fatal exit. v25.13 (bug #15): this path now fires for BOTH
+    // watcher-thread panics AND config validation errors during live reload.
+    // The previous v25.6 design kept rain running on the last valid config
+    // when the user introduced a typo mid-edit — but that caused the watcher
+    // thread's stderr writes to leak into the alternate-screen buffer,
+    // polluting the rain matrix with "weird text". Now: any validation error
+    // (malformed line, unknown key, OOR value) sets LIVE_RELOAD_EXIT_CODE=2
+    // in the render thread's Err handler, breaks the rain loop, and the
+    // error is printed HERE — after Terminal::drop restored the terminal
+    // from alternate-screen mode. Printing during the rain loop would be
+    // swallowed by the alternate screen or pollute the render.
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
         if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
             if let Some(ref msg) = *guard {

@@ -79,6 +79,12 @@ pub fn push_validation_rejection(msg: &str) {
 
 /// Drain the session rejection log. Returns owned Vec (empty if no rejections
 /// or mutex poisoned). Caller prints them in the post-exit verbose summary.
+///
+/// v25.13 (bug #15): no longer called from main.rs (we exit on first error
+/// now, so there's at most one rejection per session — printed via the
+/// LIVE_RELOAD_EXIT_CODE path). Retained for tests and as a debug hook
+/// for future tooling that may want to inspect the session log.
+#[allow(dead_code)]
 pub fn drain_validation_rejections() -> Vec<String> {
     LIVE_RELOAD_VALIDATION_REJECTIONS
         .lock()
@@ -438,14 +444,26 @@ fn handle_notify_event(
             }
 
             if let Err(msg) = validate_and_send(&parsed, tx) {
-                use std::io::Write;
-                let _ = std::io::stderr().write_fmt(format_args!("[live-reload] {msg}\n"));
+                // v25.13 (bug #15): DO NOT write to stderr here. The watcher
+                // thread runs concurrently with the rain render loop, and any
+                // stderr write during rain leaks into the alternate-screen
+                // buffer — the user sees "weird text" polluting the rain
+                // matrix, then rain overwrites it. The rejection is already
+                // pushed to LIVE_RELOAD_VALIDATION_REJECTIONS by
+                // `validate_and_send` for the post-exit verbose summary.
+                // The render thread's Err handler sets LIVE_RELOAD_EXIT_CODE
+                // and breaks the rain loop so cosmostrix exits immediately.
+                // The error message is printed AFTER terminal restoration
+                // in main.rs — never during rain.
+                let _ = msg; // acknowledged; intentionally not printed here
             }
             true
         }
         Err(e) => {
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!("[live-reload] watch error: {e}\n"));
+            // v25.13 (bug #15): same reasoning — do NOT write to stderr
+            // during rain. Transient watcher errors are recoverable (polling
+            // heartbeat covers). Log to lr_trace! for debug builds only.
+            lr_trace!("[live-reload] transient watch error (polling heartbeat covers): {e}");
             true
         }
     }
