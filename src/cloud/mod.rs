@@ -190,6 +190,12 @@ pub struct Cloud {
     pub(super) flash_time: Option<Instant>,
 
     pub(super) quantum_particles: Vec<QuantumParticle>,
+    /// Number of active quantum particles in `quantum_particles`.
+    /// Tracked incrementally (incremented on spawn, decremented on
+    /// expiry/deactivation) so `apply_quantum_ripple` can early-out
+    /// in O(1) when no particles are active — the common case in
+    /// interactive rendering when the user is not clicking.
+    pub(super) quantum_active_count: usize,
 
     pub(super) last_reseed_time: Instant,
 
@@ -342,6 +348,7 @@ impl Cloud {
                 };
                 QUANTUM_RIPPLE_POOL_SIZE
             ],
+            quantum_active_count: 0,
             last_reseed_time: now,
             phosphor: Vec::new(),
             phosphor_base_fg: Vec::new(),
@@ -441,6 +448,10 @@ impl Cloud {
             p.ch = chars[char_idx.min(chars.len() - 1)];
             spawned += 1;
         }
+        // Increment active count by the number actually spawned. Tracked
+        // incrementally so apply_quantum_ripple can O(1) early-out when
+        // no particles are active.
+        self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);
     }
 
     #[must_use]

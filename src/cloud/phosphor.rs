@@ -11,6 +11,7 @@ use rand::distr::Distribution;
 use crate::cell::Cell;
 use crate::constants::*;
 use crate::palette;
+use crate::rain_style::RainStyle;
 
 use super::state::{AnomalyKind, AnomalyZone};
 use super::Cloud;
@@ -147,31 +148,43 @@ impl Cloud {
 
         // Pass 2: Update phosphor_layer from active droplets AND protect
         // active trail cells from phosphor decay.
-        for d in &self.droplets {
-            if d.bound_col == u16::MAX || !d.is_alive {
-                continue;
-            }
-            let start = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
-            for line in start..=d.head_put_line {
-                if line >= lines {
-                    break;
+        //
+        // PERF: skip entirely for Monolith scenes. The Monolith renderer
+        // keeps `self.droplets` cleared (see spawn.rs:33 — Monolith path
+        // calls `self.droplets.clear()` in reset()), so this loop would
+        // iterate an empty Vec every frame — a no-op with the per-iteration
+        // branch overhead. Skipping saves a Vec::iter() setup + zero-length
+        // iterator state machine per frame. Monolith has its own dedicated
+        // spine phosphor cleanup via `clear_spine_phosphor()` (called from
+        // rain.rs:519-529), so this Pass 2 protection is structurally
+        // unnecessary for that scene family.
+        if !matches!(self.rain_style, RainStyle::Monolith) {
+            for d in &self.droplets {
+                if d.bound_col == u16::MAX || !d.is_alive {
+                    continue;
                 }
-                let pidx = d.bound_col as usize * lines as usize + line as usize;
-                if pidx < self.phosphor_layer.len() {
-                    self.phosphor_layer[pidx] = d.layer;
-                }
-                if pidx < self.phosphor_fresh.len() && !self.phosphor_fresh[pidx] {
-                    self.phosphor_fresh.set(pidx, true);
-                    self.phosphor[pidx] = captured_phosphor_energy(line, lines);
-                    let fidx = line as usize * frame_width as usize + d.bound_col as usize;
-                    let cell = frame.cell_at_index_ref(fidx);
-                    if cell.fg.is_some() {
-                        self.phosphor_base_fg[pidx] = cell.fg;
-                        self.phosphor_base_ch[pidx] = cell.ch;
-                    } else if cell.ch != ' ' {
-                        self.phosphor_base_ch[pidx] = cell.ch;
+                let start = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
+                for line in start..=d.head_put_line {
+                    if line >= lines {
+                        break;
                     }
-                    tracked_fresh.push(pidx);
+                    let pidx = d.bound_col as usize * lines as usize + line as usize;
+                    if pidx < self.phosphor_layer.len() {
+                        self.phosphor_layer[pidx] = d.layer;
+                    }
+                    if pidx < self.phosphor_fresh.len() && !self.phosphor_fresh[pidx] {
+                        self.phosphor_fresh.set(pidx, true);
+                        self.phosphor[pidx] = captured_phosphor_energy(line, lines);
+                        let fidx = line as usize * frame_width as usize + d.bound_col as usize;
+                        let cell = frame.cell_at_index_ref(fidx);
+                        if cell.fg.is_some() {
+                            self.phosphor_base_fg[pidx] = cell.fg;
+                            self.phosphor_base_ch[pidx] = cell.ch;
+                        } else if cell.ch != ' ' {
+                            self.phosphor_base_ch[pidx] = cell.ch;
+                        }
+                        tracked_fresh.push(pidx);
+                    }
                 }
             }
         }

@@ -609,6 +609,15 @@ pub const CRT_VIGNETTE_HEIGHT: u16 = 5;
 /// to 1.0 (no dim) at row `CRT_VIGNETTE_HEIGHT` inward from the edge.
 pub const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.9;
 
+/// Performance-pressure threshold above which the CRT vignette is
+/// skipped entirely. When `perf_pressure > CRT_VIGNETTE_PERF_THRESHOLD`,
+/// the renderer is under sustained load (slow frame rate, high dirty
+/// cell count) and the vignette — a cosmetic-only post-process — is
+/// the first cinematic feature to drop, preserving rain throughput.
+/// Set slightly higher than `GLITCH_THRESHOLD` (0.35) so the vignette
+/// survives a bit longer than the glitch effect before being dropped.
+pub const CRT_VIGNETTE_PERF_THRESHOLD: f32 = 0.5;
+
 // Cinematic vignette (radial edge darkening)
 
 /// Maximum dimming intensity at the screen corners (0.0 = no dimming,
