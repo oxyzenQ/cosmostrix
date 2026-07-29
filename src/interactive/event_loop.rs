@@ -58,7 +58,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
     }
     // --screen-size: use fixed virtual size if specified, else dynamic terminal size.
-    let (w, h) = if let Some(fixed) = cfg.screen_size {
+    let mut w: u16;
+    let mut h: u16;
+    let (w_init, h_init) = if let Some(fixed) = cfg.screen_size {
         let (tw, th) = term.size().unwrap_or((fixed.0, fixed.1));
         if fixed.0 > tw || fixed.1 > th {
             eprintln!(
@@ -70,6 +72,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     } else {
         term.size()?
     };
+    w = w_init;
+    h = h_init;
 
     let density = effective_density(cfg.base_density, w, cfg.fullwidth, cfg.density_auto);
 
@@ -97,6 +101,40 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         super::intro::run_intro(&mut term, &mut frame, &cloud, w, h, cfg.intro)?;
         cloud.force_draw_everything();
         frame.clear_with_bg(cloud.palette.bg);
+
+        // v25.11 (bug #10): re-read terminal size after intro returns.
+        // The intro can take several seconds (cosmic particle animation,
+        // logo reveal). If the user resized the terminal during the intro,
+        // the (w, h) captured at line 60 is now stale. Without this check,
+        // the rain loop starts with the old dimensions — rain renders at
+        // the wrong size until the first SIGWINCH event is polled and
+        // processed (which may take 1+ frames, causing a visible glitch
+        // where rain fills only a portion of the resized terminal).
+        //
+        // Fixed mode (--screen-size) ignores terminal resize — the virtual
+        // size is what the user explicitly requested.
+        if cfg.screen_size.is_none() {
+            if let Ok((nw, nh)) = term.size() {
+                if nw != w || nh != h {
+                    let cw = nw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+                    let ch = nh.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+                    w = cw;
+                    h = ch;
+                    cloud.reset(cw, ch);
+                    frame = Frame::new(cw, ch, cloud.palette.bg);
+                    if cfg.density_auto {
+                        cloud.set_droplet_density(effective_density(
+                            cfg.base_density,
+                            cw,
+                            cfg.fullwidth,
+                            true,
+                        ));
+                    }
+                    cloud.force_draw_everything();
+                    super::fill_terminal_bg(cloud.palette.bg);
+                }
+            }
+        }
     }
 
     let start_time = Instant::now();
