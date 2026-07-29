@@ -108,7 +108,7 @@ const LOGO_ART: &str = concat!(
 /// The `Color` enum form is kept as the canonical brand reference and
 /// is exercised by unit tests; rendering uses [`LOGO_COLOR_RGB`] for
 /// cheaper lerp math.
-#[allow(dead_code)]
+#[cfg(test)]
 const LOGO_COLOR: Color = Color::Rgb {
     r: 168,
     g: 85,
@@ -143,16 +143,9 @@ fn frame_period_secs() -> f32 {
     super::intro::INTRO_FRAME_PERIOD.as_secs_f32()
 }
 
-/// Ignition flash duration (seconds). The logo briefly brightens past
-/// its base color when the spark impacts, then decays back.
-#[allow(dead_code)]
-const FLASH_DECAY_RATE: f32 = 4.0;
-
 /// Rain droplet speed range (cells per second) for the dissolve phase.
 /// Lower than Cosmic Burst's morph range so the rain curtain feels calm.
-#[allow(dead_code)]
 const DISSOLVE_SPEED_MIN: f32 = 8.0;
-#[allow(dead_code)]
 const DISSOLVE_SPEED_MAX: f32 = 16.0;
 
 /// Horizontal velocity jitter range for dissolve droplets. Each droplet
@@ -160,15 +153,7 @@ const DISSOLVE_SPEED_MAX: f32 = 16.0;
 /// curtain spreads organically before falling, instead of dropping in
 /// perfectly straight columns. ±2 cells/sec is subtle enough to feel
 /// natural without breaking the rain silhouette.
-#[allow(dead_code)]
 const JITTER_VX: f32 = 2.0;
-
-/// Fade-in granularity — the logo appears in N reveal steps spread
-/// across Phase 1. Each step reveals another batch of cells. Higher =
-/// smoother but more CPU; lower = chunkier but cheaper. 32 feels
-/// smooth at 30 FPS over a 2 s phase.
-#[allow(dead_code)]
-const FADEIN_STEPS: u32 = 32;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Logo geometry helpers
@@ -654,7 +639,6 @@ pub(super) fn run_logo_intro(
 
 /// Spawn a rain droplet at `(x, y)` — used during the rain phase.
 /// v25: droplets use the normal palette color (no laser purple).
-#[allow(dead_code)]
 fn spawn_rain_droplet(
     pool: &mut ParticlePool,
     rng: &mut XorShift,
@@ -986,17 +970,6 @@ mod tests {
             assert!(DISSOLVE_SPEED_MIN < DISSOLVE_SPEED_MAX);
             assert!(DISSOLVE_SPEED_MIN >= 1.0);
             assert!(DISSOLVE_SPEED_MAX <= 100.0);
-        }
-    }
-
-    #[test]
-    fn fadein_steps_is_reasonable() {
-        const {
-            assert!(
-                FADEIN_STEPS >= 8,
-                "fade-in must have enough steps for smoothness"
-            );
-            assert!(FADEIN_STEPS <= 128, "fade-in step count is excessive");
         }
     }
 
