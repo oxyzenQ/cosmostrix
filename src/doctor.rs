@@ -397,7 +397,10 @@ pub fn print_doctor_report(args: &Args) {
         if uses_unicode {
             s.advice("selected charset uses unicode glyphs; if you see \u{25A1}\u{25A1}, change your terminal font");
             if uses_katakana {
-                s.advice("font suggestions (CJK): Noto Sans CJK JP, Source Han Sans, IPAexGothic");
+                // KATAKANA preset uses half-width katakana (U+FF66–U+FF9D),
+                // which are single-cell glyphs — NOT full-width CJK. The
+                // Cosmic Dragon principle forbids wide chars permanently.
+                s.advice("font suggestions (half-width katakana): Noto Sans CJK JP, Source Han Sans, IPAexGothic");
             } else {
                 s.advice("font suggestions: Noto Sans Mono, DejaVu Sans Mono");
             }

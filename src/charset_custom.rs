@@ -23,7 +23,9 @@
 //! - Control characters (C0/C1) are rejected with a clear error.
 //! - Wide / zero-width characters (emoji, CJK fullwidth, combining marks)
 //!   are rejected with a clear error. The renderer is column-based and
-//!   assumes one cell per glyph — wide chars corrupt alignment.
+//!   assumes one cell per glyph — wide chars corrupt alignment. This is
+//!   the Cosmic Dragon principle: no emoji, no wide chars, ever. It is a
+//!   permanent design choice, not a limitation to be lifted later.
 //! - Maximum length: 256 characters. Longer values are rejected so the
 //!   rain glyph pool does not become a memory hog.
 //!
@@ -131,6 +133,11 @@ pub fn collect_charset_custom(cfg: &HashMap<String, String>) -> BTreeMap<String,
 /// user copy-pastes a string that happens to include a non-breaking space
 /// or a stray combining mark. A warning is emitted to stderr per skipped
 /// codepoint.
+///
+/// Cosmic Dragon principle: stripping wide chars is a permanent design
+/// choice. The renderer will never support emoji or full-width CJK glyphs —
+/// its soul is single-cell diff-based rendering. Do not interpret this
+/// filter as a temporary limitation.
 pub fn parse_charset_value(value: &str) -> Result<Vec<char>, String> {
     let s = value.trim().trim_matches('"').trim();
     let mut chars: Vec<char> = Vec::new();

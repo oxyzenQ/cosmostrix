@@ -187,6 +187,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
         }
         // v25: charset-custom.* keys — validate content (length, control
         // chars, wide-char filter). Mirrors the strict-validation path.
+        // Cosmic Dragon principle: wide-char rejection is permanent.
         if key.starts_with("charset-custom.") {
             if let Some(msg) = crate::charset_custom::validate_charset_custom_value(value) {
                 crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
@@ -271,6 +272,7 @@ pub fn validate_config_strictly(
         // content (length cap, control char rejection, wide-char filter).
         // Same idea as colors-custom: is_known_key() already verified the
         // key pattern, we only need to validate the value.
+        // Cosmic Dragon principle: wide-char rejection is permanent.
         if key.starts_with("charset-custom.") {
             if let Some(msg) = crate::charset_custom::validate_charset_custom_value(value) {
                 return Err(format!("invalid value for '{key}': {msg}"));

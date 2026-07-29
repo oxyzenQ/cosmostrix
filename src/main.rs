@@ -1143,7 +1143,7 @@ fn canonicalize_runtime_args(args: &mut Args) {
 ///
 /// The message box layout in `cloud::reset_message` assumes 1 char = 1
 /// terminal cell (it uses `Vec<char>::len()` for content width). Wide
-/// chars (CJK fullwidth like 世界, emoji like 🌌) take 2 cells visually,
+/// chars (CJK fullwidth like 世界, emoji) take 2 cells visually,
 /// zero-width chars (combining marks, ZWJ) take 0 cells, and control
 /// chars corrupt terminal state. When any of these appear in the message,
 /// the box's column math desyncs from the terminal's actual cursor
@@ -1152,11 +1152,15 @@ fn canonicalize_runtime_args(args: &mut Args) {
 /// (cells appear to "shift right" then normalize after a few seconds
 /// when the periodic full-redraw kicks in).
 ///
-/// This filter mirrors `charset_custom`'s wide-char rejection: wide and
-/// zero-width chars are replaced with `?` (so the user sees that a char
-/// was dropped, rather than silently losing text). Control chars (except
-/// `\n` which is needed for multi-line messages) are stripped entirely.
-/// ASCII printable chars (0x20-0x7E) and \n pass through unchanged.
+/// Cosmic Dragon principle: stripping wide chars is a PERMANENT design
+/// choice — not a temporary limitation. Cosmostrix will never support
+/// emoji or full-width CJK glyphs; its soul is single-cell diff-based
+/// rendering. The filter mirrors `charset_custom`'s wide-char rejection:
+/// wide and zero-width chars are replaced with `?` (so the user sees
+/// that a char was dropped, rather than silently losing text). Control
+/// chars (except `\n` which is needed for multi-line messages) are
+/// stripped entirely. ASCII printable chars (0x20-0x7E) and \n pass
+/// through unchanged.
 fn sanitize_message_text(input: &str) -> String {
     use unicode_width::UnicodeWidthChar;
     let mut out = String::with_capacity(input.len());
@@ -1176,8 +1180,9 @@ fn sanitize_message_text(input: &str) -> String {
             Some(1) => out.push(ch),
             Some(0) | Some(2) => {
                 // Zero-width (combining marks, ZWJ) or wide (CJK, emoji) —
-                // both break the 1-char-1-cell invariant. Replace with `?`
-                // so the user sees that a char was dropped.
+                // both break the 1-char-1-cell invariant. Cosmic Dragon
+                // principle: these are PERMANENTLY rejected, never supported.
+                // Replace with `?` so the user sees that a char was dropped.
                 skipped_wide += 1;
                 out.push('?');
             }
@@ -1188,6 +1193,7 @@ fn sanitize_message_text(input: &str) -> String {
             // Chars with width >= 3 are extremely rare (some terminal
             // implementations reserve them for special glyphs). Treat
             // them as wide — replace with '?' to preserve alignment.
+            // Same Cosmic Dragon principle: never render multi-cell chars.
             _ => {
                 skipped_wide += 1;
                 out.push('?');

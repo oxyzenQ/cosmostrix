@@ -321,8 +321,11 @@ impl CloudConfig {
 /// - Never amplifies above 1.0 — the per-column model is already scale-
 ///   invariant, so amplification was always a bug.
 ///
-/// `fullwidth` mode halves the effective column count (each glyph takes 2
-/// cells), so we account for that before computing the factor.
+/// `fullwidth` mode halves the effective column count (each single-width
+/// glyph takes 2 cells visually), so we account for that before computing
+/// the factor. This is a horizontal spacing mode — NOT wide-char support.
+/// The Cosmic Dragon principle forbids wide chars permanently; the charset
+/// is always single-width, this flag only doubles the column stride.
 #[must_use]
 pub fn auto_density_factor(cols: u16, fullwidth: bool) -> f32 {
     let eff_cols = if fullwidth {

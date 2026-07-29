@@ -227,8 +227,9 @@ DESIGN CONSTRAINTS
 
 Cosmostrix is the Cosmic Dragon Engine — a serious diff-based rendering
 masterpiece. It is designed for cinematic art, not for toys. By
-principle, it will never support emoji, as its focus is on pure,
-elegant, and exclusive visual quality.
+principle, it will never support emoji or wide characters (CJK fullwidth,
+zero-width combining marks), as its focus is on pure, elegant, and
+exclusive visual quality built on single-cell glyphs.
 
 Source: https://github.com/oxyzenQ/cosmostrix
 License: GPL-3.0-only

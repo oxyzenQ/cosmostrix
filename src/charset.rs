@@ -58,9 +58,11 @@ pub fn parse_user_hex_chars(s: &str) -> Result<Vec<char>, String> {
                 v
             ));
         }
-        // Reject wide characters (CJK fullwidth, emoji, etc.) — the renderer
-        // is column-based and assumes 1 cell per character. Wide chars would
-        // corrupt glyph alignment and overflow into adjacent columns.
+        // Cosmic Dragon principle: no emoji, no wide chars — ever.
+        // The renderer is column-based and assumes exactly 1 cell per
+        // character. Wide chars (CJK fullwidth, emoji, etc.) would corrupt
+        // glyph alignment and overflow into adjacent columns. This is a
+        // permanent design choice, not a limitation to be lifted later.
         if ch.width().unwrap_or(0) != 1 {
             skipped_wide.push(format!("U+{:04X}", v));
             continue;
@@ -134,9 +136,9 @@ pub fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Charset, S
 fn push_range(out: &mut Vec<char>, start: u32, end: u32) {
     for v in start..=end {
         if let Some(ch) = char::from_u32(v) {
-            // Only include characters that occupy exactly 1 terminal column.
-            // Wide (CJK/fullwidth) and zero-width characters are excluded
-            // to prevent glyph alignment corruption in the renderer.
+            // Cosmic Dragon principle: only single-width chars pass. Wide
+            // (CJK fullwidth) and zero-width chars are excluded to prevent
+            // glyph alignment corruption in the renderer. Permanent design.
             if ch.width() == Some(1) {
                 out.push(ch);
             }
@@ -230,9 +232,9 @@ pub fn build_chars(
         let end = b as u32;
         for v in start..=end {
             if let Some(ch) = char::from_u32(v) {
-                // Filter user-provided chars: only single-width characters
-                // are safe for the column-based renderer. Wide characters
-                // (e.g., CJK fullwidth) would corrupt glyph alignment.
+                // Cosmic Dragon principle: only single-width characters are
+                // safe for the column-based renderer. Wide characters (e.g.,
+                // CJK fullwidth) would corrupt glyph alignment. Permanent.
                 if ch.width() == Some(1) {
                     out.push(ch);
                 }

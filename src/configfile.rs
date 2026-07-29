@@ -572,7 +572,10 @@ pub fn dump_config_text() -> &'static str {
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
 # v17: --mouse flag DELETED. Mouse glow + click wave effects are always on.
-# Full-width CJK glyphs (default: off)
+# --fullwidth (default: off): render each single-width glyph at 2 cells
+# visually (a horizontal spacing mode). NOT to be confused with CJK
+# fullwidth glyph support — the Cosmic Dragon principle forbids wide
+# chars; this flag only doubles the column stride.
 # fullwidth = false
 # Auto color drift (default: off)
 # auto-color-drift = false
@@ -710,7 +713,8 @@ pub fn dump_config_text() -> &'static str {
 # Fields:
 #   set — literal string of characters to use as the rain glyph pool.
 #   Whitespace (except ASCII space) skipped. Control chars + chars >256-cap
-#   rejected with error. Wide/zero-width (emoji, CJK fullwidth) auto-filtered.
+#   rejected with error. Wide/zero-width (emoji, CJK fullwidth) auto-filtered
+#   — Cosmic Dragon principle: permanent design choice, not a limitation.
 # Load with: cosmostrix --charset cat   (or: charset = "cat" in config)
 # Custom names take precedence over built-in presets with the same name.
 # Live reload: editing the block takes effect on the next config save.
