@@ -78,13 +78,11 @@ pub fn push_validation_rejection(msg: &str) {
 }
 
 /// Drain the session rejection log. Returns owned Vec (empty if no rejections
-/// or mutex poisoned). Caller prints them in the post-exit verbose summary.
-///
-/// v25.13 (bug #15): no longer called from main.rs (we exit on first error
-/// now, so there's at most one rejection per session — printed via the
-/// LIVE_RELOAD_EXIT_CODE path). Retained for tests and as a debug hook
-/// for future tooling that may want to inspect the session log.
-#[allow(dead_code)]
+/// or mutex poisoned). Test-only utility — the production exit path (since
+/// v25.13, bug #15) prints the first rejection via the LIVE_RELOAD_EXIT_CODE
+/// path and exits immediately, so the log is never drained in production.
+/// Tests call this to verify that `validate_and_send` recorded a rejection.
+#[cfg(test)]
 pub fn drain_validation_rejections() -> Vec<String> {
     LIVE_RELOAD_VALIDATION_REJECTIONS
         .lock()

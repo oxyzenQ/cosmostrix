@@ -473,8 +473,8 @@ pub fn config_candidate_paths() -> Vec<PathBuf> {
 }
 
 #[cfg(not(target_os = "windows"))]
+#[cfg(test)]
 #[must_use]
-#[allow(dead_code)]
 pub fn config_file_path_from(xdg_config_home: Option<String>, home: Option<String>) -> PathBuf {
     config_file_path_from_env(
         xdg_config_home.as_deref(),
