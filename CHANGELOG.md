@@ -9,6 +9,130 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v25.0.0-alpha.5 — Config Subsystem Dead-Code Audit
+
+### Headline
+
+Two-pass dead-code audit of the config subsystem (7 production files,
+5,751 LOC: `config.rs`, `config_apply.rs`, `configfile.rs`,
+`config_hints.rs`, `live_config.rs`, `live_config_poll.rs`,
+`live_config_trace.rs`) removed duplicated logic and dead test-only
+code. The compiler was silent (zero warnings on `cargo build --release`
+and `cargo clippy --all-targets`), so the audit used the proven
+methodology from the cloud/ audit (alpha.4): compiler-driven →
+grep-verified → cascade-aware → test-site sweep. Two commits, all 1140
+tests still pass.
+
+### Pass 1 — Termux Detection DRY Consolidation (`070870b`)
+
+`configfile::is_termux_environment()` has existed since v25.2 as the
+canonical Termux detection heuristic (`TERMUX_VERSION` env var or
+`PREFIX` containing `"com.termux"`). Its doc comment claimed "this
+matches the detection used elsewhere in the codebase (safepath.rs,
+verbose.rs, event_loop.rs)" — but `safepath.rs` and `verbose.rs`
+inlined their own copies of the same env-var check, and `event_loop.rs`
+had no such check at all (stale reference).
+
+Two copies of the duplicated logic existed:
+
+- `src/safepath.rs:187-188` — inline check before pushing `/sdcard/`
+  to the allowed-prefixes list
+- `src/verbose.rs:237-238` — inline check for the `android:` verbose
+  env-dump line
+
+Both were semantically identical to `is_termux_environment()` (only
+cosmetic difference: the originals used `.is_ok_and()` while the
+canonical version uses `.map().unwrap_or(false)` — same semantics).
+
+Both inline copies were replaced with calls to
+`crate::configfile::is_termux_environment()`. This:
+
+1. Eliminates two copies of the detection heuristic — if the env-var
+   probe ever needs to change (e.g. a new Termux version sets a
+   different var), it changes in one place.
+2. Justifies the `pub` visibility on `is_termux_environment()` — it
+   now has real external callers instead of being effectively dead
+   public API.
+3. Replaces the stale `event_loop.rs` reference in the doc comment
+   with an accurate "single source of truth" statement.
+
+LOC impact: −1 line net (10 insertions, 11 deletions). Zero behavior
+change.
+
+### Pass 2 — Test-Only Utility Cleanup (`9a0aba3`)
+
+Two config utilities carried `#[allow(dead_code)]` attrs because they
+were called only from test modules but compiled into production
+builds. Replaced the allow attrs with `#[cfg(test)]` so the functions
+only exist in test builds — eliminating dead code from production
+without changing test behavior.
+
+**`live_config::drain_validation_rejections()`** — Called from 11
+sites in `live_config.rs`, ALL inside `#[cfg(test)] mod tests`. The
+doc comment (v25.13, bug #15) admitted the production drain was
+removed when `main.rs` switched to exit-on-first-error, but retained
+the function "as a debug hook for future tooling that may want to
+inspect the session log" — speculative retention of exactly the kind
+the cloud/ audit rejected. Rewrote the doc comment to state plainly
+that this is a test utility for verifying `validate_and_send` recorded
+a rejection.
+
+**`configfile::config_file_path_from()`** — A test-convenience wrapper
+around the private `config_file_path_from_env()` that takes owned
+`Option<String>` instead of `Option<&str>`. Called from 2 test sites
+in `configfile.rs`. Production code (line 336) calls
+`config_file_path_from_env()` directly. The wrapper exists only so
+tests can pass owned strings without `as_deref()` at every call site.
+Kept the existing `#[cfg(not(target_os = "windows"))]` platform gate
+and `#[must_use]`; the function is now
+`#[cfg(all(not(target_os = "windows"), test))]`.
+
+LOC impact: −2 lines net (6 insertions, 8 deletions). Zero behavior
+change in either test or production builds.
+
+### What Was NOT Touched
+
+- **`push_validation_rejection()` write-side calls**: The 3 production
+  calls in `validate_and_send` (lines 491, 512, 558) push to
+  `LIVE_RELOAD_VALIDATION_REJECTIONS` — a log that is now provably
+  never drained in production (the only reader, `drain_validation_rejections`,
+  is `#[cfg(test)]`). These are cheap writes (one mutex lock, vec push,
+  capped at 64) and serve as debug breadcrumbs. Removing them is a
+  behavior-adjacent change deferred to a separate audit.
+- **`#[allow(clippy::too_many_arguments)]` on `live_config.rs:349`**:
+  Legitimate clippy lint suppression for a function with many
+  parameters, not dead code. Refactoring the argument list is a
+  design change, not cleanup.
+- **Latent Windows test-compilation issue**: The two tests calling
+  `config_file_path_from` (lines 899, 905) are not gated with
+  `#[cfg(not(target_os = "windows"))]`, so they would fail to compile
+  on Windows test builds. This is pre-existing and not caused by this
+  audit. Fixing it is a separate concern.
+- **Test files** (`config_apply_tests.rs`, `config_apply_profiles_tests.rs`,
+  `configfile_promotion_tests.rs`, `configfile_bug7_tests.rs`): Out of
+  scope for a dead-code audit — tests are the consumers that justify
+  the production API, not targets for removal.
+
+### Methodology
+
+Same proven methodology as the cloud/ audit (alpha.4):
+
+1. **Compiler-driven**: `cargo build --release` and
+   `cargo clippy --all-targets --release` — both clean, zero warnings.
+2. **Grep-verified**: Extracted all `pub fn`, `pub(crate) fn`,
+   `pub struct`, `pub enum`, `pub const` names from the 7 production
+   files and checked each for external callers via `rg`. Found 5
+   candidates with zero external refs; 4 confirmed (1 was a false
+   positive matching a URL in a doc comment).
+3. **Cascade-aware**: After gating `drain_validation_rejections` as
+   `#[cfg(test)]`, verified no production code reads
+   `LIVE_RELOAD_VALIDATION_REJECTIONS` (confirmed — the write-side
+   calls are now the only production touch).
+4. **Test-site sweep**: Verified all test callers of the gated
+   functions are inside `#[cfg(test)] mod tests` blocks.
+
+---
+
 ## v25.0.0-alpha.4 — Cloud Dead-Code Audit
 
 ### Headline
