@@ -694,7 +694,7 @@ impl Terminal {
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        // Safety: spawn a force-exit timer in case flush blocks.
+        // Spawn a force-exit timer in case flush blocks.
         // The flag is set to `true` after flush completes; if the watchdog
         // sees the flag it skips `process::exit`, allowing normal shutdown
         // and SIGCONT recovery to proceed without being killed.

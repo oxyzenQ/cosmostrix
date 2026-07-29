@@ -15,7 +15,7 @@
 //! broken stderr (terminal closed mid-session).
 //!
 //! Split into its own module so `live_config.rs` stays under the
-//! 1200-LOC source cap enforced by `loc_tests`.
+//! 1500-LOC source cap enforced by `loc_tests`.
 
 use std::io::Write;
 use std::sync::atomic::{AtomicU8, Ordering};

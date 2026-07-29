@@ -77,6 +77,12 @@ mod linux {
     const SYS_PERF_EVENT_OPEN: libc::c_long = 298;
 
     fn open_counter(config: u64) -> Option<i32> {
+        // SAFETY: syscall() and libc::ioctl() are FFI calls into the Linux
+        // kernel. The `attr` struct is initialized with `Default::default()`
+        // before being passed by raw pointer; the kernel reads only the
+        // fields it knows about (struct is sized correctly for the syscall).
+        // pid=0/cpu=0/group_fd=-1/flags=0 are well-defined argument values.
+        // The returned fd is checked for < 0 (error) before any subsequent use.
         unsafe {
             let attr = PerfEventAttr {
                 config,
@@ -111,6 +117,10 @@ mod linux {
             return 0;
         }
         let mut value: u64 = 0;
+        // SAFETY: libc::read() reads exactly 8 bytes into a u64 stack
+        // variable. The fd was previously validated as >= 0 (returning
+        // early above if not) and points to a valid perf_event counter
+        // file descriptor. The buffer is a stack u64 with proper alignment.
         let ret = unsafe { libc::read(fd, &mut value as *mut u64 as *mut libc::c_void, 8) };
         if ret != 8 {
             return 0;
@@ -120,6 +130,11 @@ mod linux {
 
     fn close_counter(fd: i32) {
         if fd >= 0 {
+            // SAFETY: fd was validated as >= 0 (a valid perf_event file
+            // descriptor returned by syscall). close() is safe to call on
+            // any valid fd; double-close is a no-op per POSIX (although it
+            // can race with fd reuse in concurrent code — this code is
+            // single-threaded with respect to perf counters).
             unsafe {
                 close(fd);
             }

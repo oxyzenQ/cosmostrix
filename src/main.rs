@@ -202,9 +202,11 @@ pub(crate) use crate::safepath::{is_safe_path, validate_config_path};
 fn stdout_is_redirected_to_file() -> bool {
     use std::os::unix::io::AsRawFd;
     let fd = std::io::stdout().as_raw_fd();
-    // Safety: fstat on a valid fd (stdout=1, always open). The stat struct
+    // SAFETY: fstat on a valid fd (stdout=1, always open). The stat struct
     // is zeroed and overwritten by the syscall.
     let mut st: libc::stat = unsafe { std::mem::zeroed() };
+    // SAFETY: fstat reads metadata for an already-open fd. Writes only into
+    // our zeroed stat struct; returns 0 on success.
     if unsafe { libc::fstat(fd, &mut st) } == 0 {
         return (st.st_mode & libc::S_IFMT) == libc::S_IFREG;
     }

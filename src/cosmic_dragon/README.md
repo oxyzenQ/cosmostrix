@@ -75,5 +75,5 @@ When a `cosmic_dragon/` module is ready to graduate:
 
 The graduation is a one-way operation. Once a module lives in the flat
 `src/` structure, it is part of the stable engine and follows the stable
-engine's rules (1200-LOC cap, no breaking changes without a major version
+engine's rules (1500-LOC cap, no breaking changes without a major version
 bump, etc.).

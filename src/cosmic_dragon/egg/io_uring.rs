@@ -50,6 +50,11 @@ mod tests {
         // Warmup
         for _ in 0..100 {
             use std::os::unix::io::AsRawFd;
+            // SAFETY: fd comes from a valid File handle (open succeeded),
+            // and `data` is a valid byte slice with non-zero length. write()
+            // reads from `data` and writes to the kernel-side fd buffer; no
+            // memory ownership transfer. Return value is intentionally
+            // ignored (warmup is best-effort).
             unsafe {
                 libc::write(dev_null.as_raw_fd(), data.as_ptr() as *const _, data.len());
             }
@@ -61,6 +66,11 @@ mod tests {
         use std::os::unix::io::AsRawFd;
         let fd = dev_null.as_raw_fd();
         for _ in 0..n {
+            // SAFETY: same as warmup — fd is the raw fd of the open
+            // /dev/null File handle (still alive in `dev_null`), `data` is
+            // a valid &[u8] slice. write() is the POSIX system call; it does
+            // not modify the caller's buffer. Return value ignored (this is
+            // a benchmark, not production I/O).
             unsafe {
                 libc::write(fd, data.as_ptr() as *const _, data.len());
             }

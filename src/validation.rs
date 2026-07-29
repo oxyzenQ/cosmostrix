@@ -69,6 +69,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--charset-file",
         "error: --charset-file has been removed in v25.0.0.\n  Custom charsets now live in config.toml under [charset-custom.<name>] and are loaded via --charset <name>.\n  Migration: move your custom characters from the file into a [charset-custom.<name>] block, then activate with --charset <name> or `charset = \"<name>\"` in config.\n  Example:\n    [charset-custom.cat]\n    set = \"x9\"\n  Then: cosmostrix --charset cat\n  See `cosmostrix --dump-config` for the full template.",
     ),
+    (
+        "--completions",
+        "error: --completions <shell> has been removed in v15.0.0.\n  Shell completion scripts are no longer shipped. The `clap_complete` dependency was dropped to reduce maintenance surface.\n  To regenerate completions externally, use `clap_complete` in a downstream tool, or write them by hand from `cosmostrix --help-detail`.",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.
@@ -574,6 +578,24 @@ mod tests {
         let err = check_removed_flags(&argv).expect_err("--dump-profile must be intercepted");
         assert!(err.contains("--dump-profile has been removed"));
         assert!(err.contains("--show-scene <name>"));
+    }
+
+    #[test]
+    fn check_removed_flags_intercepts_completions() {
+        // v25.10 audit: --completions was removed in v15 but was missing from
+        // the REMOVED_FLAGS table — users got a generic clap "unexpected
+        // argument" error instead of a helpful migration message.
+        let argv = ["cosmostrix", "--completions", "bash"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        let err = check_removed_flags(&argv).expect_err("--completions must be intercepted");
+        assert!(err.contains("--completions"));
+        assert!(err.contains("v15.0.0"));
+        assert!(
+            err.contains("clap_complete"),
+            "migration message should point to clap_complete: {err}"
+        );
     }
 
     #[test]

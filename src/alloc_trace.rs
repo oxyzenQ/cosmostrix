@@ -34,6 +34,15 @@ pub struct TraceAlloc;
 
 static INNER: System = System;
 
+/// # Safety
+/// `TraceAlloc` is a thin wrapper around `std::alloc::System` that only
+/// adds atomic counter updates before delegating. The counters use
+/// `Ordering::Relaxed` so they don't introduce any synchronization
+/// requirements. The underlying `System` allocator upholds the
+/// `GlobalAlloc` contract — this impl forwards all `unsafe fn` arguments
+/// unchanged, so the safety obligations documented on `GlobalAlloc`'s
+/// methods (valid layout, valid ptr from a previous alloc, etc.) are
+/// preserved by construction.
 unsafe impl GlobalAlloc for TraceAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         ALLOC_CALLS.fetch_add(1, Ordering::Relaxed);

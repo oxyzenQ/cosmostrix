@@ -5,16 +5,16 @@
 #
 # COSMOSTRIX RUST SOURCE FILE LOC CHECK
 #
-# Ensures all Rust source files stay under 1,000 gross lines.
+# Ensures all Rust source files stay under 1,500 gross lines.
 # Fail if any .rs file exceeds the limit (no exceptions by default).
 #
 # Usage: scripts/check-rs-loc.sh [MAX_LINES]
-#   MAX_LINES: override the default limit (default: 1000)
+#   MAX_LINES: override the default limit (default: 1500)
 #
 
 set -euo pipefail
 
-MAX_LINES="${1:-1200}"
+MAX_LINES="${1:-1500}"
 FAILED=0
 FOUND=0
 

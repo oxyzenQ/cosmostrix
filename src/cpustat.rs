@@ -90,6 +90,10 @@ fn linux_cpu_ns() -> Option<u64> {
 
     // Convert clock ticks to nanoseconds. sysconf(_SC_CLK_TCK) is
     // typically 100 on Linux, giving 10ms per tick = 10_000_000 ns.
+    // SAFETY: sysconf() with the _SC_CLK_TCK argument is a read-only
+    // query that returns a positive integer (or -1 on error). It takes
+    // no pointers and writes no memory; the only contract is that the
+    // argument is a valid sysconf(3) name constant, which _SC_CLK_TCK is.
     let clk_tck = unsafe { libc::sysconf(libc::_SC_CLK_TCK) };
     if clk_tck <= 0 {
         return None;
