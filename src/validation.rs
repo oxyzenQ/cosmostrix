@@ -218,9 +218,6 @@ fn validate_cli_value(flag: &str, value: &str) -> Result<(), String> {
         return Ok(());
     };
     match spec.kind {
-        CliKind::Integer { min, max } => {
-            parse_canonical_u32_range(spec.name, value, min, max).map(|_| ())
-        }
         CliKind::Speed => parse_canonical_speed(spec.name, value).map(|_| ()),
         CliKind::DecimalF32 { min, max } => {
             parse_canonical_f32_range(spec.name, value, min, max).map(|_| ())
@@ -252,24 +249,9 @@ struct CliSpec {
 #[derive(Clone, Copy)]
 enum CliKind {
     Speed,
-    // v17 mastery: Integer variant kept for future use (was used by --maxdpc
-    // before removal). Marked #[allow(dead_code)] to suppress the warning.
-    #[allow(dead_code)]
-    Integer {
-        min: u32,
-        max: u32,
-    },
-    DecimalF32 {
-        min: f32,
-        max: f32,
-    },
-    DecimalF64 {
-        min: f64,
-        max: f64,
-    },
-    Enum {
-        allowed: &'static [&'static str],
-    },
+    DecimalF32 { min: f32, max: f32 },
+    DecimalF64 { min: f64, max: f64 },
+    Enum { allowed: &'static [&'static str] },
 }
 
 fn cli_spec(flag: &str) -> Option<CliSpec> {
