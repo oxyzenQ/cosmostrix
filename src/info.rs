@@ -225,6 +225,11 @@ DESIGN CONSTRAINTS
   - No unsafe in the renderer hot path.
   - Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD.
 
+Cosmostrix is the Cosmic Dragon Engine — a serious diff-based rendering
+masterpiece. It is designed for cinematic art, not for toys. By
+principle, it will never support emoji, as its focus is on pure,
+elegant, and exclusive visual quality.
+
 Source: https://github.com/oxyzenQ/cosmostrix
 License: GPL-3.0-only
 "
@@ -495,6 +500,40 @@ mod tests {
         assert!(
             report.contains("not a Matrix clone"),
             "docs_report must declare that cosmostrix is not a Matrix clone"
+        );
+    }
+
+    /// v25.15 (philosophy declaration): the --docs output must carry the
+    /// condensed masterpiece philosophy so the engine's identity is embedded
+    /// in the binary itself, not just in the README. This locks in the
+    /// exact wording requested for the formal philosophy declaration.
+    ///
+    /// Note: the report wraps at ~70 cols for terminal display, so we
+    /// normalize whitespace before substring-matching (a wrapped sentence
+    /// like "serious diff-based rendering\nmasterpiece" must still match).
+    #[test]
+    fn docs_report_declares_masterpiece_philosophy() {
+        let report = docs_report();
+        let normalized: String = report.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            normalized.contains("Cosmostrix is the Cosmic Dragon Engine"),
+            "docs_report must open the philosophy with the engine name"
+        );
+        assert!(
+            normalized.contains("serious diff-based rendering masterpiece"),
+            "docs_report must declare masterpiece status (wrapped text normalized)"
+        );
+        assert!(
+            normalized.contains("cinematic art, not for toys"),
+            "docs_report must declare the cinematic-art-not-toys stance"
+        );
+        assert!(
+            normalized.contains("will never support emoji"),
+            "docs_report must declare the permanent no-emoji constraint"
+        );
+        assert!(
+            normalized.contains("pure, elegant, and exclusive visual quality"),
+            "docs_report must declare the visual-quality focus"
         );
     }
 
