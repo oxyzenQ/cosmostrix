@@ -752,6 +752,43 @@ pub fn rebuild_cloud_config(
         apply_scene_custom_to_cloud_config(&mut new, cfg, custom_name);
     }
 
+    // v25.11 (bug #9): color.tune.* live reload. Previously `color_tune` was
+    // never updated here — `create_cloud()` re-applied the SAME identity-or-
+    // CLI-set tune from `base.color_tune` on every reload, so editing
+    // `brightness = 0.0` while running had zero visible effect until restart.
+    // Now we re-parse from the new cfg HashMap (same path as startup in
+    // config_apply.rs) — but ONLY when at least one color.tune.* key is
+    // present. This preserves the CLI `--color-tune` setting when the user
+    // never added [color.tune] to config.toml (CLI wins over absent config).
+    // `color_tune_from_config` silently clamps OOR values to 1.0; strict
+    // validation already rejected bad values upstream in `validate_and_send`
+    // → `validate_field_value`, so we only get clean numbers here.
+    let has_tune_keys = cfg.contains_key("color.tune.brightness")
+        || cfg.contains_key("color.tune.saturation")
+        || cfg.contains_key("color.tune.head")
+        || cfg.contains_key("color.tune.body")
+        || cfg.contains_key("color.tune.tail");
+    if has_tune_keys {
+        let new_tune = crate::color_tune::color_tune_from_config(cfg);
+        if new_tune.brightness != new.color_tune.brightness
+            || new_tune.saturation != new.color_tune.saturation
+            || new_tune.head != new.color_tune.head
+            || new_tune.body != new.color_tune.body
+            || new_tune.tail != new.color_tune.tail
+        {
+            lr_trace!(
+                "apply color.tune live reload: sat={} bright={} head={} body={} tail={} (was sat={} bright={} head={} body={} tail={})",
+                new_tune.saturation, new_tune.brightness, new_tune.head, new_tune.body, new_tune.tail,
+                new.color_tune.saturation, new.color_tune.brightness, new.color_tune.head, new.color_tune.body, new.color_tune.tail
+            );
+            new.color_tune = new_tune;
+        } else {
+            lr_trace!("color.tune: present but unchanged");
+        }
+    } else {
+        lr_trace!("color.tune: no keys in config — preserving base tune (CLI --color-tune wins)");
+    }
+
     new
 }
 
@@ -1196,5 +1233,60 @@ mod tests {
         assert!(msg.contains("top-level"), "need structural hint: {msg}");
         assert!(msg.contains("[color.tune]"), "need section ref: {msg}");
         assert_eq!(LIVE_RELOAD_EXIT_CODE.load(Ordering::Acquire), 0);
+    }
+
+    /// v25.11 (bug #9): color.tune.* changes must propagate via live reload.
+    /// Before the fix, `rebuild_cloud_config` never touched `color_tune`,
+    /// so editing `brightness = 0.0` while running had zero effect until
+    /// restart. Verify brightness/saturation/head/body/tail all flow through.
+    #[test]
+    fn rebuild_applies_color_tune_live_reload_brightness() {
+        let base = minimal_cloud_config();
+        assert_eq!(
+            base.color_tune.brightness, 1.0,
+            "base config should start at identity brightness"
+        );
+        let mut cfg = HashMap::new();
+        cfg.insert("color.tune.brightness".to_string(), "0.5".to_string());
+        let new = rebuild_cloud_config(&base, &cfg);
+        assert!(
+            (new.color_tune.brightness - 0.5).abs() < 1e-6,
+            "brightness should propagate to live-reloaded config (got {})",
+            new.color_tune.brightness
+        );
+    }
+
+    /// v25.11 (bug #9): all 5 color.tune.* fields propagate, not just brightness.
+    #[test]
+    fn rebuild_applies_color_tune_live_reload_all_fields() {
+        let base = minimal_cloud_config();
+        let mut cfg = HashMap::new();
+        cfg.insert("color.tune.brightness".to_string(), "1.5".to_string());
+        cfg.insert("color.tune.saturation".to_string(), "0.7".to_string());
+        cfg.insert("color.tune.head".to_string(), "2.0".to_string());
+        cfg.insert("color.tune.body".to_string(), "1.2".to_string());
+        cfg.insert("color.tune.tail".to_string(), "0.8".to_string());
+        let new = rebuild_cloud_config(&base, &cfg);
+        assert!((new.color_tune.brightness - 1.5).abs() < 1e-6);
+        assert!((new.color_tune.saturation - 0.7).abs() < 1e-6);
+        assert!((new.color_tune.head - 2.0).abs() < 1e-6);
+        assert!((new.color_tune.body - 1.2).abs() < 1e-6);
+        assert!((new.color_tune.tail - 0.8).abs() < 1e-6);
+    }
+
+    /// v25.11 (bug #9): when no color.tune.* keys are in config, the tune
+    /// stays at the base value (identity by default). This protects users
+    /// who never set [color.tune] from accidentally dimming their rain.
+    #[test]
+    fn rebuild_without_color_tune_keys_keeps_base_tune() {
+        let mut base = minimal_cloud_config();
+        // Pretend the user set brightness = 2.0 at startup (CLI --color-tune).
+        base.color_tune.brightness = 2.0;
+        let cfg = HashMap::new(); // no color.tune.* keys
+        let new = rebuild_cloud_config(&base, &cfg);
+        assert_eq!(
+            new.color_tune.brightness, 2.0,
+            "no color.tune.* in config → keep base tune (CLI --color-tune wins)"
+        );
     }
 }
