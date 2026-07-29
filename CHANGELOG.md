@@ -9,6 +9,175 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v25.0.0-alpha.6 — Interactive Subsystem Dead-Code Audit
+
+### Headline
+
+Four-pass dead-code audit of the `interactive/` subsystem (13 files,
+6,142 LOC: `activity.rs`, `adaptive.rs`, `bg_fill.rs`, `event_loop.rs`,
+`hud.rs`, `input.rs`, `intro.rs`, `intro_cosmic.rs`, `intro_logo.rs`,
+`mod.rs`, `signal_handlers.rs`, `tests.rs`, `watchdog.rs`) purged
+**all 12 `#[allow(dead_code)]` attributes** from the subsystem. The
+compiler was silent (zero warnings on `cargo build --release` and
+`cargo clippy --all-targets`), so the audit targeted the allow attrs
+directly — each one was investigated to determine whether it papered
+over genuinely dead code, test-only code, or stale scaffolding. Four
+commits, 1139 tests pass (was 1140 — one dead-constant bounds-check
+test was removed alongside its constant).
+
+### Pass 1 — intro_logo.rs Constants + Stale Allows (`951232e`)
+
+`intro_logo.rs` (1,149 LOC — the largest file in the subsystem)
+carried 9 `#[allow(dead_code)]` attributes on constants and functions.
+Audit found 2 genuinely dead constants, 1 test-only constant, 4 stale
+allows on live code, and 1 stale allow on a live function.
+
+**Removed entirely (zero callers anywhere):**
+
+- `FLASH_DECAY_RATE` (`f32 = 4.0`) — documented as "ignition flash
+  decay rate" but never read. The ignition flash at the Phase 2
+  boundary uses inline `phase_t` interpolation (lines 476, 492), not
+  this constant. Aspirational scaffolding from an earlier design
+  iteration.
+- `FADEIN_STEPS` (`u32 = 32`) — documented as "logo appears in N
+  reveal steps spread across Phase 1" but the rendering loop uses
+  continuous `phase_t` interpolation with `PHASE1_FADEIN_END_MS`,
+  not discrete steps. The only consumer was
+  `fadein_steps_is_reasonable()` — a compile-time bounds-check test
+  that verified a constant nothing reads. Removed both the constant
+  and the test.
+
+**Gated with `#[cfg(test)]` (test-only):**
+
+- `LOGO_COLOR` (`Color` enum form) — the doc explicitly states
+  "rendering uses `LOGO_COLOR_RGB` for cheaper lerp math." The enum
+  form exists only so `logo_color_matches_rgb_constant()` can verify
+  the two forms agree. Production rendering reads `LOGO_COLOR_RGB`
+  directly.
+
+**Stripped stale `#[allow(dead_code)]` (all have production callers):**
+
+- `DISSOLVE_SPEED_MIN` — read at line 665 (`spawn_rain_droplet` speed
+  lerp) and 3 test assertions.
+- `DISSOLVE_SPEED_MAX` — same, line 665 + 3 test assertions.
+- `JITTER_VX` — read at line 672 (`spawn_rain_droplet` vx computation)
+  and 1 test assertion.
+- `spawn_rain_droplet()` — called at line 601 (Phase 4 rain spawn
+  loop) and 2 test sites. The allow was stale from when the function
+  was scaffolded before the Phase 4 rendering path was wired in.
+
+LOC impact: −27 lines. Zero behavior change.
+
+### Pass 2 — Test-Only Accessor Gating (`eef3f0f`)
+
+Three accessor methods carried `#[allow(dead_code)]` because they
+were called only from test modules but compiled into production
+builds. Replaced the allow attrs with `#[cfg(test)]` so the methods
+only exist in test builds.
+
+1. **`intro::ParticlePool::active_count()`** (`pub(super) fn`) —
+   Called from 11 test sites across `intro.rs` (3), `intro_cosmic.rs`
+   (4), and `intro_logo.rs` (4). ALL inside `#[cfg(test)] mod tests`
+   blocks. Production rendering uses the free-list length directly
+   when deciding whether to spawn particles.
+
+2. **`activity::idle_resync_due()`** (`pub(super) fn`) — Called from
+   3 test sites in `interactive/tests.rs`. Production `event_loop.rs`
+   inlines the idle-and-interval check directly rather than calling
+   this helper.
+
+3. **`hud::Hud::visible()`** (`pub(crate) fn`) — Called from 4 test
+   sites in `hud.rs`'s test module. Production code reads the
+   `visible` field directly (6 call sites) — cheaper than a method
+   call in the hot render path.
+
+All three methods now have doc comments explaining why they are
+test-only and what production code does instead.
+
+LOC impact: +12 lines net (added doc comments). Zero behavior change.
+
+### Pass 3 — EnduranceHealth Stale Allow (`7a56be8`)
+
+The `EnduranceHealth` struct in `adaptive.rs` carried
+`#[allow(dead_code)]` on the struct declaration. Investigation
+confirmed all 7 fields are read on every platform:
+
+- `rss_samples` — read by `rss_mean()` and `rss_variance()` in
+  `recompute()`
+- `rss_idx` — written by `new()` and `push_rss()` (Linux only)
+- `rss_count` — read by `recompute()` guard, `rss_mean()`,
+  `rss_variance()`
+- `frame_jitter_ema` — read by `recompute()` and `push_frame_time()`
+- `ctxt_switch_ema` — read by `recompute()` and `push_ctxt_rate()`
+  (Linux only)
+- `score` — read by `recompute()`, `score()`, `classification()`
+- `updates` — read/written by `push_frame_time()` and `recompute()`
+
+On non-Linux platforms, `push_rss()` and `push_ctxt_rate()` are
+`#[cfg(target_os = "linux")]`-gated out, but `new()` still initializes
+all fields and `recompute()` still reads them (returning early via
+the `rss_count < MIN_SAMPLES` guard). The compiler sees all fields as
+read — no `dead_code` warning is generated on any platform. The allow
+was likely added during initial scaffolding before `recompute()` was
+fully implemented.
+
+LOC impact: −1 line. Zero behavior change.
+
+### Pass 4 — hint_reclaim_pages Stale Allow (`596aa1c`)
+
+The `#[cfg(not(target_os = "linux"))]` no-op stub of
+`hint_reclaim_pages()` in `adaptive.rs` carried `#[allow(dead_code)]`.
+The function IS called unconditionally from `event_loop.rs:528` on ALL
+platforms — on non-Linux, the call resolves to this stub. It is not
+dead code by any definition; the allow was stale from when the stub
+was scaffolded before the `event_loop` call site landed. The `_ptr`/
+`_len` parameter prefixes already suppress unused-parameter warnings.
+
+LOC impact: −1 line. Zero behavior change.
+
+### What Was NOT Touched
+
+- **`#[allow(clippy::too_many_arguments)]`** on `intro.rs:423` and
+  `input.rs:88`: Legitimate clippy lint suppressions for functions
+  with many parameters, not dead code. Refactoring the argument lists
+  is a design change, not cleanup.
+- **`#[cfg(target_os = "linux")]`-gated methods** (`push_rss`,
+  `push_ctxt_rate`): These are platform abstractions, not dead code.
+  They compile only on Linux and are called from `event_loop.rs` under
+  the same cfg gate.
+- **Test files** (`tests.rs`, and the `#[cfg(test)] mod tests` blocks
+  in each production file): Out of scope — tests are the consumers
+  that justify the API, not targets for removal.
+
+### Methodology
+
+Same proven methodology as the cloud/ (alpha.4) and config/
+(alpha.5) audits:
+
+1. **Compiler-driven**: `cargo build --release` and
+   `cargo clippy --all-targets --release` — both clean, zero warnings.
+2. **Allow-attr sweep**: Extracted all 14 `#[allow(...)]` attrs from
+   the 13 files. Categorized: 12 `dead_code`, 2
+   `clippy::too_many_arguments`. The 12 `dead_code` attrs were the
+   audit targets.
+3. **Grep-verified**: For each `dead_code` allow, searched for callers
+   across all of `src/` to classify as genuinely-dead, test-only, or
+   stale-allow-on-live-code.
+4. **Cascade-aware**: After gating `active_count()` as `#[cfg(test)]`,
+   verified all 11 test callers are inside `#[cfg(test)]` blocks
+   (confirmed — 3 files, all test modules).
+5. **Test-site sweep**: After removing `FADEIN_STEPS`, verified the
+   only test consumer (`fadein_steps_is_reasonable`) was removed in
+   the same commit.
+
+### Subsystem Health
+
+After this audit, `interactive/` has **zero `#[allow(dead_code)]`
+attributes**. The only remaining allows are 2 legitimate
+`clippy::too_many_arguments` suppressions. The subsystem is clean.
+
+---
+
 ## v25.0.0-alpha.5 — Config Subsystem Dead-Code Audit
 
 ### Headline
