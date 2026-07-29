@@ -178,16 +178,21 @@ pub(crate) fn local_secs_since_midnight() -> f64 {
 ///
 /// # Returns
 /// The resync interval in seconds.
+///
+/// v25.15 (perf audit): the tier thresholds and intervals are now named
+/// constants in `constants.rs` (`SECS_PER_HOUR`, `SECS_PER_4_HOURS`,
+/// `IDLE_RESYNC_TIER_2_SECS`, `IDLE_RESYNC_TIER_3_SECS`). Previously these
+/// were four magic numbers inline.
 pub(crate) fn adaptive_resync_interval(idle_duration_secs: f64) -> f64 {
-    if idle_duration_secs < 3600.0 {
+    if idle_duration_secs < SECS_PER_HOUR {
         // < 1 hour idle: standard interval (20s).
         IDLE_REDRAW_RESYNC_INTERVAL_SECS
-    } else if idle_duration_secs < 14400.0 {
+    } else if idle_duration_secs < SECS_PER_4_HOURS {
         // 1–4 hours idle: 60s interval (3× reduction).
-        60.0
+        IDLE_RESYNC_TIER_2_SECS
     } else {
         // > 4 hours idle: 120s interval (6× reduction).
-        120.0
+        IDLE_RESYNC_TIER_3_SECS
     }
 }
 

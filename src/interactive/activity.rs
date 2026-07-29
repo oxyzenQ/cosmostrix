@@ -6,7 +6,7 @@
 //! Provides helpers for detecting idle state (no user input), managing
 //! resync scheduling, and tracking frame timing for performance reports.
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::constants::*;
 
@@ -23,9 +23,12 @@ use crate::constants::*;
 /// explicit, once inside `.elapsed()`), doubling the timing overhead.
 /// At 60 FPS with a 500µs spin budget, this saves ~12,500 Instant::now()
 /// calls per frame (~250µs/frame at 20ns/call).
+///
+/// v25.15 (perf audit): the spin limit is now `FRAME_SPIN_LIMIT` from
+/// constants.rs — was a hardcoded `Duration::from_micros(1000)` inline.
 #[inline]
 pub(super) fn spin_wait(deadline: Instant) {
-    let spin_limit = Duration::from_micros(1000);
+    let spin_limit = FRAME_SPIN_LIMIT;
     let spin_start = Instant::now();
     loop {
         let now = Instant::now();

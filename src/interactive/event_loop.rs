@@ -863,7 +863,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // processes input events), then spin-wait the final ~500μs for
             // sub-millisecond deadline accuracy. Eliminates OS scheduling
             // jitter from the frame cadence.
-            let spin_budget = Duration::from_micros(500);
+            //
+            // v25.15 (perf audit): spin_budget is now `FRAME_SPIN_BUDGET`
+            // from constants.rs — was a hardcoded `Duration::from_micros(500)`
+            // inline.
+            let spin_budget = FRAME_SPIN_BUDGET;
             if timeout > spin_budget {
                 // v25: poll_event can return Err when the terminal is closed
                 // (SIGHUP / PTY gone — crossterm's mio returns EIO/BadFd).
@@ -937,7 +941,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         cloud.set_perf_pressure(perf_pressure);
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
-        let sim_factor = (1.0 - (perf_pressure as f64) * SIM_PRESSURE_SCALE_FACTOR).clamp(0.3, 1.0);
+        // v25.15 (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
+        // from constants.rs — was a hardcoded `0.3` inline.
+        let sim_factor =
+            (1.0 - (perf_pressure as f64) * SIM_PRESSURE_SCALE_FACTOR).clamp(SIM_FACTOR_MIN, 1.0);
         let sim_min_s = (frame_period.as_secs_f64() * SIM_MIN_FRACTION).max(0.001);
         let sim_max_s = sim_base_s.min(SIM_MAX_CAP_SECS);
         // When frame_period is large (pause mode: 250ms, or very low FPS),
@@ -1084,9 +1091,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let drawn_ratio = (perf_drawn_frames as f64) / (perf_frames as f64).max(1.0);
         let overshoot_ratio =
             (perf_overshoot_frames as f64) / (perf_frames as f64).max(1.0) * 100.0;
-        let pressure_class = if avg_pressure < 0.05 {
+        let pressure_class = if avg_pressure < PERF_PRESSURE_CLASS_LOW {
             "low"
-        } else if avg_pressure < 0.3 {
+        } else if avg_pressure < PERF_PRESSURE_CLASS_MEDIUM {
             "medium"
         } else {
             "high"

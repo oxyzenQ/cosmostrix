@@ -572,13 +572,27 @@ impl Terminal {
         // sort once (row-major index sort groups by row AND orders within
         // row in one pass), then iterate contiguous runs. This eliminates
         // per-row Vec allocations on resize and improves cache locality.
+        //
+        // v25.15 (perf audit): the previous `dirty_flat.extend(dirty.iter()
+        // .copied().filter(|&idx| idx < height * width))` had an O(N) bounds
+        // filter that ran every frame. The filter is redundant — every entry
+        // in `frame.dirty_indices()` was pushed by `Frame::set()` /
+        // `set_force()` / `set_persistent()`, all of which call
+        // `self.index(x, y)` first and only push `Some(i)` results. So every
+        // dirty index is already guaranteed in-bounds.
+        //
+        // Replaced the filter with a `debug_assert!` that verifies the
+        // invariant in debug builds (zero cost in release). If a future
+        // caller bypasses `index()` and pushes an OOB index, the debug
+        // build will catch it immediately instead of silently masking it.
         let dirty_flat = &mut self.dirty_flat;
         dirty_flat.clear();
-        dirty_flat.extend(
-            dirty
+        dirty_flat.extend(dirty.iter().copied());
+        debug_assert!(
+            dirty_flat
                 .iter()
-                .copied()
-                .filter(|&idx| idx < height_usize * width_usize),
+                .all(|&idx| idx < height_usize * width_usize),
+            "dirty_indices must be in-bounds — Frame::set guarantees this"
         );
         dirty_flat.sort_unstable();
 

@@ -6,6 +6,8 @@
 //! All magic numbers are extracted here to avoid duplication and
 //! provide a single source of truth for tuning parameters.
 
+use std::time::Duration;
+
 // Density & sizing
 
 /// Default cols for density auto-calculation in bench mode.
@@ -142,6 +144,85 @@ pub const DENSITY_STEP: f32 = 0.25;
 
 /// Watchdog check interval in seconds.
 pub const WATCHDOG_INTERVAL_SECS: u64 = 5;
+
+// ── Frame pacing & spin-wait tuning ──────────────────────────────────────────
+//
+// v25.15 (perf audit): these were previously inline magic numbers in
+// event_loop.rs and activity.rs. Promoted to named constants so advanced
+// benchmarkers can locate every tuning knob from a single file and so
+// future audits can grep for the exact value rather than reverse-engineering
+// the call site.
+
+/// Sub-millisecond spin budget for the hybrid spin-sleep frame pacer.
+///
+/// The frame pacer sleeps via `poll_event` for the bulk of the wait, then
+/// spin-waits the final stretch to hit the deadline with microsecond
+/// precision (OS sleep granularity is ~0.5–2 ms, too coarse for 60 FPS).
+/// 500 µs is the sweet spot: small enough that the spin never wastes more
+/// than 0.5 ms of CPU, large enough that we don't accidentally sleep past
+/// the deadline when the OS scheduler is jittery.
+pub const FRAME_SPIN_BUDGET: Duration = Duration::from_micros(500);
+
+/// Hard cap on the spin-wait duration inside `spin_wait`.
+///
+/// Protects against pathological cases where the clock jumps backward or a
+/// VM pause makes `Instant::now()` appear stalled. Without this cap, a
+/// 10-second VM pause would spin-burn 10 seconds of CPU before breaking.
+/// 1 ms is the cap: if we haven't hit the deadline by then, we yield.
+pub const FRAME_SPIN_LIMIT: Duration = Duration::from_micros(1000);
+
+/// Clamp lower bound for the simulation factor under perf pressure.
+///
+/// When the engine is overloaded (perf_pressure → 1.0), the sim factor
+/// drops to `1.0 - 1.0 * SIM_PRESSURE_SCALE_FACTOR = 0.3`. Below 0.3 the
+/// rain would visibly stutter (sim advances slower than real-time), so we
+/// clamp. Tuned on a 120×40 terminal at 60 FPS: 0.3 keeps head motion
+/// perceptible even at 100% pressure.
+pub const SIM_FACTOR_MIN: f64 = 0.3;
+
+/// Perf-pressure classification threshold: below this = "low" pressure.
+///
+/// Used in the post-run perf report to bucket the average pressure into
+/// low/medium/high. 0.05 = 5% average overshoot — anything below is
+/// effectively running at full speed with no frame drops.
+pub const PERF_PRESSURE_CLASS_LOW: f64 = 0.05;
+
+/// Perf-pressure classification threshold: below this = "medium" pressure.
+///
+/// 0.30 = 30% average overshoot — frames are taking ~30% longer than the
+/// target period, indicating sustained mild overload. Above this is "high".
+pub const PERF_PRESSURE_CLASS_MEDIUM: f64 = 0.30;
+
+// ── Adaptive resync interval tiers ───────────────────────────────────────────
+//
+// v25.15 (perf audit): the adaptive resync interval had four magic numbers
+// inline in adaptive.rs (`3600.0`, `14400.0`, `60.0`, `120.0`). Promoted
+// here so the idle-tier ladder is visible at a glance and tunable as a set.
+
+/// One hour in seconds — boundary between standard and 1-hour idle tier.
+pub const SECS_PER_HOUR: f64 = 3600.0;
+
+/// Four hours in seconds — boundary between 1-hour and 4-hour idle tier.
+///
+/// At 4+ hours of continuous idle, the resync interval doubles again to
+/// `IDLE_RESYNC_TIER_3_SECS`. This mirrors the observed behavior of
+/// long-running kiosk/screensaver deployments where 24-hour uptimes are
+/// common and frequent redraws waste power for zero visual benefit.
+pub const SECS_PER_4_HOURS: f64 = 14400.0;
+
+/// Resync interval (seconds) for 1–4 hours of sustained idle.
+///
+/// 3× reduction from the standard 20 s interval. At this tier the user is
+/// clearly away; we keep just enough redraws to refresh CRT-phosphor state
+/// without burning CPU.
+pub const IDLE_RESYNC_TIER_2_SECS: f64 = 60.0;
+
+/// Resync interval (seconds) for >4 hours of sustained idle.
+///
+/// 6× reduction from the standard 20 s interval. Used for overnight or
+/// weekend-idle kiosks. Below this, the redraw cadence becomes too sparse
+/// to recover cleanly from terminal emulator state drift.
+pub const IDLE_RESYNC_TIER_3_SECS: f64 = 120.0;
 
 // Terminal / rendering
 
