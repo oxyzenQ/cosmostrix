@@ -102,6 +102,8 @@ mod config_apply_tests;
 mod config_hints;
 mod configfile;
 #[cfg(test)]
+mod configfile_bug7_tests;
+#[cfg(test)]
 mod configfile_promotion_tests;
 mod constants;
 mod cosmic_dragon;

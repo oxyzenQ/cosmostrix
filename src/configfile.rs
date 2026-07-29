@@ -167,16 +167,43 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
                 continue;
             }
 
+            // v25.9 (bug #7): Detect unquoted '#' inside an array value.
+            // strip_inline_comment strips at first unquoted '#'. If that
+            // happened while bracket depth > 0, the user wrote e.g.
+            // `rain = [#ff0000, #00ff00]` — '#' inside array was treated
+            // as comment, silently truncating value to '[' and triggering
+            // the multi-line consumer to eat subsequent lines. Reject
+            // explicitly. We check the ORIGINAL line (not `stripped`)
+            // because `stripped` is already truncated.
+            if value.starts_with('[')
+                && unquoted_hash_inside_array(line).is_some()
+                && !value.ends_with(']')
+            {
+                malformed_lines.push(format!(
+                    "{stripped}  # ERROR: unquoted '#' inside array — quote hex values (e.g. \"#ff0000\") or remove the '#'"
+                ));
+                i += 1;
+                continue;
+            }
+
             // v25: Handle multi-line TOML arrays. If the value starts with
-            // '[' but doesn't end with ']', keep consuming subsequent lines
-            // until we find the closing ']'. Join all lines into a single
-            // string so the colors-custom parser can handle it.
+            // '[' but doesn't end with ']', consume subsequent lines until
+            // we find the closing ']'. v25.9 (bug #7) hardening: do NOT
+            // consume [section] headers — those were previously mistaken
+            // for the closing ']' of the array, corrupting subsequent
+            // block definitions.
             if value.starts_with('[') && !value.ends_with(']') {
                 while i + 1 < lines.len() {
-                    let next_line = strip_inline_comment(lines[i + 1]).trim();
+                    let raw_next = lines[i + 1];
+                    let next_line = strip_inline_comment(raw_next).trim();
                     if next_line.is_empty() {
                         i += 1;
                         continue;
+                    }
+                    // [section] header is never an array element. Stop.
+                    if next_line.starts_with('[') && next_line.ends_with(']') && next_line.len() > 2
+                    {
+                        break;
                     }
                     value.push(' ');
                     value.push_str(next_line);
@@ -184,6 +211,15 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
                     if next_line.ends_with(']') {
                         break;
                     }
+                }
+                // Still no closing ']' → genuinely malformed (user forgot
+                // to close, or '#' truncated). Reject explicitly.
+                if !value.ends_with(']') {
+                    malformed_lines.push(format!(
+                        "{stripped}  # ERROR: array never closed (missing ']') or '#' truncated the value"
+                    ));
+                    i += 1;
+                    continue;
                 }
             }
 
@@ -471,42 +507,21 @@ fn config_file_path_from_env(
 pub fn dump_config_text() -> &'static str {
     r##"# cosmostrix configuration
 
-#
 # Quick Start & Override Priority
-#
-# The easiest way to customize is via CLI flags:
-#   cosmostrix -c neon-green --speed 20
-#
-# For permanent settings, edit this file. Values here override scene defaults.
-# CLI flags always override this file.
-#
-# Override priority (highest wins):
-#   1. CLI flags           (e.g. -c neon-green, --speed 20)    ← HIGHEST
-#   2. config.toml         (this file — values set here)      ← MEDIUM
-#   3. scene defaults      (built-in scenes like cinematic)   ← LOWEST
-#
-# Key rule: config.toml ALWAYS wins over a scene's hardcoded default.
-# Scenes only fill keys the user did NOT set.
-#
+# Override priority (highest wins): CLI flags > config.toml > scene defaults.
+# config.toml ALWAYS wins over scene hardcoded defaults; scenes only fill
+# keys the user did NOT set. CLI flags override this file.
 # Examples:
-#   cosmostrix                                       # run with defaults
-#   cosmostrix --scene storm                         # built-in scene
-#   cosmostrix --scene-custom hacker-mode            # user-defined custom scene
-#   cosmostrix -c neon-green --speed 20              # CLI overrides config
-#   cosmostrix --list-scenes                         # list all scenes
-#   cosmostrix --testconf                            # validate this config
-#   cosmostrix --doctor                              # diagnose terminal issues
+#   cosmostrix -c neon-green --speed 20    # CLI overrides config
+#   cosmostrix --scene-custom hacker-mode  # user custom scene
+#   cosmostrix --testconf                  # validate this config
+#   cosmostrix --doctor                    # diagnose terminal issues
 
-#
-# File Location
-#
-#   Linux:   ~/.config/cosmostrix/config.toml
-#   macOS:   ~/.config/cosmostrix/config.toml
-#            (or ~/Library/Application Support/cosmostrix/config.toml)
-#   Windows: %APPDATA%\cosmostrix\config.toml
-#   System-wide: /etc/cosmostrix/config.toml (Linux/macOS)
-#                %ProgramData%\cosmostrix\config.toml (Windows)
-#   Or set $XDG_CONFIG_HOME (Linux/macOS).
+# File Location:
+#   Linux/macOS: ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
+#                /etc/cosmostrix/config.toml (system-wide)
+#   Windows:     %APPDATA%\cosmostrix\config.toml
+#                %ProgramData%\cosmostrix\config.toml (system-wide)
 #
 # Format:
 #   key = value              # one per line
@@ -522,66 +537,47 @@ pub fn dump_config_text() -> &'static str {
 # will be used for any key left commented. Run `cosmostrix --testconf`
 # to validate your config after editing.
 
-#
 # Standard Settings (flat key = value)
-#
-
-# Core
 
 # Scene — built-in atmospheric template
 #   cinematic (default) | matrix | monolith | signal | classic | calm
 #   storm | cosmos | neon | hacker | low-power | cosmic_dragon | carbonic
 # Examples: scene = monolith, scene = matrix, scene = cosmic_dragon
 # scene = cinematic
-
 # Color scheme (palette). See: cosmostrix --list-colors
 # color = cosmos
-
 # Character set for rain glyphs. See: cosmostrix --list-charsets
 # charset = binary
-
 # Background mode: default-background (follow terminal) | black (solid #000000)
 # color-bg = default-background
 # Cinematic intro animation: logo | cosmic | none (default: logo)
 # intro = "logo"
 
 # Motion
-
 # Target FPS. Adaptive pacing may reduce under load.
 # fps = 60
-
 # Rain fall speed (1–100). Default depends on scene:
 #   monolith=30, matrix=18, signal=14, storm=28, calm=6, low-power=5
 # speed = 30
-
 # Rain density (0.01–5.0). Default depends on scene:
 #   monolith=0.85, matrix=0.65, signal=0.55, storm=1.10, calm=0.40
 # density = 0.85
-
 # Variable column speeds for organic rain (default: on)
 # async-mode = true
 
-# Monolith
-
-# Pillar size (small | normal | large, only for monolith scene)
+# Monolith — Pillar size (small | normal | large, only for monolith scene)
 # monolith-size = normal
 
 # Behavior
-
 # Glitch intensity: none | subtle | default | intense
 # glitch-level = subtle
-
-# v17: --mouse flag DELETED. Mouse glow + click wave effects are always on
-# (mouse reporting always active — blocks text selection). No config key needed.
-
+# v17: --mouse flag DELETED. Mouse glow + click wave effects are always on.
 # Full-width CJK glyphs (default: off)
 # fullwidth = false
-
 # Auto color drift (default: off)
 # auto-color-drift = false
 
 # Advanced Style
-
 # Color tuning (adjust rain brightness/saturation/head/body/tail)
 # All values: 0.0-3.0, default 1.0 = no change
 # [color.tune]
@@ -590,42 +586,35 @@ pub fn dump_config_text() -> &'static str {
 # head = 1.0         # head segment brightness
 # body = 1.0         # body segment brightness
 # tail = 1.0         # tail segment brightness
-
 # Bold style: 0=off, 1=random (default), 2=all
 # bold = 1
-
 # Shading mode: 0=random, 1=cinematic (default — distance from head)
 # shadingmode = 1
 
 # Atmosphere Engine (opt-in)
-
 # atmosphere-mode: disabled (default) | controlled-live
 # atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure | adaptive
 # atmosphere-mode = disabled
 # atmosphere-regime = calm
-
 # Controlled atmosphere example:
 # atmosphere-mode = controlled-live
 # atmosphere-regime = adaptive
-
 # Glitch behavior is fully owned by --glitch-level (none|subtle|default|intense).
 # The preset controls glitch percent, stream decay, fragmented stream chance,
 # and stream layering automatically — there are no separate config keys.
 
 # Custom Configuration (advanced, optional)
-#
-# The sections below define user-named custom resources. They are
-# loaded via CLI flags (--scene-custom, --colors-custom) and do not
-# affect the standard settings above. Moved to the bottom of the file
-# to keep the main config clean and the override priority obvious.
+# Sections below define user-named custom resources. They are loaded via
+# CLI flags (--scene-custom, --colors-custom) and do not affect standard
+# settings above. Moved to bottom to keep the main config clean.
 #
 # Ordering Rules (v25.7 — forgiving parser):
 #   Once you write a [section] header (e.g. [scene-custom.hacker-mode]),
 #   every flat key AFTER it belongs to that section until the next header.
-#   This is TOML standard behavior. If you accidentally nest a top-level
-#   key (e.g. adaptive-custom.02-00) under a [section], cosmostrix v25.7+
-#   auto-promotes it to root scope and tells you via --testconf.
-#   For clarity, prefer writing top-level keys BEFORE any [section] block.
+#   If you accidentally nest a top-level key (e.g. adaptive-custom.02-00)
+#   under a [section], cosmostrix v25.7+ auto-promotes it to root scope
+#   and tells you via --testconf. For clarity, prefer writing top-level
+#   keys BEFORE any [section] block.
 #
 # Working Example (scene-custom + adaptive-custom together):
 #   adaptive-custom.02-00 = cosmos, monolith, speed=15
@@ -635,7 +624,6 @@ pub fn dump_config_text() -> &'static str {
 #   speed = 28
 #
 # Custom Scene Definitions
-#
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>.
 # Fields: color, charset, fps, speed, density, density-map, glitch-level,
 #         monolith-size, color-bg, atmosphere-mode, atmosphere-regime.
@@ -680,31 +668,27 @@ pub fn dump_config_text() -> &'static str {
 # density = 0.85
 # density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
 
-# Adaptive Custom Time Map
-#
-# Optional. Overrides the default 5-phase adaptive engine.
+# Adaptive Custom Time Map (optional)
+# Overrides the default 5-phase adaptive engine.
 # Format: H-M = color, scene, key=value, ... (flexible digits: 2-3, 02-03, 14-5)
 # Parameters not specified are sticky (keep previous value).
 # Transition: smooth 5-minute blend before next time point.
 # Checked every 30s at runtime; live config reload re-parses immediately.
-
 # adaptive-custom.00-00 = cosmos, monolith, speed=15, density=1.2
 # adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
 # adaptive-custom.12-00 = cosmos, monolith, speed=30, density=0.85
 # adaptive-custom.18-00 = neon, storm, speed=24, density=1.1
 
 # Custom Color Palettes (optional, v16+)
-#
 # Define named custom palettes usable from --colors-custom or adaptive-custom.
-# Hex values use standard #rrggbb notation.
-#
+# Hex values use standard #rrggbb notation. ALWAYS quote hex strings: "#ff0000"
+# (unquoted # is treated as a TOML comment, silently truncating the value).
 # Fields:
 #   bg   — background color (optional)
 #   rain — array of 7 hex gradient stops (tail → head order).
 #   Format: rain = ["#stop0", "#stop1", ..., "#stop6"]
 #   Also accepts CSV string: rain = "#stop0, #stop1, ..."
 #   Minimum 2 stops required; 7 stops recommended for full 3-2-2 distribution.
-#
 # Load with: cosmostrix --colors-custom mytheme
 # Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith
 
@@ -721,15 +705,12 @@ pub fn dump_config_text() -> &'static str {
 # ]
 
 # Custom Character Sets (optional, v25+)
-#
 # Define named custom charsets usable from --charset or charset = "name".
 # Replaces the legacy --charset-file CLI flag — charset lives in config.toml.
-#
 # Fields:
 #   set — literal string of characters to use as the rain glyph pool.
 #   Whitespace (except ASCII space) skipped. Control chars + chars >256-cap
 #   rejected with error. Wide/zero-width (emoji, CJK fullwidth) auto-filtered.
-#
 # Load with: cosmostrix --charset cat   (or: charset = "cat" in config)
 # Custom names take precedence over built-in presets with the same name.
 # Live reload: editing the block takes effect on the next config save.
@@ -766,17 +747,8 @@ fn is_known_key(key: &str) -> bool {
         || is_color_tune_key(key)
 }
 
-/// Check if `key` matches the `colors-custom.<name>.<field>` pattern.
-///
-/// Recognized fields (v16):
-/// - `bg` / `background` — background color (hex)
-/// - `normal.red`, `normal.green`, `normal.blue` — core normal colors
-/// - `normal.yellow`, `normal.cyan`, `normal.magenta`, `normal.white` — extended normal
-/// - `bright.red`, `bright.green`, `bright.blue` — core bright colors
-/// - `bright.yellow`, `bright.cyan`, `bright.magenta`, `bright.white` — extended bright
-/// - `head` — head (brightest) color (hex) — cosmostrix-specific
-/// - `stops` — hex gradient stops (array or CSV format) — cosmostrix-specific
-///
+/// Check if `key` matches `colors-custom.<name>.<field>` pattern.
+/// Recognized fields: bg/background, rain (and legacy normal/bright/head/stops).
 /// Name must be non-empty, ASCII alphanumeric + `-`/`_` only.
 #[inline]
 /// v17: Check if key matches `color.tune.<field>` pattern.
@@ -820,15 +792,10 @@ fn is_valid_colors_custom_field(field: &str) -> bool {
     matches!(field, "bg" | "background" | "rain")
 }
 
-/// Check if `key` matches the `charset-custom.<name>.set` pattern.
-///
-/// v25: replaces the legacy `--charset-file <PATH>` CLI flag with an
-/// in-config block. Only the `set` field is recognized — any other
-/// field under `[charset-custom.<name>]` is rejected as unknown by
-/// `is_known_key()` so the user gets a clear `--testconf` error.
-///
-/// Name must be non-empty, ASCII alphanumeric + `-`/`_` only (same rule
-/// as `colors-custom`).
+/// Check if `key` matches `charset-custom.<name>.set` pattern.
+/// v25: replaces legacy `--charset-file <PATH>` CLI flag. Only `set`
+/// field is recognized. Name must be non-empty, ASCII alphanumeric +
+/// `-`/`_` only (same rule as `colors-custom`).
 #[inline]
 fn is_charset_custom_key(key: &str) -> bool {
     let Some(rest) = key.strip_prefix("charset-custom.") else {
@@ -886,6 +853,31 @@ fn strip_inline_comment(line: &str) -> &str {
         }
     }
     line
+}
+
+/// v25.9 (bug #7): Detect unquoted '#' INSIDE an array value.
+/// Returns `Some(byte_idx)` if the line has an unquoted '#' while bracket
+/// depth > 0. Catches `rain = [#ff0000, #00ff00]` (user mistake — should
+/// quote hex). Returns `None` for legitimate cases: quoted '#' inside
+/// strings, or '#' AFTER the closing ']' (trailing comment).
+#[inline]
+pub(crate) fn unquoted_hash_inside_array(line: &str) -> Option<usize> {
+    let mut in_dquote = false;
+    let mut in_squote = false;
+    let mut bracket_depth: i32 = 0;
+    for (i, ch) in line.char_indices() {
+        match ch {
+            '"' if !in_squote => in_dquote = !in_dquote,
+            '\'' if !in_dquote => in_squote = !in_squote,
+            '[' if !in_dquote && !in_squote => bracket_depth += 1,
+            ']' if !in_dquote && !in_squote => bracket_depth -= 1,
+            '#' if !in_dquote && !in_squote && bracket_depth > 0 => {
+                return Some(i);
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 #[cfg(test)]
