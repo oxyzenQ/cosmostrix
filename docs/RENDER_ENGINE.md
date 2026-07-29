@@ -15,6 +15,80 @@ rendering strategies.
 
 ---
 
+## 0. Source of Truth — Flat Engine Topology (Non-Negotiable)
+
+The Cosmic Dragon Diff-Based Rendering Engine is **three files, flat at
+the crate root**, and that is the end of the discussion.
+
+| File | LOC | Role |
+|------|----:|------|
+| `src/frame.rs` | 388 | Differential frame buffer with double-buffered generation-based dirty tracking |
+| `src/terminal.rs` | 974 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 64 KiB single-syscall flush |
+| `src/runtime.rs` | 91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode` |
+
+Total: 1,453 LOC. Imported by **54 files** across `src/` (frame: 25
+import lines, terminal: 10, runtime: 34). These are not a subsystem —
+they are the **substrate** every rendering path stands on. Foundations
+do not get relocated; they get maintained.
+
+### Why not a folder?
+
+A folder wrapper was tried once. `src/cosmic_dragon_engine/` was created
+in commit `4e2ebe7` as a pure re-export module. It had zero callers. It
+was deleted as dead code in commit `46ba457`. The lesson is now
+codified in `src/cosmic_dragon/README.md`:
+
+> An incubator namespace must hold *real new code*, not re-exports of
+> existing code.
+
+Moving `frame` / `terminal` / `runtime` into an `engine/` folder would
+be the same mistake at a larger scale: a 54-file churn commit
+(`crate::frame` → `crate::engine::frame`) with **zero behavior change**,
+pure rename noise, and a high regression surface — for the cosmetic
+gain of "the engine has a folder." The engine does not need a folder.
+The engine needs to stay fast, and fast means fewer indirections and
+shorter import paths.
+
+### Policy
+
+This is a hard policy, not a preference.
+
+1. **`frame`, `terminal`, and `runtime` stay at the crate root.**
+   Forever. No `engine/` folder. No `render/` folder. No `core/`
+   folder. They are crate-level primitives, like `crossterm::event` or
+   `std::io`.
+2. **Patches land in place.** New rendering optimizations extend the
+   existing files (under the 1,500-LOC cap, splitting if needed) —
+   they do not branch into a new namespace.
+3. **Additive growth goes to `src/cosmic_dragon/`.** The incubator
+   namespace exists for new v15+ features. The flat engine is not
+   v15+ — it is the foundation. Foundations are not relocated; they
+   are maintained.
+4. **A reorganization commit will be rejected at review.** If you
+   find yourself reaching for `git mv src/frame.rs src/engine/frame.rs`,
+   stop. Read commit `46ba457`. Read this section. Open a doc issue
+   instead.
+
+### The brand already lives in the right place
+
+"The Cosmic Dragon Diff-Based Rendering Engine" is the engine's
+identity. That identity is expressed in:
+
+- `src/bench_report.rs` — the engine name printed in benchmark output
+- `docs/RENDER_ENGINE.md` — this document
+- `docs/COSMIC_DRAGON_ARCHITECTURE.md` — architectural narrative
+- `src/cosmic_dragon/README.md` — incubator policy
+- `CHANGELOG.md` — historical milestones
+- `README.md` — top-level project description
+
+A folder is not one of them. The brand is in the docs and the code's
+behavior, not in the directory tree. Competitors who want to copy this
+engine will copy the three files and the docs — not the folder they
+live in. Keeping the layout flat makes the engine easier to lift,
+study, and cite, not harder.
+
+---
+
 ## 1. Problem Statement
 
 Terminal emulators are byte-stream interpreters. Every visual change
