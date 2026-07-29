@@ -10,8 +10,14 @@
 //! ## Lifecycle
 //!
 //! ```text
-//! Idle → Pending → Spawn → Active → Decay → Finished → Idle
+//! Active → Decay → (recycle when is_finished())
 //! ```
+//!
+//! The full Idle/Pending/Spawn/Finished pipeline documented in earlier
+//! revisions was aspirational — only Active and Decay are actually
+//! produced by event implementations, and `is_finished()` drives
+//! recycling. Variants for the unimplemented phases were removed in
+//! the v25.0.0-alpha.4 dead-code audit.
 use super::events::GhostEvent;
 use crate::constants::*;
 use crate::frame::Frame;
@@ -22,21 +28,16 @@ use std::time::Instant;
 
 // ── Public types ──────────────────────────────────────────────────────────
 /// Lifecycle state of an atmospheric event.
-#[allow(dead_code)]
+///
+/// Only `Active` and `Decay` are produced by current event implementations;
+/// `is_finished()` drives recycling. The aspirational Idle/Pending/Spawn/
+/// Finished pipeline was removed in the v25.0.0-alpha.4 dead-code audit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EventState {
-    /// No event scheduled.
-    Idle,
-    /// Trigger fired, awaiting next frame for spawn.
-    Pending,
-    /// Spawning — precomputing paths/buffers (one frame).
-    Spawn,
     /// Rendering at full intensity each frame.
     Active,
     /// Fading out via phosphor integration.
     Decay,
-    /// Complete; buffers will be recycled next frame.
-    Finished,
 }
 
 /// Read-only rendering context passed to event `render()` methods.
@@ -66,12 +67,6 @@ pub trait AtmosphericEvent: Send {
     fn state(&self) -> EventState;
     /// Returns true when the event has finished and can be recycled.
     fn is_finished(&self) -> bool;
-    /// Returns (active_duration_ms, decay_duration_ms).
-    #[allow(dead_code)]
-    fn phase_durations_ms(&self) -> (u64, u64);
-    /// Estimated memory footprint in bytes (for monitoring).
-    #[allow(dead_code)]
-    fn memory_footprint(&self) -> usize;
     /// Called each frame. Updates internal phase state based on elapsed time.
     fn update(&mut self, now: Instant);
 
@@ -140,12 +135,6 @@ impl AtmosphericEventManager {
     /// Enable atmospheric events (called when entering interactive mode).
     pub fn enable_events(&mut self) {
         self.events_enabled = true;
-    }
-
-    /// Returns the number of active events.
-    #[allow(dead_code)]
-    pub fn active_count(&self) -> usize {
-        self.events.len()
     }
 
     // ── Trigger Evaluation ────────────────────────────────────────────────

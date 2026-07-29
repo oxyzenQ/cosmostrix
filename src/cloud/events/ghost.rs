@@ -50,12 +50,6 @@ impl AtmosphericEvent for GhostEvent {
     fn is_finished(&self) -> bool {
         self.spawn_time.elapsed() >= self.duration
     }
-    fn phase_durations_ms(&self) -> (u64, u64) {
-        (2000, 2000)
-    }
-    fn memory_footprint(&self) -> usize {
-        128
-    }
     fn update(&mut self, _now: Instant) {}
 
     fn render(&self, ctx: &EventCtx, frame: &mut Frame) {
