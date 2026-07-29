@@ -511,6 +511,34 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
             "true" | "false" => None,
             _ => Some(format!("expected true/false, got '{v}'")),
         },
+        // v25.14 (bug #17): intro selector — must match the clap ValueEnum
+        // accepted by `--intro`. Previously this fell through to the
+        // catch-all `_ => None` arm, so `intro = "blah"` passed strict
+        // validation silently and only got caught at runtime by
+        // `IntroType::from_str` in config_apply.rs (which prints an error
+        // to stderr but does NOT reject the config). Now strict validation
+        // catches it the same way as `monolith-size` / `glitch-level` /
+        // `color-bg` — startup, --testconf, and live-reload all reject
+        // uniformly.
+        "intro" => match v {
+            "cosmic" | "logo" | "none" => None,
+            _ => Some(format!(
+                "expected cosmic/logo/none, got '{v}' (run `cosmostrix --help` for valid intro types)"
+            )),
+        },
+        // v25.14 (bug #17): the bare `adaptive-custom` key is a NAMESPACING
+        // marker in USER_CONFIG_KEYS (so config_hints can detect mis-nested
+        // keys like `color.tune.adaptive-custom`), not a usable config key
+        // by itself. Real keys use the `adaptive-custom.HH-MM` format.
+        // Before this fix, `adaptive-custom = "foo"` passed strict
+        // validation silently and was silently ignored at runtime — the
+        // user got zero feedback that their custom schedule was never
+        // applied. Reject loudly with a format hint.
+        "adaptive-custom" => Some(
+            "adaptive-custom is not a valid key by itself — use 'adaptive-custom.HH-MM = ...' \
+             (e.g. adaptive-custom.02-00 = cosmos, monolith, speed=15)"
+                .to_string(),
+        ),
 
         // Keys we don't have a specific validator for — assume OK.
         // Unknown keys are caught earlier by the unknown_keys check.
@@ -597,6 +625,106 @@ mod tests {
                 "'{v}' should be a valid charset"
             );
         }
+    }
+
+    // ── v25.14 (bug #17): intro selector validation ──
+
+    #[test]
+    fn intro_typo_is_rejected() {
+        let msg = validate_field_value("intro", "logoo");
+        assert!(msg.is_some(), "'logoo' (typo) must be rejected for intro");
+        let msg = msg.expect("checked Some above");
+        assert!(
+            msg.contains("cosmic/logo/none"),
+            "error must list valid intro types: {msg}"
+        );
+        assert!(
+            msg.contains("--help"),
+            "error must point to --help for discovery: {msg}"
+        );
+    }
+
+    #[test]
+    fn intro_valid_values_pass() {
+        for v in ["cosmic", "logo", "none"] {
+            assert!(
+                validate_field_value("intro", v).is_none(),
+                "'{v}' should be a valid intro"
+            );
+        }
+    }
+
+    #[test]
+    fn intro_case_sensitive_typo_is_rejected() {
+        // Strict validation is intentionally case-sensitive (canonical form
+        // only) so users get one consistent spelling. Production's clap
+        // ValueEnum is case-insensitive, but config.toml should use the
+        // canonical lowercase form documented in --help.
+        assert!(
+            validate_field_value("intro", "Logo").is_some(),
+            "'Logo' (wrong case) must be rejected — config.toml uses canonical lowercase"
+        );
+        assert!(
+            validate_field_value("intro", "COSMIC").is_some(),
+            "'COSMIC' (wrong case) must be rejected — config.toml uses canonical lowercase"
+        );
+    }
+
+    #[test]
+    fn intro_empty_value_is_rejected() {
+        assert!(
+            validate_field_value("intro", "").is_some(),
+            "empty intro must be rejected"
+        );
+        assert!(
+            validate_field_value("intro", "   ").is_some(),
+            "whitespace-only intro must be rejected"
+        );
+    }
+
+    // ── v25.14 (bug #17): bare adaptive-custom key rejection ──
+
+    #[test]
+    fn adaptive_custom_bare_key_is_rejected() {
+        // The bare `adaptive-custom` key is a namespace marker, not a real
+        // config key. Real keys use `adaptive-custom.HH-MM` format.
+        let msg = validate_field_value("adaptive-custom", "cosmos, monolith");
+        assert!(
+            msg.is_some(),
+            "bare 'adaptive-custom' key must be rejected — only adaptive-custom.HH-MM is valid"
+        );
+        let msg = msg.expect("checked Some above");
+        assert!(
+            msg.contains("adaptive-custom.HH-MM"),
+            "error must show the correct format: {msg}"
+        );
+        assert!(
+            msg.contains("02-00"),
+            "error must include a concrete example: {msg}"
+        );
+    }
+
+    #[test]
+    fn adaptive_custom_bare_key_rejects_any_value() {
+        // Even an empty value must be rejected — the key itself is wrong.
+        assert!(validate_field_value("adaptive-custom", "").is_some());
+        assert!(validate_field_value("adaptive-custom", "anything").is_some());
+    }
+
+    #[test]
+    fn adaptive_custom_bare_key_end_to_end_via_validate_config_strictly() {
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("adaptive-custom".to_string(), "cosmos".to_string());
+        let result = validate_config_strictly(&cfg);
+        assert!(
+            result.is_err(),
+            "validate_config_strictly must reject bare adaptive-custom key"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("adaptive-custom.HH-MM"),
+            "error must show the correct format, got: {err}"
+        );
     }
 
     // ── Numeric range validation ──
@@ -857,5 +985,40 @@ mod tests {
         let mut cfg2 = std::collections::HashMap::new();
         cfg2.insert("color.tune.brightness".to_string(), "1.5".to_string());
         assert!(validate_config_strictly(&cfg2).is_ok());
+    }
+
+    /// v25.14 (bug #17): end-to-end check that `validate_config_strictly`
+    /// rejects an invalid `intro` value the same way it rejects an OOR
+    /// `color.tune.brightness`. Before the fix, this passed silently and
+    /// the user only saw a stderr warning at runtime (which doesn't stop
+    /// startup or live-reload).
+    #[test]
+    fn intro_end_to_end_via_validate_config_strictly() {
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("intro".to_string(), "splash".to_string());
+        let result = validate_config_strictly(&cfg);
+        assert!(
+            result.is_err(),
+            "validate_config_strictly must reject intro=splash"
+        );
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("cosmic/logo/none"),
+            "error must list valid intro types, got: {err}"
+        );
+        assert!(
+            err.contains("splash"),
+            "error must echo the bad value, got: {err}"
+        );
+
+        // Each valid value passes end-to-end.
+        for v in ["cosmic", "logo", "none"] {
+            let mut cfg2 = std::collections::HashMap::new();
+            cfg2.insert("intro".to_string(), v.to_string());
+            assert!(
+                validate_config_strictly(&cfg2).is_ok(),
+                "intro={v} must pass strict validation"
+            );
+        }
     }
 }
