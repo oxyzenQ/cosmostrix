@@ -4,10 +4,17 @@
 //! Quantum Ripple dynamic-color tests.
 //!
 //! Verifies that each spawned QuantumParticle snapshots the active
-//! palette's head color at birth, and that this snapshot is preserved
-//! across palette switches — producing a natural crossfade where the
-//! old cohort fades out in its original color while new clicks spawn
-//! particles in the new color.
+//! palette's **body** color (middle index) at birth, and that this
+//! snapshot is preserved across palette switches — producing a natural
+//! crossfade where the old cohort fades out in its original body color
+//! while new clicks spawn particles in the new body color.
+//!
+//! We snapshot the body stop (`colors[len/2]`) rather than the head
+//! stop (`colors.last()`) because the head is intentionally near-white
+//! across most schemes (Green head = `(201, 244, 210)`, Blue head =
+//! `(190, 223, 242)`) to give droplets their bright leading edge.
+//! Using the head made every click look white; the body stop is the
+//! saturated hue the eye reads as "the rain color".
 //!
 //! These tests use `ColorMode::TrueColor` because the default `make_cloud()`
 //! helper uses `ColorMode::Mono`, which degrades every palette to a single
@@ -28,7 +35,7 @@ use crate::palette::decode_color;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
-/// Build a TrueColor cloud so palette head colors are distinct per scheme.
+/// Build a TrueColor cloud so palette body colors are distinct per scheme.
 fn make_truecolor_cloud(scheme: ColorScheme) -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
@@ -44,13 +51,14 @@ fn make_truecolor_cloud(scheme: ColorScheme) -> Cloud {
     cloud
 }
 
-/// Decode the head color (last stop) of a cloud's active palette.
-/// Returns the brand-purple fallback if the head is not decodable.
-fn palette_head_rgb(cloud: &Cloud) -> (u8, u8, u8) {
+/// Decode the body color (middle stop) of a cloud's active palette.
+/// Returns the brand-purple fallback if the body is not decodable.
+fn palette_body_rgb(cloud: &Cloud) -> (u8, u8, u8) {
+    let idx = cloud.palette.colors.len() / 2;
     cloud
         .palette
         .colors
-        .last()
+        .get(idx)
         .and_then(|c| decode_color(*c))
         .unwrap_or((
             QUANTUM_BRAND_PURPLE_R,
@@ -83,7 +91,7 @@ fn quantum_pool_init_seeds_brand_purple_default() {
     // Inactive pool entries must have a valid default color so the
     // struct is never in an indeterminate state. The default matches
     // the brand-purple fallback used when a palette has no decodable
-    // head stop.
+    // body stop.
     let cloud = make_truecolor_cloud(ColorScheme::Green);
     for p in &cloud.quantum_particles {
         assert!(!p.active, "pool entries must start inactive");
@@ -103,12 +111,12 @@ fn quantum_pool_init_seeds_brand_purple_default() {
 }
 
 #[test]
-fn quantum_particle_snapshots_palette_head_color_at_spawn() {
+fn quantum_particle_snapshots_palette_body_color_at_spawn() {
     // Clicking must spawn particles whose r/g/b match the active
-    // palette's head color. This is the core invariant: the snapshot
-    // is taken once at spawn time and stored per-particle.
+    // palette's body color (middle index). This is the core invariant:
+    // the snapshot is taken once at spawn time and stored per-particle.
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
-    let expected = palette_head_rgb(&cloud);
+    let expected = palette_body_rgb(&cloud);
     assert_ne!(
         expected,
         (
@@ -116,7 +124,7 @@ fn quantum_particle_snapshots_palette_head_color_at_spawn() {
             QUANTUM_BRAND_PURPLE_G,
             QUANTUM_BRAND_PURPLE_B
         ),
-        "test setup: Green TrueColor head should not equal the brand-purple fallback"
+        "test setup: Green TrueColor body should not equal the brand-purple fallback"
     );
 
     cloud.set_mouse_click(5, 5);
@@ -134,7 +142,37 @@ fn quantum_particle_snapshots_palette_head_color_at_spawn() {
         assert_eq!(
             (p.r, p.g, p.b),
             expected,
-            "active particle must snapshot palette head color at spawn"
+            "active particle must snapshot palette body color at spawn"
+        );
+    }
+}
+
+#[test]
+fn quantum_body_color_differs_from_head_color() {
+    // Regression guard: the body color used for ripple snapshots must
+    // NOT equal the head color. If it does, the snapshot logic has
+    // regressed back to `colors.last()`. The head stop is intentionally
+    // near-white across most schemes; the body stop is the saturated
+    // rain hue. They must differ for every scheme we ship.
+    for &scheme in &[
+        ColorScheme::Green,
+        ColorScheme::Red,
+        ColorScheme::Blue,
+        ColorScheme::Cyan,
+        ColorScheme::Orange,
+    ] {
+        let cloud = make_truecolor_cloud(scheme);
+        let body = palette_body_rgb(&cloud);
+        let head = cloud
+            .palette
+            .colors
+            .last()
+            .and_then(|c| decode_color(*c))
+            .unwrap_or((0, 0, 0));
+        assert_ne!(
+            body, head,
+            "{scheme:?}: body color {body:?} must differ from head color {head:?} \
+             — if they match, ripple particles will look white again"
         );
     }
 }
@@ -146,17 +184,17 @@ fn quantum_particle_retains_snapshot_after_palette_switch() {
     // newly-spawned particles (from clicks after the switch) pick up the
     // new color. This is what produces the natural crossfade.
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
-    let old_head = palette_head_rgb(&cloud);
+    let old_body = palette_body_rgb(&cloud);
 
     cloud.set_mouse_click(5, 5);
 
     cloud.set_color_scheme(ColorScheme::Red);
     force_complete_transition(&mut cloud);
 
-    let new_head = palette_head_rgb(&cloud);
+    let new_body = palette_body_rgb(&cloud);
     assert_ne!(
-        new_head, old_head,
-        "test setup requires Green and Red TrueColor palettes to have different head colors"
+        new_body, old_body,
+        "test setup requires Green and Red TrueColor palettes to have different body colors"
     );
 
     // The particles spawned BEFORE the switch must still carry the old color.
@@ -166,7 +204,7 @@ fn quantum_particle_retains_snapshot_after_palette_switch() {
         }
         assert_eq!(
             (p.r, p.g, p.b),
-            old_head,
+            old_body,
             "particles spawned before palette switch must retain their original snapshot"
         );
     }
@@ -175,17 +213,17 @@ fn quantum_particle_retains_snapshot_after_palette_switch() {
 #[test]
 fn quantum_particle_after_switch_new_clicks_use_new_color() {
     // After a palette switch completes, subsequent clicks must spawn
-    // particles with the NEW palette head color. This complements the
+    // particles with the NEW palette body color. This complements the
     // retain-snapshot test: old particles keep old color, new particles
     // get new color.
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
-    let old_head = palette_head_rgb(&cloud);
+    let old_body = palette_body_rgb(&cloud);
 
     cloud.set_color_scheme(ColorScheme::Red);
     force_complete_transition(&mut cloud);
 
-    let new_head = palette_head_rgb(&cloud);
-    assert_ne!(new_head, old_head, "palettes must differ for this test");
+    let new_body = palette_body_rgb(&cloud);
+    assert_ne!(new_body, old_body, "palettes must differ for this test");
 
     cloud.set_mouse_click(5, 5);
 
@@ -195,8 +233,8 @@ fn quantum_particle_after_switch_new_clicks_use_new_color() {
         }
         assert_eq!(
             (p.r, p.g, p.b),
-            new_head,
-            "particles spawned after palette switch must use the new head color"
+            new_body,
+            "particles spawned after palette switch must use the new body color"
         );
     }
 }
@@ -207,7 +245,7 @@ fn quantum_crossfade_two_cohorts_coexist_with_distinct_colors() {
     // palette B mid-flight, then click again. Both cohorts must coexist
     // with their respective snapshot colors until the old one expires.
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
-    let head_a = palette_head_rgb(&cloud);
+    let body_a = palette_body_rgb(&cloud);
 
     // First click — cohort A born.
     cloud.set_mouse_click(2, 2);
@@ -218,8 +256,8 @@ fn quantum_crossfade_two_cohorts_coexist_with_distinct_colors() {
     cloud.set_color_scheme(ColorScheme::Blue);
     force_complete_transition(&mut cloud);
 
-    let head_b = palette_head_rgb(&cloud);
-    assert_ne!(head_b, head_a, "palettes must differ for crossfade test");
+    let body_b = palette_body_rgb(&cloud);
+    assert_ne!(body_b, body_a, "palettes must differ for crossfade test");
 
     // Second click — cohort B born. The pool must have enough free slots
     // to accommodate both cohorts (pool size = 64, each click = 20).
@@ -232,13 +270,13 @@ fn quantum_crossfade_two_cohorts_coexist_with_distinct_colors() {
             continue;
         }
         let rgb = (p.r, p.g, p.b);
-        if rgb == head_a {
+        if rgb == body_a {
             cohort_a_particles += 1;
-        } else if rgb == head_b {
+        } else if rgb == body_b {
             cohort_b_particles += 1;
         } else {
             panic!(
-                "active particle has unexpected color {rgb:?}, expected either {head_a:?} or {head_b:?}"
+                "active particle has unexpected color {rgb:?}, expected either {body_a:?} or {body_b:?}"
             );
         }
     }
@@ -260,7 +298,7 @@ fn quantum_apply_does_not_mutate_snapshot_after_palette_switch() {
     // unchanged by the render pass — i.e. apply_quantum_ripple is a
     // pure reader of p.r/g/b and never writes back to those fields.
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
-    let old_head = palette_head_rgb(&cloud);
+    let old_body = palette_body_rgb(&cloud);
 
     cloud.set_mouse_click(3, 3);
     let snapshot_before: Vec<(u8, u8, u8)> = cloud
@@ -274,8 +312,8 @@ fn quantum_apply_does_not_mutate_snapshot_after_palette_switch() {
     cloud.set_color_scheme(ColorScheme::Red);
     force_complete_transition(&mut cloud);
 
-    let new_head = palette_head_rgb(&cloud);
-    assert_ne!(new_head, old_head);
+    let new_body = palette_body_rgb(&cloud);
+    assert_ne!(new_body, old_body);
 
     // Render one more frame — apply_quantum_ripple must run and must
     // NOT mutate any particle's snapshot color.
@@ -295,10 +333,10 @@ fn quantum_apply_does_not_mutate_snapshot_after_palette_switch() {
         snapshot_before, snapshot_after,
         "render pass must not mutate particle snapshot colors"
     );
-    // And the snapshot must still be the OLD head, not the new one.
+    // And the snapshot must still be the OLD body, not the new one.
     for rgb in &snapshot_after {
         assert_eq!(
-            *rgb, old_head,
+            *rgb, old_body,
             "particles must retain old snapshot after render under new palette"
         );
     }
@@ -381,7 +419,7 @@ fn quantum_active_count_counter_tracks_pool_state() {
 fn quantum_particle_snapshot_matches_an_actual_palette_stop() {
     // Guard against a regression where the snapshot accidentally
     // stores Color::Reset (which decode_color returns None for) or
-    // some synthetic color not present in the palette. The head stop
+    // some synthetic color not present in the palette. The body stop
     // of a real palette is always a concrete RGB color, so the snapshot
     // must always match one of the palette's actual stops exactly.
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
@@ -407,11 +445,13 @@ fn quantum_particle_snapshot_matches_an_actual_palette_stop() {
             palette_stops.contains(&rgb),
             "particle snapshot {rgb:?} must match one of the palette's actual stops {palette_stops:?}"
         );
-        // The snapshot must equal the LAST stop (head), not just any stop.
+        // The snapshot must equal the BODY stop (middle index), not the
+        // head (last) or any other stop.
+        let body_idx = palette_stops.len() / 2;
         assert_eq!(
             rgb,
-            palette_stops[palette_stops.len() - 1],
-            "particle snapshot must equal the head (last) stop, not a lower-index stop"
+            palette_stops[body_idx],
+            "particle snapshot must equal the body (mid-index) stop, not the head or any other stop"
         );
         // Reset color must never appear as a snapshot.
         assert_ne!(
@@ -426,19 +466,19 @@ fn quantum_particle_snapshot_matches_an_actual_palette_stop() {
 fn quantum_particle_snapshot_is_independent_of_other_schemes() {
     // Verify the snapshot is taken from the cloud's CURRENT palette at
     // spawn time, not from some global default. Build a cloud, snapshot
-    // its head, then build a different-scheme cloud and verify the two
-    // heads differ — proving the snapshot would also differ.
+    // its body, then build a different-scheme cloud and verify the two
+    // bodies differ — proving the snapshot would also differ.
     let green = make_truecolor_cloud(ColorScheme::Green);
     let red = make_truecolor_cloud(ColorScheme::Red);
     let blue = make_truecolor_cloud(ColorScheme::Blue);
 
-    let g_head = palette_head_rgb(&green);
-    let r_head = palette_head_rgb(&red);
-    let b_head = palette_head_rgb(&blue);
+    let g_body = palette_body_rgb(&green);
+    let r_body = palette_body_rgb(&red);
+    let b_body = palette_body_rgb(&blue);
 
-    assert_ne!(g_head, r_head, "Green vs Red head must differ");
-    assert_ne!(g_head, b_head, "Green vs Blue head must differ");
-    assert_ne!(r_head, b_head, "Red vs Blue head must differ");
+    assert_ne!(g_body, r_body, "Green vs Red body must differ");
+    assert_ne!(g_body, b_body, "Green vs Blue body must differ");
+    assert_ne!(r_body, b_body, "Red vs Blue body must differ");
 
     // Now spawn particles in each and verify they carry scheme-correct snapshots.
     let mut green = green;
@@ -452,8 +492,8 @@ fn quantum_particle_snapshot_is_independent_of_other_schemes() {
         if p.active {
             assert_eq!(
                 (p.r, p.g, p.b),
-                g_head,
-                "green-cloud particles must snapshot green head"
+                g_body,
+                "green-cloud particles must snapshot green body"
             );
         }
     }
@@ -461,8 +501,8 @@ fn quantum_particle_snapshot_is_independent_of_other_schemes() {
         if p.active {
             assert_eq!(
                 (p.r, p.g, p.b),
-                r_head,
-                "red-cloud particles must snapshot red head"
+                r_body,
+                "red-cloud particles must snapshot red body"
             );
         }
     }
@@ -470,8 +510,8 @@ fn quantum_particle_snapshot_is_independent_of_other_schemes() {
         if p.active {
             assert_eq!(
                 (p.r, p.g, p.b),
-                b_head,
-                "blue-cloud particles must snapshot blue head"
+                b_body,
+                "blue-cloud particles must snapshot blue body"
             );
         }
     }

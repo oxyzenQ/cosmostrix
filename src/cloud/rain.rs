@@ -817,11 +817,15 @@ impl Cloud {
     /// Active particles move outward radially, fade based on age
     /// (bright at birth → dim at lifespan end), and are rendered as
     /// glyphs (*, +, ·) tinted by each particle's snapshot of the
-    /// palette head color captured at spawn time. When the user
-    /// switches color theme mid-flight, the existing cohort keeps
-    /// fading in its original color while only newly-spawned
-    /// particles pick up the new color — a natural crossfade.
-    /// Expired particles are deactivated (returned to the free-list).
+    /// palette body color captured at spawn time. The body stop is the
+    /// middle index of `palette.colors` — the saturated hue the eye
+    /// reads as "the rain color" (the head/last stop is intentionally
+    /// near-white to give droplets their bright leading edge, which is
+    /// why we don't snapshot it). When the user switches color theme
+    /// mid-flight, the existing cohort keeps fading in its original
+    /// body color while only newly-spawned particles pick up the new
+    /// body color — a natural crossfade. Expired particles are
+    /// deactivated (returned to the free-list).
     ///
     /// Runs O(active_particles) per frame. Cost is negligible —
     /// typically 0-20 active particles, peaking at ~40 during rapid
@@ -870,12 +874,12 @@ impl Cloud {
             };
             let cell = frame.cell_at_index(idx);
 
-            // Each particle carries the RGB snapshot of the palette head
+            // Each particle carries the RGB snapshot of the palette body
             // color it had at spawn time. Reading `p.r/p.g/p.b` here —
-            // instead of decoding `palette.colors.last()` live — means
+            // instead of decoding `palette.colors` mid-index live — means
             // a palette switch mid-flight leaves the existing cohort
-            // tinted in its original color while only newly-spawned
-            // particles pick up the new color. The two cohorts fade
+            // tinted in its original body color while only newly-spawned
+            // particles pick up the new body color. The two cohorts fade
             // out independently, producing a cinematic crossfade.
             let (pr, pg, pb) = (p.r, p.g, p.b);
 

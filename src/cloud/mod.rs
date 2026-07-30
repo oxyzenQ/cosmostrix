@@ -71,13 +71,19 @@ pub(super) struct QuantumParticle {
     pub vy: f32,
     pub birth: Instant,
     pub ch: char,
-    /// Snapshot of the palette head color (decoded RGB) at the moment
-    /// the particle was spawned. Storing this per-particle — instead
-    /// of re-reading `palette.colors.last()` every frame — produces a
-    /// natural crossfade when the user switches color theme mid-flight:
-    /// particles from the previous click keep their old color while
-    /// new particles spawn with the new color, and the two cohorts
-    /// fade out independently.
+    /// Snapshot of the palette **body** color (decoded RGB) at the moment
+    /// the particle was spawned. The body color is the saturated mid-stop
+    /// of the active palette — what the eye reads as "the rain color" —
+    /// as opposed to the head stop (last index), which is intentionally
+    /// near-white to give droplets their bright leading edge. Using the
+    /// body stop ensures ripple particles read as "sparks of the rain
+    /// itself" rather than a wash of white.
+    ///
+    /// Storing this per-particle — instead of re-decoding the palette
+    /// every frame — produces a natural crossfade when the user switches
+    /// color theme mid-flight: particles from the previous click keep
+    /// their old body color while new particles spawn with the new body
+    /// color, and the two cohorts fade out independently.
     ///
     /// Defaults to `QUANTUM_BRAND_PURPLE_*` for inactive pool entries
     /// (overwritten on spawn).
@@ -448,17 +454,25 @@ impl Cloud {
         let cy = line as f32 + 0.5;
         let now = Instant::now();
         let chars = ['*', '+', '·'];
-        // Snapshot the active palette's head color ONCE at click time.
+        // Snapshot the active palette's BODY color ONCE at click time.
+        // The body stop is the middle index of `palette.colors` — the
+        // saturated hue the eye reads as "the rain color". We avoid the
+        // head stop (last index) because it is intentionally near-white
+        // across most schemes (e.g. Green head = `(201, 244, 210)`, Blue
+        // head = `(190, 223, 242)`) to give droplets their bright leading
+        // edge; using it for ripples made every click look white.
+        //
         // Each particle spawned by this click stores this RGB triplet,
-        // so it keeps its original color even if the user switches
-        // palette mid-flight — producing a natural crossfade between
-        // the old cohort (fading out in the previous color) and the
-        // new cohort (born in the new color). Falls back to brand
-        // purple if the palette has no decodable head stop.
-        let (head_r, head_g, head_b) = self
+        // so it keeps its original color even if the user switches palette
+        // mid-flight — producing a natural crossfade between the old
+        // cohort (fading out in the previous body color) and the new
+        // cohort (born in the new body color). Falls back to brand purple
+        // if the palette has no decodable stops.
+        let body_idx = self.palette.colors.len() / 2;
+        let (body_r, body_g, body_b) = self
             .palette
             .colors
-            .last()
+            .get(body_idx)
             .and_then(|c| crate::palette::decode_color(*c))
             .unwrap_or((
                 QUANTUM_BRAND_PURPLE_R,
@@ -484,9 +498,9 @@ impl Cloud {
             p.vy = angle.sin() * speed;
             p.birth = now;
             p.ch = chars[char_idx.min(chars.len() - 1)];
-            p.r = head_r;
-            p.g = head_g;
-            p.b = head_b;
+            p.r = body_r;
+            p.g = body_g;
+            p.b = body_b;
             spawned += 1;
         }
         // Increment active count by the number actually spawned. Tracked
