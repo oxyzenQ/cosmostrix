@@ -16,7 +16,7 @@ use crate::color_cache::ColorCache;
 use crate::constants::*;
 use crate::frame::Frame;
 use crate::report::Report;
-use crate::terminal::Terminal;
+use crate::terminal::{is_terminal_gone, Terminal};
 
 use super::super::{effective_density, CloudConfig};
 use super::activity::{is_runtime_idle, register_activity, spin_wait, FrameTimeTracker};
@@ -1385,30 +1385,4 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     );
 
     Ok(())
-}
-
-/// Check if an `io::Error` indicates the terminal (PTY) was closed/destroyed.
-///
-/// Used by the main loop's `poll_event` and `draw` calls to detect that the
-/// user has closed the terminal (SIGHUP scenario). When the terminal is gone,
-/// cosmostrix must exit gracefully — any further write to stdout/stderr will
-/// fail, and `eprintln!`/`println!` would panic on the broken pipe, triggering
-/// the panic hook which (if it also uses `eprintln!`) double-panics → `abort()`
-/// → systemd-coredump.
-///
-/// Detection (cross-platform):
-/// - Unix: `EIO` (PTY master closed) or `BrokenPipe` (closed pipe)
-/// - Non-Unix: `BrokenPipe` only
-#[inline]
-fn is_terminal_gone(e: &std::io::Error) -> bool {
-    #[cfg(unix)]
-    {
-        e.raw_os_error() == Some(libc::EIO)
-            || e.raw_os_error() == Some(libc::EBADF)
-            || e.kind() == std::io::ErrorKind::BrokenPipe
-    }
-    #[cfg(not(unix))]
-    {
-        e.kind() == std::io::ErrorKind::BrokenPipe
-    }
 }

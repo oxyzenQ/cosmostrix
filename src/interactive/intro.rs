@@ -30,7 +30,7 @@ use crate::cell::Cell;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::palette::color_to_rgb;
-use crate::terminal::Terminal;
+use crate::terminal::{is_terminal_gone, Terminal};
 
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN};
 
@@ -401,20 +401,50 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 /// * SIGTERM / SIGHUP / SIGQUIT remain hard exits for users who can't or
 ///   won't press `q` (e.g. piped input, scripted kills). v25.13: Ctrl+C
 ///   (SIGINT) is deprecated — only 'q' exits cosmostrix.
+///
+/// # Terminal-gone guard
+///
+/// When the user force-closes the terminal during the intro, the PTY master
+/// disappears. `poll_event(0)` returns `Ok(true)` instantly and forever
+/// (POLLHUP makes the fd perpetually "readable"), and `read_event()` returns
+/// `Err(EIO)`. The old loop used `if let Ok(...)` for `read_event`, which
+/// silently swallowed the EIO — causing the loop to spin at 100% CPU for
+/// 20 seconds until the watchdog fired.
+///
+/// The fix mirrors the main rain loop's drain logic (`event_loop.rs`):
+/// detect EIO/EBADF/BrokenPipe from both `poll_event` and `read_event`, and
+/// return `Ok(true)` (skip intro) so the normal shutdown path runs. This
+/// drops post-SIGHUP CPU burn from 20s to < 1ms during the intro window.
 pub(super) fn should_skip() -> std::io::Result<bool> {
     if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
         return Ok(true);
     }
-    while Terminal::poll_event(Duration::from_millis(0))? {
-        if let Ok(Event::Key(key_event)) = Terminal::read_event() {
-            if is_skip_key(&key_event) {
-                return Ok(true);
+    loop {
+        match Terminal::poll_event(Duration::from_millis(0)) {
+            Ok(false) => return Ok(false),
+            Ok(true) => {}
+            Err(e) if is_terminal_gone(&e) => return Ok(true),
+            Err(e) => return Err(e),
+        }
+        match Terminal::read_event() {
+            Ok(Event::Key(key_event)) => {
+                if is_skip_key(&key_event) {
+                    return Ok(true);
+                }
+                // All other keys are drained and ignored — the intro
+                // continues playing. See `is_skip_key` for the rationale.
             }
-            // All other keys are drained and ignored — the intro
-            // continues playing. See `is_skip_key` for the rationale.
+            Ok(_) => {}
+            Err(e) if is_terminal_gone(&e) => return Ok(true),
+            Err(_) => {}
+        }
+        // Defensive: re-check the signal flag each iteration so a SIGHUP
+        // arriving mid-drain breaks the loop within one iteration rather
+        // than spinning until the next poll_event returns false.
+        if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
+            return Ok(true);
         }
     }
-    Ok(false)
 }
 
 /// Render a single particle cell at `(x, y)` with the given color,

@@ -1161,6 +1161,39 @@ pub(crate) fn open_tty_fallback() -> Option<File> {
     OpenOptions::new().write(true).open("/dev/tty").ok()
 }
 
+/// Check if an `io::Error` indicates the terminal (PTY) was closed/destroyed.
+///
+/// Used by the main loop's `poll_event`/`read_event`/`draw` calls AND by the
+/// intro's `should_skip()` drain loop to detect that the user has closed the
+/// terminal (SIGHUP scenario). When the terminal is gone, cosmostrix must
+/// exit gracefully — any further write to stdout/stderr will fail, and
+/// `eprintln!`/`println!` would panic on the broken pipe, triggering the
+/// panic hook which (if it also uses `eprintln!`) double-panics → `abort()`
+/// → systemd-coredump.
+///
+/// Detection (cross-platform):
+/// - Unix: `EIO` (PTY master closed) or `EBADF` (bad fd) or `BrokenPipe`
+/// - Non-Unix: `BrokenPipe` only
+///
+/// Shared between `event_loop.rs` (main rain loop) and `intro.rs` (cinematic
+/// intro drain loop). Both loops must detect the dead-PTY case to avoid
+/// spinning at 100% CPU for 20s until the watchdog fires — see the commit
+/// that added this docstring for the full root-cause analysis.
+#[inline]
+#[must_use]
+pub(crate) fn is_terminal_gone(e: &std::io::Error) -> bool {
+    #[cfg(unix)]
+    {
+        e.raw_os_error() == Some(libc::EIO)
+            || e.raw_os_error() == Some(libc::EBADF)
+            || e.kind() == std::io::ErrorKind::BrokenPipe
+    }
+    #[cfg(not(unix))]
+    {
+        e.kind() == std::io::ErrorKind::BrokenPipe
+    }
+}
+
 #[cfg(test)]
 mod p3_tests {
     use super::*;
