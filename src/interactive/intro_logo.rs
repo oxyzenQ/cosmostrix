@@ -81,7 +81,7 @@ const LOGO_ART: &str = concat!(
     "        :oWpd#j      ]  .    *#26C.\n",
     "      .08wdOi .    :    |      *l*6k.\n",
     "     ,hhZmi   :    |    |        ^    \n",
-    "    .hmZ0:    |  ..fW#|l          j m3i\n",
+    "    .hmZ0:    |  ..fW#|l          [ m3i\n",
     "   .mpQJi     | ,i,LdmCfTi.      I  io5u\n",
     "   lhCw;   i  Cf||1T   1lITki        IHa.\n",
     "   COQ!,   i  0Om;   :   :I|b;  |    Ipb,\n",
