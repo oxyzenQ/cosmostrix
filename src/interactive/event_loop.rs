@@ -21,8 +21,8 @@ use crate::terminal::Terminal;
 use super::super::{effective_density, CloudConfig};
 use super::activity::{is_runtime_idle, register_activity, spin_wait, FrameTimeTracker};
 use super::adaptive::{
-    adaptive_resync_interval, local_secs_since_midnight, EnduranceHealth, PhasePredictor,
-    ReclaimState,
+    adaptive_resync_interval, local_secs_since_midnight, EnduranceHealth, PerformanceSelfHealer,
+    PhasePredictor, ReclaimState, SelfHealAction,
 };
 use super::hud::HudState;
 use super::input::{handle_keybinding, PasteBurstGuard};
@@ -196,6 +196,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_ctxt_switches: u64 = 0;
     let mut last_ctxt_sample = Instant::now();
     let mut perf_rss_samples: u64 = 0;
+
+    // Performance self-healer (P1 + P2): drives auto scene downgrade when
+    // perf_pressure is sustained high, and EnduranceHealth-triggered
+    // mitigations when the composite score drops into the investigate band.
+    // See docs/research/SELF_HEALING_AUDIT.md for the design rationale.
+    let mut self_healer = PerformanceSelfHealer::new();
 
     let mut charset_preset = cfg.charset_preset.clone();
     let mut scene_name = cfg.scene_name.clone();
@@ -451,6 +457,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
+            // Live config rebuild creates a fresh Cloud — any in-flight
+            // self-healer downgrade is now moot (the new Cloud's scene is
+            // from the config, not from a prior auto-downgrade). Reset so
+            // the healer starts fresh with the new baseline.
+            self_healer.reset();
             // Rebuild color cache + frame for new palette.
             term.set_color_cache(ColorCache::new(&cloud.palette));
             frame = Frame::new(w, h, cloud.palette.bg);
@@ -483,6 +494,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Adaptive throttling: detect idle state (no input for
         // IDLE_THRESHOLD_SECS) and reduce effective FPS to save CPU.
         let loop_now = Instant::now();
+        // Capture scene name at frame start so we can detect user-initiated
+        // scene changes (via 'x' key, live config reload, or adaptive-custom)
+        // and reset the self-healer — the user's explicit choice should
+        // override any in-flight auto-downgrade.
+        let scene_name_at_frame_start = scene_name.clone();
         let reactive_idle = is_runtime_idle(last_input_time, loop_now);
         let predicted_idle = phase_predictor
             .predicts_active(local_secs_since_midnight())
@@ -1040,6 +1056,123 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 endurance_health.recompute();
             }
             perf_rss_samples = perf_rss_samples.saturating_add(1);
+        }
+
+        // Performance self-healer (P1 + P2).
+        //
+        // Called every frame after perf_pressure is finalized and (when
+        // perf_stats is on) endurance_health has been recomputed. The
+        // self-healer is a pure policy — it returns an action enum and
+        // we apply the side effects here.
+        //
+        // When perf_stats is off, endurance_health.score() stays at its
+        // initial 100.0 (no samples pushed), so P2's `score < 60` check
+        // never fires. P1 still works — it only needs perf_pressure,
+        // which is always tracked.
+        //
+        // `now` uses `loop_now` (captured at top of frame) for consistency
+        // with the rest of the timing-sensitive logic in this loop.
+
+        // If the scene was changed by user input ('x' key), live config
+        // reload, or adaptive-custom since the start of this frame, reset
+        // the self-healer. The user's explicit choice wins over any
+        // in-flight auto-downgrade. This must happen BEFORE observe() so
+        // the self-healer doesn't fire a downgrade/restore on the same
+        // frame the user switched scenes.
+        if scene_name != scene_name_at_frame_start {
+            self_healer.reset();
+        }
+
+        let heal_action = self_healer.observe(perf_pressure, loop_now, {
+            // Only pass a real score when perf_stats is on — otherwise pass
+            // None so the self-healer skips the P2 check entirely (cheaper
+            // than passing 100.0 and having it compare every frame).
+            if cfg.perf_stats {
+                Some(endurance_health.score())
+            } else {
+                None
+            }
+        });
+        match heal_action {
+            SelfHealAction::None => {}
+            SelfHealAction::TriggerHealthMitigation => {
+                // P2: force a full redraw to clear any potential stuck state,
+                // and bypass ReclaimState's cooldown to issue an immediate
+                // madvise hint. The ReclaimState is also marked so its
+                // 1-hour interval resets from this point.
+                cloud.force_draw_everything();
+                #[cfg(target_os = "linux")]
+                {
+                    // Reuse the frame buffer pointer/len computation from
+                    // the P4 reclaim path. We call hint_reclaim_pages
+                    // directly here because the self-healer's bypass is
+                    // intentional — the cooldown is enforced inside the
+                    // self-healer itself (last_health_mitigation field).
+                    let cells_ptr = frame.cells.as_ptr();
+                    let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
+                    // SAFETY: frame.cells is a valid Vec allocation; we only
+                    // pass the pointer and length to madvise which reads
+                    // metadata only, does not dereference the data.
+                    unsafe {
+                        super::adaptive::hint_reclaim_pages(
+                            cells_ptr as *const u8,
+                            cells_len,
+                        );
+                    }
+                    reclaim_state.mark_reclaimed(loop_now);
+                }
+                #[cfg(not(target_os = "linux"))]
+                {
+                    // Non-Linux: madvise is a no-op, but we still mark the
+                    // reclaim state so the regular P4 path doesn't immediately
+                    // fire on the next idle check (consistency).
+                    reclaim_state.mark_reclaimed(loop_now);
+                }
+            }
+            SelfHealAction::DowngradeScene => {
+                // P1: save the current scene, then switch to the fallback.
+                // Skip if the user is already on the fallback scene (no-op
+                // downgrade would leave us in a weird state where
+                // pre_degraded_scene == FALLBACK_SCENE).
+                if scene_name != PerformanceSelfHealer::FALLBACK_SCENE {
+                    self_healer.record_downgrade(&scene_name);
+                    let prior_scene = scene_name.clone();
+                    let new_charset = cloud.apply_scene_runtime(
+                        PerformanceSelfHealer::FALLBACK_SCENE,
+                        &charset_preset,
+                        &user_ranges,
+                        def_ascii,
+                    );
+                    scene_name = PerformanceSelfHealer::FALLBACK_SCENE.to_string();
+                    charset_preset = new_charset;
+                    // Log via write_fmt (broken-pipe-safe, same pattern as
+                    // the watchdog). Helps users understand why their scene
+                    // changed unexpectedly.
+                    use std::io::Write;
+                    let _ = std::io::stderr().write_fmt(format_args!(
+                        "[self-heal] sustained high CPU pressure — downgrading '{}' → '{}'\n",
+                        prior_scene,
+                        PerformanceSelfHealer::FALLBACK_SCENE
+                    ));
+                }
+            }
+            SelfHealAction::RestoreScene => {
+                // P1: restore the scene that was active before the downgrade.
+                if let Some(prior) = self_healer.take_pre_degraded_scene() {
+                    let new_charset = cloud.apply_scene_runtime(
+                        &prior,
+                        &charset_preset,
+                        &user_ranges,
+                        def_ascii,
+                    );
+                    scene_name = prior;
+                    charset_preset = new_charset;
+                    use std::io::Write;
+                    let _ = std::io::stderr().write_fmt(format_args!(
+                        "[self-heal] CPU pressure recovered — restoring scene\n"
+                    ));
+                }
+            }
         }
 
         // Schedule next frame relative to the ideal deadline, using the
