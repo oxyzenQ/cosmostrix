@@ -39,9 +39,10 @@ pub(super) static SHUTDOWN: std::sync::atomic::AtomicBool =
 /// The main loop checks this flag each iteration and exits cleanly, allowing
 /// `Terminal::drop()` to restore the terminal without racing on stdout.
 /// Signal handler threads simply set this flag and then block until `SHUTDOWN`
-/// is observed.  If the main loop is truly stuck, the watchdog (20 s timeout)
-/// is the sole fallback that calls `restore_terminal_best_effort()` +
-/// `process::exit()`.
+/// is observed.  If the main loop is truly stuck (e.g. crossterm 0.29's mio
+/// read() spins forever on a dead PTY — EIO/EOF don't break the inner loop),
+/// the watchdog (2 s timeout) is the sole fallback that calls
+/// `restore_terminal_best_effort()` + `process::exit()`.
 pub(crate) static GRACEFUL_SHUTDOWN: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
@@ -59,7 +60,12 @@ pub(crate) fn request_graceful_shutdown() {
 pub(super) fn spawn_watchdog() {
     let counter = &FRAME_COUNTER as &std::sync::atomic::AtomicU64;
     let shutdown = &SHUTDOWN as &std::sync::atomic::AtomicBool;
-    let mut stuck_count: u32 = 0;
+    // Track whether the main loop has started advancing the frame counter.
+    // We don't start monitoring for "stuck" until at least one frame has
+    // been rendered — this avoids false positives during the intro (which
+    // can take several seconds before the rain main loop starts).
+    let mut armed: bool = false;
+    let mut last_counter: u64 = 0;
     std::thread::spawn(move || loop {
         // Check shutdown flag before each sleep cycle
         if shutdown.load(Ordering::Acquire) {
@@ -70,38 +76,44 @@ pub(super) fn spawn_watchdog() {
             return;
         }
         let current = counter.load(Ordering::Relaxed);
-        std::thread::sleep(Duration::from_secs(WATCHDOG_INTERVAL_SECS));
-        if shutdown.load(Ordering::Acquire) {
-            return;
-        }
-        let next = counter.load(Ordering::Relaxed);
-        if current == next {
-            stuck_count += 1;
-            if stuck_count >= 2 {
-                // Main loop has been stuck for multiple check intervals.
-                // Attempt to restore the terminal so the user isn't left
-                // with a broken shell, then exit.
-                restore_terminal_best_effort();
-                // v25: use write_fmt with error discarded — eprintln!
-                // panics on broken stderr (terminal closed) → double-panic
-                // → abort → coredump. The watchdog specifically fires
-                // when the main loop is stuck, which is often caused by
-                // the terminal being gone, so this path is hot.
-                use std::io::Write;
-                let _ = std::io::stderr().write_fmt(format_args!(
-                    "[watchdog] main loop stuck for {}s — restoring terminal and exiting\n",
-                    WATCHDOG_INTERVAL_SECS * 2 * stuck_count as u64
-                ));
-                let _ = std::io::stderr().flush();
-                std::process::exit(1);
+        // Arm the watchdog once the main loop has rendered at least one
+        // frame. Before that, the counter is 0 (intro playing or startup
+        // in progress) — a "stuck" reading would be a false positive.
+        if !armed {
+            if current > 0 {
+                armed = true;
+                last_counter = current;
             }
+            continue;
+        }
+        if current == last_counter {
+            // Main loop has not advanced the frame counter in
+            // `WATCHDOG_INTERVAL_SECS` seconds. With the current value of
+            // 1s, this means 1s of zero progress — the main loop is
+            // definitely stuck (max legitimate frame period is 250ms in
+            // pause mode, so 1s = 4 missed frames).
+            //
+            // The most common cause is crossterm 0.29's mio source
+            // spinning forever inside `read()` on a dead PTY: EIO and EOF
+            // don't break the inner loop (only WouldBlock/Interrupted do),
+            // so once the user force-closes the terminal, the main thread
+            // is trapped inside `crossterm::event::read()` and never
+            // returns to check `GRACEFUL_SHUTDOWN`. The watchdog is the
+            // only escape — restore the terminal and force-exit.
+            restore_terminal_best_effort();
+            // v25: use write_fmt with error discarded — eprintln!
+            // panics on broken stderr (terminal closed) → double-panic
+            // → abort → coredump. The watchdog specifically fires
+            // when the main loop is stuck, which is often caused by
+            // the terminal being gone, so this path is hot.
             use std::io::Write;
             let _ = std::io::stderr().write_fmt(format_args!(
-                "[watchdog] main loop appears stuck (frame counter unchanged for {}s)\n",
-                WATCHDOG_INTERVAL_SECS * 2
+                "[watchdog] main loop stuck for {}s — restoring terminal and exiting\n",
+                WATCHDOG_INTERVAL_SECS
             ));
-        } else {
-            stuck_count = 0;
+            let _ = std::io::stderr().flush();
+            std::process::exit(1);
         }
+        last_counter = current;
     });
 }

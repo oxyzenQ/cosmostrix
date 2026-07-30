@@ -578,7 +578,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // silently — Terminal::drop restores alt-screen before main.rs can
             // print. Fix: treat event I/O errors as non-fatal; break the drain
             // loop and proceed to frame rendering. Persistent failures are
-            // caught by the watchdog (10s stuck detection) + GRACEFUL_SHUTDOWN.
+            // caught by the watchdog (2s stuck detection) + GRACEFUL_SHUTDOWN.
             //
             // Terminal-gone detection (EIO/EBADF/BrokenPipe): when the PTY
             // master disappears (user force-closes the terminal), poll_event

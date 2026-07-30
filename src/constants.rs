@@ -143,7 +143,20 @@ pub const SIM_BASE_MULTIPLIER: f64 = 3.0;
 pub const DENSITY_STEP: f32 = 0.25;
 
 /// Watchdog check interval in seconds.
-pub const WATCHDOG_INTERVAL_SECS: u64 = 5;
+///
+/// v25.16 (dead-PTY spin fix): reduced from 5 to 1. crossterm 0.29's mio
+/// source has a bug where `read()` on a dead PTY spins forever inside the
+/// inner loop (EIO/EOF don't break — only WouldBlock/Interrupted do). This
+/// means the main rain loop can get trapped inside `crossterm::event::read()`
+/// and never reach the `FRAME_COUNTER` increment. The watchdog is the only
+/// escape; with the old 5s interval × 2 stuck checks = 20s threshold, the
+/// user saw 10-20s of 100% CPU on terminal force-close. At 1s interval ×
+/// 2 stuck checks = 2s threshold, the spike is barely perceptible.
+///
+/// Safety: the max legitimate frame period is 250ms (pause mode), so 2s
+/// of no frame advance = 8 missed frames = definitely stuck. Even under
+/// heavy system load, frame period rarely exceeds 1s.
+pub const WATCHDOG_INTERVAL_SECS: u64 = 1;
 
 // ── Frame pacing & spin-wait tuning ──────────────────────────────────────────
 //
