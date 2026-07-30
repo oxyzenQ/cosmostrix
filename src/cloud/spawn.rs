@@ -125,6 +125,7 @@ impl Cloud {
             self.semantic_invalidate = true;
         }
         self.frames_since_full_redraw = 0;
+        self.frames_since_stuck_sweep = 0;
         self.last_reseed_time = now;
         self.last_phosphor_time = now;
 

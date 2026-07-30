@@ -155,6 +155,13 @@ pub struct Cloud {
 
     pub(super) frames_since_full_redraw: u64,
 
+    /// P4: frame counter for the periodic stuck-cell sweep. Incremented
+    /// every render frame; when it crosses STUCK_CELL_SWEEP_INTERVAL_FRAMES,
+    /// the sweep runs and the counter resets. Only checked when
+    /// `enable_component_timing` is true (i.e., `--perf-stats`) so the
+    /// sweep has zero cost in production interactive runs.
+    pub(super) frames_since_stuck_sweep: u64,
+
     pub(super) perf_pressure: f32,
     pub(super) max_sim_delta: Duration,
 
@@ -313,6 +320,7 @@ impl Cloud {
             force_draw_everything: false,
             semantic_invalidate: false,
             frames_since_full_redraw: 0,
+            frames_since_stuck_sweep: 0,
             perf_pressure: 0.0,
             max_sim_delta: Duration::from_millis(0),
             shading_mode,
