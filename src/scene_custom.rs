@@ -23,8 +23,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::config::Args;
 use crate::profile::{
-    apply_profile_layer, collect_profiles, is_valid_profile_name, validate_profile_name,
-    UserProfile, PROFILE_FIELDS,
+    apply_profile_layer, collect_profiles, is_valid_profile_name, UserProfile, PROFILE_FIELDS,
 };
 
 /// Config namespace prefix for custom scene blocks.
@@ -171,15 +170,6 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
             "error: invalid custom scene: {name}\nexpected: letters, digits, '-' or '_'"
         ))
     }
-}
-
-/// Re-export `validate_profile_name` so callers that need it can reach it
-/// through the `scene_custom` namespace as well. Kept as a thin alias to
-/// avoid duplicate logic.
-#[allow(clippy::module_name_repetitions)]
-#[allow(dead_code)] // surfaced for future CLI helpers (Stage 3+)
-pub fn validate_scene_custom_name(name: &str) -> Result<String, String> {
-    validate_profile_name(name)
 }
 
 /// Parse a comma-separated density-map string into a leaked `&'static [f64]`.

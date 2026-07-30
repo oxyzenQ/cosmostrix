@@ -389,12 +389,6 @@ impl Terminal {
         (self.total_ansi_bytes, self.flush_count, hits, misses)
     }
 
-    /// Return a reference to the terminal capabilities detected at startup.
-    #[allow(dead_code)]
-    pub fn capabilities(&self) -> &TerminalCaps {
-        &self.term_caps
-    }
-
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
     /// Uses the color cache when available, falling back to on-the-fly
     /// formatting via `write_sgr_colors_buf`.

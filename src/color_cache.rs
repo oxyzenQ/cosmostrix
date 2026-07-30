@@ -126,9 +126,10 @@ impl ColorCache {
         &self.buf[start..end]
     }
 
-    /// Number of cached palette entries.
+    /// Number of cached palette entries. Test-only — production rendering
+    /// uses the pre-built lookup tables directly without querying length.
     #[inline]
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.num_colors
     }

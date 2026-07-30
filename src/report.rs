@@ -116,15 +116,6 @@ impl Section {
         self
     }
 
-    /// Add a conditional field (only if `condition` is true).
-    #[allow(dead_code)]
-    pub fn field_if(&mut self, key: &str, value: &str, condition: bool) -> &mut Self {
-        if condition {
-            self.field(key, value);
-        }
-        self
-    }
-
     /// Add an advisory line (printed as `  - message`).
     pub fn advice(&mut self, message: &str) -> &mut Self {
         self.advice.push(message.to_string());

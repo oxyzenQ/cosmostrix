@@ -471,15 +471,6 @@ impl Droplet {
         0.0
     }
 
-    /// Legacy binary helper kept for CharLoc::Head classification threshold.
-    /// Unused after the head_brightness hoisting optimization, but retained
-    /// as a thin wrapper for any future caller that needs the bool form.
-    #[inline]
-    #[allow(dead_code)]
-    fn is_head_bright(&self, now: Instant) -> bool {
-        self.head_brightness(now) > 0.3
-    }
-
     pub fn draw(
         &mut self,
         ctx: &DrawCtx<'_>,

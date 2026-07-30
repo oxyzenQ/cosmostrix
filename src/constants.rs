@@ -542,14 +542,6 @@ pub const STARTUP_EASE_TAU: f32 = 0.30;
 
 // Head bloom (exponential gaussian falloff)
 
-/// Target head proportion: head occupies the top 20% of the droplet's
-/// visible cells (cinematic contract: 20% head / 60% body / 20% tail).
-/// `CharLoc::Head` is always a single cell; this bounds the bloom
-/// cascade behind it. Currently informational — HEAD_BLOOM_CELLS below
-/// is the enforced bound (2 cells for typical droplet lengths 10-15).
-#[allow(dead_code)]
-pub const HEAD_FRACTION: f32 = 0.20;
-
 /// Bloom sigma (spread) for exponential gaussian head glow.
 /// v25 calibration: reduced from 1.5 to 1.2 — tighter falloff keeps
 /// the bloom localized to the immediate head vicinity (2 cells) instead
@@ -785,10 +777,6 @@ pub const QUANTUM_RIPPLE_SPEED: f32 = 18.0;
 pub const QUANTUM_BRAND_PURPLE_R: u8 = 168;
 pub const QUANTUM_BRAND_PURPLE_G: u8 = 85;
 pub const QUANTUM_BRAND_PURPLE_B: u8 = 247;
-
-/// Rain interaction duration (reserved for future use).
-#[allow(dead_code)]
-pub const QUANTUM_RIPPLE_RAIN_INTERACTION_SECS: f32 = 0.2;
 
 /// Secondary ripple intensity (fraction of primary, 0.45).
 pub const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.45;
