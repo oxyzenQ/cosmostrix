@@ -49,20 +49,6 @@ pub struct AdaptiveParams {
 }
 
 impl AdaptiveParams {
-    /// Identity (no modulation). Used as a safe fallback.
-    #[allow(dead_code)] // surfaced for future fallback paths
-    pub const fn identity() -> Self {
-        Self {
-            speed_scale: 1.0,
-            density_scale: 1.0,
-            brightness_scale: 1.0,
-            glitch_pressure: 0.0,
-            color_change_allowed: false,
-            terminal_effect_allowed: false,
-            target_color: None,
-        }
-    }
-
     /// Clamp all numeric fields to their declared safe ranges in place.
     pub fn clamp(&mut self) {
         self.speed_scale = self.speed_scale.clamp(0.5, 1.3);

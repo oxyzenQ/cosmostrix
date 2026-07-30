@@ -65,14 +65,6 @@ pub struct CharsetCustomDef {
     pub chars: Vec<char>,
 }
 
-impl CharsetCustomDef {
-    /// True if no usable characters were extracted.
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.chars.is_empty()
-    }
-}
-
 /// Collect every `[charset-custom.<name>]` block from the parsed config
 /// HashMap and return them as a name → def map.
 ///

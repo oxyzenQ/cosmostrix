@@ -960,9 +960,3 @@ pub fn blank_cell(bg: Option<Color>) -> Cell {
         bold: false,
     }
 }
-
-/// Push a u8 as ASCII decimal digits into buf (no heap alloc, no format!).
-/// MOVED to sgr_format.rs — kept here as a re-export for any caller that
-/// imported it via `terminal::push_u8`. New code should use sgr_format directly.
-#[allow(unused_imports)]
-pub(crate) use crate::sgr_format::push_u8;

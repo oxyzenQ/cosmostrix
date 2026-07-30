@@ -32,12 +32,6 @@ pub struct CustomPaletteDef {
 }
 
 impl CustomPaletteDef {
-    /// Check if this definition has any color data.
-    #[allow(dead_code)]
-    pub fn is_empty(&self) -> bool {
-        self.bg.is_none() && self.rain.is_empty()
-    }
-
     /// Build a cosmostrix `Palette` from this definition.
     pub fn to_palette(&self) -> Result<Palette, String> {
         if self.rain.is_empty() {

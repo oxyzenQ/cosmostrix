@@ -54,14 +54,6 @@ pub enum ThemeColors {
         stops: &'static [(u8, u8, u8)],
         steps: usize,
     },
-    /// ANSI 256-color indices + explicit Color16 fallback.
-    /// Legacy format — all themes have been migrated to `Stops`/`StopsWithC16`.
-    /// Retained for any future theme that wants explicit ANSI fallback control.
-    #[allow(dead_code)]
-    AnsiWithC16 {
-        ansi: &'static [u8],
-        c16: &'static [Color],
-    },
     /// RGB stops + explicit Color16 fallback + ANSI fallback.
     /// Used by Green/Green2/Green3 which have hand-tuned all 4 tiers.
     StopsWithC16 {
@@ -903,13 +895,6 @@ pub fn build_colors(scheme: ColorScheme, mode: ColorMode) -> Vec<Color> {
 
     match &theme.def {
         ThemeColors::Stops { stops, steps } => colors_from_stops(mode, stops, *steps),
-        ThemeColors::AnsiWithC16 { ansi, c16 } => {
-            if matches!(mode, ColorMode::Color16) {
-                c16.to_vec()
-            } else {
-                from_ansi_list(ansi)
-            }
-        }
         ThemeColors::StopsWithC16 {
             stops,
             steps,
