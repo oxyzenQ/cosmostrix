@@ -771,9 +771,9 @@ impl Terminal {
         // .copied().filter(|&idx| idx < height * width))` had an O(N) bounds
         // filter that ran every frame. The filter is redundant — every entry
         // in `frame.dirty_indices()` was pushed by `Frame::set()` /
-        // `set_force()` / `set_persistent()`, all of which call
-        // `self.index(x, y)` first and only push `Some(i)` results. So every
-        // dirty index is already guaranteed in-bounds.
+        // `set_force()`, both of which call `self.index(x, y)` first and
+        // only push `Some(i)` results. So every dirty index is already
+        // guaranteed in-bounds.
         //
         // Replaced the filter with a `debug_assert!` that verifies the
         // invariant in debug builds (zero cost in release). If a future
@@ -792,11 +792,11 @@ impl Terminal {
         // from O(N) to O(1) per frame, with zero release-build impact
         // (debug_assert! is elided in release).
         //
-        // SAFETY: `Frame::set()` / `set_force()` / `set_persistent()`
-        // all call `self.index(x, y)` first and only push `Some(i)`
-        // results, so every dirty index is guaranteed in-bounds. This
-        // assert catches the unlikely case where a future caller
-        // bypasses `index()` and pushes an OOB index.
+        // SAFETY: `Frame::set()` / `set_force()` both call
+        // `self.index(x, y)` first and only push `Some(i)` results,
+        // so every dirty index is guaranteed in-bounds. This assert
+        // catches the unlikely case where a future caller bypasses
+        // `index()` and pushes an OOB index.
         debug_assert!(
             dirty_flat
                 .last()
