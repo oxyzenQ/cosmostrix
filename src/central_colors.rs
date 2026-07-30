@@ -929,13 +929,15 @@ pub fn build_colors(scheme: ColorScheme, mode: ColorMode) -> Vec<Color> {
 }
 
 /// Check if a scheme is registered in the central theme registry.
-#[allow(dead_code)]
+/// Test-only — production code uses theme::find_theme() instead.
+#[cfg(test)]
 pub fn has_theme(scheme: ColorScheme) -> bool {
     THEMES.iter().any(|t| t.scheme == scheme)
 }
 
 /// Number of registered themes.
-#[allow(dead_code)]
+/// Test-only — production code uses theme::theme_count() instead.
+#[cfg(test)]
 pub fn theme_count() -> usize {
     THEMES.len()
 }

@@ -219,7 +219,7 @@ impl Frame {
 
     #[must_use]
     // Test-facing accessor; renderer hot paths use `cell_at_index`.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn get(&self, x: u16, y: u16) -> Option<&Cell> {
         self.index(x, y).map(|i| {
             // Cosmic Dragon egg #7: direct indexing — i from index() is bounds-checked.

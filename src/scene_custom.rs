@@ -152,15 +152,18 @@ pub fn apply_scene_custom_layer(
 
 /// Validate a custom-scene name. Shares the same rules as profile names
 /// (letters, digits, `-`, `_`) so migration is frictionless.
+/// Test-only — production validation uses validate_custom_scene_name()
+/// which calls is_valid_profile_name() directly.
 #[must_use]
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn is_valid_custom_scene_name(name: &str) -> bool {
     is_valid_profile_name(name)
 }
 
 /// Normalize and validate a custom-scene name. Returns the lowercased name
 /// on success or an error message on failure.
-#[allow(dead_code)]
+/// Test-only — production code uses validate_profile_name() directly.
+#[cfg(test)]
 pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
     let normalized = name.trim().to_ascii_lowercase();
     if is_valid_custom_scene_name(&normalized) {

@@ -152,7 +152,9 @@ pub fn apply_profile_layer(
 /// This is appended to `--list-profiles` output so users discover the
 /// available atmosphere profiles without needing to read docs first.
 /// No preset is default; all are opt-in only.
-#[allow(dead_code)] // retained for test-only callers; --list-profiles removed in v14
+/// Test-only — --list-profiles was removed in v14; retained for test
+/// callers that verify the output format.
+#[cfg(test)]
 fn atmosphere_presets_section() -> String {
     use crate::atmosphere_presets::all_atmosphere_presets;
     let presets = all_atmosphere_presets();
@@ -170,7 +172,7 @@ fn atmosphere_presets_section() -> String {
 }
 
 #[must_use]
-#[allow(dead_code)] // retained for test-only callers; --list-profiles removed in v14
+#[cfg(test)] // retained for test-only callers; --list-profiles removed in v14
 pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
     let mut out = if profiles.is_empty() {
         String::from("USER PROFILES\n\n  (none defined)\n")

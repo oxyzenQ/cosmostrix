@@ -65,14 +65,14 @@ use std::sync::OnceLock;
 ///
 /// Referenced by `rgb_constants_match_tailwind_palette` test to verify
 /// the escape sequences stay in sync with the documented palette.
-#[allow(dead_code)] // referenced in tests; kept as source-of-truth documentation
+#[cfg(test)] // referenced in tests; kept as source-of-truth documentation
 pub const BRAND_PURPLE_RGB: (u8, u8, u8) = (168, 85, 247);
 
 /// Error red RGB: #EF4444 (Tailwind red-500).
 ///
 /// 256-color fallback: index 203 (closest match in the 6x6x6 cube:
 /// 16 + 36*5 + 6*1 + 1 = 203).
-#[allow(dead_code)] // referenced in tests; kept as source-of-truth documentation
+#[cfg(test)] // referenced in tests; kept as source-of-truth documentation
 pub const ERROR_RGB: (u8, u8, u8) = (239, 68, 68);
 
 /// Warning yellow RGB: #EAB308 (Tailwind yellow-500).
@@ -80,7 +80,7 @@ pub const ERROR_RGB: (u8, u8, u8) = (239, 68, 68);
 /// 256-color fallback: index 220 (gold — brightest visible yellow in the
 /// xterm-256 palette, chosen over the exact-match 214 for warning
 /// visibility).
-#[allow(dead_code)] // referenced in tests; kept as source-of-truth documentation
+#[cfg(test)] // referenced in tests; kept as source-of-truth documentation
 pub const WARN_RGB: (u8, u8, u8) = (234, 179, 8);
 
 // ── Color capability detection ──────────────────────────────────────────────
