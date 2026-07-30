@@ -579,14 +579,31 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // print. Fix: treat event I/O errors as non-fatal; break the drain
             // loop and proceed to frame rendering. Persistent failures are
             // caught by the watchdog (10s stuck detection) + GRACEFUL_SHUTDOWN.
+            //
+            // Terminal-gone detection (EIO/EBADF/BrokenPipe): when the PTY
+            // master disappears (user force-closes the terminal), poll_event
+            // returns Ok(true) instantly forever (POLLHUP makes the fd
+            // perpetually "readable") and read_event returns Err(EIO). We
+            // detect this in the drain loop and set cloud.raining = false so
+            // the wait-phase break condition exits the inner loop immediately
+            // — without this, the wait phase spin-waits for the full frame
+            // period on every frame, burning 100% CPU for seconds.
             loop {
                 match Terminal::poll_event(Duration::from_millis(0)) {
                     Ok(false) => break,
+                    Err(e) if is_terminal_gone(&e) => {
+                        cloud.raining = false;
+                        break;
+                    }
                     Err(_) => break,
                     Ok(true) => {}
                 }
                 let ev = match Terminal::read_event() {
                     Ok(e) => e,
+                    Err(e) if is_terminal_gone(&e) => {
+                        cloud.raining = false;
+                        break;
+                    }
                     Err(_) => break,
                 };
                 match ev {
@@ -833,7 +850,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // Break out of the poll loop when we have a resize to apply,
             // but only after the debounce window has elapsed. This coalesces
             // rapid resize events (e.g. window drag) into a single reset.
-            if !cloud.raining {
+            //
+            // Also break immediately if SIGHUP/SIGTERM fired (GRACEFUL_SHUTDOWN)
+            // or if the drain loop detected a dead PTY (cloud.raining = false).
+            // Without the GRACEFUL_SHUTDOWN check, the inner wait loop would
+            // keep spin-waiting until next_frame even after the signal handler
+            // set the flag — burning CPU for the remainder of the frame period.
+            if !cloud.raining || GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
                 break;
             }
             if pending_resize.is_some() {
