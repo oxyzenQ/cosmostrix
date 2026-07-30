@@ -621,7 +621,9 @@ mod tests {
 
     #[test]
     fn charset_valid_values_pass() {
-        for v in ["binary", "matrix", "katakana", "hacker", "minimal", "retro"] {
+        for v in [
+            "binary", "matrix", "katakana", "hacker", "minimal", "retro", "zen",
+        ] {
             assert!(
                 validate_field_value("charset", v).is_none(),
                 "'{v}' should be a valid charset"

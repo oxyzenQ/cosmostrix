@@ -26,6 +26,10 @@ impl Charset {
     pub const BOXDRAW: Charset = Charset(0x10000);
     pub const MINIMAL: Charset = Charset(0x20000);
     pub const DNA: Charset = Charset(0x40000);
+    /// Zen charset: a single `|` pipe character. The minimalist's
+    /// minimalist — one glyph, infinite rain. Default for cinematic
+    /// and monolith scenes on the Cosmic Dragon journey.
+    pub const ZEN: Charset = Charset(0x80000);
 
     pub const DEFAULT: Charset = Charset(0x7);
     pub const EXTENDED_DEFAULT: Charset = Charset(0xE);
@@ -127,6 +131,7 @@ pub fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Charset, S
         "dna" => Ok(Charset::DNA),
         "braille" => Ok(Charset::BRAILLE),
         "runic" => Ok(Charset::RUNIC),
+        "zen" => Ok(Charset::ZEN),
         _ => Err(format!(
             "error: unknown charset '{spec}'\n\n  Use --list-charsets to see available charsets."
         )),
@@ -226,6 +231,9 @@ pub fn build_chars(
     if charset.contains(Charset::DNA) {
         out.extend("ACGTacgt".chars().filter(|&c| c.width() == Some(1)));
     }
+    if charset.contains(Charset::ZEN) {
+        out.push('|');
+    }
 
     for &(a, b) in user_ranges {
         let start = a as u32;
@@ -270,5 +278,17 @@ mod tests {
     fn build_chars_binary_has_only_0_and_1() {
         let out = build_chars(Charset::BINARY, &[], true);
         assert_eq!(out, vec!['0', '1']);
+    }
+
+    #[test]
+    fn build_chars_zen_has_only_pipe() {
+        let out = build_chars(Charset::ZEN, &[], true);
+        assert_eq!(out, vec!['|']);
+    }
+
+    #[test]
+    fn charset_from_str_resolves_zen() {
+        assert_eq!(charset_from_str("zen", false).unwrap(), Charset::ZEN);
+        assert_eq!(charset_from_str("ZEN", false).unwrap(), Charset::ZEN);
     }
 }

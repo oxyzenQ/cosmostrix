@@ -730,6 +730,7 @@ pub fn print_list_charsets() {
     println!("  dna          DNA bases (ACGT)");
     println!("  braille      Braille");
     println!("  runic        Runic");
+    println!("  zen          Pipe character only (default for cinematic & monolith)");
     println!();
     println!("  Or define a custom charset in config.toml via [charset-custom.<name>] (see --dump-config).");
 

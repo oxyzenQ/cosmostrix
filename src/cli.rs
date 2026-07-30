@@ -203,6 +203,7 @@ pub(crate) fn all_charset_presets() -> &'static [&'static str] {
         "dna",
         "braille",
         "runic",
+        "zen",
     ]
 }
 

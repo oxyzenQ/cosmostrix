@@ -40,5 +40,6 @@ fn cycle_monolith_signal_monolith_roundtrip() {
     charset = c.to_string();
     assert_eq!(cloud.rain_style(), RainStyle::Monolith);
     assert_eq!(cloud.active_scene(), "monolith");
-    assert_eq!(charset, "braille");
+    // monolith's scene-default charset is "zen" (Cosmic Dragon journey default).
+    assert_eq!(charset, "zen");
 }
