@@ -159,8 +159,6 @@ mod tests {
             avg_dirty_cell_ratio_percent: 62.5,
             dirty_all_frames: 100,
             dirty_threshold: 384,
-            estimated_full_redraw_frames: 50,
-            estimated_full_redraw_ratio_percent: 25.0,
             logical_cells_per_frame: 4800,
             render_ns_per_cell: 30.0,
             io_ns_per_cell: 40.0,

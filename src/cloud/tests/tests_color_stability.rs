@@ -286,7 +286,6 @@ fn benchmark_output_fields_complete() {
         "p99_frame_time",
         "frame_time_stability",
         "dirty_cell_ratio",
-        "estimated_full_redraw_ratio",
     ];
 
     // Read the benchmark module source and verify field names exist

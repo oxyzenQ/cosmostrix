@@ -88,8 +88,7 @@ pub struct CloudConfig {
     /// Wired through derive_effective_runtime but identity by default.
     pub(crate) atmosphere_modulation: AtmosphereRuntimeModulation,
     /// Atmosphere application mode. Default is Disabled (identity).
-    /// Reserved for future phases where non-identity modulation is gated.
-    #[allow(dead_code)]
+    /// Read by event_loop.rs to gate non-identity modulation.
     pub(crate) atmosphere_mode: AtmosphereApplicationMode,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
@@ -137,17 +136,6 @@ pub struct CliExplicit {
     pub density: bool,
     pub fps: bool,
     pub scene: bool,
-    // `scene_custom` and `monolith_size` are tracked for completeness
-    // and future use (e.g., interactive prompt that re-evaluates
-    // priority mid-session). Currently not consulted by
-    // `rebuild_cloud_config` because scene-custom live reload is
-    // handled via the dedicated `scene_custom_name` field, and
-    // monolith-size changes are rare enough that the existing
-    // behavior (config overrides CLI on reload) is acceptable.
-    #[allow(dead_code)]
-    pub scene_custom: bool,
-    #[allow(dead_code)]
-    pub monolith_size: bool,
     pub glitch_level: bool,
 }
 

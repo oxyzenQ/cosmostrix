@@ -109,7 +109,6 @@ mod tests {
             "draw_ratio",
             "active_frame_ratio_percent",
             "avg_dirty_cell_ratio_percent",
-            "estimated_full_redraw_ratio_percent",
             "active_streams_avg",
             "dirty_glyphs_per_second",
             "planned_mode",

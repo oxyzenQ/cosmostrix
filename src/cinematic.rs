@@ -38,6 +38,10 @@ pub(crate) fn dirty_threshold_cells(total_cells: usize, threshold_divisor: usize
     }
 }
 
+/// Test-only — was used by benchmark full-redraw estimation, which was
+/// removed as dead data (computed but never read). Retained for unit
+/// tests that verify the threshold logic.
+#[cfg(test)]
 #[must_use]
 pub(crate) fn estimates_full_redraw(
     total_cells: usize,

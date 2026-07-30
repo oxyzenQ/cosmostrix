@@ -78,10 +78,6 @@ pub(crate) struct BenchReportData {
     pub avg_dirty_cell_ratio_percent: f64,
     pub dirty_all_frames: u64,
     pub dirty_threshold: usize,
-    #[allow(dead_code)]
-    pub estimated_full_redraw_frames: u64,
-    #[allow(dead_code)]
-    pub estimated_full_redraw_ratio_percent: f64,
 
     // P3: Cells per frame (DeepSeek metrics)
     /// Total logical cells per frame = width × height.

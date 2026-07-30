@@ -819,16 +819,8 @@ fn main() -> std::io::Result<()> {
             matches.value_source("scene"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
-        scene_custom: matches!(
-            matches.value_source("scene_custom"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
         glitch_level: matches!(
             matches.value_source("glitch_level"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        monolith_size: matches!(
-            matches.value_source("monolith_size"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
     };

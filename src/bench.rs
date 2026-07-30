@@ -34,7 +34,6 @@ use crate::bench_mem::RssTracker;
 use crate::bench_progress::register_interrupt;
 use crate::cinematic::{
     classify_frame_jitter, classify_frame_time_stability, dirty_threshold_cells,
-    estimates_full_redraw,
 };
 use crate::constants::*;
 use crate::frame::Frame;
@@ -212,7 +211,6 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut total_drawn_cells: u64 = 0;
     let mut max_dirty_cells: u64 = 0;
     let mut dirty_all_frames: u64 = 0;
-    let mut estimated_full_redraw_frames: u64 = 0;
     let mut active_streams_sum: u64 = 0;
     let total_cells = (w as usize) * (h as usize);
 
@@ -290,9 +288,6 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         max_dirty_cells = max_dirty_cells.max(dirty_count as u64);
         if is_dirty_all {
             dirty_all_frames += 1;
-        }
-        if estimates_full_redraw(total_cells, dirty_len, is_dirty_all, DIRTY_THRESHOLD_RATIO) {
-            estimated_full_redraw_frames += 1;
         }
 
         // Phase 2: wet I/O — write ANSI to /dev/null if --bench-io
@@ -556,11 +551,6 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     } else {
         0.0
     };
-    let estimated_full_redraw_ratio_percent = if total_frames > 0 {
-        (estimated_full_redraw_frames as f64) / (total_frames as f64) * 100.0
-    } else {
-        0.0
-    };
 
     // ── Build and print report ────────────────────────────────────────
     let report_data = crate::bench_report::BenchReportData {
@@ -589,8 +579,6 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         avg_dirty_cell_ratio_percent,
         dirty_all_frames,
         dirty_threshold,
-        estimated_full_redraw_frames,
-        estimated_full_redraw_ratio_percent,
         // P3: DeepSeek metrics — ns/cell + cells/frame
         logical_cells_per_frame: (w as u64) * (h as u64),
         render_ns_per_cell: if avg_dirty_cells_per_frame > 0.0 {
@@ -782,7 +770,6 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let mut total_drawn_cells = 0u64;
     let mut max_dirty_cells = 0u64;
     let mut dirty_all_frames = 0u64;
-    let mut estimated_full_redraw_frames = 0u64;
     let mut perf_work_sum_s = 0.0f64;
     let mut perf_work_max_s = 0.0f64;
     let _perf_pressure = 0.0f32;
@@ -810,9 +797,6 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         max_dirty_cells = max_dirty_cells.max(dirty_count as u64);
         if is_dirty_all {
             dirty_all_frames += 1;
-        }
-        if estimates_full_redraw(total_cells, dirty_len, is_dirty_all, DIRTY_THRESHOLD_RATIO) {
-            estimated_full_redraw_frames += 1;
         }
 
         if let Some(ref mut io) = io_writer {
@@ -919,8 +903,6 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         },
         dirty_all_frames,
         dirty_threshold,
-        estimated_full_redraw_frames,
-        estimated_full_redraw_ratio_percent: 0.0,
         logical_cells_per_frame: total_cells as u64,
         render_ns_per_cell: if avg_dirty_cells_per_frame > 0.0 {
             avg_render_ms * 1_000_000.0 / avg_dirty_cells_per_frame
