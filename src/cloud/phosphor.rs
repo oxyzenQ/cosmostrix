@@ -712,9 +712,10 @@ impl Cloud {
     /// (which only handles cells with `phosphor[i] > 0`) cannot reach.
     ///
     /// When stuck cells are found, they are force-cleared (set to blank)
-    /// and a summary is logged to stderr. The sweep is capped at
-    /// `STUCK_CELL_MAX_PER_SWEEP` cells per pass to avoid pathological
-    /// clearing + log flooding.
+    /// and a summary is logged to stderr **only when `self.verbose` is
+    /// true** (set via `cloud.set_verbose(cfg.verbose)`). The sweep is
+    /// capped at `STUCK_CELL_MAX_PER_SWEEP` cells per pass to avoid
+    /// pathological clearing + log flooding.
     ///
     /// ## Gating
     ///
@@ -809,13 +810,19 @@ impl Cloud {
         }
 
         if stuck_count > 0 {
-            // Broken-pipe-safe stderr log (eprintln! panics on broken stderr).
-            use std::io::Write as _;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[stuck-cell-sweep] cleared {} stuck cell(s) at frame gen {}\n",
-                stuck_count, current_gen
-            ));
-            let _ = std::io::stderr().flush();
+            // Verbose-only stderr log. Suppressed by default in benchmark
+            // mode (silent arena) so the final report is the only output.
+            // Enable with `cosmostrix --benchmark --verbose` for debugging.
+            // The sweep itself still runs and heals stuck cells silently.
+            if self.verbose {
+                // Broken-pipe-safe stderr log (eprintln! panics on broken stderr).
+                use std::io::Write as _;
+                let _ = std::io::stderr().write_fmt(format_args!(
+                    "[stuck-cell-sweep] cleared {} stuck cell(s) at frame gen {}\n",
+                    stuck_count, current_gen
+                ));
+                let _ = std::io::stderr().flush();
+            }
             // Force a full redraw next frame so the cleared cells are
             // actually emitted to the terminal (they were "fresh" this
             // frame, so the diff renderer would otherwise skip them).

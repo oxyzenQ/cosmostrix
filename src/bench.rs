@@ -74,6 +74,7 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
+    cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
@@ -146,7 +147,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // resolve_bench_duration message already carries the "error:" prefix.
     let bench_duration_secs = crate::ux::or_exit(resolve_bench_duration(cfg.bench_duration));
 
-    let mut progress = BenchProgress::new();
+    let mut progress = BenchProgress::new(cfg.verbose);
     let interrupted = register_interrupt();
 
     // ── Header ───────────────────────────────────────────────────────────
@@ -159,6 +160,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
+    cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
@@ -729,6 +731,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
     cloud.set_component_timing(true);
+    cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
     let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);

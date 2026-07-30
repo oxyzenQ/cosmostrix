@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Cosmic Dragon vs Dead Dragon — A/B Benchmark Report
 
 **Date:** 2026-07-30  

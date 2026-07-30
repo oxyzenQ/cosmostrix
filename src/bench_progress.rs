@@ -100,6 +100,15 @@ pub(crate) fn register_interrupt() -> Arc<AtomicBool> {
 ///
 /// On finish the entire live region is erased and the final report
 /// is printed cleanly to stdout.
+///
+/// ## Silent arena mode
+///
+/// By default (`verbose == false`), **all** progress UI output is
+/// suppressed — the benchmark runs completely silent and only the
+/// final report is printed. This is the "pristine arena" mode for
+/// clean professional presentation. Pass `verbose = true` (from
+/// `cfg.verbose`, i.e., `cosmostrix --benchmark --verbose`) to show
+/// the header, spinners, and live metrics for debugging.
 pub(crate) struct BenchProgress {
     spinner_idx: usize,
     last_update: Instant,
@@ -115,12 +124,17 @@ pub(crate) struct BenchProgress {
     recent_ft_count: usize,
     /// Whether stderr is an interactive terminal.
     is_tty: bool,
+    /// Whether verbose progress UI is enabled (from `cfg.verbose`).
+    /// When false, all spinner/header/warmup/running-tick output is
+    /// suppressed — the silent arena mode. When true AND `is_tty`, the
+    /// full progress UI is shown for debugging.
+    verbose: bool,
     /// RAII cursor guard.
     _cursor_guard: Option<CursorGuard>,
 }
 
 impl BenchProgress {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(verbose: bool) -> Self {
         Self {
             spinner_idx: 0,
             // Allow the first update immediately.
@@ -136,8 +150,17 @@ impl BenchProgress {
             recent_ft_idx: 0,
             recent_ft_count: 0,
             is_tty: io::stderr().is_terminal(),
+            verbose,
             _cursor_guard: None,
         }
+    }
+
+    /// Whether the progress UI should be displayed at all.
+    /// Requires both `--verbose` (user opt-in) AND an interactive stderr
+    /// (so piping benchmark output to a file is always silent).
+    #[inline]
+    fn should_display(&self) -> bool {
+        self.verbose && self.is_tty
     }
 
     /// Advance the spinner and return the current frame character.
@@ -150,7 +173,7 @@ impl BenchProgress {
 
     /// Print the header block and hide the cursor.
     pub(crate) fn begin(&mut self) {
-        if !self.is_tty {
+        if !self.should_display() {
             return;
         }
         self._cursor_guard = CursorGuard::acquire().ok();
@@ -166,7 +189,7 @@ impl BenchProgress {
     /// Print "initializing renderer... done" — this step is fast enough
     /// that it appears as a single completed line.
     pub(crate) fn init_done(&mut self) {
-        if !self.is_tty {
+        if !self.should_display() {
             return;
         }
         let _ = writeln!(io::stderr(), "initializing renderer... done");
@@ -176,7 +199,7 @@ impl BenchProgress {
 
     /// Print the initial warmup line with a spinner frame.
     pub(crate) fn warmup_start(&mut self) {
-        if !self.is_tty {
+        if !self.should_display() {
             return;
         }
         let spinner = self.spin();
@@ -187,7 +210,7 @@ impl BenchProgress {
 
     /// Animate the warmup spinner. Rate-limited internally.
     pub(crate) fn warmup_tick(&mut self) {
-        if !self.is_tty {
+        if !self.should_display() {
             return;
         }
         let now = Instant::now();
@@ -202,7 +225,7 @@ impl BenchProgress {
 
     /// Mark warmup as complete.
     pub(crate) fn warmup_done(&mut self) {
-        if !self.is_tty {
+        if !self.should_display() {
             return;
         }
         let _ = write!(io::stderr(), "\x1b[2K\rwarming frame pipeline... done\n");
@@ -224,7 +247,7 @@ impl BenchProgress {
         frame_time_ms: f64,
         duration_s: f64,
     ) {
-        if !self.is_tty {
+        if !self.should_display() {
             return;
         }
 
@@ -299,7 +322,7 @@ impl BenchProgress {
     /// cursor positioned where the benchmark output originally started.
     /// The final report should then be printed to **stdout**.
     pub(crate) fn finish(&mut self) {
-        if !self.is_tty {
+        if !self.should_display() {
             return;
         }
 

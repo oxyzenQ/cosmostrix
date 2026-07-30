@@ -259,6 +259,12 @@ pub struct Cloud {
     pub(super) last_sim_ms: f64,
     pub(super) last_render_ms: f64,
     pub(super) enable_component_timing: bool,
+    /// When true, the cloud may emit diagnostic stderr logs (e.g.
+    /// `[stuck-cell-sweep] cleared N cells`). When false, all such
+    /// logs are suppressed — the silent arena mode used by
+    /// `cosmostrix --benchmark` so the final report is the only
+    /// output. The bench sets this from `cfg.verbose`.
+    pub(super) verbose: bool,
     pub(super) phosphor_dirty_buf: Vec<usize>,
 }
 
@@ -403,6 +409,7 @@ impl Cloud {
             last_sim_ms: 0.0,
             last_render_ms: 0.0,
             enable_component_timing: false,
+            verbose: false,
             phosphor_dirty_buf: Vec::with_capacity(512),
         }
     }
@@ -553,6 +560,15 @@ impl Cloud {
 
     pub fn set_component_timing(&mut self, enabled: bool) {
         self.enable_component_timing = enabled;
+    }
+
+    /// Enable or disable verbose diagnostic logging from the cloud
+    /// (currently gates the `[stuck-cell-sweep]` stderr log). The
+    /// benchmark sets this from `cfg.verbose` so that `cosmostrix
+    /// --benchmark` runs silently by default and `cosmostrix
+    /// --benchmark --verbose` shows the diagnostic logs for debugging.
+    pub fn set_verbose(&mut self, verbose: bool) {
+        self.verbose = verbose;
     }
 
     pub fn set_monolith_density_map(&mut self, map: Option<&'static [f64]>) {
