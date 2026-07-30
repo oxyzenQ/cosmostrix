@@ -1164,21 +1164,24 @@ pub(crate) fn open_tty_fallback() -> Option<File> {
 /// Check if an `io::Error` indicates the terminal (PTY) was closed/destroyed.
 ///
 /// Used by the main loop's `poll_event`/`read_event`/`draw` calls AND by the
-/// intro's `should_skip()` drain loop to detect that the user has closed the
-/// terminal (SIGHUP scenario). When the terminal is gone, cosmostrix must
-/// exit gracefully — any further write to stdout/stderr will fail, and
-/// `eprintln!`/`println!` would panic on the broken pipe, triggering the
-/// panic hook which (if it also uses `eprintln!`) double-panics → `abort()`
-/// → systemd-coredump.
+/// intro's `should_skip()` drain loop. When the terminal is gone, cosmostrix
+/// must exit gracefully — `eprintln!`/`println!` would panic on the broken
+/// pipe → double-panic → `abort()` → systemd-coredump.
 ///
 /// Detection (cross-platform):
-/// - Unix: `EIO` (PTY master closed) or `EBADF` (bad fd) or `BrokenPipe`
-/// - Non-Unix: `BrokenPipe` only
+/// - Unix: `EIO` (PTY master closed), `EBADF` (bad fd), `BrokenPipe`, or
+///   `UnexpectedEof` (read() returned 0 bytes — crossterm's PTY EOF signal)
+/// - Non-Unix: `BrokenPipe` or `UnexpectedEof`
 ///
-/// Shared between `event_loop.rs` (main rain loop) and `intro.rs` (cinematic
-/// intro drain loop). Both loops must detect the dead-PTY case to avoid
-/// spinning at 100% CPU for 20s until the watchdog fires — see the commit
-/// that added this docstring for the full root-cause analysis.
+/// # Why UnexpectedEof?
+///
+/// crossterm 0.29's `event::read()` on Unix calls `read()` on the tty fd.
+/// When the PTY master disappears (terminal force-close), `read()` returns
+/// 0 bytes (EOF). crossterm converts this to `UnexpectedEof`. Without
+/// catching it, the drain loop's `Err(_) => break` silently swallows the
+/// error — leaving `cloud.raining = true` and causing the wait phase to
+/// spin at 100% CPU for 20s until the watchdog fires. This was the root
+/// cause of the "rain mode still 100% CPU for 20s" bug.
 #[inline]
 #[must_use]
 pub(crate) fn is_terminal_gone(e: &std::io::Error) -> bool {
@@ -1187,10 +1190,11 @@ pub(crate) fn is_terminal_gone(e: &std::io::Error) -> bool {
         e.raw_os_error() == Some(libc::EIO)
             || e.raw_os_error() == Some(libc::EBADF)
             || e.kind() == std::io::ErrorKind::BrokenPipe
+            || e.kind() == std::io::ErrorKind::UnexpectedEof
     }
     #[cfg(not(unix))]
     {
-        e.kind() == std::io::ErrorKind::BrokenPipe
+        e.kind() == std::io::ErrorKind::BrokenPipe || e.kind() == std::io::ErrorKind::UnexpectedEof
     }
 }
 
@@ -1231,6 +1235,44 @@ mod p3_tests {
     fn p3_eio_errno_is_recoverable() {
         let err = std::io::Error::from_raw_os_error(5); // EIO
         assert!(is_recoverable_io_error(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminal_gone_detects_eio() {
+        let err = std::io::Error::from_raw_os_error(libc::EIO);
+        assert!(is_terminal_gone(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminal_gone_detects_ebadf() {
+        let err = std::io::Error::from_raw_os_error(libc::EBADF);
+        assert!(is_terminal_gone(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminal_gone_detects_broken_pipe() {
+        let err = std::io::Error::from(std::io::ErrorKind::BrokenPipe);
+        assert!(is_terminal_gone(&err));
+    }
+
+    /// crossterm returns UnexpectedEof when read() on the tty fd yields 0
+    /// bytes (PTY master closed). This is the primary signal for terminal
+    /// force-close in rain mode — without it, the drain loop silently
+    /// swallows the error and the wait phase spins at 100% CPU for 20s.
+    #[test]
+    fn terminal_gone_detects_unexpected_eof() {
+        let err = std::io::Error::from(std::io::ErrorKind::UnexpectedEof);
+        assert!(is_terminal_gone(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn terminal_gone_does_not_false_positive_on_interrupted() {
+        let err = std::io::Error::from(std::io::ErrorKind::Interrupted);
+        assert!(!is_terminal_gone(&err));
     }
 
     #[cfg(unix)]

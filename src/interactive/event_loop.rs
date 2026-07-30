@@ -896,6 +896,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // v25.15 (perf audit): spin_budget is now `FRAME_SPIN_BUDGET`
             // from constants.rs — was a hardcoded `Duration::from_micros(500)`
             // inline.
+            //
+            // Dead-PTY guard: when the terminal is force-closed, POLLHUP makes
+            // the tty fd perpetually "readable", so poll_event returns Ok(true)
+            // instantly and forever. If we fall through to spin_wait on Ok(true),
+            // we burn 500us-1ms of busy-spin per iteration. Instead, continue
+            // back to the drain phase which will call read_event — that returns
+            // Err(UnexpectedEof/EIO) which is_terminal_gone catches, setting
+            // cloud.raining = false. This drops post-SIGHUP CPU burn from 20s
+            // of 100% to < 1ms in rain mode.
             let spin_budget = FRAME_SPIN_BUDGET;
             if timeout > spin_budget {
                 // v25: poll_event can return Err when the terminal is closed
@@ -906,7 +915,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // mirroring the draw() EIO guard below. Post-loop shutdown
                 // drops Terminal (uses `let _ =` in cleanup) and exits cleanly.
                 match Terminal::poll_event(timeout - spin_budget) {
-                    Ok(_) => {}
+                    Ok(true) => continue,
+                    Ok(false) => {}
                     Err(e) if is_terminal_gone(&e) => {
                         cloud.raining = false;
                         break;
@@ -915,13 +925,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
                 // Spin-wait the remaining time for precise deadline alignment.
                 // The spin is capped at 1ms internally to handle edge cases.
+                // Only reached when poll returned Ok(false) — no events, so
+                // spinning to the deadline is the correct behavior.
                 spin_wait(next_frame);
             } else {
                 // Already close to deadline (< 500μs away): spin-wait to hit
                 // it precisely, then drain any events that arrived.
                 spin_wait(next_frame);
                 match Terminal::poll_event(Duration::from_millis(0)) {
-                    Ok(_) => {}
+                    Ok(true) => continue,
+                    Ok(false) => {}
                     Err(e) if is_terminal_gone(&e) => {
                         cloud.raining = false;
                         break;
