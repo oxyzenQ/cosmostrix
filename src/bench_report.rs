@@ -52,6 +52,41 @@ pub(crate) struct BenchReportData {
     /// "signal"). Resolved from `CloudConfig::scene_name` so the report makes
     /// clear which scene generated the metrics — critical for comparing runs.
     pub scene: String,
+    /// Canonical color scheme name (e.g. "cosmos", "neon-purple", "green").
+    /// Resolved from `CloudConfig::color_scheme` via `theme::canonical_name_for_scheme`.
+    /// Lets users reproduce a run's exact palette without guessing the enum
+    /// variant from a Debug dump.
+    pub color_scheme_name: String,
+    /// Charset preset name as supplied on the CLI (e.g. "matrix", "zen",
+    /// "katakana"). For custom char ranges (`--chars`), this is the literal
+    /// preset string the user typed (or "auto" if they didn't pass --charset).
+    pub charset_preset: String,
+    /// Number of distinct glyphs in the active char pool. Benchmark throughput
+    /// is glyph-pool-size invariant (the renderer doesn't slow down with more
+    /// glyphs), but having this number in the report makes it obvious whether
+    /// a run used a tiny pool (zen: 1 glyph) or a large one (katakana: ~80).
+    pub glyph_count: usize,
+    /// Rain style: "glyph" (default per-column rain) or "monolith" (single
+    /// central pillar). Surfaces the `--scene monolith` vs `--scene cinematic`
+    /// distinction in the CONFIG section so FPS comparisons across scenes
+    /// can be interpreted correctly.
+    pub rain_style: &'static str,
+    /// Monolith size ("small"/"normal"/"large"). Only meaningful when
+    /// `rain_style == "monolith"`; included unconditionally for completeness.
+    pub monolith_size: &'static str,
+    /// Bold mode: "Off"/"Random"/"All". Affects glyph weight, which has a
+    /// small but measurable impact on terminal rendering throughput (bold
+    /// glyphs use a different SGR sequence).
+    pub bold_mode: String,
+    /// Shading mode: "Random"/"DistanceFromHead". Affects whether droplet
+    /// colors are picked per-cell or computed from head distance — the
+    /// latter is slightly more expensive but produces smoother gradients.
+    pub shading_mode: String,
+    /// Atmosphere application mode ("disabled"/"internal-verified"/
+    /// "controlled-live"). When non-disabled, the atmosphere system applies
+    /// runtime modulation to rain parameters — this changes throughput
+    /// characteristics vs the identity (disabled) baseline.
+    pub atmosphere_mode: &'static str,
 
     // Performance
     pub avg_fps: f64,
@@ -256,10 +291,19 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     {
         let s = r.section("CONFIG");
         s.field("scene", &data.scene);
+        s.field("color_scheme", &data.color_scheme_name);
+        s.field("charset", &data.charset_preset);
+        s.field("glyph_count", &data.glyph_count.to_string());
+        s.field("rain_style", data.rain_style);
+        s.field("monolith_size", data.monolith_size);
+        s.field("bold", &data.bold_mode);
+        s.field("shading", &data.shading_mode);
+        s.field("atmosphere", data.atmosphere_mode);
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());
         s.field("target_fps", &format!("{:.1}", data.target_fps));
         s.field("density", &format!("{:.2}", data.density));
+        s.field("speed", &format!("{:.2}", data.speed));
         s.field("TERM", &term);
         s.field("COLORTERM", &colorterm);
     }

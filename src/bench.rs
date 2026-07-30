@@ -37,6 +37,7 @@ use crate::cinematic::{
 };
 use crate::constants::*;
 use crate::frame::Frame;
+use crate::theme::canonical_name_for_scheme;
 use crate::{bench_cpu::CpuTracker, bench_progress::BenchProgress, bench_report::BenchReportData};
 /// Duration of the premium benchmark in seconds (default).
 pub(crate) const BENCHMARK_DURATION_SECS: u64 = 5;
@@ -576,6 +577,16 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         density: cfg.density,
         speed: cfg.speed,
         scene: cfg.scene_name.clone(),
+        color_scheme_name: canonical_name_for_scheme(cfg.color_scheme)
+            .unwrap_or("unknown")
+            .to_string(),
+        charset_preset: cfg.charset_preset.clone(),
+        glyph_count: cfg.chars.len(),
+        rain_style: cfg.rain_style.as_str(),
+        monolith_size: cfg.monolith_size.as_str(),
+        bold_mode: format!("{:?}", cfg.bold_mode),
+        shading_mode: format!("{:?}", cfg.shading_mode),
+        atmosphere_mode: cfg.atmosphere_mode.as_str(),
         avg_fps,
         peak_fps,
         avg_frame_time,
@@ -897,6 +908,16 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         density: cfg.density,
         speed: cfg.speed,
         scene: cfg.scene_name.clone(),
+        color_scheme_name: canonical_name_for_scheme(cfg.color_scheme)
+            .unwrap_or("unknown")
+            .to_string(),
+        charset_preset: cfg.charset_preset.clone(),
+        glyph_count: cfg.chars.len(),
+        rain_style: cfg.rain_style.as_str(),
+        monolith_size: cfg.monolith_size.as_str(),
+        bold_mode: format!("{:?}", cfg.bold_mode),
+        shading_mode: format!("{:?}", cfg.shading_mode),
+        atmosphere_mode: cfg.atmosphere_mode.as_str(),
         avg_fps,
         peak_fps,
         avg_frame_time,

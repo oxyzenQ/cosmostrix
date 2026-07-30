@@ -132,7 +132,11 @@ mod tests {
     fn bench_report_data_struct_fields_are_all_used() {
         // Verify the BenchReportData struct has the expected field count
         // to guard against accidental removal of fields during refactoring.
-        // Count: status(1) + dims/config(6) + perf(8) + dirty(8) + throughput(6) + timing(3) = 32
+        // Count: status(1) + dims/config(15) + perf(8) + dirty(8) + throughput(6) + timing(3) = 41
+        // v25.16: config grew from 6 to 15 fields (color_scheme_name,
+        // charset_preset, glyph_count, rain_style, monolith_size, bold_mode,
+        // shading_mode, atmosphere_mode, + speed which moved from
+        // perf-only to config too).
         let data = BenchReportData {
             was_interrupted: false,
             w: 80,
@@ -142,6 +146,14 @@ mod tests {
             density: 1.0_f32,
             speed: 1.0_f32,
             scene: "cinematic".to_string(),
+            color_scheme_name: "cosmos".to_string(),
+            charset_preset: "matrix".to_string(),
+            glyph_count: 84,
+            rain_style: "glyph",
+            monolith_size: "normal",
+            bold_mode: "Random".to_string(),
+            shading_mode: "DistanceFromHead".to_string(),
+            atmosphere_mode: "disabled",
             avg_fps: 13000.0,
             peak_fps: 15000.0,
             avg_frame_time: 0.077,

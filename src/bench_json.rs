@@ -72,6 +72,14 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
     // ── config ──
     json_object(&mut out, "config", |o| {
         o.push_kv_str("scene", &data.scene);
+        o.push_kv_str("color_scheme", &data.color_scheme_name);
+        o.push_kv_str("charset", &data.charset_preset);
+        o.push_kv("glyph_count", data.glyph_count as u64);
+        o.push_kv_str("rain_style", data.rain_style);
+        o.push_kv_str("monolith_size", data.monolith_size);
+        o.push_kv_str("bold", &data.bold_mode);
+        o.push_kv_str("shading", &data.shading_mode);
+        o.push_kv_str("atmosphere", data.atmosphere_mode);
         o.push_kv("cols", data.w);
         o.push_kv("lines", data.h);
         o.push_kv("target_fps", data.target_fps);
