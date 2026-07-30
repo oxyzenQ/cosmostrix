@@ -29,6 +29,13 @@ const LIVE_LINES: u16 = 4;
 /// Minimum interval between screen updates (~15 Hz).
 const UPDATE_INTERVAL: Duration = Duration::from_millis(66);
 
+/// Minimum interval between silent spinner updates (4 Hz — calm, not spammy).
+///
+/// The silent spinner is a single-line loading indicator shown in
+/// non-verbose mode. It updates at 4 Hz (every 250ms) which is calm
+/// enough to feel professional yet alive enough to communicate progress.
+const SILENT_UPDATE_INTERVAL: Duration = Duration::from_millis(250);
+
 /// Number of recent frame times to smooth for display.
 const DISPLAY_FT_WINDOW: usize = 16;
 
@@ -101,14 +108,24 @@ pub(crate) fn register_interrupt() -> Arc<AtomicBool> {
 /// On finish the entire live region is erased and the final report
 /// is printed cleanly to stdout.
 ///
-/// ## Silent arena mode
+/// ## Silent spinner mode (default)
 ///
-/// By default (`verbose == false`), **all** progress UI output is
-/// suppressed — the benchmark runs completely silent and only the
-/// final report is printed. This is the "pristine arena" mode for
-/// clean professional presentation. Pass `verbose = true` (from
-/// `cfg.verbose`, i.e., `cosmostrix --benchmark --verbose`) to show
-/// the header, spinners, and live metrics for debugging.
+/// By default (`verbose == false` AND stderr is a TTY), a single-line
+/// loading spinner is shown:
+///
+/// ```text
+/// ⠋ Running COSMOSTRIX BENCHMARK... 2.3s
+/// ```
+///
+/// This spinner appears once on a single line, updates at 4 Hz (calm,
+/// not spammy), and is erased when the benchmark completes — leaving
+/// only the final report on stdout. Pass `verbose = true` (from
+/// `cfg.verbose`, i.e., `cosmostrix --benchmark --verbose`) to show the
+/// full multi-line progress UI with header, warmup indicators, and live
+/// metrics for debugging.
+///
+/// When stderr is NOT a TTY (piped/redirected), all progress output is
+/// suppressed to avoid ANSI pollution — only the final report prints.
 pub(crate) struct BenchProgress {
     spinner_idx: usize,
     last_update: Instant,
@@ -125,10 +142,16 @@ pub(crate) struct BenchProgress {
     /// Whether stderr is an interactive terminal.
     is_tty: bool,
     /// Whether verbose progress UI is enabled (from `cfg.verbose`).
-    /// When false, all spinner/header/warmup/running-tick output is
-    /// suppressed — the silent arena mode. When true AND `is_tty`, the
-    /// full progress UI is shown for debugging.
+    /// When true AND `is_tty`, the full multi-line progress UI is shown
+    /// (header, warmup indicators, live metrics). When false, a single-
+    /// line silent spinner is shown instead (see `silent_active`).
     verbose: bool,
+    /// Whether the silent single-line spinner is currently displayed.
+    /// Active in non-verbose mode when stderr is a TTY. Shows:
+    /// `⠋ Running COSMOSTRIX BENCHMARK... X.Xs` updated at 4 Hz.
+    silent_active: bool,
+    /// When the silent spinner started (for elapsed display).
+    silent_start: Option<Instant>,
     /// RAII cursor guard.
     _cursor_guard: Option<CursorGuard>,
 }
@@ -151,6 +174,8 @@ impl BenchProgress {
             recent_ft_count: 0,
             is_tty: io::stderr().is_terminal(),
             verbose,
+            silent_active: false,
+            silent_start: None,
             _cursor_guard: None,
         }
     }
@@ -163,6 +188,15 @@ impl BenchProgress {
         self.verbose && self.is_tty
     }
 
+    /// Whether the silent single-line spinner should be shown.
+    /// Active when: non-verbose mode AND interactive stderr. Verbose
+    /// mode uses the full progress UI instead; piped output stays
+    /// completely silent to avoid ANSI escape pollution in files.
+    #[inline]
+    fn should_display_silent(&self) -> bool {
+        !self.verbose && self.is_tty
+    }
+
     /// Advance the spinner and return the current frame character.
     #[inline]
     fn spin(&mut self) -> char {
@@ -172,18 +206,31 @@ impl BenchProgress {
     }
 
     /// Print the header block and hide the cursor.
+    ///
+    /// In verbose mode: prints the multi-line header. In silent mode:
+    /// prints the initial single-line spinner. Both acquire the cursor
+    /// guard to hide the cursor during the benchmark.
     pub(crate) fn begin(&mut self) {
-        if !self.should_display() {
+        if self.should_display() {
+            self._cursor_guard = CursorGuard::acquire().ok();
+            let mut stderr = io::stderr().lock();
+            // v17: purple header for benchmark title
+            let _ = write!(stderr, "{}", crate::output::brand_bold_open());
+            let _ = writeln!(stderr, "COSMOSTRIX BENCHMARK{}", crate::output::reset());
+            let _ = writeln!(stderr, "────────────────────");
+            let _ = stderr.flush();
+            self.lines_written = 2;
             return;
         }
-        self._cursor_guard = CursorGuard::acquire().ok();
-        let mut stderr = io::stderr().lock();
-        // v17: purple header for benchmark title
-        let _ = write!(stderr, "{}", crate::output::brand_bold_open());
-        let _ = writeln!(stderr, "COSMOSTRIX BENCHMARK{}", crate::output::reset());
-        let _ = writeln!(stderr, "────────────────────");
-        let _ = stderr.flush();
-        self.lines_written = 2;
+        if self.should_display_silent() {
+            self._cursor_guard = CursorGuard::acquire().ok();
+            self.silent_start = Some(Instant::now());
+            self.silent_active = true;
+            self.last_update = Instant::now();
+            let spinner = self.spin();
+            let _ = write!(io::stderr(), "{spinner} Running COSMOSTRIX BENCHMARK...");
+            let _ = io::stderr().flush();
+        }
     }
 
     /// Print "initializing renderer... done" — this step is fast enough
@@ -209,18 +256,21 @@ impl BenchProgress {
     }
 
     /// Animate the warmup spinner. Rate-limited internally.
+    /// In silent mode, delegates to `silent_tick()` to keep the single
+    /// loading line alive during the warmup phase.
     pub(crate) fn warmup_tick(&mut self) {
-        if !self.should_display() {
+        if self.should_display() {
+            let now = Instant::now();
+            if now.duration_since(self.last_update) < UPDATE_INTERVAL {
+                return;
+            }
+            self.last_update = now;
+            let spinner = self.spin();
+            let _ = write!(io::stderr(), "\rwarming frame pipeline... {}  ", spinner);
+            let _ = io::stderr().flush();
             return;
         }
-        let now = Instant::now();
-        if now.duration_since(self.last_update) < UPDATE_INTERVAL {
-            return;
-        }
-        self.last_update = now;
-        let spinner = self.spin();
-        let _ = write!(io::stderr(), "\rwarming frame pipeline... {}  ", spinner);
-        let _ = io::stderr().flush();
+        self.silent_tick();
     }
 
     /// Mark warmup as complete.
@@ -248,6 +298,10 @@ impl BenchProgress {
         duration_s: f64,
     ) {
         if !self.should_display() {
+            // Silent mode: update the single loading line, ignore live
+            // metrics (those are verbose-only diagnostics).
+            let _ = (total_frames, elapsed_s, frame_time_ms, duration_s);
+            self.silent_tick();
             return;
         }
 
@@ -316,35 +370,69 @@ impl BenchProgress {
         let _ = io::stderr().flush();
     }
 
+    /// Update the silent single-line spinner (non-verbose mode).
+    ///
+    /// Rate-limited to 4 Hz — calm enough to feel professional, alive
+    /// enough to communicate progress. Rewrites the line in place with
+    /// `\r` so no scrolling occurs. Shows elapsed time since `begin()`.
+    fn silent_tick(&mut self) {
+        if !self.silent_active {
+            return;
+        }
+        let now = Instant::now();
+        if now.duration_since(self.last_update) < SILENT_UPDATE_INTERVAL {
+            return;
+        }
+        self.last_update = now;
+        let elapsed = self
+            .silent_start
+            .map(|s| s.elapsed().as_secs_f64())
+            .unwrap_or(0.0);
+        let spinner = self.spin();
+        let _ = write!(
+            io::stderr(),
+            "\r{spinner} Running COSMOSTRIX BENCHMARK... {elapsed:.1}s"
+        );
+        let _ = io::stderr().flush();
+    }
+
     /// Clear the entire live progress region and restore the terminal.
     ///
     /// After this call the terminal is left in a clean state with the
     /// cursor positioned where the benchmark output originally started.
     /// The final report should then be printed to **stdout**.
     pub(crate) fn finish(&mut self) {
-        if !self.should_display() {
+        if self.should_display() {
+            // Verbose path — clear the multi-line live region.
+            // If the warmup spinner is still active (no newline), commit the
+            // line so we can count and clear it.
+            if self.warmup_active {
+                let _ = write!(io::stderr(), "\x1b[2K\r\n");
+                self.warmup_active = false;
+                self.lines_written += 1;
+            }
+
+            if self.lines_written > 0 {
+                // Move to the top of our output, clear each line, return to start.
+                let _ = write!(io::stderr(), "\x1b[{}A", self.lines_written);
+                for _ in 0..self.lines_written {
+                    let _ = write!(io::stderr(), "\x1b[2K\x1b[1B");
+                }
+                let _ = write!(io::stderr(), "\x1b[{}A\r", self.lines_written);
+                let _ = io::stderr().flush();
+            }
+
+            // Drop cursor guard — restores cursor visibility via RAII.
+            self._cursor_guard = None;
             return;
         }
 
-        // If the warmup spinner is still active (no newline), commit the
-        // line so we can count and clear it.
-        if self.warmup_active {
-            let _ = write!(io::stderr(), "\x1b[2K\r\n");
-            self.warmup_active = false;
-            self.lines_written += 1;
-        }
-
-        if self.lines_written > 0 {
-            // Move to the top of our output, clear each line, return to start.
-            let _ = write!(io::stderr(), "\x1b[{}A", self.lines_written);
-            for _ in 0..self.lines_written {
-                let _ = write!(io::stderr(), "\x1b[2K\x1b[1B");
-            }
-            let _ = write!(io::stderr(), "\x1b[{}A\r", self.lines_written);
+        // Silent path — clear the single spinner line.
+        if self.silent_active {
+            let _ = write!(io::stderr(), "\r\x1b[2K");
             let _ = io::stderr().flush();
+            self.silent_active = false;
+            self._cursor_guard = None;
         }
-
-        // Drop cursor guard — restores cursor visibility via RAII.
-        self._cursor_guard = None;
     }
 }
