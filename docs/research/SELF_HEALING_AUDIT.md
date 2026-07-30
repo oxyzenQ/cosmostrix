@@ -11,11 +11,14 @@ realistic to build.
 
 **TL;DR**: The codebase already has **substantial** self-healing
 infrastructure — watchdog, phosphor decay, signal handlers, force-draw
-invalidation, perf-gated degradation, adaptive pacing. The gaps are narrow
+invalidation, perf-gated degradation, adaptive pacing. The gaps were narrow
 but targeted: (1) no periodic **stuck-cell sweep** that catches dirty-tracking
 edge cases, (2) no `/dev/tty` fallback when stdout breaks mid-run,
 (3) no **automatic scene downgrade** when sustained CPU pressure is detected,
-(4) `EnduranceHealth.score()` is computed but never consumed by the runtime.
+(4) `EnduranceHealth.score()` is computed but never consumed by the runtime,
+(5) no proactive `isatty` probe to detect fd corruption during idle periods.
+
+**All five gaps are now closed** (P1-P5, commits `35a6acd` through `2ed4a27`).
 
 **Implementation Status (2026-07-30)**:
 
@@ -25,7 +28,7 @@ edge cases, (2) no `/dev/tty` fallback when stdout breaks mid-run,
 | P2 | Wire EnduranceHealth.score() to mitigations | ✅ Done | `35a6acd`, `0edffa2` |
 | P3 | `/dev/tty` fallback for mid-run stdout corruption | ✅ Done | `22a2aa3` |
 | P4 | Periodic stuck-cell sweep (debug mode only) | ✅ Done | `4827ddb`, `e73da86` |
-| P5 | Periodic fd health check (isatty probe) | Skipped — reactive path is sufficient |
+| P5 | Periodic fd health check (isatty probe) | ✅ Done | `feeac76`, `2ed4a27` |
 
 ---
 
@@ -253,14 +256,44 @@ path only fires when stdout `write_all` returns an error.
 PermissionDenied, EBADF, ENXIO, EIO classifications, plus negative
 cases (Interrupted, WriteZero are NOT recoverable).
 
-### Gap: No Periodic fd Health Check
+### Gap (Closed P5): Periodic fd Health Check (isatty Probe)
 
-**What's missing**: No periodic `isatty(stdout)` check or write-probe
-to detect fd corruption proactively. Only detected when a write fails.
+**What was missing**: No proactive `isatty(stdout)` check to detect fd
+ corruption before a write fails. The reactive P3 path catches write
+ failures during active rendering, but during idle periods (no redraws)
+stdout could break (SSH disconnect, terminal crash, parent death) and
+we wouldn't notice until the next render attempt.
 
-**Recommendation**: Low priority. The reactive path (write fails → handle
-error) is sufficient. A proactive check adds per-frame syscall overhead
-for a rare failure mode.
+**Why it was originally skipped**: The audit's concern was "per-frame
+syscall overhead for a rare failure mode." The realized design solves
+this by running the probe on a slow interval (every 3600 frames ≈ 60s
+at 60fps), not per-frame. The isatty syscall is ≈1μs, amortized to
+0.0017 syscalls/sec — completely negligible.
+
+**Implementation (commit `feeac76`)**:
+1. New constant `FD_HEALTH_PROBE_INTERVAL_FRAMES = 3600` (matches P4
+   stuck-cell sweep cadence — both are background hygiene passes on
+   the same slow tick).
+2. New `Terminal::probe_stdout_health()` method. On Unix: calls
+   `isatty(stdout_fd)` via `std::io::IsTerminal`. If false, reuses
+   the P3 recovery path (`recover_to_tty` with an empty buffer +
+   synthetic `BrokenPipe` error) which opens `/dev/tty`, sets
+   `GRACEFUL_SHUTDOWN`, logs to stderr. On non-Unix: always returns
+   true (Windows console handles don't fail the same way; reactive
+   P3 path remains in effect).
+3. Wired into `event_loop.rs` after the `perf_rss_samples` increment.
+   When the probe returns false, breaks the loop (`GRACEFUL_SHUTDOWN`
+   is already set; `Terminal::drop` runs the normal cleanup path).
+
+**Cost**: one `isatty` syscall per minute. Zero per-frame overhead.
+The probe reuses the entire P3 recovery machinery — no new `/dev/tty`
+opening logic, no new `GRACEFUL_SHUTDOWN` wiring, no new stderr logging.
+P5 is purely a detection layer on top of P3's recovery layer.
+
+**Tests** (commit `2ed4a27`): 7 unit tests covering interval bounds,
+P4 cadence sync, P3 contract verification (synthetic BrokenPipe is
+recoverable), IsTerminal behavior on /dev/null, recovery cap inheritance,
+and modulo-check fire-pattern simulation over 3 intervals.
 
 ---
 
@@ -368,17 +401,17 @@ in `adaptive::tests` cover the state machine transitions.
 | 2 | Wire EnduranceHealth.score() to mitigations | ~20 LOC | Medium — closes the loop on existing metric | **P2** | ✅ Done (`35a6acd`, `0edffa2`) |
 | 3 | `/dev/tty` fallback for mid-run stdout corruption | ~30 LOC | Medium — daemon/screensaver value | **P3** | ✅ Done (`22a2aa3`) |
 | 4 | Periodic stuck-cell sweep (debug mode only) | ~50 LOC | Low — 5-min full redraw already covers this | **P4** | ✅ Done (`4827ddb`, `e73da86`) |
-| 5 | Periodic fd health check (isatty probe) | ~10 LOC | Low — reactive path is sufficient | **P5** | Skipped |
+| 5 | Periodic fd health check (isatty probe) | ~30 LOC | Low — closes idle-period detection window | **P5** | ✅ Done (`feeac76`, `2ed4a27`) |
 
-**Result**: All four actionable gaps are now closed. The self-healing
+**Result**: All five actionable gaps are now closed. The self-healing
 subsystem comprises:
 
 - **Visual self-cleaning**: phosphor decay + 5-min full redraw + P4 stuck-cell sweep
-- **State recovery**: signal handlers + SIGCONT reinit + watchdog + P3 /dev/tty fallback
+- **State recovery**: signal handlers + SIGCONT reinit + watchdog + P3 /dev/tty fallback + P5 proactive fd health probe
 - **Adaptive degradation**: perf_pressure gating + P1 auto-scene-downgrade + P2 EnduranceHealth mitigations
 
-Total implementation cost: ~160 LOC across 6 commits, zero per-frame
-overhead in steady state, 30 new unit tests (8 P3 + 7 P4 + 15 P1+P2).
+Total implementation cost: ~190 LOC across 8 commits, zero per-frame
+overhead in steady state, 37 new unit tests (8 P3 + 7 P4 + 15 P1+P2 + 7 P5).
 
 ---
 
