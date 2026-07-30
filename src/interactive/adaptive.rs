@@ -283,6 +283,16 @@ impl Default for ReclaimState {
 pub(crate) struct EnduranceHealth {
     /// Ring buffer of recent RSS readings (KB).
     rss_samples: [f64; 60],
+    /// Write cursor for `rss_samples` (free-running modulo 60).
+    ///
+    /// Only ever used inside `push_rss`, which is `#[cfg(target_os = "linux")]`
+    /// because it reads `/proc/self/status`. On FreeBSD/macOS/Windows the
+    /// `push_rss` method is cfg'd out, leaving this field with zero uses —
+    /// which would trip `-D warnings` under the project's clippy config.
+    /// The cfg_attr suppresses the dead-code lint only on non-Linux
+    /// platforms; on Linux the field is still flagged normally if it ever
+    /// becomes truly unused.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     rss_idx: usize,
     rss_count: usize,
     /// EMA of frame time (ms).
