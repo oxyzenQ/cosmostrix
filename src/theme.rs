@@ -12,279 +12,174 @@ use std::sync::LazyLock;
 
 use crate::runtime::ColorScheme;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[allow(dead_code)] // category label used by detail_list_text (test-only in v14)
-pub enum ThemeCategory {
-    Classic,
-    Primary,
-    Cinematic,
-    Nature,
-    Space,
-    Planetary,
-    Cosmic,
-}
-
-impl ThemeCategory {
-    #[must_use]
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Classic => "CLASSIC",
-            Self::Primary => "PRIMARY",
-            Self::Cinematic => "CINEMATIC",
-            Self::Nature => "NATURE",
-            Self::Space => "SPACE",
-            Self::Planetary => "PLANETARY",
-            Self::Cosmic => "COSMIC",
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
-#[allow(dead_code)] // category/description fields used by detail_list_text (test-only in v14)
 pub struct ThemeInfo {
     pub name: &'static str,
     pub scheme: ColorScheme,
-    pub category: ThemeCategory,
-    pub description: &'static str,
     pub aliases: &'static [&'static str],
 }
 
 pub const THEME_COUNT: usize = 43;
 
-#[allow(dead_code)] // used by detail_list_text (test-only in v14)
-pub const THEME_CATEGORIES: &[ThemeCategory] = &[
-    ThemeCategory::Classic,
-    ThemeCategory::Primary,
-    ThemeCategory::Cinematic,
-    ThemeCategory::Nature,
-    ThemeCategory::Space,
-    ThemeCategory::Planetary,
-    ThemeCategory::Cosmic,
-];
-
 pub const THEMES: &[ThemeInfo] = &[
     ThemeInfo {
         name: "green",
         scheme: ColorScheme::Green,
-        category: ThemeCategory::Classic,
-        description: "Classic Matrix green",
         aliases: &[],
     },
     ThemeInfo {
         name: "green2",
         scheme: ColorScheme::Green2,
-        category: ThemeCategory::Classic,
-        description: "Brighter green variant",
         aliases: &[],
     },
     ThemeInfo {
         name: "green3",
         scheme: ColorScheme::Green3,
-        category: ThemeCategory::Classic,
-        description: "Deep teal-shifted forest green",
         aliases: &[],
     },
     ThemeInfo {
         name: "neon-green",
         scheme: ColorScheme::NeonGreen,
-        category: ThemeCategory::Classic,
-        description: "Futuristic neon green glow",
         aliases: &["neon_green", "neongreen"],
     },
     ThemeInfo {
         name: "neon-purple",
         scheme: ColorScheme::NeonPurple,
-        category: ThemeCategory::Cinematic,
-        description: "Vivid neon violet glow",
         aliases: &["neon_purple", "neonpurple"],
     },
     ThemeInfo {
         name: "neon-white",
         scheme: ColorScheme::NeonWhite,
-        category: ThemeCategory::Cinematic,
-        description: "Cold phosphor-white spectral glow",
         aliases: &["neon_white", "neonwhite"],
     },
     ThemeInfo {
         name: "neon-blue",
         scheme: ColorScheme::NeonBlue,
-        category: ThemeCategory::Cinematic,
-        description: "Electric sapphire neon-blue glow",
         aliases: &["neon_blue", "neonblue"],
     },
     ThemeInfo {
         name: "neon-red",
         scheme: ColorScheme::NeonRed,
-        category: ThemeCategory::Cinematic,
-        description: "Plasma-crimson neon-red tube glow",
         aliases: &["neon_red", "neonred"],
     },
     ThemeInfo {
         name: "neon-orange",
         scheme: ColorScheme::NeonOrange,
-        category: ThemeCategory::Cinematic,
-        description: "Sodium-lamp neon-orange glow",
         aliases: &["neon_orange", "neonorange"],
     },
     ThemeInfo {
         name: "neon-yellow",
         scheme: ColorScheme::NeonYellow,
-        category: ThemeCategory::Cinematic,
-        description: "Electric sulfur neon-yellow glow",
         aliases: &["neon_yellow", "neonyellow"],
     },
     ThemeInfo {
         name: "neon-cyan",
         scheme: ColorScheme::NeonCyan,
-        category: ThemeCategory::Cinematic,
-        description: "Liquid-mercury neon-cyan glow",
         aliases: &["neon_cyan", "neoncyan"],
     },
     ThemeInfo {
         name: "carbon",
         scheme: ColorScheme::Carbon,
-        category: ThemeCategory::Classic,
-        description: "Dark carbon-fiber silver gradient",
         aliases: &[],
     },
     ThemeInfo {
         name: "yellow",
         scheme: ColorScheme::Yellow,
-        category: ThemeCategory::Primary,
-        description: "Warm yellow signal glow",
         aliases: &[],
     },
     ThemeInfo {
         name: "orange",
         scheme: ColorScheme::Orange,
-        category: ThemeCategory::Primary,
-        description: "Amber-orange terminal glow",
         aliases: &[],
     },
     ThemeInfo {
         name: "red",
         scheme: ColorScheme::Red,
-        category: ThemeCategory::Primary,
-        description: "High-alert red palette",
         aliases: &[],
     },
     ThemeInfo {
         name: "blue",
         scheme: ColorScheme::Blue,
-        category: ThemeCategory::Primary,
-        description: "Clean electric blue",
         aliases: &[],
     },
     ThemeInfo {
         name: "cyan",
         scheme: ColorScheme::Cyan,
-        category: ThemeCategory::Primary,
-        description: "Cool cyan terminal glow",
         aliases: &[],
     },
     ThemeInfo {
         name: "gold",
         scheme: ColorScheme::Gold,
-        category: ThemeCategory::Primary,
-        description: "Polished gold highlights",
         aliases: &[],
     },
     ThemeInfo {
         name: "rainbow",
         scheme: ColorScheme::Rainbow,
-        category: ThemeCategory::Primary,
-        description: "Full-spectrum color cycling",
         aliases: &[],
     },
     ThemeInfo {
         name: "purple",
         scheme: ColorScheme::Purple,
-        category: ThemeCategory::Primary,
-        description: "Saturated violet rain",
         aliases: &[],
     },
     ThemeInfo {
         name: "neon",
         scheme: ColorScheme::Neon,
-        category: ThemeCategory::Cinematic,
-        description: "Synthwave neon magenta/cyan",
         aliases: &["synthwave"],
     },
     ThemeInfo {
         name: "fire",
         scheme: ColorScheme::Fire,
-        category: ThemeCategory::Cinematic,
-        description: "Hot ember and flame tones",
         aliases: &["inferno"],
     },
     ThemeInfo {
         name: "ocean",
         scheme: ColorScheme::Ocean,
-        category: ThemeCategory::Nature,
-        description: "Deep sea blue-green palette",
         aliases: &["deep-sea", "deep_sea", "deepsea"],
     },
     ThemeInfo {
         name: "forest",
         scheme: ColorScheme::Forest,
-        category: ThemeCategory::Nature,
-        description: "Moss and canopy greens",
         aliases: &["jungle"],
     },
     ThemeInfo {
         name: "vaporwave",
         scheme: ColorScheme::Vaporwave,
-        category: ThemeCategory::Cinematic,
-        description: "Retro pink and cyan haze",
         aliases: &[],
     },
     ThemeInfo {
         name: "gray",
         scheme: ColorScheme::Gray,
-        category: ThemeCategory::Classic,
-        description: "Neutral monochrome gray",
         aliases: &["grey", "silver"],
     },
     ThemeInfo {
         name: "snow",
         scheme: ColorScheme::Snow,
-        category: ThemeCategory::Cinematic,
-        description: "Cold white-blue shimmer",
         aliases: &["white"],
     },
     ThemeInfo {
         name: "aurora",
         scheme: ColorScheme::Aurora,
-        category: ThemeCategory::Cinematic,
-        description: "Northern-light green and violet",
         aliases: &[],
     },
     ThemeInfo {
         name: "fancy-diamond",
         scheme: ColorScheme::FancyDiamond,
-        category: ThemeCategory::Cinematic,
-        description: "Prismatic diamond sparkle",
         aliases: &["fancy_diamond", "fancydiamond"],
     },
     ThemeInfo {
         name: "cosmos",
         scheme: ColorScheme::Cosmos,
-        category: ThemeCategory::Space,
-        description: "Cosmic blue/purple palette",
         aliases: &[],
     },
     ThemeInfo {
         name: "nebula",
         scheme: ColorScheme::Nebula,
-        category: ThemeCategory::Space,
-        description: "Nebula violet/cyan palette",
         aliases: &[],
     },
     ThemeInfo {
         name: "spectrum20",
         scheme: ColorScheme::Spectrum20,
-        category: ThemeCategory::Cinematic,
-        description: "Expanded twenty-stop spectrum",
         aliases: &[
             "spectrum-20",
             "spectrum_20",
@@ -296,78 +191,56 @@ pub const THEMES: &[ThemeInfo] = &[
     ThemeInfo {
         name: "stars",
         scheme: ColorScheme::Stars,
-        category: ThemeCategory::Space,
-        description: "Bright starfield whites",
         aliases: &["star"],
     },
     ThemeInfo {
         name: "mars",
         scheme: ColorScheme::Mars,
-        category: ThemeCategory::Planetary,
-        description: "Rust-red Martian dust",
         aliases: &[],
     },
     ThemeInfo {
         name: "venus",
         scheme: ColorScheme::Venus,
-        category: ThemeCategory::Planetary,
-        description: "Cream and sulfur cloud tones",
         aliases: &[],
     },
     ThemeInfo {
         name: "mercury",
         scheme: ColorScheme::Mercury,
-        category: ThemeCategory::Planetary,
-        description: "Cool rocky silver palette",
         aliases: &[],
     },
     ThemeInfo {
         name: "jupiter",
         scheme: ColorScheme::Jupiter,
-        category: ThemeCategory::Planetary,
-        description: "Storm-band ochre and cream",
         aliases: &[],
     },
     ThemeInfo {
         name: "saturn",
         scheme: ColorScheme::Saturn,
-        category: ThemeCategory::Planetary,
-        description: "Amber-gold ringed planet",
         aliases: &[],
     },
     ThemeInfo {
         name: "uranus",
         scheme: ColorScheme::Uranus,
-        category: ThemeCategory::Planetary,
-        description: "Pale icy cyan",
         aliases: &[],
     },
     ThemeInfo {
         name: "neptune",
         scheme: ColorScheme::Neptune,
-        category: ThemeCategory::Planetary,
-        description: "Deep planetary blue",
         aliases: &[],
     },
     ThemeInfo {
         name: "pluto",
         scheme: ColorScheme::Pluto,
-        category: ThemeCategory::Planetary,
-        description: "Nitrogen-ice blue dwarf",
         aliases: &[],
     },
     ThemeInfo {
         name: "moon",
         scheme: ColorScheme::Moon,
-        category: ThemeCategory::Planetary,
-        description: "Lunar gray-white palette",
         aliases: &[],
     },
     ThemeInfo {
         name: "sun",
         scheme: ColorScheme::Sun,
-        category: ThemeCategory::Planetary,
-        description: "Solar yellow-white heat",
         aliases: &[],
     },
 ];
@@ -438,30 +311,6 @@ pub fn compact_list_text() -> String {
         out.push_str("  ");
         for theme in row {
             out.push_str(&format!("{:<15}", theme.name));
-        }
-        out.push('\n');
-    }
-    out
-}
-
-#[must_use]
-#[allow(dead_code)] // retained for future use; --list-colors-detail removed in v14
-pub fn detail_list_text() -> String {
-    let mut out = String::new();
-    for category in THEME_CATEGORIES {
-        out.push_str(category.label());
-        out.push('\n');
-        for theme in themes().iter().filter(|theme| theme.category == *category) {
-            if theme.aliases.is_empty() {
-                out.push_str(&format!("  {:<15} {}\n", theme.name, theme.description));
-            } else {
-                out.push_str(&format!(
-                    "  {:<15} {} (aliases: {})\n",
-                    theme.name,
-                    theme.description,
-                    theme.aliases.join(", ")
-                ));
-            }
         }
         out.push('\n');
     }
@@ -654,19 +503,6 @@ mod tests {
                 theme.name
             );
         }
-    }
-
-    #[test]
-    fn detailed_color_list_includes_categories_and_canonical_themes() {
-        let detail = detail_list_text();
-        for category in THEME_CATEGORIES {
-            assert!(detail.contains(category.label()));
-        }
-        for theme in themes() {
-            assert!(detail.contains(theme.name), "missing {}", theme.name);
-        }
-        assert!(detail.contains("aliases: white"));
-        assert!(detail.contains("aliases: grey, silver"));
     }
 
     #[test]
