@@ -141,16 +141,20 @@ impl FrameTimeTracker {
 
     /// p99 frame time (ms) computed from the ring buffer.
     ///
-    /// Sorts a snapshot of the buffer on every call — 60 elements is
-    /// ~300ns, negligible at the 4 Hz HUD redraw rate. Used by the live
-    /// HUD overlay to highlight tail spikes alongside the rolling avg.
+    /// Sorts a stack-allocated snapshot of the buffer on every call —
+    /// 60 elements is ~300ns, and the fixed-size array avoids a heap
+    /// allocation on the HUD refresh path (1 Hz). Used by the live HUD
+    /// overlay to highlight tail spikes alongside the rolling avg.
     pub(crate) fn p99_ms(&self) -> f64 {
         if self.count == 0 {
             return 0.0;
         }
-        let mut snapshot: Vec<f64> = self.times[..self.count].to_vec();
-        snapshot.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let p99_idx = ((snapshot.len() as f64) * 0.99) as usize;
-        snapshot[p99_idx.min(snapshot.len() - 1)]
+        // Stack-anchored snapshot — no Vec allocation. The ring buffer
+        // is fixed at 60 entries, so a fixed array covers every call.
+        let mut snapshot: [f64; 60] = self.times;
+        snapshot[..self.count]
+            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let p99_idx = ((self.count as f64) * 0.99) as usize;
+        snapshot[p99_idx.min(self.count - 1)]
     }
 }

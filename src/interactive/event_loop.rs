@@ -156,7 +156,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
 
     // Live HUD overlay state — toggled with 'i'. When visible, renders a
-    // compact FPS/p99/RSS overlay in the top-right corner at 4 Hz.
+    // compact FPS/p99/RSS overlay in the top-right corner at 1 Hz.
     // Zero cost when off (all methods short-circuit on visible==false).
     // 'i' is used instead of '?' because Android/Termux soft keyboards
     // may send '?' as a multi-byte sequence or with unexpected modifier

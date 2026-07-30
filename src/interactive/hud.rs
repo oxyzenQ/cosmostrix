@@ -10,7 +10,12 @@
 //!
 //! ## Design constraints
 //! - **Zero cost when off**: `visible == false` short-circuits all work.
-//! - **Metrics at 4 Hz**: p99 sort + string formatting only every 250ms.
+//! - **Metrics at 1 Hz**: p99 sort + string formatting only every 1000ms.
+//!   1 Hz is the world-class standard for live HUDs (htop, mangoHUD,
+//!   Steam FPS counter, nvidia-smi) — calm enough that the eye reads
+//!   numbers as stable, fast enough to catch any real spike. The
+//!   previous 4 Hz cadence made FPS/p99 visibly flicker 4×/sec which
+//!   read as "wasteful" even though CPU cost was negligible (~30 µs/s).
 //! - **Frame buffer integration**: HUD cells written via `frame.set()`
 //!   (not `set_force`) so unchanged cells are NOT marked dirty — the
 //!   terminal skips re-sending them. When metrics are stable, only
@@ -27,8 +32,19 @@ use crossterm::style::Color;
 use crate::interactive::activity::FrameTimeTracker;
 use crate::memstat;
 
-/// Minimum interval between HUD metric recomputation (~4 Hz).
-const HUD_METRIC_INTERVAL: Duration = Duration::from_millis(250);
+/// Minimum interval between HUD metric recomputation (1 Hz).
+///
+/// 1 Hz is the sweet spot for live HUD overlays — matches htop,
+/// mangoHUD, Steam FPS counter, and `nvidia-smi`. Faster rates (e.g.
+/// the previous 250 ms / 4 Hz) cause visible number flicker without
+/// improving diagnostic value, since the human eye can't correlate
+/// sub-second FPS changes to root causes anyway. Slower rates (e.g.
+/// 3 s) would hide real spikes that the user wants to catch.
+///
+/// This interval also aligns with `HUD_RSS_INTERVAL` so both metric
+/// and RSS updates fire on the same tick — halving the per-frame
+/// timestamp-comparison overhead on the fast path.
+const HUD_METRIC_INTERVAL: Duration = Duration::from_millis(1000);
 
 /// Interval between RSS samples in interactive mode (1 Hz).
 const HUD_RSS_INTERVAL: Duration = Duration::from_millis(1000);
@@ -80,12 +96,12 @@ pub(crate) struct HudState {
     max_ms: f64,
     /// When max_ms was last reset. Used for auto-reset.
     max_reset_at: Instant,
-    /// Cached p99 frame time (ms) for display. Updated at 4 Hz.
+    /// Cached p99 frame time (ms) for display. Updated at 1 Hz.
     p99_ms: f64,
     /// Screen size for HUD display. Updated by event_loop when terminal
     /// resizes or --screen-size is set. Format: (width, height, is_fixed).
     screen_size: (u16, u16, bool),
-    /// Cached display strings — reformatted only at 4 Hz, written to
+    /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     cached_lines: [(Color, String); 6],
     /// Current dynamic HUD width (in terminal columns). Recomputed
@@ -196,7 +212,7 @@ impl HudState {
         self.screen_size = (w, h, is_fixed);
     }
 
-    /// Recompute HUD metrics (rate-limited at 4 Hz). Called every frame
+    /// Recompute HUD metrics (rate-limited at 1 Hz). Called every frame
     /// from the event loop. Cheap on the fast path (one timestamp
     /// comparison + early return). When the interval elapses, reformats
     /// the cached display strings.
@@ -211,7 +227,8 @@ impl HudState {
         }
         self.last_metric_update = now;
 
-        // Recompute p99 from the ring buffer (~300ns, acceptable at 4 Hz).
+        // Recompute p99 from the ring buffer (stack-allocated sort,
+        // ~300ns, called once per second).
         self.p99_ms = self.frame_times.p99_ms();
 
         let avg_ms = self.frame_times.rolling_avg_ms();
@@ -309,7 +326,7 @@ impl HudState {
     /// Uses frame.set() (not set_force) so cells that haven't changed
     /// since last frame are NOT marked dirty — the terminal skips
     /// re-sending them. This is the key overhead optimization: when
-    /// metrics are stable (same fps/p99/max for 250ms), only the
+    /// metrics are stable (same fps/p99/max for 1s), only the
     /// changing cells (uptime seconds) get re-sent.
     pub(crate) fn write_to_frame(
         &self,
