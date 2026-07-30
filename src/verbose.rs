@@ -13,10 +13,13 @@
 
 use crate::atmosphere_apply::{AtmosphereApplicationMode, AtmosphereRuntimeModulation};
 use crate::color_tune::ColorTune;
+use crate::config::ColorBg;
 use crate::output;
+use crate::palette;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, MonolithSize, ShadingMode};
 use crate::{configfile, scene};
+use crossterm::style::Color;
 
 /// Determine color provenance for verbose annotation.
 /// Returns None when a custom palette is active (it has its own line).
@@ -59,7 +62,8 @@ pub(crate) fn print_verbose(
     color_scheme: crate::runtime::ColorScheme,
     color_mode: ColorMode,
     color_tune: ColorTune,
-    default_bg: bool,
+    color_bg: ColorBg,
+    custom_palette_bg: Option<Color>,
     charset_preset: &str,
     chars: &[char],
     target_fps: f64,
@@ -127,7 +131,13 @@ pub(crate) fn print_verbose(
             color_tune.tail
         ),
     );
-    output::eprintln_verbose("color_bg:", &format!(" {default_bg:?}"));
+    // v25.17 (verbose ambiguity fix): previously printed just `true`/`false`,
+    // which was ambiguous — `false` could mean "solid black" OR "custom palette
+    // bg from config.toml like `bg = \"#0a0a12\"`". Now we print a descriptive
+    // label that distinguishes all three cases so users can verify at a glance
+    // which background actually got applied.
+    let bg_label = describe_color_bg(color_bg, custom_palette_name, custom_palette_bg);
+    output::eprintln_verbose("color_bg:", &format!(" {bg_label}"));
 
     // ── Glyphs ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Glyphs ──"));
@@ -262,4 +272,51 @@ pub(crate) fn print_verbose(
         ),
     );
     output::eprintln_verbose("commit:", &format!(" {commit_sha}"));
+}
+
+/// Format an `Option<Color>` (palette bg) as a human-readable hex string.
+/// `None` → `"none"`. `Color::Rgb` → `#rrggbb`. Ansi/named → decoded to hex
+/// via `palette::color_to_rgb` so the user sees the actual on-screen color.
+#[must_use]
+fn format_bg_color(bg: Option<Color>) -> String {
+    match bg {
+        None => "none".to_string(),
+        Some(c) => {
+            let (r, g, b) = palette::color_to_rgb(c);
+            format!("#{r:02x}{g:02x}{b:02x}")
+        }
+    }
+}
+
+/// Produce a descriptive label for the `color_bg` verbose line.
+///
+/// Three distinguishable cases:
+/// 1. `DefaultBackground` → terminal native bg, no override
+/// 2. `Black` + custom palette with bg → custom palette '<name>' bg=#0a0a12
+/// 3. `Black` without custom palette → solid black bg
+///
+/// The label includes the actual hex color when a custom palette's bg is in
+/// effect, so the user can verify the config.toml `bg = \"#0a0a12\"` value
+/// was correctly parsed and applied.
+#[must_use]
+fn describe_color_bg(
+    color_bg: ColorBg,
+    custom_palette_name: Option<&str>,
+    custom_palette_bg: Option<Color>,
+) -> String {
+    match color_bg {
+        ColorBg::DefaultBackground => {
+            "default-background (terminal native bg, no override)".to_string()
+        }
+        ColorBg::Black => match (custom_palette_name, custom_palette_bg) {
+            (Some(name), Some(bg)) => {
+                let hex = format_bg_color(Some(bg));
+                format!("black + custom palette '{name}' bg={hex} (palette bg overrides)")
+            }
+            (Some(name), None) => {
+                format!("black + custom palette '{name}' bg=none (palette has no bg, falls back to black)")
+            }
+            (None, _) => "black (solid black bg)".to_string(),
+        },
+    }
 }
