@@ -108,10 +108,10 @@ pub(crate) fn register_interrupt() -> Arc<AtomicBool> {
 /// On finish the entire live region is erased and the final report
 /// is printed cleanly to stdout.
 ///
-/// ## Silent spinner mode (default)
+/// ## Single spinner mode (default AND verbose)
 ///
-/// By default (`verbose == false` AND stderr is a TTY), a single-line
-/// loading spinner is shown:
+/// Both verbose and non-verbose modes use the same clean single-line
+/// loading spinner when stderr is a TTY:
 ///
 /// ```text
 /// ⠋ Running COSMOSTRIX BENCHMARK... 2.3s
@@ -119,10 +119,10 @@ pub(crate) fn register_interrupt() -> Arc<AtomicBool> {
 ///
 /// This spinner appears once on a single line, updates at 4 Hz (calm,
 /// not spammy), and is erased when the benchmark completes — leaving
-/// only the final report on stdout. Pass `verbose = true` (from
-/// `cfg.verbose`, i.e., `cosmostrix --benchmark --verbose`) to show the
-/// full multi-line progress UI with header, warmup indicators, and live
-/// metrics for debugging.
+/// only the final report on stdout. Verbose mode (`--verbose`) still
+/// prints the config dump before the benchmark and a stuck-cell
+/// summary after, but during the benchmark run the UI is identical
+/// to non-verbose mode for a clean, masterclass presentation.
 ///
 /// When stderr is NOT a TTY (piped/redirected), all progress output is
 /// suppressed to avoid ANSI pollution — only the final report prints.
@@ -141,14 +141,9 @@ pub(crate) struct BenchProgress {
     recent_ft_count: usize,
     /// Whether stderr is an interactive terminal.
     is_tty: bool,
-    /// Whether verbose progress UI is enabled (from `cfg.verbose`).
-    /// When true AND `is_tty`, the full multi-line progress UI is shown
-    /// (header, warmup indicators, live metrics). When false, a single-
-    /// line silent spinner is shown instead (see `silent_active`).
-    verbose: bool,
     /// Whether the silent single-line spinner is currently displayed.
-    /// Active in non-verbose mode when stderr is a TTY. Shows:
-    /// `⠋ Running COSMOSTRIX BENCHMARK... X.Xs` updated at 4 Hz.
+    /// Active when stderr is a TTY (both verbose and non-verbose).
+    /// Shows: `⠋ Running COSMOSTRIX BENCHMARK... X.Xs` updated at 4 Hz.
     silent_active: bool,
     /// When the silent spinner started (for elapsed display).
     silent_start: Option<Instant>,
@@ -157,7 +152,7 @@ pub(crate) struct BenchProgress {
 }
 
 impl BenchProgress {
-    pub(crate) fn new(verbose: bool) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             spinner_idx: 0,
             // Allow the first update immediately.
@@ -173,7 +168,6 @@ impl BenchProgress {
             recent_ft_idx: 0,
             recent_ft_count: 0,
             is_tty: io::stderr().is_terminal(),
-            verbose,
             silent_active: false,
             silent_start: None,
             _cursor_guard: None,
@@ -181,20 +175,24 @@ impl BenchProgress {
     }
 
     /// Whether the progress UI should be displayed at all.
-    /// Requires both `--verbose` (user opt-in) AND an interactive stderr
-    /// (so piping benchmark output to a file is always silent).
+    /// Always returns false — the multi-line verbose UI is retired.
+    /// Both verbose and non-verbose modes now use the single-line
+    /// spinner (see `should_display_silent()`) for a clean masterclass
+    /// presentation. Kept as a private helper to avoid touching every
+    /// call site; the compiler eliminates the dead branches.
     #[inline]
     fn should_display(&self) -> bool {
-        self.verbose && self.is_tty
+        false
     }
 
     /// Whether the silent single-line spinner should be shown.
-    /// Active when: non-verbose mode AND interactive stderr. Verbose
-    /// mode uses the full progress UI instead; piped output stays
-    /// completely silent to avoid ANSI escape pollution in files.
+    /// Active when stderr is an interactive terminal, regardless of
+    /// verbose mode — both modes get the same clean single-line
+    /// spinner. Piped/redirected output stays completely silent to
+    /// avoid ANSI escape pollution in files.
     #[inline]
     fn should_display_silent(&self) -> bool {
-        !self.verbose && self.is_tty
+        self.is_tty
     }
 
     /// Advance the spinner and return the current frame character.

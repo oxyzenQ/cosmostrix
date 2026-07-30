@@ -712,10 +712,12 @@ impl Cloud {
     /// (which only handles cells with `phosphor[i] > 0`) cannot reach.
     ///
     /// When stuck cells are found, they are force-cleared (set to blank)
-    /// and a summary is logged to stderr **only when `self.verbose` is
-    /// true** (set via `cloud.set_verbose(cfg.verbose)`). The sweep is
-    /// capped at `STUCK_CELL_MAX_PER_SWEEP` cells per pass to avoid
-    /// pathological clearing + log flooding.
+    /// and cumulative counters (`stuck_cells_cleared_total`,
+    /// `stuck_sweeps_with_clears`) are incremented silently. The
+    /// benchmark prints a single summary line at the end via
+    /// `cloud.stuck_cell_stats()` in verbose mode — no per-sweep spam.
+    /// The sweep is capped at `STUCK_CELL_MAX_PER_SWEEP` cells per pass
+    /// to avoid pathological clearing.
     ///
     /// ## Gating
     ///
@@ -810,19 +812,12 @@ impl Cloud {
         }
 
         if stuck_count > 0 {
-            // Verbose-only stderr log. Suppressed by default in benchmark
-            // mode (silent arena) so the final report is the only output.
-            // Enable with `cosmostrix --benchmark --verbose` for debugging.
-            // The sweep itself still runs and heals stuck cells silently.
-            if self.verbose {
-                // Broken-pipe-safe stderr log (eprintln! panics on broken stderr).
-                use std::io::Write as _;
-                let _ = std::io::stderr().write_fmt(format_args!(
-                    "[stuck-cell-sweep] cleared {} stuck cell(s) at frame gen {}\n",
-                    stuck_count, current_gen
-                ));
-                let _ = std::io::stderr().flush();
-            }
+            // Accumulate counters silently — a single summary line is
+            // printed by the benchmark at the end (verbose mode only)
+            // via `cloud.stuck_cell_stats()`. This replaces the per-sweep
+            // stderr spam that flooded verbose benchmark output.
+            self.stuck_cells_cleared_total += stuck_count as u64;
+            self.stuck_sweeps_with_clears += 1;
             // Force a full redraw next frame so the cleared cells are
             // actually emitted to the terminal (they were "fresh" this
             // frame, so the diff renderer would otherwise skip them).

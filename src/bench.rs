@@ -147,7 +147,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // resolve_bench_duration message already carries the "error:" prefix.
     let bench_duration_secs = crate::ux::or_exit(resolve_bench_duration(cfg.bench_duration));
 
-    let mut progress = BenchProgress::new(cfg.verbose);
+    let mut progress = BenchProgress::new();
     let interrupted = register_interrupt();
 
     // ── Header ───────────────────────────────────────────────────────────
@@ -401,6 +401,18 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // ── Clean up live UI ─────────────────────────────────────────────────
     progress.finish();
+
+    // Verbose-only stuck-cell sweep summary (single line, not per-sweep spam).
+    // The sweep itself ran silently during the benchmark; this is the
+    // aggregated diagnostic. Suppressed in non-verbose mode.
+    if cfg.verbose {
+        let (cleared, sweeps) = cloud.stuck_cell_stats();
+        if cleared > 0 {
+            eprintln!(
+                "[stuck-cell-sweep] healed {cleared} cell(s) across {sweeps} sweep(s) during benchmark"
+            );
+        }
+    }
 
     // v17 audit: warn if the terminal was resized during the benchmark.
     // The metrics are computed at the original captured size (for

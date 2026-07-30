@@ -259,12 +259,13 @@ pub struct Cloud {
     pub(super) last_sim_ms: f64,
     pub(super) last_render_ms: f64,
     pub(super) enable_component_timing: bool,
-    /// When true, the cloud may emit diagnostic stderr logs (e.g.
-    /// `[stuck-cell-sweep] cleared N cells`). When false, all such
-    /// logs are suppressed — the silent arena mode used by
-    /// `cosmostrix --benchmark` so the final report is the only
-    /// output. The bench sets this from `cfg.verbose`.
+    /// When true, the cloud may emit diagnostic stderr logs. When false,
+    /// all such logs are suppressed (silent arena). Set from `cfg.verbose`.
     pub(super) verbose: bool,
+    /// Total stuck cells cleared across all sweeps (accumulated silently).
+    pub(super) stuck_cells_cleared_total: u64,
+    /// Total sweeps that found at least one stuck cell.
+    pub(super) stuck_sweeps_with_clears: u64,
     pub(super) phosphor_dirty_buf: Vec<usize>,
 }
 
@@ -410,6 +411,8 @@ impl Cloud {
             last_render_ms: 0.0,
             enable_component_timing: false,
             verbose: false,
+            stuck_cells_cleared_total: 0,
+            stuck_sweeps_with_clears: 0,
             phosphor_dirty_buf: Vec::with_capacity(512),
         }
     }
@@ -569,6 +572,17 @@ impl Cloud {
     /// --benchmark --verbose` shows the diagnostic logs for debugging.
     pub fn set_verbose(&mut self, verbose: bool) {
         self.verbose = verbose;
+    }
+
+    /// Cumulative stuck-cell sweep stats: `(total_cleared, sweeps_with_clears)`.
+    /// The sweep runs silently; this enables a single summary line
+    /// in verbose mode, replacing per-sweep stderr spam.
+    #[must_use]
+    pub fn stuck_cell_stats(&self) -> (u64, u64) {
+        (
+            self.stuck_cells_cleared_total,
+            self.stuck_sweeps_with_clears,
+        )
     }
 
     pub fn set_monolith_density_map(&mut self, map: Option<&'static [f64]>) {
