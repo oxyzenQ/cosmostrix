@@ -290,33 +290,51 @@ fn format_bg_color(bg: Option<Color>) -> String {
 
 /// Produce a descriptive label for the `color_bg` verbose line.
 ///
-/// Three distinguishable cases:
-/// 1. `DefaultBackground` → terminal native bg, no override
-/// 2. `Black` + custom palette with bg → custom palette '<name>' bg=#0a0a12
-/// 3. `Black` without custom palette → solid black bg
+/// Priority contract (matches actual runtime behavior in `app.rs::create_cloud`):
+///   1. Custom palette with `bg` field → bg ALWAYS wins (set_palette overwrites
+///      `cloud.palette` wholesale, ignoring `--color-bg`).
+///   2. Custom palette WITHOUT `bg` field → falls back to `--color-bg` setting.
+///   3. No custom palette → `--color-bg` decides (black or default-background).
 ///
-/// The label includes the actual hex color when a custom palette's bg is in
-/// effect, so the user can verify the config.toml `bg = \"#0a0a12\"` value
-/// was correctly parsed and applied.
+/// v25.17 (ambiguity fix #2): the previous version checked `color_bg` first,
+/// which produced the misleading line `color_bg: default-background (terminal
+/// native bg, no override)` even when a custom palette's `bg = "#0000ce"`
+/// was actively painting the screen blue. The user saw the lie in real time
+/// when they switched their mythme palette's bg from #0a0a12 to #0000ce —
+/// the screen turned blue but verbose still claimed "no override".
 #[must_use]
 fn describe_color_bg(
     color_bg: ColorBg,
     custom_palette_name: Option<&str>,
     custom_palette_bg: Option<Color>,
 ) -> String {
+    // Case 1 & 2: custom palette is active. Its bg field (if present) ALWAYS
+    // overrides --color-bg, because `cloud.set_palette(custom)` overwrites
+    // `cloud.palette` wholesale in app.rs::create_cloud.
+    if let Some(name) = custom_palette_name {
+        return match custom_palette_bg {
+            Some(bg) => {
+                let hex = format_bg_color(Some(bg));
+                format!(
+                    "custom palette '{name}' bg={hex} (palette bg overrides --color-bg)"
+                )
+            }
+            None => match color_bg {
+                ColorBg::DefaultBackground => format!(
+                    "default-background (custom palette '{name}' has no bg field, terminal native shows through)"
+                ),
+                ColorBg::Black => format!(
+                    "black (custom palette '{name}' has no bg field, solid black)"
+                ),
+            },
+        };
+    }
+
+    // Case 3: no custom palette — --color-bg decides alone.
     match color_bg {
         ColorBg::DefaultBackground => {
             "default-background (terminal native bg, no override)".to_string()
         }
-        ColorBg::Black => match (custom_palette_name, custom_palette_bg) {
-            (Some(name), Some(bg)) => {
-                let hex = format_bg_color(Some(bg));
-                format!("black + custom palette '{name}' bg={hex} (palette bg overrides)")
-            }
-            (Some(name), None) => {
-                format!("black + custom palette '{name}' bg=none (palette has no bg, falls back to black)")
-            }
-            (None, _) => "black (solid black bg)".to_string(),
-        },
+        ColorBg::Black => "black (solid black bg)".to_string(),
     }
 }
