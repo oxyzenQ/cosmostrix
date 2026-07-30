@@ -54,8 +54,15 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
                 GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
                 se.store(true, Ordering::Release);
                 // Wait for main loop to notice and clean up.
-                // Bounded: max 200 iterations × 100ms = 20s (matches watchdog).
-                for _ in 0..200 {
+                // Bounded: max 30 iterations × 100ms = 3s (matches the
+                // 2s watchdog threshold + 1s grace). The old 20s bound
+                // was calibrated to the old 20s watchdog — now that the
+                // watchdog fires at 2s, holding the signal thread for
+                // 20s would leave a zombie thread around long after the
+                // process should have exited. 3s gives the main loop
+                // ample time to observe GRACEFUL_SHUTDOWN and run
+                // Terminal::drop before the watchdog force-exits.
+                for _ in 0..30 {
                     std::thread::sleep(std::time::Duration::from_millis(100));
                     if SHUTDOWN.load(Ordering::Acquire) {
                         break;

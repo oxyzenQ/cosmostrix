@@ -66,6 +66,13 @@ pub(super) fn spawn_watchdog() {
     // can take several seconds before the rain main loop starts).
     let mut armed: bool = false;
     let mut last_counter: u64 = 0;
+    // Capture stdout's terminal status at watchdog spawn time. The
+    // dead-PTY probe only fires if stdout WAS a terminal at startup but
+    // is NO LONGER one — this avoids false positives when stdout was
+    // intentionally redirected from the start (e.g. `cosmostrix > file`
+    // for debugging, though this is rare since cosmostrix requires a TTY
+    // for interactive mode).
+    let stdout_was_terminal = stdout_is_terminal();
     std::thread::spawn(move || loop {
         // Check shutdown flag before each sleep cycle
         if shutdown.load(Ordering::Acquire) {
@@ -75,6 +82,50 @@ pub(super) fn spawn_watchdog() {
         if shutdown.load(Ordering::Acquire) {
             return;
         }
+
+        // ── Cross-platform dead-PTY probe ───────────────────────────
+        //
+        // Check if stdout is still a terminal. When the user force-closes
+        // the terminal, the PTY master disappears and stdout's fd is no
+        // longer connected to a tty. This is detectable via
+        // `std::io::IsTerminal` on ALL platforms (Unix + Windows),
+        // independent of crossterm's event source.
+        //
+        // This is the FIRST check because it catches the dead-PTY case
+        // even when crossterm 0.29's mio source is stuck spinning inside
+        // `read()` (EIO/EOF don't break the inner loop on Unix). The
+        // frame-counter check below only fires if crossterm returns, but
+        // crossterm may never return — so the isatty check is the
+        // reliable cross-platform signal.
+        //
+        // The check runs every WATCHDOG_INTERVAL_SECS (1s). Cost: one
+        // isatty syscall per second. Negligible.
+        //
+        // Platform notes:
+        // - Linux: isatty() succeeds when fd is a PTY, fails after force-close
+        // - macOS/BSD: same (kqueue-based, same behaviour)
+        // - Windows: ConPTY handle becomes invalid after force-close,
+        //   IsTerminal returns false
+        // - SSH disconnect: sshd closes the PTY master, same signal
+        //
+        // False-positive guard: only fire if stdout WAS a terminal at
+        // watchdog spawn time. If stdout was redirected from the start
+        // (rare for interactive mode, but possible), we don't fire —
+        // the user intentionally set up that redirection.
+        if stdout_was_terminal && !stdout_is_terminal() {
+            // stdout is no longer a terminal — terminal was force-closed
+            // or SSH disconnected. Exit immediately without waiting for
+            // the frame-counter check (which may never fire if crossterm
+            // is stuck).
+            restore_terminal_best_effort();
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[watchdog] stdout no longer a terminal — restoring and exiting\n"
+            ));
+            let _ = std::io::stderr().flush();
+            std::process::exit(1);
+        }
+
         let current = counter.load(Ordering::Relaxed);
         // Arm the watchdog once the main loop has rendered at least one
         // frame. Before that, the counter is 0 (intro playing or startup
@@ -116,4 +167,36 @@ pub(super) fn spawn_watchdog() {
         }
         last_counter = current;
     });
+}
+
+/// Cross-platform check: is stdout still a terminal?
+///
+/// Wrapper around `std::io::IsTerminal` that works on Unix, Windows, and
+/// all other platforms. Returns `true` when stdout is connected to a TTY
+/// (normal interactive use), `false` when stdout has been redirected or
+/// the TTY has been destroyed (terminal force-close, SSH disconnect).
+///
+/// Used by the watchdog thread to detect dead-PTY scenarios that
+/// crossterm's event source cannot escape from (notably the mio 0.29
+/// inner-loop bug where `read()` spins forever on EIO/EOF).
+///
+/// # Platform behaviour
+///
+/// - **Linux**: `isatty(STDOUT_FILENO)`. Returns 0 (false) after the
+///   PTY master is closed.
+/// - **macOS / BSD**: same `isatty()` semantics via kqueue.
+/// - **Windows**: checks if the stdout handle is a console buffer.
+///   ConPTY handle becomes invalid after force-close.
+/// - **Redirected stdout** (`cosmostrix > file`): returns false. The
+///   watchdog may fire — but this is correct, because writing to a file
+///   that has been closed (e.g. disk full, NFS disconnect) is also a
+///   terminal-gone scenario.
+///
+/// Note: this is intentionally a free function (not a method on
+/// `Terminal`) so the watchdog thread can call it without holding a
+/// reference to the `Terminal` struct (which lives on the main thread).
+#[inline]
+fn stdout_is_terminal() -> bool {
+    use std::io::IsTerminal;
+    std::io::stdout().is_terminal()
 }
