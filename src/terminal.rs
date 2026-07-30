@@ -175,17 +175,6 @@ pub struct Terminal {
     /// Set to `true` after flush completes; the force-exit watchdog checks
     /// this and skips `process::exit` when cleanup finished normally.
     shutdown_complete: Arc<AtomicBool>,
-    /// When set (by signal handlers), cleanup clears the visible viewport
-    /// before leaving the alternate screen. Normal q/esc exit leaves this
-    /// `false` so the alternate screen switch is non-destructive.
-    ///
-    /// v16: This field is no longer read by cleanup_terminal() — viewport
-    /// clear now happens unconditionally. The field is kept for the fork
-    /// guard's signal-exit detection path (spawn_kill9_terminal_guard)
-    /// which sets it on SIGTERM/SIGKILL. May be used by future cleanup
-    /// logic to distinguish normal vs signal-triggered exit.
-    #[allow(dead_code)]
-    signal_exit: Arc<AtomicBool>,
     /// Terminal protocol capabilities detected at startup.
     term_caps: TerminalCaps,
     /// Color byte cache for palette colors (built after palette is known).
@@ -204,11 +193,10 @@ pub struct Terminal {
 }
 
 impl Terminal {
-    /// Create a Terminal that clears the visible viewport on drop if the
-    /// given `signal_exit` flag is set. This is used by the interactive
-    /// event loop to distinguish signal-triggered exits (which need
-    /// viewport cleanup) from normal q/esc exits (which do not).
-    pub(crate) fn with_signal_exit(signal_exit: Arc<AtomicBool>) -> Result<Self> {
+    /// Create a Terminal. The `signal_exit` parameter is accepted for
+    /// call-site compatibility but is not stored — the event loop keeps
+    /// its own Arc<AtomicBool> and polls it directly.
+    pub(crate) fn with_signal_exit(_signal_exit: Arc<AtomicBool>) -> Result<Self> {
         let raw = stdout();
         terminal::enable_raw_mode()?;
         let out = BufWriter::with_capacity(STDOUT_BUF_CAPACITY, raw);
@@ -240,7 +228,6 @@ impl Terminal {
             line_wrap_disabled: false,
             cleaned_up: false,
             shutdown_complete: Arc::new(AtomicBool::new(false)),
-            signal_exit: signal_exit.clone(),
             term_caps,
             color_cache: None,
             total_ansi_bytes: 0,
