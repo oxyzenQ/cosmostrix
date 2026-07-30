@@ -41,21 +41,10 @@ pub enum EventState {
 }
 
 /// Read-only rendering context passed to event `render()` methods.
-#[allow(dead_code)]
-pub struct EventCtx<'a> {
+pub struct EventCtx {
     /// Terminal dimensions.
     pub cols: u16,
     pub lines: u16,
-    /// Background color for blank cells.
-    pub bg: Option<Color>,
-    /// Active palette colors for event rendering.
-    pub palette_colors: &'a [Color],
-    /// Current frame timestamp.
-    pub now: Instant,
-    /// Message box bounds if a message is active: (x, y, w, h).
-    pub message_bounds: Option<(u16, u16, u16, u16)>,
-    /// Whether a message is active (avoids recomputing bounds).
-    pub has_message: bool,
 }
 
 /// Trait for atmospheric event types.

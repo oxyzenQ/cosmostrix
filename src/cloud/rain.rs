@@ -382,15 +382,9 @@ impl Cloud {
 
         // ── Pre-rain event render (ghosts, behind droplets) ──
         if !self.event_manager.is_empty() {
-            let palette_slice_pre: &[Color] = &self.palette.colors;
             let pre_ctx = crate::cloud::atmospheric_events::EventCtx {
                 cols: self.cols,
                 lines: self.lines,
-                bg: self.palette.bg,
-                palette_colors: palette_slice_pre,
-                now,
-                message_bounds: None,
-                has_message: false,
             };
             self.event_manager.render_pre_rain(&pre_ctx, frame);
         }
@@ -547,36 +541,9 @@ impl Cloud {
 
         // ── Atmospheric Event Engine: render active events ──
         if !self.event_manager.is_empty() {
-            // Compute message bounds if a message is active
-            let msg_bounds = if self.message_text.is_some() {
-                let min_col = self.message.iter().map(|m| m.col).min();
-                let max_col = self.message.iter().map(|m| m.col).max();
-                let min_line = self.message.iter().map(|m| m.line).min();
-                let max_line = self.message.iter().map(|m| m.line).max();
-                if let (Some(mx), Some(mx2), Some(my), Some(my2)) =
-                    (min_col, max_col, min_line, max_line)
-                {
-                    Some((
-                        mx,
-                        my,
-                        mx2.saturating_sub(mx).saturating_add(1),
-                        my2.saturating_sub(my).saturating_add(1),
-                    ))
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            let palette_slice: &[Color] = &self.palette.colors;
             let event_ctx = crate::cloud::atmospheric_events::EventCtx {
                 cols: self.cols,
                 lines: self.lines,
-                bg: self.palette.bg,
-                palette_colors: palette_slice,
-                now,
-                message_bounds: msg_bounds,
-                has_message: self.message_text.is_some(),
             };
             self.event_manager.render(&event_ctx, frame);
 
