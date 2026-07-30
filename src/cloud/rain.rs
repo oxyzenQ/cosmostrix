@@ -516,6 +516,12 @@ impl Cloud {
             self.monolith_rain.clear_spine_phosphor(&mut cleanup);
         }
 
+        // P4: periodic stuck-cell sweep (debug mode only). Runs after
+        // phosphor decay so it can observe cells that the phosphor system
+        // failed to track. Gated on enable_component_timing internally —
+        // zero cost in production interactive runs.
+        self.stuck_cell_sweep(frame);
+
         // --- Rare anomaly events ---
         // Check for new anomaly spawn. The product of multipliers creates a
         // positive feedback loop (more anomalies → higher instability → more

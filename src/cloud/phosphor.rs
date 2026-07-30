@@ -702,4 +702,124 @@ impl Cloud {
             }
         }
     }
+
+    /// P4: periodic stuck-cell sweep (debug mode only).
+    ///
+    /// Scans the frame buffer for cells that hold a visible glyph at the
+    /// current generation but are NOT covered by any active droplet's
+    /// tail_put_line..=head_put_line range AND have zero phosphor energy.
+    /// These represent dirty-tracking edge cases that the phosphor system
+    /// (which only handles cells with `phosphor[i] > 0`) cannot reach.
+    ///
+    /// When stuck cells are found, they are force-cleared (set to blank)
+    /// and a summary is logged to stderr. The sweep is capped at
+    /// `STUCK_CELL_MAX_PER_SWEEP` cells per pass to avoid pathological
+    /// clearing + log flooding.
+    ///
+    /// ## Gating
+    ///
+    /// Only runs when `enable_component_timing` is true (i.e., `--perf-stats`
+    /// mode). This makes the sweep a debug tool — zero cost in production
+    /// interactive runs. The sweep also short-circuits when a message box
+    /// is active (its overlay cells would be false positives).
+    ///
+    /// ## Cost
+    ///
+    /// O(W×H + droplets) per sweep. At 200×60 with ~100 active droplets,
+    /// ≈12,100 ops every 60 s ≈ 200 ops/s — negligible.
+    pub(super) fn stuck_cell_sweep(&mut self, frame: &mut crate::frame::Frame) {
+        // Debug-only gate: skip entirely in production interactive runs.
+        if !self.enable_component_timing {
+            return;
+        }
+        // Skip when a message box is active — overlay cells would trigger
+        // false positives (they're written this frame, have fg, but no
+        // droplet covers them by design).
+        if !self.message.is_empty() {
+            return;
+        }
+
+        self.frames_since_stuck_sweep += 1;
+        if self.frames_since_stuck_sweep < STUCK_CELL_SWEEP_INTERVAL_FRAMES {
+            return;
+        }
+        self.frames_since_stuck_sweep = 0;
+
+        let total = (self.cols as usize) * (self.lines as usize);
+        if total == 0 || self.phosphor.len() != total {
+            return;
+        }
+
+        let width = self.cols;
+        let current_gen = frame.current_gen();
+        let blank_cell = Cell::blank_with_bg(self.palette.bg);
+
+        // Pre-compute each active droplet's visible trail range so the
+        // inner cell loop is a cheap O(droplets) check, not an O(droplets
+        // × cells) nested scan.
+        //
+        // A droplet covers (col, line) iff:
+        //   bound_col == col
+        //   AND line in [visible_start, head_put_line]
+        // where visible_start = tail_put_line.map_or(0, |t| t+1)
+        let mut droplet_ranges: smallvec::SmallVec<[(u16, u16, u16); 128]> =
+            smallvec::SmallVec::new();
+        for d in &self.droplets {
+            if !d.is_alive {
+                continue;
+            }
+            let visible_start = d.tail_put_line.map_or(0, |t| t.saturating_add(1));
+            if visible_start > d.head_put_line {
+                continue;
+            }
+            droplet_ranges.push((d.bound_col, visible_start, d.head_put_line));
+        }
+
+        let mut stuck_count: usize = 0;
+        for i in 0..total {
+            // Cell must have been written this frame (gen matches).
+            if frame.cell_gen_at_index(i) != current_gen {
+                continue;
+            }
+            // Cell must have a visible glyph (fg set).
+            let cell = frame.cell_at_index_ref(i);
+            if cell.fg.is_none() {
+                continue;
+            }
+            // Phosphor must NOT be tracking this cell — that's the gap
+            // the sweep is designed to catch.
+            if self.phosphor[i] != 0 {
+                continue;
+            }
+            // Check if any active droplet covers (col, line).
+            let col = (i % width as usize) as u16;
+            let line = (i / width as usize) as u16;
+            let covered = droplet_ranges
+                .iter()
+                .any(|&(bc, vs, he)| bc == col && line >= vs && line <= he);
+            if covered {
+                continue;
+            }
+            // Stuck cell found — force-clear it.
+            frame.set_force(col, line, blank_cell);
+            stuck_count += 1;
+            if stuck_count >= STUCK_CELL_MAX_PER_SWEEP {
+                break;
+            }
+        }
+
+        if stuck_count > 0 {
+            // Broken-pipe-safe stderr log (eprintln! panics on broken stderr).
+            use std::io::Write as _;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[stuck-cell-sweep] cleared {} stuck cell(s) at frame gen {}\n",
+                stuck_count, current_gen
+            ));
+            let _ = std::io::stderr().flush();
+            // Force a full redraw next frame so the cleared cells are
+            // actually emitted to the terminal (they were "fresh" this
+            // frame, so the diff renderer would otherwise skip them).
+            self.force_draw_everything = true;
+        }
+    }
 }
