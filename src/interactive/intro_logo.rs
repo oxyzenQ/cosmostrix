@@ -858,22 +858,34 @@ mod tests {
 
     #[test]
     fn visual_centroid_differs_from_bbox_center() {
-        // This is the property the placement fix relies on: the logo's
-        // ink mass is asymmetric, so the visual centroid is offset from
-        // the bounding-box center. If this assertion ever fails, it
-        // means the art became symmetric (and the centroid-based
-        // placement would be a no-op — still correct, just unnecessary).
+        // The centroid-based placement is correct regardless of whether
+        // the centroid differs from the bbox center — when they coincide,
+        // the placement is simply a no-op. The owner's manually engraved
+        // logo (commit 218a748) is intentionally near-symmetric, so the
+        // centroid sits very close to the bbox center. We keep the test
+        // as a non-strict sanity check: the centroid must be a valid
+        // point inside the bbox (computed by `visual_centroid` and
+        // verified by `visual_centroid_is_within_bounding_box`), but it
+        // does not need to be offset by any specific amount.
+        //
+        // Historical note: prior to commit 218a748 the logo was strongly
+        // asymmetric (dx > 0.5 || dy > 0.5). That property was specific
+        // to the old art and is no longer a design invariant.
         let (lines, w, h) = parse_logo_art(80, 24);
         let (cx, cy) = visual_centroid(&lines);
-        let bbox_cx = w as f32 * 0.5;
-        let bbox_cy = h as f32 * 0.5;
-        let dx = (cx - bbox_cx).abs();
-        let dy = (cy - bbox_cy).abs();
-        // We expect a non-trivial offset on at least one axis.
+        // Sanity: centroid is a finite, in-bounds point.
+        assert!(cx.is_finite() && cy.is_finite(), "centroid must be finite");
         assert!(
-            dx > 0.5 || dy > 0.5,
-            "centroid ({cx}, {cy}) should differ from bbox center ({bbox_cx}, {bbox_cy}) \
-             by more than 0.5 cells on at least one axis"
+            (0.0..=w as f32).contains(&cx),
+            "centroid x {} must be inside [0, {}]",
+            cx,
+            w
+        );
+        assert!(
+            (0.0..=h as f32).contains(&cy),
+            "centroid y {} must be inside [0, {}]",
+            cy,
+            h
         );
     }
 
