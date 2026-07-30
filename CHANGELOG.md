@@ -9,6 +9,151 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v25.0.0-alpha.7 — Full-Codebase Dead-Code Sweep (Flat src/ Files)
+
+### Headline
+
+Seven-commit sweep of all flat `src/*.rs` files (everything outside
+`cloud/`, `config/`, and `interactive/` which were audited in
+alpha.4–alpha.6). The audit targeted every `#[allow(dead_code)]`
+attribute in the codebase — 40+ attrs were investigated, classified,
+and either removed (genuinely dead), gated with `#[cfg(test)]`
+(test-only), or confirmed as stale (stripped). After this sweep, the
+codebase has **zero `#[allow(dead_code)]` attributes that paper over
+genuinely dead code**. The only remaining allows are 5 legitimate
+`clippy::too_many_arguments`, 2 `unreachable_patterns` catch-all
+guards, 1 `private_interfaces`/`struct_excessive_bools`, 1
+`clippy::needless_late_init`, 1 platform-specific stub, and 1 re-export
+`unused_imports`.
+
+### Commit 1 — Dead Functions with Zero Callers (`bb8b302`)
+
+Removed 10 dead functions/constants with zero callers anywhere in
+`src/`, `tests/`, or `benches/`:
+
+- `ux::warn()` — non-fatal stderr helper, never adopted
+- `report::Report::field_if()` — conditional field adder, zero callers
+- `palette::apply_brightness(Color, f32)` — Color-enum version, _rgb
+  variant is used instead
+- `palette::apply_saturation(Color, f32)` — zero callers
+- `constants::HEAD_FRACTION` — informational only, never enforced
+- `constants::QUANTUM_RIPPLE_RAIN_INTERACTION_SECS` — "reserved for
+  future use"
+- `scene_custom::validate_scene_custom_name()` — speculative "Stage 3+"
+- `droplet::Droplet::is_head_bright()` — replaced by inline cached
+  local
+- `terminal::Terminal::capabilities()` — zero callers
+- `color_cache::ColorCache::len()` — gated with `#[cfg(test)]` (4 test
+  callers found after initial removal)
+
+### Commit 2 — Test-Only Function Gating (`bb1a108`)
+
+Gated 13 test-only functions/constants with `#[cfg(test)]`:
+
+- `central_colors::has_theme()` + `theme_count()` — test-only
+- `frame::Frame::get()` — test-facing accessor
+- `scene_custom::is_valid_custom_scene_name()` +
+  `validate_custom_scene_name()` — test-only
+- `profile::atmosphere_presets_section()` + `list_profiles_text()` —
+  test-only (--list-profiles removed in v14)
+- `output::BRAND_PURPLE_RGB` + `ERROR_RGB` + `WARN_RGB` — test-only
+  RGB constants
+- `bench_meta::DRAW_RATIO_MEANING` + `DIRTY_ALL_FRAMES_MEANING` +
+  `ESTIMATED_FULL_REDRAW_MEANING` — test-only meaning strings
+
+### Commit 3 — Dead EventCtx Fields (`8057991`)
+
+EventCtx carried 7 fields but only `cols` and `lines` were read by
+event render methods. Removed 5 dead fields (`bg`, `palette_colors`,
+`now`, `message_bounds`, `has_message`) and the `'a` lifetime
+parameter. Also removed the dead `msg_bounds` computation block (21
+lines) and `palette_slice` bindings in rain.rs.
+
+### Commit 4 — Dead CliExplicit Fields + Stale Allows (`17b957e`)
+
+- Removed `CliExplicit::scene_custom` and `CliExplicit::monolith_size`
+  — never read, "tracked for completeness and future use"
+- Stripped stale `#[allow(dead_code)]` from `CloudConfig::atmosphere_mode`
+  — IS read by event_loop.rs:367
+- Removed `BenchReportData::estimated_full_redraw_frames` and
+  `estimated_full_redraw_ratio_percent` — computed but never output
+  by either `build_premium_report()` or `build_json_string()`. Also
+  removed the computation in bench.rs (both code paths), the
+  `estimates_full_redraw` import, the test data, and the
+  REQUIRED_FIELDS entries. Gated `cinematic::estimates_full_redraw()`
+  with `#[cfg(test)]` (only test callers remain).
+
+### Commit 5 — Vendor Detection + Dead Methods + Stale Allows (`340957f`)
+
+- **termdetect.rs**: Removed entire dead vendor detection system —
+  `TerminalVendor` enum (9 variants), `vendor` field in `TerminalCaps`,
+  30+ lines of env-var detection logic, `Display` impl. The vendor was
+  detected but never read by any production code.
+- **central_colors.rs**: Removed dead `AnsiWithC16` enum variant —
+  never constructed by any theme, match arm was a dead branch.
+- **atmosphere_adaptive.rs**: Removed dead `AdaptiveParams::identity()`
+  — zero callers ("surfaced for future fallback paths").
+- **charset_custom.rs**: Removed dead `CharsetCustomDef::is_empty()`.
+- **colors_custom.rs**: Removed dead `CustomPaletteDef::is_empty()`.
+- **terminal.rs**: Removed dead `push_u8` re-export — zero external
+  callers.
+
+### Commit 6 — Dead signal_exit Field (`e21ee03`)
+
+Removed `signal_exit: Arc<AtomicBool>` from `Terminal` struct. The
+field was stored but never read — not by any method, not by the Drop
+impl. The event loop keeps its own `Arc<AtomicBool>` and polls it
+directly. Constructor signature unchanged for caller compatibility
+(parameter prefixed with `_`).
+
+### Commit 7 — Dead Theme Category/Description System (`c6e1235`)
+
+Purged the entire v14-era `--list-colors-detail` remnant:
+
+- `ThemeCategory` enum (9 variants) + `impl ThemeCategory` (label
+  method)
+- `THEME_CATEGORIES` const
+- `category` and `description` fields from `ThemeInfo` struct
+- `detail_list_text()` function
+- `detailed_color_list_includes_categories_and_canonical_themes` test
+- 4 `#[allow(dead_code)]` attrs
+- `category:` and `description:` field assignments from all 44 THEMES
+  entries
+- Invalid `#[must_use]` on test module (pre-existing, surfaced after
+  allows removed)
+
+ThemeInfo is now a 3-field struct (name, scheme, aliases). 1138 tests
+(was 1139 — one test removed with `detail_list_text`).
+
+### What Remains (Legitimate Allows)
+
+After this sweep, 13 `#[allow(...)]` attrs remain, all legitimate:
+
+| Attr | Count | Reason |
+|------|------:|--------|
+| `clippy::too_many_arguments` | 5 | Functions with many params (design choice) |
+| `unreachable_patterns` | 2 | Catch-all guards for future crossterm variants |
+| `clippy::needless_late_init` | 1 | Style preference |
+| `private_interfaces, struct_excessive_bools` | 1 | Structural |
+| `dead_code` (bench_perf non-Linux stub) | 1 | Platform abstraction |
+| `unused_imports` (bench_report re-export) | 1 | `pub(crate) use` re-export pattern |
+| `clippy::module_name_repetitions` | 0 | Removed with validate_scene_custom_name |
+
+### Cumulative Impact
+
+Across alpha.4–alpha.7 (4 audit passes):
+
+- **cloud/** (alpha.4): −134 lines, 2 commits
+- **config/** (alpha.5): −3 lines, 2 commits
+- **interactive/** (alpha.6): −17 lines, 4 commits
+- **flat src/** (alpha.7): −490 lines, 7 commits
+- **Total**: −644 lines of dead code, 15 commits, zero behavior change
+
+1138 tests pass (was 1140 at start — 2 dead-constant bounds-check
+tests removed alongside their constants).
+
+---
+
 ## v25.0.0-alpha.6 — Interactive Subsystem Dead-Code Audit
 
 ### Headline
