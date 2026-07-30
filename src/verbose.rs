@@ -277,15 +277,12 @@ pub(crate) fn print_verbose(
 /// Format an `Option<Color>` (palette bg) as a human-readable hex string.
 /// `None` → `"none"`. `Color::Rgb` → `#rrggbb`. Ansi/named → decoded to hex
 /// via `palette::color_to_rgb` so the user sees the actual on-screen color.
+///
+/// Thin wrapper around the shared `palette::format_color_hex` helper so the
+/// verbose output and benchmark CONFIG section report identical hex values.
 #[must_use]
 fn format_bg_color(bg: Option<Color>) -> String {
-    match bg {
-        None => "none".to_string(),
-        Some(c) => {
-            let (r, g, b) = palette::color_to_rgb(c);
-            format!("#{r:02x}{g:02x}{b:02x}")
-        }
-    }
+    palette::format_color_hex(bg)
 }
 
 /// Produce a descriptive label for the `color_bg` verbose line.

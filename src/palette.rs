@@ -317,6 +317,25 @@ pub(crate) fn decode_color(color: Color) -> Option<(u8, u8, u8)> {
     Some((r, g, b))
 }
 
+/// Format an `Option<Color>` as a human-readable hex string.
+///
+/// - `None` → `"none"`
+/// - `Some(Color::Rgb { r, g, b })` → `"#rrggbb"`
+/// - `Some(AnsiValue/Named)` → decoded to hex via `color_to_rgb`
+///
+/// Shared between `--verbose` output and benchmark CONFIG section so both
+/// report the identical on-screen background hex for a custom palette's bg.
+#[must_use]
+pub(crate) fn format_color_hex(bg: Option<Color>) -> String {
+    match bg {
+        None => "none".to_string(),
+        Some(c) => {
+            let (r, g, b) = color_to_rgb(c);
+            format!("#{r:02x}{g:02x}{b:02x}")
+        }
+    }
+}
+
 pub(crate) fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
     if steps == 0 || stops.is_empty() {
         return Vec::new();

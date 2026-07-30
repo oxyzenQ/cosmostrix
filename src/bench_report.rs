@@ -88,6 +88,43 @@ pub(crate) struct BenchReportData {
     /// characteristics vs the identity (disabled) baseline.
     pub atmosphere_mode: &'static str,
 
+    // ── v25.17: CONFIG enrichment (color/charset/etc. parity with --verbose) ──
+    // These fields close the gap between the rich `--verbose` dump and the
+    // sparse benchmark CONFIG section. Benchmark reproducibility depends on
+    // knowing the EXACT color pipeline (mode, palette, tune, bg) and the
+    // glitch/async flags — without these, two runs that print the same
+    // `color_scheme: cosmos` can have wildly different throughputs.
+    /// Human-readable color mode label (e.g. "24-bit truecolor", "16-color").
+    /// TrueColor emits ~3x more ANSI bytes per cell than Color16, so this
+    /// is critical for interpreting ansi_bytes_per_second.
+    pub color_mode_label: &'static str,
+    /// Active custom palette name, or None when a built-in scheme is in use.
+    /// Lets users reproduce a run that used `--colors-custom mythme`.
+    pub custom_palette_name: Option<String>,
+    /// Hex string of the custom palette's bg field (e.g. "#0000ce"), or None
+    /// when no custom palette is active OR the palette has no bg field.
+    /// Surfaces the actual on-screen background so users can verify the
+    /// config.toml `bg = "..."` value was applied.
+    pub custom_palette_bg_hex: Option<String>,
+    /// `--color-bg` setting as a descriptive label ("black", "default-background").
+    /// Combined with custom_palette_bg_hex, fully disambiguates the bg pipeline.
+    pub color_bg_label: &'static str,
+    /// Compact color-tune summary ("sat=1.00 bright=1.00 head=1.00 body=1.00 tail=1.00").
+    /// Non-identity tune changes the palette stops, which can shift SGR byte counts.
+    pub color_tune_summary: String,
+    /// Async mode flag (true = variable column speeds, false = uniform).
+    /// Affects droplet spawn distribution and dirty-cell patterns per frame.
+    pub async_mode: bool,
+    /// Glitch enabled flag (inverse of --noglitch).
+    pub glitch_enabled: bool,
+    /// Glitch intensity preset name ("none"/"subtle"/"default"/...).
+    pub glitch_level: &'static str,
+    /// Glitch trigger probability as a percentage (0.0–100.0).
+    pub glitch_pct: f32,
+    /// Auto color drift flag. When true, the ColorEcosystem autonomously
+    /// rotates palettes — long benchmark runs may cross palette transitions.
+    pub auto_color_drift: bool,
+
     // Performance
     pub avg_fps: f64,
     pub peak_fps: f64,
@@ -292,12 +329,30 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         let s = r.section("CONFIG");
         s.field("scene", &data.scene);
         s.field("color_scheme", &data.color_scheme_name);
+        // v25.17: color pipeline parity with --verbose. Without these,
+        // two benchmark runs printing `color_scheme: cosmos` could have
+        // used completely different render paths (TrueColor vs Color16,
+        // custom palette vs built-in, identity tune vs shifted stops).
+        s.field("color_mode", data.color_mode_label);
+        if let Some(name) = &data.custom_palette_name {
+            s.field("color_palette", name);
+        }
+        if let Some(hex) = &data.custom_palette_bg_hex {
+            s.field("color_palette_bg", hex);
+        }
+        s.field("color_bg", data.color_bg_label);
+        s.field("color_tune", &data.color_tune_summary);
         s.field("charset", &data.charset_preset);
         s.field("glyph_count", &data.glyph_count.to_string());
         s.field("rain_style", data.rain_style);
         s.field("monolith_size", data.monolith_size);
         s.field("bold", &data.bold_mode);
         s.field("shading", &data.shading_mode);
+        s.field("async_mode", &data.async_mode.to_string());
+        s.field("glitch", &data.glitch_enabled.to_string());
+        s.field("glitch_level", data.glitch_level);
+        s.field("glitch_pct", &format!("{:.1}", data.glitch_pct));
+        s.field("auto_color_drift", &data.auto_color_drift.to_string());
         s.field("atmosphere", data.atmosphere_mode);
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());
