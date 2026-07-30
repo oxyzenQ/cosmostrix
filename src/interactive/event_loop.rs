@@ -1056,6 +1056,31 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 endurance_health.recompute();
             }
             perf_rss_samples = perf_rss_samples.saturating_add(1);
+
+            // P5: periodic stdout fd health probe.
+            //
+            // Runs on the same slow tick as the P4 stuck-cell sweep
+            // (FD_HEALTH_PROBE_INTERVAL_FRAMES ≈ 60 s at 60 FPS). Detects
+            // fd corruption BEFORE a write fails — closing the idle-period
+            // window where stdout could break (SSH disconnect, terminal
+            // crash, parent death) without anything noticing until the
+            // next render attempt.
+            //
+            // On Unix: calls isatty(stdout_fd). If false, reuses the P3
+            // recovery path (recover_to_tty with an empty buffer + a
+            // synthetic BrokenPipe error) which sets GRACEFUL_SHUTDOWN.
+            // On non-Unix: no-op (always returns true).
+            //
+            // Cost: one isatty syscall per minute. Negligible.
+            if perf_rss_samples % FD_HEALTH_PROBE_INTERVAL_FRAMES == 0
+                && !term.probe_stdout_health()
+            {
+                // Recovery attempted — GRACEFUL_SHUTDOWN is set.
+                // Break the loop; the normal shutdown path runs
+                // (Terminal::drop restores the TTY from /dev/tty).
+                cloud.raining = false;
+                break;
+            }
         }
 
         // Performance self-healer (P1 + P2).

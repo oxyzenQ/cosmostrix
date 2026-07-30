@@ -403,6 +403,31 @@ pub const STUCK_CELL_SWEEP_INTERVAL_FRAMES: u64 = 3600;
 /// rest. Logging is also capped to avoid stderr flooding.
 pub const STUCK_CELL_MAX_PER_SWEEP: usize = 256;
 
+// ── P5: periodic fd health probe ────────────────────────────────────────────
+//
+// A proactive `isatty(stdout)` check on a slow interval to detect fd
+// corruption BEFORE a write fails. The reactive P3 path (write fails →
+// route through /dev/tty) is sufficient for active rendering, but during
+// idle periods (no redraws) stdout could break and we wouldn't notice
+// until the next render attempt. P5 closes that window.
+//
+// The probe runs every FD_HEALTH_PROBE_INTERVAL_FRAMES frames, which is
+// deliberately slow enough that the isatty syscall cost (≈1 μs) is
+// negligible — roughly 0.0017 syscalls/sec at 60 FPS. The audit's
+// concern about "per-frame syscall overhead" is solved by the interval:
+// not per-frame, per-minute.
+//
+// When the probe detects fd corruption (isatty returns false), it reuses
+// the P3 recovery path: calls `recover_to_tty(b"", BrokenPipe)` which
+// opens /dev/tty, writes the (empty) buffer, sets GRACEFUL_SHUTDOWN, and
+// logs to stderr. The process then exits cleanly via the normal shutdown
+// path.
+
+/// Frames between proactive stdout fd health probes. 3600 frames ≈ 60 s
+/// at 60 FPS. Matches the P4 stuck-cell sweep cadence — both are
+/// "background hygiene" passes that run on the same slow tick.
+pub const FD_HEALTH_PROBE_INTERVAL_FRAMES: u64 = 3600;
+
 // Benchmark
 
 /// Minimum elapsed seconds denominator to avoid division by zero in bench.

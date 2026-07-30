@@ -445,6 +445,51 @@ impl Terminal {
         Err(original_err)
     }
 
+    /// P5: probe stdout fd health proactively.
+    ///
+    /// Called on a slow interval (`FD_HEALTH_PROBE_INTERVAL_FRAMES`,
+    /// ≈60 s at 60 FPS) to detect fd corruption BEFORE a write fails.
+    /// The reactive P3 path catches write failures during active
+    /// rendering, but during idle periods (no redraws) stdout could
+    /// break and we wouldn't notice until the next render attempt.
+    /// This probe closes that window.
+    ///
+    /// On Unix: calls `isatty(stdout_fd)`. If it returns false (the fd
+    /// is no longer connected to a terminal — e.g., SSH disconnect,
+    /// terminal emulator crash, parent process death), reuses the P3
+    /// recovery path by calling `recover_to_tty(b"", BrokenPipe)`.
+    /// This routes the (empty) buffer through `/dev/tty`, sets
+    /// `GRACEFUL_SHUTDOWN`, and logs to stderr — same exit semantics
+    /// as a reactive recovery.
+    ///
+    /// On non-Unix: always returns `true`. Windows console handles
+    /// don't fail the same way PTYs do, and the reactive P3 path
+    /// (which on Windows just propagates the error) remains in effect.
+    ///
+    /// Returns `true` when stdout is healthy, `false` when corruption
+    /// was detected and recovery was attempted. Callers should check
+    /// `GRACEFUL_SHUTDOWN` after a `false` return and break the loop.
+    pub(crate) fn probe_stdout_health(&mut self) -> bool {
+        #[cfg(unix)]
+        {
+            use std::io::IsTerminal;
+            if !self.stdout.get_ref().is_terminal() {
+                // stdout is no longer a tty — synthesize a BrokenPipe
+                // error and reuse the P3 recovery path. The empty
+                // buffer means no data is written to /dev/tty (just
+                // the side-effects: open /dev/tty, set GRACEFUL_SHUTDOWN,
+                // log to stderr, bump tty_recoveries).
+                let synthetic = std::io::Error::from(std::io::ErrorKind::BrokenPipe);
+                let _ = self.recover_to_tty(b"", synthetic);
+                return false;
+            }
+        }
+        // Allow(dead_code) on non-Unix so the method body isn't flagged
+        // for having no side-effects when the cfg(unix) block is gone.
+        #[allow(unreachable_code)]
+        true
+    }
+
     /// Enable mouse capture so mouse events are reported.
     pub fn enable_mouse_capture(&mut self) -> Result<()> {
         self.stdout.execute(event::EnableMouseCapture)?;
