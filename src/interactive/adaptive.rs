@@ -418,6 +418,224 @@ impl Default for EnduranceHealth {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Performance Self-Healer (P1 + P2)
+// ────────────────────────────────────────────────────────────────────────────
+
+/// Actions the self-healer may request from the event loop.
+///
+/// The self-healer is a *pure policy* — it does not touch `Cloud`, `Frame`,
+/// or stdout directly. It returns an action enum, and the event loop applies
+/// it. This keeps the side-effect surface testable in isolation and lets
+/// the event loop batch/defer actions as needed (e.g., skip a downgrade
+/// when the user is in fixed mode or has explicitly chosen a scene).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SelfHealAction {
+    /// No action this tick. Steady state.
+    None,
+    /// P1: switch to the lighter fallback scene (e.g. "low-power").
+    /// The event loop saves the current scene name and applies the fallback.
+    DowngradeScene,
+    /// P1: restore the scene that was active before the last downgrade.
+    RestoreScene,
+    /// P2: EnduranceHealth dropped into the investigate band. Force a full
+    /// redraw and bypass the ReclaimState cooldown to issue an madvise hint.
+    /// The event loop calls `cloud.force_draw_everything()` and
+    /// `hint_reclaim_pages()` directly.
+    TriggerHealthMitigation,
+}
+
+/// Performance self-healer — encapsulates P1 (auto scene downgrade) and
+/// P2 (EnduranceHealth-triggered mitigation) as a single state machine.
+///
+/// The struct is intentionally tiny (3 fields, all `Option`/scalar) so it
+/// lives entirely in cache and costs nothing when `SelfHealAction::None`
+/// is returned (the common case).
+///
+/// ## State machine
+///
+/// ```text
+///                  ┌─────────────────────┐
+///                  │   Healthy (Normal)  │ ←─ default state
+///                  │ pre_degraded = None │
+///                  └──────────┬──────────┘
+///        sustained high       │       sustained low
+///         pressure (30s)      │       pressure (60s)
+///               ▼             │             ▼
+///   ┌───────────────────┐     │     ┌───────────────────┐
+///   │  Downgraded       │◄────┴────►│  Healthy          │
+///   │  pre_degraded=Some│           │  pre_degraded=None│
+///   └───────────────────┘           └───────────────────┘
+/// ```
+///
+/// P2 (health mitigation) is orthogonal — it can fire from either the
+/// Healthy or Downgraded state and does not change the P1 state. The
+/// cooldown prevents it from firing more than once per
+/// `SELF_HEAL_HEALTH_COOLDOWN_SECS`.
+#[derive(Debug, Clone)]
+pub(crate) struct PerformanceSelfHealer {
+    /// When sustained-high-pressure accumulation started. `None` when not
+    /// currently accumulating. Reset to `None` on any low-pressure sample
+    /// (hysteresis — a single cool frame breaks the streak).
+    high_pressure_since: Option<Instant>,
+    /// When sustained-low-pressure recovery started. Only meaningful when
+    /// currently downgraded.
+    low_pressure_since: Option<Instant>,
+    /// The scene name captured at the moment of downgrade, to be restored
+    /// when pressure recovers. `None` when not downgraded.
+    pre_degraded_scene: Option<String>,
+    /// Whether we are currently in the downgraded state.
+    is_downgraded: bool,
+    /// When the last health mitigation was triggered. Used for the
+    /// cooldown window.
+    last_health_mitigation: Option<Instant>,
+}
+
+impl PerformanceSelfHealer {
+    /// Fallback scene applied on downgrade. Hardcoded to "low-power" —
+    /// the built-in scene specifically designed for low-CPU operation
+    /// (fps=30, speed=5, density=0.45). Exposed as a constant so tests
+    /// and the event loop can reference it without magic strings.
+    pub(crate) const FALLBACK_SCENE: &'static str = "low-power";
+
+    pub(crate) fn new() -> Self {
+        Self {
+            high_pressure_since: None,
+            low_pressure_since: None,
+            pre_degraded_scene: None,
+            is_downgraded: false,
+            last_health_mitigation: None,
+        }
+    }
+
+    /// Observe the current `perf_pressure` and elapsed wall-clock time,
+    /// returning the action the event loop should take this tick.
+    ///
+    /// `now` is passed in (rather than read via `Instant::now()`) so the
+    /// function is deterministic and testable with synthetic clocks.
+    /// `health_score` is the latest `EnduranceHealth::score()` value, or
+    /// `None` if the health tracker hasn't accumulated enough samples yet.
+    ///
+    /// ## P2 evaluation order
+    ///
+    /// Health mitigation is checked *before* P1 scene actions. Rationale:
+    /// health mitigation is a symptom-level response (force redraw +
+    /// madvise), while P1 is a cause-level response (shed load). If both
+    /// fire on the same tick, we want the symptom fix to land first so
+    /// the next health recompute sees a cleaner state.
+    pub(crate) fn observe(
+        &mut self,
+        perf_pressure: f32,
+        now: Instant,
+        health_score: Option<f64>,
+    ) -> SelfHealAction {
+        // ── P2: health mitigation (orthogonal to P1 state) ──
+        if let Some(score) = health_score {
+            if score < SELF_HEAL_HEALTH_INVESTIGATE {
+                let cooldown_ok = match self.last_health_mitigation {
+                    None => true,
+                    Some(last) => {
+                        now.saturating_duration_since(last).as_secs_f64()
+                            >= SELF_HEAL_HEALTH_COOLDOWN_SECS
+                    }
+                };
+                if cooldown_ok {
+                    self.last_health_mitigation = Some(now);
+                    return SelfHealAction::TriggerHealthMitigation;
+                }
+            }
+        }
+
+        // ── P1: scene downgrade / restore ──
+        if perf_pressure >= SELF_HEAL_PRESSURE_HIGH {
+            // Pressure is high — accumulate (or start) the high streak.
+            if self.high_pressure_since.is_none() {
+                self.high_pressure_since = Some(now);
+            }
+            // Any high-pressure frame breaks the low-pressure recovery streak.
+            self.low_pressure_since = None;
+
+            if !self.is_downgraded {
+                let since = self.high_pressure_since.unwrap_or(now);
+                let elapsed = now.saturating_duration_since(since).as_secs_f64();
+                if elapsed >= SELF_HEAL_DOWNGRADE_SECS {
+                    // Fire downgrade — the event loop will fill pre_degraded_scene
+                    // via record_downgrade() once it has applied the scene switch.
+                    self.is_downgraded = true;
+                    return SelfHealAction::DowngradeScene;
+                }
+            }
+        } else if perf_pressure <= SELF_HEAL_PRESSURE_LOW {
+            // Pressure is low — accumulate (or start) the recovery streak.
+            if self.low_pressure_since.is_none() {
+                self.low_pressure_since = Some(now);
+            }
+            // Any low-pressure frame breaks the high-pressure accumulation streak.
+            self.high_pressure_since = None;
+
+            if self.is_downgraded {
+                let since = self.low_pressure_since.unwrap_or(now);
+                let elapsed = now.saturating_duration_since(since).as_secs_f64();
+                if elapsed >= SELF_HEAL_RESTORE_SECS {
+                    self.is_downgraded = false;
+                    // Clear streaks so a fresh downgrade requires a full new window.
+                    self.high_pressure_since = None;
+                    self.low_pressure_since = None;
+                    return SelfHealAction::RestoreScene;
+                }
+            }
+        } else {
+            // Middle band (LOW < pressure < HIGH) — hysteresis dead zone.
+            // Neither streak accumulates. This is the deliberate "do nothing"
+            // band that prevents flapping under borderline load.
+        }
+
+        SelfHealAction::None
+    }
+
+    /// Called by the event loop *after* applying a `DowngradeScene` action,
+    /// to record the scene name that should be restored later. The caller
+    /// passes the scene name that was active immediately before the switch.
+    pub(crate) fn record_downgrade(&mut self, prior_scene: &str) {
+        self.pre_degraded_scene = Some(prior_scene.to_string());
+    }
+
+    /// Called by the event loop *after* applying a `RestoreScene` action,
+    /// to clear the saved scene. Returns the scene name to restore, or
+    /// `None` if no prior scene was recorded (defensive — should not happen
+    /// if the state machine is wired correctly).
+    pub(crate) fn take_pre_degraded_scene(&mut self) -> Option<String> {
+        self.pre_degraded_scene.take()
+    }
+
+    /// Whether the healer is currently in the downgraded state. Used by
+    /// the event loop to avoid double-applying downgrades and to skip
+    /// user-initiated scene changes while downgraded (the user's choice
+    /// wins; we clear the downgrade state).
+    #[cfg(test)]
+    pub(crate) fn is_downgraded(&self) -> bool {
+        self.is_downgraded
+    }
+
+    /// Reset all state. Called when the user manually switches scenes (their
+    /// choice should override any auto-downgrade in flight) or when the
+    /// Cloud is rebuilt from a live config reload.
+    pub(crate) fn reset(&mut self) {
+        self.high_pressure_since = None;
+        self.low_pressure_since = None;
+        self.pre_degraded_scene = None;
+        self.is_downgraded = false;
+        // Intentionally do NOT reset last_health_mitigation — the cooldown
+        // should persist across scene changes to prevent abuse.
+    }
+}
+
+impl Default for PerformanceSelfHealer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Tests
 // ────────────────────────────────────────────────────────────────────────────
 
