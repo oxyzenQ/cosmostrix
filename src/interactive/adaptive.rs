@@ -868,7 +868,11 @@ mod tests {
             let t = t0 + Duration::from_secs(i);
             let _ = h.observe(SELF_HEAL_PRESSURE_HIGH, t, Some(95.0));
         }
-        let action = h.observe(SELF_HEAL_PRESSURE_HIGH, t0 + Duration::from_secs(30), Some(95.0));
+        let action = h.observe(
+            SELF_HEAL_PRESSURE_HIGH,
+            t0 + Duration::from_secs(30),
+            Some(95.0),
+        );
         assert_eq!(action, SelfHealAction::DowngradeScene);
         assert!(h.is_downgraded());
     }
@@ -883,7 +887,11 @@ mod tests {
             let _ = h.observe(SELF_HEAL_PRESSURE_HIGH, t, Some(95.0));
         }
         // One cool frame (low pressure) — breaks the streak.
-        let _ = h.observe(SELF_HEAL_PRESSURE_LOW, t0 + Duration::from_secs(20), Some(95.0));
+        let _ = h.observe(
+            SELF_HEAL_PRESSURE_LOW,
+            t0 + Duration::from_secs(20),
+            Some(95.0),
+        );
         // 10 more seconds of high pressure (total 30s high, but split).
         for i in 21..31 {
             let t = t0 + Duration::from_secs(i);
@@ -929,7 +937,11 @@ mod tests {
             let t = t0 + Duration::from_secs(i);
             let _ = h.observe(SELF_HEAL_PRESSURE_LOW, t, Some(95.0));
         }
-        let action = h.observe(SELF_HEAL_PRESSURE_LOW, t0 + Duration::from_secs(91), Some(95.0));
+        let action = h.observe(
+            SELF_HEAL_PRESSURE_LOW,
+            t0 + Duration::from_secs(91),
+            Some(95.0),
+        );
         assert_eq!(action, SelfHealAction::RestoreScene);
         assert!(!h.is_downgraded());
         // The saved scene should be retrievable.

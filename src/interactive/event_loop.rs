@@ -1114,10 +1114,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     // pass the pointer and length to madvise which reads
                     // metadata only, does not dereference the data.
                     unsafe {
-                        super::adaptive::hint_reclaim_pages(
-                            cells_ptr as *const u8,
-                            cells_len,
-                        );
+                        super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
                     }
                     reclaim_state.mark_reclaimed(loop_now);
                 }
@@ -1159,12 +1156,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             SelfHealAction::RestoreScene => {
                 // P1: restore the scene that was active before the downgrade.
                 if let Some(prior) = self_healer.take_pre_degraded_scene() {
-                    let new_charset = cloud.apply_scene_runtime(
-                        &prior,
-                        &charset_preset,
-                        &user_ranges,
-                        def_ascii,
-                    );
+                    let new_charset =
+                        cloud.apply_scene_runtime(&prior, &charset_preset, &user_ranges, def_ascii);
                     scene_name = prior;
                     charset_preset = new_charset;
                     use std::io::Write;

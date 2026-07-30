@@ -1,3 +1,6 @@
+<!-- Copyright (C) 2026 rezky_nightky -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Self-Healing Audit — Current State & Gap Analysis
 
 **Date**: 2026-07-30
