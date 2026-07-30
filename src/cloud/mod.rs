@@ -71,6 +71,19 @@ pub(super) struct QuantumParticle {
     pub vy: f32,
     pub birth: Instant,
     pub ch: char,
+    /// Snapshot of the palette head color (decoded RGB) at the moment
+    /// the particle was spawned. Storing this per-particle — instead
+    /// of re-reading `palette.colors.last()` every frame — produces a
+    /// natural crossfade when the user switches color theme mid-flight:
+    /// particles from the previous click keep their old color while
+    /// new particles spawn with the new color, and the two cohorts
+    /// fade out independently.
+    ///
+    /// Defaults to `QUANTUM_BRAND_PURPLE_*` for inactive pool entries
+    /// (overwritten on spawn).
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
 #[allow(private_interfaces, clippy::struct_excessive_bools)]
@@ -349,7 +362,10 @@ impl Cloud {
                     vx: 0.0,
                     vy: 0.0,
                     birth: now,
-                    ch: '*'
+                    ch: '*',
+                    r: QUANTUM_BRAND_PURPLE_R,
+                    g: QUANTUM_BRAND_PURPLE_G,
+                    b: QUANTUM_BRAND_PURPLE_B,
                 };
                 QUANTUM_RIPPLE_POOL_SIZE
             ],
@@ -432,6 +448,23 @@ impl Cloud {
         let cy = line as f32 + 0.5;
         let now = Instant::now();
         let chars = ['*', '+', '·'];
+        // Snapshot the active palette's head color ONCE at click time.
+        // Each particle spawned by this click stores this RGB triplet,
+        // so it keeps its original color even if the user switches
+        // palette mid-flight — producing a natural crossfade between
+        // the old cohort (fading out in the previous color) and the
+        // new cohort (born in the new color). Falls back to brand
+        // purple if the palette has no decodable head stop.
+        let (head_r, head_g, head_b) = self
+            .palette
+            .colors
+            .last()
+            .and_then(|c| crate::palette::decode_color(*c))
+            .unwrap_or((
+                QUANTUM_BRAND_PURPLE_R,
+                QUANTUM_BRAND_PURPLE_G,
+                QUANTUM_BRAND_PURPLE_B,
+            ));
         let mut spawned = 0usize;
         for p in &mut self.quantum_particles {
             if spawned >= QUANTUM_RIPPLE_PARTICLE_COUNT {
@@ -451,6 +484,9 @@ impl Cloud {
             p.vy = angle.sin() * speed;
             p.birth = now;
             p.ch = chars[char_idx.min(chars.len() - 1)];
+            p.r = head_r;
+            p.g = head_g;
+            p.b = head_b;
             spawned += 1;
         }
         // Increment active count by the number actually spawned. Tracked

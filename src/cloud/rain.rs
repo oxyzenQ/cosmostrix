@@ -816,8 +816,12 @@ impl Cloud {
     ///
     /// Active particles move outward radially, fade based on age
     /// (bright at birth → dim at lifespan end), and are rendered as
-    /// brand-purple glyphs (*, +, ·). Expired particles are
-    /// deactivated (returned to the free-list).
+    /// glyphs (*, +, ·) tinted by each particle's snapshot of the
+    /// palette head color captured at spawn time. When the user
+    /// switches color theme mid-flight, the existing cohort keeps
+    /// fading in its original color while only newly-spawned
+    /// particles pick up the new color — a natural crossfade.
+    /// Expired particles are deactivated (returned to the free-list).
     ///
     /// Runs O(active_particles) per frame. Cost is negligible —
     /// typically 0-20 active particles, peaking at ~40 during rapid
@@ -834,19 +838,6 @@ impl Cloud {
         let cols = self.cols;
         let lines = self.lines;
         let bg = self.palette.bg;
-        // Dynamic particle color: use the palette's brightest stop (head)
-        // instead of hardcoded purple. This makes the ripple follow the
-        // rain's active color theme.
-        let (pr, pg, pb) = self
-            .palette
-            .colors
-            .last()
-            .and_then(|c| crate::palette::decode_color(*c))
-            .unwrap_or((
-                QUANTUM_BRAND_PURPLE_R,
-                QUANTUM_BRAND_PURPLE_G,
-                QUANTUM_BRAND_PURPLE_B,
-            ));
 
         let mut deactivated = 0usize;
         for p in &mut self.quantum_particles {
@@ -879,20 +870,29 @@ impl Cloud {
             };
             let cell = frame.cell_at_index(idx);
 
+            // Each particle carries the RGB snapshot of the palette head
+            // color it had at spawn time. Reading `p.r/p.g/p.b` here —
+            // instead of decoding `palette.colors.last()` live — means
+            // a palette switch mid-flight leaves the existing cohort
+            // tinted in its original color while only newly-spawned
+            // particles pick up the new color. The two cohorts fade
+            // out independently, producing a cinematic crossfade.
+            let (pr, pg, pb) = (p.r, p.g, p.b);
+
             // Base color: use cell's fg if present, else bg, else the
-            // palette's head color (so particles are visible even on
-            // transparent backgrounds with no rain at that cell).
+            // particle's snapshot color (so particles are visible even
+            // on transparent backgrounds with no rain at that cell).
             let (br, bg_, bb) = if let Some(fg) = cell.fg {
                 crate::palette::decode_color(fg).unwrap_or((pr, pg, pb))
             } else if let Some(bg_color) = bg {
                 crate::palette::decode_color(bg_color).unwrap_or((pr, pg, pb))
             } else {
-                // Blank cell on transparent bg — use palette head color
-                // as the base so the particle is visible.
+                // Blank cell on transparent bg — use the particle's
+                // snapshot color as the base so it stays visible.
                 (pr, pg, pb)
             };
 
-            // Blend toward the dynamic particle color by brightness.
+            // Blend toward the particle's snapshot color by brightness.
             let wf = (brightness * 256.0) as i32;
             let nr = (br as i32 + ((pr as i32 - br as i32) * wf + 128) / 256).clamp(0, 255) as u8;
             let ng = (bg_ as i32 + ((pg as i32 - bg_ as i32) * wf + 128) / 256).clamp(0, 255) as u8;
