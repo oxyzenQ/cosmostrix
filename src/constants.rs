@@ -351,6 +351,58 @@ pub const SELF_HEAL_HEALTH_INVESTIGATE: f64 = 60.0;
 /// catches genuine stuck state quickly.
 pub const SELF_HEAL_HEALTH_COOLDOWN_SECS: f64 = 30.0;
 
+// ── P3: stdout /dev/tty fallback ─────────────────────────────────────────────
+//
+// Mid-run stdout corruption (SSH disconnect, terminal emulator crash, parent
+// process death) leaves cosmostrix's primary write fd invalid. Without a
+// fallback, `flush_ansi` propagates the error → event loop exits → Drop
+// cleanup tries to write to the same broken fd → partial cleanup.
+//
+// P3 mitigation: on a recoverable io::Error (BrokenPipe, EBADF, PermissionDenied)
+// from `stdout.write_all()`, attempt to open `/dev/tty` (Unix) or `CONOUT$`
+// (Windows) as a one-shot recovery channel, write the frame to it, and
+// signal graceful shutdown. The process exits cleanly via the normal
+// shutdown path rather than crashing on the next write attempt.
+//
+// Defensive cap on consecutive recoveries: if `/dev/tty` itself fails
+// repeatedly (e.g., no controlling terminal under `setsid`), we stop
+// trying and let the original error propagate.
+
+/// Maximum number of consecutive /dev/tty fallback recoveries before
+/// giving up and propagating the underlying stdout error. Each successful
+/// recovery also fires `GRACEFUL_SHUTDOWN`, so the process is already
+/// exiting — this cap exists purely as a defensive bound against a
+/// pathological loop where shutdown is delayed (e.g., live-config save).
+pub const STDOUT_FALLBACK_MAX_RECOVERIES: u32 = 3;
+
+// ── P4: periodic stuck-cell sweep (debug mode only) ─────────────────────────
+//
+// A background watchdog that scans the frame buffer for "stuck" cells —
+// cells that hold a glyph at the current generation but are not covered
+// by any active droplet's tail_put_line..=head_put_line range AND have
+// zero phosphor energy. These represent dirty-tracking edge cases that
+// the phosphor system (which only handles cells with phosphor[i] > 0)
+// cannot reach.
+//
+// The sweep is gated on `enable_component_timing` (i.e., `--perf-stats`)
+// to avoid any per-frame cost in production interactive runs. Telemetry
+// from the sweep is logged to stderr only when it finds stuck cells.
+//
+// Cost: O(W×H + droplets) every STUCK_CELL_SWEEP_INTERVAL_FRAMES frames.
+// At 200×60 and ~100 active droplets, ≈12,100 ops every 60 s ≈ 200 ops/s.
+
+/// Frames between stuck-cell sweeps. 3600 frames ≈ 60 s at 60 FPS.
+/// Deliberately longer than FULL_REDRAW_INTERVAL_FRAMES (18000/5 min) —
+/// the full redraw already catches most stuck cells, so the sweep only
+/// fires to catch drift in the windows *between* full redraws.
+pub const STUCK_CELL_SWEEP_INTERVAL_FRAMES: u64 = 3600;
+
+/// Maximum number of stuck cells the sweep will clear per pass. Prevents
+/// a pathological case (e.g., after a resize race) from clearing tens of
+/// thousands of cells in one sweep — the next full redraw will catch the
+/// rest. Logging is also capped to avoid stderr flooding.
+pub const STUCK_CELL_MAX_PER_SWEEP: usize = 256;
+
 // Benchmark
 
 /// Minimum elapsed seconds denominator to avoid division by zero in bench.

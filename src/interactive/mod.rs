@@ -55,7 +55,7 @@ mod tests;
 // Re-export public API for the rest of the crate
 pub(crate) use bg_fill::fill_terminal_bg;
 pub(crate) use event_loop::run_interactive;
-pub(crate) use watchdog::clear_mouse_capture_flag;
+pub(crate) use watchdog::{clear_mouse_capture_flag, request_graceful_shutdown};
 
 use std::sync::Mutex;
 

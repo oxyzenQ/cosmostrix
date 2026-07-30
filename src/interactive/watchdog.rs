@@ -42,8 +42,19 @@ pub(super) static SHUTDOWN: std::sync::atomic::AtomicBool =
 /// is observed.  If the main loop is truly stuck, the watchdog (20 s timeout)
 /// is the sole fallback that calls `restore_terminal_best_effort()` +
 /// `process::exit()`.
-pub(super) static GRACEFUL_SHUTDOWN: std::sync::atomic::AtomicBool =
+pub(crate) static GRACEFUL_SHUTDOWN: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
+
+/// Request graceful shutdown from any thread or module.
+///
+/// Used by the P3 stdout-fallback path in `Terminal::flush_ansi` to flag
+/// that the primary stdout fd is broken and the process should exit via
+/// the normal shutdown path rather than crashing on the next write.
+/// Visibility is `pub(crate)` so `terminal.rs` can call it without
+/// exposing the flag setter to downstream crates.
+pub(crate) fn request_graceful_shutdown() {
+    GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
+}
 
 pub(super) fn spawn_watchdog() {
     let counter = &FRAME_COUNTER as &std::sync::atomic::AtomicU64;
