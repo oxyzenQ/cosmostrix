@@ -296,6 +296,61 @@ pub const IDLE_FPS_FACTOR: f64 = 0.5;
 /// frame-count drift correction too sparse in real time.
 pub const IDLE_REDRAW_RESYNC_INTERVAL_SECS: f64 = 20.0;
 
+// ── Performance self-healing (P1 + P2) ───────────────────────────────────────
+//
+// Two cooperating mechanisms that let cosmostrix proactively respond to
+// sustained performance degradation without user intervention:
+//
+//   P1 — Auto scene downgrade: when perf_pressure stays high for a sustained
+//        window, switch to a lighter scene (low-power) to shed load. When
+//        pressure recovers for a sustained window, restore the prior scene.
+//
+//   P2 — Endurance-health mitigations: when the EnduranceHealth score
+//        (RSS variance + frame jitter + context switches) drops into the
+//        "investigate" band, trigger an immediate frame invalidate + memory
+//        reclaim hint to clear potential stuck state.
+//
+// Both mechanisms gate on existing perf_pressure / EnduranceHealth
+// infrastructure — zero per-frame overhead in steady state (just a counter
+// and a couple of comparisons).
+
+/// perf_pressure threshold above which sustained-pressure accumulation
+/// counts toward the auto-downgrade trigger. Set below the phosphor skip
+/// gate (0.7) so the downgrade fires *before* visual quality starts
+/// degrading — the goal is to shed load while the experience is still
+/// smooth, not after it's already choppy.
+pub const SELF_HEAL_PRESSURE_HIGH: f32 = 0.6;
+
+/// perf_pressure threshold below which sustained-pressure recovery counts
+/// toward the auto-restore trigger. Hysteresis gap (0.6 → 0.3) prevents
+/// oscillation when pressure hovers near the boundary.
+pub const SELF_HEAL_PRESSURE_LOW: f32 = 0.3;
+
+/// Seconds of sustained high perf_pressure before auto-downgrade fires.
+/// 30 s is long enough to ride out transient spikes (compile jobs, window
+/// drags, momentary GC pauses) but short enough that genuine sustained
+/// overload is caught before the user gives up and kills the process.
+pub const SELF_HEAL_DOWNGRADE_SECS: f64 = 30.0;
+
+/// Seconds of sustained low perf_pressure before auto-restore fires.
+/// Deliberately longer than the downgrade window (60 s vs 30 s) so the
+/// restored scene gets a stable runway before potentially downgrading
+/// again. Prevents flapping under borderline load.
+pub const SELF_HEAL_RESTORE_SECS: f64 = 60.0;
+
+/// EnduranceHealth score below which immediate mitigations fire.
+/// Matches the "investigate" band from EnduranceHealth::classification()
+/// (score < 60). When crossed, the self-healer forces a full redraw and
+/// bypasses ReclaimState's 1 h min interval to issue an madvise hint.
+pub const SELF_HEAL_HEALTH_INVESTIGATE: f64 = 60.0;
+
+/// Minimum seconds between consecutive health-triggered mitigations.
+/// Without this, a persistently unhealthy process would force-redraw every
+/// recompute cycle (≈1 s) — burning more CPU and worsening the very
+/// problem we're trying to fix. 30 s is a safe cooldown that still
+/// catches genuine stuck state quickly.
+pub const SELF_HEAL_HEALTH_COOLDOWN_SECS: f64 = 30.0;
+
 // Benchmark
 
 /// Minimum elapsed seconds denominator to avoid division by zero in bench.
