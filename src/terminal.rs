@@ -654,7 +654,21 @@ impl Terminal {
         let dirty_count = frame.dirty_indices().len();
         let dirty_is_large =
             total_cells > 0 && dirty_count >= (total_cells / DIRTY_THRESHOLD_RATIO);
-        let do_full_redraw = !can_reuse_last || frame.is_dirty_all() || dirty_is_large;
+        // ── DEAD-DRAGON MUTATION ──────────────────────────────────────
+        // do_full_redraw is forced to true unconditionally. The
+        // differential rendering branch below (the `while i < dirty_flat`
+        // loop that compares each cell to last.cells and skips unchanged
+        // ones) becomes dead code — never reached. Every frame takes
+        // the full-redraw path: iterate 0..width*height, write ANSI for
+        // every cell. Visual output is identical to the Cosmic Dragon;
+        // only the rendering method changes (brute-force vs diff-based).
+        //
+        // The original condition is preserved above (can_reuse_last,
+        // dirty_count, dirty_is_large) for documentation — on the
+        // Cosmic Dragon `main` branch, do_full_redraw is computed as:
+        //   !can_reuse_last || frame.is_dirty_all() || dirty_is_large
+        let _ = (can_reuse_last, dirty_count, dirty_is_large);
+        let do_full_redraw = true;
 
         if do_full_redraw {
             let needs_new_last = self

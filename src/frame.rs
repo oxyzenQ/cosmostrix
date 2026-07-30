@@ -153,7 +153,18 @@ impl Frame {
 
     #[must_use]
     pub fn is_dirty_all(&self) -> bool {
-        self.dirty_all
+        // ── DEAD-DRAGON MUTATION ──────────────────────────────────────
+        // Always returns true. This forces the terminal renderer into
+        // the full-redraw path on every frame, and causes phosphor to
+        // take the full-grid scan branch. Visual output is identical —
+        // the same cells, colors, and characters are written. Only the
+        // *method* changes: every cell is re-sent every frame instead
+        // of only dirty cells.
+        //
+        // This is the control subject for A/B benchmarking against
+        // the Cosmic Dragon diff-based engine on `main`.
+        let _ = &self.dirty_all;
+        true
     }
 
     /// Returns the current frame generation counter.
@@ -194,8 +205,13 @@ impl Frame {
         // frame. At 200x60=12000 cells, the old memset was ~150 AVX2 stores;
         // the new bump is 1 integer add. Net win on every frame.
         //
-        // dirty_all is also reset here — the renderer's full-redraw flag
-        // applies per-frame, not across frames.
+        // ── DEAD-DRAGON MUTATION ──────────────────────────────────────
+        // The `self.dirty_all = false` line is intentionally REMOVED.
+        // Keeping dirty_all true forever ensures set()/set_force() never
+        // push to the dirty list (they guard with `if !self.dirty_all`),
+        // so dirty_indices() always returns empty. The SmallVec clear()
+        // is retained to prevent unbounded growth from any future caller
+        // that might push directly.
         self.dirty_gen = self.dirty_gen.wrapping_add(1);
         if self.dirty_gen == 0 {
             // Overflow: u32::MAX frames at 60 FPS ≈ 2 years. Reset all
@@ -204,7 +220,7 @@ impl Frame {
             self.dirty_cell_gen.fill(0);
             self.dirty_gen = 1;
         }
-        self.dirty_all = false;
+        // DEAD-DRAGON: self.dirty_all stays true — do NOT reset.
         self.dirty.clear();
     }
 
@@ -336,6 +352,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "dead-dragon: dirty tracking disabled — is_dirty_all() always true"]
     fn top_row_glyph_to_blank_is_dirty() {
         let mut f = Frame::new(4, 4, None);
         f.clear_dirty();
