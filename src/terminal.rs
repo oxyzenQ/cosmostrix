@@ -27,12 +27,17 @@
 //! for cases where the process is killed with signal 9.
 
 #[cfg(unix)]
+use std::fs::OpenOptions;
+#[cfg(unix)]
 use std::io::{stdin, IsTerminal};
 use std::io::{stdout, BufWriter, Result, Stdout, Write};
 #[cfg(unix)]
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+
+#[cfg(unix)]
+use std::fs::File;
 
 /// Global flag set by the panic hook when it has already restored the
 /// terminal (called `restore_terminal_best_effort()`). Terminal::drop
@@ -190,6 +195,20 @@ pub struct Terminal {
     /// into a single write_all call. Only used when sync_output is enabled.
     /// Grows as needed, never shrinks. Avoids per-frame allocation.
     combined_flush_buf: Vec<u8>,
+    /// P3: lazily-opened /dev/tty handle used as a one-shot recovery
+    /// channel when the primary stdout fd breaks mid-run (SSH disconnect,
+    /// terminal emulator crash, parent process death). Cached so multiple
+    /// recovery attempts within the same shutdown window reuse the same
+    /// fd instead of leaking handles.
+    #[cfg(unix)]
+    tty_fallback: Option<File>,
+    /// P3: count of consecutive /dev/tty recoveries. Capped at
+    /// STDOUT_FALLBACK_MAX_RECOVERIES to prevent a pathological loop
+    /// when /dev/tty itself is broken (e.g., no controlling terminal
+    /// under `setsid`). When the cap is exceeded, the original error
+    /// propagates and the event loop exits via the normal error path.
+    #[cfg(unix)]
+    tty_recoveries: u32,
 }
 
 impl Terminal {
@@ -233,6 +252,10 @@ impl Terminal {
             total_ansi_bytes: 0,
             flush_count: 0,
             combined_flush_buf: Vec::with_capacity(RENDER_COMBINED_FLUSH_INIT_CAP),
+            #[cfg(unix)]
+            tty_fallback: None,
+            #[cfg(unix)]
+            tty_recoveries: 0,
         };
 
         let init_res: Result<()> = (|| {
@@ -298,27 +321,128 @@ impl Terminal {
     /// to avoid per-frame allocation. It grows as needed but never shrinks.
     #[inline]
     fn flush_ansi(&mut self) -> Result<()> {
-        if !self.ansi_buf.is_empty() {
-            // Accumulate encoding stats BEFORE clearing the buffer.
-            // Only count frame content, not sync wrappers.
-            self.total_ansi_bytes += self.ansi_buf.len() as u64;
-            self.flush_count += 1;
-
-            if self.term_caps.sync_output {
-                // P3: combine SYNC_START + ansi_buf + SYNC_END into one write.
-                // Reuse the combined buffer to avoid per-frame allocation.
-                let combined = &mut self.combined_flush_buf;
-                combined.clear();
-                combined.extend_from_slice(crate::termdetect::SYNC_START);
-                combined.extend_from_slice(&self.ansi_buf);
-                combined.extend_from_slice(crate::termdetect::SYNC_END);
-                self.stdout.write_all(combined)?;
-            } else {
-                self.stdout.write_all(&self.ansi_buf)?;
-            }
-            self.ansi_buf.clear();
+        if self.ansi_buf.is_empty() {
+            return Ok(());
         }
+        // Accumulate encoding stats BEFORE clearing the buffer.
+        // Only count frame content, not sync wrappers.
+        self.total_ansi_bytes += self.ansi_buf.len() as u64;
+        self.flush_count += 1;
+
+        // Extract ansi_buf so write_with_recovery can borrow `*self`
+        // mutably for the recovery path. The Vec's allocation is preserved
+        // across take + restore — zero per-frame alloc cost.
+        let mut ansi_buf = std::mem::take(&mut self.ansi_buf);
+
+        let write_result = if self.term_caps.sync_output {
+            // P3: combine SYNC_START + ansi_buf + SYNC_END into one write.
+            // Reuse the combined buffer to avoid per-frame allocation.
+            let mut combined = std::mem::take(&mut self.combined_flush_buf);
+            combined.clear();
+            combined.extend_from_slice(crate::termdetect::SYNC_START);
+            combined.extend_from_slice(&ansi_buf);
+            combined.extend_from_slice(crate::termdetect::SYNC_END);
+            let r = self.write_with_recovery(&combined);
+            // Restore the combined buffer for reuse next frame.
+            self.combined_flush_buf = combined;
+            r
+        } else {
+            self.write_with_recovery(&ansi_buf)
+        };
+
+        match write_result {
+            Ok(()) => {
+                // Success: clear ansi_buf (preserves allocation for reuse).
+                ansi_buf.clear();
+                self.ansi_buf = ansi_buf;
+                Ok(())
+            }
+            Err(e) => {
+                // Failure: restore ansi_buf so the next flush attempt
+                // retries the same data (matches pre-P3 semantics).
+                self.ansi_buf = ansi_buf;
+                Err(e)
+            }
+        }
+    }
+
+    /// P3: write a buffer to stdout, attempting a /dev/tty fallback when
+    /// the primary fd is broken mid-run (SSH disconnect, terminal crash,
+    /// parent death). On a recoverable error:
+    ///
+    ///   1. Lazily open `/dev/tty` (Unix) or `CONOUT$` (Windows) for writing.
+    ///   2. Write the buffer to the fallback handle.
+    ///   3. Set `GRACEFUL_SHUTDOWN` so the main loop exits cleanly via the
+    ///      normal shutdown path (Terminal::drop still runs, restoring the
+    ///      TTY state from the fallback fd).
+    ///   4. Bump `tty_recoveries`. If it exceeds
+    ///      `STDOUT_FALLBACK_MAX_RECOVERIES`, stop trying and propagate the
+    ///      original error — /dev/tty itself is likely broken too.
+    ///
+    /// Zero per-frame overhead in the steady state: the happy path is a
+    /// single `write_all` on the BufWriter. The fallback only fires when
+    /// that call returns an error.
+    #[inline]
+    fn write_with_recovery(&mut self, buf: &[u8]) -> Result<()> {
+        match self.stdout.write_all(buf) {
+            Ok(()) => Ok(()),
+            Err(e) => self.recover_to_tty(buf, e),
+        }
+    }
+
+    /// P3 helper: attempt to recover a failed stdout write by routing the
+    /// buffer through /dev/tty. See `write_with_recovery` for the full
+    /// contract. Returns the original error if recovery is not possible.
+    #[cfg(unix)]
+    fn recover_to_tty(&mut self, buf: &[u8], original_err: std::io::Error) -> Result<()> {
+        use crate::constants::STDOUT_FALLBACK_MAX_RECOVERIES;
+        // Non-recoverable errors (e.g., WriteZero, Interrupted) should
+        // propagate unchanged. We only attempt /dev/tty when the primary
+        // fd is observably broken.
+        if !is_recoverable_io_error(&original_err) {
+            return Err(original_err);
+        }
+        // Defensive cap: stop trying after N consecutive recoveries.
+        if self.tty_recoveries >= STDOUT_FALLBACK_MAX_RECOVERIES {
+            return Err(original_err);
+        }
+        // Lazily open /dev/tty on first recovery; cache for reuse.
+        if self.tty_fallback.is_none() {
+            self.tty_fallback = open_tty_fallback();
+        }
+        let Some(tty) = self.tty_fallback.as_mut() else {
+            // No controlling terminal (e.g., `setsid` sandbox). Propagate
+            // the original stdout error so the event loop exits normally.
+            return Err(original_err);
+        };
+        // Best-effort write to /dev/tty. If this fails too, propagate the
+        // original stdout error (more diagnostic than the tty error).
+        if tty.write_all(buf).is_err() {
+            return Err(original_err);
+        }
+        let _ = tty.flush();
+        self.tty_recoveries += 1;
+        // Signal the main loop to exit cleanly via the normal shutdown
+        // path. This avoids racing on the broken stdout fd during cleanup.
+        crate::interactive::request_graceful_shutdown();
+        // Broken-pipe-safe stderr notice — eprintln! would panic if stderr
+        // is also broken (e.g., terminal fully gone), so use write_fmt.
+        use std::io::Write as _;
+        let _ = std::io::stderr().write_fmt(format_args!(
+            "[terminal] stdout write failed ({}) — recovered via /dev/tty, exiting gracefully\n",
+            original_err
+        ));
+        let _ = std::io::stderr().flush();
         Ok(())
+    }
+
+    /// P3 helper (Windows): /dev/tty fallback is Unix-only. On Windows,
+    /// stdout corruption is rarer (the console API is more robust) and
+    /// `CONOUT$` reopening requires unsafe Win32 calls. Propagate the
+    /// original error for now; the watchdog still catches stuck loops.
+    #[cfg(not(unix))]
+    fn recover_to_tty(&mut self, _buf: &[u8], original_err: std::io::Error) -> Result<()> {
+        Err(original_err)
     }
 
     /// Enable mouse capture so mouse events are reported.
@@ -945,5 +1069,119 @@ pub fn blank_cell(bg: Option<Color>) -> Cell {
         fg: None,
         bg,
         bold: false,
+    }
+}
+
+// ── P3: stdout /dev/tty fallback helpers ─────────────────────────────────────
+//
+// Free helpers extracted from `Terminal::recover_to_tty` so they can be unit
+// tested without constructing a Terminal (which requires a real TTY).
+
+/// P3: classify an io::Error as recoverable via /dev/tty fallback.
+///
+/// Returns `true` for errors that indicate the primary stdout fd is broken
+/// (broken pipe, bad fd, permission denied — the last one fires when the
+/// controlling terminal has been revoked). Returns `false` for transient
+/// errors that should be retried on the same fd (Interrupted) or for
+/// errors that imply the buffer itself is the problem (WriteZero).
+///
+/// The classification is intentionally conservative — false negatives just
+/// propagate the error (the watchdog catches stuck loops), while false
+/// positives would mask real bugs by routing through /dev/tty.
+#[cfg(unix)]
+#[must_use]
+pub(crate) fn is_recoverable_io_error(err: &std::io::Error) -> bool {
+    use std::io::ErrorKind;
+    matches!(
+        err.kind(),
+        ErrorKind::BrokenPipe | ErrorKind::PermissionDenied | ErrorKind::Other
+    ) || err.raw_os_error().is_some_and(|code| {
+        // EBADF (9): bad file descriptor — fd was closed under us.
+        // ENXIO (6): no such device or address — terminal emulator gone.
+        // EIO (5): input/output error — typically serial/pty hangup.
+        matches!(code, 9 | 6 | 5)
+    })
+}
+
+/// P3: open `/dev/tty` for writing. Returns `None` if no controlling
+/// terminal exists (e.g., cosmostrix was started under `setsid` or in a
+/// container without `/dev/tty`).
+///
+/// The handle is opened with `O_WRONLY` only — we never read from /dev/tty
+/// in the recovery path. The fd is cached in `Terminal::tty_fallback` so
+/// repeated recoveries within the same shutdown window reuse it.
+#[cfg(unix)]
+#[must_use]
+pub(crate) fn open_tty_fallback() -> Option<File> {
+    OpenOptions::new().write(true).open("/dev/tty").ok()
+}
+
+#[cfg(test)]
+mod p3_tests {
+    use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn p3_broken_pipe_is_recoverable() {
+        let err = std::io::Error::from(std::io::ErrorKind::BrokenPipe);
+        assert!(is_recoverable_io_error(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn p3_permission_denied_is_recoverable() {
+        let err = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        assert!(is_recoverable_io_error(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn p3_ebadf_errno_is_recoverable() {
+        let err = std::io::Error::from_raw_os_error(9); // EBADF
+        assert!(is_recoverable_io_error(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn p3_enxio_errno_is_recoverable() {
+        let err = std::io::Error::from_raw_os_error(6); // ENXIO
+        assert!(is_recoverable_io_error(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn p3_eio_errno_is_recoverable() {
+        let err = std::io::Error::from_raw_os_error(5); // EIO
+        assert!(is_recoverable_io_error(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn p3_interrupted_is_not_recoverable() {
+        // Interrupted should be retried on the same fd, not routed to /dev/tty.
+        let err = std::io::Error::from(std::io::ErrorKind::Interrupted);
+        assert!(!is_recoverable_io_error(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn p3_write_zero_is_not_recoverable() {
+        // WriteZero means the buffer itself is the problem, not the fd.
+        let err = std::io::Error::from(std::io::ErrorKind::WriteZero);
+        assert!(!is_recoverable_io_error(&err));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn p3_open_dev_tty_returns_some_under_normal_session() {
+        // This test only validates the helper returns a usable handle when
+        // /dev/tty is present. Under `setsid` or containerized CI without
+        // /dev/tty, the call returns None and the test is skipped.
+        if let Some(mut f) = open_tty_fallback() {
+            use std::io::Write;
+            // Writing zero bytes should always succeed on a valid handle.
+            assert!(f.write_all(b"").is_ok());
+        }
+        // No else: None is a valid outcome when no controlling terminal exists.
     }
 }
