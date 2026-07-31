@@ -44,6 +44,7 @@
 //! | INV-15| Head halo factor     | `HEAD_HALO_FACTOR` in `[0.0, 1.0]`                     |
 //! | INV-16| Tuning sanity        | `PALETTE_FLOOR_RATIO` in `[0.05, 0.50]` (sweet spot)   |
 //! | INV-17| Lock report          | Sentinel test prints the engine report                 |
+//! | INV-18| Polar CLI wiring     | `--polar-gradient` flag dispatches through production   |
 //!
 //! ## Adding a new invariant
 //!
@@ -786,6 +787,82 @@ fn lock_inv16_tuning_constants_in_sweet_spots() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// INV-18: Phase 9-A polar gradient CLI flag flows through production
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// INV-18: the `--polar-gradient` CLI flag (Phase 9-A wiring) is actually
+/// reachable from the production `palette::gradient_from_stops` path. When
+/// the flag is enabled, `gradient_from_stops` must dispatch to
+/// `gradient_from_stops_oklab_polar`; when disabled, it must dispatch to
+/// `gradient_from_stops_oklab` (Cartesian).
+///
+/// Before Phase 9-A wiring, `gradient_from_stops_oklab_polar` had zero
+/// production callers — it was a pure opt-in API with no path from CLI to
+/// the gradient builder. This test verifies the wiring is in place.
+///
+/// Uses a red↔cyan stop pair because Cartesian and polar produce provably
+/// different midpoints on opposing hues (INV-10 proves the chroma
+/// divergence). The test toggles the global atomic, builds a gradient
+/// through `palette::gradient_from_stops`, and asserts the midpoint
+/// changes. The atomic is reset to its default (false) at the end so
+/// subsequent tests see the production default.
+#[test]
+fn lock_inv18_polar_gradient_flag_flows_through_production() {
+    use super::gradient::{is_polar_gradient_enabled, set_polar_gradient_enabled};
+    use super::palette::gradient_from_stops;
+
+    let stops = [(255, 0, 0), (0, 255, 255)];
+    let steps = 3;
+
+    // Sanity: flag starts at its production default (false). If a prior
+    // test left it on, the production default would be wrong — fail loud.
+    let original = is_polar_gradient_enabled();
+    assert!(
+        !original,
+        "POLAR_GRADIENT_ENABLED must default to false — another test left it on"
+    );
+
+    // Cartesian (default): midpoint is the desaturated Cartesian midpoint.
+    set_polar_gradient_enabled(false);
+    let cart = gradient_from_stops(&stops, steps);
+    assert_eq!(cart.len(), steps);
+    assert_eq!(cart[0], stops[0]);
+    assert_eq!(cart[2], stops[1]);
+
+    // Polar: midpoint must differ from Cartesian on red↔cyan (proven by
+    // INV-10 — polar stays saturated, Cartesian collapses toward gray).
+    set_polar_gradient_enabled(true);
+    let pol = gradient_from_stops(&stops, steps);
+    assert_eq!(pol.len(), steps);
+    assert_eq!(pol[0], stops[0]);
+    assert_eq!(pol[2], stops[1]);
+    assert_ne!(
+        cart[1], pol[1],
+        "polar flag must dispatch to a different gradient path on red↔cyan"
+    );
+
+    // Saturation proxy: max - min channel. Polar must be more saturated.
+    let sat = |c: (u8, u8, u8)| -> i32 {
+        let max_c = c.0.max(c.1).max(c.2) as i32;
+        let min_c = c.0.min(c.1).min(c.2) as i32;
+        max_c - min_c
+    };
+    assert!(
+        sat(pol[1]) >= sat(cart[1]),
+        "polar midpoint saturation {} must be ≥ Cartesian saturation {}",
+        sat(pol[1]),
+        sat(cart[1])
+    );
+
+    // Reset to production default so subsequent tests are unaffected.
+    set_polar_gradient_enabled(false);
+    assert!(
+        !is_polar_gradient_enabled(),
+        "flag must be resettable to false after the test"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // INV-17: Lock report — sentinel test that prints the engine state
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -815,7 +892,7 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  SUBPIXEL_JITTER_AMPLITUDE = {SUBPIXEL_JITTER_AMPLITUDE}");
     eprintln!("  HEAD_HALO_FACTOR          = {HEAD_HALO_FACTOR}");
     eprintln!();
-    eprintln!("  ── Invariants (17 total) ─────────────────────────────────────────");
+    eprintln!("  ── Invariants (18 total) ─────────────────────────────────────────");
     eprintln!("  INV-01  Engine version sentinel               [LOCKED]");
     eprintln!("  INV-02  43-theme build sweep                  [LOCKED]");
     eprintln!("  INV-03  Floor bounds                          [LOCKED]");
@@ -833,6 +910,7 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  INV-15  Head halo factor range                [LOCKED]");
     eprintln!("  INV-16  Tuning constants in sweet spots       [LOCKED]");
     eprintln!("  INV-17  This lock report                      [LOCKED]");
+    eprintln!("  INV-18  Polar CLI flag flows through prod     [LOCKED]");
     eprintln!();
     eprintln!("  ── Phase history ────────────────────────────────────────────────");
     eprintln!("  Phase 1   Foundation (palette relocation)            ✓");
@@ -845,7 +923,9 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  Phase 7-c Floor ratio 0.15 → 0.20 (trail +33%)       ✓");
     eprintln!("  Phase 7-d Gap ratio 2.5 → 2.0 (step −20%)            ✓");
     eprintln!("  Phase 8   Hue-preserving chroma smoothing            ✓");
-    eprintln!("  Phase 9-A Hue-preserving polar gradient variant      ✓");
+    eprintln!(
+        "  Phase 9-A Hue-preserving polar gradient variant      ✓ (wired to --polar-gradient)"
+    );
     eprintln!("  Phase 9-B ENGINE LOCK (this commit)                  ✓");
     eprintln!();
     eprintln!("  ── OKLab gradient variants ──────────────────────────────────────");
@@ -856,19 +936,19 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  Polar (opt-in):      {polar:?}");
     eprintln!();
     eprintln!("  ── Status ──────────────────────────────────────────────────────");
-    eprintln!("  All 17 invariants hold. Engine is at peak and locked.");
+    eprintln!("  All 18 invariants hold. Engine is at peak and locked.");
     eprintln!("  Future commits that change any constant, helper, or shader path");
     eprintln!("  in chroma/ must update the relevant INV-XX test AND bump");
     eprintln!("  CHROMA_DRAGON_ENGINE_VERSION. No silent contract drift.");
     eprintln!();
 
     // Sentinel assertion: the engine version matches the locked tag AND
-    // the invariant count is exactly 17. If a future commit adds INV-18,
+    // the invariant count is exactly 18. If a future commit adds INV-19,
     // they must update this count too.
     assert_eq!(CHROMA_DRAGON_ENGINE_VERSION, "9-B (locked)");
-    const INV_COUNT: u32 = 17;
+    const INV_COUNT: u32 = 18;
     assert_eq!(
-        INV_COUNT, 17,
+        INV_COUNT, 18,
         "INV_COUNT must match the actual invariant count"
     );
 }

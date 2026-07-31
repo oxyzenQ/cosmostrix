@@ -154,6 +154,7 @@ mod termdetect;
 mod terminal;
 #[cfg(test)]
 mod terminal_tests;
+mod terminal_tty;
 mod testconf;
 mod theme;
 mod update;
@@ -627,6 +628,12 @@ fn main() -> std::io::Result<()> {
             color_tune::color_tune_from_config(&cfg_map)
         }
     };
+
+    // Phase 9-A (Chroma Dragon): wire the --polar-gradient CLI flag to the
+    // chroma::gradient module's atomic toggle. Must be set BEFORE any
+    // palette build (build_palette → colors_from_stops → gradient_from_stops
+    // reads this flag on every call). Default is false (Cartesian OKLab).
+    chroma::gradient::set_polar_gradient_enabled(args.polar_gradient);
     let rain_style = args
         .scene
         .as_deref()

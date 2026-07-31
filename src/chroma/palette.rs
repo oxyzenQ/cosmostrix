@@ -355,20 +355,32 @@ pub(crate) fn format_color_hex(bg: Option<Color>) -> String {
 }
 
 pub(crate) fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
-    // Phase 3-A (Chroma Dragon): now delegates to OKLab interpolation by
-    // default. OKLab rotates hue smoothly through the chroma ring and keeps
-    // saturation high at midpoints, eliminating the muddy brown/gray mid-tones
-    // that sRGB-linear interpolation produces on hue-crossing gradients
+    // Phase 3-A (Chroma Dragon): OKLab interpolation by default. OKLab
+    // rotates hue smoothly through the chroma ring and keeps saturation
+    // high at midpoints, eliminating the muddy brown/gray mid-tones that
+    // sRGB-linear interpolation produces on hue-crossing gradients
     // (red→green, blue→yellow, etc.).
     //
+    // Phase 9-A (Chroma Dragon): opt-in polar variant. When the
+    // `--polar-gradient` CLI flag is set, dispatch to
+    // `gradient_from_stops_oklab_polar` instead — hue rotates through the
+    // shortest arc on the OKLab chroma ring, keeping midpoint chroma
+    // magnitude high on opposing-hue gradients (red↔cyan). The atomic
+    // load is ~1ns; the dispatch is a single branch. Default remains
+    // Cartesian so existing visual regression baselines are unchanged.
+    //
     // The legacy sRGB-linear implementation is preserved as
-    // `chroma::gradient::gradient_from_stops_srgb` for any future theme that
-    // explicitly wants the old look.
+    // `chroma::gradient::gradient_from_stops_srgb` for any future theme
+    // that explicitly wants the old look.
     //
     // Endpoints are preserved exactly (same as before); only intermediate
     // colors change. Build-time cost is negligible (~12 mul + 3 cbrt per
     // segment transition, called only at palette build, not in the hot path).
-    super::gradient::gradient_from_stops_oklab(stops, steps)
+    if super::gradient::is_polar_gradient_enabled() {
+        super::gradient::gradient_from_stops_oklab_polar(stops, steps)
+    } else {
+        super::gradient::gradient_from_stops_oklab(stops, steps)
+    }
 }
 
 pub(crate) fn colors_from_stops(

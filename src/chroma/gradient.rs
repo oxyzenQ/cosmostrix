@@ -40,6 +40,40 @@
 //! this reason.
 #![allow(clippy::excessive_precision)]
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// ── Phase 9-A polar gradient toggle ───────────────────────────────────────
+//
+// Global opt-in flag for the hue-preserving polar OKLab gradient variant.
+// Set once at startup from the `--polar-gradient` CLI flag (default: off).
+// Reads on every `gradient_from_stops` call are a single relaxed atomic
+// load (~1ns on x86_64) — negligible compared to the cbrt() cost of the
+// gradient math itself.
+//
+// Off by default: switching the default would shift every theme's
+// intermediate colors and invalidate visual regression baselines. The flag
+// exists so users can A/B test the polar variant against the Cartesian
+// default without rebuilding.
+static POLAR_GRADIENT_ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// Enable or disable the Phase 9-A polar OKLab gradient variant.
+///
+/// Called once at startup from `main.rs` when `--polar-gradient` is passed
+/// on the CLI. Subsequent `gradient_from_stops` calls dispatch to
+/// `gradient_from_stops_oklab_polar` when this is `true`.
+///
+/// Tests that exercise the polar variant directly call
+/// `gradient_from_stops_oklab_polar` and bypass this flag.
+pub(crate) fn set_polar_gradient_enabled(enabled: bool) {
+    POLAR_GRADIENT_ENABLED.store(enabled, Ordering::Relaxed);
+}
+
+/// Returns `true` if the Phase 9-A polar gradient variant is enabled.
+#[inline]
+pub(crate) fn is_polar_gradient_enabled() -> bool {
+    POLAR_GRADIENT_ENABLED.load(Ordering::Relaxed)
+}
+
 /// Convert an sRGB byte (0–255) to linear light (0.0–1.0).
 /// Uses the exact sRGB transfer function (IEC 61966-2-1).
 #[inline]
@@ -210,10 +244,13 @@ pub(crate) fn polar_chroma_lerp(a0: f32, b0: f32, a1: f32, b1: f32, t: f32) -> (
 /// - Switching the default would shift every theme's intermediate colors,
 ///   invalidating visual regression baselines.
 ///
-/// This variant is exposed for future themes that explicitly want
-/// hue-preserving behavior, and for diagnostic comparison via the
-/// `oklab_polar_diverges_from_cartesian_on_opposing_hues` test.
-#[allow(dead_code)]
+/// # Production wiring (Phase 9-A)
+///
+/// This variant is reachable from production via the `--polar-gradient` CLI
+/// flag, which sets the `POLAR_GRADIENT_ENABLED` atomic at startup. When
+/// the flag is on, `palette::gradient_from_stops` dispatches here instead
+/// of to `gradient_from_stops_oklab`. Tests that need to exercise the
+/// polar path directly call this function with explicit stops.
 #[inline]
 pub(crate) fn gradient_from_stops_oklab_polar(
     stops: &[(u8, u8, u8)],
