@@ -160,6 +160,38 @@ pub struct ShaderCtx<'a> {
     /// `None` disables (matches pre-Phase-3-H behavior — hue_drift
     /// accumulates in ColorEcosystem but never affects rendering).
     pub hue_drift: Option<f32>,
+
+    /// Phase 4-D (Chroma Dragon Innovation D — Dragon Awakening): head halo
+    /// via background blend.
+    ///
+    /// `Some(factor)` blends the resolved Head cell color toward the scene
+    /// background (`bg`) by `factor` (0.0 = no blend, 1.0 = pure bg). The
+    /// effect softens the hard bright head pixel against the dark background
+    /// — on a dark-cosmos bg, the head becomes slightly dimmer and bg-tinted,
+    /// producing a "dissolve into the scene" rather than a stark white smear.
+    ///
+    /// Phase 3-D landed `blend_toward_bg` in `chroma::palette` but it had
+    /// zero production callers. Phase 4-D wires it into the Head branch of
+    /// `resolve_cell_color` so the halo is always-on.
+    ///
+    /// Applied ONLY to `CharLoc::Head` cells. Middle and Tail stops are
+    /// pinned by the palette hierarchy and must not be haloed. Applied
+    /// AFTER palette resolution and BEFORE subpixel jitter + atmospheric,
+    /// so downstream effects compose on the haloed color.
+    ///
+    /// `None` disables (matches pre-Phase-4-D dormant behavior — kept for
+    /// tests that assert the shader's no-op path). When `Some`, the halo
+    /// is still a no-op if `bg` is `None` or `Color::Reset` (no RGB to
+    /// blend toward).
+    pub head_halo_factor: Option<f32>,
+
+    /// Phase 4-D: the scene background color used by the head halo blend.
+    ///
+    /// This is the same `bg` carried by `DrawCtx` (used for blank cells,
+    /// phosphor decay, etc.) — passed through to the shader so the halo
+    /// knows what color to dissolve toward. `None` or `Color::Reset`
+    /// disables the halo (no RGB to blend toward).
+    pub bg: Option<Color>,
 }
 
 /// Precomputed exponential decay lookup table for trail brightness.
@@ -382,6 +414,10 @@ pub fn resolve_cell_color(
     };
 
     let mut bold = false;
+    // Phase 4-D: track whether this is a Head cell so the post-resolution
+    // halo blend can apply exclusively to Head. Middle/Tail stops are pinned
+    // by the palette hierarchy and must not be haloed.
+    let mut is_head = false;
     if shader.bold_mode == BoldMode::Random {
         bold = (((line as u32) ^ (val as u32)) % 2) == 1;
     }
@@ -479,6 +515,7 @@ pub fn resolve_cell_color(
         CharLoc::Head => {
             color_idx = last;
             bold = true;
+            is_head = true;
         }
         CharLoc::Middle => {
             color_idx = color_idx.clamp(0, last.max(0));
@@ -566,6 +603,31 @@ pub fn resolve_cell_color(
         None
     } else {
         palette_colors.get(color_idx as usize).copied()
+    };
+
+    // Phase 4-D (Chroma Dragon Innovation D — Dragon Awakening): head halo
+    // via background blend.
+    //
+    // Blend the resolved Head cell color toward the scene background by
+    // `head_halo_factor`. This softens the hard bright head pixel against
+    // the dark background — on a dark-cosmos bg, the head becomes slightly
+    // dimmer and bg-tinted, producing a "dissolve into the scene" rather
+    // than a stark white smear.
+    //
+    // Applied ONLY to Head cells (is_head gate). Applied AFTER palette
+    // resolution and BEFORE subpixel jitter + atmospheric, so downstream
+    // effects compose on the haloed color.
+    //
+    // `blend_toward_bg` auto-no-ops when factor ≤ 0, color is Reset, or bg
+    // is Reset — so `None` bg or `Color::Reset` bg safely disables the
+    // halo without an extra branch here.
+    let fg = if is_head {
+        fg.map(|c| match (shader.head_halo_factor, shader.bg) {
+            (Some(factor), Some(bg)) => crate::chroma::palette::blend_toward_bg(c, bg, factor),
+            _ => c,
+        })
+    } else {
+        fg
     };
 
     // Phase 3-E (Chroma Dragon Innovation E): subpixel hue jitter.

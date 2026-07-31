@@ -533,6 +533,14 @@ impl Cloud {
             // subtle film-grain texture. Always Some in production — the
             // jitter is deterministic per (line, col) so it doesn't strobe.
             subpixel_jitter_amplitude: Some(crate::chroma::tuning::SUBPIXEL_JITTER_AMPLITUDE),
+            // Phase 4-D (Dragon Awakening): activate head halo via background
+            // blend (Innovation D). The blend_toward_bg helper landed in
+            // Phase 3-D but had zero production callers. Phase 4-D wires it
+            // into the shader's Head branch with a conservative factor
+            // (HEAD_HALO_FACTOR = 0.15) so the head dissolves into the scene
+            // background. Always Some in production — the shader auto-no-ops
+            // when bg is None or Color::Reset.
+            head_halo_factor: Some(crate::chroma::tuning::HEAD_HALO_FACTOR),
         };
 
         if matches!(self.rain_style, RainStyle::Monolith) {

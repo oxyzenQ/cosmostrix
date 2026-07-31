@@ -151,6 +151,19 @@ pub struct DrawCtx<'a> {
     /// `None` disables (matches pre-Phase-4-B dormant behavior — kept
     /// for tests that assert the shader's no-op path).
     pub subpixel_jitter_amplitude: Option<u8>,
+
+    /// Phase 4-D (Chroma Dragon Innovation D — Dragon Awakening): head halo
+    /// blend factor.
+    ///
+    /// `Some(factor)` blends the resolved Head cell color toward the scene
+    /// background (`bg`) by `factor`, softening the hard bright head pixel
+    /// against the dark background. Phase 3-D landed `blend_toward_bg` in
+    /// `chroma::palette` but it had zero production callers. Phase 4-D wires
+    /// it into the shader's Head branch so the halo is always-on.
+    ///
+    /// `None` disables (matches pre-Phase-4-D dormant behavior — kept for
+    /// tests that assert the shader's no-op path).
+    pub head_halo_factor: Option<f32>,
 }
 
 impl DrawCtx<'_> {
@@ -288,6 +301,13 @@ impl DrawCtx<'_> {
             // ColorEcosystem.hue_drift field. None disables (pre-Phase-3-H
             // behavior — drift accumulates but never affects rendering).
             hue_drift: self.hue_drift,
+            // Phase 4-D (Dragon Awakening): head halo via background blend.
+            // rain.rs sets Some(HEAD_HALO_FACTOR) and passes self.bg so the
+            // shader can blend the Head color toward the scene background.
+            // None disables (used by shader no-op tests). When Some, the
+            // halo still auto-no-ops if bg is None or Color::Reset.
+            head_halo_factor: self.head_halo_factor,
+            bg: self.bg,
         };
         resolve_cell_color(
             &shader,

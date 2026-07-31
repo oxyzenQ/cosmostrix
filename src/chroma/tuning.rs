@@ -3,17 +3,19 @@
 
 //! # Chroma Dragon — Tuning Constants
 //!
-//! Phase 4 (Dragon Awakening) activates two shader innovations that were
+//! Phase 4 (Dragon Awakening) activates shader innovations that were
 //! plumbed into `chroma::shaders::base::resolve_cell_color` during Phase 3
 //! but left dormant (hardcoded to `None` in the `DrawCtx → ShaderCtx`
 //! builder):
 //!
 //!   - Innovation C (temporal column hue coherence) — Phase 4-A
 //!   - Innovation E (subpixel hue jitter)           — Phase 4-B
+//!   - Innovation D (head halo via background blend) — Phase 4-D
 //!
-//! Both are now always-on in production. The constants below tune their
-//! amplitudes; see the doc comments on `ShaderCtx::column_coherence_phase`
-//! and `ShaderCtx::subpixel_jitter_amplitude` for the full rationale.
+//! All three are now always-on in production. The constants below tune
+//! their amplitudes; see the doc comments on `ShaderCtx::column_coherence_phase`,
+//! `ShaderCtx::subpixel_jitter_amplitude`, and `ShaderCtx::head_halo_factor`
+//! for the full rationale.
 //!
 //! ## Why a separate module?
 //!
@@ -61,3 +63,31 @@ pub const COLUMN_COHERENCE_FREQ: f32 = 0.105;
 /// atmospheric, so it does not interfere with the head→body→tail
 /// hierarchy or the atmospheric luminance/saturation math.
 pub const SUBPIXEL_JITTER_AMPLITUDE: u8 = 3;
+
+/// Phase 4-D: blend factor for the head halo (background-aware dissolve).
+///
+/// The shader's `CharLoc::Head` branch resolves the brightest palette stop
+/// and sets `bold = true`. Phase 4-D blends this head color toward the
+/// scene background by this factor, softening the hard bright pixel
+/// against the dark background. On a dark-cosmos bg, the head becomes
+/// slightly dimmer and bg-tinted — a "dissolve into the scene" rather
+/// than a stark white smear. On a light bg, the head brightens slightly
+/// toward the bg, maintaining contrast.
+///
+/// `0.15` = 15% blend toward bg. Conservative — the head stays clearly
+/// the brightest cell in the droplet, but the transition from head to
+/// body reads as a soft glow rather than a hard edge. Higher values
+/// (0.3–0.5) produce a visible "aura" but risk washing out the head
+/// on very dark backgrounds. Lower values (0.05–0.10) are barely
+/// perceptible.
+///
+/// Applied ONLY to `CharLoc::Head` cells. Middle and Tail stops are
+/// pinned by the palette hierarchy and must not be haloed. Applied
+/// AFTER palette resolution and BEFORE subpixel jitter + atmospheric,
+/// so downstream effects compose on the haloed color.
+///
+/// `None` in `ShaderCtx` disables (matches pre-Phase-4-D dormant
+/// behavior — `blend_toward_bg` existed since Phase 3-D but had zero
+/// production callers). `Color::Reset` bg is a no-op (no RGB to blend
+/// toward), so the halo auto-disables when no explicit bg is set.
+pub const HEAD_HALO_FACTOR: f32 = 0.15;

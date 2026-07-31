@@ -216,6 +216,7 @@ fn charset_wave_uses_old_rows_below_and_new_rows_above() {
         hue_drift: None,
         column_coherence_phase: None,
         subpixel_jitter_amplitude: None,
+        head_halo_factor: None,
     };
 
     assert_eq!(ctx.get_char(1, 0, 0), 'B');
@@ -437,6 +438,7 @@ fn color_uses_previous_palette_below_wave_line() {
         hue_drift: None,
         column_coherence_phase: None,
         subpixel_jitter_amplitude: None,
+        head_halo_factor: None,
     };
 
     // Row 0 (above wave): droplet with old palette should NOT use previous
