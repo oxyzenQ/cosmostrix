@@ -361,10 +361,25 @@ pub fn fnv1a_64(data: &[u8]) -> u64 {
 mod tests {
     use super::*;
 
+    /// Mutex to serialize tests that mutate the `COSMOSTRIX_LIVE_RELOAD_POLL_MS`
+    /// env var. Rust's default test harness runs tests in parallel, and these
+    /// three tests (`env_poll_interval_ms_default_when_unset`,
+    /// `env_poll_interval_ms_honors_valid_override`,
+    /// `env_poll_interval_ms_falls_back_on_invalid`) all touch the same
+    /// process-global env var — without serialization, one test's `set_var`
+    /// can race with another's `remove_var`, causing intermittent failures
+    /// like "300ms is within range, left=750, right=300" (the default
+    /// leaked through because another test removed the override mid-assert).
+    ///
+    /// The lock is held for the duration of each test; acquisition is
+    /// instantaneous when no other env-var test is running.
+    static ENV_VAR_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     /// `env_poll_interval_ms` returns the default (750ms) when the env var
     /// is unset. This is the common case — most users don't override.
     #[test]
     fn env_poll_interval_ms_default_when_unset() {
+        let _guard = ENV_VAR_TEST_LOCK.lock().unwrap();
         std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
         assert_eq!(
             env_poll_interval_ms(),
@@ -376,6 +391,7 @@ mod tests {
     /// `env_poll_interval_ms` honors a valid override within [50, 5000].
     #[test]
     fn env_poll_interval_ms_honors_valid_override() {
+        let _guard = ENV_VAR_TEST_LOCK.lock().unwrap();
         std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "300");
         assert_eq!(env_poll_interval_ms(), 300, "300ms is within range");
         std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", "5000");
@@ -391,6 +407,7 @@ mod tests {
     /// (interval=1).
     #[test]
     fn env_poll_interval_ms_falls_back_on_invalid() {
+        let _guard = ENV_VAR_TEST_LOCK.lock().unwrap();
         for bad in &["not-a-number", "0", "49", "5001", "99999", "-1"] {
             std::env::set_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS", bad);
             assert_eq!(
