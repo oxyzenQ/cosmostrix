@@ -328,13 +328,8 @@ pub fn apply_l_smoothing(
     // preserves a/b exactly, so current_(a,b) == the active palette's
     // (a, b) for this stop). The TARGET (a, b) is the opposite palette's
     // chroma. We interpolate between them via polar coords.
-    let (smoothed_a, smoothed_b) = polar_chroma_lerp(
-        current_a,
-        current_b,
-        target_a,
-        target_b,
-        blend,
-    );
+    let (smoothed_a, smoothed_b) =
+        polar_chroma_lerp(current_a, current_b, target_a, target_b, blend);
 
     let (r, g, b) = oklab_to_srgb(smoothed_l, smoothed_a, smoothed_b);
     Color::Rgb { r, g, b }

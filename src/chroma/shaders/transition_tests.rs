@@ -723,8 +723,16 @@ fn smoothing_no_panic_on_ansi_color() {
 fn phase8_build_populates_full_oklab_entry() {
     // Phase 8 extends the entry to carry (L, a, b) per side, not just L.
     // Verify all 6 fields are populated and finite for a colored stop.
-    let old = [Color::Rgb { r: 220, g: 30, b: 30 }]; // red
-    let new = [Color::Rgb { r: 30, g: 220, b: 30 }]; // green
+    let old = [Color::Rgb {
+        r: 220,
+        g: 30,
+        b: 30,
+    }]; // red
+    let new = [Color::Rgb {
+        r: 30,
+        g: 220,
+        b: 30,
+    }]; // green
     let table = TransitionLTable::build(&old, &new, 10.0, 3.0).unwrap();
     let e = &table.entries[0];
 
@@ -762,12 +770,24 @@ fn phase8_chroma_smoothing_avoids_gray_midpoint_for_opposing_hues() {
     // Cyan in OKLab:   (L≈0.79, a≈-0.30, b≈-0.07) — chroma ≈ 0.308
     // Polar midpoint:  chroma ≈ 0.282, hue rotates through magenta/yellow
     // Cartesian mid:   chroma ≈ 0.025 — desaturated, near-gray
-    let old = [Color::Rgb { r: 220, g: 30, b: 30 }]; // red
-    let new = [Color::Rgb { r: 30, g: 220, b: 220 }]; // cyan
+    let old = [Color::Rgb {
+        r: 220,
+        g: 30,
+        b: 30,
+    }]; // red
+    let new = [Color::Rgb {
+        r: 30,
+        g: 220,
+        b: 220,
+    }]; // cyan
     let table = TransitionLTable::build(&old, &new, 10.0, 3.0).unwrap();
 
     // Cell at the wave line (distance = 0, blend = 0.5) using NEW palette.
-    let cell_color = Color::Rgb { r: 30, g: 220, b: 220 };
+    let cell_color = Color::Rgb {
+        r: 30,
+        g: 220,
+        b: 220,
+    };
     let smoothed = apply_l_smoothing(cell_color, Some(&table), 0, 10);
 
     let (r, g, b) = match smoothed {
@@ -796,11 +816,23 @@ fn phase8_chroma_smoothing_red_to_green_stays_saturated() {
     // Red → green is the classic Cartesian-midpoint-is-gray case.
     // Phase 8 should keep the midpoint saturated (yellow-ish, since
     // red→green shorter-arc goes through yellow).
-    let old = [Color::Rgb { r: 220, g: 30, b: 30 }]; // red
-    let new = [Color::Rgb { r: 30, g: 220, b: 30 }]; // green
+    let old = [Color::Rgb {
+        r: 220,
+        g: 30,
+        b: 30,
+    }]; // red
+    let new = [Color::Rgb {
+        r: 30,
+        g: 220,
+        b: 30,
+    }]; // green
     let table = TransitionLTable::build(&old, &new, 10.0, 3.0).unwrap();
 
-    let cell_color = Color::Rgb { r: 30, g: 220, b: 30 }; // new (green)
+    let cell_color = Color::Rgb {
+        r: 30,
+        g: 220,
+        b: 30,
+    }; // new (green)
     let smoothed = apply_l_smoothing(cell_color, Some(&table), 0, 10);
 
     let (r, g, b) = match smoothed {
@@ -830,11 +862,23 @@ fn phase8_grayscale_falls_back_to_cartesian() {
     // This test documents that behavior: a red → gray transition produces
     // a desaturated red-ish midpoint (NOT a hue rotation through the
     // chroma ring).
-    let old = [Color::Rgb { r: 220, g: 30, b: 30 }]; // red
-    let new = [Color::Rgb { r: 128, g: 128, b: 128 }]; // gray
+    let old = [Color::Rgb {
+        r: 220,
+        g: 30,
+        b: 30,
+    }]; // red
+    let new = [Color::Rgb {
+        r: 128,
+        g: 128,
+        b: 128,
+    }]; // gray
     let table = TransitionLTable::build(&old, &new, 10.0, 3.0).unwrap();
 
-    let cell_color = Color::Rgb { r: 128, g: 128, b: 128 }; // new (gray)
+    let cell_color = Color::Rgb {
+        r: 128,
+        g: 128,
+        b: 128,
+    }; // new (gray)
     let smoothed = apply_l_smoothing(cell_color, Some(&table), 0, 10);
 
     let (r, g, b) = match smoothed {
@@ -866,11 +910,23 @@ fn phase8_same_chroma_no_hue_rotation() {
     //
     // This test guards against a regression where polar interpolation
     // might introduce spurious hue rotation due to floating-point noise.
-    let old = [Color::Rgb { r: 100, g: 30, b: 30 }]; // dim red
-    let new = [Color::Rgb { r: 220, g: 70, b: 70 }]; // bright red
+    let old = [Color::Rgb {
+        r: 100,
+        g: 30,
+        b: 30,
+    }]; // dim red
+    let new = [Color::Rgb {
+        r: 220,
+        g: 70,
+        b: 70,
+    }]; // bright red
     let table = TransitionLTable::build(&old, &new, 10.0, 3.0).unwrap();
 
-    let cell_color = Color::Rgb { r: 220, g: 70, b: 70 }; // new
+    let cell_color = Color::Rgb {
+        r: 220,
+        g: 70,
+        b: 70,
+    }; // new
     let smoothed = apply_l_smoothing(cell_color, Some(&table), 0, 11);
 
     let (r, g, b) = match smoothed {
@@ -902,10 +958,18 @@ fn phase8_shortest_arc_picks_shorter_direction() {
     // and saturated (i.e. not gray, which would indicate the longer
     // arc passed through the desaturated center).
     let old = [Color::Rgb { r: 255, g: 0, b: 0 }]; // red, h≈29°
-    let new = [Color::Rgb { r: 128, g: 0, b: 255 }]; // violet, h≈-80°
+    let new = [Color::Rgb {
+        r: 128,
+        g: 0,
+        b: 255,
+    }]; // violet, h≈-80°
     let table = TransitionLTable::build(&old, &new, 10.0, 3.0).unwrap();
 
-    let cell_color = Color::Rgb { r: 128, g: 0, b: 255 };
+    let cell_color = Color::Rgb {
+        r: 128,
+        g: 0,
+        b: 255,
+    };
     let smoothed = apply_l_smoothing(cell_color, Some(&table), 0, 10);
 
     let (r, g, b) = match smoothed {
@@ -944,16 +1008,36 @@ fn phase8_full_oklab_equality_skips_smoothing() {
     // Construct a 2-stop palette where stop 0 is identical and stop 1
     // differs. Verify stop 0 returns the original color unchanged.
     let old = [
-        Color::Rgb { r: 100, g: 50, b: 50 }, // stop 0: identical red
-        Color::Rgb { r: 200, g: 30, b: 30 }, // stop 1: dimmer red
+        Color::Rgb {
+            r: 100,
+            g: 50,
+            b: 50,
+        }, // stop 0: identical red
+        Color::Rgb {
+            r: 200,
+            g: 30,
+            b: 30,
+        }, // stop 1: dimmer red
     ];
     let new = [
-        Color::Rgb { r: 100, g: 50, b: 50 }, // stop 0: identical red
-        Color::Rgb { r: 240, g: 20, b: 20 }, // stop 1: brighter red
+        Color::Rgb {
+            r: 100,
+            g: 50,
+            b: 50,
+        }, // stop 0: identical red
+        Color::Rgb {
+            r: 240,
+            g: 20,
+            b: 20,
+        }, // stop 1: brighter red
     ];
     let table = TransitionLTable::build(&old, &new, 10.0, 3.0).unwrap();
 
-    let cell_color = Color::Rgb { r: 100, g: 50, b: 50 };
+    let cell_color = Color::Rgb {
+        r: 100,
+        g: 50,
+        b: 50,
+    };
     let smoothed = apply_l_smoothing(cell_color, Some(&table), 0, 10);
     // Stop 0 is identical → no smoothing → original color returned.
     assert_eq!(
@@ -962,7 +1046,11 @@ fn phase8_full_oklab_equality_skips_smoothing() {
     );
 
     // Stop 1 differs → smoothing applies.
-    let cell_color_1 = Color::Rgb { r: 240, g: 20, b: 20 };
+    let cell_color_1 = Color::Rgb {
+        r: 240,
+        g: 20,
+        b: 20,
+    };
     let smoothed_1 = apply_l_smoothing(cell_color_1, Some(&table), 1, 10);
     assert_ne!(
         smoothed_1, cell_color_1,
@@ -974,11 +1062,23 @@ fn phase8_full_oklab_equality_skips_smoothing() {
 fn phase8_smoothing_deterministic_across_calls() {
     // Polar interpolation with trig functions must be deterministic.
     // Same inputs → same outputs (no floating-point nondeterminism).
-    let old = [Color::Rgb { r: 220, g: 30, b: 30 }];
-    let new = [Color::Rgb { r: 30, g: 220, b: 30 }];
+    let old = [Color::Rgb {
+        r: 220,
+        g: 30,
+        b: 30,
+    }];
+    let new = [Color::Rgb {
+        r: 30,
+        g: 220,
+        b: 30,
+    }];
     let table = TransitionLTable::build(&old, &new, 10.0, 3.0).unwrap();
 
-    let color = Color::Rgb { r: 30, g: 220, b: 30 };
+    let color = Color::Rgb {
+        r: 30,
+        g: 220,
+        b: 30,
+    };
     let a = apply_l_smoothing(color, Some(&table), 0, 11);
     let b = apply_l_smoothing(color, Some(&table), 0, 11);
     assert_eq!(a, b, "Phase 8 smoothing must be deterministic");

@@ -903,9 +903,9 @@ mod audit_tests {
         for (a, b, dist) in &near_dups {
             // Look up the pair in KNOWN_NEAR_DUPLICATES. The pair may be
             // listed in either order (a,b) or (b,a), so check both.
-            let found = KNOWN_NEAR_DUPLICATES.iter().find(|d| {
-                (d.a == *a && d.b == *b) || (d.a == *b && d.b == *a)
-            });
+            let found = KNOWN_NEAR_DUPLICATES
+                .iter()
+                .find(|d| (d.a == *a && d.b == *b) || (d.a == *b && d.b == *a));
 
             match found {
                 Some(d) => {
@@ -929,9 +929,9 @@ mod audit_tests {
         // >= 30). These should be removed from the allowlist.
         let mut stale: Vec<&NearDupDisposition> = Vec::new();
         for d in KNOWN_NEAR_DUPLICATES {
-            let still_near = near_dups.iter().any(|(a, b, _)| {
-                (*a == d.a && *b == d.b) || (*a == d.b && *b == d.a)
-            });
+            let still_near = near_dups
+                .iter()
+                .any(|(a, b, _)| (*a == d.a && *b == d.b) || (*a == d.b && *b == d.a));
             if !still_near {
                 stale.push(d);
             }
