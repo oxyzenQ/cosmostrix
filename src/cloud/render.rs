@@ -87,6 +87,15 @@ pub struct DrawCtx<'a> {
     /// Cached result of pool_is_binary check, computed once per DrawCtx
     /// construction to avoid per-cell iteration of the char pool.
     pub pool_is_binary: bool,
+
+    /// Phase 3-G (Chroma Dragon Innovation G): precomputed atmospheric
+    /// factors for this frame. `None` disables shader-level atmospheric
+    /// (matches pre-Phase-3-G behavior — `apply_atmospheric_frame_effects`
+    /// runs as a post-hoc pass instead). When `Some`, the shader applies
+    /// atmospheric to each cell's resolved color BEFORE returning, and
+    /// `apply_atmospheric_frame_effects` early-returns to avoid
+    /// double-application.
+    pub atmospheric: Option<crate::chroma::post::atmosphere::AtmosphericCtx>,
 }
 
 impl DrawCtx<'_> {
@@ -216,6 +225,11 @@ impl DrawCtx<'_> {
             // but not yet wired through DrawCtx. Hard-coded None keeps
             // production rendering identical to pre-Phase-3-E behavior.
             subpixel_jitter_amplitude: None,
+            // Phase 3-G: atmospheric post-processing. When DrawCtx.atmospheric
+            // is Some, the shader applies the frame's atmospheric factors to
+            // each cell's resolved color before returning. When None, the
+            // shader skips atmospheric and the post-hoc pass runs instead.
+            atmospheric: self.atmospheric.as_ref(),
         };
         resolve_cell_color(
             &shader,

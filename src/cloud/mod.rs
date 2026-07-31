@@ -266,6 +266,9 @@ pub struct Cloud {
     pub(super) stuck_cells_cleared_total: u64,
     /// Total sweeps that found at least one stuck cell.
     pub(super) stuck_sweeps_with_clears: u64,
+    /// Pre-allocated buffer for dirty-cell iteration. Was used by the post-hoc
+    /// atmospheric pass (Phase 3-G made it a no-op); kept for future passes.
+    #[allow(dead_code)]
     pub(super) phosphor_dirty_buf: Vec<usize>,
 }
 

@@ -47,4 +47,5 @@
 pub mod catalog;
 pub mod gradient;
 pub mod palette;
+pub mod post;
 pub mod shaders;

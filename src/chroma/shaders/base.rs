@@ -119,6 +119,22 @@ pub struct ShaderCtx<'a> {
     /// `None` disables (current production default — wiring through `DrawCtx`
     /// is a future commit).
     pub subpixel_jitter_amplitude: Option<u8>,
+
+    /// Phase 3-G (Chroma Dragon Innovation G): integrated atmospheric
+    /// post-processing.
+    ///
+    /// `Some(ctx)` applies the frame's atmospheric factors (luminance
+    /// dim/boost, saturation drift, persistence glow, instability
+    /// flicker) to the resolved cell color BEFORE it is encoded as
+    /// `Color::Rgb` and returned. This eliminates the post-hoc
+    /// decode-encode cycle that `cloud::phosphor::apply_atmospheric_frame_effects`
+    /// performed on dirty cells — the cell is now written to the frame
+    /// once with atmospheric already applied.
+    ///
+    /// `None` disables (matches pre-Phase-3-G behavior — the post-hoc
+    /// pass runs instead). Production wires this through `DrawCtx` so
+    /// the shader always applies atmospheric when factors are non-neutral.
+    pub atmospheric: Option<&'a crate::chroma::post::atmosphere::AtmosphericCtx>,
 }
 
 /// Precomputed exponential decay lookup table for trail brightness.
@@ -499,6 +515,36 @@ pub fn resolve_cell_color(
     let fg = fg.map(|c| match shader.subpixel_jitter_amplitude {
         Some(amp) => apply_subpixel_jitter(c, cell_hash(line, col), amp),
         None => c,
+    });
+
+    // Phase 3-G (Chroma Dragon Innovation G): integrated atmospheric
+    // post-processing.
+    //
+    // Apply the frame's atmospheric factors (luminance dim/boost, saturation
+    // drift, persistence glow, instability flicker) to the resolved cell
+    // color BEFORE returning. This eliminates the post-hoc decode-encode
+    // cycle that `cloud::phosphor::apply_atmospheric_frame_effects` performed
+    // on dirty cells — the cell is now written to the frame once with
+    // atmospheric already applied.
+    //
+    // Disabled when `atmospheric` is None (matches pre-Phase-3-G behavior —
+    // the post-hoc pass runs instead). When Some, the post-hoc pass is a
+    // no-op (early return), so the shader is the sole source of atmospheric
+    // modification — no double-application.
+    //
+    // `Color::Reset` (None fg) is skipped — there's no RGB to modify.
+    let fg = fg.map(|c| {
+        let Some(ctx) = shader.atmospheric else {
+            return c;
+        };
+        // Fast path: neutral ctx is a no-op (matches the pre-Phase-3-G
+        // "skip if all neutral" early-return in apply_atmospheric_frame_effects).
+        if ctx.is_neutral() {
+            return c;
+        }
+        let (r, g, b) = crate::chroma::palette::color_to_rgb(c);
+        let (r, g, b) = crate::chroma::post::atmosphere::apply_atmospheric(r, g, b, line, col, ctx);
+        Color::Rgb { r, g, b }
     });
 
     (fg, bold)
@@ -905,6 +951,7 @@ mod tests {
             color_mode: ColorMode::TrueColor,
             column_coherence_phase: None,
             subpixel_jitter_amplitude: None,
+            atmospheric: None,
         }
     }
 

@@ -17,6 +17,9 @@ use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
 use super::render::DrawCtx;
 use super::Cloud;
 
+// Phase 3-G: atmospheric ctx for integrated post-processing.
+use crate::chroma::post::atmosphere::AtmosphericCtx;
+
 impl Cloud {
     pub fn rain(&mut self, frame: &mut Frame) {
         self.rain_at(frame, Instant::now());
@@ -389,6 +392,82 @@ impl Cloud {
             self.event_manager.render_pre_rain(&pre_ctx, frame);
         }
 
+        // Phase 3-G (Chroma Dragon Innovation G): build the per-frame
+        // atmospheric ctx from Cloud state. This precomputes all
+        // frame-invariant factors (dim/boost/saturation/persistence/instability
+        // integers + now_secs) once, then passes them through DrawCtx →
+        // ShaderCtx → resolve_cell_color where the shader applies them to
+        // each cell's resolved color BEFORE encoding. The post-hoc
+        // `apply_atmospheric_frame_effects` early-returns when this is Some,
+        // eliminating ~500 decode-encode-frame.set cycles per frame.
+        //
+        // The math here is identical to the pre-Phase-3-G post-hoc pass —
+        // same thresholds, same integer fixed-point factors. The only
+        // difference is WHEN it runs (shader vs post-hoc).
+        let atmospheric = {
+            let luminance = self.color_ecosystem.luminance_climate;
+            let saturation = self.color_ecosystem.saturation_climate;
+            let instability = self.memory.instability_pressure;
+            let persistence = self.memory.persistence_richness;
+            let emergent = self.storytelling.active_effects(now);
+            let profile = self.profile_current;
+
+            let needs_luminance = (luminance - 1.0).abs() > 0.01
+                || emergent.luminance_boost > 0.0
+                || profile.luminance_offset.abs() > 0.01;
+            let needs_saturation = (saturation - 1.0).abs() > 0.01;
+            let needs_persistence = persistence.abs() > 0.01;
+
+            if !needs_luminance && !needs_saturation && !needs_persistence {
+                // All neutral — pass None so the shader's fast-path skips
+                // entirely. The post-hoc pass also early-returns on this
+                // condition (preserved behavior).
+                None
+            } else {
+                let now_secs = now.elapsed().as_secs() as u32;
+                let total_lum = luminance + profile.luminance_offset + emergent.luminance_boost;
+                let lum_fi = if total_lum < 1.0 {
+                    Some((total_lum.clamp(0.0, 1.0) * 256.0) as i32)
+                } else {
+                    None
+                };
+                let lum_wf = if total_lum > 1.0 {
+                    Some(((total_lum - 1.0).clamp(0.0, 0.3) * 256.0) as i32)
+                } else {
+                    None
+                };
+                let sat_ti = if needs_saturation && saturation < 1.0 {
+                    Some((saturation.clamp(0.0, 1.0) * 256.0) as i32)
+                } else {
+                    None
+                };
+                let persist_wf = if needs_persistence && persistence > 0.0 {
+                    Some(((persistence * 0.3).clamp(0.0, 1.0) * 256.0) as i32)
+                } else {
+                    None
+                };
+                let instability_threshold = if instability > 0.15 {
+                    Some((instability * 50.0) as u32)
+                } else {
+                    None
+                };
+                let instability_wf = if instability > 0.15 {
+                    Some(((instability * 0.1).clamp(0.0, 1.0) * 256.0) as i32)
+                } else {
+                    None
+                };
+                Some(AtmosphericCtx {
+                    lum_fi,
+                    lum_wf,
+                    sat_ti,
+                    persist_wf,
+                    instability_threshold,
+                    instability_wf,
+                    now_secs,
+                })
+            }
+        };
+
         let ctx = DrawCtx {
             lines: self.lines,
             cols: self.cols,
@@ -422,6 +501,7 @@ impl Cloud {
                 }
             }),
             pool_is_binary,
+            atmospheric,
         };
 
         if matches!(self.rain_style, RainStyle::Monolith) {

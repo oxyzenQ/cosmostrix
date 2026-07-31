@@ -5,7 +5,6 @@
 
 use std::time::Instant;
 
-use crossterm::style::Color;
 use rand::distr::Distribution;
 
 use crate::cell::Cell;
@@ -562,145 +561,42 @@ impl Cloud {
     }
 
     /// Apply global atmospheric effects to the frame.
-    /// OPTIMIZED (v5.0.4): scans only dirty-cell indices instead of full O(w×h) grid.
+    ///
+    /// Phase 3-G (Chroma Dragon Innovation G): this post-hoc pass is now a
+    /// no-op. Atmospheric effects (luminance dim/boost, saturation drift,
+    /// persistence glow, instability flicker) are applied in the shader
+    /// pipeline at `chroma::shaders::base::resolve_cell_color` via
+    /// `chroma::post::atmosphere::apply_atmospheric`, BEFORE the cell is
+    /// encoded as `Color::Rgb` and written to the frame.
+    ///
+    /// Why disable the post-hoc pass?
+    ///   - Eliminates ~500 decode-encode-frame.set cycles per frame (the
+    ///     shader already applied atmospheric at render time, so re-decoding
+    ///     each dirty cell's `Color` back to RGB, modifying, and re-encoding
+    ///     was pure waste).
+    ///   - Eliminates the double-application risk: if both paths ran,
+    ///     shader-rendered cells would get atmospheric applied twice (once
+    ///     at render, once post-hoc), producing over-darkened / over-boosted
+    ///     output.
+    ///
+    /// Trade-off: cells written to the frame by NON-shader paths (ghost
+    /// events, message box, phosphor decay) no longer get atmospheric
+    /// applied. This is a minor visual regression for those rare cells —
+    /// ghosts are already low-opacity fade-ins, the message box is
+    /// overlaid last with its own glow, and phosphor decay writes blank
+    /// cells (no fg to modify). The architectural win (no double
+    /// decode-encode, no double-application) outweighs the regression.
+    ///
+    /// The original post-hoc implementation is preserved in git history
+    /// (commit prior to Phase 3-G) and can be recovered if a future commit
+    /// reverts the shader integration.
     pub(super) fn apply_atmospheric_frame_effects(
         &mut self,
-        frame: &mut crate::frame::Frame,
-        now: Instant,
+        _frame: &mut crate::frame::Frame,
+        _now: Instant,
     ) {
-        let luminance = self.color_ecosystem.luminance_climate;
-        let saturation = self.color_ecosystem.saturation_climate;
-        let instability = self.memory.instability_pressure;
-        let persistence = self.memory.persistence_richness;
-        let emergent = self.storytelling.active_effects(now);
-        let profile = self.profile_current;
-
-        // Skip if all modifiers are neutral
-        let needs_luminance = (luminance - 1.0).abs() > 0.01
-            || emergent.luminance_boost > 0.0
-            || profile.luminance_offset.abs() > 0.01;
-        let needs_saturation = (saturation - 1.0).abs() > 0.01;
-        let needs_persistence = persistence.abs() > 0.01;
-
-        if !needs_luminance && !needs_saturation && !needs_persistence {
-            return;
-        }
-
-        // PERF: precompute all loop-invariant float operations once per frame.
-        // Previously recomputed per dirty cell (~500×/frame).
-        let now_secs = now.elapsed().as_secs() as u32; // F1: hoist syscall
-        let total_lum = luminance + profile.luminance_offset + emergent.luminance_boost;
-        let lum_fi = if total_lum < 1.0 {
-            Some((total_lum.clamp(0.0, 1.0) * 256.0) as i32) // dim factor
-        } else {
-            None // no dim; boost handled by lum_wf below
-        };
-        let lum_wf = if total_lum > 1.0 {
-            Some(((total_lum - 1.0).clamp(0.0, 0.3) * 256.0) as i32) // boost factor
-        } else {
-            None
-        };
-        let sat_ti = if needs_saturation && saturation < 1.0 {
-            Some((saturation.clamp(0.0, 1.0) * 256.0) as i32)
-        } else {
-            None
-        };
-        let persist_wf = if needs_persistence && persistence > 0.0 {
-            Some(((persistence * 0.3).clamp(0.0, 1.0) * 256.0) as i32)
-        } else {
-            None
-        };
-        let instability_threshold = if instability > 0.15 {
-            Some((instability * 50.0) as u32)
-        } else {
-            None
-        };
-        let instability_wf = if instability > 0.15 {
-            Some(((instability * 0.1).clamp(0.0, 1.0) * 256.0) as i32)
-        } else {
-            None
-        };
-
-        // Collect dirty indices into a reusable buffer — avoids per-frame
-        // SmallVec allocation when dirty count exceeds inline capacity (256).
-        // The buffer is cleared and refilled each frame; capacity grows once
-        // and is reused for all subsequent frames.
-        self.phosphor_dirty_buf.clear();
-        self.phosphor_dirty_buf
-            .extend(frame.dirty_indices().iter().copied());
-        let dirty_indices = &self.phosphor_dirty_buf;
-
-        // Apply to dirty cells only (O(dirty) not O(w×h))
-        // PERF(v10): Decode color to RGB once, chain all effects on raw tuples,
-        // encode once at the end.  Eliminates 2-3 redundant color_to_rgb()
-        // match+destructure cycles per cell when multiple effects are active.
-        let bg = self.palette.bg;
-        let frame_width = frame.width as usize;
-        for &dirty_idx in dirty_indices.iter() {
-            let col = (dirty_idx % frame_width) as u16;
-            let line = (dirty_idx / frame_width) as u16;
-            if line >= self.lines || col >= self.cols {
-                continue;
-            }
-            let cell = frame.cell_at_index(dirty_idx);
-            if let Some(fg) = cell.fg {
-                // Single decode — all effects operate on raw (r, g, b)
-                let Some((mut r, mut g, mut b)) = palette::decode_color(fg) else {
-                    continue;
-                };
-
-                if needs_luminance {
-                    if let Some(fi) = lum_fi {
-                        r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                        g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                        b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    } else if let Some(wf) = lum_wf {
-                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    }
-                }
-
-                if let Some(ti) = sat_ti {
-                    let gray = ((r as u16 + g as u16 + b as u16) / 3) as u8;
-                    r = (gray as i32 + ((r as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255)
-                        as u8;
-                    g = (gray as i32 + ((g as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255)
-                        as u8;
-                    b = (gray as i32 + ((b as i32 - gray as i32) * ti + 128) / 256).clamp(0, 255)
-                        as u8;
-                }
-
-                if let Some(wf) = persist_wf {
-                    r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                }
-
-                if let Some(threshold) = instability_threshold {
-                    let hash = (col as u32).wrapping_mul(2654435761)
-                        ^ (line as u32).wrapping_mul(2246822519)
-                        ^ now_secs; // F1: use hoisted value
-                    if hash % 1000 < threshold {
-                        let wf = instability_wf.unwrap();
-                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    }
-                }
-
-                frame.set(
-                    col,
-                    line,
-                    crate::cell::Cell {
-                        ch: cell.ch,
-                        fg: Some(Color::Rgb { r, g, b }),
-                        bg,
-                        bold: cell.bold,
-                    },
-                );
-            }
-        }
+        // Phase 3-G: atmospheric is now applied in the shader pipeline.
+        // See function doc comment above for the full rationale.
     }
 
     /// P4: periodic stuck-cell sweep (debug mode only).
