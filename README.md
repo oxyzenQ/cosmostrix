@@ -50,7 +50,7 @@ Cosmostrix is built on **two cooperating engines** that split the rendering work
 
 ### The Cosmic Dragon Diff-Based Rendering Engine
 
-Lives at the crate root: `src/frame.rs` (368 LOC), `src/terminal.rs` (1,491 LOC), `src/runtime.rs` (91 LOC) — 1,950 LOC total, imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
+Lives at the crate root: `src/frame.rs` (368 LOC), `src/terminal.rs` (1,332 LOC), `src/terminal_tty.rs` (201 LOC), `src/runtime.rs` (91 LOC) — 1,992 LOC total, imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
 This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable at 38,000+ FPS.
 

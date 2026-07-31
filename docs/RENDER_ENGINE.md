@@ -23,10 +23,11 @@ the crate root**, and that is the end of the discussion.
 | File | LOC | Role |
 |------|----:|------|
 | `src/frame.rs` | 368 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/terminal.rs` | 1,491 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, /dev/tty fallback |
+| `src/terminal.rs` | 1,332 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
+| `src/terminal_tty.rs` | 201 | /dev/tty fallback helpers (extracted from terminal.rs in v30 to keep it under the 1500-LOC guard) |
 | `src/runtime.rs` | 91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode` |
 
-Total: 1,950 LOC. Imported by **every render-path module** across `src/`
+Total: 1,992 LOC. Imported by **every render-path module** across `src/`
 (frame: 25 import lines, terminal: 10, runtime: 34). These are not a
 subsystem — they are the **substrate** every rendering path stands on.
 Foundations do not get relocated; they get maintained.

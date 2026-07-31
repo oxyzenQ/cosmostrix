@@ -26,7 +26,11 @@ use super::{color_mode_label, detect_color_mode_auto};
 // cloud/tests/tests_visual_depth.rs, bench.rs tests) can keep using
 // `crate::bench_report::*_MEANING` import paths after the constants
 // were extracted to bench_meta.rs.
-#[allow(unused_imports)]
+//
+// ACTIVE_FRAME_RATIO_MEANING is re-exported for external use (see
+// bench_helpers.rs:69 which imports it via `bench_report::`).
+// AVG_DIRTY_CELL_RATIO_MEANING is consumed internally at line 453
+// (BenchReportData::fmt), so it must be in scope here too.
 pub(crate) use crate::bench_meta::{ACTIVE_FRAME_RATIO_MEANING, AVG_DIRTY_CELL_RATIO_MEANING};
 
 // ── Report data struct ───────────────────────────────────────────────────────

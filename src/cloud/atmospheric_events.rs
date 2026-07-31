@@ -67,14 +67,19 @@ pub(super) struct AtmosphericEventManager {
     events: SmallVec<[Box<dyn AtmosphericEvent>; 2]>,
     /// Dedicated RNG for deterministic event generation.
     rng: StdRng,
-    /// Total events spawned since creation (for debugging).
-    total_spawned: u64,
     /// Events are opt-in; disabled by default (tests, bench).
     events_enabled: bool,
 }
 
 impl AtmosphericEventManager {
     /// Create a new event manager.
+    ///
+    /// The `now` parameter is unused by the event manager itself but is kept
+    /// to match the uniform `Subsys::new(now)` constructor pattern used by
+    /// every cloud subsystem (ColorEcosystem, AtmosphericEvolution,
+    /// RendererMemory, StorytellingState, GustState). See `cloud/mod.rs:397-405`
+    /// for the constructor batch — every subsystem takes `now` so the batch
+    /// reads symmetrically.
     pub fn new(_now: Instant) -> Self {
         let event_seed = RNG_INITIAL_SEED ^ EVENT_RNG_XOR;
         let rng = StdRng::seed_from_u64(event_seed);
@@ -82,13 +87,15 @@ impl AtmosphericEventManager {
         Self {
             events: SmallVec::new(),
             rng,
-            total_spawned: 0,
             events_enabled: false,
         }
     }
 
-    /// Reset all state (terminal resize, scene change). Force-finishes
-    /// active events.
+    /// Reset all state (terminal resize, scene change).
+    ///
+    /// Drops all active events — events are stateless between frames (no
+    /// finalizer callback). The `now` parameter follows the same uniform-
+    /// constructor convention documented on `new()`.
     pub fn reset(&mut self, _now: Instant) {
         self.events.clear();
     }
@@ -172,7 +179,7 @@ impl AtmosphericEventManager {
 
     // ── Private Helpers ────────────────────────────────────────────────────
 
-    /// Try to spawn a phosphor ghost kanji character.
+    /// Try to spawn a ghost kanji character.
     fn try_spawn_ghost(&mut self, cols: u16, lines: u16) {
         // Max 1 ghost active
         if self.events.iter().filter(|e| e.is_pre_rain()).count() >= GHOST_MAX_ACTIVE {
@@ -195,6 +202,5 @@ impl AtmosphericEventManager {
         let now = Instant::now();
         let event: Box<dyn AtmosphericEvent> = Box::new(GhostEvent::new(col, line, now));
         self.events.push(event);
-        self.total_spawned += 1;
     }
 }

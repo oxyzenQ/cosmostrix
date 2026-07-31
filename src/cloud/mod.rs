@@ -1,17 +1,18 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Core simulation engine for Cosmostrix.
+//! Core simulation engine for Cosmostrix — atmospheric rendering pipeline.
 //!
-//! This module implements the entire atmospheric rendering pipeline:
+//! Key systems: **DrawCtx** (read-only renderer snapshot for per-frame
+//! callbacks), **DropletSpawner** (3 parallax layers, see `spawn.rs`),
+//! **AtmosphericEventManager** (ghost-kanji events, see
+//! `atmospheric_events.rs`), **LivingRain** (wind-gust drift, see
+//! `living_rain.rs`).
 //!
-//! ## Key Systems
-//!
-//! - **DrawCtx**: A read-only snapshot of renderer state passed to each
-//!
-//! ## Palette Transition System
-//!
-//! When the color scheme changes, new droplets inherit the new palette while
+//! On color-scheme change, new droplets inherit the new palette while
+//! existing droplets keep their old colors until they age out —
+//! transition smoothed via Phase 8 hue-preserving chroma shader
+//! (see `chroma/shaders/transition.rs`).
 
 mod atmospheric_events;
 mod ecosystem;

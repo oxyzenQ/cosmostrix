@@ -1,37 +1,47 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Cosmic Dragon Egg: io_uring vs write() syscall comparison.
+//! Cosmic Dragon Egg: `write()` syscall overhead bench (io_uring rejected).
 //!
-//! EXPERIMENTAL — cosmic-dragon-experimental branch only.
+//! This is a `cargo test`-only benchmark measuring the cost of the `write()`
+//! syscall that cosmostrix uses today, then computing what io_uring would
+//! theoretically save at cosmostrix's 60 FPS write rate.
 //!
-//! This is a standalone benchmark comparing:
-//! 1. Standard write() syscall (what cosmostrix uses now)
-//! 2. io_uring submission queue (async, no syscall per write)
+//! ## The question
 //!
-//! The question: does io_uring actually help cosmostrix at 60 FPS?
+//! Does io_uring actually help cosmostrix at 60 FPS?
 //!
-//! Answer (spoiler from running this): NO. At 60 FPS, 60 writes/second.
-//! write() syscall = ~1µs each = 60µs/second = 0.006% of CPU.
-//! io_uring setup = ~50µs one-time, then ~100ns per submission.
-//! Net savings: 60µs - 6µs = 54µs/second = negligible.
+//! ## The answer (from running this bench)
+//!
+//! **NO.** At 60 FPS, cosmostrix does ~60 writes/second.
+//! - `write()` syscall ≈ 1µs each → 60µs/second → 0.006% of CPU.
+//! - io_uring setup ≈ 50µs one-time, then ≈100ns per submission.
+//! - Net savings: 60µs − 6µs = 54µs/second — negligible.
 //!
 //! io_uring only wins at HIGH IOPS (10,000+ writes/sec). cosmostrix
-//! does 60 writes/sec. The overhead of adding io_uring crate + async
-//! runtime would exceed the savings.
+//! does 60 writes/sec. The overhead of adding the `io_uring` crate +
+//! async runtime would exceed the savings. The experiment is therefore
+//! **concluded — io_uring is rejected as a production path for cosmostrix**.
 //!
-//! This module is NOT compiled into the main binary. It's a standalone
-//! test compiled separately to verify the above claim with real numbers.
+//! ## Why this file's name was changed in v30
 //!
-//! ## Build (standalone)
+//! Previously named `io_uring.rs`, which implied the file actually uses
+//! io_uring. It does not — it measures `write()` and computes the
+//! theoretical io_uring savings arithmetically. Renamed to
+//! `io_uring_rejected.rs` so the file name reflects the conclusion, not
+//! the rejected alternative.
+//!
+//! ## Build (cargo test, Unix-only)
+//!
 //! ```sh
-//! gcc -O2 -o cosmic_dragon_egg_io_uring src/cosmic_dragon_egg_io_uring.c -luring
-//! ./cosmic_dragon_egg_io_uring
+//! cargo test --package cosmostrix cosmic_dragon::egg::io_uring_rejected -- --nocapture
 //! ```
 //!
 //! ## Output
-//! Prints a comparison table showing write() vs io_uring throughput
-//! at various write frequencies (60 Hz, 1 KHz, 10 KHz, 100 KHz).
+//!
+//! Prints a comparison table showing `write()` per-call cost and the
+//! theoretical io_uring savings at various write frequencies (60 Hz,
+//! 1 KHz, 10 KHz, 100 KHz).
 
 #[cfg(test)]
 mod tests {

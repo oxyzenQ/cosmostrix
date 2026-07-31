@@ -22,7 +22,7 @@
 //! | `voice/`  | CLI / output extensions              | planned       |
 //! | `scale/`  | Rendering primitive extensions       | planned       |
 //! | `memory/` | Diagnostics / benchmark extensions   | planned       |
-//! | `egg/`    | Experimental cosmic-dragon-egg benchmarks   | active        |
+//! | `egg/`    | Experimental cosmic-dragon-egg benchmarks   | concluded (io_uring rejected; see `egg/io_uring_rejected.rs`) |
 //!
 //! ## Policy
 //!

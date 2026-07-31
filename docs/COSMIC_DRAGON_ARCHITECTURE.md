@@ -242,7 +242,7 @@ The Cosmic Dragon's codebase is organized by responsibility:
 | Diagnostics | bench*.rs (16 files), doctor.rs, report.rs | ~4,000 | 40+ |
 | Cosmic Dragon Incubator | cosmic_dragon/ (egg/) | ~200 | 2 |
 
-**Total: 128 files, 45K+ LOC, 874 tests.**
+**Total: 166 files, ~71K LOC, 1414 tests.**
 
 ## The Cosmic Dragon's Promise
 

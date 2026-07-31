@@ -10,11 +10,12 @@
 //!
 //! ## Inhabitants
 //!
-//! - [`io_uring`] — compares `write()` syscall overhead vs theoretical
-//!   io_uring savings. Verdict: io_uring is NOT worth it at cosmostrix's
-//!   60 FPS write rate (60 writes/sec). The overhead of adding the
-//!   `io_uring` crate + async runtime exceeds the ~54µs/sec savings.
-//!   (Unix-only — uses `libc::write` to `/dev/null`.)
+//! - [`io_uring_rejected`] — measures `write()` syscall overhead and computes
+//!   what io_uring would theoretically save at cosmostrix's 60 FPS write rate.
+//!   Verdict: io_uring is **NOT worth it** at 60 writes/sec — the overhead of
+//!   adding the `io_uring` crate + async runtime exceeds the ~54µs/sec savings.
+//!   Renamed in v30 from `io_uring.rs` to make the conclusion visible in the
+//!   file name itself. (Unix-only — uses `libc::write` to `/dev/null`.)
 //!
 //! ## Policy
 //!
@@ -25,4 +26,4 @@
 //! reproducible record.
 
 #[cfg(all(test, unix))]
-pub mod io_uring;
+pub mod io_uring_rejected;

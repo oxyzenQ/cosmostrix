@@ -30,8 +30,6 @@
 //! - Color change is always forbidden.
 //! - Terminal behavior is never affected.
 
-#![allow(dead_code)]
-
 use crate::atmosphere_controlled_live::apply_controlled_live_modulation;
 use crate::atmosphere_verifier::AtmosphereApplication;
 
@@ -49,11 +47,13 @@ pub(crate) enum AtmosphereApplicationMode {
     Disabled,
     /// Modulation is enabled for internally verified non-Calm applications.
     /// Only used in tests and internal integration paths.
+    #[cfg_attr(not(test), allow(dead_code))]
     InternalVerified,
     /// Internal-only controlled live modulation mode (Phase 6).
     /// Applies very subtle verified modulation through an extra clamping
     /// layer (ControlledLiveBounds). NOT exposed via public CLI.
     /// Only reachable through internal/test code paths.
+    #[cfg_attr(not(test), allow(dead_code))]
     ControlledLive,
     /// Modulation is enabled only for tests. Produces bounded non-identity
     /// values for non-Calm applications without affecting production behavior.
@@ -189,6 +189,12 @@ pub(crate) fn apply_application(
 ///
 /// For identity modulation, returns base_speed unchanged.
 /// For non-identity, returns base_speed * speed_scale.
+///
+/// Contract guard: not yet wired into the renderer hot path (Phase 4 reserved
+/// this for forward-compat when atmosphere modulation graduates from
+/// `Disabled` default). Kept callable so lock_tests + downstream tools can
+/// verify the scaling contract without rebuilding the modulation pipeline.
+#[cfg_attr(not(test), allow(dead_code))]
 #[must_use]
 pub(crate) fn effective_speed(base_speed: f32, modulation: &AtmosphereRuntimeModulation) -> f32 {
     base_speed * modulation.speed_scale
@@ -198,6 +204,9 @@ pub(crate) fn effective_speed(base_speed: f32, modulation: &AtmosphereRuntimeMod
 ///
 /// For identity modulation, returns base_density unchanged.
 /// For non-identity, returns base_density * density_scale, clamped to 0.01..5.0.
+///
+/// Contract guard: same forward-compat rationale as `effective_speed`.
+#[cfg_attr(not(test), allow(dead_code))]
 #[must_use]
 pub(crate) fn effective_density_from_modulation(
     base_density: f32,
@@ -211,6 +220,9 @@ pub(crate) fn effective_density_from_modulation(
 ///
 /// Returns the brightness_scale (1.0 = identity).
 /// Not directly wired to renderer unless already supported safely.
+///
+/// Contract guard: same forward-compat rationale as `effective_speed`.
+#[cfg_attr(not(test), allow(dead_code))]
 #[must_use]
 pub(crate) fn effective_brightness(modulation: &AtmosphereRuntimeModulation) -> f32 {
     modulation.brightness_scale
@@ -220,6 +232,9 @@ pub(crate) fn effective_brightness(modulation: &AtmosphereRuntimeModulation) -> 
 ///
 /// Returns the glitch_pressure (0.0 = default, no change).
 /// Not directly wired to renderer in Phase 4 (reserved for future).
+///
+/// Contract guard: same forward-compat rationale as `effective_speed`.
+#[cfg_attr(not(test), allow(dead_code))]
 #[must_use]
 pub(crate) fn effective_glitch_pressure(modulation: &AtmosphereRuntimeModulation) -> f32 {
     modulation.glitch_pressure

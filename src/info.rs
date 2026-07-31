@@ -105,7 +105,7 @@ cooperating rendering subsystems plus the Chroma Dragon color
 pipeline that together make cosmostrix possible.
 
 
-1. DIFF-BASED CELL RENDERER  (src/frame.rs, src/terminal.rs)
+1. DIFF-BASED CELL RENDERER  (src/frame.rs, src/terminal.rs, src/terminal_tty.rs)
 -------------------------------------------------------------
 
 Every other Matrix rain renderer writes the full screen every frame.
@@ -139,9 +139,9 @@ composition; more would collapse perceptually in a 24-row terminal
 and add per-cell cost without visible benefit.
 
   Layer   Speed   Bright   Length   Density   Decay
-  far     0.35x   0.80     0.50     0.50      1.60x (faster fade)
-  mid     1.00x   0.95     1.00     1.00      1.00x
-  near    1.70x   1.00     1.40     1.50      0.70x (slower fade)
+  far     0.35x   0.40     0.50     0.30      2.20x (faster fade)
+  mid     1.00x   0.75     1.00     0.60      1.20x
+  near    1.70x   1.00     1.40     1.00      0.50x (slower fade)
 
 Layers are composited in Z-order into the same back-buffer, so the
 diff renderer sees a single unified frame — parallax is invisible
@@ -241,10 +241,10 @@ Phase history (locked at Phase 9-B):
   Phase 7-c Floor ratio 0.15 -> 0.20 (trail brightness +33%)
   Phase 7-d Gap ratio 2.5 -> 2.0 (body-tail step -20%, kills line illusion)
   Phase 8   Hue-preserving chroma smoothing at transitions (polar coords)
-  Phase 9-A Hue-preserving OKLab gradient variant (opt-in, for future themes)
-  Phase 9-B ENGINE LOCK: 17 invariants asserted in src/chroma/lock_tests.rs
+  Phase 9-A Hue-preserving OKLab polar gradient variant (wired to --polar-gradient CLI)
+  Phase 9-B ENGINE LOCK: 18 invariants asserted in src/chroma/lock_tests.rs
 
-The 17 invariants cover: engine version sentinel, 43-theme build sweep,
+The 18 invariants cover: engine version sentinel, 43-theme build sweep,
 floor bounds, head->body->trail hierarchy, hue preservation, body-tail
 gap contract, continuity ceiling, OKLab round-trip accuracy, polar
 gradient endpoints, polar midpoint saturation, blend normalization,

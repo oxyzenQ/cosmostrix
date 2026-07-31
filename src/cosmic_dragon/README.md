@@ -14,10 +14,11 @@ crate root**, and that is the final answer:
 | File              |   LOC | Role                                                                  |
 |-------------------|-----:|-----------------------------------------------------------------------|
 | `src/frame.rs`    |  368 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/terminal.rs` | 1,491 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, /dev/tty fallback |
+| `src/terminal.rs` | 1,332 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
+| `src/terminal_tty.rs` | 201 | /dev/tty fallback helpers (extracted from terminal.rs in v30 to keep it under the 1500-LOC guard) |
 | `src/runtime.rs`  |   91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`      |
 
-1,950 LOC total. Imported by **every render-path module** across `src/`.
+1,992 LOC total. Imported by **every render-path module** across `src/`.
 These are not a subsystem waiting for a folder — they are the
 **substrate** every rendering path stands on. Foundations do not get
 relocated; they get maintained in place. See `docs/RENDER_ENGINE.md` §0
@@ -55,7 +56,7 @@ of this README so the same mistake is never made at a larger scale.
 The brand "Cosmic Dragon Diff-Based Rendering Engine" lives in the
 docs, the benchmark output, the changelog, and the code's behavior —
 not in the directory tree. The folder is not the moat. The moat is the
-1,453 LOC of hard-won diff logic that you will have to reimplement from
+1,992 LOC of hard-won diff logic that you will have to reimplement from
 scratch if you cannot read it. Keeping the layout flat makes the engine
 easier to lift, study, and cite — and harder to mistake for a
 reorg-friendly codebase that can be shuffled into a folder on a whim.
