@@ -337,8 +337,9 @@ pub fn apply_l_smoothing(
 
 // Phase 8 polar chroma lerping is implemented in `chroma::gradient::polar_chroma_lerp`
 // and imported above. See that function for the full rationale (shortest-arc
-// hue rotation, grayscale fallback) — the implementation is shared with the
-// hue-preserving gradient variant `gradient_from_stops_oklab_polar`.
+// hue rotation, grayscale fallback) — the same hue-rotation logic is used
+// by the production gradient builder `gradient_from_stops_oklab` (sole path
+// since v30 — Cartesian variant removed).
 
 #[cfg(test)]
 #[path = "transition_tests.rs"]

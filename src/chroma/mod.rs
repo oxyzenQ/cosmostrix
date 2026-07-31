@@ -39,7 +39,7 @@
 //! | `palette`    | `src/palette.rs` (moved in Phase 1)      | `Palette` struct, `build_palette`, gradient + blend helpers |
 //! | `catalog`    | `src/central_colors.rs` (moved in Phase 1) | `THEMES` registry, `build_colors`, `ThemeDef`/`ThemeColors` |
 //! | `shaders`    | new in Phase 2                           | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT` |
-//! | `gradient`   | new in Phase 3-A                         | OKLab interpolation, `gradient_from_stops_oklab()` |
+//! | `gradient`   | new in Phase 3-A                         | OKLab polar interpolation (sole production path since v30) |
 //!
 //! Future phases will add `post/`, `stops.rs`, `ecosystem.rs` under this
 //! namespace.

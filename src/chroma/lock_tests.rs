@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! # Chroma Dragon Engine Lock — Phase 9-B
+//! # Chroma Dragon Engine Lock — Phase 9-C
 //!
 //! Comprehensive invariant suite that **locks** the Chroma Dragon coloring
 //! engine at its Phase 9 peak. Every public contract the engine guarantees
@@ -13,9 +13,9 @@
 //! The engine is at its peak: Phase 4 (Dragon Awakening) innovations are
 //! always-on, Phase 5/8 transition smoothing is perceptually uniform, Phase
 //! 7-c/7-d palette floor + body-tail continuity is empirically tuned across
-//! all 43 themes, and Phase 9-A exposes the hue-preserving polar gradient
-//! variant for future themes. Nothing else is on the roadmap for the
-//! coloring engine.
+//! all 43 themes, and Phase 9-C made the hue-preserving polar OKLab gradient
+//! the sole production path (Cartesian removed, `--polar-gradient` CLI flag
+//! removed). Nothing else is on the roadmap for the coloring engine.
 //!
 //! "Lock" means: every invariant below MUST keep holding. If a future
 //! commit changes any constant, helper, or shader path in a way that
@@ -36,7 +36,7 @@
 //! | INV-7 | Continuity ceiling   | Trail sum never exceeds head sum after continuity      |
 //! | INV-8 | OKLab round-trip     | sRGB → OKLab → sRGB within ±1 per channel              |
 //! | INV-9 | Polar endpoints      | t=0 → first stop exactly, t=1 → last stop exactly      |
-//! | INV-10| Polar saturation     | Polar midpoint chroma ≥ Cartesian midpoint chroma      |
+//! | INV-10| Polar saturation     | Polar midpoint chroma stays saturated on opposing hues |
 //! | INV-11| Blend normalization  | `blend_toward_bg` always returns `Color::Rgb`          |
 //! | INV-12| L-smoothing bound    | Smoothed L stays within `[min, max]` of old/new        |
 //! | INV-13| Polar chroma bound   | Smoothed chroma ≥ `min(c_old, c_new)` for opposing hues|
@@ -44,7 +44,7 @@
 //! | INV-15| Head halo factor     | `HEAD_HALO_FACTOR` in `[0.0, 1.0]`                     |
 //! | INV-16| Tuning sanity        | `PALETTE_FLOOR_RATIO` in `[0.05, 0.50]` (sweet spot)   |
 //! | INV-17| Lock report          | Sentinel test prints the engine report                 |
-//! | INV-18| Polar CLI wiring     | `--polar-gradient` flag dispatches through production   |
+//! | INV-18| Polar sole path      | Production `gradient_from_stops` matches polar impl    |
 //!
 //! ## Adding a new invariant
 //!
@@ -65,10 +65,7 @@
 
 use crossterm::style::Color;
 
-use super::gradient::{
-    gradient_from_stops_oklab, gradient_from_stops_oklab_polar, oklab_to_srgb, polar_chroma_lerp,
-    srgb_to_oklab,
-};
+use super::gradient::{gradient_from_stops_oklab, oklab_to_srgb, polar_chroma_lerp, srgb_to_oklab};
 use super::palette::{apply_body_tail_continuity_with, build_palette, color_to_rgb};
 use super::shaders::transition::{apply_l_smoothing, TransitionLTable};
 use super::tuning::{
@@ -97,7 +94,8 @@ use crate::runtime::{ColorMode, ColorScheme};
 /// - `"8"` — Phase 8: hue-preserving chroma smoothing at transitions
 /// - `"9-A"` — Phase 9-A: hue-preserving OKLab gradient variant (opt-in)
 /// - `"9-B (locked)"` — Phase 9-B: engine locked. All invariants asserted.
-pub const CHROMA_DRAGON_ENGINE_VERSION: &str = "9-B (locked)";
+/// - `"9-C (locked)"` — Phase 9-C: Cartesian removed, polar is sole path.
+pub const CHROMA_DRAGON_ENGINE_VERSION: &str = "9-C (locked)";
 
 /// Helper: list every built-in `ColorScheme` variant. Mirrors `audit_tests`
 /// — kept private here so the lock suite is self-contained even if the
@@ -175,7 +173,7 @@ fn rgb_sum(c: (u8, u8, u8)) -> u16 {
 #[test]
 fn lock_inv01_engine_version_sentinel() {
     assert_eq!(
-        CHROMA_DRAGON_ENGINE_VERSION, "9-B (locked)",
+        CHROMA_DRAGON_ENGINE_VERSION, "9-C (locked)",
         "Chroma Dragon engine version drifted. If this was intentional, update the \
          CHROMA_DRAGON_ENGINE_VERSION history comment and the INV-1 sentinel together."
     );
@@ -467,16 +465,16 @@ fn lock_inv08_oklab_round_trip_within_one_unit() {
 // INV-9: Polar gradient endpoints preserved exactly
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// INV-9: `gradient_from_stops_oklab_polar` preserves the first and last
-/// stop exactly. Same contract as the Cartesian variant — endpoints are
-/// not interpolated, only intermediate colors.
+/// INV-9: `gradient_from_stops_oklab` (polar — sole production path since
+/// v30) preserves the first and last stop exactly. Endpoints are not
+/// interpolated, only intermediate colors.
 ///
 /// Tested with a multi-stop palette where the first and last stops are
 /// distinct (interpolation would shift them).
 #[test]
 fn lock_inv09_polar_gradient_endpoints_preserved() {
     let stops = [(10, 20, 30), (200, 100, 50), (50, 250, 75), (255, 0, 128)];
-    let out = gradient_from_stops_oklab_polar(&stops, 9);
+    let out = gradient_from_stops_oklab(&stops, 9);
     assert_eq!(out.len(), 9, "polar gradient should produce 9 stops");
     assert_eq!(
         out[0], stops[0],
@@ -489,47 +487,52 @@ fn lock_inv09_polar_gradient_endpoints_preserved() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// INV-10: Polar midpoint chroma ≥ Cartesian midpoint chroma (opposing hues)
+// INV-10: Polar midpoint chroma stays saturated on opposing hues
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// INV-10: for opposing-hue endpoints (e.g. red ↔ cyan), the polar
-/// midpoint stays more saturated than the Cartesian midpoint. This is the
-/// headline property of polar chroma interpolation — it's the entire
-/// reason Phase 8 + Phase 9-A exist.
+/// midpoint stays saturated. This is the headline property of polar chroma
+/// interpolation — it's the entire reason Phase 8 + Phase 9-A exist.
 ///
-/// Red (a=positive, b≈0) ↔ Cyan (a=negative, b≈0) — Cartesian midpoint
-/// is near (a=0, b=0) = gray. Polar midpoint rotates through magenta or
-/// yellow (whichever is shorter arc) and stays saturated.
+/// Red (a=positive, b≈0) ↔ Cyan (a=negative, b≈0) — under Cartesian OKLab
+/// (removed in v30), the midpoint collapsed near (a=0, b=0) = gray. Polar
+/// rotates through magenta or yellow (whichever is the shorter arc) and
+/// stays saturated.
+///
+/// v30: this test was rewritten when the Cartesian variant was deleted. It
+/// previously compared `polar_chroma_lerp` output against a hand-computed
+/// Cartesian midpoint. Since Cartesian is gone, the test now asserts the
+/// polar midpoint's chroma is at least 50% of the smaller endpoint's
+/// chroma (the polar path's defining property).
 #[test]
-fn lock_inv10_polar_midpoint_more_saturated_than_cartesian() {
+fn lock_inv10_polar_midpoint_stays_saturated_on_opposing_hues() {
     // Red ↔ Cyan in OKLab (a, b): both have b≈0, a flips sign.
     // Use approximate OKLab values: red ≈ (a=+0.45, b=+0.20),
-    // cyan ≈ (a=-0.45, b=-0.05). The exact values don't matter — the
-    // property holds for any opposing-hue pair with non-zero chroma.
+    // cyan ≈ (a=-0.45, b=-0.05).
     let (a0, b0) = (0.45_f32, 0.20_f32);
     let (a1, b1) = (-0.45_f32, -0.05_f32);
-
-    // Cartesian midpoint at t=0.5
-    let (cart_a, cart_b) = (a0 + (a1 - a0) * 0.5, b0 + (b1 - b0) * 0.5);
-    let cart_chroma = (cart_a * cart_a + cart_b * cart_b).sqrt();
 
     // Polar midpoint at t=0.5
     let (pol_a, pol_b) = polar_chroma_lerp(a0, b0, a1, b1, 0.5);
     let pol_chroma = (pol_a * pol_a + pol_b * pol_b).sqrt();
 
-    assert!(
-        pol_chroma > cart_chroma,
-        "Polar midpoint chroma {pol_chroma:.4} should exceed Cartesian midpoint chroma {cart_chroma:.4} \
-         for opposing hues — polar must stay saturated"
-    );
-    // Sanity: polar chroma should also be at least 50% of the smaller
-    // endpoint's chroma (otherwise the polar path is degenerate).
+    // Polar midpoint chroma must be at least 50% of the smaller endpoint's
+    // chroma (otherwise the polar path is degenerate — collapsing toward
+    // gray like the removed Cartesian path would).
     let c0 = (a0 * a0 + b0 * b0).sqrt();
     let c1 = (a1 * a1 + b1 * b1).sqrt();
     let min_endpoint_chroma = c0.min(c1);
     assert!(
         pol_chroma >= min_endpoint_chroma * 0.5,
-        "Polar midpoint chroma {pol_chroma:.4} dropped below 50% of min endpoint chroma {min_endpoint_chroma:.4}"
+        "Polar midpoint chroma {pol_chroma:.4} dropped below 50% of min endpoint chroma {min_endpoint_chroma:.4} \
+         — polar must stay saturated on opposing hues"
+    );
+    // Stronger sanity: polar midpoint chroma should be roughly the average
+    // of the two endpoint chromas (linear chroma interpolation contract).
+    let expected_avg = (c0 + c1) / 2.0;
+    assert!(
+        (pol_chroma - expected_avg).abs() < 1e-4,
+        "Polar midpoint chroma {pol_chroma:.4} should equal average endpoint chroma {expected_avg:.4}"
     );
 }
 
@@ -787,78 +790,63 @@ fn lock_inv16_tuning_constants_in_sweet_spots() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// INV-18: Phase 9-A polar gradient CLI flag flows through production
+// INV-18: Polar is the sole production gradient path (no Cartesian fallback)
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// INV-18: the `--polar-gradient` CLI flag (Phase 9-A wiring) is actually
-/// reachable from the production `palette::gradient_from_stops` path. When
-/// the flag is enabled, `gradient_from_stops` must dispatch to
-/// `gradient_from_stops_oklab_polar`; when disabled, it must dispatch to
-/// `gradient_from_stops_oklab` (Cartesian).
+/// INV-18: the production `palette::gradient_from_stops` path dispatches
+/// directly to the polar OKLab gradient implementation, with no Cartesian
+/// fallback and no opt-in CLI flag.
 ///
-/// Before Phase 9-A wiring, `gradient_from_stops_oklab_polar` had zero
-/// production callers — it was a pure opt-in API with no path from CLI to
-/// the gradient builder. This test verifies the wiring is in place.
+/// Phase 9-A originally wired polar behind the `--polar-gradient` CLI flag
+/// (default off, Cartesian was the default). v30 deleted Cartesian entirely
+/// and made polar the sole path. This test verifies the production
+/// gradient_from_stops actually produces polar output (not a stub or
+/// accidental Cartesian regression).
 ///
-/// Uses a red↔cyan stop pair because Cartesian and polar produce provably
-/// different midpoints on opposing hues (INV-10 proves the chroma
-/// divergence). The test toggles the global atomic, builds a gradient
-/// through `palette::gradient_from_stops`, and asserts the midpoint
-/// changes. The atomic is reset to its default (false) at the end so
-/// subsequent tests see the production default.
+/// Verification strategy: build a red↔cyan gradient (the canonical case
+/// where polar and Cartesian produce provably different midpoints) and
+/// assert the midpoint matches what `gradient::gradient_from_stops_oklab`
+/// (the polar implementation) produces directly. If someone accidentally
+/// re-introduces a Cartesian path or stubs gradient_from_stops, this test
+/// will fail because the midpoint will differ from the polar baseline.
 #[test]
-fn lock_inv18_polar_gradient_flag_flows_through_production() {
-    use super::gradient::{is_polar_gradient_enabled, set_polar_gradient_enabled};
+fn lock_inv18_polar_is_sole_production_gradient_path() {
     use super::palette::gradient_from_stops;
 
     let stops = [(255, 0, 0), (0, 255, 255)];
     let steps = 3;
 
-    // Sanity: flag starts at its production default (false). If a prior
-    // test left it on, the production default would be wrong — fail loud.
-    let original = is_polar_gradient_enabled();
-    assert!(
-        !original,
-        "POLAR_GRADIENT_ENABLED must default to false — another test left it on"
+    // Production path.
+    let prod = gradient_from_stops(&stops, steps);
+    // Direct call to the polar implementation.
+    let polar_direct = gradient_from_stops_oklab(&stops, steps);
+
+    assert_eq!(prod.len(), steps);
+    assert_eq!(polar_direct.len(), steps);
+    // Endpoints preserved.
+    assert_eq!(prod[0], stops[0]);
+    assert_eq!(prod[2], stops[1]);
+    // Production midpoint must match the polar implementation exactly.
+    // If they differ, gradient_from_stops is no longer dispatching to polar.
+    assert_eq!(
+        prod, polar_direct,
+        "production gradient_from_stops must produce identical output to the polar \
+         implementation — Cartesian path was removed in v30"
     );
 
-    // Cartesian (default): midpoint is the desaturated Cartesian midpoint.
-    set_polar_gradient_enabled(false);
-    let cart = gradient_from_stops(&stops, steps);
-    assert_eq!(cart.len(), steps);
-    assert_eq!(cart[0], stops[0]);
-    assert_eq!(cart[2], stops[1]);
-
-    // Polar: midpoint must differ from Cartesian on red↔cyan (proven by
-    // INV-10 — polar stays saturated, Cartesian collapses toward gray).
-    set_polar_gradient_enabled(true);
-    let pol = gradient_from_stops(&stops, steps);
-    assert_eq!(pol.len(), steps);
-    assert_eq!(pol[0], stops[0]);
-    assert_eq!(pol[2], stops[1]);
-    assert_ne!(
-        cart[1], pol[1],
-        "polar flag must dispatch to a different gradient path on red↔cyan"
-    );
-
-    // Saturation proxy: max - min channel. Polar must be more saturated.
+    // Sanity: the polar midpoint on red↔cyan must be clearly saturated
+    // (not gray). Cartesian would produce sat ≈ 30-60; polar produces sat ≥ 80.
     let sat = |c: (u8, u8, u8)| -> i32 {
         let max_c = c.0.max(c.1).max(c.2) as i32;
         let min_c = c.0.min(c.1).min(c.2) as i32;
         max_c - min_c
     };
     assert!(
-        sat(pol[1]) >= sat(cart[1]),
-        "polar midpoint saturation {} must be ≥ Cartesian saturation {}",
-        sat(pol[1]),
-        sat(cart[1])
-    );
-
-    // Reset to production default so subsequent tests are unaffected.
-    set_polar_gradient_enabled(false);
-    assert!(
-        !is_polar_gradient_enabled(),
-        "flag must be resettable to false after the test"
+        sat(prod[1]) >= 80,
+        "production red↔cyan midpoint {:?} saturation = {}, expected ≥ 80 \
+         (polar must stay saturated — if this fails, the path is degenerate)",
+        prod[1],
+        sat(prod[1])
     );
 }
 
@@ -910,7 +898,7 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  INV-15  Head halo factor range                [LOCKED]");
     eprintln!("  INV-16  Tuning constants in sweet spots       [LOCKED]");
     eprintln!("  INV-17  This lock report                      [LOCKED]");
-    eprintln!("  INV-18  Polar CLI flag flows through prod     [LOCKED]");
+    eprintln!("  INV-18  Polar is sole production gradient path  [LOCKED]");
     eprintln!();
     eprintln!("  ── Phase history ────────────────────────────────────────────────");
     eprintln!("  Phase 1   Foundation (palette relocation)            ✓");
@@ -924,16 +912,15 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  Phase 7-d Gap ratio 2.5 → 2.0 (step −20%)            ✓");
     eprintln!("  Phase 8   Hue-preserving chroma smoothing            ✓");
     eprintln!(
-        "  Phase 9-A Hue-preserving polar gradient variant      ✓ (wired to --polar-gradient)"
+        "  Phase 9-A Hue-preserving polar gradient variant      ✓ (was opt-in --polar-gradient)"
     );
-    eprintln!("  Phase 9-B ENGINE LOCK (this commit)                  ✓");
+    eprintln!("  Phase 9-B ENGINE LOCK (Chroma Dragon)                ✓");
+    eprintln!("  Phase 9-C Cartesian removed — polar is sole path     ✓");
     eprintln!();
-    eprintln!("  ── OKLab gradient variants ──────────────────────────────────────");
+    eprintln!("  ── Polar gradient demo (sole production path) ──────────────────");
     let demo_stops = [(10, 20, 30), (200, 100, 50), (50, 250, 75)];
-    let cart = gradient_from_stops_oklab(&demo_stops, 5);
-    let polar = gradient_from_stops_oklab_polar(&demo_stops, 5);
-    eprintln!("  Cartesian (default): {cart:?}");
-    eprintln!("  Polar (opt-in):      {polar:?}");
+    let polar = gradient_from_stops_oklab(&demo_stops, 5);
+    eprintln!("  Polar: {polar:?}");
     eprintln!();
     eprintln!("  ── Status ──────────────────────────────────────────────────────");
     eprintln!("  All 18 invariants hold. Engine is at peak and locked.");
@@ -945,7 +932,7 @@ fn lock_inv17_engine_lock_report() {
     // Sentinel assertion: the engine version matches the locked tag AND
     // the invariant count is exactly 18. If a future commit adds INV-19,
     // they must update this count too.
-    assert_eq!(CHROMA_DRAGON_ENGINE_VERSION, "9-B (locked)");
+    assert_eq!(CHROMA_DRAGON_ENGINE_VERSION, "9-C (locked)");
     const INV_COUNT: u32 = 18;
     assert_eq!(
         INV_COUNT, 18,

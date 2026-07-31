@@ -691,26 +691,6 @@ pub struct Args {
         help = "Atmosphere regime (config only: calm, pulse, signal, compression, void, monolith-pressure)"
     )]
     pub atmosphere_regime_str: Option<String>,
-
-    /// Phase 9-A (Chroma Dragon): opt-in hue-preserving polar gradient.
-    ///
-    /// When enabled, theme palettes are built via `gradient_from_stops_oklab_polar`
-    /// instead of the default `gradient_from_stops_oklab` (Cartesian). Polar
-    /// interpolation rotates hue through the shortest arc on the OKLab chroma
-    /// ring, keeping midpoint saturation high on hue-crossing gradients
-    /// (red→cyan, blue→yellow). Most themes have stops that differ mainly in
-    /// lightness, so Cartesian and polar produce identical results there;
-    /// polar only diverges on themes with strongly opposing endpoint hues.
-    ///
-    /// Off by default — switching the default would shift every theme's
-    /// intermediate colors and invalidate visual regression baselines.
-    /// Enable to A/B test the polar variant against the Cartesian default.
-    #[arg(
-        long = "polar-gradient",
-        hide = true,
-        help = "Phase 9-A: use hue-preserving polar OKLab gradient for theme palettes (experimental)"
-    )]
-    pub polar_gradient: bool,
 }
 
 // List printers — clean, no alias noise

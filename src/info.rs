@@ -241,7 +241,7 @@ Phase history (locked at Phase 9-B):
   Phase 7-c Floor ratio 0.15 -> 0.20 (trail brightness +33%)
   Phase 7-d Gap ratio 2.5 -> 2.0 (body-tail step -20%, kills line illusion)
   Phase 8   Hue-preserving chroma smoothing at transitions (polar coords)
-  Phase 9-A Hue-preserving OKLab polar gradient variant (wired to --polar-gradient CLI)
+  Phase 9-A Hue-preserving polar OKLab gradient (sole production path since v30)
   Phase 9-B ENGINE LOCK: 18 invariants asserted in src/chroma/lock_tests.rs
 
 The 18 invariants cover: engine version sentinel, 43-theme build sweep,
