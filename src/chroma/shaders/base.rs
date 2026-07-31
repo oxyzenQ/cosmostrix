@@ -104,6 +104,21 @@ pub struct ShaderCtx<'a> {
     /// `None` disables the effect (current production default — wiring this
     /// through `DrawCtx` and `rain.rs` is a future commit).
     pub column_coherence_phase: Option<f32>,
+
+    /// Phase 3-E (Chroma Dragon Innovation E): subpixel hue jitter.
+    ///
+    /// `Some(amplitude)` applies a per-cell RGB perturbation of ±amplitude
+    /// units per channel, driven by a deterministic hash of `(line, col)`.
+    /// The effect is fine film-grain texture — breaks up the uniformity of
+    /// large same-color regions without changing the palette decision.
+    ///
+    /// "Subpixel" means the jitter is smaller than one palette step: it
+    /// modifies the returned RGB directly, not the `color_idx`. This keeps
+    /// the head→body→tail hierarchy intact while adding organic texture.
+    ///
+    /// `None` disables (current production default — wiring through `DrawCtx`
+    /// is a future commit).
+    pub subpixel_jitter_amplitude: Option<u8>,
 }
 
 /// Precomputed exponential decay lookup table for trail brightness.
@@ -161,6 +176,57 @@ fn column_coherence_perturbation(phase: f32, col: u16) -> i32 {
     let spatial = (col as f32) * 0.05;
     // Amplitude: ±0.5 → rounds to {-1, 0, +1}
     ((phase + spatial).sin() * 0.5_f32).round() as i32
+}
+
+/// Phase 3-E: deterministic per-cell hash for subpixel jitter.
+///
+/// Returns a u32 that varies pseudo-randomly with `(line, col)`. The same
+/// input always produces the same output (deterministic), but different
+/// inputs produce uncorrelated outputs (low collision rate). Used to drive
+/// per-cell RGB perturbation so the film-grain texture is stable across
+/// frames — the same cell always gets the same jitter, so it doesn't strobe.
+///
+/// Implementation: FNV-1a variant with line and col mixed in via XOR
+/// after each multiply step. Cheap (3 multiplies + 2 XORs), no allocation.
+#[inline]
+fn cell_hash(line: u16, col: u16) -> u32 {
+    let mut h = 0x811C9DC5u32; // FNV offset basis
+    h ^= line as u32;
+    h = h.wrapping_mul(16777619); // FNV prime
+    h ^= col as u32;
+    h = h.wrapping_mul(16777619);
+    h
+}
+
+/// Phase 3-E: apply per-cell RGB jitter to a color.
+///
+/// Perturbs each channel by an independent signed offset in `[-amp, +amp]`,
+/// derived from three independent 4-bit slices of `hash`. The result is
+/// clamped to `[0, 255]` per channel.
+///
+/// `amplitude = 0` or `Color::Reset` input returns the original unchanged.
+/// Output is always `Color::Rgb` (normalized via `color_to_rgb`).
+#[inline]
+fn apply_subpixel_jitter(color: Color, hash: u32, amplitude: u8) -> Color {
+    if amplitude == 0 || matches!(color, Color::Reset) {
+        return color;
+    }
+    let (r, g, b) = crate::chroma::palette::color_to_rgb(color);
+    let amp = i32::from(amplitude);
+    // Three independent 4-bit signed offsets in [-8, +7].
+    let dr_raw = (hash & 0xF) as i32 - 8;
+    let dg_raw = ((hash >> 4) & 0xF) as i32 - 8;
+    let db_raw = ((hash >> 8) & 0xF) as i32 - 8;
+    // Scale [-8, +7] → [-amp, +amp*7/8]. Slight asymmetry is acceptable
+    // for film-grain — the perceptual effect is symmetric.
+    let dr = dr_raw * amp / 8;
+    let dg = dg_raw * amp / 8;
+    let db = db_raw * amp / 8;
+    Color::Rgb {
+        r: (i32::from(r) + dr).clamp(0, 255) as u8,
+        g: (i32::from(g) + dg).clamp(0, 255) as u8,
+        b: (i32::from(b) + db).clamp(0, 255) as u8,
+    }
 }
 
 /// During a color transition, returns whether a cell at `(line, col)` should
@@ -367,6 +433,23 @@ pub fn resolve_cell_color(
         palette_colors.get(color_idx as usize).copied()
     };
 
+    // Phase 3-E (Chroma Dragon Innovation E): subpixel hue jitter.
+    //
+    // Apply a per-cell RGB perturbation driven by a deterministic hash of
+    // (line, col). The effect is fine film-grain texture — breaks up the
+    // uniformity of large same-color regions without changing the palette
+    // decision. "Subpixel" means the jitter is smaller than one palette
+    // step: it modifies the returned RGB directly, not the color_idx, so
+    // the head→body→tail hierarchy stays intact.
+    //
+    // Disabled when subpixel_jitter_amplitude is None (production default).
+    // The hash is deterministic, so the same cell always gets the same
+    // jitter — no strobing across frames.
+    let fg = fg.map(|c| match shader.subpixel_jitter_amplitude {
+        Some(amp) => apply_subpixel_jitter(c, cell_hash(line, col), amp),
+        None => c,
+    });
+
     (fg, bold)
 }
 
@@ -567,5 +650,180 @@ mod tests {
             );
             prev = curr;
         }
+    }
+
+    // ── Phase 3-E: subpixel hue jitter ─────────────────────────────────────
+
+    /// cell_hash is deterministic: same input → same output.
+    #[test]
+    fn cell_hash_is_deterministic() {
+        for line in 0..32u16 {
+            for col in 0..32u16 {
+                let a = cell_hash(line, col);
+                let b = cell_hash(line, col);
+                assert_eq!(a, b, "hash must be deterministic for ({line}, {col})");
+            }
+        }
+    }
+
+    /// cell_hash has low collision rate: distinct inputs rarely collide.
+    /// Test across a 64×64 grid and verify no two distinct (line, col)
+    /// pairs produce the same hash.
+    #[test]
+    fn cell_hash_low_collision_rate() {
+        use std::collections::HashSet;
+        let mut seen = HashSet::new();
+        let mut collisions = 0;
+        for line in 0..64u16 {
+            for col in 0..64u16 {
+                let h = cell_hash(line, col);
+                if !seen.insert(h) {
+                    collisions += 1;
+                }
+            }
+        }
+        // 4096 distinct inputs into a u32 space should produce ~0 collisions.
+        // Allow up to 2 for bad luck.
+        assert!(
+            collisions <= 2,
+            "cell_hash produced {collisions} collisions across 4096 inputs (expected ≤ 2)"
+        );
+    }
+
+    /// Jitter with amplitude 0 returns the input unchanged.
+    #[test]
+    fn subpixel_jitter_zero_amplitude_unchanged() {
+        let c = Color::Rgb {
+            r: 100,
+            g: 50,
+            b: 200,
+        };
+        assert_eq!(apply_subpixel_jitter(c, 0xDEADBEEF, 0), c);
+    }
+
+    /// Jitter with Color::Reset returns Reset unchanged.
+    #[test]
+    fn subpixel_jitter_reset_unchanged() {
+        assert_eq!(
+            apply_subpixel_jitter(Color::Reset, 0xDEADBEEF, 16),
+            Color::Reset
+        );
+    }
+
+    /// Jitter perturbs each channel by at most `amplitude` units.
+    #[test]
+    fn subpixel_jitter_bounded_by_amplitude() {
+        let c = Color::Rgb {
+            r: 128,
+            g: 128,
+            b: 128,
+        };
+        let amp: u8 = 8;
+        // Sample many hashes to cover the offset space.
+        for line in 0..32u16 {
+            for col in 0..32u16 {
+                let h = cell_hash(line, col);
+                let result = apply_subpixel_jitter(c, h, amp);
+                let Color::Rgb { r, g, b } = result else {
+                    panic!("expected Rgb");
+                };
+                let dr = (i32::from(r) - 128).abs();
+                let dg = (i32::from(g) - 128).abs();
+                let db = (i32::from(b) - 128).abs();
+                assert!(
+                    dr <= i32::from(amp),
+                    "r delta {dr} exceeds amp {amp} (line={line}, col={col}, h={h:#x})"
+                );
+                assert!(
+                    dg <= i32::from(amp),
+                    "g delta {dg} exceeds amp {amp} (line={line}, col={col}, h={h:#x})"
+                );
+                assert!(
+                    db <= i32::from(amp),
+                    "b delta {db} exceeds amp {amp} (line={line}, col={col}, h={h:#x})"
+                );
+            }
+        }
+    }
+
+    /// Jitter clamps to [0, 255] — near-zero and near-255 channels don't
+    /// wrap around.
+    #[test]
+    fn subpixel_jitter_clamps_to_valid_range() {
+        let dark = Color::Rgb { r: 0, g: 0, b: 0 };
+        let bright = Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        };
+        // Try many hashes to exercise both negative and positive offsets.
+        for line in 0..16u16 {
+            for col in 0..16u16 {
+                let h = cell_hash(line, col);
+                let r_dark = apply_subpixel_jitter(dark, h, 16);
+                let r_bright = apply_subpixel_jitter(bright, h, 16);
+                let Color::Rgb { r, g, b } = r_dark else {
+                    panic!("expected Rgb");
+                };
+                assert!(r <= 16, "dark r {r} should be ≤ 16 after +amp jitter");
+                assert!(g <= 16, "dark g {g} should be ≤ 16 after +amp jitter");
+                assert!(b <= 16, "dark b {b} should be ≤ 16 after +amp jitter");
+                let Color::Rgb { r, g, b } = r_bright else {
+                    panic!("expected Rgb");
+                };
+                assert!(
+                    r >= 255 - 16,
+                    "bright r {r} should be ≥ {} after -amp jitter",
+                    255 - 16
+                );
+                assert!(
+                    g >= 255 - 16,
+                    "bright g {g} should be ≥ {} after -amp jitter",
+                    255 - 16
+                );
+                assert!(
+                    b >= 255 - 16,
+                    "bright b {b} should be ≥ {} after -amp jitter",
+                    255 - 16
+                );
+            }
+        }
+    }
+
+    /// Jitter is deterministic: same (color, hash, amp) → same result.
+    #[test]
+    fn subpixel_jitter_deterministic() {
+        let c = Color::Rgb {
+            r: 100,
+            g: 50,
+            b: 200,
+        };
+        let h = 0x12345678u32;
+        let a = apply_subpixel_jitter(c, h, 8);
+        let b = apply_subpixel_jitter(c, h, 8);
+        assert_eq!(a, b);
+    }
+
+    /// Different hashes produce different jitter (high probability).
+    /// Verify by sampling many hashes and counting distinct results.
+    #[test]
+    fn subpixel_jitter_varies_with_hash() {
+        let c = Color::Rgb {
+            r: 128,
+            g: 128,
+            b: 128,
+        };
+        use std::collections::HashSet;
+        let mut seen = HashSet::new();
+        for h in 0..256u32 {
+            seen.insert(apply_subpixel_jitter(c, h, 8));
+        }
+        // 256 distinct hashes into a 17^3 ≈ 4913 space should produce
+        // many distinct results. Allow at least 50 (very conservative).
+        assert!(
+            seen.len() >= 50,
+            "jitter produced only {} distinct results across 256 hashes (expected ≥ 50)",
+            seen.len()
+        );
     }
 }

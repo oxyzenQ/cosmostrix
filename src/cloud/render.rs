@@ -212,6 +212,10 @@ impl DrawCtx<'_> {
             // commit (the shader logic and tests land now so the innovation
             // is reviewable in isolation).
             column_coherence_phase: None,
+            // Phase 3-E: subpixel hue jitter is implemented in the shader
+            // but not yet wired through DrawCtx. Hard-coded None keeps
+            // production rendering identical to pre-Phase-3-E behavior.
+            subpixel_jitter_amplitude: None,
         };
         resolve_cell_color(
             &shader,
