@@ -60,16 +60,23 @@ pub struct Frame {
     pub width: u16,
     pub height: u16,
     pub cells: Vec<Cell>,
-    gen: u32,
-    cell_gen: Vec<u32>,
+    /// Content generation counter. Bumped by `clear_with_bg` on semantic
+    /// resets. A cell is "live" iff `cell_gen[i] == gen`. Exposed as
+    /// `pub(crate)` so the Cosmic Dragon lock suite (`cosmic_dragon_lock_tests`)
+    /// can verify the overflow safety invariant.
+    pub(crate) gen: u32,
+    pub(crate) cell_gen: Vec<u32>,
     pub(crate) blank: Cell,
     dirty_all: bool,
     /// Current dirty generation. Bumped by `clear_dirty()` at end of every
     /// frame. A cell is "dirty this frame" iff `dirty_cell_gen[i] == dirty_gen`.
     /// Replaces the old `dirty_map: Vec<u8>` which required an O(N) memset
     /// every frame. The bump is O(1).
-    dirty_gen: u32,
-    dirty_cell_gen: Vec<u32>,
+    ///
+    /// Exposed as `pub(crate)` so the lock suite can verify the u32 overflow
+    /// safety invariant.
+    pub(crate) dirty_gen: u32,
+    pub(crate) dirty_cell_gen: Vec<u32>,
     dirty: SmallVec<[usize; DIRTY_INLINE_CAPACITY]>,
     /// Semantic generation counter: incremented when the renderer's semantic
     /// identity changes (charset switch, shading mode toggle, theme change).

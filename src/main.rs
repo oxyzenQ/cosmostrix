@@ -113,6 +113,8 @@ mod configfile_bug7_tests;
 mod configfile_promotion_tests;
 mod constants;
 mod cosmic_dragon;
+#[cfg(test)]
+mod cosmic_dragon_lock_tests;
 mod cpustat;
 mod diagnostics;
 #[cfg(test)]
