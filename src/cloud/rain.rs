@@ -385,9 +385,15 @@ impl Cloud {
 
         // ── Pre-rain event render (ghosts, behind droplets) ──
         if !self.event_manager.is_empty() {
+            // Phase 3-I: derive ghost base color from the current palette's
+            // darkest stop. Replaces the hardcoded (18, 22, 18) in ghost.rs —
+            // ghosts now match the scene's color scheme.
+            let ghost_base_color =
+                crate::chroma::post::ghost::ghost_base_color(&self.palette.colors);
             let pre_ctx = crate::cloud::atmospheric_events::EventCtx {
                 cols: self.cols,
                 lines: self.lines,
+                ghost_base_color,
             };
             self.event_manager.render_pre_rain(&pre_ctx, frame);
         }
@@ -635,9 +641,13 @@ impl Cloud {
 
         // ── Atmospheric Event Engine: render active events ──
         if !self.event_manager.is_empty() {
+            // Phase 3-I: same palette-aware ghost color as the pre-rain pass.
+            let ghost_base_color =
+                crate::chroma::post::ghost::ghost_base_color(&self.palette.colors);
             let event_ctx = crate::cloud::atmospheric_events::EventCtx {
                 cols: self.cols,
                 lines: self.lines,
+                ghost_base_color,
             };
             self.event_manager.render(&event_ctx, frame);
 

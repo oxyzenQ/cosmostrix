@@ -45,6 +45,13 @@ pub struct EventCtx {
     /// Terminal dimensions.
     pub cols: u16,
     pub lines: u16,
+    /// Phase 3-I (Chroma Dragon Innovation I): palette-aware ghost base
+    /// color. Derived from the current palette's darkest stop via
+    /// `chroma::post::ghost::ghost_base_color()`. Replaces the hardcoded
+    /// `(18, 22, 18)` in `cloud::events::ghost` — ghosts now match the
+    /// scene's color scheme (green palette → dark green ghosts, red
+    /// palette → dark red ghosts, etc.).
+    pub ghost_base_color: (u8, u8, u8),
 }
 
 /// Trait for atmospheric event types.

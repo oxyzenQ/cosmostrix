@@ -33,5 +33,7 @@
 //! | Module       | Concern                                                              |
 //! |--------------|----------------------------------------------------------------------|
 //! | `atmosphere` | `AtmosphericCtx`, `apply_atmospheric()` — luminance/saturation/instability |
+//! | `ghost`      | `ghost_base_color()` — palette-aware ghost color derivation         |
 
 pub mod atmosphere;
+pub mod ghost;
