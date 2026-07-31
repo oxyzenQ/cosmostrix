@@ -1445,12 +1445,6 @@ pub const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
 /// XOR seed offset for the event RNG (derived from Cloud's RNG seed).
 pub const EVENT_RNG_XOR: u64 = 0xCAFE_BABE_1337_0420;
 
-/// Phosphor seeding energy for event afterglow.
-pub const EVENT_PHOSPHOR_SEED_ENERGY: u8 = 160;
-
-/// Maximum phosphor decay frames before event residue is force-cleared.
-pub const EVENT_MAX_PHOSPHOR_DECAY_FRAMES: u64 = 90;
-
 /// Trigger evaluation is skipped when perf_pressure exceeds this.
 pub const EVENT_PERF_GATE: f32 = 0.5;
 

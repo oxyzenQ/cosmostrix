@@ -73,18 +73,13 @@ impl Cloud {
         let enable_timing = self.enable_component_timing;
 
         // ── Atmospheric Event Engine: evaluate triggers ──
-        let anomaly_density = self.anomaly_zones.len() as f32 / ANOMALY_MAX_ZONES.max(1) as f32;
         let in_transition = self.transition_start.is_some()
             || self.charset_transition_start.is_some()
             || self.profile_transition_start.is_some();
-        let palette_last = self.palette.colors.last().copied();
         self.event_manager.evaluate_triggers(
-            now,
             self.perf_pressure,
             self.cols,
             self.lines,
-            anomaly_density,
-            palette_last,
             self.pause,
             in_transition,
         );
@@ -726,15 +721,11 @@ impl Cloud {
             };
             self.event_manager.render(&event_ctx, frame);
 
-            // Update event states (phosphor seeding on Decay entry)
-            self.event_manager.update(
-                now,
-                &mut self.phosphor,
-                &mut self.phosphor_base_fg,
-                &mut self.phosphor_base_ch,
-                self.cols,
-                self.lines,
-            );
+            // Recycle finished events.
+            // v30 dragon-egg hunt: dropped the phosphor-seeding path that
+            // fired on Active→Decay transitions (no event ever entered
+            // Decay — see atmospheric_events.rs).
+            self.event_manager.update();
         }
 
         // --- Autonomous cinematic ecosystem tick ---
@@ -831,17 +822,13 @@ impl Cloud {
             self.next_glitch_time = self.last_glitch_time + std::time::Duration::from_millis(ms);
         }
 
-        // ── Atmospheric Event Engine: clean stale phosphor residue ──
-        {
-            let total = (self.cols as usize) * (self.lines as usize);
-            self.event_manager.clean_stale_phosphor(
-                &mut self.phosphor,
-                &mut self.phosphor_base_fg,
-                &mut self.phosphor_base_ch,
-                &mut self.phosphor_active,
-                total,
-            );
-        }
+        // ── Atmospheric Event Engine ──
+        // v30 dragon-egg hunt: removed clean_stale_phosphor() call.
+        // The function was unreachable in practice — it only cleared
+        // phosphor cells with energy ≤ EVENT_PHOSPHOR_SEED_ENERGY, but
+        // such cells are only ever set by event.seed_phosphor() (which
+        // was a no-op for GhostEvent). The function itself was removed
+        // from AtmosphericEventManager.
 
         // Expire flash effect after duration
         if let Some(flash_time) = self.flash_time {

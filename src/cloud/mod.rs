@@ -250,8 +250,6 @@ pub struct Cloud {
 
     pub(super) auto_color_drift: bool,
 
-    pub(super) is_idle: bool,
-
     pub(super) event_manager: AtmosphericEventManager,
 
     pub(super) gust: living_rain::GustState,
@@ -403,7 +401,6 @@ impl Cloud {
             storytelling: StorytellingState::new(now),
             glyph_entry_time: None,
             auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
-            is_idle: false,
             event_manager: AtmosphericEventManager::new(now),
             gust: living_rain::GustState::new(now),
             last_sim_ms: 0.0,

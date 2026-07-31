@@ -13,7 +13,7 @@ use rand::Rng;
 use crate::cell::Cell;
 use crate::frame::Frame;
 
-use super::super::atmospheric_events::{AtmosphericEvent, EventCtx, EventState};
+use super::super::atmospheric_events::{AtmosphericEvent, EventCtx};
 
 const GHOST_CHARS: &[char] = &['雨', '雷', '電', '風', '雲', '闇', '光'];
 const GHOST_FADE_IN_FRAC: f32 = 0.2;
@@ -43,13 +43,9 @@ impl GhostEvent {
 }
 
 impl AtmosphericEvent for GhostEvent {
-    fn state(&self) -> EventState {
-        EventState::Active
-    }
     fn is_finished(&self) -> bool {
         self.spawn_time.elapsed() >= self.duration
     }
-    fn update(&mut self, _now: Instant) {}
 
     fn render(&self, ctx: &EventCtx, frame: &mut Frame) {
         let elapsed = self.spawn_time.elapsed().as_secs_f32();
@@ -103,15 +99,5 @@ impl AtmosphericEvent for GhostEvent {
 
     fn is_pre_rain(&self) -> bool {
         true
-    }
-
-    fn seed_phosphor(
-        &self,
-        _phosphor: &mut [u8],
-        _phosphor_base_fg: &mut [Option<Color>],
-        _phosphor_base_ch: &mut [char],
-        _cols: u16,
-        _lines: u16,
-    ) {
     }
 }

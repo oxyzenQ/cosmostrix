@@ -995,8 +995,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         cloud.set_max_sim_delta(Duration::from_secs_f64(sim_cap_s));
 
         let work_start = Instant::now();
-        // Pass idle state to Cloud for Weather Director tick
-        cloud.is_idle = is_idle;
+        // v30 dragon-egg hunt: removed `cloud.is_idle = is_idle` write —
+        // the field was a zombie (set here every frame, never read by any
+        // cloud code path). The "Weather Director tick" mentioned in the
+        // old comment never existed. The interactive event loop already
+        // uses `is_idle` directly for frame_period selection above and
+        // for the resync logic; the simulation itself does not need it.
         // P1: call rain_at directly with work_start instead of cloud.rain()
         // (which calls Instant::now() internally). Saves 1 Instant::now()
         // per frame (~20ns).

@@ -10,35 +10,22 @@
 //! ## Lifecycle
 //!
 //! ```text
-//! Active → Decay → (recycle when is_finished())
+//! Active → (recycle when is_finished())
 //! ```
 //!
-//! The full Idle/Pending/Spawn/Finished pipeline documented in earlier
-//! revisions was aspirational — only Active and Decay are actually
-//! produced by event implementations, and `is_finished()` drives
-//! recycling. Variants for the unimplemented phases were removed in
-//! the v25.0.0-alpha.4 dead-code audit.
+//! Events are spawned `Active`, render every frame until `is_finished()`
+//! returns true, then are recycled. The earlier `Decay` phase was
+//! aspirational — no event implementation ever produced it, and the
+//! `seed_phosphor`/`clean_stale_phosphor` machinery that depended on it
+//! was unreachable. Both were removed in the v30 dragon-egg hunt.
 use super::events::GhostEvent;
 use crate::constants::*;
 use crate::frame::Frame;
-use crossterm::style::Color;
 use rand::{distr::Distribution, rngs::StdRng, SeedableRng};
 use smallvec::SmallVec;
 use std::time::Instant;
 
 // ── Public types ──────────────────────────────────────────────────────────
-/// Lifecycle state of an atmospheric event.
-///
-/// Only `Active` and `Decay` are produced by current event implementations;
-/// `is_finished()` drives recycling. The aspirational Idle/Pending/Spawn/
-/// Finished pipeline was removed in the v25.0.0-alpha.4 dead-code audit.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EventState {
-    /// Rendering at full intensity each frame.
-    Active,
-    /// Fading out via phosphor integration.
-    Decay,
-}
 
 /// Read-only rendering context passed to event `render()` methods.
 pub struct EventCtx {
@@ -56,29 +43,15 @@ pub struct EventCtx {
 
 /// Trait for atmospheric event types.
 ///
-/// Each event precomputes data at spawn; render() iterates stored data
-/// with zero per-frame allocation.
+/// Each event precomputes data at spawn; `render()` iterates stored data
+/// with zero per-frame allocation. Lifecycle is binary: an event is
+/// either alive (rendered each frame) or finished (recycled).
 pub trait AtmosphericEvent: Send {
-    /// Returns the current lifecycle state.
-    fn state(&self) -> EventState;
     /// Returns true when the event has finished and can be recycled.
     fn is_finished(&self) -> bool;
-    /// Called each frame. Updates internal phase state based on elapsed time.
-    fn update(&mut self, now: Instant);
 
-    /// Called each frame during Active phase. Writes visual output to Frame.
+    /// Called each frame while alive. Writes visual output to Frame.
     fn render(&self, ctx: &EventCtx, frame: &mut Frame);
-
-    /// Called when the event enters Decay phase. Seeds phosphor arrays
-    /// with afterglow energy.
-    fn seed_phosphor(
-        &self,
-        phosphor: &mut [u8],
-        phosphor_base_fg: &mut [Option<Color>],
-        phosphor_base_ch: &mut [char],
-        cols: u16,
-        lines: u16,
-    );
 
     /// Returns true if this event should render before rain (behind droplets).
     /// Ghost events render pre-rain so rain partially overwrites them.
@@ -96,8 +69,6 @@ pub(super) struct AtmosphericEventManager {
     rng: StdRng,
     /// Total events spawned since creation (for debugging).
     total_spawned: u64,
-    /// Frame counter for stale phosphor cleanup.
-    event_decay_frame: u64,
     /// Events are opt-in; disabled by default (tests, bench).
     events_enabled: bool,
 }
@@ -112,7 +83,6 @@ impl AtmosphericEventManager {
             events: SmallVec::new(),
             rng,
             total_spawned: 0,
-            event_decay_frame: 0,
             events_enabled: false,
         }
     }
@@ -136,15 +106,17 @@ impl AtmosphericEventManager {
     // ── Trigger Evaluation ────────────────────────────────────────────────
     /// Evaluate triggers and spawn new ghost events as appropriate.
     /// Called once per frame before simulation update.
+    ///
+    /// v30 dragon-egg hunt: dropped three legacy parameters (`now`,
+    /// `anomaly_density`, `palette_color`) that were computed by the
+    /// caller every frame just to be passed in here and then ignored.
+    /// The remaining parameters are all read by the trigger logic.
     #[allow(clippy::too_many_arguments)]
     pub fn evaluate_triggers(
         &mut self,
-        _now: Instant,
         perf_pressure: f32,
         cols: u16,
         lines: u16,
-        _anomaly_density: f32,
-        _palette_color: Option<Color>,
         is_paused: bool,
         in_transition: bool,
     ) {
@@ -159,7 +131,7 @@ impl AtmosphericEventManager {
             return;
         }
 
-        self.try_spawn_ghost(cols, lines, is_paused);
+        self.try_spawn_ghost(cols, lines);
     }
 
     /// Render pre-rain events (ghosts, behind droplets).
@@ -174,92 +146,24 @@ impl AtmosphericEventManager {
 
     fn render_phase(&self, ctx: &EventCtx, frame: &mut Frame, pre_rain: bool) {
         for event in &self.events {
-            if !event.is_finished()
-                && event.state() == EventState::Active
-                && event.is_pre_rain() == pre_rain
-            {
+            if !event.is_finished() && event.is_pre_rain() == pre_rain {
                 event.render(ctx, frame);
             }
         }
     }
 
-    /// Update event states and handle Decay→Finished transitions.
-    /// Seeds phosphor when an event enters Decay phase.
-    pub fn update(
-        &mut self,
-        now: Instant,
-        phosphor: &mut [u8],
-        phosphor_base_fg: &mut [Option<Color>],
-        phosphor_base_ch: &mut [char],
-        cols: u16,
-        lines: u16,
-    ) {
+    /// Recycle finished events. Called once per frame after rendering.
+    ///
+    /// v30 dragon-egg hunt: removed the `now` parameter (was only passed
+    /// to `event.update(now)`, which was a no-op for every implementation)
+    /// and the phosphor-seeding path that fired on Active→Decay
+    /// transitions (no event ever entered Decay).
+    pub fn update(&mut self) {
         let mut i = 0;
-        let mut newly_decayed: SmallVec<[usize; 2]> = SmallVec::new();
-
         while i < self.events.len() {
-            let was_active = self.events[i].state() == EventState::Active;
-            self.events[i].update(now);
-
-            if was_active && self.events[i].state() == EventState::Decay {
-                newly_decayed.push(i);
-            }
-
             if self.events[i].is_finished() {
                 self.events.swap_remove(i);
                 // Don't increment i — swap_remove moved last element to i
-            } else {
-                i += 1;
-            }
-        }
-
-        // Seed phosphor for events that just entered decay
-        for &idx in &newly_decayed {
-            if idx < self.events.len() {
-                self.events[idx].seed_phosphor(
-                    phosphor,
-                    phosphor_base_fg,
-                    phosphor_base_ch,
-                    cols,
-                    lines,
-                );
-            }
-        }
-    }
-
-    /// Clear phosphor residue from expired events to prevent indefinite afterglow.
-    pub fn clean_stale_phosphor(
-        &mut self,
-        phosphor: &mut [u8],
-        phosphor_base_fg: &mut [Option<Color>],
-        phosphor_base_ch: &mut [char],
-        phosphor_active: &mut SmallVec<[usize; 256]>,
-        total_cells: usize,
-    ) {
-        self.event_decay_frame += 1;
-        if self.event_decay_frame < EVENT_MAX_PHOSPHOR_DECAY_FRAMES {
-            return;
-        }
-        self.event_decay_frame = 0;
-
-        // Check if any events are still in decay — if so, don't clear yet
-        let any_decaying = self.events.iter().any(|e| e.state() == EventState::Decay);
-        if any_decaying {
-            return;
-        }
-
-        // Clear event-phosphor cells when no events are active/decaying
-        let mut i = 0;
-        while i < phosphor_active.len() {
-            let pidx = phosphor_active[i];
-            if pidx < total_cells
-                && phosphor[pidx] > 0
-                && phosphor[pidx] <= EVENT_PHOSPHOR_SEED_ENERGY
-            {
-                phosphor[pidx] = 0;
-                phosphor_base_fg[pidx] = None;
-                phosphor_base_ch[pidx] = '\0';
-                phosphor_active.swap_remove(i);
             } else {
                 i += 1;
             }
@@ -269,10 +173,7 @@ impl AtmosphericEventManager {
     // ── Private Helpers ────────────────────────────────────────────────────
 
     /// Try to spawn a phosphor ghost kanji character.
-    fn try_spawn_ghost(&mut self, cols: u16, lines: u16, is_paused: bool) {
-        if !self.events_enabled || is_paused {
-            return;
-        }
+    fn try_spawn_ghost(&mut self, cols: u16, lines: u16) {
         // Max 1 ghost active
         if self.events.iter().filter(|e| e.is_pre_rain()).count() >= GHOST_MAX_ACTIVE {
             return;
