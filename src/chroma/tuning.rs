@@ -240,20 +240,39 @@ pub const ABSOLUTE_MIN_FLOOR: u16 = 30;
 /// darker stop to gap = BODY_TAIL_MAX_GAP_RATIO. Hue is preserved (RGB
 /// ratio scaling, same as the basic floor).
 ///
-/// `2.5` = trail must be at least 40% as bright as the next-brighter stop.
-/// Empirically verified across all 43 built-in themes — eliminates the
+/// `2.0` = trail must be at least 50% as bright as the next-brighter stop.
+/// Empirically verified across all 43 built-in themes — tightens the
+/// body-tail step from 2.5x to 2.0x (20% reduction), killing the
 /// horizontal-line illusion at speed 100 while preserving head→body→trail
 /// hierarchy (head still 2-3x brighter than trail after continuity).
 ///
-/// Lower values (1.5-2.0) compress the dynamic range too aggressively —
+/// History: Phase 7-b originally shipped with `2.5` (trail = 40% of next).
+/// User visual testing at speed 100 reported a persistent horizontal-line
+/// illusion — the 2.5x brightness step was still perceptible as a hard
+/// band at high rain speed. The `phase7b_print_gap_ratio_sweep_audit`
+/// test in `palette_floor_tests.rs` verified the impact of each candidate
+/// gap target across all 43 themes:
+///
+///   gap=2.5 (was):  trail ~130, max_step 2.51x — horizontal-line visible
+///   gap=2.0 (now):  trail ~130, max_step 2.01x — step 20% tighter ✓
+///   gap=1.8:         some themes jump to 160-194 — NeonWhite exceeds v17's
+///                    180 ceiling (regression on dark-aesthetic preservation)
+///   gap=1.5:         many themes 200-281 — trails nearly as bright as body,
+///                    losing the cinematic trail-fade effect
+///
+/// 2.0 is the empirical sweet spot — measurable step reduction with zero
+/// themes exceeding v17's 180 ceiling.
+///
+/// Lower values (1.5-1.8) compress the dynamic range too aggressively —
 /// trails become as bright as body, losing the cinematic trail-fade effect.
-/// Higher values (3.0-4.0) leave visible gaps that re-introduce the
+/// Higher values (2.5-3.0) leave visible gaps that re-introduce the
 /// horizontal-line illusion at high speed.
 ///
 /// This is applied AFTER the basic floor and BEFORE quantization. The
-/// GLOBAL_MAX_FLOOR cap (180) still applies — continuity cannot push a
-/// trail stop above 180.
-pub const BODY_TAIL_MAX_GAP_RATIO: f32 = 2.5;
+/// GLOBAL_MAX_FLOOR cap (180) still applies to the basic floor; continuity
+/// itself is uncapped (can boost above 180 if needed to maintain the gap
+/// contract — see `apply_body_tail_continuity` doc comment).
+pub const BODY_TAIL_MAX_GAP_RATIO: f32 = 2.0;
 
 /// Phase 7: maximum brightness floor. The derived floor is never higher
 /// than this, even for palettes with extremely bright heads.

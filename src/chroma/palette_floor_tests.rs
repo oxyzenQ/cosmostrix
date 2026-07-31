@@ -160,13 +160,13 @@ fn phase7_extremely_bright_head_caps_at_global_max() {
     apply_palette_relative_floor(&mut rgb);
     let trail_sum = rgb[0].0 as u16 + rgb[0].1 as u16 + rgb[0].2 as u16;
     let head_sum = rgb[1].0 as u16 + rgb[1].1 as u16 + rgb[1].2 as u16;
-    // Phase 7-b: continuity is uncapped. Trail = head/2.5 = 765/2.5 = 306.
-    // This is intentional — the v17 ceiling (180) is for the BASIC floor
-    // only. Continuity can boost higher to maintain the 2.5x gap contract.
-    // Verify trail is boosted to ~306 (capped at 255 per channel by u8).
+    // Phase 7-b: continuity is uncapped. Trail = head/2.0 = 765/2.0 = 382.5,
+    // integer-truncated to ~381. This is intentional — the v17 ceiling (180)
+    // is for the BASIC floor only. Continuity can boost higher to maintain
+    // the 2.0x gap contract.
     assert!(
-        (280..=320).contains(&trail_sum),
-        "trail sum {trail_sum} should be ~306 (head/2.5, uncapped continuity)"
+        (370..=395).contains(&trail_sum),
+        "trail sum {trail_sum} should be ~381 (head/2.0, uncapped continuity)"
     );
     // Hard guarantee: trail must never exceed head (hierarchy preserved).
     assert!(
@@ -186,19 +186,19 @@ fn phase7_dim_head_palette_gets_low_floor() {
     apply_palette_relative_floor(&mut rgb);
     // max_sum = 160, derived = 160 * 0.20 = 32. floor = max(30, min(180, 32)) = 32.
     // Trail sum 0 < 32 → boost to 30 (pure-black special case uses floor/3 = 10 per channel = 30).
-    // Then Phase 7-b continuity: head=160, second=50, gap=160/50=3.2x > 2.5
-    //   → boost second to 160/2.5=64.
-    // Then trail=30, second=64, gap=64/30=2.13x ≤ 2.5 → no further boost.
+    // Then Phase 7-b continuity (gap target = 2.0):
+    //   head=160, second=50, gap=160/50=3.2x > 2.0 → boost second to 160/2.0=80.
+    //   trail=30, second=80, gap=80/30=2.67x > 2.0 → boost trail to 80/2.0=40.
     let trail_sum = rgb[0].0 as u16 + rgb[0].1 as u16 + rgb[0].2 as u16;
     assert!(
-        (28..=32).contains(&trail_sum),
-        "trail sum {trail_sum} should be ~30 (ABSOLUTE_MIN_FLOOR)"
+        (35..=45).contains(&trail_sum),
+        "trail sum {trail_sum} should be ~40 (continuity boost to second/2.0)"
     );
     let second_sum = rgb[1].0 as u16 + rgb[1].1 as u16 + rgb[1].2 as u16;
-    // Phase 7-b continuity boosts second from 50 to ~64 (head/2.5).
+    // Phase 7-b continuity boosts second from 50 to ~80 (head/2.0).
     assert!(
-        (60..=68).contains(&second_sum),
-        "second stop sum {second_sum} should be ~64 (continuity boost to head/2.5)"
+        (75..=85).contains(&second_sum),
+        "second stop sum {second_sum} should be ~80 (continuity boost to head/2.0)"
     );
 }
 
@@ -389,15 +389,15 @@ fn phase7_no_global_min_rgb_sum_constant_in_pipeline() {
     let trail_sum = rgb_sum(colors[0]);
     let head_sum = rgb_sum(colors[1]);
     // v17 would have produced sum 180 (basic floor only, no continuity).
-    // Phase 7-b: continuity boosts trail to head/2.5 = 655/2.5 = 262.
+    // Phase 7-b: continuity boosts trail to head/2.0 = 655/2.0 = 327.5.
     // This is intentional — continuity is uncapped to fix horizontal-line
     // illusion on palettes with bright bodies.
     //
     // If this fails with sum == 180, the v17 global MIN_RGB_SUM was
     // re-introduced AND continuity was lost.
     assert!(
-            trail_sum > 200,
-            "trail sum {trail_sum} — if this is 180, v17 global MIN_RGB_SUM was re-introduced; if < 200, continuity was lost"
+            trail_sum > 250,
+            "trail sum {trail_sum} — if this is 180, v17 global MIN_RGB_SUM was re-introduced; if < 250, continuity was lost"
         );
     assert!(
         trail_sum < head_sum,
@@ -407,7 +407,7 @@ fn phase7_no_global_min_rgb_sum_constant_in_pipeline() {
 
 /// Phase 7-b: continuity reduces adjacent gap to ≤ BODY_TAIL_MAX_GAP_RATIO.
 /// Pre-Phase-7-b, this palette had gap 356/13 = 27x between trail and body.
-/// Post-Phase-7-b, the gap should be ≤ 2.5x (with integer rounding slack).
+/// Post-Phase-7-b, the gap should be ≤ 2.0x (with integer rounding slack).
 #[test]
 fn phase7b_continuity_reduces_adjacent_gap() {
     let mut rgb = vec![
@@ -419,11 +419,11 @@ fn phase7b_continuity_reduces_adjacent_gap() {
     let trail_sum = rgb[0].0 as u16 + rgb[0].1 as u16 + rgb[0].2 as u16;
     let body_sum = rgb[1].0 as u16 + rgb[1].1 as u16 + rgb[1].2 as u16;
     let gap = body_sum as f32 / trail_sum as f32;
-    // Continuity target: body/2.5 = 356/2.5 = 142.4. Trail boosted to ~142.
-    // Gap = 356/142 = 2.51x (integer rounding slack).
+    // Continuity target: body/2.0 = 356/2.0 = 178. Trail boosted to ~178.
+    // Gap = 356/178 = 2.0x (integer rounding may push to 2.01-2.05).
     assert!(
-        gap <= 2.6,
-        "adjacent gap {gap:.2}x must be ≤ 2.6x (continuity target 2.5x + rounding slack)"
+        gap <= 2.1,
+        "adjacent gap {gap:.2}x must be ≤ 2.1x (continuity target 2.0x + rounding slack)"
     );
 }
 
@@ -439,17 +439,17 @@ fn phase7b_continuity_uncapped_for_bright_body() {
     apply_palette_relative_floor(&mut rgb);
     let trail_sum = rgb[0].0 as u16 + rgb[0].1 as u16 + rgb[0].2 as u16;
     let body_sum = rgb[1].0 as u16 + rgb[1].1 as u16 + rgb[1].2 as u16;
-    // Continuity target: body/2.5 = 638/2.5 = 255.2. Trail boosted above 180.
+    // Continuity target: body/2.0 = 638/2.0 = 319. Trail boosted above 180.
     // This is the NeonWhite case — without uncapped continuity, gap would
     // be 638/180 = 3.54x (horizontal-line illusion at speed 100).
     assert!(
-        trail_sum > 200,
-        "trail sum {trail_sum} should be > 200 (uncapped continuity boost for bright body)"
+        trail_sum > 250,
+        "trail sum {trail_sum} should be > 250 (uncapped continuity boost for bright body)"
     );
     let gap = body_sum as f32 / trail_sum as f32;
     assert!(
-        gap <= 2.6,
-        "gap {gap:.2}x must be ≤ 2.6x even with bright body (uncapped continuity)"
+        gap <= 2.1,
+        "gap {gap:.2}x must be ≤ 2.1x even with bright body (uncapped continuity)"
     );
 }
 
@@ -485,7 +485,7 @@ fn phase7b_continuity_only_scales_up() {
     ];
     let original: Vec<(u8, u8, u8)> = rgb.clone();
     apply_palette_relative_floor(&mut rgb);
-    // All adjacent gaps are ≤ 2.5x (300→600 = 2x, 600→750 = 1.25x).
+    // All adjacent gaps are ≤ 2.0x (300→600 = 2x, 600→750 = 1.25x).
     // No boost needed — palette should be unchanged.
     assert_eq!(
         rgb, original,
@@ -559,10 +559,10 @@ fn phase7b_all_themes_max_adjacent_gap_within_bounds() {
         ColorScheme::Moon,
         ColorScheme::Sun,
     ];
-    // 2.6x = BODY_TAIL_MAX_GAP_RATIO (2.5) + integer rounding slack.
-    // Continuity may produce 2.51-2.55x due to integer scaling, which is
-    // visually indistinguishable from 2.5x.
-    const MAX_ALLOWED_GAP: f32 = 2.6;
+    // 2.1x = BODY_TAIL_MAX_GAP_RATIO (2.0) + integer rounding slack.
+    // Continuity may produce 2.01-2.05x due to integer scaling, which is
+    // visually indistinguishable from 2.0x.
+    const MAX_ALLOWED_GAP: f32 = 2.1;
     let mut failures: Vec<String> = Vec::new();
     for &scheme in &schemes {
         let p = build_palette(scheme, ColorMode::TrueColor, true);
@@ -685,8 +685,8 @@ fn phase7_print_body_tail_gap_audit() {
         let body_min = *body.iter().min().unwrap_or(&0);
         let head_max = *sums[n - 2..].iter().max().unwrap_or(&0);
         // Max adjacent gap (what continuity actually enforces).
-        // Phase 7-b targets BODY_TAIL_MAX_GAP_RATIO=2.5; integer rounding
-        // may push actual gap to 2.51-2.55. Threshold of 2.6x = "at target".
+        // Phase 7-b targets BODY_TAIL_MAX_GAP_RATIO=2.0; integer rounding
+        // may push actual gap to 2.01-2.05. Threshold of 2.1x = "at target".
         let max_adj_gap: f32 = (0..n - 1)
             .map(|i| {
                 let cur = sums[i];
@@ -701,9 +701,9 @@ fn phase7_print_body_tail_gap_audit() {
         // HIGH = structural issue (cap-limited, body too bright for trail to catch up)
         // MED = above continuity target but within rounding slack
         // low = at or below continuity target
-        let risk = if max_adj_gap > 2.6 {
+        let risk = if max_adj_gap > 2.1 {
             "HIGH"
-        } else if max_adj_gap > 2.55 {
+        } else if max_adj_gap > 2.05 {
             "MED"
         } else {
             "low"
@@ -738,7 +738,7 @@ fn phase7_print_body_tail_gap_audit() {
     let high: Vec<_> = results.iter().filter(|r| r.risk == "HIGH").collect();
     let med: Vec<_> = results.iter().filter(|r| r.risk == "MED").collect();
     eprintln!(
-        "HIGH risk (max_adj_gap > 2.6x): {} themes — structural cap-limited",
+        "HIGH risk (max_adj_gap > 2.1x): {} themes — structural cap-limited",
         high.len()
     );
     for r in &high {
@@ -748,7 +748,7 @@ fn phase7_print_body_tail_gap_audit() {
         );
     }
     eprintln!(
-        "MED risk (2.55x-2.6x): {} themes — within rounding slack of continuity target",
+        "MED risk (2.05x-2.1x): {} themes — within rounding slack of continuity target",
         med.len()
     );
     for r in &med {
@@ -915,5 +915,154 @@ fn phase7_print_ratio_sweep_audit() {
     eprintln!(
         "  - Production current: PALETTE_FLOOR_RATIO = {:.2}",
         super::super::tuning::PALETTE_FLOOR_RATIO
+    );
+}
+
+/// Phase 7-b gap ratio sweep audit (informational). For each of the 43
+/// themes, prints the trail brightness + max adjacent gap that would result
+/// from each candidate `BODY_TAIL_MAX_GAP_RATIO` in [2.5, 2.0, 1.8, 1.5].
+///
+/// Run with:
+///   cargo test --release phase7b_print_gap_ratio_sweep_audit -- --nocapture
+///
+/// This test NEVER fails — it's a diagnostic for picking the next value
+/// of `BODY_TAIL_MAX_GAP_RATIO`. The current production value is 2.5, and
+/// the user-reported issue is a "horizontal-line illusion" at speed 100
+/// where the eye perceives a hard brightness step at the trail→body
+/// boundary. A 2.5x step is still perceptible at high rain speed; tighter
+/// continuity (lower ratio) compresses the step.
+///
+/// Columns:
+///   THEME       — ColorScheme name
+///   HEAD_SUM    — brightest stop sum (palette ceiling)
+///   BODY_MIN    — dimmest non-trail stop sum (the body anchor continuity targets)
+///   For each gap g ∈ {2.5, 2.0, 1.8, 1.5}:
+///     TRAIL@g    — final trail (last stop) sum after floor (ratio=0.20) + continuity
+///     MAX_GAP@g  — actual max adjacent gap post-continuity (should be ≤ g + rounding)
+///     SAT@g      — "*" if any channel hit 255 (continuity capped by u8 max)
+#[test]
+fn phase7b_print_gap_ratio_sweep_audit() {
+    use crate::chroma::catalog::{ThemeColors, THEMES};
+
+    let gaps: [f32; 4] = [2.5, 2.0, 1.8, 1.5];
+    let ratio = super::super::tuning::PALETTE_FLOOR_RATIO;
+    let abs_min = super::super::tuning::ABSOLUTE_MIN_FLOOR;
+    let global_max = super::super::tuning::GLOBAL_MAX_FLOOR;
+
+    eprintln!();
+    eprintln!("=== Phase 7-b BODY_TAIL_MAX_GAP_RATIO sweep audit (43 themes) ===");
+    eprintln!(
+        "Constants: PALETTE_FLOOR_RATIO={:.2}, ABSOLUTE_MIN_FLOOR={}, GLOBAL_MAX_FLOOR={}",
+        ratio, abs_min, global_max
+    );
+    eprintln!();
+    eprintln!(
+        "{:<14} {:>8} {:>8}  {:>10} {:>7} {:>1}  {:>10} {:>7} {:>1}  {:>10} {:>7} {:>1}  {:>10} {:>7} {:>1}",
+        "THEME", "HEAD_SUM", "BODY_MIN",
+        "TRL@2.5", "GAP", "S",
+        "TRL@2.0", "GAP", "S",
+        "TRL@1.8", "GAP", "S",
+        "TRL@1.5", "GAP", "S",
+    );
+
+    let mut n_saturated_per_gap = [0usize; 4];
+    let mut n_trail_above_head_per_gap = [0usize; 4];
+
+    for theme in THEMES {
+        let raw_stops: Vec<(u8, u8, u8)> = match theme.def {
+            ThemeColors::Stops { stops, steps }
+            | ThemeColors::StopsWithC16 { stops, steps, .. } => gradient_from_stops(stops, steps),
+            ThemeColors::RgbWithC16 { rgb, .. } => rgb.to_vec(),
+        };
+        if raw_stops.len() < 4 {
+            continue;
+        }
+        let head_sum: u16 = raw_stops
+            .iter()
+            .map(|&(r, g, b)| r as u16 + g as u16 + b as u16)
+            .max()
+            .unwrap_or(0);
+        // Body = all stops except first 2 (trail) and last 2 (head).
+        let n = raw_stops.len();
+        let body_min: u16 = raw_stops
+            .iter()
+            .skip(2)
+            .take(n.saturating_sub(4))
+            .map(|&(r, g, b)| r as u16 + g as u16 + b as u16)
+            .min()
+            .unwrap_or(0);
+
+        let mut cells: Vec<String> = Vec::with_capacity(gaps.len());
+        for (idx, &gap_target) in gaps.iter().enumerate() {
+            let mut rgb = raw_stops.clone();
+            apply_palette_relative_floor_with(rgb.as_mut_slice(), ratio, abs_min, global_max);
+            apply_body_tail_continuity_with(rgb.as_mut_slice(), gap_target);
+
+            let trail_sum = {
+                let (r, g, b) = rgb[0];
+                r as u16 + g as u16 + b as u16
+            };
+            let max_adj_gap: f32 = (0..n - 1)
+                .map(|i| {
+                    let cur = rgb[i].0 as u16 + rgb[i].1 as u16 + rgb[i].2 as u16;
+                    let next = rgb[i + 1].0 as u16 + rgb[i + 1].1 as u16 + rgb[i + 1].2 as u16;
+                    if cur == 0 {
+                        0.0
+                    } else {
+                        next as f32 / cur as f32
+                    }
+                })
+                .fold(0.0_f32, f32::max);
+
+            let saturated = rgb
+                .iter()
+                .any(|&(r, g, b)| r == 255 || g == 255 || b == 255);
+            if saturated {
+                n_saturated_per_gap[idx] += 1;
+            }
+            if trail_sum >= head_sum {
+                n_trail_above_head_per_gap[idx] += 1;
+            }
+
+            cells.push(format!(
+                "{:>10} {:>7.2} {:>1}",
+                trail_sum,
+                max_adj_gap,
+                if saturated { "*" } else { " " }
+            ));
+        }
+
+        eprintln!(
+            "{:<14} {:>8} {:>8}  {}  {}  {}  {}",
+            format!("{:?}", theme.scheme),
+            head_sum,
+            body_min,
+            cells[0],
+            cells[1],
+            cells[2],
+            cells[3]
+        );
+    }
+
+    eprintln!();
+    eprintln!("Legend: TRL = dimmest stop sum after floor + continuity");
+    eprintln!("        GAP = max(next/cur) post-continuity — lower = smoother");
+    eprintln!("        S=*  = at least one channel saturated at 255 (continuity capped by u8)");
+    eprintln!();
+    eprintln!("Summary per gap target:");
+    for (idx, &g) in gaps.iter().enumerate() {
+        eprintln!(
+            "  gap={:.1}: {} themes had a channel saturate at 255, {} themes had trail ≥ head (hierarchy broken)",
+            g, n_saturated_per_gap[idx], n_trail_above_head_per_gap[idx]
+        );
+    }
+    eprintln!();
+    eprintln!("Tuning guidance:");
+    eprintln!("  - Lower gap = smoother body-tail transition (kills horizontal-line illusion)");
+    eprintln!("  - Watch saturation: if many themes hit 255, continuity is being over-boosted");
+    eprintln!("  - Watch trail≥head: if non-zero, hierarchy is broken (regression)");
+    eprintln!(
+        "  - Production current: BODY_TAIL_MAX_GAP_RATIO = {:.2}",
+        super::super::tuning::BODY_TAIL_MAX_GAP_RATIO
     );
 }
