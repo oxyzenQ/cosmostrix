@@ -92,7 +92,7 @@ pub struct CloudConfig {
     pub(crate) atmosphere_mode: AtmosphereApplicationMode,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
-    /// None = uniform distribution (legacy behavior).
+    /// None = uniform distribution (default).
     pub(crate) monolith_density_map: Option<&'static [f64]>,
     /// Path to the config file being watched for live reload.
     /// None = no watcher (CLI-only run, no config file).

@@ -189,7 +189,7 @@ The density-map monolith formations live in `src/cloud/monolith.rs`
 (`GustState`, `density_noise_at`).
 
 
-5. ADAPTIVE ATMOSPHERE ENGINE  (src/cloud/atmospheric_events.rs)
+5. ADAPTIVE ATMOSPHERE ENGINE  (src/atmosphere_adaptive.rs)
 -----------------------------------------------------------------
 
 A 5-phase time-driven modulation (Deep Void -> Compression -> Pulse

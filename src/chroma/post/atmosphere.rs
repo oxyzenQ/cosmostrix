@@ -226,8 +226,13 @@ pub fn apply_atmospheric(
             ^ ctx.now_secs;
         if hash % 1000 < threshold {
             // instability_wf is always Some when instability_threshold is Some
-            // (both are set together when instability > 0.15). Unwrap is safe.
-            let wf = ctx.instability_wf.unwrap();
+            // (both are set together when instability > 0.15). Defensive
+            // `unwrap_or(0)` guards against contract drift — if a future
+            // commit constructs an AtmosphericCtx with `instability_threshold:
+            // Some(...)` but `instability_wf: None`, the worst case is a
+            // no-op (wf=0 → no white blend) rather than a panic on every cell
+            // in the anomaly zone.
+            let wf = ctx.instability_wf.unwrap_or(0);
             r = (i32::from(r) + ((255 - i32::from(r)) * wf + 128) / 256).clamp(0, 255) as u8;
             g = (i32::from(g) + ((255 - i32::from(g)) * wf + 128) / 256).clamp(0, 255) as u8;
             b = (i32::from(b) + ((255 - i32::from(b)) * wf + 128) / 256).clamp(0, 255) as u8;

@@ -8,8 +8,6 @@
 //! For Disabled modulation (the default), all values equal the base config
 //! values exactly — zero visual change from v3.9.0.
 
-#![allow(dead_code)]
-
 use crate::atmosphere_apply::AtmosphereRuntimeModulation;
 use crate::constants::{
     DENSITY_CLAMP_MAX, DENSITY_CLAMP_MIN, RUNTIME_SPEED_MAX, RUNTIME_SPEED_MIN,
@@ -30,17 +28,44 @@ pub(crate) struct AtmosphereEffectiveRuntime {
     /// Effective density multiplier. Equals base_density when modulation is identity.
     pub density: f32,
     /// Effective brightness scale (1.0 = identity). Always 1.0 when modulation is identity.
+    ///
+    /// v30: currently only asserted in tests (`atmosphere_apply_tests.rs`).
+    /// Production code reads only `speed` and `density`. Retained as a
+    /// contract guard so a future commit that wires brightness into the
+    /// cloud render loop has a typed field waiting for it.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub brightness_scale: f32,
     /// Effective glitch pressure (0.0 = default). Always 0.0 when modulation is identity.
+    ///
+    /// v30: same status as `brightness_scale` — test-asserted, not yet
+    /// consumed by production. Retained as a forward-compat hook.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub glitch_pressure: f32,
-    /// Whether color change is allowed. Always false.
+    /// Whether color change is allowed. Always false in v30 — the
+    /// atmosphere engine never permits palette mutation, only
+    /// speed/density/brightness/glitch modulate. Retained as a forward-
+    /// compat contract guard: if a future commit enables this flag,
+    /// `is_identity()` will return `false` and the
+    /// `effective_runtime_identity_check` regression test will fail.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub color_change_allowed: bool,
-    /// Whether terminal effect is allowed. Always false.
+    /// Whether terminal effect is allowed. Always false in v30 — same
+    /// rationale as `color_change_allowed`.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub terminal_effect_allowed: bool,
 }
 
 impl AtmosphereEffectiveRuntime {
     /// Whether this effective runtime is identity (no modulation applied).
+    ///
+    /// Currently always returns `true` in production because both
+    /// `color_change_allowed` and `terminal_effect_allowed` are hardcoded
+    /// to `false` (the atmosphere engine never permits color or terminal
+    /// effects — only speed/density/brightness/glitch modulate). Retained
+    /// as a contract guard: if a future commit enables either flag, this
+    /// method will return `false` and the `effective_runtime_identity_check`
+    /// regression test will fail.
+    #[cfg(test)]
     pub(crate) fn is_identity(&self) -> bool {
         !self.color_change_allowed && !self.terminal_effect_allowed
     }

@@ -123,14 +123,14 @@ pub fn apply_profile_layer(
     let normalized = validate_profile_name(name)?;
     let Some(profile) = profiles.get(&normalized) else {
         let message = format!(
-            "error: unknown profile '{name}'\nexpected one of: {}\n\n  Use --list-profiles to see available profiles.",
+            "error: unknown profile '{name}'\nexpected one of: {}\n\n  Use --list-scenes to see available scenes.",
             profile_name_list(profiles)
         );
         if strict_unknown {
             return Err(message);
         }
         eprintln!(
-            "config: ignoring unknown profile '{name}' (available: {}; see --list-profiles)",
+            "config: ignoring unknown profile '{name}' (available: {}; see --list-scenes)",
             profile_name_list(profiles)
         );
         return Ok(modified);

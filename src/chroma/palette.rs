@@ -522,16 +522,18 @@ pub(super) fn apply_palette_relative_floor_with(
 ///
 /// Unlike the basic floor (which is capped at `GLOBAL_MAX_FLOOR` to
 /// preserve the v17 ceiling), continuity is NOT capped — it can boost
-/// a trail stop above 180 if needed to maintain the 2.5x gap contract.
+/// a trail stop above 180 if needed to maintain the `BODY_TAIL_MAX_GAP_RATIO`
+/// (currently 2.0x, lowered from 2.5x in Phase 7-d) gap contract.
 /// This is safe because the continuity target is always
-/// `next_stop_sum / 2.5`, which is always less than `next_stop_sum`,
-/// which is always less than the head brightness. So continuity cannot
-/// push a trail stop brighter than the head — hierarchy is preserved.
+/// `next_stop_sum / BODY_TAIL_MAX_GAP_RATIO`, which is always less than
+/// `next_stop_sum`, which is always less than the head brightness. So
+/// continuity cannot push a trail stop brighter than the head — hierarchy
+/// is preserved.
 ///
 /// The 4 themes that hit the uncapped path (NeonWhite, NeonCyan,
 /// NeonYellow, Green3) have very bright bodies (sum > 520) where the
-/// 180 cap would leave a residual 3x+ gap. Uncapping continuity lets
-/// the trail reach up to ~220-255 to maintain the 2.5x contract.
+/// 180 cap would leave a residual 2.5x+ gap. Uncapping continuity lets
+/// the trail reach up to ~220-255 to maintain the 2.0x contract.
 ///
 /// See `BODY_TAIL_MAX_GAP_RATIO` for the rationale and tuning guidance.
 fn apply_body_tail_continuity(rgb: &mut [(u8, u8, u8)]) {

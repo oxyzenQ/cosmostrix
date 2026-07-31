@@ -14,6 +14,7 @@
 //!   io_uring savings. Verdict: io_uring is NOT worth it at cosmostrix's
 //!   60 FPS write rate (60 writes/sec). The overhead of adding the
 //!   `io_uring` crate + async runtime exceeds the ~54µs/sec savings.
+//!   (Unix-only — uses `libc::write` to `/dev/null`.)
 //!
 //! ## Policy
 //!
@@ -23,5 +24,5 @@
 //! `docs/COSMIC_DRAGON_FINDINGS.md` and the benchmark itself stays here as a
 //! reproducible record.
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub mod io_uring;

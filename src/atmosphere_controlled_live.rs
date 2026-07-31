@@ -11,8 +11,6 @@
 //! - Color change and terminal effects are always false.
 //! - All bounds are subtle: speed ±4%, density ±4%, brightness ±3%, glitch ≤0.2.
 
-#![allow(dead_code)]
-
 use crate::atmosphere_apply::AtmosphereRuntimeModulation;
 use crate::atmosphere_verifier::AtmosphereApplication;
 

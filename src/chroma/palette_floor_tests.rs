@@ -926,11 +926,12 @@ fn phase7_print_ratio_sweep_audit() {
 ///   cargo test --release phase7b_print_gap_ratio_sweep_audit -- --nocapture
 ///
 /// This test NEVER fails — it's a diagnostic for picking the next value
-/// of `BODY_TAIL_MAX_GAP_RATIO`. The current production value is 2.5, and
-/// the user-reported issue is a "horizontal-line illusion" at speed 100
-/// where the eye perceives a hard brightness step at the trail→body
-/// boundary. A 2.5x step is still perceptible at high rain speed; tighter
-/// continuity (lower ratio) compresses the step.
+/// of `BODY_TAIL_MAX_GAP_RATIO`. The current production value is 2.0
+/// (lowered from 2.5 in Phase 7-d to kill the user-reported
+/// "horizontal-line illusion" at speed 100, where the eye perceived a
+/// hard brightness step at the trail→body boundary). A 2.5x step was
+/// still perceptible at high rain speed; the 2.0x step is 20% tighter
+/// and below the perceptual threshold.
 ///
 /// Columns:
 ///   THEME       — ColorScheme name

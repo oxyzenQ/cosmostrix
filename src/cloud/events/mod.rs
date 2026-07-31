@@ -8,6 +8,5 @@
 //! without modifying the renderer or event manager.
 
 pub(crate) mod ghost;
-pub(crate) mod helpers;
 
 pub(crate) use ghost::GhostEvent;

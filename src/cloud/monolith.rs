@@ -167,7 +167,7 @@ pub(super) struct MonolithSpawnParams {
     /// When `Some`, the monolith spawner uses rejection sampling: a candidate
     /// lane is only accepted if a uniform random draw is `<= map[lane]`. Lanes
     /// with map value `1.0` always pass; lanes with `0.0` never spawn. When
-    /// `None`, spawn distribution is uniform (legacy behavior).
+    /// `None`, spawn distribution is uniform (default).
     ///
     /// The slice length should match the lane count; if shorter, missing lanes
     /// are treated as `1.0` (always available). If longer, extra entries are

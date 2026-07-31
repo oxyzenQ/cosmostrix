@@ -11,7 +11,7 @@
 //! ## Architecture
 //!
 //! The renderer is organized into clearly separated concerns:
-//! - **Cloud** (`cloud.rs`): The simulation engine — droplet lifecycle, spawning,
+//! - **Cloud** (`cloud/`): The simulation engine — droplet lifecycle, spawning,
 //!   atmospheric evolution, and the cinematic behavior profile system.
 //! - **Frame** (`frame.rs`): The backing buffer — differential dirty tracking
 //!   with generation-based invalidation for zero-overhead cell reuse.
@@ -19,8 +19,10 @@
 //!   with run-length encoding, batched writes, and cursor optimization.
 //! - **Droplet** (`droplet.rs`): Individual stream physics — gravity acceleration,
 //!   velocity turbulence, head bloom, and phosphor afterglow.
-//! - **Palette** (`palette.rs`): The color pipeline — gradient construction,
-//!   mode-aware quantization, and real-time color blending.
+//! - **Chroma Dragon** (`chroma/`): The coloring engine — palette construction,
+//!   OKLab gradients, palette-relative brightness floor, and the shader pipeline
+//!   that decides what color each cell becomes. (Phase 1 relocated the
+//!   pre-existing `palette.rs` and `central_colors.rs` into `chroma/`.)
 //!
 //! ## Motion Philosophy
 //!
@@ -123,6 +125,7 @@ mod help_detail;
 mod humanize;
 mod info;
 mod interactive;
+mod quantum_constants;
 // live_config_trace MUST be declared before live_config so the
 // `lr_trace!` macro it exports is in scope for live_config.rs.
 // `#[macro_use]` re-exports the macro crate-wide as a defense-in-depth

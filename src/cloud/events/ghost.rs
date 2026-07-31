@@ -19,18 +19,6 @@ const GHOST_CHARS: &[char] = &['雨', '雷', '電', '風', '雲', '闇', '光'];
 const GHOST_FADE_IN_FRAC: f32 = 0.2;
 const GHOST_FADE_OUT_FRAC: f32 = 0.3;
 
-/// Phase 3-I (Chroma Dragon Innovation I): the pre-Phase-3-I hardcoded
-/// ghost base color. Kept as a constant for reference and as the fallback
-/// in `chroma::post::ghost::ghost_base_color()` when the palette is empty
-/// or the darkest stop is `Color::Reset`.
-///
-/// Production code no longer reads this constant directly — `EventCtx`
-/// carries a palette-derived `ghost_base_color` field computed by
-/// `chroma::post::ghost::ghost_base_color()`. This constant remains as
-/// documentation of the original value and as the fallback for edge cases.
-#[allow(dead_code)]
-const GHOST_BASE_COLOR_LEGACY: (u8, u8, u8) = (18, 22, 18);
-
 pub(crate) struct GhostEvent {
     col: u16,
     line: u16,
