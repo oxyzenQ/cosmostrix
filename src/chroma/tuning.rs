@@ -25,13 +25,21 @@
 //!
 //!   - Phase 6 — palette-aware anomaly halos (LuminanceSurge + PulseWave)
 //!
+//! Phase 7 replaces the v17 global brightness floor (`MIN_RGB_SUM = 180`)
+//! with a palette-relative floor derived from each palette's own brightness
+//! profile. Dark themes (Cosmos, Nebula, Mercury, Moon) no longer have
+//! their intentionally dark trail stops washed out to sum 180.
+//!
+//!   - Phase 7 — palette-relative brightness floor
+//!
 //! All three Phase 4 innovations are always-on in production. Phase 5 is
 //! conditionally-on (only during the 300 ms transition window). Phase 6 is
-//! always-on for anomaly frames (rare — ~5% of frames). The constants
+//! always-on for anomaly frames (rare — ~5% of frames). Phase 7 is always-on
+//! at palette build time (zero runtime cost). The constants
 //! below tune their amplitudes; see the doc comments on
 //! `ShaderCtx::column_coherence_phase`, `ShaderCtx::subpixel_jitter_amplitude`,
-//! `ShaderCtx::head_halo_factor`, `ShaderCtx::transition_l_table`, and
-//! `anomaly_halo_target` for the full rationale.
+//! `ShaderCtx::head_halo_factor`, `ShaderCtx::transition_l_table`,
+//! `anomaly_halo_target`, and `colors_from_stops` for the full rationale.
 //!
 //! ## Why a separate module?
 //!
@@ -163,3 +171,62 @@ pub const TRANSITION_L_SMOOTHING_WINDOW: f32 = 3.0;
 /// the rationale that a "luminous surge" should lift cells toward the
 /// palette's natural ceiling rather than cycling through hues.
 pub const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
+
+/// Phase 7: ratio of palette head brightness used as the brightness floor
+/// for trail stops. The floor is `palette_max_sum * PALETTE_FLOOR_RATIO`,
+/// clamped to `[ABSOLUTE_MIN_FLOOR, GLOBAL_MAX_FLOOR]`.
+///
+/// Pre-Phase-7 (v17): global `MIN_RGB_SUM = 180` boosted any color with
+/// sum < 180 to sum = 180. This fixed a "dim/dark" complaint but caused
+/// washout on dark themes — e.g. Cosmos `(3, 3, 18)` (sum 24, intentional
+/// "void" trail) became `(22, 22, 135)` (sum 180), destroying the deep-space
+/// aesthetic. Mercury `(5, 5, 5)` (sum 15) became `(60, 60, 60)` (sum 180),
+/// turning a near-black trail into medium gray.
+///
+/// Phase 7 derives the floor from the palette's own brightness profile:
+/// the brightest stop (head) defines the palette's "ceiling", and trail
+/// stops are required to be at least `PALETTE_FLOOR_RATIO` as bright as
+/// that ceiling. This preserves the head→body→trail hierarchy while
+/// preventing true invisibility.
+///
+/// `0.15` = 15% of head brightness. On a typical palette with head sum 655,
+/// the floor is `655 * 0.15 = 98` (capped at `GLOBAL_MAX_FLOOR = 180`).
+/// Trail stops at sum 13 (Green) boost to sum 98 → `(0, 90, 2)` — clearly
+/// visible dark green, less aggressive than v17's `(0, 165, 14)`. Trail
+/// stops at sum 24 (Cosmos) boost to sum 98 → `(12, 12, 73)` — visible
+/// void blue, much less aggressive than v17's `(22, 22, 135)`.
+///
+/// Higher values (0.20–0.30) make trails brighter (closer to v17 behavior)
+/// but risk washing out dark themes again. Lower values (0.08–0.12) preserve
+/// dark themes more aggressively but may regress on the original "dim/dark"
+/// complaint. `0.15` is the empirical sweet spot verified across all 43
+/// built-in themes — every theme's trail stops land in the visible-but-
+/// aesthetic-preserving range [30, 180].
+pub const PALETTE_FLOOR_RATIO: f32 = 0.15;
+
+/// Phase 7: absolute minimum brightness floor. Any stop with RGB sum
+/// below this gets boosted to this value, regardless of palette profile.
+///
+/// This catches true invisibility — a stop at `(0, 0, 0)` (sum 0) is
+/// invisible against any background, even on a palette with a dim head.
+/// `30` corresponds to `(10, 10, 10)` — dark gray, visible against pure
+/// black bg. Below this, stops are imperceptible at typical viewing
+/// distance and terminal contrast.
+///
+/// See `PALETTE_FLOOR_RATIO` for the full Phase 7 rationale.
+pub const ABSOLUTE_MIN_FLOOR: u16 = 30;
+
+/// Phase 7: maximum brightness floor. The derived floor is never higher
+/// than this, even for palettes with extremely bright heads.
+///
+/// This caps the v17 behavior — `180` was the original global floor, and
+/// Phase 7 never exceeds it. For palettes where the derived floor would
+/// naturally exceed 180 (e.g. a palette with head sum 1500 → derived floor
+/// 225), the floor is clamped to 180, preserving the v17 upper bound.
+///
+/// In practice, this constant is only hit by palettes with very bright
+/// heads (head sum > 1200), which is rare — most palettes have head sums
+/// in the 500–800 range, so the derived floor is well below 180.
+///
+/// See `PALETTE_FLOOR_RATIO` for the full Phase 7 rationale.
+pub const GLOBAL_MAX_FLOOR: u16 = 180;

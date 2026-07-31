@@ -35,7 +35,7 @@
 
 use crossterm::style::Color;
 
-use super::palette::{colors_from_rgb, colors_from_stops, from_ansi_list};
+use super::palette::{colors_from_rgb_floored, colors_from_stops, from_ansi_list};
 use crate::runtime::{ColorMode, ColorScheme};
 
 /// A single theme definition. Add entries to `THEMES` to register new themes.
@@ -907,7 +907,11 @@ pub fn build_colors(scheme: ColorScheme, mode: ColorMode) -> Vec<Color> {
         },
         ThemeColors::RgbWithC16 { rgb, c16, ansi } => match mode {
             ColorMode::Color16 => c16.to_vec(),
-            ColorMode::TrueColor => colors_from_rgb(mode, rgb),
+            // Phase 7: apply palette-relative brightness floor to raw RGB
+            // (matches the floor that colors_from_stops applies to gradient
+            // stops). Without this, RgbWithC16 themes (Spectrum20) would
+            // skip the floor and have invisible trail stops like (0,0,0).
+            ColorMode::TrueColor => colors_from_rgb_floored(mode, rgb),
             _ => from_ansi_list(ansi),
         },
     }
