@@ -516,6 +516,23 @@ impl Cloud {
             // {-2, -1, 0, +1, +2}. Always Some in production — the value
             // is meaningful even when small (and 0.0 is a valid no-op).
             hue_drift: Some(self.color_ecosystem.hue_drift),
+            // Phase 4-A (Dragon Awakening): activate temporal column hue
+            // coherence (Innovation C). The shader logic landed in Phase 3-C
+            // but was dormant (DrawCtx hard-coded None). Phase 4-A derives
+            // the time phase from `now` at COLUMN_COHERENCE_FREQ rad/s
+            // (~60 s period) so the per-column shimmer drifts slowly over
+            // time. Always Some in production — the effect is a slow sine
+            // and 0.0 is a valid phase (perturbation still varies by col).
+            column_coherence_phase: Some(
+                now.elapsed().as_secs_f32() * crate::chroma::tuning::COLUMN_COHERENCE_FREQ,
+            ),
+            // Phase 4-B (Dragon Awakening): activate subpixel hue jitter
+            // (Innovation E). The shader logic landed in Phase 3-E but was
+            // dormant (DrawCtx hard-coded None). Phase 4-B sets a
+            // conservative amplitude (SUBPIXEL_JITTER_AMPLITUDE = 3) for
+            // subtle film-grain texture. Always Some in production — the
+            // jitter is deterministic per (line, col) so it doesn't strobe.
+            subpixel_jitter_amplitude: Some(crate::chroma::tuning::SUBPIXEL_JITTER_AMPLITUDE),
         };
 
         if matches!(self.rain_style, RainStyle::Monolith) {

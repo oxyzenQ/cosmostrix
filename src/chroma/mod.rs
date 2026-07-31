@@ -49,3 +49,4 @@ pub mod gradient;
 pub mod palette;
 pub mod post;
 pub mod shaders;
+pub mod tuning;

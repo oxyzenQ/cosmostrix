@@ -106,6 +106,51 @@ pub struct DrawCtx<'a> {
     ///
     /// `None` disables (matches pre-Phase-3-H behavior).
     pub hue_drift: Option<f32>,
+
+    /// Phase 4-A (Chroma Dragon Innovation C — Dragon Awakening): temporal
+    /// column hue coherence phase.
+    ///
+    /// `Some(phase)` enables a slow per-column hue drift: the shader
+    /// computes `sin(phase + col * 0.05)` and rounds to `{-1, 0, +1}`
+    /// as a `color_idx` perturbation on Middle cells. Neighboring
+    /// columns get similar perturbations (low spatial frequency), and
+    /// the perturbation oscillates slowly over time (low temporal
+    /// frequency) — so watching a single column, the colors shimmer
+    /// smoothly through adjacent palette stops instead of jumping
+    /// per-cell.
+    ///
+    /// Phase 3-C landed the shader logic + tests but left this field
+    /// hard-coded to `None` in the `ShaderCtx` builder (the innovation
+    /// was reviewable in isolation but dormant in production). Phase 4-A
+    /// wires the time phase through `DrawCtx` → `ShaderCtx` so the
+    /// effect is now always-on. `rain.rs` derives `phase` from `now`
+    /// at `COLUMN_COHERENCE_FREQ` rad/s (~60 s period).
+    ///
+    /// `None` disables (matches pre-Phase-4-A dormant behavior — kept
+    /// for tests that assert the shader's no-op path).
+    pub column_coherence_phase: Option<f32>,
+
+    /// Phase 4-B (Chroma Dragon Innovation E — Dragon Awakening): subpixel
+    /// hue jitter amplitude.
+    ///
+    /// `Some(amp)` applies a per-cell RGB perturbation of `±amp` units
+    /// per channel, driven by a deterministic FNV-1a hash of `(line,
+    /// col)`. The effect is fine film-grain texture — breaks up the
+    /// uniformity of large same-color regions without changing the
+    /// palette decision. "Subpixel" means the jitter is smaller than
+    /// one palette step: it modifies the returned RGB directly, not
+    /// the `color_idx`, so the head→body→tail hierarchy stays intact.
+    ///
+    /// Phase 3-E landed the shader logic + tests but left this field
+    /// hard-coded to `None` in the `ShaderCtx` builder. Phase 4-B wires
+    /// a conservative amplitude (`SUBPIXEL_JITTER_AMPLITUDE = 3`)
+    /// through `DrawCtx` → `ShaderCtx` so the effect is always-on.
+    /// The hash is deterministic, so the same cell always gets the
+    /// same jitter — no strobing across frames.
+    ///
+    /// `None` disables (matches pre-Phase-4-B dormant behavior — kept
+    /// for tests that assert the shader's no-op path).
+    pub subpixel_jitter_amplitude: Option<u8>,
 }
 
 impl DrawCtx<'_> {
@@ -224,17 +269,16 @@ impl DrawCtx<'_> {
             glitch_bright: self.glitch_bright,
             glitch_dim: self.glitch_dim,
             color_mode: self.color_mode,
-            // Phase 3-C: column-coherence hue drift is implemented in the
-            // shader but not yet wired through DrawCtx. Hard-coded None
-            // keeps production rendering identical to pre-Phase-3-C behavior.
-            // Plumbing the time phase through DrawCtx + rain.rs is a future
-            // commit (the shader logic and tests land now so the innovation
-            // is reviewable in isolation).
-            column_coherence_phase: None,
-            // Phase 3-E: subpixel hue jitter is implemented in the shader
-            // but not yet wired through DrawCtx. Hard-coded None keeps
-            // production rendering identical to pre-Phase-3-E behavior.
-            subpixel_jitter_amplitude: None,
+            // Phase 4-A (Dragon Awakening): column-coherence hue drift is
+            // now wired through DrawCtx. rain.rs derives the time phase from
+            // `now` at COLUMN_COHERENCE_FREQ rad/s (~60 s period) and passes
+            // it here. None disables (used by shader no-op tests).
+            column_coherence_phase: self.column_coherence_phase,
+            // Phase 4-B (Dragon Awakening): subpixel hue jitter is now wired
+            // through DrawCtx. rain.rs sets a conservative amplitude
+            // (SUBPIXEL_JITTER_AMPLITUDE = 3) for subtle film-grain texture.
+            // None disables (used by shader no-op tests).
+            subpixel_jitter_amplitude: self.subpixel_jitter_amplitude,
             // Phase 3-G: atmospheric post-processing. When DrawCtx.atmospheric
             // is Some, the shader applies the frame's atmospheric factors to
             // each cell's resolved color before returning. When None, the
