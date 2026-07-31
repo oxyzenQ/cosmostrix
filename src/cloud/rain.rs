@@ -343,6 +343,46 @@ impl Cloud {
         };
         let color_wave_line = self.color_wave_line_at(now);
 
+        // Phase 5: build the transition L table for perceptual L smoothing
+        // at the palette transition wave line.
+        //
+        // Active only when `transition_start.is_some()` (a palette switch
+        // is in progress) AND `color_wave_line.is_some()` (the wave hasn't
+        // finished sweeping). The table pre-computes the OKLab L for each
+        // stop index in both the old (previous slot) and new (active slot)
+        // palettes, plus the current wave line position and smoothing
+        // window. Built once per frame — the shader's `apply_l_smoothing`
+        // borrows it through DrawCtx → ShaderCtx.
+        //
+        // `None` outside the transition window (most frames) — the shader
+        // early-returns cheaply when table is None.
+        //
+        // The previous palette is read from `palette_table` at the slot
+        // BEFORE `active_palette_slot` (circular buffer). If that slot is
+        // None (no previous palette was set — e.g., first palette switch
+        // after startup with only one palette in the table), the table
+        // build returns None and no smoothing is applied for this frame.
+        let transition_l_table =
+            self.transition_start
+                .zip(color_wave_line)
+                .and_then(|(_, wave_line)| {
+                    let prev_slot = ((self.active_palette_slot as usize + MAX_PALETTE_SLOTS - 1)
+                        % MAX_PALETTE_SLOTS) as u8;
+                    let prev_palette: &[Color] = self.palette_table[prev_slot as usize]
+                        .as_ref()
+                        .map(|p| p.colors.as_slice())
+                        .unwrap_or(&[]);
+                    if prev_palette.is_empty() {
+                        return None;
+                    }
+                    crate::chroma::shaders::transition::TransitionLTable::build(
+                        prev_palette,
+                        &self.palette.colors,
+                        wave_line,
+                        crate::chroma::tuning::TRANSITION_L_SMOOTHING_WINDOW,
+                    )
+                });
+
         // Draw pass (split-borrows via DrawCtx)
         let draw_everything = force_draw_everything;
         // v16: pool_is_binary cached in Cloud, recomputed only on charset change.
@@ -541,6 +581,16 @@ impl Cloud {
             // background. Always Some in production — the shader auto-no-ops
             // when bg is None or Color::Reset.
             head_halo_factor: Some(crate::chroma::tuning::HEAD_HALO_FACTOR),
+            // Phase 5: perceptual L smoothing at the palette transition
+            // wave line. Built once per frame when transition_start.is_some()
+            // AND color_wave_line.is_some() — the table pre-computes the
+            // OKLab L for each stop index in both the old and new palettes,
+            // plus the current wave line position and smoothing window.
+            // The shader's apply_l_smoothing uses it to blend each cell's
+            // OKLab L toward the opposite palette's L within ±window lines
+            // of the wave, eliminating the hard brightness step at the
+            // wave line. None outside the transition window (most frames).
+            transition_l_table: transition_l_table.as_ref(),
         };
 
         if matches!(self.rain_style, RainStyle::Monolith) {

@@ -12,10 +12,19 @@
 //!   - Innovation E (subpixel hue jitter)           — Phase 4-B
 //!   - Innovation D (head halo via background blend) — Phase 4-D
 //!
-//! All three are now always-on in production. The constants below tune
-//! their amplitudes; see the doc comments on `ShaderCtx::column_coherence_phase`,
-//! `ShaderCtx::subpixel_jitter_amplitude`, and `ShaderCtx::head_halo_factor`
-//! for the full rationale.
+//! Phase 5 adds perceptual L smoothing at the palette transition wave
+//! line, killing the hard brightness step that occurs when the two
+//! palettes have different perceptual luminance at corresponding stop
+//! indices.
+//!
+//!   - Phase 5 — perceptual L smoothing at transition wave
+//!
+//! All three Phase 4 innovations are always-on in production. Phase 5 is
+//! conditionally-on (only during the 300 ms transition window). The
+//! constants below tune their amplitudes; see the doc comments on
+//! `ShaderCtx::column_coherence_phase`, `ShaderCtx::subpixel_jitter_amplitude`,
+//! `ShaderCtx::head_halo_factor`, and `ShaderCtx::transition_l_table` for
+//! the full rationale.
 //!
 //! ## Why a separate module?
 //!
@@ -91,3 +100,30 @@ pub const SUBPIXEL_JITTER_AMPLITUDE: u8 = 3;
 /// production callers). `Color::Reset` bg is a no-op (no RGB to blend
 /// toward), so the halo auto-disables when no explicit bg is set.
 pub const HEAD_HALO_FACTOR: f32 = 0.15;
+
+/// Phase 5: smoothing window (in lines) for perceptual L smoothing at
+/// the palette transition wave line.
+///
+/// During a palette transition, `color_wave_line` sweeps top-to-bottom
+/// over `COLOR_TRANSITION_DURATION_MS` (300 ms). Cells within ±this
+/// many lines of the wave get their OKLab L channel blended toward
+/// the opposite palette's L for that stop index. The blend peaks at
+/// 0.5 at the wave line (50% midpoint — no palette swap) and falls
+/// off linearly to 0 at ±window.
+///
+/// `3.0` lines = a 7-line smoothing band (wave ± 3). At 60 fps and
+/// 300 ms transition duration, the wave sweeps ~1 line per frame on
+/// a 50-line display, so the smoothing band covers ~7 frames of
+/// visible transition — long enough to perceive the dissolve, short
+/// enough to not blur the cascade effect.
+///
+/// Higher values (5–8) produce a softer, more gradual dissolve but
+/// risk washing out the cascade direction (the wave becomes less
+/// visible as a top-to-bottom sweep). Lower values (1–2) keep the
+/// cascade crisp but the brightness step remains partially visible.
+///
+/// The window is in floating-point lines so the shader can compute
+/// `|distance| / window` without integer rounding. The actual cell
+/// lines affected are `ceil(wave_line - window)` to `floor(wave_line
+/// + window)` inclusive.
+pub const TRANSITION_L_SMOOTHING_WINDOW: f32 = 3.0;

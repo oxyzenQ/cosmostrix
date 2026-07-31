@@ -183,6 +183,7 @@ fn hero_spine_trail_empty_space_have_distinct_brightness() {
         column_coherence_phase: None,
         subpixel_jitter_amplitude: None,
         head_halo_factor: None,
+        transition_l_table: None,
     };
 
     let ghost = crate::cloud::monolith::color_for_level(&ctx, 0, 1, 0, BrightnessLevel::Ghost, 1.0);
@@ -522,6 +523,7 @@ fn depth_lab_brightness_level_four_tier_hierarchy() {
         column_coherence_phase: None,
         subpixel_jitter_amplitude: None,
         head_halo_factor: None,
+        transition_l_table: None,
     };
 
     let ghost = crate::cloud::monolith::color_for_level(&ctx, 0, 1, 0, BrightnessLevel::Ghost, 1.0);
@@ -669,6 +671,7 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
             column_coherence_phase: None,
             subpixel_jitter_amplitude: None,
             head_halo_factor: None,
+            transition_l_table: None,
         };
 
         let ghost =

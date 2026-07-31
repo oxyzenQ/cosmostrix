@@ -411,6 +411,7 @@ fn make_test_shader<'a>(
         atmospheric: None,
         hue_drift: None,
         head_halo_factor: None,
+        transition_l_table: None,
         bg: None,
     }
 }

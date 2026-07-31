@@ -192,6 +192,23 @@ pub struct ShaderCtx<'a> {
     /// knows what color to dissolve toward. `None` or `Color::Reset`
     /// disables the halo (no RGB to blend toward).
     pub bg: Option<Color>,
+
+    /// Phase 5 (Chroma Dragon — perceptual L smoothing): precomputed
+    /// OKLab L values for each stop index in both the old and new
+    /// palettes, plus the current wave line position and smoothing
+    /// window.
+    ///
+    /// `Some(table)` enables per-cell L smoothing within ±`window` lines
+    /// of the wave line during a palette transition. The smoothing blends
+    /// each cell's OKLab L channel toward the opposite palette's L for
+    /// that stop index, eliminating the hard brightness step at the wave
+    /// line. See `chroma::shaders::transition` for the full rationale.
+    ///
+    /// `None` disables (matches pre-Phase-5 behavior — palette
+    /// transitions show a hard brightness step at the wave line).
+    /// Production wires this through `DrawCtx` only when
+    /// `transition_start.is_some()` AND `color_wave_line.is_some()`.
+    pub transition_l_table: Option<&'a crate::chroma::shaders::transition::TransitionLTable>,
 }
 
 /// Precomputed exponential decay lookup table for trail brightness.
@@ -629,6 +646,46 @@ pub fn resolve_cell_color(
     } else {
         fg
     };
+
+    // Phase 5 (Chroma Dragon — perceptual L smoothing at palette
+    // transition wave).
+    //
+    // During a palette transition, `color_wave_line` sweeps top-to-bottom.
+    // Cells above use the new palette; cells below use the old. If the
+    // two palettes have different perceptual luminance (OKLab L) at
+    // corresponding stop indices, the wave line becomes a visible
+    // brightness step — a hard horizontal stripe.
+    //
+    // Within ±`window` lines of the wave, blend each cell's OKLab L
+    // channel toward the opposite palette's L for that stop index. The
+    // blend peaks at 0.5 at the wave line (50% midpoint — no palette
+    // swap) and falls off linearly to 0 at ±window.
+    //
+    // Applied AFTER palette resolution + head halo, BEFORE subpixel
+    // jitter + atmospheric. This ensures:
+    // - The L blend composes on the post-halo color (haloed head also
+    //   gets smoothed, which is correct — the halo is a per-cell effect
+    //   that should not override the cross-cell transition smoothing).
+    // - The jitter composes on the smoothed color (so film-grain
+    //   perturbs the smoothed result, not the other way around).
+    //
+    // `apply_l_smoothing` early-returns cheaply when:
+    // - `table` is None (transition inactive — most frames)
+    // - color is Reset (no RGB to modify)
+    // - cell is outside the smoothing window (most cells during transition)
+    // - stop_idx is out of the table's range
+    // - L_old == L_new (no luminance difference)
+    //
+    // See `chroma::shaders::transition` for the full rationale and
+    // the per-cell cost analysis.
+    let fg = fg.map(|c| {
+        crate::chroma::shaders::transition::apply_l_smoothing(
+            c,
+            shader.transition_l_table,
+            color_idx,
+            line,
+        )
+    });
 
     // Phase 3-E (Chroma Dragon Innovation E): subpixel hue jitter.
     //

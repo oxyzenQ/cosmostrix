@@ -19,8 +19,10 @@
 //! | Module | Concern                                                          |
 //! |--------|------------------------------------------------------------------|
 //! | `base` | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `color_uses_previous_palette()`, `TRAIL_EXP_LUT` |
+//! | `transition` | Phase 5: `TransitionLTable`, `apply_l_smoothing()` — perceptual L smoothing at palette transition wave |
 //!
-//! Future phases will add `oklab`, `dither`, `halo`, `atmosphere` under this
-//! namespace as the innovations (A–I) land one micro-commit at a time.
+//! Future phases may add `oklab`, `dither`, `halo`, `atmosphere` under this
+//! namespace as further innovations land one micro-commit at a time.
 
 pub mod base;
+pub mod transition;

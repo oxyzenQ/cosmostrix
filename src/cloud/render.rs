@@ -164,6 +164,24 @@ pub struct DrawCtx<'a> {
     /// `None` disables (matches pre-Phase-4-D dormant behavior — kept for
     /// tests that assert the shader's no-op path).
     pub head_halo_factor: Option<f32>,
+
+    /// Phase 5 (Chroma Dragon — perceptual L smoothing at palette
+    /// transition wave).
+    ///
+    /// `Some(table)` is built once per frame in `rain.rs` when
+    /// `transition_start.is_some()` AND `color_wave_line.is_some()`. The
+    /// table pre-computes the OKLab L for each stop index in both the
+    /// old and new palettes, plus the current wave line position and
+    /// smoothing window.
+    ///
+    /// The shader's `apply_l_smoothing` blends each cell's OKLab L
+    /// channel toward the opposite palette's L within ±`window` lines
+    /// of the wave, eliminating the hard brightness step at the wave
+    /// line during palette transitions.
+    ///
+    /// `None` disables (matches pre-Phase-5 behavior — palette
+    /// transitions show a hard brightness step at the wave line).
+    pub transition_l_table: Option<&'a crate::chroma::shaders::transition::TransitionLTable>,
 }
 
 impl DrawCtx<'_> {
@@ -308,6 +326,12 @@ impl DrawCtx<'_> {
             // halo still auto-no-ops if bg is None or Color::Reset.
             head_halo_factor: self.head_halo_factor,
             bg: self.bg,
+            // Phase 5: perceptual L smoothing at palette transition wave.
+            // rain.rs builds the table when transition_start.is_some() AND
+            // color_wave_line.is_some(). None disables (most frames — no
+            // transition active). The shader's apply_l_smoothing early-
+            // returns cheaply when this is None.
+            transition_l_table: self.transition_l_table,
         };
         resolve_cell_color(
             &shader,

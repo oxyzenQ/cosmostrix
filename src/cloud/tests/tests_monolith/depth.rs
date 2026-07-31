@@ -172,6 +172,7 @@ fn monolith_color_for_level_ghost_is_faintest() {
         column_coherence_phase: None,
         subpixel_jitter_amplitude: None,
         head_halo_factor: None,
+        transition_l_table: None,
     };
 
     let ghost = crate::cloud::monolith::color_for_level(&ctx, 0, 0, 0, BrightnessLevel::Ghost, 1.0);
@@ -238,6 +239,7 @@ fn monolith_background_muddy_residue_guard() {
         column_coherence_phase: None,
         subpixel_jitter_amplitude: None,
         head_halo_factor: None,
+        transition_l_table: None,
     };
 
     let ghost_idx =
