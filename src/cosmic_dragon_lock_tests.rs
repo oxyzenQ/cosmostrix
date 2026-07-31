@@ -44,6 +44,7 @@
 //! | INV-14| ColorCache Rgb       | `ColorCache` produces non-empty SGR bytes for Rgb      |
 //! | INV-15| ColorCache miss      | `ColorCache::sgr_for_cell` returns None for unknown idx|
 //! | INV-16| Lock report          | Sentinel test prints the engine report                 |
+//! | INV-17| Idle-frame fast path | `clear_dirty` on empty frame advances `dirty_gen`      |
 //!
 //! ## Adding a new invariant
 //!
@@ -580,6 +581,82 @@ fn lock_inv15_color_cache_sgr_for_cell_returns_none_for_unknown_color() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// INV-17: Idle-frame fast path — clear_dirty on empty frame preserves stamps
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// INV-17: the idle-frame fast path in `Terminal::draw()` calls `clear_dirty()`
+/// even when the dirty list is empty. This advances `dirty_gen`, which is
+/// load-bearing for the next frame's `set()` calls — without it, cells that
+/// were dirty in the last non-idle frame would still have
+/// `dirty_cell_gen[i] == dirty_gen`, and the next frame's `set()` would
+/// skip the dirty push (the duplicate-dirty-skip at frame.rs:296).
+///
+/// The fast path itself lives in `Terminal::draw()` and isn't directly
+/// testable without a stdout handle. This test verifies the underlying
+/// contract the fast path relies on: an idle `clear_dirty()` between two
+/// active frames preserves the dirty-tracking correctness.
+///
+/// Scenario:
+/// 1. Frame N: set cell (1,1) to 'x' → dirty list has 1 entry.
+/// 2. End of frame N: clear_dirty() → dirty list empty, dirty_gen bumped.
+/// 3. Frame N+1 (idle): no set() calls → dirty list stays empty.
+/// 4. End of frame N+1: clear_dirty() → dirty_gen bumped again (this is
+///    the call the idle-frame fast path makes).
+/// 5. Frame N+2: set cell (1,1) to 'y' → MUST push to dirty list.
+///
+/// If step 4's clear_dirty were skipped (the bug the fast path must avoid),
+/// step 5's set() would see `dirty_cell_gen[1*10+1] == dirty_gen` (still
+/// matching from frame N) and skip the push — losing the cell change.
+#[test]
+fn lock_inv17_idle_frame_clear_dirty_preserves_dirty_tracking() {
+    let mut f = Frame::new(10, 10, None);
+    f.clear_dirty(); // Initial state — frame N setup.
+
+    // Step 1: Frame N — dirty cell (1,1).
+    let cell_x = Cell {
+        ch: 'x',
+        fg: None,
+        bg: None,
+        bold: false,
+    };
+    f.set(1, 1, cell_x);
+    assert_eq!(f.dirty_indices().len(), 1, "frame N must have 1 dirty cell");
+
+    // Step 2: End of frame N — clear_dirty.
+    f.clear_dirty();
+    assert!(f.dirty_indices().is_empty(), "dirty list empty after clear");
+
+    // Step 3: Frame N+1 (idle) — no set() calls.
+    // (Simulates the idle-frame fast path's pre-condition: dirty_count == 0.)
+    assert!(f.dirty_indices().is_empty());
+
+    // Step 4: End of frame N+1 — idle clear_dirty (the call the fast path makes).
+    // This is the load-bearing call: without it, dirty_gen doesn't advance.
+    f.clear_dirty();
+    assert!(f.dirty_indices().is_empty());
+
+    // Step 5: Frame N+2 — set the SAME cell to a NEW value.
+    let cell_y = Cell {
+        ch: 'y',
+        fg: None,
+        bg: None,
+        bold: false,
+    };
+    f.set(1, 1, cell_y);
+    assert_eq!(
+        f.dirty_indices().len(),
+        1,
+        "frame N+2 must push cell (1,1) to dirty — idle clear_dirty advanced dirty_gen, \
+         so the duplicate-dirty-skip must NOT fire"
+    );
+    assert_eq!(
+        f.dirty_indices()[0],
+        11,
+        "dirty cell must be (1,1) → index 11"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // INV-16: Lock report sentinel
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -592,10 +669,11 @@ fn lock_inv16_engine_lock_report() {
     eprintln!("  Cosmic Dragon Engine Lock Report");
     eprintln!("═══════════════════════════════════════════════════════════════");
     eprintln!("  Version:            {COSMIC_DRAGON_ENGINE_VERSION}");
-    eprintln!("  Invariants:         16 (INV-01 through INV-16)");
+    eprintln!("  Invariants:         17 (INV-01 through INV-17)");
     eprintln!("  Frame clamp:        [{MIN_TERMINAL_COLS},{MAX_TERMINAL_COLS}] × [{MIN_TERMINAL_LINES},{MAX_TERMINAL_LINES}]");
     eprintln!("  Bench clamp:        [{MIN_TERMINAL_COLS},{BENCH_MAX_COLS}] × [{MIN_TERMINAL_LINES},{BENCH_MAX_LINES}]");
     eprintln!("  Dirty tracking:     double-buffered generation (O(1) clear_dirty)");
+    eprintln!("  Idle-frame fast path: skip render body when dirty_count==0 & can_reuse_last");
     eprintln!("  Semantic invalidation: semantic_gen counter (stale-glyph guard)");
     eprintln!("  Color cache:        pre-formatted SGR bytes (no format!() in hot path)");
     eprintln!("═══════════════════════════════════════════════════════════════\n");
