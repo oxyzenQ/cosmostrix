@@ -1140,9 +1140,12 @@ pub fn blank_cell(bg: Option<Color>) -> Cell {
 // at line ~402, ~411) keep working without a path change. External callers
 // (event_loop.rs) already use `crate::terminal::is_terminal_gone` — that path
 // still resolves via this re-export.
-pub(crate) use crate::terminal_tty::{
-    is_recoverable_io_error, is_terminal_gone, open_tty_fallback,
-};
+// `is_terminal_gone` is cross-platform (used by event_loop.rs + intro drain).
+// `is_recoverable_io_error` and `open_tty_fallback` are Unix-only (gated in
+// terminal_tty.rs) — only re-export them on Unix so Windows compiles cleanly.
+pub(crate) use crate::terminal_tty::is_terminal_gone;
+#[cfg(unix)]
+pub(crate) use crate::terminal_tty::{is_recoverable_io_error, open_tty_fallback};
 
 #[cfg(test)]
 mod p5_tests {

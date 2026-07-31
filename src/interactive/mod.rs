@@ -55,7 +55,12 @@ mod tests;
 // Re-export public API for the rest of the crate
 pub(crate) use bg_fill::fill_terminal_bg;
 pub(crate) use event_loop::run_interactive;
-pub(crate) use watchdog::{clear_mouse_capture_flag, request_graceful_shutdown};
+// `clear_mouse_capture_flag` is called cross-platform (terminal.rs:508).
+// `request_graceful_shutdown` is only called from the Unix `recover_to_tty`
+// path (terminal.rs:425) — gate the re-export so Windows doesn't warn.
+pub(crate) use watchdog::clear_mouse_capture_flag;
+#[cfg(unix)]
+pub(crate) use watchdog::request_graceful_shutdown;
 
 use std::sync::Mutex;
 

@@ -10,10 +10,6 @@
 //!
 //! See `terminal.rs` for the recovery path that consumes these helpers.
 
-use std::fs::OpenOptions;
-
-use std::fs::File;
-
 /// P3: classify an io::Error as recoverable via /dev/tty fallback.
 ///
 /// Returns `true` for errors that indicate the primary stdout fd is broken
@@ -25,6 +21,12 @@ use std::fs::File;
 /// The classification is intentionally conservative — false negatives just
 /// propagate the error (the watchdog catches stuck loops), while false
 /// positives would mask real bugs by routing through /dev/tty.
+#[cfg(unix)]
+use std::fs::OpenOptions;
+
+#[cfg(unix)]
+use std::fs::File;
+
 #[cfg(unix)]
 #[must_use]
 pub(crate) fn is_recoverable_io_error(err: &std::io::Error) -> bool {
