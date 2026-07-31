@@ -89,7 +89,7 @@
 
 use crossterm::style::Color;
 
-use crate::chroma::gradient::{oklab_to_srgb, srgb_to_oklab};
+use crate::chroma::gradient::{oklab_to_srgb, polar_chroma_lerp, srgb_to_oklab};
 use crate::chroma::palette::color_to_rgb;
 
 /// One stop's OKLab values in both the old and new palettes.
@@ -335,64 +335,10 @@ pub fn apply_l_smoothing(
     Color::Rgb { r, g, b }
 }
 
-/// Phase 8: interpolate between two OKLab (a, b) chroma points using
-/// polar coordinates — chroma magnitude lerps linearly, hue angle
-/// rotates through the shortest arc.
-///
-/// This avoids the "cartesian shortcut through gray" problem: when two
-/// hues are roughly opposite on the chroma ring (e.g. red ↔ cyan),
-/// linear (a, b) interpolation passes near (0, 0), producing a
-/// desaturated gray midpoint. Polar interpolation keeps the chroma
-/// magnitude high throughout the rotation, so the midpoint stays
-/// saturated.
-///
-/// # Arguments
-///
-/// - `a0, b0` — current (a, b) (the cell's active palette chroma).
-/// - `a1, b1` — target (a, b) (the opposite palette's chroma).
-/// - `t` — blend factor in `[0, 1]`. 0 → current, 1 → target.
-///
-/// # Returns
-///
-/// Smoothed `(a, b)`.
-///
-/// # Special case
-///
-/// If either chroma is `(0, 0)` (grayscale — hue undefined), falls back
-/// to Cartesian lerp. The gray midpoint is the correct answer anyway,
-/// since rotating hue from "no hue" to any hue is meaningless.
-#[inline]
-fn polar_chroma_lerp(a0: f32, b0: f32, a1: f32, b1: f32, t: f32) -> (f32, f32) {
-    let c0 = (a0 * a0 + b0 * b0).sqrt();
-    let c1 = (a1 * a1 + b1 * b1).sqrt();
-
-    // If either endpoint is grayscale (chroma = 0), the hue is undefined.
-    // Fall back to Cartesian lerp — the result will pass through gray,
-    // which is the visually correct midpoint between any hue and gray.
-    if c0 < 1e-6 || c1 < 1e-6 {
-        return (a0 + (a1 - a0) * t, b0 + (b1 - b0) * t);
-    }
-
-    // Hue angles in radians, in (-π, π].
-    let h0 = b0.atan2(a0);
-    let h1 = b1.atan2(a1);
-
-    // Shortest-arc delta: normalize the difference into (-π, π].
-    // If the raw delta exceeds π, the shorter path is the other way
-    // around the ring — subtract (or add) 2π.
-    let mut delta = h1 - h0;
-    if delta > std::f32::consts::PI {
-        delta -= 2.0 * std::f32::consts::PI;
-    } else if delta < -std::f32::consts::PI {
-        delta += 2.0 * std::f32::consts::PI;
-    }
-
-    // Linear chroma interpolation + shortest-arc hue rotation.
-    let c = c0 + (c1 - c0) * t;
-    let h = h0 + delta * t;
-
-    (c * h.cos(), c * h.sin())
-}
+// Phase 8 polar chroma lerping is implemented in `chroma::gradient::polar_chroma_lerp`
+// and imported above. See that function for the full rationale (shortest-arc
+// hue rotation, grayscale fallback) — the implementation is shared with the
+// hue-preserving gradient variant `gradient_from_stops_oklab_polar`.
 
 #[cfg(test)]
 #[path = "transition_tests.rs"]

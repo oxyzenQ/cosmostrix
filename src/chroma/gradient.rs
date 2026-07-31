@@ -128,6 +128,135 @@ fn lerp_oklab(
     (l0 + (l1 - l0) * t, a0 + (a1 - a0) * t, b0 + (b1 - b0) * t)
 }
 
+/// Polar (chroma + hue) interpolation between two OKLab (a, b) chroma points.
+///
+/// Chroma magnitude `C = sqrt(a² + b²)` lerps linearly. Hue angle
+/// `h = atan2(b, a)` rotates through the **shortest arc**. This avoids the
+/// "Cartesian shortcut through gray" problem: when two hues are roughly
+/// opposite on the chroma ring (e.g. red ↔ cyan), linear (a, b)
+/// interpolation passes near (0, 0), producing a desaturated gray midpoint.
+/// Polar interpolation keeps chroma magnitude high throughout the rotation,
+/// so the midpoint stays saturated.
+///
+/// Lightness L is not handled here — callers interpolate L separately
+/// (Phase 5 L-smoothing uses linear lerp, gradient builder uses linear lerp).
+///
+/// # Arguments
+///
+/// - `a0, b0` — start (a, b) chroma point.
+/// - `a1, b1` — end (a, b) chroma point.
+/// - `t` — blend factor in `[0, 1]`. 0 → start, 1 → end.
+///
+/// # Returns
+///
+/// Interpolated `(a, b)`.
+///
+/// # Special case
+///
+/// If either endpoint is grayscale (chroma ≈ 0), falls back to Cartesian
+/// lerp. The gray midpoint is the visually correct answer anyway, since
+/// rotating hue from "no hue" to any hue is meaningless.
+#[inline]
+pub(crate) fn polar_chroma_lerp(a0: f32, b0: f32, a1: f32, b1: f32, t: f32) -> (f32, f32) {
+    let c0 = (a0 * a0 + b0 * b0).sqrt();
+    let c1 = (a1 * a1 + b1 * b1).sqrt();
+
+    // If either endpoint is grayscale (chroma = 0), the hue is undefined.
+    // Fall back to Cartesian lerp — the result will pass through gray,
+    // which is the visually correct midpoint between any hue and gray.
+    if c0 < 1e-6 || c1 < 1e-6 {
+        return (a0 + (a1 - a0) * t, b0 + (b1 - b0) * t);
+    }
+
+    // Hue angles in radians, in (-π, π].
+    let h0 = b0.atan2(a0);
+    let h1 = b1.atan2(a1);
+
+    // Shortest-arc delta: normalize the difference into (-π, π].
+    // If the raw delta exceeds π, the shorter path is the other way
+    // around the ring — subtract (or add) 2π.
+    let mut delta = h1 - h0;
+    if delta > std::f32::consts::PI {
+        delta -= 2.0 * std::f32::consts::PI;
+    } else if delta < -std::f32::consts::PI {
+        delta += 2.0 * std::f32::consts::PI;
+    }
+
+    // Linear chroma interpolation + shortest-arc hue rotation.
+    let c = c0 + (c1 - c0) * t;
+    let h = h0 + delta * t;
+
+    (c * h.cos(), c * h.sin())
+}
+
+/// Hue-preserving OKLab gradient interpolation.
+///
+/// Like [`gradient_from_stops_oklab`], but interpolates the (a, b) chroma
+/// axes in **polar coordinates** (chroma magnitude + hue angle) instead of
+/// Cartesian (a, b). Hue rotates through the shortest arc, keeping chroma
+/// magnitude high through the midpoint.
+///
+/// # When to use this instead of `gradient_from_stops_oklab`?
+///
+/// - **Hue-crossing gradients** (red→green, blue→yellow, etc.): Cartesian
+///   OKLab still takes a shortcut through the desaturated center on long
+///   hue arcs. Polar stays saturated.
+/// - **Multi-stop palettes where adjacent stops differ strongly in hue**:
+///   same problem, segment by segment.
+///
+/// Cartesian OKLab remains the default for `colors_from_stops` because:
+/// - Most palettes have stops that differ mainly in lightness, not hue —
+///   Cartesian and polar produce identical results there.
+/// - Switching the default would shift every theme's intermediate colors,
+///   invalidating visual regression baselines.
+///
+/// This variant is exposed for future themes that explicitly want
+/// hue-preserving behavior, and for diagnostic comparison via the
+/// `oklab_polar_diverges_from_cartesian_on_opposing_hues` test.
+#[allow(dead_code)]
+#[inline]
+pub(crate) fn gradient_from_stops_oklab_polar(
+    stops: &[(u8, u8, u8)],
+    steps: usize,
+) -> Vec<(u8, u8, u8)> {
+    if steps == 0 || stops.is_empty() {
+        return Vec::new();
+    }
+    if stops.len() == 1 {
+        return vec![stops[0]; steps];
+    }
+    if steps == 1 {
+        return vec![stops[0]];
+    }
+
+    // Pre-convert all stops to OKLab once (not per output sample).
+    let ok: Vec<(f32, f32, f32)> = stops
+        .iter()
+        .map(|&(r, g, b)| srgb_to_oklab(r, g, b))
+        .collect();
+
+    let segs = stops.len().saturating_sub(1);
+    let mut out = Vec::with_capacity(steps);
+    for i in 0..steps {
+        let t = (i as f32) / ((steps - 1) as f32);
+        let pos = t * (segs as f32);
+        let mut seg = pos.floor() as usize;
+        if seg >= segs {
+            seg = segs.saturating_sub(1);
+        }
+        let lt = pos - (seg as f32);
+        let (l0, a0, b0) = ok[seg];
+        let (l1, a1, b1) = ok[seg + 1];
+        // L: linear lerp (same as Cartesian).
+        let l = l0 + (l1 - l0) * lt;
+        // (a, b): polar lerp — hue rotates through shortest arc, chroma
+        // magnitude stays high through midpoint.
+        let (a, b) = polar_chroma_lerp(a0, b0, a1, b1, lt);
+        out.push(oklab_to_srgb(l, a, b));
+    }
+    out
+}
+
 /// Build a gradient by interpolating between `stops` in OKLab space.
 ///
 /// Produces `steps` output colors, sampling the stops uniformly across the
@@ -368,5 +497,169 @@ mod tests {
             ok[1], sr[1],
             "OKLab and sRGB-linear must produce different midpoints for red→green"
         );
+    }
+
+    /// Hue-preserving polar variant: endpoints preserved exactly.
+    #[test]
+    fn polar_endpoints_preserved() {
+        let out = gradient_from_stops_oklab_polar(&[(10, 20, 30), (200, 100, 50)], 9);
+        assert_eq!(out.len(), 9);
+        assert_eq!(out[0], (10, 20, 30));
+        assert_eq!(out[8], (200, 100, 50));
+    }
+
+    /// Polar variant: single stop → vec filled with that stop.
+    #[test]
+    fn polar_single_stop_repeats() {
+        let out = gradient_from_stops_oklab_polar(&[(10, 20, 30)], 5);
+        assert_eq!(out.len(), 5);
+        for c in &out {
+            assert_eq!(*c, (10, 20, 30));
+        }
+    }
+
+    /// Polar variant: empty stops → empty output.
+    #[test]
+    fn polar_empty_stops_returns_empty() {
+        let out = gradient_from_stops_oklab_polar(&[], 5);
+        assert!(out.is_empty());
+    }
+
+    /// Polar variant: multi-segment gradient hits all anchor stops exactly.
+    #[test]
+    fn polar_multi_segment_preserves_anchor_stops() {
+        let stops = &[(0, 0, 0), (128, 64, 200), (255, 255, 255)];
+        let out = gradient_from_stops_oklab_polar(stops, 9);
+        assert_eq!(out.len(), 9);
+        assert_eq!(out[0], (0, 0, 0));
+        assert_eq!(out[4], (128, 64, 200));
+        assert_eq!(out[8], (255, 255, 255));
+    }
+
+    /// Polar variant: red→cyan midpoint stays saturated.
+    ///
+    /// Red (255,0,0) and cyan (0,255,255) are roughly opposite on the OKLab
+    /// chroma ring. Cartesian OKLab takes a shortcut through the desaturated
+    /// center, producing a low-saturation midpoint. Polar rotates through
+    /// the chroma ring, keeping saturation high.
+    ///
+    /// This is the canonical case where polar outperforms Cartesian.
+    #[test]
+    fn polar_red_to_cyan_midpoint_more_saturated_than_cartesian() {
+        let cart = gradient_from_stops_oklab(&[(255, 0, 0), (0, 255, 255)], 3);
+        let pol = gradient_from_stops_oklab_polar(&[(255, 0, 0), (0, 255, 255)], 3);
+        // Endpoints identical.
+        assert_eq!(pol[0], cart[0]);
+        assert_eq!(pol[2], cart[2]);
+
+        // Saturation proxy: max - min channel.
+        let sat = |c: (u8, u8, u8)| -> i32 {
+            let max_c = c.0.max(c.1).max(c.2) as i32;
+            let min_c = c.0.min(c.1).min(c.2) as i32;
+            max_c - min_c
+        };
+        let sat_cart = sat(cart[1]);
+        let sat_pol = sat(pol[1]);
+        // Polar midpoint must be at least as saturated as Cartesian, and
+        // typically much more. Allow equality to tolerate integer rounding
+        // edge cases, but expect a strict improvement in practice.
+        assert!(
+            sat_pol >= sat_cart,
+            "polar sat {sat_pol} should be ≥ cartesian sat {sat_cart} for red→cyan midpoint"
+        );
+        // Sanity: polar midpoint should be clearly saturated (not gray).
+        // Cartesian OKLab on red→cyan typically produces sat ≈ 30-60; polar
+        // should produce sat ≥ 80 (typically 150+).
+        assert!(
+            sat_pol >= 80,
+            "polar red→cyan midpoint {:?} saturation = {sat_pol}, expected ≥ 80",
+            pol[1]
+        );
+    }
+
+    /// Polar variant: when one endpoint is grayscale, polar falls back to
+    /// Cartesian lerp (gray midpoint is the visually correct answer).
+    #[test]
+    fn polar_grayscale_falls_back_to_cartesian() {
+        let cart = gradient_from_stops_oklab(&[(128, 128, 128), (255, 0, 0)], 3);
+        let pol = gradient_from_stops_oklab_polar(&[(128, 128, 128), (255, 0, 0)], 3);
+        // Both should produce identical results when one endpoint is gray.
+        assert_eq!(
+            pol, cart,
+            "polar must match cartesian when one endpoint is grayscale"
+        );
+    }
+
+    /// Polar variant: when both endpoints have the same hue (differ only in
+    /// lightness/saturation), polar and cartesian produce identical results.
+    /// Hue rotation is zero, so the polar math degenerates to cartesian.
+    #[test]
+    fn polar_same_hue_matches_cartesian() {
+        // Two reds with different lightness.
+        let cart = gradient_from_stops_oklab(&[(50, 0, 0), (255, 0, 0)], 3);
+        let pol = gradient_from_stops_oklab_polar(&[(50, 0, 0), (255, 0, 0)], 3);
+        assert_eq!(
+            pol, cart,
+            "polar must match cartesian when both endpoints share a hue"
+        );
+    }
+
+    /// Polar variant diverges from Cartesian on opposing-hue gradients.
+    ///
+    /// This is the headline test: the whole point of the polar variant is to
+    /// produce different (better) midpoints than Cartesian on hue-crossing
+    /// gradients. If they produce identical output, the polar math is broken
+    /// (probably falling through to the Cartesian fallback unconditionally).
+    #[test]
+    fn polar_diverges_from_cartesian_on_opposing_hues() {
+        let cart = gradient_from_stops_oklab(&[(255, 0, 0), (0, 255, 255)], 3);
+        let pol = gradient_from_stops_oklab_polar(&[(255, 0, 0), (0, 255, 255)], 3);
+        // Endpoints identical, midpoint must differ.
+        assert_eq!(cart[0], pol[0]);
+        assert_eq!(cart[2], pol[2]);
+        assert_ne!(
+            cart[1], pol[1],
+            "polar and cartesian must produce different midpoints for red→cyan"
+        );
+    }
+
+    /// `polar_chroma_lerp` unit test: t=0 returns start, t=1 returns end
+    /// (within floating-point precision).
+    #[test]
+    fn polar_chroma_lerp_endpoints() {
+        let (a, b) = polar_chroma_lerp(0.5, 0.3, -0.4, 0.2, 0.0);
+        assert!((a - 0.5).abs() < 1e-5 && (b - 0.3).abs() < 1e-5);
+
+        let (a, b) = polar_chroma_lerp(0.5, 0.3, -0.4, 0.2, 1.0);
+        assert!((a - -0.4).abs() < 1e-5 && (b - 0.2).abs() < 1e-5);
+    }
+
+    /// `polar_chroma_lerp` unit test: midpoint chroma magnitude is the
+    /// average of the endpoint chromas (linear chroma interpolation).
+    #[test]
+    fn polar_chroma_lerp_midpoint_chroma_is_average() {
+        let a0 = 0.6_f32;
+        let b0 = 0.0_f32;
+        let a1 = -0.6_f32;
+        let b1 = 0.0_f32;
+        let c0 = (a0 * a0 + b0 * b0).sqrt();
+        let c1 = (a1 * a1 + b1 * b1).sqrt();
+        let (am, bm) = polar_chroma_lerp(a0, b0, a1, b1, 0.5);
+        let cm = (am * am + bm * bm).sqrt();
+        let expected = (c0 + c1) / 2.0;
+        assert!(
+            (cm - expected).abs() < 1e-5,
+            "midpoint chroma {cm} should be average {expected}"
+        );
+    }
+
+    /// `polar_chroma_lerp` unit test: grayscale endpoint falls back to
+    /// Cartesian lerp (chroma magnitude drops linearly to 0).
+    #[test]
+    fn polar_chroma_lerp_grayscale_falls_back_to_cartesian() {
+        // Start: saturated red (a=0.5, b=0). End: gray (a=0, b=0).
+        let (a, b) = polar_chroma_lerp(0.5, 0.0, 0.0, 0.0, 0.5);
+        // Cartesian would give a=0.25, b=0. Polar fallback should match.
+        assert!((a - 0.25).abs() < 1e-5 && b.abs() < 1e-5);
     }
 }
