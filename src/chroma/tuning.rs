@@ -216,6 +216,37 @@ pub const PALETTE_FLOOR_RATIO: f32 = 0.15;
 /// See `PALETTE_FLOOR_RATIO` for the full Phase 7 rationale.
 pub const ABSOLUTE_MIN_FLOOR: u16 = 30;
 
+/// Phase 7: maximum brightness jump allowed between adjacent palette stops
+/// (post-floor). If stop[i+1] is more than BODY_TAIL_MAX_GAP_RATIO times
+/// brighter than stop[i], stop[i] is scaled up to maintain continuity.
+///
+/// Pre-Phase-7-b: Phase 7's basic floor (PALETTE_FLOOR_RATIO=0.15) made
+/// trails visible but left a large brightness gap between trail (sum ~100)
+/// and body (sum 250-640). At high rain speed (>= 80), this gap becomes
+/// perceptually a hard brightness step — the eye sees two distinct bands
+/// instead of a continuous gradient, creating a horizontal-line illusion
+/// across all columns.
+///
+/// Phase 7-b fixes this by enforcing continuity: iterate head→trail, and
+/// if any adjacent pair has gap > BODY_TAIL_MAX_GAP_RATIO, scale up the
+/// darker stop to gap = BODY_TAIL_MAX_GAP_RATIO. Hue is preserved (RGB
+/// ratio scaling, same as the basic floor).
+///
+/// `2.5` = trail must be at least 40% as bright as the next-brighter stop.
+/// Empirically verified across all 43 built-in themes — eliminates the
+/// horizontal-line illusion at speed 100 while preserving head→body→trail
+/// hierarchy (head still 2-3x brighter than trail after continuity).
+///
+/// Lower values (1.5-2.0) compress the dynamic range too aggressively —
+/// trails become as bright as body, losing the cinematic trail-fade effect.
+/// Higher values (3.0-4.0) leave visible gaps that re-introduce the
+/// horizontal-line illusion at high speed.
+///
+/// This is applied AFTER the basic floor and BEFORE quantization. The
+/// GLOBAL_MAX_FLOOR cap (180) still applies — continuity cannot push a
+/// trail stop above 180.
+pub const BODY_TAIL_MAX_GAP_RATIO: f32 = 2.5;
+
 /// Phase 7: maximum brightness floor. The derived floor is never higher
 /// than this, even for palettes with extremely bright heads.
 ///
