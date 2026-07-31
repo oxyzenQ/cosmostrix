@@ -996,8 +996,28 @@ impl Cloud {
         // benchmark mode (no clicks at all). Avoids the 64-element pool
         // scan + palette color decode + per-particle Instant math.
         if self.quantum_active_count == 0 {
+            // Keep the timestamp fresh so the first frame after a click
+            // doesn't compute a huge dt (which would otherwise be clamped
+            // to 1/30 sec, causing a tiny position jump on spawn).
+            self.last_quantum_update_time = now;
             return;
         }
+
+        // Frame-rate-independent motion: use the ACTUAL delta time since
+        // the last update, not a hardcoded 1/60 sec factor. This fixes
+        // the v30 bug where ripples felt fast on fresh run (≈60 FPS) but
+        // slow after long-running sessions (FPS dropped to 30-40, but
+        // particle motion was still scaled by 1/60 — so particles died
+        // at age 0.8s having traveled only half the intended distance).
+        //
+        // Clamp to 1/30 sec to prevent teleport after pause/resume or
+        // window focus loss. Even at 30 FPS the motion is correct; below
+        // 30 FPS particles slow down gracefully (better than teleporting).
+        let dt = now
+            .saturating_duration_since(self.last_quantum_update_time)
+            .as_secs_f32()
+            .min(1.0 / 30.0);
+        self.last_quantum_update_time = now;
 
         let cols = self.cols;
         let lines = self.lines;
@@ -1014,8 +1034,13 @@ impl Cloud {
                 deactivated += 1;
                 continue;
             }
-            p.x += p.vx * (1.0 / 60.0);
-            p.y += p.vy * (1.0 / 60.0);
+            // Use the real frame dt (clamped above) so motion stays
+            // consistent regardless of frame rate. At 60 FPS this matches
+            // the old `1/60` behavior exactly; at 30 FPS particles now
+            // travel twice as far per frame, preserving the intended
+            // visual speed across the full 0.8s lifespan.
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
 
             let life_frac = age / QUANTUM_RIPPLE_LIFETIME_SECS;
             let fade = 1.0 - life_frac;

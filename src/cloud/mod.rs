@@ -232,6 +232,10 @@ pub struct Cloud {
     pub(super) phosphor_fresh: BitVec,
     pub(super) phosphor_in_active: BitVec,
     pub(super) last_phosphor_time: Instant,
+    /// Last `apply_quantum_ripple` timestamp — drives frame-rate-independent
+    /// particle motion (fixes v30 "ripples slow down over time" bug).
+    /// See `apply_quantum_ripple` doc in `cloud/rain.rs` for full rationale.
+    pub(super) last_quantum_update_time: Instant,
     pub(super) phosphor_active: SmallVec<[usize; 256]>,
     pub(super) phosphor_last_fresh: SmallVec<[usize; 256]>,
 
@@ -391,6 +395,7 @@ impl Cloud {
             phosphor_active: SmallVec::new(),
             phosphor_last_fresh: SmallVec::new(),
             last_phosphor_time: now,
+            last_quantum_update_time: now,
             anomaly_zones: Vec::new(),
             profile: BehaviorProfile::Monolith,
             profile_current: BehaviorProfile::Monolith.params(),
@@ -619,6 +624,7 @@ impl Cloud {
                     }
                 }
                 self.last_phosphor_time += elapsed;
+                self.last_quantum_update_time += elapsed;
                 self.last_glitch_time += elapsed;
                 self.next_glitch_time += elapsed;
                 self.last_reseed_time += elapsed;
