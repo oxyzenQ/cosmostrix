@@ -109,6 +109,29 @@ pub(crate) static TRAIL_EXP_LUT: std::sync::LazyLock<[f32; 256]> = std::sync::La
     lut
 });
 
+/// Bayer 4×4 ordered dithering threshold matrix.
+///
+/// Each entry is in {0..=15}. The cell at `(line, col)` reads
+/// `BAYER_4X4[line & 3][col & 3]`, divides by 16, and compares against the
+/// fractional part of the continuous color value to decide whether to round
+/// up or down. The matrix is laid out so the spatial average of the
+/// up/down decisions equals undithered rounding — no brightness shift,
+/// just banding broken into fine-grain texture.
+///
+/// Phase 3-B (Chroma Dragon Innovation B): eliminates visible banding on
+/// long shading-distance droplets where many cells would otherwise share
+/// the same `color_idx`.
+const BAYER_4X4: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+
+/// Read the Bayer 4×4 threshold for a cell at `(line, col)`.
+/// Returns a value in `{0..=15}`. Indexed by `line mod 4` and `col mod 4`
+/// so the pattern tiles every 4×4 block.
+#[inline]
+fn bayer_threshold(line: u16, col: u16) -> u8 {
+    // Bitwise AND with 3 is equivalent to % 4 but avoids the division.
+    BAYER_4X4[(line as usize) & 3][(col as usize) & 3]
+}
+
 /// During a color transition, returns whether a cell at `(line, col)` should
 /// use its birth (previous) palette rather than the new (active) palette.
 /// Rows below the wave line use the old palette; rows above use the new.
@@ -203,7 +226,29 @@ pub fn resolve_cell_color(
         // OPTIMIZED: use precomputed LUT instead of exp() per cell
         let lut_idx = (normalized_dist * 255.0) as usize;
         let brightness = TRAIL_EXP_LUT[lut_idx.min(255)];
-        let mut v = ((brightness * last as f32).round() as u64).min(last);
+        let v_continuous = brightness * last as f32;
+
+        // Phase 3-B (Chroma Dragon Innovation B): Bayer 4×4 ordered dithering.
+        //
+        // Rounding `v_continuous` to the nearest integer produces visible
+        // banding — long droplets where many cells share the same distance
+        // bucket all land on the same `color_idx`, so the trail shows hard
+        // stair-steps instead of a smooth gradient. Bayer dithering splits
+        // the rounding decision per-cell using a 4×4 threshold matrix:
+        // neighboring cells alternate between adjacent palette stops, and
+        // the eye perceives an intermediate color.
+        //
+        // The matrix is laid out so the spatial average of up/down decisions
+        // equals undithered rounding — no brightness shift, just banding
+        // broken into fine-grain texture. Threshold ∈ {0..15}/16, indexed
+        // by (line mod 4, col mod 4) so the pattern tiles seamlessly.
+        let bayer_t = bayer_threshold(line, col) as f32 / 16.0;
+        let frac = v_continuous - v_continuous.floor();
+        let mut v = if frac > bayer_t {
+            (v_continuous.floor() as u64 + 1).min(last)
+        } else {
+            v_continuous.floor() as u64
+        };
 
         // Bloom: cells right behind head get extra brightness
         if dist < HEAD_BLOOM_CELLS as f64 {
@@ -272,4 +317,124 @@ pub fn resolve_cell_color(
     };
 
     (fg, bold)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Bayer matrix tiles every 4×4 block — same (line, col) mod 4 returns
+    /// the same threshold.
+    #[test]
+    fn bayer_threshold_tiles_4x4() {
+        for line in 0..16u16 {
+            for col in 0..16u16 {
+                let a = bayer_threshold(line, col);
+                let b = bayer_threshold(line + 4, col + 4);
+                assert_eq!(a, b, "Bayer threshold must tile every 4×4 block");
+            }
+        }
+    }
+
+    /// Bayer matrix is a permutation of {0..=15} — every threshold appears
+    /// exactly once per 4×4 tile. This is what makes the spatial average
+    /// equal undithered rounding.
+    #[test]
+    fn bayer_matrix_is_permutation_of_0_to_15() {
+        let mut seen = [false; 16];
+        for row in &BAYER_4X4 {
+            for &v in row {
+                let v = v as usize;
+                assert!(v < 16, "Bayer entry out of range: {v}");
+                assert!(!seen[v], "Bayer entry {v} appears more than once");
+                seen[v] = true;
+            }
+        }
+        assert!(seen.iter().all(|&s| s), "Not all thresholds 0..=15 present");
+    }
+
+    /// Bayer dithering preserves the spatial average: averaging the
+    /// up/down decision across a full 4×4 tile equals undithered rounding
+    /// of `v_continuous + 0.5/16` (a tiny bias from the threshold layout).
+    /// In practice this means no brightness shift — just banding broken
+    /// into fine texture.
+    #[test]
+    fn bayer_dither_preserves_spatial_average() {
+        // Pick a continuous value whose fractional part is exactly 0.5 —
+        // the worst case for rounding bias.
+        let v_continuous = 4.5_f32;
+        let frac = v_continuous - v_continuous.floor();
+        assert!((frac - 0.5).abs() < 1e-6);
+
+        // For each of the 16 cells in a 4×4 tile, compute the dithered v.
+        let mut sum: u64 = 0;
+        for line in 0..4u16 {
+            for col in 0..4u16 {
+                let bayer_t = bayer_threshold(line, col) as f32 / 16.0;
+                let v = if frac > bayer_t {
+                    v_continuous.floor() as u64 + 1
+                } else {
+                    v_continuous.floor() as u64
+                };
+                sum += v;
+            }
+        }
+        // Average should be ~4.5 (between 4 and 5). With 16 cells and
+        // thresholds {0..15}/16, exactly 8 cells round up (frac > t when
+        // t ∈ {0..7}/16) and 8 round down. So sum = 8*4 + 8*5 = 72,
+        // average = 4.5 — exactly the continuous value.
+        assert_eq!(sum, 72, "16-cell sum should be 8*4 + 8*5 = 72");
+        let avg = sum as f32 / 16.0;
+        assert!(
+            (avg - v_continuous).abs() < 1e-6,
+            "Spatial average {avg} should equal continuous value {v_continuous}"
+        );
+    }
+
+    /// Bayer dithering rounds down to floor when frac=0 (no fractional part).
+    #[test]
+    fn bayer_dither_rounds_down_at_zero_frac() {
+        let v_continuous = 4.0_f32; // no fractional part
+        let frac = v_continuous - v_continuous.floor();
+        assert!(frac < 1e-6);
+        for line in 0..4u16 {
+            for col in 0..4u16 {
+                let bayer_t = bayer_threshold(line, col) as f32 / 16.0;
+                let v = if frac > bayer_t {
+                    v_continuous.floor() as u64 + 1
+                } else {
+                    v_continuous.floor() as u64
+                };
+                assert_eq!(v, 4, "Zero frac should always round down");
+            }
+        }
+    }
+
+    /// Bayer dithering rounds up to ceil when frac ≥ 15/16 (nearly 1.0).
+    #[test]
+    fn bayer_dither_rounds_up_at_near_one_frac() {
+        let v_continuous = 4.9375_f32; // frac = 15/16
+        let frac = v_continuous - v_continuous.floor();
+        // 15/16 = 0.9375; only the threshold 15/16 itself fails (frac > t
+        // is false when frac == t). So 15 of 16 cells round up.
+        let mut ups = 0;
+        let mut downs = 0;
+        for line in 0..4u16 {
+            for col in 0..4u16 {
+                let bayer_t = bayer_threshold(line, col) as f32 / 16.0;
+                let v = if frac > bayer_t {
+                    v_continuous.floor() as u64 + 1
+                } else {
+                    v_continuous.floor() as u64
+                };
+                if v == 5 {
+                    ups += 1;
+                } else {
+                    downs += 1;
+                }
+            }
+        }
+        assert_eq!(ups, 15, "frac=15/16 should round up in 15 of 16 cells");
+        assert_eq!(downs, 1, "frac=15/16 should round down in 1 of 16 cells");
+    }
 }
