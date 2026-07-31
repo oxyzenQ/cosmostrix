@@ -26,7 +26,7 @@ use super::super::atmospheric_events::{AtmosphericEvent, EventCtx};
 // Fix: halfwidth Katakana (U+FF66-U+FF9D, EAW=Halfwidth, width=1).
 // Preserves the "kanji ghost" aesthetic while satisfying the 1-char-1-cell
 // invariant enforced by sanitize_message_text / charset_custom / build_chars.
-const GHOST_CHARS: &[char] = &['ｱ', 'ｲ', 'ｳ', 'ｴ', 'ｵ', 'ｶ', 'ｷ', 'ｸ', 'ｹ', 'ｺ'];
+pub(crate) const GHOST_CHARS: &[char] = &['ｱ', 'ｲ', 'ｳ', 'ｴ', 'ｵ', 'ｶ', 'ｷ', 'ｸ', 'ｹ', 'ｺ'];
 const GHOST_FADE_IN_FRAC: f32 = 0.2;
 const GHOST_FADE_OUT_FRAC: f32 = 0.3;
 

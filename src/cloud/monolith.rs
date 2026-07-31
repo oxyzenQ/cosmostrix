@@ -236,6 +236,23 @@ impl MonolithRain {
         }
     }
 
+    /// v30.2 §H10: shift `last_time` of every active stream forward by the
+    /// pause duration so the first post-resume frame computes a small dt
+    /// (not the full pause duration). Previously this was "safe by accident"
+    /// because `resume_blend ≈ 0` on the first frame zeroed the motion
+    /// delta — but if a callsite ever computes a non-trivial dt before
+    /// `resume_blend` ramps up, streams would teleport. Explicit shift
+    /// removes that reliance.
+    pub(super) fn shift_active_streams_last_time(&mut self, elapsed: std::time::Duration) {
+        for stream in &mut self.streams {
+            if stream.active {
+                if let Some(t) = stream.last_time.as_mut() {
+                    *t += elapsed;
+                }
+            }
+        }
+    }
+
     pub(super) fn clear_draw_history(&mut self) {
         self.previous_cells.clear();
         self.current_cells.clear();

@@ -264,6 +264,20 @@ impl Frame {
 
     #[inline]
     pub fn set(&mut self, x: u16, y: u16, cell: Cell) {
+        // Bug #11 regression guard: every char written to the frame buffer
+        // MUST have unicode_width::width() == Some(1). Wide chars (CJK
+        // fullwidth, emoji) advance the terminal cursor by 2 columns while
+        // the renderer tracks only 1, desyncing every subsequent cell in
+        // the row. Compiles out in release builds (zero runtime cost).
+        #[cfg(debug_assertions)]
+        {
+            use unicode_width::UnicodeWidthChar;
+            debug_assert!(
+                UnicodeWidthChar::width(cell.ch) == Some(1),
+                "Frame::set received width!=1 char {:?} (U+{:04X}) at ({}, {}) — Bug #11 regression",
+                cell.ch, cell.ch as u32, x, y
+            );
+        }
         if let Some(i) = self.index(x, y) {
             // P3 cosmic dragon egg: direct indexing instead of .get().copied() == Some().
             // The index() call above already bounds-checked i. Using direct
@@ -307,6 +321,16 @@ impl Frame {
     /// in the monolith render hot path.
     #[inline]
     pub fn set_force(&mut self, x: u16, y: u16, cell: Cell) {
+        // Bug #11 regression guard — see set() above.
+        #[cfg(debug_assertions)]
+        {
+            use unicode_width::UnicodeWidthChar;
+            debug_assert!(
+                UnicodeWidthChar::width(cell.ch) == Some(1),
+                "Frame::set_force received width!=1 char {:?} (U+{:04X}) at ({}, {}) — Bug #11 regression",
+                cell.ch, cell.ch as u32, x, y
+            );
+        }
         if let Some(i) = self.index(x, y) {
             // Cosmic Dragon egg #1: direct indexing — index() already bounds-checked.
             self.cells[i] = cell;

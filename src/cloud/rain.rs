@@ -129,17 +129,20 @@ impl Cloud {
             let t = now.saturating_duration_since(rs).as_secs_f32();
             let normalized = (t / RESUME_EASE_DURATION_SECS).min(1.0);
             // Smootherstep (C2 continuous): 6t⁵ - 15t⁴ + 10t³.
-            // Zero velocity AND zero acceleration at start/end.
             let smoother = normalized
                 * normalized
                 * normalized
                 * (normalized * (normalized * 6.0 - 15.0) + 10.0);
             // v30.1 §8.4: interpolate from resume_blend_start → 1.0 rather
-            // than always 0 → 1.0. Lets aborted-deceleration resumes start
-            // from the actual current value (e.g. 0.4) instead of snapping
-            // down to 0 — eliminates velocity discontinuity.
+            // than always 0 → 1.0 (lets aborted-decel resumes start at 0.4).
             let start = self.resume_blend_start;
-            self.resume_blend = start + (1.0 - start) * smoother;
+            // v30.2: floor at 0.05 so droplets keep crawling during the
+            // smootherstep's flat-start window. Without this, the first
+            // ~135ms of resume has resume_blend < 0.16 — droplets frozen,
+            // then "loncat" (row-pop) asynchronously when the curve kicks
+            // in. The 0.05 floor keeps motion continuous through the slow
+            // phase, eliminating the perceived stutter.
+            self.resume_blend = (start + (1.0 - start) * smoother).max(0.05);
             if normalized >= 1.0 {
                 self.resume_blend = 1.0;
                 self.resume_start = None;
@@ -652,9 +655,14 @@ impl Cloud {
         // the same rate as the rain wakes up. Without this, phosphor trails
         // vanish at full speed while droplets move in slow motion — creating
         // temporal inconsistency that feels "spiky" during resume.
+        // v30.2: clamp dt to 1/30 sec (matches droplet/quantum/spawn caps).
+        // Without this, a frame timing spike (GC pause, OS stall) could
+        // make phosphor decay up to 3x faster than droplets move in the
+        // same frame — visible as a "brightness dip" on trails.
         let phosphor_elapsed = now
             .saturating_duration_since(self.last_phosphor_time)
             .as_secs_f32()
+            .min(1.0 / 30.0)
             * self.resume_blend;
         self.last_phosphor_time = now;
 

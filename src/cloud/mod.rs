@@ -16,7 +16,7 @@
 
 mod atmospheric_events;
 mod ecosystem;
-mod events;
+pub(crate) mod events;
 mod living_rain;
 mod monolith;
 mod monolith_glyphs;
@@ -72,11 +72,9 @@ pub(super) struct QuantumParticle {
     pub vy: f32,
     pub birth: Instant,
     pub ch: char,
-    /// Snapshot of the palette body color (decoded RGB) at spawn time.
-    /// Stored per-particle (instead of re-decoding every frame) so a
-    /// palette switch mid-flight produces a natural crossfade: the old
-    /// cohort keeps its body color while new particles spawn with the
-    /// new body color, and the two cohorts fade out independently.
+    /// Snapshot of palette body color (decoded RGB) at spawn time. Stored
+    /// per-particle so a palette switch mid-flight produces a crossfade:
+    /// old cohort keeps its body color, new particles use the new one.
     /// Defaults to `QUANTUM_BRAND_PURPLE_*` for inactive pool entries.
     pub r: u8,
     pub g: u8,
@@ -580,8 +578,7 @@ impl Cloud {
 
     pub fn toggle_pause(&mut self) -> bool {
         // BRANCH 1: mid-deceleration → abort & resume. Capture current
-        // resume_blend as ramp start so the curve interpolates e.g.
-        // 0.4 → 1.0 instead of snapping to 0 (audit §8.4).
+        // resume_blend as ramp start (audit §8.4 — interpolate 0.4→1.0).
         if self.pause_start.is_some() {
             self.pause_start = None;
             self.pause = false;
@@ -592,8 +589,7 @@ impl Cloud {
             return true;
         }
         // BRANCH 2: fully paused → unpause. Shift every last_*_time
-        // forward by pause duration so simulation continues seamlessly.
-        // Also shift visual-subsystem timestamps (audit §8.5).
+        // forward by pause duration + visual-subsystem timestamps (§8.5).
         if self.pause {
             self.pause = false;
             if let Some(pt) = self.pause_time.take() {
@@ -605,9 +601,17 @@ impl Cloud {
                     if d.is_alive {
                         d.increment_time(elapsed);
                         d.last_time = Some(now);
-                        d.advance_remainder = 0.0;
+                        // v30.2: randomize advance_remainder on resume (was 0).
+                        // Wiping to 0 made all droplets cross the 1.0 row
+                        // threshold in lockstep → asynchronous "loncat" pops
+                        // during slow resume. Random jitter spreads the pops,
+                        // matching apply_phase_jitter's per-droplet phase.
+                        d.advance_remainder = self.rand_chance.sample(&mut self.mt);
                     }
                 }
+                // v30.2 §H10: shift monolith streams' last_time forward by
+                // pause duration (was "safe by accident" via resume_blend=0).
+                self.monolith_rain.shift_active_streams_last_time(elapsed);
                 self.last_phosphor_time += elapsed;
                 self.last_quantum_update_time += elapsed;
                 self.last_glitch_time += elapsed;
@@ -630,7 +634,7 @@ impl Cloud {
                     *ct += elapsed;
                 }
                 // §8.5: shift visual-subsystem timestamps so they don't
-                // skip ahead on resume (typewriter dump / glyph ramp / flash).
+                // skip ahead on resume.
                 if let Some(ref mut mt) = self.message_start_time {
                     *mt += elapsed;
                 }
@@ -649,8 +653,7 @@ impl Cloud {
             }
         } else {
             // BRANCH 3: running → start deceleration. Clear stale
-            // resume_start so rapid triple-tap doesn't leave both
-            // pause_start AND resume_start set (audit §8.3).
+            // resume_start (audit §8.3 — rapid triple-tap state hygiene).
             self.pause_start = Some(Instant::now());
             self.resume_start = None;
             true
@@ -850,24 +853,22 @@ impl Cloud {
             usize::MAX
         };
 
-        // v25 progressive border: border cells are revealed clockwise,
-        // LAGGING behind the text reveal for a cinematic experience.
+        // v25 progressive border: border cells revealed clockwise,
+        // lagging behind text reveal (cinematic effect).
         let text_progress = if total_text > 0 {
             reveal_count as f32 / total_text as f32
         } else {
             1.0
         };
-        // Border progress = text_progress ^ 1.5 (ease-out curve): border
-        // starts slowly, catches up as text nears completion. Creates a
-        // deliberate, drawn-out border reveal.
+        // Border progress = text_progress ^ 1.5 (ease-out).
         let border_progress = text_progress.powf(1.5);
         let border_show = (border_progress * total_border as f32).floor() as usize;
 
-        // Build clockwise-ordered list of border cell indices.
-        // Order: top-left → top → top-right → right → bottom-right → bottom → bottom-left → left.
+        // Build clockwise-ordered list of border cell indices: top-left → top →
+        // top-right → right → bottom-right → bottom → bottom-left → left.
         let border_order = build_border_order(&self.message);
 
-        // Create a set of border indices that should be visible.
+        // Visible border set.
         let mut visible_border: std::collections::HashSet<usize> = std::collections::HashSet::new();
         for &idx in border_order.iter().take(border_show) {
             visible_border.insert(idx);
@@ -937,10 +938,8 @@ fn is_border_char(ch: char) -> bool {
     )
 }
 
-/// Build a clockwise-ordered list of border cell indices from the message.
-/// Order: top-left corner → top edge → top-right → right edge →
-///        bottom-right → bottom edge → bottom-left → left edge.
-/// Non-border and blank cells are excluded.
+/// Build clockwise-ordered list of border cell indices: top-left → top →
+/// top-right → right → bottom-right → bottom → bottom-left → left.
 fn build_border_order(message: &[MsgChr]) -> Vec<usize> {
     if message.is_empty() {
         return Vec::new();
@@ -964,7 +963,7 @@ fn build_border_order(message: &[MsgChr]) -> Vec<usize> {
 
     // Collect border cells in clockwise order.
     let mut order: Vec<usize> = Vec::new();
-    // 1. Top edge: left to right (includes corners)
+    // 1. Top edge: left→right (includes corners)
     for col in min_col..=max_col {
         for (idx, mc) in message.iter().enumerate() {
             if mc.line == min_line && mc.col == col && is_border_char(mc.val) && mc.val != ' ' {
@@ -980,7 +979,7 @@ fn build_border_order(message: &[MsgChr]) -> Vec<usize> {
             }
         }
     }
-    // 3. Bottom edge: left to right (includes corners)
+    // 3. Bottom edge: left→right (includes corners)
     for col in min_col..=max_col {
         for (idx, mc) in message.iter().enumerate() {
             if mc.line == max_line && mc.col == col && is_border_char(mc.val) && mc.val != ' ' {

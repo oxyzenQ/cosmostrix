@@ -162,6 +162,8 @@ mod usagestat;
 mod ux;
 mod validation;
 mod verbose;
+#[cfg(test)]
+mod width_guard_tests;
 
 use clap::{CommandFactory, FromArgMatches};
 

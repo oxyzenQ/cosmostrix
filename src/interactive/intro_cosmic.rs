@@ -47,7 +47,7 @@ const PHASE4_RAIN_END_MS: u64 = 5_000;
 
 /// Burst particle characters — varied glyphs so the explosion looks like
 /// cosmic debris rather than a uniform dotted cloud.
-const BURST_CHARS: [char; 6] = ['*', '+', '#', '%', '&', '@'];
+pub(crate) const BURST_CHARS: [char; 6] = ['*', '+', '#', '%', '&', '@'];
 
 /// Cosmic color stops (RGB). Sampled by per-particle random index — the
 /// burst alternates gold (energy), purple (brand), and cyan (plasma).

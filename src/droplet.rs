@@ -326,11 +326,14 @@ impl Droplet {
         };
 
         let elapsed = now.saturating_duration_since(last);
-        let elapsed_sec = elapsed.as_secs_f32();
-        // Apply resume time-scale: the simulation clock runs in slow motion
+        // v30.2: defense-in-depth clamp — the caller (rain.rs:281-294) already
+        // clamps via max_sim_delta, but if max_sim_delta is ever disabled or
+        // a future callsite bypasses it, this prevents position teleport on
+        // frame timing spikes (GC pause, OS stall).
+        let elapsed_sec = elapsed.as_secs_f32().min(1.0 / 30.0);
+        // Apply resume time-scale: simulation clock runs in slow motion
         // during the smoothstep transition. Gravity, turbulence, and position
-        // all advance at the scaled rate, producing genuine inertia recovery
-        // rather than a frozen-then-unfrozen snap.
+        // all advance at the scaled rate.
         let effective_sec = elapsed_sec * time_scale;
 
         // Apply gravity: accelerate toward terminal velocity.
