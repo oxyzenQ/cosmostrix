@@ -92,6 +92,18 @@ pub struct ShaderCtx<'a> {
     pub glitch_dim: bool,
 
     pub color_mode: ColorMode,
+
+    /// Phase 3-C (Chroma Dragon Innovation C): temporal column hue coherence.
+    ///
+    /// `Some(phase)` enables a slow per-column hue drift: neighboring columns
+    /// get similar color_idx perturbations (low spatial frequency), and the
+    /// perturbation oscillates slowly over time (low temporal frequency).
+    /// The result is that watching a single column, the colors shimmer
+    /// smoothly through the palette instead of jumping per-cell.
+    ///
+    /// `None` disables the effect (current production default — wiring this
+    /// through `DrawCtx` and `rain.rs` is a future commit).
+    pub column_coherence_phase: Option<f32>,
 }
 
 /// Precomputed exponential decay lookup table for trail brightness.
@@ -130,6 +142,25 @@ const BAYER_4X4: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [
 fn bayer_threshold(line: u16, col: u16) -> u8 {
     // Bitwise AND with 3 is equivalent to % 4 but avoids the division.
     BAYER_4X4[(line as usize) & 3][(col as usize) & 3]
+}
+
+/// Phase 3-C: compute the per-cell column-coherence hue perturbation.
+///
+/// Returns an integer offset in `{-1, 0, +1}` that nudges the cell's
+/// `color_idx` based on its column position and the current time phase.
+/// Neighboring columns get similar offsets (low spatial frequency:
+/// 0.05 rad/col → period ~125 columns), and the offset drifts slowly
+/// over time (caller advances `phase` by a small amount per frame).
+///
+/// Amplitude is ±0.5 before rounding, so the offset is 0 most of the
+/// time and ±1 near the peaks of the sine. This produces a gentle
+/// "shimmer" rather than a strong hue shift.
+#[inline]
+fn column_coherence_perturbation(phase: f32, col: u16) -> i32 {
+    // Spatial frequency: 0.05 rad/col → period ~125 cols
+    let spatial = (col as f32) * 0.05;
+    // Amplitude: ±0.5 → rounds to {-1, 0, +1}
+    ((phase + spatial).sin() * 0.5_f32).round() as i32
 }
 
 /// During a color transition, returns whether a cell at `(line, col)` should
@@ -301,6 +332,26 @@ pub fn resolve_cell_color(
         }
         CharLoc::Middle => {
             color_idx = color_idx.clamp(0, last.max(0));
+            // Phase 3-C (Chroma Dragon Innovation C): temporal column hue
+            // coherence. For body cells (not Head/Tail — those need to stay
+            // anchored to their stop), apply a slow per-column hue drift
+            // driven by the time phase. Disabled when column_coherence_phase
+            // is None (current production default).
+            //
+            // Effect: neighboring columns get similar perturbations, and the
+            // perturbation oscillates slowly over time, so a single column
+            // shimmers smoothly through adjacent palette stops instead of
+            // being locked to one color_idx.
+            //
+            // Not applied under shading_distance: that path already has its
+            // own continuous gradient + Bayer dithering, and stacking a hue
+            // perturbation on top would muddy the brightness-decay signal.
+            if let Some(phase) = shader.column_coherence_phase {
+                if !shader.shading_distance {
+                    let perturbation = column_coherence_perturbation(phase, col);
+                    color_idx = (color_idx + perturbation).clamp(0, last.max(0));
+                }
+            }
         }
     }
 
@@ -436,5 +487,85 @@ mod tests {
         }
         assert_eq!(ups, 15, "frac=15/16 should round up in 15 of 16 cells");
         assert_eq!(downs, 1, "frac=15/16 should round down in 1 of 16 cells");
+    }
+
+    // ── Phase 3-C: column-coherence perturbation ──────────────────────────
+
+    /// Perturbation is always in {-1, 0, +1} — never larger.
+    #[test]
+    fn column_coherence_perturbation_bounded() {
+        for col in 0..256u16 {
+            for phase_deg in 0..360 {
+                let phase = phase_deg as f32 * std::f32::consts::PI / 180.0;
+                let p = column_coherence_perturbation(phase, col);
+                assert!(
+                    (-1..=1).contains(&p),
+                    "perturbation {p} out of [-1, +1] for phase={phase}, col={col}"
+                );
+            }
+        }
+    }
+
+    /// Perturbation at phase=0, col=0 is exactly 0 (sin(0) * 0.5 = 0).
+    #[test]
+    fn column_coherence_perturbation_zero_at_origin() {
+        assert_eq!(column_coherence_perturbation(0.0, 0), 0);
+    }
+
+    /// Perturbation at phase=π/2, col=0 is +1 (sin(π/2) * 0.5 = 0.5, rounds to 1).
+    #[test]
+    fn column_coherence_perturbation_peaks_at_plus_one() {
+        let phase = std::f32::consts::FRAC_PI_2;
+        // f32::round rounds half away from zero, so 0.5 → 1.
+        assert_eq!(column_coherence_perturbation(phase, 0), 1);
+    }
+
+    /// Perturbation at phase=3π/2, col=0 is -1 (sin(3π/2) * 0.5 = -0.5, rounds to -1).
+    #[test]
+    fn column_coherence_perturbation_troughs_at_minus_one() {
+        let phase = 3.0 * std::f32::consts::FRAC_PI_2;
+        assert_eq!(column_coherence_perturbation(phase, 0), -1);
+    }
+
+    /// Spatial coherence: adjacent columns get similar perturbations.
+    /// The spatial frequency is 0.05 rad/col, so the perturbation difference
+    /// between col=N and col=N+1 is bounded by `sin(N+1) - sin(N)` ≤ 0.05.
+    /// After rounding, this means neighboring columns usually share the
+    /// same perturbation, and never differ by more than 1.
+    #[test]
+    fn column_coherence_perturbation_spatially_smooth() {
+        let phase = 0.7_f32; // arbitrary nonzero phase
+        for col in 0..512u16 {
+            let a = column_coherence_perturbation(phase, col);
+            let b = column_coherence_perturbation(phase, col + 1);
+            let diff = (a - b).abs();
+            assert!(
+                diff <= 1,
+                "Adjacent cols {col} and {} differ by {diff} (phase={phase})",
+                col + 1
+            );
+        }
+    }
+
+    /// Temporal coherence: at a fixed column, small phase changes produce
+    /// small or zero perturbation changes. This is what makes the effect
+    /// "shimmer" rather than strobe.
+    #[test]
+    fn column_coherence_perturbation_temporally_smooth() {
+        let col = 42u16;
+        let mut prev = column_coherence_perturbation(0.0, col);
+        // Advance phase by 0.1 rad per step (slow temporal freq).
+        for step in 1..100 {
+            let phase = step as f32 * 0.1;
+            let curr = column_coherence_perturbation(phase, col);
+            let diff = (curr - prev).abs();
+            // 0.1 rad phase change → at most sin(0.1) ≈ 0.1 amplitude change
+            // → rounding can flip by at most 1.
+            assert!(
+                diff <= 1,
+                "Temporal step {step} (phase={phase}) changed perturbation by {diff}"
+            );
+            prev = curr;
+        }
     }
 }

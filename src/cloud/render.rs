@@ -205,6 +205,13 @@ impl DrawCtx<'_> {
             glitch_bright: self.glitch_bright,
             glitch_dim: self.glitch_dim,
             color_mode: self.color_mode,
+            // Phase 3-C: column-coherence hue drift is implemented in the
+            // shader but not yet wired through DrawCtx. Hard-coded None
+            // keeps production rendering identical to pre-Phase-3-C behavior.
+            // Plumbing the time phase through DrawCtx + rain.rs is a future
+            // commit (the shader logic and tests land now so the innovation
+            // is reviewable in isolation).
+            column_coherence_phase: None,
         };
         resolve_cell_color(
             &shader,
