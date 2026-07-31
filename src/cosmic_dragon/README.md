@@ -11,17 +11,17 @@ engine untouched while new Cosmic Dragon-era work lands in a clearly-branded hom
 The Cosmic Dragon Diff-Based Rendering Engine is **three files at the
 crate root**, and that is the final answer:
 
-| File              |  LOC | Role                                                                  |
-|-------------------|----:|-----------------------------------------------------------------------|
-| `src/frame.rs`    | 388 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/terminal.rs` | 974 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 64 KiB single-syscall flush |
-| `src/runtime.rs`  |  91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`      |
+| File              |   LOC | Role                                                                  |
+|-------------------|-----:|-----------------------------------------------------------------------|
+| `src/frame.rs`    |  368 | Differential frame buffer with double-buffered generation-based dirty tracking |
+| `src/terminal.rs` | 1,491 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, /dev/tty fallback |
+| `src/runtime.rs`  |   91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`      |
 
-1,453 LOC total. Imported by **54 files** across `src/`. These are not a
-subsystem waiting for a folder — they are the **substrate** every
-rendering path stands on. Foundations do not get relocated; they get
-maintained in place. See `docs/RENDER_ENGINE.md` §0 for the full
-formal statement.
+1,950 LOC total. Imported by **every render-path module** across `src/`.
+These are not a subsystem waiting for a folder — they are the
+**substrate** every rendering path stands on. Foundations do not get
+relocated; they get maintained in place. See `docs/RENDER_ENGINE.md` §0
+for the full formal statement.
 
 ### The lesson is already paid for
 
@@ -100,7 +100,7 @@ The Cosmic Dragon is organized by poetic anatomical function:
 | `voice/`  | CLI / output extensions              | planned       |
 | `scale/`  | Rendering primitive extensions       | planned       |
 | `memory/` | Diagnostics / benchmark extensions   | planned       |
-| `egg/`    | Experimental cosmic-dragon-egg benchmarks   | active        |
+| `egg/`    | Experimental cosmic-dragon-egg benchmarks   | concluded (io_uring rejected; see `egg/io_uring.rs` doc)        |
 
 Subdirectories are created on-demand when the first module for that
 anatomy lands. Empty subdirectories are NOT pre-created to avoid

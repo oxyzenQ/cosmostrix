@@ -50,7 +50,7 @@ Cosmostrix is built on **two cooperating engines** that split the rendering work
 
 ### The Cosmic Dragon Diff-Based Rendering Engine
 
-Lives at the crate root: `src/frame.rs`, `src/terminal.rs`, `src/runtime.rs` (1,453 LOC total, imported by 54 files). Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
+Lives at the crate root: `src/frame.rs` (368 LOC), `src/terminal.rs` (1,491 LOC), `src/runtime.rs` (91 LOC) — 1,950 LOC total, imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
 This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable at 38,000+ FPS.
 
@@ -81,7 +81,7 @@ The renderer is structured as five cooperating subsystems (Cosmic Dragon) plus t
 2. **3-layer parallax** (`src/cloud/spawn.rs`, `src/cloud/rain.rs`; multipliers in `src/constants.rs`) — far / mid / near layers with independent speed, brightness, length, density, and phosphor-decay multipliers. Three layers is the cinema-standard deep/mid/ground composition; more would collapse perceptually in a 24-row terminal.
 3. **Phosphor persistence** (`src/cloud/phosphor.rs`) — CRT afterglow with `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0`, per-layer decay multipliers, bottom-row 3× acceleration, edge energy cap. Creates ~400 ms afterglow per glyph. Most terminal rain renderers have zero afterglow.
 4. **Density noise & wind gusts** (`src/cloud/living_rain.rs`, `src/cloud/monolith.rs`) — Perlin-style density maps for cinematic monolith formations, gust-driven column acceleration for organic motion that never repeats.
-5. **Adaptive atmosphere engine** (`src/cloud/atmospheric_events.rs`) — 5-phase time-driven modulation that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time.
+5. **Adaptive atmosphere engine** (`src/atmosphere_adaptive.rs`) — 5-phase time-driven modulation that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time.
 6. **Chroma Dragon coloring engine** (`src/chroma/`) — the coloring counterpart to the Cosmic Dragon. Owns palette construction, OKLab gradient interpolation, cell-color resolution, transition L+chroma smoothing, atmospheric post-processing, and palette-aware anomaly halos. Locked at Phase 9-B (see About section above).
 
 Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --benchmark` for reproducible performance measurements on your own hardware.
@@ -103,6 +103,7 @@ The Dragon's roar is not loud — it is precise.
 ## Features
 
 - **Cinematic terminal rain** — calm, organic visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
+- **Cosmic Dragon diff-based rendering engine (v30 locked)** — double-buffered generation-based dirty tracking (O(1) `clear_dirty` via single u32 bump, replaces the standard O(N) `Vec<bool>` memset), `semantic_gen` invalidation counter (eliminates stale-glyph residue on charset/theme switches), `/dev/tty` fallback (recovers from broken stdout mid-run — unique among terminal renderers), single-syscall flush via `SYNC_START + ansi_buf + SYNC_END` concatenation, and pre-formatted `ColorCache` SGR bytes (zero `format!()` calls in the hot path). 16 invariant tests in `src/cosmic_dragon_lock_tests.rs` lock the engine's contract on every commit.
 - **Chroma Dragon coloring engine (Phase 9-B locked)** — OKLab gradient interpolation, palette-relative brightness floor (Phase 7-c, replaces v17 global `MIN_RGB_SUM=180`), body-tail continuity (Phase 7-d, 2.0× max gap), perceptual L+chroma smoothing at palette transitions (Phase 5 + Phase 8), head halo via background blend (Phase 4-D), subpixel hue jitter (Phase 4-B), temporal column hue coherence (Phase 4-A), palette-aware anomaly halos (Phase 6), hue-preserving polar gradient variant for future themes (Phase 9-A). 17 invariant tests in `src/chroma/lock_tests.rs` lock the engine's contract on every commit.
 - **13 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith), 8 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, low-power), the `cosmic_dragon` milestone scene commemorating the temporal-prediction breakthrough (dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), and the `carbonic` tribute scene (dense metallic carbon-fiber binary rain honoring the experiment that was reverted for cinematic quality)
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
@@ -551,7 +552,8 @@ See [benchmark/README.md](benchmark/README.md) for full reference results and in
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
-cargo test lock_tests -- --nocapture   # print the Chroma Dragon engine lock report
+cargo test lock_tests -- --nocapture            # print the Chroma Dragon engine lock report
+cargo test cosmic_dragon_lock_tests -- --nocapture  # print the Cosmic Dragon engine lock report
 scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 ```
 

@@ -22,14 +22,14 @@ the crate root**, and that is the end of the discussion.
 
 | File | LOC | Role |
 |------|----:|------|
-| `src/frame.rs` | 388 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/terminal.rs` | 974 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 64 KiB single-syscall flush |
+| `src/frame.rs` | 368 | Differential frame buffer with double-buffered generation-based dirty tracking |
+| `src/terminal.rs` | 1,491 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, /dev/tty fallback |
 | `src/runtime.rs` | 91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode` |
 
-Total: 1,453 LOC. Imported by **54 files** across `src/` (frame: 25
-import lines, terminal: 10, runtime: 34). These are not a subsystem —
-they are the **substrate** every rendering path stands on. Foundations
-do not get relocated; they get maintained.
+Total: 1,950 LOC. Imported by **every render-path module** across `src/`
+(frame: 25 import lines, terminal: 10, runtime: 34). These are not a
+subsystem — they are the **substrate** every rendering path stands on.
+Foundations do not get relocated; they get maintained.
 
 ### Why not a folder?
 
@@ -121,31 +121,32 @@ style tuple are batched into a single SGR + raw-character run.
 
 ```text
 Frame (src/frame.rs)
-├── cells: Vec<Cell>              // current frame content (24 B/cell)
-├── cell_gen: Vec<u32>            // generation stamp per cell
-├── gen: u32                      // current generation counter
+├── cells: Vec<Cell>              // current frame content (16 B/cell)
+├── cell_gen: Vec<u32>            // 4 B/cell — content generation stamp
+├── gen: u32                      // current content generation counter
 ├── semantic_gen: u32             // bumped on charset/theme/shading change
-├── dirty_map: BitVec             // 1 bit per cell, O(1) mark/check
-├── dirty: Vec<usize>             // queue of dirty cell indices
+├── dirty_gen: u32                // dirty generation counter (O(1) clear)
+├── dirty_cell_gen: Vec<u32>      // 4 B/cell — dirty generation stamp
+├── dirty: SmallVec<[usize; 64]> // queue of dirty cell indices (inline 64)
 └── dirty_all: bool               // fast-path flag for full redraw
 
 Terminal (src/terminal.rs)
 ├── last: Option<LastFrame>       // snapshot of last sent frame
-│   ├── cells: Vec<Cell>          // 24 B/cell, mirrors terminal state
+│   ├── cells: Vec<Cell>          // 16 B/cell, mirrors terminal state
 │   ├── semantic_gen: u32         // for invalidation detection
 │   └── width/height: u16         // for resize detection
-├── ansi_buf: Vec<u8>             // 64 KiB cap, single write_all per frame
+├── ansi_buf: Vec<u8>             // 256 KiB cap, single write_all per frame
 ├── dirty_flat: Vec<usize>        // reusable sort buffer
 ├── row_buf: String               // reusable RLE accumulator (full redraw)
 ├── run_buf: String               // reusable RLE accumulator (diff redraw)
 └── color_cache: Option<ColorCache>  // pre-computed SGR bytes per (fg,bg)
 
-Cell (src/cell.rs) — 24 bytes
+Cell (src/cell.rs) — 16 bytes
 ├── ch: char          (4 B)
-├── fg: Option<Color> (5 B, discriminant + Rgb payload)
-├── bg: Option<Color> (5 B)
+├── fg: Option<Color> (4 B — niche-optimized, same size as Color)
+├── bg: Option<Color> (4 B — niche-optimized)
 ├── bold: bool        (1 B)
-└── padding           (9 B, alignment)
+└── padding           (3 B, alignment)
 ```
 
 ### 2.2 Cell equality — the fast path
@@ -159,29 +160,48 @@ pub fn set(&mut self, x: u16, y: u16, cell: Cell) {
     }
     self.cells[i] = cell;
     self.cell_gen[i] = self.gen;
-    self.dirty_map.set(i, true);
-    self.dirty.push(i);
+    // Double-buffered dirty mark — stamp with current dirty_gen.
+    // Skip the push if already stamped this frame (no duplicates).
+    if !self.dirty_all && self.dirty_cell_gen[i] != self.dirty_gen {
+        self.dirty_cell_gen[i] = self.dirty_gen;
+        self.dirty.push(i);
+    }
 }
 ```
 
-`Cell` derives `PartialEq`, so the comparison is a 24-byte field-wise
+`Cell` derives `PartialEq`, so the comparison is a 16-byte field-wise
 compare. The compiler emits a branch-predictable scalar compare; on
 x86-64 this is ~4 cycles per cell. For a 1,920-cell frame, the worst
 case is ~7,680 cycles (~2.5 µs at 3 GHz), negligible against the
 ~16 ms frame budget at 60 FPS.
 
-**Why not SIMD?** The 24-byte Cell layout doesn't fit cleanly into a
-single SSE/AVX lane. Compacting to 16 bytes (pack `Color` to `u32`
-with a high-bit "is_set" flag) would enable `__m128i` compare, but
-the early-exit on the `ch` field (first 4 bytes) means most
-comparisons return on byte 1 anyway. The realistic gain is <10% on
-the hot path, not worth the loss of `Option<Color>` ergonomics.
+**Why not SIMD?** The 16-byte Cell layout fits cleanly into a single
+`__m128i` lane, but the early-exit on the `ch` field (first 4 bytes)
+means most comparisons return on byte 1 anyway. The realistic gain is
+<10% on the hot path, not worth the loss of `Option<Color>` ergonomics.
 
-### 2.3 Dirty tracking — O(1) mark, O(dirty) flush
+### 2.3 Dirty tracking — O(1) clear via generation bump
+
+The dirty system uses **double-buffered generations** instead of a
+per-cell bit array. Two counters track two independent notions:
+
+- `gen` + `cell_gen: Vec<u32>` — *content* generation. A cell is "live"
+  iff `cell_gen[i] == gen`. Bumped by `clear_with_bg` on semantic resets.
+- `dirty_gen` + `dirty_cell_gen: Vec<u32>` — *dirty* generation. A cell
+  is "dirty this frame" iff `dirty_cell_gen[i] == dirty_gen`. Bumped by
+  `clear_dirty` at end of every frame.
+
+The double-buffer trick: instead of memset-clearing a per-cell dirty
+flag array (O(N) every frame), `clear_dirty` does a single `u32` bump.
+All previous dirty stamps become "stale" (don't match the new counter)
+and are instantly "clean" — no memset, no iteration. Cost: one integer
+add. At 200×60=12,000 cells, the old memset was ~150 AVX2 stores; the
+new bump is 1 add.
 
 Each `frame.set()` that actually changes a cell:
-1. Sets the bit in `dirty_map` (BitVec, 1 bit/cell — 240 B for 1,920 cells)
-2. Pushes the cell index onto `dirty: Vec<usize>`
+1. Stamps `dirty_cell_gen[i] = dirty_gen` (4-byte write, O(1))
+2. Pushes the cell index onto `dirty: SmallVec<[usize; 64]>` (if not
+   already stamped this frame — duplicate-skip via the stamp check)
 
 The renderer does **not** scan all cells on `draw()`. It iterates
 `dirty` directly. Worst case `dirty.len() == cells.len()` triggers a
