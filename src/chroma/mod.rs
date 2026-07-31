@@ -28,10 +28,9 @@
 //!
 //! ## Roadmap (later phases, not yet implemented)
 //!
-//! - Phase 3+: OKLab interpolation, ordered dithering, temporal column hue
-//!   coherence, head halo, subpixel hue jitter, luminance-remap for short
-//!   droplets, integrated atmospheric shader, `hue_drift` activation,
-//!   palette-aware ghost color.
+//! - Phase 3+: ordered dithering, temporal column hue coherence, head halo,
+//!   subpixel hue jitter, luminance-remap for short droplets, integrated
+//!   atmospheric shader, `hue_drift` activation, palette-aware ghost color.
 //!
 //! ## Module layout
 //!
@@ -40,10 +39,12 @@
 //! | `palette`    | `src/palette.rs` (moved in Phase 1)      | `Palette` struct, `build_palette`, gradient + blend helpers |
 //! | `catalog`    | `src/central_colors.rs` (moved in Phase 1) | `THEMES` registry, `build_colors`, `ThemeDef`/`ThemeColors` |
 //! | `shaders`    | new in Phase 2                           | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT` |
+//! | `gradient`   | new in Phase 3-A                         | OKLab interpolation, `gradient_from_stops_oklab()` |
 //!
-//! Future phases will add `post/`, `gradient.rs`, `stops.rs`, `ecosystem.rs`
-//! under this namespace.
+//! Future phases will add `post/`, `stops.rs`, `ecosystem.rs` under this
+//! namespace.
 
 pub mod catalog;
+pub mod gradient;
 pub mod palette;
 pub mod shaders;

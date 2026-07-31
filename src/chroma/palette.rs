@@ -225,51 +225,15 @@ fn lerp_u8(a: u8, b: u8, t: f32) -> u8 {
 
 // ── v17 mastery: gamma-correct color interpolation ──────────────────────────
 //
-// Human eyes perceive brightness non-linearly. Linear RGB interpolation
-// (lerp_u8) produces muddy mid-tones and uneven brightness steps — the
-// middle of a black→white gradient looks gray instead of 50% brightness.
+// Historically this file held `srgb_to_linear`, `linear_to_srgb`, and
+// `lerp_u8_gamma` — the gamma-correct sRGB interpolator used by
+// `gradient_from_stops`. In Phase 3-A (Chroma Dragon) the gradient logic
+// moved to `chroma::gradient`, which now defaults to OKLab interpolation
+// (perceptually uniform, no muddy mid-tones on hue crossings). The legacy
+// sRGB-linear path survives as `chroma::gradient::gradient_from_stops_srgb`.
 //
-// Gamma-correct interpolation converts sRGB → linear light, interpolates
-// in linear space, then converts back. This produces perceptually uniform
-// gradients that match how eyes actually see color transitions.
-//
-// Cost: ~5 multiplies + 2 pow() per channel. Called ONLY at palette build
-// time (gradient_from_stops), NOT in the hot render path. Negligible.
-
-/// Convert an sRGB byte (0-255) to linear light (0.0-1.0).
-/// Uses the exact sRGB transfer function (IEC 61966-2-1).
-#[inline]
-fn srgb_to_linear(c: u8) -> f32 {
-    let cs = c as f32 / 255.0;
-    if cs <= 0.04045 {
-        cs / 12.92
-    } else {
-        ((cs + 0.055) / 1.055).powf(2.4)
-    }
-}
-
-/// Convert linear light (0.0-1.0) to an sRGB byte (0-255).
-/// Uses the exact sRGB transfer function (IEC 61966-2-1).
-#[inline]
-fn linear_to_srgb(c: f32) -> u8 {
-    let cs = if c <= 0.0031308 {
-        12.92 * c
-    } else {
-        1.055 * c.powf(1.0 / 2.4) - 0.055
-    };
-    (cs * 255.0).round().clamp(0.0, 255.0) as u8
-}
-
-/// Gamma-correct linear interpolation between two sRGB bytes.
-/// Converts to linear light, interpolates, converts back to sRGB.
-/// Produces perceptually uniform gradients (no muddy mid-tones).
-#[inline]
-fn lerp_u8_gamma(a: u8, b: u8, t: f32) -> u8 {
-    let la = srgb_to_linear(a);
-    let lb = srgb_to_linear(b);
-    let lerped = la + (lb - la) * t;
-    linear_to_srgb(lerped)
-}
+// `gradient_from_stops()` below is now a one-line delegator. The
+// hand-tuned sRGB conversion functions are no longer duplicated here.
 
 /// Blend a color toward white by the given factor (0.0 = no change, 1.0 = pure white).
 /// Works with all color types (Rgb, AnsiValue, Ansi16).
@@ -337,38 +301,20 @@ pub(crate) fn format_color_hex(bg: Option<Color>) -> String {
 }
 
 pub(crate) fn gradient_from_stops(stops: &[(u8, u8, u8)], steps: usize) -> Vec<(u8, u8, u8)> {
-    if steps == 0 || stops.is_empty() {
-        return Vec::new();
-    }
-    if stops.len() == 1 {
-        return vec![stops[0]; steps];
-    }
-    if steps == 1 {
-        return vec![stops[0]];
-    }
-
-    let segs = stops.len().saturating_sub(1);
-    let mut out = Vec::with_capacity(steps);
-    for i in 0..steps {
-        let t = (i as f32) / ((steps - 1) as f32);
-        let pos = t * (segs as f32);
-        let mut seg = pos.floor() as usize;
-        if seg >= segs {
-            seg = segs.saturating_sub(1);
-        }
-        let lt = pos - (seg as f32);
-        let (r0, g0, b0) = stops[seg];
-        let (r1, g1, b1) = stops[seg + 1];
-        // v17 mastery: gamma-correct interpolation for perceptually uniform
-        // gradients. Linear interpolation (lerp_u8) produces muddy mid-tones;
-        // lerp_u8_gamma converts to linear light, interpolates, converts back.
-        out.push((
-            lerp_u8_gamma(r0, r1, lt),
-            lerp_u8_gamma(g0, g1, lt),
-            lerp_u8_gamma(b0, b1, lt),
-        ));
-    }
-    out
+    // Phase 3-A (Chroma Dragon): now delegates to OKLab interpolation by
+    // default. OKLab rotates hue smoothly through the chroma ring and keeps
+    // saturation high at midpoints, eliminating the muddy brown/gray mid-tones
+    // that sRGB-linear interpolation produces on hue-crossing gradients
+    // (red→green, blue→yellow, etc.).
+    //
+    // The legacy sRGB-linear implementation is preserved as
+    // `chroma::gradient::gradient_from_stops_srgb` for any future theme that
+    // explicitly wants the old look.
+    //
+    // Endpoints are preserved exactly (same as before); only intermediate
+    // colors change. Build-time cost is negligible (~12 mul + 3 cbrt per
+    // segment transition, called only at palette build, not in the hot path).
+    super::gradient::gradient_from_stops_oklab(stops, steps)
 }
 
 pub(crate) fn colors_from_stops(
