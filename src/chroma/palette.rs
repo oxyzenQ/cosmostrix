@@ -411,10 +411,10 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
         })
     };
 
-    // v18: All color data lives in central_colors.rs — the single source of
+    // v18: All color data lives in chroma/catalog.rs — the single source of
     // truth. build_colors() returns greyscale [White] if the scheme is not
     // in the registry (graceful degradation when THEMES is empty).
-    let colors: Vec<Color> = crate::central_colors::build_colors(scheme, mode);
+    let colors: Vec<Color> = super::catalog::build_colors(scheme, mode);
 
     if default_background {
         bg = None;

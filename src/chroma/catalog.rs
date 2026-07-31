@@ -35,7 +35,7 @@
 
 use crossterm::style::Color;
 
-use crate::palette::{colors_from_rgb, colors_from_stops, from_ansi_list};
+use super::palette::{colors_from_rgb, colors_from_stops, from_ansi_list};
 use crate::runtime::{ColorMode, ColorScheme};
 
 /// A single theme definition. Add entries to `THEMES` to register new themes.

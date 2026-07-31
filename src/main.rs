@@ -83,9 +83,13 @@ mod bench_scale;
 mod bench_visual;
 mod branding;
 mod cell;
-mod central_colors;
 mod charset;
 mod charset_custom;
+// Chroma Dragon coloring engine — Phase 1: relocated palette + catalog here.
+// Re-exports below keep the old `crate::palette::…` paths working unchanged.
+mod chroma;
+pub use chroma::catalog;
+pub use chroma::palette;
 mod cinematic;
 mod cli;
 mod cli_parse;
@@ -131,7 +135,7 @@ mod live_config_poll;
 mod loc_tests;
 mod memstat;
 mod output;
-mod palette;
+// `palette` now lives at `src/chroma/palette.rs`; re-exported above.
 mod profile;
 mod rain_style;
 mod renderer_info;
