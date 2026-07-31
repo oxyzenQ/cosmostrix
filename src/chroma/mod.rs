@@ -8,17 +8,26 @@
 //! loop and droplet simulation, the Chroma Dragon owns every decision about
 //! *what color a cell becomes*.
 //!
-//! ## Phase 1 (this commit) — Foundation
+//! ## Phase 1 — Foundation
 //!
-//! Phase 1 is a pure relocation: `src/palette.rs` → `chroma/palette.rs` and
+//! Phase 1 was a pure relocation: `src/palette.rs` → `chroma/palette.rs` and
 //! `src/central_colors.rs` → `chroma/catalog.rs`. Zero behavior change. The
 //! crate root re-exports both modules (`pub use chroma::palette;` and
 //! `pub use chroma::catalog;`) so every existing `use crate::palette::…` and
 //! `use crate::central_colors::…` call site continues to resolve unchanged.
 //!
+//! ## Phase 2 — Shader extraction
+//!
+//! Phase 2 extracts the cell-color decision logic out of
+//! `cloud::render::DrawCtx::get_attr()` into a pure function
+//! `chroma::shaders::base::resolve_cell_color()`. The `CharLoc` enum and
+//! `TRAIL_EXP_LUT` static move with it. `DrawCtx::get_attr()` becomes a
+//! thin wrapper that constructs a `ShaderCtx` borrow view and delegates.
+//! Zero behavior change — the body is identical, only the receiver type
+//! changed.
+//!
 //! ## Roadmap (later phases, not yet implemented)
 //!
-//! - Phase 2: Extract `get_attr()` color logic into `chroma/shaders/`.
 //! - Phase 3+: OKLab interpolation, ordered dithering, temporal column hue
 //!   coherence, head halo, subpixel hue jitter, luminance-remap for short
 //!   droplets, integrated atmospheric shader, `hue_drift` activation,
@@ -26,13 +35,15 @@
 //!
 //! ## Module layout
 //!
-//! | Module       | Origin                        | Concern                          |
-//! |--------------|-------------------------------|----------------------------------|
-//! | `palette`    | `src/palette.rs` (moved)      | `Palette` struct, `build_palette`, gradient + blend helpers |
-//! | `catalog`    | `src/central_colors.rs` (moved) | `THEMES` registry, `build_colors`, `ThemeDef`/`ThemeColors` |
+//! | Module       | Origin                                   | Concern                          |
+//! |--------------|------------------------------------------|----------------------------------|
+//! | `palette`    | `src/palette.rs` (moved in Phase 1)      | `Palette` struct, `build_palette`, gradient + blend helpers |
+//! | `catalog`    | `src/central_colors.rs` (moved in Phase 1) | `THEMES` registry, `build_colors`, `ThemeDef`/`ThemeColors` |
+//! | `shaders`    | new in Phase 2                           | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT` |
 //!
-//! Future phases will add `shaders/`, `post/`, `gradient.rs`, `stops.rs`,
-//! `ecosystem.rs` under this namespace.
+//! Future phases will add `post/`, `gradient.rs`, `stops.rs`, `ecosystem.rs`
+//! under this namespace.
 
 pub mod catalog;
 pub mod palette;
+pub mod shaders;
