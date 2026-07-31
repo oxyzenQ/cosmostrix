@@ -502,6 +502,14 @@ impl Cloud {
             }),
             pool_is_binary,
             atmospheric,
+            // Phase 3-H: activate ColorEcosystem.hue_drift — was dead code
+            // (updated every tick, never read). Now passed through DrawCtx
+            // → ShaderCtx → resolve_cell_color, where it applies a slow
+            // global palette-stop offset to Middle cells. The drift value
+            // is in [-π, π]; the shader maps it to an integer offset in
+            // {-2, -1, 0, +1, +2}. Always Some in production — the value
+            // is meaningful even when small (and 0.0 is a valid no-op).
+            hue_drift: Some(self.color_ecosystem.hue_drift),
         };
 
         if matches!(self.rain_style, RainStyle::Monolith) {

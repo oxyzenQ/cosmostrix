@@ -96,6 +96,16 @@ pub struct DrawCtx<'a> {
     /// `apply_atmospheric_frame_effects` early-returns to avoid
     /// double-application.
     pub atmospheric: Option<crate::chroma::post::atmosphere::AtmosphericCtx>,
+
+    /// Phase 3-H (Chroma Dragon Innovation H): global hue drift.
+    ///
+    /// `Some(drift)` applies a slow global palette-stop offset to all
+    /// Middle cells, derived from `ColorEcosystem.hue_drift`. Pre-Phase-3-H
+    /// this field was dead code — updated every tick but never read by
+    /// the render path. Phase 3-H activates it.
+    ///
+    /// `None` disables (matches pre-Phase-3-H behavior).
+    pub hue_drift: Option<f32>,
 }
 
 impl DrawCtx<'_> {
@@ -230,6 +240,10 @@ impl DrawCtx<'_> {
             // each cell's resolved color before returning. When None, the
             // shader skips atmospheric and the post-hoc pass runs instead.
             atmospheric: self.atmospheric.as_ref(),
+            // Phase 3-H: global hue drift. Activates the previously-dead
+            // ColorEcosystem.hue_drift field. None disables (pre-Phase-3-H
+            // behavior — drift accumulates but never affects rendering).
+            hue_drift: self.hue_drift,
         };
         resolve_cell_color(
             &shader,

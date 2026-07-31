@@ -135,6 +135,31 @@ pub struct ShaderCtx<'a> {
     /// pass runs instead). Production wires this through `DrawCtx` so
     /// the shader always applies atmospheric when factors are non-neutral.
     pub atmospheric: Option<&'a crate::chroma::post::atmosphere::AtmosphericCtx>,
+
+    /// Phase 3-H (Chroma Dragon Innovation H): global hue drift.
+    ///
+    /// `Some(drift)` applies a global palette-stop offset to all Middle
+    /// cells, derived from `ColorEcosystem.hue_drift` (which accumulates
+    /// at `COLOR_HUE_DRIFT_RATE` per ecosystem tick and is clamped to
+    /// `[-π, π]`). The offset is `(drift / π * 2.0).round() as i32`,
+    /// giving a max shift of ±2 palette stops — subtle but visible over
+    /// the ~10-minute drift cycle.
+    ///
+    /// Pre-Phase-3-H, `ColorEcosystem.hue_drift` was dead code: updated
+    /// every tick but never read by the render path. Phase 3-H activates
+    /// it as a slow global palette drift that makes the rain feel
+    /// atmospherically alive — colors slowly cycle through adjacent
+    /// stops over minutes, so the same scene looks slightly different
+    /// each time you glance at it.
+    ///
+    /// Only applies to `CharLoc::Middle` (Head and Tail are pinned).
+    /// Skipped under `shading_distance` (that path has its own
+    /// length-aware gradient; stacking a hue shift would muddy the
+    /// brightness-decay signal). Matches the column_coherence pattern.
+    ///
+    /// `None` disables (matches pre-Phase-3-H behavior — hue_drift
+    /// accumulates in ColorEcosystem but never affects rendering).
+    pub hue_drift: Option<f32>,
 }
 
 /// Precomputed exponential decay lookup table for trail brightness.
@@ -215,6 +240,26 @@ fn column_coherence_perturbation(phase: f32, col: u16) -> i32 {
     let spatial = (col as f32) * 0.05;
     // Amplitude: ±0.5 → rounds to {-1, 0, +1}
     ((phase + spatial).sin() * 0.5_f32).round() as i32
+}
+
+/// Phase 3-H: compute the global hue-drift palette-stop offset.
+///
+/// Maps `ColorEcosystem.hue_drift` (in radians, clamped to `[-π, π]`) to
+/// an integer palette-stop offset in `{-2, -1, 0, +1, +2}`. The scaling
+/// `drift / π * 2.0` means a full π rotation shifts by 2 stops — subtle
+/// enough to feel atmospheric, visible enough to notice over the ~10-minute
+/// drift cycle (COLOR_HUE_DRIFT_RATE = 0.015 rad/tick, 1 tick/3sec).
+///
+/// Unlike column_coherence (per-cell perturbation), hue_drift is a GLOBAL
+/// offset: every Middle cell in every column shifts by the same amount.
+/// The effect is that the entire scene's palette slowly cycles through
+/// adjacent stops, so the same column looks slightly different each minute.
+///
+/// Returns 0 for `drift = 0.0` (no shift) and for very small drifts
+/// (|drift| < π/4 ≈ 0.785 rad, which rounds to 0).
+#[inline]
+fn hue_drift_offset(drift: f32) -> i32 {
+    (drift / std::f32::consts::PI * 2.0_f32).round() as i32
 }
 
 /// Phase 3-E: deterministic per-cell hash for subpixel jitter.
@@ -464,6 +509,29 @@ pub fn resolve_cell_color(
                 let denom = ((length as i32) - 3).max(1) as f32;
                 let t = (((dist_from_head as i32) - 1) as f32 / denom).clamp(0.0, 1.0);
                 color_idx = ((1.0 - t) * last as f32).round() as i32;
+            }
+            // Phase 3-H (Chroma Dragon Innovation H): global hue drift.
+            //
+            // Apply the frame's global hue_drift as a palette-stop offset
+            // to all Middle cells. This activates the previously-dead
+            // ColorEcosystem.hue_drift field — it was updated every tick
+            // but never read by the render path. Phase 3-H makes the
+            // accumulated drift visible as a slow palette cycle.
+            //
+            // Skipped under shading_distance (matches column_coherence
+            // pattern — that path has its own length-aware gradient and
+            // stacking a hue shift would muddy the brightness-decay
+            // signal). Head and Tail are pinned (last and 0 respectively)
+            // and must not be perturbed.
+            //
+            // Offset is in {-2, -1, 0, +1, +2} — subtle enough to feel
+            // atmospheric, visible enough to notice over the ~10-minute
+            // drift cycle.
+            if let Some(drift) = shader.hue_drift {
+                if !shader.shading_distance {
+                    let offset = hue_drift_offset(drift);
+                    color_idx = (color_idx + offset).clamp(0, last.max(0));
+                }
             }
             // Phase 3-C (Chroma Dragon Innovation C): temporal column hue
             // coherence. For body cells (not Head/Tail — those need to stay
@@ -952,6 +1020,7 @@ mod tests {
             column_coherence_phase: None,
             subpixel_jitter_amplitude: None,
             atmospheric: None,
+            hue_drift: None,
         }
     }
 
@@ -1190,5 +1259,169 @@ mod tests {
             r1 > r2,
             "head-side Middle ({r1}) should be brighter than tail-side ({r2})"
         );
+    }
+
+    // ── Phase 3-H: global hue drift ───────────────────────────────────────
+
+    /// hue_drift_offset maps drift values to integer offsets:
+    ///   0 → 0, π/2 → +1, -π/2 → -1, π → +2, -π → -2.
+    #[test]
+    fn hue_drift_offset_known_values() {
+        assert_eq!(hue_drift_offset(0.0), 0);
+        assert_eq!(hue_drift_offset(std::f32::consts::PI), 2);
+        assert_eq!(hue_drift_offset(-std::f32::consts::PI), -2);
+        assert_eq!(hue_drift_offset(std::f32::consts::FRAC_PI_2), 1);
+        assert_eq!(hue_drift_offset(-std::f32::consts::FRAC_PI_2), -1);
+    }
+
+    /// Small drifts (|drift| < π/4) round to 0 — the common production
+    /// case because COLOR_HUE_DRIFT_RATE is small (0.015 rad/tick).
+    #[test]
+    fn hue_drift_offset_small_drifts_round_to_zero() {
+        assert_eq!(hue_drift_offset(std::f32::consts::FRAC_PI_8), 0);
+        assert_eq!(hue_drift_offset(-std::f32::consts::FRAC_PI_8), 0);
+        assert_eq!(hue_drift_offset(0.78), 0);
+        assert_eq!(hue_drift_offset(-0.78), 0);
+    }
+
+    /// Offset is bounded to {-2, -1, 0, +1, +2} across [-π, π] and is
+    /// monotonic non-decreasing + odd (offset(-x) = -offset(x)).
+    #[test]
+    fn hue_drift_offset_bounded_monotonic_odd() {
+        let steps = 1000;
+        let mut prev = hue_drift_offset(-std::f32::consts::PI);
+        for i in 0..=steps {
+            let drift =
+                -std::f32::consts::PI + 2.0 * std::f32::consts::PI * (i as f32) / (steps as f32);
+            let offset = hue_drift_offset(drift);
+            let neg_offset = hue_drift_offset(-drift);
+            assert!(
+                (-2..=2).contains(&offset),
+                "drift {drift} → {offset} out of [-2,2]"
+            );
+            assert!(
+                offset >= prev,
+                "non-monotonic at drift {drift}: {offset} < {prev}"
+            );
+            assert_eq!(
+                offset, -neg_offset,
+                "not odd: offset({drift})={offset} != -offset(-drift)"
+            );
+            prev = offset;
+        }
+    }
+
+    /// Integration: resolve_cell_color with hue_drift applies the offset
+    /// to Middle cells. Verify a Middle cell's color shifts when hue_drift
+    /// is non-zero (vs. None which leaves it unchanged).
+    #[test]
+    fn hue_drift_shifts_middle_color() {
+        let palette: Vec<Color> = (0..8)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 30,
+                g: i as u8 * 30,
+                b: i as u8 * 30,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![3u8; 50 * 100];
+        let color_map: &[u8] = &color_map;
+
+        let slots = slot_array(palette);
+        let shader_none = make_test_shader(&slots, color_map, false);
+        let (fg_none, _) = resolve_cell_color(&shader_none, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+        assert_eq!(fg_none, Some(palette[3]));
+
+        let mut shader_drift = make_test_shader(&slots, color_map, false);
+        shader_drift.hue_drift = Some(std::f32::consts::PI);
+        let (fg_drift, _) =
+            resolve_cell_color(&shader_drift, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+        assert_eq!(fg_drift, Some(palette[5]), "hue_drift=π should shift 3 → 5");
+    }
+
+    /// hue_drift does NOT affect Head or Tail — those are pinned.
+    #[test]
+    fn hue_drift_does_not_affect_head_or_tail() {
+        let palette: Vec<Color> = (0..8)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 30,
+                g: i as u8 * 30,
+                b: i as u8 * 30,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![3u8; 50 * 100];
+        let color_map: &[u8] = &color_map;
+
+        let slots = slot_array(palette);
+        let mut shader = make_test_shader(&slots, color_map, false);
+        shader.hue_drift = Some(std::f32::consts::PI);
+
+        let (fg_head, _) = resolve_cell_color(&shader, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+        assert_eq!(fg_head, Some(palette[7]));
+
+        let (fg_tail, _) = resolve_cell_color(&shader, 0, 9, 5, 'x', CharLoc::Tail, 20, 12);
+        assert_eq!(fg_tail, Some(palette[0]));
+    }
+
+    /// hue_drift is skipped under shading_distance — that path has its own
+    /// length-aware gradient and stacking a hue shift would muddy the signal.
+    #[test]
+    fn hue_drift_skipped_under_shading_distance() {
+        let palette: Vec<Color> = (0..8)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 30,
+                g: i as u8 * 30,
+                b: i as u8 * 30,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![3u8; 50 * 100];
+        let color_map: &[u8] = &color_map;
+
+        let slots = slot_array(palette);
+        let mut shader_off = make_test_shader(&slots, color_map, true);
+        shader_off.hue_drift = None;
+        let mut shader_on = make_test_shader(&slots, color_map, true);
+        shader_on.hue_drift = Some(std::f32::consts::PI);
+
+        let (fg_off, _) = resolve_cell_color(&shader_off, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+        let (fg_on, _) = resolve_cell_color(&shader_on, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+        assert_eq!(
+            fg_off, fg_on,
+            "hue_drift must not affect shading_distance path"
+        );
+    }
+
+    /// hue_drift clamps to valid palette range — offset that would push
+    /// color_idx below 0 or above last is clamped.
+    #[test]
+    fn hue_drift_clamps_to_palette_range() {
+        let palette: Vec<Color> = (0..3)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 100,
+                g: i as u8 * 100,
+                b: i as u8 * 100,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+
+        // Lower bound: color_map=0, hue_drift=-π → offset -2, clamped to 0.
+        let color_map_lo: Vec<u8> = vec![0u8; 50 * 100];
+        let color_map_lo: &[u8] = &color_map_lo;
+        let slots_lo = slot_array(palette);
+        let mut shader_lo = make_test_shader(&slots_lo, color_map_lo, false);
+        shader_lo.hue_drift = Some(-std::f32::consts::PI);
+        let (fg_lo, _) = resolve_cell_color(&shader_lo, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+        assert_eq!(fg_lo, Some(palette[0]));
+
+        // Upper bound: color_map=2, hue_drift=+π → offset +2, clamped to 2.
+        let color_map_hi: Vec<u8> = vec![2u8; 50 * 100];
+        let color_map_hi: &[u8] = &color_map_hi;
+        let slots_hi = slot_array(palette);
+        let mut shader_hi = make_test_shader(&slots_hi, color_map_hi, false);
+        shader_hi.hue_drift = Some(std::f32::consts::PI);
+        let (fg_hi, _) = resolve_cell_color(&shader_hi, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+        assert_eq!(fg_hi, Some(palette[2]));
     }
 }
