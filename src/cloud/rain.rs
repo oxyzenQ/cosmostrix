@@ -1054,7 +1054,20 @@ impl Cloud {
             // tinted in its original body color while only newly-spawned
             // particles pick up the new body color. The two cohorts fade
             // out independently, producing a cinematic crossfade.
-            let (pr, pg, pb) = (p.r, p.g, p.b);
+            //
+            // v30 masterclass: apply QUANTUM_BODY_TONE_DOWN at render
+            // time so the snapshot stored on the particle stays equal
+            // to the palette body stop (preserving the crossfade and
+            // "snapshot matches body stop" regression-test contracts),
+            // while the rendered pixel is dimmed to match the rain's
+            // perceived average brightness rather than the saturated
+            // body stop alone. See the constant's doc comment for the
+            // empirical rationale.
+            let (pr, pg, pb) = (
+                (p.r as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+                (p.g as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+                (p.b as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+            );
 
             // Base color: use cell's fg if present, else bg, else the
             // particle's snapshot color (so particles are visible even

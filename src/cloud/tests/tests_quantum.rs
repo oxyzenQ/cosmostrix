@@ -27,8 +27,9 @@ use crossterm::style::Color;
 
 use super::super::Cloud;
 use crate::constants::{
-    COLOR_TRANSITION_DURATION_MS, QUANTUM_BRAND_PURPLE_B, QUANTUM_BRAND_PURPLE_G,
-    QUANTUM_BRAND_PURPLE_R, QUANTUM_RIPPLE_LIFETIME_SECS, QUANTUM_RIPPLE_PARTICLE_COUNT,
+    COLOR_TRANSITION_DURATION_MS, QUANTUM_BODY_TONE_DOWN, QUANTUM_BRAND_PURPLE_B,
+    QUANTUM_BRAND_PURPLE_G, QUANTUM_BRAND_PURPLE_R, QUANTUM_RIPPLE_LIFETIME_SECS,
+    QUANTUM_RIPPLE_PARTICLE_COUNT,
 };
 use crate::frame::Frame;
 use crate::palette::decode_color;
@@ -515,4 +516,128 @@ fn quantum_particle_snapshot_is_independent_of_other_schemes() {
             );
         }
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v30 masterclass: render-time tone-down contract
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// v30 invariant: the snapshot stored on a spawned particle is the
+/// palette body stop EXACTLY — the tone-down factor is applied only at
+/// render time. This means the snapshot stays a clean copy of the body
+/// stop for crossfade + regression-test purposes, while the rendered
+/// pixel is dimmed by `QUANTUM_BODY_TONE_DOWN`.
+///
+/// If a future commit moves the tone-down into the spawn path (so
+/// `p.r/g/b` already stores the dimmed value), this test fails —
+/// forcing the author to either revert or explicitly relax the
+/// "snapshot == body stop" contract by also updating
+/// `quantum_particle_snapshot_matches_an_actual_palette_stop`.
+#[test]
+fn quantum_snapshot_unchanged_by_tone_down_factor() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    let body = palette_body_rgb(&cloud);
+    assert_ne!(
+        body,
+        (
+            QUANTUM_BRAND_PURPLE_R,
+            QUANTUM_BRAND_PURPLE_G,
+            QUANTUM_BRAND_PURPLE_B
+        ),
+        "test setup: Green body must differ from brand-purple fallback"
+    );
+
+    cloud.set_mouse_click(5, 5);
+
+    for p in &cloud.quantum_particles {
+        if !p.active {
+            continue;
+        }
+        assert_eq!(
+            (p.r, p.g, p.b),
+            body,
+            "snapshot stored on the particle must equal the palette body stop EXACTLY — \
+             the v30 tone-down is applied only at render time"
+        );
+    }
+}
+
+/// v30 invariant: the rendered pixel IS dimmed by `QUANTUM_BODY_TONE_DOWN`.
+///
+/// Spawns a particle on a blank cell (no fg, no rain), runs one render
+/// pass, and verifies the resulting cell color equals the snapshot
+/// scaled by the tone-down factor (within ±1 per channel for rounding).
+/// This catches the inverse regression: a future commit that removes
+/// the tone-down from `apply_quantum_ripple` but keeps the snapshot
+/// logic intact — the snapshot tests would still pass but the visual
+/// "too bright" complaint would return.
+#[test]
+fn quantum_rendered_pixel_is_dimmed_by_tone_down_factor() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+
+    // Snapshot the body — this is what the particle will store.
+    let body = palette_body_rgb(&cloud);
+    // Expected rendered color after tone-down (within ±1 for rounding).
+    let expected = (
+        (body.0 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+        (body.1 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+        (body.2 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+    );
+
+    // Spawn a click at (5, 5).
+    let spawn_time = Instant::now();
+    cloud.set_mouse_click(5, 5);
+
+    // Render one frame at the spawn instant (age ≈ 0, brightness ≈ 1).
+    // On a blank cell with no fg and no bg, the blend collapses to
+    // `nr = pr` (the dimmed snapshot), so the rendered cell's fg should
+    // equal `expected` within rounding tolerance.
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    cloud.last_phosphor_time = spawn_time;
+    cloud.rain_at(&mut frame, spawn_time);
+
+    // Find the spawned particle's screen cell and verify the rendered color.
+    let mut found = false;
+    for p in &cloud.quantum_particles {
+        if !p.active {
+            continue;
+        }
+        let col = p.x as u16;
+        let line = p.y as u16;
+        if let Some(idx) = frame.index(col, line) {
+            let cell = frame.cell_at_index(idx);
+            if let Some(fg) = cell.fg {
+                let rendered = decode_color(fg).unwrap_or((0, 0, 0));
+                let dr = (rendered.0 as i16 - expected.0 as i16).unsigned_abs() as u8;
+                let dg = (rendered.1 as i16 - expected.1 as i16).unsigned_abs() as u8;
+                let db = (rendered.2 as i16 - expected.2 as i16).unsigned_abs() as u8;
+                assert!(
+                    dr <= 1 && dg <= 1 && db <= 1,
+                    "rendered color {rendered:?} must equal body*tone_down \
+                     {expected:?} within ±1 per channel (body={body:?}, tone_down={QUANTUM_BODY_TONE_DOWN})"
+                );
+                found = true;
+            }
+        }
+    }
+    assert!(
+        found,
+        "at least one rendered particle must be visible on a blank cell"
+    );
+}
+
+/// v30 invariant: the tone-down factor itself stays in a perceptible range.
+///
+/// `0.5` would dim Green body `(0, 220, 0)` to `(0, 110, 0)` — below
+/// the Phase 7 trail floor of 131 on bright themes, making ripples
+/// disappear against the bg. `1.0` is no tone-down at all — restores
+/// the "too bright" complaint that motivated the constant. The sweet
+/// spot is `[0.6, 0.85]`.
+#[test]
+fn quantum_body_tone_down_factor_in_sweet_spot() {
+    assert!(
+        (0.6..=0.85).contains(&QUANTUM_BODY_TONE_DOWN),
+        "QUANTUM_BODY_TONE_DOWN = {QUANTUM_BODY_TONE_DOWN} is outside the sweet spot [0.6, 0.85] \
+         — if this was intentional, update the rationale in the constant's doc comment"
+    );
 }
