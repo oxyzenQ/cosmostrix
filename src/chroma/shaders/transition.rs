@@ -1,12 +1,18 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! # Perceptual L Smoothing at Palette Transition Wave
+//! # Perceptual Lab Smoothing at Palette Transition Wave
 //!
 //! Chroma Dragon Phase 5 — kills the brightness step at the palette
-//! transition wave line.
+//! transition wave line (L channel smoothing).
 //!
-//! ## Problem
+//! Chroma Dragon Phase 8 — extends smoothing to the OKLab a/b chroma
+//! channels using polar (chroma magnitude + hue angle) interpolation,
+//! so hue rotates through the natural chroma ring instead of cutting
+//! through the desaturated gray center. This is the "hue-preserving
+//! variant for transitions" called out as next-move 2.
+//!
+//! ## Problem (Phase 5)
 //!
 //! When a palette switches (theme change), `color_wave_line` sweeps
 //! top-to-bottom over `COLOR_TRANSITION_DURATION_MS` (300 ms). Cells
@@ -16,32 +22,56 @@
 //! discontinuity — a hard horizontal stripe where the scene's overall
 //! brightness steps.
 //!
-//! ## Solution
+//! ## Problem (Phase 8)
 //!
-//! During the transition window, build a `TransitionLTable` containing
-//! the OKLab L for each stop index in both the old and new palettes
-//! (pre-computed once per frame, not per cell). Pass it through
-//! `DrawCtx → ShaderCtx → resolve_cell_color`. In the shader, for each
-//! cell within ±`TRANSITION_L_SMOOTHING_WINDOW` lines of the wave:
+//! Phase 5 only smoothed L, leaving a/b chroma to hard-snap at the wave
+//! line. When two palettes have different hues at the same stop index
+//! (e.g. Green palette → Red palette at stop 5), the wave line shows a
+//! hard hue step: bright-green-line-above, bright-red-line-below, no
+//! transitional hue between them. The eye reads this as a color seam.
 //!
-//! 1. Look up `(L_old, L_new)` for the cell's stop index.
-//! 2. Compute the cell's distance from the wave line.
-//! 3. Blend factor = `0.5 * (1 - |distance| / window)` — peaks at 0.5
-//!    at the wave line, falls off linearly to 0 at ±window.
-//! 4. Target L = opposite palette's L (above wave → L_old, below → L_new).
-//! 5. Smoothed L = `current_L + (target_L - current_L) * blend`.
-//! 6. Convert sRGB → OKLab → set L → back to sRGB.
+//! Naively extending Phase 5 by linearly interpolating (a, b) in
+//! Cartesian coordinates would interpolate through the OKLab chroma
+//! plane's interior — but for opposing hues (red ↔ cyan, blue ↔ yellow)
+//! the straight-line path passes near (a=0, b=0), producing a desaturated
+//! gray midpoint. The wave line would dissolve into gray before
+//! resolving to the new hue — a "washed-out blink" effect.
 //!
-//! The 0.5 peak blend (not 1.0) avoids a palette swap at the wave line —
-//! cells exactly at the wave get a 50/50 midpoint between L_old and L_new,
-//! producing a smooth gradient instead of a hard step.
+//! ## Solution (Phase 8)
+//!
+//! Extend the per-stop table to carry the full OKLab triple `(L, a, b)`
+//! for both old and new palettes (not just L). In the shader, for each
+//! cell within ±`TRANSITION_L_SMOOTHING_WINDOW` lines of the wave,
+//! smooth BOTH L and chroma:
+//!
+//! 1. L: linear interpolation (existing Phase 5 behavior, unchanged).
+//! 2. Chroma magnitude `c = sqrt(a^2 + b^2)`: linear interpolation.
+//! 3. Hue angle `h = atan2(b, a)`: shortest-arc angular interpolation.
+//! 4. Reconstruct (a, b) from `(c_smoothed, h_smoothed)`.
+//!
+//! Shortest-arc hue interpolation picks the direction (clockwise or
+//! counter-clockwise around the chroma ring) that gives the smaller
+//! angular delta. This ensures red → cyan rotates through either
+//! magenta or yellow (whichever is shorter) rather than cutting through
+//! gray.
+//!
+//! ### Special case: zero chroma
+//!
+//! When either palette's stop has chroma = 0 (a grayscale color),
+//! `atan2(0, 0) = 0` is undefined as a hue. Phase 8 falls back to
+//! Cartesian (a, b) lerp for these stops — the gray midpoint is the
+//! correct answer anyway, since rotating hue from "no hue" to any hue
+//! is meaningless.
 //!
 //! ## Cost
 //!
-//! Per smoothed cell: ~20 multiplies + 6 `cbrt()` (sRGB → OKLab → sRGB
-//! round-trip). With `window = 3` lines on an 80×50 display, that's
-//! ≤480 cells per frame during the 300 ms transition (≤8640 round-trips
-//! per transition total). Negligible.
+//! Per smoothed cell (Phase 5): ~20 multiplies + 6 `cbrt()`.
+//! Per smoothed cell (Phase 8): same as Phase 5 plus 2 `atan2()`, 2
+//! `sqrt()`, 2 `sin()`, 2 `cos()`. The trig functions are the expensive
+//! part — ~80 ns each on modern x86_64. Total per smoothed cell: ~400 ns
+//! vs ~200 ns for Phase 5. With window = 3 lines on an 80×50 display,
+//! that's ≤480 cells per frame during the 300 ms transition: ≤192
+//! µs/frame extra. Still negligible.
 //!
 //! Per non-smoothed cell: 1 Option check + 1 Reset check + 1 distance
 //! comparison — all early-return paths. The shader's hot path stays cheap.
@@ -54,48 +84,78 @@
 //! - Cell is outside the smoothing window (`|distance| >= window`)
 //! - `stop_idx` is out of the table's range (stop beyond the smaller
 //!   palette's length, or skipped due to `Color::Reset` entries)
-//! - `L_old == L_new` (no luminance difference — no smoothing needed)
+//! - `L_old == L_new AND a_old == a_new AND b_old == b_new` (no
+//!   perceptual difference — no smoothing needed)
 
 use crossterm::style::Color;
 
 use crate::chroma::gradient::{oklab_to_srgb, srgb_to_oklab};
 use crate::chroma::palette::color_to_rgb;
 
-/// Pre-computed OKLab L values for each stop index in both the old and
+/// One stop's OKLab values in both the old and new palettes.
+///
+/// Phase 8 extended this from `(L_old, L_new)` to the full OKLab triple
+/// per side, so the shader can apply polar chroma smoothing in addition
+/// to L smoothing. The struct makes the field names self-documenting
+/// and avoids the readability cliff of a 6-tuple.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TransitionLabEntry {
+    /// OKLab L for this stop in the OLD palette.
+    pub l_old: f32,
+    /// OKLab a (green↔red axis) for this stop in the OLD palette.
+    pub a_old: f32,
+    /// OKLab b (blue↔yellow axis) for this stop in the OLD palette.
+    pub b_old: f32,
+    /// OKLab L for this stop in the NEW palette.
+    pub l_new: f32,
+    /// OKLab a (green↔red axis) for this stop in the NEW palette.
+    pub a_new: f32,
+    /// OKLab b (blue↔yellow axis) for this stop in the NEW palette.
+    pub b_new: f32,
+}
+
+/// Pre-computed OKLab values for each stop index in both the old and
 /// new palettes, plus the current wave line position and smoothing window.
 ///
 /// Built once per frame in `rain.rs` when a palette transition is active,
 /// then borrowed through `DrawCtx → ShaderCtx` so the shader can apply
-/// per-cell L smoothing without recomputing the table.
+/// per-cell L + chroma smoothing without recomputing the table.
 ///
 /// `entries[i]` corresponds to stop index `i` in BOTH palettes (matched
 /// by index). If the palettes have different lengths, the table is sized
 /// to the smaller one — stops beyond the smaller palette's range have no
 /// counterpart and are not smoothed. Stops that are `Color::Reset` in
-/// either palette are skipped (no RGB to derive L from).
+/// either palette are skipped (no RGB to derive OKLab from).
+///
+/// The struct name `TransitionLTable` is preserved for backward
+/// compatibility with the Phase 5 plumbing (DrawCtx, ShaderCtx,
+/// rain.rs builder). The actual content is now full OKLab per stop
+/// (Phase 8).
 #[derive(Debug, Clone)]
 pub struct TransitionLTable {
-    /// `(L_old, L_new)` per stop index. Sparse — entries are only present
-    /// for indices where BOTH palettes had a non-Reset Color. Indexed by
-    /// the shader's `color_idx` (the resolved palette stop index).
-    pub entries: Vec<(f32, f32)>,
+    /// Per-stop OKLab values for both palettes. Sparse — entries are only
+    /// present for indices where BOTH palettes had a non-Reset Color.
+    /// Indexed by the shader's `color_idx` (the resolved palette stop
+    /// index).
+    pub entries: Vec<TransitionLabEntry>,
 
     /// Current wave line position (in lines from top of screen). Cells
     /// above this line use the new palette; cells below use the old.
     pub wave_line: f32,
 
     /// Smoothing window in lines. Cells within ±`window` of `wave_line`
-    /// get L smoothing applied; cells outside are untouched.
+    /// get L + chroma smoothing applied; cells outside are untouched.
     pub window: f32,
 }
 
 impl TransitionLTable {
-    /// Build a transition L table from the old and new palettes.
+    /// Build a transition Lab table from the old and new palettes.
     ///
-    /// Computes the OKLab L for each stop index in both palettes (matched
-    /// by index). Stops that are `Color::Reset` in either palette are
-    /// skipped — they have no RGB to derive L from, and the shader's
-    /// `apply_l_smoothing` will early-return for those indices.
+    /// Computes the full OKLab triple `(L, a, b)` for each stop index in
+    /// both palettes (matched by index). Stops that are `Color::Reset`
+    /// in either palette are skipped — they have no RGB to derive OKLab
+    /// from, and the shader's `apply_l_smoothing` will early-return for
+    /// those indices.
     ///
     /// Returns `None` if:
     /// - Either palette is empty
@@ -121,9 +181,16 @@ impl TransitionLTable {
             }
             let (or_, og, ob) = color_to_rgb(old_c);
             let (nr, ng, nb) = color_to_rgb(new_c);
-            let (l_old, _, _) = srgb_to_oklab(or_, og, ob);
-            let (l_new, _, _) = srgb_to_oklab(nr, ng, nb);
-            entries.push((l_old, l_new));
+            let (l_old, a_old, b_old) = srgb_to_oklab(or_, og, ob);
+            let (l_new, a_new, b_new) = srgb_to_oklab(nr, ng, nb);
+            entries.push(TransitionLabEntry {
+                l_old,
+                a_old,
+                b_old,
+                l_new,
+                a_new,
+                b_new,
+            });
         }
         if entries.is_empty() {
             return None;
@@ -135,15 +202,21 @@ impl TransitionLTable {
         })
     }
 
-    /// Look up `(L_old, L_new)` for a given stop index.
+    /// Look up `(L_old, L_new)` for a given stop index. Phase 5 shim —
+    /// returns only the L fields of the full OKLab entry. The shader
+    /// itself reads `entries.get(idx)` directly to access the Phase 8
+    /// chroma fields, but this shim is kept for any external callers
+    /// that only need L (e.g. diagnostic tools, future shader
+    /// innovations that only consume L).
     ///
     /// Returns `None` if the index is out of range (the stop was skipped
     /// during build due to `Color::Reset`, or the index exceeds the
     /// smaller palette's length).
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     pub fn get(&self, stop_idx: usize) -> Option<(f32, f32)> {
-        self.entries.get(stop_idx).copied()
+        self.entries.get(stop_idx).map(|e| (e.l_old, e.l_new))
     }
 }
 
@@ -198,13 +271,17 @@ pub fn apply_l_smoothing(
     let Ok(stop_idx_u32) = u32::try_from(stop_idx) else {
         return color;
     };
-    let Some((l_old, l_new)) = table.get(stop_idx_u32 as usize) else {
+    let Some(entry) = table.entries.get(stop_idx_u32 as usize) else {
         return color;
     };
 
-    // No smoothing needed if the two palettes have the same L for this
-    // stop. The OKLab round-trip would be a no-op anyway — skip it.
-    if (l_old - l_new).abs() < 0.001 {
+    // No smoothing needed if the two palettes have the same L AND the same
+    // chroma for this stop. The OKLab round-trip would be a no-op anyway.
+    // Phase 8 widened this check from L-only to full OKLab equality.
+    let l_same = (entry.l_old - entry.l_new).abs() < 0.001;
+    let a_same = (entry.a_old - entry.a_new).abs() < 0.001;
+    let b_same = (entry.b_old - entry.b_new).abs() < 0.001;
+    if l_same && a_same && b_same {
         return color;
     }
 
@@ -218,16 +295,108 @@ pub fn apply_l_smoothing(
     // cell uses the old palette, so blend toward the NEW palette's L.
     // This produces a smooth gradient from L_new (far above) → midpoint
     // (at wave) → L_old (far below).
-    let target_l = if distance >= 0.0 { l_old } else { l_new };
+    let target_l = if distance >= 0.0 {
+        entry.l_old
+    } else {
+        entry.l_new
+    };
 
-    // sRGB → OKLab → adjust L → sRGB. The a/b chroma channels are
-    // preserved, so only the perceptual lightness changes — hue and
-    // saturation stay intact.
+    // Phase 8: target (a, b) is the OPPOSITE palette's chroma — same logic
+    // as L. Above wave (cell uses new palette) blend toward old's (a, b).
+    // Below wave blend toward new's (a, b). The blend factor is the same
+    // `blend` used for L, so L and chroma smooth in lockstep.
+    let (target_a, target_b) = if distance >= 0.0 {
+        (entry.a_old, entry.b_old)
+    } else {
+        (entry.a_new, entry.b_new)
+    };
+
+    // sRGB → OKLab. We adjust L (Phase 5) and (a, b) (Phase 8) before
+    // converting back.
     let (r, g, b) = color_to_rgb(color);
-    let (current_l, a, b_chroma) = srgb_to_oklab(r, g, b);
+    let (current_l, current_a, current_b) = srgb_to_oklab(r, g, b);
+
+    // Phase 5: L linear interpolation (perceptual brightness).
     let smoothed_l = current_l + (target_l - current_l) * blend;
-    let (r, g, b) = oklab_to_srgb(smoothed_l, a, b_chroma);
+
+    // Phase 8: chroma smoothing. Use polar (chroma, hue) interpolation
+    // so hue rotates through the natural chroma ring instead of cutting
+    // through the desaturated gray center.
+    //
+    // The cell's CURRENT (a, b) is on the active palette's chroma arc
+    // (possibly already adjusted by L smoothing — but L adjustment
+    // preserves a/b exactly, so current_(a,b) == the active palette's
+    // (a, b) for this stop). The TARGET (a, b) is the opposite palette's
+    // chroma. We interpolate between them via polar coords.
+    let (smoothed_a, smoothed_b) = polar_chroma_lerp(
+        current_a,
+        current_b,
+        target_a,
+        target_b,
+        blend,
+    );
+
+    let (r, g, b) = oklab_to_srgb(smoothed_l, smoothed_a, smoothed_b);
     Color::Rgb { r, g, b }
+}
+
+/// Phase 8: interpolate between two OKLab (a, b) chroma points using
+/// polar coordinates — chroma magnitude lerps linearly, hue angle
+/// rotates through the shortest arc.
+///
+/// This avoids the "cartesian shortcut through gray" problem: when two
+/// hues are roughly opposite on the chroma ring (e.g. red ↔ cyan),
+/// linear (a, b) interpolation passes near (0, 0), producing a
+/// desaturated gray midpoint. Polar interpolation keeps the chroma
+/// magnitude high throughout the rotation, so the midpoint stays
+/// saturated.
+///
+/// # Arguments
+///
+/// - `a0, b0` — current (a, b) (the cell's active palette chroma).
+/// - `a1, b1` — target (a, b) (the opposite palette's chroma).
+/// - `t` — blend factor in `[0, 1]`. 0 → current, 1 → target.
+///
+/// # Returns
+///
+/// Smoothed `(a, b)`.
+///
+/// # Special case
+///
+/// If either chroma is `(0, 0)` (grayscale — hue undefined), falls back
+/// to Cartesian lerp. The gray midpoint is the correct answer anyway,
+/// since rotating hue from "no hue" to any hue is meaningless.
+#[inline]
+fn polar_chroma_lerp(a0: f32, b0: f32, a1: f32, b1: f32, t: f32) -> (f32, f32) {
+    let c0 = (a0 * a0 + b0 * b0).sqrt();
+    let c1 = (a1 * a1 + b1 * b1).sqrt();
+
+    // If either endpoint is grayscale (chroma = 0), the hue is undefined.
+    // Fall back to Cartesian lerp — the result will pass through gray,
+    // which is the visually correct midpoint between any hue and gray.
+    if c0 < 1e-6 || c1 < 1e-6 {
+        return (a0 + (a1 - a0) * t, b0 + (b1 - b0) * t);
+    }
+
+    // Hue angles in radians, in (-π, π].
+    let h0 = b0.atan2(a0);
+    let h1 = b1.atan2(a1);
+
+    // Shortest-arc delta: normalize the difference into (-π, π].
+    // If the raw delta exceeds π, the shorter path is the other way
+    // around the ring — subtract (or add) 2π.
+    let mut delta = h1 - h0;
+    if delta > std::f32::consts::PI {
+        delta -= 2.0 * std::f32::consts::PI;
+    } else if delta < -std::f32::consts::PI {
+        delta += 2.0 * std::f32::consts::PI;
+    }
+
+    // Linear chroma interpolation + shortest-arc hue rotation.
+    let c = c0 + (c1 - c0) * t;
+    let h = h0 + delta * t;
+
+    (c * h.cos(), c * h.sin())
 }
 
 #[cfg(test)]
