@@ -15,7 +15,18 @@ use crate::frame::Frame;
 
 use super::super::atmospheric_events::{AtmosphericEvent, EventCtx};
 
-const GHOST_CHARS: &[char] = &['雨', '雷', '電', '風', '雲', '闇', '光'];
+// v30.1 — Bug #11 regression fix.
+// Previously held fullwidth CJK ideographs ('雨','雷','電','風','雲','闇','光'),
+// all EAW=Wide (width=2). The frame buffer has no per-cell width metadata,
+// so a width=2 char advances the terminal cursor by 2 while the renderer
+// tracks 1 — every subsequent cell in the row shifts right by 1, matching
+// the original Bug #11 (commit c1843fe) symptom: rain rows "shift right"
+// near the ghost, normalize after force_draw_everything fires.
+//
+// Fix: halfwidth Katakana (U+FF66-U+FF9D, EAW=Halfwidth, width=1).
+// Preserves the "kanji ghost" aesthetic while satisfying the 1-char-1-cell
+// invariant enforced by sanitize_message_text / charset_custom / build_chars.
+const GHOST_CHARS: &[char] = &['ｱ', 'ｲ', 'ｳ', 'ｴ', 'ｵ', 'ｶ', 'ｷ', 'ｸ', 'ｹ', 'ｺ'];
 const GHOST_FADE_IN_FRAC: f32 = 0.2;
 const GHOST_FADE_OUT_FRAC: f32 = 0.3;
 
@@ -32,10 +43,27 @@ impl GhostEvent {
         let mut rng = rand::rng();
         let idx = rng.random_range(0..GHOST_CHARS.len());
         let duration_var = 2000 + rng.random_range(0..2000);
+        let ch = GHOST_CHARS[idx];
+        // Bug #11 regression guard: every char written to the frame buffer
+        // MUST have unicode_width::width() == Some(1). Wide chars (CJK
+        // ideographs, emoji) advance the terminal cursor by 2 columns while
+        // the renderer tracks only 1, desyncing every subsequent cell in the
+        // row. See the GHOST_CHARS doc comment above for the full rationale.
+        //
+        // Import is scoped inside the function so release builds (where
+        // debug_assert! is compiled out) don't pay the unused-import warning.
+        #[cfg(debug_assertions)]
+        {
+            use unicode_width::UnicodeWidthChar;
+            debug_assert!(
+                UnicodeWidthChar::width(ch) == Some(1),
+                "GHOST_CHARS entry {ch:?} must be width=1 (Bug #11 regression guard)"
+            );
+        }
         Self {
             col: col.max(1),
             line: line.max(1),
-            ch: GHOST_CHARS[idx],
+            ch,
             spawn_time: now,
             duration: Duration::from_millis(duration_var as u64),
         }

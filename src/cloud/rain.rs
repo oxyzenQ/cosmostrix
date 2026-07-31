@@ -128,17 +128,21 @@ impl Cloud {
         if let Some(rs) = self.resume_start {
             let t = now.saturating_duration_since(rs).as_secs_f32();
             let normalized = (t / RESUME_EASE_DURATION_SECS).min(1.0);
-            // v17 mastery: smootherstep (C2 continuous) — 6t⁵ - 15t⁴ + 10t³.
-            // Smoother than smoothstep (C1) — zero velocity AND zero acceleration
-            // at start/end, eliminating all perceptual discontinuity.
+            // Smootherstep (C2 continuous): 6t⁵ - 15t⁴ + 10t³.
+            // Zero velocity AND zero acceleration at start/end.
             let smoother = normalized
                 * normalized
                 * normalized
                 * (normalized * (normalized * 6.0 - 15.0) + 10.0);
-            self.resume_blend = smoother;
+            // v30.1 §8.4: interpolate from resume_blend_start → 1.0 rather
+            // than always 0 → 1.0. Lets aborted-deceleration resumes start
+            // from the actual current value (e.g. 0.4) instead of snapping
+            // down to 0 — eliminates velocity discontinuity.
+            let start = self.resume_blend_start;
+            self.resume_blend = start + (1.0 - start) * smoother;
             if normalized >= 1.0 {
                 self.resume_blend = 1.0;
-                self.resume_start = None; // Transition complete — stop tracking
+                self.resume_start = None;
             }
         }
 
@@ -1003,20 +1007,21 @@ impl Cloud {
             return;
         }
 
-        // Frame-rate-independent motion: use the ACTUAL delta time since
-        // the last update, not a hardcoded 1/60 sec factor. This fixes
-        // the v30 bug where ripples felt fast on fresh run (≈60 FPS) but
-        // slow after long-running sessions (FPS dropped to 30-40, but
-        // particle motion was still scaled by 1/60 — so particles died
-        // at age 0.8s having traveled only half the intended distance).
+        // Frame-rate-independent motion: use ACTUAL delta time since last
+        // update (not hardcoded 1/60), clamped to 1/30 to prevent teleport
+        // after pause/resume or window focus loss. At 60 FPS this matches
+        // the old behavior; at 30 FPS particles now travel 2x per frame,
+        // preserving intended speed across the 0.8s lifespan.
         //
-        // Clamp to 1/30 sec to prevent teleport after pause/resume or
-        // window focus loss. Even at 30 FPS the motion is correct; below
-        // 30 FPS particles slow down gracefully (better than teleporting).
+        // v30.1: scale by resume_blend so ripple motion eases in lockstep
+        // with spawn/droplet/phosphor during pause-deceleration and
+        // resume-acceleration (audit §8.1 — previously ripple ran at full
+        // speed during the 0.30s decel, visually incongruous with rain).
         let dt = now
             .saturating_duration_since(self.last_quantum_update_time)
             .as_secs_f32()
-            .min(1.0 / 30.0);
+            .min(1.0 / 30.0)
+            * self.resume_blend;
         self.last_quantum_update_time = now;
 
         let cols = self.cols;

@@ -72,22 +72,12 @@ pub(super) struct QuantumParticle {
     pub vy: f32,
     pub birth: Instant,
     pub ch: char,
-    /// Snapshot of the palette **body** color (decoded RGB) at the moment
-    /// the particle was spawned. The body color is the saturated mid-stop
-    /// of the active palette — what the eye reads as "the rain color" —
-    /// as opposed to the head stop (last index), which is intentionally
-    /// near-white to give droplets their bright leading edge. Using the
-    /// body stop ensures ripple particles read as "sparks of the rain
-    /// itself" rather than a wash of white.
-    ///
-    /// Storing this per-particle — instead of re-decoding the palette
-    /// every frame — produces a natural crossfade when the user switches
-    /// color theme mid-flight: particles from the previous click keep
-    /// their old body color while new particles spawn with the new body
-    /// color, and the two cohorts fade out independently.
-    ///
-    /// Defaults to `QUANTUM_BRAND_PURPLE_*` for inactive pool entries
-    /// (overwritten on spawn).
+    /// Snapshot of the palette body color (decoded RGB) at spawn time.
+    /// Stored per-particle (instead of re-decoding every frame) so a
+    /// palette switch mid-flight produces a natural crossfade: the old
+    /// cohort keeps its body color while new particles spawn with the
+    /// new body color, and the two cohorts fade out independently.
+    /// Defaults to `QUANTUM_BRAND_PURPLE_*` for inactive pool entries.
     pub r: u8,
     pub g: u8,
     pub b: u8,
@@ -166,6 +156,9 @@ pub struct Cloud {
 
     pub(super) resume_blend: f32,
     pub(super) resume_start: Option<Instant>,
+    /// Starting `resume_blend` for the acceleration ramp — lets a rapid
+    /// triple-tap 'p' interpolate 0.4→1.0 instead of snapping to 0.
+    pub(super) resume_blend_start: f32,
 
     pub(super) pause_start: Option<Instant>,
 
@@ -233,8 +226,7 @@ pub struct Cloud {
     pub(super) phosphor_in_active: BitVec,
     pub(super) last_phosphor_time: Instant,
     /// Last `apply_quantum_ripple` timestamp — drives frame-rate-independent
-    /// particle motion (fixes v30 "ripples slow down over time" bug).
-    /// See `apply_quantum_ripple` doc in `cloud/rain.rs` for full rationale.
+    /// particle motion. See `apply_quantum_ripple` in `cloud/rain.rs`.
     pub(super) last_quantum_update_time: Instant,
     pub(super) phosphor_active: SmallVec<[usize; 256]>,
     pub(super) phosphor_last_fresh: SmallVec<[usize; 256]>,
@@ -344,6 +336,7 @@ impl Cloud {
             pause_time: None,
             resume_blend: 1.0,
             resume_start: None,
+            resume_blend_start: 0.0,
             pause_start: None,
             force_draw_everything: false,
             semantic_invalidate: false,
@@ -420,10 +413,7 @@ impl Cloud {
 
     pub fn set_message(&mut self, msg: &str) {
         self.message_text = Some(msg.to_string());
-        // v25: delay typewriter start by 3s so the intro finishes first.
-        // The message is set immediately, but message_start_time is set
-        // 3s in the future so the typewriter reveal doesn't begin until
-        // the intro animation has completed.
+        // v25: delay typewriter 6s so the intro finishes first.
         self.message_start_time = Some(Instant::now() + Duration::from_secs(6));
         self.reset_message();
         self.force_draw_everything = true;
@@ -465,20 +455,12 @@ impl Cloud {
         let cy = line as f32 + 0.5;
         let now = Instant::now();
         let chars = ['*', '+', '·'];
-        // Snapshot the active palette's BODY color ONCE at click time.
-        // The body stop is the middle index of `palette.colors` — the
-        // saturated hue the eye reads as "the rain color". We avoid the
-        // head stop (last index) because it is intentionally near-white
-        // across most schemes (e.g. Green head = `(201, 244, 210)`, Blue
-        // head = `(190, 223, 242)`) to give droplets their bright leading
-        // edge; using it for ripples made every click look white.
-        //
-        // Each particle spawned by this click stores this RGB triplet,
-        // so it keeps its original color even if the user switches palette
-        // mid-flight — producing a natural crossfade between the old
-        // cohort (fading out in the previous body color) and the new
-        // cohort (born in the new body color). Falls back to brand purple
-        // if the palette has no decodable stops.
+        // Snapshot the palette BODY color (mid-index of palette.colors)
+        // once at click time. Avoid the head stop (last index) — it's
+        // near-white across most schemes (gives droplets their bright
+        // leading edge; using it for ripples made every click look white).
+        // Each particle keeps this RGB even if the user switches palette
+        // mid-flight → natural crossfade between old & new cohorts.
         let body_idx = self.palette.colors.len() / 2;
         let (body_r, body_g, body_b) = self
             .palette
@@ -514,9 +496,8 @@ impl Cloud {
             p.b = body_b;
             spawned += 1;
         }
-        // Increment active count by the number actually spawned. Tracked
-        // incrementally so apply_quantum_ripple can O(1) early-out when
-        // no particles are active.
+        // Increment active count — tracked incrementally so
+        // apply_quantum_ripple can O(1) early-out when none are active.
         self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);
     }
 
@@ -567,17 +548,14 @@ impl Cloud {
     }
 
     /// Enable or disable verbose diagnostic logging from the cloud
-    /// (currently gates the `[stuck-cell-sweep]` stderr log). The
-    /// benchmark sets this from `cfg.verbose` so that `cosmostrix
-    /// --benchmark` runs silently by default and `cosmostrix
-    /// --benchmark --verbose` shows the diagnostic logs for debugging.
+    /// (gates the `[stuck-cell-sweep]` stderr log). Set from `cfg.verbose`
+    /// so `--benchmark` runs silently and `--benchmark --verbose` shows logs.
     pub fn set_verbose(&mut self, verbose: bool) {
         self.verbose = verbose;
     }
 
     /// Cumulative stuck-cell sweep stats: `(total_cleared, sweeps_with_clears)`.
-    /// The sweep runs silently; this enables a single summary line
-    /// in verbose mode, replacing per-sweep stderr spam.
+    /// Sweep runs silently; this enables a single summary line in verbose mode.
     #[must_use]
     pub fn stuck_cell_stats(&self) -> (u64, u64) {
         (
@@ -601,14 +579,21 @@ impl Cloud {
     }
 
     pub fn toggle_pause(&mut self) -> bool {
+        // BRANCH 1: mid-deceleration → abort & resume. Capture current
+        // resume_blend as ramp start so the curve interpolates e.g.
+        // 0.4 → 1.0 instead of snapping to 0 (audit §8.4).
         if self.pause_start.is_some() {
             self.pause_start = None;
             self.pause = false;
             self.pause_time = None;
-            self.resume_blend = self.resume_blend.max(0.1); // floor at 0.1 so it's visible
+            self.resume_blend_start = self.resume_blend.max(0.1);
+            self.resume_blend = self.resume_blend_start;
             self.resume_start = Some(Instant::now());
             return true;
         }
+        // BRANCH 2: fully paused → unpause. Shift every last_*_time
+        // forward by pause duration so simulation continues seamlessly.
+        // Also shift visual-subsystem timestamps (audit §8.5).
         if self.pause {
             self.pause = false;
             if let Some(pt) = self.pause_time.take() {
@@ -644,6 +629,18 @@ impl Cloud {
                 if let Some(ref mut ct) = self.charset_transition_start {
                     *ct += elapsed;
                 }
+                // §8.5: shift visual-subsystem timestamps so they don't
+                // skip ahead on resume (typewriter dump / glyph ramp / flash).
+                if let Some(ref mut mt) = self.message_start_time {
+                    *mt += elapsed;
+                }
+                if let Some(ref mut ge) = self.glyph_entry_time {
+                    *ge += elapsed;
+                }
+                if let Some(ref mut ft) = self.flash_time {
+                    *ft += elapsed;
+                }
+                self.resume_blend_start = 0.0;
                 self.resume_blend = 0.0;
                 self.resume_start = Some(now);
                 true
@@ -651,7 +648,11 @@ impl Cloud {
                 true
             }
         } else {
+            // BRANCH 3: running → start deceleration. Clear stale
+            // resume_start so rapid triple-tap doesn't leave both
+            // pause_start AND resume_start set (audit §8.3).
             self.pause_start = Some(Instant::now());
+            self.resume_start = None;
             true
         }
     }
