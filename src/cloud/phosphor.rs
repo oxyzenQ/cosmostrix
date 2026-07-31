@@ -8,6 +8,7 @@ use std::time::Instant;
 use rand::distr::Distribution;
 
 use crate::cell::Cell;
+use crate::chroma::post::anomaly::{anomaly_halo_target, AnomalyHaloMode};
 use crate::constants::*;
 use crate::palette;
 use crate::rain_style::RainStyle;
@@ -396,6 +397,28 @@ impl Cloud {
     }
 
     /// Apply active anomaly zone effects to the frame (post-processing).
+    ///
+    /// Phase 6 (Chroma Dragon — palette-aware anomaly halos): the
+    /// LuminanceSurge and PulseWave branches now derive their halo
+    /// target color from the active palette via
+    /// `chroma::post::anomaly::anomaly_halo_target`, instead of
+    /// hardcoding pure white. This extends Phase 3-I's "palette-aware
+    /// ghost" pattern to anomaly halos:
+    ///
+    /// - **LuminanceSurge** → lifts cells toward the palette's brightest
+    ///   stop (`palette.colors.last()`). On a NeonRed theme, the surge
+    ///   becomes a "lift toward bright red" rather than "lift toward
+    ///   white" — preserving palette coherence.
+    /// - **PulseWave** → lifts cells toward a hue-cycled palette stop
+    ///   (`(elapsed * ANOMALY_HALO_CYCLE_RATE) % palette.len()`). The
+    ///   expanding ring's target color cycles through palette stops as
+    ///   it expands, giving PulseWave a distinct visual identity from
+    ///   LuminanceSurge.
+    ///
+    /// When `anomaly_halo_target` returns `None` (empty palette or
+    /// `Color::Reset` selected stop — rare edge cases), the branches
+    /// fall back to `blend_toward_white`, preserving pre-Phase-6
+    /// behavior for those degenerate cases.
     pub(super) fn apply_anomalies(&mut self, frame: &mut crate::frame::Frame, now: Instant) {
         if self.anomaly_zones.is_empty() {
             return;
@@ -405,6 +428,7 @@ impl Cloud {
         let cols = self.cols;
         let lines = self.lines;
         let width = frame.width;
+        let palette_colors = &self.palette.colors;
 
         for zone in &self.anomaly_zones {
             let elapsed = now.saturating_duration_since(zone.start_time).as_secs_f32();
@@ -417,6 +441,13 @@ impl Cloud {
 
             match zone.kind {
                 AnomalyKind::LuminanceSurge => {
+                    // Phase 6: derive the halo target from the palette's
+                    // brightest stop instead of hardcoding pure white.
+                    let halo_target = anomaly_halo_target(
+                        palette_colors,
+                        AnomalyHaloMode::LuminanceSurge,
+                        elapsed,
+                    );
                     let r = zone.radius as i16;
                     let r_sq = (zone.radius as f32) * (zone.radius as f32);
                     for col_off in -r..=r {
@@ -447,7 +478,12 @@ impl Cloud {
                             let fidx = line as usize * width as usize + col as usize;
                             let cell = frame.cell_at_index(fidx);
                             if let Some(fg) = cell.fg {
-                                let brightened = palette::blend_toward_white(fg, intensity);
+                                // Phase 6: palette-derived target with
+                                // blend_toward_white fallback for edge cases.
+                                let brightened = match halo_target {
+                                    Some(t) => palette::blend_toward_bg(fg, t, intensity),
+                                    None => palette::blend_toward_white(fg, intensity),
+                                };
                                 frame.set(
                                     col,
                                     line,
@@ -507,6 +543,11 @@ impl Cloud {
                     }
                 }
                 AnomalyKind::PulseWave => {
+                    // Phase 6: derive the halo target from a hue-cycled
+                    // palette stop — the ring's target color cycles
+                    // through palette stops as it expands.
+                    let halo_target =
+                        anomaly_halo_target(palette_colors, AnomalyHaloMode::PulseWave, elapsed);
                     let wave_radius = progress * zone.radius as f32 * 2.0;
                     let ring_width = 2.0;
                     let ring_outer = wave_radius + ring_width;
@@ -540,7 +581,14 @@ impl Cloud {
                                 let fidx = line as usize * width as usize + col as usize;
                                 let cell = frame.cell_at_index(fidx);
                                 if let Some(fg) = cell.fg {
-                                    let brightened = palette::blend_toward_white(fg, intensity);
+                                    // Phase 6: palette-derived hue-cycled
+                                    // target with blend_toward_white fallback.
+                                    let brightened = match halo_target {
+                                        Some(t_color) => {
+                                            palette::blend_toward_bg(fg, t_color, intensity)
+                                        }
+                                        None => palette::blend_toward_white(fg, intensity),
+                                    };
                                     frame.set(
                                         col,
                                         line,

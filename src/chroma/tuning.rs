@@ -19,12 +19,19 @@
 //!
 //!   - Phase 5 — perceptual L smoothing at transition wave
 //!
+//! Phase 6 extends Phase 3-I's "palette-aware ghost" pattern to anomaly
+//! halos: `cloud::phosphor::apply_anomalies` now derives the halo target
+//! color from the active palette instead of hardcoding pure white.
+//!
+//!   - Phase 6 — palette-aware anomaly halos (LuminanceSurge + PulseWave)
+//!
 //! All three Phase 4 innovations are always-on in production. Phase 5 is
-//! conditionally-on (only during the 300 ms transition window). The
-//! constants below tune their amplitudes; see the doc comments on
+//! conditionally-on (only during the 300 ms transition window). Phase 6 is
+//! always-on for anomaly frames (rare — ~5% of frames). The constants
+//! below tune their amplitudes; see the doc comments on
 //! `ShaderCtx::column_coherence_phase`, `ShaderCtx::subpixel_jitter_amplitude`,
-//! `ShaderCtx::head_halo_factor`, and `ShaderCtx::transition_l_table` for
-//! the full rationale.
+//! `ShaderCtx::head_halo_factor`, `ShaderCtx::transition_l_table`, and
+//! `anomaly_halo_target` for the full rationale.
 //!
 //! ## Why a separate module?
 //!
@@ -127,3 +134,32 @@ pub const HEAD_HALO_FACTOR: f32 = 0.15;
 /// lines affected are `ceil(wave_line - window)` to `floor(wave_line
 /// + window)` inclusive.
 pub const TRANSITION_L_SMOOTHING_WINDOW: f32 = 3.0;
+
+/// Phase 6: hue-cycle rate (palette stops per second) for the PulseWave
+/// anomaly halo target color.
+///
+/// `cloud::phosphor::apply_anomalies` calls
+/// `chroma::post::anomaly::anomaly_halo_target(palette_colors, kind, elapsed)`
+/// to derive the halo target color from the active palette. For
+/// `AnomalyKind::PulseWave`, the target is a hue-cycled palette stop —
+/// `(elapsed * ANOMALY_HALO_CYCLE_RATE) as usize % palette_colors.len()`.
+/// The expanding ring's color cycles through palette stops as it expands,
+/// giving PulseWave a distinct visual identity from LuminanceSurge (which
+/// uses the palette's brightest stop as a static target).
+///
+/// `4.0` stops/sec → on a typical 9-stop palette, a full cycle takes
+/// ~2.25 sec. Anomaly lifetime is `ANOMALY_DURATION_SECS` (1.5 sec), so
+/// the ring cycles through ~6 of 9 stops during its lifetime — long
+/// enough to clearly perceive the hue cycle (covers red→green→blue in
+/// a Rainbow palette), short enough that the ring doesn't strobe (each
+/// stop is held for ~250 ms, well above flicker fusion threshold).
+///
+/// Lower values (1–2) make the cycle barely perceptible within one
+/// anomaly's lifetime. Higher values (8+) make the ring strobe through
+/// stops too quickly to read as a hue cycle — it becomes noise.
+///
+/// `LuminanceSurge` is unaffected by this constant — it uses
+/// `palette_colors.last()` (the brightest stop) as a static target, on
+/// the rationale that a "luminous surge" should lift cells toward the
+/// palette's natural ceiling rather than cycling through hues.
+pub const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
