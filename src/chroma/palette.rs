@@ -399,17 +399,17 @@ pub(crate) fn colors_from_stops(
 /// into medium gray.
 ///
 /// Phase 7 derives the floor from the palette's brightest stop (head):
-/// trails must be at least `PALETTE_FLOOR_RATIO` (15%) as bright as the
+/// trails must be at least `PALETTE_FLOOR_RATIO` (20%) as bright as the
 /// head, with an absolute minimum of `ABSOLUTE_MIN_FLOOR` (30) and a cap
 /// of `GLOBAL_MAX_FLOOR` (180, matching v17's upper bound).
 ///
 /// ## Effect on built-in themes
 ///
-/// - Green (head sum 655): floor = 98. Trail `(0, 12, 1)` → `(0, 90, 2)`.
+/// - Green (head sum 655): floor = 131. Trail `(0, 12, 1)` → `(0, 121, 3)`.
 ///   Clearly visible dark green, less aggressive than v17's `(0, 165, 14)`.
-/// - Cosmos (head sum 655): floor = 98. Trail `(3, 3, 18)` → `(12, 12, 73)`.
+/// - Cosmos (head sum 655): floor = 131. Trail `(3, 3, 18)` → `(16, 16, 99)`.
 ///   Visible void blue, much less aggressive than v17's `(22, 22, 135)`.
-/// - Mercury (head sum 720): floor = 108. Trail `(5, 5, 5)` → `(36, 36, 36)`.
+/// - Mercury (head sum 720): floor = 144. Trail `(5, 5, 5)` → `(48, 48, 48)`.
 ///   Visible dark gray, vs v17's `(60, 60, 60)` medium gray.
 /// - Theoretical pure-dark palette (head sum 100): floor = 30. All stops
 ///   below 30 get boosted to 30; others unchanged. Preserves darkness.
@@ -426,6 +426,28 @@ pub(crate) fn colors_from_stops(
 /// stops: one to find max sum, one to apply the floor. On a 9-stop palette
 /// this is ~18 additions + 1 max + 9 comparisons — sub-microsecond.
 fn apply_palette_relative_floor(rgb: &mut [(u8, u8, u8)]) {
+    apply_palette_relative_floor_with(
+        rgb,
+        super::tuning::PALETTE_FLOOR_RATIO,
+        super::tuning::ABSOLUTE_MIN_FLOOR,
+        super::tuning::GLOBAL_MAX_FLOOR,
+    );
+}
+
+/// Phase 7 parameterized variant for tuning audits. Production callers should
+/// use [`apply_palette_relative_floor`], which uses the constants from
+/// `tuning`. This variant exists so audit tests can sweep candidate values
+/// without recompiling, and so the wrapper stays a one-line forwarder.
+///
+/// The math is identical to `apply_palette_relative_floor`; see that function
+/// for the full rationale. Continuity (`apply_body_tail_continuity`) is still
+/// applied afterward using the production `BODY_TAIL_MAX_GAP_RATIO`.
+fn apply_palette_relative_floor_with(
+    rgb: &mut [(u8, u8, u8)],
+    ratio: f32,
+    abs_min: u16,
+    global_max: u16,
+) {
     // Empty palette: nothing to floor.
     if rgb.is_empty() {
         return;
@@ -438,13 +460,10 @@ fn apply_palette_relative_floor(rgb: &mut [(u8, u8, u8)]) {
         .max()
         .unwrap_or(0);
 
-    // Derive the floor: clamp(max * ratio, ABSOLUTE_MIN_FLOOR, GLOBAL_MAX_FLOOR).
+    // Derive the floor: clamp(max * ratio, abs_min, global_max).
     // Using std::clamp instead of max().min() — clippy::manual_clamp.
-    let derived = (max_sum as f32 * super::tuning::PALETTE_FLOOR_RATIO) as u16;
-    let floor = derived.clamp(
-        super::tuning::ABSOLUTE_MIN_FLOOR,
-        super::tuning::GLOBAL_MAX_FLOOR,
-    );
+    let derived = (max_sum as f32 * ratio) as u16;
+    let floor = derived.clamp(abs_min, global_max);
 
     // Apply the floor: any stop below `floor` gets scaled up to `floor`,
     // preserving the RGB ratio (hue is preserved).
@@ -513,11 +532,16 @@ fn apply_palette_relative_floor(rgb: &mut [(u8, u8, u8)]) {
 ///
 /// See `BODY_TAIL_MAX_GAP_RATIO` for the rationale and tuning guidance.
 fn apply_body_tail_continuity(rgb: &mut [(u8, u8, u8)]) {
+    apply_body_tail_continuity_with(rgb, super::tuning::BODY_TAIL_MAX_GAP_RATIO);
+}
+
+/// Phase 7-b parameterized variant for tuning audits. Production callers should
+/// use [`apply_body_tail_continuity`], which uses the constant from `tuning`.
+fn apply_body_tail_continuity_with(rgb: &mut [(u8, u8, u8)], max_gap: f32) {
     let n = rgb.len();
     if n < 2 {
         return;
     }
-    let max_gap = super::tuning::BODY_TAIL_MAX_GAP_RATIO;
 
     // Iterate from second-to-last down to first.
     // For each i, if rgb[i+1].sum / rgb[i].sum > max_gap, scale up rgb[i]

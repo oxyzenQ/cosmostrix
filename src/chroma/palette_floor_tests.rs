@@ -47,7 +47,7 @@ fn phase7_single_stop_below_absolute_min_boosted() {
 }
 
 /// Phase 7: trail stop on a bright palette gets boosted but not to 180.
-/// Green-like palette: head sum 655, trail sum 13. Floor should be 98.
+/// Green-like palette: head sum 655, trail sum 13. Floor should be 131.
 #[test]
 fn phase7_bright_palette_trail_boosted_below_v17() {
     let mut rgb = vec![
@@ -58,15 +58,14 @@ fn phase7_bright_palette_trail_boosted_below_v17() {
     ];
     apply_palette_relative_floor(&mut rgb);
     let trail_sum = rgb[0].0 as u16 + rgb[0].1 as u16 + rgb[0].2 as u16;
-    // Floor = max(30, min(180, 445 * 0.15 = 66)) = 66. Wait — 445 * 0.15 = 66.75, truncated to 66.
-    // Actually let me recompute: max_sum across all stops is 445 (80+255+110).
-    // 445 * 0.15 = 66.75, as u16 = 66. floor = max(30, min(180, 66)) = 66.
-    // Trail sum 13 < 66 → boost to 66.
+    // max_sum across all stops is 445 (80+255+110).
+    // 445 * 0.20 = 89.0, as u16 = 89. floor = max(30, min(180, 89)) = 89.
+    // Trail sum 13 < 89 → boost to ~89.
     assert!(
-        (60..=70).contains(&trail_sum),
-        "trail sum {trail_sum} should be ~66 (v17 was 180 — Phase 7 is much less aggressive)"
+        (85..=95).contains(&trail_sum),
+        "trail sum {trail_sum} should be ~89 (v17 was 180 — Phase 7 is much less aggressive)"
     );
-    // v17 would have boosted to 180; Phase 7 boosts to 66 — verify the
+    // v17 would have boosted to 180; Phase 7 boosts to 89 — verify the
     // improvement is real (Phase 7 trail is at most 50% of v17's trail).
     assert!(
         trail_sum < 180,
@@ -75,7 +74,7 @@ fn phase7_bright_palette_trail_boosted_below_v17() {
 }
 
 /// Phase 7: dark-theme trail (Cosmos-like) gets boosted but preserves void feel.
-/// Cosmos palette: head sum 655, trail sum 24. Floor should be ~98.
+/// Cosmos palette: head sum 655, trail sum 24. Floor should be ~131.
 #[test]
 fn phase7_dark_palette_trail_preserves_aesthetic() {
     let mut rgb = vec![
@@ -87,11 +86,11 @@ fn phase7_dark_palette_trail_preserves_aesthetic() {
     apply_palette_relative_floor(&mut rgb);
     let (r, g, b) = rgb[0];
     let trail_sum = r as u16 + g as u16 + b as u16;
-    // Floor = max(30, min(180, 655 * 0.15 = 98)) = 98.
-    // Trail sum 24 < 98 → boost to ~98.
+    // Floor = max(30, min(180, 655 * 0.20 = 131)) = 131.
+    // Trail sum 24 < 131 → boost to ~131.
     assert!(
-        (90..=100).contains(&trail_sum),
-        "trail sum {trail_sum} should be ~98 (much less aggressive than v17's 180)"
+        (125..=135).contains(&trail_sum),
+        "trail sum {trail_sum} should be ~131 (much less aggressive than v17's 180)"
     );
     // Verify hue preservation: the blue channel should still be dominant
     // (original ratio was 1:1:6, boosted should be similar).
@@ -101,9 +100,9 @@ fn phase7_dark_palette_trail_preserves_aesthetic() {
     );
     // Verify the trail is visibly less aggressive than v17.
     // v17 would have produced (22, 22, 135) sum 180.
-    // Phase 7 should produce roughly (12, 12, 73) sum 97.
+    // Phase 7 should produce roughly (16, 16, 99) sum 131.
     assert!(
-        trail_sum < 130,
+        trail_sum < 165,
         "Phase 7 trail sum {trail_sum} must be well below v17's 180 (preserve void feel)"
     );
 }
@@ -119,17 +118,17 @@ fn phase7_mercury_palette_trail_visible_but_dark() {
     ];
     apply_palette_relative_floor(&mut rgb);
     let trail_sum = rgb[0].0 as u16 + rgb[0].1 as u16 + rgb[0].2 as u16;
-    // Floor = max(30, min(180, 720 * 0.15 = 108)) = 108.
-    // Trail sum 15 < 108 → boost to ~108.
+    // Floor = max(30, min(180, 720 * 0.20 = 144)) = 144.
+    // Trail sum 15 < 144 → boost to ~144.
     assert!(
-        (100..=115).contains(&trail_sum),
-        "trail sum {trail_sum} should be ~108 (visible dark gray, not v17's 180 medium gray)"
+        (140..=150).contains(&trail_sum),
+        "trail sum {trail_sum} should be ~144 (visible dark gray, not v17's 180 medium gray)"
     );
     // Verify it's still dark gray, not medium gray.
-    // v17 would have produced (60, 60, 60). Phase 7 should be around (36, 36, 36).
+    // v17 would have produced (60, 60, 60). Phase 7 produces (48, 48, 48).
     assert!(
-        rgb[0].0 < 50,
-        "trail r {} must be < 50 (dark gray, not v17's medium gray)",
+        rgb[0].0 < 55,
+        "trail r {} must be < 55 (dark gray, not v17's medium gray)",
         rgb[0].0
     );
 }
@@ -185,8 +184,8 @@ fn phase7_dim_head_palette_gets_low_floor() {
         (40, 40, 80), // head, sum 160
     ];
     apply_palette_relative_floor(&mut rgb);
-    // max_sum = 160, derived = 160 * 0.15 = 24. floor = max(30, min(180, 24)) = 30.
-    // Trail sum 0 < 30 → boost to 30 (pure-black special case).
+    // max_sum = 160, derived = 160 * 0.20 = 32. floor = max(30, min(180, 32)) = 32.
+    // Trail sum 0 < 32 → boost to 30 (pure-black special case uses floor/3 = 10 per channel = 30).
     // Then Phase 7-b continuity: head=160, second=50, gap=160/50=3.2x > 2.5
     //   → boost second to 160/2.5=64.
     // Then trail=30, second=64, gap=64/30=2.13x ≤ 2.5 → no further boost.
@@ -264,8 +263,8 @@ fn phase7_colors_from_stops_integration_dark_theme() {
     );
     // Trail must NOT be washed out to v17's 180.
     assert!(
-        trail_sum < 150,
-        "trail sum {trail_sum} must be < 150 (Phase 7 preserves dark aesthetic, v17 was 180)"
+        trail_sum < 175,
+        "trail sum {trail_sum} must be < 175 (Phase 7 preserves dark aesthetic, v17 was 180)"
     );
 }
 
@@ -763,4 +762,158 @@ fn phase7_print_body_tail_gap_audit() {
     eprintln!("Tuning guidance:");
     eprintln!("  - HIGH count > 5: raise GLOBAL_MAX_FLOOR (e.g. 180 → 220) — at cost of some v17-style washout");
     eprintln!("  - All low + trails look washed out: lower PALETTE_FLOOR_RATIO or BODY_TAIL_MAX_GAP_RATIO");
+}
+
+/// Phase 7 ratio sweep audit (informational). For each of the 43 themes,
+/// prints the trail brightness + max adjacent gap that would result from
+/// each candidate `PALETTE_FLOOR_RATIO` in [0.15, 0.20, 0.25, 0.30].
+///
+/// Run with:
+///   cargo test --release phase7_print_ratio_sweep_audit -- --nocapture
+///
+/// This test NEVER fails — it's a diagnostic for picking the next value
+/// of `PALETTE_FLOOR_RATIO`. The current production value is 0.15 (the
+/// first column), and the user-reported issue is "tail too dark". The
+/// sweep shows the trade-off: higher ratio → brighter trails, but more
+/// themes hit the GLOBAL_MAX_FLOOR cap (potential v17-style washout).
+///
+/// Columns:
+///   THEME       — ColorScheme name
+///   HEAD_SUM    — brightest stop sum (palette ceiling, constant across ratios)
+///   ORIG_TRAIL  — last stop sum pre-floor (the "intended" trail brightness)
+///   For each ratio r ∈ {0.15, 0.20, 0.25, 0.30}:
+///     TRAIL@r     — final trail (last stop) sum after floor + continuity
+///     GAP@r       — max adjacent gap (next/cur) post-continuity; lower = smoother
+///     CAP_HIT@r   — "*" if GLOBAL_MAX_FLOOR=180 was the binding constraint
+///                   (i.e. derived floor would have been > 180)
+#[test]
+fn phase7_print_ratio_sweep_audit() {
+    use crate::chroma::catalog::{ThemeColors, THEMES};
+
+    let ratios: [f32; 4] = [0.15, 0.20, 0.25, 0.30];
+    let abs_min = super::super::tuning::ABSOLUTE_MIN_FLOOR;
+    let global_max = super::super::tuning::GLOBAL_MAX_FLOOR;
+    let max_gap_prod = super::super::tuning::BODY_TAIL_MAX_GAP_RATIO;
+
+    eprintln!();
+    eprintln!("=== Phase 7 PALETTE_FLOOR_RATIO sweep audit (43 themes) ===");
+    eprintln!(
+        "Constants: ABSOLUTE_MIN_FLOOR={}, GLOBAL_MAX_FLOOR={}, BODY_TAIL_MAX_GAP_RATIO={:.2}",
+        abs_min, global_max, max_gap_prod
+    );
+    eprintln!();
+    eprintln!(
+        "{:<14} {:>8} {:>10}  {:>10} {:>6} {:>1}  {:>10} {:>6} {:>1}  {:>10} {:>6} {:>1}  {:>10} {:>6} {:>1}",
+        "THEME", "HEAD_SUM", "ORIG_TRL",
+        "TRL@.15", "GAP", "C",
+        "TRL@.20", "GAP", "C",
+        "TRL@.25", "GAP", "C",
+        "TRL@.30", "GAP", "C",
+    );
+
+    let mut n_capped_per_ratio = [0usize; 4];
+    let mut n_worst_gap_above_3_per_ratio = [0usize; 4];
+
+    for theme in THEMES {
+        // Extract the raw RGB stops (pre-floor) by replaying the same
+        // gradient_from_stops call that colors_from_stops makes.
+        let raw_stops: Vec<(u8, u8, u8)> = match theme.def {
+            ThemeColors::Stops { stops, steps }
+            | ThemeColors::StopsWithC16 { stops, steps, .. } => gradient_from_stops(stops, steps),
+            ThemeColors::RgbWithC16 { rgb, .. } => rgb.to_vec(),
+        };
+        if raw_stops.len() < 4 {
+            continue;
+        }
+        let head_sum: u16 = raw_stops
+            .iter()
+            .map(|&(r, g, b)| r as u16 + g as u16 + b as u16)
+            .max()
+            .unwrap_or(0);
+        let orig_trail_sum: u16 = {
+            let (r, g, b) = raw_stops[0];
+            r as u16 + g as u16 + b as u16
+        };
+
+        // For each ratio, clone the raw stops and apply floor + continuity.
+        let mut cells: Vec<String> = Vec::with_capacity(ratios.len());
+        for (idx, &ratio) in ratios.iter().enumerate() {
+            let mut rgb = raw_stops.clone();
+            apply_palette_relative_floor_with(rgb.as_mut_slice(), ratio, abs_min, global_max);
+            apply_body_tail_continuity_with(rgb.as_mut_slice(), max_gap_prod);
+
+            // Trail = first stop (after sorting by palette order, the dim end).
+            let trail_sum = {
+                let (r, g, b) = rgb[0];
+                r as u16 + g as u16 + b as u16
+            };
+
+            // Max adjacent gap (post-continuity).
+            let n = rgb.len();
+            let max_adj_gap: f32 = (0..n - 1)
+                .map(|i| {
+                    let cur = rgb[i].0 as u16 + rgb[i].1 as u16 + rgb[i].2 as u16;
+                    let next = rgb[i + 1].0 as u16 + rgb[i + 1].1 as u16 + rgb[i + 1].2 as u16;
+                    if cur == 0 {
+                        0.0
+                    } else {
+                        next as f32 / cur as f32
+                    }
+                })
+                .fold(0.0_f32, f32::max);
+
+            // Did the basic floor hit the global_max cap?
+            let derived = (head_sum as f32 * ratio) as u16;
+            let cap_hit = derived > global_max;
+            if cap_hit {
+                n_capped_per_ratio[idx] += 1;
+            }
+            if max_adj_gap > 3.0 {
+                n_worst_gap_above_3_per_ratio[idx] += 1;
+            }
+
+            cells.push(format!(
+                "{:>10} {:>6.2} {:>1}",
+                trail_sum,
+                max_adj_gap,
+                if cap_hit { "*" } else { " " }
+            ));
+        }
+
+        eprintln!(
+            "{:<14} {:>8} {:>10}  {}  {}  {}  {}",
+            format!("{:?}", theme.scheme),
+            head_sum,
+            orig_trail_sum,
+            cells[0],
+            cells[1],
+            cells[2],
+            cells[3]
+        );
+    }
+
+    eprintln!();
+    eprintln!("Legend: TRAIL = sum of dimmest stop after floor + continuity");
+    eprintln!("        GAP   = max(next/cur) across adjacent stops — lower = smoother");
+    eprintln!(
+        "        C=*   = GLOBAL_MAX_FLOOR={} was the binding cap (derived floor > {})",
+        global_max, global_max
+    );
+    eprintln!("        (would have produced a brighter floor if uncapped)");
+    eprintln!();
+    eprintln!("Summary per ratio:");
+    for (idx, &r) in ratios.iter().enumerate() {
+        eprintln!(
+            "  ratio={:.2}: {} themes hit GLOBAL_MAX_FLOOR cap, {} themes had max_adj_gap > 3.0x",
+            r, n_capped_per_ratio[idx], n_worst_gap_above_3_per_ratio[idx]
+        );
+    }
+    eprintln!();
+    eprintln!("Tuning guidance:");
+    eprintln!("  - Pick the lowest ratio where GAP>3.0x count drops to ~0 (kills horizontal-line illusion)");
+    eprintln!("  - Watch cap_hit count: if it grows significantly, dark themes may wash out (v17 regression)");
+    eprintln!(
+        "  - Production current: PALETTE_FLOOR_RATIO = {:.2}",
+        super::super::tuning::PALETTE_FLOOR_RATIO
+    );
 }

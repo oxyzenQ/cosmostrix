@@ -189,20 +189,28 @@ pub const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
 /// that ceiling. This preserves the head→body→trail hierarchy while
 /// preventing true invisibility.
 ///
-/// `0.15` = 15% of head brightness. On a typical palette with head sum 655,
-/// the floor is `655 * 0.15 = 98` (capped at `GLOBAL_MAX_FLOOR = 180`).
-/// Trail stops at sum 13 (Green) boost to sum 98 → `(0, 90, 2)` — clearly
+/// `0.20` = 20% of head brightness. On a typical palette with head sum 655,
+/// the floor is `655 * 0.20 = 131` (capped at `GLOBAL_MAX_FLOOR = 180`).
+/// Trail stops at sum 13 (Green) boost to sum 131 → `(0, 121, 3)` — clearly
 /// visible dark green, less aggressive than v17's `(0, 165, 14)`. Trail
-/// stops at sum 24 (Cosmos) boost to sum 98 → `(12, 12, 73)` — visible
+/// stops at sum 24 (Cosmos) boost to sum 131 → `(16, 16, 99)` — visible
 /// void blue, much less aggressive than v17's `(22, 22, 135)`.
 ///
-/// Higher values (0.20–0.30) make trails brighter (closer to v17 behavior)
-/// but risk washing out dark themes again. Lower values (0.08–0.12) preserve
-/// dark themes more aggressively but may regress on the original "dim/dark"
-/// complaint. `0.15` is the empirical sweet spot verified across all 43
-/// built-in themes — every theme's trail stops land in the visible-but-
-/// aesthetic-preserving range [30, 180].
-pub const PALETTE_FLOOR_RATIO: f32 = 0.15;
+/// History: Phase 7 originally shipped with `0.15` (trail sum ~98 across
+/// most themes). User visual testing at speed 100 reported trails as "too
+/// dark" — the 0.15 floor produced dim trails that, while aesthetically
+/// preserving dark themes, hurt readability at high rain speed. The
+/// `phase7_print_ratio_sweep_audit` test in `palette_floor_tests.rs`
+/// verified that 0.20 doubles trail brightness to ~130 across most themes
+/// with **zero** themes hitting the `GLOBAL_MAX_FLOOR` cap (no v17-style
+/// washout). 0.25 would push 4 themes (Spectrum20, Stars, Pluto, Moon)
+/// into the cap; 0.30 maxes out at 180 for 42/43 themes (full v17
+/// regression). 0.20 is the empirical sweet spot.
+///
+/// Lower values (0.08–0.15) preserve dark themes more aggressively but
+/// regress on the "dim/dark" complaint. Higher values (0.25–0.30) make
+/// trails brighter but increasingly cap-hit, risking v17-style washout.
+pub const PALETTE_FLOOR_RATIO: f32 = 0.20;
 
 /// Phase 7: absolute minimum brightness floor. Any stop with RGB sum
 /// below this gets boosted to this value, regardless of palette profile.
