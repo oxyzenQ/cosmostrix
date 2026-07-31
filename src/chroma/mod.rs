@@ -50,3 +50,7 @@ pub mod palette;
 pub mod post;
 pub mod shaders;
 pub mod tuning;
+
+#[cfg(test)]
+#[path = "lock_tests.rs"]
+mod lock_tests;

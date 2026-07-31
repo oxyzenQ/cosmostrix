@@ -98,12 +98,15 @@ COSMOSTRIX — The Cosmic Dragon Diff-Based Rendering Engine
 
 Cosmostrix is not a Matrix clone. It is a novel diff-based terminal
 renderer that computes only the cells which change between frames,
-rather than redrawing the entire screen. This document describes the
-five cooperating subsystems that make this possible.
+rather than redrawing the entire screen. The renderer is paired with
+the Chroma Dragon coloring engine, which owns every decision about
+what color a cell becomes. This document describes the five
+cooperating rendering subsystems plus the Chroma Dragon color
+pipeline that together make cosmostrix possible.
 
 
-1. DIFF-BASED CELL RENDERER  (src/frame.rs)
--------------------------------------------
+1. DIFF-BASED CELL RENDERER  (src/frame.rs, src/terminal.rs)
+-------------------------------------------------------------
 
 Every other Matrix rain renderer writes the full screen every frame.
 Cosmostrix keeps a persistent back-buffer of `Cell` values (char +
@@ -126,8 +129,8 @@ so the terminal receives the minimum bytes possible.
     when the rain is sparse, e.g. low-density scenes).
 
 
-2. THREE-LAYER PARALLAX  (src/cloud/parallax.rs)
--------------------------------------------------
+2. THREE-LAYER PARALLAX  (src/cloud/spawn.rs, src/cloud/rain.rs)
+-----------------------------------------------------------------
 
 Rain is rendered as three independent layers (far / mid / near) with
 per-layer multipliers for speed, brightness, length, density, and
@@ -142,7 +145,9 @@ and add per-cell cost without visible benefit.
 
 Layers are composited in Z-order into the same back-buffer, so the
 diff renderer sees a single unified frame — parallax is invisible
-to the I/O layer.
+to the I/O layer. The per-layer multipliers live in `src/constants.rs`
+(`PARALLAX_SPEED_MULT`, `PARALLAX_LENGTH_MULT`, etc.) and are applied
+in `cloud::spawn::DropletSpawner` during droplet birth.
 
 
 3. PHOSPHOR PERSISTENCE  (src/cloud/phosphor.rs)
@@ -164,8 +169,8 @@ into the back-buffer's color value, so the diff renderer treats it
 as a normal color change — no special I/O path.
 
 
-4. DENSITY NOISE & WIND GUSTS  (src/cloud/density.rs, src/cloud/wind.rs)
-------------------------------------------------------------------------
+4. DENSITY NOISE & WIND GUSTS  (src/cloud/living_rain.rs, src/cloud/monolith.rs)
+--------------------------------------------------------------------------------
 
 Per-column density maps sculpt the rain into cinematic shapes — twin
 pillars, central thrones, cascading waterfalls. Density is driven by
@@ -177,6 +182,11 @@ columns in a direction, then decay. They break the visual monotony
 of constant-velocity rain without the cost of per-column physics.
 Gusts are opt-in (atmospheric event subsystem) and disabled by
 default in benchmark mode for reproducibility.
+
+The density-map monolith formations live in `src/cloud/monolith.rs`
+(`MonolithConfig.density_map`); the per-column value-noise density
++ wind-gust state machine lives in `src/cloud/living_rain.rs`
+(`GustState`, `density_noise_at`).
 
 
 5. ADAPTIVE ATMOSPHERE ENGINE  (src/cloud/atmospheric_events.rs)
@@ -192,6 +202,56 @@ atmosphere evolves imperceptibly across a long-running session.
   - Custom 24-hour schedules via `[adaptive-custom.HH-MM]` blocks.
   - Live config reload re-parses immediately on save.
   - Disabled in benchmark mode (Calm regime fixed) for stability.
+
+
+6. CHROMA DRAGON COLORING ENGINE  (src/chroma/)
+-----------------------------------------------
+
+The coloring counterpart to the Cosmic Dragon. Where the Cosmic Dragon
+owns the diff-based render loop and droplet simulation, the Chroma
+Dragon owns every decision about *what color a cell becomes*.
+
+Module layout (under `src/chroma/`):
+
+  palette    Palette struct, build_palette(), gradient + blend helpers,
+             Phase 7 palette-relative brightness floor.
+  catalog    THEMES registry, build_colors(), ThemeDef / ThemeColors.
+             Single source of truth for all 43 built-in themes.
+  gradient   OKLab interpolation (default) + sRGB-linear fallback +
+             hue-preserving polar variant (Phase 9-A).
+  shaders    Base cell shader (resolve_cell_color), CharLoc enum,
+             TRAIL_EXP_LUT, Phase 4-D head halo, Phase 5/8 transition
+             L+chroma smoothing (TransitionLTable).
+  post       Atmospheric post-processing (luminance, saturation,
+             persistence, instability), palette-aware ghost color,
+             palette-aware anomaly halo target.
+  tuning     All Chroma Dragon tuning constants in one auditable place:
+             PALETTE_FLOOR_RATIO, BODY_TAIL_MAX_GAP_RATIO,
+             SUBPIXEL_JITTER_AMPLITUDE, HEAD_HALO_FACTOR, etc.
+
+Phase history (locked at Phase 9-B):
+
+  Phase 1   Foundation: palette relocation (zero behavior change)
+  Phase 2   Shader extraction: resolve_cell_color pulled out of DrawCtx
+  Phase 3   OKLab gradient (default) + Innovations A-H
+  Phase 4   Dragon Awakening: Innovations C/D/E always-on
+  Phase 5   Perceptual L smoothing at palette transition wave
+  Phase 6   Palette-aware anomaly halos (LuminanceSurge + PulseWave)
+  Phase 7   Palette-relative brightness floor (replaces v17 global 180)
+  Phase 7-c Floor ratio 0.15 -> 0.20 (trail brightness +33%)
+  Phase 7-d Gap ratio 2.5 -> 2.0 (body-tail step -20%, kills line illusion)
+  Phase 8   Hue-preserving chroma smoothing at transitions (polar coords)
+  Phase 9-A Hue-preserving OKLab gradient variant (opt-in, for future themes)
+  Phase 9-B ENGINE LOCK: 17 invariants asserted in src/chroma/lock_tests.rs
+
+The 17 invariants cover: engine version sentinel, 43-theme build sweep,
+floor bounds, head->body->trail hierarchy, hue preservation, body-tail
+gap contract, continuity ceiling, OKLab round-trip accuracy, polar
+gradient endpoints, polar midpoint saturation, blend normalization,
+L-smoothing bounds, polar chroma smoothing saturation, subpixel jitter
+amplitude, head halo factor range, tuning constants in sweet spots,
+and the lock report sentinel. Any change to a chroma constant, helper,
+or shader path that silently regresses an invariant fails CI.
 
 
 PERFORMANCE PROFILE
