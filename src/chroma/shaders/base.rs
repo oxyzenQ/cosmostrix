@@ -136,6 +136,29 @@ pub(crate) static TRAIL_EXP_LUT: std::sync::LazyLock<[f32; 256]> = std::sync::La
     lut
 });
 
+/// Phase 3-F (Chroma Dragon Innovation F): luminance-remap threshold for
+/// short droplets.
+///
+/// Droplets with `length <= SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD` get
+/// their `CharLoc::Middle` cells remapped from the (random-uniform)
+/// `color_map` value to a position-based ramp that spans the full palette
+/// range — head-adjacent cells land on the brightest stop, tail-adjacent
+/// cells on the darkest. Without this, short droplets (4–8 cells) sample
+/// only 2–6 random `color_map` entries and look perceptually flat compared
+/// to long droplets where the same random distribution produces visible
+/// shimmering across many cells.
+///
+/// Threshold of 8 = 2× `MIN_DROPLET_LENGTH` (4). Below this, the visible
+/// Middle range is too small for the random color_map to read as a
+/// gradient. Above this, the existing color_map path produces enough
+/// inter-cell variation to look natural.
+///
+/// Only applies when `!shading_distance` — that branch already has its
+/// own length-aware exponential decay ramp. Also only applies to
+/// `CharLoc::Middle` — Head and Tail stops are pinned by the shader
+/// (`last` and `0` respectively) and should not be perturbed.
+const SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD: u16 = 8;
+
 /// Bayer 4×4 ordered dithering threshold matrix.
 ///
 /// Each entry is in {0..=15}. The cell at `(line, col)` reads
@@ -398,6 +421,34 @@ pub fn resolve_cell_color(
         }
         CharLoc::Middle => {
             color_idx = color_idx.clamp(0, last.max(0));
+            // Phase 3-F (Chroma Dragon Innovation F): luminance-remap for
+            // short droplets.
+            //
+            // For droplets with `length <= SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD`,
+            // replace the random-uniform color_map value with a position-based
+            // ramp that maps the Middle range (dist_from_head ∈ [1, length-2])
+            // onto the full palette range [last, 0]. Head-adjacent cells land
+            // on the brightest stop, tail-adjacent cells on the darkest —
+            // giving short droplets a visible head→tail gradient even when
+            // they only have 2–6 Middle cells.
+            //
+            // Without this, short droplets look perceptually flat: the
+            // color_map gives each cell an independent random color_idx in
+            // [1, n-2], so a 4-cell droplet samples 2 random stops and reads
+            // as a uniform-ish blob. Long droplets have many Middle cells so
+            // the same distribution produces visible shimmer — but the
+            // short-droplet case needs an explicit ramp.
+            //
+            // Skipped under shading_distance: that branch already computes
+            // a length-aware exponential decay ramp and would be overwritten
+            // here. length >= MIN_DROPLET_LENGTH (4), so `length - 3 >= 1`
+            // — no div-by-zero.
+            if !shader.shading_distance && length <= SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD {
+                let dist_from_head = head_put_line.saturating_sub(line);
+                let denom = ((length as i32) - 3).max(1) as f32;
+                let t = (((dist_from_head as i32) - 1) as f32 / denom).clamp(0.0, 1.0);
+                color_idx = ((1.0 - t) * last as f32).round() as i32;
+            }
             // Phase 3-C (Chroma Dragon Innovation C): temporal column hue
             // coherence. For body cells (not Head/Tail — those need to stay
             // anchored to their stop), apply a slow per-column hue drift
@@ -824,6 +875,273 @@ mod tests {
             seen.len() >= 50,
             "jitter produced only {} distinct results across 256 hashes (expected ≥ 50)",
             seen.len()
+        );
+    }
+
+    // ── Phase 3-F: luminance-remap for short droplets ─────────────────────
+
+    /// Helper: build a minimal ShaderCtx for testing resolve_cell_color.
+    /// Caller supplies the `palette_slices` array (so it outlives the
+    /// ShaderCtx borrow) and the color_map slice. color_map is initialized
+    /// to a constant value in the tests so we can detect when the remap
+    /// overrides it.
+    fn make_test_shader<'a>(
+        palette_slices: &'a [&'a [Color]; MAX_PALETTE_SLOTS],
+        color_map: &'a [u8],
+        shading_distance: bool,
+    ) -> ShaderCtx<'a> {
+        ShaderCtx {
+            palette_slices,
+            active_palette_slot: 0,
+            color_wave_line: None,
+            bold_mode: BoldMode::Random,
+            lines: 50,
+            color_map,
+            shading_distance,
+            glitchy: false,
+            glitch_map: <&BitSlice>::default(),
+            glitch_bright: false,
+            glitch_dim: false,
+            color_mode: ColorMode::TrueColor,
+            column_coherence_phase: None,
+            subpixel_jitter_amplitude: None,
+        }
+    }
+
+    /// Build a `MAX_PALETTE_SLOTS`-sized palette_slices array with slot 0
+    /// pointing to the given palette and all other slots empty. Returned
+    /// by value so callers can bind it to a local with the right lifetime.
+    fn slot_array(palette: &[Color]) -> [&[Color]; MAX_PALETTE_SLOTS] {
+        let mut arr: [&[Color]; MAX_PALETTE_SLOTS] = [&[]; MAX_PALETTE_SLOTS];
+        arr[0] = palette;
+        arr
+    }
+
+    /// Short droplet (length=4) Middle cells get a position-based ramp
+    /// spanning the full palette range, not the random color_map value.
+    ///
+    /// Setup: 5-stop palette (last=4), length=4, color_map all set to 1
+    /// (would normally give every Middle cell color_idx=1).
+    /// Expectation: the two Middle cells (dist_from_head=1 and 2) get
+    /// remapped to color_idx=4 and 0 respectively (t=0 → last, t=1 → 0).
+    #[test]
+    fn short_droplet_middle_cells_get_remapped() {
+        let palette: Vec<Color> = (0..5)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 50,
+                g: i as u8 * 50,
+                b: i as u8 * 50,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![1u8; 50 * 100]; // all cells → color_idx 1
+        let color_map: &[u8] = &color_map;
+        let slots = slot_array(palette);
+        let shader = make_test_shader(&slots, color_map, false);
+
+        // length=4, head_put_line=20. Middle cells are at line 19 and 18
+        // (dist_from_head = 1 and 2). denom = length-3 = 1.
+        // dist=1 → t = 0 → color_idx = last = 4
+        // dist=2 → t = 1 → color_idx = 0
+        let (fg1, _) = resolve_cell_color(
+            &shader,
+            0,
+            19, // line (head_put_line - 1)
+            5,  // col
+            'x',
+            CharLoc::Middle,
+            20, // head_put_line
+            4,  // length
+        );
+        let (fg2, _) = resolve_cell_color(
+            &shader,
+            0,
+            18, // line (head_put_line - 2)
+            5,
+            'x',
+            CharLoc::Middle,
+            20,
+            4,
+        );
+        // fg1 should be palette[4] (brightest), fg2 should be palette[0] (darkest)
+        assert_eq!(
+            fg1,
+            Some(palette[4]),
+            "head-adjacent Middle cell should be brightest"
+        );
+        assert_eq!(
+            fg2,
+            Some(palette[0]),
+            "tail-adjacent Middle cell should be darkest"
+        );
+    }
+
+    /// Long droplet (length > threshold=8) Middle cells keep the color_map
+    /// value — remap is not applied.
+    #[test]
+    fn long_droplet_middle_cells_unchanged() {
+        let palette: Vec<Color> = (0..5)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 50,
+                g: i as u8 * 50,
+                b: i as u8 * 50,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![2u8; 50 * 100]; // all cells → color_idx 2
+        let color_map: &[u8] = &color_map;
+        let slots = slot_array(palette);
+        let shader = make_test_shader(&slots, color_map, false);
+
+        // length=9 (> threshold of 8). Middle cell at line 19 (dist=1).
+        // Remap NOT applied → color_idx stays at color_map value = 2.
+        let (fg, _) = resolve_cell_color(
+            &shader,
+            0,
+            19,
+            5,
+            'x',
+            CharLoc::Middle,
+            20,
+            9, // length > threshold
+        );
+        assert_eq!(
+            fg,
+            Some(palette[2]),
+            "long droplet Middle cell should use color_map value"
+        );
+    }
+
+    /// Threshold boundary: length=8 (exactly the threshold) → remap applies.
+    #[test]
+    fn threshold_boundary_length_8_remapped() {
+        let palette: Vec<Color> = (0..5)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 50,
+                g: i as u8 * 50,
+                b: i as u8 * 50,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![1u8; 50 * 100];
+        let color_map: &[u8] = &color_map;
+        let slots = slot_array(palette);
+        let shader = make_test_shader(&slots, color_map, false);
+
+        // length=8 (= threshold). denom = 5. dist=1 → t=0 → color_idx = 4 (last).
+        let (fg, _) = resolve_cell_color(&shader, 0, 19, 5, 'x', CharLoc::Middle, 20, 8);
+        assert_eq!(
+            fg,
+            Some(palette[4]),
+            "length=8 should still be remapped (≤ threshold)"
+        );
+    }
+
+    /// shading_distance=true disables the remap even for short droplets.
+    /// The shading_distance path has its own length-aware exponential decay.
+    #[test]
+    fn shading_distance_disables_remap() {
+        let palette: Vec<Color> = (0..5)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 50,
+                g: i as u8 * 50,
+                b: i as u8 * 50,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![1u8; 50 * 100];
+        let color_map: &[u8] = &color_map;
+        let slots = slot_array(palette);
+        let shader = make_test_shader(&slots, color_map, true);
+
+        // length=4 with shading_distance=true. Remap NOT applied —
+        // shading_distance path overrides color_idx with exponential decay.
+        // Just verify it doesn't panic and returns some color.
+        let (fg, _) = resolve_cell_color(&shader, 0, 19, 5, 'x', CharLoc::Middle, 20, 4);
+        assert!(fg.is_some(), "shading_distance path must return a color");
+    }
+
+    /// Head and Tail are unaffected by the remap — only Middle cells change.
+    #[test]
+    fn head_and_tail_unaffected_by_remap() {
+        let palette: Vec<Color> = (0..5)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 50,
+                g: i as u8 * 50,
+                b: i as u8 * 50,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![1u8; 50 * 100];
+        let color_map: &[u8] = &color_map;
+        let slots = slot_array(palette);
+        let shader = make_test_shader(&slots, color_map, false);
+
+        // length=4 (short). Head should be palette[4] (last). Tail should be palette[0].
+        let (fg_head, bold_head) = resolve_cell_color(
+            &shader,
+            0,
+            20, // head line
+            5,
+            'x',
+            CharLoc::Head,
+            20,
+            4,
+        );
+        let (fg_tail, bold_tail) = resolve_cell_color(
+            &shader,
+            0,
+            17, // tail line (head - 3)
+            5,
+            'x',
+            CharLoc::Tail,
+            20,
+            4,
+        );
+        assert_eq!(fg_head, Some(palette[4]));
+        assert!(bold_head, "Head should be bold");
+        assert_eq!(fg_tail, Some(palette[0]));
+        assert!(!bold_tail, "Tail should not be bold");
+    }
+
+    /// Short droplet with length=4 produces a strict head→tail gradient:
+    /// Head=last, Middle1=last, Middle2=0, Tail=0. The two Middle cells
+    /// are visually distinct, breaking the "flat short droplet" look.
+    #[test]
+    fn short_droplet_produces_visible_gradient() {
+        let palette: Vec<Color> = (0..8)
+            .map(|i| Color::Rgb {
+                r: i as u8 * 30,
+                g: i as u8 * 30,
+                b: i as u8 * 30,
+            })
+            .collect();
+        let palette: &[Color] = &palette;
+        let color_map: Vec<u8> = vec![3u8; 50 * 100]; // uniform "flat" baseline
+        let color_map: &[u8] = &color_map;
+        let slots = slot_array(palette);
+        let shader = make_test_shader(&slots, color_map, false);
+
+        // length=4, 8-stop palette (last=7). denom = 1.
+        // Middle1 (dist=1): t=0 → color_idx = 7 (last)
+        // Middle2 (dist=2): t=1 → color_idx = 0
+        let (fg_m1, _) = resolve_cell_color(&shader, 0, 19, 5, 'x', CharLoc::Middle, 20, 4);
+        let (fg_m2, _) = resolve_cell_color(&shader, 0, 18, 5, 'x', CharLoc::Middle, 20, 4);
+        // The two Middle cells must differ — that's the whole point of 3-F.
+        assert_ne!(
+            fg_m1, fg_m2,
+            "short droplet Middle cells must differ after remap (was uniform before)"
+        );
+        // And specifically: m1 brighter than m2 (head-side brighter than tail-side).
+        let Color::Rgb { r: r1, .. } = fg_m1.unwrap() else {
+            panic!("expected Rgb");
+        };
+        let Color::Rgb { r: r2, .. } = fg_m2.unwrap() else {
+            panic!("expected Rgb");
+        };
+        assert!(
+            r1 > r2,
+            "head-side Middle ({r1}) should be brighter than tail-side ({r2})"
         );
     }
 }
