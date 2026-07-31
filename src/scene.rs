@@ -194,7 +194,7 @@ pub const SCENES: &[SceneInfo] = &[
     // from 18.33% to 0.39% and boosted avg_fps from 7,843 to 29,773 — a 280%
     // speedup with 99.6% fewer drawn cells. This scene is the visible reward
     // for that achievement: a deep-space binary rain that, like the Cosmic Dragon,
-    // sees its own future. Palette `deepspace` + charset `binary` mirror the
+    // sees its own future. Palette `cosmos` + charset `binary` mirror the
     // cinematic base; speed 12 + density 0.65 give it room to breathe.
     SceneInfo {
         name: "cosmic_dragon",

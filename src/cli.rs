@@ -233,8 +233,9 @@ pub fn cycle_charset_preset(current: &str, dir: i32) -> &'static str {
 pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
     theme::lookup_theme(s).ok_or_else(|| {
         // v25.11 (bug #13): add "did you mean" suggestion for close matches.
-        // Catches common typos like `comet` → `cosmos`, `galaxy` → `gray`/`cosmos`,
-        // `supernova` → `nebula`/`snow`, etc. Only suggests if edit distance ≤ 2.
+        // Catches approximate names and typos, suggesting the closest current
+        // theme when edit distance ≤ 2 (e.g. a slightly-misspelled color name
+        // gets nudged toward the nearest valid theme).
         let suggestion = closest_color_name(s);
         if let Some(name) = suggestion {
             format!(

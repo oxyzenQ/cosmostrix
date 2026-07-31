@@ -516,9 +516,8 @@ mod tests {
     // ── v25.11 (bug #13): "did you mean" color name suggestions ──
 
     #[test]
-    fn unknown_color_comet_suggests_cosmos() {
-        // 'cosmos' is the closest match — edit distance from 'cosmos' to 'cosmos' is 0.
-        // Use 'cosmos' (missing last char) which is distance 1.
+    fn unknown_color_cosmo_suggests_cosmos() {
+        // 'cosmo' (missing last char) is edit-distance 1 from 'cosmos'.
         let err = parse_color_scheme("cosmo").unwrap_err();
         assert!(
             err.contains("Did you mean 'cosmos'?"),
@@ -527,9 +526,8 @@ mod tests {
     }
 
     #[test]
-    fn unknown_color_supernova_suggests_closest() {
-        // 'supernova' is too far from any color (edit distance > 2).
-        // Use 'nebala' (missing 'u') which is distance 1 from 'nebula'.
+    fn unknown_color_nebala_suggests_nebula() {
+        // 'nebala' (missing 'u') is edit-distance 1 from 'nebula'.
         let err = parse_color_scheme("nebala").unwrap_err();
         assert!(
             err.contains("Did you mean 'nebula'?"),
@@ -538,9 +536,8 @@ mod tests {
     }
 
     #[test]
-    fn unknown_color_galaxy_suggests_closest() {
-        // 'galaxy' is too far from any color (edit distance > 2).
-        // Use 'vaporwav' (missing 'e') which is distance 1 from 'vaporwave'.
+    fn unknown_color_vaporwav_suggests_vaporwave() {
+        // 'vaporwav' (missing 'e') is edit-distance 1 from 'vaporwave'.
         let err = parse_color_scheme("vaporwav").unwrap_err();
         assert!(
             err.contains("Did you mean 'vaporwave'?"),

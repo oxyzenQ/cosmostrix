@@ -283,7 +283,7 @@ cosmostrix --screensaver              # only q exits (all other keys ignored)
 cosmostrix --message "wake up, neo"   # overlay message
 cosmostrix --charset katakana         # character set
 cosmostrix --scene cinematic          # built-in scene
-cosmostrix --scene monolith --color deepspace
+cosmostrix --scene monolith --color cosmos
 cosmostrix --config ~/.config/cosmostrix/config.toml  # explicit config (whitelist-enforced)
 cosmostrix --scene-custom nightcore   # user-defined custom scene
 ```

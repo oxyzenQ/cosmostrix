@@ -136,8 +136,8 @@ follow these architectural rules.
 - Default: `controlled-live` + `adaptive` regime (no config needed).
 - 5 emotional phases: Deep Void (00-03), Compression (03-06), Pulse (06-12),
   Calm (12-18), Signal (18-24).
-- Color temperature shift: each phase has a target color scheme (deepspace,
-  blackhole, aurora, cosmos, neon). Checked every 30s, applied via smooth
+- Color temperature shift: each phase has a target color scheme (cosmos,
+  gray, aurora, cosmos, neon). Checked every 30s, applied via smooth
   palette transition wave.
 - Custom time map: `[adaptive-custom.HH-MM]` overrides default phases.
   Format: `adaptive-custom.00-00 = color, scene, key=value, ...`

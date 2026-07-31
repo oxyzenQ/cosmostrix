@@ -116,8 +116,8 @@ smoothstep interpolation so the rain breathes rather than jumps.
 
 | Time window | Phase | Color palette | Mood |
 |-------------|-------|---------------|------|
-| `00:00–03:00` | Deep Void | deepspace | silent night, dense + slow + dark + glitchy |
-| `03:00–06:00` | Compression | blackhole | pre-dawn pressure, extreme density |
+| `00:00–03:00` | Deep Void | cosmos | silent night, dense + slow + dark + glitchy |
+| `03:00–06:00` | Compression | gray | pre-dawn pressure, extreme density |
 | `06:00–12:00` | Pulse | aurora | morning energy, sparse + fast + bright |
 | `12:00–18:00` | Calm | cosmos | stable afternoon, balanced |
 | `18:00–24:00` | Signal | neon | dusk to night, rising glitch |

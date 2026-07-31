@@ -300,8 +300,8 @@ ADAPTIVE ATMOSPHERE (default, Cosmic Dragon):
   Cosmostrix breathes with the local time of day. Five emotional phases
   modulate rain density, speed, brightness, glitch, AND color scheme:
 
-  00:00-03:00  Deep Void     deepspace palette, dense + dark + glitchy
-  03:00-06:00  Compression   blackhole palette, extreme density
+  00:00-03:00  Deep Void     cosmos palette, dense + dark + glitchy
+  03:00-06:00  Compression   gray palette, extreme density
   06:00-12:00  Pulse         aurora palette, sparse + fast + bright
   12:00-18:00  Calm          cosmos palette, balanced + full brightness
   18:00-24:00  Signal        neon palette, rising glitch at dusk
