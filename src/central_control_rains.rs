@@ -62,19 +62,29 @@
 //!
 //! ## Calibration history (most recent first)
 //!
+//! - **v30.0.0 (final — visual test locked)**: after A/B visual testing
+//!   against option C (density-focused) and option D (haze-focused), the
+//!   parameter set from commit 1e4e3fa (the initial visibility-floor
+//!   raise) was confirmed as the optimal balance. Reverted option C's
+//!   two mid tweaks: density 0.55 → 0.75, contrast_reduction 0.15 → 0.12.
+//!   Mid layer now reads as vivid individual streaks at natural density —
+//!   neither too sparse (C's 0.55 made the field feel empty) nor too
+//!   hazy (D's 1.3 phosphor_decay muted trails). Effective mid energy:
+//!   0.242 (the sweet spot between C's 0.174 and original-v30's 0.334).
 //! - **v30 (option C — density-focused)**: mid layer density dropped
 //!   from 0.75 → 0.55 to remove noise via fewer droplets rather than
 //!   dimming. Reverted Option D's mid rollbacks (head_bloom 0.70 → 0.82,
 //!   phosphor_decay 1.3 → 1.0, contrast_red 0.25 → 0.12) since the
 //!   density drop alone is sufficient. Slight contrast_red bump to 0.15
 //!   keeps a hint of haze. Effective mid energy: 0.174 (vs D's 0.187,
-//!   pre-v30's 0.109, original v30's 0.334).
+//!   pre-v30's 0.109, original v30's 0.334). — *Reverted by final lock.*
 //! - **v30 (option D — haze-focused)**: rolled back mid head-bloom,
 //!   raised mid contrast reduction + phosphor decay. Worked but user
-//!   preferred density-focused approach.
+//!   preferred density-focused approach. — *Reverted by option C.*
 //! - **v30 (initial raise)**: lifted back + mid visibility floor to
 //!   fix "too quiet/dim darkness" complaint. Effective back visibility
-//!   raised 2.5x; effective mid raised 3.06x (overshot — caused noise).
+//!   raised 2.5x; effective mid raised 3.06x. — *Confirmed optimal by
+//!   final visual lock; restored as v30.0.0 baseline.*
 
 use std::time::Duration;
 
@@ -100,10 +110,10 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// v30 calibration (option C — density-focused): back and mid raised to
-/// fix "too quiet/dim darkness" complaint. Back effective visibility
-/// = 0.55 × 0.55 × (1−0.40) ≈ 0.182 (2.5× pre-v30). Mid stays at the
-/// raised floor since density is the primary noise lever now.
+/// v30.0.0 final lock — confirmed optimal by visual A/B test against
+/// option C and option D variants. Back effective visibility
+/// = 0.55 × 0.55 × (1−0.40) ≈ 0.182 (2.5× pre-v30 — fixes the original
+/// "too quiet/dim darkness" complaint without overshooting).
 ///   - Back  (0): 0.55 (v30 floor — visible atmospheric depth)
 ///   - Mid   (1): 0.88 (v30 floor — clearly present, not "too quiet")
 ///   - Front (2): 1.00 (kept — full neon brightness)
@@ -117,12 +127,13 @@ pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.90, 1.00];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v30 (option C): rolled back to v30 floor (0.82) — density is now the
-/// noise lever, not head-bloom. Back kept at 0.55 so distant head glow
-/// reads as soft haze rather than invisible pinprick.
-///   - Back  (0): 0.55 (kept)
-///   - Mid   (1): 0.82 (kept — reverted Option D's rollback)
-///   - Front (2): 1.00 (kept — full cinematic head pop)
+/// v30.0.0 final lock: mid at 0.82 gives the head a soft pop without
+/// spilling into noisy bloom. Back at 0.55 keeps distant head glow as
+/// soft haze rather than invisible pinprick. (Option D briefly rolled
+/// mid back to 0.70 — too muted; option C restored 0.82 — confirmed.)
+///   - Back  (0): 0.55 (v30 floor)
+///   - Mid   (1): 0.82 (v30 floor)
+///   - Front (2): 1.00 (full cinematic head pop)
 pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.82, 1.0];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
@@ -171,12 +182,14 @@ pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// v30 (option C): mid restored to 1.0 (Option D's 1.3 was redundant
-/// once density dropped to 0.55). Back at 1.8 keeps distant trails
-/// brief. Front at 0.5 — slow fade for smooth body→tail gradient.
-///   - Back  (0): 1.8 (kept — trails fade quick, no bright-spot linger)
-///   - Mid   (1): 1.0 (kept — reverted Option D's 1.3)
-///   - Front (2): 0.5 (kept — slow fade for body→tail smoothness)
+/// v30.0.0 final lock: mid at 1.0 — base decay, trails persist long
+/// enough to read as rain streaks without lingering as bright spots.
+/// Back at 1.8 keeps distant trails brief (no flicker). Front at 0.5 —
+/// slow fade for smooth body→tail gradient. (Option D briefly raised
+/// mid to 1.3 — too muted; option C restored 1.0 — confirmed.)
+///   - Back  (0): 1.8 (trails fade quick, no bright-spot linger)
+///   - Mid   (1): 1.0 (base decay — natural trail persistence)
+///   - Front (2): 0.5 (slow fade for body→tail smoothness)
 pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.8, 1.0, 0.5];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
@@ -195,15 +208,16 @@ pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 /// Per-layer spawn density multiplier (far = sparse, near = dense).
 ///
-/// v30 (option C — density-focused): mid dropped from 0.75 → 0.55 —
-/// fewer droplets is the primary noise lever. Each remaining mid-layer
-/// droplet stays vivid (brightness 0.88, saturation 0.90, head_bloom
-/// 0.82) but there are 27% fewer of them, so the layer reads as
-/// individual streaks rather than a noisy field.
+/// v30.0.0 final lock: mid at 0.75 — the natural density that visual
+/// A/B testing confirmed as the sweet spot. Option C tried 0.55 (too
+/// sparse — mid layer felt empty, lost depth cues); 0.75 keeps enough
+/// droplets to read as a steady rain field without crossing into noise.
+/// Each mid droplet stays vivid (brightness 0.88, saturation 0.90,
+/// head_bloom 0.82) at natural density.
 ///   - Back  (0): 0.45 (v30 floor — visible distant rain)
-///   - Mid   (1): 0.55 (was 0.75 — density-focused noise reduction)
+///   - Mid   (1): 0.75 (v30 floor — confirmed optimal by visual test)
 ///   - Front (2): 1.00 (kept — natural base rate)
-pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.55, 1.0];
+pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.75, 1.0];
 
 /// Per-layer glyph simplicity (currently no-op — subsumed by brightness
 /// + saturation). Kept as a tuning knob for future use.
@@ -215,12 +229,14 @@ pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 /// terminal equivalent of DoF blur — back layer reads as "behind a
 /// haze", front layer is sharp.
 ///
-/// v30 (option C): mid at 0.15 (slight bump from 0.12 — keeps a hint
-/// of atmospheric haze to support the lower density).
+/// v30.0.0 final lock: mid at 0.12 — minimal haze, lets mid-layer color
+/// identity (saturation 0.90) read cleanly. Option C tried 0.15 (too
+/// milky — mid felt washed out at the new lower density); 0.12 keeps
+/// mid crisp while still sitting behind the front layer in depth.
 ///   - Back  (0): 0.40 (v30 floor — visible rain through soft fog)
-///   - Mid   (1): 0.15 (was 0.12 — slight haze bump)
+///   - Mid   (1): 0.12 (v30 floor — confirmed optimal by visual test)
 ///   - Front (2): 0.0 (kept — sharp foreground)
-pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.40, 0.15, 0.0];
+pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.40, 0.12, 0.0];
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
 
