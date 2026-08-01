@@ -324,6 +324,16 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut max_dirty_cells: u64 = 0;
     let mut dirty_all_frames: u64 = 0;
     let mut active_streams_sum: u64 = 0;
+    // bolt: rate-limit cloud.active_droplet_count() sampling. For non-Monolith
+    // scenes (cinematic, storm) this is O(N) per call — iterates
+    // self.droplets filtering is_alive. At 58K FPS with ~2K droplets (storm),
+    // that's 116M filter+count iterations/sec — pure waste for a metric that
+    // changes slowly (droplets spawn/die on ~100ms timescale, not per-frame).
+    // Sampling every 64 frames cuts the call rate by 64×; for a 10s bench at
+    // 58K FPS that's still 906 samples — statistically representative for the
+    // reported integer average. The first frame is always sampled so short
+    // benches still report a non-zero value.
+    let mut streams_samples: u64 = 0;
     let total_cells = (w as usize) * (h as usize);
 
     // Sub-component timing tracker — see bench_comp.rs for component
@@ -444,7 +454,15 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             ft_index += 1;
         }
         total_frames += 1;
-        active_streams_sum += cloud.active_droplet_count() as u64;
+        // bolt: sample active streams every 64 frames (bitmask mod, cheap).
+        // total_frames starts at 1 after the first increment, so the condition
+        // `total_frames == 1 || total_frames & 63 == 0` triggers on frame 1,
+        // then frames 64, 128, 192, ... — guarantees ≥1 sample for any bench
+        // length, and ~906 samples for a typical 10s @ 58K FPS run.
+        if total_frames == 1 || total_frames & 63 == 0 {
+            active_streams_sum += cloud.active_droplet_count() as u64;
+            streams_samples += 1;
+        }
 
         // RSS sample (rate-limited internally; cheap when interval not elapsed).
         rss.tick();
@@ -679,7 +697,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let ansi_bytes_per_second = ((total_drawn_cells * ANSI_BYTES_PER_CELL_ESTIMATE) as f64
         / elapsed_s.max(0.000_001)) as u64;
-    let active_streams_avg = active_streams_sum / total_frames.max(1);
+    let active_streams_avg = active_streams_sum / streams_samples.max(1);
     let dirty_threshold = dirty_threshold_cells(total_cells, DIRTY_THRESHOLD_RATIO);
 
     let active_frame_ratio = if total_frames > 0 {
