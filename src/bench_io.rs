@@ -374,6 +374,15 @@ impl BenchIoWriter {
 /// The borrow checker cannot split a method's `&mut self` from an
 /// existing `&self.color_cache` borrow, but it CAN split disjoint
 /// field references passed as separate arguments.
+//
+// 9 args exceeds clippy's default `too_many_arguments` threshold (7).
+// This is intentional: the args are disjoint `&mut` field references
+// that the borrow checker needs to see as separate parameters (grouping
+// them into a struct would require either moving them out of `self` —
+// which defeats the borrow-splitting purpose — or holding `&mut self`
+// again, which reintroduces the E0502 conflict). Same convention used
+// in live_config.rs:349, verbose.rs:57, cloud/render.rs:279, etc.
+#[allow(clippy::too_many_arguments)]
 #[inline]
 fn write_cell_rle(
     ansi_buf: &mut Vec<u8>,
