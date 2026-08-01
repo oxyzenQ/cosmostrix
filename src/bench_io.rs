@@ -192,10 +192,22 @@ impl BenchIoWriter {
             // flushes per-row, but for the bench writer we don't emit
             // MoveTo commands since the target is /dev/null — flushing
             // across rows is fine and produces the minimal byte count).
+            //
+            // A': we pass individual field references to a free function
+            // instead of calling `self.write_cell_rle(...)` because the
+            // borrow checker cannot split a method's `&mut self` borrow
+            // from the immutable `cache_ref` borrow of `self.color_cache`.
+            // Field-level disjoint borrows (ansi_buf, run_buf, metrics.*)
+            // are allowed by the borrow checker when passed as separate
+            // reference arguments.
             let total = width_usize * (frame.height as usize);
             for idx in 0..total {
                 let cell = frame.cell_at_index_ref(idx);
-                self.write_cell_rle(
+                write_cell_rle(
+                    &mut self.ansi_buf,
+                    &mut self.run_buf,
+                    &mut self.metrics.sgr_cache_hits,
+                    &mut self.metrics.sgr_cache_misses,
                     cell,
                     &mut cur_fg,
                     &mut cur_bg,
@@ -324,50 +336,6 @@ impl BenchIoWriter {
         self.metrics.total_write_ns += write_start.elapsed().as_nanos() as u64;
     }
 
-    /// A': full-redraw helper — emit one cell, accumulating into `run_buf`
-    /// and flushing on style change. Mirrors terminal.rs:723-754.
-    #[inline]
-    fn write_cell_rle(
-        &mut self,
-        cell: &Cell,
-        cur_fg: &mut Option<crossterm::style::Color>,
-        cur_bg: &mut Option<crossterm::style::Color>,
-        cur_bold: &mut bool,
-        cache_ref: Option<&ColorCache>,
-    ) {
-        // On any style change, flush the pending run and emit new SGR.
-        let color_changed = cell.fg != *cur_fg || cell.bg != *cur_bg;
-        if color_changed && !self.run_buf.is_empty() {
-            self.ansi_buf.extend_from_slice(self.run_buf.as_bytes());
-            self.run_buf.clear();
-        }
-        if color_changed {
-            Self::emit_sgr(
-                cache_ref,
-                &mut self.ansi_buf,
-                &mut self.metrics.sgr_cache_hits,
-                &mut self.metrics.sgr_cache_misses,
-                cell.fg,
-                cell.bg,
-            );
-            *cur_fg = cell.fg;
-            *cur_bg = cell.bg;
-        }
-        if cell.bold != *cur_bold {
-            if !self.run_buf.is_empty() {
-                self.ansi_buf.extend_from_slice(self.run_buf.as_bytes());
-                self.run_buf.clear();
-            }
-            if cell.bold {
-                self.ansi_buf.extend_from_slice(b"\x1b[1m");
-            } else {
-                self.ansi_buf.extend_from_slice(b"\x1b[22m");
-            }
-            *cur_bold = cell.bold;
-        }
-        self.run_buf.push(cell.ch);
-    }
-
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
     /// Mirrors `Terminal::emit_sgr` (terminal.rs:550-563) — uses the color
     /// cache when available, falling back to on-the-fly formatting.
@@ -398,4 +366,51 @@ impl BenchIoWriter {
         self.metrics.elapsed_secs = elapsed_secs;
         self.metrics
     }
+}
+
+/// A': full-redraw helper — emit one cell, accumulating into `run_buf`
+/// and flushing on style change. Mirrors terminal.rs:723-754.
+///
+/// This is a free function (not a method on `BenchIoWriter`) so that the
+/// caller can hold an immutable borrow of `self.color_cache` (as `cache`)
+/// while mutating `ansi_buf`, `run_buf`, and the SGR hit/miss counters.
+/// The borrow checker cannot split a method's `&mut self` from an
+/// existing `&self.color_cache` borrow, but it CAN split disjoint
+/// field references passed as separate arguments.
+#[inline]
+fn write_cell_rle(
+    ansi_buf: &mut Vec<u8>,
+    run_buf: &mut String,
+    sgr_hits: &mut u64,
+    sgr_misses: &mut u64,
+    cell: &Cell,
+    cur_fg: &mut Option<crossterm::style::Color>,
+    cur_bg: &mut Option<crossterm::style::Color>,
+    cur_bold: &mut bool,
+    cache: Option<&ColorCache>,
+) {
+    // On any style change, flush the pending run and emit new SGR.
+    let color_changed = cell.fg != *cur_fg || cell.bg != *cur_bg;
+    if color_changed && !run_buf.is_empty() {
+        ansi_buf.extend_from_slice(run_buf.as_bytes());
+        run_buf.clear();
+    }
+    if color_changed {
+        BenchIoWriter::emit_sgr(cache, ansi_buf, sgr_hits, sgr_misses, cell.fg, cell.bg);
+        *cur_fg = cell.fg;
+        *cur_bg = cell.bg;
+    }
+    if cell.bold != *cur_bold {
+        if !run_buf.is_empty() {
+            ansi_buf.extend_from_slice(run_buf.as_bytes());
+            run_buf.clear();
+        }
+        if cell.bold {
+            ansi_buf.extend_from_slice(b"\x1b[1m");
+        } else {
+            ansi_buf.extend_from_slice(b"\x1b[22m");
+        }
+        *cur_bold = cell.bold;
+    }
+    run_buf.push(cell.ch);
 }
