@@ -180,7 +180,7 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
-    cloud.set_stuck_cell_sweep(false); // T1.1: keep realloc counters clean in benchmark
+    cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
@@ -267,7 +267,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
-    cloud.set_stuck_cell_sweep(false); // T1.1: keep realloc counters clean in benchmark
+    cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
@@ -887,7 +887,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
     cloud.set_component_timing(true);
-    cloud.set_stuck_cell_sweep(false); // T1.1: keep realloc counters clean in benchmark
+    cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
