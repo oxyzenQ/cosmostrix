@@ -169,8 +169,10 @@ pub struct Cloud {
     /// P4: frame counter for the periodic stuck-cell sweep. Incremented
     /// every render frame; when it crosses STUCK_CELL_SWEEP_INTERVAL_FRAMES,
     /// the sweep runs and the counter resets. Only checked when
-    /// `enable_component_timing` is true (i.e., `--perf-stats`) so the
-    /// sweep has zero cost in production interactive runs.
+    /// `enable_stuck_cell_sweep` is true (independent of `--perf-stats`)
+    /// so the sweep can be disabled in benchmark mode without disabling
+    /// component timing. The sweep still requires `enable_component_timing`
+    /// to be true (preserved for backwards compatibility with `--perf-stats`).
     pub(super) frames_since_stuck_sweep: u64,
 
     pub(super) perf_pressure: f32,
@@ -252,6 +254,14 @@ pub struct Cloud {
     pub(super) last_sim_ms: f64,
     pub(super) last_render_ms: f64,
     pub(super) enable_component_timing: bool,
+    /// T1.1: independent gate for the periodic stuck-cell sweep. Default true
+    /// (preserves `--perf-stats` interactive behavior). Set to false in
+    /// benchmark mode (`bench.rs`) so the sweep's Vec growth (`droplet_ranges`
+    /// SmallVec + dirty-list churn from `set_force`) does not pollute the
+    /// realloc counters. The sweep still requires `enable_component_timing`
+    /// to be true (the per-sweep body short-circuits on either flag being
+    /// false — see `phosphor.rs::stuck_cell_sweep`).
+    pub(super) enable_stuck_cell_sweep: bool,
     /// When true, the cloud may emit diagnostic stderr logs. When false,
     /// all such logs are suppressed (silent arena). Set from `cfg.verbose`.
     pub(super) verbose: bool,
@@ -403,6 +413,7 @@ impl Cloud {
             last_sim_ms: 0.0,
             last_render_ms: 0.0,
             enable_component_timing: false,
+            enable_stuck_cell_sweep: true, // T1.1: default on; benchmark disables via setter
             verbose: false,
             stuck_cells_cleared_total: 0,
             stuck_sweeps_with_clears: 0,
@@ -543,6 +554,15 @@ impl Cloud {
 
     pub fn set_component_timing(&mut self, enabled: bool) {
         self.enable_component_timing = enabled;
+    }
+
+    /// T1.1: independent gate for the stuck-cell sweep. The sweep is default
+    /// enabled (preserves `--perf-stats` interactive behavior) but disabled
+    /// in benchmark mode to keep realloc counters clean. The sweep body
+    /// also short-circuits when `enable_component_timing` is false (kept for
+    /// backwards compatibility with the pre-T1.1 gate).
+    pub fn set_stuck_cell_sweep(&mut self, enabled: bool) {
+        self.enable_stuck_cell_sweep = enabled;
     }
 
     /// Enable or disable verbose diagnostic logging from the cloud

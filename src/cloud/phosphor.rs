@@ -665,17 +665,28 @@ impl Cloud {
     ///
     /// ## Gating
     ///
-    /// Only runs when `enable_component_timing` is true (i.e., `--perf-stats`
-    /// mode). This makes the sweep a debug tool — zero cost in production
-    /// interactive runs. The sweep also short-circuits when a message box
-    /// is active (its overlay cells would be false positives).
+    /// T1.1: independent gate added. The sweep now short-circuits when
+    /// `enable_stuck_cell_sweep` is false (independent of `enable_component_timing`).
+    /// Default true for interactive runs; set to false in benchmark mode
+    /// (`bench.rs`) so the sweep's Vec growth does not pollute realloc
+    /// counters. The body still respects `enable_component_timing` as a
+    /// second short-circuit (kept for backwards compatibility with `--perf-stats`).
+    /// The sweep also short-circuits when a message box is active
+    /// (its overlay cells would be false positives).
     ///
     /// ## Cost
     ///
     /// O(W×H + droplets) per sweep. At 200×60 with ~100 active droplets,
     /// ≈12,100 ops every 60 s ≈ 200 ops/s — negligible.
     pub(super) fn stuck_cell_sweep(&mut self, frame: &mut crate::frame::Frame) {
-        // Debug-only gate: skip entirely in production interactive runs.
+        // T1.1: independent gate. Default true; benchmark sets to false
+        // so the sweep's Vec growth (droplet_ranges SmallVec + dirty-list
+        // churn from set_force) does not pollute realloc counters.
+        if !self.enable_stuck_cell_sweep {
+            return;
+        }
+        // Legacy gate: still respect enable_component_timing (preserves
+        // the pre-T1.1 behavior where --perf-stats toggled the sweep).
         if !self.enable_component_timing {
             return;
         }
