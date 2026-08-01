@@ -96,6 +96,7 @@ mod cinematic;
 mod cli;
 mod cli_parse;
 mod cloud;
+mod central_control_rains;
 mod color_cache;
 mod color_tune;
 mod colors_custom;
