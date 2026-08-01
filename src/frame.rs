@@ -25,7 +25,7 @@
 //!    (don't match the new counter) and are effectively clean. Cost: one
 //!    integer add. No memset, no iteration.
 //!
-//! Dirty indices are still collected into a [`SmallVec`] with 64 inline slots
+//! Dirty indices are still collected into a [`SmallVec`] with 256 inline slots
 //! for fast iteration — the dirty *list* is needed by renderers that iterate
 //! only-changed cells. The SmallVec's `clear()` is O(1) (just resets len), so
 //! the per-frame cost is dominated by the generation bump.
@@ -51,9 +51,14 @@ use crate::constants::{
 // ~150 AVX2 stores; the new bump is 1 add. Net win on every frame, especially
 // the dirty_all path which previously forced a full memset.
 
-/// Inline capacity for dirty indices SmallVec (64 usize = 512 bytes on stack).
-/// Covers small terminals without heap allocation; spills to heap for large frames.
-const DIRTY_INLINE_CAPACITY: usize = 64;
+/// Inline capacity for dirty indices SmallVec (256 usize = 2048 bytes on stack).
+/// T1.2: pre-grown from 64 -> 256 to cover typical dirty counts (100-500 per
+/// frame on a 200x60 terminal) without heap spill. The `with_capacity` call in
+/// `new_with_bounds` only heap-allocates when `(len / 8).min(8192) > 256`, i.e.
+// terminal area > 2048 cells (e.g. 90x24=2160 still fits inline). Eliminates
+/// heap allocation entirely for small/medium terminals — major win for the
+/// `--benchmark` realloc counters on common screen sizes.
+const DIRTY_INLINE_CAPACITY: usize = 256;
 
 #[derive(Clone, Debug)]
 pub struct Frame {
