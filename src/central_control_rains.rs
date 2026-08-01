@@ -28,16 +28,16 @@
 //!
 //! ## Section map
 //!
-//! | Section                  | Controls                                           |
-//! |--------------------------|----------------------------------------------------|
+//! | Section                  | Controls                                            |
+//! |--------------------------|-----------------------------------------------------|
 //! | Parallax depth layers    | Layer count + per-layer speed/brightness/saturation |
 //! | Phosphor persistence     | CRT afterglow decay, tail residual, glyph threshold |
 //! | Atmospheric depth        | Density, contrast reduction, glyph dim              |
 //! | Head bloom               | Gaussian glow sigma, intensity, cell radius         |
 //! | Per-layer head bloom     | Depth-aware head pop multiplier per layer           |
-//! | Depth fog vignette       | Top/bottom row dimming                             |
+//! | Depth fog vignette       | Top/bottom row dimming                              |
 //! | CRT vignette             | Cinematic top/bottom edge dim                       |
-//! | Radial vignette          | Edge darkening + layer masking                     |
+//! | Radial vignette          | Edge darkening + layer masking                      |
 //! | Rain shadow              | Bottom quadratic fade-out + layer masking           |
 //! | Front layer tail         | Long-stream proportional tail allocation            |
 //! | Velocity turbulence      | Drift oscillation amplitude/frequency               |
@@ -49,9 +49,9 @@
 //! | Spawn pacing             | Spawn remainder cap, advance remainder cap          |
 //! | Warm start               | Initial seed count, head bias, spawn debt           |
 //! | Glyph entry ramp         | Fresh-droplet brightness ramp-in                    |
-//! | Living rain density      | Per-column density noise (spatial + temporal)        |
+//! | Living rain density      | Per-column density noise (spatial + temporal)       |
 //! | Living rain wind gusts   | Gust attack/hold/decay envelope                     |
-//! | Color transition         | Palette propagation wave duration/velocity           |
+//! | Color transition         | Palette propagation wave duration/velocity          |
 //! | Color ecosystems         | Long-timescale hue/sat/lum drift                    |
 //! | Atmospheric evolution    | Autonomous density/luminance/anomaly ranges         |
 //! | Memory history           | Renderer long-timescale memory samples              |
