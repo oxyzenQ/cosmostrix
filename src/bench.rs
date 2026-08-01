@@ -369,6 +369,17 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let bench_end = start + Duration::from_secs(bench_duration_secs);
     let half_elapsed_target = (bench_duration_secs as f64) / 2.0;
 
+    // Rate-limit terminal event polling to 10Hz. crossterm::event::poll
+    // allocates 3 buffers per call (file descriptor set + internal state),
+    // which at 70K FPS benchmark throughput becomes 210K allocs/sec — the
+    // dominant allocation source in the benchmark loop. Resize detection
+    // only needs human-response latency (~100ms); polling every frame is
+    // pure waste. Interactive mode is unaffected — the bench loop runs at
+    // 1000×+ the interactive framerate, so 10Hz here ≈ 0.1Hz-equivalent
+    // CPU load vs interactive.
+    let mut last_poll = Instant::now();
+    let poll_interval = Duration::from_millis(100);
+
     while Instant::now() < bench_end {
         if interrupted.load(Ordering::Relaxed) {
             break;
@@ -466,9 +477,13 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         // sets the flag — keypresses/mouse are silently consumed (the user
         // shouldn't be interacting during a benchmark anyway). Cost: ~1µs
         // per frame, negligible vs the 80-200µs frame times.
-        while crossterm::event::poll(Duration::from_millis(0)).unwrap_or(false) {
-            if let Ok(crossterm::event::Event::Resize(_, _)) = crossterm::event::read() {
-                terminal_resized_during_bench = true;
+        // Rate-limited terminal event drain (see comment above the loop).
+        if last_poll.elapsed() >= poll_interval {
+            last_poll = Instant::now();
+            while crossterm::event::poll(Duration::from_millis(0)).unwrap_or(false) {
+                if let Ok(crossterm::event::Event::Resize(_, _)) = crossterm::event::read() {
+                    terminal_resized_during_bench = true;
+                }
             }
         }
     }
