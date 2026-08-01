@@ -15,11 +15,22 @@
 //! - `io_total_write_ns`: cumulative time in write+flush
 //! - `io_backpressure_events`: short writes (would_block or partial)
 //! - Computed: bandwidth_mbps, avg_latency_us, effective_write_fps
+//!
+//! ## T2.1 upgrade
+//!
+//! The writer now mirrors the production `Terminal::draw()` fast path:
+//! - Uses `ColorCache` to pre-format SGR byte sequences for palette colors
+//!   (eliminates per-cell `write_sgr_colors_buf` formatting cost).
+//! - Uses `Frame::cell_at_index_ref` instead of `cell_at_index` to avoid
+//!   the 24-byte `Cell` copy per dirty cell.
+//!
+//! Expected impact: -30-40% `io_ms` cost, +10-15% FPS in `--bench-io` mode.
 
 use std::io::{BufWriter, Write};
 use std::time::Instant;
 
 use crate::cell::Cell;
+use crate::color_cache::ColorCache;
 use crate::frame::Frame;
 use crate::sgr_format::write_sgr_colors_buf;
 
@@ -33,6 +44,10 @@ pub(crate) struct TerminalIoMetrics {
     pub total_write_ns: u64,
     pub backpressure_events: u64,
     pub elapsed_secs: f64,
+    /// T2.1: SGR cache hit counter — incremented each time `ColorCache::sgr_for_cell`
+    /// returned a pre-formatted byte slice. Misses fall back to `write_sgr_colors_buf`.
+    pub sgr_cache_hits: u64,
+    pub sgr_cache_misses: u64,
 }
 
 impl TerminalIoMetrics {
@@ -68,15 +83,30 @@ impl TerminalIoMetrics {
 }
 
 /// Wet I/O writer that writes ANSI output to a null device.
+///
+/// T2.1: holds a `ColorCache` for pre-formatted SGR sequences. Constructed
+/// via [`BenchIoWriter::with_palette`], the writer mirrors the production
+/// `Terminal::draw()` fast path — SGR sequences are pre-formatted once at
+/// construction, then memcpy'd per cell instead of being formatted on-the-fly.
 pub(crate) struct BenchIoWriter {
     writer: BufWriter<std::fs::File>,
     ansi_buf: Vec<u8>,
     metrics: TerminalIoMetrics,
+    /// T2.1: pre-formatted SGR cache. `None` when constructed without a palette
+    /// (legacy `new()` path); `Some` when constructed via `with_palette()`.
+    color_cache: Option<ColorCache>,
 }
 
 impl BenchIoWriter {
-    /// Create a new writer targeting /dev/null (Unix) or nul (Windows).
-    pub(crate) fn new() -> Option<Self> {
+    /// T2.1: create a writer with a pre-built `ColorCache` derived from the
+    /// active palette. Mirrors the production `Terminal::draw()` fast path —
+    /// SGR sequences are pre-formatted once at construction, then memcpy'd
+    /// per cell instead of being formatted on-the-fly.
+    pub(crate) fn with_palette(palette: &crate::chroma::palette::Palette) -> Option<Self> {
+        Self::build(Some(ColorCache::new(palette)))
+    }
+
+    fn build(color_cache: Option<ColorCache>) -> Option<Self> {
         let path = if cfg!(target_os = "windows") {
             "nul"
         } else {
@@ -94,11 +124,15 @@ impl BenchIoWriter {
                 target: path.to_string(),
                 ..Default::default()
             },
+            color_cache,
         })
     }
 
     /// Generate ANSI bytes from the frame's dirty cells and write to null device.
     /// Measures write time and tracks metrics.
+    ///
+    /// T2.1: uses `cell_at_index_ref` (no Cell copy) and `ColorCache::sgr_for_cell`
+    /// when a cache is present.
     pub(crate) fn write_frame(&mut self, frame: &Frame) {
         self.ansi_buf.clear();
 
@@ -120,14 +154,17 @@ impl BenchIoWriter {
             // Full redraw: iterate all cells
             let total = (frame.width as usize) * (frame.height as usize);
             for idx in 0..total {
-                let cell = frame.cell_at_index(idx);
-                self.emit_cell(&mut cur_fg, &mut cur_bg, &cell);
+                // T2.1: borrow instead of copy. Production Terminal::draw uses
+                // the same pattern — see terminal.rs:840 cell_at_index_ref.
+                let cell = frame.cell_at_index_ref(idx);
+                self.emit_cell(&mut cur_fg, &mut cur_bg, cell);
             }
         } else {
             // Diff: iterate only dirty cells
             for &idx in dirty {
-                let cell = frame.cell_at_index(idx);
-                self.emit_cell(&mut cur_fg, &mut cur_bg, &cell);
+                // T2.1: borrow instead of copy.
+                let cell = frame.cell_at_index_ref(idx);
+                self.emit_cell(&mut cur_fg, &mut cur_bg, cell);
             }
         }
 
@@ -169,6 +206,12 @@ impl BenchIoWriter {
     }
 
     /// Emit SGR + character for a single cell into ansi_buf.
+    ///
+    /// T2.1: takes `&Cell` instead of `Cell` (avoids 24-byte copy per call).
+    /// Uses `ColorCache::sgr_for_cell` when a cache is present; falls back to
+    /// `write_sgr_colors_buf` for non-palette colors (matches production
+    /// `Terminal::emit_sgr` pattern — see terminal.rs:550).
+    #[inline]
     fn emit_cell(
         &mut self,
         cur_fg: &mut Option<crossterm::style::Color>,
@@ -177,7 +220,30 @@ impl BenchIoWriter {
     ) {
         // SGR (only if color changed)
         if cell.fg != *cur_fg || cell.bg != *cur_bg {
-            write_sgr_colors_buf(&mut self.ansi_buf, cell.fg, cell.bg);
+            // T2.1: try the cache first. On hit, memcpy the pre-formatted
+            // SGR bytes. On miss, fall back to on-the-fly formatting.
+            let cache_hit = if let Some(cache) = &self.color_cache {
+                if let Some(cached) = cache.sgr_for_cell(cell.fg, cell.bg) {
+                    self.ansi_buf.extend_from_slice(cached);
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            if !cache_hit {
+                write_sgr_colors_buf(&mut self.ansi_buf, cell.fg, cell.bg);
+            }
+
+            // T2.1: track hit/miss for the perf report.
+            if cache_hit {
+                self.metrics.sgr_cache_hits += 1;
+            } else {
+                self.metrics.sgr_cache_misses += 1;
+            }
+
             *cur_fg = cell.fg;
             *cur_bg = cell.bg;
         }

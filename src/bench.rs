@@ -278,8 +278,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     progress.init_done();
 
     // ── Phase 2: Initialize wet I/O writer if --bench-io ──────────────
+    // T2.1: pass palette so BenchIoWriter can build a ColorCache and mirror
+    // the production Terminal::draw() fast path (pre-formatted SGR bytes).
     let mut io_writer = if cfg.bench_io {
-        crate::bench_io::BenchIoWriter::new()
+        crate::bench_io::BenchIoWriter::with_palette(&cloud.palette)
     } else {
         None
     };
@@ -893,8 +895,10 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     cloud.set_max_sim_delta(target_period);
 
     // Phase 2: wet I/O
+    // T2.1: pass palette so BenchIoWriter can build a ColorCache and mirror
+    // the production Terminal::draw() fast path (pre-formatted SGR bytes).
     let mut io_writer = if cfg.bench_io {
-        crate::bench_io::BenchIoWriter::new()
+        crate::bench_io::BenchIoWriter::with_palette(&cloud.palette)
     } else {
         None
     };
