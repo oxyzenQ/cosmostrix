@@ -176,6 +176,26 @@ impl ColorCache {
         result
     }
 
+    /// Silent variant of `sgr_for_cell` — same lookup logic, but does NOT
+    /// touch the atomic hit/miss counters. Used by the benchmark wet I/O
+    /// hot path (`BenchIoWriter::write_frame`), where matrix rain workloads
+    /// generate a unique (fg, bg) per cell and the cache always misses.
+    ///
+    /// At 46K FPS × 235 cells = 10.8M atomic RMW ops/sec, the silent variant
+    /// saves ~5-10% of the per-cell SGR cost. The bench writer has its own
+    /// local counters in `TerminalIoMetrics` if it ever needs to report
+    /// hit/miss rate (currently unused — kept for future use).
+    #[inline]
+    pub fn sgr_for_cell_silent(&self, fg: Option<Color>, bg: Option<Color>) -> Option<&[u8]> {
+        if bg != self.bg {
+            return None;
+        }
+        match fg {
+            Some(c) => self.sgr_for(c),
+            None => Some(self.reset_sgr()),
+        }
+    }
+
     /// Return cumulative SGR cache hit/miss counters as `(hits, misses)`.
     ///
     /// Used by the `--perf-stats` exit report to compute cache hit rate.
@@ -507,5 +527,64 @@ mod tests {
         let (hits, misses) = cache.cache_stats();
         assert_eq!(hits, 3, "expected 3 hits");
         assert_eq!(misses, 2, "expected 2 misses");
+    }
+
+    #[test]
+    fn silent_variant_does_not_touch_counters() {
+        // Strategy C: sgr_for_cell_silent must NOT increment the atomic
+        // hit/miss counters. This is the contract that lets the bench
+        // writer skip ~10.8M atomic RMW ops/sec in the matrix rain hot path.
+        let palette = Palette {
+            colors: vec![Color::Rgb { r: 0, g: 255, b: 0 }],
+            bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        };
+        let cache = ColorCache::new(&palette);
+
+        // Mix of would-be hits and would-be misses through the silent path.
+        let _ = cache.sgr_for_cell_silent(
+            Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+            Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        );
+        let _ = cache.sgr_for_cell_silent(None, Some(Color::Rgb { r: 0, g: 0, b: 0 }));
+        let _ = cache.sgr_for_cell_silent(
+            Some(Color::Rgb { r: 1, g: 1, b: 1 }),
+            Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        );
+        let _ = cache.sgr_for_cell_silent(
+            Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+            Some(Color::Rgb { r: 9, g: 9, b: 9 }),
+        );
+
+        let (hits, misses) = cache.cache_stats();
+        assert_eq!(hits, 0, "silent variant must not increment hit counter");
+        assert_eq!(misses, 0, "silent variant must not increment miss counter");
+    }
+
+    #[test]
+    fn silent_variant_returns_same_result_as_loud_variant() {
+        // The silent variant must return the exact same Option<&[u8]> as the
+        // regular sgr_for_cell for every (fg, bg) input — it only differs in
+        // whether the atomic counters are touched.
+        let palette = Palette {
+            colors: vec![Color::Rgb { r: 0, g: 255, b: 0 }],
+            bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+        };
+        let cache = ColorCache::new(&palette);
+
+        let cases: [(Option<Color>, Option<Color>); 4] = [
+            (Some(Color::Rgb { r: 0, g: 255, b: 0 }), Some(Color::Rgb { r: 0, g: 0, b: 0 })),
+            (None, Some(Color::Rgb { r: 0, g: 0, b: 0 })),
+            (Some(Color::Rgb { r: 1, g: 1, b: 1 }), Some(Color::Rgb { r: 0, g: 0, b: 0 })),
+            (Some(Color::Rgb { r: 0, g: 255, b: 0 }), Some(Color::Rgb { r: 9, g: 9, b: 9 })),
+        ];
+
+        for (fg, bg) in cases {
+            let loud = cache.sgr_for_cell(fg, bg).map(|s| s.to_vec());
+            let silent = cache.sgr_for_cell_silent(fg, bg).map(|s| s.to_vec());
+            assert_eq!(
+                loud, silent,
+                "silent variant must match loud variant for fg={fg:?} bg={bg:?}"
+            );
+        }
     }
 }

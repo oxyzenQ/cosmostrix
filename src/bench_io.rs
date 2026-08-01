@@ -51,6 +51,28 @@
 //! The io_ns/cell GROWTH with D (96→141→184) was the signature of
 //! O(D log D) sort here + O(D²) VisualSampler (fixed separately).
 //! Strategy B makes io_ns/cell approximately constant across scenes.
+//!
+//! Strategy B results (commit 6d8c260):
+//!   monolith (D=235):  avg_fps=46675, io_share=85.6%, io_ns/cell=75.2
+//!   cinematic (D=668): avg_fps=10442, io_share=78.0%, io_ns/cell=110.8
+//!   storm (D=1774):    avg_fps=3791,  io_share=86.2%, io_ns/cell=127.6
+//!
+//! ## Strategy C — Silent cache lookup (built on top of Strategy B)
+//!
+//! The bench writer previously tracked `sgr_cache_hits/misses` in
+//! `TerminalIoMetrics` — but those fields were never read by
+//! `bench_report.rs` or `bench.rs`. They were dead metrics. Worse, every
+//! `ColorCache::sgr_for_cell()` call touched an atomic counter
+//! (`fetch_add` on `AtomicU64`), ~5-10ns per cell. At 46K FPS × 235 cells
+//! = 10.8M atomic RMW ops/sec, this was 5-10% of per-cell SGR cost for
+//! zero benefit.
+//!
+//! Strategy C adds `ColorCache::sgr_for_cell_silent()` — same lookup
+//! logic, no atomic counter touch. The bench writer uses it exclusively.
+//! The dead `TerminalIoMetrics::sgr_cache_hits/misses` fields were removed
+//! entirely (one less `&mut u64` to thread through `emit_cell_lean`,
+//! bringing it from 9 args down to 7 — under clippy's
+//! `too_many_arguments` threshold, so the `#[allow]` was also dropped).
 
 use std::io::{BufWriter, Write};
 use std::time::Instant;
@@ -70,10 +92,6 @@ pub(crate) struct TerminalIoMetrics {
     pub total_write_ns: u64,
     pub backpressure_events: u64,
     pub elapsed_secs: f64,
-    /// T2.1: SGR cache hit counter — incremented each time `ColorCache::sgr_for_cell`
-    /// returned a pre-formatted byte slice. Misses fall back to `write_sgr_colors_buf`.
-    pub sgr_cache_hits: u64,
-    pub sgr_cache_misses: u64,
 }
 
 impl TerminalIoMetrics {
@@ -166,6 +184,16 @@ impl BenchIoWriter {
     /// the previous cell — same byte count as RLE for matrix rain (where
     /// each cell has unique style), but without the O(D log D) sort or
     /// O(D) run-scan overhead.
+    ///
+    /// Strategy C: silent cache lookup. The previous `sgr_for_cell` call
+    /// touched atomic hit/miss counters in `ColorCache` (one `fetch_add`
+    /// per cell, ~5-10ns each). At 46K FPS × 235 cells = 10.8M atomic
+    /// RMW ops/sec, this was 5-10% of per-cell SGR cost. Strategy C uses
+    /// `sgr_for_cell_silent` which skips the atomics entirely. The bench
+    /// writer previously tracked its own `sgr_cache_hits/misses` in
+    /// `TerminalIoMetrics` — but those were never reported (no consumer
+    /// in bench_report.rs or bench.rs), so they were dead metrics. Both
+    /// the field and the counter increments have been removed.
     pub(crate) fn write_frame(&mut self, frame: &Frame) {
         self.ansi_buf.clear();
 
@@ -189,8 +217,6 @@ impl BenchIoWriter {
                 let cell = frame.cell_at_index_ref(idx);
                 emit_cell_lean(
                     &mut self.ansi_buf,
-                    &mut self.metrics.sgr_cache_hits,
-                    &mut self.metrics.sgr_cache_misses,
                     cell,
                     &mut cur_fg,
                     &mut cur_bg,
@@ -210,8 +236,6 @@ impl BenchIoWriter {
                 let cell = frame.cell_at_index_ref(idx);
                 emit_cell_lean(
                     &mut self.ansi_buf,
-                    &mut self.metrics.sgr_cache_hits,
-                    &mut self.metrics.sgr_cache_misses,
                     cell,
                     &mut cur_fg,
                     &mut cur_bg,
@@ -262,24 +286,24 @@ impl BenchIoWriter {
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
     /// Mirrors `Terminal::emit_sgr` (terminal.rs:550-563) — uses the color
     /// cache when available, falling back to on-the-fly formatting.
+    ///
+    /// Strategy C: uses `sgr_for_cell_silent` (no atomic counter touch).
+    /// The bench writer doesn't report SGR cache stats, so the atomic
+    /// `fetch_add` in the regular `sgr_for_cell` was pure overhead.
     #[inline]
     fn emit_sgr(
         cache: Option<&ColorCache>,
         buf: &mut Vec<u8>,
-        sgr_hits: &mut u64,
-        sgr_misses: &mut u64,
         fg: Option<crossterm::style::Color>,
         bg: Option<crossterm::style::Color>,
     ) {
         if let Some(cache) = cache {
-            if let Some(cached) = cache.sgr_for_cell(fg, bg) {
+            if let Some(cached) = cache.sgr_for_cell_silent(fg, bg) {
                 buf.extend_from_slice(cached);
-                *sgr_hits += 1;
                 return;
             }
         }
         write_sgr_colors_buf(buf, fg, bg);
-        *sgr_misses += 1;
     }
 
     /// Finalize and return collected metrics.
@@ -291,29 +315,23 @@ impl BenchIoWriter {
     }
 }
 
-/// Strategy B: emit one cell with per-cell style tracking. No run detection,
+/// Strategy B+C: emit one cell with per-cell style tracking. No run detection,
 /// no sort — just check if style changed since the previous cell and emit
 /// SGR only on change. Same byte count as RLE for matrix rain (where each
 /// cell has unique style), but without the sort or run-scan overhead.
 ///
 /// This is a free function (not a method on `BenchIoWriter`) so that the
 /// caller can hold an immutable borrow of `self.color_cache` (as `cache`)
-/// while mutating `ansi_buf` and the SGR hit/miss counters. The borrow
-/// checker cannot split a method's `&mut self` from an existing
-/// `&self.color_cache` borrow, but it CAN split disjoint field references
-/// passed as separate arguments.
+/// while mutating `ansi_buf`. The borrow checker cannot split a method's
+/// `&mut self` from an existing `&self.color_cache` borrow, but it CAN
+/// split disjoint field references passed as separate arguments.
 //
-// 9 args exceeds clippy's default `too_many_arguments` threshold (7).
-// Intentional: disjoint `&mut` field references needed for borrow-splitting
-// (a &mut self method would reintroduce the E0502 conflict with the
-// immutable cache_ref borrow). Same convention as live_config.rs:349,
-// verbose.rs:57, cloud/render.rs:279, etc.
-#[allow(clippy::too_many_arguments)]
+// 7 args is at clippy's default `too_many_arguments` threshold, so no
+// `#[allow]` needed. (Was 9 in Strategy A' with run_buf + sgr counters;
+// Strategy C dropped the dead counters.)
 #[inline]
 fn emit_cell_lean(
     ansi_buf: &mut Vec<u8>,
-    sgr_hits: &mut u64,
-    sgr_misses: &mut u64,
     cell: &Cell,
     cur_fg: &mut Option<crossterm::style::Color>,
     cur_bg: &mut Option<crossterm::style::Color>,
@@ -322,7 +340,7 @@ fn emit_cell_lean(
     utf8_buf: &mut [u8; 4],
 ) {
     if cell.fg != *cur_fg || cell.bg != *cur_bg {
-        BenchIoWriter::emit_sgr(cache, ansi_buf, sgr_hits, sgr_misses, cell.fg, cell.bg);
+        BenchIoWriter::emit_sgr(cache, ansi_buf, cell.fg, cell.bg);
         *cur_fg = cell.fg;
         *cur_bg = cell.bg;
     }
