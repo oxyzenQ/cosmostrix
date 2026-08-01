@@ -84,31 +84,85 @@ use crate::color_cache::ColorCache;
 use crate::frame::Frame;
 use crate::sgr_format::{push_u8, write_sgr_colors_buf};
 
+/// Branchless u8 → ASCII decimal lookup tables.
+///
+/// `write_u8_to_slice` is called 3× per cell in the Strategy E fast path
+/// (for R, G, B channels). The original branchy version had 2 branches per
+/// call (n<10, n<100) × 3 calls = 6 branches per cell, plus 3 more for the
+/// digit-count return. At 12.9M cells/sec that's ~77M branches/sec —
+/// branch-predictor-friendly but still consuming decode slots and register
+/// pressure.
+///
+/// The branchless version does 2 table lookups (U8_LEN + U8_PADDED) + 1
+/// 3-byte memcpy + return. Zero branches. The tables total 1024 bytes
+/// (256×3 + 256×1) and fit comfortably in L1 cache (typically 32 KB).
+///
+/// `U8_PADDED` stores the ASCII digits LEFT-ALIGNED: for n=5, the entry is
+/// `[b'5', 0, 0]`; for n=42, `[b'4', b'2', 0]`; for n=255, `[b'2', b'5', b'5']`.
+/// The caller advances `pos` by the digit count (1, 2, or 3), so the
+/// "padding" bytes at `buf[digits..3]` are always overwritten by the next
+/// write (the `;` separator or the next channel's digits). This makes the
+/// always-write-3-bytes approach safe for sequential buffer building.
+const U8_PADDED: [[u8; 3]; 256] = {
+    let mut table = [[0u8; 3]; 256];
+    let mut i = 0u16;
+    while i < 256 {
+        let n = i as u8;
+        let d_hundreds = b'0' + n / 100;
+        let d_tens = b'0' + (n / 10) % 10;
+        let d_ones = b'0' + n % 10;
+        if n >= 100 {
+            table[i as usize] = [d_hundreds, d_tens, d_ones];
+        } else if n >= 10 {
+            table[i as usize] = [d_tens, d_ones, 0];
+        } else {
+            table[i as usize] = [d_ones, 0, 0];
+        }
+        i += 1;
+    }
+    table
+};
+
+const U8_LEN: [u8; 256] = {
+    let mut table = [0u8; 256];
+    let mut i = 0u16;
+    while i < 256 {
+        let n = i as u8;
+        table[i as usize] = 1 + (n >= 10) as u8 + (n >= 100) as u8;
+        i += 1;
+    }
+    table
+};
+
+/// Precomputed bold escape sequences for branchless selection.
+///
+/// `BOLD_ESCAPES[0]` = bold OFF (`\x1b[22m`, 5 bytes).
+/// `BOLD_ESCAPES[1]` = bold ON  (`\x1b[1m`,  4 bytes).
+///
+/// The fast path's bold escape previously had an `if cell.bold { ... } else
+/// { ... }` branch with different byte counts (4 vs 5). This table replaces
+/// the branch with a `cell.bold as usize` index (branchless bool→int via
+/// `setne` on x86) + a memcpy of the selected escape.
+const BOLD_ESCAPES: [&[u8]; 2] = [b"\x1b[22m", b"\x1b[1m"];
+const BOLD_ESCAPE_LENS: [usize; 2] = [5, 4];
+
 /// Push a u8 as ASCII decimal digits into a fixed-size slice starting at
 /// `buf[0]`. Returns the number of bytes written (1, 2, or 3).
 ///
-/// Strategy E helper: the inline stack-buffer fast path in `emit_cell_lean`
-/// needs to format RGB digits directly into a `[u8; 32]` scratch buffer
-/// (instead of pushing into a `Vec<u8>`), so that the entire SGR + bold +
-/// glyph sequence can be emitted as a single `extend_from_slice` call.
-/// This avoids 9-13 separate `Vec::push` / `Vec::extend_from_slice` calls
-/// per cell in the matrix rain hot path — each of which costs ~3-5 cycles
-/// for the capacity check + memcpy setup.
+/// Branchless version: 2 L1-cached table lookups + 1 3-byte memcpy + return.
+/// Eliminates the 3-branch cascade (n<10, n<100, else) of the original.
+///
+/// The 3-byte memcpy always writes `U8_PADDED[n]` to `buf[..3]`, including
+/// padding bytes when the digit count is < 3. The padding is harmless — the
+/// caller advances `pos` by the returned digit count, and the next sequential
+/// write (a `;` separator or the next channel's digits) overwrites the
+/// padding. This holds because the Strategy E fast path builds the SGR
+/// sequence strictly left-to-right with no gaps.
 #[inline]
 fn write_u8_to_slice(buf: &mut [u8], n: u8) -> usize {
-    if n < 10 {
-        buf[0] = b'0' + n;
-        1
-    } else if n < 100 {
-        buf[0] = b'0' + n / 10;
-        buf[1] = b'0' + n % 10;
-        2
-    } else {
-        buf[0] = b'0' + n / 100;
-        buf[1] = b'0' + (n / 10) % 10;
-        buf[2] = b'0' + n % 10;
-        3
-    }
+    let digits = U8_LEN[n as usize] as usize;
+    buf[..3].copy_from_slice(&U8_PADDED[n as usize]);
+    digits
 }
 
 /// Terminal I/O metrics collected during wet benchmark.
@@ -440,23 +494,17 @@ fn emit_cell_lean(
             pos += 1;
             tmp[pos] = b'm';
             pos += 1;
-            // Optional bold escape (only if bold changed)
+            // Optional bold escape (only if bold changed).
+            // Branchless: index into BOLD_ESCAPES via `cell.bold as usize`
+            // (compiles to setne on x86 — no branch). The previous
+            // `if cell.bold { ... } else { ... }` had different byte counts
+            // (4 vs 5) which made cmov-style selection impossible without
+            // a table. The table lookup is branchless and L1-cached.
             if bold_changed {
-                tmp[pos] = 0x1b;
-                pos += 1;
-                tmp[pos] = b'[';
-                pos += 1;
-                if cell.bold {
-                    tmp[pos] = b'1';
-                    pos += 1;
-                } else {
-                    tmp[pos] = b'2';
-                    pos += 1;
-                    tmp[pos] = b'2';
-                    pos += 1;
-                }
-                tmp[pos] = b'm';
-                pos += 1;
+                let idx = cell.bold as usize;
+                let len = BOLD_ESCAPE_LENS[idx];
+                tmp[pos..pos + len].copy_from_slice(BOLD_ESCAPES[idx]);
+                pos += len;
                 *cur_bold = cell.bold;
             }
             // Glyph (ASCII — 1 byte, no encode_utf8 needed)
@@ -487,11 +535,9 @@ fn emit_cell_lean(
         *cur_bg = cell.bg;
     }
     if bold_changed {
-        if cell.bold {
-            ansi_buf.extend_from_slice(b"\x1b[1m");
-        } else {
-            ansi_buf.extend_from_slice(b"\x1b[22m");
-        }
+        // Branchless: same table-indexed lookup as the fast path.
+        let idx = cell.bold as usize;
+        ansi_buf.extend_from_slice(BOLD_ESCAPES[idx]);
         *cur_bold = cell.bold;
     }
     // ASCII fast path for the glyph — skip encode_utf8 (codepoint-range
