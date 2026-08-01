@@ -62,6 +62,32 @@
 //!
 //! ## Calibration history (most recent first)
 //!
+//! - **v30.0.0 (peak masterclass cinematic lock + stabilization)**: visual
+//!   test rated 10/10 perfect after silent override bug fix + front
+//!   density restoration. No parameter changes — visual tuning is locked.
+//!   Strengthened the bug fixes with permanent regression tests in
+//!   `droplet.rs::silent_override_regression_tests`:
+//!   1. `brightness_boost_above_one_actually_lightens` — front-layer
+//!      boost 1.05 must produce r_out > r_in (catches Bug #1 regression).
+//!   2. `brightness_dim_below_one_still_dims` — back-layer dim 0.48 must
+//!      produce r_out < r_in (catches accidental gate widening).
+//!   3. `saturation_boost_above_one_oversaturates_vivid_color` — front-
+//!      layer oversaturation 1.05 must push vivid colors further from
+//!      gray (catches Bug #2 regression).
+//!   4. `saturation_boost_leaves_gray_unchanged` — mathematical fixed-
+//!      point invariant (gray is unchanged by any saturation op).
+//!   5. `selfbloom_fractional_multiplier_actually_applies` — all three
+//!      selfbloom multipliers (0.38, 0.68, 1.15) must produce a non-zero
+//!      boost (catches Bug #3 regression via `as i32` truncation).
+//!   6. `per_layer_multipliers_are_monotically_nondecreasing` — depth
+//!      cue invariant (front ≥ mid ≥ back for brightness/sat/selfbloom).
+//!
+//!   Also confirmed centralization is complete: every per-layer visual
+//!   parameter (PARALLAX_*, PHOSPHOR_LAYER_DECAY, MONOLITH_LAYER_BRIGHTNESS,
+//!   MONOLITH_BREATHING_AMPLITUDE) lives in this file. monolith.rs and
+//!   cinematic.rs are pure consumers — they import from `crate::constants`
+//!   and add zero hardcoded layer values. Editing any rain parameter
+//!   requires touching only this single file.
 //! - **v30.0.0 (silent override bug fix + centralization)**: user reported
 //!   "front layer terasa dim tidak ada glow" after differential tuning.
 //!   Deep audit found 3 silent override bugs in droplet.rs that made
