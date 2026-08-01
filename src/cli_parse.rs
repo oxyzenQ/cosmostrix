@@ -5,6 +5,18 @@
 //!
 //! Extracted from config.rs to keep that file under its LOC guard.
 //! These are pure functions — parse + validate, no side effects.
+//!
+//! ## `--duration` vs `--bench-duration`
+//!
+//! Both flags accept the same compound format (e.g. `6s`, `30m`, `1h30m`).
+//! However, only `--bench-duration` is consulted by the benchmark dispatcher
+//! (`main.rs:1022-1028`). The hidden `--duration` flag is interactive-mode
+//! only — it sets the auto-exit deadline in `event_loop.rs` and has NO effect
+//! in `--benchmark` or `--bench-frames` mode.
+//!
+//! `parse_duration` therefore takes a `flag_label` parameter so error
+//! messages can correctly attribute the failure to whichever flag the user
+//! actually passed.
 
 /// Minimum benchmark duration: 1 second.
 const DURATION_MIN_SECS: u64 = 1;
@@ -25,12 +37,12 @@ const DURATION_MIN_SECS: u64 = 1;
 /// Returns `Err(String)` with a human-readable error message if:
 ///   - Format is invalid (unrecognized unit, missing number)
 ///   - Value is zero or below minimum
-pub fn parse_duration(input: &str) -> Result<u64, String> {
+pub fn parse_duration(flag_label: &str, input: &str) -> Result<u64, String> {
     let input = input.trim();
 
     // Bare number → seconds (backward compat with --bench-duration)
     if let Ok(n) = input.parse::<u64>() {
-        return validate_secs(n);
+        return validate_secs(flag_label, n);
     }
 
     // Compound format: parse <N><unit> pairs
@@ -59,12 +71,12 @@ pub fn parse_duration(input: &str) -> Result<u64, String> {
         }
         if num_str.is_empty() {
             return Err(format!(
-                "error: --duration '{input}' has invalid format (expected number before unit)"
+                "error: {flag_label} '{input}' has invalid format (expected number before unit)"
             ));
         }
         let num: u64 = num_str
             .parse()
-            .map_err(|_| format!("error: --duration '{input}' has number too large"))?;
+            .map_err(|_| format!("error: {flag_label} '{input}' has number too large"))?;
 
         // Parse unit
         let mut unit_str = String::new();
@@ -78,7 +90,7 @@ pub fn parse_duration(input: &str) -> Result<u64, String> {
         }
         if unit_str.is_empty() {
             return Err(format!(
-                "error: --duration '{input}' missing unit after {num_str} (use s/m/h)"
+                "error: {flag_label} '{input}' missing unit after {num_str} (use s/m/h)"
             ));
         }
 
@@ -88,7 +100,7 @@ pub fn parse_duration(input: &str) -> Result<u64, String> {
             "h" | "hr" | "hrs" | "hour" | "hours" => 3600u64,
             other => {
                 return Err(format!(
-                    "error: --duration '{input}' has unknown unit '{other}' (use s/m/h)"
+                    "error: {flag_label} '{input}' has unknown unit '{other}' (use s/m/h)"
                 ));
             }
         };
@@ -99,17 +111,17 @@ pub fn parse_duration(input: &str) -> Result<u64, String> {
 
     if !found_any {
         return Err(format!(
-            "error: --duration '{input}' is empty or invalid (use format like 6s, 30m, 1h30m)"
+            "error: {flag_label} '{input}' is empty or invalid (use format like 6s, 30m, 1h30m)"
         ));
     }
 
-    validate_secs(total_secs)
+    validate_secs(flag_label, total_secs)
 }
 
-fn validate_secs(secs: u64) -> Result<u64, String> {
+fn validate_secs(flag_label: &str, secs: u64) -> Result<u64, String> {
     if secs < DURATION_MIN_SECS {
         return Err(format!(
-            "error: --duration {secs}s is below the {DURATION_MIN_SECS}-second minimum"
+            "error: {flag_label} {secs}s is below the {DURATION_MIN_SECS}-second minimum"
         ));
     }
     Ok(secs)
@@ -200,63 +212,91 @@ mod tests {
 
     #[test]
     fn parse_duration_bare_number_is_seconds() {
-        assert_eq!(parse_duration("5").unwrap(), 5);
-        assert_eq!(parse_duration("90").unwrap(), 90);
+        assert_eq!(parse_duration("--bench-duration", "5").unwrap(), 5);
+        assert_eq!(parse_duration("--bench-duration", "90").unwrap(), 90);
     }
 
     #[test]
     fn parse_duration_seconds() {
-        assert_eq!(parse_duration("6s").unwrap(), 6);
-        assert_eq!(parse_duration("1s").unwrap(), 1);
-        assert_eq!(parse_duration("100s").unwrap(), 100);
+        assert_eq!(parse_duration("--bench-duration", "6s").unwrap(), 6);
+        assert_eq!(parse_duration("--bench-duration", "1s").unwrap(), 1);
+        assert_eq!(parse_duration("--bench-duration", "100s").unwrap(), 100);
     }
 
     #[test]
     fn parse_duration_minutes() {
-        assert_eq!(parse_duration("1m").unwrap(), 60);
-        assert_eq!(parse_duration("30m").unwrap(), 1800);
+        assert_eq!(parse_duration("--bench-duration", "1m").unwrap(), 60);
+        assert_eq!(parse_duration("--bench-duration", "30m").unwrap(), 1800);
     }
 
     #[test]
     fn parse_duration_hours() {
-        assert_eq!(parse_duration("1h").unwrap(), 3600);
-        assert_eq!(parse_duration("2h").unwrap(), 7200);
+        assert_eq!(parse_duration("--bench-duration", "1h").unwrap(), 3600);
+        assert_eq!(parse_duration("--bench-duration", "2h").unwrap(), 7200);
     }
 
     #[test]
     fn parse_duration_compound() {
-        assert_eq!(parse_duration("1h30m").unwrap(), 5400);
-        assert_eq!(parse_duration("2h15m30s").unwrap(), 8130);
-        assert_eq!(parse_duration("1m30s").unwrap(), 90);
+        assert_eq!(parse_duration("--bench-duration", "1h30m").unwrap(), 5400);
+        assert_eq!(
+            parse_duration("--bench-duration", "2h15m30s").unwrap(),
+            8130
+        );
+        assert_eq!(parse_duration("--bench-duration", "1m30s").unwrap(), 90);
     }
 
     #[test]
     fn parse_duration_long_units() {
-        assert_eq!(parse_duration("1min").unwrap(), 60);
-        assert_eq!(parse_duration("1hour").unwrap(), 3600);
-        assert_eq!(parse_duration("1minute").unwrap(), 60);
-        assert_eq!(parse_duration("1second").unwrap(), 1);
+        assert_eq!(parse_duration("--bench-duration", "1min").unwrap(), 60);
+        assert_eq!(parse_duration("--bench-duration", "1hour").unwrap(), 3600);
+        assert_eq!(parse_duration("--bench-duration", "1minute").unwrap(), 60);
+        assert_eq!(parse_duration("--bench-duration", "1second").unwrap(), 1);
     }
 
     #[test]
     fn parse_duration_rejects_zero() {
-        assert!(parse_duration("0").is_err());
-        assert!(parse_duration("0s").is_err());
+        assert!(parse_duration("--bench-duration", "0").is_err());
+        assert!(parse_duration("--bench-duration", "0s").is_err());
     }
 
     #[test]
     fn parse_duration_rejects_invalid() {
-        assert!(parse_duration("abc").is_err());
-        assert!(parse_duration("6x").is_err());
-        assert!(parse_duration("").is_err());
-        assert!(parse_duration("6").is_ok()); // bare number is valid
+        assert!(parse_duration("--bench-duration", "abc").is_err());
+        assert!(parse_duration("--bench-duration", "6x").is_err());
+        assert!(parse_duration("--bench-duration", "").is_err());
+        assert!(parse_duration("--bench-duration", "6").is_ok()); // bare number is valid
     }
 
     #[test]
     fn parse_duration_no_max_cap() {
         // No maximum cap — user can specify very long durations
-        assert_eq!(parse_duration("100h").unwrap(), 360000);
-        assert_eq!(parse_duration("8784h").unwrap(), 31622400); // ~1 year
+        assert_eq!(parse_duration("--bench-duration", "100h").unwrap(), 360000);
+        assert_eq!(
+            parse_duration("--bench-duration", "8784h").unwrap(),
+            31622400
+        ); // ~1 year
+    }
+
+    #[test]
+    fn parse_duration_error_message_uses_correct_flag_label() {
+        // Error messages must attribute failure to the actual flag the user
+        // passed, not a hardcoded "--duration". This was a regression where
+        // `--bench-duration foo` produced "error: --duration 'foo'...".
+        let err = parse_duration("--bench-duration", "abc").unwrap_err();
+        assert!(
+            err.contains("--bench-duration"),
+            "expected error to mention --bench-duration, got: {err}"
+        );
+        assert!(
+            !err.contains("--duration '"),
+            "error should not mention bare --duration, got: {err}"
+        );
+
+        let err = parse_duration("--duration", "6x").unwrap_err();
+        assert!(
+            err.contains("--duration"),
+            "expected error to mention --duration, got: {err}"
+        );
     }
 
     // ── parse_screen_size tests ─────────────────────────────────────────

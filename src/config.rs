@@ -241,7 +241,8 @@ pub struct Args {
         default_value_t = 60.0,
         help_heading = "COMMON OPTIONS",
         display_order = 30,
-        help = "Target FPS"
+        help = "Target FPS (interactive mode frame limiter; in --benchmark mode \
+                sets simulation rate only — does NOT cap render throughput)"
     )]
     pub fps: f64,
 

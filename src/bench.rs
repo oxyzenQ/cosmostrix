@@ -239,7 +239,7 @@ pub(crate) fn resolve_bench_duration(override_secs: Option<u64>) -> Result<u64, 
         Some(n) if n < BENCH_DURATION_MIN => Err(format!(
             "error: --bench-duration {n} is below the {BENCH_DURATION_MIN}-second minimum"
         )),
-        Some(n) => Ok(n), // No max cap — user can run endurance tests via --duration
+        Some(n) => Ok(n), // No max cap — use --bench-duration for endurance tests
         None => Ok(BENCHMARK_DURATION_SECS),
     }
 }

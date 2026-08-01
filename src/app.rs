@@ -55,7 +55,10 @@ pub struct CloudConfig {
     pub benchmark: bool,
     /// Optional benchmark duration override in seconds.
     /// When None, defaults to BENCHMARK_DURATION_SECS (5s).
-    /// Resolved from --bench-duration (bare seconds) OR --duration (compound: 6s/1h30m).
+    /// Resolved exclusively from --bench-duration (bare seconds or compound
+    /// like 6s/30m/1h30m). The hidden --duration flag is interactive-mode
+    /// only (auto-exit deadline) and is NOT consulted by the benchmark
+    /// dispatcher.
     pub bench_duration: Option<u64>,
     /// Parsed --screen-size WxH value. None means dynamic (use terminal size).
     /// When set, benchmark uses this fixed size; interactive renders to fixed virtual size.

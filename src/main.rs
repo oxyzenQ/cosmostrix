@@ -1008,6 +1008,7 @@ fn main() -> std::io::Result<()> {
     };
 
     if args.bench_all {
+        warn_bench_noop_flags(&args);
         let duration = resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
         let results = crate::bench_scale::run_scaling_benchmark(&cloud_cfg, duration)?;
         if args.json {
@@ -1020,10 +1021,12 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.benchmark {
+        warn_bench_noop_flags(&args);
         return bench::run_premium_benchmark(&cloud_cfg);
     }
 
     if let Some(_bench_frames) = args.bench_frames {
+        warn_bench_noop_flags(&args);
         return bench::run_benchmark(&cloud_cfg);
     }
 
@@ -1152,10 +1155,48 @@ fn main() -> std::io::Result<()> {
 
 /// Resolve bench duration from --bench-duration (now accepts compound format).
 /// Returns None if not specified (benchmark uses default 5s).
+///
+/// NOTE: only --bench-duration is consulted here. The hidden --duration flag
+/// is interactive-mode only (sets event_loop auto-exit deadline) and has no
+/// effect in --benchmark / --bench-frames / --bench-all mode.
 fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
     input
         .as_ref()
-        .map(|s| crate::ux::or_exit(crate::cli_parse::parse_duration(s)))
+        .map(|s| crate::ux::or_exit(crate::cli_parse::parse_duration("--bench-duration", s)))
+}
+
+/// Warn the user about CLI flags that have NO effect in benchmark mode.
+///
+/// Audit findings (commit 5301572):
+///   - `--duration` (hidden): interactive auto-exit only; bench uses --bench-duration
+///   - `--screensaver`: interactive input handler only; bench has no input loop
+///   - `--intro`: interactive intro animation; bench never plays it
+///   - `--perf-stats` (hidden): interactive summary only; bench emits BenchReportData
+///
+/// `--fps` is also ambiguous in benchmark mode (sets simulation rate, NOT a
+/// render cap), but it's not warned here because it DOES have an effect —
+/// just a different one than the name implies. The help text clarifies this.
+fn warn_bench_noop_flags(args: &Args) {
+    let mut warns: Vec<&str> = Vec::new();
+    if args.duration.is_some() {
+        warns.push("--duration (interactive auto-exit only; use --bench-duration)");
+    }
+    if args.screensaver {
+        warns.push("--screensaver (interactive input handler; bench has no input loop)");
+    }
+    if args.intro.is_some() {
+        warns.push("--intro (interactive intro animation; bench never plays it)");
+    }
+    if args.perf_stats {
+        warns.push("--perf-stats (interactive summary; bench emits its own report)");
+    }
+    if warns.is_empty() {
+        return;
+    }
+    eprintln!("[warn] the following flags have no effect in benchmark mode:");
+    for w in &warns {
+        eprintln!("       {w}");
+    }
 }
 
 fn canonicalize_runtime_args(args: &mut Args) {
