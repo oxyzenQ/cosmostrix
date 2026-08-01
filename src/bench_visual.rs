@@ -99,7 +99,8 @@ impl VisualSampler {
         // Resize on first sample or terminal resize. `prev_dirty_indices`
         // is cleared to avoid referencing stale indices into the old array.
         if self.prev_cells.len() != total {
-            self.prev_cells.resize(total, crate::cell::Cell::blank_with_bg(None));
+            self.prev_cells
+                .resize(total, crate::cell::Cell::blank_with_bg(None));
             self.prev_dirty_bits.resize(total, 0);
             self.prev_dirty_indices.clear();
         }
