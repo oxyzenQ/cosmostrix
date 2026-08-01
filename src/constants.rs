@@ -934,64 +934,61 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// Final calibration: front layer restored to full 1.0 brightness. The
-/// front layer must be the brightest, most vivid layer — it is the neon
-/// "cosmic dragon's breath" that defines the scene. Reducing it muted the whole
-/// composition. Back and mid keep their previously tuned values so the
-/// depth hierarchy (back < mid < front) is preserved.
-///   - Back  (0): 0.40 (kept — distant rain visible as atmospheric depth)
-///   - Mid   (1): 0.75 (kept — mid-layer rain reads clearly)
-///   - Front (2): 1.00 (restored — full neon brightness, no dimming)
+/// v31 calibration: back and mid layers raised to fix "too quiet/dim
+/// darkness" complaint. Previous effective back-layer visibility was
+/// 0.40 × 0.40 × (1−0.55 contrast) ≈ 0.072 — essentially dark space
+/// with sparse ghost pixels. New effective visibility is 0.55 × 0.55 ×
+/// (1−0.40) ≈ 0.182, a 2.5× visibility boost while preserving the
+/// back < mid < front depth hierarchy.
+///   - Back  (0): 0.55 (was 0.40 — distant rain now reads as visible
+///     atmospheric depth rather than near-empty darkness)
+///   - Mid   (1): 0.88 (was 0.75 — mid-layer rain clearly present,
+///     not "too quiet")
+///   - Front (2): 1.00 (kept — full neon brightness, no dimming)
 ///
-/// The relative hierarchy (back < mid < front) is preserved, so depth
-/// of field is maintained. Back-layer heads are still triple-dimmed via
-/// brightness × self-bloom × saturation, keeping the "white dot" artifact
-/// suppressed — but the back layer as a whole is now visible enough to
-/// read as atmospheric depth rather than near-empty space.
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.75, 1.00];
+/// Back-layer heads are still triple-dimmed via brightness × self-bloom
+/// × saturation × contrast-reduction, keeping the "white dot" artifact
+/// suppressed while letting the layer as a whole read as rain.
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.88, 1.00];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// Final calibration: front layer saturation restored to full 1.0 to
-/// match the brightness restoration. The front layer must carry full
-/// color identity — its neon glyphs are the visual centerpiece. Back
-/// and mid keep their previously tuned haze levels so the depth-of-field
-/// gradient reads naturally.
-///   - Back  (0): 0.40 (kept — distant rain has haze, "rain in fog" feel)
-///   - Mid   (1): 0.80 (kept — mid-layer neon reads as vivid rain)
-///   - Front (2): 1.00 (restored — full saturation, no color bleed-out)
+/// v31 calibration: back and mid saturation raised alongside brightness
+/// to keep color identity visible at the new brightness floor. The back
+/// layer still has measurable haze (45% desaturation vs prior 60%) so
+/// the depth-of-field gradient is preserved — back rain still reads as
+/// "rain in fog" rather than competing with the front layer.
+///   - Back  (0): 0.55 (was 0.40 — distant rain retains color identity)
+///   - Mid   (1): 0.90 (was 0.80 — mid-layer neon reads as vivid rain)
+///   - Front (2): 1.00 (kept — full saturation, no color bleed-out)
 ///
 /// Implemented in droplet.rs as a blend toward gray (luminance) by
-/// `1.0 - saturation_mult`. The back layer still has measurable haze
-/// (60% desaturation), preserving the "rain in fog" depth cue without
-/// flattening the back layer into pure gray.
-pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.80, 1.00];
+/// `1.0 - saturation_mult`. The back layer haze is reduced from 60% → 45%
+/// desaturation, keeping the depth cue without flattening to gray.
+pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.90, 1.00];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// Head bloom (HEAD_BLOOM_INTENSITY gaussian glow behind the head) is
-/// normally the same across all layers. For depth-of-field, back-layer
-/// heads should NOT glow as brightly — otherwise they become the
-/// aforementioned "bright spots". This multiplier scales the bloom
-/// gaussian factor before it's applied to RGB. Back layer at 0.40 means
-/// the head glow is reduced by 60%; mid layer at 0.70 by 30%.
-pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.70, 1.0];
+/// v31 calibration: back and mid head-bloom raised to make distant and
+/// mid-layer heads visible as soft glow rather than invisible pinpricks.
+/// The depth hierarchy is preserved (back < mid < front) so back-layer
+/// heads still read as background rather than competing with foreground.
+///   - Back  (0): 0.55 (was 0.40 — distant head glow visible as haze)
+///   - Mid   (1): 0.82 (was 0.70 — mid-layer head glow clearly present)
+///   - Front (2): 1.00 (kept — full cinematic head pop)
+pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.82, 1.0];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// Cinematic final polish: the head self-bloom (HEAD_WF 55% white blend
-/// applied to head cells) was previously layer-agnostic, which re-brightened
-/// back-layer heads AFTER the brightness dimming had already brought them
-/// down to 25%. This created the persistent "white dot" artifact: a
-/// back-layer head would dim to ~25%, then get boosted back up to ~66%
-/// by the white blend, popping out as a hot pixel.
-///
-/// This multiplier scales HEAD_WF per layer so the self-bloom is also
-/// depth-aware. Back layer at 0.30 means head self-bloom is reduced by
-/// 70% — a back-layer head now has effective self-bloom of ~17% (vs 55%
-/// for front layer), keeping it firmly in the background. Mid layer at
-/// 0.65; near layer at 1.0 (full cinematic head pop).
-pub const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.30, 0.65, 1.0];
+/// v31 calibration: back and mid head self-bloom raised to match the
+/// brightness/saturation/bloom floor. The depth-aware suppression is
+/// preserved — back layer at 0.45 means effective self-bloom is ~25%
+/// (vs 55% for front), still firmly in the background but no longer
+/// reads as a dead pixel.
+///   - Back  (0): 0.45 (was 0.30 — head visible without popping)
+///   - Mid   (1): 0.78 (was 0.65 — head self-bloom clearly present)
+///   - Front (2): 1.0 (kept — full cinematic head pop)
+pub const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.78, 1.0];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
@@ -1031,20 +1028,19 @@ pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// Masterclass depth-of-field tuning: back layer decays at 2.2× the base
-/// rate (was 1.6×) so back-layer head glow fades fast and doesn't linger
-/// as a persistent "bright spot". Mid layer at 1.2× keeps a slight
-/// recession. Front layer at 0.5× (was 0.7×) for the final micro-polish:
-/// slows the phosphor fade at the body→tail transition so the color
-/// shift from saturated body to dim tail is bridged by a longer
-/// afterglow, eliminating the visible flicker at the boundary.
+/// v31 calibration: back and mid decay rates slowed so trails persist
+/// longer and read as visible rain rather than instant-blip pixels.
+/// The depth hierarchy (back fast > mid > front slow) is preserved so
+/// back-layer glow still fades quicker than foreground, but the absolute
+/// duration is now readable.
+///   - Back  (0): 1.8 (was 2.2 — trails visible ~220ms vs ~180ms)
+///   - Mid   (1): 1.0 (was 1.2 — trails match base decay rate)
+///   - Front (2): 0.5 (kept — slow fade for smooth body→tail gradient)
 ///
-/// The 0.5× value means front-layer phosphor decays at exactly 0.5× the
-/// base rate (PHOSPHOR_DECAY_RATE=5.0 → effective 2.5/sec), matching
-/// the body-tail transition decay target: "no faster than 0.5× the
-/// normal decay rate". The slower fade gives the eye a smooth gradient
-/// from body brightness to tail dimness instead of a 1-frame color jump.
-pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.2, 1.2, 0.5];
+/// At back=1.8, effective decay = 1.8 × 5.0 = 9.0/sec, afterglow ~110ms
+/// (was ~90ms). The +20ms makes a single back-layer droplet's trail
+/// actually visible to the eye instead of vanishing in one frame.
+pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.8, 1.0, 0.5];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated. Ghost cells near the bottom accumulate into a static
@@ -1070,17 +1066,16 @@ pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 /// Per-layer spawn density multiplier (far = sparse, near = dense).
 ///
-/// Masterclass depth-of-field tuning: back layer spawns at 30% of base
-/// (was 50%) to thin out the "bright spot" population. Mid layer at 60%
-/// (was 100%) — mid-layer rain should feel clearly less dense than front.
-/// Near layer at 100% (was 150% — that oversaturated front and made the
-/// whole frame feel crowded; 100% is the natural base rate).
-///
-/// The combined effect with PARALLAX_BRIGHTNESS_MULT and
-/// PARALLAX_SATURATION_MULT: back-layer heads are now 30% as frequent,
-/// 35% as bright, AND 40% as saturated — three independent reductions
-/// stack to push them firmly into the background.
-pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.30, 0.60, 1.0];
+/// v31 calibration: back and mid density raised so the layers actually
+/// populate enough droplets to read as rain rather than occasional blips.
+/// Combined with the brightness/saturation floor, the effective visible
+/// droplet count for back is now ~16% of base (was ~10%) and mid is
+/// ~22% (was ~18%) — keeping the depth hierarchy while removing the
+/// "too quiet" feel.
+///   - Back  (0): 0.45 (was 0.30 — distant rain clearly populated)
+///   - Mid   (1): 0.75 (was 0.60 — mid-layer rain reads as steady)
+///   - Front (2): 1.00 (kept — natural base rate)
+pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.75, 1.0];
 
 /// Per-layer glyph simplicity: far layer chars are less visually dense.
 ///
@@ -1092,15 +1087,18 @@ pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 
 /// Per-layer contrast reduction (depth-of-field perceptual blur).
 ///
-/// Masterclass depth-of-field tuning: back layer (0) at 0.55 — fg color
-/// is blended 55% toward black (background), creating heavy haze. Mid
-/// layer (1) at 0.20 — slight recession but still readable. Near layer
-/// (2) at 0.0 — sharp foreground, no fog.
+/// v31 calibration: back contrast-reduction lowered from 0.55 → 0.40 and
+/// mid from 0.20 → 0.12 so the layers are not drowned in fog. Back layer
+/// still has 40% haze (vs 0% for front) — preserving the depth-of-field
+/// cue while letting the rain read through the fog.
+///   - Back  (0): 0.40 (was 0.55 — visible rain through softer haze)
+///   - Mid   (1): 0.12 (was 0.20 — minimal haze, near-full readability)
+///   - Front (2): 0.0 (kept — sharp foreground, no fog)
 ///
 /// This is the terminal equivalent of depth-of-field blur: instead of
 /// blurring pixels (impossible in text), we reduce fg-bg contrast so
 /// background rain reads as "behind a haze".
-pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.55, 0.20, 0.0];
+pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.40, 0.12, 0.0];
 
 // Velocity turbulence
 

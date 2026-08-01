@@ -797,12 +797,12 @@ impl Droplet {
                 //
                 // Cinematic final polish: scale HEAD_WF by per-layer multiplier
                 // so back-layer heads don't get re-brightened after dimming.
-                // Without this, the layer brightness dimming (25% for back
-                // layer) was being undone by the 55% white blend, popping the
-                // head back up to ~66% brightness — visible as a "white dot".
-                // With PARALLAX_HEAD_SELFBLOOM_MULT[0] = 0.30, the effective
-                // self-bloom for back-layer heads is ~17%, keeping them
-                // firmly below the front-layer body visibility floor.
+                // Without this, the layer brightness dimming was undone by the
+                // white blend, popping the head back up — visible as a "white
+                // dot". With PARALLAX_HEAD_SELFBLOOM_MULT[0] = 0.45 (v31), the
+                // effective self-bloom for back-layer heads is ~25%, keeping
+                // them below the front-layer body visibility floor while
+                // remaining visible as background depth.
                 if matches!(loc, CharLoc::Head) {
                     // v25 "glow with color" calibration: instead of blending
                     // toward pure white (255,255,255), boost the head's own
