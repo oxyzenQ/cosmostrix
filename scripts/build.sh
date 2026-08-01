@@ -164,10 +164,21 @@ apply_hardened_rustflags() {
         # --remap-path-prefix is order-sensitive: first matching prefix
         # wins, so remap the deeper cargo registry path before the
         # project working directory.
+        #
+        # Each flag MUST be a single array element. The idempotency check
+        # below does substring matching against existing RUSTFLAGS, so
+        # splitting `-C` and its arg into 2 elements would cause `-C` to
+        # match ANY existing `-C <something>` flag (e.g. `-C target-cpu=...`
+        # or `-C profile-use=...` set by the PGO stage), skipping the `-C`
+        # prefix while still appending the bare arg. The result is a rustc
+        # invocation like `... -C profile-use=... force-frame-pointers=yes`
+        # which rustc rejects as "multiple input filenames provided".
+        # Combining `-C` + arg into one element (`-Cforce-frame-pointers=yes`)
+        # makes the idempotency check match the full flag string.
         local extra=(
                 "--remap-path-prefix=${cargo_home}=redacted"
                 "--remap-path-prefix=${pwd_path}=redacted"
-                "-C" "force-frame-pointers=yes"
+                "-Cforce-frame-pointers=yes"
         )
 
         local existing="${RUSTFLAGS:-}"
