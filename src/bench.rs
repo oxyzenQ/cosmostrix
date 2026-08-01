@@ -327,8 +327,10 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let total_cells = (w as usize) * (h as usize);
 
     // Sub-component timing tracker — see bench_comp.rs for component
-    // definitions (sim/render/io). In benchmark mode NO terminal write
-    // happens, so io_ms is dirty-tracking overhead, not real IO.
+    // definitions (sim/render/io). io_ms is a residual bucket: when
+    // --bench-io is active it includes ANSI writes to /dev/null via
+    // BenchIoWriter; otherwise it captures VisualSampler sampling +
+    // clear_dirty + loop bookkeeping.
     let mut components = ComponentTimer::new();
 
     // RSS sampler — starts measuring alongside the frame loop so the
@@ -413,10 +415,15 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         frame.clear_dirty();
 
         let frame_time_ms = frame_start.elapsed().as_secs_f64() * 1000.0;
-        // io_ms = total frame time minus sim and render. In benchmark mode
-        // no terminal write happens, so this is dirty-tracking + clear_dirty
-        // + loop bookkeeping overhead. Clamped to >= 0 to guard against
-        // clock skew between Instant::now() calls on different cores.
+        // io_ms = total frame time minus sim and render. This is a residual
+        // bucket that captures: (1) BenchIoWriter::write_frame() when
+        // --bench-io is active (writes ANSI to /dev/null), (2) VisualSampler
+        // sampling cost (amortized over N frames), (3) dirty-tracking
+        // clear_dirty() + loop bookkeeping. When --bench-io is NOT passed,
+        // only (2) and (3) contribute — clear_dirty is O(1) via generation
+        // bump, so io_ms is dominated by loop bookkeeping in that case.
+        // Clamped to >= 0 to guard against clock skew between Instant::now()
+        // calls on different cores.
         let _io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
 
         components.record(sim_ms, render_ms, _io_ms);

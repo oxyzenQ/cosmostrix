@@ -24,7 +24,28 @@
 //! - Uses `Frame::cell_at_index_ref` instead of `cell_at_index` to avoid
 //!   the 24-byte `Cell` copy per dirty cell.
 //!
-//! Expected impact: -30-40% `io_ms` cost, +10-15% FPS in `--bench-io` mode.
+//! ## A' upgrade — RLE batching (production parity)
+//!
+//! The previous `write_frame` emitted one SGR + one char per dirty cell,
+//! producing ~5× more ANSI bytes than the production `Terminal::draw()`
+//! path which batches contiguous same-style cells into a single SGR +
+//! a character run. Because `io_ms` in the benchmark loop is computed
+//! as a residual bucket that includes `write_frame()` time, this
+//! over-production falsely surfaced as an "85.5% IO bottleneck".
+//!
+//! The new `write_frame` ports the RLE batching logic from
+//! `terminal.rs:835-941`:
+//! 1. Sort dirty indices (row-major order, same as production).
+//! 2. Scan contiguous runs of identical (fg, bg, bold) cells.
+//! 3. Emit ONE SGR sequence per style change + ONE `extend_from_slice`
+//!    for the entire character run.
+//! 4. Track `cur_bold` (only emit `\x1b[1m` / `\x1b[22m` on toggle).
+//!
+//! Output is byte-for-byte identical to what `Terminal::draw()` would
+//! emit for the same dirty set (modulo MoveTo cursor commands, which
+//! are not needed when writing to `/dev/null`). Expected impact:
+//! `bytes_written` drops ~5×, `io_share` drops from ~85% to ~40-50%,
+//! `avg_fps` rises from ~47K to ~70-80K.
 
 use std::io::{BufWriter, Write};
 use std::time::Instant;
@@ -88,9 +109,20 @@ impl TerminalIoMetrics {
 /// via [`BenchIoWriter::with_palette`], the writer mirrors the production
 /// `Terminal::draw()` fast path — SGR sequences are pre-formatted once at
 /// construction, then memcpy'd per cell instead of being formatted on-the-fly.
+///
+/// A': now performs RLE batching identical to `Terminal::draw()` so the
+/// benchmark I/O path produces the same byte stream as production rendering.
 pub(crate) struct BenchIoWriter {
     writer: BufWriter<std::fs::File>,
     ansi_buf: Vec<u8>,
+    /// A': reusable character-run buffer (mirrors `Terminal::run_buf`).
+    /// Accumulates UTF-8 bytes for a contiguous same-style run, flushed
+    /// to `ansi_buf` in a single `extend_from_slice` when style changes.
+    run_buf: String,
+    /// A': reusable dirty-index scratch buffer. We sort a copy of the
+    /// dirty list (rather than mutating `Frame`'s internal SmallVec) so
+    /// the benchmark path stays read-only with respect to the frame.
+    dirty_flat: Vec<usize>,
     metrics: TerminalIoMetrics,
     /// T2.1: pre-formatted SGR cache. `None` when constructed without a palette
     /// (legacy `new()` path); `Some` when constructed via `with_palette()`.
@@ -119,6 +151,8 @@ impl BenchIoWriter {
         Some(Self {
             writer,
             ansi_buf: Vec::with_capacity(8192),
+            run_buf: String::with_capacity(256),
+            dirty_flat: Vec::new(),
             metrics: TerminalIoMetrics {
                 enabled: true,
                 target: path.to_string(),
@@ -131,41 +165,126 @@ impl BenchIoWriter {
     /// Generate ANSI bytes from the frame's dirty cells and write to null device.
     /// Measures write time and tracks metrics.
     ///
-    /// T2.1: uses `cell_at_index_ref` (no Cell copy) and `ColorCache::sgr_for_cell`
-    /// when a cache is present.
+    /// A': now performs RLE batching — contiguous same-style dirty cells are
+    /// grouped into a single SGR + a character run, mirroring the production
+    /// `Terminal::draw()` diff path. This drops `bytes_written` ~5× and
+    /// removes the false "IO bottleneck" from the benchmark report.
     pub(crate) fn write_frame(&mut self, frame: &Frame) {
         self.ansi_buf.clear();
+        self.run_buf.clear();
 
-        // Generate ANSI for dirty cells (simplified: SGR + char per dirty cell).
-        // This produces representative ANSI output similar to what Terminal::draw()
-        // would emit, without the full RLE optimization (which is the renderer's
-        // job — here we measure raw I/O bandwidth).
         let dirty = frame.dirty_indices();
         if dirty.is_empty() && !frame.is_dirty_all() {
             return;
         }
 
-        let cur_fg_prev: Option<crossterm::style::Color> = None;
-        let cur_bg_prev: Option<crossterm::style::Color> = None;
-        let mut cur_fg = cur_fg_prev;
-        let mut cur_bg = cur_bg_prev;
+        // Current SGR state — only emit on change (mirrors Terminal::draw).
+        let mut cur_fg: Option<crossterm::style::Color> = None;
+        let mut cur_bg: Option<crossterm::style::Color> = None;
+        let mut cur_bold = false;
+        let cache_ref = self.color_cache.as_ref();
+        let width_usize = frame.width as usize;
 
         if frame.is_dirty_all() {
-            // Full redraw: iterate all cells
-            let total = (frame.width as usize) * (frame.height as usize);
+            // Full redraw: iterate all cells in row-major order. Group
+            // contiguous same-style runs across row boundaries (the
+            // production full-redraw path in terminal.rs:713-758 also
+            // flushes per-row, but for the bench writer we don't emit
+            // MoveTo commands since the target is /dev/null — flushing
+            // across rows is fine and produces the minimal byte count).
+            let total = width_usize * (frame.height as usize);
             for idx in 0..total {
-                // T2.1: borrow instead of copy. Production Terminal::draw uses
-                // the same pattern — see terminal.rs:840 cell_at_index_ref.
                 let cell = frame.cell_at_index_ref(idx);
-                self.emit_cell(&mut cur_fg, &mut cur_bg, cell);
+                self.write_cell_rle(
+                    cell,
+                    &mut cur_fg,
+                    &mut cur_bg,
+                    &mut cur_bold,
+                    cache_ref,
+                );
             }
         } else {
-            // Diff: iterate only dirty cells
-            for &idx in dirty {
-                // T2.1: borrow instead of copy.
-                let cell = frame.cell_at_index_ref(idx);
-                self.emit_cell(&mut cur_fg, &mut cur_bg, cell);
+            // Diff path: sort dirty indices (row-major) and scan contiguous
+            // runs. This mirrors terminal.rs:798-941 production logic:
+            //   1. Sort dirty indices (already in row-major order if push
+            //      order is preserved, but sort_unstable guarantees it).
+            //   2. Walk the sorted array, detecting contiguous horizontal
+            //      runs (idx1 == idx0 + 1 && same row) with identical style.
+            //   3. Accumulate chars into run_buf; flush on style change or
+            //      run break.
+            self.dirty_flat.clear();
+            self.dirty_flat.extend(dirty.iter().copied());
+            self.dirty_flat.sort_unstable();
+
+            let mut i = 0usize;
+            while i < self.dirty_flat.len() {
+                let idx0 = self.dirty_flat[i];
+                let cell0_ref = frame.cell_at_index_ref(idx0);
+                let fg0 = cell0_ref.fg;
+                let bg0 = cell0_ref.bg;
+                let bold0 = cell0_ref.bold;
+
+                self.run_buf.clear();
+                self.run_buf.push(cell0_ref.ch);
+
+                // Extend run with contiguous same-style cells on the same row.
+                let mut j = i + 1;
+                while j < self.dirty_flat.len() {
+                    let idx1 = self.dirty_flat[j];
+                    // Must be the next column on the same row (contiguous).
+                    if idx1 != self.dirty_flat[j - 1] + 1 {
+                        break;
+                    }
+                    if idx1 / width_usize != idx0 / width_usize {
+                        break;
+                    }
+                    let cell1_ref = frame.cell_at_index_ref(idx1);
+                    if cell1_ref.fg != fg0
+                        || cell1_ref.bg != bg0
+                        || cell1_ref.bold != bold0
+                    {
+                        break;
+                    }
+                    self.run_buf.push(cell1_ref.ch);
+                    j += 1;
+                }
+
+                // Emit SGR if style changed since the previous run.
+                let style_changed = fg0 != cur_fg || bg0 != cur_bg;
+                if style_changed {
+                    Self::emit_sgr(
+                        cache_ref,
+                        &mut self.ansi_buf,
+                        &mut self.metrics.sgr_cache_hits,
+                        &mut self.metrics.sgr_cache_misses,
+                        fg0,
+                        bg0,
+                    );
+                    cur_fg = fg0;
+                    cur_bg = bg0;
+                }
+
+                if bold0 != cur_bold {
+                    if bold0 {
+                        self.ansi_buf.extend_from_slice(b"\x1b[1m");
+                    } else {
+                        self.ansi_buf.extend_from_slice(b"\x1b[22m");
+                    }
+                    cur_bold = bold0;
+                }
+
+                // Flush the character run in one call.
+                self.ansi_buf.extend_from_slice(self.run_buf.as_bytes());
+
+                i = j;
             }
+        }
+
+        // Flush any trailing run (only relevant for the full-redraw path,
+        // which accumulates into run_buf without per-row flush).
+        if !self.run_buf.is_empty() {
+            self.ansi_buf.extend_from_slice(self.run_buf.as_bytes());
+            self.run_buf.clear();
         }
 
         // Reset attributes
@@ -205,58 +324,71 @@ impl BenchIoWriter {
         self.metrics.total_write_ns += write_start.elapsed().as_nanos() as u64;
     }
 
-    /// Emit SGR + character for a single cell into ansi_buf.
-    ///
-    /// T2.1: takes `&Cell` instead of `Cell` (avoids 24-byte copy per call).
-    /// Uses `ColorCache::sgr_for_cell` when a cache is present; falls back to
-    /// `write_sgr_colors_buf` for non-palette colors (matches production
-    /// `Terminal::emit_sgr` pattern — see terminal.rs:550).
+    /// A': full-redraw helper — emit one cell, accumulating into `run_buf`
+    /// and flushing on style change. Mirrors terminal.rs:723-754.
     #[inline]
-    fn emit_cell(
+    fn write_cell_rle(
         &mut self,
+        cell: &Cell,
         cur_fg: &mut Option<crossterm::style::Color>,
         cur_bg: &mut Option<crossterm::style::Color>,
-        cell: &Cell,
+        cur_bold: &mut bool,
+        cache_ref: Option<&ColorCache>,
     ) {
-        // SGR (only if color changed)
-        if cell.fg != *cur_fg || cell.bg != *cur_bg {
-            // T2.1: try the cache first. On hit, memcpy the pre-formatted
-            // SGR bytes. On miss, fall back to on-the-fly formatting.
-            let cache_hit = if let Some(cache) = &self.color_cache {
-                if let Some(cached) = cache.sgr_for_cell(cell.fg, cell.bg) {
-                    self.ansi_buf.extend_from_slice(cached);
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            };
-
-            if !cache_hit {
-                write_sgr_colors_buf(&mut self.ansi_buf, cell.fg, cell.bg);
-            }
-
-            // T2.1: track hit/miss for the perf report.
-            if cache_hit {
-                self.metrics.sgr_cache_hits += 1;
-            } else {
-                self.metrics.sgr_cache_misses += 1;
-            }
-
+        // On any style change, flush the pending run and emit new SGR.
+        let color_changed = cell.fg != *cur_fg || cell.bg != *cur_bg;
+        if color_changed && !self.run_buf.is_empty() {
+            self.ansi_buf.extend_from_slice(self.run_buf.as_bytes());
+            self.run_buf.clear();
+        }
+        if color_changed {
+            Self::emit_sgr(
+                cache_ref,
+                &mut self.ansi_buf,
+                &mut self.metrics.sgr_cache_hits,
+                &mut self.metrics.sgr_cache_misses,
+                cell.fg,
+                cell.bg,
+            );
             *cur_fg = cell.fg;
             *cur_bg = cell.bg;
         }
-
-        // Bold toggle
-        if cell.bold {
-            self.ansi_buf.extend_from_slice(b"\x1b[1m");
+        if cell.bold != *cur_bold {
+            if !self.run_buf.is_empty() {
+                self.ansi_buf.extend_from_slice(self.run_buf.as_bytes());
+                self.run_buf.clear();
+            }
+            if cell.bold {
+                self.ansi_buf.extend_from_slice(b"\x1b[1m");
+            } else {
+                self.ansi_buf.extend_from_slice(b"\x1b[22m");
+            }
+            *cur_bold = cell.bold;
         }
+        self.run_buf.push(cell.ch);
+    }
 
-        // Character (UTF-8 encoded)
-        let mut buf = [0u8; 4];
-        let s = cell.ch.encode_utf8(&mut buf);
-        self.ansi_buf.extend_from_slice(s.as_bytes());
+    /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
+    /// Mirrors `Terminal::emit_sgr` (terminal.rs:550-563) — uses the color
+    /// cache when available, falling back to on-the-fly formatting.
+    #[inline]
+    fn emit_sgr(
+        cache: Option<&ColorCache>,
+        buf: &mut Vec<u8>,
+        sgr_hits: &mut u64,
+        sgr_misses: &mut u64,
+        fg: Option<crossterm::style::Color>,
+        bg: Option<crossterm::style::Color>,
+    ) {
+        if let Some(cache) = cache {
+            if let Some(cached) = cache.sgr_for_cell(fg, bg) {
+                buf.extend_from_slice(cached);
+                *sgr_hits += 1;
+                return;
+            }
+        }
+        write_sgr_colors_buf(buf, fg, bg);
+        *sgr_misses += 1;
     }
 
     /// Finalize and return collected metrics.

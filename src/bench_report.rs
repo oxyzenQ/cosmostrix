@@ -624,7 +624,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field(
             "io_meaning",
-            "dirty checks + clear_dirty + loop bookkeeping (NO terminal write in benchmark mode)",
+            "residual: BenchIoWriter write_frame (--bench-io: ANSI to /dev/null) + VisualSampler sampling + clear_dirty + loop bookkeeping",
         );
         let total_avg = data.avg_sim_ms + data.avg_render_ms + data.avg_io_ms;
         if total_avg > 0.0 {
