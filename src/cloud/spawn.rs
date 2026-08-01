@@ -568,10 +568,19 @@ impl Cloud {
 
             // Atmospheric depth: apply per-layer density control.
             // Pre-determine the layer for this spawn to check density.
+            //
+            // v30 fix: distribution was [0.35, 0.40, 0.25] (mid-heavy),
+            // mismatching build_droplet_spec()'s [0.35, 0.30, 0.35]
+            // distribution used for the actual droplet layer assignment.
+            // This caused the density gate to over-allocate spawns to the
+            // mid layer (40% pass-through vs the intended 30%), amplifying
+            // the "mid layer too noisy" complaint. Now unified to match
+            // build_droplet_spec's distribution so the density gate and
+            // actual layer assignment agree.
             let layer_roll = self.rand_chance.sample(&mut self.mt);
             let layer: u8 = if layer_roll < 0.35 {
                 0
-            } else if layer_roll < 0.75 {
+            } else if layer_roll < 0.65 {
                 1
             } else {
                 2

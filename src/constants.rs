@@ -969,14 +969,17 @@ pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.90, 1.00];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v30 calibration: back and mid head-bloom raised to make distant and
-/// mid-layer heads visible as soft glow rather than invisible pinpricks.
-/// The depth hierarchy is preserved (back < mid < front) so back-layer
-/// heads still read as background rather than competing with foreground.
-///   - Back  (0): 0.55 (was 0.40 — distant head glow visible as haze)
-///   - Mid   (1): 0.82 (was 0.70 — mid-layer head glow clearly present)
+/// v30 calibration (option D — haze-focused): mid head-bloom rolled back
+/// from 0.82 → 0.70 to suppress mid-layer noise while keeping back at
+/// the v30 floor (0.55). The mid layer's head glow was the dominant
+/// noise source — pairing it with the density that already exists made
+/// every mid-layer droplet's head pop too aggressively against the
+/// back layer. Reducing it back to pre-v30 level lets mid heads read
+/// as part of the haze rather than competing with the foreground.
+///   - Back  (0): 0.55 (kept — v30 floor)
+///   - Mid   (1): 0.70 (was 0.82 — rolled back to pre-v30)
 ///   - Front (2): 1.00 (kept — full cinematic head pop)
-pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.82, 1.0];
+pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.70, 1.0];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -1028,19 +1031,19 @@ pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// v30 calibration: back and mid decay rates slowed so trails persist
-/// longer and read as visible rain rather than instant-blip pixels.
-/// The depth hierarchy (back fast > mid > front slow) is preserved so
-/// back-layer glow still fades quicker than foreground, but the absolute
-/// duration is now readable.
-///   - Back  (0): 1.8 (was 2.2 — trails visible ~220ms vs ~180ms)
-///   - Mid   (1): 1.0 (was 1.2 — trails match base decay rate)
+/// v30 calibration (option D — haze-focused): mid decay rate raised
+/// from 1.0 → 1.3 so mid-layer trails fade faster and stop stacking
+/// into noise. Combined with the contrast reduction bump, mid-layer
+/// trails now read as brief hazy rain rather than persistent streaks
+/// that compete with the foreground.
+///   - Back  (0): 1.8 (kept — v30 floor)
+///   - Mid   (1): 1.3 (was 1.0 — faster fade, less trail stacking)
 ///   - Front (2): 0.5 (kept — slow fade for smooth body→tail gradient)
 ///
-/// At back=1.8, effective decay = 1.8 × 5.0 = 9.0/sec, afterglow ~110ms
-/// (was ~90ms). The +20ms makes a single back-layer droplet's trail
-/// actually visible to the eye instead of vanishing in one frame.
-pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.8, 1.0, 0.5];
+/// At mid=1.3, effective decay = 1.3 × 5.0 = 6.5/sec, afterglow ~150ms
+/// (was ~200ms). The shorter afterglow keeps mid trails readable as
+/// individual streaks instead of accumulating into a haze layer.
+pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.8, 1.3, 0.5];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated. Ghost cells near the bottom accumulate into a static
@@ -1087,18 +1090,20 @@ pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 
 /// Per-layer contrast reduction (depth-of-field perceptual blur).
 ///
-/// v30 calibration: back contrast-reduction lowered from 0.55 → 0.40 and
-/// mid from 0.20 → 0.12 so the layers are not drowned in fog. Back layer
-/// still has 40% haze (vs 0% for front) — preserving the depth-of-field
-/// cue while letting the rain read through the fog.
-///   - Back  (0): 0.40 (was 0.55 — visible rain through softer haze)
-///   - Mid   (1): 0.12 (was 0.20 — minimal haze, near-full readability)
+/// v30 calibration (option D — haze-focused): mid contrast-reduction
+/// raised from 0.12 → 0.25 to push the mid layer into a perceptual
+/// "foggy middle ground" between back (0.40) and front (0.0). The mid
+/// layer now reads as atmospheric depth rather than competing with the
+/// front for attention. Combined with the head-bloom rollback and faster
+/// phosphor decay, this completes the haze-focused noise reduction.
+///   - Back  (0): 0.40 (kept — v30 floor, visible rain through fog)
+///   - Mid   (1): 0.25 (was 0.12 — atmospheric haze middle ground)
 ///   - Front (2): 0.0 (kept — sharp foreground, no fog)
 ///
 /// This is the terminal equivalent of depth-of-field blur: instead of
 /// blurring pixels (impossible in text), we reduce fg-bg contrast so
 /// background rain reads as "behind a haze".
-pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.40, 0.12, 0.0];
+pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.40, 0.25, 0.0];
 
 // Velocity turbulence
 
