@@ -572,10 +572,19 @@ mod tests {
         let cache = ColorCache::new(&palette);
 
         let cases: [(Option<Color>, Option<Color>); 4] = [
-            (Some(Color::Rgb { r: 0, g: 255, b: 0 }), Some(Color::Rgb { r: 0, g: 0, b: 0 })),
+            (
+                Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+                Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+            ),
             (None, Some(Color::Rgb { r: 0, g: 0, b: 0 })),
-            (Some(Color::Rgb { r: 1, g: 1, b: 1 }), Some(Color::Rgb { r: 0, g: 0, b: 0 })),
-            (Some(Color::Rgb { r: 0, g: 255, b: 0 }), Some(Color::Rgb { r: 9, g: 9, b: 9 })),
+            (
+                Some(Color::Rgb { r: 1, g: 1, b: 1 }),
+                Some(Color::Rgb { r: 0, g: 0, b: 0 }),
+            ),
+            (
+                Some(Color::Rgb { r: 0, g: 255, b: 0 }),
+                Some(Color::Rgb { r: 9, g: 9, b: 9 }),
+            ),
         ];
 
         for (fg, bg) in cases {
