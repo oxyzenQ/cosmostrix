@@ -39,3 +39,6 @@ other ai/
 /logs/
 /benchmark/logs/
 *-resource-*.csv
+
+# garbage stuff in root dir
+*.txt*
