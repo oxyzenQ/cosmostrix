@@ -224,6 +224,7 @@ pub struct Cloud {
     pub(super) last_quantum_update_time: Instant,
     pub(super) phosphor_active: SmallVec<[usize; 256]>,
     pub(super) phosphor_last_fresh: SmallVec<[usize; 256]>,
+    pub(super) crt_vignette_candidates: Vec<(u16, u16, f32)>, // T1.1-real: hoisted scratch (was per-frame SmallVec)
 
     pub(super) anomaly_zones: Vec<AnomalyZone>,
 
@@ -383,6 +384,7 @@ impl Cloud {
             phosphor_in_active: BitVec::new(),
             phosphor_active: SmallVec::new(),
             phosphor_last_fresh: SmallVec::new(),
+            crt_vignette_candidates: Vec::with_capacity(128),
             last_phosphor_time: now,
             last_quantum_update_time: now,
             anomaly_zones: Vec::new(),

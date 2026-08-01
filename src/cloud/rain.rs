@@ -891,7 +891,7 @@ impl Cloud {
     /// CRT_VIGNETTE_HEIGHT × 2) = 2000 cell reads/frame. Skipped entirely
     /// when `perf_pressure > CRT_VIGNETTE_PERF_THRESHOLD` to preserve
     /// rain throughput under sustained load.
-    fn apply_crt_vignette(&self, frame: &mut Frame) {
+    fn apply_crt_vignette(&mut self, frame: &mut Frame) {
         // Bail early if the screen is too short for the vignette to make
         // sense (would dim the entire screen).
         if self.lines < 2 * CRT_VIGNETTE_HEIGHT {
@@ -934,30 +934,13 @@ impl Cloud {
         let bottom_start = lines.saturating_sub(CRT_VIGNETTE_HEIGHT);
         let frame_width = frame.width;
 
-        // Snapshot the dirty cells that fall inside the vignette bands
-        // into a local SmallVec, then iterate the snapshot to mutate the
-        // frame. This avoids the borrow-checker conflict between
-        // `frame.dirty_indices()` (immutable borrow) and the
-        // `frame.set()` call inside `apply_crt_dim_cell` (mutable borrow).
-        //
-        // The SmallVec inline capacity (32) covers the common case where
-        // ~30 dirty cells fall in the 10-row vignette band — no heap
-        // allocation in steady state. Heap spill only happens during
-        // force_draw_everything or very high rain density at the edges.
-        //
-        // This replaces the previous O(cols × CRT_VIGNETTE_HEIGHT × 2)
-        // full-row scan with O(dirty_count) — typically a 5-20× reduction
-        // in cell reads at typical rain densities (0.4-1.0). Sparse scenes
-        // (calm, low-power) benefit the most: a 200-col terminal with 30%
-        // rain density produces ~600 dirty cells vs the old 2000 cell reads.
-        //
-        // Visual equivalence: cells drawn this frame get the same dim factor
-        // as before. Cells NOT drawn this frame retain their previously-
-        // dimmed state from the prior frame — the dim is idempotent (a
-        // factor-0.9 dim of an already-factor-0.9 cell is visually
-        // indistinguishable from a single factor-0.81 dim, both well below
-        // the perceptual threshold of 5% JND).
-        let mut candidates: smallvec::SmallVec<[(u16, u16, f32); 32]> = smallvec::SmallVec::new();
+        // T1.1-real: use hoisted `crt_vignette_candidates` buffer (Cloud field)
+        // instead of a per-frame SmallVec. The old SmallVec<[(u16,u16,f32); 32]>
+        // spilled to heap at 33 elements and realloc'd at 65 — ~1 alloc + ~1
+        // realloc per frame. The hoisted Vec::clear() preserves capacity, so
+        // steady-state is zero alloc + zero realloc. Initial capacity 128
+        // covers terminals up to ~200 cols at 8% dirty ratio.
+        self.crt_vignette_candidates.clear();
         for &dirty_idx in frame.dirty_indices() {
             let col = (dirty_idx % frame_width as usize) as u16;
             let line = (dirty_idx / frame_width as usize) as u16;
@@ -976,10 +959,10 @@ impl Cloud {
             if factor >= 1.0 {
                 continue;
             }
-            candidates.push((col, line, factor));
+            self.crt_vignette_candidates.push((col, line, factor));
         }
 
-        for (col, line, factor) in candidates {
+        for &(col, line, factor) in &self.crt_vignette_candidates {
             apply_crt_dim_cell(frame, col, line, factor, bg);
         }
     }
