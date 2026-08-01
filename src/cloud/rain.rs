@@ -64,13 +64,23 @@ impl Cloud {
         // reads these via last_sim_ms() / last_render_ms() to produce a
         // sub-component timing breakdown without external instrumentation.
         //
-        // P1 optimization: t0 is just `now` (the caller already captured
-        // it). The two extra Instant::now() calls (t1, t2) are gated behind
-        // enable_component_timing — only the benchmark and --perf-stats
-        // paths need them. Interactive mode skips them for ~40ns/frame
-        // savings (2 calls × ~20ns each).
-        let t0 = now;
+        // Bug fix (Strategy D root-cause): t0 was previously `now` (the
+        // caller-passed parameter). In benchmark mode, the caller passes
+        // `sim_now` — a synthetic time incremented by target_period each
+        // frame. When bench FPS >> target FPS (e.g., 65K FPS vs 60 FPS
+        // target), sim_now races ahead of real time by ~16.6ms per frame.
+        // This made `t1.saturating_duration_since(t0)` saturate to 0,
+        // reporting sim_ms = 0. The actual sim work (~9.4µs/frame in
+        // monolith) was silently dumped into the benchmark's io_ms residual
+        // bucket, creating a phantom "85% IO bottleneck" that was really
+        // sim work mislabeled as IO.
+        //
+        // Fix: capture t0 = Instant::now() when enable_timing. This adds
+        // ~20ns per frame in benchmark mode only (interactive mode skips
+        // timing entirely). Interactive mode is unaffected because rain()
+        // passes Instant::now() as `now`, so t0 ≈ now within ~20ns anyway.
         let enable_timing = self.enable_component_timing;
+        let t0 = if enable_timing { Instant::now() } else { now };
 
         // ── Atmospheric Event Engine: evaluate triggers ──
         let in_transition = self.transition_start.is_some()

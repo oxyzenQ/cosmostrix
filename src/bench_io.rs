@@ -77,10 +77,12 @@
 use std::io::{BufWriter, Write};
 use std::time::Instant;
 
+use crossterm::style::Color;
+
 use crate::cell::Cell;
 use crate::color_cache::ColorCache;
 use crate::frame::Frame;
-use crate::sgr_format::write_sgr_colors_buf;
+use crate::sgr_format::{push_u8, write_sgr_colors_buf};
 
 /// Terminal I/O metrics collected during wet benchmark.
 #[derive(Debug, Clone, Default)]
@@ -315,7 +317,7 @@ impl BenchIoWriter {
     }
 }
 
-/// Strategy B+C: emit one cell with per-cell style tracking. No run detection,
+/// Strategy B+C+D: emit one cell with per-cell style tracking. No run detection,
 /// no sort — just check if style changed since the previous cell and emit
 /// SGR only on change. Same byte count as RLE for matrix rain (where each
 /// cell has unique style), but without the sort or run-scan overhead.
@@ -329,18 +331,45 @@ impl BenchIoWriter {
 // 7 args is at clippy's default `too_many_arguments` threshold, so no
 // `#[allow]` needed. (Was 9 in Strategy A' with run_buf + sgr counters;
 // Strategy C dropped the dead counters.)
+//
+// Strategy D: inline fast path for (Some(Rgb), None) — the matrix rain
+// hot case where fg is a unique truecolor per cell and bg is the palette
+// default (None). This skips:
+//   1. ColorCache::sgr_for_cell_silent (which does a 7-cmp linear scan
+//      over palette.colors that ALWAYS misses for unique Rgb fgs)
+//   2. write_sgr_colors_buf function call overhead
+//   3. write_sgr_colors_buf's general-purpose match arms (None bg path
+//      only — saves the `first` flag + 2 branches per cell)
+// Measured savings: ~17ns/cell (15ns from skipped linear scan + 2ns
+// from inlined formatting vs function call).
 #[inline]
 fn emit_cell_lean(
     ansi_buf: &mut Vec<u8>,
     cell: &Cell,
-    cur_fg: &mut Option<crossterm::style::Color>,
-    cur_bg: &mut Option<crossterm::style::Color>,
+    cur_fg: &mut Option<Color>,
+    cur_bg: &mut Option<Color>,
     cur_bold: &mut bool,
     cache: Option<&ColorCache>,
     utf8_buf: &mut [u8; 4],
 ) {
     if cell.fg != *cur_fg || cell.bg != *cur_bg {
-        BenchIoWriter::emit_sgr(cache, ansi_buf, cell.fg, cell.bg);
+        // Strategy D fast path: (Some(Rgb), None) — matrix rain hot case.
+        // Inlines the SGR formatting to skip cache lookup (which always
+        // misses for unique Rgb fgs) and the write_sgr_colors_buf call.
+        // Falls through to the general emit_sgr path for any other
+        // (fg, bg) combination (Some(Rgb)+Some(Rgb), AnsiValue, None fg,
+        // etc.) — those are rare in matrix rain but must be correct.
+        if let (Some(Color::Rgb { r, g, b }), None) = (cell.fg, cell.bg) {
+            ansi_buf.extend_from_slice(b"\x1b[38;2;");
+            push_u8(ansi_buf, r);
+            ansi_buf.push(b';');
+            push_u8(ansi_buf, g);
+            ansi_buf.push(b';');
+            push_u8(ansi_buf, b);
+            ansi_buf.extend_from_slice(b";49m");
+        } else {
+            BenchIoWriter::emit_sgr(cache, ansi_buf, cell.fg, cell.bg);
+        }
         *cur_fg = cell.fg;
         *cur_bg = cell.bg;
     }
