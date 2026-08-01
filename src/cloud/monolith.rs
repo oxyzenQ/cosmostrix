@@ -847,7 +847,7 @@ fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, col: u16) -
 
 /// Per-layer brightness multiplier for the Monolith scene.
 ///
-/// v31 calibration: aligned with PARALLAX_BRIGHTNESS_MULT floor — back
+/// v30 calibration: aligned with PARALLAX_BRIGHTNESS_MULT floor — back
 /// and mid layers raised to match the rain's visibility floor so the
 /// Monolith glyph streams and the rain layer read as a coherent field
 /// rather than rain appearing to disappear behind a too-dim monolith.

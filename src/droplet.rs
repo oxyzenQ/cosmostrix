@@ -799,7 +799,7 @@ impl Droplet {
                 // so back-layer heads don't get re-brightened after dimming.
                 // Without this, the layer brightness dimming was undone by the
                 // white blend, popping the head back up — visible as a "white
-                // dot". With PARALLAX_HEAD_SELFBLOOM_MULT[0] = 0.45 (v31), the
+                // dot". With PARALLAX_HEAD_SELFBLOOM_MULT[0] = 0.45 (v30), the
                 // effective self-bloom for back-layer heads is ~25%, keeping
                 // them below the front-layer body visibility floor while
                 // remaining visible as background depth.

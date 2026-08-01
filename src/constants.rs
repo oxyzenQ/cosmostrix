@@ -934,7 +934,7 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// v31 calibration: back and mid layers raised to fix "too quiet/dim
+/// v30 calibration: back and mid layers raised to fix "too quiet/dim
 /// darkness" complaint. Previous effective back-layer visibility was
 /// 0.40 × 0.40 × (1−0.55 contrast) ≈ 0.072 — essentially dark space
 /// with sparse ghost pixels. New effective visibility is 0.55 × 0.55 ×
@@ -953,7 +953,7 @@ pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.88, 1.00];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// v31 calibration: back and mid saturation raised alongside brightness
+/// v30 calibration: back and mid saturation raised alongside brightness
 /// to keep color identity visible at the new brightness floor. The back
 /// layer still has measurable haze (45% desaturation vs prior 60%) so
 /// the depth-of-field gradient is preserved — back rain still reads as
@@ -969,7 +969,7 @@ pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.90, 1.00];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v31 calibration: back and mid head-bloom raised to make distant and
+/// v30 calibration: back and mid head-bloom raised to make distant and
 /// mid-layer heads visible as soft glow rather than invisible pinpricks.
 /// The depth hierarchy is preserved (back < mid < front) so back-layer
 /// heads still read as background rather than competing with foreground.
@@ -980,7 +980,7 @@ pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.82, 1.0];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v31 calibration: back and mid head self-bloom raised to match the
+/// v30 calibration: back and mid head self-bloom raised to match the
 /// brightness/saturation/bloom floor. The depth-aware suppression is
 /// preserved — back layer at 0.45 means effective self-bloom is ~25%
 /// (vs 55% for front), still firmly in the background but no longer
@@ -1028,7 +1028,7 @@ pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// v31 calibration: back and mid decay rates slowed so trails persist
+/// v30 calibration: back and mid decay rates slowed so trails persist
 /// longer and read as visible rain rather than instant-blip pixels.
 /// The depth hierarchy (back fast > mid > front slow) is preserved so
 /// back-layer glow still fades quicker than foreground, but the absolute
@@ -1066,7 +1066,7 @@ pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 /// Per-layer spawn density multiplier (far = sparse, near = dense).
 ///
-/// v31 calibration: back and mid density raised so the layers actually
+/// v30 calibration: back and mid density raised so the layers actually
 /// populate enough droplets to read as rain rather than occasional blips.
 /// Combined with the brightness/saturation floor, the effective visible
 /// droplet count for back is now ~16% of base (was ~10%) and mid is
@@ -1087,7 +1087,7 @@ pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 
 /// Per-layer contrast reduction (depth-of-field perceptual blur).
 ///
-/// v31 calibration: back contrast-reduction lowered from 0.55 → 0.40 and
+/// v30 calibration: back contrast-reduction lowered from 0.55 → 0.40 and
 /// mid from 0.20 → 0.12 so the layers are not drowned in fog. Back layer
 /// still has 40% haze (vs 0% for front) — preserving the depth-of-field
 /// cue while letting the rain read through the fog.
