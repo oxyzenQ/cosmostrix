@@ -251,10 +251,7 @@ impl BenchIoWriter {
                         break;
                     }
                     let cell1_ref = frame.cell_at_index_ref(idx1);
-                    if cell1_ref.fg != fg0
-                        || cell1_ref.bg != bg0
-                        || cell1_ref.bold != bold0
-                    {
+                    if cell1_ref.fg != fg0 || cell1_ref.bg != bg0 || cell1_ref.bold != bold0 {
                         break;
                     }
                     self.run_buf.push(cell1_ref.ch);
