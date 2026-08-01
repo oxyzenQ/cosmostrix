@@ -32,16 +32,24 @@ pub struct VisualSampler {
     color_delta_sum: f64,
     color_delta_count: u64,
     samples: u32,
-    /// A'': previous dirty-cell snapshot — only stores cells that were
-    /// dirty in the previous sample frame, not the full grid. This
-    /// eliminates the O(W*H) full-grid copy that previously dominated
-    /// `sample()` cost (~3232 × 24B copy per sample frame).
+    /// Strategy B: hybrid O(D) approach for color transition tracking.
     ///
-    /// Layout: `(flat_index, prev_cell)`. On each sample, we look up
-    /// `prev_cell` for each dirty index by linear scan (the list is
-    /// typically short — 100-500 entries — so a HashMap would be slower
-    /// than linear scan due to hashing overhead).
-    prev_dirty: Vec<(usize, crate::cell::Cell)>,
+    /// `prev_cells` is indexed by flat idx → O(1) lookup (no search).
+    /// `prev_dirty_bits` avoids ghost comparisons (a cell that wasn't dirty
+    /// in the previous sample has bit=0, so we skip it — no false delta).
+    /// `prev_dirty_indices` remembers which indices were dirty, so we can
+    /// clear only those bits on the next sample (O(D) clear, not O(W*H)).
+    ///
+    /// This supersedes A'' (which used `Vec<(usize, Cell)>` + linear scan
+    /// → O(D²) blowup). It also beats the original `Vec<Cell>` full-grid
+    /// copy (O(W*H) per sample) by only updating dirty cells: O(D).
+    ///
+    /// For storm scene (D=1778, W*H=3232): O(D) = 1778 ops vs A'' O(D²) =
+    /// 1.58M ops vs original O(W*H) = 3232 ops. Strategy B wins on all
+    /// scenes where D < W*H (i.e., always, except full-redraw frames).
+    prev_cells: Vec<crate::cell::Cell>,
+    prev_dirty_bits: Vec<u8>,
+    prev_dirty_indices: Vec<usize>,
     sample_interval: u32,
     frame_counter: u32,
     // Reusable scratch buffers for per-sample column-distribution analysis.
@@ -52,9 +60,6 @@ pub struct VisualSampler {
     // does not reflect the real rendering hot path.
     col_counts: Vec<u32>,
     sorted_counts: Vec<u32>,
-    /// A'': scratch buffer for building the next `prev_dirty` snapshot.
-    /// Hoisted out of `sample()` to avoid per-sample allocation.
-    next_dirty: Vec<(usize, crate::cell::Cell)>,
 }
 
 impl VisualSampler {
@@ -65,12 +70,13 @@ impl VisualSampler {
             color_delta_sum: 0.0,
             color_delta_count: 0,
             samples: 0,
-            prev_dirty: Vec::new(),
+            prev_cells: Vec::new(),
+            prev_dirty_bits: Vec::new(),
+            prev_dirty_indices: Vec::new(),
             sample_interval,
             frame_counter: 0,
             col_counts: Vec::new(),
             sorted_counts: Vec::new(),
-            next_dirty: Vec::new(),
         }
     }
 
@@ -88,6 +94,15 @@ impl VisualSampler {
 
         let width = frame.width as usize;
         let height = frame.height as usize;
+        let total = width * height;
+
+        // Resize on first sample or terminal resize. `prev_dirty_indices`
+        // is cleared to avoid referencing stale indices into the old array.
+        if self.prev_cells.len() != total {
+            self.prev_cells.resize(total, crate::cell::Cell::blank_with_bg(None));
+            self.prev_dirty_bits.resize(total, 0);
+            self.prev_dirty_indices.clear();
+        }
 
         // Count dirty cells per column. Reuse the hoisted `col_counts`
         // buffer — `clear()` preserves capacity, `resize()` only allocates
@@ -104,12 +119,12 @@ impl VisualSampler {
         }
 
         // 1. Shannon entropy of column distribution
-        let total: u32 = self.col_counts.iter().sum();
-        if total > 0 {
+        let total_dirty: u32 = self.col_counts.iter().sum();
+        if total_dirty > 0 {
             let mut entropy = 0.0;
             for &count in &self.col_counts {
                 if count > 0 {
-                    let p = count as f64 / total as f64;
+                    let p = count as f64 / total_dirty as f64;
                     entropy -= p * p.log2();
                 }
             }
@@ -133,18 +148,20 @@ impl VisualSampler {
             self.gini_sum += gini.max(0.0);
         }
 
-        // 3. Color transition smoothness — A'': only compare dirty cells
-        // against the previous dirty snapshot. Cells that weren't dirty
-        // in the previous sample frame have no meaningful "transition"
-        // (their state is the same as the frame buffer, unchanged).
-        if !self.prev_dirty.is_empty() {
+        // 3. Color transition smoothness — Strategy B: O(D) using direct
+        // index lookup into prev_cells, gated by prev_dirty_bits to skip
+        // cells that weren't dirty in the previous sample (no ghost delta).
+        if !self.prev_dirty_indices.is_empty() {
             let mut delta_sum = 0.0;
             let mut delta_count = 0u32;
             for &idx in dirty {
-                let cur = frame.cell_at_index(idx);
-                // Linear scan of prev_dirty — typical size 100-500, faster
-                // than a HashMap for this scale.
-                if let Some((_, prev)) = self.prev_dirty.iter().find(|(i, _)| *i == idx) {
+                // idx is guaranteed < total by Frame's dirty list invariant.
+                // prev_dirty_bits[idx] == 1 means this cell was dirty in the
+                // previous sample, so prev_cells[idx] holds a meaningful
+                // previous state to compare against.
+                if self.prev_dirty_bits[idx] == 1 {
+                    let prev = &self.prev_cells[idx];
+                    let cur = frame.cell_at_index_ref(idx);
                     let d = color_delta(&prev.fg, &cur.fg);
                     if d > 0.0 {
                         delta_sum += d;
@@ -158,25 +175,31 @@ impl VisualSampler {
             }
         }
 
-        // A'': build next snapshot from dirty cells only (not full grid).
-        // This drops O(W*H) full-grid copy → O(D) where D = dirty count.
-        // The `next_dirty` scratch buffer is reused across samples.
-        self.next_dirty.clear();
+        // Strategy B: update prev state in O(D) (only dirty cells), not
+        // O(W*H) (full grid copy). Clear old dirty bits, set new ones.
+        for &idx in &self.prev_dirty_indices {
+            self.prev_dirty_bits[idx] = 0;
+        }
+        self.prev_dirty_indices.clear();
+
         if frame.is_dirty_all() {
-            // Full redraw: all cells are "dirty" for the purpose of the
-            // next sample's color-transition check.
-            let total = width * height;
-            self.next_dirty.reserve(total);
+            // Full redraw: all cells are dirty. O(W*H) update is unavoidable
+            // here (every cell changed), but this path is rare (1-21 frames
+            // per benchmark run based on scene).
+            self.prev_dirty_indices.reserve(total);
             for idx in 0..total {
-                self.next_dirty.push((idx, frame.cell_at_index(idx)));
+                self.prev_cells[idx] = frame.cell_at_index(idx);
+                self.prev_dirty_bits[idx] = 1;
+                self.prev_dirty_indices.push(idx);
             }
         } else {
-            self.next_dirty.reserve(dirty.len());
+            self.prev_dirty_indices.reserve(dirty.len());
             for &idx in dirty {
-                self.next_dirty.push((idx, frame.cell_at_index(idx)));
+                self.prev_cells[idx] = frame.cell_at_index(idx);
+                self.prev_dirty_bits[idx] = 1;
+                self.prev_dirty_indices.push(idx);
             }
         }
-        std::mem::swap(&mut self.prev_dirty, &mut self.next_dirty);
 
         self.samples += 1;
     }

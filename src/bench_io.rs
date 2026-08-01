@@ -22,30 +22,35 @@
 //! - Uses `ColorCache` to pre-format SGR byte sequences for palette colors
 //!   (eliminates per-cell `write_sgr_colors_buf` formatting cost).
 //! - Uses `Frame::cell_at_index_ref` instead of `cell_at_index` to avoid
-//!   the 24-byte `Cell` copy per dirty cell.
+//!   the 16-byte `Cell` copy per dirty cell.
 //!
-//! ## A' upgrade — RLE batching (production parity)
+//! ## Strategy B — Lean per-cell emit (supersedes A' RLE batching)
 //!
-//! The previous `write_frame` emitted one SGR + one char per dirty cell,
-//! producing ~5× more ANSI bytes than the production `Terminal::draw()`
-//! path which batches contiguous same-style cells into a single SGR +
-//! a character run. Because `io_ms` in the benchmark loop is computed
-//! as a residual bucket that includes `write_frame()` time, this
-//! over-production falsely surfaced as an "85.5% IO bottleneck".
+//! The previous A' RLE batching (sort dirty indices → scan contiguous
+//! same-style runs → emit one SGR per run) was a net regression for
+//! matrix rain workloads because:
+//! - Sort cost O(D log D) is pure overhead for /dev/null target (byte
+//!   order doesn't matter — no MoveTo commands emitted).
+//! - Run detection (3 comparisons per cell + run_buf push/clear) adds
+//!   constant overhead per cell.
+//! - Matrix rain has near-zero contiguous same-style runs (each cell's
+//!   fg/bg is unique based on distance-from-head), so RLE compresses
+//!   nothing. Measured bytes/cell ≈ 23-29 across scenes (≈ per-cell SGR
+//!   + 1 char), confirming zero compression.
 //!
-//! The new `write_frame` ports the RLE batching logic from
-//! `terminal.rs:835-941`:
-//! 1. Sort dirty indices (row-major order, same as production).
-//! 2. Scan contiguous runs of identical (fg, bg, bold) cells.
-//! 3. Emit ONE SGR sequence per style change + ONE `extend_from_slice`
-//!    for the entire character run.
-//! 4. Track `cur_bold` (only emit `\x1b[1m` / `\x1b[22m` on toggle).
+//! Strategy B drops the sort and run detection entirely. Per-cell style
+//! tracking (cur_fg/cur_bg/cur_bold across cells) still skips SGR emit
+//! when style matches previous cell — same byte count as RLE for matrix
+//! rain, but without the sort or run-scan overhead.
 //!
-//! Output is byte-for-byte identical to what `Terminal::draw()` would
-//! emit for the same dirty set (modulo MoveTo cursor commands, which
-//! are not needed when writing to `/dev/null`). Expected impact:
-//! `bytes_written` drops ~5×, `io_share` drops from ~85% to ~40-50%,
-//! `avg_fps` rises from ~47K to ~70-80K.
+//! Multi-scene benchmark data (commit 575dded, before Strategy B):
+//!   monolith (D=235):  avg_fps=37773, io_share=88.0%, io_ns/cell=96.1
+//!   cinematic (D=715): avg_fps=8083,  io_share=82.2%, io_ns/cell=141.1
+//!   storm (D=1778):    avg_fps=2728,  io_share=89.9%, io_ns/cell=184.8
+//!
+//! The io_ns/cell GROWTH with D (96→141→184) was the signature of
+//! O(D log D) sort here + O(D²) VisualSampler (fixed separately).
+//! Strategy B makes io_ns/cell approximately constant across scenes.
 
 use std::io::{BufWriter, Write};
 use std::time::Instant;
@@ -110,19 +115,12 @@ impl TerminalIoMetrics {
 /// `Terminal::draw()` fast path — SGR sequences are pre-formatted once at
 /// construction, then memcpy'd per cell instead of being formatted on-the-fly.
 ///
-/// A': now performs RLE batching identical to `Terminal::draw()` so the
-/// benchmark I/O path produces the same byte stream as production rendering.
+/// Strategy B: lean per-cell emit with style tracking. No sort, no run
+/// detection, no scratch buffers. The struct holds only `writer`, `ansi_buf`,
+/// `metrics`, and `color_cache`.
 pub(crate) struct BenchIoWriter {
     writer: BufWriter<std::fs::File>,
     ansi_buf: Vec<u8>,
-    /// A': reusable character-run buffer (mirrors `Terminal::run_buf`).
-    /// Accumulates UTF-8 bytes for a contiguous same-style run, flushed
-    /// to `ansi_buf` in a single `extend_from_slice` when style changes.
-    run_buf: String,
-    /// A': reusable dirty-index scratch buffer. We sort a copy of the
-    /// dirty list (rather than mutating `Frame`'s internal SmallVec) so
-    /// the benchmark path stays read-only with respect to the frame.
-    dirty_flat: Vec<usize>,
     metrics: TerminalIoMetrics,
     /// T2.1: pre-formatted SGR cache. `None` when constructed without a palette
     /// (legacy `new()` path); `Some` when constructed via `with_palette()`.
@@ -151,8 +149,6 @@ impl BenchIoWriter {
         Some(Self {
             writer,
             ansi_buf: Vec::with_capacity(8192),
-            run_buf: String::with_capacity(256),
-            dirty_flat: Vec::new(),
             metrics: TerminalIoMetrics {
                 enabled: true,
                 target: path.to_string(),
@@ -165,13 +161,13 @@ impl BenchIoWriter {
     /// Generate ANSI bytes from the frame's dirty cells and write to null device.
     /// Measures write time and tracks metrics.
     ///
-    /// A': now performs RLE batching — contiguous same-style dirty cells are
-    /// grouped into a single SGR + a character run, mirroring the production
-    /// `Terminal::draw()` diff path. This drops `bytes_written` ~5× and
-    /// removes the false "IO bottleneck" from the benchmark report.
+    /// Strategy B: lean per-cell emit. No sort, no run detection. Style
+    /// tracking (cur_fg/cur_bg/cur_bold) skips SGR emit when style matches
+    /// the previous cell — same byte count as RLE for matrix rain (where
+    /// each cell has unique style), but without the O(D log D) sort or
+    /// O(D) run-scan overhead.
     pub(crate) fn write_frame(&mut self, frame: &Frame) {
         self.ansi_buf.clear();
-        self.run_buf.clear();
 
         let dirty = frame.dirty_indices();
         if dirty.is_empty() && !frame.is_dirty_all() {
@@ -183,29 +179,16 @@ impl BenchIoWriter {
         let mut cur_bg: Option<crossterm::style::Color> = None;
         let mut cur_bold = false;
         let cache_ref = self.color_cache.as_ref();
-        let width_usize = frame.width as usize;
+        // Stack-allocated UTF-8 encoding buffer — zero alloc per cell.
+        let mut utf8_buf = [0u8; 4];
 
         if frame.is_dirty_all() {
-            // Full redraw: iterate all cells in row-major order. Group
-            // contiguous same-style runs across row boundaries (the
-            // production full-redraw path in terminal.rs:713-758 also
-            // flushes per-row, but for the bench writer we don't emit
-            // MoveTo commands since the target is /dev/null — flushing
-            // across rows is fine and produces the minimal byte count).
-            //
-            // A': we pass individual field references to a free function
-            // instead of calling `self.write_cell_rle(...)` because the
-            // borrow checker cannot split a method's `&mut self` borrow
-            // from the immutable `cache_ref` borrow of `self.color_cache`.
-            // Field-level disjoint borrows (ansi_buf, run_buf, metrics.*)
-            // are allowed by the borrow checker when passed as separate
-            // reference arguments.
-            let total = width_usize * (frame.height as usize);
+            // Full redraw: iterate all cells in row-major order.
+            let total = (frame.width as usize) * (frame.height as usize);
             for idx in 0..total {
                 let cell = frame.cell_at_index_ref(idx);
-                write_cell_rle(
+                emit_cell_lean(
                     &mut self.ansi_buf,
-                    &mut self.run_buf,
                     &mut self.metrics.sgr_cache_hits,
                     &mut self.metrics.sgr_cache_misses,
                     cell,
@@ -213,87 +196,30 @@ impl BenchIoWriter {
                     &mut cur_bg,
                     &mut cur_bold,
                     cache_ref,
+                    &mut utf8_buf,
                 );
             }
         } else {
-            // Diff path: sort dirty indices (row-major) and scan contiguous
-            // runs. This mirrors terminal.rs:798-941 production logic:
-            //   1. Sort dirty indices (already in row-major order if push
-            //      order is preserved, but sort_unstable guarantees it).
-            //   2. Walk the sorted array, detecting contiguous horizontal
-            //      runs (idx1 == idx0 + 1 && same row) with identical style.
-            //   3. Accumulate chars into run_buf; flush on style change or
-            //      run break.
-            self.dirty_flat.clear();
-            self.dirty_flat.extend(dirty.iter().copied());
-            self.dirty_flat.sort_unstable();
-
-            let mut i = 0usize;
-            while i < self.dirty_flat.len() {
-                let idx0 = self.dirty_flat[i];
-                let cell0_ref = frame.cell_at_index_ref(idx0);
-                let fg0 = cell0_ref.fg;
-                let bg0 = cell0_ref.bg;
-                let bold0 = cell0_ref.bold;
-
-                self.run_buf.clear();
-                self.run_buf.push(cell0_ref.ch);
-
-                // Extend run with contiguous same-style cells on the same row.
-                let mut j = i + 1;
-                while j < self.dirty_flat.len() {
-                    let idx1 = self.dirty_flat[j];
-                    // Must be the next column on the same row (contiguous).
-                    if idx1 != self.dirty_flat[j - 1] + 1 {
-                        break;
-                    }
-                    if idx1 / width_usize != idx0 / width_usize {
-                        break;
-                    }
-                    let cell1_ref = frame.cell_at_index_ref(idx1);
-                    if cell1_ref.fg != fg0 || cell1_ref.bg != bg0 || cell1_ref.bold != bold0 {
-                        break;
-                    }
-                    self.run_buf.push(cell1_ref.ch);
-                    j += 1;
-                }
-
-                // Emit SGR if style changed since the previous run.
-                let style_changed = fg0 != cur_fg || bg0 != cur_bg;
-                if style_changed {
-                    Self::emit_sgr(
-                        cache_ref,
-                        &mut self.ansi_buf,
-                        &mut self.metrics.sgr_cache_hits,
-                        &mut self.metrics.sgr_cache_misses,
-                        fg0,
-                        bg0,
-                    );
-                    cur_fg = fg0;
-                    cur_bg = bg0;
-                }
-
-                if bold0 != cur_bold {
-                    if bold0 {
-                        self.ansi_buf.extend_from_slice(b"\x1b[1m");
-                    } else {
-                        self.ansi_buf.extend_from_slice(b"\x1b[22m");
-                    }
-                    cur_bold = bold0;
-                }
-
-                // Flush the character run in one call.
-                self.ansi_buf.extend_from_slice(self.run_buf.as_bytes());
-
-                i = j;
+            // Diff path: iterate dirty cells in push order (NO sort).
+            // For /dev/null target, byte order doesn't matter — no MoveTo
+            // commands are emitted. Per-cell style tracking gives the same
+            // byte count as sorted iteration for matrix rain (each cell has
+            // unique fg/bg, so SGR is emitted per-cell regardless). Saves
+            // O(D log D) sort + O(D) run detection vs the previous RLE path.
+            for &idx in dirty {
+                let cell = frame.cell_at_index_ref(idx);
+                emit_cell_lean(
+                    &mut self.ansi_buf,
+                    &mut self.metrics.sgr_cache_hits,
+                    &mut self.metrics.sgr_cache_misses,
+                    cell,
+                    &mut cur_fg,
+                    &mut cur_bg,
+                    &mut cur_bold,
+                    cache_ref,
+                    &mut utf8_buf,
+                );
             }
-        }
-
-        // Flush any trailing run (only relevant for the full-redraw path,
-        // which accumulates into run_buf without per-row flush).
-        if !self.run_buf.is_empty() {
-            self.ansi_buf.extend_from_slice(self.run_buf.as_bytes());
-            self.run_buf.clear();
         }
 
         // Reset attributes
@@ -365,28 +291,27 @@ impl BenchIoWriter {
     }
 }
 
-/// A': full-redraw helper — emit one cell, accumulating into `run_buf`
-/// and flushing on style change. Mirrors terminal.rs:723-754.
+/// Strategy B: emit one cell with per-cell style tracking. No run detection,
+/// no sort — just check if style changed since the previous cell and emit
+/// SGR only on change. Same byte count as RLE for matrix rain (where each
+/// cell has unique style), but without the sort or run-scan overhead.
 ///
 /// This is a free function (not a method on `BenchIoWriter`) so that the
 /// caller can hold an immutable borrow of `self.color_cache` (as `cache`)
-/// while mutating `ansi_buf`, `run_buf`, and the SGR hit/miss counters.
-/// The borrow checker cannot split a method's `&mut self` from an
-/// existing `&self.color_cache` borrow, but it CAN split disjoint
-/// field references passed as separate arguments.
+/// while mutating `ansi_buf` and the SGR hit/miss counters. The borrow
+/// checker cannot split a method's `&mut self` from an existing
+/// `&self.color_cache` borrow, but it CAN split disjoint field references
+/// passed as separate arguments.
 //
 // 9 args exceeds clippy's default `too_many_arguments` threshold (7).
-// This is intentional: the args are disjoint `&mut` field references
-// that the borrow checker needs to see as separate parameters (grouping
-// them into a struct would require either moving them out of `self` —
-// which defeats the borrow-splitting purpose — or holding `&mut self`
-// again, which reintroduces the E0502 conflict). Same convention used
-// in live_config.rs:349, verbose.rs:57, cloud/render.rs:279, etc.
+// Intentional: disjoint `&mut` field references needed for borrow-splitting
+// (a &mut self method would reintroduce the E0502 conflict with the
+// immutable cache_ref borrow). Same convention as live_config.rs:349,
+// verbose.rs:57, cloud/render.rs:279, etc.
 #[allow(clippy::too_many_arguments)]
 #[inline]
-fn write_cell_rle(
+fn emit_cell_lean(
     ansi_buf: &mut Vec<u8>,
-    run_buf: &mut String,
     sgr_hits: &mut u64,
     sgr_misses: &mut u64,
     cell: &Cell,
@@ -394,23 +319,14 @@ fn write_cell_rle(
     cur_bg: &mut Option<crossterm::style::Color>,
     cur_bold: &mut bool,
     cache: Option<&ColorCache>,
+    utf8_buf: &mut [u8; 4],
 ) {
-    // On any style change, flush the pending run and emit new SGR.
-    let color_changed = cell.fg != *cur_fg || cell.bg != *cur_bg;
-    if color_changed && !run_buf.is_empty() {
-        ansi_buf.extend_from_slice(run_buf.as_bytes());
-        run_buf.clear();
-    }
-    if color_changed {
+    if cell.fg != *cur_fg || cell.bg != *cur_bg {
         BenchIoWriter::emit_sgr(cache, ansi_buf, sgr_hits, sgr_misses, cell.fg, cell.bg);
         *cur_fg = cell.fg;
         *cur_bg = cell.bg;
     }
     if cell.bold != *cur_bold {
-        if !run_buf.is_empty() {
-            ansi_buf.extend_from_slice(run_buf.as_bytes());
-            run_buf.clear();
-        }
         if cell.bold {
             ansi_buf.extend_from_slice(b"\x1b[1m");
         } else {
@@ -418,5 +334,6 @@ fn write_cell_rle(
         }
         *cur_bold = cell.bold;
     }
-    run_buf.push(cell.ch);
+    let s = cell.ch.encode_utf8(utf8_buf);
+    ansi_buf.extend_from_slice(s.as_bytes());
 }
