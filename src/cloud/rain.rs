@@ -284,15 +284,33 @@ impl Cloud {
                 self.resume_blend,
             );
         } else {
-            for i in 0..self.droplets.len() {
-                if !self.droplets[i].is_alive {
-                    continue;
-                }
+            // sim path optimization: split the droplet advance loop into two
+            // specialized paths based on `use_sim_cap` (loop-invariant). In
+            // benchmark mode, max_sim_delta = 0 (set_max_sim_delta is a no-op
+            // — see commit a34fcdb audit), so use_sim_cap = false and adv_now
+            // is always just `now`. The original single-loop formulation
+            // evaluated 3 per-iteration branches (use_sim_cap, last_time,
+            // now > max_now) that were all dead in bench mode — branch
+            // predictor handles them, but the dead code still occupies
+            // instruction slots and register pressure. Splitting lets LLVM
+            // generate a tighter loop for the bench path (no Instant add,
+            // no comparison, no Option match).
+            //
+            // Both paths share identical post-advance logic (died → free-list,
+            // free_col → set_column_spawn, time_for_glitch → do_glitch_span).
+            // Duplication is ~12 lines; preferable to a macro with `continue`
+            // (which is hard to read and debug) or a method extraction (which
+            // would need 7+ params, exceeding clippy's too_many_arguments
+            // threshold and adding call overhead).
+            if use_sim_cap {
+                for i in 0..self.droplets.len() {
+                    if !self.droplets[i].is_alive {
+                        continue;
+                    }
 
-                let (col, start_line, hp, cp_idx, free_col, died) = {
-                    let d = &mut self.droplets[i];
-                    let adv_now = if use_sim_cap {
-                        if let Some(last) = d.last_time {
+                    let (col, start_line, hp, cp_idx, free_col, died) = {
+                        let d = &mut self.droplets[i];
+                        let adv_now = if let Some(last) = d.last_time {
                             let max_now = last + max_sim_delta;
                             if now > max_now {
                                 max_now
@@ -301,38 +319,66 @@ impl Cloud {
                             }
                         } else {
                             now
-                        }
-                    } else {
-                        now
+                        };
+                        let free_col = d.advance(adv_now, self.lines, self.resume_blend);
+                        let col = d.bound_col;
+                        let start_line = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
+                        let hp = d.head_put_line;
+                        let cp_idx = d.char_pool_idx;
+                        let died = !d.is_alive;
+                        (col, start_line, hp, cp_idx, free_col, died)
                     };
-                    let free_col = d.advance(adv_now, self.lines, self.resume_blend);
-                    let col = d.bound_col;
-                    let start_line = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
-                    let hp = d.head_put_line;
-                    let cp_idx = d.char_pool_idx;
-                    let died = !d.is_alive;
-                    (col, start_line, hp, cp_idx, free_col, died)
-                };
 
-                if died {
-                    // Cosmic Dragon egg #12: direct indexing — col comes from d.col which
-                    // is guaranteed < cols (checked at spawn). col_stat is resized
-                    // to cols in spawn.rs.
-                    let cs = &mut self.col_stat[col as usize];
-                    cs.num_droplets = cs.num_droplets.saturating_sub(1);
-                    cs.can_spawn = true;
-                    // Return the dead droplet's index to the free-list so
-                    // spawn_droplets can reuse it in O(1) on the next spawn.
-                    self.droplet_free_list.push(i);
-                    continue;
+                    if died {
+                        let cs = &mut self.col_stat[col as usize];
+                        cs.num_droplets = cs.num_droplets.saturating_sub(1);
+                        cs.can_spawn = true;
+                        self.droplet_free_list.push(i);
+                        continue;
+                    }
+
+                    if free_col {
+                        self.set_column_spawn(col, true);
+                    }
+
+                    if time_for_glitch {
+                        self.do_glitch_span(start_line, hp, col, cp_idx);
+                    }
                 }
+            } else {
+                // Bench / uncapped path: adv_now = now for all droplets.
+                // No per-iteration Instant arithmetic or Option match.
+                for i in 0..self.droplets.len() {
+                    if !self.droplets[i].is_alive {
+                        continue;
+                    }
 
-                if free_col {
-                    self.set_column_spawn(col, true);
-                }
+                    let (col, start_line, hp, cp_idx, free_col, died) = {
+                        let d = &mut self.droplets[i];
+                        let free_col = d.advance(now, self.lines, self.resume_blend);
+                        let col = d.bound_col;
+                        let start_line = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
+                        let hp = d.head_put_line;
+                        let cp_idx = d.char_pool_idx;
+                        let died = !d.is_alive;
+                        (col, start_line, hp, cp_idx, free_col, died)
+                    };
 
-                if time_for_glitch {
-                    self.do_glitch_span(start_line, hp, col, cp_idx);
+                    if died {
+                        let cs = &mut self.col_stat[col as usize];
+                        cs.num_droplets = cs.num_droplets.saturating_sub(1);
+                        cs.can_spawn = true;
+                        self.droplet_free_list.push(i);
+                        continue;
+                    }
+
+                    if free_col {
+                        self.set_column_spawn(col, true);
+                    }
+
+                    if time_for_glitch {
+                        self.do_glitch_span(start_line, hp, col, cp_idx);
+                    }
                 }
             }
         }
