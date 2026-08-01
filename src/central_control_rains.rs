@@ -62,6 +62,16 @@
 //!
 //! ## Calibration history (most recent first)
 //!
+//! - **v30.0.0 (differential depth tuning)**: user requested sharper
+//!   depth differential — back needs to be slightly more dim, mid needs
+//!   reduced density + slight dim, front needs to read more prominent
+//!   (no dimming). Tuned all three layers in opposite directions to
+//!   widen the back→front depth gradient. Per-droplet visibility now:
+//!   back 0.132, mid 0.551, front 1.103 (was 0.182/0.696/1.000). Field
+//!   energy (×density): back 0.050, mid 0.342, front 1.213 (was
+//!   0.082/0.522/1.000). Ratio back:mid:front widened from 1:6.4:12.2
+//!   to 1:6.8:24.1 — front now clearly dominant, back recedes into
+//!   atmospheric haze, mid sits between as sparse vivid streaks.
 //! - **v30.0.0 (final — visual test locked)**: after A/B visual testing
 //!   against option C (density-focused) and option D (haze-focused), the
 //!   parameter set from commit 1e4e3fa (the initial visibility-floor
@@ -71,6 +81,7 @@
 //!   neither too sparse (C's 0.55 made the field feel empty) nor too
 //!   hazy (D's 1.3 phosphor_decay muted trails). Effective mid energy:
 //!   0.242 (the sweet spot between C's 0.174 and original-v30's 0.334).
+//!   — *Superseded by differential depth tuning.*
 //! - **v30 (option C — density-focused)**: mid layer density dropped
 //!   from 0.75 → 0.55 to remove noise via fewer droplets rather than
 //!   dimming. Reverted Option D's mid rollbacks (head_bloom 0.70 → 0.82,
@@ -110,40 +121,48 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// v30.0.0 final lock — confirmed optimal by visual A/B test against
-/// option C and option D variants. Back effective visibility
-/// = 0.55 × 0.55 × (1−0.40) ≈ 0.182 (2.5× pre-v30 — fixes the original
-/// "too quiet/dim darkness" complaint without overshooting).
-///   - Back  (0): 0.55 (v30 floor — visible atmospheric depth)
-///   - Mid   (1): 0.88 (v30 floor — clearly present, not "too quiet")
-///   - Front (2): 1.00 (kept — full neon brightness)
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.88, 1.00];
+/// v30.0.0 differential depth tuning: back dimmed 0.55→0.48 to push
+/// deeper into atmospheric haze; mid dimmed 0.88→0.80 for slight
+/// presence reduction; front boosted 1.00→1.05 for more prominence.
+/// Back effective visibility = 0.48 × 0.50 × (1−0.45) ≈ 0.132 (was
+/// 0.182, -27% — slightly more dim as requested without losing the
+/// atmospheric depth floor).
+///   - Back  (0): 0.48 (dimmed — sits in soft fog)
+///   - Mid   (1): 0.80 (slightly dim — fewer droplets, each vivid)
+///   - Front (2): 1.05 (boosted — front reads as the hero layer)
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.05];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// v30 calibration: back retains 55% saturation (45% haze — "rain in fog"
-/// feel). Mid at 90% keeps color identity vivid. Front at 100% full neon.
-pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.90, 1.00];
+/// v30.0.0 differential: back desaturated further 0.55→0.50 (more
+/// "rain in fog" feel); mid slightly desaturated 0.90→0.84 to match
+/// the dimmer brightness; front pushed 1.00→1.05 for richer neon.
+///   - Back  (0): 0.50 (more haze blend)
+///   - Mid   (1): 0.84 (slightly less vivid to match dimmer brightness)
+///   - Front (2): 1.05 (richer neon — front pops as hero)
+pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.05];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v30.0.0 final lock: mid at 0.82 gives the head a soft pop without
-/// spilling into noisy bloom. Back at 0.55 keeps distant head glow as
-/// soft haze rather than invisible pinprick. (Option D briefly rolled
-/// mid back to 0.70 — too muted; option C restored 0.82 — confirmed.)
-///   - Back  (0): 0.55 (v30 floor)
-///   - Mid   (1): 0.82 (v30 floor)
-///   - Front (2): 1.00 (full cinematic head pop)
-pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.55, 0.82, 1.0];
+/// v30.0.0 differential: back dimmed 0.55→0.48 (distant heads stay as
+/// soft glow, never pop as bright pinpricks); mid reduced 0.82→0.74
+/// (slightly less bloom to match lower density); front boosted 1.0→1.15
+/// (more cinematic head pop, hero layer reads first).
+///   - Back  (0): 0.48 (soft distant glow)
+///   - Mid   (1): 0.74 (gentle pop, not noisy)
+///   - Front (2): 1.15 (boosted — cinematic head pop)
+pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.15];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v30: back at 0.45 means effective self-bloom is ~25% (vs 55% for
-/// front), keeping back heads visible without popping as "white dots".
-///   - Back  (0): 0.45 (v30 floor — visible without popping)
-///   - Mid   (1): 0.78 (v30 floor — clearly present)
-///   - Front (2): 1.0 (kept — full cinematic head pop)
-pub const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.78, 1.0];
+/// v30.0.0 differential: back 0.45→0.38 (effective self-bloom ~14%, vs
+/// 65% for front — distant heads read as ambient glow); mid 0.78→0.68
+/// (slightly less self-glow to match lower density); front 1.0→1.15
+/// (full cinematic self-bloom).
+///   - Back  (0): 0.38 (ambient distant glow, no pinprick)
+///   - Mid   (1): 0.68 (clearly present, not flashy)
+///   - Front (2): 1.15 (boosted self-glow)
+pub const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.38, 0.68, 1.15];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 ///
@@ -182,15 +201,15 @@ pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// v30.0.0 final lock: mid at 1.0 — base decay, trails persist long
-/// enough to read as rain streaks without lingering as bright spots.
-/// Back at 1.8 keeps distant trails brief (no flicker). Front at 0.5 —
-/// slow fade for smooth body→tail gradient. (Option D briefly raised
-/// mid to 1.3 — too muted; option C restored 1.0 — confirmed.)
-///   - Back  (0): 1.8 (trails fade quick, no bright-spot linger)
-///   - Mid   (1): 1.0 (base decay — natural trail persistence)
-///   - Front (2): 0.5 (slow fade for body→tail smoothness)
-pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.8, 1.0, 0.5];
+/// v30.0.0 differential: back raised 1.8→2.0 (trails fade even faster —
+/// distant rain reads as brief flicker, not lingering streaks); mid
+/// raised 1.0→1.2 (slightly faster fade to complement lower density —
+/// fewer but cleaner streaks); front lowered 0.5→0.4 (slower fade —
+/// trails linger longer for stronger cinematic presence).
+///   - Back  (0): 2.0 (fast fade — brief distant flicker)
+///   - Mid   (1): 1.2 (slightly faster fade — clean streaks)
+///   - Front (2): 0.4 (slow fade — long cinematic trails)
+pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 0.4];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated (prevents "concrete wall" residue buildup).
@@ -208,16 +227,15 @@ pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 /// Per-layer spawn density multiplier (far = sparse, near = dense).
 ///
-/// v30.0.0 final lock: mid at 0.75 — the natural density that visual
-/// A/B testing confirmed as the sweet spot. Option C tried 0.55 (too
-/// sparse — mid layer felt empty, lost depth cues); 0.75 keeps enough
-/// droplets to read as a steady rain field without crossing into noise.
-/// Each mid droplet stays vivid (brightness 0.88, saturation 0.90,
-/// head_bloom 0.82) at natural density.
-///   - Back  (0): 0.45 (v30 floor — visible distant rain)
-///   - Mid   (1): 0.75 (v30 floor — confirmed optimal by visual test)
-///   - Front (2): 1.00 (kept — natural base rate)
-pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.75, 1.0];
+/// v30.0.0 differential: mid reduced 0.75→0.62 (~17% fewer mid-layer
+/// droplets — the primary lever for reducing mid noise per user's
+/// request); front boosted 1.0→1.10 (10% more droplets — front reads
+/// as the dominant rain field); back kept at 0.45 (already sparse,
+/// dimming handles the depth push instead).
+///   - Back  (0): 0.45 (kept — sparse distant rain)
+///   - Mid   (1): 0.62 (reduced — fewer but vivid streaks)
+///   - Front (2): 1.10 (boosted — denser hero layer)
+pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.62, 1.10];
 
 /// Per-layer glyph simplicity (currently no-op — subsumed by brightness
 /// + saturation). Kept as a tuning knob for future use.
@@ -229,14 +247,15 @@ pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 /// terminal equivalent of DoF blur — back layer reads as "behind a
 /// haze", front layer is sharp.
 ///
-/// v30.0.0 final lock: mid at 0.12 — minimal haze, lets mid-layer color
-/// identity (saturation 0.90) read cleanly. Option C tried 0.15 (too
-/// milky — mid felt washed out at the new lower density); 0.12 keeps
-/// mid crisp while still sitting behind the front layer in depth.
-///   - Back  (0): 0.40 (v30 floor — visible rain through soft fog)
-///   - Mid   (1): 0.12 (v30 floor — confirmed optimal by visual test)
-///   - Front (2): 0.0 (kept — sharp foreground)
-pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.40, 0.12, 0.0];
+/// v30.0.0 differential: back raised 0.40→0.45 (slightly more fog
+/// blend to push back deeper into atmospheric depth); mid raised
+/// 0.12→0.18 (slight haze bump to complement lower density — mid
+/// reads as sitting behind a thin veil); front kept at 0.0 (sharp,
+/// hero layer has no haze).
+///   - Back  (0): 0.45 (visible rain through soft fog)
+///   - Mid   (1): 0.18 (slight veil — depth cue without milking out)
+///   - Front (2): 0.0 (sharp foreground — hero pops clean)
+pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.45, 0.18, 0.0];
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
 

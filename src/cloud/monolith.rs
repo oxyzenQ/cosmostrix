@@ -847,16 +847,20 @@ fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, col: u16) -
 
 /// Per-layer brightness multiplier for the Monolith scene.
 ///
-/// v30.0.0 final lock: tracks the rain field's visibility floor
-/// (PARALLAX_BRIGHTNESS_MULT in `central_control_rains.rs`). Mid set to
-/// 0.86 — slightly under the rain's 0.88 so monolith glyph streams read
-/// as half-a-step behind the rain front, preserving depth cue without
-/// the rain "disappearing" behind a too-dim monolith. Back is dimmed
-/// further (0.55) so it sits clearly in atmospheric depth.
+/// v30.0.0 differential depth tuning: tracks the rain field's
+/// visibility floor (PARALLAX_BRIGHTNESS_MULT in `central_control_rains.rs`).
+/// Back at 0.48 matches rain back (sits in atmospheric haze together
+/// with the distant rain). Mid at 0.78 — slightly under the rain's
+/// 0.80 so monolith glyph streams read as half-a-step behind the rain
+/// front, preserving depth cue without the rain "disappearing" behind
+/// a too-dim monolith. Front kept at 1.0 (monolith hero pulse stays
+/// the brightest glyph element — front rain at 1.05 is still slightly
+/// brighter but the monolith's solid glyph mass keeps it visually
+/// dominant as the focal anchor).
 fn layer_brightness(layer: u8) -> f32 {
     match layer {
-        0 => 0.55,
-        1 => 0.86,
+        0 => 0.48,
+        1 => 0.78,
         _ => 1.0,
     }
 }
