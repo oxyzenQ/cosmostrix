@@ -17,6 +17,7 @@ use crate::cinematic::{
 };
 use crate::constants::EDGE_FADE_BOLD_THRESHOLD;
 use crate::constants::MAX_PALETTE_SLOTS;
+use crate::constants::MONOLITH_LAYER_BRIGHTNESS;
 use crate::constants::SPAWN_REMAINDER_CAP;
 use crate::frame::Frame;
 use crate::palette;
@@ -847,22 +848,22 @@ fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, col: u16) -
 
 /// Per-layer brightness multiplier for the Monolith scene.
 ///
-/// v30.0.0 differential depth tuning: tracks the rain field's
-/// visibility floor (PARALLAX_BRIGHTNESS_MULT in `central_control_rains.rs`).
-/// Back at 0.48 matches rain back (sits in atmospheric haze together
-/// with the distant rain). Mid at 0.78 — slightly under the rain's
-/// 0.80 so monolith glyph streams read as half-a-step behind the rain
-/// front, preserving depth cue without the rain "disappearing" behind
-/// a too-dim monolith. Front kept at 1.0 (monolith hero pulse stays
-/// the brightest glyph element — front rain at 1.05 is still slightly
-/// brighter but the monolith's solid glyph mass keeps it visually
-/// dominant as the focal anchor).
+/// v30.0.0 centralization: values moved to
+/// `central_control_rains.rs::MONOLITH_LAYER_BRIGHTNESS` so future
+/// tuning requires editing only that single file. This wrapper now
+/// just reads from the constant array.
+///
+/// Tracks the rain field's visibility floor (PARALLAX_BRIGHTNESS_MULT).
+/// Mid is set slightly under the rain's mid value so monolith glyph
+/// streams read as half-a-step behind the rain front, preserving depth
+/// cue without the rain "disappearing" behind a too-dim monolith. Back
+/// matches the rain back value so the monolith's distant body sits in
+/// the same atmospheric haze as the distant rain. Front kept at 1.0
+/// (monolith hero pulse stays the brightest glyph element — front rain
+/// at 1.05 is still slightly brighter but the monolith's solid glyph
+/// mass keeps it visually dominant as the focal anchor).
 fn layer_brightness(layer: u8) -> f32 {
-    match layer {
-        0 => 0.48,
-        1 => 0.78,
-        _ => 1.0,
-    }
+    MONOLITH_LAYER_BRIGHTNESS[layer as usize]
 }
 
 fn clear_cell(frame: &mut Frame, cleanup: &mut MonolithCleanup<'_>, col: u16, line: u16) {

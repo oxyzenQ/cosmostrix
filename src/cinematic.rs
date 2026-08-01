@@ -5,6 +5,8 @@
 //! classification. These are the only zactrix-origin functions that survived
 //! the v11 cleanup — everything else was diagnostic overhead.
 
+use crate::constants::MONOLITH_BREATHING_AMPLITUDE;
+
 #[must_use]
 pub(crate) fn classify_frame_jitter(jitter_std_ms: f64) -> &'static str {
     if jitter_std_ms < 0.5 {
@@ -63,11 +65,10 @@ pub(crate) fn monolith_motion_factor(phase: f32, head: f32) -> f32 {
 #[must_use]
 #[inline]
 pub(crate) fn monolith_breathing_factor(phase: f32, head: f32, layer: u8) -> f32 {
-    let amplitude = match layer {
-        0 => 0.018,
-        1 => 0.026,
-        _ => 0.034,
-    };
+    // v30.0.0 centralization: amplitudes moved to
+    // `central_control_rains.rs::MONOLITH_BREATHING_AMPLITUDE` so future
+    // tuning requires editing only that single file.
+    let amplitude = MONOLITH_BREATHING_AMPLITUDE[layer as usize];
     let centered = triangle_wave01(phase + head * 0.027) * 2.0 - 1.0;
     (1.0 + centered * amplitude).clamp(0.965, 1.035)
 }

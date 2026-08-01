@@ -62,6 +62,32 @@
 //!
 //! ## Calibration history (most recent first)
 //!
+//! - **v30.0.0 (silent override bug fix + centralization)**: user reported
+//!   "front layer terasa dim tidak ada glow" after differential tuning.
+//!   Deep audit found 3 silent override bugs in droplet.rs that made
+//!   boosts > 1.0 completely no-op:
+//!   1. Brightness gate `if combined_layer < 1.0` skipped front boost 1.05
+//!      (no effect). Fixed to `!= 1.0` so both dim and boost apply.
+//!   2. Saturation gate `if saturation_mult < 1.0` skipped front boost 1.05
+//!      (no effect). Fixed to `!= 1.0`; the `(color-lum)*(1-sat)` formula
+//!      naturally extends to sat > 1.0 (push away from gray = oversaturate).
+//!   3. Selfbloom `as i32` truncated 0.30→0, 0.65→0, 1.0→1, then integer
+//!      division `(60 * 0_or_1) / 256` gave `wf = 0` for ALL layers —
+//!      selfbloom was a 0% boost no-op since the constant was introduced.
+//!      Switched to f32 math so fractional multipliers actually apply.
+//!
+//!   Also restored front spawn density 1.10 → 0.85 to compensate for the
+//!   spawn-roll fix (commit 9080472) that gave front +40% more density
+//!   rolls. Effective front spawn rate now matches 5571c0b level (sparse,
+//!   crisp glow per droplet) while per-droplet boosts (now actually
+//!   applied) make front read as more prominent than 5571c0b.
+//!
+//!   Centralization: moved `monolith.rs::layer_brightness` hardcoded
+//!   values (0.48/0.78/1.0) and `cinematic.rs::monolith_breathing_factor`
+//!   amplitudes (0.018/0.026/0.034) into this file as
+//!   `MONOLITH_LAYER_BRIGHTNESS` and `MONOLITH_BREATHING_AMPLITUDE`.
+//!   Now ALL layer-specific tuning lives in this single file — editing
+//!   any rain parameter requires touching only central_control_rains.rs.
 //! - **v30.0.0 (differential depth tuning)**: user requested sharper
 //!   depth differential — back needs to be slightly more dim, mid needs
 //!   reduced density + slight dim, front needs to read more prominent
@@ -72,6 +98,8 @@
 //!   0.082/0.522/1.000). Ratio back:mid:front widened from 1:6.4:12.2
 //!   to 1:6.8:24.1 — front now clearly dominant, back recedes into
 //!   atmospheric haze, mid sits between as sparse vivid streaks.
+//!   — *Front density later restored; per-droplet boosts fixed in silent
+//!   override bug fix above.*
 //! - **v30.0.0 (final — visual test locked)**: after A/B visual testing
 //!   against option C (density-focused) and option D (haze-focused), the
 //!   parameter set from commit 1e4e3fa (the initial visibility-floor
@@ -121,12 +149,14 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// v30.0.0 differential depth tuning: back dimmed 0.55→0.48 to push
-/// deeper into atmospheric haze; mid dimmed 0.88→0.80 for slight
-/// presence reduction; front boosted 1.00→1.05 for more prominence.
-/// Back effective visibility = 0.48 × 0.50 × (1−0.45) ≈ 0.132 (was
-/// 0.182, -27% — slightly more dim as requested without losing the
-/// atmospheric depth floor).
+/// v30.0.0 differential depth tuning + silent override bug fix: back
+/// dimmed 0.55→0.48 to push deeper into atmospheric haze; mid dimmed
+/// 0.88→0.80 for slight presence reduction; front boosted 1.00→1.05
+/// for more prominence. Bug fix in droplet.rs changed the brightness
+/// gate from `< 1.0` to `!= 1.0` so the front boost 1.05 now actually
+/// applies (was a silent no-op before).
+///
+/// Back effective visibility = 0.48 × 0.50 × (1−0.45) ≈ 0.132.
 ///   - Back  (0): 0.48 (dimmed — sits in soft fog)
 ///   - Mid   (1): 0.80 (slightly dim — fewer droplets, each vivid)
 ///   - Front (2): 1.05 (boosted — front reads as the hero layer)
@@ -134,9 +164,13 @@ pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.05];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// v30.0.0 differential: back desaturated further 0.55→0.50 (more
-/// "rain in fog" feel); mid slightly desaturated 0.90→0.84 to match
-/// the dimmer brightness; front pushed 1.00→1.05 for richer neon.
+/// v30.0.0 differential + silent override bug fix: back desaturated
+/// further 0.55→0.50 (more "rain in fog" feel); mid slightly
+/// desaturated 0.90→0.84 to match the dimmer brightness; front pushed
+/// 1.00→1.05 for richer neon. Bug fix in droplet.rs changed the
+/// saturation gate from `< 1.0` to `!= 1.0` so the front boost 1.05
+/// now actually applies (was a silent no-op before — oversaturation
+/// pushes colors away from gray, making neon pop more).
 ///   - Back  (0): 0.50 (more haze blend)
 ///   - Mid   (1): 0.84 (slightly less vivid to match dimmer brightness)
 ///   - Front (2): 1.05 (richer neon — front pops as hero)
@@ -155,10 +189,15 @@ pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.15];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v30.0.0 differential: back 0.45→0.38 (effective self-bloom ~14%, vs
-/// 65% for front — distant heads read as ambient glow); mid 0.78→0.68
-/// (slightly less self-glow to match lower density); front 1.0→1.15
-/// (full cinematic self-bloom).
+/// v30.0.0 differential + silent override bug fix: back 0.45→0.38
+/// (effective self-bloom ~9%, vs ~27% for front — distant heads read
+/// as ambient glow); mid 0.78→0.68 (slightly less self-glow to match
+/// lower density); front 1.0→1.15 (full cinematic self-bloom).
+///
+/// Bug fix in droplet.rs switched from `as i32` truncation (which made
+/// ALL multipliers < 1.0 collapse to 0, giving 0% boost for every
+/// layer) to f32 math. Now fractional multipliers actually apply:
+/// back gets ~9% boost, mid gets ~16%, front gets ~27%.
 ///   - Back  (0): 0.38 (ambient distant glow, no pinprick)
 ///   - Mid   (1): 0.68 (clearly present, not flashy)
 ///   - Front (2): 1.15 (boosted self-glow)
@@ -227,15 +266,21 @@ pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 /// Per-layer spawn density multiplier (far = sparse, near = dense).
 ///
-/// v30.0.0 differential: mid reduced 0.75→0.62 (~17% fewer mid-layer
-/// droplets — the primary lever for reducing mid noise per user's
-/// request); front boosted 1.0→1.10 (10% more droplets — front reads
-/// as the dominant rain field); back kept at 0.45 (already sparse,
-/// dimming handles the depth push instead).
+/// v30.0.0 silent override bug fix: front restored from 1.10 → 0.85 to
+/// compensate for the spawn-roll fix (commit 9080472) that gave front
+/// +40% more density rolls. At spawn_droplets distribution [0.35, 0.30,
+/// 0.35] (post-fix), front effective spawn rate = 0.35 × 0.85 × col_mod
+/// ≈ 0.208 — matching 5571c0b's 0.25 × 1.0 × col_mod ≈ 0.175 with a
+/// slight +19% bump so front reads as more prominent (now that bug
+/// fixes actually apply per-droplet boosts).
+///
+/// Mid reduced 0.75→0.62 (~17% fewer droplets — the primary lever for
+/// reducing mid noise per user's request). Back kept at 0.45 (already
+/// sparse, dimming handles the depth push instead).
 ///   - Back  (0): 0.45 (kept — sparse distant rain)
 ///   - Mid   (1): 0.62 (reduced — fewer but vivid streaks)
-///   - Front (2): 1.10 (boosted — denser hero layer)
-pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.62, 1.10];
+///   - Front (2): 0.85 (restored — sparse crisp glow, matches 5571c0b)
+pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.62, 0.85];
 
 /// Per-layer glyph simplicity (currently no-op — subsumed by brightness
 /// + saturation). Kept as a tuning knob for future use.
@@ -783,3 +828,43 @@ pub const FRAME_SPIN_LIMIT: Duration = Duration::from_micros(1000);
 
 /// Minimum simulation factor under heavy load.
 pub const SIM_FACTOR_MIN: f64 = 0.3;
+
+// ─── Monolith scene — per-layer tuning ─────────────────────────────────────
+//
+// The Monolith scene (cloud/monolith.rs + cinematic.rs) has its own
+// per-layer brightness and breathing multipliers that track the rain
+// field's depth gradient. Previously these were hardcoded in monolith.rs
+// and cinematic.rs as match arms — every rain parameter change required
+// hunting down the matching hardcoded values across multiple files.
+//
+// Centralized here so editing any rain parameter requires touching only
+// this single file. monolith.rs and cinematic.rs read from these
+// constants directly.
+
+/// Per-layer brightness multiplier for the Monolith scene glyph streams.
+///
+/// Tracks the rain field's visibility floor (PARALLAX_BRIGHTNESS_MULT).
+/// Mid is set slightly under the rain's mid value so monolith glyph
+/// streams read as half-a-step behind the rain front, preserving depth
+/// cue without the rain "disappearing" behind a too-dim monolith. Back
+/// matches the rain back value so the monolith's distant body sits in
+/// the same atmospheric haze as the distant rain. Front kept at 1.0 —
+/// the monolith hero pulse stays the brightest glyph element (front
+/// rain at 1.05 is still slightly brighter per-cell but the monolith's
+/// solid glyph mass keeps it visually dominant as the focal anchor).
+///   - Back  (0): 0.48 (matches rain back — atmospheric haze)
+///   - Mid   (1): 0.78 (half-step under rain mid 0.80 — depth cue)
+///   - Front (2): 1.00 (monolith hero pulse — focal anchor)
+pub const MONOLITH_LAYER_BRIGHTNESS: [f32; PARALLAX_LAYERS] = [0.48, 0.78, 1.0];
+
+/// Per-layer breathing amplitude for the Monolith scene's subtle
+/// triangle-wave brightness oscillation (cinematic.rs).
+///
+/// Back layer breathes slowest (0.018 amplitude = ±1.8% brightness
+/// oscillation), front breathes most (0.034 = ±3.4%) — gives the
+/// monolith wall a "living tissue" feel where the foreground pulses
+/// more visibly than the distant background, reinforcing depth.
+///   - Back  (0): 0.018 (±1.8% — subtle distant breath)
+///   - Mid   (1): 0.026 (±2.6% — moderate)
+///   - Front (2): 0.034 (±3.4% — visible foreground pulse)
+pub const MONOLITH_BREATHING_AMPLITUDE: [f32; PARALLAX_LAYERS] = [0.018, 0.026, 0.034];

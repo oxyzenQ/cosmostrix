@@ -631,11 +631,17 @@ impl Droplet {
                     }
                 }
 
-                // Parallax layer brightness + glyph dim: combine into one multiply
+                // Parallax layer brightness + glyph dim: combine into one multiply.
+                //
+                // Bug fix (v30.0.0): the gate was `if combined_layer < 1.0` which
+                // silently skipped boosts > 1.0 — front-layer brightness 1.05
+                // was a complete no-op. Changed to `!= 1.0` so both dimming
+                // (< 1.0) and boosting (> 1.0) apply. The integer pipeline
+                // already handles > 1.0 correctly (fi > 256 scales r upward).
                 let layer_brightness = PARALLAX_BRIGHTNESS_MULT[self.layer as usize];
                 let glyph_dim = PARALLAX_GLYPH_DIM[self.layer as usize];
                 let combined_layer = layer_brightness * glyph_dim;
-                if combined_layer < 1.0 {
+                if combined_layer != 1.0 {
                     let fi = (combined_layer * 256.0) as i32;
                     r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                     g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
@@ -650,14 +656,25 @@ impl Droplet {
                 // gray instead of vivid color, so it no longer pops as a hot
                 // pixel against the dark background.
                 //
+                // Bug fix (v30.0.0): the gate was `if saturation_mult < 1.0`
+                // which silently skipped oversaturation > 1.0 — front-layer
+                // saturation 1.05 was a complete no-op. Changed to `!= 1.0`
+                // so both desaturation (< 1.0, blend toward gray) and
+                // oversaturation (> 1.0, push away from gray) apply. The
+                // formula `color - (color - lum) * (1 - sat)` naturally
+                // extends to sat > 1.0: inv_sat becomes negative, dr inverts,
+                // and the subtraction becomes an addition — pushing colors
+                // further from gray.
+                //
                 // Luminance is computed via the standard Rec. 601 weighting
                 // (0.299R + 0.587G + 0.114B) using integer math.
                 let saturation_mult = PARALLAX_SATURATION_MULT[self.layer as usize];
-                if saturation_mult < 1.0 {
+                if saturation_mult != 1.0 {
                     let lum = (r as u32 * 77 + g as u32 * 150 + b as u32 * 29 + 128) >> 8;
                     let lum = lum.min(255) as u8;
                     // Blend: out = color * sat + lum * (1 - sat)
                     // Equivalent to: out = color - (color - lum) * (1 - sat)
+                    // Works for both sat < 1.0 (toward gray) and sat > 1.0 (away from gray).
                     let inv_sat = ((1.0 - saturation_mult) * 256.0) as i32;
                     let dr = (r as i32 - lum as i32) * inv_sat;
                     let dg = (g as i32 - lum as i32) * inv_sat;
@@ -791,18 +808,23 @@ impl Droplet {
                     b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
-                // Head self-bloom: 45% white blend toward white.
+                // Head self-bloom: per-layer scaled head color boost.
                 // Cinematic head pop — head is OBVIOUSLY brighter than body.
-                // Was 12% (subtle), raised to 45% for film-quality head glow.
+                // Was 12% (subtle), raised to ~23% for film-quality head glow.
                 //
-                // Cinematic final polish: scale HEAD_WF by per-layer multiplier
+                // Cinematic final polish: scale HEAD_BOOST by per-layer multiplier
                 // so back-layer heads don't get re-brightened after dimming.
                 // Without this, the layer brightness dimming was undone by the
-                // white blend, popping the head back up — visible as a "white
-                // dot". With PARALLAX_HEAD_SELFBLOOM_MULT[0] = 0.45 (v30), the
-                // effective self-bloom for back-layer heads is ~25%, keeping
-                // them below the front-layer body visibility floor while
-                // remaining visible as background depth.
+                // boost, popping the head back up — visible as a "white dot".
+                //
+                // Bug fix (v30.0.0): the original code used `as i32` on the
+                // f32 multiplier, which truncated 0.30→0, 0.65→0, 0.78→0,
+                // 1.0→1. Combined with integer division `(60 * 0_or_1) / 256`,
+                // the result was `wf = 0` for ALL layers — the self-bloom was
+                // a complete no-op since the constant was introduced. Switched
+                // to f32 math so fractional multipliers actually apply. With
+                // PARALLAX_HEAD_SELFBLOOM_MULT[0] = 0.38, back-layer heads now
+                // get a real ~9% boost; front at 1.15 gets ~27%.
                 if matches!(loc, CharLoc::Head) {
                     // v25 "glow with color" calibration: instead of blending
                     // toward pure white (255,255,255), boost the head's own
@@ -810,15 +832,16 @@ impl Droplet {
                     // theme hue (green → brighter green, not white) at high
                     // speed. The boost factor is scaled by layer via
                     // PARALLAX_HEAD_SELFBLOOM_MULT.
-                    const HEAD_BOOST: i32 = 60; // ~0.23 * 256
-                    let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize] as i32;
-                    let wf = (HEAD_BOOST * layer_selfbloom) / 256;
+                    const HEAD_BOOST: f32 = 60.0 / 256.0; // ~0.234 — was i32=60
+                    let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize];
+                    let wf = HEAD_BOOST * layer_selfbloom;
                     // Boost each channel toward 255 but proportionally to its
                     // current value — this preserves hue (green gets greener,
                     // not whiter) while increasing luminance.
-                    r = (r as i32 + (r as i32 * wf + 128) / 256).clamp(0, 255) as u8;
-                    g = (g as i32 + (g as i32 * wf + 128) / 256).clamp(0, 255) as u8;
-                    b = (b as i32 + (b as i32 * wf + 128) / 256).clamp(0, 255) as u8;
+                    let scale = 1.0 + wf;
+                    r = (r as f32 * scale).round().clamp(0.0, 255.0) as u8;
+                    g = (g as f32 * scale).round().clamp(0.0, 255.0) as u8;
+                    b = (b as f32 * scale).round().clamp(0.0, 255.0) as u8;
                 }
 
                 // Rain shadow: quadratic fade-out across bottom 15% of screen.
