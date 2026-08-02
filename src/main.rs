@@ -888,7 +888,9 @@ fn main() -> std::io::Result<()> {
             effective_async,
             bold_mode,
             shading_mode,
-            args.noglitch,
+            // v30 simplify: --noglitch CLI flag removed; derive glitch_enabled
+            // from glitch_level. None => disabled, anything else => enabled.
+            args.glitch_level != crate::config::GlitchLevel::None,
             glitch_pct,
             glitch_low,
             glitch_high,
@@ -935,7 +937,7 @@ fn main() -> std::io::Result<()> {
         custom_palette,
         custom_palette_name,
         rain_style,
-        noglitch: args.noglitch,
+        glitch_enabled: args.glitch_level != crate::config::GlitchLevel::None,
         glitch_pct,
         glitch_low,
         glitch_high,

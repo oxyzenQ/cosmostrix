@@ -33,7 +33,10 @@ pub struct CloudConfig {
     /// so editing colors-custom entries takes effect immediately.
     pub custom_palette_name: Option<String>,
     pub rain_style: RainStyle,
-    pub noglitch: bool,
+    /// Glitch enable flag, derived from `glitch_level != GlitchLevel::None`.
+    /// Replaces the old `noglitch: bool` field (v30 simplify: --noglitch CLI
+    /// flag removed; positive polarity is clearer and matches `cloud.glitchy`).
+    pub glitch_enabled: bool,
     pub glitch_pct: f32,
     pub glitch_low: u16,
     pub glitch_high: u16,
@@ -160,7 +163,7 @@ impl CloudConfig {
             self.rain_style,
         );
 
-        cloud.glitchy = !self.noglitch;
+        cloud.glitchy = self.glitch_enabled;
         cloud.set_glitch_pct(self.glitch_pct / 100.0);
         cloud.set_glitch_times(self.glitch_low, self.glitch_high);
         cloud.set_linger_times(self.linger_low, self.linger_high);
@@ -236,7 +239,7 @@ impl CloudConfig {
             custom_palette: self.custom_palette.clone(),
             custom_palette_name: self.custom_palette_name.clone(),
             rain_style: self.rain_style,
-            noglitch: self.noglitch,
+            glitch_enabled: self.glitch_enabled,
             glitch_pct: self.glitch_pct,
             glitch_low: self.glitch_low,
             glitch_high: self.glitch_high,

@@ -224,7 +224,7 @@ mod cases {
             custom_palette: None,
             custom_palette_name: None,
             rain_style: crate::rain_style::RainStyle::Glyph,
-            noglitch: true,
+            glitch_enabled: false,
             glitch_pct: 0.0,
             glitch_low: 0,
             glitch_high: 0,

@@ -448,6 +448,37 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
             "0" | "1" => None,
             _ => Some(format!("expected 0 or 1, got '{v}'")),
         },
+        // v30 simplify: validate density-map CSV at --testconf time.
+        // Previously, `density-map = "abc,def"` passed --testconf cleanly
+        // but silently became None at runtime (parse_density_map filters
+        // non-numeric entries). Now --testconf fails loudly so users see
+        // the typo before running. Format: comma-separated floats in
+        // [0.0, 1.0], at least one non-empty entry.
+        "density-map" => {
+            let entries: Vec<&str> = v.split(',').map(|s| s.trim()).collect();
+            let non_empty: Vec<&str> = entries.iter().copied().filter(|s| !s.is_empty()).collect();
+            if non_empty.is_empty() {
+                return Some(format!(
+                    "expected at least one comma-separated float in [0.0, 1.0], got '{v}'"
+                ));
+            }
+            for entry in &non_empty {
+                match entry.parse::<f64>() {
+                    Ok(n) if !(0.0..=1.0).contains(&n) => {
+                        return Some(format!(
+                            "out of range [0.0, 1.0] for entry '{entry}', got {n}"
+                        ));
+                    }
+                    Err(_) => {
+                        return Some(format!(
+                            "expected float in [0.0, 1.0] for entry '{entry}', got '{entry}'"
+                        ));
+                    }
+                    Ok(_) => {}
+                }
+            }
+            None
+        }
 
         // ── Enum-like string values ──
         "color" => {
@@ -758,6 +789,35 @@ mod tests {
         assert!(validate_field_value("density", "0.001").is_some());
         assert!(validate_field_value("density", "5.5").is_some());
         assert!(validate_field_value("density", "0.85").is_none());
+    }
+
+    // v30 simplify: density-map validation at --testconf time.
+    #[test]
+    fn density_map_valid_csv_passes() {
+        assert!(validate_field_value("density-map", "1.0,0.5,0.0,0.8").is_none());
+        assert!(validate_field_value("density-map", "0.85").is_none()); // single entry
+        assert!(validate_field_value("density-map", "  0.1 , 0.2 , 0.3  ").is_none()); // whitespace
+        assert!(validate_field_value("density-map", "1.0,,0.5,,").is_none()); // empty entries skipped
+    }
+
+    #[test]
+    fn density_map_non_numeric_is_rejected() {
+        let err = validate_field_value("density-map", "abc,def").expect("non-numeric should fail");
+        assert!(err.contains("expected float"), "got: {err}");
+        assert!(err.contains("abc"), "got: {err}");
+    }
+
+    #[test]
+    fn density_map_out_of_range_is_rejected() {
+        let err = validate_field_value("density-map", "0.5,1.5,0.0").expect("oob should fail");
+        assert!(err.contains("out of range"), "got: {err}");
+        assert!(err.contains("1.5"), "got: {err}");
+    }
+
+    #[test]
+    fn density_map_empty_is_rejected() {
+        let err = validate_field_value("density-map", ",,,").expect("empty should fail");
+        assert!(err.contains("at least one"), "got: {err}");
     }
 
     // ── Enum value validation ──

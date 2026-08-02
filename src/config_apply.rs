@@ -535,47 +535,45 @@ fn apply_glitch_level_values(
             || (config_touched.contains(arg_id) && !high_precedence_glitch_level)
     };
 
+    // v30 simplify: --noglitch CLI flag removed. glitch_enabled is now derived
+    // directly from glitch_level (None => false, anything else => true) at
+    // CloudConfig construction time. The `should_skip("noglitch")` calls are
+    // gone because there's no `args.noglitch` to assign anymore.
+
     match args.glitch_level {
         GlitchLevel::None => {
-            if !should_skip("noglitch") {
-                args.noglitch = true;
-            }
+            // Glitch fully off. Percentages stay at defaults (unused).
         }
         GlitchLevel::Subtle => {
-            if !should_skip("noglitch") {
-                args.noglitch = false;
+            if !should_skip("glitch_ms") {
+                args.glitch_ms = crate::config::U16Range {
+                    low: 200,
+                    high: 300,
+                };
             }
-            // Glitch percentages are fully owned by the glitch_level
-            // preset — there are no CLI flags or config keys for them.
             args.glitch_pct = 3.0;
-            args.glitch_ms = crate::config::U16Range {
-                low: 200,
-                high: 300,
-            };
             args.shortpct = 60.0;
             args.rippct = 45.0;
         }
         GlitchLevel::Default => {
-            if !should_skip("noglitch") {
-                args.noglitch = false;
+            if !should_skip("glitch_ms") {
+                args.glitch_ms = crate::config::U16Range {
+                    low: 300,
+                    high: 400,
+                };
             }
             args.glitch_pct = 10.0;
-            args.glitch_ms = crate::config::U16Range {
-                low: 300,
-                high: 400,
-            };
             args.shortpct = 50.0;
             args.rippct = 33.33333;
         }
         GlitchLevel::Intense => {
-            if !should_skip("noglitch") {
-                args.noglitch = false;
+            if !should_skip("glitch_ms") {
+                args.glitch_ms = crate::config::U16Range {
+                    low: 500,
+                    high: 800,
+                };
             }
             args.glitch_pct = 25.0;
-            args.glitch_ms = crate::config::U16Range {
-                low: 500,
-                high: 800,
-            };
             args.shortpct = 30.0;
             args.rippct = 20.0;
         }

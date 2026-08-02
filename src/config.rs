@@ -205,13 +205,10 @@ pub struct Args {
     )]
     pub color_tune: Option<String>,
 
-    // v17: --brightness/--saturation CLI flags REMOVED. Use --color-tune
-    // or [color.tune] config section instead.
-    #[arg(skip)]
-    pub brightness: Option<f32>,
-    #[arg(skip)]
-    pub saturation: Option<f32>,
-
+    // v30 simplify: --brightness/--saturation skip fields REMOVED.
+    // These were v17 ghosts — never read by any consumer. The actual
+    // color-tune path uses [color.tune] config / --color-tune CLI, which
+    // has its own dedicated field below (`color_tune`).
     #[arg(
         short = 'C',
         long = "charset",
@@ -481,10 +478,8 @@ pub struct Args {
     )]
     pub bench_scene: Option<String>,
 
-    // v17: --info/-i REMOVED. Merged into --doctor.
-    #[arg(skip)]
-    pub info: bool,
-
+    // v30 simplify: --info skip field REMOVED. Was a v17 ghost (CLI flag
+    // deleted in v17, merged into --doctor). No consumer ever read this.
     #[arg(
         long = "reset-terminal",
         help_heading = "DIAGNOSTICS",
@@ -657,16 +652,12 @@ pub struct Args {
     #[arg(skip = 3u8)]
     pub max_droplets_per_column: u8,
 
-    #[arg(
-        long = "noglitch",
-        default_value_t = true,
-        action = clap::ArgAction::Set,
-        num_args = 0..=1,
-        default_missing_value = "true",
-        hide = true,
-        help = "Disable glitch effects (default: on)"
-    )]
-    pub noglitch: bool,
+    // v30 simplify: --noglitch CLI flag REMOVED. Was a strict duplicate of
+    // `--glitch-level none` (the only behavior `--noglitch` had was to flip
+    // `cloud.glitchy` to false, which is exactly what `--glitch-level none`
+    // does). The `noglitch` field is replaced by `glitch_enabled` (positive
+    // polarity) on CloudConfig, derived from `glitch_level != GlitchLevel::None`.
+    // See REMOVED_FLAGS in src/validation.rs for the migration message.
 
     // v17 mastery: --rippct / -r CLI flag REMOVED. Use --glitch-level instead.
     #[arg(skip = 33.33333_f32)]

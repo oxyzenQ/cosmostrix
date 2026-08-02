@@ -137,7 +137,7 @@ fn compute_config_enrichment(
     );
 
     let async_mode = cfg.async_mode;
-    let glitch_enabled = !cfg.noglitch;
+    let glitch_enabled = cfg.glitch_enabled;
     // Derive glitch_level label from glitch_pct (CloudConfig doesn't carry
     // the GlitchLevel enum, only the resolved pct). Thresholds match
     // bench_tune.rs and cloud/scene_runtime.rs:

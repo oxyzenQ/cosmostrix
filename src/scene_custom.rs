@@ -20,6 +20,7 @@
 //! `[profile.<name>]` blocks must rename the prefix to `scene-custom`.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::sync::OnceLock;
 
 use crate::config::Args;
 use crate::profile::{
@@ -181,11 +182,27 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 /// Values outside this range are clamped. Empty/whitespace entries are skipped.
 /// Returns `None` if the string contains no valid numbers.
 ///
-/// The returned slice is `'static` via `Box::leak` — the memory lives for the
-/// process lifetime. This is intentional: Cloud holds the slice for the entire
-/// session, and the total leaked memory is bounded by config size (a few KB).
+/// The returned slice is `'static` — the memory lives for the process
+/// lifetime. v30 simplify: the leak is now **deduplicated by content** via
+/// a global `OnceLock<HashMap<String, &'static [f64]>>`. Repeated live-reloads
+/// of the same `density-map` string return the same slice instead of leaking
+/// a new one each time. Different strings still leak (one entry each), but
+/// the total leaked memory is now bounded by the number of *distinct*
+/// density-map strings the user ever writes, not the number of live-reloads.
 #[must_use]
 pub fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
+    // Dedup cache: maps the raw CSV string to its parsed &'static slice.
+    // First call for a given CSV leaks the slice; subsequent calls return
+    // the same slice without re-leaking.
+    static DENSITY_MAP_CACHE: OnceLock<std::sync::Mutex<HashMap<String, &'static [f64]>>> =
+        OnceLock::new();
+    let cache = DENSITY_MAP_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
+    let mut cache = cache.lock().expect("density-map cache poisoned");
+
+    if let Some(existing) = cache.get(csv) {
+        return Some(*existing);
+    }
+
     let weights: Vec<f64> = csv
         .split(',')
         .filter_map(|s| {
@@ -200,8 +217,11 @@ pub fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
         return None;
     }
     // Leak the Vec so its backing slice becomes &'static. Cloud holds this
-    // for the entire process lifetime — no dangling risk, bounded memory.
-    Some(Box::leak(weights.into_boxed_slice()))
+    // for the entire process lifetime. The cache ensures we only leak once
+    // per distinct CSV string — live-reload no longer grows memory.
+    let leaked: &'static [f64] = Box::leak(weights.into_boxed_slice());
+    cache.insert(csv.to_string(), leaked);
+    Some(leaked)
 }
 
 /// Render a one-line-per-entry listing of custom scenes from config.

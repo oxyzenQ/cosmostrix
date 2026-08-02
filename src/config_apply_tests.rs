@@ -114,7 +114,10 @@ fn config_glitch_level_subtle_applies() {
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
     assert_eq!(args.glitch_pct, 3.0);
     assert_eq!(args.shortpct, 60.0);
-    assert!(!args.noglitch);
+    // v30 simplify: --noglitch CLI flag removed; glitch_enabled is now
+    // derived from glitch_level != None. Subtle is not None, so a Cloud
+    // built from this args would have glitch_enabled = true.
+    assert!(args.glitch_level != GlitchLevel::None);
 }
 
 #[test]

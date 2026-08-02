@@ -74,7 +74,9 @@ pub(crate) fn print_verbose(
     async_mode: bool,
     bold_mode: BoldMode,
     shading_mode: ShadingMode,
-    noglitch: bool,
+    // v30 simplify: was `noglitch: bool` (inverse polarity). Renamed to
+    // `glitch_enabled` for clarity and consistency with CloudConfig.
+    glitch_enabled: bool,
     glitch_pct: f32,
     glitch_low: u16,
     glitch_high: u16,
@@ -170,7 +172,7 @@ pub(crate) fn print_verbose(
         "glitch:",
         &format!(
             " {} ({glitch_pct}%, {glitch_low}-{glitch_high}ms)",
-            !noglitch
+            glitch_enabled
         ),
     );
     output::eprintln_verbose("glitch_level:", &format!(" {glitch_level}"));

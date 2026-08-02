@@ -764,12 +764,16 @@ pub fn rebuild_cloud_config(
     if !cli.glitch_level {
         if let Some(v) = cfg.get("glitch-level") {
             lr_trace!("apply glitch-level='{}'", v);
-            new.noglitch = v.trim().eq_ignore_ascii_case("none");
+            // v30 simplify: --noglitch field renamed to glitch_enabled
+            // (positive polarity). Live-reload only flips the enable bool
+            // here; the glitch_pct/glitch_ms/shortpct/rippct preset values
+            // are NOT re-derived on live reload (pre-existing limitation).
+            new.glitch_enabled = !v.trim().eq_ignore_ascii_case("none");
         }
     } else {
         lr_trace!(
-            "skip glitch-level (CLI explicit) — noglitch={}",
-            new.noglitch
+            "skip glitch-level (CLI explicit) — glitch_enabled={}",
+            new.glitch_enabled
         );
     }
 
@@ -918,7 +922,8 @@ fn apply_scene_custom_to_cloud_config(
                 }
             }
             "glitch-level" => {
-                new.noglitch = value.trim().eq_ignore_ascii_case("none");
+                // v30 simplify: --noglitch field renamed to glitch_enabled
+                new.glitch_enabled = !value.trim().eq_ignore_ascii_case("none");
             }
             "monolith-size" => {
                 if let Ok(size) = crate::runtime::MonolithSize::from_str(value, true) {
@@ -1048,7 +1053,7 @@ mod tests {
             custom_palette: None,
             custom_palette_name: None,
             rain_style: RainStyle::Glyph,
-            noglitch: false,
+            glitch_enabled: true,
             glitch_pct: 10.0,
             glitch_low: 300,
             glitch_high: 400,

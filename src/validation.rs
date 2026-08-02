@@ -77,6 +77,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--fullwidth",
         "error: --fullwidth has been removed in v25.0.0-alpha.3.\n  The legacy horizontal-spacing mode (which doubled the column stride for monolith streams) was purged.\n  The Cosmic Dragon principle forbids wide chars permanently; the charset is always single-width.\n  No replacement needed — monolith streams now render at the natural single-cell stride, which is the only mode that has ever been the default.",
     ),
+    (
+        "--noglitch",
+        "error: --noglitch has been removed in v30.0.0-alpha.1.\n  It was a strict duplicate of `--glitch-level none` (the only behavior --noglitch\n  had was to disable glitch, which is exactly what `--glitch-level none` does).\n  Use `--glitch-level none` instead. Glitch parameters are now fully owned by\n  --glitch-level (the documented contract from configfile.rs is now enforced).",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.

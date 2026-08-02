@@ -329,11 +329,6 @@ ADVANCED (hidden from --help, fully functional — honest disclosure):
   --chars <ranges>
       Custom character pool override as hex Unicode ranges
       (e.g. \"0x30-0x39,0x41-0x5A\"). Pairs must be even count.
-  --noglitch [true|false]
-      Disable glitch effects (default: on = glitches enabled). Pass
-      --noglitch=false to re-enable after disabling. Action=Set, so
-      --noglitch (no value) is equivalent to --noglitch=true.
-      Config: noglitch = true
   --check-bitcolor
       Print detected terminal color capability (truecolor / 256 / 16 /
       mono) and exit. Diagnostic only — no rain rendered.

@@ -297,7 +297,7 @@ fn benchmark_fields_unchanged() {
         custom_palette: None,
         custom_palette_name: None,
         rain_style: crate::rain_style::RainStyle::Glyph,
-        noglitch: false,
+        glitch_enabled: false,
         glitch_pct: 0.0,
         glitch_low: 100,
         glitch_high: 1000,

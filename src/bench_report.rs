@@ -119,7 +119,7 @@ pub(crate) struct BenchReportData {
     /// Async mode flag (true = variable column speeds, false = uniform).
     /// Affects droplet spawn distribution and dirty-cell patterns per frame.
     pub async_mode: bool,
-    /// Glitch enabled flag (inverse of --noglitch).
+    /// Glitch enabled flag (derived from `glitch_level != GlitchLevel::None`).
     pub glitch_enabled: bool,
     /// Glitch intensity preset name ("none"/"subtle"/"default"/...).
     pub glitch_level: &'static str,
