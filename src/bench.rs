@@ -1319,22 +1319,30 @@ mod bench_scene_validation_tests {
     fn rejects_typo_leanax() {
         // Reported bug: "leanax" was silently accepted.
         let err = validate_bench_scene_str(Some("leanax")).unwrap_err();
-        assert!(err.contains("invalid --bench-scene value 'leanax'"), "got: {err}");
-        assert!(err.contains("Valid scenes: lean, production-draw"), "got: {err}");
+        assert!(
+            err.contains("invalid --bench-scene value 'leanax'"),
+            "got: {err}"
+        );
+        assert!(
+            err.contains("Valid scenes: lean, production-draw"),
+            "got: {err}"
+        );
     }
 
     #[test]
     fn rejects_typo_axa() {
         // Reported bug: "axa" was silently accepted.
         let err = validate_bench_scene_str(Some("axa")).unwrap_err();
-        assert!(err.contains("invalid --bench-scene value 'axa'"), "got: {err}");
+        assert!(
+            err.contains("invalid --bench-scene value 'axa'"),
+            "got: {err}"
+        );
     }
 
     #[test]
     fn rejects_typo_production_draw_garbage() {
         // Reported bug: "production-drawmadadadaxa" was silently accepted.
-        let err =
-            validate_bench_scene_str(Some("production-drawmadadadaxa")).unwrap_err();
+        let err = validate_bench_scene_str(Some("production-drawmadadadaxa")).unwrap_err();
         assert!(
             err.contains("invalid --bench-scene value 'production-drawmadadadaxa'"),
             "got: {err}"
