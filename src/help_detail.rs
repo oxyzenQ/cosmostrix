@@ -272,7 +272,7 @@ DIAGNOSTICS:
                          escape. Use to measure the BOLT-backed production
                          render path the user actually sees.
       Strict: only the two values above are accepted. Typos (e.g.
-      "leanax", "production-drawmadadadaxa") are rejected with an error
+      \"leanax\", \"production-drawmadadadaxa\") are rejected with an error
       at parse time — never silently fallback'd to the default lean path.
       cosmostrix --benchmark --bench-io --bench-scene production-draw
   --save-baseline <path>
