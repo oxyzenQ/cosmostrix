@@ -275,7 +275,7 @@ impl CloudConfig {
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),
             scene_custom_name: self.scene_custom_name.clone(),
-            cli_explicit: self.cli_explicit.clone(),
+            cli_explicit: self.cli_explicit,
         }
     }
 }

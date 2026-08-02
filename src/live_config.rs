@@ -571,7 +571,8 @@ pub fn rebuild_cloud_config(
 ) -> crate::app::CloudConfig {
     let mut new = base.clone();
     // Snapshot CLI-explicit tracker — preserved across reloads.
-    let cli = new.cli_explicit.clone();
+    // CliExplicit derives Copy, so this is a cheap field copy, not a heap clone.
+    let cli = new.cli_explicit;
 
     lr_trace!(
         "rebuild_cloud_config: cli_explicit = {{color:{}, charset:{}, speed:{}, density:{}, fps:{}, scene:{}, glitch:{}}}",
