@@ -83,6 +83,7 @@ mod bench_report;
 mod bench_report_tests;
 mod bench_scale;
 mod bench_visual;
+mod bolt;
 mod branding;
 mod cell;
 mod charset;

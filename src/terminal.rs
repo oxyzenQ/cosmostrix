@@ -65,6 +65,7 @@ use crossterm::{
     terminal, ExecutableCommand, QueueableCommand,
 };
 
+use crate::bolt::BOLD_ESCAPES;
 use crate::cell::Cell;
 use crate::color_cache::ColorCache;
 use crate::constants::{
@@ -741,11 +742,15 @@ impl Terminal {
                     }
 
                     if cell.bold != cur_bold {
-                        if cell.bold {
-                            ansi_buf.extend_from_slice(b"\x1b[1m");
-                        } else {
-                            ansi_buf.extend_from_slice(b"\x1b[22m");
-                        }
+                        // BOLT: branchless table-indexed bold escape selection.
+                        // `cell.bold as usize` compiles to `setne` on x86 (no
+                        // branch), then a single `extend_from_slice` of the
+                        // precomputed escape. Eliminates the 2-branch
+                        // `if cell.bold { ... } else { ... }` cascade that
+                        // had different byte counts (4 vs 5) — the table
+                        // lookup is L1-cached and branchless. See
+                        // `src/bolt.rs` and `docs/BOLT.md`.
+                        ansi_buf.extend_from_slice(BOLD_ESCAPES[cell.bold as usize]);
                         cur_bold = cell.bold;
                     }
 
@@ -920,11 +925,9 @@ impl Terminal {
             }
 
             if bold0 != cur_bold {
-                if bold0 {
-                    ansi_buf.extend_from_slice(b"\x1b[1m");
-                } else {
-                    ansi_buf.extend_from_slice(b"\x1b[22m");
-                }
+                // BOLT: branchless table-indexed bold escape selection
+                // (same as the full-redraw path above). See `src/bolt.rs`.
+                ansi_buf.extend_from_slice(BOLD_ESCAPES[bold0 as usize]);
                 cur_bold = bold0;
             }
 

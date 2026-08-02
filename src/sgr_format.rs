@@ -8,43 +8,41 @@
 //! a byte buffer, bypassing crossterm's trait dispatch + fmt machinery +
 //! heap String allocation. Used by the hot render path in `terminal.rs`
 //! when the `ColorCache` misses (non-palette color or non-palette bg).
+//!
+//! ## BOLT integration (v30 cosmic-dragon perf audit)
+//!
+//! `push_u8` and `push_u16` are now thin wrappers around the
+//! [`bolt`](crate::bolt) module's branchless lookup tables. The legacy
+//! 3-branch cascade (`n<10`, `n<100`, `else`) is replaced by 2 L1-cached
+//! table lookups + 1 memcpy. See `src/bolt.rs` for the full design and
+//! `docs/BOLT.md` for the calibration history.
+//!
+//! The public API is unchanged — `push_u8(buf, n)` and `push_u16(buf, n)`
+//! still take a `&mut Vec<u8>` and produce the same bytes as before. Only
+//! the implementation changed (branchy → branchless). Existing callers
+//! (`terminal.rs`, `bench_io.rs` fallback path) need no changes.
 
 use crossterm::style::Color;
 
+use crate::bolt;
+
 /// Push a u8 as ASCII decimal digits into buf (no heap alloc, no format!).
+///
+/// BOLT-backed: delegates to `bolt::push_u8` which uses the `U8_PADDED` +
+/// `U8_LEN` lookup tables (branchless). See [`bolt`] for details.
 #[inline]
 pub(crate) fn push_u8(buf: &mut Vec<u8>, n: u8) {
-    if n < 10 {
-        buf.push(b'0' + n);
-    } else if n < 100 {
-        buf.push(b'0' + n / 10);
-        buf.push(b'0' + n % 10);
-    } else {
-        buf.push(b'0' + n / 100);
-        buf.push(b'0' + (n / 10) % 10);
-        buf.push(b'0' + n % 10);
-    }
+    bolt::push_u8(buf, n);
 }
 
 /// Push a u16 as ASCII decimal digits into buf (no heap alloc, no format!).
+///
+/// BOLT-backed: delegates to `bolt::push_u16` which uses the `U8_PADDED` +
+/// `U8_LEN` lookup tables for the common `n < 256` case (branchless), with
+/// an unrolled divmod fallback for the rare 4-5 digit case. See [`bolt`].
 #[inline]
 pub(crate) fn push_u16(buf: &mut Vec<u8>, n: u16) {
-    if n < 256 {
-        push_u8(buf, n as u8);
-    } else {
-        // 256..=65535: up to 5 digits
-        let mut tmp = [0u8; 5];
-        let mut val = n;
-        let mut len = 0;
-        while val > 0 {
-            tmp[len] = b'0' + (val % 10) as u8;
-            val /= 10;
-            len += 1;
-        }
-        for i in (0..len).rev() {
-            buf.push(tmp[i]);
-        }
-    }
+    bolt::push_u16(buf, n);
 }
 
 /// Write combined fg+bg SGR escape sequence directly into buf.
