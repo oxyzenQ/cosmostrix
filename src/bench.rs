@@ -1097,7 +1097,6 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let mut dirty_all_frames = 0u64;
     let mut perf_work_sum_s = 0.0f64;
     let mut perf_work_max_s = 0.0f64;
-    let _perf_pressure = 0.0f32;
     let mut components = ComponentTimer::new();
 
     let total_cells = (w as usize) * (h as usize);

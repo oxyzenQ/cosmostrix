@@ -75,11 +75,10 @@ release. All must pass before tagging v11.1.0.
 ```bash
 # In-range must succeed:
 "$BIN" --benchmark --bench-duration 3   # exits 0, DRIFT section present
-"$BIN" --benchmark --bench-duration 600 # exits 0 (max boundary)
+"$BIN" --benchmark --bench-duration 600 # exits 0 (no max cap; 600s is fine)
 
 # Out-of-range must fail with a clear error:
-"$BIN" --benchmark --bench-duration 0     # "below the 1-second minimum"
-"$BIN" --benchmark --bench-duration 601   # "exceeds the 600-second maximum"
+"$BIN" --benchmark --bench-duration 0   # "below the 1-second minimum"
 ```
 
 ### `--color-tune` validation

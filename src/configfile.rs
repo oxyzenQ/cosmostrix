@@ -672,9 +672,15 @@ pub fn dump_config_text() -> &'static str {
 
 # Adaptive Custom Time Map (optional)
 # Overrides the default 5-phase adaptive engine.
+# NOTE: adaptive-custom entries run regardless of atmosphere-mode. To disable,
+# comment out or delete the entries (setting atmosphere-mode = disabled does
+# NOT stop adaptive-custom from running).
 # Format: H-M = color, scene, key=value, ... (flexible digits: 2-3, 02-03, 14-5)
 # Parameters not specified are sticky (keep previous value).
-# Transition: smooth 5-minute blend before next time point.
+# Supported key=value: speed, density, charset. (fps and glitch-level are parsed
+# but not yet applied at runtime — they will be wired in a future release.)
+# Transition: smooth 5-minute blend before next time point (numeric fields only;
+# color/scene/charset snap at the boundary).
 # Checked every 30s at runtime; live config reload re-parses immediately.
 # adaptive-custom.00-00 = cosmos, monolith, speed=15, density=1.2
 # adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5

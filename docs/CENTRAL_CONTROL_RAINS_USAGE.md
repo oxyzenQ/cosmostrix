@@ -78,11 +78,11 @@ tweaked without rebuilding the binary.
 | Bold mode | `--bold <0\|1\|2>` | `bold = 1` | Bold glyph style (0=off, 1=random, 2=all) |
 | Shading mode | `--shadingmode <0\|1>` | `shadingmode = 1` | Shading (0=random, 1=cinematic) |
 | Color mode | `--colormode <0\|16\|256\|24>` | (CLI only) | Force color depth (auto-detected by default) |
-| Auto color drift | `--auto-color-drift` | `auto-color-drift = true` | Slow hue/saturation drift (off by default) |
+| Auto color drift | `--auto-color-drift` | `auto-color-drift = true` | Palette scheme drift (off by default; climate drift is always-on) |
 | Atmosphere mode | `--atmosphere-mode <disabled\|controlled-live>` | `atmosphere-mode = "controlled-live"` | Adaptive atmosphere tier |
 | Atmosphere regime | `--atmosphere-regime <calm\|pulse\|signal\|compression\|void\|monolith-pressure\|adaptive>` | `atmosphere-regime = "pulse"` | Climatic regime |
 | Intro type | `--intro <logo\|cosmic\|none>` | `intro = "logo"` | Cinematic intro sequence |
-| Adaptive custom | (toml only) | `adaptive-custom.<name>.<field>` | Custom adaptive profile |
+| Adaptive custom | (toml only) | `adaptive-custom.HH-MM = <color>, <scene>, [key=value, ...]` | Time-driven color/scene/speed/density/charset schedule (runs regardless of atmosphere-mode) |
 | Scene custom | (toml only) | `scene-custom.<name>.<field>` | Custom scene preset |
 | Colors custom | (toml only) | `colors-custom.<name>.<bg\|rain>` | Custom color palette |
 | Charset custom | (toml only) | `charset-custom.<name>.set` | Custom charset |

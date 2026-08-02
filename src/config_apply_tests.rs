@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use clap::{CommandFactory, FromArgMatches};
 
 use crate::config::{Args, GlitchLevel, IntroType};
-use crate::config_apply::apply_config_and_runtime_defaults;
+use crate::config_apply::{apply_config_and_runtime_defaults, parse_bool_config};
 use crate::configfile::dump_config_text;
 use crate::runtime::MonolithSize;
 
@@ -1203,4 +1203,43 @@ fn dump_config_mentions_intro_key() {
     assert!(dump.contains("logo"));
     assert!(dump.contains("cosmic"));
     assert!(dump.contains("none"));
+}
+
+// ── Phase D Bug #1: parse_bool_config parser unification ───────────────
+
+#[test]
+fn parse_bool_config_accepts_lenient_true_values() {
+    assert_eq!(parse_bool_config("test", "true"), Some(true));
+    assert_eq!(parse_bool_config("test", "yes"), Some(true));
+    assert_eq!(parse_bool_config("test", "on"), Some(true));
+    assert_eq!(parse_bool_config("test", "1"), Some(true));
+    // Case-insensitive
+    assert_eq!(parse_bool_config("test", "TRUE"), Some(true));
+    assert_eq!(parse_bool_config("test", "Yes"), Some(true));
+    assert_eq!(parse_bool_config("test", "ON"), Some(true));
+    // Trims whitespace
+    assert_eq!(parse_bool_config("test", "  true  "), Some(true));
+}
+
+#[test]
+fn parse_bool_config_accepts_lenient_false_values() {
+    assert_eq!(parse_bool_config("test", "false"), Some(false));
+    assert_eq!(parse_bool_config("test", "no"), Some(false));
+    assert_eq!(parse_bool_config("test", "off"), Some(false));
+    assert_eq!(parse_bool_config("test", "0"), Some(false));
+    // Case-insensitive
+    assert_eq!(parse_bool_config("test", "FALSE"), Some(false));
+    assert_eq!(parse_bool_config("test", "No"), Some(false));
+    assert_eq!(parse_bool_config("test", "OFF"), Some(false));
+    // Trims whitespace
+    assert_eq!(parse_bool_config("test", "  false  "), Some(false));
+}
+
+#[test]
+fn parse_bool_config_rejects_invalid_values() {
+    assert_eq!(parse_bool_config("test", "maybe"), None);
+    assert_eq!(parse_bool_config("test", "2"), None);
+    assert_eq!(parse_bool_config("test", ""), None);
+    assert_eq!(parse_bool_config("test", "enabled"), None);
+    assert_eq!(parse_bool_config("test", "disabled"), None);
 }

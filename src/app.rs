@@ -149,6 +149,13 @@ pub struct CliExplicit {
     pub fps: bool,
     pub scene: bool,
     pub glitch_level: bool,
+    /// Phase D Bug #10 fix: track whether `--auto-color-drift` was set on
+    /// CLI. Without this, a user who starts with `--auto-color-drift` and
+    /// later adds `auto-color-drift = false` to config would have drift
+    /// silently turned OFF on the next live reload — defeating the CLI
+    /// intent. Now `rebuild_cloud_config` gates the auto-color-drift
+    /// producer with `if !cli.auto_color_drift { ... }`.
+    pub auto_color_drift: bool,
 }
 
 impl CloudConfig {

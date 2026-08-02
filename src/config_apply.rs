@@ -649,7 +649,19 @@ fn parse_speed_config(name: &str, value: &str) -> Option<f32> {
     }
 }
 
-fn parse_bool_config(name: &str, value: &str) -> Option<bool> {
+/// Parse a bool config value, accepting the lenient set:
+/// `true/yes/on/1` → true, `false/no/off/0` → false (case-insensitive, trims).
+///
+/// Phase D Bug #1 fix: this is the SINGLE canonical bool parser for config
+/// values. Previously 3 sites had 3 different parsers:
+/// - testconf.rs:543 — strict, only "true"/"false" (case-sensitive)
+/// - config_apply.rs:652 — lenient (this fn)
+/// - live_config.rs:815 — strictest, only `v.trim() == "true"`
+///
+/// Now all 3 sites use this function (testconf mirrors the accepted set,
+/// live_config calls this directly). A config that passes `--testconf`
+/// will behave identically at startup and live-reload.
+pub(crate) fn parse_bool_config(name: &str, value: &str) -> Option<bool> {
     match value.trim().to_ascii_lowercase().as_str() {
         "true" | "yes" | "on" | "1" => Some(true),
         "false" | "no" | "off" | "0" => Some(false),

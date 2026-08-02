@@ -162,7 +162,7 @@ pub struct Cloud {
 
     pub(super) frames_since_full_redraw: u64,
 
-    /// P4: frame counter for the stuck-cell sweep. Gated on `enable_stuck_cell_sweep`.
+    /// P4: frame counter for stuck-cell sweep (gated on enable_stuck_cell_sweep).
     pub(super) frames_since_stuck_sweep: u64,
 
     pub(super) perf_pressure: f32,
@@ -199,7 +199,7 @@ pub struct Cloud {
     pub(super) flash_time: Option<Instant>,
 
     pub(super) quantum_particles: Vec<QuantumParticle>,
-    /// Active quantum particle count (incremental — early-out in O(1)).
+    /// Active quantum particle count (incremental, O(1) early-out).
     pub(super) quantum_active_count: usize,
 
     pub(super) last_reseed_time: Instant,
@@ -211,7 +211,6 @@ pub struct Cloud {
     pub(super) phosphor_fresh: BitVec,
     pub(super) phosphor_in_active: BitVec,
     pub(super) last_phosphor_time: Instant,
-    /// Last apply_quantum_ripple timestamp (frame-rate-independent motion).
     pub(super) last_quantum_update_time: Instant,
     pub(super) phosphor_active: SmallVec<[usize; 256]>,
     pub(super) phosphor_last_fresh: SmallVec<[usize; 256]>,
@@ -232,11 +231,9 @@ pub struct Cloud {
     pub(super) glyph_entry_time: Option<Instant>,
 
     pub(super) auto_color_drift: bool,
-    /// v30 strengthen (Bug #4): true when --colors-custom is active. Palette
-    /// drift is suppressed in this case (would overwrite user palette).
+    /// v30 Bug #4: true when --colors-custom active → suppress palette drift.
     pub(super) custom_palette_active: bool,
-    /// v30 strengthen (Bug #5): color_tune stored on Cloud so set_color_scheme
-    /// can re-apply it after palette rebuild (otherwise drift drops the tune).
+    /// v30 Bug #5: color_tune stored on Cloud so set_color_scheme re-applies it.
     pub(super) color_tune: crate::color_tune::ColorTune,
 
     pub(super) event_manager: AtmosphericEventManager,
@@ -248,10 +245,9 @@ pub struct Cloud {
     pub(super) enable_component_timing: bool,
     /// T1.1: gate for stuck-cell sweep (default true; benchmark sets false).
     pub(crate) enable_stuck_cell_sweep: bool,
-    /// When true, the cloud may emit diagnostic stderr logs. When false,
-    /// all such logs are suppressed (silent arena). Set from `cfg.verbose`.
+    /// Gate diagnostic stderr logs. Set from cfg.verbose.
     pub(super) verbose: bool,
-    /// Total stuck cells cleared across all sweeps (accumulated silently).
+    /// Total stuck cells cleared across all sweeps.
     pub(super) stuck_cells_cleared_total: u64,
     /// Total sweeps that found at least one stuck cell.
     pub(super) stuck_sweeps_with_clears: u64,
@@ -546,15 +542,12 @@ impl Cloud {
         self.enable_component_timing = enabled;
     }
 
-    /// Enable or disable verbose diagnostic logging from the cloud
-    /// (gates the `[stuck-cell-sweep]` stderr log). Set from `cfg.verbose`
-    /// so `--benchmark` runs silently and `--benchmark --verbose` shows logs.
+    /// Gate verbose cloud logging (stuck-cell-sweep). Set from cfg.verbose.
     pub fn set_verbose(&mut self, verbose: bool) {
         self.verbose = verbose;
     }
 
-    /// Cumulative stuck-cell sweep stats: `(total_cleared, sweeps_with_clears)`.
-    /// Sweep runs silently; this enables a single summary line in verbose mode.
+    /// Cumulative stuck-cell sweep stats for verbose summary.
     #[must_use]
     pub fn stuck_cell_stats(&self) -> (u64, u64) {
         (
@@ -565,6 +558,13 @@ impl Cloud {
 
     pub fn set_monolith_density_map(&mut self, map: Option<&'static [f64]>) {
         self.monolith_density_map = map;
+    }
+
+    /// Phase D Bug #9: carry color_ecosystem + atmosphere across live-reload
+    /// (prevents brightness discontinuity when config is edited mid-session).
+    pub fn inherit_ecosystem_state(&mut self, other: &Cloud) {
+        self.color_ecosystem = other.color_ecosystem;
+        self.atmosphere = other.atmosphere;
     }
 
     #[must_use]

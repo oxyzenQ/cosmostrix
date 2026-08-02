@@ -211,6 +211,11 @@ fn related_schemes(scheme: ColorScheme) -> &'static [ColorScheme] {
 
 /// Autonomous color ecosystem: slow palette drift, luminance climate shifts,
 /// and tonal migration that makes the renderer feel atmospherically alive.
+///
+/// Derives `Clone, Copy` so the ecosystem state can be carried across
+/// live-reload (Phase D Bug #9 fix in `Cloud::inherit_ecosystem_state`).
+/// All fields are plain f32 / Instant — trivially Copy.
+#[derive(Clone, Copy)]
 pub(super) struct ColorEcosystem {
     pub(super) luminance_climate: f32,
     pub(super) saturation_climate: f32,
@@ -219,6 +224,13 @@ pub(super) struct ColorEcosystem {
     pub(super) saturation_direction: f32,
     pub(super) hue_direction: f32,
     pub(super) last_tick: Instant,
+    /// Phase D Bug #7 fix: timestamp of the last palette drift event.
+    /// `tick()` skips the palette drift roll if the last drift was less
+    /// than `PALETTE_DRIFT_COOLDOWN_SECS` ago. Prevents rapid oscillation
+    /// (e.g., Green↔Green2 on consecutive ticks). Climate drift
+    /// (luminance/saturation/hue) is NOT affected — only palette scheme
+    /// replacement is cooled down.
+    pub(super) last_palette_drift: Option<Instant>,
 }
 
 impl ColorEcosystem {
@@ -231,6 +243,7 @@ impl ColorEcosystem {
             saturation_direction: 0.0,
             hue_direction: 0.0,
             last_tick: now,
+            last_palette_drift: None,
         }
     }
 
@@ -287,12 +300,28 @@ impl ColorEcosystem {
             .clamp(-std::f32::consts::PI, std::f32::consts::PI);
 
         // Autonomous palette drift
-        if chance_dist.sample(mt) < AUTONOMOUS_PALETTE_DRIFT_CHANCE {
+        // Phase D Bug #7 fix: enforce a cooldown between palette drift
+        // events. Without this, drift can oscillate Green↔Green2 on
+        // consecutive ticks (3% × 2 schemes = 1.5% reversal chance per
+        // tick). Each transition triggers apply_new_palette (palette rebuild
+        // + color_map regen + force_draw_everything) — expensive + visually
+        // jarring. The cooldown prevents rapid oscillation while preserving
+        // long-term drift behavior. Climate drift (luminance/saturation/hue)
+        // runs unconditionally above — only palette scheme replacement is
+        // cooled down.
+        let cooldown_elapsed = self
+            .last_palette_drift
+            .map(|t| now.saturating_duration_since(t).as_secs_f32())
+            .unwrap_or(f32::MAX);
+        if cooldown_elapsed >= PALETTE_DRIFT_COOLDOWN_SECS
+            && chance_dist.sample(mt) < AUTONOMOUS_PALETTE_DRIFT_CHANCE
+        {
             let related = related_schemes(current_scheme);
             if !related.is_empty() {
                 let idx_dist = Uniform::new_inclusive(0usize, related.len().saturating_sub(1))
                     .expect("related_schemes idx always valid");
                 let new_scheme = related[idx_dist.sample(mt)];
+                self.last_palette_drift = Some(now);
                 return Some(new_scheme);
             }
         }
@@ -303,6 +332,10 @@ impl ColorEcosystem {
 
 /// Autonomous atmospheric evolution: entropy cycles, density migration,
 /// luminance shifts, anomaly pressure fluctuations. All slow, smooth, cinematic.
+///
+/// Derives `Clone, Copy` so the evolution state can be carried across
+/// live-reload (Phase D Bug #9 fix in `Cloud::inherit_ecosystem_state`).
+#[derive(Clone, Copy)]
 pub(super) struct AtmosphericEvolution {
     pub(super) entropy_phase: f32,
     pub(super) last_tick: Instant,

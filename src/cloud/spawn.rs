@@ -17,7 +17,7 @@ use crate::rain_style::RainStyle;
 
 use super::state::{ColumnStatus, DropletSpawnSpec};
 
-use super::ecosystem::{AtmosphericEvolution, ColorEcosystem, RendererMemory, StorytellingState};
+use super::ecosystem::{RendererMemory, StorytellingState};
 
 use super::Cloud;
 
@@ -129,9 +129,21 @@ impl Cloud {
         self.last_reseed_time = now;
         self.last_phosphor_time = now;
 
-        // Reset cinematic subsystems on terminal resize.
-        self.color_ecosystem = ColorEcosystem::new(now);
-        self.atmosphere = AtmosphericEvolution::new(now);
+        // Phase D Bug #8 + #9 fix: color_ecosystem + atmosphere are drift
+        // accumulators (luminance_climate, saturation_climate, hue_drift,
+        // density_offset, etc.) — they are independent of terminal size.
+        // Previously reset() re-initialized them to defaults, which caused:
+        //   - Bug #9: visible brightness/saturation/hue discontinuity on
+        //     every live-reload (config edit)
+        //   - Bug #8: drift state lost on terminal resize
+        // Both are wrong — drift state should persist across resize and
+        // live-reload. The initial ColorEcosystem::new(now) + AtmosphericEvolution::new(now)
+        // in Cloud::new() handles fresh-start initialization; reset() should
+        // NOT clobber accumulated drift.
+        //
+        // (memory + storytelling ARE reset here because they track
+        // cell-grid-dependent state — stuck cells from the old grid are
+        // meaningless after a resize.)
         self.memory = RendererMemory::new(now);
         self.storytelling = StorytellingState::new(now);
         self.profile_transition_start = None;

@@ -239,11 +239,11 @@ DIAGNOSTICS:
   --benchmark    Renderer benchmark (5 seconds default; override with --bench-duration).
       Runs DRY by default (no ANSI written to any file descriptor) to
       measure pure engine throughput. Add --bench-io for wet I/O.
-  --bench-duration <1-600>
-      Benchmark duration in seconds (default 5). Accepts compound forms:
-      5, 6s, 30m, 1h30m. Use with --benchmark for long-run drift / leak /
-      thermal-throttle detection. The DRIFT section of the report compares
-      first-half FPS vs second-half FPS.
+  --bench-duration <N>
+      Benchmark duration (default 5s). Accepts compound forms: 5, 6s, 30m,
+      1h30m. Minimum 1s, no maximum (use for endurance runs). Use with
+      --benchmark for long-run drift / leak / thermal-throttle detection.
+      The DRIFT section of the report compares first-half FPS vs second-half FPS.
   --screen-size <WxH>
       Fixed virtual screen size (e.g. 120x40). Min 4x4. Max 1024x500 in
       interactive mode, 7680x4320 (8K UHD) in --benchmark mode. Useful
@@ -341,8 +341,10 @@ ADVANCED (hidden from --help, fully functional — honest disclosure):
       Linger time range in ms (min 1, max 60000). Default: 1,3000.
       Config: (via --glitch-level preset)
   --duration <seconds>
-      Auto-stop after N seconds (min 0.1, max 86400; <=0 disables).
-      Accepts compound forms: 5, 6s, 30m, 1h30m.
+      Interactive auto-exit after N seconds (min 0.1, max 86400; <=0 disables).
+      Bare float only (e.g. --duration 5 or --duration 0.5). For compound format
+      (5s, 30m, 1h30m) use --bench-duration. NOOP in --benchmark/--bench-frames/
+      --bench-all mode (warned at startup).
   --perf-stats
       Print performance statistics summary on exit (interactive mode).
       In --benchmark mode the BenchReportData is always emitted; this
@@ -350,8 +352,10 @@ ADVANCED (hidden from --help, fully functional — honest disclosure):
 
   AUTO COLOR & ATMOSPHERE (hidden):
   --auto-color-drift
-      Enable autonomous palette drift (default: off). Slow hue/saturation
-      drift over time. Config: auto-color-drift = true
+      Enable autonomous palette drift (default: off). Gates palette scheme
+      replacement only (3% chance per 3s tick, 30s cooldown between events).
+      Climate drift (luminance/saturation/hue) is always-on regardless.
+      Config: auto-color-drift = true
   --atmosphere-mode <disabled|controlled-live>
       Atmosphere mode (default: disabled). 'controlled-live' wires the
       regime model into the runtime with whisper-bounded safety.
@@ -366,7 +370,9 @@ ADVANCED (hidden from --help, fully functional — honest disclosure):
       Run headless benchmark for exactly N frames and exit. Alternative
       to --bench-duration when you want frame-count-based measurement
       instead of time-based. Useful for cross-machine A/B at identical
-      workloads.
+      workloads. If both --bench-frames and --benchmark are set, --benchmark
+      wins (--bench-frames ignored). If both --bench-frames and --bench-duration
+      are set (without --benchmark), --bench-frames wins (--bench-duration ignored).
 
   MESSAGE (hidden, has shorthand):
   --message-border (shorthand: -mb <text>)
@@ -393,7 +399,9 @@ ADAPTIVE ATMOSPHERE (default, Cosmic Dragon):
   18:00-24:00  Signal        neon palette, rising glitch at dusk
 
   Color shifts every 30s via smooth palette transition wave.
-  Disable: atmosphere-mode = disabled in config.toml.
+  Disable built-in 5-phase engine: atmosphere-mode = disabled in config.toml.
+  Disable adaptive-custom: remove all adaptive-custom.HH-MM entries from config
+  (they run regardless of atmosphere-mode).
 
 HELP:
   --help          Show common options.

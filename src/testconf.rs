@@ -540,10 +540,18 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 "expected black/default-background, got '{v}'"
             )),
         },
-        "low-power" | "mouse" | "auto-color-drift" | "async-mode" => match v {
-            "true" | "false" => None,
-            _ => Some(format!("expected true/false, got '{v}'")),
-        },
+        // Phase D Bug #1 fix: accept the same lenient set as parse_bool_config
+        // (true/yes/on/1/false/no/off/0, case-insensitive). Previously
+        // testconf only accepted lowercase "true"/"false" — stricter than
+        // the runtime parser, so a config with `auto-color-drift = yes`
+        // would FAIL --testconf but WORK at runtime. Now all 3 paths agree.
+        "low-power" | "mouse" | "auto-color-drift" | "async-mode" => {
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,
+                _ => Some(format!("expected true/false (or yes/no, on/off, 1/0), got '{v}'")),
+            }
+        }
         // v25.14 (bug #17): intro selector — must match the clap ValueEnum
         // accepted by `--intro`. Previously this fell through to the
         // catch-all `_ => None` arm, so `intro = "blah"` passed strict
@@ -864,9 +872,19 @@ mod tests {
 
     #[test]
     fn boolean_keys_reject_non_bool() {
-        assert!(validate_field_value("mouse", "yes").is_some());
+        // Phase D Bug #1 fix: "yes"/"on"/"1"/"no"/"off"/"0" are now accepted
+        // (matching parse_bool_config). Only truly invalid values are rejected.
+        assert!(validate_field_value("mouse", "maybe").is_some());
         assert!(validate_field_value("mouse", "true").is_none());
+        assert!(validate_field_value("mouse", "yes").is_none());
+        assert!(validate_field_value("mouse", "on").is_none());
+        assert!(validate_field_value("mouse", "1").is_none());
+        assert!(validate_field_value("mouse", "false").is_none());
+        assert!(validate_field_value("mouse", "no").is_none());
+        assert!(validate_field_value("mouse", "off").is_none());
+        assert!(validate_field_value("mouse", "0").is_none());
         assert!(validate_field_value("auto-color-drift", "false").is_none());
+        assert!(validate_field_value("auto-color-drift", "YES").is_none()); // case-insensitive
     }
 
     #[test]

@@ -8,15 +8,15 @@
 //!
 //! ## `--duration` vs `--bench-duration`
 //!
-//! Both flags accept the same compound format (e.g. `6s`, `30m`, `1h30m`).
-//! However, only `--bench-duration` is consulted by the benchmark dispatcher
-//! (`main.rs:1022-1028`). The hidden `--duration` flag is interactive-mode
-//! only — it sets the auto-exit deadline in `event_loop.rs` and has NO effect
-//! in `--benchmark` or `--bench-frames` mode.
+//! These are TWO SEPARATE flags with different types, parsers, and scopes:
+//!   - `--duration` is `Option<f64>` (bare float only, e.g. `--duration 5`).
+//!     Interactive-mode only — sets the auto-exit deadline in `event_loop.rs`.
+//!     NOOP in `--benchmark`/`--bench-frames`/`--bench-all` mode (warned).
+//!   - `--bench-duration` is `Option<String>` parsed by `parse_duration`
+//!     (accepts compound: `5`, `6s`, `30m`, `1h30m`). Benchmark-mode only.
 //!
-//! `parse_duration` therefore takes a `flag_label` parameter so error
-//! messages can correctly attribute the failure to whichever flag the user
-//! actually passed.
+//! `parse_duration` takes a `flag_label` parameter so error messages can
+//! correctly attribute the failure to `--bench-duration` (the only caller).
 
 /// Minimum benchmark duration: 1 second.
 const DURATION_MIN_SECS: u64 = 1;

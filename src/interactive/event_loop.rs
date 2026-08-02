@@ -456,7 +456,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
             last_applied_cfg_map = Some(new_cfg_map.clone());
 
-            cloud = new_cfg.create_cloud(density);
+            // Phase D Bug #9 fix: preserve color_ecosystem + atmosphere
+            // state across live-reload so the user doesn't see a brightness
+            // / saturation / hue discontinuity when editing config.
+            // Previously this created a fresh Cloud with defaults (0.85,
+            // 0.85, 0.0) — if the previous cloud had drifted to 0.78
+            // (dim), the new cloud jumped back to 0.85 (brighter).
+            let mut new_cloud = new_cfg.create_cloud(density);
+            new_cloud.inherit_ecosystem_state(&cloud);
+            cloud = new_cloud;
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
@@ -1342,10 +1350,29 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
 
         {
-            let s = r.section("PRESSURE");
+            // Frame overshoot = how often frame work exceeded the target frame
+            // period (1/target_fps). Non-zero ONLY when the renderer can't keep
+            // up with --fps. On healthy hardware this is 0.000 by design —
+            // the rain loop finishes in 1-5ms vs the 16.67ms budget at 60fps.
+            // The `basis` field documents the formula so 0.000 reads as
+            // "renderer is faster than target_fps" (good), not as a bug.
+            // Cloud consumes this as a load-shed signal (rain.rs spawn scaling,
+            // glitch gating, phosphor gating, CRT vignette gating).
+            let s = r.section("FRAME OVERSHOOT");
             s.field("avg", &format!("{:.3}", avg_pressure));
             s.field("peak", &format!("{:.3}", perf_pressure_max));
             s.field("classification", pressure_class);
+            s.field(
+                "basis",
+                "clamp(work_s / target_frame_period - 1, 0, 2); non-zero only when frames can't keep up with --fps",
+            );
+            s.field(
+                "overshoot_frames",
+                &format!(
+                    "{} ({:.1}% of total)",
+                    perf_overshoot_frames, overshoot_ratio
+                ),
+            );
         }
 
         // P5: Endurance health score

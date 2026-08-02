@@ -811,8 +811,20 @@ pub fn rebuild_cloud_config(
     }
 
     // Auto color drift
-    if let Some(v) = cfg.get("auto-color-drift") {
-        new.auto_color_drift = v.trim() == "true";
+    // Phase D Bug #1 fix: use the canonical parse_bool_config (same parser
+    // as startup + testconf). Previously this used `v.trim() == "true"`
+    // (strictest — only accepted "true", rejected "yes"/"on"/"1"). Now all
+    // three paths agree: true/yes/on/1 → true, false/no/off/0 → false.
+    //
+    // Phase D Bug #10 fix: gate with `if !cli.auto_color_drift` so a CLI
+    // `--auto-color-drift` is not silently overridden by config on reload.
+    // Matches the pattern used for color/charset/speed/density/fps/scene.
+    if !cli.auto_color_drift {
+        if let Some(v) = cfg.get("auto-color-drift") {
+            if let Some(b) = crate::config_apply::parse_bool_config("auto-color-drift", v) {
+                new.auto_color_drift = b;
+            }
+        }
     }
 
     // v20: scene-custom live reload. If a custom scene is active (set via

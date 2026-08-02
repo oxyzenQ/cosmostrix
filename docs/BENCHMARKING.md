@@ -58,7 +58,7 @@ the terminal emulator, refresh rate, and ANSI output bandwidth. Use `i`
 |------|-------------|-------------|
 | `--benchmark` | Premium 5s benchmark (2s warmup + 3s measurement). Prints FPS, frame-time percentiles, dirty-cell coverage, throughput, MEMORY (RSS), CPU %, component timing, DRIFT. | Default user-facing benchmark |
 | `--bench-frames N` | Legacy CI benchmark. Runs N headless frames, prints compact `BENCH:` output. | CI pipelines, frame-count-based measurement |
-| `--bench-duration N` | Override duration (1–600s). Accepts `30s`, `5m`, `1h30m`. | Endurance testing, drift/leak detection |
+| `--bench-duration N` | Override duration (1s minimum, no maximum). Accepts `30s`, `5m`, `1h30m`. | Endurance testing, drift/leak detection |
 | `--bench-io` | Wet I/O — writes ANSI to `/dev/null`. Exercises kernel syscall path. | Measure real write bandwidth + latency |
 | `--bench-scene NAME` | Select render path (lean or production-draw). Requires `--bench-io`. | Measure specific render path |
 | `--bench-all` | Scaling sweep across 6×6 → 200×60. Prints SCALING SUMMARY table. | See how FPS scales with screen size |

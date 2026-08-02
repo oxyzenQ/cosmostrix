@@ -197,7 +197,24 @@ pub(crate) fn print_verbose(
 
     // ── Atmosphere ────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Atmosphere ──"));
+    // Phase D Strengthen #12: expand drift disclosure. Previously only
+    // `auto_drift: bool` was shown, which was misleading — climate drift
+    // (luminance/saturation/hue) is ALWAYS ON regardless of the flag.
+    // The flag only gates palette scheme replacement. Now verbose honestly
+    // discloses both: the flag state + the always-on climate drift + the
+    // cooldown (Phase D Bug #7 fix).
     output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
+    output::eprintln_verbose(
+        "  palette_drift:",
+        &format!(
+            " {} (3% chance per 3s tick, 30s cooldown between events)",
+            if auto_drift { "enabled" } else { "disabled" }
+        ),
+    );
+    output::eprintln_verbose(
+        "  climate_drift:",
+        " always-on (luminance/saturation/hue accumulate regardless of auto_drift flag)",
+    );
     // Compact atmosphere summary: show mode label + modulation values on a
     // single line. When mode is Disabled, modulation is always identity, so
     // we skip the modulation dump to avoid noise.

@@ -853,6 +853,12 @@ fn main() -> std::io::Result<()> {
             matches.value_source("glitch_level"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
+        // Phase D Bug #10 fix: track --auto-color-drift CLI intent so
+        // live-reload doesn't silently override it with config.
+        auto_color_drift: matches!(
+            matches.value_source("auto_color_drift"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
     };
     if args.verbose {
         // Resolve the intro type label for verbose output. Mirrors the
@@ -1215,6 +1221,21 @@ fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
 ///   - `--perf-stats` (hidden): interactive summary only; bench emits BenchReportData
 fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static str> {
     let mut warns: Vec<&'static str> = Vec::new();
+    // Phase D Task C fix: warn about silent-ignore combinations. Previously
+    // these 4 cases silently dropped a flag with no warning, causing user
+    // confusion ("I set --bench-frames but the bench ran for 5s, not N frames").
+    if args.bench_all && args.benchmark {
+        warns.push("--benchmark ignored (--bench-all takes precedence)");
+    }
+    if args.bench_all && args.bench_frames.is_some() {
+        warns.push("--bench-frames ignored (--bench-all takes precedence)");
+    }
+    if args.benchmark && args.bench_frames.is_some() {
+        warns.push("--bench-frames ignored (--benchmark takes precedence)");
+    }
+    if args.bench_frames.is_some() && args.bench_duration.is_some() && !args.benchmark {
+        warns.push("--bench-duration ignored (--bench-frames is frame-count-based)");
+    }
     if fps_user_set {
         warns.push(
             "--fps (in benchmark mode sets simulation rate only — does NOT cap \

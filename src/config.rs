@@ -696,7 +696,7 @@ pub struct Args {
     #[arg(
         long = "atmosphere-regime",
         hide = true,
-        help = "Atmosphere regime (config only: calm, pulse, signal, compression, void, monolith-pressure)"
+        help = "Atmosphere regime (config only: calm, pulse, signal, compression, void, monolith-pressure, adaptive)"
     )]
     pub atmosphere_regime_str: Option<String>,
 }

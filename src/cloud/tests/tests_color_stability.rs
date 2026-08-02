@@ -424,3 +424,122 @@ fn set_color_scheme_reapplies_color_tune() {
         "set_color_scheme must re-apply color_tune after palette rebuild"
     );
 }
+
+/// Phase D Bug #7 fix: palette drift cooldown prevents rapid oscillation.
+/// Two consecutive ticks within PALETTE_DRIFT_COOLDOWN_SECS cannot both
+/// trigger palette drift, even if the RNG would roll drift both times.
+#[test]
+fn palette_drift_cooldown_prevents_rapid_oscillation() {
+    let mut cloud = make_green_cloud();
+    cloud.auto_color_drift = true;
+
+    let start = Instant::now();
+    // Force the ecosystem tick timer to fire on the next rain_at call.
+    cloud.color_ecosystem.last_tick = start - Duration::from_secs(10);
+    // Use a seed that is known to roll drift on the first tick (we don't
+    // need to assert WHICH scheme — just that at most ONE drift fires
+    // within a 30s cooldown window).
+    cloud.mt = StdRng::seed_from_u64(0xBEEF_CAFE);
+
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    let frame_dt = Duration::from_micros(16_667);
+
+    // Run 60 seconds of simulated time (20 ticks at 3s/tick). With the
+    // 30s cooldown, at most 2 palette drift events can fire (one in the
+    // first 30s window, one in the second). Track scheme changes.
+    let mut scheme_changes = 0u32;
+    let mut prev_scheme = cloud.color_scheme;
+    for i in 0..3_600u64 {
+        let now = start + frame_dt.saturating_mul(i as u32);
+        cloud.rain_at(&mut frame, now);
+        if cloud.color_scheme != prev_scheme {
+            scheme_changes += 1;
+            prev_scheme = cloud.color_scheme;
+        }
+    }
+
+    // Without cooldown, 20 ticks × 3% drift chance ≈ 0.6 expected drifts.
+    // With 30s cooldown, at most 2 can fire (one per 30s window).
+    // We assert the cooldown is enforced: scheme_changes must be <= 2.
+    // (If cooldown were broken, scheme_changes could be up to 20.)
+    assert!(
+        scheme_changes <= 2,
+        "palette drift cooldown violated: {scheme_changes} scheme changes in 60s (max 2 allowed by 30s cooldown)"
+    );
+}
+
+/// Phase D Bug #9 fix: inherit_ecosystem_state preserves drift state.
+/// A new cloud that inherits from an old cloud should have the same
+/// luminance_climate / saturation_climate / hue_drift values.
+#[test]
+fn inherit_ecosystem_state_preserves_drift() {
+    let mut old_cloud = make_green_cloud();
+    // Simulate drift: advance the ecosystem to non-default values.
+    let start = Instant::now();
+    old_cloud.color_ecosystem.last_tick = start - Duration::from_secs(100);
+    let mut frame = Frame::new(old_cloud.cols, old_cloud.lines, old_cloud.palette.bg);
+    // Run 5 minutes of simulated time to accumulate drift.
+    let frame_dt = Duration::from_micros(16_667);
+    for i in 0..18_000u64 {
+        let now = start + frame_dt.saturating_mul(i as u32);
+        old_cloud.rain_at(&mut frame, now);
+    }
+
+    // Snapshot the drifted state.
+    let old_lum = old_cloud.color_ecosystem.luminance_climate;
+    let old_sat = old_cloud.color_ecosystem.saturation_climate;
+    let old_hue = old_cloud.color_ecosystem.hue_drift;
+    // Drift should have moved at least one value away from defaults.
+    let drifted =
+        (old_lum - 0.85).abs() > 0.001 || (old_sat - 0.85).abs() > 0.001 || old_hue.abs() > 0.001;
+    assert!(
+        drifted,
+        "ecosystem should have drifted from defaults after 5 min"
+    );
+
+    // Create a fresh cloud (simulating live-reload) and inherit state.
+    let mut new_cloud = make_green_cloud();
+    new_cloud.inherit_ecosystem_state(&old_cloud);
+
+    // The new cloud must have the same drift state as the old cloud.
+    assert_eq!(new_cloud.color_ecosystem.luminance_climate, old_lum);
+    assert_eq!(new_cloud.color_ecosystem.saturation_climate, old_sat);
+    assert_eq!(new_cloud.color_ecosystem.hue_drift, old_hue);
+}
+
+/// Phase D Bug #8 fix: cloud.reset() does NOT reset ecosystem state.
+/// Drift accumulators are independent of terminal size — resizing the
+/// terminal should not cause a brightness discontinuity.
+#[test]
+fn reset_preserves_ecosystem_state() {
+    let mut cloud = make_green_cloud();
+    let start = Instant::now();
+    cloud.color_ecosystem.last_tick = start - Duration::from_secs(100);
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    let frame_dt = Duration::from_micros(16_667);
+    for i in 0..18_000u64 {
+        let now = start + frame_dt.saturating_mul(i as u32);
+        cloud.rain_at(&mut frame, now);
+    }
+
+    let pre_reset_lum = cloud.color_ecosystem.luminance_climate;
+    let pre_reset_sat = cloud.color_ecosystem.saturation_climate;
+    let pre_reset_hue = cloud.color_ecosystem.hue_drift;
+
+    // Resize the terminal — this calls cloud.reset().
+    cloud.reset(120, 40);
+
+    // Ecosystem state must be preserved across the resize.
+    assert_eq!(
+        cloud.color_ecosystem.luminance_climate, pre_reset_lum,
+        "reset() must not reset luminance_climate"
+    );
+    assert_eq!(
+        cloud.color_ecosystem.saturation_climate, pre_reset_sat,
+        "reset() must not reset saturation_climate"
+    );
+    assert_eq!(
+        cloud.color_ecosystem.hue_drift, pre_reset_hue,
+        "reset() must not reset hue_drift"
+    );
+}

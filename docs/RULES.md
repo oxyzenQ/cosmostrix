@@ -133,7 +133,8 @@ follow these architectural rules.
 
 ### Atmosphere Engine
 
-- Default: `controlled-live` + `adaptive` regime (no config needed).
+- Default: `disabled` + `calm` regime (opt-in via config). Enable with
+  `atmosphere-mode = controlled-live` + `atmosphere-regime = adaptive`.
 - 5 emotional phases: Deep Void (00-03), Compression (03-06), Pulse (06-12),
   Calm (12-18), Signal (18-24).
 - Color temperature shift: each phase has a target color scheme (cosmos,
