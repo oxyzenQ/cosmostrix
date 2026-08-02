@@ -639,8 +639,13 @@ fn main() -> std::io::Result<()> {
         .and_then(scene::rain_style_for_scene)
         .unwrap_or(rain_style::RainStyle::Glyph);
 
+    // v17 ghost labels: these struct fields are #[arg(skip)] and cannot be
+    // set via CLI. The labels below are validator-name strings only — they
+    // appear in error messages if the field defaults ever drift out of range.
+    // Do NOT mistake them for live CLI flags; --glitchpct/--shortpct/--rippct/
+    // --maxdpc were removed in v17 and replaced by --glitch-level.
     let glitch_pct = ux::or_exit(validate_f32_range(
-        "--glitchpct",
+        "glitch_pct (internal, set via --glitch-level)",
         args.glitch_pct,
         0.0,
         100.0,
@@ -669,10 +674,20 @@ fn main() -> std::io::Result<()> {
         1,
         60000,
     ));
-    let short_pct = ux::or_exit(validate_f32_range("--shortpct", args.shortpct, 0.0, 100.0));
-    let die_early_pct = ux::or_exit(validate_f32_range("--rippct", args.rippct, 0.0, 100.0));
+    let short_pct = ux::or_exit(validate_f32_range(
+        "short_pct (internal, set via --glitch-level)",
+        args.shortpct,
+        0.0,
+        100.0,
+    ));
+    let die_early_pct = ux::or_exit(validate_f32_range(
+        "rippct (internal, set via --glitch-level)",
+        args.rippct,
+        0.0,
+        100.0,
+    ));
     let max_dpc = ux::or_exit(validate_u8_range(
-        "--maxdpc",
+        "max_droplets_per_column (internal, set via --glitch-level)",
         args.max_droplets_per_column,
         1,
         3,

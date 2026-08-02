@@ -44,7 +44,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // v17: Mouse reporting is ALWAYS enabled to block text selection (copy)
     // in the alternate screen. This prevents users from drag-selecting rain
     // text, preserving the ephemeral screensaver aesthetic. The --mouse flag
-    // now controls only hover/click VISUAL EFFECTS, not mouse reporting itself.
+    // was REMOVED in v17 — both mouse reporting AND hover/click visual effects
+    // are now always on (cursor glow + dual-ring click wave). No flag controls
+    // either behavior; they are part of cosmostrix's signature interactive
+    // experience.
     //
     // Terminal safety (was the old opt-in rationale): abrupt process death
     // could leave mouse escape sequences leaking. This is now mitigated by:

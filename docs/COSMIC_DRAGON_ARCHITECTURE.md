@@ -222,10 +222,12 @@ Consistent with the "only q quits" policy:
 | i/I/h/H | HUD toggle | HUD toggle |
 | Space/Up/Down/0-9 | Interactive control | Interactive control |
 | B/b/z/F1/Home/Esc/Ctrl+C | Silently ignored | Silently ignored |
-| Mouse click (with --mouse) | Click effect | Exit screensaver |
+| Mouse click | Click wave effect (always on, no flag) | Click wave effect (does NOT exit) |
 
 No key causes a visual glitch. No key causes an accidental exit.
-Only `q` or a mouse click (screensaver + --mouse) exits.
+Only `q` exits. Mouse click does NOT exit (v17: removed the
+`--mouse` flag and the click-to-exit behavior for consistency with
+the only-q-quits policy; mouse hover glow + click wave remain always on).
 
 ## Module Organization
 

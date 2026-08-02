@@ -175,7 +175,10 @@ Useful flag combinations:
 | Fixed screen size for cross-run compare| `cosmostrix --benchmark --screen-size 200x60 --bench-duration 30s`       |
 | Automated scaling sweep                | `cosmostrix --bench-all --bench-duration 5s`                             |
 | Save baseline for later diffing        | `cosmostrix --benchmark --save-baseline base.json`                       |
-| Compare current run to saved baseline  | `cosmostrix --benchmark --load-baseline base.json`                       |
+| Compare current run to saved baseline  | `cosmostrix --benchmark --compare-baseline base.json`                    |
+| Wet I/O throughput (writes to /dev/null)| `cosmostrix --benchmark --bench-io --bench-duration 30s`                |
+| Production render path (BOLT-backed)   | `cosmostrix --benchmark --bench-io --bench-scene production-draw --bench-duration 30s` |
+| Wet I/O scaling sweep                  | `cosmostrix --bench-all --bench-io --bench-scene production-draw --bench-duration 3s` |
 
 ## 4. Key Metrics Explained
 

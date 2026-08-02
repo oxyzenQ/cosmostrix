@@ -116,7 +116,7 @@ The Dragon's roar is not loud — it is precise.
 - TrueColor gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
 - Density map sculpting — per-column weight maps (0.0–1.0) for cinematic monolith formations (e.g. twin pillars, cascading waterfall, central throne)
-- Auto color drift — cycle color scheme over time (`--color-drift` / `auto-color-drift` in config)
+- Auto color drift — cycle color scheme over time (`--auto-color-drift` / `auto-color-drift = true` in config)
 - Message overlay — display custom text on the rain (`--message "wake up, neo"`)
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output
 - Live HUD — real-time FPS, p99, max frame-time, RSS, and uptime overlay (toggle with `i`, move with `H`)
@@ -365,6 +365,10 @@ DIAGNOSTICS
       --screen-size <WxH>     Fixed screen size (e.g. 120x40; min 4x4, max 1024x500 interactive / 7680x4320 bench)
       --bench-io              Benchmark with wet terminal I/O (writes ANSI to /dev/null)
       --bench-all             Run benchmark across multiple screen sizes (6x6 to 200x60)
+      --bench-scene <name>    Benchmark I/O scene: 'lean' (default, emit_cell_lean) or
+                              'production-draw' (mirrors Terminal::draw full-redraw path).
+                              Use 'production-draw' to measure the BOLT-backed production
+                              render path; pair with --bench-io to write ANSI to /dev/null.
       --save-baseline <path>  Save benchmark JSON for later comparison
       --compare-baseline <p>  Compare against saved baseline (flags >5% FPS regressions)
       --reset-terminal        Emergency terminal recovery (5-layer: ANSI + crossterm + stty + reset)
@@ -527,7 +531,30 @@ Use `--json` for machine-readable output (CI/scripts):
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --json | jq .performance.avg_fps
 ```
 
-See [benchmark/README.md](benchmark/README.md) for full reference results and interpretation notes.
+### Wet I/O benchmarking (`--bench-io` + `--bench-scene`)
+
+By default `--benchmark` runs **dry** — it computes frames but does not write ANSI to any file descriptor. This measures pure engine throughput. To measure real terminal write bandwidth and latency, add `--bench-io` (writes ANSI to `/dev/null` so the kernel syscall path is exercised without terminal emulator overhead):
+
+```bash
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-io --bench-duration 30
+```
+
+`--bench-scene <name>` selects which I/O scene the wet benchmark exercises:
+
+| Scene | What it measures |
+|-------|------------------|
+| `lean` (default) | The `emit_cell_lean` path — per-dirty-cell SGR emission. The fastest path cosmostrix uses in interactive mode. |
+| `production-draw` | The full `Terminal::draw` redraw path — `MoveTo` per row + `ColorCache` SGR + BOLT bold escape. Mirrors what the terminal actually receives during interactive rendering. Use this when you want to benchmark the production render path the user sees. |
+
+```bash
+# Measure the BOLT-backed production render path with wet I/O
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
+    --benchmark --bench-io --bench-scene production-draw --bench-duration 30
+```
+
+Pair `--bench-scene production-draw` with `--save-baseline` to lock in a regression baseline for the production path; pair with `--bench-all` to see how the production path scales across screen sizes.
+
+See [benchmark/README.md](benchmark/README.md) for full reference results, [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md) for MICROARCHITECTURE/ENERGY enablement, and [docs/RAIN_DEPTH_AUDIT.md](docs/RAIN_DEPTH_AUDIT.md) for the visual-audit methodology that uses `--bench-scene production-draw`.
 
 ## Documentation
 

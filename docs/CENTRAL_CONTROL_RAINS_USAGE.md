@@ -69,16 +69,18 @@ tweaked without rebuilding the binary.
 |------|----------|------------|--------|
 | Color palette | `--color <name>` | `color = "green"` | Sets the rain hue family |
 | Charset | `--charset <name>` | `charset = "katakana"` | Sets glyph set per droplet |
-| Frame rate | `--fps <n>` | `fps = 60` | Caps render rate |
-| Speed | `--speed <0.0-3.0>` | `speed = 1.2` | Global motion speed multiplier |
-| Density | `--density <0.0-2.0>` | `density = 1.0` | Global droplet spawn rate |
-| Glitch level | `--glitch-level <0-3>` | `glitch-level = 1` | Visual corruption intensity |
-| Monolith size | `--monolith-size <w>xh>` | `monolith-size = "100x30"` | Code-rain wall dimensions |
-| Background color | `--color-bg <name>` | `color-bg = "black"` | Terminal background |
-| Bold mode | `--bold` | `bold = true` | Bold glyph rendering |
-| Auto color drift | `--auto-color-drift` | `auto-color-drift = true` | Slow hue/saturation drift |
-| Atmosphere mode | `--atmosphere-mode <n>` | `atmosphere-mode = 1` | Adaptive atmosphere tier |
-| Atmosphere regime | `--atmosphere-regime <n>` | `atmosphere-regime = 2` | Climatic regime |
+| Frame rate | `--fps <1-240>` | `fps = 60` | Caps render rate (integer) |
+| Speed | `--speed <1-100>` | `speed = 20` | Global motion speed (integer; Up/Down runtime controls use the same range) |
+| Density | `--density <0.01-5.0>` | `density = 1.0` | Global droplet spawn rate multiplier |
+| Glitch level | `--glitch-level <none\|subtle\|default\|intense>` | `glitch-level = "subtle"` | Visual corruption intensity preset |
+| Monolith size | `--monolith-size <small\|normal\|large>` | `monolith-size = "large"` | Monolith segment cell scale (enum, not pixel size) |
+| Background color | `--color-bg <black\|default-background>` | `color-bg = "black"` | Terminal background mode |
+| Bold mode | `--bold <0\|1\|2>` | `bold = 1` | Bold glyph style (0=off, 1=random, 2=all) |
+| Shading mode | `--shadingmode <0\|1>` | `shadingmode = 1` | Shading (0=random, 1=cinematic) |
+| Color mode | `--colormode <0\|16\|256\|24>` | (CLI only) | Force color depth (auto-detected by default) |
+| Auto color drift | `--auto-color-drift` | `auto-color-drift = true` | Slow hue/saturation drift (off by default) |
+| Atmosphere mode | `--atmosphere-mode <disabled\|controlled-live>` | `atmosphere-mode = "controlled-live"` | Adaptive atmosphere tier |
+| Atmosphere regime | `--atmosphere-regime <calm\|pulse\|signal\|compression\|void\|monolith-pressure\|adaptive>` | `atmosphere-regime = "pulse"` | Climatic regime |
 | Intro type | `--intro <logo\|cosmic\|none>` | `intro = "logo"` | Cinematic intro sequence |
 | Adaptive custom | (toml only) | `adaptive-custom.<name>.<field>` | Custom adaptive profile |
 | Scene custom | (toml only) | `scene-custom.<name>.<field>` | Custom scene preset |

@@ -350,7 +350,7 @@ pub fn print_doctor_report(args: &Args) {
         let s = r.section("ADVICE");
 
         if !stdin_tty || !stdout_tty {
-            s.advice("headless/non-TTY detected; use --benchmark, --info, --doctor, or other redirect-safe commands");
+            s.advice("headless/non-TTY detected; use --benchmark, --doctor, --list-colors, --list-charsets, --list-scenes, --show-scene, --config-path, --dump-config, --docs, or --help-detail");
         }
         if !locale_utf8 {
             s.advice("locale does not look like UTF-8; unicode charsets may render incorrectly");

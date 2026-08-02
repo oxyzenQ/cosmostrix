@@ -665,7 +665,7 @@ print_summary() {
     echo "  cargo test --all --locked"
     echo "  cargo clippy --locked --all-targets --all-features -- -D warnings"
     echo "  cargo pro-linux-v3"
-    echo "  target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix -i"
+    echo "  target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --doctor"
     echo "  git diff"
     echo "  git commit -m \"chore: bump version to v${new_ver}\""
     echo "  git tag v${new_ver}"

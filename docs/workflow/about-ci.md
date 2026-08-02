@@ -23,7 +23,7 @@ Workflow files live under:
 - **Security audit**: runs `cargo-audit` using `cargo +stable` to avoid MSRV breakage when `cargo-audit` bumps its required Rust version.
 - **MSRV**: runs `cargo test --all` on Rust `1.81.0`.
 - **Test + Build (debug)**: runs `cargo test --all` and `cargo build --scene-custom dev`.
-- **Release variant sanity**: builds optimized Linux/macOS/Windows/Android targets, verifies embedded build metadata, and runs `cosmostrix -i` whenever the artifact can safely execute on the runner.
+- **Release variant sanity**: builds optimized Linux/macOS/Windows/Android targets, verifies embedded build metadata, and runs `cosmostrix --doctor` whenever the artifact can safely execute on the runner.
 - **Format + Clippy**: runs `cargo fmt -- --check` and `cargo clippy ... -D warnings`.
 - **Dependency policy**: installs `cargo-deny` and runs `cargo +stable deny check all`.
 
@@ -61,7 +61,7 @@ Workflow files live under:
   - `cargo fmt -- --check`
   - `cargo clippy --locked --all-targets --all-features -- -D warnings`
   - `cargo +stable deny check all`
-  - `cosmostrix -i` metadata checks for runnable artifacts:
+  - `cosmostrix --doctor` metadata checks for runnable artifacts:
     - expected `variant`
     - `dispatch: static optimized build`
     - expected `cpu_baseline`

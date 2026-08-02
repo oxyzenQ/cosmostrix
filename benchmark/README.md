@@ -12,19 +12,45 @@ promise.
 
 ## Current Benchmark Model
 
-Cosmostrix exposes two benchmark paths:
+Cosmostrix exposes these benchmark paths and modifiers:
 
 - `--benchmark`: recommended human-readable benchmark. It runs a 2-second
   warmup, then measures for 5 seconds (override with `--bench-duration N`,
   1–600 seconds) and prints FPS, frame-time percentiles (p95 / p99 / p99.9 /
   max), dirty-cell coverage, throughput estimates, MEMORY (RSS), CPU usage
   %, sub-component timing (sim/render/io), and long-run drift detection.
-- `--bench-frames N`: legacy CI/regression benchmark. It runs a fixed number
-  of headless frames and prints compact `BENCH:` output for scripts.
+- `--bench-frames N`: alternative CI/regression benchmark. It runs a fixed
+  number of headless frames and prints compact `BENCH:` output for scripts.
+  Use when you want frame-count-based measurement instead of time-based.
+- `--bench-io`: enables wet I/O — writes ANSI to `/dev/null` so the kernel
+  syscall path is exercised without terminal emulator overhead. Default is
+  dry (no I/O). Measures real write bandwidth + latency. Pair with
+  `--benchmark` or `--bench-all`.
+- `--bench-scene <NAME>`: selects which render path the wet benchmark
+  exercises. Requires `--bench-io` to take effect.
+  - `lean` (default) — the `emit_cell_lean` path (per-dirty-cell SGR
+    emission). The fastest interactive path.
+  - `production-draw` — the full `Terminal::draw` redraw path: `MoveTo`
+    per row + `ColorCache` SGR + BOLT bold escape. Mirrors what the
+    terminal actually receives during interactive rendering. Use this to
+    measure the BOLT-backed production render path the user sees.
+- `--bench-all`: runs `--benchmark` across a fixed ladder of screen sizes
+  (6×6 → 20×20 → 40×20 → 80×24 → 120×40 → 200×60) and prints a SCALING
+  SUMMARY table. Pair with `--bench-duration` to set per-size duration
+  (default 2s each). Pair with `--bench-io --bench-scene production-draw`
+  to see how the production path scales.
+- `--screen-size WxH`: fixed virtual screen size for one-shot benchmarks
+  (e.g. `--screen-size 200x60`). Min 4×4, max 7680×4320 (8K UHD) in
+  `--benchmark` mode.
+- `--save-baseline <path>`: save the JSON output to a whitelist-enforced
+  path for later diffing. Pair with `--benchmark --json`.
+- `--compare-baseline <path>`: load a saved baseline JSON and compare the
+  current run against it. Flags >5% FPS regressions with PASS/FAIL.
 
-The benchmark is a headless simulation/draw-computation benchmark. It is useful
-for tracking renderer regressions, but interactive rendering can still be
-terminal/compositor-bound.
+The benchmark is a headless simulation/draw-computation benchmark by default.
+It is useful for tracking renderer regressions, but interactive rendering can
+still be terminal/compositor-bound. Add `--bench-io` to measure the wet I/O
+path the terminal actually receives.
 
 **Important**: benchmark FPS is synthetic uncapped throughput. It measures how
 many frames the renderer can compute per second in a tight loop, not the FPS

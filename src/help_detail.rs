@@ -225,28 +225,6 @@ CONFIG:
       Key rule: a value set in config.toml ALWAYS wins over a scene's
       hardcoded default. Scenes only fill keys the user did NOT set.
 
-APPEARANCE:
-  --colormode <0|16|256|24>
-      Force color depth. Auto-detected by default.
-
-  -b, --bold <0|1|2>
-      Bold style (off, random, all).
-
-  -M, --shadingmode <0|1>
-      Shading mode (random, cinematic).
-
-  --color-bg <black|default-background>
-      Background rendering mode. 'default-background' (default) means
-      Cosmostrix does not paint a solid background — it follows the
-      terminal emulator background. It does not change terminal emulator
-      opacity.
-      Example: if Alacritty uses a cyan background, default-background
-      will show cyan behind the rain. 'black' forces solid #000000.
-
-GENERAL:
-  --duration <seconds>
-      Auto-stop after N seconds (0.1-86400).
-
 DIAGNOSTICS:
   --doctor       Build info, renderer details, environment diagnostics, and
       terminal compatibility check. (v17: --info merged into --doctor)
@@ -259,13 +237,49 @@ DIAGNOSTICS:
       generators (no ANSI codes).
       cosmostrix --docs
   --benchmark    Renderer benchmark (5 seconds default; override with --bench-duration).
+      Runs DRY by default (no ANSI written to any file descriptor) to
+      measure pure engine throughput. Add --bench-io for wet I/O.
   --bench-duration <1-600>
-      Benchmark duration in seconds (default 5). Use with --benchmark
-      for long-run drift / leak / thermal-throttle detection. The DRIFT
-      section of the report compares first-half FPS vs second-half FPS.
+      Benchmark duration in seconds (default 5). Accepts compound forms:
+      5, 6s, 30m, 1h30m. Use with --benchmark for long-run drift / leak /
+      thermal-throttle detection. The DRIFT section of the report compares
+      first-half FPS vs second-half FPS.
+  --screen-size <WxH>
+      Fixed virtual screen size (e.g. 120x40). Min 4x4. Max 1024x500 in
+      interactive mode, 7680x4320 (8K UHD) in --benchmark mode. Useful
+      for benchmarking at exact dimensions or rendering independent of
+      terminal resize.
   --json         Output benchmark as JSON (use with --benchmark).
       Machine-readable single-line JSON for CI/scripts. Mirrors the text
       report's 13 sections. Option fields emit null; NaN/Inf emit null.
+  --bench-io     Benchmark with wet terminal I/O — writes ANSI to /dev/null
+      so the kernel syscall path is exercised without terminal emulator
+      overhead. Measures real write bandwidth + latency. Default is dry
+      (no I/O).
+      cosmostrix --benchmark --bench-io --bench-duration 30
+  --bench-all    Run benchmark across a fixed ladder of screen sizes
+      (6x6 -> 20x20 -> 40x20 -> 80x24 -> 120x40 -> 200x60). Prints a
+      SCALING SUMMARY table at the end. Use with --bench-duration to set
+      per-size duration (default 2s each).
+      cosmostrix --bench-all --bench-duration 5s
+  --bench-scene <NAME>
+      Benchmark I/O scene (used with --bench-io). Selects which render
+      path the wet benchmark exercises:
+        lean             (default) emit_cell_lean path — per-dirty-cell
+                         SGR emission. The fastest interactive path.
+        production-draw  mirrors Terminal::draw full-redraw path:
+                         MoveTo per row + ColorCache SGR + BOLT bold
+                         escape. Use to measure the BOLT-backed production
+                         render path the user actually sees.
+      cosmostrix --benchmark --bench-io --bench-scene production-draw
+  --save-baseline <path>
+      Save benchmark JSON to a file (whitelist-enforced path, same as
+      --config). Use to lock in a regression baseline for later diffing.
+      cosmostrix --benchmark --save-baseline base.json
+  --compare-baseline <path>
+      Compare the current benchmark run against a saved baseline JSON.
+      Flags >5% FPS regressions with a clear PASS/FAIL verdict.
+      cosmostrix --benchmark --compare-baseline base.json
   --reset-terminal
       Emergency terminal recovery — the nuclear option.
       Use after SIGKILL (kill -9) or crash leaves the terminal broken.
@@ -286,6 +300,80 @@ DISCOVERY:
   --list-charsets       Show available character sets.
   --list-scenes         Show built-in and custom scenes (from config).
   --show-scene <NAME>   Show full details for a built-in or custom scene.
+
+ADVANCED (hidden from --help, fully functional — honest disclosure):
+  These flags are intentionally hidden from --help to keep the first
+  impression clean. They are NOT deprecated, NOT experimental, and NOT
+  internal-only — every one of them is a stable, supported knob. They
+  are documented here so the cosmostrix CLI surface is fully open. Most
+  have an equivalent config key (see config.toml via --dump-config).
+
+  APPEARANCE (hidden):
+  -b, --bold <0|1|2>
+      Bold style (0=off, 1=random [default], 2=all).
+      Config: bold = 1
+  --color-bg <black|default-background>
+      Background rendering mode. 'default-background' (default) follows
+      the terminal emulator background; 'black' forces solid #000000.
+      Config: color-bg = \"black\"
+  -M, --shadingmode <0|1>
+      Shading mode (0=random, 1=cinematic [default]).
+      Config: shadingmode = 1
+  --colormode <0|16|256|24>
+      Force color depth (auto-detected by default). Allowed: 0 (mono),
+      16, 8/256 (8-bit), 24/32 (truecolor). Default: 24-bit if supported
+      (COLORTERM), else 8-bit (TERM=...256color), else 16-color.
+  --chars <ranges>
+      Custom character pool override as hex Unicode ranges
+      (e.g. \"0x30-0x39,0x41-0x5A\"). Pairs must be even count.
+  --noglitch [true|false]
+      Disable glitch effects (default: on = glitches enabled). Pass
+      --noglitch=false to re-enable after disabling. Action=Set, so
+      --noglitch (no value) is equivalent to --noglitch=true.
+      Config: noglitch = true
+  --check-bitcolor
+      Print detected terminal color capability (truecolor / 256 / 16 /
+      mono) and exit. Diagnostic only — no rain rendered.
+
+  TIMING & GLITCH (hidden):
+  -g, --glitchms <LOW,HIGH>
+      Glitch duration range in ms (min 1, max 5000). Default: 300,400.
+      Config: (via --glitch-level preset)
+  -l, --lingerms <LOW,HIGH>
+      Linger time range in ms (min 1, max 60000). Default: 1,3000.
+      Config: (via --glitch-level preset)
+  --duration <seconds>
+      Auto-stop after N seconds (min 0.1, max 86400; <=0 disables).
+      Accepts compound forms: 5, 6s, 30m, 1h30m.
+  --perf-stats
+      Print performance statistics summary on exit (interactive mode).
+      In --benchmark mode the BenchReportData is always emitted; this
+      flag is for interactive runs that want a final perf summary.
+
+  AUTO COLOR & ATMOSPHERE (hidden):
+  --auto-color-drift
+      Enable autonomous palette drift (default: off). Slow hue/saturation
+      drift over time. Config: auto-color-drift = true
+  --atmosphere-mode <disabled|controlled-live>
+      Atmosphere mode (default: disabled). 'controlled-live' wires the
+      regime model into the runtime with whisper-bounded safety.
+      Config: atmosphere-mode = \"controlled-live\"
+  --atmosphere-regime <calm|pulse|signal|compression|void|monolith-pressure|adaptive>
+      Atmosphere regime (default: calm). Selects the modulation profile
+      applied when atmosphere-mode = controlled-live.
+      Config: atmosphere-regime = \"pulse\"
+
+  BENCH (hidden):
+  --bench-frames <N>
+      Run headless benchmark for exactly N frames and exit. Alternative
+      to --bench-duration when you want frame-count-based measurement
+      instead of time-based. Useful for cross-machine A/B at identical
+      workloads.
+
+  MESSAGE (hidden, has shorthand):
+  --message-border (shorthand: -mb <text>)
+      Draw the message box with a border. Equivalent to using -mb on
+      the command line. See -m / --message for the no-border variant.
 
 RUNTIME CONTROLS:
   q             Quit              p          Pause / resume

@@ -33,7 +33,7 @@ bounded modulation parameters:
 
 Values outside these bounds are clamped, not rejected. Color modification
 is always stripped regardless of input (color changes are opt-in only via
-the adaptive engine or `--color-drift`).
+the adaptive engine or `--auto-color-drift`).
 
 `storm` does NOT exist as a regime and must never be added. The
 `atmosphere-storm` preset is rejected at every layer (config, profile,
@@ -276,7 +276,7 @@ These constraints are absolute and must never regress:
 - `atmosphere-storm` is rejected at every layer (config, profile, runtime).
 - Color modification is forbidden by default. Only the adaptive engine
   (when `color_change_allowed` is true for night phases) or explicit
-  `--color-drift` may shift colors.
+  `--auto-color-drift` may shift colors.
 - Terminal behavior is never affected by atmosphere logic.
 - Terminal writer remains single-owner.
 - No new unsafe code in the atmosphere path.

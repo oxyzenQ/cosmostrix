@@ -16,7 +16,7 @@ why the terminal — not a framebuffer — is the canvas.
 
 Cosmostrix never opens a GPU context. No OpenGL, Vulkan, Metal, DirectX, or
 WebGPU handle is ever created. The benchmark reports `gpu_usage: not_applicable`,
-and `--info` carries the same field for consistency.
+and `--doctor` carries the same field for consistency.
 
 ### Why
 

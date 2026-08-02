@@ -115,7 +115,7 @@ already enforces several reproducibility-friendly properties:
 - **`--locked` flag** — guarantees that the exact dependency tree from
   `Cargo.lock` is used, preventing variation from registry drift.
 - **Embedded build metadata verification** — each release build self-reports its
-  variant, LTO mode, panic strategy, and strip status via the `cosmostrix -i`
+  variant, LTO mode, panic strategy, and strip status via the `cosmostrix --doctor`
   diagnostic flag, which the CI workflow asserts against expected values.
 
 Future work includes investigating `cargo +nightly -Z build-std` for fully

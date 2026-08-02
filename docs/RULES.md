@@ -171,9 +171,20 @@ follow these architectural rules.
   `q` deliberately to quit the cinematic experience.
 - Screensaver mode: interactive keys (x, s, c, g, a, p, m, Space, arrows)
   work normally. Only unrecognized keys exit.
-- Removed flags: `--preset`, `--profile`, `--low-power`, `--list-presets`,
-  `--list-profiles`, `--show-preset`, `--dump-profile`, `--list-colors-detail`,
-  `--defaults`, `--tune-visual`. Each has a migration error.
+- Removed flags (each has a migration error produced by the `REMOVED_FLAGS`
+  table in `src/validation.rs` that intercepts the flag before clap parsing):
+  - v14.0.0: `--preset`, `--profile`, `--low-power`, `--list-presets`,
+    `--list-profiles`, `--show-preset`, `--dump-profile`, `--list-colors-detail`,
+    `--defaults`, `--tune-visual`
+  - v15.0.0: `--completions <shell>` (clap_complete dependency dropped)
+  - v17.0.0: `--mouse` (effects always on; flag removed), `--info` / `-i`
+    (merged into `--doctor`), `--async` / `-a` (async always on; use
+    `--uniform` to disable), `--brightness` / `--saturation` (replaced by
+    `--color-tune`), `--glitchpct` / `--shortpct` / `--rippct` / `--maxdpc`
+    (replaced by `--glitch-level`)
+  - v25.0.0: `--charset-file <path>` (replaced by `[charset-custom.<name>]`
+    config blocks loaded via `--charset <name>`)
+  - v25.0.0-alpha.3: `--fullwidth` (legacy horizontal-spacing mode purged)
 - Android/Termux: accept Press + Repeat key events (skip Release).
 
 ### Density Map
