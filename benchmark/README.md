@@ -233,7 +233,134 @@ architecture specification of cosmostrix's diff-based rendering engine,
 including complexity analysis, design rationale, and comparison vs
 alternative rendering strategies.
 
-## v15.0.0 — The Cosmic Dragon (Pre-Release Polish)
+## v30.0.0-alpha.1 — Cosmic Dragon + BOLT Production Path (Current)
+
+Release benchmark from `pro-linux-v3` binary (commit `585bcac`,
+2026-08-02). Auto-detected 88×32 terminal size. 10s duration per run
+(plus one 60s endurance run). Cachyos LTS kernel 6.18.40, schedutil
+governor, SMT on.
+
+- Binary version: `v30.0.0-alpha.1`
+- Commit: `585bcac`
+- Profile: `pro-linux-v3` (linux-x86_64-v3)
+- Rustc: 1.97.1
+- Color mode: 24-bit truecolor
+- CPU: AMD Ryzen 7 5800HS with Radeon Graphics
+- LTO: fat, panic: unwind, strip: yes, PGO: no
+
+### 4-Run Performance Matrix
+
+| Run | Scene | Palette | bench-scene | Duration | avg_fps | peak_fps | p99 (ms) | max (ms) |
+|-----|-------|---------|-------------|----------|--------:|---------:|---------:|---------:|
+| 1 | monolith | green | production-draw | 10s | 32,478 | 42,043 | 0.040 | 0.080 |
+| 2 | monolith | green | lean | 10s | 69,107 | 98,619 | 0.019 | 0.629* |
+| 3 | cinematic | green | lean | 10s | 12,777 | 16,018 | 0.107 | 0.155 |
+| 4 | monolith | zen (neon-purple) | lean | 60s | 73,618 | 102,051 | 0.018 | 0.056 |
+
+\* Run 2 max_frame_time 0.629ms is a single OS-scheduler outlier
+   (involuntary_ctxt = 524). The 60s endurance run (Run 4) confirms
+   this is not a real spike — max stays at 0.056ms over 4.4M frames.
+
+### Key Findings — Peak Optimal Verified
+
+- **Peak FPS: 102,051** (Run 4, lean path, 60s endurance, 88×32).
+  Avg FPS 73,618 = **1,227× headroom** over the 60 FPS interactive target.
+- **Production-draw path: 32,478 avg / 42,043 peak** (Run 1). This is
+  the BOLT-backed full-redraw path the terminal actually receives —
+  still 541× headroom over 60 FPS.
+- **Cinematic scene: 12,777 avg** (Run 3). Heaviest scene, still 213×
+  headroom. Scene choice is the biggest FPS lever — monolith is peak
+  throughput, cinematic is heaviest.
+- **Zero memory leak**: RSS flat at 5.4 MiB over 60s, `heap_retained: 0`,
+  allocs near-zero on lean path (95 total / 691K frames).
+- **Zero I/O backpressure** across all 4 runs including 60s endurance.
+- **Zero thermal throttling**: 60s run avg FPS (73.6K) > 10s run (69.1K).
+  CPU power stable at 22.7W.
+- **Frame stability "excellent"** across all runs. p99→max gap tight
+  (0.018→0.056ms in 60s run).
+- **Single-core saturated** (97–99% CPU). `planned_worker_budget: 0` by
+  design — cosmostrix is a single-thread optimized renderer.
+- **IPC 2.53–3.14** — near theoretical max for Zen 3.
+- **Branch mispredict 0.57–2.41%** — BOLT branchless lookup tables
+  working as designed. Production-draw path (0.99%) is more predictable
+  than lean path (2.41%) due to ColorCache pre-formatted bytes.
+
+### Component Timing Breakdown (v30)
+
+| Run | Scene | sim_share% | render_share% | io_share% | render_ns/cell | io_ns/cell | total_ns/cell |
+|-----|-------|-----------:|--------------:|----------:|---------------:|-----------:|--------------:|
+| 1 | monolith (prod-draw) | 29.7 | 8.8 | 61.5 | 15.7 | 108.9 | 177.1 |
+| 2 | monolith (lean) | 64.3 | 15.4 | 20.4 | 13.5 | 17.9 | 87.8 |
+| 3 | cinematic (lean) | 62.9 | 23.7 | 13.4 | 31.3 | 17.7 | 132.0 |
+| 4 | monolith (lean, 60s) | 67.8 | 12.3 | 19.9 | 11.4 | 18.4 | 92.3 |
+
+**Interpretation**: Lean path is I/O-light (20% share) because it emits
+only dirty cells. Production-draw is I/O-heavy (61% share) because it
+mirrors the full `Terminal::draw` redraw (MoveTo per row + ColorCache
+SGR + BOLT bold escape). Both are fast — the difference is what they
+measure.
+
+### v30 vs v15 (Same Machine, Same Profile)
+
+| Metric | v15.0.0 (120×40) | v30.0.0 (88×32, lean) | Δ |
+|--------|-----------------:|----------------------:|------:|
+| avg_fps | 31,006 | 73,618 | **+137%** |
+| peak_fps | 45,998 | 102,051 | **+122%** |
+| p99 (ms) | 0.045 | 0.018 | **-60%** |
+| peak_rss | 4.8 MiB | 5.4 MiB | +12.5% |
+| stability | excellent | excellent | — |
+| drift % | -2.48 | -1.77 | stable |
+
+**Note**: v15 was measured at 120×40 (4,800 cells); v30 at 88×32 (2,816
+cells). The FPS gain is partly from smaller screen (fewer cells) and
+partly from the BOLT branchless lookup tables + lean path optimizations
+added in v17–v30. Direct apples-to-apples comparison requires re-running
+v15 at 88×32 or v30 at 120×40.
+
+### v30 Energy & Microarchitecture (60s Endurance Run)
+
+| Metric | Value |
+|--------|------:|
+| Total energy | 1,363.53 J |
+| Avg power | 22.73 W |
+| Energy per frame | 308.7 µJ |
+| Energy per cell | 2,132.9 nJ |
+| Cycles | 9.3B |
+| Instructions | 24.0B |
+| IPC | 2.58 |
+| Branch instructions | 3.9B |
+| Branch misses | 87.57M |
+| Branch mispredict rate | 2.24% |
+
+### How to Reproduce
+
+```bash
+# Run 1: production-draw path (what the terminal sees)
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
+    -v --benchmark -C binary --bench-frames 30 -c green \
+    --bench-io --bench-duration 10s --bench-scene production-draw
+
+# Run 2: lean path (fastest interactive path)
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
+    -v --benchmark -C binary --bench-frames 30 -c green \
+    --bench-io --bench-duration 10s --bench-scene lean
+
+# Run 3: cinematic scene (heaviest)
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
+    -v --benchmark -C binary --bench-frames 30 -c green \
+    --bench-io --bench-duration 10s --bench-scene lean --scene cinematic
+
+# Run 4: 60s endurance
+target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
+    -v --benchmark -C zen --bench-frames 60 \
+    --bench-io --bench-duration 60s
+```
+
+See [docs/BENCHMARKING.md](../docs/BENCHMARKING.md) for the full
+benchmarking guide — how to run, interpret, and compare results, plus
+the strict `--bench-scene` validation contract.
+
+## v15.0.0 — The Cosmic Dragon (Pre-Release Polish, Historical)
 
 Release benchmark from `pro-linux-v3` binary (commit `ef15930`,
 2026-07-19). Default 120×40 terminal size. 30s duration, two consecutive

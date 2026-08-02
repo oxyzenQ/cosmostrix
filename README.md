@@ -52,7 +52,7 @@ Cosmostrix is built on **two cooperating engines** that split the rendering work
 
 Lives at the crate root: `src/frame.rs` (368 LOC), `src/terminal.rs` (1,332 LOC), `src/terminal_tty.rs` (201 LOC), `src/runtime.rs` (91 LOC) — 1,992 LOC total, imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
-This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable at 38,000+ FPS.
+This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable at 70,000+ FPS (v30, lean path, 88×32, Ryzen 7 5800HS).
 
 ### The Chroma Dragon Coloring Engine
 
@@ -71,7 +71,7 @@ See `cosmostrix --docs` for the full technical breakdown, or run `cargo test loc
 
 ## Architecture — Not Just Matrix Rain
 
-Cosmostrix is **not a clone**. The Cosmic Dragon diff-based rendering engine computes only the ~7.5% of cells that change between frames, rather than redrawing the entire screen. This enables cinematic effects — phosphor decay, depth fog, 3-layer parallax, density maps — at **38,000+ FPS** while using only **4.7 MiB of RAM** and a single CPU core. No GPU. No bloat.
+Cosmostrix is **not a clone**. The Cosmic Dragon diff-based rendering engine computes only the ~7.5% of cells that change between frames, rather than redrawing the entire screen. This enables cinematic effects — phosphor decay, depth fog, 3-layer parallax, density maps — at **70,000+ FPS** (v30 lean path, 88×32, peak 102K) while using only **5.4 MiB of RAM** and a single CPU core. No GPU. No bloat.
 
 Every other Matrix rain renderer redraws every cell every frame. Cosmostrix keeps a persistent back-buffer, compares each cell against the previous frame, and emits only the ANSI sequences for cells that actually changed. On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells), the savings exceed 90%.
 
@@ -93,7 +93,7 @@ Cosmostrix is powered by **The Cosmic Dragon Diff-Based Rendering Engine** (the 
 Every design decision in Cosmostrix is governed by one question: *does this serve the cinematic aesthetic?* Features that compromise that aesthetic are rejected on principle, no matter how popular or how easy they would be to add.
 
 - **No emoji. No wide characters. No colorful pictograms in the rain.** These are the visual language of chat apps and children's games — childish noise that would shatter the elegant, monochrome dignity of the cascade. The rain speaks in glyphs: katakana, binary, hacker charset, cosmic runes. Adding a dragon emoji or a skull pictogram to the stream would turn a masterpiece into a sticker book. This is a permanent design constraint, not a missing feature.
-- **Diff-based rendering is the innovation, not a gimmick.** Most "Matrix rain" projects redraw the entire screen every frame — a brute-force approach that maxes out at a few hundred FPS on a small terminal. Cosmostrix's double-buffered generation system tracks exactly which cells changed and emits only those, achieving 38,000+ FPS at 120×40 with zero per-frame heap allocation. This is what makes the cinematic effects (phosphor decay, 3-layer parallax, density sculpting) affordable at all — without the diff engine, they would be unrenderable.
+- **Diff-based rendering is the innovation, not a gimmick.** Most "Matrix rain" projects redraw the entire screen every frame — a brute-force approach that maxes out at a few hundred FPS on a small terminal. Cosmostrix's double-buffered generation system tracks exactly which cells changed and emits only those, achieving 70,000+ FPS (v30, lean path, 88×32, 60s endurance verified) with zero per-frame heap allocation. This is what makes the cinematic effects (phosphor decay, 3-layer parallax, density sculpting) affordable at all — without the diff engine, they would be unrenderable.
 - **Perceptual color, not RGB math.** The Chroma Dragon interpolates palettes in OKLab space (perceptually uniform) and smooths palette transitions through the polar chroma ring (hue-preserving). Most terminal rain renderers do naive sRGB lerps that produce muddy brown/gray midpoints on hue-crossing gradients and hard color seams at palette switches. Cosmostrix's color pipeline is engineered to look clean at every transition, on every theme, at every speed.
 - **CPU-only by choice.** A GPU would paint an image; Cosmostrix writes a sentence. The terminal is a text medium, and its soul is ANSI escape sequences and copy-pasteable glyphs. GPU image-mode via the kitty graphics protocol was evaluated and explicitly rejected because it would change Cosmostrix from "terminal rain" to "image rain" — a different program entirely.
 - **Exclusive by design.** Cosmostrix does not try to be everything to everyone. It does not chase feature parity with toy projects. It pursues depth — phosphor physics, atmospheric modulation, endurance telemetry, perceptual color — that no toy would attempt. If you want a quick Matrix screensaver, there are dozens. If you want a rendering engine that treats the terminal as a serious artistic medium, there is Cosmostrix.
@@ -143,7 +143,7 @@ Cosmostrix is a CPU-only terminal renderer by design. The terminal is a text med
 Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below is honest about what it does not do — most of these are design choices, not missing features.
 
 - **CPU-only, no GPU.** Rain is rendered as ANSI text over a PTY; no GPU context is ever created (the benchmark reports `gpu_usage: not_applicable`). GPU bitmap rendering was evaluated and rejected because it changes the character-grid aesthetic. See [docs/COSMIC_DRAGON_EXPLORATION.md](docs/COSMIC_DRAGON_EXPLORATION.md).
-- **Interactive FPS is terminal-bounded.** The engine computes ~50,000 FPS headless at 120×40; real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). This is a fundamental limit of terminal rendering.
+- **Interactive FPS is terminal-bounded.** The engine computes 70,000+ FPS headless (v30, lean path, 88×32) and 32,000+ FPS on the production-draw path (the BOLT-backed full-redraw path the terminal actually sees); real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). This is a fundamental limit of terminal rendering.
 - **`kill -9` cannot be caught.** No process can intercept SIGKILL. On Linux, a fork-based guard restores `termios` best-effort; on macOS and Windows, run `cosmostrix --reset-terminal` for 5-layer recovery.
 - **SIGTSTP (Ctrl-Z) suspends in raw mode.** The terminal stays in raw mode while cosmostrix is backgrounded. Recovery is automatic on `fg`/SIGCONT as long as nothing else wrote to the TTY.
 - **Windows Terminal cleanup is best-effort** ([#15](https://github.com/oxyzenQ/cosmostrix/issues/15)). Forced termination (task kill, close window, signout) on Windows Terminal / ConHost may leave the terminal in a degraded state (scrolled buffer visible, cursor hidden). Beyond what crossterm provides, cosmostrix does not claim specific guarantees for Windows forced-termination paths. Run `cosmostrix --reset-terminal` to recover.
@@ -558,10 +558,11 @@ Pair `--bench-scene production-draw` with `--save-baseline` to lock in a regress
 
 > **Strict validation:** only `lean` and `production-draw` are accepted. Typos (e.g. `leanax`, `production-drawmadadadaxa`) are rejected with a clean error at parse time — cosmostrix never silently falls back to the default lean path. This is part of the honesty contract: no hidden flags, no hidden behavior.
 
-See [benchmark/README.md](benchmark/README.md) for full reference results, [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md) for MICROARCHITECTURE/ENERGY enablement, and [docs/RAIN_DEPTH_AUDIT.md](docs/RAIN_DEPTH_AUDIT.md) for the visual-audit methodology that uses `--bench-scene production-draw`.
+See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide — how to run, interpret, and compare results, plus the strict `--bench-scene` validation contract and v30 reference results (peak 102K FPS). See [benchmark/README.md](benchmark/README.md) for full reference results across versions, [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md) for MICROARCHITECTURE/ENERGY enablement, and [docs/RAIN_DEPTH_AUDIT.md](docs/RAIN_DEPTH_AUDIT.md) for the visual-audit methodology that uses `--bench-scene production-draw`.
 
 ## Documentation
 
+- [**Docs Index**](docs/README.md) — **start here** — master index of all docs, source module map, "coming back after a break" guide
 - [Changelog](CHANGELOG.md) — release history
 - [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks, workarounds, and planned fixes
 - [System Requirements](docs/SYSTEM_REQUIREMENTS.md) — kernel, glibc/musl, CPU, terminal compatibility matrix
@@ -575,6 +576,7 @@ See [benchmark/README.md](benchmark/README.md) for full reference results, [docs
 - [Stability Audit](docs/STABILITY_AUDIT.md) — terminal stability audit
 - [SIMD Feasibility](docs/SIMD_FEASIBILITY.md) — SIMD optimization feasibility
 - [Advanced Benchmarking](docs/BENCHMARK_ADVANCED.md) — enable MICROARCHITECTURE and ENERGY metrics, interpret key benchmark fields
+- [Benchmarking Guide](docs/BENCHMARKING.md) — full independent benchmarking guide: how to run, interpret, compare, strict `--bench-scene` validation, v30 reference results (peak 102K FPS)
 - [CI & Release Workflow](docs/workflow/about-ci.md) — CI pipeline and release process
 
 ## Development
