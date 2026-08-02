@@ -1008,7 +1008,7 @@ fn main() -> std::io::Result<()> {
     };
 
     if args.bench_all {
-        warn_bench_noop_flags(&args);
+        warn_bench_noop_flags(&args, cli_explicit.fps);
         let duration = resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
         let results = crate::bench_scale::run_scaling_benchmark(&cloud_cfg, duration)?;
         if args.json {
@@ -1021,12 +1021,12 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.benchmark {
-        warn_bench_noop_flags(&args);
+        warn_bench_noop_flags(&args, cli_explicit.fps);
         return bench::run_premium_benchmark(&cloud_cfg);
     }
 
     if let Some(_bench_frames) = args.bench_frames {
-        warn_bench_noop_flags(&args);
+        warn_bench_noop_flags(&args, cli_explicit.fps);
         return bench::run_benchmark(&cloud_cfg);
     }
 
@@ -1165,19 +1165,28 @@ fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
         .map(|s| crate::ux::or_exit(crate::cli_parse::parse_duration("--bench-duration", s)))
 }
 
-/// Warn the user about CLI flags that have NO effect in benchmark mode.
+/// Collect warnings about CLI flags that are misleading or have NO effect
+/// in benchmark mode. Pure function — the call site prints them.
 ///
-/// Audit findings (commit 5301572):
+/// Audit findings (commit 5301572 + a34fcdb follow-up):
+///   - `--fps`: in benchmark mode it sets the simulation rate (virtual time
+///     delta fed to `cloud.rain_at`), NOT a render cap. `avg_fps` is
+///     unconstrained — the bench loop spins full tilt with zero sleeps.
+///     User reports showed the absence of this warning caused real
+///     confusion: `cosmostrix --benchmark --fps 60` silently ran the same
+///     as without `--fps 60`. Now warned whenever `--fps` is explicit.
 ///   - `--duration` (hidden): interactive auto-exit only; bench uses --bench-duration
 ///   - `--screensaver`: interactive input handler only; bench has no input loop
 ///   - `--intro`: interactive intro animation; bench never plays it
 ///   - `--perf-stats` (hidden): interactive summary only; bench emits BenchReportData
-///
-/// `--fps` is also ambiguous in benchmark mode (sets simulation rate, NOT a
-/// render cap), but it's not warned here because it DOES have an effect —
-/// just a different one than the name implies. The help text clarifies this.
-fn warn_bench_noop_flags(args: &Args) {
-    let mut warns: Vec<&str> = Vec::new();
+fn collect_bench_noop_warnings(args: &Args, fps_explicit: bool) -> Vec<&'static str> {
+    let mut warns: Vec<&'static str> = Vec::new();
+    if fps_explicit {
+        warns.push(
+            "--fps (in benchmark mode sets simulation rate only — does NOT cap \
+             render throughput; avg_fps is unconstrained)",
+        );
+    }
     if args.duration.is_some() {
         warns.push("--duration (interactive auto-exit only; use --bench-duration)");
     }
@@ -1190,10 +1199,20 @@ fn warn_bench_noop_flags(args: &Args) {
     if args.perf_stats {
         warns.push("--perf-stats (interactive summary; bench emits its own report)");
     }
+    warns
+}
+
+/// Warn the user about CLI flags that are misleading or have NO effect in
+/// benchmark mode. See `collect_bench_noop_warnings` for the audit details.
+fn warn_bench_noop_flags(args: &Args, fps_explicit: bool) {
+    let warns = collect_bench_noop_warnings(args, fps_explicit);
     if warns.is_empty() {
         return;
     }
-    eprintln!("[warn] the following flags have no effect in benchmark mode:");
+    eprintln!(
+        "[warn] the following flags have no effect (or a different effect than the name \
+         implies) in benchmark mode:"
+    );
     for w in &warns {
         eprintln!("       {w}");
     }
@@ -1372,5 +1391,85 @@ mod main_tests {
     #[test]
     fn sanitize_handles_empty_message() {
         assert_eq!(sanitize_message_text(""), "");
+    }
+
+    // ── benchmark --fps warning tests ─────────────────────────────────
+
+    /// Regression: user reported that `cosmostrix --benchmark --fps 60`
+    /// produced no warning, even though `--fps` in benchmark mode does NOT
+    /// cap render throughput (it only sets the simulation rate). The prior
+    /// implementation explicitly skipped `--fps` from `warn_bench_noop_flags`
+    /// on the rationale that "it has an effect, just a different one". User
+    /// feedback overruled that — silence caused real confusion. Now the
+    /// warning MUST fire whenever `--fps` is explicit and any bench mode
+    /// is active.
+    #[test]
+    fn bench_noop_warnings_include_fps_when_explicit() {
+        use crate::config::Args;
+        use clap::Parser;
+        // Default Args (no explicit flags). fps_explicit=false → no --fps warning.
+        let args = Args::try_parse_from(["cosmostrix"]).unwrap();
+        let warns = collect_bench_noop_warnings(&args, false);
+        assert!(
+            !warns.iter().any(|w| w.starts_with("--fps")),
+            "fps warning should NOT fire when --fps not explicit, got: {warns:?}"
+        );
+
+        // fps_explicit=true → --fps warning MUST fire and mention "simulation rate".
+        let warns = collect_bench_noop_warnings(&args, true);
+        let fps_warn = warns.iter().find(|w| w.starts_with("--fps"));
+        assert!(
+            fps_warn.is_some(),
+            "fps warning SHOULD fire when --fps explicit, got: {warns:?}"
+        );
+        let fps_warn = fps_warn.unwrap();
+        assert!(
+            fps_warn.contains("simulation rate"),
+            "fps warning should mention 'simulation rate', got: {fps_warn}"
+        );
+        assert!(
+            fps_warn.contains("does NOT cap"),
+            "fps warning should clarify it does NOT cap render throughput, got: {fps_warn}"
+        );
+    }
+
+    /// Verify clap's value_source("fps") correctly distinguishes the
+    /// default-value case from the explicit-CLI case. This is the actual
+    /// mechanism `cli_explicit.fps` relies on at runtime — if clap ever
+    /// changes ValueSource semantics, this test will catch it.
+    #[test]
+    fn clap_value_source_distinguishes_explicit_fps_from_default() {
+        use crate::config::Args;
+        use clap::{CommandFactory, FromArgMatches};
+        let cmd = Args::command();
+        let matches_default = cmd
+            .clone()
+            .try_get_matches_from(["cosmostrix"])
+            .unwrap();
+        assert!(
+            !matches!(
+                matches_default.value_source("fps"),
+                Some(clap::parser::ValueSource::CommandLine)
+            ),
+            "default --fps should NOT be flagged as CommandLine-sourced"
+        );
+
+        // Explicit case: --fps 144 on command line → CommandLine-sourced
+        let matches_explicit = cmd
+            .try_get_matches_from(["cosmostrix", "--fps", "144"])
+            .unwrap();
+        assert!(
+            matches!(
+                matches_explicit.value_source("fps"),
+                Some(clap::parser::ValueSource::CommandLine)
+            ),
+            "explicit --fps 144 should be flagged as CommandLine-sourced"
+        );
+
+        // Sanity: in both cases the parsed fps value matches expectations.
+        let args_default = Args::from_arg_matches(&matches_default).unwrap();
+        let args_explicit = Args::from_arg_matches(&matches_explicit).unwrap();
+        assert_eq!(args_default.fps, 60.0);
+        assert_eq!(args_explicit.fps, 144.0);
     }
 }
