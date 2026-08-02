@@ -6,8 +6,8 @@
 //! Allows users to define their own time-to-parameter mapping in config.toml:
 //!
 //! ```toml
-//! adaptive-custom.00-00 = green3, matrix, speed=60
-//! adaptive-custom.02-10 = cosmos, monolith, density=1.2
+//! adaptive-custom.00-00 = green3, matrix, speed=60, fps=30
+//! adaptive-custom.02-10 = cosmos, monolith, density=1.2, glitch-level=intense
 //! adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
 //! ```
 //!
@@ -19,6 +19,11 @@
 //! - Optional key=value pairs: speed, density, fps, charset, glitch-level
 //! - Parameters not specified are sticky (keep previous value)
 //! - If no [adaptive-custom] block: fallback to default adaptive engine
+//!
+//! Phase D Bug #12: fps and glitch-level are now fully applied at runtime
+//! (previously parsed but silently dropped). fps lerps like speed/density;
+//! glitch-level snaps at the boundary with an "if changed" guard to avoid
+//! resetting glitch timing every 30s.
 
 use std::collections::HashMap;
 
@@ -826,5 +831,94 @@ mod tests {
         assert_eq!(p.color.as_deref(), Some("cosmos"));
         assert_eq!(p.speed, Some(15.0));
         assert_eq!(p.density, Some(1.2));
+    }
+
+    /// Phase D Bug #12: regression guard for `cp.fps` and `cp.glitch_level`
+    /// application. Same shape as the scene test above: verifies the parser
+    /// produces non-None fps + glitch_level fields that the event loop can
+    /// honor. Before Phase D, these were parsed but silently dropped at
+    /// runtime — the entries did nothing. Now they're wired through to
+    /// `cfg.target_fps` (via period recomputation) and
+    /// `cloud.apply_glitch_level_runtime`.
+    #[test]
+    fn params_at_returns_fps_and_glitch_level_for_event_loop_application() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "adaptive-custom.22-00".to_string(),
+            "neon-purple, storm, speed=24, density=1.1, fps=30, glitch-level=intense".to_string(),
+        );
+        let map = parse_custom_time_map(&cfg).unwrap();
+        assert_eq!(map.points.len(), 1);
+        assert_eq!(map.points[0].minutes, 22 * 60); // 1320
+                                                    // Sticky: at 23:00 (1h after the point), fps + glitch_level still
+                                                    // active because they're the only defined point.
+        let p = map.params_at(23.0).unwrap();
+        assert_eq!(p.color.as_deref(), Some("neon-purple"));
+        assert_eq!(p.scene.as_deref(), Some("storm"));
+        assert_eq!(p.speed, Some(24.0));
+        assert_eq!(p.density, Some(1.1));
+        assert_eq!(p.fps, Some(30.0));
+        assert_eq!(p.glitch_level.as_deref(), Some("intense"));
+    }
+
+    /// Phase D Bug #12: verify fps lerp across two points. Like speed/density,
+    /// fps should interpolate smoothly during the 5-minute blend window before
+    /// the next point. Outside the window, fps stays at the current point's
+    /// value (sticky).
+    #[test]
+    fn params_at_fps_lerps_during_transition_window() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "adaptive-custom.10-00".to_string(),
+            "cosmos, monolith, fps=30".to_string(),
+        );
+        cfg.insert(
+            "adaptive-custom.11-00".to_string(),
+            "cosmos, monolith, fps=60".to_string(),
+        );
+        let map = parse_custom_time_map(&cfg).unwrap();
+        // At 10:30 — halfway between, but outside the 5-min blend window
+        // (which starts at 10:55). fps should be 30 (current point's value).
+        let p_mid = map.params_at(10.5).unwrap();
+        assert_eq!(p_mid.fps, Some(30.0));
+        // At 10:58 — inside the blend window (2 min before 11:00).
+        // local_t = 1 - 2/5 = 0.6
+        // smoothed = 0.6^2 * (3 - 2*0.6) = 0.36 * 1.8 = 0.648
+        // fps = 30 + (60-30)*0.648 = 30 + 19.44 = 49.44
+        let p_blend = map.params_at(10.0 + 58.0 / 60.0).unwrap();
+        let expected = 30.0 + (60.0 - 30.0) * 0.648;
+        assert!(
+            (p_blend.fps.unwrap() - expected).abs() < 0.01,
+            "fps lerp expected {}, got {}",
+            expected,
+            p_blend.fps.unwrap()
+        );
+    }
+
+    /// Phase D Bug #12: verify glitch_level snaps (no lerp) at the boundary.
+    /// Unlike fps/speed/density, glitch_level is an enum and must NOT lerp —
+    /// it switches cleanly when current_idx advances.
+    #[test]
+    fn params_at_glitch_level_snaps_at_boundary() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "adaptive-custom.10-00".to_string(),
+            "cosmos, monolith, glitch-level=subtle".to_string(),
+        );
+        cfg.insert(
+            "adaptive-custom.11-00".to_string(),
+            "cosmos, monolith, glitch-level=intense".to_string(),
+        );
+        let map = parse_custom_time_map(&cfg).unwrap();
+        // At 10:30 — still in subtle territory.
+        let p_before = map.params_at(10.5).unwrap();
+        assert_eq!(p_before.glitch_level.as_deref(), Some("subtle"));
+        // At 10:59 — inside the numeric blend window, but glitch_level still
+        // snaps to current's value (subtle). Boundary is 11:00 exactly.
+        let p_blend = map.params_at(10.0 + 59.0 / 60.0).unwrap();
+        assert_eq!(p_blend.glitch_level.as_deref(), Some("subtle"));
+        // At 11:00 — boundary crossed, glitch_level snaps to intense.
+        let p_after = map.params_at(11.0).unwrap();
+        assert_eq!(p_after.glitch_level.as_deref(), Some("intense"));
     }
 }

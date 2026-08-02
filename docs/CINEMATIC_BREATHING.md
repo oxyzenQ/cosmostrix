@@ -40,6 +40,57 @@ developer shares the same mental model of what that means. When a user
 activates a pulse regime, they can expect a specific kind of intensity
 shift — not a surprise, but a promise.
 
+## Activating Atmosphere Regimes
+
+Cosmostrix does NOT ship built-in `atmosphere-*` scene presets. To activate
+an atmosphere regime, use one of these two methods:
+
+**Method 1 — Direct CLI flags (quickest):**
+
+```bash
+cosmostrix --atmosphere-mode controlled-live --atmosphere-regime pulse
+```
+
+Valid regimes: `calm`, `pulse`, `signal`, `compression`, `void`,
+`monolith-pressure`, `adaptive`. The `storm` regime is blocked at every
+parsing layer — see the Storm section below.
+
+**Method 2 — Config-defined `scene-custom` preset (recommended for reuse):**
+
+Add a block to `~/.config/cosmostrix/config.toml` for each regime you want
+to reuse, then activate via `--scene-custom atmosphere-pulse`:
+
+```toml
+[scene-custom.atmosphere-pulse]
+atmosphere-mode = controlled-live
+atmosphere-regime = pulse
+
+[scene-custom.atmosphere-signal]
+atmosphere-mode = controlled-live
+atmosphere-regime = signal
+
+[scene-custom.atmosphere-compression]
+atmosphere-mode = controlled-live
+atmosphere-regime = compression
+
+[scene-custom.atmosphere-void]
+atmosphere-mode = controlled-live
+atmosphere-regime = void
+
+[scene-custom.atmosphere-monolith-pressure]
+atmosphere-mode = controlled-live
+atmosphere-regime = monolith-pressure
+
+[scene-custom.atmosphere-adaptive]
+atmosphere-mode = controlled-live
+atmosphere-regime = adaptive
+```
+
+Then run `cosmostrix --scene-custom atmosphere-pulse` (or any of the six
+presets defined above). The Examples in this document refer to these
+config-defined presets — copy the block you need into your config.toml
+before running the Example command.
+
 ## Breathing Vocabulary
 
 ### Rest
@@ -62,9 +113,8 @@ multiplier is 1.0. Density multiplier is 1.0. Brightness multiplier is
 1.0. No visual parameter deviates from its explicit or default setting.
 
 **Example:** Running `cosmostrix --scene classic` with no atmosphere
-flags produces Rest. The `atmosphere-calm` preset also produces Rest
-because it maps to `mode: disabled, regime: calm`, which means zero
-atmosphere modulation.
+flags produces Rest. Setting `--atmosphere-mode controlled-live --atmosphere-regime calm`
+also produces Rest because calm regime maps to identity modulation.
 
 ### Pulse
 
@@ -85,9 +135,10 @@ interpolates from the current state to the pulse target, holds briefly,
 then interpolates back. The transition follows the pacing contract — no
 instant jumps.
 
-**Example:** The `atmosphere-pulse` preset demonstrates this regime.
-Activate it with `--scene-custom atmosphere-pulse` and watch for periodic
-waves of subtle intensity.
+**Example:** Activate pulse with `cosmostrix --atmosphere-mode controlled-live --atmosphere-regime pulse`
+(or define `[scene-custom.atmosphere-pulse]` per the config snippet at the top
+of this doc, then `--scene-custom atmosphere-pulse`). Watch for periodic waves
+of subtle intensity.
 
 ### Whisper
 
@@ -109,9 +160,11 @@ meaning their visual impact is capped at a level that preserves the rain
 character. The `runtime_application: whisper` label in diagnostics
 indicates this safety bound is active.
 
-**Example:** Every controlled-live atmosphere preset uses whisper-bounded
-modulation. Run `cosmostrix --scene-custom atmosphere-signal` and watch the
-rain carefully for several seconds to perceive the whisper effect.
+**Example:** Every controlled-live atmosphere regime uses whisper-bounded
+modulation. Run `cosmostrix --atmosphere-mode controlled-live --atmosphere-regime signal`
+(or `--scene-custom atmosphere-signal` if you've defined the preset per the
+config snippet at the top of this doc) and watch the rain carefully for
+several seconds to perceive the whisper effect.
 
 ### Compression
 
@@ -132,8 +185,9 @@ atmosphere controller applies the density increase gradually over at
 least one breath cycle. Total density remains within whisper-bounded safe
 ranges.
 
-**Example:** The `atmosphere-compression` preset demonstrates this. Run
-`--scene-custom atmosphere-compression` and notice how the rain gradually
+**Example:** Run `cosmostrix --atmosphere-mode controlled-live --atmosphere-regime compression`
+(or `--scene-custom atmosphere-compression` with the preset defined per the
+config snippet at the top of this doc) and notice how the rain gradually
 fills more of the screen without speeding up.
 
 ### Void
@@ -155,8 +209,9 @@ atmosphere controller interpolates downward gradually. The visual
 runtime remains protected. The effect is bounded so that rain never fully
 disappears — some columns always remain visible.
 
-**Example:** The `atmosphere-void` preset demonstrates this. Run
-`--scene-custom atmosphere-void` and watch the rain gradually thin and dim.
+**Example:** Run `cosmostrix --atmosphere-mode controlled-live --atmosphere-regime void`
+(or `--scene-custom atmosphere-void` with the preset defined per the config
+snippet at the top of this doc) and watch the rain gradually thin and dim.
 
 ### Signal
 
@@ -177,9 +232,10 @@ atmosphere controller may modulate directional convergence, column
 emphasis, or coordinated brightness patterns. The effect is the most
 structurally intrusive of the non-storm regimes but remains bounded.
 
-**Example:** The `atmosphere-signal` preset demonstrates this. Run
-`--scene-custom atmosphere-signal` and watch for columns that develop
-coordinated behavior distinct from the surrounding rain.
+**Example:** Run `cosmostrix --atmosphere-mode controlled-live --atmosphere-regime signal`
+(or `--scene-custom atmosphere-signal` with the preset defined per the config
+snippet at the top of this doc) and watch for columns that develop coordinated
+behavior distinct from the surrounding rain.
 
 ### Storm
 
@@ -230,9 +286,10 @@ of frames. The breath cycle concept applies regardless of the specific
 interpolation method — what matters is that the transition is gradual
 and perceptible, not instantaneous.
 
-**Example:** Switching from `--scene-custom atmosphere-pulse` to `--scene-custom
-atmosphere-void` would trigger a transition from the pulse state through
-rest to the void state, with each phase taking at least one breath cycle.
+**Example:** Switching from `--atmosphere-regime pulse` to `--atmosphere-regime void`
+(both with `--atmosphere-mode controlled-live`) would trigger a transition
+from the pulse state through rest to the void state, with each phase taking
+at least one breath cycle.
 
 ## Pacing Contract
 
@@ -316,9 +373,12 @@ and pacing rhythm.
 **Atmosphere preset names follow the pattern `atmosphere-<regime>`.**
 The prefix makes it clear that the preset is an atmosphere configuration.
 The regime name identifies the visual behavior: calm, pulse, signal,
-compression, void, monolith-pressure. This naming pattern is consistent
-across all six atmosphere presets and must be maintained for any future
-atmosphere presets.
+compression, void, monolith-pressure, adaptive. These are NOT built-in
+presets — users define them in config.toml as `[scene-custom.atmosphere-<regime>]`
+blocks (see "Activating Atmosphere Regimes" at the top of this doc). The
+naming pattern is a convention users can follow when defining their own
+atmosphere presets; any future built-in atmosphere presets must follow the
+same pattern.
 
 **Profile names are user-defined, no restriction.** Users may name their
 profiles anything that the config parser accepts (letters, digits, hyphens,

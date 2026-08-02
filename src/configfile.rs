@@ -677,15 +677,14 @@ pub fn dump_config_text() -> &'static str {
 # NOT stop adaptive-custom from running).
 # Format: H-M = color, scene, key=value, ... (flexible digits: 2-3, 02-03, 14-5)
 # Parameters not specified are sticky (keep previous value).
-# Supported key=value: speed, density, charset. (fps and glitch-level are parsed
-# but not yet applied at runtime — they will be wired in a future release.)
-# Transition: smooth 5-minute blend before next time point (numeric fields only;
-# color/scene/charset snap at the boundary).
+# Supported key=value: speed, density, fps, charset, glitch-level.
+# Transition: smooth 5-minute blend before next time point (numeric fields
+# speed/density/fps only); color/scene/charset/glitch-level snap at boundary.
 # Checked every 30s at runtime; live config reload re-parses immediately.
-# adaptive-custom.00-00 = cosmos, monolith, speed=15, density=1.2
-# adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
+# adaptive-custom.00-00 = cosmos, monolith, speed=15, density=1.2, fps=30
+# adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5, glitch-level=subtle
 # adaptive-custom.12-00 = cosmos, monolith, speed=30, density=0.85
-# adaptive-custom.18-00 = neon, storm, speed=24, density=1.1
+# adaptive-custom.18-00 = neon, storm, speed=24, density=1.1, glitch-level=intense
 
 # Custom Color Palettes (optional, v16+)
 # Define named custom palettes usable from --colors-custom or adaptive-custom.

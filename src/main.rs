@@ -994,6 +994,9 @@ fn main() -> std::io::Result<()> {
         // Phase 10: atmosphere modulation resolved from config/profile.
         atmosphere_modulation,
         atmosphere_mode,
+        // Phase D Bug #5: pass the resolved regime so bench_report can show
+        // the actual configured regime instead of hardcoding Calm.
+        atmosphere_regime,
         monolith_density_map,
         config_path_for_watcher: {
             // v25.2 Termux fix: use multi-candidate path resolution so

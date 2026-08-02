@@ -160,6 +160,7 @@ mod tests {
             bold_mode: "Random".to_string(),
             shading_mode: "DistanceFromHead".to_string(),
             atmosphere_mode: "disabled",
+            atmosphere_regime: "calm",
             color_mode_label: "24-bit truecolor",
             custom_palette_name: None,
             custom_palette_bg_hex: None,

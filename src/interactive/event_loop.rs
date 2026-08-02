@@ -231,6 +231,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Adaptive color shift: check current hour's target color every 30s.
     let mut last_color_check = Instant::now();
     let mut last_adaptive_color: Option<&str> = None;
+    // Phase D Bug #12: track last-applied glitch level so we only call
+    // apply_glitch_level_runtime when crossing a boundary that explicitly
+    // sets a different level. Without this, we'd reset glitch timing every
+    // 30s even when the level is unchanged.
+    let mut last_adaptive_glitch: Option<String> = None;
     const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
     // Track runtime state changes for post-exit verbose summary.
@@ -370,6 +375,43 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             );
                             scene_name = scene_name_from_cp.clone();
                             charset_preset = new_charset;
+                        }
+                    }
+                    // Phase D Bug #12: apply fps if specified. fps is lerped
+                    // (smooth 5-min blend before next point), so we always
+                    // apply — same pattern as speed/density. Recomputes
+                    // target_period/idle_period using the same safety pattern
+                    // as the live-reload path. Note: cfg.target_fps is
+                    // immutable (&CloudConfig), so we mutate only the local
+                    // period variables. If live-reload fires later, it'll
+                    // overwrite these from new_cfg.target_fps; then on the
+                    // next 30s tick this path re-applies the scheduled value.
+                    // That's the desired precedence: explicit config edit
+                    // wins briefly, then the scheduled value re-asserts.
+                    if let Some(fps) = cp.fps {
+                        let safe_fps = if fps.is_finite() && fps > 0.0 {
+                            fps
+                        } else {
+                            cfg.target_fps.max(1.0)
+                        };
+                        target_period = Duration::from_secs_f64(1.0 / safe_fps);
+                        idle_period = Duration::from_secs_f64(1.0 / (safe_fps * IDLE_FPS_FACTOR));
+                    }
+                    // Phase D Bug #12: apply glitch-level if specified AND
+                    // changed. glitch_level is a snap (no lerp), so we use
+                    // an "if changed" check to avoid resetting glitch timing
+                    // every 30s.
+                    if let Some(ref glitch_name) = cp.glitch_level {
+                        if *glitch_name != last_adaptive_glitch.as_deref().unwrap_or("") {
+                            use crate::config::GlitchLevel;
+                            use clap::ValueEnum;
+                            if let Ok(level) = GlitchLevel::from_str(glitch_name, true) {
+                                cloud.apply_glitch_level_runtime(level);
+                                last_adaptive_glitch = Some(glitch_name.clone());
+                            }
+                            // Silent ignore on parse error — same as the
+                            // rest of the adaptive-custom code. User can
+                            // --testconf to validate.
                         }
                     }
                 }

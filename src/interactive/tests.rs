@@ -266,6 +266,7 @@ mod cases {
             auto_color_drift: false,
             atmosphere_modulation: crate::atmosphere_apply::AtmosphereRuntimeModulation::identity(),
             atmosphere_mode: crate::atmosphere_apply::AtmosphereApplicationMode::Disabled,
+            atmosphere_regime: crate::atmosphere::AtmosphereRegime::Calm,
             monolith_density_map: None,
             config_path_for_watcher: None,
             scene_name: "monolith".to_string(),

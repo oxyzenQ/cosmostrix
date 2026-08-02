@@ -166,6 +166,52 @@ pub(super) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) ->
 }
 
 /// Returns 3-4 atmospherically related color schemes for autonomous palette drift.
+///
+/// # The Related-Schemes Graph
+///
+/// The 33 built-in `ColorScheme` variants are organized into 7 aesthetic
+/// clusters. Palette drift (autonomous, opt-in via `--auto-color-drift`)
+/// picks a random scheme from the current scheme's related set — this
+/// keeps drift within aesthetic bounds so the rain never jumps from
+/// `green` to `fire` (jarring) but can drift `green → green2 → forest → aurora`
+/// (harmonious).
+///
+/// ## Cluster map
+///
+/// | Cluster | Members | Drift direction |
+/// |---------|---------|-----------------|
+/// | **Green family** | Green, Green2, Green3, Forest, Aurora | Stays within greens/blues |
+/// | **Gold/warm** | Gold, Yellow, Orange, Sun, Fire, Venus | Warm yellows/oranges |
+/// | **Red/fire** | Red, Fire, Orange, Mars, Gold | Hot reds/oranges |
+/// | **Blue/water** | Blue, Ocean, Neptune, Uranus, Cyan | Cool blues |
+/// | **Purple/nebula** | Purple, Nebula, Cosmos, Vaporwave, Neon, FancyDiamond | Cool purples/pinks |
+/// | **Gray/moon** | Gray, Mercury, Snow, Moon, Stars, Pluto | Neutral grays/whites |
+/// | **Planet cross-links** | Mars, Venus, Jupiter, Saturn, etc. | Each planet links into its color family |
+///
+/// ## Selection algorithm
+///
+/// When `ColorEcosystem::tick()` decides to drift (subject to
+/// `AUTONOMOUS_PALETTE_DRIFT_CHANCE` probability and
+/// `PALETTE_DRIFT_COOLDOWN_SECS` cooldown), it calls this function,
+/// picks a uniform random index into the returned slice, and returns
+/// that scheme. The caller then calls `cloud.set_color_scheme(new)`
+/// which triggers the palette transition wave.
+///
+/// ## Bidirectionality
+///
+/// The graph is approximately bidirectional (if A is in B's related set,
+/// B is usually in A's) but not strictly — some asymmetric edges exist
+/// to bias drift toward the "canonical" member of a family (e.g. `Green3`
+/// links back to `Green`/`Green2`/`Forest` but `Forest` includes `Aurora`
+/// which `Green3` doesn't).
+///
+/// ## Future-proofing
+///
+/// The `_ => &[Green, Blue, Cyan]` fallback handles any future
+/// `ColorScheme` variant that doesn't yet have an entry. New variants
+/// MUST be added to the match to participate in palette drift —
+/// otherwise they'll drift to the generic fallback set, which may be
+/// aesthetically jarring.
 fn related_schemes(scheme: ColorScheme) -> &'static [ColorScheme] {
     use ColorScheme::*;
     match scheme {
@@ -220,6 +266,10 @@ pub(super) struct ColorEcosystem {
     pub(super) luminance_climate: f32,
     pub(super) saturation_climate: f32,
     pub(super) hue_drift: f32,
+    // Drift directions are BINARY (-1.0 or +1.0), not continuous. The
+    // audit (Bug #6 "continuous direction") considered making these
+    // floating-point (e.g. -0.3, +0.7) for smoother drift curves.
+    // DEFERRED — see the risk note below the field list.
     pub(super) luminance_direction: f32,
     pub(super) saturation_direction: f32,
     pub(super) hue_direction: f32,
@@ -232,6 +282,49 @@ pub(super) struct ColorEcosystem {
     /// replacement is cooled down.
     pub(super) last_palette_drift: Option<Instant>,
 }
+
+// ── Bug #6 (continuous direction) — DEFERRED ──────────────────────────────
+//
+// The audit proposed making `luminance_direction` / `saturation_direction`
+// / `hue_direction` continuous floating-point values (e.g. -0.3, +0.7)
+// instead of binary -1.0/+1.0. The argument: smoother drift curves,
+// fewer visible "step" transitions, more cinematic feel.
+//
+// WHY DEFERRED:
+// 1. RISK TO TUNED BEHAVIOR — The current binary-direction drift has been
+//    tuned alongside COLOR_CLIMATE_DRIFT_RATE, COLOR_DRIFT_REEVAL_CHANCE,
+//    and the clamp bounds to produce a specific aesthetic. Switching to
+//    continuous directions would require re-tuning all four constants,
+//    and the new tuning would need extensive manual A/B viewing to
+//    confirm it actually looks better. The current drift already feels
+//    smooth at normal viewing distance.
+//
+// 2. NO MEASURABLE BENEFIT — The drift deltas are tiny per tick
+//    (COLOR_CLIMATE_DRIFT_RATE is sub-1%). The visible difference between
+//    "direction = -1.0" and "direction = -0.7" over a 30-second window
+//    is below human perception threshold for most viewers. The aesthetic
+//    win is theoretical, not measurable.
+//
+// 3. TEST INSTABILITY — Multiple tests in tests_color_stability.rs
+//    exercise the ecosystem tick path with deterministic seeds. Changing
+//    the direction algorithm would change the exact drift values
+//    produced, requiring test fixture updates and reducing test
+//    reliability as a regression guard.
+//
+// 4. SHADOW METRIC DRIFT — The drift directions feed into the renderer's
+//    brightness/saturation/hue multipliers, which the bench_report
+//    ATMOSPHERE section reports on. Changing the algorithm would change
+//    the shadow metric distribution, possibly triggering false-positive
+//    regression alerts in CI.
+//
+// IF UNBLOCKING IN THE FUTURE:
+// - Add a config key `climate-drift-mode = binary | continuous` so users
+//   can opt-in to the new algorithm without forcing a re-tune on everyone.
+// - Run a 2-week A/B viewing test with the team before making continuous
+//   the default.
+// - Update tests to accept either algorithm via a fixture parameter.
+// - Re-evaluate COLOR_CLIMATE_DRIFT_RATE — continuous directions may
+//   require a higher rate to produce visible drift.
 
 impl ColorEcosystem {
     pub(super) fn new(now: Instant) -> Self {

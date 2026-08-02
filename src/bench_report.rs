@@ -91,6 +91,11 @@ pub(crate) struct BenchReportData {
     /// runtime modulation to rain parameters — this changes throughput
     /// characteristics vs the identity (disabled) baseline.
     pub atmosphere_mode: &'static str,
+    /// Atmosphere regime ("calm"/"pulse"/"signal"/"compression"/"void"/
+    /// "monolith-pressure"/"adaptive"). Phase D Bug #5: previously the
+    /// ATMOSPHERE section hardcoded Calm regardless of config. Now the
+    /// actual configured regime flows through so the report matches reality.
+    pub atmosphere_regime: &'static str,
 
     // ── v25.17: CONFIG enrichment (color/charset/etc. parity with --verbose) ──
     // These fields close the gap between the rich `--verbose` dump and the
@@ -358,6 +363,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("glitch_pct", &format!("{:.1}", data.glitch_pct));
         s.field("auto_color_drift", &data.auto_color_drift.to_string());
         s.field("atmosphere", data.atmosphere_mode);
+        s.field("atmosphere_regime", data.atmosphere_regime);
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());
         s.field("target_fps", &format!("{:.1}", data.target_fps));
@@ -741,76 +747,57 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     }
 
     // ── Atmosphere Engine diagnostics ────────────────────────────────────
-    // Phase 4: Reports regime, verifier, application, application mode,
-    // and visual effect status. Always Calm; verifier always passes;
-    // application is identity; application_mode is disabled; visual effect
-    // is disabled.
+    // Phase D Bug #5: reports the ACTUAL atmosphere_mode + atmosphere_regime
+    // from config (previously hardcoded Disabled + Calm).
     {
+        let apply_mode = crate::config_apply::resolve_atmosphere_mode(Some(data.atmosphere_mode));
+        let regime = crate::config_apply::resolve_atmosphere_regime(Some(data.atmosphere_regime));
         let ctrl = crate::atmosphere::AtmosphereController::new();
-        let _app = ctrl.build_application();
-        let apply_mode = crate::atmosphere_apply::AtmosphereApplicationMode::Disabled;
-        let modulation = crate::atmosphere_apply::apply_application(&_app, apply_mode);
-        let s = r.section("ATMOSPHERE");
-        s.field("regime", crate::atmosphere::AtmosphereRegime::Calm.as_str());
-        s.field("effective", "no-op");
-        s.field("transition", "stable");
-        s.field("verifier", "pass");
-        s.field("application", "identity");
-        s.field("atmosphere_application", "identity");
-        s.field("atmosphere_application_mode", apply_mode.as_str());
-        s.field(
-            "atmosphere_visual_effect",
-            if modulation.is_identity() {
-                "disabled"
-            } else {
-                "active"
-            },
-        );
-        // Phase 5: effective runtime seam
+        let app = ctrl.build_application();
+        let modulation = crate::atmosphere_apply::apply_application(&app, apply_mode);
+        // Pre-compute boolean labels once so the field emissions stay compact.
+        let is_mod = apply_mode.allows_modulation();
+        let is_ident = modulation.is_identity();
         let eff_runtime = crate::atmosphere_apply::derive_effective_runtime(
             data.speed,
             data.density,
             &modulation,
         );
+        let eff_ident = eff_runtime.speed == data.speed && eff_runtime.density == data.density;
+        let shadow =
+            crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(apply_mode, regime);
+        let s = r.section("ATMOSPHERE");
+        s.field("regime", regime.as_str());
+        s.field("effective", if is_mod { "modulated" } else { "no-op" });
+        s.field("transition", "stable");
+        s.field("verifier", "pass");
+        s.field(
+            "application",
+            if is_ident { "identity" } else { "non-identity" },
+        );
+        s.field(
+            "atmosphere_application",
+            if is_ident { "identity" } else { "non-identity" },
+        );
+        s.field("atmosphere_application_mode", apply_mode.as_str());
+        s.field(
+            "atmosphere_visual_effect",
+            if is_ident { "disabled" } else { "active" },
+        );
         s.field(
             "effective_runtime",
-            if eff_runtime.speed == data.speed && eff_runtime.density == data.density {
-                "identity"
-            } else {
-                "modulated"
-            },
-        );
-        // Phase 8: shadow metrics
-        let shadow = crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(
-            apply_mode,
-            crate::atmosphere::AtmosphereRegime::Calm,
+            if eff_ident { "identity" } else { "modulated" },
         );
         s.field("atmosphere_shadow", shadow.risk_label());
         s.field("atmosphere_shadow_risk", shadow.risk_label());
-        // Phase 10.5: diagnostic honesty fields
-        s.field(
-            "config_gate",
-            if apply_mode.allows_modulation() {
-                "armed"
-            } else {
-                "disabled"
-            },
-        );
+        s.field("config_gate", if is_mod { "armed" } else { "disabled" });
         s.field(
             "visual_runtime",
-            if eff_runtime.speed == data.speed && eff_runtime.density == data.density {
-                "protected"
-            } else {
-                "active"
-            },
+            if eff_ident { "protected" } else { "active" },
         );
         s.field(
             "runtime_application",
-            if modulation.is_identity() {
-                "identity"
-            } else {
-                "non-identity"
-            },
+            if is_ident { "identity" } else { "non-identity" },
         );
     }
 

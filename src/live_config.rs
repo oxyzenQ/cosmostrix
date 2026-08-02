@@ -1107,6 +1107,7 @@ mod tests {
             auto_color_drift: false,
             atmosphere_modulation: AtmosphereRuntimeModulation::identity(),
             atmosphere_mode: AtmosphereApplicationMode::Disabled,
+            atmosphere_regime: crate::atmosphere::AtmosphereRegime::Calm,
             monolith_density_map: None,
             config_path_for_watcher: None,
             scene_name: "test-scene".to_string(),

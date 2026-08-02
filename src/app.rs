@@ -3,6 +3,7 @@
 
 //! Application configuration: CloudConfig struct and density calculation helpers.
 
+use crate::atmosphere::AtmosphereRegime;
 use crate::atmosphere_apply::{AtmosphereApplicationMode, AtmosphereRuntimeModulation};
 use crate::cloud::Cloud;
 use crate::config::IntroType;
@@ -102,6 +103,10 @@ pub struct CloudConfig {
     /// Atmosphere application mode. Default is Disabled (identity).
     /// Read by event_loop.rs to gate non-identity modulation.
     pub(crate) atmosphere_mode: AtmosphereApplicationMode,
+    /// Atmosphere regime (calm/pulse/signal/compression/void/monolith-pressure/
+    /// adaptive). Phase D Bug #5: added so bench_report.rs can show the actual
+    /// regime instead of hardcoding Calm. Default is Calm.
+    pub(crate) atmosphere_regime: AtmosphereRegime,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
     /// None = uniform distribution (default).
@@ -301,6 +306,7 @@ impl CloudConfig {
             auto_color_drift: self.auto_color_drift,
             atmosphere_modulation: self.atmosphere_modulation,
             atmosphere_mode: self.atmosphere_mode,
+            atmosphere_regime: self.atmosphere_regime,
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),
