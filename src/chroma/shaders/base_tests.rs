@@ -409,7 +409,7 @@ fn make_test_shader<'a>(
         column_coherence_phase: None,
         subpixel_jitter_amplitude: None,
         atmospheric: None,
-        hue_drift: None,
+        hue_drift_offset: None,
         head_halo_factor: None,
         transition_l_table: None,
         bg: None,
@@ -725,7 +725,7 @@ fn hue_drift_shifts_middle_color() {
     assert_eq!(fg_none, Some(palette[3]));
 
     let mut shader_drift = make_test_shader(&slots, color_map, false);
-    shader_drift.hue_drift = Some(std::f32::consts::PI);
+    shader_drift.hue_drift_offset = Some(hue_drift_offset(std::f32::consts::PI));
     let (fg_drift, _) = resolve_cell_color(&shader_drift, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
     assert_eq!(fg_drift, Some(palette[5]), "hue_drift=π should shift 3 → 5");
 }
@@ -746,7 +746,7 @@ fn hue_drift_does_not_affect_head_or_tail() {
 
     let slots = slot_array(palette);
     let mut shader = make_test_shader(&slots, color_map, false);
-    shader.hue_drift = Some(std::f32::consts::PI);
+    shader.hue_drift_offset = Some(hue_drift_offset(std::f32::consts::PI));
 
     let (fg_head, _) = resolve_cell_color(&shader, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
     assert_eq!(fg_head, Some(palette[7]));
@@ -772,9 +772,9 @@ fn hue_drift_skipped_under_shading_distance() {
 
     let slots = slot_array(palette);
     let mut shader_off = make_test_shader(&slots, color_map, true);
-    shader_off.hue_drift = None;
+    shader_off.hue_drift_offset = None;
     let mut shader_on = make_test_shader(&slots, color_map, true);
-    shader_on.hue_drift = Some(std::f32::consts::PI);
+    shader_on.hue_drift_offset = Some(hue_drift_offset(std::f32::consts::PI));
 
     let (fg_off, _) = resolve_cell_color(&shader_off, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
     let (fg_on, _) = resolve_cell_color(&shader_on, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
@@ -802,7 +802,7 @@ fn hue_drift_clamps_to_palette_range() {
     let color_map_lo: &[u8] = &color_map_lo;
     let slots_lo = slot_array(palette);
     let mut shader_lo = make_test_shader(&slots_lo, color_map_lo, false);
-    shader_lo.hue_drift = Some(-std::f32::consts::PI);
+    shader_lo.hue_drift_offset = Some(hue_drift_offset(-std::f32::consts::PI));
     let (fg_lo, _) = resolve_cell_color(&shader_lo, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
     assert_eq!(fg_lo, Some(palette[0]));
 
@@ -811,7 +811,7 @@ fn hue_drift_clamps_to_palette_range() {
     let color_map_hi: &[u8] = &color_map_hi;
     let slots_hi = slot_array(palette);
     let mut shader_hi = make_test_shader(&slots_hi, color_map_hi, false);
-    shader_hi.hue_drift = Some(std::f32::consts::PI);
+    shader_hi.hue_drift_offset = Some(hue_drift_offset(std::f32::consts::PI));
     let (fg_hi, _) = resolve_cell_color(&shader_hi, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
     assert_eq!(fg_hi, Some(palette[2]));
 }

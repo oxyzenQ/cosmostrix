@@ -606,14 +606,21 @@ impl Cloud {
             }),
             pool_is_binary,
             atmospheric,
-            // Phase 3-H: activate ColorEcosystem.hue_drift — was dead code
-            // (updated every tick, never read). Now passed through DrawCtx
-            // → ShaderCtx → resolve_cell_color, where it applies a slow
-            // global palette-stop offset to Middle cells. The drift value
-            // is in [-π, π]; the shader maps it to an integer offset in
-            // {-2, -1, 0, +1, +2}. Always Some in production — the value
-            // is meaningful even when small (and 0.0 is a valid no-op).
-            hue_drift: Some(self.color_ecosystem.hue_drift),
+            // Phase 3-H + Phase C: activate ColorEcosystem.hue_drift — was
+            // dead code (updated every tick, never read). Now passed through
+            // DrawCtx → ShaderCtx → resolve_cell_color, where it applies a
+            // slow global palette-stop offset to Middle cells.
+            //
+            // Phase C optimization: pre-compute the i32 offset ONCE per
+            // frame here, so the per-cell hot path is a single integer add
+            // (was: f32 div + mul + round + cast per cell). The drift value
+            // is in [-π, π]; hue_drift_offset maps it to {-2,-1,0,+1,+2}.
+            // At ~12.9M Middle cells/sec this saves ~65M cycles/sec.
+            // Always Some in production — the value is meaningful even
+            // when small (and 0.0 is a valid no-op).
+            hue_drift_offset: Some(crate::chroma::shaders::base::hue_drift_offset(
+                self.color_ecosystem.hue_drift,
+            )),
             // Phase 4-A (Dragon Awakening): activate temporal column hue
             // coherence (Innovation C). The shader logic landed in Phase 3-C
             // but was dormant (DrawCtx hard-coded None). Phase 4-A derives

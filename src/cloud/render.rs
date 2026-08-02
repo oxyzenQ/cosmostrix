@@ -99,13 +99,18 @@ pub struct DrawCtx<'a> {
 
     /// Phase 3-H (Chroma Dragon Innovation H): global hue drift.
     ///
-    /// `Some(drift)` applies a slow global palette-stop offset to all
+    /// `Some(offset)` applies a slow global palette-stop offset to all
     /// Middle cells, derived from `ColorEcosystem.hue_drift`. Pre-Phase-3-H
     /// this field was dead code — updated every tick but never read by
     /// the render path. Phase 3-H activates it.
     ///
+    /// Phase C: carries the PRE-COMPUTED `i32` offset (not raw f32
+    /// radians). The conversion runs once per frame in `cloud/rain.rs`
+    /// via `hue_drift_offset(drift)`, so the per-cell shader hot path
+    /// is a single integer add.
+    ///
     /// `None` disables (matches pre-Phase-3-H behavior).
-    pub hue_drift: Option<f32>,
+    pub hue_drift_offset: Option<i32>,
 
     /// Phase 4-A (Chroma Dragon Innovation C — Dragon Awakening): temporal
     /// column hue coherence phase.
@@ -315,10 +320,12 @@ impl DrawCtx<'_> {
             // each cell's resolved color before returning. When None, the
             // shader skips atmospheric and the post-hoc pass runs instead.
             atmospheric: self.atmospheric.as_ref(),
-            // Phase 3-H: global hue drift. Activates the previously-dead
-            // ColorEcosystem.hue_drift field. None disables (pre-Phase-3-H
-            // behavior — drift accumulates but never affects rendering).
-            hue_drift: self.hue_drift,
+            // Phase 3-H + Phase C: global hue drift. Pre-computed once
+            // per frame in rain.rs (via hue_drift_offset fn) — the shader
+            // hot path is now a single integer add. None disables
+            // (pre-Phase-3-H behavior — drift accumulates but never
+            // affects rendering).
+            hue_drift_offset: self.hue_drift_offset,
             // Phase 4-D (Dragon Awakening): head halo via background blend.
             // rain.rs sets Some(HEAD_HALO_FACTOR) and passes self.bg so the
             // shader can blend the Head color toward the scene background.

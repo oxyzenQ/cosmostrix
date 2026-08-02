@@ -159,7 +159,14 @@ pub struct ShaderCtx<'a> {
     ///
     /// `None` disables (matches pre-Phase-3-H behavior — hue_drift
     /// accumulates in ColorEcosystem but never affects rendering).
-    pub hue_drift: Option<f32>,
+    ///
+    /// Phase C (per-frame hoist): the field carries the PRE-COMPUTED
+    /// integer offset (not the raw f32 radians). The conversion
+    /// `hue_drift_offset(drift)` runs once per frame at `DrawCtx`
+    /// construction in `cloud/rain.rs`, so the per-cell hot path below
+    /// is a single integer add — no f32 div/mul/round/cast per cell.
+    /// At ~12.9M Middle cells/sec this saves ~65M cycles/sec.
+    pub hue_drift_offset: Option<i32>,
 
     /// Phase 4-D (Chroma Dragon Innovation D — Dragon Awakening): head halo
     /// via background blend.
@@ -306,8 +313,12 @@ fn column_coherence_perturbation(phase: f32, col: u16) -> i32 {
 ///
 /// Returns 0 for `drift = 0.0` (no shift) and for very small drifts
 /// (|drift| < π/4 ≈ 0.785 rad, which rounds to 0).
+///
+/// Phase C: now `pub(crate)` so `cloud/rain.rs` can call it once per
+/// frame at `DrawCtx` construction. The per-cell hot path no longer
+/// calls this — it reads the pre-computed `i32` from `ShaderCtx`.
 #[inline]
-fn hue_drift_offset(drift: f32) -> i32 {
+pub(crate) fn hue_drift_offset(drift: f32) -> i32 {
     (drift / std::f32::consts::PI * 2.0_f32).round() as i32
 }
 
@@ -564,13 +575,11 @@ pub fn resolve_cell_color(
                 let t = (((dist_from_head as i32) - 1) as f32 / denom).clamp(0.0, 1.0);
                 color_idx = ((1.0 - t) * last as f32).round() as i32;
             }
-            // Phase 3-H (Chroma Dragon Innovation H): global hue drift.
-            //
-            // Apply the frame's global hue_drift as a palette-stop offset
-            // to all Middle cells. This activates the previously-dead
-            // ColorEcosystem.hue_drift field — it was updated every tick
-            // but never read by the render path. Phase 3-H makes the
-            // accumulated drift visible as a slow palette cycle.
+            // Phase 3-H + Phase C: global hue drift, now pre-computed
+            // per-frame. The `hue_drift_offset` fn ran once at DrawCtx
+            // construction (cloud/rain.rs) — here we just add the integer.
+            // Saves a per-cell f32 div + mul + round + cast (~5 cycles)
+            // × ~12.9M Middle cells/sec ≈ 65M cycles/sec.
             //
             // Skipped under shading_distance (matches column_coherence
             // pattern — that path has its own length-aware gradient and
@@ -581,9 +590,8 @@ pub fn resolve_cell_color(
             // Offset is in {-2, -1, 0, +1, +2} — subtle enough to feel
             // atmospheric, visible enough to notice over the ~10-minute
             // drift cycle.
-            if let Some(drift) = shader.hue_drift {
+            if let Some(offset) = shader.hue_drift_offset {
                 if !shader.shading_distance {
-                    let offset = hue_drift_offset(drift);
                     color_idx = (color_idx + offset).clamp(0, last.max(0));
                 }
             }
