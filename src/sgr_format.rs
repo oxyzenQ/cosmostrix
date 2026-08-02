@@ -8,41 +8,28 @@
 //! a byte buffer, bypassing crossterm's trait dispatch + fmt machinery +
 //! heap String allocation. Used by the hot render path in `terminal.rs`
 //! when the `ColorCache` misses (non-palette color or non-palette bg).
-//!
-//! ## BOLT integration (v30 cosmic-dragon perf audit)
-//!
-//! `push_u8` and `push_u16` are now thin wrappers around the
-//! [`bolt`](crate::bolt) module's branchless lookup tables. The legacy
-//! 3-branch cascade (`n<10`, `n<100`, `else`) is replaced by 2 L1-cached
-//! table lookups + 1 memcpy. See `src/bolt.rs` for the full design and
-//! `docs/BOLT.md` for the calibration history.
-//!
-//! The public API is unchanged — `push_u8(buf, n)` and `push_u16(buf, n)`
-//! still take a `&mut Vec<u8>` and produce the same bytes as before. Only
-//! the implementation changed (branchy → branchless). Existing callers
-//! (`terminal.rs`, `bench_io.rs` fallback path) need no changes.
 
 use crossterm::style::Color;
 
-use crate::bolt;
-
 /// Push a u8 as ASCII decimal digits into buf (no heap alloc, no format!).
 ///
-/// BOLT-backed: delegates to `bolt::push_u8` which uses the `U8_PADDED` +
-/// `U8_LEN` lookup tables (branchless). See [`bolt`] for details.
+/// BOLT: delegates to `bolt::push_u8` (branchless table lookup via
+/// `U8_PADDED` + `U8_LEN`). The original branchy cascade (n<10, n<100,
+/// else) is gone — see `src/bolt.rs` for the table layout and the
+/// projected production-path gain rationale.
 #[inline]
 pub(crate) fn push_u8(buf: &mut Vec<u8>, n: u8) {
-    bolt::push_u8(buf, n);
+    crate::bolt::push_u8(buf, n);
 }
 
 /// Push a u16 as ASCII decimal digits into buf (no heap alloc, no format!).
 ///
-/// BOLT-backed: delegates to `bolt::push_u16` which uses the `U8_PADDED` +
-/// `U8_LEN` lookup tables for the common `n < 256` case (branchless), with
-/// an unrolled divmod fallback for the rare 4-5 digit case. See [`bolt`].
+/// BOLT: delegates to `bolt::push_u16` which routes 0..=255 through the
+/// branchless `bolt::push_u8` and falls back to a digit-extraction loop
+/// only for 256..=65535 (cursor row/col values > 255, rare).
 #[inline]
 pub(crate) fn push_u16(buf: &mut Vec<u8>, n: u16) {
-    bolt::push_u16(buf, n);
+    crate::bolt::push_u16(buf, n);
 }
 
 /// Write combined fg+bg SGR escape sequence directly into buf.

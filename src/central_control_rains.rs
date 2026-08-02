@@ -122,8 +122,10 @@
 //!   back 0.132, mid 0.551, front 1.103 (was 0.182/0.696/1.000). Field
 //!   energy (×density): back 0.050, mid 0.342, front 1.213 (was
 //!   0.082/0.522/1.000). Ratio back:mid:front widened from 1:6.4:12.2
-//!   to 1:6.8:24.1 — front now clearly dominant, back recedes into
+//!   to 1:5.75:15.79 — front clearly dominant, back recedes into
 //!   atmospheric haze, mid sits between as sparse vivid streaks.
+//!   (Ratio reflects post-restoration front density 1.10; the earlier
+//!   1:6.8:24.1 figure used the pre-restoration 1.00 density.)
 //!   — *Front density later restored; per-droplet boosts fixed in silent
 //!   override bug fix above.*
 //! - **v30.0.0 (final — visual test locked)**: after A/B visual testing
@@ -185,8 +187,8 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 /// Back effective visibility = 0.48 × 0.50 × (1−0.45) ≈ 0.132.
 ///   - Back  (0): 0.48 (dimmed — sits in soft fog)
 ///   - Mid   (1): 0.80 (slightly dim — fewer droplets, each vivid)
-///   - Front (2): 1.05 (boosted — front reads as the hero layer)
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.05];
+///   - Front (2): 1.10 (boosted — front reads as the hero layer, Option F)
+pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.10];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
@@ -199,8 +201,8 @@ pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.05];
 /// pushes colors away from gray, making neon pop more).
 ///   - Back  (0): 0.50 (more haze blend)
 ///   - Mid   (1): 0.84 (slightly less vivid to match dimmer brightness)
-///   - Front (2): 1.05 (richer neon — front pops as hero)
-pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.05];
+///   - Front (2): 1.12 (richer neon — front pops as hero, Option F)
+pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.12];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -210,8 +212,8 @@ pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.05];
 /// (more cinematic head pop, hero layer reads first).
 ///   - Back  (0): 0.48 (soft distant glow)
 ///   - Mid   (1): 0.74 (gentle pop, not noisy)
-///   - Front (2): 1.15 (boosted — cinematic head pop)
-pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.15];
+///   - Front (2): 1.30 (boosted — cinematic head pop, Option F)
+pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.30];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -226,8 +228,8 @@ pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.15];
 /// back gets ~9% boost, mid gets ~16%, front gets ~27%.
 ///   - Back  (0): 0.38 (ambient distant glow, no pinprick)
 ///   - Mid   (1): 0.68 (clearly present, not flashy)
-///   - Front (2): 1.15 (boosted self-glow)
-pub const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.38, 0.68, 1.15];
+///   - Front (2): 1.20 (boosted self-glow, Option F)
+pub const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.38, 0.68, 1.20];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 ///
@@ -273,8 +275,8 @@ pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 /// trails linger longer for stronger cinematic presence).
 ///   - Back  (0): 2.0 (fast fade — brief distant flicker)
 ///   - Mid   (1): 1.2 (slightly faster fade — clean streaks)
-///   - Front (2): 0.4 (slow fade — long cinematic trails)
-pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 0.4];
+///   - Front (2): 0.6 (slow fade — long cinematic trails, Option F)
+pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 0.6];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated (prevents "concrete wall" residue buildup).
@@ -323,10 +325,10 @@ pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 /// 0.12→0.18 (slight haze bump to complement lower density — mid
 /// reads as sitting behind a thin veil); front kept at 0.0 (sharp,
 /// hero layer has no haze).
-///   - Back  (0): 0.45 (visible rain through soft fog)
+///   - Back  (0): 0.55 (visible rain through soft fog, Option F)
 ///   - Mid   (1): 0.18 (slight veil — depth cue without milking out)
 ///   - Front (2): 0.0 (sharp foreground — hero pops clean)
-pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.45, 0.18, 0.0];
+pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.55, 0.18, 0.0];
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
 

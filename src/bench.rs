@@ -280,6 +280,20 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // ── Phase 2: Initialize wet I/O writer if --bench-io ──────────────
     // T2.1: pass palette so BenchIoWriter can build a ColorCache and mirror
     // the production Terminal::draw() fast path (pre-formatted SGR bytes).
+    // --bench-scene production-draw also requires --bench-io (the writer
+    // is what gets routed through the production path).
+    let bench_scene_production = cfg
+        .bench_scene
+        .as_deref()
+        .map(|s| s == "production-draw")
+        .unwrap_or(false);
+    if bench_scene_production && !cfg.bench_io {
+        crate::ux::or_exit::<(), String>(Err(
+            "error: --bench-scene production-draw requires --bench-io to be set \
+             (it routes the BenchIoWriter through the production draw path)"
+                .to_string(),
+        ));
+    }
     let mut io_writer = if cfg.bench_io {
         crate::bench_io::BenchIoWriter::with_palette(&cloud.palette)
     } else {
@@ -305,9 +319,16 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         }
         sim_now += target_period;
         cloud.rain_at(&mut frame, sim_now);
-        // Phase 2: wet I/O — write ANSI to /dev/null if --bench-io
+        // Phase 2: wet I/O — write ANSI to /dev/null if --bench-io.
+        // --bench-scene production-draw routes through write_frame_production
+        // (mirrors Terminal::draw full-redraw path) instead of the default
+        // emit_cell_lean fast path.
         if let Some(ref mut io) = io_writer {
-            io.write_frame(&frame);
+            if bench_scene_production {
+                io.write_frame_production(&frame);
+            } else {
+                io.write_frame(&frame);
+            }
         }
 
         frame.clear_dirty();
@@ -425,9 +446,15 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             dirty_all_frames += 1;
         }
 
-        // Phase 2: wet I/O — write ANSI to /dev/null if --bench-io
+        // Phase 2: wet I/O — write ANSI to /dev/null if --bench-io.
+        // Routes through write_frame_production when --bench-scene
+        // production-draw is set (mirrors Terminal::draw's hot path).
         if let Some(ref mut io) = io_writer {
-            io.write_frame(&frame);
+            if bench_scene_production {
+                io.write_frame_production(&frame);
+            } else {
+                io.write_frame(&frame);
+            }
         }
 
         // Phase 6: visual objective metrics sampling
@@ -937,6 +964,13 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     // Phase 2: wet I/O
     // T2.1: pass palette so BenchIoWriter can build a ColorCache and mirror
     // the production Terminal::draw() fast path (pre-formatted SGR bytes).
+    // --bench-scene production-draw routes the writer through the production
+    // draw path (mirrors Terminal::draw instead of emit_cell_lean).
+    let bench_scene_production = cfg
+        .bench_scene
+        .as_deref()
+        .map(|s| s == "production-draw")
+        .unwrap_or(false);
     let mut io_writer = if cfg.bench_io {
         crate::bench_io::BenchIoWriter::with_palette(&cloud.palette)
     } else {
@@ -957,7 +991,11 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         sim_now += target_period;
         cloud.rain_at(&mut frame, sim_now);
         if let Some(ref mut io) = io_writer {
-            io.write_frame(&frame);
+            if bench_scene_production {
+                io.write_frame_production(&frame);
+            } else {
+                io.write_frame(&frame);
+            }
         }
         frame.clear_dirty();
     }
@@ -1002,7 +1040,11 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         }
 
         if let Some(ref mut io) = io_writer {
-            io.write_frame(&frame);
+            if bench_scene_production {
+                io.write_frame_production(&frame);
+            } else {
+                io.write_frame(&frame);
+            }
         }
         visual_sampler.sample(&frame);
         frame.clear_dirty();

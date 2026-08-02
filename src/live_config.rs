@@ -1076,6 +1076,7 @@ mod tests {
             compare_baseline: None,
             bench_io: false,
             bench_all: false,
+            bench_scene: None,
             verbose: false,
             density_auto: true,
             base_density: 0.75,

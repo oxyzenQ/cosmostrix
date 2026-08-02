@@ -85,17 +85,11 @@ use crate::color_cache::ColorCache;
 use crate::frame::Frame;
 use crate::sgr_format::{push_u8, write_sgr_colors_buf};
 
-// The branchless lookup tables (U8_PADDED, U8_LEN, BOLD_ESCAPES,
-// BOLD_ESCAPE_LENS) and the `write_u8_to_slice` helper have been promoted
-// to `src/bolt.rs` as the project-wide BOLT (Branchless Optimized Lookup
-// Tables) module. Both the production `Terminal::draw()` path (via
-// `sgr_format::push_u8` + `terminal::BOLD_ESCAPES`) and this bench_io
-// Strategy E fast path now share the same tables — eliminating the
-// previous duplication where the same 1 KB of `const` data lived in
-// both `bench_io.rs` and (after v30) `sgr_format.rs` indirectly.
-//
-// See `src/bolt.rs` for the full design and `docs/BOLT.md` for the
-// calibration history.
+// BOLT tables (U8_PADDED, U8_LEN, BOLD_ESCAPES, BOLD_ESCAPE_LENS) and the
+// branchless `write_u8_to_slice` helper now live in `crate::bolt` so that
+// `bench_io`, `sgr_format`, and `terminal::draw` share a single
+// branchless implementation. See `src/bolt.rs` for the table layouts and
+// the projected production-path gain rationale.
 
 /// Terminal I/O metrics collected during wet benchmark.
 #[derive(Debug, Clone, Default)]
@@ -295,6 +289,105 @@ impl BenchIoWriter {
             }
         }
 
+        self.metrics.total_write_ns += write_start.elapsed().as_nanos() as u64;
+    }
+
+    /// `--bench-scene production-draw` I/O path.
+    ///
+    /// Mirrors `Terminal::draw`'s full-redraw hot path (the production
+    /// render code that BOLT optimized) instead of `emit_cell_lean`'s
+    /// Strategy E stack-buffer fast path. The differences from
+    /// [`write_frame`](Self::write_frame):
+    ///
+    /// - Emits `MoveTo` per row via `sgr_format::push_u16` (cursor
+    ///   positioning overhead that `emit_cell_lean` skips).
+    /// - Uses `Self::emit_sgr` (production SGR path →
+    ///   `sgr_format::write_sgr_colors_buf` → `bolt::push_u8`) for every
+    ///   style change, NOT the Strategy E inline `\x1b[38;2;…` stack
+    ///   buffer.
+    /// - Uses `bolt::BOLD_ESCAPES[bold_idx]` for bold escape (same as
+    ///   `emit_cell_lean`, but via the project-wide `bolt::` module).
+    /// - Batches same-style runs into `row_buf` and flushes on style
+    ///   change (production RLE behavior).
+    ///
+    /// Use this scene to measure the BOLT-backed production render path.
+    /// Output goes to the same /dev/null BufWriter as `write_frame`.
+    pub(crate) fn write_frame_production(&mut self, frame: &Frame) {
+        self.ansi_buf.clear();
+        // Reusable row buffer for RLE-style run batching (mirrors Terminal::draw).
+        let mut row_buf: Vec<u8> = Vec::with_capacity(frame.width as usize * 4);
+
+        let mut cur_fg: Option<crossterm::style::Color> = None;
+        let mut cur_bg: Option<crossterm::style::Color> = None;
+        let mut cur_bold = false;
+        let cache_ref = self.color_cache.as_ref();
+        let mut utf8_buf = [0u8; 4];
+
+        // MoveTo(1,1) — cursor home for the first row.
+        self.ansi_buf.extend_from_slice(b"\x1b[1;1H");
+
+        for y in 0..frame.height {
+            if y > 0 {
+                // MoveTo(1, y+1) — start of row y (1-indexed).
+                self.ansi_buf.push(0x1b);
+                self.ansi_buf.push(b'[');
+                crate::sgr_format::push_u16(&mut self.ansi_buf, y + 1);
+                self.ansi_buf.extend_from_slice(b";1H");
+            }
+            row_buf.clear();
+            for x in 0..frame.width {
+                let idx = y as usize * frame.width as usize + x as usize;
+                let cell = frame.cell_at_index_ref(idx);
+
+                let style_changed = cell.fg != cur_fg || cell.bg != cur_bg || cell.bold != cur_bold;
+                if style_changed && !row_buf.is_empty() {
+                    self.ansi_buf.extend_from_slice(&row_buf);
+                    row_buf.clear();
+                }
+
+                let color_changed = cell.fg != cur_fg || cell.bg != cur_bg;
+                if color_changed {
+                    Self::emit_sgr(cache_ref, &mut self.ansi_buf, cell.fg, cell.bg);
+                    cur_fg = cell.fg;
+                    cur_bg = cell.bg;
+                }
+
+                if cell.bold != cur_bold {
+                    // BOLT: branchless bold escape via table lookup.
+                    let bold_idx = cell.bold as usize;
+                    let bold_len = BOLD_ESCAPE_LENS[bold_idx];
+                    self.ansi_buf
+                        .extend_from_slice(&BOLD_ESCAPES[bold_idx][..bold_len]);
+                    cur_bold = cell.bold;
+                }
+
+                if cell.ch.is_ascii() {
+                    row_buf.push(cell.ch as u8);
+                } else {
+                    let s = cell.ch.encode_utf8(&mut utf8_buf);
+                    row_buf.extend_from_slice(s.as_bytes());
+                }
+            }
+            if !row_buf.is_empty() {
+                self.ansi_buf.extend_from_slice(&row_buf);
+            }
+        }
+
+        // Reset attributes.
+        self.ansi_buf.extend_from_slice(b"\x1b[0m");
+
+        let write_start = std::time::Instant::now();
+        let bytes_to_write = self.ansi_buf.len();
+        match self.writer.write_all(&self.ansi_buf) {
+            Ok(()) => {
+                self.metrics.bytes_written += bytes_to_write as u64;
+                self.metrics.write_calls += 1;
+            }
+            Err(_) => {
+                self.metrics.backpressure_events += 1;
+            }
+        }
+        let _ = self.writer.flush();
         self.metrics.total_write_ns += write_start.elapsed().as_nanos() as u64;
     }
 

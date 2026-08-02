@@ -956,6 +956,7 @@ fn main() -> std::io::Result<()> {
         compare_baseline: args.compare_baseline.clone(),
         bench_io: args.bench_io,
         bench_all: args.bench_all,
+        bench_scene: args.bench_scene.clone(),
         verbose: args.verbose,
         density_auto,
         base_density,
@@ -1410,6 +1411,3 @@ mod main_tests {
         assert_eq!(sanitize_message_text(""), "");
     }
 }
-
-#[cfg(test)]
-mod bench_warning_tests;

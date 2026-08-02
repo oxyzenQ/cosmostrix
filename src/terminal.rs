@@ -65,7 +65,7 @@ use crossterm::{
     terminal, ExecutableCommand, QueueableCommand,
 };
 
-use crate::bolt::BOLD_ESCAPES;
+use crate::bolt::{BOLD_ESCAPES, BOLD_ESCAPE_LENS};
 use crate::cell::Cell;
 use crate::color_cache::ColorCache;
 use crate::constants::{
@@ -742,15 +742,13 @@ impl Terminal {
                     }
 
                     if cell.bold != cur_bold {
-                        // BOLT: branchless table-indexed bold escape selection.
-                        // `cell.bold as usize` compiles to `setne` on x86 (no
-                        // branch), then a single `extend_from_slice` of the
-                        // precomputed escape. Eliminates the 2-branch
-                        // `if cell.bold { ... } else { ... }` cascade that
-                        // had different byte counts (4 vs 5) — the table
-                        // lookup is L1-cached and branchless. See
-                        // `src/bolt.rs` and `docs/BOLT.md`.
-                        ansi_buf.extend_from_slice(BOLD_ESCAPES[cell.bold as usize]);
+                        // BOLT: branchless bold escape via table lookup.
+                        // `cell.bold as usize` selects BOLD_ESCAPES[1] (ON,
+                        // `\x1b[1m`, 4 bytes) or BOLD_ESCAPES[0] (OFF,
+                        // `\x1b[22m`, 5 bytes). Compiles to `setne` on x86.
+                        let bold_idx = cell.bold as usize;
+                        let bold_len = BOLD_ESCAPE_LENS[bold_idx];
+                        ansi_buf.extend_from_slice(&BOLD_ESCAPES[bold_idx][..bold_len]);
                         cur_bold = cell.bold;
                     }
 
@@ -925,9 +923,10 @@ impl Terminal {
             }
 
             if bold0 != cur_bold {
-                // BOLT: branchless table-indexed bold escape selection
-                // (same as the full-redraw path above). See `src/bolt.rs`.
-                ansi_buf.extend_from_slice(BOLD_ESCAPES[bold0 as usize]);
+                // BOLT: branchless bold escape via table lookup (see above).
+                let bold_idx = bold0 as usize;
+                let bold_len = BOLD_ESCAPE_LENS[bold_idx];
+                ansi_buf.extend_from_slice(&BOLD_ESCAPES[bold_idx][..bold_len]);
                 cur_bold = bold0;
             }
 

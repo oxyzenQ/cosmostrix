@@ -75,6 +75,12 @@ pub struct CloudConfig {
     pub bench_io: bool,
     /// --bench-all: run scaling benchmark across multiple sizes
     pub bench_all: bool,
+    /// --bench-scene <NAME>: bench I/O scene selector. None = default
+    /// (emit_cell_lean); Some("production-draw") routes the writer through
+    /// the production Terminal::draw hot path (MoveTo per row + ColorCache
+    /// SGR + BOLT bold escape) so the BOLT-backed production path is
+    /// measurable. Requires --bench-io.
+    pub bench_scene: Option<String>,
     /// --verbose flag: print diagnostic info to stderr.
     pub verbose: bool,
     pub density_auto: bool,
@@ -258,6 +264,7 @@ impl CloudConfig {
             compare_baseline: None,
             bench_io: false,
             bench_all: false,
+            bench_scene: None,
             verbose: false,
             density_auto: self.density_auto,
             base_density: self.base_density,

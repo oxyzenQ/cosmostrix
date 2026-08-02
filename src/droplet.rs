@@ -955,7 +955,8 @@ mod silent_override_regression_tests {
     #[test]
     fn brightness_boost_above_one_actually_lightens() {
         // Reproduce the production arithmetic from droplet.rs:644-648.
-        let combined_layer = PARALLAX_BRIGHTNESS_MULT[2]; // front = 1.05
+        // Front brightness is Option F = 1.10 (was 1.05 before Option F).
+        let combined_layer = PARALLAX_BRIGHTNESS_MULT[2];
         assert!(
             combined_layer > 1.0,
             "front brightness must be a boost (>1.0) for this regression to be meaningful"
@@ -965,7 +966,7 @@ mod silent_override_regression_tests {
         let fi = (combined_layer * 256.0) as i32;
         let r_out = ((r_in as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
 
-        // Boost 1.05 on r=100 should produce r' ≈ 105 (not 100).
+        // Boost >1.0 on r=100 should produce r' > 100 (not 100).
         // The key invariant is r_out > r_in — if the gate regresses to
         // `< 1.0`, this branch is skipped and r_out == r_in.
         assert!(
@@ -973,10 +974,14 @@ mod silent_override_regression_tests {
             "brightness boost >1.0 was a no-op: r stayed at {r_in} (fi={fi}, r_out={r_out}). \
              Bug #1 has regressed — the gate is probably back to `< 1.0`."
         );
-        // Expected delta ≈ boost_pct × r_in ≈ 0.05 × 100 = 5.
+        // Expected delta ≈ boost_pct × r_in. For Option F (1.10): ~10.
+        // The 6.0..=14.0 range tolerates either the old 1.05 (delta≈5, but
+        // outside this range — would fail) or the new 1.10 (delta≈10). The
+        // test author picked a range that matches the current production
+        // value; update both together when retuning Option F.
         let delta = (r_out as i32 - r_in as i32).abs() as f32;
         assert!(
-            (3.0..=8.0).contains(&delta),
+            (6.0..=14.0).contains(&delta),
             "brightness boost produced unexpected delta: r {r_in} -> {r_out} (delta={delta})"
         );
     }

@@ -322,6 +322,7 @@ fn benchmark_fields_unchanged() {
         compare_baseline: None,
         bench_io: false,
         bench_all: false,
+        bench_scene: None,
         screen_size: None,
         color_tune: crate::color_tune::ColorTune::IDENTITY,
         json: false,

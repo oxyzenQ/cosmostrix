@@ -465,6 +465,19 @@ pub struct Args {
     )]
     pub bench_all: bool,
 
+    #[arg(
+        long = "bench-scene",
+        value_name = "NAME",
+        help_heading = "DIAGNOSTICS",
+        display_order = 118,
+        help = "Benchmark I/O scene: 'lean' (default, emit_cell_lean) or \
+                'production-draw' (mirrors Terminal::draw full-redraw path — \
+                MoveTo per row + ColorCache SGR + BOLT bold escape). Use \
+                'production-draw' to measure the BOLT-backed production \
+                render path; pair with --bench-io to write ANSI to /dev/null."
+    )]
+    pub bench_scene: Option<String>,
+
     // v17: --info/-i REMOVED. Merged into --doctor.
     #[arg(skip)]
     pub info: bool,
