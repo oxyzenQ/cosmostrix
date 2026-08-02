@@ -191,9 +191,22 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 /// density-map strings the user ever writes, not the number of live-reloads.
 #[must_use]
 pub fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
-    // Dedup cache: maps the raw CSV string to its parsed &'static slice.
+    // v30 fix: accept BOTH unquoted CSV (`density-map = 0.05,0.3,1.0`) and
+    // quoted CSV (`density-map = "0.05,0.3,1.0"`). The configfile parser is
+    // a custom line-by-line parser (not a real TOML parser) and does NOT
+    // strip surrounding quotes from string values. Earlier, only the
+    // unquoted form worked; the quoted form silently failed --testconf
+    // (first entry parsed as `"0.05` → not a float) and produced no
+    // density map at runtime. Now we normalize by stripping a single pair
+    // of surrounding `"` (or `'`) before splitting, matching the
+    // leaf-consumer quote-stripping pattern used by colors_custom and
+    // charset_custom.
+    let csv = csv.trim().trim_matches('"').trim_matches('\'').trim();
+
+    // Dedup cache: maps the normalized CSV string to its parsed &'static slice.
     // First call for a given CSV leaks the slice; subsequent calls return
-    // the same slice without re-leaking.
+    // the same slice without re-leaking. Dedup is keyed on the *normalized*
+    // (quote-stripped) string so `"0.5,0.5"` and `0.5,0.5` share one entry.
     static DENSITY_MAP_CACHE: OnceLock<std::sync::Mutex<HashMap<String, &'static [f64]>>> =
         OnceLock::new();
     let cache = DENSITY_MAP_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
@@ -508,5 +521,51 @@ mod tests {
         let map = parse_density_map("1.0,abc,0.5");
         assert!(map.is_some());
         assert_eq!(map.unwrap(), &[1.0, 0.5]);
+    }
+
+    // v30 fix: quoted CSV strings must work. The configfile parser is a
+    // custom line-by-line parser that does NOT strip surrounding quotes
+    // from string values, so the leaf parser must do it. Without this,
+    // `density-map = "0.05,0.3,1.0"` would parse `"0.05` as the first
+    // entry (not a float) and silently produce None at runtime while
+    // also failing --testconf.
+    #[test]
+    fn parse_density_map_accepts_double_quoted_csv() {
+        let map = parse_density_map("\"0.05,0.3,1.0\"");
+        assert!(map.is_some());
+        assert_eq!(map.unwrap(), &[0.05, 0.3, 1.0]);
+    }
+
+    #[test]
+    fn parse_density_map_accepts_single_quoted_csv() {
+        let map = parse_density_map("'0.1, 0.2, 0.3'");
+        assert!(map.is_some());
+        assert_eq!(map.unwrap(), &[0.1, 0.2, 0.3]);
+    }
+
+    #[test]
+    fn parse_density_map_accepts_quoted_with_whitespace_padding() {
+        // User wrote `density-map = " 0.5, 0.5 "` — quotes + outer spaces.
+        let map = parse_density_map("  \"0.5,0.5\"  ");
+        assert!(map.is_some());
+        assert_eq!(map.unwrap(), &[0.5, 0.5]);
+    }
+
+    #[test]
+    fn parse_density_map_quoted_and_unquoted_share_cache_entry() {
+        // Both forms normalize to the same key `"0.5,0.5"` → 0.5,0.5,
+        // so the dedup cache should return the same slice pointer.
+        let a = parse_density_map("0.5,0.5").unwrap();
+        let b = parse_density_map("\"0.5,0.5\"").unwrap();
+        assert!(
+            std::ptr::eq(a.as_ptr(), b.as_ptr()),
+            "quoted and unquoted forms should share the same cached slice"
+        );
+    }
+
+    #[test]
+    fn parse_density_map_quoted_empty_string_returns_none() {
+        assert!(parse_density_map("\"\"").is_none());
+        assert!(parse_density_map("''").is_none());
     }
 }

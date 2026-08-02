@@ -454,7 +454,15 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // non-numeric entries). Now --testconf fails loudly so users see
         // the typo before running. Format: comma-separated floats in
         // [0.0, 1.0], at least one non-empty entry.
+        //
+        // v30 fix: also strip a single pair of surrounding `"` or `'`
+        // before splitting. The configfile parser does NOT strip quotes
+        // from string values, so `density-map = "0.05,0.3,1.0"` would
+        // otherwise split into `"0.05`, `0.3`, `1.0"` and the first/last
+        // entries would fail the f64 parse with a confusing error message.
+        // This mirrors the same quote-stripping logic in parse_density_map.
         "density-map" => {
+            let v = v.trim().trim_matches('"').trim_matches('\'').trim();
             let entries: Vec<&str> = v.split(',').map(|s| s.trim()).collect();
             let non_empty: Vec<&str> = entries.iter().copied().filter(|s| !s.is_empty()).collect();
             if non_empty.is_empty() {
@@ -826,6 +834,52 @@ mod tests {
     fn density_map_empty_is_rejected() {
         let err = validate_field_value("density-map", ",,,").expect("empty should fail");
         assert!(err.contains("at least one"), "got: {err}");
+    }
+
+    // v30 fix: quoted CSV strings must pass --testconf. The configfile
+    // parser does not strip surrounding quotes, so the validator must.
+    #[test]
+    fn density_map_quoted_csv_passes() {
+        // Double-quoted form (most common user mistake).
+        assert!(
+            validate_field_value("density-map", "\"0.05,0.3,1.0\"").is_none(),
+            "double-quoted CSV should pass --testconf"
+        );
+        // Single-quoted form.
+        assert!(
+            validate_field_value("density-map", "'0.1, 0.2, 0.3'").is_none(),
+            "single-quoted CSV should pass --testconf"
+        );
+        // Quoted + outer whitespace.
+        assert!(
+            validate_field_value("density-map", "  \"0.5,0.5\"  ").is_none(),
+            "quoted CSV with whitespace padding should pass --testconf"
+        );
+    }
+
+    #[test]
+    fn density_map_quoted_empty_is_rejected() {
+        assert!(
+            validate_field_value("density-map", "\"\"").is_some(),
+            "quoted empty string should fail --testconf"
+        );
+        assert!(
+            validate_field_value("density-map", "''").is_some(),
+            "single-quoted empty string should fail --testconf"
+        );
+    }
+
+    #[test]
+    fn density_map_quoted_non_numeric_is_rejected() {
+        // The error message should refer to the *unquoted* entry, not `"abc`.
+        let err = validate_field_value("density-map", "\"abc,def\"").expect("should fail");
+        assert!(err.contains("expected float"), "got: {err}");
+        assert!(err.contains("abc"), "got: {err}");
+        // Make sure the error does NOT include a stray quote character.
+        assert!(
+            !err.contains("\"abc"),
+            "error message should reference the stripped entry 'abc', not '\"abc': {err}"
+        );
     }
 
     // ── Enum value validation ──

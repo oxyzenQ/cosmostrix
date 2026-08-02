@@ -1305,12 +1305,30 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // loop and falsely detect a "stuck" state after normal exit.
     SHUTDOWN.store(true, Ordering::Release);
 
+    // v30 fix: always print a one-line final FPS summary on exit so the
+    // user has an honest number without needing --perf-stats. Previously
+    // "FRAME OVERSHOOT avg: 0.000" was misread as "0 FPS" — it's actually
+    // perf_pressure (0 by design when renderer keeps up with target_fps).
+    let final_elapsed = start_time.elapsed();
+    let final_elapsed_s = final_elapsed.as_secs_f64().max(0.000_001);
+    let final_avg_fps = (perf_frames as f64) / final_elapsed_s;
+    let last_work_ms = frame_time_tracker.rolling_avg_ms();
+    let final_instant_fps = if last_work_ms > 0.0 {
+        (1000.0 / last_work_ms).min(cfg.target_fps)
+    } else {
+        cfg.target_fps
+    };
+    eprintln!(
+        "[cosmostrix] final FPS: {:.1} (instant: {:.1}, target: {:.1}), frames: {}, elapsed: {:.2}s",
+        final_avg_fps, final_instant_fps, cfg.target_fps, perf_frames, final_elapsed_s
+    );
+
     if cfg.perf_stats {
         // Capture encoding stats BEFORE dropping the terminal — the stats
         // live inside the Terminal/ColorCache and would be lost on drop.
         let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
         drop(term);
-        let elapsed = start_time.elapsed();
+        let elapsed = final_elapsed;
         let elapsed_s = elapsed.as_secs_f64().max(0.000_001);
 
         let frames = perf_frames.max(1);
@@ -1335,6 +1353,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             s.field("elapsed", &format!("{:.3}s", elapsed_s));
             s.field("target_fps", &format!("{:.3}", cfg.target_fps));
             s.field("avg_fps", &format!("{:.3}", avg_fps));
+            // v30: real instantaneous FPS from last ~1s of frame work times.
+            // Capped at target_fps (loop sleeps to maintain target). Read
+            // this for "what FPS am I seeing now" — distinct from avg_fps
+            // (whole-run average) and BACKPRESSURE.avg (load-shed signal).
+            s.field("instant_fps", &format!("{:.3}", final_instant_fps));
             s.field(
                 "rolling_avg_frame_time",
                 &format!("{:.3}ms", frame_time_tracker.rolling_avg_ms()),
@@ -1392,15 +1415,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
 
         {
-            // Frame overshoot = how often frame work exceeded the target frame
-            // period (1/target_fps). Non-zero ONLY when the renderer can't keep
-            // up with --fps. On healthy hardware this is 0.000 by design —
-            // the rain loop finishes in 1-5ms vs the 16.67ms budget at 60fps.
-            // The `basis` field documents the formula so 0.000 reads as
-            // "renderer is faster than target_fps" (good), not as a bug.
-            // Cloud consumes this as a load-shed signal (rain.rs spawn scaling,
-            // glitch gating, phosphor gating, CRT vignette gating).
-            let s = r.section("FRAME OVERSHOOT");
+            // Backpressure = how often frame work exceeded the target frame
+            // period (1/target_fps). Non-zero ONLY when the renderer can't
+            // keep up with --fps. On healthy hardware this is 0.000 by design.
+            // v30 rename: was "FRAME OVERSHOOT" — users misread "avg: 0.000"
+            // as "0 FPS". The advice line reinforces: 0.000 = healthy.
+            let s = r.section("BACKPRESSURE");
             s.field("avg", &format!("{:.3}", avg_pressure));
             s.field("peak", &format!("{:.3}", perf_pressure_max));
             s.field("classification", pressure_class);
@@ -1414,6 +1434,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     "{} ({:.1}% of total)",
                     perf_overshoot_frames, overshoot_ratio
                 ),
+            );
+            s.advice(
+                "0.000 = healthy (renderer kept up with target_fps). For real FPS see TIMING.avg_fps / TIMING.instant_fps.",
             );
         }
 

@@ -644,6 +644,9 @@ pub fn dump_config_text() -> &'static str {
 # Density Map: sculpt monolith pillar formation per-column.
 # Comma-separated weights (0.0..1.0). 0.0 = never spawn, 1.0 = always spawn.
 # Maps shorter than terminal width treat missing columns as 1.0.
+# Both quoted and unquoted forms work:
+#   density-map = 0.05,0.3,1.0           (unquoted — standard)
+#   density-map = "0.05,0.3,1.0"         (quoted — also valid)
 # Three cinematic presets (120 columns each) — uncomment to use:
 
 # Twin Towers — two dense pillar clusters, sparse canyon between.
