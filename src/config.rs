@@ -468,13 +468,16 @@ pub struct Args {
     #[arg(
         long = "bench-scene",
         value_name = "NAME",
+        value_parser = ["lean", "production-draw"],
         help_heading = "DIAGNOSTICS",
         display_order = 118,
         help = "Benchmark I/O scene: 'lean' (default, emit_cell_lean) or \
                 'production-draw' (mirrors Terminal::draw full-redraw path — \
                 MoveTo per row + ColorCache SGR + BOLT bold escape). Use \
                 'production-draw' to measure the BOLT-backed production \
-                render path; pair with --bench-io to write ANSI to /dev/null."
+                render path; pair with --bench-io to write ANSI to /dev/null. \
+                Strict: typos are rejected at parse time, not silently \
+                fallback'd to the default lean path."
     )]
     pub bench_scene: Option<String>,
 

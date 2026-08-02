@@ -369,6 +369,8 @@ DIAGNOSTICS
                               'production-draw' (mirrors Terminal::draw full-redraw path).
                               Use 'production-draw' to measure the BOLT-backed production
                               render path; pair with --bench-io to write ANSI to /dev/null.
+                              Strict: typos are rejected at parse time, never silently
+                              fallback'd to the default lean path.
       --save-baseline <path>  Save benchmark JSON for later comparison
       --compare-baseline <p>  Compare against saved baseline (flags >5% FPS regressions)
       --reset-terminal        Emergency terminal recovery (5-layer: ANSI + crossterm + stty + reset)
@@ -553,6 +555,8 @@ target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
 ```
 
 Pair `--bench-scene production-draw` with `--save-baseline` to lock in a regression baseline for the production path; pair with `--bench-all` to see how the production path scales across screen sizes.
+
+> **Strict validation:** only `lean` and `production-draw` are accepted. Typos (e.g. `leanax`, `production-drawmadadadaxa`) are rejected with a clean error at parse time — cosmostrix never silently falls back to the default lean path. This is part of the honesty contract: no hidden flags, no hidden behavior.
 
 See [benchmark/README.md](benchmark/README.md) for full reference results, [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md) for MICROARCHITECTURE/ENERGY enablement, and [docs/RAIN_DEPTH_AUDIT.md](docs/RAIN_DEPTH_AUDIT.md) for the visual-audit methodology that uses `--bench-scene production-draw`.
 

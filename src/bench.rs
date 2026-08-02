@@ -171,6 +171,11 @@ fn compute_config_enrichment(
 /// Legacy CI benchmark: run N frames and print results in the original format.
 /// Output format is preserved for backwards compatibility.
 pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
+    // Strict-validate --bench-scene BEFORE any allocation so an invalid
+    // value (typo like "leanax") fails fast instead of silently falling
+    // back to the default lean path. Honesty contract: no hidden behavior.
+    validate_bench_scene(cfg);
+
     let bench_frames = cfg.bench_frames.expect("bench_frames must be set");
 
     let (w, h) = crate::bench_helpers::bench_dimensions(cfg.screen_size);
@@ -244,10 +249,62 @@ pub(crate) fn resolve_bench_duration(override_secs: Option<u64>) -> Result<u64, 
     }
 }
 
+// ── --bench-scene strict validation ───────────────────────────────────
+//
+// Honesty contract: `--bench-scene` is strict. Typos like "leanax" or
+// "production-drawmadadadaxa" are REJECTED with a clean error, NOT
+// silently fallback'd to the default lean path. cosmostrix has no hidden
+// behavior — every flag value is either valid or fails loudly.
+
+/// Valid `--bench-scene` values.
+/// - `lean`: default fast path (emit_cell_lean — per-dirty-cell SGR emission)
+/// - `production-draw`: mirrors Terminal::draw full-redraw path
+///   (MoveTo per row + ColorCache SGR + BOLT bold escape)
+pub(crate) const VALID_BENCH_SCENES: &[&str] = &["lean", "production-draw"];
+
+/// Returns `Err(message)` if the scene name is not in [`VALID_BENCH_SCENES`].
+/// Returns `Ok(())` for `None` (no `--bench-scene` flag) and valid names.
+///
+/// Split from [`validate_bench_scene`] so the core logic is unit-testable
+/// without constructing a full `CloudConfig`.
+pub(crate) fn validate_bench_scene_str(scene: Option<&str>) -> Result<(), String> {
+    match scene {
+        None => Ok(()),
+        Some(s) if VALID_BENCH_SCENES.contains(&s) => Ok(()),
+        Some(s) => Err(format!(
+            "error: invalid --bench-scene value '{s}'. \
+             Valid scenes: {} (lean = emit_cell_lean fast path, \
+             production-draw = Terminal::draw full-redraw path). \
+             cosmostrix is strict — typos are rejected, not silently \
+             fallback'd to the default lean path.",
+            VALID_BENCH_SCENES.join(", ")
+        )),
+    }
+}
+
+/// Returns `Err(message)` if `cfg.bench_scene` is set to an invalid value.
+pub(crate) fn validate_bench_scene_result(cfg: &CloudConfig) -> Result<(), String> {
+    validate_bench_scene_str(cfg.bench_scene.as_deref())
+}
+
+/// Strict-validate `--bench-scene`. Exits with a clean single-line error if
+/// the value is not in [`VALID_BENCH_SCENES`]. Called at the top of every
+/// benchmark entry point so typos can never silently fall through to the
+/// default lean path.
+pub(crate) fn validate_bench_scene(cfg: &CloudConfig) {
+    crate::ux::or_exit::<(), String>(validate_bench_scene_result(cfg));
+}
+
 /// Premium user-facing benchmark: runs for the configured duration (default
 /// 5s, override with `--bench-duration N`) with live progress feedback and
 /// enhanced metrics in a Report-engine output.
 pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
+    // Strict-validate --bench-scene BEFORE any allocation so an invalid
+    // value (typo like "leanax" or "production-drawmadadadaxa") fails fast
+    // instead of silently falling back to the default lean path.
+    // Honesty contract: no hidden behavior, no silent fallback.
+    validate_bench_scene(cfg);
+
     // Validate --bench-duration BEFORE allocating any resources so an
     // out-of-range value fails fast without polluting the terminal.
     // Uses or_exit to print a single clean error line and exit; the
@@ -946,6 +1003,10 @@ pub fn run_benchmark_capture(
 
 /// Internal: run benchmark measurement and return data (no output).
 fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchReportData> {
+    // Strict-validate --bench-scene so typos are rejected even when called
+    // via run_benchmark_capture (used by --bench-all).
+    validate_bench_scene(cfg);
+
     let bench_duration_secs = crate::ux::or_exit(resolve_bench_duration(cfg.bench_duration));
 
     let (w, h) = crate::bench_helpers::bench_dimensions(cfg.screen_size);
@@ -1232,4 +1293,88 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     };
 
     Ok(report_data)
+}
+
+#[cfg(test)]
+mod bench_scene_validation_tests {
+    use super::*;
+
+    #[test]
+    fn none_is_ok() {
+        // No --bench-scene flag → default lean path, no error.
+        assert!(validate_bench_scene_str(None).is_ok());
+    }
+
+    #[test]
+    fn valid_lean() {
+        assert!(validate_bench_scene_str(Some("lean")).is_ok());
+    }
+
+    #[test]
+    fn valid_production_draw() {
+        assert!(validate_bench_scene_str(Some("production-draw")).is_ok());
+    }
+
+    #[test]
+    fn rejects_typo_leanax() {
+        // Reported bug: "leanax" was silently accepted.
+        let err = validate_bench_scene_str(Some("leanax")).unwrap_err();
+        assert!(err.contains("invalid --bench-scene value 'leanax'"), "got: {err}");
+        assert!(err.contains("Valid scenes: lean, production-draw"), "got: {err}");
+    }
+
+    #[test]
+    fn rejects_typo_axa() {
+        // Reported bug: "axa" was silently accepted.
+        let err = validate_bench_scene_str(Some("axa")).unwrap_err();
+        assert!(err.contains("invalid --bench-scene value 'axa'"), "got: {err}");
+    }
+
+    #[test]
+    fn rejects_typo_production_draw_garbage() {
+        // Reported bug: "production-drawmadadadaxa" was silently accepted.
+        let err =
+            validate_bench_scene_str(Some("production-drawmadadadaxa")).unwrap_err();
+        assert!(
+            err.contains("invalid --bench-scene value 'production-drawmadadadaxa'"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_empty_string() {
+        let err = validate_bench_scene_str(Some("")).unwrap_err();
+        assert!(err.contains("invalid --bench-scene value ''"), "got: {err}");
+    }
+
+    #[test]
+    fn rejects_case_variant() {
+        // Strict: "Lean" (capitalized) is NOT valid.
+        assert!(validate_bench_scene_str(Some("Lean")).is_err());
+    }
+
+    #[test]
+    fn rejects_production_draw_uppercase() {
+        assert!(validate_bench_scene_str(Some("Production-Draw")).is_err());
+    }
+
+    #[test]
+    fn rejects_whitespace_padded() {
+        assert!(validate_bench_scene_str(Some(" lean ")).is_err());
+    }
+
+    #[test]
+    fn error_message_lists_all_valid_scenes() {
+        let err = validate_bench_scene_str(Some("bogus")).unwrap_err();
+        for scene in VALID_BENCH_SCENES {
+            assert!(err.contains(scene), "error msg missing '{scene}': {err}");
+        }
+    }
+
+    #[test]
+    fn error_message_mentions_strict_contract() {
+        let err = validate_bench_scene_str(Some("bogus")).unwrap_err();
+        assert!(err.contains("strict"), "got: {err}");
+        assert!(err.contains("not silently"), "got: {err}");
+    }
 }
