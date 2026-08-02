@@ -72,10 +72,7 @@ pub(super) struct QuantumParticle {
     pub vy: f32,
     pub birth: Instant,
     pub ch: char,
-    /// Snapshot of palette body color (decoded RGB) at spawn time. Stored
-    /// per-particle so a palette switch mid-flight produces a crossfade:
-    /// old cohort keeps its body color, new particles use the new one.
-    /// Defaults to `QUANTUM_BRAND_PURPLE_*` for inactive pool entries.
+    /// Palette body color at spawn (crossfade on palette switch).
     pub r: u8,
     pub g: u8,
     pub b: u8,
@@ -154,8 +151,7 @@ pub struct Cloud {
 
     pub(super) resume_blend: f32,
     pub(super) resume_start: Option<Instant>,
-    /// Starting `resume_blend` for the acceleration ramp — lets a rapid
-    /// triple-tap 'p' interpolate 0.4→1.0 instead of snapping to 0.
+    /// Starting resume_blend for the acceleration ramp (triple-tap 'p').
     pub(super) resume_blend_start: f32,
 
     pub(super) pause_start: Option<Instant>,
@@ -203,11 +199,7 @@ pub struct Cloud {
     pub(super) flash_time: Option<Instant>,
 
     pub(super) quantum_particles: Vec<QuantumParticle>,
-    /// Number of active quantum particles in `quantum_particles`.
-    /// Tracked incrementally (incremented on spawn, decremented on
-    /// expiry/deactivation) so `apply_quantum_ripple` can early-out
-    /// in O(1) when no particles are active — the common case in
-    /// interactive rendering when the user is not clicking.
+    /// Active quantum particle count (incremental — early-out in O(1)).
     pub(super) quantum_active_count: usize,
 
     pub(super) last_reseed_time: Instant,
@@ -219,8 +211,7 @@ pub struct Cloud {
     pub(super) phosphor_fresh: BitVec,
     pub(super) phosphor_in_active: BitVec,
     pub(super) last_phosphor_time: Instant,
-    /// Last `apply_quantum_ripple` timestamp — drives frame-rate-independent
-    /// particle motion. See `apply_quantum_ripple` in `cloud/rain.rs`.
+    /// Last apply_quantum_ripple timestamp (frame-rate-independent motion).
     pub(super) last_quantum_update_time: Instant,
     pub(super) phosphor_active: SmallVec<[usize; 256]>,
     pub(super) phosphor_last_fresh: SmallVec<[usize; 256]>,
@@ -241,6 +232,12 @@ pub struct Cloud {
     pub(super) glyph_entry_time: Option<Instant>,
 
     pub(super) auto_color_drift: bool,
+    /// v30 strengthen (Bug #4): true when --colors-custom is active. Palette
+    /// drift is suppressed in this case (would overwrite user palette).
+    pub(super) custom_palette_active: bool,
+    /// v30 strengthen (Bug #5): color_tune stored on Cloud so set_color_scheme
+    /// can re-apply it after palette rebuild (otherwise drift drops the tune).
+    pub(super) color_tune: crate::color_tune::ColorTune,
 
     pub(super) event_manager: AtmosphericEventManager,
 
@@ -398,6 +395,9 @@ impl Cloud {
             storytelling: StorytellingState::new(now),
             glyph_entry_time: None,
             auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
+            // v30 strengthen: overridden in app.rs create_cloud.
+            custom_palette_active: false,
+            color_tune: crate::color_tune::ColorTune::IDENTITY,
             event_manager: AtmosphericEventManager::new(now),
             gust: living_rain::GustState::new(now),
             last_sim_ms: 0.0,

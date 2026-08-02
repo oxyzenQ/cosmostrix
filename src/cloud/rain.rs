@@ -803,10 +803,19 @@ impl Cloud {
         // Autonomous *palette* drift (scheme replacement) is gated behind
         // `auto_color_drift` so that explicit CLI/config/profile color
         // remains sticky by default.
+        //
+        // v30 strengthen (Bug #4): when a custom palette is active, palette
+        // drift is suppressed even if `auto_color_drift` is true — otherwise
+        // set_color_scheme would overwrite the user's custom palette with a
+        // built-in one (silent data loss). Climate drift still runs because
+        // it only modulates rendering params, not the palette itself.
+        // The ecosystem.tick() call is unconditional so the climate state
+        // keeps evolving (and the RNG stream stays consistent); only the
+        // palette replacement is skipped.
         let maybe_drift = self
             .color_ecosystem
             .tick(now, &mut self.mt, self.color_scheme);
-        if self.auto_color_drift {
+        if self.auto_color_drift && !self.custom_palette_active {
             if let Some(new_scheme) = maybe_drift {
                 self.set_color_scheme(new_scheme);
             }

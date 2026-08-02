@@ -152,7 +152,13 @@ fn compute_config_enrichment(
         "intense"
     };
     let glitch_pct = cfg.glitch_pct;
-    let auto_color_drift = cfg.auto_color_drift;
+    // v30 strengthen (Bug #12): benchmark mode always disables palette drift
+    // to keep p99/max metrics clean (see the `cloud.auto_color_drift = false`
+    // override in run_benchmark / run_premium_benchmark / run_premium_benchmark_silent).
+    // The report must reflect the actual cloud state, not the user's --auto-color-drift
+    // flag — otherwise the disclosure violates the honesty contract (report says
+    // drift is on when the cloud actually has it off).
+    let auto_color_drift = false;
 
     (
         color_mode_label,
@@ -187,6 +193,12 @@ pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
+                                    // v30 strengthen: drift spike protection — palette drift in benchmark
+                                    // mode corrupts p99/max metrics with palette-rebuild cost. Disable
+                                    // here so benchmarks are deterministic. Climate drift (luminance/
+                                    // saturation/hue modulation) still runs because it is deterministic
+                                    // (fixed RNG seed) and has no rebuild cost.
+    cloud.auto_color_drift = false;
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
@@ -326,6 +338,12 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
+                                    // v30 strengthen: drift spike protection — palette drift in benchmark
+                                    // mode corrupts p99/max metrics with palette-rebuild cost. Disable
+                                    // here so benchmarks are deterministic. Climate drift (luminance/
+                                    // saturation/hue modulation) still runs because it is deterministic
+                                    // (fixed RNG seed) and has no rebuild cost.
+    cloud.auto_color_drift = false;
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
@@ -1017,6 +1035,12 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     cloud.set_component_timing(true);
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
+                                    // v30 strengthen: drift spike protection — palette drift in benchmark
+                                    // mode corrupts p99/max metrics with palette-rebuild cost. Disable
+                                    // here so benchmarks are deterministic. Climate drift (luminance/
+                                    // saturation/hue modulation) still runs because it is deterministic
+                                    // (fixed RNG seed) and has no rebuild cost.
+    cloud.auto_color_drift = false;
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
     let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);

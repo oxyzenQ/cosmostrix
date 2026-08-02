@@ -37,7 +37,17 @@ impl Cloud {
     pub fn set_color_scheme(&mut self, scheme: ColorScheme) {
         self.color_scheme = scheme;
         use crate::palette::build_palette;
-        let new_palette = build_palette(scheme, self.color_mode, self.default_background);
+        let mut new_palette = build_palette(scheme, self.color_mode, self.default_background);
+        // v30 strengthen (Bug #5): re-apply color_tune after palette rebuild.
+        // Without this, the first palette drift would silently drop the
+        // user's --color-tune settings (sat/bright/head/body/tail). The
+        // tune is stored on Cloud at construction time (see app.rs).
+        // Identity tune is a no-op (all multipliers are 1.0).
+        crate::color_tune::apply_tune_to_palette(
+            &mut new_palette,
+            self.color_mode,
+            &self.color_tune,
+        );
         self.apply_new_palette(new_palette);
     }
 

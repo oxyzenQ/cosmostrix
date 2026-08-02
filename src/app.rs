@@ -218,6 +218,19 @@ impl CloudConfig {
         // color remains sticky across the entire session.
         cloud.auto_color_drift = self.auto_color_drift;
 
+        // v30 strengthen (Bug #4): if a custom palette is active, drift's
+        // set_color_scheme would overwrite the user's custom palette with a
+        // built-in one (silent data loss). Track this so the rain loop can
+        // suppress palette drift while still allowing climate drift (which
+        // only modulates rendering params, not the palette itself).
+        cloud.custom_palette_active = self.custom_palette.is_some();
+
+        // v30 strengthen (Bug #5): store color_tune on Cloud so that
+        // set_color_scheme can re-apply it after rebuilding the palette.
+        // Without this, the first palette drift would silently drop the
+        // user's --color-tune settings.
+        cloud.color_tune = self.color_tune;
+
         if let Some(msg) = &self.message {
             cloud.set_message_border(self.message_border);
             cloud.set_message(msg);

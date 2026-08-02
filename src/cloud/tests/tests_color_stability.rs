@@ -338,3 +338,89 @@ fn endurance_color_sticky_default_off() {
         "Sun color must remain sticky across simulated time (endurance)"
     );
 }
+
+// v30 strengthen (Bug #4): custom palette active suppresses palette drift.
+// Even with auto_color_drift=true, set_color_scheme would overwrite the
+// user's --colors-custom palette with a built-in one. The rain loop must
+// skip the palette replacement while still allowing climate drift.
+
+#[test]
+fn custom_palette_active_suppresses_palette_drift() {
+    let mut cloud = make_green_cloud();
+    cloud.auto_color_drift = true;
+    // Simulate a --colors-custom user palette being active.
+    cloud.custom_palette_active = true;
+    // Reset ecosystem tick timer so the drift check fires immediately.
+    let start = Instant::now();
+    cloud.color_ecosystem.last_tick = start - Duration::from_secs(10);
+    // Seed RNG to a known value that exercises the drift path (same seed
+    // as auto_color_drift_is_opt_in_only, which does drift without the
+    // custom_palette_active guard).
+    cloud.mt = StdRng::seed_from_u64(0xDEAD_BEEF);
+
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    let frame_dt = Duration::from_micros(16_667);
+
+    // Simulate 5 minutes — well above the 3-second ecosystem tick interval,
+    // and the unguarded path would drift within ~40 minutes (per the test
+    // above). With the guard, the scheme must stay Green for the entire run.
+    for i in 0..18_000u64 {
+        let now = start + frame_dt.saturating_mul(i as u32);
+        cloud.last_spawn_time = now - Duration::from_millis(16);
+        cloud.last_phosphor_time = now;
+        cloud.rain_at(&mut frame, now);
+        assert_eq!(
+            cloud.color_scheme(),
+            ColorScheme::Green,
+            "custom_palette_active must suppress drift at frame {} ({:.1}s)",
+            i,
+            i as f64 * 16.667 / 1000.0
+        );
+    }
+}
+
+// v30 strengthen (Bug #5): set_color_scheme re-applies color_tune.
+// Without this, the first palette drift would silently drop the user's
+// --color-tune settings. Test: set a non-identity tune, call
+// set_color_scheme, verify the palette still has the tune applied.
+
+#[test]
+fn set_color_scheme_reapplies_color_tune() {
+    use crate::color_tune::ColorTune;
+    use crate::palette::build_palette;
+
+    let mut cloud = make_green_cloud();
+    // Apply a non-identity tune (saturation 2.0 — clearly visible).
+    let tune = ColorTune {
+        saturation: 2.0,
+        brightness: 1.0,
+        head: 1.0,
+        body: 1.0,
+        tail: 1.0,
+    };
+    cloud.color_tune = tune;
+    // Apply the tune to the current palette (mirrors app.rs create_cloud).
+    crate::color_tune::apply_tune_to_palette(&mut cloud.palette, cloud.color_mode, &tune);
+
+    // Snapshot the post-tune Green palette's first body color.
+    let tuned_green_color = cloud.palette.colors.first().copied();
+    assert!(tuned_green_color.is_some(), "palette must have colors");
+
+    // Now call set_color_scheme to a different scheme and back.
+    cloud.set_color_scheme(ColorScheme::Sun);
+    cloud.set_color_scheme(ColorScheme::Green);
+
+    // The palette should match a freshly-built+ tuned Green palette.
+    let mut expected = build_palette(
+        ColorScheme::Green,
+        cloud.color_mode,
+        cloud.default_background,
+    );
+    crate::color_tune::apply_tune_to_palette(&mut expected, cloud.color_mode, &tune);
+
+    assert_eq!(
+        cloud.palette.colors.first().copied(),
+        expected.colors.first().copied(),
+        "set_color_scheme must re-apply color_tune after palette rebuild"
+    );
+}

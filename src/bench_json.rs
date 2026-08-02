@@ -85,6 +85,17 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         o.push_kv("target_fps", data.target_fps);
         o.push_kv("speed", data.speed);
         o.push_kv("density", data.density);
+        // v30 strengthen (Bug #3): expose auto_color_drift + glitch_enabled
+        // + color_tune_summary in JSON output so CI/scripts can verify the
+        // exact drift / glitch / tune state of a benchmark run. Previously
+        // these were only in the text report — JSON consumers had to grep
+        // the text output or guess.
+        o.push_kv("auto_color_drift", data.auto_color_drift);
+        o.push_kv("glitch_enabled", data.glitch_enabled);
+        o.push_kv_str("glitch_level", data.glitch_level);
+        o.push_kv("glitch_pct", data.glitch_pct);
+        o.push_kv_str("color_tune", &data.color_tune_summary);
+        o.push_kv("async_mode", data.async_mode);
     });
 
     // ── environment ──

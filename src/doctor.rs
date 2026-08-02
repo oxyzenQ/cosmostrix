@@ -162,6 +162,22 @@ pub fn print_doctor_report(args: &Args) {
             "color_tuning",
             "yes ([color.tune] config section: head/body/tail brightness & saturation)",
         );
+        // v30 strengthen (Bug #11): surface auto-color-drift state in --doctor.
+        // Previously the doc claimed --doctor emitted it, but the actual
+        // implementation did not. Now it does.
+        s.field(
+            "auto_color_drift",
+            if args.auto_color_drift {
+                "on (palette drift enabled — long runs may cross palette transitions)"
+            } else {
+                "off (default — palette is sticky for the entire session)"
+            },
+        );
+        s.field(
+            "color_ecosystem",
+            "always-on (luminance/saturation/hue climate drift modulates rendering params; \
+             palette drift is gated behind auto_color_drift)",
+        );
     }
 
     // SYSTEM section
