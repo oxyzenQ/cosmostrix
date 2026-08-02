@@ -905,6 +905,10 @@ fn main() -> std::io::Result<()> {
             .and_then(scene_custom::parse_density_map)
     });
 
+    // v25.16: CliExplicit now derives Copy (7 bools, 7 bytes), so reading
+    // cli_explicit.fps after the CloudConfig move is a cheap field copy
+    // rather than a move. This avoids the E0382 (use of moved value) that
+    // broke Windows + MSRV CI builds on commit 5ec253b.
     let cloud_cfg = CloudConfig {
         color_mode,
         shading_mode,
@@ -1007,8 +1011,16 @@ fn main() -> std::io::Result<()> {
         cli_explicit,
     };
 
+    // v25.16: detect fps set by ANY source (CLI --fps OR config.toml fps=).
+    // cli_explicit.fps tracks CLI only; args.fps != 60.0 catches config.toml
+    // fps set to a non-default value (config_apply.rs applies config -> args).
+    // Together they cover: --fps 20, --fps 60 (explicit default), config fps=10.
+    // Edge case not covered: config fps=60 (set to default value — a no-op,
+    // so not warning is correct).
+    let fps_user_set = cli_explicit.fps || args.fps != 60.0;
+
     if args.bench_all {
-        warn_bench_noop_flags(&args, cli_explicit.fps);
+        warn_bench_noop_flags(&args, fps_user_set);
         let duration = resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
         let results = crate::bench_scale::run_scaling_benchmark(&cloud_cfg, duration)?;
         if args.json {
@@ -1021,12 +1033,12 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.benchmark {
-        warn_bench_noop_flags(&args, cli_explicit.fps);
+        warn_bench_noop_flags(&args, fps_user_set);
         return bench::run_premium_benchmark(&cloud_cfg);
     }
 
     if let Some(_bench_frames) = args.bench_frames {
-        warn_bench_noop_flags(&args, cli_explicit.fps);
+        warn_bench_noop_flags(&args, fps_user_set);
         return bench::run_benchmark(&cloud_cfg);
     }
 
@@ -1174,17 +1186,21 @@ fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
 ///     unconstrained — the bench loop spins full tilt with zero sleeps.
 ///     User reports showed the absence of this warning caused real
 ///     confusion: `cosmostrix --benchmark --fps 60` silently ran the same
-///     as without `--fps 60`. Now warned whenever `--fps` is explicit.
+///     as without `--fps 60`. Now warned whenever `--fps` is explicit
+///     (detected via `cli_explicit.fps`) OR set in config.toml to a
+///     non-default value (detected via `args.fps != 60.0`). The config
+///     path catches `fps = 10` in `~/.config/cosmostrix/config.toml`.
 ///   - `--duration` (hidden): interactive auto-exit only; bench uses --bench-duration
 ///   - `--screensaver`: interactive input handler only; bench has no input loop
 ///   - `--intro`: interactive intro animation; bench never plays it
 ///   - `--perf-stats` (hidden): interactive summary only; bench emits BenchReportData
-fn collect_bench_noop_warnings(args: &Args, fps_explicit: bool) -> Vec<&'static str> {
+fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static str> {
     let mut warns: Vec<&'static str> = Vec::new();
-    if fps_explicit {
+    if fps_user_set {
         warns.push(
             "--fps (in benchmark mode sets simulation rate only — does NOT cap \
-             render throughput; avg_fps is unconstrained)",
+             render throughput; avg_fps is unconstrained; check config.toml \
+             [fps] if you did not pass --fps on the CLI)",
         );
     }
     if args.duration.is_some() {
@@ -1204,8 +1220,8 @@ fn collect_bench_noop_warnings(args: &Args, fps_explicit: bool) -> Vec<&'static 
 
 /// Warn the user about CLI flags that are misleading or have NO effect in
 /// benchmark mode. See `collect_bench_noop_warnings` for the audit details.
-fn warn_bench_noop_flags(args: &Args, fps_explicit: bool) {
-    let warns = collect_bench_noop_warnings(args, fps_explicit);
+fn warn_bench_noop_flags(args: &Args, fps_user_set: bool) {
+    let warns = collect_bench_noop_warnings(args, fps_user_set);
     if warns.is_empty() {
         return;
     }
@@ -1339,7 +1355,7 @@ mod color_detection_tests;
 
 #[cfg(test)]
 mod main_tests {
-    use super::sanitize_message_text;
+    use super::{collect_bench_noop_warnings, sanitize_message_text};
 
     /// v25.11 (bug #11): ASCII-only messages pass through unchanged.
     #[test]
@@ -1401,26 +1417,26 @@ mod main_tests {
     /// implementation explicitly skipped `--fps` from `warn_bench_noop_flags`
     /// on the rationale that "it has an effect, just a different one". User
     /// feedback overruled that — silence caused real confusion. Now the
-    /// warning MUST fire whenever `--fps` is explicit and any bench mode
-    /// is active.
+    /// warning MUST fire whenever `--fps` is explicit (CLI) OR set to a
+    /// non-default value in config.toml (detected via args.fps != 60.0).
     #[test]
-    fn bench_noop_warnings_include_fps_when_explicit() {
+    fn bench_noop_warnings_include_fps_when_user_set() {
         use crate::config::Args;
         use clap::Parser;
-        // Default Args (no explicit flags). fps_explicit=false → no --fps warning.
+        // Default Args (no explicit flags, fps=60.0 default). fps_user_set=false → no --fps warning.
         let args = Args::try_parse_from(["cosmostrix"]).unwrap();
         let warns = collect_bench_noop_warnings(&args, false);
         assert!(
             !warns.iter().any(|w| w.starts_with("--fps")),
-            "fps warning should NOT fire when --fps not explicit, got: {warns:?}"
+            "fps warning should NOT fire when fps not user-set, got: {warns:?}"
         );
 
-        // fps_explicit=true → --fps warning MUST fire and mention "simulation rate".
+        // fps_user_set=true → --fps warning MUST fire and mention "simulation rate".
         let warns = collect_bench_noop_warnings(&args, true);
         let fps_warn = warns.iter().find(|w| w.starts_with("--fps"));
         assert!(
             fps_warn.is_some(),
-            "fps warning SHOULD fire when --fps explicit, got: {warns:?}"
+            "fps warning SHOULD fire when fps user-set, got: {warns:?}"
         );
         let fps_warn = fps_warn.unwrap();
         assert!(
@@ -1430,6 +1446,35 @@ mod main_tests {
         assert!(
             fps_warn.contains("does NOT cap"),
             "fps warning should clarify it does NOT cap render throughput, got: {fps_warn}"
+        );
+        assert!(
+            fps_warn.contains("config.toml"),
+            "fps warning should hint at config.toml as possible source, got: {fps_warn}"
+        );
+    }
+
+    /// Simulate the config.toml `fps = 10` path: clap parses with default
+    /// fps=60.0, then config_apply would set args.fps=10.0. The call site
+    /// computes `fps_user_set = cli_explicit.fps || args.fps != 60.0`.
+    /// When config.toml sets fps=10, cli_explicit.fps=false but
+    /// args.fps=10.0, so fps_user_set=true → warning fires. This test
+    /// verifies the detection logic by constructing args with non-default
+    /// fps (simulating post-config-apply state) and passing fps_user_set=true.
+    #[test]
+    fn bench_noop_warnings_catch_config_toml_fps_set() {
+        use crate::config::Args;
+        use clap::Parser;
+        // Simulate: config.toml has `fps = 10`. After config_apply, args.fps=10.0.
+        // cli_explicit.fps=false (not on CLI), but args.fps != 60.0.
+        // The call site computes: fps_user_set = false || (10.0 != 60.0) = true.
+        let args = Args::try_parse_from(["cosmostrix", "--fps", "10"]).unwrap();
+        assert_eq!(args.fps, 10.0);
+        let fps_user_set = args.fps != 60.0; // simulates config.toml path
+        assert!(fps_user_set, "fps=10 should trigger fps_user_set=true");
+        let warns = collect_bench_noop_warnings(&args, fps_user_set);
+        assert!(
+            warns.iter().any(|w| w.starts_with("--fps")),
+            "config.toml fps=10 should trigger --fps warning, got: {warns:?}"
         );
     }
 

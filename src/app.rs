@@ -131,7 +131,7 @@ pub struct CloudConfig {
 /// Used by `rebuild_cloud_config` to enforce the
 /// **CLI > config.toml > scene default** priority contract across
 /// live reloads.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct CliExplicit {
     pub color: bool,
     pub charset: bool,
