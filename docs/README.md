@@ -65,6 +65,7 @@ the results.
 | Doc | What it covers |
 |-----|---------------|
 | [BENCHMARKING.md](BENCHMARKING.md) | **Start here.** Full independent benchmarking guide — how to run, interpret, compare, strict `--bench-scene` validation, v30 reference results (peak 102K FPS) |
+| [BENCHMARK_CLOUD_XEON.md](BENCHMARK_CLOUD_XEON.md) | Third-party hardware verification — same commit `c97ba87` built and benchmarked on a 2-core Intel Xeon cloud VM (116K avg FPS, 1.58× the owner's Ryzen) |
 | [BENCHMARK_ADVANCED.md](BENCHMARK_ADVANCED.md) | Enabling MICROARCHITECTURE and ENERGY metrics (Linux `perf_event_open` + RAPL) |
 | [PERFORMANCE_ACROSS_SCALES.md](PERFORMANCE_ACROSS_SCALES.md) | How FPS scales with screen size (6×6 → 200×60) |
 | [ENDURANCE.md](ENDURANCE.md) | Long-run endurance testing and resource monitoring (memory leak detection) |

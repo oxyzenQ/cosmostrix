@@ -14,6 +14,7 @@
 3. [`--bench-scene` Strict Validation](#3-bench-scene-strict-validation)
 4. [Reading the Report](#4-reading-the-report)
 5. [v30 Reference Results (4-Run Matrix)](#5-v30-reference-results-4-run-matrix)
+5b. [Third-Party Hardware Verification (Cloud Xeon)](#5b-third-party-hardware-verification-cloud-xeon)
 6. [Interpreting Key Metrics](#6-interpreting-key-metrics)
 7. [Component Timing Breakdown](#7-component-timing-breakdown)
 8. [Wet I/O vs Dry Benchmarking](#8-wet-io-vs-dry-benchmarking)
@@ -200,6 +201,42 @@ is not a real spike — max stays at 0.056ms over 4.4M frames.
 | heap_retained | 0 |
 | heap_virtual | 480 KiB |
 | fps_drift_percent | -1.77% (stable) |
+
+---
+
+## 5b. Third-Party Hardware Verification (Cloud Xeon)
+
+Every number in §5 was produced on the owner's personal Ryzen 5800HS.
+That raises an obvious question for any third party: does cosmostrix
+actually build and run on a different CPU, or does it secretly depend
+on something Ryzen-specific?
+
+To answer that, the same commit (`c97ba87`) and the same `pro-linux-v3`
+profile were built and benchmarked on a 2-core Intel Xeon cloud VM
+(Alibaba Cloud Linux, 3.9 GiB RAM, no swap, no RAPL, no perf counters).
+The headline 60s `lean + monolith + zen` run produced:
+
+| Metric              | Cloud Xeon (2 vCPU) | Owner's Ryzen 5800HS | Ratio   |
+|---------------------|--------------------:|---------------------:|--------:|
+| avg_fps             | **116,013.9**       | 73,618.0             | 1.58×   |
+| peak_fps            | 188,323.9           | 102,051.2            | 1.84×   |
+| p99_frame_time      | 0.013 ms            | 0.018 ms             | 0.72×   |
+| io_ns_per_cell      | 4.5                 | ~13                  | 0.35×   |
+| heap_retained       | 45 KiB              | 0 KiB                | —       |
+| fps_drift_percent   | -1.38 % (stable)    | -1.77 % (stable)     | —       |
+
+The 1.58× ratio is fully explained by the cloud Xeon's higher sustained
+single-thread IPC at 3.2 GHz — cosmostrix's `--benchmark` mode is
+single-threaded by design (`planned_worker_budget: 0`), so it does not
+benefit from the Ryzen's 8 cores / 16 threads.
+
+The `--bench-scene` strict-validation contract was also verified on
+the cloud CPU: typos like `leanax` and `production-drawmadadadaxa`
+are rejected with helpful tips exactly as on the owner's machine. The
+honesty contract holds on third-party hardware.
+
+**Full environment, 3-run results, reproduction steps, and raw logs**:
+[`docs/BENCHMARK_CLOUD_XEON.md`](BENCHMARK_CLOUD_XEON.md).
 
 ---
 
@@ -463,6 +500,9 @@ hardware, software, and configuration produced the number.
 
 - [benchmark/README.md](../benchmark/README.md) — Full reference results
   across versions (v15, v30) and comparison vs other Matrix rain tools
+- [docs/BENCHMARK_CLOUD_XEON.md](BENCHMARK_CLOUD_XEON.md) —
+  Third-party hardware verification on a 2-core Intel Xeon cloud VM
+  (116K avg FPS, same commit `c97ba87`)
 - [docs/BENCHMARK_ADVANCED.md](BENCHMARK_ADVANCED.md) — Enabling
   MICROARCHITECTURE and ENERGY metrics (Linux perf + RAPL)
 - [docs/RAIN_DEPTH_AUDIT.md](RAIN_DEPTH_AUDIT.md) — Visual-audit

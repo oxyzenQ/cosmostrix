@@ -1,0 +1,7 @@
+error: unexpected argument '--bench-scene' found
+
+  tip: a similar argument exists: '--bench-io'
+
+Usage: cosmostrix --benchmark --bench-io
+
+For more information, try '--help'.
