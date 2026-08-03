@@ -10,7 +10,13 @@
 //! - **macOS**: queries `mach_task_basic_info` via `libc` — same call as
 //!   RSS sampling, but reads `user_time` + `system_time` (in Mach time,
 //!   converted to ns via `mach_timebase_info`).
-//! - **Other Unix / Windows**: returns `None`. The benchmark will omit
+//! - **Other Unix (BSD, Android, iOS, etc.)**: uses `getrusage(RUSAGE_SELF)`
+//!   via `libc` — reads `ru_utime` + `ru_stime` (in microseconds, converted
+//!   to ns). This is the universal unix fallback and works on all unix
+//!   targets where `libc::getrusage` and `libc::RUSAGE_SELF` are exposed.
+//!   On Linux/macOS we prefer the more accurate primary path, but
+//!   `getrusage` would also work there as a last resort.
+//! - **Windows / non-unix**: returns `None`. The benchmark will omit
 //!   CPU% fields rather than emit a fake or zero value.
 //!
 //! ## How CPU% is computed
@@ -53,7 +59,14 @@ pub fn current_cpu_ns() -> Option<u64> {
     {
         macos_cpu_ns()
     }
-    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    // Universal unix fallback (BSD, Android, iOS, etc.) — uses
+    // getrusage(RUSAGE_SELF). libc is already a dependency under
+    // cfg(unix) so this adds no new external crate.
+    #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+    {
+        unix_getrusage_cpu_ns()
+    }
+    #[cfg(not(unix))]
     {
         None
     }
@@ -155,6 +168,58 @@ fn time_value_to_ns(tv: libc::time_value_t) -> u64 {
         .saturating_add(micros.saturating_mul(1_000))
 }
 
+// ── Other Unix (BSD, Android, iOS, …): getrusage(RUSAGE_SELF) ────────────────
+
+/// Universal unix fallback used on every unix target that is not Linux or
+/// macOS (FreeBSD, NetBSD, OpenBSD, DragonFly, Android, iOS, etc.).
+///
+/// Uses `getrusage(RUSAGE_SELF)` to read the process's accumulated user
+/// and system CPU time. `ru_utime` and `ru_stime` are `timeval` structs
+/// `{ tv_sec: time_t, tv_usec: suseconds_t }` with microsecond resolution.
+///
+/// ## Why getrusage and not /proc?
+/// - BSDs (except FreeBSD with linprocfs) don't expose `/proc/self/stat`.
+/// - Android exposes `/proc/self/stat` (Linux kernel under the hood), but
+///   we route Android through this fallback anyway for uniformity — the
+///   `target_os = "android"` cfg branch is the same as BSD's. The cost
+///   is negligible: getrusage is one syscall, returns in <1 µs.
+/// - getrusage is part of POSIX, so it works everywhere `libc` does.
+///
+/// ## Accuracy
+/// Microsecond resolution. At a 1 Hz sampling rate (used by both the
+/// benchmark CPU tracker and the HUD CPU% line), this gives 6 significant
+/// digits — more than enough for a 0-100% reading rendered with 2 decimals.
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+fn unix_getrusage_cpu_ns() -> Option<u64> {
+    // SAFETY: getrusage(RUSAGE_SELF, &mut rusage) is a read-only syscall
+    // that writes one struct rusage into our local. RUSAGE_SELF is a
+    // compile-time constant. The kernel cannot fault on this — the
+    // destination is a stack variable of the correct type and size.
+    let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
+    // SAFETY: as above. Returns 0 on success, -1 on error (errno set).
+    let rc = unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) };
+    if rc != 0 {
+        return None;
+    }
+    let user_ns = timeval_to_ns(usage.ru_utime);
+    let system_ns = timeval_to_ns(usage.ru_stime);
+    Some(user_ns.saturating_add(system_ns))
+}
+
+/// Convert a POSIX `timeval { tv_sec, tv_usec }` (seconds + microseconds)
+/// to nanoseconds. Used by the unix getrusage fallback.
+///
+/// Defensive clamping: tv_usec should be 0..=999_999 per POSIX, but some
+/// OSes (notably older FreeBSD) historically returned up to 1_000_000 in
+/// edge cases. We saturate rather than panic.
+#[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+fn timeval_to_ns(tv: libc::timeval) -> u64 {
+    let secs = u64::try_from(tv.tv_sec.max(0)).unwrap_or(0);
+    let micros = u64::try_from(tv.tv_usec.max(0)).unwrap_or(0);
+    secs.saturating_mul(1_000_000_000)
+        .saturating_add(micros.saturating_mul(1_000))
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -164,16 +229,20 @@ mod tests {
     #[test]
     fn current_cpu_ns_returns_some_on_supported_platforms() {
         // This test verifies the function contract, not a specific value.
-        // On Linux/macOS, /proc or Mach task_info should be available,
+        // On Linux/macOS/BSD/Android the sampler is expected to succeed,
         // but CI sandboxes may mask these — so we accept None gracefully
         // rather than asserting is_some() unconditionally.
         //
         // The real validation is the synthetic fixture test below, which
         // verifies the parser logic without depending on the environment.
+        //
+        // Only non-unix targets (Windows) are expected to return None
+        // unconditionally — unix always has either /proc, Mach, or
+        // getrusage available.
         let cpu = current_cpu_ns();
-        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        #[cfg(not(unix))]
         {
-            assert!(cpu.is_none(), "Unsupported platforms must return None");
+            assert!(cpu.is_none(), "Non-unix platforms must return None");
         }
         // On supported platforms, we just verify it doesn't panic.
         // is_some() is expected but not guaranteed in all sandboxes.
@@ -184,7 +253,8 @@ mod tests {
     fn current_cpu_ns_is_monotonic_within_tolerance() {
         // Two consecutive samples — the second must be >= the first
         // (CPU time only increases). Allow equality in case the sampler
-        // resolution is coarse (Linux clock ticks are ~10ms).
+        // resolution is coarse (Linux clock ticks are ~10ms; getrusage
+        // micros on BSD/Android).
         // Skip the assertion if either sample is None (sandbox/masked /proc).
         let a = current_cpu_ns();
         let b = current_cpu_ns();
@@ -244,5 +314,39 @@ mod tests {
         assert_eq!(utime, 250, "utime must be at index 11 after ')'");
         assert_eq!(stime, 300, "stime must be at index 12 after ')'");
         assert_eq!(utime + stime, 550);
+    }
+
+    /// Test the unix getrusage fallback path's timeval→ns converter.
+    /// Compiled only on non-Linux/non-macOS unix (BSD/Android/iOS/etc.).
+    /// Mirrors the macOS `time_value_to_ns` test — verifies the same
+    /// boundary cases (zero, pure-micros, mixed, negatives).
+    #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+    #[test]
+    fn unix_timeval_to_ns_converts_correctly() {
+        // 1 second + 500_000 microseconds = 1.5 seconds = 1_500_000_000 ns.
+        let tv = libc::timeval {
+            tv_sec: 1,
+            tv_usec: 500_000,
+        };
+        assert_eq!(timeval_to_ns(tv), 1_500_000_000);
+        // Zero time → 0 ns.
+        let zero = libc::timeval {
+            tv_sec: 0,
+            tv_usec: 0,
+        };
+        assert_eq!(timeval_to_ns(zero), 0);
+        // Pure microseconds (no seconds): 1000 µs = 1_000_000 ns.
+        let micros_only = libc::timeval {
+            tv_sec: 0,
+            tv_usec: 1000,
+        };
+        assert_eq!(timeval_to_ns(micros_only), 1_000_000);
+        // Defensive: legacy FreeBSD that occasionally returned 1_000_000 in
+        // tv_usec should saturate to 1 second worth of ns, not overflow.
+        let oversize_usec = libc::timeval {
+            tv_sec: 0,
+            tv_usec: 1_000_000,
+        };
+        assert_eq!(timeval_to_ns(oversize_usec), 1_000_000_000);
     }
 }

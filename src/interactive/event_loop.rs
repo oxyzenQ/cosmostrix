@@ -1088,11 +1088,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         let work_s = work_start.elapsed().as_secs_f32();
 
-        // Live HUD: push frame time, sample RSS, recompute metrics.
+        // Live HUD: push frame time, sample RSS + CPU%, recompute metrics.
         // All methods short-circuit when HUD is off (zero cost).
-        // write_to_frame() above handles the actual display.
         hud_state.push_frame_time(work_s as f64 * 1000.0);
         hud_state.maybe_sample_rss();
+        hud_state.maybe_sample_cpu();
         hud_state.update_metrics(cloud.hud_colors());
 
         let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);

@@ -29,6 +29,7 @@ use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
 
+use crate::cpustat;
 use crate::interactive::activity::FrameTimeTracker;
 use crate::memstat;
 
@@ -49,6 +50,13 @@ const HUD_METRIC_INTERVAL: Duration = Duration::from_millis(1000);
 /// Interval between RSS samples in interactive mode (1 Hz).
 const HUD_RSS_INTERVAL: Duration = Duration::from_millis(1000);
 
+/// Interval between CPU% samples in interactive mode (1 Hz).
+/// Aligned with `HUD_RSS_INTERVAL` so both fire on the same tick.
+/// At 1 Hz the per-sample cost is one `cpustat::current_cpu_ns()` call
+/// (~2 KiB `/proc` read on Linux, one `task_info` syscall on macOS,
+/// one `getrusage` syscall on BSD/Android) — well under 0.1% CPU.
+const HUD_CPU_INTERVAL: Duration = Duration::from_millis(1000);
+
 /// How often to reset max_ms (seconds). Prevents a startup spike from
 /// dominating the max display forever.
 const MAX_RESET_INTERVAL_SECS: u64 = 60;
@@ -58,7 +66,13 @@ const MAX_RESET_INTERVAL_SECS: u64 = 60;
 const HUD_MIN_WIDTH: u16 = 12;
 
 /// Maximum width cap (prevents HUD from eating the whole terminal).
-const HUD_MAX_WIDTH: u16 = 20;
+/// Bumped from 20 → 22 in v30 to fit the new `cpu: 100.00%` line
+/// (max-width value: ` cpu: 100.00%` = 13 chars + 1 leading space = 14,
+/// but other lines like ` p99: 9999.999ms` already exceed that, so
+/// the practical cap is set by the longest existing line). The bump
+/// ensures the cpu line never gets truncated when fps is high (which
+/// would make ` p99` wrap visually).
+const HUD_MAX_WIDTH: u16 = 22;
 
 /// HUD position: left or right corner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -90,6 +104,20 @@ pub(crate) struct HudState {
     last_metric_update: Instant,
     last_rss_sample: Instant,
     last_rss_kb: Option<u64>,
+    /// Last CPU% sample timestamp. Used to compute the wall-clock delta
+    /// between two `cpustat::current_cpu_ns()` samples.
+    last_cpu_sample: Instant,
+    /// Previous process CPU ns reading. `None` until the first sample
+    /// completes (we need two readings to compute a delta). On the
+    /// very first tick we store the baseline and render `cpu: —` until
+    /// the second tick arrives.
+    last_cpu_ns: Option<u64>,
+    /// Latest computed process CPU% (0.0 ..= 100.0 on single-threaded
+    /// builds; can briefly exceed 100 if a frame spills onto another
+    /// core, which we clamp at 999.99 for display width safety).
+    /// `None` on unsupported platforms (non-unix) or before the first
+    /// successful delta. Renders as `cpu: —` (em dash).
+    cpu_percent: Option<f32>,
     /// Cached max frame time (ms) for display. Updated on every push.
     /// Auto-resets every MAX_RESET_INTERVAL_SECS to prevent startup
     /// spikes from dominating forever.
@@ -103,7 +131,8 @@ pub(crate) struct HudState {
     screen_size: (u16, u16, bool),
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
-    cached_lines: [(Color, String); 6],
+    /// 7 lines: fps / p99 / max / rss / cpu / up / screensize.
+    cached_lines: [(Color, String); 7],
     /// Current dynamic HUD width (in terminal columns). Recomputed
     /// every metric update to fit the longest line. Grows when FPS
     /// or RSS values are long, shrinks when they're short.
@@ -124,6 +153,11 @@ impl HudState {
                 .checked_sub(HUD_RSS_INTERVAL)
                 .unwrap_or_else(Instant::now),
             last_rss_kb: None,
+            last_cpu_sample: Instant::now()
+                .checked_sub(HUD_CPU_INTERVAL)
+                .unwrap_or_else(Instant::now),
+            last_cpu_ns: None,
+            cpu_percent: None,
             max_ms: 0.0,
             max_reset_at: Instant::now(),
             p99_ms: 0.0,
@@ -133,6 +167,7 @@ impl HudState {
                 (Color::Yellow, String::new()),
                 (Color::Magenta, String::new()),
                 (Color::Green, String::new()),
+                (Color::DarkGrey, String::new()), // cpu line — dim
                 (Color::DarkCyan, String::new()),
                 (Color::DarkCyan, String::new()),
             ],
@@ -144,9 +179,26 @@ impl HudState {
     pub(crate) fn toggle(&mut self) -> bool {
         self.visible = !self.visible;
         if self.visible {
+            // Force an immediate metric refresh on the next frame.
             self.last_metric_update = Instant::now()
                 .checked_sub(HUD_METRIC_INTERVAL * 2)
                 .unwrap_or_else(Instant::now);
+            // Force an immediate RSS refresh too.
+            self.last_rss_sample = Instant::now()
+                .checked_sub(HUD_RSS_INTERVAL * 2)
+                .unwrap_or_else(Instant::now);
+            // Reset the CPU sampler baseline. While the HUD was off,
+            // `maybe_sample_cpu` short-circuited and `last_cpu_ns` may
+            // be stale (e.g. from before the user pressed `?`). On
+            // toggle-on, force the next CPU sample to be a fresh
+            // baseline — `cpu_percent` will render `—` for ~1 second
+            // until the second sample arrives, which is the honest
+            // behavior (no stale percent shown).
+            self.last_cpu_sample = Instant::now()
+                .checked_sub(HUD_CPU_INTERVAL * 2)
+                .unwrap_or_else(Instant::now);
+            self.last_cpu_ns = None;
+            self.cpu_percent = None;
         }
         self.visible
     }
@@ -204,6 +256,72 @@ impl HudState {
         }
         self.last_rss_sample = now;
         self.last_rss_kb = memstat::current_rss_kb();
+    }
+
+    /// Maybe sample process CPU% (rate-limited to 1 Hz). Called every frame.
+    ///
+    /// Computes `cpu_percent = (cpu_ns_delta / wall_ns_delta) * 100.0`
+    /// using two consecutive `cpustat::current_cpu_ns()` readings. The
+    /// first sample establishes a baseline (no percent yet — renders as
+    /// `cpu: —`); subsequent samples produce a stable percent value.
+    ///
+    /// When the underlying sampler returns `None` (non-unix targets, or
+    /// a transient OS query failure), `cpu_percent` stays `None` and the
+    /// HUD renders `cpu: —` to honestly signal "metric unavailable"
+    /// rather than misleadingly showing `0.00%`.
+    ///
+    /// ## Why not reuse `system_feeling.rs`?
+    /// `system_feeling` is only active when `--auto-color-drift` is on.
+    /// The HUD is independent (`?` toggles it any time) and must work
+    /// without color drift. Decoupling also avoids sharing mutable state
+    /// across subsystems on the hot frame path. The extra `/proc` read
+    /// at 1 Hz costs <0.1% CPU.
+    #[inline]
+    pub(crate) fn maybe_sample_cpu(&mut self) {
+        if !self.visible {
+            return;
+        }
+        let now = Instant::now();
+        if now.duration_since(self.last_cpu_sample) < HUD_CPU_INTERVAL {
+            return;
+        }
+        let wall_delta = now.duration_since(self.last_cpu_sample);
+        self.last_cpu_sample = now;
+
+        let Some(cpu_ns_now) = cpustat::current_cpu_ns() else {
+            // Sampler unsupported (non-unix) or transient OS failure.
+            // Keep cpu_percent as-is (None on first call, or stale on
+            // subsequent calls). The HUD renders `cpu: —` either way
+            // because we set `cpu_percent = None` whenever the previous
+            // sample also failed — see the None branch below.
+            self.last_cpu_ns = None;
+            self.cpu_percent = None;
+            return;
+        };
+
+        match self.last_cpu_ns {
+            None => {
+                // First successful sample — establish baseline, no delta yet.
+                self.cpu_percent = None;
+            }
+            Some(prev_ns) => {
+                let cpu_ns_delta = cpu_ns_now.saturating_sub(prev_ns);
+                let wall_ns_delta = wall_delta.as_nanos() as u64;
+                if wall_ns_delta == 0 {
+                    // Degenerate: should never happen since we rate-limit
+                    // to 1 Hz, but defend against division by zero.
+                    self.cpu_percent = None;
+                } else {
+                    let pct = (cpu_ns_delta as f64 / wall_ns_delta as f64) * 100.0;
+                    // Clamp to 999.99 for display width safety. On
+                    // single-threaded builds this is effectively 0-100;
+                    // multi-threaded spillover could exceed 100 briefly.
+                    let clamped = pct.clamp(0.0, 999.99) as f32;
+                    self.cpu_percent = Some(clamped);
+                }
+            }
+        }
+        self.last_cpu_ns = Some(cpu_ns_now);
     }
 
     /// Set the screen size for HUD display. Called by event_loop on init
@@ -295,10 +413,21 @@ impl HudState {
         self.cached_lines[1] = (mid, format!(" p99: {:.3}ms", self.p99_ms));
         self.cached_lines[2] = (head, format!(" max: {:.3}ms", self.max_ms));
         self.cached_lines[3] = (trail, format!(" rss: {rss_str}"));
-        self.cached_lines[4] = (dim, format!(" up: {uptime_str}"));
+        // CPU% line: process CPU usage with 2-decimal precision.
+        // Format: ` cpu: 0.45%` (single-threaded typical: 0-5%) or
+        // ` cpu: —` when the sampler is unsupported (non-unix) or
+        // waiting for the first delta to complete (~1s after HUD on).
+        // The em dash is U+2014 (3 bytes UTF-8) but renders as 1 cell —
+        // matches the existing `rss: —` fallback convention.
+        let cpu_str = match self.cpu_percent {
+            Some(pct) => format!("{pct:.2}%"),
+            None => "—".to_string(),
+        };
+        self.cached_lines[4] = (dim, format!(" cpu: {cpu_str}"));
+        self.cached_lines[5] = (dim, format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
-        self.cached_lines[5] = (dim, format!(" {sw}x{sh} {mode}"));
+        self.cached_lines[6] = (dim, format!(" {sw}x{sh} {mode}"));
 
         // Compute dynamic width: find the longest line, clamp to [min, max].
         let max_len = self
@@ -445,6 +574,113 @@ mod tests {
         let mut h = HudState::new();
         h.maybe_sample_rss();
         assert!(h.last_rss_kb.is_none(), "invisible HUD must not sample RSS");
+    }
+
+    #[test]
+    fn hud_maybe_sample_cpu_is_noop_when_invisible() {
+        // When the HUD is off, maybe_sample_cpu must NOT touch any CPU
+        // state — same zero-cost contract as maybe_sample_rss.
+        let mut h = HudState::new();
+        h.maybe_sample_cpu();
+        assert!(h.last_cpu_ns.is_none(), "invisible HUD must not sample CPU");
+        assert!(
+            h.cpu_percent.is_none(),
+            "invisible HUD must not produce a CPU% reading"
+        );
+    }
+
+    #[test]
+    fn hud_first_cpu_sample_establishes_baseline_only() {
+        // On the very first CPU sample after HUD turns on, the function
+        // must record the baseline ns but NOT compute a percent (no delta
+        // yet). cpu_percent stays None and renders as `cpu: —`.
+        let mut h = HudState::new();
+        h.toggle(); // visible
+        h.maybe_sample_cpu();
+        // On supported platforms (unix), last_cpu_ns should now be Some.
+        // On non-unix it stays None (sampler unsupported). Both are valid
+        // per-platform outcomes — we just assert no percent is produced
+        // (we can't compute a delta from one reading).
+        assert!(
+            h.cpu_percent.is_none(),
+            "first CPU sample must not produce a percent (no delta yet)"
+        );
+    }
+
+    #[test]
+    fn hud_toggle_resets_cpu_baseline() {
+        // When the HUD is toggled off then on again, the CPU baseline
+        // must be cleared. Otherwise the next percent reading would be
+        // computed against a stale (potentially minutes-old) ns reading
+        // and produce a wildly inaccurate value.
+        let mut h = HudState::new();
+        h.toggle(); // on
+        h.maybe_sample_cpu();
+        // Toggle off then on.
+        h.toggle(); // off
+        h.toggle(); // on
+        assert!(
+            h.last_cpu_ns.is_none(),
+            "toggling HUD on must clear the CPU baseline"
+        );
+        assert!(
+            h.cpu_percent.is_none(),
+            "toggling HUD on must clear cpu_percent"
+        );
+    }
+
+    #[test]
+    fn hud_cpu_line_renders_dash_when_unsupported() {
+        // Verify the cached_lines[4] entry renders ` cpu: —` when
+        // cpu_percent is None. This is the user-visible contract:
+        // unsupported platforms (non-unix) and the brief pre-delta
+        // window after HUD-on both show the em dash, not `0.00%`.
+        let mut h = HudState::new();
+        h.toggle(); // visible
+                    // Force-update metrics without sampling — cpu_percent stays None.
+                    // We need to bypass the rate-limit by directly calling update_metrics
+                    // with an empty palette (the function recomputes cached_lines).
+        h.update_metrics(&[]);
+        assert!(
+            h.cpu_percent.is_none(),
+            "cpu_percent must be None before any sample"
+        );
+        // cached_lines[4] is the cpu line.
+        let (_, cpu_line) = &h.cached_lines[4];
+        assert!(
+            cpu_line.contains('—'),
+            "cpu line must render em dash when unsupported, got: {cpu_line:?}"
+        );
+    }
+
+    #[test]
+    fn hud_cpu_line_renders_percent_with_two_decimals_when_supported() {
+        // Synthetic test: set cpu_percent directly (bypassing the sampler)
+        // and verify update_metrics renders ` cpu: 12.34%` (2 decimals).
+        // This locks in the display format independently of the sampler
+        // behavior — if we later change to 1 decimal, this test fails.
+        let mut h = HudState::new();
+        h.toggle(); // visible
+        h.cpu_percent = Some(12.3456); // should render as 12.35%
+        h.update_metrics(&[]);
+        let (_, cpu_line) = &h.cached_lines[4];
+        assert!(
+            cpu_line.contains("12.35%"),
+            "cpu line must render 2-decimal percent, got: {cpu_line:?}"
+        );
+    }
+
+    #[test]
+    fn hud_has_seven_cached_lines_after_v30_cpu_addition() {
+        // Regression guard: the HUD must have exactly 7 cached lines
+        // (fps / p99 / max / rss / cpu / up / screensize). If a future
+        // change adds or removes a line, this test will catch it.
+        let h = HudState::new();
+        assert_eq!(
+            h.cached_lines.len(),
+            7,
+            "HUD must have 7 cached lines after the v30 CPU% addition"
+        );
     }
 
     #[test]
