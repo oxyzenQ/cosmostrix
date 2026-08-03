@@ -9,11 +9,11 @@
 //! ## Catalog
 //!
 //! Built-in scenes combine the three core runtime atmospheres (`matrix`,
-//! `monolith`, `signal`) with eight curated visual scenes (`classic`,
-//! `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `low-power`)
-//! plus the `cosmic_dragon` milestone scene commemorating the temporal-
-//! prediction breakthrough (v20.0.0: dirty_ratio 18.33% → 0.39%, FPS
-//! 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) keeps the
+//! `monolith`, `signal`) with nine curated visual scenes (`classic`,
+//! `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`,
+//! `low-power`) plus the `cosmic_dragon` milestone scene commemorating the
+//! temporal-prediction breakthrough (v20.0.0: dirty_ratio 18.33% → 0.39%,
+//! FPS 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) keeps the
 //! three original entries to preserve runtime cycling behavior.
 
 use crate::config::GlitchLevel;
@@ -176,6 +176,36 @@ pub const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
+    // --- Film homage scene: matrix_film ---
+    //
+    // Tuned to capture the visual fingerprint of the Matrix 1999 code rain:
+    // dense phosphor-green katakana+digit columns falling at cinematic pace.
+    // This is not a 1:1 reproduction — cosmostrix remains its own frontier —
+    // but a scene that lets the engine's parallax depth, phosphor decay, and
+    // head-bloom layer onto the film's foundational look.
+    //
+    // Distinct from the `matrix` scene (the modern organic cascade, density
+    // 0.65, speed 18.0): matrix_film pushes density to 0.85 and speed to 22.0
+    // to match the film's packed-column, steady-fall rhythm. Charset `matrix`
+    // (katakana + Latin digits + letters) is literally the film's glyph set.
+    // Palette `neon-green` keeps the canonical Matrix green. Glitch stays
+    // Subtle — the film has occasional flickers but is mostly clean. Rain
+    // style is Glyph (Monolith is cosmostrix's own invention, not
+    // film-accurate). FPS 60 keeps motion smooth; the film's 24fps cadence
+    // would look choppy against cosmostrix's frontier pacing.
+    SceneInfo {
+        name: "matrix_film",
+        description: "Matrix Film — 1999 cinematic homage; dense phosphor-green katakana rain with cosmostrix frontier depth",
+        config: SceneConfig {
+            color: Some("neon-green"),
+            charset: Some("matrix"),
+            fps: Some(60.0),
+            speed: Some(22.0),
+            density: Some(0.85),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Glyph,
+        },
+    },
     SceneInfo {
         name: "low-power",
         description: "Ultra power-saving — 30 FPS, minimal density, no glitch",
@@ -253,6 +283,7 @@ pub fn all_scene_names() -> &'static [&'static str] {
         "hacker",
         "low-power",
         "matrix",
+        "matrix_film",
         "monolith",
         "neon",
         "signal",
@@ -405,6 +436,7 @@ mod tests {
                 "hacker",
                 "low-power",
                 "matrix",
+                "matrix_film",
                 "monolith",
                 "neon",
                 "signal",
@@ -417,8 +449,44 @@ mod tests {
     }
 
     #[test]
-    fn scene_catalog_has_thirteen_entries() {
-        assert_eq!(SCENES.len(), 13, "catalog must contain 13 built-in scenes");
+    fn scene_catalog_has_fourteen_entries() {
+        assert_eq!(SCENES.len(), 14, "catalog must contain 14 built-in scenes");
+    }
+
+    #[test]
+    fn matrix_film_scene_uses_film_accurate_values() {
+        let s = get_scene("matrix_film").expect("matrix_film scene");
+        assert_eq!(s.config.color, Some("neon-green"));
+        assert_eq!(s.config.charset, Some("matrix"));
+        assert_eq!(s.config.fps, Some(60.0));
+        assert_eq!(s.config.speed, Some(22.0));
+        assert_eq!(s.config.density, Some(0.85));
+        assert_eq!(s.config.glitch_level, Some(GlitchLevel::Subtle));
+        assert_eq!(s.config.rain_style, RainStyle::Glyph);
+        // description must reference the 1999 cinematic homage so the
+        // scene's purpose is self-documenting via --list-scenes / --show-scene.
+        assert!(
+            s.description.contains("1999"),
+            "matrix_film description must reference 1999: {}",
+            s.description
+        );
+    }
+
+    #[test]
+    fn matrix_film_distinct_from_matrix_scene() {
+        // matrix_film is the film-faithful homage; matrix is the modern
+        // organic cascade. They must differ on density and speed so that
+        // cycling into matrix_film is visually distinct from matrix.
+        let matrix = get_scene("matrix").expect("matrix scene");
+        let film = get_scene("matrix_film").expect("matrix_film scene");
+        assert_ne!(
+            matrix.config.density, film.config.density,
+            "matrix_film must have different density than matrix"
+        );
+        assert_ne!(
+            matrix.config.speed, film.config.speed,
+            "matrix_film must have different speed than matrix"
+        );
     }
 
     #[test]
