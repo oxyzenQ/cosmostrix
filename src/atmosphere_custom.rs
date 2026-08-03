@@ -272,35 +272,38 @@ pub fn parse_custom_time_map(cfg: &HashMap<String, String>) -> Result<CustomTime
                 let k = k.trim().to_ascii_lowercase();
                 let v = v.trim();
                 match k.as_str() {
+                    // Phase 3 silent-error sweep: use the canonical parsers from
+                    // validation.rs instead of stdlib `str::parse`. The canonical
+                    // parsers reject NaN/inf/+N/-N/1e2/010 (which stdlib accepts)
+                    // and produce a uniform error message. This closes the
+                    // NaN-bypasses-range-check bug (Phase 2 P2-2) and the
+                    // testconf <-> runtime parser divergence for adaptive-custom
+                    // (Phase 2 P2-1) in one stroke.
                     "speed" => {
-                        let n: f32 = v
-                            .parse()
-                            .map_err(|_| format!("adaptive-custom: invalid speed='{v}'"))?;
-                        if !(1.0..=100.0).contains(&n) {
-                            return Err(format!(
-                                "adaptive-custom: speed {n} out of range [1, 100]"
-                            ));
-                        }
+                        let n = crate::validation::parse_canonical_f32_range(
+                            "adaptive-custom.speed",
+                            v,
+                            1.0,
+                            100.0,
+                        )?;
                         point.speed = Some(n);
                     }
                     "density" => {
-                        let n: f32 = v
-                            .parse()
-                            .map_err(|_| format!("adaptive-custom: invalid density='{v}'"))?;
-                        if !(0.01..=5.0).contains(&n) {
-                            return Err(format!(
-                                "adaptive-custom: density {n} out of range [0.01, 5.0]"
-                            ));
-                        }
+                        let n = crate::validation::parse_canonical_f32_range(
+                            "adaptive-custom.density",
+                            v,
+                            0.01,
+                            5.0,
+                        )?;
                         point.density = Some(n);
                     }
                     "fps" => {
-                        let n: f64 = v
-                            .parse()
-                            .map_err(|_| format!("adaptive-custom: invalid fps='{v}'"))?;
-                        if !(1.0..=240.0).contains(&n) {
-                            return Err(format!("adaptive-custom: fps {n} out of range [1, 240]"));
-                        }
+                        let n = crate::validation::parse_canonical_f64_range(
+                            "adaptive-custom.fps",
+                            v,
+                            1.0,
+                            240.0,
+                        )?;
                         point.fps = Some(n);
                     }
                     "charset" => {

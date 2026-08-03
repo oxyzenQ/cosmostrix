@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Config Sync Audit — Phase 1: Surface Inventory & Mismatch Map
 
 **Scope:** CLI flags, `config.toml` keys, runtime `CloudConfig` fields, and the

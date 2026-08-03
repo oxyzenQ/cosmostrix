@@ -396,8 +396,8 @@ fn apply_config_values(
                 args.glitch_level = level;
                 config_touched.insert("glitch_level");
             }
-            Err(_) => eprintln!(
-                "error: invalid glitch-level='{v}' (allowed: none, subtle, default, intense)"
+            Err(_) => crate::output::eprintln_error_labeled(
+                "invalid glitch-level='{v}' (allowed: none, subtle, default, intense)",
             ),
         }
     }
@@ -411,7 +411,9 @@ fn apply_config_values(
                 args.intro = Some(t);
                 config_touched.insert("intro");
             }
-            Err(_) => eprintln!("error: invalid intro='{v}' (allowed: cosmic, logo, none)"),
+            Err(_) => crate::output::eprintln_error_labeled(
+                "invalid intro='{v}' (allowed: cosmic, logo, none)",
+            ),
         }
     }
     if let Some(v) = config_value(matches, cfg, "bold", "bold") {
@@ -641,9 +643,9 @@ fn parse_speed_config(name: &str, value: &str) -> Option<f32> {
     match parse_canonical_speed(&format!("config {name}"), value) {
         Ok(valid) => Some(valid),
         Err(_) => {
-            eprintln!(
-                "error: invalid {name}='{value}' (expected: canonical integer in range {SPEED_MIN}..={SPEED_MAX})"
-            );
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid {name}='{value}' (expected: canonical integer in range {SPEED_MIN}..={SPEED_MAX})"
+            ));
             None
         }
     }

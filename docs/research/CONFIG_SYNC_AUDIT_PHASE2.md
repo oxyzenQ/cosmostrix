@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Config Sync Audit — Phase 2: Failure Mode Catalog
 
 **Scope:** Field-by-field failure mode catalog. Untuk setiap CLI flag /
