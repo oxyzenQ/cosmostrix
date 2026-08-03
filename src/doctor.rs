@@ -190,6 +190,51 @@ pub fn print_doctor_report(args: &Args) {
         s.field("build", cpu.build_variant);
     }
 
+    // SYSTEM FEELING section — signal-driven palette drift diagnostics.
+    //
+    // Prints the current FeelingState, the CPU% reading (or "unsupported"
+    // on platforms without /proc or Mach task_info), the local hour, and
+    // the target ColorFamily that --auto-color-drift would drift toward.
+    // This makes the signal pipeline auditable: the user can verify exactly
+    // what the classifier sees and what it decided.
+    {
+        let s = r.section("SYSTEM FEELING");
+        let now = std::time::Instant::now();
+        let mut sf = crate::system_feeling::SystemFeeling::new(now);
+        // Take one sample so the EMA has a real reading to display.
+        sf.tick(now);
+        let hour = crate::atmosphere_adaptive::current_hour();
+        let state = sf.current_state();
+        let family = crate::control_color_drift::family_for_state(state);
+        s.field("state", state.label());
+        s.field("target_family", family.label());
+        s.field("local_hour", &format!("{:.2}", hour));
+        s.field(
+            "cpu_sampling",
+            if sf.cpu_supported() {
+                "supported"
+            } else {
+                "unsupported (time-only fallback)"
+            },
+        );
+        match sf.cpu_ema() {
+            Some(cpu) => {
+                s.field("cpu_ema_percent", &format!("{:.1}", cpu));
+            }
+            None => {
+                s.field("cpu_ema_percent", "n/a (no sample yet)");
+            }
+        }
+        s.field(
+            "auto_color_drift",
+            if args.auto_color_drift {
+                "enabled"
+            } else {
+                "disabled (default)"
+            },
+        );
+    }
+
     // ENVIRONMENT section
     {
         let s = r.section("ENVIRONMENT");

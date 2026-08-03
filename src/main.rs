@@ -118,6 +118,10 @@ mod cosmic_dragon;
 #[cfg(test)]
 mod cosmic_dragon_lock_tests;
 mod cpustat;
+// Owner-editable control file for --auto-color-drift system feeling.
+// This is the single taste file: FeelingState enum, CPU/time thresholds,
+// and the state→ColorFamily mapping. Edit this to retune drift behavior.
+mod control_color_drift;
 mod diagnostics;
 #[cfg(test)]
 mod docs_tests;
@@ -152,6 +156,13 @@ mod safepath;
 mod scene;
 mod scene_custom;
 mod sgr_format;
+// Signal-driven palette drift classifier. Reads CPU% (cpustat) + local
+// wall-clock hour, classifies into a FeelingState (defined in
+// control_color_drift.rs), and feeds the state to ColorEcosystem::tick()
+// for family-targeted drift selection.
+mod system_feeling;
+#[cfg(test)]
+mod system_feeling_tests;
 mod termdetect;
 mod terminal;
 #[cfg(test)]

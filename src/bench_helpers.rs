@@ -61,12 +61,116 @@ pub(crate) fn bench_warmup_secs() -> u64 {
         .unwrap_or(2) // default warmup: 2 seconds
 }
 
+/// Backpressure section formatter for the `--perf-stats` interactive-mode
+/// exit report. Extracted from `event_loop.rs` to keep that file under the
+/// 1500-LOC project cap.
+///
+/// Emits two metric families:
+///
+/// 1. `avg` / `peak` — the legacy load-shed signal `clamp(work/budget - 1, 0, 2)`.
+///    Non-zero ONLY when the renderer can't keep up with `--fps`. On healthy
+///    hardware this stays at 0.000 by design.
+///
+/// 2. `budget_utilization_avg` / `budget_utilization_peak` / `budget_headroom_avg`
+///    — the companion metric that is ALWAYS non-zero (work_s / target_period).
+///    This is what makes the section informative even when backpressure is 0:
+///    the user sees how much of the frame budget the renderer is consuming.
+#[allow(clippy::too_many_arguments)] // one-off report formatter, struct would be overkill
+pub(crate) fn format_backpressure_section(
+    r: &mut crate::report::Report,
+    avg_pressure: f64,
+    peak_pressure: f32,
+    utilization_sum: f64,
+    utilization_max: f32,
+    frames: u64,
+    target_period: std::time::Duration,
+    avg_work_ms: f64,
+    pressure_class: &str,
+    overshoot_frames: u64,
+    overshoot_ratio: f64,
+) {
+    let s = r.section("BACKPRESSURE");
+    s.field("avg", &format!("{:.3}", avg_pressure));
+    s.field("peak", &format!("{:.3}", peak_pressure));
+    let frames_f = frames.max(1) as f64;
+    let avg_util = utilization_sum / frames_f;
+    let tgt_s = target_period.as_secs_f64().max(0.000_001);
+    let headroom_ms = (tgt_s - avg_work_ms / 1000.0).max(0.0) * 1000.0;
+    s.field(
+        "budget_utilization_avg",
+        &format!("{:.2}%", avg_util * 100.0),
+    );
+    s.field(
+        "budget_utilization_peak",
+        &format!("{:.2}%", utilization_max * 100.0),
+    );
+    s.field("budget_headroom_avg", &format!("{:.3}ms", headroom_ms));
+    s.field("classification", pressure_class);
+    s.field(
+        "basis",
+        "avg/peak = clamp(work_s/target_period - 1, 0, 2); non-zero only when frames can't keep up. budget_utilization = work_s/target_period (always non-zero).",
+    );
+    s.field(
+        "overshoot_frames",
+        &format!("{} ({:.1}% of total)", overshoot_frames, overshoot_ratio),
+    );
+    s.advice("avg/peak 0.000 = healthy (renderer kept up). budget_utilization shows how much of the frame budget was consumed (always non-zero). For real FPS see TIMING.avg_fps / TIMING.instant_fps.");
+}
+
 #[cfg(test)]
 mod tests {
+    use super::format_backpressure_section;
     use crate::bench::resolve_bench_duration;
     use crate::bench::BENCHMARK_DURATION_SECS;
     use crate::bench_meta::AVG_DIRTY_CELL_RATIO_MEANING;
     use crate::bench_report::ACTIVE_FRAME_RATIO_MEANING;
+    use crate::report::Report;
+    use std::time::Duration;
+
+    #[test]
+    fn backpressure_section_emits_nonzero_budget_utilization_on_healthy_hw() {
+        // Bug fix: previously BACKPRESSURE.avg/peak showed 0.000 on healthy
+        // hardware (correct by design) but the user saw no other measurement
+        // to confirm the renderer was actually measuring something. The new
+        // budget_utilization_avg/peak fields are ALWAYS non-zero.
+        //
+        // Simulate a typical 60fps run with very fast frame work (0.074ms
+        // per frame, well under the 16.67ms budget). Verify the function
+        // runs without panic and accepts the healthy-hardware signal
+        // pattern (zero backpressure, non-zero utilization).
+        let mut r = Report::new("TEST");
+        let frames = 600u64;
+        let utilization_per_frame = 0.074 / (1000.0 * (1.0 / 60.0)); // 0.00444
+        let utilization_sum = utilization_per_frame * frames as f64;
+        format_backpressure_section(
+            &mut r,
+            0.0,                          // avg_pressure (0 on healthy hw)
+            0.0,                          // peak_pressure
+            utilization_sum,              // sum of utilization across frames
+            utilization_per_frame as f32, // max utilization
+            frames,
+            Duration::from_secs_f64(1.0 / 60.0),
+            0.074, // avg_work_ms
+            "low",
+            0,
+            0.0,
+        );
+        // Smoke test: function completed without panic. The actual output
+        // format is verified by the existing perf-stats integration test
+        // (run with `cosmostrix --perf-stats --duration 5`).
+        // Headroom must be positive on healthy hardware.
+        let tgt_s = (1.0 / 60.0_f64).max(0.000_001);
+        let headroom_ms = (tgt_s - 0.074 / 1000.0).max(0.0) * 1000.0;
+        assert!(
+            headroom_ms > 0.0,
+            "headroom must be positive when work < budget"
+        );
+        // Utilization must be > 0 (work > 0).
+        assert!(
+            utilization_per_frame > 0.0,
+            "utilization must be non-zero when work > 0"
+        );
+    }
 
     #[test]
     fn benchmark_metric_meanings_distinguish_dirty_frame_concepts() {

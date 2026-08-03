@@ -140,6 +140,47 @@ Modules: `atmosphere_adaptive.rs`, `atmosphere_apply.rs`.
 
 ---
 
+## System Feeling — Signal-Driven Palette Drift
+
+When `--auto-color-drift` is enabled, the color ecosystem consults a
+**system feeling** classifier that reads two honest signals — process
+CPU% and local wall-clock hour — and classifies the machine's mood
+into one of 5 emotional states. Each state maps to a target color
+family, and palette drift picks a random scheme from that family.
+
+This is NOT random drift. The rain changes color because the system is
+busier (Signal → RedFire family) or because night fell (Void →
+PurpleNebula family). See [`docs/SYSTEM_FEELING.md`](SYSTEM_FEELING.md)
+for the full design, refused-signal manifest, and owner tuning guide.
+
+### The 5 states
+
+| State | Trigger | Target family |
+|-------|---------|---------------|
+| Calm | Low CPU + daytime | BlueWater |
+| Pulse | Low CPU + morning (06:00–12:00) | Green |
+| Signal | High CPU (≥50%) at any hour | RedFire |
+| Void | Low CPU + night (22:00–06:00) | PurpleNebula |
+| Compression | Mid CPU + pre-dawn (03:00–06:00) | GrayMoon |
+
+### Owner tuning
+
+All taste constants (CPU thresholds, time windows, state→family
+mapping) live in **`src/control_color_drift.rs`** — the single
+owner-editable file. No `config.toml` keys. Edit the file and rebuild.
+
+### Diagnostics
+
+`--doctor` prints a `SYSTEM FEELING` section showing the current state,
+target family, CPU% reading, and whether CPU sampling is supported.
+Degradation (time-only fallback on unsupported platforms) is visible,
+never silent.
+
+Modules: `control_color_drift.rs`, `system_feeling.rs`,
+`cloud/ecosystem.rs` (ColorFamily + family_for + family_members).
+
+---
+
 ## `adaptive-custom` — User-Defined Time Map
 
 Users can override the default 5-phase schedule with their own 24-hour
@@ -306,6 +347,8 @@ These constraints are absolute and must never regress:
 | `palette.rs` | Palette construction from gradient stops |
 | `live_config.rs` | Live config reload via `notify` crate |
 | `testconf.rs` | Shared strict validation for `--testconf` and live reload |
+| `control_color_drift.rs` | Owner-editable taste file for system feeling (FeelingState, thresholds, state→family) |
+| `system_feeling.rs` | Signal-driven palette drift classifier (CPU + time → FeelingState) |
 
 ---
 

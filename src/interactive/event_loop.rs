@@ -156,6 +156,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut perf_pressure_sum: f64 = 0.0;
     let mut perf_pressure_max: f32 = 0.0;
     let mut perf_overshoot_frames: u64 = 0;
+    // Utilization = work_s / frame_period_s (always non-zero).
+    let (mut perf_utilization_sum, mut perf_utilization_max) = (0.0_f64, 0.0_f32);
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
 
     // Live HUD overlay state — toggled with 'i'. When visible, renders a
@@ -1094,6 +1096,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         hud_state.update_metrics(cloud.hud_colors());
 
         let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
+        // Utilization = raw work/budget ratio (not clamped). Always non-zero —
+        // this is what makes BACKPRESSURE informative even when overshoot is 0.
+        let utilization = work_s / frame_period_s;
         if overshoot > 0.0 {
             perf_pressure = (perf_pressure + (overshoot * PERF_PRESSURE_INCREMENT)).min(1.0);
         } else {
@@ -1113,6 +1118,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             perf_work_max_s = perf_work_max_s.max(work_s as f64);
             perf_pressure_sum += perf_pressure as f64;
             perf_pressure_max = perf_pressure_max.max(perf_pressure);
+            perf_utilization_sum += utilization as f64;
+            perf_utilization_max = perf_utilization_max.max(utilization);
             if overshoot > 0.0 {
                 perf_overshoot_frames = perf_overshoot_frames.saturating_add(1);
             }
@@ -1415,28 +1422,21 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
 
         {
-            // Backpressure = how often frame work exceeded the target frame
-            // period (1/target_fps). Non-zero ONLY when the renderer can't
-            // keep up with --fps. On healthy hardware this is 0.000 by design.
-            // v30 rename: was "FRAME OVERSHOOT" — users misread "avg: 0.000"
-            // as "0 FPS". The advice line reinforces: 0.000 = healthy.
-            let s = r.section("BACKPRESSURE");
-            s.field("avg", &format!("{:.3}", avg_pressure));
-            s.field("peak", &format!("{:.3}", perf_pressure_max));
-            s.field("classification", pressure_class);
-            s.field(
-                "basis",
-                "clamp(work_s / target_frame_period - 1, 0, 2); non-zero only when frames can't keep up with --fps",
-            );
-            s.field(
-                "overshoot_frames",
-                &format!(
-                    "{} ({:.1}% of total)",
-                    perf_overshoot_frames, overshoot_ratio
-                ),
-            );
-            s.advice(
-                "0.000 = healthy (renderer kept up with target_fps). For real FPS see TIMING.avg_fps / TIMING.instant_fps.",
+            // Backpressure = clamp(work/budget - 1, 0, 2): non-zero ONLY when
+            // renderer can't keep up. budget_utilization = work/budget (always
+            // non-zero) — companion so the section is informative on healthy hw.
+            crate::bench_helpers::format_backpressure_section(
+                &mut r,
+                avg_pressure,
+                perf_pressure_max,
+                perf_utilization_sum,
+                perf_utilization_max,
+                perf_frames,
+                target_period,
+                avg_work_ms,
+                pressure_class,
+                perf_overshoot_frames,
+                overshoot_ratio,
             );
         }
 

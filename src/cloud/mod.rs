@@ -15,7 +15,7 @@
 //! (see `chroma/shaders/transition.rs`).
 
 mod atmospheric_events;
-mod ecosystem;
+pub(crate) mod ecosystem;
 pub(crate) mod events;
 mod living_rain;
 mod monolith;
@@ -618,7 +618,7 @@ impl Cloud {
                 self.last_glitch_time += elapsed;
                 self.next_glitch_time += elapsed;
                 self.last_reseed_time += elapsed;
-                self.color_ecosystem.last_tick += elapsed;
+                self.color_ecosystem.shift_in_time(elapsed);
                 self.atmosphere.last_tick += elapsed;
                 self.memory.last_sample += elapsed;
                 self.storytelling.last_tick += elapsed;

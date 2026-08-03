@@ -188,13 +188,13 @@ pub(super) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) ->
 /// | **Gray/moon** | Gray, Mercury, Snow, Moon, Stars, Pluto | Neutral grays/whites |
 /// | **Planet cross-links** | Mars, Venus, Jupiter, Saturn, etc. | Each planet links into its color family |
 ///
-/// ## Selection algorithm
+/// ## Selection algorithm (historical)
 ///
-/// When `ColorEcosystem::tick()` decides to drift (subject to
+/// Prior to v30, `ColorEcosystem::tick()` decided to drift (subject to
 /// `AUTONOMOUS_PALETTE_DRIFT_CHANCE` probability and
-/// `PALETTE_DRIFT_COOLDOWN_SECS` cooldown), it calls this function,
-/// picks a uniform random index into the returned slice, and returns
-/// that scheme. The caller then calls `cloud.set_color_scheme(new)`
+/// `PALETTE_DRIFT_COOLDOWN_SECS` cooldown) by calling this function,
+/// picking a uniform random index into the returned slice, and returning
+/// that scheme. The caller then called `cloud.set_color_scheme(new)`
 /// which triggers the palette transition wave.
 ///
 /// ## Bidirectionality
@@ -212,6 +212,13 @@ pub(super) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) ->
 /// MUST be added to the match to participate in palette drift —
 /// otherwise they'll drift to the generic fallback set, which may be
 /// aesthetically jarring.
+///
+/// **Note:** As of v30, `tick()` uses the family-view (`family_for` +
+/// `family_members`) for signal-driven drift instead of this neighbor-view.
+/// The graph is preserved as documentation of the bidirectional aesthetic
+/// relationships — if neighbor-based drift is ever re-introduced, this is
+/// the starting point.
+#[allow(dead_code)]
 fn related_schemes(scheme: ColorScheme) -> &'static [ColorScheme] {
     use ColorScheme::*;
     match scheme {
@@ -255,6 +262,140 @@ fn related_schemes(scheme: ColorScheme) -> &'static [ColorScheme] {
     }
 }
 
+// ── Color family classification (for system-feeling drift) ────────────────
+//
+// The 33 built-in ColorScheme variants are organized into 7 aesthetic
+// families. This is the **family view** of the same graph that
+// `related_schemes()` expresses as a neighbor view. System-feeling
+// drift (gated by `--auto-color-drift`) classifies the current machine
+// state into one of 5 FeelingStates, maps that to a ColorFamily, and
+// picks a random scheme from `family_members(family)`.
+//
+// The family partition is derived from the existing `related_schemes`
+// graph — it's the same aesthetic clustering, just expressed as
+// disjoint sets instead of adjacency lists. Adding a new ColorScheme
+// variant requires adding it to BOTH `related_schemes` (for neighbor
+// drift) and `family_for` / `family_members` (for system-feeling drift).
+// The compiler will not catch a missing `family_for` arm because of
+// the fallback — see the audit note below.
+
+/// The 7 aesthetic color families. Disjoint partition of ColorScheme.
+///
+/// Used by system-feeling drift to pick a target family based on the
+/// current machine state (CPU load + time of day). The mapping from
+/// FeelingState to ColorFamily lives in `control_color_drift.rs`.
+///
+/// All variants are constructed at runtime via `family_for_state` (5 of 7)
+/// and `family_for` (all 7, test-only). The `GoldWarm` and `Rainbow`
+/// families are valid drift targets but no FeelingState currently maps
+/// to them — they exist so the partition is complete and future
+/// FeelingStates can target them without restructuring the enum.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(crate) enum ColorFamily {
+    /// Green, Green2, Green3, Forest, Aurora — fresh Matrix greens.
+    Green,
+    /// Gold, Yellow, Orange, Sun, Fire, Venus — warm yellows/oranges.
+    GoldWarm,
+    /// Red, Fire, Orange, Mars — hot reds/oranges (system under load).
+    RedFire,
+    /// Blue, Ocean, Neptune, Uranus, Cyan — cool blues (calm).
+    BlueWater,
+    /// Purple, Nebula, Cosmos, Vaporwave, Neon, FancyDiamond — cosmic purples.
+    PurpleNebula,
+    /// Gray, Mercury, Snow, Moon, Stars, Pluto — neutral grays/whites.
+    GrayMoon,
+    /// Rainbow, Spectrum20 — full spectrum (rare drift target).
+    Rainbow,
+}
+
+impl ColorFamily {
+    /// Stable string label for diagnostics (`--doctor`, logs).
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            ColorFamily::Green => "green",
+            ColorFamily::GoldWarm => "gold-warm",
+            ColorFamily::RedFire => "red-fire",
+            ColorFamily::BlueWater => "blue-water",
+            ColorFamily::PurpleNebula => "purple-nebula",
+            ColorFamily::GrayMoon => "gray-moon",
+            ColorFamily::Rainbow => "rainbow",
+        }
+    }
+}
+
+/// Classify a scheme into its aesthetic family.
+///
+/// This is the family-view counterpart to `related_schemes`. The
+/// partition is derived from the same aesthetic clustering documented
+/// in the `related_schemes` graph comment above.
+///
+/// # Audit note — missing variant detection
+///
+/// The `_ => Green` fallback is intentional: if a new ColorScheme
+/// variant is added without a matching arm here, it defaults to the
+/// Green family rather than failing to compile. This is a deliberate
+/// trade-off — the existing `related_schemes` has the same fallback
+/// pattern. To catch missing arms, run the `family_partition_is_total`
+/// test in `system_feeling_tests.rs`; it asserts every ColorScheme
+/// variant appears in exactly one family's `family_members` list.
+#[cfg(test)]
+pub(crate) fn family_for(scheme: ColorScheme) -> ColorFamily {
+    use ColorScheme::*;
+    match scheme {
+        // Green family: all greens + aurora (green-cyan hybrid).
+        Green | Green2 | Green3 | NeonGreen | Forest | Aurora => ColorFamily::Green,
+        // Gold/warm: yellows, oranges, warm planets.
+        Gold | Yellow | Orange | Sun | Venus | Jupiter | Saturn | NeonOrange | NeonYellow => {
+            ColorFamily::GoldWarm
+        }
+        // Red/fire: hot reds and mars.
+        Red | Fire | Mars | NeonRed => ColorFamily::RedFire,
+        // Blue/water: cool blues and cyans.
+        Blue | Ocean | Neptune | Uranus | Cyan | NeonBlue | NeonCyan => ColorFamily::BlueWater,
+        // Purple/nebula: cosmic purples, pinks, neon-magenta.
+        Purple | Nebula | Cosmos | Vaporwave | Neon | FancyDiamond | NeonPurple => {
+            ColorFamily::PurpleNebula
+        }
+        // Gray/moon: neutrals, whites, carbon, planetary grays.
+        Gray | Mercury | Snow | Moon | Stars | Pluto | Carbon | NeonWhite => ColorFamily::GrayMoon,
+        Rainbow | Spectrum20 => ColorFamily::Rainbow,
+        // Future-proof fallback. The partition-completeness test will
+        // catch any new variant that lands here without an explicit arm.
+        #[allow(unreachable_patterns)]
+        _ => ColorFamily::Green,
+    }
+}
+
+/// Return all schemes belonging to a family. Used by system-feeling
+/// drift to pick a random target within the state's target family.
+///
+/// The returned slice is non-empty for every family. The caller is
+/// responsible for skipping `current_scheme` if it appears in the
+/// slice (to avoid no-op drift events).
+pub(crate) fn family_members(family: ColorFamily) -> &'static [ColorScheme] {
+    use ColorScheme::*;
+    match family {
+        ColorFamily::Green => &[Green, Green2, Green3, NeonGreen, Forest, Aurora],
+        ColorFamily::GoldWarm => &[
+            Gold, Yellow, Orange, Sun, Venus, Jupiter, Saturn, NeonOrange, NeonYellow,
+        ],
+        ColorFamily::RedFire => &[Red, Fire, Mars, NeonRed],
+        ColorFamily::BlueWater => &[Blue, Ocean, Neptune, Uranus, Cyan, NeonBlue, NeonCyan],
+        ColorFamily::PurpleNebula => &[
+            Purple,
+            Nebula,
+            Cosmos,
+            Vaporwave,
+            Neon,
+            FancyDiamond,
+            NeonPurple,
+        ],
+        ColorFamily::GrayMoon => &[Gray, Mercury, Snow, Moon, Stars, Pluto, Carbon, NeonWhite],
+        ColorFamily::Rainbow => &[Rainbow, Spectrum20],
+    }
+}
+
 /// Autonomous color ecosystem: slow palette drift, luminance climate shifts,
 /// and tonal migration that makes the renderer feel atmospherically alive.
 ///
@@ -281,6 +422,15 @@ pub(super) struct ColorEcosystem {
     /// (luminance/saturation/hue) is NOT affected — only palette scheme
     /// replacement is cooled down.
     pub(super) last_palette_drift: Option<Instant>,
+    /// System feeling tracker for signal-driven palette drift.
+    ///
+    /// When `--auto-color-drift` is enabled, `tick()` consults this
+    /// tracker to pick a target ColorFamily based on CPU load + time
+    /// of day, then picks a random scheme within that family. When
+    /// the flag is off, the caller discards the drift result and this
+    /// tracker's state is unused (but still updated — cheap, and
+    /// keeps diagnostics honest if the user toggles the flag at runtime).
+    pub(super) system_feeling: crate::system_feeling::SystemFeeling,
 }
 
 // ── Bug #6 (continuous direction) — DEFERRED ──────────────────────────────
@@ -337,7 +487,16 @@ impl ColorEcosystem {
             hue_direction: 0.0,
             last_tick: now,
             last_palette_drift: None,
+            system_feeling: crate::system_feeling::SystemFeeling::new(now),
         }
+    }
+
+    /// Shift all internal timestamps by `elapsed`. Called on resume
+    /// from pause so the ecosystem doesn't interpret a long pause as
+    /// a single long tick (which would trigger a massive climate drift).
+    pub(super) fn shift_in_time(&mut self, elapsed: Duration) {
+        self.last_tick += elapsed;
+        self.system_feeling.shift_in_time(elapsed);
     }
 
     pub(super) fn tick(
@@ -392,7 +551,19 @@ impl ColorEcosystem {
             .hue_drift
             .clamp(-std::f32::consts::PI, std::f32::consts::PI);
 
-        // Autonomous palette drift
+        // Autonomous palette drift — signal-driven family selection.
+        //
+        // When `--auto-color-drift` is enabled (checked by the caller in
+        // rain.rs), the ecosystem consults the system feeling tracker to
+        // determine the current FeelingState, maps it to a target
+        // ColorFamily via `control_color_drift::family_for_state`, and
+        // picks a random scheme from that family (skipping the current
+        // scheme to avoid no-op drift events).
+        //
+        // The system feeling tracker is always ticked (even when the
+        // caller discards the drift result) so diagnostics stay honest
+        // and the state is warm if the user toggles the flag at runtime.
+        //
         // Phase D Bug #7 fix: enforce a cooldown between palette drift
         // events. Without this, drift can oscillate Green↔Green2 on
         // consecutive ticks (3% × 2 schemes = 1.5% reversal chance per
@@ -402,6 +573,8 @@ impl ColorEcosystem {
         // long-term drift behavior. Climate drift (luminance/saturation/hue)
         // runs unconditionally above — only palette scheme replacement is
         // cooled down.
+        self.system_feeling.tick(now);
+
         let cooldown_elapsed = self
             .last_palette_drift
             .map(|t| now.saturating_duration_since(t).as_secs_f32())
@@ -409,13 +582,24 @@ impl ColorEcosystem {
         if cooldown_elapsed >= PALETTE_DRIFT_COOLDOWN_SECS
             && chance_dist.sample(mt) < AUTONOMOUS_PALETTE_DRIFT_CHANCE
         {
-            let related = related_schemes(current_scheme);
-            if !related.is_empty() {
-                let idx_dist = Uniform::new_inclusive(0usize, related.len().saturating_sub(1))
-                    .expect("related_schemes idx always valid");
-                let new_scheme = related[idx_dist.sample(mt)];
-                self.last_palette_drift = Some(now);
-                return Some(new_scheme);
+            let state = self.system_feeling.current_state();
+            let target_family = crate::control_color_drift::family_for_state(state);
+            let members = family_members(target_family);
+            if !members.is_empty() {
+                let idx_dist = Uniform::new_inclusive(0usize, members.len().saturating_sub(1))
+                    .expect("family_members idx always valid");
+                // Pick a random starting index, then scan forward to skip
+                // the current scheme. If all members equal current_scheme
+                // (impossible for families with >1 member), return None.
+                let mut idx = idx_dist.sample(mt);
+                for _ in 0..members.len() {
+                    if members[idx] != current_scheme {
+                        self.last_palette_drift = Some(now);
+                        return Some(members[idx]);
+                    }
+                    idx = (idx + 1) % members.len();
+                }
+                // All members are the current scheme — no drift this tick.
             }
         }
 
