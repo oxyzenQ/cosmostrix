@@ -786,8 +786,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
 
                         // Process the keybinding FIRST. This lets interactive
-                        // keys (x, s, c, a, p, m, Space, Up/Down, etc.)
-                        // work even in --screensaver mode.
+                        // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
+                        // i/I, h/H) work even in --screensaver mode.
                         let redraw_needed = handle_keybinding(
                             &mut cloud,
                             &mut frame,
@@ -805,14 +805,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             // Screensaver mode (v15 "only q quits" policy):
                             //
                             // - q: quit (handle_keybinding set raining=false)
-                            // - Recognized interactive keys (c/s/x/p/i/h,
-                            //   Space, Up/Down, etc.): process and continue.
-                            //   The user can still cycle colors, toggle HUD, etc.
-                            //   while the screensaver is active.
-                            // - Unrecognized keys (B/b, z, F1-F12, Home/End,
-                            //   PageUp/Down, Esc, etc.): SILENTLY IGNORED.
-                            //   They do NOT exit the screensaver and do NOT cause
-                            //   any visual glitch. The user must press 'q' to quit.
+                            // - Recognized interactive keys (c/C, s/S, p,
+                            //   x/X, [, ], i/I, h/H, Space, Up/Down):
+                            //   process and continue. The user can still
+                            //   cycle colors, toggle HUD, etc. while the
+                            //   screensaver is active.
+                            // - Unrecognized keys (a, m, g, B/b, z, F1-F12,
+                            //   Home/End, PageUp/Down, Esc, Ctrl+Z, etc.):
+                            //   SILENTLY IGNORED. They do NOT exit the
+                            //   screensaver and do NOT cause any visual
+                            //   glitch. The user must press 'q' to quit.
                             //   This matches the "only q quits" policy enforced
                             //   in normal (non-screensaver) mode — consistency
                             //   is the world-class invariant.

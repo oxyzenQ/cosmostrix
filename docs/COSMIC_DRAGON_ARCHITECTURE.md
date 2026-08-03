@@ -215,19 +215,27 @@ COLORTERM, TERM) used by `bat`, `fd`, `ripgrep`, and `cargo`.
 
 Consistent with the "only q quits" policy:
 
-| Key | Normal mode | Screensaver mode |
-|-----|-------------|------------------|
-| q | Quit | Quit |
-| c/C/s/S/x/X/g/a/p/m | Interactive control | Interactive control |
-| i/I/h/H | HUD toggle | HUD toggle |
-| Space/Up/Down/0-9 | Interactive control | Interactive control |
-| B/b/z/F1/Home/Esc/Ctrl+C | Silently ignored | Silently ignored |
-| Mouse click | Click wave effect (always on, no flag) | Click wave effect (does NOT exit) |
+| Key                                   | Normal mode          | Screensaver mode    |
+|---------------------------------------|----------------------|---------------------|
+| `q`                                   | Quit                 | Quit                |
+| `c`/`C`, `s`/`S`, `p`, `x`/`X`        | Interactive control  | Interactive control |
+| `[` / `]`                             | Density down / up    | Density down / up   |
+| `Up` / `Down`                         | Speed up / down      | Speed up / down     |
+| `Space`                               | Reset animation      | Reset animation     |
+| `i`/`I`, `H`/`h`                      | HUD toggle / move    | HUD toggle / move   |
+| `a`, `m`, `g`, `B`/`b`, `z`, Tab, F1-F12, Home/End, PageUp/Down, Esc, Ctrl+C, Ctrl+Z | Silently ignored | Silently ignored |
+| Mouse click                           | Click wave effect (always on, no flag) | Click wave effect (does NOT exit) |
 
 No key causes a visual glitch. No key causes an accidental exit.
 Only `q` exits. Mouse click does NOT exit (v17: removed the
 `--mouse` flag and the click-to-exit behavior for consistency with
 the only-q-quits policy; mouse hover glow + click wave remain always on).
+
+v30 keybind audit: `-`/`_`/`+`/`=` (legacy density aliases) and the
+explicit `Tab`/`BackTab` no-op arm were removed. `Ctrl+Z` in-app suspend
+was removed (terminal-driven SIGTSTP still works via `signal_handlers.rs`).
+Stale doc references to `a`, `m`, `g`, `b`/`B` as "interactive" keys were
+purged — these were never active v30 keybinds.
 
 ## Module Organization
 

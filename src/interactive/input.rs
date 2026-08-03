@@ -10,14 +10,9 @@
 use std::time::{Duration, Instant};
 
 #[cfg(unix)]
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 #[cfg(unix)]
 use std::sync::Arc;
-
-#[cfg(unix)]
-use signal_hook::consts::SIGSTOP;
-#[cfg(unix)]
-use signal_hook::low_level;
 
 use crate::charset::{build_chars, charset_from_str};
 use crate::cloud::Cloud;
@@ -26,12 +21,8 @@ use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 
 use crate::scene;
-#[cfg(unix)]
-use crate::terminal::restore_terminal_best_effort;
 
 use super::super::{cycle_charset_preset, cycle_color_scheme, CloudConfig};
-#[cfg(unix)]
-use super::watchdog::MOUSE_CAPTURE_ACTIVE;
 
 const PASTE_BURST_SUPPRESS_MS: u64 = 50;
 
@@ -50,8 +41,8 @@ impl PasteBurstGuard {
     /// Press+Release pairs (kitty / foot / wezterm / alacritty / contour /
     /// Windows Console), the Release event is always queued immediately
     /// after the Press, so a queue-ready check would drop every single
-    /// printable key press. That made `L` (storm mode), `c` (color cycle),
-    /// `s` (charset), `p` (pause), etc. unreachable on those terminals.
+    /// printable key press. That made `c` (color cycle), `s` (charset),
+    /// `p` (pause), etc. unreachable on those terminals.
     pub(super) fn ignore_plain_key(
         &mut self,
         key: &crossterm::event::KeyEvent,
@@ -95,36 +86,28 @@ pub(super) fn handle_keybinding(
     user_ranges: &[(char, char)],
     def_ascii: bool,
     _cfg: &CloudConfig,
-    #[cfg(unix)] term_reinit: &Arc<AtomicBool>,
+    #[cfg(unix)] _term_reinit: &Arc<AtomicBool>,
 ) -> bool {
     use crossterm::event::KeyCode;
     use crossterm::event::KeyModifiers;
 
     // Quit policy: only 'q' exits. Esc, Ctrl+C (SIGINT is deprecated),
-    // and any other unrecognized key are silently ignored (fall through
-    // to the `_ => {}` arm at the end of this match). This prevents
-    // accidental exits from terminal menu Esc, Ctrl+C muscle memory, or
-    // stray function keys. The user must press 'q' deliberately to quit.
+    // Ctrl+Z (in-app suspend removed v30: terminal-driven SIGTSTP still
+    // works via signal_handlers.rs), Tab/BackTab, and any other
+    // unrecognized key are silently ignored (fall through to the
+    // `_ => {}` arm at the end of this match). This prevents accidental
+    // exits from terminal menu Esc, Ctrl+C muscle memory, or stray
+    // function keys. The user must press 'q' deliberately to quit.
     // v25.13: SIGINT (Ctrl+C) is no longer in the graceful-shutdown
     // signal list — see signal_handlers.rs.
+    //
+    // Historical note: Tab previously had an explicit arm here that
+    // toggled shading mode, which triggered a phosphor ghost-flood bug.
+    // The arm was removed v30; Tab now falls through to `_ => {}`. The
+    // regression suite in tests.rs::tab_* documents the historical bug
+    // and verifies Tab remains a no-op.
     match (k.code, k.modifiers) {
         (KeyCode::Char('q'), _) => cloud.raining = false,
-        (KeyCode::Char('z'), KeyModifiers::CONTROL) => {
-            #[cfg(unix)]
-            {
-                // Disable mouse capture before suspending so the terminal
-                // is not left with mouse reporting active while cosmostrix
-                // is in the background.
-                if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
-                    use crossterm::ExecutableCommand;
-                    let _ = std::io::stdout().execute(crossterm::event::DisableMouseCapture);
-                    MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
-                }
-                restore_terminal_best_effort();
-                term_reinit.store(true, Ordering::Release);
-                let _ = low_level::raise(SIGSTOP);
-            }
-        }
         (KeyCode::Char(' '), _) => {
             cloud.reset(frame.width, frame.height);
             cloud.force_draw_everything();
@@ -183,14 +166,6 @@ pub(super) fn handle_keybinding(
                 cps -= 1.0;
             }
             cloud.set_chars_per_sec(runtime_speed_clamp(cps, cloud.rain_style()));
-        }
-        (KeyCode::Tab, _) | (KeyCode::BackTab, _) => {
-            // Tab and Shift+Tab are explicitly ignored. Previously Tab
-            // toggled shading mode, which called set_shading_mode() →
-            // semantic_invalidate → invalidate_semantic() → frame clear
-            // without clearing phosphor_base_ch, causing a ghost background
-            // glyph flood. Tab is not a useful shortcut for a terminal rain
-            // renderer, so it is safely ignored to prevent this class of bug.
         }
         // Density: '[' decreases, ']' increases. Simplified from the
         // legacy alias set (-/_ for down, +/=Shift for up) — those were

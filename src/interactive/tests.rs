@@ -106,12 +106,11 @@ mod cases {
         let mut guard = PasteBurstGuard::default();
 
         // No bracketed paste signal armed → plain keys must pass through.
-        // This is the critical case for printable shortcuts like L (storm
-        // mode), C (color cycle), S (charset), P (pause) on terminals that
+        // This is the critical case for printable shortcuts like
+        // C (color cycle), S (charset), P (pause) on terminals that
         // emit Press+Release pairs — previously the queue-ready heuristic
         // would drop the Press because the Release was already queued.
         assert!(!guard.ignore_plain_key(&key('p'), now));
-        assert!(!guard.ignore_plain_key(&key('l'), now));
         assert!(!guard.ignore_plain_key(&key('c'), now));
         assert!(!guard.ignore_plain_key(&key('s'), now));
     }

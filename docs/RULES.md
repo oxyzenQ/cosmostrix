@@ -166,12 +166,37 @@ follow these architectural rules.
 
 ### CLI Flag Policy (v14+)
 
-- Quit: only `q` exits. Esc and Ctrl+C are ignored (prevent accidental exit).
-  v25.13: SIGINT (Ctrl+C) is deprecated at the signal level too — only
-  SIGTERM/SIGHUP/SIGQUIT trigger graceful shutdown. The user must press
-  `q` deliberately to quit the cinematic experience.
-- Screensaver mode: interactive keys (x, s, c, g, a, p, m, Space, arrows)
-  work normally. Only unrecognized keys exit.
+- Quit: only `q` exits. Esc, Ctrl+C, Ctrl+Z (in-app), Tab/BackTab, and all
+  other unrecognized keys are silently ignored (fall through to the
+  `_ => {}` catch-all in `handle_keybinding`). v25.13: SIGINT (Ctrl+C) is
+  deprecated at the signal level too — only SIGTERM/SIGHUP/SIGQUIT trigger
+  graceful shutdown. v30: in-app Ctrl+Z suspend keybind was removed
+  (terminal-driven SIGTSTP still works via `signal_handlers.rs`); the
+  explicit Tab/BackTab no-op arm was removed (now falls through to
+  catch-all). The user must press `q` deliberately to quit.
+- Active runtime keybinds (the complete set, see `--help` RUNTIME
+  CONTROLS):
+  - `q`              Quit
+  - `Space`          Reset animation + restart message typewriter
+  - `c` / `C`        Cycle color scheme forward / backward
+  - `s` / `S`        Cycle charset preset forward / backward
+  - `p`              Pause / resume
+  - `x` / `X`        Cycle scene forward / backward
+  - `Up` / `Down`    Speed up / slow down
+  - `[` / `]`        Density down / up
+  - `i` / `I`        Toggle live HUD
+  - `H` / `h`        Move HUD to opposite corner
+- Screensaver mode: all the above keys work normally. Only `q` exits.
+- Removed legacy keybinds (now silently ignored via catch-all, were
+  never documented in `--help`):
+  - v30: `-` `_` `+` `=` (density aliases for `[` / `]`)
+  - v30: `Ctrl+Z` (in-app suspend — OS SIGTSTP still works)
+  - v30: `Tab` / `BackTab` explicit no-op arm (now catch-all; historical
+    shading-mode toggle that caused phosphor ghost flood — see
+    `tests.rs::tab_*` regression suite)
+  - Stale doc references to `a`, `m`, `g`, `b`/`B` as "interactive" keys
+    were purged from RULES.md, COSMIC_DRAGON_ARCHITECTURE.md, README.md,
+    and inline comments — these were never active keybinds in v30.
 - Removed flags (each has a migration error produced by the `REMOVED_FLAGS`
   table in `src/validation.rs` that intercepts the flag before clap parsing):
   - v14.0.0: `--preset`, `--profile`, `--low-power`, `--list-presets`,
