@@ -242,23 +242,22 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_adaptive_glitch: Option<String> = None;
     const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 
+    // Phase 5 (P4-3): cache the adaptive-custom subset for skip-on-unchanged.
+    let mut last_adaptive_custom_snapshot: Option<Vec<(String, String)>>;
+
     // Track runtime state changes for post-exit verbose summary.
     // No eprintln during rain — would flicker in alternate-screen mode.
     let _verbose = cfg.verbose;
 
-    // Parse custom time map from config (if [adaptive-custom] is defined).
-    // This overrides the default 5-phase adaptive engine.
-    let mut custom_time_map: Option<crate::atmosphere_custom::CustomTimeMap> = {
+    let mut custom_time_map: Option<crate::atmosphere_custom::CustomTimeMap>;
+    {
         let cfg_map = crate::configfile::load_config_file(cfg.config_path_for_watcher.as_deref());
-        match crate::atmosphere_custom::parse_custom_time_map(&cfg_map) {
-            Ok(map) if !map.is_empty() => Some(map),
-            Ok(_) => None,
-            Err(e) => {
-                eprintln!("[adaptive-custom] parse error: {e}. Using default adaptive.");
-                None
-            }
-        }
-    };
+        // Phase 5 (P4-3): seed cache + initial parse via helper.
+        let (map, snap) =
+            crate::atmosphere_custom::reparse_if_changed(&cfg_map, &None, &None, "at startup");
+        custom_time_map = map;
+        last_adaptive_custom_snapshot = Some(snap);
+    }
 
     while cloud.raining {
         // Check for graceful shutdown request from signal handler.
@@ -526,16 +525,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             super::fill_terminal_bg(cloud.palette.bg);
             // Update charset_preset for runtime cycling.
             charset_preset = new_cfg.charset_preset.clone();
-            // Re-parse custom time map from the new config (live reload
-            // may have added/changed/removed adaptive-custom entries).
-            custom_time_map = match crate::atmosphere_custom::parse_custom_time_map(&new_cfg_map) {
-                Ok(map) if !map.is_empty() => Some(map),
-                Ok(_) => None,
-                Err(e) => {
-                    eprintln!("[adaptive-custom] parse error after live reload: {e}. Using default adaptive.");
-                    None
-                }
-            };
+            // Phase 5 (P4-3): reparse only if the adaptive-custom subset
+            // changed (cache hit → ~50ns instead of ~1ms). The helper also
+            // handles the broken-pipe-safe stderr error message (P4-2/P3-10).
+            let (new_map, new_snap) = crate::atmosphere_custom::reparse_if_changed(
+                &new_cfg_map,
+                &custom_time_map,
+                &last_adaptive_custom_snapshot,
+                "after live reload",
+            );
+            custom_time_map = new_map;
+            last_adaptive_custom_snapshot = Some(new_snap);
             // v25.5 depth-test fix: recompute target/idle_period from new
             // target_fps. Guard against fps <= 0.
             let safe_fps = new_cfg.target_fps.max(0.0);

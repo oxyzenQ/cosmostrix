@@ -1,24 +1,33 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Apply config file values, presets, and low-power defaults to parsed CLI args.
+//! Apply config file values, scene defaults, scene-custom, and glitch-level
+//! cross-cutting merge to parsed CLI args.
 //!
-//! Precedence (highest wins):
-//! 1. Built-in clap defaults
-//! 2. Scene defaults (only for keys NOT set in config — fills the gaps)
-//! 3. Config file values (always wins over scene defaults for user-set keys)
-//! 4. Config preset
-//! 5. Config profile
-//! 6. CLI preset
-//! 7. CLI scene (still respects config-set keys; only fills unset keys)
-//! 8. CLI profile
-//! 9. Low-power values for fields not touched by curated layers or explicit CLI
-//! 10. Explicit CLI flags
+//! Precedence (highest wins — actual 5-level chain as wired in
+//! `apply_config_and_runtime_defaults`):
+//! 1. Built-in clap defaults (the floor — every field has one)
+//! 2. Config file values (always wins over scene defaults for user-set keys)
+//! 3. Default scene values (only fills keys NOT set in config — scene is a
+//!    template for unset keys, not an override for user-set keys)
+//! 4. CLI scene / scene-custom (only fills unset keys; respects config-set
+//!    keys). `--profile` is applied inside `scene_custom.rs` as part of this
+//!    layer, not as a separate precedence level.
+//! 5. `--glitch-level` cross-cutting merge (overrides glitch-pct/shortpct/
+//!    rippct/max-dpc when glitch-level is explicitly set by any source)
 //!
 //! Key rule: a value explicitly set in config.toml ALWAYS wins over a scene's
 //! hardcoded default. Scenes are templates for *unset* keys, not overrides for
 //! user-set keys. This prevents the surprise where `speed = 30` in config gets
 //! silently overwritten by a scene's `speed = 8`.
+//!
+//! Historical note: v14/v17/v20 purges removed `--preset`, `--profile` (as a
+//! standalone CLI flag), and `--low-power`. Their behavior was absorbed into
+//! `--scene` and `--scene-custom`. Old doc comments listing 10 precedence
+//! levels (with separate "config preset", "CLI preset", "CLI profile",
+//! "low-power" layers) were stale — those layers no longer exist as separate
+//! functions. This comment was rewritten in the Phase 5 config-sync audit to
+//! match the actual wiring.
 
 use std::collections::{HashMap, HashSet};
 

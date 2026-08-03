@@ -97,7 +97,13 @@ pub(crate) fn colorize_help(text: &str) -> String {
 pub enum ColorBg {
     #[value(name = "black")]
     Black,
-    #[value(name = "default-background")]
+    // Phase 5 (P2-5): add "default_background" (snake_case) as a CLI alias
+    // for "default-background" (kebab-case). Previously the CLI only
+    // accepted "default-background", while config.toml accepted both forms
+    // (testconf.rs:546, config_apply.rs:691, profile.rs:360, live_config.rs:784).
+    // This closed the CLI/config asymmetry where the same value worked in
+    // config.toml but was rejected on the CLI.
+    #[value(name = "default-background", aliases = ["default_background"])]
     DefaultBackground,
 }
 
@@ -609,7 +615,12 @@ pub struct Args {
     #[arg(
         long = "bench-frames",
         hide = true,
-        help = "Run headless benchmark for N frames and exit"
+        help = "Run headless benchmark for N frames and exit",
+        // Phase 5 (P3-6): reject 0 — a 0-frame benchmark produces a 0-FPS
+        // report with warmup running, which looks like a real measurement.
+        // value_parser range(1..) makes clap reject --bench-frames 0 at
+        // parse time with a clear error before any allocation or warmup.
+        value_parser = clap::value_parser!(u64).range(1..)
     )]
     pub bench_frames: Option<u64>,
 

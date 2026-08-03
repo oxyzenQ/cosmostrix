@@ -54,11 +54,27 @@ pub(crate) fn bench_dimensions(cli_size: Option<(u16, u16)>) -> (u16, u16) {
 /// Read configurable warmup duration from environment, falling back to the
 /// default constant. Allows CI or power users to tune JIT warmup for
 /// stability on different hardware.
+///
+/// Phase 5 (P3-2): on parse failure, emit a stderr warning naming the env
+/// var, the bad value, and the fallback. Previously the parse error was
+/// silently swallowed and the warmup defaulted to 2s with no signal —
+/// causing CI users to spend hours debugging "slow benchmark" regressions
+/// that were actually just a typo'd env var being ignored.
 pub(crate) fn bench_warmup_secs() -> u64 {
-    env::var("COSMOSTRIX_BENCH_WARMUP_SECS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(2) // default warmup: 2 seconds
+    const DEFAULT: u64 = 2;
+    match env::var("COSMOSTRIX_BENCH_WARMUP_SECS") {
+        Ok(raw) => match raw.parse::<u64>() {
+            Ok(secs) => secs,
+            Err(_) => {
+                use std::io::Write;
+                let _ = std::io::stderr().write_fmt(format_args!(
+                    "[bench] warning: COSMOSTRIX_BENCH_WARMUP_SECS='{raw}' is not a valid u64 — falling back to default {DEFAULT}s\n"
+                ));
+                DEFAULT
+            }
+        },
+        Err(_) => DEFAULT,
+    }
 }
 
 /// Backpressure section formatter for the `--perf-stats` interactive-mode

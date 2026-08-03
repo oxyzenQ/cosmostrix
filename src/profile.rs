@@ -317,12 +317,17 @@ fn apply_profile_overrides(
 
 fn parse_f32_profile(name: &str, field: &str, value: &str, min: f32, max: f32) -> Option<f32> {
     parse_canonical_f32_range(&format!("profile.{name}.{field}"), value, min, max)
-        .map_err(|_| {
+        .map_err(|e| {
+            // Phase 5 (P3-8): pass the canonical parser's error message
+            // through to warn_invalid. Previously the error was discarded
+            // and a generic "number in range X..=Y" message was emitted,
+            // hiding whether the value was non-canonical (e.g. "1e2") or
+            // out of range (e.g. "200"). The canonical message distinguishes.
             warn_invalid(
                 name,
                 field,
                 value,
-                &format!("number in range {min}..={max}"),
+                &format!("number in range {min}..={max} ({e})"),
             )
         })
         .ok()
@@ -330,12 +335,13 @@ fn parse_f32_profile(name: &str, field: &str, value: &str, min: f32, max: f32) -
 
 fn parse_f64_profile(name: &str, field: &str, value: &str, min: f64, max: f64) -> Option<f64> {
     parse_canonical_f64_range(&format!("profile.{name}.{field}"), value, min, max)
-        .map_err(|_| {
+        .map_err(|e| {
+            // Phase 5 (P3-8): pass the canonical parser's error message through.
             warn_invalid(
                 name,
                 field,
                 value,
-                &format!("number in range {min}..={max}"),
+                &format!("number in range {min}..={max} ({e})"),
             )
         })
         .ok()
@@ -343,12 +349,13 @@ fn parse_f64_profile(name: &str, field: &str, value: &str, min: f64, max: f64) -
 
 fn parse_speed_profile(name: &str, value: &str) -> Option<f32> {
     parse_canonical_speed(&format!("profile.{name}.speed"), value)
-        .map_err(|_| {
+        .map_err(|e| {
+            // Phase 5 (P3-8): pass the canonical parser's error message through.
             warn_invalid(
                 name,
                 "speed",
                 value,
-                &format!("canonical integer in range {SPEED_MIN}..={SPEED_MAX}"),
+                &format!("canonical integer in range {SPEED_MIN}..={SPEED_MAX} ({e})"),
             );
         })
         .ok()
@@ -378,8 +385,11 @@ fn parse_atmosphere_regime_profile(name: &str, value: &str) -> Option<String> {
             Some(value.trim().to_ascii_lowercase())
         }
         "storm" => {
-            eprintln!(
-                "profile: invalid atmosphere-regime='storm' in profile '{name}' — storm is unavailable"
+            // Phase 5 (P3-9): unify all 3 storm-rejection sites on
+            // eprintln_error_labeled for consistent branding. The other
+            // sites are config_apply.rs:63-67 and testconf.rs:524-525.
+            crate::output::eprintln_error_labeled(
+                "invalid atmosphere-regime='storm' in profile '{name}' — storm is unavailable",
             );
             None
         }

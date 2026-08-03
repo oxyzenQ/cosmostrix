@@ -522,7 +522,9 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
             "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure"
             | "adaptive" => None,
             "storm" => Some(
-                "storm is unavailable and will be rejected".to_string(),
+                // Phase 5 (P3-9): match the wording used by config_apply.rs:63-67
+                // and profile.rs storm branch for cross-layer consistency.
+                "rejecting atmosphere-regime='storm' — storm is unavailable".to_string(),
             ),
             _ => Some(format!(
                 "unknown regime '{v}'. Available: calm, pulse, signal, compression, void, monolith-pressure, adaptive"

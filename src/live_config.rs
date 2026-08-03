@@ -124,14 +124,16 @@ pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> 
                 watcher_loop(path, tx);
             }));
             if let Err(_e) = result {
-                // Watcher thread panicked — likely terminal closed.
-                lr_trace!("watcher thread PANICKED — setting exit code");
-                LIVE_RELOAD_ERROR
-                    .lock()
-                    .map(|mut guard| {
-                        *guard = Some("watcher thread terminated unexpectedly".to_string())
-                    })
-                    .ok();
+                // Phase 5 (P3-3/P4-1): emit stderr on mutex poison (write_fmt = broken-pipe-safe).
+                match LIVE_RELOAD_ERROR.lock() {
+                    Ok(mut g) => *g = Some("watcher thread terminated unexpectedly".to_string()),
+                    Err(_) => {
+                        use std::io::Write;
+                        let _ = std::io::stderr().write_fmt(format_args!(
+                            "[live-reload] mutex poisoned — watcher thread terminated unexpectedly\n"
+                        ));
+                    }
+                }
                 LIVE_RELOAD_EXIT_CODE.store(2, Ordering::Release);
             }
         });

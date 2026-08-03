@@ -27,6 +27,53 @@
 
 use std::collections::HashMap;
 
+/// Snapshot the `adaptive-custom.*` subset of a config map, sorted by key.
+///
+/// Phase 5 (P4-3): used by the live-reload path in `event_loop.rs` to detect
+/// whether the adaptive-custom entries have changed between reloads. If the
+/// snapshot is unchanged, the O(n) reparse is skipped (turning ~1ms into ~50ns).
+#[must_use]
+pub fn snapshot_adaptive_custom(cfg: &HashMap<String, String>) -> Vec<(String, String)> {
+    let mut snapshot: Vec<(String, String)> = cfg
+        .iter()
+        .filter(|(k, _)| k.starts_with("adaptive-custom."))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    snapshot.sort_by(|a, b| a.0.cmp(&b.0));
+    snapshot
+}
+
+/// Reparse the custom time map only if the adaptive-custom subset has changed.
+///
+/// Phase 5 (P4-3): returns `(new_map, new_snapshot)`. The caller stores
+/// `new_snapshot` and passes it back on the next call. If the snapshot is
+/// unchanged, the existing `current_map` is returned unchanged (cache hit).
+/// On parse error, emits a broken-pipe-safe stderr line and returns `None`.
+#[must_use]
+pub fn reparse_if_changed(
+    cfg: &HashMap<String, String>,
+    current_map: &Option<CustomTimeMap>,
+    prev_snapshot: &Option<Vec<(String, String)>>,
+    label: &str,
+) -> (Option<CustomTimeMap>, Vec<(String, String)>) {
+    let new_snapshot = snapshot_adaptive_custom(cfg);
+    if prev_snapshot.as_ref() == Some(&new_snapshot) {
+        return (current_map.clone(), new_snapshot);
+    }
+    let new_map = match parse_custom_time_map(cfg) {
+        Ok(map) if !map.is_empty() => Some(map),
+        Ok(_) => None,
+        Err(e) => {
+            use std::io::Write;
+            let _ = std::io::stderr().write_fmt(format_args!(
+                "[adaptive-custom] parse error {label}: {e}. Using default adaptive (built-in adaptive engine, previous scene/color preserved).\n"
+            ));
+            None
+        }
+    };
+    (new_map, new_snapshot)
+}
+
 /// A single time point in the custom map.
 #[derive(Debug, Clone)]
 pub struct CustomTimePoint {

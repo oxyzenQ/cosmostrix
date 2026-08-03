@@ -87,6 +87,17 @@ model is wired into the runtime:
 speed/density/brightness/glitch scales to the renderer, but never
 touches color or terminal behavior.
 
+> **Important — `adaptive-custom` bypasses `atmosphere-mode = disabled`:**
+> The `[adaptive-custom.HH-MM]` schedule (see [§ adaptive-custom](#adaptive-custom--user-defined-time-map)
+> below) runs **regardless of `atmosphere-mode`**. Defining
+> `adaptive-custom.*` entries is an explicit opt-in that takes precedence
+> over the `disabled` mode. To disable ALL atmosphere behavior — both the
+> built-in adaptive engine AND the user-defined schedule — remove all
+> `adaptive-custom.*` keys from `config.toml` AND set
+> `atmosphere-mode = disabled`. This is intentional by design (the user
+> explicitly defined a schedule, so we honor it), but it is a common
+> source of confusion if you expect `disabled` to be a global kill switch.
+
 ### Diagnostics Honesty Fields
 
 The renderer reports these fields in `--doctor` and the benchmark

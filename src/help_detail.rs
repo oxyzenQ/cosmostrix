@@ -363,6 +363,10 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
   --atmosphere-mode <disabled|controlled-live>
       Atmosphere mode (default: disabled). 'controlled-live' wires the
       regime model into the runtime with whisper-bounded safety.
+      NOTE: adaptive-custom.* entries in config.toml run regardless of
+      this mode (defining them is an explicit opt-in). To disable ALL
+      atmosphere behavior, remove adaptive-custom.* keys AND set this
+      to 'disabled'.
       Config: atmosphere-mode = \"controlled-live\"
   --atmosphere-regime <calm|pulse|signal|compression|void|monolith-pressure|adaptive>
       Atmosphere regime (default: calm). Selects the modulation profile

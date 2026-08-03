@@ -300,7 +300,10 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
         "--color-bg" => CliSpec {
             name: "--color-bg",
             kind: CliKind::Enum {
-                allowed: &["black", "default-background"],
+                // Phase 5 (P2-5): accept "default_background" (snake_case) as
+                // an alias to match config.toml behavior. The clap ValueEnum
+                // in config.rs:106 also accepts both forms.
+                allowed: &["black", "default-background", "default_background"],
             },
         },
         "--glitch-level" => CliSpec {

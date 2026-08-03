@@ -462,6 +462,19 @@ fn main() -> std::io::Result<()> {
             ));
         }
         // Write the example config to the validated path.
+        // Phase 5 (P3-7): refuse to overwrite an existing file. Previously
+        // --dump-config silently overwrote any existing config at the path,
+        // causing data loss if the user pointed it at their carefully-tuned
+        // ~/.config/cosmostrix/config.toml. Now: if the file exists, exit
+        // with a clear error + suggest writing to a .new suffix instead.
+        if std::path::Path::new(path_str).exists() {
+            ux::die_input(format!(
+                "error: --dump-config refuses to overwrite existing file '{path_str}'\n  \
+                 Move the existing file aside first, or write to a new path:\n    \
+                 cosmostrix --dump-config {path_str}.new\n  \
+                 Then review the new file and rename if appropriate."
+            ));
+        }
         match std::fs::write(path_str, configfile::dump_config_text()) {
             Ok(()) => {
                 if args.verbose {
