@@ -100,7 +100,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     super::fill_terminal_bg(cloud.palette.bg);
 
     // v20: Modular cinematic intro (--intro <type> flag).
-    if cfg.intro != crate::config::IntroType::None && !cfg.screensaver {
+    // v31: Removed the `!cfg.screensaver` guard — the intro now plays in
+    // screensaver mode too. The owner reversed the v17 "auto-skip in
+    // screensaver" decision: the intro is cosmostrix's signature and should
+    // not be suppressed by input mode. Skip policy (only `q` skips) is unchanged.
+    if cfg.intro != crate::config::IntroType::None {
         super::intro::run_intro(&mut term, &mut frame, &cloud, w, h, cfg.intro)?;
         cloud.force_draw_everything();
         frame.clear_with_bg(cloud.palette.bg);
