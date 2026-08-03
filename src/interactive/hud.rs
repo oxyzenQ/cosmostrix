@@ -167,7 +167,7 @@ impl HudState {
                 (Color::Yellow, String::new()),
                 (Color::Magenta, String::new()),
                 (Color::Green, String::new()),
-                (Color::DarkGrey, String::new()), // cpu line — dim
+                (Color::Cyan, String::new()), // cpu line — uses `mid` (bright) at runtime
                 (Color::DarkCyan, String::new()),
                 (Color::DarkCyan, String::new()),
             ],
@@ -187,18 +187,14 @@ impl HudState {
             self.last_rss_sample = Instant::now()
                 .checked_sub(HUD_RSS_INTERVAL * 2)
                 .unwrap_or_else(Instant::now);
-            // Reset the CPU sampler baseline. While the HUD was off,
-            // `maybe_sample_cpu` short-circuited and `last_cpu_ns` may
-            // be stale (e.g. from before the user pressed `?`). On
-            // toggle-on, force the next CPU sample to be a fresh
-            // baseline — `cpu_percent` will render `—` for ~1 second
-            // until the second sample arrives, which is the honest
-            // behavior (no stale percent shown).
-            self.last_cpu_sample = Instant::now()
-                .checked_sub(HUD_CPU_INTERVAL * 2)
-                .unwrap_or_else(Instant::now);
-            self.last_cpu_ns = None;
-            self.cpu_percent = None;
+            // CPU sampling: NO reset of last_cpu_ns / last_cpu_sample.
+            // The CPU baseline is kept warm continuously (see
+            // maybe_sample_cpu — it samples at 1 Hz even when the HUD is
+            // off, costing one syscall/sec). This means on toggle-on,
+            // we already have a recent baseline and can compute an
+            // instant percent on the very next tick — no `cpu: —`
+            // flash. The user explicitly requested this; other metrics
+            // (fps/p99/rss) show data instantly, and CPU must too.
         }
         self.visible
     }
@@ -261,26 +257,35 @@ impl HudState {
     /// Maybe sample process CPU% (rate-limited to 1 Hz). Called every frame.
     ///
     /// Computes `cpu_percent = (cpu_ns_delta / wall_ns_delta) * 100.0`
-    /// using two consecutive `cpustat::current_cpu_ns()` readings. The
-    /// first sample establishes a baseline (no percent yet — renders as
-    /// `cpu: —`); subsequent samples produce a stable percent value.
+    /// using two consecutive `cpustat::current_cpu_ns()` readings.
+    ///
+    /// ## Keeps baseline warm even when HUD is off
+    /// Unlike `maybe_sample_rss` (which short-circuits on invisible),
+    /// this method samples at 1 Hz **regardless of HUD visibility**.
+    /// The reason: CPU% requires a delta between two samples, so a cold
+    /// baseline forces the HUD to show `cpu: —` for ~1 second after
+    /// toggle-on. By keeping the baseline warm, toggle-on produces an
+    /// instant percent on the very next tick — matching the UX of
+    /// fps/p99/max/rss which all show data immediately.
+    ///
+    /// The cost is one `cpustat::current_cpu_ns()` call per second
+    /// (~2 KiB `/proc` read on Linux, one syscall on macOS/BSD/Android)
+    /// when the HUD is off — well under 0.1% CPU.
     ///
     /// When the underlying sampler returns `None` (non-unix targets, or
-    /// a transient OS query failure), `cpu_percent` stays `None` and the
-    /// HUD renders `cpu: —` to honestly signal "metric unavailable"
+    /// a transient OS query failure), `cpu_percent` is set to `None` and
+    /// the HUD renders `cpu: —` to honestly signal "metric unavailable"
     /// rather than misleadingly showing `0.00%`.
     ///
     /// ## Why not reuse `system_feeling.rs`?
     /// `system_feeling` is only active when `--auto-color-drift` is on.
-    /// The HUD is independent (`?` toggles it any time) and must work
+    /// The HUD is independent (`i` toggles it any time) and must work
     /// without color drift. Decoupling also avoids sharing mutable state
-    /// across subsystems on the hot frame path. The extra `/proc` read
-    /// at 1 Hz costs <0.1% CPU.
+    /// across subsystems on the hot frame path.
     #[inline]
     pub(crate) fn maybe_sample_cpu(&mut self) {
-        if !self.visible {
-            return;
-        }
+        // NOTE: samples at 1 Hz even when HUD is off, to keep the
+        // baseline warm for instant percent on toggle-on.
         let now = Instant::now();
         if now.duration_since(self.last_cpu_sample) < HUD_CPU_INTERVAL {
             return;
@@ -290,10 +295,6 @@ impl HudState {
 
         let Some(cpu_ns_now) = cpustat::current_cpu_ns() else {
             // Sampler unsupported (non-unix) or transient OS failure.
-            // Keep cpu_percent as-is (None on first call, or stale on
-            // subsequent calls). The HUD renders `cpu: —` either way
-            // because we set `cpu_percent = None` whenever the previous
-            // sample also failed — see the None branch below.
             self.last_cpu_ns = None;
             self.cpu_percent = None;
             return;
@@ -302,6 +303,9 @@ impl HudState {
         match self.last_cpu_ns {
             None => {
                 // First successful sample — establish baseline, no delta yet.
+                // This only happens on the very first frame after process
+                // start (not on toggle-on, because the baseline is kept
+                // warm while the HUD is off).
                 self.cpu_percent = None;
             }
             Some(prev_ns) => {
@@ -416,14 +420,23 @@ impl HudState {
         // CPU% line: process CPU usage with 2-decimal precision.
         // Format: ` cpu: 0.45%` (single-threaded typical: 0-5%) or
         // ` cpu: —` when the sampler is unsupported (non-unix) or
-        // waiting for the first delta to complete (~1s after HUD on).
+        // waiting for the first delta to complete (first ~1s of process
+        // lifetime only — baseline is kept warm while HUD is off, so
+        // toggle-on shows instant percent).
         // The em dash is U+2014 (3 bytes UTF-8) but renders as 1 cell —
         // matches the existing `rss: —` fallback convention.
+        //
+        // Color: uses `mid` (palette_colors[n/2]) brightened — same as
+        // the p99 line. This is intentional: cpu% is a metric the user
+        // actively watches when investigating performance, so it
+        // deserves a bright color. The `dim` color is reserved for
+        // uptime/screensize which are informational only. Brightening
+        // guarantees readability on dark rain palettes.
         let cpu_str = match self.cpu_percent {
             Some(pct) => format!("{pct:.2}%"),
             None => "—".to_string(),
         };
-        self.cached_lines[4] = (dim, format!(" cpu: {cpu_str}"));
+        self.cached_lines[4] = (mid, format!(" cpu: {cpu_str}"));
         self.cached_lines[5] = (dim, format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
@@ -515,17 +528,29 @@ fn format_rss_kb(kib: u64) -> String {
     }
 }
 
-/// Brighten a crossterm Color by blending it 50% with white.
+/// Brighten a crossterm Color by blending it with white.
 /// Ensures HUD text is always readable on the black background,
 /// even when the palette color is very dark (e.g. dark green trail).
+///
+/// ## Blend ratio
+/// Uses an asymmetric blend that gives more weight to white than to
+/// the source color — this guarantees readability even for very dark
+/// rain palette colors (e.g. RGB(0,5,15) dark blue tail). The previous
+/// 50/50 blend could still be too dim on some truecolor terminals
+/// with low contrast curves. The current blend ensures every HUD line
+/// stays clearly visible regardless of the active color scheme.
+///
 /// Non-RGB colors (AnsiValue, named) are returned as-is — they're
 /// already bright enough in practice.
 fn brighten_color(color: Color) -> Color {
     match color {
         Color::Rgb { r, g, b } => Color::Rgb {
-            r: r / 2 + 128,
-            g: g / 2 + 128,
-            b: b / 2 + 128,
+            // Asymmetric blend: 35% source + 65% white. A pure black
+            // RGB(0,0,0) becomes RGB(166,166,166) — clearly readable.
+            // A dark RGB(10,5,20) becomes RGB(169,170,171).
+            r: r * 35 / 100 + 166,
+            g: g * 35 / 100 + 166,
+            b: b * 35 / 100 + 166,
         },
         other => other,
     }
@@ -577,15 +602,31 @@ mod tests {
     }
 
     #[test]
-    fn hud_maybe_sample_cpu_is_noop_when_invisible() {
-        // When the HUD is off, maybe_sample_cpu must NOT touch any CPU
-        // state — same zero-cost contract as maybe_sample_rss.
+    fn hud_maybe_sample_cpu_keeps_baseline_warm_when_invisible() {
+        // When the HUD is off, maybe_sample_cpu STILL samples at 1 Hz —
+        // this is the warm-baseline design that lets toggle-on show an
+        // instant percent (no `cpu: —` flash for 1 second).
+        //
+        // The cost is one syscall/sec when the HUD is off — well under
+        // 0.1% CPU. This trade-off was explicitly requested by the user:
+        // other metrics (fps/p99/rss) show data instantly on toggle-on,
+        // and CPU must too.
+        //
+        // On unix platforms the sampler should produce Some(last_cpu_ns)
+        // after a single call. On non-unix it stays None (sampler
+        // unsupported). Both are valid per-platform outcomes.
         let mut h = HudState::new();
         h.maybe_sample_cpu();
-        assert!(h.last_cpu_ns.is_none(), "invisible HUD must not sample CPU");
+        // We can't assert last_cpu_ns.is_some() unconditionally because
+        // non-unix targets return None. But we CAN assert that the
+        // function did NOT short-circuit on invisible — by checking that
+        // last_cpu_sample was updated to ~now (i.e. the function ran to
+        // completion past the visibility check).
+        let now = Instant::now();
+        let diff = now.duration_since(h.last_cpu_sample);
         assert!(
-            h.cpu_percent.is_none(),
-            "invisible HUD must not produce a CPU% reading"
+            diff.as_millis() < 1000,
+            "maybe_sample_cpu must run even when invisible (warm baseline) — last_cpu_sample was not updated"
         );
     }
 
@@ -608,24 +649,29 @@ mod tests {
     }
 
     #[test]
-    fn hud_toggle_resets_cpu_baseline() {
+    fn hud_toggle_preserves_cpu_baseline_for_instant_reopen() {
         // When the HUD is toggled off then on again, the CPU baseline
-        // must be cleared. Otherwise the next percent reading would be
-        // computed against a stale (potentially minutes-old) ns reading
-        // and produce a wildly inaccurate value.
+        // must be PRESERVED (not cleared). This is the warm-baseline
+        // design: maybe_sample_cpu samples at 1 Hz even while the HUD
+        // is off, so on toggle-on we already have a recent baseline
+        // and can compute an instant percent on the very next tick.
+        //
+        // Previously (commit ef8ab2a) the baseline was cleared on
+        // toggle-on, forcing the HUD to show `cpu: —` for ~1 second.
+        // The user explicitly flagged this as a UX inconsistency:
+        // other metrics (fps/p99/rss) show data instantly, and CPU
+        // must too.
         let mut h = HudState::new();
         h.toggle(); // on
         h.maybe_sample_cpu();
+        // Stash the post-first-sample baseline (may be None on non-unix).
+        let baseline_before_toggle_off = h.last_cpu_ns;
         // Toggle off then on.
         h.toggle(); // off
         h.toggle(); // on
-        assert!(
-            h.last_cpu_ns.is_none(),
-            "toggling HUD on must clear the CPU baseline"
-        );
-        assert!(
-            h.cpu_percent.is_none(),
-            "toggling HUD on must clear cpu_percent"
+        assert_eq!(
+            h.last_cpu_ns, baseline_before_toggle_off,
+            "toggling HUD on must PRESERVE the CPU baseline (warm-baseline design)"
         );
     }
 

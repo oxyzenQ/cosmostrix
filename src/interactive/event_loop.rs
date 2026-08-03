@@ -161,12 +161,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
 
     // Live HUD overlay state — toggled with 'i'. When visible, renders a
-    // compact FPS/p99/RSS overlay in the top-right corner at 1 Hz.
+    // compact FPS/p99/RSS/CPU overlay in the top-right corner at 1 Hz.
     // Zero cost when off (all methods short-circuit on visible==false).
-    // 'i' is used instead of '?' because Android/Termux soft keyboards
-    // may send '?' as a multi-byte sequence or with unexpected modifier
-    // bits, which falls through to the screensaver exit path. A simple
-    // lowercase printable letter is sent reliably by every keyboard.
+    // 'i' (and 'I' for sticky-shift keyboards) is the canonical toggle;
+    // 'H'/'h' moves the overlay between left and right corners.
     let mut hud_state: HudState = HudState::new();
     hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
 
@@ -710,13 +708,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // where the screensaver path would otherwise fire on
                         // any unrecognized key event.
                         //
-                        // 'i'/'I' is used instead of '?' because Android soft
-                        // keyboards send simple printable letters reliably,
-                        // while '?' may arrive with unexpected modifier bits
-                        // or as a different keycode entirely, causing the
-                        // keypress to fall through to the screensaver exit
-                        // path. 'I' is also accepted for keyboards where the
-                        // Shift state is sticky or set unexpectedly.
+                        // 'i'/'I' is the canonical toggle key. 'I' is also
+                        // accepted for keyboards where the Shift state is
+                        // sticky or set unexpectedly.
                         //
                         // When toggling OFF, we MUST call force_draw_everything()
                         // to clear stale HUD cells from the frame buffer. The
