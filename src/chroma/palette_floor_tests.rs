@@ -299,11 +299,13 @@ fn phase7_colors_from_stops_integration_bright_theme() {
 ///
 /// Note: we do NOT assert a trail/head brightness ratio upper bound.
 /// Some themes (Rainbow, Spectrum20) have intentionally bright trail
-/// stops — Rainbow's trail is pure red (255, 0, 0) sum 255 by design.
-/// The "washout" concern is covered by the per-theme unit tests
-/// (phase7_dark_palette_trail_preserves_aesthetic, etc.) which verify
-/// specific dark-theme trails are not over-boosted. This audit only
-/// verifies the visibility guarantee.
+/// stops — Rainbow's trail is OKLCH-derived red (232, 89, 74) sum 395
+/// by design (v30 OKLab audit: replaced raw sRGB primaries with
+/// perceptually-uniform OKLCH values; see catalog.rs Rainbow entry
+/// for the full rationale). The "washout" concern is covered by the
+/// per-theme unit tests (phase7_dark_palette_trail_preserves_aesthetic,
+/// etc.) which verify specific dark-theme trails are not over-boosted.
+/// This audit only verifies the visibility guarantee.
 #[test]
 fn phase7_all_themes_trail_stops_within_bounds() {
     use crate::runtime::ColorMode;

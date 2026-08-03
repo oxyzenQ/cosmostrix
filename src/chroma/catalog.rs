@@ -519,21 +519,30 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Rainbow,
         def: ThemeColors::Stops {
-            // v25 masterclass rebuild: true saturated spectrum using
-            // pure RGB hues. Red → Orange → Yellow → Green → Blue →
-            // Indigo → Violet. Each stop is at full saturation (one
-            // channel at 255, others at 0 or 127) so the rainbow
-            // "pops" with maximum vibrancy. Head stop (violet 143,0,255)
-            // sum=398 — well under the 655 head-luminance cap, so the
-            // head bloom doesn't wash it out.
+            // v30 OKLab/OKLCH audit: previously used raw sRGB primaries
+            // (255,0,0), (0,255,0), (0,0,255), etc. While the comment
+            // claimed "maximum vibrancy", perceptually pure sRGB green
+            // (L=0.87) appeared ~2× brighter than pure sRGB blue (L=0.45),
+            // breaking the "uniform spectrum" visual identity. The "pop"
+            // was actually perceptual non-uniformity, not vibrancy.
+            //
+            // Replaced with OKLCH-derived stops at L=0.65, C=0.18 —
+            // consistent perceptual lightness and chroma across all 7
+            // hues. The hue angles (29°, 60°, 100°, 142°, 200°, 250°,
+            // 300°) span the perceptual hue wheel rather than the sRGB
+            // primary triangle. Stops still go through polar OKLab
+            // interpolation between them, so midpoints stay saturated.
+            //
+            // Head stop L=0.65 (sum 411) — well under the 655 head-
+            // luminance cap, so the head bloom doesn't wash it out.
             stops: &[
-                (255, 0, 0),   // red
-                (255, 127, 0), // orange
-                (255, 255, 0), // yellow
-                (0, 255, 0),   // green
-                (0, 0, 255),   // blue
-                (75, 0, 130),  // indigo
-                (143, 0, 255), // violet (head)
+                (232, 89, 74),   // red       (OKLCH 29°)
+                (219, 109, 0),   // orange    (OKLCH 60°)
+                (170, 143, 0),   // yellow    (OKLCH 100°)
+                (64, 169, 55),   // green     (OKLCH 142°)
+                (0, 173, 186),   // cyan-blue (OKLCH 200°)
+                (15, 146, 247),  // blue      (OKLCH 250°)
+                (161, 112, 235), // violet    (OKLCH 300°, head)
             ],
             steps: 9,
         },
@@ -627,35 +636,62 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Spectrum20,
         def: ThemeColors::RgbWithC16 {
+            // v30 OKLab/OKLCH audit: previously used raw sRGB primaries
+            // (255,0,0), (0,255,0), (0,0,255), (255,255,0), (255,0,255),
+            // (0,255,255), plus (128,0,0), (0,128,0), (0,0,128) etc.
+            // These classic ANSI/sRGB primaries are perceptually non-
+            // uniform: pure sRGB green (L=0.87) appears ~2× brighter
+            // than pure sRGB blue (L=0.45). The "broad spectrum" identity
+            // was undermined by the lightness drift.
+            //
+            // Replaced with OKLCH-derived hues at L=0.68, C=0.17 for the
+            // 18 body stops (indices 1..18), at 20° hue steps spanning
+            // the full perceptual hue wheel (0° → 340°). Stops 0 (origin)
+            // and 19 (head) are intentionally outside the uniform band:
+            //   - stop 0: dark deep-blue origin (L=0.18, C=0.04, H=250°)
+            //     — preserves the cinematic "void trail" aesthetic
+            //   - stop 19: warm off-white head (L=0.94, C=0.025, H=90°)
+            //     — preserves the "head must not be pure white" rule
+            //     (cinematic head bloom expects a tinted base)
+            //
+            // The c16 and ansi arrays remain as explicit fallbacks for
+            // Color16/Color256 terminals (per graceful-degradation tier).
+            // They were not regenerated from the new RGB because the
+            // fallback tables are hand-tuned for maximum contrast on
+            // legacy terminals and don't suffer the same perceptual
+            // drift issue (16-color terminals can only show 8 hues
+            // anyway — perceptual uniformity is meaningless there).
             rgb: &[
-                (0, 0, 0),
-                (128, 0, 0),
-                (255, 0, 0),
-                (255, 64, 0),
-                (255, 128, 0),
-                (255, 191, 0),
-                (255, 255, 0),
-                (191, 255, 0),
-                (128, 255, 0),
-                (0, 255, 0),
-                (0, 255, 128),
-                (0, 255, 191),
-                (0, 255, 255),
-                (0, 191, 255),
-                (0, 128, 255),
-                (0, 0, 255),
-                (128, 0, 255),
-                (191, 0, 255),
-                (255, 0, 255),
-                // Off-white (255,255,230) instead of pure white (255,255,255).
-                // The head-cell color of every theme must not be pure white —
-                // the cinematic head bloom (HEAD_WF=45% blend toward white)
-                // expects a non-white base so the head retains hue. Pure
-                // white as the head stop would make the head indistinguishable
-                // from the bloom transition, collapsing the 3-2-2 color
-                // distribution. (255,255,230) is visually almost identical
-                // to white on a dark background but preserves the hue hint.
-                (255, 255, 230),
+                (3, 18, 34),     //  0: origin (deep blue void)
+                (232, 100, 148), //  1: H=0   (rose)
+                (239, 101, 107), //  2: H=20  (red-orange)
+                (236, 109, 61),  //  3: H=40  (orange)
+                (226, 121, 0),   //  4: H=60  (amber)
+                (206, 137, 0),   //  5: H=80  (yellow-amber)
+                (178, 152, 0),   //  6: H=100 (olive yellow)
+                (140, 166, 0),   //  7: H=120 (yellow-green)
+                (88, 176, 67),   //  8: H=140 (green)
+                (0, 183, 115),   //  9: H=160 (emerald)
+                (0, 184, 156),   // 10: H=180 (teal)
+                (0, 181, 193),   // 11: H=200 (cyan)
+                (0, 173, 224),   // 12: H=220 (sky blue)
+                (0, 162, 245),   // 13: H=240 (azure)
+                (86, 150, 255),  // 14: H=260 (blue)
+                (134, 136, 254), // 15: H=280 (indigo)
+                (169, 124, 240), // 16: H=300 (violet)
+                (197, 113, 216), // 17: H=320 (purple)
+                (218, 105, 185), // 18: H=340 (magenta)
+                // Off-white warm tint (L=0.94, C=0.025, H=90°) instead of
+                // pure white (255,255,255). The head-cell color of every
+                // theme must not be pure white — the cinematic head bloom
+                // (HEAD_WF=45% blend toward white) expects a non-white
+                // base so the head retains hue. Pure white as the head
+                // stop would make the head indistinguishable from the
+                // bloom transition, collapsing the 3-2-2 color
+                // distribution. (242,235,217) is visually almost
+                // identical to white on a dark background but preserves
+                // the warm hue hint.
+                (242, 235, 217), // 19: head (warm off-white)
             ],
             c16: &[
                 Color::DarkGrey,
