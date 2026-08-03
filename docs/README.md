@@ -286,8 +286,7 @@ where a feature lives.
 | `src/app.rs` | 349 | `CloudConfig` struct — the central config object |
 | `src/config.rs` | 899 | CLI arg definitions (clap) + config.toml parsing |
 | `src/live_config.rs` | — | Live config reload — filesystem watch, strict validation |
-| `src/help_detail.rs` | — | `--help-detail` output |
-| `src/help.rs` | — | `--help` output |
+| `src/help_detail.rs` | — | `--help` output (full curated reference manual) |
 | `src/ux.rs` | — | UX helpers — `or_exit`, `die_input`, error formatting |
 
 ---
@@ -325,7 +324,7 @@ to make changes.
 ### Key Invariants to Preserve
 
 - **Honesty contract**: no hidden flags, no hidden behavior. Every flag
-  is documented in `--help` and `--help-detail`. Strict validation on
+  is documented in `--help`. Strict validation on
   all enum-like flags (see `--bench-scene` as the reference pattern).
 - **Single-thread optimized**: `planned_worker_budget: 0` by design.
   Do not add multi-threading — it violates the architecture.

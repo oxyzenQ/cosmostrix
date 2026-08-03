@@ -71,7 +71,7 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
     ),
     (
         "--completions",
-        "error: --completions <shell> has been removed in v15.0.0.\n  Shell completion scripts are no longer shipped. The `clap_complete` dependency was dropped to reduce maintenance surface.\n  To regenerate completions externally, use `clap_complete` in a downstream tool, or write them by hand from `cosmostrix --help-detail`.",
+        "error: --completions <shell> has been removed in v15.0.0.\n  Shell completion scripts are no longer shipped. The `clap_complete` dependency was dropped to reduce maintenance surface.\n  To regenerate completions externally, use `clap_complete` in a downstream tool, or write them by hand from `cosmostrix --help`.",
     ),
     (
         "--fullwidth",

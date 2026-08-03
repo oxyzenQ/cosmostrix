@@ -321,7 +321,7 @@ cosmostrix --intro cosmic             # cosmic burst intro before rain
 
 ## CLI Reference
 
-Run `cosmostrix --help` for common options or `cosmostrix --help-detail` for the full reference. The CLI flags below are grouped exactly as `--help` groups them.
+Run `cosmostrix --help` for the full reference manual (CLI flags, runtime controls, atmosphere phases, rendering philosophy). The CLI flags below are grouped exactly as `--help` groups them.
 
 ```text
 COMMON OPTIONS
@@ -383,10 +383,9 @@ DISCOVERY
       --show-scene <name>     Show full details for a scene
 
 HELP
-      --help-detail           Full advanced documentation
+      --help                  Print the full reference manual
   -V, --version               Print complete version and build information
       --check-update          Check the latest upstream release
-  -h, --help                  Print help
 ```
 
 Explicit CLI flags always override scene and scene-custom values.

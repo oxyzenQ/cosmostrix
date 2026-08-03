@@ -308,14 +308,14 @@ DISCOVERY:
   --list-scenes         Show built-in and custom scenes (from config).
   --show-scene <NAME>   Show full details for a built-in or custom scene.
 
-ADVANCED (hidden from --help, fully functional — honest disclosure):
-  These flags are intentionally hidden from --help to keep the first
-  impression clean. They are NOT deprecated, NOT experimental, and NOT
-  internal-only — every one of them is a stable, supported knob. They
-  are documented here so the cosmostrix CLI surface is fully open. Most
-  have an equivalent config key (see config.toml via --dump-config).
+ADVANCED (intentionally not in clap's auto-list, but documented here — honest disclosure):
+  These flags are intentionally excluded from clap's auto-generated argument
+  list to keep the first impression clean, but they ARE documented in this
+  manual. They are NOT deprecated, NOT experimental, and NOT internal-only
+  — every one of them is a stable, supported knob. Most have an equivalent
+  config key (see config.toml via --dump-config).
 
-  APPEARANCE (hidden):
+  APPEARANCE (advanced):
   -b, --bold <0|1|2>
       Bold style (0=off, 1=random [default], 2=all).
       Config: bold = 1
@@ -337,7 +337,7 @@ ADVANCED (hidden from --help, fully functional — honest disclosure):
       Print detected terminal color capability (truecolor / 256 / 16 /
       mono) and exit. Diagnostic only — no rain rendered.
 
-  TIMING & GLITCH (hidden):
+  TIMING & GLITCH (advanced):
   -g, --glitchms <LOW,HIGH>
       Glitch duration range in ms (min 1, max 5000). Default: 300,400.
       Config: (via --glitch-level preset)
@@ -354,7 +354,7 @@ ADVANCED (hidden from --help, fully functional — honest disclosure):
       In --benchmark mode the BenchReportData is always emitted; this
       flag is for interactive runs that want a final perf summary.
 
-  AUTO COLOR & ATMOSPHERE (hidden):
+  AUTO COLOR & ATMOSPHERE (advanced):
   --auto-color-drift
       Enable autonomous palette drift (default: off). Gates palette scheme
       replacement only (3% chance per 3s tick, 30s cooldown between events).
@@ -369,7 +369,7 @@ ADVANCED (hidden from --help, fully functional — honest disclosure):
       applied when atmosphere-mode = controlled-live.
       Config: atmosphere-regime = \"pulse\"
 
-  BENCH (hidden):
+  BENCH (advanced):
   --bench-frames <N>
       Run headless benchmark for exactly N frames and exit. Alternative
       to --bench-duration when you want frame-count-based measurement
@@ -378,7 +378,7 @@ ADVANCED (hidden from --help, fully functional — honest disclosure):
       wins (--bench-frames ignored). If both --bench-frames and --bench-duration
       are set (without --benchmark), --bench-frames wins (--bench-duration ignored).
 
-  MESSAGE (hidden, has shorthand):
+  MESSAGE (advanced, has shorthand):
   --message-border (shorthand: -mb <text>)
       Draw the message box with a border. Equivalent to using -mb on
       the command line. See -m / --message for the no-border variant.
@@ -389,12 +389,13 @@ RUNTIME CONTROLS:
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed
   Space         Reset animation
-  i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
+  i             Toggle live HUD (FPS / p99 / max / RSS / CPU% / uptime / screen)
   H or h        Move HUD to opposite corner (left ↔ right)
 
-ADAPTIVE ATMOSPHERE (default, Cosmic Dragon):
-  Cosmostrix breathes with the local time of day. Five emotional phases
-  modulate rain density, speed, brightness, glitch, AND color scheme:
+ADAPTIVE ATMOSPHERE (opt-in via atmosphere-mode = controlled-live):
+  When enabled, cosmostrix breathes with the local time of day. Five
+  emotional phases modulate rain density, speed, brightness, glitch,
+  AND color scheme:
 
   00:00-03:00  Deep Void     cosmos palette, dense + dark + glitchy
   03:00-06:00  Compression   gray palette, extreme density
@@ -402,10 +403,11 @@ ADAPTIVE ATMOSPHERE (default, Cosmic Dragon):
   12:00-18:00  Calm          cosmos palette, balanced + full brightness
   18:00-24:00  Signal        neon palette, rising glitch at dusk
 
-  Color shifts every 30s via smooth palette transition wave.
-  Disable built-in 5-phase engine: atmosphere-mode = disabled in config.toml.
-  Disable adaptive-custom: remove all adaptive-custom.HH-MM entries from config
-  (they run regardless of atmosphere-mode).
+  Default is OFF (atmosphere-mode = disabled). To enable, set
+  atmosphere-mode = \"controlled-live\" in config.toml. Color shifts
+  every 30s via smooth palette transition wave when active.
+  Disable adaptive-custom: remove all adaptive-custom.HH-MM entries from
+  config (they run regardless of atmosphere-mode).
 
 HELP:
   --help          Print this full reference manual.

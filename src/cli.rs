@@ -52,8 +52,8 @@ pub(crate) fn clap_styles() -> ClapStyles {
     // Purple brand identity: section headings (USAGE, COMMON OPTIONS,
     // ADVANCED, CONFIG, DIAGNOSTICS, HELP) rendered in bold truecolor
     // purple #A855F7 (168, 85, 247). This matches the BRAND_BOLD constant
-    // in crate::output, so every purple element in --help / --help-detail
-    // / -V / verbose / errors uses the exact same RGB value.
+    // in crate::output, so every purple element in --help / -V / verbose /
+    // errors uses the exact same RGB value.
     //
     // Literals and placeholders use default terminal color (white) — no
     // yellow, cyan, or green.

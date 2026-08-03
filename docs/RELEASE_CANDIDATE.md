@@ -169,7 +169,7 @@ as historical record. Modern equivalent:
 - Unknown custom scene produces a clean error listing available names.
 - Storm remains unavailable at every layer with a clear message.
 - `CLI > scene-custom > config > scene defaults > built-in` precedence is
-  documented in `--help-detail` and tested.
+  documented in `--help` and tested.
 - Terminal writer remains `single-owner`.
 - `compute_parallelism` remains `disabled`.
 - Benchmark and README rules in `rc-smoke.sh` must still pass before

@@ -476,7 +476,7 @@ reports are self-documenting for cross-machine comparison.
 
 Cosmostrix is honest. No hidden flags, no hidden behavior.
 
-- **All flags are documented** in `--help` and `--help-detail`.
+- **All flags are documented** in `--help`.
 - **All `--bench-scene` values are strict-validated** — typos are
   rejected, not silently fallback'd.
 - **`production-draw` requires `--bench-io`** — the dependency is

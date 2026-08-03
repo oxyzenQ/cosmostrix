@@ -231,7 +231,7 @@ pub struct Args {
     // v25: --charset-file CLI flag REMOVED. Custom charsets now live in
     // config.toml under [charset-custom.<name>] and are loaded via
     // --charset <name> (or `charset = "<name>"` in config). See
-    // --help-detail and `cosmostrix --dump-config` for the new format.
+    // --help and `cosmostrix --dump-config` for the new format.
     #[arg(
         short = 'f',
         long = "fps",
