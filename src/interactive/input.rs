@@ -166,6 +166,12 @@ pub(super) fn handle_keybinding(
             *charset_preset =
                 cloud.apply_scene_runtime(next, charset_preset, user_ranges, def_ascii);
         }
+        (KeyCode::Char('r'), _) => {
+            // Cycle rain visual preset: Cinematic ↔ Organic.
+            // See src/rain_preset.rs for the per-preset tuning tables.
+            let next = cloud.rain_preset().cycle();
+            cloud.set_rain_preset(next);
+        }
         (KeyCode::Up, _) => {
             let mut cps = cloud.chars_per_sec;
             if cps <= 0.5 {

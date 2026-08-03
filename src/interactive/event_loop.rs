@@ -805,7 +805,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             // Screensaver mode (v15 "only q quits" policy):
                             //
                             // - q: quit (handle_keybinding set raining=false)
-                            // - Recognized interactive keys (c/s/x/p/i/h,
+                            // - Recognized interactive keys (c/s/x/r/p/i/h,
                             //   Space, Up/Down, etc.): process and continue.
                             //   The user can still cycle colors, toggle HUD, etc.
                             //   while the screensaver is active.

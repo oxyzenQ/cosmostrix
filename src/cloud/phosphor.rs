@@ -223,7 +223,8 @@ impl Cloud {
         let base_decay = PHOSPHOR_DECAY_RATE * elapsed_sec;
         let bottom_base_decay = base_decay * PHOSPHOR_BOTTOM_DECAY_MULT;
         let mut decay_exp_factors = [1.0f32; PARALLAX_LAYERS * 2];
-        for (i, &lm) in PHOSPHOR_LAYER_DECAY_MULT.iter().enumerate() {
+        let layer_decay_mult = self.phosphor_layer_decay_mult();
+        for (i, &lm) in layer_decay_mult.iter().enumerate() {
             decay_exp_factors[i * 2] = (-base_decay * lm).exp();
             decay_exp_factors[i * 2 + 1] = (-bottom_base_decay * lm).exp();
         }

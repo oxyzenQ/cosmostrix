@@ -12,6 +12,7 @@ use std::time::Duration;
 use rand::distr::{Distribution, Uniform};
 
 use crate::constants::*;
+use crate::rain_preset::RainPreset;
 use crate::rain_style::RainStyle;
 use crate::runtime::{ColorScheme, MonolithSize, ShadingMode};
 
@@ -123,6 +124,62 @@ impl Cloud {
         self.recalc_droplets_per_sec();
         self.set_column_speeds();
         self.update_droplet_speeds();
+    }
+
+    /// Current rain visual preset (cinematic / organic / ...).
+    #[must_use]
+    pub fn rain_preset(&self) -> RainPreset {
+        self.rain_preset
+    }
+
+    /// Per-layer droplet streak length multiplier for the active preset.
+    /// Spawn path reads this instead of the raw `PARALLAX_LENGTH_MULT`
+    /// const so the 'r' key can switch presets at runtime.
+    #[must_use]
+    pub(super) fn parallax_length_mult(&self) -> [f32; PARALLAX_LAYERS] {
+        self.rain_preset.parallax_length_mult()
+    }
+
+    /// Per-layer droplet fall speed multiplier for the active preset.
+    #[must_use]
+    pub(super) fn parallax_speed_mult(&self) -> [f32; PARALLAX_LAYERS] {
+        self.rain_preset.parallax_speed_mult()
+    }
+
+    /// Per-layer phosphor decay multiplier for the active preset.
+    #[must_use]
+    pub(super) fn phosphor_layer_decay_mult(&self) -> [f32; PARALLAX_LAYERS] {
+        self.rain_preset.phosphor_layer_decay_mult()
+    }
+
+    /// Switch to a different rain visual preset at runtime.
+    ///
+    /// Applies the preset's per-layer length / speed / phosphor decay
+    /// multipliers (which take effect on new spawns and the next phosphor
+    /// pass) and the preset's `short_pct` (immediately affects spawn roll).
+    /// Existing droplets keep their already-spawned length but get their
+    /// speed recomputed via `update_droplet_speeds()`, so the transition
+    /// is smooth rather than a hard cut.
+    ///
+    /// `force_draw_everything()` is called so the next frame redraws with
+    /// the new phosphor decay rate applied to all active cells — old
+    /// cinematic trails will start fading at the new (faster, for organic)
+    /// rate immediately.
+    pub fn set_rain_preset(&mut self, preset: RainPreset) {
+        if self.rain_preset == preset {
+            return;
+        }
+        self.rain_preset = preset;
+        // Apply preset's short_pct (overrides any CLI/runtime value —
+        // toggling 'r' is a full preset switch, not a partial blend).
+        self.short_pct = preset.short_pct();
+        // Recompute column speeds + droplet velocities so the new
+        // parallax_speed_mult takes effect on existing droplets.
+        self.set_column_speeds();
+        self.update_droplet_speeds();
+        // Force next-frame redraw so phosphor decay change is visible
+        // immediately on all active cells (not just newly-spawned ones).
+        self.force_draw_everything();
     }
 
     pub fn set_monolith_size(&mut self, size: MonolithSize) {
