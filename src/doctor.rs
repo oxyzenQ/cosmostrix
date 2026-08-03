@@ -181,12 +181,19 @@ pub fn print_doctor_report(args: &Args) {
     }
 
     // SYSTEM section
+    //
+    // v30 audit: removed duplicate `variant` and `optimization` fields.
+    // Both already appear in the BUILD section above (BUILD.variant is the
+    // runtime host CPU capability, BUILD.optimization is the build-time
+    // target baseline). Repeating them in SYSTEM added noise without new
+    // information. SYSTEM now focuses on the actual process environment
+    // (TTY status + the COSMOSTRIX_BUILD label, which is distinct from
+    // BUILD.variant because BUILD.variant describes the host CPU while
+    // build_variant describes the build profile chosen at compile time).
     {
         let s = r.section("SYSTEM");
         s.field("stdin_tty", if stdin_tty { "yes" } else { "no" });
         s.field("stdout_tty", if stdout_tty { "yes" } else { "no" });
-        s.field("variant", cpu.variant);
-        s.field("optimization", env!("COSMOSTRIX_OPTIMIZATION"));
         s.field("build", cpu.build_variant);
     }
 
@@ -225,14 +232,13 @@ pub fn print_doctor_report(args: &Args) {
                 s.field("cpu_ema_percent", "n/a (no sample yet)");
             }
         }
-        s.field(
-            "auto_color_drift",
-            if args.auto_color_drift {
-                "enabled"
-            } else {
-                "disabled (default)"
-            },
-        );
+        // v30 audit: removed duplicate `auto_color_drift` field. It already
+        // appears in the FEATURES section above with a richer description
+        // (on/off + behavioral consequence). Repeating it here as a bare
+        // "enabled/disabled (default)" added noise without new information.
+        // The SYSTEM FEELING section now focuses on what the classifier
+        // actually sees (state, target_family, local_hour, cpu reading),
+        // not on which CLI flag gated the downstream consumer.
     }
 
     // ENVIRONMENT section
@@ -246,6 +252,15 @@ pub fn print_doctor_report(args: &Args) {
     }
 
     // TERMINAL section
+    //
+    // v30 audit: removed duplicate `color_mode` field. It was reading from
+    // the same `ri.color_depth` source as RENDERER.color_depth above, so it
+    // always printed the identical string in two sections. The TERMINAL
+    // section now shows only terminal-environment-specific fields:
+    // `color_auto_detected` (what the terminal reports) and `color_forced`
+    // (only present when --colormode overrides the auto-detection). The
+    // effective color mode the renderer is operating in lives in
+    // RENDERER.color_depth.
     {
         let s = r.section("TERMINAL");
         s.field("TERM", if term.is_empty() { "(unset)" } else { &term });
@@ -258,7 +273,6 @@ pub fn print_doctor_report(args: &Args) {
                 &colorterm
             },
         );
-        s.field("color_mode", ri.color_depth);
 
         #[cfg(target_os = "linux")]
         {
@@ -411,7 +425,7 @@ pub fn print_doctor_report(args: &Args) {
         let s = r.section("ADVICE");
 
         if !stdin_tty || !stdout_tty {
-            s.advice("headless/non-TTY detected; use --benchmark, --doctor, --list-colors, --list-charsets, --list-scenes, --show-scene, --config-path, --dump-config, --docs, or --help-detail");
+            s.advice("headless/non-TTY detected; use --benchmark, --doctor, --list-colors, --list-charsets, --list-scenes, --show-scene, --config-path, --dump-config, --docs, or --help");
         }
         if !locale_utf8 {
             s.advice("locale does not look like UTF-8; unicode charsets may render incorrectly");

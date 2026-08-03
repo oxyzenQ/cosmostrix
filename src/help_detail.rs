@@ -1,10 +1,14 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! CLI --help-detail output.
-//! Extracted from config.rs to keep that file under 1000 LOC.
+//! CLI --help output: the full curated reference manual.
+//!
+//! v30 simplify: this used to be `--help-detail` (a separate advanced
+//! reference). It is now printed by `--help` itself — cosmostrix has a
+//! single-tier help surface. The file name is kept as `help_detail.rs`
+//! for git-blame continuity; the public function is `print_help()`.
 
-pub fn print_help_detail() {
+pub fn print_help() {
     let text = "USAGE:
   cosmostrix [OPTIONS]
 
@@ -404,8 +408,7 @@ ADAPTIVE ATMOSPHERE (default, Cosmic Dragon):
   (they run regardless of atmosphere-mode).
 
 HELP:
-  --help          Show common options.
-  --help-detail   Show this full reference.
+  --help          Print this full reference manual.
   -V, --version    Print complete version and build information.
   --check-update   Check the latest upstream release.
 
@@ -419,7 +422,7 @@ RENDERING PHILOSOPHY:
 ";
 
     if crate::config::color_enabled_stdout() {
-        print!("{}", crate::config::colorize_help_detail(text));
+        print!("{}", crate::config::colorize_help(text));
     } else {
         print!("{}", text);
     }

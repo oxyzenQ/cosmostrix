@@ -329,10 +329,11 @@ fn main() -> std::io::Result<()> {
     cmd = cmd.help_template(cli::help_template(color_enabled_stdout()));
     cmd.build();
 
-    if cmd.get_arguments().any(|a| a.get_id().as_str() == "help") {
-        cmd = cmd.mut_arg("help", |a| a.help_heading("HELP"));
-    }
-    cmd.build();
+    // v30 simplify: --help-detail merged into --help.
+    // disable_help_flag = true on the #[command] macro prevents clap from
+    // auto-generating its own --help, so there is no clap "help" arg to
+    // re-style here. The --help field is defined manually on Args and
+    // intercepted in main() below.
 
     let argv: Vec<std::ffi::OsString> = env::args_os().collect();
     // Expand -mb "text" into --message-border --message "text"
@@ -371,6 +372,17 @@ fn main() -> std::io::Result<()> {
 
     let matches = cmd.get_matches_from(argv);
     let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+
+    // --help: print the full curated reference manual and exit.
+    //
+    // Checked early (before --dump-config, --doctor, --version, etc.) so
+    // `cosmostrix --help` always works even if other flags are malformed
+    // or the config file is broken. This mirrors how clap's auto-help
+    // behaves: help wins over everything else.
+    if args.help {
+        help_detail::print_help();
+        return Ok(());
+    }
 
     if args.reset_terminal {
         reset_terminal_emergency();
@@ -543,11 +555,6 @@ fn main() -> std::io::Result<()> {
         ux::die_config(e);
     }
     canonicalize_runtime_args(&mut args);
-
-    if args.help_detail {
-        help_detail::print_help_detail();
-        return Ok(());
-    }
 
     if args.doctor {
         doctor::print_doctor_report(&args);

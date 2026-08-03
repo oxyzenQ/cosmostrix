@@ -4,8 +4,7 @@
 //! CLI argument definitions and help output generators.
 //!
 //! Cosmostrix follows a **curated simplicity** philosophy:
-//! - `--help` shows a minimal, premium first impression
-//! - `--help-detail` is an advanced reference — curated, not dumped
+//! - `--help` prints the full curated reference manual (single-tier help)
 //! - `--glitch-level` provides a grouped interface over individual tuning knobs
 //! - Advanced parameters remain fully functional but are intentionally hidden
 //!   from the casual user.
@@ -32,7 +31,7 @@ pub fn color_enabled_stdout() -> bool {
     std::io::stdout().is_terminal()
 }
 
-pub(crate) fn colorize_help_detail(text: &str) -> String {
+pub(crate) fn colorize_help(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 64);
     for chunk in text.split_inclusive('\n') {
         let (line, nl) = chunk
@@ -173,6 +172,7 @@ impl FromStr for U16Range {
     name = "cosmostrix",
     version,
     disable_version_flag = true,
+    disable_help_flag = true,
     about = "Professional-grade cinematic Matrix rain renderer for serious terminal environments.",
     after_help = "Cosmostrix uses a diff-based rendering engine — only changed cells are redrawn, not the full screen.\nSee `cosmostrix --docs` for the full technical breakdown."
 )]
@@ -523,13 +523,24 @@ pub struct Args {
     pub show_scene: Option<String>,
 
     // === HELP (visible in --help) ===
+    //
+    // v30 simplify: --help-detail was merged into --help. The curated
+    // advanced reference manual that --help-detail used to print is now
+    // printed by --help itself. cosmostrix now has a single-tier help
+    // surface: --help is the full reference, not a stripped-down summary.
+    //
+    // disable_help_flag = true on the #[command] macro prevents clap from
+    // auto-generating its own --help (which would only print the {all-args}
+    // auto-list). We define our own --help field below and intercept it in
+    // main.rs to call help_detail::print_help().
     #[arg(
-        long = "help-detail",
+        long = "help",
+        short = 'h',
         help_heading = "HELP",
         display_order = 300,
-        help = "Full advanced documentation"
+        help = "Print the full reference manual"
     )]
-    pub help_detail: bool,
+    pub help: bool,
 
     #[arg(
         long = "version",
@@ -882,9 +893,9 @@ pub fn print_show_scene(
     ))
 }
 
-// --help-detail: curated advanced reference
+// --help: curated full reference manual
 //
 // Design principle: guide, don't dump. No embedded catalogs, no schema dumps,
 // no verbose alias disclosures. Discovery commands handle discovery.
-
-// print_help_detail() moved to src/help_detail.rs
+//
+// print_help() lives in src/help_detail.rs.

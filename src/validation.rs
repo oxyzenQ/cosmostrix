@@ -81,6 +81,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--noglitch",
         "error: --noglitch has been removed in v30.0.0-alpha.1.\n  It was a strict duplicate of `--glitch-level none` (the only behavior --noglitch\n  had was to disable glitch, which is exactly what `--glitch-level none` does).\n  Use `--glitch-level none` instead. Glitch parameters are now fully owned by\n  --glitch-level (the documented contract from configfile.rs is now enforced).",
     ),
+    (
+        "--help-detail",
+        "error: --help-detail has been removed in v30.0.0-alpha.1.\n  The curated advanced reference manual that --help-detail used to print is now\n  printed by --help itself. cosmostrix now has a single-tier help surface.\n  Use `cosmostrix --help` instead.",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.
