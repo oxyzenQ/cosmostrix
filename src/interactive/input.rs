@@ -192,13 +192,16 @@ pub(super) fn handle_keybinding(
             // glyph flood. Tab is not a useful shortcut for a terminal rain
             // renderer, so it is safely ignored to prevent this class of bug.
         }
-        (KeyCode::Char('-'), _) | (KeyCode::Char('['), _) | (KeyCode::Char('_'), _) => {
+        // Density: '[' decreases, ']' increases. Simplified from the
+        // legacy alias set (-/_ for down, +/=Shift for up) — those were
+        // carried over from an older keymap and never documented in the
+        // --help reference, so they only caused confusion. '[' and ']'
+        // are the canonical density keys and the only ones documented.
+        (KeyCode::Char('['), _) => {
             let d = (cloud.droplet_density - DENSITY_STEP).max(0.01);
             cloud.set_droplet_density(d);
         }
-        (KeyCode::Char('+'), _)
-        | (KeyCode::Char('='), KeyModifiers::SHIFT)
-        | (KeyCode::Char(']'), _) => {
+        (KeyCode::Char(']'), _) => {
             let d = (cloud.droplet_density + DENSITY_STEP).min(5.0);
             cloud.set_droplet_density(d);
         }
