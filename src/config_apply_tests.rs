@@ -1109,6 +1109,12 @@ fn storm_config_is_rejected_as_not_config_safe() {
 fn benchmark_fields_remain_backward_compatible() {
     // Verify all Phase 10.5 honesty fields are additive
     // and do not remove or rename existing fields
+    //
+    // v30 strengthen (audit): removed `atmosphere_shadow_risk` from
+    // OLD_FIELDS — it was an exact duplicate of `atmosphere_shadow`
+    // (both called `shadow.risk_label()`). Also removed `runtime_application`
+    // and `visual_runtime` from NEW_FIELDS — they duplicated `application`
+    // and `effective_runtime` respectively.
     const OLD_FIELDS: &[&str] = &[
         "avg_fps",
         "p99_frame_time",
@@ -1122,9 +1128,8 @@ fn benchmark_fields_remain_backward_compatible() {
         "atmosphere_visual_effect",
         "effective_runtime",
         "atmosphere_shadow",
-        "atmosphere_shadow_risk",
     ];
-    const NEW_FIELDS: &[&str] = &["config_gate", "visual_runtime", "runtime_application"];
+    const NEW_FIELDS: &[&str] = &["config_gate"];
     for field in OLD_FIELDS {
         assert!(!field.is_empty());
     }

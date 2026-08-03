@@ -97,6 +97,24 @@ impl VerificationResult {
             clamped: true,
         }
     }
+
+    /// Human-readable label for diagnostic output.
+    ///
+    /// Returns `"pass"` when all values were within bounds, or
+    /// `"clamped_pass"` when values were out of bounds but were
+    /// clamped to safe ranges. Used by the benchmark report's
+    /// ATMOSPHERE.verifier field so the user can see at a glance
+    /// whether the application was modified during verification.
+    #[must_use]
+    pub(crate) fn as_str(&self) -> &'static str {
+        if !self.passed {
+            "fail"
+        } else if self.clamped {
+            "clamped_pass"
+        } else {
+            "pass"
+        }
+    }
 }
 
 // ── Atmosphere Application ─────────────────────────────────────────────────

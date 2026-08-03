@@ -20,6 +20,18 @@ mod tests {
         /// This list is the backward-compatibility contract. If any field is
         /// removed or renamed, downstream consumers (CI, scripts, parsers)
         /// will break. This test prevents accidental removal.
+        ///
+        /// v30 strengthen (audit): removed 5 fields that were either exact
+        /// duplicates or hardcoded constants with no runtime basis:
+        ///   - `atmosphere_application` (was == `application`)
+        ///   - `runtime_application` (was == `application`)
+        ///   - `atmosphere_shadow_risk` (was == `atmosphere_shadow`)
+        ///   - `visual_runtime` (was == `effective_runtime` with different label)
+        ///   - `frames_with_changes` (was == `drawn_frames`)
+        ///
+        /// Also: `transition` and `verifier` are now ACTUALLY COMPUTED from
+        /// controller state + verifier result, no longer hardcoded
+        /// "stable"/"pass".
         const REQUIRED_FIELDS: &[&str] = &[
             // Performance
             "avg_fps",
@@ -46,20 +58,17 @@ mod tests {
             "plan_reason",
             "actual_execution",
             "terminal_writer",
-            // ATMOSPHERE
+            // ATMOSPHERE (v30 audit: removed 4 duplicate/misleading fields)
             "regime",
             "effective",
             "transition",
             "verifier",
             "application",
-            "atmosphere_application",
             "atmosphere_application_mode",
             "atmosphere_visual_effect",
             "effective_runtime",
-            // Phase 10.5: diagnostic honesty
+            "atmosphere_shadow",
             "config_gate",
-            "visual_runtime",
-            "runtime_application",
         ];
         assert!(
             !REQUIRED_FIELDS.is_empty(),

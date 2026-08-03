@@ -490,7 +490,10 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("elapsed", &format!("{:.3}s", data.elapsed_s));
         s.field("total_frames", &data.total_frames.to_string());
         s.field("drawn_frames", &data.drawn_frames.to_string());
-        s.field("frames_with_changes", &data.drawn_frames.to_string());
+        // v30 strengthen (audit): removed `frames_with_changes` — it was an
+        // exact duplicate of `drawn_frames` (same value, different label).
+        // The `drawn_frames` field already means "frames with >=1 dirty cell",
+        // which is exactly what `frames_with_changes` claimed to mean.
     }
 
     // ── Memory (RSS) ───────────────────────────────────────────────────
@@ -725,6 +728,15 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
 
     // ── Engine diagnostics ─────────────────────────────────────────────
     // Cosmostrix is single-thread by design — terminal writer is single-owner.
+    //
+    // v30 strengthen (audit): removed the entire SYSTEM section. Its four
+    // fields (runtime_mode, render_plan, idle_policy, architecture) were
+    // all hardcoded string constants with no runtime basis — they described
+    // a fictional "runtime mode" that doesn't exist, and duplicated concepts
+    // already covered by the ENGINE section below (render_plan="single-owner"
+    // == ENGINE.terminal_writer="single-owner"). Keeping them would violate
+    // the honesty contract: the report must reflect actual state, not
+    // feel-good constants.
     {
         let s = r.section("ENGINE");
         s.field("planned_mode", "single-core");
@@ -737,18 +749,19 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("terminal_writer", "single-owner");
     }
 
-    // ── System diagnostics ─────────────────────────────────────────────
-    {
-        let s = r.section("SYSTEM");
-        s.field("runtime_mode", "normal");
-        s.field("render_plan", "single-owner");
-        s.field("idle_policy", "adaptive-sleep");
-        s.field("architecture", "single-thread optimized");
-    }
-
     // ── Atmosphere Engine diagnostics ────────────────────────────────────
     // Phase D Bug #5: reports the ACTUAL atmosphere_mode + atmosphere_regime
     // from config (previously hardcoded Disabled + Calm).
+    //
+    // v30 strengthen (audit): removed 3 exact-duplicate fields that
+    // printed the same value as their non-prefixed siblings:
+    //   - `atmosphere_application` (was == `application`)
+    //   - `runtime_application` (was == `application`)
+    //   - `atmosphere_shadow_risk` (was == `atmosphere_shadow`)
+    // Also replaced hardcoded `transition: "stable"` and `verifier: "pass"`
+    // with actual computed values — the old literals were misleading because
+    // they claimed stable/pass even when the atmosphere was transitioning
+    // or the application was clamped by the verifier.
     {
         let apply_mode = crate::config_apply::resolve_atmosphere_mode(Some(data.atmosphere_mode));
         let regime = crate::config_apply::resolve_atmosphere_regime(Some(data.atmosphere_regime));
@@ -769,14 +782,19 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         let s = r.section("ATMOSPHERE");
         s.field("regime", regime.as_str());
         s.field("effective", if is_mod { "modulated" } else { "no-op" });
-        s.field("transition", "stable");
-        s.field("verifier", "pass");
+        // transition: actual controller state, not a hardcoded "stable".
+        // The controller tracks whether a regime transition is in progress.
+        s.field("transition", ctrl.transition_status());
+        // verifier: actually run the verifier and report the real result
+        // (pass / clamped_pass). The old hardcoded "pass" was misleading
+        // when the application was clamped by bounds checking.
+        let mut app_for_verify = app;
+        let bounds = crate::atmosphere_verifier::AtmosphereBounds::default();
+        let verify_result =
+            crate::atmosphere_verifier::verify_application(&mut app_for_verify, &bounds);
+        s.field("verifier", verify_result.as_str());
         s.field(
             "application",
-            if is_ident { "identity" } else { "non-identity" },
-        );
-        s.field(
-            "atmosphere_application",
             if is_ident { "identity" } else { "non-identity" },
         );
         s.field("atmosphere_application_mode", apply_mode.as_str());
@@ -789,16 +807,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             if eff_ident { "identity" } else { "modulated" },
         );
         s.field("atmosphere_shadow", shadow.risk_label());
-        s.field("atmosphere_shadow_risk", shadow.risk_label());
         s.field("config_gate", if is_mod { "armed" } else { "disabled" });
-        s.field(
-            "visual_runtime",
-            if eff_ident { "protected" } else { "active" },
-        );
-        s.field(
-            "runtime_application",
-            if is_ident { "identity" } else { "non-identity" },
-        );
     }
 
     if data.color_mode == ColorMode::Color16

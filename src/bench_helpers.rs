@@ -199,6 +199,12 @@ mod tests {
         // This test ensures the premium benchmark output includes
         // backward-compatible stability fields. If any of these are
         // removed, the test will fail, preventing accidental breakage.
+        //
+        // v30 strengthen (audit): removed `atmosphere_application` — it was
+        // an exact duplicate of `application` (both printed the same
+        // `is_ident`-derived string). The `atmosphere_`-prefixed names
+        // below are documentation labels; the actual report field keys
+        // are the non-prefixed versions (regime, effective, transition, etc.).
         const REQUIRED_FIELDS: &[&str] = &[
             "avg_fps",
             "peak_fps",
@@ -224,7 +230,6 @@ mod tests {
             "atmosphere_effective",
             "atmosphere_transition",
             "atmosphere_verifier",
-            "atmosphere_application",
             "atmosphere_application_mode",
             "atmosphere_visual_effect",
             "effective_runtime",

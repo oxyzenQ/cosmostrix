@@ -20,8 +20,10 @@
 //!   (not `set_force`) so unchanged cells are NOT marked dirty — the
 //!   terminal skips re-sending them. When metrics are stable, only
 //!   the uptime seconds change between frames.
-//! - **Dynamic palette colors**: HUD colors come from the active theme,
-//!   brightened 50% with white for readability on black background.
+//! - **Dynamic palette colors**: HUD colors come from the active rain
+//!   palette, hue-preserving brightened via HSV value scaling so the
+//!   HUD follows the rain's actual color scheme (green rain → green
+//!   HUD, amber rain → amber HUD) instead of washing out to grey.
 //! - **Auto-reset max**: max_ms resets every 60s to show recent peaks,
 //!   not a startup spike from 10 minutes ago.
 
@@ -528,31 +530,67 @@ fn format_rss_kb(kib: u64) -> String {
     }
 }
 
-/// Brighten a crossterm Color by blending it with white.
-/// Ensures HUD text is always readable on the black background,
-/// even when the palette color is very dark (e.g. dark green trail).
+/// Boost a color's brightness while preserving its hue, so the HUD
+/// follows the rain's actual color scheme instead of washing out to grey.
 ///
-/// ## Blend ratio
-/// Uses an asymmetric blend that gives more weight to white than to
-/// the source color — this guarantees readability even for very dark
-/// rain palette colors (e.g. RGB(0,5,15) dark blue tail). The previous
-/// 50/50 blend could still be too dim on some truecolor terminals
-/// with low contrast curves. The current blend ensures every HUD line
-/// stays clearly visible regardless of the active color scheme.
+/// ## Why hue-preserving scaling (not white blend)
+/// The previous implementation blended 35% source + 65% white, which
+/// desaturated every color toward grey — a green rain produced a
+/// grey-green HUD, an amber rain produced a washed-out amber. The user
+/// explicitly flagged this: "HUD metrics colors too grey should be
+/// dynamic follow the rain not hardcoded grey".
 ///
-/// Non-RGB colors (AnsiValue, named) are returned as-is — they're
-/// already bright enough in practice.
+/// The new implementation uses HSV-style value scaling:
+/// 1. Convert any Color variant to RGB via `palette::color_to_rgb`
+///    (so AnsiValue + named colors also get processed — previously
+///    they were returned as-is, which meant a 256-color palette stayed
+///    at its native brightness even when too dim to read).
+/// 2. Find the max channel (V in HSV).
+/// 3. If V >= TARGET_V, the color is already bright enough — return
+///    as-is to preserve the rain's vivid hue.
+/// 4. If V < TARGET_V and V > 0, scale all channels by TARGET_V / V.
+///    This preserves the hue ratio between channels — a dark green
+///    RGB(0,50,0) becomes RGB(0,200,0), not a washed-out grey-green.
+/// 5. If V == 0 (pure black), fall back to a neutral dim grey.
+///    Scaling zero gives zero, so we need an explicit fallback.
+///
+/// TARGET_V = 200 ensures readability on a black background without
+/// oversaturating. A vivid RGB(0,255,0) green is returned unchanged;
+/// a dim RGB(0,80,0) green is boosted to RGB(0,200,0).
 fn brighten_color(color: Color) -> Color {
-    match color {
-        Color::Rgb { r, g, b } => Color::Rgb {
-            // Asymmetric blend: 35% source + 65% white. A pure black
-            // RGB(0,0,0) becomes RGB(166,166,166) — clearly readable.
-            // A dark RGB(10,5,20) becomes RGB(169,170,171).
-            r: r * 35 / 100 + 166,
-            g: g * 35 / 100 + 166,
-            b: b * 35 / 100 + 166,
-        },
-        other => other,
+    let (r, g, b) = crate::palette::color_to_rgb(color);
+    const TARGET_V: u32 = 200;
+    let max = r.max(g).max(b) as u32;
+    if max >= TARGET_V {
+        // Already bright enough — preserve the rain's vivid hue.
+        Color::Rgb { r, g, b }
+    } else if max == 0 {
+        // Pure black — scaling zero gives zero, so fall back to a
+        // neutral dim grey. This is the only case where we don't
+        // preserve hue (there's no hue to preserve).
+        Color::Rgb {
+            r: 120,
+            g: 120,
+            b: 120,
+        }
+    } else {
+        // Scale all channels by TARGET_V / max to boost brightness
+        // while preserving the hue ratio between channels.
+        // Uses integer math: scale = TARGET_V * 100 / max, then
+        // (channel * scale) / 100. Min(255) guards against overflow
+        // when the source channel is close to max but max < TARGET_V.
+        //
+        // SAFETY: max > 0 here because the `else if max == 0` branch
+        // above caught the zero case. The debug_assert documents this
+        // invariant for readers and catches logic regressions in dev
+        // builds.
+        debug_assert!(max > 0, "max must be > 0 here; zero case handled above");
+        let scale = TARGET_V * 100 / max;
+        Color::Rgb {
+            r: ((r as u32 * scale) / 100).min(255) as u8,
+            g: ((g as u32 * scale) / 100).min(255) as u8,
+            b: ((b as u32 * scale) / 100).min(255) as u8,
+        }
     }
 }
 
@@ -736,5 +774,140 @@ mod tests {
         assert_eq!(format_rss_kb(1023), "1023KiB");
         assert_eq!(format_rss_kb(1024), "1.0MiB");
         assert_eq!(format_rss_kb(2048), "2.0MiB");
+    }
+
+    // ── Hue-preserving brighten_color tests ───────────────────────────
+    //
+    // The HUD must follow the rain's actual color scheme, not wash out
+    // to grey. These tests lock in the hue-preserving behavior so a
+    // future change back to a white-blend would fail loudly.
+
+    #[test]
+    fn brighten_color_preserves_vivid_green_hue() {
+        // Vivid green RGB(0,255,0): max=255 >= TARGET_V(200), returned
+        // as-is. The HUD line for this palette color must be vivid green,
+        // not washed-out grey-green.
+        let out = brighten_color(Color::Rgb { r: 0, g: 255, b: 0 });
+        assert_eq!(out, Color::Rgb { r: 0, g: 255, b: 0 });
+    }
+
+    #[test]
+    fn brighten_color_preserves_vivid_amber_hue() {
+        // Amber/orange RGB(255,176,0): max=255 >= TARGET_V, returned as-is.
+        // An amber rain palette must produce an amber HUD, not grey.
+        let out = brighten_color(Color::Rgb {
+            r: 255,
+            g: 176,
+            b: 0,
+        });
+        assert_eq!(
+            out,
+            Color::Rgb {
+                r: 255,
+                g: 176,
+                b: 0
+            }
+        );
+    }
+
+    #[test]
+    fn brighten_color_scales_dark_green_preserving_hue() {
+        // Dark green RGB(0,50,0): max=50 < TARGET_V, scale=400.
+        // Result must be RGB(0,200,0) — bright green, NOT grey-green.
+        // The old white-blend produced RGB(166,183,166) (washed grey).
+        let out = brighten_color(Color::Rgb { r: 0, g: 50, b: 0 });
+        assert_eq!(out, Color::Rgb { r: 0, g: 200, b: 0 });
+    }
+
+    #[test]
+    fn brighten_color_scales_dark_blue_preserving_hue_ratio() {
+        // Dark blue RGB(50,100,150): max=150 < TARGET_V, scale=133
+        // (integer: 200*100/150=133, truncated from 133.33).
+        // Result: RGB(66,133,199) — preserves the blue hue ratio.
+        // The old white-blend produced RGB(183,201,218) (washed grey-blue).
+        // (199 not 200 because 150*133/100=199.5 → truncates to 199.)
+        let out = brighten_color(Color::Rgb {
+            r: 50,
+            g: 100,
+            b: 150,
+        });
+        assert_eq!(
+            out,
+            Color::Rgb {
+                r: 66,
+                g: 133,
+                b: 199
+            }
+        );
+    }
+
+    #[test]
+    fn brighten_color_pure_black_falls_back_to_neutral_grey() {
+        // Pure black RGB(0,0,0): max=0, can't scale (0*x=0). Must fall
+        // back to a neutral dim grey RGB(120,120,120) so the HUD is
+        // still readable. This is the only case where hue is not
+        // preserved (there's no hue to preserve in pure black).
+        let out = brighten_color(Color::Rgb { r: 0, g: 0, b: 0 });
+        assert_eq!(
+            out,
+            Color::Rgb {
+                r: 120,
+                g: 120,
+                b: 120
+            }
+        );
+    }
+
+    #[test]
+    fn brighten_color_named_cyan_preserves_hue_when_bright_enough() {
+        // Named Cyan = RGB(0,255,255): max=255 >= TARGET_V, returned as
+        // RGB(0,255,255). The old code returned named colors as-is (no
+        // conversion), which was fine for Cyan but broke for DarkCyan
+        // (next test). This test locks in the conversion behavior.
+        let out = brighten_color(Color::Cyan);
+        assert_eq!(
+            out,
+            Color::Rgb {
+                r: 0,
+                g: 255,
+                b: 255
+            }
+        );
+    }
+
+    #[test]
+    fn brighten_color_named_darkcyan_gets_scaled_to_readable_cyan() {
+        // Named DarkCyan = RGB(0,128,128): max=128 < TARGET_V, scale=156
+        // (integer: 200*100/128=156, truncated from 156.25).
+        // Result: RGB(0,199,199) — bright cyan, preserving the hue.
+        // (199 not 200 because 128*156/100=199.68 → truncates to 199.)
+        // The old code returned DarkCyan as-is (too dim on black bg).
+        let out = brighten_color(Color::DarkCyan);
+        assert_eq!(
+            out,
+            Color::Rgb {
+                r: 0,
+                g: 199,
+                b: 199
+            }
+        );
+    }
+
+    #[test]
+    fn brighten_color_does_not_wash_vivid_colors_to_grey() {
+        // Regression guard: the user explicitly flagged "HUD metrics
+        // colors too grey". The old 35% source + 65% white blend turned
+        // RGB(0,255,0) into RGB(89,255,89) — a washed pale green. The
+        // new code must return vivid colors unchanged. Verify the green
+        // channel is NOT reduced and the red/blue channels stay at 0.
+        let out = brighten_color(Color::Rgb { r: 0, g: 255, b: 0 });
+        match out {
+            Color::Rgb { r, g, b } => {
+                assert_eq!(r, 0, "red channel must stay 0 for pure green");
+                assert_eq!(b, 0, "blue channel must stay 0 for pure green");
+                assert_eq!(g, 255, "green channel must stay 255 (not washed)");
+            }
+            other => panic!("expected Rgb, got {other:?}"),
+        }
     }
 }
