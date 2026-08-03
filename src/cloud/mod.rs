@@ -51,7 +51,6 @@ use crate::constants::*;
 use crate::droplet::Droplet;
 use crate::frame::Frame;
 use crate::palette::{build_palette, Palette};
-use crate::rain_preset::RainPreset;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
 
@@ -87,9 +86,6 @@ pub struct Cloud {
     pub(super) palette: Palette,
     pub(super) color_mode: ColorMode,
     pub(super) rain_style: RainStyle,
-    /// Runtime-switchable rain visual preset. Toggled via the 'r' key.
-    /// Accessor methods on Cloud read this instead of the raw consts.
-    pub(super) rain_preset: RainPreset,
     monolith_size: MonolithSize,
 
     pub(super) shading_distance: bool,
@@ -159,13 +155,19 @@ pub struct Cloud {
     pub(super) resume_blend_start: f32,
 
     pub(super) pause_start: Option<Instant>,
+
     pub(super) force_draw_everything: bool,
+
     pub(super) semantic_invalidate: bool,
+
     pub(super) frames_since_full_redraw: u64,
+
     /// P4: frame counter for stuck-cell sweep (gated on enable_stuck_cell_sweep).
     pub(super) frames_since_stuck_sweep: u64,
+
     pub(super) perf_pressure: f32,
     pub(super) max_sim_delta: Duration,
+
     pub(super) shading_mode: ShadingMode,
 
     pub(super) message: Vec<MsgChr>,
@@ -271,7 +273,6 @@ impl Cloud {
             palette: build_palette(color_scheme, color_mode, default_background),
             color_mode,
             rain_style,
-            rain_preset: RainPreset::Cinematic,
             monolith_size: MonolithSize::Normal,
             shading_distance: matches!(shading_mode, ShadingMode::DistanceFromHead),
             bold_mode,

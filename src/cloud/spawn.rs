@@ -347,19 +347,13 @@ impl Cloud {
     }
 
     pub(super) fn update_droplet_speeds(&mut self) {
-        // Hoist the per-layer speed array out of the loop — borrowing
-        // `self.parallax_speed_mult()` inside the `&mut self.droplets`
-        // loop would violate the borrow checker (mutable + immutable
-        // borrow of `*self`).
-        let speed_mult = self.parallax_speed_mult();
-        let base_cps = self.chars_per_sec;
         for d in &mut self.droplets {
             if !d.is_alive {
                 continue;
             }
             if let Some(cs) = self.col_stat.get(d.bound_col as usize) {
-                let layer_speed = speed_mult[d.layer as usize];
-                d.chars_per_sec = cs.max_speed_pct * base_cps * layer_speed;
+                let layer_speed = PARALLAX_SPEED_MULT[d.layer as usize];
+                d.chars_per_sec = cs.max_speed_pct * self.chars_per_sec * layer_speed;
                 // Keep velocity clamped to new terminal velocity
                 let terminal = d.chars_per_sec * DROPLET_TERMINAL_VELOCITY_MULT;
                 d.velocity = d.velocity.min(terminal);
@@ -443,7 +437,7 @@ impl Cloud {
         };
 
         // Adjust length by parallax layer
-        let len_mult = self.parallax_length_mult()[layer as usize];
+        let len_mult = PARALLAX_LENGTH_MULT[layer as usize];
         len = ((len as f32) * len_mult).max(1.0) as u16;
 
         // Cinematic final polish: enforce minimum trail length so every
@@ -495,7 +489,7 @@ impl Cloud {
             .unwrap_or(self.active_palette_slot);
 
         // Adjust speed by parallax layer
-        let layer_speed = self.parallax_speed_mult()[layer as usize];
+        let layer_speed = PARALLAX_SPEED_MULT[layer as usize];
         let mut speed = self
             .col_stat
             .get(col as usize)

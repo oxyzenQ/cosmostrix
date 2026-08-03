@@ -148,7 +148,6 @@ mod memstat;
 mod output;
 // `palette` now lives at `src/chroma/palette.rs`; re-exported above.
 mod profile;
-mod rain_preset;
 mod rain_style;
 mod renderer_info;
 mod report;
