@@ -5,6 +5,14 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `pty.openpty()` (POSIX-only) and reads `/proc/<pid>/status` (Linux).
+#   On macOS/BSD the PTY works but RSS polling silently returns 0 because
+#   /proc does not exist — wrap with `psutil` if cross-platform RSS is needed.
+#   Will not run on Windows (no pty module).
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Spawns a tool inside a pseudo-terminal (PTY) so terminal-aware tools
 # (cosmostrix, neo-matrix, cxxmatrix) actually run their event loops
 # instead of exiting early on non-tty stdout.

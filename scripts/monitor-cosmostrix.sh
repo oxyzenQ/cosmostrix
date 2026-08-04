@@ -1,7 +1,29 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-set -u
-set -o pipefail
+# Copyright (C) 2026 rezky_nightky
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: Linux-only.
+#   Reads /proc/<pid>/{status,io,stat,smaps_rollup,fd} and /proc/stat.
+#   These procfs entries do not exist on macOS, FreeBSD, or Windows.
+#   On macOS use `top -pid <PID> -l 0 -s <interval>` or `psutil` instead.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Resource monitor for a running cosmostrix process. Writes a CSV row per
+# sample interval with CPU%, RSS variants, FD count, ctx switches, I/O.
+# Usage: ./scripts/monitor-cosmostrix.sh [PID_OR_NAME] [INTERVAL=60s]
+
+set -uo pipefail
+
+# Hard requirement: Linux procfs. Bail early with a clear message on
+# other platforms instead of emitting silent 0s into the CSV.
+if [[ ! -d /proc ]]; then
+    echo "error: monitor-cosmostrix.sh requires Linux /proc filesystem." >&2
+    echo "  Detected kernel: $(uname -s 2>/dev/null || echo unknown)" >&2
+    echo "  On macOS, use: top -pid <PID> -l 0 -s <interval>" >&2
+    echo "  On FreeBSD, use: top -p <PID> -s <interval>" >&2
+    exit 1
+fi
 
 TARGET="${1:-cosmostrix}"
 INTERVAL="${INTERVAL:-60}"

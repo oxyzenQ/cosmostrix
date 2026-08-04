@@ -3,6 +3,12 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `awk`, `sort -n`, `tail -n +2`, `tr`, bash arrays. Not for Windows
+#   cmd.exe / PowerShell — use Git Bash or WSL on Windows.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # COSMOSTRIX ENDURANCE SUMMARY
 #
 # Reads a CSV resource log produced by the endurance sampling loop and prints

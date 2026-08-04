@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 rezky_nightky
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: Linux-only (or any OS with /proc/<pid>/status polling).
+#   Cross-references the cosmostrix --benchmark --json output, which itself
+#   depends on Linux perf counters. macOS/BSD will run but the underlying
+#   cosmostrix --benchmark may emit 0s for RSS counters that rely on /proc.
+# ─────────────────────────────────────────────────────────────────────────────
 """
 Run scaling benchmarks at 8 screen sizes and emit a JSON + Markdown summary.
 

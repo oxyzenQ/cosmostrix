@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 rezky_nightky
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: Cross-platform Python 3 (Linux, macOS, BSD, Windows).
+#   Pure-Python stdlib only. No /proc, no PTY, no shell-specific calls.
+#   Safe to run anywhere Python 3.7+ is installed.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Cosmostrix Density-Map Preset Generator
 #
 # Generates CSV density-map strings for scene-custom monolith pillar sculpting.

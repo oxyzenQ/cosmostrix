@@ -2,6 +2,12 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `sed -i`, `grep -q`, `awk`, `git status --porcelain`. Not for
+#   Windows cmd.exe / PowerShell — use Git Bash or WSL on Windows.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Cosmostrix Version Bump Helper
 #
 # Updates all version references consistently across the repo.

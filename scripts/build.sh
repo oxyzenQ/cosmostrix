@@ -1,9 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # COSMOSTRIX BUILD AUTOMATION SCRIPT
 #
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `nproc`, `rustc -vV`, `command -v`, bash arrays. On macOS `nproc`
+#   is replaced by `sysctl -n hw.logicalcpu` if missing. Will not run on
+#   Windows cmd.exe / PowerShell.
+# ─────────────────────────────────────────────────────────────────────────────
 #
 # Optimized build script with intelligent core detection and advanced caching.
 # See `./scripts/build.sh help` for the command list.

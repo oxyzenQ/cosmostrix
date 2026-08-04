@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 rezky_nightky (oxyzenQ)
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `sudo`, `rm -rf`, `install`, bash arrays — all require a POSIX-ish
+#   environment. Will not run on Windows (Git Bash, Cygwin, WSL ok).
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Uninstall cosmostrix: binary only. Config is PRESERVED (may contain
 # user customizations). Pass --purge to also remove config.
 #
@@ -9,7 +15,7 @@
 #   /usr/bin/, ~/.local/bin/
 # Sudo is used ONLY for system paths. Run WITHOUT sudo.
 
-set -uo pipefail
+set -euo pipefail
 
 PROJECT_NAME="cosmostrix"
 

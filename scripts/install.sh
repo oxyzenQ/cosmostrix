@@ -2,6 +2,14 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 rezky_nightky (oxyzenQ)
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `sudo`, `install -Dm755`, `cargo`, `uname -m`, /proc/cpuinfo (for
+#   CPU autodetect on Linux x86-64). macOS/BSD fall through to plain
+#   `cargo build --release` (no AVX profile). Will not run on Windows
+#   cmd.exe / PowerShell.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Install cosmostrix: binary + config.toml.
 # Supports --system (system-wide) and --user (default, ~/.local).
 # Run WITHOUT sudo: the script escalates via sudo ONLY for --system install steps.

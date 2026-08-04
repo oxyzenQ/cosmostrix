@@ -2,6 +2,12 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `find -print0`, `sed -E`, `grep -nE`, bash arrays. Not for Windows
+#   cmd.exe / PowerShell — use Git Bash or WSL on Windows.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # COSMOSTRIX VERSION-ANTI-PATTERN GUARD
 #
 # Fails if any source file re-introduces the hardcoded-version-string

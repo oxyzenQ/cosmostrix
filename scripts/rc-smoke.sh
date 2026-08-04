@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Spawns the cosmostrix binary, pipes through `grep -Fq`, uses `mktemp`.
+#   Not for Windows cmd.exe / PowerShell — use Git Bash or WSL on Windows.
+# ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 # rc-smoke.sh — Release candidate smoke tests

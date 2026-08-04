@@ -1,5 +1,13 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+//
+// ─────────────────────────────────────────────────────────────────────────────
+// PLATFORM: UNIX-only (Linux, macOS, BSD).
+//   Invokes `bash scripts/build.sh pgo --auto` which uses /proc/cpuinfo
+//   (Linux) or sysctl (macOS) for CPU detection. The build itself runs on
+//   any platform cargo supports, but this runner assumes a bash-invocable
+//   shell. Not for Windows cmd.exe.
+// ─────────────────────────────────────────────────────────────────────────────
 
 //! Tiny runner for the `cargo use-pgo` alias.
 //!

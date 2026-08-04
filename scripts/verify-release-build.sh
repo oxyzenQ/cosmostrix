@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Linux: reads /proc/cpuinfo for AVX detection. macOS: uses sysctl.
+#   Calls `cargo build`, `strings`, `file`, `readelf -S`. The `readelf`
+#   check is Linux-only (auto-skipped on macOS/BSD). Not for Windows.
+# ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 TARGET="x86_64-unknown-linux-gnu"

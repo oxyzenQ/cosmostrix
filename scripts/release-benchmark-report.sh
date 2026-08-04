@@ -5,6 +5,11 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `cargo`, `awk`, `grep -Eq`, `mktemp`. Not for Windows cmd.exe.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Runs N benchmark iterations, parses results, and prints a Markdown section
 # suitable for pasting into benchmark/README.md.
 #

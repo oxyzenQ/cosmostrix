@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
@@ -11,6 +11,7 @@
 # Usage: scripts/check-rs-loc.sh [MAX_LINES]
 #   MAX_LINES: override the default limit (default: 1500)
 #
+# Platform: UNIX-only (uses `find`, `wc -l`, `sort`). Not for Windows cmd.exe.
 
 set -euo pipefail
 

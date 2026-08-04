@@ -5,6 +5,12 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `find -print0`, `head`, `grep -q`, `wc -l`. Not for Windows
+#   cmd.exe / PowerShell — use Git Bash or WSL on Windows.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Scans all core/code/config/script files for required SPDX-License-Identifier
 # headers. Fails if any included file is missing the header or has the wrong
 # license identifier.
@@ -12,7 +18,7 @@
 # Required: SPDX-License-Identifier: GPL-3.0-only
 # Rejected: MIT (project is GPL-3.0-only licensed)
 #
-# Included file types: *.rs, *.sh, *.toml, *.yml, *.yaml, *.md
+# Included file types: *.rs, *.sh, *.py, *.toml, *.yml, *.yaml, *.md
 # Excluded: target/, .git/, Cargo.lock, *.txt, assets/media binary files
 #
 # Usage: bash scripts/check-headers.sh
@@ -56,7 +62,7 @@ while IFS= read -r -d '' file; do
     fi
 done < <(
     find "$REPO_ROOT" \
-        \( -name '*.rs' -o -name '*.sh' -o -name '*.toml' -o -name '*.yml' -o -name '*.yaml' -o -name '*.md' \) \
+        \( -name '*.rs' -o -name '*.sh' -o -name '*.py' -o -name '*.toml' -o -name '*.yml' -o -name '*.yaml' -o -name '*.md' \) \
         -not -path '*/target/*' \
         -not -path '*/.git/*' \
         -not -name 'Cargo.lock' \

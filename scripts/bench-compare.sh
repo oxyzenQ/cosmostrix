@@ -5,6 +5,13 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: Linux-only.
+#   Spawns tools inside a PTY (Python pty module) and polls RSS via
+#   /proc/<pid>/status. On macOS/BSD the PTY works but RSS polling
+#   silently returns 0. Use `psutil`-based measurement for cross-platform.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # Fair side-by-side comparison of cosmostrix vs up to 7 competitor matrix
 # rain tools (cmatrix, unimatrix, neo-matrix, tmatrix, gmatrix, fmatrix,
 # cxxmatrix).

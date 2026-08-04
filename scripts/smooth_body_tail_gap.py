@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: Cross-platform Python 3 (Linux, macOS, BSD, Windows).
+#   Pure-Python stdlib only (re, pathlib). Safe to run anywhere Python 3.7+.
+# ─────────────────────────────────────────────────────────────────────────────
 """
 Task 3: Smooth the body-tail luminance gap.
 

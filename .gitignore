@@ -25,6 +25,11 @@ Thumbs.db
 *.log
 *~
 
+# Python bytecode (scripts/__pycache__)
+__pycache__/
+*.pyc
+*.pyo
+
 # AI workdirs
 worklog.md
 codex/

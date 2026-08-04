@@ -2,6 +2,11 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 #
+# ─────────────────────────────────────────────────────────────────────────────
+# PLATFORM: UNIX-only (Linux, macOS, BSD).
+#   Uses `mktemp -d`, `bash -n`, `seq`. Not for Windows cmd.exe.
+# ─────────────────────────────────────────────────────────────────────────────
+#
 # COSMOSTRIX ENDURANCE SUMMARY — SELF-TEST
 #
 # Creates a temporary sample CSV with the extended header and a few rows,
