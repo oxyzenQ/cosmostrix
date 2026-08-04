@@ -24,7 +24,8 @@
 | 4 | C (item 26) — drop clap suggestions | ✅ DONE | `5d40a9d` | -7 LOC Cargo.lock, ~0.6s |
 | 4 | C (item 27) — drop build-dep chrono | ✅ DONE | `efea502` | -3 LOC Cargo.toml, ~1.3s |
 | 4 | C (item 28) — add [lints.clippy] table | ✅ DONE | `80c0a80` | -1 file-level allow |
-| 5 | D — hot-path optimizations | ⏳ DEFERRED per owner | — | needs visual-output research |
+| 5 | D (item 29) — precompute column_coherence sinf LUT | ✅ DONE | `96d2213` | -65-130M cycles/sec (architectural), visual parity verified |
+| 5 | D (item 30) — replace per-frame scene_name clone with u64 counter | ✅ DONE | `8805f26` | -60 heap allocs/sec |
 
 **Item 16** (`cosmic_dragon/egg/io_uring_rejected.rs` demotion) was
 **INTENTIONALLY SKIPPED** — the `egg/mod.rs` has an explicit policy:
