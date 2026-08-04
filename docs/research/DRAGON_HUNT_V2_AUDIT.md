@@ -16,9 +16,15 @@
 | 2 | A — atmosphere triage | ✅ DONE | `e74b71b` | -28 LOC, 29 warnings surfaced + silenced |
 | 2 | A — file consolidation | ✅ DONE | `38506b4` | -123 LOC, -2 files |
 | 2 | A — related_schemes() deletion | ✅ DONE | `3feb68f` | -71 LOC |
-| 3 | B — doc archival | ⏳ PENDING | — | ~5,850 LOC to archive |
-| 4 | C — build optimizations | ⏳ PENDING | — | ~2.7s build saved |
-| 5 | D — hot-path optimizations | ⏳ PENDING (needs owner approval) | — | 60-130M cycles/sec |
+| 3 | B (batch 1) — archive 11 closed docs | ✅ DONE | `dde68de` | -11 docs to archive/ |
+| 3 | B (batch 2) — delete stale benchmark artifacts | ✅ DONE | `f509d3c` | -7 regenerated files |
+| 3 | B (batch 3) — archive CHANGELOG pre-v13 | ✅ DONE | `4e5c55f` | -630 LOC live, +703 archive |
+| 3 | B (batch 4) — condense FUTURE_BACKLOG.md | ✅ DONE | `d2ed7a4` | -259 LOC (341→82) |
+| 4 | C (item 25) — drop crossterm derive-more | ✅ DONE | `4879585` | -53 LOC Cargo.lock, ~0.8s |
+| 4 | C (item 26) — drop clap suggestions | ✅ DONE | `5d40a9d` | -7 LOC Cargo.lock, ~0.6s |
+| 4 | C (item 27) — drop build-dep chrono | ✅ DONE | `efea502` | -3 LOC Cargo.toml, ~1.3s |
+| 4 | C (item 28) — add [lints.clippy] table | ✅ DONE | `80c0a80` | -1 file-level allow |
+| 5 | D — hot-path optimizations | ⏳ DEFERRED per owner | — | needs visual-output research |
 
 **Item 16** (`cosmic_dragon/egg/io_uring_rejected.rs` demotion) was
 **INTENTIONALLY SKIPPED** — the `egg/mod.rs` has an explicit policy:
