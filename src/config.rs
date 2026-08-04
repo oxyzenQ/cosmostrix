@@ -704,18 +704,19 @@ pub struct Args {
     pub check_bitcolor: bool,
 
     // Atmosphere engine config (gated/internal-first — Phase 10).
-    // NOT exposed as public CLI flags. Resolved from config/profile only.
+    // CLI flags that override config-file values. Both are hidden (advanced);
+    // most users set these via config.toml [atmosphere] block instead.
     #[arg(
         long = "atmosphere-mode",
         hide = true,
-        help = "Atmosphere mode (config only: disabled, controlled-live)"
+        help = "Atmosphere mode (disabled, controlled-live). Config: atmosphere-mode = \"controlled-live\""
     )]
     pub atmosphere_mode_str: Option<String>,
 
     #[arg(
         long = "atmosphere-regime",
         hide = true,
-        help = "Atmosphere regime (config only: calm, pulse, signal, compression, void, monolith-pressure, adaptive)"
+        help = "Atmosphere regime (calm, pulse, signal, compression, void, monolith-pressure, adaptive). Config: atmosphere-regime = \"pulse\""
     )]
     pub atmosphere_regime_str: Option<String>,
 }
