@@ -47,7 +47,7 @@ Cosmostrix is built on **two cooperating engines**:
    changed*. Lives at the crate root: `src/frame.rs` (368 LOC),
    `src/terminal.rs` (1,332 LOC), `src/terminal_tty.rs` (201 LOC),
    `src/runtime.rs` (91 LOC). 16 invariant tests in
-   `src/cosmic_dragon_lock_tests.rs` lock the engine's contract.
+   `src/cosmic_dragon/lock_tests.rs` lock the engine's contract.
 
 2. **The Chroma Dragon Coloring Engine** — owns *what color a cell
    becomes*. Lives under `src/chroma/` (`palette`, `catalog`,
@@ -335,7 +335,7 @@ to make changes.
   the per-frame render/io loop.
 - **Diff-based rendering**: the core innovation. Never fall back to
   full-screen redraw in interactive mode.
-- **Lock tests**: `src/cosmic_dragon_lock_tests.rs` (16 tests) and
+- **Lock tests**: `src/cosmic_dragon/lock_tests.rs` (16 tests) and
   `src/chroma/lock_tests.rs` (17 tests) must pass on every commit.
   They lock the engines' public contracts.
 

@@ -14,8 +14,8 @@
 >   parsing block, and help entry all deleted. Migration entry added to
 >   `REMOVED_FLAGS` in `src/validation.rs`.
 > - **#6 `--atmosphere-mode` / #7 `--atmosphere-regime`** help-text bug:
->   NOT YET FIXED. The misleading "config only" parenthetical still appears
->   in `src/config.rs:711, 718`. Tracked as a low-priority follow-up.
+>   FIXED. The misleading "config only" parenthetical was replaced with a
+>   neutral "Config: <key> = <value>" example. See `src/config.rs:705, 712`.
 > - All other 11 audited flags remain in their audited state (all KEEP).
 
 ---

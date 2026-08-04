@@ -103,7 +103,7 @@ The Dragon's roar is not loud — it is precise.
 ## Features
 
 - **Cinematic terminal rain** — calm, organic visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
-- **Cosmic Dragon diff-based rendering engine (v30 locked)** — double-buffered generation-based dirty tracking (O(1) `clear_dirty` via single u32 bump, replaces the standard O(N) `Vec<bool>` memset), `semantic_gen` invalidation counter (eliminates stale-glyph residue on charset/theme switches), `/dev/tty` fallback (recovers from broken stdout mid-run — unique among terminal renderers), single-syscall flush via `SYNC_START + ansi_buf + SYNC_END` concatenation, and pre-formatted `ColorCache` SGR bytes (zero `format!()` calls in the hot path). 16 invariant tests in `src/cosmic_dragon_lock_tests.rs` lock the engine's contract on every commit.
+- **Cosmic Dragon diff-based rendering engine (v30 locked)** — double-buffered generation-based dirty tracking (O(1) `clear_dirty` via single u32 bump, replaces the standard O(N) `Vec<bool>` memset), `semantic_gen` invalidation counter (eliminates stale-glyph residue on charset/theme switches), `/dev/tty` fallback (recovers from broken stdout mid-run — unique among terminal renderers), single-syscall flush via `SYNC_START + ansi_buf + SYNC_END` concatenation, and pre-formatted `ColorCache` SGR bytes (zero `format!()` calls in the hot path). 16 invariant tests in `src/cosmic_dragon/lock_tests.rs` lock the engine's contract on every commit.
 - **Chroma Dragon coloring engine (Phase 9-B locked)** — OKLab gradient interpolation, palette-relative brightness floor (Phase 7-c, replaces v17 global `MIN_RGB_SUM=180`), body-tail continuity (Phase 7-d, 2.0× max gap), perceptual L+chroma smoothing at palette transitions (Phase 5 + Phase 8), head halo via background blend (Phase 4-D), subpixel hue jitter (Phase 4-B), temporal column hue coherence (Phase 4-A), palette-aware anomaly halos (Phase 6), hue-preserving polar gradient variant for future themes (Phase 9-A). 17 invariant tests in `src/chroma/lock_tests.rs` lock the engine's contract on every commit.
 - **14 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), the `cosmic_dragon` milestone scene commemorating the temporal-prediction breakthrough (dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), and the `carbonic` tribute scene (dense metallic carbon-fiber binary rain honoring the experiment that was reverted for cinematic quality)
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
@@ -129,14 +129,10 @@ The Dragon's roar is not loud — it is precise.
 - Fixed virtual screen size (`--screen-size WxH`) for benchmarking at exact dimensions or rendering independent of terminal resize
 - 5-layer destructive terminal recovery (`--reset-terminal`)
 - Controlled atmosphere engine with 6 opt-in regimes (pulse, signal, compression, void, monolith-pressure, calm)
-- Benchmark mode with JSON output, compound duration format (`--duration 1h30m`), self-documenting reports (CPU model, rustc, LTO/PGO, git SHA)
+- Benchmark mode with JSON output, compound duration format (`--bench-duration 1h30m`), self-documenting reports (CPU model, rustc, LTO/PGO, git SHA)
 - Terminal diagnostics (`--doctor`) and config validation (`--testconf`)
 - PGO (Profile-Guided Optimization) nitro build via `./scripts/build.sh pgo` (3-stage: instrument → benchmark → optimize)
 - Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD
-
-## Philosophy
-
-Cosmostrix is a CPU-only terminal renderer by design. The terminal is a text medium — its soul is ANSI escape sequences, copy-pasteable glyphs, and the slow poetry of a phosphor decay. A GPU would paint an image; Cosmostrix writes a sentence. No GPU context (OpenGL, Vulkan, Metal, DirectX, WebGPU) is ever created — the benchmark reports `gpu_usage: not_applicable`. GPU image-mode via the kitty graphics protocol was evaluated and rejected because it would change Cosmostrix from "terminal rain" to "image rain", which is a different program. See [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md) for the full rationale.
 
 ## Limitations
 
@@ -586,7 +582,7 @@ cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
 cargo test lock_tests -- --nocapture            # print the Chroma Dragon engine lock report
-cargo test cosmic_dragon_lock_tests -- --nocapture  # print the Cosmic Dragon engine lock report
+cargo test cosmic_dragon::lock_tests -- --nocapture  # print the Cosmic Dragon engine lock report
 scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 ```
 

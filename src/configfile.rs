@@ -85,8 +85,7 @@ pub(crate) struct ParsedConfig {
 ///
 /// Search order when no explicit path is given:
 /// 1. `$XDG_CONFIG_HOME/cosmostrix/config.toml` (or `~/.config/cosmostrix/config.toml`)
-/// 2. Legacy `config` filename (pre-v10 backward compat)
-/// 3. `/etc/cosmostrix/config.toml` (system-wide default, installed by AUR/package manager)
+/// 2. `/etc/cosmostrix/config.toml` (system-wide default, installed by AUR/package manager)
 ///
 /// This means AUR users get a working default config out of the box —
 /// the package installs `/etc/cosmostrix/config.toml`, and cosmostrix
