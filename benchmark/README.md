@@ -1199,3 +1199,4 @@ The comparison script generates gitignored files in this folder:
 - `time-*.txt` - `/usr/bin/time -v` output
 - `perf-*.txt` - `perf stat` output
 - `massif-*-*.out` - Valgrind heap profiles
+- `scaling_results.{json,md}` - per-size scaling sweep from `scripts/run_scaling_benchmarks.py`
