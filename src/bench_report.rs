@@ -62,8 +62,9 @@ pub(crate) struct BenchReportData {
     /// variant from a Debug dump.
     pub color_scheme_name: String,
     /// Charset preset name as supplied on the CLI (e.g. "matrix", "zen",
-    /// "katakana"). For custom char ranges (`--chars`), this is the literal
-    /// preset string the user typed (or "auto" if they didn't pass --charset).
+    /// "katakana"). For custom charsets defined via `[charset-custom.<name>]`
+    /// in config.toml, this is the custom block name the user passed to
+    /// `--charset <name>` (or "auto" if they didn't pass --charset).
     pub charset_preset: String,
     /// Number of distinct glyphs in the active char pool. Benchmark throughput
     /// is glyph-pool-size invariant (the renderer doesn't slow down with more

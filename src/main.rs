@@ -185,7 +185,7 @@ use std::io::IsTerminal;
 
 use std::env;
 
-use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
+use crate::charset::{build_chars, charset_from_str};
 use crate::config::{
     color_enabled_stdout, print_list_charsets, print_list_colors, print_list_scenes,
     print_show_scene, Args, ColorBg,
@@ -627,14 +627,15 @@ fn main() -> std::io::Result<()> {
     let def_ascii = default_to_ascii();
     let color_mode = detect_color_mode(&args);
 
-    let shading_mode = match validate_u8_range("--shadingmode", args.shading_mode, 0, 1) {
-        Ok(1) => ShadingMode::DistanceFromHead,
-        _ => ShadingMode::Random,
-    };
+    let shading_mode =
+        match ux::or_exit(validate_u8_range("--shadingmode", args.shading_mode, 0, 1)) {
+            1 => ShadingMode::DistanceFromHead,
+            _ => ShadingMode::Random,
+        };
 
-    let bold_mode = match validate_u8_range("--bold", args.bold, 0, 2) {
-        Ok(0) => BoldMode::Off,
-        Ok(2) => BoldMode::All,
+    let bold_mode = match ux::or_exit(validate_u8_range("--bold", args.bold, 0, 2)) {
+        0 => BoldMode::Off,
+        2 => BoldMode::All,
         _ => BoldMode::Random,
     };
 
@@ -725,22 +726,11 @@ fn main() -> std::io::Result<()> {
     ));
     let speed = ux::or_exit(validate_speed(args.speed));
 
-    let mut user_ranges: Vec<(char, char)> = Vec::new();
-    if let Some(spec) = &args.chars {
-        match parse_user_hex_chars(spec) {
-            Ok(list) => {
-                if list.len() % 2 != 0 {
-                    ux::die_config(
-                        "error: --chars: odd number of unicode chars given (must be even)",
-                    );
-                }
-                for pair in list.chunks(2) {
-                    user_ranges.push((pair[0], pair[1]));
-                }
-            }
-            Err(e) => ux::die_config(format!("error: {e}")),
-        }
-    }
+    // --chars CLI flag was removed (audit FLAGS_AUDIT_bench-frames_chars_bold.md §2).
+    // Custom charsets now exclusively come from [charset-custom.<name>] in config.toml
+    // loaded via --charset <name>. The user_ranges Vec stays (always empty here) because
+    // removing it would touch ~15 call sites with zero functional benefit.
+    let user_ranges: Vec<(char, char)> = Vec::new();
 
     let charset_preset = normalize_charset_preset_name(&args.charset);
     let startup_charset = charset_preset.clone();
@@ -1253,6 +1243,14 @@ fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
 ///   - `--screensaver`: interactive input handler only; bench has no input loop
 ///   - `--intro`: interactive intro animation; bench never plays it
 ///   - `--perf-stats` (hidden): interactive summary only; bench emits BenchReportData
+///
+/// Dispatch precedence (main.rs): `--bench-all > --benchmark > --bench-frames`.
+/// The warn matrix below mirrors that precedence so the user always sees which
+/// flag actually took effect. The `--bench-duration` warning only fires when
+/// `--bench-frames` is the *winning* dispatch (i.e. neither --bench-all nor
+/// --benchmark is set); otherwise --bench-duration IS consumed by --bench-all
+/// (per-run duration in the scaling sweep) or by --benchmark (override of the
+/// 5s default), so warning about it would be wrong.
 fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static str> {
     let mut warns: Vec<&'static str> = Vec::new();
     // Phase D Task C fix: warn about silent-ignore combinations. Previously
@@ -1267,7 +1265,14 @@ fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static 
     if args.benchmark && args.bench_frames.is_some() {
         warns.push("--bench-frames ignored (--benchmark takes precedence)");
     }
-    if args.bench_frames.is_some() && args.bench_duration.is_some() && !args.benchmark {
+    // Only warn about --bench-duration being ignored when --bench-frames is the
+    // winning dispatch (no --bench-all, no --benchmark). If --bench-all is set,
+    // --bench-duration IS used as the per-run duration in the scaling sweep.
+    if args.bench_frames.is_some()
+        && args.bench_duration.is_some()
+        && !args.benchmark
+        && !args.bench_all
+    {
         warns.push("--bench-duration ignored (--bench-frames is frame-count-based)");
     }
     if fps_user_set {

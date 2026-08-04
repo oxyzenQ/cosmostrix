@@ -689,9 +689,6 @@ pub struct Args {
     #[arg(skip = 50.0_f32)]
     pub shortpct: f32,
 
-    #[arg(long = "chars", hide = true, help = "Custom characters override")]
-    pub chars: Option<String>,
-
     #[arg(
         long = "colormode",
         hide = true,

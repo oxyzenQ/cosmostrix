@@ -338,9 +338,6 @@ pub(crate) fn print_doctor_report(args: &Args) {
         if charset_preset != args.charset {
             s.field("preset_normalized", &charset_preset);
         }
-        if let Some(spec) = &args.chars {
-            s.field("chars_override", spec);
-        }
         s.field("default_to_ascii", if def_ascii { "yes" } else { "no" });
     }
 

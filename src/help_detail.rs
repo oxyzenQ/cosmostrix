@@ -330,9 +330,6 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       Force color depth (auto-detected by default). Allowed: 0 (mono),
       16, 8/256 (8-bit), 24/32 (truecolor). Default: 24-bit if supported
       (COLORTERM), else 8-bit (TERM=...256color), else 16-color.
-  --chars <ranges>
-      Custom character pool override as hex Unicode ranges
-      (e.g. \"0x30-0x39,0x41-0x5A\"). Pairs must be even count.
   --check-bitcolor
       Print detected terminal color capability (truecolor / 256 / 16 /
       mono) and exit. Diagnostic only — no rain rendered.
@@ -378,9 +375,11 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       Run headless benchmark for exactly N frames and exit. Alternative
       to --bench-duration when you want frame-count-based measurement
       instead of time-based. Useful for cross-machine A/B at identical
-      workloads. If both --bench-frames and --benchmark are set, --benchmark
-      wins (--bench-frames ignored). If both --bench-frames and --bench-duration
-      are set (without --benchmark), --bench-frames wins (--bench-duration ignored).
+      workloads. Dispatch precedence: --bench-all > --benchmark > --bench-frames.
+      If --bench-frames is set alongside a higher-precedence flag, --bench-frames
+      is ignored (warned). If --bench-frames is set with --bench-duration and
+      neither --bench-all nor --benchmark is set, --bench-frames wins
+      (--bench-duration ignored, warned).
 
   MESSAGE (advanced, has shorthand):
   --message-border (shorthand: -mb <text>)

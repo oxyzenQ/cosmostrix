@@ -70,6 +70,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "error: --charset-file has been removed in v25.0.0.\n  Custom charsets now live in config.toml under [charset-custom.<name>] and are loaded via --charset <name>.\n  Migration: move your custom characters from the file into a [charset-custom.<name>] block, then activate with --charset <name> or `charset = \"<name>\"` in config.\n  Example:\n    [charset-custom.cat]\n    set = \"x9\"\n  Then: cosmostrix --charset cat\n  See `cosmostrix --dump-config` for the full template.",
     ),
     (
+        "--chars",
+        "error: --chars has been removed (audit FLAGS_AUDIT_bench-frames_chars_bold.md §2).\n  Custom charsets now exclusively come from config.toml under [charset-custom.<name>] and are loaded via --charset <name>.\n  Migration: --chars accepted hex Unicode ranges (e.g. \"0x30-0x39,0x41-0x5A\"). The [charset-custom.<name>] block accepts literal characters directly in the `set` field — TOML is UTF-8 native, so you can type the actual characters you want.\n  Example: --chars \"0x30-0x39,0x41-0x5A\" becomes\n    [charset-custom.my-range]\n    set = \"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\n  Then: cosmostrix --charset my-range\n  See `cosmostrix --dump-config` for the full template.",
+    ),
+    (
         "--completions",
         "error: --completions <shell> has been removed in v15.0.0.\n  Shell completion scripts are no longer shipped. The `clap_complete` dependency was dropped to reduce maintenance surface.\n  To regenerate completions externally, use `clap_complete` in a downstream tool, or write them by hand from `cosmostrix --help`.",
     ),

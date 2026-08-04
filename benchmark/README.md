@@ -337,22 +337,22 @@ v15 at 88×32 or v30 at 120×40.
 ```bash
 # Run 1: production-draw path (what the terminal sees)
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
-    -v --benchmark -C binary --bench-frames 30 -c green \
+    -v --benchmark -C binary -c green \
     --bench-io --bench-duration 10s --bench-scene production-draw
 
 # Run 2: lean path (fastest interactive path)
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
-    -v --benchmark -C binary --bench-frames 30 -c green \
+    -v --benchmark -C binary -c green \
     --bench-io --bench-duration 10s --bench-scene lean
 
 # Run 3: cinematic scene (heaviest)
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
-    -v --benchmark -C binary --bench-frames 30 -c green \
+    -v --benchmark -C binary -c green \
     --bench-io --bench-duration 10s --bench-scene lean --scene cinematic
 
 # Run 4: 60s endurance
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
-    -v --benchmark -C zen --bench-frames 60 \
+    -v --benchmark -C zen \
     --bench-io --bench-duration 60s
 ```
 
