@@ -2,6 +2,17 @@
 
 # Atmosphere Engine
 
+> **Archival notice (2026-08-05, Dragon Hunt v2 Phase 6 Tier E item 31).**
+> The frozen/test-only half of the atmosphere subsystem (the A/B smoke
+> harness in `atmosphere_ab.rs` and the regime probe in
+> `atmosphere_probe.rs`) has been deleted. This document remains the
+> canonical design spec for the **wired-in** atmosphere features
+> (regime enum, controlled-live modulation, adaptive hour-driven path,
+> custom time map, presets, shadow metrics, verifier, visual whisper).
+> See `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` for the
+> full archival record, including the design knowledge preserved from
+> the deleted modules.
+
 The Atmosphere Engine is cosmostrix's visual climate layer. It models the
 overall mood of the terminal render as a slow-moving regime that modulates
 rendering parameters gradually over time. The engine is opt-in only: the

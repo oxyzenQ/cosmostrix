@@ -32,10 +32,15 @@
 //! and only active regime. Non-Calm regimes are verified but not unleashed.
 
 // Phase 3: Module-level dead_code allow is required because many types
-// (AtmosphereState, AtmosphereController, RegimeProbe, build_application)
-// are pub(crate) API contracts consumed in tests, diagnostics, and future
+// (AtmosphereState, AtmosphereController, build_application) are
+// pub(crate) API contracts consumed in tests, diagnostics, and future
 // integration points — not yet wired into the hot render path. As
 // integration progresses, individual allows can replace this module-level one.
+//
+// v30 (Dragon Hunt v2 Phase 6 Tier E item 31, Option C): the RegimeProbe
+// type was deleted together with `src/atmosphere_probe.rs` (regime probe,
+// never wired in). Design knowledge preserved in
+// `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md`.
 #![cfg_attr(not(test), allow(dead_code))]
 
 // AtmosphereRegime is defined in this module (below).

@@ -6,13 +6,18 @@
 //! Extracted from atmosphere.rs to reduce file pressure.
 //!
 //! Aggregated umbrella module: groups sibling atmosphere test files
-//! (`atmosphere_ab`, `atmosphere_apply`, `atmosphere_apply_cl`,
-//! `atmosphere_expansion`) so `main.rs` declares only one
-//! `mod atmosphere_tests;` instead of five flat modules.
+//! (`atmosphere_apply`, `atmosphere_apply_cl`, `atmosphere_expansion`)
+//! so `main.rs` declares only one `mod atmosphere_tests;` instead of
+//! four flat modules.
+//!
+//! v30 (Dragon Hunt v2 Phase 6 Tier E item 31, Option C): the
+//! `atmosphere_ab` test module was deleted together with its parent
+//! `src/atmosphere_ab.rs` (A/B smoke, Phase 9, test-only, zero
+//! production callers). Design knowledge preserved in
+//! `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md`.
 
 #![cfg(test)]
 
-mod atmosphere_ab;
 mod atmosphere_apply;
 mod atmosphere_apply_cl;
 mod atmosphere_expansion;

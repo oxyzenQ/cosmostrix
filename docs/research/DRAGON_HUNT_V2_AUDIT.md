@@ -26,6 +26,10 @@
 | 4 | C (item 28) — add [lints.clippy] table | ✅ DONE | `80c0a80` | -1 file-level allow |
 | 5 | D (item 29) — precompute column_coherence sinf LUT | ✅ DONE | `96d2213` | -65-130M cycles/sec (architectural), visual parity verified |
 | 5 | D (item 30) — replace per-frame scene_name clone with u64 counter | ✅ DONE | `8805f26` | -60 heap allocs/sec |
+| 6 | E (item 31) — atmosphere subsystem archival + dead code deletion | ✅ DONE | (this commit) | -1,071 LOC (3 files), design knowledge preserved in `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` |
+| 6 | E (item 32) — Bold default | ✅ DONE (earlier) | — | Closed with Option B (Random), no code change |
+| 6 | E (item 33) — vignette/rain_shadow LUTs | ⏸ DEFERRED | — | Visual shift risk, needs owner approval |
+| 6 | E (item 34) — `bitvec` dep replacement | ✅ DONE (SKIP) | — | Owner keeps `bitvec`, no comparison branch, no code change |
 
 **Item 16** (`cosmic_dragon/egg/io_uring_rejected.rs` demotion) was
 **INTENTIONALLY SKIPPED** — the `egg/mod.rs` has an explicit policy:
@@ -187,6 +191,30 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 ### Phase 6 — Owner decisions (Tier E, items 31, 33, 34)
 **Risk**: High. **Time**: Owner-dependent.
 - Pause and present findings to owner.
+
+**Item 31 — CLOSED 2026-08-05** with **Option C (archive) + code deletion**.
+The owner chose to archive the atmosphere subsystem as an intentional
+reservation AND delete the truly dead/test-only modules (1,071 LOC across
+3 files: `atmosphere_ab.rs`, `atmosphere_probe.rs`, `atmosphere_tests/atmosphere_ab.rs`).
+The wired-in modules (~6,255 LOC across 15 files) remain in `src/` because
+they have live production callers in `main.rs`, `app.rs`, `bench_report.rs`,
+`profile.rs`, `event_loop.rs`, `testconf.rs`, `live_config.rs`. Full
+archival record (design knowledge, deleted module contents, rationale)
+preserved in `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md`.
+
+**Item 32 — CLOSED** earlier with Option B (keep `BoldMode::Random`
+default). No code change.
+
+**Item 33 — DEFERRED** (per-cell `vignette_factor` + `rain_shadow_factor`
+sqrt+smoothstep LUTs). Visual shift risk requires owner approval before
+changing. Not actionable in this session.
+
+**Item 34 — CLOSED 2026-08-05** with **SKIP**. The owner decided to keep
+using `bitvec` and NOT create a comparison branch. Rationale: `bitvec` is
+stable, well-tested, and the ~4s compile-time saving from a hand-rolled
+`Vec<u64>` bitset is not worth the medium risk of introducing a custom
+data structure with different semantics. The `bitvec` dep remains in
+`Cargo.toml` unchanged.
 
 ---
 

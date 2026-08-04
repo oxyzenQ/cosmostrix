@@ -44,14 +44,16 @@ static GLOBAL_ALLOC: crate::alloc_trace::TraceAlloc = crate::alloc_trace::TraceA
 mod alloc_trace;
 mod app;
 mod atmosphere;
-#[cfg(test)]
-mod atmosphere_ab;
+// v30 (Dragon Hunt v2 Phase 6 Tier E item 31, Option C): the frozen
+// `atmosphere_ab` (A/B smoke, Phase 9) and `atmosphere_probe` (regime
+// probe, never wired in) modules have been deleted. Their design knowledge
+// is preserved in docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
+// The wired-in atmosphere modules below remain unchanged.
 mod atmosphere_adaptive;
 mod atmosphere_apply;
 mod atmosphere_controlled_live;
 mod atmosphere_custom;
 mod atmosphere_presets;
-mod atmosphere_probe;
 mod atmosphere_runtime;
 mod atmosphere_shadow;
 #[cfg(test)]
