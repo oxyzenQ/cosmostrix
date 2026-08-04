@@ -212,6 +212,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut charset_preset = cfg.charset_preset.clone();
     let mut scene_name = cfg.scene_name.clone();
+    // Phase D (hot-path): bumped on every reassignment of `scene_name` so the
+    // event loop can detect "scene changed during this frame" with a u64
+    // compare instead of cloning the String per frame (~60 allocs/sec saved).
+    let mut scene_generation: u64 = 0;
     let user_ranges = cfg.user_ranges.clone();
     let def_ascii = cfg.def_ascii;
     let mut paste_guard = PasteBurstGuard::default();
@@ -377,6 +381,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                                 def_ascii,
                             );
                             scene_name = scene_name_from_cp.clone();
+                            scene_generation = scene_generation.wrapping_add(1);
                             charset_preset = new_charset;
                         }
                     }
@@ -551,11 +556,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Adaptive throttling: detect idle state (no input for
         // IDLE_THRESHOLD_SECS) and reduce effective FPS to save CPU.
         let loop_now = Instant::now();
-        // Capture scene name at frame start so we can detect user-initiated
-        // scene changes (via 'x' key, live config reload, or adaptive-custom)
-        // and reset the self-healer — the user's explicit choice should
-        // override any in-flight auto-downgrade.
-        let scene_name_at_frame_start = scene_name.clone();
+        // Capture scene generation at frame start to detect user-initiated
+        // scene changes and reset the self-healer. Phase D: u64 copy
+        // replaces a per-frame String clone.
+        let scene_generation_at_frame_start = scene_generation;
         let reactive_idle = is_runtime_idle(last_input_time, loop_now);
         let predicted_idle = phase_predictor
             .predicts_active(local_secs_since_midnight())
@@ -792,6 +796,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             &k,
                             &mut charset_preset,
                             &mut scene_name,
+                            &mut scene_generation,
                             &user_ranges,
                             def_ascii,
                             cfg,
@@ -1192,13 +1197,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // `now` uses `loop_now` (captured at top of frame) for consistency
         // with the rest of the timing-sensitive logic in this loop.
 
-        // If the scene was changed by user input ('x' key), live config
-        // reload, or adaptive-custom since the start of this frame, reset
-        // the self-healer. The user's explicit choice wins over any
-        // in-flight auto-downgrade. This must happen BEFORE observe() so
-        // the self-healer doesn't fire a downgrade/restore on the same
-        // frame the user switched scenes.
-        if scene_name != scene_name_at_frame_start {
+        // If the scene changed since frame start (user 'x' key, live config
+        // reload, or adaptive-custom), reset the self-healer. Must happen
+        // BEFORE observe() so the self-healer doesn't fire a downgrade/
+        // restore on the same frame the user switched scenes. Phase D:
+        // u64 counter compare replaces a String-clone + String-ne.
+        if scene_generation != scene_generation_at_frame_start {
             self_healer.reset();
         }
 
@@ -1260,6 +1264,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         def_ascii,
                     );
                     scene_name = PerformanceSelfHealer::FALLBACK_SCENE.to_string();
+                    scene_generation = scene_generation.wrapping_add(1);
                     charset_preset = new_charset;
                     // Log via write_fmt (broken-pipe-safe, same pattern as
                     // the watchdog). Helps users understand why their scene
@@ -1278,6 +1283,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     let new_charset =
                         cloud.apply_scene_runtime(&prior, &charset_preset, &user_ranges, def_ascii);
                     scene_name = prior;
+                    scene_generation = scene_generation.wrapping_add(1);
                     charset_preset = new_charset;
                     use std::io::Write;
                     let _ = std::io::stderr().write_fmt(format_args!(

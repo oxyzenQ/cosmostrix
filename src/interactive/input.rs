@@ -76,6 +76,10 @@ pub(super) fn is_plain_printable_key(key: &crossterm::event::KeyEvent) -> bool {
 
 // Runtime key handling coordinates cloud, frame, scene, charset, and terminal
 // recovery state in one dispatch point; splitting would obscure side effects.
+//
+// `scene_generation` is bumped on every reassignment of `scene_name` so the
+// event loop can detect "scene changed during this frame" with a u64 compare
+// instead of cloning the String per frame (~60 allocs/sec saved).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn handle_keybinding(
     cloud: &mut Cloud,
@@ -83,6 +87,7 @@ pub(super) fn handle_keybinding(
     k: &crossterm::event::KeyEvent,
     charset_preset: &mut String,
     scene_name: &mut String,
+    scene_generation: &mut u64,
     user_ranges: &[(char, char)],
     def_ascii: bool,
     _cfg: &CloudConfig,
@@ -149,6 +154,7 @@ pub(super) fn handle_keybinding(
         (KeyCode::Char('x'), _) => {
             let next = scene::cycle_scene(scene_name, 1);
             *scene_name = next.to_string();
+            *scene_generation = scene_generation.wrapping_add(1);
             *charset_preset =
                 cloud.apply_scene_runtime(next, charset_preset, user_ranges, def_ascii);
         }

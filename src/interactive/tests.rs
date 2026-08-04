@@ -291,12 +291,14 @@ mod cases {
         #[cfg(unix)] term_reinit: &Arc<AtomicBool>,
     ) -> bool {
         let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
         call_handle_keybinding_with_scene(
             cloud,
             frame,
             key,
             charset_preset,
             &mut scene_name,
+            &mut scene_generation,
             cfg,
             #[cfg(unix)]
             term_reinit,
@@ -309,6 +311,7 @@ mod cases {
         key: &KeyEvent,
         charset_preset: &mut String,
         scene_name: &mut String,
+        scene_generation: &mut u64,
         cfg: &CloudConfig,
         #[cfg(unix)] term_reinit: &Arc<AtomicBool>,
     ) -> bool {
@@ -319,6 +322,7 @@ mod cases {
             key,
             charset_preset,
             scene_name,
+            scene_generation,
             &user_ranges,
             true,
             cfg,
@@ -333,6 +337,7 @@ mod cases {
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
         let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
 
         call_handle_keybinding_with_scene(
             &mut cloud,
@@ -340,6 +345,7 @@ mod cases {
             &key('x'),
             &mut charset_preset,
             &mut scene_name,
+            &mut scene_generation,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
@@ -357,6 +363,7 @@ mod cases {
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
         let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
 
         call_handle_keybinding_with_scene(
             &mut cloud,
@@ -364,6 +371,7 @@ mod cases {
             &key('x'),
             &mut charset_preset,
             &mut scene_name,
+            &mut scene_generation,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
@@ -381,6 +389,7 @@ mod cases {
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
         let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
         let mut visited = Vec::new();
 
         for _ in 0..3 {
@@ -390,6 +399,7 @@ mod cases {
                 &key('x'),
                 &mut charset_preset,
                 &mut scene_name,
+                &mut scene_generation,
                 &make_test_config(),
                 #[cfg(unix)]
                 &Arc::new(AtomicBool::new(false)),
@@ -409,6 +419,7 @@ mod cases {
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
         let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
 
         call_handle_keybinding_with_scene(
             &mut cloud,
@@ -416,6 +427,7 @@ mod cases {
             &key('X'),
             &mut charset_preset,
             &mut scene_name,
+            &mut scene_generation,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
@@ -435,6 +447,7 @@ mod cases {
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
         let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
 
         // Snapshot the forward-cycle neighbor so we can verify 'C' lands on
         // the same scheme that 'c' would have produced on a fresh cloud —
@@ -455,6 +468,7 @@ mod cases {
             &key('C'),
             &mut charset_preset,
             &mut scene_name,
+            &mut scene_generation,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
@@ -490,6 +504,7 @@ mod cases {
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
         let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
         let charset_before = charset_preset.clone();
 
         call_handle_keybinding_with_scene(
@@ -498,6 +513,7 @@ mod cases {
             &key('S'),
             &mut charset_preset,
             &mut scene_name,
+            &mut scene_generation,
             &make_test_config(),
             #[cfg(unix)]
             &Arc::new(AtomicBool::new(false)),
