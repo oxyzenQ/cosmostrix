@@ -536,20 +536,34 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 "unknown mode '{v}'. Available: disabled, controlled-live"
             )),
         },
-        "monolith-size" => match v {
-            "small" | "normal" | "large" => None,
-            _ => Some(format!("expected small/normal/large, got '{v}'")),
-        },
-        "glitch-level" => match v {
-            "none" | "subtle" | "default" | "intense" => None,
-            _ => Some(format!("expected none/subtle/default/intense, got '{v}'")),
-        },
-        "color-bg" => match v {
-            "black" | "default-background" | "default_background" => None,
-            _ => Some(format!(
-                "expected black/default-background, got '{v}'"
-            )),
-        },
+        "monolith-size" => {
+            // Phase 5 closure (P1-#4 + P2-6): case-insensitive to match CLI
+            // clap ValueEnum. Previously strict-lowercase only, which created
+            // an asymmetry where `--monolith-size Large` worked on CLI but
+            // `monolith-size = "Large"` was rejected by --testconf. Now all
+            // 3 enum paths (CLI, testconf, runtime) agree.
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "small" | "normal" | "large" => None,
+                _ => Some(format!("expected small/normal/large, got '{v}'")),
+            }
+        }
+        "glitch-level" => {
+            // Phase 5 closure (P1-#4 + P2-6): case-insensitive to match CLI.
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "none" | "subtle" | "default" | "intense" => None,
+                _ => Some(format!("expected none/subtle/default/intense, got '{v}'")),
+            }
+        }
+        "color-bg" => {
+            // Phase 5 closure (P2-6): case-insensitive to match CLI.
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "black" | "default-background" | "default_background" => None,
+                _ => Some(format!("expected black/default-background, got '{v}'")),
+            }
+        }
         // Phase D Bug #1 fix: accept the same lenient set as parse_bool_config
         // (true/yes/on/1/false/no/off/0, case-insensitive). Previously
         // testconf only accepted lowercase "true"/"false" — stricter than
@@ -571,12 +585,19 @@ pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // catches it the same way as `monolith-size` / `glitch-level` /
         // `color-bg` — startup, --testconf, and live-reload all reject
         // uniformly.
-        "intro" => match v {
-            "cosmic" | "logo" | "none" => None,
-            _ => Some(format!(
-                "expected cosmic/logo/none, got '{v}' (run `cosmostrix --help` for valid intro types)"
-            )),
-        },
+        "intro" => {
+            // Phase 5 closure (P1-#4 + P2-6): case-insensitive to match CLI
+            // clap ValueEnum (which is case-insensitive by default). Previously
+            // strict-lowercase only — `--intro Logo` worked on CLI but
+            // `intro = "Logo"` was rejected by --testconf. Now all 3 paths agree.
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "cosmic" | "logo" | "none" => None,
+                _ => Some(format!(
+                    "expected cosmic/logo/none, got '{v}' (run `cosmostrix --help` for valid intro types)"
+                )),
+            }
+        }
         // v25.14 (bug #17): the bare `adaptive-custom` key is a NAMESPACING
         // marker in USER_CONFIG_KEYS (so config_hints can detect mis-nested
         // keys like `color.tune.adaptive-custom`), not a usable config key
@@ -708,19 +729,18 @@ mod tests {
     }
 
     #[test]
-    fn intro_case_sensitive_typo_is_rejected() {
-        // Strict validation is intentionally case-sensitive (canonical form
-        // only) so users get one consistent spelling. Production's clap
-        // ValueEnum is case-insensitive, but config.toml should use the
-        // canonical lowercase form documented in --help.
-        assert!(
-            validate_field_value("intro", "Logo").is_some(),
-            "'Logo' (wrong case) must be rejected — config.toml uses canonical lowercase"
-        );
-        assert!(
-            validate_field_value("intro", "COSMIC").is_some(),
-            "'COSMIC' (wrong case) must be rejected — config.toml uses canonical lowercase"
-        );
+    fn intro_case_insensitive_matches_cli_valueenum() {
+        // Phase 5 closure (P1-#4 + P2-6): all 3 enum paths (CLI clap
+        // ValueEnum, --testconf, runtime from_str) are now case-insensitive.
+        // Previously --testconf was strict-lowercase while CLI was lenient,
+        // creating a confusing asymmetry. Now `intro = "Logo"` in config.toml
+        // is accepted by --testconf (matching `--intro Logo` on CLI).
+        for v in ["cosmic", "Cosmic", "COSMIC", "logo", "Logo", "LOGO", "none", "None", "NONE"] {
+            assert!(
+                validate_field_value("intro", v).is_none(),
+                "'{v}' should be accepted (case-insensitive, matching CLI)"
+            );
+        }
     }
 
     #[test]
@@ -907,9 +927,31 @@ mod tests {
     }
 
     #[test]
+    fn monolith_size_case_insensitive_matches_cli() {
+        // Phase 5 closure (P1-#4 + P2-6)
+        for v in ["Small", "SMALL", "Normal", "NORMAL", "Large", "LARGE"] {
+            assert!(
+                validate_field_value("monolith-size", v).is_none(),
+                "'{v}' should be accepted (case-insensitive)"
+            );
+        }
+    }
+
+    #[test]
     fn glitch_level_invalid_is_rejected() {
         assert!(validate_field_value("glitch-level", "extreme").is_some());
         assert!(validate_field_value("glitch-level", "subtle").is_none());
+    }
+
+    #[test]
+    fn glitch_level_case_insensitive_matches_cli() {
+        // Phase 5 closure (P1-#4 + P2-6)
+        for v in ["None", "NONE", "Subtle", "SUBTLE", "Default", "DEFAULT", "Intense", "INTENSE"] {
+            assert!(
+                validate_field_value("glitch-level", v).is_none(),
+                "'{v}' should be accepted (case-insensitive)"
+            );
+        }
     }
 
     #[test]
@@ -917,6 +959,17 @@ mod tests {
         assert!(validate_field_value("color-bg", "white").is_some());
         assert!(validate_field_value("color-bg", "black").is_none());
         assert!(validate_field_value("color-bg", "default-background").is_none());
+    }
+
+    #[test]
+    fn color_bg_case_insensitive_matches_cli() {
+        // Phase 5 closure (P2-6)
+        for v in ["Black", "BLACK", "Default-Background", "DEFAULT-BACKGROUND"] {
+            assert!(
+                validate_field_value("color-bg", v).is_none(),
+                "'{v}' should be accepted (case-insensitive)"
+            );
+        }
     }
 
     #[test]
