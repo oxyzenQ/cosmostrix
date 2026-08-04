@@ -93,6 +93,22 @@ pub struct ParsedConfig {
 /// reads it automatically if no user-level config exists.
 #[must_use]
 pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String> {
+    load_config_file_full(path_override).values
+}
+
+/// Phase 5 closure (P4-8): load config file and return the FULL parse result
+/// (including `malformed_lines` and `unknown_keys` vectors).
+///
+/// `load_config_file` discards these vectors (it only returns `values`).
+/// Callers that need malformed/unknown detection (e.g. startup validation in
+/// `config_apply.rs`) previously had to re-read + re-parse the file from disk
+/// to recover them. This function eliminates the redundant disk read by
+/// returning the full `ParsedConfig` in one pass.
+///
+/// Most callers should use `load_config_file` (which returns just the values
+/// HashMap). Use this function only when you need the malformed/unknown vectors.
+#[must_use]
+pub fn load_config_file_full(path_override: Option<&Path>) -> ParsedConfig {
     let path = path_override
         .map(Path::to_path_buf)
         .unwrap_or_else(default_config_file_path);
@@ -100,27 +116,30 @@ pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String>
         Ok(c) => c,
         Err(_) => {
             // Fallback: try system-wide config at /etc/cosmostrix/config.toml.
-            // This is installed by AUR/PKGBUILD and other package managers.
-            // Only used when no user-level config exists and no explicit
-            // --config path was given.
             if path_override.is_none() {
                 let system_path = PathBuf::from("/etc/cosmostrix/config.toml");
                 if let Ok(sys_content) = std::fs::read_to_string(&system_path) {
                     sys_content
                 } else {
-                    return HashMap::new();
+                    return ParsedConfig {
+                        values: HashMap::new(),
+                        unknown_keys: Vec::new(),
+                        malformed_lines: Vec::new(),
+                        promoted_keys: Vec::new(),
+                    };
                 }
             } else {
-                return HashMap::new();
+                return ParsedConfig {
+                    values: HashMap::new(),
+                    unknown_keys: Vec::new(),
+                    malformed_lines: Vec::new(),
+                    promoted_keys: Vec::new(),
+                };
             }
         }
     };
 
-    let parsed = parse_config_text(&content);
-    // No warnings printed here — startup validation (config_apply.rs) and
-    // live-reload (live_config.rs) handle malformed_lines + unknown_keys
-    // with strict errors. Printing warnings here caused duplicate output.
-    parsed.values
+    parse_config_text(&content)
 }
 
 #[must_use]

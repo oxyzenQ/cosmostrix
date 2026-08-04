@@ -400,12 +400,12 @@ fn handle_notify_event(
             // equal to last_processed_state on all three signals.
             let current_state = snapshot_file_state(path);
             if current_state.size.is_none() {
-                // File doesn't exist (atomic save in progress). Skip —
-                // the next event catches the new file.
+                // File doesn't exist (atomic save in progress) — skip.
                 lr_trace!("snapshot: file unreadable — skipping event");
                 return true;
             }
             {
+                // P1-#11: poison-safe lock. Poisoned mutex → skip, don't panic.
                 let mut guard = match last_processed_state.lock() {
                     Ok(g) => g,
                     Err(_) => return true,

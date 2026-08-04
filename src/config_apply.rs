@@ -37,7 +37,6 @@ use clap::ValueEnum;
 use crate::charset::charset_from_str;
 use crate::cli::parse_color_scheme;
 use crate::config::{Args, ColorBg, GlitchLevel, IntroType};
-use crate::configfile::load_config_file;
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
@@ -139,7 +138,13 @@ pub(crate) fn apply_config_and_runtime_defaults(
         crate::validate_config_path(&path_str, args.verbose)?;
     }
 
-    let cfg = load_config_file(args.config.as_deref());
+    // Phase 5 closure (P4-8): use load_config_file_full to get the full
+    // ParsedConfig (values + malformed_lines + unknown_keys) in ONE disk
+    // read. Previously this used load_config_file (which drops malformed/
+    // unknown) and then re-read + re-parsed the file at line 200 to recover
+    // them — a redundant ~200μs disk read on every startup.
+    let parsed_cfg = crate::configfile::load_config_file_full(args.config.as_deref());
+    let cfg = parsed_cfg.values;
     if args.verbose {
         let config_path = args
             .config
@@ -184,59 +189,49 @@ pub(crate) fn apply_config_and_runtime_defaults(
     // unknown keys, or invalid values), exit. This matches --testconf
     // behavior: invalid config = exit code 2, not silent fallback.
     //
-    // load_config_file() silently drops malformed_lines and unknown_keys
-    // (only prints warnings). We re-parse the raw file to catch them.
+    // Phase 5 closure (P4-8): we now have malformed_lines + unknown_keys from
+    // the single load_config_file_full call above — no redundant re-read.
     //
     // Test bypass: COSMOSTRIX_SKIP_STARTUP_VALIDATION=1 skips this check
     // so existing tests that verify apply/fallback logic with invalid values
     // still work. Production builds never set this env var.
     if !cfg.is_empty() && std::env::var("COSMOSTRIX_SKIP_STARTUP_VALIDATION").is_err() {
-        // Re-read raw file to check malformed lines + unknown keys.
-        let config_path = args
-            .config
-            .as_deref()
-            .map(std::path::PathBuf::from)
-            .unwrap_or_else(crate::configfile::default_config_file_path);
-        if let Ok(content) = std::fs::read_to_string(&config_path) {
-            let parsed = crate::configfile::parse_config_text(&content);
+        // Layer 1: malformed lines (stray text without 'key = value')
+        if !parsed_cfg.malformed_lines.is_empty() {
+            let lines: Vec<&str> = parsed_cfg
+                .malformed_lines
+                .iter()
+                .take(3)
+                .map(String::as_str)
+                .collect();
+            return Err(format!(
+                "error: invalid config — malformed line(s): '{}' (expected 'key = value' syntax)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
+                lines.join(", ")
+            ));
+        }
 
-            // Layer 1: malformed lines (stray text without 'key = value')
-            if !parsed.malformed_lines.is_empty() {
-                let lines: Vec<&str> = parsed
-                    .malformed_lines
-                    .iter()
-                    .take(3)
-                    .map(String::as_str)
-                    .collect();
-                return Err(format!(
-                    "error: invalid config — malformed line(s): '{}' (expected 'key = value' syntax)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
-                    lines.join(", ")
-                ));
-            }
+        // Layer 2: unknown keys (typos)
+        if !parsed_cfg.unknown_keys.is_empty() {
+            let keys: Vec<&str> = parsed_cfg
+                .unknown_keys
+                .iter()
+                .take(3)
+                .map(String::as_str)
+                .collect();
+            // v25.6 depth-test fix: targeted "did you mean" hints for
+            // structural TOML mistakes (e.g. bold under [color.tune]).
+            let hints = crate::config_hints::format_hints_block(&parsed_cfg.unknown_keys);
+            return Err(format!(
+                "error: invalid config — unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys){hints}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
+                keys.join(", ")
+            ));
+        }
 
-            // Layer 2: unknown keys (typos)
-            if !parsed.unknown_keys.is_empty() {
-                let keys: Vec<&str> = parsed
-                    .unknown_keys
-                    .iter()
-                    .take(3)
-                    .map(String::as_str)
-                    .collect();
-                // v25.6 depth-test fix: targeted "did you mean" hints for
-                // structural TOML mistakes (e.g. bold under [color.tune]).
-                let hints = crate::config_hints::format_hints_block(&parsed.unknown_keys);
-                return Err(format!(
-                    "error: invalid config — unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys){hints}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
-                    keys.join(", ")
-                ));
-            }
-
-            // Layer 3: invalid values (out of range, unknown enum, etc.)
-            if let Err(msg) = crate::testconf::validate_config_strictly(&cfg) {
-                return Err(format!(
-                    "error: invalid config — {msg}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details."
-                ));
-            }
+        // Layer 3: invalid values (out of range, unknown enum, etc.)
+        if let Err(msg) = crate::testconf::validate_config_strictly(&cfg) {
+            return Err(format!(
+                "error: invalid config — {msg}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details."
+            ));
         }
     }
 
