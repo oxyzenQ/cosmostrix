@@ -165,119 +165,49 @@ pub(super) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) ->
     }
 }
 
-/// Returns 3-4 atmospherically related color schemes for autonomous palette drift.
-///
-/// # The Related-Schemes Graph
-///
-/// The 33 built-in `ColorScheme` variants are organized into 7 aesthetic
-/// clusters. Palette drift (autonomous, opt-in via `--auto-color-drift`)
-/// picks a random scheme from the current scheme's related set — this
-/// keeps drift within aesthetic bounds so the rain never jumps from
-/// `green` to `fire` (jarring) but can drift `green → green2 → forest → aurora`
-/// (harmonious).
-///
-/// ## Cluster map
-///
-/// | Cluster | Members | Drift direction |
-/// |---------|---------|-----------------|
-/// | **Green family** | Green, Green2, Green3, Forest, Aurora | Stays within greens/blues |
-/// | **Gold/warm** | Gold, Yellow, Orange, Sun, Fire, Venus | Warm yellows/oranges |
-/// | **Red/fire** | Red, Fire, Orange, Mars, Gold | Hot reds/oranges |
-/// | **Blue/water** | Blue, Ocean, Neptune, Uranus, Cyan | Cool blues |
-/// | **Purple/nebula** | Purple, Nebula, Cosmos, Vaporwave, Neon, FancyDiamond | Cool purples/pinks |
-/// | **Gray/moon** | Gray, Mercury, Snow, Moon, Stars, Pluto | Neutral grays/whites |
-/// | **Planet cross-links** | Mars, Venus, Jupiter, Saturn, etc. | Each planet links into its color family |
-///
-/// ## Selection algorithm (historical)
-///
-/// Prior to v30, `ColorEcosystem::tick()` decided to drift (subject to
-/// `AUTONOMOUS_PALETTE_DRIFT_CHANCE` probability and
-/// `PALETTE_DRIFT_COOLDOWN_SECS` cooldown) by calling this function,
-/// picking a uniform random index into the returned slice, and returning
-/// that scheme. The caller then called `cloud.set_color_scheme(new)`
-/// which triggers the palette transition wave.
-///
-/// ## Bidirectionality
-///
-/// The graph is approximately bidirectional (if A is in B's related set,
-/// B is usually in A's) but not strictly — some asymmetric edges exist
-/// to bias drift toward the "canonical" member of a family (e.g. `Green3`
-/// links back to `Green`/`Green2`/`Forest` but `Forest` includes `Aurora`
-/// which `Green3` doesn't).
-///
-/// ## Future-proofing
-///
-/// The `_ => &[Green, Blue, Cyan]` fallback handles any future
-/// `ColorScheme` variant that doesn't yet have an entry. New variants
-/// MUST be added to the match to participate in palette drift —
-/// otherwise they'll drift to the generic fallback set, which may be
-/// aesthetically jarring.
-///
-/// **Note:** As of v30, `tick()` uses the family-view (`family_for` +
-/// `family_members`) for signal-driven drift instead of this neighbor-view.
-/// The graph is preserved as documentation of the bidirectional aesthetic
-/// relationships — if neighbor-based drift is ever re-introduced, this is
-/// the starting point.
-#[allow(dead_code)]
-fn related_schemes(scheme: ColorScheme) -> &'static [ColorScheme] {
-    use ColorScheme::*;
-    match scheme {
-        Green => &[Green2, Green3, Aurora, Forest],
-        Green2 => &[Green, Green3, Forest, Aurora],
-        Green3 => &[Green, Green2, Forest],
-        Gold => &[Yellow, Orange, Sun, Fire],
-        Yellow => &[Gold, Orange, Sun],
-        Orange => &[Gold, Fire, Sun, Yellow],
-        Red => &[Fire, Orange, Mars, Gold],
-        Blue => &[Ocean, Neptune, Uranus, Cyan],
-        Cyan => &[Aurora, Ocean, Neptune, Uranus],
-        Purple => &[Nebula, Cosmos, Vaporwave, Neon],
-        Neon => &[Vaporwave, Aurora, Cosmos, Nebula],
-        Fire => &[Red, Orange, Mars, Sun],
-        Ocean => &[Blue, Neptune, Cyan, Uranus],
-        Forest => &[Green, Green2, Aurora, Green3],
-        Vaporwave => &[Neon, Purple, Nebula, Cosmos],
-        Gray => &[Mercury, Snow, Moon],
-        Rainbow => &[Spectrum20, Neon, Vaporwave],
-        Snow => &[Gray, Moon, Mercury, Stars],
-        Aurora => &[Green, Cyan, Forest, Neon],
-        FancyDiamond => &[Cyan, Snow, Nebula, Cosmos],
-        Cosmos => &[Nebula, Purple, Vaporwave, Neon],
-        Nebula => &[Cosmos, Purple, Vaporwave, FancyDiamond],
-        Spectrum20 => &[Rainbow, Neon, Vaporwave],
-        Stars => &[Cosmos, Nebula, Snow, Moon],
-        Mars => &[Red, Fire, Gold, Sun],
-        Venus => &[Gold, Yellow, Sun, Orange],
-        Mercury => &[Gray, Moon, Snow],
-        Jupiter => &[Orange, Gold, Sun, Saturn],
-        Saturn => &[Jupiter, Gold, Venus, Yellow],
-        Uranus => &[Cyan, Neptune, Ocean, Aurora],
-        Neptune => &[Blue, Ocean, Cyan, Uranus],
-        Pluto => &[Mercury, Gray, Moon, Snow],
-        Moon => &[Gray, Mercury, Snow, Stars],
-        Sun => &[Gold, Yellow, Venus, Fire],
-        // Future-proof fallback if ColorScheme gains variants.
-        #[allow(unreachable_patterns)]
-        _ => &[Green, Blue, Cyan],
-    }
-}
+// ── Historical: Related-Schemes neighbor graph (removed v30) ─────────────
+//
+// Prior to v30, `ColorEcosystem::tick()` used a neighbor-view graph
+// (`related_schemes()`) for palette drift. v30 replaced it with the
+// family-view (`family_for` + `family_members`) for signal-driven drift.
+//
+// The 33 built-in `ColorScheme` variants are organized into 7 aesthetic
+// clusters. The cluster map is preserved here as documentation of the
+// bidirectional aesthetic relationships — if neighbor-based drift is ever
+// re-introduced, this is the starting point.
+//
+// ## Cluster map
+//
+// | Cluster | Members | Drift direction |
+// |---------|---------|-----------------|
+// | **Green family** | Green, Green2, Green3, Forest, Aurora | Stays within greens/blues |
+// | **Gold/warm** | Gold, Yellow, Orange, Sun, Fire, Venus | Warm yellows/oranges |
+// | **Red/fire** | Red, Fire, Orange, Mars, Gold | Hot reds/oranges |
+// | **Blue/water** | Blue, Ocean, Neptune, Uranus, Cyan | Cool blues |
+// | **Purple/nebula** | Purple, Nebula, Cosmos, Vaporwave, Neon, FancyDiamond | Cool purples/pinks |
+// | **Gray/moon** | Gray, Mercury, Snow, Moon, Stars, Pluto | Neutral grays/whites |
+// | **Planet cross-links** | Mars, Venus, Jupiter, Saturn, etc. | Each planet links into its color family |
+//
+// The family-view (`family_for` + `family_members` below) expresses the
+// same aesthetic clustering as disjoint sets instead of adjacency lists.
 
 // ── Color family classification (for system-feeling drift) ────────────────
 //
 // The 33 built-in ColorScheme variants are organized into 7 aesthetic
-// families. This is the **family view** of the same graph that
-// `related_schemes()` expresses as a neighbor view. System-feeling
+// families. This is the **family view** — disjoint sets expressing the
+// same aesthetic clustering documented in the historical neighbor-view
+// graph above. System-feeling
 // drift (gated by `--auto-color-drift`) classifies the current machine
 // state into one of 5 FeelingStates, maps that to a ColorFamily, and
 // picks a random scheme from `family_members(family)`.
 //
-// The family partition is derived from the existing `related_schemes`
-// graph — it's the same aesthetic clustering, just expressed as
+// The family partition is derived from the historical neighbor-view
+// graph (see "Historical: Related-Schemes neighbor graph" comment
+// above) — it's the same aesthetic clustering, just expressed as
 // disjoint sets instead of adjacency lists. Adding a new ColorScheme
-// variant requires adding it to BOTH `related_schemes` (for neighbor
-// drift) and `family_for` / `family_members` (for system-feeling drift).
-// The compiler will not catch a missing `family_for` arm because of
-// the fallback — see the audit note below.
+// variant requires adding it to `family_for` / `family_members` (for
+// system-feeling drift). The compiler will not catch a missing
+// `family_for` arm because of the fallback — see the audit note below.
 
 /// The 7 aesthetic color families. Disjoint partition of ColorScheme.
 ///
@@ -326,17 +256,16 @@ impl ColorFamily {
 
 /// Classify a scheme into its aesthetic family.
 ///
-/// This is the family-view counterpart to `related_schemes`. The
-/// partition is derived from the same aesthetic clustering documented
-/// in the `related_schemes` graph comment above.
+/// This is the family-view counterpart to the historical neighbor-view
+/// graph (see "Historical: Related-Schemes neighbor graph" comment
+/// above). The partition is derived from the same aesthetic clustering.
 ///
 /// # Audit note — missing variant detection
 ///
 /// The `_ => Green` fallback is intentional: if a new ColorScheme
 /// variant is added without a matching arm here, it defaults to the
 /// Green family rather than failing to compile. This is a deliberate
-/// trade-off — the existing `related_schemes` has the same fallback
-/// pattern. To catch missing arms, run the `family_partition_is_total`
+/// trade-off. To catch missing arms, run the `family_partition_is_total`
 /// test in `system_feeling_tests.rs`; it asserts every ColorScheme
 /// variant appears in exactly one family's `family_members` list.
 #[cfg(test)]

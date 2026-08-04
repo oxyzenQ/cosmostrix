@@ -545,18 +545,18 @@ fn reset_preserves_ecosystem_state() {
 }
 
 /// Strengthen #14: verify every ColorScheme variant has an explicit
-/// related_schemes entry (not the generic fallback). This catches the
+/// family_for entry (not the generic fallback). This catches the
 /// case where a new variant is added to ColorScheme but forgotten in
-/// the related_schemes match — which would cause the new scheme to drift
-/// to the generic [Green, Blue, Cyan] set instead of its aesthetic family.
+/// the family_for match — which would cause the new scheme to drift
+/// to the Green family instead of its aesthetic family.
 ///
-/// `related_schemes` is private to cloud::ecosystem, so we test it via
+/// `family_for` is private to cloud::ecosystem, so we test it via
 /// the public tick() path: force a drift tick and verify the result is
 /// in the expected family for each starting scheme. Since drift is random,
 /// we run 200 drift attempts per scheme and check that ALL observed drift
 /// targets belong to the documented family.
 #[test]
-fn related_schemes_returns_non_empty_for_every_builtin_scheme() {
+fn family_for_returns_non_empty_for_every_builtin_scheme() {
     use ColorScheme::*;
     let test_schemes = [
         Green,
@@ -596,7 +596,7 @@ fn related_schemes_returns_non_empty_for_every_builtin_scheme() {
     ];
     let start = Instant::now();
     // For each variant, call ecosystem.tick() repeatedly with drift forced
-    // on (cooldown cleared). The point is to verify related_schemes is
+    // on (cooldown cleared). The point is to verify family_for is
     // callable for every variant without panic. Whether drift actually
     // fires is random — we only assert no panic.
     for &scheme in &test_schemes {
@@ -621,7 +621,7 @@ fn related_schemes_returns_non_empty_for_every_builtin_scheme() {
         }
     }
     // If we got here without panic, every variant has a callable
-    // related_schemes entry. The generic fallback would also work, but
+    // family_for entry. The generic fallback would also work, but
     // we've documented that new variants MUST be added to the match —
     // a separate code review check enforces this.
 }
