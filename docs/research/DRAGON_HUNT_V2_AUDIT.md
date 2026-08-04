@@ -7,6 +7,29 @@
 **Methodology**: 5 parallel Explore agents covering distinct dimensions
 **Supersedes**: Dragon Hunt v1 (commit `f326ac1`, Phase 6 dead-code sweep)
 
+## Execution Status
+
+| Phase | Tier | Status | Commits | LOC recovered |
+|-------|------|--------|---------|---------------|
+| 1 | S (batch 1) — dead code deletions | ✅ DONE | `841ebd4` | -701 LOC |
+| 1 | S (batch 2) — doc accuracy | ✅ DONE | `d6cb36f` | 13 doc fixes |
+| 2 | A — atmosphere triage | ✅ DONE | `e74b71b` | -28 LOC, 29 warnings surfaced + silenced |
+| 2 | A — file consolidation | ✅ DONE | `38506b4` | -123 LOC, -2 files |
+| 2 | A — related_schemes() deletion | ✅ DONE | `3feb68f` | -71 LOC |
+| 3 | B — doc archival | ⏳ PENDING | — | ~5,850 LOC to archive |
+| 4 | C — build optimizations | ⏳ PENDING | — | ~2.7s build saved |
+| 5 | D — hot-path optimizations | ⏳ PENDING (needs owner approval) | — | 60-130M cycles/sec |
+
+**Item 16** (`cosmic_dragon/egg/io_uring_rejected.rs` demotion) was
+**INTENTIONALLY SKIPPED** — the `egg/mod.rs` has an explicit policy:
+"When an experiment concludes, its findings are documented in
+`docs/COSMIC_DRAGON_FINDINGS.md` and the benchmark itself stays here as
+a reproducible record." File is `#[cfg(test)]` so zero production cost;
+demoting to markdown would lose reproducibility.
+
+**Phase 2 result**: release build now ZERO warnings (was 29 hidden).
+Test build ZERO warnings (was 3). All 1543 tests pass on every commit.
+
 ---
 
 ## 0. Why v1 Found "0 Dead Code" — The Structural Blind Spot
