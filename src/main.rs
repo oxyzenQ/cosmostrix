@@ -185,7 +185,7 @@ use std::io::IsTerminal;
 
 use std::env;
 
-use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};
+use crate::charset::{build_chars, charset_from_str};
 use crate::config::{
     color_enabled_stdout, print_list_charsets, print_list_colors, print_list_scenes,
     print_show_scene, Args, ColorBg,
@@ -632,11 +632,11 @@ fn main() -> std::io::Result<()> {
         _ => ShadingMode::Random,
     };
 
-    let bold_mode = match validate_u8_range("--bold", args.bold, 0, 2) {
-        Ok(0) => BoldMode::Off,
-        Ok(2) => BoldMode::All,
-        _ => BoldMode::Random,
-    };
+    // v30 fix: --bold CLI flag and `bold = ...` config key removed (owner
+    // instruction). BoldMode::Random is the permanent runtime default. The
+    // BoldMode enum stays (used in renderer + tests); only the CLI/config
+    // surface that overrode it is gone.
+    let bold_mode = BoldMode::Random;
 
     let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
@@ -725,22 +725,13 @@ fn main() -> std::io::Result<()> {
     ));
     let speed = ux::or_exit(validate_speed(args.speed));
 
-    let mut user_ranges: Vec<(char, char)> = Vec::new();
-    if let Some(spec) = &args.chars {
-        match parse_user_hex_chars(spec) {
-            Ok(list) => {
-                if list.len() % 2 != 0 {
-                    ux::die_config(
-                        "error: --chars: odd number of unicode chars given (must be even)",
-                    );
-                }
-                for pair in list.chunks(2) {
-                    user_ranges.push((pair[0], pair[1]));
-                }
-            }
-            Err(e) => ux::die_config(format!("error: {e}")),
-        }
-    }
+    // v30 fix: --chars flag removed (owner instruction). The user_ranges
+    // plumbing (CloudConfig::user_ranges, build_chars user_ranges param)
+    // remains as an always-empty Vec — removing it would touch ~15 call sites
+    // across event_loop/input/live_config/scene_runtime with zero functional
+    // benefit. Custom charsets are now exclusively provided via
+    // [charset-custom.<name>] in config.toml + --charset <name>.
+    let user_ranges: Vec<(char, char)> = Vec::new();
 
     let charset_preset = normalize_charset_preset_name(&args.charset);
     let startup_charset = charset_preset.clone();

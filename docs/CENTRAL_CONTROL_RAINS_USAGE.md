@@ -75,7 +75,6 @@ tweaked without rebuilding the binary.
 | Glitch level | `--glitch-level <none\|subtle\|default\|intense>` | `glitch-level = "subtle"` | Visual corruption intensity preset |
 | Monolith size | `--monolith-size <small\|normal\|large>` | `monolith-size = "large"` | Monolith segment cell scale (enum, not pixel size) |
 | Background color | `--color-bg <black\|default-background>` | `color-bg = "black"` | Terminal background mode |
-| Bold mode | `--bold <0\|1\|2>` | `bold = 1` | Bold glyph style (0=off, 1=random, 2=all) |
 | Shading mode | `--shadingmode <0\|1>` | `shadingmode = 1` | Shading (0=random, 1=cinematic) |
 | Color mode | `--colormode <0\|16\|256\|24>` | (CLI only) | Force color depth (auto-detected by default) |
 | Auto color drift | `--auto-color-drift` | `auto-color-drift = true` | Palette scheme drift (off by default; climate drift is always-on) |

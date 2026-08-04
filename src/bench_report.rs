@@ -62,7 +62,8 @@ pub(crate) struct BenchReportData {
     /// variant from a Debug dump.
     pub color_scheme_name: String,
     /// Charset preset name as supplied on the CLI (e.g. "matrix", "zen",
-    /// "katakana"). For custom char ranges (`--chars`), this is the literal
+    /// "katakana"). For custom charsets loaded from config
+    /// (`[charset-custom.<name>]` + `--charset <name>`), this is the literal
     /// preset string the user typed (or "auto" if they didn't pass --charset).
     pub charset_preset: String,
     /// Number of distinct glyphs in the active char pool. Benchmark throughput

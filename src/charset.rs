@@ -41,53 +41,6 @@ impl Charset {
     }
 }
 
-pub(crate) fn parse_user_hex_chars(s: &str) -> Result<Vec<char>, String> {
-    let mut out = Vec::new();
-    let mut skipped_wide = Vec::new();
-    for (i, part) in s.split(',').enumerate() {
-        let part = part.trim();
-        if part.is_empty() {
-            continue;
-        }
-        let v = u32::from_str_radix(part, 16)
-            .map_err(|_| format!("invalid hex char at index {}", i + 1))?;
-        let ch = char::from_u32(v)
-            .ok_or_else(|| format!("invalid unicode scalar at index {}", i + 1))?;
-        // Reject control characters (C0/C1 control codes) — they are invisible
-        // and can break terminal rendering. Allow spaces and above.
-        if ch.is_control() {
-            return Err(format!(
-                "control character at index {} (U+{:04X}) — invisible chars break rendering",
-                i + 1,
-                v
-            ));
-        }
-        // Cosmic Dragon principle: no emoji, no wide chars — ever.
-        // The renderer is column-based and assumes exactly 1 cell per
-        // character. Wide chars (CJK fullwidth, emoji, etc.) would corrupt
-        // glyph alignment and overflow into adjacent columns. This is a
-        // permanent design choice, not a limitation to be lifted later.
-        if ch.width().unwrap_or(0) != 1 {
-            skipped_wide.push(format!("U+{:04X}", v));
-            continue;
-        }
-        out.push(ch);
-    }
-    if !skipped_wide.is_empty() && !out.is_empty() {
-        eprintln!(
-            "[cosmostrix] warning: skipped {} wide character(s) (not single-width): {}",
-            skipped_wide.len(),
-            skipped_wide.join(", ")
-        );
-    }
-    if out.is_empty() && !s.trim().is_empty() {
-        return Err(
-            "all provided characters were wide or control codes — nothing to render".to_string(),
-        );
-    }
-    Ok(out)
-}
-
 pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Charset, String> {
     let spec = spec.trim().to_ascii_lowercase();
     match spec.as_str() {
@@ -261,12 +214,6 @@ pub(crate) fn build_chars(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn parse_user_hex_chars_parses_hex_codepoints() {
-        let v = parse_user_hex_chars("30,31").unwrap();
-        assert_eq!(v, vec!['0', '1']);
-    }
 
     #[test]
     fn charset_auto_selects_ascii_safe_when_non_utf() {

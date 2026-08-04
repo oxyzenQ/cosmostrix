@@ -44,16 +44,10 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     // top-level USER_CONFIG_KEYS entry (e.g. `color.tune.bold`).
     if let Some(suffix) = key.strip_prefix("color.tune.") {
         if !suffix.is_empty() && is_top_level_user_key(suffix) {
-            let mut hint = format!(
+            let hint = format!(
                 "'{key}': '{suffix}' is a top-level key, not a [color.tune] field. \
                  Move it out of [color.tune] — write it at the file root as: {suffix} = <value>"
             );
-            // `bold` is doubly wrong: wrong location AND wrong value type
-            // (it's a 0/1/2 enum, not a boolean). Call this out so the user
-            // doesn't fix the location and re-trigger an error with `bold = true`.
-            if suffix == "bold" {
-                hint.push_str(" (values: 0=off, 1=random default, 2=all — not booleans)");
-            }
             return Some(hint);
         }
     }
@@ -292,33 +286,25 @@ fn is_top_level_user_key(candidate: &str) -> bool {
 mod tests {
     use super::*;
 
-    // ── suggest_for_unknown_key: color.tune.bold ───────────────────────────
+    // ── suggest_for_unknown_key: color.tune.<top-level-key> ────────────────
 
     #[test]
-    fn color_tune_bold_returns_hint_mentioning_top_level() {
-        let hint = suggest_for_unknown_key("color.tune.bold").expect("expected hint");
+    fn color_tune_top_level_key_returns_hint_mentioning_top_level() {
+        // v30: was originally `color.tune.bold` but `bold` was removed from
+        // USER_CONFIG_KEYS — migrated to `shadingmode` (another 0/1/2 enum
+        // top-level key) which exercises the same hint path.
+        let hint = suggest_for_unknown_key("color.tune.shadingmode").expect("expected hint");
         assert!(
             hint.contains("top-level"),
             "hint should mention top-level: {hint}"
         );
         assert!(
-            hint.contains("bold"),
+            hint.contains("shadingmode"),
             "hint should mention the key name: {hint}"
         );
         assert!(
             hint.contains("[color.tune]"),
             "hint should mention the wrong section: {hint}"
-        );
-    }
-
-    #[test]
-    fn color_tune_bold_hint_warns_about_value_type() {
-        // `bold` is a 0/1/2 enum, not a boolean. The hint must call this
-        // out so the user doesn't fix the location and then write `bold = true`.
-        let hint = suggest_for_unknown_key("color.tune.bold").unwrap();
-        assert!(
-            hint.contains("0=off") && hint.contains("not booleans"),
-            "hint should explain the value type: {hint}"
         );
     }
 
@@ -330,8 +316,6 @@ mod tests {
         let hint = suggest_for_unknown_key("color.tune.speed").expect("expected hint");
         assert!(hint.contains("top-level"));
         assert!(hint.contains("speed"));
-        // `speed` is not `bold`, so no value-type warning.
-        assert!(!hint.contains("not booleans"));
     }
 
     #[test]
@@ -430,7 +414,8 @@ mod tests {
 
     #[test]
     fn format_hints_block_includes_hint_lines_for_known_patterns() {
-        let keys = vec!["color.tune.bold".to_string()];
+        // v30: `bold` was removed from USER_CONFIG_KEYS — migrated to `shadingmode`.
+        let keys = vec!["color.tune.shadingmode".to_string()];
         let block = format_hints_block(&keys);
         assert!(
             block.starts_with("\n  hint: "),
@@ -443,7 +428,7 @@ mod tests {
     fn format_hints_block_only_includes_first_three_keys() {
         // Match the take(3) truncation used by the existing error formatters.
         let keys = vec![
-            "color.tune.bold".to_string(),
+            "color.tune.shadingmode".to_string(),
             "color.tune.speed".to_string(),
             "scene-custom.hacker-mode.adaptive-custom.10-00.color".to_string(),
             "color.tune.fps".to_string(), // would produce a 4th hint — must be skipped
@@ -459,9 +444,9 @@ mod tests {
         // v25.11: 'colro'/'colour' now match 'color' and produce hints.
         // Use genuinely unrelated keys for the no-hint cases.
         let keys = vec![
-            "xyzqwerty".to_string(),       // no hint (edit dist > 2 from all keys)
-            "color.tune.bold".to_string(), // hint (structural pattern)
-            "zzzzzzzzz".to_string(),       // no hint
+            "xyzqwerty".to_string(),              // no hint (edit dist > 2 from all keys)
+            "color.tune.shadingmode".to_string(), // hint (structural pattern)
+            "zzzzzzzzz".to_string(),              // no hint
         ];
         let block = format_hints_block(&keys);
         let hint_count = block.matches("\n  hint: ").count();
@@ -469,19 +454,21 @@ mod tests {
             hint_count, 1,
             "only the recognized pattern should produce a hint: {block}"
         );
-        assert!(block.contains("color.tune.bold"));
+        assert!(block.contains("color.tune.shadingmode"));
     }
 
     // ── Integration: parse_config_text promotes mis-nested top-level keys ─
 
     #[test]
-    fn parse_color_tune_section_with_bold_promotes_to_root() {
-        // v25.7: [color.tune] + `bold = true` no longer lands in unknown_keys.
-        // The parser auto-promotes `bold` to root scope (it's a known top-level
-        // key) and records the promotion. The hint function still fires when
-        // explicitly given the would-be-nested form, so users who see the
-        // promotion notice in --testconf can understand what happened.
-        let parsed = crate::configfile::parse_config_text("[color.tune]\nbold = true\n");
+    fn parse_color_tune_section_with_top_level_key_promotes_to_root() {
+        // v25.7: [color.tune] + `shadingmode = 1` no longer lands in unknown_keys.
+        // The parser auto-promotes `shadingmode` to root scope (it's a known
+        // top-level key) and records the promotion. The hint function still
+        // fires when explicitly given the would-be-nested form, so users who
+        // see the promotion notice in --testconf can understand what happened.
+        // (v30: was originally `bold = true` but `bold` was removed from
+        // USER_CONFIG_KEYS — migrated to `shadingmode`.)
+        let parsed = crate::configfile::parse_config_text("[color.tune]\nshadingmode = 1\n");
         assert!(
             parsed.unknown_keys.is_empty(),
             "expected no unknown keys (auto-promoted), got: {:?}",
@@ -491,12 +478,12 @@ mod tests {
             parsed
                 .promoted_keys
                 .iter()
-                .any(|(from, to)| from == "color.tune.bold" && to == "bold"),
-            "expected color.tune.bold -> bold promotion, got: {:?}",
+                .any(|(from, to)| from == "color.tune.shadingmode" && to == "shadingmode"),
+            "expected color.tune.shadingmode -> shadingmode promotion, got: {:?}",
             parsed.promoted_keys
         );
         // Hint still works on the would-be-nested form (for testconf display).
-        assert!(suggest_for_unknown_key("color.tune.bold").is_some());
+        assert!(suggest_for_unknown_key("color.tune.shadingmode").is_some());
     }
 
     #[test]
