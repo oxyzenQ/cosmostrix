@@ -814,24 +814,86 @@ build_pgo() {
         log_success "Stage 1 complete: instrumented binary built"
 
         # Stage 2: Run benchmark to collect profile data
-        log_info "Stage 2/3: Running benchmark to collect profile data (10s)..."
+        # ── Multi-workload PGO training (v30.0.0-alpha.1+) ──────────────
+        #
+        # Old training (pre-alpha.1): single 10s monolith run with dry I/O.
+        # That left the wet I/O path, cinematic scene, and screensaver code
+        # paths untrained → PGO deoptimized those paths (max_render_ms
+        # regression: 1.15ms → 3.06ms, max_io_ms: 1.06ms → 2.06ms).
+        #
+        # New training: 4 workloads, ~50s total, covering:
+        #   1. monolith + zen (default, peak throughput — train hot loop)
+        #   2. cinematic + katana (heavier scene, glyph pool — train
+        #      glyph-emit path + transition shader)
+        #   3. signal + binary (glyph scene with anomaly zones — train
+        #      anomaly/post-fx path)
+        #   4. screensaver + message box (train message-box overlay +
+        #      screensaver event path)
+        #
+        # All runs use --bench-io (wet I/O) so the BenchIoWriter +
+        # VisualSampler + clear_dirty paths are exercised. This was the
+        # biggest gap in the old training — the wet path was completely
+        # untrained, causing PGO to emit suboptimal code for it.
+        #
+        # Each run writes its own .profraw file (LLVM_PROFILE_FILE pattern
+        # includes %p for PID + %m for module hash). Stage 3 merges them
+        # all into one profdata.
+        log_info "Stage 2/3: Running multi-workload PGO training (~50s total)..."
         if [ ! -f "${instrument_bin}" ]; then
                 log_error "Stage 2 failed: instrumented binary not found at ${instrument_bin}"
                 exit 1
         fi
 
-        if ! "${instrument_bin}" --benchmark --bench-duration 10 2>/dev/null; then
-                log_warning "Benchmark exited with non-zero status (may be normal in CI)"
+        # Export LLVM_PROFILE_FILE so each invocation writes to a unique
+        # .profraw file. %p = PID, %m = module hash. Without this, concurrent
+        # or sequential runs would overwrite each other's profile data.
+        export LLVM_PROFILE_FILE="${pgo_dir}/cosmostrix-%p-%m.profraw"
+
+        local train_failed=0
+
+        # Workload 1: monolith + zen (default, peak throughput)
+        log_info "  [1/4] monolith + zen (20s, wet I/O)"
+        if ! "${instrument_bin}" --benchmark -C zen --bench-io --bench-duration 20 \
+                --scene monolith 2>/dev/null; then
+                log_warning "  Workload 1 exited non-zero (may be normal in CI)"
+                train_failed=1
         fi
+
+        # Workload 2: cinematic + katana (heavier scene, larger glyph pool)
+        log_info "  [2/4] cinematic + katana (12s, wet I/O)"
+        if ! "${instrument_bin}" --benchmark -C katakana --bench-io --bench-duration 12 \
+                --scene cinematic 2>/dev/null; then
+                log_warning "  Workload 2 exited non-zero (may be normal in CI)"
+                train_failed=1
+        fi
+
+        # Workload 3: signal + binary (anomaly zones, post-fx path)
+        log_info "  [3/4] signal + binary (10s, wet I/O)"
+        if ! "${instrument_bin}" --benchmark -C binary --bench-io --bench-duration 10 \
+                --scene signal 2>/dev/null; then
+                log_warning "  Workload 3 exited non-zero (may be normal in CI)"
+                train_failed=1
+        fi
+
+        # Workload 4: screensaver + message box (overlay + screensaver path)
+        log_info "  [4/4] screensaver + message box (8s, wet I/O)"
+        if ! "${instrument_bin}" --benchmark --bench-io --bench-duration 8 \
+                --screensaver -mb "pgo training" 2>/dev/null; then
+                log_warning "  Workload 4 exited non-zero (may be normal in CI)"
+                train_failed=1
+        fi
+
+        unset LLVM_PROFILE_FILE
 
         local profile_count
         profile_count=$(find "${pgo_dir}" -name "*.profraw" 2>/dev/null | wc -l)
         if [ "${profile_count}" -eq 0 ]; then
                 log_error "Stage 2 failed: no profile data collected in ${pgo_dir}"
                 log_info "Hint: ensure the benchmark ran for at least 5 seconds"
+                log_info "Hint: check LLVM_PROFILE_FILE was exported correctly"
                 exit 1
         fi
-        log_success "Stage 2 complete: ${profile_count} profile file(s) collected"
+        log_success "Stage 2 complete: ${profile_count} profile file(s) collected from 4 workloads"
 
         # Merge profile data
         local profdata_file="${pgo_dir}/cosmostrix.profdata"
