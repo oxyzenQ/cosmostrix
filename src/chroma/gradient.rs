@@ -59,9 +59,8 @@
 //! The OKLab matrix constants below are reproduced verbatim from Björn
 //! Ottosson's reference implementation. They exceed f32 precision, but
 //! truncating them would shift the color space and break the round-trip
-//! guarantee. `clippy::excessive_precision` is suppressed module-wide for
-//! this reason.
-#![allow(clippy::excessive_precision)]
+//! guarantee. `clippy::excessive_precision` is allowed project-wide via
+//! `[lints.clippy]` in Cargo.toml for this reason.
 
 /// Convert an sRGB byte (0–255) to linear light (0.0–1.0).
 /// Uses the exact sRGB transfer function (IEC 61966-2-1).

@@ -118,5 +118,39 @@ inherits = "release"
 debug = true
 strip = false
 
+# ── Lint policy ────────────────────────────────────────────────────────
+#
+# Project-wide lint configuration. The actual enforcement happens in
+# scripts/build.sh::run_clippy via `cargo clippy -- -D warnings`
+# (warnings are errors). This table centralizes project-wide allows
+# that would otherwise need a file-level `#![allow(...)]` attr.
+#
+# File-level `#![allow(...)]` attrs that remain in the source tree:
+#
+#   - 7× `#![cfg_attr(not(test), allow(dead_code))]` in atmosphere.rs,
+#     atmosphere_presets.rs, atmosphere_probe.rs, atmosphere_shadow.rs,
+#     atmosphere_verifier.rs, atmosphere_visual.rs, cloud/monolith_tests.rs
+#     These are INTENTIONAL surgical markers from Dragon Hunt v2 Phase 2
+#     (commit e74b71b). They mark test-only API surfaces that are
+#     deliberately kept but not yet wired into the production render
+#     path. A global `[lints]` setting cannot replace them — either
+#     `dead_code = "deny"` would break the build for those 7 files, or
+#     `dead_code = "allow"` would silence ALL dead code and undo
+#     Phase 2's triage. Leave them file-local.
+
+[lints.clippy]
+# Project-wide clippy allows. The default clippy policy (all lints warn)
+# is enforced via `cargo clippy -- -D warnings` in scripts/build.sh.
+# Entries here are exceptions to default clippy nits.
+#
+# excessive_precision: was previously a file-local
+# `#![allow(clippy::excessive_precision)]` in src/chroma/gradient.rs.
+# Moved to project-wide because the high-precision floats are
+# intentional for color math throughout the chroma module, and
+# verification showed no other file triggers this lint — so the
+# project-wide allow is equivalent in effect to the file-local one.
+excessive_precision = "allow"
+
+
 # Platform-specific optimizations
 # At ./cargo/config.toml
