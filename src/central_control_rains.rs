@@ -513,6 +513,16 @@ pub(crate) const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.45;
 /// Speed of the secondary ring as fraction of primary ring speed.
 pub(crate) const MOUSE_FLASH_SECONDARY_SPEED_FRAC: f32 = 0.4;
 
+/// Maximum simultaneous mouse-click flash waves (click pool size).
+///
+/// v30 fix: bounded pool so rapid double/triple-clicks spawn new waves
+/// without resetting in-flight waves to zero. The previous single-slot
+/// design (`flash_time: Option<Instant>`) silently overwrote the timer on
+/// every click, restarting any in-flight wave from zero. With this pool,
+/// up to `MOUSE_FLASH_POOL_SIZE` waves can coexist; the (POOL_SIZE+1)-th
+/// click evicts the OLDEST active wave (smallest `birth`).
+pub(crate) const MOUSE_FLASH_POOL_SIZE: usize = 4;
+
 // ─── Velocity turbulence ───────────────────────────────────────────────────
 
 /// Maximum velocity perturbation as fraction of base chars_per_sec.

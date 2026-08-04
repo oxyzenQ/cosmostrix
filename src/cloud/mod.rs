@@ -62,6 +62,7 @@ use monolith::MonolithRain;
 use state::{AnomalyZone, ColumnStatus, MsgChr};
 
 use atmospheric_events::AtmosphericEventManager;
+use render::FlashWave;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct QuantumParticle {
@@ -192,11 +193,7 @@ pub struct Cloud {
 
     pub mouse_enabled: bool,
 
-    pub(super) flash_col: u16,
-
-    pub(super) flash_line: u16,
-
-    pub(super) flash_time: Option<Instant>,
+    pub(super) flash_waves: [FlashWave; MOUSE_FLASH_POOL_SIZE],
 
     pub(super) quantum_particles: Vec<QuantumParticle>,
     /// Active quantum particle count (incremental, O(1) early-out).
@@ -349,9 +346,12 @@ impl Cloud {
             mouse_col: u16::MAX,
             mouse_line: u16::MAX,
             mouse_enabled: false,
-            flash_col: u16::MAX,
-            flash_line: u16::MAX,
-            flash_time: None,
+            flash_waves: [FlashWave {
+                active: false,
+                col: u16::MAX,
+                line: u16::MAX,
+                birth: now,
+            }; MOUSE_FLASH_POOL_SIZE],
             quantum_particles: vec![
                 QuantumParticle {
                     active: false,
@@ -439,61 +439,29 @@ impl Cloud {
     }
 
     pub fn set_mouse_click(&mut self, col: u16, line: u16) {
-        self.flash_col = col;
-        self.flash_line = line;
-        self.flash_time = Some(Instant::now());
-        self.spawn_quantum_ripple(col, line);
-    }
-
-    fn spawn_quantum_ripple(&mut self, col: u16, line: u16) {
-        let cx = col as f32 + 0.5;
-        let cy = line as f32 + 0.5;
+        // v30 fix: bounded pool. Old design reset any in-flight wave on every
+        // click. New design mirrors spawn_quantum_ripple: first inactive slot,
+        // or evict OLDEST (smallest birth) if all active.
         let now = Instant::now();
-        let chars = ['*', '+', '·'];
-        // Snapshot the palette BODY color (mid-index of palette.colors)
-        // once at click time. Avoid the head stop (last index) — it's
-        // near-white across most schemes (gives droplets their bright
-        // leading edge; using it for ripples made every click look white).
-        // Each particle keeps this RGB even if the user switches palette
-        // mid-flight → natural crossfade between old & new cohorts.
-        let body_idx = self.palette.colors.len() / 2;
-        let (body_r, body_g, body_b) = self
-            .palette
-            .colors
-            .get(body_idx)
-            .and_then(|c| crate::palette::decode_color(*c))
-            .unwrap_or((
-                QUANTUM_BRAND_PURPLE_R,
-                QUANTUM_BRAND_PURPLE_G,
-                QUANTUM_BRAND_PURPLE_B,
-            ));
-        let mut spawned = 0usize;
-        for p in &mut self.quantum_particles {
-            if spawned >= QUANTUM_RIPPLE_PARTICLE_COUNT {
+        let mut slot = None;
+        let mut oldest = (0usize, Instant::now());
+        for (i, w) in self.flash_waves.iter_mut().enumerate() {
+            if !w.active {
+                slot = Some(i);
                 break;
             }
-            if p.active {
-                continue;
+            if i == 0 || w.birth < oldest.1 {
+                oldest = (i, w.birth);
             }
-            let angle: f32 = self.rand_chance.sample(&mut self.mt) * std::f32::consts::TAU;
-            let speed = QUANTUM_RIPPLE_SPEED * (0.8 + self.rand_chance.sample(&mut self.mt) * 0.4);
-
-            let char_idx = (self.rand_chance.sample(&mut self.mt) * chars.len() as f32) as usize;
-            p.active = true;
-            p.x = cx;
-            p.y = cy;
-            p.vx = angle.cos() * speed;
-            p.vy = angle.sin() * speed;
-            p.birth = now;
-            p.ch = chars[char_idx.min(chars.len() - 1)];
-            p.r = body_r;
-            p.g = body_g;
-            p.b = body_b;
-            spawned += 1;
         }
-        // Increment active count — tracked incrementally so
-        // apply_quantum_ripple can O(1) early-out when none are active.
-        self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);
+        let s = slot.unwrap_or(oldest.0);
+        self.flash_waves[s] = FlashWave {
+            active: true,
+            col,
+            line,
+            birth: now,
+        };
+        self.spawn_quantum_ripple(col, line);
     }
 
     #[must_use]
@@ -642,8 +610,11 @@ impl Cloud {
                 if let Some(ref mut ge) = self.glyph_entry_time {
                     *ge += elapsed;
                 }
-                if let Some(ref mut ft) = self.flash_time {
-                    *ft += elapsed;
+                // v30 fix: shift ALL active flash wave births (was single slot).
+                for w in &mut self.flash_waves {
+                    if w.active {
+                        w.birth += elapsed;
+                    }
                 }
                 self.resume_blend_start = 0.0;
                 self.resume_blend = 0.0;

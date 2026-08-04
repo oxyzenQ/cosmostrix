@@ -24,6 +24,35 @@ use crate::runtime::BoldMode;
 // signature below.
 pub(crate) use crate::chroma::shaders::base::CharLoc;
 
+/// Pre-computed view of an active mouse-click flash wave (v30 fix).
+///
+/// Built once per frame in `cloud::rain::rain_at` and borrowed by `DrawCtx`
+/// for the duration of the draw call. The renderer iterates this slice and
+/// sums per-wave factor contributions onto each cell's color.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct FlashWaveCtx {
+    /// Click column (cell-space).
+    pub col: u16,
+    /// Click line (cell-space).
+    pub line: u16,
+    /// Seconds since this wave's birth. Always `< MOUSE_FLASH_DURATION_SECS`
+    /// (expired waves are filtered out before this struct is built).
+    pub elapsed: f32,
+}
+
+/// Runtime state of a mouse-click flash wave slot (v30 fix: bounded pool).
+///
+/// Each click activates a slot; the wave expands as a dual-ring water-drop
+/// ripple for `MOUSE_FLASH_DURATION_SECS`, then `active` flips to false.
+/// Pool size is `MOUSE_FLASH_POOL_SIZE`. Stored as a fixed array in `Cloud`.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct FlashWave {
+    pub active: bool,
+    pub col: u16,
+    pub line: u16,
+    pub birth: std::time::Instant,
+}
+
 /// Read-only drawing context passed to `Droplet::draw` to avoid borrowing
 /// the entire `Cloud` (which would conflict with the mutable droplet loop).
 pub(crate) struct DrawCtx<'a> {
@@ -77,13 +106,13 @@ pub(crate) struct DrawCtx<'a> {
     pub mouse_col: u16,
     /// Mouse cursor line (u16::MAX if no mouse).
     pub mouse_line: u16,
-    /// Flash effect click column.
-    pub flash_col: u16,
-    /// Flash effect click line.
-    pub flash_line: u16,
-    /// Cached flash elapsed seconds (None if no active flash or expired).
-    /// Precomputed once per frame to avoid per-cell `Instant::elapsed()` syscalls.
-    pub flash_elapsed: Option<f32>,
+    /// Active mouse-click flash waves (v30 fix: was single slot, now bounded pool).
+    ///
+    /// Precomputed once per frame in `rain_at`. Each entry has `elapsed <
+    /// MOUSE_FLASH_DURATION_SECS`. Empty slice = no active waves. The slice
+    /// is borrowed from a stack-local `SmallVec` in `rain_at` that outlives
+    /// the DrawCtx.
+    pub flash_waves: &'a [FlashWaveCtx],
     /// Cached result of pool_is_binary check, computed once per DrawCtx
     /// construction to avoid per-cell iteration of the char pool.
     pub pool_is_binary: bool,

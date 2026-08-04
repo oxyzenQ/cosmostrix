@@ -729,4 +729,62 @@ impl Cloud {
         // instead of flooding the first frame.
         self.spawn_remainder = WARM_START_SPAWN_DEBT;
     }
+
+    /// Spawn a quantum-ripple particle burst at the click point (v17 mastery).
+    ///
+    /// Called by `Cloud::set_mouse_click` alongside the dual-ring flash wave.
+    /// Up to `QUANTUM_RIPPLE_PARTICLE_COUNT` particles are activated per click
+    /// (each in the first inactive pool slot). The particle pool is
+    /// pre-allocated with `QUANTUM_RIPPLE_POOL_SIZE` slots — clicks beyond the
+    /// pool capacity are silently dropped (the flash wave still spawns).
+    pub(super) fn spawn_quantum_ripple(&mut self, col: u16, line: u16) {
+        let cx = col as f32 + 0.5;
+        let cy = line as f32 + 0.5;
+        let now = Instant::now();
+        let chars = ['*', '+', '·'];
+        // Snapshot the palette BODY color (mid-index of palette.colors)
+        // once at click time. Avoid the head stop (last index) — it's
+        // near-white across most schemes (gives droplets their bright
+        // leading edge; using it for ripples made every click look white).
+        // Each particle keeps this RGB even if the user switches palette
+        // mid-flight → natural crossfade between old & new cohorts.
+        let body_idx = self.palette.colors.len() / 2;
+        let (body_r, body_g, body_b) = self
+            .palette
+            .colors
+            .get(body_idx)
+            .and_then(|c| crate::palette::decode_color(*c))
+            .unwrap_or((
+                QUANTUM_BRAND_PURPLE_R,
+                QUANTUM_BRAND_PURPLE_G,
+                QUANTUM_BRAND_PURPLE_B,
+            ));
+        let mut spawned = 0usize;
+        for p in &mut self.quantum_particles {
+            if spawned >= QUANTUM_RIPPLE_PARTICLE_COUNT {
+                break;
+            }
+            if p.active {
+                continue;
+            }
+            let angle: f32 = self.rand_chance.sample(&mut self.mt) * std::f32::consts::TAU;
+            let speed = QUANTUM_RIPPLE_SPEED * (0.8 + self.rand_chance.sample(&mut self.mt) * 0.4);
+
+            let char_idx = (self.rand_chance.sample(&mut self.mt) * chars.len() as f32) as usize;
+            p.active = true;
+            p.x = cx;
+            p.y = cy;
+            p.vx = angle.cos() * speed;
+            p.vy = angle.sin() * speed;
+            p.birth = now;
+            p.ch = chars[char_idx.min(chars.len() - 1)];
+            p.r = body_r;
+            p.g = body_g;
+            p.b = body_b;
+            spawned += 1;
+        }
+        // Increment active count — tracked incrementally so
+        // apply_quantum_ripple can O(1) early-out when none are active.
+        self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);
+    }
 }

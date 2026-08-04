@@ -748,26 +748,35 @@ impl Droplet {
                 }
 
                 // Click flash: expanding glow wave from click point (v17 mastery).
-                // F4: use cached flash_elapsed instead of per-cell flash_time.elapsed()
+                // v30 fix: iterate ALL active flash waves (was single slot).
                 //
-                // v17 mastery: dual-ring water-drop ripple. A primary bright ring
-                // expands outward at 60 cells/s, followed by a secondary dimmer
-                // ring at half speed — creating a layered "stone in water"
-                // cinematic ripple that propagates to the screen edge.
+                // Each wave is a dual-ring water-drop ripple. A primary bright
+                // ring expands outward at MOUSE_FLASH_SPEED cells/s, followed
+                // by a secondary dimmer ring at half speed — creating a layered
+                // "stone in water" cinematic ripple that propagates to the
+                // screen edge.
                 //
                 // The fade uses a quadratic curve (fade^1.5) for natural energy
                 // dissipation — the wave starts strong and decays gradually like
                 // a real water ripple, not a linear cutoff.
-                if let Some(elapsed) = ctx.flash_elapsed {
-                    let col_dist = if self.bound_col > ctx.flash_col {
-                        (self.bound_col - ctx.flash_col) as f32
+                //
+                // With the v30 bounded pool, multiple clicks within 1.8s each
+                // emit their own independent wave. Their per-cell factor
+                // contributions sum additively (capped at 1.0 by the clamp on
+                // each channel below). Visual result: overlapping rings blend
+                // into a richer interference pattern instead of one cancelling
+                // the other.
+                for w in ctx.flash_waves {
+                    let elapsed = w.elapsed;
+                    let col_dist = if self.bound_col > w.col {
+                        (self.bound_col - w.col) as f32
                     } else {
-                        (ctx.flash_col - self.bound_col) as f32
+                        (w.col - self.bound_col) as f32
                     };
-                    let line_dist = if line > ctx.flash_line {
-                        (line - ctx.flash_line) as f32
+                    let line_dist = if line > w.line {
+                        (line - w.line) as f32
                     } else {
-                        (ctx.flash_line - line) as f32
+                        (w.line - line) as f32
                     };
                     let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
                     // Quadratic fade: natural energy dissipation (fade^1.5).

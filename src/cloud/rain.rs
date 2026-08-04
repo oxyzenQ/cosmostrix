@@ -14,8 +14,9 @@ use crate::rain_style::RainStyle;
 
 use super::ecosystem::EmergentMoment;
 use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
-use super::render::DrawCtx;
+use super::render::{DrawCtx, FlashWaveCtx};
 use super::Cloud;
+use smallvec::SmallVec;
 
 // Phase 3-G: atmospheric ctx for integrated post-processing.
 use crate::chroma::post::atmosphere::AtmosphericCtx;
@@ -572,6 +573,27 @@ impl Cloud {
             }
         };
 
+        // v30 fix: pre-compute active flash wave list once per frame.
+        // The DrawCtx borrows this slice for the duration of the draw call.
+        // Active = `active && elapsed < MOUSE_FLASH_DURATION_SECS`. Expired
+        // waves are NOT removed here — they're swept by the update loop
+        // (see expiry block at end of rain_at). We just skip them in the
+        // precomputed slice so the renderer doesn't see stale waves on the
+        // frame before the sweep runs.
+        let mut flash_waves_buf: SmallVec<[FlashWaveCtx; MOUSE_FLASH_POOL_SIZE]> = SmallVec::new();
+        for w in &self.flash_waves {
+            if w.active {
+                let e = w.birth.elapsed().as_secs_f32();
+                if e < MOUSE_FLASH_DURATION_SECS {
+                    flash_waves_buf.push(FlashWaveCtx {
+                        col: w.col,
+                        line: w.line,
+                        elapsed: e,
+                    });
+                }
+            }
+        }
+
         let ctx = DrawCtx {
             lines: self.lines,
             cols: self.cols,
@@ -594,16 +616,12 @@ impl Cloud {
             color_wave_line,
             mouse_col: self.mouse_col,
             mouse_line: self.mouse_line,
-            flash_col: self.flash_col,
-            flash_line: self.flash_line,
-            flash_elapsed: self.flash_time.and_then(|ft| {
-                let e = ft.elapsed().as_secs_f32();
-                if e < MOUSE_FLASH_DURATION_SECS {
-                    Some(e)
-                } else {
-                    None
-                }
-            }),
+            // v30 fix: pre-compute active flash wave list once per frame.
+            // Was: single `flash_elapsed: Option<f32>` from one slot.
+            // Now: up to MOUSE_FLASH_POOL_SIZE concurrent waves, each with its
+            // own elapsed time. The slice borrows a stack-local SmallVec that
+            // outlives the DrawCtx.
+            flash_waves: &flash_waves_buf,
             pool_is_binary,
             atmospheric,
             // Phase 3-H + Phase C: activate ColorEcosystem.hue_drift — was
@@ -914,11 +932,15 @@ impl Cloud {
         // was a no-op for GhostEvent). The function itself was removed
         // from AtmosphericEventManager.
 
-        // Expire flash effect after duration
-        if let Some(flash_time) = self.flash_time {
-            if now.saturating_duration_since(flash_time).as_secs_f32() >= MOUSE_FLASH_DURATION_SECS
+        // v30 fix: sweep ALL active flash waves, not single slot.
+        // Each wave expires independently after MOUSE_FLASH_DURATION_SECS.
+        // Multiple concurrent waves (from rapid clicks) each get their own
+        // lifetime — no more reset-on-second-click.
+        for w in &mut self.flash_waves {
+            if w.active
+                && now.saturating_duration_since(w.birth).as_secs_f32() >= MOUSE_FLASH_DURATION_SECS
             {
-                self.flash_time = None;
+                w.active = false;
             }
         }
 
