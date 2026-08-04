@@ -581,6 +581,15 @@ pub struct Args {
     pub async_mode: bool,
 
     #[arg(
+        short = 'b',
+        long = "bold",
+        default_value_t = 1,
+        hide = true,
+        help = "Bold style: 0=off, 1=random, 2=all (min 0 max 2)"
+    )]
+    pub bold: u8,
+
+    #[arg(
         long = "color-bg",
         default_value_t = ColorBg::DefaultBackground,
         value_enum,
@@ -679,6 +688,9 @@ pub struct Args {
     // v17 mastery: --shortpct CLI flag REMOVED. Use --glitch-level instead.
     #[arg(skip = 50.0_f32)]
     pub shortpct: f32,
+
+    #[arg(long = "chars", hide = true, help = "Custom characters override")]
+    pub chars: Option<String>,
 
     #[arg(
         long = "colormode",

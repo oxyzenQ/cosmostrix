@@ -85,14 +85,6 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--help-detail",
         "error: --help-detail has been removed in v30.0.0-alpha.1.\n  The curated advanced reference manual that --help-detail used to print is now\n  printed by --help itself. cosmostrix now has a single-tier help surface.\n  Use `cosmostrix --help` instead.",
     ),
-    (
-        "--chars",
-        "error: --chars has been removed in v30.0.0-alpha.1.\n  Custom character pools are now exclusively provided via [charset-custom.<name>]\n  in config.toml, activated with --charset <name>. This consolidates the entire\n  custom-charset surface onto one mechanism (the config-file flow) and removes\n  the rarely-used inline hex-range CLI flag.\n  Migration: move your hex ranges into a config block, e.g.\n    [charset-custom.mine]\n    set = \"0x30-0x39,0x41-0x5A\"\n  Then: cosmostrix --charset mine\n  See `cosmostrix --dump-config` for the full template.",
-    ),
-    (
-        "--bold",
-        "error: --bold (and the `bold = ...` config key) has been removed in v30.0.0-alpha.1.\n  The runtime bold style is now permanently BoldMode::Random (the previous\n  default). The Off/All variants existed only to be reachable from this flag;\n  with the flag gone, the enum collapses to its single useful mode.\n  No replacement needed — for monochrome or all-bold aesthetics, use a custom\n  palette or charset preset instead.",
-    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.

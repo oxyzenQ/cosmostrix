@@ -1304,28 +1304,28 @@ mod tests {
         assert_eq!(new.speed, 25.0, "CLI --speed wins over scene default");
     }
 
-    /// v25.14 (bug #16): Serialize tests touching the global
-    /// `LIVE_RELOAD_VALIDATION_REJECTIONS` log. Without this lock, cargo
-    /// test's parallel pool drains one test's rejection from another.
+    /// v25.14 (bug #16): Serialize every test that touches the global
+    /// `LIVE_RELOAD_VALIDATION_REJECTIONS` log (directly or indirectly via
+    /// `validate_and_send`). Without this lock, cargo test's default
+    /// thread-pool runs these tests in parallel and one test drains another
+    /// test's expected rejection — `assert_eq!(rejections.len(), 1)` then
+    /// sees 0 or 2+ and fails spuriously.
     static TEST_REJECTION_LOCK: Mutex<()> = Mutex::new(());
 
     /// v25.6 FIX D: validate_and_send returns Err on bad config, but the
     /// render thread NO LONGER sets LIVE_RELOAD_EXIT_CODE — only true
-    /// watcher-thread panics do. v25.6 FIX E: includes a hint.
-    /// (v30: `color.tune.bold` → `shadingmode` after `bold` removal.)
+    /// watcher-thread panics do. v25.6 FIX E: error includes a hint.
     #[test]
     fn validate_and_send_returns_err_without_setting_exit_code() {
         let _guard = TEST_REJECTION_LOCK.lock().unwrap();
         let _ = drain_validation_rejections();
         let (tx, _rx) = std::sync::mpsc::channel();
         let mut parsed = configfile::ParsedConfig::default();
-        parsed
-            .unknown_keys
-            .push("color.tune.shadingmode".to_string());
+        parsed.unknown_keys.push("color.tune.bold".to_string());
         let result = validate_and_send(&parsed, &tx);
         assert!(result.is_err());
         let msg = result.unwrap_err();
-        assert!(msg.contains("color.tune.shadingmode"));
+        assert!(msg.contains("color.tune.bold"));
         assert!(msg.contains("top-level"), "need structural hint: {msg}");
         assert!(msg.contains("[color.tune]"), "need section ref: {msg}");
         assert_eq!(LIVE_RELOAD_EXIT_CODE.load(Ordering::Acquire), 0);

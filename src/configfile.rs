@@ -38,6 +38,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "density",
     "monolith-size",
     "glitch-level",
+    "bold",
     "shadingmode",
     "color-bg",
     "auto-color-drift",
@@ -606,6 +607,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 # head = 1.0         # head segment brightness
 # body = 1.0         # body segment brightness
 # tail = 1.0         # tail segment brightness
+# Bold style: 0=off, 1=random (default), 2=all
+# bold = 1
 # Shading mode: 0=random, 1=cinematic (default — distance from head)
 # shadingmode = 1
 

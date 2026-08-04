@@ -316,6 +316,9 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
   config key (see config.toml via --dump-config).
 
   APPEARANCE (advanced):
+  -b, --bold <0|1|2>
+      Bold style (0=off, 1=random [default], 2=all).
+      Config: bold = 1
   --color-bg <black|default-background>
       Background rendering mode. 'default-background' (default) follows
       the terminal emulator background; 'black' forces solid #000000.
@@ -327,6 +330,9 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       Force color depth (auto-detected by default). Allowed: 0 (mono),
       16, 8/256 (8-bit), 24/32 (truecolor). Default: 24-bit if supported
       (COLORTERM), else 8-bit (TERM=...256color), else 16-color.
+  --chars <ranges>
+      Custom character pool override as hex Unicode ranges
+      (e.g. \"0x30-0x39,0x41-0x5A\"). Pairs must be even count.
   --check-bitcolor
       Print detected terminal color capability (truecolor / 256 / 16 /
       mono) and exit. Diagnostic only — no rain rendered.

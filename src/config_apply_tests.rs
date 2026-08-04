@@ -676,6 +676,7 @@ fn dump_config_mentions_supported_keys() {
         "density",
         "monolith-size",
         "glitch-level",
+        "bold",
         "shadingmode",
         "color-bg",
         "low-power",

@@ -117,15 +117,12 @@ charset-custom.zen.set = \"|\"
 
 #[test]
 fn color_tune_then_top_level_key_promotes() {
-    // Bug #4 from v25.6 depth test: user writes [color.tune] then `shadingmode = 1`.
-    // Pre-v25.7 this errored. v25.7: promote to root scope `shadingmode = 1`.
-    // (v30: was originally `bold = 1` but `bold` was removed from
-    // USER_CONFIG_KEYS — migrated to `shadingmode` which is also a 0/1/2 enum
-    // top-level key with the same promotion semantics.)
+    // Bug #4 from v25.6 depth test: user writes [color.tune] then `bold = 1`.
+    // Pre-v25.7 this errored. v25.7: promote to root scope `bold = 1`.
     let content = "\
 [color.tune]
 brightness = 1.0
-shadingmode = 1
+bold = 1
 ";
     let parsed = parse_config_text(content);
     assert!(
@@ -141,17 +138,11 @@ shadingmode = 1
             .map(String::as_str),
         Some("1.0")
     );
-    // shadingmode was promoted to root scope.
-    assert_eq!(
-        parsed.values.get("shadingmode").map(String::as_str),
-        Some("1")
-    );
+    // bold was promoted to root scope.
+    assert_eq!(parsed.values.get("bold").map(String::as_str), Some("1"));
     assert_eq!(
         parsed.promoted_keys,
-        vec![(
-            "color.tune.shadingmode".to_string(),
-            "shadingmode".to_string()
-        )]
+        vec![("color.tune.bold".to_string(), "bold".to_string())]
     );
 }
 
