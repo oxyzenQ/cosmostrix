@@ -121,11 +121,5 @@ inherits = "release"
 debug = true
 strip = false
 
-[profile.bench]
-inherits = "release"
-debug = true
-strip = false
-overflow-checks = false
-
 # Platform-specific optimizations
 # At ./cargo/config.toml

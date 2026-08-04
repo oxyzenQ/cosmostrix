@@ -82,7 +82,6 @@ fn all_rust_files_under_loc_cap() {
         "src/cloud/tests/tests_monolith/residue.rs",
         "src/cloud/tests/tests_monolith/transitions.rs",
         "src/cloud/tests/tests_monolith/charset.rs",
-        "src/cloud/tests/tests_architecture.rs",
         "src/cloud/scene_runtime.rs",
         "src/cloud/runtime_controls.rs",
     ];

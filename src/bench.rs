@@ -140,7 +140,7 @@ fn compute_config_enrichment(
     let glitch_enabled = cfg.glitch_enabled;
     // Derive glitch_level label from glitch_pct (CloudConfig doesn't carry
     // the GlitchLevel enum, only the resolved pct). Thresholds match
-    // bench_tune.rs and cloud/scene_runtime.rs:
+    // cloud/scene_runtime.rs:
     //   0.0 → none, <5.0 → subtle, <15.0 → default, >=15.0 → intense
     let glitch_level: &'static str = if !glitch_enabled || cfg.glitch_pct < 0.01 {
         "none"
