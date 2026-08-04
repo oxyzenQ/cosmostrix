@@ -894,6 +894,9 @@ build_pgo() {
                 exit 1
         fi
         log_success "Stage 2 complete: ${profile_count} profile file(s) collected from 4 workloads"
+        if [ "${train_failed}" -ne 0 ]; then
+                log_warning "Some workloads exited non-zero — profile coverage may be partial"
+        fi
 
         # Merge profile data
         local profdata_file="${pgo_dir}/cosmostrix.profdata"

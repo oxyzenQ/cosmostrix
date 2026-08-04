@@ -305,6 +305,7 @@ mod cases {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn call_handle_keybinding_with_scene(
         cloud: &mut Cloud,
         frame: &mut Frame,

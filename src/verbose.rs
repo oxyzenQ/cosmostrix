@@ -237,9 +237,7 @@ pub(crate) fn print_verbose(
     };
     output::eprintln_verbose(
         "  palette_drift:",
-        &format!(
-            " {palette_drift_label} (3% chance per 3s tick, 30s cooldown between events)"
-        ),
+        &format!(" {palette_drift_label} (3% chance per 3s tick, 30s cooldown between events)"),
     );
     if bench_mode && auto_drift {
         output::eprintln_verbose(
