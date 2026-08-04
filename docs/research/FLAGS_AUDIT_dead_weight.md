@@ -4,8 +4,19 @@
 
 **Agent**: flags-audit-3 (general-purpose sub-agent)
 **Scope**: every `#[arg(long = "...")]` entry in `src/config.rs`, with deep-dive on the 13 suspected-dead flags listed in the task brief.
-**Mode**: read-only audit. No source modified.
+**Mode**: read-only audit. No source modified at audit time.
 **Prior context**: builds on `FLAGS_AUDIT_bench-frames_chars_bold.md` (which led to `--chars` removal + `--bench-frames`/`--bold` keep + bug fixes).
+
+> **EXECUTION STATUS (updated 2026-08-04)**
+>
+> - **#10 `--check-bitcolor`**: REMOVED in commit `367bd4f` (v30.0.0-alpha.1).
+>   Owner chose option (a) — route users to `--doctor`. Flag definition,
+>   parsing block, and help entry all deleted. Migration entry added to
+>   `REMOVED_FLAGS` in `src/validation.rs`.
+> - **#6 `--atmosphere-mode` / #7 `--atmosphere-regime`** help-text bug:
+>   NOT YET FIXED. The misleading "config only" parenthetical still appears
+>   in `src/config.rs:711, 718`. Tracked as a low-priority follow-up.
+> - All other 11 audited flags remain in their audited state (all KEEP).
 
 ---
 
@@ -22,13 +33,13 @@
 | 7 | `--atmosphere-regime` | 715–720 | yes | ✅ `main.rs:801`, `config_apply.rs:492–496`, `profile.rs:336–340` | `atmosphere-regime = "pulse"` | **KEEP** (help text bug) | Same as #6 — help says "config only" but CLI works. |
 | 8 | `--duration` | 601–606 | yes | ✅ `main.rs:644, 931, 991, 1285`, `interactive/event_loop.rs:143–147` | (none) | **KEEP** | Does NOT duplicate `--bench-duration`. `--duration N` = interactive auto-exit after N s; `--bench-duration` = how long `--benchmark` runs. Distinct code paths, distinct help text. |
 | 9 | `--perf-stats` | 608–613 | yes | ✅ `main.rs:1007, 1294`, `interactive/event_loop.rs:89, 515, 1108, 1215, 1333`, `cloud/phosphor.rs:680` | (none) | **KEEP** | Does NOT duplicate `--verbose` (startup info) or `--benchmark` (headless report). Enables per-component timing + interactive exit summary (FPS, work_ms, pressure, encoding stats). Documented in `benchmark/README.md:192`, `RENDER_ENGINE.md:259,466,478`. |
-| 10 | `--check-bitcolor` | 699–704 | yes | ✅ `main.rs:577–602` | (none) | **NEEDS_OWNER_DECISION** | Subset of `--doctor` output (`doctor.rs:264–293` already prints `color_auto_detected` + `color_forced` + COLORTERM + TERM). Only 2 doc references; no tests/scripts use it. Either remove (route users to `--doctor`) or keep as a parseable one-liner for scripts. |
+| 10 | `--check-bitcolor` | ~~699–704~~ | yes | ~~`main.rs:577–602`~~ | (none) | **REMOVED** (`367bd4f`) | Strict subset of `--doctor` output. Owner chose option (a): remove + route to `--doctor`. Migration message in `REMOVED_FLAGS`. |
 | 11 | `--reset-terminal` | 489–495 | no | ✅ `main.rs:387–390` (calls `reset_terminal_emergency()`), `terminal.rs:1082` | (none) | **KEEP** | One-shot utility, but heavily documented (`TERMINAL_KILL_CLEANUP.md`, `TERMINAL_LIFECYCLE_MATRIX.md`, `COSMIC_DRAGON_ARCHITECTURE.md`, README:130,147,149,377,492,495, CHANGELOG). Bundling into cosmostrix binary is intentional — "kill -9 broke my terminal, run cosmostrix --reset-terminal" is the documented user model. |
 | 12 | `--uniform` | 282–288 | no | ✅ `main.rs:832` (`args.async_mode && !args.uniform`) | (none — `async-mode = false` in config is the config-side equivalent) | **KEEP** | Disables variable column pacing. The `--async` flag was removed in v17 (always on); `--uniform` is the only CLI way to opt out. Documented in config.rs:578–579 comment. |
 | 13 | `--screensaver` | 290–297 | no | ✅ `main.rs:925, 1008, 1288`, `interactive/event_loop.rs:808` (gates input to "only q exits") | (none) | **KEEP** | Real mode with distinct behavior — input handler ignores all keys except `q` (and a small allowlist for HUD/intro toggles). |
 | 14 | `--intro` | 299–308 | no | ✅ `main.rs:889, 1009, 1291`, `interactive/event_loop.rs:107–108` (plays `intro::run_intro` before rain) | `intro = "logo"` in config | **KEEP** | Real feature (cosmic / logo / none). Verbose output, CloudConfig, and event_loop all consume it. |
 
-**Verdict tally**: 13 KEEP, 1 NEEDS_OWNER_DECISION (`--check-bitcolor`), 0 REMOVE.
+**Verdict tally (post-execution)**: 13 KEEP, 0 NEEDS_OWNER_DECISION, 1 REMOVED (`--check-bitcolor`, removed in `367bd4f`).
 
 ---
 
@@ -221,34 +232,44 @@
 
 ---
 
-### 10. `--check-bitcolor` (config.rs:699–704, hidden) — NEEDS_OWNER_DECISION
+### 10. `--check-bitcolor` (was config.rs:699–704, hidden) — REMOVED
 
-**Help text**: "Print detected terminal color capability and exit"
+> **STATUS**: Removed in commit `367bd4f` (v30.0.0-alpha.1, 2026-08-04).
+> Owner chose option (a). The flag definition, parsing block at `main.rs:577–602`,
+> and help entry at `help_detail.rs:333` were all deleted. A migration entry
+> was added to `REMOVED_FLAGS` in `src/validation.rs` directing users to
+> `cosmostrix --doctor`. The original audit findings are preserved below
+> for historical reference.
 
-**What it claims to do**: One-shot diagnostic — prints COLORTERM, TERM, auto-detected mode, forced mode (if `--colormode` set), effective mode, then exits.
+**Help text (historical)**: "Print detected terminal color capability and exit"
 
-**Consumed at**:
+**What it claimed to do**: One-shot diagnostic — prints COLORTERM, TERM, auto-detected mode, forced mode (if `--colormode` set), effective mode, then exits.
+
+**Was consumed at** (historical, pre-removal):
 - `main.rs:577–602` — full implementation (5 println's, then `return Ok(())`)
 
-**Total references in repo** (excluding the audit doc that mentions it): exactly **2** — `config.rs:700` (definition) and `help_detail.rs:333` (manual documentation). No tests, no scripts, no CHANGELOG entries, no README mention.
+**Total references in repo** (excluding this audit doc): exactly **2** — `config.rs:700` (definition) and `help_detail.rs:333` (manual documentation). No tests, no scripts, no CHANGELOG entries, no README mention.
 
-**Does it duplicate `--doctor`?** **Mostly yes.** `doctor.rs:264–293` (TERMINAL section) already prints:
+**Did it duplicate `--doctor`?** **Yes — strict subset.** `doctor.rs:264–293` (TERMINAL section) already printed:
 - `TERM`
 - `COLORTERM`
 - `color_auto_detected` (same value as `--check-bitcolor`'s `auto_detected`)
 - `color_forced` (only when `--colormode` is set — same condition as `--check-bitcolor`)
-- And the RENDERER section above it prints `color_depth` (same as `--check-bitcolor`'s `effective`)
+- And the RENDERER section above it printed `color_depth` (same as `--check-bitcolor`'s `effective`)
 
-So `--check-bitcolor`'s 5-line output is a strict subset of `--doctor`'s output. The only differences:
-1. `--check-bitcolor` is a 5-line plain print (potentially script-parseable).
+So `--check-bitcolor`'s 5-line output was a strict subset of `--doctor`'s output. The only differences were:
+1. `--check-bitcolor` was a 5-line plain print (potentially script-parseable).
 2. `--doctor` is a multi-section human-readable report.
 
-**Verdict**: **NEEDS_OWNER_DECISION**. Three options:
-- (a) **Remove** — route users to `--doctor` (which already includes everything `--check-bitcolor` prints, plus much more). Add to `REMOVED_FLAGS` in `validation.rs` with migration message.
-- (b) **Keep** — if any script in the wild pipes `cosmostrix --check-bitcolor` for CI color-capability gating. (No evidence of such use in this repo, but the binary is shipped publicly.)
-- (c) **Keep but document** — add a one-line note in `--doctor` advice pointing to `--check-bitcolor` as the script-friendly alternative.
-
-Owner's call. Lowest-risk option is (c) (no behavior change); most-cleanup option is (a).
+**Resolution**: Owner chose option (a) **Remove** — route users to `--doctor` (which already includes everything `--check-bitcolor` printed, plus much more). Migration message in `REMOVED_FLAGS` reads:
+```
+error: --check-bitcolor has been removed in v30.0.0-alpha.1.
+  It was a strict subset of `--doctor` output — every field it printed
+  (COLORTERM, TERM, auto_detected, forced, effective color depth) is already
+  shown by `cosmostrix --doctor` under the RENDERER and COLOR sections, plus
+  much more (terminal caps, env, perf hints, config paths).
+  Use `cosmostrix --doctor` instead.
+```
 
 ---
 
@@ -362,7 +383,7 @@ help = "Atmosphere regime (calm, pulse, signal, compression, void, monolith-pres
 
 ## Owner Action Items
 
-1. **Decide on `--check-bitcolor`** (option a/b/c above). This is the only flag in this audit that qualifies as a removal candidate.
-2. **(Optional, low priority)** Fix the misleading "config only" help strings on `--atmosphere-mode` and `--atmosphere-regime` to match the convention used by other dual-path flags.
+1. ~~**Decide on `--check-bitcolor`** (option a/b/c above).~~ **RESOLVED**: Owner chose option (a) Remove. Executed in commit `367bd4f` (v30.0.0-alpha.1).
+2. **(Optional, low priority)** Fix the misleading "config only" help strings on `--atmosphere-mode` and `--atmosphere-regime` to match the convention used by other dual-path flags. **Status: NOT YET DONE.**
 
-No other action items. The remaining 12 audited flags are all clearly alive, consumed, and serve distinct purposes.
+No other action items. The remaining 13 audited flags are all clearly alive, consumed, and serve distinct purposes.

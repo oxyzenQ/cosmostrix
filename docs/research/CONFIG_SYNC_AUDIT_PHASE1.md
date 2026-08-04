@@ -84,7 +84,7 @@ Sumber: `src/config.rs:170-712` (`Args` struct).
 | **Atmosphere** | 4 | `atmosphere-mode`, `atmosphere-regime`, `async-mode` (skip), `auto-color-drift` |
 | **Message/UI** | 4 | `message` (`-m`), `message-border`, `bold`, `color-bg` (`-b`), `perf-stats` |
 | **Duration** | 2 | `duration`, `bench-duration` |
-| **Hidden/diagnostic** | 5 | `check-bitcolor`, `chars`, `perf-stats`, `bench-frames`, `bench-scene` |
+| **Hidden/diagnostic** | 3 | ~~`check-bitcolor`~~ (removed `367bd4f`), ~~`chars`~~ (removed `69ca2c6`), `perf-stats`, `bench-frames`, `bench-scene` |
 
 **Total: ~61 fields** (matches earlier estimate).
 

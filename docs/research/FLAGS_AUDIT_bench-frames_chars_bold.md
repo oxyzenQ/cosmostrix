@@ -2,10 +2,27 @@
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> **Status**: Owner-decision pending. No code changes performed — this is a
-> read-only audit. The previous removal commit (`9598f37`) was reverted in
-> `3f733ae` to restore the flags to their pre-removal state so the owner
-> can decide per-flag what to do.
+> **STATUS: EXECUTED** (commit `69ca2c6`, v30.0.0-alpha.1, 2026-08-04).
+>
+> All three recommendations were applied:
+> - **`--bench-frames`**: KEPT + 2 fixes (docs bug in `benchmark/README.md:339-356`,
+>   warn-matrix bug in `main.rs::collect_bench_noop_warnings` case 4).
+> - **`--chars`**: REMOVED. clap arg, parsing block, `parse_user_hex_chars` fn + test,
+>   doctor display, help block all deleted. `user_ranges: Vec<(char,char)>` plumbing
+>   kept (always-empty Vec) for runtime signature stability. Migration entry added
+>   to `REMOVED_FLAGS` in `src/validation.rs`.
+> - **`--bold`**: KEPT + 1 bug fix (silent error-swallowing — wildcard
+>   `_ => BoldMode::Random` was eating `Err` from `validate_u8_range`. Wrapped in
+>   `ux::or_exit(...)`. Same fix applied to `--shadingmode` which had the identical bug.)
+>
+> Test delta: 1533 → 1532 pass (`parse_user_hex_chars_parses_hex_codepoints` deleted).
+>
+> The original audit findings are preserved below for historical reference.
+
+> **Original status (pre-execution)**: Owner-decision pending. No code changes
+> performed — this was a read-only audit. The previous removal commit (`9598f37`)
+> was reverted in `3f733ae` to restore the flags to their pre-removal state so the
+> owner could decide per-flag what to do.
 >
 > **Scope**: For each flag, document (1) what it does, (2) every call site
 > and value-flow, (3) what alternatives already exist (config file, CLI
