@@ -4,6 +4,18 @@
 //! Tests for atmosphere module (regime enum, params, state, controller).
 //!
 //! Extracted from atmosphere.rs to reduce file pressure.
+//!
+//! Aggregated umbrella module: groups sibling atmosphere test files
+//! (`atmosphere_ab`, `atmosphere_apply`, `atmosphere_apply_cl`,
+//! `atmosphere_expansion`) so `main.rs` declares only one
+//! `mod atmosphere_tests;` instead of five flat modules.
+
+#![cfg(test)]
+
+mod atmosphere_ab;
+mod atmosphere_apply;
+mod atmosphere_apply_cl;
+mod atmosphere_expansion;
 
 #[cfg(test)]
 mod tests {

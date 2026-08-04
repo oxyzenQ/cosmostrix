@@ -511,7 +511,7 @@ fn v46_diag_terminal_writer_single_owner() {
 #[test]
 fn v46_diag_actual_execution_single_threaded() {
     // Verify bench_report.rs contains the honest diagnostic
-    let bench = include_str!("bench_report.rs");
+    let bench = include_str!("../bench_report.rs");
     assert!(
         bench.contains("\"single-threaded-renderer\""),
         "actual_execution must be single-threaded-renderer"
@@ -548,7 +548,7 @@ fn v46p2_every_preset_exists_in_registry() {
 
 #[test]
 fn v46p2_every_preset_documented_in_engine_doc() {
-    let docs = include_str!("../docs/ATMOSPHERE_ENGINE.md");
+    let docs = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
     for name in crate::atmosphere_presets::ATMOSPHERE_PRESET_NAMES {
         assert!(
             docs.contains(name),
@@ -656,7 +656,7 @@ fn v46p2_no_preset_claims_active_visual_runtime() {
     // v20: docs/ATMOSPHERE_EXPANSION.md was deleted (stale v4.6.0 contract).
     // We still verify docs/ATMOSPHERE_ENGINE.md states visual_runtime remains
     // protected — that is the canonical v20 atmosphere documentation.
-    let engine = include_str!("../docs/ATMOSPHERE_ENGINE.md");
+    let engine = include_str!("../../docs/ATMOSPHERE_ENGINE.md");
     assert!(
         engine.contains("visual_runtime") && engine.contains("protected"),
         "ATMOSPHERE_ENGINE.md must state visual_runtime remains protected"

@@ -52,3 +52,7 @@
 //! with actual test callers.
 
 pub(crate) mod egg;
+
+#[cfg(test)]
+#[path = "lock_tests.rs"]
+mod lock_tests;

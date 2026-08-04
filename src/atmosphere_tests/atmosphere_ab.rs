@@ -438,7 +438,7 @@ fn check_loc_limit(dir: &std::path::Path, violations: &mut Vec<String>) {
 #[test]
 fn no_unsafe_in_atmosphere_ab_files() {
     let pattern = concat!("un", "safe ");
-    for path in &["src/atmosphere_ab.rs", "src/atmosphere_ab_tests.rs"] {
+    for path in &["src/atmosphere_ab.rs", "src/atmosphere_tests/atmosphere_ab.rs"] {
         let content = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("{path} readable"));
         assert!(!content.contains(pattern), "{path} must not contain unsafe");
     }
@@ -449,7 +449,7 @@ fn no_debt_markers_in_atmosphere_ab_files() {
     let pat_a = concat!("t", "odo");
     let pat_b = concat!("fi", "xme");
     let pat_c = concat!("ha", "ck");
-    for path in &["src/atmosphere_ab.rs", "src/atmosphere_ab_tests.rs"] {
+    for path in &["src/atmosphere_ab.rs", "src/atmosphere_tests/atmosphere_ab.rs"] {
         let content = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("{path} readable"));
         let lower = content.to_lowercase();
         assert!(
@@ -461,7 +461,7 @@ fn no_debt_markers_in_atmosphere_ab_files() {
 
 #[test]
 fn atmosphere_ab_files_have_gpl_spdx_header() {
-    for path in &["src/atmosphere_ab.rs", "src/atmosphere_ab_tests.rs"] {
+    for path in &["src/atmosphere_ab.rs", "src/atmosphere_tests/atmosphere_ab.rs"] {
         let content = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("{path} readable"));
         assert!(
             content.contains("SPDX-License-Identifier: GPL-3.0-only"),

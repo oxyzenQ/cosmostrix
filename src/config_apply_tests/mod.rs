@@ -1,6 +1,15 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+//! Aggregated umbrella module for `config_apply` tests.
+//!
+//! Groups sibling test files (`profiles`) so `main.rs` declares only one
+//! `mod config_apply_tests;` instead of two flat modules.
+
+#![cfg(test)]
+
+mod profiles;
+
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use clap::{CommandFactory, FromArgMatches};

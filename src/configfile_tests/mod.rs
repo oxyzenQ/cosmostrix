@@ -11,8 +11,14 @@
 //! adaptive-custom coexist without forcing the user to learn TOML scope rules.
 //!
 //! These tests verify the promotion behavior end-to-end via `parse_config_text`.
+//!
+//! Aggregated umbrella module: also groups `bug7.rs` regression tests so
+//! `main.rs` declares only one `mod configfile_tests;` instead of two flat
+//! modules.
 
 #![cfg(test)]
+
+mod bug7;
 
 use crate::configfile::parse_config_text;
 

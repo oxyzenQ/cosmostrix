@@ -46,18 +46,10 @@ mod app;
 mod atmosphere;
 #[cfg(test)]
 mod atmosphere_ab;
-#[cfg(test)]
-mod atmosphere_ab_tests;
 mod atmosphere_adaptive;
 mod atmosphere_apply;
-#[cfg(test)]
-mod atmosphere_apply_cl_tests;
-#[cfg(test)]
-mod atmosphere_apply_tests;
 mod atmosphere_controlled_live;
 mod atmosphere_custom;
-#[cfg(test)]
-mod atmosphere_expansion_tests;
 mod atmosphere_presets;
 mod atmosphere_probe;
 mod atmosphere_runtime;
@@ -104,19 +96,13 @@ mod colors_custom;
 mod config;
 mod config_apply;
 #[cfg(test)]
-mod config_apply_profiles_tests;
-#[cfg(test)]
 mod config_apply_tests;
 mod config_hints;
 mod configfile;
 #[cfg(test)]
-mod configfile_bug7_tests;
-#[cfg(test)]
-mod configfile_promotion_tests;
+mod configfile_tests;
 mod constants;
 mod cosmic_dragon;
-#[cfg(test)]
-mod cosmic_dragon_lock_tests;
 mod cpustat;
 // Owner-editable control file for --auto-color-drift system feeling.
 // This is the single taste file: FeelingState enum, CPU/time thresholds,
