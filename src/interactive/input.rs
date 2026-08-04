@@ -114,17 +114,29 @@ pub(super) fn handle_keybinding(
             // replay — rain reseed + message types out from scratch.
             cloud.restart_message_typewriter();
         }
-        // v30 simplify: lowercase-only shortcuts for consistency. Uppercase
-        // 'C' (reverse color cycle) and 'S' (reverse charset cycle) removed
-        // — users cycle forward through the full list. See audit task
-        // flags-audit-4 / docs/research/SHORTCUT_KEYS_AUDIT.md.
+        // Color cycle: 'c' forward, 'C' (shift+c) reverse.
+        // v30 simplify had removed uppercase 'C'/'S' for consistency; owner
+        // restored them as reverse-cycle bindings (shift+c/s is simple and
+        // matches the c/C, s/S convention). See audit task flags-audit-4.
         (KeyCode::Char('c'), _) => {
             let next = cycle_color_scheme(cloud.color_scheme(), 1);
             cloud.set_color_scheme(next);
         }
+        (KeyCode::Char('C'), _) => {
+            let prev = cycle_color_scheme(cloud.color_scheme(), -1);
+            cloud.set_color_scheme(prev);
+        }
         (KeyCode::Char('s'), _) => {
             let next = cycle_charset_preset(charset_preset, 1);
             *charset_preset = next.to_string();
+            if let Ok(cs) = charset_from_str(charset_preset, def_ascii) {
+                let chars = build_chars(cs, user_ranges, def_ascii);
+                cloud.transition_chars(chars);
+            }
+        }
+        (KeyCode::Char('S'), _) => {
+            let prev = cycle_charset_preset(charset_preset, -1);
+            *charset_preset = prev.to_string();
             if let Ok(cs) = charset_from_str(charset_preset, def_ascii) {
                 let chars = build_chars(cs, user_ranges, def_ascii);
                 cloud.transition_chars(chars);

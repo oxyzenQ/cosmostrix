@@ -18,7 +18,7 @@ mod cases {
 
     use crate::interactive::activity::{idle_resync_due, is_runtime_idle, register_activity};
     use crate::interactive::input::{handle_keybinding, runtime_speed_clamp, PasteBurstGuard};
-    use crate::CloudConfig;
+    use crate::{cycle_charset_preset, cycle_color_scheme, CloudConfig};
 
     fn key(ch: char) -> KeyEvent {
         KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE)
@@ -426,15 +426,28 @@ mod cases {
     }
 
     #[test]
-    fn uppercase_c_is_now_ignored() {
-        // v30 simplify: uppercase 'C' removed (was reverse color cycle).
-        // Verify it falls through to the no-op arm (no color change).
+    fn uppercase_c_reverses_color_cycle() {
+        // shift+c (KeyCode::Char('C')) cycles the color scheme backward.
+        // Restored per owner instruction: shift+c/s is the simple reverse-
+        // cycle binding (c/C = forward/backward color, s/S = forward/backward
+        // charset). Replaces the v30-simplify removal of uppercase 'C'.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
         let mut scene_name = String::from("monolith");
 
-        let color_before = cloud.color_scheme();
+        // Snapshot the forward-cycle neighbor so we can verify 'C' lands on
+        // the same scheme that 'c' would have produced on a fresh cloud —
+        // i.e. pressing 'C' on the default scheme yields the scheme that sits
+        // immediately before it in the catalog (wrap-around to the last).
+        let forward_neighbor = {
+            let mut probe = make_test_cloud();
+            probe.set_color_scheme(cycle_color_scheme(probe.color_scheme(), 1));
+            probe.color_scheme()
+        };
+        // Pressing 'C' once should wrap to the scheme that, when cycled
+        // forward once, returns to the default. So 'C' then 'c' == default.
+        let default_scheme = cloud.color_scheme();
 
         call_handle_keybinding_with_scene(
             &mut cloud,
@@ -447,17 +460,32 @@ mod cases {
             &Arc::new(AtomicBool::new(false)),
         );
 
-        assert_eq!(
+        // 'C' must change the scheme (not be a no-op)...
+        assert_ne!(
             cloud.color_scheme(),
-            color_before,
-            "uppercase C should be ignored"
+            default_scheme,
+            "uppercase C should reverse-cycle the color scheme"
         );
+        // ...and it must land on the scheme immediately before the default
+        // (i.e. cycling forward from the 'C' result returns to default).
+        assert_eq!(
+            cycle_color_scheme(cloud.color_scheme(), 1),
+            default_scheme,
+            "uppercase C should produce the reverse neighbor of the default scheme"
+        );
+        // Sanity: 'C' produces the wrap-around neighbor (last in catalog),
+        // which is also the scheme that 'c' starting from the default's
+        // reverse neighbor would produce. Concretely: 'c' from default gives
+        // forward_neighbor; 'C' from default gives forward_neighbor's
+        // reverse neighbor (== default). Verify the inverse relationship.
+        let _ = forward_neighbor; // silence unused warning if cycle order changes
     }
 
     #[test]
-    fn uppercase_s_is_now_ignored() {
-        // v30 simplify: uppercase 'S' removed (was reverse charset cycle).
-        // Verify it falls through to the no-op arm (no charset change).
+    fn uppercase_s_reverses_charset_cycle() {
+        // shift+s (KeyCode::Char('S')) cycles the charset preset backward.
+        // Restored per owner instruction. See uppercase_c_reverses_color_cycle
+        // for the rationale.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
@@ -475,9 +503,16 @@ mod cases {
             &Arc::new(AtomicBool::new(false)),
         );
 
-        assert_eq!(
+        // 'S' must change the charset preset (not be a no-op)...
+        assert_ne!(
             charset_preset, charset_before,
-            "uppercase S should be ignored"
+            "uppercase S should reverse-cycle the charset preset"
+        );
+        // ...and cycling forward from the result returns to the original.
+        assert_eq!(
+            cycle_charset_preset(&charset_preset, 1),
+            charset_before,
+            "uppercase S should produce the reverse neighbor of the original preset"
         );
     }
 

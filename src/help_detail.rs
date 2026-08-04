@@ -385,7 +385,7 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
 
 RUNTIME CONTROLS:
   q             Quit              p          Pause / resume
-  c             Cycle theme       s          Cycle charset
+  c / C         Cycle theme       s / S      Cycle charset
   x             Cycle scene       [ / ]      Density
   Up / Down     Speed
   Space         Reset animation
