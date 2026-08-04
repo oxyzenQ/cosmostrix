@@ -800,6 +800,77 @@ mod tests {
         );
     }
 
+    // ── Phase 5 closure (P3-4): --testconf validates [adaptive-custom.*] blocks ──
+
+    #[test]
+    fn adaptive_custom_valid_block_passes_testconf() {
+        // A well-formed adaptive-custom entry must pass --testconf.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert(
+            "adaptive-custom.22-00".to_string(),
+            "cosmos, monolith, speed=15, density=0.8".to_string(),
+        );
+        let result = validate_config_strictly(&cfg);
+        assert!(
+            result.is_ok(),
+            "valid adaptive-custom entry must pass — got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn adaptive_custom_invalid_speed_rejected_by_testconf() {
+        // Phase 3 Fix A: canonical parsers reject NaN/inf. --testconf must
+        // catch this via parse_custom_time_map.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert(
+            "adaptive-custom.22-00".to_string(),
+            "cosmos, monolith, speed=NaN".to_string(),
+        );
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_err(), "speed=NaN must be rejected");
+        assert!(
+            result.unwrap_err().contains("NaN"),
+            "error must mention NaN rejection"
+        );
+    }
+
+    #[test]
+    fn adaptive_custom_out_of_range_density_rejected_by_testconf() {
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert(
+            "adaptive-custom.22-00".to_string(),
+            "cosmos, monolith, density=5.5".to_string(),
+        );
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_err(), "density=5.5 must be rejected (max 1.0)");
+    }
+
+    #[test]
+    fn adaptive_custom_unknown_parameter_rejected_by_testconf() {
+        // Only 5 fields are allowed: speed, density, fps, charset, glitch-level.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert(
+            "adaptive-custom.22-00".to_string(),
+            "cosmos, monolith, bold=2".to_string(),
+        );
+        let result = validate_config_strictly(&cfg);
+        assert!(
+            result.is_err(),
+            "bold=2 inside adaptive-custom must be rejected (not an allowed field)"
+        );
+    }
+
+    #[test]
+    fn adaptive_custom_invalid_time_format_rejected_by_testconf() {
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert(
+            "adaptive-custom.25-00".to_string(),
+            "cosmos, monolith".to_string(),
+        );
+        let result = validate_config_strictly(&cfg);
+        assert!(result.is_err(), "hour 25 must be rejected");
+    }
+
     // ── Numeric range validation ──
 
     #[test]
