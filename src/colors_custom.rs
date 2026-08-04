@@ -149,6 +149,16 @@ pub fn load_custom_palette(cfg: &HashMap<String, String>, name: &str) -> Result<
     def.to_palette()
 }
 
+/// Phase 5 closure (P1-#5): check whether `name` refers to a defined
+/// `[colors-custom.<name>]` block in `cfg`. Used by profile/scene-custom
+/// layers to resolve custom color names (matching top-level config_apply
+/// behavior which resolves via `parse_color_scheme || colors-custom lookup`).
+#[must_use]
+pub fn is_colors_custom_name(cfg: &HashMap<String, String>, name: &str) -> bool {
+    let palettes = collect_colors_custom(cfg);
+    palettes.contains_key(&name.trim().to_ascii_lowercase())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

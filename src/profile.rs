@@ -17,6 +17,7 @@ use clap::ValueEnum;
 
 use crate::charset::charset_from_str;
 use crate::cli::parse_color_scheme;
+use crate::colors_custom::is_colors_custom_name;
 use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::runtime::MonolithSize;
@@ -129,6 +130,7 @@ pub fn apply_profile_layer(
     matches: &clap::ArgMatches,
     args: &mut Args,
     profiles: &BTreeMap<String, UserProfile>,
+    cfg: &std::collections::HashMap<String, String>,
     name: &str,
     strict_unknown: bool,
 ) -> Result<HashSet<&'static str>, String> {
@@ -156,7 +158,11 @@ pub fn apply_profile_layer(
     // apply_default_scene_values). The caller is responsible for setting
     // args.scene to the custom scene name so verbose output shows
     // `scene: <custom_name>` instead of a fallback foundation scene.
-    apply_profile_overrides(matches, args, &normalized, profile, &mut modified);
+    //
+    // Phase 5 closure (P1-#5): pass `cfg` through so apply_profile_overrides
+    // can resolve custom charset/color names from [charset-custom.*] and
+    // [colors-custom.*] blocks — matching the top-level config_apply behavior.
+    apply_profile_overrides(matches, args, &normalized, profile, cfg, &mut modified);
     Ok(modified)
 }
 
@@ -206,6 +212,7 @@ fn apply_profile_overrides(
     args: &mut Args,
     name: &str,
     profile: &UserProfile,
+    cfg: &std::collections::HashMap<String, String>,
     modified: &mut HashSet<&'static str>,
 ) {
     if let Some(value) = profile
@@ -213,7 +220,10 @@ fn apply_profile_overrides(
         .as_deref()
         .filter(|_| !is_explicit(matches, "color"))
     {
-        if parse_color_scheme(value).is_ok() {
+        // Phase 5 closure (P1-#5): resolve custom color names from
+        // [colors-custom.*] blocks, matching top-level config_apply behavior.
+        let is_valid = parse_color_scheme(value).is_ok() || is_colors_custom_name(cfg, value);
+        if is_valid {
             args.color = value.to_string();
             modified.insert("color");
         } else {
@@ -225,7 +235,11 @@ fn apply_profile_overrides(
         .as_deref()
         .filter(|_| !is_explicit(matches, "charset"))
     {
-        if charset_from_str(value, false).is_ok() {
+        // Phase 5 closure (P1-#5): resolve custom charset names from
+        // [charset-custom.*] blocks, matching top-level config_apply behavior.
+        let is_valid = charset_from_str(value, false).is_ok()
+            || crate::charset_custom::load_custom_charset_if_matches(cfg, value).is_some();
+        if is_valid {
             args.charset = value.to_string();
             modified.insert("charset");
         } else {
@@ -473,5 +487,27 @@ mod tests {
         assert_eq!(profiles.len(), 2);
         assert_eq!(profiles["nightcore"].color.as_deref(), Some("purple"));
         assert_eq!(profiles["day"].speed.as_deref(), Some("12"));
+    }
+
+    // ── Phase 5 closure (P1-#5): custom charset/color name resolution ──
+
+    #[test]
+    fn is_colors_custom_name_finds_defined_palette() {
+        let cfg = HashMap::from([
+            ("colors-custom.sunset.bg".to_string(), "#0a0a12".to_string()),
+            (
+                "colors-custom.sunset.rain".to_string(),
+                "[\"#1a0033\", \"#9933ff\"]".to_string(),
+            ),
+        ]);
+        assert!(is_colors_custom_name(&cfg, "sunset"));
+        assert!(is_colors_custom_name(&cfg, "Sunset")); // case-insensitive
+        assert!(!is_colors_custom_name(&cfg, "nonexistent"));
+    }
+
+    #[test]
+    fn is_colors_custom_name_empty_cfg_returns_false() {
+        let cfg = HashMap::new();
+        assert!(!is_colors_custom_name(&cfg, "anything"));
     }
 }

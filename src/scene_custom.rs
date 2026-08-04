@@ -112,8 +112,14 @@ pub fn apply_scene_custom_layer(
     let normalized = name.trim().to_ascii_lowercase();
 
     if custom_scenes.contains_key(&normalized) {
-        let modified =
-            apply_profile_layer(matches, args, &custom_scenes, &normalized, strict_unknown)?;
+        let modified = apply_profile_layer(
+            matches,
+            args,
+            &custom_scenes,
+            cfg,
+            &normalized,
+            strict_unknown,
+        )?;
         args.scene_custom = Some(normalized.clone());
         // v20: custom scenes are first-class — args.scene should reflect the
         // custom scene name (not a base-scene) so verbose output and
