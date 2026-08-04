@@ -17,7 +17,7 @@ chrono = { version = ">=0.4.38, <0.5", default-features = false, features = ["cl
 
 [dependencies]
 clap = { version = ">=4.5, <4.6", features = ["derive"] }
-crossterm = "0.29"
+crossterm = { version = "0.29", default-features = false, features = ["bracketed-paste", "events", "windows"] }
 rand = "0.9"
 bitvec = "1"
 smallvec = "1"
