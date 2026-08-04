@@ -66,11 +66,21 @@ fn main() {
     println!("cargo:rustc-env=COSMOSTRIX_PANIC={}", metadata.panic);
     println!("cargo:rustc-env=COSMOSTRIX_STRIP={}", metadata.strip);
 
-    // Build timestamp: MM/DD/YYYY HH:MM (local time at compile).
-    // Uses chrono (already a dependency) for cross-platform local time.
-    // This is baked into the binary at compile time — not runtime.
-    let now = chrono::Local::now();
-    let build_time = now.format("%-m/%-d/%Y %H:%M").to_string();
+    // Build timestamp: M/D/YYYY HH:MM (UTC at compile time).
+    //
+    // Why UTC and not local time? The previous implementation used
+    // `chrono::Local::now()` which required `chrono` as a build-dependency
+    // (a separate ~1.3s compile instance). For a build timestamp that is
+    // purely informational (shown in `--version` output), UTC is fine and
+    // lets us drop the chrono build-dep entirely. Runtime chrono is
+    // unchanged (still used for atmosphere hour-of-day calculations).
+    //
+    // Format matches the previous chrono `"%-m/%-d/%Y %H:%M"` output:
+    // month and day are NOT zero-padded; year is 4 digits; hour and
+    // minute ARE zero-padded to 2 digits. A "(UTC)" suffix is appended
+    // to make the timezone explicit (the previous local-time output had
+    // no designator, which was ambiguous).
+    let build_time = format_build_time_utc();
     println!("cargo:rustc-env=COSMOSTRIX_BUILD_TIME={build_time}");
 }
 
@@ -616,6 +626,59 @@ fn detect_rustc_version() -> String {
         .unwrap_or_else(|| "unknown".to_string())
 }
 
+/// Build timestamp in `M/D/YYYY HH:MM (UTC)` format, computed from
+/// `std::time::SystemTime` without chrono.
+///
+/// Replaces the previous `chrono::Local::now().format("%-m/%-d/%Y %H:%M")`
+/// call so that `chrono` no longer needs to be a `[build-dependencies]`
+/// entry (saves ~1.3s on clean release builds by avoiding a second
+/// compile instance of chrono).
+///
+/// Returns "unknown" only if `SystemTime::now()` is somehow before
+/// `UNIX_EPOCH` (which would indicate a broken system clock).
+fn format_build_time_utc() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let Ok(secs) = SystemTime::now().duration_since(UNIX_EPOCH) else {
+        return "unknown".to_string();
+    };
+    let total_secs: i64 = i64::try_from(secs.as_secs()).unwrap_or(0);
+    format_unix_secs_as_build_time(total_secs)
+}
+
+/// Pure formatting function — takes unix-epoch seconds and returns
+/// `M/D/YYYY HH:MM (UTC)`. Separated from `format_build_time_utc` so
+/// the algorithm is unit-testable without depending on the wall clock.
+///
+/// Algorithm: split `total_secs` into days + seconds-of-day, then use
+/// Howard Hinnant's `civil_from_days` algorithm
+/// (http://howardhinnant.github.io/date_algorithms.html) to convert
+/// days-since-epoch to (year, month, day). All arithmetic is on `i64`
+/// to avoid unsigned-underflow issues when subtracting the 719468-day
+/// shift constant.
+fn format_unix_secs_as_build_time(total_secs: i64) -> String {
+    let days_since_epoch = total_secs.div_euclid(86_400);
+    let secs_of_day = total_secs.rem_euclid(86_400);
+    let hour = secs_of_day / 3_600;
+    let minute = (secs_of_day % 3_600) / 60;
+
+    // Howard Hinnant's civil_from_days: converts days-since-1970-01-01
+    // to (year, month, day) in the proleptic Gregorian calendar.
+    // http://howardhinnant.github.io/date_algorithms.html#civil_from_days
+    let z = days_since_epoch + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097; // [0, 146096]
+    let yoe = (doe - doe / 1_460 + doe / 36_524) / 365; // [0, 399]
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); // [0, 365]
+    let mp = (5 * doy + 2) / 153; // [0, 11]
+    let d = doy - (153 * mp + 2) / 5 + 1; // [1, 31]
+    let m = if mp < 10 { mp + 3 } else { mp - 9 }; // [1, 12]
+    let year = if m <= 2 { y + 1 } else { y };
+
+    format!("{m}/{d}/{year} {hour:02}:{minute:02} (UTC)")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -678,5 +741,50 @@ mod tests {
         assert_eq!(pgo_label("pro-linux-v3"), "no");
         assert_eq!(pgo_label("unknown"), "no");
         assert_eq!(pgo_label(""), "no");
+    }
+
+    #[test]
+    fn build_time_format_matches_known_unix_epochs() {
+        // UNIX epoch: 1970-01-01 00:00:00 UTC.
+        assert_eq!(format_unix_secs_as_build_time(0), "1/1/1970 00:00 (UTC)");
+
+        // 2000-01-01 00:00:00 UTC = 946_684_800 seconds since epoch.
+        // Computed via: date -u -d '2000-01-01 00:00:00' +%s
+        assert_eq!(
+            format_unix_secs_as_build_time(946_684_800),
+            "1/1/2000 00:00 (UTC)"
+        );
+
+        // 2024-02-29 12:34:00 UTC = 1_709_210_440 seconds since epoch.
+        // Leap-day boundary check — Feb 29 must not roll to Mar 1.
+        // Computed via: date -u -d '2024-02-29 12:34:00' +%s
+        assert_eq!(
+            format_unix_secs_as_build_time(1_709_210_440),
+            "2/29/2024 12:34 (UTC)"
+        );
+
+        // 2026-08-04 15:30:00 UTC = 1_787_930_200 seconds since epoch.
+        // Computed via: date -u -d '2026-08-04 15:30:00' +%s
+        assert_eq!(
+            format_unix_secs_as_build_time(1_787_930_200),
+            "8/4/2026 15:30 (UTC)"
+        );
+    }
+
+    #[test]
+    fn build_time_format_handles_negative_seconds_gracefully() {
+        // Pre-epoch timestamps (negative seconds) should still produce
+        // a valid proleptic Gregorian date via the algorithm's signed
+        // arithmetic, not panic or underflow.
+        // 1969-12-31 23:59:00 UTC = -60 seconds.
+        let result = format_unix_secs_as_build_time(-60);
+        assert!(
+            result.ends_with("(UTC)"),
+            "negative-epoch result should still be (UTC)-suffixed: {result}"
+        );
+        assert!(
+            result.contains("1969"),
+            "negative-epoch result should land in 1969: {result}"
+        );
     }
 }
