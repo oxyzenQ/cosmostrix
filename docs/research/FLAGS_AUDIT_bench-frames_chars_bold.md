@@ -124,7 +124,7 @@ compact `BENCH:` output format is the contract that `benchmark.sh` and
 external CI pipelines depend on. Removing it would break the project's
 own benchmark script.
 
-**Action items if KEEPT** (independent fixes):
+**Action items if KEPT** (independent fixes):
 1. Fix `benchmark/README.md:339-356` — remove `--bench-frames 30` from
    examples that already use `--benchmark` (the flag is ignored there).
 
