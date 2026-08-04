@@ -6,6 +6,24 @@
 
 use std::env;
 
+// --- Branding signature ---
+
+/// Embedded build signature.
+///
+/// Marked `pub(crate)` so external tooling (e.g. FFI probes, binary diff
+/// scripts, supply-chain scanners) can grep for it both in source and
+/// in the produced artifact. Referenced by `version_report()` so the
+/// linker keeps it in the final binary even under aggressive dead-code
+/// elimination.
+///
+/// Verification:
+///
+/// ```text
+/// strings ./cosmostrix | grep "Cosmic Dragon"
+/// ```
+pub(crate) const COSMIC_DRAGON_SIGNATURE: &str =
+    "Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)";
+
 // --- Build info helpers ---
 
 /// Canonical build label (e.g. "linux-amd64-v3", "darwin-aarch64-native").
@@ -36,9 +54,9 @@ pub(super) fn version_report() -> String {
     let build_time = option_env!("COSMOSTRIX_BUILD_TIME").unwrap_or("unknown");
     let description = env!("CARGO_PKG_DESCRIPTION");
     // Pull the official-build signature into the version report so the
-    // linker cannot dead-strip `branding::COSMIC_DRAGON_SIGNATURE` from the
-    // final binary. The string is also discoverable via `strings(1)`.
-    let signature = crate::branding::cosmic_dragon_signature();
+    // linker cannot dead-strip `COSMIC_DRAGON_SIGNATURE` from the final
+    // binary. The string is also discoverable via `strings(1)`.
+    let signature = COSMIC_DRAGON_SIGNATURE;
 
     // The two header lines (cosmostrix: v{version} + one-line description)
     // are rendered in brand purple. The remaining build/copyright/license
@@ -401,6 +419,14 @@ pub(super) fn check_cpu_features() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn signature_is_non_empty_and_stable() {
+        assert!(!COSMIC_DRAGON_SIGNATURE.is_empty());
+        assert!(COSMIC_DRAGON_SIGNATURE.contains("Cosmic Dragon"));
+        assert!(COSMIC_DRAGON_SIGNATURE.contains("rezky_nightky"));
+        assert!(COSMIC_DRAGON_SIGNATURE.contains("oxyzenQ"));
+    }
 
     #[test]
     fn canonical_build_label_reads_cosmostrix_build_env() {

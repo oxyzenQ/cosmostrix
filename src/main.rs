@@ -76,7 +76,6 @@ mod bench_report_tests;
 mod bench_scale;
 mod bench_visual;
 mod bolt;
-mod branding;
 mod cell;
 mod charset;
 mod charset_custom;
@@ -119,7 +118,6 @@ mod help_detail;
 mod humanize;
 mod info;
 mod interactive;
-mod quantum_constants;
 // live_config_trace MUST be declared before live_config so the
 // `lr_trace!` macro it exports is in scope for live_config.rs.
 // `#[macro_use]` re-exports the macro crate-wide as a defense-in-depth
