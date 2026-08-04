@@ -208,6 +208,11 @@ pub(crate) struct Terminal {
     /// propagates and the event loop exits via the normal error path.
     #[cfg(unix)]
     tty_recoveries: u32,
+    /// Latency of the last `write_with_recovery` call, in nanoseconds.
+    /// Read by the event loop to feed `perf_pressure` when writes are
+    /// slow (e.g., VSCode's xterm.js falling behind over long runs).
+    /// Zero until the first flush completes.
+    last_write_ns: u64,
 }
 
 impl Terminal {
@@ -255,6 +260,7 @@ impl Terminal {
             tty_fallback: None,
             #[cfg(unix)]
             tty_recoveries: 0,
+            last_write_ns: 0,
         };
 
         let init_res: Result<()> = (|| {
@@ -383,7 +389,14 @@ impl Terminal {
     /// that call returns an error.
     #[inline]
     fn write_with_recovery(&mut self, buf: &[u8]) -> Result<()> {
-        match self.stdout.write_all(buf) {
+        // Time the write so the event loop can detect slow downstream
+        // terminals (e.g., VSCode's xterm.js falling behind over long
+        // runs). Instant::now() is ~20ns on Linux — negligible vs the
+        // write itself (typically 1-50µs per frame).
+        let start = std::time::Instant::now();
+        let result = self.stdout.write_all(buf);
+        self.last_write_ns = start.elapsed().as_nanos() as u64;
+        match result {
             Ok(()) => Ok(()),
             Err(e) => self.recover_to_tty(buf, e),
         }
@@ -542,6 +555,15 @@ impl Terminal {
             .as_ref()
             .map_or((0, 0), |c| c.cache_stats());
         (self.total_ansi_bytes, self.flush_count, hits, misses)
+    }
+
+    /// Returns the latency (in nanoseconds) of the last `write_with_recovery`
+    /// call. The event loop feeds this into `perf_pressure` so that slow
+    /// downstream terminals (e.g., VSCode's xterm.js under multi-hour load)
+    /// trigger the self-healer before the consumer OOMs.
+    #[must_use]
+    pub(crate) fn last_write_ns(&self) -> u64 {
+        self.last_write_ns
     }
 
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.

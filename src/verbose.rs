@@ -299,6 +299,27 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("isatty(stdout):", &format!(" {is_stdout_tty}"));
     let is_android = configfile::is_termux_environment();
     output::eprintln_verbose("android:", &format!(" {is_android}"));
+    // v30 (VSCode crash fix): disclose terminal capability detection so
+    // the user can see why sync_output / FPS cap changed. This is
+    // especially important for VSCode where the cap is applied silently
+    // in non-verbose mode via the warning in main.rs.
+    let caps = crate::termdetect::detect();
+    if caps.vscode_integrated {
+        output::eprintln_verbose(
+            "vscode_terminal:",
+            &format!(
+                " true (sync_output disabled, fps capped to {:.0})",
+                caps.default_fps_cap
+            ),
+        );
+    }
+    output::eprintln_verbose(
+        "sync_output:",
+        &format!(
+            " {} (ESC[?2026h synchronized output framing)",
+            caps.sync_output
+        ),
+    );
 
     // ── Config ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Config ──"));

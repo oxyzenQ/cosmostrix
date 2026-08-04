@@ -67,7 +67,7 @@ use crate::palette;
 /// - Smooth rain exit at the bottom (tails fade out before the terminal border)
 /// - Prevention of bright head tips lingering on the bottom border
 ///
-/// The asymmetric min values (EDGE_FADE_TOP_MIN=0.55 vs
+/// The asymmetric min values (EDGE_FADE_TOP_MIN=0.45 vs
 /// EDGE_FADE_BOTTOM_MIN=0.20) ensure the bottom fade is more aggressive
 /// to prevent the phosphor ghost residue artifact where dying droplet
 /// heads burn into the bottom row.

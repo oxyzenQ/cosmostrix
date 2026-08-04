@@ -31,6 +31,7 @@ it keeps recovery paths conservative and explicit.
 | tmux | Good with config | The outer terminal and tmux must both support RGB for truecolor. |
 | SSH | Depends on remote env | Forward `TERM`/`COLORTERM` carefully; remote font and locale also matter. |
 | Linux console / minimal TTY | Basic | Use `--colormode 256` or `--charset minimal` if colors or glyphs look wrong. |
+| VSCode integrated terminal | Good (capped) | Auto-detected via `TERM_PROGRAM=vscode`. Synchronized output (mode 2026) is disabled because xterm.js's buffer implementation amplifies memory pressure. FPS is capped at 30 (vs 240 for native terminals) to prevent xterm.js OOM crashes over multi-hour runs. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
 
 ## Background Behavior
 

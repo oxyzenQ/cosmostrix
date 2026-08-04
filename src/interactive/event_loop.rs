@@ -41,22 +41,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let _ = term_reinit;
 
     let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
-    // v17: Mouse reporting is ALWAYS enabled to block text selection (copy)
-    // in the alternate screen. This prevents users from drag-selecting rain
-    // text, preserving the ephemeral screensaver aesthetic. The --mouse flag
-    // was REMOVED in v17 — both mouse reporting AND hover/click visual effects
-    // are now always on (cursor glow + dual-ring click wave). No flag controls
-    // either behavior; they are part of cosmostrix's signature interactive
-    // experience.
-    //
-    // Terminal safety (was the old opt-in rationale): abrupt process death
-    // could leave mouse escape sequences leaking. This is now mitigated by:
-    //   1. Terminal::drop calls disable_mouse_capture() on normal exit
-    //   2. Panic hook calls restore_terminal_best_effort() (v16)
-    //   3. Signal handlers (SIGTERM/SIGHUP/SIGQUIT/SIGTSTP) disable mouse
-    //   4. Watchdog calls restore_terminal_best_effort() on stuck main loop
-    //   5. Fork-based SIGKILL guard (Linux) restores terminal
-    // Shift+drag bypass is terminal-controlled and cannot be disabled.
+    // v17: Mouse reporting ALWAYS on (blocks text selection in alt screen).
+    // The --mouse flag was REMOVED — mouse + hover/click effects are always on.
+    // Terminal safety on abrupt death: Terminal::drop, panic hook, signal
+    // handlers, watchdog, fork-based SIGKILL guard (Linux).
     if term.enable_mouse_capture().is_ok() {
         MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
     }
@@ -1087,6 +1075,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         let work_s = work_start.elapsed().as_secs_f32();
 
+        // v30 (VSCode crash fix): feed write latency into perf_pressure.
+        // VSCode's xterm.js falls behind over long runs; a write taking
+        // >50% of frame period signals the consumer cannot keep up.
+        // Feed it into perf_pressure so the self-healer downgrades the
+        // scene before the consumer OOMs (SIGTRAP scenario).
+        let write_overshoot = if frame_period_s > 0.0 {
+            ((term.last_write_ns() as f32 / 1e9) / frame_period_s - 0.5).clamp(0.0, 2.0)
+        } else {
+            0.0
+        };
+
         // Live HUD: push frame time, sample RSS + CPU%, recompute metrics.
         // All methods short-circuit when HUD is off (zero cost).
         hud_state.push_frame_time(work_s as f64 * 1000.0);
@@ -1095,13 +1094,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         hud_state.update_metrics(cloud.hud_colors());
 
         let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
-        // Utilization = raw work/budget ratio (not clamped). Always non-zero —
-        // this is what makes BACKPRESSURE informative even when overshoot is 0.
         let utilization = work_s / frame_period_s;
         if overshoot > 0.0 {
             perf_pressure = (perf_pressure + (overshoot * PERF_PRESSURE_INCREMENT)).min(1.0);
         } else {
             perf_pressure = (perf_pressure - PERF_PRESSURE_DECAY).max(0.0);
+        }
+        if write_overshoot > 0.0 {
+            perf_pressure = (perf_pressure + (write_overshoot * PERF_PRESSURE_INCREMENT)).min(1.0);
         }
 
         if cfg.perf_stats {

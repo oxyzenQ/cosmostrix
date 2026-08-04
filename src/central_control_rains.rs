@@ -430,18 +430,26 @@ pub(crate) const HEAD_BLOOM_CELLS: u16 = 2;
 // ─── Depth fog vignette (top/bottom row dim) ───────────────────────────────
 
 /// Number of rows at top and bottom affected by depth fog.
-pub(crate) const FOG_ROWS: u16 = 4;
+/// v30 (visual mode): reduced from 4 → 3 per owner request — shorter
+/// dimmer zones at top and bottom borders.
+pub(crate) const FOG_ROWS: u16 = 3;
 
-/// Minimum brightness factor at the extreme edge row (0.65 = 35% dim).
-pub(crate) const FOG_MIN_FACTOR: f32 = 0.65;
+/// Minimum brightness factor at the extreme edge row.
+/// v30 (visual mode): reduced from 0.65 → 0.45 per owner request —
+/// darker top/bottom border (55% dim at extreme edge, was 35%).
+pub(crate) const FOG_MIN_FACTOR: f32 = 0.45;
 
 // ─── Cinematic CRT vignette (top & bottom edge dim) ────────────────────────
 
 /// Height (in rows) of the CRT vignette band at top and bottom.
-pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 5;
+/// v30 (visual mode): reduced from 5 → 3 per owner request — shorter
+/// dimmer zones at top and bottom borders.
+pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 
 /// Brightness factor at the extreme edge row of the CRT vignette.
-pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.9;
+/// v30 (visual mode): reduced from 0.9 → 0.5 per owner request —
+/// darker top/bottom border (50% dim at extreme edge, was 10%).
+pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.5;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
 /// (perf optimization — skip on slow systems).
@@ -757,19 +765,28 @@ pub(crate) const PAUSE_EASE_DURATION_SECS: f32 = 0.30;
 
 /// Number of rows at the top affected by edge fade (smooth entry/exit
 /// at terminal border).
-pub(crate) const EDGE_FADE_ROWS: u16 = 3;
+/// v30 (visual mode): reduced from 3 → 2 per owner request — shorter
+/// top dimmer zone.
+pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 
 /// Number of rows at the bottom affected by edge fade.
-pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 12;
+/// v30 (visual mode): reduced from 12 → 8 per owner request — shorter
+/// bottom dimmer zone. Must stay >= EDGE_FADE_ROWS for the Zone-1
+/// pre-fade math to make sense.
+pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 8;
 
 /// Lip factor for the bottom edge fade (controls curvature).
 pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.75;
 
 /// Minimum brightness factor at the top edge.
-pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.70;
+/// v30 (visual mode): reduced from 0.70 → 0.45 per owner request —
+/// darker top border (55% dim at extreme edge, was 30%).
+pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.45;
 
 /// Minimum brightness factor at the bottom edge.
-pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.35;
+/// v30 (visual mode): reduced from 0.35 → 0.20 per owner request —
+/// darker bottom border (80% dim at extreme edge, was 65%).
+pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.20;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.
 pub(crate) const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;

@@ -600,6 +600,30 @@ fn main() -> std::io::Result<()> {
 
     let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
+    // v30 (VSCode crash fix): apply terminal-specific FPS cap after user
+    // validation. VSCode's integrated terminal (TERM_PROGRAM=vscode) cannot
+    // sustain 60 FPS indefinitely — xterm.js's in-memory buffer grows
+    // without bound over multi-hour runs until V8 hits an OOM assertion
+    // (SIGTRAP in the code-oss process). The cap is 30 FPS for VSCode,
+    // 240 (effectively uncapped) for everything else. The user's --fps
+    // value is clamped, not silently overridden — a warning is printed
+    // so there's no confusion. Benchmark mode skips the cap (benchmarks
+    // measure raw throughput, not terminal stability).
+    let term_caps = crate::termdetect::detect();
+    let target_fps =
+        if !args.benchmark && term_caps.vscode_integrated && target_fps > term_caps.default_fps_cap
+        {
+            let capped = term_caps.default_fps_cap;
+            crate::output::eprintln_warn_labeled(&format!(
+                "VSCode integrated terminal detected (TERM_PROGRAM=vscode); \
+             capping --fps from {target_fps:.1} to {capped:.0} to prevent \
+             xterm.js OOM crash over long runs (see docs/TERMINAL_COMPATIBILITY.md)"
+            ));
+            capped
+        } else {
+            target_fps
+        };
+
     let duration_s = args.duration.map(|s| {
         if !s.is_finite() {
             ux::die_config(format!("--duration {s}: must be a finite number"));
