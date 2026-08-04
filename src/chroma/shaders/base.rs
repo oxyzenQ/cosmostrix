@@ -748,3 +748,7 @@ pub(crate) fn resolve_cell_color(
 #[cfg(test)]
 #[path = "base_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "bold_audit_tests.rs"]
+mod bold_audit_tests;
