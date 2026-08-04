@@ -122,6 +122,13 @@ pub(crate) fn apply_config_and_runtime_defaults(
     matches: &clap::ArgMatches,
     args: &mut Args,
 ) -> Result<(), String> {
+    // Phase 5 closure (P3-5): reset the startup warning counter at the start
+    // of config apply. Individual warnings (from profile/scene-custom
+    // warn_invalid, etc.) increment it via eprintln_warn_labeled. We emit a
+    // summary line at the end if any warnings were emitted, so users don't
+    // miss them in noisy startup output.
+    crate::output::reset_startup_warning_count();
+
     let mut config_touched = HashSet::new();
 
     // Security: validate --config path is in a safe location AND has .toml extension.
@@ -276,6 +283,17 @@ pub(crate) fn apply_config_and_runtime_defaults(
     }
 
     apply_glitch_level_values(matches, args, &config_touched, &curated_modified);
+
+    // Phase 5 closure (P3-5): emit a startup warning summary if any soft
+    // warnings were emitted during config apply. This makes warnings visible
+    // even in noisy startup output (e.g. when stderr scrolls past quickly).
+    let warning_count = crate::output::startup_warning_count();
+    if warning_count > 0 {
+        use std::io::Write;
+        let _ = std::io::stderr().write_fmt(format_args!(
+            "[config] {warning_count} warning(s) emitted during config apply — scroll up for details, or run 'cosmostrix --testconf' for strict validation.\n"
+        ));
+    }
 
     Ok(())
 }

@@ -321,7 +321,29 @@ pub fn eprintln_error_labeled(msg: &str) {
 
 /// Print a labeled warning to stderr: "⚠ <msg>" in yellow.
 pub fn eprintln_warn_labeled(msg: &str) {
+    // Phase 5 closure (P3-5): increment the startup warning counter so the
+    // caller can emit a summary line at the end of config apply. This helps
+    // users who miss individual warnings in noisy startup output.
+    STARTUP_WARNING_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     eprintln!("{} {}", warn_bold("⚠"), warn(msg));
+}
+
+/// Phase 5 closure (P3-5): process-lifetime counter for warnings emitted via
+/// `eprintln_warn_labeled`. Reset at the start of `apply_config_and_runtime_defaults`
+/// and read at the end to emit a summary line.
+pub static STARTUP_WARNING_COUNT: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+/// Reset the startup warning counter. Call at the start of config apply.
+pub fn reset_startup_warning_count() {
+    STARTUP_WARNING_COUNT.store(0, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Read the current startup warning count. Call at the end of config apply
+/// to decide whether to emit a summary line.
+#[must_use]
+pub fn startup_warning_count() -> u64 {
+    STARTUP_WARNING_COUNT.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 // ── Verbose helpers ──────────────────────────────────────────────────────────
@@ -390,6 +412,26 @@ mod tests {
         assert_eq!(BRAND_PURPLE_RGB, (168, 85, 247)); // #A855F7 purple-500
         assert_eq!(ERROR_RGB, (239, 68, 68)); // #EF4444 red-500
         assert_eq!(WARN_RGB, (234, 179, 8)); // #EAB308 yellow-500
+    }
+
+    // ── Phase 5 closure (P3-5): startup warning counter ──
+
+    #[test]
+    fn reset_clears_warning_count() {
+        reset_startup_warning_count();
+        assert_eq!(startup_warning_count(), 0);
+    }
+
+    #[test]
+    fn eprintln_warn_labeled_increments_counter() {
+        reset_startup_warning_count();
+        // eprintln_warn_labeled writes to stderr; we only care about the
+        // counter side-effect. Run it 3 times and verify the count matches.
+        eprintln_warn_labeled("test warning 1");
+        eprintln_warn_labeled("test warning 2");
+        eprintln_warn_labeled("test warning 3");
+        assert_eq!(startup_warning_count(), 3);
+        reset_startup_warning_count();
     }
 
     #[test]
