@@ -350,7 +350,61 @@ mod cases {
     }
 
     #[test]
-    fn uppercase_x_cycles_scene_forward() {
+    fn x_cycles_scene_forward() {
+        // v30 simplify: lowercase-only shortcuts. Uppercase 'X' removed;
+        // this test now verifies lowercase 'x' cycles scenes forward.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key('x'),
+            &mut charset_preset,
+            &mut scene_name,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(scene_name, "matrix");
+        assert_eq!(cloud.active_scene(), "matrix");
+    }
+
+    #[test]
+    fn x_repeated_uses_forward_scene_order() {
+        // v30 simplify: lowercase-only shortcuts. Uppercase 'X' removed;
+        // this test now verifies lowercase 'x' repeated cycles forward.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut visited = Vec::new();
+
+        for _ in 0..3 {
+            call_handle_keybinding_with_scene(
+                &mut cloud,
+                &mut frame,
+                &key('x'),
+                &mut charset_preset,
+                &mut scene_name,
+                &make_test_config(),
+                #[cfg(unix)]
+                &Arc::new(AtomicBool::new(false)),
+            );
+            visited.push(scene_name.clone());
+        }
+
+        assert_eq!(visited, ["matrix", "cinematic", "monolith"]);
+        assert_eq!(cloud.active_scene(), "monolith");
+    }
+
+    #[test]
+    fn uppercase_x_is_now_ignored() {
+        // v30 simplify: uppercase 'X' removed for consistency. Verify it
+        // falls through to the no-op arm (no scene change).
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
@@ -367,34 +421,64 @@ mod cases {
             &Arc::new(AtomicBool::new(false)),
         );
 
-        assert_eq!(scene_name, "matrix");
-        assert_eq!(cloud.active_scene(), "matrix");
+        // scene_name local variable should be unchanged (no scene cycle fired).
+        assert_eq!(scene_name, "monolith");
     }
 
     #[test]
-    fn uppercase_x_repeated_uses_forward_scene_order() {
+    fn uppercase_c_is_now_ignored() {
+        // v30 simplify: uppercase 'C' removed (was reverse color cycle).
+        // Verify it falls through to the no-op arm (no color change).
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
         let mut scene_name = String::from("monolith");
-        let mut visited = Vec::new();
 
-        for _ in 0..3 {
-            call_handle_keybinding_with_scene(
-                &mut cloud,
-                &mut frame,
-                &key('X'),
-                &mut charset_preset,
-                &mut scene_name,
-                &make_test_config(),
-                #[cfg(unix)]
-                &Arc::new(AtomicBool::new(false)),
-            );
-            visited.push(scene_name.clone());
-        }
+        let color_before = cloud.color_scheme();
 
-        assert_eq!(visited, ["matrix", "cinematic", "monolith"]);
-        assert_eq!(cloud.active_scene(), "monolith");
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key('C'),
+            &mut charset_preset,
+            &mut scene_name,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            cloud.color_scheme(),
+            color_before,
+            "uppercase C should be ignored"
+        );
+    }
+
+    #[test]
+    fn uppercase_s_is_now_ignored() {
+        // v30 simplify: uppercase 'S' removed (was reverse charset cycle).
+        // Verify it falls through to the no-op arm (no charset change).
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let charset_before = charset_preset.clone();
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key('S'),
+            &mut charset_preset,
+            &mut scene_name,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            charset_preset, charset_before,
+            "uppercase S should be ignored"
+        );
     }
 
     #[test]

@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # CLI Flags Audit — Dead Weight Sweep (Task `flags-audit-3`)
 
 **Agent**: flags-audit-3 (general-purpose sub-agent)

@@ -89,7 +89,6 @@ pub(super) fn handle_keybinding(
     #[cfg(unix)] _term_reinit: &Arc<AtomicBool>,
 ) -> bool {
     use crossterm::event::KeyCode;
-    use crossterm::event::KeyModifiers;
 
     // Quit policy: only 'q' exits. Esc, Ctrl+C (SIGINT is deprecated),
     // Ctrl+Z (in-app suspend removed v30: terminal-driven SIGTSTP still
@@ -115,13 +114,13 @@ pub(super) fn handle_keybinding(
             // replay — rain reseed + message types out from scratch.
             cloud.restart_message_typewriter();
         }
-        (KeyCode::Char('c'), KeyModifiers::NONE) => {
+        // v30 simplify: lowercase-only shortcuts for consistency. Uppercase
+        // 'C' (reverse color cycle) and 'S' (reverse charset cycle) removed
+        // — users cycle forward through the full list. See audit task
+        // flags-audit-4 / docs/research/SHORTCUT_KEYS_AUDIT.md.
+        (KeyCode::Char('c'), _) => {
             let next = cycle_color_scheme(cloud.color_scheme(), 1);
             cloud.set_color_scheme(next);
-        }
-        (KeyCode::Char('C'), _) => {
-            let prev = cycle_color_scheme(cloud.color_scheme(), -1);
-            cloud.set_color_scheme(prev);
         }
         (KeyCode::Char('s'), _) => {
             let next = cycle_charset_preset(charset_preset, 1);
@@ -131,19 +130,11 @@ pub(super) fn handle_keybinding(
                 cloud.transition_chars(chars);
             }
         }
-        (KeyCode::Char('S'), _) => {
-            let prev = cycle_charset_preset(charset_preset, -1);
-            *charset_preset = prev.to_string();
-            if let Ok(cs) = charset_from_str(charset_preset, def_ascii) {
-                let chars = build_chars(cs, user_ranges, def_ascii);
-                cloud.transition_chars(chars);
-            }
-        }
 
         (KeyCode::Char('p'), _) => {
             return cloud.toggle_pause();
         }
-        (KeyCode::Char('x' | 'X'), _) => {
+        (KeyCode::Char('x'), _) => {
             let next = scene::cycle_scene(scene_name, 1);
             *scene_name = next.to_string();
             *charset_preset =

@@ -388,12 +388,12 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
 
 RUNTIME CONTROLS:
   q             Quit              p          Pause / resume
-  c / C         Cycle theme       s / S      Cycle charset
-  x / X         Cycle scene       [ / ]      Density
+  c             Cycle theme       s          Cycle charset
+  x             Cycle scene       [ / ]      Density
   Up / Down     Speed
   Space         Reset animation
   i             Toggle live HUD (FPS / p99 / max / RSS / CPU% / uptime / screen)
-  H or h        Move HUD to opposite corner (left ↔ right)
+  h             Move HUD to opposite corner (left ↔ right)
 
 ADAPTIVE ATMOSPHERE (opt-in via atmosphere-mode = controlled-live):
   When enabled, cosmostrix breathes with the local time of day. Five

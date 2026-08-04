@@ -167,8 +167,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Live HUD overlay state — toggled with 'i'. When visible, renders a
     // compact FPS/p99/RSS/CPU overlay in the top-right corner at 1 Hz.
     // Zero cost when off (all methods short-circuit on visible==false).
-    // 'i' (and 'I' for sticky-shift keyboards) is the canonical toggle;
-    // 'H'/'h' moves the overlay between left and right corners.
+    // 'i' is the canonical toggle; 'h' moves the overlay between left
+    // and right corners. (v30 simplify: lowercase-only shortcuts.)
     let mut hud_state: HudState = HudState::new();
     hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
 
@@ -712,24 +712,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // where the screensaver path would otherwise fire on
                         // any unrecognized key event.
                         //
-                        // 'i'/'I' is the canonical toggle key. 'I' is also
-                        // accepted for keyboards where the Shift state is
-                        // sticky or set unexpectedly.
+                        // v30 simplify: lowercase-only. 'i' toggles; uppercase
+                        // 'I' removed (was for sticky-shift keyboards).
                         //
-                        // When toggling OFF, we MUST call force_draw_everything()
-                        // to clear stale HUD cells from the frame buffer. The
-                        // rain uses diff-based rendering (frame.set, not
-                        // set_force), so cells that the rain doesn't actively
-                        // write this frame keep their previous content —
-                        // including the HUD text + black bg cells. Without
-                        // force_draw, this leaves visible "HUD residue" in
-                        // regions with no active rain this frame. force_draw
-                        // triggers frame.clear_with_bg() on the next rain
-                        // update, wiping the stale HUD cells cleanly.
-                        if matches!(
-                            (k.code, k.modifiers),
-                            (KeyCode::Char('i'), _) | (KeyCode::Char('I'), _)
-                        ) {
+                        // When toggling OFF, force_draw_everything() clears
+                        // stale HUD cells from the frame buffer. The rain uses
+                        // diff-based rendering (frame.set, not set_force), so
+                        // cells the rain doesn't actively write keep their
+                        // previous content — including HUD text + black bg.
+                        // Without force_draw, this leaves "HUD residue" in
+                        // regions with no active rain this frame.
+                        if matches!((k.code, k.modifiers), (KeyCode::Char('i'), _)) {
                             let now_visible = hud_state.toggle();
                             if !now_visible {
                                 cloud.force_draw_everything();
@@ -755,12 +748,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             continue;
                         }
 
-                        // H or h: toggle HUD position. Lowercase 'h' accepted
-                        // for Android soft keyboards where Shift may not work.
-                        if matches!(
-                            (k.code, k.modifiers),
-                            (KeyCode::Char('H'), _) | (KeyCode::Char('h'), _)
-                        ) {
+                        // h: toggle HUD position.
+                        // v30 simplify: lowercase-only shortcuts for consistency.
+                        // Uppercase 'H' removed (was accepted for Android soft
+                        // keyboards where Shift may not work — but lowercase 'h'
+                        // works on all keyboards). See audit task flags-audit-4 /
+                        // docs/research/SHORTCUT_KEYS_AUDIT.md.
+                        if matches!((k.code, k.modifiers), (KeyCode::Char('h'), _)) {
                             if hud_state.toggle_position() {
                                 cloud.force_draw_everything();
                             }
