@@ -2,34 +2,50 @@
 
 # Cosmostrix Future Backlog
 
-**Purpose**: Parking lot for design decisions, new flags, new parameters, and
-behavior changes that were intentionally **NOT** implemented in the v30
-stabilization audit (Phases 1-5). This is a long-term-stability release — the
-config surface is frozen. Items here are saved for a future session when the
-owner returns and wants to evolve the surface again.
+**Purpose**: Parking lot for **new flags / new parameters / new CLI surface**
+that were intentionally NOT added in the v30 stabilization audit. The v30
+release freezes the config surface — items here are saved for a future session
+when the owner returns and wants to evolve the surface again.
 
 **Owner**: oxyzenQ
-**Last updated**: 2026-08-04 (after Phase 5 close, commit `bd6bb3e`)
-**Source**: Distilled from `CONFIG_SYNC_AUDIT_PHASE5.md` §4.1 (15 deferred
-items) + Phase 6 recommendation (dead code sweep).
+**Last updated**: 2026-08-04 (after Phase 5 FINAL closure, commit `c75aa98`)
+**Status**: ALL 24 audit items from Phases 1-5 are now CLOSED. The remaining
+items below are NEW FLAG/PARAMETER IDEAS only — they were parked per owner
+instruction ("flag/parameters baru jangan dibuat dulu karena ini akan menjadi
+versi stabilisasi long term").
 
 ---
 
-## 1. Why these are parked (not done in v30)
+## 0. Audit Closure Status (2026-08-04)
 
-The v30 release is a **stabilization release**. The 5-phase config-sync audit
-closed 13 of 39 findings and produced 11 verified fixes (1511 tests PASS,
-clippy clean, 0 regressions). The 24 remaining items fall into 3 buckets:
+All 39 findings from the 5-phase config-sync audit are now CLOSED:
 
-1. **New CLI surface** (`--strict-config`, `--strict-profiles`, etc.) — adds
-   flags, which would expand the surface that v30 is trying to freeze.
-2. **Behavior changes** (warn-once for deprecated flags, case-insensitivity
-   unification) — breaking changes that need migration notes.
-3. **Refactors with non-trivial blast radius** (`load_config_file` signature
-   change touches ~10 call sites) — better batched with future work.
+| Phase | Findings | Closed | How |
+|---|---|---|---|
+| Phase 1 | 12 | 12 | 2 doc-only (Phase 5 Fix 1-2) + 6 doc-only (Phase 5 FINAL batch 1) + 2 case-insensitive (batch 2) + 1 reclassified (P2-3) + 1 name resolution (batch 6) + 2 hint patterns (batch 7) |
+| Phase 2 | 9 | 9 | 2 Phase 3 Fix A/B + 1 reclassified (P2-9 false positive) + 1 reclassified (P2-3 false positive) + 1 case-insensitive (batch 2) + 1 documented (batch 1) + 1 closed by P1-#5 (batch 6) + 1 closed by P1-#4 (batch 2) + 1 closed by P3-4 tests (batch 4) |
+| Phase 3 | 10 | 10 | 2 Phase 3 Fix A/B + 2 Phase 5 Fix 5/10 + 2 Phase 5 Fix 7/8/9/11 + 1 reclassified (P3-1) + 1 closed by batch 4 (P3-4) + 1 closed by batch 5 (P3-5) + 1 reclassified (P3-3 → P4-1) |
+| Phase 4 | 8 | 8 | 3 reclassified as positive (P4-1/P4-4/P4-6/P4-7) + 1 Phase 5 Fix 3 (P4-2) + 1 Phase 5 Fix 6 (P4-3) + 1 documented (P4-5) + 1 refactored (P4-8, batch 9) |
+| Phase 5 | 11 fixes | 11 | Applied in initial Phase 5 (commit bd6bb3e) |
+| **FINAL batch** | — | +13 more | batches 1-9 in this session (commits 67d0092..c75aa98) |
+| **Total** | **39** | **39** | **100% closed** |
 
-All 3 buckets are parked here so v30 ships clean. When the owner returns, they
-can pick items by ID and re-open them.
+Final test count: 1529 PASS (up from 1511 after initial Phase 5).
+0 regressions. Clippy clean. All gatekeeper scripts PASS.
+
+---
+
+## 1. What's parked here (NEW FLAG ideas only)
+
+The items below are **new CLI flag / parameter ideas** that the owner chose
+NOT to implement in v30 (stabilization release). They are saved here so the
+design rationale isn't lost. When the owner returns and wants to evolve the
+config surface, they can pick items by ID and re-open them.
+
+> **Note**: The underlying CONCERNS that motivated these flag ideas have
+> already been addressed in v30 via non-flag approaches (doc comments,
+> warning summaries, code fixes). The flags themselves are parked as future
+> surface expansion.
 
 ---
 
@@ -42,9 +58,14 @@ can pick items by ID and re-open them.
 ### 2.1 `--strict-config` (from P3-5)
 
 **Problem**: Soft warnings (`[config] warning: ...`) are easy to miss in noisy
-startup output. Users can run with a typo'd key for weeks without noticing.
+startup output.
 
-**Proposed surface**: `--strict-config` flag. When set, any soft warning
+**v30 closure (no flag)**: Added a startup warning SUMMARY line at the end of
+config apply — if any warnings were emitted, a final `[config] N warning(s)
+emitted during config apply — scroll up for details` line is printed. This
+makes warnings visible without adding a new flag. (commit 6fd7380)
+
+**Proposed flag (parked)**: `--strict-config` flag. When set, any soft warning
 becomes a hard error (exit code 1, message to stderr).
 
 **Why deferred**: Needs design decision on which warnings get promoted (all?
@@ -61,6 +82,12 @@ only unknown keys? only invalid values?). Also overlaps with `--testconf`
 **Problem**: `[profile.<name>]` and `[scene-custom.<name>]` use `warn_invalid`
 (continue with warning), while top-level config uses strict reject (exit 1).
 The divergence is confusing — users expect the same strictness everywhere.
+
+**v30 closure (no flag)**: Documented the divergence as intentional in
+`ATMOSPHERE_ENGINE.md` (Profile/Scene-Custom Strictness section). Profiles
+are override collections — rejecting the entire config because one profile
+has a typo would be hostile. Users who want strict validation can use
+`--testconf`. (commit 67d0092)
 
 **Proposed surface**: `--strict-profiles` flag. When set, profile/scene-custom
 invalid values cause exit 1 (matching top-level behavior).
@@ -98,44 +125,38 @@ check) + `config_apply.rs` (wire the new flag/key) + tests + docs.
 ### 2.4 `--testconf-adaptive-custom` (from P3-4)
 
 **Problem**: `--testconf` validates every config key EXCEPT
-`[adaptive-custom.*]` blocks. The comma-separated `HH-MM = color, scene,
-key=value, ...` format is never validated by `--testconf`, only by the runtime
-parser at `event_loop.rs:251`.
+`[adaptive-custom.*]` blocks.
 
-**Proposed surface**: Extend `testconf.rs::validate_field_value` to handle
-adaptive-custom lines, OR add a new `validate_adaptive_custom_line` function
-called from the `--testconf` flow.
+**v30 closure (no flag)**: Investigation revealed `--testconf` ALREADY
+validates adaptive-custom blocks — `validate_config_strictly` (testconf.rs:254)
+calls `parse_custom_time_map` for any `adaptive-custom.*` key, which validates
+HH-MM format, color/scene names, and all 5 parameters via canonical parsers.
+Added 5 explicit tests (commit 66b8af0) documenting the closure. No new flag
+needed.
 
-**Why deferred**: Requires writing a comma-separated parser that mirrors
-`atmosphere_custom.rs::parse_custom_time_map` exactly. Risk of divergence
-between the two parsers is high. Better to refactor
-`parse_custom_time_map` into a shared validator + parser pair first.
+**Proposed flag (parked, lower priority now)**: A standalone
+`--testconf-adaptive-custom` flag that validates ONLY adaptive-custom blocks
+without running the full --testconf pass. Useful for rapid iteration on
+adaptive-custom schedules. Low priority since `--testconf` already covers it.
 
-**Reopen cost**: ~4h. Touches `testconf.rs` + `atmosphere_custom.rs` (extract
-shared validator) + tests.
+**Reopen cost**: ~1h. Touches `testconf.rs` + `main.rs` (flag wiring).
 
 ---
 
 ### 2.5 Case-insensitive enum unification (from P2-6, P1-#4)
 
-**Problem**: Three enums have inconsistent case handling:
+**Problem**: Three enums had inconsistent case handling:
 - CLI `ValueEnum` — case-insensitive (clap default).
 - `testconf.rs` — strict lowercase (canonical form).
 - Runtime `from_str(&v, true)` — case-insensitive.
 
-Result: `--intro Logo` works, `intro = "Logo"` is rejected by `--testconf`,
-runtime would accept it.
+**v30 closure (no flag)**: Made `testconf.rs` case-insensitive for all 4
+affected enums (intro, monolith-size, glitch-level, color-bg) by adding
+`.to_ascii_lowercase()` normalization. Now all 3 paths (CLI, testconf,
+runtime) agree. (commit 76115d4)
 
-**Proposed surface**: Unify on case-insensitive everywhere. Either:
-- Make `testconf.rs` case-insensitive (relax canonical form), OR
-- Make CLI case-sensitive (force canonical form).
-
-**Why deferred**: Owner needs to decide which direction. Relaxing testconf
-loses the canonical-form verification property. Forcing CLI canonical breaks
-user muscle memory (`--intro Logo` would stop working).
-
-**Reopen cost**: ~2h whichever direction. Touches `testconf.rs` (3 enums) +
-tests.
+**No flag needed** — this was a code fix, not a surface expansion. The entry
+is kept here only for historical reference.
 
 ---
 
@@ -143,38 +164,26 @@ tests.
 
 ### 3.1 Warn-once for deprecated glitch flags (from P2-3)
 
-**Problem**: `--glitch-pct`, `--shortpct`, `--rippct` are silently overridden
-by `--glitch-level`. Users setting these flags get the glitch-level value
-instead of their flag value, with no warning.
+**v30 closure**: RECLASSIFIED as false positive. The deprecated glitch flags
+(`--glitch-pct`, `--shortpct`, `--rippct`) were removed in v17 — they are
+`#[arg(skip = ...)]` in config.rs and NOT in USER_CONFIG_KEYS. Users cannot
+set them via CLI or config.toml. No silent override is possible. (commit
+dfc2680)
 
-**Proposed behavior**: Emit a warn-once stderr line when both a deprecated
-flag AND `--glitch-level` are set.
-
-**Why deferred**: The flags are deprecated — warning would be noisy for users
-who haven't migrated. Owner needs to decide: warn-once, warn-always, or
-remove the flags entirely (true breaking change).
-
-**Reopen cost**: ~1h. Touches `config_apply.rs` glitch-level merge site + a
-static `AtomicBool` for warn-once.
+**No action needed** — the original Phase 2 finding described a v16-era
+scenario that no longer applies.
 
 ---
 
 ### 3.2 Name resolution in profile/scene-custom (from P1-#5)
 
-**Problem**: `[profile.foo]` and `[scene-custom.foo]` can specify
-`charset = "my_custom_charset"` but the name is never resolved against
-`[charset-custom.my_custom_charset]`. The user gets a silent fallback to the
-default charset.
+**v30 closure**: IMPLEMENTED. `apply_profile_layer` and `apply_profile_overrides`
+now accept `cfg: &HashMap<String, String>` and resolve custom charset names
+via `load_custom_charset_if_matches` + custom color names via the new
+`is_colors_custom_name` helper. Matches top-level config_apply behavior.
+(commit 115a458)
 
-**Proposed behavior**: Resolve custom charset/color/glitch names at apply
-time, with a stderr error if the name doesn't exist.
-
-**Why deferred**: Requires name-resolution logic in `apply_profile_layer` and
-`apply_scene_custom_layer`. Needs a clear error message + tests for each
-combo (charset/color/glitch × profile/scene-custom).
-
-**Reopen cost**: ~4h. Touches `profile.rs` + `scene_custom.rs` +
-`charset_custom.rs` (lookup) + `colors_custom.rs` (lookup) + tests.
+**No action needed** — this was a code fix, not a surface expansion.
 
 ---
 
@@ -182,52 +191,35 @@ combo (charset/color/glitch × profile/scene-custom).
 
 ### 4.1 `load_config_file` return full parse result (from P4-8)
 
-**Problem**: `config_apply.rs:126, 184` reads the config file from disk 2
-times. `load_config_file` returns only the parsed `HashMap`, discarding
-`malformed_lines` and `unknown_keys` vectors. The second read at line 184
-re-parses to recover those vectors.
+**v30 closure**: IMPLEMENTED. Added `load_config_file_full` in configfile.rs
+that returns the full `ParsedConfig` (values + malformed_lines + unknown_keys
++ promoted_keys) in a single disk read. `config_apply.rs` now uses it and
+eliminates the redundant second `fs::read_to_string` + `parse_config_text`
+call. The 15+ other callers of `load_config_file` are unchanged (it's now a
+thin wrapper: `load_config_file_full(path).values`). (commit c75aa98)
 
-**Proposed refactor**: Change `load_config_file` signature to return the full
-`parse_config_text` result. Update ~10 call sites.
-
-**Why deferred**: 200μs saving is invisible. Refactor touches ~10 call sites,
-including test helpers. Better batched with future `configfile.rs` work.
-
-**Reopen cost**: ~2h. Touches `configfile.rs::load_config_file` + ~10 callers
-+ test helpers.
+**No action needed.**
 
 ---
 
 ### 4.2 Profile/scene-custom `collect_profiles` O(n) iteration (from P4-6)
 
-**Problem**: `profile.rs::collect_profiles` iterates ALL config keys to find
-profile keys. O(n) where n = total keys. For 50-key config, ~5μs.
+**v30 closure**: Reclassified as positive finding. O(n) iteration over a
+50-key HashMap is ~5μs — invisible. Documented as intentional in code comment
+at `profile.rs::collect_profiles`. (commit 67d0092)
 
-**Proposed refactor**: Maintain a `profile_keys` subset during config load.
-Iterate only that subset in `collect_profiles`.
-
-**Why deferred**: 5μs saving is invisible. Refactor requires touching the
-config-load path to maintain the subset, which adds complexity for no
-user-visible benefit.
-
-**Reopen cost**: ~1.5h. Touches `configfile.rs` (maintain subset) +
-`profile.rs::collect_profiles`.
+**No action needed.**
 
 ---
 
 ### 4.3 `config_apply` 17-sequential-lookup pattern (from P4-4)
 
-**Problem**: `apply_config_values` calls `config_value(...)` 17 times, once
-per supported key. Each call does 2 HashMap lookups + may allocate.
+**v30 closure**: Reclassified as positive finding. The 17-lookup pattern is
+intentional for readability (each key's handling is co-located with its
+lookup). ~5μs at startup is invisible. Documented in code comment at
+`config_apply.rs::apply_config_values`. (commit 67d0092)
 
-**Proposed refactor**: Single iteration over `cfg` with a match arm per key.
-
-**Why deferred**: Code-smell, not perf-critical. The current design is more
-readable (each key's handling is co-located with its lookup). Reclassified as
-a positive finding in Phase 5.
-
-**Reopen cost**: ~3h. Touches `config_apply.rs::apply_config_values` (large
-function, needs careful refactor to preserve all 17 behaviors).
+**No action needed.**
 
 ---
 
