@@ -463,11 +463,8 @@ Precedence: defaults → config file → scene/scene-custom layers → explicit 
 Custom charsets live in `config.toml` under `[charset-custom.<name>]` and replace the legacy `--charset-file <path>` CLI flag (removed in v25). Define a named glyph pool once, then activate it from the CLI or config:
 
 ```toml
-[charset-custom.cat]
-set = "x9"
-
-[charset-custom.greek-letters]
-set = "αβγδεζηθικλμνξοπρστυφχψω"
+[charset-custom.zen]
+set = "|"
 ```
 
 ```bash

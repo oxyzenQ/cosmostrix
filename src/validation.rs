@@ -67,7 +67,7 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
     ),
     (
         "--charset-file",
-        "error: --charset-file has been removed in v25.0.0.\n  Custom charsets now live in config.toml under [charset-custom.<name>] and are loaded via --charset <name>.\n  Migration: move your custom characters from the file into a [charset-custom.<name>] block, then activate with --charset <name> or `charset = \"<name>\"` in config.\n  Example:\n    [charset-custom.cat]\n    set = \"x9\"\n  Then: cosmostrix --charset cat\n  See `cosmostrix --dump-config` for the full template.",
+        "error: --charset-file has been removed in v25.0.0.\n  Custom charsets now live in config.toml under [charset-custom.<name>] and are loaded via --charset <name>.\n  Migration: move your custom characters from the file into a [charset-custom.<name>] block, then activate with --charset <name> or `charset = \"<name>\"` in config.\n  Example:\n    [charset-custom.zen]\n    set = \"|\"\n  Then: cosmostrix --charset zen\n  See `cosmostrix --dump-config` for the full template.",
     ),
     (
         "--chars",

@@ -11,8 +11,8 @@
 //! # Format
 //!
 //! ```toml
-//! [charset-custom.cat]
-//! set = "x9"
+//! [charset-custom.zen]
+//! set = "|"
 //! ```
 //!
 //! - `set` — the literal string of characters to use as the rain glyph
@@ -33,13 +33,13 @@
 //!
 //! Two equivalent ways to activate a custom charset:
 //!
-//! 1. CLI: `cosmostrix --charset cat` (when `[charset-custom.cat]` exists
+//! 1. CLI: `cosmostrix --charset zen` (when `[charset-custom.zen]` exists
 //!    in config.toml, the custom block takes precedence over any built-in
 //!    preset with the same name).
-//! 2. Config: `charset = "cat"` in config.toml.
+//! 2. Config: `charset = "zen"` in config.toml.
 //!
-//! Lookup is case-insensitive: `[charset-custom.Cat]` is matched by
-//! `charset = "cat"`, `--charset CAT`, etc.
+//! Lookup is case-insensitive: `[charset-custom.zen]` is matched by
+//! `charset = "zen"`, `--charset zen`, etc.
 //!
 //! # Live reload
 //!
@@ -282,8 +282,8 @@ mod tests {
 
     #[test]
     fn parse_quoted_string_succeeds() {
-        let v = parse_charset_value("\"x9\"").unwrap();
-        assert_eq!(v, vec!['x', '9']);
+        let v = parse_charset_value("\"|\"").unwrap();
+        assert_eq!(v, vec!['|']);
     }
 
     #[test]
@@ -333,10 +333,10 @@ mod tests {
     #[test]
     fn collect_finds_single_block() {
         let mut cfg = HashMap::new();
-        cfg.insert("charset-custom.cat.set".to_string(), "x9".to_string());
+        cfg.insert("charset-custom.zen.set".to_string(), "|".to_string());
         let map = collect_charset_custom(&cfg);
-        assert!(map.contains_key("cat"));
-        assert_eq!(map["cat"].chars, vec!['x', '9']);
+        assert!(map.contains_key("zen"));
+        assert_eq!(map["zen"].chars, vec!['|']);
     }
 
     #[test]
@@ -350,15 +350,15 @@ mod tests {
     #[test]
     fn collect_ignores_unknown_fields() {
         let mut cfg = HashMap::new();
-        cfg.insert("charset-custom.cat.set".to_string(), "ab".to_string());
+        cfg.insert("charset-custom.zen.set".to_string(), "ab".to_string());
         // Unknown field — should be skipped (and is_known_key in
         // configfile.rs would have already rejected it as unknown).
         cfg.insert(
-            "charset-custom.cat.unknownfield".to_string(),
+            "charset-custom.zen.unknownfield".to_string(),
             "ignored".to_string(),
         );
         let map = collect_charset_custom(&cfg);
-        assert_eq!(map["cat"].chars, vec!['a', 'b']);
+        assert_eq!(map["zen"].chars, vec!['a', 'b']);
     }
 
     #[test]
@@ -375,17 +375,17 @@ mod tests {
     #[test]
     fn load_custom_charset_found() {
         let mut cfg = HashMap::new();
-        cfg.insert("charset-custom.cat.set".to_string(), "x9".to_string());
-        let v = load_custom_charset(&cfg, "cat").unwrap();
-        assert_eq!(v, vec!['x', '9']);
+        cfg.insert("charset-custom.zen.set".to_string(), "|".to_string());
+        let v = load_custom_charset(&cfg, "zen").unwrap();
+        assert_eq!(v, vec!['|']);
     }
 
     #[test]
     fn load_custom_charset_case_insensitive() {
         let mut cfg = HashMap::new();
-        cfg.insert("charset-custom.Cat.set".to_string(), "x9".to_string());
-        let v = load_custom_charset(&cfg, "cat").unwrap();
-        assert_eq!(v, vec!['x', '9']);
+        cfg.insert("charset-custom.zen.set".to_string(), "|".to_string());
+        let v = load_custom_charset(&cfg, "zen").unwrap();
+        assert_eq!(v, vec!['|']);
     }
 
     #[test]
@@ -402,29 +402,29 @@ mod tests {
     #[test]
     fn load_custom_charset_if_matches_returns_some_when_present() {
         let mut cfg = HashMap::new();
-        cfg.insert("charset-custom.cat.set".to_string(), "x9".to_string());
-        let v = load_custom_charset_if_matches(&cfg, "cat");
+        cfg.insert("charset-custom.zen.set".to_string(), "|".to_string());
+        let v = load_custom_charset_if_matches(&cfg, "zen");
         assert!(v.is_some());
-        assert_eq!(v.unwrap(), vec!['x', '9']);
+        assert_eq!(v.unwrap(), vec!['|']);
     }
 
     #[test]
     fn load_custom_charset_if_matches_returns_none_when_absent() {
         let cfg = HashMap::new();
-        assert!(load_custom_charset_if_matches(&cfg, "cat").is_none());
+        assert!(load_custom_charset_if_matches(&cfg, "zen").is_none());
     }
 
     #[test]
     fn load_custom_charset_if_matches_returns_none_for_empty_name() {
         let mut cfg = HashMap::new();
-        cfg.insert("charset-custom..set".to_string(), "x9".to_string());
+        cfg.insert("charset-custom..set".to_string(), "|".to_string());
         assert!(load_custom_charset_if_matches(&cfg, "").is_none());
     }
 
     #[test]
     fn validate_charset_custom_value_ok() {
         assert!(validate_charset_custom_value("abc").is_none());
-        assert!(validate_charset_custom_value("\"x9\"").is_none());
+        assert!(validate_charset_custom_value("\"|\"").is_none());
     }
 
     #[test]

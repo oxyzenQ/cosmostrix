@@ -33,11 +33,11 @@ COMMON OPTIONS:
       [charset-custom.<name>] and loaded by name. Custom names take
       precedence over built-in presets with the same name. Example:
 
-        [charset-custom.cat]
-        set = \"x9\"
+        [charset-custom.zen]
+        set = \"|\"
 
-      Then: cosmostrix --charset cat
-      Or set in config: charset = \"cat\"
+      Then: cosmostrix --charset zen
+      Or set in config: charset = \"zen\"
 
       Live reload: editing the [charset-custom] block takes effect on
       the next config save (no restart needed).

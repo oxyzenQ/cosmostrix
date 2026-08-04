@@ -721,16 +721,16 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Load with: cosmostrix --colors-custom mytheme
 # Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith
 
-# [colors-custom.mythme]
-# bg = "#0a0a12"
+# [colors-custom.zen]
+# bg = "#0a0a0a"
 # rain = [
-#   "#1a0033",  # tail dimmer
-#   "#4d0080",  # tail dim
-#   "#9933ff",  # semi-body dark
-#   "#cc66ff",  # body peak
-#   "#e6b3ff",  # semi-body light
-#   "#f2ccff",  # semi-white
-#   "#ffffff",  # head glow
+#  "#111111",  # tail dimmer — almost blends with the background
+#  "#2a2a2a",  # tail dim — a gentle presence
+#  "#4a4a4a",  # semi-body dark — a calm transition
+#  "#6a6a6a",  # body peak — the core of the drop
+#  "#8a8a8a",  # semi-body light — starting to glow
+#  "#b0b0b0",  # semi-white — soft light
+#  "#d0d0d0",  # head glow — peak of stillness, not a dazzling white
 # ]
 
 # Custom Character Sets (optional, v25+)
@@ -748,8 +748,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 # [charset-custom.zen]
 # set = "|"
 
-# [charset-custom.greek-letters]
-# set = "αβγδεζηθικλμνξοπρστυφχψω"
+# [charset-custom.matrix-technical]
+# set = "⌠⌡⌢⌣⌤⌥⌦⌧⌨〈⌫⌬⌭⌮⌯⌰⌱⌲⌳⌴⌵⌶⌷⌸⌹⌺⌻⌼⌽⌾⌿⍀⍁⍂⍃⍄⍅⍆⍇⍈⍉⍊⍋⍌⍍⍎⍏⍐⍑⍒⍓⍔⍕⍖⍗⍘⍙⍚⍛⍜⍝⍞⍟⍠⍡⍢⍣⍤⍥⍦⍧⍨⍩⍪⍫⍬⍭⍮⍯⍰⍱⍲⍳⍴⍵⍶⍷⍸⍹⍺⍻⍼⍽⍾⍿⎀⎁⎂⎃⎄⎅⎆⎇⎈⎉⎊⎋⎌⎍⎎⎏⎐⎑⎒⎓⎔⎕⎖⎗⎘⎙⎚⎛⎜⎝⎞⎟⎠⎡⎢⎣⎤⎥⎦⎧⎨⎩⎪⎫⎬⎭⎮⎯⎰⎱⎲⎳⎴⎵⎶⎷⎸⎹⎺⎻⎼⎽⎾⎿"
 "##
 }
 
@@ -1069,7 +1069,7 @@ mod tests {
 
     #[test]
     fn parse_multiline_array_joins_correctly() {
-        let content = "[colors-custom.mythme]\nbg = \"#0a0a12\"\nrain = [\n  \"#1a0033\",\n  \"#4d0080\",\n  \"#9933ff\",\n  \"#cc66ff\",\n  \"#e6b3ff\",\n  \"#f2ccff\",\n  \"#ffffff\",\n]\n";
+        let content = "[colors-custom.zen]\nbg = \"#0a0a12\"\nrain = [\n  \"#1a0033\",\n  \"#4d0080\",\n  \"#9933ff\",\n  \"#cc66ff\",\n  \"#e6b3ff\",\n  \"#f2ccff\",\n  \"#ffffff\",\n]\n";
         let parsed = parse_config_text(content);
         assert!(
             parsed.malformed_lines.is_empty(),
@@ -1081,7 +1081,7 @@ mod tests {
             "no unknown keys, got: {:?}",
             parsed.unknown_keys
         );
-        let rain = parsed.values.get("colors-custom.mythme.rain");
+        let rain = parsed.values.get("colors-custom.zen.rain");
         assert!(rain.is_some(), "rain key should be parsed");
         let rain = rain.unwrap();
         assert!(rain.starts_with('['), "rain value should start with [");
