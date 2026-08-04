@@ -563,6 +563,14 @@ fn apply_glitch_level_values(
     // CloudConfig construction time. The `should_skip("noglitch")` calls are
     // gone because there's no `args.noglitch` to assign anymore.
 
+    // Phase 5 closure (P2-3): RECLASSIFIED as false positive. The deprecated
+    // glitch flags (--glitch-pct / --shortpct / --rippct) were removed in v17
+    // — they are `#[arg(skip = ...)]` in config.rs and NOT in USER_CONFIG_KEYS,
+    // so users cannot set them via CLI or config.toml. The glitch_pct/shortpct/
+    // rippct fields are internal-only, set exclusively by glitch_level presets
+    // below. No silent override is possible — the original Phase 2 P2-3 finding
+    // described a v16-era scenario that no longer applies.
+
     match args.glitch_level {
         GlitchLevel::None => {
             // Glitch fully off. Percentages stay at defaults (unused).
