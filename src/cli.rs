@@ -178,8 +178,32 @@ pub fn cycle_color_scheme(current: ColorScheme, dir: i32) -> ColorScheme {
 
 #[must_use]
 pub(crate) fn all_charset_presets() -> &'static [&'static str] {
+    // IMPORTANT: "auto" is intentionally EXCLUDED from this list.
+    //
+    // "auto" is a meta-value (not a real charset) that means "let
+    // cosmostrix pick a default based on terminal capabilities" — see
+    // `charset_from_str("auto", ...)` which resolves to `Charset::MATRIX`
+    // or `Charset::ASCII_SAFE`. It is valid as a CLI/config input, but
+    // it must NOT appear in the cycle list used by `cycle_charset_preset`.
+    //
+    // Bug history (v30.0.0-alpha.1, "charset drift" user report):
+    //   When "auto" was index 0 and "zen" was the last entry, pressing
+    //   's' (cycle forward) from "zen" wrapped around to index 0 =
+    //   "auto". The `charset_from_str("auto", false)` call in
+    //   `input.rs::handle_keybinding` then silently replaced the user's
+    //   custom charset (e.g. `[charset-custom.zen.set]`) with the
+    //   built-in Matrix glyph pool — destroying their 2-glyph custom
+    //   config without any indication. The post-exit verbose log
+    //   reported `charset: auto (was zen)`, which looked like an
+    //   uninvited "drift" event but was actually this cycle bug.
+    //
+    // Fix: exclude "auto" from the cycle candidate list. CLI/config
+    // parsing still accepts "auto" via `charset_from_str`; only the
+    // interactive 's'/'S' cycle is sanitized. If the user explicitly
+    // starts with `--charset auto` and presses 's', the cycle falls
+    // through to the `None` branch in `cycle_charset_preset` and lands
+    // on the `"binary"` fallback — which is a real, renderable charset.
     &[
-        "auto",
         "matrix",
         "ascii",
         "extended",
@@ -307,4 +331,90 @@ fn edit_distance(a: &str, b: &str) -> usize {
         std::mem::swap(&mut prev, &mut curr);
     }
     prev[n]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression: "auto" must never appear in the cycle candidate list.
+    ///
+    /// This is the root cause of the v30.0.0-alpha.1 "charset drift" bug
+    /// where pressing 's' from "zen" wrapped to "auto" and silently
+    /// replaced the user's custom charset with the built-in Matrix pool.
+    #[test]
+    fn all_charset_presets_excludes_auto() {
+        let list = all_charset_presets();
+        assert!(
+            !list.contains(&"auto"),
+            "`auto` is a meta-value and must not be a cycle target, found: {list:?}"
+        );
+    }
+
+    /// Regression: cycling forward from the last entry ("zen") must wrap to
+    /// the first REAL preset ("matrix"), not to "auto".
+    #[test]
+    fn cycle_forward_from_zen_wraps_to_matrix_not_auto() {
+        let next = cycle_charset_preset("zen", 1);
+        assert_eq!(
+            next, "matrix",
+            "forward cycle from 'zen' must wrap to 'matrix', got '{next}'"
+        );
+        assert_ne!(next, "auto", "cycle must never return 'auto'");
+    }
+
+    /// Regression: cycling backward from the first entry ("matrix") must
+    /// wrap to the last REAL preset ("zen"), not to "auto".
+    #[test]
+    fn cycle_backward_from_matrix_wraps_to_zen_not_auto() {
+        let prev = cycle_charset_preset("matrix", -1);
+        assert_eq!(
+            prev, "zen",
+            "backward cycle from 'matrix' must wrap to 'zen', got '{prev}'"
+        );
+        assert_ne!(prev, "auto", "cycle must never return 'auto'");
+    }
+
+    /// Sanity: forward then backward must return to the original preset.
+    /// This verifies the cycle is a proper bijection on the real presets.
+    #[test]
+    fn cycle_forward_then_backward_is_identity() {
+        for &preset in all_charset_presets() {
+            let fwd = cycle_charset_preset(preset, 1);
+            let back = cycle_charset_preset(fwd, -1);
+            assert_eq!(
+                back, preset,
+                "forward then backward from '{preset}' should return to '{preset}', got '{back}'"
+            );
+        }
+    }
+
+    /// Edge case: if the user starts with `--charset auto` (still valid
+    /// via `charset_from_str`), pressing 's' falls through to the
+    /// `"binary"` fallback. This is acceptable — "binary" is a real,
+    /// renderable charset, and the user can continue cycling from there.
+    #[test]
+    fn cycle_from_unknown_preset_falls_back_to_binary() {
+        let next = cycle_charset_preset("auto", 1);
+        assert_eq!(
+            next, "binary",
+            "cycle from unknown preset 'auto' must fall back to 'binary', got '{next}'"
+        );
+    }
+
+    /// Exhaustive: no cycle direction or starting point should ever
+    /// produce "auto". This is the core invariant of the bug fix.
+    #[test]
+    fn cycle_never_returns_auto_from_any_preset() {
+        let list = all_charset_presets();
+        for &preset in list {
+            for dir in [-2, -1, 1, 2] {
+                let result = cycle_charset_preset(preset, dir);
+                assert_ne!(
+                    result, "auto",
+                    "cycle(preset='{preset}', dir={dir}) returned 'auto' — this is forbidden"
+                );
+            }
+        }
+    }
 }
