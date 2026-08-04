@@ -330,9 +330,6 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       Force color depth (auto-detected by default). Allowed: 0 (mono),
       16, 8/256 (8-bit), 24/32 (truecolor). Default: 24-bit if supported
       (COLORTERM), else 8-bit (TERM=...256color), else 16-color.
-  --check-bitcolor
-      Print detected terminal color capability (truecolor / 256 / 16 /
-      mono) and exit. Diagnostic only — no rain rendered.
 
   TIMING & GLITCH (advanced):
   -g, --glitchms <LOW,HIGH>

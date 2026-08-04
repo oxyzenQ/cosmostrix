@@ -574,33 +574,6 @@ fn main() -> std::io::Result<()> {
         return Ok(());
     }
 
-    if args.check_bitcolor {
-        let colorterm = env::var("COLORTERM").unwrap_or_default();
-        let term = env::var("TERM").unwrap_or_default();
-        let auto = detect_color_mode_auto();
-        let effective = detect_color_mode(&args);
-
-        println!("BITCOLOR CHECK:");
-        println!(
-            "  COLORTERM: {}",
-            if colorterm.is_empty() {
-                "(unset)"
-            } else {
-                &colorterm
-            }
-        );
-        println!(
-            "  TERM: {}",
-            if term.is_empty() { "(unset)" } else { &term }
-        );
-        println!("  auto_detected: {}", color_mode_label(auto));
-        if args.colormode.is_some() {
-            println!("  forced: {}", color_mode_label(effective));
-        }
-        println!("  effective: {}", color_mode_label(effective));
-        return Ok(());
-    }
-
     if args.version {
         println!("{}", info::version_report());
         return Ok(());

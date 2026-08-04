@@ -696,13 +696,6 @@ pub struct Args {
     )]
     pub colormode: Option<u16>,
 
-    #[arg(
-        long = "check-bitcolor",
-        hide = true,
-        help = "Print detected terminal color capability and exit"
-    )]
-    pub check_bitcolor: bool,
-
     // Atmosphere engine config (gated/internal-first — Phase 10).
     // CLI flags that override config-file values. Both are hidden (advanced);
     // most users set these via config.toml [atmosphere] block instead.

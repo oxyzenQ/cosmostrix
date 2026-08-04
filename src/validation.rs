@@ -89,6 +89,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--help-detail",
         "error: --help-detail has been removed in v30.0.0-alpha.1.\n  The curated advanced reference manual that --help-detail used to print is now\n  printed by --help itself. cosmostrix now has a single-tier help surface.\n  Use `cosmostrix --help` instead.",
     ),
+    (
+        "--check-bitcolor",
+        "error: --check-bitcolor has been removed in v30.0.0-alpha.1.\n  It was a strict subset of `--doctor` output — every field it printed\n  (COLORTERM, TERM, auto_detected, forced, effective color depth) is already\n  shown by `cosmostrix --doctor` under the RENDERER and COLOR sections, plus\n  much more (terminal caps, env, perf hints, config paths).\n  Use `cosmostrix --doctor` instead.",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.
