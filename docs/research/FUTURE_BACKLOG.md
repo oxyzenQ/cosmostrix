@@ -8,11 +8,11 @@ release freezes the config surface — items here are saved for a future session
 when the owner returns and wants to evolve the surface again.
 
 **Owner**: oxyzenQ
-**Last updated**: 2026-08-04 (after Miri unsafe soundness pass — 0 unsoundness)
+**Last updated**: 2026-08-04 (after unused-deps audit — 0 unused deps)
 **Status**: ALL 39 findings from Phases 1-5 are CLOSED (100%). Phase 6
 dead-code sweep + pub→pub(crate) tightening + Miri unsafe soundness pass
-all COMPLETE. Only item remaining: optional `cargo +nightly udeps` run
-(expected 0 findings). The items below are NEW FLAG/PARAMETER IDEAS
++ unused-deps audit all COMPLETE. **All optional future cleanup items
+CLOSED.** The items below are NEW FLAG/PARAMETER IDEAS
 only — they were parked per owner instruction ("flag/parameters baru
 jangan dibuat dulu karena ini akan menjadi versi stabilisasi long term").
 
@@ -308,10 +308,13 @@ run a separate Phase 6 for dead code.
    (commit `78464a4`). 580 unreachable_pub warnings → 0. 64 files touched,
    560 replacements (567 pub→pub(crate) + 13 pub→pub(super)). 1529 tests
    PASS, clippy clean.
-2. **`cargo +nightly udeps` install + run** — expected 0 findings (since
-   `cargo clippy -W dead_code` is clean). Still worth running once for
-   completeness. Install: `cargo +nightly install cargo-udeps`. Run:
-   `cargo +nightly udeps --all-targets`.
+2. **Unused-dependency audit** — DONE 2026-08-04. `cargo-udeps` install
+   blocked by environment timeout (compiles ~80 crates including cargo-as-lib).
+   Substituted with `cargo-machete 0.9.2` (lighter regex-based scanner) in
+   both default and `--with-metadata` modes. Result: **0 unused dependencies**.
+   All 11 deps (clap, crossterm, rand, bitvec, smallvec, unicode-width, chrono,
+   notify, signal-hook, libc, ctrlc) verified used — matches Phase 6 manual
+   inventory.
 3. **Miri run on `unsafe` blocks** — DONE 2026-08-04. Full report at
    `UNSAFE_SOUNDNESS_AUDIT.md`. Result: 0 unsoundness. 107 pure-logic
    tests verified under Miri (exercising the `GlobalAlloc` impl).
