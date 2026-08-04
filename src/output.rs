@@ -90,7 +90,7 @@ pub const WARN_RGB: (u8, u8, u8) = (234, 179, 8);
 /// The capability is probed lazily on first use via [`color_capability()`],
 /// then memoized in a `OnceLock` so repeated calls are branch-free.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ColorCapability {
+pub(crate) enum ColorCapability {
     /// No color support. Output is plain text — no ANSI escapes.
     ///
     /// Triggered by: NO_COLOR env var, CLICOLOR=0, TERM=dumb, or stderr
@@ -128,7 +128,7 @@ pub enum ColorCapability {
 /// 7. `TERM=dumb` → Mono
 /// 8. Otherwise → Color16 (safe default for older terminals)
 #[must_use]
-pub fn detect_color_capability() -> ColorCapability {
+pub(crate) fn detect_color_capability() -> ColorCapability {
     // NO_COLOR is the de-facto standard for disabling all colors.
     // https://no-color.org/
     if std::env::var_os("NO_COLOR").is_some() {
@@ -177,7 +177,7 @@ pub fn detect_color_capability() -> ColorCapability {
 /// The detection runs once per process and is memoized in a `OnceLock`.
 /// Subsequent calls are a single atomic load — effectively free.
 #[must_use]
-pub fn color_capability() -> ColorCapability {
+pub(crate) fn color_capability() -> ColorCapability {
     static CAP: OnceLock<ColorCapability> = OnceLock::new();
     *CAP.get_or_init(detect_color_capability)
 }
@@ -191,7 +191,7 @@ pub fn color_capability() -> ColorCapability {
 
 /// Brand purple open sequence, capability-aware.
 #[must_use]
-pub fn brand_open() -> &'static str {
+pub(crate) fn brand_open() -> &'static str {
     match color_capability() {
         ColorCapability::TrueColor => "\x1b[38;2;168;85;247m",
         ColorCapability::Color256 => "\x1b[38;5;135m",
@@ -202,7 +202,7 @@ pub fn brand_open() -> &'static str {
 
 /// Bold brand purple open sequence, capability-aware.
 #[must_use]
-pub fn brand_bold_open() -> &'static str {
+pub(crate) fn brand_bold_open() -> &'static str {
     match color_capability() {
         ColorCapability::TrueColor => "\x1b[1;38;2;168;85;247m",
         ColorCapability::Color256 => "\x1b[1;38;5;135m",
@@ -213,7 +213,7 @@ pub fn brand_bold_open() -> &'static str {
 
 /// Error red open sequence, capability-aware.
 #[must_use]
-pub fn error_open() -> &'static str {
+pub(crate) fn error_open() -> &'static str {
     match color_capability() {
         ColorCapability::TrueColor => "\x1b[38;2;239;68;68m",
         ColorCapability::Color256 => "\x1b[38;5;203m",
@@ -224,7 +224,7 @@ pub fn error_open() -> &'static str {
 
 /// Bold error red open sequence, capability-aware.
 #[must_use]
-pub fn error_bold_open() -> &'static str {
+pub(crate) fn error_bold_open() -> &'static str {
     match color_capability() {
         ColorCapability::TrueColor => "\x1b[1;38;2;239;68;68m",
         ColorCapability::Color256 => "\x1b[1;38;5;203m",
@@ -235,7 +235,7 @@ pub fn error_bold_open() -> &'static str {
 
 /// Warning yellow open sequence, capability-aware.
 #[must_use]
-pub fn warn_open() -> &'static str {
+pub(crate) fn warn_open() -> &'static str {
     match color_capability() {
         ColorCapability::TrueColor => "\x1b[38;2;234;179;8m",
         ColorCapability::Color256 => "\x1b[38;5;220m",
@@ -246,7 +246,7 @@ pub fn warn_open() -> &'static str {
 
 /// Bold warning yellow open sequence, capability-aware.
 #[must_use]
-pub fn warn_bold_open() -> &'static str {
+pub(crate) fn warn_bold_open() -> &'static str {
     match color_capability() {
         ColorCapability::TrueColor => "\x1b[1;38;2;234;179;8m",
         ColorCapability::Color256 => "\x1b[1;38;5;220m",
@@ -258,7 +258,7 @@ pub fn warn_bold_open() -> &'static str {
 /// Reset sequence (closes any open color/style). Universal across all modes
 /// except Mono, where it's a no-op.
 #[must_use]
-pub fn reset() -> &'static str {
+pub(crate) fn reset() -> &'static str {
     match color_capability() {
         ColorCapability::Mono => "",
         _ => "\x1b[0m",
@@ -269,7 +269,7 @@ pub fn reset() -> &'static str {
 
 /// Wrap `msg` in bold brand purple. Returns plain text if color is disabled.
 #[must_use]
-pub fn brand_bold(msg: &str) -> String {
+pub(crate) fn brand_bold(msg: &str) -> String {
     match color_capability() {
         ColorCapability::Mono => msg.to_string(),
         _ => format!("{}{}{}", brand_bold_open(), msg, reset()),
@@ -278,7 +278,7 @@ pub fn brand_bold(msg: &str) -> String {
 
 /// Wrap `msg` in bold error red. Returns plain text if color is disabled.
 #[must_use]
-pub fn error_bold(msg: &str) -> String {
+pub(crate) fn error_bold(msg: &str) -> String {
     match color_capability() {
         ColorCapability::Mono => msg.to_string(),
         _ => format!("{}{}{}", error_bold_open(), msg, reset()),
@@ -287,7 +287,7 @@ pub fn error_bold(msg: &str) -> String {
 
 /// Wrap `msg` in error red. Returns plain text if color is disabled.
 #[must_use]
-pub fn error(msg: &str) -> String {
+pub(crate) fn error(msg: &str) -> String {
     match color_capability() {
         ColorCapability::Mono => msg.to_string(),
         _ => format!("{}{}{}", error_open(), msg, reset()),
@@ -296,7 +296,7 @@ pub fn error(msg: &str) -> String {
 
 /// Wrap `msg` in bold warning yellow. Returns plain text if color is disabled.
 #[must_use]
-pub fn warn_bold(msg: &str) -> String {
+pub(crate) fn warn_bold(msg: &str) -> String {
     match color_capability() {
         ColorCapability::Mono => msg.to_string(),
         _ => format!("{}{}{}", warn_bold_open(), msg, reset()),
@@ -305,7 +305,7 @@ pub fn warn_bold(msg: &str) -> String {
 
 /// Wrap `msg` in warning yellow. Returns plain text if color is disabled.
 #[must_use]
-pub fn warn(msg: &str) -> String {
+pub(crate) fn warn(msg: &str) -> String {
     match color_capability() {
         ColorCapability::Mono => msg.to_string(),
         _ => format!("{}{}{}", warn_open(), msg, reset()),
@@ -315,12 +315,12 @@ pub fn warn(msg: &str) -> String {
 // ── Print helpers (stderr) ───────────────────────────────────────────────────
 
 /// Print a labeled error to stderr: "error: <msg>" in red.
-pub fn eprintln_error_labeled(msg: &str) {
+pub(crate) fn eprintln_error_labeled(msg: &str) {
     eprintln!("{} {}", error_bold("error:"), error(msg));
 }
 
 /// Print a labeled warning to stderr: "⚠ <msg>" in yellow.
-pub fn eprintln_warn_labeled(msg: &str) {
+pub(crate) fn eprintln_warn_labeled(msg: &str) {
     // Phase 5 closure (P3-5): increment the startup warning counter so the
     // caller can emit a summary line at the end of config apply. This helps
     // users who miss individual warnings in noisy startup output.
@@ -331,18 +331,18 @@ pub fn eprintln_warn_labeled(msg: &str) {
 /// Phase 5 closure (P3-5): process-lifetime counter for warnings emitted via
 /// `eprintln_warn_labeled`. Reset at the start of `apply_config_and_runtime_defaults`
 /// and read at the end to emit a summary line.
-pub static STARTUP_WARNING_COUNT: std::sync::atomic::AtomicU64 =
+pub(crate) static STARTUP_WARNING_COUNT: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 
 /// Reset the startup warning counter. Call at the start of config apply.
-pub fn reset_startup_warning_count() {
+pub(crate) fn reset_startup_warning_count() {
     STARTUP_WARNING_COUNT.store(0, std::sync::atomic::Ordering::Relaxed);
 }
 
 /// Read the current startup warning count. Call at the end of config apply
 /// to decide whether to emit a summary line.
 #[must_use]
-pub fn startup_warning_count() -> u64 {
+pub(crate) fn startup_warning_count() -> u64 {
     STARTUP_WARNING_COUNT.load(std::sync::atomic::Ordering::Relaxed)
 }
 
@@ -354,7 +354,7 @@ pub fn startup_warning_count() -> u64 {
 /// only happens on platforms without a working localtime). This keeps
 /// verbose output readable even in degraded environments.
 #[must_use]
-pub fn now_hhmm() -> String {
+pub(crate) fn now_hhmm() -> String {
     use chrono::Timelike;
     let now = chrono::Local::now();
     format!("[{:02}:{:02}]", now.hour(), now.minute())
@@ -369,7 +369,7 @@ pub fn now_hhmm() -> String {
 /// Example: `verbose_line("scene:", " monolith")`
 /// → `[verbose] [12:01] scene:       monolith`
 #[must_use]
-pub fn verbose_line(label: &str, value: &str) -> String {
+pub(crate) fn verbose_line(label: &str, value: &str) -> String {
     let ts = now_hhmm();
     match color_capability() {
         ColorCapability::Mono => format!("[verbose] {ts} {label:<14}{value}"),
@@ -385,7 +385,7 @@ pub fn verbose_line(label: &str, value: &str) -> String {
 
 /// Print a verbose line directly to stderr. Convenience wrapper for
 /// `eprintln!("{}", verbose_line(label, value))`.
-pub fn eprintln_verbose(label: &str, value: &str) {
+pub(crate) fn eprintln_verbose(label: &str, value: &str) {
     eprintln!("{}", verbose_line(label, value));
 }
 
@@ -393,7 +393,7 @@ pub fn eprintln_verbose(label: &str, value: &str) {
 /// `[verbose] [HH:MM]` prefix. Use this for one-off verbose lines that
 /// don't fit the label:value pattern (e.g. multi-line dumps, free-form
 /// diagnostics).
-pub fn eprintln_verbose_raw(msg: &str) {
+pub(crate) fn eprintln_verbose_raw(msg: &str) {
     let ts = now_hhmm();
     match color_capability() {
         ColorCapability::Mono => eprintln!("[verbose] {ts} {msg}"),

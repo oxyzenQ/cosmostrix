@@ -24,7 +24,7 @@ use crate::palette::Palette;
 
 /// A parsed custom color palette definition.
 #[derive(Debug, Clone, Default)]
-pub struct CustomPaletteDef {
+pub(crate) struct CustomPaletteDef {
     /// Background color (optional).
     pub bg: Option<Color>,
     /// Gradient stops for the rain trail (tail → head order).
@@ -33,7 +33,7 @@ pub struct CustomPaletteDef {
 
 impl CustomPaletteDef {
     /// Build a cosmostrix `Palette` from this definition.
-    pub fn to_palette(&self) -> Result<Palette, String> {
+    pub(crate) fn to_palette(&self) -> Result<Palette, String> {
         if self.rain.is_empty() {
             return Err("custom palette needs 'rain' field with at least 2 hex colors".to_string());
         }
@@ -50,7 +50,7 @@ impl CustomPaletteDef {
 /// Parse a hex color string to a crossterm Color.
 ///
 /// Accepts: `#rrggbb`, `rrggbb`, `#rgb`, `rgb`, `"#rrggbb"` (quoted).
-pub fn parse_hex_color(s: &str) -> Result<Color, String> {
+pub(crate) fn parse_hex_color(s: &str) -> Result<Color, String> {
     let s = s.trim().trim_matches('"').trim();
     let s = s.strip_prefix('#').unwrap_or(s);
 
@@ -73,7 +73,9 @@ pub fn parse_hex_color(s: &str) -> Result<Color, String> {
 
 /// Collect all custom color palette definitions from the config HashMap.
 #[must_use]
-pub fn collect_colors_custom(cfg: &HashMap<String, String>) -> BTreeMap<String, CustomPaletteDef> {
+pub(crate) fn collect_colors_custom(
+    cfg: &HashMap<String, String>,
+) -> BTreeMap<String, CustomPaletteDef> {
     let mut palettes: BTreeMap<String, CustomPaletteDef> = BTreeMap::new();
 
     for (key, value) in cfg {
@@ -131,7 +133,10 @@ fn parse_rain_array(value: &str) -> Vec<&str> {
 }
 
 /// Look up a custom palette by name and convert it to a cosmostrix Palette.
-pub fn load_custom_palette(cfg: &HashMap<String, String>, name: &str) -> Result<Palette, String> {
+pub(crate) fn load_custom_palette(
+    cfg: &HashMap<String, String>,
+    name: &str,
+) -> Result<Palette, String> {
     let palettes = collect_colors_custom(cfg);
     let normalized = name.trim().to_ascii_lowercase();
     let def = palettes.get(&normalized).ok_or_else(|| {
@@ -154,7 +159,7 @@ pub fn load_custom_palette(cfg: &HashMap<String, String>, name: &str) -> Result<
 /// layers to resolve custom color names (matching top-level config_apply
 /// behavior which resolves via `parse_color_scheme || colors-custom lookup`).
 #[must_use]
-pub fn is_colors_custom_name(cfg: &HashMap<String, String>, name: &str) -> bool {
+pub(crate) fn is_colors_custom_name(cfg: &HashMap<String, String>, name: &str) -> bool {
     let palettes = collect_colors_custom(cfg);
     palettes.contains_key(&name.trim().to_ascii_lowercase())
 }

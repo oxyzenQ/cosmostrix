@@ -94,7 +94,7 @@ fn http_failure(code: u16) -> &'static str {
     }
 }
 
-pub fn check_update(current_version: &str) -> Result<(), String> {
+pub(crate) fn check_update(current_version: &str) -> Result<(), String> {
     let output = Command::new("curl")
         .args([
             "--silent",

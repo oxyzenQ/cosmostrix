@@ -67,7 +67,7 @@
 /// shader's `apply_atmospheric` is a no-op for this ctx, matching the
 /// pre-Phase-3-G "skip if all neutral" early-return behavior.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct AtmosphericCtx {
+pub(crate) struct AtmosphericCtx {
     /// Dim factor: multiply each channel by `fi / 256`. Active when
     /// total luminance < 1.0 (luminance_climate + profile offset + emergent
     /// boost < 1.0). `None` means no dimming.
@@ -118,7 +118,7 @@ impl AtmosphericCtx {
     /// state via the rain.rs construction site.
     #[allow(dead_code)]
     #[inline]
-    pub const fn none() -> Self {
+    pub(crate) const fn none() -> Self {
         Self {
             lum_fi: None,
             lum_wf: None,
@@ -134,7 +134,7 @@ impl AtmosphericCtx {
     /// would be applied). Matches the pre-Phase-3-G "skip if all neutral"
     /// check in `apply_atmospheric_frame_effects`.
     #[inline]
-    pub const fn is_neutral(&self) -> bool {
+    pub(crate) const fn is_neutral(&self) -> bool {
         self.lum_fi.is_none()
             && self.lum_wf.is_none()
             && self.sat_ti.is_none()
@@ -169,7 +169,7 @@ impl AtmosphericCtx {
 ///
 /// Returns the input unchanged if the ctx is neutral (`is_neutral()`).
 #[inline]
-pub fn apply_atmospheric(
+pub(crate) fn apply_atmospheric(
     mut r: u8,
     mut g: u8,
     mut b: u8,

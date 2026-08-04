@@ -45,7 +45,7 @@ use crate::cloud::ecosystem::ColorFamily;
 /// same language. Order is stable for indexing but the classifier does
 /// not rely on ordering — `family_for_state` is a `match`, not a lookup.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FeelingState {
+pub(crate) enum FeelingState {
     /// Daytime + low CPU. System is breathing freely.
     Calm,
     /// Morning hours + low-mid CPU. Fresh, sparse energy.
@@ -60,7 +60,7 @@ pub enum FeelingState {
 
 impl FeelingState {
     /// Stable string label for diagnostics (`--doctor`, logs).
-    pub fn label(self) -> &'static str {
+    pub(crate) fn label(self) -> &'static str {
         match self {
             FeelingState::Calm => "calm",
             FeelingState::Pulse => "pulse",
@@ -82,44 +82,44 @@ impl Default for FeelingState {
 // ── CPU thresholds (percent) ──────────────────────────────────────────────
 
 /// CPU% at or above this counts as "busy" → pushes toward Signal/Compression.
-pub const CPU_BUSY_THRESHOLD: f32 = 50.0;
+pub(crate) const CPU_BUSY_THRESHOLD: f32 = 50.0;
 
 /// CPU% at or below this counts as "idle" → allows Calm/Void/Pulse.
-pub const CPU_IDLE_THRESHOLD: f32 = 15.0;
+pub(crate) const CPU_IDLE_THRESHOLD: f32 = 15.0;
 
 // ── Time-of-day boundaries (local hour, 0.0–24.0) ────────────────────────
 
 /// Hour when "night" begins (22:00 local). Hours >= this or < NIGHT_END
 /// count as night.
-pub const NIGHT_START: f64 = 22.0;
+pub(crate) const NIGHT_START: f64 = 22.0;
 
 /// Hour when "night" ends (06:00 local).
-pub const NIGHT_END: f64 = 6.0;
+pub(crate) const NIGHT_END: f64 = 6.0;
 
 /// Start of the pre-dawn compression window (03:00 local).
-pub const PRE_DAWN_START: f64 = 3.0;
+pub(crate) const PRE_DAWN_START: f64 = 3.0;
 
 /// End of the pre-dawn compression window (06:00 local).
-pub const PRE_DAWN_END: f64 = 6.0;
+pub(crate) const PRE_DAWN_END: f64 = 6.0;
 
 /// Start of the morning pulse window (06:00 local).
-pub const MORNING_START: f64 = 6.0;
+pub(crate) const MORNING_START: f64 = 6.0;
 
 /// End of the morning pulse window (12:00 local).
-pub const MORNING_END: f64 = 12.0;
+pub(crate) const MORNING_END: f64 = 12.0;
 
 // ── Hysteresis / smoothing ────────────────────────────────────────────────
 
 /// Minimum seconds in the current state before a transition is allowed.
 /// Prevents flicker between states when CPU% hovers near a threshold.
 /// At 60s, the state can change at most once per minute.
-pub const MIN_STATE_DWELL_SECS: f32 = 60.0;
+pub(crate) const MIN_STATE_DWELL_SECS: f32 = 60.0;
 
 /// EMA alpha for CPU% smoothing. 0.0 = frozen (never update), 1.0 = raw
 /// sample (no smoothing). 0.3 means ~70% weight on history, ~30% on new
 /// sample — smooths 3-second sampling jitter without lagging too far
 /// behind real load changes.
-pub const CPU_EMA_ALPHA: f32 = 0.3;
+pub(crate) const CPU_EMA_ALPHA: f32 = 0.3;
 
 // ── State → color family mapping ──────────────────────────────────────────
 
@@ -139,7 +139,7 @@ pub const CPU_EMA_ALPHA: f32 = 0.3;
 /// | Void | PurpleNebula | Deep cosmic purples — silent night |
 /// | Compression | GrayMoon | Neutral grays — pre-dawn pressure |
 #[must_use]
-pub const fn family_for_state(state: FeelingState) -> ColorFamily {
+pub(crate) const fn family_for_state(state: FeelingState) -> ColorFamily {
     match state {
         FeelingState::Calm => ColorFamily::BlueWater,
         FeelingState::Pulse => ColorFamily::Green,

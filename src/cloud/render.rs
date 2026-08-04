@@ -22,11 +22,11 @@ use crate::runtime::BoldMode;
 // or `crate::cloud::CharLoc` reference continues to resolve unchanged. The
 // `pub use` also brings `CharLoc` into local scope for use in `get_attr`'s
 // signature below.
-pub use crate::chroma::shaders::base::CharLoc;
+pub(crate) use crate::chroma::shaders::base::CharLoc;
 
 /// Read-only drawing context passed to `Droplet::draw` to avoid borrowing
 /// the entire `Cloud` (which would conflict with the mutable droplet loop).
-pub struct DrawCtx<'a> {
+pub(crate) struct DrawCtx<'a> {
     pub lines: u16,
     /// Total column count of the viewport. Used by per-cell effects that
     /// need horizontal positioning (e.g. cinematic radial vignette).
@@ -191,7 +191,7 @@ pub struct DrawCtx<'a> {
 
 impl DrawCtx<'_> {
     #[inline]
-    pub fn is_glitched(&self, line: u16, col: u16) -> bool {
+    pub(crate) fn is_glitched(&self, line: u16, col: u16) -> bool {
         if !self.glitchy {
             return false;
         }
@@ -205,7 +205,7 @@ impl DrawCtx<'_> {
     /// Falls back to 1.0 (no fade) if the LUT doesn't cover the line index,
     /// which is safe — the LUT is rebuilt on every terminal resize.
     #[inline]
-    pub fn edge_fade(&self, line: u16) -> f32 {
+    pub(crate) fn edge_fade(&self, line: u16) -> f32 {
         // Cosmic Dragon egg #13: direct indexing — edge_fade_lut is always sized to
         // `lines` in spawn.rs, and callers pass line < lines (from droplet
         // iteration). The .get().copied().unwrap_or(1.0) was defensive but
@@ -219,7 +219,7 @@ impl DrawCtx<'_> {
     }
 
     #[inline]
-    pub fn get_char(&self, line: u16, col: u16, char_pool_idx: u16) -> char {
+    pub(crate) fn get_char(&self, line: u16, col: u16, char_pool_idx: u16) -> char {
         let pool = if self.charset_uses_previous_pool(line, col) {
             self.previous_char_pool
         } else {
@@ -238,7 +238,7 @@ impl DrawCtx<'_> {
     }
 
     #[inline]
-    pub fn charset_transitioning(&self) -> bool {
+    pub(crate) fn charset_transitioning(&self) -> bool {
         self.charset_wave_line.is_some()
     }
 
@@ -264,7 +264,12 @@ impl DrawCtx<'_> {
     /// Delegates to the chroma shader's free function so the renderer and
     /// `resolve_cell_color()` share one source of truth.
     #[inline]
-    pub fn color_uses_previous_palette(&self, palette_slot: u8, line: u16, col: u16) -> bool {
+    pub(crate) fn color_uses_previous_palette(
+        &self,
+        palette_slot: u8,
+        line: u16,
+        col: u16,
+    ) -> bool {
         color_uses_previous_palette(
             self.color_wave_line,
             self.active_palette_slot,
@@ -282,7 +287,7 @@ impl DrawCtx<'_> {
     /// site, yielding equivalent codegen.
     #[inline]
     #[allow(clippy::too_many_arguments)]
-    pub fn get_attr(
+    pub(crate) fn get_attr(
         &self,
         palette_slot: u8,
         line: u16,

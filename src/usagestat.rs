@@ -38,7 +38,7 @@
 
 /// Snapshot of process resource counters at a point in time.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct ResourceSnapshot {
+pub(crate) struct ResourceSnapshot {
     pub minor_faults: u64,
     pub major_faults: u64,
     pub voluntary_ctxt: u64,
@@ -50,7 +50,7 @@ impl ResourceSnapshot {
     /// counters. Returns `None` on unsupported platforms or if the
     /// syscall fails.
     #[must_use]
-    pub fn now() -> Option<Self> {
+    pub(crate) fn now() -> Option<Self> {
         #[cfg(unix)]
         {
             unix_snapshot()
@@ -65,7 +65,7 @@ impl ResourceSnapshot {
     /// saturating-subtracted (clamped to 0) to guard against counter
     /// resets on some platforms.
     #[must_use]
-    pub fn delta_since(&self, earlier: &Self) -> Self {
+    pub(crate) fn delta_since(&self, earlier: &Self) -> Self {
         Self {
             minor_faults: self.minor_faults.saturating_sub(earlier.minor_faults),
             major_faults: self.major_faults.saturating_sub(earlier.major_faults),

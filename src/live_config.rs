@@ -41,11 +41,11 @@ use crate::configfile;
 /// Global exit code set by live-reload when invalid config is detected.
 /// 0 = no error (default), 2 = live-reload validation failure.
 /// Main.rs checks this after run_interactive() returns and exits accordingly.
-pub static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
+pub(crate) static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
 
 /// Global error message captured during live-reload failure.
 /// Printed to stderr AFTER terminal restoration so the user can see it.
-pub static LIVE_RELOAD_ERROR: Mutex<Option<String>> = Mutex::new(None);
+pub(crate) static LIVE_RELOAD_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 /// v25.12 (bug #14): Accumulated validation rejections during the session.
 ///
@@ -60,14 +60,14 @@ pub static LIVE_RELOAD_ERROR: Mutex<Option<String>> = Mutex::new(None);
 ///
 /// Cap at 64 entries to avoid unbounded growth on a misbehaving editor that
 /// saves 1000 times per second.
-pub static LIVE_RELOAD_VALIDATION_REJECTIONS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+pub(crate) static LIVE_RELOAD_VALIDATION_REJECTIONS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 const MAX_REJECTION_LOG: usize = 64;
 
 /// Append a validation rejection to the session log.
 /// Called from `validate_and_send` when `validate_config_strictly` rejects
 /// the new config. Bulletproof — never panics on poisoned mutex.
-pub fn push_validation_rejection(msg: &str) {
+pub(crate) fn push_validation_rejection(msg: &str) {
     let ts = crate::output::now_hhmm();
     let entry = format!("{ts} {msg}");
     if let Ok(mut guard) = LIVE_RELOAD_VALIDATION_REJECTIONS.lock() {
@@ -92,7 +92,7 @@ pub fn drain_validation_rejections() -> Vec<String> {
 
 /// Live config event sent from watcher to render thread.
 /// Ok = valid config, rebuild Cloud. Err = invalid, exit cosmostrix.
-pub type LiveConfigEvent = Result<HashMap<String, String>, String>;
+pub(crate) type LiveConfigEvent = Result<HashMap<String, String>, String>;
 
 /// Spawn a config file watcher on a background thread.
 ///
@@ -101,7 +101,7 @@ pub type LiveConfigEvent = Result<HashMap<String, String>, String>;
 /// sending — invalid configs are rejected with a stderr error message.
 ///
 /// If the config file doesn't exist or can't be watched, returns `None`.
-pub fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> {
+pub(crate) fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> {
     if !config_path.exists() {
         lr_trace!(
             "config file does not exist — watcher NOT spawned: {}",
@@ -567,7 +567,7 @@ fn validate_and_send(
 /// defaults during live reload. Per-field CLI flags (tracked in
 /// `cli_explicit`) remain immutable across reloads.
 #[must_use]
-pub fn rebuild_cloud_config(
+pub(crate) fn rebuild_cloud_config(
     base: &crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
 ) -> crate::app::CloudConfig {

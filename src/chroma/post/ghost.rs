@@ -75,7 +75,7 @@ const GHOST_FALLBACK_COLOR: (u8, u8, u8) = (18, 22, 18);
 /// Returns `(r, g, b)` ready for use as the ghost base color (before the
 /// opacity fade is applied by the ghost renderer).
 #[inline]
-pub fn ghost_base_color(palette_colors: &[Color]) -> (u8, u8, u8) {
+pub(crate) fn ghost_base_color(palette_colors: &[Color]) -> (u8, u8, u8) {
     let Some(darkest) = palette_colors.first().copied() else {
         return GHOST_FALLBACK_COLOR;
     };

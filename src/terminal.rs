@@ -145,7 +145,7 @@ impl LastFrame {
 /// fit without spilling a second syscall.
 const STDOUT_BUF_CAPACITY: usize = 256 * 1024;
 
-pub struct Terminal {
+pub(crate) struct Terminal {
     stdout: BufWriter<Stdout>,
     last: Option<LastFrame>,
     run_buf: String,
@@ -282,7 +282,7 @@ impl Terminal {
         Ok(term)
     }
 
-    pub fn size(&self) -> Result<(u16, u16)> {
+    pub(crate) fn size(&self) -> Result<(u16, u16)> {
         let (w, h) = terminal::size()?;
         // Clamp to prevent OOM from misreported terminal sizes
         let w = w.min(MAX_TERMINAL_COLS);
@@ -293,11 +293,11 @@ impl Terminal {
         Ok((w, h))
     }
 
-    pub fn poll_event(timeout: std::time::Duration) -> Result<bool> {
+    pub(crate) fn poll_event(timeout: std::time::Duration) -> Result<bool> {
         event::poll(timeout)
     }
 
-    pub fn read_event() -> Result<event::Event> {
+    pub(crate) fn read_event() -> Result<event::Event> {
         event::read()
     }
 
@@ -490,7 +490,7 @@ impl Terminal {
     }
 
     /// Enable mouse capture so mouse events are reported.
-    pub fn enable_mouse_capture(&mut self) -> Result<()> {
+    pub(crate) fn enable_mouse_capture(&mut self) -> Result<()> {
         self.stdout.execute(event::EnableMouseCapture)?;
         self.mouse_capture_enabled = true;
         self.stdout.execute(event::EnableFocusChange)?;
@@ -500,7 +500,7 @@ impl Terminal {
     }
 
     /// Disable mouse capture.
-    pub fn disable_mouse_capture(&mut self) -> Result<()> {
+    pub(crate) fn disable_mouse_capture(&mut self) -> Result<()> {
         if self.mouse_capture_enabled {
             self.stdout.execute(event::DisableMouseCapture)?;
             self.mouse_capture_enabled = false;
@@ -518,7 +518,7 @@ impl Terminal {
 
     /// Set the color byte cache for this terminal session.
     /// Must be called after the palette is built and before the first draw.
-    pub fn set_color_cache(&mut self, cache: ColorCache) {
+    pub(crate) fn set_color_cache(&mut self, cache: ColorCache) {
         self.color_cache = Some(cache);
     }
 
@@ -536,7 +536,7 @@ impl Terminal {
     ///
     /// Returns `(0, 0, 0, 0)` if no color cache is set.
     #[must_use]
-    pub fn encoding_stats(&self) -> (u64, u64, u64, u64) {
+    pub(crate) fn encoding_stats(&self) -> (u64, u64, u64, u64) {
         let (hits, misses) = self
             .color_cache
             .as_ref()
@@ -612,7 +612,7 @@ impl Terminal {
         let _ = self.stdout.flush();
     }
 
-    pub fn draw(&mut self, frame: &mut Frame) -> Result<()> {
+    pub(crate) fn draw(&mut self, frame: &mut Frame) -> Result<()> {
         let mut cur_fg: Option<Color> = None;
         let mut cur_bg: Option<Color> = None;
         let mut cur_bold: bool = false;
@@ -986,7 +986,7 @@ impl Drop for Terminal {
 }
 
 #[cold]
-pub fn restore_terminal_best_effort() {
+pub(crate) fn restore_terminal_best_effort() {
     let mut out = stdout();
     let _ = out.execute(event::DisableMouseCapture);
     let _ = out.execute(event::DisableFocusChange);
@@ -1019,7 +1019,7 @@ pub fn restore_terminal_best_effort() {
 ///
 /// Does NOT clear screen or scrollback — that's the destructive
 /// TERMINAL_RESET_SEQUENCE used only by --reset-terminal.
-pub const TERMINAL_RESTORE_SEQUENCE: &str = "\x1b[0m\
+pub(crate) const TERMINAL_RESTORE_SEQUENCE: &str = "\x1b[0m\
      \x1b[?2026l\
      \x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\
      \x1b[?2004l\
@@ -1043,7 +1043,7 @@ pub const TERMINAL_RESTORE_SEQUENCE: &str = "\x1b[0m\
 /// scrollback buffer. Use only when the terminal is in a broken state
 /// (e.g., after SIGKILL left cosmostrix's alternate screen + raw mode
 /// active and the user can't see their shell prompt).
-pub const TERMINAL_RESET_SEQUENCE: &str = "\x1b[0m\
+pub(crate) const TERMINAL_RESET_SEQUENCE: &str = "\x1b[0m\
      \x1b[?2026l\
      \x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\
      \x1b[?2004l\
@@ -1079,7 +1079,7 @@ pub const TERMINAL_RESET_SEQUENCE: &str = "\x1b[0m\
 /// Each layer is best-effort — failures are silently ignored because
 /// the terminal may be in a state where some operations don't work.
 /// The goal is maximum recovery probability, not perfection.
-pub fn reset_terminal_emergency() {
+pub(crate) fn reset_terminal_emergency() {
     // Layer 1: ANSI restore sequence (disable all optional modes)
     restore_terminal_best_effort();
 
@@ -1126,7 +1126,7 @@ pub fn reset_terminal_emergency() {
 }
 
 #[must_use]
-pub fn blank_cell(bg: Option<Color>) -> Cell {
+pub(crate) fn blank_cell(bg: Option<Color>) -> Cell {
     Cell {
         ch: ' ',
         fg: None,

@@ -28,7 +28,7 @@ use std::time::Instant;
 // ── Public types ──────────────────────────────────────────────────────────
 
 /// Read-only rendering context passed to event `render()` methods.
-pub struct EventCtx {
+pub(super) struct EventCtx {
     /// Terminal dimensions.
     pub cols: u16,
     pub lines: u16,
@@ -46,7 +46,7 @@ pub struct EventCtx {
 /// Each event precomputes data at spawn; `render()` iterates stored data
 /// with zero per-frame allocation. Lifecycle is binary: an event is
 /// either alive (rendered each frame) or finished (recycled).
-pub trait AtmosphericEvent: Send {
+pub(super) trait AtmosphericEvent: Send {
     /// Returns true when the event has finished and can be recycled.
     fn is_finished(&self) -> bool;
 
@@ -80,7 +80,7 @@ impl AtmosphericEventManager {
     /// RendererMemory, StorytellingState, GustState). See `cloud/mod.rs:397-405`
     /// for the constructor batch — every subsystem takes `now` so the batch
     /// reads symmetrically.
-    pub fn new(_now: Instant) -> Self {
+    pub(super) fn new(_now: Instant) -> Self {
         let event_seed = RNG_INITIAL_SEED ^ EVENT_RNG_XOR;
         let rng = StdRng::seed_from_u64(event_seed);
 
@@ -96,17 +96,17 @@ impl AtmosphericEventManager {
     /// Drops all active events — events are stateless between frames (no
     /// finalizer callback). The `now` parameter follows the same uniform-
     /// constructor convention documented on `new()`.
-    pub fn reset(&mut self, _now: Instant) {
+    pub(super) fn reset(&mut self, _now: Instant) {
         self.events.clear();
     }
 
     /// Returns true if no events are active.
-    pub fn is_empty(&self) -> bool {
+    pub(super) fn is_empty(&self) -> bool {
         self.events.is_empty()
     }
 
     /// Enable atmospheric events (called when entering interactive mode).
-    pub fn enable_events(&mut self) {
+    pub(super) fn enable_events(&mut self) {
         self.events_enabled = true;
     }
 
@@ -119,7 +119,7 @@ impl AtmosphericEventManager {
     /// caller every frame just to be passed in here and then ignored.
     /// The remaining parameters are all read by the trigger logic.
     #[allow(clippy::too_many_arguments)]
-    pub fn evaluate_triggers(
+    pub(super) fn evaluate_triggers(
         &mut self,
         perf_pressure: f32,
         cols: u16,
@@ -142,12 +142,12 @@ impl AtmosphericEventManager {
     }
 
     /// Render pre-rain events (ghosts, behind droplets).
-    pub fn render_pre_rain(&self, ctx: &EventCtx, frame: &mut Frame) {
+    pub(super) fn render_pre_rain(&self, ctx: &EventCtx, frame: &mut Frame) {
         self.render_phase(ctx, frame, true);
     }
 
     /// Render post-rain events.
-    pub fn render(&self, ctx: &EventCtx, frame: &mut Frame) {
+    pub(super) fn render(&self, ctx: &EventCtx, frame: &mut Frame) {
         self.render_phase(ctx, frame, false);
     }
 
@@ -165,7 +165,7 @@ impl AtmosphericEventManager {
     /// to `event.update(now)`, which was a no-op for every implementation)
     /// and the phosphor-seeding path that fired on Active→Decay
     /// transitions (no event ever entered Decay).
-    pub fn update(&mut self) {
+    pub(super) fn update(&mut self) {
         let mut i = 0;
         while i < self.events.len() {
             if self.events[i].is_finished() {

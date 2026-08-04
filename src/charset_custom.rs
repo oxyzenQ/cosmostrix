@@ -56,11 +56,11 @@ use unicode_width::UnicodeWidthChar;
 ///
 /// Bounded to keep the rain glyph pool predictable and prevent accidental
 /// memory bloat from a typo (e.g., pasting a 10 000-char string).
-pub const CHARSET_CUSTOM_MAX_LEN: usize = 256;
+pub(crate) const CHARSET_CUSTOM_MAX_LEN: usize = 256;
 
 /// A parsed custom charset definition — a flat list of single-width chars.
 #[derive(Debug, Clone, Default)]
-pub struct CharsetCustomDef {
+pub(crate) struct CharsetCustomDef {
     /// The validated character pool, in config-declared order.
     pub chars: Vec<char>,
 }
@@ -75,7 +75,9 @@ pub struct CharsetCustomDef {
 ///
 /// Names are normalized to lowercase for case-insensitive matching.
 #[must_use]
-pub fn collect_charset_custom(cfg: &HashMap<String, String>) -> BTreeMap<String, CharsetCustomDef> {
+pub(crate) fn collect_charset_custom(
+    cfg: &HashMap<String, String>,
+) -> BTreeMap<String, CharsetCustomDef> {
     let mut out: BTreeMap<String, CharsetCustomDef> = BTreeMap::new();
 
     for (key, value) in cfg {
@@ -130,7 +132,7 @@ pub fn collect_charset_custom(cfg: &HashMap<String, String>) -> BTreeMap<String,
 /// choice. The renderer will never support emoji or full-width CJK glyphs —
 /// its soul is single-cell diff-based rendering. Do not interpret this
 /// filter as a temporary limitation.
-pub fn parse_charset_value(value: &str) -> Result<Vec<char>, String> {
+pub(crate) fn parse_charset_value(value: &str) -> Result<Vec<char>, String> {
     let s = value.trim().trim_matches('"').trim();
     let mut chars: Vec<char> = Vec::new();
     let mut skipped_wide: Vec<String> = Vec::new();
@@ -191,7 +193,10 @@ pub fn parse_charset_value(value: &str) -> Result<Vec<char>, String> {
 /// Callers should fall back to `charset::charset_from_str` when this
 /// returns `Err` — a "not found" error for a custom charset is normal
 /// and means the user is asking for a built-in preset.
-pub fn load_custom_charset(cfg: &HashMap<String, String>, name: &str) -> Result<Vec<char>, String> {
+pub(crate) fn load_custom_charset(
+    cfg: &HashMap<String, String>,
+    name: &str,
+) -> Result<Vec<char>, String> {
     let palettes = collect_charset_custom(cfg);
     let normalized = name.trim().to_ascii_lowercase();
     let def = palettes.get(&normalized).ok_or_else(|| {
@@ -230,7 +235,7 @@ pub fn load_custom_charset(cfg: &HashMap<String, String>, name: &str) -> Result<
 /// (`testconf::validate_config_strictly`) already reported it at
 /// startup / on live reload. Surfacing it again here would be noise.
 #[must_use]
-pub fn load_custom_charset_if_matches(
+pub(crate) fn load_custom_charset_if_matches(
     cfg: &HashMap<String, String>,
     name: &str,
 ) -> Option<Vec<char>> {
@@ -254,7 +259,7 @@ pub fn load_custom_charset_if_matches(
 /// This is the entry point `testconf.rs` calls during strict validation.
 /// It does NOT mutate any state — pure validation.
 #[must_use]
-pub fn validate_charset_custom_value(value: &str) -> Option<String> {
+pub(crate) fn validate_charset_custom_value(value: &str) -> Option<String> {
     parse_charset_value(value).err()
 }
 

@@ -38,7 +38,7 @@ use crate::configfile::USER_CONFIG_KEYS;
 /// appending after the existing error message. Callers are responsible
 /// for any indent prefix (e.g. `"  hint: "`).
 #[must_use]
-pub fn suggest_for_unknown_key(key: &str) -> Option<String> {
+pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     // Pattern 1: a top-level key accidentally nested under [color.tune].
     // Triggered by `color.tune.<suffix>` where `<suffix>` is a recognized
     // top-level USER_CONFIG_KEYS entry (e.g. `color.tune.bold`).
@@ -270,7 +270,7 @@ fn colors_custom_field_hint(key: &str, field: &str) -> String {
 /// used by the existing error formatters in `live_config.rs` and
 /// `config_apply.rs` (which `take(3)` before joining).
 #[must_use]
-pub fn format_hints_block(keys: &[String]) -> String {
+pub(crate) fn format_hints_block(keys: &[String]) -> String {
     let mut block = String::new();
     for k in keys.iter().take(3) {
         if let Some(hint) = suggest_for_unknown_key(k) {

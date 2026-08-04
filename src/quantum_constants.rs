@@ -22,21 +22,21 @@
 /// Maximum concurrent Quantum Ripple particles. Pre-allocated once at
 /// Cloud init; reused via free-list. 32 covers the peak case of 2-3
 /// rapid clicks (each spawns up to 25) with overlap.
-pub const QUANTUM_RIPPLE_POOL_SIZE: usize = 64;
+pub(crate) const QUANTUM_RIPPLE_POOL_SIZE: usize = 64;
 
 /// Particles spawned per click (fixed 20 for determinism).
-pub const QUANTUM_RIPPLE_PARTICLE_COUNT: usize = 20;
+pub(crate) const QUANTUM_RIPPLE_PARTICLE_COUNT: usize = 20;
 
 /// Particle lifespan in seconds (0.8s midpoint).
-pub const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 0.8;
+pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 0.8;
 
 /// Particle outward radial speed (cells/sec).
-pub const QUANTUM_RIPPLE_SPEED: f32 = 18.0;
+pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 18.0;
 
 /// Brand purple RGB (same as logo color) for Quantum effects.
-pub const QUANTUM_BRAND_PURPLE_R: u8 = 168;
-pub const QUANTUM_BRAND_PURPLE_G: u8 = 85;
-pub const QUANTUM_BRAND_PURPLE_B: u8 = 247;
+pub(crate) const QUANTUM_BRAND_PURPLE_R: u8 = 168;
+pub(crate) const QUANTUM_BRAND_PURPLE_G: u8 = 85;
+pub(crate) const QUANTUM_BRAND_PURPLE_B: u8 = 247;
 
 /// v30 masterclass: render-time tone-down applied to each particle's
 /// snapshot of the palette body color.
@@ -68,4 +68,4 @@ pub const QUANTUM_BRAND_PURPLE_B: u8 = 247;
 /// than a hue burst — fine on bright themes but too dim on dark themes
 /// like Cosmos/Nebula where the body is already low-luminance. Higher
 /// values (0.85–1.0) restore the "too bright" complaint.
-pub const QUANTUM_BODY_TONE_DOWN: f32 = 0.72;
+pub(crate) const QUANTUM_BODY_TONE_DOWN: f32 = 0.72;

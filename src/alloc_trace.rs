@@ -30,7 +30,7 @@ static BYTES_DEALLOCATED: AtomicU64 = AtomicU64::new(0);
 
 /// Global allocator that wraps `std::alloc::System` and tracks allocation
 /// statistics.
-pub struct TraceAlloc;
+pub(crate) struct TraceAlloc;
 
 static INNER: System = System;
 
@@ -66,7 +66,7 @@ unsafe impl GlobalAlloc for TraceAlloc {
 
 /// Snapshot of allocator statistics at a point in time.
 #[derive(Debug, Clone, Default)]
-pub struct AllocSnapshot {
+pub(crate) struct AllocSnapshot {
     pub alloc_calls: u64,
     pub dealloc_calls: u64,
     pub realloc_calls: u64,
@@ -76,7 +76,7 @@ pub struct AllocSnapshot {
 
 impl AllocSnapshot {
     /// Take a snapshot of current allocator counters.
-    pub fn now() -> Self {
+    pub(crate) fn now() -> Self {
         Self {
             alloc_calls: ALLOC_CALLS.load(Ordering::Relaxed),
             dealloc_calls: DEALLOC_CALLS.load(Ordering::Relaxed),
@@ -87,7 +87,7 @@ impl AllocSnapshot {
     }
 
     /// Compute delta between two snapshots (after - before).
-    pub fn delta(&self, before: &Self) -> AllocMetrics {
+    pub(crate) fn delta(&self, before: &Self) -> AllocMetrics {
         let alloc = self.alloc_calls - before.alloc_calls;
         let dealloc = self.dealloc_calls - before.dealloc_calls;
         let realloc = self.realloc_calls - before.realloc_calls;
@@ -109,7 +109,7 @@ impl AllocSnapshot {
 
 /// Allocator metrics computed from snapshot delta.
 #[derive(Debug, Clone, Default)]
-pub struct AllocMetrics {
+pub(crate) struct AllocMetrics {
     pub alloc_calls: u64,
     pub dealloc_calls: u64,
     pub realloc_calls: u64,
@@ -123,7 +123,7 @@ pub struct AllocMetrics {
 
 impl AllocMetrics {
     /// Read heap virtual size from /proc/self/status (Linux only).
-    pub fn read_proc_heap(&mut self) {
+    pub(crate) fn read_proc_heap(&mut self) {
         #[cfg(target_os = "linux")]
         {
             if let Ok(status) = std::fs::read_to_string("/proc/self/status") {

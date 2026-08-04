@@ -8,7 +8,7 @@
 //! single-tier help surface. The file name is kept as `help_detail.rs`
 //! for git-blame continuity; the public function is `print_help()`.
 
-pub fn print_help() {
+pub(crate) fn print_help() {
     let text = "USAGE:
   cosmostrix [OPTIONS]
 

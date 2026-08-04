@@ -99,7 +99,7 @@ use crate::chroma::palette::color_to_rgb;
 /// to L smoothing. The struct makes the field names self-documenting
 /// and avoids the readability cliff of a 6-tuple.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct TransitionLabEntry {
+pub(crate) struct TransitionLabEntry {
     /// OKLab L for this stop in the OLD palette.
     pub l_old: f32,
     /// OKLab a (green↔red axis) for this stop in the OLD palette.
@@ -132,7 +132,7 @@ pub struct TransitionLabEntry {
 /// rain.rs builder). The actual content is now full OKLab per stop
 /// (Phase 8).
 #[derive(Debug, Clone)]
-pub struct TransitionLTable {
+pub(crate) struct TransitionLTable {
     /// Per-stop OKLab values for both palettes. Sparse — entries are only
     /// present for indices where BOTH palettes had a non-Reset Color.
     /// Indexed by the shader's `color_idx` (the resolved palette stop
@@ -162,7 +162,7 @@ impl TransitionLTable {
     /// - `window <= 0.0`
     /// - No stop index had a non-Reset color in BOTH palettes
     #[must_use]
-    pub fn build(
+    pub(crate) fn build(
         old_palette: &[Color],
         new_palette: &[Color],
         wave_line: f32,
@@ -215,7 +215,7 @@ impl TransitionLTable {
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    pub fn get(&self, stop_idx: usize) -> Option<(f32, f32)> {
+    pub(crate) fn get(&self, stop_idx: usize) -> Option<(f32, f32)> {
         self.entries.get(stop_idx).map(|e| (e.l_old, e.l_new))
     }
 }
@@ -243,7 +243,7 @@ impl TransitionLTable {
 /// The smoothed color, or the original color if any skip condition
 /// applies (see module-level docs).
 #[inline]
-pub fn apply_l_smoothing(
+pub(crate) fn apply_l_smoothing(
     color: Color,
     table: Option<&TransitionLTable>,
     stop_idx: i32,

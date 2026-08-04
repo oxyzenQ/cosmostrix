@@ -16,7 +16,7 @@ const SCALE_SIZES: &[(u16, u16)] = &[(6, 6), (20, 20), (40, 20), (80, 24), (120,
 
 /// Run benchmark across multiple screen sizes and print summary table.
 /// Returns the collected results for each size.
-pub fn run_scaling_benchmark(
+pub(crate) fn run_scaling_benchmark(
     cfg: &crate::app::CloudConfig,
     duration_secs: u64,
 ) -> std::io::Result<Vec<ScaleResult>> {
@@ -99,7 +99,7 @@ fn run_single_silent(
 
 /// Single scaling result row.
 #[derive(Debug, Clone)]
-pub struct ScaleResult {
+pub(crate) struct ScaleResult {
     pub width: u16,
     pub height: u16,
     pub cells: u64,
@@ -161,7 +161,7 @@ fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
 /// `scene` is the active scene name (e.g. "cinematic"); it is included as a
 /// top-level field so JSON consumers can tell which scene generated the
 /// metrics without parsing the human-readable SCALING SUMMARY header.
-pub fn build_scaling_json(results: &[ScaleResult], scene: &str) -> String {
+pub(crate) fn build_scaling_json(results: &[ScaleResult], scene: &str) -> String {
     let mut out = String::with_capacity(2048);
     out.push('{');
     out.push_str(&format!("\"scene\":\"{}\",", scene));

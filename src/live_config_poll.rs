@@ -81,7 +81,7 @@ const BURST_CYCLES_MAX: u8 = 10;
 /// prevents pathological thrash; the clamp at 5000ms prevents missed
 /// reloads on slow filesystems.
 #[must_use]
-pub fn env_poll_interval_ms() -> u64 {
+pub(crate) fn env_poll_interval_ms() -> u64 {
     std::env::var("COSMOSTRIX_LIVE_RELOAD_POLL_MS")
         .ok()
         .and_then(|s| s.parse().ok())
@@ -112,7 +112,7 @@ pub fn env_poll_interval_ms() -> u64 {
 /// **Startup reload prevention**: all three signals are snapshotted at
 /// heartbeat start. The first poll (`base_interval_ms` later) compares
 /// against these initial values — if nothing changed, no event is sent.
-pub fn polling_heartbeat(
+pub(crate) fn polling_heartbeat(
     path: std::path::PathBuf,
     tx: Sender<notify::Result<notify::Event>>,
     base_interval_ms: u64,
@@ -273,7 +273,7 @@ pub fn polling_heartbeat(
 /// transition from "mtime available" to "mtime unavailable" registers
 /// as a change (which is correct — the file may have been replaced).
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct FileStateSnapshot {
+pub(crate) struct FileStateSnapshot {
     /// File mtime from `std::fs::Metadata::modified()`. `None` if the
     /// filesystem doesn't support mtime (rare on ext4, common on FUSE).
     pub mtime: Option<std::time::SystemTime>,
@@ -295,7 +295,7 @@ const HASH_BYTES: usize = 8 * 1024;
 ///
 /// This function never panics — all I/O operations return `Result` and
 /// failures are propagated as `None` in the respective snapshot fields.
-pub fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
+pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
     let metadata = match std::fs::metadata(path) {
         Ok(m) => m,
         Err(_) => {
@@ -354,7 +354,7 @@ fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<u64> {
 /// Compute FNV-1a 64-bit hash of a byte slice. Public to allow tests
 /// to verify the implementation; not part of the public API.
 #[must_use]
-pub fn fnv1a_64(data: &[u8]) -> u64 {
+pub(crate) fn fnv1a_64(data: &[u8]) -> u64 {
     // FNV-1a 64-bit parameters.
     const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
     const FNV_PRIME: u64 = 0x100000001b3;

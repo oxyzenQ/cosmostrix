@@ -135,7 +135,7 @@ impl BehaviorProfile {
 /// Tuning parameters for a cinematic behavior profile.
 /// Each value is a multiplier (1.0 = default behavior).
 #[derive(Clone, Copy, Debug)]
-pub struct ProfileParams {
+pub(crate) struct ProfileParams {
     pub speed_mult: f32,
     pub density_mult: f32,
     pub turbulence_mult: f32,
@@ -723,7 +723,7 @@ pub(super) struct EmergentMoment {
 
 /// Current emergent effects applied to rendering.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct EmergentEffects {
+pub(crate) struct EmergentEffects {
     pub luminance_boost: f32,
     pub density_boost: f32,
     pub speed_shift: f32,

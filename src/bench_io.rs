@@ -106,7 +106,7 @@ pub(crate) struct TerminalIoMetrics {
 impl TerminalIoMetrics {
     /// Write bandwidth in MB/s (1 MB = 1,048,576 bytes).
     #[must_use]
-    pub fn bandwidth_mbps(&self) -> f64 {
+    pub(crate) fn bandwidth_mbps(&self) -> f64 {
         if self.elapsed_secs > 0.0 {
             (self.bytes_written as f64 / 1_048_576.0) / self.elapsed_secs
         } else {
@@ -116,7 +116,7 @@ impl TerminalIoMetrics {
 
     /// Average write latency in microseconds per write call.
     #[must_use]
-    pub fn avg_latency_us(&self) -> f64 {
+    pub(crate) fn avg_latency_us(&self) -> f64 {
         if self.write_calls > 0 {
             (self.total_write_ns as f64 / self.write_calls as f64) / 1000.0
         } else {
@@ -126,7 +126,7 @@ impl TerminalIoMetrics {
 
     /// Effective write FPS = write_calls / elapsed_secs.
     #[must_use]
-    pub fn effective_write_fps(&self) -> f64 {
+    pub(crate) fn effective_write_fps(&self) -> f64 {
         if self.elapsed_secs > 0.0 {
             self.write_calls as f64 / self.elapsed_secs
         } else {

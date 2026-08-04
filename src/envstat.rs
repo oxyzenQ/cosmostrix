@@ -22,7 +22,7 @@
 /// because they come from env vars / files / syscalls that return text.
 /// `None` means "detection unavailable on this platform".
 #[derive(Clone, Debug, Default)]
-pub struct EnvSnapshot {
+pub(crate) struct EnvSnapshot {
     /// Kernel version (e.g. "6.8.0-1014-aws"). From `uname -r`.
     pub kernel_version: Option<String>,
     /// Libc variant (e.g. "gnu", "musl"). From build-time CARGO_CFG_TARGET_ENV.
@@ -43,7 +43,7 @@ impl EnvSnapshot {
     /// Collect the current environment snapshot. Reads env vars + /sys
     /// files. Safe to call once at benchmark start.
     #[must_use]
-    pub fn collect() -> Self {
+    pub(crate) fn collect() -> Self {
         Self {
             kernel_version: kernel_version(),
             libc_variant: libc_variant(),

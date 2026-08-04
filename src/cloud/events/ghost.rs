@@ -39,7 +39,7 @@ pub(crate) struct GhostEvent {
 }
 
 impl GhostEvent {
-    pub fn new(col: u16, line: u16, now: Instant) -> Self {
+    pub(crate) fn new(col: u16, line: u16, now: Instant) -> Self {
         let mut rng = rand::rng();
         let idx = rng.random_range(0..GHOST_CHARS.len());
         let duration_var = 2000 + rng.random_range(0..2000);

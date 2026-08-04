@@ -176,7 +176,7 @@ fn compute_config_enrichment(
 
 /// Legacy CI benchmark: run N frames and print results in the original format.
 /// Output format is preserved for backwards compatibility.
-pub fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
+pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // Strict-validate --bench-scene BEFORE any allocation so an invalid
     // value (typo like "leanax") fails fast instead of silently falling
     // back to the default lean path. Honesty contract: no hidden behavior.
@@ -310,7 +310,7 @@ pub(crate) fn validate_bench_scene(cfg: &CloudConfig) {
 /// Premium user-facing benchmark: runs for the configured duration (default
 /// 5s, override with `--bench-duration N`) with live progress feedback and
 /// enhanced metrics in a Report-engine output.
-pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
+pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // Strict-validate --bench-scene BEFORE any allocation so an invalid
     // value (typo like "leanax" or "production-drawmadadadaxa") fails fast
     // instead of silently falling back to the default lean path.
@@ -1006,7 +1006,7 @@ pub fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
 /// Run benchmark and return the report data without printing.
 /// Used by --bench-all scaling automation.
-pub fn run_benchmark_capture(
+pub(crate) fn run_benchmark_capture(
     cfg: &CloudConfig,
     duration_secs: u64,
 ) -> std::io::Result<BenchReportData> {

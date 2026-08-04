@@ -97,7 +97,7 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
 /// Returns `Ok(())` if no removed flag is found, or `Err(message)` with the
 /// migration hint for the first match. The check is case-sensitive on the
 /// long-flag prefix (clap long-flags are always lowercase).
-pub fn check_removed_flags(argv: &[OsString]) -> Result<(), String> {
+pub(crate) fn check_removed_flags(argv: &[OsString]) -> Result<(), String> {
     for arg in argv.iter().skip(1) {
         let Some(s) = arg.to_str() else {
             continue;
@@ -121,7 +121,7 @@ pub fn check_removed_flags(argv: &[OsString]) -> Result<(), String> {
 }
 
 /// Validate that a `f64` value is finite and within `[min, max]`.
-pub fn validate_f64_range(name: &str, v: f64, min: f64, max: f64) -> Result<f64, String> {
+pub(crate) fn validate_f64_range(name: &str, v: f64, min: f64, max: f64) -> Result<f64, String> {
     if !v.is_finite() {
         return Err(format!(
             "error: invalid value for {name}: {v}\nexpected a finite number"
@@ -134,11 +134,11 @@ pub fn validate_f64_range(name: &str, v: f64, min: f64, max: f64) -> Result<f64,
 }
 
 /// Validate user-facing rain speed.
-pub fn validate_speed(v: f32) -> Result<f32, String> {
+pub(crate) fn validate_speed(v: f32) -> Result<f32, String> {
     validate_f32_range("--speed", v, SPEED_MIN, SPEED_MAX)
 }
 
-pub fn parse_canonical_speed(name: &str, raw: &str) -> Result<f32, String> {
+pub(crate) fn parse_canonical_speed(name: &str, raw: &str) -> Result<f32, String> {
     let min = SPEED_MIN as u32;
     let max = SPEED_MAX as u32;
     if !is_canonical_integer(raw) {
@@ -153,12 +153,22 @@ pub fn parse_canonical_speed(name: &str, raw: &str) -> Result<f32, String> {
     Ok(value as f32)
 }
 
-pub fn parse_canonical_u8_range(name: &str, raw: &str, min: u8, max: u8) -> Result<u8, String> {
+pub(crate) fn parse_canonical_u8_range(
+    name: &str,
+    raw: &str,
+    min: u8,
+    max: u8,
+) -> Result<u8, String> {
     let value = parse_canonical_u32_range(name, raw, min as u32, max as u32)?;
     Ok(value as u8)
 }
 
-pub fn parse_canonical_u32_range(name: &str, raw: &str, min: u32, max: u32) -> Result<u32, String> {
+pub(crate) fn parse_canonical_u32_range(
+    name: &str,
+    raw: &str,
+    min: u32,
+    max: u32,
+) -> Result<u32, String> {
     if !is_canonical_integer(raw) {
         return Err(expected_range_error(name, raw, min, max));
     }
@@ -171,7 +181,12 @@ pub fn parse_canonical_u32_range(name: &str, raw: &str, min: u32, max: u32) -> R
     Ok(value)
 }
 
-pub fn parse_canonical_f32_range(name: &str, raw: &str, min: f32, max: f32) -> Result<f32, String> {
+pub(crate) fn parse_canonical_f32_range(
+    name: &str,
+    raw: &str,
+    min: f32,
+    max: f32,
+) -> Result<f32, String> {
     if !is_canonical_decimal(raw) {
         return Err(expected_range_error(name, raw, min, max));
     }
@@ -181,7 +196,12 @@ pub fn parse_canonical_f32_range(name: &str, raw: &str, min: f32, max: f32) -> R
     validate_f32_range(name, value, min, max).map_err(|_| expected_range_error(name, raw, min, max))
 }
 
-pub fn parse_canonical_f64_range(name: &str, raw: &str, min: f64, max: f64) -> Result<f64, String> {
+pub(crate) fn parse_canonical_f64_range(
+    name: &str,
+    raw: &str,
+    min: f64,
+    max: f64,
+) -> Result<f64, String> {
     if !is_canonical_decimal(raw) {
         return Err(expected_range_error(name, raw, min, max));
     }
@@ -191,7 +211,7 @@ pub fn parse_canonical_f64_range(name: &str, raw: &str, min: f64, max: f64) -> R
     validate_f64_range(name, value, min, max).map_err(|_| expected_range_error(name, raw, min, max))
 }
 
-pub fn prevalidate_cli_args(argv: &[OsString]) -> Result<(), String> {
+pub(crate) fn prevalidate_cli_args(argv: &[OsString]) -> Result<(), String> {
     // Stage 4b: intercept flags removed in v14.0.0 with migration hints.
     // This runs before any other validation so users see the migration
     // message instead of clap's generic "unexpected argument" error.
@@ -378,7 +398,7 @@ fn format_range(min: impl std::fmt::Display, max: impl std::fmt::Display) -> Str
     format!("{}..={}", format_number(min), format_number(max))
 }
 
-pub fn range_error(
+pub(crate) fn range_error(
     name: &str,
     value: impl std::fmt::Display,
     min: impl std::fmt::Display,
@@ -391,7 +411,7 @@ pub fn range_error(
 }
 
 /// Validate that a `f32` value is finite and within `[min, max]`.
-pub fn validate_f32_range(name: &str, v: f32, min: f32, max: f32) -> Result<f32, String> {
+pub(crate) fn validate_f32_range(name: &str, v: f32, min: f32, max: f32) -> Result<f32, String> {
     if !v.is_finite() {
         return Err(format!(
             "error: invalid value for {name}: {v}\nexpected a finite number"
@@ -404,7 +424,7 @@ pub fn validate_f32_range(name: &str, v: f32, min: f32, max: f32) -> Result<f32,
 }
 
 /// Validate that a `u8` value is within `[min, max]`.
-pub fn validate_u8_range(name: &str, v: u8, min: u8, max: u8) -> Result<u8, String> {
+pub(crate) fn validate_u8_range(name: &str, v: u8, min: u8, max: u8) -> Result<u8, String> {
     if v < min || v > max {
         return Err(range_error(name, v, min, max));
     }
@@ -412,7 +432,7 @@ pub fn validate_u8_range(name: &str, v: u8, min: u8, max: u8) -> Result<u8, Stri
 }
 
 /// Validate that a `u16` value is within `[min, max]`.
-pub fn validate_u16_range(name: &str, v: u16, min: u16, max: u16) -> Result<u16, String> {
+pub(crate) fn validate_u16_range(name: &str, v: u16, min: u16, max: u16) -> Result<u16, String> {
     if v < min || v > max {
         return Err(range_error(name, v, min, max));
     }

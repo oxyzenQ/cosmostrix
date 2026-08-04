@@ -141,7 +141,7 @@ mod linux {
         }
     }
 
-    pub struct PerfCounters {
+    pub(super) struct PerfCounters {
         cycles_fd: i32,
         instructions_fd: i32,
         branches_fd: i32,
@@ -150,7 +150,7 @@ mod linux {
     }
 
     impl PerfCounters {
-        pub fn new() -> Self {
+        pub(super) fn new() -> Self {
             let cycles_fd = open_counter(PERF_COUNT_HW_CPU_CYCLES).unwrap_or(-1);
             let instructions_fd = open_counter(PERF_COUNT_HW_INSTRUCTIONS).unwrap_or(-1);
             let branches_fd = open_counter(PERF_COUNT_HW_BRANCH_INSTRUCTIONS).unwrap_or(-1);
@@ -167,7 +167,7 @@ mod linux {
             }
         }
 
-        pub fn read(&self) -> PerfRaw {
+        pub(super) fn read(&self) -> PerfRaw {
             if !self.available {
                 return PerfRaw::default();
             }
@@ -192,7 +192,7 @@ mod linux {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct PerfRaw {
+pub(crate) struct PerfRaw {
     pub cycles: u64,
     pub instructions: u64,
     pub branch_instructions: u64,
@@ -201,7 +201,7 @@ pub struct PerfRaw {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct PerfMetrics {
+pub(crate) struct PerfMetrics {
     pub available: bool,
     pub cycles: u64,
     pub instructions: u64,
@@ -212,7 +212,7 @@ pub struct PerfMetrics {
 }
 
 impl PerfRaw {
-    pub fn delta(&self, before: &Self) -> PerfMetrics {
+    pub(crate) fn delta(&self, before: &Self) -> PerfMetrics {
         if !self.available || !before.available {
             return PerfMetrics::default();
         }
@@ -248,7 +248,7 @@ impl PerfRaw {
 }
 
 /// Open perf counters for measurement. Returns None on non-Linux.
-pub fn open_counters() -> Option<PerfCounterHandle> {
+pub(crate) fn open_counters() -> Option<PerfCounterHandle> {
     #[cfg(target_os = "linux")]
     {
         let counters = linux::PerfCounters::new();
@@ -266,7 +266,7 @@ pub fn open_counters() -> Option<PerfCounterHandle> {
     }
 }
 
-pub struct PerfCounterHandle {
+pub(crate) struct PerfCounterHandle {
     #[cfg(target_os = "linux")]
     inner: Option<linux::PerfCounters>,
     #[cfg(not(target_os = "linux"))]
@@ -275,7 +275,7 @@ pub struct PerfCounterHandle {
 }
 
 impl PerfCounterHandle {
-    pub fn read(&self) -> PerfRaw {
+    pub(crate) fn read(&self) -> PerfRaw {
         #[cfg(target_os = "linux")]
         {
             if let Some(ref inner) = self.inner {

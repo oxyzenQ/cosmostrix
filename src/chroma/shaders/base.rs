@@ -29,7 +29,7 @@ use crate::runtime::{BoldMode, ColorMode};
 /// resolve. Moved here from `cloud::render` in Phase 2 because it is a pure
 /// shader input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CharLoc {
+pub(crate) enum CharLoc {
     Middle,
     Tail,
     /// Multi-cell tail segment for front-layer droplets. `seg` is the
@@ -61,7 +61,7 @@ pub enum CharLoc {
 /// the borrow footprint small and makes future shader innovations (OKLab
 /// gradient, dither LUT, atmospheric state) easy to add as new fields
 /// without touching the renderer.
-pub struct ShaderCtx<'a> {
+pub(crate) struct ShaderCtx<'a> {
     /// Per-slot palette color arrays for generation-based rendering.
     /// Index by droplet's `palette_slot` to resolve its birth palette.
     pub palette_slices: &'a [&'a [Color]; MAX_PALETTE_SLOTS],
@@ -382,7 +382,7 @@ fn apply_subpixel_jitter(color: Color, hash: u32, amplitude: u8) -> Color {
 /// (called from `monolith.rs`) and `resolve_cell_color` share one source of
 /// truth — previously the shader inlined its own copy of the wave test.
 #[inline]
-pub fn color_uses_previous_palette(
+pub(crate) fn color_uses_previous_palette(
     color_wave_line: Option<f32>,
     active_palette_slot: u8,
     palette_slot: u8,
@@ -409,7 +409,7 @@ pub fn color_uses_previous_palette(
 /// no allocation, no side effects.
 #[inline]
 #[allow(clippy::too_many_arguments)]
-pub fn resolve_cell_color(
+pub(crate) fn resolve_cell_color(
     shader: &ShaderCtx<'_>,
     palette_slot: u8,
     line: u16,

@@ -12,18 +12,18 @@
 // constants live in `central_control_rains.rs`. This re-export keeps
 // every existing `use crate::constants::*;` call site working unchanged.
 // To fine-tune any rain parameter, edit `central_control_rains.rs`.
-pub use crate::central_control_rains::*;
+pub(crate) use crate::central_control_rains::*;
 
 // Density & sizing
 
 /// Default cols for density auto-calculation in bench mode.
-pub const DENSITY_AUTO_DEFAULT_COLS: u16 = 120;
+pub(crate) const DENSITY_AUTO_DEFAULT_COLS: u16 = 120;
 
 /// Default lines for density auto-calculation in bench mode.
-pub const DENSITY_AUTO_DEFAULT_LINES: u16 = 40;
+pub(crate) const DENSITY_AUTO_DEFAULT_LINES: u16 = 40;
 
 /// Base terminal width for auto-density scaling.
-pub const DENSITY_BASE_COLS: f32 = 80.0;
+pub(crate) const DENSITY_BASE_COLS: f32 = 80.0;
 
 // v17: DENSITY_BASE_LINES removed — auto-density is now width-only.
 // v17: DENSITY_AUTO_MAX removed — auto factor capped at 1.0 (identity).
@@ -32,60 +32,60 @@ pub const DENSITY_BASE_COLS: f32 = 80.0;
 /// v17: the auto-density factor is now a width-only dampener
 /// (clamp(cols/80, DENSITY_AUTO_MIN, 1.0)). It never amplifies above
 /// 1.0 — the old sqrt(area) amplifier was removed.
-pub const DENSITY_AUTO_MIN: f32 = 0.5;
+pub(crate) const DENSITY_AUTO_MIN: f32 = 0.5;
 
 /// Absolute density clamp range (min).
-pub const DENSITY_CLAMP_MIN: f32 = 0.01;
+pub(crate) const DENSITY_CLAMP_MIN: f32 = 0.01;
 
 /// Absolute density clamp range (max).
-pub const DENSITY_CLAMP_MAX: f32 = 5.0;
+pub(crate) const DENSITY_CLAMP_MAX: f32 = 5.0;
 
 /// Minimum user-facing rain speed for CLI, config, and keyboard controls.
-pub const SPEED_MIN: f32 = 1.0;
+pub(crate) const SPEED_MIN: f32 = 1.0;
 
 /// Maximum user-facing rain speed for CLI, config, and keyboard controls.
-pub const SPEED_MAX: f32 = 100.0;
+pub(crate) const SPEED_MAX: f32 = 100.0;
 
 /// Minimum runtime speed reachable through keyboard controls.
-pub const RUNTIME_SPEED_MIN: f32 = SPEED_MIN;
+pub(crate) const RUNTIME_SPEED_MIN: f32 = SPEED_MIN;
 
 /// Maximum runtime speed reachable through keyboard controls.
-pub const RUNTIME_SPEED_MAX: f32 = SPEED_MAX;
+pub(crate) const RUNTIME_SPEED_MAX: f32 = SPEED_MAX;
 
 /// Maximum effective Monolith speed, including CLI/config values.
-pub const MONOLITH_EFFECTIVE_SPEED_MAX: f32 = SPEED_MAX;
+pub(crate) const MONOLITH_EFFECTIVE_SPEED_MAX: f32 = SPEED_MAX;
 
 // Performance tuning (shared between interactive & cloud)
 
 /// Pressure spawn scaling factor: reduces spawn rate under perf pressure.
-pub const PERF_PRESSURE_SPAWN_FACTOR: f32 = 0.75;
+pub(crate) const PERF_PRESSURE_SPAWN_FACTOR: f32 = 0.75;
 
 /// Performance pressure increment per overshoot frame.
-pub const PERF_PRESSURE_INCREMENT: f32 = 0.25;
+pub(crate) const PERF_PRESSURE_INCREMENT: f32 = 0.25;
 
 /// Performance pressure decay per normal frame.
-pub const PERF_PRESSURE_DECAY: f32 = 0.02;
+pub(crate) const PERF_PRESSURE_DECAY: f32 = 0.02;
 
 // Interactive mode tuning
 
 /// Monotonic clock jump guard: skip frame if elapsed exceeds this.
-pub const CLOCK_JUMP_GUARD_SECS: f64 = 10.0;
+pub(crate) const CLOCK_JUMP_GUARD_SECS: f64 = 10.0;
 
 /// Pause polling period in milliseconds.
-pub const PAUSE_PERIOD_MS: u64 = 250;
+pub(crate) const PAUSE_PERIOD_MS: u64 = 250;
 
 /// Perf-pressure classification threshold: below this = "low" pressure.
 ///
 /// Used in the post-run perf report to bucket the average pressure into
 /// low/medium/high. 0.05 = 5% average overshoot — anything below is
 /// effectively running at full speed with no frame drops.
-pub const PERF_PRESSURE_CLASS_LOW: f64 = 0.05;
+pub(crate) const PERF_PRESSURE_CLASS_LOW: f64 = 0.05;
 
 /// Perf-pressure classification threshold: below this = "medium" pressure.
 ///
 /// 0.30 = 30% average overshoot — frames are taking ~30% longer than the
 /// target period, indicating sustained mild overload. Above this is "high".
-pub const PERF_PRESSURE_CLASS_MEDIUM: f64 = 0.30;
+pub(crate) const PERF_PRESSURE_CLASS_MEDIUM: f64 = 0.30;
 
 // ── Adaptive resync interval tiers ───────────────────────────────────────────
 //
@@ -94,7 +94,7 @@ pub const PERF_PRESSURE_CLASS_MEDIUM: f64 = 0.30;
 // here so the idle-tier ladder is visible at a glance and tunable as a set.
 
 /// One hour in seconds — boundary between standard and 1-hour idle tier.
-pub const SECS_PER_HOUR: f64 = 3600.0;
+pub(crate) const SECS_PER_HOUR: f64 = 3600.0;
 
 /// Four hours in seconds — boundary between 1-hour and 4-hour idle tier.
 ///
@@ -102,37 +102,37 @@ pub const SECS_PER_HOUR: f64 = 3600.0;
 /// `IDLE_RESYNC_TIER_3_SECS`. This mirrors the observed behavior of
 /// long-running kiosk/screensaver deployments where 24-hour uptimes are
 /// common and frequent redraws waste power for zero visual benefit.
-pub const SECS_PER_4_HOURS: f64 = 14400.0;
+pub(crate) const SECS_PER_4_HOURS: f64 = 14400.0;
 
 /// Resync interval (seconds) for 1–4 hours of sustained idle.
 ///
 /// 3× reduction from the standard 20 s interval. At this tier the user is
 /// clearly away; we keep just enough redraws to refresh CRT-phosphor state
 /// without burning CPU.
-pub const IDLE_RESYNC_TIER_2_SECS: f64 = 60.0;
+pub(crate) const IDLE_RESYNC_TIER_2_SECS: f64 = 60.0;
 
 /// Resync interval (seconds) for >4 hours of sustained idle.
 ///
 /// 6× reduction from the standard 20 s interval. Used for overnight or
 /// weekend-idle kiosks. Below this, the redraw cadence becomes too sparse
 /// to recover cleanly from terminal emulator state drift.
-pub const IDLE_RESYNC_TIER_3_SECS: f64 = 120.0;
+pub(crate) const IDLE_RESYNC_TIER_3_SECS: f64 = 120.0;
 
 // Terminal / rendering
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
-pub const DIRTY_THRESHOLD_RATIO: usize = 3;
+pub(crate) const DIRTY_THRESHOLD_RATIO: usize = 3;
 
 /// Graceful shutdown timeout in seconds (force-exit if flush blocks).
-pub const SHUTDOWN_TIMEOUT_SECS: u64 = 2;
+pub(crate) const SHUTDOWN_TIMEOUT_SECS: u64 = 2;
 
 /// Maximum allowed terminal width (columns) for interactive mode.
 /// Prevents OOM from wildly misreported terminal sizes (e.g. 65535 × 65535 → hundreds of GiB).
 /// 1024 cols × 500 lines × ~48 bytes/cell ≈ 24 MiB — still comfortable.
-pub const MAX_TERMINAL_COLS: u16 = 1024;
+pub(crate) const MAX_TERMINAL_COLS: u16 = 1024;
 
 /// Maximum allowed terminal height (lines) for interactive mode.  Same rationale as above.
-pub const MAX_TERMINAL_LINES: u16 = 500;
+pub(crate) const MAX_TERMINAL_LINES: u16 = 500;
 
 /// Maximum screen size for benchmark mode (columns).
 ///
@@ -150,45 +150,45 @@ pub const MAX_TERMINAL_LINES: u16 = 500;
 /// Cosmic dragon verdict to "8k or 4k?": **8K UHD is the maximum.** 4K is the
 /// recommended daily-driver; 8K is the ceiling for stress benchmarks. Anything
 /// larger is a memory benchmark, not a render benchmark.
-pub const BENCH_MAX_COLS: u16 = 7680;
+pub(crate) const BENCH_MAX_COLS: u16 = 7680;
 
 /// Maximum screen size for benchmark mode (lines). See `BENCH_MAX_COLS`.
 ///
 /// 4320 = 8K UHD height. Same rationale: largest meaningful stress resolution
 /// before the cell-grid allocation becomes the bottleneck instead of the
 /// renderer itself.
-pub const BENCH_MAX_LINES: u16 = 4320;
+pub(crate) const BENCH_MAX_LINES: u16 = 4320;
 
 /// Minimum usable terminal width (columns). Below this, the renderer
 /// refuses to start to avoid degenerate edge cases (empty frame, zero
 /// droplets, divide-by-zero in column math).
-pub const MIN_TERMINAL_COLS: u16 = 4;
+pub(crate) const MIN_TERMINAL_COLS: u16 = 4;
 
 /// Minimum usable terminal height (lines). Same rationale as above.
-pub const MIN_TERMINAL_LINES: u16 = 4;
+pub(crate) const MIN_TERMINAL_LINES: u16 = 4;
 
 /// Resize debounce window in milliseconds. Rapid resize events within this
 /// window are coalesced into a single application, preventing redundant
 /// full resets and visual thrashing during window drag.
-pub const RESIZE_DEBOUNCE_MS: u64 = 150;
+pub(crate) const RESIZE_DEBOUNCE_MS: u64 = 150;
 
 /// Seconds of no user input before entering idle mode. In idle mode the
 /// effective FPS target is reduced to conserve CPU/battery, and
 /// atmospheric subsystem tick rates are lowered. Any input event instantly
 /// restores full performance.
-pub const IDLE_THRESHOLD_SECS: f64 = 30.0;
+pub(crate) const IDLE_THRESHOLD_SECS: f64 = 30.0;
 
 /// Effective FPS multiplier while idle. Applied on top of the user's
 /// configured FPS target to reduce update pressure during inactivity.
 /// Raised from 0.25 to 0.5 (30 FPS at 60 target) to keep phosphor decay
 /// and shimmer visually smooth even during idle — the old 15 FPS felt
 /// choppy and undermined the cinematic smoothness improvements.
-pub const IDLE_FPS_FACTOR: f64 = 0.5;
+pub(crate) const IDLE_FPS_FACTOR: f64 = 0.5;
 
 /// Wall-clock interval for one-shot full redraws while idle. This keeps
 /// terminal/compositor state synchronized even when idle FPS makes the
 /// frame-count drift correction too sparse in real time.
-pub const IDLE_REDRAW_RESYNC_INTERVAL_SECS: f64 = 20.0;
+pub(crate) const IDLE_REDRAW_RESYNC_INTERVAL_SECS: f64 = 20.0;
 
 // ── Performance self-healing (P1 + P2) ───────────────────────────────────────
 //
@@ -213,37 +213,37 @@ pub const IDLE_REDRAW_RESYNC_INTERVAL_SECS: f64 = 20.0;
 /// gate (0.7) so the downgrade fires *before* visual quality starts
 /// degrading — the goal is to shed load while the experience is still
 /// smooth, not after it's already choppy.
-pub const SELF_HEAL_PRESSURE_HIGH: f32 = 0.6;
+pub(crate) const SELF_HEAL_PRESSURE_HIGH: f32 = 0.6;
 
 /// perf_pressure threshold below which sustained-pressure recovery counts
 /// toward the auto-restore trigger. Hysteresis gap (0.6 → 0.3) prevents
 /// oscillation when pressure hovers near the boundary.
-pub const SELF_HEAL_PRESSURE_LOW: f32 = 0.3;
+pub(crate) const SELF_HEAL_PRESSURE_LOW: f32 = 0.3;
 
 /// Seconds of sustained high perf_pressure before auto-downgrade fires.
 /// 30 s is long enough to ride out transient spikes (compile jobs, window
 /// drags, momentary GC pauses) but short enough that genuine sustained
 /// overload is caught before the user gives up and kills the process.
-pub const SELF_HEAL_DOWNGRADE_SECS: f64 = 30.0;
+pub(crate) const SELF_HEAL_DOWNGRADE_SECS: f64 = 30.0;
 
 /// Seconds of sustained low perf_pressure before auto-restore fires.
 /// Deliberately longer than the downgrade window (60 s vs 30 s) so the
 /// restored scene gets a stable runway before potentially downgrading
 /// again. Prevents flapping under borderline load.
-pub const SELF_HEAL_RESTORE_SECS: f64 = 60.0;
+pub(crate) const SELF_HEAL_RESTORE_SECS: f64 = 60.0;
 
 /// EnduranceHealth score below which immediate mitigations fire.
 /// Matches the "investigate" band from EnduranceHealth::classification()
 /// (score < 60). When crossed, the self-healer forces a full redraw and
 /// bypasses ReclaimState's 1 h min interval to issue an madvise hint.
-pub const SELF_HEAL_HEALTH_INVESTIGATE: f64 = 60.0;
+pub(crate) const SELF_HEAL_HEALTH_INVESTIGATE: f64 = 60.0;
 
 /// Minimum seconds between consecutive health-triggered mitigations.
 /// Without this, a persistently unhealthy process would force-redraw every
 /// recompute cycle (≈1 s) — burning more CPU and worsening the very
 /// problem we're trying to fix. 30 s is a safe cooldown that still
 /// catches genuine stuck state quickly.
-pub const SELF_HEAL_HEALTH_COOLDOWN_SECS: f64 = 30.0;
+pub(crate) const SELF_HEAL_HEALTH_COOLDOWN_SECS: f64 = 30.0;
 
 // ── P3: stdout /dev/tty fallback ─────────────────────────────────────────────
 //
@@ -267,7 +267,7 @@ pub const SELF_HEAL_HEALTH_COOLDOWN_SECS: f64 = 30.0;
 /// recovery also fires `GRACEFUL_SHUTDOWN`, so the process is already
 /// exiting — this cap exists purely as a defensive bound against a
 /// pathological loop where shutdown is delayed (e.g., live-config save).
-pub const STDOUT_FALLBACK_MAX_RECOVERIES: u32 = 3;
+pub(crate) const STDOUT_FALLBACK_MAX_RECOVERIES: u32 = 3;
 
 // ── P4: periodic stuck-cell sweep (debug mode only) ─────────────────────────
 //
@@ -289,13 +289,13 @@ pub const STDOUT_FALLBACK_MAX_RECOVERIES: u32 = 3;
 /// Deliberately longer than FULL_REDRAW_INTERVAL_FRAMES (18000/5 min) —
 /// the full redraw already catches most stuck cells, so the sweep only
 /// fires to catch drift in the windows *between* full redraws.
-pub const STUCK_CELL_SWEEP_INTERVAL_FRAMES: u64 = 3600;
+pub(crate) const STUCK_CELL_SWEEP_INTERVAL_FRAMES: u64 = 3600;
 
 /// Maximum number of stuck cells the sweep will clear per pass. Prevents
 /// a pathological case (e.g., after a resize race) from clearing tens of
 /// thousands of cells in one sweep — the next full redraw will catch the
 /// rest. Logging is also capped to avoid stderr flooding.
-pub const STUCK_CELL_MAX_PER_SWEEP: usize = 256;
+pub(crate) const STUCK_CELL_MAX_PER_SWEEP: usize = 256;
 
 // ── P5: periodic fd health probe ────────────────────────────────────────────
 //
@@ -320,37 +320,37 @@ pub const STUCK_CELL_MAX_PER_SWEEP: usize = 256;
 /// Frames between proactive stdout fd health probes. 3600 frames ≈ 60 s
 /// at 60 FPS. Matches the P4 stuck-cell sweep cadence — both are
 /// "background hygiene" passes that run on the same slow tick.
-pub const FD_HEALTH_PROBE_INTERVAL_FRAMES: u64 = 3600;
+pub(crate) const FD_HEALTH_PROBE_INTERVAL_FRAMES: u64 = 3600;
 
 // Benchmark
 
 /// Minimum elapsed seconds denominator to avoid division by zero in bench.
-pub const BENCH_ELAPSED_MIN_S: f64 = 0.000_001;
+pub(crate) const BENCH_ELAPSED_MIN_S: f64 = 0.000_001;
 
 /// Estimated ANSI overhead bytes per drawn cell in steady-state rendering.
 /// Accounts for run-encoded style changes amortized across the terminal:
 /// ~19 bytes = (5-byte SGR reset + ~6-byte fg escape + ~6-byte bg escape
 /// + 1-byte char) × ~0.65 run-compression factor. This is a rough estimate
 ///   used for throughput reporting in the benchmark, not for frame pacing.
-pub const ANSI_BYTES_PER_CELL_ESTIMATE: u64 = 19;
+pub(crate) const ANSI_BYTES_PER_CELL_ESTIMATE: u64 = 19;
 
 // Config file
 
 /// Config file directory name under XDG_CONFIG_HOME or ~/.config.
-pub const CONFIG_DIR_NAME: &str = "cosmostrix";
+pub(crate) const CONFIG_DIR_NAME: &str = "cosmostrix";
 
 /// Config file name. v20.1 removed the pre-v10 `config` (no extension)
 /// fallback — users upgrading from pre-v10 must rename their file.
-pub const CONFIG_FILE_NAME: &str = "config.toml";
+pub(crate) const CONFIG_FILE_NAME: &str = "config.toml";
 
 /// Default frame dirty capacity pre-allocation.  One Nth of total cells.
 /// 8 is conservative enough for 1024×500 terminals (≈64K pre-alloc) while
 /// still covering most frames without a heap spill.
-pub const DIRTY_CAPACITY_DIVISOR: usize = 8;
+pub(crate) const DIRTY_CAPACITY_DIVISOR: usize = 8;
 
 /// Hard cap on dirty-vec pre-allocation in cells (≈8 KiB worth of usize).
 /// Prevents wasting memory when terminal is very large.
-pub const DIRTY_CAPACITY_CAP: usize = 8192;
+pub(crate) const DIRTY_CAPACITY_CAP: usize = 8192;
 
 // ── Renderer buffer pre-allocation (v25.16 perf polish) ──────────────────────
 //
@@ -370,7 +370,7 @@ pub const DIRTY_CAPACITY_CAP: usize = 8192;
 /// terminal up to 256 cols without growth; wider terminals trigger one
 /// grow event during the first diff frame and then run at the new
 /// capacity forever.
-pub const RENDER_RUN_BUF_INIT_CAP: usize = 256;
+pub(crate) const RENDER_RUN_BUF_INIT_CAP: usize = 256;
 
 /// Initial capacity (bytes) for `Terminal::row_buf` — the full-redraw
 /// row accumulator. Holds one row of chars before flushing to
@@ -378,7 +378,7 @@ pub const RENDER_RUN_BUF_INIT_CAP: usize = 256;
 /// growth. Larger than `RENDER_RUN_BUF_INIT_CAP` because full redraws
 /// always iterate the entire row, while diff redraws may break a row
 /// into multiple short style-runs.
-pub const RENDER_ROW_BUF_INIT_CAP: usize = 512;
+pub(crate) const RENDER_ROW_BUF_INIT_CAP: usize = 512;
 
 /// Initial capacity (bytes) for `Terminal::combined_flush_buf` — the
 /// sync-output wrapper buffer. Holds SYNC_START + ansi_buf + SYNC_END
@@ -386,7 +386,7 @@ pub const RENDER_ROW_BUF_INIT_CAP: usize = 512;
 /// dirty-all frames at 200×40 (~140 KB ANSI) trigger one grow event
 /// and then run at the new capacity. Only used when sync_output is
 /// enabled (terminal capability detection).
-pub const RENDER_COMBINED_FLUSH_INIT_CAP: usize = 8192;
+pub(crate) const RENDER_COMBINED_FLUSH_INIT_CAP: usize = 8192;
 
 // ── Benchmark warmup tuning (v25.16 perf polish) ─────────────────────────────
 
@@ -399,25 +399,25 @@ pub const RENDER_COMBINED_FLUSH_INIT_CAP: usize = 8192;
 /// CPU to ramp up to its max frequency, and branch predictors / I-cache
 /// to warm. Without warmup, the first ~50 frames of every benchmark
 /// run are ~30% slower than steady-state, polluting p99/max metrics.
-pub const BENCH_WARMUP_DIVISOR: u64 = 10;
+pub(crate) const BENCH_WARMUP_DIVISOR: u64 = 10;
 
 /// Minimum warmup frame count. Even for very short benchmarks (e.g.
 /// `--bench-frames 50`), at least 10 warmup frames run so the allocator
 /// and CPU have time to settle.
-pub const BENCH_WARMUP_MIN_FRAMES: u64 = 10;
+pub(crate) const BENCH_WARMUP_MIN_FRAMES: u64 = 10;
 
 /// Maximum warmup frame count. Caps warmup at 200 frames (~3.3s at 60
 /// FPS) so long benchmarks (e.g. `--bench-frames 100000`) don't waste
 /// disproportionate time on warmup. 200 frames is enough for any
 /// realistic CPU / allocator to reach steady state.
-pub const BENCH_WARMUP_MAX_FRAMES: u64 = 200;
+pub(crate) const BENCH_WARMUP_MAX_FRAMES: u64 = 200;
 
 // ── Quantum Ripple particle burst ──
 //
 // Quantum Ripple constants live in `src/quantum_constants.rs` (extracted
 // in v30 to keep this file under the 1500-LOC project cap). Re-exported
 // here so existing `use crate::constants::*` call sites resolve unchanged.
-pub use crate::quantum_constants::{
+pub(crate) use crate::quantum_constants::{
     QUANTUM_BODY_TONE_DOWN, QUANTUM_BRAND_PURPLE_B, QUANTUM_BRAND_PURPLE_G, QUANTUM_BRAND_PURPLE_R,
     QUANTUM_RIPPLE_LIFETIME_SECS, QUANTUM_RIPPLE_PARTICLE_COUNT, QUANTUM_RIPPLE_POOL_SIZE,
     QUANTUM_RIPPLE_SPEED,
@@ -429,4 +429,4 @@ pub use crate::quantum_constants::{
 /// messages from overflowing the terminal or causing layout issues.
 /// 200 chars is enough for a sentence or short phrase — the message
 /// box is a overlay, not a full-screen text editor.
-pub const MESSAGE_MAX_LEN: usize = 200;
+pub(crate) const MESSAGE_MAX_LEN: usize = 200;

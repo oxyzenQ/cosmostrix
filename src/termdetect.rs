@@ -16,7 +16,7 @@ use std::env;
 
 /// Capabilities discovered at startup.
 #[derive(Clone, Copy, Debug)]
-pub struct TerminalCaps {
+pub(crate) struct TerminalCaps {
     /// Synchronized output (`ESC[?2026h` / `ESC[?2026l`) — universally
     /// safe to enable; terminals that don't support it silently ignore
     /// the escape sequence.
@@ -25,7 +25,7 @@ pub struct TerminalCaps {
 
 /// Run detection from environment variables. Safe to call before any
 /// terminal initialization.
-pub fn detect() -> TerminalCaps {
+pub(crate) fn detect() -> TerminalCaps {
     let term = env::var("TERM").unwrap_or_default();
 
     // Synchronized output is supported by virtually all modern terminals.
@@ -42,11 +42,11 @@ pub fn detect() -> TerminalCaps {
 
 /// Byte sequence to begin a synchronized output region.
 /// The terminal buffers all subsequent output until the end marker.
-pub const SYNC_START: &[u8] = b"\x1b[?2026h";
+pub(crate) const SYNC_START: &[u8] = b"\x1b[?2026h";
 
 /// Byte sequence to end a synchronized output region.
 /// The terminal flushes all buffered content atomically.
-pub const SYNC_END: &[u8] = b"\x1b[?2026l";
+pub(crate) const SYNC_END: &[u8] = b"\x1b[?2026l";
 
 #[cfg(test)]
 mod tests {

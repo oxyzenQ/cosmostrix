@@ -26,13 +26,13 @@ const COMPARE_METRICS: &[(&str, &str, f64)] = &[
 ];
 
 /// Save benchmark JSON to a file.
-pub fn save_baseline(path: &str, json: &str) -> Result<(), String> {
+pub(crate) fn save_baseline(path: &str, json: &str) -> Result<(), String> {
     std::fs::write(path, json).map_err(|e| format!("error: cannot save baseline to '{path}': {e}"))
 }
 
 /// Compare current benchmark JSON against a saved baseline JSON.
 /// Prints a comparison table to stdout.
-pub fn compare_with_baseline(baseline_path: &str, current_json: &str) -> Result<(), String> {
+pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> Result<(), String> {
     let baseline_text = std::fs::read_to_string(baseline_path)
         .map_err(|e| format!("error: cannot read baseline '{baseline_path}': {e}"))?;
 

@@ -46,7 +46,7 @@
 ///
 /// See the module docs for the layout rationale. The padding bytes at
 /// `buf[digits..3]` are always overwritten by the caller's next write.
-pub const U8_PADDED: [[u8; 3]; 256] = {
+pub(crate) const U8_PADDED: [[u8; 3]; 256] = {
     let mut table = [[0u8; 3]; 256];
     let mut i = 0u16;
     while i < 256 {
@@ -67,7 +67,7 @@ pub const U8_PADDED: [[u8; 3]; 256] = {
 };
 
 /// Digit count (1, 2, or 3) for each u8 value. Companion to `U8_PADDED`.
-pub const U8_LEN: [u8; 256] = {
+pub(crate) const U8_LEN: [u8; 256] = {
     let mut table = [0u8; 256];
     let mut i = 0u16;
     while i < 256 {
@@ -86,10 +86,10 @@ pub const U8_LEN: [u8; 256] = {
 /// Index via `cell.bold as usize` (or any `bool as usize`) — compiles
 /// to a `setne` on x86, no branch. Pair with [`BOLD_ESCAPE_LENS`] for
 /// the `copy_from_slice` length.
-pub const BOLD_ESCAPES: [&[u8]; 2] = [b"\x1b[22m", b"\x1b[1m"];
+pub(crate) const BOLD_ESCAPES: [&[u8]; 2] = [b"\x1b[22m", b"\x1b[1m"];
 
 /// Byte lengths paired with [`BOLD_ESCAPES`] — avoids `slice.len()` per call.
-pub const BOLD_ESCAPE_LENS: [usize; 2] = [5, 4];
+pub(crate) const BOLD_ESCAPE_LENS: [usize; 2] = [5, 4];
 
 /// Push a u8 as ASCII decimal digits into a fixed-size slice starting at
 /// `buf[0]`. Returns the number of bytes written (1, 2, or 3).

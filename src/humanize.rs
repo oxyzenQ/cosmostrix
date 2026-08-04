@@ -30,7 +30,7 @@
 /// - `1,000,000 - 999,999,999`: `1.16M` (2 decimals)
 /// - `≥ 1,000,000,000`: `1.2B` (1 decimal)
 #[must_use]
-pub fn humanize(n: u64) -> String {
+pub(crate) fn humanize(n: u64) -> String {
     if n < 1_000 {
         return n.to_string();
     }
@@ -64,7 +64,7 @@ pub fn humanize(n: u64) -> String {
 /// Same rules as `humanize()` but for float values (e.g. avg_fps = 38143.3).
 /// Rounds to integer before applying suffix logic.
 #[must_use]
-pub fn humanize_f64(n: f64) -> String {
+pub(crate) fn humanize_f64(n: f64) -> String {
     if n < 1_000.0 {
         return format!("{n:.0}");
     }

@@ -13,15 +13,15 @@ use std::sync::LazyLock;
 use crate::runtime::ColorScheme;
 
 #[derive(Clone, Copy, Debug)]
-pub struct ThemeInfo {
+pub(crate) struct ThemeInfo {
     pub name: &'static str,
     pub scheme: ColorScheme,
     pub aliases: &'static [&'static str],
 }
 
-pub const THEME_COUNT: usize = 43;
+pub(crate) const THEME_COUNT: usize = 43;
 
-pub const THEMES: &[ThemeInfo] = &[
+pub(crate) const THEMES: &[ThemeInfo] = &[
     ThemeInfo {
         name: "green",
         scheme: ColorScheme::Green,
@@ -245,18 +245,19 @@ pub const THEMES: &[ThemeInfo] = &[
     },
 ];
 
-pub static THEME_LOOKUP: LazyLock<HashMap<&'static str, ColorScheme>> = LazyLock::new(|| {
-    let mut lookup = HashMap::new();
-    for theme in THEMES {
-        insert_lookup(&mut lookup, theme.name, theme.scheme);
-        for alias in theme.aliases {
-            insert_lookup(&mut lookup, alias, theme.scheme);
+pub(crate) static THEME_LOOKUP: LazyLock<HashMap<&'static str, ColorScheme>> =
+    LazyLock::new(|| {
+        let mut lookup = HashMap::new();
+        for theme in THEMES {
+            insert_lookup(&mut lookup, theme.name, theme.scheme);
+            for alias in theme.aliases {
+                insert_lookup(&mut lookup, alias, theme.scheme);
+            }
         }
-    }
-    lookup
-});
+        lookup
+    });
 
-pub static SCHEME_ORDER: LazyLock<Vec<ColorScheme>> =
+pub(crate) static SCHEME_ORDER: LazyLock<Vec<ColorScheme>> =
     LazyLock::new(|| THEMES.iter().map(|theme| theme.scheme).collect());
 
 fn insert_lookup(
@@ -273,39 +274,39 @@ fn insert_lookup(
 }
 
 #[must_use]
-pub fn themes() -> &'static [ThemeInfo] {
+pub(crate) fn themes() -> &'static [ThemeInfo] {
     THEMES
 }
 
 #[must_use]
-pub fn theme_count() -> usize {
+pub(crate) fn theme_count() -> usize {
     debug_assert_eq!(THEMES.len(), THEME_COUNT);
     THEME_COUNT
 }
 
 #[must_use]
-pub fn lookup_theme(name: &str) -> Option<ColorScheme> {
+pub(crate) fn lookup_theme(name: &str) -> Option<ColorScheme> {
     let key = name.trim().to_ascii_lowercase();
     THEME_LOOKUP.get(key.as_str()).copied()
 }
 
 #[must_use]
-pub fn metadata_for_scheme(scheme: ColorScheme) -> Option<&'static ThemeInfo> {
+pub(crate) fn metadata_for_scheme(scheme: ColorScheme) -> Option<&'static ThemeInfo> {
     THEMES.iter().find(|theme| theme.scheme == scheme)
 }
 
 #[must_use]
-pub fn canonical_name_for_scheme(scheme: ColorScheme) -> Option<&'static str> {
+pub(crate) fn canonical_name_for_scheme(scheme: ColorScheme) -> Option<&'static str> {
     metadata_for_scheme(scheme).map(|theme| theme.name)
 }
 
 #[must_use]
-pub fn canonical_name_for_input(name: &str) -> Option<&'static str> {
+pub(crate) fn canonical_name_for_input(name: &str) -> Option<&'static str> {
     lookup_theme(name).and_then(canonical_name_for_scheme)
 }
 
 #[must_use]
-pub fn compact_list_text() -> String {
+pub(crate) fn compact_list_text() -> String {
     let mut out = String::new();
     for row in themes().chunks(3) {
         out.push_str("  ");

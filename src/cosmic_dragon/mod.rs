@@ -51,4 +51,4 @@
 //! `src/cosmic_dragon_egg_io_uring.rs`), which is a real `#[cfg(test)]` benchmark
 //! with actual test callers.
 
-pub mod egg;
+pub(crate) mod egg;

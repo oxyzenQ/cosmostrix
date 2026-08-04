@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 /// Read once at first call and cached in an AtomicU8
 /// (0 = unknown, 1 = off, 2 = on) so repeated checks are branch-predicted
 /// and never touch the env-var lookup after the first call.
-pub fn live_reload_debug_enabled() -> bool {
+pub(crate) fn live_reload_debug_enabled() -> bool {
     static STATE: AtomicU8 = AtomicU8::new(0);
     match STATE.load(Ordering::Acquire) {
         1 => false,
@@ -45,7 +45,7 @@ pub fn live_reload_debug_enabled() -> bool {
 
 /// Emit a `[live-reload-trace]` line to stderr if tracing is enabled.
 /// No-op otherwise. Bulletproof — never panics on broken stderr.
-pub fn debug_trace(args: std::fmt::Arguments<'_>) {
+pub(crate) fn debug_trace(args: std::fmt::Arguments<'_>) {
     let _ = std::io::stderr().write_fmt(args);
 }
 
@@ -71,7 +71,7 @@ macro_rules! lr_trace {
 /// Accepts the resolved field values (not the CloudConfig itself) so
 /// the trace line shows what the user actually sees post-rebuild:
 /// `color=?`, `charset=?`, `speed`, `density`, `fps`.
-pub fn trace_rebuild_applied(
+pub(crate) fn trace_rebuild_applied(
     color_scheme: &crate::runtime::ColorScheme,
     charset_preset: &str,
     speed: f32,

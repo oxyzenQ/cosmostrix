@@ -44,7 +44,7 @@ use crate::palette::Palette;
 ///
 /// Each entry is a complete escape sequence like `\x1b[38;2;0;145;30;48;2;0;0;0m`
 /// ready to be spliced directly into the ANSI output buffer.
-pub struct ColorCache {
+pub(crate) struct ColorCache {
     /// Original palette colors for lookup by Color value.
     colors: Vec<Color>,
     /// The palette's background color (cached SGR entries include this bg).
@@ -74,7 +74,7 @@ impl ColorCache {
     /// Pre-formats two SGR sequences per palette color:
     /// 1. `fg=color, bg=palette.bg` (the common case in full redraws)
     /// 2. Also stores a terminal-reset entry for blank/empty cells (index N).
-    pub fn new(palette: &Palette) -> Self {
+    pub(crate) fn new(palette: &Palette) -> Self {
         let num_colors = palette.colors.len();
         let colors = palette.colors.clone();
         let bg = palette.bg;
@@ -107,7 +107,7 @@ impl ColorCache {
     /// `idx` must be in `0..num_colors`; panics otherwise (debug only).
     /// For `None` / blank / reset cells, use `reset_sgr()`.
     #[inline]
-    pub fn sgr(&self, idx: usize) -> &[u8] {
+    pub(crate) fn sgr(&self, idx: usize) -> &[u8] {
         debug_assert!(idx < self.num_colors);
         let start = self.offsets[idx];
         let end = if idx + 1 < self.offsets.len() {
@@ -120,7 +120,7 @@ impl ColorCache {
 
     /// Look up the reset/blank SGR (no fg, palette bg).
     #[inline]
-    pub fn reset_sgr(&self) -> &[u8] {
+    pub(crate) fn reset_sgr(&self) -> &[u8] {
         let start = self.offsets[self.num_colors];
         let end = self.buf.len();
         &self.buf[start..end]
@@ -140,7 +140,7 @@ impl ColorCache {
     /// Uses linear scan — palette is small (typically 7-20 colors),
     /// making this cheaper than a HashMap for the common case.
     #[inline]
-    pub fn sgr_for(&self, fg: Color) -> Option<&[u8]> {
+    pub(crate) fn sgr_for(&self, fg: Color) -> Option<&[u8]> {
         for (i, c) in self.colors.iter().enumerate() {
             if *c == fg {
                 return Some(self.sgr(i));
@@ -159,7 +159,7 @@ impl ColorCache {
     /// (relaxed ordering is sufficient — we only need eventual accuracy
     /// for the perf report, not strict synchronization).
     #[inline]
-    pub fn sgr_for_cell(&self, fg: Option<Color>, bg: Option<Color>) -> Option<&[u8]> {
+    pub(crate) fn sgr_for_cell(&self, fg: Option<Color>, bg: Option<Color>) -> Option<&[u8]> {
         if bg != self.bg {
             self.sgr_misses.fetch_add(1, Ordering::Relaxed);
             return None;
@@ -186,7 +186,11 @@ impl ColorCache {
     /// local counters in `TerminalIoMetrics` if it ever needs to report
     /// hit/miss rate (currently unused — kept for future use).
     #[inline]
-    pub fn sgr_for_cell_silent(&self, fg: Option<Color>, bg: Option<Color>) -> Option<&[u8]> {
+    pub(crate) fn sgr_for_cell_silent(
+        &self,
+        fg: Option<Color>,
+        bg: Option<Color>,
+    ) -> Option<&[u8]> {
         if bg != self.bg {
             return None;
         }
@@ -204,7 +208,7 @@ impl ColorCache {
     /// non-palette colors (glitch, anomaly, atmosphere modulation) are
     /// triggering the on-the-fly `write_sgr_colors_buf` path.
     #[must_use]
-    pub fn cache_stats(&self) -> (u64, u64) {
+    pub(crate) fn cache_stats(&self) -> (u64, u64) {
         (
             self.sgr_hits.load(Ordering::Relaxed),
             self.sgr_misses.load(Ordering::Relaxed),

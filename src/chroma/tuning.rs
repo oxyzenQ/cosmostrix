@@ -68,7 +68,7 @@
 /// coupled to the `{-1, 0, +1}` rounding amplitude and changing it
 /// in isolation would either quantize to 0 everywhere (too low) or
 /// strobe per-cell (too high).
-pub const COLUMN_COHERENCE_FREQ: f32 = 0.105;
+pub(crate) const COLUMN_COHERENCE_FREQ: f32 = 0.105;
 
 /// Phase 4-B: amplitude of the per-cell subpixel hue jitter.
 ///
@@ -86,7 +86,7 @@ pub const COLUMN_COHERENCE_FREQ: f32 = 0.105;
 /// The jitter is applied AFTER the palette decision and BEFORE
 /// atmospheric, so it does not interfere with the head→body→tail
 /// hierarchy or the atmospheric luminance/saturation math.
-pub const SUBPIXEL_JITTER_AMPLITUDE: u8 = 3;
+pub(crate) const SUBPIXEL_JITTER_AMPLITUDE: u8 = 3;
 
 /// Phase 4-D: blend factor for the head halo (background-aware dissolve).
 ///
@@ -114,7 +114,7 @@ pub const SUBPIXEL_JITTER_AMPLITUDE: u8 = 3;
 /// behavior — `blend_toward_bg` existed since Phase 3-D but had zero
 /// production callers). `Color::Reset` bg is a no-op (no RGB to blend
 /// toward), so the halo auto-disables when no explicit bg is set.
-pub const HEAD_HALO_FACTOR: f32 = 0.15;
+pub(crate) const HEAD_HALO_FACTOR: f32 = 0.15;
 
 /// Phase 5: smoothing window (in lines) for perceptual L smoothing at
 /// the palette transition wave line.
@@ -141,7 +141,7 @@ pub const HEAD_HALO_FACTOR: f32 = 0.15;
 /// `|distance| / window` without integer rounding. The actual cell
 /// lines affected are `ceil(wave_line - window)` to `floor(wave_line
 /// + window)` inclusive.
-pub const TRANSITION_L_SMOOTHING_WINDOW: f32 = 3.0;
+pub(crate) const TRANSITION_L_SMOOTHING_WINDOW: f32 = 3.0;
 
 /// Phase 6: hue-cycle rate (palette stops per second) for the PulseWave
 /// anomaly halo target color.
@@ -170,7 +170,7 @@ pub const TRANSITION_L_SMOOTHING_WINDOW: f32 = 3.0;
 /// `palette_colors.last()` (the brightest stop) as a static target, on
 /// the rationale that a "luminous surge" should lift cells toward the
 /// palette's natural ceiling rather than cycling through hues.
-pub const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
+pub(crate) const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
 
 /// Phase 7: ratio of palette head brightness used as the brightness floor
 /// for trail stops. The floor is `palette_max_sum * PALETTE_FLOOR_RATIO`,
@@ -210,7 +210,7 @@ pub const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
 /// Lower values (0.08–0.15) preserve dark themes more aggressively but
 /// regress on the "dim/dark" complaint. Higher values (0.25–0.30) make
 /// trails brighter but increasingly cap-hit, risking v17-style washout.
-pub const PALETTE_FLOOR_RATIO: f32 = 0.20;
+pub(crate) const PALETTE_FLOOR_RATIO: f32 = 0.20;
 
 /// Phase 7: absolute minimum brightness floor. Any stop with RGB sum
 /// below this gets boosted to this value, regardless of palette profile.
@@ -222,7 +222,7 @@ pub const PALETTE_FLOOR_RATIO: f32 = 0.20;
 /// distance and terminal contrast.
 ///
 /// See `PALETTE_FLOOR_RATIO` for the full Phase 7 rationale.
-pub const ABSOLUTE_MIN_FLOOR: u16 = 30;
+pub(crate) const ABSOLUTE_MIN_FLOOR: u16 = 30;
 
 /// Phase 7: maximum brightness jump allowed between adjacent palette stops
 /// (post-floor). If stop[i+1] is more than BODY_TAIL_MAX_GAP_RATIO times
@@ -272,7 +272,7 @@ pub const ABSOLUTE_MIN_FLOOR: u16 = 30;
 /// GLOBAL_MAX_FLOOR cap (180) still applies to the basic floor; continuity
 /// itself is uncapped (can boost above 180 if needed to maintain the gap
 /// contract — see `apply_body_tail_continuity` doc comment).
-pub const BODY_TAIL_MAX_GAP_RATIO: f32 = 2.0;
+pub(crate) const BODY_TAIL_MAX_GAP_RATIO: f32 = 2.0;
 
 /// Phase 7: maximum brightness floor. The derived floor is never higher
 /// than this, even for palettes with extremely bright heads.
@@ -287,4 +287,4 @@ pub const BODY_TAIL_MAX_GAP_RATIO: f32 = 2.0;
 /// in the 500–800 range, so the derived floor is well below 180.
 ///
 /// See `PALETTE_FLOOR_RATIO` for the full Phase 7 rationale.
-pub const GLOBAL_MAX_FLOOR: u16 = 180;
+pub(crate) const GLOBAL_MAX_FLOOR: u16 = 180;

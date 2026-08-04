@@ -9,7 +9,7 @@
 use crate::runtime::ColorMode;
 
 /// Static renderer metadata describing the rendering pipeline.
-pub struct RendererInfo {
+pub(crate) struct RendererInfo {
     pub identity: &'static str,
     pub backend: &'static str,
     pub pacing: &'static str,
@@ -22,7 +22,7 @@ pub struct RendererInfo {
 
 /// Return the renderer info for the given effective color mode.
 #[inline]
-pub fn renderer_info(color_mode: ColorMode) -> RendererInfo {
+pub(crate) fn renderer_info(color_mode: ColorMode) -> RendererInfo {
     RendererInfo {
         identity:
             "professional-grade cinematic Matrix rain renderer for serious terminal environments.",

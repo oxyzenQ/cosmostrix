@@ -25,7 +25,7 @@ use crate::validation::{
     parse_canonical_f32_range, parse_canonical_f64_range, parse_canonical_speed,
 };
 
-pub const PROFILE_FIELDS: &[&str] = &[
+pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "color",
     "charset",
     "fps",
@@ -40,7 +40,7 @@ pub const PROFILE_FIELDS: &[&str] = &[
 ];
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct UserProfile {
+pub(crate) struct UserProfile {
     pub color: Option<String>,
     pub charset: Option<String>,
     pub fps: Option<String>,
@@ -57,7 +57,7 @@ pub struct UserProfile {
 }
 
 #[must_use]
-pub fn is_profile_config_key(key: &str) -> bool {
+pub(crate) fn is_profile_config_key(key: &str) -> bool {
     let Some((prefix, rest)) = key.split_once('.') else {
         return false;
     };
@@ -84,7 +84,7 @@ pub fn is_profile_config_key(key: &str) -> bool {
 /// 3. Maintaining a separate `profile_keys` subset during config load
 ///    would add complexity to the load path for no user-visible benefit.
 #[must_use]
-pub fn collect_profiles(
+pub(crate) fn collect_profiles(
     cfg: &std::collections::HashMap<String, String>,
 ) -> BTreeMap<String, UserProfile> {
     let mut profiles = BTreeMap::new();
@@ -115,7 +115,7 @@ pub fn collect_profiles(
     profiles
 }
 
-pub fn validate_profile_name(name: &str) -> Result<String, String> {
+pub(crate) fn validate_profile_name(name: &str) -> Result<String, String> {
     let normalized = name.trim().to_ascii_lowercase();
     if is_valid_profile_name(&normalized) {
         Ok(normalized)
@@ -126,7 +126,7 @@ pub fn validate_profile_name(name: &str) -> Result<String, String> {
     }
 }
 
-pub fn apply_profile_layer(
+pub(crate) fn apply_profile_layer(
     matches: &clap::ArgMatches,
     args: &mut Args,
     profiles: &BTreeMap<String, UserProfile>,

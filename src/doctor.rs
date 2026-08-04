@@ -20,7 +20,7 @@ use super::{
 #[cfg(target_os = "linux")]
 use super::env_var_truthy;
 
-pub fn print_doctor_report(args: &Args) {
+pub(crate) fn print_doctor_report(args: &Args) {
     let lang = env::var("LANG").unwrap_or_default();
     let lc_all = env::var("LC_ALL").unwrap_or_default();
     let lc_ctype = env::var("LC_CTYPE").unwrap_or_default();

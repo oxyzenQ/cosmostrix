@@ -191,7 +191,7 @@ pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
 }
 
 #[derive(Clone, Debug)]
-pub struct Droplet {
+pub(crate) struct Droplet {
     pub is_alive: bool,
     pub is_head_crawling: bool,
     pub is_tail_crawling: bool,
@@ -247,7 +247,7 @@ pub struct Droplet {
 }
 
 impl Droplet {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             is_alive: false,
             is_head_crawling: false,
@@ -277,7 +277,7 @@ impl Droplet {
         }
     }
 
-    pub fn activate(&mut self, now: Instant) {
+    pub(crate) fn activate(&mut self, now: Instant) {
         self.is_alive = true;
         self.is_head_crawling = true;
         self.is_tail_crawling = true;
@@ -302,11 +302,11 @@ impl Droplet {
     /// With jitter, each droplet's head brightens and advances at a different
     /// phase, making the rain feel organic and alive.
     #[inline]
-    pub fn apply_phase_jitter(&mut self, offset: f32) {
+    pub(crate) fn apply_phase_jitter(&mut self, offset: f32) {
         self.advance_remainder = offset.clamp(0.0, 1.0);
     }
 
-    pub fn increment_time(&mut self, delta: Duration) {
+    pub(crate) fn increment_time(&mut self, delta: Duration) {
         if let Some(t) = self.last_time.as_mut() {
             *t += delta;
         }
@@ -319,7 +319,7 @@ impl Droplet {
     }
 
     #[inline]
-    pub fn advance(&mut self, now: Instant, lines: u16, time_scale: f32) -> bool {
+    pub(crate) fn advance(&mut self, now: Instant, lines: u16, time_scale: f32) -> bool {
         let Some(last) = self.last_time else {
             self.last_time = Some(now);
             return false;
@@ -439,7 +439,7 @@ impl Droplet {
     /// visual variation (brightness ramp, bloom modulation) even when the
     /// head hasn't moved to a new row — the key to perceived smoothness.
     #[inline]
-    pub fn fractional_progress(&self) -> f32 {
+    pub(crate) fn fractional_progress(&self) -> f32 {
         self.advance_remainder.clamp(0.0, 1.0)
     }
 
@@ -474,7 +474,7 @@ impl Droplet {
         0.0
     }
 
-    pub fn draw(
+    pub(crate) fn draw(
         &mut self,
         ctx: &DrawCtx<'_>,
         frame: &mut Frame,

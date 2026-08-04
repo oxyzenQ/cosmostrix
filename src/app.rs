@@ -146,7 +146,7 @@ pub struct CloudConfig {
 /// **CLI > config.toml > scene default** priority contract across
 /// live reloads.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct CliExplicit {
+pub(crate) struct CliExplicit {
     pub color: bool,
     pub charset: bool,
     pub speed: bool,

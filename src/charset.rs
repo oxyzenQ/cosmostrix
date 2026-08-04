@@ -5,43 +5,43 @@ use std::char;
 use unicode_width::UnicodeWidthChar;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Charset(u32);
+pub(crate) struct Charset(u32);
 
 impl Charset {
-    pub const NONE: Charset = Charset(0);
-    pub const ENGLISH_LETTERS: Charset = Charset(0x1);
-    pub const ENGLISH_DIGITS: Charset = Charset(0x2);
-    pub const ENGLISH_PUNCTUATION: Charset = Charset(0x4);
-    pub const KATAKANA: Charset = Charset(0x8);
-    pub const GREEK: Charset = Charset(0x10);
-    pub const CYRILLIC: Charset = Charset(0x20);
-    pub const HEBREW: Charset = Charset(0x80);
-    pub const BINARY: Charset = Charset(0x100);
-    pub const HEX: Charset = Charset(0x200);
-    pub const BRAILLE: Charset = Charset(0x800);
-    pub const RUNIC: Charset = Charset(0x1000);
-    pub const SYMBOLS: Charset = Charset(0x2000);
-    pub const ARROWS: Charset = Charset(0x4000);
-    pub const BLOCKS: Charset = Charset(0x8000);
-    pub const BOXDRAW: Charset = Charset(0x10000);
-    pub const MINIMAL: Charset = Charset(0x20000);
-    pub const DNA: Charset = Charset(0x40000);
+    pub(crate) const NONE: Charset = Charset(0);
+    pub(crate) const ENGLISH_LETTERS: Charset = Charset(0x1);
+    pub(crate) const ENGLISH_DIGITS: Charset = Charset(0x2);
+    pub(crate) const ENGLISH_PUNCTUATION: Charset = Charset(0x4);
+    pub(crate) const KATAKANA: Charset = Charset(0x8);
+    pub(crate) const GREEK: Charset = Charset(0x10);
+    pub(crate) const CYRILLIC: Charset = Charset(0x20);
+    pub(crate) const HEBREW: Charset = Charset(0x80);
+    pub(crate) const BINARY: Charset = Charset(0x100);
+    pub(crate) const HEX: Charset = Charset(0x200);
+    pub(crate) const BRAILLE: Charset = Charset(0x800);
+    pub(crate) const RUNIC: Charset = Charset(0x1000);
+    pub(crate) const SYMBOLS: Charset = Charset(0x2000);
+    pub(crate) const ARROWS: Charset = Charset(0x4000);
+    pub(crate) const BLOCKS: Charset = Charset(0x8000);
+    pub(crate) const BOXDRAW: Charset = Charset(0x10000);
+    pub(crate) const MINIMAL: Charset = Charset(0x20000);
+    pub(crate) const DNA: Charset = Charset(0x40000);
     /// Zen charset: a single `|` pipe character. The minimalist's
     /// minimalist — one glyph, infinite rain. Default for cinematic
     /// and monolith scenes on the Cosmic Dragon journey.
-    pub const ZEN: Charset = Charset(0x80000);
+    pub(crate) const ZEN: Charset = Charset(0x80000);
 
-    pub const DEFAULT: Charset = Charset(0x7);
-    pub const EXTENDED_DEFAULT: Charset = Charset(0xE);
-    pub const ASCII_SAFE: Charset = Charset(0x3);
-    pub const MATRIX: Charset = Charset(0xB);
+    pub(crate) const DEFAULT: Charset = Charset(0x7);
+    pub(crate) const EXTENDED_DEFAULT: Charset = Charset(0xE);
+    pub(crate) const ASCII_SAFE: Charset = Charset(0x3);
+    pub(crate) const MATRIX: Charset = Charset(0xB);
 
-    pub fn contains(self, other: Charset) -> bool {
+    pub(crate) fn contains(self, other: Charset) -> bool {
         (self.0 & other.0) != 0
     }
 }
 
-pub fn parse_user_hex_chars(s: &str) -> Result<Vec<char>, String> {
+pub(crate) fn parse_user_hex_chars(s: &str) -> Result<Vec<char>, String> {
     let mut out = Vec::new();
     let mut skipped_wide = Vec::new();
     for (i, part) in s.split(',').enumerate() {
@@ -88,7 +88,7 @@ pub fn parse_user_hex_chars(s: &str) -> Result<Vec<char>, String> {
     Ok(out)
 }
 
-pub fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Charset, String> {
+pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Charset, String> {
     let spec = spec.trim().to_ascii_lowercase();
     match spec.as_str() {
         "auto" => Ok(if default_to_ascii {
@@ -151,7 +151,7 @@ fn push_range(out: &mut Vec<char>, start: u32, end: u32) {
     }
 }
 
-pub fn build_chars(
+pub(crate) fn build_chars(
     mut charset: Charset,
     user_ranges: &[(char, char)],
     default_to_ascii: bool,

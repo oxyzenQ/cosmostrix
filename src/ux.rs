@@ -35,7 +35,7 @@ use std::process;
 
 /// Print `msg` to stderr in branded red and exit 2 (invalid input / usage error).
 #[cold]
-pub fn die_input(msg: impl AsRef<str>) -> ! {
+pub(crate) fn die_input(msg: impl AsRef<str>) -> ! {
     print_branded_error(msg.as_ref());
     process::exit(2);
 }
@@ -43,7 +43,7 @@ pub fn die_input(msg: impl AsRef<str>) -> ! {
 /// Print `msg` to stderr in red and exit 2 (config / runtime failure).
 /// Exit code 2 matches --testconf behavior for invalid config.
 #[cold]
-pub fn die_config(msg: impl AsRef<str>) -> ! {
+pub(crate) fn die_config(msg: impl AsRef<str>) -> ! {
     // Route through the same branded-error path as `die_input` so all
     // fatal CLI errors share a single visual treatment (truecolor red
     // "error:" label + red message). Both exit-2 paths must look alike.
@@ -72,7 +72,7 @@ fn print_branded_error(msg: &str) {
 /// ```ignore
 /// let speed = ux::or_exit(validate_speed(args.speed));
 /// ```
-pub fn or_exit<T, E: AsRef<str>>(r: Result<T, E>) -> T {
+pub(crate) fn or_exit<T, E: AsRef<str>>(r: Result<T, E>) -> T {
     match r {
         Ok(v) => v,
         Err(e) => die_input(e),

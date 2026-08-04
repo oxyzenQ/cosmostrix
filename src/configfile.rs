@@ -29,7 +29,7 @@ use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
 use crate::profile::is_profile_config_key;
 use crate::scene_custom::is_scene_custom_config_key;
 
-pub const USER_CONFIG_KEYS: &[&str] = &[
+pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
     "color",
     "charset",
@@ -58,7 +58,7 @@ const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
-pub struct ParsedConfig {
+pub(crate) struct ParsedConfig {
     pub values: HashMap<String, String>,
     pub unknown_keys: Vec<String>,
     /// Non-empty, non-comment lines that do not match `key = value` syntax.
@@ -92,7 +92,7 @@ pub struct ParsedConfig {
 /// the package installs `/etc/cosmostrix/config.toml`, and cosmostrix
 /// reads it automatically if no user-level config exists.
 #[must_use]
-pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String> {
+pub(crate) fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String> {
     load_config_file_full(path_override).values
 }
 
@@ -108,7 +108,7 @@ pub fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String>
 /// Most callers should use `load_config_file` (which returns just the values
 /// HashMap). Use this function only when you need the malformed/unknown vectors.
 #[must_use]
-pub fn load_config_file_full(path_override: Option<&Path>) -> ParsedConfig {
+pub(crate) fn load_config_file_full(path_override: Option<&Path>) -> ParsedConfig {
     let path = path_override
         .map(Path::to_path_buf)
         .unwrap_or_else(default_config_file_path);
@@ -143,7 +143,7 @@ pub fn load_config_file_full(path_override: Option<&Path>) -> ParsedConfig {
 }
 
 #[must_use]
-pub fn parse_config_text(content: &str) -> ParsedConfig {
+pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
     let mut map = HashMap::new();
     let mut unknown_keys = Vec::new();
     let mut malformed_lines = Vec::new();
@@ -306,7 +306,7 @@ pub fn parse_config_text(content: &str) -> ParsedConfig {
 /// — the location Termux documentation tells users to edit. The XDG_CONFIG_HOME
 /// path is only used as a fallback when $HOME is unset.
 #[must_use]
-pub fn default_config_file_path() -> PathBuf {
+pub(crate) fn default_config_file_path() -> PathBuf {
     #[cfg(target_os = "windows")]
     {
         if let Some(appdata) = env::var("APPDATA").ok().filter(|v| !v.is_empty()) {
@@ -368,7 +368,7 @@ pub fn default_config_file_path() -> PathBuf {
 /// in the codebase — `safepath.rs` and `verbose.rs` both call this
 /// function instead of inlining their own env-var checks.
 #[must_use]
-pub fn is_termux_environment() -> bool {
+pub(crate) fn is_termux_environment() -> bool {
     env::var("TERMUX_VERSION").is_ok()
         || env::var("PREFIX")
             .map(|p| p.contains("com.termux"))
@@ -399,7 +399,7 @@ pub fn is_termux_environment() -> bool {
 /// $PREFIX/etc. This function centralizes the resolution logic so it
 /// can be tested and reused.
 #[must_use]
-pub fn resolve_watcher_config_path(cli_config: Option<&Path>) -> (PathBuf, Vec<PathBuf>) {
+pub(crate) fn resolve_watcher_config_path(cli_config: Option<&Path>) -> (PathBuf, Vec<PathBuf>) {
     // Case 1: explicit --config path. Use verbatim.
     if let Some(p) = cli_config {
         return (p.to_path_buf(), vec![p.to_path_buf()]);
@@ -435,7 +435,7 @@ pub fn resolve_watcher_config_path(cli_config: Option<&Path>) -> (PathBuf, Vec<P
 /// On non-Termux Linux, candidate #1 may be `$XDG_CONFIG_HOME/...` if
 /// XDG_CONFIG_HOME is set, otherwise `~/.config/...`.
 #[must_use]
-pub fn config_candidate_paths() -> Vec<PathBuf> {
+pub(crate) fn config_candidate_paths() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
     // Candidate #1: the default path (handles XDG_CONFIG_HOME + $HOME
@@ -523,7 +523,7 @@ fn config_file_path_from_env(
 }
 
 #[must_use]
-pub fn dump_config_text() -> &'static str {
+pub(crate) fn dump_config_text() -> &'static str {
     r##"# cosmostrix configuration
 
 # Quick Start & Override Priority
@@ -754,7 +754,7 @@ pub fn dump_config_text() -> &'static str {
 }
 
 #[must_use]
-pub fn known_keys() -> Vec<&'static str> {
+pub(crate) fn known_keys() -> Vec<&'static str> {
     USER_CONFIG_KEYS
         .iter()
         .chain(std::iter::once(&PROFILE_CONFIG_KEY_HINT))

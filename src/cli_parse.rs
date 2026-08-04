@@ -37,7 +37,7 @@ const DURATION_MIN_SECS: u64 = 1;
 /// Returns `Err(String)` with a human-readable error message if:
 ///   - Format is invalid (unrecognized unit, missing number)
 ///   - Value is zero or below minimum
-pub fn parse_duration(flag_label: &str, input: &str) -> Result<u64, String> {
+pub(crate) fn parse_duration(flag_label: &str, input: &str) -> Result<u64, String> {
     let input = input.trim();
 
     // Bare number → seconds (backward compat with --bench-duration)
@@ -128,7 +128,7 @@ fn validate_secs(flag_label: &str, secs: u64) -> Result<u64, String> {
 }
 
 /// Parsed screen size: (width, height).
-pub type ScreenSize = (u16, u16);
+pub(crate) type ScreenSize = (u16, u16);
 
 /// Parse a screen size string `WxH` into `(width, height)`.
 ///
@@ -149,7 +149,7 @@ pub type ScreenSize = (u16, u16);
 /// Returns `Err(String)` with a human-readable error message if:
 ///   - Format is invalid (missing 'x', non-numeric, extra characters)
 ///   - Value is below minimum (0x0, 0x10, 10x0, or below 4x4)
-pub fn parse_screen_size(input: &str) -> Result<ScreenSize, String> {
+pub(crate) fn parse_screen_size(input: &str) -> Result<ScreenSize, String> {
     let input = input.trim();
 
     // Split on 'x' or 'X' (case-insensitive)
@@ -197,7 +197,9 @@ pub fn parse_screen_size(input: &str) -> Result<ScreenSize, String> {
 
 /// Parse optional screen size string. None → None (dynamic mode).
 /// Some(s) → parse + validate.
-pub fn parse_screen_size_optional(input: &Option<String>) -> Result<Option<ScreenSize>, String> {
+pub(crate) fn parse_screen_size_optional(
+    input: &Option<String>,
+) -> Result<Option<ScreenSize>, String> {
     match input {
         None => Ok(None),
         Some(s) => parse_screen_size(s).map(Some),

@@ -18,7 +18,7 @@ use crate::frame::Frame;
 
 /// Visual metrics accumulated over the benchmark run.
 #[derive(Debug, Clone, Default)]
-pub struct VisualMetrics {
+pub(crate) struct VisualMetrics {
     pub frame_entropy_bits: f64,
     pub density_gini: f64,
     pub color_transition_delta_avg: f64,
@@ -26,7 +26,7 @@ pub struct VisualMetrics {
 }
 
 /// Accumulator for visual metrics — call sample() every N frames, finalize() at end.
-pub struct VisualSampler {
+pub(crate) struct VisualSampler {
     entropy_sum: f64,
     gini_sum: f64,
     color_delta_sum: f64,
@@ -63,7 +63,7 @@ pub struct VisualSampler {
 }
 
 impl VisualSampler {
-    pub fn new(sample_interval: u32) -> Self {
+    pub(crate) fn new(sample_interval: u32) -> Self {
         Self {
             entropy_sum: 0.0,
             gini_sum: 0.0,
@@ -81,7 +81,7 @@ impl VisualSampler {
     }
 
     /// Call every frame. Only samples every N frames to reduce overhead.
-    pub fn sample(&mut self, frame: &Frame) {
+    pub(crate) fn sample(&mut self, frame: &Frame) {
         self.frame_counter += 1;
         if self.frame_counter % self.sample_interval != 0 {
             return;
@@ -206,7 +206,7 @@ impl VisualSampler {
     }
 
     /// Finalize and return averaged metrics.
-    pub fn finalize(self) -> VisualMetrics {
+    pub(crate) fn finalize(self) -> VisualMetrics {
         let n = self.samples.max(1) as f64;
         VisualMetrics {
             frame_entropy_bits: self.entropy_sum / n,

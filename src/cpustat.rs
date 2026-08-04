@@ -50,7 +50,7 @@ use std::io::Read;
 /// `mach_timebase_info` syscall (the latter is cached after the first
 /// call by the kernel).
 #[must_use]
-pub fn current_cpu_ns() -> Option<u64> {
+pub(crate) fn current_cpu_ns() -> Option<u64> {
     #[cfg(target_os = "linux")]
     {
         linux_cpu_ns()

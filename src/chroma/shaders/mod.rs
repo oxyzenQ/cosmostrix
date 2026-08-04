@@ -24,5 +24,5 @@
 //! Future phases may add `oklab`, `dither`, `halo`, `atmosphere` under this
 //! namespace as further innovations land one micro-commit at a time.
 
-pub mod base;
-pub mod transition;
+pub(crate) mod base;
+pub(crate) mod transition;

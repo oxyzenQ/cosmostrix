@@ -21,7 +21,7 @@ use crate::theme;
 use crate::{colors_custom, configfile, scene_custom};
 
 #[must_use]
-pub fn color_enabled_stdout() -> bool {
+pub(crate) fn color_enabled_stdout() -> bool {
     if std::env::var_os("NO_COLOR").is_some() {
         return false;
     }
@@ -725,7 +725,7 @@ pub struct Args {
 
 // List printers — clean, no alias noise
 
-pub fn print_list_charsets() {
+pub(crate) fn print_list_charsets() {
     if color_enabled_stdout() {
         println!(
             "{}AVAILABLE CHARSET PRESETS:{}",
@@ -788,7 +788,7 @@ pub fn print_list_charsets() {
     }
 }
 
-pub fn print_list_colors() {
+pub(crate) fn print_list_colors() {
     if color_enabled_stdout() {
         println!(
             "{}AVAILABLE COLOR THEMES:{}",
@@ -827,7 +827,7 @@ pub fn print_list_colors() {
     }
 }
 
-pub fn print_list_scenes() {
+pub(crate) fn print_list_scenes() {
     if color_enabled_stdout() {
         println!(
             "{}AVAILABLE SCENES:{}",
@@ -864,7 +864,7 @@ pub fn print_list_scenes() {
 /// Print details for a single scene by name. Looks up built-in scenes first,
 /// then custom scenes from config. Returns `Ok(())` on success or an error
 /// message suitable for `ux::die_config`.
-pub fn print_show_scene(
+pub(crate) fn print_show_scene(
     name: &str,
     cfg: &std::collections::HashMap<String, String>,
 ) -> Result<(), String> {

@@ -29,7 +29,7 @@ use crate::atmosphere_apply::AtmosphereRuntimeModulation;
 /// 0.0–1.0 weight that the renderer uses to bias glitch probability. The
 /// two boolean flags opt into night-only color drift and terminal effects.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct AdaptiveParams {
+pub(crate) struct AdaptiveParams {
     /// Speed multiplier (0.5 .. 1.3).
     pub speed_scale: f32,
     /// Density multiplier (0.4 .. 1.5).
@@ -50,7 +50,7 @@ pub struct AdaptiveParams {
 
 impl AdaptiveParams {
     /// Clamp all numeric fields to their declared safe ranges in place.
-    pub fn clamp(&mut self) {
+    pub(crate) fn clamp(&mut self) {
         self.speed_scale = self.speed_scale.clamp(0.5, 1.3);
         self.density_scale = self.density_scale.clamp(0.4, 1.5);
         self.brightness_scale = self.brightness_scale.clamp(0.4, 1.0);
@@ -58,7 +58,7 @@ impl AdaptiveParams {
     }
 
     /// Linearly interpolate between two parameter sets.
-    pub fn lerp(a: Self, b: Self, t: f32) -> Self {
+    pub(crate) fn lerp(a: Self, b: Self, t: f32) -> Self {
         Self {
             speed_scale: lerp(a.speed_scale, b.speed_scale, t),
             density_scale: lerp(a.density_scale, b.density_scale, t),
@@ -106,7 +106,7 @@ fn lerp(a: f32, b: f32, t: f32) -> f32 {
 /// even in degraded environments — it simply falls back to the Deep Void
 /// baseline, which is a safe, conservative starting point.
 #[must_use]
-pub fn current_hour() -> f64 {
+pub(crate) fn current_hour() -> f64 {
     use chrono::Timelike;
     let now = chrono::Local::now();
     let hour = f64::from(now.hour());
@@ -198,7 +198,7 @@ const PHASE_STARTS: [f64; 5] = [0.0, 3.0, 6.0, 12.0, 18.0];
 /// are wrapped modulo 24 so the function is total. The result is always
 /// clamped to safe ranges.
 #[must_use]
-pub fn adaptive_params(hour: f64) -> AdaptiveParams {
+pub(crate) fn adaptive_params(hour: f64) -> AdaptiveParams {
     // Wrap to [0.0, 24.0).
     let h = ((hour.rem_euclid(24.0)) as f32).clamp(0.0, 24.0);
 
@@ -256,7 +256,7 @@ fn phase_index(hour: f32) -> (usize, f32) {
 ///
 /// `lerp_factor` is clamped to `[0.0, 1.0]`; 0.0 means "don't move" and
 /// 1.0 means "snap immediately".
-pub fn update_modulation(
+pub(crate) fn update_modulation(
     current: &mut AtmosphereRuntimeModulation,
     target: &AdaptiveParams,
     lerp_factor: f32,
@@ -278,7 +278,7 @@ pub fn update_modulation(
 /// Returns `Some("cosmos")` at midnight, `Some("cosmos")` at noon, etc.
 /// Returns `None` if the phase doesn't specify a target color.
 #[must_use]
-pub fn current_color_target() -> Option<&'static str> {
+pub(crate) fn current_color_target() -> Option<&'static str> {
     let hour = current_hour();
     adaptive_params(hour).target_color
 }

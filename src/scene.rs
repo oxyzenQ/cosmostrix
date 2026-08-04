@@ -20,7 +20,7 @@ use crate::config::GlitchLevel;
 use crate::rain_style::RainStyle;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SceneConfig {
+pub(crate) struct SceneConfig {
     pub color: Option<&'static str>,
     pub charset: Option<&'static str>,
     pub fps: Option<f64>,
@@ -31,18 +31,18 @@ pub struct SceneConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SceneInfo {
+pub(crate) struct SceneInfo {
     pub name: &'static str,
     pub description: &'static str,
     pub config: SceneConfig,
 }
 
-pub const DEFAULT_SCENE: &str = "cinematic";
+pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
 /// Ordered scene cycle: monolith -> matrix -> cinematic -> monolith.
-pub const SCENE_ORDER: &[&str] = &["monolith", "matrix", "cinematic"];
+pub(crate) const SCENE_ORDER: &[&str] = &["monolith", "matrix", "cinematic"];
 
-pub const SCENES: &[SceneInfo] = &[
+pub(crate) const SCENES: &[SceneInfo] = &[
     // --- Original runtime scenes (interactive cycle entries) ---
     SceneInfo {
         name: "matrix",
@@ -272,7 +272,7 @@ pub const SCENES: &[SceneInfo] = &[
 ];
 
 #[must_use]
-pub fn all_scene_names() -> &'static [&'static str] {
+pub(crate) fn all_scene_names() -> &'static [&'static str] {
     &[
         "calm",
         "carbonic",
@@ -296,7 +296,7 @@ pub fn all_scene_names() -> &'static [&'static str] {
 /// Forward:  monolith -> matrix -> cinematic -> monolith
 /// Backward: monolith -> cinematic -> matrix -> monolith
 #[must_use]
-pub fn cycle_scene(current: &str, dir: i32) -> &'static str {
+pub(crate) fn cycle_scene(current: &str, dir: i32) -> &'static str {
     let Some(pos) = SCENE_ORDER.iter().position(|&n| n == current) else {
         return DEFAULT_SCENE;
     };
@@ -307,17 +307,17 @@ pub fn cycle_scene(current: &str, dir: i32) -> &'static str {
 }
 
 #[must_use]
-pub fn get_scene(name: &str) -> Option<&'static SceneInfo> {
+pub(crate) fn get_scene(name: &str) -> Option<&'static SceneInfo> {
     let normalized = name.trim().to_ascii_lowercase();
     SCENES.iter().find(|scene| scene.name == normalized)
 }
 
 #[must_use]
-pub fn rain_style_for_scene(name: &str) -> Option<RainStyle> {
+pub(crate) fn rain_style_for_scene(name: &str) -> Option<RainStyle> {
     get_scene(name).map(|scene| scene.config.rain_style)
 }
 
-pub fn validate_scene_name(name: &str) -> Result<String, String> {
+pub(crate) fn validate_scene_name(name: &str) -> Result<String, String> {
     let normalized = name.trim().to_ascii_lowercase();
     if get_scene(&normalized).is_some() {
         Ok(normalized)
@@ -329,7 +329,7 @@ pub fn validate_scene_name(name: &str) -> Result<String, String> {
 }
 
 #[must_use]
-pub fn list_scenes_text() -> String {
+pub(crate) fn list_scenes_text() -> String {
     let mut out = String::new();
     for scene in SCENES {
         out.push_str(&format!("  {:10} {}\n", scene.name, scene.description));
@@ -344,7 +344,7 @@ pub fn list_scenes_text() -> String {
 /// sets that field (i.e. it is `Some(_)`), so partial scenes do not show
 /// misleading "default" placeholders.
 #[must_use]
-pub fn show_scene_text(info: &SceneInfo) -> String {
+pub(crate) fn show_scene_text(info: &SceneInfo) -> String {
     let mut out = String::new();
     out.push_str(&format!("SCENE: {}\n\n", info.name));
     out.push_str(&format!("  Description: {}\n\n", info.description));

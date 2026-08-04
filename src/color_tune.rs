@@ -44,7 +44,7 @@ const TUNE_MIN: f32 = 0.0;
 const TUNE_MAX: f32 = 3.0;
 
 /// Parse a `--color-tune` string. Keys: sat, bright, head, body, tail.
-pub fn parse_color_tune(s: &str) -> Result<ColorTune, String> {
+pub(crate) fn parse_color_tune(s: &str) -> Result<ColorTune, String> {
     let mut saturation = 1.0_f32;
     let mut brightness = 1.0_f32;
     let mut head = 1.0_f32;
@@ -114,7 +114,7 @@ pub fn parse_color_tune(s: &str) -> Result<ColorTune, String> {
 }
 
 /// v17: Build ColorTune from [color.tune] config section.
-pub fn color_tune_from_config(cfg: &std::collections::HashMap<String, String>) -> ColorTune {
+pub(crate) fn color_tune_from_config(cfg: &std::collections::HashMap<String, String>) -> ColorTune {
     let get = |key: &str| -> f32 {
         cfg.get(key)
             .and_then(|v| v.parse::<f32>().ok())
@@ -130,7 +130,7 @@ pub fn color_tune_from_config(cfg: &std::collections::HashMap<String, String>) -
     }
 }
 
-pub fn apply_tune_to_palette(palette: &mut Palette, mode: ColorMode, tune: &ColorTune) {
+pub(crate) fn apply_tune_to_palette(palette: &mut Palette, mode: ColorMode, tune: &ColorTune) {
     if tune.is_identity() {
         return;
     }

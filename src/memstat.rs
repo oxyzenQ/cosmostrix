@@ -39,7 +39,7 @@ use std::io::Read;
 /// At a 100 ms sampling interval that is well under 0.1% CPU overhead. On
 /// macOS the cost is a single `task_info` syscall.
 #[must_use]
-pub fn current_rss_kb() -> Option<u64> {
+pub(crate) fn current_rss_kb() -> Option<u64> {
     #[cfg(target_os = "linux")]
     {
         linux_rss_kb()

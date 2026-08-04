@@ -16,7 +16,7 @@ use crate::theme;
 use crate::Args;
 
 /// Run the `--testconf` validation.
-pub fn run(args: &Args) -> std::io::Result<()> {
+pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // Security (v16 audit): validate --config path BEFORE reading.
     // Previously testconf::run called std::fs::read_to_string directly
     // without is_safe_path, allowing `cosmostrix --testconf --config /etc/passwd`
@@ -244,7 +244,7 @@ pub fn run(args: &Args) -> std::io::Result<()> {
 ///   before cosmostrix starts running (exit code 2).
 /// - Live reload: watcher rejects invalid config edits (exit code 2).
 /// - --testconf: validates and reports errors.
-pub fn validate_config_strictly(
+pub(crate) fn validate_config_strictly(
     cfg: &std::collections::HashMap<String, String>,
 ) -> Result<(), String> {
     for (key, value) in cfg {
@@ -366,7 +366,7 @@ fn is_valid_hex_color(s: &str) -> bool {
 /// `scene-custom.<name>.<field>` block values. The caller is responsible
 /// for mapping block-specific field names (e.g. `base` -> `scene`) before
 /// calling this function.
-pub fn validate_field_value(key: &str, value: &str) -> Option<String> {
+pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
     let v = value.trim();
     match key {
         // ── Numeric ranges ──

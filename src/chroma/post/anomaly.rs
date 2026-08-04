@@ -88,7 +88,7 @@ use crate::chroma::tuning::ANOMALY_HALO_CYCLE_RATE;
 /// `cloud::state::AnomalyKind` at the call site in
 /// `cloud::phosphor::apply_anomalies`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum AnomalyHaloMode {
+pub(crate) enum AnomalyHaloMode {
     /// Static target: the palette's brightest stop
     /// (`palette_colors.last()`). Used by `AnomalyKind::LuminanceSurge`
     /// — a "lift toward the palette's natural ceiling".
@@ -142,7 +142,7 @@ pub enum AnomalyHaloMode {
 /// };
 /// ```
 #[must_use]
-pub fn anomaly_halo_target(
+pub(crate) fn anomaly_halo_target(
     palette_colors: &[Color],
     mode: AnomalyHaloMode,
     elapsed: f32,

@@ -36,6 +36,6 @@
 //! | `ghost`      | `ghost_base_color()` — palette-aware ghost color derivation         |
 //! | `anomaly`    | `anomaly_halo_target()` — palette-aware anomaly halo target (Phase 6) |
 
-pub mod anomaly;
-pub mod atmosphere;
-pub mod ghost;
+pub(crate) mod anomaly;
+pub(crate) mod atmosphere;
+pub(crate) mod ghost;

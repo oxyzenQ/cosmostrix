@@ -7,7 +7,7 @@
 //! the x86_64 microarchitecture level (v1–v4) or aarch64-native.
 
 /// Detected CPU information.
-pub struct CpuInfo {
+pub(crate) struct CpuInfo {
     /// Microarchitecture variant, e.g. "x86_64-v3" or "aarch64-native".
     pub variant: &'static str,
     /// Dispatch description, always "static optimized build".
@@ -18,7 +18,7 @@ pub struct CpuInfo {
 
 /// Detect CPU info at runtime.
 #[inline]
-pub fn detect_cpu_info() -> CpuInfo {
+pub(crate) fn detect_cpu_info() -> CpuInfo {
     CpuInfo {
         variant: detect_variant(),
         dispatch: "static optimized build",
@@ -67,7 +67,7 @@ fn detect_variant() -> &'static str {
 /// - **macOS**: queries `machdep.cpu.brand_string` via `sysctlbyname`.
 /// - **Other**: returns `None`.
 #[must_use]
-pub fn cpu_model_string() -> Option<String> {
+pub(crate) fn cpu_model_string() -> Option<String> {
     #[cfg(target_os = "linux")]
     {
         linux_cpu_model()

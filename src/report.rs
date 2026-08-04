@@ -9,13 +9,13 @@
 use std::io::IsTerminal;
 
 /// A structured report with a title and named sections.
-pub struct Report {
+pub(crate) struct Report {
     title: String,
     sections: Vec<Section>,
 }
 
 /// A named section within a report, containing key-value fields.
-pub struct Section {
+pub(crate) struct Section {
     name: String,
     fields: Vec<Field>,
     /// Optional advisory lines (printed as `  - message`).
@@ -23,13 +23,13 @@ pub struct Section {
 }
 
 /// A single key-value field within a section.
-pub struct Field {
+pub(crate) struct Field {
     key: String,
     value: String,
 }
 
 impl Report {
-    pub fn new(title: &str) -> Self {
+    pub(crate) fn new(title: &str) -> Self {
         Self {
             title: title.to_string(),
             sections: Vec::new(),
@@ -37,7 +37,7 @@ impl Report {
     }
 
     /// Add a section and return a mutable reference for chaining fields.
-    pub fn section(&mut self, name: &str) -> &mut Section {
+    pub(crate) fn section(&mut self, name: &str) -> &mut Section {
         self.sections.push(Section {
             name: name.to_string(),
             fields: Vec::new(),
@@ -59,7 +59,7 @@ impl Report {
     /// SECTION
     ///   key: value
     /// ```
-    pub fn print(&self) {
+    pub(crate) fn print(&self) {
         let supports_ansi = std::io::stdout().is_terminal()
             && std::env::var_os("NO_COLOR").is_none()
             && !matches!(std::env::var("CLICOLOR").ok().as_deref(), Some("0"));
@@ -108,7 +108,7 @@ impl Report {
 
 impl Section {
     /// Add a key-value field. Returns `&mut Self` for chaining.
-    pub fn field(&mut self, key: &str, value: &str) -> &mut Self {
+    pub(crate) fn field(&mut self, key: &str, value: &str) -> &mut Self {
         self.fields.push(Field {
             key: key.to_string(),
             value: value.to_string(),
@@ -117,13 +117,13 @@ impl Section {
     }
 
     /// Add an advisory line (printed as `  - message`).
-    pub fn advice(&mut self, message: &str) -> &mut Self {
+    pub(crate) fn advice(&mut self, message: &str) -> &mut Self {
         self.advice.push(message.to_string());
         self
     }
 
     /// Returns true if no advisory lines have been added.
-    pub fn has_advice(&self) -> bool {
+    pub(crate) fn has_advice(&self) -> bool {
         !self.advice.is_empty()
     }
 }

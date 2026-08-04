@@ -24,7 +24,7 @@
 /// Marked `pub` so external tooling (e.g. FFI probes, binary diff
 /// scripts, supply-chain scanners) can grep for it both in source and
 /// in the produced artifact.
-pub const COSMIC_DRAGON_SIGNATURE: &str =
+pub(crate) const COSMIC_DRAGON_SIGNATURE: &str =
     "Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)";
 
 /// Return the cosmic dragon signature.
@@ -33,7 +33,7 @@ pub const COSMIC_DRAGON_SIGNATURE: &str =
 /// to reference. Calling this function from a reachable code path pins
 /// `COSMIC_DRAGON_SIGNATURE` into the binary.
 #[must_use]
-pub fn cosmic_dragon_signature() -> &'static str {
+pub(crate) fn cosmic_dragon_signature() -> &'static str {
     COSMIC_DRAGON_SIGNATURE
 }
 

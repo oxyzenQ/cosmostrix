@@ -12,14 +12,14 @@
 use std::fs;
 
 #[derive(Debug, Clone, Default)]
-pub struct EnergySnapshot {
+pub(crate) struct EnergySnapshot {
     pub total_energy_uj: u64,
     pub package_count: u32,
     pub available: bool,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct EnergyMetrics {
+pub(crate) struct EnergyMetrics {
     pub available: bool,
     pub total_energy_joules: f64,
     pub avg_power_watts: f64,
@@ -30,7 +30,7 @@ pub struct EnergyMetrics {
 
 impl EnergySnapshot {
     /// Read current RAPL energy from all packages.
-    pub fn now() -> Self {
+    pub(crate) fn now() -> Self {
         let mut total_uj: u64 = 0;
         let mut pkg_count: u32 = 0;
         let mut found = false;
@@ -74,7 +74,7 @@ impl EnergySnapshot {
     }
 
     /// Compute delta between two snapshots.
-    pub fn delta(
+    pub(crate) fn delta(
         &self,
         before: &Self,
         elapsed_secs: f64,

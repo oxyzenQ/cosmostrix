@@ -45,11 +45,11 @@
 //! namespace.
 
 pub mod catalog;
-pub mod gradient;
+pub(crate) mod gradient;
 pub mod palette;
-pub mod post;
-pub mod shaders;
-pub mod tuning;
+pub(crate) mod post;
+pub(crate) mod shaders;
+pub(crate) mod tuning;
 
 #[cfg(test)]
 #[path = "lock_tests.rs"]

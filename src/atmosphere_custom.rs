@@ -33,7 +33,7 @@ use std::collections::HashMap;
 /// whether the adaptive-custom entries have changed between reloads. If the
 /// snapshot is unchanged, the O(n) reparse is skipped (turning ~1ms into ~50ns).
 #[must_use]
-pub fn snapshot_adaptive_custom(cfg: &HashMap<String, String>) -> Vec<(String, String)> {
+pub(crate) fn snapshot_adaptive_custom(cfg: &HashMap<String, String>) -> Vec<(String, String)> {
     let mut snapshot: Vec<(String, String)> = cfg
         .iter()
         .filter(|(k, _)| k.starts_with("adaptive-custom."))
@@ -50,7 +50,7 @@ pub fn snapshot_adaptive_custom(cfg: &HashMap<String, String>) -> Vec<(String, S
 /// unchanged, the existing `current_map` is returned unchanged (cache hit).
 /// On parse error, emits a broken-pipe-safe stderr line and returns `None`.
 #[must_use]
-pub fn reparse_if_changed(
+pub(crate) fn reparse_if_changed(
     cfg: &HashMap<String, String>,
     current_map: &Option<CustomTimeMap>,
     prev_snapshot: &Option<Vec<(String, String)>>,
@@ -76,7 +76,7 @@ pub fn reparse_if_changed(
 
 /// A single time point in the custom map.
 #[derive(Debug, Clone)]
-pub struct CustomTimePoint {
+pub(crate) struct CustomTimePoint {
     /// Minutes since midnight (0-1439).
     pub minutes: u32,
     /// Color scheme name (None = sticky).
@@ -98,13 +98,13 @@ pub struct CustomTimePoint {
 /// Parsed custom time map. Sorted by minutes ascending.
 /// If empty, no custom map was defined — use default adaptive.
 #[derive(Debug, Clone, Default)]
-pub struct CustomTimeMap {
+pub(crate) struct CustomTimeMap {
     pub points: Vec<CustomTimePoint>,
 }
 
 impl CustomTimeMap {
     /// Check if the map is empty (no custom time points defined).
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.points.is_empty()
     }
 
@@ -129,7 +129,7 @@ impl CustomTimeMap {
     /// 22:00 with current time 21:54 caused `current_minutes - current.minutes`
     /// to underflow u32, triggering an immediate transition to the next
     /// point's color.
-    pub fn params_at(&self, hour: f64) -> Option<CustomTimePoint> {
+    pub(crate) fn params_at(&self, hour: f64) -> Option<CustomTimePoint> {
         if self.points.is_empty() {
             return None;
         }
@@ -259,7 +259,9 @@ impl CustomTimeMap {
 ///
 /// Example:
 /// `adaptive-custom.00-00 = green3, matrix, speed=60, density=1.0`
-pub fn parse_custom_time_map(cfg: &HashMap<String, String>) -> Result<CustomTimeMap, String> {
+pub(crate) fn parse_custom_time_map(
+    cfg: &HashMap<String, String>,
+) -> Result<CustomTimeMap, String> {
     let mut points: Vec<CustomTimePoint> = Vec::new();
 
     for (key, value) in cfg {

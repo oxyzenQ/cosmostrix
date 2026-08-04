@@ -167,13 +167,13 @@ use std::time::Duration;
 // phosphor.rs, monolith.rs, and the spawn path.
 
 /// Number of parallax depth layers.
-pub const PARALLAX_LAYERS: usize = 3;
+pub(crate) const PARALLAX_LAYERS: usize = 3;
 
 /// Per-layer speed multiplier (layer 0 = far, 2 = near).
 ///
 /// Back layer moves at 35% of base speed (parallax recession), front layer
 /// at 170% (foreground whoosh). Mid matches base speed.
-pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
+pub(crate) const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
@@ -188,7 +188,7 @@ pub const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 ///   - Back  (0): 0.48 (dimmed — sits in soft fog)
 ///   - Mid   (1): 0.80 (slightly dim — fewer droplets, each vivid)
 ///   - Front (2): 1.10 (boosted — front reads as the hero layer, Option F)
-pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.10];
+pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.10];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
@@ -202,7 +202,7 @@ pub const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.10];
 ///   - Back  (0): 0.50 (more haze blend)
 ///   - Mid   (1): 0.84 (slightly less vivid to match dimmer brightness)
 ///   - Front (2): 1.12 (richer neon — front pops as hero, Option F)
-pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.12];
+pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.12];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -213,7 +213,7 @@ pub const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.12];
 ///   - Back  (0): 0.48 (soft distant glow)
 ///   - Mid   (1): 0.74 (gentle pop, not noisy)
 ///   - Front (2): 1.30 (boosted — cinematic head pop, Option F)
-pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.30];
+pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.30];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -229,13 +229,13 @@ pub const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.30];
 ///   - Back  (0): 0.38 (ambient distant glow, no pinprick)
 ///   - Mid   (1): 0.68 (clearly present, not flashy)
 ///   - Front (2): 1.20 (boosted self-glow, Option F)
-pub const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.38, 0.68, 1.20];
+pub(crate) const PARALLAX_HEAD_SELFBLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.38, 0.68, 1.20];
 
 /// Per-layer length multiplier (layer 0 = short, 2 = long).
 ///
 /// Back layer droplets are 50% of base length (brief streaks). Front layer
 /// droplets are 140% (long cinematic rain streaks). Mid matches base.
-pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
+pub(crate) const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 
 // ─── Phosphor persistence (CRT afterglow) ──────────────────────────────────
 //
@@ -249,22 +249,22 @@ pub const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 ///
 /// At 5.0, afterglow lasts ~400ms (still 2× film Matrix's ~200ms, but
 /// 2.7× faster than the old 1094ms afterglow).
-pub const PHOSPHOR_DECAY_RATE: f32 = 5.0;
+pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 5.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
 ///
 /// At 160, trail brightness is ~63% of head — body cells clearly visible
 /// as colored rain rather than dim ghosts.
-pub const PHOSPHOR_TAIL_RESIDUAL: u8 = 160;
+pub(crate) const PHOSPHOR_TAIL_RESIDUAL: u8 = 160;
 
 /// Below this energy, the cell is cleared to blank.
-pub const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
+pub(crate) const PHOSPHOR_DEAD_THRESHOLD: u8 = 6;
 
 /// Minimum phosphor energy for rendering the original character glyph in
 /// ghost cells. Below this threshold, the ghost cell renders as a blank
 /// space (or dim color-only patch). Prevents stale cells from filling
 /// the background with dark charset glyphs.
-pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
+pub(crate) const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
@@ -276,14 +276,14 @@ pub const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 ///   - Back  (0): 2.0 (fast fade — brief distant flicker)
 ///   - Mid   (1): 1.2 (slightly faster fade — clean streaks)
 ///   - Front (2): 0.6 (slow fade — long cinematic trails, Option F)
-pub const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 0.6];
+pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 0.6];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated (prevents "concrete wall" residue buildup).
-pub const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
+pub(crate) const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
 
 /// Phosphor decay rate multiplier applied to bottom rows (3.0× base).
-pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
+pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 // ─── Atmospheric depth layering ────────────────────────────────────────────
 //
@@ -308,11 +308,11 @@ pub const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 ///   - Back  (0): 0.45 (kept — sparse distant rain)
 ///   - Mid   (1): 0.62 (reduced — fewer but vivid streaks)
 ///   - Front (2): 0.85 (restored — sparse crisp glow, matches 5571c0b)
-pub const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.62, 0.85];
+pub(crate) const PARALLAX_DENSITY_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.62, 0.85];
 
 /// Per-layer glyph simplicity (currently no-op — subsumed by brightness
 /// + saturation). Kept as a tuning knob for future use.
-pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
+pub(crate) const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 
 /// Per-layer contrast reduction (depth-of-field perceptual blur).
 ///
@@ -328,146 +328,146 @@ pub const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 ///   - Back  (0): 0.55 (visible rain through soft fog, Option F)
 ///   - Mid   (1): 0.18 (slight veil — depth cue without milking out)
 ///   - Front (2): 0.0 (sharp foreground — hero pops clean)
-pub const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.55, 0.18, 0.0];
+pub(crate) const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.55, 0.18, 0.0];
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
 
 /// Trail brightness exponential decay constant (higher = faster fade).
-pub const TRAIL_EXPONENTIAL_K: f64 = 1.2;
+pub(crate) const TRAIL_EXPONENTIAL_K: f64 = 1.2;
 
 /// Cap on accumulated spawn remainder per column (prevents burst spawns
 /// after pause or long delta-time frames).
-pub const SPAWN_REMAINDER_CAP: f32 = 4.0;
+pub(crate) const SPAWN_REMAINDER_CAP: f32 = 4.0;
 
 /// Cap on accumulated advance remainder per droplet (prevents position
 /// jumps after pause or long delta-time frames).
-pub const ADVANCE_REMAINDER_CAP: f32 = 3.0;
+pub(crate) const ADVANCE_REMAINDER_CAP: f32 = 3.0;
 
 // ─── Warm start (initial rain seeding) ─────────────────────────────────────
 
 /// Maximum head row for warm-start seeds (keeps initial heads near top).
-pub const WARM_START_MAX_HEAD: u16 = 8;
+pub(crate) const WARM_START_MAX_HEAD: u16 = 8;
 
 /// Fraction of droplet pool to seed on warm start.
-pub const WARM_START_SEED_FRACTION: f32 = 0.12;
+pub(crate) const WARM_START_SEED_FRACTION: f32 = 0.12;
 
 /// Minimum number of warm-start seeds (prevents empty screen on tiny terms).
-pub const WARM_START_SEED_MIN: usize = 3;
+pub(crate) const WARM_START_SEED_MIN: usize = 3;
 
 /// Maximum number of warm-start seeds (caps burst on huge terms).
-pub const WARM_START_SEED_MAX: usize = 12;
+pub(crate) const WARM_START_SEED_MAX: usize = 12;
 
 /// Spawn debt carried into the first second after warm start (smooths
 /// the transition from seed to steady-state spawn rate).
-pub const WARM_START_SPAWN_DEBT: f32 = 0.5;
+pub(crate) const WARM_START_SPAWN_DEBT: f32 = 0.5;
 
 // ─── Glyph entry ramp (fresh droplet fade-in) ──────────────────────────────
 
 /// Duration of the fresh-droplet brightness ramp-in (ms).
-pub const GLYPH_ENTRY_RAMP_DURATION_MS: u32 = 700;
+pub(crate) const GLYPH_ENTRY_RAMP_DURATION_MS: u32 = 700;
 
 /// Minimum scale of the ramp (droplet starts at this brightness, ramps
 /// to 1.0 over the duration above).
-pub const GLYPH_ENTRY_RAMP_MIN_SCALE: f32 = 0.15;
+pub(crate) const GLYPH_ENTRY_RAMP_MIN_SCALE: f32 = 0.15;
 
 // ─── Cinematic color transition ────────────────────────────────────────────
 
 /// Maximum number of simultaneously-tracked palette slots (for
 /// generation-based palette propagation during transitions).
-pub const MAX_PALETTE_SLOTS: usize = 4;
+pub(crate) const MAX_PALETTE_SLOTS: usize = 4;
 
 /// Duration of the per-column color transition wave (ms).
-pub const COLOR_TRANSITION_DURATION_MS: u16 = 300;
+pub(crate) const COLOR_TRANSITION_DURATION_MS: u16 = 300;
 
 /// Fraction of columns initially visible during a transition (12% —
 /// the rest propagate in over the duration above).
-pub const COLOR_TRANSITION_INITIAL_VISIBLE_PCT: f32 = 0.12;
+pub(crate) const COLOR_TRANSITION_INITIAL_VISIBLE_PCT: f32 = 0.12;
 
 /// Duration of the per-column charset transition wave (ms).
-pub const CHARSET_TRANSITION_DURATION_MS: u16 = 500;
+pub(crate) const CHARSET_TRANSITION_DURATION_MS: u16 = 500;
 
 /// Velocity boost applied to new-generation droplets during an active
 /// transition (creates an incoming-wave feel).
-pub const TRANSITION_VELOCITY_BOOST: f32 = 0.05;
+pub(crate) const TRANSITION_VELOCITY_BOOST: f32 = 0.05;
 
 /// Duration of the post-transition energy surge (sec).
-pub const TRANSITION_ENERGY_DURATION_SECS: f32 = 1.5;
+pub(crate) const TRANSITION_ENERGY_DURATION_SECS: f32 = 1.5;
 
 /// Saturation boost during the energy surge.
-pub const TRANSITION_ENERGY_SATURATION_BOOST: f32 = 0.15;
+pub(crate) const TRANSITION_ENERGY_SATURATION_BOOST: f32 = 0.15;
 
 /// Head glow boost during the energy surge.
-pub const TRANSITION_HEAD_GLOW_BOOST: f32 = 0.2;
+pub(crate) const TRANSITION_HEAD_GLOW_BOOST: f32 = 0.2;
 
 // ─── Droplet gravity & terminal velocity ───────────────────────────────────
 
 /// Downward acceleration applied to droplet head position (cells/sec²).
-pub const DROPLET_GRAVITY: f32 = 2.0;
+pub(crate) const DROPLET_GRAVITY: f32 = 2.0;
 
 /// Multiplier on base speed at which droplets stop accelerating
 /// (terminal velocity).
-pub const DROPLET_TERMINAL_VELOCITY_MULT: f32 = 1.8;
+pub(crate) const DROPLET_TERMINAL_VELOCITY_MULT: f32 = 1.8;
 
 // ─── Cinematic startup easing ──────────────────────────────────────────────
 
 /// Initial velocity as fraction of target velocity (3% — slow start).
-pub const STARTUP_VELOCITY_FRACTION: f32 = 0.03;
+pub(crate) const STARTUP_VELOCITY_FRACTION: f32 = 0.03;
 
 /// Time constant for the startup velocity ramp (sec).
-pub const STARTUP_EASE_TAU: f32 = 0.30;
+pub(crate) const STARTUP_EASE_TAU: f32 = 0.30;
 
 // ─── Head bloom (exponential gaussian falloff) ─────────────────────────────
 
 /// Sigma (standard deviation) of the gaussian head-bloom falloff.
-pub const HEAD_BLOOM_SIGMA: f32 = 1.2;
+pub(crate) const HEAD_BLOOM_SIGMA: f32 = 1.2;
 
 /// Peak intensity of the head bloom glow (0.0 = none, 1.0 = full).
-pub const HEAD_BLOOM_INTENSITY: f32 = 0.40;
+pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.40;
 
 /// Number of cells on each side of the head that receive bloom glow.
-pub const HEAD_BLOOM_CELLS: u16 = 2;
+pub(crate) const HEAD_BLOOM_CELLS: u16 = 2;
 
 // ─── Depth fog vignette (top/bottom row dim) ───────────────────────────────
 
 /// Number of rows at top and bottom affected by depth fog.
-pub const FOG_ROWS: u16 = 4;
+pub(crate) const FOG_ROWS: u16 = 4;
 
 /// Minimum brightness factor at the extreme edge row (0.65 = 35% dim).
-pub const FOG_MIN_FACTOR: f32 = 0.65;
+pub(crate) const FOG_MIN_FACTOR: f32 = 0.65;
 
 // ─── Cinematic CRT vignette (top & bottom edge dim) ────────────────────────
 
 /// Height (in rows) of the CRT vignette band at top and bottom.
-pub const CRT_VIGNETTE_HEIGHT: u16 = 5;
+pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 5;
 
 /// Brightness factor at the extreme edge row of the CRT vignette.
-pub const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.9;
+pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.9;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
 /// (perf optimization — skip on slow systems).
-pub const CRT_VIGNETTE_PERF_THRESHOLD: f32 = 0.5;
+pub(crate) const CRT_VIGNETTE_PERF_THRESHOLD: f32 = 0.5;
 
 // ─── Cinematic radial vignette (edge darkening) ────────────────────────────
 
 /// Intensity of the radial vignette (0.0 = none, 1.0 = full black at edges).
-pub const VIGNETTE_INTENSITY: f32 = 0.30;
+pub(crate) const VIGNETTE_INTENSITY: f32 = 0.30;
 
 /// Inner radius (as fraction of half-screen) where vignette starts.
-pub const VIGNETTE_INNER_RADIUS: f32 = 0.7;
+pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.7;
 
 /// Per-layer vignette multiplier (0.0 = no dimming, 1.0 = full dimming).
 ///
 /// Front layer (2) is exempt — vignette is a depth effect that should
 /// only push mid/back deeper into the background.
-pub const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
+pub(crate) const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 
 // ─── Rain shadow (bottom quadratic fade-out) ───────────────────────────────
 
 /// Percentage of screen height (from bottom) affected by rain shadow.
-pub const RAIN_SHADOW_PCT: f32 = 0.15;
+pub(crate) const RAIN_SHADOW_PCT: f32 = 0.15;
 
 /// Per-layer rain shadow multiplier (front layer exempt, same as vignette).
-pub const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
+pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 
 // ─── Front layer tail allocation ───────────────────────────────────────────
 //
@@ -476,50 +476,50 @@ pub const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 // allocated as a percentage of droplet length, capped at a max.
 
 /// Fraction of droplet length allocated to tail cells (45%).
-pub const FRONT_LAYER_TAIL_PCT: f32 = 0.45;
+pub(crate) const FRONT_LAYER_TAIL_PCT: f32 = 0.45;
 
 /// Hard cap on tail cell count (prevents degenerate values on huge screens).
-pub const FRONT_LAYER_TAIL_MAX_CELLS: u8 = 12;
+pub(crate) const FRONT_LAYER_TAIL_MAX_CELLS: u8 = 12;
 
 /// Number of color stops used by long front-layer tails.
-pub const FRONT_LAYER_MAX_TAIL_STOPS: u8 = 3;
+pub(crate) const FRONT_LAYER_MAX_TAIL_STOPS: u8 = 3;
 
 // ─── Mouse interaction ─────────────────────────────────────────────────────
 
 /// Radius (in columns) of the mouse hover glow.
-pub const MOUSE_GLOW_RADIUS_COLS: f32 = 7.0;
+pub(crate) const MOUSE_GLOW_RADIUS_COLS: f32 = 7.0;
 
 /// Radius (in lines) of the mouse hover glow.
-pub const MOUSE_GLOW_RADIUS_LINES: f32 = 5.0;
+pub(crate) const MOUSE_GLOW_RADIUS_LINES: f32 = 5.0;
 
 /// Intensity of the mouse hover glow (0.0 = disabled in default mode).
-pub const MOUSE_GLOW_INTENSITY: f32 = 0.0;
+pub(crate) const MOUSE_GLOW_INTENSITY: f32 = 0.0;
 
 /// Speed of the mouse-click flash ring expansion (cells/sec).
-pub const MOUSE_FLASH_SPEED: f32 = 32.0;
+pub(crate) const MOUSE_FLASH_SPEED: f32 = 32.0;
 
 /// Width of the mouse-click flash ring (in cells).
-pub const MOUSE_FLASH_RING_WIDTH: f32 = 8.0;
+pub(crate) const MOUSE_FLASH_RING_WIDTH: f32 = 8.0;
 
 /// Peak intensity of the mouse-click flash.
-pub const MOUSE_FLASH_INTENSITY: f32 = 0.85;
+pub(crate) const MOUSE_FLASH_INTENSITY: f32 = 0.85;
 
 /// Duration of the mouse-click flash (sec).
-pub const MOUSE_FLASH_DURATION_SECS: f32 = 1.8;
+pub(crate) const MOUSE_FLASH_DURATION_SECS: f32 = 1.8;
 
 /// Fraction of the primary ring intensity applied to the secondary echo ring.
-pub const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.45;
+pub(crate) const MOUSE_FLASH_SECONDARY_FRAC: f32 = 0.45;
 
 /// Speed of the secondary ring as fraction of primary ring speed.
-pub const MOUSE_FLASH_SECONDARY_SPEED_FRAC: f32 = 0.4;
+pub(crate) const MOUSE_FLASH_SECONDARY_SPEED_FRAC: f32 = 0.4;
 
 // ─── Velocity turbulence ───────────────────────────────────────────────────
 
 /// Maximum velocity perturbation as fraction of base chars_per_sec.
-pub const TURBULENCE_AMPLITUDE: f32 = 0.08;
+pub(crate) const TURBULENCE_AMPLITUDE: f32 = 0.08;
 
 /// Turbulence oscillation frequency (Hz).
-pub const TURBULENCE_FREQ: f32 = 0.4;
+pub(crate) const TURBULENCE_FREQ: f32 = 0.4;
 
 // ─── Cinematic perceived smoothness ────────────────────────────────────────
 //
@@ -529,71 +529,71 @@ pub const TURBULENCE_FREQ: f32 = 0.4;
 
 /// Fractional head brightness amplitude (head brightens up to 15% as it
 /// approaches the next row).
-pub const FRACTIONAL_HEAD_BRIGHTNESS_AMP: f32 = 0.15;
+pub(crate) const FRACTIONAL_HEAD_BRIGHTNESS_AMP: f32 = 0.15;
 
 /// Fractional bloom modulation (bloom glow intensifies up to 10%).
-pub const FRACTIONAL_BLOOM_AMP: f32 = 0.10;
+pub(crate) const FRACTIONAL_BLOOM_AMP: f32 = 0.10;
 
 /// Head character shimmer period (sec) — head cycles to a new char from
 /// the pool at this interval.
-pub const HEAD_SHIMMER_PERIOD_SECS: f32 = 0.10;
+pub(crate) const HEAD_SHIMMER_PERIOD_SECS: f32 = 0.10;
 
 /// Whether to add random fractional phase offset when spawning (breaks
 /// the synchronized "robotic march").
-pub const SPAWN_PHASE_JITTER: bool = true;
+pub(crate) const SPAWN_PHASE_JITTER: bool = true;
 
 /// Probability per frame that a mid-trail cell re-randomizes its
 /// character (subtle "churn").
-pub const TRAIL_CYCLE_PROBABILITY: f32 = 0.02;
+pub(crate) const TRAIL_CYCLE_PROBABILITY: f32 = 0.02;
 
 // ─── Rare anomaly events ───────────────────────────────────────────────────
 
 /// Chance per second of an anomaly event firing.
-pub const ANOMALY_CHANCE_PER_SEC: f64 = 0.017;
+pub(crate) const ANOMALY_CHANCE_PER_SEC: f64 = 0.017;
 
 /// Duration of an anomaly event (sec).
-pub const ANOMALY_DURATION_SECS: f32 = 1.5;
+pub(crate) const ANOMALY_DURATION_SECS: f32 = 1.5;
 
 /// Maximum simultaneously-active anomaly zones.
-pub const ANOMALY_MAX_ZONES: usize = 3;
+pub(crate) const ANOMALY_MAX_ZONES: usize = 3;
 
 /// Luminance intensity boost during an anomaly.
-pub const ANOMALY_LUMINANCE_INTENSITY: f32 = 0.3;
+pub(crate) const ANOMALY_LUMINANCE_INTENSITY: f32 = 0.3;
 
 /// Chance that an anomaly corrupts (re-randomizes) trail characters.
-pub const ANOMALY_CORRUPTION_CHANCE: f32 = 0.4;
+pub(crate) const ANOMALY_CORRUPTION_CHANCE: f32 = 0.4;
 
 // ─── Temporal color ecosystems ─────────────────────────────────────────────
 
 /// Tick interval for color ecosystem evaluation (sec).
-pub const COLOR_ECOSYSTEM_TICK_SECS: f32 = 3.0;
+pub(crate) const COLOR_ECOSYSTEM_TICK_SECS: f32 = 3.0;
 
 /// Climate luminance drift rate per tick.
-pub const COLOR_CLIMATE_DRIFT_RATE: f32 = 0.008;
+pub(crate) const COLOR_CLIMATE_DRIFT_RATE: f32 = 0.008;
 
 /// Saturation drift rate per tick.
-pub const COLOR_SATURATION_DRIFT_RATE: f32 = 0.005;
+pub(crate) const COLOR_SATURATION_DRIFT_RATE: f32 = 0.005;
 
 /// Hue drift rate per tick.
-pub const COLOR_HUE_DRIFT_RATE: f32 = 0.015;
+pub(crate) const COLOR_HUE_DRIFT_RATE: f32 = 0.015;
 
 /// Chance per tick of re-evaluating drift direction.
-pub const COLOR_DRIFT_REEVAL_CHANCE: f32 = 0.15;
+pub(crate) const COLOR_DRIFT_REEVAL_CHANCE: f32 = 0.15;
 
 /// Minimum climate luminance multiplier.
-pub const COLOR_LUMINANCE_CLIMATE_MIN: f32 = 0.75;
+pub(crate) const COLOR_LUMINANCE_CLIMATE_MIN: f32 = 0.75;
 
 /// Maximum climate luminance multiplier.
-pub const COLOR_LUMINANCE_CLIMATE_MAX: f32 = 1.0;
+pub(crate) const COLOR_LUMINANCE_CLIMATE_MAX: f32 = 1.0;
 
 /// Minimum climate saturation multiplier.
-pub const COLOR_SATURATION_CLIMATE_MIN: f32 = 0.7;
+pub(crate) const COLOR_SATURATION_CLIMATE_MIN: f32 = 0.7;
 
 /// Maximum climate saturation multiplier.
-pub const COLOR_SATURATION_CLIMATE_MAX: f32 = 1.0;
+pub(crate) const COLOR_SATURATION_CLIMATE_MAX: f32 = 1.0;
 
 /// Chance per tick of an autonomous palette drift event.
-pub const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
+pub(crate) const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
 
 /// Phase D Bug #7 fix: minimum cooldown seconds between palette drift
 /// events. Without this, drift can oscillate Green↔Green2 on consecutive
@@ -604,35 +604,35 @@ pub const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
 /// long-term drift behavior. At 30s cooldown, drift fires at most once per
 /// 10 ticks (3-sec tick × 10 = 30s), which is still frequent enough to be
 /// noticeable over a 10-minute session.
-pub const PALETTE_DRIFT_COOLDOWN_SECS: f32 = 30.0;
+pub(crate) const PALETTE_DRIFT_COOLDOWN_SECS: f32 = 30.0;
 
 /// Whether autonomous color drift is enabled by default.
-pub const AUTO_COLOR_DRIFT_DEFAULT: bool = false;
+pub(crate) const AUTO_COLOR_DRIFT_DEFAULT: bool = false;
 
 // ─── Cinematic runtime behavior profiles ───────────────────────────────────
 
 /// Duration of the profile transition (sec).
-pub const PROFILE_TRANSITION_SECS: f32 = 30.0;
+pub(crate) const PROFILE_TRANSITION_SECS: f32 = 30.0;
 
 /// Interpolation rate for profile parameter changes.
-pub const PROFILE_INTERPOLATION_RATE: f32 = 0.02;
+pub(crate) const PROFILE_INTERPOLATION_RATE: f32 = 0.02;
 
 // ─── Autonomous atmospheric evolution ──────────────────────────────────────
 
 /// Tick interval for atmospheric evolution (sec).
-pub const ATMOSPHERE_TICK_SECS: f32 = 5.0;
+pub(crate) const ATMOSPHERE_TICK_SECS: f32 = 5.0;
 
 /// Cycle period for entropy buildup and release (sec).
-pub const ENTROPY_CYCLE_SECS: f32 = 300.0;
+pub(crate) const ENTROPY_CYCLE_SECS: f32 = 300.0;
 
 /// Range of density variation during atmospheric evolution.
-pub const ATMOSPHERE_DENSITY_RANGE: f32 = 0.4;
+pub(crate) const ATMOSPHERE_DENSITY_RANGE: f32 = 0.4;
 
 /// Range of luminance variation during atmospheric evolution.
-pub const ATMOSPHERE_LUMINANCE_RANGE: f32 = 0.2;
+pub(crate) const ATMOSPHERE_LUMINANCE_RANGE: f32 = 0.2;
 
 /// Range of anomaly probability variation during atmospheric evolution.
-pub const ATMOSPHERE_ANOMALY_RANGE: f32 = 0.5;
+pub(crate) const ATMOSPHERE_ANOMALY_RANGE: f32 = 0.5;
 
 // ─── Living rain: dynamic density noise ────────────────────────────────────
 //
@@ -641,19 +641,19 @@ pub const ATMOSPHERE_ANOMALY_RANGE: f32 = 0.5;
 // allocation — single O(1) hash per spawn.
 
 /// Period at which the density noise field re-rolls (sec).
-pub const DENSITY_NOISE_PERIOD_SECS: f64 = 10.0;
+pub(crate) const DENSITY_NOISE_PERIOD_SECS: f64 = 10.0;
 
 /// Minimum density noise modifier.
-pub const DENSITY_NOISE_MIN: f32 = 0.6;
+pub(crate) const DENSITY_NOISE_MIN: f32 = 0.6;
 
 /// Maximum density noise modifier.
-pub const DENSITY_NOISE_MAX: f32 = 1.4;
+pub(crate) const DENSITY_NOISE_MAX: f32 = 1.4;
 
 /// Hash multiplier for density noise (Knuth-style prime).
-pub const DENSITY_NOISE_HASH_K: u32 = 2_654_435_761;
+pub(crate) const DENSITY_NOISE_HASH_K: u32 = 2_654_435_761;
 
 /// Hash seed multiplier for density noise.
-pub const DENSITY_NOISE_HASH_SEED_K: u32 = 1_103_515_245;
+pub(crate) const DENSITY_NOISE_HASH_SEED_K: u32 = 1_103_515_245;
 
 // ─── Living rain: wind gusts ───────────────────────────────────────────────
 //
@@ -662,34 +662,34 @@ pub const DENSITY_NOISE_HASH_SEED_K: u32 = 1_103_515_245;
 // multiplier scales droplet speed during the hold phase.
 
 /// Idle phase min duration (sec) — time between gusts.
-pub const GUST_IDLE_MIN_SECS: f64 = 30.0;
+pub(crate) const GUST_IDLE_MIN_SECS: f64 = 30.0;
 
 /// Idle phase max duration (sec).
-pub const GUST_IDLE_MAX_SECS: f64 = 120.0;
+pub(crate) const GUST_IDLE_MAX_SECS: f64 = 120.0;
 
 /// Attack phase min duration (sec) — ramp-up time.
-pub const GUST_ATTACK_MIN_SECS: f64 = 1.0;
+pub(crate) const GUST_ATTACK_MIN_SECS: f64 = 1.0;
 
 /// Attack phase max duration (sec).
-pub const GUST_ATTACK_MAX_SECS: f64 = 2.0;
+pub(crate) const GUST_ATTACK_MAX_SECS: f64 = 2.0;
 
 /// Hold phase min duration (sec) — peak sustain time.
-pub const GUST_HOLD_MIN_SECS: f64 = 0.5;
+pub(crate) const GUST_HOLD_MIN_SECS: f64 = 0.5;
 
 /// Hold phase max duration (sec).
-pub const GUST_HOLD_MAX_SECS: f64 = 1.0;
+pub(crate) const GUST_HOLD_MAX_SECS: f64 = 1.0;
 
 /// Decay phase min duration (sec) — ramp-down time.
-pub const GUST_DECAY_MIN_SECS: f64 = 3.0;
+pub(crate) const GUST_DECAY_MIN_SECS: f64 = 3.0;
 
 /// Decay phase max duration (sec).
-pub const GUST_DECAY_MAX_SECS: f64 = 5.0;
+pub(crate) const GUST_DECAY_MAX_SECS: f64 = 5.0;
 
 /// Min peak speed multiplier during the hold phase.
-pub const GUST_PEAK_MIN: f32 = 1.2;
+pub(crate) const GUST_PEAK_MIN: f32 = 1.2;
 
 /// Max peak speed multiplier during the hold phase.
-pub const GUST_PEAK_MAX: f32 = 1.5;
+pub(crate) const GUST_PEAK_MAX: f32 = 1.5;
 
 // ─── Long-timescale renderer memory ────────────────────────────────────────
 //
@@ -698,93 +698,93 @@ pub const GUST_PEAK_MAX: f32 = 1.5;
 // weight is given to recent anomaly pressure.
 
 /// Number of historical samples retained in renderer memory.
-pub const MEMORY_HISTORY_SAMPLES: usize = 32;
+pub(crate) const MEMORY_HISTORY_SAMPLES: usize = 32;
 
 /// Interval between memory samples (sec).
-pub const MEMORY_SAMPLE_INTERVAL_SECS: f32 = 30.0;
+pub(crate) const MEMORY_SAMPLE_INTERVAL_SECS: f32 = 30.0;
 
 /// Weight given to anomaly pressure in memory scoring.
-pub const MEMORY_ANOMALY_PRESSURE_WEIGHT: f32 = 0.3;
+pub(crate) const MEMORY_ANOMALY_PRESSURE_WEIGHT: f32 = 0.3;
 
 /// Persistence boost applied during calm periods (rewards sustained calm).
-pub const MEMORY_CALM_PERSISTENCE_BOOST: f32 = 0.15;
+pub(crate) const MEMORY_CALM_PERSISTENCE_BOOST: f32 = 0.15;
 
 // ─── Emergent visual storytelling ──────────────────────────────────────────
 
 /// Tick interval for emergent moment evaluation (sec).
-pub const STORYTELLING_TICK_SECS: f32 = 10.0;
+pub(crate) const STORYTELLING_TICK_SECS: f32 = 10.0;
 
 /// Chance per tick of an emergent moment firing.
-pub const EMERGENT_MOMENT_CHANCE: f32 = 0.08;
+pub(crate) const EMERGENT_MOMENT_CHANCE: f32 = 0.08;
 
 /// Duration of an emergent moment (sec).
-pub const EMERGENT_MOMENT_DURATION_SECS: f32 = 8.0;
+pub(crate) const EMERGENT_MOMENT_DURATION_SECS: f32 = 8.0;
 
 /// Maximum simultaneously-active emergent moments.
-pub const EMERGENT_MAX_MOMENTS: usize = 1;
+pub(crate) const EMERGENT_MAX_MOMENTS: usize = 1;
 
 /// Luminance intensity boost during an emergent moment.
-pub const EMERGENT_LUMINANCE_INTENSITY: f32 = 0.12;
+pub(crate) const EMERGENT_LUMINANCE_INTENSITY: f32 = 0.12;
 
 /// Density intensity boost during an emergent moment.
-pub const EMERGENT_DENSITY_INTENSITY: f32 = 0.25;
+pub(crate) const EMERGENT_DENSITY_INTENSITY: f32 = 0.25;
 
 /// Speed shift during an emergent moment (additive).
-pub const EMERGENT_SPEED_SHIFT: f32 = 0.15;
+pub(crate) const EMERGENT_SPEED_SHIFT: f32 = 0.15;
 
 // ─── Cinematic resume easing (pause → resume transition) ───────────────────
 
 /// Duration of the resume easing ramp (sec). During this window, all
 /// simulation parameters are scaled by a smootherstep curve from the
 /// paused-state value to 1.0.
-pub const RESUME_EASE_DURATION_SECS: f32 = 0.45;
+pub(crate) const RESUME_EASE_DURATION_SECS: f32 = 0.45;
 
 /// Duration of the pause easing ramp (sec). Scales simulation parameters
 /// from 1.0 down to the paused floor.
-pub const PAUSE_EASE_DURATION_SECS: f32 = 0.30;
+pub(crate) const PAUSE_EASE_DURATION_SECS: f32 = 0.30;
 
 // ─── Viewport edge fade ────────────────────────────────────────────────────
 
 /// Number of rows at the top affected by edge fade (smooth entry/exit
 /// at terminal border).
-pub const EDGE_FADE_ROWS: u16 = 3;
+pub(crate) const EDGE_FADE_ROWS: u16 = 3;
 
 /// Number of rows at the bottom affected by edge fade.
-pub const EDGE_FADE_BOTTOM_ROWS: u16 = 12;
+pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 12;
 
 /// Lip factor for the bottom edge fade (controls curvature).
-pub const EDGE_FADE_BOTTOM_LIP: f32 = 0.75;
+pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.75;
 
 /// Minimum brightness factor at the top edge.
-pub const EDGE_FADE_TOP_MIN: f32 = 0.70;
+pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.70;
 
 /// Minimum brightness factor at the bottom edge.
-pub const EDGE_FADE_BOTTOM_MIN: f32 = 0.35;
+pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.35;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.
-pub const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
+pub(crate) const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
 
 /// Maximum phosphor energy at the viewport edge (caps edge glow).
-pub const PHOSPHOR_EDGE_ENERGY_CAP: u8 = 64;
+pub(crate) const PHOSPHOR_EDGE_ENERGY_CAP: u8 = 64;
 
 /// Taper rate (in rows) for phosphor energy at the viewport edge.
-pub const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
+pub(crate) const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
 
 // ─── Atmospheric Event Engine ──────────────────────────────────────────────
 
 /// XOR mask applied to the event RNG seed (deterministic per-session).
-pub const EVENT_RNG_XOR: u64 = 0xCAFE_BABE_1337_0420;
+pub(crate) const EVENT_RNG_XOR: u64 = 0xCAFE_BABE_1337_0420;
 
 /// Perf-pressure gate below which atmospheric events are skipped.
-pub const EVENT_PERF_GATE: f32 = 0.5;
+pub(crate) const EVENT_PERF_GATE: f32 = 0.5;
 
 // ─── Phosphor Ghost ────────────────────────────────────────────────────────
 
 /// Chance per tick of a phosphor ghost spawning.
-pub const GHOST_SPAWN_CHANCE_PER_TICK: f64 = 0.003;
+pub(crate) const GHOST_SPAWN_CHANCE_PER_TICK: f64 = 0.003;
 
 /// Maximum simultaneously-active phosphor ghosts.
-pub const GHOST_MAX_ACTIVE: usize = 1;
+pub(crate) const GHOST_MAX_ACTIVE: usize = 1;
 
 // ─── Cloud internals ───────────────────────────────────────────────────────
 //
@@ -792,81 +792,81 @@ pub const GHOST_MAX_ACTIVE: usize = 1;
 // density and continuity at the structural level.
 
 /// Multiplier on (cols × density) for droplet pool sizing.
-pub const DROPLET_COUNT_FACTOR: f32 = 1.5;
+pub(crate) const DROPLET_COUNT_FACTOR: f32 = 1.5;
 
 /// Minimum droplet length (cells) — guarantees a recognizable head→body→tail.
-pub const MIN_DROPLET_LENGTH: u16 = 4;
+pub(crate) const MIN_DROPLET_LENGTH: u16 = 4;
 
 /// Maximum droplet length cap (cells) — prevents degenerate values on
 /// huge screens (8K UHD bench = 4320 lines).
-pub const MAX_DROPLET_LENGTH_CAP: u16 = 200;
+pub(crate) const MAX_DROPLET_LENGTH_CAP: u16 = 200;
 
 /// Size of the per-column character pool (pre-allocated, no per-spawn alloc).
-pub const CHAR_POOL_SIZE: usize = 2048;
+pub(crate) const CHAR_POOL_SIZE: usize = 2048;
 
 /// Size of the per-column glitch character pool.
-pub const GLITCH_POOL_SIZE: usize = 1024;
+pub(crate) const GLITCH_POOL_SIZE: usize = 1024;
 
 /// Maximum character pool index (CHAR_POOL_SIZE - 1, used for fast mod).
-pub const MAX_CHAR_POOL_IDX: u16 = 2047;
+pub(crate) const MAX_CHAR_POOL_IDX: u16 = 2047;
 
 /// Interval at which the RNG is reseeded from system entropy (sec).
-pub const RNG_RESEED_INTERVAL_SECS: u64 = 600;
+pub(crate) const RNG_RESEED_INTERVAL_SECS: u64 = 600;
 
 /// Initial RNG seed (deterministic per-session, reseeded every interval above).
-pub const RNG_INITIAL_SEED: u64 = 0x0123_4567;
+pub(crate) const RNG_INITIAL_SEED: u64 = 0x0123_4567;
 
 /// Duration that a droplet's head lingers at peak brightness after
 /// advancing (ms).
-pub const HEAD_LINGER_BRIGHTNESS_MS: u64 = 300;
+pub(crate) const HEAD_LINGER_BRIGHTNESS_MS: u64 = 300;
 
 /// Interval between full-redraw forced refreshes (frames). Prevents
 /// drift accumulation in long-running sessions.
-pub const FULL_REDRAW_INTERVAL_FRAMES: u64 = 18000;
+pub(crate) const FULL_REDRAW_INTERVAL_FRAMES: u64 = 18000;
 
 // ─── Performance tuning (rain-affecting subset) ────────────────────────────
 
 /// Spawn-scale floor under perf pressure (don't go below 25% of target).
-pub const PERF_SPAWN_SCALE_MIN: f32 = 0.25;
+pub(crate) const PERF_SPAWN_SCALE_MIN: f32 = 0.25;
 
 /// Glitch activation threshold (fraction of cells).
-pub const GLITCH_THRESHOLD: f32 = 0.35;
+pub(crate) const GLITCH_THRESHOLD: f32 = 0.35;
 
 /// Ratio of the glitch bright phase to total glitch duration.
-pub const GLITCH_BRIGHT_RATIO: f64 = 0.25;
+pub(crate) const GLITCH_BRIGHT_RATIO: f64 = 0.25;
 
 /// Ratio of the glitch dim phase to total glitch duration.
-pub const GLITCH_DIM_RATIO: f64 = 0.75;
+pub(crate) const GLITCH_DIM_RATIO: f64 = 0.75;
 
 /// Simulation pressure scaling factor (reduces sim load under pressure).
-pub const SIM_PRESSURE_SCALE_FACTOR: f64 = 0.7;
+pub(crate) const SIM_PRESSURE_SCALE_FACTOR: f64 = 0.7;
 
 /// Minimum simulation fraction (don't go below 50% of target).
-pub const SIM_MIN_FRACTION: f64 = 0.5;
+pub(crate) const SIM_MIN_FRACTION: f64 = 0.5;
 
 /// Maximum simulation delta-time cap (sec) — prevents huge sim steps
 /// after pause or stall.
-pub const SIM_MAX_CAP_SECS: f64 = 1.0 / 30.0;
+pub(crate) const SIM_MAX_CAP_SECS: f64 = 1.0 / 30.0;
 
 /// Base multiplier for simulation step sizing.
-pub const SIM_BASE_MULTIPLIER: f64 = 3.0;
+pub(crate) const SIM_BASE_MULTIPLIER: f64 = 3.0;
 
 /// Density step granularity for CLI/runtime density adjustments.
-pub const DENSITY_STEP: f32 = 0.25;
+pub(crate) const DENSITY_STEP: f32 = 0.25;
 
 /// Watchdog interval (sec) — checks for stuck droplets / state drift.
-pub const WATCHDOG_INTERVAL_SECS: u64 = 1;
+pub(crate) const WATCHDOG_INTERVAL_SECS: u64 = 1;
 
 // ─── Frame timing budget (rain-affecting subset) ───────────────────────────
 
 /// Frame spin budget — time the event loop will busy-wait before yielding.
-pub const FRAME_SPIN_BUDGET: Duration = Duration::from_micros(500);
+pub(crate) const FRAME_SPIN_BUDGET: Duration = Duration::from_micros(500);
 
 /// Frame spin limit — maximum time the event loop will busy-wait.
-pub const FRAME_SPIN_LIMIT: Duration = Duration::from_micros(1000);
+pub(crate) const FRAME_SPIN_LIMIT: Duration = Duration::from_micros(1000);
 
 /// Minimum simulation factor under heavy load.
-pub const SIM_FACTOR_MIN: f64 = 0.3;
+pub(crate) const SIM_FACTOR_MIN: f64 = 0.3;
 
 // ─── Monolith scene — per-layer tuning ─────────────────────────────────────
 //
@@ -894,7 +894,7 @@ pub const SIM_FACTOR_MIN: f64 = 0.3;
 ///   - Back  (0): 0.48 (matches rain back — atmospheric haze)
 ///   - Mid   (1): 0.78 (half-step under rain mid 0.80 — depth cue)
 ///   - Front (2): 1.00 (monolith hero pulse — focal anchor)
-pub const MONOLITH_LAYER_BRIGHTNESS: [f32; PARALLAX_LAYERS] = [0.48, 0.78, 1.0];
+pub(crate) const MONOLITH_LAYER_BRIGHTNESS: [f32; PARALLAX_LAYERS] = [0.48, 0.78, 1.0];
 
 /// Per-layer breathing amplitude for the Monolith scene's subtle
 /// triangle-wave brightness oscillation (cinematic.rs).
@@ -906,4 +906,4 @@ pub const MONOLITH_LAYER_BRIGHTNESS: [f32; PARALLAX_LAYERS] = [0.48, 0.78, 1.0];
 ///   - Back  (0): 0.018 (±1.8% — subtle distant breath)
 ///   - Mid   (1): 0.026 (±2.6% — moderate)
 ///   - Front (2): 0.034 (±3.4% — visible foreground pulse)
-pub const MONOLITH_BREATHING_AMPLITUDE: [f32; PARALLAX_LAYERS] = [0.018, 0.026, 0.034];
+pub(crate) const MONOLITH_BREATHING_AMPLITUDE: [f32; PARALLAX_LAYERS] = [0.018, 0.026, 0.034];

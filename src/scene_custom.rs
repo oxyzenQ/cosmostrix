@@ -28,7 +28,7 @@ use crate::profile::{
 };
 
 /// Config namespace prefix for custom scene blocks.
-pub const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
+pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 
 /// Returns `true` if `key` is a recognized `[scene-custom.<name>.<field>]` key.
 ///
@@ -37,7 +37,7 @@ pub const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 /// `PROFILE_FIELDS` so users can migrate a profile block to a custom-scene
 /// block by renaming the prefix only.
 #[must_use]
-pub fn is_scene_custom_config_key(key: &str) -> bool {
+pub(crate) fn is_scene_custom_config_key(key: &str) -> bool {
     let Some((prefix, rest)) = key.split_once('.') else {
         return false;
     };
@@ -57,7 +57,9 @@ pub fn is_scene_custom_config_key(key: &str) -> bool {
 /// namespace. Field parsing reuses `PROFILE_FIELDS` so the resulting
 /// `UserProfile` is structurally identical to a profile entry.
 #[must_use]
-pub fn collect_custom_scenes(cfg: &HashMap<String, String>) -> BTreeMap<String, UserProfile> {
+pub(crate) fn collect_custom_scenes(
+    cfg: &HashMap<String, String>,
+) -> BTreeMap<String, UserProfile> {
     let mut scenes = BTreeMap::new();
     for (key, value) in cfg {
         if !is_scene_custom_config_key(key) {
@@ -94,7 +96,7 @@ pub fn collect_custom_scenes(cfg: &HashMap<String, String>) -> BTreeMap<String, 
 /// On success, sets `args.scene_custom = Some(name)` and
 /// `args.scene = Some(name)`. The applied field set is returned as
 /// `HashSet<&'static str>` for downstream precedence tracking.
-pub fn apply_scene_custom_layer(
+pub(crate) fn apply_scene_custom_layer(
     matches: &clap::ArgMatches,
     args: &mut Args,
     cfg: &HashMap<String, String>,
@@ -196,7 +198,7 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 /// the total leaked memory is now bounded by the number of *distinct*
 /// density-map strings the user ever writes, not the number of live-reloads.
 #[must_use]
-pub fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
+pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
     // v30 fix: accept BOTH unquoted CSV (`density-map = 0.05,0.3,1.0`) and
     // quoted CSV (`density-map = "0.05,0.3,1.0"`). The configfile parser is
     // a custom line-by-line parser (not a real TOML parser) and does NOT
@@ -253,7 +255,7 @@ pub fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
 /// listing shows just the scene name (no `base=` prefix), reflecting the
 /// new independent identity.
 #[must_use]
-pub fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
+pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
     let mut out = String::new();
     for name in scenes.keys() {
         out.push_str(&format!("  {name}\n"));
@@ -263,7 +265,7 @@ pub fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String
 
 /// Render a detailed description of a single custom scene.
 #[must_use]
-pub fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String {
+pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String {
     let mut out = String::new();
     out.push_str(&format!("CUSTOM SCENE: {name}\n\n"));
     out.push_str("  Configuration:\n");
