@@ -8,12 +8,13 @@ release freezes the config surface — items here are saved for a future session
 when the owner returns and wants to evolve the surface again.
 
 **Owner**: oxyzenQ
-**Last updated**: 2026-08-04 (after Phase 6 dead-code sweep — codebase clean)
+**Last updated**: 2026-08-04 (after Miri unsafe soundness pass — 0 unsoundness)
 **Status**: ALL 39 findings from Phases 1-5 are CLOSED (100%). Phase 6
-dead-code sweep completed — 0 dead code found. The items below are NEW
-FLAG/PARAMETER IDEAS only — they were parked per owner instruction
-("flag/parameters baru jangan dibuat dulu karena ini akan menjadi versi
-stabilisasi long term").
+dead-code sweep + pub→pub(crate) tightening + Miri unsafe soundness pass
+all COMPLETE. Only item remaining: optional `cargo +nightly udeps` run
+(expected 0 findings). The items below are NEW FLAG/PARAMETER IDEAS
+only — they were parked per owner instruction ("flag/parameters baru
+jangan dibuat dulu karena ini akan menjadi versi stabilisasi long term").
 
 ---
 
@@ -303,15 +304,20 @@ run a separate Phase 6 for dead code.
 
 ### 5.5 Future cleanup recommendations (post-Phase 6)
 
-1. **`pub` → `pub(crate)` visibility tightening** — addresses 580
-   `unreachable_pub` warnings. ~3-4h. Pure cosmetic. Start with
-   `central_control_rains.rs` (160 warnings, ~25% of total).
+1. **`pub` → `pub(crate)` visibility tightening** — DONE 2026-08-04
+   (commit `78464a4`). 580 unreachable_pub warnings → 0. 64 files touched,
+   560 replacements (567 pub→pub(crate) + 13 pub→pub(super)). 1529 tests
+   PASS, clippy clean.
 2. **`cargo +nightly udeps` install + run** — expected 0 findings (since
-   `cargo clippy -W dead_code` is clean), but worth running once for
-   completeness.
-3. **Miri run on `unsafe` blocks** — verify soundness of `libc::fstat`
-   (`main.rs:235`), `libc::uname` (`envstat.rs:97`), etc. Separate
-   "unsafe soundness pass" if maximum rigor wanted.
+   `cargo clippy -W dead_code` is clean). Still worth running once for
+   completeness. Install: `cargo +nightly install cargo-udeps`. Run:
+   `cargo +nightly udeps --all-targets`.
+3. **Miri run on `unsafe` blocks** — DONE 2026-08-04. Full report at
+   `UNSAFE_SOUNDNESS_AUDIT.md`. Result: 0 unsoundness. 107 pure-logic
+   tests verified under Miri (exercising the `GlobalAlloc` impl).
+   14 FFI unsafe sites manually reviewed — all follow textbook patterns
+   (zero-init + return check, MaybeUninit + assume_init after success,
+   direct FFI with checked return). No fixes needed.
 
 None of these are blocking. v30 is ready to ship as-is.
 
