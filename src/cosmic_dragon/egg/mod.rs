@@ -22,7 +22,7 @@
 //! Cosmic Dragon-egg benchmarks are **honest experiments**: they measure, report
 //! findings, and inform decisions. They do NOT become production code paths.
 //! When an experiment concludes, its findings are documented in
-//! `docs/COSMIC_DRAGON_FINDINGS.md` and the benchmark itself stays here as a
+//! `docs/archive/cosmic_dragon/FINDINGS.md` and the benchmark itself stays here as a
 //! reproducible record.
 
 #[cfg(all(test, unix))]

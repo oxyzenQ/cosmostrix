@@ -34,8 +34,8 @@ modifying the engine or want to understand the design philosophy.
 |-----|---------------|-----------------|
 | [RENDER_ENGINE.md](RENDER_ENGINE.md) | Formal spec of the diff-based rendering engine (complexity analysis, design rationale, comparison vs alternatives) | `src/frame.rs`, `src/terminal.rs`, `src/terminal_tty.rs` |
 | [COSMIC_DRAGON_ARCHITECTURE.md](COSMIC_DRAGON_ARCHITECTURE.md) | Full architecture deep-dive — all subsystems, data flow, design decisions | `src/` (top-level) |
-| [COSMIC_DRAGON_EXPLORATION.md](COSMIC_DRAGON_EXPLORATION.md) | Design explorations and rejected alternatives (GPU mode, multi-threading, SIMD) | — |
-| [COSMIC_DRAGON_FINDINGS.md](COSMIC_DRAGON_FINDINGS.md) | Performance findings — engine ceiling analysis, where the bottlenecks are | — |
+| [COSMIC_DRAGON_EXPLORATION.md (archived)](archive/cosmic_dragon/EXPLORATION.md) | Design explorations and rejected alternatives (GPU mode, multi-threading, SIMD) | — |
+| [COSMIC_DRAGON_FINDINGS.md (archived)](archive/cosmic_dragon/FINDINGS.md) | Performance findings — engine ceiling analysis, where the bottlenecks are | — |
 | [PHILOSOPHY.md](PHILOSOPHY.md) | Why cosmostrix exists, design principles, what it deliberately is NOT | — |
 | [SIMD_FEASIBILITY.md](SIMD_FEASIBILITY.md) | SIMD optimization feasibility study (evaluated, partially applied via BOLT) | `src/bolt.rs` |
 

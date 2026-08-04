@@ -138,7 +138,7 @@ The Dragon's roar is not loud — it is precise.
 
 Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below is honest about what it does not do — most of these are design choices, not missing features.
 
-- **CPU-only, no GPU.** Rain is rendered as ANSI text over a PTY; no GPU context is ever created (the benchmark reports `gpu_usage: not_applicable`). GPU bitmap rendering was evaluated and rejected because it changes the character-grid aesthetic. See [docs/COSMIC_DRAGON_EXPLORATION.md](docs/COSMIC_DRAGON_EXPLORATION.md).
+- **CPU-only, no GPU.** Rain is rendered as ANSI text over a PTY; no GPU context is ever created (the benchmark reports `gpu_usage: not_applicable`). GPU bitmap rendering was evaluated and rejected because it changes the character-grid aesthetic. See [docs/archive/cosmic_dragon/EXPLORATION.md](docs/archive/cosmic_dragon/EXPLORATION.md).
 - **Interactive FPS is terminal-bounded.** The engine computes 70,000+ FPS headless (v30, lean path, 88×32) and 32,000+ FPS on the production-draw path (the BOLT-backed full-redraw path the terminal actually sees); real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). This is a fundamental limit of terminal rendering.
 - **`kill -9` cannot be caught.** No process can intercept SIGKILL. On Linux, a fork-based guard restores `termios` best-effort; on macOS and Windows, run `cosmostrix --reset-terminal` for 5-layer recovery.
 - **SIGTSTP (Ctrl-Z) suspends in raw mode.** The terminal stays in raw mode while cosmostrix is backgrounded. Recovery is automatic on `fg`/SIGCONT as long as nothing else wrote to the TTY.
@@ -567,7 +567,7 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 - [Atmosphere Engine](docs/ATMOSPHERE_ENGINE.md) — atmosphere, color stability, and throughput stability
 - [Render Engine](docs/RENDER_ENGINE.md) — diff-based rendering architecture (formal spec)
 - [Cosmic Dragon Architecture](docs/COSMIC_DRAGON_ARCHITECTURE.md) — full architecture deep-dive
-- [Cosmic Dragon Exploration](docs/COSMIC_DRAGON_EXPLORATION.md) — design explorations and rejected alternatives
+- [Cosmic Dragon Exploration](docs/archive/cosmic_dragon/EXPLORATION.md) — design explorations and rejected alternatives (archived; conclusions folded into PHILOSOPHY.md)
 - [Supply Chain](docs/SUPPLY_CHAIN.md) — supply-chain hardening policy
 - [Stability Audit](docs/STABILITY_AUDIT.md) — terminal stability audit
 - [SIMD Feasibility](docs/SIMD_FEASIBILITY.md) — SIMD optimization feasibility

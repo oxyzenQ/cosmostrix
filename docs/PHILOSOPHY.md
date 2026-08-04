@@ -53,7 +53,7 @@ and `--doctor` carries the same field for consistency.
 ### The "Never" is Scoped
 
 The word "never" applies to **the main branch and the default renderer**.
-The COSMIC DRAGON exploration docs (`docs/COSMIC_DRAGON_EXPLORATION.md §3.4`) honestly
+The COSMIC DRAGON exploration docs (`docs/archive/cosmic_dragon/EXPLORATION.md §3.4`) honestly
 acknowledge that GPU image-mode is *technically possible* as an "art
 mode" — but it would be a different program. If it ever shipped, it would
 be a separate `cosmostrix-image` companion binary using kitty graphics,
@@ -114,8 +114,8 @@ that claim zero limitations.
 
 ## See Also
 
-- [COSMIC_DRAGON_EXPLORATION.md](COSMIC_DRAGON_EXPLORATION.md) — §3.4 GPU Offload (rejected)
-- [COSMIC_DRAGON_FINDINGS.md](COSMIC_DRAGON_FINDINGS.md) — terminal bottleneck analysis
+- [COSMIC_DRAGON_EXPLORATION.md (archived)](archive/cosmic_dragon/EXPLORATION.md) — §3.4 GPU Offload (rejected)
+- [COSMIC_DRAGON_FINDINGS.md (archived)](archive/cosmic_dragon/FINDINGS.md) — terminal bottleneck analysis
 - [SIMD_FEASIBILITY.md](SIMD_FEASIBILITY.md) — manual SIMD rejection
 - [CINEMATIC_BREATHING.md](CINEMATIC_BREATHING.md) — scene-naming contract
 - [RELEASE_GUARD.md](RELEASE_GUARD.md) — honesty rules
