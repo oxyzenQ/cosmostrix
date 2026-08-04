@@ -37,7 +37,23 @@ pub(crate) struct FlashWaveCtx {
     pub line: u16,
     /// Seconds since this wave's birth. Always `< MOUSE_FLASH_DURATION_SECS`
     /// (expired waves are filtered out before this struct is built).
+    /// Kept for Debug diagnostics; the hot path uses the precomputed fields below.
+    #[allow(dead_code)]
     pub elapsed: f32,
+    // ── v30 optimize (MOUSE_EFFECTS_AUDIT.md Quick Win #2): precomputed
+    // wave-invariant quantities. These are pure functions of `elapsed` and
+    // the wave constants, so computing them once per wave (in rain.rs
+    // construction) instead of once per cell × per wave eliminates ~48K
+    // sqrts/sec + ~290K ops/sec at 60 FPS.
+    /// Primary ring radius = elapsed * MOUSE_FLASH_SPEED.
+    pub primary_radius: f32,
+    /// Secondary ring radius = elapsed * speed * secondary_speed_frac.
+    pub secondary_radius: f32,
+    /// Quadratic fade = raw_fade * raw_fade.sqrt() (includes one sqrt).
+    pub fade: f32,
+    /// Squared max reach for early-out: (max(primary, secondary) + ring_width)².
+    /// Cells with dist_sq > max_reach_sq skip the wave entirely (no sqrt needed).
+    pub max_reach_sq: f32,
 }
 
 /// Runtime state of a mouse-click flash wave slot (v30 fix: bounded pool).

@@ -44,9 +44,8 @@ use crate::constants::{
     EDGE_FADE_BOLD_THRESHOLD, EDGE_FADE_BOTTOM_LIP, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS,
     EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP,
     FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA,
-    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_DURATION_SECS,
-    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC,
-    MOUSE_FLASH_SECONDARY_SPEED_FRAC, MOUSE_FLASH_SPEED, MOUSE_GLOW_INTENSITY,
+    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_INTENSITY,
+    MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
     PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, PARALLAX_HEAD_BLOOM_MULT,
     PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT, RAIN_SHADOW_LAYER_MULT,
@@ -723,8 +722,13 @@ impl Droplet {
                     b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
                 }
 
-                // Cursor glow: cells near mouse cursor get brighter (elliptical falloff)
-                if ctx.mouse_col != u16::MAX {
+                // Cursor glow: cells near mouse cursor get brighter (elliptical falloff).
+                // v30 optimize: const-gate the entire block — MOUSE_GLOW_INTENSITY is 0.0
+                // in production, so LLVM folds this to dead code at compile time. The
+                // `mouse_col != u16::MAX` check stays as a runtime guard for the day glow
+                // is re-enabled. See docs/research/MOUSE_EFFECTS_AUDIT.md Quick Win #1.
+                const GLOW_ENABLED: bool = MOUSE_GLOW_INTENSITY > 0.0;
+                if GLOW_ENABLED && ctx.mouse_col != u16::MAX {
                     let col_dist = if self.bound_col > ctx.mouse_col {
                         (self.bound_col - ctx.mouse_col) as f32
                     } else {
@@ -767,7 +771,6 @@ impl Droplet {
                 // into a richer interference pattern instead of one cancelling
                 // the other.
                 for w in ctx.flash_waves {
-                    let elapsed = w.elapsed;
                     let col_dist = if self.bound_col > w.col {
                         (self.bound_col - w.col) as f32
                     } else {
@@ -778,16 +781,21 @@ impl Droplet {
                     } else {
                         (w.line - line) as f32
                     };
-                    let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
-                    // Quadratic fade: natural energy dissipation (fade^1.5).
-                    // The wave starts strong and decays gradually like a real
-                    // water ripple, rather than a linear cutoff.
-                    let raw_fade = (1.0 - elapsed / MOUSE_FLASH_DURATION_SECS).max(0.0);
-                    let fade = raw_fade * raw_fade.sqrt();
+                    // v30 optimize (MOUSE_EFFECTS_AUDIT.md Quick Win #3):
+                    // squared-distance early-out before sqrt. Cells outside
+                    // the wave's bounding circle skip the sqrt + ring math
+                    // entirely. Skips ~75% of sqrts for typical wave coverage.
+                    let dist_sq = col_dist * col_dist + line_dist * line_dist;
+                    if dist_sq > w.max_reach_sq {
+                        continue;
+                    }
+                    let euclidean = dist_sq.sqrt();
+                    // v30 optimize (Quick Win #2): fade, primary_radius,
+                    // secondary_radius are precomputed in FlashWaveCtx.
+                    let fade = w.fade;
 
                     // Primary ring: fast, bright, full intensity.
-                    let primary_radius = elapsed * MOUSE_FLASH_SPEED;
-                    let primary_dist = (euclidean - primary_radius).abs();
+                    let primary_dist = (euclidean - w.primary_radius).abs();
                     let mut factor = 0.0;
                     if primary_dist < MOUSE_FLASH_RING_WIDTH {
                         // Sharp leading edge, soft trailing tail (squared falloff).
@@ -797,9 +805,7 @@ impl Droplet {
                     }
 
                     // Secondary ring: slower, dimmer, layered echo.
-                    let secondary_radius =
-                        elapsed * MOUSE_FLASH_SPEED * MOUSE_FLASH_SECONDARY_SPEED_FRAC;
-                    let secondary_dist = (euclidean - secondary_radius).abs();
+                    let secondary_dist = (euclidean - w.secondary_radius).abs();
                     if secondary_dist < MOUSE_FLASH_RING_WIDTH {
                         let t = 1.0 - secondary_dist / MOUSE_FLASH_RING_WIDTH;
                         let t_smooth = t * t;

@@ -616,6 +616,17 @@ impl Cloud {
                         w.birth += elapsed;
                     }
                 }
+                // v30 fix (MOUSE_EFFECTS_AUDIT.md bug fix): shift active
+                // quantum particle births too. Without this, particles spawned
+                // before pause instantly expire on unpause (their age = now -
+                // birth includes the pause duration, exceeding their 0.8s
+                // lifetime). Flash waves survived correctly because their
+                // birth was shifted above — this makes particles consistent.
+                for p in &mut self.quantum_particles {
+                    if p.active {
+                        p.birth += elapsed;
+                    }
+                }
                 self.resume_blend_start = 0.0;
                 self.resume_blend = 0.0;
                 self.resume_start = Some(now);

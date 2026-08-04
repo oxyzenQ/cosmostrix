@@ -585,10 +585,25 @@ impl Cloud {
             if w.active {
                 let e = w.birth.elapsed().as_secs_f32();
                 if e < MOUSE_FLASH_DURATION_SECS {
+                    // v30 optimize (MOUSE_EFFECTS_AUDIT.md Quick Win #2):
+                    // precompute wave-invariant quantities here (once per wave)
+                    // instead of per cell × per wave in droplet.rs hot path.
+                    let primary_radius = e * MOUSE_FLASH_SPEED;
+                    let secondary_radius = e * MOUSE_FLASH_SPEED * MOUSE_FLASH_SECONDARY_SPEED_FRAC;
+                    let raw_fade = (1.0 - e / MOUSE_FLASH_DURATION_SECS).max(0.0);
+                    let fade = raw_fade * raw_fade.sqrt();
+                    // max_reach_sq: squared bounding-circle radius for early-out.
+                    // Primary ring is always faster (secondary_speed_frac < 1.0),
+                    // so primary_radius >= secondary_radius.
+                    let max_reach = primary_radius + MOUSE_FLASH_RING_WIDTH;
                     flash_waves_buf.push(FlashWaveCtx {
                         col: w.col,
                         line: w.line,
                         elapsed: e,
+                        primary_radius,
+                        secondary_radius,
+                        fade,
+                        max_reach_sq: max_reach * max_reach,
                     });
                 }
             }
