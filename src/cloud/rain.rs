@@ -609,6 +609,31 @@ impl Cloud {
             }
         }
 
+        // Phase D (hot-path): pre-compute the per-column hue-coherence LUT
+        // once per frame. Was: per-cell `column_coherence_perturbation(phase,
+        // col)` call inside `resolve_cell_color` (~12.9M Middle cells/sec at
+        // 60 FPS → ~65-130M cycles/sec of sinf + round + cast). Now: a single
+        // `cols`-length pass over `self.column_coherence_lut` (reused buffer —
+        // no per-frame heap allocation), borrowed by `DrawCtx` for the frame,
+        // and read by index in the shader hot path.
+        //
+        // The LUT is stored on Cloud (not built fresh each frame) to avoid
+        // per-frame Vec allocation. Resize in place when `cols` changes
+        // (terminal resize); otherwise just overwrite values.
+        let column_coherence_phase =
+            now.elapsed().as_secs_f32() * crate::chroma::tuning::COLUMN_COHERENCE_FREQ;
+        let cols_us = self.cols as usize;
+        if self.column_coherence_lut.len() != cols_us {
+            self.column_coherence_lut.resize(cols_us, 0);
+        }
+        for col in 0..cols_us {
+            self.column_coherence_lut[col] =
+                crate::chroma::shaders::base::column_coherence_perturbation(
+                    column_coherence_phase,
+                    col as u16,
+                );
+        }
+
         let ctx = DrawCtx {
             lines: self.lines,
             cols: self.cols,
@@ -654,16 +679,14 @@ impl Cloud {
             hue_drift_offset: Some(crate::chroma::shaders::base::hue_drift_offset(
                 self.color_ecosystem.hue_drift,
             )),
-            // Phase 4-A (Dragon Awakening): activate temporal column hue
-            // coherence (Innovation C). The shader logic landed in Phase 3-C
-            // but was dormant (DrawCtx hard-coded None). Phase 4-A derives
-            // the time phase from `now` at COLUMN_COHERENCE_FREQ rad/s
-            // (~60 s period) so the per-column shimmer drifts slowly over
-            // time. Always Some in production — the effect is a slow sine
-            // and 0.0 is a valid phase (perturbation still varies by col).
-            column_coherence_phase: Some(
-                now.elapsed().as_secs_f32() * crate::chroma::tuning::COLUMN_COHERENCE_FREQ,
-            ),
+            // Phase 4-A (Dragon Awakening) + Phase D (hot-path): temporal
+            // column hue coherence, now as a precomputed LUT. The LUT is
+            // built once per frame from the time phase (COLUMN_COHERENCE_FREQ
+            // rad/s, ~60 s period) — see the `column_coherence_lut` filling
+            // loop above. Always Some in production — the effect is a slow
+            // sine and 0.0 is a valid phase (perturbation still varies by
+            // col).
+            column_coherence_lut: Some(&self.column_coherence_lut),
             // Phase 4-B (Dragon Awakening): activate subpixel hue jitter
             // (Innovation E). The shader logic landed in Phase 3-E but was
             // dormant (DrawCtx hard-coded None). Phase 4-B sets a

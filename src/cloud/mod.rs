@@ -129,6 +129,19 @@ pub struct Cloud {
 
     pub(super) edge_fade_lut: Vec<f32>,
 
+    /// Phase D (hot-path): precomputed per-column hue-coherence perturbation
+    /// LUT. Built once per frame in `rain_at` from the time phase
+    /// (`COLUMN_COHERENCE_FREQ` rad/s). Read by index in the shader hot path
+    /// (`ShaderCtx::column_coherence_lut[col]`) instead of calling
+    /// `column_coherence_perturbation(phase, col)` per cell. Saves
+    /// ~65-130M cycles/sec at 60 FPS on a 200-col viewport.
+    ///
+    /// Stored on Cloud (not built fresh each frame) to avoid per-frame
+    /// heap allocation — `rain_at` resizes in place and overwrites values.
+    /// Length is kept in sync with `cols` (resize-on-terminal-resize is
+    /// handled implicitly by the `cols != lut.len()` check in `rain_at`).
+    pub(super) column_coherence_lut: Vec<i32>,
+
     pub(super) droplet_free_list: Vec<usize>,
 
     pub(super) col_stat: Vec<ColumnStatus>,
@@ -301,6 +314,8 @@ impl Cloud {
             glitch_map: BitVec::new(),
             color_map: Vec::new(),
             edge_fade_lut: Vec::new(),
+            // Phase D: preallocated — rain_at resizes+fills per frame.
+            column_coherence_lut: Vec::new(),
             droplet_free_list: Vec::new(),
             col_stat: Vec::new(),
             mt,

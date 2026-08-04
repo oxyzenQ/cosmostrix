@@ -95,15 +95,20 @@ pub(crate) struct ShaderCtx<'a> {
 
     /// Phase 3-C (Chroma Dragon Innovation C): temporal column hue coherence.
     ///
-    /// `Some(phase)` enables a slow per-column hue drift: neighboring columns
+    /// `Some(lut)` enables a slow per-column hue drift: neighboring columns
     /// get similar color_idx perturbations (low spatial frequency), and the
     /// perturbation oscillates slowly over time (low temporal frequency).
     /// The result is that watching a single column, the colors shimmer
     /// smoothly through the palette instead of jumping per-cell.
     ///
-    /// `None` disables the effect (current production default — wiring this
-    /// through `DrawCtx` and `rain.rs` is a future commit).
-    pub column_coherence_phase: Option<f32>,
+    /// The LUT is pre-computed once per frame in `cloud::rain::rain_at` from
+    /// the current time phase: `lut[col] = column_coherence_perturbation(phase,
+    /// col)`. Length == `DrawCtx.cols`. The shader hot path is then a single
+    /// indexed read instead of a per-cell `sinf + round + cast` (~65-130M
+    /// cycles/sec saved at 60 FPS on a 200-col viewport).
+    ///
+    /// `None` disables the effect (used by shader no-op tests).
+    pub column_coherence_lut: Option<&'a [i32]>,
 
     /// Phase 3-E (Chroma Dragon Innovation E): subpixel hue jitter.
     ///
@@ -290,8 +295,13 @@ fn bayer_threshold(line: u16, col: u16) -> u8 {
 /// Amplitude is ±0.5 before rounding, so the offset is 0 most of the
 /// time and ±1 near the peaks of the sine. This produces a gentle
 /// "shimmer" rather than a strong hue shift.
+///
+/// Phase D (hot-path): `pub(crate)` so `cloud::rain::rain_at` can call this
+/// once per column per frame to build `ShaderCtx::column_coherence_lut`.
+/// The shader hot path then reads the precomputed i32 from the LUT
+/// instead of calling this fn per cell (~65-130M cycles/sec saved).
 #[inline]
-fn column_coherence_perturbation(phase: f32, col: u16) -> i32 {
+pub(crate) fn column_coherence_perturbation(phase: f32, col: u16) -> i32 {
     // Spatial frequency: 0.05 rad/col → period ~125 cols
     let spatial = (col as f32) * 0.05;
     // Amplitude: ±0.5 → rounds to {-1, 0, +1}
@@ -598,8 +608,8 @@ pub(crate) fn resolve_cell_color(
             // Phase 3-C (Chroma Dragon Innovation C): temporal column hue
             // coherence. For body cells (not Head/Tail — those need to stay
             // anchored to their stop), apply a slow per-column hue drift
-            // driven by the time phase. Disabled when column_coherence_phase
-            // is None (current production default).
+            // driven by the time phase. Disabled when column_coherence_lut
+            // is None (test no-op path).
             //
             // Effect: neighboring columns get similar perturbations, and the
             // perturbation oscillates slowly over time, so a single column
@@ -609,9 +619,15 @@ pub(crate) fn resolve_cell_color(
             // Not applied under shading_distance: that path already has its
             // own continuous gradient + Bayer dithering, and stacking a hue
             // perturbation on top would muddy the brightness-decay signal.
-            if let Some(phase) = shader.column_coherence_phase {
+            //
+            // Phase D (hot-path): perturbation is now a single indexed read
+            // from `column_coherence_lut[col]` instead of a per-cell
+            // `sinf + round + cast`. The LUT is built once per frame in
+            // `rain.rs`. Saves ~65-130M cycles/sec at 60 FPS on a 200-col
+            // viewport.
+            if let Some(lut) = shader.column_coherence_lut {
                 if !shader.shading_distance {
-                    let perturbation = column_coherence_perturbation(phase, col);
+                    let perturbation = lut[col as usize];
                     color_idx = (color_idx + perturbation).clamp(0, last.max(0));
                 }
             }

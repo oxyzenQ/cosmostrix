@@ -158,27 +158,25 @@ pub(crate) struct DrawCtx<'a> {
     pub hue_drift_offset: Option<i32>,
 
     /// Phase 4-A (Chroma Dragon Innovation C — Dragon Awakening): temporal
-    /// column hue coherence phase.
+    /// column hue coherence LUT.
     ///
-    /// `Some(phase)` enables a slow per-column hue drift: the shader
-    /// computes `sin(phase + col * 0.05)` and rounds to `{-1, 0, +1}`
-    /// as a `color_idx` perturbation on Middle cells. Neighboring
-    /// columns get similar perturbations (low spatial frequency), and
-    /// the perturbation oscillates slowly over time (low temporal
-    /// frequency) — so watching a single column, the colors shimmer
-    /// smoothly through adjacent palette stops instead of jumping
-    /// per-cell.
+    /// `Some(lut)` enables a slow per-column hue drift: the shader reads
+    /// `lut[col]` (an i32 in `{-1, 0, +1}`) and adds it to the Middle
+    /// cell's `color_idx`. Neighboring columns get similar perturbations
+    /// (low spatial frequency), and the perturbation oscillates slowly
+    /// over time (low temporal frequency) — so watching a single column,
+    /// the colors shimmer smoothly through adjacent palette stops
+    /// instead of jumping per-cell.
     ///
-    /// Phase 3-C landed the shader logic + tests but left this field
-    /// hard-coded to `None` in the `ShaderCtx` builder (the innovation
-    /// was reviewable in isolation but dormant in production). Phase 4-A
-    /// wires the time phase through `DrawCtx` → `ShaderCtx` so the
-    /// effect is now always-on. `rain.rs` derives `phase` from `now`
-    /// at `COLUMN_COHERENCE_FREQ` rad/s (~60 s period).
+    /// Phase D (hot-path): the LUT is built once per frame in `rain.rs`
+    /// via `column_coherence_perturbation(phase, col)` for each col in
+    /// `0..cols`. Was: per-cell `sinf + round + cast` (~65-130M
+    /// cycles/sec at 60 FPS on a 200-col viewport). Now: a single
+    /// indexed i32 read.
     ///
     /// `None` disables (matches pre-Phase-4-A dormant behavior — kept
     /// for tests that assert the shader's no-op path).
-    pub column_coherence_phase: Option<f32>,
+    pub column_coherence_lut: Option<&'a [i32]>,
 
     /// Phase 4-B (Chroma Dragon Innovation E — Dragon Awakening): subpixel
     /// hue jitter amplitude.
@@ -355,11 +353,14 @@ impl DrawCtx<'_> {
             glitch_bright: self.glitch_bright,
             glitch_dim: self.glitch_dim,
             color_mode: self.color_mode,
-            // Phase 4-A (Dragon Awakening): column-coherence hue drift is
-            // now wired through DrawCtx. rain.rs derives the time phase from
-            // `now` at COLUMN_COHERENCE_FREQ rad/s (~60 s period) and passes
-            // it here. None disables (used by shader no-op tests).
-            column_coherence_phase: self.column_coherence_phase,
+            // Phase 4-A (Dragon Awakening) + Phase D (hot-path): column-
+            // coherence hue drift is now wired through DrawCtx as a
+            // precomputed LUT. rain.rs builds `column_coherence_lut[col]`
+            // once per frame from the time phase (COLUMN_COHERENCE_FREQ
+            // rad/s, ~60 s period). The shader hot path is a single indexed
+            // i32 read (was: per-cell sinf + round + cast). None disables
+            // (used by shader no-op tests).
+            column_coherence_lut: self.column_coherence_lut,
             // Phase 4-B (Dragon Awakening): subpixel hue jitter is now wired
             // through DrawCtx. rain.rs sets a conservative amplitude
             // (SUBPIXEL_JITTER_AMPLITUDE = 3) for subtle film-grain texture.

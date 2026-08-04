@@ -37,7 +37,7 @@
 //! always-on for anomaly frames (rare — ~5% of frames). Phase 7 is always-on
 //! at palette build time (zero runtime cost). The constants
 //! below tune their amplitudes; see the doc comments on
-//! `ShaderCtx::column_coherence_phase`, `ShaderCtx::subpixel_jitter_amplitude`,
+//! `ShaderCtx::column_coherence_lut`, `ShaderCtx::subpixel_jitter_amplitude`,
 //! `ShaderCtx::head_halo_factor`, `ShaderCtx::transition_l_table`,
 //! `anomaly_halo_target`, and `colors_from_stops` for the full rationale.
 //!

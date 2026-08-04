@@ -406,7 +406,7 @@ fn make_test_shader<'a>(
         glitch_bright: false,
         glitch_dim: false,
         color_mode: ColorMode::TrueColor,
-        column_coherence_phase: None,
+        column_coherence_lut: None,
         subpixel_jitter_amplitude: None,
         atmospheric: None,
         hue_drift_offset: None,
@@ -818,14 +818,15 @@ fn hue_drift_clamps_to_palette_range() {
 
 // ── Phase 4-A: column_coherence activation ────────────────────────────
 //
-// Phase 4-A wires `column_coherence_phase` through `DrawCtx` →
-// `ShaderCtx` (previously hard-coded `None`). These tests verify the
-// end-to-end path: when `Some(phase)` is set, `resolve_cell_color`
-// actually applies the perturbation (produces different output than
-// `None`). A regression that reverts the wiring to `None` would fail
-// these tests.
+// Phase 4-A wires `column_coherence_lut` through `DrawCtx` →
+// `ShaderCtx` (previously hard-coded `None`). Phase D (hot-path) changed
+// the field from `Option<f32>` (per-cell phase → sinf) to `Option<&[i32]>`
+// (precomputed LUT). These tests verify the end-to-end path: when
+// `Some(lut)` is set, `resolve_cell_color` actually applies the
+// perturbation (produces different output than `None`). A regression
+// that reverts the wiring to `None` would fail these tests.
 
-/// `column_coherence_phase: Some(...)` perturbs the Middle cell's
+/// `column_coherence_lut: Some(...)` perturbs the Middle cell's
 /// color_idx, producing a different palette stop than `None` for at
 /// least one (phase, col) combination.
 ///
@@ -833,6 +834,10 @@ fn hue_drift_clamps_to_palette_range() {
 /// stop 2). With phase=π/2 and col=0, perturbation=+1 → color_idx=3.
 /// With phase=3π/2 and col=0, perturbation=-1 → color_idx=1.
 /// Both must differ from the `None` result (color_idx=2).
+///
+/// Phase D: the LUT is built from the phase using the production helper
+/// `column_coherence_perturbation(phase, col)`, mirroring how `rain.rs`
+/// builds the LUT once per frame.
 #[test]
 fn phase4a_column_coherence_perturbs_middle_cell() {
     let palette: Vec<Color> = (0..5)
@@ -848,13 +853,17 @@ fn phase4a_column_coherence_perturbs_middle_cell() {
     let slots = slot_array(palette);
 
     let mut shader_off = make_test_shader(&slots, color_map, false);
-    shader_off.column_coherence_phase = None;
+    shader_off.column_coherence_lut = None;
     let (fg_off, _) = resolve_cell_color(&shader_off, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
     assert_eq!(fg_off, Some(palette[2]));
 
     // phase=π/2, col=0 → perturbation +1 → color_idx 3.
+    // Build the LUT from the phase using the production helper.
+    let lut_up: Vec<i32> = (0..6)
+        .map(|c| column_coherence_perturbation(std::f32::consts::FRAC_PI_2, c))
+        .collect();
     let mut shader_up = make_test_shader(&slots, color_map, false);
-    shader_up.column_coherence_phase = Some(std::f32::consts::FRAC_PI_2);
+    shader_up.column_coherence_lut = Some(&lut_up);
     let (fg_up, _) = resolve_cell_color(&shader_up, 0, 19, 0, 'x', CharLoc::Middle, 20, 12);
     assert_eq!(
         fg_up,
@@ -863,8 +872,11 @@ fn phase4a_column_coherence_perturbs_middle_cell() {
     );
 
     // phase=3π/2, col=0 → perturbation -1 → color_idx 1.
+    let lut_dn: Vec<i32> = (0..6)
+        .map(|c| column_coherence_perturbation(3.0 * std::f32::consts::FRAC_PI_2, c))
+        .collect();
     let mut shader_dn = make_test_shader(&slots, color_map, false);
-    shader_dn.column_coherence_phase = Some(3.0 * std::f32::consts::FRAC_PI_2);
+    shader_dn.column_coherence_lut = Some(&lut_dn);
     let (fg_dn, _) = resolve_cell_color(&shader_dn, 0, 19, 0, 'x', CharLoc::Middle, 20, 12);
     assert_eq!(
         fg_dn,
@@ -873,9 +885,9 @@ fn phase4a_column_coherence_perturbs_middle_cell() {
     );
 }
 
-/// `column_coherence_phase` is skipped under `shading_distance` (that
+/// `column_coherence_lut` is skipped under `shading_distance` (that
 /// path has its own length-aware gradient). Verified by asserting
-/// identical output with and without the phase set.
+/// identical output with and without the LUT set.
 #[test]
 fn phase4a_column_coherence_skipped_under_shading_distance() {
     let palette: Vec<Color> = (0..8)
@@ -890,10 +902,16 @@ fn phase4a_column_coherence_skipped_under_shading_distance() {
     let color_map: &[u8] = &color_map;
     let slots = slot_array(palette);
 
+    // Build a LUT from phase=π/2 — same phase the pre-Phase-D test used
+    // directly via `column_coherence_phase = Some(π/2)`.
+    let lut: Vec<i32> = (0..6)
+        .map(|c| column_coherence_perturbation(std::f32::consts::FRAC_PI_2, c))
+        .collect();
+
     let mut shader_off = make_test_shader(&slots, color_map, true);
-    shader_off.column_coherence_phase = None;
+    shader_off.column_coherence_lut = None;
     let mut shader_on = make_test_shader(&slots, color_map, true);
-    shader_on.column_coherence_phase = Some(std::f32::consts::FRAC_PI_2);
+    shader_on.column_coherence_lut = Some(&lut);
 
     let (fg_off, _) = resolve_cell_color(&shader_off, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
     let (fg_on, _) = resolve_cell_color(&shader_on, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);

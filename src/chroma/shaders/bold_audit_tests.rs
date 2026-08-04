@@ -40,7 +40,7 @@ fn make_shader<'a>(
         glitch_bright: false,
         glitch_dim: false,
         color_mode: ColorMode::TrueColor,
-        column_coherence_phase: None,
+        column_coherence_lut: None,
         subpixel_jitter_amplitude: None,
         atmospheric: None,
         hue_drift_offset: None,
