@@ -95,6 +95,21 @@ pub(crate) fn print_verbose(
     cli_explicit_color: bool,
     intro_type_label: &str,
     commit_sha: &str,
+    // v30 (Bug #1 doc clarification): when --benchmark / --bench-all is
+    // active, the benchmark loop forces `auto_color_drift = false` (see
+    // bench.rs::run_benchmark at line ~201 + compute_config_enrichment at
+    // line ~161) so p99/max metrics stay deterministic — palette drift
+    // rebuilds the palette, which injects non-deterministic timing spikes.
+    //
+    // Without this flag, the verbose output would show `auto_drift: true`
+    // (from the user's config) while the benchmark report later prints
+    // `auto_color_drift: false`. That mismatch looked like a bug to the
+    // owner (2026-08-04 v30.0.0-alpha.1 session: "bug should color drift
+    // is true not false"). The fix is NOT to change benchmark behavior —
+    // disabling palette drift in benchmark mode is intentional and correct.
+    // The fix is to disclose the override in the verbose output so the
+    // user sees it BEFORE the benchmark report, eliminating the confusion.
+    bench_mode: bool,
 ) {
     let color_source = resolve_color_source(
         custom_palette_name,
@@ -204,13 +219,34 @@ pub(crate) fn print_verbose(
     // discloses both: the flag state + the always-on climate drift + the
     // cooldown (Phase D Bug #7 fix).
     output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
+    // v30 (Bug #1 doc clarification): when --benchmark is active, the
+    // benchmark loop forces palette drift OFF regardless of the user's
+    // config/CLI value (see bench.rs::run_benchmark line ~201). Without
+    // this notice, the verbose output here shows `auto_drift: true` (from
+    // config) while the benchmark report later prints
+    // `auto_color_drift: false` — the mismatch looked like a bug. The
+    // benchmark override is intentional (palette rebuilds inject
+    // non-deterministic timing spikes that corrupt p99/max metrics), so
+    // we disclose it here instead of changing the behavior.
+    let palette_drift_label = if bench_mode && auto_drift {
+        "enabled (overridden to disabled in benchmark mode — see note below)"
+    } else if auto_drift {
+        "enabled"
+    } else {
+        "disabled"
+    };
     output::eprintln_verbose(
         "  palette_drift:",
         &format!(
-            " {} (3% chance per 3s tick, 30s cooldown between events)",
-            if auto_drift { "enabled" } else { "disabled" }
+            " {palette_drift_label} (3% chance per 3s tick, 30s cooldown between events)"
         ),
     );
+    if bench_mode && auto_drift {
+        output::eprintln_verbose(
+            "  bench_override:",
+            " palette drift forced OFF during benchmark for deterministic p99/max metrics; report will show `auto_color_drift: false`",
+        );
+    }
     output::eprintln_verbose(
         "  climate_drift:",
         " always-on (luminance/saturation/hue accumulate regardless of auto_drift flag)",

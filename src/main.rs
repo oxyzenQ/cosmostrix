@@ -893,6 +893,12 @@ fn main() -> std::io::Result<()> {
             cli_explicit_color,
             intro_label,
             commit_sha,
+            // v30 (Bug #1 doc clarification): pass bench_mode so verbose
+            // output can disclose the benchmark palette-drift override
+            // BEFORE the benchmark report prints `auto_color_drift: false`.
+            // Without this, the user sees `auto_drift: true` (config) and
+            // later `auto_color_drift: false` (report) and thinks it's a bug.
+            bench_mode,
         );
     }
 
