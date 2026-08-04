@@ -69,6 +69,19 @@ pub fn is_profile_config_key(key: &str) -> bool {
     is_valid_profile_name(name) && PROFILE_FIELDS.contains(&field)
 }
 
+/// Collect all `[profile.<name>.<field>]` entries from `cfg` into a
+/// `BTreeMap<String, UserProfile>`.
+///
+/// **Design note (Phase 4 P4-6 — positive finding, intentional pattern):**
+/// This iterates ALL config keys to find profile keys (O(n) where n =
+/// total config keys). For a typical 50-key config with 3 profiles (15
+/// profile keys), this iterates 50 keys to find 15. ~5μs per call.
+/// Called at startup AND on every live reload. The O(n) iteration is
+/// kept because:
+/// 1. The HashMap is small (50 keys typical) — ~5μs is invisible.
+/// 2. Filtering by `is_profile_config_key` is O(1) (prefix + rsplit).
+/// 3. Maintaining a separate `profile_keys` subset during config load
+///    would add complexity to the load path for no user-visible benefit.
 #[must_use]
 pub fn collect_profiles(
     cfg: &std::collections::HashMap<String, String>,

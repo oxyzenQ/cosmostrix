@@ -71,6 +71,15 @@ const BURST_CYCLES_MAX: u8 = 10;
 /// clamped to `[50, 5000]` ms. Returns `DEFAULT_POLL_INTERVAL_MS` (750) if
 /// unset or invalid. Power users on slow filesystems can raise it; users
 /// wanting faster reload can lower it (at the cost of more I/O per second).
+///
+/// **Perf tradeoff (Phase 4 P4-5):** each poll does `fs::read_to_string`
+/// (allocates a `String` of file size, typically 1-10KB) + content hash
+/// (O(n) over file size). At the default 750ms interval, this is ~13KB/s
+/// of allocation + ~100μs of hashing — invisible. At the minimum 50ms
+/// interval, allocation rises to ~200KB/s and hashing to ~1.5ms/s —
+/// visible in `perf` profiles but not user-visible. The clamp at 50ms
+/// prevents pathological thrash; the clamp at 5000ms prevents missed
+/// reloads on slow filesystems.
 #[must_use]
 pub fn env_poll_interval_ms() -> u64 {
     std::env::var("COSMOSTRIX_LIVE_RELOAD_POLL_MS")

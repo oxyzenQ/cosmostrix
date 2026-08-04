@@ -322,6 +322,18 @@ fn apply_default_scene_values(
     Ok(())
 }
 
+/// Apply top-level `config.toml` values to `args`.
+///
+/// **Design note (Phase 4 P4-4 — positive finding, intentional pattern):**
+/// This function calls `config_value(matches, cfg, snake_key, kebab_key)`
+/// once per supported config key (17 sequential lookups). An alternative
+/// single-iteration design (`for (key, value) in cfg { match key { ... } }`)
+/// would reduce 34 HashMap lookups to 1 iteration + 17 match arms, saving
+/// ~3μs per startup. The current design is kept because:
+/// 1. Startup runs once — ~5μs total is invisible.
+/// 2. Co-locating each key's handling with its lookup is more readable.
+/// 3. The 17-lookup pattern makes it trivial to add/remove a key (one
+///    block per key, no shared match arm to keep in sync).
 fn apply_config_values(
     matches: &clap::ArgMatches,
     args: &mut Args,

@@ -230,15 +230,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
-    // v25.5: track last-applied config map for diff trace.
+    // v25.5: last-applied config map for diff trace. Phase 4 P4-7 (positive
+    // finding): intentional clone — verbose diff needs full map, ~1KB/reload.
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> = None;
     // Adaptive color shift: check current hour's target color every 30s.
     let mut last_color_check = Instant::now();
     let mut last_adaptive_color: Option<&str> = None;
     // Phase D Bug #12: track last-applied glitch level so we only call
-    // apply_glitch_level_runtime when crossing a boundary that explicitly
-    // sets a different level. Without this, we'd reset glitch timing every
-    // 30s even when the level is unchanged.
+    // apply_glitch_level_runtime when crossing a boundary that sets a different
+    // level — avoids resetting glitch timing every 30s when unchanged.
     let mut last_adaptive_glitch: Option<String> = None;
     const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 

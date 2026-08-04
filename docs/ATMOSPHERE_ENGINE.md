@@ -215,8 +215,22 @@ adaptive-custom.22-00 = sunset, monolith, speed=10
 - **Second value**: scene name (11 built-in scenes: matrix, monolith,
   signal, classic, cinematic, calm, storm, cosmos, neon, hacker,
   low-power).
-- **Optional key=value pairs**: `speed`, `density`, `fps`, `charset`,
-  `glitch-level`.
+- **Optional key=value pairs** (ONLY these 5 fields are accepted;
+  any other key is rejected with a parse error):
+  - `speed` — float in `[1.0, 100.0]` (allows fractional values for
+    smooth lerp transitions; see [§ Speed Type Asymmetry](#speed-type-asymmetry)
+    below for why this differs from top-level `speed`).
+  - `density` — float in `[0.0, 1.0]`.
+  - `fps` — integer in `[1, 120]`.
+  - `charset` — any built-in charset name or `[charset-custom.<name>]`.
+  - `glitch-level` — one of `none`, `low`, `medium`, `high`, `ultra`.
+
+  Top-level config keys like `scene`, `color`, `monolith-size`, `bold`,
+  `shadingmode`, `color-bg`, `auto-color-drift`, `async-mode`,
+  `atmosphere-mode`, `atmosphere-regime`, `intro` are NOT accepted
+  inside `adaptive-custom` — those are configuration switches, not
+  time-varying visual parameters. Use `[scene-custom.<name>]` blocks
+  and switch via the `scene` field if you need coordinated scene changes.
 
 ### Behavior
 
@@ -316,6 +330,83 @@ Modules: `live_config.rs`, `testconf.rs` (shared validation).
 - No silent fallback. No warnings. Errors only.
 
 ---
+
+## Speed Type Asymmetry (Intentional)
+
+Top-level `speed` (CLI `--speed`, config `speed =`) is an **integer**
+in `[1, 100]`. Adaptive-custom `speed` is a **float** in `[1.0, 100.0]`.
+
+This asymmetry is intentional:
+
+- Top-level `speed` is a **snap** — applied once at startup, no
+  interpolation needed. Integer is simpler for users and matches the
+  CLI flag's integer nature.
+- Adaptive-custom `speed` is **lerped** across a 5-minute smoothstep
+  blend window between time points. Fractional values are essential
+  for smooth transitions (e.g., `speed=15.5` produces a perceptibly
+  different blend than `speed=15` or `speed=16`).
+
+If you copy a top-level `speed = 60` into an `adaptive-custom` entry,
+it works (integer 60 is a valid float). The reverse is NOT true —
+`speed = 15.5` at top-level is rejected at parse time with a clear
+error.
+
+## `async-mode` vs `atmosphere-mode` (Independent)
+
+`async-mode` and `atmosphere-mode` are **independent** config keys.
+
+- `atmosphere-mode = disabled` disables the regime-modulation engine
+  (speed/density/brightness/glitch scaling). It does NOT disable async
+  rendering.
+- `async-mode = true` (or `false`) selects the renderer backend
+  (async vs sync). It is a renderer implementation choice, not an
+  atmosphere feature.
+
+Setting `atmosphere-mode = disabled` does NOT force sync rendering.
+If you want to force the sync renderer (e.g., for debugging), set
+`async-mode = false` explicitly. The two keys compose orthogonally —
+any combination is valid.
+
+## Profile/Scene-Custom Strictness (Intentional Divergence)
+
+Top-level config keys use **strict reject** (exit 2 on invalid value).
+`[profile.<name>]` and `[scene-custom.<name>]` blocks use **warn-and-
+continue** (`warn_invalid` emits a stderr warning, the invalid field
+is dropped, the rest of the profile/scene-custom block is applied).
+
+This divergence is intentional:
+
+- Top-level config is the user's primary configuration surface — an
+  invalid value there is almost certainly a mistake the user wants to
+  fix before running.
+- Profile/scene-custom blocks are **collections of overrides**. A user
+  may have 10 profiles and only use 1 at a time. Rejecting the entire
+  config because one profile has a typo would be hostile — the user
+  can still run with the other 9 profiles.
+
+If you want strict validation of profiles/scene-custom blocks, run
+`cosmostrix --testconf` — it validates every block strictly and exits
+2 on any invalid value, anywhere.
+
+## Density-Map Memory Model (Intentional `Box::leak`)
+
+`density-map` (in `[profile.<name>]` and `[scene-custom.<name>]`)
+is parsed into a `Vec<f64>` and then leaked to `&'static [f64]` via
+`Box::leak(vec.into_boxed_slice())`.
+
+This is an intentional trade-off:
+
+- The Cloud render engine consumes `&'static [f64]` for zero-cost
+cell access in the hot 60 FPS render loop. Avoiding a lifetime
+parameter on `Cloud` keeps the render loop simple and fast.
+- The leak is bounded by the number of `density-map` entries in the
+config (typically <10). Each leak is ~100 bytes. Total leak over a
+session is <1KB — invisible.
+- Live config reload re-parses and re-leaks. Over a 24-hour session
+with frequent edits, this could accumulate to ~10KB. Still invisible.
+
+If the Cloud ever moves off `&'static` (e.g., to `Arc<[f64]>`), this
+leak can be removed. Until then, the trade-off is correct.
 
 ## Hard Constraints (v20)
 
