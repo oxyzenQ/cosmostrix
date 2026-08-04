@@ -105,6 +105,36 @@ pub fn suggest_for_unknown_key(key: &str) -> Option<String> {
         }
     }
 
+    // Pattern 5 (Phase 5 closure P1-#6): snake_case top-level key. The config
+    // surface is kebab-case (color-bg, monolith-size, auto-color-drift, etc.).
+    // Users coming from Rust struct-field naming often write snake_case by
+    // accident (color_bg, monolith_size). The edit distance from `color_bg`
+    // to `color-bg` is 1 (replace `_` with `-`), so pattern 4 WOULD catch it,
+    // but the generic "did you mean" message doesn't explain WHY. This pattern
+    // emits a clearer message naming the kebab-case convention.
+    if !key.contains('.') && key.contains('_') {
+        let kebab = key.replace('_', "-");
+        if is_top_level_user_key(&kebab) {
+            return Some(format!(
+                "'{key}': config.toml uses kebab-case (dashes), not snake_case (underscores). \
+                 Write it as: '{kebab}' = <value>"
+            ));
+        }
+    }
+
+    // Pattern 6 (Phase 5 closure P1-#8): density-map at top-level. The
+    // `density-map` key is only valid inside [profile.<name>] or
+    // [scene-custom.<name>] sections. Users who write it at the top level
+    // get a generic "unknown key" error with no explanation that it's a
+    // section-only field. This pattern emits a targeted move hint.
+    if key == "density-map" || key == "density_map" {
+        return Some(format!(
+            "'{key}': density-map is a section-only field — it is NOT valid at the top level. \
+             Move it inside a [profile.<name>] or [scene-custom.<name>] block: \
+             e.g. [scene-custom.foo]\n    density-map = \"0.5,0.3,0.2\""
+        ));
+    }
+
     // Pattern 4 (v25.11 / bug #13): top-level key typo. If the unknown key
     // is a simple word (no dots) that is edit-distance ≤ 2 from a known
     // top-level USER_CONFIG_KEYS entry, suggest the closest match. This
@@ -712,5 +742,68 @@ mod tests {
         assert_eq!(edit_distance("abc", "xyz"), 3); // completely different
         assert_eq!(edit_distance("", "color"), 5); // empty to non-empty
         assert_eq!(edit_distance("color", ""), 5); // non-empty to empty
+    }
+
+    // ── Phase 5 closure (P1-#6): snake_case → kebab-case hint ──
+
+    #[test]
+    fn snake_case_color_bg_suggests_kebab_case() {
+        let hint = suggest_for_unknown_key("color_bg").expect("expected hint");
+        assert!(
+            hint.contains("kebab-case"),
+            "hint should mention kebab-case: {hint}"
+        );
+        assert!(
+            hint.contains("color-bg"),
+            "hint should suggest the correct kebab-case form: {hint}"
+        );
+    }
+
+    #[test]
+    fn snake_case_monolith_size_suggests_kebab_case() {
+        let hint = suggest_for_unknown_key("monolith_size").expect("expected hint");
+        assert!(
+            hint.contains("monolith-size"),
+            "hint should suggest kebab-case: {hint}"
+        );
+    }
+
+    #[test]
+    fn snake_case_auto_color_drift_suggests_kebab_case() {
+        let hint = suggest_for_unknown_key("auto_color_drift").expect("expected hint");
+        assert!(hint.contains("auto-color-drift"));
+    }
+
+    #[test]
+    fn random_underscore_key_without_kebab_match_gets_no_snake_hint() {
+        // `foo_bar` is not a snake_case form of any USER_CONFIG_KEYS entry,
+        // so the snake_case hint should NOT fire (falls through to pattern 4
+        // typo check, which also won't match because edit distance is too far).
+        let hint = suggest_for_unknown_key("foo_bar");
+        assert!(hint.is_none(), "unrelated underscore key should get no hint");
+    }
+
+    // ── Phase 5 closure (P1-#8): density-map top-level hint ──
+
+    #[test]
+    fn density_map_at_top_level_suggests_section_move() {
+        let hint = suggest_for_unknown_key("density-map").expect("expected hint");
+        assert!(
+            hint.contains("section-only"),
+            "hint should mention section-only: {hint}"
+        );
+        assert!(
+            hint.contains("[profile.") || hint.contains("[scene-custom."),
+            "hint should mention target sections: {hint}"
+        );
+    }
+
+    #[test]
+    fn density_map_snake_case_also_gets_section_hint() {
+        let hint = suggest_for_unknown_key("density_map").expect("expected hint");
+        // Even though it has an underscore, pattern 6 fires BEFORE pattern 5
+        // (snake_case check) because density-map is a special section-only field.
+        assert!(hint.contains("section-only"));
+        assert!(hint.contains("density-map")); // canonical form in the hint
     }
 }
