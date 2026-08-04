@@ -780,7 +780,10 @@ mod tests {
         // so the snake_case hint should NOT fire (falls through to pattern 4
         // typo check, which also won't match because edit distance is too far).
         let hint = suggest_for_unknown_key("foo_bar");
-        assert!(hint.is_none(), "unrelated underscore key should get no hint");
+        assert!(
+            hint.is_none(),
+            "unrelated underscore key should get no hint"
+        );
     }
 
     // ── Phase 5 closure (P1-#8): density-map top-level hint ──

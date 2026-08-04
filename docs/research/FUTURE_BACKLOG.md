@@ -8,11 +8,12 @@ release freezes the config surface — items here are saved for a future session
 when the owner returns and wants to evolve the surface again.
 
 **Owner**: oxyzenQ
-**Last updated**: 2026-08-04 (after Phase 5 FINAL closure, commit `c75aa98`)
-**Status**: ALL 24 audit items from Phases 1-5 are now CLOSED. The remaining
-items below are NEW FLAG/PARAMETER IDEAS only — they were parked per owner
-instruction ("flag/parameters baru jangan dibuat dulu karena ini akan menjadi
-versi stabilisasi long term").
+**Last updated**: 2026-08-04 (after Phase 6 dead-code sweep — codebase clean)
+**Status**: ALL 39 findings from Phases 1-5 are CLOSED (100%). Phase 6
+dead-code sweep completed — 0 dead code found. The items below are NEW
+FLAG/PARAMETER IDEAS only — they were parked per owner instruction
+("flag/parameters baru jangan dibuat dulu karena ini akan menjadi versi
+stabilisasi long term").
 
 ---
 
@@ -32,6 +33,18 @@ All 39 findings from the 5-phase config-sync audit are now CLOSED:
 
 Final test count: 1529 PASS (up from 1511 after initial Phase 5).
 0 regressions. Clippy clean. All gatekeeper scripts PASS.
+
+### Phase 6 update (2026-08-04)
+
+Phase 6 (dead code & legacy parameter sweep) completed — **0 dead code
+found**. The codebase is clean by every rigorous measure available without
+installing new tooling. Full report: `CONFIG_SYNC_AUDIT_PHASE6.md`.
+
+The only "debt" surfaced is 580 `unreachable_pub` warnings on opt-in lint
+(`cargo clippy -W unreachable_pub`) — these are NOT dead code, they're
+`pub` items in a binary crate where `pub == pub(crate)`. Not part of
+gatekeeper. Documented as cosmetic debt for a future visibility-tightening
+pass. See Phase 6 report §2.8 and §6 (recommendation #1) for details.
 
 ---
 
@@ -223,14 +236,16 @@ lookup). ~5μs at startup is invisible. Documented in code comment at
 
 ---
 
-## 5. Phase 6 Recommendation — Dead Code & Legacy Parameter Sweep
+## 5. Phase 6 — Dead Code & Legacy Parameter Sweep (DONE 2026-08-04)
 
-**NOT done in Phases 1-5.** This is the next audit dimension the owner asked
-about (2026-08-04 chat): "gue ngoding sama ai bikin fitur banyak sampai
-pokoknya jadi dead/legacy code baik code fungsi yang mati ataupun parameters
-ataupun fungsi lain jadinya gue harus bersih bersih sampai dalam bro."
+**Status**: COMPLETED. Full report at `CONFIG_SYNC_AUDIT_PHASE6.md`.
 
-### 5.1 Quick scan results (2026-08-04)
+The owner asked about this on 2026-08-04: "gue ngoding sama ai bikin fitur
+banyak sampai pokoknya jadi dead/legacy code baik code fungsi yang mati
+ataupun parameters ataupun fungsi lain jadinya gue harus bersih bersih
+sampai dalam bro."
+
+### 5.1 Quick scan results (initial, 2026-08-04)
 
 - **`#[allow(dead_code)]` / `#[allow(unused`**: 6 occurrences across 5 files
   (`cloud/ecosystem.rs`, `chroma/shaders/transition.rs`, `chroma/palette.rs`,
@@ -244,42 +259,61 @@ ataupun fungsi lain jadinya gue harus bersih bersih sampai dalam bro."
 - **Compiler warnings**: Phase 5 verified `cargo check` PASS with 0 warnings,
   `cargo clippy` clean. So no compiler-detected dead code.
 
-### 5.2 Proposed Phase 6 scope
+### 5.2 Phase 6 scope (executed)
 
-1. **Triage the 6 `#[allow(dead_code)]` sites** — decide for each: remove,
-   document why it's kept, or wire it up.
-2. **Triage 187 TODO/FIXME/legacy mentions** — most are in tests, but the
-   non-test ones (especially in `scene.rs` 9, `testconf.rs` 7,
-   `atmosphere_apply.rs` 6, `configfile.rs` 17, `config_hints.rs` 17,
-   `scene_custom.rs` 14) need review.
-3. **CLI flag inventory** — Phase 1 inventoried 60+ CLI flags. Phase 6 should
-   cross-reference each flag against: (a) is it wired through
-   `config_apply`? (b) is it tested? (c) is it documented in `--help`? Any
-   flag failing all 3 is a dead flag candidate.
-4. **Config key inventory** — Phase 1 listed `USER_CONFIG_KEYS` (the
-   allow-list). Phase 6 should cross-reference each key against: (a) is it
-   read by `config_apply`? (b) is it tested? Any key failing both is a dead
-   key candidate.
-5. **`pub fn` inventory** — run `cargo +nightly udeps` (or equivalent) to
-   find unused public functions. Note: this requires installing `cargo-udeps`
-   which the owner previously said is OK (the "don't install" rule was for
-   `cargo-deny` / `cargo-audit` only).
-6. **Dead module detection** — are there entire modules that are no longer
-   reached from `main.rs`? Phase 6 should build a call graph from `main` and
-   flag unreachable modules.
+1. **Triage the 6 `#[allow(dead_code)]` sites** — DONE: all 6 are intentional
+   design decisions with inline explanatory comments. None removed.
+2. **Triage 187 TODO/FIXME/legacy mentions** — DONE: 0 actual TODO/FIXME
+   markers in the codebase. The "187 mentions" count was matching English
+   words `legacy` / `deprecated` in historical context comments (referring
+   to v14/v17/v25 version purges). All such mentions are intentional
+   documentation, not markers.
+3. **CLI flag inventory** — DONE: all 58 Args fields referenced in code.
+   The 4 `#[arg(skip = ...)]` fields are v17 legacy internals set by
+   `glitch_level` preset — already documented inline.
+4. **Config key inventory** — DONE: all 17 `USER_CONFIG_KEYS` entries read
+   by `config_apply` (16 via `config_value()` helper + 1 via direct
+   `cfg.get("async-mode")`). `adaptive-custom` handled by special parser.
+5. **`pub fn` inventory** — DONE: `cargo clippy -W dead_code` reports 0
+   warnings. `cargo +nightly udeps` install timed out, but rustc's
+   `dead_code` lint is a sufficient substitute for a binary crate (no
+   external API surface to keep items alive).
+6. **Dead module detection** — DONE: `cargo check -W dead_code` reports 0
+   unused-module warnings.
 
-### 5.3 Why Phase 6 wasn't merged into Phase 5
+### 5.3 Phase 6 result
+
+**0 dead code found.** The v30 stabilization work (Phases 1-5) already
+purged the dead code that had accumulated through feature iteration. Phase 6
+confirms the purge was thorough.
+
+The only debt surfaced: 580 `unreachable_pub` warnings on opt-in lint
+(`cargo clippy -W unreachable_pub`). These are NOT dead code — they're
+`pub` items in a binary crate where `pub == pub(crate)`. Not part of
+gatekeeper. Documented as cosmetic debt for a future visibility-tightening
+pass. Estimated ~3-4h to bulk-fix (touches ~50 files, zero functional
+benefit, pure cosmetic).
+
+### 5.4 Why Phase 6 wasn't merged into Phase 5
 
 Phase 5 was scoped to the 36 open config-sync items. Dead code is a different
 dimension (code-reachability, not config-sync). Merging would have made the
 audit unbounded. Cleaner to ship v30 with the config layer stabilized, then
 run a separate Phase 6 for dead code.
 
-### 5.4 Reopen cost estimate
+### 5.5 Future cleanup recommendations (post-Phase 6)
 
-~6-8h for a thorough Phase 6 sweep. Produces
-`docs/research/CONFIG_SYNC_AUDIT_PHASE6.md` (or rename to
-`DEAD_CODE_SWEEP.md`) + commits removing dead code.
+1. **`pub` → `pub(crate)` visibility tightening** — addresses 580
+   `unreachable_pub` warnings. ~3-4h. Pure cosmetic. Start with
+   `central_control_rains.rs` (160 warnings, ~25% of total).
+2. **`cargo +nightly udeps` install + run** — expected 0 findings (since
+   `cargo clippy -W dead_code` is clean), but worth running once for
+   completeness.
+3. **Miri run on `unsafe` blocks** — verify soundness of `libc::fstat`
+   (`main.rs:235`), `libc::uname` (`envstat.rs:97`), etc. Separate
+   "unsafe soundness pass" if maximum rigor wanted.
+
+None of these are blocking. v30 is ready to ship as-is.
 
 ---
 

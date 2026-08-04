@@ -735,7 +735,9 @@ mod tests {
         // Previously --testconf was strict-lowercase while CLI was lenient,
         // creating a confusing asymmetry. Now `intro = "Logo"` in config.toml
         // is accepted by --testconf (matching `--intro Logo` on CLI).
-        for v in ["cosmic", "Cosmic", "COSMIC", "logo", "Logo", "LOGO", "none", "None", "NONE"] {
+        for v in [
+            "cosmic", "Cosmic", "COSMIC", "logo", "Logo", "LOGO", "none", "None", "NONE",
+        ] {
             assert!(
                 validate_field_value("intro", v).is_none(),
                 "'{v}' should be accepted (case-insensitive, matching CLI)"
@@ -1017,7 +1019,9 @@ mod tests {
     #[test]
     fn glitch_level_case_insensitive_matches_cli() {
         // Phase 5 closure (P1-#4 + P2-6)
-        for v in ["None", "NONE", "Subtle", "SUBTLE", "Default", "DEFAULT", "Intense", "INTENSE"] {
+        for v in [
+            "None", "NONE", "Subtle", "SUBTLE", "Default", "DEFAULT", "Intense", "INTENSE",
+        ] {
             assert!(
                 validate_field_value("glitch-level", v).is_none(),
                 "'{v}' should be accepted (case-insensitive)"
