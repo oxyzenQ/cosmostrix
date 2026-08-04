@@ -36,7 +36,7 @@
 // are pub(crate) API contracts consumed in tests, diagnostics, and future
 // integration points — not yet wired into the hot render path. As
 // integration progresses, individual allows can replace this module-level one.
-#![allow(dead_code)]
+#![cfg_attr(not(test), allow(dead_code))]
 
 // AtmosphereRegime is defined in this module (below).
 
@@ -336,18 +336,6 @@ impl AtmosphereController {
     /// the current effective parameters.
     pub(crate) fn build_application(&self) -> crate::atmosphere_verifier::AtmosphereApplication {
         self.state.build_application()
-    }
-
-    /// Evaluate probe and compute candidate regime without applying it.
-    ///
-    /// This is the Phase 2 safe path: probe facts are observed, a candidate
-    /// is computed, but the actual regime remains Calm. Returns the candidate
-    /// for diagnostic reporting only.
-    pub(crate) fn evaluate_probe(
-        &self,
-        probe: &crate::atmosphere_probe::RegimeProbe,
-    ) -> AtmosphereRegime {
-        crate::atmosphere_probe::select_regime_from_probe(probe)
     }
 
     /// Advance the controller's internal clock by the given delta seconds.

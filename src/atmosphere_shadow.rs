@@ -31,7 +31,10 @@
 //! - Does NOT add new CLI flags or scene types.
 //! - Does NOT introduce color drift, terminal effects, or random changes.
 
-#![allow(dead_code)]
+// Test-only API surface: shadow metrics are consumed by atmosphere_tests/*
+// but not yet wired into the production render path. Silence dead_code in
+// release builds; tests still verify full coverage.
+#![cfg_attr(not(test), allow(dead_code))]
 
 use crate::atmosphere::AtmosphereRegime;
 use crate::atmosphere_apply::AtmosphereApplicationMode;

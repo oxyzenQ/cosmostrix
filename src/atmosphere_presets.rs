@@ -21,7 +21,7 @@
 // consumed in test modules (atmosphere_expansion_tests, docs_tests/zactrix)
 // but not in the non-test binary path — consistent with atmosphere_shadow.rs,
 // atmosphere_visual.rs, and other atmosphere modules.
-#![allow(dead_code)]
+#![cfg_attr(not(test), allow(dead_code))]
 
 /// A controlled atmosphere profile preset definition.
 ///

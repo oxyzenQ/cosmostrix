@@ -22,7 +22,7 @@
 // Phase 3: Module-level dead_code allow is required because verifier types are
 // pub(crate) API contracts consumed in tests and future integration points —
 // not yet wired into the hot render path.
-#![allow(dead_code)]
+#![cfg_attr(not(test), allow(dead_code))]
 
 // ── Atmosphere Bounds ─────────────────────────────────────────────────────
 

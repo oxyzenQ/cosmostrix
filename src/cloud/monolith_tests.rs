@@ -1,8 +1,8 @@
-#![allow(dead_code)]
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Monolith rain tests extracted from monolith.rs.
+#![cfg_attr(not(test), allow(dead_code))]
 
 #[cfg(test)]
 mod tests {
@@ -10,10 +10,6 @@ mod tests {
     use rand::distr::Uniform;
     use rand::rngs::StdRng;
     use rand::SeedableRng;
-    fn default_density_targets_sparse_lane_count() {
-        let target = target_active_count(100, 0.75);
-        assert!((20..=35).contains(&target));
-    }
 
     /// Helper: create a MonolithRain with `cols` lanes, all inactive.
     fn rain_with_lanes(cols: u16) -> MonolithRain {

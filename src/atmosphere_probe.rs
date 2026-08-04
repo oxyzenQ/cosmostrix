@@ -7,7 +7,10 @@
 //! (deterministic pure function that maps probe facts to candidate regimes).
 //! In production, the actual regime remains Calm unless explicitly transitioned.
 
-#![allow(dead_code)]
+// Test-only API surface: probe types are consumed by atmosphere_tests/* but
+// not yet wired into the production render path. Silence dead_code in release
+// builds; tests still verify full coverage.
+#![cfg_attr(not(test), allow(dead_code))]
 
 use crate::atmosphere::AtmosphereRegime;
 
@@ -28,8 +31,6 @@ pub(crate) struct RegimeProbe {
     pub frame_time_pressure: f64,
     /// Whether this is a benchmark run.
     pub benchmark_mode: bool,
-    /// Elapsed time in seconds since last regime evaluation (0.0 if unknown).
-    pub elapsed_secs: f64,
 }
 
 impl RegimeProbe {
@@ -40,7 +41,6 @@ impl RegimeProbe {
             active_streams: 0,
             frame_time_pressure: 0.0,
             benchmark_mode: false,
-            elapsed_secs: 0.0,
         }
     }
 }
@@ -137,7 +137,6 @@ mod tests {
             dirty_cell_ratio: 0.9,
             active_streams: 100,
             frame_time_pressure: 50.0,
-            elapsed_secs: 0.0,
         };
         assert_eq!(select_regime_from_probe(&probe), AtmosphereRegime::Calm);
     }
@@ -204,7 +203,6 @@ mod tests {
                 active_streams: 30,
                 frame_time_pressure: 8.0,
                 benchmark_mode: false,
-                elapsed_secs: 1.0,
             };
             assert_eq!(
                 select_regime_from_probe(&probe),

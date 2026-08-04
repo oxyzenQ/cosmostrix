@@ -34,7 +34,11 @@
 //! | color_change | always false | always false |
 //! | terminal_effect | always false | always false |
 
-#![allow(dead_code)]
+// Test-only API surface: visual whisper types are consumed by
+// atmosphere_tests/* and atmosphere_ab.rs (test-only) but not yet wired
+// into the production render path. Silence dead_code in release builds;
+// tests still verify full coverage.
+#![cfg_attr(not(test), allow(dead_code))]
 
 use crate::atmosphere_apply::{
     apply_application, AtmosphereApplicationMode, AtmosphereRuntimeModulation,
