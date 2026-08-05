@@ -1,8 +1,11 @@
 # Rust
 target/
 
-# PGO profile data
+# PGO profile data + stage stamps + logs (all under target/, already ignored,
+# but listed explicitly for clarity)
 target/pgo-data/
+target/pgo-stages/
+target/pgo-logs/
 *.profraw
 *.profdata
 
