@@ -13,7 +13,7 @@ use rand::Rng;
 use crate::cell::Cell;
 use crate::frame::Frame;
 
-use super::super::atmospheric_events::{AtmosphericEvent, EventCtx};
+use super::super::ghost_events::{CinematicEvent, EventCtx};
 
 // v30.1 — Bug #11 regression fix.
 // Previously held fullwidth CJK ideographs ('雨','雷','電','風','雲','闇','光'),
@@ -70,7 +70,7 @@ impl GhostEvent {
     }
 }
 
-impl AtmosphericEvent for GhostEvent {
+impl CinematicEvent for GhostEvent {
     fn is_finished(&self) -> bool {
         self.spawn_time.elapsed() >= self.duration
     }

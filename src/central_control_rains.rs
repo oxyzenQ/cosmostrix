@@ -32,7 +32,7 @@
 //! |--------------------------|-----------------------------------------------------|
 //! | Parallax depth layers    | Layer count + per-layer speed/brightness/saturation |
 //! | Phosphor persistence     | CRT afterglow decay, tail residual, glyph threshold |
-//! | Atmospheric depth        | Density, contrast reduction, glyph dim              |
+//! | Parallax depth           | Density, contrast reduction, glyph dim              |
 //! | Head bloom               | Gaussian glow sigma, intensity, cell radius         |
 //! | Per-layer head bloom     | Depth-aware head pop multiplier per layer           |
 //! | Depth fog vignette       | Top/bottom row dimming                              |
@@ -53,7 +53,7 @@
 //! | Living rain wind gusts   | Gust attack/hold/decay envelope                     |
 //! | Color transition         | Palette propagation wave duration/velocity          |
 //! | Color ecosystems         | Long-timescale hue/sat/lum drift                    |
-//! | Atmospheric evolution    | Autonomous density/luminance/anomaly ranges         |
+//! | Entropy drift            | Autonomous density/luminance/anomaly ranges         |
 //! | Memory history           | Renderer long-timescale memory samples              |
 //! | Emergent storytelling    | Rare emergent visual moments                        |
 //! | Edge fade                | Viewport entry/exit taper                           |
@@ -285,7 +285,7 @@ pub(crate) const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
 /// Phosphor decay rate multiplier applied to bottom rows (3.0× base).
 pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
-// ─── Atmospheric depth layering ────────────────────────────────────────────
+// ─── Parallax depth layering ────────────────────────────────────────────
 //
 // Three independent controls stack to push the back layer into atmospheric
 // depth: density (fewer spawns), contrast reduction (fg→bg blend = fog),
@@ -797,7 +797,7 @@ pub(crate) const PHOSPHOR_EDGE_ENERGY_CAP: u8 = 64;
 /// Taper rate (in rows) for phosphor energy at the viewport edge.
 pub(crate) const PHOSPHOR_EDGE_ROW_TAPER: u8 = 8;
 
-// ─── Atmospheric Event Engine ──────────────────────────────────────────────
+// ─── Cinematic Event Engine ──────────────────────────────────────────────
 
 /// XOR mask applied to the event RNG seed (deterministic per-session).
 pub(crate) const EVENT_RNG_XOR: u64 = 0xCAFE_BABE_1337_0420;

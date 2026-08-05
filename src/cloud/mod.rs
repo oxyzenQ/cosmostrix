@@ -5,18 +5,17 @@
 //!
 //! Key systems: **DrawCtx** (read-only renderer snapshot for per-frame
 //! callbacks), **DropletSpawner** (3 parallax layers, see `spawn.rs`),
-//! **AtmosphericEventManager** (ghost-kanji events, see
-//! `atmospheric_events.rs`), **LivingRain** (wind-gust drift, see
-//! `living_rain.rs`).
+//! **GhostEventScheduler** (ghost-kanji events, see `ghost_events.rs`),
+//! **LivingRain** (wind-gust drift, see `living_rain.rs`).
 //!
 //! On color-scheme change, new droplets inherit the new palette while
 //! existing droplets keep their old colors until they age out —
 //! transition smoothed via Phase 8 hue-preserving chroma shader
 //! (see `chroma/shaders/transition.rs`).
 
-mod atmospheric_events;
 pub(crate) mod ecosystem;
 pub(crate) mod events;
+mod ghost_events;
 mod living_rain;
 mod monolith;
 mod monolith_glyphs;
@@ -55,13 +54,12 @@ use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
 
 use ecosystem::{
-    AtmosphericEvolution, BehaviorProfile, ColorEcosystem, ProfileParams, RendererMemory,
-    StorytellingState,
+    BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
 };
 use monolith::MonolithRain;
 use state::{AnomalyZone, ColumnStatus, MsgChr};
 
-use atmospheric_events::AtmosphericEventManager;
+use ghost_events::GhostEventScheduler;
 use render::FlashWave;
 
 #[derive(Clone, Copy, Debug)]
@@ -135,11 +133,9 @@ pub struct Cloud {
     /// (`ShaderCtx::column_coherence_lut[col]`) instead of calling
     /// `column_coherence_perturbation(phase, col)` per cell. Saves
     /// ~65-130M cycles/sec at 60 FPS on a 200-col viewport.
-    ///
-    /// Stored on Cloud (not built fresh each frame) to avoid per-frame
-    /// heap allocation — `rain_at` resizes in place and overwrites values.
-    /// Length is kept in sync with `cols` (resize-on-terminal-resize is
-    /// handled implicitly by the `cols != lut.len()` check in `rain_at`).
+    /// Stored on Cloud (not built fresh each frame) to avoid per-frame heap
+    /// allocation. Length kept in sync with `cols` via the resize check in
+    /// `rain_at`.
     pub(super) column_coherence_lut: Vec<i32>,
 
     pub(super) droplet_free_list: Vec<usize>,
@@ -160,6 +156,9 @@ pub struct Cloud {
     pub(super) last_glitch_time: Instant,
     pub(super) next_glitch_time: Instant,
     pub(super) last_spawn_time: Instant,
+    /// v30 Hinnant: process anchor captured at `Cloud::new()`, inherited
+    /// across live-reload. Replaces `now.elapsed()` in `rain_at()`.
+    pub(super) start_anchor: Instant,
     pub(super) spawn_remainder: f32,
     pub(super) pause_time: Option<Instant>,
 
@@ -234,7 +233,7 @@ pub struct Cloud {
     pub(super) profile_transition_start: Option<Instant>,
 
     pub(super) color_ecosystem: ColorEcosystem,
-    pub(super) atmosphere: AtmosphericEvolution,
+    pub(super) entropy_drift: EntropyDrift,
     pub(super) memory: RendererMemory,
     pub(super) storytelling: StorytellingState,
 
@@ -246,7 +245,7 @@ pub struct Cloud {
     /// v30 Bug #5: color_tune stored on Cloud so set_color_scheme re-applies it.
     pub(super) color_tune: crate::color_tune::ColorTune,
 
-    pub(super) event_manager: AtmosphericEventManager,
+    pub(super) event_manager: GhostEventScheduler,
 
     pub(super) gust: living_rain::GustState,
 
@@ -334,6 +333,7 @@ impl Cloud {
             last_glitch_time: now,
             next_glitch_time: now + Duration::from_millis(300),
             last_spawn_time: now,
+            start_anchor: now,
             spawn_remainder: 0.0,
             pause_time: None,
             resume_blend: 1.0,
@@ -401,7 +401,7 @@ impl Cloud {
             profile_target: BehaviorProfile::Monolith.params(),
             profile_transition_start: None,
             color_ecosystem: ColorEcosystem::new(now),
-            atmosphere: AtmosphericEvolution::new(now),
+            entropy_drift: EntropyDrift::new(now),
             memory: RendererMemory::new(now),
             storytelling: StorytellingState::new(now),
             glyph_entry_time: None,
@@ -409,7 +409,7 @@ impl Cloud {
             // v30 strengthen: overridden in app.rs create_cloud.
             custom_palette_active: false,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
-            event_manager: AtmosphericEventManager::new(now),
+            event_manager: GhostEventScheduler::new(now),
             gust: living_rain::GustState::new(now),
             last_sim_ms: 0.0,
             last_render_ms: 0.0,
@@ -543,11 +543,13 @@ impl Cloud {
         self.monolith_density_map = map;
     }
 
-    /// Phase D Bug #9: carry color_ecosystem + atmosphere across live-reload
+    /// Phase D Bug #9: carry color_ecosystem + entropy_drift across live-reload
     /// (prevents brightness discontinuity when config is edited mid-session).
+    /// v30: also carries `start_anchor` so time-varying phases stay continuous.
     pub fn inherit_ecosystem_state(&mut self, other: &Cloud) {
         self.color_ecosystem = other.color_ecosystem;
-        self.atmosphere = other.atmosphere;
+        self.entropy_drift = other.entropy_drift;
+        self.start_anchor = other.start_anchor;
     }
 
     #[must_use]
@@ -602,7 +604,7 @@ impl Cloud {
                 self.next_glitch_time += elapsed;
                 self.last_reseed_time += elapsed;
                 self.color_ecosystem.shift_in_time(elapsed);
-                self.atmosphere.last_tick += elapsed;
+                self.entropy_drift.last_tick += elapsed;
                 self.memory.last_sample += elapsed;
                 self.storytelling.last_tick += elapsed;
                 if let Some(ref mut cd) = self.storytelling.cooldown_until {

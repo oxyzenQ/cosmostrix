@@ -225,7 +225,7 @@ Module layout (under `src/chroma/`):
   shaders    Base cell shader (resolve_cell_color), CharLoc enum,
              TRAIL_EXP_LUT, Phase 4-D head halo, Phase 5/8 transition
              L+chroma smoothing (TransitionLTable).
-  post       Atmospheric post-processing (luminance, saturation,
+  post       Climate post-processing (luminance, saturation,
              persistence, instability), palette-aware ghost color,
              palette-aware anomaly halo target.
   tuning     All Chroma Dragon tuning constants in one auditable place:

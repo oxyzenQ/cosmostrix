@@ -19,7 +19,7 @@ use super::Cloud;
 use smallvec::SmallVec;
 
 // Phase 3-G: atmospheric ctx for integrated post-processing.
-use crate::chroma::post::atmosphere::AtmosphericCtx;
+use crate::chroma::post::climate::ClimateCtx;
 
 impl Cloud {
     pub fn rain(&mut self, frame: &mut Frame) {
@@ -83,7 +83,7 @@ impl Cloud {
         let enable_timing = self.enable_component_timing;
         let t0 = if enable_timing { Instant::now() } else { now };
 
-        // ── Atmospheric Event Engine: evaluate triggers ──
+        // ── Cinematic Event Engine: evaluate triggers ──
         let in_transition = self.transition_start.is_some()
             || self.charset_transition_start.is_some()
             || self.profile_transition_start.is_some();
@@ -163,11 +163,11 @@ impl Cloud {
         let mut spawn_scale = (1.0 - (PERF_PRESSURE_SPAWN_FACTOR * self.perf_pressure))
             .clamp(PERF_SPAWN_SCALE_MIN, 1.0);
         // Apply atmospheric density modulation
-        spawn_scale *= 1.0 + self.atmosphere.density_offset;
+        spawn_scale *= 1.0 + self.entropy_drift.density_offset;
         // Apply profile density modulation
         spawn_scale *= self.profile_current.density_mult;
         // Apply wind-gust multiplier (1.0 when idle, up to GUST_PEAK_MAX
-        // during a gust). Independent of `atmosphere.density_offset`
+        // during a gust). Independent of `entropy_drift.density_offset`
         // (slow entropy cycle) — gusts are short, sharp surges.
         spawn_scale *= self.gust.tick(now, &mut self.mt);
         // Apply emergent density boost
@@ -489,7 +489,7 @@ impl Cloud {
             // ghosts now match the scene's color scheme.
             let ghost_base_color =
                 crate::chroma::post::ghost::ghost_base_color(&self.palette.colors);
-            let pre_ctx = crate::cloud::atmospheric_events::EventCtx {
+            let pre_ctx = crate::cloud::ghost_events::EventCtx {
                 cols: self.cols,
                 lines: self.lines,
                 ghost_base_color,
@@ -503,7 +503,7 @@ impl Cloud {
         // integers + now_secs) once, then passes them through DrawCtx →
         // ShaderCtx → resolve_cell_color where the shader applies them to
         // each cell's resolved color BEFORE encoding. The post-hoc
-        // `apply_atmospheric_frame_effects` early-returns when this is Some,
+        // `apply_climate_frame_effects` early-returns when this is Some,
         // eliminating ~500 decode-encode-frame.set cycles per frame.
         //
         // The math here is identical to the pre-Phase-3-G post-hoc pass —
@@ -529,7 +529,12 @@ impl Cloud {
                 // condition (preserved behavior).
                 None
             } else {
-                let now_secs = now.elapsed().as_secs() as u32;
+                // v30 Hinnant-style: use start_anchor-based elapsed instead of
+                // `now.elapsed()` (which returned microseconds — frame-start to
+                // now-during-rain_at — too small to drive a meaningful phase
+                // seed). `start_anchor` is captured once at Cloud::new() and
+                // inherited across live-reload.
+                let now_secs = now.saturating_duration_since(self.start_anchor).as_secs() as u32;
                 let total_lum = luminance + profile.luminance_offset + emergent.luminance_boost;
                 let lum_fi = if total_lum < 1.0 {
                     Some((total_lum.clamp(0.0, 1.0) * 256.0) as i32)
@@ -561,7 +566,7 @@ impl Cloud {
                 } else {
                     None
                 };
-                Some(AtmosphericCtx {
+                Some(ClimateCtx {
                     lum_fi,
                     lum_wf,
                     sat_ti,
@@ -583,7 +588,11 @@ impl Cloud {
         let mut flash_waves_buf: SmallVec<[FlashWaveCtx; MOUSE_FLASH_POOL_SIZE]> = SmallVec::new();
         for w in &self.flash_waves {
             if w.active {
-                let e = w.birth.elapsed().as_secs_f32();
+                // v30 Hinnant-style: use injected `now` instead of
+                // `w.birth.elapsed()` (which issued a hidden Instant::now()
+                // syscall per active wave per frame). `now` is the same
+                // Instant captured once at frame start in event_loop.rs.
+                let e = now.saturating_duration_since(w.birth).as_secs_f32();
                 if e < MOUSE_FLASH_DURATION_SECS {
                     // v30 optimize (MOUSE_EFFECTS_AUDIT.md Quick Win #2):
                     // precompute wave-invariant quantities here (once per wave)
@@ -620,8 +629,17 @@ impl Cloud {
         // The LUT is stored on Cloud (not built fresh each frame) to avoid
         // per-frame Vec allocation. Resize in place when `cols` changes
         // (terminal resize); otherwise just overwrite values.
-        let column_coherence_phase =
-            now.elapsed().as_secs_f32() * crate::chroma::tuning::COLUMN_COHERENCE_FREQ;
+        // v30 Hinnant-style: use start_anchor-based elapsed instead of
+        // `now.elapsed()` (which returned microseconds — frame-start to
+        // now-during-rain_at — making the phase essentially 0 and the
+        // coherence pattern visually static). With COLUMN_COHERENCE_FREQ =
+        // 0.105 rad/s, the phase now smoothly cycles every 2π/0.105 ≈ 60s,
+        // which is the intended slow-drift behavior. Also removes a hidden
+        // Instant::now() syscall per frame.
+        let column_coherence_phase = now
+            .saturating_duration_since(self.start_anchor)
+            .as_secs_f32()
+            * crate::chroma::tuning::COLUMN_COHERENCE_FREQ;
         let cols_us = self.cols as usize;
         if self.column_coherence_lut.len() != cols_us {
             self.column_coherence_lut.resize(cols_us, 0);
@@ -786,7 +804,7 @@ impl Cloud {
         self.last_phosphor_time = now;
 
         // ── Component timing: sim → render boundary ────────────────────
-        // Everything above this line is "simulation" (atmosphere events,
+        // Everything above this line is "simulation" (cinematic events,
         // spawn rate, droplet physics). Everything below mutates the frame
         // buffer — that is "render" (phosphor decay, anomaly zones,
         // atmospheric post-processing, message box).
@@ -824,7 +842,7 @@ impl Cloud {
         // overload while preserving atmospheric dynamics.
         let anomaly_chance = (ANOMALY_CHANCE_PER_SEC
             * self.profile_current.anomaly_freq_mult as f64
-            * (1.0 + self.atmosphere.anomaly_offset as f64)
+            * (1.0 + self.entropy_drift.anomaly_offset as f64)
             * (1.0 + self.memory.instability_pressure as f64))
             .min(ANOMALY_CHANCE_PER_SEC * 3.0);
         if phosphor_elapsed > 0.0
@@ -840,12 +858,12 @@ impl Cloud {
         // Apply anomaly effects to frame
         self.apply_anomalies(frame, now);
 
-        // ── Atmospheric Event Engine: render active events ──
+        // ── Cinematic Event Engine: render active events ──
         if !self.event_manager.is_empty() {
             // Phase 3-I: same palette-aware ghost color as the pre-rain pass.
             let ghost_base_color =
                 crate::chroma::post::ghost::ghost_base_color(&self.palette.colors);
-            let event_ctx = crate::cloud::atmospheric_events::EventCtx {
+            let event_ctx = crate::cloud::ghost_events::EventCtx {
                 cols: self.cols,
                 lines: self.lines,
                 ghost_base_color,
@@ -855,7 +873,7 @@ impl Cloud {
             // Recycle finished events.
             // v30 dragon-egg hunt: dropped the phosphor-seeding path that
             // fired on Active→Decay transitions (no event ever entered
-            // Decay — see atmospheric_events.rs).
+            // Decay — see ghost_events.rs).
             self.event_manager.update();
         }
 
@@ -884,8 +902,9 @@ impl Cloud {
             }
         }
 
-        // 2. Atmospheric evolution
-        self.atmosphere.tick(now, self.profile_current.entropy_rate);
+        // 2. Entropy drift
+        self.entropy_drift
+            .tick(now, self.profile_current.entropy_rate);
 
         // 3. Renderer memory sampling
         let anomaly_density = self.anomaly_zones.len() as f32 / ANOMALY_MAX_ZONES.max(1) as f32;
@@ -902,7 +921,7 @@ impl Cloud {
         if let Some(kind) = self.storytelling.tick(
             now,
             &mut self.mt,
-            &self.atmosphere,
+            &self.entropy_drift,
             &self.memory,
             &self.color_ecosystem,
         ) {
@@ -937,7 +956,7 @@ impl Cloud {
         }
 
         // 7. Apply global atmospheric frame effects (post-process)
-        self.apply_atmospheric_frame_effects(frame, now);
+        self.apply_climate_frame_effects(frame, now);
 
         // 8. Draw message box LAST — survives phosphor, anomaly, atmospheric.
         // Glow (60% white blend) + typewriter reveal (30ms/char).
@@ -962,13 +981,13 @@ impl Cloud {
             self.next_glitch_time = self.last_glitch_time + std::time::Duration::from_millis(ms);
         }
 
-        // ── Atmospheric Event Engine ──
+        // ── Cinematic Event Engine ──
         // v30 dragon-egg hunt: removed clean_stale_phosphor() call.
         // The function was unreachable in practice — it only cleared
         // phosphor cells with energy ≤ EVENT_PHOSPHOR_SEED_ENERGY, but
         // such cells are only ever set by event.seed_phosphor() (which
         // was a no-op for GhostEvent). The function itself was removed
-        // from AtmosphericEventManager.
+        // from GhostEventScheduler.
 
         // v30 fix: sweep ALL active flash waves, not single slot.
         // Each wave expires independently after MOUSE_FLASH_DURATION_SECS.

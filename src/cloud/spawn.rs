@@ -129,7 +129,7 @@ impl Cloud {
         self.last_reseed_time = now;
         self.last_phosphor_time = now;
 
-        // Phase D Bug #8 + #9 fix: color_ecosystem + atmosphere are drift
+        // Phase D Bug #8 + #9 fix: color_ecosystem + entropy_drift are drift
         // accumulators (luminance_climate, saturation_climate, hue_drift,
         // density_offset, etc.) — they are independent of terminal size.
         // Previously reset() re-initialized them to defaults, which caused:
@@ -137,7 +137,7 @@ impl Cloud {
         //     every live-reload (config edit)
         //   - Bug #8: drift state lost on terminal resize
         // Both are wrong — drift state should persist across resize and
-        // live-reload. The initial ColorEcosystem::new(now) + AtmosphericEvolution::new(now)
+        // live-reload. The initial ColorEcosystem::new(now) + EntropyDrift::new(now)
         // in Cloud::new() handles fresh-start initialization; reset() should
         // NOT clobber accumulated drift.
         //
@@ -558,6 +558,13 @@ impl Cloud {
             return;
         }
 
+        // v30 Hinnant: hoist `now.elapsed()` out of the spawn loop. Previously
+        // called per-droplet (5-30×/frame), each a `clock_gettime` syscall
+        // (~20-50ns). `column_density_modifier` quantizes input into 10s
+        // buckets, so the per-droplet calls were pure waste. At 30K FPS
+        // benchmark mode this recovered ~9-22ms/sec of CPU on this single line.
+        let now_secs_for_density = now.elapsed().as_secs_f64();
+
         for _ in 0..to_spawn {
             let col = self.rand_col.sample(&mut self.mt);
 
@@ -604,7 +611,7 @@ impl Cloud {
             // DENSITY_NOISE_PERIOD_SECS. Kills the "uniform grid" feel
             // without per-frame allocation — single O(1) hash per spawn.
             let col_modifier =
-                super::living_rain::column_density_modifier(col, now.elapsed().as_secs_f64());
+                super::living_rain::column_density_modifier(col, now_secs_for_density);
             let effective_density = density_mult * col_modifier;
             if self.rand_chance.sample(&mut self.mt) > effective_density {
                 continue;

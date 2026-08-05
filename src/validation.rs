@@ -296,7 +296,7 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
             name: "--fps",
             kind: CliKind::DecimalF64 {
                 min: 1.0,
-                max: 240.0,
+                max: 300.0,
             },
         },
         "--speed" | "-S" => CliSpec {
@@ -488,9 +488,9 @@ mod tests {
     fn representative_cli_values_reject_cleanly() {
         // v17 mastery: --maxdpc removed from CLI. Replaced with --fps edge case.
         let cases = [
-            ("--fps", "0", "expected: number in range 1..=240"),
+            ("--fps", "0", "expected: number in range 1..=300"),
             ("--density", "nope", "expected: number in range 0.01..=5"),
-            ("--fps", "500", "expected: number in range 1..=240"),
+            ("--fps", "500", "expected: number in range 1..=300"),
             (
                 "--monolith-size",
                 "huge",

@@ -135,12 +135,12 @@ pub(crate) struct DrawCtx<'a> {
 
     /// Phase 3-G (Chroma Dragon Innovation G): precomputed atmospheric
     /// factors for this frame. `None` disables shader-level atmospheric
-    /// (matches pre-Phase-3-G behavior — `apply_atmospheric_frame_effects`
+    /// (matches pre-Phase-3-G behavior — `apply_climate_frame_effects`
     /// runs as a post-hoc pass instead). When `Some`, the shader applies
     /// atmospheric to each cell's resolved color BEFORE returning, and
-    /// `apply_atmospheric_frame_effects` early-returns to avoid
+    /// `apply_climate_frame_effects` early-returns to avoid
     /// double-application.
-    pub atmospheric: Option<crate::chroma::post::atmosphere::AtmosphericCtx>,
+    pub atmospheric: Option<crate::chroma::post::climate::ClimateCtx>,
 
     /// Phase 3-H (Chroma Dragon Innovation H): global hue drift.
     ///

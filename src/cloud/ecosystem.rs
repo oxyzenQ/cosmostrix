@@ -542,7 +542,7 @@ impl ColorEcosystem {
 /// Derives `Clone, Copy` so the evolution state can be carried across
 /// live-reload (Phase D Bug #9 fix in `Cloud::inherit_ecosystem_state`).
 #[derive(Clone, Copy)]
-pub(super) struct AtmosphericEvolution {
+pub(super) struct EntropyDrift {
     pub(super) entropy_phase: f32,
     pub(super) last_tick: Instant,
     pub(super) density_offset: f32,
@@ -551,7 +551,7 @@ pub(super) struct AtmosphericEvolution {
     pub(super) cycle_speed: f32,
 }
 
-impl AtmosphericEvolution {
+impl EntropyDrift {
     pub(super) fn new(now: Instant) -> Self {
         Self {
             entropy_phase: 0.0,
@@ -679,7 +679,7 @@ impl StorytellingState {
         &mut self,
         now: Instant,
         mt: &mut StdRng,
-        evolution: &AtmosphericEvolution,
+        evolution: &EntropyDrift,
         memory: &RendererMemory,
         ecosystem: &ColorEcosystem,
     ) -> Option<EmergentKind> {

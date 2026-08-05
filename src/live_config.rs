@@ -751,7 +751,7 @@ pub(crate) fn rebuild_cloud_config(
     // FPS — skip if CLI --fps was explicit
     if !cli.fps {
         if let Some(v) = cfg.get("fps") {
-            if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0) {
+            if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 300.0) {
                 lr_trace!("apply fps='{}' -> {}", v, n);
                 new.target_fps = n;
             } else {
@@ -917,7 +917,7 @@ fn apply_scene_custom_to_cloud_config(
             }
             "fps" => {
                 if let Ok(n) =
-                    crate::validation::parse_canonical_f64_range("fps", value, 1.0, 240.0)
+                    crate::validation::parse_canonical_f64_range("fps", value, 1.0, 300.0)
                 {
                     new.target_fps = n;
                 }

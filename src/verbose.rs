@@ -207,8 +207,13 @@ pub(crate) fn print_verbose(
         output::eprintln_verbose("duration:", &format!(" {d:.1}s"));
     }
 
-    // ── Atmosphere ────────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Atmosphere ──"));
+    // ── Color Climate ────────────────────────────────────────────────
+    // v30: renamed from "── Atmosphere ──" to "── Color Climate ──" to
+    // disambiguate from the deleted atmosphere engine subsystem. The
+    // fields below describe the surviving ColorEcosystem drift (luminance/
+    // saturation/hue accumulation) and the palette-scheme replacement flag —
+    // none of these have any relation to the deleted AtmosphereRuntimeModulation.
+    eprintln!("{}", output::brand_bold("  ── Color Climate ──"));
     // Phase D Strengthen #12: expand drift disclosure. Previously only
     // `auto_drift: bool` was shown, which was misleading — climate drift
     // (luminance/saturation/hue) is ALWAYS ON regardless of the flag.

@@ -1,15 +1,15 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! # Atmospheric Shader
+//! # Climate Shader
 //!
 //! Chroma Dragon Innovation G — integrated atmospheric post-processing.
 //!
 //! ## Problem (pre-Phase-3-G)
 //!
-//! Atmospheric effects (luminance climate, saturation drift, persistence
+//! Climate effects (luminance climate, saturation drift, persistence
 //! richness, instability pressure) were applied in a separate post-hoc
-//! pass over dirty cells (`cloud::phosphor::apply_atmospheric_frame_effects`).
+//! pass over dirty cells (`cloud::phosphor::apply_climate_frame_effects`).
 //! That pass:
 //!
 //! 1. Iterated all dirty cell indices (~500/frame typical).
@@ -26,13 +26,13 @@
 //!
 //! ## Solution
 //!
-//! `apply_atmospheric()` is a pure function that takes a raw `(r, g, b)`
-//! triple plus position and a precomputed `AtmosphericCtx`, and returns
+//! `apply_climate()` is a pure function that takes a raw `(r, g, b)`
+//! triple plus position and a precomputed `ClimateCtx`, and returns
 //! the modified `(r, g, b)`. The base shader calls it on the resolved
 //! color BEFORE encoding to `Color::Rgb`, so the cell is written to the
 //! frame once with atmospheric already applied.
 //!
-//! `AtmosphericCtx` precomputes all frame-invariant factors (dim/boost
+//! `ClimateCtx` precomputes all frame-invariant factors (dim/boost
 //! integers, saturation factor, persistence factor, instability
 //! threshold/weight) once per frame in `cloud::rain::rain_at`. The
 //! shader just reads them — no per-cell float math, no per-cell
@@ -56,18 +56,18 @@
 ///
 /// Built once per frame in `cloud::rain::rain_at` from `ColorEcosystem`,
 /// `Memory`, `Storytelling`, and `ProfileCurrent` state. Passed by
-/// reference through `DrawCtx` → `ShaderCtx` → `apply_atmospheric`.
+/// reference through `DrawCtx` → `ShaderCtx` → `apply_climate`.
 ///
 /// All factors use integer fixed-point with denominator 256 (i.e. the
 /// factor is `target_value * 256`), so the hot-path multiplication +
 /// shift avoids any float math. `None` fields mean "no effect" — the
 /// shader skips that branch entirely.
 ///
-/// `AtmosphericCtx::none()` returns a ctx with all fields `None` — the
-/// shader's `apply_atmospheric` is a no-op for this ctx, matching the
+/// `ClimateCtx::none()` returns a ctx with all fields `None` — the
+/// shader's `apply_climate` is a no-op for this ctx, matching the
 /// pre-Phase-3-G "skip if all neutral" early-return behavior.
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct AtmosphericCtx {
+pub(crate) struct ClimateCtx {
     /// Dim factor: multiply each channel by `fi / 256`. Active when
     /// total luminance < 1.0 (luminance_climate + profile offset + emergent
     /// boost < 1.0). `None` means no dimming.
@@ -104,11 +104,11 @@ pub(crate) struct AtmosphericCtx {
     pub now_secs: u32,
 }
 
-impl AtmosphericCtx {
+impl ClimateCtx {
     /// Build a neutral ctx (all fields `None`) — equivalent to the
     /// pre-Phase-3-G "skip if all neutral" early-return.
     ///
-    /// The shader's `apply_atmospheric` returns the input unchanged for
+    /// The shader's `apply_climate` returns the input unchanged for
     /// this ctx, so callers can pass it unconditionally and let the
     /// shader skip the work.
     ///
@@ -132,7 +132,7 @@ impl AtmosphericCtx {
 
     /// Returns `true` if all atmospheric factors are neutral (no effect
     /// would be applied). Matches the pre-Phase-3-G "skip if all neutral"
-    /// check in `apply_atmospheric_frame_effects`.
+    /// check in `apply_climate_frame_effects`.
     #[inline]
     pub(crate) const fn is_neutral(&self) -> bool {
         self.lum_fi.is_none()
@@ -148,7 +148,7 @@ impl AtmosphericCtx {
 /// Pure function — no allocation, no side effects, no syscalls. The
 /// caller (base shader) passes the resolved cell color decoded to RGB,
 /// the cell's `(line, col)` position (used by the instability hash), and
-/// the frame's precomputed `AtmosphericCtx`.
+/// the frame's precomputed `ClimateCtx`.
 ///
 /// The math is identical to the pre-Phase-3-G post-hoc pass:
 ///
@@ -165,25 +165,25 @@ impl AtmosphericCtx {
 ///    by `wf / 256`. Active when instability_pressure > 0.15.
 ///
 /// Dim and boost are mutually exclusive (a given frame is either dim or
-/// boost, not both) — see `AtmosphericCtx::lum_fi` / `lum_wf`.
+/// boost, not both) — see `ClimateCtx::lum_fi` / `lum_wf`.
 ///
 /// Returns the input unchanged if the ctx is neutral (`is_neutral()`).
 #[inline]
-pub(crate) fn apply_atmospheric(
+pub(crate) fn apply_climate(
     mut r: u8,
     mut g: u8,
     mut b: u8,
     line: u16,
     col: u16,
-    ctx: &AtmosphericCtx,
+    ctx: &ClimateCtx,
 ) -> (u8, u8, u8) {
     // Fast path: all factors neutral → no work. Matches the pre-Phase-3-G
-    // "skip if all neutral" early-return in apply_atmospheric_frame_effects.
+    // "skip if all neutral" early-return in apply_climate_frame_effects.
     if ctx.is_neutral() {
         return (r, g, b);
     }
 
-    // Luminance: dim OR boost (never both — see AtmosphericCtx doc).
+    // Luminance: dim OR boost (never both — see ClimateCtx doc).
     if let Some(fi) = ctx.lum_fi {
         r = ((i32::from(r) * fi + 128) >> 8).clamp(0, 255) as u8;
         g = ((i32::from(g) * fi + 128) >> 8).clamp(0, 255) as u8;
@@ -228,7 +228,7 @@ pub(crate) fn apply_atmospheric(
             // instability_wf is always Some when instability_threshold is Some
             // (both are set together when instability > 0.15). Defensive
             // `unwrap_or(0)` guards against contract drift — if a future
-            // commit constructs an AtmosphericCtx with `instability_threshold:
+            // commit constructs an ClimateCtx with `instability_threshold:
             // Some(...)` but `instability_wf: None`, the worst case is a
             // no-op (wf=0 → no white blend) rather than a panic on every cell
             // in the anomaly zone.
@@ -249,16 +249,16 @@ mod tests {
     /// Neutral ctx returns the input unchanged.
     #[test]
     fn neutral_ctx_is_noop() {
-        let ctx = AtmosphericCtx::none();
+        let ctx = ClimateCtx::none();
         assert!(ctx.is_neutral());
-        let (r, g, b) = apply_atmospheric(100, 150, 200, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(100, 150, 200, 5, 10, &ctx);
         assert_eq!((r, g, b), (100, 150, 200));
     }
 
     /// Default ctx (all None) is also neutral.
     #[test]
     fn default_ctx_is_neutral() {
-        let ctx = AtmosphericCtx::default();
+        let ctx = ClimateCtx::default();
         assert!(ctx.is_neutral());
     }
 
@@ -266,11 +266,11 @@ mod tests {
     /// fi=128 (= 0.5) → channels halved (with rounding).
     #[test]
     fn lum_fi_dims_channels() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             lum_fi: Some(128), // 0.5
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(200, 100, 50, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(200, 100, 50, 5, 10, &ctx);
         // (200 * 128 + 128) >> 8 = 25728 >> 8 = 100 (with +128 rounding)
         assert_eq!(r, 100);
         assert_eq!(g, 50);
@@ -280,22 +280,22 @@ mod tests {
     /// Lum dim factor of 256 (= 1.0) leaves channels unchanged.
     #[test]
     fn lum_fi_256_unchanged() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             lum_fi: Some(256),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(200, 100, 50, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(200, 100, 50, 5, 10, &ctx);
         assert_eq!((r, g, b), (200, 100, 50));
     }
 
     /// Lum dim factor of 0 zeros all channels.
     #[test]
     fn lum_fi_0_zeros() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             lum_fi: Some(0),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(200, 100, 50, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(200, 100, 50, 5, 10, &ctx);
         assert_eq!((r, g, b), (0, 0, 0));
     }
 
@@ -303,22 +303,22 @@ mod tests {
     /// wf=256 (= 1.0) → pure white.
     #[test]
     fn lum_wf_full_boost_to_white() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             lum_wf: Some(256),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(100, 50, 200, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(100, 50, 200, 5, 10, &ctx);
         assert_eq!((r, g, b), (255, 255, 255));
     }
 
     /// Lum boost factor wf=0 leaves channels unchanged.
     #[test]
     fn lum_wf_zero_unchanged() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             lum_wf: Some(0),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(100, 50, 200, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(100, 50, 200, 5, 10, &ctx);
         assert_eq!((r, g, b), (100, 50, 200));
     }
 
@@ -329,12 +329,12 @@ mod tests {
     /// tiebreaker for defensive callers.
     #[test]
     fn lum_dim_wins_over_boost() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             lum_fi: Some(128),
             lum_wf: Some(256),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(200, 200, 200, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(200, 200, 200, 5, 10, &ctx);
         // Dim applied (100), boost skipped.
         assert_eq!((r, g, b), (100, 100, 100));
     }
@@ -346,11 +346,11 @@ mod tests {
     /// → full gray, saturation=1.0 → ti=256 → unchanged.
     #[test]
     fn saturation_zero_factor_full_gray() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             sat_ti: Some(0),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(255, 0, 0, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(255, 0, 0, 5, 10, &ctx);
         // gray = (255 + 0 + 0) / 3 = 85
         assert_eq!((r, g, b), (85, 85, 85));
     }
@@ -362,11 +362,11 @@ mod tests {
     /// behavior as the pre-Phase-3-G post-hoc pass.
     #[test]
     fn saturation_full_factor_unchanged() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             sat_ti: Some(256),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(255, 0, 0, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(255, 0, 0, 5, 10, &ctx);
         // r stays exactly 255 (positive delta rounds correctly).
         // g and b may be off by ±1 due to integer truncation toward zero
         // on negative deltas (the pre-Phase-3-G behavior).
@@ -384,11 +384,11 @@ mod tests {
     /// Persistence blend toward white: wf=256 → pure white.
     #[test]
     fn persistence_full_to_white() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             persist_wf: Some(256),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let (r, g, b) = apply_atmospheric(100, 50, 200, 5, 10, &ctx);
+        let (r, g, b) = apply_climate(100, 50, 200, 5, 10, &ctx);
         assert_eq!((r, g, b), (255, 255, 255));
     }
 
@@ -396,16 +396,16 @@ mod tests {
     /// is always < 1000). The boost is applied to all cells.
     #[test]
     fn instability_full_threshold_triggers_all() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             instability_threshold: Some(1000),
             instability_wf: Some(256),
             now_secs: 0,
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
         // Sample many cells — all should be white.
         for line in 0..16u16 {
             for col in 0..16u16 {
-                let (r, g, b) = apply_atmospheric(100, 50, 200, line, col, &ctx);
+                let (r, g, b) = apply_climate(100, 50, 200, line, col, &ctx);
                 assert_eq!(
                     (r, g, b),
                     (255, 255, 255),
@@ -419,15 +419,15 @@ mod tests {
     /// never < 0). The boost is never applied.
     #[test]
     fn instability_zero_threshold_triggers_none() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             instability_threshold: Some(0),
             instability_wf: Some(256),
             now_secs: 0,
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
         for line in 0..16u16 {
             for col in 0..16u16 {
-                let (r, g, b) = apply_atmospheric(100, 50, 200, line, col, &ctx);
+                let (r, g, b) = apply_climate(100, 50, 200, line, col, &ctx);
                 assert_eq!(
                     (r, g, b),
                     (100, 50, 200),
@@ -441,17 +441,17 @@ mod tests {
     /// Verify the count is in [400, 600] out of 1024 sampled cells.
     #[test]
     fn instability_half_threshold_triggers_about_half() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             instability_threshold: Some(500),
             instability_wf: Some(256),
             now_secs: 42,
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
         let mut triggered = 0;
         let total = 1024u32;
         for line in 0..32u16 {
             for col in 0..32u16 {
-                let (r, g, b) = apply_atmospheric(100, 50, 200, line, col, &ctx);
+                let (r, g, b) = apply_climate(100, 50, 200, line, col, &ctx);
                 if (r, g, b) == (255, 255, 255) {
                     triggered += 1;
                 }
@@ -473,23 +473,23 @@ mod tests {
         let mut triggered_t1 = 0;
         for line in 0..32u16 {
             for col in 0..32u16 {
-                let ctx0 = AtmosphericCtx {
+                let ctx0 = ClimateCtx {
                     instability_threshold: Some(500),
                     instability_wf: Some(256),
                     now_secs: 0,
-                    ..AtmosphericCtx::none()
+                    ..ClimateCtx::none()
                 };
-                let ctx1 = AtmosphericCtx {
+                let ctx1 = ClimateCtx {
                     instability_threshold: Some(500),
                     instability_wf: Some(256),
                     now_secs: 1,
-                    ..AtmosphericCtx::none()
+                    ..ClimateCtx::none()
                 };
-                let (r, g, b) = apply_atmospheric(100, 50, 200, line, col, &ctx0);
+                let (r, g, b) = apply_climate(100, 50, 200, line, col, &ctx0);
                 if (r, g, b) == (255, 255, 255) {
                     triggered_t0 += 1;
                 }
-                let (r, g, b) = apply_atmospheric(100, 50, 200, line, col, &ctx1);
+                let (r, g, b) = apply_climate(100, 50, 200, line, col, &ctx1);
                 if (r, g, b) == (255, 255, 255) {
                     triggered_t1 += 1;
                 }
@@ -512,7 +512,7 @@ mod tests {
     /// deterministic across repeated calls.
     #[test]
     fn all_effects_stack_deterministic() {
-        let ctx = AtmosphericCtx {
+        let ctx = ClimateCtx {
             lum_fi: Some(128),                 // dim 50%
             sat_ti: Some(256),                 // full desaturate
             persist_wf: Some(128),             // 50% toward white
@@ -521,8 +521,8 @@ mod tests {
             lum_wf: None,
             now_secs: 0,
         };
-        let first = apply_atmospheric(200, 100, 50, 5, 7, &ctx);
-        let second = apply_atmospheric(200, 100, 50, 5, 7, &ctx);
+        let first = apply_climate(200, 100, 50, 5, 7, &ctx);
+        let second = apply_climate(200, 100, 50, 5, 7, &ctx);
         // Deterministic: same inputs → same outputs.
         assert_eq!(first, second, "stacked effects must be deterministic");
         // Applied: output differs from input (atmospheric actually ran).
@@ -535,13 +535,13 @@ mod tests {
 
     /// Apply atmospheric is pure — same inputs always produce same output.
     #[test]
-    fn apply_atmospheric_is_pure() {
-        let ctx = AtmosphericCtx {
+    fn apply_climate_is_pure() {
+        let ctx = ClimateCtx {
             lum_fi: Some(128),
-            ..AtmosphericCtx::none()
+            ..ClimateCtx::none()
         };
-        let a = apply_atmospheric(200, 100, 50, 5, 10, &ctx);
-        let b = apply_atmospheric(200, 100, 50, 5, 10, &ctx);
+        let a = apply_climate(200, 100, 50, 5, 10, &ctx);
+        let b = apply_climate(200, 100, 50, 5, 10, &ctx);
         assert_eq!(a, b);
     }
 }

@@ -11,7 +11,7 @@
 //!
 //! Pre-Phase-3-G, atmospheric effects (luminance climate, saturation
 //! drift, persistence richness, instability pressure) were applied in a
-//! separate post-hoc pass (`cloud::phosphor::apply_atmospheric_frame_effects`)
+//! separate post-hoc pass (`cloud::phosphor::apply_climate_frame_effects`)
 //! that iterated all dirty cells, decoded each cell's `Color` back to
 //! `(r, g, b)`, applied the modifiers, and re-encoded. That meant every
 //! dirty cell paid:
@@ -21,8 +21,8 @@
 //! 3. One `frame.set()` call (which marks the cell dirty AGAIN, causing
 //!    a redundant redraw on the next frame's diff)
 //!
-//! Phase 3-G moves the atmospheric math into `chroma::post::atmosphere`
-//! as a pure function `apply_atmospheric(r, g, b, line, col, ctx)`. The
+//! Phase 3-G moves the atmospheric math into `chroma::post::climate`
+//! as a pure function `apply_climate(r, g, b, line, col, ctx)`. The
 //! base shader calls it on the resolved color before returning, so the
 //! cell is written to the frame ONCE with atmospheric already applied.
 //! The post-hoc pass becomes a no-op when the shader integration is
@@ -32,10 +32,10 @@
 //!
 //! | Module       | Concern                                                              |
 //! |--------------|----------------------------------------------------------------------|
-//! | `atmosphere` | `AtmosphericCtx`, `apply_atmospheric()` — luminance/saturation/instability |
+//! | `climate`    | `ClimateCtx`, `apply_climate()` — luminance/saturation/instability |
 //! | `ghost`      | `ghost_base_color()` — palette-aware ghost color derivation         |
 //! | `anomaly`    | `anomaly_halo_target()` — palette-aware anomaly halo target (Phase 6) |
 
 pub(crate) mod anomaly;
-pub(crate) mod atmosphere;
+pub(crate) mod climate;
 pub(crate) mod ghost;

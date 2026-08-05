@@ -77,11 +77,11 @@ oversight waiting to be "fixed." Treat it that way.
 
 3. **Never break the stable engine.** Code in `cosmic_dragon/` must not mutate
    stable module internals. It may call stable APIs (`crate::cloud::*`,
-   `crate::chroma::post::atmosphere` for the post-FX shader,
+   `crate::chroma::post::climate` for the post-FX shader,
    `crate::interactive::*`, etc.) but cannot reach into private fields or
    break abstractions. (v30 2026-08-05: the historical `crate::atmosphere_*`
    reference was the eliminated atmosphere engine subsystem; the live
-   reference is now `crate::chroma::post::atmosphere`.)
+   reference is now `crate::chroma::post::climate`.)
 
 4. **Each subdirectory is self-contained.** A `cosmic_dragon/breath/` module
    does not import from `cosmic_dragon/scale/` — they are siblings, not a stack.

@@ -1,10 +1,10 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Atmospheric Event Engine — cinematic event system for ghosts.
+//! Cinematic Event Engine — ghost-kanji event system.
 //!
 //! Manages lifecycle of discrete cinematic visual events. Each event
-//! implements `AtmosphericEvent`; new types are added without modifying
+//! implements `GhostEvent`; new types are added without modifying
 //! the renderer.
 //!
 //! ## Lifecycle
@@ -46,7 +46,14 @@ pub(super) struct EventCtx {
 /// Each event precomputes data at spawn; `render()` iterates stored data
 /// with zero per-frame allocation. Lifecycle is binary: an event is
 /// either alive (rendered each frame) or finished (recycled).
-pub(super) trait AtmosphericEvent: Send {
+///
+/// v30: renamed from `AtmosphericEvent` to `CinematicEvent` to avoid
+/// collision with the `GhostEvent` struct (which implements this trait)
+/// and to disambiguate from the deleted atmosphere engine subsystem.
+/// The scheduler (`GhostEventScheduler`) is currently scoped to ghost
+/// events only; the trait name is broader to allow future non-ghost
+/// cinematic events without rename churn.
+pub(super) trait CinematicEvent: Send {
     /// Returns true when the event has finished and can be recycled.
     fn is_finished(&self) -> bool;
 
@@ -62,21 +69,21 @@ pub(super) trait AtmosphericEvent: Send {
 
 // ── Event Manager ─────────────────────────────────────────────────────────
 /// Manages active atmospheric events. Owned by Cloud.
-pub(super) struct AtmosphericEventManager {
+pub(super) struct GhostEventScheduler {
     /// Active events (trait objects for polymorphism).
-    events: SmallVec<[Box<dyn AtmosphericEvent>; 2]>,
+    events: SmallVec<[Box<dyn CinematicEvent>; 2]>,
     /// Dedicated RNG for deterministic event generation.
     rng: StdRng,
     /// Events are opt-in; disabled by default (tests, bench).
     events_enabled: bool,
 }
 
-impl AtmosphericEventManager {
+impl GhostEventScheduler {
     /// Create a new event manager.
     ///
     /// The `now` parameter is unused by the event manager itself but is kept
     /// to match the uniform `Subsys::new(now)` constructor pattern used by
-    /// every cloud subsystem (ColorEcosystem, AtmosphericEvolution,
+    /// every cloud subsystem (ColorEcosystem, EntropyDrift,
     /// RendererMemory, StorytellingState, GustState). See `cloud/mod.rs:397-405`
     /// for the constructor batch — every subsystem takes `now` so the batch
     /// reads symmetrically.
@@ -200,7 +207,7 @@ impl AtmosphericEventManager {
             1
         };
         let now = Instant::now();
-        let event: Box<dyn AtmosphericEvent> = Box::new(GhostEvent::new(col, line, now));
+        let event: Box<dyn CinematicEvent> = Box::new(GhostEvent::new(col, line, now));
         self.events.push(event);
     }
 }

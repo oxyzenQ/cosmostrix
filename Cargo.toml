@@ -19,7 +19,12 @@ rand = "0.9"
 bitvec = "1"
 smallvec = "1"
 unicode-width = "0.2"
-chrono = { version = ">=0.4.38, <0.5", default-features = false, features = ["clock"] }
+# v30 (Hinnant-style): chrono dropped. Was: `chrono = { version = ">=0.4.38, <0.5", default-features = false, features = ["clock"] }`.
+# The `clock` feature dragged in 8 transitive crates (wasm-bindgen, js-sys,
+# iana-time-zone-haiku, core-foundation-sys, etc.) for 2 production call sites
+# that only needed `[HH:MM]` log stamps and a local-hour fraction. Replaced by
+# direct `libc::localtime_r` calls in `src/clock.rs` (mirrors the pattern already
+# established in `interactive/adaptive.rs::local_secs_since_midnight`).
 notify = { version = ">=6.1, <7", default-features = false }
 
 # Bug 1 fix: enable kqueue backend on FreeBSD/GhostBSD/macOS (iOS too).

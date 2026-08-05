@@ -42,7 +42,7 @@ COMMON OPTIONS:
       Live reload: editing the [charset-custom] block takes effect on
       the next config save (no restart needed).
 
-  -f, --fps <1-240>
+  -f, --fps <1-300>
       Target FPS (interactive mode frame limiter). The loop sleeps between
       frames to maintain this cap; press 'i' to see it as `tgt:` in the HUD
       (alongside the render-work `fps:` line, which can be much higher

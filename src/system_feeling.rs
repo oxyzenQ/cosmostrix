@@ -53,13 +53,11 @@ use crate::cpustat;
 /// implementation lived in `atmosphere_adaptive::current_hour()` which
 /// was deleted along with the rest of the atmosphere engine subsystem.
 /// Used by `SystemFeeling::tick()` for time-of-day state classification.
+///
+/// v30 (Hinnant-style): delegates to `clock::current_local_hour()` which
+/// uses direct `libc::localtime_r` on Unix instead of `chrono::Local::now()`.
 pub(crate) fn current_local_hour() -> f64 {
-    use chrono::Timelike;
-    let now = chrono::Local::now();
-    let hour = f64::from(now.hour());
-    let minute = f64::from(now.minute());
-    let second = f64::from(now.second());
-    hour + minute / 60.0 + second / 3600.0
+    crate::clock::current_local_hour()
 }
 
 /// System feeling state tracker. Persists across ecosystem ticks.

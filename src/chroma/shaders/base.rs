@@ -132,14 +132,14 @@ pub(crate) struct ShaderCtx<'a> {
     /// dim/boost, saturation drift, persistence glow, instability
     /// flicker) to the resolved cell color BEFORE it is encoded as
     /// `Color::Rgb` and returned. This eliminates the post-hoc
-    /// decode-encode cycle that `cloud::phosphor::apply_atmospheric_frame_effects`
+    /// decode-encode cycle that `cloud::phosphor::apply_climate_frame_effects`
     /// performed on dirty cells — the cell is now written to the frame
     /// once with atmospheric already applied.
     ///
     /// `None` disables (matches pre-Phase-3-G behavior — the post-hoc
     /// pass runs instead). Production wires this through `DrawCtx` so
     /// the shader always applies atmospheric when factors are non-neutral.
-    pub atmospheric: Option<&'a crate::chroma::post::atmosphere::AtmosphericCtx>,
+    pub atmospheric: Option<&'a crate::chroma::post::climate::ClimateCtx>,
 
     /// Phase 3-H (Chroma Dragon Innovation H): global hue drift.
     ///
@@ -734,7 +734,7 @@ pub(crate) fn resolve_cell_color(
     // Apply the frame's atmospheric factors (luminance dim/boost, saturation
     // drift, persistence glow, instability flicker) to the resolved cell
     // color BEFORE returning. This eliminates the post-hoc decode-encode
-    // cycle that `cloud::phosphor::apply_atmospheric_frame_effects` performed
+    // cycle that `cloud::phosphor::apply_climate_frame_effects` performed
     // on dirty cells — the cell is now written to the frame once with
     // atmospheric already applied.
     //
@@ -749,12 +749,12 @@ pub(crate) fn resolve_cell_color(
             return c;
         };
         // Fast path: neutral ctx is a no-op (matches the pre-Phase-3-G
-        // "skip if all neutral" early-return in apply_atmospheric_frame_effects).
+        // "skip if all neutral" early-return in apply_climate_frame_effects).
         if ctx.is_neutral() {
             return c;
         }
         let (r, g, b) = crate::chroma::palette::color_to_rgb(c);
-        let (r, g, b) = crate::chroma::post::atmosphere::apply_atmospheric(r, g, b, line, col, ctx);
+        let (r, g, b) = crate::chroma::post::climate::apply_climate(r, g, b, line, col, ctx);
         Color::Rgb { r, g, b }
     });
 

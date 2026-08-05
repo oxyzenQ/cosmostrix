@@ -360,7 +360,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // config. (v30 2026-08-05: renamed from "atmosphere state" to
             // "atmospheric post-FX state" to disambiguate from the
             // eliminated atmosphere engine subsystem — this refers to the
-            // live `AtmosphericEvolution` cloud drift + Chroma Dragon
+            // live `EntropyDrift` cloud drift + Chroma Dragon
             // post-FX shader, NOT the deleted atmosphere engine.)
             // Previously this created a fresh Cloud with defaults (0.85,
             // 0.85, 0.0) — if the previous cloud had drifted to 0.78

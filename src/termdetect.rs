@@ -36,7 +36,7 @@ pub(crate) struct TerminalCaps {
     /// default FPS cap to prevent xterm.js OOM crashes over long runs.
     pub vscode_integrated: bool,
     /// Maximum recommended FPS for this terminal. Native terminals
-    /// (Alacritty, Kitty, etc.) get 240 (effectively uncapped — the
+    /// (Alacritty, Kitty, etc.) get 300 (effectively uncapped — the
     /// user's --fps value wins). VSCode's xterm.js gets 30 to keep
     /// the ANSI byte rate under ~7 MB/sec worst case.
     pub default_fps_cap: f64,
@@ -72,11 +72,11 @@ pub(crate) fn detect() -> TerminalCaps {
     let sync_ok = !term.eq_ignore_ascii_case("linux") && !vscode_integrated;
 
     // VSCode gets a 30 FPS cap; everything else is effectively uncapped
-    // (the user's --fps value, validated to 1.0..=240.0, wins).
+    // (the user's --fps value, validated to 1.0..=300.0, wins).
     let default_fps_cap = if vscode_integrated {
         VSCODE_FPS_CAP
     } else {
-        240.0
+        300.0
     };
 
     TerminalCaps {
@@ -119,7 +119,7 @@ mod tests {
         let caps = TerminalCaps {
             sync_output: false,
             vscode_integrated: false,
-            default_fps_cap: 240.0,
+            default_fps_cap: 300.0,
         };
         assert!(!caps.sync_output);
     }
@@ -159,7 +159,7 @@ mod tests {
         let caps = detect();
         assert!(!caps.vscode_integrated);
         assert!(caps.sync_output, "sync_output must stay on for non-VSCode");
-        assert_eq!(caps.default_fps_cap, 240.0);
+        assert_eq!(caps.default_fps_cap, 300.0);
         match prev_term {
             Some(v) => env::set_var("TERM", v),
             None => env::remove_var("TERM"),

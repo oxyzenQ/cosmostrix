@@ -224,8 +224,8 @@ pub(crate) struct BenchReportData {
 
     // Sub-component timing breakdown (averages + peaks, in ms).
     // sim_ms    = time in cloud.rain_at() before the first frame mutation
-    //             (atmosphere events, spawn rate, droplet physics).
-    // render_ms = time in cloud.rain_at() during phosphor/anomaly/atmospheric
+    //             (cinematic events, spawn rate, droplet physics).
+    // render_ms = time in cloud.rain_at() during phosphor/anomaly/climate
     //             frame mutations.
     // io_ms     = time OUTSIDE rain_at() within the frame loop — dirty
     //             checks, clear_dirty, bookkeeping. In benchmark mode NO
@@ -256,7 +256,7 @@ pub(crate) struct BenchReportData {
 ///
 /// This is the cold-path formatting function. It constructs a `Report`
 /// with all required sections (SYSTEM, RENDERER, CONFIG, PERFORMANCE,
-/// THROUGHPUT, TIMING, ZACTRIX ENGINE, ATMOSPHERE) and prints it to
+/// THROUGHPUT, TIMING, ZACTRIX ENGINE) and prints it to
 /// stdout. The caller is responsible for cleaning up the live progress
 /// UI before calling this function.
 pub(crate) fn build_premium_report(data: &BenchReportData) {
@@ -614,11 +614,11 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("max_io_ms", &format!("{:.4}", data.max_io_ms));
         s.field(
             "sim_meaning",
-            "atmosphere events + spawn rate + droplet physics (cloud.rain_at pre-render)",
+            "cinematic events + spawn rate + droplet physics (cloud.rain_at pre-render)",
         );
         s.field(
             "render_meaning",
-            "phosphor decay + anomaly zones + atmospheric fx + message box (frame mutations)",
+            "phosphor decay + anomaly zones + climate fx + message box (frame mutations)",
         );
         s.field(
             "io_meaning",

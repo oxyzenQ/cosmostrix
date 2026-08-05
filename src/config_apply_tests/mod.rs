@@ -393,7 +393,7 @@ fn config_speed_wins_over_cli_scene_default() {
 #[test]
 fn config_overrides_scene_managed_fields_when_scene_is_cli() {
     let args = args_with_config(
-        "color = carbon\nfps = 240\nspeed = 50\n",
+        "color = carbon\nfps = 300\nspeed = 50\n",
         &["--scene", "cinematic"],
     );
     assert_eq!(args.scene.as_deref(), Some("cinematic"));
@@ -402,9 +402,9 @@ fn config_overrides_scene_managed_fields_when_scene_is_cli() {
         args.color, "carbon",
         "config color must win over CLI scene cinematic's neon-purple"
     );
-    // config fps=240 wins over cinematic's fps=60
+    // config fps=300 wins over cinematic's fps=60
     assert_eq!(
-        args.fps, 240.0,
+        args.fps, 300.0,
         "config fps must win over CLI scene cinematic's fps=60"
     );
     // config speed=50 wins over cinematic's speed=9

@@ -741,6 +741,35 @@ pub(crate) fn dump_config_text() -> &'static str {
 "##
 }
 
+/// Build the full dump-config output with a generated header prepended.
+///
+/// The header is 3 comment lines:
+///   ```text
+///   # cosmostrix config file
+///   # generated at <ISO 8601 UTC>
+///   # using Howard Hinnant chrono design (libc::gmtime_r)
+///   ```
+/// followed by a blank `#` line, then the existing curated `# cosmostrix
+/// configuration` template from `dump_config_text()`.
+///
+/// v30 (Hinnant-style): the timestamp is produced by `clock::now_iso_utc()`
+/// which uses direct `libc::gmtime_r` on Unix — no `chrono` dependency. The
+/// "Howard Hinnant chrono design" attribution honors the algorithm
+/// (civil-from-days + minimal abstraction) without claiming the chrono crate
+/// is in use (it was dropped in v30 to eliminate 8 transitive deps).
+///
+/// Returns a `String` (allocates) instead of `&'static str` because the
+/// timestamp is runtime-generated. Callers: `--dump-config` stdout path and
+/// `--dump-config <path>` file-write path in `main.rs`.
+#[must_use]
+pub(crate) fn dump_config_with_header() -> String {
+    let ts = crate::clock::now_iso_utc();
+    format!(
+        "# cosmostrix config file\n# generated at {ts}\n# using Howard Hinnant chrono design (libc::gmtime_r)\n#\n{}",
+        dump_config_text()
+    )
+}
+
 #[must_use]
 pub(crate) fn known_keys() -> Vec<&'static str> {
     USER_CONFIG_KEYS
@@ -1034,6 +1063,53 @@ mod tests {
         let dump = dump_config_text();
         for key in USER_CONFIG_KEYS.iter() {
             assert!(dump.contains(*key), "dump config should mention {key}");
+        }
+        assert!(dump.contains("[scene-custom.hacker-mode]"));
+    }
+
+    #[test]
+    fn dump_config_with_header_starts_with_header_lines() {
+        // v30: the generated config must start with the 3-line header +
+        // blank `#` line, then the existing `# cosmostrix configuration`
+        // template body.
+        let dump1 = dump_config_with_header();
+        let lines: Vec<&str> = dump1.lines().collect();
+        assert!(lines.len() >= 5, "header should have >= 5 lines");
+        assert_eq!(lines[0], "# cosmostrix config file", "header line 1");
+        // Line 2: `# generated at <ISO 8601 UTC>`
+        let line2 = lines[1];
+        assert!(
+            line2.starts_with("# generated at "),
+            "header line 2 wrong: {line2:?}"
+        );
+        let ts = line2.trim_start_matches("# generated at ");
+        assert!(
+            ts.len() == 20 && ts.ends_with('Z') && ts.as_bytes()[10] == b'T',
+            "timestamp not RFC 3339: {ts:?}"
+        );
+        // Line 3: Hinnant attribution
+        assert_eq!(
+            lines[2], "# using Howard Hinnant chrono design (libc::gmtime_r)",
+            "header line 3"
+        );
+        // Line 4: blank `#` separator
+        assert_eq!(lines[3], "#", "blank separator");
+        // Line 5: existing template body starts
+        assert_eq!(
+            lines[4], "# cosmostrix configuration",
+            "template body start"
+        );
+    }
+
+    #[test]
+    fn dump_config_with_header_includes_all_keys() {
+        // The header prepended must not break the existing key-coverage test.
+        let dump = dump_config_with_header();
+        for key in USER_CONFIG_KEYS.iter() {
+            assert!(
+                dump.contains(*key),
+                "header'd dump should still mention {key}"
+            );
         }
         assert!(dump.contains("[scene-custom.hacker-mode]"));
     }

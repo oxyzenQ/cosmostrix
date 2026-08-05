@@ -353,11 +353,15 @@ pub(crate) fn startup_warning_count() -> u64 {
 /// Returns `[--:--]` if the system clock is unavailable (extremely rare —
 /// only happens on platforms without a working localtime). This keeps
 /// verbose output readable even in degraded environments.
+///
+/// v30 (Hinnant-style): delegates to `clock::now_hhmm()` which uses direct
+/// `libc::localtime_r` on Unix (no chrono dependency, no allocation in the
+/// chrono wrapper layer). Previously called `chrono::Local::now()` which
+/// pulled in 8 transitive crates including `wasm-bindgen`, `js-sys`, and
+/// `iana-time-zone-haiku` — all dead weight on a Linux-native CLI.
 #[must_use]
 pub(crate) fn now_hhmm() -> String {
-    use chrono::Timelike;
-    let now = chrono::Local::now();
-    format!("[{:02}:{:02}]", now.hour(), now.minute())
+    crate::clock::now_hhmm()
 }
 
 /// Format a verbose line: bold purple `[verbose] [HH:MM]` prefix + purple

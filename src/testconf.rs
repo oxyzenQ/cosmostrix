@@ -356,8 +356,8 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             .parse::<f64>()
             .ok()
             .and_then(|n| {
-                if !(1.0..=240.0).contains(&n) {
-                    Some(format!("out of range [1, 240], got {n}"))
+                if !(1.0..=300.0).contains(&n) {
+                    Some(format!("out of range [1, 300], got {n}"))
                 } else {
                     None
                 }
@@ -365,7 +365,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             .or_else(|| {
                 // Non-numeric fps is also an error.
                 if v.parse::<f64>().is_err() {
-                    Some(format!("expected number in [1, 240], got '{v}'"))
+                    Some(format!("expected number in [1, 300], got '{v}'"))
                 } else {
                     None
                 }
@@ -702,8 +702,10 @@ mod tests {
     #[test]
     fn fps_out_of_range_is_rejected() {
         assert!(validate_field_value("fps", "0").is_some());
-        assert!(validate_field_value("fps", "241").is_some());
+        // v30: cap bumped 240 -> 300. 241 is now valid; 301 is the new reject edge.
+        assert!(validate_field_value("fps", "301").is_some());
         assert!(validate_field_value("fps", "60").is_none());
+        assert!(validate_field_value("fps", "300").is_none());
     }
 
     #[test]

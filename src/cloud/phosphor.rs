@@ -618,10 +618,10 @@ impl Cloud {
     /// Apply global atmospheric effects to the frame.
     ///
     /// Phase 3-G (Chroma Dragon Innovation G): this post-hoc pass is now a
-    /// no-op. Atmospheric effects (luminance dim/boost, saturation drift,
+    /// no-op. Climate effects (luminance dim/boost, saturation drift,
     /// persistence glow, instability flicker) are applied in the shader
     /// pipeline at `chroma::shaders::base::resolve_cell_color` via
-    /// `chroma::post::atmosphere::apply_atmospheric`, BEFORE the cell is
+    /// `chroma::post::climate::apply_climate`, BEFORE the cell is
     /// encoded as `Color::Rgb` and written to the frame.
     ///
     /// Why disable the post-hoc pass?
@@ -645,7 +645,7 @@ impl Cloud {
     /// The original post-hoc implementation is preserved in git history
     /// (commit prior to Phase 3-G) and can be recovered if a future commit
     /// reverts the shader integration.
-    pub(super) fn apply_atmospheric_frame_effects(
+    pub(super) fn apply_climate_frame_effects(
         &mut self,
         _frame: &mut crate::frame::Frame,
         _now: Instant,

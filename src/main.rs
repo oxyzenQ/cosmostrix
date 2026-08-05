@@ -50,9 +50,9 @@ mod app;
 // removed. Design knowledge preserved in
 // docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
 //
-// NOTE: src/chroma/post/atmosphere.rs (AtmosphericCtx — luminance/
+// NOTE: src/chroma/post/climate.rs (ClimateCtx — luminance/
 // saturation/instability shader) is a SEPARATE Chroma Dragon post-FX
-// subsystem and is KEPT. The `AtmosphericEvolution` struct in
+// subsystem and is KEPT. The `EntropyDrift` struct in
 // cloud/ecosystem.rs (drift/gust events) is also SEPARATE and KEPT.
 mod bench;
 mod bench_baseline;
@@ -84,6 +84,7 @@ mod central_control_rains;
 mod cinematic;
 mod cli;
 mod cli_parse;
+mod clock;
 mod cloud;
 mod color_cache;
 mod color_tune;
@@ -218,6 +219,44 @@ fn stdout_is_redirected_to_file() -> bool {
     // If fstat fails (shouldn't happen on stdout), don't block — let the
     // write proceed. Better to be permissive than to break a valid use case.
     false
+}
+
+/// Write `text` to `target_path` atomically: temp-file + fsync + rename.
+/// POSIX `rename(2)` is atomic — readers see either old or new file, never
+/// a half-written one. Temp lives in same dir (same-filesystem move) as
+/// `<target>.tmp.<pid>`. Best-effort cleanup on error.
+fn write_config_atomic(target_path: &str, text: &str) -> std::io::Result<()> {
+    let target = std::path::Path::new(target_path);
+    let parent = target
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or_else(|| std::path::Path::new("."));
+    // Create parent dir if missing — skip /etc/ and /var/ (system paths
+    // should require explicit user creation to avoid wrong-permission auto).
+    if !parent.exists() {
+        if let Some(parent_str) = parent.to_str() {
+            if !parent_str.starts_with("/etc/") && !parent_str.starts_with("/var/") {
+                std::fs::create_dir_all(parent)?;
+            }
+        }
+    }
+    let pid = std::process::id();
+    let tmp_name = format!(
+        "{}.tmp.{pid}",
+        target
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("config.toml")
+    );
+    let tmp_path = parent.join(&tmp_name);
+    std::fs::write(&tmp_path, text)?;
+    // fsync for crash-durability. If it fails, rename still proceeds (data
+    // is in page cache). Surface error only if rename itself fails.
+    if let Ok(file) = std::fs::File::open(&tmp_path) {
+        let _ = file.sync_all();
+    }
+    std::fs::rename(&tmp_path, target)?;
+    Ok(())
 }
 
 #[cfg(target_os = "linux")]
@@ -413,7 +452,7 @@ fn main() -> std::io::Result<()> {
                     );
                 }
             }
-            print!("{}", configfile::dump_config_text());
+            print!("{}", configfile::dump_config_with_header());
             return Ok(());
         }
         // Path argument given: validate whitelist + .toml extension.
@@ -464,7 +503,17 @@ fn main() -> std::io::Result<()> {
                  cosmostrix --dump-config {path_str} --force"
             ));
         }
-        match std::fs::write(path_str, configfile::dump_config_text()) {
+        // v30: atomic write via temp-file + fsync + rename. Previously a
+        // direct `std::fs::write` — if the process was killed mid-write
+        // (Ctrl-C, OOM, power loss), the target file could be left as a
+        // zero-byte or truncated stub. With `--force` overwriting an
+        // existing config, that meant destroying the user's previous config
+        // AND leaving an incomplete one — the worst data-loss scenario the
+        // guard was supposed to make explicit. Atomic rename guarantees
+        // readers see either the old file or the complete new file, never
+        // a half-written one.
+        let text = configfile::dump_config_with_header();
+        match write_config_atomic(path_str, &text) {
             Ok(()) => {
                 if args.verbose {
                     crate::output::eprintln_verbose_raw(&format!(
@@ -601,14 +650,14 @@ fn main() -> std::io::Result<()> {
         _ => BoldMode::Random,
     };
 
-    let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
+    let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 300.0));
 
     // v30 (VSCode crash fix): apply terminal-specific FPS cap after user
     // validation. VSCode's integrated terminal (TERM_PROGRAM=vscode) cannot
     // sustain 60 FPS indefinitely — xterm.js's in-memory buffer grows
     // without bound over multi-hour runs until V8 hits an OOM assertion
     // (SIGTRAP in the code-oss process). The cap is 30 FPS for VSCode,
-    // 240 (effectively uncapped) for everything else. The user's --fps
+    // 300 (effectively uncapped) for everything else. The user's --fps
     // value is clamped, not silently overridden — a warning is printed
     // so there's no confusion. Benchmark mode skips the cap (benchmarks
     // measure raw throughput, not terminal stability).
