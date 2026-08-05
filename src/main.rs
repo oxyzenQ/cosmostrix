@@ -447,12 +447,21 @@ fn main() -> std::io::Result<()> {
         // causing data loss if the user pointed it at their carefully-tuned
         // ~/.config/cosmostrix/config.toml. Now: if the file exists, exit
         // with a clear error + suggest writing to a .new suffix instead.
-        if std::path::Path::new(path_str).exists() {
+        //
+        // v30 (2026-08-05): --force flag bypasses this guard. Use case: a
+        // user who has read the existing config, decided they want to start
+        // fresh, and explicitly opts in to overwrite. Still scoped to
+        // --dump-config only (does not affect --save-baseline or other
+        // write paths). The error message tells the user about --force so
+        // they don't have to read the docs to discover it.
+        if std::path::Path::new(path_str).exists() && !args.force {
             ux::die_input(format!(
                 "error: --dump-config refuses to overwrite existing file '{path_str}'\n  \
                  Move the existing file aside first, or write to a new path:\n    \
                  cosmostrix --dump-config {path_str}.new\n  \
-                 Then review the new file and rename if appropriate."
+                 Then review the new file and rename if appropriate.\n  \
+                 To overwrite deliberately (destructive), pass --force:\n    \
+                 cosmostrix --dump-config {path_str} --force"
             ));
         }
         match std::fs::write(path_str, configfile::dump_config_text()) {

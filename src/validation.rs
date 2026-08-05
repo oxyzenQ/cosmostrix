@@ -670,4 +670,47 @@ mod tests {
         assert!(err.contains("--preset has been removed"));
         assert!(err.contains("--scene <name>"));
     }
+
+    #[test]
+    fn force_flag_does_not_match_any_removed_flag_pattern() {
+        // v30 (2026-08-05): --force is a new flag scoped to --dump-config.
+        // Verify it is NOT accidentally caught by check_removed_flags
+        // (which would reject it as a removed flag). --force must parse
+        // cleanly through prevalidate so it reaches main() where the
+        // dump-config overwrite logic reads args.force.
+        let argv = ["cosmostrix", "--force"]
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        assert!(
+            check_removed_flags(&argv).is_ok(),
+            "--force must not be intercepted as a removed flag"
+        );
+        assert!(
+            prevalidate_cli_args(&argv).is_ok(),
+            "--force must pass prevalidate so it reaches main()"
+        );
+    }
+
+    #[test]
+    fn force_flag_parses_alongside_dump_config() {
+        // Verify --force parses cleanly when combined with --dump-config
+        // (the canonical use case). We don't verify the actual file write
+        // here — that requires a subprocess integration test. This test
+        // just locks in that the two flags compose without clap errors.
+        let argv = [
+            "cosmostrix",
+            "--dump-config",
+            "/tmp/should-not-be-written.toml",
+            "--force",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect::<Vec<_>>();
+        // Both flags are valid; prevalidate must accept them.
+        assert!(
+            prevalidate_cli_args(&argv).is_ok(),
+            "--dump-config + --force must pass prevalidate"
+        );
+    }
 }

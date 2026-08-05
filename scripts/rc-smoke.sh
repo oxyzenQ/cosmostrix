@@ -21,10 +21,20 @@ fail() { printf '[FAIL] %s\n' "$*" >&2; exit 1; }
 
 [[ -x "$BIN" ]] || fail "Binary not found or not executable: $BIN"
 
+# v30 (2026-08-05): cosmostrix enforces a strict config-path whitelist
+# (~/.config/cosmostrix/, /etc/cosmostrix/, etc.). mktemp creates files in
+# /tmp which is rejected. We use a per-run subdirectory inside the user's
+# config dir instead, and clean it up on exit via a trap.
+RC_SMOKE_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/cosmostrix/rc-smoke.$$"
+mkdir -p "$RC_SMOKE_DIR"
+trap 'rm -rf "$RC_SMOKE_DIR"' EXIT
+
 # ── Version check ─────────────────────────────────────────────────────────
 
 log "Checking version output"
-"$BIN" -V | grep -Fq "Version: v" || fail "Missing version in -V output"
+# v30 (2026-08-05): version_report() emits "cosmostrix: v<version>" as the
+# first line. The historical "Version: v" pattern was from a pre-v30 format.
+"$BIN" -V | grep -Fq "cosmostrix: v" || fail "Missing 'cosmostrix: v' header in -V output"
 pass "Version present"
 
 # ── Info/doctor check ─────────────────────────────────────────────────────
@@ -50,37 +60,42 @@ log "Checking benchmark output"
 "$BIN" --benchmark | grep -Eq "actual_execution: single-threaded-renderer" || fail "actual_execution should be single-threaded-renderer"
 pass "Benchmark fields present and correct"
 
-# ── Controlled-live config smoke ──────────────────────────────────────────
+# ── Standard config + doctor smoke ────────────────────────────────────────
+# Replaces the old "controlled-live config smoke" block. The atmosphere-mode
+# and atmosphere-regime config keys were eliminated at commit 07b44b5 (Dragon
+# Hunt v2 Phase 6 Tier E item 31 — atmosphere engine subsystem fully removed).
+# A standard valid config is now used to verify --doctor reads it cleanly.
 
-log "Checking controlled-live config smoke"
-TMP_CL="$(mktemp)"
-printf 'scene = monolith\ncolor = sun\natmosphere-mode = controlled-live\natmosphere-regime = pulse\n' > "$TMP_CL"
+log "Checking standard config + doctor smoke"
+TMP_CL="$RC_SMOKE_DIR/cl.toml"
+printf 'scene = monolith\ncolor = sun\n' > "$TMP_CL"
 
 # v17: --info removed. Check --doctor for build/renderer fields.
 "$BIN" --config "$TMP_CL" --doctor | grep -Fq "BUILD" || fail "doctor should have BUILD section"
 "$BIN" --config "$TMP_CL" --doctor | grep -Fq "RENDERER" || fail "doctor should have RENDERER section"
-pass "Controlled-live config smoke passed"
-rm -f "$TMP_CL"
+pass "Standard config + doctor smoke passed"
 
-# CLI color override with controlled-live config
-TMP_CL2="$(mktemp)"
-printf 'scene = monolith\ncolor = cosmos\natmosphere-mode = controlled-live\natmosphere-regime = pulse\n' > "$TMP_CL2"
+# CLI color override with standard config
+TMP_CL2="$RC_SMOKE_DIR/cl2.toml"
+printf 'scene = monolith\ncolor = cosmos\n' > "$TMP_CL2"
 
-log "Checking CLI color override with controlled-live config"
+log "Checking CLI color override with standard config"
 "$BIN" --config "$TMP_CL2" --color sun --doctor | grep -Fq "variant:" || fail "doctor should show variant field"
-pass "CLI color override with controlled-live config passed"
-rm -f "$TMP_CL2"
+pass "CLI color override with standard config passed"
 
-# ── Disabled + non-Calm config smoke ──────────────────────────────────────
+# ── Eliminated atmosphere keys are rejected ───────────────────────────────
+# v30 (2026-08-05, atmosphere elimination): atmosphere-mode and
+# atmosphere-regime config keys must be rejected with a clear migration
+# message. Replaces the old "Disabled + non-Calm config smoke" block which
+# tested the now-deleted atmosphere runtime path.
 
-log "Checking disabled + non-Calm config smoke"
-TMP_DIS="$(mktemp)"
+log "Checking eliminated atmosphere-mode/regime keys are rejected"
+TMP_DIS="$RC_SMOKE_DIR/dis.toml"
 printf 'atmosphere-mode = disabled\natmosphere-regime = pulse\n' > "$TMP_DIS"
 
-# v17: simplified atmosphere section — check status field
-"$BIN" --config "$TMP_DIS" --doctor | grep -Fq "status:" || fail "doctor should have atmosphere status field"
-pass "Disabled + non-Calm config smoke passed"
-rm -f "$TMP_DIS"
+DIS_ERR="$("$BIN" --config "$TMP_DIS" --testconf 2>&1 || true)"
+echo "$DIS_ERR" | grep -Fq "unknown key" || fail "atmosphere-mode/atmosphere-regime must be rejected as unknown keys by --testconf"
+pass "Eliminated atmosphere keys rejection passed"
 
 # ── v14 Scene catalog discoverability via --list-scenes ───────────────────
 
@@ -133,29 +148,43 @@ pass "Casing audit clean"
 log "Checking --dump-config scene-custom pointers"
 DUMP_V47=$("$BIN" --dump-config)
 echo "$DUMP_V47" | grep -Fq "scene-custom" || fail "--dump-config must document scene-custom namespace"
-echo "$DUMP_V47" | grep -Fq "ATMOSPHERE_ENGINE" || fail "--dump-config must point to docs/ATMOSPHERE_ENGINE.md"
+# v30 (2026-08-05, atmosphere elimination): the historical ATMOSPHERE_ENGINE.md
+# reference was removed from --dump-config because the doc was archived to
+# docs/archive/specs/. The dump must NOT advertise the dead atmosphere
+# subsystem as if it were a live feature.
+! echo "$DUMP_V47" | grep -Fq "adaptive-custom.0" || fail "--dump-config must not advertise the eliminated adaptive-custom.* keys as a working example"
 pass "--dump-config scene-custom pointers passed"
 
 log "Checking unknown custom scene error mentions --list-scenes"
-TMP_UP="$(mktemp)"
+TMP_UP="$RC_SMOKE_DIR/up.toml"
 printf 'scene-custom.test.base = monolith\n' > "$TMP_UP"
 UP_ERR=$("$BIN" --config "$TMP_UP" --scene-custom nonexistent 2>&1 || true)
 echo "$UP_ERR" | grep -Fq "expected one of:" || fail "unknown custom scene error must list available names"
-rm -f "$TMP_UP"
 pass "Unknown custom scene error passed"
 
-log "Checking storm atmosphere-regime remains unavailable"
-TMP_STORM="$(mktemp)"
+log "Checking storm scene-custom atmosphere-regime field is rejected"
+# v30 (2026-08-05, atmosphere elimination): the atmosphere-regime field on
+# scene-custom blocks was removed along with the atmosphere engine. A user
+# who still has it in their config must get a clear rejection (unknown key).
+TMP_STORM="$RC_SMOKE_DIR/storm.toml"
 printf 'scene-custom.storm.base = monolith\nscene-custom.storm.atmosphere-regime = storm\n' > "$TMP_STORM"
-STORM_ERR=$("$BIN" --config "$TMP_STORM" --scene-custom storm 2>&1 || true)
-echo "$STORM_ERR" | grep -Fq "storm is unavailable" || fail "storm must be reported as unavailable"
-rm -f "$TMP_STORM"
-pass "Storm unavailability passed"
+STORM_ERR=$("$BIN" --config "$TMP_STORM" --testconf 2>&1 || true)
+echo "$STORM_ERR" | grep -Fq "unknown key" || fail "scene-custom.<name>.atmosphere-regime must be rejected as an unknown key (field eliminated with atmosphere engine)"
+pass "Storm atmosphere-regime rejection passed"
 
 log "Checking default runtime and writer invariants"
-"$BIN" --doctor | grep -Fq "status:" || fail "doctor must have atmosphere status"
+# v30 (2026-08-05, atmosphere elimination): the --doctor "status:" line was
+# part of the atmosphere diagnostic section, which was removed. Replaced
+# with a check on RENDERER + CAPACITY, which are the live post-elimination
+# diagnostic sections every --doctor run must emit. The benchmark
+# `compute_parallelism: disabled` field was also removed (it was part of
+# the atmosphere diagnostic block); only `terminal_writer: single-owner`
+# and `actual_execution: single-threaded-renderer` remain as the live
+# writer/parallelism contract.
+"$BIN" --doctor | grep -Fq "RENDERER" || fail "doctor must have RENDERER section"
+"$BIN" --doctor | grep -Fq "CAPACITY" || fail "doctor must have CAPACITY section"
 "$BIN" --benchmark | grep -Eq "terminal_writer: single-owner" || fail "terminal_writer must be single-owner"
-"$BIN" --benchmark | grep -Eq "compute_parallelism: disabled" || fail "compute_parallelism must be disabled"
+"$BIN" --benchmark | grep -Eq "actual_execution: single-threaded-renderer" || fail "actual_execution must be single-threaded-renderer"
 pass "Default runtime and writer invariants passed"
 
 log "All release candidate smoke checks passed"
