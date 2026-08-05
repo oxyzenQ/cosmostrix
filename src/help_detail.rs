@@ -43,7 +43,14 @@ COMMON OPTIONS:
       the next config save (no restart needed).
 
   -f, --fps <1-240>
-      Target FPS.
+      Target FPS (interactive mode frame limiter). The loop sleeps between
+      frames to maintain this cap; press 'i' to see it as `tgt:` in the HUD
+      (alongside the render-work `fps:` line, which can be much higher
+      because it measures 1000/work_ms, not the capped cadence). Adaptive
+      idle throttle may halve the effective rate after 30s of no input
+      (shown as `tgt: 30 idle`). In --benchmark mode this sets the
+      simulation rate only — avg_fps in the report is unconstrained render
+      throughput; check `target_fps` to confirm what you set.
       cosmostrix --fps 30
 
   -S, --speed <1-100>
@@ -220,6 +227,16 @@ CONFIG:
       (typos, unknown keys, invalid values). Exit 0 = pass, 2 = fail.
       Run --config-path to see the resolved path for your platform.
 
+  --force
+      Force overwrite when writing files. Currently scoped to --dump-config
+      ONLY: allows overwriting an existing config at the target path.
+      Default --dump-config refuses to overwrite (data-loss guard).
+      Other write operations (--save-baseline, etc.) are NOT affected
+      by --force — they have their own per-flag overwrite policy.
+      Examples:
+        cosmostrix --dump-config ~/.config/cosmostrix/config.toml --force
+      Destructive: replaces the existing file with the example template.
+
   Precedence (highest wins):
       built-in defaults < scene defaults (fills unset keys only)
       < config values < config scene-custom
@@ -298,7 +315,8 @@ DIAGNOSTICS:
       Also resets scroll region, character set, and auto-wrap.
       cosmostrix --reset-terminal
   --verbose      Print diagnostic info to stderr before launching. Shows
-      config path, resolved values, terminal detection, atmosphere state.
+      config path, resolved values, terminal detection, system feeling
+      state.
 
 DISCOVERY:
   --list-colors         Show color theme names.
@@ -376,7 +394,7 @@ RUNTIME CONTROLS:
   x             Cycle scene       [ / ]      Density
   Up / Down     Speed
   Space         Reset animation
-  i             Toggle live HUD (FPS / p99 / max / RSS / CPU% / uptime / screen)
+  i             Toggle live HUD (fps / tgt / p99 / max / RSS / CPU% / uptime / screen)
   h             Move HUD to opposite corner (left ↔ right)
 
 HELP:

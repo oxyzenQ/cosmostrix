@@ -76,6 +76,26 @@ const HUD_MIN_WIDTH: u16 = 12;
 /// would make ` p99` wrap visually).
 const HUD_MAX_WIDTH: u16 = 22;
 
+/// Frame pacing mode announced by the event loop to the HUD.
+///
+/// v30 (2026-08-05): added so the HUD `tgt:` line can show whether the
+/// user's configured --fps cap is actually in effect, or whether the loop
+/// is currently running at the idle throttle (target_fps * IDLE_FPS_FACTOR)
+/// or paused. Without this, `--fps 30` + 30s idle made the HUD `fps:` line
+/// drop to ~15 with no explanation — the user had no way to tell whether
+/// the renderer was broken or just idle-throttled.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub(crate) enum FrameMode {
+    /// Normal active rendering at `target_fps`.
+    #[default]
+    Active,
+    /// Adaptive idle throttle is engaged (no input for IDLE_THRESHOLD_SECS).
+    /// Effective FPS = target_fps * IDLE_FPS_FACTOR (typically 0.5x).
+    Idle,
+    /// User pressed Space/P to pause. Loop ticks at PAUSE_PERIOD_MS.
+    Paused,
+}
+
 /// HUD position: left or right corner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum HudPosition {
@@ -121,20 +141,33 @@ pub(crate) struct HudState {
     /// successful delta. Renders as `cpu: —` (em dash).
     cpu_percent: Option<f32>,
     /// Cached max frame time (ms) for display. Updated on every push.
-    /// Auto-resets every MAX_RESET_INTERVAL_SECS to prevent startup
+    /// Auto-resates every MAX_RESET_INTERVAL_SECS to prevent startup
     /// spikes from dominating forever.
     max_ms: f64,
     /// When max_ms was last reset. Used for auto-reset.
     max_reset_at: Instant,
     /// Cached p99 frame time (ms) for display. Updated at 1 Hz.
     p99_ms: f64,
+    /// Target FPS as configured by --fps / config.toml `fps =`.
+    /// Set via `set_target_fps()` from the event loop. Displayed as the
+    /// `tgt:` line so the user can distinguish their configured cap from
+    /// the `fps:` line (which is render-work throughput = 1000/work_ms,
+    /// often much higher than the cap because the loop sleeps between
+    /// frames). v30 (2026-08-05): added because users were confused that
+    /// `--fps 30` produced `fps: 11000` in the HUD.
+    target_fps: f64,
+    /// Current frame pacing mode. Announced by the event loop each frame
+    /// so the HUD can show whether the user's target_fps is actually in
+    /// effect (active), throttled to idle_fps_factor (idle), or paused.
+    /// v30 (2026-08-05): added alongside target_fps.
+    frame_mode: FrameMode,
     /// Screen size for HUD display. Updated by event_loop when terminal
     /// resizes or --screen-size is set. Format: (width, height, is_fixed).
     screen_size: (u16, u16, bool),
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
-    /// 7 lines: fps / p99 / max / rss / cpu / up / screensize.
-    cached_lines: [(Color, String); 7],
+    /// 8 lines: fps / tgt / p99 / max / rss / cpu / up / screensize.
+    cached_lines: [(Color, String); 8],
     /// Current dynamic HUD width (in terminal columns). Recomputed
     /// every metric update to fit the longest line. Grows when FPS
     /// or RSS values are long, shrinks when they're short.
@@ -163,9 +196,15 @@ impl HudState {
             max_ms: 0.0,
             max_reset_at: Instant::now(),
             p99_ms: 0.0,
+            // v30 (2026-08-05): default target_fps to 60.0 — the same default
+            // as Args::fps. The event loop calls set_target_fps() at startup
+            // with the resolved value (which may be lower on VSCode, etc.).
+            target_fps: 60.0,
+            frame_mode: FrameMode::Active,
             screen_size: (0, 0, false),
             cached_lines: [
                 (Color::Cyan, String::new()),
+                (Color::Cyan, String::new()), // tgt line — uses `head` (bright) at runtime
                 (Color::Yellow, String::new()),
                 (Color::Magenta, String::new()),
                 (Color::Green, String::new()),
@@ -336,6 +375,26 @@ impl HudState {
         self.screen_size = (w, h, is_fixed);
     }
 
+    /// Set the user-configured target FPS. Called by event_loop at startup
+    /// with the resolved --fps / config.toml `fps =` value (after VSCode
+    /// capping and any other terminal-cap adjustments). Displayed on the
+    /// `tgt:` line so the user can distinguish their configured cap from
+    /// the `fps:` line (render-work throughput, often much higher).
+    /// v30 (2026-08-05): added to fix the "--fps 30 → HUD shows 11k fps"
+    /// confusion — the user can now see `tgt: 30` alongside `fps: 11000`
+    /// and understand the loop is sleeping to maintain the cap.
+    pub(crate) fn set_target_fps(&mut self, fps: f64) {
+        self.target_fps = fps;
+    }
+
+    /// Announce the current frame pacing mode. Called by event_loop every
+    /// frame so the HUD can show whether `target_fps` is actually in effect
+    /// (Active), throttled by the idle detector (Idle), or paused (Paused).
+    /// v30 (2026-08-05): added alongside set_target_fps.
+    pub(crate) fn set_frame_mode(&mut self, mode: FrameMode) {
+        self.frame_mode = mode;
+    }
+
     /// Recompute HUD metrics (rate-limited at 1 Hz). Called every frame
     /// from the event loop. Cheap on the fast path (one timestamp
     /// comparison + early return). When the interval elapses, reformats
@@ -416,9 +475,30 @@ impl HudState {
             format!("{fps:.1}")
         };
         self.cached_lines[0] = (head, format!(" fps: {fps_str}"));
-        self.cached_lines[1] = (mid, format!(" p99: {:.3}ms", self.p99_ms));
-        self.cached_lines[2] = (head, format!(" max: {:.3}ms", self.max_ms));
-        self.cached_lines[3] = (trail, format!(" rss: {rss_str}"));
+        // v30 (2026-08-05): tgt line shows the user-configured --fps cap
+        // alongside the current frame pacing mode. This disambiguates the
+        // common confusion where `--fps 30` produces `fps: 11000` in the
+        // HUD (because `fps:` is render-work throughput = 1000/work_ms,
+        // not the loop's frame-period cap). The mode suffix tells the user
+        // whether the cap is actually in effect:
+        //   ` tgt: 30`        — active, loop targeting 30 FPS
+        //   ` tgt: 30 idle`   — adaptive idle throttle engaged (effective ~15)
+        //   ` tgt: 30 paused` — user pressed Space/P, loop ticking at 4 Hz
+        // Format chosen to be compact (≤14 chars) so HUD width stays ≤22.
+        let tgt_str = if self.target_fps >= 100.0 {
+            format!("{:.0}", self.target_fps)
+        } else {
+            format!("{:.1}", self.target_fps)
+        };
+        let mode_suffix = match self.frame_mode {
+            FrameMode::Active => String::new(),
+            FrameMode::Idle => " idle".to_string(),
+            FrameMode::Paused => " paused".to_string(),
+        };
+        self.cached_lines[1] = (head, format!(" tgt: {tgt_str}{mode_suffix}"));
+        self.cached_lines[2] = (mid, format!(" p99: {:.3}ms", self.p99_ms));
+        self.cached_lines[3] = (head, format!(" max: {:.3}ms", self.max_ms));
+        self.cached_lines[4] = (trail, format!(" rss: {rss_str}"));
         // CPU% line: process CPU usage with 2-decimal precision.
         // Format: ` cpu: 0.45%` (single-threaded typical: 0-5%) or
         // ` cpu: —` when the sampler is unsupported (non-unix) or
@@ -438,11 +518,11 @@ impl HudState {
             Some(pct) => format!("{pct:.2}%"),
             None => "—".to_string(),
         };
-        self.cached_lines[4] = (mid, format!(" cpu: {cpu_str}"));
-        self.cached_lines[5] = (dim, format!(" up: {uptime_str}"));
+        self.cached_lines[5] = (mid, format!(" cpu: {cpu_str}"));
+        self.cached_lines[6] = (dim, format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
-        self.cached_lines[6] = (dim, format!(" {sw}x{sh} {mode}"));
+        self.cached_lines[7] = (dim, format!(" {sw}x{sh} {mode}"));
 
         // Compute dynamic width: find the longest line, clamp to [min, max].
         let max_len = self
@@ -715,10 +795,12 @@ mod tests {
 
     #[test]
     fn hud_cpu_line_renders_dash_when_unsupported() {
-        // Verify the cached_lines[4] entry renders ` cpu: —` when
+        // Verify the cached_lines[5] entry renders ` cpu: —` when
         // cpu_percent is None. This is the user-visible contract:
         // unsupported platforms (non-unix) and the brief pre-delta
         // window after HUD-on both show the em dash, not `0.00%`.
+        // (v30 2026-08-05: index shifted from [4] to [5] because a new
+        // `tgt:` line was inserted at index [1].)
         let mut h = HudState::new();
         h.toggle(); // visible
                     // Force-update metrics without sampling — cpu_percent stays None.
@@ -729,8 +811,8 @@ mod tests {
             h.cpu_percent.is_none(),
             "cpu_percent must be None before any sample"
         );
-        // cached_lines[4] is the cpu line.
-        let (_, cpu_line) = &h.cached_lines[4];
+        // cached_lines[5] is the cpu line (after v30 tgt line insertion).
+        let (_, cpu_line) = &h.cached_lines[5];
         assert!(
             cpu_line.contains('—'),
             "cpu line must render em dash when unsupported, got: {cpu_line:?}"
@@ -743,11 +825,13 @@ mod tests {
         // and verify update_metrics renders ` cpu: 12.34%` (2 decimals).
         // This locks in the display format independently of the sampler
         // behavior — if we later change to 1 decimal, this test fails.
+        // (v30 2026-08-05: index shifted from [4] to [5] because a new
+        // `tgt:` line was inserted at index [1].)
         let mut h = HudState::new();
         h.toggle(); // visible
         h.cpu_percent = Some(12.3456); // should render as 12.35%
         h.update_metrics(&[]);
-        let (_, cpu_line) = &h.cached_lines[4];
+        let (_, cpu_line) = &h.cached_lines[5];
         assert!(
             cpu_line.contains("12.35%"),
             "cpu line must render 2-decimal percent, got: {cpu_line:?}"
@@ -755,15 +839,18 @@ mod tests {
     }
 
     #[test]
-    fn hud_has_seven_cached_lines_after_v30_cpu_addition() {
-        // Regression guard: the HUD must have exactly 7 cached lines
-        // (fps / p99 / max / rss / cpu / up / screensize). If a future
-        // change adds or removes a line, this test will catch it.
+    fn hud_has_eight_cached_lines_after_v30_tgt_addition() {
+        // Regression guard: the HUD must have exactly 8 cached lines
+        // after the v30 (2026-08-05) addition of the `tgt:` line at
+        // index [1]. The previous count was 7 (fps / p99 / max / rss /
+        // cpu / up / screensize); now 8 (fps / tgt / p99 / max / rss /
+        // cpu / up / screensize). If a future change adds or removes a
+        // line, this test will catch it.
         let h = HudState::new();
         assert_eq!(
             h.cached_lines.len(),
-            7,
-            "HUD must have 7 cached lines after the v30 CPU% addition"
+            8,
+            "HUD must have 8 cached lines after the v30 tgt-line addition"
         );
     }
 
