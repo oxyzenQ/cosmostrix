@@ -35,7 +35,10 @@
 //!    happens — stable code is never demoted back into the incubator.
 //! 3. **Never break the stable engine.** Code in `cosmic_dragon/` must not mutate
 //!    stable module internals. It may call stable APIs (`crate::cloud::*`,
-//!    `crate::atmosphere::*`, etc.) but cannot reach into private fields.
+//!    `crate::chroma::post::atmosphere::*` for the post-FX shader, etc.) but
+//!    cannot reach into private fields. (v30 2026-08-05: the historical
+//!    `crate::atmosphere::*` reference was the eliminated atmosphere engine
+//!    subsystem; the live reference is now `crate::chroma::post::atmosphere`.)
 //! 4. **Each subdirectory is self-contained.** A `cosmic_dragon/breath/` module
 //!    does not import from `cosmic_dragon/scale/` — they are siblings, not a stack.
 //!    Cross-subsystem dependencies flow through the stable engine's public

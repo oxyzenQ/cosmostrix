@@ -8,8 +8,10 @@
 //!
 //! ## Catalog
 //!
-//! Built-in scenes combine the three core runtime atmospheres (`matrix`,
-//! `monolith`, `signal`) with nine curated visual scenes (`classic`,
+//! Built-in scenes combine the three core runtime styles (`matrix`,
+//! `monolith`, `signal` — the original "rain atmospheres" naming predates
+//! the v4.0.0 atmosphere engine and is unrelated to that now-eliminated
+//! subsystem) with nine curated visual scenes (`classic`,
 //! `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`,
 //! `low-power`) plus the `cosmic_dragon` milestone scene commemorating the
 //! temporal-prediction breakthrough (v20.0.0: dirty_ratio 18.33% → 0.39%,

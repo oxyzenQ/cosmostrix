@@ -1,17 +1,37 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Atmosphere Engine
+# Atmosphere Engine (archived — historical design spec)
 
-> **Archival notice (2026-08-05, Dragon Hunt v2 Phase 6 Tier E item 31).**
-> The frozen/test-only half of the atmosphere subsystem (the A/B smoke
-> harness in `atmosphere_ab.rs` and the regime probe in
-> `atmosphere_probe.rs`) has been deleted. This document remains the
-> canonical design spec for the **wired-in** atmosphere features
-> (regime enum, controlled-live modulation, adaptive hour-driven path,
-> custom time map, presets, shadow metrics, verifier, visual whisper).
-> See `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` for the
-> full archival record, including the design knowledge preserved from
-> the deleted modules.
+> **ARCHIVED 2026-08-05 (Dragon Hunt v2 Phase 6 Tier E item 31 — final
+> elimination).** This document is the historical v20 design spec for
+> the atmosphere engine subsystem. The entire subsystem was eliminated
+> at commit `07b44b5` (-7,875 LOC net). All `src/atmosphere_*.rs`
+> source files, all `atmosphere-mode` / `atmosphere-regime` /
+> `adaptive-custom.*` config keys, and all CLI flags have been deleted.
+>
+> Nothing in this document describes live behavior. It is preserved
+> verbatim as a historical record so that a future owner who wants to
+> revive any portion of the atmosphere engine has the original design
+> rationale, regime state machine, verifier bounds, and visual-whisper
+> adapter spec to work from. See
+> `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` for the full
+> elimination record (file list, KEPT-vs-DELETED table, backward-compat
+> notes, revival guidance).
+>
+> **Subsystems that still share the "atmosphere" name but were NOT
+> deleted** (because they are separate subsystems, not the v4.0.0
+> atmosphere engine):
+> - `src/chroma/post/atmosphere.rs` — Chroma Dragon post-FX shader
+>   (luminance/saturation/instability). Used by
+>   `chroma::shaders::base::resolve_cell_color` for every cell render.
+> - `AtmosphericEvolution` struct in `src/cloud/ecosystem.rs` — cloud
+>   drift/gust events (entropy_phase, density_offset, luminance_offset,
+>   anomaly_offset, cycle_speed).
+>
+> Below this point, the document is preserved verbatim from its pre-
+> archival state (except for this header). All "live" / "wired-in"
+> language refers to the state of the codebase at commit `a8e7270`
+> (the parent of the elimination commit `07b44b5`).
 
 The Atmosphere Engine is cosmostrix's visual climate layer. It models the
 overall mood of the terminal render as a slow-moving regime that modulates

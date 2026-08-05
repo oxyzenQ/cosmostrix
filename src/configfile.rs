@@ -69,12 +69,12 @@ pub(crate) struct ParsedConfig {
     /// v25.7: keys that were auto-promoted from a nested section to root scope.
     ///
     /// Each tuple is `(original_nested_key, promoted_root_key)`. Populated when
-    /// the user writes a top-level key (e.g. `adaptive-custom.02-00`) AFTER a
+    /// the user writes a top-level key (e.g. `fps = 30`) AFTER a
     /// `[scene-custom.<name>]` table header — TOML parses it as
-    /// `scene-custom.<name>.adaptive-custom.02-00`, but we detect the un-prefixed
-    /// form is a known top-level key and silently re-home it. This lets
-    /// scene-custom + adaptive-custom coexist in the same file without forcing
-    /// the user to learn TOML scope rules.
+    /// `scene-custom.<name>.fps`, but we detect the un-prefixed form is a
+    /// known top-level key and silently re-home it. This lets top-level keys
+    /// and `[scene-custom.<name>]` blocks coexist in the same file without
+    /// forcing the user to learn TOML scope rules.
     pub promoted_keys: Vec<(String, String)>,
 }
 
@@ -248,9 +248,10 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 // v25.7: Auto-promote forgiving parser. If the un-prefixed
                 // key is itself a known top-level key, the user accidentally
                 // nested it under a [section] header (very common when
-                // mixing [scene-custom.<name>] with adaptive-custom.HH-MM).
-                // Silently re-home it to root scope and record the promotion
-                // so --testconf can warn the user about the structural fix.
+                // mixing [scene-custom.<name>] with top-level keys like
+                // `fps` or `speed`). Silently re-home it to root scope and
+                // record the promotion so --testconf can warn the user
+                // about the structural fix.
                 if !current_section.is_empty() && is_known_key(&key) {
                     promoted_keys.push((full_key.clone(), key.clone()));
                     // Don't overwrite an explicit root-scope value — first
@@ -571,7 +572,13 @@ pub(crate) fn dump_config_text() -> &'static str {
 # intro = "logo"
 
 # Motion
-# Target FPS. Adaptive pacing may reduce under load.
+# Target FPS — the loop sleeps between frames to maintain this cap in
+# interactive mode. Press 'i' to see it as `tgt:` in the HUD (alongside
+# the render-work `fps:` line, which can be much higher because it
+# measures 1000/work_ms, not the capped cadence). Adaptive idle throttle
+# may halve the effective rate after 30s of no input.
+# In --benchmark mode this sets the simulation rate only; avg_fps in the
+# report is unconstrained render throughput.
 # fps = 60
 # Rain fall speed (1–100). Default depends on scene:
 #   monolith=30, matrix=18, signal=14, storm=28, calm=6, low-power=5
@@ -622,13 +629,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Ordering Rules (v25.7 — forgiving parser):
 #   Once you write a [section] header (e.g. [scene-custom.hacker-mode]),
 #   every flat key AFTER it belongs to that section until the next header.
-#   If you accidentally nest a top-level key (e.g. adaptive-custom.02-00)
-#   under a [section], cosmostrix v25.7+ auto-promotes it to root scope
-#   and tells you via --testconf. For clarity, prefer writing top-level
-#   keys BEFORE any [section] block.
+#   If you accidentally nest a top-level key (e.g. fps = 30) under a
+#   [section], cosmostrix v25.7+ auto-promotes it to root scope and tells
+#   you via --testconf. For clarity, prefer writing top-level keys BEFORE
+#   any [section] block.
 #
-# Working Example (scene-custom + adaptive-custom together):
-#   adaptive-custom.02-00 = cosmos, monolith, speed=15
+# Working Example (top-level keys + a scene-custom block together):
+#   scene = monolith
+#   fps = 30
+#   speed = 28
 #
 #   [scene-custom.hacker-mode]
 #   color = green
@@ -681,21 +690,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 # density = 0.85
 # density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
 
-# Adaptive Custom Time Map (optional)
-# REMOVED: adaptive-custom.* keys have been removed along with the
-# atmosphere engine subsystem. Any adaptive-custom.* entries in your
-# config will be rejected by --testconf.
-# Supported key=value: speed, density, fps, charset, glitch-level.
-# Transition: smooth 5-minute blend before next time point (numeric fields
-# speed/density/fps only); color/scene/charset/glitch-level snap at boundary.
-# Checked every 30s at runtime; live config reload re-parses immediately.
-# adaptive-custom.00-00 = cosmos, monolith, speed=15, density=1.2, fps=30
-# adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5, glitch-level=subtle
-# adaptive-custom.12-00 = cosmos, monolith, speed=30, density=0.85
-# adaptive-custom.18-00 = neon, storm, speed=24, density=1.1, glitch-level=intense
+# Adaptive Custom Time Map — REMOVED (2026-08-05, atmosphere engine elimination)
+# The `adaptive-custom.*` keys and the entire atmosphere engine subsystem
+# were eliminated at commit 07b44b5. Any `adaptive-custom.*` entries in
+# this file are now rejected by --testconf with a clear migration message.
+# Historical design spec: docs/archive/specs/ATMOSPHERE_ENGINE.md.
+# Elimination record:     docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
 
 # Custom Color Palettes (optional, v16+)
-# Define named custom palettes usable from --colors-custom or adaptive-custom.
+# Define named custom palettes usable from --colors-custom <name>.
 # Hex values use standard #rrggbb notation. ALWAYS quote hex strings: "#ff0000"
 # (unquoted # is treated as a TOML comment, silently truncating the value).
 # Fields:
@@ -705,7 +708,6 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   Also accepts CSV string: rain = "#stop0, #stop1, ..."
 #   Minimum 2 stops required; 7 stops recommended for full 3-2-2 distribution.
 # Load with: cosmostrix --colors-custom mytheme
-# Use in adaptive-custom: adaptive-custom.22-00 = mytheme, monolith
 
 # [colors-custom.zen]
 # bg = "#0a0a0a"

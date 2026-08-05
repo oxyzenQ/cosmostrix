@@ -218,9 +218,16 @@ mod tests {
         //
         // v30 strengthen (audit): removed `atmosphere_application` — it was
         // an exact duplicate of `application` (both printed the same
-        // `is_ident`-derived string). The `atmosphere_`-prefixed names
-        // below are documentation labels; the actual report field keys
-        // are the non-prefixed versions (regime, effective, transition, etc.).
+        // `is_ident`-derived string).
+        //
+        // v30 (2026-08-05, atmosphere elimination): removed all six
+        // `atmosphere_*`-prefixed stability fields from this list because
+        // they were never actual report field keys (they were documentation
+        // labels for the `regime`, `effective`, `transition`, `verifier`,
+        // `application_mode`, `visual_effect` keys, all of which were
+        // themselves removed when the atmosphere engine was eliminated at
+        // commit 07b44b5). The list now reflects what the post-elimination
+        // benchmark report actually emits.
         const REQUIRED_FIELDS: &[&str] = &[
             "avg_fps",
             "peak_fps",
@@ -242,12 +249,6 @@ mod tests {
             "plan_reason",
             "actual_execution",
             "terminal_writer",
-            "atmosphere_regime",
-            "atmosphere_effective",
-            "atmosphere_transition",
-            "atmosphere_verifier",
-            "atmosphere_application_mode",
-            "atmosphere_visual_effect",
             "effective_runtime",
         ];
         // These are checked against report field keys in the actual

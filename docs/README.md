@@ -83,8 +83,21 @@ These docs cover *how to tune what the rain looks like*.
 |-----|---------------|-----------------|
 | [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible.** Every tunable knob in the rain visual stack — per-layer brightness, depth, speed, density, phosphor decay, parallax multipliers. 1106 lines. | `src/central_control_rains.rs` (898 LOC) |
 | [RAIN_DEPTH_AUDIT.md](RAIN_DEPTH_AUDIT.md) | Visual-audit methodology for the rain depth stack (uses `--bench-scene production-draw`) | `src/central_control_rains.rs` |
-| [CINEMATIC_BREATHING.md](CINEMATIC_BREATHING.md) | Cinematic breathing effect — temporal modulation of rain density and speed | `src/cloud/living_rain.rs` |
-| [ATMOSPHERE_ENGINE.md](ATMOSPHERE_ENGINE.md) | Adaptive atmosphere engine — 5-phase time-driven modulation | `src/atmosphere_adaptive.rs`, `src/atmosphere_controlled_live.rs` |
+| [CINEMATIC_BREATHING.md (archived)](archive/specs/CINEMATIC_BREATHING.md) | Cinematic breathing vocabulary (Rest / Pulse / Signal / Compression / Void / Monolith-Pressure) — archived 2026-08-05 alongside atmosphere engine elimination. Concepts preserved; `--atmosphere-mode` / `--atmosphere-regime` triggers are obsolete. | (historical) |
+
+> **Note (v30 — 2026-08-05):** the atmosphere engine subsystem (former
+> `src/atmosphere_*.rs` modules, `--atmosphere-mode` / `--atmosphere-regime`
+> CLI flags, `atmosphere-mode` / `atmosphere-regime` / `adaptive-custom.*`
+> config keys) was fully eliminated at commit `07b44b5` (-7,875 LOC net).
+> The historical design spec is preserved at
+> [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md).
+> The elimination record (file list, KEPT-vs-DELETED table, backward-compat
+> notes, revival guidance) is at
+> [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md).
+> Subsystems that still share the "atmosphere" name (`src/chroma/post/atmosphere.rs`
+> post-FX shader, `AtmosphericEvolution` in `src/cloud/ecosystem.rs`) are
+> separate subsystems and remain live — they were never part of the v4.0.0
+> atmosphere engine plan.
 
 ### `central_control_rains.rs` — The Rain Control Center
 
@@ -143,6 +156,7 @@ recover from a broken terminal state.
 | [TERMINAL_KILL_CLEANUP.md](TERMINAL_KILL_CLEANUP.md) | What happens when cosmostrix is killed (SIGKILL, Ctrl-C, close window) and how to recover |
 | [TERMINAL_LIFECYCLE_MATRIX.md](TERMINAL_LIFECYCLE_MATRIX.md) | Full terminal lifecycle — init, alternate screen, raw mode, cleanup paths |
 | [STABILITY_AUDIT.md](STABILITY_AUDIT.md) | Terminal stability audit — stress tests, edge cases, recovery verification |
+| [HUD.md](HUD.md) | Live HUD overlay reference — what each line means, why `fps:` ≠ `--fps`, HUD vs `--benchmark` |
 
 ### Emergency Recovery
 
@@ -246,20 +260,24 @@ where a feature lives.
 | `src/chroma/post/` | — | Atmospheric post-processing, anomaly halos |
 | `src/chroma/lock_tests.rs` | — | 17 invariant tests (Phase 9-B lock) |
 
-### Atmosphere Engine
+### Atmosphere Engine (REMOVED 2026-08-05)
+
+The atmosphere engine subsystem was fully eliminated at commit `07b44b5`
+(Dragon Hunt v2 Phase 6 Tier E item 31 — final elimination). All
+`src/atmosphere_*.rs` source files listed in historical revisions of this
+table have been deleted; the same applies to the `--atmosphere-mode` /
+`--atmosphere-regime` CLI flags and the `atmosphere-mode` /
+`atmosphere-regime` / `adaptive-custom.*` config keys. See
+[archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md)
+for the full elimination record.
+
+Subsystems that still share the "atmosphere" name (separate subsystems,
+not the v4.0.0 atmosphere engine — KEPT):
 
 | Source file | What it does |
 |-------------|-------------|
-| `src/atmosphere_adaptive.rs` | Default 5-phase adaptive atmosphere (Deep Void → Compression → Pulse → Calm → Signal) |
-| `src/atmosphere_controlled_live.rs` | Controlled atmosphere — 6 opt-in regimes (pulse, signal, compression, void, monolith-pressure, calm) |
-| `src/atmosphere_custom.rs` | Custom adaptive scheduling (`adaptive-custom.HH-MM` config entries) |
-| `src/atmosphere_apply.rs` | Atmosphere application — how modulation is applied to the render |
-| `src/atmosphere_runtime.rs` | Runtime modulation state |
-| `src/atmosphere_verifier.rs` | Atmosphere verifier — validates modulation consistency |
-| `src/atmosphere_visual.rs` | Visual atmosphere — shadow, risk, visual effect |
-| `src/atmosphere_shadow.rs` | Atmosphere shadow — identity/protected runtime |
-| `src/atmosphere_probe.rs` | Atmosphere probe — environment sensing |
-| `src/atmosphere_presets.rs` | Atmosphere presets |
+| `src/chroma/post/atmosphere.rs` | Chroma Dragon post-FX shader — luminance/saturation/instability. Used by `chroma::shaders::base::resolve_cell_color` for every cell render. |
+| `src/cloud/ecosystem.rs::AtmosphericEvolution` | Cloud drift/gust events (entropy_phase, density_offset, luminance_offset, anomaly_offset, cycle_speed). |
 
 ### Benchmark Subsystem
 

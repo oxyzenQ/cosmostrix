@@ -171,9 +171,9 @@ impl CloudConfig {
         cloud.die_early_pct = self.die_early_pct / 100.0;
         cloud.set_max_droplets_per_column(self.max_dpc);
 
-        // Phase 5: Compute effective runtime values from base + atmosphere modulation.
-        // Default modulation is identity, so effective values equal base values.
-        // Atmosphere engine eliminated — effective values are now just base values.
+        // Effective runtime values = base values (atmosphere engine eliminated
+        // 2026-08-05 at commit 07b44b5; default modulation was always identity
+        // even when it existed, so this assignment is unchanged in behavior).
         cloud.set_droplet_density(density);
         cloud.set_chars_per_sec(self.speed);
         cloud.set_monolith_size(self.monolith_size);

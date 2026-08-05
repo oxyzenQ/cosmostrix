@@ -205,7 +205,7 @@ impl ColorCache {
     /// Used by the `--perf-stats` exit report to compute cache hit rate.
     /// A high hit rate (>90%) indicates the palette colors dominate the
     /// frame — the cache is doing its job. A low hit rate suggests many
-    /// non-palette colors (glitch, anomaly, atmosphere modulation) are
+    /// non-palette colors (glitch, anomaly, atmospheric post-FX) are
     /// triggering the on-the-fly `write_sgr_colors_buf` path.
     #[must_use]
     pub(crate) fn cache_stats(&self) -> (u64, u64) {

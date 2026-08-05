@@ -17,12 +17,13 @@
 //!    not a `[color.tune]` field. The `[color.tune]` section only accepts
 //!    `brightness | saturation | head | body | tail`.
 //!
-//! 2. **`scene-custom.<name>.adaptive-custom.<HH-MM>.<…>`** —
-//!    `adaptive-custom.HH-MM` is a TOP-LEVEL key (e.g.
-//!    `adaptive-custom.10-00 = cosmos, monolith, speed=15`). The user
+//! 2. **`scene-custom.<name>.adaptive-custom.<HH-MM>.<…>`** — the user
 //!    wrote `[scene-custom.hacker-mode.adaptive-custom.10-00]` which the
-//!    parser dutifully treats as a 5-segment dotted key — none of which
-//!    match any known pattern.
+//!    parser dutifully treats as a 5-segment dotted key. v30 (2026-08-05):
+//!    the `adaptive-custom.*` key namespace was eliminated at commit
+//!    `07b44b5` along with the atmosphere engine subsystem, so the hint
+//!    now tells the user to REMOVE these entries (not move them to root
+//!    scope, which was the original v25.7 advice).
 //!
 //! Hints are opt-in: callers (live reload, `--testconf`, startup
 //! validation) only append a `hint:` line when [`suggest_for_unknown_key`]
@@ -64,15 +65,22 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     // user writes `[scene-custom.hacker-mode.adaptive-custom.10-00]` and
     // then `color = cosmos` underneath — yielding the full dotted key
     // `scene-custom.hacker-mode.adaptive-custom.10-00.color`.
+    //
+    // v30 (2026-08-05, atmosphere elimination): the entire `adaptive-custom.*`
+    // key namespace was eliminated at commit 07b44b5 along with the atmosphere
+    // engine subsystem. The hint now tells the user to REMOVE these keys,
+    // not move them to root scope (which was the original v25.7 advice when
+    // the keys were still live).
     if key.starts_with("scene-custom.") {
         let segments: Vec<&str> = key.split('.').collect();
         // segments[0] == "scene-custom", segments[1] == <name>,
         // any later segment == "adaptive-custom" → mis-nested.
         if segments.len() > 2 && segments.iter().skip(2).any(|s| *s == "adaptive-custom") {
             return Some(format!(
-                "'{key}': 'adaptive-custom.HH-MM' is a top-level key, not a [scene-custom.<name>] field. \
-                 Move it out of [scene-custom.<name>] — write it at the file root as: \
-                 adaptive-custom.10-00 = <color>, <scene>, [key=value, ...]"
+                "'{key}': 'adaptive-custom.*' keys have been removed (atmosphere engine \
+                 eliminated at commit 07b44b5, 2026-08-05). Remove this entry from your \
+                 config.toml. Historical design spec: \
+                 docs/archive/specs/ATMOSPHERE_ENGINE.md"
             ));
         }
     }
@@ -358,19 +366,21 @@ mod tests {
     fn scene_custom_with_nested_adaptive_custom_returns_hint() {
         // The exact key produced by the parser when the user writes
         // [scene-custom.hacker-mode.adaptive-custom.10-00] then color = cosmos.
+        // v30 (2026-08-05): the hint now says these keys have been REMOVED
+        // (atmosphere engine eliminated), not "move to root scope".
         let key = "scene-custom.hacker-mode.adaptive-custom.10-00.color";
         let hint = suggest_for_unknown_key(key).expect("expected hint");
         assert!(
-            hint.contains("top-level"),
-            "hint should mention top-level: {hint}"
+            hint.contains("removed"),
+            "hint should mention removed: {hint}"
         );
         assert!(
-            hint.contains("adaptive-custom.HH-MM"),
-            "hint should show the correct format: {hint}"
+            hint.contains("07b44b5"),
+            "hint should reference the elimination commit: {hint}"
         );
         assert!(
-            hint.contains("[scene-custom"),
-            "hint should reference the wrong section: {hint}"
+            hint.contains("Remove this entry"),
+            "hint should tell user to remove the entry: {hint}"
         );
     }
 
@@ -381,7 +391,7 @@ mod tests {
         // validated), but if it ever does, the hint should still fire.
         let key = "scene-custom.hacker-mode.adaptive-custom.10-00";
         let hint = suggest_for_unknown_key(key).expect("expected hint");
-        assert!(hint.contains("top-level"));
+        assert!(hint.contains("removed"));
     }
 
     #[test]
@@ -399,7 +409,15 @@ mod tests {
 
     #[test]
     fn adaptive_custom_at_top_level_returns_none() {
-        // `adaptive-custom.10-00` at file root is a VALID key — no hint.
+        // v30 (2026-08-05, atmosphere elimination): `adaptive-custom.10-00`
+        // at file root is no longer a valid key — it would be caught by
+        // is_known_key("adaptive-custom") returning false (the bare key is
+        // still in USER_CONFIG_KEYS for the validate_field_value migration
+        // message, but `adaptive-custom.10-00` has the HH-MM suffix and is
+        // not in USER_CONFIG_KEYS). The hint function only handles the
+        // scene-custom nested pattern; the root-scope `adaptive-custom.10-00`
+        // case is handled by the unknown_keys + validate_field_value path,
+        // not by suggest_for_unknown_key. So this returns None here.
         assert_eq!(suggest_for_unknown_key("adaptive-custom.10-00"), None);
     }
 

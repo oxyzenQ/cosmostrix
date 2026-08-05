@@ -131,20 +131,30 @@ If a future test genuinely needs the current package version, use
 The Cosmic Dragon release introduces several major subsystems. All new code must
 follow these architectural rules.
 
-### Atmosphere Engine
+### Atmosphere Engine (REMOVED 2026-08-05)
 
-- Default: `disabled` + `calm` regime (opt-in via config). Enable with
-  `atmosphere-mode = controlled-live` + `atmosphere-regime = adaptive`.
-- 5 emotional phases: Deep Void (00-03), Compression (03-06), Pulse (06-12),
-  Calm (12-18), Signal (18-24).
-- Color temperature shift: each phase has a target color scheme (cosmos,
-  gray, aurora, cosmos, neon). Checked every 30s, applied via smooth
-  palette transition wave.
-- Custom time map: `[adaptive-custom.HH-MM]` overrides default phases.
-  Format: `adaptive-custom.00-00 = color, scene, key=value, ...`
-  Transition: smooth 5-minute blend before next point.
-- Disable: `atmosphere-mode = disabled` in config.
-- Modules: `atmosphere_adaptive.rs`, `atmosphere_custom.rs`.
+The atmosphere engine subsystem was fully eliminated at commit `07b44b5`
+(Dragon Hunt v2 Phase 6 Tier E item 31 — final elimination). All
+`src/atmosphere_*.rs` source files, all `--atmosphere-mode` /
+`--atmosphere-regime` CLI flags, all `atmosphere-mode` /
+`atmosphere-regime` / `adaptive-custom.*` config keys, and all
+`atmosphere-*` scene-custom presets have been removed.
+
+Historical reference (preserved verbatim, no longer describes live behavior):
+- `docs/archive/specs/ATMOSPHERE_ENGINE.md` — v20 design spec
+- `docs/archive/specs/CINEMATIC_BREATHING.md` — vocabulary spec
+- `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` — full
+  elimination record (file list, KEPT-vs-DELETED table, backward-compat
+  notes, revival guidance)
+
+Subsystems that still share the "atmosphere" name but were NOT deleted
+(because they are separate subsystems, not the v4.0.0 atmosphere engine):
+- `src/chroma/post/atmosphere.rs` — Chroma Dragon post-FX shader
+  (luminance/saturation/instability). Used by
+  `chroma::shaders::base::resolve_cell_color` for every cell render.
+- `AtmosphericEvolution` struct in `src/cloud/ecosystem.rs` — cloud
+  drift/gust events (entropy_phase, density_offset, luminance_offset,
+  anomaly_offset, cycle_speed).
 
 ### Live Config Reload
 

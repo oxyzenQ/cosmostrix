@@ -41,7 +41,7 @@ busier, or because night fell — not because a dice rolled.
 | Signal | Source | Platform | Cost |
 |--------|--------|----------|------|
 | Process CPU% | `cpustat::current_cpu_ns()` | Linux (`/proc/self/stat`), macOS (Mach `task_info`) | <0.05% CPU per sample |
-| Local wall-clock hour | `atmosphere_adaptive::current_hour()` via `chrono::Local` | All | ~0 |
+| Local wall-clock hour | `system_feeling::current_local_hour()` via `chrono::Local` (inlined from the deleted `atmosphere_adaptive::current_hour()` at commit 07b44b5, 2026-08-05) | All | ~0 |
 
 **Sampling cadence:** every 3 seconds (the existing `COLOR_ECOSYSTEM_TICK_SECS`
 interval). No separate timer.
@@ -234,7 +234,7 @@ When `--auto-color-drift` is disabled (default):
 | `src/system_feeling.rs` | Signal sampler + state classifier. SystemFeeling struct, classify() pure function. |
 | `src/cloud/ecosystem.rs` | ColorFamily enum, family_for(), family_members(), ColorEcosystem::tick() integration. |
 | `src/cpustat.rs` | Process CPU time sampling (Linux/macOS). Pre-existing, reused. |
-| `src/atmosphere_adaptive.rs` | `current_hour()` helper. Pre-existing, reused. |
+| `src/system_feeling.rs::current_local_hour()` | Local wall-clock hour helper. Inlined from the deleted `atmosphere_adaptive::current_hour()` at commit `07b44b5` (2026-08-05, atmosphere engine elimination). |
 | `src/doctor.rs` | `SYSTEM FEELING` diagnostic section. |
 
 ---
@@ -264,7 +264,13 @@ When `--auto-color-drift` is disabled (default):
 
 ## See Also
 
-- [Atmosphere Engine](ATMOSPHERE_ENGINE.md) — the time-driven 5-phase
-  modulation engine (separate from system feeling, but shares the
-  5-state taxonomy)
+- [Atmosphere Engine (archived)](archive/specs/ATMOSPHERE_ENGINE.md) —
+  historical v20 design spec for the time-driven 5-phase modulation
+  engine. The atmosphere engine subsystem was fully eliminated at
+  commit `07b44b5` (2026-08-05, Dragon Hunt v2 Phase 6 Tier E item 31).
+  The 5-state taxonomy in this document (Calm / Pulse / Signal /
+  Compression / Void) was originally shared with the atmosphere engine;
+  it now lives only in `src/control_color_drift.rs` and is the canonical
+  source. See `archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` for the
+  full elimination record.
 - [Rules](RULES.md) — project conventions and CLI flag policy

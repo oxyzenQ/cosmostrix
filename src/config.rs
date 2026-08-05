@@ -244,8 +244,11 @@ pub struct Args {
         default_value_t = 60.0,
         help_heading = "COMMON OPTIONS",
         display_order = 30,
-        help = "Target FPS (interactive mode frame limiter; in --benchmark mode \
-                sets simulation rate only — does NOT cap render throughput)"
+        help = "Target FPS (interactive mode frame limiter). The loop sleeps \
+                between frames to maintain this cap; press 'i' to see it as \
+                `tgt:` in the HUD. In --benchmark mode sets simulation rate \
+                only — does NOT cap render throughput (avg_fps in the report \
+                is unconstrained; check `target_fps` to confirm what you set)."
     )]
     pub fps: f64,
 
@@ -334,7 +337,7 @@ pub struct Args {
         long = "scene",
         help_heading = "COMMON OPTIONS",
         display_order = 96,
-        help = "Apply a scene atmosphere (see --list-scenes)"
+        help = "Apply a built-in scene (curated color + charset + speed + density, see --list-scenes)"
     )]
     pub scene: Option<String>,
 
@@ -366,6 +369,22 @@ pub struct Args {
         help = "Print example config to stdout, or write to <path> (whitelist-enforced)"
     )]
     pub dump_config: Option<String>,
+
+    // v30 (2026-08-05): --force flag. Currently affects --dump-config ONLY
+    // (allows overwriting an existing file at the target path). Other write
+    // operations (--save-baseline, etc.) have their own per-flag overwrite
+    // policy and are not affected by --force. Documented as scoped to make
+    // the contract explicit — users should not assume --force is a global
+    // "yes to all prompts" flag.
+    #[arg(
+        long = "force",
+        help_heading = "CONFIG",
+        display_order = 100,
+        help = "Force overwrite when writing files. Currently affects \
+                --dump-config ONLY: allows overwriting an existing file \
+                at the target path. Other write operations are unaffected."
+    )]
+    pub force: bool,
 
     #[arg(
         long = "config-path",
@@ -515,7 +534,7 @@ pub struct Args {
         long = "list-scenes",
         help_heading = "DISCOVERY",
         display_order = 230,
-        help = "Show available scene atmospheres"
+        help = "Show available built-in and custom scenes"
     )]
     pub list_scenes: bool,
 

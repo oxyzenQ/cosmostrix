@@ -86,8 +86,10 @@ The auto-vectorizer already captures most of the win without the cost.
 ## 4. Scene-Naming Honesty
 
 Scene names like `gpu-accelerated`, `4k-ready`, or `ultra-fast` are
-**forbidden** (see `docs/CINEMATIC_BREATHING.md §Scene Naming Contract`).
-They imply performance characteristics that depend on the user's hardware
+**forbidden** (see `docs/archive/specs/CINEMATIC_BREATHING.md §Scene
+Naming Contract` — archived 2026-08-05 alongside the atmosphere engine
+elimination, but the scene-naming honesty rule still applies). They imply
+performance characteristics that depend on the user's hardware
 and terminal. Scenes are named for their *visual character* (monolith,
 storm, calm, cosmos), not their performance tier.
 
@@ -117,6 +119,6 @@ that claim zero limitations.
 - [COSMIC_DRAGON_EXPLORATION.md (archived)](archive/cosmic_dragon/EXPLORATION.md) — §3.4 GPU Offload (rejected)
 - [COSMIC_DRAGON_FINDINGS.md (archived)](archive/cosmic_dragon/FINDINGS.md) — terminal bottleneck analysis
 - [SIMD_FEASIBILITY.md](SIMD_FEASIBILITY.md) — manual SIMD rejection
-- [CINEMATIC_BREATHING.md](CINEMATIC_BREATHING.md) — scene-naming contract
+- [CINEMATIC_BREATHING.md (archived)](archive/specs/CINEMATIC_BREATHING.md) — scene-naming contract (vocabulary spec archived 2026-08-05 alongside atmosphere engine elimination; the scene-naming honesty rule still applies, see §4 of this doc)
 - [RELEASE_GUARD.md](RELEASE_GUARD.md) — honesty rules
 - [RENDER_ENGINE.md](RENDER_ENGINE.md) — renderer architecture

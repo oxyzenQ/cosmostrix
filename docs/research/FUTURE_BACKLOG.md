@@ -42,26 +42,31 @@ apply (commit `6fd7380`), so warnings are visible without a new flag.
 
 Make `[profile.<name>]` and `[scene-custom.<name>]` strict-reject like
 top-level config (currently they warn-and-continue). v30 closure:
-documented the divergence as intentional in `ATMOSPHERE_ENGINE.md`
-(commit `67d0092`) — profiles are override collections and rejecting the
-entire config because one profile has a typo would be hostile.
+documented the divergence as intentional — profiles are override
+collections and rejecting the entire config because one profile has a
+typo would be hostile. (The historical reference doc that recorded this
+decision was `ATMOSPHERE_ENGINE.md`, now archived at
+`docs/archive/specs/ATMOSPHERE_ENGINE.md`. The intentional-divergence
+rationale still applies post-elimination.)
 **Reopen cost**: ~1.5h. Touches `profile.rs` + `scene_custom.rs` + clap.
 
-### `--no-adaptive-custom-when-disabled` (from P1-#2)
+### `--no-adaptive-custom-when-disabled` (from P1-#2) — CLOSED/OBSOLETE
 
-Suspend `[adaptive-custom.HH-MM]` entries when `atmosphere-mode =
-disabled`. v30 closure: documented the surprising behavior in `--help`
-and docs. **Breaking change** — users relying on the current behavior
-(adaptive-custom runs regardless of atmosphere-mode) would break.
-**Reopen cost**: ~3h. Touches `event_loop.rs` + `config_apply.rs`.
+~~Suspend `[adaptive-custom.HH-MM]` entries when `atmosphere-mode =
+disabled`.~~ **OBSOLETE 2026-08-05**: both `atmosphere-mode` and
+`adaptive-custom.*` config keys were eliminated at commit `07b44b5`
+along with the entire atmosphere engine subsystem. There is no longer an
+`adaptive-custom.*` schedule to suspend and no `atmosphere-mode` switch
+to gate against. This item is closed as obsolete — do not reopen.
 
-### `--testconf-adaptive-custom` (from P3-4)
+### `--testconf-adaptive-custom` (from P3-4) — CLOSED/OBSOLETE
 
-Standalone flag to validate ONLY `[adaptive-custom.*]` blocks without
-the full `--testconf` pass. v30 closure: `--testconf` ALREADY validates
-adaptive-custom blocks via `parse_custom_time_map` (5 tests added,
-commit `66b8af0`). Low priority since `--testconf` covers it.
-**Reopen cost**: ~1h. Touches `testconf.rs` + `main.rs`.
+~~Standalone flag to validate ONLY `[adaptive-custom.*]` blocks without
+the full `--testconf` pass.~~ **OBSOLETE 2026-08-05**: `adaptive-custom.*`
+config keys were eliminated at commit `07b44b5`. `--testconf` now
+rejects any `adaptive-custom.*` entry with a clear migration message
+("the atmosphere engine subsystem was eliminated"). There is no
+remaining surface that this flag would target. Closed as obsolete.
 
 ### Case-insensitive enum unification (from P2-6, P1-#4)
 

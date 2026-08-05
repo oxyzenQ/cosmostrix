@@ -24,7 +24,7 @@ use super::adaptive::{
     adaptive_resync_interval, local_secs_since_midnight, EnduranceHealth, PerformanceSelfHealer,
     PhasePredictor, ReclaimState, SelfHealAction,
 };
-use super::hud::HudState;
+use super::hud::{FrameMode, HudState};
 use super::input::{handle_keybinding, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
 
@@ -159,6 +159,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // and right corners. (v30 simplify: lowercase-only shortcuts.)
     let mut hud_state: HudState = HudState::new();
     hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
+    // v30 (2026-08-05): seed the HUD with the user-configured target_fps
+    // so the `tgt:` line shows the right value from the very first frame.
+    // Without this, the HUD would show `tgt: 60` (the default) until the
+    // first live-config reload, even when the user passed `--fps 30`.
+    hud_state.set_target_fps(cfg.target_fps);
 
     // Perceived-motion diagnostics: track visible-change frames vs idle frames.
     let mut perf_idle_frames: u64 = 0; // frames where dirty_count == 0
@@ -349,9 +354,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
             last_applied_cfg_map = Some(new_cfg_map.clone());
 
-            // Phase D Bug #9 fix: preserve color_ecosystem + atmosphere
-            // state across live-reload so the user doesn't see a brightness
-            // / saturation / hue discontinuity when editing config.
+            // Phase D Bug #9 fix: preserve color_ecosystem + atmospheric
+            // post-FX state across live-reload so the user doesn't see a
+            // brightness / saturation / hue discontinuity when editing
+            // config. (v30 2026-08-05: renamed from "atmosphere state" to
+            // "atmospheric post-FX state" to disambiguate from the
+            // eliminated atmosphere engine subsystem — this refers to the
+            // live `AtmosphericEvolution` cloud drift + Chroma Dragon
+            // post-FX shader, NOT the deleted atmosphere engine.)
             // Previously this created a fresh Cloud with defaults (0.85,
             // 0.85, 0.0) — if the previous cloud had drifted to 0.78
             // (dim), the new cloud jumped back to 0.85 (brighter).
@@ -383,6 +393,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             };
             target_period = Duration::from_secs_f64(1.0 / safe_fps);
             idle_period = Duration::from_secs_f64(1.0 / (safe_fps * IDLE_FPS_FACTOR));
+            // v30 (2026-08-05): keep HUD tgt: line in sync with live-reloaded fps.
+            hud_state.set_target_fps(safe_fps);
         }
 
         // Adaptive throttling: detect idle state (no input for
@@ -861,6 +873,20 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             target_period
         };
         let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
+
+        // v30 (2026-08-05): announce frame pacing mode to the HUD so the
+        // `tgt:` line can show an `idle` / `paused` suffix. Cheap (one enum
+        // set + one method call). Placed AFTER the pause/idle/active branch
+        // so the mode reflects the actual cadence used for this frame, not
+        // the previous frame's.
+        let frame_mode = if cloud.pause {
+            FrameMode::Paused
+        } else if active_is_idle {
+            FrameMode::Idle
+        } else {
+            FrameMode::Active
+        };
+        hud_state.set_frame_mode(frame_mode);
 
         cloud.set_perf_pressure(perf_pressure);
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;

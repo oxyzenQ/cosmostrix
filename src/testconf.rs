@@ -585,9 +585,14 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
-        // v25.14 (bug #17): the bare `adaptive-custom` key is rejected
-        // because adaptive-custom.* support was removed with the atmosphere
-        // engine. Users should remove these keys from config.toml.
+        // v25.14 (bug #17) + v30 (2026-08-05 atmosphere elimination): the
+        // bare `adaptive-custom` key is rejected with a clear migration
+        // message. The entire atmosphere engine subsystem was eliminated at
+        // commit 07b44b5 — both the bare key (caught here) and the
+        // `adaptive-custom.HH-MM` form (caught as unknown key by is_known_key)
+        // are rejected. Users should remove these keys from config.toml.
+        // Historical design spec: docs/archive/specs/ATMOSPHERE_ENGINE.md.
+        // Elimination record: docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
         "adaptive-custom" => Some(
             "adaptive-custom.* keys have been removed — the atmosphere engine \
              subsystem was eliminated. Remove these keys from your config.toml."

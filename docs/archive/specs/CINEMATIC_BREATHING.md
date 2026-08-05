@@ -1,6 +1,36 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Cinematic Breathing Language
+# Cinematic Breathing Language (archived — historical vocabulary spec)
+
+> **ARCHIVED 2026-08-05 (Dragon Hunt v2 Phase 6 Tier E item 31 — final
+> elimination).** This document was the v5.0.0 "Nightfall" vocabulary
+> spec for the cinematic breathing language. The breathing vocabulary
+> itself (Rest, Pulse, Signal, Compression, Void, Monolith-Pressure,
+> Adaptive, Storm) was originally tied to the atmosphere engine
+> subsystem — every regime in this doc was activated via
+> `--atmosphere-mode controlled-live --atmosphere-regime <name>` or the
+> equivalent `atmosphere-mode` / `atmosphere-regime` config keys.
+>
+> The entire atmosphere engine subsystem was eliminated at commit
+> `07b44b5` (2026-08-05). All `--atmosphere-mode` / `--atmosphere-regime`
+> CLI flags, all `atmosphere-mode` / `atmosphere-regime` /
+> `adaptive-custom.*` config keys, all `src/atmosphere_*.rs` source
+> files, and all `atmosphere-*` scene-custom presets have been removed.
+>
+> This document is preserved verbatim as a historical record of the
+> cinematic breathing vocabulary. The CONCEPTS (Rest, Pulse, Signal,
+> Compression, Void, Monolith-Pressure) are still useful as a
+> vocabulary for describing rain visual states — they originated in
+> `docs/SYSTEM_FEELING.md` and `src/control_color_drift.rs` (which is
+> still live, governing the `FeelingState` taxonomy used by
+> `--auto-color-drift`). The TRIGGERS described in this doc
+> (`--atmosphere-mode`, `--atmosphere-regime`, `adaptive-custom.*`)
+> are obsolete and no longer work.
+>
+> See `docs/archive/specs/ATMOSPHERE_ENGINE.md` for the engine design
+> spec, and `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` for
+> the full elimination record (file list, KEPT-vs-DELETED table,
+> backward-compat notes, revival guidance).
 
 ## Status
 

@@ -12,6 +12,7 @@ active documentation set stays small and current.
 | `CONFIG_SYNC/` | 7 phase reports (Phase 1, 2, 3, 4, 5, 5_FINAL, 6) from the closed CONFIG_SYNC audit. Closed phase reports with zero live consumers in `src/`. | Moved from `docs/research/CONFIG_SYNC_AUDIT_PHASE*.md` |
 | `cosmic_dragon/` | Two design-exploration docs from the v13.3.0 Cosmic Dragon milestone. Conclusions have been folded into `docs/PHILOSOPHY.md` and `docs/PERFORMANCE_ACROSS_SCALES.md`. | Moved from `docs/COSMIC_DRAGON_EXPLORATION.md` + `docs/COSMIC_DRAGON_FINDINGS.md` |
 | `audits/` | Closed one-shot audit reports (`UNSAFE_SOUNDNESS_AUDIT.md`, `FLAGS_AUDIT_dead_weight.md`, `ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md`) whose findings have either been actioned or are no longer live concerns. | Moved from `docs/research/` (first two) / newly created 2026-08-05 (third) |
+| `specs/` | Historical design specifications for eliminated subsystems. Kept verbatim as the canonical reference for any future revival effort. Currently holds `ATMOSPHERE_ENGINE.md` — the v20 atmosphere engine design spec, archived 2026-08-05 alongside the subsystem elimination at commit `07b44b5`. | Moved from `docs/ATMOSPHERE_ENGINE.md` (2026-08-05) |
 
 ## Why these were archived
 
