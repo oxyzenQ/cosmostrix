@@ -545,6 +545,13 @@ COMMANDS (essentials):
     pgo             PGO nitro build (instrument → benchmark → optimize, +5-15% FPS)
                     Pass --auto to auto-detect the best CPU target for this host.
                     Shortcut: cargo use-pgo
+    miri            Run Miri UB verification on audited pure-Rust modules
+                    (~3-10 min, requires nightly — auto-installed if missing).
+                    Updates target/miri-stamp so every subsequent build shows
+                    a Miri status banner (VERIFIED / STALE / FAILED / never-run).
+                    Pass --filter <pat> for narrow runs (no stamp update).
+                    Pass --full to run entire lib test suite (slow, may fail on FFI).
+                    Pass --no-install to skip auto-install of nightly/miri.
     test            Run test suite
     check           Quick checks (fmt + clippy)
     check-all       Comprehensive checks (fmt + clippy + test + audit + headers + LOC
@@ -569,6 +576,10 @@ OPTIONS:
     --no-cache      Disable build caching
     --verbose       Enable verbose output (set -x)
     --auto          Auto-detect best CPU target for PGO (v4/v3/native)
+    --filter <pat>  Narrow Miri test scope (substring match, e.g. 'validation::')
+    --no-install    Don't auto-install nightly/miri (fail if missing)
+    --full          Run full lib test suite under Miri (slow, may fail on FFI)
+    --quiet-miri    Suppress Miri status banner (for CI jobs that don't care)
 
 ENVIRONMENT:
     COSMOSTRIX_JOBS             Override CPU core limit (default: 75% of cores, max 8)
@@ -601,6 +612,30 @@ OPTIONAL TOOLS (auto-detected, silently skipped if absent):
     mold/lld  - Fast linker         (system package manager)
     nextest   - Fast test runner    (cargo install cargo-nextest)
     audit     - Security auditing   (cargo install cargo-audit)
+
+MIRI VERIFICATION:
+    Miri (https://github.com/rust-lang/miri) detects undefined behavior in
+    unsafe Rust. It runs under the nightly toolchain, which is auto-installed
+    on first `./scripts/build.sh miri` invocation. The full test suite under
+    Miri is slow and many tests touch TTY/FFI that Miri cannot execute, so
+    the default scope is the 6 pure-Rust modules audited in
+    docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md:
+      - config_hints::tests  (41 tests)
+      - validation::tests    (18 tests)
+      - color_cache::tests   (12 tests)
+      - safepath::tests      (22 tests)
+      - humanize::tests      (9 tests)
+      - bolt::tests          (5 tests)
+
+    Verification status is cached in target/miri-stamp (key=value). A status
+    banner is shown at the start of every build.sh invocation:
+      [✓] Miri VERIFIED at <commit> · <timestamp> · N tests (0 fail) · Xs
+      [⚠] Miri STALE — verified at <old>, HEAD is <new>. Re-run to refresh.
+      [✗] Miri FAILED at <commit>. See target/miri-log.txt for details.
+      [INFO] Miri: never run on this workspace.
+
+    The stamp is invalidated automatically when HEAD changes (status flips
+    to STALE). To force a re-verify: ./scripts/build.sh miri
 
 EOF
 }
@@ -655,6 +690,10 @@ run_version_sync() {
 VERBOSE=0
 NO_CACHE=0
 PGO_AUTO=0
+MIRI_FILTER=""
+MIRI_NO_INSTALL=0
+MIRI_FULL=0
+MIRI_QUIET=0
 COMMAND=""
 
 ARGS=()
@@ -678,6 +717,32 @@ while [ $# -gt 0 ]; do
                 PGO_AUTO=1
                 shift
                 ;;
+        --filter)
+                # Used by `miri` subcommand: narrow test scope.
+                # Substring match against full test path (e.g. "validation::")
+                if [ $# -lt 2 ]; then
+                        log_error "--filter requires an argument"
+                        exit 1
+                fi
+                MIRI_FILTER="$2"
+                shift 2
+                ;;
+        --no-install)
+                # Used by `miri` subcommand: don't auto-install nightly/miri.
+                MIRI_NO_INSTALL=1
+                shift
+                ;;
+        --full)
+                # Used by `miri` subcommand: run entire lib test suite
+                # (slow, may fail on FFI tests). Skips the 6-module filter.
+                MIRI_FULL=1
+                shift
+                ;;
+        --quiet-miri)
+                # Suppress Miri status banner (for CI jobs that don't care).
+                MIRI_QUIET=1
+                shift
+                ;;
         help | -h | --help)
                 COMMAND="help"
                 shift
@@ -697,6 +762,219 @@ done
 if [ "${VERBOSE}" -eq 1 ]; then
         set -x
 fi
+
+# ── Miri (UB detector) integration ────────────────────────────────────
+# Miri runs under nightly and verifies unsafe code is sound. The full
+# test suite under Miri takes 30+ min and many tests touch TTY/FFI which
+# Miri cannot run. We restrict to the 6 pure-Rust modules already audited
+# in docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md:
+#   - config_hints::tests  (41 tests)
+#   - validation::tests    (18 tests)
+#   - color_cache::tests   (12 tests)
+#   - safepath::tests      (22 tests)
+#   - humanize::tests      (9 tests)
+#   - bolt::tests          (5 tests)
+#
+# Verification status is cached in target/miri-stamp (key=value format)
+# so we don't re-run on every build. A status banner is shown at the
+# start of every build.sh invocation reflecting the stamp state:
+#   - VERIFIED  — stamp commit == HEAD
+#   - STALE     — stamp commit != HEAD (suggests re-run)
+#   - FAILED    — last run had violations
+#   - NEVER RUN — no stamp yet
+
+readonly MIRI_STAMP_FILE="target/miri-stamp"
+readonly MIRI_LOG_FILE="target/miri-log.txt"
+readonly MIRI_AUDIT_MODULES=(
+        "config_hints::"
+        "validation::"
+        "color_cache::"
+        "safepath::"
+        "humanize::"
+        "bolt::"
+)
+
+# Print one-line Miri status banner. Called from main() before dispatch.
+# Quiet when --quiet-miri is passed (CI jobs that don't care).
+show_miri_status() {
+        [ "${MIRI_QUIET:-0}" = "1" ] && return 0
+
+        local head head_short
+        head=$(git rev-parse HEAD 2>/dev/null || echo "")
+        head_short=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+
+        if [ ! -f "${MIRI_STAMP_FILE}" ]; then
+                log_info "Miri: never run on this workspace. Run './scripts/build.sh miri' to verify (needs nightly, ~3-10 min)."
+                return 0
+        fi
+
+        # Parse stamp (key=value format, no jq dependency)
+        local stamp_commit stamp_short stamp_ts_iso stamp_status stamp_dur stamp_run stamp_fail
+        stamp_commit=$(grep '^commit=' "${MIRI_STAMP_FILE}" | cut -d= -f2-)
+        stamp_short=$(grep '^commit_short=' "${MIRI_STAMP_FILE}" | cut -d= -f2-)
+        stamp_ts_iso=$(grep '^timestamp_iso=' "${MIRI_STAMP_FILE}" | cut -d= -f2-)
+        stamp_status=$(grep '^status=' "${MIRI_STAMP_FILE}" | cut -d= -f2-)
+        stamp_dur=$(grep '^duration_ms=' "${MIRI_STAMP_FILE}" | cut -d= -f2-)
+        stamp_run=$(grep '^tests_run=' "${MIRI_STAMP_FILE}" | cut -d= -f2-)
+        stamp_fail=$(grep '^tests_failed=' "${MIRI_STAMP_FILE}" | cut -d= -f2-)
+
+        local dur_sec=""
+        if [ -n "${stamp_dur}" ]; then
+                dur_sec=$(awk -v ms="${stamp_dur}" 'BEGIN { printf "%.1f", ms/1000 }')
+        fi
+
+        case "${stamp_status}" in
+        verified)
+                if [ "${stamp_commit}" = "${head}" ]; then
+                        log_success "Miri VERIFIED at ${stamp_short} · ${stamp_ts_iso} · ${stamp_run} tests (${stamp_fail} fail) · ${dur_sec}s"
+                else
+                        log_warning "Miri STALE — verified at ${stamp_short}, HEAD is ${head_short}. Run './scripts/build.sh miri' to refresh."
+                fi
+                ;;
+        failed)
+                log_error "Miri FAILED at ${stamp_short} · ${stamp_ts_iso} · ${stamp_fail} violations. See ${MIRI_LOG_FILE}."
+                ;;
+        skipped:*)
+                local reason="${stamp_status#skipped:}"
+                log_info "Miri SKIPPED (${reason}) at ${stamp_short}. Run './scripts/build.sh miri' to verify."
+                ;;
+        *)
+                log_info "Miri: unknown status '${stamp_status}' at ${stamp_short}."
+                ;;
+        esac
+}
+
+# Run Miri verification on the pure-Rust modules. Updates stamp file.
+# Args (parsed globally before main):
+#   --filter <pat>  Narrow test scope (substring match, e.g. "validation::")
+#   --no-install    Don't auto-install nightly/miri (fail if missing)
+#   --full          Run entire lib test suite (slow, may fail on FFI tests)
+run_miri() {
+        local filter="${MIRI_FILTER:-}"
+        local full="${MIRI_FULL:-0}"
+
+        # 1. rustup is required (needed for nightly toolchain).
+        if ! command -v rustup &>/dev/null; then
+                log_error "rustup not installed. Miri requires nightly. Install from https://rustup.rs"
+                exit 1
+        fi
+
+        # 2. Ensure nightly toolchain is installed.
+        if ! rustup toolchain list 2>/dev/null | grep -q '^nightly-'; then
+                if [ "${MIRI_NO_INSTALL}" = "1" ]; then
+                        log_error "nightly toolchain not installed and --no-install given. Aborting."
+                        exit 1
+                fi
+                log_step "Installing nightly toolchain (rustup toolchain install nightly --profile minimal --component miri)..."
+                rustup toolchain install nightly --profile minimal --component miri || {
+                        log_error "Failed to install nightly + miri. Try manually: rustup toolchain install nightly --component miri"
+                        exit 1
+                }
+        else
+                # 3. Ensure miri component is installed on nightly.
+                if ! rustup component list --toolchain nightly 2>/dev/null | grep -q '^miri .*installed'; then
+                        if [ "${MIRI_NO_INSTALL}" = "1" ]; then
+                                log_error "miri component not installed on nightly and --no-install given. Aborting."
+                                exit 1
+                        fi
+                        log_step "Installing miri component on nightly..."
+                        rustup component add miri --toolchain nightly || {
+                                log_error "Failed to install miri component."
+                                exit 1
+                        }
+                fi
+        fi
+
+        local nightly_ver miri_ver
+        nightly_ver=$(rustc +nightly --version 2>/dev/null | head -1)
+        miri_ver=$(cargo +nightly miri --version 2>/dev/null | head -1)
+        log_info "Miri: ${miri_ver}"
+        log_info "Nightly: ${nightly_ver}"
+
+        # 4. One-time libstd setup (non-interactive) to avoid prompt during test run.
+        log_step "Ensuring Miri sysroot is set up (cargo +nightly miri setup)..."
+        cargo +nightly miri setup 2>&1 | tail -3 || true
+
+        # 5. Build the test filter list.
+        local filter_args=()
+        if [ -n "${filter}" ]; then
+                filter_args=("${filter}")
+                log_step "Running Miri with filter: ${filter}"
+        elif [ "${full}" = "1" ]; then
+                # No filter — run entire lib test suite.
+                log_step "Running Miri on FULL lib test suite (this is slow, may fail on FFI tests)..."
+        else
+                # Default: 6 known-good pure-Rust modules.
+                read -r -a filter_args <<< "${MIRI_AUDIT_MODULES[*]}"
+                log_step "Running Miri on ${#filter_args[@]} audited pure-Rust modules: ${filter_args[*]}"
+        fi
+
+        # 6. Run Miri. MIRIFLAGS disables isolation so tests that need
+        #    env vars / time / file paths don't fail spuriously.
+        #    Note: cosmostrix is a binary crate (no src/lib.rs), so we
+        #    don't pass --lib. The default test target covers all
+        #    unittests embedded in src/*.rs modules.
+        local start_ms end_ms duration_ms
+        start_ms=$(date +%s%3N 2>/dev/null || date +%s)
+
+        mkdir -p target
+        local miri_exit=0
+        MIRIFLAGS="${MIRIFLAGS:--Zmiri-disable-isolation}" \
+                cargo +nightly miri test -- "${filter_args[@]}" \
+                2>&1 | tee "${MIRI_LOG_FILE}" || miri_exit=$?
+
+        end_ms=$(date +%s%3N 2>/dev/null || date +%s)
+        duration_ms=$((end_ms - start_ms))
+
+        # 7. Parse test result counts from log (sum across all test binaries).
+        local tests_run=0 tests_failed=0
+        tests_run=$(grep -oE '[0-9]+ passed' "${MIRI_LOG_FILE}" 2>/dev/null | awk '{s+=$1} END {print s+0}')
+        tests_failed=$(grep -oE '[0-9]+ failed' "${MIRI_LOG_FILE}" 2>/dev/null | awk '{s+=$1} END {print s+0}')
+
+        # 8. Determine final status.
+        local status
+        if [ "${miri_exit}" = "0" ]; then
+                status="verified"
+                log_success "Miri verification PASSED (${tests_run} tests, 0 fail, ${duration_ms}ms)"
+        else
+                status="failed"
+                log_error "Miri verification FAILED (${tests_failed} failures, ${duration_ms}ms). See ${MIRI_LOG_FILE}."
+        fi
+
+        # 9. Write stamp file. Skip stamp update if --filter or --full was used
+        #    (partial runs don't represent the audited scope).
+        if [ -n "${filter}" ] || [ "${full}" = "1" ]; then
+                log_info "Partial run — stamp file not updated. Run './scripts/build.sh miri' (no flags) to refresh."
+        else
+                local head head_short ts_iso ts_unix
+                head=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+                head_short=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+                ts_unix=$(date +%s)
+                ts_iso=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+                cat > "${MIRI_STAMP_FILE}" << STAMP_EOF
+# cosmostrix Miri verification stamp (generated by scripts/build.sh miri)
+# Format: key=value. Parse with grep '^key=' | cut -d= -f2-
+commit=${head}
+commit_short=${head_short}
+timestamp_unix=${ts_unix}
+timestamp_iso=${ts_iso}
+status=${status}
+duration_ms=${duration_ms}
+tests_run=${tests_run}
+tests_failed=${tests_failed}
+modules=$(IFS=','; echo "${MIRI_AUDIT_MODULES[*]}")
+miri_version=${miri_ver}
+nightly_version=${nightly_ver}
+STAMP_EOF
+                log_info "Stamp written to ${MIRI_STAMP_FILE}"
+                log_info "Log saved to ${MIRI_LOG_FILE}"
+        fi
+
+        if [ "${miri_exit}" != "0" ]; then
+                exit 1
+        fi
+}
 
 # ── PGO (Profile-Guided Optimization) nitro build ───────────────────────
 # Two-stage: instrument → benchmark → recompile with profile data.
@@ -981,10 +1259,21 @@ main() {
                 exit $?
         fi
 
+        # `miri` manages its own toolchain (nightly), so skip the stable
+        # toolchain check and PGO cache setup. Miri has its own sysroot.
+        if [ "$command" = "miri" ]; then
+                run_miri
+                exit $?
+        fi
+
         # Setup environment for anything that actually builds or tests.
         if [ $NO_CACHE -eq 0 ]; then
                 setup_build_cache
         fi
+
+        # Show Miri verification status banner on every build/test command.
+        # This gives the owner/user visibility into UB-freedom at every invocation.
+        show_miri_status
 
         case "$command" in
         debug)
