@@ -210,7 +210,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         let mut sf = crate::system_feeling::SystemFeeling::new(now);
         // Take one sample so the EMA has a real reading to display.
         sf.tick(now);
-        let hour = crate::atmosphere_adaptive::current_hour();
+        let hour = crate::system_feeling::current_local_hour();
         let state = sf.current_state();
         let family = crate::control_color_drift::family_for_state(state);
         s.field("state", state.label());

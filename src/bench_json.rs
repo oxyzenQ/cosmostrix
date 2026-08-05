@@ -79,7 +79,6 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         o.push_kv_str("monolith_size", data.monolith_size);
         o.push_kv_str("bold", &data.bold_mode);
         o.push_kv_str("shading", &data.shading_mode);
-        o.push_kv_str("atmosphere", data.atmosphere_mode);
         o.push_kv("cols", data.w);
         o.push_kv("lines", data.h);
         o.push_kv("target_fps", data.target_fps);

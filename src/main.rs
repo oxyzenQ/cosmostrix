@@ -43,23 +43,17 @@
 static GLOBAL_ALLOC: crate::alloc_trace::TraceAlloc = crate::alloc_trace::TraceAlloc;
 mod alloc_trace;
 mod app;
-mod atmosphere;
-// v30 (Dragon Hunt v2 Phase 6 Tier E item 31, Option C): the frozen
-// `atmosphere_ab` (A/B smoke, Phase 9) and `atmosphere_probe` (regime
-// probe, never wired in) modules have been deleted. Their design knowledge
-// is preserved in docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
-// The wired-in atmosphere modules below remain unchanged.
-mod atmosphere_adaptive;
-mod atmosphere_apply;
-mod atmosphere_controlled_live;
-mod atmosphere_custom;
-mod atmosphere_presets;
-mod atmosphere_runtime;
-mod atmosphere_shadow;
-#[cfg(test)]
-mod atmosphere_tests;
-mod atmosphere_verifier;
-mod atmosphere_visual;
+// Atmosphere engine subsystem fully eliminated (Dragon Hunt v2 Phase 6
+// Tier E item 31 — full elimination). Owner decided atmosphere engine
+// is not used in the future. All 14 atmosphere source files (~6.5k LOC)
+// and their CLI flags / config keys / profile fields / docs have been
+// removed. Design knowledge preserved in
+// docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
+//
+// NOTE: src/chroma/post/atmosphere.rs (AtmosphericCtx — luminance/
+// saturation/instability shader) is a SEPARATE Chroma Dragon post-FX
+// subsystem and is KEPT. The `AtmosphericEvolution` struct in
+// cloud/ecosystem.rs (drift/gust events) is also SEPARATE and KEPT.
 mod bench;
 mod bench_baseline;
 mod bench_comp;
@@ -774,42 +768,6 @@ fn main() -> std::io::Result<()> {
 
     let default_bg = matches!(args.color_bg, ColorBg::DefaultBackground);
 
-    // Atmosphere resolution: default is Disabled (no auto color change).
-    // User must explicitly set atmosphere-mode = controlled-live + regime
-    // in config or CLI to enable the Cosmic Dragon's adaptive breathing.
-    // This prevents unwanted color shifts when the user just wants static rain.
-    let atmosphere_mode =
-        config_apply::resolve_atmosphere_mode(args.atmosphere_mode_str.as_deref());
-    let atmosphere_regime =
-        config_apply::resolve_atmosphere_regime(args.atmosphere_regime_str.as_deref());
-
-    // Build atmosphere modulation from resolved config.
-    // When mode is Disabled, modulation is always identity regardless of regime.
-    // When regime is Adaptive, modulation is seeded from the current local hour
-    // via atmosphere_adaptive::adaptive_params(). The renderer reads these
-    // values once at startup; a future enhancement may re-poll per-frame.
-    let (atmosphere_modulation, _resolved_regime) = if atmosphere_mode.allows_modulation() {
-        if atmosphere_regime == atmosphere::AtmosphereRegime::Adaptive {
-            let target = atmosphere_adaptive::adaptive_params(atmosphere_adaptive::current_hour());
-            let mut modulation = atmosphere_apply::AtmosphereRuntimeModulation::identity();
-            // Snap to the adaptive target on startup so the rain matches the
-            // current time immediately. Per-frame updates can be added later.
-            atmosphere_adaptive::update_modulation(&mut modulation, &target, 1.0);
-            (modulation, atmosphere_regime)
-        } else {
-            let modulation =
-                crate::atmosphere_controlled_live::controlled_live_modulation_from_regime(
-                    atmosphere_regime,
-                );
-            (modulation, atmosphere_regime)
-        }
-    } else {
-        (
-            atmosphere_apply::AtmosphereRuntimeModulation::identity(),
-            atmosphere::AtmosphereRegime::Calm,
-        )
-    };
-
     // v17: --async flag removed. Async is always on (default true).
     // --uniform disables it (uniform wins = async off).
     let effective_async = args.async_mode && !args.uniform;
@@ -907,8 +865,6 @@ fn main() -> std::io::Result<()> {
             &format!("{:?}", args.glitch_level),
             args.screensaver,
             args.auto_color_drift,
-            atmosphere_mode,
-            &atmosphere_modulation,
             args.message.as_deref(),
             args.message_border,
             args.duration,
@@ -1001,12 +957,6 @@ fn main() -> std::io::Result<()> {
         user_ranges,
         def_ascii,
         auto_color_drift: args.auto_color_drift,
-        // Phase 10: atmosphere modulation resolved from config/profile.
-        atmosphere_modulation,
-        atmosphere_mode,
-        // Phase D Bug #5: pass the resolved regime so bench_report can show
-        // the actual configured regime instead of hardcoding Calm.
-        atmosphere_regime,
         monolith_density_map,
         config_path_for_watcher: {
             // v25.2 Termux fix: use multi-candidate path resolution so

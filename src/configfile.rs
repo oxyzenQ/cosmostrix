@@ -43,16 +43,15 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "color-bg",
     "auto-color-drift",
     "async-mode",
-    "atmosphere-mode",
-    "atmosphere-regime",
     "adaptive-custom",
     // v20: Cinematic intro selector. Values: "logo" | "cosmic" | "none".
     // Default: "logo". CLI --intro flag wins over this config key.
     "intro",
 ];
 
-const PROFILE_CONFIG_KEY_HINT: &str = "profile.<name>.<color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
-const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<color|charset|fps|speed|density|density-map|glitch-level|monolith-size|color-bg|atmosphere-mode|atmosphere-regime>";
+const PROFILE_CONFIG_KEY_HINT: &str =
+    "profile.<name>.<color|charset|fps|speed|density|glitch-level|monolith-size|color-bg>";
+const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<color|charset|fps|speed|density|density-map|glitch-level|monolith-size|color-bg>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain|stops>";
 const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
@@ -611,14 +610,6 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Shading mode: 0=random, 1=cinematic (default — distance from head)
 # shadingmode = 1
 
-# Atmosphere Engine (opt-in)
-# atmosphere-mode: disabled (default) | controlled-live
-# atmosphere-regime: calm | pulse | signal | compression | void | monolith-pressure | adaptive
-# atmosphere-mode = disabled
-# atmosphere-regime = calm
-# Controlled atmosphere example:
-# atmosphere-mode = controlled-live
-# atmosphere-regime = adaptive
 # Glitch behavior is fully owned by --glitch-level (none|subtle|default|intense).
 # The preset controls glitch percent, stream decay, fragmented stream chance,
 # and stream layering automatically — there are no separate config keys.
@@ -646,11 +637,10 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Custom Scene Definitions
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>.
 # Fields: color, charset, fps, speed, density, density-map, glitch-level,
-#         monolith-size, color-bg, atmosphere-mode, atmosphere-regime.
+#         monolith-size, color-bg.
 # Missing fields fall back to cinematic's defaults. (base-scene and preset
 # were removed in v20.1; --testconf flags them as unknown keys.)
 # Custom scenes are listed alongside built-in scenes in --list-scenes output.
-# See docs/ATMOSPHERE_ENGINE.md for more examples.
 
 # [scene-custom.hacker-mode]
 # color = green
@@ -692,12 +682,9 @@ pub(crate) fn dump_config_text() -> &'static str {
 # density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
 
 # Adaptive Custom Time Map (optional)
-# Overrides the default 5-phase adaptive engine.
-# NOTE: adaptive-custom entries run regardless of atmosphere-mode. To disable,
-# comment out or delete the entries (setting atmosphere-mode = disabled does
-# NOT stop adaptive-custom from running).
-# Format: H-M = color, scene, key=value, ... (flexible digits: 2-3, 02-03, 14-5)
-# Parameters not specified are sticky (keep previous value).
+# REMOVED: adaptive-custom.* keys have been removed along with the
+# atmosphere engine subsystem. Any adaptive-custom.* entries in your
+# config will be rejected by --testconf.
 # Supported key=value: speed, density, fps, charset, glitch-level.
 # Transition: smooth 5-minute blend before next time point (numeric fields
 # speed/density/fps only); color/scene/charset/glitch-level snap at boundary.
@@ -770,7 +757,6 @@ fn is_known_key(key: &str) -> bool {
     USER_CONFIG_KEYS.contains(&key)
         || is_profile_config_key(key)
         || is_scene_custom_config_key(key)
-        || is_adaptive_custom_key(key)
         || is_colors_custom_key(key)
         || is_charset_custom_key(key)
         || is_color_tune_key(key)
@@ -844,22 +830,6 @@ fn is_charset_custom_key(key: &str) -> bool {
         return false;
     }
     field == "set"
-}
-
-/// Check if `key` matches the `adaptive-custom.H-M` pattern.
-/// Accepts flexible digit counts: `2-3`, `02-03`, `2-03`, `02-3` all valid.
-#[inline]
-fn is_adaptive_custom_key(key: &str) -> bool {
-    let Some(rest) = key.strip_prefix("adaptive-custom.") else {
-        return false;
-    };
-    let Some((hh, mm)) = rest.split_once('-') else {
-        return false;
-    };
-    !hh.is_empty()
-        && !mm.is_empty()
-        && hh.chars().all(|c| c.is_ascii_digit())
-        && mm.chars().all(|c| c.is_ascii_digit())
 }
 
 /// Strip inline comments (`# ...`) from a config line, respecting quoted strings.

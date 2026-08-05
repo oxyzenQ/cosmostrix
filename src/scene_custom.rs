@@ -80,8 +80,6 @@ pub(crate) fn collect_custom_scenes(
             "glitch-level" => scene.glitch_level = Some(value.clone()),
             "monolith-size" => scene.monolith_size = Some(value.clone()),
             "color-bg" => scene.color_bg = Some(value.clone()),
-            "atmosphere-mode" => scene.atmosphere_mode = Some(value.clone()),
-            "atmosphere-regime" => scene.atmosphere_regime = Some(value.clone()),
             _ => {}
         }
     }
@@ -303,14 +301,6 @@ pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String 
         out.push_str(&format!("    color-bg           = {bg}\n"));
         has_field = true;
     }
-    if let Some(mode) = scene.atmosphere_mode.as_deref() {
-        out.push_str(&format!("    atmosphere-mode    = {mode}\n"));
-        has_field = true;
-    }
-    if let Some(regime) = scene.atmosphere_regime.as_deref() {
-        out.push_str(&format!("    atmosphere-regime  = {regime}\n"));
-        has_field = true;
-    }
 
     if !has_field {
         out.push_str("    (no fields set — using global defaults from cinematic)\n");
@@ -408,7 +398,10 @@ mod tests {
         assert!(!PROFILE_FIELDS.contains(&"base-scene"));
         assert!(!PROFILE_FIELDS.contains(&"preset"));
         assert!(PROFILE_FIELDS.contains(&"color"));
-        assert!(PROFILE_FIELDS.contains(&"atmosphere-regime"));
+        // Atmosphere engine eliminated — atmosphere-regime is no longer a
+        // valid profile field.
+        assert!(!PROFILE_FIELDS.contains(&"atmosphere-regime"));
+        assert!(!PROFILE_FIELDS.contains(&"atmosphere-mode"));
         assert!(!PROFILE_FIELDS.contains(&"nonexistent-field"));
     }
 

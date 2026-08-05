@@ -207,22 +207,7 @@ The density-map monolith formations live in `src/cloud/monolith.rs`
 (`GustState`, `density_noise_at`).
 
 
-5. ADAPTIVE ATMOSPHERE ENGINE  (src/atmosphere_adaptive.rs)
------------------------------------------------------------------
-
-A 5-phase time-driven modulation (Deep Void -> Compression -> Pulse
--> Calm -> Signal) smoothly transitions speed, density, brightness,
-glitch pressure, and color palette based on local wall-clock time.
-Transitions use smoothstep blending over 5-minute windows so the
-atmosphere evolves imperceptibly across a long-running session.
-
-  - Opt-in via `atmosphere-mode = controlled-live` in config.
-  - Custom 24-hour schedules via `[adaptive-custom.HH-MM]` blocks.
-  - Live config reload re-parses immediately on save.
-  - Disabled in benchmark mode (Calm regime fixed) for stability.
-
-
-6. CHROMA DRAGON COLORING ENGINE  (src/chroma/)
+5. CHROMA DRAGON COLORING ENGINE  (src/chroma/)
 -----------------------------------------------
 
 The coloring counterpart to the Cosmic Dragon. Where the Cosmic Dragon
@@ -564,8 +549,8 @@ mod tests {
             "docs_report must describe density noise and wind gusts"
         );
         assert!(
-            report.contains("ADAPTIVE ATMOSPHERE ENGINE"),
-            "docs_report must describe the adaptive atmosphere engine"
+            !report.contains("ADAPTIVE ATMOSPHERE ENGINE"),
+            "docs_report must NOT mention the eliminated atmosphere engine"
         );
     }
 

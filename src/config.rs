@@ -695,23 +695,6 @@ pub struct Args {
         help = "Force color mode (allowed: 0,16,8/256,24/32). Default: 24-bit if supported (COLORTERM), else 8-bit (TERM=...256color), else 16-color"
     )]
     pub colormode: Option<u16>,
-
-    // Atmosphere engine config (gated/internal-first — Phase 10).
-    // CLI flags that override config-file values. Both are hidden (advanced);
-    // most users set these via config.toml [atmosphere] block instead.
-    #[arg(
-        long = "atmosphere-mode",
-        hide = true,
-        help = "Atmosphere mode (disabled, controlled-live). Config: atmosphere-mode = \"controlled-live\""
-    )]
-    pub atmosphere_mode_str: Option<String>,
-
-    #[arg(
-        long = "atmosphere-regime",
-        hide = true,
-        help = "Atmosphere regime (calm, pulse, signal, compression, void, monolith-pressure, adaptive). Config: atmosphere-regime = \"pulse\""
-    )]
-    pub atmosphere_regime_str: Option<String>,
 }
 
 // List printers — clean, no alias noise

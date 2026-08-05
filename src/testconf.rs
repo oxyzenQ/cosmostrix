@@ -156,16 +156,6 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         if key.starts_with("profile.") || key.starts_with("scene-custom.") {
             continue; // block keys validated above
         }
-        // adaptive-custom.HH-MM keys: validate via parse_custom_time_map.
-        if key.starts_with("adaptive-custom.") {
-            let mut single = std::collections::HashMap::new();
-            single.insert(key.clone(), value.clone());
-            if let Err(e) = crate::atmosphere_custom::parse_custom_time_map(&single) {
-                crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {e}"));
-                errors += 1;
-            }
-            continue;
-        }
         // colors-custom.* keys: validate hex format (same as validate_config_strictly).
         // Without this, --testconf passes invalid hex that crashes at startup.
         if key.starts_with("colors-custom.") {
@@ -249,14 +239,6 @@ pub(crate) fn validate_config_strictly(
 ) -> Result<(), String> {
     for (key, value) in cfg {
         if key.starts_with("profile.") || key.starts_with("scene-custom.") {
-            continue;
-        }
-        // adaptive-custom.HH-MM keys: validate via parse_custom_time_map.
-        // This catches invalid color/scene names, invalid parameters, etc.
-        if key.starts_with("adaptive-custom.") {
-            let mut single = std::collections::HashMap::new();
-            single.insert(key.clone(), value.clone());
-            crate::atmosphere_custom::parse_custom_time_map(&single)?;
             continue;
         }
         // colors-custom.<name>.<field> keys: validate hex format.
@@ -370,46 +352,58 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
     let v = value.trim();
     match key {
         // ── Numeric ranges ──
-        "fps" => v.parse::<f64>().ok().and_then(|n| {
-            if !(1.0..=240.0).contains(&n) {
-                Some(format!("out of range [1, 240], got {n}"))
-            } else {
-                None
-            }
-        }).or_else(|| {
-            // Non-numeric fps is also an error.
-            if v.parse::<f64>().is_err() {
-                Some(format!("expected number in [1, 240], got '{v}'"))
-            } else {
-                None
-            }
-        }),
-        "speed" => v.parse::<i64>().ok().and_then(|n| {
-            if !(1..=100).contains(&n) {
-                Some(format!("out of range [1, 100], got {n}"))
-            } else {
-                None
-            }
-        }).or_else(|| {
-            if v.parse::<i64>().is_err() {
-                Some(format!("expected integer in [1, 100], got '{v}'"))
-            } else {
-                None
-            }
-        }),
-        "density" => v.parse::<f64>().ok().and_then(|n| {
-            if !(0.01..=5.0).contains(&n) {
-                Some(format!("out of range [0.01, 5.0], got {n}"))
-            } else {
-                None
-            }
-        }).or_else(|| {
-            if v.parse::<f64>().is_err() {
-                Some(format!("expected number in [0.01, 5.0], got '{v}'"))
-            } else {
-                None
-            }
-        }),
+        "fps" => v
+            .parse::<f64>()
+            .ok()
+            .and_then(|n| {
+                if !(1.0..=240.0).contains(&n) {
+                    Some(format!("out of range [1, 240], got {n}"))
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                // Non-numeric fps is also an error.
+                if v.parse::<f64>().is_err() {
+                    Some(format!("expected number in [1, 240], got '{v}'"))
+                } else {
+                    None
+                }
+            }),
+        "speed" => v
+            .parse::<i64>()
+            .ok()
+            .and_then(|n| {
+                if !(1..=100).contains(&n) {
+                    Some(format!("out of range [1, 100], got {n}"))
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                if v.parse::<i64>().is_err() {
+                    Some(format!("expected integer in [1, 100], got '{v}'"))
+                } else {
+                    None
+                }
+            }),
+        "density" => v
+            .parse::<f64>()
+            .ok()
+            .and_then(|n| {
+                if !(0.01..=5.0).contains(&n) {
+                    Some(format!("out of range [0.01, 5.0], got {n}"))
+                } else {
+                    None
+                }
+            })
+            .or_else(|| {
+                if v.parse::<f64>().is_err() {
+                    Some(format!("expected number in [0.01, 5.0], got '{v}'"))
+                } else {
+                    None
+                }
+            }),
         // v25.8 (bug #6): color.tune.* fields must be in [0.0, 3.0].
         // Previously these were silently accepted by --testconf and silently
         // defaulted to 1.0 at runtime (see color_tune_from_config's filter).
@@ -422,19 +416,22 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             if v.trim().is_empty() {
                 return Some(format!("expected number in [0.0, 3.0], got '{v}'"));
             }
-            v.parse::<f64>().ok().and_then(|n| {
-                if !(0.0..=3.0).contains(&n) {
-                    Some(format!("out of range [0.0, 3.0], got {n}"))
-                } else {
-                    None
-                }
-            }).or_else(|| {
-                if v.parse::<f64>().is_err() {
-                    Some(format!("expected number in [0.0, 3.0], got '{v}'"))
-                } else {
-                    None
-                }
-            })
+            v.parse::<f64>()
+                .ok()
+                .and_then(|n| {
+                    if !(0.0..=3.0).contains(&n) {
+                        Some(format!("out of range [0.0, 3.0], got {n}"))
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| {
+                    if v.parse::<f64>().is_err() {
+                        Some(format!("expected number in [0.0, 3.0], got '{v}'"))
+                    } else {
+                        None
+                    }
+                })
         }
         // v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct,
         // maxdpc) REMOVED from --testconf validation. These are now fully
@@ -518,24 +515,12 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 ))
             }
         }
-        "atmosphere-regime" => match v {
-            "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure"
-            | "adaptive" => None,
-            "storm" => Some(
-                // Phase 5 (P3-9): match the wording used by config_apply.rs:63-67
-                // and profile.rs storm branch for cross-layer consistency.
-                "rejecting atmosphere-regime='storm' — storm is unavailable".to_string(),
-            ),
-            _ => Some(format!(
-                "unknown regime '{v}'. Available: calm, pulse, signal, compression, void, monolith-pressure, adaptive"
-            )),
-        },
-        "atmosphere-mode" => match v {
-            "disabled" | "controlled-live" => None,
-            _ => Some(format!(
-                "unknown mode '{v}'. Available: disabled, controlled-live"
-            )),
-        },
+        "atmosphere-regime" | "atmosphere-mode" => Some(
+            "atmosphere-regime and atmosphere-mode config keys have been removed — \
+             the atmosphere engine subsystem was eliminated. Remove these keys \
+             from your config.toml."
+                .to_string(),
+        ),
         "monolith-size" => {
             // Phase 5 closure (P1-#4 + P2-6): case-insensitive to match CLI
             // clap ValueEnum. Previously strict-lowercase only, which created
@@ -573,7 +558,9 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             let lower = v.trim().to_ascii_lowercase();
             match lower.as_str() {
                 "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,
-                _ => Some(format!("expected true/false (or yes/no, on/off, 1/0), got '{v}'")),
+                _ => Some(format!(
+                    "expected true/false (or yes/no, on/off, 1/0), got '{v}'"
+                )),
             }
         }
         // v25.14 (bug #17): intro selector — must match the clap ValueEnum
@@ -598,17 +585,12 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
-        // v25.14 (bug #17): the bare `adaptive-custom` key is a NAMESPACING
-        // marker in USER_CONFIG_KEYS (so config_hints can detect mis-nested
-        // keys like `color.tune.adaptive-custom`), not a usable config key
-        // by itself. Real keys use the `adaptive-custom.HH-MM` format.
-        // Before this fix, `adaptive-custom = "foo"` passed strict
-        // validation silently and was silently ignored at runtime — the
-        // user got zero feedback that their custom schedule was never
-        // applied. Reject loudly with a format hint.
+        // v25.14 (bug #17): the bare `adaptive-custom` key is rejected
+        // because adaptive-custom.* support was removed with the atmosphere
+        // engine. Users should remove these keys from config.toml.
         "adaptive-custom" => Some(
-            "adaptive-custom is not a valid key by itself — use 'adaptive-custom.HH-MM = ...' \
-             (e.g. adaptive-custom.02-00 = cosmos, monolith, speed=15)"
+            "adaptive-custom.* keys have been removed — the atmosphere engine \
+             subsystem was eliminated. Remove these keys from your config.toml."
                 .to_string(),
         ),
 
@@ -621,53 +603,6 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ── Bug regression: atmosphere-regime = adaptivee must error ──
-
-    #[test]
-    fn atmosphere_regime_typo_is_rejected() {
-        let msg = validate_field_value("atmosphere-regime", "adaptivee");
-        assert!(
-            msg.is_some(),
-            "'adaptivee' (typo) must be rejected for atmosphere-regime"
-        );
-        let msg = msg.expect("checked Some above");
-        assert!(
-            msg.contains("unknown regime"),
-            "error must say 'unknown regime': {msg}"
-        );
-        assert!(
-            msg.contains("adaptive"),
-            "error must list 'adaptive' as valid: {msg}"
-        );
-    }
-
-    #[test]
-    fn atmosphere_regime_valid_values_pass() {
-        for v in [
-            "calm",
-            "pulse",
-            "signal",
-            "compression",
-            "void",
-            "monolith-pressure",
-            "adaptive",
-        ] {
-            assert!(
-                validate_field_value("atmosphere-regime", v).is_none(),
-                "'{v}' should be a valid atmosphere-regime"
-            );
-        }
-    }
-
-    #[test]
-    fn atmosphere_regime_storm_is_rejected() {
-        let msg = validate_field_value("atmosphere-regime", "storm");
-        assert!(
-            msg.is_some(),
-            "'storm' must be rejected for atmosphere-regime"
-        );
-    }
 
     // ── Bug regression: charset = hackeres must error ──
 
@@ -755,122 +690,6 @@ mod tests {
             validate_field_value("intro", "   ").is_some(),
             "whitespace-only intro must be rejected"
         );
-    }
-
-    // ── v25.14 (bug #17): bare adaptive-custom key rejection ──
-
-    #[test]
-    fn adaptive_custom_bare_key_is_rejected() {
-        // The bare `adaptive-custom` key is a namespace marker, not a real
-        // config key. Real keys use `adaptive-custom.HH-MM` format.
-        let msg = validate_field_value("adaptive-custom", "cosmos, monolith");
-        assert!(
-            msg.is_some(),
-            "bare 'adaptive-custom' key must be rejected — only adaptive-custom.HH-MM is valid"
-        );
-        let msg = msg.expect("checked Some above");
-        assert!(
-            msg.contains("adaptive-custom.HH-MM"),
-            "error must show the correct format: {msg}"
-        );
-        assert!(
-            msg.contains("02-00"),
-            "error must include a concrete example: {msg}"
-        );
-    }
-
-    #[test]
-    fn adaptive_custom_bare_key_rejects_any_value() {
-        // Even an empty value must be rejected — the key itself is wrong.
-        assert!(validate_field_value("adaptive-custom", "").is_some());
-        assert!(validate_field_value("adaptive-custom", "anything").is_some());
-    }
-
-    #[test]
-    fn adaptive_custom_bare_key_end_to_end_via_validate_config_strictly() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert("adaptive-custom".to_string(), "cosmos".to_string());
-        let result = validate_config_strictly(&cfg);
-        assert!(
-            result.is_err(),
-            "validate_config_strictly must reject bare adaptive-custom key"
-        );
-        let err = result.unwrap_err();
-        assert!(
-            err.contains("adaptive-custom.HH-MM"),
-            "error must show the correct format, got: {err}"
-        );
-    }
-
-    // ── Phase 5 closure (P3-4): --testconf validates [adaptive-custom.*] blocks ──
-
-    #[test]
-    fn adaptive_custom_valid_block_passes_testconf() {
-        // A well-formed adaptive-custom entry must pass --testconf.
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert(
-            "adaptive-custom.22-00".to_string(),
-            "cosmos, monolith, speed=15, density=0.8".to_string(),
-        );
-        let result = validate_config_strictly(&cfg);
-        assert!(
-            result.is_ok(),
-            "valid adaptive-custom entry must pass — got: {result:?}"
-        );
-    }
-
-    #[test]
-    fn adaptive_custom_invalid_speed_rejected_by_testconf() {
-        // Phase 3 Fix A: canonical parsers reject NaN/inf. --testconf must
-        // catch this via parse_custom_time_map.
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert(
-            "adaptive-custom.22-00".to_string(),
-            "cosmos, monolith, speed=NaN".to_string(),
-        );
-        let result = validate_config_strictly(&cfg);
-        assert!(result.is_err(), "speed=NaN must be rejected");
-        assert!(
-            result.unwrap_err().contains("NaN"),
-            "error must mention NaN rejection"
-        );
-    }
-
-    #[test]
-    fn adaptive_custom_out_of_range_density_rejected_by_testconf() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert(
-            "adaptive-custom.22-00".to_string(),
-            "cosmos, monolith, density=5.5".to_string(),
-        );
-        let result = validate_config_strictly(&cfg);
-        assert!(result.is_err(), "density=5.5 must be rejected (max 1.0)");
-    }
-
-    #[test]
-    fn adaptive_custom_unknown_parameter_rejected_by_testconf() {
-        // Only 5 fields are allowed: speed, density, fps, charset, glitch-level.
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert(
-            "adaptive-custom.22-00".to_string(),
-            "cosmos, monolith, bold=2".to_string(),
-        );
-        let result = validate_config_strictly(&cfg);
-        assert!(
-            result.is_err(),
-            "bold=2 inside adaptive-custom must be rejected (not an allowed field)"
-        );
-    }
-
-    #[test]
-    fn adaptive_custom_invalid_time_format_rejected_by_testconf() {
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert(
-            "adaptive-custom.25-00".to_string(),
-            "cosmos, monolith".to_string(),
-        );
-        let result = validate_config_strictly(&cfg);
-        assert!(result.is_err(), "hour 25 must be rejected");
     }
 
     // ── Numeric range validation ──
@@ -1045,13 +864,6 @@ mod tests {
                 "'{v}' should be accepted (case-insensitive)"
             );
         }
-    }
-
-    #[test]
-    fn atmosphere_mode_invalid_is_rejected() {
-        assert!(validate_field_value("atmosphere-mode", "enabled").is_some());
-        assert!(validate_field_value("atmosphere-mode", "disabled").is_none());
-        assert!(validate_field_value("atmosphere-mode", "controlled-live").is_none());
     }
 
     #[test]

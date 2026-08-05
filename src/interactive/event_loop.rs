@@ -225,31 +225,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // v25.5: last-applied config map for diff trace. Phase 4 P4-7 (positive
     // finding): intentional clone — verbose diff needs full map, ~1KB/reload.
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> = None;
-    // Adaptive color shift: check current hour's target color every 30s.
-    let mut last_color_check = Instant::now();
-    let mut last_adaptive_color: Option<&str> = None;
-    // Phase D Bug #12: track last-applied glitch level so we only call
-    // apply_glitch_level_runtime when crossing a boundary that sets a different
-    // level — avoids resetting glitch timing every 30s when unchanged.
-    let mut last_adaptive_glitch: Option<String> = None;
-    const COLOR_CHECK_INTERVAL: Duration = Duration::from_secs(30);
-
-    // Phase 5 (P4-3): cache the adaptive-custom subset for skip-on-unchanged.
-    let mut last_adaptive_custom_snapshot: Option<Vec<(String, String)>>;
 
     // Track runtime state changes for post-exit verbose summary.
     // No eprintln during rain — would flicker in alternate-screen mode.
     let _verbose = cfg.verbose;
-
-    let mut custom_time_map: Option<crate::atmosphere_custom::CustomTimeMap>;
-    {
-        let cfg_map = crate::configfile::load_config_file(cfg.config_path_for_watcher.as_deref());
-        // Phase 5 (P4-3): seed cache + initial parse via helper.
-        let (map, snap) =
-            crate::atmosphere_custom::reparse_if_changed(&cfg_map, &None, &None, "at startup");
-        custom_time_map = map;
-        last_adaptive_custom_snapshot = Some(snap);
-    }
 
     while cloud.raining {
         // Check for graceful shutdown request from signal handler.
@@ -295,130 +274,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             .store(2, std::sync::atomic::Ordering::Release);
                         cloud.raining = false;
                         break;
-                    }
-                }
-            }
-        }
-
-        // Time-driven color/scene/speed/density shift every 30s. Two sources:
-        //   1. Custom time map ([adaptive-custom.HH-MM] entries — explicit opt-in).
-        //   2. Built-in 5-phase adaptive engine (requires atmosphere-mode =
-        //      controlled-live AND atmosphere-regime = adaptive).
-        let now = Instant::now();
-        if now.duration_since(last_color_check) >= COLOR_CHECK_INTERVAL {
-            last_color_check = now;
-
-            if let Some(ref custom_map) = custom_time_map {
-                // Custom time map — runs regardless of atmosphere_mode.
-                // The user explicitly defined a schedule, so we honor it.
-                if let Some(cp) = custom_map.params_at(crate::atmosphere_adaptive::current_hour()) {
-                    // Apply color if changed.
-                    // v16: Try built-in theme first, then fall back to custom color.
-                    if let Some(ref color_name) = cp.color {
-                        if let Ok(scheme) = crate::cli::parse_color_scheme(color_name) {
-                            // Built-in theme found.
-                            if scheme != cloud.color_scheme() {
-                                cloud.set_color_scheme(scheme);
-                            }
-                        } else {
-                            // Not a built-in theme — try custom color from config.
-                            let cfg_map = crate::configfile::load_config_file(
-                                cfg.config_path_for_watcher.as_deref(),
-                            );
-                            if let Ok(palette) =
-                                crate::colors_custom::load_custom_palette(&cfg_map, color_name)
-                            {
-                                // Custom palette found — apply via set_palette.
-                                cloud.set_palette(palette);
-                                // Update frame's blank bg so clear_with_bg fills
-                                // the entire screen with the new background color.
-                                frame.clear_with_bg(cloud.palette.bg);
-                                // Also fill terminal edges with new bg.
-                                super::fill_terminal_bg(cloud.palette.bg);
-                            }
-                        }
-                    }
-                    // Apply speed if changed.
-                    if let Some(speed) = cp.speed {
-                        cloud.set_chars_per_sec(speed);
-                    }
-                    // Apply density if changed.
-                    if let Some(density) = cp.density {
-                        cloud.set_droplet_density(density);
-                    }
-                    // Apply charset if changed.
-                    if let Some(ref charset_name) = cp.charset {
-                        if *charset_name != charset_preset {
-                            if let Ok(cs) = crate::charset::charset_from_str(charset_name, false) {
-                                let chars =
-                                    crate::charset::build_chars(cs, &user_ranges, def_ascii);
-                                cloud.transition_chars(chars);
-                                charset_preset = charset_name.clone();
-                            }
-                        }
-                    }
-                    // v25.6 depth-test fix: apply scene if changed. cp.scene
-                    // was parsed but never applied; `adaptive-custom.10-00 =
-                    // cosmos, monolith` at 10:18 stayed on cinematic.
-                    if let Some(ref scene_name_from_cp) = cp.scene {
-                        if *scene_name_from_cp != scene_name {
-                            let new_charset = cloud.apply_scene_runtime(
-                                scene_name_from_cp,
-                                &charset_preset,
-                                &user_ranges,
-                                def_ascii,
-                            );
-                            scene_name = scene_name_from_cp.clone();
-                            scene_generation = scene_generation.wrapping_add(1);
-                            charset_preset = new_charset;
-                        }
-                    }
-                    // Phase D Bug #12: apply fps if specified. fps is lerped
-                    // (smooth 5-min blend before next point), so we always
-                    // apply — same pattern as speed/density. Recomputes
-                    // target_period/idle_period using the same safety pattern
-                    // as the live-reload path. Note: cfg.target_fps is
-                    // immutable (&CloudConfig), so we mutate only the local
-                    // period variables. If live-reload fires later, it'll
-                    // overwrite these from new_cfg.target_fps; then on the
-                    // next 30s tick this path re-applies the scheduled value.
-                    // That's the desired precedence: explicit config edit
-                    // wins briefly, then the scheduled value re-asserts.
-                    if let Some(fps) = cp.fps {
-                        let safe_fps = if fps.is_finite() && fps > 0.0 {
-                            fps
-                        } else {
-                            cfg.target_fps.max(1.0)
-                        };
-                        target_period = Duration::from_secs_f64(1.0 / safe_fps);
-                        idle_period = Duration::from_secs_f64(1.0 / (safe_fps * IDLE_FPS_FACTOR));
-                    }
-                    // Phase D Bug #12: apply glitch-level if specified AND
-                    // changed. glitch_level is a snap (no lerp), so we use
-                    // an "if changed" check to avoid resetting glitch timing
-                    // every 30s.
-                    if let Some(ref glitch_name) = cp.glitch_level {
-                        if *glitch_name != last_adaptive_glitch.as_deref().unwrap_or("") {
-                            use crate::config::GlitchLevel;
-                            use clap::ValueEnum;
-                            if let Ok(level) = GlitchLevel::from_str(glitch_name, true) {
-                                cloud.apply_glitch_level_runtime(level);
-                                last_adaptive_glitch = Some(glitch_name.clone());
-                            }
-                            // Silent ignore on parse error — same as the
-                            // rest of the adaptive-custom code. User can
-                            // --testconf to validate.
-                        }
-                    }
-                }
-            } else if cfg.atmosphere_mode.allows_modulation() {
-                // Built-in adaptive engine (controlled-live + adaptive regime).
-                if let Some(target) = crate::atmosphere_adaptive::current_color_target() {
-                    if last_adaptive_color != Some(target) {
-                        if let Ok(scheme) = crate::cli::parse_color_scheme(target) {
-                            cloud.set_color_scheme(scheme);
-                            last_adaptive_color = Some(target);
-                        }
                     }
                 }
             }
@@ -518,17 +373,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             super::fill_terminal_bg(cloud.palette.bg);
             // Update charset_preset for runtime cycling.
             charset_preset = new_cfg.charset_preset.clone();
-            // Phase 5 (P4-3): reparse only if the adaptive-custom subset
-            // changed (cache hit → ~50ns instead of ~1ms). The helper also
-            // handles the broken-pipe-safe stderr error message (P4-2/P3-10).
-            let (new_map, new_snap) = crate::atmosphere_custom::reparse_if_changed(
-                &new_cfg_map,
-                &custom_time_map,
-                &last_adaptive_custom_snapshot,
-                "after live reload",
-            );
-            custom_time_map = new_map;
-            last_adaptive_custom_snapshot = Some(new_snap);
             // v25.5 depth-test fix: recompute target/idle_period from new
             // target_fps. Guard against fps <= 0.
             let safe_fps = new_cfg.target_fps.max(0.0);

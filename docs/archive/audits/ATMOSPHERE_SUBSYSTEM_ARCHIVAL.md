@@ -288,3 +288,103 @@ The rationale for the deletion twist:
   with Option B Random)
 - Git history: the deleted files remain accessible via `git log` and
   `git show <hash>:src/atmosphere_ab.rs` for any future reference.
+
+---
+
+## 9. Full Elimination (2026-08-05 — Dragon Hunt v2 Phase 6 Tier E item 31 final)
+
+Following the partial archival in §4 (which deleted only the truly dead
+probe + A/B smoke modules), the owner decided the atmosphere engine is
+**not used in the future** and directed a complete elimination of all
+remaining atmosphere subsystem code.
+
+### What was eliminated
+
+**Source files deleted (6,520 LOC across 14 files):**
+- `src/atmosphere.rs` (411 LOC) — regime enum, controller, state
+- `src/atmosphere_adaptive.rs` (474 LOC) — hour-driven modulation
+- `src/atmosphere_apply.rs` (249 LOC) — application mode + modulation
+- `src/atmosphere_controlled_live.rs` (117 LOC) — controlled-live adapter
+- `src/atmosphere_custom.rs` (976 LOC) — CustomTimeMap (adaptive-custom.*)
+- `src/atmosphere_presets.rs` (278 LOC) — preset list for --list-profiles
+- `src/atmosphere_runtime.rs` (107 LOC) — AtmosphereEffectiveRuntime
+- `src/atmosphere_shadow.rs` (519 LOC) — shadow risk metrics
+- `src/atmosphere_verifier.rs` (543 LOC) — verify_application bounds
+- `src/atmosphere_visual.rs` (608 LOC) — visual whisper adapter
+- `src/atmosphere_tests/atmosphere_apply.rs` (643 LOC)
+- `src/atmosphere_tests/atmosphere_apply_cl.rs` (236 LOC)
+- `src/atmosphere_tests/atmosphere_expansion.rs` (812 LOC)
+- `src/atmosphere_tests/mod.rs` (352 LOC)
+
+**Plus surgical removals in 30+ non-atmosphere files:**
+- CLI flags `--atmosphere-mode`, `--atmosphere-regime` removed from `config.rs`
+- Config keys `atmosphere-mode`, `atmosphere-regime` removed from `configfile.rs` USER_CONFIG_KEYS
+- Profile fields `atmosphere_mode`, `atmosphere_regime` removed from `profile.rs::UserProfile`
+- Scene-custom fields `atmosphere_mode`, `atmosphere_regime` removed from `scene_custom.rs`
+- `adaptive-custom.*` config key support removed (was feeding `atmosphere_custom::CustomTimeMap`)
+- `is_adaptive_custom_key()` function deleted from `configfile.rs`
+- Atmosphere diagnostic section removed from `bench_report.rs::build_premium_report`
+- `BenchReportData.atmosphere_mode` + `atmosphere_regime` fields removed
+- `CloudConfig.atmosphere_modulation/mode/regime` fields removed from `app.rs`
+- Atmosphere status banner block removed from `verbose.rs::print_verbose`
+- Atmosphere resolution + modulation block removed from `main.rs` (~40 LOC)
+- Atmosphere block (~150 LOC) removed from `interactive/event_loop.rs`
+  (custom_time_map scheduled scene change + adaptive color target)
+- `parse_atmosphere_mode_config/regime_config` + `resolve_atmosphere_mode/regime`
+  functions deleted from `config_apply.rs`
+- `parse_atmosphere_mode_profile/regime_profile` functions deleted from `profile.rs`
+- `atmosphere_presets_section()` + `list_profiles_text()` deleted from `profile.rs`
+- Atmosphere help section removed from `help_detail.rs`
+- Atmosphere engine info section removed from `info.rs`
+- ~447 lines of atmosphere tests removed from `config_apply_tests/mod.rs`
+- ~279 lines of atmosphere tests removed from `config_apply_tests/profiles.rs`
+- ~115 lines of atmosphere/adaptive-custom tests removed from `testconf.rs`
+- `atmosphere_adaptive::current_hour()` inlined as `system_feeling::current_local_hour()`
+  (kept the chrono::Local::now() utility for system_feeling + doctor diagnostics)
+
+**Net change**: 8,058 LOC deleted, 183 LOC inserted → 7,875 LOC net removal.
+
+### What was KEPT (separate subsystems, NOT atmosphere engine)
+
+- `src/chroma/post/atmosphere.rs` (547 LOC) — **Chroma Dragon post-FX**
+  (AtmosphericCtx, apply_atmospheric — luminance/saturation/instability shader).
+  Used by `chroma::shaders::base::resolve_cell_color` for every cell render.
+  This is a SEPARATE visual post-FX subsystem that happens to share the name.
+- `AtmosphericEvolution` struct in `src/cloud/ecosystem.rs` — cloud drift/gust
+  events (entropy_phase, density_offset, luminance_offset, anomaly_offset,
+  cycle_speed). Separate simulation subsystem, NOT atmosphere engine.
+
+### Backward compatibility
+
+Users with `atmosphere-mode`, `atmosphere-regime`, or `adaptive-custom.*`
+keys in their config.toml will get clear rejection messages from
+`--testconf`:
+
+- `atmosphere-mode` / `atmosphere-regime`: "config keys have been removed
+  — the atmosphere engine subsystem was eliminated"
+- `adaptive-custom.*`: flagged as unknown key (likely typo)
+- `adaptive-custom` (bare): "keys have been removed — the atmosphere
+  engine subsystem was eliminated"
+
+The default behavior (atmosphere-mode = disabled = identity modulation)
+was already the production default, so existing user runs are visually
+unchanged — only the diagnostic fields in `--benchmark` output are gone.
+
+### Verification
+
+- `cargo check` (no tests): ✓
+- `cargo check --tests`: ✓
+- `cargo test`: 1211 passed, 0 failed
+- `cargo clippy --all-targets`: ✓ (0 warnings)
+- `cargo fmt --check`: ✓
+- `codespell src/ scripts/`: ✓
+- `shellcheck scripts/build.sh`: ✓
+
+### Design knowledge preserved
+
+The original `docs/ATMOSPHERE_ENGINE.md` (475 lines) is the canonical
+design spec. This archive doc captures the additional knowledge from
+the deleted modules (probe fields, A/B safety checks, regime state
+machine, controlled-live bounds, visual whisper adapter). If a future
+owner wants to revive any part of the atmosphere engine, the design
+knowledge is here + in git history (`git show <hash>:src/atmosphere_*.rs`).

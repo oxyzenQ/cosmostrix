@@ -46,77 +46,6 @@ use crate::validation::{
     parse_canonical_u8_range,
 };
 
-/// Validate atmosphere-mode config value.
-/// Allowed: disabled, controlled-live. Storm is NOT config-safe.
-fn parse_atmosphere_mode_config(name: &str, value: &str) -> Option<String> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "disabled" | "controlled-live" => Some(value.trim().to_ascii_lowercase()),
-        _ => {
-            crate::output::eprintln_error_labeled(&format!(
-                "invalid {name}='{value}' (allowed: disabled, controlled-live)"
-            ));
-            None
-        }
-    }
-}
-
-/// Validate atmosphere-regime config value.
-/// Allowed: calm, pulse, signal, compression, void, monolith-pressure, adaptive.
-/// Storm is unavailable and will be rejected.
-fn parse_atmosphere_regime_config(name: &str, value: &str) -> Option<String> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" | "adaptive" => {
-            Some(value.trim().to_ascii_lowercase())
-        }
-        "storm" => {
-            crate::output::eprintln_error_labeled(
-                "rejecting atmosphere-regime='storm' — storm is unavailable",
-            );
-            None
-        }
-        _ => {
-            eprintln!(
-                "error: invalid {name}='{value}' (allowed: calm, pulse, signal, compression, void, monolith-pressure, adaptive)"
-            );
-            None
-        }
-    }
-}
-
-/// Resolve atmosphere mode from the config string value.
-/// Returns Disabled (default) if the value is "disabled" or None.
-/// Returns ControlledLive if the value is "controlled-live".
-#[must_use]
-pub(crate) fn resolve_atmosphere_mode(
-    mode_str: Option<&str>,
-) -> crate::atmosphere_apply::AtmosphereApplicationMode {
-    match mode_str {
-        Some("controlled-live") => {
-            crate::atmosphere_apply::AtmosphereApplicationMode::ControlledLive
-        }
-        _ => crate::atmosphere_apply::AtmosphereApplicationMode::Disabled,
-    }
-}
-
-/// Resolve atmosphere regime from the config string value.
-/// Returns Calm (default) if the value is "calm" or None.
-/// Returns the corresponding AtmosphereRegime for valid values.
-/// Storm is never returned — it's rejected at the parsing layer.
-#[must_use]
-pub(crate) fn resolve_atmosphere_regime(
-    regime_str: Option<&str>,
-) -> crate::atmosphere::AtmosphereRegime {
-    match regime_str {
-        Some("pulse") => crate::atmosphere::AtmosphereRegime::Pulse,
-        Some("signal") => crate::atmosphere::AtmosphereRegime::Signal,
-        Some("compression") => crate::atmosphere::AtmosphereRegime::Compression,
-        Some("void") => crate::atmosphere::AtmosphereRegime::Void,
-        Some("monolith-pressure") => crate::atmosphere::AtmosphereRegime::MonolithPressure,
-        Some("adaptive") => crate::atmosphere::AtmosphereRegime::Adaptive,
-        _ => crate::atmosphere::AtmosphereRegime::Calm,
-    }
-}
-
 pub(crate) fn apply_config_and_runtime_defaults(
     matches: &clap::ArgMatches,
     args: &mut Args,
@@ -160,11 +89,9 @@ pub(crate) fn apply_config_and_runtime_defaults(
             cfg.len()
         ));
         // List the actual keys so the user can see exactly what is set.
-        // This is critical for debugging "why is the atmosphere engine
-        // running?" — the answer is almost always "atmosphere-mode and
-        // atmosphere-regime are uncommented in config.toml". Without this
-        // list, the user only sees "(2 keys)" and has to manually re-read
-        // the config file to figure out which 2.
+        // This is critical for debugging config issues — without this list,
+        // the user only sees "(N keys)" and has to manually re-read the
+        // config file to figure out which keys are active.
         if !cfg.is_empty() {
             let mut keys: Vec<&str> = cfg.keys().map(String::as_str).collect();
             keys.sort();
@@ -481,18 +408,6 @@ fn apply_config_values(
         if let Some(b) = parse_bool_config("async-mode", v) {
             args.async_mode = b;
             config_touched.insert("async_mode");
-        }
-    }
-    if let Some(v) = config_value(matches, cfg, "atmosphere_mode_str", "atmosphere-mode") {
-        if let Some(valid) = parse_atmosphere_mode_config("atmosphere-mode", &v) {
-            args.atmosphere_mode_str = Some(valid);
-            config_touched.insert("atmosphere_mode_str");
-        }
-    }
-    if let Some(v) = config_value(matches, cfg, "atmosphere_regime_str", "atmosphere-regime") {
-        if let Some(valid) = parse_atmosphere_regime_config("atmosphere-regime", &v) {
-            args.atmosphere_regime_str = Some(valid);
-            config_touched.insert("atmosphere_regime_str");
         }
     }
 }

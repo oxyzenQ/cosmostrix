@@ -8,7 +8,7 @@
 //! classifier reads two signals:
 //!
 //! - **Process CPU%** via `cpustat::current_cpu_ns()` (Linux/macOS only).
-//! - **Local wall-clock hour** via `atmosphere_adaptive::current_hour()`.
+//! - **Local wall-clock hour** via `current_local_hour()` (chrono::Local).
 //!
 //! ## Honest degradation
 //!
@@ -41,12 +41,26 @@
 
 use std::time::{Duration, Instant};
 
-use crate::atmosphere_adaptive;
 use crate::control_color_drift::{
     FeelingState, CPU_BUSY_THRESHOLD, CPU_EMA_ALPHA, CPU_IDLE_THRESHOLD, MIN_STATE_DWELL_SECS,
     MORNING_END, MORNING_START, NIGHT_END, NIGHT_START, PRE_DAWN_END, PRE_DAWN_START,
 };
 use crate::cpustat;
+
+/// Current local wall-clock hour as f64 (with minute/second fraction).
+///
+/// Inlined here after atmosphere engine elimination. The previous
+/// implementation lived in `atmosphere_adaptive::current_hour()` which
+/// was deleted along with the rest of the atmosphere engine subsystem.
+/// Used by `SystemFeeling::tick()` for time-of-day state classification.
+pub(crate) fn current_local_hour() -> f64 {
+    use chrono::Timelike;
+    let now = chrono::Local::now();
+    let hour = f64::from(now.hour());
+    let minute = f64::from(now.minute());
+    let second = f64::from(now.second());
+    hour + minute / 60.0 + second / 3600.0
+}
 
 /// System feeling state tracker. Persists across ecosystem ticks.
 ///
@@ -102,7 +116,7 @@ impl SystemFeeling {
     /// `now` is the caller's `Instant` (may be simulated in tests).
     pub(crate) fn tick(&mut self, now: Instant) {
         let cpu = self.sample_cpu_percent(now);
-        let hour = atmosphere_adaptive::current_hour();
+        let hour = current_local_hour();
         self.update_state(cpu, hour, now);
     }
 

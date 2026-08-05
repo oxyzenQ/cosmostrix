@@ -4,9 +4,9 @@
 //! Benchmark report formatting module.
 //!
 //! Extracted from `bench.rs` to reduce file pressure before Phase 6
-//! visual/atmosphere work. Contains all benchmark output formatting helpers,
-//! metric meaning constants, ZACTRIX ENGINE diagnostics formatting, ATMOSPHERE
-//! diagnostics formatting, and the premium benchmark report builder.
+//! visual work. Contains all benchmark output formatting helpers,
+//! metric meaning constants, ZACTRIX ENGINE diagnostics formatting,
+//! and the premium benchmark report builder.
 //!
 //! Behavior is unchanged — all fields, labels, and values remain identical
 //! to their previous in-line locations in `bench.rs`.
@@ -87,16 +87,6 @@ pub(crate) struct BenchReportData {
     /// colors are picked per-cell or computed from head distance — the
     /// latter is slightly more expensive but produces smoother gradients.
     pub shading_mode: String,
-    /// Atmosphere application mode ("disabled"/"internal-verified"/
-    /// "controlled-live"). When non-disabled, the atmosphere system applies
-    /// runtime modulation to rain parameters — this changes throughput
-    /// characteristics vs the identity (disabled) baseline.
-    pub atmosphere_mode: &'static str,
-    /// Atmosphere regime ("calm"/"pulse"/"signal"/"compression"/"void"/
-    /// "monolith-pressure"/"adaptive"). Phase D Bug #5: previously the
-    /// ATMOSPHERE section hardcoded Calm regardless of config. Now the
-    /// actual configured regime flows through so the report matches reality.
-    pub atmosphere_regime: &'static str,
 
     // ── v25.17: CONFIG enrichment (color/charset/etc. parity with --verbose) ──
     // These fields close the gap between the rich `--verbose` dump and the
@@ -363,8 +353,6 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("glitch_level", data.glitch_level);
         s.field("glitch_pct", &format!("{:.1}", data.glitch_pct));
         s.field("auto_color_drift", &data.auto_color_drift.to_string());
-        s.field("atmosphere", data.atmosphere_mode);
-        s.field("atmosphere_regime", data.atmosphere_regime);
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());
         s.field("target_fps", &format!("{:.1}", data.target_fps));
@@ -750,66 +738,10 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("terminal_writer", "single-owner");
     }
 
-    // ── Atmosphere Engine diagnostics ────────────────────────────────────
-    // Phase D Bug #5: reports the ACTUAL atmosphere_mode + atmosphere_regime
-    // from config (previously hardcoded Disabled + Calm).
-    //
-    // v30 strengthen (audit): removed 3 exact-duplicate fields that
-    // printed the same value as their non-prefixed siblings:
-    //   - `atmosphere_application` (was == `application`)
-    //   - `runtime_application` (was == `application`)
-    //   - `atmosphere_shadow_risk` (was == `atmosphere_shadow`)
-    // Also replaced hardcoded `transition: "stable"` and `verifier: "pass"`
-    // with actual computed values — the old literals were misleading because
-    // they claimed stable/pass even when the atmosphere was transitioning
-    // or the application was clamped by the verifier.
-    {
-        let apply_mode = crate::config_apply::resolve_atmosphere_mode(Some(data.atmosphere_mode));
-        let regime = crate::config_apply::resolve_atmosphere_regime(Some(data.atmosphere_regime));
-        let ctrl = crate::atmosphere::AtmosphereController::new();
-        let app = ctrl.build_application();
-        let modulation = crate::atmosphere_apply::apply_application(&app, apply_mode);
-        // Pre-compute boolean labels once so the field emissions stay compact.
-        let is_mod = apply_mode.allows_modulation();
-        let is_ident = modulation.is_identity();
-        let eff_runtime = crate::atmosphere_apply::derive_effective_runtime(
-            data.speed,
-            data.density,
-            &modulation,
-        );
-        let eff_ident = eff_runtime.speed == data.speed && eff_runtime.density == data.density;
-        let shadow =
-            crate::atmosphere_shadow::shadow_metrics_from_mode_and_regime(apply_mode, regime);
-        let s = r.section("ATMOSPHERE");
-        s.field("regime", regime.as_str());
-        s.field("effective", if is_mod { "modulated" } else { "no-op" });
-        // transition: actual controller state, not a hardcoded "stable".
-        // The controller tracks whether a regime transition is in progress.
-        s.field("transition", ctrl.transition_status());
-        // verifier: actually run the verifier and report the real result
-        // (pass / clamped_pass). The old hardcoded "pass" was misleading
-        // when the application was clamped by bounds checking.
-        let mut app_for_verify = app;
-        let bounds = crate::atmosphere_verifier::AtmosphereBounds::default();
-        let verify_result =
-            crate::atmosphere_verifier::verify_application(&mut app_for_verify, &bounds);
-        s.field("verifier", verify_result.as_str());
-        s.field(
-            "application",
-            if is_ident { "identity" } else { "non-identity" },
-        );
-        s.field("atmosphere_application_mode", apply_mode.as_str());
-        s.field(
-            "atmosphere_visual_effect",
-            if is_ident { "disabled" } else { "active" },
-        );
-        s.field(
-            "effective_runtime",
-            if eff_ident { "identity" } else { "modulated" },
-        );
-        s.field("atmosphere_shadow", shadow.risk_label());
-        s.field("config_gate", if is_mod { "armed" } else { "disabled" });
-    }
+    // Atmosphere Engine subsystem eliminated (Dragon Hunt v2 Phase 6 Tier E
+    // item 31 — full elimination). The entire ATMOSPHERE diagnostic section
+    // has been removed. Design knowledge preserved in
+    // docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
 
     if data.color_mode == ColorMode::Color16
         && data.avg_dirty_cell_ratio_percent >= (100.0 / DIRTY_THRESHOLD_RATIO as f64)

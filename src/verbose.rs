@@ -11,7 +11,6 @@
 //! field labels are purple, values stay in terminal default color
 //! for readability.
 
-use crate::atmosphere_apply::{AtmosphereApplicationMode, AtmosphereRuntimeModulation};
 use crate::color_tune::ColorTune;
 use crate::config::ColorBg;
 use crate::output;
@@ -83,8 +82,6 @@ pub(crate) fn print_verbose(
     glitch_level: &str,
     screensaver: bool,
     auto_drift: bool,
-    atmosphere_mode: AtmosphereApplicationMode,
-    atmosphere_modulation: &AtmosphereRuntimeModulation,
     message: Option<&str>,
     message_border: bool,
     duration: Option<f64>,
@@ -249,27 +246,6 @@ pub(crate) fn print_verbose(
         "  climate_drift:",
         " always-on (luminance/saturation/hue accumulate regardless of auto_drift flag)",
     );
-    // Compact atmosphere summary: show mode label + modulation values on a
-    // single line. When mode is Disabled, modulation is always identity, so
-    // we skip the modulation dump to avoid noise.
-    if atmosphere_mode.allows_modulation() {
-        output::eprintln_verbose(
-            "atmosphere:",
-            &format!(
-                " {} (speed={:.2} density={:.2} bright={:.2} glitch_pressure={:.2})",
-                atmosphere_mode.as_str(),
-                atmosphere_modulation.speed_scale,
-                atmosphere_modulation.density_scale,
-                atmosphere_modulation.brightness_scale,
-                atmosphere_modulation.glitch_pressure
-            ),
-        );
-    } else {
-        output::eprintln_verbose(
-            "atmosphere:",
-            &format!(" {} (modulation inactive)", atmosphere_mode.as_str()),
-        );
-    }
 
     // ── Terminal ──────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Terminal ──"));

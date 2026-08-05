@@ -35,8 +35,6 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "glitch-level",
     "monolith-size",
     "color-bg",
-    "atmosphere-mode",
-    "atmosphere-regime",
 ];
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -52,8 +50,6 @@ pub(crate) struct UserProfile {
     pub glitch_level: Option<String>,
     pub monolith_size: Option<String>,
     pub color_bg: Option<String>,
-    pub atmosphere_mode: Option<String>,
-    pub atmosphere_regime: Option<String>,
 }
 
 #[must_use]
@@ -107,8 +103,6 @@ pub(crate) fn collect_profiles(
             "glitch-level" => profile.glitch_level = Some(value.clone()),
             "monolith-size" => profile.monolith_size = Some(value.clone()),
             "color-bg" => profile.color_bg = Some(value.clone()),
-            "atmosphere-mode" => profile.atmosphere_mode = Some(value.clone()),
-            "atmosphere-regime" => profile.atmosphere_regime = Some(value.clone()),
             _ => {}
         }
     }
@@ -164,47 +158,6 @@ pub(crate) fn apply_profile_layer(
     // [colors-custom.*] blocks — matching the top-level config_apply behavior.
     apply_profile_overrides(matches, args, &normalized, profile, cfg, &mut modified);
     Ok(modified)
-}
-
-/// Produce a concise section listing controlled atmosphere presets.
-///
-/// This is appended to `--list-profiles` output so users discover the
-/// available atmosphere profiles without needing to read docs first.
-/// No preset is default; all are opt-in only.
-/// Test-only — --list-profiles was removed in v14; retained for test
-/// callers that verify the output format.
-#[cfg(test)]
-fn atmosphere_presets_section() -> String {
-    use crate::atmosphere_presets::all_atmosphere_presets;
-    let presets = all_atmosphere_presets();
-    let mut out = String::from("\nCONTROLLED ATMOSPHERE PRESETS (opt-in only)\n\n");
-    out.push_str("  Presets are opt-in. Default remains disabled/protected/identity.\n");
-    out.push_str("  Storm preset does not exist. See docs/ATMOSPHERE_ENGINE.md\n");
-    out.push_str("  See also: docs/RULES.md for the Cosmic Dragon architecture contract\n\n");
-    for p in &presets {
-        out.push_str(&format!(
-            "  {:30} mode={} regime={} shadow={}\n",
-            p.name, p.mode, p.regime, p.expected_shadow
-        ));
-    }
-    out
-}
-
-#[must_use]
-#[cfg(test)] // retained for test-only callers; --list-profiles removed in v14
-pub fn list_profiles_text(profiles: &BTreeMap<String, UserProfile>) -> String {
-    let mut out = if profiles.is_empty() {
-        String::from("USER PROFILES\n\n  (none defined)\n")
-    } else {
-        let mut s = String::from("USER PROFILES\n\n");
-        for name in profiles.keys() {
-            s.push_str(&format!("  {name}\n"));
-        }
-        s
-    };
-    out.push_str("\n  See docs/ATMOSPHERE_ENGINE.md for atmosphere preset examples.\n");
-    out.push_str(&atmosphere_presets_section());
-    out
 }
 
 fn apply_profile_overrides(
@@ -320,26 +273,6 @@ fn apply_profile_overrides(
             None => warn_invalid(name, "color-bg", value, "black, default-background"),
         }
     }
-    if let Some(value) = profile
-        .atmosphere_mode
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "atmosphere_mode_str"))
-    {
-        if let Some(mode) = parse_atmosphere_mode_profile(name, value) {
-            args.atmosphere_mode_str = Some(mode);
-            modified.insert("atmosphere_mode_str");
-        }
-    }
-    if let Some(value) = profile
-        .atmosphere_regime
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "atmosphere_regime_str"))
-    {
-        if let Some(regime) = parse_atmosphere_regime_profile(name, value) {
-            args.atmosphere_regime_str = Some(regime);
-            modified.insert("atmosphere_regime_str");
-        }
-    }
 }
 
 fn parse_f32_profile(name: &str, field: &str, value: &str, min: f32, max: f32) -> Option<f32> {
@@ -393,42 +326,6 @@ fn parse_color_bg(value: &str) -> Option<ColorBg> {
         "black" => Some(ColorBg::Black),
         "default-background" | "default_background" => Some(ColorBg::DefaultBackground),
         _ => None,
-    }
-}
-
-fn parse_atmosphere_mode_profile(name: &str, value: &str) -> Option<String> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "disabled" | "controlled-live" => Some(value.trim().to_ascii_lowercase()),
-        _ => {
-            warn_invalid(name, "atmosphere-mode", value, "disabled, controlled-live");
-            None
-        }
-    }
-}
-
-fn parse_atmosphere_regime_profile(name: &str, value: &str) -> Option<String> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "calm" | "pulse" | "signal" | "compression" | "void" | "monolith-pressure" | "adaptive" => {
-            Some(value.trim().to_ascii_lowercase())
-        }
-        "storm" => {
-            // Phase 5 (P3-9): unify all 3 storm-rejection sites on
-            // eprintln_error_labeled for consistent branding. The other
-            // sites are config_apply.rs:63-67 and testconf.rs:524-525.
-            crate::output::eprintln_error_labeled(
-                "invalid atmosphere-regime='storm' in profile '{name}' — storm is unavailable",
-            );
-            None
-        }
-        _ => {
-            warn_invalid(
-                name,
-                "atmosphere-regime",
-                value,
-                "calm, pulse, signal, compression, void, monolith-pressure, adaptive",
-            );
-            None
-        }
     }
 }
 

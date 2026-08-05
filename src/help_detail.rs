@@ -235,9 +235,8 @@ DIAGNOSTICS:
   --docs         Print engine documentation and architecture overview.
       Plain-text dump of The Cosmic Dragon Diff-Based Rendering Engine: the
       five cooperating subsystems (diff-based cell renderer, 3-layer
-      parallax, phosphor persistence, density noise + wind gusts,
-      adaptive atmosphere engine), the performance profile, and the
-      design constraints. Pipes cleanly into less, grep, or docs
+      parallax, phosphor persistence, density noise + wind gusts),
+      the performance profile, and the design constraints. Pipes cleanly into less, grep, or docs
       generators (no ANSI codes).
       cosmostrix --docs
   --benchmark    Renderer benchmark (5 seconds default; override with --bench-duration).
@@ -348,24 +347,12 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       In --benchmark mode the BenchReportData is always emitted; this
       flag is for interactive runs that want a final perf summary.
 
-  AUTO COLOR & ATMOSPHERE (advanced):
+  AUTO COLOR (advanced):
   --auto-color-drift
       Enable autonomous palette drift (default: off). Gates palette scheme
       replacement only (3% chance per 3s tick, 30s cooldown between events).
       Climate drift (luminance/saturation/hue) is always-on regardless.
       Config: auto-color-drift = true
-  --atmosphere-mode <disabled|controlled-live>
-      Atmosphere mode (default: disabled). 'controlled-live' wires the
-      regime model into the runtime with whisper-bounded safety.
-      NOTE: adaptive-custom.* entries in config.toml run regardless of
-      this mode (defining them is an explicit opt-in). To disable ALL
-      atmosphere behavior, remove adaptive-custom.* keys AND set this
-      to 'disabled'.
-      Config: atmosphere-mode = \"controlled-live\"
-  --atmosphere-regime <calm|pulse|signal|compression|void|monolith-pressure|adaptive>
-      Atmosphere regime (default: calm). Selects the modulation profile
-      applied when atmosphere-mode = controlled-live.
-      Config: atmosphere-regime = \"pulse\"
 
   BENCH (advanced):
   --bench-frames <N>
@@ -391,23 +378,6 @@ RUNTIME CONTROLS:
   Space         Reset animation
   i             Toggle live HUD (FPS / p99 / max / RSS / CPU% / uptime / screen)
   h             Move HUD to opposite corner (left ↔ right)
-
-ADAPTIVE ATMOSPHERE (opt-in via atmosphere-mode = controlled-live):
-  When enabled, cosmostrix breathes with the local time of day. Five
-  emotional phases modulate rain density, speed, brightness, glitch,
-  AND color scheme:
-
-  00:00-03:00  Deep Void     cosmos palette, dense + dark + glitchy
-  03:00-06:00  Compression   gray palette, extreme density
-  06:00-12:00  Pulse         aurora palette, sparse + fast + bright
-  12:00-18:00  Calm          cosmos palette, balanced + full brightness
-  18:00-24:00  Signal        neon palette, rising glitch at dusk
-
-  Default is OFF (atmosphere-mode = disabled). To enable, set
-  atmosphere-mode = \"controlled-live\" in config.toml. Color shifts
-  every 30s via smooth palette transition wave when active.
-  Disable adaptive-custom: remove all adaptive-custom.HH-MM entries from
-  config (they run regardless of atmosphere-mode).
 
 HELP:
   --help          Print this full reference manual.

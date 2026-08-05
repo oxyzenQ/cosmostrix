@@ -3,8 +3,6 @@
 
 //! Application configuration: CloudConfig struct and density calculation helpers.
 
-use crate::atmosphere::AtmosphereRegime;
-use crate::atmosphere_apply::{AtmosphereApplicationMode, AtmosphereRuntimeModulation};
 use crate::cloud::Cloud;
 use crate::config::IntroType;
 use crate::constants::*;
@@ -97,16 +95,6 @@ pub struct CloudConfig {
     pub user_ranges: Vec<(char, char)>,
     pub def_ascii: bool,
     pub auto_color_drift: bool,
-    /// Atmosphere modulation for the runtime seam. Default is identity (Disabled).
-    /// Wired through derive_effective_runtime but identity by default.
-    pub(crate) atmosphere_modulation: AtmosphereRuntimeModulation,
-    /// Atmosphere application mode. Default is Disabled (identity).
-    /// Read by event_loop.rs to gate non-identity modulation.
-    pub(crate) atmosphere_mode: AtmosphereApplicationMode,
-    /// Atmosphere regime (calm/pulse/signal/compression/void/monolith-pressure/
-    /// adaptive). Phase D Bug #5: added so bench_report.rs can show the actual
-    /// regime instead of hardcoding Calm. Default is Calm.
-    pub(crate) atmosphere_regime: AtmosphereRegime,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
     /// None = uniform distribution (default).
@@ -185,13 +173,9 @@ impl CloudConfig {
 
         // Phase 5: Compute effective runtime values from base + atmosphere modulation.
         // Default modulation is identity, so effective values equal base values.
-        let eff = crate::atmosphere_apply::derive_effective_runtime(
-            self.speed,
-            density,
-            &self.atmosphere_modulation,
-        );
-        cloud.set_droplet_density(eff.density);
-        cloud.set_chars_per_sec(eff.speed);
+        // Atmosphere engine eliminated — effective values are now just base values.
+        cloud.set_droplet_density(density);
+        cloud.set_chars_per_sec(self.speed);
         cloud.set_monolith_size(self.monolith_size);
 
         cloud.init_chars(self.chars.clone());
@@ -304,9 +288,6 @@ impl CloudConfig {
             user_ranges: self.user_ranges.clone(),
             def_ascii: self.def_ascii,
             auto_color_drift: self.auto_color_drift,
-            atmosphere_modulation: self.atmosphere_modulation,
-            atmosphere_mode: self.atmosphere_mode,
-            atmosphere_regime: self.atmosphere_regime,
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),

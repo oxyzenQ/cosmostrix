@@ -32,6 +32,11 @@ mod tests {
         /// Also: `transition` and `verifier` are now ACTUALLY COMPUTED from
         /// controller state + verifier result, no longer hardcoded
         /// "stable"/"pass".
+        //
+        // v30 Phase 6 Tier E item 31: atmosphere engine fully eliminated.
+        // The entire ATMOSPHERE diagnostic section was removed from
+        // build_premium_report. The required-fields list below reflects
+        // the post-elimination report shape.
         const REQUIRED_FIELDS: &[&str] = &[
             // Performance
             "avg_fps",
@@ -58,17 +63,6 @@ mod tests {
             "plan_reason",
             "actual_execution",
             "terminal_writer",
-            // ATMOSPHERE (v30 audit: removed 4 duplicate/misleading fields)
-            "regime",
-            "effective",
-            "transition",
-            "verifier",
-            "application",
-            "atmosphere_application_mode",
-            "atmosphere_visual_effect",
-            "effective_runtime",
-            "atmosphere_shadow",
-            "config_gate",
         ];
         assert!(
             !REQUIRED_FIELDS.is_empty(),
@@ -117,27 +111,6 @@ mod tests {
     }
 
     #[test]
-    fn bench_report_atmosphere_defaults_are_identity_and_disabled() {
-        // By default (Calm regime, Disabled application mode):
-        // - atmosphere_application_mode must be "disabled"
-        // - effective_runtime must be "identity"
-        // - atmosphere_visual_effect must be "disabled"
-        // - application must be "identity"
-        // These defaults are enforced in build_premium_report via
-        // AtmosphereApplicationMode::Disabled and AtmosphereRegime::Calm.
-        assert_eq!(
-            crate::atmosphere_apply::AtmosphereApplicationMode::Disabled.as_str(),
-            "disabled"
-        );
-        assert_eq!(crate::atmosphere::AtmosphereRegime::Calm.as_str(), "calm");
-        let identity = crate::atmosphere_apply::AtmosphereRuntimeModulation::identity();
-        assert!(
-            identity.is_identity(),
-            "default modulation must be identity"
-        );
-    }
-
-    #[test]
     fn bench_report_data_struct_fields_are_all_used() {
         // Verify the BenchReportData struct has the expected field count
         // to guard against accidental removal of fields during refactoring.
@@ -168,8 +141,6 @@ mod tests {
             monolith_size: "normal",
             bold_mode: "Random".to_string(),
             shading_mode: "DistanceFromHead".to_string(),
-            atmosphere_mode: "disabled",
-            atmosphere_regime: "calm",
             color_mode_label: "24-bit truecolor",
             custom_palette_name: None,
             custom_palette_bg_hex: None,

@@ -3,12 +3,12 @@
 
 //! v25.7: Auto-promote forgiving parser tests.
 //!
-//! When the user writes a top-level key (e.g. `adaptive-custom.02-00`) AFTER
+//! When the user writes a top-level key (e.g. `intro`) AFTER
 //! a `[scene-custom.<name>]` table header, TOML parsing rules nest it under
-//! the table (`scene-custom.<name>.adaptive-custom.02-00`). The v25.7 parser
+//! the table (`scene-custom.<name>.intro`). The v25.7 parser
 //! detects this mis-nesting when the un-prefixed key is itself a known
 //! top-level key, and silently re-homes it to root scope so scene-custom and
-//! adaptive-custom coexist without forcing the user to learn TOML scope rules.
+//! top-level keys coexist without forcing the user to learn TOML scope rules.
 //!
 //! These tests verify the promotion behavior end-to-end via `parse_config_text`.
 //!
@@ -23,17 +23,17 @@ mod bug7;
 use crate::configfile::parse_config_text;
 
 #[test]
-fn scene_custom_then_adaptive_custom_promotes_to_root() {
+fn scene_custom_then_top_level_key_promotes_to_root() {
     // The exact scenario reported in the v25.6 depth test: user uncomments
-    // [scene-custom.hacker-mode] and adaptive-custom.02-00 in the same file.
-    // Pre-v25.7 this errored with "unknown key: scene-custom.hacker-mode.adaptive-custom.02-00".
+    // [scene-custom.hacker-mode] and a top-level key in the same file.
+    // Pre-v25.7 this errored with "unknown key: scene-custom.hacker-mode.intro".
     // v25.7: auto-promote to root scope, no error.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
 speed = 28
 
-adaptive-custom.02-00 = cosmos, monolith, speed=15, density=1.2
+intro = cosmic
 ";
     let parsed = parse_config_text(content);
     assert!(
@@ -54,20 +54,17 @@ adaptive-custom.02-00 = cosmos, monolith, speed=15, density=1.2
             .map(String::as_str),
         Some("green")
     );
-    // The adaptive-custom key was promoted to root scope.
+    // The top-level key was promoted to root scope.
     assert_eq!(
-        parsed
-            .values
-            .get("adaptive-custom.02-00")
-            .map(String::as_str),
-        Some("cosmos, monolith, speed=15, density=1.2")
+        parsed.values.get("intro").map(String::as_str),
+        Some("cosmic")
     );
     // Promotion was recorded for --testconf transparency.
     assert_eq!(
         parsed.promoted_keys,
         vec![(
-            "scene-custom.hacker-mode.adaptive-custom.02-00".to_string(),
-            "adaptive-custom.02-00".to_string()
+            "scene-custom.hacker-mode.intro".to_string(),
+            "intro".to_string()
         )]
     );
 }
@@ -202,14 +199,14 @@ colro = green
 fn empty_section_header_is_malformed_and_promotion_still_fires() {
     // `[]` is rejected by the parser as malformed (empty section name) —
     // it does NOT reset `current_section` to root scope. So a flat
-    // adaptive-custom.XX-XX key written after `[]` still gets nested
+    // top-level key written after `[]` still gets nested
     // under the previous [scene-custom.<name>] block and needs promotion.
     // This is exactly the v25.6 depth-test scenario.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
 []
-adaptive-custom.02-00 = cosmos, monolith, speed=15
+intro = cosmic
 ";
     let parsed = parse_config_text(content);
     assert!(
@@ -217,32 +214,29 @@ adaptive-custom.02-00 = cosmos, monolith, speed=15
         "expected [] to be malformed, got: {:?}",
         parsed.malformed_lines
     );
-    // adaptive-custom.02-00 was still nested under scene-custom.hacker-mode
+    // intro was still nested under scene-custom.hacker-mode
     // (because [] didn't reset scope), so promotion fires.
     assert!(
-        parsed
-            .promoted_keys
-            .iter()
-            .any(|(_, to)| to == "adaptive-custom.02-00"),
-        "expected promotion to adaptive-custom.02-00, got: {:?}",
+        parsed.promoted_keys.iter().any(|(_, to)| to == "intro"),
+        "expected promotion to intro, got: {:?}",
         parsed.promoted_keys
     );
     assert!(parsed.unknown_keys.is_empty());
 }
 
 #[test]
-fn multiple_adaptive_custom_lines_all_promote() {
-    // A realistic time map with 4 entries, all written after a scene-custom
+fn multiple_top_level_keys_all_promote() {
+    // A realistic config with 4 top-level keys, all written after a scene-custom
     // block. All 4 should be promoted.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
 speed = 28
 
-adaptive-custom.00-00 = cosmos, monolith, speed=15
-adaptive-custom.06-00 = aurora, signal, speed=10
-adaptive-custom.12-00 = cosmos, monolith, speed=30
-adaptive-custom.18-00 = neon, storm, speed=24
+intro = cosmic
+bold = 1
+shadingmode = 1
+async-mode = true
 ";
     let parsed = parse_config_text(content);
     assert!(
@@ -252,10 +246,9 @@ adaptive-custom.18-00 = neon, storm, speed=24
     );
     assert_eq!(parsed.promoted_keys.len(), 4);
     // All 4 root-scope keys are stored.
-    for hhmm in &["00-00", "06-00", "12-00", "18-00"] {
-        let key = format!("adaptive-custom.{hhmm}");
+    for key in &["intro", "bold", "shadingmode", "async-mode"] {
         assert!(
-            parsed.values.contains_key(&key),
+            parsed.values.contains_key(*key),
             "expected promoted key {key} in values"
         );
     }
@@ -267,11 +260,11 @@ fn promoted_keys_record_original_and_target() {
     // --testconf uses this to show the user what was moved.
     let content = "\
 [scene-custom.hacker-mode]
-adaptive-custom.02-00 = cosmos, monolith
+intro = cosmic
 ";
     let parsed = parse_config_text(content);
     assert_eq!(parsed.promoted_keys.len(), 1);
     let (from, to) = &parsed.promoted_keys[0];
-    assert_eq!(from, "scene-custom.hacker-mode.adaptive-custom.02-00");
-    assert_eq!(to, "adaptive-custom.02-00");
+    assert_eq!(from, "scene-custom.hacker-mode.intro");
+    assert_eq!(to, "intro");
 }

@@ -5,7 +5,7 @@
 //!
 //! This module is the **incubator namespace** for cosmostrix's v15+ features
 //! and experimental subsystems. It exists to keep the stable flat-structured
-//! engine (`src/cloud/`, `src/interactive/`, `src/atmosphere_*.rs`, etc.)
+//! engine (`src/cloud/`, `src/interactive/`, `src/chroma/`, etc.)
 //! untouched while new Cosmic Dragon-era work lands in a clearly-branded home.
 //!
 //! ## Anatomy

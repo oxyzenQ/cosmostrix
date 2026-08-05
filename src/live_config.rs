@@ -951,8 +951,8 @@ fn apply_scene_custom_to_cloud_config(
                     new.monolith_density_map = Some(map);
                 }
             }
-            // color-bg / atmosphere-mode / atmosphere-regime: not yet wired.
-            "color-bg" | "atmosphere-mode" | "atmosphere-regime" => {}
+            // color-bg: not yet wired.
+            "color-bg" => {}
             _ => {}
         }
     }
@@ -1028,6 +1028,8 @@ mod tests {
 
     #[test]
     fn validate_rejects_invalid_atmosphere_regime() {
+        // atmosphere-regime is now a removed key (atmosphere engine eliminated).
+        // It should be rejected as an unknown key.
         let mut cfg = HashMap::new();
         cfg.insert("atmosphere-regime".to_string(), "adaptivee".to_string());
         let result = crate::testconf::validate_config_strictly(&cfg);
@@ -1053,7 +1055,6 @@ mod tests {
 
     /// Build a minimal CloudConfig for testing rebuild_cloud_config.
     fn minimal_cloud_config() -> crate::app::CloudConfig {
-        use crate::atmosphere_apply::{AtmosphereApplicationMode, AtmosphereRuntimeModulation};
         use crate::rain_style::RainStyle;
         use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
 
@@ -1107,9 +1108,6 @@ mod tests {
             user_ranges: vec![],
             def_ascii: false,
             auto_color_drift: false,
-            atmosphere_modulation: AtmosphereRuntimeModulation::identity(),
-            atmosphere_mode: AtmosphereApplicationMode::Disabled,
-            atmosphere_regime: crate::atmosphere::AtmosphereRegime::Calm,
             monolith_density_map: None,
             config_path_for_watcher: None,
             scene_name: "test-scene".to_string(),
