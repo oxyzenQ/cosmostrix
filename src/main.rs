@@ -456,29 +456,12 @@ fn main() -> std::io::Result<()> {
             return Ok(());
         }
         // Path argument given: validate whitelist + .toml extension.
+        // Reuse validate_config_path() so --dump-config and --config stay
+        // perfectly in sync. Map the --config label to --dump-config in
+        // error messages.
         let path_str = dump_path;
-        let safe = is_safe_path(path_str);
-        if args.verbose {
-            crate::output::eprintln_verbose_raw(&format!(
-                "dump-config path: {path_str} (safe: {safe})"
-            ));
-        }
-        if !safe {
-            ux::die_input(format!(
-                "error: --dump-config '{path_str}' is outside allowed directories\n  \
-                 Allowed (strict whitelist):\n    \
-                 Linux/macOS: ~/.config/cosmostrix/, /etc/cosmostrix/\n    \
-                 Windows: %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\\n    \
-                 Android (Termux): ~/.config/cosmostrix/, /sdcard/cosmostrix/\n  \
-                 Rejected: current directory (.), /tmp/, ~/, /usr/, all others"
-            ));
-        }
-        // Strict: .toml extension required (same as --config).
-        if !path_str.ends_with(".toml") {
-            ux::die_input(format!(
-                "error: --dump-config '{path_str}' must have a .toml extension\n  \
-                 The config file format is TOML. Other extensions are rejected."
-            ));
+        if let Err(e) = validate_config_path(path_str, args.verbose) {
+            ux::die_input(e.replace("--config", "--dump-config"));
         }
         // Write the example config to the validated path.
         // Phase 5 (P3-7): refuse to overwrite an existing file. Previously

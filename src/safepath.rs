@@ -70,12 +70,16 @@ fn expand_windows_env_vars(path: &str) -> String {
         if let Ok(v) = val {
             if !v.is_empty() {
                 let pattern_upper = format!("%{var}%");
-                let pattern_lower = format!("%{var}%");
+                let var_lower = var.to_lowercase();
+                let pattern_lower = format!("%{var_lower}%");
                 // Replace all occurrences (case-insensitive on Windows).
-                // Rust on Windows has case-insensitive file paths, but string
-                // replacement needs explicit handling.
+                // Windows env vars are case-insensitive (%APPDATA% == %appdata%),
+                // but Rust string replacement is case-sensitive, so we must
+                // try both the original and lowercased form.
                 result = result.replace(&pattern_upper, &v);
-                result = result.replace(&pattern_lower, &v);
+                if pattern_lower != pattern_upper {
+                    result = result.replace(&pattern_lower, &v);
+                }
             }
         }
     }
@@ -224,9 +228,21 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     }
 
     // Check if the normalized path starts with any allowed prefix.
+    // On Windows, path comparison must be case-insensitive (NTFS is
+    // case-insensitive by default, and env vars like APPDATA may return
+    // a different casing than what the user typed on the command line).
     for prefix in &allowed_prefixes {
-        if check_str.starts_with(prefix.as_str()) {
-            return true;
+        #[cfg(windows)]
+        {
+            if check_str.to_lowercase().starts_with(&prefix.to_lowercase()) {
+                return true;
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            if check_str.starts_with(prefix.as_str()) {
+                return true;
+            }
         }
     }
 
@@ -244,8 +260,76 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
 ///   `/../../etc/shadow`                → `None` (escapes above root)
 ///
 /// Windows-style backslash paths are normalized the same way (both `/` and
-/// `\` are treated as separators).
+/// `\` are treated as separators). UNC paths (`\\server\share\...`) and
+/// drive-letter paths (`C:\...`) preserve their authority/drive prefix.
 fn normalize_path_segments(path: &str) -> Option<String> {
+    // --- UNC path handling: \\server\share\... → //server/share/... ---
+    // UNC paths start with exactly two separators. The \\server\share prefix
+    // is an authority that must be preserved as a unit — it cannot be
+    // traversed with `..` (you can't `..` above \\server\share).
+    if path.starts_with("\\\\") || path.starts_with("//") {
+        // Find the third separator after \\server\share\
+        let rest = &path[2..];
+        let mut sep_count = 0;
+        let mut after_share = 0;
+        for (i, &b) in rest.as_bytes().iter().enumerate() {
+            if b == b'/' || b == b'\\' {
+                sep_count += 1;
+                if sep_count == 2 {
+                    after_share = i + 1;
+                    break;
+                }
+            }
+        }
+        if sep_count < 2 {
+            // Malformed UNC: \\server without \share — treat the whole thing
+            // as a single authority unit. No further normalization needed.
+            return Some(path.replace('\\', "/"));
+        }
+        let authority = &path[..2 + after_share - 1]; // \\server\share → //server/share
+        let authority_normalized = authority.replace('\\', "/");
+        let remaining = &path[2 + after_share..];
+        // Normalize the remaining path segments after the UNC authority.
+        if remaining.is_empty() {
+            return Some(format!("{authority_normalized}/"));
+        }
+        return match normalize_path_segments_inner(remaining, false) {
+            Some(norm) => Some(format!("{authority_normalized}/{norm}")),
+            None => None,
+        };
+    }
+
+    // --- Drive-letter path handling: C:\... → C:/... ---
+    // Detect C: or c: at the start. The drive letter is a root that `..`
+    // cannot escape above.
+    if path.len() >= 2
+        && path.as_bytes()[0].is_ascii_alphabetic()
+        && path.as_bytes()[1] == b':'
+    {
+        let drive = &path[..2];
+        let rest = if path.len() > 2 && (path.as_bytes()[2] == b'/' || path.as_bytes()[2] == b'\\') {
+            &path[3..]
+        } else {
+            &path[2..]
+        };
+        let drive_normalized = drive.replace('\\', "/");
+        if rest.is_empty() {
+            return Some(format!("{drive_normalized}/"));
+        }
+        return match normalize_path_segments_inner(rest, false) {
+            Some(norm) => Some(format!("{drive_normalized}/{norm}")),
+            None => None,
+        };
+    }
+
+    // --- Unix-style absolute or relative path ---
+    let is_absolute = path.starts_with('/');
+    normalize_path_segments_inner(path, is_absolute)
+}
+
+/// Inner normalization: resolve `.` and `..` segments without touching the
+/// filesystem. Returns `None` if `..` would escape above the root.
+fn normalize_path_segments_inner(path: &str, is_absolute: bool) -> Option<String> {
     // Split on both `/` and `\` (Windows compat). Empty segments from
     // leading `/` or doubled separators are filtered out.
     let segments: Vec<&str> = path.split(['/', '\\']).filter(|s| !s.is_empty()).collect();
@@ -262,7 +346,7 @@ fn normalize_path_segments(path: &str) -> Option<String> {
                 // return None so the caller rejects the path.
                 if out.pop().is_none() {
                     // For absolute paths, `..` at the root means escape.
-                    if path.starts_with('/') || path.contains('\\') {
+                    if is_absolute {
                         return None;
                     }
                     // For relative paths, preserve the `..` (let the
@@ -276,7 +360,7 @@ fn normalize_path_segments(path: &str) -> Option<String> {
 
     // Reconstruct with `/` separator. Preserve leading `/` for absolute paths.
     let joined = out.join("/");
-    if path.starts_with('/') {
+    if is_absolute {
         Some(format!("/{joined}"))
     } else {
         Some(joined)
@@ -284,15 +368,27 @@ fn normalize_path_segments(path: &str) -> Option<String> {
 }
 
 /// Expand `~` to `$HOME` if present. Returns the path as-is if no tilde.
+///
+/// On Windows, `HOME` is typically not set. Falls back to `USERPROFILE`
+/// (which Windows always sets: `C:\Users\<name>`). This matches
+/// `configfile::default_config_file_path()`'s fallback chain.
 fn expand_tilde(path: &str) -> PathBuf {
     if path.starts_with("~/") {
         if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
             return PathBuf::from(home).join(path.strip_prefix("~/").unwrap());
         }
+        #[cfg(windows)]
+        if let Some(userprofile) = std::env::var("USERPROFILE").ok().filter(|h| !h.is_empty()) {
+            return PathBuf::from(userprofile).join(path.strip_prefix("~/").unwrap());
+        }
     }
     if path == "~" {
         if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
             return PathBuf::from(home);
+        }
+        #[cfg(windows)]
+        if let Some(userprofile) = std::env::var("USERPROFILE").ok().filter(|h| !h.is_empty()) {
+            return PathBuf::from(userprofile);
         }
     }
     PathBuf::from(path)
@@ -606,5 +702,201 @@ mod tests {
             normalize_path_segments("/etc//cosmostrix/config.toml").as_deref(),
             Some("/etc/cosmostrix/config.toml")
         );
+    }
+
+    // --- Windows drive-letter path normalization ---
+    // These tests exercise normalize_path_segments for C:\... paths.
+    // They run on ALL platforms because the normalizer is cross-platform.
+
+    #[test]
+    fn normalize_drive_letter_path() {
+        // C:\Users\test\config.toml → C:/Users/test/config.toml
+        assert_eq!(
+            normalize_path_segments(r"C:\Users\test\config.toml").as_deref(),
+            Some("C:/Users/test/config.toml")
+        );
+    }
+
+    #[test]
+    fn normalize_drive_letter_with_dot_dot() {
+        // C:\Users\test\..\other\file.toml → C:/Users/other/file.toml
+        assert_eq!(
+            normalize_path_segments(r"C:\Users\test\..\other\file.toml").as_deref(),
+            Some("C:/Users/other/file.toml")
+        );
+    }
+
+    #[test]
+    fn normalize_drive_letter_escape_above_root_rejected() {
+        // C:\..\..\etc\shadow — `..` above drive root is an escape attempt.
+        assert_eq!(normalize_path_segments(r"C:\..\..\etc\shadow"), None);
+    }
+
+    #[test]
+    fn normalize_drive_letter_forward_slash() {
+        // C:/Users/test/config.toml (forward slashes) — should also work.
+        assert_eq!(
+            normalize_path_segments("C:/Users/test/config.toml").as_deref(),
+            Some("C:/Users/test/config.toml")
+        );
+    }
+
+    // --- UNC path normalization ---
+
+    #[test]
+    fn normalize_unc_path() {
+        // \\server\share\cosmostrix\config.toml → //server/share/cosmostrix/config.toml
+        assert_eq!(
+            normalize_path_segments(r"\\server\share\cosmostrix\config.toml").as_deref(),
+            Some("//server/share/cosmostrix/config.toml")
+        );
+    }
+
+    #[test]
+    fn normalize_unc_path_with_dot_dot() {
+        // \\server\share\cosmostrix\..\other.toml → //server/share/other.toml
+        assert_eq!(
+            normalize_path_segments(r"\\server\share\cosmostrix\..\other.toml").as_deref(),
+            Some("//server/share/other.toml")
+        );
+    }
+
+    #[test]
+    fn normalize_unc_path_escape_above_share_rejected() {
+        // \\server\share\..\..\etc\shadow — `..` above \\server\share is escape.
+        assert_eq!(normalize_path_segments(r"\\server\share\..\..\etc\shadow"), None);
+    }
+
+    #[test]
+    fn normalize_unc_path_forward_slash() {
+        // //server/share/cosmostrix/config.toml (forward slashes)
+        assert_eq!(
+            normalize_path_segments("//server/share/cosmostrix/config.toml").as_deref(),
+            Some("//server/share/cosmostrix/config.toml")
+        );
+    }
+
+    // --- Windows-specific integration tests ---
+    // These only run on Windows where APPDATA etc. are available.
+
+    #[cfg(windows)]
+    mod windows_tests {
+        use super::*;
+
+        /// Helper to set an env var and restore it on drop.
+        struct EnvGuard {
+            key: String,
+            old_val: Option<String>,
+        }
+        impl EnvGuard {
+            fn set(key: &str, val: &str) -> Self {
+                let old_val = std::env::var(key).ok();
+                std::env::set_var(key, val);
+                Self {
+                    key: key.to_string(),
+                    old_val,
+                }
+            }
+        }
+        impl Drop for EnvGuard {
+            fn drop(&mut self) {
+                match &self.old_val {
+                    Some(v) => std::env::set_var(&self.key, v),
+                    None => std::env::remove_var(&self.key),
+                }
+            }
+        }
+
+        #[test]
+        fn appdata_path_is_safe() {
+            // A path inside %APPDATA%\cosmostrix\ should be accepted.
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                let path = format!(r"{}\cosmostrix\config.toml", appdata);
+                assert!(
+                    is_safe_path(&path),
+                    "APPDATA cosmostrix path should be safe: {path}"
+                );
+            }
+        }
+
+        #[test]
+        fn appdata_path_with_forward_slash_is_safe() {
+            // Same path with / separators should also be accepted.
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                let path = format!("{}/cosmostrix/config.toml", appdata.replace('\\', "/"));
+                assert!(
+                    is_safe_path(&path),
+                    "APPDATA cosmostrix path with / separators should be safe: {path}"
+                );
+            }
+        }
+
+        #[test]
+        fn appdata_path_case_insensitive() {
+            // Path casing differs from APPDATA env var — should still match.
+            if let Ok(appdata) = std::env::var("APPDATA") {
+                let path_lower = appdata.to_lowercase();
+                let path = format!(r"{}\cosmostrix\config.toml", path_lower);
+                assert!(
+                    is_safe_path(&path),
+                    "APPDATA path with different casing should be safe (case-insensitive): {path}"
+                );
+            }
+        }
+
+        #[test]
+        fn programdata_path_is_safe() {
+            // A path inside %ProgramData%\cosmostrix\ should be accepted.
+            if let Ok(progdata) = std::env::var("ProgramData") {
+                let path = format!(r"{}\cosmostrix\config.toml", progdata);
+                assert!(
+                    is_safe_path(&path),
+                    "ProgramData cosmostrix path should be safe: {path}"
+                );
+            }
+        }
+
+        #[test]
+        fn percent_appdata_expansion() {
+            // %APPDATA%\cosmostrix\config.toml should be expanded and accepted.
+            let path = r"%APPDATA%\cosmostrix\config.toml";
+            assert!(
+                is_safe_path(path),
+                "%APPDATA% should be expanded and path should be safe"
+            );
+        }
+
+        #[test]
+        fn percent_appdata_lowercase_expansion() {
+            // %appdata%\cosmostrix\config.toml (lowercase) should also work.
+            let path = r"%appdata%\cosmostrix\config.toml";
+            assert!(
+                is_safe_path(path),
+                "%appdata% (lowercase) should be expanded and path should be safe"
+            );
+        }
+
+        #[test]
+        fn windows_rejects_system32() {
+            // C:\Windows\System32\config.toml should be rejected.
+            assert!(!is_safe_path(r"C:\Windows\System32\config.toml"));
+        }
+
+        #[test]
+        fn windows_rejects_c_root() {
+            // C:\config.toml should be rejected (not inside whitelist).
+            assert!(!is_safe_path(r"C:\config.toml"));
+        }
+
+        #[test]
+        fn userprofile_tilde_expansion() {
+            // ~/... should expand via USERPROFILE when HOME is not set.
+            let _guard_home = EnvGuard::set("HOME", "");
+            std::env::remove_var("HOME");
+            // On Windows, USERPROFILE should allow tilde expansion.
+            // We can't fully test this without a real USERPROFILE value,
+            // but we verify the function doesn't panic.
+            let _ = is_safe_path("~/.config/cosmostrix/config.toml");
+        }
     }
 }
