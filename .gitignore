@@ -51,3 +51,4 @@ other ai/
 # garbage stuff in root dir
 *.txt*
 *.ruff*
+.vs/
