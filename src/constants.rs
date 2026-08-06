@@ -267,6 +267,7 @@ pub(crate) const SELF_HEAL_HEALTH_COOLDOWN_SECS: f64 = 30.0;
 /// recovery also fires `GRACEFUL_SHUTDOWN`, so the process is already
 /// exiting — this cap exists purely as a defensive bound against a
 /// pathological loop where shutdown is delayed (e.g., live-config save).
+#[cfg(unix)]
 pub(crate) const STDOUT_FALLBACK_MAX_RECOVERIES: u32 = 3;
 
 // ── P4: periodic stuck-cell sweep (debug mode only) ─────────────────────────

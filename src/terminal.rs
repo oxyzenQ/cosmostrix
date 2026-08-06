@@ -1284,6 +1284,7 @@ mod p5_tests {
     /// attempts, further recoveries propagate the error. This is
     /// enforced by P3's recover_to_tty, which P5 reuses — so P5
     /// inherits the cap automatically.
+    #[cfg(unix)]
     #[test]
     fn p5_recovery_inherits_p3_cap() {
         use crate::constants::STDOUT_FALLBACK_MAX_RECOVERIES;

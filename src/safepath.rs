@@ -88,6 +88,15 @@ fn expand_windows_env_vars(path: &str) -> String {
     path.to_string()
 }
 
+fn push_normalized_allowed_prefix(allowed_prefixes: &mut Vec<String>, raw_prefix: String) {
+    let trimmed = raw_prefix.trim_end_matches(['/', '\\']);
+    if trimmed.is_empty() {
+        return;
+    }
+    let normalized = normalize_path_segments(trimmed).unwrap_or_else(|| trimmed.replace('\\', "/"));
+    allowed_prefixes.push(format!("{normalized}/"));
+}
+
 /// Check if a file path is in a safe location for reading.
 ///
 /// Strict whitelist-only: returns `true` if the path is inside one of the
@@ -159,15 +168,18 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
 
     // Linux/macOS: ~/.config/cosmostrix/
     if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
-        allowed_prefixes.push(format!("{home}/.config/cosmostrix/"));
+        push_normalized_allowed_prefix(&mut allowed_prefixes, format!("{home}/.config/cosmostrix/"));
         // macOS native: ~/Library/Application Support/cosmostrix/
         #[cfg(target_os = "macos")]
-        allowed_prefixes.push(format!("{home}/Library/Application Support/cosmostrix/"));
+        push_normalized_allowed_prefix(
+            &mut allowed_prefixes,
+            format!("{home}/Library/Application Support/cosmostrix/"),
+        );
     }
 
     // Linux/macOS/Android: /etc/cosmostrix/ (system-wide)
     #[cfg(unix)]
-    allowed_prefixes.push("/etc/cosmostrix/".to_string());
+    push_normalized_allowed_prefix(&mut allowed_prefixes, "/etc/cosmostrix/".to_string());
 
     // Android (Termux): /sdcard/cosmostrix/ (external storage).
     //
@@ -186,19 +198,19 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     // needs to change.
     let is_termux = crate::configfile::is_termux_environment();
     if is_termux {
-        allowed_prefixes.push("/sdcard/cosmostrix/".to_string());
+        push_normalized_allowed_prefix(&mut allowed_prefixes, "/sdcard/cosmostrix/".to_string());
     }
 
     // Windows: %APPDATA%\cosmostrix\ (user)
     #[cfg(windows)]
     if let Some(appdata) = std::env::var("APPDATA").ok().filter(|a| !a.is_empty()) {
-        allowed_prefixes.push(format!("{appdata}\\cosmostrix\\"));
+        push_normalized_allowed_prefix(&mut allowed_prefixes, format!("{appdata}\\cosmostrix\\"));
     }
 
     // Windows: %ProgramData%\cosmostrix\ (system-wide)
     #[cfg(windows)]
     if let Some(progdata) = std::env::var("ProgramData").ok().filter(|p| !p.is_empty()) {
-        allowed_prefixes.push(format!("{progdata}\\cosmostrix\\"));
+        push_normalized_allowed_prefix(&mut allowed_prefixes, format!("{progdata}\\cosmostrix\\"));
     }
 
     // Test-only override: allow COSMOSTRIX_TEST_CONFIG_DIR for test configs.
@@ -208,10 +220,7 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     // ~/.config/cosmostrix/.
     #[cfg(test)]
     if let Ok(test_dir) = std::env::var("COSMOSTRIX_TEST_CONFIG_DIR") {
-        let trimmed = test_dir.trim_end_matches('/');
-        if !trimmed.is_empty() {
-            allowed_prefixes.push(format!("{trimmed}/"));
-        }
+        push_normalized_allowed_prefix(&mut allowed_prefixes, test_dir);
     }
 
     // Check if the normalized path starts with any allowed prefix.

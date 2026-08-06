@@ -53,6 +53,7 @@ pub(crate) static GRACEFUL_SHUTDOWN: std::sync::atomic::AtomicBool =
 /// the normal shutdown path rather than crashing on the next write.
 /// Visibility is `pub(crate)` so `terminal.rs` can call it without
 /// exposing the flag setter to downstream crates.
+#[cfg(unix)]
 pub(crate) fn request_graceful_shutdown() {
     GRACEFUL_SHUTDOWN.store(true, Ordering::Release);
 }
