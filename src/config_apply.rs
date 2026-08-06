@@ -62,9 +62,17 @@ pub(crate) fn apply_config_and_runtime_defaults(
     // Security: validate --config path is in a safe location AND has .toml extension.
     // Centralized in safepath::validate_config_path so testconf, --show-scene,
     // --colors-custom, and --scene-custom all apply the same check consistently.
+    // On Windows, also resolve %APPDATA% etc. so the expanded path is used for
+    // file I/O (the OS doesn't understand %VAR% in paths).
     if let Some(ref config_path) = args.config {
         let path_str = config_path.to_string_lossy();
-        crate::validate_config_path(&path_str, args.verbose)?;
+        let resolved = crate::validate_config_path(&path_str, args.verbose)?;
+        // On Windows, override args.config with the resolved path so
+        // load_config_file_full reads from the expanded %APPDATA% path.
+        // On non-Windows, resolved == path_str (no-op).
+        if resolved != path_str {
+            args.config = Some(std::path::PathBuf::from(&resolved));
+        }
     }
 
     // Phase 5 closure (P4-8): use load_config_file_full to get the full

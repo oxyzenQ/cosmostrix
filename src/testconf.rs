@@ -23,18 +23,22 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // to parse arbitrary files as TOML and leak their content via
     // malformed-line / unknown-key error messages. Now uses the same
     // validate_config_path helper as apply_config_and_runtime_defaults.
+    // Also uses the resolved path for I/O (expands %APPDATA% on Windows).
+    let resolved_config: Option<std::path::PathBuf>;
     if let Some(ref config_path) = args.config {
         let path_str = config_path.to_string_lossy();
-        if let Err(e) = crate::validate_config_path(&path_str, args.verbose) {
-            crate::output::eprintln_error_labeled(&e);
-            std::process::exit(2);
+        match crate::validate_config_path(&path_str, args.verbose) {
+            Ok(resolved) => resolved_config = Some(std::path::PathBuf::from(&resolved)),
+            Err(e) => {
+                crate::output::eprintln_error_labeled(&e);
+                std::process::exit(2);
+            }
         }
+    } else {
+        resolved_config = None;
     }
 
-    let path = args
-        .config
-        .as_ref()
-        .map(std::path::PathBuf::from)
+    let path = resolved_config
         .unwrap_or_else(configfile::default_config_file_path);
 
     println!("testconf: checking {}", path.display());

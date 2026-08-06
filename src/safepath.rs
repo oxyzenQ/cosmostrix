@@ -395,8 +395,15 @@ fn expand_tilde(path: &str) -> PathBuf {
 }
 
 /// Validate a `--config <path>` argument: must be inside the strict
-/// whitelist AND have a `.toml` extension. Returns `Ok(())` if valid,
-/// or `Err(formatted_error_message)` if rejected.
+/// whitelist AND have a `.toml` extension. Returns `Ok(resolved_path)` if
+/// valid (with Windows `%VAR%` env vars expanded), or
+/// `Err(formatted_error_message)` if rejected.
+///
+/// The returned resolved path MUST be used for all subsequent file I/O
+/// (reading, writing, existence checks). Using the original `path_str`
+/// would fail on Windows because `%APPDATA%` is a shell convention, not
+/// an OS-level feature — `std::fs::read_to_string("%APPDATA%\\...")`
+/// creates a literal `%APPDATA%` directory instead of resolving it.
 ///
 /// This centralizes the security check so every code path that reads a
 /// config file (`apply_config_and_runtime_defaults`, `testconf::run`,
@@ -411,7 +418,7 @@ fn expand_tilde(path: &str) -> PathBuf {
 /// * `verbose` — If true, emit a verbose log line showing the safety check
 ///   result. Matches the behavior of the previous inline check in
 ///   `apply_config_and_runtime_defaults`.
-pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<(), String> {
+pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<String, String> {
     // Expand Windows env vars before validation so %APPDATA% paths work.
     let resolved = expand_windows_env_vars(path_str);
     let safe = is_safe_path(&resolved);
@@ -436,7 +443,7 @@ pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<(), 
              Only TOML config files are accepted."
         ));
     }
-    Ok(())
+    Ok(resolved)
 }
 
 #[cfg(test)]

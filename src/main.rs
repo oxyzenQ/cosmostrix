@@ -458,11 +458,14 @@ fn main() -> std::io::Result<()> {
         // Path argument given: validate whitelist + .toml extension.
         // Reuse validate_config_path() so --dump-config and --config stay
         // perfectly in sync. Map the --config label to --dump-config in
-        // error messages.
+        // error messages. Use the RESOLVED path for all I/O (expands
+        // %APPDATA% on Windows — the raw path would create a literal
+        // %APPDATA% directory instead of resolving it).
         let path_str = dump_path;
-        if let Err(e) = validate_config_path(path_str, args.verbose) {
-            ux::die_input(e.replace("--config", "--dump-config"));
-        }
+        let resolved_path = match validate_config_path(path_str, args.verbose) {
+            Ok(r) => r,
+            Err(e) => ux::die_input(e.replace("--config", "--dump-config")),
+        };
         // Write the example config to the validated path.
         // Phase 5 (P3-7): refuse to overwrite an existing file. Previously
         // --dump-config silently overwrote any existing config at the path,
@@ -476,7 +479,7 @@ fn main() -> std::io::Result<()> {
         // --dump-config only (does not affect --save-baseline or other
         // write paths). The error message tells the user about --force so
         // they don't have to read the docs to discover it.
-        if std::path::Path::new(path_str).exists() && !args.force {
+        if std::path::Path::new(&resolved_path).exists() && !args.force {
             ux::die_input(format!(
                 "error: --dump-config refuses to overwrite existing file '{path_str}'\n  \
                  Move the existing file aside first, or write to a new path:\n    \
@@ -496,11 +499,11 @@ fn main() -> std::io::Result<()> {
         // readers see either the old file or the complete new file, never
         // a half-written one.
         let text = configfile::dump_config_with_header();
-        match write_config_atomic(path_str, &text) {
+        match write_config_atomic(&resolved_path, &text) {
             Ok(()) => {
                 if args.verbose {
                     crate::output::eprintln_verbose_raw(&format!(
-                        "dump-config: wrote example config to {path_str}"
+                        "dump-config: wrote example config to {resolved_path}"
                     ));
                 }
                 return Ok(());
@@ -556,6 +559,18 @@ fn main() -> std::io::Result<()> {
             let path_str = config_path.to_string_lossy();
             if let Err(e) = validate_config_path(&path_str, args.verbose) {
                 ux::die_input(e);
+            }
+            // validate_config_path resolved the path (expands %APPDATA% etc.),
+            // but load_config_file takes an Option<&Path> from the original
+            // args.config. On Windows, if the user passed %APPDATA%\..., the
+            // OS file APIs won't resolve it. Override args.config with the
+            // resolved path so load_config_file reads the correct file.
+            // (Non-%VAR% paths: resolved == original, no-op.)
+            #[cfg(windows)]
+            {
+                if let Ok(resolved) = validate_config_path(&path_str, false) {
+                    args.config = Some(std::path::PathBuf::from(&resolved));
+                }
             }
         }
         let cfg = configfile::load_config_file(args.config.as_deref());
