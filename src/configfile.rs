@@ -656,6 +656,17 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Ordering: once you write a [section] header, every flat key AFTER it
 # belongs to that section until the next header. Prefer writing top-level
 # keys BEFORE any [section] block.
+#
+# Paired fields (don't mix them up — `--testconf` will hint if you do):
+#   color          — built-in color name only (`cosmostrix --list-colors`)
+#   colors-custom  — name of a [colors-custom.<name>] block (see below)
+#   charset        — built-in charset preset only (`cosmostrix --list-charsets`)
+#   charset-custom — name of a [charset-custom.<name>] block (see below)
+# Inside [scene-custom.<name>] blocks, the `color` and `charset` fields
+# NEVER accept custom-block names. If you write `color = mypalette` where
+# `mypalette` is a `[colors-custom.mypalette]` block, --testconf rejects
+# it with a hint pointing at `colors-custom = mypalette` (and the same
+# symmetric hint for `charset` → `charset-custom`).
 
 # [scene-custom.hacker-mode]
 # base-scene = matrix       # v30.2: inherit matrix's rain_style + defaults
@@ -698,6 +709,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # ── Custom Color Palettes ──
 # Define named custom palettes and load with: cosmostrix --colors-custom <name>.
+# Reference from a [scene-custom.<name>] block via: colors-custom = <name>
+# (NOT `color = <name>` — that field is for built-in colors only).
 # Hex values use #rrggbb notation. ALWAYS quote hex strings: "#ff0000"
 # (unquoted # is treated as a TOML comment, silently truncating the value).
 # rain = 7 hex gradient stops (tail → head order). Minimum 2, 7 recommended.
@@ -716,8 +729,11 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # ── Custom Character Sets ──
 # Define named custom charsets and load with: cosmostrix --charset <name>
-# (or: charset = "name" in config). Custom names take precedence over
-# built-in presets with the same name.
+# (or: top-level `charset = "name"` in config — custom names take precedence
+# over built-in presets with the same name).
+# Reference from a [scene-custom.<name>] block via: charset-custom = <name>
+# (NOT `charset = <name>` — inside scene-custom blocks, that field is for
+# built-in presets only and --testconf will reject a custom name with a hint).
 # Fields:
 #   set — literal string of characters to use as the rain glyph pool.
 #   Whitespace (except ASCII space) skipped. Control chars rejected.
@@ -1136,6 +1152,33 @@ mod tests {
         assert!(
             dump.contains("Ambient Phase Scheduler"),
             "dump config should include an Ambient section header"
+        );
+    }
+
+    #[test]
+    fn dump_config_documents_paired_field_split() {
+        // v30.3: the dump-config template must explicitly document the
+        // split between `color` (built-in) and `colors-custom` (custom
+        // block ref), and the symmetric split for `charset` vs
+        // `charset-custom`. This prevents the duplicate-usage confusion
+        // reported by the owner. The note is enforced by content anchor —
+        // if a future edit removes the "Paired fields" header, this test
+        // fails loudly.
+        let dump = dump_config_text();
+        assert!(
+            dump.contains("Paired fields"),
+            "dump config should include the 'Paired fields' note (color vs colors-custom, charset vs charset-custom)"
+        );
+        // Each paired field's doc line should also appear in the custom
+        // palettes / custom charsets sections, pointing users at the right
+        // reference field.
+        assert!(
+            dump.contains("colors-custom = <name>"),
+            "Custom Color Palettes section should show how to reference a block from a scene-custom"
+        );
+        assert!(
+            dump.contains("charset-custom = <name>"),
+            "Custom Character Sets section should show how to reference a block from a scene-custom"
         );
     }
 
