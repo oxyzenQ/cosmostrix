@@ -257,9 +257,18 @@ fn scheduler_loop(
                 drop(s);
                 continue;
             }
-            let (g, _timeout_result) = cv
-                .wait_timeout(s, sleep_dur)
-                .expect("ambient-scheduler condvar poisoned");
+            // v30.3 robustness: if the mutex is poisoned (a prior `reload`
+            // panicked mid-swap — extremely unlikely but possible),
+            // `wait_timeout` returns Err. We treat that the same as a
+            // poisoned lock above: exit the scheduler thread silently
+            // rather than panicking. A dead scheduler is recoverable on
+            // next process restart; a panicking scheduler thread would
+            // print a backtrace to stderr mid-rain (flicker in alternate-
+            // screen mode). Matches the poison-handling pattern documented
+            // in the module-level panic-safety section above.
+            let Ok((g, _timeout_result)) = cv.wait_timeout(s, sleep_dur) else {
+                return;
+            };
             g
         };
         // Loop back: recompute now_min, find current phase, fire if changed.

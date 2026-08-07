@@ -314,10 +314,10 @@ pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
     let mtime = metadata.modified().ok();
     let size = Some(metadata.len());
 
-    // Read the first HASH_BYTES of the file and compute FNV-1a hash.
+    // Read the first HASH_BYTES of the file and compute the SHA-256 hash.
     // We compute the hash on EVERY snapshot — yes, this is more I/O
     // than only hashing when mtime/size are unchanged, but the cost
-    // is negligible (~50µs per 750ms poll = 0.007% CPU) and the
+    // is negligible (~100µs per 750ms poll = 0.013% CPU) and the
     // logic is simpler/more robust. If profiling shows this matters,
     // we can optimize later by passing in the previous snapshot.
     let content_hash = hash_file_prefix(path, HASH_BYTES);
