@@ -147,4 +147,95 @@ impl Cloud {
         }
         self.force_draw_everything = true;
     }
+
+    /// Apply an ambient phase entry at runtime — instant switch (no blend).
+    ///
+    /// Called by the event loop when the ambient scheduler thread fires a
+    /// phase boundary. Reads the entry's fields and applies them with
+    /// **sticky semantics**: any `None` field is skipped (previous value
+    /// retained). This matches the archived `adaptive-custom` contract.
+    ///
+    /// Order of application:
+    /// 1. `scene` (if Some and different from current) → calls
+    ///    `apply_scene_runtime` which handles rain_style transition,
+    ///    glyph pool realloc, and applies scene-managed defaults.
+    /// 2. `color` (if Some) → resolves built-in OR `colors-custom.<name>`,
+    ///    then `set_color_scheme` (built-in) or `set_palette` (custom).
+    /// 3. `charset` (if Some) → resolves built-in OR `charset-custom.<name>`,
+    ///    then `transition_chars`.
+    /// 4. `speed` (if Some) → `set_chars_per_sec`.
+    /// 5. `density` (if Some) → `set_droplet_density`.
+    /// 6. `glitch_level` (if Some) → `apply_glitch_level_runtime`.
+    ///
+    /// `fps` is NOT applied here — it lives in the event loop's
+    /// `target_period`, not on Cloud. The caller is responsible for
+    /// updating `target_period` when an entry's `fps` field changes.
+    ///
+    /// Returns the charset preset name used (entry's or current).
+    pub fn apply_ambient_entry(
+        &mut self,
+        entry: &crate::ambient::AmbientEntry,
+        current_charset_preset: &str,
+        user_ranges: &[(char, char)],
+        def_ascii: bool,
+        cfg: &std::collections::HashMap<String, String>,
+    ) -> String {
+        use crate::charset::{build_chars, charset_from_str};
+        use crate::cli::parse_color_scheme;
+
+        // 1. Scene switch (if specified). Reuse apply_scene_runtime which
+        //    handles rain_style transition + glyph warm-start + scene-managed
+        //    defaults. Skip if scene is None (sticky).
+        let mut charset_preset = current_charset_preset.to_string();
+        if let Some(scene_name) = &entry.scene {
+            charset_preset =
+                self.apply_scene_runtime(scene_name, &charset_preset, user_ranges, def_ascii);
+        }
+
+        // 2. Color (if specified). Built-in scheme OR colors-custom.<name>.
+        if let Some(color_name) = &entry.color {
+            if let Ok(scheme) = parse_color_scheme(color_name) {
+                self.set_color_scheme(scheme);
+            } else if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, color_name) {
+                self.set_palette(palette);
+            }
+        }
+
+        // 3. Charset (if specified). Built-in OR charset-custom.<name>.
+        if let Some(charset_name) = &entry.charset {
+            if let Some(custom_chars) =
+                crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
+            {
+                charset_preset = charset_name.clone();
+                self.transition_chars(custom_chars);
+            } else if let Ok(charset) = charset_from_str(charset_name, def_ascii) {
+                charset_preset = charset_name.clone();
+                let chars = build_chars(charset, user_ranges, def_ascii);
+                self.transition_chars(chars);
+            }
+        }
+
+        // 4. Speed (if specified).
+        if let Some(speed) = entry.speed {
+            self.set_chars_per_sec(speed);
+        }
+
+        // 5. Density (if specified).
+        if let Some(density) = entry.density {
+            self.set_droplet_density(density);
+        }
+
+        // 6. Glitch level (if specified).
+        if let Some(glitch_str) = &entry.glitch_level {
+            use clap::ValueEnum;
+            if let Ok(level) = GlitchLevel::from_str(glitch_str, true) {
+                self.apply_glitch_level_runtime(level);
+            }
+        }
+
+        self.semantic_invalidate = true;
+        self.force_draw_everything = true;
+
+        charset_preset
+    }
 }

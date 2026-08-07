@@ -49,17 +49,14 @@ pub(crate) static LIVE_RELOAD_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
 /// v25.12 (bug #14): Accumulated validation rejections during the session.
 ///
-/// Each entry is one rejected config reload (with timestamp + error message).
-/// Drained and printed in the post-exit verbose summary so the user can see
-/// EVERY silent rejection that happened while they were editing config.toml
-/// mid-session. Without this, OOR values like `color.tune.tail = 5.0` get
-/// silently rejected by `validate_config_strictly`, the watcher continues
-/// watching, the rain keeps running on the last valid config — and the user
-/// has no idea their edit was rejected. The verbose mode (`-v`) must not
-/// silently swallow any runtime config change attempt.
+/// Each entry is one rejected config reload (timestamp + error). Drained in
+/// the post-exit verbose summary so the user sees EVERY silent rejection
+/// that happened while editing config.toml mid-session. Without this, OOR
+/// values like `color.tune.tail = 5.0` get silently rejected by
+/// `validate_config_strictly`, the watcher continues, the rain runs on the
+/// last valid config — and the user has no idea their edit was rejected.
 ///
-/// Cap at 64 entries to avoid unbounded growth on a misbehaving editor that
-/// saves 1000 times per second.
+/// Cap at 64 entries (defense against misbehaving editors that save 1000×/s).
 pub(crate) static LIVE_RELOAD_VALIDATION_REJECTIONS: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 const MAX_REJECTION_LOG: usize = 64;
@@ -77,11 +74,10 @@ pub(crate) fn push_validation_rejection(msg: &str) {
     }
 }
 
-/// Drain the session rejection log. Returns owned Vec (empty if no rejections
-/// or mutex poisoned). Test-only utility — the production exit path (since
-/// v25.13, bug #15) prints the first rejection via the LIVE_RELOAD_EXIT_CODE
-/// path and exits immediately, so the log is never drained in production.
-/// Tests call this to verify that `validate_and_send` recorded a rejection.
+/// Drain the session rejection log (test-only utility). Empty if no
+/// rejections or mutex poisoned. Production exit path (v25.13, bug #15)
+/// prints the first rejection via LIVE_RELOAD_EXIT_CODE and exits, so the
+/// log is never drained in production.
 #[cfg(test)]
 pub fn drain_validation_rejections() -> Vec<String> {
     LIVE_RELOAD_VALIDATION_REJECTIONS
@@ -97,10 +93,9 @@ pub(crate) type LiveConfigEvent = Result<HashMap<String, String>, String>;
 /// Spawn a config file watcher on a background thread.
 ///
 /// Returns a `Receiver<HashMap<String, String>>` that the render thread polls
-/// with `try_recv()` each frame. The watcher validates config strictly before
-/// sending — invalid configs are rejected with a stderr error message.
-///
-/// If the config file doesn't exist or can't be watched, returns `None`.
+/// with `try_recv()` each frame. The watcher validates config strictly
+/// before sending — invalid configs are rejected with a stderr error.
+/// Returns `None` if the file doesn't exist or can't be watched.
 pub(crate) fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigEvent>> {
     if !config_path.exists() {
         lr_trace!(
@@ -168,8 +163,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
 
     // Snapshot initial state to avoid startup reload.
-    let initial_state = snapshot_file_state(&path);
-    let last_processed_state = Arc::new(Mutex::new(initial_state));
+    let last_processed_state = Arc::new(Mutex::new(snapshot_file_state(&path)));
 
     // Spawn polling heartbeat (recovery loop restarts on panic).
     let poll_path = path.clone();
@@ -345,9 +339,9 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     lr_trace!("watcher_loop exited");
 }
 
-/// Process a single notify event. Returns `false` if the channel is closed.
+/// Process a single notify event. Returns `false` if channel closed.
 /// Dedup (v25.1): mtime + size + content hash; drops if all three equal
-/// `last_processed_state`. Critical on Android Termux where mtime is unreliable.
+/// `last_processed_state` (critical on Termux where mtime is unreliable).
 #[allow(clippy::too_many_arguments)]
 fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
@@ -470,7 +464,7 @@ fn handle_notify_event(
 }
 
 /// Validate parsed config strictly, then send Ok(cfg) or Err(msg) to the
-/// render thread. Returns Err(msg) if validation failed (caller logs it).
+/// render thread. Err(msg) returned if validation failed (caller logs it).
 fn validate_and_send(
     parsed: &configfile::ParsedConfig,
     tx: &Sender<LiveConfigEvent>,
@@ -562,10 +556,8 @@ fn validate_and_send(
     }
 }
 
-/// Rebuild a CloudConfig from base + new config values.
-/// CLI-only fields are preserved from base. Config values override CLI
-/// defaults during live reload. Per-field CLI flags (tracked in
-/// `cli_explicit`) remain immutable across reloads.
+/// Rebuild a CloudConfig from base + new config values. CLI-only fields
+/// preserved from base. Per-field CLI flags (`cli_explicit`) immutable.
 #[must_use]
 pub(crate) fn rebuild_cloud_config(
     base: &crate::app::CloudConfig,
@@ -873,12 +865,20 @@ pub(crate) fn rebuild_cloud_config(
         lr_trace!("color.tune: no keys in config — preserving base tune (CLI --color-tune wins)");
     }
 
+    // Ambient: re-collect schedule. Event loop pushes to scheduler thread.
+    new.ambient_schedule = crate::ambient::collect_ambient_schedule(cfg);
+    if !new.ambient_schedule.is_empty() {
+        lr_trace!(
+            "ambient: reloaded {} entries",
+            new.ambient_schedule.entries.len()
+        );
+    }
+
     new
 }
 
-/// Apply a `[scene-custom.<name>]` block from config to a CloudConfig in
-/// place. Used by live reload so edits to a custom scene take effect
-/// without restarting. Missing fields are left unchanged.
+/// Apply a `[scene-custom.<name>]` block from config to CloudConfig in place.
+/// Used by live reload so edits to a custom scene take effect immediately.
 fn apply_scene_custom_to_cloud_config(
     new: &mut crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
@@ -1113,6 +1113,7 @@ mod tests {
             scene_name: "test-scene".to_string(),
             scene_custom_name: Some("test-scene".to_string()),
             cli_explicit: crate::app::CliExplicit::default(),
+            ambient_schedule: crate::ambient::AmbientSchedule::default(),
         }
     }
 

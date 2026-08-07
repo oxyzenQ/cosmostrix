@@ -227,6 +227,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
+    // Ambient phase scheduler: spawn the dynamic idle/wake thread. The
+    // thread sleeps until the next phase boundary (zero CPU between
+    // boundaries), then sends an `AmbientEntry` via mpsc which we poll
+    // each frame. On live-reload, we push the new schedule via `reload`.
+    // Spawned unconditionally — even an empty schedule is fine (the thread
+    // idles and never sends events).
+    let ambient_handle =
+        crate::ambient_scheduler::spawn_ambient_scheduler(base_cfg.ambient_schedule.clone());
+    // Track the last schedule we pushed to the scheduler so we only call
+    // `reload` when the schedule actually changed (avoids needless condvar
+    // wakeups on unrelated config edits).
+    let mut last_ambient_schedule = base_cfg.ambient_schedule.clone();
+
     // v25.5: last-applied config map for diff trace. Phase 4 P4-7 (positive
     // finding): intentional clone — verbose diff needs full map, ~1KB/reload.
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> = None;
@@ -395,6 +408,78 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             idle_period = Duration::from_secs_f64(1.0 / (safe_fps * IDLE_FPS_FACTOR));
             // v30 (2026-08-05): keep HUD tgt: line in sync with live-reloaded fps.
             hud_state.set_target_fps(safe_fps);
+
+            // Ambient: if the new schedule differs from the one we last
+            // pushed to the scheduler thread, push it now. The thread
+            // wakes via condvar and recomputes `time_to_next_phase`. If
+            // the new schedule's currently-active phase differs from the
+            // previously-applied one, the thread fires it on the next
+            // loop iteration (no boundary wait).
+            if new_cfg.ambient_schedule != last_ambient_schedule {
+                crate::lr_trace!(
+                    "ambient: schedule changed (was {} entries, now {}) — pushing to scheduler thread",
+                    last_ambient_schedule.entries.len(),
+                    new_cfg.ambient_schedule.entries.len()
+                );
+                ambient_handle.reload(new_cfg.ambient_schedule.clone());
+                last_ambient_schedule = new_cfg.ambient_schedule.clone();
+            }
+        }
+
+        // Ambient phase scheduler: poll for phase-fire events (non-blocking).
+        // The scheduler thread sends an `AmbientEntry` when a phase boundary
+        // is crossed (or on startup if a phase is currently active). We
+        // drain all pending events in one pass (defensive — multiple events
+        // could pile up if the frame was delayed) and apply the LAST one
+        // (latest phase wins; earlier ones are stale by definition).
+        let mut last_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
+        while let Ok(entry) = ambient_handle.rx.try_recv() {
+            crate::lr_trace!(
+                "ambient: received phase event {:02}:{:02} (color={:?}, scene={:?})",
+                entry.hour,
+                entry.minute,
+                entry.color,
+                entry.scene
+            );
+            last_ambient_entry = Some(entry);
+        }
+        if let Some(entry) = last_ambient_entry {
+            // Apply the entry to the live Cloud. Reuses scene_runtime's
+            // `apply_ambient_entry` which handles sticky semantics + scene
+            // transition + glyph warm-start.
+            //
+            // We need the current config map for `colors-custom.<name>`
+            // and `charset-custom.<name>` resolution. Pull from
+            // `last_applied_cfg_map` if available; otherwise skip
+            // custom-name resolution (built-in names still work).
+            let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
+            charset_preset = cloud.apply_ambient_entry(
+                &entry,
+                &charset_preset,
+                &user_ranges,
+                def_ascii,
+                &cfg_map,
+            );
+            // Re-sync scene_name if the entry switched scenes (so verbose
+            // output + interactive cycling reflect the new scene).
+            if let Some(new_scene) = &entry.scene {
+                scene_name = new_scene.clone();
+                scene_generation = scene_generation.wrapping_add(1);
+            }
+            // Update target_period if the entry specified fps (lives in
+            // event loop, not on Cloud).
+            if let Some(fps) = entry.fps {
+                let fps = fps as f64;
+                if fps > 0.0 {
+                    target_period = Duration::from_secs_f64(1.0 / fps);
+                    idle_period = Duration::from_secs_f64(1.0 / (fps * IDLE_FPS_FACTOR));
+                    hud_state.set_target_fps(fps);
+                }
+            }
+            // Rebuild color cache + frame for new palette (color change).
+            term.set_color_cache(ColorCache::new(&cloud.palette));
+            frame = Frame::new(w, h, cloud.palette.bg);
+            super::fill_terminal_bg(cloud.palette.bg);
         }
 
         // Adaptive throttling: detect idle state (no input for

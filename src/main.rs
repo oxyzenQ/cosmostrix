@@ -42,6 +42,13 @@
 #[global_allocator]
 static GLOBAL_ALLOC: crate::alloc_trace::TraceAlloc = crate::alloc_trace::TraceAlloc;
 mod alloc_trace;
+mod ambient;
+// Ambient phase scheduler — config-driven time-of-day scene/parameter
+// switching. Replaces the archived `adaptive-custom` subsystem with a
+// simpler contract: config-only (no CLI flag), instant switch (no blend
+// window), dynamic idle/wake scheduler thread (zero CPU between phase
+// boundaries). See `src/ambient.rs` and `src/ambient_scheduler.rs`.
+mod ambient_scheduler;
 mod app;
 // Atmosphere engine subsystem fully eliminated (Dragon Hunt v2 Phase 6
 // Tier E item 31 — full elimination). Owner decided atmosphere engine
@@ -1053,6 +1060,11 @@ fn main() -> std::io::Result<()> {
         // Bug 3: tracker for CLI-explicit flags, used by rebuild_cloud_config
         // to enforce CLI > config.toml > scene priority during live reload.
         cli_explicit,
+        // Ambient phase schedule (config-only). Collected from
+        // `ambient.<HH-MM>` keys; empty = scheduler idles.
+        ambient_schedule: crate::ambient::collect_ambient_schedule(&configfile::load_config_file(
+            args.config.as_deref(),
+        )),
     };
 
     // v25.16: detect fps set by ANY source (CLI --fps OR config.toml fps=).

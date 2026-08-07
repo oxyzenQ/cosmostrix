@@ -83,6 +83,20 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
                  docs/archive/specs/ATMOSPHERE_ENGINE.md"
             ));
         }
+        // Pattern 2b: ambient nested under [scene-custom.<name>]. Same
+        // mis-nesting pattern as adaptive-custom — the user wrote
+        // `[scene-custom.hacker-mode.ambient.10-00]` and the parser
+        // produced `scene-custom.hacker-mode.ambient.10-00.color`. Ambient
+        // keys belong at the root scope (`ambient.<HH-MM>`), not nested
+        // under scene-custom blocks.
+        if segments.len() > 2 && segments.iter().skip(2).any(|s| *s == "ambient") {
+            return Some(format!(
+                "'{key}': 'ambient.*' keys are top-level — they cannot be nested under \
+                 [scene-custom.<name>]. Move the entry out of the [scene-custom.{name}] section \
+                 and write it at the file root as: ambient.<HH-MM> = <color>, <scene>, ...",
+                name = segments.get(1).copied().unwrap_or("<name>")
+            ));
+        }
     }
 
     // Pattern 3 (v25.10 / bug #8): invalid colors-custom field. Triggered

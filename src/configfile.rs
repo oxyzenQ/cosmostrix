@@ -55,6 +55,15 @@ const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<color|charset|f
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain|stops>";
 const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
+/// Ambient phase scheduler: `ambient.<HH-MM> = <color>, <scene>, [key=value, ...]`.
+///
+/// Config-only (no CLI flag). Time-of-day phase entries that switch scene,
+/// color, speed, density, fps, charset, glitch-level at scheduled times.
+/// Instant switch (no blend window). Dynamic idle/wake scheduler thread —
+/// zero CPU between phase boundaries. See `src/ambient.rs` and
+/// `src/ambient_scheduler.rs`.
+const AMBIENT_CONFIG_KEY_HINT: &str =
+    "ambient.<HH-MM> = <color>, <scene>, [speed=.., density=.., fps=.., charset=.., glitch-level=..]";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct ParsedConfig {
@@ -802,6 +811,7 @@ pub(crate) fn known_keys() -> Vec<&'static str> {
         .chain(std::iter::once(&COLORS_CUSTOM_CONFIG_KEY_HINT))
         .chain(std::iter::once(&CHARSET_CUSTOM_CONFIG_KEY_HINT))
         .chain(std::iter::once(&COLOR_TUNE_CONFIG_KEY_HINT))
+        .chain(std::iter::once(&AMBIENT_CONFIG_KEY_HINT))
         .copied()
         .collect()
 }
@@ -814,6 +824,7 @@ fn is_known_key(key: &str) -> bool {
         || is_colors_custom_key(key)
         || is_charset_custom_key(key)
         || is_color_tune_key(key)
+        || crate::ambient::is_ambient_config_key(key)
 }
 
 /// v17: Check if key matches `color.tune.<field>` pattern.

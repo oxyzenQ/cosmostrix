@@ -264,6 +264,17 @@ pub(crate) fn validate_config_strictly(
             }
             continue;
         }
+        // Ambient phase scheduler: `ambient.<HH-MM>` keys. The key pattern
+        // (HH-MM format) is validated by is_known_key(); here we validate
+        // the value (positional color/scene + key=value pairs).
+        if key.starts_with("ambient.") {
+            // validate_ambient_entries validates ALL ambient keys at once
+            // (cross-references colors-custom and charset-custom names),
+            // so we break after the first ambient key to avoid re-running
+            // the same full validation.
+            crate::ambient::validate_ambient_entries(cfg)?;
+            break;
+        }
         // v25: the top-level `charset` key may reference a custom charset
         // block (charset-custom.<name>) instead of a built-in preset.
         // Accept the value if it matches a defined custom block — the
