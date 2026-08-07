@@ -183,11 +183,16 @@ fn scheduler_loop(
             let key = (entry.hour, entry.minute);
             if last_applied_key != Some(key) {
                 crate::lr_trace!(
-                    "ambient-scheduler: firing phase {:02}:{:02} (color={:?}, scene={:?})",
+                    "ambient-scheduler: firing phase {:02}:{:02} (color={:?}, scene={:?}, charset={:?}, speed={:?}, density={:?}, fps={:?}, glitch={:?})",
                     entry.hour,
                     entry.minute,
                     entry.color,
-                    entry.scene
+                    entry.scene,
+                    entry.charset,
+                    entry.speed,
+                    entry.density,
+                    entry.fps,
+                    entry.glitch_level
                 );
                 if tx.send(entry.clone()).is_err() {
                     // Receiver dropped (event loop exited). Terminate.

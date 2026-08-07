@@ -211,3 +211,110 @@ fn repeated_uppercase_forward_cycle_never_blank() {
         );
     }
 }
+
+// ── apply_ambient_entry regressions ──
+//
+// Bug report (2026-08-07): user's config
+//   ambient.13-00 = cosmos, signal, charset=hex, speed=12, density=0.65
+// fired correctly (scene switched cinematic→signal) but the verbose
+// "final runtime state" diff showed ONLY the scene change. color, charset,
+// speed, and density all appeared unchanged. This suggested the entry's
+// non-scene fields were being silently dropped somewhere between parser
+// and apply. These tests pin down that apply_ambient_entry itself honors
+// every field.
+
+use crate::ambient::AmbientEntry;
+use crate::cloud::Cloud;
+use crate::runtime::ColorScheme;
+use std::collections::HashMap;
+
+/// Helper: build a glyph cloud whose starting state mirrors the cinematic
+/// scene's defaults (color=neon-purple, charset=zen, speed=9.0, density=0.75).
+fn make_cinematic_like_cloud() -> Cloud {
+    let mut cloud = make_glyph_cloud();
+    // Apply cinematic scene to mirror real startup state.
+    cloud.apply_scene_runtime("cinematic", "zen", &[], false);
+    // Verify our baseline assumptions — if these fail, the test setup is
+    // wrong, not the bug.
+    assert_eq!(cloud.color_scheme(), ColorScheme::NeonPurple);
+    assert!((cloud.chars_per_sec - 9.0).abs() < 0.01);
+    assert!((cloud.droplet_density - 0.75).abs() < 0.01);
+    cloud
+}
+
+#[test]
+fn apply_ambient_entry_applies_all_fields_from_user_repro() {
+    // Reproduces the user's exact entry. Previously the verbose diff
+    // showed only scene change; this test asserts that color, charset,
+    // speed, and density ALL change too.
+    let mut cloud = make_cinematic_like_cloud();
+    let entry = AmbientEntry {
+        hour: 13,
+        minute: 0,
+        color: Some("cosmos".into()),
+        scene: Some("signal".into()),
+        speed: Some(12.0),
+        density: Some(0.65),
+        fps: None,
+        charset: Some("hex".into()),
+        glitch_level: None,
+    };
+    let cfg = HashMap::new();
+    let charset_preset = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+
+    // Scene-driven changes (signal scene sets color=aurora, charset=retro,
+    // speed=14.0, density=0.55) should ALL be overridden by the entry's
+    // explicit fields.
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::Cosmos,
+        "entry.color=cosmos must override signal scene's aurora"
+    );
+    assert_eq!(
+        charset_preset, "hex",
+        "entry.charset=hex must override signal scene's retro"
+    );
+    assert!(
+        (cloud.chars_per_sec - 12.0).abs() < 0.01,
+        "entry.speed=12.0 must override signal scene's 14.0, got {}",
+        cloud.chars_per_sec
+    );
+    assert!(
+        (cloud.droplet_density - 0.65).abs() < 0.01,
+        "entry.density=0.65 must override signal scene's 0.55, got {}",
+        cloud.droplet_density
+    );
+}
+
+#[test]
+fn apply_ambient_entry_scene_only_applies_scene_managed_defaults() {
+    // Sanity: when the entry has ONLY scene, apply_scene_runtime's
+    // scene-managed defaults should still take effect. This rules out
+    // "apply_scene_runtime is broken" as the root cause.
+    let mut cloud = make_cinematic_like_cloud();
+    let entry = AmbientEntry {
+        hour: 13,
+        minute: 0,
+        color: None,
+        scene: Some("signal".into()),
+        speed: None,
+        density: None,
+        fps: None,
+        charset: None,
+        glitch_level: None,
+    };
+    let cfg = HashMap::new();
+    let _ = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+
+    // signal scene's color=aurora should be applied.
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::Aurora,
+        "signal scene should set color=aurora when entry has no color override"
+    );
+    assert!(
+        (cloud.chars_per_sec - 14.0).abs() < 0.01,
+        "signal scene should set speed=14.0, got {}",
+        cloud.chars_per_sec
+    );
+}

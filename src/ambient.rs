@@ -773,6 +773,53 @@ mod tests {
         assert_eq!(e.glitch_level.as_deref(), Some("subtle"));
     }
 
+    #[test]
+    fn parses_user_repro_signal_hex_cosmos() {
+        // Regression: user's exact config from bug report —
+        //   ambient.13-00 = cosmos, signal, charset=hex, speed=12, density=0.65
+        // "cosmos" is BOTH a color theme AND a scene name, so the parser
+        // must still pick (color=cosmos, scene=signal) via the ambiguous
+        // (is_color=true, is_scene=true) branch.
+        let e = parse_ambient_value("cosmos, signal, charset=hex, speed=12, density=0.65")
+            .expect("user's exact entry must parse");
+        assert_eq!(e.color.as_deref(), Some("cosmos"), "color field lost");
+        assert_eq!(e.scene.as_deref(), Some("signal"), "scene field lost");
+        assert_eq!(e.charset.as_deref(), Some("hex"), "charset field lost");
+        assert_eq!(e.speed, Some(12.0), "speed field lost");
+        assert_eq!(e.density, Some(0.65), "density field lost");
+        assert!(e.fps.is_none());
+        assert!(e.glitch_level.is_none());
+    }
+
+    #[test]
+    fn collect_ambient_schedule_preserves_all_fields_from_user_repro() {
+        // Regression for bug report (2026-08-07): user reported that
+        //   ambient.13-00 = cosmos, signal, charset=hex, speed=12, density=0.65
+        // fired correctly (scene changed) but the verbose final-runtime-state
+        // diff showed ONLY scene change — color/charset/speed/density were
+        // silently lost. This test verifies the parser → schedule pipeline
+        // keeps every field.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert(
+            "ambient.13-00".to_string(),
+            "cosmos, signal, charset=hex, speed=12, density=0.65".to_string(),
+        );
+        let s = collect_ambient_schedule(&cfg);
+        assert_eq!(s.entries.len(), 1, "schedule should have 1 entry");
+        let e = &s.entries[0];
+        assert_eq!(e.hour, 13);
+        assert_eq!(e.minute, 0);
+        assert_eq!(e.color.as_deref(), Some("cosmos"), "color lost in schedule");
+        assert_eq!(e.scene.as_deref(), Some("signal"), "scene lost in schedule");
+        assert_eq!(
+            e.charset.as_deref(),
+            Some("hex"),
+            "charset lost in schedule"
+        );
+        assert_eq!(e.speed, Some(12.0), "speed lost in schedule");
+        assert_eq!(e.density, Some(0.65), "density lost in schedule");
+    }
+
     // ── AmbientSchedule::current_phase ──
 
     #[test]
