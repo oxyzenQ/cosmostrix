@@ -119,6 +119,12 @@ const VSCODE_FPS_CAP: f64 = XTERMJS_FPS_CAP;
 /// Used by the dynamic default FPS logic: if the user doesn't specify
 /// `--fps` or `fps =`, these terminals default to 144 FPS instead of 60.
 /// The user's explicit value ALWAYS wins over this default.
+///
+/// v30.4 hotfix: matching is now CASE-INSENSITIVE (some terminals emit
+/// `alacritty` vs `Alacritty`, `apple_Terminal` vs `Apple_Terminal`).
+/// Also expanded the list with Konsole, Windows Terminal, and corrected
+/// `Apple_Terminal` (the previous `apple_Terminal` lowercase form never
+/// matched real Terminal.app emissions).
 const HIGH_PERF_TERMINALS: &[&str] = &[
     "Alacritty",
     "kitty",
@@ -126,8 +132,55 @@ const HIGH_PERF_TERMINALS: &[&str] = &[
     "ghostty",
     "foot",
     "iTerm.app",
-    "apple_Terminal",
+    "Apple_Terminal",
+    "konsole",
+    "WindowsTerminal",
 ];
+
+/// `TERM` values that identify high-performance terminals when
+/// `TERM_PROGRAM` is unset (some terminals don't set TERM_PROGRAM).
+/// Matched case-insensitively as a SUBSTRING of TERM (e.g., `xterm-ghostty`
+/// contains `ghostty`). Conservative list — false positives here would
+/// push a slow terminal to 144 FPS, which it can't sustain.
+const HIGH_PERF_TERM_HINTS: &[&str] = &[
+    "alacritty",
+    "kitty",
+    "ghostty",
+    "foot",
+    "wezterm",
+    "konsole",
+];
+
+/// Returns true if the terminal appears to be a high-performance emulator.
+/// Checks (in order): TERM_PROGRAM (case-insensitive exact match),
+/// `KONSOLE_VERSION` env var (KDE Konsole doesn't set TERM_PROGRAM),
+/// `WT_SESSION` env var (Windows Terminal), and `TERM` substring hints
+/// for terminals that don't set TERM_PROGRAM at all.
+fn is_high_perf_terminal(term_program: &str, term: &str) -> bool {
+    let tp_lower = term_program.to_ascii_lowercase();
+    if HIGH_PERF_TERMINALS
+        .iter()
+        .any(|&t| t.eq_ignore_ascii_case(&tp_lower) && !tp_lower.is_empty())
+    {
+        return true;
+    }
+    // KDE Konsole: doesn't set TERM_PROGRAM, but exports KONSOLE_VERSION.
+    if std::env::var("KONSOLE_VERSION").is_ok() {
+        return true;
+    }
+    // Windows Terminal: sets WT_SESSION (not TERM_PROGRAM).
+    if std::env::var("WT_SESSION").is_ok() {
+        return true;
+    }
+    // Fall back to TERM substring hints (case-insensitive).
+    let term_lower = term.to_ascii_lowercase();
+    if !term_lower.is_empty() {
+        return HIGH_PERF_TERM_HINTS
+            .iter()
+            .any(|&hint| term_lower.contains(hint));
+    }
+    false
+}
 
 /// Dynamic default FPS for high-performance terminals when the user
 /// doesn't specify `--fps` or `fps =`. 144 Hz matches the most common
@@ -173,12 +226,16 @@ pub(crate) fn detect() -> TerminalCaps {
 
     // v30.3 masterclass: dynamic default FPS based on terminal tier.
     // High-performance terminals (Alacritty, kitty, wezterm, ghostty,
-    // foot, iTerm2) default to 144 FPS; standard/unknown terminals
-    // default to 60; xterm.js hosts default to 30 (matching the cap).
-    // The user's explicit `--fps` / `fps =` ALWAYS wins over this default.
+    // foot, iTerm2, Apple Terminal, Konsole, Windows Terminal) default to
+    // 144 FPS; standard/unknown terminals default to 60; xterm.js hosts
+    // default to 30 (matching the cap). The user's explicit `--fps` /
+    // `fps =` ALWAYS wins over this default.
+    // v30.4 hotfix: detection is now case-insensitive + has fallbacks
+    // (KONSOLE_VERSION, WT_SESSION, TERM substring hints) so users on
+    // terminals that don't set TERM_PROGRAM still get the high-perf default.
     let dynamic_default_fps = if xtermjs_host {
         XTERMJS_FPS_CAP
-    } else if HIGH_PERF_TERMINALS.iter().any(|&t| term_program == t) {
+    } else if is_high_perf_terminal(&term_program, &term) {
         HIGH_PERF_DEFAULT_FPS
     } else {
         STANDARD_DEFAULT_FPS
@@ -247,6 +304,8 @@ mod tests {
     struct EnvGuard {
         prev_term: Option<String>,
         prev_tp: Option<String>,
+        prev_konsole_version: Option<String>,
+        prev_wt_session: Option<String>,
     }
 
     impl EnvGuard {
@@ -254,6 +313,8 @@ mod tests {
             Self {
                 prev_term: env::var("TERM").ok(),
                 prev_tp: env::var("TERM_PROGRAM").ok(),
+                prev_konsole_version: env::var("KONSOLE_VERSION").ok(),
+                prev_wt_session: env::var("WT_SESSION").ok(),
             }
         }
     }
@@ -267,6 +328,14 @@ mod tests {
             match self.prev_tp.take() {
                 Some(v) => env::set_var("TERM_PROGRAM", v),
                 None => env::remove_var("TERM_PROGRAM"),
+            }
+            match self.prev_konsole_version.take() {
+                Some(v) => env::set_var("KONSOLE_VERSION", v),
+                None => env::remove_var("KONSOLE_VERSION"),
+            }
+            match self.prev_wt_session.take() {
+                Some(v) => env::set_var("WT_SESSION", v),
+                None => env::remove_var("WT_SESSION"),
             }
         }
     }
@@ -463,6 +532,9 @@ mod tests {
             "ghostty",
             "foot",
             "iTerm.app",
+            "Apple_Terminal",
+            "konsole",
+            "WindowsTerminal",
         ] {
             let _env = EnvGuard::capture();
             env::set_var("TERM", "xterm-256color");
@@ -476,11 +548,101 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_default_fps_case_insensitive_match_gets_144() {
+        // v30.4 hotfix: case-insensitive matching — `alacritty` (lowercase)
+        // must match `Alacritty` in the list. Previously this fell through
+        // to 60 FPS, which is the most likely cause of owner's "60 not 144"
+        // report.
+        let _guard = ENV_LOCK.lock().unwrap();
+        for &term in &["alacritty", "Kitty", "WEZTERM", "GHOSTTY", "FOOT"] {
+            let _env = EnvGuard::capture();
+            env::set_var("TERM", "xterm-256color");
+            env::set_var("TERM_PROGRAM", term);
+            let caps = detect();
+            assert_eq!(
+                caps.dynamic_default_fps, 144.0,
+                "case-insensitive: {term} must match high-perf list"
+            );
+        }
+    }
+
+    #[test]
+    fn dynamic_default_fps_term_substring_fallback_gets_144() {
+        // v30.4 hotfix: terminals that don't set TERM_PROGRAM but set a
+        // distinctive TERM (e.g., `xterm-ghostty`, `alacritty`) must still
+        // get the high-perf default via the TERM substring hint fallback.
+        let _guard = ENV_LOCK.lock().unwrap();
+        for &term in &["xterm-ghostty", "alacritty", "xterm-kitty", "foot-extra"] {
+            let _env = EnvGuard::capture();
+            env::set_var("TERM", term);
+            env::remove_var("TERM_PROGRAM");
+            env::remove_var("KONSOLE_VERSION");
+            env::remove_var("WT_SESSION");
+            let caps = detect();
+            assert_eq!(
+                caps.dynamic_default_fps, 144.0,
+                "TERM substring hint '{term}' must trigger high-perf default"
+            );
+        }
+    }
+
+    #[test]
+    fn dynamic_default_fps_konsole_via_env_var_gets_144() {
+        // v30.4 hotfix: KDE Konsole doesn't set TERM_PROGRAM; it exports
+        // KONSOLE_VERSION. Detect via that env var.
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::set_var("KONSOLE_VERSION", "230400");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_default_fps, 144.0,
+            "KDE Konsole (KONSOLE_VERSION set) must default to 144 FPS"
+        );
+    }
+
+    #[test]
+    fn dynamic_default_fps_windows_terminal_via_env_var_gets_144() {
+        // v30.4 hotfix: Windows Terminal sets WT_SESSION (not TERM_PROGRAM).
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::remove_var("KONSOLE_VERSION");
+        env::set_var("WT_SESSION", "abc-123");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_default_fps, 144.0,
+            "Windows Terminal (WT_SESSION set) must default to 144 FPS"
+        );
+    }
+
+    #[test]
+    fn dynamic_default_fps_tmux_passthrough_outer_terminal() {
+        // v30.4 hotfix: tmux doesn't override TERM_PROGRAM (it sets TMUX
+        // instead), so the outer terminal's TERM_PROGRAM passes through.
+        // An Alacritty user inside tmux must still get 144 FPS.
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "tmux-256color");
+        env::set_var("TERM_PROGRAM", "Alacritty");
+        env::set_var("TMUX", "/tmp/tmux-1000/default,12345,0");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_default_fps, 144.0,
+            "Alacritty inside tmux must still get 144 FPS (TERM_PROGRAM passthrough)"
+        );
+    }
+
+    #[test]
     fn dynamic_default_fps_standard_terminal_gets_60() {
         let _guard = ENV_LOCK.lock().unwrap();
         let _env = EnvGuard::capture();
         env::set_var("TERM", "xterm-256color");
         env::set_var("TERM_PROGRAM", "gnome-terminal");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
         let caps = detect();
         assert_eq!(
             caps.dynamic_default_fps, 60.0,
@@ -494,6 +656,8 @@ mod tests {
         let _env = EnvGuard::capture();
         env::set_var("TERM", "xterm-256color");
         env::remove_var("TERM_PROGRAM");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
         let caps = detect();
         assert_eq!(
             caps.dynamic_default_fps, 60.0,
@@ -507,6 +671,8 @@ mod tests {
         let _env = EnvGuard::capture();
         env::set_var("TERM", "xterm-256color");
         env::set_var("TERM_PROGRAM", "vscode");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
         let caps = detect();
         assert_eq!(
             caps.dynamic_default_fps, XTERMJS_FPS_CAP,
