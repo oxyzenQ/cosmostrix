@@ -167,7 +167,7 @@ git push origin v4.0.0
 
 #### Triggers
 
-- `schedule` weekly at **00:00 UTC Monday (07:00 Western Indonesia Time, Monday)**
+- `schedule` weekly at **00:00 UTC Monday**
 - `workflow_dispatch` manual run
 
 #### Manual inputs

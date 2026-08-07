@@ -23,12 +23,10 @@ unsafe soundness audit to
 [`docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md`](../archive/audits/UNSAFE_SOUNDNESS_AUDIT.md).
 
 The items below are **NEW FLAG/PARAMETER IDEAS** only — parked per owner
-instruction ("flag/parameters baru jangan dibuat dulu karena ini akan
-menjadi versi stabilisasi long term" — English: "don't make new flags
-or parameters yet because this will become the long-term stabilization
-version"). The underlying CONCERNS that motivated each flag have
-already been addressed in v30 via non-flag approaches (doc comments,
-warning summaries, code fixes).
+instruction ("don't make new flags or parameters yet because this will
+become the long-term stabilization version"). The underlying CONCERNS
+that motivated each flag have already been addressed in v30 via non-flag
+approaches (doc comments, warning summaries, code fixes).
 
 ## Parked Flag Ideas
 

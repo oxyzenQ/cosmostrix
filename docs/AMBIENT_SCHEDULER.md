@@ -70,14 +70,10 @@ wakeups**. The OS only schedules it when:
 
 This is the design the owner explicitly requested:
 
-> "dynamic clock bro ngak harus hidup terus tapi idle ketika time mau
-> mendekati sebelum beberapa detik automatic hidup jadi cpu usage ngak
-> tinggi selalu kalo user pakai config ambient"
->
-> (English translation: "dynamic clock, bro — it doesn't have to stay
-> awake continuously; idle when the time is approaching, then a few
-> seconds before, automatically wake up — so CPU usage doesn't stay
-> high all the time when the user uses the ambient config")
+> "dynamic clock, bro — it doesn't have to stay awake continuously; idle
+> when the time is approaching, then a few seconds before, automatically
+> wake up — so CPU usage doesn't stay high all the time when the user
+> uses the ambient config"
 
 ### Instant Switch
 
@@ -91,9 +87,7 @@ cinematic blending.
 The owner explicitly chose instant switch over the archived 5-minute
 smoothstep blend window:
 
-> "blend window pakai instant switch"
->
-> (English translation: "use instant switch for the blend window")
+> "use instant switch for the blend window"
 
 ### Live Reload
 

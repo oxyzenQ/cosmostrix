@@ -173,10 +173,9 @@ So while cosmostrix technically emits bold SGR codes for 50% of glyphs,
 
 **No.** Cosmostrix's default (`BoldMode::Random`) is a deviation from
 both the film (regular weight) and every canonical competitor (regular
-weight). The user's question framing — "kalo ngak berarti cosmostrix
-sudah cocok" (if [film/competitors] don't [use bold], then cosmostrix is
-already a good fit) — assumes cosmostrix also defaults to non-bold. It
-does not.
+weight). The user's question framing — "if [film/competitors] don't
+[use bold], then cosmostrix is already a good fit" — assumes cosmostrix
+also defaults to non-bold. It does not.
 
 ### 3.4 Is the deviation defensible?
 

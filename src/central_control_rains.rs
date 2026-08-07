@@ -89,10 +89,9 @@
 //!   and add zero hardcoded layer values. Editing any rain parameter
 //!   requires touching only this single file.
 //! - **v30.0.0 (silent override bug fix + centralization)**: user reported
-//!   "front layer terasa dim tidak ada glow" (English: "the front layer
-//!   feels dim, there's no glow") after differential tuning. Deep audit
-//!   found 3 silent override bugs in droplet.rs that made boosts > 1.0
-//!   completely no-op:
+//!   "the front layer feels dim, there's no glow" after differential tuning.
+//!   Deep audit found 3 silent override bugs in droplet.rs that made boosts
+//!   > 1.0 completely no-op:
 //!   1. Brightness gate `if combined_layer < 1.0` skipped front boost 1.05
 //!      (no effect). Fixed to `!= 1.0` so both dim and boost apply.
 //!   2. Saturation gate `if saturation_mult < 1.0` skipped front boost 1.05

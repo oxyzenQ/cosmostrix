@@ -9,14 +9,10 @@
 //! That wasted CPU on a quiet machine — most polls found no phase boundary
 //! to fire. The user explicitly asked for a **dynamic idle/wake** scheduler:
 //!
-//! > "dynamic clock bro ngak harus hidup terus tapi idle ketika time mau
-//! > mendekati sebelum beberapa detik automatic hidup jadi cpu usage ngak
-//! > tinggi selalu kalo user pakai config ambient"
-//! >
-//! > (English translation: "dynamic clock, bro — it doesn't have to stay
-//! > awake continuously; idle when the time is approaching, then a few
-//! > seconds before, automatically wake up — so CPU usage doesn't stay
-//! > high all the time when the user uses the ambient config")
+//! > "dynamic clock, bro — it doesn't have to stay awake continuously; idle
+//! > when the time is approaching, then a few seconds before, automatically
+//! > wake up — so CPU usage doesn't stay high all the time when the user
+//! > uses the ambient config"
 //!
 //! This module implements that contract. The scheduler thread:
 //!
