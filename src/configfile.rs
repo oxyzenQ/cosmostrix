@@ -600,7 +600,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # ── Motion ──
 
-# Target FPS (1-120). Loop sleeps to maintain this cap in interactive mode.
+# Target FPS (1-240). Loop sleeps to maintain this cap in interactive mode.
 # Press 'i' to see it as `tgt:` in the HUD. In --benchmark mode this sets
 # the simulation rate only.
 # fps = 60
