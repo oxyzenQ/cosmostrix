@@ -396,3 +396,84 @@ fn apply_ambient_entry_unknown_scene_is_noop() {
     assert!((cloud.chars_per_sec - 9.0).abs() < 0.01);
     assert!((cloud.droplet_density - 0.75).abs() < 0.01);
 }
+
+// ── apply_startup_ambient regression (v30.4 hotfix) ──
+//
+// Bug: `apply_startup_ambient` originally passed `&HashMap::new()` (empty
+// cfg) to `apply_ambient_entry`. For custom-scene ambient targets, this
+// silently broke the lookup: `apply_custom_scene_runtime` calls
+// `collect_custom_scenes(cfg)` which returns an empty map → no custom block
+// found → no-op. The function STILL returned `Some(entry)`, which made the
+// event loop's dedup check skip the scheduler's first real fire. Net
+// result: ambient never applied at startup until the user touched
+// config.toml (which triggered live-reload, which DOES pass the real cfg).
+
+use crate::ambient::{apply_startup_ambient, AmbientSchedule};
+
+#[test]
+fn apply_startup_ambient_with_empty_cfg_is_noop_for_custom_scene() {
+    // Regression proof: with an EMPTY cfg map, a custom-scene ambient target
+    // cannot resolve. The cloud stays in its starting state. The function
+    // still returns Some(entry) — this is the trap that caused the dedup
+    // check to skip the scheduler's first real fire.
+    let mut cloud = make_cinematic_like_cloud();
+    let schedule = AmbientSchedule {
+        entries: vec![AmbientEntry {
+            hour: 0,
+            minute: 0,
+            scene: "afternoon".to_string(),
+        }],
+    };
+    let empty_cfg = HashMap::new();
+    let (charset_preset, entry) =
+        apply_startup_ambient(&mut cloud, &schedule, "zen", &[], false, &empty_cfg);
+
+    // The bug: entry is Some (claimed applied) but the cloud is unchanged.
+    assert!(entry.is_some(), "entry should be returned even for no-op");
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::NeonPurple,
+        "empty cfg must NOT resolve custom scene — cloud stays cinematic"
+    );
+    assert_eq!(charset_preset, "zen");
+}
+
+#[test]
+fn apply_startup_ambient_with_real_cfg_applies_custom_scene() {
+    // Fix proof: with the REAL cfg map (containing the [scene-custom.<name>]
+    // block), the custom scene resolves correctly at startup.
+    let mut cloud = make_cinematic_like_cloud();
+    let schedule = AmbientSchedule {
+        entries: vec![AmbientEntry {
+            hour: 0,
+            minute: 0,
+            scene: "afternoon".to_string(),
+        }],
+    };
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.afternoon.base-scene".to_string(),
+        "signal".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.afternoon.color".to_string(),
+        "cosmos".to_string(),
+    );
+    let (charset_preset, entry) =
+        apply_startup_ambient(&mut cloud, &schedule, "zen", &[], false, &cfg);
+
+    // The fix: entry is Some AND the cloud actually changes.
+    assert!(
+        entry.is_some(),
+        "entry must be returned for an active phase"
+    );
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::Cosmos,
+        "real cfg must resolve custom scene — cloud switches to cosmos"
+    );
+    assert_eq!(
+        charset_preset, "retro",
+        "base-scene=signal must inherit retro charset"
+    );
+}

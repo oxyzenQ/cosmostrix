@@ -227,30 +227,35 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
-    // Ambient phase scheduler: spawn the dynamic idle/wake thread. The thread
-    // sleeps until the next phase boundary (zero CPU between boundaries),
-    // then sends an `AmbientEntry` via mpsc polled each frame. On live-reload,
-    // we push the new schedule via `reload`.
+    // Ambient phase scheduler: spawn the dynamic idle/wake thread. Sleeps
+    // until the next phase boundary (zero CPU between), sends an
+    // `AmbientEntry` via mpsc polled each frame. Reload via `reload()`.
     let ambient_handle =
         crate::ambient_scheduler::spawn_ambient_scheduler(base_cfg.ambient_schedule.clone());
     let mut last_ambient_schedule = base_cfg.ambient_schedule.clone();
     // v30.3: track the last-applied ambient entry to RE-APPLY it after
     // live-reload rebuilds. Without this, a duplicate notify event triggers
-    // a rebuild that loses ambient state. Ambient wins over CLI override.
+    // a rebuild that loses ambient state.
     let mut last_applied_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
-    // v25.5: last-applied config map for diff trace. Phase 4 P4-7 (positive
-    // finding): intentional clone — verbose diff needs full map, ~1KB/reload.
-    let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> = None;
+    // v25.5: last-applied config map for diff trace. v30.4 hotfix: also
+    // populated at STARTUP so `apply_startup_ambient` can resolve
+    // [scene-custom.<name>] blocks (was empty before, breaking ambient).
+    let initial_cfg_map = base_cfg
+        .config_path_for_watcher
+        .as_deref()
+        .map(|p| crate::configfile::load_config_file(Some(p)))
+        .unwrap_or_default();
+    let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> =
+        Some(initial_cfg_map.clone());
 
-    // v30.3 masterclass: SYNCHRONOUS ambient apply at startup — eliminates
-    // the "several seconds of default scene" window on rerun. See
-    // `ambient::apply_startup_ambient` for the full rationale.
+    // v30.3+hotfix: synchronous ambient apply at startup with REAL cfg map.
     let (new_charset, startup_entry) = crate::ambient::apply_startup_ambient(
         &mut cloud,
         &base_cfg.ambient_schedule,
         &charset_preset,
         &user_ranges,
         def_ascii,
+        &initial_cfg_map,
     );
     if let Some(entry) = startup_entry {
         charset_preset = new_charset;
@@ -263,13 +268,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     }
 
     // Track runtime state changes for post-exit verbose summary.
-    // No eprintln during rain — would flicker in alternate-screen mode.
     let _verbose = cfg.verbose;
 
     while cloud.raining {
-        // Check for graceful shutdown request from signal handler.
-        // This allows clean exit via Terminal::drop() instead of racing
-        // on stdout with the signal handler thread.
+        // Graceful shutdown from signal handler (clean exit via Terminal::drop).
         if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
             cloud.raining = false;
             break;

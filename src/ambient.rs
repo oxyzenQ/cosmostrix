@@ -477,6 +477,17 @@ pub(crate) fn current_second_of_minute() -> u32 {
 ///
 /// The scheduler's subsequent fire of the same entry is deduped by the event
 /// loop (entry == last_applied_ambient_entry → skip).
+///
+/// v30.4 hotfix: the `cfg` parameter MUST be the live config HashMap (loaded
+/// from config.toml at startup), NOT an empty map. Earlier revisions passed
+/// `&HashMap::new()` here, which silently broke custom-scene resolution:
+/// `apply_ambient_entry` → `apply_custom_scene_runtime` calls
+/// `collect_custom_scenes(cfg)` to look up `[scene-custom.<name>]` blocks.
+/// With an empty cfg, the lookup returns None and the function becomes a
+/// no-op — but the entry is STILL recorded as "applied", which then causes
+/// the dedup check to skip the scheduler's first real fire. Net result:
+/// ambient never applies at startup until the user touches config.toml
+/// (which triggers live-reload, which DOES pass the real cfg map).
 #[must_use]
 pub(crate) fn apply_startup_ambient(
     cloud: &mut crate::cloud::Cloud,
@@ -484,6 +495,7 @@ pub(crate) fn apply_startup_ambient(
     charset_preset: &str,
     user_ranges: &[(char, char)],
     def_ascii: bool,
+    cfg: &std::collections::HashMap<String, String>,
 ) -> (String, Option<AmbientEntry>) {
     let now_min = current_minute_of_day();
     let Some(entry) = schedule.current_phase(now_min).cloned() else {
@@ -495,13 +507,8 @@ pub(crate) fn apply_startup_ambient(
         entry.minute,
         entry.scene
     );
-    let new_charset = cloud.apply_ambient_entry(
-        &entry,
-        charset_preset,
-        user_ranges,
-        def_ascii,
-        &std::collections::HashMap::new(),
-    );
+    let new_charset =
+        cloud.apply_ambient_entry(&entry, charset_preset, user_ranges, def_ascii, cfg);
     (new_charset, Some(entry))
 }
 
