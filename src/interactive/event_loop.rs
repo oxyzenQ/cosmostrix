@@ -1304,9 +1304,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     );
 
     if cfg.perf_stats {
-        // Capture encoding stats BEFORE dropping the terminal — the stats
+        // Capture encoding stats BEFORE dropping the terminal -- the stats
         // live inside the Terminal/ColorCache and would be lost on drop.
+        // Tier 2: also capture tier2_stats (backpressure_skips, ris_resets,
+        // bytes_since_ris) before drop.
         let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
+        let (tier2_skips, tier2_resets, tier2_bytes_since) = term.tier2_stats();
         drop(term);
         let elapsed = final_elapsed;
         let elapsed_s = elapsed.as_secs_f64().max(0.000_001);
@@ -1454,6 +1457,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             s.field("sgr_cache_hits", &sgr_hits.to_string());
             s.field("sgr_cache_misses", &sgr_misses.to_string());
             s.field("sgr_cache_hit_rate", &format!("{:.1}%", hit_rate));
+        }
+
+        // Tier 2: xterm.js host defenses (byte-budget backpressure + RIS reset).
+        // All three fields are 0 on native terminals; nonzero only inside
+        // VSCode/Hyper/WaveTerminal/Tabby/WarpTerminal. Useful for diagnosing
+        // whether the multi-hour OOM crash mode is actually being mitigated.
+        {
+            let s = r.section("TIER2_XTERMJS");
+            s.field("backpressure_skips", &tier2_skips.to_string());
+            s.field("ris_resets", &tier2_resets.to_string());
+            s.field("bytes_since_last_ris", &tier2_bytes_since.to_string());
         }
 
         r.print();

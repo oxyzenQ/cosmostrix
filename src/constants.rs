@@ -323,6 +323,69 @@ pub(crate) const STUCK_CELL_MAX_PER_SWEEP: usize = 256;
 /// "background hygiene" passes that run on the same slow tick.
 pub(crate) const FD_HEALTH_PROBE_INTERVAL_FRAMES: u64 = 3600;
 
+// ── Tier 2: xterm.js byte-budget + RIS reset ────────────────────────────────
+//
+// Tier 1 (already shipped) caps FPS to 30 inside VSCode to keep the worst-
+// case byte rate under ~7 MB/sec. But FPS alone is not enough — it caps the
+// *instantaneous* rate, not the *cumulative* bytes that xterm.js's in-memory
+// scrollback buffer accumulates. Over a multi-hour run, even at 7 MB/sec,
+// the buffer grows without bound until V8 OOMs.
+//
+// Tier 2 adds three more defense layers, all gated on `xtermjs_host`
+// (superset of VSCode detection — includes Hyper, WaveTerminal, Tabby,
+// WarpTerminal, and any future Electron+xterm.js host):
+//
+//   1. **Byte budget per window** — `XTERMJS_BYTE_BUDGET_PER_WINDOW` bytes
+//      over `XTERMJS_BYTE_BUDGET_WINDOW_FRAMES` frames. If exceeded, the
+//      flush is skipped (preemptive backpressure). State still advances,
+//      so the rain animation continues internally — only the ANSI write
+//      is suppressed, letting xterm.js drain its buffer.
+//
+//   2. **RIS reset threshold** — `XTERMJS_RIS_RESET_BYTES` cumulative bytes
+//      triggers an ESC c (RIS — Reset to Initial State) emission. RIS tells
+//      xterm.js to clear its in-memory buffer + scrollback, freeing the
+//      accumulated memory pressure. This is the "SIGHUP-like recovery":
+//      instead of waiting for V8 to OOM-crash, we periodically nuke the
+//      buffer from the producer side.
+//
+//   3. **Cumulative hard ceiling** — `XTERMJS_HARD_CEILING_BYTES` is the
+//      absolute maximum before we force a RIS even mid-flush. Belt-and-
+//      suspenders for the case where the window budget was never exceeded
+//      (low FPS, high per-frame bytes) but the cumulative total is still
+//      climbing.
+//
+// All thresholds are sized for the 30 FPS cap from Tier 1: at ~7 MB/sec
+// worst case, the 10-second window budget of 40 MB gives ~5x headroom
+// before backpressure kicks in, and the 50 MB RIS threshold fires roughly
+// every 7 seconds under sustained max load — frequent enough to keep
+// xterm.js's buffer bounded, rare enough not to flicker visibly (RIS is
+// followed by a full redraw on the next frame).
+
+/// Byte budget per window for xterm.js hosts. 40 MB ≈ 5 seconds of
+/// sustained 7 MB/sec output. When the rolling window exceeds this,
+/// `flush_ansi` suppresses the write to let xterm.js drain.
+pub(crate) const XTERMJS_BYTE_BUDGET_PER_WINDOW: u64 = 40 * 1024 * 1024;
+
+/// Frames in the rolling byte-budget window. 600 frames ≈ 10 s at 60 FPS,
+/// ≈ 20 s at the 30 FPS xterm.js cap. Long enough to smooth over single-
+/// frame spikes (full redraws, palette changes), short enough to catch
+/// sustained high-rate output before xterm.js's buffer crosses 100 MB.
+pub(crate) const XTERMJS_BYTE_BUDGET_WINDOW_FRAMES: u64 = 600;
+
+/// Cumulative bytes since last RIS reset that triggers an ESC c emission.
+/// 50 MB ≈ 7 seconds at the 7 MB/sec Tier 1 cap. Sized to fire before
+/// xterm.js's typical OOM threshold (~256 MB V8 heap, ~150 MB buffer
+/// headroom) with a wide safety margin.
+pub(crate) const XTERMJS_RIS_RESET_BYTES: u64 = 50 * 1024 * 1024;
+
+/// Absolute cumulative ceiling before a forced RIS, even mid-flush.
+/// 200 MB is the "xterm.js is approaching V8 heap pressure" zone; we
+/// force a reset here regardless of window-budget state. Should never
+/// fire in practice (RIS_RESET_BYTES at 50 MB fires first), but exists
+/// as a defensive bound against pathological cases (e.g., a huge
+/// terminal size pushing per-frame bytes well past the budget).
+pub(crate) const XTERMJS_HARD_CEILING_BYTES: u64 = 200 * 1024 * 1024;
+
 // Benchmark
 
 /// Minimum elapsed seconds denominator to avoid division by zero in bench.

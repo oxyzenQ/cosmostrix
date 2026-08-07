@@ -336,7 +336,7 @@ pumped ANSI bytes at 60 FPS (0.3-13.7 MB/sec) into node-pty → xterm.js,
 whose in-memory buffer grows without bound over multi-hour runs until
 V8 hits an OOM assertion → SIGTRAP.
 
-**Fix** (3 layers, defense-in-depth):
+**Tier 1 Fix** (3 layers, defense-in-depth):
 
 1. **VSCode detection** (`src/termdetect.rs`): read `TERM_PROGRAM=vscode`,
    set `vscode_integrated: bool` on `TerminalCaps`.
@@ -353,6 +353,76 @@ V8 hits an OOM assertion → SIGTRAP.
 **Verification**: build clean (zero warnings), 1511 tests pass, clippy
 clean. The fix is transparent to native terminals (Alacritty, Kitty,
 etc.) — they get the same 240 FPS cap and sync_output enabled as before.
+
+### 12a. Tier 2 Extension — xterm.js Host Generalization
+
+**Problem**: Tier 1 only covered VSCode. The same xterm.js OOM failure
+mode applies to every Electron-based terminal that embeds xterm.js as
+its renderer: Hyper, WaveTerminal, Tabby, WarpTerminal. Users running
+cosmostrix inside these hosts were silently unprotected.
+
+**Tier 2 Fix** (4 layers, extends Tier 1):
+
+1. **Multi-host detection** (`src/termdetect.rs`): `vscode_integrated`
+   becomes a back-compat alias; new primary signal is `xtermjs_host: bool`
+   which is true for ANY of: `vscode`, `Hyper`, `WaveTerminal`, `Tabby`,
+   `WarpTerminal`. The `XTERMJS_HOSTS` const list is the single source
+   of truth — adding a future host is a one-line change.
+
+2. **Byte-budget backpressure** (`src/terminal.rs::flush_ansi` + new
+   `ByteWindow` ring buffer): Tier 1's FPS cap bounds the
+   *instantaneous* byte rate but not the *cumulative* bytes that
+   accumulate in xterm.js's scrollback buffer. Tier 2 adds a rolling
+   window (`XTERMJS_BYTE_BUDGET_WINDOW_FRAMES` = 600 frames ≈ 20 s at
+   the 30 FPS cap) with a per-window budget
+   (`XTERMJS_BYTE_BUDGET_PER_WINDOW` = 40 MB). When the window sum
+   exceeds the budget, `flush_ansi` suppresses the next flush entirely
+   (state still advances externally, so the rain animation continues
+   internally — only the ANSI write is suppressed). Suppressed frames
+   push a 0-byte entry into the window, aging out old high-byte entries
+   so the budget naturally recovers.
+
+3. **Periodic RIS reset** (`src/terminal.rs::emit_ris_reset`): the
+   SIGHUP-like recovery. When cumulative bytes since the last reset
+   cross `XTERMJS_RIS_RESET_BYTES` (50 MB), emit `ESC c` (RIS — Reset
+   to Initial State) which forces xterm.js to clear its in-memory
+   scrollback buffer. The RIS sequence is followed by re-entering the
+   alternate screen, re-hiding the cursor, and re-enabling SGR mouse
+   mode — defensive against stricter terminals that fully reset on
+   RIS. After emission, both `bytes_since_ris` and `byte_window` are
+   reset since the buffer they were tracking has been nuked.
+
+4. **Hard ceiling** (`XTERMJS_HARD_CEILING_BYTES` = 200 MB): a
+   defensive last-resort. If the RIS reset fails to fire (e.g., a
+   single 250 MB full-redraw frame skips the cumulative check), the
+   hard ceiling forces a RIS regardless of window-budget state. Should
+   never fire in practice — RIS at 50 MB fires first — but exists as
+   a belt-and-suspenders bound against pathological cases.
+
+**`--perf-stats` integration**: Tier 2 stats are reported in a new
+`TIER2_XTERMJS` section of the perf-stats exit summary:
+- `backpressure_skips`: number of flushes suppressed by the byte budget.
+- `ris_resets`: number of ESC c emissions.
+- `bytes_since_last_ris`: cumulative bytes since the last RIS.
+
+All three are 0 on native terminals; nonzero only inside xterm.js hosts.
+Useful for diagnosing whether the multi-hour OOM crash mode is actually
+being mitigated.
+
+**Verification**: build clean (zero warnings), tests pass (Tier 2 added
+4 termdetect tests + 8 ByteWindow/flush tests). Native terminals see
+zero behavioral change — all Tier 2 paths are gated on
+`term_caps.xtermjs_host`.
+
+**Threshold sizing rationale** (all sized for the 30 FPS Tier 1 cap,
+~7 MB/sec worst case):
+
+| Constant | Value | Fires roughly every |
+| --- | --- | --- |
+| `XTERMJS_BYTE_BUDGET_PER_WINDOW` | 40 MB | 5 s sustained max load (then suppresses) |
+| `XTERMJS_RIS_RESET_BYTES` | 50 MB | 7 s sustained max load |
+| `XTERMJS_HARD_CEILING_BYTES` | 200 MB | never (RIS at 50 MB fires first) |
+| `XTERMJS_BYTE_BUDGET_WINDOW_FRAMES` | 600 frames | 20 s rolling window at 30 FPS |
 
 ---
 

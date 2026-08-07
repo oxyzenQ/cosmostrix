@@ -76,6 +76,7 @@ use crate::constants::{
 use crate::frame::Frame;
 use crate::sgr_format::{push_u16, write_sgr_colors_buf};
 use crate::termdetect::TerminalCaps;
+use crate::tier2::{should_backpressure, should_ris_reset, ByteWindow};
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
 /// (centralized in constants.rs, imported above).
@@ -213,6 +214,24 @@ pub(crate) struct Terminal {
     /// slow (e.g., VSCode's xterm.js falling behind over long runs).
     /// Zero until the first flush completes.
     last_write_ns: u64,
+    /// Tier 2: cumulative ANSI bytes flushed since the last RIS reset.
+    /// When this crosses `XTERMJS_RIS_RESET_BYTES`, `flush_ansi` emits
+    /// an ESC c (RIS) to clear xterm.js's in-memory buffer. Reset to 0
+    /// after each RIS emission. Only meaningful when `term_caps.xtermjs_host`
+    /// is true; on native terminals it's still tracked (cheap) but never
+    /// triggers a RIS.
+    bytes_since_ris: u64,
+    /// Tier 2: rolling window of per-frame byte counts, used to apply
+    /// preemptive backpressure when the recent byte rate exceeds the
+    /// budget. Only consulted when `term_caps.xtermjs_host` is true.
+    byte_window: ByteWindow,
+    /// Tier 2: number of flushes suppressed by byte-budget backpressure.
+    /// Reported in `--perf-stats` exit summary so the user can see how
+    /// often Tier 2 kicked in. Reset only by process restart.
+    backpressure_skips: u64,
+    /// Tier 2: number of RIS reset emissions. Reported in `--perf-stats`
+    /// exit summary. Reset only by process restart.
+    ris_resets: u64,
 }
 
 impl Terminal {
@@ -261,6 +280,12 @@ impl Terminal {
             #[cfg(unix)]
             tty_recoveries: 0,
             last_write_ns: 0,
+            bytes_since_ris: 0,
+            byte_window: ByteWindow::with_capacity(
+                crate::constants::XTERMJS_BYTE_BUDGET_WINDOW_FRAMES as usize,
+            ),
+            backpressure_skips: 0,
+            ris_resets: 0,
         };
 
         let init_res: Result<()> = (|| {
@@ -331,12 +356,49 @@ impl Terminal {
         }
         // Accumulate encoding stats BEFORE clearing the buffer.
         // Only count frame content, not sync wrappers.
-        self.total_ansi_bytes += self.ansi_buf.len() as u64;
+        let frame_bytes = self.ansi_buf.len() as u64;
+        self.total_ansi_bytes += frame_bytes;
         self.flush_count += 1;
+
+        // Tier 2 -- RIS reset (xterm.js hosts only).
+        //
+        // Check BEFORE backpressure: a RIS emission is itself ~20 bytes
+        // (RIS + re-enter-alternate-screen + cursor hide + SGR mouse
+        // mode), negligible vs the threshold, so even if we are about
+        // to suppress this flush for backpressure, the RIS still fires
+        // and resets xterm.js's buffer.
+        if self.term_caps.xtermjs_host {
+            let cumulative = self.bytes_since_ris + frame_bytes;
+            if should_ris_reset(cumulative, self.bytes_since_ris) {
+                self.emit_ris_reset()?;
+                // bytes_since_ris was reset inside emit_ris_reset; the
+                // upcoming flush's frame_bytes will be added below.
+            }
+        }
+
+        // Tier 2 -- byte-budget backpressure (xterm.js hosts only).
+        //
+        // If the rolling window already exceeds the per-window budget,
+        // suppress this flush. The rain state still advances (the event
+        // loop calls cloud.rain_at() BEFORE term.draw()), so the user
+        // sees a brief stutter rather than a permanent desync. The 0
+        // byte count is pushed into the window so the budget recovers
+        // naturally as old high-byte frames age out.
+        if self.term_caps.xtermjs_host {
+            let window_sum = self.byte_window.sum();
+            if should_backpressure(window_sum, self.bytes_since_ris) {
+                self.backpressure_skips += 1;
+                self.byte_window.push(0);
+                // Clear ansi_buf to discard the suppressed frame. The
+                // next frame will rebuild it from scratch via diff.
+                self.ansi_buf.clear();
+                return Ok(());
+            }
+        }
 
         // Extract ansi_buf so write_with_recovery can borrow `*self`
         // mutably for the recovery path. The Vec's allocation is preserved
-        // across take + restore — zero per-frame alloc cost.
+        // across take + restore -- zero per-frame alloc cost.
         let mut ansi_buf = std::mem::take(&mut self.ansi_buf);
 
         let write_result = if self.term_caps.sync_output {
@@ -360,6 +422,11 @@ impl Terminal {
                 // Success: clear ansi_buf (preserves allocation for reuse).
                 ansi_buf.clear();
                 self.ansi_buf = ansi_buf;
+                // Tier 2: record this frame's byte contribution.
+                if self.term_caps.xtermjs_host {
+                    self.byte_window.push(frame_bytes);
+                    self.bytes_since_ris += frame_bytes;
+                }
                 Ok(())
             }
             Err(e) => {
@@ -369,6 +436,45 @@ impl Terminal {
                 Err(e)
             }
         }
+    }
+
+    /// Tier 2: emit an RIS (Reset to Initial State) sequence -- ESC c.
+    ///
+    /// This forces xterm.js to clear its in-memory scrollback buffer,
+    /// preventing the unbounded growth that leads to V8 OOM (SIGTRAP)
+    /// over multi-hour runs. After the RIS, we re-enter the alternate
+    /// screen and re-hide the cursor -- RIS in some terminals exits the
+    /// alternate screen and resets cursor visibility, which would leave
+    /// the user with a scrambled display.
+    ///
+    /// Cost: ~20 bytes of ANSI (RIS + alternate screen + cursor hide +
+    /// SGR mouse mode). Fires at most every ~7 seconds under sustained
+    /// max load (50 MB threshold / 7 MB/sec rate), so the per-frame
+    /// amortized cost is ~3 bytes -- negligible.
+    ///
+    /// After emission, `bytes_since_ris` and `byte_window` are reset
+    /// since the buffer they were tracking has been nuked.
+    fn emit_ris_reset(&mut self) -> Result<()> {
+        // Build the reset sequence: RIS + re-enter alternate screen +
+        // re-hide cursor. RIS alone is sufficient for xterm.js (its
+        // implementation preserves alternate screen state), but the
+        // extra bytes are cheap insurance against stricter terminals
+        // (e.g., a future xterm.js host that fully resets on RIS).
+        //
+        // Sequence breakdown:
+        //   ESC c            -- RIS (Reset to Initial State)
+        //   ESC [ ? 1049 h   -- Enter alternate screen (DECSET 1049)
+        //   ESC [ ? 25 l     -- Hide cursor (DECTCEM off)
+        //   ESC [ ? 1006 h   -- Re-enable SGR mouse mode (in case RIS
+        //                      reset it -- xterm.js preserves this, but
+        //                      other hosts might not)
+        const RIS_RECOVERY: &[u8] = b"\x1bc\x1b[?1049h\x1b[?25l\x1b[?1006h";
+
+        self.write_with_recovery(RIS_RECOVERY)?;
+        self.ris_resets += 1;
+        self.bytes_since_ris = 0;
+        self.byte_window.reset();
+        Ok(())
     }
 
     /// P3: write a buffer to stdout, attempting a /dev/tty fallback when
@@ -555,6 +661,30 @@ impl Terminal {
             .as_ref()
             .map_or((0, 0), |c| c.cache_stats());
         (self.total_ansi_bytes, self.flush_count, hits, misses)
+    }
+
+    /// Tier 2: return Tier 2-specific stats for `--perf-stats` exit summary.
+    ///
+    /// - `backpressure_skips`: number of flushes suppressed by the byte-
+    ///   budget backpressure path. Nonzero only when running inside an
+    ///   xterm.js host AND the recent byte rate exceeded the per-window
+    ///   budget -- typically during sustained full-redraw activity
+    ///   (palette cycling, scene transitions, terminal resize storms).
+    /// - `ris_resets`: number of ESC c (RIS) reset emissions. Each reset
+    ///   clears ~50 MB of accumulated xterm.js buffer. Nonzero only on
+    ///   xterm.js hosts.
+    /// - `bytes_since_ris`: cumulative bytes flushed since the last RIS.
+    ///   Useful for diagnosing whether Tier 2 is firing at the expected
+    ///   cadence (around 50 MB / 7 sec under sustained max load).
+    ///
+    /// On native terminals all three fields are always 0.
+    #[must_use]
+    pub(crate) fn tier2_stats(&self) -> (u64, u64, u64) {
+        (
+            self.backpressure_skips,
+            self.ris_resets,
+            self.bytes_since_ris,
+        )
     }
 
     /// Returns the latency (in nanoseconds) of the last `write_with_recovery`

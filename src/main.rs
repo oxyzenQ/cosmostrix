@@ -158,6 +158,7 @@ mod terminal_tests;
 mod terminal_tty;
 mod testconf;
 mod theme;
+mod tier2;
 mod update;
 mod usagestat;
 mod ux;
@@ -657,24 +658,26 @@ fn main() -> std::io::Result<()> {
 
     let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 300.0));
 
-    // v30 (VSCode crash fix): apply terminal-specific FPS cap after user
-    // validation. VSCode's integrated terminal (TERM_PROGRAM=vscode) cannot
-    // sustain 60 FPS indefinitely — xterm.js's in-memory buffer grows
-    // without bound over multi-hour runs until V8 hits an OOM assertion
-    // (SIGTRAP in the code-oss process). The cap is 30 FPS for VSCode,
-    // 300 (effectively uncapped) for everything else. The user's --fps
-    // value is clamped, not silently overridden — a warning is printed
-    // so there's no confusion. Benchmark mode skips the cap (benchmarks
-    // measure raw throughput, not terminal stability).
+    // v30 (VSCode crash fix) + Tier 2 (xterm.js host extension): apply
+    // terminal-specific FPS cap after user validation. Any xterm.js-based
+    // Electron host (VSCode, Hyper, WaveTerminal, Tabby, WarpTerminal)
+    // cannot sustain 60 FPS indefinitely -- xterm.js's in-memory scrollback
+    // buffer grows without bound over multi-hour runs until V8 hits an OOM
+    // assertion (SIGTRAP in the host process). The cap is 30 FPS for
+    // xterm.js hosts, 300 (effectively uncapped) for native terminals.
+    // Benchmark mode skips the cap (benchmarks measure raw throughput,
+    // not terminal stability). Tier 2 also adds byte-budget backpressure
+    // + periodic RIS reset (see `Terminal::flush_ansi`), independent of
+    // this FPS cap -- together they eliminate the multi-hour OOM crash.
     let term_caps = crate::termdetect::detect();
     let target_fps =
-        if !args.benchmark && term_caps.vscode_integrated && target_fps > term_caps.default_fps_cap
-        {
+        if !args.benchmark && term_caps.xtermjs_host && target_fps > term_caps.default_fps_cap {
             let capped = term_caps.default_fps_cap;
             crate::output::eprintln_warn_labeled(&format!(
-                "VSCode integrated terminal detected (TERM_PROGRAM=vscode); \
+                "xterm.js-based terminal detected (TERM_PROGRAM={}); \
              capping --fps from {target_fps:.1} to {capped:.0} to prevent \
-             xterm.js OOM crash over long runs (see docs/TERMINAL_COMPATIBILITY.md)"
+             xterm.js OOM crash over long runs (see docs/TERMINAL_COMPATIBILITY.md)",
+                std::env::var("TERM_PROGRAM").unwrap_or_default()
             ));
             capped
         } else {

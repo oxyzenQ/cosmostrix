@@ -31,7 +31,11 @@ it keeps recovery paths conservative and explicit.
 | tmux | Good with config | The outer terminal and tmux must both support RGB for truecolor. |
 | SSH | Depends on remote env | Forward `TERM`/`COLORTERM` carefully; remote font and locale also matter. |
 | Linux console / minimal TTY | Basic | Use `--colormode 256` or `--charset minimal` if colors or glyphs look wrong. |
-| VSCode integrated terminal | Good (capped) | Auto-detected via `TERM_PROGRAM=vscode`. Synchronized output (mode 2026) is disabled because xterm.js's buffer implementation amplifies memory pressure. FPS is capped at 30 (vs 240 for native terminals) to prevent xterm.js OOM crashes over multi-hour runs. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
+| VSCode integrated terminal | Good (capped) | Auto-detected via `TERM_PROGRAM=vscode`. Tier 2 defenses apply: (1) synchronized output (mode 2026) disabled because xterm.js's buffer implementation amplifies memory pressure; (2) FPS capped at 30 to keep the worst-case byte rate under ~7 MB/sec; (3) byte-budget backpressure suppresses flushes when the rolling window exceeds 40 MB; (4) periodic RIS reset (ESC c) every ~50 MB clears xterm.js's scrollback buffer to prevent the multi-hour V8 OOM (SIGTRAP) crash. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
+| Hyper | Good (capped) | Auto-detected via `TERM_PROGRAM=Hyper`. Same Tier 2 defenses as VSCode (Hyper embeds xterm.js as its terminal renderer). |
+| WaveTerminal | Good (capped) | Auto-detected via `TERM_PROGRAM=WaveTerminal`. Same Tier 2 defenses as VSCode (WaveTerminal embeds xterm.js in its tiling panes). |
+| Tabby | Good (capped) | Auto-detected via `TERM_PROGRAM=Tabby`. Same Tier 2 defenses as VSCode (Tabby embeds xterm.js for its terminal pane). |
+| WarpTerminal | Good (capped) | Auto-detected via `TERM_PROGRAM=WarpTerminal`. Same Tier 2 defenses as VSCode (Warp's renderer pane is xterm.js). |
 
 ## Background Behavior
 

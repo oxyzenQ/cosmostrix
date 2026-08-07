@@ -280,19 +280,27 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("isatty(stdout):", &format!(" {is_stdout_tty}"));
     let is_android = configfile::is_termux_environment();
     output::eprintln_verbose("android:", &format!(" {is_android}"));
-    // v30 (VSCode crash fix): disclose terminal capability detection so
-    // the user can see why sync_output / FPS cap changed. This is
-    // especially important for VSCode where the cap is applied silently
-    // in non-verbose mode via the warning in main.rs.
+    // v30 (VSCode crash fix) + Tier 2 (xterm.js host extension): disclose
+    // terminal capability detection so the user can see why sync_output /
+    // FPS cap / byte-budget backpressure changed. This is especially
+    // important for xterm.js hosts where the cap is applied silently in
+    // non-verbose mode via the warning in main.rs.
     let caps = crate::termdetect::detect();
-    if caps.vscode_integrated {
+    if caps.xtermjs_host {
+        let host_name = std::env::var("TERM_PROGRAM").unwrap_or_default();
         output::eprintln_verbose(
-            "vscode_terminal:",
+            "xtermjs_host:",
             &format!(
-                " true (sync_output disabled, fps capped to {:.0})",
-                caps.default_fps_cap
+                " true (TERM_PROGRAM={}, sync_output disabled, fps capped to {:.0}, byte-budget + RIS reset enabled)",
+                host_name, caps.default_fps_cap
             ),
         );
+        if caps.vscode_integrated {
+            output::eprintln_verbose(
+                "vscode_integrated:",
+                " true (back-compat alias; new code should key off xtermjs_host)",
+            );
+        }
     }
     output::eprintln_verbose(
         "sync_output:",
