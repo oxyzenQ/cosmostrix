@@ -563,9 +563,9 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Examples: scene = monolith, scene = matrix, scene = cosmic_dragon
 # scene = cinematic
 # Color scheme (palette). See: cosmostrix --list-colors
-# color = cosmos
+# color = neon-purple
 # Character set for rain glyphs. See: cosmostrix --list-charsets
-# charset = binary
+# charset = zen
 # Background mode: default-background (follow terminal) | black (solid #000000)
 # color-bg = default-background
 # Cinematic intro animation: logo | cosmic | none (default: logo)
@@ -581,11 +581,11 @@ pub(crate) fn dump_config_text() -> &'static str {
 # report is unconstrained render throughput.
 # fps = 60
 # Rain fall speed (1–100). Default depends on scene:
-#   monolith=30, matrix=18, signal=14, storm=28, calm=6, low-power=5
-# speed = 30
+#   cinematic=9, monolith=30, matrix=18, signal=14, storm=28, calm=6, low-power=5
+# speed = 9
 # Rain density (0.01–5.0). Default depends on scene:
-#   monolith=0.85, matrix=0.65, signal=0.55, storm=1.10, calm=0.40
-# density = 0.85
+#   cinematic=0.75, monolith=0.85, matrix=0.65, signal=0.55, storm=1.10, calm=0.40
+# density = 0.75
 # Variable column speeds for organic rain (default: on)
 # async-mode = true
 
