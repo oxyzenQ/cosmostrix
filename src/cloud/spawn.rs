@@ -579,8 +579,9 @@ impl Cloud {
             }
 
             // v17 mastery: mouse spawn avoidance REMOVED. Owner reported rain
-            // becoming empty under the cursor ('rain jadi kosong gitu bro').
-            // The old MOUSE_AVOID_RADIUS_COLS check skipped spawning within 5
+            // becoming empty under the cursor ('rain jadi kosong gitu bro' —
+            // English: "the rain becomes empty like that, bro"). The old
+            // MOUSE_AVOID_RADIUS_COLS check skipped spawning within 5
             // columns of the cursor, creating a visible empty zone that moved
             // with the cursor. Removed for peak visual continuity — rain now
             // flows naturally through the cursor position without gaps.

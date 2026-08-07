@@ -1,6 +1,6 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-# Schedule: Daily at 00:00 UTC (07:00 WIB)
+# Schedule: Daily at 00:00 UTC (07:00 Western Indonesia Time)
 #
 # Purpose:
 # - Fast, non-mutating security scan
@@ -14,7 +14,7 @@ name: "Cosmic Dragon - Security Audit"
 
 'on':
   schedule:
-    - cron: "0 0 * * *"  # 00:00 UTC daily (07:00 WIB)
+    - cron: "0 0 * * *"  # 00:00 UTC daily (07:00 Western Indonesia Time)
   workflow_dispatch:
     inputs:
       run_deny:
@@ -96,7 +96,7 @@ jobs:
           echo "════════════════════════════════════════════════════════"
           echo "ℹ️  This workflow is observation-only — no files modified"
           echo "📦 For auto-updates: see gitbot-deps.yml (weekly)"
-          echo "⏰ Next audit: tomorrow 00:00 UTC (07:00 WIB)"
+          echo "⏰ Next audit: tomorrow 00:00 UTC (07:00 Western Indonesia Time)"
           echo "════════════════════════════════════════════════════════"
 
 concurrency:

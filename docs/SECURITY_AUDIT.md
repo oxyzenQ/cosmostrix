@@ -328,7 +328,7 @@ spawns.**
 **Problem**: After running cosmostrix for hours inside VSCode's
 integrated terminal, the `code-oss` (Electron) process hangs, CPU goes
 to 100%, then crashes with Signal 5 (SIGTRAP). Coredump from
-2026-08-04 23:48 WIB.
+2026-08-04 23:48 UTC+07 (Western Indonesia Time).
 
 **Root cause**: cosmostrix had zero awareness that it was running inside
 VSCode. It enabled mode 2026 (synchronized output) unconditionally and
