@@ -447,9 +447,30 @@ pub(crate) const FOG_MIN_FACTOR: f32 = 0.45;
 pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 
 /// Brightness factor at the extreme edge row of the CRT vignette.
-/// v30 (visual mode): reduced from 0.9 → 0.5 per owner request —
-/// darker top/bottom border (50% dim at extreme edge, was 10%).
-pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.5;
+///
+/// ## v30.1 masterclass retune (2026-08-07)
+/// The v30 value (0.5, 50% dim) compounded destructively with
+/// `EDGE_FADE_TOP_MIN` (0.45) and `EDGE_FADE_BOTTOM_MIN` (0.20) — both
+/// effects apply to the same top/bottom rows and their factors MULTIPLY,
+/// producing compounded top brightness 0.5 × 0.45 = 0.225 (77.5% dim,
+/// rain invisible) and bottom brightness 0.5 × 0.20 = 0.10 (90% dim,
+/// rain invisible). The owner flagged v30 as "not happy — too aggressive".
+///
+/// The masterclass value 0.82 (18% dim) is calibrated against the
+/// compounded brightness target of 0.50-0.55 at the top extreme (cinematic
+/// but visible). At 0.82, the compounded top = 0.82 × 0.65 = 0.533 and
+/// compounded bottom = 0.82 × 0.45 = 0.369 — both land in the "subtle dim,
+/// rain clearly visible" zone (0.50-0.70 and 0.30-0.50 respectively per
+/// the masterclass interpretation table in `docs/research/VISUAL_MODE_AUDIT.md`).
+///
+/// Reference points:
+/// - 0.90 (pre-v30): 10% dim — barely-there, owner found too subtle
+/// - 0.82 (masterclass): 18% dim — subtle CRT glow, doesn't compound destructively
+/// - 0.50 (v30): 50% dim — destructive when compounded with edge fade
+///
+/// See `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit
+/// (compounding math, brightness curves, professional references).
+pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.82;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
 /// (perf optimization — skip on slow systems).
@@ -773,20 +794,74 @@ pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 /// v30 (visual mode): reduced from 12 → 8 per owner request — shorter
 /// bottom dimmer zone. Must stay >= EDGE_FADE_ROWS for the Zone-1
 /// pre-fade math to make sense.
-pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 8;
+/// v30.1 masterclass retune (2026-08-07): widened from 8 → 10 for a
+/// smoother dissolve ramp — the v30 8-row zone produced a slightly
+/// abrupt transition where the gentle pre-fade met the sharp lip.
+/// 10 rows gives the smoothstep more room to ease in. See
+/// `docs/research/VISUAL_MODE_AUDIT.md`.
+pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 10;
 
 /// Lip factor for the bottom edge fade (controls curvature).
-pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.75;
+/// v30.1 masterclass retune: lowered from 0.75 → 0.72 — slightly
+/// smoother transition between Zone 1 (gentle pre-fade) and Zone 2
+/// (sharp lip). The 0.03 reduction is barely perceptible on its own
+/// but produces a more film-like dissolve when combined with the
+/// widened EDGE_FADE_BOTTOM_ROWS.
+pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.72;
 
 /// Minimum brightness factor at the top edge.
-/// v30 (visual mode): reduced from 0.70 → 0.45 per owner request —
-/// darker top border (55% dim at extreme edge, was 30%).
-pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.45;
+///
+/// ## v30.1 masterclass retune (2026-08-07)
+/// The v30 value (0.45, 55% dim) compounded destructively with
+/// `CRT_VIGNETTE_EDGE_FACTOR` (0.5) — both effects apply to the top
+/// rows and multiply, producing compounded top brightness 0.5 × 0.45 =
+/// 0.225 (77.5% dim, rain invisible). The owner flagged v30 as "not
+/// happy — too aggressive".
+///
+/// The masterclass value 0.65 (35% dim) is calibrated so the COMPOUNDED
+/// top brightness = 0.82 × 0.65 = 0.533 lands in the "subtle dim, rain
+/// clearly visible" zone (0.50-0.70). At 0.65, the top row rain is
+/// clearly readable but visibly dimmer than the mid rows — the eye
+/// reads it as "rain entering from above the screen", not as a dead
+/// black bar.
+///
+/// Reference points:
+/// - 0.70 (pre-v30): 30% dim — barely-there, owner found too subtle
+/// - 0.65 (masterclass): 35% dim — visible cinematic fade-in
+/// - 0.45 (v30): 55% dim — destructive when compounded with vignette
+///
+/// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
+pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.65;
 
 /// Minimum brightness factor at the bottom edge.
-/// v30 (visual mode): reduced from 0.35 → 0.20 per owner request —
-/// darker bottom border (80% dim at extreme edge, was 65%).
-pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.20;
+///
+/// ## v30.1 masterclass retune (2026-08-07)
+/// The v30 value (0.20, 80% dim) compounded destructively with
+/// `CRT_VIGNETTE_EDGE_FACTOR` (0.5) — both effects apply to the bottom
+/// rows and multiply, producing compounded bottom brightness
+/// 0.5 × 0.20 = 0.10 (90% dim, rain invisible). The owner flagged v30
+/// as "not happy — too aggressive".
+///
+/// The bottom edge fade exists primarily to prevent the phosphor ghost
+/// residue artifact where dying droplet heads "burn into" the bottom
+/// row. It needs to be MORE aggressive than the top (asymmetric, per
+/// the `viewport_edge_fade` doc), but v30 went too far. The masterclass
+/// value 0.45 (55% dim) is calibrated so:
+/// - Compounded bottom brightness = 0.82 × 0.45 = 0.369 — rain dissolves
+///   into shadow but is NOT destroyed (zone 0.30-0.50, "cinematic dim").
+/// - Still more aggressive than the top (0.65) — asymmetric fade
+///   preserved, phosphor residue still prevented.
+/// - Midpoint between pre-v30 (0.35) and v30 (0.20), leaning toward
+///   v30's intent of "more aggressive bottom" but stopping short of
+///   destruction.
+///
+/// Reference points:
+/// - 0.35 (pre-v30): 65% dim — owner wanted more aggressive
+/// - 0.45 (masterclass): 55% dim — dissolving, not destroyed
+/// - 0.20 (v30): 80% dim — destructive when compounded with vignette
+///
+/// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
+pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.45;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.
 pub(crate) const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
