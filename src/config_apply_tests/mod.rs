@@ -677,7 +677,6 @@ fn dump_config_mentions_supported_keys() {
     let dump = dump_config_text();
     for key in [
         "scene",
-        "preset",
         "color",
         "charset",
         "fps",
@@ -689,17 +688,18 @@ fn dump_config_mentions_supported_keys() {
         "shadingmode",
         "color-bg",
         "low-power",
-        "mouse",
         "auto-color-drift",
-        // v17 mastery: legacy keys (glitchpct, shortpct, rippct, maxdpc)
-        // REMOVED from dump config. Use --glitch-level instead.
+        // v30.1 simplification: legacy/historical key mentions removed
+        // from dump config (mouse flag was v17-deletion note, preset was
+        // v20.1-removal note). Both are gone in the simplified dump.
     ] {
         assert!(dump.contains(key), "dump config should contain {key}");
     }
-    assert!(dump.contains("scene = monolith"));
-    assert!(dump.contains("speed = 30"));
-    assert!(dump.contains("density = 0.85"));
+    // v30.1: the standard example values are still present.
     assert!(dump.contains("glitch-level = subtle"));
+    assert!(dump.contains("scene = cinematic"));
+    assert!(dump.contains("speed = 9"));
+    assert!(dump.contains("density = 0.75"));
 }
 
 // ── Atmosphere engine subsystem fully eliminated (Dragon Hunt v2 Phase 6

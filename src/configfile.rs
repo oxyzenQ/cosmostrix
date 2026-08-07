@@ -548,10 +548,7 @@ fn config_file_path_from_env(
 pub(crate) fn dump_config_text() -> &'static str {
     r##"# cosmostrix configuration
 
-# Quick Start & Override Priority
-# Override priority (highest wins): CLI flags > config.toml > scene defaults.
-# config.toml ALWAYS wins over scene hardcoded defaults; scenes only fill
-# keys the user did NOT set. CLI flags override this file.
+# Override priority: CLI flags > config.toml > scene defaults.
 # Examples:
 #   cosmostrix -c neon-green --speed 20    # CLI overrides config
 #   cosmostrix --scene-custom hacker-mode  # user custom scene
@@ -559,20 +556,17 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   cosmostrix --doctor                    # diagnose terminal issues
 
 # File Location:
-#   Linux:       ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
-#                /etc/cosmostrix/config.toml (system-wide)
-#   macOS:       ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
-#                /Library/Application Support/cosmostrix/config.toml (system-wide)
-#   FreeBSD:     ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
-#                /usr/local/etc/cosmostrix/config.toml (system-wide)
-#   Android:     ~/.config/cosmostrix/config.toml (Termux — $HOME resolves
-#                  to /data/data/com.termux/files/home; XDG_CONFIG_HOME is
-#                  deliberately IGNORED on Termux because it may point to
-#                  $PREFIX/etc, a system location users don't edit)
-#                $PREFIX/etc/cosmostrix/config.toml (system-wide)
-#   Windows:     %APPDATA%\cosmostrix\config.toml
-#                %ProgramData%\cosmostrix\config.toml (system-wide)
-#
+#   Linux:     ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
+#              /etc/cosmostrix/config.toml (system-wide)
+#   macOS:     ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
+#              /Library/Application Support/cosmostrix/config.toml (system-wide)
+#   FreeBSD:   ~/.config/cosmostrix/config.toml
+#              /usr/local/etc/cosmostrix/config.toml (system-wide)
+#   Termux:    ~/.config/cosmostrix/config.toml (XDG_CONFIG_HOME ignored)
+#              $PREFIX/etc/cosmostrix/config.toml (system-wide)
+#   Windows:   %APPDATA%\cosmostrix\config.toml
+#              %ProgramData%\cosmostrix/config.toml (system-wide)
+
 # Format:
 #   key = value              # one per line
 #   # comments               # blank lines ignored
@@ -581,107 +575,84 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   Custom blocks support BOTH flat (scene-custom.name.field = value)
 #   and TOML table ([scene-custom.name] + field = value) formats.
 #   Malformed lines (no '=' or empty key/value) cause --testconf to FAIL.
-#
+
 # All keys below are commented out. Uncomment the ones you want to
-# customize — cosmostrix's built-in defaults (shown for reference)
-# will be used for any key left commented. Run `cosmostrix --testconf`
-# to validate your config after editing.
+# customize. Built-in defaults are shown for reference. Run
+# `cosmostrix --testconf` to validate your config after editing.
 
-# Standard Settings (flat key = value)
+# ── Standard Settings ──
 
-# Scene — built-in atmospheric template
-#   cinematic (default) | matrix | monolith | signal | classic | calm
+# Scene — built-in atmospheric template.
+#   cinematic (default) | matrix | monolith | signal | classic | calm |
 #   storm | cosmos | neon | hacker | low-power | cosmic_dragon | carbonic
-# Examples: scene = monolith, scene = matrix, scene = cosmic_dragon
 # scene = cinematic
+
 # Color scheme (palette). See: cosmostrix --list-colors
 # color = neon-purple
+
 # Character set for rain glyphs. See: cosmostrix --list-charsets
 # charset = zen
+
 # Background mode: default-background (follow terminal) | black (solid #000000)
 # color-bg = default-background
+
 # Cinematic intro animation: logo | cosmic | none (default: logo)
 # intro = "logo"
 
-# Motion
-# Target FPS — the loop sleeps between frames to maintain this cap in
-# interactive mode. Press 'i' to see it as `tgt:` in the HUD (alongside
-# the render-work `fps:` line, which can be much higher because it
-# measures 1000/work_ms, not the capped cadence). Adaptive idle throttle
-# may halve the effective rate after 30s of no input.
-# In --benchmark mode this sets the simulation rate only; avg_fps in the
-# report is unconstrained render throughput.
+# ── Motion ──
+
+# Target FPS (1-120). Loop sleeps to maintain this cap in interactive mode.
+# Press 'i' to see it as `tgt:` in the HUD. In --benchmark mode this sets
+# the simulation rate only.
 # fps = 60
-# Rain fall speed (1–100). Default depends on scene:
-#   cinematic=9, monolith=30, matrix=18, signal=14, storm=28, calm=6, low-power=5
+
+# Rain fall speed (1-100). Default depends on scene (cinematic=9).
 # speed = 9
-# Rain density (0.01–5.0). Default depends on scene:
-#   cinematic=0.75, monolith=0.85, matrix=0.65, signal=0.55, storm=1.10, calm=0.40
+
+# Rain density (0.01-5.0). Default depends on scene (cinematic=0.75).
 # density = 0.75
-# Variable column speeds for organic rain (default: on)
+
+# Variable column speeds for organic rain (default: on).
 # async-mode = true
 
-# Monolith — Pillar size (small | normal | large, only for monolith scene)
+# Monolith pillar size: small | normal | large — only for monolith scene.
 # monolith-size = normal
 
-# Behavior
-# Glitch intensity: none | subtle | default | intense
+# ── Behavior ──
+
+# Glitch intensity: none | subtle | default | intense.
+# The preset fully controls glitch percent, stream decay, fragmented stream
+# chance, and stream layering automatically — no separate keys.
 # glitch-level = subtle
-# v17: --mouse flag DELETED. Mouse glow + click wave effects are always on.
-# v25.0.0-alpha.3: --fullwidth flag DELETED. The legacy horizontal-spacing
-# mode (which doubled the column stride for monolith streams) was removed.
-# The Cosmic Dragon principle forbids wide chars permanently; the charset
-# is always single-width.
-# Auto color drift (default: off)
+
+# Auto color drift (default: off).
 # auto-color-drift = false
 
-# Advanced Style
-# Color tuning (adjust rain brightness/saturation/head/body/tail)
-# All values: 0.0-3.0, default 1.0 = no change
+# ── Advanced Style ──
+
+# Bold style: 0=off, 1=random (default), 2=all.
+# bold = 1
+
+# Shading mode: 0=random, 1=cinematic (default — distance from head).
+# shadingmode = 1
+
+# Color tuning (0.0-3.0 each, default 1.0 = no change):
 # [color.tune]
 # brightness = 1.0   # global brightness (dim-rain: use < 1.0)
 # saturation = 1.0   # color saturation (0.0 = grayscale)
 # head = 1.0         # head segment brightness
 # body = 1.0         # body segment brightness
 # tail = 1.0         # tail segment brightness
-# Bold style: 0=off, 1=random (default), 2=all
-# bold = 1
-# Shading mode: 0=random, 1=cinematic (default — distance from head)
-# shadingmode = 1
 
-# Glitch behavior is fully owned by --glitch-level (none|subtle|default|intense).
-# The preset controls glitch percent, stream decay, fragmented stream chance,
-# and stream layering automatically — there are no separate config keys.
-
-# Custom Configuration (advanced, optional)
-# Sections below define user-named custom resources. They are loaded via
-# CLI flags (--scene-custom, --colors-custom) and do not affect standard
-# settings above. Moved to bottom to keep the main config clean.
-#
-# Ordering Rules (v25.7 — forgiving parser):
-#   Once you write a [section] header (e.g. [scene-custom.hacker-mode]),
-#   every flat key AFTER it belongs to that section until the next header.
-#   If you accidentally nest a top-level key (e.g. fps = 30) under a
-#   [section], cosmostrix v25.7+ auto-promotes it to root scope and tells
-#   you via --testconf. For clarity, prefer writing top-level keys BEFORE
-#   any [section] block.
-#
-# Working Example (top-level keys + a scene-custom block together):
-#   scene = monolith
-#   fps = 30
-#   speed = 28
-#
-#   [scene-custom.hacker-mode]
-#   color = green
-#   speed = 28
-#
-# Custom Scene Definitions
+# ── Custom Scenes ──
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>.
 # Fields: color, charset, fps, speed, density, density-map, glitch-level,
-#         monolith-size, color-bg.
-# Missing fields fall back to cinematic's defaults. (base-scene and preset
-# were removed in v20.1; --testconf flags them as unknown keys.)
-# Custom scenes are listed alongside built-in scenes in --list-scenes output.
+#         monolith-size, color-bg. Missing fields fall back to cinematic's
+# defaults. Custom scenes are listed in --list-scenes output.
+#
+# Ordering: once you write a [section] header, every flat key AFTER it
+# belongs to that section until the next header. Prefer writing top-level
+# keys BEFORE any [section] block.
 
 # [scene-custom.hacker-mode]
 # color = green
@@ -690,135 +661,75 @@ pub(crate) fn dump_config_text() -> &'static str {
 # density = 1.2
 # glitch-level = intense
 
-# Density Map: sculpt monolith pillar formation per-column.
-# Comma-separated weights (0.0..1.0). 0.0 = never spawn, 1.0 = always spawn.
-# Maps shorter than terminal width treat missing columns as 1.0.
-# Both quoted and unquoted forms work:
+# Density Map: per-column spawn weights (0.0=never, 1.0=always). Maps
+# shorter than terminal width treat missing columns as 1.0. Both quoted
+# and unquoted forms work.
 #   density-map = 0.05,0.3,1.0           (unquoted — standard)
 #   density-map = "0.05,0.3,1.0"         (quoted — also valid)
-# Three cinematic presets (120 columns each) — uncomment to use:
 
-# Twin Towers — two dense pillar clusters, sparse canyon between.
-# [scene-custom.twin-towers]
-# charset = braille
-# color = neon-purple
-# speed = 30
-# density = 0.85
-# density-map = 0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.7,0.7,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.7,0.7,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.7,0.7,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.7,0.7,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08,0.08
-
-# Cascade — smooth linear gradient: dense left, sparse right (waterfall).
-# [scene-custom.cascade]
-# charset = braille
-# color = neon-purple
-# speed = 30
-# density = 0.85
-# density-map = 1.0,0.992,0.984,0.976,0.968,0.96,0.952,0.944,0.936,0.928,0.92,0.912,0.904,0.896,0.888,0.88,0.872,0.864,0.856,0.848,0.84,0.832,0.824,0.816,0.808,0.8,0.792,0.784,0.776,0.768,0.761,0.753,0.745,0.737,0.729,0.721,0.713,0.705,0.697,0.689,0.681,0.673,0.665,0.657,0.649,0.641,0.633,0.625,0.617,0.609,0.601,0.593,0.585,0.577,0.569,0.561,0.553,0.545,0.537,0.529,0.521,0.513,0.505,0.497,0.489,0.481,0.473,0.465,0.457,0.449,0.441,0.433,0.425,0.417,0.409,0.401,0.393,0.385,0.377,0.369,0.361,0.353,0.345,0.337,0.329,0.321,0.313,0.305,0.297,0.289,0.282,0.274,0.266,0.258,0.25,0.242,0.234,0.226,0.218,0.21,0.202,0.194,0.186,0.178,0.17,0.162,0.154,0.146,0.138,0.13,0.122,0.114,0.106,0.098,0.09,0.082,0.074,0.066,0.058,0.05
-
-# Throne — massive pillar at center, ringed by sparse court.
-# [scene-custom.throne]
-# charset = braille
-# color = neon-purple
-# speed = 30
-# density = 0.85
-# density-map = 0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.3,0.3,0.3,0.3,0.3,0.8,0.8,0.8,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,0.8,0.8,0.8,0.3,0.3,0.3,0.3,0.3,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.12,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
-
-# Adaptive Custom Time Map — REMOVED (2026-08-05, atmosphere engine elimination)
-# The `adaptive-custom.*` keys and the entire atmosphere engine subsystem
-# were eliminated at commit 07b44b5. Any `adaptive-custom.*` entries in
-# this file are now rejected by --testconf with a clear migration message.
-# Historical design spec: docs/archive/specs/ATMOSPHERE_ENGINE.md.
-# Elimination record:     docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
-
-# Custom Color Palettes (optional, v16+)
-# Define named custom palettes usable from --colors-custom <name>.
-# Hex values use standard #rrggbb notation. ALWAYS quote hex strings: "#ff0000"
+# ── Custom Color Palettes ──
+# Define named custom palettes and load with: cosmostrix --colors-custom <name>.
+# Hex values use #rrggbb notation. ALWAYS quote hex strings: "#ff0000"
 # (unquoted # is treated as a TOML comment, silently truncating the value).
-# Fields:
-#   bg   — background color (optional)
-#   rain — array of 7 hex gradient stops (tail → head order).
-#   Format: rain = ["#stop0", "#stop1", ..., "#stop6"]
-#   Also accepts CSV string: rain = "#stop0, #stop1, ..."
-#   Minimum 2 stops required; 7 stops recommended for full 3-2-2 distribution.
-# Load with: cosmostrix --colors-custom mytheme
+# rain = 7 hex gradient stops (tail → head order). Minimum 2, 7 recommended.
 
 # [colors-custom.zen]
 # bg = "#0a0a0a"
 # rain = [
-#  "#111111",  # tail dimmer — almost blends with the background
-#  "#2a2a2a",  # tail dim — a gentle presence
-#  "#4a4a4a",  # semi-body dark — a calm transition
-#  "#6a6a6a",  # body peak — the core of the drop
-#  "#8a8a8a",  # semi-body light — starting to glow
-#  "#b0b0b0",  # semi-white — soft light
-#  "#d0d0d0",  # head glow — peak of stillness, not a dazzling white
+#  "#111111",  # tail dimmer
+#  "#2a2a2a",  # tail dim
+#  "#4a4a4a",  # semi-body dark
+#  "#6a6a6a",  # body peak
+#  "#8a8a8a",  # semi-body light
+#  "#b0b0b0",  # semi-white
+#  "#d0d0d0",  # head glow
 # ]
 
-# Custom Character Sets (optional, v25+)
-# Define named custom charsets usable from --charset or charset = "name".
-# Replaces the legacy --charset-file CLI flag — charset lives in config.toml.
+# ── Custom Character Sets ──
+# Define named custom charsets and load with: cosmostrix --charset <name>
+# (or: charset = "name" in config). Custom names take precedence over
+# built-in presets with the same name.
 # Fields:
 #   set — literal string of characters to use as the rain glyph pool.
-#   Whitespace (except ASCII space) skipped. Control chars + chars >256-cap
-#   rejected with error. Wide/zero-width (emoji, CJK fullwidth) auto-filtered
-#   — Cosmic Dragon principle: permanent design choice, not a limitation.
-# Load with: cosmostrix --charset cat   (or: charset = "cat" in config)
-# Custom names take precedence over built-in presets with the same name.
-# Live reload: editing the block takes effect on the next config save.
+#   Whitespace (except ASCII space) skipped. Control chars rejected.
+#   Wide/zero-width chars (emoji, CJK fullwidth) auto-filtered.
 
 # [charset-custom.zen]
 # set = "|"
 
-# [charset-custom.matrix-technical]
-# set = "⌠⌡⌢⌣⌤⌥⌦⌧⌨〈⌫⌬⌭⌮⌯⌰⌱⌲⌳⌴⌵⌶⌷⌸⌹⌺⌻⌼⌽⌾⌿⍀⍁⍂⍃⍄⍅⍆⍇⍈⍉⍊⍋⍌⍍⍎⍏⍐⍑⍒⍓⍔⍕⍖⍗⍘⍙⍚⍛⍜⍝⍞⍟⍠⍡⍢⍣⍤⍥⍦⍧⍨⍩⍪⍫⍬⍭⍮⍯⍰⍱⍲⍳⍴⍵⍶⍷⍸⍹⍺⍻⍼⍽⍾⍿⎀⎁⎂⎃⎄⎅⎆⎇⎈⎉⎊⎋⎌⎍⎎⎏⎐⎑⎒⎓⎔⎕⎖⎗⎘⎙⎚⎛⎜⎝⎞⎟⎠⎡⎢⎣⎤⎥⎦⎧⎨⎩⎪⎫⎬⎭⎮⎯⎰⎱⎲⎳⎴⎵⎶⎷⎸⎹⎺⎻⎼⎽⎾⎿"
-
-# Ambient Phase Scheduler (optional, v30+)
-# Schedule time-of-day phase transitions. Each entry sets the active
-# scene/color/parameters from the specified wall-clock minute until the
-# next entry's boundary. Config-only (no CLI flag). Instant switch (no
+# ── Ambient Phase Scheduler ──
+# Schedule time-of-day phase transitions. Config-only (no CLI flag).
+# Each entry sets the active scene/color/parameters from the specified
+# wall-clock minute until the next entry's boundary. Instant switch (no
 # blend window). Dynamic idle/wake scheduler thread — zero CPU between
-# phase transitions; the thread only wakes at a phase boundary or on
-# config live-reload.
+# phase boundaries.
 #
 # Format:
 #   ambient.<HH-MM> = <color>, <scene>, [speed=.., density=.., fps=.., charset=.., glitch-level=..]
 #
-# - HH-MM: 24-hour time, zero-padded (00-00 to 23-59). The phase becomes
-#   "active" at this wall-clock minute and stays active until the next
-#   entry's boundary.
-# - Positional 1 (color): built-in scheme name (52 themes) OR a
-#   colors-custom.<name> palette. Optional — if omitted, color is sticky
-#   (keeps previous value).
-# - Positional 2 (scene): built-in scene name (matrix, monolith, signal,
-#   cinematic, storm, calm, cosmos, neon, hacker, low-power, cosmic_dragon,
-#   carbonic, classic). Optional — if omitted, scene is sticky.
-# - Optional key=value pairs (all optional, all sticky):
-#   speed        float in [1.0, 100.0] (asymmetric vs top-level speed
-#                which is integer; float allows future lerp extension).
-#   density      float in [0.01, 5.0].
-#   fps          integer in [1, 120].
-#   charset      built-in charset name OR charset-custom.<name>.
-#   glitch-level one of none | subtle | default | intense.
-# - Sticky semantics: fields not specified in a phase entry keep the
-#   previous value (the engine does NOT reset unspecified fields to
-#   defaults when transitioning between phases).
+# - HH-MM: 24-hour time, zero-padded (00-00 to 23-59).
+# - Positional 1 (color): built-in scheme OR colors-custom.<name>. Optional
+#   — if omitted, color is sticky (keeps previous value).
+# - Positional 2 (scene): built-in scene name. Optional — if omitted,
+#   scene is sticky.
+# - Optional key=value pairs (all sticky):
+#     speed=FLOAT (1.0-100.0)  density=FLOAT (0.01-5.0)
+#     fps=INT (1-120)          charset=NAME
+#     glitch-level=none|subtle|default|intense
+# - Sticky = fields not specified keep the previous value (engine does NOT
+#   reset to defaults when transitioning between phases).
 # - Wrap-around: if now is 0:30 and the earliest entry is 6:00, the
 #   "current" phase is the LAST entry of the previous day (carried over).
-# - Live reload: editing ambient.* keys triggers immediate re-parse via
-#   collect_ambient_schedule. The new schedule replaces the old one
-#   atomically (mutex swap), and the scheduler thread wakes up to
-#   recompute the next phase boundary. If the new schedule has a phase
-#   that is currently active, it is applied immediately.
-# - Max 256 entries (defensive cap — a healthy schedule has 2-6 entries).
+# - Live reload: edits take effect immediately on save.
+# - Max 256 entries (a healthy schedule has 2-6).
 #
-# Load with: no CLI flag — just add ambient.* keys to config.toml.
-# Validate with: cosmostrix --testconf
+# Only 2 positional args allowed (color, scene). Anything else must use
+# key=value. 3+ positionals will be rejected with a suggestion (e.g.
+# 'did you mean charset=binary?').
 #
 # Working Example: 3-phase day/night cycle
-#   # Morning: green matrix on signal scene, gentle pace
 #   ambient.06-00 = neon-green, signal, speed=12, density=0.65
-#   # Midday: purple monolith — high contrast, full pillars
 #   ambient.12-00 = neon-purple, monolith, speed=18, density=0.85
-#   # Evening: calm scene, slow drift, subtle glitch for cinematic mood
 #   ambient.20-00 = calm, signal, speed=6, density=0.40, glitch-level=subtle
 #
 # Minimal Example: 2-phase day/night (color-only, scene sticky)
@@ -828,6 +739,9 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ambient.06-00 = neon-green, signal, speed=12, density=0.65
 # ambient.12-00 = neon-purple, monolith, speed=18, density=0.85
 # ambient.20-00 = calm, signal, speed=6, density=0.40, glitch-level=subtle
+
+# ── Removed Keys (rejected by --testconf) ──
+# adaptive-custom.*  — atmosphere engine eliminated; use ambient.* instead.
 "##
 }
 
