@@ -770,6 +770,64 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # [charset-custom.matrix-technical]
 # set = "⌠⌡⌢⌣⌤⌥⌦⌧⌨〈⌫⌬⌭⌮⌯⌰⌱⌲⌳⌴⌵⌶⌷⌸⌹⌺⌻⌼⌽⌾⌿⍀⍁⍂⍃⍄⍅⍆⍇⍈⍉⍊⍋⍌⍍⍎⍏⍐⍑⍒⍓⍔⍕⍖⍗⍘⍙⍚⍛⍜⍝⍞⍟⍠⍡⍢⍣⍤⍥⍦⍧⍨⍩⍪⍫⍬⍭⍮⍯⍰⍱⍲⍳⍴⍵⍶⍷⍸⍹⍺⍻⍼⍽⍾⍿⎀⎁⎂⎃⎄⎅⎆⎇⎈⎉⎊⎋⎌⎍⎎⎏⎐⎑⎒⎓⎔⎕⎖⎗⎘⎙⎚⎛⎜⎝⎞⎟⎠⎡⎢⎣⎤⎥⎦⎧⎨⎩⎪⎫⎬⎭⎮⎯⎰⎱⎲⎳⎴⎵⎶⎷⎸⎹⎺⎻⎼⎽⎾⎿"
+
+# Ambient Phase Scheduler (optional, v30+)
+# Schedule time-of-day phase transitions. Each entry sets the active
+# scene/color/parameters from the specified wall-clock minute until the
+# next entry's boundary. Config-only (no CLI flag). Instant switch (no
+# blend window). Dynamic idle/wake scheduler thread — zero CPU between
+# phase transitions; the thread only wakes at a phase boundary or on
+# config live-reload.
+#
+# Format:
+#   ambient.<HH-MM> = <color>, <scene>, [speed=.., density=.., fps=.., charset=.., glitch-level=..]
+#
+# - HH-MM: 24-hour time, zero-padded (00-00 to 23-59). The phase becomes
+#   "active" at this wall-clock minute and stays active until the next
+#   entry's boundary.
+# - Positional 1 (color): built-in scheme name (52 themes) OR a
+#   colors-custom.<name> palette. Optional — if omitted, color is sticky
+#   (keeps previous value).
+# - Positional 2 (scene): built-in scene name (matrix, monolith, signal,
+#   cinematic, storm, calm, cosmos, neon, hacker, low-power, cosmic_dragon,
+#   carbonic, classic). Optional — if omitted, scene is sticky.
+# - Optional key=value pairs (all optional, all sticky):
+#   speed        float in [1.0, 100.0] (asymmetric vs top-level speed
+#                which is integer; float allows future lerp extension).
+#   density      float in [0.01, 5.0].
+#   fps          integer in [1, 120].
+#   charset      built-in charset name OR charset-custom.<name>.
+#   glitch-level one of none | subtle | default | intense.
+# - Sticky semantics: fields not specified in a phase entry keep the
+#   previous value (the engine does NOT reset unspecified fields to
+#   defaults when transitioning between phases).
+# - Wrap-around: if now is 0:30 and the earliest entry is 6:00, the
+#   "current" phase is the LAST entry of the previous day (carried over).
+# - Live reload: editing ambient.* keys triggers immediate re-parse via
+#   collect_ambient_schedule. The new schedule replaces the old one
+#   atomically (mutex swap), and the scheduler thread wakes up to
+#   recompute the next phase boundary. If the new schedule has a phase
+#   that is currently active, it is applied immediately.
+# - Max 256 entries (defensive cap — a healthy schedule has 2-6 entries).
+#
+# Load with: no CLI flag — just add ambient.* keys to config.toml.
+# Validate with: cosmostrix --testconf
+#
+# Working Example: 3-phase day/night cycle
+#   # Morning: green matrix on signal scene, gentle pace
+#   ambient.06-00 = neon-green, signal, speed=12, density=0.65
+#   # Midday: purple monolith — high contrast, full pillars
+#   ambient.12-00 = neon-purple, monolith, speed=18, density=0.85
+#   # Evening: calm scene, slow drift, subtle glitch for cinematic mood
+#   ambient.20-00 = calm, signal, speed=6, density=0.40, glitch-level=subtle
+#
+# Minimal Example: 2-phase day/night (color-only, scene sticky)
+#   ambient.07-00 = neon-green
+#   ambient.19-00 = neon-purple
+
+# ambient.06-00 = neon-green, signal, speed=12, density=0.65
+# ambient.12-00 = neon-purple, monolith, speed=18, density=0.85
+# ambient.20-00 = calm, signal, speed=6, density=0.40, glitch-level=subtle
 "##
 }
 
@@ -1099,6 +1157,16 @@ mod tests {
             assert!(dump.contains(*key), "dump config should mention {key}");
         }
         assert!(dump.contains("[scene-custom.hacker-mode]"));
+        // v30+: ambient phase scheduler must be documented with at least one
+        // live, uncommented-as-comment example so users can copy-paste.
+        assert!(
+            dump.contains("ambient.06-00"),
+            "dump config should include an ambient.<HH-MM> example"
+        );
+        assert!(
+            dump.contains("Ambient Phase Scheduler"),
+            "dump config should include an Ambient section header"
+        );
     }
 
     #[test]
@@ -1146,6 +1214,11 @@ mod tests {
             );
         }
         assert!(dump.contains("[scene-custom.hacker-mode]"));
+        // v30+: ambient example must survive the header prepend.
+        assert!(
+            dump.contains("ambient.06-00"),
+            "header'd dump should still include ambient.<HH-MM> example"
+        );
     }
 
     #[test]
