@@ -290,11 +290,18 @@ fn normalize_path_segments(path: &str) -> Option<String> {
         let authority_normalized = authority.replace('\\', "/");
         let remaining = &path[2 + after_share..];
         // Normalize the remaining path segments after the UNC authority.
+        // `is_absolute = true` so that `..` above the share root is rejected
+        // as an escape attempt (you cannot `..` above \\server\share). The
+        // leading `/` produced by the inner normalizer is stripped because
+        // the authority already contributes its own trailing separator.
         if remaining.is_empty() {
             return Some(format!("{authority_normalized}/"));
         }
-        return match normalize_path_segments_inner(remaining, false) {
-            Some(norm) => Some(format!("{authority_normalized}/{norm}")),
+        return match normalize_path_segments_inner(remaining, true) {
+            Some(norm) => {
+                let stripped = norm.strip_prefix('/').unwrap_or(&norm);
+                Some(format!("{authority_normalized}/{stripped}"))
+            }
             None => None,
         };
     }
@@ -316,8 +323,15 @@ fn normalize_path_segments(path: &str) -> Option<String> {
         if rest.is_empty() {
             return Some(format!("{drive_normalized}/"));
         }
-        return match normalize_path_segments_inner(rest, false) {
-            Some(norm) => Some(format!("{drive_normalized}/{norm}")),
+        // `is_absolute = true` so that `..` above the drive root is rejected
+        // as an escape attempt (you cannot `..` above C:\). The leading `/`
+        // produced by the inner normalizer is stripped because the drive
+        // prefix already contributes its own trailing separator.
+        return match normalize_path_segments_inner(rest, true) {
+            Some(norm) => {
+                let stripped = norm.strip_prefix('/').unwrap_or(&norm);
+                Some(format!("{drive_normalized}/{stripped}"))
+            }
             None => None,
         };
     }
