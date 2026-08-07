@@ -71,12 +71,21 @@ impl GhostEvent {
 }
 
 impl CinematicEvent for GhostEvent {
-    fn is_finished(&self) -> bool {
-        self.spawn_time.elapsed() >= self.duration
+    fn is_finished(&self, ctx: &EventCtx) -> bool {
+        // v30 Hinnant: use `ctx.now` (captured once at frame start) instead
+        // of `self.spawn_time.elapsed()` (which issues an `Instant::now()`
+        // syscall per call). `is_finished` is called twice per active event
+        // per frame (once in `render_phase`, once in `update`), and `render`
+        // calls it once more — so this removes 3 syscalls per active event
+        // per frame.
+        ctx.now.saturating_duration_since(self.spawn_time) >= self.duration
     }
 
     fn render(&self, ctx: &EventCtx, frame: &mut Frame) {
-        let elapsed = self.spawn_time.elapsed().as_secs_f32();
+        let elapsed = ctx
+            .now
+            .saturating_duration_since(self.spawn_time)
+            .as_secs_f32();
         let total = self.duration.as_secs_f32();
         let progress = (elapsed / total).clamp(0.0, 1.0);
 

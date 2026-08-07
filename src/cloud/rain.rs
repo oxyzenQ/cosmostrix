@@ -493,6 +493,7 @@ impl Cloud {
                 cols: self.cols,
                 lines: self.lines,
                 ghost_base_color,
+                now,
             };
             self.event_manager.render_pre_rain(&pre_ctx, frame);
         }
@@ -867,6 +868,7 @@ impl Cloud {
                 cols: self.cols,
                 lines: self.lines,
                 ghost_base_color,
+                now,
             };
             self.event_manager.render(&event_ctx, frame);
 
@@ -874,7 +876,7 @@ impl Cloud {
             // v30 dragon-egg hunt: dropped the phosphor-seeding path that
             // fired on Active→Decay transitions (no event ever entered
             // Decay — see ghost_events.rs).
-            self.event_manager.update();
+            self.event_manager.update(&event_ctx);
         }
 
         // --- Autonomous cinematic ecosystem tick ---

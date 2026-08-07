@@ -39,6 +39,12 @@ pub(super) struct EventCtx {
     /// scene's color scheme (green palette → dark green ghosts, red
     /// palette → dark red ghosts, etc.).
     pub ghost_base_color: (u8, u8, u8),
+    /// v30 Hinnant: frame-start Instant captured once in `rain_at()` and
+    /// shared with all event `is_finished()` / `render()` calls. Removes
+    /// 3 hidden `Instant::now()` syscalls per active event per frame (one
+    /// in `is_finished` called from `render_phase`, one in `is_finished`
+    /// called from `update`, one in `render`).
+    pub now: Instant,
 }
 
 /// Trait for atmospheric event types.
@@ -55,7 +61,10 @@ pub(super) struct EventCtx {
 /// cinematic events without rename churn.
 pub(super) trait CinematicEvent: Send {
     /// Returns true when the event has finished and can be recycled.
-    fn is_finished(&self) -> bool;
+    /// v30 Hinnant: takes `ctx` so implementations use `ctx.now` instead
+    /// of `self.spawn_time.elapsed()` (which issues an `Instant::now()`
+    /// syscall per call).
+    fn is_finished(&self, ctx: &EventCtx) -> bool;
 
     /// Called each frame while alive. Writes visual output to Frame.
     fn render(&self, ctx: &EventCtx, frame: &mut Frame);
@@ -160,7 +169,7 @@ impl GhostEventScheduler {
 
     fn render_phase(&self, ctx: &EventCtx, frame: &mut Frame, pre_rain: bool) {
         for event in &self.events {
-            if !event.is_finished() && event.is_pre_rain() == pre_rain {
+            if !event.is_finished(ctx) && event.is_pre_rain() == pre_rain {
                 event.render(ctx, frame);
             }
         }
@@ -172,10 +181,13 @@ impl GhostEventScheduler {
     /// to `event.update(now)`, which was a no-op for every implementation)
     /// and the phosphor-seeding path that fired on Active→Decay
     /// transitions (no event ever entered Decay).
-    pub(super) fn update(&mut self) {
+    ///
+    /// v30 Hinnant: `ctx` is required to call `is_finished(ctx)` without
+    /// issuing an `Instant::now()` syscall per event per frame.
+    pub(super) fn update(&mut self, ctx: &EventCtx) {
         let mut i = 0;
         while i < self.events.len() {
-            if self.events[i].is_finished() {
+            if self.events[i].is_finished(ctx) {
                 self.events.swap_remove(i);
                 // Don't increment i — swap_remove moved last element to i
             } else {

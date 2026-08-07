@@ -845,8 +845,13 @@ impl Cloud {
             .filter(|mc| is_border_char(mc.val) && mc.val != ' ')
             .count();
 
-        let reveal_count = if let Some(start) = self.message_start_time {
-            let elapsed_ms = start.elapsed().as_millis() as usize;
+        // v30 Hinnant: hoist start.elapsed() above the per-cell loop below
+        // (was 1 syscall per revealed content cell, 50-200×/frame).
+        let message_elapsed_ms: Option<usize> = self
+            .message_start_time
+            .map(|start| start.elapsed().as_millis() as usize);
+
+        let reveal_count = if let Some(elapsed_ms) = message_elapsed_ms {
             let count = (elapsed_ms / 80).max(1);
             count.min(total_text.max(1))
         } else {
@@ -864,11 +869,8 @@ impl Cloud {
         let border_progress = text_progress.powf(1.5);
         let border_show = (border_progress * total_border as f32).floor() as usize;
 
-        // Build clockwise-ordered list of border cell indices: top-left → top →
-        // top-right → right → bottom-right → bottom → bottom-left → left.
         let border_order = build_border_order(&self.message);
 
-        // Visible border set.
         let mut visible_border: std::collections::HashSet<usize> = std::collections::HashSet::new();
         for &idx in border_order.iter().take(border_show) {
             visible_border.insert(idx);
@@ -886,8 +888,7 @@ impl Cloud {
                 if content_idx < reveal_count {
                     content_idx += 1;
                     let cell_fg =
-                        if let (Some(start), Some(base_fg)) = (self.message_start_time, fg) {
-                            let elapsed_ms = start.elapsed().as_millis() as usize;
+                        if let (Some(elapsed_ms), Some(base_fg)) = (message_elapsed_ms, fg) {
                             let reveal_time_ms = content_idx * 80;
                             let age_ms = elapsed_ms.saturating_sub(reveal_time_ms);
                             if age_ms >= FADE_IN_MS {
