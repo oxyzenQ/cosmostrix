@@ -519,7 +519,7 @@ No code changes needed. Independent improvements that could be done:
 
 ```bash
 # Re-verify the revert is clean
-cd /home/z/my-project/cosmostrix
+# (run from the cosmostrix repo root)
 git log --oneline -3
 # Expected:
 # 3f733ae Revert "refactor: remove --chars and --bold CLI flags (owner instruction)"

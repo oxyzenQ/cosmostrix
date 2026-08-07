@@ -12,24 +12,25 @@ This script computes the brightness curve for the previous (pre-v30),
 current (v30 owner-unhappy), and proposed (masterclass) values, and
 prints a side-by-side comparison so the choice is auditable.
 
-Run:    python3 /home/z/my-project/scripts/visual_mode_audit.py
+Run:    python3 scripts/visual-mode-audit.py
+        # or, from any CWD: ./scripts/visual-mode-audit.py  (chmod +x)
 """
 
 from dataclasses import dataclass
 
-
 # ── Visual mode constants (mirrors src/central_control_rains.rs) ─────────────
+
 
 @dataclass
 class VisualModeConfig:
     label: str
-    crt_vignette_height: int           # CRT_VIGNETTE_HEIGHT
-    crt_vignette_edge_factor: float    # CRT_VIGNETTE_EDGE_FACTOR
-    edge_fade_rows: int                # EDGE_FADE_ROWS
-    edge_fade_bottom_rows: int         # EDGE_FADE_BOTTOM_ROWS
-    edge_fade_bottom_lip: float        # EDGE_FADE_BOTTOM_LIP
-    edge_fade_top_min: float           # EDGE_FADE_TOP_MIN
-    edge_fade_bottom_min: float        # EDGE_FADE_BOTTOM_MIN
+    crt_vignette_height: int  # CRT_VIGNETTE_HEIGHT
+    crt_vignette_edge_factor: float  # CRT_VIGNETTE_EDGE_FACTOR
+    edge_fade_rows: int  # EDGE_FADE_ROWS
+    edge_fade_bottom_rows: int  # EDGE_FADE_BOTTOM_ROWS
+    edge_fade_bottom_lip: float  # EDGE_FADE_BOTTOM_LIP
+    edge_fade_top_min: float  # EDGE_FADE_TOP_MIN
+    edge_fade_bottom_min: float  # EDGE_FADE_BOTTOM_MIN
 
 
 PRE_V30 = VisualModeConfig(
@@ -39,8 +40,8 @@ PRE_V30 = VisualModeConfig(
     edge_fade_rows=2,
     edge_fade_bottom_rows=12,
     edge_fade_bottom_lip=0.75,
-    edge_fade_top_min=0.70,          # 30% dim at top
-    edge_fade_bottom_min=0.35,       # 65% dim at bottom
+    edge_fade_top_min=0.70,  # 30% dim at top
+    edge_fade_bottom_min=0.35,  # 65% dim at bottom
 )
 
 V30_OWNER_UNHAPPY = VisualModeConfig(
@@ -50,8 +51,8 @@ V30_OWNER_UNHAPPY = VisualModeConfig(
     edge_fade_rows=2,
     edge_fade_bottom_rows=8,
     edge_fade_bottom_lip=0.75,
-    edge_fade_top_min=0.45,          # 55% dim at top
-    edge_fade_bottom_min=0.20,       # 80% dim at bottom
+    edge_fade_top_min=0.45,  # 55% dim at top
+    edge_fade_bottom_min=0.20,  # 80% dim at bottom
 )
 
 MASTERCLASS = VisualModeConfig(
@@ -66,15 +67,15 @@ MASTERCLASS = VisualModeConfig(
     # from "above the screen" but stays clearly visible. Below 0.60 the
     # top row rain becomes hard to read; above 0.70 the fade is invisible.
     edge_fade_rows=2,
-    edge_fade_bottom_rows=10,        # slightly wider than v30 (8) for smoother dissolve
+    edge_fade_bottom_rows=10,  # slightly wider than v30 (8) for smoother dissolve
     edge_fade_bottom_lip=0.72,
-    edge_fade_top_min=0.65,          # 35% dim at top
+    edge_fade_top_min=0.65,  # 35% dim at top
     # Edge fade bottom: 55% dim at the very bottom row. Aggressive enough
     # to prevent phosphor ghost residue (the original purpose), but not so
     # dark that rain disappears. Pre-v30 was 0.35 (65% dim) — owner wanted
     # more aggressive; v30 went to 0.20 (80% dim) — too aggressive. 0.45
     # (55% dim) is the midpoint, leaning slightly toward v30's intent.
-    edge_fade_bottom_min=0.45,       # 55% dim at bottom
+    edge_fade_bottom_min=0.45,  # 55% dim at bottom
 )
 
 
@@ -94,13 +95,17 @@ def crt_vignette_factor(row: int, lines: int, cfg: VisualModeConfig) -> float:
         v = row
         t = v / H
         smooth = smoothstep(t)
-        return cfg.crt_vignette_edge_factor + (1.0 - cfg.crt_vignette_edge_factor) * smooth
+        return (
+            cfg.crt_vignette_edge_factor + (1.0 - cfg.crt_vignette_edge_factor) * smooth
+        )
     elif row >= lines - H:
         # Bottom band: row lines-1 = extreme edge.
         v = lines - 1 - row
         t = v / H
         smooth = smoothstep(t)
-        return cfg.crt_vignette_edge_factor + (1.0 - cfg.crt_vignette_edge_factor) * smooth
+        return (
+            cfg.crt_vignette_edge_factor + (1.0 - cfg.crt_vignette_edge_factor) * smooth
+        )
     else:
         return 1.0
 
@@ -121,7 +126,10 @@ def edge_fade_factor(row: int, lines: int, cfg: VisualModeConfig) -> float:
     if bottom_dist < cfg.edge_fade_rows:
         # Zone 2: sharp lip. Linear from EDGE_FADE_BOTTOM_MIN (at dist=0) to LIP (at dist=ROWS).
         t = bottom_dist / cfg.edge_fade_rows
-        bottom = cfg.edge_fade_bottom_min + (cfg.edge_fade_bottom_lip - cfg.edge_fade_bottom_min) * t
+        bottom = (
+            cfg.edge_fade_bottom_min
+            + (cfg.edge_fade_bottom_lip - cfg.edge_fade_bottom_min) * t
+        )
     elif bottom_dist < cfg.edge_fade_bottom_rows:
         # Zone 1: gentle pre-fade. Smoothstep from LIP (at ROWS) up to 1.0 (at BOTTOM_ROWS).
         span = cfg.edge_fade_bottom_rows - cfg.edge_fade_rows
@@ -148,11 +156,13 @@ def render_curve(cfg: VisualModeConfig, lines: int = 40) -> str:
     out.append("  row | vignette  edge_fade  COMBINED  | bar (combined brightness)")
     out.append("  ----+--------------------------------+------------------------")
     # Show every row + the extremes
-    sample_rows = sorted(set(
-        list(range(0, min(8, lines)))                   # top extreme + a few below
-        + list(range(max(0, lines - 8), lines))         # bottom extreme + a few above
-        + [lines // 2]                                   # mid (sanity check = 1.0)
-    ))
+    sample_rows = sorted(
+        set(
+            list(range(min(8, lines)))  # top extreme + a few below
+            + list(range(max(0, lines - 8), lines))  # bottom extreme + a few above
+            + [lines // 2]  # mid (sanity check = 1.0)
+        )
+    )
     for row in sample_rows:
         if row < 0 or row >= lines:
             continue
@@ -174,7 +184,9 @@ def render_curve(cfg: VisualModeConfig, lines: int = 40) -> str:
 
 def extremes_table(lines: int = 40) -> str:
     """Side-by-side comparison of the extreme-row brightness for all 3 configs."""
-    out = ["\n=== Extreme-row brightness comparison (terminal = 80x" + str(lines) + ") ==="]
+    out = [
+        "\n=== Extreme-row brightness comparison (terminal = 80x" + str(lines) + ") ==="
+    ]
     out.append("")
     out.append("  Config              | top row 0 | bottom row N-1 | mid row")
     out.append("  ------------------- + --------- + --------------- + ------")
@@ -187,7 +199,9 @@ def extremes_table(lines: int = 40) -> str:
     out.append("  Interpretation:")
     out.append("    top/bot < 0.30  → rain invisible (too dark)")
     out.append("    top/bot 0.30-0.50 → cinematic dim, rain barely visible")
-    out.append("    top/bot 0.50-0.70 → subtle dim, rain clearly visible (masterclass target)")
+    out.append(
+        "    top/bot 0.50-0.70 → subtle dim, rain clearly visible (masterclass target)"
+    )
     out.append("    top/bot 0.70-0.90 → barely-there dim (pre-v30 territory)")
     out.append("    top/bot > 0.90   → no perceptible dim")
     return "\n".join(out)

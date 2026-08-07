@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 """Compare Cosmic Dragon (main) vs Dead Dragon (dead-dragon) benchmarks.
 
-Reads the 6 JSON benchmark files from /home/z/my-project/bench-results/:
+Reads the 6 JSON benchmark files from the bench-results directory:
   - dragon-80x24-wet.json   / dead-80x24-wet.json
   - dragon-200x60-wet.json  / dead-200x60-wet.json
   - dragon-400x100-wet.json / dead-400x100-wet.json
@@ -12,6 +12,9 @@ Emits a Markdown report to stdout with:
   - Per-size comparison table (FPS, frame time, dirty cells, ANSI bytes, etc.)
   - Ratio columns showing how many times faster the Cosmic Dragon is
   - Aggregate verdict across all sizes
+
+Override the bench-results directory with the COSMOSTRIX_BENCH_RESULTS env var
+or the first CLI argument; defaults to ./bench-results relative to the script.
 """
 from __future__ import annotations
 import json
@@ -19,7 +22,12 @@ import os
 import sys
 from pathlib import Path
 
-RESULTS_DIR = Path("/home/z/my-project/bench-results")
+_DEFAULT_RESULTS_DIR = Path(__file__).resolve().parent / "bench-results"
+RESULTS_DIR = Path(
+    os.environ.get("COSMOSTRIX_BENCH_RESULTS", "")
+    or (sys.argv[1] if len(sys.argv) > 1 else "")
+    or str(_DEFAULT_RESULTS_DIR)
+)
 SIZES = ["80x24", "200x60", "400x100"]
 
 
