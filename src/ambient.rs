@@ -358,6 +358,38 @@ pub(crate) fn parse_ambient_value(value: &str) -> Result<AmbientEntry, String> {
     // (e.g. `cosmos`), we default to color (per archived spec: 1st
     // positional is color). The user can disambiguate by providing a 2nd
     // positional scene, or by using `key=value` syntax.
+    //
+    // UX guard (v30.1+): more than 2 positionals is almost certainly a
+    // mistake — the user thought positional 3+ would be parsed as something
+    // (most commonly `charset`, sometimes `glitch-level`). Without this
+    // guard, positionals[2..] were silently dropped, producing confusing
+    // downstream errors like "unknown scene 'binary'" (because the user
+    // wrote `cosmos, signal, binary, speed=12` thinking `binary` was the
+    // charset). Now we error early with a suggestion that names the actual
+    // keyword form for each extra positional.
+    if positionals.len() > 2 {
+        let extras: Vec<&str> = positionals[2..].iter().map(String::as_str).collect();
+        let suggestions: Vec<String> = extras
+            .iter()
+            .map(|extra| {
+                // If the extra matches a known charset preset, suggest
+                // `charset=<extra>`. Otherwise, hint at the generic
+                // `key=value` form and let downstream validation surface
+                // a more specific error if the user really did mean a
+                // key=value they forgot to write `=` for.
+                if crate::cli::all_charset_presets().contains(extra) {
+                    format!("did you mean charset={extra}?")
+                } else {
+                    "did you mean a key=value pair (e.g. speed=15, density=0.65, fps=30, charset=..., glitch-level=...)?".to_string()
+                }
+            })
+            .collect();
+        return Err(format!(
+            "ambient: too many positional args in '{value}' — only 2 are allowed (color, scene). Extra positional(s) [{}] silently ignored. {}",
+            extras.join(", "),
+            suggestions.join(" ")
+        ));
+    }
     if let Some(first) = positionals.first() {
         let is_color = crate::cli::parse_color_scheme(first).is_ok();
         let is_scene = crate::scene::get_scene(first).is_some();
@@ -466,8 +498,19 @@ pub(crate) fn validate_ambient_entries(cfg: &HashMap<String, String>) -> Result<
         // Validate scene (if present) — built-in only.
         if let Some(scene) = &entry.scene {
             if crate::scene::get_scene(scene).is_none() {
+                // UX hint (v30.1+): if the rejected scene name is actually
+                // a known charset preset, the user almost certainly wrote
+                // `ambient.12-00 = cosmos, signal, binary, speed=12`
+                // expecting `binary` to be picked up as the charset.
+                // Surface a direct `charset=<name>` suggestion so they can
+                // fix the entry without reading the parser source.
+                let hint = if crate::cli::all_charset_presets().contains(&scene.as_str()) {
+                    format!(" — '{scene}' is a charset name; did you mean charset={scene}?")
+                } else {
+                    String::new()
+                };
                 return Err(format!(
-                    "{key}: unknown scene '{scene}' (see --list-scenes)"
+                    "{key}: unknown scene '{scene}' (see --list-scenes){hint}"
                 ));
             }
         }
@@ -672,6 +715,62 @@ mod tests {
     #[test]
     fn rejects_non_numeric_speed() {
         assert!(parse_ambient_value("cosmos, speed=fast").is_err());
+    }
+
+    // ── UX guard: too many positionals ──
+
+    #[test]
+    fn rejects_third_positional_with_charset_suggestion() {
+        // Reproduces the user's original confusion:
+        //   ambient.13-00 = cosmos, signal, binary, speed=12, density=0.65
+        // The user thought `binary` would be picked up as the charset.
+        // Without the UX guard, `binary` was silently dropped and the
+        // downstream validator complained about "unknown scene 'binary'"
+        // (because positional 2 = `signal`, then the parser tried to
+        // promote positional 3 = `binary` to scene in some code paths).
+        // Now we error early with a direct `charset=binary` suggestion.
+        let err = parse_ambient_value("cosmos, signal, binary, speed=12, density=0.65")
+            .expect_err("3rd positional must be rejected");
+        assert!(err.contains("too many positional args"), "got: {err}");
+        assert!(
+            err.contains("charset=binary"),
+            "error should suggest charset=binary, got: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_third_positional_with_generic_hint_when_not_charset() {
+        // When the 3rd positional is NOT a known charset name, the error
+        // should still fire and hint at the generic `key=value` form.
+        let err = parse_ambient_value("cosmos, monolith, fastspeed")
+            .expect_err("3rd positional must be rejected");
+        assert!(err.contains("too many positional args"));
+        assert!(
+            err.contains("key=value"),
+            "error should hint at key=value form, got: {err}"
+        );
+        assert!(
+            !err.contains("charset=fastspeed"),
+            "should NOT suggest charset= for non-charset name, got: {err}"
+        );
+    }
+
+    #[test]
+    fn accepts_exactly_two_positionals_plus_kv() {
+        // Sanity: 2 positionals (color, scene) + any number of key=value
+        // pairs must still parse cleanly. The UX guard only fires for
+        // 3+ positionals, NOT for 2 positionals + many kv pairs.
+        let e = parse_ambient_value(
+            "cosmos, monolith, speed=15, density=1.0, fps=60, charset=zen, glitch-level=subtle",
+        )
+        .expect("2 positionals + 5 kv pairs must parse");
+        assert_eq!(e.color.as_deref(), Some("cosmos"));
+        assert_eq!(e.scene.as_deref(), Some("monolith"));
+        assert_eq!(e.speed, Some(15.0));
+        assert_eq!(e.density, Some(1.0));
+        assert_eq!(e.fps, Some(60));
+        assert_eq!(e.charset.as_deref(), Some("zen"));
+        assert_eq!(e.glitch_level.as_deref(), Some("subtle"));
     }
 
     // ── AmbientSchedule::current_phase ──
@@ -908,6 +1007,33 @@ mod tests {
         cfg.insert("ambient.00-00".into(), "cosmos, nonexistent-scene".into());
         let err = validate_ambient_entries(&cfg).unwrap_err();
         assert!(err.contains("unknown scene"), "got: {err}");
+        // Must NOT suggest charset= for a name that isn't a charset.
+        assert!(
+            !err.contains("did you mean charset="),
+            "should not suggest charset= for non-charset name, got: {err}"
+        );
+    }
+
+    #[test]
+    fn validate_scene_error_suggests_charset_when_name_is_charset() {
+        // UX hint (v30.1+): when the user writes `cosmos, signal, binary`
+        // (3 positionals — `binary` is silently dropped by the parser
+        // before reaching here in normal flow), but the parser would
+        // promote `binary` to scene in some forgiving paths. When the
+        // scene name IS a known charset preset, the validator should
+        // suggest `charset=<name>` so the user can fix the entry.
+        //
+        // We force the path by using `binary` as the 2nd positional
+        // (so parser treats it as scene) — this is the exact scenario
+        // the UX hint is designed to make self-explanatory.
+        let mut cfg = HashMap::new();
+        cfg.insert("ambient.00-00".into(), "cosmos, binary".into());
+        let err = validate_ambient_entries(&cfg).unwrap_err();
+        assert!(err.contains("unknown scene 'binary'"), "got: {err}");
+        assert!(
+            err.contains("did you mean charset=binary"),
+            "error should suggest charset=binary, got: {err}"
+        );
     }
 
     #[test]
