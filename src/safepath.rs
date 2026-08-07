@@ -172,7 +172,10 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
 
     // Linux/macOS: ~/.config/cosmostrix/
     if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
-        push_normalized_allowed_prefix(&mut allowed_prefixes, format!("{home}/.config/cosmostrix/"));
+        push_normalized_allowed_prefix(
+            &mut allowed_prefixes,
+            format!("{home}/.config/cosmostrix/"),
+        );
         // macOS native: ~/Library/Application Support/cosmostrix/
         #[cfg(target_os = "macos")]
         push_normalized_allowed_prefix(
@@ -309,12 +312,10 @@ fn normalize_path_segments(path: &str) -> Option<String> {
     // --- Drive-letter path handling: C:\... → C:/... ---
     // Detect C: or c: at the start. The drive letter is a root that `..`
     // cannot escape above.
-    if path.len() >= 2
-        && path.as_bytes()[0].is_ascii_alphabetic()
-        && path.as_bytes()[1] == b':'
-    {
+    if path.len() >= 2 && path.as_bytes()[0].is_ascii_alphabetic() && path.as_bytes()[1] == b':' {
         let drive = &path[..2];
-        let rest = if path.len() > 2 && (path.as_bytes()[2] == b'/' || path.as_bytes()[2] == b'\\') {
+        let rest = if path.len() > 2 && (path.as_bytes()[2] == b'/' || path.as_bytes()[2] == b'\\')
+        {
             &path[3..]
         } else {
             &path[2..]
@@ -785,7 +786,10 @@ mod tests {
     #[test]
     fn normalize_unc_path_escape_above_share_rejected() {
         // \\server\share\..\..\etc\shadow — `..` above \\server\share is escape.
-        assert_eq!(normalize_path_segments(r"\\server\share\..\..\etc\shadow"), None);
+        assert_eq!(
+            normalize_path_segments(r"\\server\share\..\..\etc\shadow"),
+            None
+        );
     }
 
     #[test]

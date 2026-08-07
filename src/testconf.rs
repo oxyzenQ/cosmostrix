@@ -38,8 +38,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         resolved_config = None;
     }
 
-    let path = resolved_config
-        .unwrap_or_else(configfile::default_config_file_path);
+    let path = resolved_config.unwrap_or_else(configfile::default_config_file_path);
 
     println!("testconf: checking {}", path.display());
 
