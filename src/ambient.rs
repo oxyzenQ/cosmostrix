@@ -465,6 +465,46 @@ pub(crate) fn current_second_of_minute() -> u32 {
     (secs % 60) as u32
 }
 
+/// v30.3 masterclass: compute the current ambient phase and apply it to the
+/// cloud at startup (synchronous, before the event loop). Returns the new
+/// charset preset + the applied entry (or None if no schedule is active).
+///
+/// Before this fix, the scheduler thread fired the current phase
+/// asynchronously — the event loop rendered 1-N frames with the default
+/// scene before the channel delivered the entry. On a cold start this window
+/// was visible ("several seconds" of default scene before ambient kicked in).
+/// This function eliminates that window by applying the phase NOW.
+///
+/// The scheduler's subsequent fire of the same entry is deduped by the event
+/// loop (entry == last_applied_ambient_entry → skip).
+#[must_use]
+pub(crate) fn apply_startup_ambient(
+    cloud: &mut crate::cloud::Cloud,
+    schedule: &AmbientSchedule,
+    charset_preset: &str,
+    user_ranges: &[(char, char)],
+    def_ascii: bool,
+) -> (String, Option<AmbientEntry>) {
+    let now_min = current_minute_of_day();
+    let Some(entry) = schedule.current_phase(now_min).cloned() else {
+        return (charset_preset.to_string(), None);
+    };
+    crate::lr_trace!(
+        "ambient: startup sync apply — phase {:02}:{:02} (scene={})",
+        entry.hour,
+        entry.minute,
+        entry.scene
+    );
+    let new_charset = cloud.apply_ambient_entry(
+        &entry,
+        charset_preset,
+        user_ranges,
+        def_ascii,
+        &std::collections::HashMap::new(),
+    );
+    (new_charset, Some(entry))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

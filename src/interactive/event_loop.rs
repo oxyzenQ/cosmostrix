@@ -242,6 +242,26 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // finding): intentional clone — verbose diff needs full map, ~1KB/reload.
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> = None;
 
+    // v30.3 masterclass: SYNCHRONOUS ambient apply at startup — eliminates
+    // the "several seconds of default scene" window on rerun. See
+    // `ambient::apply_startup_ambient` for the full rationale.
+    let (new_charset, startup_entry) = crate::ambient::apply_startup_ambient(
+        &mut cloud,
+        &base_cfg.ambient_schedule,
+        &charset_preset,
+        &user_ranges,
+        def_ascii,
+    );
+    if let Some(entry) = startup_entry {
+        charset_preset = new_charset;
+        scene_name = entry.scene.clone();
+        scene_generation = scene_generation.wrapping_add(1);
+        term.set_color_cache(ColorCache::new(&cloud.palette));
+        frame = Frame::new(w, h, cloud.palette.bg);
+        super::fill_terminal_bg(cloud.palette.bg);
+        last_applied_ambient_entry = Some(entry);
+    }
+
     // Track runtime state changes for post-exit verbose summary.
     // No eprintln during rain — would flicker in alternate-screen mode.
     let _verbose = cfg.verbose;
@@ -269,17 +289,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     }
                     Err(msg) => {
                         // v25.13 (bug #15): config validation errors during
-                        // live reload now cause IMMEDIATE exit. The previous
-                        // v25.6 design ("don't kill the process, keep rain
-                        // running on last valid config") was reversed because
-                        // it caused verbose rejection text to leak into the
-                        // rain matrix — the watcher thread's stderr writes
-                        // appeared as "weird text" in the alternate-screen
-                        // buffer, polluting the cinematic render. Now: set
-                        // the exit code, store the error, break the rain
-                        // loop. main.rs prints the error AFTER terminal
-                        // restoration (post-exit), so it never touches the
-                        // alternate screen.
+                        // live reload cause IMMEDIATE exit (printing to stderr
+                        // mid-rain would pollute the alternate screen).
                         crate::lr_trace!(
                             "render thread: config validation error — setting exit code + breaking rain loop"
                         );
@@ -368,37 +379,25 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // Phase D Bug #9 fix: preserve color_ecosystem + atmospheric
             // post-FX state across live-reload so the user doesn't see a
             // brightness / saturation / hue discontinuity when editing
-            // config. (v30 2026-08-05: renamed from "atmosphere state" to
-            // "atmospheric post-FX state" to disambiguate from the
-            // eliminated atmosphere engine subsystem — this refers to the
-            // live `EntropyDrift` cloud drift + Chroma Dragon
-            // post-FX shader, NOT the deleted atmosphere engine.)
-            // Previously this created a fresh Cloud with defaults (0.85,
-            // 0.85, 0.0) — if the previous cloud had drifted to 0.78
-            // (dim), the new cloud jumped back to 0.85 (brighter).
+            // config. (Renamed from "atmosphere state" to "atmospheric
+            // post-FX state" to disambiguate from the eliminated atmosphere
+            // engine subsystem.)
             let mut new_cloud = new_cfg.create_cloud(density);
             new_cloud.inherit_ecosystem_state(&cloud);
             cloud = new_cloud;
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
-            // Live config rebuild creates a fresh Cloud — any in-flight
-            // self-healer downgrade is now moot (the new Cloud's scene is
-            // from the config, not from a prior auto-downgrade). Reset so
-            // the healer starts fresh with the new baseline.
+            // Live config rebuild creates a fresh Cloud — reset self-healer.
             self_healer.reset();
-            // Rebuild color cache + frame for new palette.
+            // Rebuild color cache + frame for new palette + fill terminal bg + charset.
             term.set_color_cache(ColorCache::new(&cloud.palette));
             frame = Frame::new(w, h, cloud.palette.bg);
-            // v16: Fill terminal with new bg on live reload too.
             super::fill_terminal_bg(cloud.palette.bg);
-            // Update charset_preset for runtime cycling.
             charset_preset = new_cfg.charset_preset.clone();
-            // v25.5 depth-test fix: recompute target/idle_period from new
-            // target_fps. Guard against fps <= 0.
-            let safe_fps = new_cfg.target_fps.max(0.0);
-            let safe_fps = if safe_fps > 0.0 {
-                safe_fps
+            // v25.5: recompute target/idle_period from new target_fps (guard fps <= 0).
+            let safe_fps = if new_cfg.target_fps > 0.0 {
+                new_cfg.target_fps
             } else {
                 cfg.target_fps.max(1.0)
             };
@@ -420,8 +419,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
             // v30.3: RE-APPLY the last-known ambient entry to the new Cloud.
             // Rebuild created a fresh Cloud with CLI override but NOT the
-            // ambient scene. If the entry was removed from the schedule,
-            // clear the tracker.
+            // ambient scene. If the entry was removed, clear the tracker.
             if let Some(ref last_entry) = last_applied_ambient_entry {
                 let still_in_schedule = new_cfg
                     .ambient_schedule
@@ -467,32 +465,32 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             last_ambient_entry = Some(entry);
         }
         if let Some(entry) = last_ambient_entry {
-            // v30.2: apply the entry's scene via apply_ambient_entry, which
-            // delegates to apply_scene_runtime_with_cfg. This handles both
-            // built-in scenes (fast path) and custom scenes (looks up
-            // [scene-custom.<name>] block, applies base-scene defaults first,
-            // then the block's own overrides). No override layer — the scene
-            // IS the spec, so there's no field that can be "lost".
-            let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
-            charset_preset = cloud.apply_ambient_entry(
-                &entry,
-                &charset_preset,
-                &user_ranges,
-                def_ascii,
-                &cfg_map,
-            );
-            // v30.3: track the applied entry so we can re-apply it after the
-            // next live-reload rebuild (preserves ambient priority over CLI
-            // override across rebuilds).
-            last_applied_ambient_entry = Some(entry.clone());
-            // Re-sync scene_name to the applied entry's scene.
-            scene_name = entry.scene.clone();
-            scene_generation = scene_generation.wrapping_add(1);
-            // Rebuild color cache + frame for new palette (scene may have
-            // changed color/charset/density/speed).
-            term.set_color_cache(ColorCache::new(&cloud.palette));
-            frame = Frame::new(w, h, cloud.palette.bg);
-            super::fill_terminal_bg(cloud.palette.bg);
+            // v30.3: dedup — skip if already applied (startup sync or rebuild re-apply).
+            if last_applied_ambient_entry.as_ref() == Some(&entry) {
+                crate::lr_trace!(
+                    "ambient: skipping duplicate phase event {:02}:{:02} (scene={}) — already applied",
+                    entry.hour, entry.minute, entry.scene
+                );
+            } else {
+                // v30.2: apply the entry's scene via apply_ambient_entry.
+                // Handles both built-in + custom scenes (looks up
+                // [scene-custom.<name>], applies base-scene defaults first,
+                // then the block's own overrides).
+                let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
+                charset_preset = cloud.apply_ambient_entry(
+                    &entry,
+                    &charset_preset,
+                    &user_ranges,
+                    def_ascii,
+                    &cfg_map,
+                );
+                last_applied_ambient_entry = Some(entry.clone());
+                scene_name = entry.scene.clone();
+                scene_generation = scene_generation.wrapping_add(1);
+                term.set_color_cache(ColorCache::new(&cloud.palette));
+                frame = Frame::new(w, h, cloud.palette.bg);
+                super::fill_terminal_bg(cloud.palette.bg);
+            }
         }
 
         // Adaptive throttling: detect idle state (no input for
