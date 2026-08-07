@@ -357,7 +357,7 @@ fn apply_profile_overrides(
         .as_deref()
         .filter(|_| !is_explicit(matches, "fps"))
     {
-        if let Some(fps) = parse_f64_profile(name, "fps", value, 1.0, 300.0) {
+        if let Some(fps) = parse_f64_profile(name, "fps", value, 1.0, 240.0) {
             args.fps = fps;
             modified.insert("fps");
         }

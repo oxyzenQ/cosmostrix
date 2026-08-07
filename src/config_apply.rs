@@ -329,7 +329,7 @@ fn apply_config_values(
         }
     }
     if let Some(v) = config_value(matches, cfg, "fps", "fps") {
-        if let Some(f) = parse_f64_config("fps", &v, 1.0, 300.0) {
+        if let Some(f) = parse_f64_config("fps", &v, 1.0, 240.0) {
             args.fps = f;
             config_touched.insert("fps");
         }

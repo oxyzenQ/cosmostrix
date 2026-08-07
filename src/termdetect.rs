@@ -133,8 +133,8 @@ pub(crate) fn detect() -> TerminalCaps {
     let sync_ok = !term.eq_ignore_ascii_case("linux") && !xtermjs_host;
 
     // xterm.js hosts get a 30 FPS cap; everything else is effectively
-    // uncapped (the user's --fps value, validated to 1.0..=300.0, wins).
-    let default_fps_cap = if xtermjs_host { XTERMJS_FPS_CAP } else { 300.0 };
+    // uncapped (the user's --fps value, validated to 1.0..=240.0, wins).
+    let default_fps_cap = if xtermjs_host { XTERMJS_FPS_CAP } else { 240.0 };
 
     TerminalCaps {
         sync_output: sync_ok,
@@ -247,7 +247,7 @@ mod tests {
             sync_output: false,
             xtermjs_host: false,
             vscode_integrated: false,
-            default_fps_cap: 300.0,
+            default_fps_cap: 240.0,
         };
         assert!(!caps.sync_output);
     }
@@ -331,7 +331,7 @@ mod tests {
             caps.sync_output,
             "sync_output must stay on for native terminals"
         );
-        assert_eq!(caps.default_fps_cap, 300.0);
+        assert_eq!(caps.default_fps_cap, 240.0);
     }
 
     #[test]
@@ -358,7 +358,7 @@ mod tests {
         let caps = detect();
         assert!(!caps.xtermjs_host);
         assert!(caps.sync_output);
-        assert_eq!(caps.default_fps_cap, 300.0);
+        assert_eq!(caps.default_fps_cap, 240.0);
     }
 
     #[test]

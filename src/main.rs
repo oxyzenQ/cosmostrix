@@ -656,7 +656,7 @@ fn main() -> std::io::Result<()> {
         _ => BoldMode::Random,
     };
 
-    let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 300.0));
+    let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
     // v30 (VSCode crash fix) + Tier 2 (xterm.js host extension): apply
     // terminal-specific FPS cap after user validation. Any xterm.js-based

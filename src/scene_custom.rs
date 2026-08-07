@@ -373,7 +373,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "fps" => {
-            if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", value, 1.0, 300.0) {
+            if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", value, 1.0, 240.0) {
                 new.target_fps = n;
                 return true;
             }

@@ -391,8 +391,8 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             .parse::<f64>()
             .ok()
             .and_then(|n| {
-                if !(1.0..=300.0).contains(&n) {
-                    Some(format!("out of range [1, 300], got {n}"))
+                if !(1.0..=240.0).contains(&n) {
+                    Some(format!("out of range [1, 240], got {n}"))
                 } else {
                     None
                 }
@@ -400,7 +400,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             .or_else(|| {
                 // Non-numeric fps is also an error.
                 if v.parse::<f64>().is_err() {
-                    Some(format!("expected number in [1, 300], got '{v}'"))
+                    Some(format!("expected number in [1, 240], got '{v}'"))
                 } else {
                     None
                 }
@@ -815,10 +815,17 @@ mod tests {
     #[test]
     fn fps_out_of_range_is_rejected() {
         assert!(validate_field_value("fps", "0").is_some());
-        // v30: cap bumped 240 -> 300. 241 is now valid; 301 is the new reject edge.
-        assert!(validate_field_value("fps", "301").is_some());
+        // v30.3: cap reverted 300 -> 240. 241 is the new reject edge; 240
+        // is the highest valid value. Rationale: 240 matches the most
+        // common high-refresh monitor rate, aligns with the project's own
+        // stated terminal ceiling (README.md:142: "typically 60-240 FPS on
+        // Alacritty/kitty"), and matches the README CLI help text
+        // (README.md:329: "--fps <1-240>"). The 300 cap (commit 12629eb)
+        // matched no monitor refresh rate and exceeded the project's own
+        // stated terminal ceiling.
+        assert!(validate_field_value("fps", "241").is_some());
         assert!(validate_field_value("fps", "60").is_none());
-        assert!(validate_field_value("fps", "300").is_none());
+        assert!(validate_field_value("fps", "240").is_none());
     }
 
     #[test]
