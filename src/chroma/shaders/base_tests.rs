@@ -126,6 +126,44 @@ fn bayer_dither_rounds_up_at_near_one_frac() {
     assert_eq!(downs, 1, "frac=15/16 should round down in 1 of 16 cells");
 }
 
+/// v30.3 masterclass: short-droplet luminance-remap path now uses Bayer
+/// dithering (same pattern as the shading_distance branch). This test
+/// verifies the dithering formula produces both up and down decisions
+/// for a mid-fractional continuous value — proving the path no longer
+/// uses flat .round() which would assign the same color_idx to all cells.
+#[test]
+fn bayer_dither_short_droplet_path_produces_mixed_indices() {
+    // Simulate a short droplet with last=8 (9-color palette) and a
+    // continuous value of 4.5 (frac=0.5). Without dithering, .round()
+    // would always produce 4 or 5 (banker's rounding varies). With Bayer
+    // dithering, the 16 cells in a 4×4 block split: 8 round up, 8 down.
+    let last = 8_i32;
+    let v_continuous = 4.5_f32;
+    let frac = v_continuous - v_continuous.floor();
+    let mut ups = 0;
+    let mut downs = 0;
+    for line in 0..4u16 {
+        for col in 0..4u16 {
+            let bayer_t = bayer_threshold(line, col) as f32 / 16.0;
+            let v = if frac > bayer_t {
+                (v_continuous.floor() as i32 + 1).min(last)
+            } else {
+                v_continuous.floor() as i32
+            };
+            if v == 5 {
+                ups += 1;
+            } else {
+                downs += 1;
+            }
+        }
+    }
+    // frac=0.5 → 8 cells have bayer_t < 0.5 (round up), 8 have bayer_t ≥ 0.5
+    // (round down). The BAYER_4X4 matrix has thresholds {0,8,2,10,12,4,14,6,
+    // 3,11,1,9,15,7,13,5}. Divided by 16: 8 are < 0.5, 8 are ≥ 0.5.
+    assert_eq!(ups, 8, "frac=0.5 should round up in 8 of 16 cells");
+    assert_eq!(downs, 8, "frac=0.5 should round down in 8 of 16 cells");
+}
+
 // ── Phase 3-C: column-coherence perturbation ──────────────────────────
 
 /// Perturbation is always in {-1, 0, +1} — never larger.

@@ -583,7 +583,21 @@ pub(crate) fn resolve_cell_color(
                 let dist_from_head = head_put_line.saturating_sub(line);
                 let denom = ((length as i32) - 3).max(1) as f32;
                 let t = (((dist_from_head as i32) - 1) as f32 / denom).clamp(0.0, 1.0);
-                color_idx = ((1.0 - t) * last as f32).round() as i32;
+                // v30.3 masterclass: Bayer 4×4 ordered dithering on the
+                // short-droplet luminance-remap path. Same pattern as the
+                // shading_distance branch (line 500-506) — breaks up palette-
+                // boundary banding on short droplets (2-6 Middle cells) where
+                // discrete rounding would assign the same color_idx to
+                // adjacent cells. Both built-in and colors-custom palettes
+                // benefit equally (same shader path = same dithering).
+                let v_continuous = (1.0 - t) * last as f32;
+                let bayer_t = bayer_threshold(line, col) as f32 / 16.0;
+                let frac = v_continuous - v_continuous.floor();
+                color_idx = if frac > bayer_t {
+                    (v_continuous.floor() as i32 + 1).min(last)
+                } else {
+                    v_continuous.floor() as i32
+                };
             }
             // Phase 3-H + Phase C: global hue drift, now pre-computed
             // per-frame. The `hue_drift_offset` fn ran once at DrawCtx
