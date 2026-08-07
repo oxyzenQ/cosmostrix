@@ -142,7 +142,10 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
                 // Field is recognized — now validate the VALUE using the same
                 // rules as top-level keys. Block fields accept the same value
                 // vocabulary (color, charset, scene, atmosphere-regime, etc.).
-                if let Some(msg) = validate_field_value(field, value) {
+                // The context-aware variant emits a richer hint when the value
+                // matches a custom block (e.g. `color = z` where `[colors-custom.z]`
+                // exists — points the user to `colors-custom = z`).
+                if let Some(msg) = validate_field_value_with_cfg(field, value, &parsed.values) {
                     crate::output::eprintln_error_labeled(&format!(
                         "testconf: {pk} = {value}: {msg}"
                     ));
@@ -216,7 +219,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
                 continue;
             }
         }
-        if let Some(msg) = validate_field_value(key, value) {
+        if let Some(msg) = validate_field_value_with_cfg(key, value, &parsed.values) {
             crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
             errors += 1;
         }
@@ -304,7 +307,7 @@ pub(crate) fn validate_config_strictly(
                 continue;
             }
         }
-        if let Some(msg) = validate_field_value(key, value) {
+        if let Some(msg) = validate_field_value_with_cfg(key, value, cfg) {
             return Err(format!("invalid value '{value}' for '{key}': {msg}"));
         }
     }
@@ -637,6 +640,57 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
     }
 }
 
+/// Context-aware wrapper around [`validate_field_value`].
+///
+/// Accepts the parsed config map so it can emit targeted hints when a value
+/// that failed base validation happens to match a custom block defined
+/// elsewhere in the same config. This closes the duplicate-usage confusion
+/// between paired fields like `color` (built-in names only) and
+/// `colors-custom` (references a `[colors-custom.<name>]` block).
+///
+/// When `color = <name>` fails because `<name>` is not a built-in color, but
+/// the config DOES define a `[colors-custom.<name>]` block, the returned
+/// error message points the user to `colors-custom = <name>` instead of just
+/// saying "unknown color". The hint is only emitted when a matching custom
+/// block exists — otherwise the plain base error is returned unchanged.
+///
+/// Callers that have the parsed config map available should prefer this over
+/// the bare `validate_field_value`. The base function remains available for
+/// contexts (e.g. unit tests, CLI arg parsing) where no surrounding config
+/// exists.
+pub(crate) fn validate_field_value_with_cfg(
+    key: &str,
+    value: &str,
+    cfg: &std::collections::HashMap<String, String>,
+) -> Option<String> {
+    let base = validate_field_value(key, value)?;
+    // Base validation FAILED — `base` holds the plain error message. Try to
+    // enrich it with a context-aware hint before returning.
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Some(base);
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    if key == "color" {
+        // A `[colors-custom.<name>]` block is recognized by any of its
+        // declared sub-fields. We check all three historical spellings
+        // (.bg, .rain, .stops) so a partially-migrated config still trips
+        // the hint.
+        let bg_key = format!("colors-custom.{lower}.bg");
+        let rain_key = format!("colors-custom.{lower}.rain");
+        let stops_key = format!("colors-custom.{lower}.stops");
+        if cfg.contains_key(&bg_key) || cfg.contains_key(&rain_key) || cfg.contains_key(&stops_key)
+        {
+            return Some(format!(
+                "unknown color '{value}' — '{value}' is a custom palette name. \
+                 Use `colors-custom = {value}` instead (the `color` field only \
+                 accepts built-in names; run `cosmostrix --list-colors` to see them)."
+            ));
+        }
+    }
+    Some(base)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -842,6 +896,123 @@ mod tests {
         let msg = validate_field_value("color", "not-a-color");
         assert!(msg.is_some());
         assert!(msg.unwrap().contains("unknown color"));
+    }
+
+    // ── Context-aware hints (validate_field_value_with_cfg) ──
+    // Closes the duplicate-usage confusion between `color` (built-in only)
+    // and `colors-custom` (references a [colors-custom.<name>] block).
+
+    #[test]
+    fn color_matching_custom_palette_gets_colors_custom_hint() {
+        // User wrote `color = z` inside a [scene-custom.<name>] block, but `z`
+        // is the name of a [colors-custom.z] block — not a built-in color.
+        // The error must point them at the `colors-custom` field.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("colors-custom.z.bg".to_string(), "#0a0a0a".to_string());
+        cfg.insert(
+            "colors-custom.z.rain".to_string(),
+            "#111111,#1ee460".to_string(),
+        );
+        let msg = validate_field_value_with_cfg("color", "z", &cfg)
+            .expect("should still error — z is not a built-in color");
+        assert!(
+            msg.contains("custom palette"),
+            "error must explain the value is a custom palette: {msg}"
+        );
+        assert!(
+            msg.contains("colors-custom = z"),
+            "error must suggest the `colors-custom = z` field: {msg}"
+        );
+        assert!(
+            msg.contains("--list-colors"),
+            "error must still mention --list-colors for built-in names: {msg}"
+        );
+    }
+
+    #[test]
+    fn color_matching_custom_palette_only_bg_field_still_hinted() {
+        // A partially-declared [colors-custom.<name>] block (only `bg`, no
+        // `rain`) still counts as a custom palette for hint purposes.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("colors-custom.sunset.bg".to_string(), "#1a0033".to_string());
+        let msg = validate_field_value_with_cfg("color", "sunset", &cfg)
+            .expect("should error — sunset is not a built-in color");
+        assert!(
+            msg.contains("colors-custom = sunset"),
+            "hint must fire even with only .bg declared: {msg}"
+        );
+    }
+
+    #[test]
+    fn color_matching_custom_palette_via_legacy_stops_field_still_hinted() {
+        // Older configs may use the deprecated `.stops` alias for `.rain`.
+        // The hint must still fire so users on legacy configs are guided to
+        // the right field.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert(
+            "colors-custom.legacy.stops".to_string(),
+            "#ff0000,#00ff00".to_string(),
+        );
+        let msg = validate_field_value_with_cfg("color", "legacy", &cfg)
+            .expect("should error — legacy is not a built-in color");
+        assert!(
+            msg.contains("colors-custom = legacy"),
+            "hint must fire via legacy .stops field: {msg}"
+        );
+    }
+
+    #[test]
+    fn color_unknown_with_no_matching_palette_keeps_plain_error() {
+        // No [colors-custom.<name>] block exists for this value — the hint
+        // must NOT fire. The plain "unknown color" error is returned.
+        let cfg = std::collections::HashMap::new();
+        let msg = validate_field_value_with_cfg("color", "not-a-color", &cfg)
+            .expect("should error — not-a-color is unknown");
+        assert!(
+            msg.contains("unknown color"),
+            "plain error must be preserved: {msg}"
+        );
+        assert!(
+            !msg.contains("colors-custom ="),
+            "hint must NOT fire when no matching palette exists: {msg}"
+        );
+    }
+
+    #[test]
+    fn color_matching_palette_is_case_insensitive() {
+        // Built-in color names are case-insensitive at runtime; the hint
+        // matching should also be case-insensitive so `color = Z` matches a
+        // declared `[colors-custom.z]` block.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("colors-custom.z.bg".to_string(), "#0a0a0a".to_string());
+        let msg = validate_field_value_with_cfg("color", "Z", &cfg)
+            .expect("should error — Z is not a built-in color");
+        assert!(
+            msg.contains("colors-custom = Z"),
+            "hint must fire case-insensitively and preserve original casing: {msg}"
+        );
+    }
+
+    #[test]
+    fn color_valid_built_in_passes_with_cfg_unchanged() {
+        // A valid built-in color name must still pass — the wrapper must not
+        // turn a passing validation into a failure.
+        let cfg = std::collections::HashMap::new();
+        assert!(validate_field_value_with_cfg("color", "green", &cfg).is_none());
+        assert!(validate_field_value_with_cfg("color", "neon-purple", &cfg).is_none());
+    }
+
+    #[test]
+    fn validate_field_value_with_cfg_preserves_other_field_errors() {
+        // The wrapper must NOT alter errors for non-color fields. Validate
+        // that an out-of-range fps error passes through unchanged.
+        let cfg = std::collections::HashMap::new();
+        let plain = validate_field_value("fps", "9999");
+        let wrapped = validate_field_value_with_cfg("fps", "9999", &cfg);
+        assert_eq!(
+            plain, wrapped,
+            "wrapper must be transparent for non-color fields"
+        );
     }
 
     #[test]
