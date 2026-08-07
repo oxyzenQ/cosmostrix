@@ -423,13 +423,15 @@ Press `x` or `X` while running to cycle core atmospheres (cinematic ↔ matrix �
 
 ## Configuration
 
-Persistent defaults can be set in `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`). Use `--config <path>` to load a specific file. For security, `--config` and `--dump-config <path>` enforce a **strict whitelist** — only these directories are allowed:
+Persistent defaults can be set in `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`). On Android Termux, `$HOME/.config/cosmostrix/config.toml` is the canonical location (XDG_CONFIG_HOME is deliberately ignored because it may point to a system location users don't edit). Use `--config <path>` to load a specific file. For security, `--config` and `--dump-config <path>` enforce a **strict whitelist** — only these directories are allowed:
 
-- `~/.config/cosmostrix/` (Linux/macOS/Android Termux, user config)
-- `/etc/cosmostrix/` (Linux/macOS, system-wide)
-- `%APPDATA%\cosmostrix\` (Windows, user config)
-- `%ProgramData%\cosmostrix\` (Windows, system-wide)
-- `/sdcard/cosmostrix/` (Android Termux, external storage)
+- `~/.config/cosmostrix/` (Linux, macOS, FreeBSD, Android Termux — user config)
+- `/etc/cosmostrix/` (Linux, macOS — system-wide)
+- `/usr/local/etc/cosmostrix/` (FreeBSD — system-wide; FreeBSD uses `/usr/local/etc` for ports/packages, not `/etc`)
+- `$PREFIX/etc/cosmostrix/` (Android Termux — system-wide, typically `/data/data/com.termux/files/usr/etc/cosmostrix/`)
+- `%APPDATA%\cosmostrix\` (Windows — user config)
+- `%ProgramData%\cosmostrix\` (Windows — system-wide)
+- `/sdcard/cosmostrix/` (Android Termux — external storage, accessible from other apps)
 
 Everything else is rejected: current directory (`.`), `/tmp/`, home root (`~`), `~/.local/`, `/usr/`, `/opt/`, `/var/`, all relative paths, and all other absolute paths. `--config` and `--dump-config <path>` files must also have a `.toml` extension.
 

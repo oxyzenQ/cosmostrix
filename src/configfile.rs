@@ -283,8 +283,22 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
 /// Returns the path to the config file.
 ///
 /// Platform-specific resolution:
-/// - **Linux/macOS**: Uses `$XDG_CONFIG_HOME` if set, otherwise `~/.config`.
+/// - **Linux, macOS, FreeBSD, Android (Termux)**: Uses `$XDG_CONFIG_HOME`
+///   if set, otherwise `~/.config`. On Termux specifically,
+///   `XDG_CONFIG_HOME` is deliberately IGNORED (see "v25.2 Termux fix"
+///   below) because it may point to `$PREFIX/etc`, a system location
+///   users don't edit.
 /// - **Windows**: Uses `%APPDATA%\cosmostrix\config.toml` (always absolute).
+///
+/// System-wide fallback locations (consulted by `resolve_config_path`
+/// when the user-specific path doesn't exist):
+/// - **Linux**: `/etc/cosmostrix/config.toml`
+/// - **macOS**: `/Library/Application Support/cosmostrix/config.toml`
+/// - **FreeBSD**: `/usr/local/etc/cosmostrix/config.toml`
+///   (FreeBSD uses `/usr/local/etc` for ports/packages, not `/etc`)
+/// - **Android (Termux)**: `$PREFIX/etc/cosmostrix/config.toml`
+///   (typically `/data/data/com.termux/files/usr/etc/cosmostrix/...`)
+/// - **Windows**: `%ProgramData%\cosmostrix\config.toml`
 ///
 /// Looks for `config.toml`. v20.1 removed the pre-v10 `config` (no
 /// extension) fallback — users upgrading from pre-v10 must rename their
@@ -536,8 +550,17 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   cosmostrix --doctor                    # diagnose terminal issues
 
 # File Location:
-#   Linux/macOS: ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
+#   Linux:       ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
 #                /etc/cosmostrix/config.toml (system-wide)
+#   macOS:       ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
+#                /Library/Application Support/cosmostrix/config.toml (system-wide)
+#   FreeBSD:     ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
+#                /usr/local/etc/cosmostrix/config.toml (system-wide)
+#   Android:     ~/.config/cosmostrix/config.toml (Termux — $HOME resolves
+#                  to /data/data/com.termux/files/home; XDG_CONFIG_HOME is
+#                  deliberately IGNORED on Termux because it may point to
+#                  $PREFIX/etc, a system location users don't edit)
+#                $PREFIX/etc/cosmostrix/config.toml (system-wide)
 #   Windows:     %APPDATA%\cosmostrix\config.toml
 #                %ProgramData%\cosmostrix\config.toml (system-wide)
 #

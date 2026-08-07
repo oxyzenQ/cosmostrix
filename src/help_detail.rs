@@ -182,12 +182,16 @@ COMMON OPTIONS:
 CONFIG:
   --config <path>
       Load config from an explicit path instead of the default
-      $XDG_CONFIG_HOME/cosmostrix/config.toml (Linux) or
-      ~/.config/cosmostrix/config.toml (Linux/macOS) or
+      ~/.config/cosmostrix/config.toml (Linux, macOS, FreeBSD, Android
+      Termux — or $XDG_CONFIG_HOME/cosmostrix/config.toml if set) or
       %APPDATA%/cosmostrix/config.toml (Windows).
-      Security: strict whitelist — path must be inside
-      ~/.config/cosmostrix/ or /etc/cosmostrix/ (Linux/macOS),
-      %APPDATA%/cosmostrix/ or %ProgramData%/cosmostrix/ (Windows).
+      Security: strict whitelist — path must be inside one of:
+        ~/.config/cosmostrix/                  (Linux, macOS, FreeBSD, Termux)
+        /etc/cosmostrix/                       (Linux, macOS — system-wide)
+        /usr/local/etc/cosmostrix/             (FreeBSD — system-wide)
+        $PREFIX/etc/cosmostrix/                (Termux — system-wide)
+        /sdcard/cosmostrix/                    (Termux — external storage)
+        %APPDATA%/cosmostrix/ or %ProgramData%/cosmostrix/ (Windows)
       Everything else is rejected (current directory, /tmp/, ~/, etc.).
       Must have .toml extension.
 

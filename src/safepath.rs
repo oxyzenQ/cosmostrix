@@ -17,13 +17,23 @@
 //! - `~/Library/Application Support/cosmostrix/` — user config (macOS native)
 //! - `/etc/cosmostrix/` — system-wide config
 //!
+//! FreeBSD:
+//! - `~/.config/cosmostrix/` — user config (XDG)
+//! - `/usr/local/etc/cosmostrix/` — system-wide config (FreeBSD uses
+//!   `/usr/local/etc/` for ports/packages, NOT `/etc/` which is reserved
+//!   for the base system)
+//!
 //! Windows:
 //! - `%APPDATA%\cosmostrix\` — user config (Roaming)
 //! - `%ProgramData%\cosmostrix\` — system-wide config
 //!
 //! Android (via Termux):
-//! - `~/.config/cosmostrix/` — user config (Termux HOME)
-//! - `/sdcard/cosmostrix/` — external storage (writable without root)
+//! - `~/.config/cosmostrix/` — user config (Termux HOME; XDG_CONFIG_HOME
+//!   is deliberately ignored on Termux because it may point to $PREFIX/etc)
+//! - `$PREFIX/etc/cosmostrix/` — system-wide config (typically
+//!   `/data/data/com.termux/files/usr/etc/cosmostrix/`)
+//! - `/sdcard/cosmostrix/` — external storage (writable without root,
+//!   accessible from other Android apps)
 //!
 //! Termux detection is RUNTIME (via `TERMUX_VERSION` / `PREFIX` env vars),
 //! NOT compile-time — Termux installs regular Linux ARM binaries, so
@@ -109,8 +119,10 @@ fn push_normalized_allowed_prefix(allowed_prefixes: &mut Vec<String>, raw_prefix
 /// Cross-platform allowed locations:
 /// - Linux: `~/.config/cosmostrix/`, `/etc/cosmostrix/`
 /// - macOS: `~/.config/cosmostrix/`, `~/Library/Application Support/cosmostrix/`, `/etc/cosmostrix/`
+/// - FreeBSD: `~/.config/cosmostrix/`, `/usr/local/etc/cosmostrix/`
 /// - Windows: `%APPDATA%\cosmostrix\`, `%ProgramData%\cosmostrix\`
-/// - Android (Termux, runtime-detected): `~/.config/cosmostrix/`, `/sdcard/cosmostrix/`
+/// - Android (Termux, runtime-detected): `~/.config/cosmostrix/`,
+///   `$PREFIX/etc/cosmostrix/`, `/sdcard/cosmostrix/`
 pub(crate) fn is_safe_path(path: &str) -> bool {
     // On Windows, expand %VAR% environment variables first.
     // The shell does NOT expand %APPDATA% etc., so we must do it here.
@@ -188,6 +200,25 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     #[cfg(unix)]
     push_normalized_allowed_prefix(&mut allowed_prefixes, "/etc/cosmostrix/".to_string());
 
+    // FreeBSD: /usr/local/etc/cosmostrix/ (system-wide).
+    //
+    // FreeBSD uses /usr/local/etc/ for ports/packages (everything installed
+    // via `pkg` or the ports tree goes there), NOT /etc/ (which is reserved
+    // for the base system). Without this entry, a FreeBSD user following
+    // the platform convention would have their config silently rejected
+    // by the whitelist — the README and config template document this path,
+    // so the whitelist must accept it.
+    //
+    // Compiled on all unix targets because FreeBSD binaries are built with
+    // `target_os = "freebsd"` but the same binary may run on GhostBSD or
+    // other FreeBSD descendants. The path is harmless on Linux/macOS
+    // (just an extra prefix that won't match any real path there).
+    #[cfg(unix)]
+    push_normalized_allowed_prefix(
+        &mut allowed_prefixes,
+        "/usr/local/etc/cosmostrix/".to_string(),
+    );
+
     // Android (Termux): /sdcard/cosmostrix/ (external storage).
     //
     // v25: MUST use runtime env-var detection, NOT `#[cfg(target_os =
@@ -206,6 +237,22 @@ pub(crate) fn is_safe_path(path: &str) -> bool {
     let is_termux = crate::configfile::is_termux_environment();
     if is_termux {
         push_normalized_allowed_prefix(&mut allowed_prefixes, "/sdcard/cosmostrix/".to_string());
+
+        // Termux system-wide: $PREFIX/etc/cosmostrix/ (typically
+        // /data/data/com.termux/files/usr/etc/cosmostrix/).
+        //
+        // This is the Termux-equivalent of /etc/cosmostrix/ on Linux —
+        // system-wide config that survives `$HOME` resets. The config
+        // template and README document this path, so the whitelist must
+        // accept it. $PREFIX is always set on Termux (it's the prefix
+        // where the Termux package was installed, e.g.
+        // /data/data/com.termux/files/usr).
+        if let Some(prefix) = std::env::var("PREFIX").ok().filter(|p| !p.is_empty()) {
+            push_normalized_allowed_prefix(
+                &mut allowed_prefixes,
+                format!("{prefix}/etc/cosmostrix/"),
+            );
+        }
     }
 
     // Windows: %APPDATA%\cosmostrix\ (user)
@@ -445,9 +492,12 @@ pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<Stri
     if !safe {
         return Err(format!(
             "error: --config '{path_str}' is outside allowed directories\n  \
-             Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/ (Linux/macOS/Android);\n  \
-             %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\ (Windows);\n  \
-             /sdcard/cosmostrix/ (Android/Termux)"
+             Allowed: ~/.config/cosmostrix/ (Linux, macOS, FreeBSD, Android Termux);\n  \
+             /etc/cosmostrix/ (Linux, macOS);\n  \
+             /usr/local/etc/cosmostrix/ (FreeBSD — ports/packages convention);\n  \
+             $PREFIX/etc/cosmostrix/ (Android Termux — system-wide);\n  \
+             /sdcard/cosmostrix/ (Android Termux — external storage);\n  \
+             %APPDATA%\\cosmostrix\\, %ProgramData%\\cosmostrix\\ (Windows)"
         ));
     }
     // Strict: only .toml files allowed. Prevents reading arbitrary
@@ -515,6 +565,62 @@ mod tests {
     fn etc_cosmostrix_is_safe() {
         assert!(is_safe_path("/etc/cosmostrix/config.toml"));
         assert!(is_safe_path("/etc/cosmostrix/chars.txt"));
+    }
+
+    // --- Allowed: /usr/local/etc/cosmostrix/ (FreeBSD system-wide) ---
+
+    #[test]
+    fn freebsd_usr_local_etc_cosmostrix_is_safe() {
+        // FreeBSD uses /usr/local/etc/ for ports/packages (NOT /etc/ which
+        // is reserved for the base system). The whitelist must accept this
+        // path on all unix targets because the same binary may run on
+        // GhostBSD or other FreeBSD descendants. On Linux/macOS the extra
+        // prefix is harmless — it just won't match any real path there.
+        // This test verifies the whitelist entry exists and matches.
+        assert!(is_safe_path("/usr/local/etc/cosmostrix/config.toml"));
+        assert!(is_safe_path("/usr/local/etc/cosmostrix/chars.txt"));
+        // Subdirectories are also allowed (consistent with /etc/cosmostrix/).
+        assert!(is_safe_path(
+            "/usr/local/etc/cosmostrix/profiles/nightcore.toml"
+        ));
+    }
+
+    // --- Allowed: $PREFIX/etc/cosmostrix/ (Termux system-wide) ---
+
+    #[test]
+    fn termux_prefix_etc_cosmostrix_is_safe() {
+        // Termux's $PREFIX is typically /data/data/com.termux/files/usr.
+        // The system-wide config lives at $PREFIX/etc/cosmostrix/config.toml.
+        // This test sets TERMUX_VERSION + PREFIX to simulate a Termux
+        // environment and verifies the whitelist accepts $PREFIX/etc/cosmostrix/.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("TERMUX_VERSION", "0.118.0");
+        std::env::set_var("PREFIX", "/data/data/com.termux/files/usr");
+        let result = is_safe_path("/data/data/com.termux/files/usr/etc/cosmostrix/config.toml");
+        // Cleanup env vars (best-effort — don't leak the Termux simulation
+        // to other tests). Use remove_var instead of unset because some
+        // tests may have set TERMUX_VERSION earlier.
+        std::env::remove_var("TERMUX_VERSION");
+        std::env::remove_var("PREFIX");
+        assert!(
+            result,
+            "Termux $PREFIX/etc/cosmostrix/ must be whitelisted when TERMUX_VERSION is set"
+        );
+    }
+
+    #[test]
+    fn termux_prefix_etc_cosmostrix_rejected_when_prefix_unset() {
+        // When PREFIX env var is unset (non-Termux environment), the
+        // $PREFIX/etc/cosmostrix/ whitelist entry is NOT added — so a
+        // literal path that looks like a Termux path must be rejected.
+        // This verifies the whitelist entry is conditional on PREFIX being set.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("TERMUX_VERSION");
+        std::env::remove_var("PREFIX");
+        assert!(
+            !is_safe_path("/data/data/com.termux/files/usr/etc/cosmostrix/config.toml"),
+            "Termux system-wide path must be rejected when PREFIX env var is unset"
+        );
     }
 
     // --- v14.0.0: /tmp/ now REJECTED (was allowed pre-v14) ---
@@ -600,12 +706,24 @@ mod tests {
         });
     }
 
-    // --- v14.0.0: /usr/ paths rejected ---
+    // --- v14.0.0: /usr/ paths rejected (with FreeBSD exception) ---
 
     #[test]
     fn usr_paths_rejected_v14() {
+        // v14.0.0 strict policy: /usr/ paths are rejected.
+        // EXCEPTION (v30.1): /usr/local/etc/cosmostrix/ is ALLOWED on
+        // FreeBSD because the ports/packages convention puts system-wide
+        // config there, NOT in /etc/ (which is reserved for the base
+        // system). See `freebsd_usr_local_etc_cosmostrix_is_safe` for
+        // the positive test. All other /usr/ paths are still rejected.
         assert!(!is_safe_path("/usr/share/cosmostrix/config.toml"));
-        assert!(!is_safe_path("/usr/local/etc/cosmostrix/config.toml"));
+        assert!(!is_safe_path("/usr/local/share/cosmostrix/config.toml"));
+        assert!(!is_safe_path("/usr/local/cosmostrix/config.toml"));
+        // /usr/local/etc/cosmostrix/ IS allowed (FreeBSD convention) —
+        // see `freebsd_usr_local_etc_cosmostrix_is_safe`.
+        // But /usr/local/etc/ outside the cosmostrix subdir is rejected:
+        assert!(!is_safe_path("/usr/local/etc/cosmostrix-other/config.toml"));
+        assert!(!is_safe_path("/usr/local/etc/foo.toml"));
     }
 
     // --- Security: unexpanded ~ when HOME is unset ---
