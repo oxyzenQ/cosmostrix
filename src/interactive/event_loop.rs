@@ -918,6 +918,24 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // per frame (~20ns).
         cloud.rain_at(&mut frame, work_start);
 
+        // Refresh HUD line colors every frame (cheap — 4 brighten_color
+        // calls ≈ 2 µs). This is split out of the 1 Hz `update_metrics`
+        // tick so a runtime palette change (`c`/`C` key cycle, auto-color-
+        // drift, live-config reload, scene transition) is reflected on
+        // the very next frame, with no perceptible delay. Previously,
+        // colors were computed inside `update_metrics` (rate-limited to
+        // 1 Hz), so a palette change took up to 1 second to appear in
+        // the HUD — the rain had already adopted the new palette while
+        // the HUD still showed the old colors. The owner explicitly
+        // flagged this as 'slight delay every owner changes colors at
+        // runtime'. The split eliminates the delay without raising the
+        // metric-tick rate (which would cause number flicker).
+        //
+        // Must run BEFORE write_to_frame so the colors used for THIS
+        // frame's HUD cells are fresh — write_to_frame reads the Color
+        // half of each cached_lines tuple.
+        hud_state.refresh_colors(cloud.hud_colors());
+
         // Write HUD into the frame buffer BEFORE term.draw() so it's
         // part of the same flush — eliminates fullscreen flicker.
         // v16: Pass palette bg so HUD background follows --color-bg setting.

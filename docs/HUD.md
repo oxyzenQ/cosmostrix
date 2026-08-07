@@ -184,15 +184,53 @@ via HSV value scaling so the HUD follows the rain's actual color scheme
 (green rain → green HUD, amber rain → amber HUD) instead of washing
 out to grey.
 
-Each line uses a different palette position:
-- `fps`, `tgt`, `max` — head (brightest palette stop, brightened)
-- `p99`, `cpu` — mid (middle palette stop, brightened)
-- `rss` — trail (1/4 palette position, brightened)
-- `up`, `screensize` — dim (palette index 1, brightened)
+### Rain-aesthetic gradient (top dim → bottom bright)
+
+The 8 HUD lines form a vertical brightness gradient that mirrors a
+falling rain droplet — the bottom line (screensize) is the brightest
+`head` (palette last-stop, the rain's leading bright character), and
+the top line (fps) is the dimmest `tail` (palette index 1, the rain's
+trailing fade). Mid lines span `trail` and `mid` so the eye reads the
+HUD as a small rain column hanging in the corner, not as a flat block
+of equally-bright text.
+
+| Row | Line         | Color level | Palette position         |
+|-----|--------------|-------------|--------------------------|
+| 0   | `fps`        | dim         | palette index 1 (tail)   |
+| 1   | `tgt`        | dim         | palette index 1 (tail)   |
+| 2   | `p99`        | trail       | palette index n/4        |
+| 3   | `max`        | trail       | palette index n/4        |
+| 4   | `rss`        | mid         | palette index n/2 (body) |
+| 5   | `cpu`        | mid         | palette index n/2 (body) |
+| 6   | `up`         | head        | palette last stop        |
+| 7   | `screensize` | head        | palette last stop        |
+
+This inverts the original v16-v29 mapping where `fps`/`tgt`/`max` were
+the brightest at the TOP. The owner explicitly flagged the inversion:
+"rain tail is dim head is white" — the bright head must lead at the
+bottom, matching a real falling rain stream.
+
+### Instant palette refresh (no delay on runtime changes)
+
+Color refresh is split out of the 1 Hz metric tick — `HudState::refresh_colors`
+runs every frame (cheap: 4 `brighten_color` calls ≈ 2 µs) so a runtime
+palette change is reflected on the very next frame, with no perceptible
+delay. The 1 Hz rate limit only governs text reformatting (p99 sort,
+`format!` calls, RSS string) — that's what causes the numbers to update
+once per second, but the COLORS track the rain immediately.
+
+This matters for: `c`/`C` key color cycling, `--auto-color-drift`,
+live-config reload (`config.toml` edit while running), and scene
+transitions (`x` key). All of these change the palette at runtime; the
+HUD must keep up without a visible "lag" where the rain has new colors
+but the HUD still shows the old palette.
 
 Brightening is hue-preserving (not a white blend) so the HUD stays
 readable on dark rain palettes without desaturating the rain's color
-identity.
+identity. The `dim` (tail) level is brightened just like the others —
+TARGET_V = 200 guarantees readability on a black background even when
+the palette's tail stop is very dark (e.g. RGB(0,50,0) is boosted to
+RGB(0,200,0), preserving the green hue).
 
 ---
 

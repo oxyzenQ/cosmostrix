@@ -24,6 +24,21 @@
 //!   palette, hue-preserving brightened via HSV value scaling so the
 //!   HUD follows the rain's actual color scheme (green rain → green
 //!   HUD, amber rain → amber HUD) instead of washing out to grey.
+//!   Color refresh is split out of the 1 Hz metric tick — `refresh_colors`
+//!   runs every frame so a runtime palette change (`c`/`C` key, auto-color-
+//!   drift, live-config reload) is reflected on the very next frame, with
+//!   no perceptible delay. The 1 Hz rate limit only governs text
+//!   reformatting (p99 sort, format! calls, RSS string).
+//! - **Rain-aesthetic color gradient**: the HUD's 8 lines form a vertical
+//!   brightness gradient that mirrors a falling rain droplet — the bottom
+//!   line (screensize) is the brightest `head` (palette last-stop, the
+//!   rain's leading bright character), the top line (fps) is the dimmest
+//!   `tail` (palette index 1, the rain's trailing fade). Mid lines span
+//!   `trail` and `mid` so the eye reads the HUD as a small rain column
+//!   hanging in the corner, not as a flat block of text. This inverts
+//!   the original mapping where `fps`/`tgt`/`max` were the brightest —
+//!   the user explicitly flagged the inversion: 'rain tail is dim head
+//!   is white' (head leads at the bottom of a falling stream).
 //! - **Auto-reset max**: max_ms resets every 60s to show recent peaks,
 //!   not a startup spike from 10 minutes ago.
 
@@ -204,11 +219,11 @@ impl HudState {
             screen_size: (0, 0, false),
             cached_lines: [
                 (Color::Cyan, String::new()),
-                (Color::Cyan, String::new()), // tgt line — uses `head` (bright) at runtime
+                (Color::Cyan, String::new()), // tgt line — uses `dim` (tail) at runtime
                 (Color::Yellow, String::new()),
                 (Color::Magenta, String::new()),
                 (Color::Green, String::new()),
-                (Color::Cyan, String::new()), // cpu line — uses `mid` (bright) at runtime
+                (Color::Cyan, String::new()), // cpu line — uses `mid` at runtime
                 (Color::DarkCyan, String::new()),
                 (Color::DarkCyan, String::new()),
             ],
@@ -395,10 +410,87 @@ impl HudState {
         self.frame_mode = mode;
     }
 
+    /// Refresh HUD line colors from the current palette. Called every
+    /// frame when visible — cheap (4 `brighten_color` calls ≈ 2 µs) so
+    /// the HUD tracks palette changes (`c`/`C` key cycle, auto-color-
+    /// drift, live-config reload, scene transitions) on the very next
+    /// frame, with no perceptible delay.
+    ///
+    /// ## Why this is split out of `update_metrics`
+    /// Previously, colors were computed inside `update_metrics` (1 Hz
+    /// rate-limited), so a runtime palette change took up to 1 second to
+    /// appear in the HUD — the rain had already adopted the new palette
+    /// while the HUD still showed the old colors. The owner explicitly
+    /// flagged this as 'slight delay every owner changes colors at runtime'.
+    /// Splitting the cheap color refresh out of the rate-limited metric
+    /// path eliminates the delay: text reformatting (p99 sort, format!
+    /// calls, RSS string) stays at 1 Hz to avoid number flicker, but
+    /// colors update every frame.
+    ///
+    /// ## Rain-aesthetic gradient (top dim → bottom bright)
+    /// The 8 HUD lines form a vertical brightness gradient that mirrors
+    /// a falling rain droplet. In the rain visual, the leading character
+    /// (the `head`) is the bright white at the BOTTOM of the stream, and
+    /// the trailing fade (the `tail`) is dim at the TOP. The HUD adopts
+    /// the same orientation:
+    ///
+    /// ```text
+    ///   row 0  fps          ← dim      (tail — palette index 1)
+    ///   row 1  tgt          ← dim
+    ///   row 2  p99          ← trail    (palette index n/4)
+    ///   row 3  max          ← trail
+    ///   row 4  rss          ← mid      (palette index n/2)
+    ///   row 5  cpu          ← mid
+    ///   row 6  up           ← head     (palette last stop, brightest)
+    ///   row 7  screensize   ← head     (rain head — leading white)
+    /// ```
+    ///
+    /// This inverts the original mapping (where `fps`/`tgt`/`max` were
+    /// brightest at the TOP). The owner explicitly flagged the inversion:
+    /// 'rain tail is dim head is white' — the bright head must lead at
+    /// the bottom, matching a real falling rain stream. The eye now reads
+    /// the HUD as a small rain column hanging in the corner, not as a
+    /// flat block of equally-bright text.
+    ///
+    /// ## Readability guarantee
+    /// `brighten_color` applies HSV value scaling (TARGET_V = 200) to every
+    /// palette stop, including the dim tail. This guarantees the dim lines
+    /// are still readable on a black background — a dark green palette
+    /// stop RGB(0,50,0) is boosted to RGB(0,200,0), preserving the hue
+    /// while meeting the readability floor. Pure black falls back to a
+    /// neutral grey RGB(120,120,120).
+    #[inline]
+    pub(crate) fn refresh_colors(&mut self, palette_colors: &[crossterm::style::Color]) {
+        if !self.visible {
+            return;
+        }
+        let (head, mid, trail, dim) = compute_rain_gradient(palette_colors);
+        // Rain-aesthetic gradient: dim at top → head (bright) at bottom.
+        // Each color level spans 2 consecutive lines for a smooth visual
+        // gradient (4 levels × 2 lines = 8 lines). The bottom pair uses
+        // `head` so the HUD reads as a rain column with the leading bright
+        // character at the bottom — matching the rain's actual orientation.
+        self.cached_lines[0].0 = dim; // fps         (top — tail)
+        self.cached_lines[1].0 = dim; // tgt
+        self.cached_lines[2].0 = trail; // p99
+        self.cached_lines[3].0 = trail; // max
+        self.cached_lines[4].0 = mid; // rss
+        self.cached_lines[5].0 = mid; // cpu
+        self.cached_lines[6].0 = head; // up
+        self.cached_lines[7].0 = head; // screensize  (bottom — head)
+    }
+
     /// Recompute HUD metrics (rate-limited at 1 Hz). Called every frame
     /// from the event loop. Cheap on the fast path (one timestamp
     /// comparison + early return). When the interval elapses, reformats
     /// the cached display strings.
+    ///
+    /// Note: this method ONLY reformats text. Color refresh is split out
+    /// into `refresh_colors` (called every frame) so runtime palette
+    /// changes appear on the very next frame instead of waiting up to 1
+    /// second for the next metric tick. See `refresh_colors` docs for the
+    /// rain-aesthetic gradient rationale (dim at top → bright head at
+    /// bottom, mirroring a falling rain droplet).
     #[inline]
     pub(crate) fn update_metrics(&mut self, palette_colors: &[crossterm::style::Color]) {
         if !self.visible {
@@ -421,27 +513,11 @@ impl HudState {
             .map(format_rss_kb)
             .unwrap_or_else(|| "—".to_string());
 
-        // Dynamic color selection from the active palette.
-        // Pick colors from different positions to get visual variety:
-        // head (brightest), mid, trail (dimmest).
-        // Each color is brightened by blending with white to ensure
-        // readability on the black background — some palette colors
-        // (e.g. dark green trail) are too dim to read as HUD text.
-        let n = palette_colors.len();
-        let head = brighten_color(
-            palette_colors
-                .get(n.saturating_sub(1))
-                .copied()
-                .unwrap_or(Color::White),
-        );
-        let mid = brighten_color(palette_colors.get(n / 2).copied().unwrap_or(Color::Cyan));
-        let trail = brighten_color(
-            palette_colors
-                .get(n / 4)
-                .copied()
-                .unwrap_or(Color::DarkCyan),
-        );
-        let dim = brighten_color(palette_colors.get(1).copied().unwrap_or(Color::DarkGrey));
+        // Refresh colors alongside the text reformat — both stay in sync
+        // on the 1 Hz tick. `refresh_colors` is ALSO called every frame
+        // from the event loop (between metric ticks), so a runtime palette
+        // change appears on the next frame instead of up to 1 second later.
+        let (head, mid, trail, dim) = compute_rain_gradient(palette_colors);
 
         // Session uptime: compound time format.
         // < 1h:  MM:SS    e.g. 59:03
@@ -467,6 +543,9 @@ impl HudState {
         //
         // Format: " label: value" (no trailing padding — pad is added
         // dynamically in write_to_frame based on current_width).
+        //
+        // Color assignment uses the rain-aesthetic gradient (dim at top →
+        // head at bottom). See `refresh_colors` docs for the rationale.
         let fps_str = if fps >= 10_000.0 {
             crate::humanize::humanize_f64(fps)
         } else if fps >= 100.0 {
@@ -474,7 +553,7 @@ impl HudState {
         } else {
             format!("{fps:.1}")
         };
-        self.cached_lines[0] = (head, format!(" fps: {fps_str}"));
+        self.cached_lines[0] = (dim, format!(" fps: {fps_str}"));
         // v30 (2026-08-05): tgt line shows the user-configured --fps cap
         // alongside the current frame pacing mode. This disambiguates the
         // common confusion where `--fps 30` produces `fps: 11000` in the
@@ -495,10 +574,10 @@ impl HudState {
             FrameMode::Idle => " idle".to_string(),
             FrameMode::Paused => " paused".to_string(),
         };
-        self.cached_lines[1] = (head, format!(" tgt: {tgt_str}{mode_suffix}"));
-        self.cached_lines[2] = (mid, format!(" p99: {:.3}ms", self.p99_ms));
-        self.cached_lines[3] = (head, format!(" max: {:.3}ms", self.max_ms));
-        self.cached_lines[4] = (trail, format!(" rss: {rss_str}"));
+        self.cached_lines[1] = (dim, format!(" tgt: {tgt_str}{mode_suffix}"));
+        self.cached_lines[2] = (trail, format!(" p99: {:.3}ms", self.p99_ms));
+        self.cached_lines[3] = (trail, format!(" max: {:.3}ms", self.max_ms));
+        self.cached_lines[4] = (mid, format!(" rss: {rss_str}"));
         // CPU% line: process CPU usage with 2-decimal precision.
         // Format: ` cpu: 0.45%` (single-threaded typical: 0-5%) or
         // ` cpu: —` when the sampler is unsupported (non-unix) or
@@ -519,10 +598,10 @@ impl HudState {
             None => "—".to_string(),
         };
         self.cached_lines[5] = (mid, format!(" cpu: {cpu_str}"));
-        self.cached_lines[6] = (dim, format!(" up: {uptime_str}"));
+        self.cached_lines[6] = (head, format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
-        self.cached_lines[7] = (dim, format!(" {sw}x{sh} {mode}"));
+        self.cached_lines[7] = (head, format!(" {sw}x{sh} {mode}"));
 
         // Compute dynamic width: find the longest line, clamp to [min, max].
         let max_len = self
@@ -608,6 +687,54 @@ fn format_rss_kb(kib: u64) -> String {
     } else {
         format!("{kib}KiB")
     }
+}
+
+/// Compute the 4-stop rain-aesthetic gradient (dim, trail, mid, head)
+/// from the active palette, hue-preserving brightened for readability.
+///
+/// Returns the colors in **rain-tail → rain-head order** (dim → brightest):
+/// - `dim`   — palette index 1 (rain tail, dimmest)
+/// - `trail` — palette index `n/4`
+/// - `mid`   — palette index `n/2` (palette body — the saturated hue
+///   the eye reads as "the rain color")
+/// - `head`  — palette last stop (rain head — leading bright white)
+///
+/// Callers assign these to HUD rows in **bottom-brightest order** to mirror
+/// a falling rain droplet: `dim` at the top (row 0), `head` at the bottom
+/// (row 7). See `HudState::refresh_colors` for the full rationale.
+///
+/// The palette ordering matches `crate::palette::Palette::colors`, which is
+/// constructed dim-first → bright-last by `build_palette`. Picking by index
+/// (not by sorted brightness) preserves the palette author's intended hue
+/// progression — a `Cosmos` palette goes dim-blue → bright-white, and the
+/// HUD gradient mirrors that exact progression rather than a re-sorted one.
+///
+/// ## Why a helper function
+/// Both `refresh_colors` (every frame) and `update_metrics` (1 Hz tick)
+/// need the same 4-stop gradient. Centralizing the index math + brighten
+/// calls ensures they stay in sync — if one path is changed (e.g. a new
+/// palette stop is added), the other updates automatically. The cost is
+/// 4 `brighten_color` calls (≈ 2 µs total), acceptable on the per-frame
+/// path.
+fn compute_rain_gradient(
+    palette_colors: &[crossterm::style::Color],
+) -> (Color, Color, Color, Color) {
+    let n = palette_colors.len();
+    let head = brighten_color(
+        palette_colors
+            .get(n.saturating_sub(1))
+            .copied()
+            .unwrap_or(Color::White),
+    );
+    let mid = brighten_color(palette_colors.get(n / 2).copied().unwrap_or(Color::Cyan));
+    let trail = brighten_color(
+        palette_colors
+            .get(n / 4)
+            .copied()
+            .unwrap_or(Color::DarkCyan),
+    );
+    let dim = brighten_color(palette_colors.get(1).copied().unwrap_or(Color::DarkGrey));
+    (head, mid, trail, dim)
 }
 
 /// Boost a color's brightness while preserving its hue, so the HUD
@@ -996,5 +1123,329 @@ mod tests {
             }
             other => panic!("expected Rgb, got {other:?}"),
         }
+    }
+
+    // ── refresh_colors + rain-aesthetic gradient tests ────────────────
+    //
+    // The HUD color refresh was split out of the 1 Hz `update_metrics`
+    // tick so runtime palette changes (c/C key, auto-color-drift,
+    // live-config reload) appear on the very next frame, not up to 1
+    // second later. The gradient was also inverted to follow the rain
+    // aesthetic: dim tail at top → bright head at bottom. These tests
+    // lock in both behaviors.
+
+    #[test]
+    fn refresh_colors_is_noop_when_invisible() {
+        // When the HUD is off, refresh_colors must short-circuit and
+        // leave cached_lines untouched. This matches the zero-cost-when-off
+        // design constraint — even the cheap 4-brighten_color calls are
+        // skipped.
+        let mut h = HudState::new();
+        // Capture the initial colors (the defaults from new()).
+        let initial_colors: Vec<_> = h.cached_lines.iter().map(|(c, _)| *c).collect();
+        // Pass a non-empty palette — if refresh_colors ran, it would
+        // overwrite the defaults with brightened palette colors.
+        let palette = vec![
+            Color::Rgb { r: 0, g: 50, b: 0 },
+            Color::Rgb { r: 0, g: 255, b: 0 },
+        ];
+        h.refresh_colors(&palette);
+        let after_colors: Vec<_> = h.cached_lines.iter().map(|(c, _)| *c).collect();
+        assert_eq!(
+            initial_colors, after_colors,
+            "refresh_colors must be a no-op when HUD is invisible"
+        );
+    }
+
+    #[test]
+    fn refresh_colors_updates_colors_without_touching_text() {
+        // When the HUD is visible, refresh_colors must update ONLY the
+        // Color half of each cached_lines tuple — the String half (text)
+        // is owned by the 1 Hz `update_metrics` tick and must be preserved
+        // between ticks. This is what enables instant color refresh on
+        // palette change without re-running the expensive format! calls.
+        let mut h = HudState::new();
+        h.toggle(); // visible
+                    // Seed the cached_lines with sentinel text so we can verify it
+                    // survives refresh_colors. (In production, update_metrics writes
+                    // the real text — here we just verify refresh_colors doesn't
+                    // touch it.)
+        for slot in &mut h.cached_lines {
+            slot.1 = "SENTINEL".to_string();
+        }
+        let palette = vec![
+            Color::Rgb { r: 0, g: 50, b: 0 },  // dim (idx 1 = trail-ish)
+            Color::Rgb { r: 0, g: 200, b: 0 }, // mid (n/2)
+            Color::Rgb { r: 0, g: 255, b: 0 }, // head (last)
+        ];
+        h.refresh_colors(&palette);
+        for (i, (color, text)) in h.cached_lines.iter().enumerate() {
+            assert_eq!(
+                text, "SENTINEL",
+                "refresh_colors must NOT touch text (line {i}), got: {text:?}"
+            );
+            // Every color must have been overwritten to a non-default value.
+            // The default new() colors include Color::Cyan, Color::Yellow,
+            // Color::Magenta, Color::Green, Color::DarkCyan. After refresh,
+            // all should be Rgb (brighten_color always returns Rgb except
+            // for the named-color conversion path which still returns Rgb).
+            assert!(
+                matches!(color, Color::Rgb { .. }),
+                "refresh_colors must overwrite line {i} color to Rgb, got: {color:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
+        // Rain-aesthetic gradient: the BOTTOM row (screensize, idx 7) must
+        // be the brightest `head` color (palette last stop), and the TOP
+        // row (fps, idx 0) must be the dimmest `dim` color (palette idx 1).
+        // This inverts the original mapping where fps/tgt/max were brightest
+        // at the top — the owner explicitly flagged the inversion: 'rain
+        // tail is dim head is white' (head leads at the bottom of a falling
+        // stream).
+        //
+        // We use a palette where head is pure white RGB(255,255,255) so the
+        // assertion is unambiguous, and dim is a dark green RGB(0,50,0)
+        // that brightens to RGB(0,200,0). The bottom row must be white
+        // (head); the top row must be green (dim).
+        let mut h = HudState::new();
+        h.toggle();
+        let palette = vec![
+            Color::Rgb { r: 0, g: 50, b: 0 },  // idx 0 (unused by gradient)
+            Color::Rgb { r: 0, g: 50, b: 0 },  // idx 1 → dim
+            Color::Rgb { r: 0, g: 100, b: 0 }, // idx 2 (n/4 = 1 for n=4) → trail
+            Color::Rgb { r: 0, g: 200, b: 0 }, // idx 3 (n/2 = 2) → mid
+            Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 255,
+            }, // idx 4 (last) → head (white)
+        ];
+        h.refresh_colors(&palette);
+        // Top row (fps, idx 0) = dim = RGB(0, 200, 0) (brightened from 0,50,0)
+        assert_eq!(
+            h.cached_lines[0].0,
+            Color::Rgb { r: 0, g: 200, b: 0 },
+            "top row (fps) must use `dim` (palette idx 1, brightened) — rain tail at top"
+        );
+        // Bottom row (screensize, idx 7) = head = RGB(255, 255, 255)
+        assert_eq!(
+            h.cached_lines[7].0,
+            Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 255
+            },
+            "bottom row (screensize) must use `head` (palette last stop) — rain head at bottom"
+        );
+        // The middle rows should NOT be white — they should be the
+        // brightened trail/mid greens, not the head.
+        assert_ne!(
+            h.cached_lines[2].0,
+            Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 255
+            },
+            "row 2 (p99) must NOT use head — only bottom 2 rows get head"
+        );
+        assert_ne!(
+            h.cached_lines[4].0,
+            Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 255
+            },
+            "row 4 (rss) must NOT use head — only bottom 2 rows get head"
+        );
+    }
+
+    #[test]
+    fn refresh_colors_picks_up_runtime_palette_change_immediately() {
+        // This is the core regression test for the "slight delay" bug:
+        // when the palette changes at runtime (c/C key, auto-color-drift,
+        // live-config reload), refresh_colors must pick up the new palette
+        // on the very next call — no rate limit, no 1-second wait.
+        //
+        // We simulate a palette change by calling refresh_colors twice
+        // with different palettes and verifying the HUD colors update
+        // on each call. With the old design (colors inside the 1 Hz
+        // update_metrics), the second call would have been a no-op
+        // because the rate limit hadn't elapsed.
+        let mut h = HudState::new();
+        h.toggle();
+        // First palette: green head.
+        let green_palette = vec![
+            Color::Rgb { r: 0, g: 50, b: 0 },
+            Color::Rgb { r: 0, g: 50, b: 0 },
+            Color::Rgb { r: 0, g: 255, b: 0 },
+        ];
+        h.refresh_colors(&green_palette);
+        let color_after_green = h.cached_lines[7].0; // bottom = head
+        assert_eq!(
+            color_after_green,
+            Color::Rgb { r: 0, g: 255, b: 0 },
+            "first refresh: bottom row must be green head"
+        );
+        // Second palette: amber head. NO time has elapsed — if refresh_colors
+        // were rate-limited, this would be a no-op and the color would stay
+        // green. With the split-out design, the color must update immediately.
+        let amber_palette = vec![
+            Color::Rgb { r: 50, g: 25, b: 0 },
+            Color::Rgb { r: 50, g: 25, b: 0 },
+            Color::Rgb {
+                r: 255,
+                g: 176,
+                b: 0,
+            },
+        ];
+        h.refresh_colors(&amber_palette);
+        let color_after_amber = h.cached_lines[7].0;
+        assert_eq!(
+            color_after_amber,
+            Color::Rgb {
+                r: 255,
+                g: 176,
+                b: 0
+            },
+            "second refresh (immediate, no rate-limit): bottom row must update to amber head — \
+             this is the core 'no delay on runtime palette change' guarantee"
+        );
+    }
+
+    #[test]
+    fn refresh_colors_gradient_uses_four_distinct_levels() {
+        // The 8 HUD rows use 4 color levels (dim, trail, mid, head), each
+        // spanning 2 consecutive rows. This test verifies the 4-level
+        // structure by using a palette where each level is a distinct,
+        // identifiable color, and asserting that:
+        //   rows 0,1 == dim
+        //   rows 2,3 == trail
+        //   rows 4,5 == mid
+        //   rows 6,7 == head
+        //
+        // Palette layout (8 stops, n=8) — chosen so the gradient indices
+        // (1, n/4=2, n/2=4, last=7) are all distinct:
+        //   idx 1 → dim    (distinct color: red)
+        //   idx 2 → trail  (distinct color: green)
+        //   idx 4 → mid    (distinct color: blue)
+        //   idx 7 → head   (white)
+        // All palette colors are already at TARGET_V or above, so
+        // brighten_color returns them unchanged — this makes the
+        // assertions exact (no integer-math surprise).
+        let mut h = HudState::new();
+        h.toggle();
+        let mut palette = vec![Color::Rgb { r: 0, g: 0, b: 0 }; 8]; // idx 0 unused
+        palette[1] = Color::Rgb { r: 200, g: 0, b: 0 }; // dim — already bright
+        palette[2] = Color::Rgb { r: 0, g: 200, b: 0 }; // trail — already bright
+        palette[4] = Color::Rgb { r: 0, g: 0, b: 200 }; // mid — already bright
+        palette[7] = Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        }; // head — white
+        h.refresh_colors(&palette);
+        // Pairs must match within each level.
+        assert_eq!(
+            h.cached_lines[0].0, h.cached_lines[1].0,
+            "rows 0,1 must share `dim`"
+        );
+        assert_eq!(
+            h.cached_lines[2].0, h.cached_lines[3].0,
+            "rows 2,3 must share `trail`"
+        );
+        assert_eq!(
+            h.cached_lines[4].0, h.cached_lines[5].0,
+            "rows 4,5 must share `mid`"
+        );
+        assert_eq!(
+            h.cached_lines[6].0, h.cached_lines[7].0,
+            "rows 6,7 must share `head`"
+        );
+        // And the 4 levels must be distinct from each other.
+        let dim = h.cached_lines[0].0;
+        let trail = h.cached_lines[2].0;
+        let mid = h.cached_lines[4].0;
+        let head = h.cached_lines[6].0;
+        assert_ne!(dim, trail, "dim and trail must be different colors");
+        assert_ne!(trail, mid, "trail and mid must be different colors");
+        assert_ne!(mid, head, "mid and head must be different colors");
+        // Verify the actual colors match what we put in the palette.
+        assert_eq!(
+            dim,
+            Color::Rgb { r: 200, g: 0, b: 0 },
+            "dim must be palette idx 1 (red)"
+        );
+        assert_eq!(
+            trail,
+            Color::Rgb { r: 0, g: 200, b: 0 },
+            "trail must be palette idx 2 (green)"
+        );
+        assert_eq!(
+            mid,
+            Color::Rgb { r: 0, g: 0, b: 200 },
+            "mid must be palette idx 4 (blue)"
+        );
+        assert_eq!(
+            head,
+            Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 255
+            },
+            "head must be palette idx 7 (white)"
+        );
+    }
+
+    #[test]
+    fn compute_rain_gradient_returns_dim_to_head_order() {
+        // The helper returns (head, mid, trail, dim) in that tuple order
+        // (head first, dim last) — callers unpack as `let (head, mid, trail, dim) = ...`.
+        // This test verifies the tuple ordering is correct and the 4 stops
+        // are picked from the right palette indices.
+        let palette = vec![
+            Color::Rgb { r: 0, g: 0, b: 0 },  // idx 0 (unused)
+            Color::Rgb { r: 50, g: 0, b: 0 }, // idx 1 → dim
+            Color::Rgb { r: 0, g: 50, b: 0 }, // idx 2 → trail (n/4 = 2 for n=8)
+            Color::Rgb { r: 0, g: 0, b: 50 }, // idx 3 (unused)
+            Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 0,
+            }, // idx 4 → mid (n/2 = 4)
+            Color::Rgb { r: 0, g: 0, b: 0 },  // idx 5 (unused)
+            Color::Rgb { r: 0, g: 0, b: 0 },  // idx 6 (unused)
+            Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 255,
+            }, // idx 7 → head (last)
+        ];
+        let (head, mid, trail, dim) = compute_rain_gradient(&palette);
+        // head = palette[7] = white (already bright, returned as-is).
+        assert_eq!(
+            head,
+            Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 255
+            }
+        );
+        // mid = palette[4] = RGB(100, 100, 0) — max=100 < TARGET_V(200),
+        // scale = 200, result = RGB(200, 200, 0).
+        assert_eq!(
+            mid,
+            Color::Rgb {
+                r: 200,
+                g: 200,
+                b: 0
+            }
+        );
+        // trail = palette[2] = RGB(0, 50, 0) — brightened to RGB(0, 200, 0).
+        assert_eq!(trail, Color::Rgb { r: 0, g: 200, b: 0 });
+        // dim = palette[1] = RGB(50, 0, 0) — brightened to RGB(200, 0, 0).
+        assert_eq!(dim, Color::Rgb { r: 200, g: 0, b: 0 });
     }
 }
