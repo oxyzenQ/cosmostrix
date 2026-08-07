@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Ambient phase scheduler — config-driven time-of-day scene/parameter switching.
+//! Ambient phase scheduler — config-driven time-of-day scene switching.
 //!
 //! Replaces the archived `adaptive-custom` subsystem (eliminated with the
 //! atmosphere engine at commit `07b44b5`). Unlike `adaptive-custom`, this
@@ -9,33 +9,38 @@
 //! smoothstep blend window) — the user explicitly asked for snappy phase
 //! boundaries, not the imperceptible 5-minute cross-fade the old engine used.
 //!
-//! ## Config format
+//! ## v30.2 config format (simplified — breaking change)
 //!
 //! ```text
-//! ambient.<HH-MM> = <color>, <scene>, [key=value, ...]
+//! ambient.<HH-MM> = <scene-name>
 //! ```
 //!
-//! - **`HH-MM`**: 24-hour time, zero-padded (`00-00` to `23-59`). The phase
-//!   becomes "active" at this wall-clock minute and stays active until the
-//!   next entry's boundary.
-//! - **Positional 1** (`color`): built-in scheme name (52 themes) OR a
-//!   `colors-custom.<name>` palette name. Optional — if omitted, color is
-//!   sticky (keeps previous value).
-//! - **Positional 2** (`scene`): built-in scene name (`matrix`, `monolith`,
-//!   `signal`, etc.). Optional — if omitted, scene is sticky.
-//! - **Optional `key=value` pairs**:
-//!   - `speed` — float in `[1.0, 100.0]` (asymmetric vs top-level `speed`
-//!     which is integer; float allows future lerp extension).
-//!   - `density` — float in `[0.01, 5.0]`.
-//!   - `fps` — integer in `[1, 120]`.
-//!   - `charset` — built-in charset name OR `charset-custom.<name>`.
-//!   - `glitch-level` — one of `none`, `subtle`, `default`, `intense`.
+//! The value is a **single scene name** — either a built-in scene
+//! (`cinematic`, `signal`, `monolith`, etc.) or a custom scene defined via
+//! `[scene-custom.<name>]`. All parameters (color, charset, speed, density,
+//! fps, glitch-level, rain_style) live inside the scene itself, eliminating
+//! the precedence confusion that plagued the v30.0/v30.1 multi-field format.
 //!
-//! ## Sticky semantics
+//! ### Migration from v30.1 multi-field format
 //!
-//! Fields not specified in a phase entry keep the previous value (the engine
-//! does NOT reset unspecified fields to defaults when transitioning between
-//! phases). This matches the archived `adaptive-custom` contract.
+//! v30.1 accepted `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`.
+//! v30.2 rejects this with a migration error. To preserve the entry, define
+//! a custom scene that captures the same parameters and reference it:
+//!
+//! ```toml
+//! [scene-custom.afternoon]
+//! base-scene = "signal"          # inherits signal's rain_style + defaults
+//! color = "neon-purple"          # overrides signal's color
+//! speed = "50"                   # overrides signal's speed
+//! density = "0.65"               # overrides signal's density
+//!
+//! ambient.15-00 = afternoon
+//! ```
+//!
+//! This separates concerns cleanly: the schedule says WHEN, the scene says
+//! WHAT. There is no override-precedence bug surface because the scene IS
+//! the source of truth — no field can be "lost" between the scene switch
+//! and the override layer.
 //!
 //! ## Dynamic idle/wake scheduler
 //!
@@ -61,11 +66,12 @@
 //! ## Instant switch
 //!
 //! There is no blend window. When the scheduler fires a phase entry, the
-//! scene/color/charset/speed/density/glitch-level are applied immediately
-//! via [`Cloud::apply_ambient_entry`]. The only visual smoothing comes from
-//! the existing `transition_chars` and `transition_rain_style` machinery
-//! (glyph warm-start, rain-style pool reset) — those are required for
-//! correctness (preventing ghosting), not for cinematic blending.
+//! scene is applied immediately via [`Cloud::apply_ambient_entry`] (which
+//! delegates to [`Cloud::apply_scene_runtime_with_cfg`]). The only visual
+//! smoothing comes from the existing `transition_chars` and
+//! `transition_rain_style` machinery (glyph warm-start, rain-style pool
+//! reset) — those are required for correctness (preventing ghosting), not
+//! for cinematic blending.
 
 use std::collections::HashMap;
 
@@ -79,31 +85,24 @@ pub(crate) const AMBIENT_NAMESPACE: &str = "ambient";
 /// mistake. The cap also bounds the sort cost (O(n log n)) at parse time.
 pub(crate) const AMBIENT_MAX_ENTRIES: usize = 256;
 
-/// One entry in the ambient schedule. Parsed from `ambient.HH-MM = ...`.
+/// One entry in the ambient schedule. Parsed from `ambient.HH-MM = <scene>`.
 ///
-/// All optional fields implement **sticky semantics**: when `None`, the
-/// previous phase's value is retained (the engine does NOT reset to default).
-/// `hour` and `minute` are always present (they are the key, not the value).
+/// v30.2: simplified from a 7-field struct (color/scene/speed/density/fps/
+/// charset/glitch_level) to just `scene`. All parameters now live inside the
+/// referenced scene (built-in or `[scene-custom.<name>]`). This eliminates
+/// the override-precedence bugs that plagued v30.0/v30.1 (e.g. `speed=50`
+/// being silently overridden by the scene's default `speed=12`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct AmbientEntry {
     /// Hour portion of the `HH-MM` key (0–23).
     pub hour: u32,
     /// Minute portion of the `HH-MM` key (0–59).
     pub minute: u32,
-    /// Positional 1: color scheme name (built-in OR `colors-custom.<name>`).
-    pub color: Option<String>,
-    /// Positional 2: scene name (`matrix`, `monolith`, `signal`, …).
-    pub scene: Option<String>,
-    /// Optional `speed=N` (float 1.0–100.0).
-    pub speed: Option<f32>,
-    /// Optional `density=N` (float 0.01–5.0).
-    pub density: Option<f32>,
-    /// Optional `fps=N` (integer 1–120).
-    pub fps: Option<u32>,
-    /// Optional `charset=<name>` (built-in OR `charset-custom.<name>`).
-    pub charset: Option<String>,
-    /// Optional `glitch-level=<none|subtle|default|intense>`.
-    pub glitch_level: Option<String>,
+    /// Scene name to switch to at this phase boundary. Must be a built-in
+    /// scene name (`cinematic`, `signal`, `monolith`, etc.) OR a custom
+    /// scene name defined via `[scene-custom.<name>]`. Validation happens
+    /// in [`validate_ambient_entries`].
+    pub scene: String,
 }
 
 impl AmbientEntry {
@@ -251,165 +250,63 @@ fn is_valid_hh_mm(s: &str) -> bool {
 
 /// Parse the value side of `ambient.<HH-MM> = <value>`.
 ///
-/// Format: `<color>, <scene>, [key=value, ...]`
+/// v30.2 format: `<scene-name>` — a single token, no commas, no `key=value`
+/// pairs. The value must be a built-in scene name OR a custom scene name
+/// defined via `[scene-custom.<name>]`.
 ///
-/// - Positional 1 (`color`): optional — if the first non-`key=value` token
-///   is not a recognized color scheme name, it is treated as missing and
-///   the parser tries to interpret it as the scene. This is forgiving: the
-///   user may write `ambient.12-00 = monolith, speed=15` (color omitted).
-/// - Positional 2 (`scene`): optional — same forgiving logic.
-/// - `key=value` tokens: `speed`, `density`, `fps`, `charset`, `glitch-level`.
-///   Unknown keys are returned as `Err`.
+/// # Errors
 ///
-/// Returns `AmbientEntry` with `hour`/`minute` unset (the caller fills them
-/// in from the config key). Validation of value ranges happens here; unknown
-/// color/scene/charset names are NOT validated here (they are validated at
-/// apply time and by `--testconf`).
+/// Returns `Err` with a migration message if the value contains `,` or `=`,
+/// indicating the user is still using the v30.1 multi-field format. The
+/// migration message shows exactly how to convert the entry to the new
+/// format using a `[scene-custom.<name>]` block with `base-scene`.
+///
+/// Returns `Err` if the value is empty or whitespace-only.
 pub(crate) fn parse_ambient_value(value: &str) -> Result<AmbientEntry, String> {
-    let mut entry = AmbientEntry {
-        hour: 0,
-        minute: 0,
-        color: None,
-        scene: None,
-        speed: None,
-        density: None,
-        fps: None,
-        charset: None,
-        glitch_level: None,
-    };
-
-    let mut positionals: Vec<String> = Vec::new();
-
-    for raw_token in value.split(',') {
-        let token = raw_token.trim();
-        if token.is_empty() {
-            continue;
-        }
-        if let Some((k, v)) = token.split_once('=') {
-            let k = k.trim().to_ascii_lowercase();
-            let v = v.trim();
-            if v.is_empty() {
-                return Err(format!("ambient: empty value for '{k}' in '{value}'"));
-            }
-            match k.as_str() {
-                "speed" => {
-                    let n: f32 = v
-                        .parse()
-                        .map_err(|_| format!("ambient: speed='{v}' is not a number"))?;
-                    if !(1.0..=100.0).contains(&n) {
-                        return Err(format!("ambient: speed={n} out of range [1.0, 100.0]"));
-                    }
-                    entry.speed = Some(n);
-                }
-                "density" => {
-                    let n: f32 = v
-                        .parse()
-                        .map_err(|_| format!("ambient: density='{v}' is not a number"))?;
-                    if !(0.01..=5.0).contains(&n) {
-                        return Err(format!("ambient: density={n} out of range [0.01, 5.0]"));
-                    }
-                    entry.density = Some(n);
-                }
-                "fps" => {
-                    let n: u32 = v
-                        .parse()
-                        .map_err(|_| format!("ambient: fps='{v}' is not an integer"))?;
-                    if !(1..=120).contains(&n) {
-                        return Err(format!("ambient: fps={n} out of range [1, 120]"));
-                    }
-                    entry.fps = Some(n);
-                }
-                "charset" => {
-                    entry.charset = Some(v.to_string());
-                }
-                "glitch-level" => {
-                    let normalized = v.to_ascii_lowercase();
-                    if !matches!(
-                        normalized.as_str(),
-                        "none" | "subtle" | "default" | "intense"
-                    ) {
-                        return Err(format!(
-                            "ambient: glitch-level='{v}' not in [none, subtle, default, intense]"
-                        ));
-                    }
-                    entry.glitch_level = Some(normalized);
-                }
-                _ => {
-                    return Err(format!(
-                        "ambient: unknown key '{k}' in '{value}' (allowed: speed, density, fps, charset, glitch-level)"
-                    ));
-                }
-            }
-        } else {
-            positionals.push(token.to_string());
-        }
+    let scene = value.trim().to_string();
+    if scene.is_empty() {
+        return Err("ambient: empty scene name".to_string());
     }
-
-    // Assign positionals: 1st = color, 2nd = scene (per archived spec).
-    //
-    // Forgiving logic for the ambiguous case where the first positional is
-    // a valid scene name but NOT a valid color name — the user almost
-    // certainly meant "scene only, color omitted" (e.g. `ambient.12-00 =
-    // monolith, speed=15`). Without this, `monolith` would be treated as a
-    // color and fail validation, forcing the user to write
-    // `scene=monolith, speed=15` instead.
-    //
-    // When the first positional is BOTH a valid color AND a valid scene
-    // (e.g. `cosmos`), we default to color (per archived spec: 1st
-    // positional is color). The user can disambiguate by providing a 2nd
-    // positional scene, or by using `key=value` syntax.
-    //
-    // UX guard (v30.1+): more than 2 positionals is almost certainly a
-    // mistake — the user thought positional 3+ would be parsed as something
-    // (most commonly `charset`, sometimes `glitch-level`). Without this
-    // guard, positionals[2..] were silently dropped, producing confusing
-    // downstream errors like "unknown scene 'binary'" (because the user
-    // wrote `cosmos, signal, binary, speed=12` thinking `binary` was the
-    // charset). Now we error early with a suggestion that names the actual
-    // keyword form for each extra positional.
-    if positionals.len() > 2 {
-        let extras: Vec<&str> = positionals[2..].iter().map(String::as_str).collect();
-        let suggestions: Vec<String> = extras
-            .iter()
-            .map(|extra| {
-                // If the extra matches a known charset preset, suggest
-                // `charset=<extra>`. Otherwise, hint at the generic
-                // `key=value` form and let downstream validation surface
-                // a more specific error if the user really did mean a
-                // key=value they forgot to write `=` for.
-                if crate::cli::all_charset_presets().contains(extra) {
-                    format!("did you mean charset={extra}?")
-                } else {
-                    "did you mean a key=value pair (e.g. speed=15, density=0.65, fps=30, charset=..., glitch-level=...)?".to_string()
-                }
-            })
-            .collect();
+    // v30.2: detect legacy multi-field format and surface a migration
+    // message. The user almost certainly has a v30.1 config like
+    // `ambient.15-00 = neon-purple, signal, speed=50, density=0.65` and
+    // needs to convert it to a custom scene block.
+    if scene.contains(',') || scene.contains('=') {
         return Err(format!(
-            "ambient: too many positional args in '{value}' — only 2 are allowed (color, scene). Extra positional(s) [{}] silently ignored. {}",
-            extras.join(", "),
-            suggestions.join(" ")
+            "ambient: legacy multi-field format no longer supported (got '{value}').\n\
+             \n\
+             v30.2 simplified ambient entries to a single scene name. To preserve\n\
+             this entry, define a custom scene that captures the same parameters\n\
+             and reference it by name:\n\
+             \n\
+             [scene-custom.<name>]\n\
+             base-scene = \"<original-scene>\"   # if you had a scene positional\n\
+             color = \"<original-color>\"         # if you had a color positional\n\
+             speed = \"<original-speed>\"         # if you had speed=...\n\
+             density = \"<original-density>\"     # if you had density=...\n\
+             fps = \"<original-fps>\"             # if you had fps=...\n\
+             charset = \"<original-charset>\"     # if you had charset=...\n\
+             glitch-level = \"<original-level>\"  # if you had glitch-level=...\n\
+             \n\
+             ambient.<HH-MM> = <name>\n\
+             \n\
+             Example: `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`\n\
+             becomes:\n\
+             \n\
+             [scene-custom.afternoon]\n\
+             base-scene = \"signal\"\n\
+             color = \"neon-purple\"\n\
+             speed = \"50\"\n\
+             density = \"0.65\"\n\
+             \n\
+             ambient.15-00 = afternoon"
         ));
     }
-    if let Some(first) = positionals.first() {
-        let is_color = crate::cli::parse_color_scheme(first).is_ok();
-        let is_scene = crate::scene::get_scene(first).is_some();
-        match (is_color, is_scene) {
-            (false, true) => {
-                // Scene only — color omitted.
-                entry.scene = Some(first.clone());
-            }
-            _ => {
-                // Color (or ambiguous, or neither — validation catches
-                // neither later). 2nd positional becomes scene.
-                entry.color = Some(first.clone());
-                if let Some(second) = positionals.get(1) {
-                    entry.scene = Some(second.clone());
-                }
-            }
-        }
-    }
-
-    Ok(entry)
+    Ok(AmbientEntry {
+        hour: 0,
+        minute: 0,
+        scene,
+    })
 }
 
 /// Collect all `ambient.*` entries from a flat config map and return a
@@ -461,18 +358,16 @@ pub(crate) fn collect_ambient_schedule(cfg: &HashMap<String, String>) -> Ambient
 /// `Err(message)` on the first invalid entry — the caller surfaces this as
 /// exit code 2 (matches the rest of the strict validation contract).
 ///
-/// Validation rules:
-/// - Value must parse (no unknown `key=value` keys, no out-of-range numbers).
-/// - `color` (if present) must be a recognized built-in scheme OR a
-///   `colors-custom.<name>` block that exists in the config.
-/// - `scene` (if present) must be a recognized built-in scene.
-/// - `charset` (if present) must be a recognized built-in charset OR a
-///   `charset-custom.<name>` block that exists in the config.
-/// - `glitch-level` must be one of `none`, `subtle`, `default`, `intense`.
+/// v30.2 validation rules:
+/// - Value must parse as a single scene name (no commas, no `=`).
+/// - The scene name must be a recognized built-in scene OR a
+///   `[scene-custom.<name>]` block that exists in the config.
 pub(crate) fn validate_ambient_entries(cfg: &HashMap<String, String>) -> Result<(), String> {
     // Sort keys for deterministic error ordering (BTreeMap iteration).
     let mut keys: Vec<&String> = cfg.keys().filter(|k| k.starts_with("ambient.")).collect();
     keys.sort();
+
+    let custom_scenes = crate::scene_custom::collect_custom_scenes(cfg);
 
     for key in keys {
         let value = &cfg[key];
@@ -484,46 +379,25 @@ pub(crate) fn validate_ambient_entries(cfg: &HashMap<String, String>) -> Result<
         }
         let entry = parse_ambient_value(value).map_err(|e| format!("{key}: {e}"))?;
 
-        // Validate color (if present) — built-in OR colors-custom.<name>.
-        if let Some(color) = &entry.color {
-            if crate::cli::parse_color_scheme(color).is_err()
-                && !crate::colors_custom::is_colors_custom_name(cfg, color)
-            {
-                return Err(format!(
-                    "{key}: unknown color '{color}' (not a built-in scheme and no [colors-custom.{color}] block)"
-                ));
-            }
-        }
-
-        // Validate scene (if present) — built-in only.
-        if let Some(scene) = &entry.scene {
-            if crate::scene::get_scene(scene).is_none() {
-                // UX hint (v30.1+): if the rejected scene name is actually
-                // a known charset preset, the user almost certainly wrote
-                // `ambient.12-00 = cosmos, signal, binary, speed=12`
-                // expecting `binary` to be picked up as the charset.
-                // Surface a direct `charset=<name>` suggestion so they can
-                // fix the entry without reading the parser source.
-                let hint = if crate::cli::all_charset_presets().contains(&scene.as_str()) {
-                    format!(" — '{scene}' is a charset name; did you mean charset={scene}?")
-                } else {
-                    String::new()
-                };
-                return Err(format!(
-                    "{key}: unknown scene '{scene}' (see --list-scenes){hint}"
-                ));
-            }
-        }
-
-        // Validate charset (if present) — built-in OR charset-custom.<name>.
-        if let Some(charset) = &entry.charset {
-            if crate::charset::charset_from_str(charset, false).is_err()
-                && crate::charset_custom::load_custom_charset_if_matches(cfg, charset).is_none()
-            {
-                return Err(format!(
-                    "{key}: unknown charset '{charset}' (not a built-in charset and no [charset-custom.{charset}] block)"
-                ));
-            }
+        // Validate scene name — must be a built-in scene OR a defined
+        // [scene-custom.<name>] block.
+        let scene = &entry.scene;
+        let is_builtin = crate::scene::get_scene(scene).is_some();
+        let is_custom = custom_scenes.contains_key(&scene.to_ascii_lowercase());
+        if !is_builtin && !is_custom {
+            // UX hint: if the value contains commas or `=`, the user is
+            // almost certainly still using the v30.1 multi-field format.
+            // The parse_ambient_value error already covers this case with
+            // a full migration message, but we re-surface a shorter hint
+            // here in case the value slipped through (e.g. quoted CSV).
+            let hint = if scene.contains(',') || scene.contains('=') {
+                " — v30.2 requires a single scene name; see migration guide in --testconf output above"
+            } else {
+                ""
+            };
+            return Err(format!(
+                "{key}: unknown scene '{scene}' (not a built-in scene and no [scene-custom.{scene}] block; see --list-scenes){hint}"
+            ));
         }
     }
     Ok(())
@@ -618,244 +492,116 @@ mod tests {
         assert!(!is_ambient_config_key("ambient")); // no suffix
     }
 
-    // ── parse_ambient_value ──
+    // ── parse_ambient_value (v30.2: single scene name) ──
 
     #[test]
-    fn parses_color_scene_positional() {
-        let e = parse_ambient_value("cosmos, monolith").unwrap();
-        assert_eq!(e.color.as_deref(), Some("cosmos"));
-        assert_eq!(e.scene.as_deref(), Some("monolith"));
-        assert!(e.speed.is_none());
-        assert!(e.density.is_none());
+    fn parses_single_builtin_scene_name() {
+        let e = parse_ambient_value("signal").unwrap();
+        assert_eq!(e.scene, "signal");
     }
 
     #[test]
-    fn parses_color_scene_and_kv_pairs() {
-        let e = parse_ambient_value("cosmos, monolith, speed=15, density=1.2").unwrap();
-        assert_eq!(e.color.as_deref(), Some("cosmos"));
-        assert_eq!(e.scene.as_deref(), Some("monolith"));
-        assert_eq!(e.speed, Some(15.0));
-        assert_eq!(e.density, Some(1.2));
+    fn parses_single_custom_scene_name() {
+        let e = parse_ambient_value("afternoon").unwrap();
+        assert_eq!(e.scene, "afternoon");
     }
 
     #[test]
-    fn forgives_omitted_color_when_first_positional_is_scene() {
-        // User wrote "monolith, speed=15" (color omitted).
-        let e = parse_ambient_value("monolith, speed=15").unwrap();
-        assert!(e.color.is_none());
-        assert_eq!(e.scene.as_deref(), Some("monolith"));
-        assert_eq!(e.speed, Some(15.0));
+    fn parses_name_with_surrounding_whitespace() {
+        let e = parse_ambient_value("  signal  ").unwrap();
+        assert_eq!(e.scene, "signal");
     }
 
     #[test]
-    fn parses_kv_only_no_positionals() {
-        let e = parse_ambient_value("speed=15, density=1.2").unwrap();
-        assert!(e.color.is_none());
-        assert!(e.scene.is_none());
-        assert_eq!(e.speed, Some(15.0));
-        assert_eq!(e.density, Some(1.2));
+    fn parses_name_with_underscores_and_dashes() {
+        let e = parse_ambient_value("night_mode").unwrap();
+        assert_eq!(e.scene, "night_mode");
+        let e = parse_ambient_value("night-mode").unwrap();
+        assert_eq!(e.scene, "night-mode");
     }
 
     #[test]
-    fn handles_extra_whitespace() {
-        let e = parse_ambient_value("  cosmos ,  monolith ,  speed = 15  ").unwrap();
-        assert_eq!(e.color.as_deref(), Some("cosmos"));
-        assert_eq!(e.scene.as_deref(), Some("monolith"));
-        assert_eq!(e.speed, Some(15.0));
+    fn rejects_empty_value() {
+        assert!(parse_ambient_value("").is_err());
+        assert!(parse_ambient_value("   ").is_err());
     }
 
-    #[test]
-    fn rejects_unknown_kv_key() {
-        let err = parse_ambient_value("cosmos, monolith, brightness=0.5").unwrap_err();
-        assert!(err.contains("unknown key 'brightness'"));
-    }
+    // ── v30.2 migration: legacy multi-field format must produce a
+    //    helpful migration error, NOT silently drop fields. ──
 
     #[test]
-    fn rejects_speed_out_of_range() {
-        assert!(parse_ambient_value("cosmos, speed=0.5").is_err());
-        assert!(parse_ambient_value("cosmos, speed=150").is_err());
-        assert!(parse_ambient_value("cosmos, speed=1.0").is_ok());
-        assert!(parse_ambient_value("cosmos, speed=100.0").is_ok());
-    }
-
-    #[test]
-    fn rejects_density_out_of_range() {
-        assert!(parse_ambient_value("cosmos, density=0.0").is_err());
-        assert!(parse_ambient_value("cosmos, density=5.5").is_err());
-        assert!(parse_ambient_value("cosmos, density=0.01").is_ok());
-        assert!(parse_ambient_value("cosmos, density=5.0").is_ok());
-    }
-
-    #[test]
-    fn rejects_fps_out_of_range() {
-        assert!(parse_ambient_value("cosmos, fps=0").is_err());
-        assert!(parse_ambient_value("cosmos, fps=121").is_err());
-        assert!(parse_ambient_value("cosmos, fps=1").is_ok());
-        assert!(parse_ambient_value("cosmos, fps=120").is_ok());
-    }
-
-    #[test]
-    fn rejects_invalid_glitch_level() {
-        assert!(parse_ambient_value("cosmos, glitch-level=ultra").is_err());
-        assert!(parse_ambient_value("cosmos, glitch-level=high").is_err());
-        assert!(parse_ambient_value("cosmos, glitch-level=medium").is_err());
-        assert!(parse_ambient_value("cosmos, glitch-level=low").is_err());
-        assert!(parse_ambient_value("cosmos, glitch-level=none").is_ok());
-        assert!(parse_ambient_value("cosmos, glitch-level=subtle").is_ok());
-        assert!(parse_ambient_value("cosmos, glitch-level=default").is_ok());
-        assert!(parse_ambient_value("cosmos, glitch-level=intense").is_ok());
-    }
-
-    #[test]
-    fn rejects_empty_kv_value() {
-        let err = parse_ambient_value("cosmos, speed=").unwrap_err();
-        assert!(err.contains("empty value for 'speed'"));
-    }
-
-    #[test]
-    fn rejects_non_numeric_speed() {
-        assert!(parse_ambient_value("cosmos, speed=fast").is_err());
-    }
-
-    // ── UX guard: too many positionals ──
-
-    #[test]
-    fn rejects_third_positional_with_charset_suggestion() {
-        // Reproduces the user's original confusion:
-        //   ambient.13-00 = cosmos, signal, binary, speed=12, density=0.65
-        // The user thought `binary` would be picked up as the charset.
-        // Without the UX guard, `binary` was silently dropped and the
-        // downstream validator complained about "unknown scene 'binary'"
-        // (because positional 2 = `signal`, then the parser tried to
-        // promote positional 3 = `binary` to scene in some code paths).
-        // Now we error early with a direct `charset=binary` suggestion.
-        let err = parse_ambient_value("cosmos, signal, binary, speed=12, density=0.65")
-            .expect_err("3rd positional must be rejected");
-        assert!(err.contains("too many positional args"), "got: {err}");
+    fn rejects_legacy_multifield_format_with_migration_message() {
+        // User's exact v30.1 config from the bug report — must surface
+        // a migration error pointing to [scene-custom.*] + base-scene.
+        let err = parse_ambient_value("neon-purple, signal, speed=50, density=0.65")
+            .expect_err("legacy format must be rejected");
         assert!(
-            err.contains("charset=binary"),
-            "error should suggest charset=binary, got: {err}"
-        );
-    }
-
-    #[test]
-    fn rejects_third_positional_with_generic_hint_when_not_charset() {
-        // When the 3rd positional is NOT a known charset name, the error
-        // should still fire and hint at the generic `key=value` form.
-        let err = parse_ambient_value("cosmos, monolith, fastspeed")
-            .expect_err("3rd positional must be rejected");
-        assert!(err.contains("too many positional args"));
-        assert!(
-            err.contains("key=value"),
-            "error should hint at key=value form, got: {err}"
+            err.contains("legacy multi-field format no longer supported"),
+            "missing migration header: {err}"
         );
         assert!(
-            !err.contains("charset=fastspeed"),
-            "should NOT suggest charset= for non-charset name, got: {err}"
+            err.contains("[scene-custom.<name>]"),
+            "missing scene-custom hint: {err}"
+        );
+        assert!(err.contains("base-scene"), "missing base-scene hint: {err}");
+        assert!(
+            err.contains("ambient.<HH-MM> = <name>"),
+            "missing new format example: {err}"
         );
     }
 
     #[test]
-    fn accepts_exactly_two_positionals_plus_kv() {
-        // Sanity: 2 positionals (color, scene) + any number of key=value
-        // pairs must still parse cleanly. The UX guard only fires for
-        // 3+ positionals, NOT for 2 positionals + many kv pairs.
-        let e = parse_ambient_value(
-            "cosmos, monolith, speed=15, density=1.0, fps=60, charset=zen, glitch-level=subtle",
-        )
-        .expect("2 positionals + 5 kv pairs must parse");
-        assert_eq!(e.color.as_deref(), Some("cosmos"));
-        assert_eq!(e.scene.as_deref(), Some("monolith"));
-        assert_eq!(e.speed, Some(15.0));
-        assert_eq!(e.density, Some(1.0));
-        assert_eq!(e.fps, Some(60));
-        assert_eq!(e.charset.as_deref(), Some("zen"));
-        assert_eq!(e.glitch_level.as_deref(), Some("subtle"));
+    fn rejects_legacy_color_scene_positional_only() {
+        // Even just `cosmos, monolith` (no kv pairs) is v30.1 format.
+        let err = parse_ambient_value("cosmos, monolith")
+            .expect_err("comma must trigger migration error");
+        assert!(err.contains("legacy multi-field format"));
     }
 
     #[test]
-    fn parses_user_repro_signal_hex_cosmos() {
-        // Regression: user's exact config from bug report —
-        //   ambient.13-00 = cosmos, signal, charset=hex, speed=12, density=0.65
-        // "cosmos" is BOTH a color theme AND a scene name, so the parser
-        // must still pick (color=cosmos, scene=signal) via the ambiguous
-        // (is_color=true, is_scene=true) branch.
-        let e = parse_ambient_value("cosmos, signal, charset=hex, speed=12, density=0.65")
-            .expect("user's exact entry must parse");
-        assert_eq!(e.color.as_deref(), Some("cosmos"), "color field lost");
-        assert_eq!(e.scene.as_deref(), Some("signal"), "scene field lost");
-        assert_eq!(e.charset.as_deref(), Some("hex"), "charset field lost");
-        assert_eq!(e.speed, Some(12.0), "speed field lost");
-        assert_eq!(e.density, Some(0.65), "density field lost");
-        assert!(e.fps.is_none());
-        assert!(e.glitch_level.is_none());
+    fn rejects_legacy_kv_only_format() {
+        // `speed=15, density=1.2` (no positionals) is also v30.1 format.
+        let err = parse_ambient_value("speed=15, density=1.2")
+            .expect_err("equals sign must trigger migration error");
+        assert!(err.contains("legacy multi-field format"));
     }
 
     #[test]
-    fn collect_ambient_schedule_preserves_all_fields_from_user_repro() {
-        // Regression for bug report (2026-08-07): user reported that
-        //   ambient.13-00 = cosmos, signal, charset=hex, speed=12, density=0.65
-        // fired correctly (scene changed) but the verbose final-runtime-state
-        // diff showed ONLY scene change — color/charset/speed/density were
-        // silently lost. This test verifies the parser → schedule pipeline
-        // keeps every field.
-        let mut cfg = std::collections::HashMap::new();
-        cfg.insert(
-            "ambient.13-00".to_string(),
-            "cosmos, signal, charset=hex, speed=12, density=0.65".to_string(),
+    fn migration_message_includes_user_repro_example() {
+        // The user's exact bug-report config should appear in the message
+        // so they can copy-paste the migration target.
+        let err = parse_ambient_value("neon-purple, signal, speed=50, density=0.65").unwrap_err();
+        assert!(
+            err.contains("ambient.15-00 = neon-purple, signal, speed=50, density=0.65"),
+            "migration message should include the user's repro example: {err}"
         );
-        let s = collect_ambient_schedule(&cfg);
-        assert_eq!(s.entries.len(), 1, "schedule should have 1 entry");
-        let e = &s.entries[0];
-        assert_eq!(e.hour, 13);
-        assert_eq!(e.minute, 0);
-        assert_eq!(e.color.as_deref(), Some("cosmos"), "color lost in schedule");
-        assert_eq!(e.scene.as_deref(), Some("signal"), "scene lost in schedule");
-        assert_eq!(
-            e.charset.as_deref(),
-            Some("hex"),
-            "charset lost in schedule"
+        assert!(
+            err.contains("[scene-custom.afternoon]"),
+            "migration message should include the afternoon example: {err}"
         );
-        assert_eq!(e.speed, Some(12.0), "speed lost in schedule");
-        assert_eq!(e.density, Some(0.65), "density lost in schedule");
     }
 
-    // ── AmbientSchedule::current_phase ──
+    // ── AmbientSchedule helpers (current_phase / next_phase / seconds_to_next_phase) ──
+
+    /// Helper: build a minimal entry for schedule tests.
+    fn entry(h: u32, m: u32, scene: &str) -> AmbientEntry {
+        AmbientEntry {
+            hour: h,
+            minute: m,
+            scene: scene.to_string(),
+        }
+    }
 
     #[test]
     fn current_phase_finds_latest_before_now() {
         let s = AmbientSchedule {
-            entries: vec![
-                AmbientEntry {
-                    hour: 0,
-                    minute: 0,
-                    color: Some("cosmos".into()),
-                    scene: Some("monolith".into()),
-                    speed: None,
-                    density: None,
-                    fps: None,
-                    charset: None,
-                    glitch_level: None,
-                },
-                AmbientEntry {
-                    hour: 12,
-                    minute: 0,
-                    color: Some("aurora".into()),
-                    scene: Some("matrix".into()),
-                    speed: None,
-                    density: None,
-                    fps: None,
-                    charset: None,
-                    glitch_level: None,
-                },
-            ],
+            entries: vec![entry(0, 0, "cinematic"), entry(12, 0, "signal")],
         };
         // 12:30 → current is 12:00
         assert_eq!(s.current_phase(12 * 60 + 30).unwrap().hour, 12);
         // 11:59 → current is 00:00 (12:00 not yet fired)
         assert_eq!(s.current_phase(11 * 60 + 59).unwrap().hour, 0);
-        // 13:00 next day → wraps to 12:00 (last entry of today)
-        // Actually 13:00 = 780 min, last entry is 12:00=720, so 720<=780 → current = 12:00
+        // 13:00 → current is 12:00 (last entry <= 13:00)
         assert_eq!(s.current_phase(13 * 60).unwrap().hour, 12);
     }
 
@@ -864,30 +610,7 @@ mod tests {
         // 2 entries: 06:00, 18:00. now=03:00 → no entry has fired today,
         // wrap to last entry (18:00 from yesterday).
         let s = AmbientSchedule {
-            entries: vec![
-                AmbientEntry {
-                    hour: 6,
-                    minute: 0,
-                    color: None,
-                    scene: None,
-                    speed: None,
-                    density: None,
-                    fps: None,
-                    charset: None,
-                    glitch_level: None,
-                },
-                AmbientEntry {
-                    hour: 18,
-                    minute: 0,
-                    color: None,
-                    scene: None,
-                    speed: None,
-                    density: None,
-                    fps: None,
-                    charset: None,
-                    glitch_level: None,
-                },
-            ],
+            entries: vec![entry(6, 0, "matrix"), entry(18, 0, "monolith")],
         };
         let cur = s.current_phase(3 * 60).unwrap();
         assert_eq!(cur.hour, 18);
@@ -899,35 +622,10 @@ mod tests {
         assert!(s.current_phase(0).is_none());
     }
 
-    // ── AmbientSchedule::next_phase ──
-
     #[test]
     fn next_phase_finds_earliest_after_now() {
         let s = AmbientSchedule {
-            entries: vec![
-                AmbientEntry {
-                    hour: 0,
-                    minute: 0,
-                    color: None,
-                    scene: None,
-                    speed: None,
-                    density: None,
-                    fps: None,
-                    charset: None,
-                    glitch_level: None,
-                },
-                AmbientEntry {
-                    hour: 12,
-                    minute: 0,
-                    color: None,
-                    scene: None,
-                    speed: None,
-                    density: None,
-                    fps: None,
-                    charset: None,
-                    glitch_level: None,
-                },
-            ],
+            entries: vec![entry(0, 0, "cinematic"), entry(12, 0, "signal")],
         };
         // 11:00 → next is 12:00
         assert_eq!(s.next_phase(11 * 60).unwrap().hour, 12);
@@ -941,22 +639,10 @@ mod tests {
         assert!(s.next_phase(0).is_none());
     }
 
-    // ── AmbientSchedule::seconds_to_next_phase ──
-
     #[test]
     fn seconds_to_next_phase_normal_case() {
         let s = AmbientSchedule {
-            entries: vec![AmbientEntry {
-                hour: 12,
-                minute: 0,
-                color: None,
-                scene: None,
-                speed: None,
-                density: None,
-                fps: None,
-                charset: None,
-                glitch_level: None,
-            }],
+            entries: vec![entry(12, 0, "signal")],
         };
         // now = 11:00:00 (660 min, 0 sec). next = 12:00:00 (720 min). diff = 60*60 = 3600 sec.
         assert_eq!(s.seconds_to_next_phase(660, 0), Some(3600));
@@ -967,20 +653,10 @@ mod tests {
     #[test]
     fn seconds_to_next_phase_wraps_midnight() {
         let s = AmbientSchedule {
-            entries: vec![AmbientEntry {
-                hour: 6,
-                minute: 0,
-                color: None,
-                scene: None,
-                speed: None,
-                density: None,
-                fps: None,
-                charset: None,
-                glitch_level: None,
-            }],
+            entries: vec![entry(6, 0, "matrix")],
         };
         // now = 23:00:00 (1380 min). next = 06:00:00 tomorrow (360 min).
-        // diff = (24*60 - 1380 + 360) * 60 = (1440 - 1380 + 360) * 60 = 420 * 60 = 25200 sec.
+        // diff = (24*60 - 1380 + 360) * 60 = 420 * 60 = 25200 sec.
         // Capped at 3600.
         assert_eq!(s.seconds_to_next_phase(1380, 0), Some(3600));
     }
@@ -996,114 +672,120 @@ mod tests {
     #[test]
     fn collect_sorts_entries_by_time() {
         let mut cfg = HashMap::new();
-        cfg.insert("ambient.18-00".into(), "neon, monolith".into());
-        cfg.insert("ambient.06-00".into(), "aurora, matrix".into());
-        cfg.insert("ambient.12-00".into(), "cosmos, monolith".into());
+        cfg.insert("ambient.18-00".into(), "monolith".into());
+        cfg.insert("ambient.06-00".into(), "matrix".into());
+        cfg.insert("ambient.12-00".into(), "signal".into());
         let s = collect_ambient_schedule(&cfg);
         assert_eq!(s.entries.len(), 3);
         assert_eq!(s.entries[0].hour, 6);
         assert_eq!(s.entries[1].hour, 12);
         assert_eq!(s.entries[2].hour, 18);
+        // Each entry's scene is preserved.
+        assert_eq!(s.entries[0].scene, "matrix");
+        assert_eq!(s.entries[1].scene, "signal");
+        assert_eq!(s.entries[2].scene, "monolith");
     }
 
     #[test]
-    fn collect_skips_malformed_entries() {
+    fn collect_skips_legacy_format_entries() {
+        // v30.2: legacy multi-field entries fail to parse and are silently
+        // dropped from the runtime schedule (strict --testconf still errors).
+        // This matches the live-reload contract: a half-edited config must
+        // not crash the runtime.
         let mut cfg = HashMap::new();
-        cfg.insert("ambient.12-00".into(), "cosmos, monolith".into());
-        cfg.insert("ambient.18-00".into(), "cosmos, bogus_key=1".into()); // unknown key
+        cfg.insert("ambient.12-00".into(), "signal".into());
+        cfg.insert("ambient.18-00".into(), "neon, monolith, speed=15".into());
         let s = collect_ambient_schedule(&cfg);
-        // Only the valid entry survives.
         assert_eq!(s.entries.len(), 1);
         assert_eq!(s.entries[0].hour, 12);
+        assert_eq!(s.entries[0].scene, "signal");
     }
 
     #[test]
     fn collect_returns_empty_when_no_ambient_keys() {
         let mut cfg = HashMap::new();
-        cfg.insert("color".into(), "cosmos".into());
+        cfg.insert("color".into(), "neon-green".into());
         cfg.insert("scene".into(), "monolith".into());
         let s = collect_ambient_schedule(&cfg);
         assert!(s.is_empty());
     }
 
+    #[test]
+    fn collect_preserves_custom_scene_names() {
+        // v30.2: custom scene names are stored verbatim — validation that
+        // they reference a defined [scene-custom.<name>] block happens in
+        // validate_ambient_entries, not collect_ambient_schedule.
+        let mut cfg = HashMap::new();
+        cfg.insert("ambient.13-00".into(), "afternoon".into());
+        let s = collect_ambient_schedule(&cfg);
+        assert_eq!(s.entries.len(), 1);
+        assert_eq!(s.entries[0].scene, "afternoon");
+    }
+
     // ── validate_ambient_entries ──
 
     #[test]
-    fn validate_accepts_valid_entries() {
+    fn validate_accepts_builtin_scene_names() {
         let mut cfg = HashMap::new();
-        cfg.insert("ambient.00-00".into(), "cosmos, monolith".into());
-        cfg.insert("ambient.12-00".into(), "aurora, matrix, speed=15".into());
+        cfg.insert("ambient.00-00".into(), "cinematic".into());
+        cfg.insert("ambient.12-00".into(), "signal".into());
+        cfg.insert("ambient.18-00".into(), "monolith".into());
         assert!(validate_ambient_entries(&cfg).is_ok());
     }
 
     #[test]
-    fn validate_rejects_unknown_color() {
+    fn validate_accepts_custom_scene_names() {
         let mut cfg = HashMap::new();
-        cfg.insert("ambient.00-00".into(), "nonexistent-color, monolith".into());
-        let err = validate_ambient_entries(&cfg).unwrap_err();
-        assert!(err.contains("unknown color"));
+        cfg.insert("scene-custom.afternoon.color".into(), "neon-green".into());
+        cfg.insert("ambient.15-00".into(), "afternoon".into());
+        assert!(validate_ambient_entries(&cfg).is_ok());
     }
 
     #[test]
-    fn validate_rejects_unknown_scene() {
+    fn validate_rejects_unknown_scene_name() {
         let mut cfg = HashMap::new();
-        // Use a name that's neither a color nor a scene — `nonexistent-scene`
-        // would be treated as color (parse_color_scheme fails), then 2nd
-        // positional `matrix` would be scene. To test the scene rejection
-        // path, we put a known color first and an unknown scene second.
-        cfg.insert("ambient.00-00".into(), "cosmos, nonexistent-scene".into());
+        cfg.insert("ambient.00-00".into(), "nonexistent-scene".into());
         let err = validate_ambient_entries(&cfg).unwrap_err();
-        assert!(err.contains("unknown scene"), "got: {err}");
-        // Must NOT suggest charset= for a name that isn't a charset.
         assert!(
-            !err.contains("did you mean charset="),
-            "should not suggest charset= for non-charset name, got: {err}"
+            err.contains("unknown scene 'nonexistent-scene'"),
+            "got: {err}"
+        );
+        assert!(
+            err.contains("[scene-custom.nonexistent-scene]"),
+            "should hint at scene-custom block: {err}"
         );
     }
 
     #[test]
-    fn validate_scene_error_suggests_charset_when_name_is_charset() {
-        // UX hint (v30.1+): when the user writes `cosmos, signal, binary`
-        // (3 positionals — `binary` is silently dropped by the parser
-        // before reaching here in normal flow), but the parser would
-        // promote `binary` to scene in some forgiving paths. When the
-        // scene name IS a known charset preset, the validator should
-        // suggest `charset=<name>` so the user can fix the entry.
-        //
-        // We force the path by using `binary` as the 2nd positional
-        // (so parser treats it as scene) — this is the exact scenario
-        // the UX hint is designed to make self-explanatory.
-        let mut cfg = HashMap::new();
-        cfg.insert("ambient.00-00".into(), "cosmos, binary".into());
-        let err = validate_ambient_entries(&cfg).unwrap_err();
-        assert!(err.contains("unknown scene 'binary'"), "got: {err}");
-        assert!(
-            err.contains("did you mean charset=binary"),
-            "error should suggest charset=binary, got: {err}"
-        );
-    }
-
-    #[test]
-    fn validate_rejects_unknown_charset() {
+    fn validate_rejects_legacy_format_with_migration_hint() {
+        // v30.2: a legacy multi-field entry must fail validation with the
+        // full migration message. This is the primary user-facing error
+        // path — when a user runs `--testconf` on an old config, they see
+        // this and learn how to migrate.
         let mut cfg = HashMap::new();
         cfg.insert(
-            "ambient.00-00".into(),
-            "cosmos, monolith, charset=nonexistent".into(),
+            "ambient.15-00".into(),
+            "neon-purple, signal, speed=50, density=0.65".into(),
         );
         let err = validate_ambient_entries(&cfg).unwrap_err();
-        assert!(err.contains("unknown charset"));
-    }
-
-    #[test]
-    fn validate_rejects_invalid_value() {
-        let mut cfg = HashMap::new();
-        cfg.insert("ambient.00-00".into(), "cosmos, monolith, speed=999".into());
-        assert!(validate_ambient_entries(&cfg).is_err());
+        assert!(err.contains("legacy multi-field format"), "got: {err}");
+        assert!(err.contains("[scene-custom"), "got: {err}");
+        assert!(err.contains("base-scene"), "got: {err}");
     }
 
     #[test]
     fn validate_accepts_empty_schedule() {
         let cfg = HashMap::new();
+        assert!(validate_ambient_entries(&cfg).is_ok());
+    }
+
+    #[test]
+    fn validate_case_insensitive_custom_scene_lookup() {
+        // Custom scene names are stored lowercase by collect_custom_scenes;
+        // validate_ambient_entries should match case-insensitively.
+        let mut cfg = HashMap::new();
+        cfg.insert("scene-custom.afternoon.color".into(), "neon-green".into());
+        cfg.insert("ambient.15-00".into(), "AFTERNOON".into());
         assert!(validate_ambient_entries(&cfg).is_ok());
     }
 

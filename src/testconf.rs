@@ -155,9 +155,27 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // Validate known value-ranges for top-level (non-block) keys.
     // v14: invalid values are now ERRORS, not warnings — silent PASS for
     // bad values is a bug. Owner requirement: strict value validation.
+    // v30.2: ambient.* keys are validated as a group via
+    // validate_ambient_entries (which checks scene-name validity and
+    // rejects legacy multi-field format with a migration message).
+    let mut ambient_validated = false;
     for (key, value) in &parsed.values {
         if key.starts_with("profile.") || key.starts_with("scene-custom.") {
             continue; // block keys validated above
+        }
+        // ambient.* — validate all entries as a group, once.
+        // validate_ambient_entries validates ALL ambient keys at once
+        // (cross-references scene-custom blocks), so we skip after the
+        // first ambient key to avoid re-running the same full validation.
+        if key.starts_with("ambient.") {
+            if !ambient_validated {
+                if let Err(msg) = crate::ambient::validate_ambient_entries(&parsed.values) {
+                    crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
+                    errors += 1;
+                }
+                ambient_validated = true;
+            }
+            continue;
         }
         // colors-custom.* keys: validate hex format (same as validate_config_strictly).
         // Without this, --testconf passes invalid hex that crashes at startup.

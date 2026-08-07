@@ -708,11 +708,11 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    let rain_style = args
-        .scene
-        .as_deref()
-        .and_then(scene::rain_style_for_scene)
-        .unwrap_or(rain_style::RainStyle::Glyph);
+    // v30.2: rain_style resolution consults custom scenes' base-scene
+    // (see scene_custom::resolve_rain_style). Built-in → its rain_style;
+    // custom → base-scene's rain_style; otherwise → Glyph.
+    let cfg = configfile::load_config_file(args.config.as_deref());
+    let rain_style = scene_custom::resolve_rain_style(args.scene.as_deref(), &cfg);
 
     // v17 ghost labels: these struct fields are #[arg(skip)] and cannot be
     // set via CLI. The labels below are validator-name strings only — they

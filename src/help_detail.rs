@@ -170,11 +170,15 @@ COMMON OPTIONS:
       rename the prefix to `scene-custom`. Explicit CLI flags always
       override custom-scene values.
 
-      Custom scenes are first-class citizens. They stand on their own —
-      no `base-scene` inheritance. Missing fields fall back to the
-      global default scene (cinematic). When active, the verbose output
-      shows `scene: <name>` and live reload applies edits to the block
-      immediately (color/charset/speed/density/density-map/glitch-level).
+      Custom scenes are first-class citizens. v30.2 restores the
+      `base-scene` field with cleaner inheritance semantics: when set,
+      the custom scene inherits ALL scene-managed defaults (color,
+      charset, fps, speed, density, glitch-level, rain_style) from the
+      named built-in scene BEFORE applying its own overrides. Without
+      `base-scene`, missing fields fall back to the global default scene
+      (cinematic). When active, the verbose output shows `scene: <name>`
+      and live reload applies edits to the block immediately
+      (color/charset/speed/density/density-map/glitch-level/base-scene).
 
       cosmostrix --scene-custom hacker-mode
       cosmostrix --scene-custom nightcore --fps 60

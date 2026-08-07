@@ -32,11 +32,10 @@
 //!
 //! The user explicitly asked for **instant switch** (no smoothstep blend
 //! window). When the thread fires a phase, the entry is sent to the event
-//! loop, which calls `Cloud::apply_ambient_entry` to apply scene/color/
-//! charset/speed/density/glitch-level immediately. The only visual smoothing
-//! comes from the existing `transition_chars` (glyph warm-start) and
-//! `transition_rain_style` (pool reset) — those exist for correctness, not
-//! for cinematic blending.
+//! loop, which calls `Cloud::apply_ambient_entry` to apply the scene
+//! immediately. The only visual smoothing comes from the existing
+//! `transition_chars` (glyph warm-start) and `transition_rain_style`
+//! (pool reset) — those exist for correctness, not for cinematic blending.
 //!
 //! ## Live reload
 //!
@@ -183,16 +182,10 @@ fn scheduler_loop(
             let key = (entry.hour, entry.minute);
             if last_applied_key != Some(key) {
                 crate::lr_trace!(
-                    "ambient-scheduler: firing phase {:02}:{:02} (color={:?}, scene={:?}, charset={:?}, speed={:?}, density={:?}, fps={:?}, glitch={:?})",
+                    "ambient-scheduler: firing phase {:02}:{:02} (scene={})",
                     entry.hour,
                     entry.minute,
-                    entry.color,
-                    entry.scene,
-                    entry.charset,
-                    entry.speed,
-                    entry.density,
-                    entry.fps,
-                    entry.glitch_level
+                    entry.scene
                 );
                 if tx.send(entry.clone()).is_err() {
                     // Receiver dropped (event loop exited). Terminate.
@@ -235,13 +228,7 @@ mod tests {
         AmbientEntry {
             hour: h,
             minute: m,
-            color: None,
-            scene: None,
-            speed: None,
-            density: None,
-            fps: None,
-            charset: None,
-            glitch_level: None,
+            scene: "cinematic".to_string(),
         }
     }
 
@@ -349,16 +336,11 @@ mod tests {
     #[test]
     fn validate_ambient_entries_test_schedule_with_multiple_phases() {
         // Sanity: a realistic 3-phase schedule parses + validates.
+        // v30.2: each entry is just a scene name.
         let mut cfg = HashMap::new();
-        cfg.insert(
-            "ambient.00-00".into(),
-            "cosmos, monolith, speed=15, density=1.2".into(),
-        );
-        cfg.insert(
-            "ambient.06-00".into(),
-            "aurora, matrix, speed=60, density=0.5".into(),
-        );
-        cfg.insert("ambient.22-00".into(), "neon, monolith, speed=10".into());
+        cfg.insert("ambient.00-00".into(), "monolith".into());
+        cfg.insert("ambient.06-00".into(), "matrix".into());
+        cfg.insert("ambient.22-00".into(), "cinematic".into());
         let s = crate::ambient::collect_ambient_schedule(&cfg);
         assert_eq!(s.entries.len(), 3);
         assert_eq!(s.entries[0].hour, 0);

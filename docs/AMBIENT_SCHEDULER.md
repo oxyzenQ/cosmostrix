@@ -2,52 +2,59 @@
 
 # Ambient Phase Scheduler
 
-Config-driven time-of-day scene/parameter switching — replaces the archived
+Config-driven time-of-day scene switching — replaces the archived
 `adaptive-custom` subsystem (eliminated with the atmosphere engine at commit
 `07b44b5`) with a simpler contract: **config-only** (no CLI flag),
 **instant switch** (no blend window), and a **dynamic idle/wake scheduler
 thread** (zero CPU between phase boundaries).
 
-## Config Format
+## v30.2 Config Format (simplified — breaking change)
 
 ```toml
-# ambient.<HH-MM> = <color>, <scene>, [key=value, ...]
-ambient.00-00 = cosmos, monolith, speed=15, density=1.2
-ambient.06-00 = aurora, matrix, speed=60, density=0.5
-ambient.22-00 = neon, monolith, speed=10
+# v30.2: each entry is a single scene name.
+ambient.<HH-MM> = <scene-name>
 ```
 
-### Fields
+The value is a **single scene name** — either a built-in scene
+(`cinematic`, `signal`, `monolith`, etc.) or a custom scene defined via
+`[scene-custom.<name>]`. All parameters (color, charset, speed, density,
+fps, glitch-level, rain_style) live inside the scene itself, eliminating
+the precedence confusion that plagued the v30.0/v30.1 multi-field format.
 
-- **`HH-MM`** (key suffix): 24-hour time, zero-padded (`00-00` to `23-59`).
-  The phase becomes active at this wall-clock minute and stays active until
-  the next entry's boundary.
-- **Positional 1** (`color`): built-in scheme name (52 themes) OR a
-  `colors-custom.<name>` palette name. Optional — if omitted, color is
-  sticky (keeps previous value). If the first positional is a valid scene
-  name but NOT a valid color name (e.g. `monolith`), it's treated as scene
-  (color omitted) — this lets you write `ambient.12-00 = monolith, speed=15`.
-- **Positional 2** (`scene`): built-in scene name (`matrix`, `monolith`,
-  `signal`, `cinematic`, `cosmos`, `calm`, `storm`, `neon`, `hacker`,
-  `low-power`, `classic`, `carbonic`, `cosmic_dragon`, `matrix_film`).
-  Optional — if omitted, scene is sticky.
-- **Optional `key=value` pairs**:
-  - `speed` — float in `[1.0, 100.0]` (asymmetric vs top-level `speed`
-    which is integer; float allows future lerp extension).
-  - `density` — float in `[0.01, 5.0]`.
-  - `fps` — integer in `[1, 120]`.
-  - `charset` — built-in charset name OR `charset-custom.<name>`.
-  - `glitch-level` — one of `none`, `subtle`, `default`, `intense`.
+### Migration from v30.1 multi-field format
 
-### Sticky Semantics
+v30.1 accepted `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`.
+v30.2 rejects this with a migration error. To preserve the entry, define a
+custom scene that captures the same parameters and reference it:
 
-Fields not specified in a phase entry keep the previous value (the engine
-does NOT reset unspecified fields to defaults when transitioning between
-phases). This matches the archived `adaptive-custom` contract.
+```toml
+[scene-custom.afternoon]
+base-scene = "signal"          # inherits signal's rain_style + defaults
+color = "neon-purple"          # overrides signal's color
+speed = "50"                   # overrides signal's speed
+density = "0.65"               # overrides signal's density
 
-Example: if `ambient.06-00 = aurora, matrix, speed=60` fires, and the next
-entry `ambient.22-00 = neon` (no scene, no speed) fires, the scene stays
-`matrix` and speed stays `60` — only color changes to `neon`.
+ambient.15-00 = afternoon
+```
+
+This separates concerns cleanly: the schedule says WHEN, the scene says
+WHAT. There is no override-precedence bug surface because the scene IS
+the source of truth — no field can be "lost" between the scene switch and
+the override layer.
+
+### Why the simplification?
+
+The v30.0/v30.1 multi-field format had a fundamental precedence bug:
+`apply_ambient_entry` applied the scene's managed defaults first (e.g.
+signal's `speed=14.0`), then tried to override with the entry's `speed=50`.
+In practice the override was silently lost in some code paths, producing
+confusing verbose output where `speed=12.0` (signal's default) appeared
+instead of the user's `speed=50`. Live-reload compounded the bug by
+rebuilding the Cloud from base config and losing the ambient overrides
+entirely.
+
+The v30.2 simplification eliminates this entire class of bugs by removing
+the override layer. The scene IS the spec — there's nothing to lose.
 
 ## Behavior
 
@@ -78,11 +85,11 @@ This is the design the owner explicitly requested:
 ### Instant Switch
 
 There is no blend window. When the scheduler fires a phase entry, the
-scene/color/charset/speed/density/glitch-level are applied immediately via
-`Cloud::apply_ambient_entry`. The only visual smoothing comes from the
-existing `transition_chars` (glyph warm-start) and `transition_rain_style`
-(pool reset) — those exist for correctness (preventing ghosting), not for
-cinematic blending.
+scene is applied immediately via `Cloud::apply_ambient_entry` (which
+delegates to `Cloud::apply_scene_runtime_with_cfg`). The only visual
+smoothing comes from the existing `transition_chars` (glyph warm-start)
+and `transition_rain_style` (pool reset) — those exist for correctness
+(preventing ghosting), not for cinematic blending.
 
 The owner explicitly chose instant switch over the archived 5-minute
 smoothstep blend window:
@@ -98,6 +105,12 @@ recompute the next phase boundary. If the new schedule's currently-active
 phase differs from the previously-applied one, the thread fires it on the
 next loop iteration (no boundary wait).
 
+v30.2 simplification: because ambient entries are just scene names, there's
+no override layer to re-apply after a live-reload rebuild. The previous
+v30.1 `last_applied_ambient_entry` tracker (which re-applied overrides
+after Cloud rebuild) is no longer needed — the scene IS the spec, so
+firing the active phase on the next scheduler iteration is sufficient.
+
 ### CLI Flag
 
 **None.** Ambient is config-only — there is no `--ambient` CLI flag. This
@@ -110,14 +123,16 @@ because the scheduler runs continuously).
 
 | Module | Responsibility |
 |--------|----------------|
-| `src/ambient.rs` | Parser, `AmbientEntry` / `AmbientSchedule` structs, `current_phase` / `next_phase` / `seconds_to_next_phase` helpers, strict validation (`validate_ambient_entries`), wall-clock helpers (`current_minute_of_day`, `current_second_of_minute`) |
+| `src/ambient.rs` | Parser, `AmbientEntry` / `AmbientSchedule` structs (v30.2: `AmbientEntry` is just `{hour, minute, scene}`), `current_phase` / `next_phase` / `seconds_to_next_phase` helpers, strict validation (`validate_ambient_entries`), wall-clock helpers (`current_minute_of_day`, `current_second_of_minute`) |
 | `src/ambient_scheduler.rs` | Dynamic idle/wake scheduler thread, `AmbientSchedulerHandle`, `spawn_ambient_scheduler`, `reload` |
-| `src/cloud/scene_runtime.rs` | `Cloud::apply_ambient_entry` — applies an entry to the live Cloud with sticky semantics |
+| `src/cloud/scene_runtime.rs` | `Cloud::apply_ambient_entry` — delegates to `apply_scene_runtime_with_cfg`, which handles both built-in scenes (fast path) and custom scenes (looks up `[scene-custom.<name>]` block, applies `base-scene` defaults first, then the block's own overrides) |
 | `src/interactive/event_loop.rs` | Spawns scheduler at startup, polls `rx` each frame, pushes reload on config change |
-| `src/live_config.rs` | `rebuild_cloud_config` collects new schedule from config map |
+| `src/live_config.rs` | `rebuild_cloud_config` collects new schedule from config map; `apply_scene_custom_to_cloud_config` calls `scene_custom::apply_base_scene_to_cloud_config` for base-scene inheritance on live-reload |
+| `src/scene_custom.rs` | `rain_style_for_custom_scene` + `resolve_rain_style` + `apply_base_scene_to_cloud_config` helpers (v30.2) |
+| `src/profile.rs` | `UserProfile.base_scene` field + `apply_base_scene_to_args` inheritance layer (v30.2) |
 | `src/configfile.rs` | `is_known_key` dispatch + `AMBIENT_CONFIG_KEY_HINT` constant |
 | `src/config_hints.rs` | Mis-nest detector for `scene-custom.<name>.ambient.<HH-MM>` |
-| `src/testconf.rs` | Strict validation of `ambient.*` entries (color/scene/charset/glitch-level/speed/density/fps ranges) |
+| `src/testconf.rs` | Strict validation of `ambient.*` entries (scene name must be built-in OR a defined `[scene-custom.<name>]` block) |
 | `src/app.rs` | `CloudConfig.ambient_schedule` field |
 
 ## Edge Cases
@@ -130,28 +145,11 @@ because the scheduler runs continuously).
 | **DST spring-forward** (2:00 AM → 3:00 AM) | `current_minute_of_day()` returns wall-clock local time. Entries in the skipped hour (02:00–02:59) are never fired. Acceptable. |
 | **DST fall-back** (2:00 AM repeat) | Entries in the repeated hour (01:00–01:59) fire twice. Acceptable — `apply_ambient_entry` is idempotent. |
 | **Midnight wrap** | Handled in `AmbientSchedule::seconds_to_next_phase` — `(24*60 - now_min + next_min) * 60`. |
-| **Invalid color/scene name** | Strict reject via `--testconf` (exit 2). Same behavior as `colors-custom` / `scene-custom`. |
-| **Invalid `speed=15.5` range** | Strict reject via `--testconf` (exit 2). |
+| **Invalid scene name** | Strict reject via `--testconf` (exit 2). Same behavior as `colors-custom` / `scene-custom`. |
+| **Legacy multi-field format** (v30.1) | Strict reject via `--testconf` (exit 2) with a full migration message showing how to convert to `[scene-custom.<name>]` + `base-scene`. Live-reload silently drops the entry (no crash). |
 | **Live-reload adds new entry** | Scheduler thread wakes (condvar), recomputes, fires current phase if changed. |
 | **Live-reload removes all entries** | Scheduler goes idle. Existing scene/params retained (sticky). User can manually cycle via `x`/`X` keys. |
-
-## Speed Type Asymmetry (Intentional)
-
-Top-level `speed` (CLI `--speed`, config `speed =`) is an **integer** in
-`[1, 100]`. Ambient `speed` is a **float** in `[1.0, 100.0]`.
-
-This asymmetry is inherited from the archived `adaptive-custom` subsystem:
-
-- Top-level `speed` is a **snap** — applied once at startup, no
-  interpolation needed. Integer is simpler for users.
-- Ambient `speed` could be **lerped** across a blend window in a future
-  extension. Fractional values are essential for smooth transitions
-  (e.g., `speed=15.5` produces a perceptibly different blend than
-  `speed=15` or `speed=16`).
-
-Currently ambient uses instant switch (no lerp), but the float type is
-preserved so a future "blend mode" can be added without a breaking config
-migration.
+| **Custom scene referenced by ambient is later renamed** | `--testconf` catches this at validation time. At runtime, the ambient event is a no-op (unknown scene name → `apply_scene_runtime_with_cfg` returns current charset preset unchanged). |
 
 ## Diagnostics
 
@@ -161,8 +159,8 @@ scheduler events:
 - `[live-reload-trace] ambient: reloaded schedule with N entries` — fired
   on every live-reload that changes the schedule.
 - `[live-reload-trace] ambient: schedule changed (was X entries, now Y) — pushing to scheduler thread` — fired when event loop pushes the new schedule.
-- `[live-reload-trace] ambient: received phase event HH:MM (color=..., scene=...)` — fired when the scheduler thread sends a phase event.
-- `[live-reload-trace] ambient-scheduler: firing phase HH:MM (...)` — fired inside the scheduler thread when it sends an event.
+- `[live-reload-trace] ambient: received phase event HH:MM (scene=<name>)` — fired when the scheduler thread sends a phase event.
+- `[live-reload-trace] ambient-scheduler: firing phase HH:MM (scene=<name>)` — fired inside the scheduler thread when it sends an event.
 
 ## See Also
 

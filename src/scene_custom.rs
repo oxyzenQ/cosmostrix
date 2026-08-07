@@ -10,14 +10,37 @@
 //! `--scene-custom <name>`, the verbose output shows `scene: <name>` and
 //! live reload applies edits to the block immediately.
 //!
-//! ## v20.1 changes
+//! ## v30.2 changes
 //!
-//! `base-scene` and `preset` are removed entirely. Existing configs that
-//! still contain `base-scene = <name>` or `preset = <name>` will have
-//! those keys flagged as unknown by `--testconf`, prompting migration.
-//! The `[profile.<name>]` fallback was also removed — `--scene-custom`
-//! now resolves ONLY `[scene-custom.<name>]` blocks. Users with legacy
-//! `[profile.<name>]` blocks must rename the prefix to `scene-custom`.
+//! `base-scene` is RESTORED with cleaner inheritance semantics. When a
+//! `[scene-custom.<name>]` block sets `base-scene = <built-in-scene>`, the
+//! custom scene inherits ALL scene-managed defaults (color, charset, fps,
+//! speed, density, glitch-level, rain_style) from that built-in scene
+//! before applying its own overrides. This lets users write:
+//!
+//! ```toml
+//! [scene-custom.afternoon]
+//! base-scene = "signal"
+//! color = "neon-green"
+//! speed = "50"
+//! ```
+//!
+//! ...and get the `signal` rain style + signal's density/glitch, but with
+//! neon-green color and speed 50.
+//!
+//! The legacy `preset` field remains removed (it was a confusing synonym
+//! for `base-scene`). Chained inheritance (`base-scene = <custom-name>`)
+//! is NOT supported — base-scene must be a built-in scene name. This
+//! keeps the apply graph a flat 2-level, avoiding cycles.
+//!
+//! ## v20.1 changes (historical)
+//!
+//! `preset` was removed entirely. Existing configs that still contain
+//! `preset = <name>` will have those keys flagged as unknown by
+//! `--testconf`, prompting migration. The `[profile.<name>]` fallback was
+//! also removed — `--scene-custom` now resolves ONLY `[scene-custom.<name>]`
+//! blocks. Users with legacy `[profile.<name>]` blocks must rename the
+//! prefix to `scene-custom`.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::OnceLock;
@@ -71,6 +94,7 @@ pub(crate) fn collect_custom_scenes(
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
+            "base-scene" => scene.base_scene = Some(value.clone()),
             "color" => scene.color = Some(value.clone()),
             "charset" => scene.charset = Some(value.clone()),
             "fps" => scene.fps = Some(value.clone()),
@@ -121,13 +145,19 @@ pub(crate) fn apply_scene_custom_layer(
             strict_unknown,
         )?;
         args.scene_custom = Some(normalized.clone());
-        // v20: custom scenes are first-class — args.scene should reflect the
+        // v30.2: custom scenes are first-class — args.scene reflects the
         // custom scene name (not a base-scene) so verbose output and
         // CloudConfig.scene_name both show `<name>`. Built-in scene defaults
-        // (color/charset/speed/density/glitch) are NOT applied here because
-        // the custom scene is expected to set its own fields. Missing fields
-        // retain whatever args already has (DEFAULT_SCENE = cinematic's
-        // values from apply_default_scene_values).
+        // are applied via `apply_profile_layer`'s base-scene inheritance
+        // (when `base-scene = <name>` is set in the block) BEFORE the custom
+        // scene's own overrides. Missing fields retain whatever args already
+        // has (DEFAULT_SCENE = cinematic's values from
+        // apply_default_scene_values).
+        //
+        // rain_style for the custom scene is resolved separately at Cloud
+        // construction time via `rain_style_for_custom_scene` (looks up the
+        // block's `base-scene` field). This keeps args.scene as the custom
+        // name while still honoring base-scene's rain_style (Glyph vs Monolith).
         args.scene = Some(normalized);
         return Ok(modified);
     }
@@ -155,6 +185,94 @@ pub(crate) fn apply_scene_custom_layer(
         "config: ignoring unknown custom scene '{name}' (available: {list}; see --list-scenes)"
     );
     Ok(HashSet::new())
+}
+
+/// Resolve the rain_style for a custom scene by looking up its `base-scene`.
+///
+/// Returns `None` if:
+/// - The custom scene block doesn't exist in cfg.
+/// - The block has no `base-scene` field.
+/// - The `base-scene` value is not a recognized built-in scene name.
+///
+/// Called from `main.rs` at Cloud construction time and from
+/// `Cloud::apply_ambient_entry` at runtime when an ambient entry references
+/// a custom scene. The returned `RainStyle` is what the Cloud should use
+/// for rain rendering (Glyph vs Monolith).
+#[must_use]
+pub(crate) fn rain_style_for_custom_scene(
+    cfg: &HashMap<String, String>,
+    custom_name: &str,
+) -> Option<crate::rain_style::RainStyle> {
+    let normalized = custom_name.trim().to_ascii_lowercase();
+    let key = format!("scene-custom.{normalized}.base-scene");
+    let base_name = cfg.get(&key)?.trim();
+    crate::scene::rain_style_for_scene(base_name)
+}
+
+/// Resolve the rain_style for any scene name (built-in OR custom).
+///
+/// v30.2: if `name` is a built-in scene, returns its rain_style. If `name`
+/// is a custom scene, looks up its `[scene-custom.<name>]` block in `cfg`
+/// and returns the `base-scene`'s rain_style. Returns `RainStyle::Glyph`
+/// (the default) if neither resolves.
+///
+/// Called from `main.rs` at Cloud construction time.
+#[must_use]
+pub(crate) fn resolve_rain_style(
+    name: Option<&str>,
+    cfg: &HashMap<String, String>,
+) -> crate::rain_style::RainStyle {
+    name.and_then(|n| {
+        crate::scene::rain_style_for_scene(n).or_else(|| rain_style_for_custom_scene(cfg, n))
+    })
+    .unwrap_or(crate::rain_style::RainStyle::Glyph)
+}
+
+/// Apply a `[scene-custom.<name>]` block's `base-scene` defaults to a
+/// CloudConfig in place. Used by live-reload to inherit a built-in scene's
+/// managed defaults before applying the custom block's own overrides.
+///
+/// v30.2: extracted from `live_config::apply_scene_custom_to_cloud_config`
+/// to keep that file under the LOC cap. Returns `true` if a base-scene was
+/// found and applied (so the caller can track `touched_any`).
+pub(crate) fn apply_base_scene_to_cloud_config(
+    new: &mut crate::app::CloudConfig,
+    cfg: &HashMap<String, String>,
+    normalized_name: &str,
+) -> bool {
+    let base_key = format!("scene-custom.{normalized_name}.base-scene");
+    let Some(base_name) = cfg.get(&base_key).map(|s| s.trim()) else {
+        return false;
+    };
+    let Some(base_info) = crate::scene::get_scene(base_name) else {
+        return false;
+    };
+    let base_cfg = &base_info.config;
+    if let Some(color) = base_cfg.color {
+        if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
+            new.color_scheme = scheme;
+        }
+    }
+    if let Some(charset) = base_cfg.charset {
+        if let Ok(cs) = crate::charset::charset_from_str(charset, false) {
+            new.charset_preset = charset.to_string();
+            new.chars = crate::charset::build_chars(cs, &new.user_ranges, new.def_ascii);
+        }
+    }
+    if let Some(fps) = base_cfg.fps {
+        new.target_fps = fps;
+    }
+    if let Some(speed) = base_cfg.speed {
+        new.speed = speed;
+    }
+    if let Some(density) = base_cfg.density {
+        new.density = density;
+        new.base_density = density;
+    }
+    if let Some(glitch) = base_cfg.glitch_level {
+        new.glitch_enabled = !matches!(glitch, crate::config::GlitchLevel::None);
+    }
+    true
 }
 
 /// Validate a custom-scene name. Shares the same rules as profile names
@@ -249,14 +367,19 @@ pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
 /// `--list-scenes`. Mirrors the column layout of `scene::list_scenes_text`
 /// so the two groups visually align.
 ///
-/// v20: `base-scene` is removed — custom scenes stand on their own. The
-/// listing shows just the scene name (no `base=` prefix), reflecting the
-/// new independent identity.
+/// v30.2: when a custom scene sets `base-scene`, the listing annotates it
+/// as `name (base: <base-scene>)` so users can see at a glance which
+/// built-in scene a custom scene inherits from. Custom scenes without
+/// `base-scene` render as just `name` (inherit from cinematic implicitly).
 #[must_use]
 pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
     let mut out = String::new();
-    for name in scenes.keys() {
-        out.push_str(&format!("  {name}\n"));
+    for (name, scene) in scenes {
+        if let Some(base) = scene.base_scene.as_deref() {
+            out.push_str(&format!("  {name} (base: {base})\n"));
+        } else {
+            out.push_str(&format!("  {name}\n"));
+        }
     }
     out
 }
@@ -269,6 +392,10 @@ pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String 
     out.push_str("  Configuration:\n");
 
     let mut has_field = false;
+    if let Some(base) = scene.base_scene.as_deref() {
+        out.push_str(&format!("    base-scene          = {base}\n"));
+        has_field = true;
+    }
     if let Some(color) = scene.color.as_deref() {
         out.push_str(&format!("    color              = {color}\n"));
         has_field = true;
@@ -318,9 +445,11 @@ mod tests {
 
     #[test]
     fn scene_custom_keys_are_recognized() {
-        // v20.1: `base-scene` is no longer a recognized key — it must be
-        // flagged as unknown by --testconf.
-        assert!(!is_scene_custom_config_key(
+        // v30.2: `base-scene` is restored as a recognized scene-custom key.
+        // It triggers inheritance from a built-in scene before the custom
+        // scene's own overrides are applied. The legacy `preset` field
+        // remains removed.
+        assert!(is_scene_custom_config_key(
             "scene-custom.hacker-mode.base-scene"
         ));
         assert!(!is_scene_custom_config_key(
@@ -392,10 +521,84 @@ mod tests {
         assert_eq!(SCENE_CUSTOM_NAMESPACE, "scene-custom");
     }
 
+    // ── rain_style_for_custom_scene (v30.2) ──
+
+    #[test]
+    fn rain_style_for_custom_scene_returns_base_scene_rain_style() {
+        // Custom scene with base-scene = monolith → RainStyle::Monolith.
+        let cfg = HashMap::from([(
+            "scene-custom.afternoon.base-scene".to_string(),
+            "monolith".to_string(),
+        )]);
+        let rs = rain_style_for_custom_scene(&cfg, "afternoon");
+        assert_eq!(rs, Some(crate::rain_style::RainStyle::Monolith));
+    }
+
+    #[test]
+    fn rain_style_for_custom_scene_returns_glyph_for_signal_base() {
+        // Custom scene with base-scene = signal → RainStyle::Glyph.
+        let cfg = HashMap::from([(
+            "scene-custom.afternoon.base-scene".to_string(),
+            "signal".to_string(),
+        )]);
+        let rs = rain_style_for_custom_scene(&cfg, "afternoon");
+        assert_eq!(rs, Some(crate::rain_style::RainStyle::Glyph));
+    }
+
+    #[test]
+    fn rain_style_for_custom_scene_returns_none_when_no_base_scene() {
+        // Custom scene with no base-scene → None (caller falls back to Glyph).
+        let cfg = HashMap::from([(
+            "scene-custom.bare.color".to_string(),
+            "neon-green".to_string(),
+        )]);
+        let rs = rain_style_for_custom_scene(&cfg, "bare");
+        assert!(rs.is_none());
+    }
+
+    #[test]
+    fn rain_style_for_custom_scene_returns_none_for_unknown_custom_name() {
+        let cfg = HashMap::new();
+        let rs = rain_style_for_custom_scene(&cfg, "nonexistent");
+        assert!(rs.is_none());
+    }
+
+    #[test]
+    fn rain_style_for_custom_scene_returns_none_for_unknown_base_scene() {
+        // base-scene = "fake-scene" is not a built-in → None.
+        let cfg = HashMap::from([(
+            "scene-custom.broken.base-scene".to_string(),
+            "fake-scene".to_string(),
+        )]);
+        let rs = rain_style_for_custom_scene(&cfg, "broken");
+        assert!(rs.is_none());
+    }
+
+    #[test]
+    fn rain_style_for_custom_scene_is_case_insensitive_on_custom_name() {
+        // Custom scene names are stored lowercase by collect_custom_scenes;
+        // rain_style_for_custom_scene normalizes its input to match.
+        let cfg = HashMap::from([(
+            "scene-custom.afternoon.base-scene".to_string(),
+            "monolith".to_string(),
+        )]);
+        let rs = rain_style_for_custom_scene(&cfg, "AFTERNOON");
+        assert_eq!(rs, Some(crate::rain_style::RainStyle::Monolith));
+    }
+
+    // Note: live-reload path (`apply_base_scene_to_cloud_config`) is exercised
+    // end-to-end by the `rebuild_cloud_config` integration path. Unit-testing
+    // it in isolation requires constructing a full CloudConfig (40+ fields),
+    // which is brittle. The startup apply path (`apply_profile_layer` with
+    // base-scene) is unit-tested in `config_apply_tests/profiles.rs::profile_base_scene_applies_inherited_defaults`,
+    // and the runtime apply path (`Cloud::apply_ambient_entry` with a custom
+    // scene) is unit-tested in `cloud/tests/tests_scene/transitions.rs`.
+
     #[test]
     fn profile_fields_are_reusable_for_custom_scenes() {
-        // v20.1: `base-scene` and `preset` are gone from PROFILE_FIELDS.
-        assert!(!PROFILE_FIELDS.contains(&"base-scene"));
+        // v30.2: `base-scene` is restored to PROFILE_FIELDS (with cleaner
+        // inheritance semantics — see profile.rs). `preset` remains removed.
+        assert!(PROFILE_FIELDS.contains(&"base-scene"));
         assert!(!PROFILE_FIELDS.contains(&"preset"));
         assert!(PROFILE_FIELDS.contains(&"color"));
         // Atmosphere engine eliminated — atmosphere-regime is no longer a
@@ -406,8 +609,15 @@ mod tests {
     }
 
     #[test]
-    fn list_custom_scenes_text_shows_name_without_base_prefix() {
+    fn list_custom_scenes_text_shows_base_annotation_when_set() {
+        // v30.2: when a custom scene sets `base-scene`, the listing
+        // annotates it as `name (base: <base-scene>)`. Custom scenes
+        // without `base-scene` render as just `name`.
         let cfg = HashMap::from([
+            (
+                "scene-custom.alpha.base-scene".to_string(),
+                "signal".to_string(),
+            ),
             ("scene-custom.alpha.color".to_string(), "storm".to_string()),
             ("scene-custom.beta.color".to_string(), "neon".to_string()),
         ]);
@@ -415,8 +625,12 @@ mod tests {
         let text = list_custom_scenes_text(&scenes);
         assert!(text.contains("alpha"), "list must include alpha: {text}");
         assert!(
-            !text.contains("base="),
-            "list must NOT show base= prefix: {text}"
+            text.contains("alpha (base: signal)"),
+            "alpha should show base annotation: {text}"
+        );
+        assert!(
+            !text.contains("beta (base:"),
+            "beta has no base-scene — should NOT show annotation: {text}"
         );
         assert!(text.contains("beta"), "list must include beta: {text}");
     }
@@ -424,6 +638,10 @@ mod tests {
     #[test]
     fn show_custom_scene_text_includes_fields_and_usage() {
         let cfg = HashMap::from([
+            (
+                "scene-custom.hacker-mode.base-scene".to_string(),
+                "monolith".to_string(),
+            ),
             (
                 "scene-custom.hacker-mode.color".to_string(),
                 "green".to_string(),
@@ -441,8 +659,8 @@ mod tests {
             "header missing: {text}"
         );
         assert!(
-            !text.contains("base"),
-            "base field should NOT appear: {text}"
+            text.contains("base-scene          = monolith"),
+            "base-scene field missing: {text}"
         );
         assert!(
             text.contains("color              = green"),

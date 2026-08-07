@@ -60,10 +60,13 @@ pub(crate) fn args_with_config(config: &str, cli: &[&str]) -> Args {
 }
 
 fn nightcore_config() -> &'static str {
-    // v20.1: `base-scene` and `preset` are removed entirely. Custom scenes
-    // stand on their own; missing fields fall back to cinematic's defaults.
+    // v30.2: `base-scene` is restored with cleaner inheritance semantics.
+    // Custom scenes can opt into a built-in scene's defaults via
+    // `base-scene = <name>`, then override individual fields. Without
+    // `base-scene`, custom scenes fall back to cinematic's defaults
+    // (matching v20.1 behavior).
     // The config namespace is `[scene-custom.<name>]` (the [profile.<name>]
-    // fallback was also removed in v20.1 — users must rename the prefix).
+    // fallback was removed in v20.1 — users must rename the prefix).
     "scene-custom.nightcore.color = purple\n\
      scene-custom.nightcore.charset = binary\n\
      scene-custom.nightcore.speed = 24\n\
@@ -98,23 +101,23 @@ fn cli_profile_loads_user_profile_from_config() {
 }
 
 #[test]
-fn profile_base_monolith_is_unknown_key() {
-    // v20.1: `base-scene` is no longer a recognized field. A config that
-    // sets `base-scene` plus one valid field results in a scene-custom
-    // block with just that one field; args falls back to DEFAULT_SCENE
-    // (cinematic) for everything else. args.scene is set to the custom
-    // scene name.
+fn profile_base_scene_applies_inherited_defaults() {
+    // v30.2: `base-scene` is restored. A custom scene with
+    // `base-scene = monolith` + `color = green` should inherit monolith's
+    // defaults (speed=30, density=0.85, charset=zen, glitch=Subtle) and
+    // then override only color to green.
     let args = args_with_config(
         "scene-custom.nightcore.base-scene = monolith\n\
          scene-custom.nightcore.color = green\n",
         &["--scene-custom", "nightcore"],
     );
     assert_eq!(args.scene.as_deref(), Some("nightcore"));
-    // color is set by the custom scene (the only recognized field).
+    // color override wins.
     assert_eq!(args.color, "green");
-    // Cinematic defaults for the rest: speed=9, density=0.75, glitch=Subtle.
-    assert_eq!(args.speed, 9.0);
-    assert!((args.density - 0.75).abs() < f32::EPSILON);
+    // Inherited from monolith: speed=30.0, density=0.85, charset=zen.
+    assert_eq!(args.speed, 30.0);
+    assert!((args.density - 0.85).abs() < f32::EPSILON);
+    assert_eq!(args.charset, "zen");
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
@@ -181,19 +184,24 @@ fn unknown_cli_profile_has_clear_error() {
 
 #[test]
 fn invalid_profile_values_are_ignored_cleanly() {
-    // v20.1: `base-scene` is unknown and filtered out. The remaining
-    // color/speed/density values fail to parse, so args retains the
-    // DEFAULT_SCENE (cinematic) defaults.
+    // v30.2: `base-scene = monolith` is now recognized and applies
+    // monolith's defaults (speed=30, density=0.85, charset=zen). The
+    // remaining invalid fields (color=not-a-color, speed=0, density=nope)
+    // fail to parse and are ignored — monolith's inherited values survive
+    // for those fields. Only color falls back to monolith's color
+    // (neon-purple) because the override failed.
     let config = "scene-custom.bad.base-scene = monolith\n\
                   scene-custom.bad.color = not-a-color\n\
                   scene-custom.bad.speed = 0\n\
                   scene-custom.bad.density = nope\n";
     let args = args_with_config(config, &["--scene-custom", "bad"]);
     assert_eq!(args.scene.as_deref(), Some("bad"));
-    // Cinematic defaults: color=neon-purple, speed=9, density=0.75.
+    // color=not-a-color failed → monolith's neon-purple inherited.
     assert_eq!(args.color, "neon-purple");
-    assert_eq!(args.speed, 9.0);
-    assert!((args.density - 0.75).abs() < f32::EPSILON);
+    // speed=0 failed → monolith's 30.0 inherited.
+    assert_eq!(args.speed, 30.0);
+    // density=nope failed → monolith's 0.85 inherited.
+    assert!((args.density - 0.85).abs() < f32::EPSILON);
 }
 
 #[test]

@@ -879,6 +879,12 @@ pub(crate) fn rebuild_cloud_config(
 
 /// Apply a `[scene-custom.<name>]` block from config to CloudConfig in place.
 /// Used by live reload so edits to a custom scene take effect immediately.
+///
+/// v30.2: when the block sets `base-scene = <built-in>`, the base scene's
+/// defaults are applied FIRST (color/charset/fps/speed/density/glitch), then
+/// the block's own overrides layer on top. This matches the startup apply
+/// chain in `apply_profile_layer` so live-reload behavior matches startup
+/// behavior.
 fn apply_scene_custom_to_cloud_config(
     new: &mut crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
@@ -890,11 +896,23 @@ fn apply_scene_custom_to_cloud_config(
     let prefix = format!("scene-custom.{normalized}.");
     let mut touched_any = false;
 
+    // v30.2: pre-pass — apply base-scene's defaults BEFORE the block's own
+    // overrides. This ensures overrides correctly win over base-scene
+    // defaults (e.g. `base-scene = "signal", color = "neon-green"` results
+    // in neon-green, not signal's aurora).
+    if crate::scene_custom::apply_base_scene_to_cloud_config(new, cfg, &normalized) {
+        touched_any = true;
+    }
+
     for (key, value) in cfg {
         let Some(field) = key.strip_prefix(&prefix) else {
             continue;
         };
-        // v20.1: base-scene/preset filtered upstream; unknown fields ignored.
+        // v30.2: base-scene is handled in the pre-pass above; skip it here
+        // so we don't double-apply. preset is still removed (legacy).
+        if field == "base-scene" || field == "preset" {
+            continue;
+        }
         touched_any = true;
         match field {
             "color" => {
@@ -1214,25 +1232,6 @@ mod tests {
         assert_eq!(map.len(), 4);
         assert_eq!(map[0], 1.0);
         assert_eq!(map[2], 0.0);
-    }
-
-    #[test]
-    fn rebuild_ignores_scene_custom_base_scene_unknown_field() {
-        // v20.1: `base-scene` is no longer recognized. The helper iterates
-        // raw cfg keys but only acts on known fields — color_scheme stays NeonPurple.
-        let mut cfg = HashMap::new();
-        cfg.insert(
-            "scene-custom.test-scene.base-scene".to_string(),
-            "storm".to_string(),
-        );
-        let mut base = minimal_cloud_config();
-        base.scene_custom_name = Some("test-scene".to_string());
-        let new = rebuild_cloud_config(&base, &cfg);
-        assert_eq!(
-            new.color_scheme,
-            crate::runtime::ColorScheme::NeonPurple,
-            "base-scene must have no effect"
-        );
     }
 
     #[test]

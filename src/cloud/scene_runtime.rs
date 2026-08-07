@@ -6,7 +6,15 @@
 //! Handles the logic for switching between scenes (monolith, matrix, signal)
 //! at runtime, including rain style transitions, glyph warm-starting, and
 //! scene-managed value application (color, charset, speed, density, glitch).
+//!
+//! v30.2: `apply_scene_runtime` now accepts an optional `cfg` parameter
+//! (via the `_with_cfg` variant) so it can resolve custom scenes by looking
+//! up `[scene-custom.<name>]` blocks. When the named scene is a custom
+//! scene, the runtime applies the block's `base-scene` defaults first
+//! (rain_style + scene-managed fields), then the block's own overrides.
+//! Built-in scene names take the fast path (no cfg lookup needed).
 
+use std::collections::HashMap;
 use std::time::Instant;
 
 use rand::distr::Distribution;
@@ -27,6 +35,13 @@ impl Cloud {
     /// not tracked at runtime.
     ///
     /// Returns the charset preset name used (scene's or current).
+    ///
+    /// v30.2: This method only handles built-in scenes. For custom scenes
+    /// (referenced via `--scene-custom` or ambient entries), use
+    /// [`Cloud::apply_scene_runtime_with_cfg`] which can resolve
+    /// `[scene-custom.<name>]` blocks. The interactive scene-cycle keys
+    /// (`[`/`]`) only cycle through built-in scenes (`SCENE_ORDER`), so
+    /// they can safely call this method directly.
     pub fn apply_scene_runtime(
         &mut self,
         scene_name: &str,
@@ -34,29 +49,95 @@ impl Cloud {
         user_ranges: &[(char, char)],
         def_ascii: bool,
     ) -> String {
-        use crate::charset::{build_chars, charset_from_str};
-        use crate::cli::parse_color_scheme;
-        use crate::scene;
-
-        let Some(scene_info) = scene::get_scene(scene_name) else {
+        // Try built-in scene first; if not found, return current charset
+        // (no-op). Custom scenes are NOT resolved here — callers that need
+        // custom-scene support should use apply_scene_runtime_with_cfg.
+        let Some(scene_info) = crate::scene::get_scene(scene_name) else {
             return current_charset_preset.to_string();
         };
+        self.apply_builtin_scene_runtime(
+            scene_name,
+            scene_info.config,
+            current_charset_preset,
+            user_ranges,
+            def_ascii,
+        )
+    }
+
+    /// v30.2: Apply a runtime scene switch with custom-scene support.
+    ///
+    /// Like [`Cloud::apply_scene_runtime`] but also resolves custom scenes
+    /// via `[scene-custom.<name>]` blocks in `cfg`. When `scene_name` is a
+    /// custom scene:
+    ///
+    /// 1. Look up `scene-custom.<name>` block.
+    /// 2. If `base-scene = <built-in>` is set, apply that built-in scene's
+    ///    rain_style + color/charset/speed/density/glitch defaults first.
+    /// 3. Apply the custom block's own overrides (color/charset/speed/
+    ///    density/glitch-level) on top.
+    ///
+    /// Built-in scene names take the fast path (same as
+    /// `apply_scene_runtime`). Unknown scenes (neither built-in nor a
+    /// defined custom block) are a no-op (return current charset preset).
+    pub fn apply_scene_runtime_with_cfg(
+        &mut self,
+        scene_name: &str,
+        current_charset_preset: &str,
+        user_ranges: &[(char, char)],
+        def_ascii: bool,
+        cfg: &HashMap<String, String>,
+    ) -> String {
+        // Fast path: built-in scene.
+        if let Some(scene_info) = crate::scene::get_scene(scene_name) {
+            return self.apply_builtin_scene_runtime(
+                scene_name,
+                scene_info.config,
+                current_charset_preset,
+                user_ranges,
+                def_ascii,
+            );
+        }
+        // Custom scene path: look up block, apply base-scene defaults then
+        // custom overrides.
+        self.apply_custom_scene_runtime(
+            scene_name,
+            current_charset_preset,
+            user_ranges,
+            def_ascii,
+            cfg,
+        )
+    }
+
+    /// Apply a built-in scene's `SceneConfig` to the live Cloud state.
+    /// Shared by `apply_scene_runtime` (built-in fast path) and
+    /// `apply_scene_runtime_with_cfg` (base-scene inheritance layer).
+    fn apply_builtin_scene_runtime(
+        &mut self,
+        scene_name: &str,
+        config: crate::scene::SceneConfig,
+        current_charset_preset: &str,
+        user_ranges: &[(char, char)],
+        def_ascii: bool,
+    ) -> String {
+        use crate::charset::{build_chars, charset_from_str};
+        use crate::cli::parse_color_scheme;
+
         self.scene_name = scene_name.to_string();
 
-        let new_style = scene_info.config.rain_style;
+        let new_style = config.rain_style;
         if self.rain_style != new_style {
             self.transition_rain_style(new_style);
         }
 
         // Apply scene color if specified
-        if let Some(color_name) = scene_info.config.color {
+        if let Some(color_name) = config.color {
             if let Ok(scheme) = parse_color_scheme(color_name) {
                 self.set_color_scheme(scheme);
             }
         }
 
         // Apply scene charset if specified
-        let charset_name: &str = scene_info.config.charset.unwrap_or(current_charset_preset);
+        let charset_name: &str = config.charset.unwrap_or(current_charset_preset);
         let charset_owned = charset_name.to_string();
         if let Ok(cs) = charset_from_str(charset_name, def_ascii) {
             let chars = build_chars(cs, user_ranges, def_ascii);
@@ -64,17 +145,17 @@ impl Cloud {
         }
 
         // Apply speed
-        if let Some(speed) = scene_info.config.speed {
+        if let Some(speed) = config.speed {
             self.set_chars_per_sec(speed);
         }
 
         // Apply density
-        if let Some(density) = scene_info.config.density {
+        if let Some(density) = config.density {
             self.set_droplet_density(density);
         }
 
         // Apply glitch level
-        if let Some(glitch) = scene_info.config.glitch_level {
+        if let Some(glitch) = config.glitch_level {
             self.apply_glitch_level_runtime(glitch);
         }
 
@@ -87,6 +168,135 @@ impl Cloud {
         }
 
         charset_owned
+    }
+
+    /// Apply a custom scene (from `[scene-custom.<name>]` block) at runtime.
+    ///
+    /// Step 1: apply base-scene's defaults (rain_style + color/charset/speed/
+    /// density/glitch) if `base-scene = <built-in>` is set.
+    /// Step 2: apply the custom block's own overrides (color/charset/speed/
+    /// density/glitch-level). Fields not set in the block retain the base
+    /// scene's values (or current Cloud state if no base-scene).
+    ///
+    /// `fps`, `monolith-size`, `color-bg`, `density-map` are NOT applied at
+    /// runtime — they live on the event loop / Cloud construction path.
+    fn apply_custom_scene_runtime(
+        &mut self,
+        scene_name: &str,
+        current_charset_preset: &str,
+        user_ranges: &[(char, char)],
+        def_ascii: bool,
+        cfg: &HashMap<String, String>,
+    ) -> String {
+        use crate::charset::{build_chars, charset_from_str};
+        use crate::cli::parse_color_scheme;
+        use clap::ValueEnum;
+
+        let custom_scenes = crate::scene_custom::collect_custom_scenes(cfg);
+        let normalized = scene_name.trim().to_ascii_lowercase();
+        let Some(custom) = custom_scenes.get(&normalized) else {
+            // Unknown scene — no-op.
+            return current_charset_preset.to_string();
+        };
+
+        self.scene_name = scene_name.to_string();
+        let mut charset_preset = current_charset_preset.to_string();
+
+        // Step 1: apply base-scene defaults (if any).
+        if let Some(base_name) = custom.base_scene.as_deref() {
+            if let Some(base_info) = crate::scene::get_scene(base_name) {
+                let base_cfg = base_info.config;
+                // rain_style
+                let new_style = base_cfg.rain_style;
+                if self.rain_style != new_style {
+                    self.transition_rain_style(new_style);
+                }
+                // color
+                if let Some(color_name) = base_cfg.color {
+                    if let Ok(scheme) = parse_color_scheme(color_name) {
+                        self.set_color_scheme(scheme);
+                    }
+                }
+                // charset
+                let base_charset = base_cfg.charset.unwrap_or(current_charset_preset);
+                charset_preset = base_charset.to_string();
+                if let Ok(cs) = charset_from_str(base_charset, def_ascii) {
+                    let chars = build_chars(cs, user_ranges, def_ascii);
+                    self.transition_chars(chars);
+                }
+                // speed
+                if let Some(speed) = base_cfg.speed {
+                    self.set_chars_per_sec(speed);
+                }
+                // density
+                if let Some(density) = base_cfg.density {
+                    self.set_droplet_density(density);
+                }
+                // glitch
+                if let Some(glitch) = base_cfg.glitch_level {
+                    self.apply_glitch_level_runtime(glitch);
+                }
+            }
+        } else {
+            // No base-scene — transition rain_style to Glyph (custom scenes
+            // default to Glyph when no base-scene is set, matching the
+            // construction-time rain_style_for_custom_scene fallback).
+            if !matches!(self.rain_style, RainStyle::Glyph) {
+                self.transition_rain_style(RainStyle::Glyph);
+            }
+        }
+
+        // Step 2: apply custom block overrides.
+        // color
+        if let Some(color_name) = &custom.color {
+            if let Ok(scheme) = parse_color_scheme(color_name) {
+                self.set_color_scheme(scheme);
+            } else if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, color_name) {
+                self.set_palette(palette);
+            }
+        }
+        // charset
+        if let Some(charset_name) = &custom.charset {
+            if let Some(custom_chars) =
+                crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
+            {
+                charset_preset = charset_name.clone();
+                self.transition_chars(custom_chars);
+            } else if let Ok(charset) = charset_from_str(charset_name, def_ascii) {
+                charset_preset = charset_name.clone();
+                let chars = build_chars(charset, user_ranges, def_ascii);
+                self.transition_chars(chars);
+            }
+        }
+        // speed
+        if let Some(speed_str) = &custom.speed {
+            if let Ok(speed) = speed_str.trim().parse::<f32>() {
+                self.set_chars_per_sec(speed);
+            }
+        }
+        // density
+        if let Some(density_str) = &custom.density {
+            if let Ok(density) = density_str.trim().parse::<f32>() {
+                self.set_droplet_density(density);
+            }
+        }
+        // glitch-level
+        if let Some(glitch_str) = &custom.glitch_level {
+            if let Ok(level) = GlitchLevel::from_str(glitch_str, true) {
+                self.apply_glitch_level_runtime(level);
+            }
+        }
+        // Note: fps, monolith-size, color-bg, density-map are not runtime-
+        // applicable — they are construction-time only.
+
+        self.semantic_invalidate = true;
+        self.force_draw_everything = true;
+        self.last_spawn_time = Instant::now();
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.spawn_remainder = 0.0;
+        }
+
+        charset_preset
     }
 
     /// Transition to a different rain style, clearing all state for
@@ -150,28 +360,15 @@ impl Cloud {
 
     /// Apply an ambient phase entry at runtime — instant switch (no blend).
     ///
+    /// v30.2: simplified to a single scene-name field. The entry's `scene`
+    /// is resolved via [`Cloud::apply_scene_runtime_with_cfg`], which handles
+    /// both built-in scenes (fast path) and custom scenes (looks up
+    /// `[scene-custom.<name>]` block, applies `base-scene` defaults first,
+    /// then the block's own overrides).
+    ///
     /// Called by the event loop when the ambient scheduler thread fires a
-    /// phase boundary. Reads the entry's fields and applies them with
-    /// **sticky semantics**: any `None` field is skipped (previous value
-    /// retained). This matches the archived `adaptive-custom` contract.
-    ///
-    /// Order of application:
-    /// 1. `scene` (if Some and different from current) → calls
-    ///    `apply_scene_runtime` which handles rain_style transition,
-    ///    glyph pool realloc, and applies scene-managed defaults.
-    /// 2. `color` (if Some) → resolves built-in OR `colors-custom.<name>`,
-    ///    then `set_color_scheme` (built-in) or `set_palette` (custom).
-    /// 3. `charset` (if Some) → resolves built-in OR `charset-custom.<name>`,
-    ///    then `transition_chars`.
-    /// 4. `speed` (if Some) → `set_chars_per_sec`.
-    /// 5. `density` (if Some) → `set_droplet_density`.
-    /// 6. `glitch_level` (if Some) → `apply_glitch_level_runtime`.
-    ///
-    /// `fps` is NOT applied here — it lives in the event loop's
-    /// `target_period`, not on Cloud. The caller is responsible for
-    /// updating `target_period` when an entry's `fps` field changes.
-    ///
-    /// Returns the charset preset name used (entry's or current).
+    /// phase boundary. Returns the charset preset name used (scene's or
+    /// current).
     pub fn apply_ambient_entry(
         &mut self,
         entry: &crate::ambient::AmbientEntry,
@@ -180,62 +377,12 @@ impl Cloud {
         def_ascii: bool,
         cfg: &std::collections::HashMap<String, String>,
     ) -> String {
-        use crate::charset::{build_chars, charset_from_str};
-        use crate::cli::parse_color_scheme;
-
-        // 1. Scene switch (if specified). Reuse apply_scene_runtime which
-        //    handles rain_style transition + glyph warm-start + scene-managed
-        //    defaults. Skip if scene is None (sticky).
-        let mut charset_preset = current_charset_preset.to_string();
-        if let Some(scene_name) = &entry.scene {
-            charset_preset =
-                self.apply_scene_runtime(scene_name, &charset_preset, user_ranges, def_ascii);
-        }
-
-        // 2. Color (if specified). Built-in scheme OR colors-custom.<name>.
-        if let Some(color_name) = &entry.color {
-            if let Ok(scheme) = parse_color_scheme(color_name) {
-                self.set_color_scheme(scheme);
-            } else if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, color_name) {
-                self.set_palette(palette);
-            }
-        }
-
-        // 3. Charset (if specified). Built-in OR charset-custom.<name>.
-        if let Some(charset_name) = &entry.charset {
-            if let Some(custom_chars) =
-                crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
-            {
-                charset_preset = charset_name.clone();
-                self.transition_chars(custom_chars);
-            } else if let Ok(charset) = charset_from_str(charset_name, def_ascii) {
-                charset_preset = charset_name.clone();
-                let chars = build_chars(charset, user_ranges, def_ascii);
-                self.transition_chars(chars);
-            }
-        }
-
-        // 4. Speed (if specified).
-        if let Some(speed) = entry.speed {
-            self.set_chars_per_sec(speed);
-        }
-
-        // 5. Density (if specified).
-        if let Some(density) = entry.density {
-            self.set_droplet_density(density);
-        }
-
-        // 6. Glitch level (if specified).
-        if let Some(glitch_str) = &entry.glitch_level {
-            use clap::ValueEnum;
-            if let Ok(level) = GlitchLevel::from_str(glitch_str, true) {
-                self.apply_glitch_level_runtime(level);
-            }
-        }
-
-        self.semantic_invalidate = true;
-        self.force_draw_everything = true;
-
-        charset_preset
+        self.apply_scene_runtime_with_cfg(
+            &entry.scene,
+            current_charset_preset,
+            user_ranges,
+            def_ascii,
+            cfg,
+        )
     }
 }

@@ -214,14 +214,19 @@ fn repeated_uppercase_forward_cycle_never_blank() {
 
 // ── apply_ambient_entry regressions ──
 //
-// Bug report (2026-08-07): user's config
-//   ambient.13-00 = cosmos, signal, charset=hex, speed=12, density=0.65
-// fired correctly (scene switched cinematic→signal) but the verbose
-// "final runtime state" diff showed ONLY the scene change. color, charset,
-// speed, and density all appeared unchanged. This suggested the entry's
-// non-scene fields were being silently dropped somewhere between parser
-// and apply. These tests pin down that apply_ambient_entry itself honors
-// every field.
+// v30.2: ambient entries are now scene-name-only. The previous regression
+// (color/charset/speed/density being silently lost) is impossible by
+// construction — the scene IS the spec, so when ambient fires `signal`,
+// all of signal's defaults (color/charset/speed/density/glitch) are applied
+// atomically via apply_scene_runtime_with_cfg. There is no override layer
+// to lose.
+//
+// These tests verify the v30.2 contract:
+// 1. apply_ambient_entry with a built-in scene name applies that scene's
+//    managed defaults.
+// 2. apply_ambient_entry with a custom scene name looks up the
+//    [scene-custom.<name>] block, applies base-scene defaults first, then
+//    the block's own overrides.
 
 use crate::ambient::AmbientEntry;
 use crate::cloud::Cloud;
@@ -243,78 +248,151 @@ fn make_cinematic_like_cloud() -> Cloud {
 }
 
 #[test]
-fn apply_ambient_entry_applies_all_fields_from_user_repro() {
-    // Reproduces the user's exact entry. Previously the verbose diff
-    // showed only scene change; this test asserts that color, charset,
-    // speed, and density ALL change too.
+fn apply_ambient_entry_builtin_scene_applies_scene_defaults() {
+    // v30.2: ambient entry with a built-in scene name applies that scene's
+    // managed defaults atomically. No override layer — the scene IS the spec.
     let mut cloud = make_cinematic_like_cloud();
     let entry = AmbientEntry {
         hour: 13,
         minute: 0,
-        color: Some("cosmos".into()),
-        scene: Some("signal".into()),
-        speed: Some(12.0),
-        density: Some(0.65),
-        fps: None,
-        charset: Some("hex".into()),
-        glitch_level: None,
+        scene: "signal".to_string(),
     };
     let cfg = HashMap::new();
     let charset_preset = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
 
-    // Scene-driven changes (signal scene sets color=aurora, charset=retro,
-    // speed=14.0, density=0.55) should ALL be overridden by the entry's
-    // explicit fields.
-    assert_eq!(
-        cloud.color_scheme(),
-        ColorScheme::Cosmos,
-        "entry.color=cosmos must override signal scene's aurora"
-    );
-    assert_eq!(
-        charset_preset, "hex",
-        "entry.charset=hex must override signal scene's retro"
-    );
-    assert!(
-        (cloud.chars_per_sec - 12.0).abs() < 0.01,
-        "entry.speed=12.0 must override signal scene's 14.0, got {}",
-        cloud.chars_per_sec
-    );
-    assert!(
-        (cloud.droplet_density - 0.65).abs() < 0.01,
-        "entry.density=0.65 must override signal scene's 0.55, got {}",
-        cloud.droplet_density
-    );
-}
-
-#[test]
-fn apply_ambient_entry_scene_only_applies_scene_managed_defaults() {
-    // Sanity: when the entry has ONLY scene, apply_scene_runtime's
-    // scene-managed defaults should still take effect. This rules out
-    // "apply_scene_runtime is broken" as the root cause.
-    let mut cloud = make_cinematic_like_cloud();
-    let entry = AmbientEntry {
-        hour: 13,
-        minute: 0,
-        color: None,
-        scene: Some("signal".into()),
-        speed: None,
-        density: None,
-        fps: None,
-        charset: None,
-        glitch_level: None,
-    };
-    let cfg = HashMap::new();
-    let _ = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
-
-    // signal scene's color=aurora should be applied.
+    // signal scene's defaults: color=aurora, charset=retro, speed=14.0,
+    // density=0.55. All should be applied.
     assert_eq!(
         cloud.color_scheme(),
         ColorScheme::Aurora,
-        "signal scene should set color=aurora when entry has no color override"
+        "signal scene should set color=aurora"
+    );
+    assert_eq!(
+        charset_preset, "retro",
+        "signal scene should set charset=retro"
     );
     assert!(
         (cloud.chars_per_sec - 14.0).abs() < 0.01,
         "signal scene should set speed=14.0, got {}",
         cloud.chars_per_sec
     );
+    assert!(
+        (cloud.droplet_density - 0.55).abs() < 0.01,
+        "signal scene should set density=0.55, got {}",
+        cloud.droplet_density
+    );
+}
+
+#[test]
+fn apply_ambient_entry_custom_scene_applies_base_scene_then_overrides() {
+    // v30.2: ambient entry with a custom scene name looks up the
+    // [scene-custom.<name>] block, applies base-scene defaults first,
+    // then the block's own overrides.
+    //
+    // Setup: custom scene "afternoon" with base-scene=signal, color=cosmos,
+    // speed=12.0. Should result in:
+    //   - rain_style = signal's (Glyph)
+    //   - color = cosmos (override)
+    //   - charset = retro (from signal base)
+    //   - speed = 12.0 (override)
+    //   - density = 0.55 (from signal base)
+    //   - glitch = signal's default (Default)
+    let mut cloud = make_cinematic_like_cloud();
+    let entry = AmbientEntry {
+        hour: 15,
+        minute: 0,
+        scene: "afternoon".to_string(),
+    };
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.afternoon.base-scene".to_string(),
+        "signal".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.afternoon.color".to_string(),
+        "cosmos".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.afternoon.speed".to_string(),
+        "12.0".to_string(),
+    );
+    let charset_preset = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::Cosmos,
+        "custom scene color=cosmos must override signal base's aurora"
+    );
+    assert_eq!(
+        charset_preset, "retro",
+        "custom scene with no charset field must inherit signal base's retro"
+    );
+    assert!(
+        (cloud.chars_per_sec - 12.0).abs() < 0.01,
+        "custom scene speed=12.0 must override signal base's 14.0, got {}",
+        cloud.chars_per_sec
+    );
+    assert!(
+        (cloud.droplet_density - 0.55).abs() < 0.01,
+        "custom scene with no density must inherit signal base's 0.55, got {}",
+        cloud.droplet_density
+    );
+}
+
+#[test]
+fn apply_ambient_entry_custom_scene_without_base_scene_uses_glyph_rain() {
+    // v30.2: a custom scene with no base-scene falls back to Glyph rain
+    // style and applies only the block's own overrides. Missing fields
+    // retain the cloud's current state (no reset to defaults).
+    let mut cloud = make_cinematic_like_cloud();
+    let entry = AmbientEntry {
+        hour: 18,
+        minute: 0,
+        scene: "minimal".to_string(),
+    };
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.minimal.color".to_string(),
+        "neon-green".to_string(),
+    );
+    // No base-scene, no speed/density — those retain current values.
+    let _ = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::NeonGreen,
+        "custom scene color=neon-green must be applied"
+    );
+    // Speed and density should NOT change (no base-scene, no override).
+    assert!(
+        (cloud.chars_per_sec - 9.0).abs() < 0.01,
+        "custom scene with no base-scene and no speed must retain current 9.0, got {}",
+        cloud.chars_per_sec
+    );
+    assert!(
+        (cloud.droplet_density - 0.75).abs() < 0.01,
+        "custom scene with no base-scene and no density must retain current 0.75, got {}",
+        cloud.droplet_density
+    );
+}
+
+#[test]
+fn apply_ambient_entry_unknown_scene_is_noop() {
+    // v30.2: an unknown scene name (not built-in, no [scene-custom.<name>]
+    // block) is a no-op — current state is preserved. This matches the
+    // apply_scene_runtime contract for unknown scenes.
+    let mut cloud = make_cinematic_like_cloud();
+    let entry = AmbientEntry {
+        hour: 20,
+        minute: 0,
+        scene: "nonexistent-scene".to_string(),
+    };
+    let cfg = HashMap::new();
+    let charset_preset = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+
+    // Nothing should change.
+    assert_eq!(cloud.color_scheme(), ColorScheme::NeonPurple);
+    assert_eq!(charset_preset, "zen");
+    assert!((cloud.chars_per_sec - 9.0).abs() < 0.01);
+    assert!((cloud.droplet_density - 0.75).abs() < 0.01);
 }

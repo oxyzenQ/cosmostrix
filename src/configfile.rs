@@ -50,20 +50,19 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
 ];
 
 const PROFILE_CONFIG_KEY_HINT: &str =
-    "profile.<name>.<color|charset|fps|speed|density|glitch-level|monolith-size|color-bg>";
-const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<color|charset|fps|speed|density|density-map|glitch-level|monolith-size|color-bg>";
+    "profile.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg>";
+const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|fps|speed|density|density-map|glitch-level|monolith-size|color-bg>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain|stops>";
 const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
-/// Ambient phase scheduler: `ambient.<HH-MM> = <color>, <scene>, [key=value, ...]`.
+/// Ambient phase scheduler: `ambient.<HH-MM> = <scene-name>`.
 ///
-/// Config-only (no CLI flag). Time-of-day phase entries that switch scene,
-/// color, speed, density, fps, charset, glitch-level at scheduled times.
-/// Instant switch (no blend window). Dynamic idle/wake scheduler thread —
-/// zero CPU between phase boundaries. See `src/ambient.rs` and
-/// `src/ambient_scheduler.rs`.
-const AMBIENT_CONFIG_KEY_HINT: &str =
-    "ambient.<HH-MM> = <color>, <scene>, [speed=.., density=.., fps=.., charset=.., glitch-level=..]";
+/// v30.2: simplified — value is a single scene name (built-in OR custom).
+/// Config-only (no CLI flag). Time-of-day phase entries that switch the
+/// active scene at scheduled times. Instant switch (no blend window).
+/// Dynamic idle/wake scheduler thread — zero CPU between phase boundaries.
+/// See `src/ambient.rs` and `src/ambient_scheduler.rs`.
+const AMBIENT_CONFIG_KEY_HINT: &str = "ambient.<HH-MM> = <scene-name>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub(crate) struct ParsedConfig {
@@ -646,14 +645,29 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # ── Custom Scenes ──
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>.
-# Fields: color, charset, fps, speed, density, density-map, glitch-level,
-#         monolith-size, color-bg. Missing fields fall back to cinematic's
-# defaults. Custom scenes are listed in --list-scenes output.
+# Fields: base-scene (v30.2), color, charset, fps, speed, density, density-map,
+#         glitch-level, monolith-size, color-bg. Missing fields fall back to
+#         cinematic's defaults (or to base-scene's defaults if base-scene is set).
+#         Custom scenes are listed in --list-scenes output.
 #
 # Ordering: once you write a [section] header, every flat key AFTER it
 # belongs to that section until the next header. Prefer writing top-level
 # keys BEFORE any [section] block.
 
+# [scene-custom.hacker-mode]
+# base-scene = matrix       # v30.2: inherit matrix's rain_style + defaults
+# color = green             # override matrix's neon-green with plain green
+# charset = hacker          # override matrix's matrix charset
+# speed = 28                # override matrix's speed=18
+# density = 1.2             # override matrix's density=0.65
+# glitch-level = intense    # override matrix's glitch=Subtle
+#
+# v30.2: base-scene is the inheritance anchor. When set, the custom scene
+# inherits ALL scene-managed defaults from the named built-in scene before
+# applying its own overrides. Without base-scene, missing fields fall back
+# to cinematic's defaults.
+#
+# Without base-scene (legacy v20.1+ behavior):
 # [scene-custom.hacker-mode]
 # color = green
 # charset = hacker
@@ -699,46 +713,56 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # ── Ambient Phase Scheduler ──
 # Schedule time-of-day phase transitions. Config-only (no CLI flag).
-# Each entry sets the active scene/color/parameters from the specified
-# wall-clock minute until the next entry's boundary. Instant switch (no
+# Each entry switches the active scene at the specified wall-clock minute
+# and stays active until the next entry's boundary. Instant switch (no
 # blend window). Dynamic idle/wake scheduler thread — zero CPU between
 # phase boundaries.
 #
-# Format:
-#   ambient.<HH-MM> = <color>, <scene>, [speed=.., density=.., fps=.., charset=.., glitch-level=..]
+# v30.2 format (simplified — breaking change from v30.1):
+#   ambient.<HH-MM> = <scene-name>
+#
+# The value is a SINGLE scene name — either a built-in scene (cinematic,
+# signal, monolith, etc.) OR a custom scene defined via [scene-custom.<name>].
+# All parameters (color, charset, speed, density, fps, glitch-level, rain_style)
+# live inside the scene itself. This eliminates the v30.1 override-precedence
+# bugs where speed=50 was silently overridden by the scene's default speed.
 #
 # - HH-MM: 24-hour time, zero-padded (00-00 to 23-59).
-# - Positional 1 (color): built-in scheme OR colors-custom.<name>. Optional
-#   — if omitted, color is sticky (keeps previous value).
-# - Positional 2 (scene): built-in scene name. Optional — if omitted,
-#   scene is sticky.
-# - Optional key=value pairs (all sticky):
-#     speed=FLOAT (1.0-100.0)  density=FLOAT (0.01-5.0)
-#     fps=INT (1-120)          charset=NAME
-#     glitch-level=none|subtle|default|intense
-# - Sticky = fields not specified keep the previous value (engine does NOT
-#   reset to defaults when transitioning between phases).
+# - scene-name: built-in OR [scene-custom.<name>] block.
 # - Wrap-around: if now is 0:30 and the earliest entry is 6:00, the
 #   "current" phase is the LAST entry of the previous day (carried over).
 # - Live reload: edits take effect immediately on save.
 # - Max 256 entries (a healthy schedule has 2-6).
 #
-# Only 2 positional args allowed (color, scene). Anything else must use
-# key=value. 3+ positionals will be rejected with a suggestion (e.g.
-# 'did you mean charset=binary?').
+# Migration from v30.1 multi-field format:
+#   v30.1: ambient.15-00 = neon-purple, signal, speed=50, density=0.65
+#   v30.2: [scene-custom.afternoon]
+#         base-scene = "signal"
+#         color = "neon-purple"
+#         speed = "50"
+#         density = "0.65"
+#         ambient.15-00 = afternoon
 #
-# Working Example: 3-phase day/night cycle
-#   ambient.06-00 = neon-green, signal, speed=12, density=0.65
-#   ambient.12-00 = neon-purple, monolith, speed=18, density=0.85
-#   ambient.20-00 = calm, signal, speed=6, density=0.40, glitch-level=subtle
+# Working Example: 3-phase day/night cycle (v30.2)
+#   ambient.06-00 = signal
+#   ambient.12-00 = monolith
+#   ambient.20-00 = cinematic
 #
-# Minimal Example: 2-phase day/night (color-only, scene sticky)
-#   ambient.07-00 = neon-green
-#   ambient.19-00 = neon-purple
+# Custom-scene Example: define once, reference by name
+#   [scene-custom.afternoon]
+#   base-scene = "signal"
+#   color = "neon-purple"
+#   speed = "50"
+#   density = "0.65"
+#   ambient.15-00 = afternoon
+#
+# Minimal Example: 2-phase day/night
+#   ambient.07-00 = matrix
+#   ambient.19-00 = monolith
 
-# ambient.06-00 = neon-green, signal, speed=12, density=0.65
-# ambient.12-00 = neon-purple, monolith, speed=18, density=0.85
-# ambient.20-00 = calm, signal, speed=6, density=0.40, glitch-level=subtle
+# ambient.06-00 = signal
+# ambient.12-00 = monolith
+# ambient.20-00 = cinematic
 
 # ── Removed Keys (rejected by --testconf) ──
 # adaptive-custom.*  — atmosphere engine eliminated; use ambient.* instead.
@@ -1002,17 +1026,27 @@ mod tests {
 
     #[test]
     fn profile_keys_are_known() {
-        // v20.1: `base-scene` is no longer a recognized profile field — it
-        // must be flagged as unknown. `color` is still recognized.
+        // v30.2: `base-scene` is restored as a recognized profile/scene-custom
+        // field (with cleaner inheritance semantics — see profile.rs). It
+        // must be stored in values, NOT flagged as unknown.
         let parsed = parse_config_text(
             "profile.nightcore.base-scene = monolith\nprofile.nightcore.color = purple\n",
         );
-        // base-scene is unknown and therefore NOT stored in values.
-        assert_eq!(parsed.values.get("profile.nightcore.base-scene"), None);
-        assert!(parsed
-            .unknown_keys
-            .contains(&"profile.nightcore.base-scene".to_string()));
-        // color is recognized and stored.
+        // base-scene is recognized and stored.
+        assert_eq!(
+            parsed
+                .values
+                .get("profile.nightcore.base-scene")
+                .map(String::as_str),
+            Some("monolith")
+        );
+        assert!(
+            !parsed
+                .unknown_keys
+                .contains(&"profile.nightcore.base-scene".to_string()),
+            "base-scene must NOT be flagged as unknown in v30.2"
+        );
+        // color is also recognized and stored.
         assert_eq!(
             parsed
                 .values

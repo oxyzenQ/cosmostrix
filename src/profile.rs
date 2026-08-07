@@ -4,11 +4,15 @@
 //! User-defined profile support for flat `key = value` config files.
 //!
 //! Profiles are intentionally lightweight collections of override fields.
-//! They no longer inherit from a `base-scene` — custom scenes stand on
-//! their own, and missing fields fall back to global defaults
-//! (`DEFAULT_SCENE` = cinematic). The `base-scene` and `preset` fields
-//! were removed in v20.1 and are now reported as unknown keys by
-//! `--testconf`, prompting migration.
+//! v30.2 restores the `base-scene` field (removed in v20.1) with cleaner
+//! semantics: when set, the profile inherits all scene-managed defaults
+//! (color, charset, fps, speed, density, glitch-level, rain_style) from
+//! the named built-in scene BEFORE applying the profile's own overrides.
+//! This lets a profile or custom scene say "like `signal`, but with
+//! neon-green color and speed 50" without re-declaring every field.
+//!
+//! The legacy `preset` field remains removed — it was a synonym for
+//! `base-scene` with confusing naming.
 
 use std::collections::{BTreeMap, HashSet};
 
@@ -26,6 +30,7 @@ use crate::validation::{
 };
 
 pub(crate) const PROFILE_FIELDS: &[&str] = &[
+    "base-scene",
     "color",
     "charset",
     "fps",
@@ -39,6 +44,19 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct UserProfile {
+    /// Optional built-in scene name to inherit defaults from before applying
+    /// this profile's own overrides. v30.2: restored with cleaner semantics
+    /// — the value must be a recognized built-in scene (`cinematic`,
+    /// `signal`, `monolith`, etc.). Custom scene names are NOT allowed
+    /// (no chained inheritance — keeps the apply graph a flat 2-level).
+    ///
+    /// When set, `apply_profile_layer` calls `apply_scene_values_to_args`
+    /// with the base scene's `SceneConfig` BEFORE applying this profile's
+    /// own overrides. The profile's explicit fields then win over the base
+    /// scene's defaults. Fields not specified in either retain whatever
+    /// `args` already has (typically cinematic's defaults from
+    /// `apply_default_scene_values`).
+    pub base_scene: Option<String>,
     pub color: Option<String>,
     pub charset: Option<String>,
     pub fps: Option<String>,
@@ -94,6 +112,7 @@ pub(crate) fn collect_profiles(
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
+            "base-scene" => profile.base_scene = Some(value.clone()),
             "color" => profile.color = Some(value.clone()),
             "charset" => profile.charset = Some(value.clone()),
             "fps" => profile.fps = Some(value.clone()),
@@ -145,19 +164,119 @@ pub(crate) fn apply_profile_layer(
         return Ok(modified);
     };
 
-    // v20.1: `base-scene` and `preset` are gone — custom scenes stand on
-    // their own. Their own fields override args.* directly via
-    // apply_profile_overrides, and missing fields fall back to whatever
-    // args already has (DEFAULT_SCENE = cinematic's values from
-    // apply_default_scene_values). The caller is responsible for setting
-    // args.scene to the custom scene name so verbose output shows
-    // `scene: <custom_name>` instead of a fallback foundation scene.
+    // v30.2: `base-scene` is restored with cleaner semantics. When set,
+    // we pre-populate args.* with the named built-in scene's SceneConfig
+    // defaults BEFORE applying this profile's own overrides. The profile's
+    // explicit fields then win over the base scene's defaults. Fields not
+    // specified in either retain whatever args already has (typically
+    // cinematic's values from apply_default_scene_values).
+    //
+    // Only built-in scenes are accepted as base-scene values — no chained
+    // inheritance (base-scene pointing at another custom scene). This keeps
+    // the apply graph a flat 2-level, avoiding cycles and surprise ordering.
     //
     // Phase 5 closure (P1-#5): pass `cfg` through so apply_profile_overrides
     // can resolve custom charset/color names from [charset-custom.*] and
     // [colors-custom.*] blocks — matching the top-level config_apply behavior.
+    if let Some(base_name) = profile.base_scene.as_deref() {
+        apply_base_scene_to_args(
+            matches,
+            args,
+            base_name,
+            &normalized,
+            strict_unknown,
+            &mut modified,
+        );
+    }
     apply_profile_overrides(matches, args, &normalized, profile, cfg, &mut modified);
     Ok(modified)
+}
+
+/// Apply a built-in scene's `SceneConfig` defaults to `args` as the first
+/// inheritance layer of a profile/custom-scene apply chain.
+///
+/// Mirrors `apply_default_scene_values` / `apply_scene_values` but reads
+/// the scene from `scene::get_scene(base_name)` instead of `args.scene`.
+/// Respects `is_explicit(matches, <field>)` so explicit CLI flags still win
+/// over base-scene defaults. Does NOT consult `config_touched` — by the
+/// time this runs (inside `apply_profile_layer`), top-level config keys
+/// have already been applied to args, so overwriting them with base-scene
+/// defaults is the intended precedence: profile-with-base-scene wins over
+/// top-level config, just like profile-without-base-scene does.
+///
+/// On unknown base-scene name: error in strict mode, warn + no-op in
+/// lenient mode. The caller decides strictness via `strict_unknown`.
+fn apply_base_scene_to_args(
+    matches: &clap::ArgMatches,
+    args: &mut Args,
+    base_name: &str,
+    profile_name: &str,
+    strict_unknown: bool,
+    modified: &mut HashSet<&'static str>,
+) {
+    use crate::scene;
+    let normalized = base_name.trim().to_ascii_lowercase();
+    let Some(scene_info) = scene::get_scene(&normalized) else {
+        let message = format!(
+            "error: unknown base-scene '{base_name}' in profile '{profile_name}'\n\
+             expected one of: {}\n\
+             note: base-scene must be a built-in scene name (custom scenes are not allowed)",
+            scene::all_scene_names().join(", ")
+        );
+        if strict_unknown {
+            eprintln!("{message}");
+        } else {
+            crate::output::eprintln_warn_labeled(&message);
+        }
+        return;
+    };
+    let cfg = &scene_info.config;
+
+    // Apply each scene-managed field if the user didn't set it on CLI.
+    // Mirrors apply_default_scene_values / apply_scene_values but reads
+    // from a parameter scene_info instead of DEFAULT_SCENE / args.scene.
+    if let Some(color) = cfg.color {
+        if !is_explicit(matches, "color") {
+            args.color = color.to_string();
+            modified.insert("color");
+        }
+    }
+    if let Some(charset) = cfg.charset {
+        if !is_explicit(matches, "charset") {
+            args.charset = charset.to_string();
+            modified.insert("charset");
+        }
+    }
+    if let Some(fps) = cfg.fps {
+        if !is_explicit(matches, "fps") {
+            args.fps = fps;
+            modified.insert("fps");
+        }
+    }
+    if let Some(speed) = cfg.speed {
+        if !is_explicit(matches, "speed") {
+            args.speed = speed;
+            modified.insert("speed");
+        }
+    }
+    if let Some(density) = cfg.density {
+        if !is_explicit(matches, "density") {
+            args.density = density;
+            modified.insert("density");
+        }
+    }
+    if let Some(glitch) = cfg.glitch_level {
+        if !is_explicit(matches, "glitch_level") {
+            args.glitch_level = glitch;
+            modified.insert("glitch_level");
+        }
+    }
+    // rain_style is NOT a profile field — it's applied at Cloud construction
+    // from args.scene (via rain_style_for_scene). The custom-scene apply path
+    // (apply_scene_custom_layer) sets args.scene to the custom name, so
+    // rain_style would default to Glyph. To honor base-scene's rain_style,
+    // we store it on args via a side channel. See apply_scene_custom_layer
+    // for the rain_style override logic.
 }
 
 fn apply_profile_overrides(
@@ -365,9 +484,12 @@ mod tests {
 
     #[test]
     fn profile_keys_are_recognized() {
-        // v20.1: `base-scene` is gone — it must NOT be recognized as a valid
-        // profile key. --testconf will flag it as unknown, prompting migration.
-        assert!(!is_profile_config_key("profile.nightcore.base-scene"));
+        // v30.2: `base-scene` is restored as a recognized profile field — it
+        // triggers inheritance from a built-in scene's defaults before the
+        // profile's own overrides are applied. The legacy `preset` field
+        // remains removed (it was a synonym for base-scene with confusing
+        // naming).
+        assert!(is_profile_config_key("profile.nightcore.base-scene"));
         assert!(!is_profile_config_key("profile.nightcore.preset"));
         assert!(is_profile_config_key("profile.nightcore.glitch-level"));
         assert!(!is_profile_config_key("profile.nightcore.unknown"));
