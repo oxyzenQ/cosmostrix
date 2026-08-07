@@ -9,7 +9,7 @@
 //! (color, charset, fps, speed, density, glitch-level, rain_style) from
 //! the named built-in scene BEFORE applying the profile's own overrides.
 //! This lets a profile or custom scene say "like `signal`, but with
-//! neon-green color and speed 50" without re-declaring every field.
+//! neon-green color and speed 50" without redeclaring every field.
 //!
 //! The legacy `preset` field remains removed — it was a synonym for
 //! `base-scene` with confusing naming.
@@ -40,6 +40,14 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "glitch-level",
     "monolith-size",
     "color-bg",
+    // v30.3: scene-custom-only fields (also accepted on profile.* for
+    // symmetry, but owner's ask is specifically for [scene-custom.*]).
+    // These are intentionally NOT in the forbidden list for scene-custom.
+    "bold",
+    "colors-custom",
+    "charset-custom",
+    "shadingmode",
+    "async",
 ];
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -68,6 +76,26 @@ pub(crate) struct UserProfile {
     pub glitch_level: Option<String>,
     pub monolith_size: Option<String>,
     pub color_bg: Option<String>,
+    // v30.3: scene-custom extensions. These fields are accepted on both
+    // `[profile.<name>]` and `[scene-custom.<name>]` blocks for symmetry,
+    // but the primary ask was scene-custom support. See SCENE_CUSTOM_FIELDS
+    // in `scene_custom.rs` for the explicit allowlist used by
+    // `is_scene_custom_config_key`.
+    //
+    // `bold`: u8 string ("0"=Off, "1"=Random, "2"=All) — matches --bold CLI.
+    pub bold: Option<String>,
+    /// Custom palette name referencing a `[colors-custom.<name>]` block.
+    /// Resolved at apply time via `colors_custom::load_custom_palette`.
+    pub colors_custom: Option<String>,
+    /// Custom charset name referencing a `[charset-custom.<name>]` block.
+    /// Resolved at apply time via `charset_custom::load_custom_charset_if_matches`.
+    pub charset_custom: Option<String>,
+    /// Shading mode: "0"=Random, "1"=DistanceFromHead — matches `shadingmode`
+    /// top-level config key.
+    pub shading_mode: Option<String>,
+    /// Async render toggle: "true"/"false" — matches `async-mode` top-level
+    /// config key (the scene-custom field name is `async` per owner spec).
+    pub async_mode: Option<String>,
 }
 
 #[must_use]
@@ -122,6 +150,12 @@ pub(crate) fn collect_profiles(
             "glitch-level" => profile.glitch_level = Some(value.clone()),
             "monolith-size" => profile.monolith_size = Some(value.clone()),
             "color-bg" => profile.color_bg = Some(value.clone()),
+            // v30.3: scene-custom extensions (also accepted on profile.*).
+            "bold" => profile.bold = Some(value.clone()),
+            "colors-custom" => profile.colors_custom = Some(value.clone()),
+            "charset-custom" => profile.charset_custom = Some(value.clone()),
+            "shadingmode" => profile.shading_mode = Some(value.clone()),
+            "async" => profile.async_mode = Some(value.clone()),
             _ => {}
         }
     }
@@ -392,6 +426,76 @@ fn apply_profile_overrides(
             None => warn_invalid(name, "color-bg", value, "black, default-background"),
         }
     }
+    // v30.3: scene-custom extension fields. Also applied on profile.* for
+    // symmetry. `bold` and `shading_mode` use the same u8 parsing as the
+    // top-level config keys; `async_mode` is a bool. `colors-custom` and
+    // `charset-custom` are name references resolved at Cloud construction
+    // (not here — they don't have a corresponding `args` field, the names
+    // are stored on `args.color` / `args.charset` indirectly via palette /
+    // charset resolution at apply time).
+    if let Some(value) = profile
+        .bold
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "bold"))
+    {
+        if let Some(n) = parse_u8_profile(name, "bold", value, 0, 2) {
+            args.bold = n;
+            modified.insert("bold");
+        }
+    }
+    if let Some(value) = profile
+        .shading_mode
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "shading_mode"))
+    {
+        if let Some(n) = parse_u8_profile(name, "shadingmode", value, 0, 1) {
+            args.shading_mode = n;
+            modified.insert("shading_mode");
+        }
+    }
+    if let Some(value) = profile
+        .async_mode
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "async_mode"))
+    {
+        match parse_bool(value) {
+            Some(b) => {
+                args.async_mode = b;
+                modified.insert("async_mode");
+            }
+            None => warn_invalid(name, "async", value, "true, false"),
+        }
+    }
+    // `colors-custom` and `charset-custom` resolve to the SAME args fields
+    // as `color` / `charset` (the value is a name that gets resolved
+    // downstream). Apply them only if `color` / `charset` wasn't already
+    // set by this profile (avoids last-writer-wins confusion).
+    if let Some(value) = profile.colors_custom.as_deref() {
+        if !is_explicit(matches, "color") && profile.color.is_none() {
+            // Validate the name exists as a [colors-custom.<name>] block.
+            if is_colors_custom_name(cfg, value) {
+                args.color = value.to_string();
+                modified.insert("color");
+            } else {
+                warn_invalid(name, "colors-custom", value, "see [colors-custom.*] blocks");
+            }
+        }
+    }
+    if let Some(value) = profile.charset_custom.as_deref() {
+        if !is_explicit(matches, "charset") && profile.charset.is_none() {
+            if crate::charset_custom::load_custom_charset_if_matches(cfg, value).is_some() {
+                args.charset = value.to_string();
+                modified.insert("charset");
+            } else {
+                warn_invalid(
+                    name,
+                    "charset-custom",
+                    value,
+                    "see [charset-custom.*] blocks",
+                );
+            }
+        }
+    }
 }
 
 fn parse_f32_profile(name: &str, field: &str, value: &str, min: f32, max: f32) -> Option<f32> {
@@ -444,6 +548,35 @@ fn parse_color_bg(value: &str) -> Option<ColorBg> {
     match value.trim().to_ascii_lowercase().as_str() {
         "black" => Some(ColorBg::Black),
         "default-background" | "default_background" => Some(ColorBg::DefaultBackground),
+        _ => None,
+    }
+}
+
+/// v30.3: parse a u8 field for profile/scene-custom application.
+/// Mirrors `parse_u8_config` in config_apply.rs but routes warnings through
+/// `warn_invalid` so the profile/scene-custom name shows up in the message.
+fn parse_u8_profile(name: &str, field: &str, value: &str, min: u8, max: u8) -> Option<u8> {
+    let v = value.trim();
+    match v.parse::<u8>() {
+        Ok(n) if n >= min && n <= max => Some(n),
+        _ => {
+            warn_invalid(
+                name,
+                field,
+                value,
+                &format!("integer in range {min}..={max}"),
+            );
+            None
+        }
+    }
+}
+
+/// v30.3: parse a bool field ("true"/"false", case-insensitive, also accepts
+/// "1"/"0"). Used for the `async` scene-custom field.
+fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => Some(true),
+        "false" | "0" | "no" | "off" => Some(false),
         _ => None,
     }
 }

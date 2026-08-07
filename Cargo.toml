@@ -27,6 +27,12 @@ unicode-width = "0.2"
 # established in `interactive/adaptive.rs::local_secs_since_midnight`).
 notify = { version = ">=6.1, <7", default-features = false }
 
+# v30.3: SHA-256 for config.toml content hashing (live-reload change
+# detection). Owner contract requires cryptographic hash strength rather
+# than the previous FNV-1a 64-bit hash. sha2 is pure-Rust, no unsafe, and
+# ~50KB compiled. Used by live_config_poll::hash_file_prefix.
+sha2 = "0.10"
+
 # Bug 1 fix: enable kqueue backend on FreeBSD/GhostBSD/macOS (iOS too).
 # Without these target-specific features, notify's RecommendedWatcher
 # falls back to a no-op backend on BSDs, silently breaking live reload.

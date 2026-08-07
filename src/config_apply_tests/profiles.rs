@@ -67,12 +67,15 @@ fn nightcore_config() -> &'static str {
     // (matching v20.1 behavior).
     // The config namespace is `[scene-custom.<name>]` (the [profile.<name>]
     // fallback was removed in v20.1 — users must rename the prefix).
+    //
+    // v30.3: `monolith-size` removed from scene-custom (forbidden per owner
+    // contract — collides with ambient simplification). It's now a top-level
+    // / scene-managed field only.
     "scene-custom.nightcore.color = purple\n\
      scene-custom.nightcore.charset = binary\n\
      scene-custom.nightcore.speed = 24\n\
      scene-custom.nightcore.density = 0.70\n\
-     scene-custom.nightcore.glitch-level = subtle\n\
-     scene-custom.nightcore.monolith-size = large\n"
+     scene-custom.nightcore.glitch-level = subtle\n"
 }
 
 #[test]
@@ -89,7 +92,10 @@ fn cli_profile_loads_user_profile_from_config() {
     assert_eq!(args.speed, 24.0);
     assert!((args.density - 0.70).abs() < f32::EPSILON);
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
-    assert_eq!(args.monolith_size, MonolithSize::Large);
+    // v30.3: `monolith-size` is forbidden in scene-custom blocks per owner
+    // contract. args.monolith_size retains its default (Normal) — users who
+    // want a different monolith-size must set it as a top-level config key.
+    assert_eq!(args.monolith_size, MonolithSize::Normal);
     // v20: args.scene is now the custom scene name, so rain_style_for_scene
     // returns None (custom scenes are not built-in) and falls back to Glyph.
     assert_eq!(
@@ -137,7 +143,10 @@ fn explicit_cli_flags_override_profile_values() {
     assert_eq!(args.color, "green");
     assert_eq!(args.speed, 30.0);
     assert!((args.density - 0.70).abs() < f32::EPSILON);
-    assert_eq!(args.monolith_size, MonolithSize::Large);
+    // v30.3: `monolith-size` is forbidden in scene-custom blocks per owner
+    // contract. The nightcore scene no longer sets it, so args.monolith_size
+    // retains its default (Normal) regardless of CLI overrides.
+    assert_eq!(args.monolith_size, MonolithSize::Normal);
 }
 
 #[test]

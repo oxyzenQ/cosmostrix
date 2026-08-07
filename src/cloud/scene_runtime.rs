@@ -247,7 +247,7 @@ impl Cloud {
         }
 
         // Step 2: apply custom block overrides.
-        // color
+        // color (built-in scheme via `color`, OR custom palette via `colors-custom`)
         if let Some(color_name) = &custom.color {
             if let Ok(scheme) = parse_color_scheme(color_name) {
                 self.set_color_scheme(scheme);
@@ -255,7 +255,16 @@ impl Cloud {
                 self.set_palette(palette);
             }
         }
-        // charset
+        // v30.3: `colors-custom` — explicit custom palette name. Applied
+        // only if `color` wasn't set (avoids last-writer-wins confusion).
+        if custom.color.is_none() {
+            if let Some(palette_name) = &custom.colors_custom {
+                if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, palette_name) {
+                    self.set_palette(palette);
+                }
+            }
+        }
+        // charset (built-in via `charset`, OR custom via `charset-custom`)
         if let Some(charset_name) = &custom.charset {
             if let Some(custom_chars) =
                 crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
@@ -266,6 +275,18 @@ impl Cloud {
                 charset_preset = charset_name.clone();
                 let chars = build_chars(charset, user_ranges, def_ascii);
                 self.transition_chars(chars);
+            }
+        }
+        // v30.3: `charset-custom` — explicit custom charset name. Applied
+        // only if `charset` wasn't set.
+        if custom.charset.is_none() {
+            if let Some(charset_name) = &custom.charset_custom {
+                if let Some(custom_chars) =
+                    crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
+                {
+                    charset_preset = charset_name.clone();
+                    self.transition_chars(custom_chars);
+                }
             }
         }
         // speed
@@ -286,8 +307,38 @@ impl Cloud {
                 self.apply_glitch_level_runtime(level);
             }
         }
-        // Note: fps, monolith-size, color-bg, density-map are not runtime-
-        // applicable — they are construction-time only.
+        // v30.3: bold (0=Off, 1=Random, 2=All) — matches --bold CLI.
+        if let Some(bold_str) = &custom.bold {
+            if let Ok(n) = bold_str.trim().parse::<u8>() {
+                let mode = match n {
+                    0 => crate::runtime::BoldMode::Off,
+                    2 => crate::runtime::BoldMode::All,
+                    _ => crate::runtime::BoldMode::Random,
+                };
+                self.bold_mode = mode;
+            }
+        }
+        // v30.3: shadingmode (0=Random, 1=DistanceFromHead).
+        if let Some(shading_str) = &custom.shading_mode {
+            if let Ok(n) = shading_str.trim().parse::<u8>() {
+                let sm = match n {
+                    1 => crate::runtime::ShadingMode::DistanceFromHead,
+                    _ => crate::runtime::ShadingMode::Random,
+                };
+                self.set_shading_mode(sm);
+            }
+        }
+        // v30.3: async (true/false).
+        if let Some(async_str) = &custom.async_mode {
+            let on = matches!(
+                async_str.trim().to_ascii_lowercase().as_str(),
+                "true" | "1" | "yes" | "on"
+            );
+            self.set_async(on);
+        }
+        // Note: fps, density-map are not runtime-applicable — they are
+        // construction-time only. monolith-size and color-bg are forbidden
+        // in scene-custom blocks per v30.3 owner contract.
 
         self.semantic_invalidate = true;
         self.force_draw_everything = true;

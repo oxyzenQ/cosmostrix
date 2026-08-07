@@ -27,8 +27,10 @@
 //!   - content hash of the first 8KB (catches in-place content edits that
 //!     didn't change size or mtime — e.g., FUSE mtime bug)
 //!
-//! The content hash is a simple FNV-1a 64-bit hash. Reading 8KB adds
-//! ~50µs overhead per poll — negligible at 750ms intervals.
+//! The content hash is v30.3: SHA-256 (cryptographic, per owner contract
+//! 2026-08-07). Reading 8KB adds ~100µs overhead per poll — negligible
+//! at 750ms intervals. The previous FNV-1a 64-bit hash was replaced
+//! because owner required cryptographic strength for change detection.
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -279,9 +281,11 @@ pub(crate) struct FileStateSnapshot {
     pub mtime: Option<std::time::SystemTime>,
     /// File size in bytes. `None` if `metadata()` itself failed.
     pub size: Option<u64>,
-    /// FNV-1a 64-bit hash of the first 8KB of file content. `None` if
+    /// v30.3: SHA-256 hash of the first 8KB of file content. `None` if
     /// the file couldn't be read (e.g., file deleted mid-snapshot).
-    pub content_hash: Option<u64>,
+    /// Upgraded from FNV-1a 64-bit per owner contract (2026-08-07):
+    /// cryptographic strength required for change detection.
+    pub content_hash: Option<[u8; 32]>,
 }
 
 /// Number of bytes to hash for the content-hash fallback. 8KB is enough
@@ -325,17 +329,21 @@ pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
     }
 }
 
-/// Compute a 64-bit FNV-1a hash of the first `max_bytes` of a file.
-/// Returns `None` if the file can't be opened or read. The hash is
-/// not cryptographic — its only purpose is change detection in the
-/// polling heartbeat. FNV-1a is fast (single pass, no lookup table)
-/// and has good distribution for short inputs.
+/// Compute a SHA-256 hash of the first `max_bytes` of a file.
+/// Returns `None` if the file can't be opened or read.
+///
+/// v30.3: upgraded from FNV-1a 64-bit to SHA-256 per owner contract.
+/// SHA-256 gives cryptographic collision resistance — even an attacker
+/// (or a buggy editor) crafting two config files with the same hash is
+/// computationally infeasible. The performance cost is ~2x vs FNV-1a
+/// (~100µs per 750ms poll = 0.013% CPU) — still negligible.
 ///
 /// We use std::io::Read's `read` with a capped buffer to avoid reading
 /// huge files into memory. Config files are typically <8KB, but a
 /// misconfigured file (or a user pointing --config at /dev/zero)
 /// could be unbounded — the cap protects against that.
-fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<u64> {
+fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<[u8; 32]> {
+    use sha2::{Digest, Sha256};
     use std::io::Read;
     let mut file = std::fs::File::open(path).ok()?;
     let mut buf = vec![0u8; max_bytes.min(8 * 1024)];
@@ -348,22 +356,12 @@ fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<u64> {
         }
     }
     buf.truncate(filled);
-    Some(fnv1a_64(&buf))
-}
-
-/// Compute FNV-1a 64-bit hash of a byte slice. Public to allow tests
-/// to verify the implementation; not part of the public API.
-#[must_use]
-pub(crate) fn fnv1a_64(data: &[u8]) -> u64 {
-    // FNV-1a 64-bit parameters.
-    const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
-    const FNV_PRIME: u64 = 0x100000001b3;
-    let mut hash = FNV_OFFSET_BASIS;
-    for &byte in data {
-        hash ^= u64::from(byte);
-        hash = hash.wrapping_mul(FNV_PRIME);
-    }
-    hash
+    let mut hasher = Sha256::new();
+    hasher.update(&buf);
+    let result = hasher.finalize();
+    // GenericArray to [u8; 32] — `Into` is implemented.
+    let hash_arr: [u8; 32] = result.into();
+    Some(hash_arr)
 }
 
 #[cfg(test)]
@@ -428,17 +426,57 @@ mod tests {
         std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
     }
 
-    /// FNV-1a 64-bit hash known-answer test against published test vectors.
-    /// Source: https://datatracker.ietf.org/doc/html/draft-eastlake-fnv
-    /// (empty string → offset basis; "a" → 0xaf63dc4c8601ec8c).
+    /// v30.3: SHA-256 hash known-answer test against published NIST vectors.
+    /// Source: NIST FIPS 180-4 — empty string and "abc" are the canonical
+    /// SHA-256 test vectors.
     #[test]
-    fn fnv1a_64_known_vectors() {
-        assert_eq!(fnv1a_64(b""), 0xcbf29ce484222325);
-        assert_eq!(fnv1a_64(b"a"), 0xaf63dc4c8601ec8c);
-        // Different inputs MUST produce different hashes (basic avalanche check).
-        assert_ne!(fnv1a_64(b"hello"), fnv1a_64(b"world"));
-        // Same input → same hash (deterministic).
-        assert_eq!(fnv1a_64(b"color = green"), fnv1a_64(b"color = green"));
+    fn sha256_known_vectors() {
+        use sha2::{Digest, Sha256};
+        // Empty input → e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        let empty_expected: [u8; 32] = [
+            0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f,
+            0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b,
+            0x78, 0x52, 0xb8, 0x55,
+        ];
+        let mut h = Sha256::new();
+        h.update(b"");
+        let empty: [u8; 32] = h.finalize().into();
+        assert_eq!(empty, empty_expected);
+
+        // "abc" → ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+        let abc_expected: [u8; 32] = [
+            0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea, 0x41, 0x41, 0x40, 0xde, 0x5d, 0xae,
+            0x22, 0x23, 0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61,
+            0xf2, 0x00, 0x15, 0xad,
+        ];
+        let mut h = Sha256::new();
+        h.update(b"abc");
+        let abc: [u8; 32] = h.finalize().into();
+        assert_eq!(abc, abc_expected);
+    }
+
+    /// hash_file_prefix returns Some([u8; 32]) for a readable file with
+    /// expected content. Cross-check against an inline SHA-256 of the same
+    /// bytes.
+    #[test]
+    fn hash_file_prefix_matches_inline_sha256() {
+        use sha2::{Digest, Sha256};
+        let dir = std::env::temp_dir().join("cosmostrix-tests");
+        std::fs::create_dir_all(&dir).ok();
+        let path = dir.join("hash_file_prefix.toml");
+        let content = b"color = green\n";
+        std::fs::write(&path, content).unwrap();
+
+        let hash = hash_file_prefix(&path, 8 * 1024).expect("hash must be Some");
+        let mut inline = Sha256::new();
+        inline.update(content);
+        let inline_arr: [u8; 32] = inline.finalize().into();
+        assert_eq!(
+            hash, inline_arr,
+            "hash_file_prefix must match inline SHA-256"
+        );
+
+        std::fs::remove_file(&path).ok();
     }
 
     /// snapshot_file_state returns None for size on a non-existent file.

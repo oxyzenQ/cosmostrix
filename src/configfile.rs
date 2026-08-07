@@ -51,7 +51,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
 
 const PROFILE_CONFIG_KEY_HINT: &str =
     "profile.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg>";
-const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|fps|speed|density|density-map|glitch-level|monolith-size|color-bg>";
+const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shadingmode|glitch-level|fps|speed|density|density-map|async>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain|stops>";
 const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
@@ -645,10 +645,13 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # ── Custom Scenes ──
 # Define named custom scenes and load with: cosmostrix --scene-custom <name>.
-# Fields: base-scene (v30.2), color, charset, fps, speed, density, density-map,
-#         glitch-level, monolith-size, color-bg. Missing fields fall back to
-#         cinematic's defaults (or to base-scene's defaults if base-scene is set).
-#         Custom scenes are listed in --list-scenes output.
+# v30.3 field allowlist (the ONLY keys accepted inside [scene-custom.<name>]):
+#   base-scene, color, charset, bold, colors-custom, charset-custom,
+#   shadingmode, glitch-level, fps, speed, density, density-map, async.
+# Forbidden keys (rejected as unknown by --testconf): ambient,
+# auto-color-drift, color.tune, monolith-size, intro, color-bg.
+# Missing fields fall back to cinematic's defaults (or to base-scene's
+# defaults if base-scene is set). Custom scenes are listed in --list-scenes.
 #
 # Ordering: once you write a [section] header, every flat key AFTER it
 # belongs to that section until the next header. Prefer writing top-level
@@ -658,9 +661,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 # base-scene = matrix       # v30.2: inherit matrix's rain_style + defaults
 # color = green             # override matrix's neon-green with plain green
 # charset = hacker          # override matrix's matrix charset
+# bold = 1                  # v30.3: 0=off, 1=on, 2=double-width
+# colors-custom = zen       # v30.3: reference a [colors-custom.<name>] block
+# charset-custom = pipes    # v30.3: reference a [charset-custom.<name>] block
+# shadingmode = 1           # v30.3: 0=off, 1=on
 # speed = 28                # override matrix's speed=18
 # density = 1.2             # override matrix's density=0.65
 # glitch-level = intense    # override matrix's glitch=Subtle
+# fps = 60                  # override cinematic's fps=30
+# async = false             # v30.3: true enables async render path
 #
 # v30.2: base-scene is the inheritance anchor. When set, the custom scene
 # inherits ALL scene-managed defaults from the named built-in scene before
@@ -674,6 +683,12 @@ pub(crate) fn dump_config_text() -> &'static str {
 # speed = 28
 # density = 1.2
 # glitch-level = intense
+#
+# v30.3: `ambient.<HH-MM>` MUST live at the top level (NEVER inside a
+# [scene-custom.<name>] block). Putting it inside a scene-custom section
+# makes TOML parse it as `scene-custom.<name>.ambient.<HH-MM>`, which is
+# rejected as an unknown key. Define the scene first, then reference it
+# by name from a top-level `ambient.<HH-MM> = <scene-name>` entry.
 
 # Density Map: per-column spawn weights (0.0=never, 1.0=always). Maps
 # shorter than terminal width treat missing columns as 1.0. Both quoted
@@ -736,25 +751,32 @@ pub(crate) fn dump_config_text() -> &'static str {
 #
 # Migration from v30.1 multi-field format:
 #   v30.1: ambient.15-00 = neon-purple, signal, speed=50, density=0.65
-#   v30.2: [scene-custom.afternoon]
+#   v30.3: define the scene, then reference it at the TOP LEVEL:
+#         [scene-custom.afternoon]
 #         base-scene = "signal"
 #         color = "neon-purple"
 #         speed = "50"
 #         density = "0.65"
-#         ambient.15-00 = afternoon
+#
+#         ambient.15-00 = afternoon    # top-level — NEVER inside the block
 #
 # Working Example: 3-phase day/night cycle (v30.2)
 #   ambient.06-00 = signal
 #   ambient.12-00 = monolith
 #   ambient.20-00 = cinematic
 #
-# Custom-scene Example: define once, reference by name
+# Custom-scene Example: define once, reference by name.
+# Define the scene in its own [scene-custom.<name>] block, then reference
+# it from a TOP-LEVEL `ambient.<HH-MM> = <name>` entry. NEVER place the
+# ambient entry inside the [scene-custom.<name>] block — that produces
+# `scene-custom.<name>.ambient.<HH-MM>` and is rejected as unknown.
 #   [scene-custom.afternoon]
 #   base-scene = "signal"
 #   color = "neon-purple"
 #   speed = "50"
 #   density = "0.65"
-#   ambient.15-00 = afternoon
+#
+#   ambient.15-00 = afternoon    # top-level — switches to afternoon at 15:00
 #
 # Minimal Example: 2-phase day/night
 #   ambient.07-00 = matrix

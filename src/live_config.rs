@@ -890,8 +890,6 @@ fn apply_scene_custom_to_cloud_config(
     cfg: &HashMap<String, String>,
     name: &str,
 ) {
-    use clap::ValueEnum;
-
     let normalized = name.trim().to_ascii_lowercase();
     let prefix = format!("scene-custom.{normalized}.");
     let mut touched_any = false;
@@ -904,74 +902,20 @@ fn apply_scene_custom_to_cloud_config(
         touched_any = true;
     }
 
+    // v30.3: per-field application extracted to scene_custom.rs to keep this
+    // file under the LOC cap. See `apply_scene_custom_field_to_cloud_config`
+    // for the full field allowlist (SCENE_CUSTOM_FIELDS).
     for (key, value) in cfg {
         let Some(field) = key.strip_prefix(&prefix) else {
             continue;
         };
-        // v30.2: base-scene is handled in the pre-pass above; skip it here
-        // so we don't double-apply. preset is still removed (legacy).
+        // base-scene is handled in the pre-pass above; skip it here so we
+        // don't double-apply. preset is still removed (legacy).
         if field == "base-scene" || field == "preset" {
             continue;
         }
-        touched_any = true;
-        match field {
-            "color" => {
-                if let Ok(scheme) = crate::cli::parse_color_scheme(value) {
-                    new.color_scheme = scheme;
-                }
-            }
-            "charset" => {
-                // v25: scene-custom may reference charset-custom.<name>.
-                if let Some(custom_chars) =
-                    crate::charset_custom::load_custom_charset_if_matches(cfg, value)
-                {
-                    new.charset_preset = value.clone();
-                    new.chars = custom_chars;
-                } else if let Ok(charset) = crate::charset::charset_from_str(value, false) {
-                    new.charset_preset = value.clone();
-                    new.chars =
-                        crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
-                }
-            }
-            "fps" => {
-                if let Ok(n) =
-                    crate::validation::parse_canonical_f64_range("fps", value, 1.0, 300.0)
-                {
-                    new.target_fps = n;
-                }
-            }
-            "speed" => {
-                if let Ok(n) = crate::validation::parse_canonical_speed("speed", value) {
-                    new.speed = n;
-                }
-            }
-            "density" => {
-                if let Ok(n) =
-                    crate::validation::parse_canonical_f32_range("density", value, 0.01, 5.0)
-                {
-                    new.density = n;
-                    new.base_density = n;
-                }
-            }
-            "glitch-level" => {
-                // v30 simplify: --noglitch field renamed to glitch_enabled
-                new.glitch_enabled = !value.trim().eq_ignore_ascii_case("none");
-            }
-            "monolith-size" => {
-                if let Ok(size) = crate::runtime::MonolithSize::from_str(value, true) {
-                    new.monolith_size = size;
-                }
-            }
-            "density-map" => {
-                // Re-parse density map. parse_density_map leaks the Vec
-                // (intentional, bounded by config size).
-                if let Some(map) = crate::scene_custom::parse_density_map(value) {
-                    new.monolith_density_map = Some(map);
-                }
-            }
-            // color-bg: not yet wired.
-            "color-bg" => {}
-            _ => {}
+        if crate::scene_custom::apply_scene_custom_field_to_cloud_config(new, cfg, field, value) {
+            touched_any = true;
         }
     }
 

@@ -25,7 +25,10 @@ the precedence confusion that plagued the v30.0/v30.1 multi-field format.
 
 v30.1 accepted `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`.
 v30.2 rejects this with a migration error. To preserve the entry, define a
-custom scene that captures the same parameters and reference it:
+custom scene that captures the same parameters and reference it from a
+TOP-LEVEL `ambient.*` key (NEVER place the `ambient.*` key inside the
+`[scene-custom.<name>]` block — TOML would parse it as
+`scene-custom.<name>.ambient.<HH-MM>`, which is rejected as unknown):
 
 ```toml
 [scene-custom.afternoon]
@@ -34,6 +37,7 @@ color = "neon-purple"          # overrides signal's color
 speed = "50"                   # overrides signal's speed
 density = "0.65"               # overrides signal's density
 
+# Top-level — outside any [section] block:
 ambient.15-00 = afternoon
 ```
 

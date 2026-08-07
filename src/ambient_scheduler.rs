@@ -64,6 +64,7 @@
 //!   twice. Acceptable — `apply_ambient_entry` is idempotent.
 //! - **Midnight wrap**: handled in `AmbientSchedule::seconds_to_next_phase`.
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -85,6 +86,18 @@ pub struct AmbientSchedulerHandle {
     schedule: Arc<Mutex<AmbientSchedule>>,
     /// Condvar used to wake the thread on schedule reload.
     cv: Arc<Condvar>,
+    /// Monotonic counter incremented on every `reload` call.
+    ///
+    /// v30.3: closes a TOCTOU race where `reload()` swapped the schedule
+    /// and notified the condvar during the window between the scheduler
+    /// releasing the lock (after its snapshot) and re-acquiring it for
+    /// `wait_timeout`. The notify was lost (no thread was waiting yet),
+    /// and the scheduler kept sleeping until the next phase boundary
+    /// (potentially hours away). The generation counter lets the scheduler
+    /// detect a missed notify by comparing the generation seen during the
+    /// snapshot against the generation seen after re-acquiring the lock —
+    /// if they differ, skip the wait and loop back immediately.
+    generation: Arc<AtomicU64>,
 }
 
 impl AmbientSchedulerHandle {
@@ -102,6 +115,10 @@ impl AmbientSchedulerHandle {
         if let Ok(mut s) = self.schedule.lock() {
             *s = new;
         }
+        // Increment the generation AFTER the swap so the scheduler can
+        // detect the change. The ordering must be SeqCst to pair with the
+        // scheduler's load-after-lock check.
+        self.generation.fetch_add(1, Ordering::SeqCst);
         self.cv.notify_all();
     }
 }
@@ -125,16 +142,23 @@ pub fn spawn_ambient_scheduler(initial: AmbientSchedule) -> AmbientSchedulerHand
     let (tx, rx) = std::sync::mpsc::channel::<AmbientEntry>();
     let schedule = Arc::new(Mutex::new(initial));
     let cv = Arc::new(Condvar::new());
+    let generation = Arc::new(AtomicU64::new(0));
 
     let sched_clone = Arc::clone(&schedule);
     let cv_clone = Arc::clone(&cv);
+    let gen_clone = Arc::clone(&generation);
 
     thread::Builder::new()
         .name("ambient-scheduler".to_string())
-        .spawn(move || scheduler_loop(sched_clone, cv_clone, tx))
+        .spawn(move || scheduler_loop(sched_clone, cv_clone, gen_clone, tx))
         .expect("spawn ambient scheduler thread");
 
-    AmbientSchedulerHandle { rx, schedule, cv }
+    AmbientSchedulerHandle {
+        rx,
+        schedule,
+        cv,
+        generation,
+    }
 }
 
 /// The scheduler thread's main loop. Extracted to a free function so it
@@ -151,9 +175,15 @@ pub fn spawn_ambient_scheduler(initial: AmbientSchedule) -> AmbientSchedulerHand
 fn scheduler_loop(
     schedule: Arc<Mutex<AmbientSchedule>>,
     cv: Arc<Condvar>,
+    generation: Arc<AtomicU64>,
     tx: std::sync::mpsc::Sender<AmbientEntry>,
 ) {
-    let mut last_applied_key: Option<(u32, u32)> = None;
+    // v30.3: track the FULL last-applied entry (hour, minute, scene) instead
+    // of just (hour, minute). This fixes a bug where changing the SCENE NAME
+    // for an existing time slot (e.g. `ambient.20-20 = evening` → `ambient.20-20
+    // = afternoon`) didn't trigger a refire because the time key was unchanged.
+    // Now any change to the scene name triggers a refire.
+    let mut last_applied: Option<AmbientEntry> = None;
 
     loop {
         let now_min = current_minute_of_day();
@@ -162,25 +192,30 @@ fn scheduler_loop(
         // Snapshot the schedule under the lock, compute current phase +
         // sleep duration, then release the lock before sending (so `reload`
         // can't deadlock against a blocked `tx.send`).
-        let (current_entry, sleep_secs) = {
+        //
+        // v30.3: also snapshot the generation counter so we can detect a
+        // missed condvar notify later (see the wait block below).
+        let (current_entry, sleep_secs, seen_gen) = {
             let Ok(s) = schedule.lock() else {
                 // Mutex poisoned — scheduler can't recover. Exit silently.
                 return;
             };
             let current = s.current_phase(now_min).cloned();
             let sleep = s.seconds_to_next_phase(now_min, now_sec).unwrap_or(60);
-            (current, sleep)
+            let gen = generation.load(Ordering::SeqCst);
+            (current, sleep, gen)
         };
 
         // Fire current phase if its identity changed since last fire.
-        // This handles three cases:
+        // v30.3: compare the full entry (hour, minute, scene) — not just the
+        // time key — so that scene-name changes for an existing slot trigger
+        // a refire. This handles three cases:
         //   - Initial startup: last_applied is None → fire current phase.
         //   - Boundary crossed: a new entry became current → fire it.
-        //   - Reload changed the active phase: last_applied key doesn't
-        //     match any entry in the new schedule → fire current.
+        //   - Reload changed the active phase OR the active phase's scene
+        //     name: last_applied != current_entry → fire.
         if let Some(entry) = &current_entry {
-            let key = (entry.hour, entry.minute);
-            if last_applied_key != Some(key) {
+            if last_applied.as_ref() != Some(entry) {
                 crate::lr_trace!(
                     "ambient-scheduler: firing phase {:02}:{:02} (scene={})",
                     entry.hour,
@@ -191,19 +226,37 @@ fn scheduler_loop(
                     // Receiver dropped (event loop exited). Terminate.
                     return;
                 }
-                last_applied_key = Some(key);
+                last_applied = Some(entry.clone());
             }
         }
 
         // Sleep until next phase boundary OR reload signal.
         // Cap at 1 hour so a long-running session still picks up reload
-        // signals even if the condvar notify is missed (shouldn't happen,
-        // but defense-in-depth).
+        // signals even if the condvar notify is missed (defense-in-depth).
+        //
+        // v30.3 race fix: between releasing the lock above (after the
+        // snapshot) and re-acquiring it here for `wait_timeout`, a `reload`
+        // call can swap the schedule AND notify the condvar. That notify is
+        // lost because no thread is waiting yet. Without the generation
+        // check, the scheduler would sleep for `sleep_secs` (computed from
+        // the OLD schedule, potentially hours) and miss the reload entirely.
+        //
+        // The fix: after re-acquiring the lock, compare the current
+        // generation against `seen_gen`. If they differ, a reload happened
+        // during the window — skip the wait and loop back immediately to
+        // re-snapshot the new schedule.
         let sleep_dur = Duration::from_secs(sleep_secs.min(3600));
         let _guard = {
             let Ok(s) = schedule.lock() else {
                 return;
             };
+            let current_gen = generation.load(Ordering::SeqCst);
+            if current_gen != seen_gen {
+                // Reload happened during the firing window — don't wait.
+                // Drop the lock and loop back to re-snapshot.
+                drop(s);
+                continue;
+            }
             let (g, _timeout_result) = cv
                 .wait_timeout(s, sleep_dur)
                 .expect("ambient-scheduler condvar poisoned");
@@ -211,7 +264,7 @@ fn scheduler_loop(
         };
         // Loop back: recompute now_min, find current phase, fire if changed.
         // If the wake was a timeout (boundary reached), `current_phase` will
-        // return the new entry, `last_applied_key` won't match, and we fire.
+        // return the new entry, `last_applied` won't match, and we fire.
         // If the wake was a condvar notify (reload), the new schedule is in
         // place, and we recompute from it.
     }
@@ -347,5 +400,102 @@ mod tests {
         assert_eq!(s.entries[1].hour, 6);
         assert_eq!(s.entries[2].hour, 22);
         assert!(crate::ambient::validate_ambient_entries(&cfg).is_ok());
+    }
+
+    // ── v30.3: scheduler entry-aware refire tests ──
+    //
+    // The scheduler now tracks the FULL entry (hour, minute, scene) instead
+    // of just (hour, minute). This enables refire when the scene NAME for
+    // an existing time slot changes (e.g. `ambient.20-20 = evening` →
+    // `ambient.20-20 = afternoon`). Verify the comparison logic via the
+    // AmbientEntry PartialEq derivation.
+
+    #[test]
+    fn ambient_entry_eq_compares_all_fields() {
+        // Sanity: AmbientEntry derives PartialEq — entries are equal only
+        // when ALL fields match. This is the foundation of the v30.3
+        // entry-aware refire fix.
+        let a = entry(20, 20);
+        let b = entry(20, 20);
+        assert_eq!(a, b, "same hour/minute/scene must be equal");
+
+        let c = AmbientEntry {
+            hour: 20,
+            minute: 20,
+            scene: "afternoon".to_string(),
+        };
+        let d = AmbientEntry {
+            hour: 20,
+            minute: 20,
+            scene: "evening".to_string(),
+        };
+        assert_ne!(
+            c, d,
+            "entries with same time but different scene must NOT be equal (v30.3 fix)"
+        );
+
+        let e = AmbientEntry {
+            hour: 20,
+            minute: 20,
+            scene: "afternoon".to_string(),
+        };
+        let f = AmbientEntry {
+            hour: 21,
+            minute: 0,
+            scene: "afternoon".to_string(),
+        };
+        assert_ne!(
+            e, f,
+            "entries with different time must NOT be equal even if scene matches"
+        );
+    }
+
+    /// v30.3: scenario from the bug report — user changes the scene NAME
+    /// for an existing time slot. The scheduler should refire because the
+    /// entries are no longer equal (different scene).
+    #[test]
+    fn reload_with_renamed_scene_triggers_refire() {
+        // Schedule 1: ambient.20-20 = evening
+        let s1 = AmbientSchedule {
+            entries: vec![AmbientEntry {
+                hour: 20,
+                minute: 20,
+                scene: "evening".to_string(),
+            }],
+        };
+        let handle = spawn_ambient_scheduler(s1);
+
+        // Drain initial fire (scheduler fires current phase on startup).
+        let _initial = handle
+            .rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("scheduler should fire initial phase");
+
+        // Schedule 2: ambient.20-20 = afternoon (same time, different scene)
+        let s2 = AmbientSchedule {
+            entries: vec![AmbientEntry {
+                hour: 20,
+                minute: 20,
+                scene: "afternoon".to_string(),
+            }],
+        };
+        handle.reload(s2);
+
+        // v30.3: scheduler should fire the new entry because the scene name
+        // differs from the last-applied entry (under v30.2's time-key-only
+        // comparison, this would NOT fire — the bug).
+        match handle.rx.recv_timeout(Duration::from_secs(2)) {
+            Ok(e) => {
+                assert_eq!(
+                    e.scene, "afternoon",
+                    "scheduler must refire with new scene name"
+                );
+                assert_eq!(e.hour, 20);
+                assert_eq!(e.minute, 20);
+            }
+            Err(_) => {
+                panic!("v30.3 regression: scheduler did not refire on scene-name change");
+            }
+        }
     }
 }

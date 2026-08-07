@@ -46,19 +46,52 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::OnceLock;
 
 use crate::config::Args;
-use crate::profile::{
-    apply_profile_layer, collect_profiles, is_valid_profile_name, UserProfile, PROFILE_FIELDS,
-};
+#[cfg(test)]
+use crate::profile::PROFILE_FIELDS;
+use crate::profile::{apply_profile_layer, collect_profiles, is_valid_profile_name, UserProfile};
 
 /// Config namespace prefix for custom scene blocks.
 pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 
+/// v30.3: explicit field allowlist for `[scene-custom.<name>]` blocks.
+///
+/// Owner contract (2026-08-07):
+/// - ALLOWED: `base-scene`, `color`, `charset`, `bold`, `colors-custom`,
+///   `charset-custom`, `shadingmode`, `glitch-level`, `fps`, `speed`,
+///   `density`, `density-map`, `async`.
+/// - FORBIDDEN (rejected as unknown key by `is_scene_custom_config_key`):
+///   `ambient`, `auto-color-drift`, `color.tune`, `monolith-size`,
+///   `intro`, `color-bg`.
+///
+/// `monolith-size` and `color-bg` were accepted in v30.2 (because the
+/// allowlist was `PROFILE_FIELDS`, which included them). They are removed
+/// here because they collide with the ambient simplification: a custom
+/// scene used by an ambient entry should not own monolith-size or
+/// color-bg (those are top-level / scene-managed, not per-block).
+///
+/// `density-map` is retained because it is tightly coupled to `density`
+/// for monolith pillar placement and was already supported.
+pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
+    "base-scene",
+    "color",
+    "charset",
+    "bold",
+    "colors-custom",
+    "charset-custom",
+    "shadingmode",
+    "glitch-level",
+    "fps",
+    "speed",
+    "density",
+    "density-map",
+    "async",
+];
+
 /// Returns `true` if `key` is a recognized `[scene-custom.<name>.<field>]` key.
 ///
-/// Mirrors [`crate::profile::is_profile_config_key`] but for the
-/// `scene-custom` namespace. The accepted `<field>` set is identical to
-/// `PROFILE_FIELDS` so users can migrate a profile block to a custom-scene
-/// block by renaming the prefix only.
+/// v30.3: uses [`SCENE_CUSTOM_FIELDS`] (explicit allowlist) instead of
+/// `PROFILE_FIELDS`. This rejects `monolith-size` and `color-bg` which
+/// were accepted in v30.2 but are forbidden by owner contract.
 #[must_use]
 pub(crate) fn is_scene_custom_config_key(key: &str) -> bool {
     let Some((prefix, rest)) = key.split_once('.') else {
@@ -70,15 +103,16 @@ pub(crate) fn is_scene_custom_config_key(key: &str) -> bool {
     let Some((name, field)) = rest.rsplit_once('.') else {
         return false;
     };
-    is_valid_profile_name(name) && PROFILE_FIELDS.contains(&field)
+    is_valid_profile_name(name) && SCENE_CUSTOM_FIELDS.contains(&field)
 }
 
 /// Collect all `[scene-custom.<name>]` blocks from a flat config map.
 ///
 /// Returns a `BTreeMap<name, UserProfile>` mirroring
 /// [`crate::profile::collect_profiles`] but scoped to the `scene-custom`
-/// namespace. Field parsing reuses `PROFILE_FIELDS` so the resulting
-/// `UserProfile` is structurally identical to a profile entry.
+/// namespace. v30.3: only fields in [`SCENE_CUSTOM_FIELDS`] are parsed —
+/// `monolith-size` and `color-bg` are silently dropped (the keys are
+/// flagged as unknown upstream by `is_scene_custom_config_key`).
 #[must_use]
 pub(crate) fn collect_custom_scenes(
     cfg: &HashMap<String, String>,
@@ -102,8 +136,14 @@ pub(crate) fn collect_custom_scenes(
             "density" => scene.density = Some(value.clone()),
             "density-map" => scene.density_map = Some(value.clone()),
             "glitch-level" => scene.glitch_level = Some(value.clone()),
-            "monolith-size" => scene.monolith_size = Some(value.clone()),
-            "color-bg" => scene.color_bg = Some(value.clone()),
+            // v30.3: new scene-custom fields per owner spec.
+            "bold" => scene.bold = Some(value.clone()),
+            "colors-custom" => scene.colors_custom = Some(value.clone()),
+            "charset-custom" => scene.charset_custom = Some(value.clone()),
+            "shadingmode" => scene.shading_mode = Some(value.clone()),
+            "async" => scene.async_mode = Some(value.clone()),
+            // monolith-size and color-bg are NOT in SCENE_CUSTOM_FIELDS,
+            // so is_scene_custom_config_key already filtered them out.
             _ => {}
         }
     }
@@ -273,6 +313,131 @@ pub(crate) fn apply_base_scene_to_cloud_config(
         new.glitch_enabled = !matches!(glitch, crate::config::GlitchLevel::None);
     }
     true
+}
+
+/// v30.3: Apply a single `[scene-custom.<name>]` field to a CloudConfig.
+/// Extracted from `live_config::apply_scene_custom_to_cloud_config` to keep
+/// that file under the LOC cap. Returns `true` if the field was recognized
+/// and applied (so the caller can track `touched_any`).
+///
+/// Field allowlist is `SCENE_CUSTOM_FIELDS`. `monolith-size` and `color-bg`
+/// are silently dropped (forbidden per owner contract — they should never
+/// reach this function because `is_scene_custom_config_key` filters them
+/// upstream, but we handle them defensively).
+#[must_use]
+pub(crate) fn apply_scene_custom_field_to_cloud_config(
+    new: &mut crate::app::CloudConfig,
+    cfg: &HashMap<String, String>,
+    field: &str,
+    value: &str,
+) -> bool {
+    match field {
+        "color" => {
+            if let Ok(scheme) = crate::cli::parse_color_scheme(value) {
+                new.color_scheme = scheme;
+                return true;
+            }
+            false
+        }
+        "colors-custom" => {
+            if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, value) {
+                new.custom_palette = Some(palette);
+                new.custom_palette_name = Some(value.to_string());
+                return true;
+            }
+            false
+        }
+        "charset" => {
+            if let Some(custom_chars) =
+                crate::charset_custom::load_custom_charset_if_matches(cfg, value)
+            {
+                new.charset_preset = value.to_string();
+                new.chars = custom_chars;
+                return true;
+            }
+            if let Ok(charset) = crate::charset::charset_from_str(value, false) {
+                new.charset_preset = value.to_string();
+                new.chars = crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
+                return true;
+            }
+            false
+        }
+        "charset-custom" => {
+            if let Some(custom_chars) =
+                crate::charset_custom::load_custom_charset_if_matches(cfg, value)
+            {
+                new.charset_preset = value.to_string();
+                new.chars = custom_chars;
+                return true;
+            }
+            false
+        }
+        "fps" => {
+            if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", value, 1.0, 300.0) {
+                new.target_fps = n;
+                return true;
+            }
+            false
+        }
+        "speed" => {
+            if let Ok(n) = crate::validation::parse_canonical_speed("speed", value) {
+                new.speed = n;
+                return true;
+            }
+            false
+        }
+        "density" => {
+            if let Ok(n) = crate::validation::parse_canonical_f32_range("density", value, 0.01, 5.0)
+            {
+                new.density = n;
+                new.base_density = n;
+                return true;
+            }
+            false
+        }
+        "glitch-level" => {
+            new.glitch_enabled = !value.trim().eq_ignore_ascii_case("none");
+            true
+        }
+        "density-map" => {
+            if let Some(map) = parse_density_map(value) {
+                new.monolith_density_map = Some(map);
+                return true;
+            }
+            false
+        }
+        "bold" => {
+            if let Ok(n) = value.trim().parse::<u8>() {
+                new.bold_mode = match n {
+                    0 => crate::runtime::BoldMode::Off,
+                    2 => crate::runtime::BoldMode::All,
+                    _ => crate::runtime::BoldMode::Random,
+                };
+                return true;
+            }
+            false
+        }
+        "shadingmode" => {
+            if let Ok(n) = value.trim().parse::<u8>() {
+                new.shading_mode = match n {
+                    1 => crate::runtime::ShadingMode::DistanceFromHead,
+                    _ => crate::runtime::ShadingMode::Random,
+                };
+                return true;
+            }
+            false
+        }
+        "async" => {
+            new.async_mode = matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "true" | "1" | "yes" | "on"
+            );
+            true
+        }
+        // v30.3: monolith-size and color-bg are FORBIDDEN in scene-custom.
+        "monolith-size" | "color-bg" => false,
+        _ => false,
+    }
 }
 
 /// Validate a custom-scene name. Shares the same rules as profile names
@@ -786,5 +951,133 @@ mod tests {
     fn parse_density_map_quoted_empty_string_returns_none() {
         assert!(parse_density_map("\"\"").is_none());
         assert!(parse_density_map("''").is_none());
+    }
+
+    // ── v30.3: scene-custom field allowlist / forbidden-field tests ──
+
+    #[test]
+    fn scene_custom_fields_includes_v30_3_additions() {
+        // Owner contract: these MUST be accepted in scene-custom blocks.
+        for field in &[
+            "base-scene",
+            "color",
+            "charset",
+            "bold",
+            "colors-custom",
+            "charset-custom",
+            "shadingmode",
+            "glitch-level",
+            "fps",
+            "speed",
+            "density",
+            "density-map",
+            "async",
+        ] {
+            assert!(
+                SCENE_CUSTOM_FIELDS.contains(field),
+                "SCENE_CUSTOM_FIELDS must include '{field}'"
+            );
+        }
+    }
+
+    #[test]
+    fn scene_custom_fields_excludes_forbidden_fields() {
+        // Owner contract: these MUST NOT be accepted in scene-custom blocks.
+        for field in &[
+            "monolith-size",
+            "color-bg",
+            "ambient",
+            "auto-color-drift",
+            "intro",
+        ] {
+            assert!(
+                !SCENE_CUSTOM_FIELDS.contains(field),
+                "SCENE_CUSTOM_FIELDS must NOT include '{field}' (forbidden per owner contract)"
+            );
+        }
+    }
+
+    #[test]
+    fn is_scene_custom_config_key_accepts_v30_3_fields() {
+        for field in &[
+            "bold",
+            "colors-custom",
+            "charset-custom",
+            "shadingmode",
+            "async",
+        ] {
+            let key = format!("scene-custom.test.{field}");
+            assert!(
+                is_scene_custom_config_key(&key),
+                "is_scene_custom_config_key should accept '{key}'"
+            );
+        }
+    }
+
+    #[test]
+    fn is_scene_custom_config_key_rejects_forbidden_fields() {
+        // v30.3: monolith-size and color-bg were accepted in v30.2 — they
+        // MUST now be rejected per owner contract.
+        for field in &[
+            "monolith-size",
+            "color-bg",
+            "ambient",
+            "auto-color-drift",
+            "intro",
+        ] {
+            let key = format!("scene-custom.test.{field}");
+            assert!(
+                !is_scene_custom_config_key(&key),
+                "is_scene_custom_config_key must REJECT '{key}' (forbidden in v30.3)"
+            );
+        }
+    }
+
+    #[test]
+    fn collect_custom_scenes_parses_v30_3_fields() {
+        let cfg = HashMap::from([
+            ("scene-custom.test.bold".to_string(), "1".to_string()),
+            (
+                "scene-custom.test.colors-custom".to_string(),
+                "sunset".to_string(),
+            ),
+            (
+                "scene-custom.test.charset-custom".to_string(),
+                "zen".to_string(),
+            ),
+            ("scene-custom.test.shadingmode".to_string(), "1".to_string()),
+            ("scene-custom.test.async".to_string(), "true".to_string()),
+        ]);
+        let scenes = collect_custom_scenes(&cfg);
+        let scene = &scenes["test"];
+        assert_eq!(scene.bold.as_deref(), Some("1"));
+        assert_eq!(scene.colors_custom.as_deref(), Some("sunset"));
+        assert_eq!(scene.charset_custom.as_deref(), Some("zen"));
+        assert_eq!(scene.shading_mode.as_deref(), Some("1"));
+        assert_eq!(scene.async_mode.as_deref(), Some("true"));
+    }
+
+    #[test]
+    fn collect_custom_scenes_silently_drops_forbidden_fields() {
+        // v30.3: monolith-size and color-bg are filtered out by
+        // is_scene_custom_config_key, so collect_custom_scenes never sees
+        // them. Verify they don't appear in the parsed UserProfile.
+        let cfg = HashMap::from([
+            ("scene-custom.test.color".to_string(), "green".to_string()),
+            (
+                "scene-custom.test.monolith-size".to_string(),
+                "large".to_string(),
+            ),
+            (
+                "scene-custom.test.color-bg".to_string(),
+                "black".to_string(),
+            ),
+        ]);
+        let scenes = collect_custom_scenes(&cfg);
+        let scene = &scenes["test"];
+        assert_eq!(scene.color.as_deref(), Some("green"));
+        // monolith_size and color_bg are NOT set (keys were filtered out).
+        assert!(scene.monolith_size.is_none());
+        assert!(scene.color_bg.is_none());
     }
 }

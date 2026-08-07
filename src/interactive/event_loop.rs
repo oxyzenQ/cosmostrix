@@ -227,18 +227,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
-    // Ambient phase scheduler: spawn the dynamic idle/wake thread. The
-    // thread sleeps until the next phase boundary (zero CPU between
-    // boundaries), then sends an `AmbientEntry` via mpsc which we poll
-    // each frame. On live-reload, we push the new schedule via `reload`.
-    // Spawned unconditionally — even an empty schedule is fine (the thread
-    // idles and never sends events).
+    // Ambient phase scheduler: spawn the dynamic idle/wake thread. The thread
+    // sleeps until the next phase boundary (zero CPU between boundaries),
+    // then sends an `AmbientEntry` via mpsc polled each frame. On live-reload,
+    // we push the new schedule via `reload`.
     let ambient_handle =
         crate::ambient_scheduler::spawn_ambient_scheduler(base_cfg.ambient_schedule.clone());
-    // Track the last schedule we pushed to the scheduler so we only call
-    // `reload` when the schedule actually changed (avoids needless condvar
-    // wakeups on unrelated config edits).
     let mut last_ambient_schedule = base_cfg.ambient_schedule.clone();
+    // v30.3: track the last-applied ambient entry to RE-APPLY it after
+    // live-reload rebuilds. Without this, a duplicate notify event triggers
+    // a rebuild that loses ambient state. Ambient wins over CLI override.
+    let mut last_applied_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
     // v25.5: last-applied config map for diff trace. Phase 4 P4-7 (positive
     // finding): intentional clone — verbose diff needs full map, ~1KB/reload.
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> = None;
@@ -408,8 +407,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // v30 (2026-08-05): keep HUD tgt: line in sync with live-reloaded fps.
             hud_state.set_target_fps(safe_fps);
 
-            // Ambient: push new schedule to scheduler if it changed. The
-            // thread wakes via condvar and recomputes `time_to_next_phase`.
+            // Ambient: push new schedule to scheduler if it changed.
             if new_cfg.ambient_schedule != last_ambient_schedule {
                 crate::lr_trace!(
                     "ambient: schedule changed (was {} entries, now {}) — pushing to scheduler thread",
@@ -420,12 +418,40 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 last_ambient_schedule = new_cfg.ambient_schedule.clone();
             }
 
-            // v30.2: ambient entries are now scene-name-only — the scene IS
-            // the spec, so there's no override layer to re-apply after a
-            // live-reload rebuild. The scheduler thread will fire the
-            // currently-active phase on its next loop iteration if the
-            // schedule changed (handled by the reload above). The previous
-            // v30.1 `last_applied_ambient_entry` tracker is no longer needed.
+            // v30.3: RE-APPLY the last-known ambient entry to the new Cloud.
+            // Rebuild created a fresh Cloud with CLI override but NOT the
+            // ambient scene. If the entry was removed from the schedule,
+            // clear the tracker.
+            if let Some(ref last_entry) = last_applied_ambient_entry {
+                let still_in_schedule = new_cfg
+                    .ambient_schedule
+                    .entries
+                    .iter()
+                    .any(|e| e == last_entry);
+                if still_in_schedule {
+                    crate::lr_trace!(
+                        "ambient: re-applying last entry after rebuild (scene={})",
+                        last_entry.scene
+                    );
+                    charset_preset = cloud.apply_ambient_entry(
+                        last_entry,
+                        &charset_preset,
+                        &user_ranges,
+                        def_ascii,
+                        &last_applied_cfg_map.clone().unwrap_or_default(),
+                    );
+                    scene_name = last_entry.scene.clone();
+                    scene_generation = scene_generation.wrapping_add(1);
+                    term.set_color_cache(ColorCache::new(&cloud.palette));
+                    frame = Frame::new(w, h, cloud.palette.bg);
+                    super::fill_terminal_bg(cloud.palette.bg);
+                } else {
+                    crate::lr_trace!(
+                        "ambient: last entry no longer in schedule — clearing tracker"
+                    );
+                    last_applied_ambient_entry = None;
+                }
+            }
         }
 
         // Ambient phase scheduler: poll for phase-fire events (non-blocking).
@@ -455,6 +481,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 def_ascii,
                 &cfg_map,
             );
+            // v30.3: track the applied entry so we can re-apply it after the
+            // next live-reload rebuild (preserves ambient priority over CLI
+            // override across rebuilds).
+            last_applied_ambient_entry = Some(entry.clone());
             // Re-sync scene_name to the applied entry's scene.
             scene_name = entry.scene.clone();
             scene_generation = scene_generation.wrapping_add(1);

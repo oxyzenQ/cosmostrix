@@ -25,7 +25,10 @@
 //!
 //! v30.1 accepted `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`.
 //! v30.2 rejects this with a migration error. To preserve the entry, define
-//! a custom scene that captures the same parameters and reference it:
+//! a custom scene that captures the same parameters and reference it from a
+//! TOP-LEVEL `ambient.*` key (NEVER place the `ambient.*` key inside the
+//! `[scene-custom.<name>]` block — TOML would parse it as
+//! `scene-custom.<name>.ambient.<HH-MM>`, which is rejected as unknown):
 //!
 //! ```toml
 //! [scene-custom.afternoon]
@@ -34,6 +37,7 @@
 //! speed = "50"                   # overrides signal's speed
 //! density = "0.65"               # overrides signal's density
 //!
+//! # Top-level — outside any [section] block:
 //! ambient.15-00 = afternoon
 //! ```
 //!
@@ -291,7 +295,7 @@ pub(crate) fn parse_ambient_value(value: &str) -> Result<AmbientEntry, String> {
              ambient.<HH-MM> = <name>\n\
              \n\
              Example: `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`\n\
-             becomes:\n\
+             becomes (ambient key at the TOP LEVEL — never inside the block):\n\
              \n\
              [scene-custom.afternoon]\n\
              base-scene = \"signal\"\n\

@@ -226,17 +226,23 @@ intro = cosmic
 
 #[test]
 fn multiple_top_level_keys_all_promote() {
-    // A realistic config with 4 top-level keys, all written after a scene-custom
-    // block. All 4 should be promoted.
+    // A realistic config with top-level keys, all written after a scene-custom
+    // block. All should be promoted (they are NOT valid scene-custom fields).
+    //
+    // v30.3: `bold`, `shadingmode`, `async` ARE now valid scene-custom fields
+    // per owner contract — so they no longer get promoted when written under
+    // a `[scene-custom.*]` block. This test now uses fields that remain
+    // FORBIDDEN in scene-custom (`intro`, `auto-color-drift`, `color-bg`,
+    // `monolith-size`) to verify the promotion path still works.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
 speed = 28
 
 intro = cosmic
-bold = 1
-shadingmode = 1
-async-mode = true
+auto-color-drift = on
+color-bg = black
+monolith-size = large
 ";
     let parsed = parse_config_text(content);
     assert!(
@@ -246,7 +252,7 @@ async-mode = true
     );
     assert_eq!(parsed.promoted_keys.len(), 4);
     // All 4 root-scope keys are stored.
-    for key in &["intro", "bold", "shadingmode", "async-mode"] {
+    for key in &["intro", "auto-color-drift", "color-bg", "monolith-size"] {
         assert!(
             parsed.values.contains_key(*key),
             "expected promoted key {key} in values"
