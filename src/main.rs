@@ -656,20 +656,29 @@ fn main() -> std::io::Result<()> {
         _ => BoldMode::Random,
     };
 
+    // v30.3 masterclass: dynamic default FPS — terminal-aware default when
+    // user doesn't specify --fps/fps=. High-perf terminals (Alacritty, kitty,
+    // wezterm, ghostty, foot, iTerm2) → 144; standard/unknown → 60; xterm.js
+    // → 30. User's explicit --fps / fps = ALWAYS wins.
+    let term_caps = crate::termdetect::detect();
+    let cli_fps_explicit = matches!(
+        matches.value_source("fps"),
+        Some(clap::parser::ValueSource::CommandLine)
+    );
+    let fps_user_set = cli_fps_explicit || args.fps != 60.0;
+    if !fps_user_set && !args.benchmark && term_caps.dynamic_default_fps != args.fps {
+        crate::lr_trace!(
+            "fps: no user override — applying dynamic default {:.0}",
+            term_caps.dynamic_default_fps
+        );
+        args.fps = term_caps.dynamic_default_fps;
+    }
+
     let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
-    // v30 (VSCode crash fix) + Tier 2 (xterm.js host extension): apply
-    // terminal-specific FPS cap after user validation. Any xterm.js-based
-    // Electron host (VSCode, Hyper, WaveTerminal, Tabby, WarpTerminal)
-    // cannot sustain 60 FPS indefinitely -- xterm.js's in-memory scrollback
-    // buffer grows without bound over multi-hour runs until V8 hits an OOM
-    // assertion (SIGTRAP in the host process). The cap is 30 FPS for
-    // xterm.js hosts, 300 (effectively uncapped) for native terminals.
-    // Benchmark mode skips the cap (benchmarks measure raw throughput,
-    // not terminal stability). Tier 2 also adds byte-budget backpressure
-    // + periodic RIS reset (see `Terminal::flush_ansi`), independent of
-    // this FPS cap -- together they eliminate the multi-hour OOM crash.
-    let term_caps = crate::termdetect::detect();
+    // v30 + Tier 2: xterm.js hosts get a 30 FPS hard cap to prevent OOM
+    // (xterm.js scrollback grows unbounded at high byte rates). Benchmark
+    // mode skips the cap. Native terminals use the user's validated value.
     let target_fps =
         if !args.benchmark && term_caps.xtermjs_host && target_fps > term_caps.default_fps_cap {
             let capped = term_caps.default_fps_cap;
@@ -708,17 +717,12 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    // v30.2: rain_style resolution consults custom scenes' base-scene
-    // (see scene_custom::resolve_rain_style). Built-in → its rain_style;
-    // custom → base-scene's rain_style; otherwise → Glyph.
+    // v30.2: rain_style resolution — built-in → its rain_style; custom →
+    // base-scene's rain_style; otherwise → Glyph.
     let cfg = configfile::load_config_file(args.config.as_deref());
     let rain_style = scene_custom::resolve_rain_style(args.scene.as_deref(), &cfg);
 
-    // v17 ghost labels: these struct fields are #[arg(skip)] and cannot be
-    // set via CLI. The labels below are validator-name strings only — they
-    // appear in error messages if the field defaults ever drift out of range.
-    // Do NOT mistake them for live CLI flags; --glitchpct/--shortpct/--rippct/
-    // --maxdpc were removed in v17 and replaced by --glitch-level.
+    // v17 ghost labels: #[arg(skip)] fields, not live CLI flags (--glitchpct etc. removed in v17).
     let glitch_pct = ux::or_exit(validate_f32_range(
         "glitch_pct (internal, set via --glitch-level)",
         args.glitch_pct,
@@ -1070,13 +1074,8 @@ fn main() -> std::io::Result<()> {
         )),
     };
 
-    // v25.16: detect fps set by ANY source (CLI --fps OR config.toml fps=).
-    // cli_explicit.fps tracks CLI only; args.fps != 60.0 catches config.toml
-    // fps set to a non-default value (config_apply.rs applies config -> args).
-    // Together they cover: --fps 20, --fps 60 (explicit default), config fps=10.
-    // Edge case not covered: config fps=60 (set to default value — a no-op,
-    // so not warning is correct).
-    let fps_user_set = cli_explicit.fps || args.fps != 60.0;
+    // fps_user_set was computed earlier (before dynamic default) — reflects
+    // USER's intent. Used by benchmark warning logic below.
 
     if args.bench_all {
         warn_bench_noop_flags(&args, fps_user_set);

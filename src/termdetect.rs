@@ -82,10 +82,17 @@ pub(crate) struct TerminalCaps {
     /// key off `xtermjs_host` instead.
     pub vscode_integrated: bool,
     /// Maximum recommended FPS for this terminal. Native terminals
-    /// (Alacritty, Kitty, etc.) get 300 (effectively uncapped — the
+    /// (Alacritty, Kitty, etc.) get 240 (effectively uncapped — the
     /// user's --fps value wins). xterm.js hosts get 30 to keep the
     /// worst-case byte rate under ~7 MB/sec.
     pub default_fps_cap: f64,
+    /// v30.3 masterclass: dynamic default FPS when the user does NOT
+    /// specify `--fps` or `fps =` in config. Based on terminal tier:
+    /// high-performance terminals (Alacritty, kitty, wezterm, ghostty,
+    /// foot, iTerm2) get 144; standard/unknown terminals get 60; xterm.js
+    /// hosts get 30. The user's explicit `--fps` / `fps =` ALWAYS wins
+    /// over this default — it only applies when no FPS is specified.
+    pub dynamic_default_fps: f64,
 }
 
 /// FPS cap applied when running inside any xterm.js-based host.
@@ -104,6 +111,34 @@ const XTERMJS_FPS_CAP: f64 = 30.0;
 #[cfg(test)]
 #[allow(non_upper_case_globals)]
 const VSCODE_FPS_CAP: f64 = XTERMJS_FPS_CAP;
+
+/// `TERM_PROGRAM` values that identify high-performance terminal
+/// emulators capable of sustaining 144+ FPS without visual artifacts.
+/// These terminals have GPU-accelerated or highly optimized renderers
+/// that can keep up with cosmostrix's ANSI byte rate at high frame rates.
+/// Used by the dynamic default FPS logic: if the user doesn't specify
+/// `--fps` or `fps =`, these terminals default to 144 FPS instead of 60.
+/// The user's explicit value ALWAYS wins over this default.
+const HIGH_PERF_TERMINALS: &[&str] = &[
+    "Alacritty",
+    "kitty",
+    "WezTerm",
+    "ghostty",
+    "foot",
+    "iTerm.app",
+    "apple_Terminal",
+];
+
+/// Dynamic default FPS for high-performance terminals when the user
+/// doesn't specify `--fps` or `fps =`. 144 Hz matches the most common
+/// high-refresh monitor rate (between 120 and 165). The user's explicit
+/// value always wins over this default.
+const HIGH_PERF_DEFAULT_FPS: f64 = 144.0;
+
+/// Dynamic default FPS for standard/unknown terminals when the user
+/// doesn't specify `--fps` or `fps =`. 60 FPS is the universal safe
+/// default that every terminal can sustain.
+const STANDARD_DEFAULT_FPS: f64 = 60.0;
 
 /// Run detection from environment variables. Safe to call before any
 /// terminal initialization.
@@ -136,11 +171,25 @@ pub(crate) fn detect() -> TerminalCaps {
     // uncapped (the user's --fps value, validated to 1.0..=240.0, wins).
     let default_fps_cap = if xtermjs_host { XTERMJS_FPS_CAP } else { 240.0 };
 
+    // v30.3 masterclass: dynamic default FPS based on terminal tier.
+    // High-performance terminals (Alacritty, kitty, wezterm, ghostty,
+    // foot, iTerm2) default to 144 FPS; standard/unknown terminals
+    // default to 60; xterm.js hosts default to 30 (matching the cap).
+    // The user's explicit `--fps` / `fps =` ALWAYS wins over this default.
+    let dynamic_default_fps = if xtermjs_host {
+        XTERMJS_FPS_CAP
+    } else if HIGH_PERF_TERMINALS.iter().any(|&t| term_program == t) {
+        HIGH_PERF_DEFAULT_FPS
+    } else {
+        STANDARD_DEFAULT_FPS
+    };
+
     TerminalCaps {
         sync_output: sync_ok,
         xtermjs_host,
         vscode_integrated,
         default_fps_cap,
+        dynamic_default_fps,
     }
 }
 
@@ -248,6 +297,7 @@ mod tests {
             xtermjs_host: false,
             vscode_integrated: false,
             default_fps_cap: 240.0,
+            dynamic_default_fps: 60.0,
         };
         assert!(!caps.sync_output);
     }
@@ -398,6 +448,69 @@ mod tests {
         assert!(
             known_xtermjs_hosts().len() >= 5,
             "XTERMJS_HOSTS must have at least 5 entries (Tier 2 expansion)"
+        );
+    }
+
+    // ── v30.3 masterclass: dynamic default FPS tests ──
+
+    #[test]
+    fn dynamic_default_fps_high_perf_terminal_gets_144() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        for &term in &[
+            "Alacritty",
+            "kitty",
+            "WezTerm",
+            "ghostty",
+            "foot",
+            "iTerm.app",
+        ] {
+            let _env = EnvGuard::capture();
+            env::set_var("TERM", "xterm-256color");
+            env::set_var("TERM_PROGRAM", term);
+            let caps = detect();
+            assert_eq!(
+                caps.dynamic_default_fps, 144.0,
+                "high-perf terminal {term} must default to 144 FPS"
+            );
+        }
+    }
+
+    #[test]
+    fn dynamic_default_fps_standard_terminal_gets_60() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "gnome-terminal");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_default_fps, 60.0,
+            "standard terminal must default to 60 FPS"
+        );
+    }
+
+    #[test]
+    fn dynamic_default_fps_unknown_terminal_gets_60() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_default_fps, 60.0,
+            "unknown terminal (no TERM_PROGRAM) must default to 60 FPS"
+        );
+    }
+
+    #[test]
+    fn dynamic_default_fps_xtermjs_host_gets_30() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "vscode");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_default_fps, XTERMJS_FPS_CAP,
+            "xterm.js host must default to XTERMJS_FPS_CAP (30)"
         );
     }
 }
