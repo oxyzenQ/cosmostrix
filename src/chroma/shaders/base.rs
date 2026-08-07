@@ -131,14 +131,14 @@ pub(crate) struct ShaderCtx<'a> {
     /// `Some(ctx)` applies the frame's atmospheric factors (luminance
     /// dim/boost, saturation drift, persistence glow, instability
     /// flicker) to the resolved cell color BEFORE it is encoded as
-    /// `Color::Rgb` and returned. This eliminates the post-hoc
-    /// decode-encode cycle that `cloud::phosphor::apply_climate_frame_effects`
-    /// performed on dirty cells — the cell is now written to the frame
-    /// once with atmospheric already applied.
+    /// `Color::Rgb` and returned. This eliminates the old post-hoc
+    /// decode-encode cycle (v30.1: the `apply_climate_frame_effects`
+    /// pass was deleted; climate is shader-only now) — the cell is
+    /// written to the frame once with atmospheric already applied.
     ///
-    /// `None` disables (matches pre-Phase-3-G behavior — the post-hoc
-    /// pass runs instead). Production wires this through `DrawCtx` so
-    /// the shader always applies atmospheric when factors are non-neutral.
+    /// `None` disables (cells render with raw palette colors). Production
+    /// wires this through `DrawCtx` so the shader always applies atmospheric
+    /// when factors are non-neutral.
     pub atmospheric: Option<&'a crate::chroma::post::climate::ClimateCtx>,
 
     /// Phase 3-H (Chroma Dragon Innovation H): global hue drift.
@@ -733,23 +733,22 @@ pub(crate) fn resolve_cell_color(
     //
     // Apply the frame's atmospheric factors (luminance dim/boost, saturation
     // drift, persistence glow, instability flicker) to the resolved cell
-    // color BEFORE returning. This eliminates the post-hoc decode-encode
-    // cycle that `cloud::phosphor::apply_climate_frame_effects` performed
-    // on dirty cells — the cell is now written to the frame once with
+    // color BEFORE returning. This eliminates the old post-hoc decode-encode
+    // cycle (v30.1: `apply_climate_frame_effects` was deleted; climate is
+    // shader-only now) — the cell is written to the frame once with
     // atmospheric already applied.
     //
-    // Disabled when `atmospheric` is None (matches pre-Phase-3-G behavior —
-    // the post-hoc pass runs instead). When Some, the post-hoc pass is a
-    // no-op (early return), so the shader is the sole source of atmospheric
-    // modification — no double-application.
+    // Disabled when `atmospheric` is None (cells render with raw palette
+    // colors). When Some, the shader is the sole source of atmospheric
+    // modification.
     //
     // `Color::Reset` (None fg) is skipped — there's no RGB to modify.
     let fg = fg.map(|c| {
         let Some(ctx) = shader.atmospheric else {
             return c;
         };
-        // Fast path: neutral ctx is a no-op (matches the pre-Phase-3-G
-        // "skip if all neutral" early-return in apply_climate_frame_effects).
+        // Fast path: neutral ctx is a no-op (matches the old post-hoc
+        // "skip if all neutral" early-return, now deleted).
         if ctx.is_neutral() {
             return c;
         }

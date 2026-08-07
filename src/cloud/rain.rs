@@ -503,9 +503,10 @@ impl Cloud {
         // frame-invariant factors (dim/boost/saturation/persistence/instability
         // integers + now_secs) once, then passes them through DrawCtx →
         // ShaderCtx → resolve_cell_color where the shader applies them to
-        // each cell's resolved color BEFORE encoding. The post-hoc
-        // `apply_climate_frame_effects` early-returns when this is Some,
-        // eliminating ~500 decode-encode-frame.set cycles per frame.
+        // each cell's resolved color BEFORE encoding. (v30.1: the old
+        // post-hoc `apply_climate_frame_effects` pass was deleted; climate
+        // is shader-only now, eliminating ~500 decode-encode-frame.set
+        // cycles per frame.)
         //
         // The math here is identical to the pre-Phase-3-G post-hoc pass —
         // same thresholds, same integer fixed-point factors. The only
@@ -957,8 +958,12 @@ impl Cloud {
             }
         }
 
-        // 7. Apply global atmospheric frame effects (post-process)
-        self.apply_climate_frame_effects(frame, now);
+        // 7. (removed in v30.1) Apply global atmospheric frame effects.
+        //    Was a no-op post-hoc pass — climate effects are now applied
+        //    in the shader pipeline at resolve_cell_color via
+        //    chroma::post::climate::apply_climate. The post-hoc function
+        //    `apply_climate_frame_effects` was deleted; see the Phase 3-G
+        //    note at the atmospheric ctx construction above.
 
         // 8. Draw message box LAST — survives phosphor, anomaly, atmospheric.
         // Glow (60% white blend) + typewriter reveal (30ms/char).

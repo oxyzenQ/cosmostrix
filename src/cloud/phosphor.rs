@@ -615,45 +615,6 @@ impl Cloud {
         }
     }
 
-    /// Apply global atmospheric effects to the frame.
-    ///
-    /// Phase 3-G (Chroma Dragon Innovation G): this post-hoc pass is now a
-    /// no-op. Climate effects (luminance dim/boost, saturation drift,
-    /// persistence glow, instability flicker) are applied in the shader
-    /// pipeline at `chroma::shaders::base::resolve_cell_color` via
-    /// `chroma::post::climate::apply_climate`, BEFORE the cell is
-    /// encoded as `Color::Rgb` and written to the frame.
-    ///
-    /// Why disable the post-hoc pass?
-    ///   - Eliminates ~500 decode-encode-frame.set cycles per frame (the
-    ///     shader already applied atmospheric at render time, so re-decoding
-    ///     each dirty cell's `Color` back to RGB, modifying, and re-encoding
-    ///     was pure waste).
-    ///   - Eliminates the double-application risk: if both paths ran,
-    ///     shader-rendered cells would get atmospheric applied twice (once
-    ///     at render, once post-hoc), producing over-darkened / over-boosted
-    ///     output.
-    ///
-    /// Trade-off: cells written to the frame by NON-shader paths (ghost
-    /// events, message box, phosphor decay) no longer get atmospheric
-    /// applied. This is a minor visual regression for those rare cells —
-    /// ghosts are already low-opacity fade-ins, the message box is
-    /// overlaid last with its own glow, and phosphor decay writes blank
-    /// cells (no fg to modify). The architectural win (no double
-    /// decode-encode, no double-application) outweighs the regression.
-    ///
-    /// The original post-hoc implementation is preserved in git history
-    /// (commit prior to Phase 3-G) and can be recovered if a future commit
-    /// reverts the shader integration.
-    pub(super) fn apply_climate_frame_effects(
-        &mut self,
-        _frame: &mut crate::frame::Frame,
-        _now: Instant,
-    ) {
-        // Phase 3-G: atmospheric is now applied in the shader pipeline.
-        // See function doc comment above for the full rationale.
-    }
-
     /// P4: periodic stuck-cell sweep (debug mode only).
     ///
     /// Scans the frame buffer for cells that hold a visible glyph at the

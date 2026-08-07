@@ -11,9 +11,10 @@
 //!
 //! Pre-Phase-3-G, atmospheric effects (luminance climate, saturation
 //! drift, persistence richness, instability pressure) were applied in a
-//! separate post-hoc pass (`cloud::phosphor::apply_climate_frame_effects`)
-//! that iterated all dirty cells, decoded each cell's `Color` back to
-//! `(r, g, b)`, applied the modifiers, and re-encoded. That meant every
+//! separate post-hoc pass (v30.1: `apply_climate_frame_effects` was
+//! deleted; climate is shader-only now) that iterated all dirty cells,
+//! decoded each cell's `Color` back to `(r, g, b)`, applied the
+//! modifiers, and re-encoded. That meant every
 //! dirty cell paid:
 //!
 //! 1. One `Color::Rgb { .. }` decode in the post-hoc pass

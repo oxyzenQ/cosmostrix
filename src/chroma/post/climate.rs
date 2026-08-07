@@ -9,8 +9,8 @@
 //!
 //! Climate effects (luminance climate, saturation drift, persistence
 //! richness, instability pressure) were applied in a separate post-hoc
-//! pass over dirty cells (`cloud::phosphor::apply_climate_frame_effects`).
-//! That pass:
+//! pass over dirty cells (v30.1: `apply_climate_frame_effects` was
+//! deleted; climate is shader-only now). That pass:
 //!
 //! 1. Iterated all dirty cell indices (~500/frame typical).
 //! 2. For each cell, decoded the already-written `Color::Rgb` back to
@@ -131,8 +131,8 @@ impl ClimateCtx {
     }
 
     /// Returns `true` if all atmospheric factors are neutral (no effect
-    /// would be applied). Matches the pre-Phase-3-G "skip if all neutral"
-    /// check in `apply_climate_frame_effects`.
+    /// would be applied). Matches the old "skip if all neutral" check
+    /// from the deleted post-hoc pass.
     #[inline]
     pub(crate) const fn is_neutral(&self) -> bool {
         self.lum_fi.is_none()
@@ -177,8 +177,8 @@ pub(crate) fn apply_climate(
     col: u16,
     ctx: &ClimateCtx,
 ) -> (u8, u8, u8) {
-    // Fast path: all factors neutral → no work. Matches the pre-Phase-3-G
-    // "skip if all neutral" early-return in apply_climate_frame_effects.
+    // Fast path: all factors neutral → no work. Matches the old
+    // "skip if all neutral" early-return from the deleted post-hoc pass.
     if ctx.is_neutral() {
         return (r, g, b);
     }
