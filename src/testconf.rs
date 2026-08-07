@@ -645,19 +645,32 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
 /// Accepts the parsed config map so it can emit targeted hints when a value
 /// that failed base validation happens to match a custom block defined
 /// elsewhere in the same config. This closes the duplicate-usage confusion
-/// between paired fields like `color` (built-in names only) and
-/// `colors-custom` (references a `[colors-custom.<name>]` block).
+/// between paired fields:
+///   - `color` (built-in names only) vs `colors-custom` (references a
+///     `[colors-custom.<name>]` block).
+///   - `charset` (built-in presets only) vs `charset-custom` (references a
+///     `[charset-custom.<name>]` block).
 ///
 /// When `color = <name>` fails because `<name>` is not a built-in color, but
 /// the config DOES define a `[colors-custom.<name>]` block, the returned
 /// error message points the user to `colors-custom = <name>` instead of just
-/// saying "unknown color". The hint is only emitted when a matching custom
-/// block exists — otherwise the plain base error is returned unchanged.
+/// saying "unknown color". Symmetric hint for `charset` → `charset-custom`.
+/// The hint is only emitted when a matching custom block exists — otherwise
+/// the plain base error is returned unchanged.
 ///
 /// Callers that have the parsed config map available should prefer this over
 /// the bare `validate_field_value`. The base function remains available for
 /// contexts (e.g. unit tests, CLI arg parsing) where no surrounding config
 /// exists.
+///
+/// Note on the top-level `charset` carve-out: the `run()` and
+/// `validate_config_strictly()` callers each have a pre-check that silently
+/// accepts `charset = <custom-name>` at the TOP LEVEL (legacy v25 behavior
+/// that predates the explicit `charset-custom` field). That pre-check runs
+/// BEFORE this wrapper, so the charset hint here only fires for the
+/// scene-custom block path — which is exactly the v30.3-design-consistent
+/// behavior: inside `[scene-custom.<name>]`, the explicit `charset-custom`
+/// field is the canonical way to reference a custom block.
 pub(crate) fn validate_field_value_with_cfg(
     key: &str,
     value: &str,
@@ -685,6 +698,20 @@ pub(crate) fn validate_field_value_with_cfg(
                 "unknown color '{value}' — '{value}' is a custom palette name. \
                  Use `colors-custom = {value}` instead (the `color` field only \
                  accepts built-in names; run `cosmostrix --list-colors` to see them)."
+            ));
+        }
+    }
+    if key == "charset" {
+        // A `[charset-custom.<name>]` block is recognized by its `.set`
+        // sub-field. If the user wrote `charset = <name>` inside a
+        // scene-custom block (where the top-level carve-out does NOT apply),
+        // point them at the explicit `charset-custom` field.
+        let set_key = format!("charset-custom.{lower}.set");
+        if cfg.contains_key(&set_key) {
+            return Some(format!(
+                "unknown charset '{value}' — '{value}' is a custom charset name. \
+                 Use `charset-custom = {value}` instead (the `charset` field only \
+                 accepts built-in names; run `cosmostrix --list-charsets` to see them)."
             ));
         }
     }
@@ -1013,6 +1040,74 @@ mod tests {
             plain, wrapped,
             "wrapper must be transparent for non-color fields"
         );
+    }
+
+    // ── charset → charset-custom hint (parity with color hint) ──
+
+    #[test]
+    fn charset_matching_custom_block_gets_charset_custom_hint() {
+        // User wrote `charset = pipes` inside a [scene-custom.<name>] block,
+        // but `pipes` is the name of a [charset-custom.pipes] block — not a
+        // built-in charset preset. The error must point them at the
+        // `charset-custom` field. (Note: `pipes` is chosen because it is
+        // NOT in the built-in charset list — see src/charset.rs.)
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("charset-custom.pipes.set".to_string(), "|".to_string());
+        let msg = validate_field_value_with_cfg("charset", "pipes", &cfg)
+            .expect("should still error — pipes is not a built-in charset");
+        assert!(
+            msg.contains("custom charset"),
+            "error must explain the value is a custom charset: {msg}"
+        );
+        assert!(
+            msg.contains("charset-custom = pipes"),
+            "error must suggest the `charset-custom = pipes` field: {msg}"
+        );
+        assert!(
+            msg.contains("--list-charsets"),
+            "error must still mention --list-charsets for built-in names: {msg}"
+        );
+    }
+
+    #[test]
+    fn charset_matching_custom_block_is_case_insensitive() {
+        // Charset name matching is case-insensitive at runtime; the hint
+        // matching should also be case-insensitive so `charset = PIPES`
+        // matches a declared `[charset-custom.pipes]` block.
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("charset-custom.pipes.set".to_string(), "|".to_string());
+        let msg = validate_field_value_with_cfg("charset", "PIPES", &cfg)
+            .expect("should error — PIPES is not a built-in charset");
+        assert!(
+            msg.contains("charset-custom = PIPES"),
+            "hint must fire case-insensitively and preserve original casing: {msg}"
+        );
+    }
+
+    #[test]
+    fn charset_unknown_with_no_matching_block_keeps_plain_error() {
+        // No [charset-custom.<name>] block exists for this value — the hint
+        // must NOT fire. The plain "unknown charset" error is returned.
+        let cfg = std::collections::HashMap::new();
+        let msg = validate_field_value_with_cfg("charset", "not-a-charset", &cfg)
+            .expect("should error — not-a-charset is unknown");
+        assert!(
+            msg.contains("unknown charset"),
+            "plain error must be preserved: {msg}"
+        );
+        assert!(
+            !msg.contains("charset-custom ="),
+            "hint must NOT fire when no matching block exists: {msg}"
+        );
+    }
+
+    #[test]
+    fn charset_valid_built_in_passes_with_cfg_unchanged() {
+        // A valid built-in charset name must still pass — the wrapper must
+        // not turn a passing validation into a failure.
+        let cfg = std::collections::HashMap::new();
+        assert!(validate_field_value_with_cfg("charset", "matrix", &cfg).is_none());
+        assert!(validate_field_value_with_cfg("charset", "hacker", &cfg).is_none());
     }
 
     #[test]
