@@ -499,16 +499,48 @@ pub(crate) fn apply_startup_ambient(
 ) -> (String, Option<AmbientEntry>) {
     let now_min = current_minute_of_day();
     let Some(entry) = schedule.current_phase(now_min).cloned() else {
+        crate::lr_trace!(
+            "ambient: startup — no active phase at minute {} of day, default scene retained",
+            now_min
+        );
         return (charset_preset.to_string(), None);
     };
+    // v30.5 stabilization: warn if the cfg map is empty. Custom-scene
+    // targets (defined via [scene-custom.<name>] blocks) silently fail
+    // to resolve without the cfg map — `collect_custom_scenes` returns
+    // an empty HashMap and the lookup falls through to a no-op. This
+    // catches the scenario where `load_config_file` returned empty at
+    // startup (file missing/unreadable/permission denied).
+    if cfg.is_empty() {
+        crate::lr_trace!(
+            "ambient: startup — WARNING: cfg map is EMPTY; custom-scene \
+             target '{}' will not resolve (built-in scenes still work). \
+             Check that config.toml exists and is readable.",
+            entry.scene
+        );
+    }
+    let color_before = cloud.color_scheme();
     crate::lr_trace!(
-        "ambient: startup sync apply — phase {:02}:{:02} (scene={})",
+        "ambient: startup sync apply — phase {:02}:{:02} (scene={}, color_before={:?})",
         entry.hour,
         entry.minute,
-        entry.scene
+        entry.scene,
+        color_before
     );
     let new_charset =
         cloud.apply_ambient_entry(&entry, charset_preset, user_ranges, def_ascii, cfg);
+    let color_after = cloud.color_scheme();
+    // v30.5 stabilization: verify the apply actually changed cloud state.
+    // If the entry targeted a custom scene but the color didn't change,
+    // the cfg lookup likely failed silently. Log a diagnostic so the
+    // user can enable COSMOSTRIX_LIVE_RELOAD_DEBUG=1 and see why. Note:
+    // a color match is not always a failure (custom scenes can inherit
+    // the base scene's color), so this is a diagnostic, not an error.
+    crate::lr_trace!(
+        "ambient: startup post-apply — color_after={:?}, charset='{}'",
+        color_after,
+        new_charset
+    );
     (new_charset, Some(entry))
 }
 

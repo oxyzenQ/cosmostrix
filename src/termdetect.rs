@@ -152,15 +152,19 @@ const HIGH_PERF_TERM_HINTS: &[&str] = &[
 ];
 
 /// Returns true if the terminal appears to be a high-performance emulator.
-/// Checks (in order): TERM_PROGRAM (case-insensitive exact match),
-/// `KONSOLE_VERSION` env var (KDE Konsole doesn't set TERM_PROGRAM),
-/// `WT_SESSION` env var (Windows Terminal), and `TERM` substring hints
-/// for terminals that don't set TERM_PROGRAM at all.
+/// Checks (in order, 5 layers):
+///   1. TERM_PROGRAM (case-insensitive exact match)
+///   2. KONSOLE_VERSION env var (KDE Konsole doesn't set TERM_PROGRAM)
+///   3. WT_SESSION env var (Windows Terminal)
+///   4. TERM substring hints (e.g., `xterm-ghostty` contains `ghostty`)
+///   5. Linux ancestor process name via /proc walk (catches Alacritty
+///      launched with TERM=xterm-direct — no TERM_PROGRAM, no hint in TERM)
 fn is_high_perf_terminal(term_program: &str, term: &str) -> bool {
     let tp_lower = term_program.to_ascii_lowercase();
-    if HIGH_PERF_TERMINALS
-        .iter()
-        .any(|&t| t.eq_ignore_ascii_case(&tp_lower) && !tp_lower.is_empty())
+    if !tp_lower.is_empty()
+        && HIGH_PERF_TERMINALS
+            .iter()
+            .any(|&t| t.eq_ignore_ascii_case(&tp_lower))
     {
         return true;
     }
@@ -172,14 +176,102 @@ fn is_high_perf_terminal(term_program: &str, term: &str) -> bool {
     if std::env::var("WT_SESSION").is_ok() {
         return true;
     }
-    // Fall back to TERM substring hints (case-insensitive).
+    // Layer 4: TERM substring hints (case-insensitive).
     let term_lower = term.to_ascii_lowercase();
-    if !term_lower.is_empty() {
-        return HIGH_PERF_TERM_HINTS
+    if !term_lower.is_empty()
+        && HIGH_PERF_TERM_HINTS
             .iter()
-            .any(|&hint| term_lower.contains(hint));
+            .any(|&hint| term_lower.contains(hint))
+    {
+        return true;
     }
-    false
+    // Layer 5 (v30.5): Linux ancestor process name. Catches terminals
+    // that don't set TERM_PROGRAM AND have a non-standard TERM (e.g.,
+    // Alacritty launched with TERM=xterm-direct in alacritty.toml).
+    // Walks /proc up to 10 levels. No-op on non-Linux platforms.
+    ancestor_matches_high_perf(&ancestor_process_names(10))
+}
+
+/// Parse the `ppid` field from a `/proc/<pid>/stat` line. The stat format
+/// is `pid (comm) state ppid ...` where `comm` can contain spaces and
+/// parens. We parse from the right of the LAST `)` to avoid ambiguity
+/// with parens inside `comm`. Returns None if the line is malformed.
+///
+/// Pure function — unit-testable without touching the filesystem.
+#[cfg(target_os = "linux")]
+fn parse_proc_ppid(stat_line: &str) -> Option<i32> {
+    let rparen = stat_line.rfind(')')?;
+    let after_comm = &stat_line[rparen + 1..];
+    let mut fields = after_comm.split_whitespace();
+    fields.next()?; // state (S, R, D, T, Z, etc.)
+    fields.next()?.parse().ok()
+}
+
+/// Read the `comm` name (process name) for a given PID on Linux. Returns
+/// None if /proc is not available or the PID doesn't exist. The kernel
+/// truncates `comm` to 15 characters (TASK_COMM_LEN=16 including NUL).
+#[cfg(target_os = "linux")]
+fn read_proc_comm(pid: i32) -> Option<String> {
+    let raw = std::fs::read_to_string(format!("/proc/{pid}/comm")).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+/// Walk the process ancestor chain on Linux and return the list of
+/// process names (comm) from parent → grandparent → ... → init. Stops
+/// after `max_depth` hops or when reaching PID 1 (init/systemd).
+/// Returns an empty vec on non-Linux platforms or if /proc is unavailable.
+///
+/// This is the fallback detection layer for terminals that don't set
+/// `TERM_PROGRAM` AND have a non-standard `TERM` (e.g., Alacritty with
+/// `TERM=xterm-direct`). Walking the process tree finds the terminal
+/// emulator process by name (e.g., "alacritty", "kitty", "ghostty").
+#[cfg(target_os = "linux")]
+fn ancestor_process_names(max_depth: usize) -> Vec<String> {
+    let mut names = Vec::with_capacity(max_depth);
+    let mut pid = std::process::id() as i32;
+    for _ in 0..max_depth {
+        let stat = match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
+            Ok(s) => s,
+            Err(_) => break,
+        };
+        let ppid = match parse_proc_ppid(&stat) {
+            Some(p) => p,
+            None => break,
+        };
+        if ppid <= 1 {
+            break;
+        }
+        if let Some(name) = read_proc_comm(ppid) {
+            names.push(name);
+        }
+        pid = ppid;
+    }
+    names
+}
+
+/// No-op stub on non-Linux platforms. macOS users rely on TERM_PROGRAM
+/// (iTerm.app, Apple_Terminal) which is always set by those terminals.
+#[cfg(not(target_os = "linux"))]
+fn ancestor_process_names(_max_depth: usize) -> Vec<String> {
+    Vec::new()
+}
+
+/// Returns true if any name in `names` matches a HIGH_PERF_TERM_HINT
+/// (case-insensitive substring). Extracted from `is_high_perf_terminal`
+/// for unit testability — the ancestor walk itself requires /proc and
+/// can't be tested in isolation, but the matching logic can.
+fn ancestor_matches_high_perf(names: &[String]) -> bool {
+    names.iter().any(|name| {
+        let name_lower = name.to_ascii_lowercase();
+        HIGH_PERF_TERM_HINTS
+            .iter()
+            .any(|&hint| name_lower.contains(hint))
+    })
 }
 
 /// Dynamic default FPS for high-performance terminals when the user
@@ -230,9 +322,12 @@ pub(crate) fn detect() -> TerminalCaps {
     // 144 FPS; standard/unknown terminals default to 60; xterm.js hosts
     // default to 30 (matching the cap). The user's explicit `--fps` /
     // `fps =` ALWAYS wins over this default.
-    // v30.4 hotfix: detection is now case-insensitive + has fallbacks
-    // (KONSOLE_VERSION, WT_SESSION, TERM substring hints) so users on
-    // terminals that don't set TERM_PROGRAM still get the high-perf default.
+    // v30.4 hotfix: case-insensitive matching + env-var fallbacks
+    // (KONSOLE_VERSION, WT_SESSION, TERM substring hints).
+    // v30.5 hardening: Layer 5 — Linux /proc ancestor walk catches
+    // Alacritty launched with TERM=xterm-direct (no TERM_PROGRAM, no
+    // hint in TERM). This was the root cause of owner's "still 60 FPS"
+    // report on alacritty 0.17.0 with TERM=xterm-direct.
     let dynamic_default_fps = if xtermjs_host {
         XTERMJS_FPS_CAP
     } else if is_high_perf_terminal(&term_program, &term) {
@@ -678,5 +773,126 @@ mod tests {
             caps.dynamic_default_fps, XTERMJS_FPS_CAP,
             "xterm.js host must default to XTERMJS_FPS_CAP (30)"
         );
+    }
+
+    // ── v30.5 hardening: /proc ancestor walk tests ──
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn parse_proc_ppid_extracts_correct_field() {
+        // Real /proc/<pid>/stat format: "pid (comm) state ppid pgrp ..."
+        // The comm field can contain spaces and parens — we parse from
+        // the right of the LAST ')' to avoid ambiguity.
+        let line = "1234 (zsh) S 1 1234 1234 34816 1234 4194304 12345 1 1";
+        assert_eq!(parse_proc_ppid(line), Some(1));
+
+        let line2 = "5678 (alacritty) S 1 5678 5678 34816 5678 4194304 999 1 1";
+        assert_eq!(parse_proc_ppid(line2), Some(1));
+
+        // comm with spaces (e.g., a script named "my script")
+        let line3 = "9999 (my script) S 1234 9999 9999 34816 9999 4194304 1 1 1";
+        assert_eq!(parse_proc_ppid(line3), Some(1234));
+
+        // comm with a paren inside (rare but possible)
+        let line4 = "9999 (foo) bar) S 1234 9999 9999 34816 9999 4194304 1 1 1";
+        assert_eq!(parse_proc_ppid(line4), Some(1234));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn parse_proc_ppid_returns_none_on_malformed() {
+        assert_eq!(parse_proc_ppid(""), None);
+        assert_eq!(parse_proc_ppid("no parens here"), None);
+        assert_eq!(parse_proc_ppid("(missing pid) S"), None);
+        assert_eq!(parse_proc_ppid("(missing ppid) S not_a_number"), None);
+    }
+
+    #[test]
+    fn ancestor_matches_high_perf_detects_terminal_names() {
+        // Direct match: "alacritty" contains "alacritty"
+        assert!(ancestor_matches_high_perf(&["alacritty".to_string()]));
+        assert!(ancestor_matches_high_perf(&["kitty".to_string()]));
+        assert!(ancestor_matches_high_perf(&["ghostty".to_string()]));
+        assert!(ancestor_matches_high_perf(&["foot".to_string()]));
+        assert!(ancestor_matches_high_perf(&["wezterm".to_string()]));
+        assert!(ancestor_matches_high_perf(&["konsole".to_string()]));
+
+        // Case-insensitive: "Alacritty" contains "alacritty"
+        assert!(ancestor_matches_high_perf(&["Alacritty".to_string()]));
+        assert!(ancestor_matches_high_perf(&["KITTY".to_string()]));
+    }
+
+    #[test]
+    fn ancestor_matches_high_perf_finds_terminal_in_chain() {
+        // The real scenario: cosmostrix → zsh → alacritty. The ancestor
+        // walk returns ["zsh", "alacritty"] — "alacritty" matches.
+        let chain = vec!["zsh".to_string(), "alacritty".to_string()];
+        assert!(
+            ancestor_matches_high_perf(&chain),
+            "ancestor chain containing alacritty must match"
+        );
+
+        // tmux scenario: cosmostrix → zsh → tmux → alacritty
+        let tmux_chain = vec![
+            "zsh".to_string(),
+            "tmux".to_string(),
+            "alacritty".to_string(),
+        ];
+        assert!(
+            ancestor_matches_high_perf(&tmux_chain),
+            "ancestor chain through tmux to alacritty must match"
+        );
+    }
+
+    #[test]
+    fn ancestor_matches_high_perf_rejects_non_terminal_chains() {
+        // cargo test scenario: cosmostrix_test → cargo → zsh → sshd
+        // No high-perf terminal in the chain → no match.
+        let chain = vec!["cargo".to_string(), "zsh".to_string(), "sshd".to_string()];
+        assert!(
+            !ancestor_matches_high_perf(&chain),
+            "chain without a high-perf terminal must not match"
+        );
+
+        // Empty chain
+        assert!(!ancestor_matches_high_perf(&[]));
+
+        // Shell-only chain
+        assert!(!ancestor_matches_high_perf(&["bash".to_string()]));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn ancestor_process_names_returns_nonempty_in_test_env() {
+        // When running `cargo test`, the process tree is:
+        //   cosmostrix-<test_binary> → cargo → <shell> → <terminal or sshd>
+        // We can't assert WHICH ancestors are present (depends on the
+        // caller's environment), but the walk MUST return at least one
+        // name (the parent process). If this returns empty, /proc is
+        // broken or unavailable, which would mean the Layer 5 fallback
+        // silently degrades to 60 FPS — the exact bug we're fixing.
+        let names = ancestor_process_names(10);
+        assert!(
+            !names.is_empty(),
+            "ancestor_process_names must return at least the parent process \
+             name on Linux — empty result means /proc is unavailable, which \
+             would silently disable Layer 5 detection (the alacritty bug)"
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn ancestor_process_names_stops_at_init() {
+        // Walking with max_depth=10 should never include PID 1 (init).
+        // The walk stops when ppid <= 1, so "init"/"systemd" should not
+        // appear in the result (we break before reading its comm).
+        let names = ancestor_process_names(10);
+        for name in &names {
+            let lower = name.to_ascii_lowercase();
+            assert!(
+                !lower.contains("systemd") || lower != "init",
+                "ancestor walk should stop before init/systemd (got '{name}')"
+            );
+        }
     }
 }

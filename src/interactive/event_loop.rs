@@ -227,19 +227,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
-    // Ambient phase scheduler: spawn the dynamic idle/wake thread. Sleeps
-    // until the next phase boundary (zero CPU between), sends an
-    // `AmbientEntry` via mpsc polled each frame. Reload via `reload()`.
+    // Ambient scheduler: idle/wake thread sends AmbientEntry via mpsc.
     let ambient_handle =
         crate::ambient_scheduler::spawn_ambient_scheduler(base_cfg.ambient_schedule.clone());
     let mut last_ambient_schedule = base_cfg.ambient_schedule.clone();
-    // v30.3: track the last-applied ambient entry to RE-APPLY it after
-    // live-reload rebuilds. Without this, a duplicate notify event triggers
-    // a rebuild that loses ambient state.
+    // v30.3: last-applied ambient entry — re-applied after live-reload rebuilds.
     let mut last_applied_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
-    // v25.5: last-applied config map for diff trace. v30.4 hotfix: also
-    // populated at STARTUP so `apply_startup_ambient` can resolve
-    // [scene-custom.<name>] blocks (was empty before, breaking ambient).
+    // v25.5+v30.4: last-applied cfg map for diff trace + startup ambient.
     let initial_cfg_map = base_cfg
         .config_path_for_watcher
         .as_deref()
@@ -257,6 +251,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         def_ascii,
         &initial_cfg_map,
     );
+    // v30.5: verbose-visible startup ambient confirmation.
+    let verbose = cfg.verbose;
+    if verbose {
+        match &startup_entry {
+            Some(e) => crate::output::eprintln_verbose_raw(&format!(
+                "ambient: startup phase {:02}:{:02} (scene={}) applied",
+                e.hour, e.minute, e.scene
+            )),
+            None => crate::output::eprintln_verbose_raw("ambient: no active phase at startup"),
+        }
+    }
     if let Some(entry) = startup_entry {
         charset_preset = new_charset;
         scene_name = entry.scene.clone();
@@ -266,10 +271,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         super::fill_terminal_bg(cloud.palette.bg);
         last_applied_ambient_entry = Some(entry);
     }
-
-    // Track runtime state changes for post-exit verbose summary.
-    let _verbose = cfg.verbose;
-
+    // Track runtime state for post-exit verbose summary.
     while cloud.raining {
         // Graceful shutdown from signal handler (clean exit via Terminal::drop).
         if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
@@ -290,9 +292,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         pending_config = Some(cfg);
                     }
                     Err(msg) => {
-                        // v25.13 (bug #15): config validation errors during
-                        // live reload cause IMMEDIATE exit (printing to stderr
-                        // mid-rain would pollute the alternate screen).
+                        // v25.13: config validation errors cause immediate exit.
                         crate::lr_trace!(
                             "render thread: config validation error — setting exit code + breaking rain loop"
                         );
