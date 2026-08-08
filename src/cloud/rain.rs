@@ -493,6 +493,7 @@ impl Cloud {
                 cols: self.cols,
                 lines: self.lines,
                 ghost_base_color,
+                color_pipeline: self.color_pipeline,
                 now,
             };
             self.event_manager.render_pre_rain(&pre_ctx, frame);
@@ -870,6 +871,7 @@ impl Cloud {
                 cols: self.cols,
                 lines: self.lines,
                 ghost_base_color,
+                color_pipeline: self.color_pipeline,
                 now,
             };
             self.event_manager.render(&event_ctx, frame);

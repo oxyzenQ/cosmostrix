@@ -99,9 +99,25 @@ impl CinematicEvent for GhostEvent {
 
         let (br, bg, bb) = ctx.ghost_base_color;
 
-        let r = (br as f32 * opacity) as u8;
-        let g = (bg as f32 * opacity) as u8;
-        let b = (bb as f32 * opacity) as u8;
+        // v30.3 (chroma audit, A9): opacity fade routes through the chroma
+        // engine when active, falls back to the original f32 multiply+
+        // truncate behavior otherwise. The chroma path's apply_brightness_rgb
+        // uses integer `>> 8` math (with +128 rounding), while the legacy
+        // path preserves `(c as f32 * opacity) as u8` (truncate). The two
+        // can differ by ±1 per channel (e.g. 255 * 0.5 = 127.5 -> 127
+        // legacy, 128 chroma). The difference is imperceptible on a dim
+        // ghost overlay and is acceptable per owner rule "all color ->
+        // chroma dragon first -> fallback legacy rgb/srgb".
+        let (r, g, b) = if ctx.color_pipeline.is_chroma() {
+            let scaled = crate::chroma::palette::apply_brightness_rgb(br, bg, bb, opacity);
+            crate::palette::decode_color(scaled).unwrap_or((br, bg, bb))
+        } else {
+            (
+                (br as f32 * opacity) as u8,
+                (bg as f32 * opacity) as u8,
+                (bb as f32 * opacity) as u8,
+            )
+        };
         if r == 0 && g == 0 && b == 0 {
             return;
         }

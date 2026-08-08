@@ -39,6 +39,11 @@ pub(super) struct EventCtx {
     /// scene's color scheme (green palette → dark green ghosts, red
     /// palette → dark red ghosts, etc.).
     pub ghost_base_color: (u8, u8, u8),
+    /// v30.3 (chroma audit, A9): cached ColorPipeline so the ghost event
+    /// render can route its opacity fade through chroma::palette (chroma
+    /// path) or chroma::legacy (legacy fallback). Copy enum, predicted-
+    /// true in production.
+    pub color_pipeline: crate::runtime::ColorPipeline,
     /// v30 Hinnant: frame-start Instant captured once in `rain_at()` and
     /// shared with all event `is_finished()` / `render()` calls. Removes
     /// 3 hidden `Instant::now()` syscalls per active event per frame (one
