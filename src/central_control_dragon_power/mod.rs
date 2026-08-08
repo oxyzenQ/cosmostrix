@@ -122,6 +122,9 @@ pub(crate) use reclaim_state::*;
 pub(crate) use self_healer::*;
 pub(crate) use thermal_sampler::*;
 
+#[cfg(test)]
+mod audit_tests;
+
 // ─── Perf pressure pipeline ─────────────────────────────────────────────────
 //
 // perf_pressure is a 0.0–1.0 scalar tracking how overloaded the renderer

@@ -598,7 +598,11 @@ mod tests {
         for i in 0..3 {
             let t = t0 + Duration::from_secs(i);
             let action = h.observe(SELF_HEAL_PRESSURE_HIGH, t, Some(95.0));
-            assert_eq!(action, SelfHealAction::None, "should not downgrade at t={i}");
+            assert_eq!(
+                action,
+                SelfHealAction::None,
+                "should not downgrade at t={i}"
+            );
         }
         // At t=3, elapsed = 3.0 >= 3.0 (overridden window) → fires.
         // With the default 30s window this would still return None,
