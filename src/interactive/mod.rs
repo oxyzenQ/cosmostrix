@@ -127,3 +127,25 @@ pub(crate) fn last_speed() -> f32 {
 pub(crate) fn last_density() -> f32 {
     FINAL_DENSITY.lock().ok().and_then(|g| *g).unwrap_or(0.75)
 }
+
+// v30.5: startup ambient info — stored in a static so main.rs can print
+// it AFTER Terminal::drop exits the alternate screen. Printing inside
+// event_loop is invisible because the terminal is in alternate screen
+// mode and the output is discarded on exit.
+static STARTUP_AMBIENT_INFO: Mutex<Option<String>> = Mutex::new(None);
+
+/// Store the startup ambient phase info for post-exit verbose summary.
+/// Called from event_loop right after `apply_startup_ambient`. The string
+/// is the fully-formatted verbose line (without the `[verbose]` prefix,
+/// which `eprintln_verbose_raw` adds).
+pub(crate) fn set_startup_ambient_info(info: &str) {
+    if let Ok(mut g) = STARTUP_AMBIENT_INFO.lock() {
+        *g = Some(info.to_string());
+    }
+}
+
+/// Get the stored startup ambient info (None if no ambient schedule active
+/// or if event_loop never ran). Used by main.rs post-exit verbose dump.
+pub(crate) fn startup_ambient_info() -> Option<String> {
+    STARTUP_AMBIENT_INFO.lock().ok().and_then(|g| g.clone())
+}

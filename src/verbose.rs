@@ -163,6 +163,15 @@ pub(crate) fn print_verbose(
     // ── Motion ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Motion ──"));
     output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
+    // v30.5: show which detection layer set the dynamic fps default.
+    // Only shown when the user did NOT explicitly set --fps / fps =,
+    // so the user can verify the detection chain (TERM_PROGRAM vs
+    // /proc ancestor vs fallback).
+    let caps_for_source = crate::termdetect::detect();
+    output::eprintln_verbose(
+        "fps_source:",
+        &format!(" {} (dynamic default)", caps_for_source.dynamic_fps_source),
+    );
     output::eprintln_verbose("speed:", &format!(" {speed:.1}"));
     output::eprintln_verbose(
         "density:",

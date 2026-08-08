@@ -1132,14 +1132,15 @@ fn main() -> std::io::Result<()> {
             .to_string();
         let startup_speed = cloud_cfg.speed;
         let startup_density = cloud_cfg.density;
+        // v30.5: print startup ambient info (stored by event_loop). Printed
+        // after Terminal::drop so it's visible — printing inside event_loop
+        // is invisible (alternate screen discards stderr on exit).
+        if let Some(info) = interactive::startup_ambient_info() {
+            crate::output::eprintln_verbose_raw(&info);
+        }
 
-        // v25.13 (bug #15): the bug #14 post-exit verbose rejection summary
-        // was removed. Config validation errors during live reload now cause
-        // IMMEDIATE exit (see event_loop.rs Err handler). The error is printed
-        // by the LIVE_RELOAD_EXIT_CODE path below — after terminal restoration,
-        // never during rain. No session-log drain needed since we exit on the
-        // first error rather than accumulating.
-
+        // v25.13: post-exit rejection summary removed; live-reload errors
+        // cause immediate exit (see LIVE_RELOAD_EXIT_CODE path below).
         let changed = final_color != startup_color
             || final_scene != startup_scene
             || final_charset != startup_charset

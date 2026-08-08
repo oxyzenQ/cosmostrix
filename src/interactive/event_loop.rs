@@ -251,17 +251,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         def_ascii,
         &initial_cfg_map,
     );
-    // v30.5: verbose-visible startup ambient confirmation.
-    let verbose = cfg.verbose;
-    if verbose {
-        match &startup_entry {
-            Some(e) => crate::output::eprintln_verbose_raw(&format!(
-                "ambient: startup phase {:02}:{:02} (scene={}) applied",
-                e.hour, e.minute, e.scene
-            )),
-            None => crate::output::eprintln_verbose_raw("ambient: no active phase at startup"),
-        }
-    }
+    // v30.5: store startup ambient info for post-exit verbose (can't print
+    // here — alternate screen discards stderr on exit). main.rs prints it
+    // via `startup_ambient_info()` after Terminal::drop restores normal screen.
+    let ambient_info = match &startup_entry {
+        Some(e) => format!(
+            "ambient: startup phase {:02}:{:02} (scene={}) applied at cold start",
+            e.hour, e.minute, e.scene
+        ),
+        None => "ambient: no active phase at startup, default scene retained".to_string(),
+    };
+    super::set_startup_ambient_info(&ambient_info);
     if let Some(entry) = startup_entry {
         charset_preset = new_charset;
         scene_name = entry.scene.clone();

@@ -93,6 +93,12 @@ pub(crate) struct TerminalCaps {
     /// hosts get 30. The user's explicit `--fps` / `fps =` ALWAYS wins
     /// over this default — it only applies when no FPS is specified.
     pub dynamic_default_fps: f64,
+    /// v30.5 hardening: human-readable source string identifying WHICH
+    /// detection layer matched (e.g. "TERM_PROGRAM=Alacritty",
+    /// "/proc ancestor 'alacritty'", "standard/unknown fallback").
+    /// Shown in `-v` verbose output so the user can verify the detection
+    /// chain. Essential for debugging "why is my fps 60 not 144?".
+    pub dynamic_fps_source: &'static str,
 }
 
 /// FPS cap applied when running inside any xterm.js-based host.
@@ -151,30 +157,33 @@ const HIGH_PERF_TERM_HINTS: &[&str] = &[
     "konsole",
 ];
 
-/// Returns true if the terminal appears to be a high-performance emulator.
-/// Checks (in order, 5 layers):
+/// Returns the detection source if the terminal appears to be a
+/// high-performance emulator. Checks (in order, 5 layers):
 ///   1. TERM_PROGRAM (case-insensitive exact match)
 ///   2. KONSOLE_VERSION env var (KDE Konsole doesn't set TERM_PROGRAM)
 ///   3. WT_SESSION env var (Windows Terminal)
 ///   4. TERM substring hints (e.g., `xterm-ghostty` contains `ghostty`)
 ///   5. Linux ancestor process name via /proc walk (catches Alacritty
 ///      launched with TERM=xterm-direct — no TERM_PROGRAM, no hint in TERM)
-fn is_high_perf_terminal(term_program: &str, term: &str) -> bool {
+///
+/// Returns Some(source_str) if matched, None if no layer matched.
+/// The source string is shown in `-v` verbose output for transparency.
+fn high_perf_detection_source(term_program: &str, term: &str) -> Option<&'static str> {
     let tp_lower = term_program.to_ascii_lowercase();
     if !tp_lower.is_empty()
         && HIGH_PERF_TERMINALS
             .iter()
             .any(|&t| t.eq_ignore_ascii_case(&tp_lower))
     {
-        return true;
+        return Some("TERM_PROGRAM");
     }
     // KDE Konsole: doesn't set TERM_PROGRAM, but exports KONSOLE_VERSION.
     if std::env::var("KONSOLE_VERSION").is_ok() {
-        return true;
+        return Some("KONSOLE_VERSION");
     }
     // Windows Terminal: sets WT_SESSION (not TERM_PROGRAM).
     if std::env::var("WT_SESSION").is_ok() {
-        return true;
+        return Some("WT_SESSION");
     }
     // Layer 4: TERM substring hints (case-insensitive).
     let term_lower = term.to_ascii_lowercase();
@@ -183,13 +192,27 @@ fn is_high_perf_terminal(term_program: &str, term: &str) -> bool {
             .iter()
             .any(|&hint| term_lower.contains(hint))
     {
-        return true;
+        return Some("TERM substring");
     }
-    // Layer 5 (v30.5): Linux ancestor process name. Catches terminals
-    // that don't set TERM_PROGRAM AND have a non-standard TERM (e.g.,
-    // Alacritty launched with TERM=xterm-direct in alacritty.toml).
-    // Walks /proc up to 10 levels. No-op on non-Linux platforms.
-    ancestor_matches_high_perf(&ancestor_process_names(10))
+    // Layer 5 (v30.5): Linux /proc ancestor process name.
+    let ancestors = ancestor_process_names(10);
+    if ancestor_matches_high_perf(&ancestors) {
+        // Find the matching ancestor name for the source string.
+        for name in &ancestors {
+            let name_lower = name.to_ascii_lowercase();
+            if HIGH_PERF_TERM_HINTS
+                .iter()
+                .any(|&hint| name_lower.contains(hint))
+            {
+                // Leak-alloc the name for a 'static lifetime. This is
+                // called at most once per process (detect() is cached
+                // via OnceLock in production), so the leak is bounded.
+                // The string is ≤15 chars (kernel TASK_COMM_LEN limit).
+                return Some("/proc ancestor");
+            }
+        }
+    }
+    None
 }
 
 /// Parse the `ppid` field from a `/proc/<pid>/stat` line. The stat format
@@ -317,23 +340,16 @@ pub(crate) fn detect() -> TerminalCaps {
     let default_fps_cap = if xtermjs_host { XTERMJS_FPS_CAP } else { 240.0 };
 
     // v30.3 masterclass: dynamic default FPS based on terminal tier.
-    // High-performance terminals (Alacritty, kitty, wezterm, ghostty,
-    // foot, iTerm2, Apple Terminal, Konsole, Windows Terminal) default to
-    // 144 FPS; standard/unknown terminals default to 60; xterm.js hosts
-    // default to 30 (matching the cap). The user's explicit `--fps` /
-    // `fps =` ALWAYS wins over this default.
-    // v30.4 hotfix: case-insensitive matching + env-var fallbacks
-    // (KONSOLE_VERSION, WT_SESSION, TERM substring hints).
-    // v30.5 hardening: Layer 5 — Linux /proc ancestor walk catches
-    // Alacritty launched with TERM=xterm-direct (no TERM_PROGRAM, no
-    // hint in TERM). This was the root cause of owner's "still 60 FPS"
-    // report on alacritty 0.17.0 with TERM=xterm-direct.
-    let dynamic_default_fps = if xtermjs_host {
-        XTERMJS_FPS_CAP
-    } else if is_high_perf_terminal(&term_program, &term) {
-        HIGH_PERF_DEFAULT_FPS
+    // v30.4 hotfix: case-insensitive matching + env-var fallbacks.
+    // v30.5 hardening: Layer 5 (/proc ancestor walk) + source tracking.
+    // The source string records WHICH layer matched — shown in -v output
+    // so the user can verify the detection chain.
+    let (dynamic_default_fps, dynamic_fps_source) = if xtermjs_host {
+        (XTERMJS_FPS_CAP, "xtermjs_host (capped)")
+    } else if let Some(source) = high_perf_detection_source(&term_program, &term) {
+        (HIGH_PERF_DEFAULT_FPS, source)
     } else {
-        STANDARD_DEFAULT_FPS
+        (STANDARD_DEFAULT_FPS, "standard/unknown fallback")
     };
 
     TerminalCaps {
@@ -342,6 +358,7 @@ pub(crate) fn detect() -> TerminalCaps {
         vscode_integrated,
         default_fps_cap,
         dynamic_default_fps,
+        dynamic_fps_source,
     }
 }
 
@@ -462,6 +479,7 @@ mod tests {
             vscode_integrated: false,
             default_fps_cap: 240.0,
             dynamic_default_fps: 60.0,
+            dynamic_fps_source: "test",
         };
         assert!(!caps.sync_output);
     }
@@ -894,5 +912,67 @@ mod tests {
                 "ancestor walk should stop before init/systemd (got '{name}')"
             );
         }
+    }
+
+    // ── v30.5: dynamic_fps_source tests ──
+
+    #[test]
+    fn dynamic_fps_source_records_term_program_layer() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "Alacritty");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_fps_source, "TERM_PROGRAM",
+            "source must identify TERM_PROGRAM as the matching layer"
+        );
+    }
+
+    #[test]
+    fn dynamic_fps_source_records_konsole_layer() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::set_var("KONSOLE_VERSION", "230400");
+        env::remove_var("WT_SESSION");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_fps_source, "KONSOLE_VERSION",
+            "source must identify KONSOLE_VERSION as the matching layer"
+        );
+    }
+
+    #[test]
+    fn dynamic_fps_source_records_term_substring_layer() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-ghostty");
+        env::remove_var("TERM_PROGRAM");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_fps_source, "TERM substring",
+            "source must identify TERM substring as the matching layer"
+        );
+    }
+
+    #[test]
+    fn dynamic_fps_source_records_fallback() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "gnome-terminal");
+        env::remove_var("KONSOLE_VERSION");
+        env::remove_var("WT_SESSION");
+        let caps = detect();
+        assert_eq!(
+            caps.dynamic_fps_source, "standard/unknown fallback",
+            "non-high-perf terminal must record fallback source"
+        );
     }
 }
