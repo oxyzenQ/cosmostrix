@@ -866,29 +866,52 @@ pub(super) fn color_for_level(
     // This eliminates 2-4 color_to_rgb() calls per cell per frame.
     let (mut r, mut g, mut b) = palette::decode_color(base_color)?;
 
+    // v30.3 (chroma audit, A10): the monolith color pipeline has three
+    // brightness/blend stages. Each routes through the chroma engine
+    // when active, falls back to chroma::legacy otherwise. All paths
+    // use the same equations as the original inline math -- the
+    // migration is a pure auditability refactor.
+    //
+    // Stage 1: factor < 1.0 -- brightness scale (dim).
+    // Stage 2: factor > 1.0 -- blend toward white (boost).
+    // Stage 3: Core level -- extra blend toward white (CORE_WF = 0.55).
     if factor < 1.0 {
-        let fi = (factor * 256.0) as i32;
-        r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-        g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-        b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+        let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+            let scaled = crate::chroma::palette::apply_brightness_rgb(r, g, b, factor);
+            palette::decode_color(scaled).unwrap_or((r, g, b))
+        } else {
+            crate::chroma::legacy::scale_rgb(r, g, b, factor)
+        };
+        r = nr;
+        g = ng;
+        b = nb;
     }
     if factor > 1.0 {
         // v17 mastery: raised white_factor cap from 0.12 to 0.20 for
         // stronger pulse/breath brightness boost on Core/Hot cells.
         let white_factor = (factor - 1.0).min(0.20);
-        let wf = (white_factor * 256.0) as i32;
-        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+        let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+            crate::chroma::palette::blend_toward_white_rgb(r, g, b, white_factor)
+        } else {
+            crate::chroma::legacy::blend_toward_white(r, g, b, white_factor)
+        };
+        r = nr;
+        g = ng;
+        b = nb;
     }
     if matches!(level, BrightnessLevel::Core) {
         // v17 mastery: CORE_WF = 140 (0.55 white blend). Was 115 (0.45).
         // Head/core cell is dramatically brighter than body/tail —
         // the high-contrast vivid hierarchy the owner wants.
-        const CORE_WF: i32 = 140; // 0.55 * 256 ≈ 140
-        r = (r as i32 + ((255 - r as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
-        g = (g as i32 + ((255 - g as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
-        b = (b as i32 + ((255 - b as i32) * CORE_WF + 128) / 256).clamp(0, 255) as u8;
+        const CORE_WF: f32 = 140.0 / 256.0; // 0.546875 — was i32=140
+        let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+            crate::chroma::palette::blend_toward_white_rgb(r, g, b, CORE_WF)
+        } else {
+            crate::chroma::legacy::blend_toward_white(r, g, b, CORE_WF)
+        };
+        r = nr;
+        g = ng;
+        b = nb;
     }
 
     Some(Color::Rgb { r, g, b })
