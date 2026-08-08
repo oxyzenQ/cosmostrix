@@ -25,7 +25,7 @@ use crate::constants::{
 };
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
-use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
+use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, ShadingMode};
 
 pub(super) fn make_cloud() -> Cloud {
     let mut cloud = Cloud::new(
@@ -193,6 +193,7 @@ fn charset_wave_uses_old_rows_below_and_new_rows_above() {
         shading_distance: false,
         bg: None,
         color_mode: ColorMode::Mono,
+        color_pipeline: ColorPipeline::detect(ColorMode::Mono),
         bold_mode: BoldMode::Off,
         glitchy: false,
         glitch_bright: false,
@@ -414,6 +415,7 @@ fn color_uses_previous_palette_below_wave_line() {
         shading_distance: false,
         bg: None,
         color_mode: ColorMode::Mono,
+        color_pipeline: ColorPipeline::detect(ColorMode::Mono),
         bold_mode: BoldMode::Off,
         glitchy: false,
         glitch_bright: false,

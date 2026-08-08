@@ -14,7 +14,7 @@ use super::{
 use crate::cloud::monolith::BrightnessLevel;
 use crate::cloud::render::DrawCtx;
 use crate::constants::MAX_PALETTE_SLOTS;
-use crate::runtime::{BoldMode, ColorMode};
+use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
 use crossterm::style::Color;
 
 #[test]
@@ -147,6 +147,7 @@ fn monolith_color_for_level_ghost_is_faintest() {
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
         color_mode: ColorMode::TrueColor,
+        color_pipeline: ColorPipeline::detect(ColorMode::TrueColor),
         bold_mode: BoldMode::Off,
         glitchy: false,
         glitch_bright: false,
@@ -212,6 +213,7 @@ fn monolith_background_muddy_residue_guard() {
         shading_distance: false,
         bg: Some(Color::Rgb { r: 0, g: 0, b: 0 }),
         color_mode: ColorMode::TrueColor,
+        color_pipeline: ColorPipeline::detect(ColorMode::TrueColor),
         bold_mode: BoldMode::Off,
         glitchy: false,
         glitch_bright: false,

@@ -999,12 +999,21 @@ impl Droplet {
                 }
 
                 // Head brightness modulation
+                // v30.3 (chroma audit, A3): route through chroma engine
+                // when active, fall back to chroma::legacy::scale_rgb
+                // otherwise. Both paths use the same `((c*fi+128)>>8)`
+                // equation -- the difference is auditability.
                 if matches!(loc, CharLoc::Head) && head_bright < 1.0 {
                     let factor = 0.7 + 0.3 * head_bright;
-                    let fi = (factor * 256.0) as i32;
-                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        let scaled = crate::chroma::palette::apply_brightness_rgb(r, g, b, factor);
+                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                    } else {
+                        crate::chroma::legacy::scale_rgb(r, g, b, factor)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
                 // Head self-bloom: per-layer scaled head color boost.
@@ -1058,23 +1067,42 @@ impl Droplet {
                 // layers (mult=1.0) get the full shadow for depth.
                 let shadow_raw = rain_shadow_factor(line, ctx.lines);
                 let shadow = 1.0 - (1.0 - shadow_raw) * RAIN_SHADOW_LAYER_MULT[self.layer as usize];
+                // v30.3 (chroma audit, A5): rain shadow brightness scale
+                // routes through chroma engine when active, legacy
+                // scale_rgb otherwise. Same equation both paths.
                 if shadow < 1.0 {
-                    let fi = (shadow * 256.0) as i32;
-                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        let scaled = crate::chroma::palette::apply_brightness_rgb(r, g, b, shadow);
+                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                    } else {
+                        crate::chroma::legacy::scale_rgb(r, g, b, shadow)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
-                // PERF(v10): Viewport edge fade applied on raw RGB tuples
-                // before wrapping into Color::Rgb.  This eliminates one
-                // decode_color() match + destructure + apply_brightness_rgb()
-                // call + extra .map() closure per cell — the color is already
-                // (r, g, b) here, so we just multiply in-place.
+                // v30.3 (chroma audit, A6): edge fade brightness scale
+                // routes through chroma engine when active, legacy
+                // scale_rgb otherwise. The original PERF(v10) note about
+                // avoiding decode_color + apply_brightness_rgb still
+                // holds -- we keep (r,g,b) tuple form, only branching on
+                // pipeline to choose the helper. The chroma path's
+                // apply_brightness_rgb is #[inline] and compiles to the
+                // same `((c*fi+128)>>8).clamp(0,255)` machine code, so the
+                // migration is a pure auditability refactor with zero
+                // hot-path cost.
                 if edge_fade < 1.0 {
-                    let fi = (edge_fade * 256.0) as i32;
-                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        let scaled =
+                            crate::chroma::palette::apply_brightness_rgb(r, g, b, edge_fade);
+                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                    } else {
+                        crate::chroma::legacy::scale_rgb(r, g, b, edge_fade)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
                 // Cinematic radial vignette — applied LAST, AFTER all other
@@ -1090,11 +1118,20 @@ impl Droplet {
                 let vignette_raw = vignette_factor(self.bound_col, line, ctx.cols, ctx.lines);
                 let vignette =
                     1.0 - (1.0 - vignette_raw) * VIGNETTE_LAYER_MULT[self.layer as usize];
+                // v30.3 (chroma audit, A7): radial vignette brightness
+                // scale routes through chroma engine when active, legacy
+                // scale_rgb otherwise. Same equation both paths.
                 if vignette < 1.0 {
-                    let fi = (vignette * 256.0) as i32;
-                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        let scaled =
+                            crate::chroma::palette::apply_brightness_rgb(r, g, b, vignette);
+                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                    } else {
+                        crate::chroma::legacy::scale_rgb(r, g, b, vignette)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
                 Some(Color::Rgb { r, g, b })
             });

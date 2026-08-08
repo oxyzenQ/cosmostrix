@@ -80,6 +80,11 @@ pub(crate) struct DrawCtx<'a> {
     pub bg: Option<Color>,
 
     pub color_mode: crate::runtime::ColorMode,
+    /// v30.3 (chroma audit): cached `ColorPipeline::detect(color_mode)`.
+    /// Hot-path callers (droplet shade, CRT dim, quantum ripple, ghost
+    /// render) branch on `is_chroma()` to route through `chroma::palette::*`
+    /// or `chroma::legacy::*`. Copy enum, predicted-true in production.
+    pub color_pipeline: crate::runtime::ColorPipeline,
     pub bold_mode: BoldMode,
     pub glitchy: bool,
 

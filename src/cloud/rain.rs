@@ -660,6 +660,7 @@ impl Cloud {
             shading_distance: self.shading_distance,
             bg: self.palette.bg,
             color_mode: self.color_mode,
+            color_pipeline: self.color_pipeline,
             bold_mode: self.bold_mode,
             glitchy: self.glitchy,
             glitch_bright,
