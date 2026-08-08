@@ -321,6 +321,27 @@ pub(crate) fn apply_brightness_rgb(r: u8, g: u8, b: u8, factor: f32) -> Color {
     }
 }
 
+/// RGB-tuple version of `blend_toward_white`. Avoids the `color_to_rgb()`
+/// decode + `Color::Reset` check when the caller already has the
+/// pre-decoded (r, g, b) values. Returns the blended (r, g, b) triple.
+///
+/// v30.3 (chroma audit, A2): added for the mouse-click flash wave hot
+/// path. The equation is identical to `blend_toward_white` -- the
+/// difference is the input/output shape (tuple vs Color). Used by
+/// droplet.rs::CellShader::shade when the chroma pipeline is active;
+/// the legacy fallback uses `chroma::legacy::blend_toward_white`.
+#[inline]
+#[must_use]
+pub(crate) fn blend_toward_white_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
+    let f = factor.clamp(0.0, 1.0);
+    let wf = (f * 256.0) as i32;
+    (
+        (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+        (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+        (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+    )
+}
+
 /// Decode a color to RGB once, returning both the original Color and the (r, g, b) tuple.
 /// Used by hot-path callers that need to chain multiple blend operations
 /// without re-decoding the color each time.

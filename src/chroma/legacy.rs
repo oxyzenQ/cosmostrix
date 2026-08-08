@@ -109,15 +109,12 @@ pub(crate) fn scale_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
 /// # Parity
 /// Bit-identical to the pre-extraction inline equation.
 ///
-/// # Caller status (v30.3 disclosure commit)
-/// Not yet wired into production hot paths. The migration commits
-/// (P8: flash wave, P9: quantum ripple) will replace the inlined
-/// `(target - c) * wf / 256` math with a call to this function.
-/// The `#[allow(dead_code)]` below is removed by the first migration
-/// commit that lands a caller.
+/// # Caller status (v30.3 P8 migration)
+/// Transitively wired via `blend_toward_white` (which calls this with
+/// target (255, 255, 255)). Direct callers will land in P9 (quantum
+/// ripple blend toward snapshot color).
 #[inline]
 #[must_use]
-#[allow(dead_code)]
 pub(crate) fn blend_toward_rgb(
     r: u8,
     g: u8,
@@ -149,14 +146,13 @@ pub(crate) fn blend_toward_rgb(
 /// Bit-identical to the pre-extraction inline equation
 /// `(c as i32 + ((255 - c as i32) * wf + 128) / 256).clamp(0, 255) as u8`.
 ///
-/// # Caller status (v30.3 disclosure commit)
-/// Not yet wired into production hot paths. The migration commit P8
-/// (flash wave) will replace the inlined `((255 - c) * wf) / 256`
-/// math with a call to this function. The `#[allow(dead_code)]` below
-/// is removed by the first migration commit that lands a caller.
+/// # Caller status (v30.3 P8 migration)
+/// Wired into `droplet::CellShader::shade` flash-wave loop for the legacy
+/// fallback path. The chroma path uses `chroma::palette::blend_toward_white_rgb`
+/// (same equation, owned by the chroma engine, tuple-in/tuple-out to avoid
+/// the Color wrap + decode round-trip on the hot path).
 #[inline]
 #[must_use]
-#[allow(dead_code)]
 pub(crate) fn blend_toward_white(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
     blend_toward_rgb(r, g, b, 255, 255, 255, factor)
 }

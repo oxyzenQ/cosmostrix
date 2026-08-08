@@ -991,10 +991,21 @@ impl Droplet {
                     }
 
                     if factor > 0.0 {
-                        let wf = (factor * 256.0) as i32;
-                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        // v30.3 (chroma audit, A2): flash wave blends each
+                        // cell toward pure white (255,255,255) by `factor`.
+                        // The chroma path uses chroma::palette::blend_toward_white_rgb
+                        // (the tuple-in/tuple-out variant of blend_toward_white,
+                        // avoids the Color wrap + decode round-trip on the hot
+                        // path). The legacy fallback uses chroma::legacy::blend_toward_white.
+                        // Both produce bit-identical output (same equation).
+                        let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                            crate::chroma::palette::blend_toward_white_rgb(r, g, b, factor)
+                        } else {
+                            crate::chroma::legacy::blend_toward_white(r, g, b, factor)
+                        };
+                        r = nr;
+                        g = ng;
+                        b = nb;
                     }
                 }
 
