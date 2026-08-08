@@ -26,6 +26,7 @@ use super::adaptive::{
 use super::hud::{FrameMode, HudState};
 use super::input::{handle_keybinding, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
+use crate::central_control_dragon_power::sample_thermal_pressure;
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(target_os = "linux")]
@@ -1122,6 +1123,20 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // Recovery attempted — GRACEFUL_SHUTDOWN is set.
             cloud.raining = false;
             break;
+        }
+
+        // Feature #13: thermal sensor sampling (Linux only).
+        // Reads /sys/class/thermal/thermal_zone*/temp, normalizes the
+        // hottest zone to 0.0–1.0, and feeds it into PowerManager.
+        // Every downstream consumer of effective_pressure() (spawn
+        // cascade, self-healer, sim factor) automatically responds.
+        // On non-Linux or in containers without thermal sysfs, the
+        // sampler returns None and the previous thermal_pressure value
+        // is preserved (NOT reset to 0.0).
+        if perf_rss_samples % THERMAL_SAMPLER_INTERVAL_FRAMES == 0 {
+            if let Some(p) = sample_thermal_pressure() {
+                power_manager.set_thermal_pressure(p);
+            }
         }
 
         // Display-only stats (gated by --perf-stats). These feed the HUD

@@ -113,12 +113,14 @@ mod phase_predictor;
 mod power_manager;
 mod reclaim_state;
 mod self_healer;
+mod thermal_sampler;
 
 pub(crate) use endurance_health::*;
 pub(crate) use phase_predictor::*;
 pub(crate) use power_manager::*;
 pub(crate) use reclaim_state::*;
 pub(crate) use self_healer::*;
+pub(crate) use thermal_sampler::*;
 
 // ─── Perf pressure pipeline ─────────────────────────────────────────────────
 //
@@ -261,6 +263,40 @@ pub(crate) const STUCK_CELL_MAX_PER_SWEEP: usize = 256;
 /// at 60 FPS. Matches the P4 stuck-cell sweep cadence — both are
 /// "background hygiene" passes on the same slow tick.
 pub(crate) const FD_HEALTH_PROBE_INTERVAL_FRAMES: u64 = 3600;
+
+// ─── Feature #13: thermal sensor sampling ────────────────────────────────────
+//
+// Linux exposes per-zone CPU/SoC temperatures under
+// /sys/class/thermal/thermal_zone*/temp (millidegrees Celsius). The
+// sampler reads the hottest zone and normalizes to 0.0–1.0 via the
+// linear ramp below. The result is fed into
+// PowerManager::set_thermal_pressure() so every downstream consumer
+// of effective_pressure() (spawn cascade, self-healer, sim factor)
+// automatically responds to thermal throttling without per-consumer
+// wiring.
+//
+// The sampler is best-effort: if /sys/class/thermal is missing
+// (container, chroot), the call returns None and the previous
+// thermal_pressure value is preserved — a transient read failure
+// must NOT reset the thermal input to 0.0 (which would un-throttle
+// the renderer mid-emergency).
+
+/// Frames between thermal sensor samples. 600 frames ≈ 10s at 60 FPS.
+/// Thermal mass is slow — sub-second sampling adds syscall cost
+/// without changing the result. 10s cadence catches a thermal ramp
+/// within ~1 effective_pressure recompute window.
+pub(crate) const THERMAL_SAMPLER_INTERVAL_FRAMES: u64 = 600;
+
+/// Temperature (°C) at which thermal_pressure = 0.0 (cool). Below this
+/// the device is cool enough that no throttling is expected.
+pub(crate) const THERMAL_PRESSURE_ZERO_C: i32 = 50;
+
+/// Temperature (°C) at which thermal_pressure = 1.0 (throttle). At or
+/// above this the device is at or past the throttle threshold and the
+/// renderer should shed maximum load. 90 °C matches the typical
+/// junction-temperature throttle band of x86_64 mobile and desktop
+/// SoCs.
+pub(crate) const THERMAL_PRESSURE_ONE_C: i32 = 90;
 
 // ─── Tier 2: xterm.js byte-budget + RIS reset ────────────────────────────────
 //
@@ -476,5 +512,31 @@ mod tests {
         // Both are background hygiene passes on the same slow tick.
         // Keeping them in sync simplifies reasoning about background cost.
         assert_eq!(probe, sweep);
+    }
+
+    #[test]
+    fn thermal_ramp_constants_are_well_ordered() {
+        // The ramp window must be non-empty and in a physically
+        // plausible range. Sanity-checked here so a typo in mod.rs
+        // (e.g., 500 instead of 50) is caught at test time, not at
+        // runtime when the renderer silently never throttles.
+        let lo = std::hint::black_box(THERMAL_PRESSURE_ZERO_C);
+        let hi = std::hint::black_box(THERMAL_PRESSURE_ONE_C);
+        assert!(hi > lo, "hi ({hi}) must be > lo ({lo})");
+        // Plausible CPU junction temperature range. Below 0 °C the
+        // device is in a freezer; above 150 °C the silicon is dead.
+        assert!((0..=100).contains(&lo));
+        assert!((50..=150).contains(&hi));
+    }
+
+    #[test]
+    fn thermal_sampler_interval_is_reasonable() {
+        // 600 frames = 10s at 60 FPS. The sampler must NOT run more
+        // often than every ~1s (would waste syscalls on slow-moving
+        // thermal data) and NOT less often than every ~60s (would
+        // miss a thermal ramp until well after it matters).
+        let n = std::hint::black_box(THERMAL_SAMPLER_INTERVAL_FRAMES);
+        assert!(n >= 60, "interval {n} too short — wastes syscalls");
+        assert!(n <= 3600, "interval {n} too long — misses thermal ramps");
     }
 }
