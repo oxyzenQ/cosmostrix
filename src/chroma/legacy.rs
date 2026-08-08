@@ -183,14 +183,14 @@ pub(crate) fn blend_toward_white(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u
 /// # Parity
 /// Bit-identical to the pre-extraction inline equation.
 ///
-/// # Caller status (v30.3 disclosure commit)
-/// Not yet wired into production hot paths. The migration commit P11
-/// (head self-bloom) will replace the inlined `(c as f32 * scale)`
-/// math with a call to this function. The `#[allow(dead_code)]` below
-/// is removed by the first migration commit that lands a caller.
+/// # Caller status (v30.3 P11 migration)
+/// Wired into `droplet::CellShader::shade` head self-bloom for the
+/// legacy fallback path. The chroma path uses `chroma::palette::boost_rgb`
+/// (same equation, owned by the chroma engine). The audit proposed a
+/// future perceptual OKLab L lift variant for the chroma path, but that
+/// is a separate behavior change requiring owner approval.
 #[inline]
 #[must_use]
-#[allow(dead_code)]
 pub(crate) fn boost_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
     let scale = 1.0 + factor;
     (

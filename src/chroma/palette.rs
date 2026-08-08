@@ -371,6 +371,29 @@ pub(crate) fn blend_toward_bg_rgb(
     )
 }
 
+/// Multiplicative RGB boost. `out = (r, g, b) * (1.0 + factor)`, clamped
+/// to `[0, 255]`. Used by the head self-bloom effect (the head glyph gets
+/// a multiplicative brightness boost scaled by the parallax layer's
+/// self-bloom multiplier).
+///
+/// v30.3 (chroma audit, A4): added for the head self-bloom hot path.
+/// The equation is bit-identical to `chroma::legacy::boost_rgb` -- both
+/// use `(c as f32 * (1.0 + factor)).round().clamp(0.0, 255.0) as u8`.
+/// The audit proposed a future "perceptual OKLab L lift" variant that
+/// would preserve hue+chroma more accurately, but that is a behavior
+/// change requiring a separate owner approval. This commit lands the
+/// safe migration (same equation, auditability refactor only).
+#[inline]
+#[must_use]
+pub(crate) fn boost_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
+    let scale = 1.0 + factor;
+    (
+        (r as f32 * scale).round().clamp(0.0, 255.0) as u8,
+        (g as f32 * scale).round().clamp(0.0, 255.0) as u8,
+        (b as f32 * scale).round().clamp(0.0, 255.0) as u8,
+    )
+}
+
 /// Decode a color to RGB once, returning both the original Color and the (r, g, b) tuple.
 /// Used by hot-path callers that need to chain multiple blend operations
 /// without re-decoding the color each time.

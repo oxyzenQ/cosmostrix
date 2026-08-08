@@ -1051,16 +1051,25 @@ impl Droplet {
                     // theme hue (green → brighter green, not white) at high
                     // speed. The boost factor is scaled by layer via
                     // PARALLAX_HEAD_SELFBLOOM_MULT.
+                    //
+                    // v30.3 (chroma audit, A4): boost routes through chroma
+                    // engine when active, legacy boost_rgb otherwise. Both
+                    // paths use the same `(c as f32 * (1.0 + factor)).round()
+                    // .clamp(0,255)` equation -- bit-identical output. The
+                    // audit proposed a future perceptual OKLab L lift variant
+                    // for the chroma path, but that is a separate behavior
+                    // change requiring owner approval.
                     const HEAD_BOOST: f32 = 60.0 / 256.0; // ~0.234 — was i32=60
                     let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize];
                     let wf = HEAD_BOOST * layer_selfbloom;
-                    // Boost each channel toward 255 but proportionally to its
-                    // current value — this preserves hue (green gets greener,
-                    // not whiter) while increasing luminance.
-                    let scale = 1.0 + wf;
-                    r = (r as f32 * scale).round().clamp(0.0, 255.0) as u8;
-                    g = (g as f32 * scale).round().clamp(0.0, 255.0) as u8;
-                    b = (b as f32 * scale).round().clamp(0.0, 255.0) as u8;
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        crate::chroma::palette::boost_rgb(r, g, b, wf)
+                    } else {
+                        crate::chroma::legacy::boost_rgb(r, g, b, wf)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
                 // Rain shadow: quadratic fade-out across bottom 15% of screen.
