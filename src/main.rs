@@ -87,6 +87,7 @@ mod charset_custom;
 mod chroma;
 pub use chroma::catalog;
 pub use chroma::palette;
+mod central_control_dragon_power;
 mod central_control_rains;
 mod cinematic;
 mod cli;
