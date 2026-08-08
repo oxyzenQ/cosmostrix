@@ -184,12 +184,11 @@ impl PowerManager {
     /// emergency. Added to base `perf_pressure` in
     /// [`effective_pressure`](Self::effective_pressure).
     ///
-    /// The actual thermal sensor sampling is a future feature — this
-    /// API is ready so the sampling layer can be added without touching
-    /// `PowerManager` internals. Until the sampler is wired, this
-    /// method is exercised only by tests; the production call site
-    /// will live in the event loop (Linux `/sys/class/thermal`,
-    /// macOS SMC, Windows WMI).
+    /// v30.9: the production sampler is now wired in `event_loop.rs`
+    /// via `sample_thermal_pressure()` (Linux only). On non-Linux or
+    /// in containers without thermal sysfs, the sampler returns `None`
+    /// and this method is not called — the thermal input stays at 0.0
+    /// and `effective_pressure` is identical to the base `perf_pressure`.
     ///
     /// # Clamping
     ///
@@ -197,7 +196,6 @@ impl PowerManager {
     /// This prevents a misbehaving thermal sampler from pushing
     /// `effective_pressure` above 1.0 (which would be a silent no-op
     /// due to the clamp inside `effective_pressure`).
-    #[allow(dead_code)] // wire-ready input API for feature #13; production call site is future work
     pub(crate) fn set_thermal_pressure(&mut self, pressure: f32) {
         self.thermal_pressure = pressure.clamp(0.0, 1.0);
     }

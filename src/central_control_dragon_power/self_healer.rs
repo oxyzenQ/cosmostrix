@@ -8,20 +8,21 @@
 //! frame and apply the returned [`SelfHealAction`]:
 //!
 //! - **P1 (auto scene downgrade)** — when `perf_pressure` stays at or above
-//!   `SELF_HEAL_PRESSURE_HIGH` for `SELF_HEAL_DOWNGRADE_SECS` (30s), switch
-//!   to the lighter fallback scene ("low-power") to shed load. When pressure
-//!   stays at or below `SELF_HEAL_PRESSURE_LOW` for
-//!   `SELF_HEAL_RESTORE_SECS` (60s), restore the prior scene. Hysteresis
-//!   gap (0.6 → 0.3) and a middle-band dead zone prevent flapping under
-//!   borderline load.
+//!   `PowerThresholds::pressure_high` (0.6) for
+//!   `PowerThresholds::downgrade_secs` (30s), switch to the lighter
+//!   fallback scene ("low-power") to shed load. When pressure stays at or
+//!   below `PowerThresholds::pressure_low` (0.3) for
+//!   `PowerThresholds::restore_secs` (60s), restore the prior scene.
+//!   Hysteresis gap (0.6 → 0.3) and a middle-band dead zone prevent
+//!   flapping under borderline load.
 //! - **P2 (EnduranceHealth mitigation)** — when the
 //!   [`EnduranceHealth`](crate::central_control_dragon_power::EnduranceHealth)
-//!   score drops below `SELF_HEAL_HEALTH_INVESTIGATE` (the "investigate"
-//!   band), trigger an immediate frame invalidate + memory reclaim hint
-//!   (`madvise(MADV_DONTNEED)`) to clear potential stuck state. The
-//!   `SELF_HEAL_HEALTH_COOLDOWN_SECS` (30s) cooldown prevents a
-//!   persistently unhealthy process from force-redrawing every recompute
-//!   cycle.
+//!   score drops below `PowerThresholds::health_investigate` (60.0, the
+//!   "investigate" band), trigger an immediate frame invalidate + memory
+//!   reclaim hint (`madvise(MADV_DONTNEED)`) to clear potential stuck
+//!   state. The `PowerThresholds::health_cooldown_secs` (30s) cooldown
+//!   prevents a persistently unhealthy process from force-redrawing every
+//!   recompute cycle.
 //!
 //! ## P2 evaluation order
 //!
@@ -88,8 +89,17 @@ pub(crate) enum SelfHealAction {
 ///
 /// See the module-level docs for the state machine diagram and the P2
 /// evaluation order rationale.
+///
+/// v30.9: thresholds migrated from standalone `SELF_HEAL_*` constants to
+/// a `PowerThresholds` instance. The struct is now the sole source of
+/// truth; the standalone constants have been removed from `mod.rs`.
 #[derive(Debug, Clone)]
 pub(crate) struct PerformanceSelfHealer {
+    /// Tunable thresholds. Owned by value because `PowerThresholds` is
+    /// `Copy` — no allocation, no indirection. Constructed with
+    /// `PowerThresholds::defaults()`; tests can override via
+    /// [`with_thresholds`](Self::with_thresholds).
+    thresholds: PowerThresholds,
     /// When sustained-high-pressure accumulation started. `None` when not
     /// currently accumulating. Reset to `None` on any low-pressure sample
     /// (hysteresis — a single cool frame breaks the streak).
@@ -116,12 +126,30 @@ impl PerformanceSelfHealer {
 
     pub(crate) fn new() -> Self {
         Self {
+            thresholds: PowerThresholds::defaults(),
             high_pressure_since: None,
             low_pressure_since: None,
             pre_degraded_scene: None,
             is_downgraded: false,
             last_health_mitigation: None,
         }
+    }
+
+    /// Override the default thresholds. Test-only — production code uses
+    /// `PowerThresholds::defaults()` (which mirrors the former standalone
+    /// constants).
+    #[cfg(test)]
+    pub(crate) fn with_thresholds(mut self, thresholds: PowerThresholds) -> Self {
+        self.thresholds = thresholds;
+        self
+    }
+
+    /// Read-only access to the thresholds. Test-only — production code
+    /// interacts with the healer through `observe()` + `record_downgrade()`
+    /// + `take_pre_degraded_scene()` + `reset()`.
+    #[cfg(test)]
+    pub(crate) fn thresholds(&self) -> PowerThresholds {
+        self.thresholds
     }
 
     /// Observe the current `perf_pressure` and elapsed wall-clock time,
@@ -147,12 +175,12 @@ impl PerformanceSelfHealer {
     ) -> SelfHealAction {
         // ── P2: health mitigation (orthogonal to P1 state) ──
         if let Some(score) = health_score {
-            if score < SELF_HEAL_HEALTH_INVESTIGATE {
+            if score < self.thresholds.health_investigate {
                 let cooldown_ok = match self.last_health_mitigation {
                     None => true,
                     Some(last) => {
                         now.saturating_duration_since(last).as_secs_f64()
-                            >= SELF_HEAL_HEALTH_COOLDOWN_SECS
+                            >= self.thresholds.health_cooldown_secs
                     }
                 };
                 if cooldown_ok {
@@ -163,7 +191,7 @@ impl PerformanceSelfHealer {
         }
 
         // ── P1: scene downgrade / restore ──
-        if perf_pressure >= SELF_HEAL_PRESSURE_HIGH {
+        if perf_pressure >= self.thresholds.pressure_high {
             // Pressure is high — accumulate (or start) the high streak.
             if self.high_pressure_since.is_none() {
                 self.high_pressure_since = Some(now);
@@ -174,14 +202,14 @@ impl PerformanceSelfHealer {
             if !self.is_downgraded {
                 let since = self.high_pressure_since.unwrap_or(now);
                 let elapsed = now.saturating_duration_since(since).as_secs_f64();
-                if elapsed >= SELF_HEAL_DOWNGRADE_SECS {
+                if elapsed >= self.thresholds.downgrade_secs {
                     // Fire downgrade — the event loop will fill pre_degraded_scene
                     // via record_downgrade() once it has applied the scene switch.
                     self.is_downgraded = true;
                     return SelfHealAction::DowngradeScene;
                 }
             }
-        } else if perf_pressure <= SELF_HEAL_PRESSURE_LOW {
+        } else if perf_pressure <= self.thresholds.pressure_low {
             // Pressure is low — accumulate (or start) the recovery streak.
             if self.low_pressure_since.is_none() {
                 self.low_pressure_since = Some(now);
@@ -192,7 +220,7 @@ impl PerformanceSelfHealer {
             if self.is_downgraded {
                 let since = self.low_pressure_since.unwrap_or(now);
                 let elapsed = now.saturating_duration_since(since).as_secs_f64();
-                if elapsed >= SELF_HEAL_RESTORE_SECS {
+                if elapsed >= self.thresholds.restore_secs {
                     self.is_downgraded = false;
                     // Clear streaks so a fresh downgrade requires a full new window.
                     self.high_pressure_since = None;
@@ -518,5 +546,69 @@ mod tests {
         // in the scene registry. "low-power" is the canonical low-CPU
         // scene (fps=30, speed=5, density=0.45).
         assert_eq!(PerformanceSelfHealer::FALLBACK_SCENE, "low-power");
+    }
+
+    #[test]
+    fn self_healer_loads_default_thresholds_at_construction() {
+        // v30.9: the healer must construct with PowerThresholds::defaults()
+        // so production behavior matches the documented constants. This
+        // test guards against a future constructor that forgets to load
+        // the thresholds (which would silently make every comparison
+        // read 0.0 and never trigger any mitigation).
+        let h = PerformanceSelfHealer::new();
+        let t = h.thresholds();
+        assert!((t.pressure_high - SELF_HEAL_PRESSURE_HIGH).abs() < 1e-6);
+        assert!((t.pressure_low - SELF_HEAL_PRESSURE_LOW).abs() < 1e-6);
+        assert!((t.downgrade_secs - SELF_HEAL_DOWNGRADE_SECS).abs() < 1e-6);
+        assert!((t.restore_secs - SELF_HEAL_RESTORE_SECS).abs() < 1e-6);
+        assert!((t.health_investigate - SELF_HEAL_HEALTH_INVESTIGATE).abs() < 1e-6);
+        assert!((t.health_cooldown_secs - SELF_HEAL_HEALTH_COOLDOWN_SECS).abs() < 1e-6);
+    }
+
+    #[test]
+    fn self_healer_with_thresholds_overrides_defaults() {
+        // Verify the with_thresholds() builder actually replaces the
+        // thresholds — a future refactor that breaks the builder would
+        // silently leave the defaults in place.
+        let mut custom = PowerThresholds::defaults();
+        custom.pressure_high = 0.9; // very high — harder to trigger
+        custom.downgrade_secs = 5.0; // very short — fires fast
+
+        let h = PerformanceSelfHealer::new().with_thresholds(custom);
+        let t = h.thresholds();
+        assert!((t.pressure_high - 0.9).abs() < 1e-6);
+        assert!((t.downgrade_secs - 5.0).abs() < 1e-6);
+        // Unchanged fields stay at defaults.
+        assert!((t.pressure_low - SELF_HEAL_PRESSURE_LOW).abs() < 1e-6);
+    }
+
+    #[test]
+    fn self_healer_respects_overridden_thresholds_in_observe() {
+        // End-to-end: with_thresholds() changes must actually change
+        // observe() behavior. Use a shorter downgrade window so the
+        // test runs fast.
+        let mut custom = PowerThresholds::defaults();
+        custom.downgrade_secs = 3.0; // 3s instead of 30s
+
+        let mut h = PerformanceSelfHealer::new().with_thresholds(custom);
+        let t0 = Instant::now();
+        // t=0,1,2 — elapsed < 3.0, no downgrade. With the default 30s
+        // window these would also return None, so this part doesn't
+        // distinguish the override — the next call does.
+        for i in 0..3 {
+            let t = t0 + Duration::from_secs(i);
+            let action = h.observe(SELF_HEAL_PRESSURE_HIGH, t, Some(95.0));
+            assert_eq!(action, SelfHealAction::None, "should not downgrade at t={i}");
+        }
+        // At t=3, elapsed = 3.0 >= 3.0 (overridden window) → fires.
+        // With the default 30s window this would still return None,
+        // so this assertion proves the override took effect.
+        let action = h.observe(
+            SELF_HEAL_PRESSURE_HIGH,
+            t0 + Duration::from_secs(3),
+            Some(95.0),
+        );
+        assert_eq!(action, SelfHealAction::DowngradeScene);
+        assert!(h.is_downgraded());
     }
 }

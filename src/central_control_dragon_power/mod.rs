@@ -347,23 +347,19 @@ pub(crate) const XTERMJS_HARD_CEILING_BYTES: u64 = 200 * 1024 * 1024;
 // indirectly through the struct fields.
 
 /// Grouped power management thresholds. Consumed by `PowerManager`
-/// (see `power_manager.rs`). The constants above remain the active
-/// source of truth; `PowerThresholds::defaults()` reads them at
+/// (see `power_manager.rs`) and `PerformanceSelfHealer` (see
+/// `self_healer.rs`). The constants above remain the active source
+/// of truth; `PowerThresholds::defaults()` reads them at
 /// construction time.
 ///
-/// Six fields (`pressure_high`, `pressure_low`, `downgrade_secs`,
-/// `restore_secs`, `health_investigate`, `health_cooldown_secs`) are
-/// the self-healer P1 + P2 thresholds. They are read by tests in this
-/// module and by the struct's own `defaults()` constructor; the
-/// production self-healer currently reads the same values from the
-/// standalone constants above. Migrating `PerformanceSelfHealer` to
-/// read from `PowerThresholds` is a follow-up step. The fields are
-/// kept here so the struct is the canonical declaration of every
-/// tunable power threshold — `defaults()` is the single constructor
-/// that should match the constants (enforced by
-/// `power_thresholds_defaults_match_constants`).
+/// v30.9: `PerformanceSelfHealer::observe()` now reads all 6
+/// self-healer fields (`pressure_high`, `pressure_low`,
+/// `downgrade_secs`, `restore_secs`, `health_investigate`,
+/// `health_cooldown_secs`) from this struct instead of from the
+/// standalone constants. The struct is now the sole consumer-facing
+/// API for these thresholds; the standalone constants remain as the
+/// canonical values that `defaults()` copies into the struct.
 #[derive(Clone, Copy, Debug)]
-#[allow(dead_code)] // 6 self-healer fields read by tests + defaults() only until self_healer migration
 pub(crate) struct PowerThresholds {
     /// perf_pressure threshold for P1 downgrade trigger (0.6).
     pub pressure_high: f32,
