@@ -103,8 +103,10 @@
 // this module).
 
 mod phase_predictor;
+mod reclaim_state;
 
 pub(crate) use phase_predictor::*;
+pub(crate) use reclaim_state::*;
 
 // ─── Perf pressure pipeline ─────────────────────────────────────────────────
 //
