@@ -45,6 +45,7 @@
 //! | INV-16| Tuning sanity        | `PALETTE_FLOOR_RATIO` in `[0.05, 0.50]` (sweet spot)   |
 //! | INV-17| Lock report          | Sentinel test prints the engine report                 |
 //! | INV-18| Polar sole path      | Production `gradient_from_stops` matches polar impl    |
+//! | INV-19| Pipeline disclosure  | `ColorPipeline::detect` routes every ColorMode correctly and the lock report lists the pipeline|
 //!
 //! ## Adding a new invariant
 //!
@@ -72,7 +73,7 @@ use super::tuning::{
     ABSOLUTE_MIN_FLOOR, BODY_TAIL_MAX_GAP_RATIO, GLOBAL_MAX_FLOOR, HEAD_HALO_FACTOR,
     PALETTE_FLOOR_RATIO, SUBPIXEL_JITTER_AMPLITUDE,
 };
-use crate::runtime::{ColorMode, ColorScheme};
+use crate::runtime::{ColorMode, ColorPipeline, ColorScheme};
 
 /// The Chroma Dragon coloring engine version tag.
 ///
@@ -95,7 +96,11 @@ use crate::runtime::{ColorMode, ColorScheme};
 /// - `"9-A"` — Phase 9-A: hue-preserving OKLab gradient variant (opt-in)
 /// - `"9-B (locked)"` — Phase 9-B: engine locked. All invariants asserted.
 /// - `"9-C (locked)"` — Phase 9-C: Cartesian removed, polar is sole path.
-pub const CHROMA_DRAGON_ENGINE_VERSION: &str = "9-C (locked)";
+/// - `"9-D (locked)"` — Phase 9-D: chroma dragon audit (v30.3). Adds
+///   `ColorPipeline` enum + `chroma::legacy` module. INV-19 asserts
+///   pipeline disclosure so the user can verify "chroma dragon active"
+///   vs "legacy fallback" via `-v`, `--doctor`, and `--benchmark`.
+pub const CHROMA_DRAGON_ENGINE_VERSION: &str = "9-D (locked)";
 
 /// Helper: list every built-in `ColorScheme` variant. Mirrors `audit_tests`
 /// — kept private here so the lock suite is self-contained even if the
@@ -173,7 +178,7 @@ fn rgb_sum(c: (u8, u8, u8)) -> u16 {
 #[test]
 fn lock_inv01_engine_version_sentinel() {
     assert_eq!(
-        CHROMA_DRAGON_ENGINE_VERSION, "9-C (locked)",
+        CHROMA_DRAGON_ENGINE_VERSION, "9-D (locked)",
         "Chroma Dragon engine version drifted. If this was intentional, update the \
          CHROMA_DRAGON_ENGINE_VERSION history comment and the INV-1 sentinel together."
     );
@@ -862,11 +867,16 @@ fn lock_inv18_polar_is_sole_production_gradient_path() {
 /// The report lists every invariant, its scope, and the production value
 /// of every tuning constant. Running `cargo test lock_inv17 -- --nocapture`
 /// prints the full report; the assertion verifies the engine version
-/// matches the locked tag and the invariant count is 17.
+/// matches the locked tag and the invariant count is 19.
+///
+/// v30.3 (Phase 9-D): invariant count bumped 18 → 19. INV-19 (pipeline
+/// disclosure) was added by the chroma dragon audit. The version tag was
+/// bumped from `9-C (locked)` → `9-D (locked)` to signal the new public
+/// contract: `ColorPipeline::detect` is now part of the engine's surface.
 #[test]
 fn lock_inv17_engine_lock_report() {
     eprintln!("\n╔════════════════════════════════════════════════════════════════════╗");
-    eprintln!("║     CHROMA DRAGON COLORING ENGINE — LOCK REPORT (Phase 9-B)        ║");
+    eprintln!("║     CHROMA DRAGON COLORING ENGINE — LOCK REPORT (Phase 9-D)        ║");
     eprintln!("╚════════════════════════════════════════════════════════════════════╝");
     eprintln!();
     eprintln!("  Engine version:  {CHROMA_DRAGON_ENGINE_VERSION}");
@@ -880,7 +890,7 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  SUBPIXEL_JITTER_AMPLITUDE = {SUBPIXEL_JITTER_AMPLITUDE}");
     eprintln!("  HEAD_HALO_FACTOR          = {HEAD_HALO_FACTOR}");
     eprintln!();
-    eprintln!("  ── Invariants (18 total) ─────────────────────────────────────────");
+    eprintln!("  ── Invariants (19 total) ─────────────────────────────────────────");
     eprintln!("  INV-01  Engine version sentinel               [LOCKED]");
     eprintln!("  INV-02  43-theme build sweep                  [LOCKED]");
     eprintln!("  INV-03  Floor bounds                          [LOCKED]");
@@ -899,6 +909,7 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  INV-16  Tuning constants in sweet spots       [LOCKED]");
     eprintln!("  INV-17  This lock report                      [LOCKED]");
     eprintln!("  INV-18  Polar is sole production gradient path  [LOCKED]");
+    eprintln!("  INV-19  ColorPipeline disclosure (chroma first, legacy fallback) [LOCKED]");
     eprintln!();
     eprintln!("  ── Phase history ────────────────────────────────────────────────");
     eprintln!("  Phase 1   Foundation (palette relocation)            ✓");
@@ -916,26 +927,129 @@ fn lock_inv17_engine_lock_report() {
     );
     eprintln!("  Phase 9-B ENGINE LOCK (Chroma Dragon)                ✓");
     eprintln!("  Phase 9-C Cartesian removed — polar is sole path     ✓");
+    eprintln!("  Phase 9-D Chroma audit: ColorPipeline + chroma::legacy ✓");
     eprintln!();
     eprintln!("  ── Polar gradient demo (sole production path) ──────────────────");
     let demo_stops = [(10, 20, 30), (200, 100, 50), (50, 250, 75)];
     let polar = gradient_from_stops_oklab(&demo_stops, 5);
     eprintln!("  Polar: {polar:?}");
     eprintln!();
+    eprintln!("  ── Color pipeline disclosure (INV-19) ──────────────────────────");
+    eprintln!(
+        "  ColorPipeline::detect(ColorMode::TrueColor)  = {}",
+        ColorPipeline::detect(ColorMode::TrueColor).label()
+    );
+    eprintln!(
+        "  ColorPipeline::detect(ColorMode::Color256)   = {}",
+        ColorPipeline::detect(ColorMode::Color256).label()
+    );
+    eprintln!(
+        "  ColorPipeline::detect(ColorMode::Color16)    = {}",
+        ColorPipeline::detect(ColorMode::Color16).label()
+    );
+    eprintln!(
+        "  ColorPipeline::detect(ColorMode::Mono)       = {}",
+        ColorPipeline::detect(ColorMode::Mono).label()
+    );
+    eprintln!();
     eprintln!("  ── Status ──────────────────────────────────────────────────────");
-    eprintln!("  All 18 invariants hold. Engine is at peak and locked.");
+    eprintln!("  All 19 invariants hold. Engine is at peak and locked.");
     eprintln!("  Future commits that change any constant, helper, or shader path");
     eprintln!("  in chroma/ must update the relevant INV-XX test AND bump");
     eprintln!("  CHROMA_DRAGON_ENGINE_VERSION. No silent contract drift.");
     eprintln!();
 
     // Sentinel assertion: the engine version matches the locked tag AND
-    // the invariant count is exactly 18. If a future commit adds INV-19,
+    // the invariant count is exactly 19. If a future commit adds INV-20,
     // they must update this count too.
-    assert_eq!(CHROMA_DRAGON_ENGINE_VERSION, "9-C (locked)");
-    const INV_COUNT: u32 = 18;
+    assert_eq!(CHROMA_DRAGON_ENGINE_VERSION, "9-D (locked)");
+    const INV_COUNT: u32 = 19;
     assert_eq!(
-        INV_COUNT, 18,
+        INV_COUNT, 19,
         "INV_COUNT must match the actual invariant count"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INV-19: ColorPipeline disclosure — chroma dragon first, legacy fallback
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// INV-19: assert that `ColorPipeline::detect` routes every `ColorMode`
+/// variant to the correct pipeline. Owner directive: "all color -> chroma
+/// dragon first -> fallback legacy rgb/srgb". The detection rule is:
+/// `ColorMode::TrueColor` → `ChromaDragon`, everything else → `LegacyRgb`.
+///
+/// This invariant was added in v30.3 (Phase 9-D) by the chroma dragon
+/// audit. It locks the public contract of `ColorPipeline` so a future
+/// refactor cannot silently flip the routing (e.g. enabling chroma on
+/// Color256 without a deliberate engine version bump).
+///
+/// Disclosure surfaces that depend on this routing:
+/// - `cosmostrix -v` → `color_pipeline:` line under Scene & Color
+/// - `cosmostrix --doctor` → `color_pipeline` field in RENDERER section
+/// - `cosmostrix --benchmark` → `color_pipeline` + `chroma_in_benchmark`
+///   fields in the CONFIG block of the report
+///
+/// If this test fails, one of those three surfaces is now lying to the
+/// user about which pipeline is active.
+#[test]
+fn lock_inv19_color_pipeline_disclosure_routes_correctly() {
+    // TrueColor terminals get the chroma dragon engine — the OKLab
+    // gradient, perceptual blend, climate post-FX, head halo, L-smoothing,
+    // and subpixel jitter all run.
+    assert_eq!(
+        ColorPipeline::detect(ColorMode::TrueColor),
+        ColorPipeline::ChromaDragon,
+        "TrueColor must route to ChromaDragon — owner rule: chroma first"
+    );
+    assert!(
+        ColorPipeline::detect(ColorMode::TrueColor).is_chroma(),
+        "is_chroma() must return true for the TrueColor pipeline"
+    );
+
+    // Color256/Color16/Mono all fall back to legacy sRGB-linear — the
+    // OKLab palette would be quantized away by the terminal, so the
+    // raw-RGB math is used directly via chroma::legacy.
+    for mode in [ColorMode::Color256, ColorMode::Color16, ColorMode::Mono] {
+        assert_eq!(
+            ColorPipeline::detect(mode),
+            ColorPipeline::LegacyRgb,
+            "{:?} must route to LegacyRgb — chroma needs truecolor output",
+            mode
+        );
+        assert!(
+            !ColorPipeline::detect(mode).is_chroma(),
+            "is_chroma() must return false for {:?}",
+            mode
+        );
+        assert_eq!(
+            ColorPipeline::detect(mode).label(),
+            "legacy_rgb",
+            "label() must be the stable machine-readable string for {:?}",
+            mode
+        );
+        // Every LegacyRgb state must disclose why — the user is told the
+        // reason via -v / --doctor so they don't have to guess.
+        assert!(
+            ColorPipeline::detect(mode).disable_reason(mode).is_some(),
+            "disable_reason must be Some for {:?}",
+            mode
+        );
+    }
+
+    // ChromaDragon must NOT emit a disable_reason (no fallback to explain).
+    assert_eq!(
+        ColorPipeline::ChromaDragon.disable_reason(ColorMode::TrueColor),
+        None,
+        "ChromaDragon has no disable_reason — chroma is the primary path"
+    );
+
+    // The chroma_dragon label must be the stable string surfaced in -v,
+    // --doctor, and --benchmark. Locking it here means a refactor cannot
+    // silently break user-facing tooling that greps for this identifier.
+    assert_eq!(
+        ColorPipeline::ChromaDragon.label(),
+        "chroma_dragon",
+        "label() must be the stable machine-readable string for chroma_dragon"
     );
 }

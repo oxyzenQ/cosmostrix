@@ -16,7 +16,7 @@ use crate::config::ColorBg;
 use crate::output;
 use crate::palette;
 use crate::rain_style::RainStyle;
-use crate::runtime::{BoldMode, ColorMode, MonolithSize, ShadingMode};
+use crate::runtime::{BoldMode, ColorMode, ColorPipeline, MonolithSize, ShadingMode};
 use crate::{configfile, scene};
 use crossterm::style::Color;
 
@@ -128,6 +128,32 @@ pub(crate) fn print_verbose(
         output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?}"));
     }
     output::eprintln_verbose("color_mode:", &format!(" {color_mode:?}"));
+    // v30.3 (chroma dragon audit): disclose the active color pipeline so the
+    // user can verify "is the chroma dragon engine running, or did I fall
+    // back to legacy sRGB-linear?". Owner directive: "all color -> chroma
+    // dragon first -> fallback legacy rgb/srgb". The pipeline label and its
+    // feature description go right under `color_mode:` so a user reading
+    // top-to-bottom sees the full color story in three lines: mode -> pipeline
+    // -> tune. Without this disclosure the user had to guess from the color
+    // mode alone, which was misleading (a TrueColor terminal could still be
+    // running a chroma-bypass effect that did raw RGB math).
+    let pipeline = ColorPipeline::detect(color_mode);
+    output::eprintln_verbose(
+        "color_pipeline:",
+        &format!(" {} ({})", pipeline.label(), pipeline.description()),
+    );
+    if pipeline.is_chroma() {
+        output::eprintln_verbose(
+            "  chroma_features:",
+            " oklab_gradient, perceptual_blend, climate_post_fx, head_halo, l_smoothing, subpixel_jitter",
+        );
+    } else if let Some(reason) = pipeline.disable_reason(color_mode) {
+        output::eprintln_verbose(
+            "  chroma_features:",
+            " disabled -- legacy sRGB-linear fallback in effect for this color mode",
+        );
+        output::eprintln_verbose("  chroma_disable_reason:", &format!(" {reason}"));
+    }
     output::eprintln_verbose(
         "color_tune:",
         &format!(

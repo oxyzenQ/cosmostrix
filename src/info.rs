@@ -220,8 +220,13 @@ Module layout (under `src/chroma/`):
              Phase 7 palette-relative brightness floor.
   catalog    THEMES registry, build_colors(), ThemeDef / ThemeColors.
              Single source of truth for all 43 built-in themes.
-  gradient   OKLab interpolation (default) + sRGB-linear fallback +
-             hue-preserving polar variant (Phase 9-A).
+  gradient   OKLab polar interpolation (sole production path since v30).
+             Hue-preserving, perceptually uniform. The legacy sRGB-linear
+             variant was removed in v30 (see palette.rs:250 / gradient.rs:41).
+             Fallback behavior for non-truecolor terminals lives in the
+             `chroma::legacy` module (v30.3 audit) — same per-channel RGB
+             math the bypasses used to inline, now auditable side-by-side
+             with the chroma engine.
   shaders    Base cell shader (resolve_cell_color), CharLoc enum,
              TRAIL_EXP_LUT, Phase 4-D head halo, Phase 5/8 transition
              L+chroma smoothing (TransitionLTable).

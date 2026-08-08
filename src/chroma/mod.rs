@@ -40,12 +40,14 @@
 //! | `catalog`    | `src/central_colors.rs` (moved in Phase 1) | `THEMES` registry, `build_colors`, `ThemeDef`/`ThemeColors` |
 //! | `shaders`    | new in Phase 2                           | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT` |
 //! | `gradient`   | new in Phase 3-A                         | OKLab polar interpolation (sole production path since v30) |
+//! | `legacy`     | new in v30.3                             | Explicit sRGB-linear fallback math (`scale_rgb`, `blend_toward_rgb`, `boost_rgb`) used when `ColorPipeline::LegacyRgb` is active |
 //!
 //! Future phases will add `post/`, `stops.rs`, `ecosystem.rs` under this
 //! namespace.
 
 pub mod catalog;
 pub(crate) mod gradient;
+pub(crate) mod legacy;
 pub mod palette;
 pub(crate) mod post;
 pub(crate) mod shaders;

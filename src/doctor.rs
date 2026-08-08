@@ -10,7 +10,7 @@ use crate::config::{Args, ColorBg};
 use crate::diagnostics;
 use crate::renderer_info;
 use crate::report::Report;
-use crate::runtime::ColorMode;
+use crate::runtime::{ColorMode, ColorPipeline};
 
 use super::{
     color_mode_label, default_to_ascii, detect_color_mode, detect_color_mode_auto,
@@ -76,6 +76,20 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field("dirty_tracking", ri.dirty_tracking);
         s.field("io_strategy", ri.io_strategy);
         s.field("color_depth", ri.color_depth);
+        // v30.3 (chroma dragon audit): disclose the active color pipeline
+        // alongside color_depth. The user runs `cosmostrix --doctor` to
+        // verify the runtime environment -- without `color_pipeline` they
+        // could see `color_depth: 24-bit truecolor` and still not know
+        // whether the chroma dragon engine was actually driving the
+        // palette construction or whether the bypasses were doing raw RGB
+        // math. Owner directive: "all color -> chroma dragon first ->
+        // fallback legacy rgb/srgb".
+        let pipeline = ColorPipeline::detect(effective);
+        s.field("color_pipeline", pipeline.label());
+        s.field("color_pipeline_detail", pipeline.description());
+        if let Some(reason) = pipeline.disable_reason(effective) {
+            s.field("chroma_disable_reason", reason);
+        }
         s.field("identity", ri.identity);
         s.field("gpu_usage", "not_applicable");
         s.field(

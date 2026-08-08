@@ -124,6 +124,22 @@ pub(crate) struct BenchReportData {
     /// Auto color drift flag. When true, the ColorEcosystem autonomously
     /// rotates palettes — long benchmark runs may cross palette transitions.
     pub auto_color_drift: bool,
+    /// v30.3 (chroma dragon audit): the active color pipeline label
+    /// (`chroma_dragon` or `legacy_rgb`). Mirrors the `color_pipeline:`
+    /// line in `cosmostrix -v` and the `color_pipeline` field in
+    /// `cosmostrix --doctor` RENDERER section. The benchmark report must
+    /// disclose this so the user can answer "is the chroma dragon running
+    /// during my benchmark?" without reading the source.
+    pub color_pipeline: &'static str,
+    /// v30.3 (chroma dragon audit): human-readable chroma engine status
+    /// during the benchmark run. Explains the relationship between
+    /// benchmark mode and the chroma engine (palette drift is disabled
+    /// for deterministic p99/max, but climate drift still runs because
+    /// it is deterministic and has no rebuild cost). The owner asked:
+    /// "when benchmarking mode 'cosmostrix --benchmark' is the chroma
+    /// dragon enable/disable?" — this field answers that question in
+    /// the report itself.
+    pub chroma_in_benchmark: &'static str,
 
     // Performance
     pub avg_fps: f64,
@@ -353,6 +369,15 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("glitch_level", data.glitch_level);
         s.field("glitch_pct", &format!("{:.1}", data.glitch_pct));
         s.field("auto_color_drift", &data.auto_color_drift.to_string());
+        // v30.3 (chroma dragon audit): disclose the active color pipeline and
+        // the chroma engine status during benchmark. The owner's question
+        // "is the chroma dragon enable/disable during --benchmark?" is
+        // answered here in plain text. Chroma is ENABLED in benchmark mode
+        // — only palette *drift* is disabled (palette rebuilds inject
+        // timing spikes that break p99/max determinism). Climate drift
+        // still runs because it is deterministic.
+        s.field("color_pipeline", data.color_pipeline);
+        s.field("chroma_in_benchmark", data.chroma_in_benchmark);
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());
         s.field("target_fps", &format!("{:.1}", data.target_fps));

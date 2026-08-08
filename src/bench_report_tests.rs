@@ -151,6 +151,9 @@ mod tests {
             glitch_level: "subtle",
             glitch_pct: 3.0,
             auto_color_drift: false,
+            color_pipeline: "chroma_dragon",
+            chroma_in_benchmark:
+                "enabled (palette_drift off for determinism, climate_drift active)",
             avg_fps: 13000.0,
             peak_fps: 15000.0,
             avg_frame_time: 0.077,

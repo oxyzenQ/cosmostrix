@@ -67,9 +67,21 @@ use super::{effective_density, CloudConfig};
 ///
 /// Returns a tuple of (color_mode_label, custom_palette_name, custom_palette_bg_hex,
 /// color_bg_label, color_tune_summary, async_mode, glitch_enabled, glitch_level,
-/// glitch_pct, auto_color_drift) — all derived from `cfg` so both the
-/// `run_benchmark` and `run_benchmark_once` construction sites emit identical
-/// values without duplicating the derivation logic.
+/// glitch_pct, auto_color_drift, color_pipeline_label, chroma_in_benchmark) — all
+/// derived from `cfg` so both the `run_benchmark` and `run_benchmark_once`
+/// construction sites emit identical values without duplicating the derivation
+/// logic.
+///
+/// v30.3 (chroma dragon audit): the last two tuple fields disclose (a) which
+/// color pipeline the run is using (`chroma_dragon` or `legacy_rgb`) and
+/// (b) what the chroma engine status is during benchmarking. Owner question:
+/// "when benchmarking mode 'cosmostrix --benchmark' is the chroma dragon
+/// enable/disable?" Answer: chroma is ENABLED in benchmark mode -- only
+/// palette *drift* is disabled (see `cloud.auto_color_drift = false` in
+/// run_benchmark line ~201), the chroma engine itself still runs every cell
+/// through `resolve_cell_color` + `apply_climate`. The `chroma_in_benchmark`
+/// field makes this explicit in the report so the user does not have to read
+/// the source to find out.
 ///
 /// Kept as a free function (not a method on CloudConfig) so it can be unit-tested
 /// in isolation and stays out of the hot measurement path.
@@ -87,9 +99,12 @@ fn compute_config_enrichment(
     &'static str,
     f32,
     bool,
+    &'static str,
+    &'static str,
 ) {
     use crate::cli::color_mode_label;
     use crate::palette;
+    use crate::runtime::ColorPipeline;
 
     let color_mode_label = color_mode_label(cfg.color_mode);
 
@@ -160,6 +175,21 @@ fn compute_config_enrichment(
     // drift is on when the cloud actually has it off).
     let auto_color_drift = false;
 
+    // v30.3 (chroma dragon audit): detect the active color pipeline from the
+    // color mode. The chroma engine itself is NOT disabled in benchmark mode
+    // — only palette drift is disabled (palette rebuilds inject timing
+    // spikes that corrupt p99/max). Climate drift still runs because it is
+    // deterministic (fixed RNG seed) and has no rebuild cost. The benchmark
+    // report must disclose both facts so the user can answer "is the chroma
+    // dragon running during benchmark?" without reading the source.
+    let pipeline = ColorPipeline::detect(cfg.color_mode);
+    let color_pipeline_label = pipeline.label();
+    let chroma_in_benchmark: &'static str = if pipeline.is_chroma() {
+        "enabled (palette_drift off for determinism, climate_drift active)"
+    } else {
+        "legacy fallback (color mode lacks truecolor; no chroma engine in benchmark either)"
+    };
+
     (
         color_mode_label,
         custom_palette_name,
@@ -171,6 +201,8 @@ fn compute_config_enrichment(
         glitch_level,
         glitch_pct,
         auto_color_drift,
+        color_pipeline_label,
+        chroma_in_benchmark,
     )
 }
 
@@ -832,6 +864,8 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         glitch_level,
         glitch_pct,
         auto_color_drift,
+        color_pipeline_label,
+        chroma_in_benchmark,
     ) = compute_config_enrichment(cfg);
     let report_data = crate::bench_report::BenchReportData {
         was_interrupted,
@@ -861,6 +895,8 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         glitch_level,
         glitch_pct,
         auto_color_drift,
+        color_pipeline: color_pipeline_label,
+        chroma_in_benchmark,
         avg_fps,
         peak_fps,
         avg_frame_time,
@@ -1211,6 +1247,8 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         glitch_level,
         glitch_pct,
         auto_color_drift,
+        color_pipeline_label,
+        chroma_in_benchmark,
     ) = compute_config_enrichment(cfg);
     let report_data = BenchReportData {
         was_interrupted: false,
@@ -1240,6 +1278,8 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         glitch_level,
         glitch_pct,
         auto_color_drift,
+        color_pipeline: color_pipeline_label,
+        chroma_in_benchmark,
         avg_fps,
         peak_fps,
         avg_frame_time,
