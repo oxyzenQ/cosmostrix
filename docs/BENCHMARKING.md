@@ -250,8 +250,12 @@ honesty contract holds on third-party hardware.
   because the diff engine can skip frames with zero dirty cells.
 - **median_fps**: 50th percentile FPS. Less sensitive to outliers than
   avg. Use this when comparing across machines.
-- **target_fps**: The configured cap (default 60.0). Benchmark mode
-  disables the cap — this is the *uncapped* throughput.
+- **target_fps**: The configured cap. When the user does not pass
+  `--fps` or set `fps =` in config, the default is dynamic: 60 FPS on
+  standard terminals, 144 FPS on high-refresh terminals (Alacritty,
+  kitty, WezTerm, etc.) — see `termdetect.rs` for the detection
+  logic. Benchmark mode disables the cap — this is the *uncapped*
+  throughput.
 
 **Headroom**: avg_fps / 60 = how many times faster than real-time. v30
 lean path: 73,618 / 60 = **1,227× headroom**.

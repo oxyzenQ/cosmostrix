@@ -239,8 +239,9 @@ automate this.
 ## Benchmark Interpretation
 
 Benchmark FPS is synthetic uncapped throughput measured in a headless simulation.
-The actual runtime target is the configured FPS (normally 60). Do not chase raw
-FPS; frame-time stability and p99 latency matter more. See
+The actual runtime target is the configured FPS (dynamic default: 60 on
+standard terminals, 144 on high-refresh terminals; override with `--fps`).
+Do not chase raw FPS; frame-time stability and p99 latency matter more. See
 [benchmark/README.md](../benchmark/README.md) for detailed metric definitions.
 
 ## Manual Visual Smoke

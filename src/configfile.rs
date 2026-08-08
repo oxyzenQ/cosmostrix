@@ -603,6 +603,9 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Target FPS (1-240). Loop sleeps to maintain this cap in interactive mode.
 # Press 'i' to see it as `tgt:` in the HUD. In --benchmark mode this sets
 # the simulation rate only.
+# When unset, the default is dynamic: 60 FPS on standard terminals, 144 FPS
+# on high-refresh terminals (Alacritty, kitty, WezTerm, etc.) — see
+# `cosmostrix --verbose` fps_precedence line for which layer resolved.
 # fps = 60
 
 # Rain fall speed (1-100). Default depends on scene (cinematic=9).
