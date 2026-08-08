@@ -94,6 +94,12 @@
 //!   Each submodule owns one subsystem (phase_predictor, reclaim_state,
 //!   endurance_health, self_healer). `interactive/adaptive.rs` becomes
 //!   a thin re-export shim. Layout mirrors `central_control_rains.rs`.
+//! - **v30.8 (Phase 3 PowerManager)**: `power_manager` submodule added.
+//!   `PowerManager` is the unified coordinator owning `perf_pressure`
+//!   accumulation, `is_idle` detection, and effective FPS resolution.
+//!   Exposes `effective_pressure()` / `effective_fps()` / `is_idle()`
+//!   as the single read APIs for downstream consumers. Thermal guard
+//!   (feature #13) is implemented as INPUT to `effective_pressure()`.
 
 // ─── Behavior submodules ────────────────────────────────────────────────────
 //
@@ -104,11 +110,14 @@
 
 mod endurance_health;
 mod phase_predictor;
+mod power_manager;
 mod reclaim_state;
 mod self_healer;
 
 pub(crate) use endurance_health::*;
 pub(crate) use phase_predictor::*;
+#[allow(unused_imports)] // v30.8: PowerManager wired into event_loop in next microcommit
+pub(crate) use power_manager::*;
 pub(crate) use reclaim_state::*;
 pub(crate) use self_healer::*;
 
@@ -289,23 +298,24 @@ pub(crate) const XTERMJS_HARD_CEILING_BYTES: u64 = 200 * 1024 * 1024;
 
 // ─── PowerThresholds struct (foundation for PowerManager) ────────────────────
 //
-// v30.6: this struct groups all power management thresholds into a single
-// type. Future work: a PowerManager struct will own an instance of this
-// plus all signal sampling state (RSS, context switches, frame timing,
-// write latency, thermal when implemented) and expose unified APIs:
+// v30.6: grouped all power management thresholds into a single type.
+// v30.8: PowerManager (in power_manager.rs) now consumes this struct.
+// PowerManager owns an instance plus all signal sampling state
+// (perf_pressure accumulator, idle timer, phase predictor, thermal
+// pressure input) and exposes the unified APIs:
 //   - effective_pressure() -> f32       (replaces scattered perf_pressure reads)
-//   - effective_fps() -> f64            (replaces the 7-layer FPS cascade)
+//   - effective_fps() -> f64            (replaces the 4-writer FPS cascade)
 //   - is_idle() -> bool                 (replaces reactive || predicted OR)
 //
-// For now, this struct is defined but not yet instantiated — the existing
-// constants above remain the active source of truth. The struct exists to
-// document the grouping and serve as the migration target.
+// The constants above remain the active source of truth for the
+// PowerThresholds::defaults() constructor. PowerManager reads them
+// indirectly through the struct fields.
 
-/// Grouped power management thresholds. Foundation for the future
-/// PowerManager coordinator. Currently informational — the constants
-/// above remain the active source of truth until the coordinator is
-/// implemented and call sites are migrated.
-#[allow(dead_code)] // v30.6: foundation for PowerManager, not yet consumed
+/// Grouped power management thresholds. Consumed by `PowerManager`
+/// (see `power_manager.rs`). The constants above remain the active
+/// source of truth; `PowerThresholds::defaults()` reads them at
+/// construction time.
+#[allow(dead_code)] // v30.8: consumed by PowerManager; allow stays until event_loop wiring lands
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PowerThresholds {
     /// perf_pressure threshold for P1 downgrade trigger (0.6).
@@ -331,9 +341,10 @@ pub(crate) struct PowerThresholds {
 }
 
 impl PowerThresholds {
-    /// Default thresholds matching the constants above. Future PowerManager
-    /// instances will be constructed with this and then optionally tuned.
-    #[allow(dead_code)] // v30.6: foundation for PowerManager, not yet consumed
+    /// Default thresholds matching the constants above. `PowerManager`
+    /// is constructed with this and then optionally tuned via
+    /// `with_thresholds()` in tests.
+    #[allow(dead_code)] // v30.8: consumed by PowerManager; allow stays until event_loop wiring lands
     #[must_use]
     pub(crate) fn defaults() -> Self {
         Self {
