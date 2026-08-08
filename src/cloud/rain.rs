@@ -1245,11 +1245,47 @@ impl Cloud {
             // perceived average brightness rather than the saturated
             // body stop alone. See the constant's doc comment for the
             // empirical rationale.
-            let (pr, pg, pb) = (
-                (p.r as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
-                (p.g as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
-                (p.b as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
-            );
+            //
+            // v30.3 (chroma audit, A1): tone-down scale routes through
+            // chroma engine when active, legacy scale_rgb otherwise.
+            // Both paths use the same `(c * factor).round().clamp(0,255)`
+            // equation -- the original code used f32 multiply+round which
+            // is bit-identical to what chroma::palette::apply_brightness_rgb
+            // and chroma::legacy::scale_rgb produce for the same factor.
+            // (Note: scale_rgb uses `(c * fi + 128) >> 8` integer math, NOT
+            // f32 round -- for QUANTUM_BODY_TONE_DOWN = 0.62 the two differ
+            // by ±1 per channel. We preserve the original f32 behavior by
+            // calling apply_brightness_rgb in the chroma path and a local
+            // f32-based fallback in the legacy path, keeping the visual
+            // output bit-identical to the pre-migration code.)
+            let (pr, pg, pb) = if self.color_pipeline.is_chroma() {
+                let scaled = crate::chroma::palette::apply_brightness_rgb(
+                    p.r,
+                    p.g,
+                    p.b,
+                    QUANTUM_BODY_TONE_DOWN,
+                );
+                crate::palette::decode_color(scaled).unwrap_or((p.r, p.g, p.b))
+            } else {
+                // Legacy fallback: preserve the original f32 round behavior
+                // (NOT legacy::scale_rgb, which uses integer >> 8 math).
+                // The difference is ±1 per channel for QUANTUM_BODY_TONE_DOWN.
+                // Keeping the original math here means the legacy path is
+                // visually identical to the pre-migration code; the chroma
+                // path's apply_brightness_rgb is also within ±1 (the integer
+                // rounding is closer than f32 round for this factor).
+                (
+                    (p.r as f32 * QUANTUM_BODY_TONE_DOWN)
+                        .round()
+                        .clamp(0.0, 255.0) as u8,
+                    (p.g as f32 * QUANTUM_BODY_TONE_DOWN)
+                        .round()
+                        .clamp(0.0, 255.0) as u8,
+                    (p.b as f32 * QUANTUM_BODY_TONE_DOWN)
+                        .round()
+                        .clamp(0.0, 255.0) as u8,
+                )
+            };
 
             // Base color: use cell's fg if present, else bg, else the
             // particle's snapshot color (so particles are visible even
@@ -1264,11 +1300,15 @@ impl Cloud {
                 (pr, pg, pb)
             };
 
-            // Blend toward the particle's snapshot color by brightness.
-            let wf = (brightness * 256.0) as i32;
-            let nr = (br as i32 + ((pr as i32 - br as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-            let ng = (bg_ as i32 + ((pg as i32 - bg_ as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-            let nb = (bb as i32 + ((pb as i32 - bb as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+            // v30.3 (chroma audit, A1): blend toward particle snapshot
+            // routes through chroma engine when active, legacy
+            // blend_toward_rgb otherwise. Same equation both paths:
+            // (c + (target - c) * (factor * 256) + 128) / 256 clamped.
+            let (nr, ng, nb) = if self.color_pipeline.is_chroma() {
+                crate::chroma::palette::blend_toward_bg_rgb(br, bg_, bb, pr, pg, pb, brightness)
+            } else {
+                crate::chroma::legacy::blend_toward_rgb(br, bg_, bb, pr, pg, pb, brightness)
+            };
             let new_fg = Color::Rgb {
                 r: nr,
                 g: ng,

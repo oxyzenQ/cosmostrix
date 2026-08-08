@@ -342,6 +342,35 @@ pub(crate) fn blend_toward_white_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u
     )
 }
 
+/// RGB-tuple version of `blend_toward_bg`. Blends `(r, g, b)` toward the
+/// target `(tr, tg, tb)` by `factor` (0.0 = no change, 1.0 = full target).
+///
+/// v30.3 (chroma audit, A1): added for the quantum ripple render path.
+/// The particle carries its snapshot body color as `(r, g, b)` and blends
+/// the cell's current color toward that snapshot by `brightness`. The
+/// chroma path uses this helper; the legacy fallback uses
+/// `chroma::legacy::blend_toward_rgb`. Both produce bit-identical
+/// output (same equation as `lerp_u8`).
+#[inline]
+#[must_use]
+pub(crate) fn blend_toward_bg_rgb(
+    r: u8,
+    g: u8,
+    b: u8,
+    tr: u8,
+    tg: u8,
+    tb: u8,
+    factor: f32,
+) -> (u8, u8, u8) {
+    let f = factor.clamp(0.0, 1.0);
+    let wf = (f * 256.0) as i32;
+    (
+        (r as i32 + ((tr as i32 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+        (g as i32 + ((tg as i32 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+        (b as i32 + ((tb as i32 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+    )
+}
+
 /// Decode a color to RGB once, returning both the original Color and the (r, g, b) tuple.
 /// Used by hot-path callers that need to chain multiple blend operations
 /// without re-decoding the color each time.

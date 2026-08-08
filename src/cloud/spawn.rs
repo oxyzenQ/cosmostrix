@@ -756,6 +756,17 @@ impl Cloud {
         // leading edge; using it for ripples made every click look white).
         // Each particle keeps this RGB even if the user switches palette
         // mid-flight → natural crossfade between old & new cohorts.
+        //
+        // v30.3 (chroma audit, A1 spawn): the primary path uses
+        // `palette::decode_color` -- a chroma engine helper that decodes
+        // any Color variant to its RGB triple. The fallback constants
+        // QUANTUM_BRAND_PURPLE_* are only hit when `palette.colors` is
+        // empty OR `decode_color` returns None (Color::Reset), which are
+        // degenerate cases that don't occur in production (build_palette
+        // always produces ≥8 stops, none of which are Color::Reset).
+        // The fallback is the legacy sRGB "purple brand color" and exists
+        // solely so a unit test that constructs a Cloud without calling
+        // build_palette doesn't panic on unwrap.
         let body_idx = self.palette.colors.len() / 2;
         let (body_r, body_g, body_b) = self
             .palette
