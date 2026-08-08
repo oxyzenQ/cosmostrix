@@ -631,66 +631,83 @@ range. The clamping is defensive: a misbehaving sampler cannot push
 - `8c48070` feat(power): PowerManager coordinator struct + unified APIs (Phase 3 step 1)
 - `46e3939` refactor(power): wire PowerManager into event_loop (Phase 3 step 2)
 - `efc842e` fix(power): silence clippy dead_code on PowerThresholds + set_thermal_pressure
+- `5ede4a4` feat(power): thermal sensor sampling on Linux feeds PowerManager (feature #13)
+- `87cbb2c` refactor(power): migrate PerformanceSelfHealer to read from PowerThresholds struct
+- `9990238` docs(config): clarify FPS default is dynamic (60 standard / 144 high-perf)
+- `5816f0b` test(power): add audit_tests.rs — end-to-end verification of power stack contract
 
 ---
 
 ## 11. Future work
 
-**Thermal sensor sampling (feature #13, ready to wire).** The input
-API `PowerManager::set_thermal_pressure(f32)` is implemented and
-tested. The next step is to write the platform-specific sampler:
-
-- **Linux**: read `/sys/class/thermal/thermal_zone*/temp`, normalize
-  to 0.0–1.0 against a configurable trip point (e.g., 80°C → 1.0).
-- **macOS**: SMC access via `smc` crate or direct IOKit calls.
-- **Windows**: WMI query against `MSAcpi_ThermalZoneTemperature`.
-
-The sampler lives in the event loop, not in `PowerManager`, and
-calls `set_thermal_pressure()` once per frame (or once per N frames
-to amortize the syscall). Every downstream consumer of
+**Thermal sensor sampling (feature #13) — COMPLETED v30.9.** The
+Linux sampler is implemented in `thermal_sampler.rs` and wired into
+`event_loop.rs`. It reads `/sys/class/thermal/thermal_zone*/temp`,
+picks the hottest zone, normalizes to 0.0–1.0 via a linear ramp
+(50°C → 0.0, 90°C → 1.0), and feeds `PowerManager::set_thermal_pressure()`
+every 600 frames (~10s at 60 FPS). Every downstream consumer of
 `effective_pressure()` automatically responds.
 
-**`PerformanceSelfHealer` threshold migration.** The self-healer
-currently reads P1 + P2 thresholds from the standalone constants
-in `mod.rs`. Migrating it to read from `PowerThresholds` (via
-`PowerManager` or a passed-in reference) would let the struct
-become the sole source of truth and let the standalone constants
-be removed. Low-risk refactor; the `power_thresholds_defaults_match_constants`
-test already enforces the values stay in sync.
+Platform support: Linux only. macOS SMC and Windows WMI samplers are
+future work — on those platforms the sampler returns `None` and the
+thermal input stays at 0.0 (no behavior change).
 
-**OKLab dithering for `colors-custom`** (deferred from prior
-session). The current per-cell color composition uses sRGB
-multiplication, which produces visible banding in low-contrast
-gradients. Migrating to OKLab mixing with ordered dithering would
-eliminate the banding. This is a visual concern, not a power
-concern — it would live in `chroma/post/climate.rs`, not in this
-module.
+**`PerformanceSelfHealer` threshold migration — COMPLETED v30.9.**
+The self-healer now reads all 6 P1 + P2 thresholds from
+`self.thresholds: PowerThresholds` instead of from the standalone
+constants. The struct is the sole consumer-facing API; the standalone
+constants remain as the canonical values that `defaults()` copies into
+the struct. The `audit_self_healer_observe_reads_from_struct_not_constants`
+test proves the migration is real (an override changes behavior; the
+control case with defaults still fires).
 
-**Stale FPS references in `config.toml` template** (deferred from
-prior session). The template ships with comments referencing FPS
-values that no longer match the 240 cap. A cleanup pass through
-`config.toml.example` and any docs that reference the old values.
+**OKLab dithering for `colors-custom` — COMPLETED in prior sessions.**
+The `colors-custom` path already routes through the OKLab polar
+gradient engine (`colors_custom.rs:78` calls `colors_from_stops` which
+uses `gradient_from_stops_oklab`) and the base shader applies Bayer
+4×4 ordered dithering on both the `shading_distance` path
+(`base.rs:486-506`) and the short-droplet luminance-remap path
+(`base.rs:586-599`). Commits `2714153`, `d39c010`, `f5d037d`. The
+`to_palette_routes_through_oklab_polar_engine` test verifies the
+routing. No further work needed.
+
+**Stale FPS references in config template — COMPLETED v30.9.** The
+config template (`configfile.rs:603-609`), `docs/BENCHMARKING.md`,
+and `docs/RELEASE_CANDIDATE.md` now document the dynamic default
+(60 FPS standard, 144 FPS high-refresh) instead of the stale
+"default 60.0". Users on high-refresh terminals (Alacritty, kitty,
+WezTerm) no longer see misleading documentation.
 
 ---
 
 ## 12. Verification
 
-The module is verified by 1392 tests in the cosmostrix test suite.
+The module is verified by 1417 tests in the cosmostrix test suite.
 The dragon power module specifically contributes:
 
 - `phase_predictor.rs`: 5 tests
 - `reclaim_state.rs`: 5 tests
 - `endurance_health.rs`: 5 tests
-- `self_healer.rs`: 15 tests
+- `self_healer.rs`: 18 tests (15 original + 3 v30.9 migration tests)
 - `power_manager.rs`: 25 tests
-- `mod.rs`: 8 tests (PowerThresholds + constant sanity checks)
+- `thermal_sampler.rs`: 9 tests (v30.9)
+- `audit_tests.rs`: 13 integration tests (v30.9 — end-to-end contract)
+- `mod.rs`: 10 tests (PowerThresholds + constant sanity + thermal constants)
 
-Total: 63 tests directly exercising the dragon power module.
+Total: 90 tests directly exercising the dragon power module.
 
 `cargo fmt --check` and `cargo clippy --all-targets` are both
-clean. The module is at 2397 LOC across 6 files, well under the
-1500-LOC-per-file cap (largest file: `power_manager.rs` at 734
+clean. The module is at 2820 LOC across 7 files, well under the
+1500-LOC-per-file cap (largest file: `power_manager.rs` at 736
 LOC).
+
+The `audit_tests.rs` file (v30.9) is the "not a gimmick" verification
+— 13 integration tests that exercise the public API contract end-to-end:
+thermal input flows to every `effective_pressure()` read, self-healer
+reads from `PowerThresholds` (not constants), frame lifecycle is stable
+across 100-frame synthetic runs, and the full thermal → self-healer
+cascade triggers a downgrade at t=30s. These tests guard against a
+future refactor silently breaking the cross-module wiring.
 
 Owner-verified runtime output (commit `46e3939`): fps=144.0 from
 `/proc` ancestor walk, fps_precedence=dynamic_default visible in
