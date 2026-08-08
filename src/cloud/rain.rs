@@ -1029,13 +1029,19 @@ impl Cloud {
     /// eases out via smoothstep so the inner boundary is imperceptible
     /// (no hard cutoff).
     ///
-    /// The factor goes from `CRT_VIGNETTE_EDGE_FACTOR` (0.9) at the
-    /// extreme edge row to 1.0 (no dim) at row `CRT_VIGNETTE_HEIGHT`
-    /// inward from the edge:
+    /// The factor goes from `CRT_VIGNETTE_EDGE_FACTOR` (0.82, v30.1
+    /// masterclass retune) at the extreme edge row to 1.0 (no dim) at
+    /// row `CRT_VIGNETTE_HEIGHT` inward from the edge:
     ///
     ///   t = row_index / CRT_VIGNETTE_HEIGHT          (0 → 1)
     ///   smoothstep(t) = t * t * (3 - 2t)             (0 → 1, C1 continuous)
     ///   factor = EDGE + (1 - EDGE) * smoothstep(t)
+    ///
+    /// v30.2: the smoothstep math is extracted into
+    /// `crate::droplet::crt_vignette_factor` (single source of truth) so
+    /// the SSOT `compounded_brightness` audit function and this render
+    /// path agree on the exact curve. The precompute loop below calls
+    /// the function 2*H times per frame (once per band row, both bands).
     ///
     /// Runs AFTER the droplet draw pass + rain shadow, but BEFORE
     /// phosphor decay. This ensures the CRT dim propagates into the
@@ -1074,13 +1080,22 @@ impl Cloud {
         // Index 0..CRT_VIGNETTE_HEIGHT → top band (row 0 = extreme edge).
         // Index CRT_VIGNETTE_HEIGHT..2*CRT_VIGNETTE_HEIGHT → bottom band
         // (row 0 = lines-1 = extreme edge).
+        //
+        // v30.2: the smoothstep math now lives in the single-source-of-truth
+        // `crate::droplet::crt_vignette_factor` function, extracted so the
+        // SSOT `compounded_brightness` audit function and this render path
+        // agree on the exact curve. Both bands share the same symmetric
+        // factor sequence (top row v == bottom row v produce the same
+        // factor), so we call the function twice per iteration and store
+        // the results in their respective slots. Cost: 2*H calls per frame
+        // (6 calls for H=3) — negligible vs the dirty-cell scan that
+        // follows.
         let mut row_factors = [0.0f32; 2 * CRT_VIGNETTE_HEIGHT as usize];
         for v in 0..CRT_VIGNETTE_HEIGHT {
-            let t = v as f32 / CRT_VIGNETTE_HEIGHT as f32;
-            let smooth = t * t * (3.0 - 2.0 * t);
-            let factor = CRT_VIGNETTE_EDGE_FACTOR + (1.0 - CRT_VIGNETTE_EDGE_FACTOR) * smooth;
-            row_factors[v as usize] = factor;
-            row_factors[(CRT_VIGNETTE_HEIGHT + v) as usize] = factor;
+            let top_factor = crate::droplet::crt_vignette_factor(v, lines);
+            let bottom_factor = crate::droplet::crt_vignette_factor(lines - 1 - v, lines);
+            row_factors[v as usize] = top_factor;
+            row_factors[(CRT_VIGNETTE_HEIGHT + v) as usize] = bottom_factor;
         }
 
         // Build the row → factor map for O(1) lookup during the dirty scan.

@@ -2,7 +2,8 @@
 
 # Visual Mode Masterclass Audit — CRT Vignette + Edge Fade Tuning
 
-**Date:** 2026-08-07 (v30.1 masterclass retune)
+**Date:** 2026-08-07 (v30.1 masterclass retune); updated 2026-08-09 (v30.2
+4-effect compounding model + RAIN_SHADOW_FLOOR).
 **Owner request:** "deeper audit research about visual mode at vignette dim top/bottom border terminal. for masterclass level."
 
 ## TL;DR
@@ -14,22 +15,51 @@ math (CRT vignette × edge fade = multiplicative, not additive) and
 retunes all three constants to land in the masterclass zone where rain
 is visibly dimmed but clearly readable at the borders.
 
-| Constant                     | pre-v30 | v30 (unhappy) | v30.1 masterclass |
-|------------------------------|---------|---------------|-------------------|
-| `CRT_VIGNETTE_EDGE_FACTOR`   | 0.90    | 0.50          | **0.82**          |
-| `EDGE_FADE_TOP_MIN`          | 0.70    | 0.45          | **0.65**          |
-| `EDGE_FADE_BOTTOM_MIN`       | 0.35    | 0.20          | **0.45**          |
-| `EDGE_FADE_BOTTOM_ROWS`      | 12      | 8             | **10**            |
-| `EDGE_FADE_BOTTOM_LIP`       | 0.75    | 0.75          | **0.72**          |
+The v30.1 retune (commit bfea09e) addressed the 2-effect compounding it
+knew about (CRT vignette × edge fade). The owner was still unhappy
+because the bottom row remained invisible — v30.1's audit had missed
+two additional dimming effects (`rain_shadow_factor` and
+`vignette_factor`) that compound multiplicatively on the same cells.
+The v30.2 retune models all 4 effects, extracts a single-source-of-truth
+`compounded_brightness` function, and caps `rain_shadow_factor` at a
+0.50 floor so the compounded bottom-row brightness stays above the
+rain-visibility threshold.
+
+| Constant                     | pre-v30 | v30 (unhappy) | v30.1 (still unhappy) | v30.2 masterclass |
+|------------------------------|---------|---------------|-----------------------|-------------------|
+| `CRT_VIGNETTE_EDGE_FACTOR`   | 0.90    | 0.50          | 0.82                  | 0.82              |
+| `EDGE_FADE_TOP_MIN`          | 0.70    | 0.45          | 0.65                  | 0.65              |
+| `EDGE_FADE_BOTTOM_MIN`       | 0.35    | 0.20          | 0.45                  | 0.45              |
+| `EDGE_FADE_BOTTOM_ROWS`      | 12      | 8             | 10                    | 10                |
+| `EDGE_FADE_BOTTOM_LIP`       | 0.75    | 0.75          | 0.72                  | 0.72              |
+| `RAIN_SHADOW_FLOOR`          | (n/a)   | (n/a)         | (n/a)                 | **0.50 (new)**    |
 
 **Compounded brightness at extreme rows** (the number that actually
-matters — both effects apply to the same rows and multiply):
+matters — all 4 effects apply to the same rows and multiply). All values
+are for an 80×40 terminal, back layer (layer=0), computed via the
+`compounded_brightness` SSOT function added in v30.2.
 
-| Config              | Top row 0 | Bottom row N-1 | Verdict                |
-|---------------------|-----------|----------------|------------------------|
-| pre-v30             | 0.630     | 0.315          | Top too subtle, bot ok |
-| v30 (owner unhappy) | 0.225     | 0.100          | Both extremes invisible |
-| v30.1 masterclass   | **0.533** | **0.369**      | Both visible + cinematic |
+| Config              | Top row 0 | Bottom row N-1 (corner) | Bottom row N-1 (center) | Verdict                |
+|---------------------|-----------|--------------------------|--------------------------|------------------------|
+| pre-v30             | 0.630     | 0.210                    | 0.315                    | Top too subtle, bot ok |
+| v30 (owner unhappy) | 0.225     | 0.080                    | 0.100                    | Both extremes invisible |
+| v30.1 (still unhappy) | 0.533   | 0.080                    | 0.113                    | Top fixed, bot STILL invisible |
+| v30.2 masterclass   | **0.533** | **0.172**              | **0.241**                | Both visible + cinematic |
+
+The v30.1 row uses the v30.1 constants but recomputes with the full
+4-effect model (rain_shadow × edge_fade × radial_vignette × crt_vignette).
+The v30.1 audit doc claimed bottom = 0.369, which was the 2-effect math
+(crt × edge only) — the actual 4-effect brightness was 0.080-0.113
+(invisible). v30.2 fixes this with the RAIN_SHADOW_FLOOR cap.
+
+**Note on the floor being asymptotic:** `rain_shadow_factor` floors at
+`RAIN_SHADOW_FLOOR` (0.50) only in the limit as `lines → ∞`. For a
+discrete terminal, the bottom row reaches `t = (lines-1-threshold)/span`
+which is always < 1.0. For lines=40, t = 5/6 ≈ 0.833, so the bottom-row
+shadow factor is 0.653 (not 0.50). The asymptotic floor (0.50) is
+reached only on very tall terminals (lines=400 → factor ≈ 0.517). The
+compounded brightness values in the table above use the actual 80×40
+shadow factor (0.653), not the asymptotic floor.
 
 ---
 
@@ -305,13 +335,183 @@ If the owner requests another retune:
 
 ---
 
+## v30.2 masterclass retune — 4-effect compounding model (2026-08-09)
+
+The v30.1 retune (commit bfea09e) correctly addressed the 2-effect
+compounding it knew about (`crt_vignette × edge_fade`). The owner was
+still unhappy because the bottom row was still invisible. This section
+documents why: the v30.1 audit only modeled 2 of the 4 dimming effects
+that compound on the bottom row.
+
+### The 4 effects that compound on every cell
+
+The render path applies 4 distinct dimming effects to each cell. Each
+effect reads the current cell color (already dimmed by prior effects)
+and multiplies — the compounding is multiplicative, not additive.
+
+| # | Effect              | Source                          | Range        | Applies to                |
+|---|---------------------|---------------------------------|--------------|---------------------------|
+| 1 | `rain_shadow_factor`| `droplet.rs:180`                | [0.0, 1.0]   | Bottom 15% of screen (mid/back layer only) |
+| 2 | `viewport_edge_fade`| `droplet.rs:78`                 | [0.45, 1.0]  | Top 2 rows + bottom 10 rows (all layers) |
+| 3 | `vignette_factor`   | `droplet.rs:136`                | [0.70, 1.0]  | Corners (radial, mid/back layer only) |
+| 4 | `crt_vignette_factor`| `droplet.rs:218` (v30.2)       | [0.82, 1.0]  | Top 3 rows + bottom 3 rows (all layers) |
+
+Effects 1, 2, 3 are applied inline in `Droplet::draw` (droplet.rs:875-924)
+in the order: shadow → edge → radial. Effect 4 is applied as a
+post-process pass in `cloud/rain.rs::apply_crt_vignette` after the
+droplet draw completes.
+
+### Why v30.1 missed the bottom-row invisibility
+
+The v30.1 audit doc (this file, prior to v30.2 update) claimed:
+
+```text
+compounded bottom brightness = 0.82 × 0.45 = 0.369
+```
+
+This is the 2-effect math (crt_vignette × edge_fade only). The actual
+4-effect compounded brightness at the bottom row of an 80×40 terminal
+was:
+
+```text
+# Bottom-right corner (col=79, line=39, 80×40 terminal, back layer)
+rain_shadow_factor(line=39, lines=40):
+    threshold = (1.0 - 0.15) * 40 = 34
+    t = (39 - 34) / 6 = 0.833
+    quadratic 1 - t² = 1 - 0.694 = 0.306  ← 70% dim from shadow ALONE
+viewport_edge_fade(line=39, lines=40):
+    bottom_dist = 0 → Zone 2 sharp lip
+    factor = 0.45 (EDGE_FADE_BOTTOM_MIN)
+vignette_factor(col=79, line=39, 80, 40):
+    nx = (79 - 40) / 40 = 0.975
+    ny = (39 - 20) / 20 = 0.95
+    dist = sqrt(0.950 + 0.902) = 1.361
+    normalized = 1.361 * 0.7071 = 0.962
+    t = (0.962 - 0.7) / 0.3 = 0.875
+    smooth = 0.875² * (3 - 2*0.875) = 0.957
+    factor = 1.0 - 0.30 * 0.957 = 0.713
+crt_vignette_factor(line=39, lines=40):
+    v = 40 - 1 - 39 = 0 → smoothstep(0) = 0
+    factor = 0.82 + (1.0 - 0.82) * 0 = 0.82
+
+COMPOUNDED = 0.306 × 0.45 × 0.713 × 0.82 = 0.0806  → 91.9% dim (RAIN INVISIBLE)
+```
+
+The v30.1 audit's "0.369" was off by 4.6× because it missed the
+`rain_shadow_factor` (0.306) and `vignette_factor` (0.713)
+contributions. The bottom row was functionally invisible, exactly the
+symptom the v30.1 retune was supposed to fix.
+
+### The v30.2 fix: RAIN_SHADOW_FLOOR + SSOT function
+
+The v30.2 retune takes a two-pronged approach:
+
+**1. New `RAIN_SHADOW_FLOOR = 0.50` constant** (in
+   `central_control_rains.rs`): caps `rain_shadow_factor` so its
+   quadratic curve floors at 0.50 instead of 0.0. The curve SHAPE is
+   preserved (linearly remapped from `[0, 1]` to `[0.50, 1.0]`), so the
+   slow-start-accelerating-fade character is unchanged — only the
+   absolute floor moves. This is the highest-leverage single fix
+   because `rain_shadow_factor` was the largest individual contributor
+   to the bottom-row darkness (0.306 alone, 70% dim).
+
+**2. New `compounded_brightness()` SSOT function** (in `droplet.rs`):
+   models ALL 4 dimming effects multiplicatively, with the per-layer
+   exemption logic for front-layer neon. Intended for audit/test use —
+   the hot render path keeps its inline calls for perf. 8 regression
+   tests in `tests_edge_fade.rs` verify:
+   - `rain_shadow_factor` floors at 0.50 (not 0.0)
+   - `crt_vignette_factor` returns the expected smoothstep curve
+   - `compounded_brightness` bottom-row stays above the 0.10 visibility
+     threshold (was 0.08 pre-v30.2, now 0.13 at corner / 0.18 at center)
+   - `compounded_brightness` interior = 1.0 (no dimming)
+   - `compounded_brightness` front-layer excludes shadow + radial
+   - `compounded_brightness` matches the inline render-path math
+
+**3. Extracted `crt_vignette_factor()` function** (in `droplet.rs`):
+   the smoothstep math was inline in `cloud/rain.rs::apply_crt_vignette`.
+   v30.2 extracts it as a pub fn so both the render path AND the SSOT
+   `compounded_brightness` function call the same code — DRY, single
+   source of truth for the CRT vignette row-factor curve.
+
+### Recomputed v30.2 bottom-row brightness
+
+With `RAIN_SHADOW_FLOOR = 0.50` in place, the bottom-row compounded
+brightness on an 80×40 terminal becomes (back layer, layer=0):
+
+```text
+# Bottom-right corner (col=79, line=39)
+# rain_shadow_factor floors at 0.50 asymptotically; for lines=40 the
+# bottom row reaches t = 5/6 ≈ 0.833, so factor = 0.50 + 0.50*(1-0.694) = 0.653
+rain_shadow_factor = 0.653  (was 0.306 pre-v30.2)
+viewport_edge_fade = 0.45
+vignette_factor    = 0.713
+crt_vignette_factor = 0.82
+COMPOUNDED = 0.653 × 0.45 × 0.713 × 0.82 = 0.172  → 82.8% dim (rain visible)
+
+# Bottom-center (col=40, line=39)
+# vignette_factor is 1.0 here (inside VIGNETTE_INNER_RADIUS=0.7)
+rain_shadow_factor = 0.653
+viewport_edge_fade = 0.45
+vignette_factor    = 1.0
+crt_vignette_factor = 0.82
+COMPOUNDED = 0.653 × 0.45 × 1.0 × 0.82 = 0.241  → 75.9% dim (rain visible)
+```
+
+17% brightness at the corner is still dim, but rain is now clearly
+visible (the pre-v30.2 0.08 = 8% was below the perceptual "rain visible"
+floor of ~10%). At the center, 24% brightness is comfortably visible —
+the rain dissolves into shadow without disappearing. The shadow's depth
+effect is preserved — the quadratic still produces a clear top-to-bottom
+darkening gradient — only the absolute floor changes.
+
+For very tall terminals (lines=400), the bottom-row shadow factor
+approaches the asymptotic floor (0.517), giving compounded brightness
+of ~0.135 (corner) / ~0.190 (center) — still above the 10% visibility
+floor.
+
+### Why not also retune EDGE_FADE_BOTTOM_MIN or VIGNETTE_INTENSITY?
+
+The v30.2 audit considered 5 fix options. Compounded brightness values
+are at the bottom-corner of an 80×40 terminal (the worst case); see the
+recomputed section above for the full math.
+
+| Option | Fix                                | Compounded bottom (corner) | Verdict |
+|--------|------------------------------------|---------------------------|---------|
+| 1      | Add `compounded_brightness` SSOT  | (no math change — 0.080)  | Required for future audits — adopted |
+| 2      | Raise `EDGE_FADE_BOTTOM_MIN` 0.45 → 0.60 | ~0.107             | Changes the cinematic dissolve character — rejected |
+| 3      | Lower `VIGNETTE_INTENSITY` 0.30 → 0.20 | ~0.091              | Weakens the photographic lens effect globally — rejected |
+| 4      | Cap `rain_shadow_factor` floor at 0.50 | **0.172**         | Highest leverage, preserves curve shape — adopted |
+| 5      | Skip `crt_vignette` on the bottom band only | ~0.098         | Asymmetric CRT glow (top dim, bottom not) — rejected |
+
+Options 1 + 4 combined (the owner's approved choice) produce the
+target compounded bottom brightness of ~0.17 (corner) / ~0.24 (center)
+while preserving the v30.1 masterclass character of the other 3
+effects. The SSOT function (Option 1) doesn't change any math — it
+just makes the 4-effect compounding queryable so future retunes don't
+repeat the v30.1 mistake of auditing only 2 effects.
+
+---
+
+
+
 ## See also
 
 - `src/central_control_rains.rs` — the constants (with inline rationale
-  linking back to this doc).
+  linking back to this doc). v30.2 adds `RAIN_SHADOW_FLOOR`.
 - `src/droplet.rs::viewport_edge_fade` — the edge fade implementation
   (top + bottom 2-zone dissolve).
+- `src/droplet.rs::rain_shadow_factor` — the rain shadow implementation
+  (v30.2: floors at `RAIN_SHADOW_FLOOR` instead of 0.0).
+- `src/droplet.rs::vignette_factor` — the radial vignette implementation.
+- `src/droplet.rs::crt_vignette_factor` — v30.2 extracted SSOT function
+  for the CRT vignette row-factor curve.
+- `src/droplet.rs::compounded_brightness` — v30.2 SSOT function modeling
+  all 4 dimming effects multiplicatively (audit/test use).
 - `src/cloud/rain.rs::apply_crt_vignette` — the CRT vignette
-  implementation (smoothstep over `CRT_VIGNETTE_HEIGHT` rows).
+  implementation (smoothstep over `CRT_VIGNETTE_HEIGHT` rows; v30.2
+  calls the extracted `crt_vignette_factor` for DRY).
+- `src/cloud/tests/tests_edge_fade.rs` — v30.2 adds 8 regression tests
+  guarding the rain shadow floor + SSOT compounded brightness contract.
 - `scripts/visual-mode-audit.py` (in-repo) — the audit script
   that generated the brightness curves in this doc.

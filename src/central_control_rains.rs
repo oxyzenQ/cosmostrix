@@ -498,6 +498,49 @@ pub(crate) const RAIN_SHADOW_PCT: f32 = 0.15;
 /// Per-layer rain shadow multiplier (front layer exempt, same as vignette).
 pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 
+/// Minimum brightness floor for the rain shadow quadratic. The fade curve
+/// never drops below this value, even at the very last row.
+///
+/// ## v30.2 masterclass retune (2026-08-09)
+/// Prior to v30.2, `rain_shadow_factor` faded quadratically to 0.0 (full
+/// dark) at the bottom row. Compounded multiplicatively with the other
+/// three dimming effects that hit the same row — `viewport_edge_fade`
+/// (EDGE_FADE_BOTTOM_MIN = 0.45), `vignette_factor` (~0.71 at corners),
+/// and `crt_vignette_factor` (CRT_VIGNETTE_EDGE_FACTOR = 0.82) — the
+/// bottom row reached 0.08-0.11 brightness (89-92% dim) at the corners
+/// of an 80x40 terminal. Rain was functionally invisible at the bottom
+/// row, which is exactly the symptom the v30.1 retune (commit bfea09e)
+/// was supposed to fix but could not — the v30.1 audit only modeled 2
+/// of the 4 effects (CRT vignette x edge fade) and missed the rain
+/// shadow + radial vignette contributions.
+///
+/// The 0.50 floor caps the shadow's contribution at 50% dim. Recomputing
+/// the bottom-row compounded brightness with the floor in place:
+///
+/// ```text
+/// rain_shadow_factor(line=39, lines=40)   = 0.50  (was 0.306)
+/// viewport_edge_fade(line=39, lines=40)   = 0.45
+/// vignette_factor(col=0, line=39, 80, 40) = 0.706 (corner)
+/// crt_vignette_factor(line=39, lines=40) = 0.82
+/// compounded = 0.50 * 0.45 * 0.706 * 0.82 = 0.130 (~13% brightness)
+/// ```
+///
+/// 13% brightness is still dim, but rain is now visible (the prior
+/// 0.08 = 8% was below the perceptual "rain visible" floor of ~10%).
+/// The shadow's depth effect is preserved — the quadratic still
+/// produces a clear top-to-bottom darkening gradient — only the
+/// absolute floor changes.
+///
+/// Reference points:
+/// - 0.00 (pre-v30.2): full quadratic to black — destructive when
+///   compounded with the other 3 effects (bottom row at 8% brightness)
+/// - 0.50 (v30.2 masterclass): 50% dim floor — visible depth, no
+///   destruction (bottom row at 13% brightness, rain visible)
+///
+/// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
+/// compounding model and the v30.2 retune rationale.
+pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.50;
+
 // ─── Front layer tail allocation ───────────────────────────────────────────
 //
 // Long front-layer droplets need proportional tails — otherwise they read

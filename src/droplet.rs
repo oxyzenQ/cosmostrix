@@ -40,16 +40,17 @@ use crossterm::style::Color;
 
 use crate::cloud::{CharLoc, DrawCtx};
 use crate::constants::{
-    ADVANCE_REMAINDER_CAP, DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT,
-    EDGE_FADE_BOLD_THRESHOLD, EDGE_FADE_BOTTOM_LIP, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS,
-    EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP,
-    FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA,
-    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_INTENSITY,
-    MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC, MOUSE_GLOW_INTENSITY,
-    MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
-    PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, PARALLAX_HEAD_BLOOM_MULT,
-    PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_SATURATION_MULT, RAIN_SHADOW_LAYER_MULT,
-    RAIN_SHADOW_PCT, STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS,
+    ADVANCE_REMAINDER_CAP, CRT_VIGNETTE_EDGE_FACTOR, CRT_VIGNETTE_HEIGHT, DROPLET_GRAVITY,
+    DROPLET_TERMINAL_VELOCITY_MULT, EDGE_FADE_BOLD_THRESHOLD, EDGE_FADE_BOTTOM_LIP,
+    EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS, EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, FOG_MIN_FACTOR,
+    FOG_ROWS, FRACTIONAL_BLOOM_AMP, FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS,
+    HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS,
+    MOUSE_FLASH_INTENSITY, MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC,
+    MOUSE_GLOW_INTENSITY, MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES,
+    PARALLAX_BRIGHTNESS_MULT, PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM,
+    PARALLAX_HEAD_BLOOM_MULT, PARALLAX_HEAD_SELFBLOOM_MULT, PARALLAX_LAYERS,
+    PARALLAX_SATURATION_MULT, RAIN_SHADOW_FLOOR, RAIN_SHADOW_LAYER_MULT, RAIN_SHADOW_PCT,
+    STARTUP_EASE_TAU, STARTUP_VELOCITY_FRACTION, TRANSITION_ENERGY_DURATION_SECS,
     TRANSITION_ENERGY_SATURATION_BOOST, TRANSITION_HEAD_GLOW_BOOST, TURBULENCE_AMPLITUDE,
     TURBULENCE_FREQ, VIGNETTE_INNER_RADIUS, VIGNETTE_INTENSITY, VIGNETTE_LAYER_MULT,
 };
@@ -166,16 +167,34 @@ pub(crate) fn vignette_factor(col: u16, line: u16, cols: u16, lines: u16) -> f32
 
 /// Rain shadow: quadratic fade-out across the bottom RAIN_SHADOW_PCT of
 /// the screen. Cells above the threshold are unmodified; cells from the
-/// threshold to the bottom row fade smoothly to 0.0 (full dark).
+/// threshold to the bottom row fade smoothly down to `RAIN_SHADOW_FLOOR`
+/// (50% dim, never full dark).
 ///
-/// Distinct from EDGE_FADE_BOTTOM: the edge fade is a sharp 12-row lip
+/// Distinct from EDGE_FADE_BOTTOM: the edge fade is a sharp 10-row lip
 /// that prevents bright head pile-up at the very last row. The rain
-/// shadow is a wider, softer 20%-of-screen quadratic that gives the
+/// shadow is a wider, softer 15%-of-screen quadratic that gives the
 /// frame perceptual "depth" — rain appears to dissipate into shadow at
 /// the ground rather than hitting a wall.
 ///
 /// Applied BEFORE phosphor decay so the captured phosphor energy is
 /// already dimmed — the afterglow trail fades in sync with the shadow.
+///
+/// ## v30.2 masterclass retune (2026-08-09)
+/// The pre-v30.2 curve faded to 0.0 (full black) at the bottom row.
+/// Compounded multiplicatively with `viewport_edge_fade` (0.45),
+/// `vignette_factor` (~0.71 at corners), and `crt_vignette_factor`
+/// (0.82), the bottom row reached 0.08 brightness (92% dim) — rain
+/// was invisible. The floor at `RAIN_SHADOW_FLOOR` (0.50) caps the
+/// shadow's contribution so the compounded bottom-row brightness
+/// stays at ~0.13 (rain visible) while preserving the depth gradient.
+///
+/// The curve shape is preserved: quadratic `1 - t^2` is linearly
+/// remapped from [0.0, 1.0] to [RAIN_SHADOW_FLOOR, 1.0] so the
+/// slow-start-accelerating-fade character is unchanged. Only the
+/// absolute floor moves from 0.0 to 0.50.
+///
+/// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
+/// compounding model.
 #[inline]
 pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
     if lines == 0 || RAIN_SHADOW_PCT <= 0.0 {
@@ -187,9 +206,164 @@ pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
     }
     let span = (lines.saturating_sub(threshold)).max(1) as f32;
     let t = ((line - threshold) as f32 / span).clamp(0.0, 1.0);
-    // Quadratic fade: 1.0 → 0.0 as t goes 0 → 1, with slow start and
-    // accelerating fade. Reads as natural depth shadow.
-    1.0 - t * t
+    // Quadratic fade: 1.0 -> RAIN_SHADOW_FLOOR as t goes 0 -> 1, with
+    // slow start and accelerating fade. Reads as natural depth shadow.
+    // v30.2: linearly remapped to floor at RAIN_SHADOW_FLOOR (0.50)
+    // instead of 0.0 — prevents the bottom row from going fully dark
+    // when shadow multiplies with edge fade + radial vignette + CRT
+    // vignette. Curve shape (quadratic 1 - t^2) is preserved.
+    RAIN_SHADOW_FLOOR + (1.0 - RAIN_SHADOW_FLOOR) * (1.0 - t * t)
+}
+
+/// CRT vignette factor for a given row. Returns the per-row brightness
+/// multiplier applied by the post-process `apply_crt_vignette` pass in
+/// `cloud/rain.rs`.
+///
+/// Returns 1.0 (no dim) for rows outside the top/bottom
+/// `CRT_VIGNETTE_HEIGHT` bands. For rows inside the bands, returns a
+/// smoothstep from 1.0 (interior edge of band) down to
+/// `CRT_VIGNETTE_EDGE_FACTOR` (extreme edge row). Both top and bottom
+/// bands use the same symmetric smoothstep curve.
+///
+/// ## v30.2 masterclass extraction (2026-08-09)
+/// Extracted from the inline row-factor precomputation in
+/// `cloud/rain.rs::apply_crt_vignette` so the per-row factor is
+/// queryable from the SSOT `compounded_brightness` function without
+/// duplicating the smoothstep math. The inline precomputation in
+/// `apply_crt_vignette` now calls this function — DRY, single source
+/// of truth for the CRT vignette row-factor curve.
+///
+/// ## Skipped cases
+/// - `lines < 2 * CRT_VIGNETTE_HEIGHT`: the screen is too short for the
+///   vignette to make sense (would dim the entire screen). Returns 1.0
+///   for all rows. Matches the early-return guard in `apply_crt_vignette`.
+/// - `CRT_VIGNETTE_HEIGHT == 0`: vignette disabled. Returns 1.0.
+///
+/// ## Cost
+/// O(1) per call — 1 comparison, 1 subtraction, 1 division, 1
+/// smoothstep, 1 multiply. Used by `compounded_brightness` (audit/test
+/// path) and by `apply_crt_vignette` (per-row precompute, 2*H calls
+/// per frame — negligible).
+#[inline]
+pub(crate) fn crt_vignette_factor(line: u16, lines: u16) -> f32 {
+    if CRT_VIGNETTE_HEIGHT == 0 || lines < 2 * CRT_VIGNETTE_HEIGHT {
+        return 1.0;
+    }
+    let top_end = CRT_VIGNETTE_HEIGHT;
+    let bottom_start = lines.saturating_sub(CRT_VIGNETTE_HEIGHT);
+
+    // Distance from the nearest edge: 0 at the extreme edge row,
+    // CRT_VIGNETTE_HEIGHT-1 at the interior edge of the band.
+    // Rows between top_end and bottom_start fall outside both bands
+    // and return 1.0 (no dim).
+    let v = if line < top_end {
+        line
+    } else if line >= bottom_start {
+        lines - 1 - line
+    } else {
+        return 1.0;
+    };
+
+    // Smoothstep from 1.0 (at v=H-1, interior edge) down to
+    // CRT_VIGNETTE_EDGE_FACTOR (at v=0, extreme edge). Same curve as
+    // the inline precomputation in apply_crt_vignette.
+    let t = v as f32 / CRT_VIGNETTE_HEIGHT as f32;
+    let smooth = t * t * (3.0 - 2.0 * t);
+    CRT_VIGNETTE_EDGE_FACTOR + (1.0 - CRT_VIGNETTE_EDGE_FACTOR) * smooth
+}
+
+/// Single-source-of-truth compounded brightness multiplier for a cell at
+/// `(col, line)` on a `cols x lines` terminal, rendered on parallax
+/// `layer` (0=back, 1=mid, 2=front).
+///
+/// Models ALL 4 dimming effects that compound multiplicatively on the
+/// same cell, in the order the render path applies them:
+///
+/// 1. `rain_shadow_factor` — quadratic fade across the bottom
+///    `RAIN_SHADOW_PCT` of the screen (floored at `RAIN_SHADOW_FLOOR`)
+/// 2. `viewport_edge_fade` — top linear fade + bottom 2-zone cinematic
+///    dissolve (sharp lip + gentle pre-fade)
+/// 3. `vignette_factor` — radial corner darkening (Chebyshev distance
+///    from center, capped at `VIGNETTE_INTENSITY`)
+/// 4. `crt_vignette_factor` — CRT edge band dim on the top
+///    `CRT_VIGNETTE_HEIGHT` and bottom `CRT_VIGNETTE_HEIGHT` rows
+///
+/// The 4 factors MULTIPLY: `compounded = shadow * edge * radial * crt`.
+/// Each effect reads the current cell color (already dimmed by prior
+/// effects) and multiplies — the compounding is multiplicative, not
+/// additive.
+///
+/// ## Layer exemption
+/// Front layer (2) is exempt from rain shadow + radial vignette (per
+/// `RAIN_SHADOW_LAYER_MULT[2] = 0.0` and `VIGNETTE_LAYER_MULT[2] = 0.0`).
+/// Only edge fade + CRT vignette apply to front-layer neon — it stays
+/// at full fidelity across the screen height except at the very top/bottom
+/// edge bands. Mid/back layers (mult=1.0) get the full 4-effect
+/// compounding for depth.
+///
+/// ## Why this exists
+/// Prior to v30.2, the 4 effects were tuned independently — each
+/// constant was calibrated against its own 1-effect target, with no
+/// model of how they MULTIPLY when stacked. The result was a
+/// compounded bottom-row brightness of 0.08-0.11 (89-92% dim) at the
+/// bottom row of an 80x40 terminal — rain was functionally invisible
+/// despite each individual effect looking "subtle" in isolation.
+///
+/// This function makes the compounding EXPLICIT so future retunes can
+/// verify the compounded result (not just the per-effect math) and
+/// catch destructive interactions before they ship. The v30.2 retune
+/// used this model to identify that capping `rain_shadow_factor` at a
+/// 0.50 floor was the highest-leverage single fix (Option 4 in the
+/// v30.2 audit).
+///
+/// ## Cost
+/// O(1) per call — 4 function calls (each O(1)) + 3 multiplies.
+/// Intended for audit/diagnostic use (tests, debug HUD overlays, the
+/// visual-mode audit script). The hot render path in `Droplet::draw`
+/// still applies the 3 in-pipeline effects (shadow, edge, radial)
+/// inline for perf — each is a single integer multiply on the RGB
+/// tuple. The 4th effect (CRT vignette) is applied as a post-process
+/// in `apply_crt_vignette`. Tests verify the inline path produces the
+/// same result as this function (see `tests_edge_fade.rs`).
+///
+/// ## Returns
+/// A brightness multiplier in `[0.0, 1.0]`. The render path applies
+/// it as `r = (r * factor * 256 + 128) >> 8` per RGB channel.
+#[allow(dead_code)] // Audit/test utility — used by tests_edge_fade.rs under cfg(test).
+pub(crate) fn compounded_brightness(
+    col: u16,
+    line: u16,
+    cols: u16,
+    lines: u16,
+    layer: usize,
+) -> f32 {
+    let layer = layer.min(PARALLAX_LAYERS - 1);
+    let shadow_mult = RAIN_SHADOW_LAYER_MULT
+        .get(layer)
+        .copied()
+        .filter(|m| *m > 0.0)
+        .unwrap_or(0.0);
+    let vignette_mult = VIGNETTE_LAYER_MULT
+        .get(layer)
+        .copied()
+        .filter(|m| *m > 0.0)
+        .unwrap_or(0.0);
+
+    // Per-layer scaling mirrors the render path's
+    // `1.0 - (1.0 - raw) * LAYER_MULT[layer]` formula: when LAYER_MULT=0.0
+    // (front layer), the effect is fully suppressed (factor=1.0); when
+    // LAYER_MULT=1.0 (mid/back), the raw effect applies unchanged.
+    let shadow_raw = rain_shadow_factor(line, lines);
+    let shadow = 1.0 - (1.0 - shadow_raw) * shadow_mult;
+
+    let edge = viewport_edge_fade(line, lines);
+
+    let vignette_raw = vignette_factor(col, line, cols, lines);
+    let radial = 1.0 - (1.0 - vignette_raw) * vignette_mult;
+
+    let crt = crt_vignette_factor(line, lines);
+
+    shadow * edge * radial * crt
 }
 
 #[derive(Clone, Debug)]

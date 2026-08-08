@@ -9,8 +9,9 @@ use std::time::{Duration, Instant};
 use crossterm::style::Color;
 
 use crate::constants::{
-    EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS, EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN,
-    PHOSPHOR_EDGE_ENERGY_CAP, PHOSPHOR_EDGE_ROW_TAPER,
+    CRT_VIGNETTE_EDGE_FACTOR, CRT_VIGNETTE_HEIGHT, EDGE_FADE_BOTTOM_MIN, EDGE_FADE_BOTTOM_ROWS,
+    EDGE_FADE_ROWS, EDGE_FADE_TOP_MIN, PARALLAX_LAYERS, PHOSPHOR_EDGE_ENERGY_CAP,
+    PHOSPHOR_EDGE_ROW_TAPER, RAIN_SHADOW_FLOOR, RAIN_SHADOW_PCT,
 };
 
 #[test]
@@ -323,5 +324,456 @@ fn high_speed_bottom_edge_cells_clear_bounded() {
         frames < 20,
         "edge-capped bottom cells should clear in < 20 frames (got {})",
         frames
+    );
+}
+
+// ─── v30.2 masterclass: rain shadow floor + SSOT compounded brightness ──────
+//
+// The following tests guard the v30.2 retune:
+// 1. rain_shadow_factor floors at RAIN_SHADOW_FLOOR (0.50) instead of 0.0
+// 2. crt_vignette_factor (extracted SSOT) returns expected smoothstep
+// 3. compounded_brightness models all 4 dimming effects multiplicatively
+//
+// These tests are the regression contract for the v30.2 audit fix. If
+// any of them fail, the bottom-row invisibility bug (compounded brightness
+// at 0.08-0.11 = 89-92% dim) has regressed. See
+// `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect compounding
+// model.
+
+#[test]
+fn rain_shadow_factor_floors_at_rain_shadow_floor() {
+    // The pre-v30.2 curve faded to 0.0 (full black) at the bottom row.
+    // v30.2 caps the floor at RAIN_SHADOW_FLOOR (0.50) so the compounded
+    // bottom-row brightness stays above the rain-visibility threshold
+    // (~10%) when shadow multiplies with edge fade + radial vignette +
+    // CRT vignette.
+    //
+    // Note: the floor is ASYMPTOTIC — the bottom row of a discrete
+    // terminal reaches t = (lines-1-threshold)/span, which is always
+    // < 1.0. For lines=40, threshold=34, span=6, the bottom row (line=39)
+    // gets t = 5/6 ≈ 0.833, so factor = 0.5 + 0.5*(1 - 0.694) ≈ 0.653.
+    // The floor (0.50) is only reached in the limit as lines → ∞. For
+    // a tall terminal (lines=400), the bottom row gets t = 59/60 ≈ 0.983,
+    // factor ≈ 0.517 — very close to the floor.
+    use crate::droplet::rain_shadow_factor;
+
+    let lines: u16 = 40;
+    // The shadow zone is the bottom RAIN_SHADOW_PCT (15%) of the screen.
+    // For lines=40, threshold = (1.0 - 0.15) * 40 = 34. Rows 34..=39 are
+    // in the shadow zone.
+    let threshold = ((1.0 - RAIN_SHADOW_PCT) * lines as f32) as u16;
+    assert_eq!(threshold, 34, "shadow threshold for 40-line terminal");
+
+    // Every row in the shadow zone must stay >= RAIN_SHADOW_FLOOR.
+    for line in threshold..lines {
+        let factor = rain_shadow_factor(line, lines);
+        assert!(
+            factor >= RAIN_SHADOW_FLOOR - 0.001,
+            "row {} shadow factor {} should be >= RAIN_SHADOW_FLOOR ({})",
+            line,
+            factor,
+            RAIN_SHADOW_FLOOR
+        );
+    }
+
+    // The bottom row (line = lines-1) is the closest to the floor for
+    // this terminal size. Compute the expected value:
+    //   span = 40 - 34 = 6
+    //   t = (39 - 34) / 6 = 5/6
+    //   1 - t^2 = 1 - 25/36 = 11/36
+    //   factor = 0.5 + 0.5 * 11/36 = 0.5 + 0.1528 = 0.6528
+    let span = (lines - threshold) as f32;
+    let bottom_t = (lines - 1 - threshold) as f32 / span;
+    let expected_bottom =
+        RAIN_SHADOW_FLOOR + (1.0 - RAIN_SHADOW_FLOOR) * (1.0 - bottom_t * bottom_t);
+    let bottom = rain_shadow_factor(lines - 1, lines);
+    assert!(
+        (bottom - expected_bottom).abs() < 0.001,
+        "bottom row shadow factor should be {} (t={}, v30.2 remapped), got {}",
+        expected_bottom,
+        bottom_t,
+        bottom
+    );
+    // The bottom row must be the minimum across the shadow zone.
+    for line in threshold..(lines - 1) {
+        let factor = rain_shadow_factor(line, lines);
+        assert!(
+            factor > bottom,
+            "bottom row ({}) should be the minimum shadow factor, but row {} was lower ({})",
+            bottom,
+            line,
+            factor
+        );
+    }
+
+    // The first shadow-zone row (line = threshold, t=0) must equal exactly 1.0
+    // (quadratic 1 - 0^2 = 1, linearly remapped to RAIN_SHADOW_FLOOR + (1 -
+    // RAIN_SHADOW_FLOOR) * 1 = 1.0).
+    let top_of_shadow = rain_shadow_factor(threshold, lines);
+    assert!(
+        (top_of_shadow - 1.0).abs() < 0.001,
+        "first shadow-zone row should have factor=1.0, got {}",
+        top_of_shadow
+    );
+
+    // Rows above the threshold (outside the shadow zone) return 1.0.
+    for line in 0..threshold {
+        let factor = rain_shadow_factor(line, lines);
+        assert!(
+            (factor - 1.0).abs() < 0.001,
+            "non-shadow row {} should have factor=1.0, got {}",
+            line,
+            factor
+        );
+    }
+
+    // Asymptotic floor check: a tall terminal (lines=400) should get its
+    // bottom row very close to RAIN_SHADOW_FLOOR (within 0.02). This
+    // verifies the floor actually binds as the screen grows.
+    let tall_lines: u16 = 400;
+    let tall_threshold = ((1.0 - RAIN_SHADOW_PCT) * tall_lines as f32) as u16;
+    let tall_bottom = rain_shadow_factor(tall_lines - 1, tall_lines);
+    assert!(
+        tall_bottom <= RAIN_SHADOW_FLOOR + 0.02,
+        "tall terminal (lines={}) bottom row factor {} should be within 0.02 of RAIN_SHADOW_FLOOR ({})",
+        tall_lines,
+        tall_bottom,
+        RAIN_SHADOW_FLOOR
+    );
+    let _ = tall_threshold; // suppress unused warning
+}
+
+#[test]
+fn rain_shadow_factor_curve_shape_preserved_by_floor_remapping() {
+    // v30.2 linearly remaps the quadratic `1 - t^2` from [0, 1] to
+    // [RAIN_SHADOW_FLOOR, 1.0]. The curve SHAPE (slow start, accelerating
+    // fade) must be preserved — only the floor moves. Verify by checking
+    // that the v30.2 curve is monotonically decreasing across the shadow
+    // zone and that the midpoint matches the expected remapped value.
+    use crate::droplet::rain_shadow_factor;
+
+    let lines: u16 = 40;
+    let threshold = ((1.0 - RAIN_SHADOW_PCT) * lines as f32) as u16;
+    let span = (lines - threshold) as f32;
+
+    // Monotonic decrease from threshold (1.0) to lines-1 (RAIN_SHADOW_FLOOR).
+    let mut prev = rain_shadow_factor(threshold, lines);
+    for line in (threshold + 1)..lines {
+        let factor = rain_shadow_factor(line, lines);
+        assert!(
+            factor < prev,
+            "shadow factor should decrease monotonically: row {} ({}) < row {} ({})",
+            line,
+            factor,
+            line - 1,
+            prev
+        );
+        prev = factor;
+    }
+
+    // Midpoint of the shadow zone: t = 0.5, quadratic 1 - 0.25 = 0.75.
+    // Remapped: RAIN_SHADOW_FLOOR + (1 - RAIN_SHADOW_FLOOR) * 0.75.
+    let mid_line = threshold + (span / 2.0) as u16;
+    let mid_factor = rain_shadow_factor(mid_line, lines);
+    let expected = RAIN_SHADOW_FLOOR + (1.0 - RAIN_SHADOW_FLOOR) * 0.75;
+    // Allow generous tolerance because the discrete line index may not
+    // land exactly on t=0.5.
+    assert!(
+        (mid_factor - expected).abs() < 0.05,
+        "midpoint shadow factor {} should be near remapped 0.75 (={}), got {}",
+        mid_factor,
+        expected,
+        mid_factor
+    );
+}
+
+#[test]
+fn crt_vignette_factor_banded_correctly() {
+    // The extracted `crt_vignette_factor` must return:
+    // - 1.0 for rows outside both top and bottom CRT_VIGNETTE_HEIGHT bands
+    // - CRT_VIGNETTE_EDGE_FACTOR at the extreme edge rows (row 0 and row lines-1)
+    // - A smoothstep curve in between
+    use crate::droplet::crt_vignette_factor;
+
+    let lines: u16 = 40;
+    let h = CRT_VIGNETTE_HEIGHT;
+
+    // Extreme top edge (row 0): v=0, smoothstep(0) = 0,
+    // factor = EDGE + (1 - EDGE) * 0 = EDGE.
+    let top_edge = crt_vignette_factor(0, lines);
+    assert!(
+        (top_edge - CRT_VIGNETTE_EDGE_FACTOR).abs() < 0.001,
+        "top edge row factor should be CRT_VIGNETTE_EDGE_FACTOR ({}), got {}",
+        CRT_VIGNETTE_EDGE_FACTOR,
+        top_edge
+    );
+
+    // Extreme bottom edge (row lines-1): v=0 (symmetric), same factor.
+    let bottom_edge = crt_vignette_factor(lines - 1, lines);
+    assert!(
+        (bottom_edge - CRT_VIGNETTE_EDGE_FACTOR).abs() < 0.001,
+        "bottom edge row factor should be CRT_VIGNETTE_EDGE_FACTOR ({}), got {}",
+        CRT_VIGNETTE_EDGE_FACTOR,
+        bottom_edge
+    );
+
+    // Interior rows (between top_end=h and bottom_start=lines-h): factor 1.0.
+    for line in h..(lines - h) {
+        let factor = crt_vignette_factor(line, lines);
+        assert!(
+            (factor - 1.0).abs() < 0.001,
+            "interior row {} should have factor=1.0, got {}",
+            line,
+            factor
+        );
+    }
+
+    // Symmetry: row v from top == row lines-1-v from bottom (same v).
+    for v in 0..h {
+        let top = crt_vignette_factor(v, lines);
+        let bottom = crt_vignette_factor(lines - 1 - v, lines);
+        assert!(
+            (top - bottom).abs() < 0.001,
+            "CRT vignette should be symmetric: row {} ({}) == row {} ({})",
+            v,
+            top,
+            lines - 1 - v,
+            bottom
+        );
+    }
+
+    // Monotonic increase from extreme edge (EDGE) to interior edge (1.0).
+    let mut prev = crt_vignette_factor(0, lines);
+    for line in 1..h {
+        let factor = crt_vignette_factor(line, lines);
+        assert!(
+            factor > prev,
+            "top band factor should increase monotonically toward interior: row {} ({}) > row {} ({})",
+            line,
+            factor,
+            line - 1,
+            prev
+        );
+        prev = factor;
+    }
+}
+
+#[test]
+fn crt_vignette_factor_skipped_on_short_terminal() {
+    // When lines < 2 * CRT_VIGNETTE_HEIGHT, the vignette is disabled
+    // (would dim the entire screen). All rows return 1.0.
+    use crate::droplet::crt_vignette_factor;
+
+    let lines: u16 = 2 * CRT_VIGNETTE_HEIGHT - 1; // Too short
+    for line in 0..lines {
+        let factor = crt_vignette_factor(line, lines);
+        assert!(
+            (factor - 1.0).abs() < 0.001,
+            "short-terminal row {} should have factor=1.0, got {}",
+            line,
+            factor
+        );
+    }
+}
+
+#[test]
+fn compounded_brightness_bottom_row_above_visibility_threshold() {
+    // THE v30.2 REGRESSION GUARD: the bottom row of an 80x40 terminal
+    // must stay above the rain-visibility threshold (~10%) after all 4
+    // dimming effects compound. Pre-v30.2 the compounded brightness was
+    // 0.080 (8%, rain invisible); v30.2's RAIN_SHADOW_FLOOR cap brings
+    // it to ~0.172 at the corner / ~0.241 at the center (rain visible).
+    //
+    // The threshold of 0.10 is the perceptual floor — anything below
+    // reads as "no rain" to the eye at typical terminal brightness.
+    use crate::droplet::compounded_brightness;
+
+    let cols: u16 = 80;
+    let lines: u16 = 40;
+    let layer: usize = 0; // Back layer (full 4-effect compounding)
+    let visibility_floor = 0.10;
+
+    // Check every column at the bottom row.
+    for col in 0..cols {
+        let brightness = compounded_brightness(col, lines - 1, cols, lines, layer);
+        assert!(
+            brightness >= visibility_floor,
+            "bottom row col {} compounded brightness {} should be >= visibility floor {} (v30.2 RAIN_SHADOW_FLOOR regression)",
+            col,
+            brightness,
+            visibility_floor
+        );
+    }
+
+    // Bottom-center (col=cols/2): vignette_factor is 1.0 (inside inner
+    // radius), so compounded = shadow * edge * 1.0 * crt.
+    //   shadow = 0.653 (lines=40, t=5/6, remapped)
+    //   edge   = 0.45  (EDGE_FADE_BOTTOM_MIN)
+    //   crt    = 0.82  (CRT_VIGNETTE_EDGE_FACTOR)
+    //   product = 0.653 * 0.45 * 0.82 = 0.241
+    let bottom_center = compounded_brightness(cols / 2, lines - 1, cols, lines, layer);
+    assert!(
+        (bottom_center - 0.241).abs() < 0.005,
+        "bottom-center compounded brightness {} should be ~0.241 (documented v30.2 target)",
+        bottom_center
+    );
+
+    // Bottom-corner (col=0 or col=cols-1): vignette_factor is ~0.713
+    // (corner radial dimming), so compounded = shadow * edge * 0.713 * crt.
+    //   product = 0.653 * 0.45 * 0.713 * 0.82 = 0.172
+    for col in [0u16, cols - 1] {
+        let brightness = compounded_brightness(col, lines - 1, cols, lines, layer);
+        assert!(
+            (brightness - 0.172).abs() < 0.005,
+            "bottom-corner col {} compounded brightness {} should be ~0.172 (documented v30.2 target)",
+            col,
+            brightness
+        );
+    }
+}
+
+#[test]
+fn compounded_brightness_top_row_visible() {
+    // The top row should remain visibly dim (not destroyed). The v30.1
+    // retune targeted a compounded top brightness of ~0.53 (visible
+    // cinematic fade-in). v30.2 doesn't change the top row (no shadow
+    // applies there) — this test guards against accidental regressions
+    // in the CRT vignette or edge fade constants that would push the
+    // top row below the visibility floor.
+    use crate::droplet::compounded_brightness;
+
+    let cols: u16 = 80;
+    let lines: u16 = 40;
+    let layer: usize = 0;
+
+    // Top-center should be well above the visibility floor.
+    let top_center = compounded_brightness(cols / 2, 0, cols, lines, layer);
+    assert!(
+        top_center >= 0.30,
+        "top-center compounded brightness {} should be >= 0.30 (documented v30.1 target ~0.53)",
+        top_center
+    );
+
+    // Top corners may be slightly dimmer due to radial vignette but
+    // should still be visible.
+    for col in [0, cols - 1] {
+        let brightness = compounded_brightness(col, 0, cols, lines, layer);
+        assert!(
+            brightness >= 0.25,
+            "top corner col {} compounded brightness {} should be >= 0.25",
+            col,
+            brightness
+        );
+    }
+}
+
+#[test]
+fn compounded_brightness_interior_is_one() {
+    // Interior cells (no shadow, no edge fade, no CRT vignette, inside
+    // the radial vignette inner radius) should compound to exactly 1.0
+    // — no dimming. The radial vignette's VIGNETTE_INNER_RADIUS=0.7
+    // means cells within 70% of the screen half-extent are unmodified.
+    use crate::droplet::compounded_brightness;
+
+    let cols: u16 = 80;
+    let lines: u16 = 40;
+    let layer: usize = 0;
+
+    // Pick a cell firmly in the interior: well inside the top/bottom
+    // bands and well inside the radial inner radius.
+    let interior_col = cols / 2;
+    let interior_line = lines / 2;
+    let brightness = compounded_brightness(interior_col, interior_line, cols, lines, layer);
+    assert!(
+        (brightness - 1.0).abs() < 0.001,
+        "interior cell ({}, {}) compounded brightness should be 1.0, got {}",
+        interior_col,
+        interior_line,
+        brightness
+    );
+}
+
+#[test]
+fn compounded_brightness_front_layer_excludes_shadow_and_radial_vignette() {
+    // Front layer (layer=2) is exempt from rain shadow + radial vignette
+    // (RAIN_SHADOW_LAYER_MULT[2] = 0.0, VIGNETTE_LAYER_MULT[2] = 0.0).
+    // Only edge fade + CRT vignette apply. This keeps front-layer neon
+    // at full fidelity except at the very top/bottom edge bands.
+    use crate::droplet::compounded_brightness;
+
+    let cols: u16 = 80;
+    let lines: u16 = 40;
+    let front_layer: usize = PARALLAX_LAYERS - 1; // 2
+
+    // At the bottom-center, the back layer would compound shadow * edge
+    // * radial * crt. The front layer should compound ONLY edge * crt
+    // (shadow and radial are suppressed by LAYER_MULT=0.0).
+    let back_bottom = compounded_brightness(cols / 2, lines - 1, cols, lines, 0);
+    let front_bottom = compounded_brightness(cols / 2, lines - 1, cols, lines, front_layer);
+
+    // The front layer should be BRIGHTER than the back layer at the
+    // bottom row (no shadow dimming).
+    assert!(
+        front_bottom > back_bottom,
+        "front layer bottom brightness ({}) should exceed back layer ({}) — shadow + radial suppression",
+        front_bottom,
+        back_bottom
+    );
+
+    // At the interior, both layers should be 1.0 (no dimming applies
+    // to either).
+    let back_interior = compounded_brightness(cols / 2, lines / 2, cols, lines, 0);
+    let front_interior = compounded_brightness(cols / 2, lines / 2, cols, lines, front_layer);
+    assert!(
+        (back_interior - 1.0).abs() < 0.001 && (front_interior - 1.0).abs() < 0.001,
+        "interior cells should be 1.0 for both layers: back={}, front={}",
+        back_interior,
+        front_interior
+    );
+}
+
+#[test]
+fn compounded_brightness_matches_inline_render_path() {
+    // Verify the SSOT `compounded_brightness` function agrees with the
+    // inline render-path math at a sample cell. The render path computes
+    // each effect as `1.0 - (1.0 - raw) * LAYER_MULT[layer]` and then
+    // multiplies the RGB tuple in sequence. The SSOT must produce the
+    // same final multiplier.
+    //
+    // We don't call the actual render path here (it requires a full
+    // Cloud + Frame + DrawCtx setup); instead we replicate the inline
+    // formula manually and compare. This catches drift between the
+    // SSOT model and the render-path formula.
+    use crate::constants::{RAIN_SHADOW_LAYER_MULT, VIGNETTE_LAYER_MULT};
+    use crate::droplet::{
+        compounded_brightness, crt_vignette_factor, rain_shadow_factor, viewport_edge_fade,
+        vignette_factor,
+    };
+
+    let cols: u16 = 80;
+    let lines: u16 = 40;
+    let layer: usize = 0; // Back layer (LAYER_MULT = 1.0 for both)
+
+    // Sample at the bottom-corner (worst case — all 4 effects active).
+    let col = 0u16;
+    let line = lines - 1;
+
+    // Inline render-path computation (mirrors droplet.rs:885-924).
+    let shadow_raw = rain_shadow_factor(line, lines);
+    let shadow_inline = 1.0 - (1.0 - shadow_raw) * RAIN_SHADOW_LAYER_MULT[layer];
+    let edge_inline = viewport_edge_fade(line, lines);
+    let vignette_raw = vignette_factor(col, line, cols, lines);
+    let radial_inline = 1.0 - (1.0 - vignette_raw) * VIGNETTE_LAYER_MULT[layer];
+    let crt_inline = crt_vignette_factor(line, lines);
+    let inline_product = shadow_inline * edge_inline * radial_inline * crt_inline;
+
+    // SSOT computation.
+    let ssot = compounded_brightness(col, line, cols, lines, layer);
+
+    assert!(
+        (inline_product - ssot).abs() < 0.0001,
+        "SSOT compounded_brightness ({}) must match inline render-path product ({}) at bottom-corner cell. Drift indicates the SSOT model is out of sync with the render path.",
+        ssot,
+        inline_product
     );
 }
