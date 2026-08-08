@@ -705,4 +705,90 @@ mod cases {
             "10 Tab presses should not set force_draw_everything"
         );
     }
+
+    // ─── v30.10 regression: mouse click during idle must wake renderer ────────
+    //
+    // Bug: the mouse click handler used `let _ = register_activity(...)`,
+    // silently discarding the return value. When the cloud was idle (30s
+    // no input), a click did NOT trigger force_draw_everything or
+    // next_frame=now. The click effect rendered at the throttled 30 FPS
+    // idle cadence, causing the 0.8s quantum ripple lifespan to expire
+    // before the effect was fully visible — the "click effect immediately
+    // gone" bug. Key presses already had the wake-on-idle behavior; mouse
+    // clicks now match.
+    //
+    // This test verifies the register_activity contract: a click during
+    // idle returns true (caller should force_draw + advance next_frame).
+
+    #[test]
+    fn mouse_click_during_idle_schedules_resync() {
+        let start = Instant::now();
+        let activity_time = start + Duration::from_secs(60);
+        let mut pm = PowerManager::new(60.0, start);
+        let mut last_resync_time = start;
+
+        // Simulate a click during idle (was_idle = true).
+        let should_force_draw = register_activity(
+            &mut pm,
+            &mut last_resync_time,
+            activity_time,
+            true,  // was_idle
+            false, // force_resync
+        );
+
+        assert!(
+            should_force_draw,
+            "click during idle must return true (caller should force_draw + next_frame=now)"
+        );
+        assert_eq!(
+            last_resync_time, activity_time,
+            "click during idle must update last_resync_time"
+        );
+        assert!(
+            !pm.is_idle(),
+            "click must reset the idle timer so next frame runs at full FPS"
+        );
+    }
+
+    #[test]
+    fn mouse_click_while_active_does_not_force_resync() {
+        let start = Instant::now();
+        let activity_time = start + Duration::from_secs(1);
+        let mut pm = PowerManager::new(60.0, start);
+        let mut last_resync_time = start;
+
+        // Simulate a click while active (was_idle = false).
+        let should_force_draw = register_activity(
+            &mut pm,
+            &mut last_resync_time,
+            activity_time,
+            false, // was_idle
+            false, // force_resync
+        );
+
+        assert!(
+            !should_force_draw,
+            "click while active must NOT force_draw (avoids redundant full redraws)"
+        );
+        assert_eq!(
+            last_resync_time, start,
+            "click while active must NOT update last_resync_time"
+        );
+        assert!(!pm.is_idle(), "click must still reset the idle timer");
+    }
+
+    /// Mouse click must spawn quantum particles, regardless of idle state.
+    /// This guards the set_mouse_click contract.
+    #[test]
+    fn mouse_click_spawns_quantum_particles() {
+        let mut cloud = make_test_cloud();
+        let active_before = cloud.quantum_active_count;
+
+        cloud.set_mouse_click(5, 5);
+
+        assert!(
+            cloud.quantum_active_count > active_before,
+            "click must spawn quantum particles"
+        );
+    }
 }

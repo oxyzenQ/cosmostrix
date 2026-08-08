@@ -779,33 +779,35 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         next_frame = activity_time;
                     }
                     Event::Mouse(m) => {
-                        // v17: Mouse events are ALWAYS captured (mouse reporting
-                        // is always on). This blocks plain drag-select text copy
-                        // in ALL modes, preserving the ephemeral screensaver
-                        // aesthetic.
-                        //
-                        // v17 mastery: REMOVED force_draw_everything on mouse
-                        // move. The old code called force_draw on idle→active
-                        // transition, which rendered ALL cells (including trail
-                        // middles that normally skip) + seeded phosphor everywhere.
-                        // This produced a visible brightness flash that persisted
-                        // ~400ms until phosphor decayed — the owner reported
-                        // 'bright colors when moving mouse'. Now we only update
-                        // the idle timer (for FPS throttling) and mouse position.
-                        // The next regular diff frame handles rendering naturally.
+                        // v17: Mouse events ALWAYS captured (blocks drag-select).
+                        // v17 mastery: REMOVED force_draw_everything on mouse MOVE
+                        // — old code caused 'bright colors when moving mouse' flash.
+                        // v30.10 fix: mouse CLICK now wakes the renderer on idle→active
+                        // transition (matches key-press handler). Previously clicks
+                        // used `let _ = register_activity(...)`, silently ignoring
+                        // the wake signal. A click during idle rendered at the
+                        // throttled 30 FPS cadence, causing the 0.8s particle
+                        // lifespan to expire before the effect was fully visible —
+                        // the 'click effect immediately gone' bug.
                         let activity_time = Instant::now();
+                        let is_click = matches!(m.kind, MouseEventKind::Down(_));
+                        let was_idle = is_idle;
                         let _ = register_activity(
                             &mut power_manager,
                             &mut last_resync_time,
                             activity_time,
-                            is_idle,
+                            was_idle,
                             false,
                         );
-                        // v17 mastery: hover/click visual effects are ALWAYS ON
-                        // (--mouse flag deleted). No cfg.mouse gate.
+                        // Hover/click visual effects are ALWAYS ON (--mouse deleted).
                         cloud.set_mouse_position(m.column, m.row);
-                        if matches!(m.kind, MouseEventKind::Down(_)) {
+                        if is_click {
                             cloud.set_mouse_click(m.column, m.row);
+                            // Wake renderer immediately on idle→active click.
+                            if was_idle {
+                                cloud.force_draw_everything();
+                                next_frame = activity_time;
+                            }
                         }
                     }
                     Event::FocusGained => {
