@@ -1090,6 +1090,58 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             perf_pressure = (perf_pressure + (write_overshoot * PERF_PRESSURE_INCREMENT)).min(1.0);
         }
 
+        // ── P5: Endurance health sampling (ALWAYS ON) ──
+        //
+        // v30.6 (bug fix): previously this entire block was gated by
+        // `cfg.perf_stats`. When the user ran without --perf-stats, no
+        // samples were ever pushed to EnduranceHealth, so its score stayed
+        // at the initial 100.0 forever. That made the P2 self-healer
+        // (TriggerHealthMitigation) silently disable — a major footgun:
+        // a safety mitigation layer that vanishes the moment you turn off
+        // the display. The `--perf-stats` flag must control ONLY display,
+        // never mitigation. So we now always sample RSS + ctxt + frame
+        // time and always recompute. Cost: 2 syscalls/sec (read
+        // /proc/self/status + /proc/self/stat) + 1 isatty/min. Negligible.
+        endurance_health.push_frame_time(work_s as f64 * 1000.0);
+        if perf_rss_samples % 60 == 0 {
+            #[cfg(target_os = "linux")]
+            {
+                let rss = super::intro::read_self_rss_kb();
+                endurance_health.push_rss(rss as f64);
+            }
+            // P2: reuse work_start (captured just before cloud.rain_at)
+            // instead of another Instant::now(). Timing diff <1ms.
+            let elapsed = work_start
+                .saturating_duration_since(last_ctxt_sample)
+                .as_secs_f64();
+            if elapsed > 0.0 {
+                #[cfg(target_os = "linux")]
+                {
+                    let cur = super::intro::read_self_voluntary_ctxt();
+                    if last_ctxt_switches > 0 {
+                        let rate = (cur.saturating_sub(last_ctxt_switches)) as f64 / elapsed;
+                        endurance_health.push_ctxt_rate(rate);
+                    }
+                    last_ctxt_switches = cur;
+                }
+                last_ctxt_sample = work_start;
+            }
+            endurance_health.recompute();
+        }
+        perf_rss_samples = perf_rss_samples.saturating_add(1);
+
+        // P5: periodic stdout fd health probe (ALWAYS ON — not display state).
+        // Runs on the same slow tick (FD_HEALTH_PROBE_INTERVAL_FRAMES ≈
+        // 60s at 60 FPS). Detects fd corruption BEFORE a write fails.
+        // Cost: one isatty syscall per minute.
+        if perf_rss_samples % FD_HEALTH_PROBE_INTERVAL_FRAMES == 0 && !term.probe_stdout_health() {
+            // Recovery attempted — GRACEFUL_SHUTDOWN is set.
+            cloud.raining = false;
+            break;
+        }
+
+        // Display-only stats (gated by --perf-stats). These feed the HUD
+        // and the post-exit perf summary; they have no safety role.
         if cfg.perf_stats {
             perf_frames = perf_frames.saturating_add(1);
             if did_draw {
@@ -1109,76 +1161,18 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 perf_overshoot_frames = perf_overshoot_frames.saturating_add(1);
             }
             frame_time_tracker.push(work_s as f64 * 1000.0);
-
-            // P5: Feed endurance health tracker.
-            endurance_health.push_frame_time(work_s as f64 * 1000.0);
-            // Sample RSS every 60 frames (~1s at 60fps) to avoid /proc overhead.
-            if perf_rss_samples % 60 == 0 {
-                #[cfg(target_os = "linux")]
-                {
-                    let rss = super::intro::read_self_rss_kb();
-                    endurance_health.push_rss(rss as f64);
-                }
-                // Context switch rate sampling.
-                // P2: reuse work_start (captured just before cloud.rain_at) instead
-                // of another Instant::now(). The timing difference is <1ms, negligible
-                // for context switch rate measurement (sampled every 60 frames ≈ 1s).
-                let elapsed = work_start
-                    .saturating_duration_since(last_ctxt_sample)
-                    .as_secs_f64();
-                if elapsed > 0.0 {
-                    #[cfg(target_os = "linux")]
-                    {
-                        let cur = super::intro::read_self_voluntary_ctxt();
-                        if last_ctxt_switches > 0 {
-                            let rate = (cur.saturating_sub(last_ctxt_switches)) as f64 / elapsed;
-                            endurance_health.push_ctxt_rate(rate);
-                        }
-                        last_ctxt_switches = cur;
-                    }
-                    last_ctxt_sample = work_start;
-                }
-                endurance_health.recompute();
-            }
-            perf_rss_samples = perf_rss_samples.saturating_add(1);
-
-            // P5: periodic stdout fd health probe.
-            //
-            // Runs on the same slow tick as the P4 stuck-cell sweep
-            // (FD_HEALTH_PROBE_INTERVAL_FRAMES ≈ 60 s at 60 FPS). Detects
-            // fd corruption BEFORE a write fails — closing the idle-period
-            // window where stdout could break (SSH disconnect, terminal
-            // crash, parent death) without anything noticing until the
-            // next render attempt.
-            //
-            // On Unix: calls isatty(stdout_fd). If false, reuses the P3
-            // recovery path (recover_to_tty with an empty buffer + a
-            // synthetic BrokenPipe error) which sets GRACEFUL_SHUTDOWN.
-            // On non-Unix: no-op (always returns true).
-            //
-            // Cost: one isatty syscall per minute. Negligible.
-            if perf_rss_samples % FD_HEALTH_PROBE_INTERVAL_FRAMES == 0
-                && !term.probe_stdout_health()
-            {
-                // Recovery attempted — GRACEFUL_SHUTDOWN is set.
-                // Break the loop; the normal shutdown path runs
-                // (Terminal::drop restores the TTY from /dev/tty).
-                cloud.raining = false;
-                break;
-            }
         }
 
         // Performance self-healer (P1 + P2).
         //
-        // Called every frame after perf_pressure is finalized and (when
-        // perf_stats is on) endurance_health has been recomputed. The
+        // Called every frame after perf_pressure is finalized and
+        // endurance_health has been recomputed (always-on since v30.6). The
         // self-healer is a pure policy — it returns an action enum and
         // we apply the side effects here.
         //
-        // When perf_stats is off, endurance_health.score() stays at its
-        // initial 100.0 (no samples pushed), so P2's `score < 60` check
-        // never fires. P1 still works — it only needs perf_pressure,
-        // which is always tracked.
+        // v30.6: always pass Some(score). Before v30.6, when perf_stats
+        // was off, None was passed and P2 silently disabled. Now sampling
+        // is always-on (see P5 block above), so the score is always real.
         //
         // `now` uses `loop_now` (captured at top of frame) for consistency
         // with the rest of the timing-sensitive logic in this loop.
@@ -1192,16 +1186,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             self_healer.reset();
         }
 
-        let heal_action = self_healer.observe(perf_pressure, loop_now, {
-            // Only pass a real score when perf_stats is on — otherwise pass
-            // None so the self-healer skips the P2 check entirely (cheaper
-            // than passing 100.0 and having it compare every frame).
-            if cfg.perf_stats {
-                Some(endurance_health.score())
-            } else {
-                None
-            }
-        });
+        let heal_action =
+            self_healer.observe(perf_pressure, loop_now, Some(endurance_health.score()));
         match heal_action {
             SelfHealAction::None => {}
             SelfHealAction::TriggerHealthMitigation => {
