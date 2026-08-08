@@ -1136,7 +1136,7 @@ impl Cloud {
         }
 
         for &(col, line, factor) in &self.crt_vignette_candidates {
-            apply_crt_dim_cell(frame, col, line, factor, bg);
+            apply_crt_dim_cell(frame, col, line, factor, bg, self.color_pipeline);
         }
     }
 
@@ -1307,7 +1307,14 @@ impl Cloud {
 /// scan, called from the dirty-cell intersect loop in `apply_crt_vignette`.
 /// Identical math, identical output — just narrowed to cells that were
 /// actually drawn this frame.
-fn apply_crt_dim_cell(frame: &mut Frame, col: u16, row: u16, factor: f32, bg: Option<Color>) {
+fn apply_crt_dim_cell(
+    frame: &mut Frame,
+    col: u16,
+    row: u16,
+    factor: f32,
+    bg: Option<Color>,
+    pipeline: crate::runtime::ColorPipeline,
+) {
     // Integer-friendly brightness scale: factor * 256, rounded.
     // factor=0.8 → 205; factor=1.0 → 256 (no dim, but we skip writes
     // entirely when factor >= 1.0 via the early-return in the caller).
@@ -1326,16 +1333,20 @@ fn apply_crt_dim_cell(frame: &mut Frame, col: u16, row: u16, factor: f32, bg: Op
     let Some((r, g, b)) = crate::palette::decode_color(fg) else {
         return;
     };
-    let fi = (factor * 256.0) as i32;
-    // Integer multiply: (color * fi + 128) >> 8 — same pattern as
-    // other brightness modulations in Droplet::draw() (fog, parallax).
-    let nr = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-    let ng = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-    let nb = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-    let new_fg = Color::Rgb {
-        r: nr,
-        g: ng,
-        b: nb,
+    // v30.3 (chroma audit, A8): route brightness scale through the chroma
+    // engine when active, fall back to chroma::legacy::scale_rgb otherwise.
+    // Both paths use the same `((c * fi + 128) >> 8).clamp(0,255)` equation
+    // -- the difference is auditability. See
+    // docs/research/CHROMA_DRAGON_ENGINE_AUDIT.md §6.4.
+    let new_fg = if pipeline.is_chroma() {
+        crate::chroma::palette::apply_brightness_rgb(r, g, b, factor)
+    } else {
+        let (nr, ng, nb) = crate::chroma::legacy::scale_rgb(r, g, b, factor);
+        Color::Rgb {
+            r: nr,
+            g: ng,
+            b: nb,
+        }
     };
     let new_cell = crate::cell::Cell {
         ch: cell.ch,

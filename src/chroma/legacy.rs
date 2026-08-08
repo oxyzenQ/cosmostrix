@@ -69,15 +69,12 @@
 /// Bit-identical to the pre-extraction inline equation. See module
 /// docs on the parity contract.
 ///
-/// # Caller status (v30.3 disclosure commit)
-/// Not yet wired into production hot paths. The migration commits
-/// (P6: `apply_crt_dim_cell`, P7: droplet brightness paths) will
-/// replace the inlined `>> 8` math with a call to this function.
-/// The `#[allow(dead_code)]` below is removed by the first migration
-/// commit that lands a caller.
+/// # Caller status (v30.3 P6 migration)
+/// Wired into `cloud::rain::apply_crt_dim_cell` for the legacy fallback
+/// path. The chroma path uses `chroma::palette::apply_brightness_rgb`
+/// (same equation, owned by the chroma engine).
 #[inline]
 #[must_use]
-#[allow(dead_code)]
 pub(crate) fn scale_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
     let fi = (factor * 256.0) as i32;
     (

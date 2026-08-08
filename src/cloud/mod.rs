@@ -51,7 +51,7 @@ use crate::droplet::Droplet;
 use crate::frame::Frame;
 use crate::palette::{build_palette, Palette};
 use crate::rain_style::RainStyle;
-use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
+use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSize, ShadingMode};
 
 use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
@@ -84,6 +84,8 @@ pub struct Cloud {
 
     pub(super) palette: Palette,
     pub(super) color_mode: ColorMode,
+    /// v30.3: cached `ColorPipeline::detect(color_mode)`.
+    pub(super) color_pipeline: ColorPipeline,
     pub(super) rain_style: RainStyle,
     monolith_size: MonolithSize,
 
@@ -281,6 +283,7 @@ impl Cloud {
             cols: 80,
             palette: build_palette(color_scheme, color_mode, default_background),
             color_mode,
+            color_pipeline: ColorPipeline::detect(color_mode),
             rain_style,
             monolith_size: MonolithSize::Normal,
             shading_distance: matches!(shading_mode, ShadingMode::DistanceFromHead),
@@ -551,17 +554,14 @@ impl Cloud {
         self.entropy_drift = other.entropy_drift;
         self.start_anchor = other.start_anchor;
     }
-
     #[must_use]
     pub fn active_scene(&self) -> &str {
         &self.scene_name
     }
-
     #[must_use]
     pub fn hud_colors(&self) -> &[crossterm::style::Color] {
         &self.palette.colors
     }
-
     pub fn toggle_pause(&mut self) -> bool {
         // BRANCH 1: mid-deceleration → abort & resume. Capture current
         // resume_blend as ramp start (audit §8.4 — interpolate 0.4→1.0).
