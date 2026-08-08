@@ -102,9 +102,11 @@
 // to all consumers via `crate::constants::*` (which itself re-exports
 // this module).
 
+mod endurance_health;
 mod phase_predictor;
 mod reclaim_state;
 
+pub(crate) use endurance_health::*;
 pub(crate) use phase_predictor::*;
 pub(crate) use reclaim_state::*;
 
