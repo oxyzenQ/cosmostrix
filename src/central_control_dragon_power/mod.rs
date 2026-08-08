@@ -105,10 +105,12 @@
 mod endurance_health;
 mod phase_predictor;
 mod reclaim_state;
+mod self_healer;
 
 pub(crate) use endurance_health::*;
 pub(crate) use phase_predictor::*;
 pub(crate) use reclaim_state::*;
+pub(crate) use self_healer::*;
 
 // ─── Perf pressure pipeline ─────────────────────────────────────────────────
 //
