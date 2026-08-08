@@ -129,19 +129,34 @@ impl Cloud {
             self.transition_rain_style(new_style);
         }
 
-        // Apply scene color if specified
+        // Apply scene color if specified.
+        // Guard: skip set_color_scheme when the scene's color matches the
+        // current scheme. This prevents a spurious 300ms palette transition
+        // wave when cycling between scenes that share the same palette
+        // (e.g. cinematic → monolith, both neon-purple). Without this guard,
+        // the transition wave destabilizes apply_quantum_ripple's blend base
+        // (cell.fg is mid-transition old/new palette mix), producing
+        // inconsistent click effect colors — the "snow ice vs spark fire" bug.
         if let Some(color_name) = config.color {
             if let Ok(scheme) = parse_color_scheme(color_name) {
-                self.set_color_scheme(scheme);
+                if scheme != self.color_scheme {
+                    self.set_color_scheme(scheme);
+                }
             }
         }
 
-        // Apply scene charset if specified
+        // Apply scene charset if specified.
+        // Guard: skip transition_chars when the preset matches the current
+        // one — cinematic and monolith both use "zen", so cycling between
+        // them must NOT start a charset transition wave (same root cause as
+        // the color-scheme guard above).
         let charset_name: &str = config.charset.unwrap_or(current_charset_preset);
         let charset_owned = charset_name.to_string();
-        if let Ok(cs) = charset_from_str(charset_name, def_ascii) {
-            let chars = build_chars(cs, user_ranges, def_ascii);
-            self.transition_chars(chars);
+        if charset_name != current_charset_preset {
+            if let Ok(cs) = charset_from_str(charset_name, def_ascii) {
+                let chars = build_chars(cs, user_ranges, def_ascii);
+                self.transition_chars(chars);
+            }
         }
 
         // Apply speed
@@ -211,18 +226,26 @@ impl Cloud {
                 if self.rain_style != new_style {
                     self.transition_rain_style(new_style);
                 }
-                // color
+                // color — guard: skip set_color_scheme when the base-scene's
+                // color matches the current scheme (same rationale as the
+                // built-in path: avoid spurious palette transition wave).
                 if let Some(color_name) = base_cfg.color {
                     if let Ok(scheme) = parse_color_scheme(color_name) {
-                        self.set_color_scheme(scheme);
+                        if scheme != self.color_scheme {
+                            self.set_color_scheme(scheme);
+                        }
                     }
                 }
-                // charset
+                // charset — guard: skip transition_chars when the base-scene's
+                // charset matches the current preset (same rationale as the
+                // built-in path: avoid spurious charset transition wave).
                 let base_charset = base_cfg.charset.unwrap_or(current_charset_preset);
                 charset_preset = base_charset.to_string();
-                if let Ok(cs) = charset_from_str(base_charset, def_ascii) {
-                    let chars = build_chars(cs, user_ranges, def_ascii);
-                    self.transition_chars(chars);
+                if base_charset != current_charset_preset {
+                    if let Ok(cs) = charset_from_str(base_charset, def_ascii) {
+                        let chars = build_chars(cs, user_ranges, def_ascii);
+                        self.transition_chars(chars);
+                    }
                 }
                 // speed
                 if let Some(speed) = base_cfg.speed {

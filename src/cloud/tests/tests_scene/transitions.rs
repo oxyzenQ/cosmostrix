@@ -477,3 +477,100 @@ fn apply_startup_ambient_with_real_cfg_applies_custom_scene() {
         "base-scene=signal must inherit retro charset"
     );
 }
+
+// ── Quantum ripple consistency: same-palette scene cycle ──
+//
+// Bug: pressing `x` to cycle cinematic → monolith (both neon-purple, both
+// zen charset) triggered a spurious 300ms palette transition wave because
+// set_color_scheme and transition_chars were called unconditionally. During
+// that 300ms window, apply_quantum_ripple's blend with cell.fg (which could
+// be mid-transition old/new palette mix) produced inconsistent click effect
+// colors — the "snow ice vs spark fire" bug.
+//
+// Fix: set_color_scheme has an internal no-op guard for same-scheme calls;
+// transition_chars is guarded at the scene-runtime call site. Together they
+// ensure same-palette + same-charset scene cycles do NOT start transition
+// waves, keeping the quantum ripple blend base stable.
+
+#[test]
+fn same_palette_scene_cycle_does_not_trigger_color_transition() {
+    let mut cloud = make_cinematic_like_cloud();
+    // make_cinematic_like_cloud applies cinematic which starts a color
+    // transition (Green → NeonPurple). Clear it so we start from a clean
+    // settled state.
+    cloud.transition_start = None;
+    cloud.charset_transition_start = None;
+
+    // Cycle cinematic → monolith. Both use color=neon-purple, charset=zen.
+    // The only real change is rain_style (Glyph → Monolith).
+    cloud.apply_scene_runtime("monolith", "zen", &[], false);
+
+    // Color transition must NOT have started — palette is identical.
+    assert!(
+        cloud.transition_start.is_none(),
+        "same-palette scene cycle must NOT trigger color transition \
+         (cinematic and monolith both use neon-purple)"
+    );
+    // Charset transition must NOT have started — charset is identical.
+    assert!(
+        cloud.charset_transition_start.is_none(),
+        "same-charset scene cycle must NOT trigger charset transition \
+         (cinematic and monolith both use zen)"
+    );
+    // Color scheme is still NeonPurple.
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::NeonPurple,
+        "color scheme must remain neon-purple after cycling to monolith"
+    );
+}
+
+#[test]
+fn different_palette_scene_cycle_does_trigger_color_transition() {
+    // Control test: cycling cinematic (neon-purple) → matrix (neon-green)
+    // MUST trigger a color transition because the palette actually changes.
+    // This verifies the guard is selective — it only skips same-scheme calls.
+    let mut cloud = make_cinematic_like_cloud();
+    cloud.transition_start = None;
+    cloud.charset_transition_start = None;
+
+    cloud.apply_scene_runtime("matrix", "matrix", &[], false);
+
+    assert!(
+        cloud.transition_start.is_some(),
+        "different-palette scene cycle MUST trigger color transition \
+         (cinematic=neon-purple, matrix=neon-green)"
+    );
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::NeonGreen,
+        "color scheme must switch to neon-green after applying matrix scene"
+    );
+}
+
+#[test]
+fn set_color_scheme_same_scheme_still_clears_stale_state() {
+    // Direct callers of set_color_scheme (tests, `c` key, live config reload)
+    // ALWAYS get the full behavior — palette rebuild, transition wave, stale
+    // state cleanup — even when the scheme is unchanged. The same-scheme
+    // no-op guard lives at the scene-runtime call site, NOT inside
+    // set_color_scheme itself. This verifies the contract: the residue
+    // cleanup test (monolith_color_and_charset_transitions_clear_stale_residue)
+    // depends on set_color_scheme always clearing draw history.
+    let mut cloud = make_cinematic_like_cloud();
+    cloud.transition_start = None;
+    let slot_before = cloud.active_palette_slot;
+
+    cloud.set_color_scheme(ColorScheme::NeonPurple); // same as current
+
+    // set_color_scheme unconditionally advances the palette slot and starts
+    // a transition — even for same-scheme calls.
+    assert!(
+        cloud.transition_start.is_some(),
+        "direct set_color_scheme call must start a transition even for same scheme"
+    );
+    assert_ne!(
+        cloud.active_palette_slot, slot_before,
+        "direct set_color_scheme call must advance palette slot even for same scheme"
+    );
+}

@@ -34,6 +34,20 @@ pub(crate) fn sanitize_speed_for_style(cps: f32, rain_style: RainStyle) -> f32 {
 }
 
 impl Cloud {
+    /// Switch the active color scheme and start a palette transition wave.
+    ///
+    /// This method ALWAYS applies the scheme — it rebuilds the palette,
+    /// re-randomizes the per-cell color map, resets column palette slots,
+    /// starts the 300ms transition wave, and clears stale monolith draw
+    /// history / phosphor state.
+    ///
+    /// Callers that need a same-scheme no-op guard (e.g. scene cycling,
+    /// where `cinematic` and `monolith` both use `neon-purple`) must
+    /// compare `self.color_scheme()` themselves before calling. The guard
+    /// lives at the call site (`apply_builtin_scene_runtime`,
+    /// `apply_custom_scene_runtime`) so that direct callers (tests, `c`
+    /// key, live config reload) retain the full cleanup behavior even
+    /// when the scheme is unchanged.
     pub fn set_color_scheme(&mut self, scheme: ColorScheme) {
         self.color_scheme = scheme;
         use crate::palette::build_palette;
