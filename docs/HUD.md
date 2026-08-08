@@ -11,7 +11,104 @@ diagnostic value).
 
 This document is the canonical reference for what each HUD line means,
 why it can disagree with `--benchmark` numbers, and how to use it to
-diagnose common issues.
+diagnose common issues. New users: start with the [Quick Reference](#quick-reference)
+table and the [How to Read the HUD in 10 Seconds](#how-to-read-the-hud-in-10-seconds)
+section. Veterans jump straight to [Diagnostic Recipes](#diagnostic-recipes)
+or [Common Misreadings](#common-misreadings--pitfalls).
+
+---
+
+## Quick Reference
+
+At-a-glance table for users who just pressed `i` and need to know what
+each line means without reading the full reference below.
+
+| Row | Label        | Unit           | What it tells you in one sentence                                                                  |
+|-----|--------------|----------------|----------------------------------------------------------------------------------------------------|
+| 0   | ` fps:`      | FPS (number)   | Render-work throughput = `1000 / avg_work_ms`. Often 10-100× higher than `tgt:` because loop sleep is excluded. |
+| 1   | ` tgt:`      | FPS (number)   | **Target** FPS cap from `--fps` / `config.toml`. The cap you configured, with optional `idle` / `paused` mode suffix. |
+| 2   | ` p99:`      | ms             | 99th-percentile frame time. The slowest 1% of recent frames — catches spikes `avg` hides.          |
+| 3   | ` max:`      | ms             | Maximum frame time observed in the last 60 seconds. Auto-resets so a startup spike does not dominate forever. |
+| 4   | ` rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth → possible leak.                       |
+| 5   | ` cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
+| 6   | ` up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
+| 7   | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
+
+**Symbol legend:**
+
+| Symbol / Suffix | Meaning                                                                                          |
+|-----------------|--------------------------------------------------------------------------------------------------|
+| ` idle`         | After `tgt:` — adaptive idle throttle engaged (no input for 30s; effective FPS = `tgt × 0.5`).   |
+| ` paused`       | After `tgt:` — user pressed Space/P; loop ticking at 4 Hz just to keep event loop alive.         |
+| `ms`            | Milliseconds (frame time unit). 1ms = 0.001s. A 60 FPS target = 16.67ms budget per frame.        |
+| `KiB` / `MiB`   | 1024 bytes / 1024² bytes (binary, NOT decimal SI units).                                         |
+| `%`             | Percent of one CPU core. 100% = one full core. Multi-threaded spills can exceed 100%.            |
+| `—` (em dash)   | Metric unavailable: unsupported platform (non-unix for `cpu:`) or pre-delta window (first ~1s).  |
+| `auto` / `fix`  | After screensize: `auto` = follows terminal resize, `fix` = `--screen-size WxH` locked.          |
+
+---
+
+## Annotated HUD Layout
+
+What you actually see in the corner after pressing `i` (left position
+shown; right position mirrors to the right edge). All 8 lines are
+visible at once; this mockup annotates each:
+
+```text
+┌─────────────────────────┐
+│ fps: 451      ◄── 0. render-work throughput (NOT the cap)
+│ tgt: 60       ◄── 1. your --fps cap, "60" = sixty FPS target
+│ p99: 0.832ms  ◄── 2. slowest 1% of frames (spike detector)
+│ max: 1.204ms  ◄── 3. worst frame in last 60s (auto-resets)
+│ rss: 8.2MiB   ◄── 4. process memory (leak detector)
+│ cpu: 1.43%    ◄── 5. process CPU% (one core = 100%)
+│ up: 03:42     ◄── 6. session uptime (MM:SS under 1h)
+│ 200x50 auto   ◄── 7. terminal size + mode (auto/fix)
+└─────────────────────────┘
+```
+
+**Color gradient (top dim → bottom bright):** the HUD mirrors a falling
+rain droplet — the bottom line (`screensize`) is the brightest `head`
+(rain leading character), the top line (`fps`) is the dimmest `tail`
+(rain trailing fade). See [HUD Color Scheme](#hud-color-scheme) below
+for the full palette mapping.
+
+**Width is dynamic:** the HUD grows to fit the longest line (capped at
+22 cols, floored at 12 cols). High-FPS values like `fps: 11000` push
+the width out; short values like `fps: 30` let it shrink.
+
+---
+
+## How to Read the HUD in 10 Seconds
+
+1. **Check `tgt:` first** — confirms your `--fps` setting was applied.
+   If you ran `--fps 30` and `tgt:` shows `30`, the cap is in effect.
+   If `tgt:` shows `30 idle`, the idle throttle kicked in (no input
+   for 30s) — effective rate is ~15 FPS. If `tgt:` shows `30 paused`,
+   you pressed Space/P — press again to resume.
+
+2. **Compare `fps:` to `tgt:`** — `fps:` is render-work throughput
+   (how fast the renderer *could* draw), `tgt:` is the cap (how fast
+   it *is* drawing). If `fps:` >> `tgt:`, the renderer has huge
+   headroom and the loop is sleeping. If `fps:` ≈ `tgt:`, the
+   renderer is the bottleneck (work_ms approaches the frame period).
+
+3. **Check `p99:` and `max:` together** — `p99:` catches recurring
+   spikes, `max:` catches one-off spikes. If `max:` >> `p99:`, the
+   worst frame was a fluke (resize, signal, cold cache). If `max:` ≈
+   `p99:`, the slow path is recurring — investigate.
+
+4. **Watch `rss:` over time** — a flat `rss:` is healthy. Steady growth
+   across minutes suggests a memory leak; see `docs/ENDURANCE.md` for
+   the leak-detection methodology.
+
+5. **Glance at `cpu:`** — single-threaded builds typically read 0-5%
+   during active rendering (the loop sleeps most of the frame). If
+   `cpu:` reads >50% on a single-threaded build, the renderer is CPU-
+   bound. On multi-threaded builds, brief spikes above 100% are normal.
+
+The remaining sections go deeper into each line, edge cases, and
+diagnostic recipes for specific symptoms.
 
 ---
 
@@ -48,7 +145,11 @@ behavior, not a bug.
 
 **User-configured target FPS cap** (from `--fps` or config.toml `fps =`),
 with an optional mode suffix indicating whether the cap is currently in
-effect.
+effect. The label `tgt` is short for **target** — it is the frame-rate
+ceiling the loop is aiming for, distinct from `fps:` which is the
+render-work throughput (often far above the cap because loop sleep is
+excluded from `work_ms`). Read the two lines together: `tgt:` is the
+goal, `fps:` is the headroom.
 
 - ` tgt: 30` — active, loop targeting 30 FPS
 - ` tgt: 30 idle` — adaptive idle throttle engaged (effective rate is
@@ -258,6 +359,123 @@ RGB(0,200,0), preserving the green hue).
    characters per line — rain on the rest of the line is preserved.
    This was the root cause of the historical "blank space above rain"
    bug: `\x1b[2K` cleared all columns, not just the HUD area.
+
+---
+
+## Diagnostic Recipes
+
+Symptom → likely cause → what to check → action. Use this table when
+the HUD is showing something unexpected and you need a starting point.
+
+| Symptom                                            | Likely cause                                         | What to check                                             | Action                                                                                          |
+|----------------------------------------------------|------------------------------------------------------|-----------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+| `fps:` shows a huge number (e.g. `11000`) with `--fps 30` | Loop sleeping to maintain cap (NOT a bug)      | `tgt:` line — should show `30`                            | None needed. Read `tgt:` to verify the cap, ignore `fps:` for cap verification.                 |
+| `tgt:` shows `30 idle`                             | No input for 30s, idle throttle engaged              | Recent keyboard/mouse activity                            | Press any key or click to return to active mode; `tgt:` reverts to `30`.                        |
+| `tgt:` shows `30 paused`                           | Space or `p` was pressed                             | Recent key presses                                        | Press Space or `p` again to resume.                                                             |
+| `p99:` >> `avg` (e.g. p99=10ms, avg=0.5ms)         | Periodic stalls (GC, kernel scheduling, terminal backpressure) | Recent terminal activity, other running processes | Investigate with `strace`/`perf` on Linux; check terminal GPU acceleration settings.            |
+| `max:` >> `p99:` (e.g. max=50ms, p99=2ms)          | One-off spike (resize, signal, first-frame cold cache) | Whether a resize or signal happened around the spike time | Safe to ignore unless it recurs. `max:` auto-resets every 60s.                                  |
+| `rss:` grows steadily over minutes                 | Possible memory leak                                 | `rss:` trend over 5-10 minutes                            | See `docs/ENDURANCE.md` for leak-detection methodology. Run `--benchmark` for a fixed-duration sample. |
+| `cpu:` shows `—` (em dash)                         | Unsupported platform (non-unix) or pre-delta window  | Platform; time since HUD toggle-on                        | On unix, the em dash should disappear within 1s. On non-unix, `cpu:` is permanently unavailable. |
+| `cpu:` > 100%                                      | Multi-threaded build spilling onto another core      | Build flags (single-threaded vs multi-threaded)           | Brief spikes are normal. Sustained >100% suggests worker threads are saturated.                 |
+| `up:` shows wrong uptime                           | `session_start` set at HUD creation, not process start | Process start time vs HUD toggle-on time                  | `up:` measures time since the `HudState` was constructed (process startup), not since `i` press. |
+| Screensize shows `200x50 fix` when terminal resized | `--screen-size WxH` was passed, locking the size     | CLI flags / config.toml                                   | Remove `--screen-size` to let the size follow terminal resize (`auto` mode).                    |
+| HUD does not appear after pressing `i`             | HUD is at the opposite corner from where you looked   | Press `h` to toggle corner, or check both corners         | Press `h` to move HUD between left and right corners.                                           |
+| HUD numbers flicker / change too fast              | Expected at 1 Hz — if faster, check for a regression | `HUD_METRIC_INTERVAL` constant in `src/interactive/hud.rs` | 1 Hz is the world-class standard (htop, mangoHUD). Do not increase the rate.                    |
+| HUD colors look grey / washed out                  | Palette has very dim stops; brighten fallback engaged | Active palette (`c`/`C` to cycle, or check config)        | Pure-black palette stops fall back to neutral grey RGB(120,120,120). Use a palette with non-black stops. |
+
+---
+
+## Common Misreadings & Pitfalls
+
+Explicit list of ways users get confused by the HUD. Each entry states
+the wrong reading, the correct reading, and why the difference matters.
+
+### Misreading 1: "fps: 11000 means my `--fps 30` flag is broken"
+
+**Wrong:** `fps:` is the loop's frame-rate cap.
+**Correct:** `fps:` is render-work throughput = `1000 / work_ms`. The
+loop sleeps between frames to maintain the `--fps` cap, and sleep time
+is NOT part of `work_ms`. So a 30 FPS cap with 0.1ms render work shows
+`fps: 10000` — the renderer could draw 10000 frames/sec if unconstrained,
+but the cap holds it to 30.
+**Why it matters:** users file bug reports about `--fps` being ignored
+when it is actually working correctly. Always cross-check `tgt:` to
+verify the cap.
+**Fix:** v30 (2026-08-05) added the `tgt:` line specifically to
+disambiguate this. See [HUD vs `target_fps`](#hud-vs-target_fps-the---fps-confusion).
+
+### Misreading 2: "cpu: 0.50% means the renderer is doing nothing"
+
+**Wrong:** `cpu:` measures total process activity.
+**Correct:** `cpu:` measures process CPU% as a fraction of one core.
+A single-threaded build at 0.5% means the renderer is doing 0.5% of
+one core's work — the other 99.5% is loop sleep (maintaining the cap)
+or kernel-side I/O. On a 60 FPS cap with 0.1ms render work, the loop
+is active 0.3% of the time (0.1ms / 33.3ms).
+**Why it matters:** users think the renderer is stalled when it is
+actually just idle-throttled by design.
+
+### Misreading 3: "rss: 8.2MiB is a memory leak"
+
+**Wrong:** Any non-zero `rss:` indicates a leak.
+**Correct:** `rss:` is the resident set size — all resident pages
+including code, heap, and mmap'd files. A flat `rss:` around 8-15 MiB
+is normal for cosmostrix. A leak shows as STEADY GROWTH across minutes
+or hours, not as a fixed elevated value.
+**Why it matters:** users file leak reports for normal startup RSS.
+Check the trend, not the absolute value.
+
+### Misreading 4: "max: 50ms means the renderer is slow"
+
+**Wrong:** `max:` reflects current renderer performance.
+**Correct:** `max:` is the worst frame time in the last 60 seconds.
+A single resize event or signal can produce a 50ms spike that has
+nothing to do with render performance. Compare `max:` to `p99:` — if
+`p99:` is low (e.g. 2ms) and `max:` is high (e.g. 50ms), the spike was
+a one-off, not a recurring slow path.
+**Why it matters:** users optimize for a one-off spike that will never
+recur. `max:` auto-resets every 60s to surface only recent peaks.
+
+### Misreading 5: "tgt: 30 idle means the renderer is broken"
+
+**Wrong:** `idle` suffix means the renderer crashed or stalled.
+**Correct:** `idle` means the adaptive idle throttle engaged after 30s
+of no input. The loop is intentionally running at half-rate (`target_fps
+× IDLE_FPS_FACTOR`, typically 0.5×) to save CPU when no one is watching.
+Any input (key press, mouse click, mouse move) returns to active mode.
+**Why it matters:** users think the program is hung. Press any key to
+verify it snaps back to `tgt: 30` (no suffix).
+
+### Misreading 6: "screensize 80x24 auto changes when I resize my window"
+
+**Wrong:** `auto` means it auto-detects once at startup.
+**Correct:** `auto` means the size follows terminal resize events in
+real time. `fix` means `--screen-size WxH` was passed and the size is
+locked (resize events are ignored). If you see `fix` and want resize
+to work, remove `--screen-size` from your CLI / config.
+**Why it matters:** users think resize is broken when they accidentally
+passed `--screen-size`.
+
+### Misreading 7: "the HUD colors are wrong — they don't match my palette"
+
+**Wrong:** HUD colors are hardcoded.
+**Correct:** HUD colors come from the active rain palette, hue-preserving
+brightened via HSV value scaling. A green rain produces a green HUD; an
+amber rain produces an amber HUD. If the HUD looks grey, the palette's
+tail stop is probably pure black (RGB 0,0,0), which falls back to
+neutral grey RGB(120,120,120) because hue cannot be preserved on black.
+**Why it matters:** users think the HUD is decoupled from the palette.
+Cycle palettes with `c`/`C` to see the HUD track the rain's color.
+
+### Misreading 8: "p99: 0.000ms means frames are taking zero time"
+
+**Wrong:** `p99: 0.000ms` means the renderer is infinitely fast.
+**Correct:** `p99: 0.000ms` usually means the ring buffer is empty
+(no frames have been recorded yet) or all recorded frames rounded to
+0.000ms at 3-decimal precision. This is common in the first second
+after HUD toggle-on. Once frames accumulate, `p99:` shows real values.
+**Why it matters:** users think the HUD is broken. Wait 1-2 seconds
+for the ring buffer to fill.
 
 ---
 

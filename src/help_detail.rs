@@ -403,6 +403,8 @@ RUNTIME CONTROLS:
   Up / Down     Speed
   Space         Reset animation
   i             Toggle live HUD (fps / tgt / p99 / max / RSS / CPU% / uptime / screen)
+                See docs/HUD.md for what each line means, why `fps:` ≠ `--fps`,
+                and diagnostic recipes for common symptoms.
   h             Move HUD to opposite corner (left ↔ right)
 
 HELP:
