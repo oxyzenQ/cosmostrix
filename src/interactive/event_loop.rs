@@ -19,10 +19,9 @@ use crate::report::Report;
 use crate::terminal::{is_terminal_gone, Terminal};
 
 use super::super::{effective_density, CloudConfig};
-use super::activity::{is_runtime_idle, register_activity, spin_wait, FrameTimeTracker};
+use super::activity::{register_activity, spin_wait, FrameTimeTracker};
 use super::adaptive::{
-    adaptive_resync_interval, local_secs_since_midnight, EnduranceHealth, PerformanceSelfHealer,
-    PhasePredictor, ReclaimState, SelfHealAction,
+    adaptive_resync_interval, EnduranceHealth, PerformanceSelfHealer, ReclaimState, SelfHealAction,
 };
 use super::hud::{FrameMode, HudState};
 use super::input::{handle_keybinding, PasteBurstGuard};
@@ -136,10 +135,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         Some(start_time + Duration::from_secs_f64(s))
     });
 
-    let mut target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
-    let pause_period = Duration::from_millis(PAUSE_PERIOD_MS);
     let mut next_frame = Instant::now();
-    let mut perf_pressure: f32 = 0.0;
+    // v30.8 (Phase 3): PowerManager owns perf_pressure accumulation,
+    // is_idle detection, and effective FPS resolution. Replaces the
+    // previously-scattered target_period / idle_period / pause_period
+    // Duration cascade + inline perf_pressure accumulator.
+    let mut power_manager = PowerManager::new(cfg.target_fps, Instant::now());
 
     let mut perf_frames: u64 = 0;
     let mut perf_drawn_frames: u64 = 0;
@@ -173,17 +174,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Resize debounce: coalesce rapid resize storms into a single apply.
     let mut last_resize_event: Option<Instant> = None;
 
-    // Adaptive throttling: reduce effective FPS after IDLE_THRESHOLD_SECS idle.
-    let mut last_input_time = Instant::now();
-    let mut last_resync_time = last_input_time;
-    let mut idle_period = Duration::from_secs_f64(1.0 / (cfg.target_fps * IDLE_FPS_FACTOR));
-
-    // P1: Phase predictor — learns daily activity cycle for proactive idle.
-    let mut phase_predictor = PhasePredictor::new();
-    let mut was_active = true; // Start assuming active; first idle transition records.
-
-    // P2: Track sustained idle duration for adaptive resync interval.
-    let mut idle_started: Option<Instant> = None;
+    // Adaptive throttling: PowerManager owns the idle timer + phase
+    // predictor + idle_started tracker. last_resync_time stays here
+    // because resync scheduling is a Cloud concern, not a power concern.
+    let mut last_resync_time = Instant::now();
 
     // P4: Memory reclaim state — rate-limits madvise hints during idle.
     let mut reclaim_state = ReclaimState::new();
@@ -397,14 +391,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             frame = Frame::new(w, h, cloud.palette.bg);
             super::fill_terminal_bg(cloud.palette.bg);
             charset_preset = new_cfg.charset_preset.clone();
-            // v25.5: recompute target/idle_period from new target_fps (guard fps <= 0).
+            // v25.5: recompute target from new target_fps (guard fps <= 0).
+            // v30.8 (Phase 3): PowerManager.set_target_fps replaces the
+            // target_period + idle_period Duration recompute.
             let safe_fps = if new_cfg.target_fps > 0.0 {
                 new_cfg.target_fps
             } else {
                 cfg.target_fps.max(1.0)
             };
-            target_period = Duration::from_secs_f64(1.0 / safe_fps);
-            idle_period = Duration::from_secs_f64(1.0 / (safe_fps * IDLE_FPS_FACTOR));
+            power_manager.set_target_fps(safe_fps);
             // v30 (2026-08-05): keep HUD tgt: line in sync with live-reloaded fps.
             hud_state.set_target_fps(safe_fps);
 
@@ -502,29 +497,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // scene changes and reset the self-healer. Phase D: u64 copy
         // replaces a per-frame String clone.
         let scene_generation_at_frame_start = scene_generation;
-        let reactive_idle = is_runtime_idle(last_input_time, loop_now);
-        let predicted_idle = phase_predictor
-            .predicts_active(local_secs_since_midnight())
-            .map(|active| !active)
-            .unwrap_or(false);
-        let is_idle = reactive_idle || predicted_idle;
-
-        // Track phase transitions for the predictor.
-        let now_active = !is_idle;
-        if now_active != was_active {
-            phase_predictor.record_transition(now_active, local_secs_since_midnight());
-            was_active = now_active;
-        }
-
-        // Track idle duration for P2 adaptive resync.
-        if is_idle && idle_started.is_none() {
-            idle_started = Some(loop_now);
-        } else if !is_idle {
-            idle_started = None;
-        }
+        // v30.8 (Phase 3): PowerManager.begin_frame() computes is_idle
+        // (reactive || predicted), updates the phase predictor, and tracks
+        // idle_started — all in one call. Replaces the inline computation
+        // that previously lived here (lines 505-524 in v30.7).
+        let is_idle = power_manager.begin_frame(loop_now);
 
         // P2: Use adaptive resync interval based on sustained idle duration.
-        let idle_secs = idle_started
+        let idle_secs = power_manager
+            .idle_started()
             .map(|t| loop_now.saturating_duration_since(t).as_secs_f64())
             .unwrap_or(0.0);
         let effective_resync_interval = adaptive_resync_interval(idle_secs);
@@ -642,7 +623,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         let activity_time = Instant::now();
                         if paste_guard.ignore_plain_key(&k, activity_time) {
                             let _ = register_activity(
-                                &mut last_input_time,
+                                &mut power_manager,
                                 &mut last_resync_time,
                                 activity_time,
                                 is_idle,
@@ -684,7 +665,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             // forces an immediate frame render, bypassing
                             // the long wait.
                             let _ = register_activity(
-                                &mut last_input_time,
+                                &mut power_manager,
                                 &mut last_resync_time,
                                 activity_time,
                                 is_idle,
@@ -705,7 +686,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                                 cloud.force_draw_everything();
                             }
                             let _ = register_activity(
-                                &mut last_input_time,
+                                &mut power_manager,
                                 &mut last_resync_time,
                                 activity_time,
                                 is_idle,
@@ -719,7 +700,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
                         // Any user input resets idle timer for adaptive throttling.
                         if register_activity(
-                            &mut last_input_time,
+                            &mut power_manager,
                             &mut last_resync_time,
                             activity_time,
                             is_idle,
@@ -787,7 +768,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         let activity_time = Instant::now();
                         paste_guard.note_bracketed_paste(activity_time);
                         let _ = register_activity(
-                            &mut last_input_time,
+                            &mut power_manager,
                             &mut last_resync_time,
                             activity_time,
                             is_idle,
@@ -813,7 +794,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // The next regular diff frame handles rendering naturally.
                         let activity_time = Instant::now();
                         let _ = register_activity(
-                            &mut last_input_time,
+                            &mut power_manager,
                             &mut last_resync_time,
                             activity_time,
                             is_idle,
@@ -829,7 +810,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     Event::FocusGained => {
                         let activity_time = Instant::now();
                         if register_activity(
-                            &mut last_input_time,
+                            &mut power_manager,
                             &mut last_resync_time,
                             activity_time,
                             is_idle,
@@ -962,14 +943,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // chosen for the wait phase. Recompute before simulation and
         // scheduling so the first resumed frame does not inherit the paused
         // 250ms cadence.
-        let active_is_idle = is_idle;
-        let frame_period = if cloud.pause {
-            pause_period
-        } else if active_is_idle {
-            idle_period
-        } else {
-            target_period
-        };
+        // v30.8 (Phase 3): PowerManager.effective_fps() replaces the
+        // target_period / idle_period / pause_period Duration cascade.
+        let frame_period = Duration::from_secs_f64(1.0 / power_manager.effective_fps(cloud.pause));
         let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
 
         // v30 (2026-08-05): announce frame pacing mode to the HUD so the
@@ -979,19 +955,20 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // the previous frame's.
         let frame_mode = if cloud.pause {
             FrameMode::Paused
-        } else if active_is_idle {
+        } else if power_manager.is_idle() {
             FrameMode::Idle
         } else {
             FrameMode::Active
         };
         hud_state.set_frame_mode(frame_mode);
 
-        cloud.set_perf_pressure(perf_pressure);
+        cloud.set_perf_pressure(power_manager.effective_pressure());
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
         // v25.15 (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
         // from constants.rs — was a hardcoded `0.3` inline.
-        let sim_factor =
-            (1.0 - (perf_pressure as f64) * SIM_PRESSURE_SCALE_FACTOR).clamp(SIM_FACTOR_MIN, 1.0);
+        let sim_factor = (1.0
+            - (power_manager.effective_pressure() as f64) * SIM_PRESSURE_SCALE_FACTOR)
+            .clamp(SIM_FACTOR_MIN, 1.0);
         let sim_min_s = (frame_period.as_secs_f64() * SIM_MIN_FRACTION).max(0.001);
         let sim_max_s = sim_base_s.min(SIM_MAX_CAP_SECS);
         // When frame_period is large (pause mode: 250ms, or very low FPS),
@@ -1091,14 +1068,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
         let utilization = work_s / frame_period_s;
-        if overshoot > 0.0 {
-            perf_pressure = (perf_pressure + (overshoot * PERF_PRESSURE_INCREMENT)).min(1.0);
-        } else {
-            perf_pressure = (perf_pressure - PERF_PRESSURE_DECAY).max(0.0);
-        }
-        if write_overshoot > 0.0 {
-            perf_pressure = (perf_pressure + (write_overshoot * PERF_PRESSURE_INCREMENT)).min(1.0);
-        }
+        // v30.8 (Phase 3): PowerManager.observe_frame_end() replaces the
+        // inline perf_pressure increment/decay. Same math, same constants.
+        // overshoot is kept as a local for the perf_stats overshoot-frame
+        // counter below.
+        power_manager.observe_frame_end(work_s, frame_period_s, write_overshoot);
 
         // ── P5: Endurance health sampling (ALWAYS ON) ──
         //
@@ -1163,8 +1137,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             perf_dirty_samples = perf_dirty_samples.saturating_add(1);
             perf_work_sum_s += work_s as f64;
             perf_work_max_s = perf_work_max_s.max(work_s as f64);
-            perf_pressure_sum += perf_pressure as f64;
-            perf_pressure_max = perf_pressure_max.max(perf_pressure);
+            perf_pressure_sum += power_manager.effective_pressure() as f64;
+            perf_pressure_max = perf_pressure_max.max(power_manager.effective_pressure());
             perf_utilization_sum += utilization as f64;
             perf_utilization_max = perf_utilization_max.max(utilization);
             if overshoot > 0.0 {
@@ -1196,8 +1170,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             self_healer.reset();
         }
 
-        let heal_action =
-            self_healer.observe(perf_pressure, loop_now, Some(endurance_health.score()));
+        let heal_action = self_healer.observe(
+            power_manager.effective_pressure(),
+            loop_now,
+            Some(endurance_health.score()),
+        );
         match heal_action {
             SelfHealAction::None => {}
             SelfHealAction::TriggerHealthMitigation => {
@@ -1417,7 +1394,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 perf_utilization_sum,
                 perf_utilization_max,
                 perf_frames,
-                target_period,
+                Duration::from_secs_f64(1.0 / power_manager.base_target_fps()),
                 avg_work_ms,
                 pressure_class,
                 perf_overshoot_frames,
@@ -1435,7 +1412,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             s.field("classification", endurance_health.classification());
             s.field(
                 "phase_transitions",
-                &phase_predictor.transitions_observed().to_string(),
+                &power_manager.phase_transitions_observed().to_string(),
             );
         }
 

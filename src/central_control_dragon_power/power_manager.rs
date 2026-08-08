@@ -88,9 +88,9 @@ use crate::constants::*;
 /// holds a single instance by value and passes `&mut self` to the
 /// mutation methods.
 ///
-/// v30.8: struct + API are defined; the event loop will be wired in
-/// the next microcommit. `#[allow(dead_code)]` is removed at that point.
-#[allow(dead_code)]
+/// v30.8: struct + API are defined and wired into `event_loop.rs`.
+/// `PowerManager` is constructed at startup and called every frame via
+/// `begin_frame()` + `observe_frame_end()`.
 pub(crate) struct PowerManager {
     thresholds: PowerThresholds,
 
@@ -113,7 +113,6 @@ pub(crate) struct PowerManager {
     thermal_pressure: f32,
 }
 
-#[allow(dead_code)]
 impl PowerManager {
     /// Construct a new `PowerManager` with the given base target FPS.
     ///
@@ -363,6 +362,13 @@ impl PowerManager {
     #[cfg(test)]
     pub(crate) fn phase_predictor(&self) -> &PhasePredictor {
         &self.phase_predictor
+    }
+
+    /// Read-only access to the phase predictor's transition count.
+    /// Used by the post-exit verbose summary.
+    #[must_use]
+    pub(crate) fn phase_transitions_observed(&self) -> u64 {
+        self.phase_predictor.transitions_observed()
     }
 }
 

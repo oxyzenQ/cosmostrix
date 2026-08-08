@@ -39,7 +39,12 @@ pub(super) fn spin_wait(deadline: Instant) {
     }
 }
 
+/// Whether the runtime is idle long enough to warrant an adaptive
+/// resync. Test-only — the production event loop delegates idle
+/// detection to `PowerManager::begin_frame()`. Tests use this to
+/// verify the idle-detection threshold logic in isolation.
 #[inline]
+#[cfg(test)]
 pub(super) fn is_runtime_idle(last_input_time: Instant, now: Instant) -> bool {
     now.saturating_duration_since(last_input_time).as_secs_f64() >= IDLE_THRESHOLD_SECS
 }
@@ -59,15 +64,30 @@ pub(super) fn idle_resync_due(is_idle: bool, last_resync_time: Instant, now: Ins
             >= IDLE_REDRAW_RESYNC_INTERVAL_SECS
 }
 
+/// Record user activity: reset the idle timer (via `PowerManager`)
+/// and conditionally schedule a resync.
+///
+/// # Arguments
+/// - `power_manager` — owns the idle timer; `note_activity(now)` is
+///   called to reset it.
+/// - `last_resync_time` — updated to `now` only when returning `true`.
+/// - `now` — the activity timestamp.
+/// - `was_idle` — whether the process was idle immediately before this
+///   activity. When `true`, a resync is scheduled (returns `true`).
+/// - `force_resync` — when `true`, a resync is scheduled regardless of
+///   `was_idle`.
+///
+/// # Returns
+/// `true` if the caller should force a full redraw (`cloud.force_draw_everything()`).
 #[inline]
 pub(super) fn register_activity(
-    last_input_time: &mut Instant,
+    power_manager: &mut PowerManager,
     last_resync_time: &mut Instant,
     now: Instant,
     was_idle: bool,
     force_resync: bool,
 ) -> bool {
-    *last_input_time = now;
+    power_manager.note_activity(now);
     if was_idle || force_resync {
         *last_resync_time = now;
         true

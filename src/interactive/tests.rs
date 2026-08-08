@@ -18,7 +18,7 @@ mod cases {
 
     use crate::interactive::activity::{idle_resync_due, is_runtime_idle, register_activity};
     use crate::interactive::input::{handle_keybinding, runtime_speed_clamp, PasteBurstGuard};
-    use crate::{cycle_charset_preset, cycle_color_scheme, CloudConfig};
+    use crate::{cycle_charset_preset, cycle_color_scheme, CloudConfig, PowerManager};
 
     fn key(ch: char) -> KeyEvent {
         KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE)
@@ -39,47 +39,49 @@ mod cases {
     fn idle_to_active_activity_schedules_resync() {
         let start = Instant::now();
         let activity_time = start + Duration::from_secs(60);
-        let mut last_input_time = start;
+        let mut pm = PowerManager::new(60.0, start);
         let mut last_resync_time = start;
 
         assert!(register_activity(
-            &mut last_input_time,
+            &mut pm,
             &mut last_resync_time,
             activity_time,
             true,
             false,
         ));
-        assert_eq!(last_input_time, activity_time);
         assert_eq!(last_resync_time, activity_time);
+        // PowerManager's idle timer is now reset — verify via is_idle().
+        assert!(!pm.is_idle());
     }
 
     #[test]
     fn active_mouse_activity_does_not_force_resync_every_frame() {
         let start = Instant::now();
         let activity_time = start + Duration::from_secs(1);
-        let mut last_input_time = start;
+        let mut pm = PowerManager::new(60.0, start);
         let mut last_resync_time = start;
 
         assert!(!register_activity(
-            &mut last_input_time,
+            &mut pm,
             &mut last_resync_time,
             activity_time,
             false,
             false,
         ));
-        assert_eq!(last_input_time, activity_time);
         assert_eq!(last_resync_time, start);
+        // PowerManager's idle timer is still reset (note_activity fires).
+        assert!(!pm.is_idle());
     }
 
     #[test]
     fn focus_activity_can_force_resync_while_active() {
         let start = Instant::now();
         let activity_time = start + Duration::from_secs(1);
-        let mut last_input_time = start;
+        let mut pm = PowerManager::new(60.0, start);
         let mut last_resync_time = start;
 
         assert!(register_activity(
-            &mut last_input_time,
+            &mut pm,
             &mut last_resync_time,
             activity_time,
             false,

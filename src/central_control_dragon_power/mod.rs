@@ -116,7 +116,6 @@ mod self_healer;
 
 pub(crate) use endurance_health::*;
 pub(crate) use phase_predictor::*;
-#[allow(unused_imports)] // v30.8: PowerManager wired into event_loop in next microcommit
 pub(crate) use power_manager::*;
 pub(crate) use reclaim_state::*;
 pub(crate) use self_healer::*;
@@ -315,7 +314,6 @@ pub(crate) const XTERMJS_HARD_CEILING_BYTES: u64 = 200 * 1024 * 1024;
 /// (see `power_manager.rs`). The constants above remain the active
 /// source of truth; `PowerThresholds::defaults()` reads them at
 /// construction time.
-#[allow(dead_code)] // v30.8: consumed by PowerManager; allow stays until event_loop wiring lands
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PowerThresholds {
     /// perf_pressure threshold for P1 downgrade trigger (0.6).
@@ -344,7 +342,6 @@ impl PowerThresholds {
     /// Default thresholds matching the constants above. `PowerManager`
     /// is constructed with this and then optionally tuned via
     /// `with_thresholds()` in tests.
-    #[allow(dead_code)] // v30.8: consumed by PowerManager; allow stays until event_loop wiring lands
     #[must_use]
     pub(crate) fn defaults() -> Self {
         Self {
