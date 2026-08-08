@@ -89,6 +89,22 @@
 //!   for a future `PowerManager` coordinator that will own all signal
 //!   sampling and expose unified `effective_pressure` / `effective_fps`
 //!   / `is_idle` APIs.
+//! - **v30.7 (Phase 2 migration)**: behavior code moved from
+//!   `src/interactive/adaptive.rs` into submodules of this directory.
+//!   Each submodule owns one subsystem (phase_predictor, reclaim_state,
+//!   endurance_health, self_healer). `interactive/adaptive.rs` becomes
+//!   a thin re-export shim. Layout mirrors `central_control_rains.rs`.
+
+// ─── Behavior submodules ────────────────────────────────────────────────────
+//
+// Each submodule owns one adaptive subsystem. They are declared here so
+// `crate::central_control_dragon_power::*` re-exports their public items
+// to all consumers via `crate::constants::*` (which itself re-exports
+// this module).
+
+mod phase_predictor;
+
+pub(crate) use phase_predictor::*;
 
 // ─── Perf pressure pipeline ─────────────────────────────────────────────────
 //
