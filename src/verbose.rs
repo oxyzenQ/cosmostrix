@@ -66,6 +66,9 @@ pub(crate) fn print_verbose(
     charset_preset: &str,
     chars: &[char],
     target_fps: f64,
+    // v30.6: which resolution layer produced target_fps. One of:
+    // cli / scene / config / dynamic_default / xtermjs_cap.
+    fps_precedence: &'static str,
     speed: f32,
     base_density: f32,
     density_auto: bool,
@@ -92,20 +95,11 @@ pub(crate) fn print_verbose(
     cli_explicit_color: bool,
     intro_type_label: &str,
     commit_sha: &str,
-    // v30 (Bug #1 doc clarification): when --benchmark / --bench-all is
-    // active, the benchmark loop forces `auto_color_drift = false` (see
-    // bench.rs::run_benchmark at line ~201 + compute_config_enrichment at
-    // line ~161) so p99/max metrics stay deterministic — palette drift
-    // rebuilds the palette, which injects non-deterministic timing spikes.
-    //
-    // Without this flag, the verbose output would show `auto_drift: true`
-    // (from the user's config) while the benchmark report later prints
-    // `auto_color_drift: false`. That mismatch looked like a bug to the
-    // owner (2026-08-04 v30.0.0-alpha.1 session: "bug should color drift
-    // is true not false"). The fix is NOT to change benchmark behavior —
-    // disabling palette drift in benchmark mode is intentional and correct.
-    // The fix is to disclose the override in the verbose output so the
-    // user sees it BEFORE the benchmark report, eliminating the confusion.
+    // v30 (Bug #1 doc): --benchmark forces auto_color_drift=false (palette
+    // rebuild injects timing spikes, breaks p99/max determinism). Pass
+    // bench_mode so verbose can disclose the override BEFORE the benchmark
+    // report prints `auto_color_drift: false` (otherwise the user sees
+    // `auto_drift: true` in verbose and thinks it's a bug).
     bench_mode: bool,
 ) {
     let color_source = resolve_color_source(
@@ -164,14 +158,14 @@ pub(crate) fn print_verbose(
     eprintln!("{}", output::brand_bold("  ── Motion ──"));
     output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
     // v30.5: show which detection layer set the dynamic fps default.
-    // Only shown when the user did NOT explicitly set --fps / fps =,
-    // so the user can verify the detection chain (TERM_PROGRAM vs
-    // /proc ancestor vs fallback).
+    // v30.6: also show fps_precedence (which RESOLUTION layer won:
+    // cli / scene / config / dynamic_default / xtermjs_cap).
     let caps_for_source = crate::termdetect::detect();
     output::eprintln_verbose(
         "fps_source:",
         &format!(" {} (dynamic default)", caps_for_source.dynamic_fps_source),
     );
+    output::eprintln_verbose("fps_precedence:", &format!(" {fps_precedence}"));
     output::eprintln_verbose("speed:", &format!(" {speed:.1}"));
     output::eprintln_verbose(
         "density:",

@@ -656,16 +656,38 @@ fn main() -> std::io::Result<()> {
         _ => BoldMode::Random,
     };
 
-    // v30.3 masterclass: dynamic default FPS — terminal-aware default when
-    // user doesn't specify --fps/fps=. High-perf terminals (Alacritty, kitty,
-    // wezterm, ghostty, foot, iTerm2) → 144; standard/unknown → 60; xterm.js
-    // → 30. User's explicit --fps / fps = ALWAYS wins.
+    // v30.3: dynamic default FPS (terminal-aware: 144 high-perf / 60 std
+    // / 30 xterm.js) when user didn't set --fps. v30.6: track which
+    // resolution layer won so verbose can show `fps_precedence:`. See
+    // the FPS Precedence Chain doc in termdetect.rs.
     let term_caps = crate::termdetect::detect();
     let cli_fps_explicit = matches!(
         matches.value_source("fps"),
         Some(clap::parser::ValueSource::CommandLine)
     );
     let fps_user_set = cli_fps_explicit || args.fps != 60.0;
+    // Resolution layer: cli > scene > config > dynamic_default. Computed
+    // BEFORE the dynamic-default override mutates args.fps.
+    let fps_precedence: &'static str = if cli_fps_explicit {
+        "cli"
+    } else if fps_user_set {
+        // args.fps != 60.0 but not CLI → set by scene or config. Distinguish
+        // by checking if the active scene has a matching fps override.
+        if args
+            .scene
+            .as_deref()
+            .and_then(crate::scene::get_scene)
+            .and_then(|s| s.config.fps)
+            .map(|f| (f - args.fps).abs() < 0.01)
+            .unwrap_or(false)
+        {
+            "scene"
+        } else {
+            "config"
+        }
+    } else {
+        "dynamic_default"
+    };
     if !fps_user_set && !args.benchmark && term_caps.dynamic_default_fps != args.fps {
         crate::lr_trace!(
             "fps: no user override — applying dynamic default {:.0}",
@@ -676,22 +698,28 @@ fn main() -> std::io::Result<()> {
 
     let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
-    // v30 + Tier 2: xterm.js hosts get a 30 FPS hard cap to prevent OOM
-    // (xterm.js scrollback grows unbounded at high byte rates). Benchmark
-    // mode skips the cap. Native terminals use the user's validated value.
-    let target_fps =
-        if !args.benchmark && term_caps.xtermjs_host && target_fps > term_caps.default_fps_cap {
-            let capped = term_caps.default_fps_cap;
-            crate::output::eprintln_warn_labeled(&format!(
-                "xterm.js-based terminal detected (TERM_PROGRAM={}); \
+    // v30 + Tier 2: xterm.js hosts get a 30 FPS hard cap to prevent OOM.
+    // Benchmark mode skips the cap. v30.6: xtermjs_cap OVERRIDES the
+    // resolution layer (even an explicit --fps gets capped).
+    let xtermjs_cap_fired =
+        !args.benchmark && term_caps.xtermjs_host && target_fps > term_caps.default_fps_cap;
+    let target_fps = if xtermjs_cap_fired {
+        let capped = term_caps.default_fps_cap;
+        crate::output::eprintln_warn_labeled(&format!(
+            "xterm.js-based terminal detected (TERM_PROGRAM={}); \
              capping --fps from {target_fps:.1} to {capped:.0} to prevent \
              xterm.js OOM crash over long runs (see docs/TERMINAL_COMPATIBILITY.md)",
-                std::env::var("TERM_PROGRAM").unwrap_or_default()
-            ));
-            capped
-        } else {
-            target_fps
-        };
+            std::env::var("TERM_PROGRAM").unwrap_or_default()
+        ));
+        capped
+    } else {
+        target_fps
+    };
+    let fps_precedence: &'static str = if xtermjs_cap_fired {
+        "xtermjs_cap"
+    } else {
+        fps_precedence
+    };
 
     let duration_s = args.duration.map(|s| {
         if !s.is_finite() {
@@ -810,13 +838,9 @@ fn main() -> std::io::Result<()> {
         build_chars(charset, &user_ranges, def_ascii)
     };
 
-    // v16: Load custom palette if --colors-custom is set.
-    // The palette is loaded from config.toml's [colors-custom] section.
-    // If loading fails, exit with a clear error (no silent fallback).
-    // custom_palette_name is stored for live reload — when config changes,
-    // rebuild_cloud_config reloads the palette definition by name.
-    // This runs BEFORE verbose print so the verbose output can show the
-    // correct palette name.
+    // v16: Load custom palette if --colors-custom is set, from config.toml's
+    // [colors-custom] section. custom_palette_name is stored for live reload.
+    // Runs BEFORE verbose print so verbose shows the correct palette name.
     let (custom_palette, custom_palette_name) = if let Some(ref name) = args.colors_custom {
         let cfg_map = configfile::load_config_file(args.config.as_deref());
         match colors_custom::load_custom_palette(&cfg_map, name) {
@@ -843,8 +867,8 @@ fn main() -> std::io::Result<()> {
     let effective_async = args.async_mode && !args.uniform;
 
     // Parse --screen-size once here so verbose block and CloudConfig both
-    // see the same validated value. Previously verbose used `.ok().flatten()`
-    // which silently swallowed parse errors. Now we error out once, upfront.
+    // see the same validated value (previously verbose used .ok().flatten()
+    // which silently swallowed parse errors).
     let screen_size = crate::ux::or_exit(crate::cli_parse::parse_screen_size_optional(
         &args.screen_size,
     ));
@@ -854,11 +878,9 @@ fn main() -> std::io::Result<()> {
         matches.value_source("color"),
         Some(clap::parser::ValueSource::CommandLine)
     );
-    // Bug 3 fix: capture which CLI flags were explicitly set so
-    // rebuild_cloud_config can enforce the CLI > config.toml > scene
-    // priority contract during live reload. Without this, a CLI flag
-    // like `-c green` would be silently overridden the moment the
-    // user edits `color = "snow"` in config.toml.
+    // Bug 3 fix: capture which CLI flags were explicitly set so live reload
+    // can enforce CLI > config.toml > scene priority (otherwise a CLI flag
+    // like `-c green` would be silently overridden when config is edited).
     let cli_explicit = crate::app::CliExplicit {
         color: cli_explicit_color,
         charset: matches!(
@@ -885,8 +907,8 @@ fn main() -> std::io::Result<()> {
             matches.value_source("glitch_level"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
-        // Phase D Bug #10 fix: track --auto-color-drift CLI intent so
-        // live-reload doesn't silently override it with config.
+        // Phase D Bug #10: track --auto-color-drift CLI intent so live
+        // reload doesn't silently override it with config.
         auto_color_drift: matches!(
             matches.value_source("auto_color_drift"),
             Some(clap::parser::ValueSource::CommandLine)
@@ -919,6 +941,7 @@ fn main() -> std::io::Result<()> {
             &charset_preset,
             &chars,
             target_fps,
+            fps_precedence,
             speed,
             base_density,
             density_auto,
@@ -945,11 +968,8 @@ fn main() -> std::io::Result<()> {
             cli_explicit_color,
             intro_label,
             commit_sha,
-            // v30 (Bug #1 doc clarification): pass bench_mode so verbose
-            // output can disclose the benchmark palette-drift override
-            // BEFORE the benchmark report prints `auto_color_drift: false`.
-            // Without this, the user sees `auto_drift: true` (config) and
-            // later `auto_color_drift: false` (report) and thinks it's a bug.
+            // v30: pass bench_mode so verbose discloses the palette-drift
+            // override before the benchmark report contradicts it.
             bench_mode,
         );
     }
@@ -965,10 +985,8 @@ fn main() -> std::io::Result<()> {
             .and_then(scene_custom::parse_density_map)
     });
 
-    // v25.16: CliExplicit now derives Copy (7 bools, 7 bytes), so reading
-    // cli_explicit.fps after the CloudConfig move is a cheap field copy
-    // rather than a move. This avoids the E0382 (use of moved value) that
-    // broke Windows + MSRV CI builds on commit 5ec253b.
+    // v25.16: CliExplicit derives Copy, so reading cli_explicit.fps after
+    // the CloudConfig move is a field copy, not a move (avoids E0382).
     let cloud_cfg = CloudConfig {
         color_mode,
         shading_mode,
@@ -1029,20 +1047,13 @@ fn main() -> std::io::Result<()> {
         auto_color_drift: args.auto_color_drift,
         monolith_density_map,
         config_path_for_watcher: {
-            // v25.2 Termux fix: use multi-candidate path resolution so
-            // the watcher always watches the file the user is ACTUALLY
-            // editing. On Termux, when XDG_CONFIG_HOME is set to
-            // $PREFIX/etc, the old `args.config.unwrap_or_else(default_config_file_path)`
-            // resolved to a system path the user wasn't editing — causing
-            // "live reload doesn't work on Termux" reports. The new
-            // resolver picks the first existing candidate from a list
-            // that prioritizes $HOME/.config/cosmostrix/config.toml.
+            // v25.2 Termux fix: multi-candidate path resolution so the
+            // watcher watches the file the user is ACTUALLY editing. On
+            // Termux with XDG_CONFIG_HOME=$PREFIX/etc, the old single-
+            // candidate resolver picked a system path the user wasn't
+            // editing. The new resolver prioritizes $HOME/.config.
             let (resolved, existed) =
                 configfile::resolve_watcher_config_path(args.config.as_deref());
-            // v25.2: bulletproof diagnostic logging so users can verify
-            // the watcher is watching the right file. Uses the same
-            // env-gated path as live_config's lr_trace! (zero cost when
-            // COSMOSTRIX_LIVE_RELOAD_DEBUG is unset).
             if crate::live_config_trace::live_reload_debug_enabled() {
                 crate::live_config_trace::debug_trace(format_args!(
                     "[live-reload-trace] watcher path resolved: {} (existed candidates: {})\n",
@@ -1074,8 +1085,7 @@ fn main() -> std::io::Result<()> {
         )),
     };
 
-    // fps_user_set was computed earlier (before dynamic default) — reflects
-    // USER's intent. Used by benchmark warning logic below.
+    // fps_user_set was computed earlier (before dynamic default) — USER intent.
 
     if args.bench_all {
         warn_bench_noop_flags(&args, fps_user_set);
@@ -1133,14 +1143,12 @@ fn main() -> std::io::Result<()> {
         let startup_speed = cloud_cfg.speed;
         let startup_density = cloud_cfg.density;
         // v30.5: print startup ambient info post-exit (event_loop prints
-        // are invisible — alternate screen discards stderr on exit). Uses
-        // purple-body variant to match the verbose dump labels above.
+        // are invisible — alternate screen discards stderr on exit).
         if let Some(info) = interactive::startup_ambient_info() {
             crate::output::eprintln_verbose_purple(&info);
         }
 
-        // v25.13: post-exit rejection summary removed; live-reload errors
-        // cause immediate exit (see LIVE_RELOAD_EXIT_CODE path below).
+        // v25.13: live-reload errors cause immediate exit (see below).
         let changed = final_color != startup_color
             || final_scene != startup_scene
             || final_charset != startup_charset
@@ -1185,24 +1193,19 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Live-reload fatal exit. v25.13 (bug #15): this path now fires for BOTH
-    // watcher-thread panics AND config validation errors during live reload.
-    // The previous v25.6 design kept rain running on the last valid config
-    // when the user introduced a typo mid-edit — but that caused the watcher
-    // thread's stderr writes to leak into the alternate-screen buffer,
-    // polluting the rain matrix with "weird text". Now: any validation error
-    // (malformed line, unknown key, OOR value) sets LIVE_RELOAD_EXIT_CODE=2
-    // in the render thread's Err handler, breaks the rain loop, and the
-    // error is printed HERE — after Terminal::drop restored the terminal
-    // from alternate-screen mode. Printing during the rain loop would be
-    // swallowed by the alternate screen or pollute the render.
+    // Live-reload fatal exit. v25.13 (bug #15): fires for BOTH watcher
+    // panics AND config validation errors. The previous v25.6 design kept
+    // rain running on the last valid config when the user introduced a typo
+    // mid-edit — but the watcher thread's stderr leaked into the alternate-
+    // screen buffer, polluting the rain matrix. Now: any validation error
+    // sets LIVE_RELOAD_EXIT_CODE=2, breaks the rain loop, and the error
+    // is printed HERE — after Terminal::drop restored the terminal.
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
         if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
             if let Some(ref msg) = *guard {
-                // Route through the centralized output helpers so the
-                // error color matches every other error path in the CLI
-                // (truecolor red on modern terminals, graceful fallback
-                // to 256/16-color on older ones, plain text when piped).
+                // Route through centralized output helpers so error color
+                // matches every other error path (truecolor red, fallback
+                // to 256/16-color, plain text when piped).
                 eprintln!(
                     "{} [live-reload] ERROR: {}{}",
                     crate::output::error_bold_open(),
@@ -1240,15 +1243,11 @@ fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
 /// in benchmark mode. Pure function — the call site prints them.
 ///
 /// Audit findings (commit 5301572 + a34fcdb follow-up):
-///   - `--fps`: in benchmark mode it sets the simulation rate (virtual time
+///   - `--fps`: in benchmark mode sets the simulation rate (virtual time
 ///     delta fed to `cloud.rain_at`), NOT a render cap. `avg_fps` is
-///     unconstrained — the bench loop spins full tilt with zero sleeps.
-///     User reports showed the absence of this warning caused real
-///     confusion: `cosmostrix --benchmark --fps 60` silently ran the same
-///     as without `--fps 60`. Now warned whenever `--fps` is explicit
-///     (detected via `cli_explicit.fps`) OR set in config.toml to a
-///     non-default value (detected via `args.fps != 60.0`). The config
-///     path catches `fps = 10` in `~/.config/cosmostrix/config.toml`.
+///     unconstrained — the bench loop spins full tilt. Warned whenever
+///     `--fps` is explicit (cli_explicit.fps) OR config.toml sets a
+///     non-default value (args.fps != 60.0).
 ///   - `--duration` (hidden): interactive auto-exit only; bench uses --bench-duration
 ///   - `--screensaver`: interactive input handler only; bench has no input loop
 ///   - `--intro`: interactive intro animation; bench never plays it

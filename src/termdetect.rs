@@ -63,6 +63,56 @@ const XTERMJS_HOSTS: &[&str] = &[
     "WarpTerminal",
 ];
 
+/// # FPS Precedence Chain (v30.6 documentation)
+///
+/// The effective frame rate at any moment is the result of a 7-layer
+/// precedence chain. Layers are listed highest-priority first; the
+/// first layer that produces a value wins, and lower layers are not
+/// consulted.
+///
+/// ## Resolution-time layers (run once at startup, in main.rs)
+///
+/// 1. **CLI `--fps`** — explicit user override. Detected via
+///    `matches.value_source("fps") == CommandLine`. Always wins.
+/// 2. **Scene `fps=`** — built-in scenes (e.g., `low-power` sets
+///    fps=30, `cosmic_dragon` sets fps=120). Applied in
+///    `config_apply::apply_scene_values` ONLY when the user did NOT
+///    set `--fps` AND config.toml did NOT set `fps =`.
+/// 3. **Config.toml `fps =`** — user's persistent default. Applied
+///    ONLY when the user did NOT set `--fps`.
+/// 4. **Dynamic default fps** — terminal-aware default from this
+///    module's `dynamic_default_fps` field (144 for high-perf
+///    terminals, 60 for standard/unknown, 30 for xterm.js hosts).
+///    Applied in `main.rs:669-674` ONLY when none of layers 1-3
+///    produced a value.
+/// 5. **xterm.js cap** — `default_fps_cap` (30 FPS) applied AFTER
+///    layers 1-4 on xterm.js hosts. Even an explicit `--fps 120`
+///    gets capped to 30 on VSCode's xterm.js to prevent OOM.
+///    Bypassed in `--benchmark` mode.
+///
+/// ## Runtime layers (run every frame, in event_loop.rs:966-972)
+///
+/// 6. **Idle factor** — when `is_idle` is true (no user input for
+///    `IDLE_THRESHOLD`), `frame_period` is multiplied by
+///    `1.0 / IDLE_FPS_FACTOR` (i.e., 0.5× → half the FPS). This is
+///    a frame_period adjustment, NOT a target_fps change.
+/// 7. **Pause period** — when `cloud.pause` is true (user pressed
+///    space), `frame_period` is replaced with `PAUSE_PERIOD_MS`
+///    (250ms = 4 FPS). Highest runtime priority.
+///
+/// ## How to read this in verbose output
+///
+/// `cosmostrix -v` shows:
+///   fps:           144.0
+///   fps_source:    /proc ancestor (dynamic default)
+///   fps_precedence: dynamic_default  <- which resolution layer won
+///
+/// The `fps_precedence` field is the new v30.6 visibility signal:
+/// one of `cli`, `scene`, `config`, `dynamic_default`, or
+/// `xtermjs_cap`. Runtime layers (idle, pause) are NOT shown here
+/// because they change every frame — see the HUD's `tgt:` line for
+/// the live frame_mode suffix (`idle` / `paused`).
+///
 /// Capabilities discovered at startup.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TerminalCaps {
