@@ -217,21 +217,25 @@ pub(crate) struct Terminal {
     /// Tier 2: cumulative ANSI bytes flushed since the last RIS reset.
     /// When this crosses `XTERMJS_RIS_RESET_BYTES`, `flush_ansi` emits
     /// an ESC c (RIS) to clear xterm.js's in-memory buffer. Reset to 0
-    /// after each RIS emission. Only meaningful when `term_caps.xtermjs_host`
-    /// is true; on native terminals it's still tracked (cheap) but never
-    /// triggers a RIS.
+    /// after each RIS emission. Tracked on all terminals (cheap), but
+    /// only triggers a RIS when `xtermjs_host` is true.
     bytes_since_ris: u64,
     /// Tier 2: rolling window of per-frame byte counts, used to apply
     /// preemptive backpressure when the recent byte rate exceeds the
     /// budget. Only consulted when `term_caps.xtermjs_host` is true.
     byte_window: ByteWindow,
-    /// Tier 2: number of flushes suppressed by byte-budget backpressure.
-    /// Reported in `--perf-stats` exit summary so the user can see how
-    /// often Tier 2 kicked in. Reset only by process restart.
+    /// Tier 2: # of flushes suppressed by byte-budget backpressure.
+    /// Reported in `--perf-stats` exit summary. Reset only by restart.
     backpressure_skips: u64,
-    /// Tier 2: number of RIS reset emissions. Reported in `--perf-stats`
-    /// exit summary. Reset only by process restart.
+    /// Tier 2: # of RIS reset emissions. Reported in `--perf-stats`
+    /// exit summary. Reset only by restart.
     ris_resets: u64,
+    /// v30.6: true when the most recent `flush_ansi` suppressed the flush
+    /// due to byte-budget backpressure. Reset on next successful write.
+    /// The event loop injects a synthetic `write_overshoot` from this —
+    /// otherwise suppression masks itself (no write → stale latency →
+    /// no perf_pressure accumulation → self-healer never fires).
+    last_flush_suppressed: bool,
 }
 
 impl Terminal {
@@ -286,6 +290,7 @@ impl Terminal {
             ),
             backpressure_skips: 0,
             ris_resets: 0,
+            last_flush_suppressed: false,
         };
 
         let init_res: Result<()> = (|| {
@@ -377,20 +382,21 @@ impl Terminal {
         }
 
         // Tier 2 -- byte-budget backpressure (xterm.js hosts only).
-        //
-        // If the rolling window already exceeds the per-window budget,
-        // suppress this flush. The rain state still advances (the event
-        // loop calls cloud.rain_at() BEFORE term.draw()), so the user
-        // sees a brief stutter rather than a permanent desync. The 0
-        // byte count is pushed into the window so the budget recovers
-        // naturally as old high-byte frames age out.
+        // If the rolling window exceeds the budget, suppress this flush.
+        // Rain state still advances (event loop calls cloud.rain_at()
+        // BEFORE term.draw()), so the user sees a brief stutter rather
+        // than a permanent desync. The 0 byte count is pushed into the
+        // window so the budget recovers as old frames age out.
         if self.term_caps.xtermjs_host {
             let window_sum = self.byte_window.sum();
             if should_backpressure(window_sum, self.bytes_since_ris) {
                 self.backpressure_skips += 1;
                 self.byte_window.push(0);
-                // Clear ansi_buf to discard the suppressed frame. The
-                // next frame will rebuild it from scratch via diff.
+                // v30.6: signal backpressure so the event loop injects
+                // a synthetic write_overshoot (otherwise suppression
+                // masks itself: no write → stale latency → no
+                // perf_pressure → self-healer never fires).
+                self.last_flush_suppressed = true;
                 self.ansi_buf.clear();
                 return Ok(());
             }
@@ -427,11 +433,13 @@ impl Terminal {
                     self.byte_window.push(frame_bytes);
                     self.bytes_since_ris += frame_bytes;
                 }
+                // v30.6: clear backpressure flag (this flush went through).
+                self.last_flush_suppressed = false;
                 Ok(())
             }
             Err(e) => {
-                // Failure: restore ansi_buf so the next flush attempt
-                // retries the same data (matches pre-P3 semantics).
+                // Failure: restore ansi_buf so the next flush retries the
+                // same data (matches pre-P3 semantics).
                 self.ansi_buf = ansi_buf;
                 Err(e)
             }
@@ -481,24 +489,20 @@ impl Terminal {
     /// the primary fd is broken mid-run (SSH disconnect, terminal crash,
     /// parent death). On a recoverable error:
     ///
-    ///   1. Lazily open `/dev/tty` (Unix) or `CONOUT$` (Windows) for writing.
+    ///   1. Lazily open `/dev/tty` (Unix) or `CONOUT$` (Windows).
     ///   2. Write the buffer to the fallback handle.
-    ///   3. Set `GRACEFUL_SHUTDOWN` so the main loop exits cleanly via the
-    ///      normal shutdown path (Terminal::drop still runs, restoring the
-    ///      TTY state from the fallback fd).
+    ///   3. Set `GRACEFUL_SHUTDOWN` so the main loop exits cleanly via
+    ///      the normal shutdown path (Terminal::drop still runs).
     ///   4. Bump `tty_recoveries`. If it exceeds
-    ///      `STDOUT_FALLBACK_MAX_RECOVERIES`, stop trying and propagate the
-    ///      original error — /dev/tty itself is likely broken too.
+    ///      `STDOUT_FALLBACK_MAX_RECOVERIES`, propagate the original
+    ///      error — /dev/tty itself is likely broken too.
     ///
     /// Zero per-frame overhead in the steady state: the happy path is a
-    /// single `write_all` on the BufWriter. The fallback only fires when
-    /// that call returns an error.
+    /// single `write_all` on the BufWriter. Fallback only fires on error.
     #[inline]
     fn write_with_recovery(&mut self, buf: &[u8]) -> Result<()> {
         // Time the write so the event loop can detect slow downstream
-        // terminals (e.g., VSCode's xterm.js falling behind over long
-        // runs). Instant::now() is ~20ns on Linux — negligible vs the
-        // write itself (typically 1-50µs per frame).
+        // terminals. Instant::now() is ~20ns — negligible vs the write.
         let start = std::time::Instant::now();
         let result = self.stdout.write_all(buf);
         self.last_write_ns = start.elapsed().as_nanos() as u64;
@@ -694,6 +698,15 @@ impl Terminal {
     #[must_use]
     pub(crate) fn last_write_ns(&self) -> u64 {
         self.last_write_ns
+    }
+
+    /// v30.6: true when the most recent `flush_ansi` suppressed the flush
+    /// due to byte-budget backpressure. Used by the event loop to inject
+    /// a synthetic `write_overshoot` so the self-healer fires. Reset on
+    /// next successful write.
+    #[must_use]
+    pub(crate) fn last_flush_suppressed(&self) -> bool {
+        self.last_flush_suppressed
     }
 
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
