@@ -1132,11 +1132,11 @@ fn main() -> std::io::Result<()> {
             .to_string();
         let startup_speed = cloud_cfg.speed;
         let startup_density = cloud_cfg.density;
-        // v30.5: print startup ambient info (stored by event_loop). Printed
-        // after Terminal::drop so it's visible — printing inside event_loop
-        // is invisible (alternate screen discards stderr on exit).
+        // v30.5: print startup ambient info post-exit (event_loop prints
+        // are invisible — alternate screen discards stderr on exit). Uses
+        // purple-body variant to match the verbose dump labels above.
         if let Some(info) = interactive::startup_ambient_info() {
-            crate::output::eprintln_verbose_raw(&info);
+            crate::output::eprintln_verbose_purple(&info);
         }
 
         // v25.13: post-exit rejection summary removed; live-reload errors
@@ -1151,34 +1151,34 @@ fn main() -> std::io::Result<()> {
             let ts = crate::output::now_hhmm();
             let purple = crate::output::brand_open();
             let reset = crate::output::reset();
-            eprintln!("{purple}[verbose]{reset} {ts} final runtime state");
+            crate::output::eprintln_verbose_purple("final runtime state");
             if final_color != startup_color {
                 eprintln!(
-                    "{purple}[verbose]{reset} {ts}   color_scheme:  {} (was {})",
+                    "{purple}[verbose]{reset} {ts} {purple}  color_scheme:{reset}  {} (was {})",
                     final_color, startup_color
                 );
             }
             if final_scene != startup_scene {
                 eprintln!(
-                    "{purple}[verbose]{reset} {ts}   scene:         {} (was {})",
+                    "{purple}[verbose]{reset} {ts} {purple}  scene:{reset}         {} (was {})",
                     final_scene, startup_scene
                 );
             }
             if final_charset != startup_charset {
                 eprintln!(
-                    "{purple}[verbose]{reset} {ts}   charset:       {} (was {})",
+                    "{purple}[verbose]{reset} {ts} {purple}  charset:{reset}       {} (was {})",
                     final_charset, startup_charset
                 );
             }
             if (final_speed - startup_speed).abs() >= 0.01 {
                 eprintln!(
-                    "{purple}[verbose]{reset} {ts}   speed:         {:.1} (was {:.1})",
+                    "{purple}[verbose]{reset} {ts} {purple}  speed:{reset}         {:.1} (was {:.1})",
                     final_speed, startup_speed
                 );
             }
             if (final_density - startup_density).abs() >= 0.01 {
                 eprintln!(
-                    "{purple}[verbose]{reset} {ts}   density:       {:.2} (was {:.2})",
+                    "{purple}[verbose]{reset} {ts} {purple}  density:{reset}       {:.2} (was {:.2})",
                     final_density, startup_density
                 );
             }
