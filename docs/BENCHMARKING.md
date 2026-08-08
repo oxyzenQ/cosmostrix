@@ -23,6 +23,104 @@
 11. [Microarchitecture & Energy (Linux only)](#11-microarchitecture--energy-linux-only)
 12. [Reproducibility Checklist](#12-reproducibility-checklist)
 13. [Honesty Contract](#13-honesty-contract)
+14. [Quick Reference](#14-quick-reference)
+15. [Diagnostic Recipes](#15-diagnostic-recipes)
+16. [Common Misreadings & Pitfalls](#16-common-misreadings--pitfalls)
+
+---
+
+## Quick Reference
+
+At-a-glance lookup for the most common benchmark metrics. New users:
+this table tells you what each number means in one sentence. Veterans
+jump to §6 (Interpreting Key Metrics) for the deep dive.
+
+### Performance Metrics
+
+| Metric                  | Unit      | What it tells you in one sentence                                                              |
+|-------------------------|-----------|------------------------------------------------------------------------------------------------|
+| `avg_fps`               | FPS       | Mean frames per second over the measurement window. The primary throughput number.            |
+| `peak_fps`              | FPS       | Highest instantaneous FPS. Often much higher than avg because the diff engine can skip frames with zero dirty cells. |
+| `median_fps`            | FPS       | 50th-percentile FPS. Less outlier-sensitive than avg. Use for cross-machine comparison.       |
+| `target_fps`            | FPS       | The configured `--fps` cap. In benchmark mode the cap is disabled — this is the uncapped ceiling. |
+| `avg_frame_time`        | ms        | Mean time per frame. Inverse of `avg_fps`. 0.015ms = 67,000 FPS.                              |
+| `p95_frame_time`        | ms        | 95th-percentile frame time. The slowest 5% of frames.                                          |
+| `p99_frame_time`        | ms        | 99th-percentile frame time. The slowest 1% of frames — catches spikes avg hides.               |
+| `p99_9_frame_time`      | ms        | 99.9th-percentile frame time. The slowest 0.1% — extreme tail latency.                        |
+| `max_frame_time`        | ms        | Worst single-frame spike. What users perceive as jank.                                         |
+| `frame_jitter`          | label     | Variability label (`low` / `medium` / `high`). `low` = stable frame pacing.                   |
+| `frame_time_stability`  | label     | `excellent` = p99 within 2× avg, max within 5×. v30 hits `excellent` on all 4 runs.           |
+| `fps_drift_percent`     | percent   | (first_half_fps − second_half_fps) / first_half_fps × 100. Negative = warmup; positive = throttle/leak. |
+| `total_frames`          | count     | Frames computed during the measurement window.                                                 |
+| `elapsed`               | seconds   | Wall-clock duration of the measurement window.                                                 |
+
+### Throughput Metrics
+
+| Metric                    | Unit        | What it tells you in one sentence                                                            |
+|---------------------------|-------------|----------------------------------------------------------------------------------------------|
+| `glyphs_per_second`       | glyphs/sec  | Total cells processed per second (dirty + clean). v30: 207M glyphs/sec.                      |
+| `dirty_glyphs_per_second` | glyphs/sec  | Changed cells per second. The work the diff engine actually emits to the terminal.           |
+| `ansi_bytes_per_second`   | bytes/sec   | ANSI escape bytes generated per second. v30: 202 MB/s.                                       |
+| `avg_dirty_cells_per_frame` | cells     | Mean cells changed per frame. Lower = more efficient diff (fewer cells to redraw).           |
+| `avg_dirty_cell_ratio_percent` | percent | Fraction of cells that changed. v30 monolith: ~6%. v30 400×200: ~1.8%.                       |
+
+### Resource Metrics
+
+| Metric              | Unit    | What it tells you in one sentence                                                            |
+|---------------------|---------|----------------------------------------------------------------------------------------------|
+| `peak_rss`          | MiB     | Peak resident set size. v30: 5.4 MiB. Steady growth across runs = possible leak.            |
+| `avg_rss`           | MiB     | Mean RSS during measurement. Flat = healthy.                                                |
+| `avg_cpu_percent`   | percent | Process CPU% during measurement. v30: ~99% (single-threaded, fully utilized).               |
+| `peak_cpu_percent`  | percent | Highest instantaneous CPU%. Can exceed 100% on multi-threaded builds.                       |
+| `alloc_calls_per_frame` | count | Fresh allocations per frame. v30: 3.00 (constant baseline). Higher = leaking heap.           |
+| `dealloc_calls_per_frame` | count | Free calls per frame. Should track `alloc_calls` in steady state.                          |
+| `heap_retained`     | bytes   | Bytes allocated and never freed. v30: 0 (zero retained). Non-zero = investigate.            |
+
+### I/O Metrics (wet mode only — requires `--bench-io`)
+
+| Metric                | Unit     | What it tells you in one sentence                                                            |
+|-----------------------|----------|----------------------------------------------------------------------------------------------|
+| `write_bandwidth`     | MB/s     | ANSI bytes/sec written to /dev/null. v30: 168–213 MB/s.                                     |
+| `avg_write_latency`   | µs       | Time per write syscall. v30: 0.2–0.6 µs.                                                    |
+| `backpressure_events` | count    | Write stalls (kernel pipe full). v30: 0 across all runs. Non-zero = terminal can't keep up. |
+| `effective_write_fps` | FPS      | Full-frame-equivalent writes per second. v30: 152K–165K.                                    |
+| `total_bytes_written` | bytes    | Total ANSI bytes over the run. v30 60s: 10.6 GB.                                            |
+
+### Energy & Microarchitecture Metrics (Linux only — requires privileges)
+
+| Metric                  | Unit  | What it tells you in one sentence                                                            |
+|-------------------------|-------|----------------------------------------------------------------------------------------------|
+| `total_energy`          | J     | Energy consumed during the run. v30 60s: 1,363 J.                                            |
+| `avg_power`             | W     | Average power draw. v30: 22.73 W.                                                            |
+| `energy_per_frame`      | µJ    | Energy per frame. v30 lean: 309–387 µJ. Lower = more efficient.                             |
+| `energy_per_cell`       | nJ    | Size-independent energy metric. v30 lean: 2,133–2,388 nJ.                                   |
+| `cycles`                | count | CPU cycles during run. v30 60s: 9.3 billion.                                                 |
+| `instructions`          | count | CPU instructions retired. v30 60s: 24 billion.                                              |
+| `IPC`                   | ratio | Instructions per cycle. >2.0 = healthy; >3.0 = excellent. v30: 2.53–3.14.                  |
+| `branch_mispredict_rate` | percent | Branch predictor failure rate. <2% = BOLT lookup tables working. v30: 0.57–2.41%.        |
+
+### Visual Objective Metrics
+
+| Metric          | Unit    | What it tells you in one sentence                                                            |
+|-----------------|---------|----------------------------------------------------------------------------------------------|
+| `frame_entropy` | bits    | Information entropy of frame content. Higher = more visual variety per frame.                |
+| `density_gini`  | 0..1    | Gini coefficient of cell density. 0 = perfectly uniform; 1 = maximally concentrated.         |
+
+### Units & Symbols Legend
+
+| Symbol / Suffix | Meaning                                                                                          |
+|-----------------|--------------------------------------------------------------------------------------------------|
+| `ms`            | Milliseconds (frame time unit). 1ms = 0.001s. A 60 FPS target = 16.67ms budget per frame.        |
+| `µs`            | Microseconds (latency unit). 1µs = 0.001ms. v30 write latency: 0.2–0.6 µs.                      |
+| `ns` / `nJ`     | Nanoseconds / nanojoules. Size-independent per-cell cost. v30: ~80 ns/cell, ~2,133 nJ/cell.      |
+| `MiB` / `KiB`   | 1024² bytes / 1024 bytes (binary, NOT decimal SI units).                                         |
+| `MB/s`          | Megabytes per second (decimal, 10⁶ bytes/sec). Used for ANSI write bandwidth.                   |
+| `%`             | Percent of one CPU core. 100% = one full core. Multi-threaded spills can exceed 100%.            |
+| `J` / `W`       | Joules (energy) / Watts (power = energy/sec).                                                    |
+| `IPC`           | Instructions Per Cycle. CPU throughput efficiency ratio. >2.0 = healthy.                         |
+| `drift`         | Positive = FPS dropped over time (throttle/leak); negative = FPS rose (warmup/boost). \|drift\| < 5% = stable. |
+| `wet` / `dry`   | Wet = `--bench-io` enabled (writes ANSI to /dev/null); dry = no I/O (pure engine throughput).    |
+| `lean` / `production-draw` | The two `--bench-scene` values. `lean` = dirty-cell-only emission (fastest); `production-draw` = full `Terminal::draw` path. |
 
 ---
 
@@ -497,6 +595,157 @@ Cosmostrix is honest. No hidden flags, no hidden behavior.
 If a benchmark number looks too good to be true, check the SYSTEM and
 BENCHMARK ENVIRONMENT sections. The report tells you exactly what
 hardware, software, and configuration produced the number.
+
+---
+
+## 15. Diagnostic Recipes
+
+Symptom → likely cause → what to check → action. Use this table when
+a benchmark number looks unexpected and you need a starting point.
+
+| Symptom                                                  | Likely cause                                              | What to check                                                       | Action                                                                                                |
+|----------------------------------------------------------|-----------------------------------------------------------|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+| `avg_fps` differs wildly between two runs                | Different scene/palette/build profile/rustc/governor      | SYSTEM + BENCHMARK ENVIRONMENT sections in both reports             | Match all env variables. See §12 Reproducibility Checklist.                                           |
+| `avg_fps` dropped by >5% after a code change             | Real regression                                           | `--compare-baseline` output                                         | Bisect with `git bisect` on the JSON baseline. Check COMPONENT TIMING for which phase regressed.      |
+| `p99_frame_time` >> `avg_frame_time` (e.g. 10× ratio)    | Periodic stalls (GC, kernel scheduling, terminal backpressure) | Run `--bench-duration 30s` to see if p99 stays high or was a startup fluke | If p99 stays high → investigate with `perf record` on Linux. If p99 drops over time → startup fluke. |
+| `max_frame_time` >> `p99_frame_time` (e.g. 50ms vs 2ms)  | One-off OS-scheduler spike (involuntary context switch)   | `involuntary_ctxt` in RESOURCE section                              | Safe to ignore unless it recurs across runs. Run `--bench-duration 60s` to confirm.                  |
+| `fps_drift_percent` > +5%                                | Thermal throttle or memory leak                           | CPU temp; `peak_rss` trend across multiple runs                      | Check cooling; check if `heap_retained` is non-zero. See `docs/ENDURANCE.md`.                        |
+| `fps_drift_percent` < −5%                                | CPU boosting / warmup effect                               | CPU governor (`schedutil` vs `performance`)                         | Run longer (`--bench-duration 30s+`) so warmup amortizes. Negative drift is healthy, not a bug.      |
+| `peak_rss` grows across multiple runs                    | Memory leak (process not exiting cleanly)                | Run with `--bench-duration 60s` once, check `peak_rss`               | If `heap_retained` > 0 → investigate allocator. See `docs/ENDURANCE.md`.                             |
+| `alloc_calls_per_frame` > 3.00                           | New per-frame heap allocation in hot path                 | `ALLOCATOR` section + git log of `src/cloud/`, `src/frame.rs`        | Bisect to find the offending commit. Target: 3.00 (constant baseline).                               |
+| `heap_retained` > 0                                      | Allocation never freed                                    | `ALLOCATOR` section                                                 | Source-level review of new code paths. v30 baseline: 0 retained.                                     |
+| `IPC` < 2.0                                              | Cache misses or branch mispredicts in hot path            | `branch_mispredict_rate`; `cycles` vs `instructions`                | If branch misses >2% → check BOLT lookup tables. If IPC <1.5 → working set may exceed L1.            |
+| `branch_mispredict_rate` > 2%                            | Branch predictor failing on data-dependent branches      | BOLT-generated lookup tables; recent hot-loop changes              | Convert data-dependent branches to lookup tables. v30 baseline: 0.57–2.41%.                          |
+| `write_bandwidth` drops sharply                          | Terminal emulator backpressure                            | `backpressure_events` count                                         | If `backpressure_events` > 0 → terminal can't keep up. Try a faster terminal (Alacritty, kitty).     |
+| `avg_cpu_percent` < 50%                                  | CPU not fully utilized — likely idle-throttled or I/O-bound | Whether `--bench-io` is set; whether benchmark is single-threaded   | In dry mode the loop may sleep between frames. Use `--bench-io` for full utilization.                |
+| `avg_cpu_percent` > 100%                                 | Multi-threaded build or measurement artifact              | Build profile; thread count                                         | Brief spikes >100% are normal on multi-threaded. Sustained >100% means worker threads are saturated. |
+| `--bench-scene` typo silently falls back                 | Should NEVER happen — typos are strict-rejected          | Whether you see the "did you mean?" error message                   | If no error → file a bug. The honesty contract requires strict validation.                            |
+| `production-draw` runs without `--bench-io`              | Should NEVER happen — dependency is enforced             | Whether you see the "requires --bench-io" error                     | If no error → file a bug. The dependency must be enforced.                                            |
+| `--save-baseline` rejects path                           | Path outside whitelist                                    | Path is under cwd, /tmp/, or $XDG_CACHE_HOME/cosmostrix/            | Move target into one of those dirs. The whitelist prevents arbitrary file writes.                    |
+| ENERGY section missing                                   | No RAPL access                                            | Whether running as root; `/sys/class/powercap/intel-rapk/` perms    | `sudo chmod -R a+r /sys/class/powercap/intel-rapl/` or run as root. See §11.                         |
+| MICROARCHITECTURE section missing                        | No `perf_event_open` access                               | `/proc/sys/kernel/perf_event_paranoid` value                        | `echo 1 \| sudo tee /proc/sys/kernel/perf_event_paranoid` or run as root. See §11.                  |
+| JSON output missing fields                               | Older binary or different bench-scene mode                | `--version` + `--bench-scene` value                                 | Some fields are mode-specific (e.g. I/O metrics only in wet mode). Re-run with the right flags.      |
+
+---
+
+## 16. Common Misreadings & Pitfalls
+
+Explicit list of ways users get confused by benchmark numbers. Each
+entry states the wrong reading, the correct reading, and why the
+difference matters.
+
+### Misreading 1: "avg_fps 73,618 means the terminal renders 73K FPS"
+
+**Wrong:** `avg_fps` is the on-screen frame rate.
+**Correct:** `avg_fps` is the headless engine ceiling — how many frames
+the renderer can COMPUTE per second with no terminal attached. Real
+interactive FPS is bounded by the terminal emulator's refresh rate,
+ANSI parse speed, and GPU compositing. A 144 Hz terminal maxes out at
+144 FPS regardless of `avg_fps`.
+**Why it matters:** users file bug reports saying "cosmostrix claims
+73K FPS but I only see 60" — that's the terminal, not the engine.
+
+### Misreading 2: "lean and production-draw should produce the same FPS"
+
+**Wrong:** The two `--bench-scene` values measure the same thing.
+**Correct:** `lean` measures the dirty-cell-only emission path (the
+fastest path cosmostrix uses in interactive mode). `production-draw`
+measures the full `Terminal::draw` path (MoveTo per row + ColorCache
+SGR + BOLT bold escape — what the terminal actually receives). They
+differ by ~2× because production-draw does I/O work for unchanged rows.
+**Why it matters:** comparing lean numbers across versions is fair;
+comparing lean to production-draw is not.
+
+### Misreading 3: "peak_fps higher than avg_fps means the engine is unstable"
+
+**Wrong:** High `peak_fps` indicates instability.
+**Correct:** `peak_fps` is the highest instantaneous FPS — often much
+higher than `avg_fps` because the diff engine can skip frames with
+zero dirty cells (nothing to redraw = near-zero frame time = huge
+instantaneous FPS). The v30 60s run shows avg=73,618 / peak=102,051
+— a 1.39× ratio, which is healthy.
+**Why it matters:** users think the engine is "spiking" when it's just
+skipping empty frames efficiently.
+
+### Misreading 4: "max_frame_time 0.629ms is a real spike"
+
+**Wrong:** Any `max_frame_time` above the p99 indicates a real problem.
+**Correct:** A single OS-scheduler context switch (involuntary preemption)
+can produce a one-off spike that has nothing to do with renderer
+performance. The v30 Run 2 max of 0.629ms had `involuntary_ctxt = 524`
+— the kernel preempted the process 524 times during the run. The 60s
+endurance run (Run 4) confirms this is not recurring: max stays at
+0.056ms over 4.4M frames.
+**Why it matters:** users optimize for one-off spikes that will never
+recur. Compare `max` to `p99` — if `p99` is low, the spike was a fluke.
+
+### Misreading 5: "fps_drift_percent -1.77% means FPS is dropping"
+
+**Wrong:** Negative drift = FPS dropping over time.
+**Correct:** Negative drift = FPS INCREASED over time (warmup effect,
+CPU boosting to higher clock). Positive drift = FPS dropped (thermal
+throttle or memory leak). The sign is `(first_half − second_half)`, so
+negative means second half was faster.
+**Why it matters:** users file leak reports for negative drift when
+the engine is actually getting faster as it warms up.
+
+### Misreading 6: "alloc_calls_per_frame 3.00 means the engine allocates 3 times per frame"
+
+**Wrong:** 3.00 allocs/frame is a real allocation in the rendering hot path.
+**Correct:** The 3.00 baseline is allocator-internal behavior (glibc
+malloc arena management, SmallVec inline-to-heap transitions in rare
+paths) — NOT cosmostrix rendering code. The actual rendering hot path
+(`frame.rs`, `cloud/rain.rs`, `cloud/phosphor.rs`, `cloud/render.rs`)
+has ZERO per-frame heap allocation. See `docs/PERFORMANCE_ACROSS_SCALES.md`
+§3 for the source-level proof.
+**Why it matters:** users spend time "optimizing" allocator internals
+that have nothing to do with the engine.
+
+### Misreading 7: "heap_retained 0 means there's no memory usage"
+
+**Wrong:** `heap_retained = 0` means the process uses no memory.
+**Correct:** `heap_retained` is the bytes allocated during the
+measurement window and NEVER FREED. It excludes the steady-state
+back-buffer, droplet pool, and runtime overhead — those are reported
+in `peak_rss` (5.4 MiB on v30). `heap_retained = 0` means no LEAK,
+not no USAGE.
+**Why it matters:** users think the engine is memory-free when it's
+just leak-free.
+
+### Misreading 8: "the cloud Xeon beats the Ryzen 5800HS, so the Ryzen is broken"
+
+**Wrong:** Higher `avg_fps` on cloud Xeon means the Ryzen is underperforming.
+**Correct:** Benchmark mode is single-threaded by design
+(`planned_worker_budget: 0`). The cloud Xeon's 2 vCPUs run at 3.2 GHz
+sustained with higher single-thread IPC, while the Ryzen 5800HS has 8
+cores / 16 threads but benchmark mode only uses one. The 1.58× ratio
+is fully explained by single-thread IPC difference — the Ryzen is not
+broken, it's just not being asked to use all its cores.
+**Why it matters:** users file hardware bug reports for a measurement
+artifact. See §5b for the full cloud Xeon comparison.
+
+### Misreading 9: "backpressure_events 0 means the terminal is keeping up"
+
+**Wrong:** `backpressure_events = 0` means the terminal renders every frame.
+**Correct:** `backpressure_events` counts kernel-level write stalls
+(pipe buffer full) when writing to /dev/null in `--bench-io` mode.
+It does NOT measure terminal-emulator backpressure — that's a different
+layer entirely. A real terminal can be backpressured even when
+`backpressure_events = 0` in the benchmark.
+**Why it matters:** users think the terminal is fine when the benchmark
+only measured kernel I/O, not terminal I/O.
+
+### Misreading 10: "IPC 2.58 means the CPU is bottlenecked on branches"
+
+**Wrong:** IPC < 3.0 means branch mispredicts are dominating.
+**Correct:** IPC 2.58 is healthy — the working set fits in L1 and the
+branch predictor is hot. IPC > 2.0 = healthy, IPC > 3.0 = excellent
+(usually only achievable with SIMD or very tight loops). The bottleneck
+at IPC 2.58 is more likely cache latency or instruction dependency
+chains, not branches.
+**Why it matters:** users waste time on branch optimization when the
+real bottleneck is elsewhere. Check `branch_mispredict_rate` (< 2% =
+predictor is fine).
 
 ---
 
