@@ -774,15 +774,51 @@ pub(crate) fn rebuild_cloud_config(
         lr_trace!("skip fps (CLI explicit) — keeping {}", new.target_fps);
     }
 
-    // Glitch level — skip if CLI --glitch-level was explicit
+    // Glitch level — skip if CLI --glitch-level was explicit.
+    // v35.2 (CLI-P-3): re-derive ALL preset values on live reload, not
+    // just `glitch_enabled`. Previously only the enable bool was flipped,
+    // so a reload from `subtle` to `intense` kept `glitch_pct=3.0`
+    // instead of upgrading to `25.0`. Preset values mirror
+    // `config_apply::apply_glitch_level_values`. `max_dpc` is NOT touched
+    // — it was never set by glitch_level presets at startup either.
     if !cli.glitch_level {
         if let Some(v) = cfg.get("glitch-level") {
             lr_trace!("apply glitch-level='{}'", v);
-            // v30 simplify: --noglitch field renamed to glitch_enabled
-            // (positive polarity). Live-reload only flips the enable bool
-            // here; the glitch_pct/glitch_ms/shortpct/rippct preset values
-            // are NOT re-derived on live reload (pre-existing limitation).
-            new.glitch_enabled = !v.trim().eq_ignore_ascii_case("none");
+            use clap::ValueEnum;
+            match crate::config::GlitchLevel::from_str(v, true) {
+                Ok(crate::config::GlitchLevel::Subtle) => {
+                    new.glitch_enabled = true;
+                    new.glitch_low = 200;
+                    new.glitch_high = 300;
+                    new.glitch_pct = 3.0;
+                    new.short_pct = 60.0;
+                    new.die_early_pct = 45.0;
+                }
+                Ok(crate::config::GlitchLevel::Default) => {
+                    new.glitch_enabled = true;
+                    new.glitch_low = 300;
+                    new.glitch_high = 400;
+                    new.glitch_pct = 10.0;
+                    new.short_pct = 50.0;
+                    new.die_early_pct = 33.33333;
+                }
+                Ok(crate::config::GlitchLevel::Intense) => {
+                    new.glitch_enabled = true;
+                    new.glitch_low = 500;
+                    new.glitch_high = 800;
+                    new.glitch_pct = 25.0;
+                    new.short_pct = 30.0;
+                    new.die_early_pct = 20.0;
+                }
+                Ok(crate::config::GlitchLevel::None) => {
+                    new.glitch_enabled = false;
+                }
+                // Unrecognized: flip enable bool only (old fallback).
+                // Startup clap rejects bad values, so this shouldn't fire.
+                Err(_) => {
+                    new.glitch_enabled = !v.trim().eq_ignore_ascii_case("none");
+                }
+            }
         }
     } else {
         lr_trace!(
@@ -1066,6 +1102,8 @@ mod tests {
             message: None,
             message_border: false,
             target_fps: 60.0,
+            xtermjs_host: false,
+            default_fps_cap: 240.0,
             duration: None,
             duration_s: None,
             bench_frames: None,

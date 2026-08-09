@@ -699,9 +699,8 @@ fn main() -> std::io::Result<()> {
 
     let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
-    // v30 + Tier 2: xterm.js hosts get a 30 FPS hard cap to prevent OOM.
-    // Benchmark mode skips the cap. v30.6: xtermjs_cap OVERRIDES the
-    // resolution layer (even an explicit --fps gets capped).
+    // v30+Tier 2: xterm.js hosts get 30 FPS hard cap to prevent OOM (skipped in benchmark).
+    // v30.6: cap OVERRIDES resolution layer. v35.2: also re-applied on live-reload.
     let xtermjs_cap_fired =
         !args.benchmark && term_caps.xtermjs_host && target_fps > term_caps.default_fps_cap;
     let target_fps = if xtermjs_cap_fired {
@@ -986,8 +985,7 @@ fn main() -> std::io::Result<()> {
             .and_then(scene_custom::parse_density_map)
     });
 
-    // v25.16: CliExplicit derives Copy, so reading cli_explicit.fps after
-    // the CloudConfig move is a field copy, not a move (avoids E0382).
+    // v25.16: CliExplicit is Copy — field copy after CloudConfig move (avoids E0382).
     let cloud_cfg = CloudConfig {
         color_mode,
         shading_mode,
@@ -1022,6 +1020,8 @@ fn main() -> std::io::Result<()> {
         }),
         message_border: args.message_border,
         target_fps,
+        xtermjs_host: term_caps.xtermjs_host, // v35.2 (FPS-F1): live-reload cap
+        default_fps_cap: term_caps.default_fps_cap,
         duration: args.duration,
         duration_s,
         bench_frames: args.bench_frames,

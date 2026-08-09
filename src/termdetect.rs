@@ -75,9 +75,20 @@ const XTERMJS_HOSTS: &[&str] = &[
 /// 1. **CLI `--fps`** — explicit user override. Detected via
 ///    `matches.value_source("fps") == CommandLine`. Always wins.
 /// 2. **Scene `fps=`** — built-in scenes (e.g., `low-power` sets
-///    fps=30, `cosmic_dragon` sets fps=120). Applied in
+///    fps=30, `cosmic_dragon` sets fps=60). Applied in
 ///    `config_apply::apply_scene_values` ONLY when the user did NOT
 ///    set `--fps` AND config.toml did NOT set `fps =`.
+///    **v35.2 audit note (FPS-F2/F3)**: scene-level `fps =` is
+///    **startup-only by design**. `Cloud::apply_scene_runtime` does
+///    NOT apply `fps` at runtime — only `rain_style`/`color`/`charset`/
+///    `speed`/`density`/`glitch_level`. So when the self-healer
+///    downgrades to "low-power" at runtime, or the ambient scheduler
+///    fires a scene at runtime, the user's startup `--fps`/`fps =`
+///    value stays in effect. The CPU shed from a self-healer
+///    downgrade comes from `speed=5`+`density=0.45`+`glitch=None`,
+///    not from `fps=30`. This is intentional — letting runtime
+///    scene writers override `target_fps` would create a precedence
+///    ambiguity (which user intent wins?).
 /// 3. **Config.toml `fps =`** — user's persistent default. Applied
 ///    ONLY when the user did NOT set `--fps`.
 /// 4. **Dynamic default fps** — terminal-aware default from this

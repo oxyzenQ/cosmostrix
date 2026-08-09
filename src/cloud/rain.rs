@@ -844,12 +844,21 @@ impl Cloud {
         // positive feedback loop (more anomalies → higher instability → more
         // anomalies). Cap the effective rate at 3× base to prevent visual
         // overload while preserving atmospheric dynamics.
+        //
+        // v35.2 (Glitch-P1 fix): gate spawn by `perf_pressure < EVENT_PERF_GATE`,
+        // mirroring ghost events (`cloud/ghost_events.rs:155`). Each active
+        // anomaly writes ~12 KB/frame of cache-missed SGR bytes; without
+        // this gate, anomalies continue to spawn under sustained CPU
+        // overload, prolonging Tier 2 (xterm.js) backpressure recovery by
+        // ~10-20%. Existing anomalies continue to apply (they have a 1.5s
+        // lifetime cap), but no new ones spawn during overload.
         let anomaly_chance = (ANOMALY_CHANCE_PER_SEC
             * self.profile_current.anomaly_freq_mult as f64
             * (1.0 + self.entropy_drift.anomaly_offset as f64)
             * (1.0 + self.memory.instability_pressure as f64))
             .min(ANOMALY_CHANCE_PER_SEC * 3.0);
         if phosphor_elapsed > 0.0
+            && self.perf_pressure < EVENT_PERF_GATE
             && (self.rand_chance.sample(&mut self.mt) as f64)
                 <= anomaly_chance * phosphor_elapsed as f64
         {

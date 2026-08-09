@@ -51,6 +51,11 @@ pub struct CloudConfig {
     pub message: Option<String>,
     pub message_border: bool,
     pub target_fps: f64,
+    /// v35.2 (FPS-F1): xterm.js host + 30 FPS cap, copied from `TerminalCaps`
+    /// at startup so the event loop's live-reload path can re-apply the cap
+    /// when the user edits `fps =` in config.toml. See `resolve_capped_fps`.
+    pub(crate) xtermjs_host: bool,
+    pub(crate) default_fps_cap: f64,
     pub duration: Option<f64>,
     pub duration_s: Option<f64>,
     pub bench_frames: Option<u64>,
@@ -158,6 +163,31 @@ pub(crate) struct CliExplicit {
 }
 
 impl CloudConfig {
+    /// v35.2 (FPS-F1): resolve `target_fps` for live-reload, re-applying
+    /// the xterm.js 30 FPS cap. Without this, a user in VSCode could edit
+    /// `fps = 240` in config.toml and resurrect the multi-hour OOM crash
+    /// Tier 2 was designed to prevent. Native terminals have
+    /// `default_fps_cap = 240.0` (effectively uncapped — startup clamps
+    /// to [1, 240]). Falls back to `fallback_fps` if `self.target_fps`
+    /// is ≤ 0.
+    pub(crate) fn resolve_capped_fps(&self, fallback_fps: f64) -> f64 {
+        let raw = if self.target_fps > 0.0 {
+            self.target_fps
+        } else {
+            fallback_fps.max(1.0)
+        };
+        if self.xtermjs_host && raw > self.default_fps_cap {
+            crate::lr_trace!(
+                "live-reload: xterm.js host — capping fps {:.1}→{:.0}",
+                raw,
+                self.default_fps_cap,
+            );
+            self.default_fps_cap
+        } else {
+            raw
+        }
+    }
+
     pub fn create_cloud(&self, density: f32) -> Cloud {
         let mut cloud = Cloud::new(
             self.color_mode,
@@ -270,6 +300,8 @@ impl CloudConfig {
             message: self.message.clone(),
             message_border: self.message_border,
             target_fps: self.target_fps,
+            xtermjs_host: self.xtermjs_host,
+            default_fps_cap: self.default_fps_cap,
             duration: self.duration,
             duration_s: self.duration_s,
             bench_frames: self.bench_frames,

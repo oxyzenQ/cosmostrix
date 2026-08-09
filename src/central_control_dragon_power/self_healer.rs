@@ -120,8 +120,17 @@ pub(crate) struct PerformanceSelfHealer {
 impl PerformanceSelfHealer {
     /// Fallback scene applied on downgrade. Hardcoded to "low-power" —
     /// the built-in scene specifically designed for low-CPU operation
-    /// (fps=30, speed=5, density=0.45). Exposed as a constant so tests
-    /// and the event loop can reference it without magic strings.
+    /// (speed=5, density=0.45, glitch_level=None). Exposed as a constant
+    /// so tests and the event loop can reference it without magic strings.
+    ///
+    /// **v35.2 audit note (FPS-F2)**: the "low-power" scene's `fps=30`
+    /// field is **startup-only by design** — `Cloud::apply_scene_runtime`
+    /// does NOT apply `fps` at runtime, only `speed`/`density`/`color`/
+    /// `charset`/`glitch_level`. So the CPU shed from a downgrade comes
+    /// from the lower speed/density/glitch, NOT from a runtime FPS drop.
+    /// This is intentional: letting the self-healer override the user's
+    /// `--fps` would create a precedence ambiguity. The runtime idle
+    /// factor and pause period remain the only runtime FPS modifiers.
     pub(crate) const FALLBACK_SCENE: &'static str = "low-power";
 
     pub(crate) fn new() -> Self {

@@ -43,7 +43,15 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "color-bg",
     "auto-color-drift",
     "async-mode",
-    "adaptive-custom",
+    // v35.2 (CLI-D-1 fix): `adaptive-custom` removed from this whitelist.
+    // The atmosphere engine was eliminated at commit 07b44b5 (2026-08-05),
+    // and `config_hints.rs` + `testconf.rs` both explicitly reject
+    // `adaptive-custom.*` keys with "have been removed" messages. But the
+    // bare key was still classified as "known" here, so a stale
+    // `adaptive-custom = "10-00, neon-purple, signal"` line was silently
+    // stored and never applied at runtime — zero warning at startup, only
+    // `--testconf` caught it. Now the bare key falls into `unknown_keys`
+    // and triggers the startup rejection at `config_apply.rs:149-163`.
     // v20: Cinematic intro selector. Values: "logo" | "cosmic" | "none".
     // Default: "logo". CLI --intro flag wins over this config key.
     "intro",

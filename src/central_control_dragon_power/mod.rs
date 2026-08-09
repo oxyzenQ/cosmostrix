@@ -52,9 +52,20 @@
 //! step toward centralizing them.
 //!
 //! 1. **FPS / frame_period** — 4 independent writers (dynamic-default-fps,
-//!    xterm.js cap, adaptive throttling, self-healer via low-power scene
-//!    fps=30, ambient via scene). See the FPS Precedence Chain doc in
+//!    xterm.js cap, adaptive throttling, self-healer via low-power scene,
+//!    ambient via scene). See the FPS Precedence Chain doc in
 //!    `termdetect.rs` for the resolution order.
+//!    **v35.2 audit note (FPS-F2/F3)**: the "self-healer via low-power
+//!    scene" and "ambient via scene" writers do NOT actually write
+//!    `target_fps` at runtime — `Cloud::apply_scene_runtime` only applies
+//!    `rain_style/color/charset/speed/density/glitch_level`, NOT `fps`.
+//!    Scene-level `fps =` is **startup-only by design**. The CPU shed
+//!    from a self-healer downgrade to "low-power" comes from
+//!    `speed=5`+`density=0.45`+`glitch_level=None`, not from `fps=30`.
+//!    This is intentional — letting the self-healer override the user's
+//!    `--fps` would create a precedence ambiguity (which user intent
+//!    wins?). The runtime layers (idle factor, pause period) are the
+//!    only runtime FPS modifiers.
 //! 2. **Scene / palette** — 3 writers (auto-color-drift, self-healer
 //!    downgrade, ambient scheduler). scene_generation counter is reactive
 //!    guard, not a mutex.

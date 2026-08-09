@@ -402,11 +402,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // v25.5: recompute target from new target_fps (guard fps <= 0).
             // v30.8 (Phase 3): PowerManager.set_target_fps replaces the
             // target_period + idle_period Duration recompute.
-            let safe_fps = if new_cfg.target_fps > 0.0 {
-                new_cfg.target_fps
-            } else {
-                cfg.target_fps.max(1.0)
-            };
+            // v35.2 (FPS-F1): re-apply xterm.js 30 FPS cap via
+            // `CloudConfig::resolve_capped_fps` (see `app.rs` doc).
+            let safe_fps = new_cfg.resolve_capped_fps(cfg.target_fps);
             power_manager.set_target_fps(safe_fps);
             // v30 (2026-08-05): keep HUD tgt: line in sync with live-reloaded fps.
             hud_state.set_target_fps(safe_fps);

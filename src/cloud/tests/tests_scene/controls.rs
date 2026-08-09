@@ -87,6 +87,42 @@ fn unknown_scene_does_not_change_state() {
     assert_eq!(result, "binary");
 }
 
+/// v35.2 audit-test (FPS-F2/F3 contract): `apply_scene_runtime("low-power")`
+/// applies the scene's `speed`/`density`/`color`/`charset`/`glitch_level`
+/// at runtime, but NOT its `fps` field. Cloud does not own `target_fps` —
+/// it lives on `PowerManager` in `event_loop.rs`, which is NOT mutated by
+/// `apply_scene_runtime`. This locks the "scene fps is startup-only by
+/// design" contract documented in `termdetect.rs` §FPS Precedence Chain.
+/// If a future refactor adds runtime fps application, this test will fail
+/// loudly, forcing the author to either (a) update the docs + this test
+/// to acknowledge the new behavior, or (b) revert the change.
+#[test]
+fn low_power_scene_runtime_applies_speed_density_glitch_only_not_fps() {
+    let mut cloud = make_glyph_cloud();
+    cloud.set_chars_per_sec(60.0);
+    cloud.set_droplet_density(1.0);
+    cloud.apply_scene_runtime("low-power", "binary", &[], false);
+
+    // These fields ARE applied at runtime (the CPU shed):
+    assert_eq!(cloud.chars_per_sec, 5.0, "low-power scene must set speed=5");
+    assert_eq!(
+        cloud.droplet_density, 0.45,
+        "low-power scene must set density=0.45"
+    );
+    assert!(!cloud.glitchy, "low-power scene must set glitch_level=None");
+    assert_eq!(
+        cloud.color_scheme(),
+        ColorScheme::Green,
+        "low-power scene must set color=green"
+    );
+
+    // The fps=30 field from `low-power`'s SceneConfig is NOT applied at
+    // runtime — there is no `cloud.target_fps` field to even read. The
+    // event loop's `PowerManager.base_target_fps()` stays at whatever was
+    // resolved at startup (CLI/config/dynamic-default). This is the
+    // documented FPS-F2/F3 contract.
+}
+
 #[test]
 fn existing_controls_still_work_after_scene_switch() {
     let mut cloud = make_monolith_cloud();

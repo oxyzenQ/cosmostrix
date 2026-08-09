@@ -428,6 +428,17 @@ impl Cloud {
             self.next_glitch_time = now + std::time::Duration::from_millis(ms);
         } else {
             self.glitch_map.clear();
+            // v35.2 (Glitch-P0 fix): clear in-flight anomaly zones when
+            // glitch is fully disabled (scene switch to glitch_level=None,
+            // self-healer DowngradeScene to "low-power", ambient fire to a
+            // calm scene). Without this, anomaly events (LuminanceSurge /
+            // GlyphCorruption / PulseWave) continue to apply for up to
+            // ANOMALY_DURATION_SECS (1.5s) after the new "no-glitch" scene
+            // is supposed to be active — violating the scene's glitch=None
+            // contract and producing visible corruption flicker. Combined
+            // with `force_draw_everything = true` below, the next frame is
+            // a clean full redraw with no anomaly residue.
+            self.anomaly_zones.clear();
         }
         self.force_draw_everything = true;
     }
