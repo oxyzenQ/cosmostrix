@@ -927,10 +927,27 @@ impl Droplet {
                     }
                 };
                 if fog_factor < 1.0 {
-                    let fi = (fog_factor * 256.0) as i32;
-                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    // v30.3 (chroma audit, A13): route depth-fog brightness
+                    // scale through chroma engine when active, fall back to
+                    // chroma::legacy::scale_rgb otherwise. Same equation both
+                    // paths: \`((c * fi + 128) >> 8).clamp(0, 255)\` where
+                    // fi = (fog_factor * 256) as i32.
+                    //
+                    // Factor safety: fog_factor is gated to < 1.0 here, and
+                    // the smoothstep ramp above produces values in
+                    // [FOG_MIN_FACTOR=0.45, 1.0). Always within the chroma
+                    // helper's [0, 1] clamp.
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        let scaled = crate::chroma::palette::apply_brightness_rgb(
+                            r, g, b, fog_factor,
+                        );
+                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                    } else {
+                        crate::chroma::legacy::scale_rgb(r, g, b, fog_factor)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
                 // Cursor glow: cells near mouse cursor get brighter (elliptical falloff).
