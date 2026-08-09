@@ -895,7 +895,11 @@ run_miri() {
                 }
         else
                 # 3. Ensure miri component is installed on nightly.
-                if ! rustup component list --toolchain nightly 2>/dev/null | grep -q '^miri .*installed'; then
+                # Modern rustup emits per-target lines like
+                # `miri-x86_64-unknown-linux-gnu (installed)`, so the
+                # separator after `miri` can be either a hyphen (newer
+                # rustup) or a space (older rustup). Match both.
+                if ! rustup component list --toolchain nightly 2>/dev/null | grep -q '^miri[-[:space:]].*installed'; then
                         if [ "${MIRI_NO_INSTALL}" = "1" ]; then
                                 log_error "miri component not installed on nightly and --no-install given. Aborting."
                                 exit 1

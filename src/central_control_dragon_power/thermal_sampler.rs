@@ -136,16 +136,12 @@ pub(crate) fn sample_thermal_pressure() -> Option<f32> {
     None
 }
 
-#[cfg(not(target_os = "linux"))]
-pub(crate) fn normalize_celsius(celsius_millideg: i64) -> f32 {
-    // Keep the pure function cross-platform so the math tests run on
-    // every target.
-    let celsius = celsius_millideg as f32 / 1000.0;
-    let lo = THERMAL_PRESSURE_ZERO_C as f32;
-    let hi = THERMAL_PRESSURE_ONE_C as f32;
-    let pressure = (celsius - lo) / (hi - lo);
-    pressure.clamp(0.0, 1.0)
-}
+// Note: `normalize_celsius` above is intentionally NOT cfg-gated — the
+// pure math function is exposed cross-platform so the math tests run on
+// every target (Linux, Android, macOS, Windows, FreeBSD). A previous
+// revision duplicated it under `#[cfg(not(target_os = "linux"))]`, which
+// caused E0428 (duplicate definition) on every non-Linux target because
+// the primary definition above is already unconditional.
 
 /// Return the larger of two `i64`s, treating `None` as "no reading yet".
 #[inline]
