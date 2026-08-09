@@ -130,14 +130,10 @@ pub struct Cloud {
     pub(super) edge_fade_lut: Vec<f32>,
 
     /// Phase D (hot-path): precomputed per-column hue-coherence perturbation
-    /// LUT. Built once per frame in `rain_at` from the time phase
-    /// (`COLUMN_COHERENCE_FREQ` rad/s). Read by index in the shader hot path
-    /// (`ShaderCtx::column_coherence_lut[col]`) instead of calling
-    /// `column_coherence_perturbation(phase, col)` per cell. Saves
-    /// ~65-130M cycles/sec at 60 FPS on a 200-col viewport.
-    /// Stored on Cloud (not built fresh each frame) to avoid per-frame heap
-    /// allocation. Length kept in sync with `cols` via the resize check in
-    /// `rain_at`.
+    /// LUT. Built once per frame in `rain_at` from the time phase. Read by
+    /// index in the shader hot path instead of calling
+    /// `column_coherence_perturbation(phase, col)` per cell (saves
+    /// ~65-130M cycles/sec at 60 FPS on a 200-col viewport).
     pub(super) column_coherence_lut: Vec<i32>,
 
     pub(super) droplet_free_list: Vec<usize>,
@@ -246,6 +242,15 @@ pub struct Cloud {
     pub(super) custom_palette_active: bool,
     /// v30 Bug #5: color_tune stored on Cloud so set_color_scheme re-applies it.
     pub(super) color_tune: crate::color_tune::ColorTune,
+    /// v35: true when ambient asserted palette → suppress auto-drift palette
+    /// replacement (climate drift still runs). Cleared by `c`/`C`/`x`.
+    /// See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3.
+    pub(crate) ambient_palette_locked: bool,
+    /// v35: true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`)
+    /// or auto-drift picked new palette since last ambient fire. Prevents
+    /// event-loop dedup from skipping day-boundary refire. Cleared by
+    /// ambient fire (scheduler, `a` key, startup).
+    pub(crate) user_override_since_ambient: bool,
 
     pub(super) event_manager: GhostEventScheduler,
 
@@ -412,6 +417,10 @@ impl Cloud {
             // v30 strengthen: overridden in app.rs create_cloud.
             custom_palette_active: false,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
+            // v35: ambient-harmony flags start false (set by ambient fire,
+            // cleared by user override x/c/s).
+            ambient_palette_locked: false,
+            user_override_since_ambient: false,
             event_manager: GhostEventScheduler::new(now),
             gust: living_rain::GustState::new(now),
             last_sim_ms: 0.0,
@@ -457,9 +466,8 @@ impl Cloud {
     }
 
     pub fn set_mouse_click(&mut self, col: u16, line: u16) {
-        // v30 fix: bounded pool. Old design reset any in-flight wave on every
-        // click. New design mirrors spawn_quantum_ripple: first inactive slot,
-        // or evict OLDEST (smallest birth) if all active.
+        // v30 fix: bounded pool. Mirrors spawn_quantum_ripple: first inactive
+        // slot, or evict OLDEST (smallest birth) if all active.
         let now = Instant::now();
         let mut slot = None;
         let mut oldest = (0usize, Instant::now());
@@ -587,10 +595,8 @@ impl Cloud {
                     if d.is_alive {
                         d.increment_time(elapsed);
                         d.last_time = Some(now);
-                        // v30.2: randomize advance_remainder on resume (was 0).
-                        // Wiping to 0 made all droplets cross the 1.0 row
-                        // threshold in lockstep → asynchronous "loncat" pops
-                        // during slow resume. Random jitter spreads the pops,
+                        // v30.2: randomize advance_remainder on resume (was 0,
+                        // caused lockstep "loncat" pops). Jitter spreads them,
                         // matching apply_phase_jitter's per-droplet phase.
                         d.advance_remainder = self.rand_chance.sample(&mut self.mt);
                     }
@@ -633,12 +639,9 @@ impl Cloud {
                         w.birth += elapsed;
                     }
                 }
-                // v30 fix (MOUSE_EFFECTS_AUDIT.md bug fix): shift active
-                // quantum particle births too. Without this, particles spawned
-                // before pause instantly expire on unpause (their age = now -
-                // birth includes the pause duration, exceeding their 0.8s
-                // lifetime). Flash waves survived correctly because their
-                // birth was shifted above — this makes particles consistent.
+                // v30 fix: shift active quantum particle births too. Without
+                // this, particles spawned before pause instantly expire on
+                // unpause (age includes pause duration, exceeding 0.8s life).
                 for p in &mut self.quantum_particles {
                     if p.active {
                         p.birth += elapsed;
@@ -933,10 +936,7 @@ impl Cloud {
 /// v25: includes rounded box-drawing chars.
 #[inline]
 fn is_border_char(ch: char) -> bool {
-    matches!(
-        ch,
-        ' ' | '+' | '-' | '|' | '╭' | '╮' | '╰' | '╯' | '─' | '│'
-    )
+    matches!(ch, ' ' | '+' | '-' | '|' | '╭' | '╮' | '╰' | '╯' | '─' | '│')
 }
 
 /// Build clockwise-ordered list of border cell indices: top-left → top →

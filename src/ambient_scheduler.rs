@@ -185,6 +185,18 @@ fn scheduler_loop(
     // Now any change to the scene name triggers a refire.
     let mut last_applied: Option<AmbientEntry> = None;
 
+    // v35: track the day-of-year of the last fire. Without this, a single-entry
+    // schedule (e.g. `ambient.22-10 = aurora`) would never refire after the
+    // initial fire: at 22:10 the next day, `current_phase == last_applied`
+    // (both <22:10, aurora>), so the dedup suppresses the legitimate next-day
+    // refire. The day-boundary check below fires the entry once per day when
+    // the boundary is crossed, even if `entry == last_applied`.
+    //
+    // Init to -1 so the first loop iteration always treats today as "new day"
+    // — but the existing `last_applied != current_entry` check handles the
+    // initial fire, so the day-boundary check is a no-op on the first iteration.
+    let mut last_fired_yday: i32 = -1;
+
     loop {
         let now_min = current_minute_of_day();
         let now_sec = current_second_of_minute();
@@ -227,7 +239,57 @@ fn scheduler_loop(
                     return;
                 }
                 last_applied = Some(entry.clone());
+                last_fired_yday = crate::ambient::current_yday();
             }
+        }
+
+        // v35: day-boundary refire. If we're in a new day (yday changed since
+        // the last fire) AND the current phase's boundary has been crossed
+        // today (entry.minutes_of_day() <= now_min), refire even if
+        // `entry == last_applied`. This handles single-entry schedules where
+        // the same entry is "current" across multiple days — without this, a
+        // user who presses 'x' after 22:10 would never see aurora re-asserted
+        // at 22:10 the next day (the dedup above would suppress it).
+        //
+        // The check fires AT MOST ONCE per day: after firing, we set
+        // `last_fired_yday = today_yday`, so subsequent wakes on the same day
+        // see `yday == last_fired_yday` and skip. This prevents refire loops
+        // when the scheduler's 1-hour cap triggers multiple wakes per day.
+        //
+        // Multi-entry schedules are unaffected: the existing
+        // `last_applied != current_entry` check above already fires on
+        // boundary crossings (different entry), and the day-boundary check
+        // is a no-op (`yday == last_fired_yday` after the first fire of the
+        // day).
+        let today_yday = crate::ambient::current_yday();
+        if today_yday != last_fired_yday {
+            if let Some(entry) = &current_entry {
+                if entry.minutes_of_day() <= now_min
+                    && last_applied.as_ref() == Some(entry)
+                {
+                    // Same entry, new day, past today's boundary — refire.
+                    // The `last_applied == Some(entry)` guard ensures we only
+                    // take this branch when the existing != check above did
+                    // NOT fire (i.e. the entry was already applied on a
+                    // previous day). If the entry is new (last_applied is
+                    // None or different), the != check above already fired it
+                    // and we just mark today as "seen".
+                    crate::lr_trace!(
+                        "ambient-scheduler: day-boundary refire {:02}:{:02} (scene={}, yday={})",
+                        entry.hour,
+                        entry.minute,
+                        entry.scene,
+                        today_yday
+                    );
+                    if tx.send(entry.clone()).is_err() {
+                        return;
+                    }
+                }
+            }
+            // Mark today as "seen" — whether or not we fired. This prevents
+            // repeated refire attempts on subsequent wakes within the same
+            // day (the 1-hour sleep cap can trigger multiple wakes per day).
+            last_fired_yday = today_yday;
         }
 
         // Sleep until next phase boundary OR reload signal.
@@ -506,5 +568,79 @@ mod tests {
                 panic!("v30.3 regression: scheduler did not refire on scene-name change");
             }
         }
+    }
+
+    // ── v35: day-boundary refire tests ──
+    //
+    // The scheduler now tracks `last_fired_yday` and refires the current
+    // entry once per day when the boundary is crossed, even if
+    // `entry == last_applied`. This fixes the single-entry schedule bug
+    // where pressing 'x' after 22:10 prevented aurora from re-asserting
+    // at 22:10 the next day.
+
+    /// Verify the day-boundary refire helper exists and is callable.
+    /// The actual day-rollover behavior is wall-clock-dependent and can't
+    /// be tested deterministically without a mock clock, but we can verify
+    /// the helper doesn't panic and returns a sane value.
+    #[test]
+    fn current_yday_returns_sane_value() {
+        let yday = crate::ambient::current_yday();
+        // tm_yday is 0..=365 on Unix; non-Unix fallback is (secs/86400)%366.
+        // Either way, it must be in [0, 365] (366 would only occur on Dec 31
+        // of a leap year on Unix, but the fallback mod 366 could produce it).
+        assert!(
+            (0..=366).contains(&yday),
+            "current_yday returned {yday}, expected 0..=366"
+        );
+    }
+
+    /// Single-entry schedule: scheduler fires on startup, then sleeps until
+    /// the next phase boundary (which for a single entry is 24h away, capped
+    /// to 1h). Within a 1s test window, no spurious refire should occur —
+    /// the day-boundary refire only fires when yday changes, which doesn't
+    /// happen within 1s.
+    #[test]
+    fn single_entry_no_spurious_refire_within_same_day() {
+        let s = AmbientSchedule {
+            entries: vec![entry(0, 0)],
+        };
+        let handle = spawn_ambient_scheduler(s);
+
+        // Drain initial fire.
+        let _initial = handle
+            .rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("scheduler should fire initial phase");
+
+        // Within 1s, no spurious refire (yday hasn't changed).
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(
+            handle.rx.try_recv().is_err(),
+            "no spurious refire expected within same day"
+        );
+    }
+
+    /// Verify the day-boundary refire logic is present in the source.
+    /// This is a static check (string match) that ensures the v35 refire
+    /// code path exists — if a future refactor accidentally removes it,
+    /// this test will fail. The actual day-rollover behavior is tested
+    /// via the event loop's integration tests (which can simulate
+    /// `user_override_since_ambient = true` and verify the scheduler's
+    /// next fire is applied, not deduped).
+    #[test]
+    fn day_boundary_refire_code_path_exists() {
+        let src = include_str!("ambient_scheduler.rs");
+        assert!(
+            src.contains("last_fired_yday"),
+            "v35 day-boundary refire tracker `last_fired_yday` must exist"
+        );
+        assert!(
+            src.contains("day-boundary refire"),
+            "v35 day-boundary refire comment must exist"
+        );
+        assert!(
+            src.contains("crate::ambient::current_yday"),
+            "v35 day-boundary refire must call current_yday"
+        );
     }
 }

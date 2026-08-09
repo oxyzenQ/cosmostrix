@@ -899,12 +899,29 @@ impl Cloud {
         // The ecosystem.tick() call is unconditional so the climate state
         // keeps evolving (and the RNG stream stays consistent); only the
         // palette replacement is skipped.
+        //
+        // v35 ambient/auto-drift harmony: when ambient has asserted a palette
+        // (`ambient_palette_locked`), palette drift is suppressed even if
+        // `auto_color_drift` is true. Ambient specifies the WHAT (which
+        // palette), auto-drift specifies the HOW (climate variation on top).
+        // This prevents the two systems from fighting over the base palette.
+        // When the user manually overrides (presses 'c' or 'x'), the lock is
+        // cleared and palette drift resumes until the next ambient fire.
+        // See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3 + §3.
         let maybe_drift = self
             .color_ecosystem
             .tick(now, &mut self.mt, self.color_scheme);
-        if self.auto_color_drift && !self.custom_palette_active {
+        if self.auto_color_drift
+            && !self.custom_palette_active
+            && !self.ambient_palette_locked
+        {
             if let Some(new_scheme) = maybe_drift {
                 self.set_color_scheme(new_scheme);
+                // v35: mark that auto-drift overrode ambient's palette. The
+                // event loop's ambient-event dedup uses this to avoid
+                // skipping the next ambient fire (which would re-assert the
+                // ambient palette).
+                self.user_override_since_ambient = true;
             }
         }
 

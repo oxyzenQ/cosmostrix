@@ -17,7 +17,9 @@ mod cases {
     use crate::frame::Frame;
 
     use crate::interactive::activity::{idle_resync_due, is_runtime_idle, register_activity};
-    use crate::interactive::input::{handle_keybinding, runtime_speed_clamp, PasteBurstGuard};
+    use crate::interactive::input::{
+        handle_ambient_snapback, handle_keybinding, runtime_speed_clamp, PasteBurstGuard,
+    };
     use crate::{cycle_charset_preset, cycle_color_scheme, CloudConfig, PowerManager};
 
     fn key(ch: char) -> KeyEvent {
@@ -789,6 +791,212 @@ mod cases {
         assert!(
             cloud.quantum_active_count > active_before,
             "click must spawn quantum particles"
+        );
+    }
+
+    // ── v35: ambient harmony flag tests ──
+    //
+    // When the user presses x/c/s/C/S, two flags must be updated:
+    //   - user_override_since_ambient = true  (so next ambient fire isn't deduped)
+    //   - ambient_palette_locked = false      (so auto-drift palette drift resumes)
+    // (except 's'/'S' which only sets user_override, not the palette lock —
+    // charset change doesn't affect palette).
+
+    #[test]
+    fn v35_c_key_sets_user_override_and_clears_palette_lock() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
+        // Simulate ambient having fired.
+        cloud.ambient_palette_locked = true;
+        cloud.user_override_since_ambient = false;
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key('c'),
+            &mut charset_preset,
+            &mut scene_name,
+            &mut scene_generation,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert!(
+            cloud.user_override_since_ambient,
+            "'c' key must set user_override_since_ambient = true"
+        );
+        assert!(
+            !cloud.ambient_palette_locked,
+            "'c' key must clear ambient_palette_locked"
+        );
+    }
+
+    #[test]
+    fn v35_x_key_sets_user_override_and_clears_palette_lock() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
+        cloud.ambient_palette_locked = true;
+        cloud.user_override_since_ambient = false;
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key('x'),
+            &mut charset_preset,
+            &mut scene_name,
+            &mut scene_generation,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert!(
+            cloud.user_override_since_ambient,
+            "'x' key must set user_override_since_ambient = true"
+        );
+        assert!(
+            !cloud.ambient_palette_locked,
+            "'x' key must clear ambient_palette_locked"
+        );
+    }
+
+    #[test]
+    fn v35_s_key_sets_user_override_only() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
+        // 's' changes charset, not palette — ambient_palette_locked state
+        // should be preserved (whatever it was).
+        cloud.ambient_palette_locked = true;
+        cloud.user_override_since_ambient = false;
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key('s'),
+            &mut charset_preset,
+            &mut scene_name,
+            &mut scene_generation,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert!(
+            cloud.user_override_since_ambient,
+            "'s' key must set user_override_since_ambient = true"
+        );
+        // ambient_palette_locked is NOT cleared by 's' (charset != palette).
+        assert!(
+            cloud.ambient_palette_locked,
+            "'s' key must NOT clear ambient_palette_locked (charset change)"
+        );
+    }
+
+    /// v35: handle_ambient_snapback with an empty schedule is a no-op
+    /// (returns false, doesn't crash).
+    #[test]
+    fn v35_a_key_no_op_with_empty_schedule() {
+        let mut cloud = make_test_cloud();
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
+        let mut last_applied: Option<crate::ambient::AmbientEntry> = None;
+        let schedule = crate::ambient::AmbientSchedule::default();
+        let cfg_map = std::collections::HashMap::new();
+
+        let applied = handle_ambient_snapback(
+            &mut cloud,
+            &mut charset_preset,
+            &mut scene_name,
+            &mut scene_generation,
+            &mut last_applied,
+            &schedule,
+            &cfg_map,
+            &[],
+            false,
+        );
+
+        assert!(
+            !applied,
+            "'a' key with empty schedule must be a no-op (return false)"
+        );
+        assert!(last_applied.is_none(), "last_applied must remain None");
+        assert_eq!(scene_name, "monolith", "scene_name must not change");
+    }
+
+    /// v35: handle_ambient_snapback with a schedule whose current phase is
+    /// a built-in scene applies that scene and updates all state.
+    #[test]
+    fn v35_a_key_applies_current_ambient_phase() {
+        let mut cloud = make_test_cloud();
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
+        let mut last_applied: Option<crate::ambient::AmbientEntry> = None;
+
+        // Build a schedule with an entry far in the past (00:00) so it's
+        // always "current" regardless of wall-clock time.
+        let schedule = crate::ambient::AmbientSchedule {
+            entries: vec![crate::ambient::AmbientEntry {
+                hour: 0,
+                minute: 0,
+                scene: "matrix".to_string(),
+            }],
+        };
+        let cfg_map = std::collections::HashMap::new();
+
+        // Simulate user having overridden (so flags are dirty).
+        cloud.ambient_palette_locked = false;
+        cloud.user_override_since_ambient = true;
+
+        let applied = handle_ambient_snapback(
+            &mut cloud,
+            &mut charset_preset,
+            &mut scene_name,
+            &mut scene_generation,
+            &mut last_applied,
+            &schedule,
+            &cfg_map,
+            &[],
+            false,
+        );
+
+        assert!(applied, "'a' key with active phase must return true");
+        assert_eq!(scene_name, "matrix", "scene_name must be the ambient scene");
+        assert!(last_applied.is_some(), "last_applied must be set");
+        assert_eq!(last_applied.as_ref().unwrap().scene, "matrix");
+        // v35 harmony flags: ambient just re-asserted.
+        assert!(
+            !cloud.user_override_since_ambient,
+            "'a' key must clear user_override_since_ambient"
+        );
+        assert!(
+            cloud.ambient_palette_locked,
+            "'a' key must set ambient_palette_locked"
+        );
+    }
+
+    /// v35: cloud fields default to false on construction.
+    #[test]
+    fn v35_cloud_ambient_flags_default_false() {
+        let cloud = make_test_cloud();
+        assert!(
+            !cloud.ambient_palette_locked,
+            "ambient_palette_locked must default to false"
+        );
+        assert!(
+            !cloud.user_override_since_ambient,
+            "user_override_since_ambient must default to false"
         );
     }
 }

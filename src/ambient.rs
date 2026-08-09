@@ -465,6 +465,48 @@ pub(crate) fn current_second_of_minute() -> u32 {
     (secs % 60) as u32
 }
 
+/// Returns the current day-of-year (0..=365) from the local wall clock.
+///
+/// v35: used by the ambient scheduler to detect day-boundary crossings.
+/// Without this, a single-entry schedule (e.g. `ambient.22-10 = aurora`)
+/// would never refire after the initial fire: the scheduler's
+/// `last_applied == current_entry` dedup suppresses the legitimate next-day
+/// refire. Tracking `last_fired_yday` lets the scheduler refire the same
+/// entry once per day when the boundary is crossed.
+///
+/// Day-of-year (rather than full date) is sufficient because the scheduler
+/// only needs to know "is this a new day since I last fired?". Year rollover
+/// is implicitly handled: yday resets to 0 on Jan 1, which differs from the
+/// previous day's yday (365 or 366), triggering the refire.
+#[cfg(unix)]
+pub(crate) fn current_yday() -> i32 {
+    use std::mem::MaybeUninit;
+    let now = unsafe { libc::time(std::ptr::null_mut()) };
+    if now < 0 {
+        return 0;
+    }
+    let mut tm: MaybeUninit<libc::tm> = MaybeUninit::uninit();
+    if unsafe { libc::localtime_r(&now, tm.as_mut_ptr()) }.is_null() {
+        return 0;
+    }
+    let tm = unsafe { tm.assume_init() };
+    tm.tm_yday // 0..=365
+}
+
+#[cfg(not(unix))]
+pub(crate) fn current_yday() -> i32 {
+    // Non-Unix fallback: compute day-of-year from Unix seconds.
+    // This is a rough approximation — it doesn't account for leap years
+    // perfectly, but it's sufficient for the scheduler's "new day?"
+    // check (which only needs to detect day rollover, not exact yday).
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    ((secs / 86_400) % 366) as i32
+}
+
 /// v30.3 masterclass: compute the current ambient phase and apply it to the
 /// cloud at startup (synchronous, before the event loop). Returns the new
 /// charset preset + the applied entry (or None if no schedule is active).

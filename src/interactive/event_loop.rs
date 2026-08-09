@@ -239,12 +239,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // v30.3+hotfix: synchronous ambient apply at startup with REAL cfg map.
     let (new_charset, startup_entry) = crate::ambient::apply_startup_ambient(
-        &mut cloud,
-        &base_cfg.ambient_schedule,
-        &charset_preset,
-        &user_ranges,
-        def_ascii,
-        &initial_cfg_map,
+        &mut cloud, &base_cfg.ambient_schedule,
+        &charset_preset, &user_ranges, def_ascii, &initial_cfg_map,
     );
     // v30.5: store startup ambient info for post-exit verbose (can't print
     // here — alternate screen discards stderr on exit). main.rs prints it
@@ -261,6 +257,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         charset_preset = new_charset;
         scene_name = entry.scene.clone();
         scene_generation = scene_generation.wrapping_add(1);
+        // v35: ambient asserted at startup — lock palette, clear override.
+        cloud.user_override_since_ambient = false;
+        cloud.ambient_palette_locked = true;
         term.set_color_cache(ColorCache::new(&cloud.palette));
         frame = Frame::new(w, h, cloud.palette.bg);
         super::fill_terminal_bg(cloud.palette.bg);
@@ -418,6 +417,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // v30.3: RE-APPLY the last-known ambient entry to the new Cloud.
             // Rebuild created a fresh Cloud with CLI override but NOT the
             // ambient scene. If the entry was removed, clear the tracker.
+            // v35: also re-lock the palette (ambient is re-asserting).
             if let Some(ref last_entry) = last_applied_ambient_entry {
                 let still_in_schedule = new_cfg
                     .ambient_schedule
@@ -430,14 +430,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         last_entry.scene
                     );
                     charset_preset = cloud.apply_ambient_entry(
-                        last_entry,
-                        &charset_preset,
-                        &user_ranges,
-                        def_ascii,
+                        last_entry, &charset_preset, &user_ranges, def_ascii,
                         &last_applied_cfg_map.clone().unwrap_or_default(),
                     );
                     scene_name = last_entry.scene.clone();
                     scene_generation = scene_generation.wrapping_add(1);
+                    cloud.user_override_since_ambient = false;
+                    cloud.ambient_palette_locked = true;
                     term.set_color_cache(ColorCache::new(&cloud.palette));
                     frame = Frame::new(w, h, cloud.palette.bg);
                     super::fill_terminal_bg(cloud.palette.bg);
@@ -456,15 +455,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         while let Ok(entry) = ambient_handle.rx.try_recv() {
             crate::lr_trace!(
                 "ambient: received phase event {:02}:{:02} (scene={})",
-                entry.hour,
-                entry.minute,
-                entry.scene
+                entry.hour, entry.minute, entry.scene
             );
             last_ambient_entry = Some(entry);
         }
         if let Some(entry) = last_ambient_entry {
             // v30.3: dedup — skip if already applied (startup sync or rebuild re-apply).
-            if last_applied_ambient_entry.as_ref() == Some(&entry) {
+            // v35: also skip ONLY if cloud state hasn't diverged (user didn't
+            // press x/c/s and auto-drift didn't pick a new palette). If state
+            // diverged, re-apply even if entry == last_applied — this is the
+            // day-boundary refire case from ambient_scheduler.rs Patch A.
+            if last_applied_ambient_entry.as_ref() == Some(&entry)
+                && !cloud.user_override_since_ambient
+            {
                 crate::lr_trace!(
                     "ambient: skipping duplicate phase event {:02}:{:02} (scene={}) — already applied",
                     entry.hour, entry.minute, entry.scene
@@ -485,6 +488,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 last_applied_ambient_entry = Some(entry.clone());
                 scene_name = entry.scene.clone();
                 scene_generation = scene_generation.wrapping_add(1);
+                // v35 harmony: ambient just asserted — clear override flag
+                // and lock palette against auto-drift.
+                cloud.user_override_since_ambient = false;
+                cloud.ambient_palette_locked = true;
                 term.set_color_cache(ColorCache::new(&cloud.palette));
                 frame = Frame::new(w, h, cloud.palette.bg);
                 super::fill_terminal_bg(cloud.palette.bg);
@@ -711,58 +718,61 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                         }
 
-                        // Process the keybinding FIRST. This lets interactive
-                        // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
-                        // i/I, h/H) work even in --screensaver mode.
-                        let redraw_needed = handle_keybinding(
-                            &mut cloud,
-                            &mut frame,
-                            &k,
-                            &mut charset_preset,
-                            &mut scene_name,
-                            &mut scene_generation,
-                            &user_ranges,
-                            def_ascii,
-                            cfg,
-                            #[cfg(unix)]
-                            &term_reinit,
-                        );
-
-                        if cfg.screensaver {
-                            // Screensaver mode (v15 "only q quits" policy):
-                            //
-                            // - q: quit (handle_keybinding set raining=false)
-                            // - Recognized interactive keys (c/C, s/S, p,
-                            //   x/X, [, ], i/I, h/H, Space, Up/Down):
-                            //   process and continue. The user can still
-                            //   cycle colors, toggle HUD, etc. while the
-                            //   screensaver is active.
-                            // - Unrecognized keys (a, m, g, B/b, z, F1-F12,
-                            //   Home/End, PageUp/Down, Esc, Ctrl+Z, etc.):
-                            //   SILENTLY IGNORED. They do NOT exit the
-                            //   screensaver and do NOT cause any visual
-                            //   glitch. The user must press 'q' to quit.
-                            //   This matches the "only q quits" policy enforced
-                            //   in normal (non-screensaver) mode — consistency
-                            //   is the world-class invariant.
-                            //
-                            // v17: Mouse click does NOT exit either. The old
-                            // "classic screensaver click to dismiss" behavior
-                            // was removed for policy consistency. See Event::Mouse
-                            // handler below for the rationale.
-                            //
-                            // The "unrecognized key exits" behavior was REMOVED
-                            // in v15 because it was surprising: pressing B/b
-                            // or any letter not in the recognized set would
-                            // kick the user out. Now only q exits.
-                            if !cloud.raining {
-                                break;
+                        // v35: 'a' (ambient snap-back) needs schedule + cfg_map
+                        // + last_applied, so handle here, not in handle_keybinding.
+                        if k.code == crossterm::event::KeyCode::Char('a') {
+                            let cfg_map =
+                                last_applied_cfg_map.clone().unwrap_or_default();
+                            if super::input::handle_ambient_snapback(
+                                &mut cloud,
+                                &mut charset_preset,
+                                &mut scene_name,
+                                &mut scene_generation,
+                                &mut last_applied_ambient_entry,
+                                &last_ambient_schedule,
+                                &cfg_map,
+                                &user_ranges,
+                                def_ascii,
+                            ) {
+                                term.set_color_cache(ColorCache::new(&cloud.palette));
+                                frame = Frame::new(w, h, cloud.palette.bg);
+                                super::fill_terminal_bg(cloud.palette.bg);
+                                next_frame = Instant::now();
                             }
-                            // No is_recognized_key check — all unrecognized
-                            // keys fall through to handle_keybinding's
-                            // `_ => {}` catch-all and are silently ignored.
-                        } else if redraw_needed {
-                            next_frame = Instant::now();
+                        } else {
+                            // Process the keybinding. This lets interactive
+                            // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
+                            // i/I, h/H) work even in --screensaver mode.
+                            let redraw_needed = handle_keybinding(
+                                &mut cloud,
+                                &mut frame,
+                                &k,
+                                &mut charset_preset,
+                                &mut scene_name,
+                                &mut scene_generation,
+                                &user_ranges,
+                                def_ascii,
+                                cfg,
+                                #[cfg(unix)]
+                                &term_reinit,
+                            );
+
+                            if cfg.screensaver {
+                                // Screensaver (v15 "only q quits"): recognized
+                                // keys (c/C, s/S, p, x/X, a, [, ], i/I, h/H,
+                                // Space, Up/Down) process and continue; all
+                                // other keys silently ignored. Mouse click
+                                // also does NOT exit (v17: removed for policy
+                                // consistency). Only 'q' quits.
+                                if !cloud.raining {
+                                    break;
+                                }
+                                // No is_recognized_key check — all unrecognized
+                                // keys fall through to handle_keybinding's
+                                // `_ => {}` catch-all and are silently ignored.
+                            } else if redraw_needed {
+                                next_frame = Instant::now();
+                            }
                         }
                     }
                     Event::Paste(_) => {

@@ -123,13 +123,22 @@ pub(super) fn handle_keybinding(
         // v30 simplify had removed uppercase 'C'/'S' for consistency; owner
         // restored them as reverse-cycle bindings (shift+c/s is simple and
         // matches the c/C, s/S convention). See audit task flags-audit-4.
+        //
+        // v35 ambient harmony: 'c'/'C' clears `ambient_palette_locked` (user
+        // is taking ownership of color) and sets `user_override_since_ambient`
+        // (so the next ambient fire isn't deduped). See
+        // docs/audits/AMBIENT_SCHEDULER_AUDIT.md §2.3.
         (KeyCode::Char('c'), _) => {
             let next = cycle_color_scheme(cloud.color_scheme(), 1);
             cloud.set_color_scheme(next);
+            cloud.user_override_since_ambient = true;
+            cloud.ambient_palette_locked = false;
         }
         (KeyCode::Char('C'), _) => {
             let prev = cycle_color_scheme(cloud.color_scheme(), -1);
             cloud.set_color_scheme(prev);
+            cloud.user_override_since_ambient = true;
+            cloud.ambient_palette_locked = false;
         }
         (KeyCode::Char('s'), _) => {
             let next = cycle_charset_preset(charset_preset, 1);
@@ -138,6 +147,10 @@ pub(super) fn handle_keybinding(
                 let chars = build_chars(cs, user_ranges, def_ascii);
                 cloud.transition_chars(chars);
             }
+            // v35: charset change is a user override — flag it so the next
+            // ambient fire (which resets charset via apply_ambient_entry)
+            // isn't deduped.
+            cloud.user_override_since_ambient = true;
         }
         (KeyCode::Char('S'), _) => {
             let prev = cycle_charset_preset(charset_preset, -1);
@@ -146,6 +159,7 @@ pub(super) fn handle_keybinding(
                 let chars = build_chars(cs, user_ranges, def_ascii);
                 cloud.transition_chars(chars);
             }
+            cloud.user_override_since_ambient = true;
         }
 
         (KeyCode::Char('p'), _) => {
@@ -157,6 +171,12 @@ pub(super) fn handle_keybinding(
             *scene_generation = scene_generation.wrapping_add(1);
             *charset_preset =
                 cloud.apply_scene_runtime(next, charset_preset, user_ranges, def_ascii);
+            // v35: scene change is a user override — flag both. The palette
+            // lock is cleared because the new scene may bring its own color
+            // (and auto-drift should be free to drift from there until the
+            // next ambient fire re-locks).
+            cloud.user_override_since_ambient = true;
+            cloud.ambient_palette_locked = false;
         }
         (KeyCode::Up, _) => {
             let mut cps = cloud.chars_per_sec;
@@ -207,4 +227,75 @@ pub(super) fn runtime_speed_clamp(cps: f32, rain_style: RainStyle) -> f32 {
     } else {
         RUNTIME_SPEED_MIN
     }
+}
+
+/// v35: Apply the current ambient phase to the cloud immediately.
+///
+/// Called when the user presses `a` (ambient snap-back). Returns `true` if
+/// an entry was applied (caller should redraw — rebuild ColorCache, Frame,
+/// fill terminal bg), `false` if no schedule is active or no current phase
+/// exists at this minute (silent no-op).
+///
+/// This is the manual "return to ambient" command. Without it, after the
+/// user presses `x`/`c`/`s` to override the ambient scene, the only way to
+/// return to ambient is to wait for the next boundary fire (which for a
+/// single-entry schedule is up to 24h away) or restart cosmostrix.
+///
+/// After applying, both v35 harmony flags are updated:
+/// - `user_override_since_ambient = false` — ambient just re-asserted.
+/// - `ambient_palette_locked = true` — auto-drift palette drift is suppressed
+///   until the user overrides again.
+///
+/// The caller (event_loop) is responsible for post-apply side effects:
+/// `term.set_color_cache(ColorCache::new(&cloud.palette))`,
+/// `frame = Frame::new(w, h, cloud.palette.bg)`,
+/// `fill_terminal_bg(cloud.palette.bg)`. We don't do them here because we
+/// don't have access to `term` / `frame` / `w` / `h`.
+///
+/// See `docs/audits/AMBIENT_SCHEDULER_AUDIT.md` §2.2.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn handle_ambient_snapback(
+    cloud: &mut Cloud,
+    charset_preset: &mut String,
+    scene_name: &mut String,
+    scene_generation: &mut u64,
+    last_applied_ambient_entry: &mut Option<crate::ambient::AmbientEntry>,
+    schedule: &crate::ambient::AmbientSchedule,
+    cfg_map: &std::collections::HashMap<String, String>,
+    user_ranges: &[(char, char)],
+    def_ascii: bool,
+) -> bool {
+    let now_min = crate::ambient::current_minute_of_day();
+    let Some(entry) = schedule.current_phase(now_min).cloned() else {
+        // No active phase at this minute (schedule is empty, or `now_min`
+        // is before the first entry of the day with no wrap-around). Silent
+        // no-op — pressing 'a' with no ambient schedule is a no-op, not an
+        // error.
+        crate::lr_trace!(
+            "ambient: 'a' key pressed but no current phase at minute {} — no-op",
+            now_min
+        );
+        return false;
+    };
+    crate::lr_trace!(
+        "ambient: 'a' key snap-back — applying phase {:02}:{:02} (scene={})",
+        entry.hour,
+        entry.minute,
+        entry.scene
+    );
+    *charset_preset = cloud.apply_ambient_entry(
+        &entry,
+        charset_preset,
+        user_ranges,
+        def_ascii,
+        cfg_map,
+    );
+    *last_applied_ambient_entry = Some(entry.clone());
+    *scene_name = entry.scene.clone();
+    *scene_generation = scene_generation.wrapping_add(1);
+    // v35 harmony: ambient just re-asserted — clear user override and lock
+    // the palette against auto-drift.
+    cloud.user_override_since_ambient = false;
+    cloud.ambient_palette_locked = true;
+    true
 }
