@@ -888,12 +888,30 @@ impl Droplet {
                 // PARALLAX_CONTRAST_REDUCTION[layer]. This creates a "foggy"
                 // perceptual blur — the terminal equivalent of depth-of-field.
                 // Only layer 0 (background) is affected; layers 1-2 stay sharp.
+                //
+                // v30.3 (chroma audit, A12): route through chroma engine when
+                // active, fall back to chroma::legacy::scale_rgb otherwise.
+                // The brightness-scale equation \`((c * fi + 128) >> 8).clamp(0,255)\`
+                // is bit-identical between the two paths; the difference is
+                // auditability (single source of truth in chroma::palette).
+                //
+                // Factor safety: PARALLAX_CONTRAST_REDUCTION = [0.55, 0.18, 0.0]
+                // and the block is gated on \`contrast_reduction > 0.0\`, so the
+                // active layers (0, 1) always produce factor = 1.0 - cr in
+                // [0.45, 0.82] -- well within the chroma helper's [0, 1] clamp.
                 let contrast_reduction = PARALLAX_CONTRAST_REDUCTION[self.layer as usize];
                 if contrast_reduction > 0.0 {
-                    let cr = (contrast_reduction * 256.0) as i32;
-                    r = ((r as i32 * (256 - cr) + 128) >> 8).clamp(0, 255) as u8;
-                    g = ((g as i32 * (256 - cr) + 128) >> 8).clamp(0, 255) as u8;
-                    b = ((b as i32 * (256 - cr) + 128) >> 8).clamp(0, 255) as u8;
+                    let factor = 1.0 - contrast_reduction;
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        let scaled =
+                            crate::chroma::palette::apply_brightness_rgb(r, g, b, factor);
+                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                    } else {
+                        crate::chroma::legacy::scale_rgb(r, g, b, factor)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
                 // Depth fog: dim top and bottom rows
