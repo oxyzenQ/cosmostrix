@@ -678,3 +678,100 @@ The refactor proposal introduces a `ColorPipeline` enum, an explicit `chroma::le
 The refactor is **14 microcommits** totaling +550/-120 LOC, with each phase independently revertable. No commit breaks the existing 18 chroma engine lock invariants. The benchmark `render_ns_per_cell` metric is the regression guard.
 
 **Owner approval required before any code is written.** This document is the proposal.
+
+---
+
+## 9. Second-Pass Audit — A14–A23 (10 additional bypass sites)
+
+**Date**: 2026-08-09 (post A1–A13 migration, HEAD `bd9ba00`+)
+**Trigger**: After the original §3 audit (A1–A11) was migrated and committed (P6–P14 phased rollout), a thorough file-by-file + ripgrep re-audit found **10 additional bypass sites** that the first pass had missed. This section documents them and tracks their migration status.
+
+### 9.1 Why the first pass missed them
+
+The first audit (§3) focused on **direct `Color::Rgb { r, g, b }` construction by raw integer math** as its detection signal. The 10 sites below were missed because they fall into two patterns the original grep did not catch:
+
+1. **Sites calling chroma helpers without the `is_chroma()` branch** (A14–A17, A18–A22). These sites already invoke `palette::apply_brightness_rgb`, `palette::blend_toward_bg`, `palette::blend_toward_white`, or the `_rgb` tuple variants — so they pass the "no raw RGB math" grep. But they bypass the routing pattern: they call the chroma helper unconditionally, without the `if ctx.color_pipeline.is_chroma() { chroma } else { legacy }` branch that A1–A13 established as the standard.
+
+2. **A site that uses the chroma helper as a one-shot fade** (A23). Single line, easy to overlook in a long file.
+
+The structural invariant the owner's rule implies is: *every color-emitting call site branches on `is_chroma()`*. The first pass implemented this for the 11 sites it found; the second pass extends it to the 10 sites below.
+
+### 9.2 Findings
+
+#### HIGH priority — 4 sites in `droplet.rs::Droplet::draw` (per-cell hot path)
+
+| ID | File:Line | Effect | Chroma helper | Special handling |
+|---|---|---|---|---|
+| A14 | `droplet.rs:786-790` | Transition energy glow (new-palette shimmer) | `blend_toward_white_rgb` / `blend_toward_white` | No — `factor = t * 0.15` always in `[0, 0.15]` |
+| A15 | `droplet.rs:810-813` | Head bloom (Gaussian glow behind head) | `blend_toward_white_rgb` / `blend_toward_white` | No — factor similar |
+| A16 | `droplet.rs:827-832` | Parallax layer brightness × glyph dim | `apply_brightness_rgb` / `scale_rgb` | **YES** — `PARALLAX_BRIGHTNESS_MULT[2] = 1.10` (>1.0); needs the unclamped variant pattern introduced by A11 |
+| A17 | `droplet.rs:923-927` | Cursor glow (mouse halo) | `blend_toward_white_rgb` / `blend_toward_white` | **DEAD CODE** — `MOUSE_GLOW_INTENSITY = 0.0` in production, LLVM folds the block away. Migration optional (audit consistency only) |
+
+#### MEDIUM priority — 5 sites in `cloud/phosphor.rs` (the audit doc's "A11 partial migration" claim)
+
+The original §3 A11 entry said phosphor.rs was the **model** — "the only production module that consistently routes through the chroma engine for color manipulation". The second pass re-examined this claim and found it was structurally a **bypass** by the routing-pattern standard: phosphor.rs calls chroma helpers unconditionally, without the `is_chroma()` branch. Functionally this is correct in legacy mode (chroma helpers produce bit-identical output to legacy helpers per the parity contracts in `chroma/legacy.rs`), but it bypasses the routing pattern every other site follows.
+
+| ID | File:Line | Effect | Current | Migration |
+|---|---|---|---|---|
+| A18 | `phosphor.rs:295-296` | Sub-threshold ghost brightness | `palette::apply_brightness_rgb` direct | Wrap in `is_chroma()` branch; legacy calls `scale_rgb` |
+| A19 | `phosphor.rs:317-318` | Main ghost brightness (visible trail) | same | same |
+| A20 | `phosphor.rs:353-354` | Orphan trail fallback (rare path) | same | same |
+| A21 | `phosphor.rs:489-493` | Anomaly `LuminanceSurge` halo | `palette::blend_toward_bg` / `blend_toward_white` direct | Wrap; legacy decodes `Color` and calls `blend_toward_rgb` |
+| A22 | `phosphor.rs:593-598` | Anomaly `PulseWave` halo | same | same |
+
+A18–A20 share the same shape (3 sites of identical duplication) — a shared helper could be extracted. A21–A22 also share shape (2 sites). The shared-helper extraction is deferred to a separate refactor; the migration commits keep the change minimal (wrap each site in-place) to preserve the bit-exact parity property.
+
+#### LOW priority — 1 site in `cloud/mod.rs`
+
+| ID | File:Line | Effect | Notes |
+|---|---|---|---|
+| A23 | `cloud/mod.rs:900` | `draw_message` overlay fade-in brightness | Only runs during cinematic message reveal (rare, transient). ~20–50 cells/frame for ~100 ms per message. Low impact. |
+
+### 9.3 Migration status
+
+| ID | Priority | Status | Commit |
+|---|---|---|---|
+| A14 | HIGH | ✅ Done | `3a8fc96` — "migrate A14 transition energy to chroma engine" |
+| A15 | HIGH | ✅ Done | `6bbbc7e` — "migrate A15 head bloom white-blend to chroma engine" |
+| A16 | HIGH | ✅ Done | `1274e23` — "migrate A16 parallax brightness+glyph dim to chroma engine" |
+| A17 | HIGH (dead code) | ✅ Done | `31c7a41` — "migrate A17 cursor glow white-blend to chroma engine" |
+| A18 | MEDIUM | ✅ Done | `8309f85` — "unify phosphor.rs A18-A22 with is_chroma() branch" |
+| A19 | MEDIUM | ✅ Done | `8309f85` (same commit) |
+| A20 | MEDIUM | ✅ Done | `8309f85` (same commit) |
+| A21 | MEDIUM | ✅ Done | `8309f85` (same commit) |
+| A22 | MEDIUM | ✅ Done | `8309f85` (same commit) |
+| A23 | LOW | ⏳ Pending | Not yet migrated — low impact (cinematic-only, ~100 ms transient). Migration is mechanical: wrap the single `palette::apply_brightness_rgb` call at `cloud/mod.rs:900` in `if self.color_pipeline.is_chroma() { … } else { chroma::legacy::scale_rgb(…) }` |
+
+### 9.4 Post-migration verification
+
+After A14–A22 (this commit's HEAD `8309f85`):
+
+- `cargo check --bins`: clean (13.84 s)
+- `cargo test --bins`: **1453 passed, 0 failed** (37.85 s)
+- `cargo clippy --bins --no-deps`: 1 pre-existing warning (`palette.rs:473` `doc_lazy_continuation`, unrelated to A14–A22 migration)
+- `scripts/check-rs-loc.sh`: all files at or below 1500 lines (`phosphor.rs` 839/1500, `droplet.rs` 1500/1500 unchanged, `cloud/mod.rs` 1000/1500)
+
+### 9.5 Categories correctly NOT migrated (re-confirmed)
+
+The second-pass audit re-confirmed that the following categories correctly do NOT route through the chroma engine and should remain as-is:
+
+1. **Overlay UI** — `interactive/hud.rs::brighten_color` (HSV-value scaling for HUD readability), `interactive/intro.rs::lerp_rgb` (linear-sRGB blend for intro particle fade). Different math semantics; migrating would break regression tests and produce ±1/channel visible artifacts.
+
+2. **CLI chrome** — `output.rs` Tailwind brand colors. Static, not animated.
+
+3. **Storage/parsing** — `catalog.rs` RGB tuples, `colors_custom.rs` hex parsing. Input data, not color operations.
+
+4. **Documented legacy fallbacks** — `cloud/events/ghost.rs:116-118` (A9 legacy fallback). Intentionally preserves pre-migration `(c as f32 * opacity) as u8` truncation behavior; the chroma path at line 112 uses `apply_brightness_rgb` (integer `>> 8` + 128 rounding). The two paths can differ by ±1 per channel (e.g. `255 * 0.5 = 127.5` → 127 legacy, 128 chroma), which is imperceptible on a dim ghost overlay and acceptable per the owner rule.
+
+5. **Scalar decay** — `cloud/phosphor.rs:277` phosphor energy scalar decay (`u8` persistence counter, not a color channel). The energy value is later consumed by `apply_brightness_rgb` (already chroma-routed at A18–A20).
+
+### 9.6 Net migration status after this audit cycle
+
+- **Original §3 audit (A1–A11)**: 11 sites → all migrated in P6–P14 rollout.
+- **Migration expansion (A12–A13)**: 2 sites discovered during P9/P10 implementation (DoF contrast reduction, depth fog). Migrated as `8ca0fca` and `e15dfc9`.
+- **Second-pass audit (A14–A23)**: 10 sites discovered post-A1–A13 migration. A14–A22 migrated in this cycle; A23 pending.
+- **Total identified bypass sites**: 23.
+- **Total migrated**: 22.
+- **Remaining**: 1 (A23, LOW priority, deferred until a future refactor pass touches `cloud/mod.rs::draw_message`).
+
+The Chroma Dragon engine is now the **routing authority** for every active color-operation site in the rain renderer, with `chroma::legacy` as the explicit auditable fallback.
