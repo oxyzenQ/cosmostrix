@@ -23,19 +23,19 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v30-demo.gif" alt="cosmostrix v30 demo" width="800">
+  <img src="assets/cosmostrix-v35-demo.gif" alt="cosmostrix v35 demo" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v30-demo-binary.png" alt="cosmostrix v30 binary charset demo" width="800">
+  <img src="assets/cosmostrix-v35-demo-binary.png" alt="cosmostrix v35 binary charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v30-demo-retro.png" alt="cosmostrix v30 retro charset demo" width="800">
+  <img src="assets/cosmostrix-v35-demo-retro.png" alt="cosmostrix v35 retro charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v30-demo-braille.png" alt="cosmostrix v30 braille charset demo" width="800">
+  <img src="assets/cosmostrix-v35-demo-braille.png" alt="cosmostrix v35 braille charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v30-demo-hacker.png" alt="cosmostrix v30 hacker charset demo" width="800">
+  <img src="assets/cosmostrix-v35-demo-hacker.png" alt="cosmostrix v35 hacker charset demo" width="800">
   <br>
-  <img src="assets/cosmostrix-v30-demo-green-retro.png" alt="cosmostrix v30 green retro charset demo" width="800">
+  <img src="assets/cosmostrix-v35-demo-green-retro.png" alt="cosmostrix v35 green retro charset demo" width="800">
 </p>
 
 <p align="center">
@@ -210,7 +210,7 @@ A `Good signature from rezky_nightky (oxyzenQ)` line confirms authenticity. The 
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v30.0.0-alpha.1"
+TAG="v35.0.0-alpha.1"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
