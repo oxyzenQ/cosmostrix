@@ -4,8 +4,8 @@
 //! Metric meaning constants + formatting helpers for the benchmark report.
 //!
 //! Extracted from `bench_report.rs` to keep that file under its 1000-LOC
-//! guard after the v11.1.0 SYSTEM + RESOURCE section expansions. Contains
-//! the documentation strings that explain what each metric measures, plus
+//! guard after the SYSTEM + RESOURCE section expansions. Contains the
+//! documentation strings that explain what each metric measures, plus
 //! the `format_rss_kb` and `cpu_model_label` helpers.
 
 // ── Metric meaning constants ──────────────────────────────────────────────
@@ -14,19 +14,10 @@
 // premium benchmark output and are referenced by tests to prevent
 // accidental removal or misleading wording changes.
 
-#[cfg(test)]
-pub(crate) const DRAW_RATIO_MEANING: &str =
-    "legacy compatibility: percentage of frames with >=1 dirty cell";
 pub(crate) const ACTIVE_FRAME_RATIO_MEANING: &str =
     "frames that produced at least one dirty cell during measurement";
 pub(crate) const AVG_DIRTY_CELL_RATIO_MEANING: &str =
     "average dirty-cell coverage across all measured frames";
-#[cfg(test)]
-pub(crate) const DIRTY_ALL_FRAMES_MEANING: &str =
-    "logical frames where every cell was dirty; distinct from terminal redraw estimate";
-#[cfg(test)]
-pub(crate) const ESTIMATED_FULL_REDRAW_MEANING: &str =
-    "threshold estimate of frames likely to use Terminal::draw full-redraw path";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -73,14 +64,5 @@ mod tests {
         // (non-empty, non-"unknown"). On other platforms it returns
         // "unknown". Either way it must be non-empty.
         assert!(!label.is_empty(), "cpu_model_label must return non-empty");
-    }
-
-    #[test]
-    fn metric_meaning_constants_are_non_empty() {
-        assert!(!DRAW_RATIO_MEANING.is_empty());
-        assert!(!ACTIVE_FRAME_RATIO_MEANING.is_empty());
-        assert!(!AVG_DIRTY_CELL_RATIO_MEANING.is_empty());
-        assert!(!DIRTY_ALL_FRAMES_MEANING.is_empty());
-        assert!(!ESTIMATED_FULL_REDRAW_MEANING.is_empty());
     }
 }

@@ -10,7 +10,7 @@
 //!
 //! ## Component definitions
 //! - **sim_ms**: time in `cloud.rain_at()` before the first frame mutation
-//!   (atmosphere events, spawn rate, droplet physics). Read from
+//!   (cinematic events, spawn rate, droplet physics). Read from
 //!   `cloud.last_sim_ms()` after `rain_at` returns.
 //! - **render_ms**: time in `cloud.rain_at()` during phosphor/anomaly/
 //!   atmospheric frame mutations. Read from `cloud.last_render_ms()`.

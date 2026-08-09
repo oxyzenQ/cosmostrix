@@ -6,10 +6,11 @@
 //! Phase 7 of DeepSeek benchmark restructuring plan.
 //!
 //! Usage:
-//!   cosmostrix --benchmark --json --save-baseline v13.5.0.json
-//!   cosmostrix --benchmark --json --compare-baseline v13.4.0.json
+//!   cosmostrix --benchmark --json --save-baseline v35.0.0.json
+//!   cosmostrix --benchmark --json --compare-baseline v34.0.0.json
 //!
-//! Comparison flags regressions (>5% FPS drop) and improvements (>5% FPS gain).
+//! Comparison flags regressions/improvements per-metric: 5% for FPS,
+//! 10% for frame-time / ns-per-cell, 15% for CPU, 20% for dirty cells.
 
 use std::collections::HashMap;
 

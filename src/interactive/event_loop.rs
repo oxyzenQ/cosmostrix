@@ -1188,7 +1188,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // with the rest of the timing-sensitive logic in this loop.
 
         // If the scene changed since frame start (user 'x' key, live config
-        // reload, or adaptive-custom), reset the self-healer. Must happen
+        // reload, or ambient), reset the self-healer. Must happen
         // BEFORE observe() so the self-healer doesn't fire a downgrade/
         // restore on the same frame the user switched scenes. Phase D:
         // u64 counter compare replaces a String-clone + String-ne.

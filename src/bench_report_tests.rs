@@ -93,21 +93,6 @@ mod tests {
         // not a planned value. It must still exist and be non-empty.
         let plan_reason_field: &str = "plan_reason";
         assert!(!plan_reason_field.is_empty());
-        // actual_execution must be the literal that indicates single-threaded.
-        assert_eq!("single-threaded-renderer", "single-threaded-renderer");
-    }
-
-    #[test]
-    fn bench_report_actual_execution_is_single_threaded() {
-        // actual_execution must always be "single-threaded-renderer" since
-        // no multithreading is implemented. This is verified at the source
-        // level — if the literal changes, this test fails.
-        const ACTUAL_EXEC: &str = "single-threaded-renderer";
-        assert!(!ACTUAL_EXEC.is_empty());
-        // Cross-check: the report builder uses this exact literal.
-        // This is enforced by the string literal constant above matching
-        // what appears in build_premium_report.
-        assert_eq!(ACTUAL_EXEC, "single-threaded-renderer");
     }
 
     #[test]
@@ -121,11 +106,13 @@ mod tests {
         // + throughput(6) + timing(3) = 51
         // v25.16: config grew from 6 to 15 fields (color_scheme_name,
         // charset_preset, glyph_count, rain_style, monolith_size, bold_mode,
-        // shading_mode, atmosphere_mode, + speed which moved from
-        // perf-only to config too).
+        // shading_mode, + speed which moved from perf-only to config too).
         // v25.17: config grew from 15 to 25 fields (CONFIG enrichment for
         // color/charset parity with --verbose).
-        let data = BenchReportData {
+        // The struct literal below is the real check — if this compiles,
+        // all fields exist and have the correct types. Prefixed with `_`
+        // because no runtime assertion is needed (the compiler is the test).
+        let _data = BenchReportData {
             was_interrupted: false,
             w: 80,
             h: 24,
@@ -224,13 +211,7 @@ mod tests {
             bench_duration_secs: 5,
         };
         // Basic sanity — if this compiles, all fields exist and have
-        // the correct types.
-        assert!(!data.was_interrupted);
-        assert_eq!(data.w, 80);
-        assert_eq!(data.h, 24);
-        assert!(data.avg_fps > 0.0);
-        assert!(data.ansi_bytes_per_second > 0);
-        assert_eq!(data.scene, "cinematic");
+        // the correct types. The struct literal above is the real check.
     }
 
     #[test]
@@ -244,23 +225,6 @@ mod tests {
             lines < 1000,
             "bench_report.rs must stay under 1000 LOC (currently {lines})"
         );
-    }
-
-    #[test]
-    fn rss_fields_documented_in_required_fields_list() {
-        // Memory section must emit these keys on supported platforms.
-        // This list documents the contract so CI/scripts can rely on it.
-        const REQUIRED_MEMORY_FIELDS: &[&str] = &[
-            "peak_rss",
-            "avg_rss",
-            "rss_samples",
-            "rss_basis",
-            "rss_caveat",
-        ];
-        for field in REQUIRED_MEMORY_FIELDS {
-            assert!(!field.is_empty());
-            assert!(!field.contains(' '));
-        }
     }
 
     #[test]
@@ -278,66 +242,5 @@ mod tests {
         let max_pos = ORDER.iter().position(|&s| s == "max").unwrap();
         assert!(p99_pos < p99_9_pos);
         assert!(p99_9_pos < max_pos);
-    }
-
-    #[test]
-    fn required_performance_fields_include_new_tail_metrics() {
-        // Backward-compat contract: downstream CI/scripts may parse
-        // p99_9_frame_time and max_frame_time. Document them here so
-        // accidental removal breaks this test.
-        const REQUIRED_PERF_FIELDS: &[&str] = &[
-            "avg_fps",
-            "peak_fps",
-            "avg_frame_time",
-            "p95_frame_time",
-            "p99_frame_time",
-            "p99_9_frame_time",
-            "max_frame_time",
-            "max_frame_time_meaning",
-            "frame_jitter",
-            "median_fps",
-            "frame_time_stability",
-        ];
-        for field in REQUIRED_PERF_FIELDS {
-            assert!(!field.is_empty());
-            assert!(!field.contains(' '));
-        }
-    }
-
-    #[test]
-    fn component_timing_fields_documented() {
-        // COMPONENT TIMING section must emit these keys. This list is the
-        // backward-compat contract — downstream parsers can rely on it.
-        const REQUIRED_COMPONENT_FIELDS: &[&str] = &[
-            "avg_sim_ms",
-            "avg_render_ms",
-            "avg_io_ms",
-            "max_sim_ms",
-            "max_render_ms",
-            "max_io_ms",
-            "sim_meaning",
-            "render_meaning",
-            "io_meaning",
-        ];
-        for field in REQUIRED_COMPONENT_FIELDS {
-            assert!(!field.is_empty());
-            assert!(!field.contains(' '));
-        }
-    }
-
-    #[test]
-    fn cpu_fields_documented() {
-        // CPU section must emit these keys on supported platforms.
-        const REQUIRED_CPU_FIELDS: &[&str] = &[
-            "avg_cpu_percent",
-            "peak_cpu_percent",
-            "cpu_samples",
-            "cpu_basis",
-            "cpu_caveat",
-        ];
-        for field in REQUIRED_CPU_FIELDS {
-            assert!(!field.is_empty());
-            assert!(!field.contains(' '));
-        }
     }
 }

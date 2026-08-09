@@ -18,8 +18,8 @@ COMMON OPTIONS:
       cosmostrix --color rainbow
 
   --color-tune <key=value[,key=value]>
-      Tune theme colors. Accepted keys: sat, bright, head, body, tail.
-      Range 0.0-3.0 (1.0 = no change).
+      Tune theme colors. Accepted keys: sat/saturation, bright/brightness,
+      head, body, tail. Range 0.0-3.0 (1.0 = no change).
       cosmostrix --color-tune sat=1.5,bright=0.9
       cosmostrix --color-tune sat=0.0           # grayscale
       cosmostrix --color-tune head=1.5,tail=0.5 # bright head, dim tail

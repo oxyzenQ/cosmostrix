@@ -1082,8 +1082,8 @@ your tuning is hue-specific, either:
 | "Rain is too slow" | `DROPLET_GRAVITY += 0.5` |
 | "Too few droplets" | `--density 1.3` (runtime) or `PARALLAX_DENSITY_MULT[2] += 0.10` |
 | "Too many droplets / busy" | `--density 0.7` (runtime) or `PARALLAX_DENSITY_MULT[2] -= 0.10` |
-| "Too many glitches" | `--glitch-level 0` (runtime) or `GLITCH_THRESHOLD = 1.0` |
-| "Not enough glitches" | `--glitch-level 2` (runtime) or `GLITCH_THRESHOLD -= 0.10` |
+| "Too many glitches" | `--glitch-level none` (runtime) or `GLITCH_THRESHOLD = 1.0` |
+| "Not enough glitches" | `--glitch-level intense` (runtime) or `GLITCH_THRESHOLD -= 0.10` |
 | "Disable anomalies" | `ANOMALY_CHANCE_PER_SEC = 0.0` |
 | "Disable gusts" | `GUST_IDLE_MIN_SECS = 1e18` |
 | "Disable color drift" | `COLOR_*_DRIFT_RATE = 0.0` |

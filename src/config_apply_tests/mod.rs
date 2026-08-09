@@ -627,8 +627,11 @@ fn invalid_config_values_are_ignored() {
 #[test]
 fn legacy_keys_no_longer_apply_v17() {
     // v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct, maxdpc)
-    // are REMOVED. They are silently ignored — values come from --glitch-level
-    // preset only. Default glitch_level is Subtle (from cinematic scene default).
+    // are REMOVED. In production (without COSMOSTRIX_SKIP_STARTUP_VALIDATION)
+    // they are rejected as unknown keys; this test bypasses startup validation
+    // to verify the apply path's defense-in-depth. Values come from
+    // --glitch-level preset only. Default glitch_level is Subtle (from cinematic
+    // scene default).
     let args = args_with_config(
         "glitchpct = 7\nshortpct = 22\nrippct = 11\nmaxdpc = 2\n",
         &[],

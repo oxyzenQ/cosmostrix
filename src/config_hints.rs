@@ -145,14 +145,14 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     }
 
     // Pattern 6 (Phase 5 closure P1-#8): density-map at top-level. The
-    // `density-map` key is only valid inside [profile.<name>] or
-    // [scene-custom.<name>] sections. Users who write it at the top level
-    // get a generic "unknown key" error with no explanation that it's a
-    // section-only field. This pattern emits a targeted move hint.
+    // `density-map` key is only valid inside [scene-custom.<name>]
+    // sections. Users who write it at the top level get a generic "unknown
+    // key" error with no explanation that it's a section-only field. This
+    // pattern emits a targeted move hint.
     if key == "density-map" || key == "density_map" {
         return Some(format!(
             "'{key}': density-map is a section-only field — it is NOT valid at the top level. \
-             Move it inside a [profile.<name>] or [scene-custom.<name>] block: \
+             Move it inside a [scene-custom.<name>] block: \
              e.g. [scene-custom.foo]\n    density-map = \"0.5,0.3,0.2\""
         ));
     }

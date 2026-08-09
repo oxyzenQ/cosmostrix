@@ -743,14 +743,14 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // ── Engine diagnostics ─────────────────────────────────────────────
     // Cosmostrix is single-thread by design — terminal writer is single-owner.
     //
-    // v30 strengthen (audit): removed the entire SYSTEM section. Its four
-    // fields (runtime_mode, render_plan, idle_policy, architecture) were
-    // all hardcoded string constants with no runtime basis — they described
-    // a fictional "runtime mode" that doesn't exist, and duplicated concepts
-    // already covered by the ENGINE section below (render_plan="single-owner"
-    // == ENGINE.terminal_writer="single-owner"). Keeping them would violate
-    // the honesty contract: the report must reflect actual state, not
-    // feel-good constants.
+    // v30 strengthen (audit): removed the legacy RUNTIME section
+    // (runtime_mode/render_plan/idle_policy/architecture). Its four fields
+    // were all hardcoded string constants with no runtime basis — they
+    // described a fictional "runtime mode" that doesn't exist, and
+    // duplicated concepts already covered by the ENGINE section below
+    // (render_plan="single-owner" == ENGINE.terminal_writer="single-owner").
+    // Keeping them would violate the honesty contract: the report must
+    // reflect actual state, not feel-good constants.
     {
         let s = r.section("ENGINE");
         s.field("planned_mode", "single-core");
@@ -773,7 +773,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     {
         r.section("NOTES")
             .advice(
-                "16-color mode with atmospheric foreground retinting can dirty many colored cells.",
+                "16-color mode with foreground palette retinting can dirty many colored cells.",
             )
             .advice(
                 "Compare runs with --colormode 0, --colormode 256, or a truecolor-capable terminal.",

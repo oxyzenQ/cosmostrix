@@ -310,7 +310,7 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
 
 /// Helper trait for building JSON objects with proper comma handling.
 /// Each `push_kv*` call appends `"key":value,` — the trailing comma is
-/// stripped by `print_json_report` before closing the root object.
+/// stripped by `build_json_string` before closing the root object.
 trait JsonBuf {
     fn push_kv_str(&mut self, key: &str, value: &str);
     fn push_kv_opt_str(&mut self, key: &str, value: Option<&str>);
@@ -409,13 +409,11 @@ where
     F: FnOnce(&mut String),
 {
     out.push_str(&format!("\"{name}\":{{"));
-    let start_len = out.len();
     body(out);
     // Strip trailing comma from the last KV pair inside this object.
     if out.ends_with(',') {
         out.pop();
     }
-    let _ = start_len; // suppress unused warning
     out.push_str("},");
 }
 

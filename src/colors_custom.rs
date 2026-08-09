@@ -11,9 +11,9 @@
 //! rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"
 //! ```
 //!
-//! Load with `--colors-custom sunset` or use in `adaptive-custom`:
+//! Load with `--colors-custom sunset` or use in an ambient phase:
 //! ```toml
-//! adaptive-custom.22-00 = sunset, monolith, speed=10
+//! ambient.22-00 = sunset
 //! ```
 
 use std::collections::{BTreeMap, HashMap};

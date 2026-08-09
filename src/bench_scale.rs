@@ -128,7 +128,7 @@ fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
     );
 
     for r in results {
-        let size_str = format!("{}×{}", r.width, r.height);
+        let size_str = format!("{}x{}", r.width, r.height);
         let fps_str = crate::humanize::humanize_f64(r.avg_fps);
         let ipc_str = r
             .ipc

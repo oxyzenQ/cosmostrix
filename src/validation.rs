@@ -10,7 +10,7 @@ use std::ffi::OsString;
 
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 
-/// Migration map for CLI flags removed in v14.0.0.
+/// Migration map for CLI flags removed across v14–v30.
 ///
 /// Each entry maps a removed long-flag name to a single-line migration message
 /// that points the user to its replacement.

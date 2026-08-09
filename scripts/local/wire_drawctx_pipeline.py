@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 rezky_nightky
 """Add color_pipeline field to every DrawCtx { ... } literal that has color_mode.
 
 Pattern: a line like `color_mode: <variant>,` (possibly with trailing comma and

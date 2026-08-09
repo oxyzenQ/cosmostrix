@@ -156,7 +156,8 @@ mod linux {
             let branches_fd = open_counter(PERF_COUNT_HW_BRANCH_INSTRUCTIONS).unwrap_or(-1);
             let misspredicts_fd = open_counter(PERF_COUNT_HW_BRANCH_MISSES).unwrap_or(-1);
 
-            let available = cycles_fd >= 0 && instructions_fd >= 0;
+            let available =
+                cycles_fd >= 0 && instructions_fd >= 0 && branches_fd >= 0 && misspredicts_fd >= 0;
 
             Self {
                 cycles_fd,

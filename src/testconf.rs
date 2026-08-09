@@ -155,6 +155,22 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         }
     }
 
+    // CD-07: surface inert [profile.<name>] blocks. The legacy `profile.*`
+    // prefix is accepted by is_known_key (so --testconf PASSES silently on
+    // configs containing them), but the blocks are never applied at runtime
+    // — they were replaced by `scene-custom.*` in v20.1. Add a clear warning
+    // so users who keep legacy [profile.<name>] blocks know they are inert.
+    let profile_only_keys: Vec<_> = parsed
+        .values
+        .keys()
+        .filter(|k| k.starts_with("profile."))
+        .collect();
+    if !profile_only_keys.is_empty() {
+        crate::output::eprintln_verbose_raw(
+            "testconf: warning: [profile.<name>] blocks are inert (replaced by [scene-custom.<name>] in v20.1). Rename the prefix to apply them at runtime.",
+        );
+    }
+
     // Validate known value-ranges for top-level (non-block) keys.
     // v14: invalid values are now ERRORS, not warnings — silent PASS for
     // bad values is a bug. Owner requirement: strict value validation.
@@ -469,9 +485,8 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 })
         }
         // v17 mastery: legacy advanced keys (glitchpct, shortpct, rippct,
-        // maxdpc) REMOVED from --testconf validation. These are now fully
-        // controlled by --glitch-level. If present in config.toml, they are
-        // silently ignored (not validated, not flagged as unknown).
+        // maxdpc) are REMOVED — they fall into unknown_keys and are rejected
+        // by --testconf and at startup. Use --glitch-level instead.
         "bold" => match v {
             "0" | "1" | "2" => None,
             _ => Some(format!("expected 0, 1, or 2, got '{v}'")),

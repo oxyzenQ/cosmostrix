@@ -11,10 +11,13 @@
 //! 3. Default scene values (only fills keys NOT set in config — scene is a
 //!    template for unset keys, not an override for user-set keys)
 //! 4. CLI scene / scene-custom (only fills unset keys; respects config-set
-//!    keys). `--profile` is applied inside `scene_custom.rs` as part of this
-//!    layer, not as a separate precedence level.
-//! 5. `--glitch-level` cross-cutting merge (overrides glitch-pct/shortpct/
-//!    rippct/max-dpc when glitch-level is explicitly set by any source)
+//!    keys). `[profile.<name>]` config blocks are surfaced inside
+//!    `scene_custom.rs`'s available-scenes list, but are NOT applied at
+//!    runtime — users must rename the prefix to `scene-custom`.
+//! 5. `--glitch-level` cross-cutting merge: applies the preset's
+//!    glitch_pct/shortpct/rippct/glitch_ms values, overriding any clap
+//!    defaults. `max_droplets_per_column` is NOT derived from glitch-level
+//!    (stays at the clap default 3).
 //!
 //! Key rule: a value explicitly set in config.toml ALWAYS wins over a scene's
 //! hardcoded default. Scenes are templates for *unset* keys, not overrides for
@@ -104,19 +107,6 @@ pub(crate) fn apply_config_and_runtime_defaults(
             let mut keys: Vec<&str> = cfg.keys().map(String::as_str).collect();
             keys.sort();
             crate::output::eprintln_verbose_raw(&format!("config keys: {}", keys.join(", ")));
-        }
-        // Surface adaptive-custom entries explicitly. These run regardless
-        // of atmosphere-mode (defining them is an opt-in), so it's important
-        // the user sees that the schedule is active even when the built-in
-        // atmosphere engine is Disabled.
-        let adaptive_custom_count = cfg
-            .keys()
-            .filter(|k| k.starts_with("adaptive-custom."))
-            .count();
-        if adaptive_custom_count > 0 {
-            crate::output::eprintln_verbose_raw(
-                &format!("adaptive-custom: {adaptive_custom_count} entries (active regardless of atmosphere-mode)")
-            );
         }
     }
 

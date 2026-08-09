@@ -68,9 +68,9 @@ use super::{effective_density, CloudConfig};
 /// Returns a tuple of (color_mode_label, custom_palette_name, custom_palette_bg_hex,
 /// color_bg_label, color_tune_summary, async_mode, glitch_enabled, glitch_level,
 /// glitch_pct, auto_color_drift, color_pipeline_label, chroma_in_benchmark) — all
-/// derived from `cfg` so both the `run_benchmark` and `run_benchmark_once`
-/// construction sites emit identical values without duplicating the derivation
-/// logic.
+/// derived from `cfg` so both the `run_premium_benchmark` and
+/// `run_premium_benchmark_silent` construction sites emit identical values
+/// without duplicating the derivation logic.
 ///
 /// v30.3 (chroma dragon audit): the last two tuple fields disclose (a) which
 /// color pipeline the run is using (`chroma_dragon` or `legacy_rgb`) and
@@ -279,10 +279,10 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
 /// Resolve the effective benchmark duration from CLI override or default.
 ///
-/// Validates the user-supplied `--bench-duration N` against
-/// `[BENCH_DURATION_MIN, BENCH_DURATION_MAX]` and returns a human-readable
-/// error message on out-of-range values. Returns the default
-/// `BENCHMARK_DURATION_SECS` when no override is supplied.
+/// Validates the user-supplied `--bench-duration N` against the
+/// 1-second minimum (no upper cap — endurance tests allowed) and returns
+/// a human-readable error message on out-of-range values. Returns the
+/// default `BENCHMARK_DURATION_SECS` when no override is supplied.
 pub(crate) fn resolve_bench_duration(override_secs: Option<u64>) -> Result<u64, String> {
     match override_secs {
         Some(n) if n < BENCH_DURATION_MIN => Err(format!(
@@ -579,9 +579,9 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         // bump, so io_ms is dominated by loop bookkeeping in that case.
         // Clamped to >= 0 to guard against clock skew between Instant::now()
         // calls on different cores.
-        let _io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
+        let io_ms = (frame_time_ms - sim_ms - render_ms).max(0.0);
 
-        components.record(sim_ms, render_ms, _io_ms);
+        components.record(sim_ms, render_ms, io_ms);
 
         if ft_index < FRAME_TIME_SAMPLES {
             frame_times[ft_index] = frame_time_ms;
@@ -746,11 +746,14 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let elapsed_s = total_elapsed_s.max(BENCH_ELAPSED_MIN_S);
 
     let avg_fps = (total_frames as f64) / elapsed_s;
-    let peak_fps = 1000.0
-        / frame_times[..ft_index]
-            .iter()
-            .copied()
-            .fold(f64::MAX, f64::min);
+    // Guard against the (rare) coarse-monotonic-clock case where two
+    // successive Instant::now() calls return the same value, yielding
+    // frame_time_ms = 0.0 and peak_fps = +inf (printed as "inf").
+    let min_ft = frame_times[..ft_index]
+        .iter()
+        .copied()
+        .fold(f64::MAX, f64::min);
+    let peak_fps = if min_ft > 0.0 { 1000.0 / min_ft } else { 0.0 };
     let avg_frame_time = frame_times[..ft_index].iter().sum::<f64>() / (ft_index as f64).max(1.0);
 
     // p99 frame time — trim top/bottom 1% outliers for stability
@@ -1105,7 +1108,8 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let mut visual_sampler = crate::bench_visual::VisualSampler::new(10);
 
     // Warmup
-    let warmup_end = Instant::now() + Duration::from_secs(2);
+    let warmup_end =
+        Instant::now() + Duration::from_secs(crate::bench_helpers::bench_warmup_secs());
     let mut sim_now = Instant::now();
     while Instant::now() < warmup_end {
         sim_now += target_period;
@@ -1218,11 +1222,14 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
 
     // Compute summary metrics
     let avg_fps = (total_frames as f64) / elapsed_s;
-    let peak_fps = 1000.0
-        / frame_times[..ft_index]
-            .iter()
-            .cloned()
-            .fold(f64::MAX, f64::min);
+    // Guard against the (rare) coarse-monotonic-clock case where two
+    // successive Instant::now() calls return the same value, yielding
+    // frame_time_ms = 0.0 and peak_fps = +inf (printed as "inf").
+    let min_ft = frame_times[..ft_index]
+        .iter()
+        .copied()
+        .fold(f64::MAX, f64::min);
+    let peak_fps = if min_ft > 0.0 { 1000.0 / min_ft } else { 0.0 };
     let avg_frame_time = if total_frames > 0 {
         perf_work_sum_s * 1000.0 / total_frames as f64
     } else {

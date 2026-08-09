@@ -112,10 +112,10 @@ impl Default for PhasePredictor {
 /// a simple approach: the event loop tracks `Instant`-based elapsed time,
 /// and the caller provides the local time-of-day in seconds.
 ///
-/// In practice, the event loop calls this with `local_secs()` which
-/// reads `/etc/localtime` via libc `localtime_r`. For environments without
-/// timezone support, falls back to 0.0 (predictions start from midnight).
-#[cfg(target_os = "linux")]
+/// In practice, the event loop calls `local_secs_since_midnight()` directly
+/// (power_manager.rs). For environments without timezone support, falls back
+/// to 0.0 (predictions start from midnight).
+#[cfg(unix)]
 pub(crate) fn local_secs_since_midnight() -> f64 {
     use std::mem::MaybeUninit;
     // SAFETY: libc::time(NULL) is the documented POSIX call — writes nothing
@@ -138,9 +138,11 @@ pub(crate) fn local_secs_since_midnight() -> f64 {
     (tm.tm_hour as f64 * 3600.0) + (tm.tm_min as f64 * 60.0) + tm.tm_sec as f64
 }
 
-#[cfg(not(target_os = "linux"))]
+// cfg(not(unix)): Fallback uses UTC seconds. The predictor still works,
+// just in UTC. Mirrors the gate choice in clock.rs and ambient.rs so all
+// Hinnant-style sites agree on what "now" means on macOS/FreeBSD.
+#[cfg(not(unix))]
 pub(crate) fn local_secs_since_midnight() -> f64 {
-    // Fallback: use UTC seconds. The predictor still works, just in UTC.
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)

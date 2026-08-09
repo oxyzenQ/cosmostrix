@@ -816,7 +816,7 @@ pub(crate) fn print_list_colors() {
         }
         println!();
         println!("  Load with: cosmostrix --colors-custom <name>");
-        println!("  Use in adaptive-custom: adaptive-custom.HH-MM = <name>, <scene>");
+        println!("  Use in ambient: ambient.HH-MM = <name>");
     }
 }
 

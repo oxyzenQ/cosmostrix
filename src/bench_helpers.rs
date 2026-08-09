@@ -239,7 +239,6 @@ mod tests {
             "frame_jitter",
             "median_fps",
             "frame_time_stability",
-            "draw_ratio",
             "active_frame_ratio_percent",
             "avg_dirty_cell_ratio_percent",
             "active_streams_avg",
@@ -249,7 +248,6 @@ mod tests {
             "plan_reason",
             "actual_execution",
             "terminal_writer",
-            "effective_runtime",
         ];
         // These are checked against report field keys in the actual
         // benchmark (integration-level). Here we just verify the

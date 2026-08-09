@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Document Archive
 
 This directory holds historical project documents that are no longer

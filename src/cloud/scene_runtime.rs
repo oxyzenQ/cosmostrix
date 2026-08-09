@@ -423,12 +423,11 @@ impl Cloud {
 
     /// Apply glitch level parameters directly at runtime.
     ///
-    /// Public so `event_loop.rs` can apply `adaptive-custom.glitch-level` at
-    /// scheduled time points. Scene runtime also calls this when a scene
-    /// specifies `glitch-level`. Idempotent in the sense that calling with
-    /// the same level twice is safe (it resets glitch timing, which is a
-    /// minor side effect — callers should still gate with an "if changed"
-    /// check to avoid needless resets every 30s).
+    /// Public so `apply_custom_scene_runtime` (this file) can apply a
+    /// scene-custom or base-scene's glitch-level at runtime. Idempotent in
+    /// the sense that calling with the same level twice is safe (it resets
+    /// glitch timing, which is a minor side effect — callers should still
+    /// gate with an "if changed" check to avoid needless resets every 30s).
     pub fn apply_glitch_level_runtime(&mut self, level: GlitchLevel) {
         let (on, pct, lo, hi, short, rip) = match level {
             GlitchLevel::None => (false, 0.0, 300u16, 400u16, 0.5f32, 0.3333333f32),

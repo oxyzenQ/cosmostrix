@@ -1,3 +1,6 @@
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: GPL-3.0-only
+
 //! Centralized wall-clock helpers (Hinnant-style minimal abstraction).
 //!
 //! Replaces the previous direct `chrono::Local::now()` calls scattered in
@@ -95,9 +98,24 @@ pub(crate) fn current_local_hour() -> f64 {
 ///
 /// Returns `None` on any failure (clock unavailable, localtime_r failed).
 /// Pattern mirrors `interactive/adaptive.rs::local_secs_since_midnight()`.
+///
+/// `libc::tzset()` is invoked once per process (via `OnceLock`) so that
+/// timezone changes via `TZ` env var or `timedatectl set-timezone` mid-run
+/// are reflected. POSIX does not guarantee `localtime_r` re-reads tzdata
+/// automatically (musl historically caches until `tzset()` is called).
 #[cfg(unix)]
 fn local_hms() -> Option<(i32, i32, i32)> {
     use std::mem::MaybeUninit;
+    use std::sync::OnceLock;
+    // Process-wide tzset() — safe, idempotent, µs-cost. Runs exactly once
+    // on first wall-clock query so subsequent calls reuse cached tzdata.
+    // Declared as direct extern because libc 0.2.x does not export tzset
+    // in the top-level namespace on all targets.
+    extern "C" {
+        fn tzset();
+    }
+    static TZ_INIT: OnceLock<()> = OnceLock::new();
+    TZ_INIT.get_or_init(|| unsafe { tzset() });
     // SAFETY: libc::time(NULL) is the documented POSIX call — writes nothing
     // when the pointer is NULL, returns time_t or -1 on error. No preconditions.
     let now = unsafe { libc::time(std::ptr::null_mut()) };
@@ -125,8 +143,8 @@ fn local_hms() -> Option<(i32, i32, i32)> {
 /// config.toml files with a machine-parseable, timezone-safe timestamp.
 /// UTC is preferred over local time for generated artifacts because:
 ///   1. Cross-platform consistency (Linux/macOS/Windows/Termux all agree).
-///   2. Round-trips through `chrono::DateTime::parse_from_rfc3339` and
-///      `time::OffsetDateTime::parse` if the user later wants to read it.
+///   2. Round-trips through any RFC 3339 parser (chrono, time, jiff, etc.)
+///      if the user later wants to read it.
 ///   3. No daylight-saving jumps when diffing dotfiles git history.
 ///
 /// Returns `0000-01-01T00:00:00Z` if the system clock is unavailable
