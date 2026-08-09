@@ -834,11 +834,7 @@ impl Cloud {
         };
 
         // Count total text (content) chars and border chars.
-        let total_text: usize = self
-            .message
-            .iter()
-            .filter(|mc| !is_border_char(mc.val))
-            .count();
+        let total_text: usize = self.message.iter().filter(|mc| !is_border_char(mc.val)).count();
         let total_border: usize = self
             .message
             .iter()
@@ -896,11 +892,15 @@ impl Cloud {
                             } else {
                                 let progress = age_ms as f32 / FADE_IN_MS as f32;
                                 let factor = FADE_IN_START + (1.0 - FADE_IN_START) * progress;
+                                // v30.3 A23: chroma first, legacy::scale_rgb fallback.
                                 if let Some((r, g, b)) = crate::palette::decode_color(base_fg) {
-                                    Some(crate::palette::apply_brightness_rgb(r, g, b, factor))
-                                } else {
-                                    fg
-                                }
+                                    Some(if self.color_pipeline.is_chroma() {
+                                        crate::palette::apply_brightness_rgb(r, g, b, factor)
+                                    } else {
+                                        let (nr, ng, nb) = crate::chroma::legacy::scale_rgb(r, g, b, factor);
+                                        Color::Rgb { r: nr, g: ng, b: nb }
+                                    })
+                                } else { fg }
                             }
                         } else {
                             fg
