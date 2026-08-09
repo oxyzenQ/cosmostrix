@@ -1150,10 +1150,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
 
-        // Display-only stats (gated by --perf-stats). These feed the HUD
-        // and the post-exit perf summary; they have no safety role.
+        // Display-only stats. IN-01: `perf_frames` + `frame_time_tracker.push`
+        // moved OUTSIDE the `cfg.perf_stats` gate so the always-on post-exit
+        // FPS summary reports honest numbers without --perf-stats.
+        perf_frames = perf_frames.saturating_add(1);
+        frame_time_tracker.push(work_s as f64 * 1000.0);
         if cfg.perf_stats {
-            perf_frames = perf_frames.saturating_add(1);
             if did_draw {
                 perf_drawn_frames = perf_drawn_frames.saturating_add(1);
             } else {
@@ -1170,7 +1172,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             if overshoot > 0.0 {
                 perf_overshoot_frames = perf_overshoot_frames.saturating_add(1);
             }
-            frame_time_tracker.push(work_s as f64 * 1000.0);
         }
 
         // Performance self-healer (P1 + P2).

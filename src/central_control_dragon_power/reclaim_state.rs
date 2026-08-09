@@ -83,9 +83,10 @@ pub(crate) unsafe fn hint_reclaim_pages(ptr: *const u8, len: usize) {
     if len == 0 || ptr.is_null() {
         return;
     }
-    // MADV_DONTNEED = 4 on Linux
     let ret = libc::madvise(ptr as *mut libc::c_void, len, libc::MADV_DONTNEED);
-    // Ignore EINVAL/EINVAL (pages not reclaimable) — best-effort.
+    // CC2-06: ignore all errors (pages not reclaimable, ENOMEM, etc.) —
+    // best-effort. The dead `MADV_DONTNEED = 4` comment was removed (the
+    // code uses the symbolic constant, not the literal).
     let _ = ret;
 }
 

@@ -149,7 +149,7 @@ Historical reference (preserved verbatim, no longer describes live behavior):
 
 Subsystems that still share the "atmosphere" name but were NOT deleted
 (because they are separate subsystems, not the v4.0.0 atmosphere engine):
-- `src/chroma/post/atmosphere.rs` — Chroma Dragon post-FX shader
+- `src/chroma/post/climate.rs` — Chroma Dragon post-FX shader
   (luminance/saturation/instability). Used by
   `chroma::shaders::base::resolve_cell_color` for every cell render.
 - `AtmosphericEvolution` struct in `src/cloud/ecosystem.rs` — cloud

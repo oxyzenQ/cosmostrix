@@ -197,7 +197,14 @@ impl PowerManager {
     /// `effective_pressure` above 1.0 (which would be a silent no-op
     /// due to the clamp inside `effective_pressure`).
     pub(crate) fn set_thermal_pressure(&mut self, pressure: f32) {
-        self.thermal_pressure = pressure.clamp(0.0, 1.0);
+        // CC2-03: explicit NaN guard + clamp. `f32::clamp` propagates NaN,
+        // so a future SMC/WMI thermal sampler returning NaN would corrupt
+        // effective_pressure() downstream. Map NaN → 0.0 first, then clamp.
+        self.thermal_pressure = if pressure.is_nan() {
+            0.0
+        } else {
+            pressure.clamp(0.0, 1.0)
+        };
     }
 
     /// Called at the start of each frame, BEFORE frame work begins.

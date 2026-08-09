@@ -68,10 +68,11 @@ impl PasteBurstGuard {
 pub(super) fn is_plain_printable_key(key: &crossterm::event::KeyEvent) -> bool {
     use crossterm::event::{KeyCode, KeyModifiers};
 
+    // IN-03: KeyModifiers::NONE == empty bitflags, so `is_empty()` already
+    // covers it. Dropped the redundant clause to avoid reader confusion
+    // (the dead branch suggested the author intended something else).
     matches!(key.code, KeyCode::Char(_))
-        && (key.modifiers.is_empty()
-            || key.modifiers == KeyModifiers::SHIFT
-            || key.modifiers == KeyModifiers::NONE)
+        && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT)
 }
 
 // Runtime key handling coordinates cloud, frame, scene, charset, and terminal

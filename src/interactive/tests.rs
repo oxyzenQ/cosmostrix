@@ -361,32 +361,6 @@ mod cases {
     }
 
     #[test]
-    fn x_cycles_scene_forward() {
-        // v30 simplify: lowercase-only shortcuts. Uppercase 'X' removed;
-        // this test now verifies lowercase 'x' cycles scenes forward.
-        let mut cloud = make_test_cloud();
-        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
-        let mut charset_preset = String::from("binary");
-        let mut scene_name = String::from("monolith");
-        let mut scene_generation: u64 = 0;
-
-        call_handle_keybinding_with_scene(
-            &mut cloud,
-            &mut frame,
-            &key('x'),
-            &mut charset_preset,
-            &mut scene_name,
-            &mut scene_generation,
-            &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
-        );
-
-        assert_eq!(scene_name, "matrix");
-        assert_eq!(cloud.active_scene(), "matrix");
-    }
-
-    #[test]
     fn x_repeated_uses_forward_scene_order() {
         // v30 simplify: lowercase-only shortcuts. Uppercase 'X' removed;
         // this test now verifies lowercase 'x' repeated cycles forward.

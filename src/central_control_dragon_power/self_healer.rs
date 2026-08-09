@@ -90,9 +90,10 @@ pub(crate) enum SelfHealAction {
 /// See the module-level docs for the state machine diagram and the P2
 /// evaluation order rationale.
 ///
-/// v30.9: thresholds migrated from standalone `SELF_HEAL_*` constants to
-/// a `PowerThresholds` instance. The struct is now the sole source of
-/// truth; the standalone constants have been removed from `mod.rs`.
+/// v30.9: the healer now reads thresholds from a `PowerThresholds`
+/// instance (constructed via `PowerThresholds::defaults()`). The
+/// standalone constants in `mod.rs` remain as the canonical values that
+/// `defaults()` copies.
 #[derive(Debug, Clone)]
 pub(crate) struct PerformanceSelfHealer {
     /// Tunable thresholds. Owned by value because `PowerThresholds` is

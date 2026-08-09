@@ -34,7 +34,7 @@
 //! ## Watchdog
 //!
 //! A background watchdog thread monitors a global frame counter. If no frames
-//! are produced for 10+ seconds, it restores the terminal and exits —
+//! are produced for 1+ second, it restores the terminal and exits —
 //! protecting against infinite loops that would leave the TTY in a broken state.
 
 mod activity;

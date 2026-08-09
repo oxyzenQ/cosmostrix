@@ -90,7 +90,7 @@
 //! | Stuck-cell sweep (P4)          | Sweep interval, max-per-sweep                     |
 //! | FD health probe (P5)           | Probe interval                                    |
 //! | xterm.js Tier 2                | Byte budget, window, RIS reset, hard ceiling      |
-//! | PowerThresholds struct         | Grouped thresholds for future PowerManager        |
+//! | PowerThresholds struct         | Grouped thresholds for PowerManager                |
 //!
 //! ## Calibration history
 //!
@@ -478,8 +478,8 @@ mod tests {
 
     #[test]
     fn power_thresholds_is_copy() {
-        // PowerThresholds must be Copy — future PowerManager will store it
-        // by value and pass copies to sub-functions without ownership transfer.
+        // PowerThresholds must be Copy — PowerManager stores it by value
+        // and passes copies to sub-functions without ownership transfer.
         let a = PowerThresholds::defaults();
         let b = a; // copy, not move
         let _ = a; // a is still valid (Copy)

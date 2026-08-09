@@ -36,6 +36,15 @@ pub(crate) struct PhasePredictor {
     active_end_ema: f64,
     /// Number of transitions recorded.
     transitions_observed: u64,
+    /// Per-EMA initialization flags (CC2-01). Previously the global
+    /// `transitions_observed == 0` check was used to seed each EMA, but
+    /// when the first transition was `to_active=false`, `active_start_ema`
+    /// stayed at the default `0.0`. The next `to_active=true` transition
+    /// would then compute `0.3 * t + 0.7 * 0.0 = 0.3 * t`, biased toward
+    /// midnight. Per-EMA init flags fix this without affecting the
+    /// converged predictor.
+    active_start_set: bool,
+    active_end_set: bool,
     /// Learning rate (alpha) for EMA updates.
     alpha: f64,
 }
@@ -47,6 +56,8 @@ impl PhasePredictor {
             active_start_ema: 0.0,
             active_end_ema: 0.0,
             transitions_observed: 0,
+            active_start_set: false,
+            active_end_set: false,
             alpha: 0.3,
         }
     }
@@ -59,13 +70,18 @@ impl PhasePredictor {
     pub(crate) fn record_transition(&mut self, to_active: bool, secs_since_midnight: f64) {
         let t = secs_since_midnight.rem_euclid(86400.0);
         if to_active {
-            self.active_start_ema = if self.transitions_observed == 0 {
+            // CC2-01: per-EMA init flag avoids the cross-contamination where
+            // a to_active=false transition leaves active_start_ema at 0.0,
+            // biasing the next to_active=true update toward midnight.
+            self.active_start_ema = if !self.active_start_set {
+                self.active_start_set = true;
                 t
             } else {
                 self.alpha * t + (1.0 - self.alpha) * self.active_start_ema
             };
         } else {
-            self.active_end_ema = if self.transitions_observed == 0 {
+            self.active_end_ema = if !self.active_end_set {
+                self.active_end_set = true;
                 t
             } else {
                 self.alpha * t + (1.0 - self.alpha) * self.active_end_ema

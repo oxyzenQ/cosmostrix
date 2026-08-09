@@ -94,7 +94,7 @@ These docs cover *how to tune what the rain looks like*.
 > The elimination record (file list, KEPT-vs-DELETED table, backward-compat
 > notes, revival guidance) is at
 > [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md).
-> Subsystems that still share the "atmosphere" name (`src/chroma/post/atmosphere.rs`
+> Subsystems that still share the "atmosphere" name (`src/chroma/post/climate.rs`
 > post-FX shader, `AtmosphericEvolution` in `src/cloud/ecosystem.rs`) are
 > separate subsystems and remain live — they were never part of the v4.0.0
 > atmosphere engine plan.
@@ -276,7 +276,7 @@ not the v4.0.0 atmosphere engine — KEPT):
 
 | Source file | What it does |
 |-------------|-------------|
-| `src/chroma/post/atmosphere.rs` | Chroma Dragon post-FX shader — luminance/saturation/instability. Used by `chroma::shaders::base::resolve_cell_color` for every cell render. |
+| `src/chroma/post/climate.rs` | Chroma Dragon post-FX shader — luminance/saturation/instability. Used by `chroma::shaders::base::resolve_cell_color` for every cell render. |
 | `src/cloud/ecosystem.rs::AtmosphericEvolution` | Cloud drift/gust events (entropy_phase, density_offset, luminance_offset, anomaly_offset, cycle_speed). |
 
 ### Benchmark Subsystem

@@ -56,6 +56,13 @@ pub(crate) struct EnduranceHealth {
     rss_count: usize,
     /// EMA of frame time (ms).
     frame_jitter_ema: f64,
+    /// CC2-02: per-EMA init flag for `frame_jitter_ema`. Previously the
+    /// `if self.updates == 0` check was shared across `push_frame_time`
+    /// and `push_ctxt_rate`, but `push_frame_time` is called every frame
+    /// (60 FPS) while `recompute()` only runs every 60 frames — so the
+    /// first 59 pushes each overwrote the EMA with the latest value
+    /// instead of doing proper EMA smoothing. Per-EMA init flag fixes this.
+    frame_jitter_set: bool,
     /// EMA of context switch rate (switches/sec).
     ctxt_switch_ema: f64,
     /// Last computed score.
@@ -74,6 +81,7 @@ impl EnduranceHealth {
             rss_idx: 0,
             rss_count: 0,
             frame_jitter_ema: 0.0,
+            frame_jitter_set: false,
             ctxt_switch_ema: 0.0,
             score: 100.0,
             updates: 0,
@@ -96,8 +104,14 @@ impl EnduranceHealth {
 
     /// Update frame jitter EMA. `frame_time_ms` is the latest frame time in ms.
     pub(crate) fn push_frame_time(&mut self, frame_time_ms: f64) {
-        if self.updates == 0 {
+        // CC2-02: per-EMA init flag so the first push seeds and subsequent
+        // pushes actually do EMA smoothing. Previously the `if self.updates
+        // == 0` check was true for the first 60 frames (because `updates`
+        // is only incremented in `recompute`), so each push overwrote the
+        // EMA with the latest value.
+        if !self.frame_jitter_set {
             self.frame_jitter_ema = frame_time_ms;
+            self.frame_jitter_set = true;
         } else {
             self.frame_jitter_ema = 0.95 * self.frame_jitter_ema + 0.05 * frame_time_ms;
         }
@@ -127,7 +141,9 @@ impl EnduranceHealth {
 
         // RSS stability: lower variance = higher score.
         // Typical RSS range for cosmostrix: 2796–3044 KB (Δ ~250 KB).
-        // A variance of 0 → score 100. Variance of 10000 (100 KB²) → score 0.
+        // CC2-07: formula is `100 - var*0.1`, so variance of 0 → score 100,
+        // variance of 1000 (≈32 KB std dev) → score 0. The previous comment
+        // said 10000 (100 KB²) which was off by 10×.
         let mean = self.rss_mean();
         let var = self.rss_variance(mean);
         let rss_score = (100.0 - (var * 0.1)).clamp(0.0, 100.0);
