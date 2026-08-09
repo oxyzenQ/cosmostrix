@@ -28,6 +28,68 @@ fn captured_phosphor_energy(line: u16, lines: u16) -> u8 {
     PHOSPHOR_EDGE_ENERGY_CAP.saturating_sub(taper_steps * PHOSPHOR_EDGE_ROW_TAPER)
 }
 
+/// Phosphor ghost brightness helper. Shared by A18 (sub-threshold
+/// ghost), A19 (main ghost trail), and A20 (orphan trail fallback).
+///
+/// Routes through the chroma engine when `is_chroma` is true (calls
+/// `palette::apply_brightness_rgb`), falls back to
+/// `chroma::legacy::scale_rgb` otherwise. Same equation both paths
+/// (parity contract in `chroma/legacy.rs`); the branch exists for
+/// audit symmetry with the A1-A17 sites in `droplet.rs`.
+///
+/// If `color` cannot be decoded (e.g. `Color::Reset`), returns `color`
+/// unchanged -- matching the pre-extraction behavior at every call site.
+#[inline]
+fn phosphor_ghost_brightness(color: Color, factor: f32, is_chroma: bool) -> Color {
+    if let Some((r, g, b)) = palette::decode_color(color) {
+        if is_chroma {
+            palette::apply_brightness_rgb(r, g, b, factor)
+        } else {
+            let (nr, ng, nb) = crate::chroma::legacy::scale_rgb(r, g, b, factor);
+            Color::Rgb { r: nr, g: ng, b: nb }
+        }
+    } else {
+        color
+    }
+}
+
+/// Anomaly halo blend helper. Shared by A21 (`LuminanceSurge` halo)
+/// and A22 (`PulseWave` halo).
+///
+/// Routes through the chroma engine when `is_chroma` is true (calls
+/// `palette::blend_toward_bg` or `palette::blend_toward_white`), falls
+/// back to `chroma::legacy::blend_toward_rgb` or
+/// `chroma::legacy::blend_toward_white` otherwise. Same equation both
+/// paths; the branch exists for audit symmetry with the A1-A20 sites.
+///
+/// When `halo_target` is `Some`, blends `fg` toward the target color.
+/// When `None`, blends `fg` toward pure white (the pre-Phase-6
+/// fallback for degenerate palette edge cases).
+#[inline]
+fn anomaly_halo_blend(
+    fg: Color,
+    halo_target: Option<Color>,
+    intensity: f32,
+    is_chroma: bool,
+) -> Color {
+    if is_chroma {
+        match halo_target {
+            Some(t) => palette::blend_toward_bg(fg, t, intensity),
+            None => palette::blend_toward_white(fg, intensity),
+        }
+    } else {
+        let (r, g, b) = palette::decode_color(fg).unwrap_or((0, 0, 0));
+        let (nr, ng, nb) = match halo_target {
+            Some(t) => {
+                let (tr, tg, tb) = palette::decode_color(t).unwrap_or((255, 255, 255));
+                crate::chroma::legacy::blend_toward_rgb(r, g, b, tr, tg, tb, intensity)
+            }
+            None => crate::chroma::legacy::blend_toward_white(r, g, b, intensity),
+        };
+        Color::Rgb { r: nr, g: ng, b: nb }
+    }
+}
+
 impl Cloud {
     /// T1.1: independent gate for the stuck-cell sweep. Default true
     /// (preserves `--perf-stats` interactive behavior); benchmark sets
@@ -294,22 +356,15 @@ impl Cloud {
                 if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                     let factor = self.phosphor[pidx] as f32 / 255.0;
                     // v30.3 (chroma audit, A18): sub-threshold ghost
-                    // brightness routes through the chroma engine when
-                    // active, falls back to chroma::legacy::scale_rgb
-                    // (same equation, owned by the legacy module) when
-                    // the terminal is not truecolor. Matches the A1-A17
-                    // is_chroma() branch pattern used in droplet.rs.
-                    let ghost_fg = if let Some((r, g, b)) = palette::decode_color(base_fg) {
-                        if self.color_pipeline.is_chroma() {
-                            palette::apply_brightness_rgb(r, g, b, factor)
-                        } else {
-                            let (nr, ng, nb) =
-                                crate::chroma::legacy::scale_rgb(r, g, b, factor);
-                            Color::Rgb { r: nr, g: ng, b: nb }
-                        }
-                    } else {
-                        base_fg
-                    };
+                    // brightness -- shared helper routes through chroma
+                    // engine when active, chroma::legacy::scale_rgb
+                    // otherwise. Matches the A1-A17 is_chroma() branch
+                    // pattern used in droplet.rs.
+                    let ghost_fg = phosphor_ghost_brightness(
+                        base_fg,
+                        factor,
+                        self.color_pipeline.is_chroma(),
+                    );
                     frame.set(
                         col,
                         line,
@@ -328,21 +383,13 @@ impl Cloud {
             if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                 let factor = self.phosphor[pidx] as f32 / 255.0;
                 // v30.3 (chroma audit, A19): main ghost brightness (visible
-                // trail) routes through the chroma engine when active, falls
-                // back to chroma::legacy::scale_rgb otherwise. Same equation
-                // both paths; the branch exists for audit symmetry with the
-                // A1-A17 sites in droplet.rs.
-                let ghost_fg = if let Some((r, g, b)) = palette::decode_color(base_fg) {
-                    if self.color_pipeline.is_chroma() {
-                        palette::apply_brightness_rgb(r, g, b, factor)
-                    } else {
-                        let (nr, ng, nb) =
-                            crate::chroma::legacy::scale_rgb(r, g, b, factor);
-                        Color::Rgb { r: nr, g: ng, b: nb }
-                    }
-                } else {
-                    base_fg
-                };
+                // trail) -- shared helper, same as A18. The branch exists
+                // for audit symmetry with the A1-A17 sites in droplet.rs.
+                let ghost_fg = phosphor_ghost_brightness(
+                    base_fg,
+                    factor,
+                    self.color_pipeline.is_chroma(),
+                );
                 let ghost_ch = self.phosphor_base_ch[pidx];
                 // Trail character cycling: 2% chance per decay step to
                 // mutate the trail character to a new random glyph. This
@@ -375,21 +422,12 @@ impl Cloud {
                 let ghost_ch = self.phosphor_base_ch[pidx];
                 // v30.3 (chroma audit, A20): orphan trail fallback (rare
                 // path -- no base_fg stored, derive from palette's first
-                // stop). Routes through the chroma engine when active,
-                // falls back to chroma::legacy::scale_rgb otherwise.
+                // stop). Shared helper, same as A18/A19; factor is
+                // multiplied by 0.6 to dim the orphan trail relative to
+                // a tracked trail.
                 let is_chroma = self.color_pipeline.is_chroma();
                 let ghost_fg = self.palette.colors.first().copied().map(|c| {
-                    if let Some((r, g, b)) = palette::decode_color(c) {
-                        if is_chroma {
-                            palette::apply_brightness_rgb(r, g, b, factor * 0.6)
-                        } else {
-                            let (nr, ng, nb) =
-                                crate::chroma::legacy::scale_rgb(r, g, b, factor * 0.6);
-                            Color::Rgb { r: nr, g: ng, b: nb }
-                        }
-                    } else {
-                        c
-                    }
+                    phosphor_ghost_brightness(c, factor * 0.6, is_chroma)
                 });
                 frame.set(
                     col,
@@ -521,36 +559,15 @@ impl Cloud {
                             let cell = frame.cell_at_index(fidx);
                             if let Some(fg) = cell.fg {
                                 // v30.3 (chroma audit, A21): LuminanceSurge
-                                // halo routes through the chroma engine when
-                                // active (palette-derived target via
-                                // blend_toward_bg / blend_toward_white), falls
-                                // back to chroma::legacy::blend_toward_rgb /
-                                // blend_toward_white otherwise. Same equation
-                                // both paths; the branch exists for audit
-                                // symmetry with the A1-A20 sites.
-                                let brightened = if self.color_pipeline.is_chroma() {
-                                    match halo_target {
-                                        Some(t) => palette::blend_toward_bg(fg, t, intensity),
-                                        None => palette::blend_toward_white(fg, intensity),
-                                    }
-                                } else {
-                                    let (r, g, b) =
-                                        palette::decode_color(fg).unwrap_or((0, 0, 0));
-                                    let (nr, ng, nb) = match halo_target {
-                                        Some(t) => {
-                                            let (tr, tg, tb) =
-                                                palette::decode_color(t)
-                                                    .unwrap_or((255, 255, 255));
-                                            crate::chroma::legacy::blend_toward_rgb(
-                                                r, g, b, tr, tg, tb, intensity,
-                                            )
-                                        }
-                                        None => crate::chroma::legacy::blend_toward_white(
-                                            r, g, b, intensity,
-                                        ),
-                                    };
-                                    Color::Rgb { r: nr, g: ng, b: nb }
-                                };
+                                // halo -- shared helper routes through chroma
+                                // engine when active, chroma::legacy fallback
+                                // otherwise. Matches the A1-A20 pattern.
+                                let brightened = anomaly_halo_blend(
+                                    fg,
+                                    halo_target,
+                                    intensity,
+                                    self.color_pipeline.is_chroma(),
+                                );
                                 frame.set(
                                     col,
                                     line,
@@ -649,42 +666,14 @@ impl Cloud {
                                 let cell = frame.cell_at_index(fidx);
                                 if let Some(fg) = cell.fg {
                                     // v30.3 (chroma audit, A22): PulseWave
-                                    // halo routes through the chroma engine
-                                    // when active (palette-derived hue-cycled
-                                    // target via blend_toward_bg /
-                                    // blend_toward_white), falls back to
-                                    // chroma::legacy::blend_toward_rgb /
-                                    // blend_toward_white otherwise. Same
-                                    // equation both paths; the branch exists
-                                    // for audit symmetry with the A1-A21 sites.
-                                    let brightened = if self.color_pipeline.is_chroma() {
-                                        match halo_target {
-                                            Some(t_color) => {
-                                                palette::blend_toward_bg(
-                                                    fg, t_color, intensity,
-                                                )
-                                            }
-                                            None => {
-                                                palette::blend_toward_white(fg, intensity)
-                                            }
-                                        }
-                                    } else {
-                                        let (r, g, b) =
-                                            palette::decode_color(fg).unwrap_or((0, 0, 0));
-                                        let (nr, ng, nb) = match halo_target {
-                                            Some(t_color) => {
-                                                let (tr, tg, tb) = palette::decode_color(t_color)
-                                                    .unwrap_or((255, 255, 255));
-                                                crate::chroma::legacy::blend_toward_rgb(
-                                                    r, g, b, tr, tg, tb, intensity,
-                                                )
-                                            }
-                                            None => crate::chroma::legacy::blend_toward_white(
-                                                r, g, b, intensity,
-                                            ),
-                                        };
-                                        Color::Rgb { r: nr, g: ng, b: nb }
-                                    };
+                                    // halo -- shared helper (same as A21),
+                                    // palette-derived hue-cycled target.
+                                    let brightened = anomaly_halo_blend(
+                                        fg,
+                                        halo_target,
+                                        intensity,
+                                        self.color_pipeline.is_chroma(),
+                                    );
                                     frame.set(
                                         col,
                                         line,
