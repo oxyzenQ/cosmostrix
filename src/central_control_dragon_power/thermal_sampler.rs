@@ -120,6 +120,12 @@ pub(crate) fn sample_thermal_pressure() -> Option<f32> {
 /// - `celsius` at or below `THERMAL_PRESSURE_ZERO_C` → 0.0
 /// - `celsius` at or above `THERMAL_PRESSURE_ONE_C` → 1.0
 /// - Between → linear interpolation
+// On non-Linux targets `sample_thermal_pressure` is cfg-gated out, so the
+// only callers left are the `#[cfg(test)]` blocks below. The bin build on
+// those targets (FreeBSD clippy enforces `-D warnings`) would otherwise
+// flag this as dead code. The function itself is intentionally
+// cross-platform so the math tests run on every target.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #[must_use]
 pub(crate) fn normalize_celsius(celsius_millideg: i64) -> f32 {
     let celsius = celsius_millideg as f32 / 1000.0;
@@ -144,6 +150,7 @@ pub(crate) fn sample_thermal_pressure() -> Option<f32> {
 // the primary definition above is already unconditional.
 
 /// Return the larger of two `i64`s, treating `None` as "no reading yet".
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #[inline]
 fn highest(prev: Option<i64>, cur: i64) -> i64 {
     match prev {

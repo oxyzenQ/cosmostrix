@@ -292,6 +292,12 @@ pub(crate) const THERMAL_SAMPLER_INTERVAL_FRAMES: u64 = 600;
 
 /// Temperature (°C) at which thermal_pressure = 0.0 (cool). Below this
 /// the device is cool enough that no throttling is expected.
+//
+// On non-Linux targets the only consumer is `normalize_celsius`, which is
+// itself only used by tests there (see thermal_sampler.rs). Without this
+// allow, FreeBSD's clippy `-D warnings` gate would flag the constant as
+// dead in the bin build.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) const THERMAL_PRESSURE_ZERO_C: i32 = 50;
 
 /// Temperature (°C) at which thermal_pressure = 1.0 (throttle). At or
@@ -299,6 +305,7 @@ pub(crate) const THERMAL_PRESSURE_ZERO_C: i32 = 50;
 /// renderer should shed maximum load. 90 °C matches the typical
 /// junction-temperature throttle band of x86_64 mobile and desktop
 /// SoCs.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) const THERMAL_PRESSURE_ONE_C: i32 = 90;
 
 // ─── Tier 2: xterm.js byte-budget + RIS reset ────────────────────────────────
