@@ -508,8 +508,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // v35.1: Automatic ambient snapback — replaces the v35 'a' shortcut.
         // When user has pressed x/c/s AND been idle for AUTO_SNAPBACK_DELAY_SECS,
         // re-apply the current ambient phase. No new shortcut, no new CLI flag.
+        // The delay constant lives in `central_control_dragon_power/mod.rs`
+        // (alongside IDLE_THRESHOLD_SECS) and is re-exported via `constants::*`.
         // See `input::try_auto_snapback` and AMBIENT_SCHEDULER_AUDIT.md §2.2.
-        const AUTO_SNAPBACK_DELAY_SECS: f64 = 30.0;
         if super::input::try_auto_snapback(
             &mut cloud,
             &mut charset_preset,
@@ -521,7 +522,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             &user_ranges,
             def_ascii,
             last_user_input_at,
-            AUTO_SNAPBACK_DELAY_SECS,
+            crate::constants::AUTO_SNAPBACK_DELAY_SECS,
         ) {
             term.set_color_cache(ColorCache::new(&cloud.palette));
             frame = Frame::new(w, h, cloud.palette.bg);

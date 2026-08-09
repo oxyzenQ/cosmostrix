@@ -166,6 +166,20 @@ pub(crate) const PERF_PRESSURE_CLASS_MEDIUM: f64 = 0.30;
 /// atmospheric subsystem tick rates are lowered.
 pub(crate) const IDLE_THRESHOLD_SECS: f64 = 30.0;
 
+/// v35.1: Idle threshold for the ambient scheduler's auto-snapback. After
+/// the user presses `x`/`c`/`s` (manual override) and is then idle for
+/// this many seconds, the event loop automatically re-applies the current
+/// ambient phase — no manual shortcut, no new CLI flag.
+///
+/// Why 30s: long enough that an active user cycling through scenes won't
+/// be interrupted, short enough that a user who pressed `x` to peek then
+/// walked away gets ambient back within half a minute. To tune, edit this
+/// constant and rebuild — `cargo build --release`.
+///
+/// See `src/interactive/event_loop.rs` (auto-snapback block) and
+/// `src/interactive/input.rs::try_auto_snapback`.
+pub(crate) const AUTO_SNAPBACK_DELAY_SECS: f64 = 30.0;
+
 /// Effective FPS multiplier while idle. 0.5 = 30 FPS at 60 target.
 /// Raised from 0.25 (v25) to keep phosphor decay visually smooth.
 pub(crate) const IDLE_FPS_FACTOR: f64 = 0.5;
