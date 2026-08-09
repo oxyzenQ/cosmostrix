@@ -38,6 +38,10 @@ use crate::cpustat;
 /// /proc read overhead negligible (< 0.05% CPU).
 pub(crate) const CPU_SAMPLE_INTERVAL: Duration = Duration::from_millis(200);
 
+/// Upper bound for displayed CPU% — keeps field width stable in the report.
+/// Values >100% on a single-thread renderer indicate measurement error.
+const CPU_PERCENT_DISPLAY_MAX: f64 = 999.9;
+
 /// Tracks CPU% during the measurement phase.
 ///
 /// On platforms without CPU sampling support, `supported` remains `false`
@@ -99,9 +103,10 @@ impl CpuTracker {
         }
         let cpu_delta_ns = cpu_ns_now.saturating_sub(cpu_ns_prev) as f64;
         let percent = (cpu_delta_ns / wall_delta_ns as f64) * 100.0;
-        // Clamp to [0, 999.9] — values >100% on a single-thread renderer
-        // indicate measurement error; the cap keeps field width stable.
-        let percent = percent.clamp(0.0, 999.9);
+        // Clamp to [0, CPU_PERCENT_DISPLAY_MAX] — values >100% on a
+        // single-thread renderer indicate measurement error; the cap keeps
+        // field width stable in the report.
+        let percent = percent.clamp(0.0, CPU_PERCENT_DISPLAY_MAX);
 
         self.sum_percent += percent;
         if percent > self.peak_percent {

@@ -21,8 +21,12 @@
 //! | `base` | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `color_uses_previous_palette()`, `TRAIL_EXP_LUT` |
 //! | `transition` | Phase 5: `TransitionLTable`, `apply_l_smoothing()` — perceptual L smoothing at palette transition wave |
 //!
-//! Future phases may add `oklab`, `dither`, `halo`, `climate` under this
-//! namespace as further innovations land one micro-commit at a time.
+//! Sub-modules: `base` (cell shader), `transition` (Phase 5/8 perceptual L
+//! + chroma smoothing).
+//!
+//! The oklab/dither/halo/climate concerns live in `chroma/gradient.rs`,
+//! `chroma/shaders/base.rs`, and `chroma/post/climate.rs` respectively —
+//! not under this namespace.
 
 pub(crate) mod base;
 pub(crate) mod transition;

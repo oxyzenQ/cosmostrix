@@ -106,8 +106,19 @@ mod linux {
                 // PERF_EVENT_IOC_DISABLE = _IO('$', 1) = 0x2401
                 // PERF_EVENT_IOC_RESET = _IO('$', 3) = 0x2403
                 // Enable the counter (it starts counting immediately)
-                libc::ioctl(fd, 0x2400u64 as _); // ENABLE
-                Some(fd)
+                // BD-04: if ENABLE ioctl fails, the counter is never enabled
+                // but reads silently return 0 — better to close + report
+                // unavailable than emit a misleading `available: true` with
+                // zero counters.
+                if libc::ioctl(fd, 0x2400u64 as _) < 0 {
+                    // SAFETY: fd is a valid open file descriptor just obtained
+                    // from libc::open above; close it to avoid fd leak. Outer
+                    // unsafe block (line 86) already provides the unsafe context.
+                    libc::close(fd);
+                    None
+                } else {
+                    Some(fd)
+                }
             }
         }
     }

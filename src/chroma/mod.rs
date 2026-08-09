@@ -42,8 +42,8 @@
 //! | `gradient`   | new in Phase 3-A                         | OKLab polar interpolation (sole production path since v30) |
 //! | `legacy`     | new in v30.3                             | Explicit sRGB-linear fallback math (`scale_rgb`, `blend_toward_rgb`, `boost_rgb`) used when `ColorPipeline::LegacyRgb` is active |
 //!
-//! Future phases will add `post/`, `stops.rs`, `ecosystem.rs` under this
-//! namespace.
+//! Modules `palette`, `catalog`, `shaders`, `gradient`, `legacy`, `post`,
+//! `tuning` cover all chroma concerns; no further sub-modules are planned.
 
 pub mod catalog;
 pub(crate) mod gradient;

@@ -73,7 +73,10 @@ impl VisualSampler {
             prev_cells: Vec::new(),
             prev_dirty_bits: Vec::new(),
             prev_dirty_indices: Vec::new(),
-            sample_interval,
+            // BD-01: guard against 0 — would panic at `frame_counter % 0`
+            // in `sample()`. `max(1)` makes the constructor fail-safe for
+            // any future caller (current callers pass 10).
+            sample_interval: sample_interval.max(1),
             frame_counter: 0,
             col_counts: Vec::new(),
             sorted_counts: Vec::new(),

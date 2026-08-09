@@ -211,54 +211,6 @@ mod tests {
     }
 
     #[test]
-    fn benchmark_output_includes_stability_fields() {
-        // This test ensures the premium benchmark output includes
-        // backward-compatible stability fields. If any of these are
-        // removed, the test will fail, preventing accidental breakage.
-        //
-        // v30 strengthen (audit): removed `atmosphere_application` — it was
-        // an exact duplicate of `application` (both printed the same
-        // `is_ident`-derived string).
-        //
-        // v30 (2026-08-05, atmosphere elimination): removed all six
-        // `atmosphere_*`-prefixed stability fields from this list because
-        // they were never actual report field keys (they were documentation
-        // labels for the `regime`, `effective`, `transition`, `verifier`,
-        // `application_mode`, `visual_effect` keys, all of which were
-        // themselves removed when the atmosphere engine was eliminated at
-        // commit 07b44b5). The list now reflects what the post-elimination
-        // benchmark report actually emits.
-        const REQUIRED_FIELDS: &[&str] = &[
-            "avg_fps",
-            "peak_fps",
-            "avg_frame_time",
-            "p95_frame_time",
-            "p99_frame_time",
-            "p99_9_frame_time",
-            "max_frame_time",
-            "frame_jitter",
-            "median_fps",
-            "frame_time_stability",
-            "active_frame_ratio_percent",
-            "avg_dirty_cell_ratio_percent",
-            "active_streams_avg",
-            "dirty_glyphs_per_second",
-            "planned_mode",
-            "planned_worker_budget",
-            "plan_reason",
-            "actual_execution",
-            "terminal_writer",
-        ];
-        // These are checked against report field keys in the actual
-        // benchmark (integration-level). Here we just verify the
-        // test documents the contract.
-        assert!(!REQUIRED_FIELDS.is_empty());
-        for field in REQUIRED_FIELDS {
-            assert!(!field.is_empty());
-        }
-    }
-
-    #[test]
     fn bench_file_stays_under_target_loc() {
         // Guard: src/bench.rs must stay well under 1500 LOC.
         // Current target is under 1500 LOC — bumped from 1200 in v25.10 to

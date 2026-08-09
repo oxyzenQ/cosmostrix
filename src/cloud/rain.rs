@@ -972,7 +972,10 @@ impl Cloud {
                 .saturating_duration_since(transition_start)
                 .as_secs_f32();
             let t = (elapsed / PROFILE_TRANSITION_SECS).min(1.0);
-            // Smooth step interpolation
+            // Min-rate-floor smoothstep interpolation: PROFILE_INTERPOLATION_RATE
+            // (0.02) floors the per-frame lerp factor so the transition does
+            // not stall at very small t values. The smoothstep curve still
+            // governs the upper range.
             let t = t * t * (3.0 - 2.0 * t);
             self.profile_current = super::ecosystem::lerp_profile_params(
                 self.profile_current,

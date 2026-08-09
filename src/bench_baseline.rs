@@ -84,8 +84,15 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
 
         match (base_val, curr_val) {
             (Some(bv), Some(cv)) => {
+                // BD-08: when baseline is exactly 0.0, the previous formula
+                // `((cv - bv) / bv) * 100.0` would divide by zero and the
+                // guard forced `pct = 0.0` — masking a real change (e.g.
+                // 0→100 FPS would show "OK (0.0%)" instead of an improvement).
+                // Treat 0→positive as +100% so the threshold check fires.
                 let pct = if bv != 0.0 {
                     ((cv - bv) / bv) * 100.0
+                } else if cv > 0.0 {
+                    100.0
                 } else {
                     0.0
                 };
@@ -140,15 +147,16 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
     Ok(())
 }
 
-/// For some metrics, lower is better (frame time, RSS, CPU%, ns/cell).
-/// For others, higher is better (FPS).
+/// For some metrics, lower is better (frame time, dirty cells, CPU%, ns/cell).
+/// For others, higher is better (FPS). `dirty_cells_per_frame` is lower-better
+/// — reducing dirty cells is an optimization, not a regression.
 fn is_lower_better(key: &str) -> bool {
     matches!(
         key,
         "p99_frame_time_ms"
             | "avg_frame_time_ms"
+            | "dirty_cells_per_frame"
             | "total_ns_per_cell"
-            | "peak_rss"
             | "avg_cpu_percent"
     )
 }

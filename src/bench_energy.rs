@@ -85,13 +85,13 @@ impl EnergySnapshot {
             return EnergyMetrics::default();
         }
 
-        // Handle counter wraparound (RAPL counters can wrap)
-        let energy_delta_uj = if self.total_energy_uj >= before.total_energy_uj {
-            self.total_energy_uj - before.total_energy_uj
-        } else {
-            // Wrapped — assume 64-bit counter, rare
-            u64::MAX - before.total_energy_uj + self.total_energy_uj
-        };
+        // Handle counter wraparound (RAPL counters can wrap).
+        // BD-07: wrapping_sub is the standard idiom for counter deltas —
+        // it is correct for both normal (self >= before) and wraparound
+        // (self < before) cases, and avoids the previous off-by-one where
+        // the explicit `u64::MAX - before + self` formula yielded 0 instead
+        // of 1 when the counter wrapped from MAX to 0.
+        let energy_delta_uj = self.total_energy_uj.wrapping_sub(before.total_energy_uj);
 
         let energy_joules = energy_delta_uj as f64 / 1_000_000.0;
         let power_watts = if elapsed_secs > 0.0 {

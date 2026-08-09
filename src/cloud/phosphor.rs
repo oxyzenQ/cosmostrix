@@ -461,7 +461,7 @@ impl Cloud {
 
         let col = self.rand_col.sample(&mut self.mt);
         let line = self.rand_line.sample(&mut self.mt);
-        let radius = 3 + (self.rand_chance.sample(&mut self.mt) * 5.0) as u16; // 3-8
+        let radius = 3 + (self.rand_chance.sample(&mut self.mt) * 5.0) as u16; // 3..=7 (rand excludes 1.0, so *5 yields [0,5), +3 → 3..=7)
 
         let kind_roll = self.rand_chance.sample(&mut self.mt);
         let kind = if kind_roll < 0.4 {
@@ -602,11 +602,18 @@ impl Cloud {
                                 continue;
                             }
 
-                            // Use deterministic hash for stable corruption per cell
-                            let hash = ((col as u32).wrapping_mul(2654435761)
-                                ^ (line as u32).wrapping_mul(2246822519))
-                                >> 31;
-                            if (hash as f32 / 2.0) > ANOMALY_CORRUPTION_CHANCE * fade {
+                            // CC-02: use the full u32 hash normalized to
+                            // [0, 1) so ANOMALY_CORRUPTION_CHANCE * fade is
+                            // actually respected. Previously `>> 31` extracted
+                            // only the top bit, collapsing the rate to ~50%
+                            // always-corrupt at any fade (the `fade` parameter
+                            // was effectively ignored). Mirrors the climate.rs
+                            // hash pattern at chroma/post/climate.rs:224-227.
+                            let hash = (col as u32).wrapping_mul(2654435761)
+                                ^ (line as u32).wrapping_mul(2246822519);
+                            if (hash as f32 / (u32::MAX as f32 + 1.0))
+                                > ANOMALY_CORRUPTION_CHANCE * fade
+                            {
                                 continue;
                             }
 

@@ -525,7 +525,12 @@ impl Cloud {
         if now.saturating_duration_since(self.last_reseed_time)
             >= Duration::from_secs(RNG_RESEED_INTERVAL_SECS)
         {
-            let elapsed = now.elapsed();
+            // CC-01: use saturating_duration_since(now) so bench-mode
+            // synthetic sim_now (which races ahead of real time) degrades
+            // to Duration::ZERO instead of returning a stale value via
+            // elapsed() (which underflows on monotonic clocks). Mirrors
+            // the rain.rs:84 timing-capture pattern.
+            let elapsed = Instant::now().saturating_duration_since(now);
             let seed = elapsed.as_nanos() as u64 ^ elapsed.as_secs();
             self.mt = StdRng::seed_from_u64(seed);
             self.last_reseed_time = now;
@@ -563,7 +568,10 @@ impl Cloud {
         // (~20-50ns). `column_density_modifier` quantizes input into 10s
         // buckets, so the per-droplet calls were pure waste. At 30K FPS
         // benchmark mode this recovered ~9-22ms/sec of CPU on this single line.
-        let now_secs_for_density = now.elapsed().as_secs_f64();
+        // CC-01: use saturating_duration_since so bench-mode synthetic sim_now
+        // degrades to 0.0 instead of underflowing. Interactive mode is
+        // unaffected (caller passes real Instant::now()).
+        let now_secs_for_density = Instant::now().saturating_duration_since(now).as_secs_f64();
 
         for _ in 0..to_spawn {
             let col = self.rand_col.sample(&mut self.mt);

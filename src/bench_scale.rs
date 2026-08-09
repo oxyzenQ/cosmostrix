@@ -156,6 +156,17 @@ fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
     println!();
 }
 
+/// Format an f64 as a JSON-safe string. Returns "null" for NaN/inf so the
+/// scaling JSON never emits invalid RFC 8259 tokens (mirrors the `JsonValue
+/// for f64` impl in `bench_json.rs`).
+fn fmt_finite(v: f64) -> String {
+    if v.is_finite() {
+        v.to_string()
+    } else {
+        "null".to_string()
+    }
+}
+
 /// Build JSON array from scaling results.
 ///
 /// `scene` is the active scene name (e.g. "cinematic"); it is included as a
@@ -175,14 +186,17 @@ pub(crate) fn build_scaling_json(results: &[ScaleResult], scene: &str) -> String
             r.width,
             r.height,
             r.cells,
-            r.avg_fps,
-            r.total_ns_per_cell,
-            r.avg_dirty_cells,
-            r.alloc_calls_per_frame,
+            // BD-03: guard against NaN/inf — bare `format!` would emit
+            // invalid JSON tokens `NaN`/`inf` (RFC 8259 violation).
+            // Mirrors the JsonValue for f64 impl in bench_json.rs.
+            fmt_finite(r.avg_fps),
+            fmt_finite(r.total_ns_per_cell),
+            fmt_finite(r.avg_dirty_cells),
+            fmt_finite(r.alloc_calls_per_frame),
             r.heap_retained,
             r.ipc.map(|i| i.to_string()).unwrap_or_else(|| "null".to_string()),
-            r.entropy,
-            r.gini
+            fmt_finite(r.entropy),
+            fmt_finite(r.gini)
         ));
     }
     out.push(']');
