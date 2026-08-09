@@ -449,6 +449,44 @@ pub(crate) fn blend_toward_bg_rgb_unclamped(
     )
 }
 
+/// Unclamped variant of `apply_brightness_rgb`. Same equation, but the
+/// factor is NOT clamped to `[0, 1]`. Required for callers that need to
+/// BOOST a channel beyond 1.0 (e.g. front-layer parallax brightness
+/// 1.10).
+///
+/// The standard `apply_brightness_rgb` clamps factor to `[0, 1]`, which
+/// would silently turn a 1.10 boost into a 1.0 no-op and regress the
+/// v30.0.0 fix that enabled front-layer brightness boost.
+///
+/// Factor > 1.0 scales the channel upward (boost). Factor < 0 inverts
+/// the channel (rarely meaningful but mathematically defined). The
+/// per-channel `.clamp(0, 255)` keeps the final output in u8 range.
+///
+/// # Parity
+/// Bit-identical to `chroma::legacy::scale_rgb` for any factor. The
+/// legacy helper is also unclamped -- the only difference between the
+/// two is module ownership (chroma engine vs. legacy fallback).
+///
+/// # Caller status (v30.3 A16 migration)
+/// Wired into `droplet::CellShader::shade` for the parallax brightness
+/// + glyph dim multiplicative scale. The chroma path uses this helper;
+/// the legacy fallback uses `chroma::legacy::scale_rgb`.
+#[inline]
+#[must_use]
+pub(crate) fn apply_brightness_rgb_unclamped(
+    r: u8,
+    g: u8,
+    b: u8,
+    factor: f32,
+) -> (u8, u8, u8) {
+    let fi = (factor * 256.0) as i32;
+    (
+        ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8,
+        ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8,
+        ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8,
+    )
+}
+
 /// Format an `Option<Color>` as a human-readable hex string.
 ///
 /// - `None` → `"none"`

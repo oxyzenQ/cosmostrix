@@ -861,10 +861,13 @@ impl Droplet {
                 let glyph_dim = PARALLAX_GLYPH_DIM[self.layer as usize];
                 let combined_layer = layer_brightness * glyph_dim;
                 if combined_layer != 1.0 {
-                    let fi = (combined_layer * 256.0) as i32;
-                    r = ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    g = ((g as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
-                    b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
+                    // v30.3 (A16): chroma-routed scale. Unclamped helper
+                    // because front layer combined_layer = 1.10 (BOOST > 1.0);
+                    // clamped apply_brightness_rgb would regress v30.0.0 fix.
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, combined_layer)
+                    } else { crate::chroma::legacy::scale_rgb(r, g, b, combined_layer) };
+                    r = nr; g = ng; b = nb;
                 }
 
                 // Depth-of-field saturation: blend toward luminance (gray) by
