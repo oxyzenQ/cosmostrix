@@ -5,6 +5,7 @@
 
 use std::time::Instant;
 
+use crossterm::style::Color;
 use rand::distr::Distribution;
 
 use crate::cell::Cell;
@@ -292,8 +293,20 @@ impl Cloud {
                 self.phosphor_base_ch[pidx] = '\0';
                 if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                     let factor = self.phosphor[pidx] as f32 / 255.0;
+                    // v30.3 (chroma audit, A18): sub-threshold ghost
+                    // brightness routes through the chroma engine when
+                    // active, falls back to chroma::legacy::scale_rgb
+                    // (same equation, owned by the legacy module) when
+                    // the terminal is not truecolor. Matches the A1-A17
+                    // is_chroma() branch pattern used in droplet.rs.
                     let ghost_fg = if let Some((r, g, b)) = palette::decode_color(base_fg) {
-                        palette::apply_brightness_rgb(r, g, b, factor)
+                        if self.color_pipeline.is_chroma() {
+                            palette::apply_brightness_rgb(r, g, b, factor)
+                        } else {
+                            let (nr, ng, nb) =
+                                crate::chroma::legacy::scale_rgb(r, g, b, factor);
+                            Color::Rgb { r: nr, g: ng, b: nb }
+                        }
                     } else {
                         base_fg
                     };
@@ -314,8 +327,19 @@ impl Cloud {
 
             if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                 let factor = self.phosphor[pidx] as f32 / 255.0;
+                // v30.3 (chroma audit, A19): main ghost brightness (visible
+                // trail) routes through the chroma engine when active, falls
+                // back to chroma::legacy::scale_rgb otherwise. Same equation
+                // both paths; the branch exists for audit symmetry with the
+                // A1-A17 sites in droplet.rs.
                 let ghost_fg = if let Some((r, g, b)) = palette::decode_color(base_fg) {
-                    palette::apply_brightness_rgb(r, g, b, factor)
+                    if self.color_pipeline.is_chroma() {
+                        palette::apply_brightness_rgb(r, g, b, factor)
+                    } else {
+                        let (nr, ng, nb) =
+                            crate::chroma::legacy::scale_rgb(r, g, b, factor);
+                        Color::Rgb { r: nr, g: ng, b: nb }
+                    }
                 } else {
                     base_fg
                 };
@@ -349,9 +373,20 @@ impl Cloud {
             } else if self.phosphor_base_ch[pidx] != '\0' {
                 let factor = self.phosphor[pidx] as f32 / 255.0;
                 let ghost_ch = self.phosphor_base_ch[pidx];
+                // v30.3 (chroma audit, A20): orphan trail fallback (rare
+                // path -- no base_fg stored, derive from palette's first
+                // stop). Routes through the chroma engine when active,
+                // falls back to chroma::legacy::scale_rgb otherwise.
+                let is_chroma = self.color_pipeline.is_chroma();
                 let ghost_fg = self.palette.colors.first().copied().map(|c| {
                     if let Some((r, g, b)) = palette::decode_color(c) {
-                        palette::apply_brightness_rgb(r, g, b, factor * 0.6)
+                        if is_chroma {
+                            palette::apply_brightness_rgb(r, g, b, factor * 0.6)
+                        } else {
+                            let (nr, ng, nb) =
+                                crate::chroma::legacy::scale_rgb(r, g, b, factor * 0.6);
+                            Color::Rgb { r: nr, g: ng, b: nb }
+                        }
                     } else {
                         c
                     }
@@ -485,11 +520,36 @@ impl Cloud {
                             let fidx = line as usize * width as usize + col as usize;
                             let cell = frame.cell_at_index(fidx);
                             if let Some(fg) = cell.fg {
-                                // Phase 6: palette-derived target with
-                                // blend_toward_white fallback for edge cases.
-                                let brightened = match halo_target {
-                                    Some(t) => palette::blend_toward_bg(fg, t, intensity),
-                                    None => palette::blend_toward_white(fg, intensity),
+                                // v30.3 (chroma audit, A21): LuminanceSurge
+                                // halo routes through the chroma engine when
+                                // active (palette-derived target via
+                                // blend_toward_bg / blend_toward_white), falls
+                                // back to chroma::legacy::blend_toward_rgb /
+                                // blend_toward_white otherwise. Same equation
+                                // both paths; the branch exists for audit
+                                // symmetry with the A1-A20 sites.
+                                let brightened = if self.color_pipeline.is_chroma() {
+                                    match halo_target {
+                                        Some(t) => palette::blend_toward_bg(fg, t, intensity),
+                                        None => palette::blend_toward_white(fg, intensity),
+                                    }
+                                } else {
+                                    let (r, g, b) =
+                                        palette::decode_color(fg).unwrap_or((0, 0, 0));
+                                    let (nr, ng, nb) = match halo_target {
+                                        Some(t) => {
+                                            let (tr, tg, tb) =
+                                                palette::decode_color(t)
+                                                    .unwrap_or((255, 255, 255));
+                                            crate::chroma::legacy::blend_toward_rgb(
+                                                r, g, b, tr, tg, tb, intensity,
+                                            )
+                                        }
+                                        None => crate::chroma::legacy::blend_toward_white(
+                                            r, g, b, intensity,
+                                        ),
+                                    };
+                                    Color::Rgb { r: nr, g: ng, b: nb }
                                 };
                                 frame.set(
                                     col,
@@ -588,13 +648,42 @@ impl Cloud {
                                 let fidx = line as usize * width as usize + col as usize;
                                 let cell = frame.cell_at_index(fidx);
                                 if let Some(fg) = cell.fg {
-                                    // Phase 6: palette-derived hue-cycled
-                                    // target with blend_toward_white fallback.
-                                    let brightened = match halo_target {
-                                        Some(t_color) => {
-                                            palette::blend_toward_bg(fg, t_color, intensity)
+                                    // v30.3 (chroma audit, A22): PulseWave
+                                    // halo routes through the chroma engine
+                                    // when active (palette-derived hue-cycled
+                                    // target via blend_toward_bg /
+                                    // blend_toward_white), falls back to
+                                    // chroma::legacy::blend_toward_rgb /
+                                    // blend_toward_white otherwise. Same
+                                    // equation both paths; the branch exists
+                                    // for audit symmetry with the A1-A21 sites.
+                                    let brightened = if self.color_pipeline.is_chroma() {
+                                        match halo_target {
+                                            Some(t_color) => {
+                                                palette::blend_toward_bg(
+                                                    fg, t_color, intensity,
+                                                )
+                                            }
+                                            None => {
+                                                palette::blend_toward_white(fg, intensity)
+                                            }
                                         }
-                                        None => palette::blend_toward_white(fg, intensity),
+                                    } else {
+                                        let (r, g, b) =
+                                            palette::decode_color(fg).unwrap_or((0, 0, 0));
+                                        let (nr, ng, nb) = match halo_target {
+                                            Some(t_color) => {
+                                                let (tr, tg, tb) = palette::decode_color(t_color)
+                                                    .unwrap_or((255, 255, 255));
+                                                crate::chroma::legacy::blend_toward_rgb(
+                                                    r, g, b, tr, tg, tb, intensity,
+                                                )
+                                            }
+                                            None => crate::chroma::legacy::blend_toward_white(
+                                                r, g, b, intensity,
+                                            ),
+                                        };
+                                        Color::Rgb { r: nr, g: ng, b: nb }
                                     };
                                     frame.set(
                                         col,
