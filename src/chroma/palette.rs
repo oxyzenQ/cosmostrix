@@ -470,6 +470,7 @@ pub(crate) fn blend_toward_bg_rgb_unclamped(
 /// # Caller status (v30.3 A16 migration)
 /// Wired into `droplet::CellShader::shade` for the parallax brightness
 /// + glyph dim multiplicative scale. The chroma path uses this helper;
+///
 /// the legacy fallback uses `chroma::legacy::scale_rgb`.
 #[inline]
 #[must_use]
