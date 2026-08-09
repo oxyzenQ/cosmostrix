@@ -35,7 +35,7 @@ mod tests;
 
 pub(super) use render::{CharLoc, DrawCtx};
 
-use border::{build_border_order, is_border_char};
+use border::is_border_char;
 
 use std::time::{Duration, Instant};
 
@@ -188,6 +188,11 @@ pub struct Cloud {
     pub(super) message_text: Option<String>,
     pub(super) message_border: bool,
     pub(super) message_start_time: Option<Instant>,
+    /// BN-01/02 (Dragon Hunt v3): hoisted clockwise border-cell index list.
+    /// Rebuilt only in `reset_message` (rare — once per `--message` invocation
+    /// or border toggle). `draw_message` borrows this instead of calling
+    /// `build_border_order` per frame (was O((W+H)×N) per frame; now O(1) borrow).
+    pub(super) border_order: Vec<usize>,
     pub(super) color_scheme: ColorScheme,
     pub(super) default_background: bool,
     scene_name: String,
@@ -362,6 +367,7 @@ impl Cloud {
             message_text: None,
             message_border: false,
             message_start_time: None,
+            border_order: Vec::new(),
             color_scheme,
             default_background,
             scene_name: String::new(),
@@ -700,6 +706,7 @@ impl Cloud {
             .max(1);
         if self.cols < min_box_w || self.lines < min_box_h {
             self.message.clear();
+            self.border_order.clear();
             return;
         }
 
@@ -829,6 +836,11 @@ impl Cloud {
                 self.message.push(MsgChr { line, col, val: ch });
             }
         }
+
+        // BN-01/02 (Dragon Hunt v3): rebuild the cached border order here
+        // (rare — only fires on `--message` set or border toggle) so
+        // draw_message can borrow it instead of recomputing per frame.
+        self.border_order = border::build_border_order(&self.message);
     }
 
     fn draw_message(&self, frame: &mut Frame) {
@@ -875,11 +887,16 @@ impl Cloud {
         let border_progress = text_progress.powf(1.5);
         let border_show = (border_progress * total_border as f32).floor() as usize;
 
-        let border_order = build_border_order(&self.message);
-
-        let mut visible_border: std::collections::HashSet<usize> = std::collections::HashSet::new();
+        // BN-01/02 (Dragon Hunt v3): use hoisted `border_order` (rebuilt in
+        // reset_message) instead of recomputing per frame. Replaces the
+        // O((W+H)×N) `build_border_order` call + the per-frame HashSet
+        // allocation with a Vec<bool> bit-set lookup.
+        let border_order = &self.border_order;
+        let mut visible_border: Vec<bool> = vec![false; self.message.len()];
         for &idx in border_order.iter().take(border_show) {
-            visible_border.insert(idx);
+            if idx < visible_border.len() {
+                visible_border[idx] = true;
+            }
         }
 
         const FADE_IN_MS: usize = 100;
@@ -888,7 +905,7 @@ impl Cloud {
         let mut content_idx = 0usize;
         for (idx, mc) in self.message.iter().enumerate() {
             let is_content = !is_border_char(mc.val);
-            let is_visible_border = mc.val != ' ' && visible_border.contains(&idx);
+            let is_visible_border = mc.val != ' ' && visible_border[idx];
 
             let (ch, cell_fg) = if is_content {
                 if content_idx < reveal_count {

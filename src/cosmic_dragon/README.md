@@ -104,7 +104,7 @@ The Cosmic Dragon is organized by poetic anatomical function:
 | `voice/`  | CLI / output extensions              | planned       |
 | `scale/`  | Rendering primitive extensions       | planned       |
 | `memory/` | Diagnostics / benchmark extensions   | planned       |
-| `egg/`    | Experimental cosmic-dragon-egg benchmarks   | concluded (io_uring rejected; see `egg/io_uring.rs` doc)        |
+| `egg/`    | Experimental cosmic-dragon-egg benchmarks   | concluded (io_uring rejected; see `egg/io_uring_rejected.rs` doc)        |
 
 Subdirectories are created on-demand when the first module for that
 anatomy lands. Empty subdirectories are NOT pre-created to avoid
@@ -118,7 +118,7 @@ and was deleted in commit `46ba457` as dead code.
 
 **The lesson:** an incubator namespace must hold *real new code*, not
 re-exports of existing code. The first inhabitant of `cosmic_dragon/` is
-`egg/io_uring.rs` (moved from `src/cosmic_dragon_egg_io_uring.rs`), which is a
+`egg/io_uring_rejected.rs` (moved from `src/cosmic_dragon_egg_io_uring.rs`), which is a
 real `#[cfg(test)]` benchmark with actual test callers.
 
 ## Migration Path

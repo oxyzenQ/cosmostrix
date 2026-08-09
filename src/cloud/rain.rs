@@ -160,6 +160,13 @@ impl Cloud {
             }
         }
 
+        // BN-03 (Dragon Hunt v3): hoist `active_effects(now)` once — was
+        // called twice (here + line ~520) with the same `now` and no
+        // `self.storytelling` mutation between them (`tick()` is at line ~950,
+        // strictly after both reads). The result is invariant, so a single
+        // call + Copy-binding suffices.
+        let emergent_effects = self.storytelling.active_effects(now);
+
         let mut spawn_scale = (1.0 - (PERF_PRESSURE_SPAWN_FACTOR * self.perf_pressure))
             .clamp(PERF_SPAWN_SCALE_MIN, 1.0);
         // Apply atmospheric density modulation
@@ -171,7 +178,7 @@ impl Cloud {
         // (slow entropy cycle) — gusts are short, sharp surges.
         spawn_scale *= self.gust.tick(now, &mut self.mt);
         // Apply emergent density boost
-        spawn_scale += self.storytelling.active_effects(now).density_boost;
+        spawn_scale += emergent_effects.density_boost;
         // Apply resume time-scale easing: spawn rate ramps with the smoothstep
         // curve so new streams appear gradually during the inertia recovery.
         spawn_scale *= self.resume_blend;
@@ -517,7 +524,7 @@ impl Cloud {
             let saturation = self.color_ecosystem.saturation_climate;
             let instability = self.memory.instability_pressure;
             let persistence = self.memory.persistence_richness;
-            let emergent = self.storytelling.active_effects(now);
+            let emergent = emergent_effects;
             let profile = self.profile_current;
 
             let needs_luminance = (luminance - 1.0).abs() > 0.01
@@ -611,7 +618,6 @@ impl Cloud {
                     flash_waves_buf.push(FlashWaveCtx {
                         col: w.col,
                         line: w.line,
-                        elapsed: e,
                         primary_radius,
                         secondary_radius,
                         fade,

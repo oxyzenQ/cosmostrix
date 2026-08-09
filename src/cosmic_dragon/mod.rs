@@ -50,7 +50,7 @@
 //! (commit `4e2ebe7`), which was a pure re-export wrapper with zero callers
 //! and was deleted in commit `46ba457` as dead code. The lesson: an
 //! incubator namespace must hold *real new code*, not re-exports of existing
-//! code. The first inhabitant is `egg/io_uring.rs` (moved from
+//! code. The first inhabitant is `egg/io_uring_rejected.rs` (moved from
 //! `src/cosmic_dragon_egg_io_uring.rs`), which is a real `#[cfg(test)]` benchmark
 //! with actual test callers.
 

@@ -969,73 +969,51 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         fps_drift_percent,
         bench_duration_secs,
     };
+    // BL-02 (Dragon Hunt v3): dedup — hoist json_opt above the json/text
+    // branch so save/compare baseline logic runs once (was duplicated
+    // verbatim in both arms).
+    let json_opt: Option<String> =
+        if cfg.json || cfg.save_baseline.is_some() || cfg.compare_baseline.is_some() {
+            Some(crate::bench_json::build_json_string(&report_data))
+        } else {
+            None
+        };
+
     if cfg.json {
-        // Generate JSON string
-        let json = crate::bench_json::build_json_string(&report_data);
-        println!("{json}");
-
-        // Save baseline if requested (v17: path whitelist enforced)
-        if let Some(ref path) = cfg.save_baseline {
-            if !crate::is_safe_path(path) {
-                eprintln!(
-                    "error: --save-baseline '{path}' is outside allowed directories\n  \
-                     Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
-                );
-            } else {
-                match crate::bench_baseline::save_baseline(path, &json) {
-                    Ok(()) => eprintln!("[baseline] saved to {path}"),
-                    Err(e) => eprintln!("{e}"),
-                }
-            }
-        }
-
-        // Compare baseline if requested (v17: path whitelist enforced)
-        if let Some(ref path) = cfg.compare_baseline {
-            if !crate::is_safe_path(path) {
-                eprintln!(
-                    "error: --compare-baseline '{path}' is outside allowed directories\n  \
-                     Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
-                );
-            } else if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
-                eprintln!("{e}");
-            }
+        // Print JSON to stdout (only in --json mode).
+        if let Some(ref json) = json_opt {
+            println!("{json}");
         }
     } else {
         crate::bench_report::build_premium_report(&report_data);
+    }
 
-        // For text mode, still handle save/compare baseline if requested
-        // (generates JSON internally — does not print to stdout, so the
-        // premium text report stays clean). This matches the JSON-mode
-        // behavior so users don't have to pass --json just to save a
-        // baseline.
-        if cfg.save_baseline.is_some() || cfg.compare_baseline.is_some() {
-            let json = crate::bench_json::build_json_string(&report_data);
-
-            // v17: path whitelist enforced for baseline save/compare
-            if let Some(ref path) = cfg.save_baseline {
-                if !crate::is_safe_path(path) {
-                    eprintln!(
-                        "error: --save-baseline '{path}' is outside allowed directories\n  \
-                         Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
-                    );
-                } else {
-                    match crate::bench_baseline::save_baseline(path, &json) {
-                        Ok(()) => eprintln!("[baseline] saved to {path}"),
-                        Err(e) => eprintln!("{e}"),
-                    }
-                }
+    // Save baseline if requested (v17: path whitelist enforced).
+    // For text mode, the JSON was generated above so users don't have to
+    // pass --json just to save a baseline.
+    if let (Some(path), Some(json)) = (cfg.save_baseline.as_ref(), json_opt.as_ref()) {
+        if !crate::is_safe_path(path) {
+            eprintln!(
+                "error: --save-baseline '{path}' is outside allowed directories\n  \
+                 Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
+            );
+        } else {
+            match crate::bench_baseline::save_baseline(path, json) {
+                Ok(()) => eprintln!("[baseline] saved to {path}"),
+                Err(e) => eprintln!("{e}"),
             }
+        }
+    }
 
-            if let Some(ref path) = cfg.compare_baseline {
-                if !crate::is_safe_path(path) {
-                    eprintln!(
-                        "error: --compare-baseline '{path}' is outside allowed directories\n  \
-                         Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
-                    );
-                } else if let Err(e) = crate::bench_baseline::compare_with_baseline(path, &json) {
-                    eprintln!("{e}");
-                }
-            }
+    // Compare baseline if requested (v17: path whitelist enforced).
+    if let (Some(path), Some(json)) = (cfg.compare_baseline.as_ref(), json_opt.as_ref()) {
+        if !crate::is_safe_path(path) {
+            eprintln!(
+                "error: --compare-baseline '{path}' is outside allowed directories\n  \
+                 Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
+            );
+        } else if let Err(e) = crate::bench_baseline::compare_with_baseline(path, json) {
+            eprintln!("{e}");
         }
     }
     Ok(())

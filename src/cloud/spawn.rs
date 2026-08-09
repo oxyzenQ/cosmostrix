@@ -563,15 +563,23 @@ impl Cloud {
             return;
         }
 
-        // v30 Hinnant: hoist `now.elapsed()` out of the spawn loop. Previously
+        // v30 Hinnant: hoist time computation out of the spawn loop. Previously
         // called per-droplet (5-30×/frame), each a `clock_gettime` syscall
         // (~20-50ns). `column_density_modifier` quantizes input into 10s
         // buckets, so the per-droplet calls were pure waste. At 30K FPS
         // benchmark mode this recovered ~9-22ms/sec of CPU on this single line.
-        // CC-01: use saturating_duration_since so bench-mode synthetic sim_now
-        // degrades to 0.0 instead of underflowing. Interactive mode is
-        // unaffected (caller passes real Instant::now()).
-        let now_secs_for_density = Instant::now().saturating_duration_since(now).as_secs_f64();
+        // CC-01: saturating_duration_since so bench-mode synthetic sim_now
+        // degrades to 0.0 instead of underflowing.
+        // BN-04 (Dragon Hunt v3): use `start_anchor` (captured once at
+        // Cloud::new) instead of `Instant::now().saturating_duration_since(now)`.
+        // The old formula returned frame-start-delta (~5-15µs in interactive
+        // mode) which quantized to the same 10s bucket every frame — the
+        // density-noise modifier was effectively static. Now it returns real
+        // session-elapsed seconds, so the 10s-bucket drift actually varies
+        // over the session (the intended behavior). Zero syscalls per frame.
+        let now_secs_for_density = now
+            .saturating_duration_since(self.start_anchor)
+            .as_secs_f64();
 
         for _ in 0..to_spawn {
             let col = self.rand_col.sample(&mut self.mt);

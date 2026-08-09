@@ -116,7 +116,7 @@ impl ClimateCtx {
     /// neutral ctx without going through `Default::default()`. Used in
     /// tests; production callers typically build a real ctx from Cloud
     /// state via the rain.rs construction site.
-    #[allow(dead_code)]
+    #[cfg(test)]
     #[inline]
     pub(crate) const fn none() -> Self {
         Self {

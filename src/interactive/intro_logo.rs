@@ -105,19 +105,10 @@ const LOGO_ART: &str = concat!(
 /// from this purple toward the active rain palette's brightest stop,
 /// creating a cinematic "brand → rain" handoff.
 ///
-/// The `Color` enum form is kept as the canonical brand reference and
-/// is exercised by unit tests; rendering uses [`LOGO_COLOR_RGB`] for
-/// cheaper lerp math.
-#[cfg(test)]
-const LOGO_COLOR: Color = Color::Rgb {
-    r: 168,
-    g: 85,
-    b: 247,
-};
-
-/// RGB triple form of [`LOGO_COLOR`] for efficient lerp math. Kept as a
-/// constant so we don't pay the cost of matching the `Color` enum each
-/// frame for every logo cell.
+/// BL-05 (Dragon Hunt v3): removed the `Color` enum form `LOGO_COLOR`
+/// (was test-only + had a tautology test asserting it equals the RGB
+/// tuple form). `LOGO_COLOR_RGB` is the single canonical form — when a
+/// `Color` is needed (rare), construct it inline: `Color::Rgb { r: 168, g: 85, b: 247 }`.
 const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -722,16 +713,6 @@ fn update_rain_droplets(pool: &mut ParticlePool, dt: f32, screen_h: f32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn logo_color_matches_rgb_constant() {
-        // The Color enum form and the RGB tuple form must agree so the
-        // brand purple is consistent everywhere it's referenced.
-        match LOGO_COLOR {
-            Color::Rgb { r, g, b } => assert_eq!((r, g, b), LOGO_COLOR_RGB),
-            _ => panic!("LOGO_COLOR must be Color::Rgb"),
-        }
-    }
 
     #[test]
     fn logo_color_is_brand_purple() {

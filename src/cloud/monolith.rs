@@ -224,14 +224,14 @@ impl MonolithRain {
             self.streams.clear();
             self.streams.reserve(lane_count);
             for lane in 0..lane_count {
-                self.streams.push(MonolithStream::new(lane_col(lane)));
+                self.streams.push(MonolithStream::new(lane as u16));
             }
             let reserve = lane_count.saturating_mul(DRAWN_CELLS_PER_LANE_RESERVE);
             self.previous_cells = Vec::with_capacity(reserve);
             self.current_cells = Vec::with_capacity(reserve);
         } else {
             for (lane, stream) in self.streams.iter_mut().enumerate() {
-                stream.reset_for_lane(lane_col(lane));
+                stream.reset_for_lane(lane as u16);
             }
             self.previous_cells.clear();
             self.current_cells.clear();
@@ -687,7 +687,11 @@ fn draw_spine_cell(
         line,
         stream.col,
         BrightnessLevel::Ghost,
-        edge_fade * SPINE_BRIGHTNESS * layer_brightness(stream.layer) * 0.72 * tone.breath,
+        edge_fade
+            * SPINE_BRIGHTNESS
+            * MONOLITH_LAYER_BRIGHTNESS[stream.layer as usize]
+            * 0.72
+            * tone.breath,
     );
     frame.set(
         stream.col,
@@ -746,7 +750,7 @@ fn draw_segments(
                 line,
                 stream.col,
                 level,
-                edge_fade * layer_brightness(stream.layer) * breath * pulse,
+                edge_fade * MONOLITH_LAYER_BRIGHTNESS[stream.layer as usize] * breath * pulse,
             );
             let bold = bold_for_level(ctx.bold_mode, level, line, stream.col)
                 && edge_fade >= EDGE_FADE_BOLD_THRESHOLD;
@@ -928,26 +932,6 @@ fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, col: u16) -
     }
 }
 
-/// Per-layer brightness multiplier for the Monolith scene.
-///
-/// v30.0.0 centralization: values moved to
-/// `central_control_rains.rs::MONOLITH_LAYER_BRIGHTNESS` so future
-/// tuning requires editing only that single file. This wrapper now
-/// just reads from the constant array.
-///
-/// Tracks the rain field's visibility floor (PARALLAX_BRIGHTNESS_MULT).
-/// Mid is set slightly under the rain's mid value so monolith glyph
-/// streams read as half-a-step behind the rain front, preserving depth
-/// cue without the rain "disappearing" behind a too-dim monolith. Back
-/// matches the rain back value so the monolith's distant body sits in
-/// the same atmospheric haze as the distant rain. Front kept at 1.0
-/// (monolith hero pulse stays the brightest glyph element — front rain
-/// at 1.05 is still slightly brighter but the monolith's solid glyph
-/// mass keeps it visually dominant as the focal anchor).
-fn layer_brightness(layer: u8) -> f32 {
-    MONOLITH_LAYER_BRIGHTNESS[layer as usize]
-}
-
 fn clear_cell(frame: &mut Frame, cleanup: &mut MonolithCleanup<'_>, col: u16, line: u16) {
     clear_phosphor_metadata(cleanup, col, line);
     // Use set_force: previous_cells are known-drawn from the last frame,
@@ -996,10 +980,6 @@ pub(super) fn target_active_count(lanes: usize, density: f32) -> usize {
 
 fn lane_count(cols: u16) -> usize {
     cols.max(1) as usize
-}
-
-fn lane_col(lane: usize) -> u16 {
-    lane as u16
 }
 
 fn varied_speed_mult(roll: f32) -> f32 {

@@ -368,17 +368,6 @@ pub(crate) fn print_doctor_report(args: &Args) {
         };
 
         let uses_katakana = cs.contains(Charset::KATAKANA);
-        let uses_unicode = uses_katakana
-            || cs.contains(Charset::GREEK)
-            || cs.contains(Charset::CYRILLIC)
-            || cs.contains(Charset::HEBREW)
-            || cs.contains(Charset::BRAILLE)
-            || cs.contains(Charset::RUNIC)
-            || cs.contains(Charset::SYMBOLS)
-            || cs.contains(Charset::ARROWS)
-            || cs.contains(Charset::BLOCKS)
-            || cs.contains(Charset::BOXDRAW)
-            || cs.contains(Charset::MINIMAL);
 
         let s = r.section("SAMPLE GLYPHS");
         s.field("ascii", "01 ABC abc !@#");
@@ -423,11 +412,6 @@ pub(crate) fn print_doctor_report(args: &Args) {
                 "minimal",
                 "\u{00B7}\u{2022}\u{25CB}\u{25CF}\u{25C7}\u{25C6}",
             );
-        }
-
-        // Re-borrow uses_unicode for ADVICE
-        if false {
-            let _ = uses_unicode;
         }
     }
 

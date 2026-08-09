@@ -760,50 +760,16 @@ pub(crate) fn rebuild_cloud_config(
     // Glitch level — skip if CLI --glitch-level was explicit.
     // v35.2 (CLI-P-3): re-derive ALL preset values on live reload.
     // v35.3 (Glitch-BUG3): None arm now resets all 5 preset fields too.
-    // Preset values mirror config_apply::apply_glitch_level_values.
+    // BL-01 (Dragon Hunt v3): dedup — delegate to the shared helper in
+    // scene_custom.rs (bit-identical preset values, was inlined here).
     // max_dpc is NOT touched — never set by glitch_level presets at startup.
     if !cli.glitch_level {
         if let Some(v) = cfg.get("glitch-level") {
             lr_trace!("apply glitch-level='{}'", v);
             use clap::ValueEnum;
             match crate::config::GlitchLevel::from_str(v, true) {
-                Ok(crate::config::GlitchLevel::Subtle) => {
-                    new.glitch_enabled = true;
-                    new.glitch_low = 200;
-                    new.glitch_high = 300;
-                    new.glitch_pct = 3.0;
-                    new.short_pct = 60.0;
-                    new.die_early_pct = 45.0;
-                }
-                Ok(crate::config::GlitchLevel::Default) => {
-                    new.glitch_enabled = true;
-                    new.glitch_low = 300;
-                    new.glitch_high = 400;
-                    new.glitch_pct = 10.0;
-                    new.short_pct = 50.0;
-                    new.die_early_pct = 33.33333;
-                }
-                Ok(crate::config::GlitchLevel::Intense) => {
-                    new.glitch_enabled = true;
-                    new.glitch_low = 500;
-                    new.glitch_high = 800;
-                    new.glitch_pct = 25.0;
-                    new.short_pct = 30.0;
-                    new.die_early_pct = 20.0;
-                }
-                Ok(crate::config::GlitchLevel::None) => {
-                    // v35.3 (Glitch-BUG3): reset ALL 5 preset fields, not just
-                    // glitch_enabled. Mirrors apply_glitch_level_runtime(None).
-                    // Without this, short_pct/die_early_pct keep the previous
-                    // level's values — and build_droplet_spec reads those
-                    // regardless of `glitchy`, so droplet length / early-death
-                    // probability diverge from startup-None.
-                    new.glitch_enabled = false;
-                    new.glitch_low = 300;
-                    new.glitch_high = 400;
-                    new.glitch_pct = 0.0;
-                    new.short_pct = 50.0;
-                    new.die_early_pct = 33.33333;
+                Ok(level) => {
+                    crate::scene_custom::apply_glitch_level_preset_to_cloud_config(&mut new, level);
                 }
                 // Unrecognized: flip enable bool only (old fallback).
                 // Startup clap rejects bad values, so this shouldn't fire.

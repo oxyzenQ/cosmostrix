@@ -138,16 +138,14 @@ strip = false
 #
 # File-level `#![allow(...)]` attrs that remain in the source tree:
 #
-#   - 7× `#![cfg_attr(not(test), allow(dead_code))]` in atmosphere.rs,
-#     atmosphere_presets.rs, atmosphere_probe.rs, atmosphere_shadow.rs,
-#     atmosphere_verifier.rs, atmosphere_visual.rs, cloud/monolith_tests.rs
-#     These are INTENTIONAL surgical markers from Dragon Hunt v2 Phase 2
-#     (commit e74b71b). They mark test-only API surfaces that are
-#     deliberately kept but not yet wired into the production render
-#     path. A global `[lints]` setting cannot replace them — either
-#     `dead_code = "deny"` would break the build for those 7 files, or
-#     `dead_code = "allow"` would silence ALL dead code and undo
-#     Phase 2's triage. Leave them file-local.
+#   - `#![cfg_attr(not(test), allow(dead_code))]` in cloud/monolith_tests.rs
+#     (Dragon Hunt v2 Phase 2 surgical marker for a test-only API surface
+#     that is deliberately kept but not yet wired into the production
+#     render path). A global `[lints]` setting cannot replace it —
+#     `dead_code = "deny"` would break the build, `dead_code = "allow"`
+#     would silence ALL dead code and undo Phase 2's triage. Leave it
+#     file-local. The 6 atmosphere_*.rs markers from DHv2 Phase 2 were
+#     removed when those files were deleted in commit 07b44b5.
 
 [lints.clippy]
 # Project-wide clippy allows. The default clippy policy (all lints warn)

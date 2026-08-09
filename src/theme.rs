@@ -291,7 +291,7 @@ pub(crate) fn lookup_theme(name: &str) -> Option<ColorScheme> {
 }
 
 #[must_use]
-pub(crate) fn metadata_for_scheme(scheme: ColorScheme) -> Option<&'static ThemeInfo> {
+fn metadata_for_scheme(scheme: ColorScheme) -> Option<&'static ThemeInfo> {
     THEMES.iter().find(|theme| theme.scheme == scheme)
 }
 

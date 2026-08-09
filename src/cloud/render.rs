@@ -35,11 +35,6 @@ pub(crate) struct FlashWaveCtx {
     pub col: u16,
     /// Click line (cell-space).
     pub line: u16,
-    /// Seconds since this wave's birth. Always `< MOUSE_FLASH_DURATION_SECS`
-    /// (expired waves are filtered out before this struct is built).
-    /// Kept for Debug diagnostics; the hot path uses the precomputed fields below.
-    #[allow(dead_code)]
-    pub elapsed: f32,
     // ── v30 optimize (MOUSE_EFFECTS_AUDIT.md Quick Win #2): precomputed
     // wave-invariant quantities. These are pure functions of `elapsed` and
     // the wave constants, so computing them once per wave (in rain.rs

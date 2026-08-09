@@ -213,8 +213,7 @@ impl TransitionLTable {
     /// during build due to `Color::Reset`, or the index exceeds the
     /// smaller palette's length).
     #[inline]
-    #[must_use]
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn get(&self, stop_idx: usize) -> Option<(f32, f32)> {
         self.entries.get(stop_idx).map(|e| (e.l_old, e.l_new))
     }
