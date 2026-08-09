@@ -699,10 +699,11 @@ fn main() -> std::io::Result<()> {
 
     let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
-    // v30+Tier 2: xterm.js hosts get 30 FPS hard cap to prevent OOM (skipped in benchmark).
-    // v30.6: cap OVERRIDES resolution layer. v35.2: also re-applied on live-reload.
+    // v30+Tier 2: xterm.js hosts get 30 FPS cap to prevent OOM. v30.6: OVERRIDES resolution
+    // layer. v35.2: also re-applied on live-reload. v35.3 (FPS-F5): skip in ALL bench modes.
+    let in_bench_mode = args.benchmark || args.bench_all || args.bench_frames.is_some();
     let xtermjs_cap_fired =
-        !args.benchmark && term_caps.xtermjs_host && target_fps > term_caps.default_fps_cap;
+        !in_bench_mode && term_caps.xtermjs_host && target_fps > term_caps.default_fps_cap;
     let target_fps = if xtermjs_cap_fired {
         let capped = term_caps.default_fps_cap;
         crate::output::eprintln_warn_labeled(&format!(
@@ -726,7 +727,6 @@ fn main() -> std::io::Result<()> {
             ux::die_config(format!("--duration {s}: must be a finite number"));
         }
         if s > 0.0 {
-            // ux::or_exit never returns on Err; on Ok returns T directly.
             return ux::or_exit(validate_f64_range("--duration", s, 0.1, 86400.0));
         }
         s

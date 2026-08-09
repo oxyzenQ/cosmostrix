@@ -50,6 +50,13 @@ impl Cloud {
     /// when the scheme is unchanged.
     pub fn set_color_scheme(&mut self, scheme: ColorScheme) {
         self.color_scheme = scheme;
+        // v35.3 (Color-#1): switching to a builtin scheme means a custom
+        // palette (if any was loaded) is no longer the source of truth.
+        // Without this clear, the `custom_palette_active` flag would stay
+        // true after `--colors-custom X` + 'c' cycle, falsely blocking
+        // --auto-color-drift forever (the drift gate at rain.rs:923 reads
+        // this flag). Note: the 'c' cycle path already calls this fn.
+        self.custom_palette_active = false;
         use crate::palette::build_palette;
         let mut new_palette = build_palette(scheme, self.color_mode, self.default_background);
         // v30 strengthen (Bug #5): re-apply color_tune after palette rebuild.
@@ -76,6 +83,16 @@ impl Cloud {
     /// identically to `set_color_scheme` — the old streams keep their birth
     /// palette below the wave line, and the new palette propagates visually.
     pub fn set_palette(&mut self, palette: crate::palette::Palette) {
+        // v35.3 (Color-#1): mark custom_palette_active so the drift gate
+        // (rain.rs:923 `!custom_palette_active && !ambient_palette_locked`)
+        // correctly suppresses palette drift while a custom palette is
+        // loaded at runtime (e.g. ambient fires a scene with
+        // `colors-custom = "morning_brand"`). Without this set, drift
+        // would silently overwrite the custom palette after the ambient
+        // lock clears — the exact "silent data loss" bug v30 strengthen
+        // (Bug #4) was supposed to prevent (it only covered the
+        // startup-time --colors-custom case, not the runtime ambient fire).
+        self.custom_palette_active = true;
         self.apply_new_palette(palette);
     }
 
@@ -155,6 +172,17 @@ impl Cloud {
 
     pub fn set_glitchy(&mut self, on: bool) {
         self.glitchy = on;
+        // v35.3 (Glitch-BUG6): when disabling glitch, clear in-flight anomaly
+        // zones to match the v35.2 Glitch-P0 fix in apply_glitch_level_runtime.
+        // Without this, a future code path that uses set_glitchy(false) to
+        // disable glitch at runtime would leave LuminanceSurge /
+        // GlyphCorruption / PulseWave anomalies active for up to
+        // ANOMALY_DURATION_SECS (1.5s) after — the exact bug Glitch-P0 fixed
+        // for the scene-switch path. Currently set_glitchy is test-only, but
+        // this future-proofs the API.
+        if !on {
+            self.anomaly_zones.clear();
+        }
         self.fill_glitch_map();
         if on {
             let now = std::time::Instant::now();

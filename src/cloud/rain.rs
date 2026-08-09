@@ -858,7 +858,8 @@ impl Cloud {
             * (1.0 + self.memory.instability_pressure as f64))
             .min(ANOMALY_CHANCE_PER_SEC * 3.0);
         if phosphor_elapsed > 0.0
-            && self.perf_pressure < EVENT_PERF_GATE
+            && self.perf_pressure <= EVENT_PERF_GATE
+            && !in_transition
             && (self.rand_chance.sample(&mut self.mt) as f64)
                 <= anomaly_chance * phosphor_elapsed as f64
         {
@@ -1277,28 +1278,28 @@ impl Cloud {
             // equation -- the original code used f32 multiply+round which
             // is bit-identical to what chroma::palette::apply_brightness_rgb
             // and chroma::legacy::scale_rgb produce for the same factor.
-            // (Note: scale_rgb uses `(c * fi + 128) >> 8` integer math, NOT
-            // f32 round -- for QUANTUM_BODY_TONE_DOWN = 0.62 the two differ
-            // by ±1 per channel. We preserve the original f32 behavior by
-            // calling apply_brightness_rgb in the chroma path and a local
-            // f32-based fallback in the legacy path, keeping the visual
-            // output bit-identical to the pre-migration code.)
+            // v35.3 (Color-#4): corrected misleading "bit-identical" claim.
+            // The chroma path uses apply_brightness_rgb_unclamped (integer
+            // `>> 8` math via scale_rgb semantics); the legacy path uses
+            // f32 round. The two differ by ±1 per channel for some inputs
+            // for QUANTUM_BODY_TONE_DOWN = 0.72 (constants.rs). The test at
+            // tests_quantum.rs:614 accepts ±1 tolerance.
+            // v35.3 (Color-#5): chroma path now uses apply_brightness_rgb_unclamped
+            // (returns tuple directly) instead of apply_brightness_rgb +
+            // decode_color round-trip — saves ~9 cycles/call. The call-site
+            // guard (factor is a const in [0,1]) means the unclamped variant
+            // is bit-identical to the clamped one here.
             let (pr, pg, pb) = if self.color_pipeline.is_chroma() {
-                let scaled = crate::chroma::palette::apply_brightness_rgb(
+                crate::chroma::palette::apply_brightness_rgb_unclamped(
                     p.r,
                     p.g,
                     p.b,
                     QUANTUM_BODY_TONE_DOWN,
-                );
-                crate::palette::decode_color(scaled).unwrap_or((p.r, p.g, p.b))
+                )
             } else {
                 // Legacy fallback: preserve the original f32 round behavior
                 // (NOT legacy::scale_rgb, which uses integer >> 8 math).
-                // The difference is ±1 per channel for QUANTUM_BODY_TONE_DOWN.
-                // Keeping the original math here means the legacy path is
-                // visually identical to the pre-migration code; the chroma
-                // path's apply_brightness_rgb is also within ±1 (the integer
-                // rounding is closer than f32 round for this factor).
+                // The difference vs chroma is ±1 per channel for QUANTUM_BODY_TONE_DOWN.
                 (
                     (p.r as f32 * QUANTUM_BODY_TONE_DOWN)
                         .round()

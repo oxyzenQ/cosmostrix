@@ -272,6 +272,57 @@ pub(crate) fn resolve_rain_style(
 /// CloudConfig in place. Used by live-reload to inherit a built-in scene's
 /// managed defaults before applying the custom block's own overrides.
 ///
+/// v35.3 (Glitch-BUG4): shared preset-derivation helper for the live-reload
+/// path. Mirrors `Cloud::apply_glitch_level_runtime` (scene_runtime.rs:426)
+/// and `config_apply::apply_glitch_level_values` (startup). All three paths
+/// now agree on the 5 preset fields per GlitchLevel variant.
+///
+/// Called from:
+/// - `apply_base_scene_to_cloud_config` when `base_cfg.glitch_level` is Some
+/// - `apply_scene_custom_field_to_cloud_config` "glitch-level" arm
+/// - (live_config.rs top-level `glitch-level` branch has its own inline match
+///   but the values are identical — kept inline there to avoid a circular dep)
+pub(crate) fn apply_glitch_level_preset_to_cloud_config(
+    new: &mut crate::app::CloudConfig,
+    level: crate::config::GlitchLevel,
+) {
+    use crate::config::GlitchLevel;
+    match level {
+        GlitchLevel::None => {
+            new.glitch_enabled = false;
+            new.glitch_low = 300;
+            new.glitch_high = 400;
+            new.glitch_pct = 0.0;
+            new.short_pct = 50.0;
+            new.die_early_pct = 33.33333;
+        }
+        GlitchLevel::Subtle => {
+            new.glitch_enabled = true;
+            new.glitch_low = 200;
+            new.glitch_high = 300;
+            new.glitch_pct = 3.0;
+            new.short_pct = 60.0;
+            new.die_early_pct = 45.0;
+        }
+        GlitchLevel::Default => {
+            new.glitch_enabled = true;
+            new.glitch_low = 300;
+            new.glitch_high = 400;
+            new.glitch_pct = 10.0;
+            new.short_pct = 50.0;
+            new.die_early_pct = 33.33333;
+        }
+        GlitchLevel::Intense => {
+            new.glitch_enabled = true;
+            new.glitch_low = 500;
+            new.glitch_high = 800;
+            new.glitch_pct = 25.0;
+            new.short_pct = 30.0;
+            new.die_early_pct = 20.0;
+        }
+    }
+}
+
 /// v30.2: extracted from `live_config::apply_scene_custom_to_cloud_config`
 /// to keep that file under the LOC cap. Returns `true` if a base-scene was
 /// found and applied (so the caller can track `touched_any`).
@@ -299,8 +350,15 @@ pub(crate) fn apply_base_scene_to_cloud_config(
             new.chars = crate::charset::build_chars(cs, &new.user_ranges, new.def_ascii);
         }
     }
+    // v35.3 (FPS-F4): gate fps with cli_explicit.fps — matches the startup
+    // path (apply_profile_layer → apply_base_scene_to_args checks
+    // is_explicit(matches, "fps")). Without this gate, `cosmostrix --fps 144
+    // --scene-custom my-scene` silently drops to the base-scene's fps on the
+    // first config edit (live-reload path was missing the gate).
     if let Some(fps) = base_cfg.fps {
-        new.target_fps = fps;
+        if !new.cli_explicit.fps {
+            new.target_fps = fps;
+        }
     }
     if let Some(speed) = base_cfg.speed {
         new.speed = speed;
@@ -309,8 +367,10 @@ pub(crate) fn apply_base_scene_to_cloud_config(
         new.density = density;
         new.base_density = density;
     }
+    // v35.3 (Glitch-BUG4): use shared preset helper — was only flipping
+    // glitch_enabled, leaving glitch_pct/short_pct/die_early_pct stale.
     if let Some(glitch) = base_cfg.glitch_level {
-        new.glitch_enabled = !matches!(glitch, crate::config::GlitchLevel::None);
+        apply_glitch_level_preset_to_cloud_config(new, glitch);
     }
     true
 }
@@ -373,6 +433,11 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "fps" => {
+            // v35.3 (FPS-F4): gate with cli_explicit.fps so `--fps 144`
+            // survives a live-reload that re-applies the scene-custom block.
+            if new.cli_explicit.fps {
+                return false;
+            }
             if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", value, 1.0, 240.0) {
                 new.target_fps = n;
                 return true;
@@ -396,8 +461,15 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "glitch-level" => {
-            new.glitch_enabled = !value.trim().eq_ignore_ascii_case("none");
-            true
+            // v35.3 (Glitch-BUG4): use shared preset helper. Was only
+            // flipping glitch_enabled, leaving glitch_pct/short_pct/etc
+            // stale — diverging from startup apply_custom_scene_runtime.
+            use clap::ValueEnum;
+            if let Ok(level) = crate::config::GlitchLevel::from_str(value, true) {
+                apply_glitch_level_preset_to_cloud_config(new, level);
+                return true;
+            }
+            false
         }
         "density-map" => {
             if let Some(map) = parse_density_map(value) {

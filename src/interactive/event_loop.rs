@@ -381,11 +381,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             last_applied_cfg_map = Some(new_cfg_map.clone());
 
             // Phase D Bug #9 fix: preserve color_ecosystem + atmospheric
-            // post-FX state across live-reload so the user doesn't see a
-            // brightness / saturation / hue discontinuity when editing
-            // config. (Renamed from "atmosphere state" to "atmospheric
-            // post-FX state" to disambiguate from the eliminated atmosphere
-            // engine subsystem.)
+            // post-FX state across live-reload so no brightness/saturation/hue
+            // discontinuity appears when editing config.
             let mut new_cloud = new_cfg.create_cloud(density);
             new_cloud.inherit_ecosystem_state(&cloud);
             cloud = new_cloud;
@@ -420,17 +417,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 last_ambient_schedule = new_cfg.ambient_schedule.clone();
             }
 
-            // v30.3: RE-APPLY the last-known ambient entry to the new Cloud.
-            // Rebuild created a fresh Cloud with CLI override but NOT the
-            // ambient scene. If the entry was removed, clear the tracker.
-            // v35: also re-lock the palette (ambient is re-asserting).
+            // v30.3: re-apply last ambient entry to the fresh Cloud.
+            // v35: re-lock palette (ambient is re-asserting).
+            // v35.3 (Color-#3): skip when custom_palette_active — ambient's
+            // builtin `color="Sun"` would overwrite the user's freshly-reloaded
+            // [colors-custom.X] edit. Fresh ambient fires still go through
+            // apply_ambient_entry unconditionally; this gate is reload-only.
             if let Some(ref last_entry) = last_applied_ambient_entry {
                 let still_in_schedule = new_cfg
                     .ambient_schedule
                     .entries
                     .iter()
                     .any(|e| e == last_entry);
-                if still_in_schedule {
+                if still_in_schedule && !cloud.custom_palette_active {
                     crate::lr_trace!(
                         "ambient: re-applying last entry after rebuild (scene={})",
                         last_entry.scene
@@ -449,6 +448,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     term.set_color_cache(ColorCache::new(&cloud.palette));
                     frame = Frame::new(w, h, cloud.palette.bg);
                     super::fill_terminal_bg(cloud.palette.bg);
+                } else if still_in_schedule && cloud.custom_palette_active {
+                    crate::lr_trace!("ambient: skip re-apply post-rebuild — custom_palette_active");
                 } else {
                     crate::lr_trace!(
                         "ambient: last entry no longer in schedule — clearing tracker"

@@ -81,7 +81,7 @@ The renderer is structured as five cooperating subsystems (Cosmic Dragon) plus t
 2. **3-layer parallax** (`src/cloud/spawn.rs`, `src/cloud/rain.rs`; multipliers in `src/constants.rs`) — far / mid / near layers with independent speed, brightness, length, density, and phosphor-decay multipliers. Three layers is the cinema-standard deep/mid/ground composition; more would collapse perceptually in a 24-row terminal.
 3. **Phosphor persistence** (`src/cloud/phosphor.rs`) — CRT afterglow with `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0`, per-layer decay multipliers, bottom-row 3× acceleration, edge energy cap. Creates ~400 ms afterglow per glyph. Most terminal rain renderers have zero afterglow.
 4. **Density noise & wind gusts** (`src/cloud/living_rain.rs`, `src/cloud/monolith.rs`) — Perlin-style density maps for cinematic monolith formations, gust-driven column acceleration for organic motion that never repeats.
-5. **Adaptive atmosphere engine** (`src/atmosphere_adaptive.rs`) — 5-phase time-driven modulation that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time.
+5. **Ambient scheduler** (`src/ambient_scheduler.rs`) — time-of-day scene scheduling with auto-snapback (idle 30s restores the active ambient phase). Replaces the v30 atmosphere engine (eliminated -7,875 LOC) with a leaner, deterministic design.
 6. **Chroma Dragon coloring engine** (`src/chroma/`) — the coloring counterpart to the Cosmic Dragon. Owns palette construction, OKLab gradient interpolation, cell-color resolution, transition L+chroma smoothing, atmospheric post-processing, and palette-aware anomaly halos. Locked at Phase 9-B (see About section above).
 
 Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --benchmark` for reproducible performance measurements on your own hardware.
@@ -107,8 +107,7 @@ The Dragon's roar is not loud — it is precise.
 - **Chroma Dragon coloring engine (Phase 9-B locked)** — OKLab gradient interpolation, palette-relative brightness floor (Phase 7-c, replaces v17 global `MIN_RGB_SUM=180`), body-tail continuity (Phase 7-d, 2.0× max gap), perceptual L+chroma smoothing at palette transitions (Phase 5 + Phase 8), head halo via background blend (Phase 4-D), subpixel hue jitter (Phase 4-B), temporal column hue coherence (Phase 4-A), palette-aware anomaly halos (Phase 6), hue-preserving polar gradient variant for future themes (Phase 9-A). 17 invariant tests in `src/chroma/lock_tests.rs` lock the engine's contract on every commit.
 - **14 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), the `cosmic_dragon` milestone scene commemorating the temporal-prediction breakthrough (dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), and the `carbonic` tribute scene (dense metallic carbon-fiber binary rain honoring the experiment that was reverted for cinematic quality)
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
-- **Adaptive custom time scheduling** — `adaptive-custom.HH-MM` config entries define your own 24-hour time-to-parameter mapping (color, scene, speed, density, FPS, charset, glitch-level) with smoothstep 5-minute blend transitions; overrides the default 5-phase adaptive engine when defined; sticky parameters keep previous values when unspecified; live config reload re-parses immediately on save
-- **Default adaptive atmosphere engine** — 5-phase time-driven modulation (Deep Void → Compression → Pulse → Calm → Signal) that smoothly transitions speed, density, brightness, glitch pressure, and color palette based on local wall-clock time; opt-in via `atmosphere-mode = controlled-live`
+- **Ambient scheduler** — `[ambient."HH-MM"]` config entries define time-of-day scene scheduling (e.g. `[ambient."22-10"] scene = "aurora"` runs aurora from 22:00 to 10:00); idle-based auto-snapback (30s) restores the active ambient phase after user overrides ('c'/'C'/'x'/'s'); live config reload re-parses immediately on save
 - 43 built-in themes and 24 character sets (`--color-tune` turns all 43 into 43 × ∞ variants)
 - **3-layer parallax depth** — far/mid/near layers with per-layer speed `[0.35, 1.0, 1.7]`, brightness `[0.80, 0.95, 1.0]`, length `[0.5, 1.0, 1.4]`, density `[0.5, 1.0, 1.5]`, and phosphor decay `[1.6, 1.0, 0.7]`. 3 layers is the cinema-standard deep/mid/ground composition; more layers collapse perceptually in a 24-row terminal
 - **Phosphor persistence (CRT afterglow)** — `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0` with per-layer decay mult, bottom-row 3× acceleration, and edge energy cap. Creates ~400ms afterglow per glyph — most terminal rain renderers have zero afterglow
@@ -128,7 +127,7 @@ The Dragon's roar is not loud — it is precise.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). The logo intro fades in character-by-character, a spark falls and ignites the logo on impact, then the logo dissolves into Matrix rain. The cosmic intro bursts a singularity into spiraling particles. Plays in all modes including `--screensaver`. Skipped only on terminals smaller than 80×24
 - Fixed virtual screen size (`--screen-size WxH`) for benchmarking at exact dimensions or rendering independent of terminal resize
 - 5-layer destructive terminal recovery (`--reset-terminal`)
-- Controlled atmosphere engine with 6 opt-in regimes (pulse, signal, compression, void, monolith-pressure, calm)
+- Ambient scheduler with auto-snapback (replaces the v30 atmosphere engine)
 - Benchmark mode with JSON output, compound duration format (`--bench-duration 1h30m`), self-documenting reports (CPU model, rustc, LTO/PGO, git SHA)
 - Terminal diagnostics (`--doctor`) and config validation (`--testconf`)
 - PGO (Profile-Guided Optimization) nitro build via `./scripts/build.sh pgo` (3-stage: instrument → benchmark → optimize)
@@ -349,6 +348,9 @@ ADVANCED
 CONFIG
       --config <path>         Load config from an explicit file (strict whitelist + .toml)
       --dump-config [path]    Print example config to stdout, or write to file (whitelist + .toml)
+      --force                 Force overwrite when writing files. Currently scoped to
+                              --dump-config ONLY: allows overwriting an existing config
+                              at the target path. Other write operations unaffected.
       --config-path           Print the resolved default config path
       --testconf              Validate config.toml and report errors (exit 0 = pass, 2 = fail)
 
@@ -566,7 +568,7 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 - [System Requirements](docs/SYSTEM_REQUIREMENTS.md) — kernel, glibc/musl, CPU, terminal compatibility matrix
 - [Terminal Compatibility](docs/TERMINAL_COMPATIBILITY.md) — terminal behavior, tmux/SSH, recovery
 - [Endurance](docs/ENDURANCE.md) — endurance testing and resource monitoring
-- [Atmosphere Engine](docs/ATMOSPHERE_ENGINE.md) — atmosphere, color stability, and throughput stability
+- [Ambient Scheduler](docs/AMBIENT_SCHEDULER.md) — time-of-day scene scheduling, auto-snapback, ambient_palette_locked harmony, and throughput stability
 - [Render Engine](docs/RENDER_ENGINE.md) — diff-based rendering architecture (formal spec)
 - [Cosmic Dragon Architecture](docs/COSMIC_DRAGON_ARCHITECTURE.md) — full architecture deep-dive
 - [Cosmic Dragon Exploration](docs/archive/cosmic_dragon/EXPLORATION.md) — design explorations and rejected alternatives (archived; conclusions folded into PHILOSOPHY.md)

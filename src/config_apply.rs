@@ -500,16 +500,33 @@ fn apply_glitch_level_values(
     // gone because there's no `args.noglitch` to assign anymore.
 
     // Phase 5 closure (P2-3): RECLASSIFIED as false positive. The deprecated
-    // glitch flags (--glitch-pct / --shortpct / --rippct) were removed in v17
-    // — they are `#[arg(skip = ...)]` in config.rs and NOT in USER_CONFIG_KEYS,
-    // so users cannot set them via CLI or config.toml. The glitch_pct/shortpct/
-    // rippct fields are internal-only, set exclusively by glitch_level presets
-    // below. No silent override is possible — the original Phase 2 P2-3 finding
-    // described a v16-era scenario that no longer applies.
+    // glitch flags (--glitchpct / --shortpct / --rippct / --maxdpc) were
+    // removed in v17 — they are `#[arg(skip = ...)]` in config.rs and NOT in
+    // USER_CONFIG_KEYS, so users cannot set them via CLI or config.toml. The
+    // glitch_pct/shortpct/rippct fields are internal-only, set exclusively by
+    // glitch_level presets below. No silent override is possible — the
+    // original Phase 2 P2-3 finding described a v16-era scenario that no
+    // longer applies.
+    // v35.3 (CLI-V-4): corrected flag names (--glitchpct not --glitch-pct) and
+    // added --maxdpc to the list.
 
     match args.glitch_level {
         GlitchLevel::None => {
-            // Glitch fully off. Percentages stay at defaults (unused).
+            // v35.3 (Glitch-BUG8): explicitly reset all 5 preset fields to the
+            // None preset (matching apply_glitch_level_runtime) so the stored
+            // CloudConfig is honest — startup-None now matches
+            // runtime-scene-switch-None. The clap defaults happen to match for
+            // shortpct/rippct (50.0/33.33333) but glitch_pct clap default is
+            // 10.0 while None preset is 0.0; setting it explicitly removes the
+            // disagreement. glitchy=false means these are unused for rendering,
+            // but shortpct/rippct ARE read by build_droplet_spec regardless.
+            args.glitch_pct = 0.0;
+            args.glitch_ms = crate::config::U16Range {
+                low: 300,
+                high: 400,
+            };
+            args.shortpct = 50.0;
+            args.rippct = 33.33333;
         }
         GlitchLevel::Subtle => {
             if !should_skip("glitch_ms") {

@@ -379,6 +379,9 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       replacement only (3% chance per 3s tick, 30s cooldown between events).
       Climate drift (luminance/saturation/hue) is always-on regardless.
       Config: auto-color-drift = true
+      Note (v35.3 Color-#6): suppressed when --colors-custom is set OR an
+      ambient schedule is active (ambient_palette_locked gate); climate
+      drift continues regardless. Edit config.toml to disable.
 
   BENCH (advanced):
   --bench-frames <N>

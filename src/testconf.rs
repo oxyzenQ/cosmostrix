@@ -550,12 +550,13 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 ))
             }
         }
-        "atmosphere-regime" | "atmosphere-mode" => Some(
-            "atmosphere-regime and atmosphere-mode config keys have been removed — \
-             the atmosphere engine subsystem was eliminated. Remove these keys \
-             from your config.toml."
-                .to_string(),
-        ),
+        // v35.3 (CLI-D-3): removed dead validators for `atmosphere-regime` /
+        // `atmosphere-mode` — these keys are NOT in USER_CONFIG_KEYS (eliminated
+        // at commit 07b44b5), so they fall into `unknown_keys` at parse time
+        // and never reach `validate_field_value`. The migration hints now live
+        // in `config_hints::suggest_for_unknown_key` (which fires when the
+        // unknown_keys check catches them). Same for `low-power`, `mouse`,
+        // and `adaptive-custom` below.
         "monolith-size" => {
             // Phase 5 closure (P1-#4 + P2-6): case-insensitive to match CLI
             // clap ValueEnum. Previously strict-lowercase only, which created
@@ -585,11 +586,10 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             }
         }
         // Phase D Bug #1 fix: accept the same lenient set as parse_bool_config
-        // (true/yes/on/1/false/no/off/0, case-insensitive). Previously
-        // testconf only accepted lowercase "true"/"false" — stricter than
-        // the runtime parser, so a config with `auto-color-drift = yes`
-        // would FAIL --testconf but WORK at runtime. Now all 3 paths agree.
-        "low-power" | "mouse" | "auto-color-drift" | "async-mode" => {
+        // (true/yes/on/1/false/no/off/0, case-insensitive). v35.3 (CLI-D-3):
+        // removed dead `low-power` / `mouse` from this arm (no longer in
+        // USER_CONFIG_KEYS — caught as unknown_keys upstream).
+        "auto-color-drift" | "async-mode" => {
             let lower = v.trim().to_ascii_lowercase();
             match lower.as_str() {
                 "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,
@@ -620,19 +620,21 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
-        // v25.14 (bug #17) + v30 (2026-08-05 atmosphere elimination): the
-        // bare `adaptive-custom` key is rejected with a clear migration
-        // message. The entire atmosphere engine subsystem was eliminated at
-        // commit 07b44b5 — both the bare key (caught here) and the
-        // `adaptive-custom.HH-MM` form (caught as unknown key by is_known_key)
-        // are rejected. Users should remove these keys from config.toml.
-        // Historical design spec: docs/archive/specs/ATMOSPHERE_ENGINE.md.
-        // Elimination record: docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
-        "adaptive-custom" => Some(
-            "adaptive-custom.* keys have been removed — the atmosphere engine \
-             subsystem was eliminated. Remove these keys from your config.toml."
-                .to_string(),
-        ),
+        // v35.3 (CLI-V-2): scene-custom `async` field validator — previously
+        // fell through to `_ => None`, so `async = "garbage"` silently passed
+        // --testconf then failed at runtime with only a stderr warning.
+        // (The `colors-custom` and `charset-custom` block-reference validators
+        //  live in `validate_field_value_with_cfg` below — they need cfg to
+        //  check whether the referenced block exists.)
+        "async" => {
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,
+                _ => Some(format!(
+                    "expected true/false (or yes/no, on/off, 1/0), got '{v}'"
+                )),
+            }
+        }
 
         // Keys we don't have a specific validator for — assume OK.
         // Unknown keys are caught earlier by the unknown_keys check.
@@ -676,6 +678,35 @@ pub(crate) fn validate_field_value_with_cfg(
     value: &str,
     cfg: &std::collections::HashMap<String, String>,
 ) -> Option<String> {
+    // v35.3 (CLI-V-2): scene-custom block-reference validators. These need
+    // cfg to check whether the referenced [colors-custom.<name>] /
+    // [charset-custom.<name>] block exists in this config. Previously fell
+    // through to the base catch-all `_ => None` and silently passed
+    // --testconf, then failed at runtime with no warning. Run BEFORE the
+    // base call so they short-circuit when the reference is broken.
+    if key == "colors-custom" {
+        let lower = value.trim().to_ascii_lowercase();
+        let bg_key = format!("colors-custom.{lower}.bg");
+        let rain_key = format!("colors-custom.{lower}.rain");
+        let stops_key = format!("colors-custom.{lower}.stops");
+        if cfg.contains_key(&bg_key) || cfg.contains_key(&rain_key) || cfg.contains_key(&stops_key)
+        {
+            return None;
+        }
+        return Some(format!(
+            "unknown colors-custom block '{value}' — define [colors-custom.{value}] in this config (with .bg and .rain/.stops sub-fields)"
+        ));
+    }
+    if key == "charset-custom" {
+        let lower = value.trim().to_ascii_lowercase();
+        let set_key = format!("charset-custom.{lower}.set");
+        if cfg.contains_key(&set_key) {
+            return None;
+        }
+        return Some(format!(
+            "unknown charset-custom block '{value}' — define [charset-custom.{value}] in this config (with .set sub-field)"
+        ));
+    }
     let base = validate_field_value(key, value)?;
     // Base validation FAILED — `base` holds the plain error message. Try to
     // enrich it with a context-aware hint before returning.
@@ -1182,17 +1213,21 @@ mod tests {
     fn boolean_keys_reject_non_bool() {
         // Phase D Bug #1 fix: "yes"/"on"/"1"/"no"/"off"/"0" are now accepted
         // (matching parse_bool_config). Only truly invalid values are rejected.
-        assert!(validate_field_value("mouse", "maybe").is_some());
-        assert!(validate_field_value("mouse", "true").is_none());
-        assert!(validate_field_value("mouse", "yes").is_none());
-        assert!(validate_field_value("mouse", "on").is_none());
-        assert!(validate_field_value("mouse", "1").is_none());
-        assert!(validate_field_value("mouse", "false").is_none());
-        assert!(validate_field_value("mouse", "no").is_none());
-        assert!(validate_field_value("mouse", "off").is_none());
-        assert!(validate_field_value("mouse", "0").is_none());
+        // v35.3 (CLI-D-3): removed `mouse` assertions — mouse is no longer in
+        // USER_CONFIG_KEYS (caught as unknown_key upstream). The bool validator
+        // arm now only covers `auto-color-drift` and `async-mode`.
+        assert!(validate_field_value("auto-color-drift", "maybe").is_some());
+        assert!(validate_field_value("auto-color-drift", "true").is_none());
+        assert!(validate_field_value("auto-color-drift", "yes").is_none());
+        assert!(validate_field_value("auto-color-drift", "on").is_none());
+        assert!(validate_field_value("auto-color-drift", "1").is_none());
         assert!(validate_field_value("auto-color-drift", "false").is_none());
+        assert!(validate_field_value("auto-color-drift", "no").is_none());
+        assert!(validate_field_value("auto-color-drift", "off").is_none());
+        assert!(validate_field_value("auto-color-drift", "0").is_none());
         assert!(validate_field_value("auto-color-drift", "YES").is_none()); // case-insensitive
+        assert!(validate_field_value("async-mode", "maybe").is_some());
+        assert!(validate_field_value("async-mode", "true").is_none());
     }
 
     #[test]

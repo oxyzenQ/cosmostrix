@@ -375,16 +375,19 @@ pub(crate) fn detect() -> TerminalCaps {
     let term = env::var("TERM").unwrap_or_default();
     let term_program = env::var("TERM_PROGRAM").unwrap_or_default();
 
-    // Tier 2: match against the full list of known xterm.js hosts. The
-    // comparison is case-sensitive against the canonical strings these
-    // terminals emit (VSCode emits lowercase "vscode", Hyper emits
-    // "Hyper" with capital H, etc.) — matching the upstream documented
-    // behavior, not a lowercased approximation.
-    let xtermjs_host = XTERMJS_HOSTS.iter().any(|&h| term_program == h);
+    // Tier 2: match against the full list of known xterm.js hosts.
+    // v35.3 (FPS-F6): case-insensitive matching (mirrors HIGH_PERF_TERMINALS
+    // at line 237). Casing is fragile across versions/forks — a future VSCode
+    // fork emitting "VSCode" instead of "vscode" would silently bypass the
+    // 30 FPS cap and resurrect the multi-hour OOM crash Tier 2 prevents.
+    let tp_lower = term_program.to_ascii_lowercase();
+    let xtermjs_host = XTERMJS_HOSTS
+        .iter()
+        .any(|&h| tp_lower == h.to_ascii_lowercase());
 
     // VSCode-specific alias for back-compat with Tier 1 code paths that
     // single out VSCode in user-facing strings (warnings, verbose output).
-    let vscode_integrated = xtermjs_host && term_program == "vscode";
+    let vscode_integrated = xtermjs_host && tp_lower == "vscode";
 
     // Synchronized output is supported by virtually all modern terminals.
     // The escape sequences are a no-op on terminals that don't support

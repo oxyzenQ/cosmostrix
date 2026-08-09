@@ -93,6 +93,56 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--check-bitcolor",
         "error: --check-bitcolor has been removed in v30.0.0-alpha.1.\n  It was a strict subset of `--doctor` output — every field it printed\n  (COLORTERM, TERM, auto_detected, forced, effective color depth) is already\n  shown by `cosmostrix --doctor` under the RENDERER and COLOR sections, plus\n  much more (terminal caps, env, perf hints, config paths).\n  Use `cosmostrix --doctor` instead.",
     ),
+    // v35.3 audit (CLI-R-2): 12 entries that were missing — each was producing
+    // clap's generic "unexpected argument" instead of a friendly migration hint.
+    (
+        "--no-lightning",
+        "error: --no-lightning has been removed (pre-v10.0.0).\n  The lightning feature never converged visually and was deleted.\n  No replacement — use --scene storm or --scene cosmos for similar energy.",
+    ),
+    (
+        "--async",
+        "error: --async / -a has been removed in v17.0.0.\n  Async variable-pacing (different droplet speeds per column) is now always on.\n  Use --uniform to disable (uniform column speeds).",
+    ),
+    (
+        "--brightness",
+        "error: --brightness has been removed in v17.0.0.\n  Replaced by --color-tune bright=<0..200> (percent) and the [color.tune] config block.\n  Example: cosmostrix --color-tune bright=120  (or bright=80 in config.toml).",
+    ),
+    (
+        "--saturation",
+        "error: --saturation has been removed in v17.0.0.\n  Replaced by --color-tune sat=<0..200> (percent) and the [color.tune] config block.\n  Example: cosmostrix --color-tune sat=150  (or sat=80 in config.toml).",
+    ),
+    (
+        "--info",
+        "error: --info / -i has been removed in v17.0.0.\n  Merged into --doctor (BUILD / RENDERER / CAPACITY sections).\n  Use `cosmostrix --doctor` instead.",
+    ),
+    (
+        "--glitchpct",
+        "error: --glitchpct / -G has been removed in v17.0.0.\n  Subsumed by --glitch-level presets (none / subtle / default / intense).\n  Use `--glitch-level intense` (≈25% glitch) or `--glitch-level subtle` (≈3%).",
+    ),
+    (
+        "--shortpct",
+        "error: --shortpct has been removed in v17.0.0.\n  Subsumed by --glitch-level presets (the short-droplet ratio is now derived from the chosen level).\n  Use `--glitch-level subtle` / `default` / `intense`.",
+    ),
+    (
+        "--rippct",
+        "error: --rippct / -r has been removed in v17.0.0.\n  Subsumed by --glitch-level presets (the ripple chance is now derived from the chosen level).\n  Use `--glitch-level subtle` / `default` / `intense`.",
+    ),
+    (
+        "--maxdpc",
+        "error: --maxdpc has been removed in v17.0.0.\n  Subsumed by --glitch-level presets (max droplets per column is derived from the chosen level).\n  Use `--glitch-level subtle` / `default` / `intense`.",
+    ),
+    (
+        "--architecture",
+        "error: --architecture has been removed in v20.0.0.\n  Renamed to --docs (broader scope: now also lists design principles and audit trails).\n  Use `cosmostrix --docs` instead.",
+    ),
+    (
+        "--atmosphere-mode",
+        "error: --atmosphere-mode has been removed in v30.0.0.\n  The atmosphere engine subsystem was fully eliminated (-7,875 LOC).\n  For time-of-day scene scheduling, use the ambient scheduler instead:\n    [ambient.\"22-10\"]\n    scene = \"aurora\"\n  See `cosmostrix --dump-config` for the ambient block template.",
+    ),
+    (
+        "--atmosphere-regime",
+        "error: --atmosphere-regime has been removed in v30.0.0.\n  The atmosphere engine subsystem was fully eliminated (-7,875 LOC).\n  For time-of-day scene scheduling, use the ambient scheduler instead:\n    [ambient.\"22-10\"]\n    scene = \"aurora\"\n  See `cosmostrix --dump-config` for the ambient block template.",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.

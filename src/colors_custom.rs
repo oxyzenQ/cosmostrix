@@ -137,7 +137,16 @@ pub(crate) fn collect_colors_custom(
             // v25.10 (bug #8): `stops` is a deprecated alias for `rain`.
             // The validator still accepts it (with a --testconf deprecation
             // warning); the runtime parser treats it identically to `rain`.
+            // v35.3 (CLI-D-2): emit a one-time deprecation warning at runtime
+            // too — previously only --testconf warned, so users who never
+            // ran --testconf used the deprecated alias indefinitely with no
+            // signal.
             "rain" | "stops" => {
+                if field == "stops" {
+                    crate::output::eprintln_warn_labeled(
+                        "colors-custom: '.stops' is deprecated — rename to '.rain' (alias removed in a future release)",
+                    );
+                }
                 // v25 masterclass: support both CSV string and TOML array format.
                 // CSV: "#1a0033", "#4d0080", "#9933ff"
                 // Array: ["#1a0033", "#4d0080", "#9933ff", ...] (7-stop)

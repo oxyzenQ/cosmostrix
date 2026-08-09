@@ -271,9 +271,17 @@ impl Cloud {
 
         // Step 2: apply custom block overrides.
         // color (built-in scheme via `color`, OR custom palette via `colors-custom`)
+        // v35.3 (Color-#2): add `if scheme != self.color_scheme` guard matching
+        // the built-in path (line 142-146). Without this, an ambient fire of a
+        // custom scene whose `color` matches the current scheme triggers a
+        // spurious 300ms palette transition wave — the "snow ice vs spark fire"
+        // bug. The guard at line 234-237 (Step 1 base-scene) already has this
+        // check; this fix makes Step 2 consistent.
         if let Some(color_name) = &custom.color {
             if let Ok(scheme) = parse_color_scheme(color_name) {
-                self.set_color_scheme(scheme);
+                if scheme != self.color_scheme {
+                    self.set_color_scheme(scheme);
+                }
             } else if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, color_name) {
                 self.set_palette(palette);
             }
@@ -331,24 +339,38 @@ impl Cloud {
             }
         }
         // v30.3: bold (0=Off, 1=Random, 2=All) — matches --bold CLI.
+        // v35.3 (CLI-V-5): tighten to reject values > 2 (was silently Random).
+        // testconf rejects bold=99 with an error; the startup top-level path
+        // rejects via parse_canonical_u8_range. This makes the runtime scene
+        // path consistent: unknown values are silently ignored (mode unchanged)
+        // rather than silently coerced to Random. Uses a labeled block so we
+        // skip just the assignment, NOT the rest of the function (return would
+        // wrongly skip shadingmode/async/etc. fields below).
         if let Some(bold_str) = &custom.bold {
             if let Ok(n) = bold_str.trim().parse::<u8>() {
-                let mode = match n {
-                    0 => crate::runtime::BoldMode::Off,
-                    2 => crate::runtime::BoldMode::All,
-                    _ => crate::runtime::BoldMode::Random,
-                };
-                self.bold_mode = mode;
+                'bold: {
+                    let mode = match n {
+                        0 => crate::runtime::BoldMode::Off,
+                        1 => crate::runtime::BoldMode::Random,
+                        2 => crate::runtime::BoldMode::All,
+                        _ => break 'bold,
+                    };
+                    self.bold_mode = mode;
+                }
             }
         }
         // v30.3: shadingmode (0=Random, 1=DistanceFromHead).
+        // v35.3 (CLI-V-5): tighten to reject values > 1 (was silently Random).
         if let Some(shading_str) = &custom.shading_mode {
             if let Ok(n) = shading_str.trim().parse::<u8>() {
-                let sm = match n {
-                    1 => crate::runtime::ShadingMode::DistanceFromHead,
-                    _ => crate::runtime::ShadingMode::Random,
-                };
-                self.set_shading_mode(sm);
+                'shading: {
+                    let sm = match n {
+                        0 => crate::runtime::ShadingMode::Random,
+                        1 => crate::runtime::ShadingMode::DistanceFromHead,
+                        _ => break 'shading,
+                    };
+                    self.set_shading_mode(sm);
+                }
             }
         }
         // v30.3: async (true/false).

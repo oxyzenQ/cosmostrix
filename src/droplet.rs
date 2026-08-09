@@ -924,9 +924,11 @@ impl Droplet {
                 let contrast_reduction = PARALLAX_CONTRAST_REDUCTION[self.layer as usize];
                 if contrast_reduction > 0.0 {
                     let factor = 1.0 - contrast_reduction;
+                    // v35.3 (Color-#5): apply_brightness_rgb_unclamped returns tuple directly,
+                    // avoiding the Color wrap + decode_color round-trip. Bit-identical for
+                    // factor ∈ [0,1] (call-site guard ensures this).
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        let scaled = crate::chroma::palette::apply_brightness_rgb(r, g, b, factor);
-                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, factor)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, factor)
                     };
@@ -959,9 +961,8 @@ impl Droplet {
                     // [FOG_MIN_FACTOR=0.45, 1.0). Always within the chroma
                     // helper's [0, 1] clamp.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        let scaled =
-                            crate::chroma::palette::apply_brightness_rgb(r, g, b, fog_factor);
-                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                        // v35.3 (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
+                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, fog_factor)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, fog_factor)
                     };
@@ -1091,9 +1092,9 @@ impl Droplet {
                 // equation -- the difference is auditability.
                 if matches!(loc, CharLoc::Head) && head_bright < 1.0 {
                     let factor = 0.7 + 0.3 * head_bright;
+                    // v35.3 (Color-#5): apply_brightness_rgb_unclamped returns tuple directly.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        let scaled = crate::chroma::palette::apply_brightness_rgb(r, g, b, factor);
-                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, factor)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, factor)
                     };
@@ -1166,9 +1167,9 @@ impl Droplet {
                 // routes through chroma engine when active, legacy
                 // scale_rgb otherwise. Same equation both paths.
                 if shadow < 1.0 {
+                    // v35.3 (Color-#5): apply_brightness_rgb_unclamped returns tuple directly.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        let scaled = crate::chroma::palette::apply_brightness_rgb(r, g, b, shadow);
-                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, shadow)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, shadow)
                     };
@@ -1189,9 +1190,8 @@ impl Droplet {
                 // hot-path cost.
                 if edge_fade < 1.0 {
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        let scaled =
-                            crate::chroma::palette::apply_brightness_rgb(r, g, b, edge_fade);
-                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                        // v35.3 (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
+                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, edge_fade)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, edge_fade)
                     };
@@ -1218,9 +1218,8 @@ impl Droplet {
                 // scale_rgb otherwise. Same equation both paths.
                 if vignette < 1.0 {
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        let scaled =
-                            crate::chroma::palette::apply_brightness_rgb(r, g, b, vignette);
-                        crate::palette::decode_color(scaled).unwrap_or((r, g, b))
+                        // v35.3 (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
+                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, vignette)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, vignette)
                     };

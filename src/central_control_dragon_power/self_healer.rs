@@ -553,7 +553,10 @@ mod tests {
     fn self_healer_fallback_scene_is_low_power() {
         // The fallback scene must be a built-in scene name that exists
         // in the scene registry. "low-power" is the canonical low-CPU
-        // scene (fps=30, speed=5, density=0.45).
+        // scene (speed=5, density=0.45, glitch_level=None).
+        // v35.3 (FPS-F7): comment corrected — fps=30 was removed in v35.2
+        // (scene fps is startup-only by design; the CPU shed comes from
+        // speed/density/glitch, not from a runtime fps drop).
         assert_eq!(PerformanceSelfHealer::FALLBACK_SCENE, "low-power");
     }
 

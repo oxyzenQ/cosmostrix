@@ -563,11 +563,8 @@ fn validate_and_send(
             Ok(())
         }
         Err(msg) => {
-            // v25.12 (bug #14): surface the rejection to the session log so
-            // the post-exit verbose summary can show it. Without this, the
-            // user gets zero feedback that their edit was rejected — the rain
-            // just keeps running on the last valid config and they're left
-            // wondering why `color.tune.tail = 5.0` had no effect.
+            // v25.12 (bug #14): surface rejection to session log so post-exit
+            // verbose summary can show it.
             lr_trace!("strict validation FAILED: {msg}");
             push_validation_rejection(&msg);
             let _ = tx.send(Err(msg.clone()));
@@ -617,22 +614,8 @@ pub(crate) fn rebuild_cloud_config(
 
     // v16: Custom color palette live reload (if active at startup).
     if let Some(ref name) = new.custom_palette_name {
-        match crate::colors_custom::load_custom_palette(cfg, name) {
-            Ok(palette) => {
-                lr_trace!(
-                    "reloaded custom palette '{}': {} stops",
-                    name,
-                    palette.colors.len()
-                );
-                new.custom_palette = Some(palette);
-            }
-            Err(e) => {
-                lr_trace!(
-                    "custom palette '{}' reload failed (keeping old): {}",
-                    name,
-                    e
-                );
-            }
+        if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, name) {
+            new.custom_palette = Some(palette);
         }
     }
 
@@ -775,12 +758,10 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // Glitch level — skip if CLI --glitch-level was explicit.
-    // v35.2 (CLI-P-3): re-derive ALL preset values on live reload, not
-    // just `glitch_enabled`. Previously only the enable bool was flipped,
-    // so a reload from `subtle` to `intense` kept `glitch_pct=3.0`
-    // instead of upgrading to `25.0`. Preset values mirror
-    // `config_apply::apply_glitch_level_values`. `max_dpc` is NOT touched
-    // — it was never set by glitch_level presets at startup either.
+    // v35.2 (CLI-P-3): re-derive ALL preset values on live reload.
+    // v35.3 (Glitch-BUG3): None arm now resets all 5 preset fields too.
+    // Preset values mirror config_apply::apply_glitch_level_values.
+    // max_dpc is NOT touched — never set by glitch_level presets at startup.
     if !cli.glitch_level {
         if let Some(v) = cfg.get("glitch-level") {
             lr_trace!("apply glitch-level='{}'", v);
@@ -811,7 +792,18 @@ pub(crate) fn rebuild_cloud_config(
                     new.die_early_pct = 20.0;
                 }
                 Ok(crate::config::GlitchLevel::None) => {
+                    // v35.3 (Glitch-BUG3): reset ALL 5 preset fields, not just
+                    // glitch_enabled. Mirrors apply_glitch_level_runtime(None).
+                    // Without this, short_pct/die_early_pct keep the previous
+                    // level's values — and build_droplet_spec reads those
+                    // regardless of `glitchy`, so droplet length / early-death
+                    // probability diverge from startup-None.
                     new.glitch_enabled = false;
+                    new.glitch_low = 300;
+                    new.glitch_high = 400;
+                    new.glitch_pct = 0.0;
+                    new.short_pct = 50.0;
+                    new.die_early_pct = 33.33333;
                 }
                 // Unrecognized: flip enable bool only (old fallback).
                 // Startup clap rejects bad values, so this shouldn't fire.
@@ -860,15 +852,8 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // Auto color drift
-    // Phase D Bug #1 fix: use the canonical parse_bool_config (same parser
-    // as startup + testconf). Previously this used `v.trim() == "true"`
-    // (strictest — only accepted "true", rejected "yes"/"on"/"1"). Now all
-    // three paths agree: true/yes/on/1 → true, false/no/off/0 → false.
-    //
-    // Phase D Bug #10 fix: gate with `if !cli.auto_color_drift` so a CLI
-    // `--auto-color-drift` is not silently overridden by config on reload.
-    // Matches the pattern used for color/charset/speed/density/fps/scene.
+    // Auto color drift — Phase D Bug #1/#10: canonical parse_bool_config +
+    // gate with `!cli.auto_color_drift` so CLI is not silently overridden.
     if !cli.auto_color_drift {
         if let Some(v) = cfg.get("auto-color-drift") {
             if let Some(b) = crate::config_apply::parse_bool_config("auto-color-drift", v) {
@@ -877,24 +862,38 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // v20: scene-custom live reload. If a custom scene is active (set via
-    // --scene-custom <name>), re-apply its fields from the new config so
-    // editing [scene-custom.<name>] takes effect immediately.
+    // v35.3 (CLI-P-1): live-reload bold/shadingmode/async-mode (previously
+    // silently ignored). Mirrors startup parsers.
+    if let Some(v) = cfg.get("bold").and_then(|s| s.trim().parse::<u8>().ok()) {
+        new.bold_mode = match v {
+            0 => crate::runtime::BoldMode::Off,
+            2 => crate::runtime::BoldMode::All,
+            _ => crate::runtime::BoldMode::Random,
+        };
+    }
+    if let Some(v) = cfg
+        .get("shadingmode")
+        .and_then(|s| s.trim().parse::<u8>().ok())
+    {
+        new.shading_mode = match v {
+            1 => crate::runtime::ShadingMode::DistanceFromHead,
+            _ => crate::runtime::ShadingMode::Random,
+        };
+    }
+    if let Some(v) = cfg.get("async-mode") {
+        if let Some(b) = crate::config_apply::parse_bool_config("async-mode", v) {
+            new.async_mode = b;
+        }
+    }
+
+    // v20: scene-custom live reload — re-apply fields if active.
     if let Some(ref custom_name) = base.scene_custom_name {
         apply_scene_custom_to_cloud_config(&mut new, cfg, custom_name);
     }
 
-    // v25.11 (bug #9): color.tune.* live reload. Previously `color_tune` was
-    // never updated here — `create_cloud()` re-applied the SAME identity-or-
-    // CLI-set tune from `base.color_tune` on every reload, so editing
-    // `brightness = 0.0` while running had zero visible effect until restart.
-    // Now we re-parse from the new cfg HashMap (same path as startup in
-    // config_apply.rs) — but ONLY when at least one color.tune.* key is
-    // present. This preserves the CLI `--color-tune` setting when the user
-    // never added [color.tune] to config.toml (CLI wins over absent config).
-    // `color_tune_from_config` silently clamps OOR values to 1.0; strict
-    // validation already rejected bad values upstream in `validate_and_send`
-    // → `validate_field_value`, so we only get clean numbers here.
+    // v25.11 (bug #9): color.tune.* live reload — re-parse from cfg HashMap
+    // (same path as startup) when at least one color.tune.* key is present.
+    // Preserves CLI --color-tune when no [color.tune] block exists.
     let has_tune_keys = cfg.contains_key("color.tune.brightness")
         || cfg.contains_key("color.tune.saturation")
         || cfg.contains_key("color.tune.head")
@@ -934,13 +933,8 @@ pub(crate) fn rebuild_cloud_config(
 }
 
 /// Apply a `[scene-custom.<name>]` block from config to CloudConfig in place.
-/// Used by live reload so edits to a custom scene take effect immediately.
-///
-/// v30.2: when the block sets `base-scene = <built-in>`, the base scene's
-/// defaults are applied FIRST (color/charset/fps/speed/density/glitch), then
-/// the block's own overrides layer on top. This matches the startup apply
-/// chain in `apply_profile_layer` so live-reload behavior matches startup
-/// behavior.
+/// v30.2: when `base-scene = <built-in>`, base scene defaults are applied
+/// FIRST, then block overrides layer on top. Mirrors startup apply_profile_layer.
 fn apply_scene_custom_to_cloud_config(
     new: &mut crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
@@ -1046,12 +1040,18 @@ mod tests {
 
     #[test]
     fn validate_rejects_invalid_atmosphere_regime() {
-        // atmosphere-regime is now a removed key (atmosphere engine eliminated).
-        // It should be rejected as an unknown key.
-        let mut cfg = HashMap::new();
-        cfg.insert("atmosphere-regime".to_string(), "adaptivee".to_string());
-        let result = crate::testconf::validate_config_strictly(&cfg);
-        assert!(result.is_err());
+        // atmosphere-regime is a removed key (atmosphere engine eliminated).
+        // It is rejected as an unknown key by parse_config_text (not by
+        // validate_config_strictly, which only validates values for known
+        // keys). v35.3 (CLI-D-3): the dead validator for this key was
+        // removed; this test now verifies the actual rejection path.
+        let cfg_text = "atmosphere-regime = \"adaptivee\"\n";
+        let parsed = crate::configfile::parse_config_text(cfg_text);
+        assert!(
+            parsed.unknown_keys.iter().any(|k| k == "atmosphere-regime"),
+            "atmosphere-regime should be classified as unknown: {:?}",
+            parsed.unknown_keys
+        );
     }
 
     #[test]
