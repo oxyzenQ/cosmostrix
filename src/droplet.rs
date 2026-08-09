@@ -990,10 +990,9 @@ impl Droplet {
                 }
 
                 // Cursor glow: cells near mouse cursor get brighter (elliptical falloff).
-                // v30 optimize: const-gate the entire block — MOUSE_GLOW_INTENSITY is 0.0
-                // in production, so LLVM folds this to dead code at compile time. The
-                // `mouse_col != u16::MAX` check stays as a runtime guard for the day glow
-                // is re-enabled. See docs/research/MOUSE_EFFECTS_AUDIT.md Quick Win #1.
+                // v30 optimize: const-gate — MOUSE_GLOW_INTENSITY is 0.0 in production,
+                // so LLVM folds this to dead code. `mouse_col != u16::MAX` stays as a
+                // runtime guard for the day glow is re-enabled. See MOUSE_EFFECTS_AUDIT.md.
                 const GLOW_ENABLED: bool = MOUSE_GLOW_INTENSITY > 0.0;
                 if GLOW_ENABLED && ctx.mouse_col != u16::MAX {
                     let col_dist = if self.bound_col > ctx.mouse_col {
@@ -1011,10 +1010,11 @@ impl Droplet {
                     let dist_sq = norm_col * norm_col + norm_line * norm_line;
                     if dist_sq < 1.0 {
                         let glow = (1.0 - dist_sq) * MOUSE_GLOW_INTENSITY;
-                        let wf = (glow * 256.0) as i32;
-                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        // v30.3 (A17): chroma-routed white-blend (dead code in prod).
+                        let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                            crate::chroma::palette::blend_toward_white_rgb(r, g, b, glow)
+                        } else { crate::chroma::legacy::blend_toward_white(r, g, b, glow) };
+                        r = nr; g = ng; b = nb;
                     }
                 }
 
