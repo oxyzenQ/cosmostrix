@@ -408,6 +408,47 @@ pub(crate) fn decode_color(color: Color) -> Option<(u8, u8, u8)> {
     Some((r, g, b))
 }
 
+/// Unclamped variant of [`blend_toward_bg_rgb`]. Identical equation, but
+/// `factor` is NOT clamped to `[0.0, 1.0]`.
+///
+/// v30.3 (chroma audit, A11): added for the parallax saturation
+/// modulation in `droplet.rs::Droplet::draw`. The saturation effect
+/// uses `factor = 1.0 - saturation_mult`, and `PARALLAX_SATURATION_MULT`
+/// has values both below 1.0 (back layers desaturate, factor > 0) AND
+/// above 1.0 (front layer oversaturates, factor < 0). The standard
+/// `blend_toward_bg_rgb` clamps factor to `[0, 1]`, which would
+/// silently turn the front-layer oversaturation case into a no-op
+/// and regress the v30.0.0 saturation fix.
+///
+/// Negative factors push the channel AWAY from the target (extrapolation
+/// beyond the source). Positive factors > 1.0 push beyond the target.
+/// Both are well-defined: the equation `(c + ((t - c) * wf + 128) / 256)`
+/// works for any `wf` value, the per-channel `.clamp(0, 255)` keeps the
+/// final output in u8 range.
+///
+/// # Parity
+/// Bit-identical to `chroma::legacy::blend_toward_rgb` for any factor.
+/// The legacy helper is also unclamped -- the only difference between
+/// the two is module ownership (chroma engine vs. legacy fallback).
+#[inline]
+#[must_use]
+pub(crate) fn blend_toward_bg_rgb_unclamped(
+    r: u8,
+    g: u8,
+    b: u8,
+    tr: u8,
+    tg: u8,
+    tb: u8,
+    factor: f32,
+) -> (u8, u8, u8) {
+    let wf = (factor * 256.0) as i32;
+    (
+        (r as i32 + ((tr as i32 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+        (g as i32 + ((tg as i32 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+        (b as i32 + ((tb as i32 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8,
+    )
+}
+
 /// Format an `Option<Color>` as a human-readable hex string.
 ///
 /// - `None` → `"none"`

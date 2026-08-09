@@ -855,16 +855,32 @@ impl Droplet {
                 if saturation_mult != 1.0 {
                     let lum = (r as u32 * 77 + g as u32 * 150 + b as u32 * 29 + 128) >> 8;
                     let lum = lum.min(255) as u8;
-                    // Blend: out = color * sat + lum * (1 - sat)
-                    // Equivalent to: out = color - (color - lum) * (1 - sat)
-                    // Works for both sat < 1.0 (toward gray) and sat > 1.0 (away from gray).
-                    let inv_sat = ((1.0 - saturation_mult) * 256.0) as i32;
-                    let dr = (r as i32 - lum as i32) * inv_sat;
-                    let dg = (g as i32 - lum as i32) * inv_sat;
-                    let db = (b as i32 - lum as i32) * inv_sat;
-                    r = (r as i32 - (dr + 128) / 256).clamp(0, 255) as u8;
-                    g = (g as i32 - (dg + 128) / 256).clamp(0, 255) as u8;
-                    b = (b as i32 - (db + 128) / 256).clamp(0, 255) as u8;
+                    // v30.3 (chroma audit, A11): parallax saturation modulation
+                    // routes through the chroma engine when active, legacy
+                    // blend_toward_rgb otherwise. The factor `1.0 - sat` can be
+                    // NEGATIVE (front layer sat > 1.0 oversaturates), so the
+                    // chroma path uses `blend_toward_bg_rgb_unclamped` (not the
+                    // standard clamped variant) -- the clamp would silently turn
+                    // oversaturation into a no-op and regress the v30.0.0 fix.
+                    // The legacy `blend_toward_rgb` is already unclamped.
+                    //
+                    // Equation (both paths):
+                    //   out = c - (c - lum) * (1 - sat)
+                    //       = c * sat + lum * (1 - sat)
+                    //       = lerp(c, lum, 1 - sat)   <- blend_toward_bg form
+                    let factor = 1.0 - saturation_mult;
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        crate::chroma::palette::blend_toward_bg_rgb_unclamped(
+                            r, g, b, lum, lum, lum, factor,
+                        )
+                    } else {
+                        crate::chroma::legacy::blend_toward_rgb(
+                            r, g, b, lum, lum, lum, factor,
+                        )
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
                 // Depth-of-field: reduce fg-bg contrast for background layer.
