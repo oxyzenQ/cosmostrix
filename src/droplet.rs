@@ -684,14 +684,26 @@ impl Droplet {
         let head_bright = self.head_brightness(now);
         let is_head_bright_cached = head_bright > 0.3;
 
-        // F6: hoist loop-invariant transition energy + F7: fractional_progress
+        // F6: hoist loop-invariant transition energy + F7: fractional_progress.
+        //
+        // v30.3 (chroma audit, A14): the hoist now stores the raw blend
+        // factor (f32) instead of a pre-multiplied i32 weight, so the loop
+        // body can route through chroma::palette::blend_toward_white_rgb /
+        // chroma::legacy::blend_toward_white. Both helpers perform the
+        // `(factor * 256.0) as i32` cast internally and use the identical
+        // equation `r + (255 - r) * wf / 256` -- bit-identical to the
+        // previous inline form.
+        //
+        // Factor range: t = 1.0 - age/duration (in [0, 1]) multiplied by
+        // TRANSITION_ENERGY_SATURATION_BOOST = 0.15, so the blend factor
+        // is in [0, 0.15] -- well within the chroma helper's [0, 1] clamp.
         let is_new_generation = self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
-        let transition_wf: Option<i32> = if is_new_generation {
+        let transition_wf: Option<f32> = if is_new_generation {
             self.last_time.and_then(|birth| {
                 let age = now.saturating_duration_since(birth).as_secs_f32();
                 if age < TRANSITION_ENERGY_DURATION_SECS {
                     let t = 1.0 - (age / TRANSITION_ENERGY_DURATION_SECS);
-                    Some((t * TRANSITION_ENERGY_SATURATION_BOOST * 256.0) as i32)
+                    Some(t * TRANSITION_ENERGY_SATURATION_BOOST)
                 } else {
                     None
                 }
@@ -782,11 +794,24 @@ impl Droplet {
                 // Decode color to RGB once; chain all effects on raw tuples.
                 let (mut r, mut g, mut b) = palette::decode_color(c)?;
 
-                // F6: transition energy uses hoisted transition_wf
-                if let Some(wf) = transition_wf {
-                    r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                    b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                // F6: transition energy uses hoisted transition_wf.
+                //
+                // v30.3 (chroma audit, A14): route the white-blend through
+                // chroma::palette::blend_toward_white_rgb when the chroma
+                // pipeline is active, fall back to chroma::legacy::blend_toward_white
+                // otherwise. Both helpers use the same equation
+                // `r + (255 - r) * wf / 256` -- bit-identical to the previous
+                // inline form. The hoist now stores the raw f32 factor; the
+                // `(factor * 256.0) as i32` cast happens inside the helper.
+                if let Some(factor) = transition_wf {
+                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                        crate::chroma::palette::blend_toward_white_rgb(r, g, b, factor)
+                    } else {
+                        crate::chroma::legacy::blend_toward_white(r, g, b, factor)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
                 // Head bloom: exponential gaussian falloff for natural glow.
