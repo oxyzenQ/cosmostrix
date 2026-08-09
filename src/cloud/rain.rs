@@ -911,10 +911,7 @@ impl Cloud {
         let maybe_drift = self
             .color_ecosystem
             .tick(now, &mut self.mt, self.color_scheme);
-        if self.auto_color_drift
-            && !self.custom_palette_active
-            && !self.ambient_palette_locked
-        {
+        if self.auto_color_drift && !self.custom_palette_active && !self.ambient_palette_locked {
             if let Some(new_scheme) = maybe_drift {
                 self.set_color_scheme(new_scheme);
                 // v35: mark that auto-drift overrode ambient's palette. The

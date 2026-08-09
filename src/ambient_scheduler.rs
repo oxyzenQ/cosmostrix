@@ -264,9 +264,7 @@ fn scheduler_loop(
         let today_yday = crate::ambient::current_yday();
         if today_yday != last_fired_yday {
             if let Some(entry) = &current_entry {
-                if entry.minutes_of_day() <= now_min
-                    && last_applied.as_ref() == Some(entry)
-                {
+                if entry.minutes_of_day() <= now_min && last_applied.as_ref() == Some(entry) {
                     // Same entry, new day, past today's boundary — refire.
                     // The `last_applied == Some(entry)` guard ensures we only
                     // take this branch when the existing != check above did

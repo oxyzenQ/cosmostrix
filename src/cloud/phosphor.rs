@@ -46,7 +46,11 @@ fn phosphor_ghost_brightness(color: Color, factor: f32, is_chroma: bool) -> Colo
             palette::apply_brightness_rgb(r, g, b, factor)
         } else {
             let (nr, ng, nb) = crate::chroma::legacy::scale_rgb(r, g, b, factor);
-            Color::Rgb { r: nr, g: ng, b: nb }
+            Color::Rgb {
+                r: nr,
+                g: ng,
+                b: nb,
+            }
         }
     } else {
         color
@@ -86,7 +90,11 @@ fn anomaly_halo_blend(
             }
             None => crate::chroma::legacy::blend_toward_white(r, g, b, intensity),
         };
-        Color::Rgb { r: nr, g: ng, b: nb }
+        Color::Rgb {
+            r: nr,
+            g: ng,
+            b: nb,
+        }
     }
 }
 
@@ -360,11 +368,8 @@ impl Cloud {
                     // engine when active, chroma::legacy::scale_rgb
                     // otherwise. Matches the A1-A17 is_chroma() branch
                     // pattern used in droplet.rs.
-                    let ghost_fg = phosphor_ghost_brightness(
-                        base_fg,
-                        factor,
-                        self.color_pipeline.is_chroma(),
-                    );
+                    let ghost_fg =
+                        phosphor_ghost_brightness(base_fg, factor, self.color_pipeline.is_chroma());
                     frame.set(
                         col,
                         line,
@@ -385,11 +390,8 @@ impl Cloud {
                 // v30.3 (chroma audit, A19): main ghost brightness (visible
                 // trail) -- shared helper, same as A18. The branch exists
                 // for audit symmetry with the A1-A17 sites in droplet.rs.
-                let ghost_fg = phosphor_ghost_brightness(
-                    base_fg,
-                    factor,
-                    self.color_pipeline.is_chroma(),
-                );
+                let ghost_fg =
+                    phosphor_ghost_brightness(base_fg, factor, self.color_pipeline.is_chroma());
                 let ghost_ch = self.phosphor_base_ch[pidx];
                 // Trail character cycling: 2% chance per decay step to
                 // mutate the trail character to a new random glyph. This
@@ -426,9 +428,12 @@ impl Cloud {
                 // multiplied by 0.6 to dim the orphan trail relative to
                 // a tracked trail.
                 let is_chroma = self.color_pipeline.is_chroma();
-                let ghost_fg = self.palette.colors.first().copied().map(|c| {
-                    phosphor_ghost_brightness(c, factor * 0.6, is_chroma)
-                });
+                let ghost_fg = self
+                    .palette
+                    .colors
+                    .first()
+                    .copied()
+                    .map(|c| phosphor_ghost_brightness(c, factor * 0.6, is_chroma));
                 frame.set(
                     col,
                     line,

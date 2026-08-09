@@ -1,10 +1,12 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Ambient Scheduler Engine — Deep Audit (v35.0.0-alpha.1)
+# Ambient Scheduler Engine — Deep Audit (v35.0.0-alpha.1 + v35.1 revision)
 
 **Repo**: cosmostrix @ v35.0.0-alpha.1
-**Audit scope**: `src/ambient.rs`, `src/ambient_scheduler.rs`, `src/cloud/scene_runtime.rs::apply_ambient_entry`, `src/interactive/event_loop.rs` (ambient event path), `src/interactive/input.rs` (shortkey x/c/s), `src/cloud/rain.rs` (auto-color-drift path), `src/cloud/ecosystem.rs::ColorEcosystem::tick`.
+**Audit scope**: `src/ambient.rs`, `src/ambient_scheduler.rs`, `src/cloud/scene_runtime.rs::apply_ambient_entry`, `src/interactive/event_loop.rs` (ambient event path), `src/interactive/input.rs` (shortkey x/c/s + auto-snapback), `src/cloud/rain.rs` (auto-color-drift path), `src/cloud/ecosystem.rs::ColorEcosystem::tick`.
 **Trigger**: Owner report of confused behavior — after pressing `x`/`c`/`s` at runtime, the ambient scheduler no longer re-asserts the configured scene (e.g. `ambient.22-10 = aurora` does not come back at 22:10 the next day). Owner also asked whether `--auto-color-drift` + ambient can conflict, and how to harmonize them.
+
+**v35.1 revision (post-audit)**: The v35.0 fix introduced an `'a'` shortkey for manual snap-back. The owner rejected this — wanted fully automatic behavior, no new shortcut. v35.1 replaces the `'a'` key with an **idle-based auto-snapback**: after the user presses `x`/`c`/`s` and is idle for 30 seconds, the loop re-applies the current ambient phase automatically. No new shortcut, no new CLI flag — the existing `user_override_since_ambient` flag drives everything. See §2.2 (v35.1 revision) for the patch.
 
 ---
 
@@ -51,13 +53,14 @@ are at or past today's boundary), refire even if `entry == last_applied`. This
 restores the per-day, per-entry fire semantics without breaking the same-day
 dedup. See §2.1 for the patch.
 
-### 1.2 Defect B — No "snap back to ambient" shortkey
+### 1.2 Defect B — No automatic return to ambient after user override (v35.1 revised)
 
 **Symptom**: After pressing `x`/`c`/`s`, the owner wants to return to the
-ambient-configured scene *now*, without waiting for the next boundary (which
-for a single-entry schedule is up to 24h away).
+ambient-configured scene automatically, without waiting for the next boundary
+(which for a single-entry schedule is up to 24h away) and without pressing
+an extra key.
 
-**Root cause**: There is no shortkey that re-applies the current ambient phase
+**Root cause**: There is no mechanism that re-applies the current ambient phase
 on demand. The only ways to return to ambient are:
 
 1. Wait for the next boundary fire (up to 24h for single-entry schedules).
@@ -66,9 +69,15 @@ on demand. The only ways to return to ambient are:
    last-applied one — same dedup caveat).
 3. Restart cosmostrix (cold-start ambient apply).
 
-**Fix**: Add an `a` shortkey ("ambient snap-back") that looks up the current
-phase from `last_ambient_schedule` and applies it immediately via
-`cloud.apply_ambient_entry`. See §2.2 for the patch.
+**v35.0 fix (rejected by owner)**: Added an `'a'` shortkey for manual snap-back.
+Owner rejected this — wanted automatic, no new shortcut.
+
+**v35.1 fix (current)**: Idle-based **auto-snapback**. The event loop tracks
+`last_user_input_at: Instant`. Every frame, it checks: if
+`cloud.user_override_since_ambient == true` AND `idle_secs >= 30.0`, re-apply
+the current ambient phase from `last_ambient_schedule.current_phase(now_min)`.
+No new shortcut, no new CLI flag — the existing harmony flag drives everything.
+See §2.2 (v35.1 revision) for the patch.
 
 ### 1.3 Defect C — Auto-color-drift palette drift can override ambient's palette
 
@@ -188,46 +197,23 @@ if today_yday != last_fired_yday {
 }
 ```
 
-### 2.2 Patch B — `a` shortkey in `src/interactive/input.rs`
+### 2.2 Patch B — Idle-based auto-snapback in `src/interactive/input.rs` (v35.1 revision)
 
-Add a new function `handle_ambient_snapback` (separate from
-`handle_keybinding` to avoid bloating its parameter list):
+The v35.0 `'a'` shortkey (`handle_ambient_snapback`) has been **removed**.
+It is replaced by two functions in `src/interactive/input.rs`:
 
-```rust
-/// Apply the current ambient phase to the cloud immediately.
-///
-/// Called when the user presses 'a' (ambient snap-back). Returns true if
-/// an entry was applied (caller should redraw), false if no schedule is
-/// active or no current phase exists.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn handle_ambient_snapback(
-    cloud: &mut Cloud,
-    charset_preset: &mut String,
-    scene_name: &mut String,
-    scene_generation: &mut u64,
-    last_applied_ambient_entry: &mut Option<crate::ambient::AmbientEntry>,
-    schedule: &crate::ambient::AmbientSchedule,
-    cfg_map: &std::collections::HashMap<String, String>,
-    user_ranges: &[(char, char)],
-    def_ascii: bool,
-) -> bool {
-    let now_min = crate::ambient::current_minute_of_day();
-    let Some(entry) = schedule.current_phase(now_min).cloned() else {
-        return false; // no active phase — silent no-op
-    };
-    *charset_preset = cloud.apply_ambient_entry(
-        &entry, charset_preset, user_ranges, def_ascii, cfg_map,
-    );
-    *last_applied_ambient_entry = Some(entry.clone());
-    *scene_name = entry.scene.clone();
-    *scene_generation = scene_generation.wrapping_add(1);
-    cloud.user_override_since_ambient = false;
-    cloud.ambient_palette_locked = true;
-    true
-}
-```
+1. `should_auto_snapback(user_override, idle_secs, delay_secs) -> bool` — pure
+decision function. Returns `true` only when the user has overridden AND been
+idle for `delay_secs`.
 
-In `handle_keybinding`, add the override flags to `x`/`c`/`s`/`C`/`S` arms:
+2. `try_auto_snapback(cloud, charset_preset, scene_name, scene_generation,
+   last_applied_ambient_entry, schedule, last_cfg_map, user_ranges, def_ascii,
+   last_user_input_at, auto_snapback_delay_secs) -> bool` — applies the current
+ambient phase if `should_auto_snapback` returns true. Returns `true` if applied
+(caller must redraw — rebuild ColorCache, Frame, fill bg).
+
+In `handle_keybinding`, the override flags on `x`/`c`/`s`/`C`/`S` arms are
+unchanged from v35.0:
 
 ```rust
 (KeyCode::Char('c'), _) => {
@@ -239,25 +225,31 @@ In `handle_keybinding`, add the override flags to `x`/`c`/`s`/`C`/`S` arms:
 // (same for 'C', 's', 'S', 'x' — see patch)
 ```
 
-In `event_loop.rs`, add a 4-line check before `handle_keybinding`:
+In `event_loop.rs`, the `'a'` key handler block is **removed**. A new
+`last_user_input_at: Instant` tracker is declared at the top of `run_interactive`
+and refreshed on every key event. A new block (after the scheduler poll,
+before adaptive throttling) calls `try_auto_snapback` every frame:
 
 ```rust
-if k.code == crossterm::event::KeyCode::Char('a') {
-    let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
-    if super::input::handle_ambient_snapback(
-        &mut cloud, &mut charset_preset, &mut scene_name, &mut scene_generation,
-        &mut last_applied_ambient_entry, &last_ambient_schedule, &cfg_map,
-        &user_ranges, def_ascii,
-    ) {
-        term.set_color_cache(ColorCache::new(&cloud.palette));
-        frame = Frame::new(w, h, cloud.palette.bg);
-        super::fill_terminal_bg(cloud.palette.bg);
-    }
-} else {
-    let redraw_needed = handle_keybinding(/* ... */);
-    // ...
+// v35.1: Automatic ambient snapback — replaces the v35 'a' shortcut.
+const AUTO_SNAPBACK_DELAY_SECS: f64 = 30.0;
+if super::input::try_auto_snapback(
+    &mut cloud, &mut charset_preset, &mut scene_name, &mut scene_generation,
+    &mut last_applied_ambient_entry, &last_ambient_schedule, &last_applied_cfg_map,
+    &user_ranges, def_ascii, last_user_input_at, AUTO_SNAPBACK_DELAY_SECS,
+) {
+    term.set_color_cache(ColorCache::new(&cloud.palette));
+    frame = Frame::new(w, h, cloud.palette.bg);
+    super::fill_terminal_bg(cloud.palette.bg);
+    next_frame = Instant::now();
 }
 ```
+
+**Why 30 seconds?** Long enough that an active user cycling through scenes
+won't be interrupted, short enough that a user who pressed `x` to peek then
+walked away gets ambient back within half a minute. The threshold is a
+`const` in `event_loop.rs` — if it ever needs to be configurable, it can
+become a config key without touching the helper API.
 
 ### 2.3 Patch C — Gate palette drift on `!ambient_palette_locked`
 
@@ -321,7 +313,7 @@ live-reload re-apply path (lines 240-268 and 418-448).
 
 ## 3. Harmony / synergy model
 
-After the four patches, the interaction model is:
+After the four patches (v35.0 + v35.1 revision), the interaction model is:
 
 | Event | `user_override_since_ambient` | `ambient_palette_locked` | Effect |
 |---|---|---|---|
@@ -330,7 +322,7 @@ After the four patches, the interaction model is:
 | User presses `x` | **true** | **false** | Scene changes; auto-drift palette drift UNLOCKS; next ambient boundary will refire (no dedup skip) |
 | User presses `c` | **true** | **false** | Color changes; auto-drift palette drift UNLOCKS |
 | User presses `s` | **true** | (unchanged) | Charset changes; auto-drift palette drift state unchanged |
-| User presses `a` | **false** | **true** | Current ambient phase re-applied immediately; auto-drift palette drift LOCKS |
+| User idle ≥ 30s after override | **false** | **true** | Auto-snapback: current ambient phase re-applied, auto-drift palette drift LOCKS (v35.1) |
 | Auto-drift picks new palette | **true** | (unchanged) | Palette changes; next ambient boundary will refire (no dedup skip) |
 | Auto-drift climate tick (no palette change) | (unchanged) | (unchanged) | Luminance/saturation/hue drift continues regardless of lock |
 
@@ -338,10 +330,10 @@ After the four patches, the interaction model is:
 
 - **Ambient specifies the WHAT** (which palette / scene / charset).
 - **Auto-drift specifies the HOW** (climate variation: luminance, saturation, hue drift on top of the base palette).
-- **User override is temporary**: ambient re-asserts at the next boundary (or via `a` key for immediate return).
-- **No fighting**: when ambient is active, auto-drift's palette replacement is suppressed — only climate drift continues. When the user overrides, auto-drift's palette replacement is re-enabled (because the user took ownership, ambient will re-assert at next boundary anyway).
+- **User override is temporary**: ambient re-asserts at the next boundary, OR automatically after 30s of input idle (v35.1 auto-snapback) — whichever comes first.
+- **No fighting**: when ambient is active, auto-drift's palette replacement is suppressed — only climate drift continues. When the user overrides, auto-drift's palette replacement is re-enabled (because the user took ownership, ambient will re-assert via auto-snapback or next boundary).
 
-This is the "synergy" the owner asked about: ambient and auto-drift no longer fight; they layer.
+This is the "synergy" the owner asked about: ambient and auto-drift no longer fight; they layer. The v35.1 auto-snapback makes the synergy fully automatic — no manual intervention needed.
 
 ---
 
@@ -356,9 +348,11 @@ This is the "synergy" the owner asked about: ambient and auto-drift no longer fi
    - `palette_drift_unlocked_when_user_overrides`: set `ambient_palette_locked = true`, simulate `c` key (clears lock), run ticks, assert drift can pick a new palette.
    - `climate_drift_continues_when_ambient_locked`: set `ambient_palette_locked = true`, run ticks, assert `luminance_climate` / `saturation_climate` / `hue_drift` evolve.
 
-3. **`src/interactive/tests.rs`**:
-   - `a_key_applies_current_ambient_phase`: set up schedule, press `a`, assert cloud's scene matches the schedule's current phase.
-   - `a_key_no_op_with_empty_schedule`: empty schedule, press `a`, assert no crash, no scene change.
+3. **`src/interactive/tests.rs`** (v35.1):
+   - `v35_1_auto_snapback_skipped_when_no_override`: `should_auto_snapback(false, *, *)` always returns false.
+   - `v35_1_auto_snapback_skipped_during_active_input`: `should_auto_snapback(true, < 30s, 30s)` returns false.
+   - `v35_1_auto_snapback_triggered_after_idle_threshold`: `should_auto_snapback(true, ≥ 30s, 30s)` returns true.
+   - `v35_1_auto_snapback_threshold_is_configurable`: threshold parameter is honored (10s, 60s).
    - `x_key_sets_user_override`: press `x`, assert `cloud.user_override_since_ambient == true` and `cloud.ambient_palette_locked == false`.
    - `c_key_clears_ambient_lock`: set `ambient_palette_locked = true`, press `c`, assert `ambient_palette_locked == false`.
 
@@ -369,7 +363,8 @@ This is the "synergy" the owner asked about: ambient and auto-drift no longer fi
 
 ## 5. Out-of-scope / future work
 
-- **'a' key HUD feedback**: a brief flash or HUD message confirming "snapped back to ambient phase X" would improve UX. Deferred — needs HUD work.
+- **Auto-snapback delay as config key**: currently `AUTO_SNAPBACK_DELAY_SECS = 30.0` is a `const` in `event_loop.rs`. If users want to tune it (e.g. 10s for fast snapback, 120s for long peek), it can become `auto_snapback_delay_secs` in `config.toml`. Deferred — no user request yet.
+- **Auto-snapback HUD feedback**: a brief HUD message confirming "snapped back to ambient phase X" would improve UX. Deferred — needs HUD work.
 - **Per-entry lock policy**: currently `ambient_palette_locked` is a single bool. If the user has a multi-entry schedule where some entries should allow palette drift and others shouldn't, we'd need per-entry policy. Deferred — no user request for this granularity.
 - **Auto-drift feeling → ambient scene mapping**: currently `system_feeling` and `ambient` are independent. A future feature could let the ambient schedule reference feeling states (e.g. `ambient.22-10 = feeling:void`) so the two systems share vocabulary. Deferred — needs design work.
 
@@ -377,9 +372,9 @@ This is the "synergy" the owner asked about: ambient and auto-drift no longer fi
 
 ## 6. Verification
 
-After applying all four patches:
+After applying all four patches (v35.0 base + v35.1 revision):
 
-- `cargo test --bins`: all 1453 existing tests still pass + new tests pass.
+- `cargo test --bins`: all 1464 tests pass (was 1453 pre-v35.0; +9 v35.0 tests, +2 net from v35.1 swap of 2 `'a'` tests for 4 auto-snapback decision tests).
 - `cargo clippy --locked --all-targets --all-features -- -D warnings`: clean.
-- `cargo +nightly miri test --bins chroma::shaders::base::tests::column_coherence`: still 6/6 (no regression from the unrelated Miri fix).
-- Manual smoke test: `cosmostrix` with `ambient.22-10 = aurora` + `--auto-color-drift`, press `x` at 22:15, press `a` to snap back, verify aurora re-applies. Wait until 22:10 next day (or simulate via test), verify aurora refires.
+- `cargo fmt --all --check`: clean (v35.1 also fixed the v35.0 fmt failures that broke CI on a975cfe).
+- Manual smoke test: `cosmostrix` with `ambient.22-10 = aurora` + `--auto-color-drift`, press `x` at 22:15, **wait 30 seconds without pressing any key**, verify aurora re-applies automatically. Press `x` again, immediately press `c` repeatedly within 30s, verify auto-snapback does NOT interrupt active cycling. Wait until 22:10 next day (or simulate via test), verify aurora refires via day-boundary refire (Patch A).

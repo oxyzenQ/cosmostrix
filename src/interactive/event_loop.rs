@@ -192,6 +192,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_ctxt_sample = Instant::now();
     let mut perf_rss_samples: u64 = 0;
 
+    // v35.1: last user key press time — drives the idle-based auto-snapback
+    // (see `input::try_auto_snapback` and AMBIENT_SCHEDULER_AUDIT.md §2.2).
+    let mut last_user_input_at = Instant::now();
+
     // Performance self-healer (P1 + P2): drives auto scene downgrade when
     // perf_pressure is sustained high, and EnduranceHealth-triggered
     // mitigations when the composite score drops into the investigate band.
@@ -239,8 +243,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // v30.3+hotfix: synchronous ambient apply at startup with REAL cfg map.
     let (new_charset, startup_entry) = crate::ambient::apply_startup_ambient(
-        &mut cloud, &base_cfg.ambient_schedule,
-        &charset_preset, &user_ranges, def_ascii, &initial_cfg_map,
+        &mut cloud,
+        &base_cfg.ambient_schedule,
+        &charset_preset,
+        &user_ranges,
+        def_ascii,
+        &initial_cfg_map,
     );
     // v30.5: store startup ambient info for post-exit verbose (can't print
     // here — alternate screen discards stderr on exit). main.rs prints it
@@ -430,7 +438,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         last_entry.scene
                     );
                     charset_preset = cloud.apply_ambient_entry(
-                        last_entry, &charset_preset, &user_ranges, def_ascii,
+                        last_entry,
+                        &charset_preset,
+                        &user_ranges,
+                        def_ascii,
                         &last_applied_cfg_map.clone().unwrap_or_default(),
                     );
                     scene_name = last_entry.scene.clone();
@@ -455,16 +466,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         while let Ok(entry) = ambient_handle.rx.try_recv() {
             crate::lr_trace!(
                 "ambient: received phase event {:02}:{:02} (scene={})",
-                entry.hour, entry.minute, entry.scene
+                entry.hour,
+                entry.minute,
+                entry.scene
             );
             last_ambient_entry = Some(entry);
         }
         if let Some(entry) = last_ambient_entry {
-            // v30.3: dedup — skip if already applied (startup sync or rebuild re-apply).
-            // v35: also skip ONLY if cloud state hasn't diverged (user didn't
-            // press x/c/s and auto-drift didn't pick a new palette). If state
-            // diverged, re-apply even if entry == last_applied — this is the
-            // day-boundary refire case from ambient_scheduler.rs Patch A.
+            // v30.3 dedup: skip if already applied. v35: but re-apply if cloud
+            // state diverged (user pressed x/c/s, or auto-drift picked a new
+            // palette) — this is the day-boundary refire case (Patch A).
             if last_applied_ambient_entry.as_ref() == Some(&entry)
                 && !cloud.user_override_since_ambient
             {
@@ -473,10 +484,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     entry.hour, entry.minute, entry.scene
                 );
             } else {
-                // v30.2: apply the entry's scene via apply_ambient_entry.
-                // Handles both built-in + custom scenes (looks up
-                // [scene-custom.<name>], applies base-scene defaults first,
-                // then the block's own overrides).
+                // v30.2: apply the entry's scene (built-in + custom scene-custom.<name>).
                 let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
                 charset_preset = cloud.apply_ambient_entry(
                     &entry,
@@ -488,14 +496,37 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 last_applied_ambient_entry = Some(entry.clone());
                 scene_name = entry.scene.clone();
                 scene_generation = scene_generation.wrapping_add(1);
-                // v35 harmony: ambient just asserted — clear override flag
-                // and lock palette against auto-drift.
+                // v35 harmony: ambient asserted — clear override, lock palette.
                 cloud.user_override_since_ambient = false;
                 cloud.ambient_palette_locked = true;
                 term.set_color_cache(ColorCache::new(&cloud.palette));
                 frame = Frame::new(w, h, cloud.palette.bg);
                 super::fill_terminal_bg(cloud.palette.bg);
             }
+        }
+
+        // v35.1: Automatic ambient snapback — replaces the v35 'a' shortcut.
+        // When user has pressed x/c/s AND been idle for AUTO_SNAPBACK_DELAY_SECS,
+        // re-apply the current ambient phase. No new shortcut, no new CLI flag.
+        // See `input::try_auto_snapback` and AMBIENT_SCHEDULER_AUDIT.md §2.2.
+        const AUTO_SNAPBACK_DELAY_SECS: f64 = 30.0;
+        if super::input::try_auto_snapback(
+            &mut cloud,
+            &mut charset_preset,
+            &mut scene_name,
+            &mut scene_generation,
+            &mut last_applied_ambient_entry,
+            &last_ambient_schedule,
+            &last_applied_cfg_map,
+            &user_ranges,
+            def_ascii,
+            last_user_input_at,
+            AUTO_SNAPBACK_DELAY_SECS,
+        ) {
+            term.set_color_cache(ColorCache::new(&cloud.palette));
+            frame = Frame::new(w, h, cloud.palette.bg);
+            super::fill_terminal_bg(cloud.palette.bg);
+            next_frame = Instant::now();
         }
 
         // Adaptive throttling: detect idle state (no input for
@@ -566,20 +597,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         loop {
             // Drain pending events. On Windows (ConPTY) and Termux (Android
             // PTY), crossterm's event::poll/read can fail with transient I/O
-            // errors. Using `?` would propagate to run_interactive() and exit
-            // silently — Terminal::drop restores alt-screen before main.rs can
-            // print. Fix: treat event I/O errors as non-fatal; break the drain
-            // loop and proceed to frame rendering. Persistent failures are
-            // caught by the watchdog (2s stuck detection) + GRACEFUL_SHUTDOWN.
-            //
-            // Terminal-gone detection (EIO/EBADF/BrokenPipe): when the PTY
-            // master disappears (user force-closes the terminal), poll_event
-            // returns Ok(true) instantly forever (POLLHUP makes the fd
-            // perpetually "readable") and read_event returns Err(EIO). We
-            // detect this in the drain loop and set cloud.raining = false so
-            // the wait-phase break condition exits the inner loop immediately
-            // — without this, the wait phase spin-waits for the full frame
-            // period on every frame, burning 100% CPU for seconds.
+            // errors — treat as non-fatal (break drain, render frame). Watchdog
+            // catches persistent failures. Terminal-gone (EIO/EBADF/BrokenPipe):
+            // poll returns Ok(true) forever, read returns Err(EIO); we set
+            // cloud.raining = false to exit the wait-phase immediately (else
+            // spin-wait burns 100% CPU for seconds).
             loop {
                 match Terminal::poll_event(Duration::from_millis(0)) {
                     Ok(false) => break,
@@ -651,12 +673,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // 'I' removed (was for sticky-shift keyboards).
                         //
                         // When toggling OFF, force_draw_everything() clears
-                        // stale HUD cells from the frame buffer. The rain uses
-                        // diff-based rendering (frame.set, not set_force), so
-                        // cells the rain doesn't actively write keep their
-                        // previous content — including HUD text + black bg.
-                        // Without force_draw, this leaves "HUD residue" in
-                        // regions with no active rain this frame.
+                        // stale HUD cells (rain uses diff-based rendering, so
+                        // cells without active rain keep previous content —
+                        // without force_draw this leaves "HUD residue").
                         if matches!((k.code, k.modifiers), (KeyCode::Char('i'), _)) {
                             let now_visible = hud_state.toggle();
                             if !now_visible {
@@ -718,61 +737,41 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                         }
 
-                        // v35: 'a' (ambient snap-back) needs schedule + cfg_map
-                        // + last_applied, so handle here, not in handle_keybinding.
-                        if k.code == crossterm::event::KeyCode::Char('a') {
-                            let cfg_map =
-                                last_applied_cfg_map.clone().unwrap_or_default();
-                            if super::input::handle_ambient_snapback(
-                                &mut cloud,
-                                &mut charset_preset,
-                                &mut scene_name,
-                                &mut scene_generation,
-                                &mut last_applied_ambient_entry,
-                                &last_ambient_schedule,
-                                &cfg_map,
-                                &user_ranges,
-                                def_ascii,
-                            ) {
-                                term.set_color_cache(ColorCache::new(&cloud.palette));
-                                frame = Frame::new(w, h, cloud.palette.bg);
-                                super::fill_terminal_bg(cloud.palette.bg);
-                                next_frame = Instant::now();
-                            }
-                        } else {
-                            // Process the keybinding. This lets interactive
-                            // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
-                            // i/I, h/H) work even in --screensaver mode.
-                            let redraw_needed = handle_keybinding(
-                                &mut cloud,
-                                &mut frame,
-                                &k,
-                                &mut charset_preset,
-                                &mut scene_name,
-                                &mut scene_generation,
-                                &user_ranges,
-                                def_ascii,
-                                cfg,
-                                #[cfg(unix)]
-                                &term_reinit,
-                            );
+                        // v35.1: refresh auto-snapback idle timer on every key press.
+                        last_user_input_at = activity_time;
 
-                            if cfg.screensaver {
-                                // Screensaver (v15 "only q quits"): recognized
-                                // keys (c/C, s/S, p, x/X, a, [, ], i/I, h/H,
-                                // Space, Up/Down) process and continue; all
-                                // other keys silently ignored. Mouse click
-                                // also does NOT exit (v17: removed for policy
-                                // consistency). Only 'q' quits.
-                                if !cloud.raining {
-                                    break;
-                                }
-                                // No is_recognized_key check — all unrecognized
-                                // keys fall through to handle_keybinding's
-                                // `_ => {}` catch-all and are silently ignored.
-                            } else if redraw_needed {
-                                next_frame = Instant::now();
+                        // Process the keybinding. This lets interactive
+                        // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
+                        // i/I, h/H) work even in --screensaver mode.
+                        let redraw_needed = handle_keybinding(
+                            &mut cloud,
+                            &mut frame,
+                            &k,
+                            &mut charset_preset,
+                            &mut scene_name,
+                            &mut scene_generation,
+                            &user_ranges,
+                            def_ascii,
+                            cfg,
+                            #[cfg(unix)]
+                            &term_reinit,
+                        );
+
+                        if cfg.screensaver {
+                            // Screensaver (v15 "only q quits"): recognized
+                            // keys (c/C, s/S, p, x/X, [, ], i/I, h/H,
+                            // Space, Up/Down) process and continue; all
+                            // other keys silently ignored. Mouse click
+                            // also does NOT exit (v17: removed for policy
+                            // consistency). Only 'q' quits.
+                            if !cloud.raining {
+                                break;
                             }
+                            // No is_recognized_key check — all unrecognized
+                            // keys fall through to handle_keybinding's
+                            // `_ => {}` catch-all and are silently ignored.
+                        } else if redraw_needed {
+                            next_frame = Instant::now();
                         }
                     }
                     Event::Paste(_) => {

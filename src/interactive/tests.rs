@@ -18,7 +18,7 @@ mod cases {
 
     use crate::interactive::activity::{idle_resync_due, is_runtime_idle, register_activity};
     use crate::interactive::input::{
-        handle_ambient_snapback, handle_keybinding, runtime_speed_clamp, PasteBurstGuard,
+        handle_keybinding, runtime_speed_clamp, should_auto_snapback, PasteBurstGuard,
     };
     use crate::{cycle_charset_preset, cycle_color_scheme, CloudConfig, PowerManager};
 
@@ -902,87 +902,88 @@ mod cases {
         );
     }
 
-    /// v35: handle_ambient_snapback with an empty schedule is a no-op
-    /// (returns false, doesn't crash).
+    /// v35.1: `should_auto_snapback` returns false when no user override is
+    /// active — the ambient scheduler is already in control and doesn't need
+    /// to re-assert anything.
     #[test]
-    fn v35_a_key_no_op_with_empty_schedule() {
-        let mut cloud = make_test_cloud();
-        let mut charset_preset = String::from("binary");
-        let mut scene_name = String::from("monolith");
-        let mut scene_generation: u64 = 0;
-        let mut last_applied: Option<crate::ambient::AmbientEntry> = None;
-        let schedule = crate::ambient::AmbientSchedule::default();
-        let cfg_map = std::collections::HashMap::new();
-
-        let applied = handle_ambient_snapback(
-            &mut cloud,
-            &mut charset_preset,
-            &mut scene_name,
-            &mut scene_generation,
-            &mut last_applied,
-            &schedule,
-            &cfg_map,
-            &[],
-            false,
-        );
-
+    fn v35_1_auto_snapback_skipped_when_no_override() {
+        // No user override → never snapback, regardless of idle time.
         assert!(
-            !applied,
-            "'a' key with empty schedule must be a no-op (return false)"
+            !should_auto_snapback(false, 0.0, 30.0),
+            "no override, just pressed key → no snapback"
         );
-        assert!(last_applied.is_none(), "last_applied must remain None");
-        assert_eq!(scene_name, "monolith", "scene_name must not change");
+        assert!(
+            !should_auto_snapback(false, 60.0, 30.0),
+            "no override, idle 60s → no snapback"
+        );
+        assert!(
+            !should_auto_snapback(false, 3600.0, 30.0),
+            "no override, idle 1h → no snapback (scheduler owns state)"
+        );
     }
 
-    /// v35: handle_ambient_snapback with a schedule whose current phase is
-    /// a built-in scene applies that scene and updates all state.
+    /// v35.1: `should_auto_snapback` returns false when user has overridden
+    /// but is still actively pressing keys (idle time below threshold).
+    /// This is the "user is cycling through scenes" case — auto-snapback
+    /// must NOT interrupt.
     #[test]
-    fn v35_a_key_applies_current_ambient_phase() {
-        let mut cloud = make_test_cloud();
-        let mut charset_preset = String::from("binary");
-        let mut scene_name = String::from("monolith");
-        let mut scene_generation: u64 = 0;
-        let mut last_applied: Option<crate::ambient::AmbientEntry> = None;
-
-        // Build a schedule with an entry far in the past (00:00) so it's
-        // always "current" regardless of wall-clock time.
-        let schedule = crate::ambient::AmbientSchedule {
-            entries: vec![crate::ambient::AmbientEntry {
-                hour: 0,
-                minute: 0,
-                scene: "matrix".to_string(),
-            }],
-        };
-        let cfg_map = std::collections::HashMap::new();
-
-        // Simulate user having overridden (so flags are dirty).
-        cloud.ambient_palette_locked = false;
-        cloud.user_override_since_ambient = true;
-
-        let applied = handle_ambient_snapback(
-            &mut cloud,
-            &mut charset_preset,
-            &mut scene_name,
-            &mut scene_generation,
-            &mut last_applied,
-            &schedule,
-            &cfg_map,
-            &[],
-            false,
-        );
-
-        assert!(applied, "'a' key with active phase must return true");
-        assert_eq!(scene_name, "matrix", "scene_name must be the ambient scene");
-        assert!(last_applied.is_some(), "last_applied must be set");
-        assert_eq!(last_applied.as_ref().unwrap().scene, "matrix");
-        // v35 harmony flags: ambient just re-asserted.
+    fn v35_1_auto_snapback_skipped_during_active_input() {
         assert!(
-            !cloud.user_override_since_ambient,
-            "'a' key must clear user_override_since_ambient"
+            !should_auto_snapback(true, 0.0, 30.0),
+            "override + just pressed key → no snapback (active)"
         );
         assert!(
-            cloud.ambient_palette_locked,
-            "'a' key must set ambient_palette_locked"
+            !should_auto_snapback(true, 5.0, 30.0),
+            "override + 5s idle → no snapback (still active)"
+        );
+        assert!(
+            !should_auto_snapback(true, 29.99, 30.0),
+            "override + 29.99s idle → no snapback (below threshold)"
+        );
+    }
+
+    /// v35.1: `should_auto_snapback` returns true ONLY when user has
+    /// overridden AND idle time has crossed the threshold. This is the
+    /// "user pressed x then walked away" case — ambient must re-assert.
+    #[test]
+    fn v35_1_auto_snapback_triggered_after_idle_threshold() {
+        assert!(
+            should_auto_snapback(true, 30.0, 30.0),
+            "override + exactly 30s idle → snapback (boundary inclusive)"
+        );
+        assert!(
+            should_auto_snapback(true, 30.01, 30.0),
+            "override + 30.01s idle → snapback"
+        );
+        assert!(
+            should_auto_snapback(true, 600.0, 30.0),
+            "override + 10min idle → snapback (long idle is fine)"
+        );
+    }
+
+    /// v35.1: `should_auto_snapback` honors the configured threshold — a
+    /// longer threshold delays the snapback, a shorter threshold hastens it.
+    /// This makes the helper reusable if AUTO_SNAPBACK_DELAY_SECS becomes
+    /// configurable in the future.
+    #[test]
+    fn v35_1_auto_snapback_threshold_is_configurable() {
+        // 10s threshold
+        assert!(
+            !should_auto_snapback(true, 9.99, 10.0),
+            "10s threshold + 9.99s idle → no snapback"
+        );
+        assert!(
+            should_auto_snapback(true, 10.0, 10.0),
+            "10s threshold + 10s idle → snapback"
+        );
+        // 60s threshold
+        assert!(
+            !should_auto_snapback(true, 59.99, 60.0),
+            "60s threshold + 59.99s idle → no snapback"
+        );
+        assert!(
+            should_auto_snapback(true, 60.0, 60.0),
+            "60s threshold + 60s idle → snapback"
         );
     }
 

@@ -865,57 +865,40 @@ impl Droplet {
                     // because front layer combined_layer = 1.10 (BOOST > 1.0);
                     // clamped apply_brightness_rgb would regress v30.0.0 fix.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, combined_layer)
-                    } else { crate::chroma::legacy::scale_rgb(r, g, b, combined_layer) };
-                    r = nr; g = ng; b = nb;
+                        crate::chroma::palette::apply_brightness_rgb_unclamped(
+                            r,
+                            g,
+                            b,
+                            combined_layer,
+                        )
+                    } else {
+                        crate::chroma::legacy::scale_rgb(r, g, b, combined_layer)
+                    };
+                    r = nr;
+                    g = ng;
+                    b = nb;
                 }
 
                 // Depth-of-field saturation: blend toward luminance (gray) by
-                // `1.0 - saturation_mult`. Back layers lose color vividness so
-                // they read as "atmospheric haze" instead of "same rain but
-                // dimmer". This is what kills the bright-spot effect most
-                // decisively — even an unsuppressed bright head becomes pale
-                // gray instead of vivid color, so it no longer pops as a hot
-                // pixel against the dark background.
-                //
-                // Bug fix (v30.0.0): the gate was `if saturation_mult < 1.0`
-                // which silently skipped oversaturation > 1.0 — front-layer
-                // saturation 1.05 was a complete no-op. Changed to `!= 1.0`
-                // so both desaturation (< 1.0, blend toward gray) and
-                // oversaturation (> 1.0, push away from gray) apply. The
-                // formula `color - (color - lum) * (1 - sat)` naturally
-                // extends to sat > 1.0: inv_sat becomes negative, dr inverts,
-                // and the subtraction becomes an addition — pushing colors
-                // further from gray.
-                //
-                // Luminance is computed via the standard Rec. 601 weighting
-                // (0.299R + 0.587G + 0.114B) using integer math.
+                // `1.0 - saturation_mult`. Back layers lose vividness → "haze".
+                // v30.0.0 fix: gate is `!= 1.0` (not `< 1.0`) so front-layer
+                // oversaturation (sat > 1.0) also applies. Luminance uses
+                // Rec. 601 (0.299R + 0.587G + 0.114B) integer math.
                 let saturation_mult = PARALLAX_SATURATION_MULT[self.layer as usize];
                 if saturation_mult != 1.0 {
                     let lum = (r as u32 * 77 + g as u32 * 150 + b as u32 * 29 + 128) >> 8;
                     let lum = lum.min(255) as u8;
-                    // v30.3 (chroma audit, A11): parallax saturation modulation
-                    // routes through the chroma engine when active, legacy
-                    // blend_toward_rgb otherwise. The factor `1.0 - sat` can be
-                    // NEGATIVE (front layer sat > 1.0 oversaturates), so the
-                    // chroma path uses `blend_toward_bg_rgb_unclamped` (not the
-                    // standard clamped variant) -- the clamp would silently turn
-                    // oversaturation into a no-op and regress the v30.0.0 fix.
-                    // The legacy `blend_toward_rgb` is already unclamped.
-                    //
-                    // Equation (both paths):
-                    //   out = c - (c - lum) * (1 - sat)
-                    //       = c * sat + lum * (1 - sat)
-                    //       = lerp(c, lum, 1 - sat)   <- blend_toward_bg form
+                    // v30.3 (A11): chroma-routed. `1.0 - sat` can be NEGATIVE
+                    // (front layer oversaturates), so chroma path uses
+                    // `blend_toward_bg_rgb_unclamped` (legacy is already unclamped).
+                    // Equation: out = c - (c - lum) * (1 - sat) = lerp(c, lum, 1-sat).
                     let factor = 1.0 - saturation_mult;
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                         crate::chroma::palette::blend_toward_bg_rgb_unclamped(
                             r, g, b, lum, lum, lum, factor,
                         )
                     } else {
-                        crate::chroma::legacy::blend_toward_rgb(
-                            r, g, b, lum, lum, lum, factor,
-                        )
+                        crate::chroma::legacy::blend_toward_rgb(r, g, b, lum, lum, lum, factor)
                     };
                     r = nr;
                     g = ng;
@@ -942,8 +925,7 @@ impl Droplet {
                 if contrast_reduction > 0.0 {
                     let factor = 1.0 - contrast_reduction;
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        let scaled =
-                            crate::chroma::palette::apply_brightness_rgb(r, g, b, factor);
+                        let scaled = crate::chroma::palette::apply_brightness_rgb(r, g, b, factor);
                         crate::palette::decode_color(scaled).unwrap_or((r, g, b))
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, factor)
@@ -977,9 +959,8 @@ impl Droplet {
                     // [FOG_MIN_FACTOR=0.45, 1.0). Always within the chroma
                     // helper's [0, 1] clamp.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        let scaled = crate::chroma::palette::apply_brightness_rgb(
-                            r, g, b, fog_factor,
-                        );
+                        let scaled =
+                            crate::chroma::palette::apply_brightness_rgb(r, g, b, fog_factor);
                         crate::palette::decode_color(scaled).unwrap_or((r, g, b))
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, fog_factor)
@@ -1013,8 +994,12 @@ impl Droplet {
                         // v30.3 (A17): chroma-routed white-blend (dead code in prod).
                         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                             crate::chroma::palette::blend_toward_white_rgb(r, g, b, glow)
-                        } else { crate::chroma::legacy::blend_toward_white(r, g, b, glow) };
-                        r = nr; g = ng; b = nb;
+                        } else {
+                            crate::chroma::legacy::blend_toward_white(r, g, b, glow)
+                        };
+                        r = nr;
+                        g = ng;
+                        b = nb;
                     }
                 }
 

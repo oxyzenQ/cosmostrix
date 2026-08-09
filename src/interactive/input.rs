@@ -229,72 +229,81 @@ pub(super) fn runtime_speed_clamp(cps: f32, rain_style: RainStyle) -> f32 {
     }
 }
 
-/// v35: Apply the current ambient phase to the cloud immediately.
+/// v35.1: Decide whether the ambient scheduler should auto-snapback.
 ///
-/// Called when the user presses `a` (ambient snap-back). Returns `true` if
-/// an entry was applied (caller should redraw — rebuild ColorCache, Frame,
-/// fill terminal bg), `false` if no schedule is active or no current phase
-/// exists at this minute (silent no-op).
+/// Pure decision function — no side effects. The event loop calls this
+/// every frame; when it returns `true`, the loop re-applies the current
+/// ambient phase to the cloud (clearing `user_override_since_ambient` and
+/// re-locking `ambient_palette_locked`).
 ///
-/// This is the manual "return to ambient" command. Without it, after the
-/// user presses `x`/`c`/`s` to override the ambient scene, the only way to
-/// return to ambient is to wait for the next boundary fire (which for a
-/// single-entry schedule is up to 24h away) or restart cosmostrix.
+/// This replaces the v35 'a' shortcut with a fully automatic mechanism:
+/// after the user presses `x`/`c`/`s` (which sets `user_override_since_ambient
+/// = true`), the scheduler waits `AUTO_SNAPBACK_DELAY` seconds of input
+/// idle, then silently re-asserts the current ambient phase. No new
+/// shortcut, no new CLI flag — the harmony flags already in Cloud drive
+/// the behavior.
 ///
-/// After applying, both v35 harmony flags are updated:
-/// - `user_override_since_ambient = false` — ambient just re-asserted.
-/// - `ambient_palette_locked = true` — auto-drift palette drift is suppressed
-///   until the user overrides again.
+/// See `docs/audits/AMBIENT_SCHEDULER_AUDIT.md` §2.2 (v35.1 revision).
+pub(super) fn should_auto_snapback(
+    user_override_since_ambient: bool,
+    idle_secs: f64,
+    auto_snapback_delay_secs: f64,
+) -> bool {
+    user_override_since_ambient && idle_secs >= auto_snapback_delay_secs
+}
+
+/// v35.1: Try to auto-snapback to the current ambient phase.
 ///
-/// The caller (event_loop) is responsible for post-apply side effects:
-/// `term.set_color_cache(ColorCache::new(&cloud.palette))`,
-/// `frame = Frame::new(w, h, cloud.palette.bg)`,
-/// `fill_terminal_bg(cloud.palette.bg)`. We don't do them here because we
-/// don't have access to `term` / `frame` / `w` / `h`.
+/// Called every frame from the event loop. Returns `true` if ambient was
+/// re-applied (caller must redraw — rebuild ColorCache, Frame, fill bg).
+/// Returns `false` if no snapback is needed (no override, idle time below
+/// threshold, no active phase, or empty schedule).
 ///
-/// See `docs/audits/AMBIENT_SCHEDULER_AUDIT.md` §2.2.
+/// This is the automatic replacement for the v35 'a' shortcut. The
+/// harmony flags (`user_override_since_ambient`, `ambient_palette_locked`)
+/// are updated on successful apply — same as a scheduler fire.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn handle_ambient_snapback(
+pub(super) fn try_auto_snapback(
     cloud: &mut Cloud,
     charset_preset: &mut String,
     scene_name: &mut String,
     scene_generation: &mut u64,
     last_applied_ambient_entry: &mut Option<crate::ambient::AmbientEntry>,
     schedule: &crate::ambient::AmbientSchedule,
-    cfg_map: &std::collections::HashMap<String, String>,
+    last_cfg_map: &Option<std::collections::HashMap<String, String>>,
     user_ranges: &[(char, char)],
     def_ascii: bool,
+    last_user_input_at: Instant,
+    auto_snapback_delay_secs: f64,
 ) -> bool {
+    let now = Instant::now();
+    let idle_secs = now
+        .saturating_duration_since(last_user_input_at)
+        .as_secs_f64();
+    if !should_auto_snapback(
+        cloud.user_override_since_ambient,
+        idle_secs,
+        auto_snapback_delay_secs,
+    ) {
+        return false;
+    }
     let now_min = crate::ambient::current_minute_of_day();
     let Some(entry) = schedule.current_phase(now_min).cloned() else {
-        // No active phase at this minute (schedule is empty, or `now_min`
-        // is before the first entry of the day with no wrap-around). Silent
-        // no-op — pressing 'a' with no ambient schedule is a no-op, not an
-        // error.
-        crate::lr_trace!(
-            "ambient: 'a' key pressed but no current phase at minute {} — no-op",
-            now_min
-        );
         return false;
     };
+    let cfg_map = last_cfg_map.clone().unwrap_or_default();
     crate::lr_trace!(
-        "ambient: 'a' key snap-back — applying phase {:02}:{:02} (scene={})",
+        "ambient: auto-snapback after {:.1}s idle — applying phase {:02}:{:02} (scene={})",
+        idle_secs,
         entry.hour,
         entry.minute,
         entry.scene
     );
-    *charset_preset = cloud.apply_ambient_entry(
-        &entry,
-        charset_preset,
-        user_ranges,
-        def_ascii,
-        cfg_map,
-    );
+    *charset_preset =
+        cloud.apply_ambient_entry(&entry, charset_preset, user_ranges, def_ascii, &cfg_map);
     *last_applied_ambient_entry = Some(entry.clone());
     *scene_name = entry.scene.clone();
     *scene_generation = scene_generation.wrapping_add(1);
-    // v35 harmony: ambient just re-asserted — clear user override and lock
-    // the palette against auto-drift.
     cloud.user_override_since_ambient = false;
     cloud.ambient_palette_locked = true;
     true

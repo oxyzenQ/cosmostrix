@@ -474,12 +474,7 @@ pub(crate) fn blend_toward_bg_rgb_unclamped(
 /// the legacy fallback uses `chroma::legacy::scale_rgb`.
 #[inline]
 #[must_use]
-pub(crate) fn apply_brightness_rgb_unclamped(
-    r: u8,
-    g: u8,
-    b: u8,
-    factor: f32,
-) -> (u8, u8, u8) {
+pub(crate) fn apply_brightness_rgb_unclamped(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
     let fi = (factor * 256.0) as i32;
     (
         ((r as i32 * fi + 128) >> 8).clamp(0, 255) as u8,
