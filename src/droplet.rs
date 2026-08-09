@@ -831,11 +831,22 @@ impl Droplet {
                         // a bright bloom spot against the dark background.
                         let layer_bloom = PARALLAX_HEAD_BLOOM_MULT[self.layer as usize];
                         let frac_bloom = 1.0 + frac_progress * FRACTIONAL_BLOOM_AMP;
+                        // v30.3 (chroma audit, A15): route head-bloom white-blend
+                        // through chroma::palette::blend_toward_white_rgb when
+                        // active, chroma::legacy::blend_toward_white otherwise.
+                        // Same equation both paths: `r + (255 - r) * wf / 256`.
+                        // Factor range: gaussian * bloom * frac_bloom * layer_bloom
+                        // peaks at ~0.858 (front layer, transition boost) -- well
+                        // within the chroma helper's [0, 1] clamp.
                         let factor = gaussian * bloom * frac_bloom * layer_bloom;
-                        let wf = (factor * 256.0) as i32;
-                        r = (r as i32 + ((255 - r as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        g = (g as i32 + ((255 - g as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-                        b = (b as i32 + ((255 - b as i32) * wf + 128) / 256).clamp(0, 255) as u8;
+                        let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                            crate::chroma::palette::blend_toward_white_rgb(r, g, b, factor)
+                        } else {
+                            crate::chroma::legacy::blend_toward_white(r, g, b, factor)
+                        };
+                        r = nr;
+                        g = ng;
+                        b = nb;
                     }
                 }
 
