@@ -740,16 +740,17 @@ A18–A20 share the same shape (3 sites of identical duplication) — a shared h
 | A20 | MEDIUM | ✅ Done | `8309f85` (same commit) |
 | A21 | MEDIUM | ✅ Done | `8309f85` (same commit) |
 | A22 | MEDIUM | ✅ Done | `8309f85` (same commit) |
-| A23 | LOW | ⏳ Pending | Not yet migrated — low impact (cinematic-only, ~100 ms transient). Migration is mechanical: wrap the single `palette::apply_brightness_rgb` call at `cloud/mod.rs:900` in `if self.color_pipeline.is_chroma() { … } else { chroma::legacy::scale_rgb(…) }` |
+| A23 | LOW | ✅ Done | `9c02916` — "migrate A23 draw_message fade-in to chroma engine" (last bypass site; cloud/mod.rs kept at 1000/1000 LOC cap via nearby iterator compaction) |
 
 ### 9.4 Post-migration verification
 
-After A14–A22 (this commit's HEAD `8309f85`):
+After A14–A23 (HEAD `5992007`):
 
-- `cargo check --bins`: clean (13.84 s)
-- `cargo test --bins`: **1453 passed, 0 failed** (37.85 s)
-- `cargo clippy --bins --no-deps`: 1 pre-existing warning (`palette.rs:473` `doc_lazy_continuation`, unrelated to A14–A22 migration)
-- `scripts/check-rs-loc.sh`: all files at or below 1500 lines (`phosphor.rs` 839/1500, `droplet.rs` 1500/1500 unchanged, `cloud/mod.rs` 1000/1500)
+- `cargo check --bins`: clean
+- `cargo test --bins`: **1453 passed, 0 failed** (35.64 s)
+- `cargo clippy --bins --no-deps`: **0 warnings** (the pre-existing `palette.rs:473` `doc_lazy_continuation` warning was fixed in `5992007`)
+- `scripts/check-rs-loc.sh`: all files at or below 1500 lines (`phosphor.rs` 828/1500 after shared-helper extraction, `droplet.rs` 1500/1500 unchanged, `cloud/mod.rs` 1000/1000 — exactly at the per-file cap)
+- `tests_scene::all_rust_files_under_loc_cap`: PASSED (cloud/mod.rs 1000/1000)
 
 ### 9.5 Categories correctly NOT migrated (re-confirmed)
 
@@ -769,9 +770,9 @@ The second-pass audit re-confirmed that the following categories correctly do NO
 
 - **Original §3 audit (A1–A11)**: 11 sites → all migrated in P6–P14 rollout.
 - **Migration expansion (A12–A13)**: 2 sites discovered during P9/P10 implementation (DoF contrast reduction, depth fog). Migrated as `8ca0fca` and `e15dfc9`.
-- **Second-pass audit (A14–A23)**: 10 sites discovered post-A1–A13 migration. A14–A22 migrated in this cycle; A23 pending.
+- **Second-pass audit (A14–A23)**: 10 sites discovered post-A1–A13 migration. All 10 migrated in this cycle (A14–A17 in `3a8fc96`/`6bbbc7e`/`1274e23`/`31c7a41`, A18–A22 in `8309f85` + shared helpers extracted in `aaf4003`, A23 in `9c02916`).
 - **Total identified bypass sites**: 23.
-- **Total migrated**: 22.
-- **Remaining**: 1 (A23, LOW priority, deferred until a future refactor pass touches `cloud/mod.rs::draw_message`).
+- **Total migrated**: **23 / 23 — 100% complete**.
+- **Remaining**: 0.
 
-The Chroma Dragon engine is now the **routing authority** for every active color-operation site in the rain renderer, with `chroma::legacy` as the explicit auditable fallback.
+The Chroma Dragon engine is now the **routing authority** for every active color-operation site in the rain renderer, with `chroma::legacy` as the explicit auditable fallback. No bypass sites remain.
