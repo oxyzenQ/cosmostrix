@@ -323,12 +323,8 @@ pub fn spawn_kill9_terminal_guard() {
         let _ = libc::sigwait(&set, &mut sig);
         // Only restore terminal modes if the parent died abnormally
         // (SIGKILL, crash). When pkill -TERM is used, both parent and
-        // child receive SIGTERM. The parent's Terminal::drop() handles
-        // all terminal cleanup — if the child also writes restore
-        // sequences to the same stdout fd, it races with the parent
-        // and can cause glyph residue on the main screen.
-        // After PR_SET_PDEATHSIG, the kernel sends SIGTERM to the child
-        // when the parent exits for ANY reason. Check ppid to distinguish:
+        // child receive SIGTERM — the parent's Terminal::drop() handles
+        // all terminal cleanup. After PR_SET_PDEATHSIG, check ppid:
         // - ppid == 1: parent already dead (SIGKILL or crash) → restore
         // - ppid != 1: parent still alive or exiting normally → do nothing
         if sig == libc::SIGTERM && libc::getppid() == 1 {
@@ -925,10 +921,10 @@ fn main() -> std::io::Result<()> {
             crate::config::IntroType::Logo => "logo",
             crate::config::IntroType::None => "none",
         };
-        // Commit SHA: same source as -V output (COSMOSTRIX_GIT_SHA env var
-        // injected at compile time by build.rs). Falls back to "unknown"
-        // for local builds without git metadata.
         let commit_sha = option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown");
+        let verbose_ambient_schedule = crate::ambient::collect_ambient_schedule(
+            &configfile::load_config_file(args.config.as_deref()),
+        );
         verbose::print_verbose(
             env!("CARGO_PKG_VERSION"),
             args.scene.as_deref(),
@@ -971,9 +967,11 @@ fn main() -> std::io::Result<()> {
             // v30: pass bench_mode so verbose discloses the palette-drift
             // override before the benchmark report contradicts it.
             bench_mode,
+            // v40: disclose --scene-custom + ambient schedule.
+            args.scene_custom.as_deref(),
+            &verbose_ambient_schedule,
         );
     }
-
     // v14 Peak Monolith: resolve per-column density map from the active
     // scene-custom block (if any). The map sculpts monolith pillar formation.
     let monolith_density_map = args.scene_custom.as_deref().and_then(|name| {

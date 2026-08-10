@@ -101,6 +101,12 @@ pub(crate) fn print_verbose(
     // report prints `auto_color_drift: false` (otherwise the user sees
     // `auto_drift: true` in verbose and thinks it's a bug).
     bench_mode: bool,
+    // v40 (verbose completeness audit): disclose the active custom scene
+    // (--scene-custom <name>) and the ambient schedule (time-of-day scene
+    // switching). Without these the user cannot tell from --verbose that
+    // a custom scene is in effect or that scenes will auto-switch.
+    scene_custom: Option<&str>,
+    ambient_schedule: &crate::ambient::AmbientSchedule,
 ) {
     let color_source = resolve_color_source(
         custom_palette_name,
@@ -119,6 +125,15 @@ pub(crate) fn print_verbose(
     // ── Scene & Color ──────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Scene & Color ──"));
     output::eprintln_verbose("scene:", &format!(" {}", scene_name.unwrap_or("default")));
+    // v40 (verbose completeness): disclose --scene-custom <name> so the user
+    // can tell a custom scene is in effect (otherwise `scene:` shows "default"
+    // even though the custom scene's parameters ARE applied via config_apply).
+    if let Some(name) = scene_custom {
+        output::eprintln_verbose(
+            "scene_custom:",
+            &format!(" {name} (loaded from [scene-custom.{name}])"),
+        );
+    }
     output::eprintln_verbose("rain_style:", &format!(" {rain_style:?}"));
     if let Some(name) = custom_palette_name {
         output::eprintln_verbose("color_palette:", &format!(" {name} (custom)"));
@@ -280,6 +295,35 @@ pub(crate) fn print_verbose(
         "  climate_drift:",
         " always-on (luminance/saturation/hue accumulate regardless of auto_drift flag)",
     );
+
+    // ── Ambient ───────────────────────────────────────────────────
+    // v40 (verbose completeness): disclose the ambient schedule so the user
+    // can verify time-of-day scene switches are loaded. Without this, a user
+    // debugging "why did my scene change at 15:00?" has zero visibility.
+    eprintln!("{}", output::brand_bold("  ── Ambient ──"));
+    let entries = &ambient_schedule.entries;
+    if entries.is_empty() {
+        output::eprintln_verbose(
+            "schedule:",
+            " 0 entries (scheduler idles, no auto-snapback)",
+        );
+    } else {
+        let summary: Vec<String> = entries
+            .iter()
+            .map(|e| format!("{:02}-{:02}→{}", e.hour, e.minute, e.scene))
+            .collect();
+        output::eprintln_verbose(
+            "schedule:",
+            &format!(" {} entries [{}]", entries.len(), summary.join(", ")),
+        );
+        // Auto-snapback note: hardcoded 30s idle threshold. The user
+        // cannot tune this at runtime; disclose so they understand the
+        // snapback behavior is fixed.
+        output::eprintln_verbose(
+            "auto_snapback:",
+            " 30s idle threshold (hardcoded — user overrides via 'c'/'C'/'x'/'s' revert after 30s)",
+        );
+    }
 
     // ── Terminal ──────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Terminal ──"));
