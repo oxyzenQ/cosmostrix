@@ -53,7 +53,7 @@ Subsequent mentions may use "Cosmostrix" alone.
 
 ### 3.1. Logo file
 
-The official logo is located at [`assets/logo.png`](assets/logo.png).
+The official logo is located at [`assets/cosmostrix-logo.png`](assets/cosmostrix-logo.png).
 
 ### 3.2. Usage rules
 

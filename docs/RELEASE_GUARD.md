@@ -120,7 +120,7 @@ committed.
 ### Gate 6 — Docs guard tests
 
 Ensure docs guard tests pass.  For the benchmark report specifically,
-the following guards must be satisfied (see `src/docs_tests/release.rs`):
+the following guards must be satisfied (see `src/docs_tests/metadata.rs`):
 
 * Benchmark README mentions the current release version
 * Benchmark README mentions "release benchmark"
@@ -231,6 +231,6 @@ When preparing release N:
 3. Review the generated Markdown, then add it to
    `benchmark/README.md` (Gate 5).
 4. Add a docs guard test for the new version in
-   `src/docs_tests/release.rs` following the existing pattern.
+   `src/docs_tests/metadata.rs` following the existing pattern.
 5. Ensure all gates pass.
 6. Tag only after CI green.

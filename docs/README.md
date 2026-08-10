@@ -6,7 +6,7 @@
 > you come back to the project after a long break — every doc, every key
 > source module, and every "where do I find X?" question is answered here.
 >
-> **Last updated**: v30.0.0-alpha.1 (commit `585bcac`, 2026-08-02)
+> **Last updated: v40.0.0-alpha.1 (commit `5e9cff8`, 2026-08-11)
 
 ## Quick Navigation
 
@@ -32,7 +32,7 @@ modifying the engine or want to understand the design philosophy.
 
 | Doc | What it covers | Key source files |
 |-----|---------------|-----------------|
-| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Formal spec of the diff-based rendering engine (complexity analysis, design rationale, comparison vs alternatives) | `src/frame.rs`, `src/terminal.rs`, `src/terminal_tty.rs` |
+| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Formal spec of the diff-based rendering engine (complexity analysis, design rationale, comparison vs alternatives) | `src/frame.rs`, `src/terminal/`, `src/terminal_tty.rs` |
 | [COSMIC_DRAGON_ARCHITECTURE.md](COSMIC_DRAGON_ARCHITECTURE.md) | Full architecture deep-dive — all subsystems, data flow, design decisions | `src/` (top-level) |
 | [COSMIC_DRAGON_EXPLORATION.md (archived)](archive/cosmic_dragon/EXPLORATION.md) | Design explorations and rejected alternatives (GPU mode, multi-threading, SIMD) | — |
 | [COSMIC_DRAGON_FINDINGS.md (archived)](archive/cosmic_dragon/FINDINGS.md) | Performance findings — engine ceiling analysis, where the bottlenecks are | — |
@@ -45,7 +45,7 @@ Cosmostrix is built on **two cooperating engines**:
 
 1. **The Cosmic Dragon Diff-Based Rendering Engine** — owns *what cells
    changed*. Lives at the crate root: `src/frame.rs` (368 LOC),
-   `src/terminal.rs` (1,332 LOC), `src/terminal_tty.rs` (201 LOC),
+   `src/terminal/` (1,332 LOC), `src/terminal_tty.rs` (201 LOC),
    `src/runtime.rs` (91 LOC). 16 invariant tests in
    `src/cosmic_dragon/lock_tests.rs` lock the engine's contract.
 
@@ -225,7 +225,7 @@ where a feature lives.
 | Source file | LOC | What it does |
 |-------------|----:|-------------|
 | `src/frame.rs` | 397 | Frame buffer + dirty-cell tracking (O(1) `clear_dirty` via u32 bump) |
-| `src/terminal.rs` | 1,334 | Terminal abstraction — alternate screen, raw mode, ANSI output, ColorCache |
+| `src/terminal/` | 1,334 | Terminal abstraction — alternate screen, raw mode, ANSI output, ColorCache |
 | `src/terminal_tty.rs` | 201 | `/dev/tty` fallback — recovers from broken stdout mid-run |
 | `src/runtime.rs` | 91 | Runtime enums — `ColorMode`, `ShadingMode`, `BoldMode`, `ColorScheme` |
 | `src/bolt.rs` | 225 | BOLT — Branchless Optimized Lookup Tables. Project-wide branchless formatting for the hot render path. |
@@ -243,7 +243,6 @@ where a feature lives.
 | `src/cloud/living_rain.rs` | 422 | Living rain — organic motion, gust-driven acceleration |
 | `src/cloud/ecosystem.rs` | 525 | Ecosystem — droplet lifecycle, die-early, short-rain |
 | `src/cloud/render.rs` | 347 | Render path — `emit_cell_lean` (fast) + `Terminal::draw` (production) |
-| `src/cloud/atmospheric_events.rs` | 206 | Atmospheric events — glitch, anomaly zones |
 | `src/cloud/scene_runtime.rs` | 143 | Scene runtime — scene switching, parameter application |
 | `src/cloud/runtime_controls.rs` | 206 | Runtime controls — live parameter adjustment |
 
@@ -252,7 +251,7 @@ where a feature lives.
 | Source file | LOC | What it does |
 |-------------|----:|-------------|
 | `src/chroma/mod.rs` | — | Module root — phase history, module map |
-| `src/chroma/catalog.rs` | 1,013 | **Central color theme registry** — single source of truth for all 43 themes |
+| `src/chroma/catalog.rs` | 1,013 | **Central color theme registry** — single source of truth for all 44 themes |
 | `src/chroma/palette.rs` | 1,205 | Palette construction — RGB stops, OKLab interpolation, fallbacks |
 | `src/chroma/gradient.rs` | 747 | OKLab gradient interpolation (perceptually uniform) |
 | `src/chroma/tuning.rs` | 290 | `--color-tune` key=value tuning |

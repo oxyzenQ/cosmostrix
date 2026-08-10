@@ -152,9 +152,9 @@ log file, no cache directory, no state file, no PID file, no socket file.
 | File:line | What it spawns | Why | Risk |
 |-----------|---------------|-----|------|
 | `src/update.rs:98` | `curl` (`--silent --max-time 15`) | `--update` flag only | None — no shell, explicit argv |
-| `src/terminal.rs:1112` | `stty sane` | `--reset-terminal` flag only | None — best-effort recovery |
-| `src/terminal.rs:1118` | `reset` | Same | None |
-| `src/terminal.rs:1123` | `tput reset` | Same | None |
+| `src/terminal/:1112` | `stty sane` | `--reset-terminal` flag only | None — best-effort recovery |
+| `src/terminal/:1118` | `reset` | Same | None |
+| `src/terminal/:1123` | `tput reset` | Same | None |
 | `scripts/pgo-runner/src/main.rs:58` | `bash scripts/build.sh pgo --auto` | Dev convenience alias | None — not part of shipped binary |
 
 **No `sh -c`, no `bash -c`, no `shell=true`** anywhere. Every spawn uses
@@ -345,7 +345,7 @@ V8 hits an OOM assertion → SIGTRAP.
 3. **FPS cap**: VSCode gets 30 FPS max (vs 240 for native terminals).
    The cap is disclosed via warning + verbose output, not silently
    applied. Benchmark mode skips the cap.
-4. **Write-latency backpressure** (`src/terminal.rs` + `src/interactive/event_loop.rs`):
+4. **Write-latency backpressure** (`src/terminal/` + `src/interactive/event_loop.rs`):
    time each `write_all` call; if a write takes >50% of the frame
    period, feed it into `perf_pressure` so the self-healer downgrades
    the scene before the consumer OOMs.
@@ -369,7 +369,7 @@ cosmostrix inside these hosts were silently unprotected.
    `WarpTerminal`. The `XTERMJS_HOSTS` const list is the single source
    of truth — adding a future host is a one-line change.
 
-2. **Byte-budget backpressure** (`src/terminal.rs::flush_ansi` + new
+2. **Byte-budget backpressure** (`src/terminal/::flush_ansi` + new
    `ByteWindow` ring buffer): Tier 1's FPS cap bounds the
    *instantaneous* byte rate but not the *cumulative* bytes that
    accumulate in xterm.js's scrollback buffer. Tier 2 adds a rolling
@@ -382,7 +382,7 @@ cosmostrix inside these hosts were silently unprotected.
    push a 0-byte entry into the window, aging out old high-byte entries
    so the budget naturally recovers.
 
-3. **Periodic RIS reset** (`src/terminal.rs::emit_ris_reset`): the
+3. **Periodic RIS reset** (`src/terminal/::emit_ris_reset`): the
    SIGHUP-like recovery. When cumulative bytes since the last reset
    cross `XTERMJS_RIS_RESET_BYTES` (50 MB), emit `ESC c` (RIS — Reset
    to Initial State) which forces xterm.js to clear its in-memory

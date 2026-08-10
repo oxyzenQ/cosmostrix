@@ -37,7 +37,7 @@ layers and explains how the "deep" structure provides world-class reliability.
 │  Droplet lifecycle, phosphor, monolith, scene runtime           │
 │  → Zero-allocation hot path (dirty_map Vec<u8>, phosphor reuse) │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 1: Terminal I/O (src/terminal.rs, frame.rs, color_cache) │
+│  Layer 1: Terminal I/O (src/terminal/, frame.rs, color_cache) │
 │  ANSI escape sequencing, diff-based rendering, sync output      │
 │  → 5-layer --reset-terminal recovery for SIGKILL survival       │
 └─────────────────────────────────────────────────────────────────┘
@@ -218,11 +218,11 @@ Consistent with the "only q quits" policy:
 | Key                                   | Normal mode          | Screensaver mode    |
 |---------------------------------------|----------------------|---------------------|
 | `q`                                   | Quit                 | Quit                |
-| `c`/`C`, `s`/`S`, `p`, `x`/`X`        | Interactive control  | Interactive control |
+| `c`/`C`, `s`/`S`, `p`, `x`        | Interactive control  | Interactive control |
 | `[` / `]`                             | Density down / up    | Density down / up   |
 | `Up` / `Down`                         | Speed up / down      | Speed up / down     |
 | `Space`                               | Reset animation      | Reset animation     |
-| `i`/`I`, `H`/`h`                      | HUD toggle / move    | HUD toggle / move   |
+| `i`, `h`                      | HUD toggle / move    | HUD toggle / move   |
 | `a`, `m`, `g`, `B`/`b`, `z`, Tab, F1-F12, Home/End, PageUp/Down, Esc, Ctrl+C, Ctrl+Z | Silently ignored | Silently ignored |
 | Mouse click                           | Click wave effect (always on, no flag) | Click wave effect (does NOT exit) |
 

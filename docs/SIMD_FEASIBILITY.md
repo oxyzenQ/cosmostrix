@@ -46,7 +46,7 @@ level. LLVM's auto-vectorizer is active with the most aggressive settings:
 
 ### 2.2 Core Data Structures
 
-- **`cell.rs::Cell`** (~24 bytes, `Copy`): `ch: char`, `fg: Option<Color>`,
+- **`cell.rs::Cell`** (16 bytes, `Copy`): `ch: char`, `fg: Option<Color>`,
   `bg: Option<Color>`, `bold: bool` — heterogeneous enum payloads prevent
   SIMD packing.
 - **`frame.rs::Frame`**: `Vec<Cell>` (row-major), `Vec<u32>` (generation),
@@ -57,7 +57,7 @@ level. LLVM's auto-vectorizer is active with the most aggressive settings:
 ### 2.3 Constraints (per `docs/RULES.md`)
 
 Rust 1.81.0 stable, Clippy `-D warnings`, no new unsafe in renderer/core paths
-unless explicitly audited, source files under 1,000 lines.
+unless explicitly audited, source files under 1,500 lines.
 
 ---
 

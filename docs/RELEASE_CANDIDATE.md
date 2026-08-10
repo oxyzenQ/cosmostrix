@@ -26,7 +26,6 @@ All must pass with zero errors before a release candidate is considered.
 BIN="target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix"
 
 "$BIN" -V
-"$BIN" -i
 "$BIN" --doctor
 "$BIN" --benchmark
 "$BIN" --benchmark --bench-duration 3
@@ -129,96 +128,10 @@ platforms they emit `unsupported` with a reason field.
 
 Then press `i` and verify:
 
-- A top-right overlay appears showing `fps`, `avg`, `p99`, `max`, `rss`.
-- The overlay updates ~4 times per second without flickering.
+- A top-right overlay appears showing `fps`, `tgt`, `p99`, `max`, `rss`, `cpu`, `up`, `screensize`.
+- The overlay updates ~1 time per second without flickering.
 - Press `i` again — the overlay disappears cleanly.
 - Press `q` — clean exit, terminal restored.
-
-## v4.6 Atmosphere RC Checklist
-
-Additional smoke checks for the controlled atmosphere expansion (v4.6.0):
-
-```bash
-"$BIN" --list-scenes
-```
-
-Expected:
-
-- Output contains `CONTROLLED ATMOSPHERE PRESETS (opt-in only)`.
-- All six presets listed: `atmosphere-calm`, `atmosphere-pulse`,
-  `atmosphere-signal`, `atmosphere-compression`, `atmosphere-void`,
-  `atmosphere-monolith-pressure`.
-- `atmosphere-storm` does NOT appear.
-- Default remains `disabled / protected / identity`.
-- Storm remains unavailable at every layer.
-- `--color sun` stickiness is documented and tested.
-- Terminal writer remains `single-owner`.
-- `compute_parallelism` remains `disabled`.
-
-Note: The benchmark and README guard checks in `rc-smoke.sh` must still pass
-before any version tag is created.
-
-## v4.7 Profile RC Checklist (Historical)
-
-The v4.7.0 profile ecosystem was superseded in v14.0.0 by the scene-custom
-system (`--scene-custom <name>`). Profile RC checks are retained here only
-as historical record. Modern equivalent:
-
-- `--list-scenes` lists both built-in scenes and user-defined `[scene-custom.<name>]` blocks.
-- `--dump-config` documents the `[scene-custom.<name>]` namespace.
-- Unknown custom scene produces a clean error listing available names.
-- Storm remains unavailable at every layer with a clear message.
-- `CLI > scene-custom > config > scene defaults > built-in` precedence is
-  documented in `--help` and tested.
-- Terminal writer remains `single-owner`.
-- `compute_parallelism` remains `disabled`.
-- Benchmark and README rules in `rc-smoke.sh` must still pass before
-  any version tag is created.
-
-## Controlled-Live Temp Config Smoke
-
-```bash
-TMP_CONFIG="$(mktemp)"
-cat > "$TMP_CONFIG" <<'EOF'
-scene = monolith
-color = sun
-atmosphere-mode = controlled-live
-atmosphere-regime = pulse
-EOF
-
-"$BIN" --config "$TMP_CONFIG" -i
-"$BIN" --config "$TMP_CONFIG" --color sun -i
-rm -f "$TMP_CONFIG"
-```
-
-Expected:
-
-- `config_gate`: armed
-- `visual_runtime`: protected
-- `runtime_application`: identity
-- `shadow_risk`: whisper
-- CLI `--color sun` forces color sun even when config sets a different color.
-
-## Disabled + Non-Calm Temp Config Smoke
-
-```bash
-TMP_CONFIG_DISABLED="$(mktemp)"
-cat > "$TMP_CONFIG_DISABLED" <<'EOF'
-atmosphere-mode = disabled
-atmosphere-regime = pulse
-EOF
-
-"$BIN" --config "$TMP_CONFIG_DISABLED" -i
-rm -f "$TMP_CONFIG_DISABLED"
-```
-
-Expected:
-
-- `application_mode`: disabled
-- `effective_runtime`: identity
-- `shadow_metrics`: identity
-- `shadow_risk`: identity
-- `config_gate`: disabled
 
 ## AUR Metadata Check
 

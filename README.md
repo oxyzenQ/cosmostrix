@@ -50,7 +50,7 @@ Cosmostrix is built on **two cooperating engines** that split the rendering work
 
 ### The Cosmic Dragon Diff-Based Rendering Engine
 
-Lives at the crate root: `src/frame.rs` (368 LOC), `src/terminal.rs` (1,332 LOC), `src/terminal_tty.rs` (201 LOC), `src/runtime.rs` (91 LOC) — 1,992 LOC total, imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
+Lives at the crate root: `src/frame.rs` (368 LOC), `src/terminal/` (1,332 LOC), `src/terminal_tty.rs` (201 LOC), `src/runtime.rs` (91 LOC) — 1,992 LOC total, imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
 This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable at 70,000+ FPS (v30, lean path, 88×32, Ryzen 7 5800HS).
 
@@ -77,7 +77,7 @@ Every other Matrix rain renderer redraws every cell every frame. Cosmostrix keep
 
 The renderer is structured as five cooperating subsystems (Cosmic Dragon) plus the Chroma Dragon coloring pipeline:
 
-1. **Diff-based cell renderer** (`src/frame.rs`, `src/terminal.rs`) — back-buffer comparison, RLE-batched ANSI output, dirty-region tracking. The core innovation.
+1. **Diff-based cell renderer** (`src/frame.rs`, `src/terminal/`) — back-buffer comparison, RLE-batched ANSI output, dirty-region tracking. The core innovation.
 2. **3-layer parallax** (`src/cloud/spawn.rs`, `src/cloud/rain.rs`; multipliers in `src/constants.rs`) — far / mid / near layers with independent speed, brightness, length, density, and phosphor-decay multipliers. Three layers is the cinema-standard deep/mid/ground composition; more would collapse perceptually in a 24-row terminal.
 3. **Phosphor persistence** (`src/cloud/phosphor.rs`) — CRT afterglow with `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0`, per-layer decay multipliers, bottom-row 3× acceleration, edge energy cap. Creates ~400 ms afterglow per glyph. Most terminal rain renderers have zero afterglow.
 4. **Density noise & wind gusts** (`src/cloud/living_rain.rs`, `src/cloud/monolith.rs`) — Perlin-style density maps for cinematic monolith formations, gust-driven column acceleration for organic motion that never repeats.
@@ -103,15 +103,15 @@ The Dragon's roar is not loud — it is precise.
 ## Features
 
 - **Cinematic terminal rain** — calm, organic visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
-- **Cosmic Dragon diff-based rendering engine (v30 locked)** — double-buffered generation-based dirty tracking (O(1) `clear_dirty` via single u32 bump, replaces the standard O(N) `Vec<bool>` memset), `semantic_gen` invalidation counter (eliminates stale-glyph residue on charset/theme switches), `/dev/tty` fallback (recovers from broken stdout mid-run — unique among terminal renderers), single-syscall flush via `SYNC_START + ansi_buf + SYNC_END` concatenation, and pre-formatted `ColorCache` SGR bytes (zero `format!()` calls in the hot path). 16 invariant tests in `src/cosmic_dragon/lock_tests.rs` lock the engine's contract on every commit.
-- **Chroma Dragon coloring engine (Phase 9-B locked)** — OKLab gradient interpolation, palette-relative brightness floor (Phase 7-c, replaces v17 global `MIN_RGB_SUM=180`), body-tail continuity (Phase 7-d, 2.0× max gap), perceptual L+chroma smoothing at palette transitions (Phase 5 + Phase 8), head halo via background blend (Phase 4-D), subpixel hue jitter (Phase 4-B), temporal column hue coherence (Phase 4-A), palette-aware anomaly halos (Phase 6), hue-preserving polar gradient variant for future themes (Phase 9-A). 17 invariant tests in `src/chroma/lock_tests.rs` lock the engine's contract on every commit.
+- **Cosmic Dragon diff-based rendering engine (v30 locked)** — double-buffered generation-based dirty tracking (O(1) `clear_dirty` via single u32 bump, replaces the standard O(N) `Vec<bool>` memset), `semantic_gen` invalidation counter (eliminates stale-glyph residue on charset/theme switches), `/dev/tty` fallback (recovers from broken stdout mid-run — unique among terminal renderers), single-syscall flush via `SYNC_START + ansi_buf + SYNC_END` concatenation, and pre-formatted `ColorCache` SGR bytes (zero `format!()` calls in the hot path). 18 invariant tests in `src/cosmic_dragon/lock_tests.rs` lock the engine's contract on every commit.
+- **Chroma Dragon coloring engine (Phase 9-B locked)** — OKLab gradient interpolation, palette-relative brightness floor (Phase 7-c, replaces v17 global `MIN_RGB_SUM=180`), body-tail continuity (Phase 7-d, 2.0× max gap), perceptual L+chroma smoothing at palette transitions (Phase 5 + Phase 8), head halo via background blend (Phase 4-D), subpixel hue jitter (Phase 4-B), temporal column hue coherence (Phase 4-A), palette-aware anomaly halos (Phase 6), hue-preserving polar gradient variant for future themes (Phase 9-A). 20 invariant tests in `src/chroma/lock_tests.rs` lock the engine's contract on every commit.
 - **18 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), the `cosmic-dragon` milestone scene commemorating the temporal-prediction breakthrough (dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), the `carbonic` tribute scene (dense metallic carbon-fiber binary rain honoring the experiment that was reverted for cinematic quality), and 4 honor scenes: `dragon-crystal` (cosmostrix + oxyzenQ journey, hardthinking-mode reward), `orange-cat` (in memory of the owner's orange cat, 2 Aug 2026), `north-stars` (3 AM stargazing), and `curiosity` (the engine that built cosmostrix)
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
 - **Ambient scheduler** — `[ambient."HH-MM"]` config entries define time-of-day scene scheduling (e.g. `[ambient."22-10"] scene = "aurora"` runs aurora from 22:00 to 10:00); idle-based auto-snapback (30s) restores the active ambient phase after user overrides ('c'/'C'/'x'/'s'); live config reload re-parses immediately on save
 - 44 built-in themes and 24 character sets (`--color-tune` turns all 44 into 44 × ∞ variants)
-- **3-layer parallax depth** — far/mid/near layers with per-layer speed `[0.35, 1.0, 1.7]`, brightness `[0.80, 0.95, 1.0]`, length `[0.5, 1.0, 1.4]`, density `[0.5, 1.0, 1.5]`, and phosphor decay `[1.6, 1.0, 0.7]`. 3 layers is the cinema-standard deep/mid/ground composition; more layers collapse perceptually in a 24-row terminal
+- **3-layer parallax depth** — far/mid/near layers with per-layer speed `[0.35, 1.0, 1.7]`, brightness `[0.48, 0.80, 1.10]`, length `[0.5, 1.0, 1.4]`, density `[0.45, 0.62, 0.85]`, and phosphor decay `[2.0, 1.2, 0.6]`. 3 layers is the cinema-standard deep/mid/ground composition; more layers collapse perceptually in a 24-row terminal
 - **Phosphor persistence (CRT afterglow)** — `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0` with per-layer decay mult, bottom-row 3× acceleration, and edge energy cap. Creates ~400ms afterglow per glyph — most terminal rain renderers have zero afterglow
-- **Depth fog** — 4-row bottom vignette (`FOG_MIN_FACTOR=0.65`) + per-layer contrast reduction `[0.35, 0.0, 0.0]` (depth-of-field perceptual blur for far layer only)
+- **Depth fog** — 3-row bottom vignette (`FOG_MIN_FACTOR=0.45`) + per-layer contrast reduction `[0.55, 0.18, 0.0]` (depth-of-field perceptual blur for far layer only)
 - TrueColor gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
 - Density map sculpting — per-column weight maps (0.0–1.0) for cinematic monolith formations (e.g. twin pillars, cascading waterfall, central throne)
@@ -334,7 +334,7 @@ Run `cosmostrix --help` for the full reference manual (CLI flags, runtime contro
 
 ```text
 COMMON OPTIONS
-  -c, --color <name>          Color theme (see --list-colors). 43 built-in themes.
+  -c, --color <name>          Color theme (see --list-colors). 44 built-in themes.
       --colors-custom <name>  Load a user-defined custom color palette from config (v16)
       --color-tune <k=v>      Tune theme colors (keys: sat=, bright=, head=, body=, tail=; range 0.0-3.0)
   -C, --charset <name>        Character set (see --list-charsets; custom via [charset-custom]).
@@ -390,7 +390,7 @@ DIAGNOSTICS
   -v, --verbose               Print diagnostic info to stderr (with [HH:MM] timestamps)
 
 DISCOVERY
-      --list-colors           Show compact color theme names (43 built-in themes)
+      --list-colors           Show compact color theme names (44 built-in themes)
       --list-charsets         Show available character sets (24 built-in sets)
       --list-scenes           Show built-in and custom scenes
       --show-scene <name>     Show full details for a scene
@@ -448,6 +448,7 @@ Press `x` while running to cycle core atmospheres (cinematic ↔ matrix ↔ mono
 Persistent defaults can be set in `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`). On Android Termux, `$HOME/.config/cosmostrix/config.toml` is the canonical location (XDG_CONFIG_HOME is deliberately ignored because it may point to a system location users don't edit). Use `--config <path>` to load a specific file. For security, `--config` and `--dump-config <path>` enforce a **strict whitelist** — only these directories are allowed:
 
 - `~/.config/cosmostrix/` (Linux, macOS, FreeBSD, Android Termux — user config)
+- `~/Library/Application Support/cosmostrix/` (macOS native — user config)
 - `/etc/cosmostrix/` (Linux, macOS — system-wide)
 - `/usr/local/etc/cosmostrix/` (FreeBSD — system-wide; FreeBSD uses `/usr/local/etc` for ports/packages, not `/etc`)
 - `$PREFIX/etc/cosmostrix/` (Android Termux — system-wide, typically `/data/data/com.termux/files/usr/etc/cosmostrix/`)

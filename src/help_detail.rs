@@ -135,7 +135,8 @@ COMMON OPTIONS:
       fps, speed, density, glitch-level, and rain style to curated
       values. Explicit CLI flags always override scene-managed values.
       Built-in scenes: cinematic (default), matrix, monolith, signal, classic,
-      calm, storm, cosmos, neon, hacker, low-power, cosmic-dragon, carbonic.
+      calm, storm, cosmos, neon, hacker, low-power, matrix_film, cosmic-dragon,
+      carbonic, dragon-crystal, orange-cat, north-stars, curiosity.
       Use --list-scenes to see all entries with descriptions.
 
       cosmic-dragon is the temporal-prediction milestone scene — a
@@ -328,7 +329,7 @@ DIAGNOSTICS:
 
 DISCOVERY:
   --list-colors         Show color theme names.
-                        There are 43 built-in themes.
+                        There are 44 built-in themes.
   --list-charsets       Show available character sets.
   --list-scenes         Show built-in and custom scenes (from config).
   --show-scene <NAME>   Show full details for a built-in or custom scene.

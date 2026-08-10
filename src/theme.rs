@@ -522,7 +522,7 @@ mod tests {
         let readme = include_str!("../README.md");
         assert!(!readme.contains("42 themes"));
         assert!(!readme.contains("42 built-in color schemes"));
-        assert!(readme.contains("43 built-in themes"));
+        assert!(readme.contains("44 built-in themes"));
     }
 
     // ── v25.11 (bug #13): "did you mean" color name suggestions ──

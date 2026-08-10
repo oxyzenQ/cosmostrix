@@ -591,7 +591,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # Scene — built-in atmospheric template.
 #   cinematic (default) | matrix | monolith | signal | classic | calm |
-#   storm | cosmos | neon | hacker | low-power | cosmic-dragon | carbonic
+#   storm | cosmos | neon | hacker | low-power | matrix_film | cosmic-dragon |
+#   carbonic | dragon-crystal | orange-cat | north-stars | curiosity
 # scene = cinematic
 
 # Color scheme (palette). See: cosmostrix --list-colors
@@ -690,7 +691,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # speed = 28                # override matrix's speed=18
 # density = 1.2             # override matrix's density=0.65
 # glitch-level = intense    # override matrix's glitch=Subtle
-# fps = 60                  # override cinematic's fps=30
+# fps = 60                  # override cinematic's fps=60
 # async = false             # v30.3: true enables async render path
 #
 # v30.2: base-scene is the inheritance anchor. When set, the custom scene

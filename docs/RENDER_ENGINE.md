@@ -9,7 +9,7 @@ contributors, downstream TUI authors who want to cite or adapt the
 design, and reviewers evaluating cosmostrix against alternative
 rendering strategies.
 
-> **Scope**: interactive rendering path (`src/terminal.rs` `draw()`,
+> **Scope**: interactive rendering path (`src/terminal/` `draw()`,
 > `src/frame.rs`, `src/cloud/rain.rs`). Benchmark mode (no terminal
 > writes) is out of scope.
 
@@ -23,7 +23,7 @@ the crate root**, and that is the end of the discussion.
 | File | LOC | Role |
 |------|----:|------|
 | `src/frame.rs` | 368 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/terminal.rs` | 1,332 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
+| `src/terminal/` | 1,332 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
 | `src/terminal_tty.rs` | 201 | /dev/tty fallback helpers (extracted from terminal.rs in v30 to keep it under the 1500-LOC guard) |
 | `src/runtime.rs` | 91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode` |
 
@@ -131,7 +131,7 @@ Frame (src/frame.rs)
 ├── dirty: SmallVec<[usize; 64]> // queue of dirty cell indices (inline 64)
 └── dirty_all: bool               // fast-path flag for full redraw
 
-Terminal (src/terminal.rs)
+Terminal (src/terminal/)
 ├── last: Option<LastFrame>       // snapshot of last sent frame
 │   ├── cells: Vec<Cell>          // 16 B/cell, mirrors terminal state
 │   ├── semantic_gen: u32         // for invalidation detection
@@ -209,7 +209,7 @@ The renderer does **not** scan all cells on `draw()`. It iterates
 full-redraw fast path (`dirty_all` flag).
 
 ```rust
-// src/terminal.rs draw()
+// src/terminal/draw.rs draw()
 let dirty_count = frame.dirty_indices().len();
 let dirty_is_large = dirty_count >= total_cells / DIRTY_THRESHOLD_RATIO;
 let do_full_redraw = !can_reuse_last || frame.is_dirty_all() || dirty_is_large;

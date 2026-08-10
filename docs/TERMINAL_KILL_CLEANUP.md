@@ -26,7 +26,7 @@ To disable the fork guard: `COSMOSTRIX_NO_FORK_GUARD=1 cosmostrix`
 
 ## Expected Behavior
 
-### Normal Exit (q / Esc / duration timeout)
+### Normal Exit (q / duration timeout)
 
 Terminal::drop() runs, which:
 

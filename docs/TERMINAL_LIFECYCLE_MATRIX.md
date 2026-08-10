@@ -231,7 +231,7 @@ mode, and does not modify terminal state. No cleanup is needed.
   implementation and fork guard behavior.
 - `docs/RELEASE_GUARD.md` — mandatory pre-tag gates including terminal
   lifecycle verification.
-- `src/docs_tests/terminal_lifecycle.rs` — static docs tests that
+- `src/docs_tests/` — static docs tests that
   guard the correctness of this document.
 
 ## Doctor / Report
