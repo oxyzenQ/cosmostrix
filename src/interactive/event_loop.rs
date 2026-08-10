@@ -405,7 +405,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             power_manager.set_target_fps(safe_fps);
             // v30 (2026-08-05): keep HUD tgt: line in sync with live-reloaded fps.
             hud_state.set_target_fps(safe_fps);
-
             // Ambient: push new schedule to scheduler if it changed.
             if new_cfg.ambient_schedule != last_ambient_schedule {
                 crate::lr_trace!(
@@ -415,8 +414,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 );
                 ambient_handle.reload(new_cfg.ambient_schedule.clone());
                 last_ambient_schedule = new_cfg.ambient_schedule.clone();
+                if new_cfg.ambient_schedule.entries.is_empty() {
+                    last_applied_ambient_entry = None;
+                }
             }
-
             // v30.3: re-apply last ambient entry to the fresh Cloud.
             // v35: re-lock palette (ambient is re-asserting).
             // v35.3 (Color-#3): skip when custom_palette_active — ambient's
@@ -458,7 +459,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
         }
-
         // Ambient phase scheduler: poll for phase-fire events (non-blocking).
         // Drain all pending events, apply the LAST one (latest phase wins).
         let mut last_ambient_entry: Option<crate::ambient::AmbientEntry> = None;

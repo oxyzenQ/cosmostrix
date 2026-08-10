@@ -72,22 +72,6 @@ jobs:
             rustflags: "-C target-cpu=x86-64"
             build: windows-x86_64
             checks: false
-          - os: windows-11-arm
-            target: aarch64-pc-windows-msvc
-            platform: windows-aarch64-native
-            profile: pro-win-aarch64
-            rustflags: "-C target-cpu=native"
-            build: windows-aarch64-native
-            checks: false
-            allow_failure: true
-          - os: ubuntu-latest
-            target: x86_64-unknown-freebsd
-            platform: freebsd-amd64
-            profile: pro-freebsd-amd64
-            rustflags: "-C target-cpu=x86-64"
-            build: freebsd-amd64
-            checks: false
-            allow_failure: true
 
     steps:
       - name: Checkout
@@ -180,26 +164,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
-
-      - name: Install FreeBSD cross-compiler (freebsd builds only)
-        if: matrix.target == 'x86_64-unknown-freebsd'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang lld llvm
-          # FreeBSD cross-compilation uses clang with target triple and lld as linker.
-          # Rust's -C linker-flavor=gnu-cc works with clang targeting FreeBSD.
-          # NOTE: this installs clang+lld but does NOT install the FreeBSD sysroot
-          # (libexecinfo, libkvm, libmemstat, libprocstat, libdevstat). These are
-          # FreeBSD-specific libraries not available in Ubuntu apt. The build may
-          # fail at link stage with "cannot find -lexecinfo" etc. This is expected —
-          # the freebsd-amd64 matrix entry has allow_failure: true so the release
-          # proceeds without the FreeBSD artifact. To enable FreeBSD builds, install
-          # a FreeBSD sysroot (e.g. via cross-toolchain or FreeBSD VM/Docker image).
-          {
-            echo 'CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_LINKER=clang'
-            echo 'CC_x86_64_unknown_freebsd=clang'
-            echo 'CARGO_TARGET_X86_64_UNKNOWN_FREEBSD_RUSTFLAGS=-C link-arg=-fuse-ld=lld -C link-arg=-target=x86_64-unknown-freebsd'
-          } >> "$GITHUB_ENV"
 
       - name: Verify Linux x86_64 CPU baseline inputs
         if: startsWith(matrix.platform, 'linux-amd64-v') || matrix.platform == 'linux-amd64-musl'
@@ -869,11 +833,67 @@ jobs:
           path: cosmostrix-*-${{ matrix.platform }}-pgo.tar.gz
           retention-days: 30
 
+  build_freebsd:
+    name: Cosmic Dragon - Build (freebsd native)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Build on FreeBSD VM
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "14.2"
+          usesh: true
+          mem: 4096
+          prepare: |
+            pkg install -y curl ca_root_nss
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.81.0
+            . "$HOME/.cargo/env"
+            rustup component add clippy rustfmt
+          run: |
+            . "$HOME/.cargo/env"
+            set -euo pipefail
+            cd "$GITHUB_WORKSPACE"
+
+            # Build release binary (native FreeBSD, no cross-compile)
+            COSMOSTRIX_BUILD=freebsd-amd64 \
+            COSMOSTRIX_PROFILE=pro-freebsd-amd64 \
+            COSMOSTRIX_LTO=fat \
+            COSMOSTRIX_STRIP=yes \
+            cargo build --profile pro-freebsd-amd64 --locked --jobs "$(sysctl -n hw.ncpu)"
+
+            # Verify via --doctor
+            BIN="target/pro-freebsd-amd64/cosmostrix"
+            OUT=$("${BIN}" --doctor) || { echo "::error::--doctor failed"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
+            printf '%s\n' "${OUT}" | grep -E "^  build: freebsd-amd64$" || { echo "::error::Expected build freebsd-amd64"; exit 1; }
+
+            # Quick benchmark smoke test
+            echo "=== Benchmark smoke test ===" && "${BIN}" --benchmark --bench-duration 1 --bench-frames 10 2>&1 | head -5 || true
+
+            # Package
+            VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+            TARBALL="cosmostrix-v${VERSION}-freebsd-amd64.tar.gz"
+            tar czf "${TARBALL}" -C target/pro-freebsd-amd64 cosmostrix
+            sha512sum "${TARBALL}" > "${TARBALL}.sha512sum"
+            echo "FreeBSD build + package complete: ${TARBALL}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: packages-freebsd-amd64
+          path: cosmostrix-*-freebsd-amd64.tar.gz*
+          retention-days: 30
+
   publish_release:
     name: Cosmic Dragon - Publish GitHub Release
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [build_packages, build_android, build_pgo]
+    needs: [build_packages, build_android, build_pgo, build_freebsd]
     permissions:
       contents: write
 
