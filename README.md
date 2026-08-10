@@ -200,18 +200,18 @@ EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 
 ### GPG signature verification (official builds)
 
-Official release artifacts are GPG-signed with the maintainer's key, producing a `.tar.gz.asc` (or `.zip.asc`) detached signature alongside every archive. This lets you confirm the binary was produced from the official source tree by **rezky_nightky (oxyzenQ)** and not tampered with in transit. Third-party rebuilds will not carry a valid signature.
+Official release artifacts are GPG-signed with the maintainer's key, producing a `.tar.gz.asc` (or `.zip.asc`) detached signature alongside every archive. This lets you confirm the binary was produced from the official source tree by **Rezky Cahya Sahputra (cosmic dragon)** and not tampered with in transit. Third-party rebuilds will not carry a valid signature.
 
 ```bash
-# 1. Import the maintainer's public key (published in docs/VERIFY_RELEASE.md)
-gpg --recv-keys <KEY_FINGERPRINT>
+# 1. Import the maintainer's public key from a keyserver
+gpg --keyserver keyserver.ubuntu.com --recv-keys 47A50AEF4B65AAC2
 
 # 2. Verify the detached signature against the downloaded archive
 gpg --verify cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.asc \
             cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz
 ```
 
-A `Good signature from rezky_nightky (oxyzenQ)` line confirms authenticity. The full public key fingerprint and import instructions live in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md). Binaries produced locally via `cargo build` or `./scripts/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
+A `Good signature from "Rezky Cahya Sahputra (cosmic dragon)"` line confirms authenticity. The full public key fingerprint (`F532 4E09 67F1 04D5 8CE0 25F3 47A5 0AEF 4B65 AAC2`) and detailed verification instructions live in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md). Binaries produced locally via `cargo build` or `./scripts/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
 
 **Available platforms:**
 
