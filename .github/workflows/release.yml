@@ -765,6 +765,23 @@ jobs:
           toolchain: 1.81.0
           components: rustfmt, clippy, llvm-tools-preview
 
+      - name: Ensure llvm-tools-preview installed (override rust-toolchain.toml)
+        shell: bash
+        run: |
+          # rust-toolchain.toml in the repo only lists rustfmt + clippy.
+          # It overrides the dtolnay/rust-toolchain components list, so
+          # llvm-tools-preview (which provides llvm-profdata for PGO) is
+          # NOT installed. Install it explicitly here.
+          rustup component add llvm-tools-preview
+          # Verify llvm-profdata is findable
+          PROFDATA="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-profdata"
+          if [ -x "${PROFDATA}" ]; then
+            echo "llvm-profdata found at: ${PROFDATA}"
+          else
+            echo "::error::llvm-profdata not found after installing llvm-tools-preview"
+            exit 1
+          fi
+
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
         with:

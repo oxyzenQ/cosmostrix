@@ -1303,6 +1303,8 @@ pgo_preflight_check() {
         fi
         if [ -z "${profdata_tool}" ]; then
                 log_error "llvm-profdata not found. Install with: rustup component add llvm-tools-preview"
+                log_error "If already installed, the rust-toolchain.toml override may be hiding it."
+                log_error "The binary lives at: \$(rustc --print sysroot)/lib/rustlib/\$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-profdata"
                 exit 1
         fi
         log_success "  llvm-profdata: ${profdata_tool}"
