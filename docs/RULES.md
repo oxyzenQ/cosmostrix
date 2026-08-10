@@ -191,7 +191,7 @@ Subsystems that still share the "atmosphere" name but were NOT deleted
   - `c` / `C`        Cycle color scheme forward / backward
   - `s` / `S`        Cycle charset preset forward / backward
   - `p`              Pause / resume
-  - `x` / `X`        Cycle scene forward / backward
+  - `x`              Cycle scene forward (uppercase `X` is a no-op since v30)
   - `Up` / `Down`    Speed up / slow down
   - `[` / `]`        Density down / up
   - `i` / `I`        Toggle live HUD

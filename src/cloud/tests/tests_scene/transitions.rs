@@ -574,3 +574,95 @@ fn set_color_scheme_same_scheme_still_clears_stale_state() {
         "direct set_color_scheme call must advance palette slot even for same scheme"
     );
 }
+
+// ME-02 regression test for the mouse-effect state-leak bug.
+//
+// Owner report: "click mouse effect inconsistency after scene switch via 'x'"
+// Run cosmostrix → click → spark/fire effect (correct). Switch cinematic →
+// monolith via 'x' → click → slow / ice-crystal / stain (BUG). Restart via
+// Space → click → spark/fire again (correct).
+//
+// Root cause: `reset_phosphor_state()` cleared the Vec-backed phosphor
+// fields but not the two BitVecs (`phosphor_fresh`, `phosphor_in_active`).
+// `Cloud::reset()` (Space key) DID clear them. So scene switch left stale
+// `true` bits in `phosphor_in_active` → freshly-drawn cells in the new
+// scene failed the `if !self.phosphor_in_active[pidx]` check in
+// `phosphor_decay_pass` → never pushed onto `phosphor_active` → Pass 3
+// never decayed them → cells kept their last-drawn color → visible stain.
+//
+// This test pre-populates the BitVecs via rain_at (any scene), then performs
+// the exact owner repro path (cinematic → monolith) and asserts the BitVecs
+// are cleared alongside the Vec-backed state.
+
+#[test]
+fn scene_switch_clears_phosphor_bitvecs() {
+    let mut cloud = make_cinematic_like_cloud();
+    let mut frame = Frame::new(40, 20, cloud.palette.bg);
+
+    // Run a few frames so phosphor_decay_pass populates phosphor_fresh /
+    // phosphor_in_active with `true` bits. Pre-condition: bits must be set
+    // or the test is meaningless.
+    let start = Instant::now();
+    cloud.last_spawn_time = start - Duration::from_secs(1);
+    cloud.last_phosphor_time = start;
+    for i in 0..5 {
+        let now = start + Duration::from_millis(i * 33);
+        cloud.rain_at(&mut frame, now);
+        frame.clear_dirty();
+    }
+    assert!(
+        cloud.phosphor_fresh.any(),
+        "precondition: phosphor_fresh must have set bits after rain_at"
+    );
+    assert!(
+        cloud.phosphor_in_active.any(),
+        "precondition: phosphor_in_active must have set bits after rain_at"
+    );
+
+    // Owner repro: scene switch cinematic → monolith via apply_scene_runtime.
+    cloud.apply_scene_runtime("monolith", "zen", &[], false);
+
+    // The fix: BitVecs must be cleared alongside the Vec-backed state.
+    // Before ME-01, this assertion failed — the BitVecs retained their
+    // pre-switch `true` bits, causing the visible "noda"/stain symptom.
+    assert!(
+        !cloud.phosphor_fresh.any(),
+        "phosphor_fresh must be cleared on scene switch (ME-01 root cause of mouse-effect state leak)"
+    );
+    assert!(
+        !cloud.phosphor_in_active.any(),
+        "phosphor_in_active must be cleared on scene switch (ME-01 root cause of mouse-effect state leak)"
+    );
+}
+
+#[test]
+fn scene_switch_clears_flash_waves_and_quantum_particles() {
+    // ME-03 + ME-04: stale mouse-click state (flash_waves + quantum_particles)
+    // must be cleared on scene switch so the new scene starts clean. Without
+    // this, in-flight flash waves from the previous scene render in the new
+    // scene with the previous palette's snapshot color for up to 1.8s.
+    let mut cloud = make_cinematic_like_cloud();
+    // Simulate a mouse click — populate flash_waves + quantum_particles.
+    cloud.set_mouse_click(10, 5);
+    assert!(
+        cloud.flash_waves.iter().any(|w| w.active),
+        "precondition: at least one flash wave must be active after click"
+    );
+    assert!(
+        cloud.quantum_active_count > 0,
+        "precondition: quantum particles must be active after click"
+    );
+
+    // Scene switch cinematic → monolith.
+    cloud.apply_scene_runtime("monolith", "zen", &[], false);
+
+    // The fix: flash_waves + quantum_particles cleared.
+    assert!(
+        !cloud.flash_waves.iter().any(|w| w.active),
+        "flash_waves must be cleared on scene switch (ME-03)"
+    );
+    assert_eq!(
+        cloud.quantum_active_count, 0,
+        "quantum_active_count must be reset on scene switch (ME-04)"
+    );
+}

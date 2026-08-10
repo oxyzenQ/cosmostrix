@@ -416,9 +416,27 @@ impl Cloud {
             self.ensure_glyph_pool_and_warm_start();
         }
         self.reset_phosphor_state();
+        // ME-03..ME-05 (mouse-effect state leak fix): clear mouse-click /
+        // quantum-ripple state on scene switch. Stale flash waves + quantum
+        // particles from the previous scene would otherwise render in the
+        // new scene with the previous palette's snapshot color for up to
+        // 1.8s (flash) / 0.8s (quantum). Refreshing the timing anchors
+        // (`last_phosphor_time`, `last_quantum_update_time`) prevents the
+        // first post-switch frame from computing a stale `dt` that
+        // teleports particles.
+        for w in &mut self.flash_waves {
+            w.active = false;
+        }
+        for p in &mut self.quantum_particles {
+            p.active = false;
+        }
+        self.quantum_active_count = 0;
+        let now = Instant::now();
+        self.last_spawn_time = now;
+        self.last_phosphor_time = now;
+        self.last_quantum_update_time = now;
         self.semantic_invalidate = true;
         self.force_draw_everything = true;
-        self.last_spawn_time = Instant::now();
     }
 
     /// Apply glitch level parameters directly at runtime.
@@ -441,6 +459,15 @@ impl Cloud {
         self.glitch_high_ms = hi;
         self.short_pct = short;
         self.die_early_pct = rip;
+        // ME-06 (mouse-effect state leak fix): clear anomaly_zones
+        // unconditionally, not just when turning glitch OFF. For
+        // cinematic→monolith (both glitch_level=Subtle, on=true), the
+        // previous scene's in-flight anomaly events (LuminanceSurge /
+        // GlyphCorruption / PulseWave) would otherwise continue to apply
+        // for up to 1.5s into the new scene — visible as leftover visual
+        // corruption flicker. Cloud::reset() (Space key) already clears
+        // anomaly_zones; this matches that behavior for scene switches.
+        self.anomaly_zones.clear();
         if on {
             self.fill_glitch_map();
             let now = Instant::now();
@@ -449,17 +476,6 @@ impl Cloud {
             self.next_glitch_time = now + std::time::Duration::from_millis(ms);
         } else {
             self.glitch_map.clear();
-            // v35.2 (Glitch-P0 fix): clear in-flight anomaly zones when
-            // glitch is fully disabled (scene switch to glitch_level=None,
-            // self-healer DowngradeScene to "low-power", ambient fire to a
-            // calm scene). Without this, anomaly events (LuminanceSurge /
-            // GlyphCorruption / PulseWave) continue to apply for up to
-            // ANOMALY_DURATION_SECS (1.5s) after the new "no-glitch" scene
-            // is supposed to be active — violating the scene's glitch=None
-            // contract and producing visible corruption flicker. Combined
-            // with `force_draw_everything = true` below, the next frame is
-            // a clean full redraw with no anomaly residue.
-            self.anomaly_zones.clear();
         }
         self.force_draw_everything = true;
     }

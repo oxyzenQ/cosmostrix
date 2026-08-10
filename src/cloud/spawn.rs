@@ -269,6 +269,17 @@ impl Cloud {
         // a different state. Clearing prevents the decay pass from
         // unsetting phosphor_fresh on cells that were never set this frame.
         self.phosphor_last_fresh.clear();
+        // ME-01 (mouse-effect state leak fix): also clear the two BitVecs.
+        // Without this, scene switch via 'x' (which calls reset_phosphor_state
+        // via transition_rain_style) leaves stale `true` bits in
+        // phosphor_in_active — freshly-drawn cells in the new scene then fail
+        // the `if !self.phosphor_in_active[pidx]` check in phosphor_decay_pass
+        // and never get pushed onto phosphor_active, so Pass 3 never decays
+        // them. The cells stay at their last-drawn color → visible "noda"
+        // stain + slow click effect. Cloud::reset() (Space key) already clears
+        // these — this matches that behavior for scene switches.
+        self.phosphor_fresh.fill(false);
+        self.phosphor_in_active.fill(false);
     }
 
     pub(super) fn recalc_droplets_per_sec(&mut self) {
