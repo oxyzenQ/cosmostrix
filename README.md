@@ -160,6 +160,20 @@ Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 
 For the full compatibility matrix (kernel versions, glibc/musl, CPU architectures, terminal capabilities), see [System Requirements](docs/SYSTEM_REQUIREMENTS.md).
 
+### Recommended Fonts
+
+Cosmostrix renders glyphs the terminal emulator draws — your font choice shapes the cinematic experience. For the masterclass look, use a monospace font with distinct `0`/`1` glyphs, full Unicode coverage (for box-drawing borders `╭╮╰╯─│`, braille `⠿`, katakana `ｱ`, and runic `ᚠ`), and balanced width.
+
+| Font | Why | Best for |
+|---|---|---|
+| **JetBrains Mono** | Distinct `0`/`1`, full Unicode, open source, popular | Default — best balance |
+| **Iosevka** | Configurable width, very compact, Nerd Font compatible | Small terminals / high density |
+| **Monaspace Krypton** (GitHub) | Variable axis, high contrast, modern | Cinematic aesthetic |
+
+Avoid `Fira Code` (ligatures disrupt `0`/`1` rain) and system defaults (Consolas, Menlo) which lack full Unicode coverage for box-drawing + braille charsets.
+
+The chroma dragon border gradient (`--message` overlay) and HUD chroma gradient (8-stop sweep) look best on a font with crisp, high-contrast glyph edges.
+
 ## Installation
 
 ### GitHub Releases (prebuilt binaries)

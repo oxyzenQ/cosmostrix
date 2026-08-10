@@ -26,6 +26,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     let lc_ctype = env::var("LC_CTYPE").unwrap_or_default();
     let term = env::var("TERM").unwrap_or_default();
     let colorterm = env::var("COLORTERM").unwrap_or_default();
+    let term_program = env::var("TERM_PROGRAM").unwrap_or_default();
 
     let stdin_tty = std::io::IsTerminal::is_terminal(&std::io::stdin());
     let stdout_tty = std::io::IsTerminal::is_terminal(&std::io::stdout());
@@ -444,6 +445,20 @@ pub(crate) fn print_doctor_report(args: &Args) {
         }
         if tmux && effective == ColorMode::TrueColor {
             s.advice("tmux/screen detected; if colors look wrong, verify the outer terminal and multiplexer truecolor settings");
+        }
+
+        // Font + terminal recommendation (masterclass curation — REZKY×DEEPSEEK
+        // verdict). Cosmostrix cannot detect the user's font (no escape
+        // sequence for it), but it CAN detect the terminal emulator via
+        // TERM_PROGRAM and recommend a font that pairs well with cosmostrix's
+        // chroma dragon gradients.
+        if !term_program.is_empty() {
+            s.advice(&format!(
+                "TERM_PROGRAM={} detected; for the masterclass chroma dragon look, pair this terminal with JetBrains Mono, Iosevka, or Monaspace Krypton (see README 'Recommended Fonts')",
+                term_program
+            ));
+        } else {
+            s.advice("TERM_PROGRAM unset; for the masterclass chroma dragon look, use JetBrains Mono, Iosevka, or Monaspace Krypton (see README 'Recommended Fonts')");
         }
 
         // Re-check unicode usage for advice
