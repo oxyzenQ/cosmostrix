@@ -61,83 +61,30 @@ pub(crate) static TERMINAL_RESTORED_BY_PANIC: AtomicBool = AtomicBool::new(false
 
 use crossterm::{
     cursor, event,
-    style::{Attribute, Color, ResetColor, SetAttribute, SetBackgroundColor},
-    terminal, ExecutableCommand, QueueableCommand,
+    style::{Attribute, Color, ResetColor, SetAttribute},
+    terminal as crossterm_terminal, ExecutableCommand, QueueableCommand,
 };
 
-use crate::bolt::{BOLD_ESCAPES, BOLD_ESCAPE_LENS};
 use crate::cell::Cell;
 use crate::color_cache::ColorCache;
 use crate::constants::{
-    DIRTY_THRESHOLD_RATIO, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, MIN_TERMINAL_COLS,
-    MIN_TERMINAL_LINES, RENDER_COMBINED_FLUSH_INIT_CAP, RENDER_ROW_BUF_INIT_CAP,
-    RENDER_RUN_BUF_INIT_CAP, SHUTDOWN_TIMEOUT_SECS,
+    MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
+    RENDER_COMBINED_FLUSH_INIT_CAP, RENDER_ROW_BUF_INIT_CAP, RENDER_RUN_BUF_INIT_CAP,
+    SHUTDOWN_TIMEOUT_SECS,
 };
-use crate::frame::Frame;
-use crate::sgr_format::{push_u16, write_sgr_colors_buf};
+use crate::sgr_format::write_sgr_colors_buf;
 use crate::termdetect::TerminalCaps;
 use crate::tier2::{should_backpressure, should_ris_reset, ByteWindow};
 
-/// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
-/// (centralized in constants.rs, imported above).
-struct LastFrame {
-    width: u16,
-    height: u16,
-    cells: Vec<Cell>,
-    /// Semantic generation this LastFrame was rendered with.
-    /// A mismatch with Frame::semantic_gen forces a full redraw.
-    semantic_gen: u32,
-}
+// ── dragon-fight split: sub-modules ──────────────────────────────────────
+// Extracted from this file to keep mod.rs under the 1500-LOC cap and isolate
+// concerns. See each module's docs for its responsibility.
+mod draw;
+mod last_frame;
+#[cfg(test)]
+mod p5_tests;
 
-impl LastFrame {
-    fn new(width: u16, height: u16) -> Self {
-        let len = width as usize * height as usize;
-        Self {
-            width,
-            height,
-            cells: vec![Cell::blank_with_bg(None); len],
-            semantic_gen: 0,
-        }
-    }
-
-    /// v25.16 (perf polish): reuse the existing Vec allocation when the
-    /// new dimensions fit within the old capacity. Avoids a heap
-    /// alloc/dealloc pair every time the terminal is resized to a
-    /// smaller or equal size — common during window-drag resize storms
-    /// where the user overshoots and settles back to the original size.
-    ///
-    /// When the new size exceeds the existing capacity, falls back to a
-    /// fresh allocation (same as `new`). When no existing frame is
-    /// provided, also falls back to `new`.
-    ///
-    /// **Safety of `resize_with`**: `Vec::resize_with(new_len, || blank)`
-    /// first truncates if `new_len < old.len()`, then extends by calling
-    /// the closure for each new element. We `clear()` first to drop all
-    /// old cell values (which contained previous-frame content) so the
-    /// resulting Vec is uniformly blank. The underlying allocation is
-    /// reused — only the length changes.
-    fn reuse_or_new(existing: Option<Self>, width: u16, height: u16) -> Self {
-        let Some(mut old) = existing else {
-            return Self::new(width, height);
-        };
-        let new_len = width as usize * height as usize;
-        if old.cells.capacity() < new_len {
-            // Need a bigger buffer — allocate fresh. The old Vec is
-            // dropped, freeing its allocation.
-            return Self::new(width, height);
-        }
-        // Reuse the allocation. Clear drops all existing cells (which
-        // contained previous-frame content), then resize_with extends
-        // back to new_len using the blank-cell closure. The Vec's
-        // capacity is preserved across clear+resize_with.
-        old.cells.clear();
-        old.cells.resize_with(new_len, || Cell::blank_with_bg(None));
-        old.width = width;
-        old.height = height;
-        old.semantic_gen = 0;
-        old
-    }
-}
+use last_frame::LastFrame;
 
 /// Buffer size for stdout BufWriter (256 KiB). Large enough to batch an
 /// entire frame's ANSI commands into a single `write()` syscall during
@@ -244,7 +191,7 @@ impl Terminal {
     /// its own Arc<AtomicBool> and polls it directly.
     pub(crate) fn with_signal_exit(_signal_exit: Arc<AtomicBool>) -> Result<Self> {
         let raw = stdout();
-        terminal::enable_raw_mode()?;
+        crossterm_terminal::enable_raw_mode()?;
         let out = BufWriter::with_capacity(STDOUT_BUF_CAPACITY, raw);
         let term_caps = crate::termdetect::detect();
         if term_caps.sync_output {
@@ -295,11 +242,11 @@ impl Terminal {
 
         let init_res: Result<()> = (|| {
             let out = &mut term.stdout;
-            out.execute(terminal::EnterAlternateScreen)?;
+            out.execute(crossterm_terminal::EnterAlternateScreen)?;
             term.alternate_screen_enabled = true;
             out.execute(cursor::Hide)?;
             term.cursor_hidden = true;
-            if out.execute(terminal::DisableLineWrap).is_ok() {
+            if out.execute(crossterm_terminal::DisableLineWrap).is_ok() {
                 term.line_wrap_disabled = true;
             }
             if out.execute(event::EnableBracketedPaste).is_ok() {
@@ -307,7 +254,9 @@ impl Terminal {
             }
             out.execute(SetAttribute(Attribute::Reset))?;
             out.execute(ResetColor)?;
-            out.execute(terminal::Clear(terminal::ClearType::All))?;
+            out.execute(crossterm_terminal::Clear(
+                crossterm_terminal::ClearType::All,
+            ))?;
             out.flush()?;
             Ok(())
         })();
@@ -319,7 +268,7 @@ impl Terminal {
     }
 
     pub(crate) fn size(&self) -> Result<(u16, u16)> {
-        let (w, h) = terminal::size()?;
+        let (w, h) = crossterm_terminal::size()?;
         // Clamp to prevent OOM from misreported terminal sizes
         let w = w.min(MAX_TERMINAL_COLS);
         let h = h.min(MAX_TERMINAL_LINES);
@@ -746,7 +695,7 @@ impl Terminal {
             self.cursor_hidden = false;
         }
         if self.line_wrap_disabled {
-            let _ = self.stdout.execute(terminal::EnableLineWrap);
+            let _ = self.stdout.execute(crossterm_terminal::EnableLineWrap);
             self.line_wrap_disabled = false;
         }
         // Always clear the visible viewport inside the alternate screen
@@ -763,356 +712,22 @@ impl Terminal {
         // eliminates the residue class of bugs entirely.
         if self.alternate_screen_enabled {
             let _ = self.stdout.queue(cursor::MoveTo(0, 0));
-            let _ = self.stdout.queue(terminal::Clear(terminal::ClearType::All));
+            let _ = self.stdout.queue(crossterm_terminal::Clear(
+                crossterm_terminal::ClearType::All,
+            ));
             let _ = self.stdout.flush();
         }
         if self.alternate_screen_enabled {
-            let _ = self.stdout.execute(terminal::LeaveAlternateScreen);
+            let _ = self
+                .stdout
+                .execute(crossterm_terminal::LeaveAlternateScreen);
             self.alternate_screen_enabled = false;
         }
         if self.raw_mode_enabled {
-            let _ = terminal::disable_raw_mode();
+            let _ = crossterm_terminal::disable_raw_mode();
             self.raw_mode_enabled = false;
         }
         let _ = self.stdout.flush();
-    }
-
-    pub(crate) fn draw(&mut self, frame: &mut Frame) -> Result<()> {
-        let mut cur_fg: Option<Color> = None;
-        let mut cur_bg: Option<Color> = None;
-        let mut cur_bold: bool = false;
-        let mut cur_pos: Option<(u16, u16)> = None;
-
-        // Separate dimension-change detection from semantic-change detection.
-        // Clear(All) is ONLY issued when the terminal dimensions changed, because
-        // resized terminals may have stale content at the new edges that isn't
-        // covered by the frame. For semantic-only changes (charset, shading,
-        // theme), the full redraw path iterates every cell and overwrites it, so
-        // a blanket clear is redundant — and it causes visible flicker in
-        // fullscreen terminals because the screen is blanked before the redraw
-        // completes (the gap is perceptible at high cell counts).
-        let (needs_full_redraw, needs_clear) = self
-            .last
-            .as_ref()
-            .map(|l| {
-                let dim_changed = l.width != frame.width || l.height != frame.height;
-                let sem_changed = l.semantic_gen != frame.semantic_gen;
-                (dim_changed || sem_changed, dim_changed)
-            })
-            .unwrap_or((true, true));
-
-        if needs_clear {
-            // v16: If the frame has a bg color, set it BEFORE Clear(All)
-            // so cleared cells get the correct bg. Without this, Clear(All)
-            // fills with terminal default bg (None), creating visible gaps
-            // at screen edges.
-            if let Some(bg) = frame.blank.bg {
-                self.stdout.queue(SetBackgroundColor(bg))?;
-            }
-            self.stdout
-                .queue(terminal::Clear(terminal::ClearType::All))?;
-        }
-
-        let can_reuse_last = !needs_full_redraw && self.last.is_some();
-        let total_cells = frame.width as usize * frame.height as usize;
-        let dirty_count = frame.dirty_indices().len();
-        let dirty_is_large =
-            total_cells > 0 && dirty_count >= (total_cells / DIRTY_THRESHOLD_RATIO);
-        let do_full_redraw = !can_reuse_last || frame.is_dirty_all() || dirty_is_large;
-
-        // ── Idle-frame fast path (v30 Cosmic Dragon) ──
-        //
-        // Skip the entire render body when no cells changed this frame AND
-        // the last frame is reusable (no dim/semantic change). Protects all
-        // `term.draw()` callers (event loop, intro, future) from doing useless
-        // work on idle frames — the event loop already gates on `did_draw`,
-        // but intro.rs:490 calls `draw()` unconditionally.
-        //
-        // `clear_dirty()` is still called to advance `dirty_gen` — `set()`
-        // compares `dirty_cell_gen[i] != dirty_gen` to decide whether to push
-        // a cell. Without the gen bump, cells dirty in the last non-idle
-        // frame would be incorrectly skipped on the next frame. See
-        // cosmic_dragon_lock_tests.rs INV-17 for the contract test.
-        if can_reuse_last && dirty_count == 0 && !frame.is_dirty_all() {
-            frame.clear_dirty();
-            return Ok(());
-        }
-
-        if do_full_redraw {
-            let needs_new_last = self
-                .last
-                .as_ref()
-                .map(|l| {
-                    l.width != frame.width
-                        || l.height != frame.height
-                        || l.semantic_gen != frame.semantic_gen
-                })
-                .unwrap_or(true);
-            if needs_new_last {
-                // v25.16 (perf polish): reuse the old LastFrame's Vec
-                // allocation when the new dimensions fit. This avoids
-                // heap churn during resize-drag storms where the user
-                // overshoots and settles back to a smaller size.
-                let old = self.last.take();
-                self.last = Some(LastFrame::reuse_or_new(old, frame.width, frame.height));
-            }
-            let last = self.last.as_mut().expect("set above");
-            // Synchronize semantic generation so future differential frames
-            // don't spuriously re-trigger full redraws for this generation.
-            last.semantic_gen = frame.semantic_gen;
-
-            // PERF(v10): True single-pass RLE — accumulate characters into row_buf,
-            // flush only when style actually changes.  Eliminates one
-            // cell_at_index_ref(idx+1) generation-check per cell (~4800
-            // calls on a 200×40 terminal per full redraw).
-            let row_buf = &mut self.row_buf;
-            let ansi_buf = &mut self.ansi_buf;
-            row_buf.clear();
-            ansi_buf.clear();
-            // Pre-reserve if terminal grew since last frame
-            let need_cap = frame.width as usize * 4;
-            if row_buf.capacity() < need_cap {
-                row_buf.reserve(need_cap - row_buf.capacity());
-            }
-            // MoveTo(0,0) directly into ansi_buf
-            ansi_buf.extend_from_slice(b"\x1b[1;1H");
-            for y in 0..frame.height {
-                if y > 0 {
-                    // MoveTo(0, y) directly into ansi_buf
-                    ansi_buf.push(0x1b);
-                    ansi_buf.push(b'[');
-                    push_u16(ansi_buf, y + 1);
-                    ansi_buf.extend_from_slice(b";1H");
-                }
-                row_buf.clear();
-                let width_usize = frame.width as usize;
-                for x in 0..frame.width {
-                    let idx = y as usize * width_usize + x as usize;
-                    let cell = frame.cell_at_index(idx);
-
-                    // Flush row_buf on any style change
-                    let style_changed =
-                        cell.fg != cur_fg || cell.bg != cur_bg || cell.bold != cur_bold;
-                    if style_changed && !row_buf.is_empty() {
-                        ansi_buf.extend_from_slice(row_buf.as_bytes());
-                        row_buf.clear();
-                    }
-
-                    // Combined fg+bg SGR — cached when possible
-                    let color_changed = cell.fg != cur_fg || cell.bg != cur_bg;
-                    if color_changed {
-                        Self::emit_sgr(self.color_cache.as_ref(), ansi_buf, cell.fg, cell.bg);
-                        cur_fg = cell.fg;
-                        cur_bg = cell.bg;
-                    }
-
-                    if cell.bold != cur_bold {
-                        // BOLT: branchless bold escape via table lookup.
-                        // `cell.bold as usize` selects BOLD_ESCAPES[1] (ON,
-                        // `\x1b[1m`, 4 bytes) or BOLD_ESCAPES[0] (OFF,
-                        // `\x1b[22m`, 5 bytes). Compiles to `setne` on x86.
-                        let bold_idx = cell.bold as usize;
-                        let bold_len = BOLD_ESCAPE_LENS[bold_idx];
-                        ansi_buf.extend_from_slice(&BOLD_ESCAPES[bold_idx][..bold_len]);
-                        cur_bold = cell.bold;
-                    }
-
-                    row_buf.push(cell.ch);
-                    last.cells[idx] = cell;
-                }
-                // Flush remaining cells in the row buffer
-                if !row_buf.is_empty() {
-                    ansi_buf.extend_from_slice(row_buf.as_bytes());
-                }
-            }
-
-            // Reset attributes + flush all buffered ANSI bytes in one write_all.
-            ansi_buf.extend_from_slice(b"\x1b[0m");
-            self.flush_ansi()?;
-            self.stdout.flush()?;
-
-            frame.clear_dirty();
-            return Ok(());
-        }
-
-        let last = self.last.as_mut().expect("checked above");
-
-        let dirty = frame.dirty_indices();
-        let width_usize = frame.width as usize;
-        let height_usize = frame.height as usize;
-        let run_buf = &mut self.run_buf;
-        let ansi_buf = &mut self.ansi_buf;
-        let cache_ref = self.color_cache.as_ref();
-        ansi_buf.clear();
-
-        // PERF: flat dirty-index buffer replaces the previous Vec<Vec<usize>>
-        // nested structure. Collect all dirty indices into a single Vec,
-        // sort once (row-major index sort groups by row AND orders within
-        // row in one pass), then iterate contiguous runs. This eliminates
-        // per-row Vec allocations on resize and improves cache locality.
-        //
-        // v25.15 (perf audit): the previous `dirty_flat.extend(dirty.iter()
-        // .copied().filter(|&idx| idx < height * width))` had an O(N) bounds
-        // filter that ran every frame. The filter is redundant — every entry
-        // in `frame.dirty_indices()` was pushed by `Frame::set()` /
-        // `set_force()`, both of which call `self.index(x, y)` first and
-        // only push `Some(i)` results. So every dirty index is already
-        // guaranteed in-bounds.
-        //
-        // Replaced the filter with a `debug_assert!` that verifies the
-        // invariant in debug builds (zero cost in release). If a future
-        // caller bypasses `index()` and pushes an OOB index, the debug
-        // build will catch it immediately instead of silently masking it.
-        let dirty_flat = &mut self.dirty_flat;
-        dirty_flat.clear();
-        dirty_flat.extend(dirty.iter().copied());
-        dirty_flat.sort_unstable();
-        // v25.16 (perf polish): the previous O(N) `dirty_flat.iter().all()`
-        // checked every index every frame in debug builds (~4800
-        // comparisons on a 200×40 terminal). Since `dirty_flat` is now
-        // sorted ascending (we just called `sort_unstable()`), only the
-        // LAST (largest) index needs to be checked — if it's in bounds,
-        // all smaller indices are too. This drops the debug-build cost
-        // from O(N) to O(1) per frame, with zero release-build impact
-        // (debug_assert! is elided in release).
-        //
-        // SAFETY: `Frame::set()` / `set_force()` both call
-        // `self.index(x, y)` first and only push `Some(i)` results,
-        // so every dirty index is guaranteed in-bounds. This assert
-        // catches the unlikely case where a future caller bypasses
-        // `index()` and pushes an OOB index.
-        debug_assert!(
-            dirty_flat
-                .last()
-                .map_or(true, |&idx| idx < height_usize * width_usize),
-            "dirty_indices must be in-bounds — Frame::set guarantees this"
-        );
-
-        // Iterate the flat sorted array, detecting row boundaries and
-        // contiguous horizontal runs for RLE batching.
-        // v25.11 (bug #12): track the current row to force a MoveTo at
-        // each row boundary. This prevents cursor desync where the terminal
-        // autowraps or drifts at row boundaries (especially the bottom rows
-        // where phosphor decay writes many ghost cells). Without this, a
-        // single-cell "row shift right" glitch can appear transiently at
-        // the bottom of the screen and self-correct only when the periodic
-        // full-redraw kicks in (~5 minutes). Forcing MoveTo at each row
-        // start costs ~6 bytes/row (negligible) and eliminates the desync.
-        let mut i = 0usize;
-        let mut last_row: u16 = u16::MAX;
-        while i < dirty_flat.len() {
-            let idx0 = dirty_flat[i];
-            // Borrow instead of copy: compare with last frame without allocating.
-            // Most dirty cells are unchanged (set to blank by tail pass);
-            // this avoids copying ~24 bytes per Cell for early-exit.
-            let cell0_ref = frame.cell_at_index_ref(idx0);
-            // Cosmic Dragon egg #2: direct indexing — dirty_flat was filtered to
-            // idx < height*width, so idx0 is guaranteed in bounds.
-            // BEFORE: last.cells.get(idx0) == Some(cell0_ref)
-            // AFTER:  &last.cells[idx0] == cell0_ref
-            if &last.cells[idx0] == cell0_ref {
-                i += 1;
-                continue;
-            }
-
-            let cell0 = *cell0_ref;
-            last.cells[idx0] = cell0;
-
-            let x0 = (idx0 % width_usize) as u16;
-            let y0 = (idx0 / width_usize) as u16;
-            let fg0 = cell0.fg;
-            let bg0 = cell0.bg;
-            let bold0 = cell0.bold;
-
-            // v25.11 (bug #12): force cursor resync at each row boundary.
-            // When we cross from one row to the next, invalidate cur_pos so
-            // a MoveTo is always emitted for the first dirty cell in the
-            // new row. This corrects any terminal-side autowrap or cursor
-            // drift that accumulated during the previous row's run.
-            if y0 != last_row {
-                cur_pos = None;
-                last_row = y0;
-            }
-
-            run_buf.clear();
-            run_buf.push(cell0.ch);
-            let mut run_len: u16 = 1;
-            let mut last_idx_in_run = idx0;
-            let mut j = i + 1;
-
-            while j < dirty_flat.len() {
-                let idx1 = dirty_flat[j];
-                // Must be the next column on the same row (contiguous).
-                if idx1 != last_idx_in_run + 1 {
-                    break;
-                }
-                // Row boundary check: if we wrapped to the next row, the
-                // x-coordinate resets, so the run must flush here.
-                if idx1 / width_usize != idx0 / width_usize {
-                    break;
-                }
-
-                let cell1_ref = frame.cell_at_index_ref(idx1);
-                // Cosmic Dragon egg #3: direct indexing — idx1 from dirty_flat (filtered).
-                if &last.cells[idx1] == cell1_ref {
-                    break;
-                }
-                if cell1_ref.fg != fg0 || cell1_ref.bg != bg0 || cell1_ref.bold != bold0 {
-                    break;
-                }
-
-                run_buf.push(cell1_ref.ch);
-                let cell1 = *cell1_ref;
-                last.cells[idx1] = cell1;
-                run_len = run_len.saturating_add(1);
-                last_idx_in_run = idx1;
-                j += 1;
-            }
-
-            if cur_pos != Some((x0, y0)) {
-                // MoveTo(x0, y0) directly into ansi_buf
-                ansi_buf.push(0x1b);
-                ansi_buf.push(b'[');
-                push_u16(ansi_buf, y0 + 1);
-                ansi_buf.push(b';');
-                push_u16(ansi_buf, x0 + 1);
-                ansi_buf.push(b'H');
-            }
-
-            // Combined fg+bg SGR — cached when possible
-            let style_changed = fg0 != cur_fg || bg0 != cur_bg;
-            if style_changed {
-                Self::emit_sgr(cache_ref, ansi_buf, fg0, bg0);
-                cur_fg = fg0;
-                cur_bg = bg0;
-            }
-
-            if bold0 != cur_bold {
-                // BOLT: branchless bold escape via table lookup (see above).
-                let bold_idx = bold0 as usize;
-                let bold_len = BOLD_ESCAPE_LENS[bold_idx];
-                ansi_buf.extend_from_slice(&BOLD_ESCAPES[bold_idx][..bold_len]);
-                cur_bold = bold0;
-            }
-
-            // Print run directly into ANSI buffer (UTF-8 bytes).
-            ansi_buf.extend_from_slice(run_buf.as_bytes());
-            let next_x = x0.saturating_add(run_len);
-            cur_pos = if next_x < frame.width {
-                Some((next_x, y0))
-            } else {
-                None
-            };
-
-            i = j;
-        }
-
-        // Reset attributes + flush all buffered ANSI bytes in one write_all.
-        ansi_buf.extend_from_slice(b"\x1b[0m");
-        self.flush_ansi()?;
-        self.stdout.flush()?;
-        frame.clear_dirty();
-        Ok(())
     }
 }
 
@@ -1160,9 +775,9 @@ pub(crate) fn restore_terminal_best_effort() {
     let _ = out.execute(SetAttribute(Attribute::Reset));
     let _ = out.execute(ResetColor);
     let _ = out.execute(cursor::Show);
-    let _ = out.execute(terminal::EnableLineWrap);
-    let _ = out.execute(terminal::LeaveAlternateScreen);
-    let _ = terminal::disable_raw_mode();
+    let _ = out.execute(crossterm_terminal::EnableLineWrap);
+    let _ = out.execute(crossterm_terminal::LeaveAlternateScreen);
+    let _ = crossterm_terminal::disable_raw_mode();
     let _ = out.flush();
 }
 
@@ -1258,12 +873,16 @@ pub(crate) fn reset_terminal_emergency() {
     let _ = out.execute(SetAttribute(Attribute::Reset));
     let _ = out.execute(ResetColor);
     let _ = out.execute(cursor::Show);
-    let _ = out.execute(terminal::LeaveAlternateScreen);
+    let _ = out.execute(crossterm_terminal::LeaveAlternateScreen);
     let _ = out.execute(cursor::MoveTo(0, 0));
-    let _ = out.execute(terminal::Clear(terminal::ClearType::All));
-    let _ = out.execute(terminal::Clear(terminal::ClearType::Purge));
+    let _ = out.execute(crossterm_terminal::Clear(
+        crossterm_terminal::ClearType::All,
+    ));
+    let _ = out.execute(crossterm_terminal::Clear(
+        crossterm_terminal::ClearType::Purge,
+    ));
     let _ = out.execute(cursor::MoveTo(0, 0));
-    let _ = out.execute(terminal::EnableLineWrap);
+    let _ = out.execute(crossterm_terminal::EnableLineWrap);
     let _ = out.flush();
 
     // Layer 4+5: external utilities (Unix only)
@@ -1313,188 +932,3 @@ pub(crate) fn blank_cell(bg: Option<Color>) -> Cell {
 pub(crate) use crate::terminal_tty::is_terminal_gone;
 #[cfg(unix)]
 pub(crate) use crate::terminal_tty::{is_recoverable_io_error, open_tty_fallback};
-
-#[cfg(test)]
-mod p5_tests {
-    use super::*;
-    use crate::constants::FD_HEALTH_PROBE_INTERVAL_FRAMES;
-
-    /// The probe interval must be a positive, non-trivial value. Too
-    /// small → per-frame overhead; too large → idle-period breakage
-    /// goes undetected for too long. 3600 frames ≈ 60 s at 60 FPS is
-    /// the documented sweet spot (matches P4 sweep cadence).
-    #[test]
-    fn p5_probe_interval_is_reasonable() {
-        // black_box prevents const-folding so clippy doesn't flag the
-        // assertions as constant. The values are still the same.
-        let n = std::hint::black_box(FD_HEALTH_PROBE_INTERVAL_FRAMES);
-        assert!(
-            n >= 600,
-            "probe interval must be at least 600 frames (10s at 60fps) to avoid overhead"
-        );
-        assert!(
-            n <= 36000,
-            "probe interval must be at most 36000 frames (10min at 60fps) to stay useful"
-        );
-    }
-
-    /// The probe interval matches the P4 stuck-cell sweep cadence.
-    /// Both are background hygiene passes on the same slow tick —
-    /// keeping them in sync simplifies reasoning about background cost.
-    #[test]
-    fn p5_probe_interval_matches_p4_sweep_cadence() {
-        use crate::constants::STUCK_CELL_SWEEP_INTERVAL_FRAMES;
-        assert_eq!(
-            FD_HEALTH_PROBE_INTERVAL_FRAMES, STUCK_CELL_SWEEP_INTERVAL_FRAMES,
-            "P5 probe cadence should match P4 sweep cadence (both are 60s background hygiene)"
-        );
-    }
-
-    /// Synthetic BrokenPipe errors are recoverable (per P3's classification).
-    /// This is what probe_stdout_health synthesizes when isatty returns false,
-    /// so the P3 recovery path accepts it. Verifies the contract between
-    /// P5's detection layer and P3's recovery layer.
-    #[cfg(unix)]
-    #[test]
-    fn p5_synthetic_broken_pipe_is_recoverable_by_p3() {
-        let synthetic = std::io::Error::from(std::io::ErrorKind::BrokenPipe);
-        assert!(
-            is_recoverable_io_error(&synthetic),
-            "P5's synthetic BrokenPipe error must be classified as recoverable by P3's is_recoverable_io_error"
-        );
-    }
-
-    /// When stdout IS a terminal (the normal case in test environments),
-    /// probe_stdout_health must return true. This is the steady-state
-    /// behavior: the probe runs every 60s, finds stdout healthy, and
-    /// returns without side-effects.
-    ///
-    /// NOTE: This test only validates the happy path. Constructing a
-    /// Terminal with a broken stdout fd requires either closing the fd
-    /// mid-test (unsafe, racy) or using a pipe + close pattern that
-    /// doesn't fit Terminal's constructor contract. The broken-fd path
-    /// is exercised indirectly via the P3 tests (is_recoverable_io_error
-    /// classification) and the integration test below.
-    #[cfg(unix)]
-    #[test]
-    fn p5_probe_returns_true_when_stdout_is_terminal() {
-        // We can't easily construct a full Terminal in unit tests (it
-        // calls enable_raw_mode + enters alternate screen). Instead,
-        // verify the IsTerminal trait behaves as expected on real stdout.
-        use std::io::IsTerminal;
-        let stdout_is_tty = std::io::stdout().is_terminal();
-        let stderr_is_tty = std::io::stderr().is_terminal();
-        // In a normal test environment, at least one of these should be
-        // a tty. If neither is (e.g., headless CI with no /dev/tty),
-        // skip the assertion — the test still passes.
-        if stdout_is_tty || stderr_is_tty {
-            assert!(
-                stdout_is_tty,
-                "if any std stream is a tty, stdout should be too (test env assumption)"
-            );
-        }
-    }
-
-    /// The probe must not be a no-op when called on a non-tty stdout.
-    /// We can't easily construct a Terminal with a broken fd, but we
-    /// CAN verify the building block: a non-tty file (e.g., /dev/null)
-    /// returns false from IsTerminal::is_terminal. This is the exact
-    /// check probe_stdout_health makes on stdout.get_ref().
-    #[cfg(unix)]
-    #[test]
-    fn p5_is_terminal_returns_false_for_non_tty_files() {
-        use std::io::IsTerminal;
-
-        // Open /dev/null — definitely not a tty.
-        let devnull = std::fs::OpenOptions::new()
-            .write(true)
-            .open("/dev/null")
-            .expect("/dev/null should be openable on Unix");
-
-        // std::fs::File implements IsTerminal since Rust 1.70.
-        // probe_stdout_health calls self.stdout.get_ref().is_terminal()
-        // where stdout is BufWriter<Stdout> and get_ref() returns &Stdout.
-        // Stdout's is_terminal() uses the same trait, so testing it on
-        // File validates the same codepath.
-        assert!(
-            !devnull.is_terminal(),
-            "/dev/null must NOT be classified as a terminal — probe_stdout_health relies on this to detect fd corruption"
-        );
-    }
-
-    /// The probe's recovery path (recover_to_tty with empty buffer)
-    /// must respect the recovery cap. After STDOUT_FALLBACK_MAX_RECOVERIES
-    /// attempts, further recoveries propagate the error. This is
-    /// enforced by P3's recover_to_tty, which P5 reuses — so P5
-    /// inherits the cap automatically.
-    #[cfg(unix)]
-    #[test]
-    fn p5_recovery_inherits_p3_cap() {
-        use crate::constants::STDOUT_FALLBACK_MAX_RECOVERIES;
-        // black_box prevents const-folding so clippy doesn't flag the
-        // assertions as constant. The values are still the same.
-        let cap = std::hint::black_box(STDOUT_FALLBACK_MAX_RECOVERIES);
-        // The cap must be small enough to prevent infinite recovery
-        // loops but large enough to handle transient multi-frame
-        // breakage. P5 only triggers once per 60s, so the cap is
-        // measured in minutes of recovery attempts.
-        assert!(cap >= 1, "recovery cap must allow at least one attempt");
-        assert!(
-            cap <= 10,
-            "recovery cap must be small enough to prevent pathological loops"
-        );
-    }
-
-    /// The modulo check in the event loop must fire exactly once per
-    /// interval. Simulate the event loop's `perf_rss_samples % N == 0`
-    /// check over a range of frame counters and verify the probe fires
-    /// exactly at multiples of N (including 0) and nowhere else.
-    ///
-    /// This catches off-by-one errors (e.g., using `+ 1` or starting
-    /// the counter at 1 instead of 0) that would silently shift the
-    /// probe cadence.
-    #[test]
-    fn p5_modulo_check_fires_exactly_at_multiples_of_interval() {
-        // Read the const into a runtime variable so clippy doesn't
-        // flag the assertions as constant-folded. The value is still
-        // the same; we're just testing the modulo arithmetic pattern
-        // the event loop uses.
-        let n: u64 = FD_HEALTH_PROBE_INTERVAL_FRAMES;
-        // Prevent const-folding so clippy::assertions_on_constants
-        // doesn't fire. The actual value is unchanged.
-        let n = std::hint::black_box(n);
-
-        let mut fire_count = 0usize;
-        // Simulate 3 intervals worth of frames.
-        let total_frames = n * 3;
-        for frame in 0..total_frames {
-            let fires = frame % n == 0;
-            if fires {
-                fire_count += 1;
-            }
-        }
-        assert_eq!(
-            fire_count, 3,
-            "probe must fire exactly 3 times over 3 intervals (frames 0, N, 2N), got {}",
-            fire_count
-        );
-
-        // Verify the specific fire points.
-        assert!(
-            0u64 % n == 0,
-            "probe must fire on the first frame (frame 0)"
-        );
-        assert!(
-            (n - 1) % n != 0,
-            "probe must NOT fire one frame before the interval boundary"
-        );
-        assert!(
-            n % n == 0,
-            "probe must fire exactly at the interval boundary"
-        );
-        assert!(
-            (n + 1) % n != 0,
-            "probe must NOT fire one frame after the interval boundary"
-        );
-    }
-}
