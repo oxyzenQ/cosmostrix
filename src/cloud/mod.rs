@@ -845,10 +845,17 @@ impl Cloud {
 
     fn draw_message(&self, frame: &mut Frame) {
         let bg = self.palette.bg;
-        let fg = if self.color_mode == ColorMode::Mono {
+        // BC-01..05 (border chroma dragon): per-cell gradient sweeping the
+        // active palette's chroma colors clockwise around the message box.
+        // `palette.colors` IS the chroma gradient output (OKLab polar
+        // interpolation applied at build time). On 'c'/'C' the gradient pops
+        // to the new palette instantly (UI overlay semantics, no wave).
+        let palette_colors = &self.palette.colors;
+        let palette_n = palette_colors.len();
+        let content_fg = if self.color_mode == ColorMode::Mono {
             None
         } else {
-            self.palette.colors.last().copied()
+            palette_colors.last().copied()
         };
 
         // Count total text (content) chars and border chars.
@@ -899,6 +906,24 @@ impl Cloud {
             }
         }
 
+        // BC-02 (border chroma gradient): precompute per-cell gradient color
+        // for visible border cells. Maps clockwise border position i to
+        // gradient t = i/total_border, then samples palette.colors[(t*(n-1)).round()].
+        // On 'c'/'C' keypress the gradient pops to the new palette instantly.
+        let mut border_gradient: Vec<Option<Color>> = vec![None; self.message.len()];
+        if palette_n > 0 && self.color_mode != ColorMode::Mono {
+            let palette_last = (palette_n - 1) as f32;
+            let total_border_f = total_border.max(1) as f32;
+            for (i, &idx) in border_order.iter().take(border_show).enumerate() {
+                if idx >= border_gradient.len() {
+                    continue;
+                }
+                let t = i as f32 / total_border_f;
+                let pos = (t * palette_last).round() as usize;
+                border_gradient[idx] = palette_colors.get(pos.min(palette_n - 1)).copied();
+            }
+        }
+
         const FADE_IN_MS: usize = 100;
         const FADE_IN_START: f32 = 0.30;
 
@@ -910,41 +935,46 @@ impl Cloud {
             let (ch, cell_fg) = if is_content {
                 if content_idx < reveal_count {
                     content_idx += 1;
-                    let cell_fg =
-                        if let (Some(elapsed_ms), Some(base_fg)) = (message_elapsed_ms, fg) {
-                            let reveal_time_ms = content_idx * 80;
-                            let age_ms = elapsed_ms.saturating_sub(reveal_time_ms);
-                            if age_ms >= FADE_IN_MS {
-                                fg
-                            } else {
-                                let progress = age_ms as f32 / FADE_IN_MS as f32;
-                                let factor = FADE_IN_START + (1.0 - FADE_IN_START) * progress;
-                                // v30.3 A23: chroma first, legacy::scale_rgb fallback.
-                                if let Some((r, g, b)) = crate::palette::decode_color(base_fg) {
-                                    Some(if self.color_pipeline.is_chroma() {
-                                        crate::palette::apply_brightness_rgb(r, g, b, factor)
-                                    } else {
-                                        let (nr, ng, nb) =
-                                            crate::chroma::legacy::scale_rgb(r, g, b, factor);
-                                        Color::Rgb {
-                                            r: nr,
-                                            g: ng,
-                                            b: nb,
-                                        }
-                                    })
-                                } else {
-                                    fg
-                                }
-                            }
+                    let cell_fg = if let (Some(elapsed_ms), Some(base_fg)) =
+                        (message_elapsed_ms, content_fg)
+                    {
+                        let reveal_time_ms = content_idx * 80;
+                        let age_ms = elapsed_ms.saturating_sub(reveal_time_ms);
+                        if age_ms >= FADE_IN_MS {
+                            content_fg
                         } else {
-                            fg
-                        };
+                            let progress = age_ms as f32 / FADE_IN_MS as f32;
+                            let factor = FADE_IN_START + (1.0 - FADE_IN_START) * progress;
+                            // v30.3 A23: chroma first, legacy::scale_rgb fallback.
+                            if let Some((r, g, b)) = crate::palette::decode_color(base_fg) {
+                                Some(if self.color_pipeline.is_chroma() {
+                                    crate::palette::apply_brightness_rgb(r, g, b, factor)
+                                } else {
+                                    let (nr, ng, nb) =
+                                        crate::chroma::legacy::scale_rgb(r, g, b, factor);
+                                    Color::Rgb {
+                                        r: nr,
+                                        g: ng,
+                                        b: nb,
+                                    }
+                                })
+                            } else {
+                                content_fg
+                            }
+                        }
+                    } else {
+                        content_fg
+                    };
                     (mc.val, cell_fg)
                 } else {
                     (' ', None)
                 }
             } else if is_visible_border {
-                (mc.val, fg)
+                // BC-02: border cell uses the per-cell gradient color
+                // (chroma dragon gradient sweeping clockwise around the box).
+                // Falls back to content_fg (head color) if palette has no
+                // colors (Mono mode) or the gradient wasn't populated.
+                (mc.val, border_gradient[idx].or(content_fg))
             } else {
                 (' ', None)
             };

@@ -187,6 +187,12 @@ pub(crate) struct HudState {
     /// every metric update to fit the longest line. Grows when FPS
     /// or RSS values are long, shrinks when they're short.
     current_width: u16,
+    /// HB-01 (HUD residual 'e' bug fix): tracks the previous frame's
+    /// `current_width` so `write_to_frame` can pad to `max(current_width,
+    /// prev_width)`. Without this, when the `tgt:` line drops its ` idle`
+    /// suffix on idle→active transition, the cell at the old column holds
+    /// a residual char (visible `e` of `idle`) until rain passes through.
+    prev_width: u16,
 }
 
 impl HudState {
@@ -228,6 +234,7 @@ impl HudState {
                 (Color::DarkCyan, String::new()),
             ],
             current_width: HUD_MIN_WIDTH,
+            prev_width: HUD_MIN_WIDTH,
         }
     }
 
@@ -622,17 +629,13 @@ impl HudState {
     /// preserved. This was the root cause of the "blank space above
     /// rain" bug: \x1b[2K cleared all columns, not just the HUD area.
     /// Write HUD cells into the frame buffer. Called BEFORE term.draw()
-    /// so the HUD is part of the same frame flush as the rain — this
-    /// eliminates fullscreen flicker (two separate stdout writes were
-    /// causing double-repaint in fullscreen mode).
+    /// so the HUD is part of the same frame flush — eliminates flicker.
     ///
-    /// Uses frame.set() (not set_force) so cells that haven't changed
-    /// since last frame are NOT marked dirty — the terminal skips
-    /// re-sending them. This is the key overhead optimization: when
-    /// metrics are stable (same fps/p99/max for 1s), only the
-    /// changing cells (uptime seconds) get re-sent.
+    /// Uses frame.set() (not set_force) so unchanged cells aren't marked
+    /// dirty — when metrics are stable, only the changing cells (uptime
+    /// seconds) get re-sent.
     pub(crate) fn write_to_frame(
-        &self,
+        &mut self,
         frame: &mut crate::frame::Frame,
         cols: u16,
         bg: Option<Color>,
@@ -640,7 +643,15 @@ impl HudState {
         if !self.visible {
             return;
         }
-        let w = self.current_width;
+        // HB-01: pad to max(current_width, prev_width) so cells from a
+        // previously wider HUD (e.g., after the `tgt:` line drops its
+        // ` idle` suffix on idle→active transition) are cleared. Without
+        // this, the last character of the previously-longer text remains
+        // in the Frame buffer until a rain droplet happens to overwrite
+        // that exact cell — visible as a residual `e` for up to several
+        // seconds. `Frame::set` short-circuits on content equality, so
+        // cells already holding blanks incur zero dirty-mark overhead.
+        let w = self.current_width.max(self.prev_width);
         let start_col = self.position.start_col(cols, w);
         for (i, (color, text)) in self.cached_lines.iter().enumerate() {
             let row = i as u16;
@@ -658,8 +669,9 @@ impl HudState {
                 };
                 frame.set(x, row, cell);
             }
-            // Pad the rest of the line with spaces to current_width
-            // so the background covers the full HUD area consistently.
+            // Pad the rest of the line with spaces to the effective width
+            // so the background covers the full HUD area consistently —
+            // including any cells from a previously wider HUD footprint.
             let text_len = text.chars().count() as u16;
             for col_offset in text_len..w {
                 let x = start_col + col_offset;
@@ -675,6 +687,8 @@ impl HudState {
                 frame.set(x, row, cell);
             }
         }
+        // Track the previous width for the next frame's padding calculation.
+        self.prev_width = self.current_width;
     }
 }
 
@@ -1447,5 +1461,38 @@ mod tests {
         assert_eq!(trail, Color::Rgb { r: 0, g: 200, b: 0 });
         // dim = palette[1] = RGB(50, 0, 0) — brightened to RGB(200, 0, 0).
         assert_eq!(dim, Color::Rgb { r: 200, g: 0, b: 0 });
+    }
+
+    // HB-01 regression test: HUD width shrink (e.g., tgt drops " idle" suffix)
+    // must clear the previously-occupied trailing cells immediately.
+    #[test]
+    fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
+        let mut h = HudState::new();
+        h.toggle(); // make visible
+                    // 14-char string ending in "idle" (mirrors owner repro: " tgt: 144 idle").
+        h.cached_lines[1].1 = " tgt: 144 idle".to_string();
+        h.current_width = 14;
+        h.prev_width = 14;
+
+        let cols = 40u16;
+        let mut frame = crate::frame::Frame::new(cols, 8, None);
+        h.write_to_frame(&mut frame, cols, None);
+
+        assert!(
+            frame.get(13, 1).is_some(),
+            "precondition: cell (13,1) must exist after wide write"
+        );
+
+        h.cached_lines[1].1 = " tgt: 144".to_string();
+        h.current_width = 13; // shrunk
+
+        h.write_to_frame(&mut frame, cols, None);
+
+        let cleared = frame.get(13, 1).expect("cell must exist after shrink");
+        assert_eq!(
+            cleared.ch, ' ',
+            "cell (13,1) must be blanked — was residual 'e' bug"
+        );
+        assert!(cleared.fg.is_none(), "cell (13,1) fg must be None");
     }
 }
