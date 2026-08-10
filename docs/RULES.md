@@ -194,7 +194,7 @@ Subsystems that still share the "atmosphere" name but were NOT deleted
   - `x`              Cycle scene forward (uppercase `X` is a no-op since v30)
   - `Up` / `Down`    Speed up / slow down
   - `[` / `]`        Density down / up
-  - `i` / `I`        Toggle live HUD
+  - `i`              Toggle live HUD (uppercase `I` is a no-op since v30)
   - `h`              Move HUD to opposite corner (uppercase `H` is a no-op since v30)
 - Screensaver mode: all the above keys work normally. Only `q` exits.
 - Removed legacy keybinds (now silently ignored via catch-all, were

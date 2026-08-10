@@ -143,7 +143,7 @@ COMMON OPTIONS:
       where horizon=12 + skip-draw + persistent cells slashed dirty_ratio
       from 18.33% to 0.39% and boosted avg_fps from 7,843 to 29,773
       (+280%). It is the visible reward for the achievement, not part
-      of the interactive x/X cycle.
+      of the interactive x cycle.
 
       carbonic is a tribute to that same experiment. The temporal-
       prediction code was ultimately reverted in v25 because it
