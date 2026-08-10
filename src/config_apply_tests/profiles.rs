@@ -198,15 +198,15 @@ fn invalid_profile_values_are_ignored_cleanly() {
     // remaining invalid fields (color=not-a-color, speed=0, density=nope)
     // fail to parse and are ignored — monolith's inherited values survive
     // for those fields. Only color falls back to monolith's color
-    // (neon-purple) because the override failed.
+    // (energy-zen) because the override failed.
     let config = "scene-custom.bad.base-scene = monolith\n\
                   scene-custom.bad.color = not-a-color\n\
                   scene-custom.bad.speed = 0\n\
                   scene-custom.bad.density = nope\n";
     let args = args_with_config(config, &["--scene-custom", "bad"]);
     assert_eq!(args.scene.as_deref(), Some("bad"));
-    // color=not-a-color failed → monolith's neon-purple inherited.
-    assert_eq!(args.color, "neon-purple");
+    // color=not-a-color failed → monolith's energy-zen inherited.
+    assert_eq!(args.color, "energy-zen");
     // speed=0 failed → monolith's 30.0 inherited.
     assert_eq!(args.speed, 30.0);
     // density=nope failed → monolith's 0.85 inherited.
@@ -225,7 +225,7 @@ fn existing_config_without_profiles_still_works() {
 fn default_plain_runtime_profile_remains_cinematic() {
     let args = args_with_config("", &[]);
     assert_eq!(args.scene.as_deref(), Some("cinematic"));
-    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.color, "energy-zen");
     assert_eq!(args.speed, 9.0);
 }
 

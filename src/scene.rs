@@ -13,7 +13,7 @@
 //! the v4.0.0 atmosphere engine and is unrelated to that now-eliminated
 //! subsystem) with nine curated visual scenes (`classic`,
 //! `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`,
-//! `low-power`) plus the `cosmic_dragon` milestone scene commemorating the
+//! `low-power`) plus the `cosmic-dragon` milestone scene commemorating the
 //! temporal-prediction breakthrough (v20.0.0: dirty_ratio 18.33% → 0.39%,
 //! FPS 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) keeps the
 //! three original entries to preserve runtime cycling behavior.
@@ -64,7 +64,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
         description:
             "Signature structured segmented rain — dense zen pillars with premium pacing",
         config: SceneConfig {
-            color: Some("neon-purple"),
+            color: Some("energy-zen"),
             charset: Some("zen"),
             fps: Some(60.0),
             speed: Some(30.0),
@@ -104,7 +104,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
         name: "cinematic",
         description: "Cosmic zen — slow vast pacing with deep-space breathing room",
         config: SceneConfig {
-            color: Some("neon-purple"),
+            color: Some("energy-zen"),
             charset: Some("zen"),
             fps: Some(60.0),
             speed: Some(9.0),
@@ -229,7 +229,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     // sees its own future. Palette `cosmos` + charset `binary` mirror the
     // cinematic base; speed 12 + density 0.65 give it room to breathe.
     SceneInfo {
-        name: "cosmic_dragon",
+        name: "cosmic-dragon",
         description: "Cosmic Dragon — temporal-prediction milestone; deep-space binary rain that sees its own future",
         config: SceneConfig {
             color: Some("cosmos"),
@@ -271,6 +271,84 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
+    // ── Honor scenes (v36.2) ──────────────────────────────────────────────
+    //
+    // dragon-crystal: honors the cosmostrix + oxyzenQ journey and the
+    // hardthinking-mode reward. The energy-zen palette's crystal-edge
+    // magenta stop inspires the name — a dragon carved from living
+    // crystal, breathing violet fire. Slow vast pacing with deep-space
+    // breathing room, matching the meditative focus of hardthinking mode.
+    SceneInfo {
+        name: "dragon-crystal",
+        description: "Dragon Crystal — honors the cosmostrix + oxyzenQ journey; living crystal violet rain, the hardthinking-mode reward",
+        config: SceneConfig {
+            color: Some("energy-zen"),
+            charset: Some("zen"),
+            fps: Some(60.0),
+            speed: Some(10.0),
+            density: Some(0.78),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Monolith,
+        },
+    },
+    // orange-cat: honors the owner's orange cat, who passed on 2 Aug 2026.
+    // A warm amber-gold rain, gentle and contemplative — like afternoon
+    // sunlight through a window where a cat used to sleep. Slow pace,
+    // minimal density, no glitch. The `orange` palette ranges from
+    // deep ember to bright honey, mirroring a tabby's coat. The `minimal`
+    // charset keeps the visual quiet and meditative.
+    SceneInfo {
+        name: "orange-cat",
+        description: "Orange Cat — in memory of the owner's orange cat (2 Aug 2026); warm amber-gold gentle contemplative rain",
+        config: SceneConfig {
+            color: Some("orange"),
+            charset: Some("minimal"),
+            fps: Some(60.0),
+            speed: Some(7.0),
+            density: Some(0.45),
+            glitch_level: Some(GlitchLevel::None),
+            rain_style: RainStyle::Glyph,
+        },
+    },
+    // north-stars: honors the owner's habit of watching stars at 3 AM.
+    // A cool white-gold rain on deep space, sparse and distant — like
+    // looking up at a winter sky. The `stars` palette (white-gold
+    // gradient) + `binary` charset evokes pinprick starlight. Very low
+    // density (0.35) + slow speed (5.0) for the quiet vastness of 3 AM.
+    // No glitch — the night sky is still.
+    SceneInfo {
+        name: "north-stars",
+        description: "North Stars — honors 3 AM stargazing; sparse white-gold pinprick starlight on deep space",
+        config: SceneConfig {
+            color: Some("stars"),
+            charset: Some("binary"),
+            fps: Some(60.0),
+            speed: Some(5.0),
+            density: Some(0.35),
+            glitch_level: Some(GlitchLevel::None),
+            rain_style: RainStyle::Glyph,
+        },
+    },
+    // curiosity: honors the owner's curiosity — the engine that built
+    // cosmostrix. A vibrant spectrum rain, ever-shifting, dense and
+    // inquisitive. The `rainbow` palette cycles through the full hue
+    // range, mirroring the restless color of wonder. `cyberpunk` charset
+    // + speed 20 + density 0.90 produce a dense, energetic flow that
+    // showcases the engine's full chroma range. Default glitch hints at
+    // the creative chaos of exploration.
+    SceneInfo {
+        name: "curiosity",
+        description: "Curiosity — honors the owner's wonder; vibrant spectrum rainbow rain, the engine that built cosmostrix",
+        config: SceneConfig {
+            color: Some("rainbow"),
+            charset: Some("cyberpunk"),
+            fps: Some(60.0),
+            speed: Some(20.0),
+            density: Some(0.90),
+            glitch_level: Some(GlitchLevel::Default),
+            rain_style: RainStyle::Glyph,
+        },
+    },
 ];
 
 #[must_use]
@@ -280,14 +358,18 @@ pub(crate) fn all_scene_names() -> &'static [&'static str] {
         "carbonic",
         "cinematic",
         "classic",
-        "cosmic_dragon",
+        "cosmic-dragon",
         "cosmos",
+        "curiosity",
+        "dragon-crystal",
         "hacker",
         "low-power",
         "matrix",
         "matrix_film",
         "monolith",
         "neon",
+        "north-stars",
+        "orange-cat",
         "signal",
         "storm",
     ]
@@ -433,14 +515,18 @@ mod tests {
                 "carbonic",
                 "cinematic",
                 "classic",
-                "cosmic_dragon",
+                "cosmic-dragon",
                 "cosmos",
+                "curiosity",
+                "dragon-crystal",
                 "hacker",
                 "low-power",
                 "matrix",
                 "matrix_film",
                 "monolith",
                 "neon",
+                "north-stars",
+                "orange-cat",
                 "signal",
                 "storm",
             ]
@@ -451,8 +537,8 @@ mod tests {
     }
 
     #[test]
-    fn scene_catalog_has_fourteen_entries() {
-        assert_eq!(SCENES.len(), 14, "catalog must contain 14 built-in scenes");
+    fn scene_catalog_has_eighteen_entries() {
+        assert_eq!(SCENES.len(), 18, "catalog must contain 18 built-in scenes");
     }
 
     #[test]
@@ -493,7 +579,7 @@ mod tests {
 
     #[test]
     fn cosmic_dragon_scene_marks_temporal_prediction_milestone() {
-        let s = get_scene("cosmic_dragon").expect("cosmic_dragon scene");
+        let s = get_scene("cosmic-dragon").expect("cosmic-dragon scene");
         assert_eq!(s.config.color, Some("cosmos"));
         assert_eq!(s.config.charset, Some("binary"));
         assert_eq!(s.config.fps, Some(60.0));
@@ -505,7 +591,7 @@ mod tests {
         // scene's purpose is self-documenting via --list-scenes / --show-scene.
         assert!(
             s.description.contains("temporal-prediction"),
-            "cosmic_dragon description must reference temporal-prediction: {}",
+            "cosmic-dragon description must reference temporal-prediction: {}",
             s.description
         );
     }

@@ -591,7 +591,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # Scene — built-in atmospheric template.
 #   cinematic (default) | matrix | monolith | signal | classic | calm |
-#   storm | cosmos | neon | hacker | low-power | cosmic_dragon | carbonic
+#   storm | cosmos | neon | hacker | low-power | cosmic-dragon | carbonic
 # scene = cinematic
 
 # Color scheme (palette). See: cosmostrix --list-colors

@@ -196,6 +196,11 @@ pub enum ColorScheme {
     Pluto,
     Moon,
     Sun,
+    /// Premium exclusive purple-neon palette — the "energy-zen" rarity.
+    /// Honors the cosmostrix + oxyzenQ journey. Default for monolith +
+    /// cinematic scenes. Distinct from NeonPurple via deeper saturation,
+    /// brighter head, and a crystal-edge magenta lift in the mid stops.
+    EnergyZen,
 }
 
 #[cfg(test)]

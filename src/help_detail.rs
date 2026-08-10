@@ -135,10 +135,10 @@ COMMON OPTIONS:
       fps, speed, density, glitch-level, and rain style to curated
       values. Explicit CLI flags always override scene-managed values.
       Built-in scenes: cinematic (default), matrix, monolith, signal, classic,
-      calm, storm, cosmos, neon, hacker, low-power, cosmic_dragon, carbonic.
+      calm, storm, cosmos, neon, hacker, low-power, cosmic-dragon, carbonic.
       Use --list-scenes to see all entries with descriptions.
 
-      cosmic_dragon is the temporal-prediction milestone scene — a
+      cosmic-dragon is the temporal-prediction milestone scene — a
       deep-space binary rain commemorating the v20.0.0 breakthrough
       where horizon=12 + skip-draw + persistent cells slashed dirty_ratio
       from 18.33% to 0.39% and boosted avg_fps from 7,843 to 29,773
@@ -160,7 +160,7 @@ COMMON OPTIONS:
       cosmostrix --scene signal --fps 60
       cosmostrix --scene storm
       cosmostrix --scene low-power
-      cosmostrix --scene cosmic_dragon
+      cosmostrix --scene cosmic-dragon
       cosmostrix --scene carbonic
 
   --scene-custom <name>

@@ -912,6 +912,40 @@ pub static THEMES: &[ThemeDef] = &[
             steps: 9,
         },
     },
+    // ── ENERGY-ZEN: premium exclusive rarity ─────────────────────────────
+    // Honors the cosmostrix + oxyzenQ journey. Deeper saturation than
+    // NeonPurple, brighter head with a crystal-edge magenta lift in the
+    // mid stops. The signature palette for the hardthinking-mode reward.
+    // Default for monolith + cinematic scenes.
+    //
+    // Stops progression (deep void → crystal magenta → radiant violet head):
+    //   (4, 0, 24)      — near-black void with purple undertone
+    //   (28, 4, 72)     — deep amethyst
+    //   (78, 18, 168)   — saturated royal purple
+    //   (155, 60, 240)  — crystal-edge magenta lift (the signature stop)
+    //   (190, 110, 255) — radiant violet
+    //   (215, 160, 255) — bright lavender
+    //   (230, 200, 255) — head: luminous crystal-white-violet
+    //
+    // Head (230,200,255) sum=685 — matches NeonGreen head luminance,
+    // preserving the 20% head / 60% body proportion contract.
+    ThemeDef {
+        scheme: ColorScheme::EnergyZen,
+        def: ThemeColors::StopsWithC16 {
+            stops: &[
+                (4, 0, 24),
+                (28, 4, 72),
+                (78, 18, 168),
+                (155, 60, 240),
+                (190, 110, 255),
+                (215, 160, 255),
+                (230, 200, 255),
+            ],
+            steps: 7,
+            c16: &[Color::Magenta, Color::White],
+            ansi: &[53, 90, 135, 177, 207, 225, 231],
+        },
+    },
 ];
 
 /// Look up a theme by ColorScheme and build its color list for the given mode.
@@ -1019,6 +1053,7 @@ mod tests {
             ColorScheme::Pluto,
             ColorScheme::Moon,
             ColorScheme::Sun,
+            ColorScheme::EnergyZen,
         ];
         for &scheme in &schemes {
             assert!(
@@ -1027,7 +1062,7 @@ mod tests {
                 scheme
             );
         }
-        assert_eq!(theme_count(), 43);
+        assert_eq!(theme_count(), 44);
     }
 
     #[test]

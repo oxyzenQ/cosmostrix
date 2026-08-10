@@ -234,14 +234,14 @@ use crate::runtime::ColorScheme;
 use std::collections::HashMap;
 
 /// Helper: build a glyph cloud whose starting state mirrors the cinematic
-/// scene's defaults (color=neon-purple, charset=zen, speed=9.0, density=0.75).
+/// scene's defaults (color=energy-zen, charset=zen, speed=9.0, density=0.75).
 fn make_cinematic_like_cloud() -> Cloud {
     let mut cloud = make_glyph_cloud();
     // Apply cinematic scene to mirror real startup state.
     cloud.apply_scene_runtime("cinematic", "zen", &[], false);
     // Verify our baseline assumptions — if these fail, the test setup is
     // wrong, not the bug.
-    assert_eq!(cloud.color_scheme(), ColorScheme::NeonPurple);
+    assert_eq!(cloud.color_scheme(), ColorScheme::EnergyZen);
     assert!((cloud.chars_per_sec - 9.0).abs() < 0.01);
     assert!((cloud.droplet_density - 0.75).abs() < 0.01);
     cloud
@@ -391,7 +391,7 @@ fn apply_ambient_entry_unknown_scene_is_noop() {
     let charset_preset = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
 
     // Nothing should change.
-    assert_eq!(cloud.color_scheme(), ColorScheme::NeonPurple);
+    assert_eq!(cloud.color_scheme(), ColorScheme::EnergyZen);
     assert_eq!(charset_preset, "zen");
     assert!((cloud.chars_per_sec - 9.0).abs() < 0.01);
     assert!((cloud.droplet_density - 0.75).abs() < 0.01);
@@ -432,7 +432,7 @@ fn apply_startup_ambient_with_empty_cfg_is_noop_for_custom_scene() {
     assert!(entry.is_some(), "entry should be returned even for no-op");
     assert_eq!(
         cloud.color_scheme(),
-        ColorScheme::NeonPurple,
+        ColorScheme::EnergyZen,
         "empty cfg must NOT resolve custom scene — cloud stays cinematic"
     );
     assert_eq!(charset_preset, "zen");
@@ -480,7 +480,7 @@ fn apply_startup_ambient_with_real_cfg_applies_custom_scene() {
 
 // ── Quantum ripple consistency: same-palette scene cycle ──
 //
-// Bug: pressing `x` to cycle cinematic → monolith (both neon-purple, both
+// Bug: pressing `x` to cycle cinematic → monolith (both energy-zen, both
 // zen charset) triggered a spurious 300ms palette transition wave because
 // set_color_scheme and transition_chars were called unconditionally. During
 // that 300ms window, apply_quantum_ripple's blend with cell.fg (which could
@@ -496,12 +496,12 @@ fn apply_startup_ambient_with_real_cfg_applies_custom_scene() {
 fn same_palette_scene_cycle_does_not_trigger_color_transition() {
     let mut cloud = make_cinematic_like_cloud();
     // make_cinematic_like_cloud applies cinematic which starts a color
-    // transition (Green → NeonPurple). Clear it so we start from a clean
+    // transition (Green → EnergyZen). Clear it so we start from a clean
     // settled state.
     cloud.transition_start = None;
     cloud.charset_transition_start = None;
 
-    // Cycle cinematic → monolith. Both use color=neon-purple, charset=zen.
+    // Cycle cinematic → monolith. Both use color=energy-zen, charset=zen.
     // The only real change is rain_style (Glyph → Monolith).
     cloud.apply_scene_runtime("monolith", "zen", &[], false);
 
@@ -509,7 +509,7 @@ fn same_palette_scene_cycle_does_not_trigger_color_transition() {
     assert!(
         cloud.transition_start.is_none(),
         "same-palette scene cycle must NOT trigger color transition \
-         (cinematic and monolith both use neon-purple)"
+         (cinematic and monolith both use energy-zen)"
     );
     // Charset transition must NOT have started — charset is identical.
     assert!(
@@ -517,17 +517,17 @@ fn same_palette_scene_cycle_does_not_trigger_color_transition() {
         "same-charset scene cycle must NOT trigger charset transition \
          (cinematic and monolith both use zen)"
     );
-    // Color scheme is still NeonPurple.
+    // Color scheme is still EnergyZen.
     assert_eq!(
         cloud.color_scheme(),
-        ColorScheme::NeonPurple,
-        "color scheme must remain neon-purple after cycling to monolith"
+        ColorScheme::EnergyZen,
+        "color scheme must remain energy-zen after cycling to monolith"
     );
 }
 
 #[test]
 fn different_palette_scene_cycle_does_trigger_color_transition() {
-    // Control test: cycling cinematic (neon-purple) → matrix (neon-green)
+    // Control test: cycling cinematic (energy-zen) → matrix (neon-green)
     // MUST trigger a color transition because the palette actually changes.
     // This verifies the guard is selective — it only skips same-scheme calls.
     let mut cloud = make_cinematic_like_cloud();
@@ -539,7 +539,7 @@ fn different_palette_scene_cycle_does_trigger_color_transition() {
     assert!(
         cloud.transition_start.is_some(),
         "different-palette scene cycle MUST trigger color transition \
-         (cinematic=neon-purple, matrix=neon-green)"
+         (cinematic=energy-zen, matrix=neon-green)"
     );
     assert_eq!(
         cloud.color_scheme(),
@@ -561,7 +561,7 @@ fn set_color_scheme_same_scheme_still_clears_stale_state() {
     cloud.transition_start = None;
     let slot_before = cloud.active_palette_slot;
 
-    cloud.set_color_scheme(ColorScheme::NeonPurple); // same as current
+    cloud.set_color_scheme(ColorScheme::EnergyZen); // same as current
 
     // set_color_scheme unconditionally advances the palette slot and starts
     // a transition — even for same-scheme calls.

@@ -144,7 +144,7 @@ fn config_scene_calm_applies() {
 fn default_scene_is_cinematic() {
     let args = args_from_cli(&[]);
     assert_eq!(args.scene.as_deref(), Some("cinematic"));
-    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.color, "energy-zen");
     assert_eq!(args.charset, "zen");
     assert_eq!(args.speed, 9.0);
     assert_eq!(args.density, 0.75);
@@ -189,7 +189,7 @@ fn benchmark_mode_defaults_to_monolith_scene() {
 
     // After apply: scene is monolith, with monolith's signature config.
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.color, "energy-zen");
     assert_eq!(args.charset, "zen");
     assert_eq!(args.speed, 30.0);
     assert_eq!(args.density, 0.85);
@@ -224,7 +224,7 @@ fn benchmark_mode_with_explicit_scene_keeps_user_choice() {
 
     // User's cinematic choice is honored, NOT overridden to monolith.
     assert_eq!(args.scene.as_deref(), Some("cinematic"));
-    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.color, "energy-zen");
     assert_eq!(args.charset, "zen");
     assert_eq!(args.speed, 9.0);
 }
@@ -260,7 +260,7 @@ fn invalid_cli_scene_is_clear_error() {
 fn config_scene_monolith_applies() {
     let args = args_with_config("scene = monolith\n", &[]);
     assert_eq!(args.scene.as_deref(), Some("monolith"));
-    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.color, "energy-zen");
     assert_eq!(args.charset, "zen");
     assert_eq!(args.speed, 30.0);
     assert!((args.density - 0.85).abs() < f32::EPSILON);
@@ -311,7 +311,7 @@ fn monolith_scene_respects_explicit_motion_overrides() {
     assert_eq!(args.fps, 120.0);
     assert_eq!(args.speed, 9.0);
     assert!((args.density - 0.25).abs() < f32::EPSILON);
-    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.color, "energy-zen");
 }
 
 // ── Scene defaults respect config-set keys (v13.6.0 regression guards) ──
@@ -336,7 +336,7 @@ fn config_speed_wins_over_monolith_scene_default() {
     );
     // Scene defaults for UNSET keys still apply:
     assert_eq!(
-        args.color, "neon-purple",
+        args.color, "energy-zen",
         "scene color default applies for unset key"
     );
     assert!((args.density - 0.85).abs() < f32::EPSILON);
@@ -380,7 +380,7 @@ fn config_speed_wins_over_cli_scene_default() {
         "config speed must win over CLI scene monolith default 30"
     );
     assert_eq!(
-        args.color, "neon-purple",
+        args.color, "energy-zen",
         "scene color default still applies for unset key"
     );
 }
@@ -389,7 +389,7 @@ fn config_speed_wins_over_cli_scene_default() {
 /// scene, but config.toml CAN override scene-managed fields. Only per-field
 /// CLI flags block config overrides. This test verifies:
 ///   `cosmostrix --scene cinematic` with config color=carbon produces
-///   color=carbon (config wins over cinematic's neon-purple).
+///   color=carbon (config wins over cinematic's energy-zen).
 #[test]
 fn config_overrides_scene_managed_fields_when_scene_is_cli() {
     let args = args_with_config(
@@ -397,10 +397,10 @@ fn config_overrides_scene_managed_fields_when_scene_is_cli() {
         &["--scene", "cinematic"],
     );
     assert_eq!(args.scene.as_deref(), Some("cinematic"));
-    // config color=carbon wins over cinematic's neon-purple
+    // config color=carbon wins over cinematic's energy-zen
     assert_eq!(
         args.color, "carbon",
-        "config color must win over CLI scene cinematic's neon-purple"
+        "config color must win over CLI scene cinematic's energy-zen"
     );
     // config fps=240 wins over cinematic's fps=60
     assert_eq!(
@@ -420,7 +420,7 @@ fn config_overrides_scene_managed_fields_when_scene_is_cli() {
 fn per_field_cli_flag_wins_over_config_and_scene() {
     let args = args_with_config("color = carbon\n", &["--scene", "cinematic", "-c", "snow"]);
     assert_eq!(args.scene.as_deref(), Some("cinematic"));
-    // CLI -c snow wins over config carbon AND cinematic's neon-purple
+    // CLI -c snow wins over config carbon AND cinematic's energy-zen
     assert_eq!(
         args.color, "snow",
         "per-field CLI -c snow must win over config and scene default"
@@ -616,7 +616,7 @@ fn invalid_config_values_are_ignored() {
         "color = not-a-color\nfps = 0\nspeed = nope\nscene = unknown\n",
         &[],
     );
-    assert_eq!(args.color, "neon-purple");
+    assert_eq!(args.color, "energy-zen");
     assert_eq!(args.fps, 60.0);
     // Default scene is cinematic, which sets speed=9.0.
     assert_eq!(args.speed, 9.0);

@@ -75,7 +75,7 @@ const XTERMJS_HOSTS: &[&str] = &[
 /// 1. **CLI `--fps`** — explicit user override. Detected via
 ///    `matches.value_source("fps") == CommandLine`. Always wins.
 /// 2. **Scene `fps=`** — built-in scenes (e.g., `low-power` sets
-///    fps=30, `cosmic_dragon` sets fps=60). Applied in
+///    fps=30, `cosmic-dragon` sets fps=60). Applied in
 ///    `config_apply::apply_scene_values` ONLY when the user did NOT
 ///    set `--fps` AND config.toml did NOT set `fps =`.
 ///    **v35.2 audit note (FPS-F2/F3)**: scene-level `fps =` is

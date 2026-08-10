@@ -9,10 +9,10 @@ use crate::constants::RUNTIME_SPEED_MAX;
 use crate::runtime::ColorScheme;
 
 #[test]
-fn monolith_scene_applies_neon_purple_color() {
+fn monolith_scene_applies_energy_zen_color() {
     let mut cloud = make_glyph_cloud();
     cloud.apply_scene_runtime("monolith", "braille", &[], false);
-    assert_eq!(cloud.color_scheme(), ColorScheme::NeonPurple);
+    assert_eq!(cloud.color_scheme(), ColorScheme::EnergyZen);
 }
 
 #[test]

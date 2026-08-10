@@ -19,7 +19,7 @@ pub(crate) struct ThemeInfo {
     pub aliases: &'static [&'static str],
 }
 
-pub(crate) const THEME_COUNT: usize = 43;
+pub(crate) const THEME_COUNT: usize = 44;
 
 pub(crate) const THEMES: &[ThemeInfo] = &[
     ThemeInfo {
@@ -243,6 +243,16 @@ pub(crate) const THEMES: &[ThemeInfo] = &[
         scheme: ColorScheme::Sun,
         aliases: &[],
     },
+    // ── Premium exclusive rarity ────────────────────────────────────────
+    // energy-zen: the signature purple-neon palette honoring the cosmostrix
+    // + oxyzenQ journey. Deeper saturation than NeonPurple, brighter head
+    // with a crystal-edge magenta lift in the mid stops. Default for the
+    // monolith + cinematic scenes.
+    ThemeInfo {
+        name: "energy-zen",
+        scheme: ColorScheme::EnergyZen,
+        aliases: &["energy_zen", "energyzen", "ez"],
+    },
 ];
 
 pub(crate) static THEME_LOOKUP: LazyLock<HashMap<&'static str, ColorScheme>> =
@@ -372,13 +382,14 @@ mod tests {
             ColorScheme::Pluto,
             ColorScheme::Moon,
             ColorScheme::Sun,
+            ColorScheme::EnergyZen,
         ]
     }
 
     #[test]
     fn catalog_count_is_current_theme_count() {
         assert_eq!(theme_count(), THEME_COUNT);
-        assert_eq!(theme_count(), 43);
+        assert_eq!(theme_count(), 44);
     }
 
     #[test]
