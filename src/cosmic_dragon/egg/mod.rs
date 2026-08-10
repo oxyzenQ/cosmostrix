@@ -16,6 +16,10 @@
 //!   adding the `io_uring` crate + async runtime exceeds the ~54µs/sec savings.
 //!   Renamed in v30 from `io_uring.rs` to make the conclusion visible in the
 //!   file name itself. (Unix-only — uses `libc::write` to `/dev/null`.)
+//! - [`threshold_sweep`] — measures whether the optimal `DIRTY_THRESHOLD_RATIO`
+//!   varies across terminal sizes. Verdict: the crossover is size-independent
+//!   (linear cost model), so a static bump from `const = 3` to `const = 8`
+//!   captures the crossover without adaptive `match` logic.
 //!
 //! ## Policy
 //!
@@ -27,3 +31,6 @@
 
 #[cfg(all(test, unix))]
 pub mod io_uring_rejected;
+
+#[cfg(test)]
+pub mod threshold_sweep;
