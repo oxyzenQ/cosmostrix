@@ -462,7 +462,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     last_applied_ambient_entry = None;
                 }
             }
-            // AB-02: restore user override if schedule is empty.
+
             if new_cfg.ambient_schedule.entries.is_empty() && preserve_user_override {
                 cloud.color_scheme = preserved_color_scheme;
                 scene_name = preserved_scene_name;
@@ -471,9 +471,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
         // Ambient phase scheduler: poll for phase-fire events (non-blocking).
-        // Drain all pending events, apply the LAST one (latest phase wins).
+        // AB-03: if schedule is empty, drain + DISCARD stale rx events.
+        let schedule_empty = last_ambient_schedule.entries.is_empty();
         let mut last_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
         while let Ok(entry) = ambient_handle.rx.try_recv() {
+            if schedule_empty {
+                continue;
+            }
             crate::lr_trace!(
                 "ambient: received phase event {:02}:{:02} (scene={})",
                 entry.hour,
@@ -598,7 +602,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             last_resync_time = reinit_time;
             next_frame = reinit_time;
         }
-
         loop {
             // Drain pending events. On Windows (ConPTY) and Termux (Android
             // PTY), crossterm's event::poll/read can fail with transient I/O
@@ -863,11 +866,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 next_frame = now;
                 break;
             }
-
             if now >= next_frame {
                 break;
             }
-
             let mut timeout = next_frame - now;
             if let Some(end) = end_time {
                 if now >= end {
@@ -875,7 +876,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
                 timeout = timeout.min(end - now);
             }
-
             // Spin-sleep hybrid: poll_event for the bulk of the wait (also
             // processes input events), then spin-wait the final ~500μs for
             // sub-millisecond deadline accuracy. Eliminates OS scheduling
