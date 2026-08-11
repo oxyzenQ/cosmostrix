@@ -379,10 +379,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
             last_applied_cfg_map = Some(new_cfg_map.clone());
-
             // Phase D Bug #9 fix: preserve color_ecosystem + atmospheric
             // post-FX state across live-reload so no brightness/saturation/hue
             // discontinuity appears when editing config.
+            // AB-02: capture user override state before rebuild to restore
+            // if ambient schedule is now empty.
+            let preserve_user_override = cloud.user_override_since_ambient;
+            let preserved_color_scheme = cloud.color_scheme;
+            let preserved_scene_name = scene_name.clone();
             let mut new_cloud = new_cfg.create_cloud(density);
             new_cloud.inherit_ecosystem_state(&cloud);
             cloud = new_cloud;
@@ -458,6 +462,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     last_applied_ambient_entry = None;
                 }
             }
+            // AB-02: restore user override if schedule is empty.
+            if new_cfg.ambient_schedule.entries.is_empty() && preserve_user_override {
+                cloud.color_scheme = preserved_color_scheme;
+                scene_name = preserved_scene_name;
+                cloud.user_override_since_ambient = true;
+                cloud.ambient_palette_locked = false;
+            }
         }
         // Ambient phase scheduler: poll for phase-fire events (non-blocking).
         // Drain all pending events, apply the LAST one (latest phase wins).
@@ -503,7 +514,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 super::fill_terminal_bg(cloud.palette.bg);
             }
         }
-
         // v35.1: Automatic ambient snapback — replaces the v35 'a' shortcut.
         // When user has pressed x/c/s AND been idle for AUTO_SNAPBACK_DELAY_SECS,
         // re-apply the current ambient phase. No new shortcut, no new CLI flag.
@@ -528,7 +538,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             super::fill_terminal_bg(cloud.palette.bg);
             next_frame = Instant::now();
         }
-
         // Adaptive throttling: detect idle state (no input for
         // IDLE_THRESHOLD_SECS) and reduce effective FPS to save CPU.
         let loop_now = Instant::now();
@@ -541,7 +550,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // idle_started — all in one call. Replaces the inline computation
         // that previously lived here (lines 505-524 in v30.7).
         let is_idle = power_manager.begin_frame(loop_now);
-
         // P2: Use adaptive resync interval based on sustained idle duration.
         let idle_secs = power_manager
             .idle_started()
@@ -557,7 +565,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.force_draw_everything();
             last_resync_time = loop_now;
             next_frame = loop_now;
-
             // P4: Hint kernel to reclaim stale pages during sustained idle.
             if reclaim_state.should_reclaim(loop_now) {
                 let cells_ptr = frame.cells.as_ptr();
@@ -569,14 +576,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 reclaim_state.mark_reclaimed(loop_now);
             }
         }
-
         // P2: reuse loop_now (captured at top of loop) instead of another Instant::now().
         if end_time.is_some_and(|end| loop_now >= end) {
             cloud.raining = false;
             break;
         }
         let mut pending_resize: Option<(u16, u16)> = None;
-
         #[cfg(unix)]
         if term_reinit.swap(false, Ordering::AcqRel) {
             drop(term);
@@ -663,7 +668,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                             continue;
                         }
-
                         // HUD toggle: check BEFORE screensaver exit so the
                         // toggle key doesn't cause self-exit on Android/Termux
                         // where the screensaver path would otherwise fire on
@@ -701,7 +705,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                             continue;
                         }
-
                         // h: toggle HUD position.
                         // v30 simplify: lowercase-only shortcuts for consistency.
                         // Uppercase 'H' removed (was accepted for Android soft
@@ -724,7 +727,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                             continue;
                         }
-
                         // Any user input resets idle timer for adaptive throttling.
                         if register_activity(
                             &mut power_manager,
@@ -736,10 +738,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             cloud.force_draw_everything();
                             next_frame = activity_time;
                         }
-
                         // v35.1: refresh auto-snapback idle timer on every key press.
                         last_user_input_at = activity_time;
-
                         // Process the keybinding. This lets interactive
                         // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
                         // i/I, h/H) work even in --screensaver mode.
@@ -756,7 +756,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             #[cfg(unix)]
                             &term_reinit,
                         );
-
                         if cfg.screensaver {
                             // Screensaver (v15 "only q quits"): recognized
                             // keys (c/C, s/S, p, x/X, [, ], i/I, h/H,
