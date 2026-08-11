@@ -1189,6 +1189,8 @@ fn main() -> std::io::Result<()> {
                     final_density, startup_density
                 );
             }
+            let diag = interactive::ambient_diag_summary();
+            eprintln!("{purple}[verbose]{reset} {ts} {purple}  {diag}{reset}");
         }
     }
 

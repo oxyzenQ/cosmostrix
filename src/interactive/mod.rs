@@ -134,6 +134,48 @@ pub(crate) fn last_density() -> f32 {
 // mode and the output is discarded on exit.
 static STARTUP_AMBIENT_INFO: Mutex<Option<String>> = Mutex::new(None);
 
+// AB-04 diagnostics: ambient apply path counters + last scene-change source.
+// Used in exit summary to identify which code path re-applied ambient.
+use std::sync::atomic::{AtomicU64, Ordering};
+static AMBIENT_SNAPBACK_COUNT: AtomicU64 = AtomicU64::new(0);
+static AMBIENT_RX_COUNT: AtomicU64 = AtomicU64::new(0);
+static AMBIENT_REAPPLY_COUNT: AtomicU64 = AtomicU64::new(0);
+static AMBIENT_STARTUP_COUNT: AtomicU64 = AtomicU64::new(0);
+static LAST_SCENE_CHANGE: Mutex<Option<String>> = Mutex::new(None);
+
+pub(crate) fn ambient_diag_snapback() {
+    AMBIENT_SNAPBACK_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+pub(crate) fn ambient_diag_rx() {
+    AMBIENT_RX_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+pub(crate) fn ambient_diag_reapply() {
+    AMBIENT_REAPPLY_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+pub(crate) fn ambient_diag_startup() {
+    AMBIENT_STARTUP_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+pub(crate) fn ambient_diag_scene_change(source: &str) {
+    if let Ok(mut g) = LAST_SCENE_CHANGE.lock() {
+        *g = Some(source.to_string());
+    }
+}
+pub(crate) fn ambient_diag_summary() -> String {
+    let snap = AMBIENT_SNAPBACK_COUNT.load(Ordering::Relaxed);
+    let rx = AMBIENT_RX_COUNT.load(Ordering::Relaxed);
+    let reapply = AMBIENT_REAPPLY_COUNT.load(Ordering::Relaxed);
+    let startup = AMBIENT_STARTUP_COUNT.load(Ordering::Relaxed);
+    let last = LAST_SCENE_CHANGE
+        .lock()
+        .ok()
+        .and_then(|g| g.clone())
+        .unwrap_or_else(|| "none".to_string());
+    format!(
+        "ambient_diag: startup={} rx={} reapply={} snapback={} last_scene_change={}",
+        startup, rx, reapply, snap, last
+    )
+}
+
 /// Store the startup ambient phase info for post-exit verbose summary.
 /// Called from event_loop right after `apply_startup_ambient`. The string
 /// is the fully-formatted verbose line (without the `[verbose]` prefix,

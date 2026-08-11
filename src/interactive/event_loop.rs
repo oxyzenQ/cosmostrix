@@ -256,6 +256,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         frame = Frame::new(w, h, cloud.palette.bg);
         super::fill_terminal_bg(cloud.palette.bg);
         last_applied_ambient_entry = Some(entry);
+        super::ambient_diag_startup();
+        super::ambient_diag_scene_change("startup");
     }
     // Track runtime state for post-exit verbose summary.
     while cloud.raining {
@@ -442,6 +444,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     scene_generation = scene_generation.wrapping_add(1);
                     cloud.user_override_since_ambient = false;
                     cloud.ambient_palette_locked = true;
+                    super::ambient_diag_reapply();
+                    super::ambient_diag_scene_change("rebuild-reapply");
                     term.set_color_cache(ColorCache::new(&cloud.palette));
                     frame = Frame::new(w, h, cloud.palette.bg);
                     super::fill_terminal_bg(cloud.palette.bg);
@@ -499,9 +503,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
         if let Some(entry) = last_ambient_entry {
-            // v30.3 dedup: skip if already applied. v35: but re-apply if cloud
-            // state diverged (user pressed x/c/s, or auto-drift picked a new
-            // palette) — this is the day-boundary refire case (Patch A).
+            // v30.3 dedup: skip if already applied. v35: re-apply if cloud state
+            // diverged (user pressed x/c/s) — day-boundary refire case (Patch A).
             if last_applied_ambient_entry.as_ref() == Some(&entry)
                 && !cloud.user_override_since_ambient
             {
@@ -510,7 +513,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     entry.hour, entry.minute, entry.scene
                 );
             } else {
-                // v30.2: apply the entry's scene (built-in + custom scene-custom.<name>).
                 let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
                 charset_preset = cloud.apply_ambient_entry(
                     &entry,
@@ -522,6 +524,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 last_applied_ambient_entry = Some(entry.clone());
                 scene_name = entry.scene.clone();
                 scene_generation = scene_generation.wrapping_add(1);
+                super::ambient_diag_rx();
+                super::ambient_diag_scene_change(&format!("rx-event(scene={})", entry.scene));
                 // v35 harmony: ambient asserted — clear override, lock palette.
                 cloud.user_override_since_ambient = false;
                 cloud.ambient_palette_locked = true;
@@ -530,11 +534,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 super::fill_terminal_bg(cloud.palette.bg);
             }
         }
-        // v35.1: Automatic ambient snapback — replaces the v35 'a' shortcut.
-        // When user has pressed x/c/s AND been idle for AUTO_SNAPBACK_DELAY_SECS,
-        // re-apply the current ambient phase. No new shortcut, no new CLI flag.
-        // The delay constant lives in `central_control_dragon_power/mod.rs`
-        // (alongside IDLE_THRESHOLD_SECS) and is re-exported via `constants::*`.
+        // v35.1: Automatic ambient snapback after AUTO_SNAPBACK_DELAY_SECS idle.
         // See `input::try_auto_snapback` and AMBIENT_SCHEDULER_AUDIT.md §2.2.
         if super::input::try_auto_snapback(
             &mut cloud,
