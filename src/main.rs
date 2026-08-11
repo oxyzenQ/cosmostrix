@@ -173,8 +173,6 @@ use clap::{CommandFactory, FromArgMatches};
 #[cfg(target_os = "linux")]
 use std::io::IsTerminal;
 
-use std::io::Write;
-
 use std::env;
 
 use crate::charset::{build_chars, charset_from_str};
@@ -231,6 +229,7 @@ fn stdout_is_redirected_to_file() -> bool {
     // write proceed. Better to be permissive than to break a valid use case.
     false
 }
+
 /// Write `text` to `target_path` atomically: temp-file + fsync + rename.
 /// POSIX `rename(2)` is atomic — readers see either old or new file, never
 /// a half-written one. Temp lives in same dir (same-filesystem move) as
@@ -278,6 +277,7 @@ pub fn spawn_kill9_terminal_guard() {
     if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
         return;
     }
+
     // SAFETY: this Linux-only guard calls libc APIs that Rust cannot model
     // safely (`tcgetattr`, `fork`, signal-mask setup, `prctl`, `sigwait`, and
     // `_exit`). We only enter after confirming stdin/stdout are TTYs. `orig`
@@ -295,6 +295,7 @@ pub fn spawn_kill9_terminal_guard() {
         if pid != 0 {
             return;
         }
+
         // Initialize sigset_t via MaybeUninit — sigemptyset will fully
         // initialize it, so this is safe.
         let mut set = std::mem::MaybeUninit::<libc::sigset_t>::uninit();
@@ -411,6 +412,7 @@ fn main() -> std::io::Result<()> {
         reset_terminal_emergency();
         return Ok(());
     }
+
     // --dump-config: print example config to stdout (TTY only), OR write to
     // a file if a path argument was given.
     //
@@ -527,6 +529,7 @@ fn main() -> std::io::Result<()> {
     if args.testconf {
         return testconf::run(&args);
     }
+
     // v25.6 depth-test fix: --list-* and --show-scene bypass strict config
     // validation. Depth-test user with `charset-custom.long2.set` exceeding
     // the 256-char limit could not run `--list-charsets` because the strict
@@ -581,6 +584,7 @@ fn main() -> std::io::Result<()> {
             Err(e) => ux::die_config(e),
         }
     }
+
     // Benchmark default scene override (v25.16):
     //
     // When running in benchmark mode (--benchmark or --bench-all) without an
@@ -630,6 +634,7 @@ fn main() -> std::io::Result<()> {
         }
         return Ok(());
     }
+
     // v17: --info/-i REMOVED. Merged into --doctor. Use --doctor for all diagnostics.
 
     // --- Validate all arguments using Result-based validators ---
@@ -1103,23 +1108,6 @@ fn main() -> std::io::Result<()> {
         warn_bench_noop_flags(&args, fps_user_set);
         return bench::run_benchmark(&cloud_cfg);
     }
-    // Ambient startup announcement: print to stderr BEFORE entering alternate
-    // screen so the user sees that ambient auto-detection is active. Without
-    // this, cosmostrix silently applies ambient scenes and the user has zero
-    // feedback until they enable --verbose or the debug trace env var.
-    if !cloud_cfg.ambient_schedule.entries.is_empty() {
-        let summary: Vec<String> = cloud_cfg
-            .ambient_schedule
-            .entries
-            .iter()
-            .map(|e| format!("{:02}-{:02}→{}", e.hour, e.minute, e.scene))
-            .collect();
-        let _ = std::io::stderr().write_fmt(format_args!(
-            "[cosmostrix] ambient auto-detection active: {} entries [{}]\n",
-            cloud_cfg.ambient_schedule.entries.len(),
-            summary.join(", ")
-        ));
-    }
 
     let result = interactive::run_interactive(&cloud_cfg);
 
@@ -1158,6 +1146,7 @@ fn main() -> std::io::Result<()> {
         if let Some(info) = interactive::startup_ambient_info() {
             crate::output::eprintln_verbose_purple(&info);
         }
+
         // v25.13: live-reload errors cause immediate exit (see below).
         let changed = final_color != startup_color
             || final_scene != startup_scene
@@ -1202,6 +1191,7 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
+
     // Live-reload fatal exit. v25.13 (bug #15): fires for BOTH watcher
     // panics AND config validation errors. The previous v25.6 design kept
     // rain running on the last valid config when the user introduced a typo
@@ -1235,6 +1225,7 @@ fn main() -> std::io::Result<()> {
 
     result
 }
+
 /// Resolve bench duration from --bench-duration (now accepts compound format).
 /// Returns None if not specified (benchmark uses default 5s).
 ///
@@ -1246,6 +1237,7 @@ fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
         .as_ref()
         .map(|s| crate::ux::or_exit(crate::cli_parse::parse_duration("--bench-duration", s)))
 }
+
 /// Collect warnings about CLI flags that are misleading or have NO effect
 /// in benchmark mode. Pure function — the call site prints them.
 ///
@@ -1312,6 +1304,7 @@ fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static 
     }
     warns
 }
+
 /// Warn the user about CLI flags that are misleading or have NO effect in
 /// benchmark mode. See `collect_bench_noop_warnings` for the audit details.
 fn warn_bench_noop_flags(args: &Args, fps_user_set: bool) {
@@ -1333,6 +1326,7 @@ fn canonicalize_runtime_args(args: &mut Args) {
         args.color = canonical.to_string();
     }
 }
+
 /// v25.11 (bug #11): sanitize `--message` text to cell-safe characters.
 ///
 /// The message box layout in `cloud::reset_message` assumes 1 char = 1
@@ -1402,6 +1396,7 @@ fn sanitize_message_text(input: &str) -> String {
     }
     out
 }
+
 /// Install the global panic hook (v16: Windows silent-exit fix; v25:
 /// terminal-close double-panic guard).
 ///
@@ -1455,12 +1450,14 @@ mod main_tests {
         let input = "Hello World! 0123 #hash $var";
         assert_eq!(sanitize_message_text(input), input);
     }
+
     /// v25.11 (bug #11): newlines are preserved (needed for multi-line `-m`).
     #[test]
     fn sanitize_preserves_newlines() {
         let input = "Line1\nLine2\nLine3";
         assert_eq!(sanitize_message_text(input), input);
     }
+
     /// v25.11 (bug #11): wide CJK chars replaced with '?'.
     /// Without this, "世界" (2 chars, 4 cells) breaks the 1-char-1-cell
     /// invariant in the message box layout, causing rain to the right
@@ -1470,18 +1467,21 @@ mod main_tests {
         let result = sanitize_message_text("Hello 世界");
         assert_eq!(result, "Hello ??");
     }
+
     /// v25.11 (bug #11): emoji replaced with '?'.
     #[test]
     fn sanitize_replaces_emoji() {
         let result = sanitize_message_text("Galaxy 🌌 emoji");
         assert_eq!(result, "Galaxy ? emoji");
     }
+
     /// v25.11 (bug #11): control chars (except \n) stripped.
     #[test]
     fn sanitize_strips_control_chars() {
         let result = sanitize_message_text("Tab\there\x07bell");
         assert_eq!(result, "Tabherebell");
     }
+
     /// v25.11 (bug #11): mixed content — ASCII passes, wide/control filtered.
     #[test]
     fn sanitize_handles_mixed_content() {
@@ -1489,6 +1489,7 @@ mod main_tests {
         // "Hello " (6) + "??" (世界) + " " + "?" (🌌) + " " + "αβγ" (3) + " #hash $var"
         assert_eq!(result, "Hello ?? ? αβγ #hash $var");
     }
+
     /// v25.11 (bug #11): empty message stays empty.
     #[test]
     fn sanitize_handles_empty_message() {

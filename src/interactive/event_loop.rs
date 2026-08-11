@@ -268,8 +268,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // v35: ambient asserted at startup — lock palette, clear override.
         cloud.user_override_since_ambient = false;
         cloud.ambient_palette_locked = true;
-        // HUD feedback: show ambient scene name at startup so user knows auto-detection fired.
-        hud_state.set_ambient_scene(Some(entry.scene.clone()));
         term.set_color_cache(ColorCache::new(&cloud.palette));
         frame = Frame::new(w, h, cloud.palette.bg);
         super::fill_terminal_bg(cloud.palette.bg);
@@ -282,6 +280,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.raining = false;
             break;
         }
+
         // Live config reload: non-blocking check for config events.
         if let Some(ref rx) = config_rx {
             while let Ok(event) = rx.try_recv() {
@@ -310,6 +309,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
         }
+
         // Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
         if let Some(new_cfg_map) = pending_config.take() {
             let new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
@@ -450,8 +450,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     scene_generation = scene_generation.wrapping_add(1);
                     cloud.user_override_since_ambient = false;
                     cloud.ambient_palette_locked = true;
-                    // HUD feedback: ambient re-applied after rebuild.
-                    hud_state.set_ambient_scene(Some(last_entry.scene.clone()));
                     term.set_color_cache(ColorCache::new(&cloud.palette));
                     frame = Frame::new(w, h, cloud.palette.bg);
                     super::fill_terminal_bg(cloud.palette.bg);
@@ -470,8 +468,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 scene_name = preserved_scene_name;
                 cloud.user_override_since_ambient = true;
                 cloud.ambient_palette_locked = false;
-                // HUD feedback: clear ambient indicator — schedule is now empty.
-                hud_state.set_ambient_scene(None);
             }
         }
         // Ambient phase scheduler: poll for phase-fire events (non-blocking).
@@ -517,8 +513,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // v35 harmony: ambient asserted — clear override, lock palette.
                 cloud.user_override_since_ambient = false;
                 cloud.ambient_palette_locked = true;
-                // HUD feedback: show ambient scene name so user knows auto-detection is active.
-                hud_state.set_ambient_scene(Some(entry.scene.clone()));
                 term.set_color_cache(ColorCache::new(&cloud.palette));
                 frame = Frame::new(w, h, cloud.palette.bg);
                 super::fill_terminal_bg(cloud.palette.bg);
@@ -543,10 +537,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             last_user_input_at,
             crate::constants::AUTO_SNAPBACK_DELAY_SECS,
         ) {
-            // HUD feedback: snapback re-applied ambient — update indicator.
-            if let Some(ref entry) = last_applied_ambient_entry {
-                hud_state.set_ambient_scene(Some(entry.scene.clone()));
-            }
             term.set_color_cache(ColorCache::new(&cloud.palette));
             frame = Frame::new(w, h, cloud.palette.bg);
             super::fill_terminal_bg(cloud.palette.bg);
@@ -847,6 +837,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     _ => {}
                 }
             }
+
             // Break out of the poll loop when we have a resize to apply,
             // but only after the debounce window has elapsed. This coalesces
             // rapid resize events (e.g. window drag) into a single reset.
@@ -958,6 +949,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 hud_state.set_screen_size(nw, nh, false);
             }
         }
+
         // Key handling can toggle pause/resume after the frame period was
         // chosen for the wait phase. Recompute before simulation and
         // scheduling so the first resumed frame does not inherit the paused
@@ -1142,6 +1134,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.raining = false;
             break;
         }
+
         // Feature #13: thermal sensor sampling (Linux only).
         // Reads /sys/class/thermal/thermal_zone*/temp, normalizes the
         // hottest zone to 0.0–1.0, and feeds it into PowerManager.
@@ -1155,6 +1148,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 power_manager.set_thermal_pressure(p);
             }
         }
+
         // Display-only stats. IN-01: `perf_frames` + `frame_time_tracker.push`
         // moved OUTSIDE the `cfg.perf_stats` gate so the always-on post-exit
         // FPS summary reports honest numbers without --perf-stats.
@@ -1178,6 +1172,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 perf_overshoot_frames = perf_overshoot_frames.saturating_add(1);
             }
         }
+
         // Performance self-healer (P1 + P2).
         //
         // Called every frame after perf_pressure is finalized and
@@ -1282,6 +1277,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
         }
+
         // Schedule next frame relative to the ideal deadline, using the
         // pre-work timestamp to prevent drift between render work and
         // scheduling. Single-reschedule: if we overslept past the next tick,
@@ -1296,6 +1292,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             next
         };
     }
+
     // Signal the watchdog thread to stop so it doesn't outlive the main
     // loop and falsely detect a "stuck" state after normal exit.
     SHUTDOWN.store(true, Ordering::Release);
@@ -1430,6 +1427,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 overshoot_ratio,
             );
         }
+
         // P5: Endurance health score
         {
             let s = r.section("ENDURANCE");
@@ -1443,6 +1441,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 &power_manager.phase_transitions_observed().to_string(),
             );
         }
+
         // ENCODING: actual measured ANSI bytes/frame + SGR cache hit rate.
         // These prove the diff-based + RLE + color cache optimizations work.
         {
@@ -1471,6 +1470,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             s.field("sgr_cache_misses", &sgr_misses.to_string());
             s.field("sgr_cache_hit_rate", &format!("{:.1}%", hit_rate));
         }
+
         // Tier 2: xterm.js host defenses (byte-budget backpressure + RIS reset).
         // All three fields are 0 on native terminals; nonzero only inside
         // VSCode/Hyper/WaveTerminal/Tabby/WarpTerminal. Useful for diagnosing
@@ -1484,6 +1484,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         r.print();
     }
+
     // Store final runtime state for post-exit verbose summary.
     let final_color_name = format!("{:?}", cloud.color_scheme());
     super::set_final_state(

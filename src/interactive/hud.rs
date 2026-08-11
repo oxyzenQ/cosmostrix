@@ -89,7 +89,7 @@ const HUD_MIN_WIDTH: u16 = 12;
 /// the practical cap is set by the longest existing line). The bump
 /// ensures the cpu line never gets truncated when fps is high (which
 /// would make ` p99` wrap visually).
-const HUD_MAX_WIDTH: u16 = 30;
+const HUD_MAX_WIDTH: u16 = 22;
 
 /// Frame pacing mode announced by the event loop to the HUD.
 ///
@@ -193,12 +193,6 @@ pub(crate) struct HudState {
     /// suffix on idle→active transition, the cell at the old column holds
     /// a residual char (visible `e` of `idle`) until rain passes through.
     prev_width: u16,
-    /// Active ambient scene name, set by the event loop when the ambient
-    /// scheduler fires a phase. Shown as a suffix on the HUD `up:` line
-    /// (e.g. `up: 05:30  ☼monolith`) so the user can see that ambient
-    /// auto-detection is active and which scene it selected. `None` when
-    /// the ambient schedule is empty or no phase is currently applied.
-    ambient_scene: Option<String>,
 }
 
 impl HudState {
@@ -241,19 +235,7 @@ impl HudState {
             ],
             current_width: HUD_MIN_WIDTH,
             prev_width: HUD_MIN_WIDTH,
-            ambient_scene: None,
         }
-    }
-
-    /// Set the active ambient scene name for HUD display.
-    ///
-    /// Called by the event loop when the ambient scheduler fires a phase
-    /// (scene = Some(name)) or when the schedule is emptied/no phase is
-    /// active (scene = None). The HUD `up:` line appends ` ☼<name>` when
-    /// set, giving the user clear runtime feedback that ambient auto-detection
-    /// is active and which scene was selected.
-    pub(crate) fn set_ambient_scene(&mut self, scene: Option<String>) {
-        self.ambient_scene = scene;
     }
 
     /// Toggle HUD visibility. Returns the new visibility state.
@@ -630,11 +612,7 @@ impl HudState {
             None => "—".to_string(),
         };
         self.cached_lines[5] = (colors[5], format!(" cpu: {cpu_str}"));
-        let ambient_suffix = match &self.ambient_scene {
-            Some(scene) => format!("  ☼{scene}"),
-            None => String::new(),
-        };
-        self.cached_lines[6] = (colors[6], format!(" up: {uptime_str}{ambient_suffix}"));
+        self.cached_lines[6] = (colors[6], format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
         self.cached_lines[7] = (colors[7], format!(" {sw}x{sh} {mode}"));
