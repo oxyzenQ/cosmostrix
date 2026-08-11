@@ -419,6 +419,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 ambient_handle.reload(new_cfg.ambient_schedule.clone());
                 last_ambient_schedule = new_cfg.ambient_schedule.clone();
                 if new_cfg.ambient_schedule.entries.is_empty() {
+                    // AB-01.5: revert scene_name to config scene if it was set
+                    // by ambient (user didn't press 'x'). Prevents AB-02 from
+                    // preserving a stale ambient scene name on subsequent rebuilds.
+                    if let Some(ref last_entry) = last_applied_ambient_entry {
+                        if scene_name == last_entry.scene {
+                            scene_name = new_cfg.scene_name.clone();
+                            scene_generation = scene_generation.wrapping_add(1);
+                        }
+                    }
                     last_applied_ambient_entry = None;
                 }
             }
@@ -838,7 +847,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     _ => {}
                 }
             }
-
             // Break out of the poll loop when we have a resize to apply,
             // but only after the debounce window has elapsed. This coalesces
             // rapid resize events (e.g. window drag) into a single reset.
@@ -859,7 +867,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     break;
                 }
             }
-
             let now = Instant::now();
             // Monotonic clock jump guard
             let frame_elapsed = now.saturating_duration_since(next_frame);
@@ -932,11 +939,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
         }
-
         if !cloud.raining {
             break;
         }
-
         if let Some((nw, nh)) = pending_resize {
             cloud.reset(nw, nh);
             frame = Frame::new(nw, nh, cloud.palette.bg);
@@ -950,7 +955,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 hud_state.set_screen_size(nw, nh, false);
             }
         }
-
         // Key handling can toggle pause/resume after the frame period was
         // chosen for the wait phase. Recompute before simulation and
         // scheduling so the first resumed frame does not inherit the paused
@@ -959,7 +963,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // target_period / idle_period / pause_period Duration cascade.
         let frame_period = Duration::from_secs_f64(1.0 / power_manager.effective_fps(cloud.pause));
         let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
-
         // v30 (2026-08-05): announce frame pacing mode to the HUD so the
         // `tgt:` line can show an `idle` / `paused` suffix. Cheap (one enum
         // set + one method call). Placed AFTER the pause/idle/active branch
@@ -973,7 +976,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             FrameMode::Active
         };
         hud_state.set_frame_mode(frame_mode);
-
         cloud.set_perf_pressure(power_manager.effective_pressure());
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
         // v25.15 (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
@@ -992,7 +994,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             sim_max_s
         };
         cloud.set_max_sim_delta(Duration::from_secs_f64(sim_cap_s));
-
         let work_start = Instant::now();
         // v30 dragon-egg hunt: removed `cloud.is_idle = is_idle` write —
         // the field was a zombie (set here every frame, never read by any
@@ -1004,7 +1005,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // (which calls Instant::now() internally). Saves 1 Instant::now()
         // per frame (~20ns).
         cloud.rain_at(&mut frame, work_start);
-
         // Refresh HUD line colors every frame (cheap — 4 brighten_color
         // calls ≈ 2 µs). This is split out of the 1 Hz `update_metrics`
         // tick so a runtime palette change (`c`/`C` key cycle, auto-color-
