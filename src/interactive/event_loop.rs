@@ -462,7 +462,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     last_applied_ambient_entry = None;
                 }
             }
-
+            // AB-02: restore user override if schedule is empty.
             if new_cfg.ambient_schedule.entries.is_empty() && preserve_user_override {
                 cloud.color_scheme = preserved_color_scheme;
                 scene_name = preserved_scene_name;
@@ -471,11 +471,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
         // Ambient phase scheduler: poll for phase-fire events (non-blocking).
-        // AB-03: if schedule is empty, drain + DISCARD stale rx events.
-        let schedule_empty = last_ambient_schedule.entries.is_empty();
+        // AB-03: discard stale rx events whose entry is no longer in the current
+        // schedule (covers both empty-schedule and modified-schedule cases).
         let mut last_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
         while let Ok(entry) = ambient_handle.rx.try_recv() {
-            if schedule_empty {
+            if !last_ambient_schedule.entries.iter().any(|e| e == &entry) {
+                crate::lr_trace!("ambient: discarding stale phase event {:02}:{:02} (scene={}) — no longer in schedule", entry.hour, entry.minute, entry.scene);
                 continue;
             }
             crate::lr_trace!(
