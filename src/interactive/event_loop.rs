@@ -41,10 +41,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let _ = term_reinit;
 
     let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
-    // v17: Mouse reporting ALWAYS on (blocks text selection in alt screen).
-    // The --mouse flag was REMOVED — mouse + hover/click effects are always on.
-    // Terminal safety on abrupt death: Terminal::drop, panic hook, signal
-    // handlers, watchdog, fork-based SIGKILL guard (Linux).
+    // v17: Mouse reporting ALWAYS on (blocks text select; --mouse removed).
+    // Terminal safety: Terminal::drop, panic hook, signal handlers, watchdog, fork-based SIGKILL guard (Linux).
     if term.enable_mouse_capture().is_ok() {
         MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
     }
@@ -82,9 +80,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 
-    // v16: Fill the entire alternate screen with the palette's background
-    // color before the first frame. Without this, edges/margins keep the
-    // terminal's native bg, creating visible gaps.
+    // v16: Fill entire alternate screen with palette bg before first frame (avoids visible edge gaps).
     super::fill_terminal_bg(cloud.palette.bg);
 
     // v20: Modular cinematic intro (--intro <type> flag).
@@ -98,16 +94,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         frame.clear_with_bg(cloud.palette.bg);
 
         // v25.11 (bug #10): re-read terminal size after intro returns.
-        // The intro can take several seconds (cosmic particle animation,
-        // logo reveal). If the user resized the terminal during the intro,
-        // the (w, h) captured at line 60 is now stale. Without this check,
-        // the rain loop starts with the old dimensions — rain renders at
-        // the wrong size until the first SIGWINCH event is polled and
-        // processed (which may take 1+ frames, causing a visible glitch
-        // where rain fills only a portion of the resized terminal).
-        //
-        // Fixed mode (--screen-size) ignores terminal resize — the virtual
-        // size is what the user explicitly requested.
+        // Intro can take seconds; if user resized during it, (w,h) is stale
+        // — rain renders wrong until SIGWINCH. Fixed mode ignores resize.
         if cfg.screen_size.is_none() {
             if let Ok((nw, nh)) = term.size() {
                 if nw != w || nh != h {
@@ -137,10 +125,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     });
 
     let mut next_frame = Instant::now();
-    // v30.8 (Phase 3): PowerManager owns perf_pressure accumulation,
-    // is_idle detection, and effective FPS resolution. Replaces the
-    // previously-scattered target_period / idle_period / pause_period
-    // Duration cascade + inline perf_pressure accumulator.
+    // v30.8 (Phase 3): PowerManager owns perf_pressure accumulation, is_idle
+    // detection, and effective FPS resolution. Replaces scattered Duration cascade.
     let mut power_manager = PowerManager::new(cfg.target_fps, Instant::now());
 
     let mut perf_frames: u64 = 0;
@@ -161,10 +147,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // and right corners. (v30 simplify: lowercase-only shortcuts.)
     let mut hud_state: HudState = HudState::new();
     hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
-    // v30 (2026-08-05): seed the HUD with the user-configured target_fps
-    // so the `tgt:` line shows the right value from the very first frame.
-    // Without this, the HUD would show `tgt: 60` (the default) until the
-    // first live-config reload, even when the user passed `--fps 30`.
+    // v30: seed HUD with user-configured target_fps so `tgt:` shows the
+    // right value from frame 1 (otherwise shows default 60 until live-reload).
     hud_state.set_target_fps(cfg.target_fps);
 
     // Perceived-motion diagnostics: track visible-change frames vs idle frames.
@@ -419,9 +403,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 ambient_handle.reload(new_cfg.ambient_schedule.clone());
                 last_ambient_schedule = new_cfg.ambient_schedule.clone();
                 if new_cfg.ambient_schedule.entries.is_empty() {
-                    // AB-01.5: revert scene_name to config scene if it was set
-                    // by ambient (user didn't press 'x'). Prevents AB-02 from
-                    // preserving a stale ambient scene name on subsequent rebuilds.
+                    // AB-04: enforce full schedule-empty invariant — clear
+                    // tracker, unlock palette, grant user control.
+                    // Replaces partial AB-01.5 + conditional AB-02.
                     if let Some(ref last_entry) = last_applied_ambient_entry {
                         if scene_name == last_entry.scene {
                             scene_name = new_cfg.scene_name.clone();
@@ -429,14 +413,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
                     }
                     last_applied_ambient_entry = None;
+                    cloud.ambient_palette_locked = false;
+                    cloud.user_override_since_ambient = true;
+                    crate::lr_trace!("ambient: schedule emptied — clearing tracker, unlocking palette, granting user control");
                 }
             }
-            // v30.3: re-apply last ambient entry to the fresh Cloud.
-            // v35: re-lock palette (ambient is re-asserting).
-            // v35.3 (Color-#3): skip when custom_palette_active — ambient's
-            // builtin `color="Sun"` would overwrite the user's freshly-reloaded
-            // [colors-custom.X] edit. Fresh ambient fires still go through
-            // apply_ambient_entry unconditionally; this gate is reload-only.
+            // v30.3: re-apply last ambient entry to fresh Cloud (reload-only gate).
+            // v35.3 (Color-#3): skip when custom_palette_active.
             if let Some(ref last_entry) = last_applied_ambient_entry {
                 let still_in_schedule = new_cfg
                     .ambient_schedule
@@ -471,30 +454,49 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     last_applied_ambient_entry = None;
                 }
             }
-            // AB-02: restore user override if schedule is empty.
-            if new_cfg.ambient_schedule.entries.is_empty() && preserve_user_override {
-                cloud.color_scheme = preserved_color_scheme;
-                scene_name = preserved_scene_name;
+            // AB-02/AB-04: unconditional user control when schedule is empty.
+            // Old preserve_user_override guard was too strict.
+            if new_cfg.ambient_schedule.entries.is_empty() {
+                if preserve_user_override {
+                    cloud.color_scheme = preserved_color_scheme;
+                    scene_name = preserved_scene_name;
+                }
                 cloud.user_override_since_ambient = true;
                 cloud.ambient_palette_locked = false;
+                crate::lr_trace!(
+                    "ambient: schedule-empty — ensuring user control (preserve={})",
+                    preserve_user_override
+                );
             }
         }
-        // Ambient phase scheduler: poll for phase-fire events (non-blocking).
-        // AB-03: discard stale rx events whose entry is no longer in the current
-        // schedule (covers both empty-schedule and modified-schedule cases).
+        // AB-03+AB-04: poll ambient phase events. When schedule is empty,
+        // drain and discard ALL rx events (prevents channel fill-up and
+        // eliminates stale-event races). When non-empty, discard events
+        // whose entry is no longer in the schedule (membership check).
         let mut last_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
-        while let Ok(entry) = ambient_handle.rx.try_recv() {
-            if !last_ambient_schedule.entries.iter().any(|e| e == &entry) {
-                crate::lr_trace!("ambient: discarding stale phase event {:02}:{:02} (scene={}) — no longer in schedule", entry.hour, entry.minute, entry.scene);
-                continue;
+        if !last_ambient_schedule.entries.is_empty() {
+            while let Ok(entry) = ambient_handle.rx.try_recv() {
+                if !last_ambient_schedule.entries.iter().any(|e| e == &entry) {
+                    crate::lr_trace!("ambient: discarding stale phase event {:02}:{:02} (scene={}) — no longer in schedule", entry.hour, entry.minute, entry.scene);
+                    continue;
+                }
+                crate::lr_trace!(
+                    "ambient: received phase event {:02}:{:02} (scene={})",
+                    entry.hour,
+                    entry.minute,
+                    entry.scene
+                );
+                last_ambient_entry = Some(entry);
             }
-            crate::lr_trace!(
-                "ambient: received phase event {:02}:{:02} (scene={})",
-                entry.hour,
-                entry.minute,
-                entry.scene
-            );
-            last_ambient_entry = Some(entry);
+        } else {
+            while let Ok(entry) = ambient_handle.rx.try_recv() {
+                crate::lr_trace!(
+                    "ambient: discarding rx event {:02}:{:02} (scene={}) — schedule is empty",
+                    entry.hour,
+                    entry.minute,
+                    entry.scene
+                );
+            }
         }
         if let Some(entry) = last_ambient_entry {
             // v30.3 dedup: skip if already applied. v35: but re-apply if cloud
@@ -559,10 +561,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // scene changes and reset the self-healer. Phase D: u64 copy
         // replaces a per-frame String clone.
         let scene_generation_at_frame_start = scene_generation;
-        // v30.8 (Phase 3): PowerManager.begin_frame() computes is_idle
-        // (reactive || predicted), updates the phase predictor, and tracks
-        // idle_started — all in one call. Replaces the inline computation
-        // that previously lived here (lines 505-524 in v30.7).
+        // v30.8 (Phase 3): PowerManager.begin_frame() computes is_idle, updates
+        // phase predictor, tracks idle_started — all in one call.
         let is_idle = power_manager.begin_frame(loop_now);
         // P2: Use adaptive resync interval based on sustained idle duration.
         let idle_secs = power_manager

@@ -277,6 +277,13 @@ pub(super) fn try_auto_snapback(
     last_user_input_at: Instant,
     auto_snapback_delay_secs: f64,
 ) -> bool {
+    // AB-04: explicit empty-schedule guard — never snapback when
+    // the schedule is empty. current_phase() returns None for empty
+    // schedules, but this guard is belt-and-suspenders: it avoids
+    // even calling current_phase() and makes the intent explicit.
+    if schedule.entries.is_empty() {
+        return false;
+    }
     let now = Instant::now();
     let idle_secs = now
         .saturating_duration_since(last_user_input_at)
