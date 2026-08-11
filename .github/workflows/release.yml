@@ -485,6 +485,17 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA512 "dist/$zip").Hash.ToLower()
           "$hash  $zip" | Out-File -Encoding ascii "dist/$zip.sha512sum"
 
+          # BLAKE2b via Python (Windows doesn't ship b2sum in base)
+          $pyB2 = "import hashlib; d=open('dist/$zip','rb').read(); print(hashlib.blake2b(d).hexdigest())"
+          try {
+            $b2Hash = (python3 -c $pyB2).Trim()
+            if ($b2Hash) {
+              "$b2Hash  $zip" | Out-File -Encoding ascii "dist/$zip.b2sum"
+            }
+          } catch {
+            # BLAKE2b generation failed — skip (sha512sum is still generated)
+          }
+
           # SHAKE256 via Python (Windows ships LibreSSL which doesn't support -shake256)
           $py = "import hashlib; d=open('dist/$zip','rb').read(); print(hashlib.shake_256(d).hexdigest(64))"
           try {
@@ -819,12 +830,16 @@ jobs:
           tar -czf "${ARCHIVE}" -C staging .
           echo "archive=${ARCHIVE}" >> "$GITHUB_ENV"
           ls -lh "${ARCHIVE}"
+          # Generate all 3 checksums for consistency with build_packages
+          sha512sum "${ARCHIVE}" > "${ARCHIVE}.sha512sum"
+          b2sum "${ARCHIVE}" > "${ARCHIVE}.b2sum"
+          python3 -c "import hashlib; print(hashlib.shake_256(open('${ARCHIVE}','rb').read()).hexdigest(64) + '  ${ARCHIVE}')" > "${ARCHIVE}.shake256"
 
       - name: Upload PGO artifact
         uses: actions/upload-artifact@v7.0.1
         with:
           name: cosmostrix-${{ matrix.platform }}-pgo
-          path: cosmostrix-*-${{ matrix.platform }}-pgo.tar.gz
+          path: cosmostrix-*-${{ matrix.platform }}-pgo.tar.gz*
           retention-days: 30
 
   build_freebsd:
@@ -874,6 +889,10 @@ jobs:
             TARBALL="cosmostrix-v${VERSION}-freebsd-amd64.tar.gz"
             tar czf "${TARBALL}" -C target/pro-freebsd-amd64 cosmostrix
             sha512sum "${TARBALL}" > "${TARBALL}.sha512sum"
+            # BLAKE2b via Python (FreeBSD doesn't ship b2sum in base)
+            python3 -c "import hashlib; print(hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest() + '  ${TARBALL}')" > "${TARBALL}.b2sum"
+            # SHAKE256 via Python (cross-platform)
+            python3 -c "import hashlib; print(hashlib.shake_256(open('${TARBALL}','rb').read()).hexdigest(64) + '  ${TARBALL}')" > "${TARBALL}.shake256"
             echo "FreeBSD build + package complete: ${TARBALL}"
 
       - name: Upload artifact
@@ -1105,6 +1124,7 @@ jobs:
             dist/**/*.tar.gz.asc
             dist/**/*.zip
             dist/**/*.zip.sha512sum
+            dist/**/*.zip.b2sum
             dist/**/*.zip.shake256
             dist/**/*.zip.asc
 
