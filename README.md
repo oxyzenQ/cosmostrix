@@ -489,8 +489,8 @@ set = "|"
 ```
 
 ```bash
-cosmostrix --charset cat              # CLI activation
-# or in config.toml: charset = "cat"
+cosmostrix --charset zen              # CLI activation
+# or in config.toml: charset = "zen"
 ```
 
 Custom names take precedence over built-in presets with the same name. Validation: max 256 characters per `set`, control characters are rejected, wide/zero-width characters (emoji, CJK fullwidth) are auto-filtered with a warning. Editing a `[charset-custom]` block while cosmostrix is running takes effect on the next live reload — no restart needed.

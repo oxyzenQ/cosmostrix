@@ -48,7 +48,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // and `config_hints.rs` + `testconf.rs` both explicitly reject
     // `adaptive-custom.*` keys with "have been removed" messages. But the
     // bare key was still classified as "known" here, so a stale
-    // `adaptive-custom = "10-00, neon-purple, signal"` line was silently
+    // `adaptive-custom = "10-00, energy-zen, signal"` line was silently
     // stored and never applied at runtime — zero warning at startup, only
     // `--testconf` caught it. Now the bare key falls into `unknown_keys`
     // and triggers the startup rejection at `config_apply.rs:149-163`.
@@ -309,7 +309,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
 /// System-wide fallback locations (consulted by `resolve_config_path`
 /// when the user-specific path doesn't exist):
 /// - **Linux**: `/etc/cosmostrix/config.toml`
-/// - **macOS**: `/Library/Application Support/cosmostrix/config.toml`
+/// - **macOS**: `~/Library/Application Support/cosmostrix/config.toml`
 /// - **FreeBSD**: `/usr/local/etc/cosmostrix/config.toml`
 ///   (FreeBSD uses `/usr/local/etc` for ports/packages, not `/etc`)
 /// - **Android (Termux)**: `$PREFIX/etc/cosmostrix/config.toml`
@@ -566,7 +566,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   Linux:     ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
 #              /etc/cosmostrix/config.toml (system-wide)
 #   macOS:     ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
-#              /Library/Application Support/cosmostrix/config.toml (system-wide)
+#              ~/Library/Application Support/cosmostrix/config.toml (macOS user)
 #   FreeBSD:   ~/.config/cosmostrix/config.toml
 #              /usr/local/etc/cosmostrix/config.toml (system-wide)
 #   Termux:    ~/.config/cosmostrix/config.toml (XDG_CONFIG_HOME ignored)
@@ -596,7 +596,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # scene = cinematic
 
 # Color scheme (palette). See: cosmostrix --list-colors
-# color = neon-purple
+# color = energy-zen
 
 # Character set for rain glyphs. See: cosmostrix --list-charsets
 # charset = zen
@@ -778,11 +778,11 @@ pub(crate) fn dump_config_text() -> &'static str {
 # - Max 256 entries (a healthy schedule has 2-6).
 #
 # Migration from v30.1 multi-field format:
-#   v30.1: ambient.15-00 = neon-purple, signal, speed=50, density=0.65
+#   v30.1: ambient.15-00 = energy-zen, signal, speed=50, density=0.65
 #   v30.3: define the scene, then reference it at the TOP LEVEL:
 #         [scene-custom.afternoon]
 #         base-scene = "signal"
-#         color = "neon-purple"
+#         color = "energy-zen"
 #         speed = "50"
 #         density = "0.65"
 #
@@ -800,7 +800,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # `scene-custom.<name>.ambient.<HH-MM>` and is rejected as unknown.
 #   [scene-custom.afternoon]
 #   base-scene = "signal"
-#   color = "neon-purple"
+#   color = "energy-zen"
 #   speed = "50"
 #   density = "0.65"
 #
