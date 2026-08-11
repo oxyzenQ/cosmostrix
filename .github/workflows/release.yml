@@ -20,12 +20,6 @@ jobs:
     name: Cosmic Dragon - Build packages (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    # continue-on-error for preview/exotic platforms that may fail
-    # intermittently (windows-11-arm is in public preview, freebsd cross-compile
-    # requires sysroot that may not be available). Core platforms (linux-amd64-v3,
-    # linux-amd64-v4, linux-amd64-musl, darwin-aarch64, windows-x86_64) must
-    # always succeed — the release cannot publish without them.
-    continue-on-error: ${{ matrix.allow_failure || false }}
     strategy:
       fail-fast: false
       matrix:
@@ -956,22 +950,36 @@ jobs:
           # Import the armored private key. --batch + --yes prevents
           # interactive prompts. --pinentry-mode loopback allows
           # passwordless import for keys without passphrase protection.
-          echo "${GPG_PRIVATE_KEY}" | gpg --import --batch --yes \
-            --pinentry-mode loopback 2>/dev/null
-          # Extract the key ID. Prefer subkey (ssb:) over master key
-          # (sec:) for signing — subkeys have usage S (sign-only) and are
-          # the recommended practice for CI signing. The master key (sec:)
-          # may be a stub if the owner exported with --export-secret-subkeys
-          # (which keeps the master secret offline). Fall back to sec: if
-          # no subkey is available.
+          # If the key has a passphrase, pass it via --passphrase (stdin).
+          # Do NOT redirect stderr to /dev/null — we need to see import
+          # errors for debugging.
+          if [ -n "${GPG_PASSPHRASE}" ]; then
+            echo "${GPG_PASSPHRASE}" | gpg --import --batch --yes \
+              --pinentry-mode loopback \
+              --passphrase-fd 0 \
+              <(echo "${GPG_PRIVATE_KEY}")
+          else
+            echo "${GPG_PRIVATE_KEY}" | gpg --import --batch --yes \
+              --pinentry-mode loopback
+          fi
+          # Debug: show what was imported (key IDs only, no secrets)
+          gpg --list-secret-keys --with-colons || true
+          # Extract the key ID. Try ssb: (subkey, usage S) first, then
+          # sec: (master key, usage SC). The awk field $12 is the key
+          # capability flags — we check if it contains 'S' (signing).
           KEY_ID="$(gpg --list-secret-keys --with-colons \
-            | awk -F: '/^ssb:/ && $3 ~ /S/ {print $5; exit}')"
+            | awk -F: '/^(ssb|sec):/ && $12 ~ /S/ {print $5; exit}')"
           if [ -z "${KEY_ID}" ]; then
+            # Fallback: some gpg versions use field $12 differently.
+            # Try matching by key usage in field 12 OR by the presence
+            # of the 'sec'/'ssb' record (any secret key can sign).
             KEY_ID="$(gpg --list-secret-keys --with-colons \
-              | awk -F: '/^sec:/ && $3 ~ /S/ {print $5; exit}')"
+              | awk -F: '/^(ssb|sec):/ {print $5; exit}')"
           fi
           if [ -z "${KEY_ID}" ]; then
             echo "::error::Failed to import GPG secret key (no signing-capable key found)"
+            echo "::error::gpg --list-secret-keys output:"
+            gpg --list-secret-keys 2>&1 || true
             exit 1
           fi
           echo "GPG_KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
