@@ -10,15 +10,31 @@
 //! CLI-explicit vs parse failure), and the final Cloud rebuild summary
 //! emitted from the render thread.
 //!
-//! Default off — zero cost when the env var is unset. All trace writes
-//! go through the bulletproof `write_fmt` path so they cannot panic on
-//! broken stderr (terminal closed mid-session).
+//! Default off — zero cost when the env var is unset. When enabled, trace
+//! lines are buffered to `LIVE_RELOAD_DEBUG_TRACES` and drained by
+//! main.rs AFTER `run_interactive` returns and `Terminal::drop` restores
+//! the main screen — otherwise they would leak into the alt-screen rain
+//! matrix (AB-10 rain-screen cleanliness).
 //!
 //! Split into its own module so `live_config.rs` stays under the
 //! 1500-LOC source cap enforced by `loc_tests`.
 
-use std::io::Write;
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::Mutex;
+
+/// Cap for the debug trace buffer. Traces are emitted from the watcher
+/// thread, polling heartbeat, and render thread during the rain loop.
+/// A single live-reload cycle can produce ~10-20 trace lines, and a
+/// typical debug session inspects ~20-50 reloads, so 1000 entries is
+/// generous while still bounded against runaway logs.
+const MAX_DEBUG_TRACE_LOG: usize = 1000;
+
+/// AB-10: buffered debug traces emitted while `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`.
+///
+/// All `lr_trace!` and `debug_trace` calls append here instead of writing
+/// directly to stderr. main.rs drains this buffer after Terminal::drop so
+/// the trace lines land on the main screen, not in the alt-screen rain matrix.
+pub(crate) static LIVE_RELOAD_DEBUG_TRACES: Mutex<Vec<String>> = Mutex::new(Vec::new());
 
 /// True when `COSMOSTRIX_LIVE_RELOAD_DEBUG` is set to a truthy value.
 ///
@@ -43,10 +59,30 @@ pub(crate) fn live_reload_debug_enabled() -> bool {
     }
 }
 
-/// Emit a `[live-reload-trace]` line to stderr if tracing is enabled.
-/// No-op otherwise. Bulletproof — never panics on broken stderr.
+/// Buffer a `[live-reload-trace]` line if tracing is enabled. No-op
+/// otherwise. Bulletproof — never panics on poisoned mutex.
 pub(crate) fn debug_trace(args: std::fmt::Arguments<'_>) {
-    let _ = std::io::stderr().write_fmt(args);
+    if !live_reload_debug_enabled() {
+        return;
+    }
+    // Format the args into a String and buffer. We can't write directly to
+    // stderr here because the watcher/render threads run while the alt screen
+    // is active — AB-10 rain-screen cleanliness. main.rs drains post-exit.
+    if let Ok(mut g) = LIVE_RELOAD_DEBUG_TRACES.lock() {
+        if g.len() < MAX_DEBUG_TRACE_LOG {
+            g.push(format!("[live-reload-trace] {}", args));
+        }
+    }
+}
+
+/// Drain the debug trace buffer. Empty if disabled, no traces, or mutex
+/// poisoned. Production exit path (main.rs) calls this after Terminal::drop
+/// so the traces land on the main screen, not in the rain matrix.
+pub(crate) fn drain_debug_traces() -> Vec<String> {
+    LIVE_RELOAD_DEBUG_TRACES
+        .lock()
+        .map(|mut g| std::mem::take(&mut *g))
+        .unwrap_or_default()
 }
 
 /// Emit a debug trace line if `COSMOSTRIX_LIVE_RELOAD_DEBUG=1`. No-op
@@ -55,10 +91,7 @@ pub(crate) fn debug_trace(args: std::fmt::Arguments<'_>) {
 macro_rules! lr_trace {
     ($($arg:tt)*) => {
         if $crate::live_config_trace::live_reload_debug_enabled() {
-            $crate::live_config_trace::debug_trace(format_args!(
-                "[live-reload-trace] {}\n",
-                format_args!($($arg)*)
-            ));
+            $crate::live_config_trace::debug_trace(format_args!($($arg)*));
         }
     };
 }
@@ -80,7 +113,7 @@ pub(crate) fn trace_rebuild_applied(
 ) {
     if live_reload_debug_enabled() {
         debug_trace(format_args!(
-            "[live-reload-trace] Cloud rebuilt — color={:?} charset='{}' speed={:.2} density={:.3} fps={:.2}\n",
+            "Cloud rebuilt — color={:?} charset='{}' speed={:.2} density={:.3} fps={:.2}",
             color_scheme, charset_preset, speed, density, fps
         ));
     }

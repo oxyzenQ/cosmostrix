@@ -1218,12 +1218,13 @@ fn main() -> std::io::Result<()> {
         std::process::exit(2);
     }
 
-    // AB-10: drain buffered non-fatal runtime warnings (e.g. deprecated
-    // `.stops`) — buffered during rain loop to avoid alt-screen leak.
+    // AB-10: drain buffered runtime warnings + debug traces post-exit.
     for w in live_config::drain_runtime_warnings() {
         crate::output::eprintln_warn_labeled(&w);
     }
-
+    for t in crate::live_config_trace::drain_debug_traces() {
+        eprintln!("{t}");
+    }
     result
 }
 
