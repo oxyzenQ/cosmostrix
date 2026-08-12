@@ -148,6 +148,10 @@ static AMBIENT_SNAPBACK_GUARD_SKED_LEN: AtomicU64 = AtomicU64::new(999);
 static AMBIENT_SNAPBACK_GUARD_LAST_APPLIED: AtomicU64 = AtomicU64::new(999);
 static AMBIENT_SCHEDULE_RELOAD_COUNT: AtomicU64 = AtomicU64::new(0);
 static AMBIENT_SCHEDULE_EMPTY_COUNT: AtomicU64 = AtomicU64::new(0);
+// AB-07: post-rebuild consistency fix + permanent snapback kill diagnostics.
+static AMBIENT_CONFIG_REBUILD_COUNT: AtomicU64 = AtomicU64::new(0);
+static AMBIENT_CONSISTENCY_FIX_COUNT: AtomicU64 = AtomicU64::new(0);
+static AMBIENT_SNAPBACK_KILLED: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) fn ambient_diag_snapback() {
     AMBIENT_SNAPBACK_COUNT.fetch_add(1, Ordering::Relaxed);
@@ -178,6 +182,15 @@ pub(crate) fn ambient_diag_schedule_reload() {
 pub(crate) fn ambient_diag_schedule_empty() {
     AMBIENT_SCHEDULE_EMPTY_COUNT.fetch_add(1, Ordering::Relaxed);
 }
+pub(crate) fn ambient_diag_config_rebuild() {
+    AMBIENT_CONFIG_REBUILD_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+pub(crate) fn ambient_diag_consistency_fix() {
+    AMBIENT_CONSISTENCY_FIX_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+pub(crate) fn ambient_diag_snapback_killed() {
+    AMBIENT_SNAPBACK_KILLED.store(1, Ordering::Relaxed);
+}
 pub(crate) fn ambient_diag_summary() -> String {
     let snap = AMBIENT_SNAPBACK_COUNT.load(Ordering::Relaxed);
     let rx = AMBIENT_RX_COUNT.load(Ordering::Relaxed);
@@ -187,14 +200,17 @@ pub(crate) fn ambient_diag_summary() -> String {
     let guard_last = AMBIENT_SNAPBACK_GUARD_LAST_APPLIED.load(Ordering::Relaxed);
     let reloads = AMBIENT_SCHEDULE_RELOAD_COUNT.load(Ordering::Relaxed);
     let empties = AMBIENT_SCHEDULE_EMPTY_COUNT.load(Ordering::Relaxed);
+    let cfg_rebuilds = AMBIENT_CONFIG_REBUILD_COUNT.load(Ordering::Relaxed);
+    let consistency_fixes = AMBIENT_CONSISTENCY_FIX_COUNT.load(Ordering::Relaxed);
+    let snapback_killed = AMBIENT_SNAPBACK_KILLED.load(Ordering::Relaxed);
     let last = LAST_SCENE_CHANGE
         .lock()
         .ok()
         .and_then(|g| g.clone())
         .unwrap_or_else(|| "none".to_string());
     format!(
-        "ambient_diag: startup={} rx={} reapply={} snapback={} sked_reloads={} sked_empties={} snapback_guard_sked_len={} snapback_guard_last_applied={} last_scene_change={}",
-        startup, rx, reapply, snap, reloads, empties, guard_sked_len, guard_last, last
+        "ambient_diag: startup={} rx={} reapply={} snapback={} cfg_rebuilds={} sked_reloads={} sked_empties={} consistency_fixes={} snapback_killed={} snapback_guard_sked_len={} snapback_guard_last_applied={} last_scene_change={}",
+        startup, rx, reapply, snap, cfg_rebuilds, reloads, empties, consistency_fixes, snapback_killed, guard_sked_len, guard_last, last
     )
 }
 

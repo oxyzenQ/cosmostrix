@@ -84,10 +84,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     super::fill_terminal_bg(cloud.palette.bg);
 
     // v20: Modular cinematic intro (--intro <type> flag).
-    // v31: Removed the `!cfg.screensaver` guard — the intro now plays in
-    // screensaver mode too. The owner reversed the v17 "auto-skip in
-    // screensaver" decision: the intro is cosmostrix's signature and should
-    // not be suppressed by input mode. Skip policy (only `q` skips) is unchanged.
+    // v31: intro now plays in screensaver mode too (cosmostrix's signature; only 'q' skips).
     if cfg.intro != crate::config::IntroType::None {
         super::intro::run_intro(&mut term, &mut frame, &cloud, w, h, cfg.intro)?;
         cloud.force_draw_everything();
@@ -211,6 +208,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_ambient_schedule = base_cfg.ambient_schedule.clone();
     // v30.3: last-applied ambient entry — re-applied after live-reload rebuilds.
     let mut last_applied_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
+    // AB-07: permanent snapback kill — once schedule is detected empty
+    // (by any path), auto-snapback is disabled until a new rx event is
+    // applied from a non-empty schedule. This prevents stale state from
+    // ever firing snapback after user disables ambient.
+    let mut ambient_snapback_killed: bool = false;
     // v25.5+v30.4: last-applied cfg map for diff trace + startup ambient.
     let initial_cfg_map = base_cfg
         .config_path_for_watcher
@@ -381,6 +383,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             power_manager.set_target_fps(safe_fps);
             // v30: keep HUD tgt: in sync with live-reloaded fps.
             hud_state.set_target_fps(safe_fps);
+            // AB-07: count every config rebuild for diagnostics.
+            super::ambient_diag_config_rebuild();
             // Ambient: push new schedule to scheduler if it changed.
             if new_cfg.ambient_schedule != last_ambient_schedule {
                 super::ambient_diag_schedule_reload();
@@ -404,8 +408,50 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     last_applied_ambient_entry = None;
                     cloud.ambient_palette_locked = false;
                     cloud.user_override_since_ambient = true;
-                    crate::lr_trace!("ambient: schedule emptied — clearing tracker, unlocking palette, granting user control");
+                    ambient_snapback_killed = true;
+                    super::ambient_diag_snapback_killed();
+                    crate::lr_trace!("ambient: schedule emptied — clearing tracker, unlocking palette, killing snapback");
                 }
+            }
+            // AB-07: force-fix stale state when rebuilt config has empty schedule
+            // but tracker/locked flags remain (handles coalesced/equal comparison).
+            if new_cfg.ambient_schedule.entries.is_empty() {
+                let needs_fix = last_applied_ambient_entry.is_some()
+                    || cloud.ambient_palette_locked
+                    || !last_ambient_schedule.entries.is_empty();
+                if needs_fix {
+                    super::ambient_diag_consistency_fix();
+                    crate::lr_trace!(
+                        "ambient: AB-07 fix — 0 entries but stale (applied={} sked={} locked={})",
+                        last_applied_ambient_entry.is_some(),
+                        last_ambient_schedule.entries.len(),
+                        cloud.ambient_palette_locked
+                    );
+                    if !last_ambient_schedule.entries.is_empty() {
+                        ambient_handle.reload(new_cfg.ambient_schedule.clone());
+                        last_ambient_schedule = new_cfg.ambient_schedule.clone();
+                        super::ambient_diag_schedule_reload();
+                        super::ambient_diag_schedule_empty();
+                    }
+                    if let Some(ref last_entry) = last_applied_ambient_entry {
+                        if scene_name == last_entry.scene {
+                            scene_name = new_cfg.scene_name.clone();
+                            scene_generation = scene_generation.wrapping_add(1);
+                        }
+                    }
+                    last_applied_ambient_entry = None;
+                    cloud.ambient_palette_locked = false;
+                    cloud.user_override_since_ambient = true;
+                    ambient_snapback_killed = true;
+                    super::ambient_diag_snapback_killed();
+                }
+            } else if ambient_snapback_killed {
+                // Non-empty schedule after rebuild — revive snapback.
+                ambient_snapback_killed = false;
+                crate::lr_trace!(
+                    "ambient: AB-07 snapback revived — {} entries",
+                    new_cfg.ambient_schedule.entries.len()
+                );
             }
             // v30.3: re-apply last ambient entry to fresh Cloud. v35.3: skip custom_palette.
             if let Some(ref last_entry) = last_applied_ambient_entry {
@@ -527,17 +573,22 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // v35: ambient asserted — clear override, lock palette.
                 cloud.user_override_since_ambient = false;
                 cloud.ambient_palette_locked = true;
+                // AB-07: rx event from non-empty schedule — revive snapback.
+                if ambient_snapback_killed {
+                    ambient_snapback_killed = false;
+                    crate::lr_trace!("ambient: AB-07 snapback revived via rx event");
+                }
                 term.set_color_cache(ColorCache::new(&cloud.palette));
                 frame = Frame::new(w, h, cloud.palette.bg);
                 super::fill_terminal_bg(cloud.palette.bg);
             }
         }
-        // AB-06: nuclear call-site guard — skip snapback unless schedule
-        // non-empty AND last_applied_ambient_entry Some (inner guards bypassed).
+        // AB-07: snapback guard — !killed && sked non-empty && last_applied Some.
         let _ab06_sked_len = last_ambient_schedule.entries.len() as u64;
         let _ab06_last_applied = last_applied_ambient_entry.is_some();
         super::ambient_diag_snapback_guard(_ab06_sked_len, _ab06_last_applied);
-        if _ab06_sked_len > 0
+        if !ambient_snapback_killed
+            && _ab06_sked_len > 0
             && _ab06_last_applied
             && super::input::try_auto_snapback(
                 &mut cloud,
@@ -652,13 +703,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
                     }
                     Event::Key(k) => {
-                        // On Android/Termux, key events may arrive with
-                        // KeyEventKind::Release or Repeat instead of Press.
-                        // The Press-only guard caused 'i' (HUD toggle) to
-                        // be silently dropped, falling through to the
-                        // screensaver exit path. On Android, accept Press
-                        // and Repeat but skip Release (prevents double-toggle).
-                        // On desktop, keep Press-only for precision.
+                        // Android/Termux: accept Press+Repeat, skip Release (Press-only
+                        // guard silently dropped 'i' on Android). Desktop: Press-only.
                         let is_android = std::env::var("TERMUX_VERSION").is_ok()
                             || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
                         if is_android {
@@ -681,33 +727,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                             continue;
                         }
-                        // HUD toggle: check BEFORE screensaver exit so the
-                        // toggle key doesn't cause self-exit on Android/Termux
-                        // where the screensaver path would otherwise fire on
-                        // any unrecognized key event.
-                        //
-                        // v30 simplify: lowercase-only. 'i' toggles; uppercase
-                        // 'I' removed (was for sticky-shift keyboards).
-                        //
-                        // When toggling OFF, force_draw_everything() clears
-                        // stale HUD cells (rain uses diff-based rendering, so
-                        // cells without active rain keep previous content —
-                        // without force_draw this leaves "HUD residue").
+                        // HUD toggle ('i'): check BEFORE screensaver exit to prevent
+                        // self-exit on Android/Termux. v30: lowercase-only. Toggling
+                        // OFF calls force_draw_everything() to clear stale HUD residue.
                         if matches!((k.code, k.modifiers), (KeyCode::Char('i'), _)) {
                             let now_visible = hud_state.toggle();
                             if !now_visible {
                                 cloud.force_draw_everything();
                             }
-                            // v16 audit: Update next_frame so the HUD appears
-                            // immediately. Without this, if the user was in
-                            // idle mode (reduced FPS), pressing 'i' would
-                            // schedule the HUD render at the next idle-frame
-                            // time (potentially seconds away). On Windows,
-                            // the long poll_event wait during idle could
-                            // trigger a console error that silently exits
-                            // the program. Setting next_frame = activity_time
-                            // forces an immediate frame render, bypassing
-                            // the long wait.
+                            // Set next_frame=activity_time so HUD appears immediately;
+                            // otherwise idle-mode delay could defer render by seconds.
                             let _ = register_activity(
                                 &mut power_manager,
                                 &mut last_resync_time,
@@ -718,12 +747,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                             continue;
                         }
-                        // h: toggle HUD position.
-                        // v30 simplify: lowercase-only shortcuts for consistency.
-                        // Uppercase 'H' removed (was accepted for Android soft
-                        // keyboards where Shift may not work — but lowercase 'h'
-                        // works on all keyboards). See audit task flags-audit-4 /
-                        // docs/research/SHORTCUT_KEYS_AUDIT.md.
+                        // 'h': toggle HUD position. v30: lowercase-only (uppercase
+                        // 'H' removed; lowercase works on all keyboards including Android).
                         if matches!((k.code, k.modifiers), (KeyCode::Char('h'), _)) {
                             if hud_state.toggle_position() {
                                 cloud.force_draw_everything();
@@ -770,12 +795,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             &term_reinit,
                         );
                         if cfg.screensaver {
-                            // Screensaver (v15 "only q quits"): recognized
-                            // keys (c/C, s/S, p, x/X, [, ], i/I, h/H,
-                            // Space, Up/Down) process and continue; all
-                            // other keys silently ignored. Mouse click
-                            // also does NOT exit (v17: removed for policy
-                            // consistency). Only 'q' quits.
+                            // Screensaver: recognized keys process+continue; others ignored.
+                            // Mouse click doesn't exit (v17). Only 'q' quits.
                             if !cloud.raining {
                                 break;
                             }
@@ -800,16 +821,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         next_frame = activity_time;
                     }
                     Event::Mouse(m) => {
-                        // v17: Mouse events ALWAYS captured (blocks drag-select).
-                        // v17 mastery: REMOVED force_draw_everything on mouse MOVE
-                        // — old code caused 'bright colors when moving mouse' flash.
-                        // v30.10 fix: mouse CLICK now wakes the renderer on idle→active
-                        // transition (matches key-press handler). Previously clicks
-                        // used `let _ = register_activity(...)`, silently ignoring
-                        // the wake signal. A click during idle rendered at the
-                        // throttled 30 FPS cadence, causing the 0.8s particle
-                        // lifespan to expire before the effect was fully visible —
-                        // the 'click effect immediately gone' bug.
+                        // Mouse events always captured (blocks drag-select). No force_draw
+                        // on MOVE (old: bright-color flash). v30.10: CLICK wakes renderer
+                        // on idle→active (old: click effect vanished at 30 FPS idle cadence).
                         let activity_time = Instant::now();
                         let is_click = matches!(m.kind, MouseEventKind::Down(_));
                         let was_idle = is_idle;
@@ -847,15 +861,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     _ => {}
                 }
             }
-            // Break out of the poll loop when we have a resize to apply,
-            // but only after the debounce window has elapsed. This coalesces
-            // rapid resize events (e.g. window drag) into a single reset.
-            //
-            // Also break immediately if SIGHUP/SIGTERM fired (GRACEFUL_SHUTDOWN)
-            // or if the drain loop detected a dead PTY (cloud.raining = false).
-            // Without the GRACEFUL_SHUTDOWN check, the inner wait loop would
-            // keep spin-waiting until next_frame even after the signal handler
-            // set the flag — burning CPU for the remainder of the frame period.
+            // Break when resize debounce elapses (coalesces drag storms), or
+            // immediately on SIGHUP/SIGTERM / dead PTY. Without the shutdown
+            // check, the wait loop burns CPU until next_frame after the signal.
             if !cloud.raining || GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
                 break;
             }
@@ -884,32 +892,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
                 timeout = timeout.min(end - now);
             }
-            // Spin-sleep hybrid: poll_event for the bulk of the wait (also
-            // processes input events), then spin-wait the final ~500μs for
-            // sub-millisecond deadline accuracy. Eliminates OS scheduling
-            // jitter from the frame cadence.
-            //
-            // v25.15 (perf audit): spin_budget is now `FRAME_SPIN_BUDGET`
-            // from constants.rs — was a hardcoded `Duration::from_micros(500)`
-            // inline.
-            //
-            // Dead-PTY guard: when the terminal is force-closed, POLLHUP makes
-            // the tty fd perpetually "readable", so poll_event returns Ok(true)
-            // instantly and forever. If we fall through to spin_wait on Ok(true),
-            // we burn 500us-1ms of busy-spin per iteration. Instead, continue
-            // back to the drain phase which will call read_event — that returns
-            // Err(UnexpectedEof/EIO) which is_terminal_gone catches, setting
-            // cloud.raining = false. This drops post-SIGHUP CPU burn from 20s
-            // of 100% to < 1ms in rain mode.
+            // Spin-sleep hybrid: poll_event for bulk of wait, spin-wait final
+            // ~500μs for sub-ms deadline accuracy (spin_budget from constants.rs).
+            // Dead-PTY guard: on force-close, POLLHUP makes poll_event return
+            // Ok(true) forever; we continue to drain which catches EIO via
+            // is_terminal_gone, dropping post-SIGHUP CPU burn from 20s→<1ms.
             let spin_budget = FRAME_SPIN_BUDGET;
             if timeout > spin_budget {
-                // v25: poll_event can return Err when the terminal is closed
-                // (SIGHUP / PTY gone — crossterm's mio returns EIO/BadFd).
-                // Propagating via `?` sends the error to main.rs, which calls
-                // eprintln! on broken stderr → double-panic → abort → coredump.
-                // Treat EIO/BrokenPipe as "terminal gone": stop rain and break,
-                // mirroring the draw() EIO guard below. Post-loop shutdown
-                // drops Terminal (uses `let _ =` in cleanup) and exits cleanly.
+                // poll_event Err on dead PTY (EIO/BadFd). Propagating via `?`
+                // would double-panic on broken stderr → abort. Treat as
+                // terminal-gone: stop rain, break; post-loop drop exits cleanly.
                 match Terminal::poll_event(timeout - spin_budget) {
                     Ok(true) => continue,
                     Ok(false) => {}
