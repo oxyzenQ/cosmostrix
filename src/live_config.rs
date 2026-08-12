@@ -154,15 +154,16 @@ pub(crate) fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigE
                 watcher_loop(path, tx);
             }));
             if let Err(_e) = result {
-                // Phase 5 (P3-3/P4-1): emit stderr on mutex poison (write_fmt = broken-pipe-safe).
+                // Phase 5 (P3-3/P4-1): on mutex poison, the LIVE_RELOAD_ERROR
+                // mutex is also poisoned (same lock). Buffer the diagnostic
+                // to the runtime warning log so main.rs can drain it post-exit
+                // instead of eprintln-ing here (which leaks into the alt
+                // screen rain matrix — AB-10).
                 match LIVE_RELOAD_ERROR.lock() {
                     Ok(mut g) => *g = Some("watcher thread terminated unexpectedly".to_string()),
-                    Err(_) => {
-                        use std::io::Write;
-                        let _ = std::io::stderr().write_fmt(format_args!(
-                            "[live-reload] mutex poisoned — watcher thread terminated unexpectedly\n"
-                        ));
-                    }
+                    Err(_) => push_runtime_warning(
+                        "[live-reload] mutex poisoned — watcher thread terminated unexpectedly",
+                    ),
                 }
                 LIVE_RELOAD_EXIT_CODE.store(2, Ordering::Release);
             }
@@ -172,10 +173,9 @@ pub(crate) fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigE
         Ok(_) => lr_trace!("watcher thread spawned successfully — live reload active"),
         Err(e) => {
             lr_trace!("FAILED to spawn watcher thread: {e} — live reload disabled");
-            // v25.3: bulletproof write — eprintln! panics on broken stderr.
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[live-reload] FAILED to spawn watcher thread: {e} — live reload disabled\n"
+            // AB-10: buffer instead of eprintln — leaks into alt screen otherwise.
+            push_runtime_warning(&format!(
+                "[live-reload] FAILED to spawn watcher thread: {e} — live reload disabled"
             ));
             return None;
         }
@@ -226,10 +226,10 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
                     Err(_) => {
                         // Polling heartbeat panicked — back off + restart.
                         lr_trace!("polling heartbeat PANICKED — restarting after 1s backoff");
-                        use std::io::Write;
-                        let _ = std::io::stderr().write_fmt(format_args!(
-                            "[live-reload] polling heartbeat panicked — restarting after 1s backoff\n"
-                        ));
+                        // AB-10: buffer — eprintln leaks into the alt screen.
+                        push_runtime_warning(
+                            "[live-reload] polling heartbeat panicked — restarting after 1s backoff",
+                        );
                         std::thread::sleep(Duration::from_secs(1));
                     }
                 }
@@ -242,10 +242,9 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         }
         Err(e) => {
             lr_trace!("FAILED to spawn polling heartbeat: {e} — native watcher only");
-            // v25: bulletproof write — eprintln! panics on broken stderr.
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[live-reload] failed to spawn polling heartbeat: {e} — native watcher only\n"
+            // AB-10: buffer — eprintln leaks into the alt screen.
+            push_runtime_warning(&format!(
+                "[live-reload] failed to spawn polling heartbeat: {e} — native watcher only"
             ));
         }
     }
@@ -264,9 +263,9 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         }
         Err(e) => {
             lr_trace!("native watcher unavailable: {e} — relying on polling heartbeat only");
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[live-reload] native watcher unavailable: {e} — relying on polling heartbeat ({poll_interval_ms}ms base interval)\n"
+            // AB-10: buffer — eprintln leaks into the alt screen.
+            push_runtime_warning(&format!(
+                "[live-reload] native watcher unavailable: {e} — relying on polling heartbeat ({poll_interval_ms}ms base interval)"
             ));
             None
         }
@@ -291,9 +290,9 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         );
         if let Err(e) = w.watch(&watch_dir, RecursiveMode::NonRecursive) {
             lr_trace!("native watch registration FAILED: {e} — polling heartbeat only");
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[live-reload] native watcher failed to register {}: {e} — relying on polling heartbeat\n",
+            // AB-10: buffer — eprintln leaks into the alt screen.
+            push_runtime_warning(&format!(
+                "[live-reload] native watcher failed to register {}: {e} — relying on polling heartbeat",
                 watch_dir.display()
             ));
             watcher = None;
@@ -320,9 +319,9 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
         // transient watcher error; `continue` (not `break`) keeps poll alive.
         if event_result.is_err() {
             lr_trace!("watcher Err received: {:?}", event_result.as_ref().err());
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[live-reload] transient watcher error (continuing — polling heartbeat still active): {:?}\n",
+            // AB-10: buffer — eprintln leaks into the alt screen.
+            push_runtime_warning(&format!(
+                "[live-reload] transient watcher error (continuing — polling heartbeat still active): {:?}",
                 event_result.as_ref().err()
             ));
             continue;
@@ -352,9 +351,9 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
             native_silence_warned = true;
             let elapsed = loop_start.elapsed().as_secs();
             lr_trace!("LIVENESS: native silent {elapsed}s — poll-only (OK)");
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[live-reload] native watcher silent {elapsed}s — polling heartbeat sole detector (informational)\n"
+            // AB-10: buffer — eprintln leaks into the alt screen.
+            push_runtime_warning(&format!(
+                "[live-reload] native watcher silent {elapsed}s — polling heartbeat sole detector (informational)"
             ));
         }
 
@@ -971,10 +970,10 @@ fn apply_scene_custom_to_cloud_config(
 
     if touched_any {
         // scene_name stays as the custom scene name (set at startup).
-        // v25: bulletproof write — runs in watcher worker thread.
-        use std::io::Write;
-        let _ = std::io::stderr().write_fmt(format_args!(
-            "[live-reload] scene-custom '{normalized}': re-applied fields from config\n"
+        // AB-10: buffer — runs in watcher worker thread, eprintln leaks
+        // into the alt screen.
+        push_runtime_warning(&format!(
+            "[live-reload] scene-custom '{normalized}': re-applied fields from config"
         ));
     }
 }
