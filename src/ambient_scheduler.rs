@@ -132,6 +132,7 @@ impl AmbientSchedulerHandle {
     /// This is the authoritative answer to "should ambient be active right
     /// now?" — if the scheduler has no entries, snapback must never fire.
     #[must_use]
+    #[allow(dead_code)] // AB-07: kept for future use; AB-08 uses ground-truth file read instead
     pub fn is_schedule_empty(&self) -> bool {
         match self.schedule.lock() {
             Ok(s) => s.entries.is_empty(),

@@ -210,9 +210,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_applied_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
     // AB-07: permanent snapback kill — once schedule is detected empty
     // (by any path), auto-snapback is disabled until a new rx event is
-    // applied from a non-empty schedule. This prevents stale state from
-    // ever firing snapback after user disables ambient.
+    // applied from a non-empty schedule.
     let mut ambient_snapback_killed: bool = false;
+    // AB-08: config file path for ground-truth re-read before snapback.
+    // The watcher can lose/debounce/dedup events, leaving all cached state
+    // (last_ambient_schedule, scheduler's Arc<Mutex>) stale. Reading the
+    // actual file from disk is the only way to know the true ambient state.
+    let config_path_for_ground_truth = base_cfg.config_path_for_watcher.clone();
     // v25.5+v30.4: last-applied cfg map for diff trace + startup ambient.
     let initial_cfg_map = base_cfg
         .config_path_for_watcher
@@ -497,59 +501,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 cloud.ambient_palette_locked = false;
             }
         }
-        // AB-03+AB-04+AB-07: poll ambient phase events. Use scheduler's actual
-        // schedule (via is_schedule_empty) as authoritative source — our cached
-        // `last_ambient_schedule` can go stale if a config-rebuild event is
-        // lost/debounced/deduped by the watcher.
-        let scheduler_actually_empty = ambient_handle.is_schedule_empty();
+        // AB-03+AB-04: poll ambient phase events. Empty schedule → drain all.
+        // Non-empty → discard events no longer in schedule (membership check).
         let mut last_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
-        if !scheduler_actually_empty && !last_ambient_schedule.entries.is_empty() {
+        if !last_ambient_schedule.entries.is_empty() {
             while let Ok(entry) = ambient_handle.rx.try_recv() {
                 if !last_ambient_schedule.entries.iter().any(|e| e == &entry) {
-                    crate::lr_trace!("ambient: discarding stale phase event {:02}:{:02} (scene={}) — no longer in schedule", entry.hour, entry.minute, entry.scene);
                     continue;
                 }
-                crate::lr_trace!(
-                    "ambient: received phase event {:02}:{:02} (scene={})",
-                    entry.hour,
-                    entry.minute,
-                    entry.scene
-                );
                 last_ambient_entry = Some(entry);
             }
         } else {
-            while let Ok(entry) = ambient_handle.rx.try_recv() {
-                crate::lr_trace!(
-                    "ambient: discarding rx event {:02}:{:02} (scene={}) — schedule is empty (sked_len={} scheduler_empty={})",
-                    entry.hour,
-                    entry.minute,
-                    entry.scene,
-                    last_ambient_schedule.entries.len(),
-                    scheduler_actually_empty
-                );
-            }
-            // AB-07: per-frame stale-fix — scheduler is the authoritative source.
-            // If scheduler says empty but our cached state is stale (non-empty
-            // schedule, or last_applied still set), clean up immediately.
-            // This handles the case where a config-rebuild event is lost/
-            // debounced/deduped by the watcher — `last_ambient_schedule` goes
-            // stale but the scheduler's Arc<Mutex> is always up-to-date.
-            if scheduler_actually_empty {
-                let sked_stale = !last_ambient_schedule.entries.is_empty();
-                let applied_stale = last_applied_ambient_entry.is_some();
-                if sked_stale || applied_stale || cloud.ambient_palette_locked {
-                    if sked_stale {
-                        last_ambient_schedule.entries.clear();
-                        super::ambient_diag_schedule_empty();
-                        super::ambient_diag_schedule_reload();
-                    }
-                    last_applied_ambient_entry = None;
-                    cloud.ambient_palette_locked = false;
-                    cloud.user_override_since_ambient = true;
-                    ambient_snapback_killed = true;
-                    super::ambient_diag_snapback_killed();
-                }
-            }
+            // Drain stale events when schedule is empty.
+            while ambient_handle.rx.try_recv().is_ok() {}
         }
         if let Some(entry) = last_ambient_entry {
             // v30.3 dedup + v35: re-apply if user overrode (day-boundary refire).
@@ -587,16 +551,51 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 super::fill_terminal_bg(cloud.palette.bg);
             }
         }
-        // AB-07: snapback guard — scheduler not empty is the authoritative gate.
-        // Reads scheduler's Arc<Mutex> directly — even if last_ambient_schedule
-        // is stale (watcher event lost), snapback cannot fire with no entries.
+        // AB-08: snapback guard with ground-truth config file re-read.
+        // All cached state (last_ambient_schedule, scheduler's Arc<Mutex>,
+        // last_applied_ambient_entry) can go stale if the watcher loses a
+        // config-change event (debounce/dedup/channel full). The ONLY
+        // authoritative source is the actual config file on disk. We re-read
+        // it here — this runs at most once per frame, only when other guard
+        // conditions suggest snapback might fire, so the I/O cost (~50µs)
+        // is negligible compared to the 30s snapback delay.
         let _ab06_sked_len = last_ambient_schedule.entries.len() as u64;
         let _ab06_last_applied = last_applied_ambient_entry.is_some();
         super::ambient_diag_snapback_guard(_ab06_sked_len, _ab06_last_applied);
+        let ground_truth_ambient_empty =
+            if !ambient_snapback_killed && _ab06_sked_len > 0 && _ab06_last_applied {
+                // Re-read config file from disk as ground truth. If file has
+                // 0 ambient entries, all cached state is stale → no snapback.
+                let mut file_says_empty = false;
+                if let Some(ref path) = config_path_for_ground_truth {
+                    if let Ok(content) = std::fs::read_to_string(path) {
+                        let parsed = crate::configfile::parse_config_text(&content);
+                        let disk_sked = crate::ambient::collect_ambient_schedule(&parsed.values);
+                        if disk_sked.entries.is_empty() {
+                            file_says_empty = true;
+                        }
+                    }
+                }
+                file_says_empty
+            } else {
+                false
+            };
+        // AB-08: if ground truth says empty, nuke ALL stale ambient state.
+        if ground_truth_ambient_empty {
+            last_ambient_schedule.entries.clear();
+            last_applied_ambient_entry = None;
+            cloud.ambient_palette_locked = false;
+            cloud.user_override_since_ambient = true;
+            ambient_snapback_killed = true;
+            ambient_handle.reload(crate::ambient::AmbientSchedule::default());
+            super::ambient_diag_schedule_empty();
+            super::ambient_diag_schedule_reload();
+            super::ambient_diag_snapback_killed();
+        }
         if !ambient_snapback_killed
-            && !scheduler_actually_empty
             && _ab06_sked_len > 0
             && _ab06_last_applied
+            && !ground_truth_ambient_empty
             && super::input::try_auto_snapback(
                 &mut cloud,
                 &mut charset_preset,
