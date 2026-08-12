@@ -40,29 +40,30 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(not(unix))]
     let _ = term_reinit;
 
-    let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
-    // v17: Mouse reporting ALWAYS on (blocks text select; --mouse removed).
-    // Terminal safety: Terminal::drop, panic hook, signal handlers, watchdog, fork-based SIGKILL guard (Linux).
-    if term.enable_mouse_capture().is_ok() {
-        MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
-    }
-    // --screen-size: use fixed virtual size if specified, else dynamic terminal size.
-    let mut w: u16;
-    let mut h: u16;
-    let (w_init, h_init) = if let Some(fixed) = cfg.screen_size {
-        let (tw, th) = term.size().unwrap_or((fixed.0, fixed.1));
+    // AB-10: validate --screen-size BEFORE alt-screen entry so the warning
+    // lands on the main screen, not in the rain matrix.
+    let fixed_size = cfg.screen_size;
+    if let Some(fixed) = fixed_size {
+        let (tw, th) = crossterm::terminal::size().unwrap_or((fixed.0, fixed.1));
+        let tw = tw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+        let th = th.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
         if fixed.0 > tw || fixed.1 > th {
             eprintln!(
                 "warning: --screen-size {}x{} exceeds terminal {}x{}; will clip to top-left",
                 fixed.0, fixed.1, tw, th
             );
         }
+    }
+
+    let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
+    if term.enable_mouse_capture().is_ok() {
+        MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
+    }
+    let (mut w, mut h) = if let Some(fixed) = fixed_size {
         fixed
     } else {
         term.size()?
     };
-    w = w_init;
-    h = h_init;
 
     let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
