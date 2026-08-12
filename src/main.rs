@@ -1055,7 +1055,7 @@ fn main() -> std::io::Result<()> {
                 configfile::resolve_watcher_config_path(args.config.as_deref());
             if crate::live_config_trace::live_reload_debug_enabled() {
                 crate::live_config_trace::debug_trace(format_args!(
-                    "[live-reload-trace] watcher path resolved: {} (existed candidates: {})\n",
+                    "watcher path resolved: {} (existed candidates: {})\n",
                     resolved.display(),
                     existed
                         .iter()
