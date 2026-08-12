@@ -9,6 +9,87 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v50.0.0-alpha.1 — Cosmic Dragon Stability + Rain-Screen Cleanliness + IP Tightening
+
+### Headline
+
+Pre-release hardening focused on **stability** and **rain-screen cleanliness**
+rather than new features. The ambient scheduler, live-reload path, and
+self-healer were audited end-to-end for stderr/stdout leaks that polluted
+the alternate-screen rain matrix. All IP/trademark docs were tightened for
+consistency. The chroma dragon engine pipeline was re-audited and confirmed
+correct (chroma primary for TrueColor, legacy fallback for non-truecolor).
+
+### Rain-Screen Cleanliness (AB-09 + AB-10 series, 11 commits)
+
+The renderer enters an alternate screen on startup. Any `eprintln!` /
+`write_fmt` to stderr during the rain loop leaks into the rain matrix
+and briefly flashes over the rain columns. A deeper audit found **all
+leak vectors** in the rain-active code path and fixed each:
+
+- **AB-09**: clear scheduler `last_applied` on empty schedule — fixes
+  ambient toggle at the same hour sometimes not applying (scene stuck
+  on config default `cinematic` instead of the ambient entry's scene).
+- **AB-10 B1**: defer final FPS `eprintln!` until after `drop(term)`.
+- **AB-10 B2**: move `--screen-size` warning before alt-screen entry.
+- **AB-10 B3**: move intro too-small warning before alt-screen entry
+  (extracted to `emit_pre_alt_screen_warnings()` helper).
+- **AB-10 B4**: buffer live-reload runtime warnings (e.g. deprecated
+  `.stops` alias) to `LIVE_RELOAD_RUNTIME_WARNINGS`, drain post-exit.
+- **AB-10 B5**: buffer 9 watcher-thread `write_fmt` calls in
+  `live_config.rs` (mutex poison, spawn failures, heartbeat panic,
+  watcher errors, scene-custom re-apply) to the same buffer.
+- **AB-10 B6**: buffer self-healer DowngradeScene/RestoreScene writes;
+  call `restore_terminal_best_effort()` before tty-recovery stderr write.
+- **AB-10 C1**: buffer `lr_trace!` debug traces (91 call sites) to
+  `LIVE_RELOAD_DEBUG_TRACES`, drain post-exit. Fixes leak when
+  `COSMOSTRIX_LIVE_RELOAD_DEBUG=1` is set.
+- **AB-10 C2**: fix duplicate `[live-reload-trace]` prefix.
+
+Net effect: rain screen is now cinematic-clean. No verbose leaks during
+rain active. All diagnostics buffer to static `Mutex<Vec<String>>` and
+drain on the main screen after `Terminal::drop` restores it.
+
+### IP/Trademark Tightening (3 commits)
+
+- **NOTICE**: fix `(c)`→`(C)`, `GPL v3`→`GPL-3.0-only`, drop dangling
+  `AUTHORS` reference, identity consistent as `rezky_nightky (oxyzenQ)`.
+- **TRADEMARK.md**: use SPDX identifier, match source-header copyright form.
+- **README IP section**: parallel sentence structure, copyright form
+  consistent with source headers.
+
+### Benchmark Docs Refresh (3 commits)
+
+- **BENCHMARKING.md §5**: replaced v30 4-Run Matrix (owner's Ryzen
+  5800HS desktop, peak 102K FPS) as primary reference with v50 4-Scene
+  Matrix captured on a 2-vCPU cloud Xeon (84,815 avg_fps `monolith`,
+  26,252 avg_fps `cinematic`). Honest framing: cosmostrix is a
+  cinematic-quality renderer that uses the diff engine to make the
+  cinematic effects affordable at practical terminal-bounded FPS —
+  performance enables quality, not the reverse.
+- **README.md**: refreshed 6 stale "70,000+ FPS (v30, lean path)"
+  references to v50 numbers with honest framing.
+- **benchmark/README.md + BENCHMARK_CLOUD_XEON.md**: marked v30
+  sections as Historical, pointed to v50 matrix as current.
+
+### Chroma Dragon Engine Audit (no fix needed)
+
+Re-audited the chroma dragon engine pipeline per owner directive
+"chroma dragon first, legacy fallback". Confirmed:
+- `ColorPipeline::detect()`: TrueColor → ChromaDragon (primary),
+  Color256/16/Mono → LegacyRgb (fallback).
+- All 30+ `chroma::legacy::*` call sites in droplet.rs, cloud/monolith.rs,
+  cloud/phosphor.rs, cloud/rain.rs, cloud/mod.rs gate via
+  `if ctx.color_pipeline.is_chroma()` — chroma primary in true branch,
+  legacy fallback in else branch.
+- `chroma::gradient::gradient_from_stops_oklab` (OKLab polar) is the
+  sole production gradient path since v30 (cartesian removed).
+- doctor.rs + verbose.rs disclose `color_pipeline` to the user.
+
+No code change needed — pipeline was already correct.
+
+---
+
 ## v25.0.0-alpha.7 — Full-Codebase Dead-Code Sweep (Flat src/ Files)
 
 ### Headline

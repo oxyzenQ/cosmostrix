@@ -52,7 +52,7 @@ jump to §6 (Interpreting Key Metrics) for the deep dive.
 | `p99_9_frame_time`      | ms        | 99.9th-percentile frame time. The slowest 0.1% — extreme tail latency.                        |
 | `max_frame_time`        | ms        | Worst single-frame spike. What users perceive as jank.                                         |
 | `frame_jitter`          | label     | Variability label (`low` / `medium` / `high`). `low` = stable frame pacing.                   |
-| `frame_time_stability`  | label     | `excellent` = p99 within 2× avg, max within 5×. v30 hits `excellent` on all 4 runs.           |
+| `frame_time_stability`  | label     | `excellent` = p99 within 2× avg, max within 5×. v50 hits `excellent` on all 4 scenes.           |
 | `fps_drift_percent`     | percent   | (first_half_fps − second_half_fps) / first_half_fps × 100. Negative = warmup; positive = throttle/leak. |
 | `total_frames`          | count     | Frames computed during the measurement window.                                                 |
 | `elapsed`               | seconds   | Wall-clock duration of the measurement window.                                                 |
