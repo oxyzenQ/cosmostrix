@@ -80,6 +80,7 @@ mod bench_report_tests;
 mod bench_scale;
 mod bench_visual;
 mod bolt;
+mod brightness_factors;
 mod cell;
 mod charset;
 mod charset_custom;
