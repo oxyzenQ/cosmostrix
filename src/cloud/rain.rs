@@ -167,8 +167,19 @@ impl Cloud {
         // call + Copy-binding suffices.
         let emergent_effects = self.storytelling.active_effects(now);
 
-        let mut spawn_scale = (1.0 - (PERF_PRESSURE_SPAWN_FACTOR * self.perf_pressure))
-            .clamp(PERF_SPAWN_SCALE_MIN, 1.0);
+        // AB-11 (dragon power audit, option 2): when the self-healer has set
+        // aggressive_throttle, use a steeper curve (0.9 vs 0.75) + lower floor
+        // (0.10 vs 0.25) to shed more spawn load. This does NOT touch the
+        // user's density setting — only the spawn rate multiplier is affected.
+        let (factor, floor) = if self.aggressive_throttle {
+            (
+                PERF_PRESSURE_SPAWN_FACTOR_AGGRESSIVE,
+                PERF_SPAWN_SCALE_MIN_AGGRESSIVE,
+            )
+        } else {
+            (PERF_PRESSURE_SPAWN_FACTOR, PERF_SPAWN_SCALE_MIN)
+        };
+        let mut spawn_scale = (1.0 - (factor * self.perf_pressure)).clamp(floor, 1.0);
         // Apply atmospheric density modulation
         spawn_scale *= 1.0 + self.entropy_drift.density_offset;
         // Apply profile density modulation
@@ -276,7 +287,12 @@ impl Cloud {
         }
 
         let glitch_due = self.time_for_glitch(now);
-        let allow_glitch = glitch_due && self.perf_pressure < GLITCH_THRESHOLD;
+        // AB-11: when aggressive_throttle is active, disable glitches entirely
+        // (don't even check the threshold). This sheds the glitch computation
+        // cost without touching the user's glitch_level setting — the setting
+        // stays, glitches just don't fire while the throttle is active.
+        let allow_glitch =
+            glitch_due && !self.aggressive_throttle && self.perf_pressure < GLITCH_THRESHOLD;
         let time_for_glitch = allow_glitch;
 
         let max_sim_delta = self.max_sim_delta;

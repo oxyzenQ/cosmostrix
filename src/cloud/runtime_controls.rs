@@ -236,6 +236,14 @@ impl Cloud {
         self.perf_pressure = p.clamp(0.0, 1.0);
     }
 
+    /// AB-11: set the aggressive-throttle flag. When true, `rain_at()` uses
+    /// steeper spawn-scale + disables glitches — WITHOUT touching the user's
+    /// color/charset/density/speed/glitch_level. Called by the self-healer
+    /// via the event loop on sustained high/low CPU pressure.
+    pub fn set_aggressive_throttle(&mut self, on: bool) {
+        self.aggressive_throttle = on;
+    }
+
     pub fn set_max_sim_delta(&mut self, d: Duration) {
         self.max_sim_delta = d;
     }

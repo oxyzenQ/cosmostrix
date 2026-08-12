@@ -181,6 +181,10 @@ pub struct Cloud {
     pub(super) frames_since_stuck_sweep: u64,
 
     pub(super) perf_pressure: f32,
+    /// AB-11: when true, self-healer detected sustained high CPU pressure.
+    /// rain_at() uses steeper spawn-scale + disables glitches. Does NOT
+    /// override the user's color/charset/density/speed/glitch_level.
+    pub(super) aggressive_throttle: bool,
     pub(super) max_sim_delta: Duration,
 
     pub(super) shading_mode: ShadingMode,
@@ -362,6 +366,7 @@ impl Cloud {
             frames_since_full_redraw: 0,
             frames_since_stuck_sweep: 0,
             perf_pressure: 0.0,
+            aggressive_throttle: false,
             max_sim_delta: Duration::from_millis(0),
             shading_mode,
             message: Vec::new(),

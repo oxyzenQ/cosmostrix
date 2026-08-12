@@ -974,6 +974,12 @@ pub(crate) const FULL_REDRAW_INTERVAL_FRAMES: u64 = 18000;
 /// Spawn-scale floor under perf pressure (don't go below 25% of target).
 pub(crate) const PERF_SPAWN_SCALE_MIN: f32 = 0.25;
 
+/// AB-11 (dragon power audit, option 2): aggressive spawn-scale floor used
+/// when the self-healer has detected sustained high CPU pressure. Lower
+/// floor (10% vs 25%) allows the engine to shed more load and recover
+/// without touching the user's color/charset/density/speed/glitch_level.
+pub(crate) const PERF_SPAWN_SCALE_MIN_AGGRESSIVE: f32 = 0.10;
+
 /// Glitch activation threshold (fraction of cells).
 pub(crate) const GLITCH_THRESHOLD: f32 = 0.35;
 

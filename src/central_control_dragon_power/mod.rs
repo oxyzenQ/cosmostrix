@@ -149,6 +149,12 @@ mod audit_tests;
 /// Pressure spawn scaling factor: reduces spawn rate under perf pressure.
 pub(crate) const PERF_PRESSURE_SPAWN_FACTOR: f32 = 0.75;
 
+/// AB-11 (dragon power audit, option 2): aggressive spawn-scale factor used
+/// when the self-healer has detected sustained high CPU pressure. Steeper
+/// curve (0.9 vs 0.75) sheds more spawns per unit of pressure. This throttles
+/// the spawn rate WITHOUT touching the user's color/charset/density/speed.
+pub(crate) const PERF_PRESSURE_SPAWN_FACTOR_AGGRESSIVE: f32 = 0.9;
+
 /// Performance pressure increment per overshoot frame.
 pub(crate) const PERF_PRESSURE_INCREMENT: f32 = 0.25;
 

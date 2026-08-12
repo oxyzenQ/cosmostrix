@@ -1221,45 +1221,35 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
             SelfHealAction::DowngradeScene => {
-                // P1: save the current scene, then switch to the fallback.
-                // Skip if the user is already on the fallback scene (no-op
-                // downgrade would leave us in a weird state where
-                // pre_degraded_scene == FALLBACK_SCENE).
-                if scene_name != PerformanceSelfHealer::FALLBACK_SCENE {
+                // AB-11 (dragon power audit, option 2): do NOT switch scenes.
+                // The old code called cloud.apply_scene_runtime("low-power")
+                // which silently overrode the user's color, charset, density,
+                // speed, and glitch_level — violating the owner's principle
+                // that dragon power must not change visual identity.
+                //
+                // Instead: set the aggressive_throttle flag. This makes
+                // rain_at() use a steeper spawn-scale curve (0.9 vs 0.75)
+                // + lower floor (0.10 vs 0.25) + disables glitches entirely.
+                // The user's color/charset/density/speed/glitch_level are
+                // NEVER touched. When pressure recovers, the flag is cleared
+                // and spawn-scale returns to normal on the next frame.
+                if !self_healer.is_downgraded() {
                     self_healer.record_downgrade(&scene_name);
-                    let prior_scene = scene_name.clone();
-                    let new_charset = cloud.apply_scene_runtime(
-                        PerformanceSelfHealer::FALLBACK_SCENE,
-                        &charset_preset,
-                        &user_ranges,
-                        def_ascii,
-                    );
-                    scene_name = PerformanceSelfHealer::FALLBACK_SCENE.to_string();
-                    scene_generation = scene_generation.wrapping_add(1);
-                    charset_preset = new_charset;
-                    // AB-10 (rain-screen cleanliness): buffer to runtime
-                    // warnings instead of eprintln — the self-healer fires
-                    // from inside the rain loop, so direct stderr writes
-                    // leak into the alt screen rain matrix. main.rs drains
-                    // the buffer post-exit.
+                    cloud.set_aggressive_throttle(true);
                     crate::live_config::push_runtime_warning(&format!(
-                        "[self-heal] sustained high CPU pressure — downgrading '{}' → '{}'",
-                        prior_scene,
-                        PerformanceSelfHealer::FALLBACK_SCENE
+                        "[self-heal] sustained high CPU pressure — throttling spawn rate (visual identity preserved: scene='{}')",
+                        scene_name
                     ));
                 }
             }
             SelfHealAction::RestoreScene => {
-                // P1: restore the scene that was active before the downgrade.
-                if let Some(prior) = self_healer.take_pre_degraded_scene() {
-                    let new_charset =
-                        cloud.apply_scene_runtime(&prior, &charset_preset, &user_ranges, def_ascii);
-                    scene_name = prior;
-                    scene_generation = scene_generation.wrapping_add(1);
-                    charset_preset = new_charset;
-                    // AB-10: buffer — see the DowngradeScene branch above.
+                // AB-11: clear the aggressive_throttle flag. No scene restore
+                // needed — the user's scene was never changed.
+                if self_healer.is_downgraded() {
+                    self_healer.take_pre_degraded_scene(); // drain the saved name
+                    cloud.set_aggressive_throttle(false);
                     crate::live_config::push_runtime_warning(
-                        "[self-heal] CPU pressure recovered — restoring scene",
+                        "[self-heal] CPU pressure recovered — spawn throttle released",
                     );
                 }
             }

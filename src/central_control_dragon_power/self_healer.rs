@@ -119,19 +119,19 @@ pub(crate) struct PerformanceSelfHealer {
 }
 
 impl PerformanceSelfHealer {
-    /// Fallback scene applied on downgrade. Hardcoded to "low-power" —
-    /// the built-in scene specifically designed for low-CPU operation
-    /// (speed=5, density=0.45, glitch_level=None). Exposed as a constant
-    /// so tests and the event loop can reference it without magic strings.
+    /// AB-11 (dragon power audit, option 2): this constant is retained for
+    /// reference but NO LONGER USED for scene switching. The old design
+    /// called `cloud.apply_scene_runtime("low-power")` on sustained high
+    /// CPU pressure, which silently overrode the user's color, charset,
+    /// density, speed, and glitch_level — violating the owner's principle
+    /// that dragon power must not change visual identity.
     ///
-    /// **v35.2 audit note (FPS-F2)**: the "low-power" scene's `fps=30`
-    /// field is **startup-only by design** — `Cloud::apply_scene_runtime`
-    /// does NOT apply `fps` at runtime, only `speed`/`density`/`color`/
-    /// `charset`/`glitch_level`. So the CPU shed from a downgrade comes
-    /// from the lower speed/density/glitch, NOT from a runtime FPS drop.
-    /// This is intentional: letting the self-healer override the user's
-    /// `--fps` would create a precedence ambiguity. The runtime idle
-    /// factor and pause period remain the only runtime FPS modifiers.
+    /// The new design sets `cloud.aggressive_throttle = true` instead,
+    /// which only affects the spawn-scale formula (steeper curve + lower
+    /// floor) and disables glitches — the user's visual settings are never
+    /// touched. This constant is kept so the audit trail is visible and
+    /// future contributors understand what the old behavior was.
+    #[allow(dead_code)]
     pub(crate) const FALLBACK_SCENE: &'static str = "low-power";
 
     pub(crate) fn new() -> Self {
@@ -266,7 +266,6 @@ impl PerformanceSelfHealer {
     /// the event loop to avoid double-applying downgrades and to skip
     /// user-initiated scene changes while downgraded (the user's choice
     /// wins; we clear the downgrade state).
-    #[cfg(test)]
     pub(crate) fn is_downgraded(&self) -> bool {
         self.is_downgraded
     }
