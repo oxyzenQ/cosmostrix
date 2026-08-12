@@ -3,15 +3,15 @@
 
 **Owner:** rezky_nightky (oxyzenQ)
 **Repository:** https://github.com/oxyzenQ/cosmostrix
-**License:** GPL-3.0-only (source code)
+**Source license:** GPL-3.0-only
 
 ## 1. Copyright & Ownership
 
 cosmostrix — including its source code, logo, name, and all associated
 branding materials (collectively, the "Marks") — is the exclusive intellectual
-property of **rezky_nightky (oxyzenQ)**. The source code is licensed under the
-GNU General Public License v3 only (GPL-3.0-only). The Marks are NOT covered
-by the GPL and are reserved by the owner.
+property of **rezky_nightky (oxyzenQ)**. The source code is licensed under
+GPL-3.0-only. The Marks are NOT covered by the GPL and are reserved by the
+owner.
 
 This project is NOT for sale. Source-code theft, rebranding, or
 re-distribution under a different license without the express written
@@ -56,5 +56,5 @@ For trademark licensing inquiries or written permission requests, contact:
 
 ---
 
-© 2026 rezky_nightky (oxyzenQ). All rights reserved.
+Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
 cosmostrix and the cosmostrix logo are trademarks of rezky_nightky (oxyzenQ).
