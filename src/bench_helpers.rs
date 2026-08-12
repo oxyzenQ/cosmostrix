@@ -5,6 +5,7 @@
 
 use std::env;
 
+use crate::config::Args;
 use crate::constants::{
     BENCH_MAX_COLS, BENCH_MAX_LINES, DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES,
     MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
@@ -131,6 +132,80 @@ pub(crate) fn format_backpressure_section(
         &format!("{} ({:.1}% of total)", overshoot_frames, overshoot_ratio),
     );
     s.advice("avg/peak 0.000 = healthy (renderer kept up). budget_utilization shows how much of the frame budget was consumed (always non-zero). For real FPS see TIMING.avg_fps / TIMING.instant_fps.");
+}
+
+/// Resolve bench duration from --bench-duration (now accepts compound format).
+/// Returns None if not specified (benchmark uses default 5s).
+///
+/// NOTE: only --bench-duration is consulted here. The hidden --duration flag
+/// is interactive-mode only (sets event_loop auto-exit deadline) and has no
+/// effect in --benchmark / --bench-frames / --bench-all mode.
+pub(crate) fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
+    input
+        .as_ref()
+        .map(|s| crate::ux::or_exit(crate::cli_parse::parse_duration("--bench-duration", s)))
+}
+
+/// Collect warnings about CLI flags that are misleading or have NO effect
+/// in benchmark mode. Pure function — the call site prints them.
+///
+/// Dispatch precedence (main.rs): `--bench-all > --benchmark > --bench-frames`.
+/// The warn matrix below mirrors that precedence so the user always sees which
+/// flag actually took effect.
+fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static str> {
+    let mut warns: Vec<&'static str> = Vec::new();
+    if args.bench_all && args.benchmark {
+        warns.push("--benchmark ignored (--bench-all takes precedence)");
+    }
+    if args.bench_all && args.bench_frames.is_some() {
+        warns.push("--bench-frames ignored (--bench-all takes precedence)");
+    }
+    if args.benchmark && args.bench_frames.is_some() {
+        warns.push("--bench-frames ignored (--benchmark takes precedence)");
+    }
+    if args.bench_frames.is_some()
+        && args.bench_duration.is_some()
+        && !args.benchmark
+        && !args.bench_all
+    {
+        warns.push("--bench-duration ignored (--bench-frames is frame-count-based)");
+    }
+    if fps_user_set {
+        warns.push(
+            "--fps (in benchmark mode sets simulation rate only — does NOT cap \
+             render throughput; avg_fps is unconstrained; check config.toml \
+             [fps] if you did not pass --fps on the CLI)",
+        );
+    }
+    if args.duration.is_some() {
+        warns.push("--duration (interactive auto-exit only; use --bench-duration)");
+    }
+    if args.screensaver {
+        warns.push("--screensaver (interactive input handler; bench has no input loop)");
+    }
+    if args.intro.is_some() {
+        warns.push("--intro (interactive intro animation; bench never plays it)");
+    }
+    if args.perf_stats {
+        warns.push("--perf-stats (interactive summary; bench emits its own report)");
+    }
+    warns
+}
+
+/// Warn the user about CLI flags that are misleading or have NO effect in
+/// benchmark mode. See `collect_bench_noop_warnings` for the audit details.
+pub(crate) fn warn_bench_noop_flags(args: &Args, fps_user_set: bool) {
+    let warns = collect_bench_noop_warnings(args, fps_user_set);
+    if warns.is_empty() {
+        return;
+    }
+    eprintln!(
+        "[warn] the following flags have no effect (or a different effect than the name \
+         implies) in benchmark mode:"
+    );
+    for w in &warns {
+        eprintln!("       {w}");
+    }
 }
 
 #[cfg(test)]

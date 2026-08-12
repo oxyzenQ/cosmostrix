@@ -1025,7 +1025,7 @@ fn main() -> std::io::Result<()> {
         duration_s,
         bench_frames: args.bench_frames,
         benchmark: args.benchmark,
-        bench_duration: resolve_bench_duration_args(&args.bench_duration),
+        bench_duration: crate::bench_helpers::resolve_bench_duration_args(&args.bench_duration),
         screen_size,
         color_tune,
         json: args.json,
@@ -1088,8 +1088,9 @@ fn main() -> std::io::Result<()> {
     // fps_user_set was computed earlier (before dynamic default) — USER intent.
 
     if args.bench_all {
-        warn_bench_noop_flags(&args, fps_user_set);
-        let duration = resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
+        crate::bench_helpers::warn_bench_noop_flags(&args, fps_user_set);
+        let duration =
+            crate::bench_helpers::resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
         let results = crate::bench_scale::run_scaling_benchmark(&cloud_cfg, duration)?;
         if args.json {
             println!(
@@ -1101,12 +1102,12 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.benchmark {
-        warn_bench_noop_flags(&args, fps_user_set);
+        crate::bench_helpers::warn_bench_noop_flags(&args, fps_user_set);
         return bench::run_premium_benchmark(&cloud_cfg);
     }
 
     if let Some(_bench_frames) = args.bench_frames {
-        warn_bench_noop_flags(&args, fps_user_set);
+        crate::bench_helpers::warn_bench_noop_flags(&args, fps_user_set);
         return bench::run_benchmark(&cloud_cfg);
     }
 
@@ -1227,101 +1228,6 @@ fn main() -> std::io::Result<()> {
         eprintln!("{t}");
     }
     result
-}
-
-/// Resolve bench duration from --bench-duration (now accepts compound format).
-/// Returns None if not specified (benchmark uses default 5s).
-///
-/// NOTE: only --bench-duration is consulted here. The hidden --duration flag
-/// is interactive-mode only (sets event_loop auto-exit deadline) and has no
-/// effect in --benchmark / --bench-frames / --bench-all mode.
-fn resolve_bench_duration_args(input: &Option<String>) -> Option<u64> {
-    input
-        .as_ref()
-        .map(|s| crate::ux::or_exit(crate::cli_parse::parse_duration("--bench-duration", s)))
-}
-
-/// Collect warnings about CLI flags that are misleading or have NO effect
-/// in benchmark mode. Pure function — the call site prints them.
-///
-/// Audit findings (commit 5301572 + a34fcdb follow-up):
-///   - `--fps`: in benchmark mode sets the simulation rate (virtual time
-///     delta fed to `cloud.rain_at`), NOT a render cap. `avg_fps` is
-///     unconstrained — the bench loop spins full tilt. Warned whenever
-///     `--fps` is explicit (cli_explicit.fps) OR config.toml sets a
-///     non-default value (args.fps != 60.0).
-///   - `--duration` (hidden): interactive auto-exit only; bench uses --bench-duration
-///   - `--screensaver`: interactive input handler only; bench has no input loop
-///   - `--intro`: interactive intro animation; bench never plays it
-///   - `--perf-stats` (hidden): interactive summary only; bench emits BenchReportData
-///
-/// Dispatch precedence (main.rs): `--bench-all > --benchmark > --bench-frames`.
-/// The warn matrix below mirrors that precedence so the user always sees which
-/// flag actually took effect. The `--bench-duration` warning only fires when
-/// `--bench-frames` is the *winning* dispatch (i.e. neither --bench-all nor
-/// --benchmark is set); otherwise --bench-duration IS consumed by --bench-all
-/// (per-run duration in the scaling sweep) or by --benchmark (override of the
-/// 5s default), so warning about it would be wrong.
-fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static str> {
-    let mut warns: Vec<&'static str> = Vec::new();
-    // Phase D Task C fix: warn about silent-ignore combinations. Previously
-    // these 4 cases silently dropped a flag with no warning, causing user
-    // confusion ("I set --bench-frames but the bench ran for 5s, not N frames").
-    if args.bench_all && args.benchmark {
-        warns.push("--benchmark ignored (--bench-all takes precedence)");
-    }
-    if args.bench_all && args.bench_frames.is_some() {
-        warns.push("--bench-frames ignored (--bench-all takes precedence)");
-    }
-    if args.benchmark && args.bench_frames.is_some() {
-        warns.push("--bench-frames ignored (--benchmark takes precedence)");
-    }
-    // Only warn about --bench-duration being ignored when --bench-frames is the
-    // winning dispatch (no --bench-all, no --benchmark). If --bench-all is set,
-    // --bench-duration IS used as the per-run duration in the scaling sweep.
-    if args.bench_frames.is_some()
-        && args.bench_duration.is_some()
-        && !args.benchmark
-        && !args.bench_all
-    {
-        warns.push("--bench-duration ignored (--bench-frames is frame-count-based)");
-    }
-    if fps_user_set {
-        warns.push(
-            "--fps (in benchmark mode sets simulation rate only — does NOT cap \
-             render throughput; avg_fps is unconstrained; check config.toml \
-             [fps] if you did not pass --fps on the CLI)",
-        );
-    }
-    if args.duration.is_some() {
-        warns.push("--duration (interactive auto-exit only; use --bench-duration)");
-    }
-    if args.screensaver {
-        warns.push("--screensaver (interactive input handler; bench has no input loop)");
-    }
-    if args.intro.is_some() {
-        warns.push("--intro (interactive intro animation; bench never plays it)");
-    }
-    if args.perf_stats {
-        warns.push("--perf-stats (interactive summary; bench emits its own report)");
-    }
-    warns
-}
-
-/// Warn the user about CLI flags that are misleading or have NO effect in
-/// benchmark mode. See `collect_bench_noop_warnings` for the audit details.
-fn warn_bench_noop_flags(args: &Args, fps_user_set: bool) {
-    let warns = collect_bench_noop_warnings(args, fps_user_set);
-    if warns.is_empty() {
-        return;
-    }
-    eprintln!(
-        "[warn] the following flags have no effect (or a different effect than the name \
-         implies) in benchmark mode:"
-    );
-    for w in &warns {
-        eprintln!("       {w}");
-    }
 }
 
 fn canonicalize_runtime_args(args: &mut Args) {
