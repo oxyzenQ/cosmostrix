@@ -774,9 +774,56 @@ pub(crate) fn resolve_cell_color(
     (fg, bold)
 }
 
+/// Test helper: build a minimal ShaderCtx for testing resolve_cell_color.
+/// Caller supplies the `palette_slices` array (so it outlives the
+/// ShaderCtx borrow) and the color_map slice. color_map is initialized
+/// to a constant value in the tests so we can detect when the remap
+/// overrides it.
+#[cfg(test)]
+pub(super) fn make_test_shader<'a>(
+    palette_slices: &'a [&'a [Color]; MAX_PALETTE_SLOTS],
+    color_map: &'a [u8],
+    shading_distance: bool,
+) -> ShaderCtx<'a> {
+    ShaderCtx {
+        palette_slices,
+        active_palette_slot: 0,
+        color_wave_line: None,
+        bold_mode: BoldMode::Random,
+        lines: 50,
+        color_map,
+        shading_distance,
+        glitchy: false,
+        glitch_map: <&BitSlice>::default(),
+        glitch_bright: false,
+        glitch_dim: false,
+        color_mode: ColorMode::TrueColor,
+        column_coherence_lut: None,
+        subpixel_jitter_amplitude: None,
+        atmospheric: None,
+        hue_drift_offset: None,
+        head_halo_factor: None,
+        transition_l_table: None,
+        bg: None,
+    }
+}
+
+/// Test helper: build a `MAX_PALETTE_SLOTS`-sized palette_slices array with
+/// slot 0 pointing to the given palette and all other slots empty.
+#[cfg(test)]
+pub(super) fn slot_array(palette: &[Color]) -> [&[Color]; MAX_PALETTE_SLOTS] {
+    let mut arr: [&[Color]; MAX_PALETTE_SLOTS] = [&[]; MAX_PALETTE_SLOTS];
+    arr[0] = palette;
+    arr
+}
+
 #[cfg(test)]
 #[path = "base_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "base_tests_activation.rs"]
+mod tests_activation;
 
 #[cfg(test)]
 #[path = "bold_audit_tests.rs"]
