@@ -24,6 +24,7 @@ mod monolith_glyphs;
 mod monolith_tests;
 mod phosphor;
 mod rain;
+mod rain_post;
 mod render;
 mod runtime_controls;
 mod scene_runtime;
