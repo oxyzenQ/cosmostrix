@@ -142,6 +142,12 @@ static AMBIENT_RX_COUNT: AtomicU64 = AtomicU64::new(0);
 static AMBIENT_REAPPLY_COUNT: AtomicU64 = AtomicU64::new(0);
 static AMBIENT_STARTUP_COUNT: AtomicU64 = AtomicU64::new(0);
 static LAST_SCENE_CHANGE: Mutex<Option<String>> = Mutex::new(None);
+// AB-06: snapback guard state diagnostics — capture why snapback fired
+// despite user disabling ambient.
+static AMBIENT_SNAPBACK_GUARD_SKED_LEN: AtomicU64 = AtomicU64::new(999);
+static AMBIENT_SNAPBACK_GUARD_LAST_APPLIED: AtomicU64 = AtomicU64::new(999);
+static AMBIENT_SCHEDULE_RELOAD_COUNT: AtomicU64 = AtomicU64::new(0);
+static AMBIENT_SCHEDULE_EMPTY_COUNT: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) fn ambient_diag_snapback() {
     AMBIENT_SNAPBACK_COUNT.fetch_add(1, Ordering::Relaxed);
@@ -160,19 +166,35 @@ pub(crate) fn ambient_diag_scene_change(source: &str) {
         *g = Some(source.to_string());
     }
 }
+// AB-06: record snapback guard state at call site.
+pub(crate) fn ambient_diag_snapback_guard(sked_len: u64, last_applied_is_some: bool) {
+    AMBIENT_SNAPBACK_GUARD_SKED_LEN.store(sked_len, Ordering::Relaxed);
+    AMBIENT_SNAPBACK_GUARD_LAST_APPLIED
+        .store(if last_applied_is_some { 1 } else { 0 }, Ordering::Relaxed);
+}
+pub(crate) fn ambient_diag_schedule_reload() {
+    AMBIENT_SCHEDULE_RELOAD_COUNT.fetch_add(1, Ordering::Relaxed);
+}
+pub(crate) fn ambient_diag_schedule_empty() {
+    AMBIENT_SCHEDULE_EMPTY_COUNT.fetch_add(1, Ordering::Relaxed);
+}
 pub(crate) fn ambient_diag_summary() -> String {
     let snap = AMBIENT_SNAPBACK_COUNT.load(Ordering::Relaxed);
     let rx = AMBIENT_RX_COUNT.load(Ordering::Relaxed);
     let reapply = AMBIENT_REAPPLY_COUNT.load(Ordering::Relaxed);
     let startup = AMBIENT_STARTUP_COUNT.load(Ordering::Relaxed);
+    let guard_sked_len = AMBIENT_SNAPBACK_GUARD_SKED_LEN.load(Ordering::Relaxed);
+    let guard_last = AMBIENT_SNAPBACK_GUARD_LAST_APPLIED.load(Ordering::Relaxed);
+    let reloads = AMBIENT_SCHEDULE_RELOAD_COUNT.load(Ordering::Relaxed);
+    let empties = AMBIENT_SCHEDULE_EMPTY_COUNT.load(Ordering::Relaxed);
     let last = LAST_SCENE_CHANGE
         .lock()
         .ok()
         .and_then(|g| g.clone())
         .unwrap_or_else(|| "none".to_string());
     format!(
-        "ambient_diag: startup={} rx={} reapply={} snapback={} last_scene_change={}",
-        startup, rx, reapply, snap, last
+        "ambient_diag: startup={} rx={} reapply={} snapback={} sked_reloads={} sked_empties={} snapback_guard_sked_len={} snapback_guard_last_applied={} last_scene_change={}",
+        startup, rx, reapply, snap, reloads, empties, guard_sked_len, guard_last, last
     )
 }
 

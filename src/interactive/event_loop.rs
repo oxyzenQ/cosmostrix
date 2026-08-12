@@ -176,13 +176,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_ctxt_sample = Instant::now();
     let mut perf_rss_samples: u64 = 0;
 
-    // v35.1: last user key press time — drives idle-based auto-snapback
-    // (see `input::try_auto_snapback` and AMBIENT_SCHEDULER_AUDIT.md §2.2).
+    // v35.1: last key press — drives idle-based auto-snapback (see AMBIENT_SCHEDULER_AUDIT.md §2.2).
     let mut last_user_input_at = Instant::now();
 
-    // Performance self-healer (P1 + P2): auto scene downgrade on sustained
-    // high perf_pressure; EnduranceHealth mitigations on composite score drop.
-    // See docs/research/SELF_HEALING_AUDIT.md.
+    // Self-healer (P1+P2): auto downgrade on high perf_pressure; EnduranceHealth mitigations.
     let mut self_healer = PerformanceSelfHealer::new();
 
     let mut charset_preset = cfg.charset_preset.clone();
@@ -232,8 +229,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         def_ascii,
         &initial_cfg_map,
     );
-    // v30.5: store startup ambient info for post-exit verbose (alternate screen
-    // discards stderr). main.rs prints via startup_ambient_info() after drop.
+    // v30.5: startup ambient info for post-exit verbose (main.rs prints after drop).
     let ambient_info = match &startup_entry {
         Some(e) => format!(
             "ambient: startup phase {:02}:{:02} (scene={}) applied at cold start",
@@ -362,9 +358,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
             last_applied_cfg_map = Some(new_cfg_map.clone());
-            // Phase D Bug #9: preserve color_ecosystem + atmospheric post-FX
-            // across live-reload (no brightness/sat discontinuity).
-            // AB-02: capture override state before rebuild for schedule-empty restore.
+            // Phase D #9: preserve ecosystem + post-FX across reload.
+            // AB-02: capture override state for schedule-empty restore.
             let preserve_user_override = cloud.user_override_since_ambient;
             let preserved_color_scheme = cloud.color_scheme;
             let preserved_scene_name = scene_name.clone();
@@ -374,9 +369,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
-            // Live config rebuild creates a fresh Cloud — reset self-healer.
+            // Fresh Cloud from rebuild — reset self-healer.
             self_healer.reset();
-            // Rebuild color cache + frame for new palette + fill terminal bg + charset.
+            // Rebuild color cache + frame + fill bg + charset.
             term.set_color_cache(ColorCache::new(&cloud.palette));
             frame = Frame::new(w, h, cloud.palette.bg);
             super::fill_terminal_bg(cloud.palette.bg);
@@ -384,10 +379,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // v25.5+v30.8+v35.2: recompute target FPS from new config.
             let safe_fps = new_cfg.resolve_capped_fps(cfg.target_fps);
             power_manager.set_target_fps(safe_fps);
-            // v30 (2026-08-05): keep HUD tgt: line in sync with live-reloaded fps.
+            // v30: keep HUD tgt: in sync with live-reloaded fps.
             hud_state.set_target_fps(safe_fps);
             // Ambient: push new schedule to scheduler if it changed.
             if new_cfg.ambient_schedule != last_ambient_schedule {
+                super::ambient_diag_schedule_reload();
                 crate::lr_trace!(
                     "ambient: schedule changed (was {} entries, now {}) — pushing to scheduler thread",
                     last_ambient_schedule.entries.len(),
@@ -396,6 +392,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 ambient_handle.reload(new_cfg.ambient_schedule.clone());
                 last_ambient_schedule = new_cfg.ambient_schedule.clone();
                 if new_cfg.ambient_schedule.entries.is_empty() {
+                    super::ambient_diag_schedule_empty();
                     // AB-04: schedule-empty invariant — clear tracker, unlock
                     // palette, grant user control. Replaces AB-01.5 + AB-02.
                     if let Some(ref last_entry) = last_applied_ambient_entry {
@@ -447,14 +444,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     last_applied_ambient_entry = None;
                 }
             }
-            // AB-05: full visual-state restore when schedule emptied.
-            // AB-04 unlocked palette + granted user control but did NOT restore
-            // visual state when snapback had cleared user_override_since_ambient
-            // (preserve_user_override=false), leaving the user stuck on the
-            // ambient scene's palette/charset. Two cases:
-            //   preserve=true  → restore user's color_scheme + scene_name.
-            //   preserve=false → snapback re-applied ambient; re-apply config
-            //                     default scene to reset palette/charset/speed.
+            // AB-05: full visual-state restore when schedule emptied. AB-04
+            // didn't restore when snapback cleared user_override_since_ambient
+            // (preserve=false). preserve=true → restore user state.
+            // preserve=false → re-apply config default scene.
             if new_cfg.ambient_schedule.entries.is_empty() {
                 if preserve_user_override {
                     cloud.color_scheme = preserved_color_scheme;
@@ -539,20 +532,27 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 super::fill_terminal_bg(cloud.palette.bg);
             }
         }
-        // v35.1: auto ambient snapback after AUTO_SNAPBACK_DELAY_SECS idle.
-        if super::input::try_auto_snapback(
-            &mut cloud,
-            &mut charset_preset,
-            &mut scene_name,
-            &mut scene_generation,
-            &mut last_applied_ambient_entry,
-            &last_ambient_schedule,
-            &last_applied_cfg_map,
-            &user_ranges,
-            def_ascii,
-            last_user_input_at,
-            crate::constants::AUTO_SNAPBACK_DELAY_SECS,
-        ) {
+        // AB-06: nuclear call-site guard — skip snapback unless schedule
+        // non-empty AND last_applied_ambient_entry Some (inner guards bypassed).
+        let _ab06_sked_len = last_ambient_schedule.entries.len() as u64;
+        let _ab06_last_applied = last_applied_ambient_entry.is_some();
+        super::ambient_diag_snapback_guard(_ab06_sked_len, _ab06_last_applied);
+        if _ab06_sked_len > 0
+            && _ab06_last_applied
+            && super::input::try_auto_snapback(
+                &mut cloud,
+                &mut charset_preset,
+                &mut scene_name,
+                &mut scene_generation,
+                &mut last_applied_ambient_entry,
+                &last_ambient_schedule,
+                &last_applied_cfg_map,
+                &user_ranges,
+                def_ascii,
+                last_user_input_at,
+                crate::constants::AUTO_SNAPBACK_DELAY_SECS,
+            )
+        {
             term.set_color_cache(ColorCache::new(&cloud.palette));
             frame = Frame::new(w, h, cloud.palette.bg);
             super::fill_terminal_bg(cloud.palette.bg);
@@ -564,7 +564,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let scene_generation_at_frame_start = scene_generation;
         // v30.8 (Phase 3): PowerManager.begin_frame — is_idle, predictor, idle_started.
         let is_idle = power_manager.begin_frame(loop_now);
-        // P2: Use adaptive resync interval based on sustained idle duration.
+        // P2: adaptive resync interval based on sustained idle duration.
         let idle_secs = power_manager
             .idle_started()
             .map(|t| loop_now.saturating_duration_since(t).as_secs_f64())
