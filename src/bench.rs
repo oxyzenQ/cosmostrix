@@ -39,27 +39,17 @@ use crate::constants::*;
 use crate::frame::Frame;
 use crate::theme::canonical_name_for_scheme;
 use crate::{bench_cpu::CpuTracker, bench_progress::BenchProgress, bench_report::BenchReportData};
-/// Duration of the premium benchmark in seconds (default).
-pub(crate) const BENCHMARK_DURATION_SECS: u64 = 5;
 
-/// Minimum allowed --bench-duration value (seconds).
-const BENCH_DURATION_MIN: u64 = 1;
+// Re-export bench validation helpers + consts from bench_helpers.rs.
+// Pure functions moved out to keep this file under the LOC cap.
+pub(crate) use crate::bench_helpers::{
+    median_sorted, resolve_bench_duration, validate_bench_scene,
+};
+#[cfg(test)]
+pub(crate) use crate::bench_helpers::{validate_bench_scene_str, VALID_BENCH_SCENES};
 
 /// Number of frame time samples for percentile calculations.
 const FRAME_TIME_SAMPLES: usize = 10_000;
-
-/// Compute the median of a sorted slice of f64 values.
-pub(crate) fn median_sorted(data: &[f64]) -> f64 {
-    if data.is_empty() {
-        return 0.0;
-    }
-    let mid = data.len() / 2;
-    if data.len() % 2 == 0 {
-        (data[mid - 1] + data[mid]) / 2.0
-    } else {
-        data[mid]
-    }
-}
 
 use super::{effective_density, CloudConfig};
 
@@ -131,71 +121,6 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     println!("  frames_per_s: {:.3}", fps);
     Ok(())
 }
-
-// ── Premium benchmark ────────────────────────────────────────────────────────
-
-/// Resolve the effective benchmark duration from CLI override or default.
-///
-/// Validates the user-supplied `--bench-duration N` against the
-/// 1-second minimum (no upper cap — endurance tests allowed) and returns
-/// a human-readable error message on out-of-range values. Returns the
-/// default `BENCHMARK_DURATION_SECS` when no override is supplied.
-pub(crate) fn resolve_bench_duration(override_secs: Option<u64>) -> Result<u64, String> {
-    match override_secs {
-        Some(n) if n < BENCH_DURATION_MIN => Err(format!(
-            "error: --bench-duration {n} is below the {BENCH_DURATION_MIN}-second minimum"
-        )),
-        Some(n) => Ok(n), // No max cap — use --bench-duration for endurance tests
-        None => Ok(BENCHMARK_DURATION_SECS),
-    }
-}
-
-// ── --bench-scene strict validation ───────────────────────────────────
-//
-// Honesty contract: `--bench-scene` is strict. Typos like "leanax" or
-// "production-drawmadadadaxa" are REJECTED with a clean error, NOT
-// silently fallback'd to the default lean path. cosmostrix has no hidden
-// behavior — every flag value is either valid or fails loudly.
-
-/// Valid `--bench-scene` values.
-/// - `lean`: default fast path (emit_cell_lean — per-dirty-cell SGR emission)
-/// - `production-draw`: mirrors Terminal::draw full-redraw path
-///   (MoveTo per row + ColorCache SGR + BOLT bold escape)
-pub(crate) const VALID_BENCH_SCENES: &[&str] = &["lean", "production-draw"];
-
-/// Returns `Err(message)` if the scene name is not in [`VALID_BENCH_SCENES`].
-/// Returns `Ok(())` for `None` (no `--bench-scene` flag) and valid names.
-///
-/// Split from [`validate_bench_scene`] so the core logic is unit-testable
-/// without constructing a full `CloudConfig`.
-pub(crate) fn validate_bench_scene_str(scene: Option<&str>) -> Result<(), String> {
-    match scene {
-        None => Ok(()),
-        Some(s) if VALID_BENCH_SCENES.contains(&s) => Ok(()),
-        Some(s) => Err(format!(
-            "error: invalid --bench-scene value '{s}'. \
-             Valid scenes: {} (lean = emit_cell_lean fast path, \
-             production-draw = Terminal::draw full-redraw path). \
-             cosmostrix is strict — typos are rejected, not silently \
-             fallback'd to the default lean path.",
-            VALID_BENCH_SCENES.join(", ")
-        )),
-    }
-}
-
-/// Returns `Err(message)` if `cfg.bench_scene` is set to an invalid value.
-pub(crate) fn validate_bench_scene_result(cfg: &CloudConfig) -> Result<(), String> {
-    validate_bench_scene_str(cfg.bench_scene.as_deref())
-}
-
-/// Strict-validate `--bench-scene`. Exits with a clean single-line error if
-/// the value is not in [`VALID_BENCH_SCENES`]. Called at the top of every
-/// benchmark entry point so typos can never silently fall through to the
-/// default lean path.
-pub(crate) fn validate_bench_scene(cfg: &CloudConfig) {
-    crate::ux::or_exit::<(), String>(validate_bench_scene_result(cfg));
-}
-
 /// Premium user-facing benchmark: runs for the configured duration (default
 /// 5s, override with `--bench-duration N`) with live progress feedback and
 /// enhanced metrics in a Report-engine output.
