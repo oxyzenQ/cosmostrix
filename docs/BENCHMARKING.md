@@ -4,8 +4,10 @@
 
 > Independent guide to benchmarking cosmostrix: how to run, interpret,
 > compare, and trust the numbers. Covers every benchmark flag, the strict
-> `--bench-scene` validation contract, and the v30 4-run reference results
-> (peak 102,051 FPS, avg 73,618 FPS).
+> `--bench-scene` validation contract, the v50 4-scene reference matrix
+> (peak 149,745 FPS on monolith, 26,251 FPS on cinematic), and the
+> honesty contract that frames performance as a quality enabler rather
+> than the goal.
 
 ## Table of Contents
 
@@ -13,7 +15,8 @@
 2. [Benchmark Modes](#2-benchmark-modes)
 3. [`--bench-scene` Strict Validation](#3-bench-scene-strict-validation)
 4. [Reading the Report](#4-reading-the-report)
-5. [v30 Reference Results (4-Run Matrix)](#5-v30-reference-results-4-run-matrix)
+5. [v50 Reference Results (Cloud Xeon, 4-Scene Matrix)](#5-v50-reference-results-cloud-xeon-4-scene-matrix)
+5a. [v30 Historical Reference (Owner's Ryzen 5800HS)](#5a-v30-historical-reference-owners-ryzen-5800hs)
 5b. [Third-Party Hardware Verification (Cloud Xeon)](#5b-third-party-hardware-verification-cloud-xeon)
 6. [Interpreting Key Metrics](#6-interpreting-key-metrics)
 7. [Component Timing Breakdown](#7-component-timing-breakdown)
@@ -235,13 +238,84 @@ The `--benchmark` report is organized into sections:
 
 ---
 
-## 5. v30 Reference Results (4-Run Matrix)
+## 5. v50 Reference Results (Cloud Xeon, 4-Scene Matrix)
 
-**Machine**: AMD Ryzen 7 5800HS, Cachyos LTS kernel 6.18.40, schedutil
-governor, SMT on.
-**Binary**: `v30.0.0-alpha.1`, commit `585bcac`, `pro-linux-v3` profile
-(AVX2/BMI2/FMA), fat LTO, rustc 1.97.1.
-**Terminal**: 88×32 auto-detected, xterm-direct, 24-bit truecolor.
+**Machine**: 2-core Intel Xeon (Alibaba Cloud Linux), 3.9 GiB RAM, no swap,
+no RAPL, no perf counters. Kernel 5.10.134, gnu libc.
+**Binary**: `v50.0.0-alpha.1`, commit `7ba7a76`, `release` profile (x86-64-v1
+baseline: SSE/SSE2), fat LTO, rustc 1.97.1, no PGO.
+**Terminal**: 80×24, `TERM=dumb`, color_mode=mono (sandbox has no TTY;
+production truecolor terminals will route through the Chroma Dragon engine
+instead of the legacy_rgb fallback seen here).
+
+### Why this matrix replaces the v30 4-Run Matrix
+
+The v30 reference results (preserved below in §5a for historical context)
+were captured on the owner's personal Ryzen 7 5800HS — a high-end 8-core
+desktop CPU. Those numbers (peak 102,051 FPS on the `lean` path) are real
+but they describe the engine's throughput ceiling on enthusiast hardware,
+not what a third party will see on typical infrastructure.
+
+The v50 matrix below was captured on a 2-vCPU cloud VM — the kind of
+hardware a CI runner, a contributor's review environment, or a user on
+a VPS would actually have. The numbers are smaller than the v30 desktop
+numbers, and that is the honest picture: cosmostrix's value is not the
+raw FPS ceiling, it is the **quality of the cinematic rain at practical
+terminal-bounded FPS** (60–240 on real terminals). The diff engine's
+job is to make that quality affordable, not to win a benchmark sprint.
+
+### Performance Matrix (4 scenes, 5s each, default palette)
+
+| Scene      | avg_fps  | peak_fps | p95 (ms) | p99 (ms) | max (ms) | frame_jitter | frame_time_stability | dirty_glyphs/s |
+|------------|---------:|---------:|---------:|---------:|---------:|--------------|-----------------------|----------------:|
+| monolith   | 84,814.5 | 149,745.4| 0.013    | 0.016    | 0.035    | low          | excellent             | 4,818,306       |
+| cinematic  | 26,251.8 | 40,484.2 | 0.049    | 0.053    | —        | low          | excellent             | 10,869,217      |
+| signal     | 25,517.5 | 47,535.3 | 0.046    | 0.051    | —        | low          | excellent             | —               |
+| matrix     | 24,198.9 | 40,487.5 | 0.045    | 0.048    | —        | low          | excellent             | —               |
+
+### Reading the matrix honestly
+
+- **monolith is the throughput peak.** It is the leanest scene (zen
+  charset = 1 glyph, no phosphor decay, no depth fog, no parallax). The
+  84K avg_fps is the diff engine's ceiling on this hardware — it tells
+  you the engine is not a bottleneck, nothing more.
+- **cinematic / signal / matrix are the quality scenes.** They run
+  ~3× slower than monolith because they do more work per cell: phosphor
+  decay, multi-layer depth, atmospheric modulation, denser charsets.
+  This is by design — the cinematic effects are what the user actually
+  sees, and they are still well above the 60 FPS interactive cap.
+- **All four scenes hit `frame_time_stability: excellent`** — p99 is
+  within 2× of avg, max is within 5×. The engine does not have
+  stuttering outliers even at 25–85K FPS.
+- **`color_pipeline: legacy_rgb` in this matrix** — the sandbox has no
+  truecolor TTY, so the Chroma Dragon engine falls back to legacy
+  sRGB-linear math. On a real truecolor terminal, the chroma engine
+  runs the same hot paths with OKLab gradient construction at palette
+  build time (one-time ~12 mul + 3 cbrt per segment — negligible).
+
+### Honest framing: performance enables quality, not the reverse
+
+Cosmostrix is **not a performance-focused renderer**. It is a
+**cinematic-quality renderer that uses the diff engine to make the
+cinematic effects affordable at practical terminal FPS**. The numbers
+above prove the engine is not the bottleneck — your terminal emulator's
+ANSI parse speed is. On Alacritty/kitty/WezTerm that's 60–240 FPS,
+which is exactly the range where the cinematic effects (phosphor decay,
+depth fog, 3-layer parallax, density sculpting) are perceptible to
+the human eye.
+
+If you only care about raw FPS, run `--benchmark --scene monolith` and
+enjoy the 5-digit number. If you care about the cinematic rain, run
+cosmostrix in interactive mode and watch it.
+
+---
+
+## 5a. v30 Historical Reference (Owner's Ryzen 7 5800HS)
+
+The v30 4-Run Matrix below is preserved for historical context. It was
+captured on the owner's personal desktop (Ryzen 7 5800HS, 8-core/16-thread)
+and represents the engine's throughput ceiling on enthusiast hardware.
+The v50 matrix above is the current reference for third-party hardware.
 
 ### Performance Matrix
 
