@@ -212,10 +212,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // (by any path), auto-snapback is disabled until a new rx event is
     // applied from a non-empty schedule.
     let mut ambient_snapback_killed: bool = false;
-    // AB-08: config file path for ground-truth re-read before snapback.
-    // The watcher can lose/debounce/dedup events, leaving all cached state
-    // (last_ambient_schedule, scheduler's Arc<Mutex>) stale. Reading the
-    // actual file from disk is the only way to know the true ambient state.
+    // AB-08: config file path for ground-truth re-read. The watcher can
+    // lose events, leaving all cached state stale. File on disk is truth.
     let config_path_for_ground_truth = base_cfg.config_path_for_watcher.clone();
     // v25.5+v30.4: last-applied cfg map for diff trace + startup ambient.
     let initial_cfg_map = base_cfg
@@ -392,19 +390,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // Ambient: push new schedule to scheduler if it changed.
             if new_cfg.ambient_schedule != last_ambient_schedule {
                 super::ambient_diag_schedule_reload();
-                crate::lr_trace!(
-                    "ambient: schedule changed (was {} entries, now {}) — pushing to scheduler thread",
-                    last_ambient_schedule.entries.len(),
-                    new_cfg.ambient_schedule.entries.len()
-                );
                 ambient_handle.reload(new_cfg.ambient_schedule.clone());
                 last_ambient_schedule = new_cfg.ambient_schedule.clone();
                 if new_cfg.ambient_schedule.entries.is_empty() {
                     super::ambient_diag_schedule_empty();
-                    // AB-04: schedule-empty invariant — clear tracker, unlock
-                    // palette, grant user control. Replaces AB-01.5 + AB-02.
-                    if let Some(ref last_entry) = last_applied_ambient_entry {
-                        if scene_name == last_entry.scene {
+                    if let Some(ref le) = last_applied_ambient_entry {
+                        if scene_name == le.scene {
                             scene_name = new_cfg.scene_name.clone();
                             scene_generation = scene_generation.wrapping_add(1);
                         }
@@ -414,13 +405,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     cloud.user_override_since_ambient = true;
                     ambient_snapback_killed = true;
                     super::ambient_diag_snapback_killed();
-                    crate::lr_trace!("ambient: schedule emptied — clearing tracker, unlocking palette, killing snapback");
                 }
             }
-            // AB-07: if rebuilt config has empty schedule, ensure scheduler is
-            // reloaded + snapback killed. The per-frame stale-fix (below, in rx
-            // drain block) will also catch and clean up any residual state,
-            // but we do it here too for immediate effect within this rebuild.
+            // AB-07: consistency fix — if rebuilt config has empty schedule
+            // but stale state remains, clean up immediately.
             if new_cfg.ambient_schedule.entries.is_empty() {
                 if last_applied_ambient_entry.is_some()
                     || cloud.ambient_palette_locked
@@ -442,24 +430,21 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             } else if ambient_snapback_killed {
                 ambient_snapback_killed = false;
             }
-            // v30.3: re-apply last ambient entry to fresh Cloud. v35.3: skip custom_palette.
+            // v30.3: re-apply last ambient entry to fresh Cloud.
             if let Some(ref last_entry) = last_applied_ambient_entry {
-                let still_in_schedule = new_cfg
+                let still_in = new_cfg
                     .ambient_schedule
                     .entries
                     .iter()
                     .any(|e| e == last_entry);
-                if still_in_schedule && !cloud.custom_palette_active {
-                    crate::lr_trace!(
-                        "ambient: re-applying last entry after rebuild (scene={})",
-                        last_entry.scene
-                    );
+                if still_in && !cloud.custom_palette_active {
+                    let cm = last_applied_cfg_map.clone().unwrap_or_default();
                     charset_preset = cloud.apply_ambient_entry(
                         last_entry,
                         &charset_preset,
                         &user_ranges,
                         def_ascii,
-                        &last_applied_cfg_map.clone().unwrap_or_default(),
+                        &cm,
                     );
                     scene_name = last_entry.scene.clone();
                     scene_generation = scene_generation.wrapping_add(1);
@@ -470,9 +455,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     term.set_color_cache(ColorCache::new(&cloud.palette));
                     frame = Frame::new(w, h, cloud.palette.bg);
                     super::fill_terminal_bg(cloud.palette.bg);
-                } else if still_in_schedule && cloud.custom_palette_active {
-                    crate::lr_trace!("ambient: skip re-apply post-rebuild — custom_palette_active");
-                } else {
+                } else if !still_in {
                     crate::lr_trace!(
                         "ambient: last entry no longer in schedule — clearing tracker"
                     );
@@ -515,15 +498,36 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // Drain stale events when schedule is empty.
             while ambient_handle.rx.try_recv().is_ok() {}
         }
+        // AB-08: ground-truth guard on rx event — if config file on disk says
+        // 0 ambient entries but we got an rx event, the event is stale (watcher
+        // missed the config change). Discard + nuke all ambient state.
+        if last_ambient_entry.is_some() {
+            if let Some(ref path) = config_path_for_ground_truth {
+                if let Ok(c) = std::fs::read_to_string(path) {
+                    let pv = &crate::configfile::parse_config_text(&c).values;
+                    if crate::ambient::collect_ambient_schedule(pv)
+                        .entries
+                        .is_empty()
+                    {
+                        last_ambient_entry = None;
+                        last_ambient_schedule.entries.clear();
+                        last_applied_ambient_entry = None;
+                        cloud.ambient_palette_locked = false;
+                        cloud.user_override_since_ambient = true;
+                        ambient_snapback_killed = true;
+                        ambient_handle.reload(crate::ambient::AmbientSchedule::default());
+                        super::ambient_diag_schedule_empty();
+                        super::ambient_diag_schedule_reload();
+                        super::ambient_diag_snapback_killed();
+                    }
+                }
+            }
+        }
         if let Some(entry) = last_ambient_entry {
-            // v30.3 dedup + v35: re-apply if user overrode (day-boundary refire).
             if last_applied_ambient_entry.as_ref() == Some(&entry)
                 && !cloud.user_override_since_ambient
             {
-                crate::lr_trace!(
-                    "ambient: skipping duplicate phase event {:02}:{:02} (scene={}) — already applied",
-                    entry.hour, entry.minute, entry.scene
-                );
+                // Duplicate — already applied.
             } else {
                 let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
                 charset_preset = cloud.apply_ambient_entry(
@@ -538,49 +542,41 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 scene_generation = scene_generation.wrapping_add(1);
                 super::ambient_diag_rx();
                 super::ambient_diag_scene_change(&format!("rx-event(scene={})", entry.scene));
-                // v35: ambient asserted — clear override, lock palette.
                 cloud.user_override_since_ambient = false;
                 cloud.ambient_palette_locked = true;
-                // AB-07: rx event from non-empty schedule — revive snapback.
                 if ambient_snapback_killed {
                     ambient_snapback_killed = false;
-                    crate::lr_trace!("ambient: AB-07 snapback revived via rx event");
                 }
                 term.set_color_cache(ColorCache::new(&cloud.palette));
                 frame = Frame::new(w, h, cloud.palette.bg);
                 super::fill_terminal_bg(cloud.palette.bg);
             }
         }
-        // AB-08: snapback guard with ground-truth config file re-read.
-        // All cached state (last_ambient_schedule, scheduler's Arc<Mutex>,
-        // last_applied_ambient_entry) can go stale if the watcher loses a
-        // config-change event (debounce/dedup/channel full). The ONLY
-        // authoritative source is the actual config file on disk. We re-read
-        // it here — this runs at most once per frame, only when other guard
-        // conditions suggest snapback might fire, so the I/O cost (~50µs)
-        // is negligible compared to the 30s snapback delay.
+        // AB-08: snapback ground-truth guard — re-read config file from disk.
+        // Cached state can go stale if watcher loses an event. File on disk
+        // is the only authoritative source. I/O cost ~50µs, only when snapback
+        // might fire (≤ once per 30s), so negligible.
         let _ab06_sked_len = last_ambient_schedule.entries.len() as u64;
         let _ab06_last_applied = last_applied_ambient_entry.is_some();
         super::ambient_diag_snapback_guard(_ab06_sked_len, _ab06_last_applied);
         let ground_truth_ambient_empty =
             if !ambient_snapback_killed && _ab06_sked_len > 0 && _ab06_last_applied {
-                // Re-read config file from disk as ground truth. If file has
-                // 0 ambient entries, all cached state is stale → no snapback.
-                let mut file_says_empty = false;
+                let mut empty = false;
                 if let Some(ref path) = config_path_for_ground_truth {
-                    if let Ok(content) = std::fs::read_to_string(path) {
-                        let parsed = crate::configfile::parse_config_text(&content);
-                        let disk_sked = crate::ambient::collect_ambient_schedule(&parsed.values);
-                        if disk_sked.entries.is_empty() {
-                            file_says_empty = true;
+                    if let Ok(c) = std::fs::read_to_string(path) {
+                        let pv = &crate::configfile::parse_config_text(&c).values;
+                        if crate::ambient::collect_ambient_schedule(pv)
+                            .entries
+                            .is_empty()
+                        {
+                            empty = true;
                         }
                     }
                 }
-                file_says_empty
+                empty
             } else {
                 false
             };
-        // AB-08: if ground truth says empty, nuke ALL stale ambient state.
         if ground_truth_ambient_empty {
             last_ambient_schedule.entries.clear();
             last_applied_ambient_entry = None;
