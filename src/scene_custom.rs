@@ -46,6 +46,51 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::OnceLock;
 
 use crate::config::Args;
+
+/// Apply a scene-custom block to a CloudConfig during live reload.
+///
+/// v30.2: pre-pass — apply base-scene's defaults BEFORE the block's own
+/// overrides. This ensures overrides correctly win over base-scene defaults
+/// (e.g. `base-scene = "signal", color = "neon-green"` results in neon-green,
+/// not signal's aurora).
+///
+/// v30.3: per-field application is delegated to `apply_scene_custom_field_to_cloud_config`
+/// (same module). On any touched field, a runtime warning is buffered via
+/// `live_config::push_runtime_warning` so it lands on the main screen
+/// post-exit (AB-10 rain-screen cleanliness) instead of leaking into the
+/// alt screen mid-rain.
+pub(crate) fn apply_scene_custom_to_cloud_config(
+    new: &mut crate::app::CloudConfig,
+    cfg: &HashMap<String, String>,
+    name: &str,
+) {
+    let normalized = name.trim().to_ascii_lowercase();
+    let prefix = format!("scene-custom.{normalized}.");
+    let mut touched_any = false;
+
+    if apply_base_scene_to_cloud_config(new, cfg, &normalized) {
+        touched_any = true;
+    }
+
+    for (key, value) in cfg {
+        let Some(field) = key.strip_prefix(&prefix) else {
+            continue;
+        };
+        if field == "base-scene" || field == "preset" {
+            continue;
+        }
+        if apply_scene_custom_field_to_cloud_config(new, cfg, field, value) {
+            touched_any = true;
+        }
+    }
+
+    if touched_any {
+        crate::live_config::push_runtime_warning(&format!(
+            "[live-reload] scene-custom '{normalized}': re-applied fields from config"
+        ));
+    }
+}
+
 #[cfg(test)]
 use crate::profile::PROFILE_FIELDS;
 use crate::profile::{apply_profile_layer, collect_profiles, is_valid_profile_name, UserProfile};

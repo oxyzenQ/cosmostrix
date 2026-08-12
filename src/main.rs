@@ -132,6 +132,7 @@ mod interactive;
 mod live_config_trace;
 mod live_config;
 mod live_config_poll;
+mod live_config_state;
 #[cfg(test)]
 mod loc_tests;
 mod memstat;
