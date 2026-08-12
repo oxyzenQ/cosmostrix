@@ -259,6 +259,20 @@ fn scheduler_loop(
                 last_applied = Some(entry.clone());
                 last_fired_yday = crate::ambient::current_yday();
             }
+        } else {
+            // AB-09: schedule is empty — clear last_applied so that re-adding
+            // the SAME entry (e.g. user uncomments after commenting out at
+            // the same hour) triggers a fresh fire. Without this, the dedup
+            // check above (`last_applied.as_ref() != Some(entry)`) suppresses
+            // the legitimate refire because `last_applied` still holds the
+            // previously-applied entry. Symptom: ambient toggle at same hour
+            // sometimes doesn't apply, scene stuck on config's default
+            // (`scene = cinematic`) instead of the ambient entry's scene
+            // (e.g. `signal` / `monolith`). Fixing the root cause here means
+            // the event_loop's rx path sees a fresh event after the
+            // uncomment, without needing a minute-boundary wake or a manual
+            // scene change.
+            last_applied = None;
         }
 
         // v35: day-boundary refire. If we're in a new day (yday changed since
@@ -658,5 +672,84 @@ mod tests {
             src.contains("crate::ambient::current_yday"),
             "v35 day-boundary refire must call current_yday"
         );
+    }
+
+    /// AB-09: regression test for the "comment → uncomment at same hour"
+    /// scenario reported after commit 128267e. The scheduler's `last_applied`
+    /// tracker must be cleared when the schedule transitions to empty, so
+    /// that re-adding the SAME entry (same hour, minute, AND scene) triggers
+    /// a fresh fire. Without this fix, the dedup check
+    /// (`last_applied.as_ref() != Some(entry)`) suppresses the legitimate
+    /// refire because `last_applied` still holds the previously-applied
+    /// entry, leaving the scene stuck on the config's default scene
+    /// (e.g. `cinematic`) instead of the ambient entry's scene.
+    ///
+    /// Symptom in production: user comments out an ambient entry at hour X
+    /// (e.g. `ambient.12-00 = signal`), then uncomments it back within the
+    /// same minute/hour. Sometimes the scene applies, sometimes it doesn't,
+    /// requiring multiple config saves or a manual scene change to trigger.
+    /// Comparison with pre-v50: pre-v50 applied ambient immediately on
+    /// uncomment; post-128267e got stuck on the config's default scene.
+    #[test]
+    fn reload_after_empty_refires_same_entry() {
+        // Use entry(0, 0) so it's always "current" (00:00 <= now_min for any
+        // time of day). This makes the test deterministic regardless of
+        // wall-clock time when the test runs.
+        let s_initial = AmbientSchedule {
+            entries: vec![entry(0, 0)],
+        };
+        let handle = spawn_ambient_scheduler(s_initial);
+
+        // Drain initial fire (scheduler fires current phase on startup).
+        let initial = handle
+            .rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("scheduler should fire initial phase");
+        assert_eq!(initial.hour, 0);
+        assert_eq!(initial.minute, 0);
+
+        // Wait for the scheduler thread to settle into its sleep.
+        std::thread::sleep(Duration::from_millis(100));
+
+        // User comments out the ambient entry — schedule becomes empty.
+        handle.reload(AmbientSchedule::default());
+
+        // Wait for the scheduler to process the reload (condvar wake +
+        // re-snapshot). 150ms is plenty — the condvar notify is immediate
+        // and the snapshot is a single mutex lock + clone.
+        std::thread::sleep(Duration::from_millis(150));
+        // No event should fire (schedule is empty).
+        assert!(
+            handle.rx.try_recv().is_err(),
+            "no fire expected when schedule is empty"
+        );
+
+        // User uncomments the SAME entry back at the same hour.
+        // Pre-AB-09: scheduler's last_applied was still Some(00:00 cinematic),
+        // so the dedup suppressed this fire. Post-AB-09: last_applied was
+        // cleared to None when the schedule went empty, so this fires.
+        handle.reload(AmbientSchedule {
+            entries: vec![entry(0, 0)],
+        });
+
+        // The scheduler MUST fire the entry within a reasonable window.
+        // 2s is generous — the condvar wake is immediate, the snapshot
+        // takes microseconds, and tx.send is non-blocking.
+        match handle.rx.recv_timeout(Duration::from_secs(2)) {
+            Ok(e) => {
+                assert_eq!(e.hour, 0, "refire hour must match");
+                assert_eq!(e.minute, 0, "refire minute must match");
+                assert_eq!(
+                    e.scene, "cinematic",
+                    "refire scene must match the uncommented entry's scene"
+                );
+            }
+            Err(_) => {
+                panic!(
+                    "AB-09 regression: scheduler did not refire the same entry \
+                     after empty → non-empty reload (comment/uncomment at same hour)"
+                );
+            }
+        }
     }
 }
