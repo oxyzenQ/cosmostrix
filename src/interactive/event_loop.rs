@@ -1237,12 +1237,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     scene_name = PerformanceSelfHealer::FALLBACK_SCENE.to_string();
                     scene_generation = scene_generation.wrapping_add(1);
                     charset_preset = new_charset;
-                    // Log via write_fmt (broken-pipe-safe, same pattern as
-                    // the watchdog). Helps users understand why their scene
-                    // changed unexpectedly.
-                    use std::io::Write;
-                    let _ = std::io::stderr().write_fmt(format_args!(
-                        "[self-heal] sustained high CPU pressure — downgrading '{}' → '{}'\n",
+                    // AB-10 (rain-screen cleanliness): buffer to runtime
+                    // warnings instead of eprintln — the self-healer fires
+                    // from inside the rain loop, so direct stderr writes
+                    // leak into the alt screen rain matrix. main.rs drains
+                    // the buffer post-exit.
+                    crate::live_config::push_runtime_warning(&format!(
+                        "[self-heal] sustained high CPU pressure — downgrading '{}' → '{}'",
                         prior_scene,
                         PerformanceSelfHealer::FALLBACK_SCENE
                     ));
@@ -1256,10 +1257,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     scene_name = prior;
                     scene_generation = scene_generation.wrapping_add(1);
                     charset_preset = new_charset;
-                    use std::io::Write;
-                    let _ = std::io::stderr().write_fmt(format_args!(
-                        "[self-heal] CPU pressure recovered — restoring scene\n"
-                    ));
+                    // AB-10: buffer — see the DowngradeScene branch above.
+                    crate::live_config::push_runtime_warning(
+                        "[self-heal] CPU pressure recovered — restoring scene",
+                    );
                 }
             }
         }

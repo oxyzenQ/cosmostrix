@@ -496,6 +496,14 @@ impl Terminal {
         // Signal the main loop to exit cleanly via the normal shutdown
         // path. This avoids racing on the broken stdout fd during cleanup.
         crate::interactive::request_graceful_shutdown();
+        // AB-10 (rain-screen cleanliness): leave the alt screen BEFORE the
+        // stderr write below. Without this, the notice leaks into the
+        // rain matrix because the alt screen is still active (raw mode +
+        // EnterAlternateScreen were sent at Terminal construction, and
+        // stdout being broken doesn't unwind them). restore_terminal_best_effort
+        // is idempotent — calling it here AND again later in the panic hook
+        // or Terminal::drop is a no-op for the second call.
+        restore_terminal_best_effort();
         // Broken-pipe-safe stderr notice — eprintln! would panic if stderr
         // is also broken (e.g., terminal fully gone), so use write_fmt.
         use std::io::Write as _;
