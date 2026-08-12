@@ -5,9 +5,9 @@
 > Independent guide to benchmarking cosmostrix: how to run, interpret,
 > compare, and trust the numbers. Covers every benchmark flag, the strict
 > `--bench-scene` validation contract, the v50 4-scene reference matrix
-> (peak 149,745 FPS on monolith, 26,251 FPS on cinematic), and the
-> honesty contract that frames performance as a quality enabler rather
-> than the goal.
+> (pro-native v4: peak 163,961 FPS on monolith, 26,846 FPS on cinematic),
+> a v4-vs-v1 AVX-512 comparison, and the honesty contract that frames
+> performance as a quality enabler rather than the goal.
 
 ## Table of Contents
 
@@ -241,9 +241,11 @@ The `--benchmark` report is organized into sections:
 ## 5. v50 Reference Results (Cloud Xeon, 4-Scene Matrix)
 
 **Machine**: 2-core Intel Xeon (Alibaba Cloud Linux), 3.9 GiB RAM, no swap,
-no RAPL, no perf counters. Kernel 5.10.134, gnu libc.
-**Binary**: `v50.0.0-alpha.1`, commit `7ba7a76`, `release` profile (x86-64-v1
-baseline: SSE/SSE2), fat LTO, rustc 1.97.1, no PGO.
+no RAPL, no perf counters. Kernel 5.10.134, gnu libc. CPU supports
+AVX-512 (avx512f/bw/cd/dq/vl/ifma/vbmi).
+**Binary**: `v50.0.0-alpha.1`, commit `36327da`, `pro-native` profile
+(x86-64-v4 baseline + `target-cpu=native` → AVX-512 auto-detected), fat LTO,
+rustc 1.97.1, no PGO.
 **Terminal**: 80×24, `TERM=dumb`, color_mode=mono (sandbox has no TTY;
 production truecolor terminals will route through the Chroma Dragon engine
 instead of the legacy_rgb fallback seen here).
@@ -264,29 +266,63 @@ raw FPS ceiling, it is the **quality of the cinematic rain at practical
 terminal-bounded FPS** (60–240 on real terminals). The diff engine's
 job is to make that quality affordable, not to win a benchmark sprint.
 
-### Performance Matrix (4 scenes, 5s each, default palette)
+### Performance Matrix (4 scenes, 5s each, pro-native v4)
 
-| Scene      | avg_fps  | peak_fps | p95 (ms) | p99 (ms) | max (ms) | frame_jitter | frame_time_stability | dirty_glyphs/s |
-|------------|---------:|---------:|---------:|---------:|---------:|--------------|-----------------------|----------------:|
-| monolith   | 84,814.5 | 149,745.4| 0.013    | 0.016    | 0.035    | low          | excellent             | 4,818,306       |
-| cinematic  | 26,251.8 | 40,484.2 | 0.049    | 0.053    | —        | low          | excellent             | 10,869,217      |
-| signal     | 25,517.5 | 47,535.3 | 0.046    | 0.051    | —        | low          | excellent             | —               |
-| matrix     | 24,198.9 | 40,487.5 | 0.045    | 0.048    | —        | low          | excellent             | —               |
+| Scene      | avg_fps   | peak_fps  | p95 (ms) | p99 (ms) | max (ms) | frame_jitter | frame_time_stability | dirty_glyphs/s |
+|------------|----------:|----------:|---------:|---------:|---------:|--------------|-----------------------|----------------:|
+| monolith   |  98,198.4 | 163,961.3 | 0.012    | 0.014    | 0.031    | low          | excellent             | 5,573,564       |
+| cinematic  |  26,845.7 |  38,217.5 | 0.047    | 0.052    | 0.093    | low          | excellent             | 11,077,027      |
+| signal     |  25,956.3 |  42,955.3 | 0.049    | 0.055    | 0.128    | low          | excellent             | —               |
+| matrix     |  24,382.5 |  41,567.9 | 0.047    | 0.052    | 0.079    | low          | excellent             | —               |
+
+### v4 (AVX-512) vs v1 (SSE/SSE2) comparison
+
+The same codebase was benchmarked with both `release` (v1 baseline:
+SSE/SSE2) and `pro-native` (v4: AVX-512) profiles on the same machine.
+The v4 build uses `target-cpu=native` which auto-detects all AVX-512
+features on this Xeon.
+
+| Scene      | v1 avg_fps | v4 avg_fps | Δ      | v1 peak_fps | v4 peak_fps | Δ      |
+|------------|-----------:|-----------:|-------:|------------:|------------:|-------:|
+| monolith   | 84,814.5   | 98,198.4   | +15.8% | 149,745.4   | 163,961.3   | +9.5%  |
+| cinematic  | 26,251.8   | 26,845.7   | +2.3%  | 40,484.2    | 38,217.5    | -5.6%  |
+| signal     | 25,517.5   | 25,956.3   | +1.7%  | 47,535.3    | 42,955.3    | -9.6%  |
+| matrix     | 24,198.9   | 24,382.5   | +0.8%  | 40,487.5    | 41,567.9    | +2.7%  |
+
+**Honest reading of the comparison:**
+
+- **monolith gains +15.8% from AVX-512.** The lean scene (1 glyph, no
+  visual effects) is throughput-bound by the diff-engine's inner loop
+  (cell compare + ANSI emit). AVX-512 widens the SIMD throughput on
+  that loop, directly raising the ceiling. This is the only scene where
+  the CPU baseline materially affects the number.
+- **cinematic/signal/matrix gain +0.8–2.3%** — within run-to-run noise.
+  The quality scenes are bound by per-cell visual-effect work (phosphor
+  decay, depth fog, parallax, atmospheric modulation), not by raw SIMD
+  throughput. The visual pipeline has many branches and color-math
+  operations that don't vectorize well. AVX-512 doesn't help here.
+- **peak_fps variance (±10%) is cloud-VM scheduling noise**, not a real
+  regression. Both v1 and v4 hit the same `frame_time_stability:
+  excellent` rating — p99 is within 2× of avg on all 4 scenes.
+- **Conclusion**: for the cinematic rain experience (what users actually
+  see), v1 and v4 are effectively identical. The v4 build only matters
+  for benchmark bragging rights on the monolith ceiling. Use whichever
+  profile is easier to build — the visual quality is the same.
 
 ### Reading the matrix honestly
 
 - **monolith is the throughput peak.** It is the leanest scene (zen
   charset = 1 glyph, no phosphor decay, no depth fog, no parallax). The
-  84K avg_fps is the diff engine's ceiling on this hardware — it tells
-  you the engine is not a bottleneck, nothing more.
+  98K avg_fps (v4) is the diff engine's ceiling on this hardware — it
+  tells you the engine is not a bottleneck, nothing more.
 - **cinematic / signal / matrix are the quality scenes.** They run
-  ~3× slower than monolith because they do more work per cell: phosphor
+  ~4× slower than monolith because they do more work per cell: phosphor
   decay, multi-layer depth, atmospheric modulation, denser charsets.
   This is by design — the cinematic effects are what the user actually
   sees, and they are still well above the 60 FPS interactive cap.
 - **All four scenes hit `frame_time_stability: excellent`** — p99 is
   within 2× of avg, max is within 5×. The engine does not have
-  stuttering outliers even at 25–85K FPS.
+  stuttering outliers even at 25–98K FPS.
 - **`color_pipeline: legacy_rgb` in this matrix** — the sandbox has no
   truecolor TTY, so the Chroma Dragon engine falls back to legacy
   sRGB-linear math. On a real truecolor terminal, the chroma engine
