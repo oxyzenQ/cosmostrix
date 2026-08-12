@@ -64,6 +64,7 @@ mod app;
 mod bench;
 mod bench_baseline;
 mod bench_comp;
+mod bench_config_enrichment;
 mod bench_cpu;
 mod bench_energy;
 mod bench_helpers;

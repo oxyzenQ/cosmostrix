@@ -63,149 +63,6 @@ pub(crate) fn median_sorted(data: &[f64]) -> f64 {
 
 use super::{effective_density, CloudConfig};
 
-/// Compute the v25.17 CONFIG-enrichment fields from a CloudConfig.
-///
-/// Returns a tuple of (color_mode_label, custom_palette_name, custom_palette_bg_hex,
-/// color_bg_label, color_tune_summary, async_mode, glitch_enabled, glitch_level,
-/// glitch_pct, auto_color_drift, color_pipeline_label, chroma_in_benchmark) — all
-/// derived from `cfg` so both the `run_premium_benchmark` and
-/// `run_premium_benchmark_silent` construction sites emit identical values
-/// without duplicating the derivation logic.
-///
-/// v30.3 (chroma dragon audit): the last two tuple fields disclose (a) which
-/// color pipeline the run is using (`chroma_dragon` or `legacy_rgb`) and
-/// (b) what the chroma engine status is during benchmarking. Owner question:
-/// "when benchmarking mode 'cosmostrix --benchmark' is the chroma dragon
-/// enable/disable?" Answer: chroma is ENABLED in benchmark mode -- only
-/// palette *drift* is disabled (see `cloud.auto_color_drift = false` in
-/// run_benchmark line ~201), the chroma engine itself still runs every cell
-/// through `resolve_cell_color` + `apply_climate`. The `chroma_in_benchmark`
-/// field makes this explicit in the report so the user does not have to read
-/// the source to find out.
-///
-/// Kept as a free function (not a method on CloudConfig) so it can be unit-tested
-/// in isolation and stays out of the hot measurement path.
-#[allow(clippy::type_complexity)]
-fn compute_config_enrichment(
-    cfg: &CloudConfig,
-) -> (
-    &'static str,
-    Option<String>,
-    Option<String>,
-    &'static str,
-    String,
-    bool,
-    bool,
-    &'static str,
-    f32,
-    bool,
-    &'static str,
-    &'static str,
-) {
-    use crate::cli::color_mode_label;
-    use crate::palette;
-    use crate::runtime::ColorPipeline;
-
-    let color_mode_label = color_mode_label(cfg.color_mode);
-
-    // Custom palette name + bg hex (None when no custom palette is active).
-    let (custom_palette_name, custom_palette_bg_hex) = match &cfg.custom_palette {
-        Some(p) => {
-            let name = cfg.custom_palette_name.clone();
-            // Only surface the bg hex when the palette actually defines one.
-            // When the palette has no bg field, we emit nothing so the
-            // downstream `color_bg` field is the sole authority on background.
-            let hex = p.bg.map(|c| palette::format_color_hex(Some(c)));
-            (name, hex)
-        }
-        None => (None, None),
-    };
-
-    // --color-bg label. Mirrors verbose.rs::describe_color_bg priority:
-    // custom palette bg (if present) overrides --color-bg; otherwise the
-    // --color-bg setting stands. We emit a compact label here because the
-    // full descriptive string is too verbose for the benchmark CONFIG block.
-    //
-    // Note: CloudConfig stores `default_bg: bool` (true = DefaultBackground,
-    // false = Black) rather than the full ColorBg enum, so we reverse-map here.
-    // The custom-palette-bg override check happens first to match the actual
-    // runtime behavior in app.rs::create_cloud (set_palette overwrites bg).
-    let color_bg_label: &'static str = if cfg.custom_palette.is_some()
-        && cfg.custom_palette.as_ref().and_then(|p| p.bg).is_some()
-    {
-        // Custom palette's bg field wins — the --color-bg flag is moot.
-        "custom-palette-bg"
-    } else if cfg.default_bg {
-        "default-background"
-    } else {
-        "black"
-    };
-
-    // Compact color-tune summary (mirrors verbose format).
-    let color_tune_summary = format!(
-        "sat={:.2} bright={:.2} head={:.2} body={:.2} tail={:.2}",
-        cfg.color_tune.saturation,
-        cfg.color_tune.brightness,
-        cfg.color_tune.head,
-        cfg.color_tune.body,
-        cfg.color_tune.tail
-    );
-
-    let async_mode = cfg.async_mode;
-    let glitch_enabled = cfg.glitch_enabled;
-    // Derive glitch_level label from glitch_pct (CloudConfig doesn't carry
-    // the GlitchLevel enum, only the resolved pct). Thresholds match
-    // cloud/scene_runtime.rs:
-    //   0.0 → none, <5.0 → subtle, <15.0 → default, >=15.0 → intense
-    let glitch_level: &'static str = if !glitch_enabled || cfg.glitch_pct < 0.01 {
-        "none"
-    } else if cfg.glitch_pct < 5.0 {
-        "subtle"
-    } else if cfg.glitch_pct < 15.0 {
-        "default"
-    } else {
-        "intense"
-    };
-    let glitch_pct = cfg.glitch_pct;
-    // v30 strengthen (Bug #12): benchmark mode always disables palette drift
-    // to keep p99/max metrics clean (see the `cloud.auto_color_drift = false`
-    // override in run_benchmark / run_premium_benchmark / run_premium_benchmark_silent).
-    // The report must reflect the actual cloud state, not the user's --auto-color-drift
-    // flag — otherwise the disclosure violates the honesty contract (report says
-    // drift is on when the cloud actually has it off).
-    let auto_color_drift = false;
-
-    // v30.3 (chroma dragon audit): detect the active color pipeline from the
-    // color mode. The chroma engine itself is NOT disabled in benchmark mode
-    // — only palette drift is disabled (palette rebuilds inject timing
-    // spikes that corrupt p99/max). Climate drift still runs because it is
-    // deterministic (fixed RNG seed) and has no rebuild cost. The benchmark
-    // report must disclose both facts so the user can answer "is the chroma
-    // dragon running during benchmark?" without reading the source.
-    let pipeline = ColorPipeline::detect(cfg.color_mode);
-    let color_pipeline_label = pipeline.label();
-    let chroma_in_benchmark: &'static str = if pipeline.is_chroma() {
-        "enabled (palette_drift off for determinism, climate_drift active)"
-    } else {
-        "legacy fallback (color mode lacks truecolor; no chroma engine in benchmark either)"
-    };
-
-    (
-        color_mode_label,
-        custom_palette_name,
-        custom_palette_bg_hex,
-        color_bg_label,
-        color_tune_summary,
-        async_mode,
-        glitch_enabled,
-        glitch_level,
-        glitch_pct,
-        auto_color_drift,
-        color_pipeline_label,
-        chroma_in_benchmark,
-    )
-}
-
 /// Legacy CI benchmark: run N frames and print results in the original format.
 /// Output format is preserved for backwards compatibility.
 pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
@@ -869,7 +726,7 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         auto_color_drift,
         color_pipeline_label,
         chroma_in_benchmark,
-    ) = compute_config_enrichment(cfg);
+    ) = crate::bench_config_enrichment::compute_config_enrichment(cfg);
     let report_data = crate::bench_report::BenchReportData {
         was_interrupted,
         w,
@@ -1234,7 +1091,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         auto_color_drift,
         color_pipeline_label,
         chroma_in_benchmark,
-    ) = compute_config_enrichment(cfg);
+    ) = crate::bench_config_enrichment::compute_config_enrichment(cfg);
     let report_data = BenchReportData {
         was_interrupted: false,
         w,
