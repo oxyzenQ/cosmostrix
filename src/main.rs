@@ -1194,19 +1194,12 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Live-reload fatal exit. v25.13 (bug #15): fires for BOTH watcher
-    // panics AND config validation errors. The previous v25.6 design kept
-    // rain running on the last valid config when the user introduced a typo
-    // mid-edit — but the watcher thread's stderr leaked into the alternate-
-    // screen buffer, polluting the rain matrix. Now: any validation error
-    // sets LIVE_RELOAD_EXIT_CODE=2, breaks the rain loop, and the error
-    // is printed HERE — after Terminal::drop restored the terminal.
+    // Live-reload fatal exit (v25.13 bug #15): watcher panics + validation
+    // errors set LIVE_RELOAD_EXIT_CODE=2, break the rain loop, print here
+    // after Terminal::drop (no alt-screen leak).
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
         if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
             if let Some(ref msg) = *guard {
-                // Route through centralized output helpers so error color
-                // matches every other error path (truecolor red, fallback
-                // to 256/16-color, plain text when piped).
                 eprintln!(
                     "{} [live-reload] ERROR: {}{}",
                     crate::output::error_bold_open(),
@@ -1223,6 +1216,12 @@ fn main() -> std::io::Result<()> {
         use std::io::Write;
         let _ = std::io::stderr().flush();
         std::process::exit(2);
+    }
+
+    // AB-10: drain buffered non-fatal runtime warnings (e.g. deprecated
+    // `.stops`) — buffered during rain loop to avoid alt-screen leak.
+    for w in live_config::drain_runtime_warnings() {
+        crate::output::eprintln_warn_labeled(&w);
     }
 
     result

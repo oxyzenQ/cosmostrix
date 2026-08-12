@@ -62,6 +62,40 @@ pub(crate) static LIVE_RELOAD_VALIDATION_REJECTIONS: Mutex<Vec<String>> = Mutex:
 
 const MAX_REJECTION_LOG: usize = 64;
 
+/// AB-10 (rain-screen cleanliness): non-fatal runtime warnings emitted from
+/// the live-reload path (e.g. deprecated `.stops` alias in colors-custom).
+///
+/// Previously these were `eprintln!`'d directly from `colors_custom::collect_colors_custom`,
+/// which is called by `rebuild_cloud_config` on every config save. The
+/// eprintln fired while the alternate screen was active, leaking the
+/// warning line into the rain matrix.
+///
+/// Now they are buffered here and drained by main.rs AFTER `run_interactive`
+/// returns and `Terminal::drop` restores the main screen.
+pub(crate) static LIVE_RELOAD_RUNTIME_WARNINGS: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+const MAX_RUNTIME_WARNING_LOG: usize = 64;
+
+/// Append a non-fatal runtime warning to the session log. Bulletproof —
+/// never panics on poisoned mutex. Called from the live-reload path only.
+pub(crate) fn push_runtime_warning(msg: &str) {
+    if let Ok(mut guard) = LIVE_RELOAD_RUNTIME_WARNINGS.lock() {
+        if guard.len() < MAX_RUNTIME_WARNING_LOG {
+            guard.push(msg.to_string());
+        }
+    }
+}
+
+/// Drain the runtime warning log. Empty if no warnings or mutex poisoned.
+/// Production exit path (main.rs) calls this after Terminal::drop so the
+/// warnings land on the main screen, not in the rain matrix.
+pub(crate) fn drain_runtime_warnings() -> Vec<String> {
+    LIVE_RELOAD_RUNTIME_WARNINGS
+        .lock()
+        .map(|mut g| std::mem::take(&mut *g))
+        .unwrap_or_default()
+}
+
 /// Append a validation rejection to the session log.
 /// Called from `validate_and_send` when `validate_config_strictly` rejects
 /// the new config. Bulletproof — never panics on poisoned mutex.

@@ -141,9 +141,15 @@ pub(crate) fn collect_colors_custom(
             // too — previously only --testconf warned, so users who never
             // ran --testconf used the deprecated alias indefinitely with no
             // signal.
+            // AB-10 (rain-screen cleanliness): buffer the warning to
+            // `LIVE_RELOAD_RUNTIME_WARNINGS` instead of eprintln. This
+            // function runs on every config save via the live-reload path,
+            // and the eprintln fired while the alt screen was active,
+            // leaking into the rain matrix. main.rs drains the buffer
+            // AFTER Terminal::drop restores the main screen.
             "rain" | "stops" => {
                 if field == "stops" {
-                    crate::output::eprintln_warn_labeled(
+                    crate::live_config::push_runtime_warning(
                         "colors-custom: '.stops' is deprecated — rename to '.rain' (alias removed in a future release)",
                     );
                 }
