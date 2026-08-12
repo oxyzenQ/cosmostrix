@@ -284,6 +284,14 @@ pub(super) fn try_auto_snapback(
     if schedule.entries.is_empty() {
         return false;
     }
+    // AB-05: no previous ambient entry → nothing to snapback to.
+    // After schedule-empty reload clears last_applied_ambient_entry,
+    // this prevents snapback from re-applying a stale ambient scene
+    // even if last_ambient_schedule hasn't been updated yet (file
+    // watcher latency window).
+    if last_applied_ambient_entry.is_none() {
+        return false;
+    }
     let now = Instant::now();
     let idle_secs = now
         .saturating_duration_since(last_user_input_at)
