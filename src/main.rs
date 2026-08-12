@@ -102,6 +102,7 @@ mod config_apply;
 #[cfg(test)]
 mod config_apply_tests;
 mod config_hints;
+mod config_io;
 mod configfile;
 #[cfg(test)]
 mod configfile_tests;
@@ -209,65 +210,6 @@ pub use info::env_var_truthy;
 
 // Path security validation lives in src/safepath.rs.
 pub(crate) use crate::safepath::{is_safe_path, validate_config_path};
-
-/// Check if stdout is redirected to a regular file (shell `>` or `>|` operator).
-/// Returns `true` if stdout is a regular file (shell redirect bypassing whitelist).
-/// Returns `false` for TTY, pipe (allowed), char device, socket.
-/// Used by `--dump-config` to block shell redirection that bypasses the path whitelist.
-#[cfg(unix)]
-fn stdout_is_redirected_to_file() -> bool {
-    use std::os::unix::io::AsRawFd;
-    let fd = std::io::stdout().as_raw_fd();
-    // SAFETY: fstat on a valid fd (stdout=1, always open). The stat struct
-    // is zeroed and overwritten by the syscall.
-    let mut st: libc::stat = unsafe { std::mem::zeroed() };
-    // SAFETY: fstat reads metadata for an already-open fd. Writes only into
-    // our zeroed stat struct; returns 0 on success.
-    if unsafe { libc::fstat(fd, &mut st) } == 0 {
-        return (st.st_mode & libc::S_IFMT) == libc::S_IFREG;
-    }
-    // If fstat fails (shouldn't happen on stdout), don't block — let the
-    // write proceed. Better to be permissive than to break a valid use case.
-    false
-}
-
-/// Write `text` to `target_path` atomically: temp-file + fsync + rename.
-/// POSIX `rename(2)` is atomic — readers see either old or new file, never
-/// a half-written one. Temp lives in same dir (same-filesystem move) as
-/// `<target>.tmp.<pid>`. Best-effort cleanup on error.
-fn write_config_atomic(target_path: &str, text: &str) -> std::io::Result<()> {
-    let target = std::path::Path::new(target_path);
-    let parent = target
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or_else(|| std::path::Path::new("."));
-    // Create parent dir if missing — skip /etc/ and /var/ (system paths
-    // should require explicit user creation to avoid wrong-permission auto).
-    if !parent.exists() {
-        if let Some(parent_str) = parent.to_str() {
-            if !parent_str.starts_with("/etc/") && !parent_str.starts_with("/var/") {
-                std::fs::create_dir_all(parent)?;
-            }
-        }
-    }
-    let pid = std::process::id();
-    let tmp_name = format!(
-        "{}.tmp.{pid}",
-        target
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("config.toml")
-    );
-    let tmp_path = parent.join(&tmp_name);
-    std::fs::write(&tmp_path, text)?;
-    // fsync for crash-durability. If it fails, rename still proceeds (data
-    // is in page cache). Surface error only if rename itself fails.
-    if let Ok(file) = std::fs::File::open(&tmp_path) {
-        let _ = file.sync_all();
-    }
-    std::fs::rename(&tmp_path, target)?;
-    Ok(())
-}
 
 #[cfg(target_os = "linux")]
 pub fn spawn_kill9_terminal_guard() {
@@ -442,7 +384,7 @@ fn main() -> std::io::Result<()> {
             // enforces the whitelist.
             #[cfg(unix)]
             {
-                if stdout_is_redirected_to_file() {
+                if crate::config_io::stdout_is_redirected_to_file() {
                     // Route through ux::die_input so the exit code (2) and
                     // error formatting match every other CLI input error.
                     // Previously this used process::exit(2) directly, bypassing
@@ -505,7 +447,7 @@ fn main() -> std::io::Result<()> {
         // readers see either the old file or the complete new file, never
         // a half-written one.
         let text = configfile::dump_config_with_header();
-        match write_config_atomic(&resolved_path, &text) {
+        match crate::config_io::write_config_atomic(&resolved_path, &text) {
             Ok(()) => {
                 if args.verbose {
                     crate::output::eprintln_verbose_raw(&format!(
