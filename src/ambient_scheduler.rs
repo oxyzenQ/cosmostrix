@@ -121,6 +121,23 @@ impl AmbientSchedulerHandle {
         self.generation.fetch_add(1, Ordering::SeqCst);
         self.cv.notify_all();
     }
+
+    /// Returns `true` if the scheduler's current schedule has zero entries.
+    ///
+    /// AB-07: secondary safety check for the snapback guard. Reads the
+    /// scheduler's `Arc<Mutex<AmbientSchedule>>` directly — does NOT rely
+    /// on the event loop's `last_ambient_schedule` copy, which can go stale
+    /// if a config-rebuild event is lost/debounced/deduped by the watcher.
+    ///
+    /// This is the authoritative answer to "should ambient be active right
+    /// now?" — if the scheduler has no entries, snapback must never fire.
+    #[must_use]
+    pub fn is_schedule_empty(&self) -> bool {
+        match self.schedule.lock() {
+            Ok(s) => s.entries.is_empty(),
+            Err(_) => true, // poisoned → treat as empty (scheduler dead)
+        }
+    }
 }
 
 /// Spawn the ambient scheduler thread.
