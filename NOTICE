@@ -8,4 +8,10 @@ The "cosmostrix" name, logo, and associated branding assets are trademarks
 of rezky_nightky (oxyzenQ) and are NOT covered by the GPL.
 See TRADEMARK.md for usage terms.
 
+Forking policy (summary — see TRADEMARK.md §4 for full text):
+- Contribution forks (PRs back to upstream): allowed without permission.
+  Keep the cosmostrix name/branding unchanged.
+- Non-contribution forks (rebrand, relaunch, derivative product): require
+  owner discussion first. Must use a different name + different branding.
+
 Repository: https://github.com/oxyzenQ/cosmostrix
