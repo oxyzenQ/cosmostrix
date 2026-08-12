@@ -1292,10 +1292,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // loop and falsely detect a "stuck" state after normal exit.
     SHUTDOWN.store(true, Ordering::Release);
 
-    // v30 fix: always print a one-line final FPS summary on exit so the
-    // user has an honest number without needing --perf-stats. Previously
-    // "FRAME OVERSHOOT avg: 0.000" was misread as "0 FPS" — it's actually
-    // perf_pressure (0 by design when renderer keeps up with target_fps).
+    // v30 fix: compute the final FPS summary line now, but defer the
+    // eprintln to AFTER `drop(term)` below — otherwise the summary leaks
+    // into the alternate-screen rain matrix (AB-10 rain-screen cleanliness).
     let final_elapsed = start_time.elapsed();
     let final_elapsed_s = final_elapsed.as_secs_f64().max(0.000_001);
     let final_avg_fps = (perf_frames as f64) / final_elapsed_s;
@@ -1305,19 +1304,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     } else {
         cfg.target_fps
     };
-    eprintln!(
+    let final_fps_line = format!(
         "[cosmostrix] final FPS: {:.1} (instant: {:.1}, target: {:.1}), frames: {}, elapsed: {:.2}s",
         final_avg_fps, final_instant_fps, cfg.target_fps, perf_frames, final_elapsed_s
     );
 
+    // Capture terminal stats BEFORE drop. Cheap (two field reads); unifies
+    // the drop path so we always leave the alt screen before stderr writes.
+    let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
+    let (tier2_skips, tier2_resets, tier2_bytes_since) = term.tier2_stats();
+
     if cfg.perf_stats {
-        // Capture encoding stats BEFORE dropping the terminal -- the stats
-        // live inside the Terminal/ColorCache and would be lost on drop.
-        // Tier 2: also capture tier2_stats (backpressure_skips, ris_resets,
-        // bytes_since_ris) before drop.
-        let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
-        let (tier2_skips, tier2_resets, tier2_bytes_since) = term.tier2_stats();
-        drop(term);
         let elapsed = final_elapsed;
         let elapsed_s = elapsed.as_secs_f64().max(0.000_001);
 
@@ -1480,6 +1477,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         r.print();
     }
 
+    // AB-10: drop the terminal BEFORE any stderr write so the alt screen
+    // is restored and the final FPS line lands on the main screen, not
+    // polluting the rain matrix on exit.
+    drop(term);
+
     // Store final runtime state for post-exit verbose summary.
     let final_color_name = format!("{:?}", cloud.color_scheme());
     super::set_final_state(
@@ -1489,6 +1491,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         cloud.chars_per_sec,
         cloud.droplet_density,
     );
+
+    eprintln!("{}", final_fps_line);
 
     Ok(())
 }
