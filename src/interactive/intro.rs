@@ -146,13 +146,12 @@ pub(crate) fn run_intro(
         return Ok(());
     }
 
-    // Terminal-size guard. Below 80×24 the intros clip badly; print a
-    // notice and skip the cinematic.
+    // Terminal-size guard. Below MIN_INTRO_COLS × MIN_INTRO_LINES the intros
+    // clip badly, so skip the cinematic. The user-facing warning for this
+    // case is emitted by the caller (event_loop.rs) BEFORE the alternate
+    // screen is entered — printing here would leak into the rain matrix
+    // (AB-10 rain-screen cleanliness).
     if w < MIN_INTRO_COLS || h < MIN_INTRO_LINES {
-        eprintln!(
-            "Terminal too small for intro ({}x{} < {}x{}). Starting rain...",
-            w, h, MIN_INTRO_COLS, MIN_INTRO_LINES
-        );
         return Ok(());
     }
 

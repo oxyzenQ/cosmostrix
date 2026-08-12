@@ -40,20 +40,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     #[cfg(not(unix))]
     let _ = term_reinit;
 
-    // AB-10: validate --screen-size BEFORE alt-screen entry so the warning
-    // lands on the main screen, not in the rain matrix.
+    // AB-10: emit pre-alt-screen warnings BEFORE Terminal::with_signal_exit()
+    // enters the alt screen. Otherwise they leak into the rain matrix.
     let fixed_size = cfg.screen_size;
-    if let Some(fixed) = fixed_size {
-        let (tw, th) = crossterm::terminal::size().unwrap_or((fixed.0, fixed.1));
-        let tw = tw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
-        let th = th.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
-        if fixed.0 > tw || fixed.1 > th {
-            eprintln!(
-                "warning: --screen-size {}x{} exceeds terminal {}x{}; will clip to top-left",
-                fixed.0, fixed.1, tw, th
-            );
-        }
-    }
+    super::emit_pre_alt_screen_warnings(fixed_size, cfg.intro != crate::config::IntroType::None);
 
     let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
     if term.enable_mouse_capture().is_ok() {

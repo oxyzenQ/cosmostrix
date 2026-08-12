@@ -91,6 +91,50 @@ pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str, speed: f3
     }
 }
 
+/// AB-10 (rain-screen cleanliness): emit pre-alt-screen warnings to stderr
+/// BEFORE `Terminal::with_signal_exit()` enters the alternate screen.
+/// Otherwise the warning lines leak into the rain matrix on startup.
+///
+/// Reads the terminal size via `crossterm::terminal::size()`, which does NOT
+/// require raw mode or alt-screen entry. Applies the same clamp(MIN, MAX)
+/// used by `Terminal::size()` so the comparison reflects the renderer's
+/// actual working area.
+///
+/// Two warnings:
+///   1. `--screen-size WxH` exceeds the live terminal size (clipped).
+///   2. Intro requested but terminal smaller than MIN_INTRO_COLS x
+///      MIN_INTRO_LINES (intro will be silently skipped by `run_intro`).
+pub(crate) fn emit_pre_alt_screen_warnings(fixed_size: Option<(u16, u16)>, intro_enabled: bool) {
+    use crate::constants::{
+        MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,
+    };
+    if let Some(fixed) = fixed_size {
+        let (tw, th) = crossterm::terminal::size().unwrap_or((fixed.0, fixed.1));
+        let tw = tw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+        let th = th.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+        if fixed.0 > tw || fixed.1 > th {
+            eprintln!(
+                "warning: --screen-size {}x{} exceeds terminal {}x{}; will clip to top-left",
+                fixed.0, fixed.1, tw, th
+            );
+        }
+    }
+    if intro_enabled {
+        let (tw, th) = crossterm::terminal::size().unwrap_or((0, 0));
+        let tw = tw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
+        let th = th.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+        if tw < intro::MIN_INTRO_COLS || th < intro::MIN_INTRO_LINES {
+            eprintln!(
+                "Terminal too small for intro ({}x{} < {}x{}). Starting rain...",
+                tw,
+                th,
+                intro::MIN_INTRO_COLS,
+                intro::MIN_INTRO_LINES
+            );
+        }
+    }
+}
+
 /// Get the final color scheme name after the rain loop exited.
 pub(crate) fn last_color_scheme() -> String {
     FINAL_COLOR
