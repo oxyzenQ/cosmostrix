@@ -125,10 +125,24 @@ impl Cloud {
             return;
         }
 
-        // Skip phosphor under high performance pressure
-        if self.perf_pressure > 0.7 {
+        // M1 (internal independent QA): phosphor decay pressure gate with
+        // hysteresis. Previously a hard-cut at >0.7 caused the CRT afterglow
+        // effect to strobe on/off when pressure fluctuated around the
+        // threshold. Now: skip when pressure > PHOSPHOR_SKIP_HIGH (0.70),
+        // and stay skipped until pressure drops below PHOSPHOR_SKIP_LOW
+        // (0.50). The `phosphor_skipped` field on Cloud tracks the current
+        // state across frames — once skipped, it only resumes after pressure
+        // drops well below the trigger.
+        let should_skip = if self.phosphor_skipped {
+            self.perf_pressure > PHOSPHOR_SKIP_LOW
+        } else {
+            self.perf_pressure > PHOSPHOR_SKIP_HIGH
+        };
+        if should_skip {
+            self.phosphor_skipped = true;
             return;
         }
+        self.phosphor_skipped = false;
 
         let bg = self.palette.bg;
         let lines = self.lines;

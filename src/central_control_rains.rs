@@ -476,6 +476,16 @@ pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.82;
 /// (perf optimization — skip on slow systems).
 pub(crate) const CRT_VIGNETTE_PERF_THRESHOLD: f32 = 0.5;
 
+/// M1 (internal independent QA): phosphor decay pressure gate with hysteresis.
+/// When pressure rises above `PHOSPHOR_SKIP_HIGH` (0.70), phosphor decay is
+/// skipped entirely. It stays skipped until pressure drops below
+/// `PHOSPHOR_SKIP_LOW` (0.50), preventing strobing when pressure fluctuates
+/// around the threshold. The hysteresis gap (0.20) is wider than typical
+/// run-to-run pressure noise, so the effect fades smoothly in/out rather
+/// than hard-cutting.
+pub(crate) const PHOSPHOR_SKIP_HIGH: f32 = 0.70;
+pub(crate) const PHOSPHOR_SKIP_LOW: f32 = 0.50;
+
 // ─── Cinematic radial vignette (edge darkening) ────────────────────────────
 
 /// Intensity of the radial vignette (0.0 = none, 1.0 = full black at edges).
