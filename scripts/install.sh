@@ -19,13 +19,6 @@ set -euo pipefail
 PROJECT_NAME="cosmostrix"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Generate config template from the built binary via --dump-config.
-# This ensures the installed config always matches the binary's defaults.
-generate_config_template() {
-    local binary="$1"
-    "${binary}" --dump-config 2>/dev/null
-}
-
 usage() {
     cat <<EOF
 Usage: $0 [--system|--user]
@@ -135,7 +128,13 @@ preserve_or_clean_user_config() {
     # Strip blank lines + comments for fair comparison.
     local user_normalized default_normalized
     user_normalized=$(grep -vE '^\s*#|^\s*$' "${user_cfg}" 2>/dev/null || true)
-    default_normalized=$(generate_config_template "${binary}" | grep -vE '^\s*#|^\s*$' 2>/dev/null || true)
+    # Generate default config to a temp file, then compare.
+    # Cannot use stdout redirect (blocked by safe-path check), so use
+    # --dump-config with a temp path inside the allowed config dir.
+    local tmp_default="${HOME}/.config/${PROJECT_NAME}/.install_tmp_default.toml"
+    "${binary}" --dump-config "${tmp_default}" 2>/dev/null
+    default_normalized=$(grep -vE '^\s*#|^\s*$' "${tmp_default}" 2>/dev/null || true)
+    rm -f "${tmp_default}"
 
     if [[ "${user_normalized}" == "${default_normalized}" ]]; then
         echo "   user-local config matches default — removing to avoid bloat:"
@@ -230,7 +229,9 @@ case "${MODE}" in
             echo "   If you need the old config, abort now (Ctrl+C) and back it up manually."
             sleep 2
         fi
-        generate_config_template "${BINARY}" | sudo tee "${config_path}" >/dev/null
+        # Use --dump-config <path> directly (not stdout redirect, which is
+        # blocked by the safe-path security check).
+        sudo "${BINARY}" --dump-config "${config_path}" 2>/dev/null
         echo "   installed: ${config_path}"
         # Preserve user-local config if customized; clean up if default.
         preserve_or_clean_user_config "${BINARY}"
@@ -240,11 +241,14 @@ case "${MODE}" in
         user_cfg="${user_cfg_dir}/config.toml"
         mkdir -p "${user_cfg_dir}"
         if [[ -f "${user_cfg}" ]]; then
-            generate_config_template "${BINARY}" > "${user_cfg}.new"
+            # Existing config: write new template to .new for manual merge.
+            # Use --dump-config <path> directly (not stdout redirect).
+            "${BINARY}" --dump-config "${user_cfg}.new" 2>/dev/null
             echo "   existing config preserved: ${user_cfg}"
             echo "   new template installed at: ${user_cfg}.new (review and merge manually)"
         else
-            generate_config_template "${BINARY}" > "${user_cfg}"
+            # No existing config: write template directly.
+            "${BINARY}" --dump-config "${user_cfg}" 2>/dev/null
             echo "   installed: ${user_cfg}"
         fi
         ;;
