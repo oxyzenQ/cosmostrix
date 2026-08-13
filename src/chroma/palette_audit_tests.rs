@@ -164,6 +164,25 @@ struct NearDupDisposition {
                      stays royal throughout, Ocean has a visible cyan \
                      body/tail. Different aesthetic intent.",
         },
+        NearDupDisposition {
+            a: ColorScheme::Gray, b: ColorScheme::Mercury,
+            disposition: Disposition::Intentional,
+            reason: "Both grayscale-family. Gray is neutral gray, Mercury \
+                     is warm-tinted gray (slight brown vs pure gray). \
+                     Intermediate stop additions (gradient smoothing) \
+                     reduced the avg RGB distance to 28.9. Visually \
+                     distinct — Mercury has a warm tint, Gray is pure neutral.",
+        },
+        NearDupDisposition {
+            a: ColorScheme::Stars, b: ColorScheme::Pluto,
+            disposition: Disposition::Intentional,
+            reason: "Both deep-space blue-white. Stars is pinprick starlight \
+                     (sparse white-gold on black), Pluto is icy blue-gray \
+                     (distant dwarf planet). Intermediate stop additions \
+                     (gradient smoothing) reduced avg RGB distance to 29.0. \
+                     Visually distinct — Stars is darker/sparser, Pluto is \
+                     brighter with a blue tint.",
+        },
     ];
 
 /// Extract the TrueColor RGB stops for a scheme as a Vec<(u8,u8,u8)>.
