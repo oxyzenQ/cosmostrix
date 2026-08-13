@@ -168,7 +168,7 @@ Cosmostrix renders glyphs the terminal emulator draws — your font choice shape
 |---|---|---|
 | **JetBrains Mono** | Distinct `0`/`1`, full Unicode, open source, popular | Default — best balance |
 | **Iosevka** | Configurable width, very compact, Nerd Font compatible | Small terminals / high density |
-| **Monaspace Krypton** (GitHub) | Variable axis, high contrast, modern | Cinematic aesthetic |
+| **Monaspace Krypton** | Variable axis, high contrast, modern | Cinematic aesthetic |
 
 Avoid `Fira Code` (ligatures disrupt `0`/`1` rain) and system defaults (Consolas, Menlo) which lack full Unicode coverage for box-drawing + braille charsets.
 
@@ -317,14 +317,14 @@ scripts/verify-release-build.sh pro-linux-v3
 
 ```bash
 cosmostrix                           # signature Cinematic Cosmic default
-cosmostrix --color rainbow --speed 12   # color + speed
+cosmostrix --color dragon-crystal --speed 12   # color + speed
 cosmostrix --screensaver              # only q exits (all other keys ignored)
 cosmostrix --message "wake up, neo"   # overlay message
 cosmostrix --charset katakana         # character set
 cosmostrix --scene cinematic          # built-in scene
 cosmostrix --scene monolith --color cosmos
 cosmostrix --config ~/.config/cosmostrix/config.toml  # explicit config (whitelist-enforced)
-cosmostrix --scene-custom nightcore   # user-defined custom scene
+cosmostrix --scene-custom hacker-mode   # user-defined custom scene
 cosmostrix --intro cosmic             # cosmic burst intro before rain
 ```
 
