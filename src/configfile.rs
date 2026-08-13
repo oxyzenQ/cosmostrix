@@ -617,16 +617,16 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   cinematic (default) | matrix | monolith | signal | classic | calm |
 #   storm | cosmos | neon | hacker | low-power | matrix_film | cosmic-dragon |
 #   carbonic | dragon-crystal | orange-cat | north-stars | curiosity
-# scene = cinematic
+# scene = "cinematic"
 
 # Color scheme (palette). See: cosmostrix --list-colors
-# color = energy-zen
+# color = "energy-zen"
 
 # Character set for rain glyphs. See: cosmostrix --list-charsets
-# charset = zen
+# charset = "zen"
 
 # Background mode: default-background (follow terminal) | black (solid #000000)
-# color-bg = default-background
+# color-bg = "default-background"
 
 # Cinematic intro animation: logo | cosmic | none (default: logo)
 # intro = "logo"
@@ -651,14 +651,14 @@ pub(crate) fn dump_config_text() -> &'static str {
 # async-mode = true
 
 # Monolith pillar size: small | normal | large — only for monolith scene.
-# monolith-size = normal
+# monolith-size = "normal"
 
 # ── Behavior ──
 
 # Glitch intensity: none | subtle | default | intense.
 # The preset fully controls glitch percent, stream decay, fragmented stream
 # chance, and stream layering automatically — no separate keys.
-# glitch-level = subtle
+# glitch-level = "subtle"
 
 # Auto color drift (default: off).
 # auto-color-drift = false
@@ -705,16 +705,16 @@ pub(crate) fn dump_config_text() -> &'static str {
 # symmetric hint for `charset` → `charset-custom`).
 
 # [scene-custom.hacker-mode]
-# base-scene = matrix       # v30.2: inherit matrix's rain_style + defaults
-# color = green             # override matrix's neon-green with plain green
-# charset = hacker          # override matrix's matrix charset
+# base-scene = "matrix"       # v30.2: inherit matrix's rain_style + defaults
+# color = "green"             # override matrix's neon-green with plain green
+# charset = "hacker"          # override matrix's matrix charset
 # bold = 1                  # v30.3: 0=off, 1=on, 2=double-width
-# colors-custom = zen       # v30.3: reference a [colors-custom.<name>] block
-# charset-custom = pipes    # v30.3: reference a [charset-custom.<name>] block
+# colors-custom = "zen"       # v30.3: reference a [colors-custom.<name>] block
+# charset-custom = "pipes"    # v30.3: reference a [charset-custom.<name>] block
 # shadingmode = 1           # v30.3: 0=off, 1=on
 # speed = 28                # override matrix's speed=18
 # density = 1.2             # override matrix's density=0.65
-# glitch-level = intense    # override matrix's glitch=Subtle
+# glitch-level = "intense"    # override matrix's glitch=Subtle
 # fps = 60                  # override cinematic's fps=60
 # async = false             # v30.3: true enables async render path
 #
@@ -725,11 +725,11 @@ pub(crate) fn dump_config_text() -> &'static str {
 #
 # Without base-scene (legacy v20.1+ behavior):
 # [scene-custom.hacker-mode]
-# color = green
-# charset = hacker
+# color = "green"
+# charset = "hacker"
 # speed = 28
 # density = 1.2
-# glitch-level = intense
+# glitch-level = "intense"
 #
 # v30.3: `ambient.<HH-MM>` MUST live at the top level (NEVER inside a
 # [scene-custom.<name>] block). Putting it inside a scene-custom section
@@ -740,7 +740,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Density Map: per-column spawn weights (0.0=never, 1.0=always). Maps
 # shorter than terminal width treat missing columns as 1.0. Both quoted
 # and unquoted forms work.
-#   density-map = 0.05,0.3,1.0           (unquoted — standard)
+#   density-map = "0.05,0.3,1.0"         (quoted — standard TOML)
 #   density-map = "0.05,0.3,1.0"         (quoted — also valid)
 
 # ── Custom Color Palettes ──
@@ -807,15 +807,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 #         [scene-custom.afternoon]
 #         base-scene = "signal"
 #         color = "energy-zen"
-#         speed = "50"
-#         density = "0.65"
+#         speed = 50
+#         density = 0.65
 #
-#         ambient.15-00 = afternoon    # top-level — NEVER inside the block
+#         ambient.15-00 = "afternoon"    # top-level — NEVER inside the block
 #
 # Working Example: 3-phase day/night cycle (v30.2)
-#   ambient.06-00 = signal
-#   ambient.12-00 = monolith
-#   ambient.20-00 = cinematic
+#   ambient.06-00 = "signal"
+#   ambient.12-00 = "monolith"
+#   ambient.20-00 = "cinematic"
 #
 # Custom-scene Example: define once, reference by name.
 # Define the scene in its own [scene-custom.<name>] block, then reference
@@ -825,18 +825,18 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   [scene-custom.afternoon]
 #   base-scene = "signal"
 #   color = "energy-zen"
-#   speed = "50"
-#   density = "0.65"
+#   speed = 50
+#   density = 0.65
 #
-#   ambient.15-00 = afternoon    # top-level — switches to afternoon at 15:00
+#   ambient.15-00 = "afternoon"    # top-level — switches to afternoon at 15:00
 #
 # Minimal Example: 2-phase day/night
-#   ambient.07-00 = matrix
-#   ambient.19-00 = monolith
+#   ambient.07-00 = "matrix"
+#   ambient.19-00 = "monolith"
 
-# ambient.06-00 = signal
-# ambient.12-00 = monolith
-# ambient.20-00 = cinematic
+# ambient.06-00 = "signal"
+# ambient.12-00 = "monolith"
+# ambient.20-00 = "cinematic"
 
 # ── Removed Keys (rejected by --testconf) ──
 # adaptive-custom.*  — atmosphere engine eliminated; use ambient.* instead.

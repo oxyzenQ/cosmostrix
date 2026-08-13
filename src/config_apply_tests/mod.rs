@@ -699,8 +699,9 @@ fn dump_config_mentions_supported_keys() {
         assert!(dump.contains(key), "dump config should contain {key}");
     }
     // v30.1: the standard example values are still present.
-    assert!(dump.contains("glitch-level = subtle"));
-    assert!(dump.contains("scene = cinematic"));
+    // All string values are now quoted (standard TOML convention).
+    assert!(dump.contains("glitch-level = \"subtle\""));
+    assert!(dump.contains("scene = \"cinematic\""));
     assert!(dump.contains("speed = 9"));
     assert!(dump.contains("density = 0.75"));
 }
