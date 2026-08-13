@@ -168,7 +168,27 @@ pub fn spawn_ambient_scheduler(initial: AmbientSchedule) -> AmbientSchedulerHand
 
     thread::Builder::new()
         .name("ambient-scheduler".to_string())
-        .spawn(move || scheduler_loop(sched_clone, cv_clone, gen_clone, tx))
+        .spawn(move || {
+            // S4 (internal independent QA): wrap the scheduler loop in
+            // catch_unwind for parity with the live-reload watcher thread
+            // (live_config.rs lines 83, 148 both use catch_unwind). Without
+            // this, a panic in the time-arithmetic or phase computation
+            // would kill the scheduler thread silently — the user would see
+            // "ambient stopped working" with no error message. With
+            // catch_unwind, a panic is caught and the thread exits cleanly
+            // via the normal channel-drop path (tx falls out of scope →
+            // rx returns Err → event loop detects dead scheduler).
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                scheduler_loop(sched_clone, cv_clone, gen_clone, tx)
+            }));
+            if result.is_err() {
+                // Buffer the diagnostic so it appears on the main screen
+                // post-exit, not in the alt-screen rain matrix (AB-10).
+                crate::live_config::push_runtime_warning(
+                    "[ambient-scheduler] thread panicked — ambient scheduling disabled for this session",
+                );
+            }
+        })
         .expect("spawn ambient scheduler thread");
 
     AmbientSchedulerHandle {

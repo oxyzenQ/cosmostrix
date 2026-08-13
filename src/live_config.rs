@@ -21,6 +21,22 @@
 //!
 //! Uses the same `validate_field_value` rules as `--testconf`. Invalid
 //! values reject the entire config with a clear error message.
+//!
+//! ## S3 (internal independent QA): parse race with non-atomic editor writes
+//!
+//! If the editor writes the config file non-atomically (truncate + write,
+//! e.g. `echo > config.toml` or `tee`), the watcher may read a half-written
+//! file mid-save. The strict parser will see malformed lines and reject the
+//! entire config, setting LIVE_RELOAD_EXIT_CODE=2 and exiting cosmostrix.
+//!
+//! Editors that write atomically (temp file + rename: vim, emacs, nano,
+//! VSCode, most modern editors) are safe — the watcher sees either the
+//! old file or the complete new file, never a partial write.
+//!
+//! This is a known limitation of file-watcher systems. The v25.13 design
+//! (exit on validation error) makes this more visible than the old "silently
+//! keep last valid config" behavior, but it is the honest choice: a
+//! malformed config should not be silently ignored.
 
 use std::collections::HashMap;
 use std::path::PathBuf;

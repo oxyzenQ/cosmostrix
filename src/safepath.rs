@@ -434,14 +434,24 @@ fn normalize_path_segments_inner(path: &str, is_absolute: bool) -> Option<String
 /// On Windows, `HOME` is typically not set. Falls back to `USERPROFILE`
 /// (which Windows always sets: `C:\Users\<name>`). This matches
 /// `configfile::default_config_file_path()`'s fallback chain.
+///
+/// S2 (internal independent QA): `~user` (POSIX per-user tilde expansion)
+/// is NOT supported — only `~/path` and bare `~`. This is a documented
+/// limitation; full POSIX expansion would require `getpwnam(3)` which
+/// adds a libc dependency for a rarely-used feature. Users who need
+/// another user's config should use an absolute path.
 fn expand_tilde(path: &str) -> PathBuf {
-    if path.starts_with("~/") {
+    // S1 (internal independent QA): use `if let Some(rest)` instead of
+    // `.unwrap()` to make the invariant explicit. The outer `if path.starts_with("~/")`
+    // guarantees the strip succeeds, but the unwrap was fragile if a future
+    // refactor changes the outer condition without updating the inner call.
+    if let Some(rest) = path.strip_prefix("~/") {
         if let Some(home) = std::env::var("HOME").ok().filter(|h| !h.is_empty()) {
-            return PathBuf::from(home).join(path.strip_prefix("~/").unwrap());
+            return PathBuf::from(home).join(rest);
         }
         #[cfg(windows)]
         if let Some(userprofile) = std::env::var("USERPROFILE").ok().filter(|h| !h.is_empty()) {
-            return PathBuf::from(userprofile).join(path.strip_prefix("~/").unwrap());
+            return PathBuf::from(userprofile).join(rest);
         }
     }
     if path == "~" {
