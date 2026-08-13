@@ -108,12 +108,15 @@ charset-custom.zen.set = \"|\"
 ";
     let parsed = parse_config_text(content);
     assert!(parsed.unknown_keys.is_empty());
+    // Option 1 (internal independent QA): parser now strips surrounding
+    // double quotes from string values. The input was `"|"` (quoted),
+    // the stored value is now `|` (without quotes).
     assert_eq!(
         parsed
             .values
             .get("charset-custom.zen.set")
             .map(String::as_str),
-        Some("\"|\"")
+        Some("|")
     );
     assert_eq!(parsed.promoted_keys.len(), 1);
 }

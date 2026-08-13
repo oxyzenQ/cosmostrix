@@ -199,6 +199,30 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 continue;
             }
 
+            // Option 1 (internal independent QA): strip surrounding double
+            // quotes from string values. Standard TOML requires string
+            // values to be quoted ("value"), but cosmostrix's custom parser
+            // previously stored the raw value INCLUDING the quotes. This
+            // caused `intro = "logo"` to fail because the consumer saw
+            // `"logo"` (with quotes) instead of `logo`. Now we strip
+            // matching leading/trailing double quotes so both
+            // `intro = "logo"` and `intro = logo` produce the same stored
+            // value `logo`. This also fixes the template inconsistency
+            // where some values were quoted (intro, bg, set) and others
+            // were not (scene, color, charset).
+            //
+            // Only strip if the value starts AND ends with a double quote
+            // (both must be present — a lone leading quote is not stripped).
+            // Arrays (starting with '[') are NOT touched — their internal
+            // quotes are handled by the array consumer (hex colors, etc.).
+            if value.len() >= 2
+                && value.starts_with('"')
+                && value.ends_with('"')
+                && !value.starts_with('[')
+            {
+                value = value[1..value.len() - 1].to_string();
+            }
+
             // v25.9 (bug #7): Detect unquoted '#' inside an array value.
             // strip_inline_comment strips at first unquoted '#'. If that
             // happened while bracket depth > 0, the user wrote e.g.
