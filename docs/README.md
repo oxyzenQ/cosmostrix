@@ -44,15 +44,14 @@ modifying the engine or want to understand the design philosophy.
 Cosmostrix is built on **two cooperating engines**:
 
 1. **The Cosmic Dragon Diff-Based Rendering Engine** — owns *what cells
-   changed*. Lives at the crate root: `src/frame.rs` (397 LOC),
-   `src/terminal/` (1,581 LOC), `src/terminal_tty.rs` (201 LOC),
-   `src/runtime.rs` (312 LOC). 18 invariant tests in
+   changed*. Lives at the crate root: `src/frame.rs`, `src/terminal/`,
+   `src/terminal_tty.rs`, `src/runtime.rs`. Invariant tests in
    `src/cosmic_dragon/lock_tests.rs` lock the engine's contract.
 
 2. **The Chroma Dragon Coloring Engine** — owns *what color a cell
    becomes*. Lives under `src/chroma/` (`palette`, `catalog`,
-   `gradient`, `shaders`, `post`, `tuning`). Locked at Phase 9-B. 20
-   invariant tests in `src/chroma/lock_tests.rs` lock the engine's
+   `gradient`, `shaders`, `post`, `tuning`). Locked at Phase 9-B.
+   Invariant tests in `src/chroma/lock_tests.rs` lock the engine's
    contract.
 
 ---
@@ -81,14 +80,14 @@ These docs cover *how to tune what the rain looks like*.
 
 | Doc | What it covers | Key source files |
 |-----|---------------|-----------------|
-| [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible.** Every tunable knob in the rain visual stack — per-layer brightness, depth, speed, density, phosphor decay, parallax multipliers. | `src/central_control_rains.rs` (1070 LOC) |
+| [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible.** Every tunable knob in the rain visual stack — per-layer brightness, depth, speed, density, phosphor decay, parallax multipliers. | `src/central_control_rains.rs` |
 | [RAIN_DEPTH_AUDIT.md](RAIN_DEPTH_AUDIT.md) | Visual-audit methodology for the rain depth stack (uses `--bench-scene production-draw`) | `src/central_control_rains.rs` |
 | [CINEMATIC_BREATHING.md (archived)](archive/specs/CINEMATIC_BREATHING.md) | Cinematic breathing vocabulary (Rest / Pulse / Signal / Compression / Void / Monolith-Pressure) — archived 2026-08-05 alongside atmosphere engine elimination. Concepts preserved; `--atmosphere-mode` / `--atmosphere-regime` triggers are obsolete. | (historical) |
 
 > **Note (v30 — 2026-08-05):** the atmosphere engine subsystem (former
 > `src/atmosphere_*.rs` modules, `--atmosphere-mode` / `--atmosphere-regime`
 > CLI flags, `atmosphere-mode` / `atmosphere-regime` / `adaptive-custom.*`
-> config keys) was fully eliminated at commit `07b44b5` (-7,875 LOC net).
+> config keys) was fully eliminated at commit `07b44b5` (net reduction in codebase size).
 > The historical design spec is preserved at
 > [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md).
 > The elimination record (file list, KEPT-vs-DELETED table, backward-compat
@@ -125,13 +124,13 @@ These docs cover *how color works* in cosmostrix.
 |-----|---------------|-----------------|
 | [../README.md § About — The Chroma Dragon Coloring Engine](../README.md#the-chroma-dragon-coloring-engine) | High-level overview of the Chroma Dragon, Phase 9-B lock, the 9 phases | `src/chroma/` |
 | [src/chroma/mod.rs](../src/chroma/mod.rs) | Module doc — Chroma Dragon phase history, module map | `src/chroma/mod.rs` |
-| [src/chroma/catalog.rs](../src/chroma/catalog.rs) | **Central color theme registry** — single source of truth for ALL color schemes. To add a new theme: add a variant to `ColorScheme` enum in `runtime.rs`, then add one `ThemeDef` entry to the `THEMES` array. `--list-colors`, `--color <name>`, and `build_palette()` all auto-discover from this registry. | `src/chroma/catalog.rs` (1084 LOC) |
-| [src/chroma/palette.rs](../src/chroma/palette.rs) | Palette construction — RGB gradient stops, OKLab interpolation, Color16/ANSI fallbacks | `src/chroma/palette.rs` (764 LOC) |
-| [src/chroma/gradient.rs](../src/chroma/gradient.rs) | OKLab gradient interpolation (perceptually uniform) | `src/chroma/gradient.rs` (746 LOC) |
-| [src/chroma/tuning.rs](../src/chroma/tuning.rs) | `--color-tune` key=value tuning (sat, bright, head, body, tail) | `src/chroma/tuning.rs` (290 LOC) |
+| [src/chroma/catalog.rs](../src/chroma/catalog.rs) | **Central color theme registry** — single source of truth for ALL color schemes. To add a new theme: add a variant to `ColorScheme` enum in `runtime.rs`, then add one `ThemeDef` entry to the `THEMES` array. `--list-colors`, `--color <name>`, and `build_palette()` all auto-discover from this registry. | `src/chroma/catalog.rs` |
+| [src/chroma/palette.rs](../src/chroma/palette.rs) | Palette construction — RGB gradient stops, OKLab interpolation, Color16/ANSI fallbacks | `src/chroma/palette.rs` |
+| [src/chroma/gradient.rs](../src/chroma/gradient.rs) | OKLab gradient interpolation (perceptually uniform) | `src/chroma/gradient.rs` |
+| [src/chroma/tuning.rs](../src/chroma/tuning.rs) | `--color-tune` key=value tuning (sat, bright, head, body, tail) | `src/chroma/tuning.rs` |
 | [src/chroma/shaders/](../src/chroma/shaders/) | Cell-color decision logic — `resolve_cell_color()`, `CharLoc` enum, `TRAIL_EXP_LUT` | `src/chroma/shaders/` |
 | [src/chroma/post/](../src/chroma/post/) | Atmospheric post-processing + palette-aware anomaly halos | `src/chroma/post/` |
-| [src/chroma/lock_tests.rs](../src/chroma/lock_tests.rs) | 20 invariant tests that lock the Chroma Dragon's contract on every commit | — |
+| [src/chroma/lock_tests.rs](../src/chroma/lock_tests.rs) | Invariant tests that lock the Chroma Dragon's contract on every commit | — |
 
 ### Adding a New Color Theme
 
@@ -222,42 +221,42 @@ where a feature lives.
 
 ### Cosmic Dragon (Rendering Engine)
 
-| Source file | LOC | What it does |
-|-------------|----:|-------------|
-| `src/frame.rs` | 397 | Frame buffer + dirty-cell tracking (O(1) `clear_dirty` via u32 bump) |
-| `src/terminal/` | 1,334 | Terminal abstraction — alternate screen, raw mode, ANSI output, ColorCache |
-| `src/terminal_tty.rs` | 201 | `/dev/tty` fallback — recovers from broken stdout mid-run |
-| `src/runtime.rs` | 91 | Runtime enums — `ColorMode`, `ShadingMode`, `BoldMode`, `ColorScheme` |
-| `src/bolt.rs` | 225 | BOLT — Branchless Optimized Lookup Tables. Project-wide branchless formatting for the hot render path. |
-| `src/central_control_rains.rs` | 898 | **Rain control center** — every tunable knob for the rain visual stack. See [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md). |
+| Source file | What it does |
+|-------------|-------------|
+| `src/frame.rs` | Frame buffer + dirty-cell tracking (O(1) `clear_dirty` via u32 bump) |
+| `src/terminal/` | Terminal abstraction — alternate screen, raw mode, ANSI output, ColorCache |
+| `src/terminal_tty.rs` | `/dev/tty` fallback — recovers from broken stdout mid-run |
+| `src/runtime.rs` | Runtime enums — `ColorMode`, `ShadingMode`, `BoldMode`, `ColorScheme` |
+| `src/bolt.rs` | BOLT — Branchless Optimized Lookup Tables. Project-wide branchless formatting for the hot render path. |
+| `src/central_control_rains.rs` | **Rain control center** — every tunable knob for the rain visual stack. See [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md). |
 
 ### Cloud (Droplet Simulation)
 
-| Source file | LOC | What it does |
-|-------------|----:|-------------|
-| `src/cloud/mod.rs` | 1,000 | Cloud module root — droplet cloud state, column management |
-| `src/cloud/rain.rs` | 1,234 | Rain simulation — droplet physics, spawn, fall, collision |
-| `src/cloud/spawn.rs` | 720 | Spawn logic — 3-layer parallax, density maps, monolith formations |
-| `src/cloud/phosphor.rs` | 789 | Phosphor persistence — CRT afterglow, per-layer decay |
-| `src/cloud/monolith.rs` | 1,002 | Monolith scene — density-sculpted pillar formations |
-| `src/cloud/living_rain.rs` | 422 | Living rain — organic motion, gust-driven acceleration |
-| `src/cloud/ecosystem.rs` | 525 | Ecosystem — droplet lifecycle, die-early, short-rain |
-| `src/cloud/render.rs` | 347 | Render path — `emit_cell_lean` (fast) + `Terminal::draw` (production) |
-| `src/cloud/scene_runtime.rs` | 143 | Scene runtime — scene switching, parameter application |
-| `src/cloud/runtime_controls.rs` | 206 | Runtime controls — live parameter adjustment |
+| Source file | What it does |
+|-------------|-------------|
+| `src/cloud/mod.rs` | Cloud module root — droplet cloud state, column management |
+| `src/cloud/rain.rs` | Rain simulation — droplet physics, spawn, fall, collision |
+| `src/cloud/spawn.rs` | Spawn logic — 3-layer parallax, density maps, monolith formations |
+| `src/cloud/phosphor.rs` | Phosphor persistence — CRT afterglow, per-layer decay |
+| `src/cloud/monolith.rs` | Monolith scene — density-sculpted pillar formations |
+| `src/cloud/living_rain.rs` | Living rain — organic motion, gust-driven acceleration |
+| `src/cloud/ecosystem.rs` | Ecosystem — droplet lifecycle, die-early, short-rain |
+| `src/cloud/render.rs` | Render path — `emit_cell_lean` (fast) + `Terminal::draw` (production) |
+| `src/cloud/scene_runtime.rs` | Scene runtime — scene switching, parameter application |
+| `src/cloud/runtime_controls.rs` | Runtime controls — live parameter adjustment |
 
 ### Chroma Dragon (Coloring Engine)
 
-| Source file | LOC | What it does |
-|-------------|----:|-------------|
-| `src/chroma/mod.rs` | — | Module root — phase history, module map |
-| `src/chroma/catalog.rs` | 1,013 | **Central color theme registry** — single source of truth for all 44 themes |
-| `src/chroma/palette.rs` | 1,205 | Palette construction — RGB stops, OKLab interpolation, fallbacks |
-| `src/chroma/gradient.rs` | 747 | OKLab gradient interpolation (perceptually uniform) |
-| `src/chroma/tuning.rs` | 290 | `--color-tune` key=value tuning |
-| `src/chroma/shaders/` | — | Cell-color decision logic (`resolve_cell_color`) |
-| `src/chroma/post/` | — | Atmospheric post-processing, anomaly halos |
-| `src/chroma/lock_tests.rs` | — | 17 invariant tests (Phase 9-B lock) |
+| Source file | What it does |
+|-------------|-------------|
+| `src/chroma/mod.rs` | Module root — phase history, module map |
+| `src/chroma/catalog.rs` | **Central color theme registry** — single source of truth for all 44 themes |
+| `src/chroma/palette.rs` | Palette construction — RGB stops, OKLab interpolation, fallbacks |
+| `src/chroma/gradient.rs` | OKLab gradient interpolation (perceptually uniform) |
+| `src/chroma/tuning.rs` | `--color-tune` key=value tuning |
+| `src/chroma/shaders/` | Cell-color decision logic (`resolve_cell_color`) |
+| `src/chroma/post/` | Atmospheric post-processing, anomaly halos |
+| `src/chroma/lock_tests.rs` | Invariant tests (Phase 9-B lock) |
 
 ### Atmosphere Engine (REMOVED 2026-08-05)
 
@@ -297,14 +296,14 @@ not the v4.0.0 atmosphere engine — KEPT):
 
 ### App & Config
 
-| Source file | LOC | What it does |
-|-------------|----:|-------------|
-| `src/main.rs` | 1,428 | Entry point — arg parsing, dispatch, run loop |
-| `src/app.rs` | 349 | `CloudConfig` struct — the central config object |
-| `src/config.rs` | 899 | CLI arg definitions (clap) + config.toml parsing |
-| `src/live_config.rs` | — | Live config reload — filesystem watch, strict validation |
-| `src/help_detail.rs` | — | `--help` output (full curated reference manual) |
-| `src/ux.rs` | — | UX helpers — `or_exit`, `die_input`, error formatting |
+| Source file | What it does |
+|-------------|-------------|
+| `src/main.rs` | Entry point — arg parsing, dispatch, run loop |
+| `src/app.rs` | `CloudConfig` struct — the central config object |
+| `src/config.rs` | CLI arg definitions (clap) + config.toml parsing |
+| `src/live_config.rs` | Live config reload — filesystem watch, strict validation |
+| `src/help_detail.rs` | `--help` output (full curated reference manual) |
+| `src/ux.rs` | UX helpers — `or_exit`, `die_input`, error formatting |
 
 ---
 
@@ -352,8 +351,8 @@ to make changes.
   the per-frame render/io loop.
 - **Diff-based rendering**: the core innovation. Never fall back to
   full-screen redraw in interactive mode.
-- **Lock tests**: `src/cosmic_dragon/lock_tests.rs` (16 tests) and
-  `src/chroma/lock_tests.rs` (17 tests) must pass on every commit.
+- **Lock tests**: `src/cosmic_dragon/lock_tests.rs` and
+  `src/chroma/lock_tests.rs` must pass on every commit.
   They lock the engines' public contracts.
 
 ---
