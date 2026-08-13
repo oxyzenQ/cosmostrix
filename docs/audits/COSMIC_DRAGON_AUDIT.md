@@ -160,7 +160,7 @@ cosmostrix is **80× larger than cmatrix**, **27× larger than neo**.
 | Ambient | 0 | Time-of-day scheduling + auto-snapback | Novel |
 | User interaction | 0 (Ctrl+C only) | Live reload, 18 scenes, custom blocks, message overlay, mouse, HUD | 6 features vs 0 |
 | Diagnostics | 0 | Benchmark, PGO, --doctor, --testconf, JSON CI | 5 tools vs 0 |
-| Cross-platform | 1 target, 2 colors, 1 charset | 8 targets, 47 colors, 12+ charsets, AUR | 8× platforms |
+| Cross-platform | 1 target, 2 colors, 1 charset | 8 targets, 44 colors, 25 charsets, AUR | 8× platforms |
 | Tests | 0–20 | 1,476 | 70× more |
 
 ### Has Cosmostrix Peaked?
