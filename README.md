@@ -50,7 +50,7 @@ Cosmostrix is built on **two cooperating engines** that split the rendering work
 
 ### The Cosmic Dragon Diff-Based Rendering Engine
 
-Lives at the crate root: `src/frame.rs` (368 LOC), `src/terminal/` (1,332 LOC), `src/terminal_tty.rs` (201 LOC), `src/runtime.rs` (91 LOC) — 1,992 LOC total, imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
+Lives at the crate root: `src/frame.rs` (397 LOC), `src/terminal/` (1,581 LOC), `src/terminal_tty.rs` (201 LOC), `src/runtime.rs` (312 LOC) — 2,491 LOC total, imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
 This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable. On a 2-vCPU cloud Xeon the engine sustains 98,198 avg_fps on the `monolith` ceiling scene and 26,846 avg_fps on the cinematic quality scene (v50, 5s, 80×24).
 
@@ -58,7 +58,7 @@ This is what makes the cinematic effects affordable: phosphor decay, 3-layer par
 
 Lives under `src/chroma/` (`palette`, `catalog`, `gradient`, `shaders`, `post`, `tuning`). Owns every decision about *what color a cell becomes*. Where the Cosmic Dragon asks "did this cell change?", the Chroma Dragon answers "what color should it be now?"
 
-The Chroma Dragon is locked at **Phase 9-B** — 9 phases of perceptual color work, culminating in 17 invariant tests (`src/chroma/lock_tests.rs`) that assert the engine's public contract on every commit:
+The Chroma Dragon is locked at **Phase 9-B** — 9 phases of perceptual color work, culminating in 20 invariant tests (`src/chroma/lock_tests.rs`) that assert the engine's public contract on every commit:
 
 - **OKLab gradient interpolation** (Phase 3-A) — perceptually uniform, no muddy mid-tones on hue-crossing gradients
 - **Dragon Awakening** (Phase 4) — temporal column hue coherence, subpixel hue jitter, and head halo via background blend are always-on

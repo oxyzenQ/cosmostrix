@@ -14,10 +14,8 @@
 
 Phase 6 is the final audit dimension the owner requested: a thorough sweep
 for dead code, legacy parameters, unused CLI flags, unused config keys, and
-unreachable modules. The owner's words: *"gue ngoding sama ai bikin fitur
-banyak sampai pokoknya jadi dead/legacy code baik code fungsi yang mati
-ataupun parameters ataupun fungsi lain jadinya gue harus bersih bersih
-sampai dalam bro."*
+unreachable modules. The owner's directive: clean up all dead code, legacy
+parameters, and unused functions — a thorough deep cleanup of the codebase.
 
 **Headline result: the codebase is already clean.** Every audit dimension
 returned zero or near-zero findings, and every finding that did surface was

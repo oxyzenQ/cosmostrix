@@ -34,13 +34,13 @@ change di phase ini — pure inventory.
 
 Audit menemukan **12 priority gaps** dibagi 4 tier severity. Dua critical
 issues berkaitan dengan **stale documentation** dan **runtime bypass** yang
-bisa menyebabkan silent override — keduanya bukan crash/fatal, tetapi
+bisa causes silent override — keduanya not crash/fatal, but
 misleading untuk user dan bisa trigger surprise behavior.
 
 **Health signals positif:**
 
 - Zero `TODO` / `FIXME` / `HACK` di production code (bugs di-track di
-  `KNOWN_ISSUES.md`, bukan inline)
+  `KNOWN_ISSUES.md`, not inline)
 - Zero `unreachable!()` di production code
 - Zero `unwrap()` di production code (3 `expect()` di `configfile.rs:1067`,
   `live_config.rs`, `interactive/event_loop.rs` — semua safe-by-construction
@@ -53,14 +53,14 @@ misleading untuk user dan bisa trigger surprise behavior.
 
 **Health signals negatif:**
 
-- 5 dari 10 documented precedence levels nggak actually wired sebagai
+- 5 dari 10 documented precedence levels not actually wired sebagai
   separate functions (stale doc comment dari v14/v17/v20 purges)
 - `adaptive-custom` runs regardless of `atmosphere-mode = disabled`
-  (intentional by design tapi undocumented di `--help`)
+  (intentional by design but undocumented di `--help`)
 - Type asymmetry: `speed = 15.5` accepted di `adaptive-custom`, rejected di
   CLI/config.toml top-level
 - Case sensitivity asymmetry: `--intro Logo` works on CLI, `intro = "Logo"`
-  rejected in config.toml (intentional canonical-form choice, tapi confusing)
+  rejected in config.toml (intentional canonical-form choice, but confusing)
 
 ---
 
@@ -115,7 +115,7 @@ Sumber: `src/configfile.rs:54-57` (hint constants), `src/profile.rs:27-39`,
 | `[adaptive-custom.HH-MM]` | `adaptive-custom.HH-MM = <color>, <scene>, [k=v, ...]` | 5 fields (`speed`, `density`, `fps`, `charset`, `glitch-level`) | `atmosphere_custom::parse_custom_time_map` |
 
 **Note:** `profile` supports `density-map`, `scene-custom` supports
-`density-map`, tetapi top-level `USER_CONFIG_KEYS` TIDAK punya `density-map`.
+`density-map`, but top-level `USER_CONFIG_KEYS` TIDAK punya `density-map`.
 Ini gap #6 (Medium).
 
 ### 2.4 Precedence Chain — Documented vs Actual
@@ -157,7 +157,7 @@ Ini gap #6 (Medium).
 | 2. Scene defaults | ✓ wired | `apply_default_scene_values:236` |
 | 3. Config file values | ✓ wired | `apply_config_values:228` |
 | 4. **Config preset** | ✗ **NOT WIRED** | No `apply_config_preset` function exists. `--preset` was removed in v14 (`validation.rs:57-59`). Dead concept. |
-| 5. **Config profile** | ⚠ **MIS-ROUTED** | `profile::apply_profile_layer` exists (`profile.rs:115`) tetapi ONLY called from `scene_custom.rs:116` — invoked via scene-custom, bukan sebagai layer terpisah. |
+| 5. **Config profile** | ⚠ **MIS-ROUTED** | `profile::apply_profile_layer` exists (`profile.rs:115`) but ONLY called from `scene_custom.rs:116` — invoked via scene-custom, not sebagai layer terpisah. |
 | 6. **CLI preset** | ✗ **NOT WIRED** | `--preset` removed v14 (`validation.rs:57-59`). |
 | 7. CLI scene | ✓ wired | `apply_scene_values:241,255` |
 | 8. **CLI profile** | ✗ **NOT WIRED** | `--profile` removed v14 (`validation.rs:61-63`). Profile logic absorbed into `scene-custom`. |
@@ -165,7 +165,7 @@ Ini gap #6 (Medium).
 | 10. Explicit CLI flags | ✓ implicit | `is_explicit(matches, ...)` checks di setiap apply function |
 
 **Verdict:** 5 dari 10 documented levels adalah **stale references** ke
-fitur yang sudah dihapus di v14 (preset, profile, low-power sebagai CLI
+features that were removed di v14 (preset, profile, low-power as CLI
 flags). Doc comment di `config_apply.rs:6-22` perlu di-rewrite untuk
 match actual 5-level chain.
 
@@ -186,7 +186,7 @@ match actual 5-level chain.
   reference v14-removed features (`validation.rs:53-63` REMOVED_FLAGS:
   `--preset`, `--profile`, `--low-power`)
 - Level 5 (config profile) mis-routed: `profile::apply_profile_layer`
-  (`profile.rs:115`) hanya dipanggil dari `scene_custom.rs:116`, bukan
+  (`profile.rs:115`) hanya called dari `scene_custom.rs:116`, not
   sebagai standalone layer di `config_apply.rs`
 
 **Impact:**
@@ -226,11 +226,11 @@ match actual 5-level chain.
 - User sets `atmosphere-mode = disabled` expecting ALL atmosphere behavior
   to stop → adaptive-custom schedule still mutates `cloud` state every 30s
 - Surprise: `speed`, `density`, `color`, `scene` change silently over hours
-- Debug difficulty: verbose log mentions the bypass, tetapi `--help` and
+- Debug difficulty: verbose log mentions the bypass, but `--help` and
   `--docs` TIDAK document ini
 
 **Status:** Intentional by design (comment di `config_apply.rs:152-164`
-implies this is deliberate — "defining them is an opt-in"), tetapi
+implies this is deliberate — "defining them is an opt-in"), but
 **undocumented di user-facing surface**.
 
 **Recommended fix (Phase 5):**
@@ -303,7 +303,7 @@ implies this is deliberate — "defining them is an opt-in"), tetapi
 - `intro = "Logo"` in `config.toml` → REJECTED at startup by
   `validate_config_strictly` (`config_apply.rs:219`)
 - User confusion: "the same value works on CLI but not config.toml"
-- This is **intentional** (canonical-form policy), tetapi the asymmetry
+- This is **intentional** (canonical-form policy), but the asymmetry
   is not documented in `--help` or `--docs`.
 
 **Recommended fix (Phase 5):**
@@ -366,7 +366,7 @@ implies this is deliberate — "defining them is an opt-in"), tetapi
 
 **Impact:**
 - Minor footgun. Most TOML conventions use kebab-case, so this is the
-  right choice — tetapi users coming from Rust struct field naming might
+  right choice — but users coming from Rust struct field naming might
   snake-case by accident.
 - `config_hints.rs:119-127` (closest_top_level_key): edit-distance ≤ 2
   suggestion. `color_bg` → `color-bg` is edit distance 1 (replace `_`
@@ -398,7 +398,7 @@ implies this is deliberate — "defining them is an opt-in"), tetapi
   via `scene` field in adaptive-custom — but that's indirect.
 
 **Status:** Likely intentional (adaptive-custom is for time-varying
-visual params, not configuration switches). Tetapi undocumented.
+visual params, not configuration switches). Tebut undocumented.
 
 **Recommended fix (Phase 5):**
 - Doc: list allowed fields explicitly in `--dump-config` template and
@@ -524,7 +524,7 @@ zero-cost cell access in hot render loop). Documented in source.
   `async-mode = true` (from config) overrides → async renderer still
   active.
 - Likely intentional (async-mode is a renderer choice, not an atmosphere
-  feature), tetapi the interaction is undocumented.
+  feature), but the interaction is undocumented.
 
 **Status:** Intentional by design. Doc-only fix.
 
@@ -621,7 +621,7 @@ Prioritization (per gap severity):
 4. **Low** (Gap #10, #11, #12) — batch at end
 
 Each fix gets:
-- Regression test (kalau belum ada)
+- Regression test (if not yet present)
 - Updated docs (README, RULES, help text)
 - Worklog entry
 

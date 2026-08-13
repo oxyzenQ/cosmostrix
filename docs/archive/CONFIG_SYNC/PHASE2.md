@@ -29,7 +29,7 @@ actionable items** untuk Phase 5.
    menggunakan `v.parse::<f64>()` (stdlib, lenient) sedangkan runtime
    `parse_canonical_f64_range` menggunakan `is_canonical_decimal` (strict).
    Hasil: `fps = "inf"`, `density = "1e2"`, `fps = "+10"`, `fps = "010"`
-   PASS `--testconf` tapi FAIL di runtime apply → **silent fallback**
+   PASS `--testconf` but FAIL in runtime apply → **silent fallback**
    (error printed, value dropped, clap default used).
 
 2. **Case-sensitivity asymmetry** — CLI `ValueEnum` is case-insensitive,
@@ -39,14 +39,14 @@ actionable items** untuk Phase 5.
    monolith-size, glitch-level).
 
 3. **CLI enum vs config.toml enum divergence** — `--color-bg
-   default_background` REJECTED di CLI (`validation.rs:300-305`), tapi
+   default_background` REJECTED in CLI (`validation.rs:300-305`), but
    `color-bg = "default_background"` ACCEPTED di config.toml
    (`testconf.rs:545-549` + `config_apply.rs:677-680`). Snake_case alias
    only works in config.toml.
 
 4. **`atmosphere-regime = storm` divergence** — `testconf.rs:524-525`
    explicitly rejects "storm" untuk config.toml ("storm is unavailable
-   and will be rejected"), tapi CLI `--atmosphere-regime storm` may be
+   and will be rejected"), but CLI `--atmosphere-regime storm` may be
    accepted (need Phase 3 verify). Storm is NOT config-safe per
    `config_apply.rs:41-42` comment.
 
@@ -118,7 +118,7 @@ Then `apply_config_values:362-366` calls `parse_f64_config` →
 returns None → `args.fps` stays at clap default, `config_touched` does
 NOT get "fps" → scene defaults may overwrite.
 
-**Severity:** Medium. Error IS printed (not fully silent), tetapi value
+**Severity:** Medium. Error IS printed (not fully silent), but value
 is dropped and clap default used without explicit "falling back to
 default" message.
 

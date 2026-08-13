@@ -81,7 +81,7 @@ wakeups**. The OS only schedules it when:
 
 This is the design the owner explicitly requested:
 
-> "dynamic clock, bro — it doesn't have to stay awake continuously; idle
+> "dynamic clock — it doesn't have to stay awake continuously; idle
 > when the time is approaching, then a few seconds before, automatically
 > wake up — so CPU usage doesn't stay high all the time when the user
 > uses the ambient config"

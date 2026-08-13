@@ -9,7 +9,7 @@
 //! That wasted CPU on a quiet machine — most polls found no phase boundary
 //! to fire. The user explicitly asked for a **dynamic idle/wake** scheduler:
 //!
-//! > "dynamic clock, bro — it doesn't have to stay awake continuously; idle
+//! > "dynamic clock — it doesn't have to stay awake continuously; idle
 //! > when the time is approaching, then a few seconds before, automatically
 //! > wake up — so CPU usage doesn't stay high all the time when the user
 //! > uses the ambient config"

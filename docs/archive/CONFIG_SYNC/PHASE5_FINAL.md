@@ -183,10 +183,8 @@ can reopen any item by ID when they want to evolve the config surface.
 
 ## 6. Phase 6 Recommendation (Next Audit Dimension)
 
-The owner asked about dead/legacy code: "gue ngoding sama ai bikin fitur
-banyak sampai pokoknya jadi dead/legacy code baik code fungsi yang mati
-ataupun parameters ataupun fungsi lain jadinya gue harus bersih bersih
-sampai dalam bro".
+The owner asked about dead/legacy code — the directive was to clean up all
+dead code, legacy parameters, and unused functions thoroughly.
 
 Phase 6 (Dead Code & Legacy Parameter Sweep) is the next audit dimension.
 Quick scan results from this session:
