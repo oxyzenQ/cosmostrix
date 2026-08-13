@@ -96,6 +96,29 @@ pub(super) fn handle_keybinding(
 ) -> bool {
     use crossterm::event::KeyCode;
 
+    // Bug fix: reject all Ctrl+key combinations. The match arms below use
+    // (KeyCode::Char('x'), _) which matches ANY modifier — including
+    // CONTROL. This caused Ctrl+C to cycle colors (the _ wildcard in
+    // (Char('c'), _) matched Ctrl+C's code=Char('c') + modifiers=CONTROL).
+    //
+    // Root cause: crossterm delivers Ctrl+C as KeyCode::Char('c') with
+    // KeyModifiers::CONTROL. The _ wildcard accepted it. Same vulnerability
+    // applied to ALL char-based shortcuts: Ctrl+Q would quit, Ctrl+S would
+    // change charset, Ctrl+X would cycle scene, etc.
+    //
+    // Fix: if ANY modifier (Ctrl, Alt, Super) is active, fall through to
+    // the `_ => {}` no-op arm. This ensures only bare key presses (no
+    // modifier keys held) trigger shortcuts. Shift is handled differently:
+    // Shift+'c' produces KeyCode::Char('C') (uppercase), which is a
+    // separate match arm — so Shift+c still works for reverse cycling.
+    //
+    // Note: CONTROL+Shift+'c' (Ctrl+Shift+C) produces Char('C') with
+    // CONTROL | SHIFT modifiers — this is also correctly rejected because
+    // the CONTROL bit is set.
+    if !k.modifiers.is_empty() {
+        return false;
+    }
+
     // Quit policy: only 'q' exits. Esc, Ctrl+C (SIGINT is deprecated),
     // Ctrl+Z (in-app suspend removed v30: terminal-driven SIGTSTP still
     // works via signal_handlers.rs), Tab/BackTab, and any other

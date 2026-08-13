@@ -723,7 +723,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // HUD toggle ('i'): check BEFORE screensaver exit to prevent
                         // self-exit on Android/Termux. v30: lowercase-only. Toggling
                         // OFF calls force_draw_everything() to clear stale HUD residue.
-                        if matches!((k.code, k.modifiers), (KeyCode::Char('i'), _)) {
+                        // Bug fix: reject Ctrl+I — only bare 'i' toggles HUD.
+                        if k.modifiers.is_empty()
+                            && matches!((k.code, k.modifiers), (KeyCode::Char('i'), _))
+                        {
                             let now_visible = hud_state.toggle();
                             if !now_visible {
                                 cloud.force_draw_everything();
@@ -742,7 +745,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
                         // 'h': toggle HUD position. v30: lowercase-only (uppercase
                         // 'H' removed; lowercase works on all keyboards including Android).
-                        if matches!((k.code, k.modifiers), (KeyCode::Char('h'), _)) {
+                        // Bug fix: reject Ctrl+H — only bare 'h' moves HUD.
+                        if k.modifiers.is_empty()
+                            && matches!((k.code, k.modifiers), (KeyCode::Char('h'), _))
+                        {
                             if hud_state.toggle_position() {
                                 cloud.force_draw_everything();
                             }
