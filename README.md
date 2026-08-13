@@ -107,8 +107,8 @@ The Dragon's roar is not loud — it is precise.
 - **Chroma Dragon coloring engine (Phase 9-B locked)** — OKLab gradient interpolation, palette-relative brightness floor (Phase 7-c, replaces v17 global `MIN_RGB_SUM=180`), body-tail continuity (Phase 7-d, 2.0× max gap), perceptual L+chroma smoothing at palette transitions (Phase 5 + Phase 8), head halo via background blend (Phase 4-D), subpixel hue jitter (Phase 4-B), temporal column hue coherence (Phase 4-A), palette-aware anomaly halos (Phase 6), hue-preserving polar gradient variant for future themes (Phase 9-A). 20 invariant tests in `src/chroma/lock_tests.rs` lock the engine's contract on every commit.
 - **18 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), the `cosmic-dragon` milestone scene commemorating the temporal-prediction breakthrough (dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), the `carbonic` tribute scene (dense metallic carbon-fiber binary rain honoring the experiment that was reverted for cinematic quality), and 4 honor scenes: `dragon-crystal` (cosmostrix + oxyzenQ journey, hardthinking-mode reward), `orange-cat` (in memory of the owner's orange cat, 2 Aug 2026), `north-stars` (3 AM stargazing), and `curiosity` (the engine that built cosmostrix)
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 12 configurable fields including density-map sculpting for monolith pillar formations
-- **Ambient scheduler** — `[ambient."HH-MM"]` config entries define time-of-day scene scheduling (e.g. `[ambient."22-10"] scene = "aurora"` runs aurora from 22:00 to 10:00); idle-based auto-snapback (30s) restores the active ambient phase after user overrides ('c'/'C'/'x'/'s'); live config reload re-parses immediately on save
-- 44 built-in themes and 24 character sets (`--color-tune` turns all 44 into 44 × ∞ variants)
+- **Ambient scheduler** — `ambient."HH-MM" = "scene"` config entries define time-of-day scene scheduling (e.g. `ambient."22-10" = "aurora"` runs aurora from 22:00 to 10:00); idle-based auto-snapback (30s) restores the active ambient phase after user overrides ('c'/'C'/'x'/'s'); live config reload re-parses immediately on save
+- 44 built-in themes and 25 character sets (`--color-tune` turns all 44 into 44 × ∞ variants)
 - **3-layer parallax depth** — far/mid/near layers with per-layer speed `[0.35, 1.0, 1.7]`, brightness `[0.48, 0.80, 1.10]`, length `[0.5, 1.0, 1.4]`, density `[0.45, 0.62, 0.85]`, and phosphor decay `[2.0, 1.2, 0.6]`. 3 layers is the cinema-standard deep/mid/ground composition; more layers collapse perceptually in a 24-row terminal
 - **Phosphor persistence (CRT afterglow)** — `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0` with per-layer decay mult, bottom-row 3× acceleration, and edge energy cap. Creates ~400ms afterglow per glyph — most terminal rain renderers have zero afterglow
 - **Depth fog** — 3-row bottom vignette (`FOG_MIN_FACTOR=0.45`) + per-layer contrast reduction `[0.55, 0.18, 0.0]` (depth-of-field perceptual blur for far layer only)
@@ -391,7 +391,7 @@ DIAGNOSTICS
 
 DISCOVERY
       --list-colors           Show compact color theme names (44 built-in themes)
-      --list-charsets         Show available character sets (24 built-in sets)
+      --list-charsets         Show available character sets (25 built-in sets)
       --list-scenes           Show built-in and custom scenes
       --show-scene <name>     Show full details for a scene
 
@@ -467,13 +467,13 @@ cosmostrix --dump-config ~/.config/cosmostrix/config.toml
 Shell redirection (`cosmostrix --dump-config > file`) is **blocked** — cosmostrix detects stdout-redirected-to-file and refuses to write, because the shell bypasses the whitelist. Use the explicit path form above for file output. Piping to another command (`cosmostrix --dump-config | less`) is allowed for viewing.
 
 ```
-scene = monolith
-color = cosmos
-charset = binary
+scene = "monolith"
+color = "cosmos"
+charset = "binary"
 fps = 60
 speed = 20
 density = 0.75
-glitch-level = subtle
+glitch-level = "subtle"
 intro = "logo"
 ```
 
