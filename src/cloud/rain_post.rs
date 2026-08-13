@@ -68,7 +68,15 @@ impl Cloud {
         // dropping it preserves rain throughput. The threshold sits above
         // GLITCH_THRESHOLD (0.35) so the vignette survives a bit longer
         // than the glitch effect before being dropped.
-        if self.perf_pressure > CRT_VIGNETTE_PERF_THRESHOLD {
+        //
+        // H2 (internal independent QA): also skip when aggressive_throttle is
+        // active — the self-healer's AB-11 flag means sustained high CPU
+        // pressure was detected. CRT vignette is non-essential visual work;
+        // skipping it under aggressive throttle is consistent with the AB-11
+        // design intent of shedding all non-essential visual work. Without
+        // this, the vignette could still run when pressure fluctuates between
+        // 0.5 and 0.6 while aggressive_throttle is active.
+        if self.perf_pressure > CRT_VIGNETTE_PERF_THRESHOLD || self.aggressive_throttle {
             return;
         }
 

@@ -934,6 +934,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 cloud.set_droplet_density(effective_density(cfg.base_density, nw, true));
             }
             cloud.force_draw_everything();
+            // H1 (internal independent QA): refresh the SGR color cache after
+            // resize — every other palette-affecting path calls set_color_cache,
+            // but the resize handler was missing it. Without this, a live-reload
+            // palette change coinciding with a resize could produce a 1-frame
+            // color flicker from a stale cache.
+            term.set_color_cache(ColorCache::new(&cloud.palette));
             last_resync_time = Instant::now();
             // Update HUD screen size on dynamic resize (fixed mode ignores resize)
             if cfg.screen_size.is_none() {
