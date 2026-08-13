@@ -143,6 +143,8 @@ mod output;
 mod panic_hook;
 // `palette` now lives at `src/chroma/palette.rs`; re-exported above.
 mod profile;
+#[cfg(test)]
+mod property_tests;
 mod rain_style;
 mod renderer_info;
 mod report;

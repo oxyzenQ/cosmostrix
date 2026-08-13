@@ -160,6 +160,9 @@ strip = false
 # project-wide allow is equivalent in effect to the file-local one.
 excessive_precision = "allow"
 
+[dev-dependencies]
+proptest = "1.8.0"
+
 
 # Platform-specific optimizations
 # At ./cargo/config.toml

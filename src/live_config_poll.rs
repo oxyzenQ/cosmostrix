@@ -34,7 +34,7 @@
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::SyncSender;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -116,7 +116,7 @@ pub(crate) fn env_poll_interval_ms() -> u64 {
 /// against these initial values — if nothing changed, no event is sent.
 pub(crate) fn polling_heartbeat(
     path: std::path::PathBuf,
-    tx: Sender<notify::Result<notify::Event>>,
+    tx: SyncSender<notify::Result<notify::Event>>,
     base_interval_ms: u64,
     change_counter: Arc<AtomicU64>,
 ) {
@@ -249,7 +249,7 @@ pub(crate) fn polling_heartbeat(
             paths: vec![path.clone()],
             attrs: Default::default(),
         };
-        if tx.send(Ok(event)).is_err() {
+        if tx.try_send(Ok(event)).is_err() {
             // Channel closed — main loop exited, terminate the heartbeat.
             lr_trace!("poll: channel closed during send — exiting heartbeat");
             break;
@@ -825,7 +825,7 @@ mod tests {
 
         // Set up the channel and change counter exactly as
         // `spawn_live_config_watcher` does in `live_config.rs`.
-        let (tx, rx) = mpsc::channel::<notify::Result<notify::Event>>();
+        let (tx, rx) = mpsc::sync_channel::<notify::Result<notify::Event>>(64);
         let counter = Arc::new(AtomicU64::new(0));
 
         // Spawn the heartbeat thread. Use a named thread so panics show

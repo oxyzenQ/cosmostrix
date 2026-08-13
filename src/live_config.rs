@@ -41,7 +41,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -88,7 +88,10 @@ pub(crate) fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigE
 
     lr_trace!("spawning watcher for: {}", config_path.display());
 
-    let (tx, rx) = mpsc::channel::<LiveConfigEvent>();
+    // Pillar 3: bounded channel (cap 64) — prevents unbounded queue growth
+    // if the editor saves 1000×/s. When full, events are dropped (try_send)
+    // rather than blocking the watcher thread.
+    let (tx, rx) = mpsc::sync_channel::<LiveConfigEvent>(64);
     let path = config_path.clone();
 
     let spawn_result = std::thread::Builder::new()
@@ -135,13 +138,14 @@ pub(crate) fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigE
 /// HYBRID mode: native `notify` watcher (inotify/kqueue/FSEvents) +
 /// polling heartbeat (750ms mtime/size/content-hash check). Both feed
 /// the same mpsc channel. Dedup via triple-signal snapshot comparison.
-fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
+fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
     const DEBOUNCE_MS: u64 = 200;
     // v25.4: env-configurable poll interval + adaptive burst.
     let poll_interval_ms = env_poll_interval_ms();
     let change_counter = Arc::new(AtomicU64::new(0));
 
-    let (notify_tx, notify_rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
+    // Pillar 3: bounded notify channel (cap 64) — prevents unbounded growth.
+    let (notify_tx, notify_rx) = std::sync::mpsc::sync_channel::<notify::Result<notify::Event>>(64);
 
     // Snapshot initial state to avoid startup reload.
     let last_processed_state = Arc::new(Mutex::new(snapshot_file_state(&path)));
@@ -199,7 +203,7 @@ fn watcher_loop(path: PathBuf, tx: Sender<LiveConfigEvent>) {
     lr_trace!("initializing native RecommendedWatcher");
     let mut watcher: Option<RecommendedWatcher> = match RecommendedWatcher::new(
         move |res: notify::Result<notify::Event>| {
-            let _ = notify_tx.send(res);
+            let _ = notify_tx.try_send(res);
         },
         notify::Config::default(),
     ) {
@@ -327,7 +331,7 @@ fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
     target_file: &Arc<PathBuf>,
     path: &PathBuf,
-    tx: &Sender<LiveConfigEvent>,
+    tx: &SyncSender<LiveConfigEvent>,
     last_event: &mut std::time::Instant,
     debounce_ms: u64,
     last_processed_state: &Arc<Mutex<FileStateSnapshot>>,
@@ -466,7 +470,7 @@ fn handle_notify_event(
 /// render thread. Err(msg) returned if validation failed (caller logs it).
 fn validate_and_send(
     parsed: &configfile::ParsedConfig,
-    tx: &Sender<LiveConfigEvent>,
+    tx: &SyncSender<LiveConfigEvent>,
 ) -> Result<(), String> {
     // Check malformed lines first — these are syntax errors.
     if !parsed.malformed_lines.is_empty() {
@@ -482,7 +486,7 @@ fn validate_and_send(
         );
         // v25.12 (bug #14): surface to session rejection log.
         push_validation_rejection(&msg);
-        let _ = tx.send(Err(msg.clone()));
+        let _ = tx.try_send(Err(msg.clone()));
         return Err(msg);
     }
 
@@ -503,7 +507,7 @@ fn validate_and_send(
         );
         // v25.12 (bug #14): surface to session rejection log.
         push_validation_rejection(&msg);
-        let _ = tx.send(Err(msg.clone()));
+        let _ = tx.try_send(Err(msg.clone()));
         return Err(msg);
     }
 
@@ -535,7 +539,7 @@ fn validate_and_send(
     match crate::testconf::validate_config_strictly(cfg) {
         Ok(()) => {
             lr_trace!("strict validation OK — sending config to render thread");
-            if tx.send(Ok(cfg.clone())).is_err() {
+            if tx.try_send(Ok(cfg.clone())).is_err() {
                 lr_trace!("channel closed during send (Ok)");
                 return Ok(());
             }
@@ -546,7 +550,7 @@ fn validate_and_send(
             // verbose summary can show it.
             lr_trace!("strict validation FAILED: {msg}");
             push_validation_rejection(&msg);
-            let _ = tx.send(Err(msg.clone()));
+            let _ = tx.try_send(Err(msg.clone()));
             Err(msg)
         }
     }

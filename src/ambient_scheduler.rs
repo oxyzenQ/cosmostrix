@@ -157,7 +157,8 @@ impl AmbientSchedulerHandle {
 /// the rain loop.
 #[must_use]
 pub fn spawn_ambient_scheduler(initial: AmbientSchedule) -> AmbientSchedulerHandle {
-    let (tx, rx) = std::sync::mpsc::channel::<AmbientEntry>();
+    // Pillar 3: bounded channel (cap 64) — prevents unbounded queue growth.
+    let (tx, rx) = std::sync::mpsc::sync_channel::<AmbientEntry>(64);
     let schedule = Arc::new(Mutex::new(initial));
     let cv = Arc::new(Condvar::new());
     let generation = Arc::new(AtomicU64::new(0));
@@ -214,7 +215,7 @@ fn scheduler_loop(
     schedule: Arc<Mutex<AmbientSchedule>>,
     cv: Arc<Condvar>,
     generation: Arc<AtomicU64>,
-    tx: std::sync::mpsc::Sender<AmbientEntry>,
+    tx: std::sync::mpsc::SyncSender<AmbientEntry>,
 ) {
     // v30.3: track the FULL last-applied entry (hour, minute, scene) instead
     // of just (hour, minute). This fixes a bug where changing the SCENE NAME
@@ -272,7 +273,7 @@ fn scheduler_loop(
                     entry.minute,
                     entry.scene
                 );
-                if tx.send(entry.clone()).is_err() {
+                if tx.try_send(entry.clone()).is_err() {
                     // Receiver dropped (event loop exited). Terminate.
                     return;
                 }
@@ -331,7 +332,7 @@ fn scheduler_loop(
                         entry.scene,
                         today_yday
                     );
-                    if tx.send(entry.clone()).is_err() {
+                    if tx.try_send(entry.clone()).is_err() {
                         return;
                     }
                 }

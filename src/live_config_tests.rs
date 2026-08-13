@@ -331,7 +331,7 @@ static TEST_REJECTION_LOCK: Mutex<()> = Mutex::new(());
 fn validate_and_send_returns_err_without_setting_exit_code() {
     let _guard = TEST_REJECTION_LOCK.lock().unwrap();
     let _ = drain_validation_rejections();
-    let (tx, _rx) = std::sync::mpsc::channel();
+    let (tx, _rx) = std::sync::mpsc::sync_channel(64);
     let mut parsed = configfile::ParsedConfig::default();
     parsed.unknown_keys.push("color.tune.bold".to_string());
     let result = validate_and_send(&parsed, &tx);
@@ -412,7 +412,7 @@ fn validate_and_send_pushes_oor_rejection_to_session_log() {
     // Drain any prior rejections from earlier tests in this process.
     let _ = drain_validation_rejections();
 
-    let (tx, _rx) = std::sync::mpsc::channel();
+    let (tx, _rx) = std::sync::mpsc::sync_channel(64);
     let mut parsed = configfile::ParsedConfig::default();
     parsed
         .values
@@ -449,7 +449,7 @@ fn validate_and_send_pushes_unknown_key_to_session_log() {
     let _guard = TEST_REJECTION_LOCK.lock().unwrap();
     let _ = drain_validation_rejections();
 
-    let (tx, _rx) = std::sync::mpsc::channel();
+    let (tx, _rx) = std::sync::mpsc::sync_channel(64);
     let mut parsed = configfile::ParsedConfig::default();
     parsed.unknown_keys.push("collor".to_string());
     let result = validate_and_send(&parsed, &tx);
@@ -495,7 +495,7 @@ fn validate_and_send_does_not_log_valid_config() {
     let _guard = TEST_REJECTION_LOCK.lock().unwrap();
     let _ = drain_validation_rejections();
 
-    let (tx, _rx) = std::sync::mpsc::channel();
+    let (tx, _rx) = std::sync::mpsc::sync_channel(64);
     let mut parsed = configfile::ParsedConfig::default();
     parsed
         .values
