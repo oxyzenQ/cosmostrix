@@ -599,6 +599,9 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 - [Advanced Benchmarking](docs/BENCHMARK_ADVANCED.md) — enable MICROARCHITECTURE and ENERGY metrics, interpret key benchmark fields
 - [Benchmarking Guide](docs/BENCHMARKING.md) — full independent benchmarking guide: how to run, interpret, compare, strict `--bench-scene` validation, v50 4-scene reference matrix (98,198 avg_fps monolith / 26,846 avg_fps cinematic on 2-vCPU cloud Xeon)
 - [CI & Release Workflow](docs/workflow/about-ci.md) — CI pipeline and release process
+- [Maintenance Guide](docs/MAINTENANCE.md) — build/test/update procedures, security response, health-check log (for dormant mode)
+- [Contributing Guide](CONTRIBUTING.md) — build, test, coding conventions, PR checklist
+- [Comprehensive Audit](docs/audits/COSMIC_DRAGON_AUDIT.md) — visual quality, stability, power management, depth assessment
 
 ## Development
 
@@ -629,7 +632,19 @@ Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD,
 
 ## Contributing
 
-PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [RULES.md](docs/RULES.md) for project conventions.
+PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before submitting. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide (build, test, conventions, PR checklist) and [RULES.md](docs/RULES.md) for project conventions.
+
+## API Stability
+
+From **v50.0.0** onward, the following are **frozen** — no breaking changes without a major version bump:
+
+- CLI flags (names, short/long forms, value types)
+- Config format (`config.toml` keys, value types, TOML structure)
+- Built-in scene names (18), color scheme names (44), charset preset names (25)
+- Runtime controls (keyboard shortcuts)
+- Output schemas (`--json` benchmark output, `--doctor` report format)
+
+Breaking changes require a major version bump (e.g. v51.0.0). Minor versions (v50.1.0) may add features but must not change or remove existing API surface. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) §6 for the full stability contract.
 
 ## Support
 

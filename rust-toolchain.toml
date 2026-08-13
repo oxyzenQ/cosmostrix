@@ -1,8 +1,12 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-# Default toolchain: stable (with rustfmt + clippy).
-# This is what `cargo build`, `cargo test`, `cargo clippy` use.
+# Default toolchain: pinned to 1.97.1 (with rustfmt + clippy).
+#
+# Dormant mode: pinned to a specific version instead of "stable" so that
+# a future `stable` release cannot silently break the build. When updating
+# to a newer Rust version, bump this channel + the MSRV in Cargo.toml +
+# run the full gatekeeper (./scripts/build.sh check-all) to verify.
 #
 # Miri (UB detector) requires nightly + the `miri` component, which is
 # NOT pinned here to avoid forcing nightly on every contributor. Instead,
@@ -13,6 +17,6 @@
 # See docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md for the audit methodology.
 
 [toolchain]
-channel = "stable"
+channel = "1.97.1"
 profile = "minimal"
 components = ["rustfmt", "clippy"]
