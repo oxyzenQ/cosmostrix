@@ -2,13 +2,13 @@
 
 # Config Sync Audit — Phase 2: Failure Mode Catalog
 
-**Scope:** Field-by-field failure mode catalog. Untuk setiap CLI flag /
+**Scope:** Field-by-field failure mode catalog. for each CLI flag /
 `config.toml` key / runtime field, katalogkan: invalid value behavior,
 error message quality, silent coercion, edge cases (NaN/infinity/negative/
 zero/max/empty/whitespace), combination conflicts.
 
-**Method:** Source-code audit dengan evidence `file:line`. Anchor pada 12
-priority gaps dari Phase 1. Tidak ada code change di phase ini — pure
+**Method:** Source-code audit with evidence `file:line`. Anchor in 12
+priority gaps from Phase 1. Tidak exists code change in phase this — pure
 catalog.
 
 **Audit layer:** Same 11 files as Phase 1 (~7,439 LOC) + `src/safepath.rs`
@@ -19,63 +19,63 @@ warnings).
 
 ## 1. Executive Summary
 
-Phase 2 meng-katalogkan **24 field/flag groups** dengan failure modes.
-Ditemukan **9 new findings** (di luar 12 Phase 1 gaps), total **21
-actionable items** untuk Phase 5.
+Phase 2 -katalogkan **24 field/flag groups** with failure modes.
+Ditemukan **9 new findings** (in luar 12 Phase 1 gaps), total **21
+actionable items** for Phase 5.
 
 **Key themes:**
 
 1. **testconf ↔ runtime canonical parser divergence** — `testconf.rs`
-   menggunakan `v.parse::<f64>()` (stdlib, lenient) sedangkan runtime
-   `parse_canonical_f64_range` menggunakan `is_canonical_decimal` (strict).
-   Hasil: `fps = "inf"`, `density = "1e2"`, `fps = "+10"`, `fps = "010"`
-   PASS `--testconf` but FAIL in runtime apply → **silent fallback**
-   (error printed, value dropped, clap default used).
+ uses `v.parse::<f64>()` (stdlib, lenient) while runtime
+ `parse_canonical_f64_range` uses `is_canonical_decimal` (strict).
+ Hasil: `fps = "inf"`, `density = "1e2"`, `fps = "+10"`, `fps = "010"`
+ PASS `--testconf` but FAIL in runtime apply → **silent fallback**
+ (error printed, value dropped, clap default used).
 
 2. **Case-sensitivity asymmetry** — CLI `ValueEnum` is case-insensitive,
-   `testconf.rs` strict lowercase, runtime `from_str(&v, true)` is
-   case-insensitive. Hasil: `--intro Logo` works, `intro = "Logo"`
-   rejected, runtime would accept. 3 enums affected (intro,
-   monolith-size, glitch-level).
+ `testconf.rs` strict lowercase, runtime `from_str(&v, true)` is
+ case-insensitive. Hasil: `--intro Logo` works, `intro = "Logo"`
+ rejected, runtime would accept. 3 enums affected (intro,
+ monolith-size, glitch-level).
 
 3. **CLI enum vs config.toml enum divergence** — `--color-bg
-   default_background` REJECTED in CLI (`validation.rs:300-305`), but
-   `color-bg = "default_background"` ACCEPTED di config.toml
-   (`testconf.rs:545-549` + `config_apply.rs:677-680`). Snake_case alias
-   only works in config.toml.
+ default_background` REJECTED in CLI (`validation.rs:300-305`), but
+ `color-bg = "default_background"` ACCEPTED in config.toml
+ (`testconf.rs:545-549` + `config_apply.rs:677-680`). Snake_case alias
+ only works in config.toml.
 
 4. **`atmosphere-regime = storm` divergence** — `testconf.rs:524-525`
-   explicitly rejects "storm" untuk config.toml ("storm is unavailable
-   and will be rejected"), but CLI `--atmosphere-regime storm` may be
-   accepted (need Phase 3 verify). Storm is NOT config-safe per
-   `config_apply.rs:41-42` comment.
+ explicitly rejects "storm" for config.toml ("storm is unavailable
+ and will be rejected"), but CLI `--atmosphere-regime storm` may be
+ accepted (need Phase 3 verify). Storm is NOT config-safe per
+ `config_apply.rs:41-42` comment.
 
 5. **Profile/scene-custom warn-vs-reject divergence** —
-   `profile.rs:207-387` uses `warn_invalid` (WARN + continue with
-   default) untuk invalid field values. Top-level uses strict REJECT
-   (exit 2). Hasil: `scene-custom.foo.color = "typo"` warns and uses
-   default color; `color = "typo"` at top-level exits with error.
+ `profile.rs:207-387` uses `warn_invalid` (WARN + continue with
+ default) for invalid field values. Top-level uses strict REJECT
+ (exit 2). Hasil: `scene-custom.foo.color = "typo"` warns and uses
+ default color; `color = "typo"` at top-level exits with error.
 
 6. **`--glitch-pct` always overridden by `--glitch-level`** —
-   `config_apply.rs:547-580` unconditionally assigns
-   `glitch_pct`/`shortpct`/`rippct` based on glitch_level. User-set
-   `--glitch-pct 50 --glitch-level subtle` → `glitch_pct` forced to 3.0.
-   NO WARNING. `glitch_ms` is preserved (has `should_skip` check), but
-   the 3 percentage fields are not.
+ `config_apply.rs:547-580` unconditionally assigns
+ `glitch_pct`/`shortpct`/`rippct` based on glitch_level. User-set
+ `--glitch-pct 50 --glitch-level subtle` → `glitch_pct` forced to 3.0.
+ NO WARNING. `glitch_ms` is preserved (has `should_skip` check), but
+ the 3 percentage fields are not.
 
 7. **Combination conflicts WELL HANDLED** — `main.rs:1243-1280`
-   `collect_bench_noop_warnings` covers 9 benchmark-mode noop cases.
-   This is a positive finding — no gap here.
+ `collect_bench_noop_warnings` covers 9 benchmark-mode noop cases.
+ This is a positive finding — no gap here.
 
 8. **safepath.rs is robust** — 601 LOC, 17 tests, whitelist-only,
-   `..` normalization, `.toml` extension check, cross-platform
-   (Linux/macOS/Windows/Android-Termux). No path traversal vectors
-   found. Positive finding.
+ `..` normalization, `.toml` extension check, cross-platform
+ (Linux/macOS/Windows/Android-Termux). No path traversal vectors
+ found. Positive finding.
 
 9. **`parse_duration` and `parse_screen_size` well-tested** —
-   `cli_parse.rs:207-399` has 18 tests covering: bare numbers, compound
-   format, zero rejection, too-small rejection, case-insensitive 'x',
-   large values, error message flag attribution. No gap.
+ `cli_parse.rs:207-399` has 18 tests covering: bare numbers, compound
+ format, zero rejection, too-small rejection, case-insensitive 'x',
+ large values, error message flag attribution. No gap.
 
 ---
 
@@ -107,7 +107,7 @@ actionable items** untuk Phase 5.
 | `010` | ✗ reject (no leading zeros) | ✓ **accept** (f64 parses 010 = 10) | ✗ reject | **DIVERGENT — silent fallback** |
 | `0x10` | ✗ reject | ✗ reject (f64 rejects 0x10) | ✗ reject | consistent |
 | empty `""` | ✗ reject | ✗ reject (f64 parse err) | ✗ reject | consistent |
-| `"  "` whitespace | ✗ reject | ✓ **accept** (f64 trims? no — f64 parse fails on whitespace) → actually reject | ✗ reject | consistent (testconf rejects) |
+| `" "` whitespace | ✗ reject | ✓ **accept** (f64 trims? no — f64 parse fails on whitespace) → actually reject | ✗ reject | consistent (testconf rejects) |
 
 **Divergence impact:** User writes `fps = "inf"` in config.toml.
 `--testconf` PASSES (testconf accepts). At startup,
@@ -160,7 +160,7 @@ as f32 → causes division/rendering anomalies.
 
 **Recommended fix (Phase 5):**
 1. Align adaptive-custom speed parser to `parse_canonical_speed`
-   (rejects NaN, inf, floats, leading zeros).
+ (rejects NaN, inf, floats, leading zeros).
 2. Add `n.is_finite()` check in `atmosphere_custom.rs:281` range guard.
 
 ---
@@ -381,7 +381,7 @@ Same pattern as `bold`. Consistent testconf ↔ runtime. No hint for
 | `LOGO` | ✓ | ✗ **reject** | ✓ | **DIVERGENT** |
 | `blah` | ✗ reject | ✗ reject | ✗ reject (prints error, drops value) | consistent |
 | empty `""` | ✗ reject | ✗ reject | ✗ reject | consistent |
-| `"  "` whitespace | ✗ reject | ✗ reject | ✓ **accept**? (from_str may trim? need verify) | possible divergence |
+| `" "` whitespace | ✗ reject | ✗ reject | ✓ **accept**? (from_str may trim? need verify) | possible divergence |
 
 **Impact:** `intro = "Logo"` in config.toml → `--testconf` FAILS (exit
 2). But at runtime, if user bypasses testconf, `IntroType::from_str("Logo",
@@ -430,10 +430,10 @@ ALWAYS overridden by `--glitch-level` via `apply_glitch_level_values`
 ```rust
 // config_apply.rs:547-557
 GlitchLevel::Subtle => {
-    if !should_skip("glitch_ms") { ... }
-    args.glitch_pct = 3.0;    // ALWAYS assigned, no should_skip check
-    args.shortpct = 60.0;     // ALWAYS assigned
-    args.rippct = 45.0;       // ALWAYS assigned
+ if !should_skip("glitch_ms") { ... }
+ args.glitch_pct = 3.0; // ALWAYS assigned, no should_skip check
+ args.shortpct = 60.0; // ALWAYS assigned
+ args.rippct = 45.0; // ALWAYS assigned
 }
 ```
 
@@ -824,9 +824,9 @@ internals will be confused.
 
 **Recommended fix (Phase 5):** Either:
 - (a) Add `should_skip("glitch_pct")` etc. checks (preserves user-set
-  values when explicit), OR
+ values when explicit), OR
 - (b) Emit warning: "--glitch-pct ignored (--glitch-level takes
-  precedence)"
+ precedence)"
 
 ---
 
@@ -906,7 +906,7 @@ and runtime (strict canonical). Silent fallback at runtime.
 
 ### 4.3 Empty / Whitespace Handling
 
-| Field | Empty `""` | Whitespace `"  "` | Evidence |
+| Field | Empty `""` | Whitespace `" "` | Evidence |
 |---|---|---|---|
 | `fps` | ✗ reject (f64/canonical) | ✗ reject | consistent |
 | `color` | ✗ reject (theme lookup) | ✗ reject | consistent |
@@ -946,12 +946,12 @@ The codebase uses **strict canonical parsers** that reject non-canonical
 forms rather than coercing them. Specifically:
 
 - `"10"` is NOT coerced to `10.0` for f64 fields — canonical decimal
-  accepts `"10"` and `"10.0"` both as valid f64.
+ accepts `"10"` and `"10.0"` both as valid f64.
 - `"fast"` is NOT coerced to any numeric value — rejected.
 - `"true"` is NOT coerced to `1` for u8 fields like `bold` — rejected
-  with "expected 0, 1, or 2".
+ with "expected 0, 1, or 2".
 - Booleans DO accept lenient set (`yes`/`on`/`1` → true) — this is
-  documented leniency, not silent coercion.
+ documented leniency, not silent coercion.
 
 **Positive finding.** No silent coercion.
 
@@ -965,9 +965,9 @@ but:
 
 1. No "falling back to default X" message is emitted.
 2. `config_touched` does NOT get the key, so scene defaults may
-   overwrite.
+ overwrite.
 3. User may not notice the stderr error if running in a non-interactive
-   context.
+ context.
 
 **Affected fields:** `fps`, `speed` (top-level), `density`,
 `color.tune.*` — all use `parse_canonical_f64_range` at runtime but

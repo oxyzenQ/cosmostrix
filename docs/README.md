@@ -44,14 +44,14 @@ modifying the engine or want to understand the design philosophy.
 Cosmostrix is built on **two cooperating engines**:
 
 1. **The Cosmic Dragon Diff-Based Rendering Engine** — owns *what cells
-   changed*. Lives at the crate root: `src/frame.rs` (368 LOC),
-   `src/terminal/` (1,332 LOC), `src/terminal_tty.rs` (201 LOC),
-   `src/runtime.rs` (91 LOC). 16 invariant tests in
+   changed*. Lives at the crate root: `src/frame.rs` (397 LOC),
+   `src/terminal/` (1,581 LOC), `src/terminal_tty.rs` (201 LOC),
+   `src/runtime.rs` (312 LOC). 18 invariant tests in
    `src/cosmic_dragon/lock_tests.rs` lock the engine's contract.
 
 2. **The Chroma Dragon Coloring Engine** — owns *what color a cell
    becomes*. Lives under `src/chroma/` (`palette`, `catalog`,
-   `gradient`, `shaders`, `post`, `tuning`). Locked at Phase 9-B. 17
+   `gradient`, `shaders`, `post`, `tuning`). Locked at Phase 9-B. 20
    invariant tests in `src/chroma/lock_tests.rs` lock the engine's
    contract.
 
@@ -81,7 +81,7 @@ These docs cover *how to tune what the rain looks like*.
 
 | Doc | What it covers | Key source files |
 |-----|---------------|-----------------|
-| [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible.** Every tunable knob in the rain visual stack — per-layer brightness, depth, speed, density, phosphor decay, parallax multipliers. 1106 lines. | `src/central_control_rains.rs` (898 LOC) |
+| [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible.** Every tunable knob in the rain visual stack — per-layer brightness, depth, speed, density, phosphor decay, parallax multipliers. | `src/central_control_rains.rs` (1070 LOC) |
 | [RAIN_DEPTH_AUDIT.md](RAIN_DEPTH_AUDIT.md) | Visual-audit methodology for the rain depth stack (uses `--bench-scene production-draw`) | `src/central_control_rains.rs` |
 | [CINEMATIC_BREATHING.md (archived)](archive/specs/CINEMATIC_BREATHING.md) | Cinematic breathing vocabulary (Rest / Pulse / Signal / Compression / Void / Monolith-Pressure) — archived 2026-08-05 alongside atmosphere engine elimination. Concepts preserved; `--atmosphere-mode` / `--atmosphere-regime` triggers are obsolete. | (historical) |
 
@@ -125,13 +125,13 @@ These docs cover *how color works* in cosmostrix.
 |-----|---------------|-----------------|
 | [../README.md § About — The Chroma Dragon Coloring Engine](../README.md#the-chroma-dragon-coloring-engine) | High-level overview of the Chroma Dragon, Phase 9-B lock, the 9 phases | `src/chroma/` |
 | [src/chroma/mod.rs](../src/chroma/mod.rs) | Module doc — Chroma Dragon phase history, module map | `src/chroma/mod.rs` |
-| [src/chroma/catalog.rs](../src/chroma/catalog.rs) | **Central color theme registry** — single source of truth for ALL color schemes. To add a new theme: add a variant to `ColorScheme` enum in `runtime.rs`, then add one `ThemeDef` entry to the `THEMES` array. `--list-colors`, `--color <name>`, and `build_palette()` all auto-discover from this registry. | `src/chroma/catalog.rs` (1013 LOC) |
-| [src/chroma/palette.rs](../src/chroma/palette.rs) | Palette construction — RGB gradient stops, OKLab interpolation, Color16/ANSI fallbacks | `src/chroma/palette.rs` (1205 LOC) |
-| [src/chroma/gradient.rs](../src/chroma/gradient.rs) | OKLab gradient interpolation (perceptually uniform) | `src/chroma/gradient.rs` (747 LOC) |
+| [src/chroma/catalog.rs](../src/chroma/catalog.rs) | **Central color theme registry** — single source of truth for ALL color schemes. To add a new theme: add a variant to `ColorScheme` enum in `runtime.rs`, then add one `ThemeDef` entry to the `THEMES` array. `--list-colors`, `--color <name>`, and `build_palette()` all auto-discover from this registry. | `src/chroma/catalog.rs` (1084 LOC) |
+| [src/chroma/palette.rs](../src/chroma/palette.rs) | Palette construction — RGB gradient stops, OKLab interpolation, Color16/ANSI fallbacks | `src/chroma/palette.rs` (764 LOC) |
+| [src/chroma/gradient.rs](../src/chroma/gradient.rs) | OKLab gradient interpolation (perceptually uniform) | `src/chroma/gradient.rs` (746 LOC) |
 | [src/chroma/tuning.rs](../src/chroma/tuning.rs) | `--color-tune` key=value tuning (sat, bright, head, body, tail) | `src/chroma/tuning.rs` (290 LOC) |
 | [src/chroma/shaders/](../src/chroma/shaders/) | Cell-color decision logic — `resolve_cell_color()`, `CharLoc` enum, `TRAIL_EXP_LUT` | `src/chroma/shaders/` |
 | [src/chroma/post/](../src/chroma/post/) | Atmospheric post-processing + palette-aware anomaly halos | `src/chroma/post/` |
-| [src/chroma/lock_tests.rs](../src/chroma/lock_tests.rs) | 17 invariant tests that lock the Chroma Dragon's contract on every commit | — |
+| [src/chroma/lock_tests.rs](../src/chroma/lock_tests.rs) | 20 invariant tests that lock the Chroma Dragon's contract on every commit | — |
 
 ### Adding a New Color Theme
 

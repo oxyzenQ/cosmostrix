@@ -45,22 +45,22 @@ Phase 6 ran six parallel audit dimensions, each using the most rigorous
 tool available without installing new tooling:
 
 1. **`#[allow(dead_code)]` triage** — `rg` for the attribute, then read each
-   site's surrounding comment to determine if it's intentional.
+ site's surrounding comment to determine if it's intentional.
 2. **TODO/FIXME marker scan** — `rg -n "TODO|FIXME|HACK|XXX"` across all
-   `.rs` files. Separately, `rg -n "legacy|deprecated"` for historical-context
-   mentions (these are NOT markers — they're English words in comments).
+ `.rs` files. Separately, `rg -n "legacy|deprecated"` for historical-context
+ mentions (these are NOT markers — they're English words in comments).
 3. **CLI flag inventory** — enumerate every `pub` field in `config::Args`,
-   then `rg -c "args\.<field>"` to verify each is referenced at least once.
+ then `rg -c "args\.<field>"` to verify each is referenced at least once.
 4. **Config key inventory** — enumerate `USER_CONFIG_KEYS` in `configfile.rs`,
-   then cross-reference against `config_value()` calls and direct `cfg.get()`
-   calls in `config_apply.rs`, `profile.rs`, `scene_custom.rs`,
-   `atmosphere_apply.rs`, `atmosphere_custom.rs`.
+ then cross-reference against `config_value()` calls and direct `cfg.get()`
+ calls in `config_apply.rs`, `profile.rs`, `scene_custom.rs`,
+ `atmosphere_apply.rs`, `atmosphere_custom.rs`.
 5. **Dependency inventory** — for each `Cargo.toml` dep, `rg` for `use <dep>`,
-   `<dep>::`, and trait-method patterns that imply usage.
+ `<dep>::`, and trait-method patterns that imply usage.
 6. **Dead pub fn / unreachable module detection** — `cargo clippy -W dead_code`
-   (catches unused items regardless of visibility) and `cargo check -W dead_code`
-   (catches unused modules). Separately, `cargo clippy -W unreachable_pub`
-   for visibility-overexposure findings.
+ (catches unused items regardless of visibility) and `cargo check -W dead_code`
+ (catches unused modules). Separately, `cargo clippy -W unreachable_pub`
+ for visibility-overexposure findings.
 
 `cargo +nightly udeps` was attempted but the install timed out; the
 `cargo clippy -W dead_code` pass is a sufficient substitute because
@@ -137,28 +137,28 @@ Zero dead CLI flags.
 Notable design decisions documented inline:
 
 - **`#[arg(skip = ...)]` fields (4)**: `glitch_pct`, `max_droplets_per_column`,
-  `rippct`, `shortpct`. These are v17 legacy internals — the CLI flags were
-  removed in v17 (`--glitchpct`, `--maxdpc`, `--rippct`, `--shortpct`), but
-  the struct fields are kept because they're populated by `glitch_level`
-  preset via `config_apply.rs::apply_glitch_level_preset`. Each has an inline
-  comment explaining the v17 removal. Example (`config.rs:643-646`):
-  ```rust
-  // v17 mastery: --glitchpct CLI flag REMOVED. Use --glitch-level instead.
-  // Field kept for internal use (set by glitch_level preset via config_apply).
-  #[arg(skip = 10.0_f32)]
-  pub glitch_pct: f32,
-  ```
+ `rippct`, `shortpct`. These are v17 legacy internals — the CLI flags were
+ removed in v17 (`--glitchpct`, `--maxdpc`, `--rippct`, `--shortpct`), but
+ the struct fields are kept because they're populated by `glitch_level`
+ preset via `config_apply.rs::apply_glitch_level_preset`. Each has an inline
+ comment explaining the v17 removal. Example (`config.rs:643-646`):
+ ```rust
+ // v17 mastery: --glitchpct CLI flag REMOVED. Use --glitch-level instead.
+ // Field kept for internal use (set by glitch_level preset via config_apply).
+ #[arg(skip = 10.0_f32)]
+ pub glitch_pct: f32,
+ ```
 
 - **`--noglitch` flag (removed v30)**: Documented at `config.rs:677-682` as
-  removed in v30 simplify pass — was a strict duplicate of `--glitch-level none`.
-  Migration message in `src/validation.rs::REMOVED_FLAGS`.
+ removed in v30 simplify pass — was a strict duplicate of `--glitch-level none`.
+ Migration message in `src/validation.rs::REMOVED_FLAGS`.
 
 - **`--charset-file` flag (removed v25)**: Custom charsets now live in
-  `config.toml` under `[charset-custom.<name>]`. Documented at
-  `config.rs:237-240` and `configfile.rs:738`.
+ `config.toml` under `[charset-custom.<name>]`. Documented at
+ `config.rs:237-240` and `configfile.rs:738`.
 
 - **`--fullwidth` flag (removed v25.0.0-alpha.3)**: Cosmic Dragon principle
-  forbids wide chars permanently. Migration message in `validation.rs:78`.
+ forbids wide chars permanently. Migration message in `validation.rs:78`.
 
 **Closure**: Zero dead CLI flags. All legacy flag removals already documented.
 
@@ -307,8 +307,8 @@ identical to the end of Phase 5 FINAL:
 - **Clippy**: clean (default lint set, `-D warnings`).
 - **Fmt**: clean.
 - **LOC cap**: 2 files at exactly 1500 LOC (`live_config.rs`,
-  `interactive/event_loop.rs`) — intentional, held via comment condensation.
-  No new violations.
+ `interactive/event_loop.rs`) — intentional, held via comment condensation.
+ No new violations.
 - **Version-sync**: PASS (v30.0.0-alpha.1 across all refs).
 - **Header check**: PASS (249 files).
 - **Version anti-patterns**: PASS.
@@ -321,14 +321,14 @@ Phase 6 confirms that the v30 stabilization work (Phases 1-5) already did
 the dead-code purge implicitly:
 
 1. **Phase 2 (P2-3)** caught the v17 ghost flags (`--glitchpct`, `--shortpct`,
-   `--rippct`) and reclassified them as false positives (already removed).
+ `--rippct`) and reclassified them as false positives (already removed).
 2. **Phase 5 Fix 1** documented the `--noglitch` v30 removal.
 3. **Phase 5 Fix 2** documented the v25 `--fullwidth` removal.
 4. **Phase 5 FINAL batch 9** eliminated the redundant disk read (P4-8),
-   which was the closest thing to "dead work" in the codebase.
+ which was the closest thing to "dead work" in the codebase.
 5. **Phase 5 FINAL batch 1** documented 12 positive findings where the
-   "obvious dead code" turned out to be intentional (e.g. `last_applied_cfg_map`
-   clone for verbose diff trace).
+ "obvious dead code" turned out to be intentional (e.g. `last_applied_cfg_map`
+ clone for verbose diff trace).
 
 The codebase that v30 ships is **dead-code-free** by every rigorous measure
 available without installing new tooling. The only "debt" found is the
@@ -343,22 +343,22 @@ If the owner wants to continue cleanup work after Phase 6, the recommended
 next dimensions are:
 
 1. **`pub` → `pub(crate)` visibility tightening** — addresses the 580
-   `unreachable_pub` warnings. ~3-4 hours. Pure cosmetic, no behavior
-   change. Can be batched per-module (e.g. `central_control_rains.rs` first
-   since it has 160 warnings — ~25% of the total).
+ `unreachable_pub` warnings. ~3-4 hours. Pure cosmetic, no behavior
+ change. Can be batched per-module (e.g. `central_control_rains.rs` first
+ since it has 160 warnings — ~25% of the total).
 
 2. **`cargo +nightly udeps` install + run** — would catch unused
-   dependencies that rustc's `dead_code` lint doesn't see (e.g. deps that
-   are `use`d but only in dead code paths). Expected result: 0 findings
-   (since `cargo clippy -W dead_code` is already clean), but worth running
-   once for completeness. Install: `cargo +nightly install cargo-udeps`.
-   Run: `cargo +nightly udeps --all-targets`.
+ dependencies that rustc's `dead_code` lint doesn't see (e.g. deps that
+ are `use`d but only in dead code paths). Expected result: 0 findings
+ (since `cargo clippy -W dead_code` is already clean), but worth running
+ once for completeness. Install: `cargo +nightly install cargo-udeps`.
+ Run: `cargo +nightly udeps --all-targets`.
 
 3. **Miri run on `unsafe` blocks** — the project has a small number of
-   `unsafe` blocks (e.g. `libc::fstat` in `main.rs:235`, `libc::uname` in
-   `envstat.rs:97`). Miri would verify they're sound. Out of scope for
-   config-sync audit but worth a separate "unsafe soundness pass" if the
-   owner wants maximum rigor.
+ `unsafe` blocks (e.g. `libc::fstat` in `main.rs:235`, `libc::uname` in
+ `envstat.rs:97`). Miri would verify they're sound. Out of scope for
+ config-sync audit but worth a separate "unsafe soundness pass" if the
+ owner wants maximum rigor.
 
 None of these are blocking. v30 is ready to ship as-is.
 

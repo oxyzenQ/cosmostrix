@@ -8,7 +8,7 @@
 //! significantly across terminal sizes. If the optimal threshold varies
 //! more than 2× across sizes, an adaptive `match terminal_size` lookup is
 //! worth implementing in `terminal.rs::draw`. Otherwise, the current
-//! `const = 3` is memadai (sufficient).
+//! `const = 3` is sufficient.
 //!
 //! ## How it works
 //!

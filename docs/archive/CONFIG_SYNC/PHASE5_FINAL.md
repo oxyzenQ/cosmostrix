@@ -22,12 +22,12 @@ reclassification as false positives / positive findings.
 
 - **24 items closed** in 9 commits across this session.
 - **0 new CLI flags** added (per owner instruction — v30 is a stabilization
-  release, config surface is frozen).
+ release, config surface is frozen).
 - **18 new tests** added (1511 → 1529 PASS, 0 regressions).
 - **All gatekeeper scripts PASS**: fmt, clippy, check-rs-loc, check-headers,
-  version-sync, version-anti-patterns.
+ version-sync, version-anti-patterns.
 - **LOC discipline maintained**: 2 files held at exactly 1500 LOC
-  (`event_loop.rs`, `live_config.rs`) via comment condensation.
+ (`event_loop.rs`, `live_config.rs`) via comment condensation.
 
 ---
 
@@ -205,19 +205,19 @@ The 5-phase config-sync audit is **100% complete**. All 39 findings are
 closed. The config layer is now:
 
 - **Documented accurately** — precedence chain, atmosphere-mode bypass,
-  speed asymmetry, async-mode independence, profile strictness, density-map
-  memory model all documented.
+ speed asymmetry, async-mode independence, profile strictness, density-map
+ memory model all documented.
 - **Defended against crashes** — broken-pipe hazards migrated, poisoned-mutex
-  verified poison-safe, no panics in production paths.
+ verified poison-safe, no panics in production paths.
 - **Free of silent errors** in addressed paths — canonical parsers everywhere,
-  warnings on parse failures, refuse-on-overwrite, startup warning summary.
+ warnings on parse failures, refuse-on-overwrite, startup warning summary.
 - **Performant** — adaptive-custom reparse cache, single disk read at startup.
 - **Consistent** — case-insensitive enums across CLI/testconf/runtime, unified
-  storm-rejection format, branded error labels.
+ storm-rejection format, branded error labels.
 - **Resolves custom names** — profile/scene-custom now resolve custom
-  charset/color names matching top-level behavior.
+ charset/color names matching top-level behavior.
 - **Helpful hints** — 6 hint patterns cover snake_case, density-map misplacement,
-  color.tune mis-nesting, scene-custom adaptive-custom mis-nesting,
-  colors-custom invalid fields, and top-level typos.
+ color.tune mis-nesting, scene-custom adaptive-custom mis-nesting,
+ colors-custom invalid fields, and top-level typos.
 
 The v30 stabilization release is ready to ship. The config surface is frozen.
