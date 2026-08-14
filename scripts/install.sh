@@ -303,6 +303,8 @@ case "${MODE}" in
                 # --force: overwrite existing system config directly.
                 # Pass --force to --dump-config so the binary skips its
                 # existing-file guard too.
+                # Also remove stale config.new.toml from previous non-force runs.
+                sudo rm -f "${config_new}" 2>/dev/null || true
                 dump_config_sudo "${BINARY}" "${config_path}" "${FORCE_ARG[@]}" || exit 1
                 echo "   overwritten: ${config_path} (--force)"
             else
@@ -316,6 +318,8 @@ case "${MODE}" in
             fi
         else
             # No existing config: write template directly.
+            # Clean up stale config.new.toml from a previous install.
+            sudo rm -f "${config_new}" 2>/dev/null || true
             dump_config_sudo "${BINARY}" "${config_path}" || exit 1
             echo "   installed: ${config_path}"
         fi
@@ -335,6 +339,8 @@ case "${MODE}" in
                 # --force: overwrite existing config directly.
                 # Pass --force to --dump-config so the binary skips its
                 # existing-file guard too.
+                # Also remove stale config.new.toml from previous non-force runs.
+                rm -f "${user_cfg_new}" 2>/dev/null || true
                 dump_config "${BINARY}" "${user_cfg}" "${FORCE_ARG[@]}" || exit 1
                 echo "   overwritten: ${user_cfg} (--force)"
             else
@@ -348,6 +354,8 @@ case "${MODE}" in
             fi
         else
             # No existing config: write template directly.
+            # Clean up stale config.new.toml from a previous install.
+            rm -f "${user_cfg_new}" 2>/dev/null || true
             dump_config "${BINARY}" "${user_cfg}" || exit 1
             echo "   installed: ${user_cfg}"
         fi
