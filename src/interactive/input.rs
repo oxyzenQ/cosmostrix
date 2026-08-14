@@ -94,28 +94,28 @@ pub(super) fn handle_keybinding(
     _cfg: &CloudConfig,
     #[cfg(unix)] _term_reinit: &Arc<AtomicBool>,
 ) -> bool {
-    use crossterm::event::KeyCode;
+    use crossterm::event::{KeyCode, KeyModifiers};
 
-    // Bug fix: reject all Ctrl+key combinations. The match arms below use
-    // (KeyCode::Char('x'), _) which matches ANY modifier — including
-    // CONTROL. This caused Ctrl+C to cycle colors (the _ wildcard in
-    // (Char('c'), _) matched Ctrl+C's code=Char('c') + modifiers=CONTROL).
+    // Bug fix: reject Ctrl+key and Alt+key combinations. The match arms
+    // below use (KeyCode::Char('x'), _) which matches ANY modifier —
+    // including CONTROL. This caused Ctrl+C to cycle colors (the _ wildcard
+    // in (Char('c'), _) matched Ctrl+C's code=Char('c') + modifiers=CONTROL).
     //
     // Root cause: crossterm delivers Ctrl+C as KeyCode::Char('c') with
     // KeyModifiers::CONTROL. The _ wildcard accepted it. Same vulnerability
     // applied to ALL char-based shortcuts: Ctrl+Q would quit, Ctrl+S would
     // change charset, Ctrl+X would cycle scene, etc.
     //
-    // Fix: if ANY modifier (Ctrl, Alt, Super) is active, fall through to
-    // the `_ => {}` no-op arm. This ensures only bare key presses (no
-    // modifier keys held) trigger shortcuts. Shift is handled differently:
-    // Shift+'c' produces KeyCode::Char('C') (uppercase), which is a
-    // separate match arm — so Shift+c still works for reverse cycling.
+    // Fix: block only CONTROL and ALT modifiers. SHIFT must be allowed
+    // through because Shift+'c' produces KeyCode::Char('C') (uppercase)
+    // with KeyModifiers::SHIFT — the uppercase match arms (Char('C'), _)
+    // and (Char('S'), _) handle reverse cycling and are dead code if SHIFT
+    // is blocked. Only CONTROL and ALT are dangerous (Ctrl+C, Alt+C, etc.).
     //
     // Note: CONTROL+Shift+'c' (Ctrl+Shift+C) produces Char('C') with
-    // CONTROL | SHIFT modifiers — this is also correctly rejected because
-    // the CONTROL bit is set.
-    if !k.modifiers.is_empty() {
+    // CONTROL | SHIFT modifiers — this is correctly rejected because the
+    // CONTROL bit is set.
+    if k.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) {
         return false;
     }
 

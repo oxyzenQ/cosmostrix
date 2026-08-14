@@ -261,22 +261,15 @@ impl Terminal {
             }
             out.execute(SetAttribute(Attribute::Reset))?;
             out.execute(ResetColor)?;
-            // Scrollback-safe init: avoid Clear(ClearType::All) inside the
-            // alternate screen. On VTE-based terminals (GNOME Terminal,
-            // xfce4-terminal, etc.), \x1b[2J issued while in the alternate
-            // screen can set an internal flag that causes the main screen's
-            // scrollback to be cleared when LeaveAlternateScreen is later
-            // called. Instead, fill the alternate screen by writing spaces
-            // to every cell — this achieves the same visual result without
-            // risking scrollback destruction.
-            {
-                let (w, h) = crossterm_terminal::size().unwrap_or((80, 24));
-                let spaces = " ".repeat(w as usize);
-                for y in 0..h {
-                    let _ = out.execute(cursor::MoveTo(0, y));
-                    let _ = out.write_all(spaces.as_bytes());
-                }
-            }
+            // Scrollback-safe init: do NOT issue Clear(All) or fill every
+            // cell of the alternate screen here. On VTE-based terminals
+            // (GNOME Terminal, xfce4-terminal, etc.), any operation that
+            // writes to the entire alternate screen buffer — including
+            // \x1b[2J or a space-fill loop covering every cell — can set
+            // an internal VTE flag that clears the main screen's scrollback
+            // when LeaveAlternateScreen is later called. The first frame's
+            // full redraw will paint every cell anyway, so no init clear is
+            // needed. Skipping it entirely guarantees scrollback safety.
             out.flush()?;
             Ok(())
         })();
