@@ -15,6 +15,9 @@ permissions:
 env:
   # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Single source of truth for Rust toolchain version.
+  # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
+  RUST_VERSION: "1.97.1"
 
 jobs:
   changes:
@@ -55,7 +58,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -92,8 +95,11 @@ jobs:
       - name: Also run the version anti-pattern guard
         run: bash scripts/check-version-anti-patterns.sh
 
+      - name: Verify Rust version sync (toolchain ↔ MSRV ↔ CI env)
+        run: bash scripts/check-rust-version-sync.sh
+
   msrv:
-    name: Cosmic Dragon - MSRV (Rust 1.97.1)
+    name: Cosmic Dragon - MSRV (Rust ${{ env.RUST_VERSION }})
     runs-on: ubuntu-latest
     needs: [security, version-sync]
     timeout-minutes: 30
@@ -104,7 +110,7 @@ jobs:
       - name: Install Rust toolchain (MSRV)
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -126,7 +132,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy
 
       - name: Setup cache
@@ -176,7 +182,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -242,7 +248,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -326,7 +332,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -394,7 +400,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -459,7 +465,7 @@ jobs:
           mem: 4096
           prepare: |
             pkg install -y curl ca_root_nss
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.97.1
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
             . "$HOME/.cargo/env"
             rustup target add x86_64-unknown-freebsd
             rustup component add clippy rustfmt
@@ -538,7 +544,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -648,7 +654,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -712,7 +718,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy
 
       - name: Setup cache
@@ -738,7 +744,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1

@@ -690,11 +690,15 @@ fn dump_config_mentions_supported_keys() {
         "bold",
         "shadingmode",
         "color-bg",
-        "low-power",
         "auto-color-drift",
+        "async-mode",
+        "intro",
         // v30.1 simplification: legacy/historical key mentions removed
         // from dump config (mouse flag was v17-deletion note, preset was
         // v20.1-removal note). Both are gone in the simplified dump.
+        // v50 simplification: `low-power` (a scene NAME, not a config key)
+        // removed — the scene list is now "See: cosmostrix --list-scenes"
+        // instead of inline. Scene names are not config keys.
     ] {
         assert!(dump.contains(key), "dump config should contain {key}");
     }

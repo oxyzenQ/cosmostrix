@@ -30,6 +30,9 @@ env:
   # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   CARGO_TERM_COLOR: always
+  # Single source of truth for Rust toolchain version.
+  # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
+  RUST_VERSION: "1.97.1"
 
 jobs:
   security-audit:
@@ -44,7 +47,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1

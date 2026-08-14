@@ -398,6 +398,20 @@ run_version_anti_pattern_check() {
                 log_error "Version anti-pattern check failed (use env!(\"CARGO_PKG_VERSION\") instead)"
                 return 1
         fi
+
+        log_step "Checking Rust version sync across all sources..."
+
+        if [ ! -f "scripts/check-rust-version-sync.sh" ]; then
+                log_error "scripts/check-rust-version-sync.sh not found"
+                return 1
+        fi
+
+        if bash scripts/check-rust-version-sync.sh; then
+                log_success "Rust version sync check passed"
+        else
+                log_error "Rust version sync check failed — see output above for mismatched sources"
+                return 1
+        fi
 }
 
 run_shellcheck() {

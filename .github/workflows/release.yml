@@ -14,6 +14,9 @@ permissions:
 env:
   # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Single source of truth for Rust toolchain version.
+  # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
+  RUST_VERSION: "1.97.1"
 
 jobs:
   build_packages:
@@ -116,7 +119,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy
 
       - name: Setup cache
@@ -570,7 +573,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -731,7 +734,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.97.1
+          toolchain: ${{ env.RUST_VERSION }}
           components: rustfmt, clippy, llvm-tools-preview
 
       - name: Ensure llvm-tools-preview installed (override rust-toolchain.toml)
@@ -860,7 +863,7 @@ jobs:
           mem: 4096
           prepare: |
             pkg install -y curl ca_root_nss
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.97.1
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
             . "$HOME/.cargo/env"
             rustup component add clippy rustfmt
           run: |

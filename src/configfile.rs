@@ -580,266 +580,79 @@ pub(crate) fn dump_config_text() -> &'static str {
     r##"# cosmostrix configuration
 
 # Override priority: CLI flags > config.toml > scene defaults.
-# Examples:
-#   cosmostrix -c neon-green --speed 20    # CLI overrides config
-#   cosmostrix --scene-custom hacker-mode  # user custom scene
-#   cosmostrix --testconf                  # validate this config
-#   cosmostrix --doctor                    # diagnose terminal issues
-
-# File Location:
-#   Linux:     ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
-#              /etc/cosmostrix/config.toml (system-wide)
-#   macOS:     ~/.config/cosmostrix/config.toml (or $XDG_CONFIG_HOME)
-#              ~/Library/Application Support/cosmostrix/config.toml (macOS user)
-#   FreeBSD:   ~/.config/cosmostrix/config.toml
-#              /usr/local/etc/cosmostrix/config.toml (system-wide)
-#   Termux:    ~/.config/cosmostrix/config.toml (XDG_CONFIG_HOME ignored)
-#              $PREFIX/etc/cosmostrix/config.toml (system-wide)
-#   Windows:   %APPDATA%\cosmostrix\config.toml
-#              %ProgramData%\cosmostrix/config.toml (system-wide)
-
-# Format:
-#   key = value              # one per line
-#   # comments               # blank lines ignored
-#   [section.name]           # TOML table header (groups keys under it)
-#   field = value            # keys inside a table are prefixed automatically
-#   Custom blocks support BOTH flat (scene-custom.name.field = value)
-#   and TOML table ([scene-custom.name] + field = value) formats.
-#   Malformed lines (no '=' or empty key/value) cause --testconf to FAIL.
-
-# All keys below are commented out. Uncomment the ones you want to
-# customize. Built-in defaults are shown for reference. Run
-# `cosmostrix --testconf` to validate your config after editing.
+# Validate after editing: cosmostrix --testconf
+# File location: ~/.config/cosmostrix/config.toml (see --help for platform paths)
 
 # ── Standard Settings ──
+# All values shown are defaults. Uncomment to override.
 
-# Scene — built-in atmospheric template.
-#   cinematic (default) | matrix | monolith | signal | classic | calm |
-#   storm | cosmos | neon | hacker | low-power | matrix_film | cosmic-dragon |
-#   carbonic | dragon-crystal | orange-cat | north-stars | curiosity
-# scene = "cinematic"
-
-# Color scheme (palette). See: cosmostrix --list-colors
-# color = "energy-zen"
-
-# Character set for rain glyphs. See: cosmostrix --list-charsets
-# charset = "zen"
-
-# Background mode: default-background (follow terminal) | black (solid #000000)
-# color-bg = "default-background"
-
-# Cinematic intro animation: logo | cosmic | none (default: logo)
-# intro = "logo"
+# scene = "cinematic"          # See: cosmostrix --list-scenes
+# color = "energy-zen"         # See: cosmostrix --list-colors
+# charset = "zen"              # See: cosmostrix --list-charsets
+# color-bg = "default-background"  # or "black"
+# intro = "logo"               # logo | cosmic | none
 
 # ── Motion ──
 
-# Target FPS (1-240). Loop sleeps to maintain this cap in interactive mode.
-# Press 'i' to see it as `tgt:` in the HUD. In --benchmark mode this sets
-# the simulation rate only.
-# When unset, the default is dynamic: 60 FPS on standard terminals, 144 FPS
-# on high-refresh terminals (Alacritty, kitty, WezTerm, etc.) — see
-# `cosmostrix --verbose` fps_precedence line for which layer resolved.
-# fps = 60
-
-# Rain fall speed (1-100). Default depends on scene (cinematic=9).
-# speed = 9
-
-# Rain density (0.01-5.0). Default depends on scene (cinematic=0.75).
-# density = 0.75
-
-# Variable column speeds for organic rain (default: on).
-# async-mode = true
-
-# Monolith pillar size: small | normal | large — only for monolith scene.
-# monolith-size = "normal"
+# fps = 60                     # 1-240 (default: dynamic — 60 or 144 on high-refresh)
+# speed = 9                    # 1-100 (cinematic default)
+# density = 0.75               # 0.01-5.0 (cinematic default)
+# async-mode = true            # variable column speeds
+# monolith-size = "normal"     # small | normal | large (monolith scene only)
 
 # ── Behavior ──
 
-# Glitch intensity: none | subtle | default | intense.
-# The preset fully controls glitch percent, stream decay, fragmented stream
-# chance, and stream layering automatically — no separate keys.
-# glitch-level = "subtle"
+# glitch-level = "subtle"      # none | subtle | default | intense
+# auto-color-drift = false     # slow palette drift
+# bold = 1                     # 0=off, 1=random, 2=all
+# shadingmode = 1             # 0=random, 1=cinematic
 
-# Auto color drift (default: off).
-# auto-color-drift = false
-
-# ── Advanced Style ──
-
-# Bold style: 0=off, 1=random (default), 2=all.
-# bold = 1
-
-# Shading mode: 0=random, 1=cinematic (default — distance from head).
-# shadingmode = 1
-
-# Color tuning (0.0-3.0 each, default 1.0 = no change):
+# ── Color Tuning ──
 # [color.tune]
-# brightness = 1.0   # global brightness (dim-rain: use < 1.0)
-# saturation = 1.0   # color saturation (0.0 = grayscale)
-# head = 1.0         # head segment brightness
-# body = 1.0         # body segment brightness
-# tail = 1.0         # tail segment brightness
+# brightness = 1.0             # global (0.0-3.0, default 1.0)
+# saturation = 1.0             # 0.0 = grayscale
+# head = 1.0
+# body = 1.0
+# tail = 1.0
 
 # ── Custom Scenes ──
-# Define named custom scenes and load with: cosmostrix --scene-custom <name>.
-# v30.3 field allowlist (the ONLY keys accepted inside [scene-custom.<name>]):
-#   base-scene, color, charset, bold, colors-custom, charset-custom,
-#   shadingmode, glitch-level, fps, speed, density, density-map, async.
-# Forbidden keys (rejected as unknown by --testconf): ambient,
-# auto-color-drift, color.tune, monolith-size, intro, color-bg.
-# Missing fields fall back to cinematic's defaults (or to base-scene's
-# defaults if base-scene is set). Custom scenes are listed in --list-scenes.
-#
-# Ordering: once you write a [section] header, every flat key AFTER it
-# belongs to that section until the next header. Prefer writing top-level
-# keys BEFORE any [section] block.
-#
-# Paired fields (don't mix them up — `--testconf` will hint if you do):
-#   color          — built-in color name only (`cosmostrix --list-colors`)
-#   colors-custom  — name of a [colors-custom.<name>] block (see below)
-#   charset        — built-in charset preset only (`cosmostrix --list-charsets`)
-#   charset-custom — name of a [charset-custom.<name>] block (see below)
-# Inside [scene-custom.<name>] blocks, the `color` and `charset` fields
-# NEVER accept custom-block names. If you write `color = mypalette` where
-# `mypalette` is a `[colors-custom.mypalette]` block, --testconf rejects
-# it with a hint pointing at `colors-custom = mypalette` (and the same
-# symmetric hint for `charset` → `charset-custom`).
+# Define named scenes, load with: cosmostrix --scene-custom <name>
+# Paired fields: `color`/`charset` = built-in name; `colors-custom`/`charset-custom`
+# = block reference. Don't mix — --testconf will hint if you do.
 
 # [scene-custom.hacker-mode]
-# base-scene = "matrix"       # v30.2: inherit matrix's rain_style + defaults
-# color = "green"             # override matrix's neon-green with plain green
-# charset = "hacker"          # override matrix's matrix charset
-# bold = 1                  # v30.3: 0=off, 1=on, 2=double-width
-# colors-custom = "zen"       # v30.3: reference a [colors-custom.<name>] block
-# charset-custom = "pipes"    # v30.3: reference a [charset-custom.<name>] block
-# shadingmode = 1           # v30.3: 0=off, 1=on
-# speed = 28                # override matrix's speed=18
-# density = 1.2             # override matrix's density=0.65
-# glitch-level = "intense"    # override matrix's glitch=Subtle
-# fps = 60                  # override cinematic's fps=60
-# async = false             # v30.3: true enables async render path
-#
-# v30.2: base-scene is the inheritance anchor. When set, the custom scene
-# inherits ALL scene-managed defaults from the named built-in scene before
-# applying its own overrides. Without base-scene, missing fields fall back
-# to cinematic's defaults.
-#
-# Without base-scene (legacy v20.1+ behavior):
-# [scene-custom.hacker-mode]
-# color = "green"
-# charset = "hacker"
+# base-scene = "matrix"       # inherit defaults from a built-in scene
+# color = "green"              # built-in color name
+# charset = "hacker"           # built-in charset preset
 # speed = 28
 # density = 1.2
 # glitch-level = "intense"
-#
-# v30.3: `ambient.<HH-MM>` MUST live at the top level (NEVER inside a
-# [scene-custom.<name>] block). Putting it inside a scene-custom section
-# makes TOML parse it as `scene-custom.<name>.ambient.<HH-MM>`, which is
-# rejected as an unknown key. Define the scene first, then reference it
-# by name from a top-level `ambient.<HH-MM> = <scene-name>` entry.
-
-# Density Map: per-column spawn weights (0.0=never, 1.0=always). Maps
-# shorter than terminal width treat missing columns as 1.0. Both quoted
-# and unquoted forms work.
-#   density-map = "0.05,0.3,1.0"         (quoted — standard TOML)
-#   density-map = "0.05,0.3,1.0"         (quoted — also valid)
 
 # ── Custom Color Palettes ──
-# Define named custom palettes and load with: cosmostrix --colors-custom <name>.
-# Reference from a [scene-custom.<name>] block via: colors-custom = <name>
-# (NOT `color = <name>` — that field is for built-in colors only).
-# Hex values use #rrggbb notation. ALWAYS quote hex strings: "#ff0000"
-# (unquoted # is treated as a TOML comment, silently truncating the value).
-# rain = 7 hex gradient stops (tail → head order). Minimum 2, 7 recommended.
+# Define named palettes, reference via: colors-custom = <name>
+# Hex values MUST be quoted: "#ff0000" (unquoted # = TOML comment).
 
 # [colors-custom.zen]
 # bg = "#0a0a0a"
-# rain = [
-#  "#111111",  # tail dimmer
-#  "#2a2a2a",  # tail dim
-#  "#4a4a4a",  # semi-body dark
-#  "#6a6a6a",  # body peak
-#  "#8a8a8a",  # semi-body light
-#  "#b0b0b0",  # semi-white
-#  "#d0d0d0",  # head glow
-# ]
+# rain = ["#111111", "#4a4a4a", "#8a8a8a", "#d0d0d0"]
 
 # ── Custom Character Sets ──
-# Define named custom charsets and load with: cosmostrix --charset <name>
-# (or: top-level `charset = "name"` in config — custom names take precedence
-# over built-in presets with the same name).
-# Reference from a [scene-custom.<name>] block via: charset-custom = <name>
-# (NOT `charset = <name>` — inside scene-custom blocks, that field is for
-# built-in presets only and --testconf will reject a custom name with a hint).
-# Fields:
-#   set — literal string of characters to use as the rain glyph pool.
-#   Whitespace (except ASCII space) skipped. Control chars rejected.
-#   Wide/zero-width chars (emoji, CJK fullwidth) auto-filtered.
+# Define named charsets, reference via: charset-custom = <name>
 
 # [charset-custom.zen]
 # set = "|"
 
 # ── Ambient Phase Scheduler ──
-# Schedule time-of-day phase transitions. Config-only (no CLI flag).
-# Each entry switches the active scene at the specified wall-clock minute
-# and stays active until the next entry's boundary. Instant switch (no
-# blend window). Dynamic idle/wake scheduler thread — zero CPU between
-# phase boundaries.
-#
-# v30.2 format (simplified — breaking change from v30.1):
-#   ambient.<HH-MM> = <scene-name>
-#
-# The value is a SINGLE scene name — either a built-in scene (cinematic,
-# signal, monolith, etc.) OR a custom scene defined via [scene-custom.<name>].
-# All parameters (color, charset, speed, density, fps, glitch-level, rain_style)
-# live inside the scene itself. This eliminates the v30.1 override-precedence
-# bugs where speed=50 was silently overridden by the scene's default speed.
-#
-# - HH-MM: 24-hour time, zero-padded (00-00 to 23-59).
-# - scene-name: built-in OR [scene-custom.<name>] block.
-# - Wrap-around: if now is 0:30 and the earliest entry is 6:00, the
-#   "current" phase is the LAST entry of the previous day (carried over).
-# - Live reload: edits take effect immediately on save.
-# - Max 256 entries (a healthy schedule has 2-6).
-#
-# Migration from v30.1 multi-field format:
-#   v30.1: ambient.15-00 = energy-zen, signal, speed=50, density=0.65
-#   v30.3: define the scene, then reference it at the TOP LEVEL:
-#         [scene-custom.afternoon]
-#         base-scene = "signal"
-#         color = "energy-zen"
-#         speed = 50
-#         density = 0.65
-#
-#         ambient.15-00 = "afternoon"    # top-level — NEVER inside the block
-#
-# Working Example: 3-phase day/night cycle (v30.2)
-#   ambient.06-00 = "signal"
-#   ambient.12-00 = "monolith"
-#   ambient.20-00 = "cinematic"
-#
-# Custom-scene Example: define once, reference by name.
-# Define the scene in its own [scene-custom.<name>] block, then reference
-# it from a TOP-LEVEL `ambient.<HH-MM> = <name>` entry. NEVER place the
-# ambient entry inside the [scene-custom.<name>] block — that produces
-# `scene-custom.<name>.ambient.<HH-MM>` and is rejected as unknown.
-#   [scene-custom.afternoon]
-#   base-scene = "signal"
-#   color = "energy-zen"
-#   speed = 50
-#   density = 0.65
-#
-#   ambient.15-00 = "afternoon"    # top-level — switches to afternoon at 15:00
-#
-# Minimal Example: 2-phase day/night
-#   ambient.07-00 = "matrix"
-#   ambient.19-00 = "monolith"
+# Time-of-day scene switches. Config-only (no CLI flag).
+# Format: ambient.<HH-MM> = <scene-name>  (24-hour, zero-padded)
+# Live reload: edits take effect on save.
 
 # ambient.06-00 = "signal"
 # ambient.12-00 = "monolith"
 # ambient.20-00 = "cinematic"
 
 # ── Removed Keys (rejected by --testconf) ──
-# adaptive-custom.*  — atmosphere engine eliminated; use ambient.* instead.
+# adaptive-custom.* — eliminated; use ambient.* instead.
 "##
 }
 
