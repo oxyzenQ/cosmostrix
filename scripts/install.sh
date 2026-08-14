@@ -39,13 +39,13 @@ Usage: $0 [--system|--user] [--force]
                config  → ~/.config/${PROJECT_NAME}/config.toml
              The user-local config is NEVER overwritten unless --force is given.
              Without --force: if config exists, the new template is installed
-             as config.new for manual review.
+             as config.new.toml for manual review.
              With --force: existing config is overwritten with the new template.
 
-  --force    Overwrite existing config.toml without creating .new backup.
+  --force    Overwrite existing config.toml without creating config.new.toml backup.
              Applies to both --system and --user modes.
              Without --force: if config exists, new template is installed
-             as config.new for manual review.
+             as config.new.toml for manual review.
              With --force: existing config is overwritten directly.
              DANGEROUS: destroys customizations. Use with caution.
 
@@ -238,28 +238,75 @@ if [[ ${FORCE} -eq 1 ]]; then
     FORCE_ARG=("--force")
 fi
 
+# Helper: run --dump-config with error handling.
+# Without this wrapper, set -e would kill the script silently on failure
+# (e.g., if the binary rejects the path). This wrapper catches the error
+# and prints a clear message instead.
+dump_config() {
+    local binary="$1"
+    shift
+    if ! "$binary" --dump-config "$@" 2>/dev/null; then
+        echo "   error: --dump-config failed for path: $*" >&2
+        echo "   (the binary may have rejected the path — check .toml extension and whitelist)" >&2
+        return 1
+    fi
+}
+
+# Same as dump_config but runs the binary via sudo (for --system mode).
+# Cannot use 'sudo dump_config' because dump_config is a shell function.
+dump_config_sudo() {
+    local binary="$1"
+    shift
+    if ! sudo "$binary" --dump-config "$@" 2>/dev/null; then
+        echo "   error: --dump-config (sudo) failed for path: $*" >&2
+        echo "   (the binary may have rejected the path — check .toml extension and whitelist)" >&2
+        return 1
+    fi
+}
+
+# Symlink-safe mkdir: if the path is a symlink to a directory,
+# mkdir -p is a no-op (safe). But if the symlink is broken or
+# points to a non-directory, we refuse to overwrite it.
+safe_mkdir() {
+    local target="$1"
+    if [[ -L "${target}" ]]; then
+        if [[ -d "${target}" ]]; then
+            return 0  # symlink → directory, already exists
+        fi
+        echo "error: ${target} is a symlink but not to a directory — cannot create" >&2
+        return 1
+    fi
+    mkdir -p "${target}"
+}
+
 echo ">> [3/4] Installing config.toml (${MODE})"
 case "${MODE}" in
     --system)
-        sudo mkdir -p "/etc/${PROJECT_NAME}"
+        safe_mkdir "/etc/${PROJECT_NAME}" || exit 1
         config_path="/etc/${PROJECT_NAME}/config.toml"
+        # New template path: config.new.toml (NOT config.toml.new).
+        # The binary's --dump-config validates that the target path has
+        # a .toml extension — config.toml.new fails this check.
+        config_new="/etc/${PROJECT_NAME}/config.new.toml"
         if sudo test -f "${config_path}"; then
             if [[ ${FORCE} -eq 1 ]]; then
                 # --force: overwrite existing system config directly.
                 # Pass --force to --dump-config so the binary skips its
                 # existing-file guard too.
-                sudo "${BINARY}" --dump-config "${config_path}" "${FORCE_ARG[@]}" 2>/dev/null
+                dump_config_sudo "${BINARY}" "${config_path}" "${FORCE_ARG[@]}" || exit 1
                 echo "   overwritten: ${config_path} (--force)"
             else
-                # Existing config: write new template to .new for manual merge.
-                sudo "${BINARY}" --dump-config "${config_path}.new" 2>/dev/null
+                # Existing config: write new template for manual merge.
+                # Remove stale config.new.toml from previous runs.
+                sudo rm -f "${config_new}" 2>/dev/null || true
+                dump_config_sudo "${BINARY}" "${config_new}" || exit 1
                 echo "   existing config preserved: ${config_path}"
-                echo "   new template installed at: ${config_path}.new (review and merge manually)"
+                echo "   new template installed at: ${config_new} (review and merge manually)"
                 echo "   use --force to overwrite without backup"
             fi
         else
             # No existing config: write template directly.
-            sudo "${BINARY}" --dump-config "${config_path}" 2>/dev/null
+            dump_config_sudo "${BINARY}" "${config_path}" || exit 1
             echo "   installed: ${config_path}"
         fi
         # Preserve user-local config if customized; clean up if default.
@@ -268,25 +315,30 @@ case "${MODE}" in
     --user)
         user_cfg_dir="${HOME}/.config/${PROJECT_NAME}"
         user_cfg="${user_cfg_dir}/config.toml"
-        mkdir -p "${user_cfg_dir}"
+        # New template path: config.new.toml (NOT config.toml.new).
+        # The binary's --dump-config validates that the target path has
+        # a .toml extension — config.toml.new fails this check.
+        user_cfg_new="${user_cfg_dir}/config.new.toml"
+        safe_mkdir "${user_cfg_dir}" || exit 1
         if [[ -f "${user_cfg}" ]]; then
             if [[ ${FORCE} -eq 1 ]]; then
                 # --force: overwrite existing config directly.
                 # Pass --force to --dump-config so the binary skips its
                 # existing-file guard too.
-                "${BINARY}" --dump-config "${user_cfg}" "${FORCE_ARG[@]}" 2>/dev/null
+                dump_config "${BINARY}" "${user_cfg}" "${FORCE_ARG[@]}" || exit 1
                 echo "   overwritten: ${user_cfg} (--force)"
             else
-                # Existing config: write new template to .new for manual merge.
-                # Use --dump-config <path> directly (not stdout redirect).
-                "${BINARY}" --dump-config "${user_cfg}.new" 2>/dev/null
+                # Existing config: write new template for manual merge.
+                # Remove stale config.new.toml from previous runs.
+                rm -f "${user_cfg_new}" 2>/dev/null || true
+                dump_config "${BINARY}" "${user_cfg_new}" || exit 1
                 echo "   existing config preserved: ${user_cfg}"
-                echo "   new template installed at: ${user_cfg}.new (review and merge manually)"
+                echo "   new template installed at: ${user_cfg_new} (review and merge manually)"
                 echo "   use --force to overwrite without backup"
             fi
         else
             # No existing config: write template directly.
-            "${BINARY}" --dump-config "${user_cfg}" 2>/dev/null
+            dump_config "${BINARY}" "${user_cfg}" || exit 1
             echo "   installed: ${user_cfg}"
         fi
         ;;

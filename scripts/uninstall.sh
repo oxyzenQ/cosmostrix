@@ -33,7 +33,7 @@ Usage: $0 [--system|--user|--all] [--keep-config] [--purge]
   --keep-config  Preserve config files (only remove binary).
   --purge    Alias for --all (backward compatibility).
 
-Symlink-safe: only known config files (config.toml, config.toml.new) are
+Symlink-safe: only known config files (config.toml, config.new.toml) are
 removed. The cosmostrix directory itself is preserved if it is a symlink
 or contains other files. Never rm -rf.
 
@@ -83,7 +83,7 @@ remove_config_dir() {
     local need_sudo="$2"
     if [[ -d "${target}" ]]; then
         # Remove known config files only (not arbitrary contents).
-        local files=("config.toml" "config.toml.new" ".install_tmp_default.toml")
+        local files=("config.toml" "config.new.toml" ".install_tmp_default.toml")
         for f in "${files[@]}"; do
             local fp="${target}/${f}"
             if [[ -f "${fp}" ]] || [[ -L "${fp}" ]]; then
