@@ -171,19 +171,19 @@ fn p5_modulo_check_fires_exactly_at_multiples_of_interval() {
 
     // Verify the specific fire points.
     assert!(
-        0u64 % n == 0,
+        0u64.is_multiple_of(n),
         "probe must fire on the first frame (frame 0)"
     );
     assert!(
-        (n - 1) % n != 0,
+        !(n - 1).is_multiple_of(n),
         "probe must NOT fire one frame before the interval boundary"
     );
     assert!(
-        n % n == 0,
+        n.is_multiple_of(n),
         "probe must fire exactly at the interval boundary"
     );
     assert!(
-        (n + 1) % n != 0,
+        !(n + 1).is_multiple_of(n),
         "probe must NOT fire one frame after the interval boundary"
     );
 }

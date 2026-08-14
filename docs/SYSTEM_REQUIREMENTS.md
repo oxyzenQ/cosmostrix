@@ -16,7 +16,7 @@ specifies the minimum supported system configuration.
 | **Kernel (Windows)** | 10 (1809) | 11 | Ctrl+C handler via `ctrlc` crate |
 | **glibc (Linux GNU)** | 2.17 (2012) | 2.31+ | CentOS 7 baseline; fstat, prctl, tcsetattr |
 | **musl (Linux musl)** | 1.2.0 (2019) | 1.2.5+ | Static binary, no glibc dependency |
-| **Rust toolchain** | 1.81.0 (2024-10) | latest stable | MSRV declared in `Cargo.toml` |
+| **Rust toolchain** | 1.97.1 (2026-07) | latest stable | MSRV declared in `Cargo.toml` |
 | **RAM** | 8 MiB free | 16+ MiB | Peak RSS ~4.2 MiB at 120x40 |
 | **CPU** | x86-64-v1 (SSE2) | x86-64-v3 (AVX2) | v3/v4 profiles auto-selected by `install.sh` |
 | **Terminal** | ANSI 16-color | TrueColor (24-bit) | Auto-detected via `COLORTERM` / `TERM` |
@@ -176,18 +176,19 @@ normally. This is a one-time system setup — all Rust projects benefit.
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| `rustc` | 1.81.0 | Declared in `Cargo.toml` as `rust-version = "1.81"` |
-| `cargo` | 1.81.0 | Matches rustc |
+| `rustc` | 1.97.1 | Declared in `Cargo.toml` as `rust-version = "1.97"`; pinned in `rust-toolchain.toml` |
+| `cargo` | 1.97.1 | Matches rustc |
 | Edition | 2021 | Declared in `Cargo.toml` |
 | `rustup` | Any | Recommended for toolchain management |
 
-Rust 1.81.0 was released on 2024-10-17. This is the MSRV — cosmostrix
+Rust 1.97.1 was released on 2026-07-16. This is the MSRV — cosmostrix
 compiles and passes all tests on this exact version. The CI pipeline
 enforces this via a dedicated MSRV job.
 
-**Why 1.81?** The `let-else` chains, `if-let` patterns, and error
-handling idioms used throughout the codebase require 1.81+. The `notify`
-6.x crate also has an MSRV of 1.81.
+**Why 1.97.1?** Pinned to a specific patch release instead of `stable`
+to guarantee dormant-mode reproducibility — a future `stable` release
+cannot silently break the build. 1.97.1 also fixes an LLVM
+miscompilation present since Rust 1.87 plus a segfault in 1.97.0.
 
 ## CPU Architecture
 
@@ -266,7 +267,7 @@ uname -r  # should be >= 2.6.27
 ldd --version | head -1  # should be >= 2.17
 
 # Check Rust version
-rustc --version  # should be >= 1.81.0
+rustc --version  # should be >= 1.97.1
 
 # Check CPU features
 grep -o 'avx2\|avx512f' /proc/cpuinfo | sort -u

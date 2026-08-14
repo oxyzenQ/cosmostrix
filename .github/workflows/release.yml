@@ -116,7 +116,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81.0
+          toolchain: 1.97.1
           components: rustfmt, clippy
 
       - name: Setup cache
@@ -570,7 +570,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81.0
+          toolchain: 1.97.1
 
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
@@ -731,7 +731,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.81.0
+          toolchain: 1.97.1
           components: rustfmt, clippy, llvm-tools-preview
 
       - name: Ensure llvm-tools-preview installed (override rust-toolchain.toml)
@@ -860,7 +860,7 @@ jobs:
           mem: 4096
           prepare: |
             pkg install -y curl ca_root_nss
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.81.0
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.97.1
             . "$HOME/.cargo/env"
             rustup component add clippy rustfmt
           run: |

@@ -107,8 +107,8 @@ While full deterministic reproduction (bit-for-bit identical binaries across
 different build environments) is a long-term goal, the current release process
 already enforces several reproducibility-friendly properties:
 
-- **Fixed toolchain version** — all release builds use `rustc 1.81.0`, pinned in
-  every workflow via `dtolnay/rust-toolchain`.
+- **Fixed toolchain version** — all release builds use `rustc 1.97.1`, pinned in
+  `rust-toolchain.toml` and in every workflow via `dtolnay/rust-toolchain`.
 - **Profile standardization** — `opt-level = 3`, `lto = "fat"`, `codegen-units = 1`,
   `panic = "unwind"`, `strip = true`, and `incremental = false` ensure consistent
   codegen output across builds.
@@ -214,18 +214,18 @@ checks matrix) and in the automated dependency update workflow (`maintenance.yml
 
 ### `rustup` — Minimum Supported Rust Version (MSRV)
 
-The project's MSRV is **Rust 1.81.0**, declared in `Cargo.toml` as
-`rust-version = "1.81"` and enforced in every CI workflow via the
-`dtolnay/rust-toolchain` action with `toolchain: 1.81.0`. The CI pipeline
-includes a dedicated MSRV job that compiles and tests the project under this
-exact toolchain version, ensuring compatibility is not accidentally broken by
-newer Rust features.
+The project's MSRV is **Rust 1.97.1**, declared in `Cargo.toml` as
+`rust-version = "1.97"`, pinned in `rust-toolchain.toml` (`channel = "1.97.1"`),
+and enforced in every CI workflow via the `dtolnay/rust-toolchain` action with
+`toolchain: 1.97.1`. The CI pipeline includes a dedicated MSRV job that
+compiles and tests the project under this exact toolchain version, ensuring
+compatibility is not accidentally broken by newer Rust features.
 
 Developers must use `rustup` to install and manage the toolchain:
 
 ```bash
-rustup install 1.81.0
-rustup default 1.81.0
+rustup install 1.97.1
+rustup default 1.97.1
 ```
 
 ---

@@ -55,7 +55,7 @@ See `scripts/check-headers.sh` for the enforced format.
 - Clippy must pass with `-D warnings` (warnings are errors).
 - `cargo fmt` must report no differences.
 - All tests must pass on every commit.
-- MSRV: Rust 1.81.0 (stable).
+- MSRV: Rust 1.97.1 (pinned in `rust-toolchain.toml`).
 
 ## Test discipline
 

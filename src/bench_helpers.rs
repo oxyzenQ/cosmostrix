@@ -224,7 +224,7 @@ pub(crate) fn median_sorted(data: &[f64]) -> f64 {
         return 0.0;
     }
     let mid = data.len() / 2;
-    if data.len() % 2 == 0 {
+    if data.len().is_multiple_of(2) {
         (data[mid - 1] + data[mid]) / 2.0
     } else {
         data[mid]

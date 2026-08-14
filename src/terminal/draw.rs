@@ -246,7 +246,7 @@ impl Terminal {
         debug_assert!(
             dirty_flat
                 .last()
-                .map_or(true, |&idx| idx < height_usize * width_usize),
+                .is_none_or(|&idx| idx < height_usize * width_usize),
             "dirty_indices must be in-bounds — Frame::set guarantees this"
         );
 

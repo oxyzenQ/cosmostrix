@@ -86,7 +86,7 @@ impl VisualSampler {
     /// Call every frame. Only samples every N frames to reduce overhead.
     pub(crate) fn sample(&mut self, frame: &Frame) {
         self.frame_counter += 1;
-        if self.frame_counter % self.sample_interval != 0 {
+        if !self.frame_counter.is_multiple_of(self.sample_interval) {
             return;
         }
 

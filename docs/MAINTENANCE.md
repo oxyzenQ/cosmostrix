@@ -34,15 +34,16 @@
 ### Pinned toolchain
 
 - **Rust**: 1.97.1 (pinned in `rust-toolchain.toml`)
-- **MSRV**: 1.81 (declared in `Cargo.toml` `rust-version`)
+- **MSRV**: 1.97 (declared in `Cargo.toml` `rust-version`)
 - **Profile**: minimal + rustfmt + clippy
 
 When upgrading Rust:
 1. Update `rust-toolchain.toml` channel to the new version
 2. Update `Cargo.toml` `rust-version` to the new MSRV (if changed)
-3. Run `./scripts/build.sh check-all` — all 11 checks must pass
-4. Run `cargo test --all --locked` — all 1,476 tests must pass
-5. Commit with message: `chore: bump Rust toolchain to X.Y.Z`
+3. Update all CI workflows (`.github/workflows/*.yml`) `toolchain:` refs
+4. Run `./scripts/build.sh check-all` — all quality checks must pass
+5. Run `cargo test --all --locked` — all 1,469 tests must pass
+6. Commit with message: `chore: bump Rust toolchain to X.Y.Z`
 
 ### Dependencies
 

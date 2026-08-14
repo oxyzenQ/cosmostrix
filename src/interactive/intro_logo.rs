@@ -126,9 +126,8 @@ const PHASE2_IGNITION_END_MS: u64 = 3_000;
 const PHASE3_DISSOLVE_END_MS: u64 = 4_000;
 const PHASE4_RAIN_END_MS: u64 = 4_500;
 
-/// Frame period in seconds, computed at runtime to avoid MSRV issues
-/// with `Duration::as_secs_f32()` in const context (stable since 1.83,
-/// but our MSRV is 1.81).
+/// Frame period in seconds, computed at runtime for clarity (could be const
+/// since `Duration::as_secs_f32()` is stable since 1.83).
 #[inline]
 fn frame_period_secs() -> f32 {
     super::intro::INTRO_FRAME_PERIOD.as_secs_f32()

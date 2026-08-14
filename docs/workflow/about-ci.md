@@ -21,7 +21,7 @@ Workflow files live under:
 #### What it does
 
 - **Security audit**: runs `cargo-audit` using `cargo +stable` to avoid MSRV breakage when `cargo-audit` bumps its required Rust version.
-- **MSRV**: runs `cargo test --all` on Rust `1.81.0`.
+- **MSRV**: runs `cargo test --all` on Rust `1.97.1` (matches the pinned toolchain in `rust-toolchain.toml`).
 - **Test + Build (debug)**: runs `cargo test --all` and `cargo build --scene-custom dev`.
 - **Release variant sanity**: builds optimized Linux/macOS/Windows/Android targets, verifies embedded build metadata, and runs `cosmostrix --doctor` whenever the artifact can safely execute on the runner.
 - **Format + Clippy**: runs `cargo fmt -- --check` and `cargo clippy ... -D warnings`.
@@ -178,7 +178,7 @@ git push origin v4.0.0
 
 - Runs `cargo update`
 - Runs `cargo +stable audit` and `cargo +stable deny check all`
-- Runs `cargo fmt -- --check` and basic build/test/clippy on toolchain `1.81.0`
+- Runs `cargo fmt -- --check` and basic build/test/clippy on toolchain `1.97.1`
 - Commits and pushes to `main` only after validation passes
 
 #### Notes

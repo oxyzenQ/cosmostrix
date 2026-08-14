@@ -1014,11 +1014,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // (TriggerHealthMitigation) silently disable — a major footgun:
         // a safety mitigation layer that vanishes the moment you turn off
         // the display. The `--perf-stats` flag must control ONLY display,
-        // never mitigation. So we now always sample RSS + ctxt + frame
-        // time and always recompute. Cost: 2 syscalls/sec (read
-        // /proc/self/status + /proc/self/stat) + 1 isatty/min. Negligible.
+        // never mitigation. Always sample RSS + ctxt + frame time + recompute.
+        // Cost: 2 syscalls/sec + 1 isatty/min. Negligible.
         endurance_health.push_frame_time(work_s as f64 * 1000.0);
-        if perf_rss_samples % 60 == 0 {
+        if perf_rss_samples.is_multiple_of(60) {
             #[cfg(target_os = "linux")]
             {
                 let rss = super::intro::read_self_rss_kb();
@@ -1049,7 +1048,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Runs on the same slow tick (FD_HEALTH_PROBE_INTERVAL_FRAMES ≈
         // 60s at 60 FPS). Detects fd corruption BEFORE a write fails.
         // Cost: one isatty syscall per minute.
-        if perf_rss_samples % FD_HEALTH_PROBE_INTERVAL_FRAMES == 0 && !term.probe_stdout_health() {
+        if perf_rss_samples.is_multiple_of(FD_HEALTH_PROBE_INTERVAL_FRAMES)
+            && !term.probe_stdout_health()
+        {
             // Recovery attempted — GRACEFUL_SHUTDOWN is set.
             cloud.raining = false;
             break;
@@ -1063,7 +1064,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // On non-Linux or in containers without thermal sysfs, the
         // sampler returns None and the previous thermal_pressure value
         // is preserved (NOT reset to 0.0).
-        if perf_rss_samples % THERMAL_SAMPLER_INTERVAL_FRAMES == 0 {
+        if perf_rss_samples.is_multiple_of(THERMAL_SAMPLER_INTERVAL_FRAMES) {
             if let Some(p) = sample_thermal_pressure() {
                 power_manager.set_thermal_pressure(p);
             }

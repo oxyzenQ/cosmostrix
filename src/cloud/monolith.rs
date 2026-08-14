@@ -676,7 +676,7 @@ fn draw_spine_cell(
     }
     let line = line_i as u16;
     let cadence = tone.cadence.max(SPINE_PERIOD);
-    if (line + stream.col + segment_offset) % cadence != 0 {
+    if !(line + stream.col + segment_offset).is_multiple_of(cadence) {
         return;
     }
 
