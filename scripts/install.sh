@@ -31,7 +31,7 @@ Usage: $0 [--system|--user] [--force]
              Side effects when switching from --user to --system:
                - Stale user-local binary (~/.local/bin/${PROJECT_NAME}) is removed
                - Stale user-local systemd unit (~/.config/systemd/user/${PROJECT_NAME}.service) is removed
-               - System config (/etc/${PROJECT_NAME}/config.toml) is overwritten (no backup)
+               - System config (/etc/${PROJECT_NAME}/config.toml) is preserved unless --force is given
                - User-local config (~/.config/${PROJECT_NAME}/config.toml) is preserved if customized
 
   --user     Install to user-local (default, no sudo):
@@ -43,8 +43,11 @@ Usage: $0 [--system|--user] [--force]
              With --force: existing config is overwritten with the new template.
 
   --force    Overwrite existing config.toml without creating .new backup.
-             Applies to --user mode only (--system always overwrites).
-             DANGEROUS: destroys user customizations. Use with caution.
+             Applies to both --system and --user modes.
+             Without --force: if config exists, new template is installed
+             as config.new for manual review.
+             With --force: existing config is overwritten directly.
+             DANGEROUS: destroys customizations. Use with caution.
 
 CPU autodetect (Linux/x86-64 only):
   The build step auto-detects the CPU microarchitecture and picks the
@@ -232,15 +235,22 @@ case "${MODE}" in
         sudo mkdir -p "/etc/${PROJECT_NAME}"
         config_path="/etc/${PROJECT_NAME}/config.toml"
         if sudo test -f "${config_path}"; then
-            echo "   WARNING: Overwriting existing system config: ${config_path}"
-            echo "   No backup will be created (--system policy: avoid bloat)."
-            echo "   If you need the old config, abort now (Ctrl+C) and back it up manually."
-            sleep 2
+            if [[ ${FORCE} -eq 1 ]]; then
+                # --force: overwrite existing system config directly.
+                sudo "${BINARY}" --dump-config "${config_path}" 2>/dev/null
+                echo "   overwritten: ${config_path} (--force)"
+            else
+                # Existing config: write new template to .new for manual merge.
+                sudo "${BINARY}" --dump-config "${config_path}.new" 2>/dev/null
+                echo "   existing config preserved: ${config_path}"
+                echo "   new template installed at: ${config_path}.new (review and merge manually)"
+                echo "   use --force to overwrite without backup"
+            fi
+        else
+            # No existing config: write template directly.
+            sudo "${BINARY}" --dump-config "${config_path}" 2>/dev/null
+            echo "   installed: ${config_path}"
         fi
-        # Use --dump-config <path> directly (not stdout redirect, which is
-        # blocked by the safe-path security check).
-        sudo "${BINARY}" --dump-config "${config_path}" 2>/dev/null
-        echo "   installed: ${config_path}"
         # Preserve user-local config if customized; clean up if default.
         preserve_or_clean_user_config "${BINARY}"
         ;;

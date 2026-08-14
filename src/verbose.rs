@@ -405,9 +405,29 @@ pub(crate) fn print_verbose(
 
     // ── Config ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Config ──"));
-    let config_path = configfile::default_config_file_path();
-    output::eprintln_verbose("config_path:", &format!(" {}", config_path.display()));
-    output::eprintln_verbose("config exists:", &format!(" {}", config_path.exists()));
+    // Show the ACTUALLY-RESOLVED config path (falls back to system
+    // config at /etc/cosmostrix/config.toml when user config doesn't
+    // exist), not just the default user path. Without this, verbose
+    // output after a --system install misleadingly shows
+    // ~/.config/cosmostrix/config.toml with "config exists: false"
+    // even though /etc/cosmostrix/config.toml [exists] is in the
+    // candidates list and was actually used.
+    let resolved_config_path = if let Some(p) = config_path {
+        p.to_path_buf()
+    } else {
+        // Use resolve_watcher_config_path which implements the same
+        // multi-candidate fallback as load_config_file_full.
+        let (resolved, _) = configfile::resolve_watcher_config_path(None);
+        resolved
+    };
+    output::eprintln_verbose(
+        "config_path:",
+        &format!(" {}", resolved_config_path.display()),
+    );
+    output::eprintln_verbose(
+        "config exists:",
+        &format!(" {}", resolved_config_path.exists()),
+    );
     // v25.2 Termux fix: show ALL candidate paths the live-reload watcher
     // considers, so users can verify which file is being watched. This is
     // critical for Termux debugging where XDG_CONFIG_HOME may point to a

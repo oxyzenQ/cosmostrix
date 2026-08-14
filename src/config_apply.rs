@@ -86,17 +86,21 @@ pub(crate) fn apply_config_and_runtime_defaults(
     let parsed_cfg = crate::configfile::load_config_file_full(args.config.as_deref());
     let cfg = parsed_cfg.values;
     if args.verbose {
-        let config_path = args
+        // Show the ACTUALLY-RESOLVED config path (with system fallback),
+        // not just the default user path. After a --system install where
+        // only /etc/cosmostrix/config.toml exists, the default user path
+        // doesn't exist — showing it would be misleading.
+        let config_path_display = args
             .config
             .as_deref()
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_else(|| {
-                crate::configfile::default_config_file_path()
-                    .to_string_lossy()
-                    .into_owned()
+                let (resolved, _) =
+                    crate::configfile::resolve_watcher_config_path(args.config.as_deref());
+                resolved.to_string_lossy().into_owned()
             });
         crate::output::eprintln_verbose_raw(&format!(
-            "config loaded from: {config_path} ({} keys)",
+            "config loaded from: {config_path_display} ({} keys)",
             cfg.len()
         ));
         // List the actual keys so the user can see exactly what is set.
