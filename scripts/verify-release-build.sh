@@ -23,7 +23,7 @@ Profiles default to:
   pro-linux-v3 pro-linux-v4 pro-linux-musl
 
 The script builds Linux x86_64 release variants, prints binary sizes, runs
-safe variants with -i, verifies build metadata, and checks stripped status on
+safe variants with --doctor, verifies build metadata, and checks stripped status on
 Unix. x86-64-v4 is scanned without execution unless the host supports AVX-512F.
 EOF
 }
@@ -135,7 +135,7 @@ scan_binary() {
                 text="$(grep -aE 'linux_amd64|linux-amd64|x86-64-v|static optimized build|fat|unwind|yes' "$bin" || true)"
         fi
 
-        grep -Fq "$expected" <<<"$text" || fail "Missing embedded variant '$expected' in $bin"
+        grep -Fq "$expected" <<<"$text" || fail "Missing embedded build variant '$expected' in $bin"
         grep -Fq "$optimization" <<<"$text" || fail "Missing embedded optimization '$optimization' in $bin"
         grep -Fq "static optimized build" <<<"$text" || fail "Missing embedded dispatch metadata in $bin"
         grep -Fq "$baseline" <<<"$text" || fail "Missing embedded cpu_baseline '$baseline' in $bin"
@@ -157,25 +157,25 @@ verify_info_output() {
         local denied="$6"
         local out
 
-        out="$("$bin" -i)"
+        out="$("$bin" --doctor)"
         printf '%s\n' "$out"
 
-        grep -Eq "^  variant: ${expected}$" <<<"$out" || fail "Expected variant '$expected' in $bin -i output"
-        grep -Fqx "  optimization: ${optimization}" <<<"$out" || fail "Expected optimization: $optimization in $bin -i output"
-        grep -Eq '^  dispatch: static optimized build$' <<<"$out" || fail "Expected dispatch 'static optimized build' in $bin -i output"
-        grep -Eq "^  cpu_baseline: ${baseline}$" <<<"$out" || fail "Expected cpu_baseline: $baseline in $bin -i output"
-        grep -Eq '^  lto: fat$' <<<"$out" || fail "Expected lto: fat in $bin -i output"
-        grep -Eq '^  panic: unwind$' <<<"$out" || fail "Expected panic: unwind in $bin -i output"
-        grep -Eq '^  strip: yes$' <<<"$out" || fail "Expected strip: yes in $bin -i output"
+        grep -Eq "^  build: ${expected}$" <<<"$out" || fail "Expected build '$expected' in $bin --doctor output"
+        grep -Fqx "  optimization: ${optimization}" <<<"$out" || fail "Expected optimization: $optimization in $bin --doctor output"
+        grep -Eq '^  dispatch: static optimized build$' <<<"$out" || fail "Expected dispatch 'static optimized build' in $bin --doctor output"
+        grep -Eq "^  cpu_baseline: ${baseline}$" <<<"$out" || fail "Expected cpu_baseline: $baseline in $bin --doctor output"
+        grep -Eq '^  lto: fat$' <<<"$out" || fail "Expected lto: fat in $bin --doctor output"
+        grep -Eq '^  panic: unwind$' <<<"$out" || fail "Expected panic: unwind in $bin --doctor output"
+        grep -Eq '^  strip: yes$' <<<"$out" || fail "Expected strip: yes in $bin --doctor output"
         for feature in $required; do
-                grep -Eq "^  target_features: .*${feature}" <<<"$out" || fail "Expected target feature '$feature' in $bin -i output"
+                grep -Eq "^  target_features: .*${feature}" <<<"$out" || fail "Expected target feature '$feature' in $bin --doctor output"
         done
         for feature in $denied; do
                 if grep -Eq "^  target_features: .*${feature}" <<<"$out"; then
-                        fail "Unexpected target feature '$feature' in $bin -i output for $expected"
+                        fail "Unexpected target feature '$feature' in $bin --doctor output for $expected"
                 fi
         done
-        pass "-i metadata passed for $expected"
+        pass "--doctor metadata passed for $expected"
 }
 
 verify_stripped() {
