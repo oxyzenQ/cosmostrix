@@ -1486,7 +1486,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         cloud.droplet_density,
     );
 
-    eprintln!("{}", final_fps_line);
+    // AB-10: only print final FPS when --perf-stats is requested.
+    // Previously this always printed (v30 design), but owner considers
+    // it a verbose leak — without -v or --perf-stats, the user sees
+    // unexpected output after exit. Now gated by cfg.perf_stats.
+    if cfg.perf_stats {
+        eprintln!("{}", final_fps_line);
+    }
 
     Ok(())
 }
