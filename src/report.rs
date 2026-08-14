@@ -60,47 +60,71 @@ impl Report {
     ///   key: value
     /// ```
     pub(crate) fn print(&self) {
-        let supports_ansi = std::io::stdout().is_terminal()
-            && std::env::var_os("NO_COLOR").is_none()
+        self.emit(false);
+    }
+
+    /// Print the report to stderr.
+    ///
+    /// Use this when the report must survive an alt-screen restore (e.g.
+    /// `--perf-stats` post-loop output). stdout is captured by the alt
+    /// screen buffer and lost when `Terminal::drop()` restores the main
+    /// screen; stderr is not. This matches the AB-10 rain-screen
+    /// cleanliness pattern used by `final_fps_line` and `lr_trace!`.
+    pub(crate) fn eprint(&self) {
+        self.emit(true);
+    }
+
+    /// Shared emit logic for `print()` (stdout) and `eprint()` (stderr).
+    fn emit(&self, to_stderr: bool) {
+        let supports_ansi = if to_stderr {
+            std::io::stderr().is_terminal()
+        } else {
+            std::io::stdout().is_terminal()
+        } && std::env::var_os("NO_COLOR").is_none()
             && !matches!(std::env::var("CLICOLOR").ok().as_deref(), Some("0"));
 
         let rule: String = "\u{2500}".repeat(self.title.len());
 
+        let out_fn: fn(&str) = if to_stderr {
+            |s: &str| eprintln!("{s}")
+        } else {
+            |s: &str| println!("{s}")
+        };
+
         if supports_ansi {
-            println!(
+            out_fn(&format!(
                 "{}{}{}",
                 crate::output::brand_bold_open(),
                 self.title,
                 crate::output::reset()
-            );
+            ));
         } else {
-            println!("{}", self.title);
+            out_fn(&self.title);
         }
-        println!("{}", rule);
+        out_fn(&rule);
 
         let mut first = true;
         for section in &self.sections {
             if !first {
-                println!();
+                out_fn("");
             }
             first = false;
 
-            // v17: section headers in brand purple
             if supports_ansi {
-                println!(
+                out_fn(&format!(
                     "{}{}{}",
                     crate::output::brand_bold_open(),
                     section.name,
                     crate::output::reset()
-                );
+                ));
             } else {
-                println!("{}", section.name);
+                out_fn(&section.name);
             }
             for field in &section.fields {
-                println!("  {}: {}", field.key, field.value);
+                out_fn(&format!("  {}: {}", field.key, field.value));
             }
             for advice in &section.advice {
-                println!("  - {}", advice);
+                out_fn(&format!("  - {}", advice));
             }
         }
     }

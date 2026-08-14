@@ -92,6 +92,14 @@ pub(crate) fn finalize_session(
     let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
     let (tier2_skips, tier2_resets, tier2_bytes_since) = term.tier2_stats();
 
+    // AB-10: drop the terminal BEFORE any stderr write so the alt screen
+    // is restored and the final FPS line lands on the main screen, not
+    // polluting the rain matrix on exit.
+    drop(term);
+
+    // Print the perf report AFTER drop(term) — stdout is captured by the
+    // alt-screen buffer and lost when Terminal::drop() restores the main
+    // screen. Using eprint() (stderr) so the report survives the restore.
     if cfg.perf_stats {
         print_perf_report(
             stats,
@@ -106,11 +114,6 @@ pub(crate) fn finalize_session(
             tier2_bytes_since,
         );
     }
-
-    // AB-10: drop the terminal BEFORE any stderr write so the alt screen
-    // is restored and the final FPS line lands on the main screen, not
-    // polluting the rain matrix on exit.
-    drop(term);
 
     let final_color_name = format!("{:?}", cloud.color_scheme());
     super::set_final_state(
@@ -308,5 +311,5 @@ fn print_perf_report(
         s.field("bytes_since_last_ris", &tier2_bytes_since.to_string());
     }
 
-    r.print();
+    r.eprint(); // stderr — survives alt-screen restore (AB-10)
 }

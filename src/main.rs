@@ -549,7 +549,7 @@ fn main() -> std::io::Result<()> {
     // Users can still override with `--scene <name>` to benchmark any scene
     // (e.g. `cosmostrix --benchmark --scene cinematic`). The benchmark
     // report discloses the active scene + a disclaimer for non-monolith scenes.
-    let bench_mode = args.benchmark || args.bench_all;
+    let bench_mode = args.benchmark || args.bench_all || args.bench_frames.is_some();
     if bench_mode && args.scene.is_none() {
         args.scene = Some("monolith".to_string());
     }
