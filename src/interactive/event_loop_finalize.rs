@@ -169,7 +169,10 @@ fn print_perf_report(
     {
         let s = r.section("TIMING");
         s.field("elapsed", &format!("{:.3}s", elapsed_s));
-        s.field("target_fps", &format!("{:.3}", stats.power_manager_base_target_fps));
+        s.field(
+            "target_fps",
+            &format!("{:.3}", stats.power_manager_base_target_fps),
+        );
         s.field("avg_fps", &format!("{:.3}", avg_fps));
         // v30: real instantaneous FPS from last ~1s of frame work times.
         // Capped at target_fps (loop sleeps to maintain target). Read

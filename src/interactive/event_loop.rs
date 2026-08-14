@@ -22,6 +22,7 @@ use super::activity::{register_activity, spin_wait, FrameTimeTracker};
 use super::adaptive::{
     adaptive_resync_interval, EnduranceHealth, PerformanceSelfHealer, ReclaimState, SelfHealAction,
 };
+use super::event_loop_finalize::{finalize_session, SessionStats};
 use super::hud::{FrameMode, HudState};
 use super::input::{handle_keybinding, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
@@ -58,7 +59,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
-    cloud.enable_events(); // atmospheric events for interactive mode
+    cloud.enable_events();
     // P1: per-component timing only when --perf-stats (skips 2 Instant::now()
     // per frame when off, ~40ns saved).
     cloud.set_component_timing(cfg.perf_stats);
@@ -1172,11 +1173,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     }
 
     // Post-loop finalization extracted to event_loop_finalize.rs (file-cap
-    // compliance). Bundles the shutdown signal, final FPS line, perf report,
-    // terminal drop (AB-10), and final-state handoff into one call. The
-    // struct is the read-only snapshot of all perf counters + borrowed
-    // tracker refs needed by the report.
-    let stats = super::event_loop_finalize::SessionStats {
+    // compliance). Bundles shutdown signal, final FPS line, perf report,
+    // terminal drop (AB-10), final-state handoff.
+    let stats = SessionStats {
         start_time,
         perf_frames,
         perf_drawn_frames,
@@ -1196,5 +1195,5 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         endurance_health_score: endurance_health.score(),
         endurance_health_classification: endurance_health.classification(),
     };
-    super::event_loop_finalize::finalize_session(&stats, term, &cloud, &scene_name, &charset_preset, cfg)
+    finalize_session(&stats, term, &cloud, &scene_name, &charset_preset, cfg)
 }

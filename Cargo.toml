@@ -161,7 +161,7 @@ strip = false
 excessive_precision = "allow"
 
 [dev-dependencies]
-proptest = "1.8.0"
+proptest = "1.5.0"
 
 
 # Platform-specific optimizations

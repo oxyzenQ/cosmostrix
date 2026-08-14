@@ -170,11 +170,7 @@ pub(crate) fn trace_config_diff(
                 );
             }
             if !added.is_empty() {
-                crate::lr_trace!(
-                    "config diff [added {}]: {}",
-                    added.len(),
-                    added.join(", ")
-                );
+                crate::lr_trace!("config diff [added {}]: {}", added.len(), added.join(", "));
             }
             if !removed.is_empty() {
                 crate::lr_trace!(
@@ -184,9 +180,7 @@ pub(crate) fn trace_config_diff(
                 );
             }
             if changed.is_empty() && added.is_empty() && removed.is_empty() {
-                crate::lr_trace!(
-                    "config diff: no field-level changes (whitespace/comment edit)"
-                );
+                crate::lr_trace!("config diff: no field-level changes (whitespace/comment edit)");
             }
         }
     }

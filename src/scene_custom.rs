@@ -586,24 +586,19 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 ///
 /// Format: `"1.0,0.5,0.0,0.8,..."` — weights in `[0.0, 1.0]` (out-of-range
 /// clamped). Empty/whitespace entries skipped. Returns `None` if no valid
-/// numbers. The slice is `'static` (process lifetime). v30: leak is
-/// deduplicated by content via a global `OnceLock<HashMap<String, &'static
-/// [f64]>>` — repeated live-reloads of the same string return the same slice.
-/// Total leaked memory bounded by the number of distinct density-map strings.
+/// numbers. The slice is `'static`. v30: leak is deduplicated by content
+/// via a global `OnceLock<HashMap<String, &'static [f64]>>`.
 #[must_use]
 pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
     // v30 fix: accept BOTH unquoted (`0.05,0.3,1.0`) and quoted
     // (`"0.05,0.3,1.0"`) CSV. The configfile parser is a custom line-by-line
-    // parser (not real TOML) and does NOT strip surrounding quotes. Earlier,
-    // only the unquoted form worked; quoted silently failed --testconf.
-    // Now we normalize by stripping a single pair of `"` (or `'`) before
-    // splitting, matching colors_custom + charset_custom.
+    // parser (not real TOML) and does NOT strip surrounding quotes — quoted
+    // silently failed --testconf. Now we strip a single pair of `"` (or `'`)
+    // before splitting, matching colors_custom + charset_custom.
     let csv = csv.trim().trim_matches('"').trim_matches('\'').trim();
 
-    // Dedup cache: maps normalized CSV → parsed &'static slice. First call
-    // leaks the slice; subsequent calls return it without re-leaking.
-    // Keyed on the normalized (quote-stripped) string so `"0.5,0.5"` and
-    // `0.5,0.5` share one entry.
+    // Dedup cache: maps normalized CSV → parsed &'static slice. Keyed on the
+    // quote-stripped string so `"0.5,0.5"` and `0.5,0.5` share one entry.
     static DENSITY_MAP_CACHE: OnceLock<std::sync::Mutex<HashMap<String, &'static [f64]>>> =
         OnceLock::new();
     let cache = DENSITY_MAP_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
@@ -615,11 +610,17 @@ pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
             .split(',')
             .filter_map(|s| {
                 let s = s.trim();
-                if s.is_empty() { return None; }
+                if s.is_empty() {
+                    return None;
+                }
                 s.parse::<f64>().ok().map(|v| v.clamp(0.0, 1.0))
             })
             .collect();
-        if weights.is_empty() { None } else { Some(weights) }
+        if weights.is_empty() {
+            None
+        } else {
+            Some(weights)
+        }
     };
 
     // v50 poison-safe lock: never propagate a poisoned mutex as a panic.
