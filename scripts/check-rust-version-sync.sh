@@ -33,7 +33,7 @@ if [ -z "$FULL_VERSION" ]; then
 fi
 
 # Extract major.minor (strip patch) for MSRV comparison
-MSRV_EXPECTED=$(echo "$FULL_VERSION" | sed 's/\([0-9]*\.[0-9]*\)\..*/\1/')
+MSRV_EXPECTED="${FULL_VERSION%.*}"
 if [ -z "$MSRV_EXPECTED" ]; then
     echo "FAIL: could not derive MSRV from full version '$FULL_VERSION'"
     exit 1
