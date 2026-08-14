@@ -22,7 +22,7 @@ use std::io::{Result, Write};
 
 use crossterm::{
     style::{Color, SetBackgroundColor},
-    terminal as crossterm_terminal, QueueableCommand,
+    QueueableCommand,
 };
 
 use crate::bolt::{BOLD_ESCAPES, BOLD_ESCAPE_LENS};
@@ -63,16 +63,16 @@ impl Terminal {
             .unwrap_or((true, true));
 
         if needs_clear {
-            // v16: If the frame has a bg color, set it BEFORE Clear(All)
-            // so cleared cells get the correct bg. Without this, Clear(All)
-            // fills with terminal default bg (None), creating visible gaps
-            // at screen edges.
+            // Scrollback-safe: avoid Clear(ClearType::All) inside the
+            // alternate screen — \x1b[2J can set an internal flag on
+            // VTE-based terminals that clears the main screen's scrollback
+            // when LeaveAlternateScreen is later called. Instead, set the
+            // bg color and let the full redraw below overwrite every cell.
+            // (do_full_redraw will be true when needs_clear is true, so
+            // every cell gets written regardless.)
             if let Some(bg) = frame.blank.bg {
                 self.stdout.queue(SetBackgroundColor(bg))?;
             }
-            self.stdout.queue(crossterm_terminal::Clear(
-                crossterm_terminal::ClearType::All,
-            ))?;
         }
 
         let can_reuse_last = !needs_full_redraw && self.last.is_some();

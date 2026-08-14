@@ -261,9 +261,22 @@ impl Terminal {
             }
             out.execute(SetAttribute(Attribute::Reset))?;
             out.execute(ResetColor)?;
-            out.execute(crossterm_terminal::Clear(
-                crossterm_terminal::ClearType::All,
-            ))?;
+            // Scrollback-safe init: avoid Clear(ClearType::All) inside the
+            // alternate screen. On VTE-based terminals (GNOME Terminal,
+            // xfce4-terminal, etc.), \x1b[2J issued while in the alternate
+            // screen can set an internal flag that causes the main screen's
+            // scrollback to be cleared when LeaveAlternateScreen is later
+            // called. Instead, fill the alternate screen by writing spaces
+            // to every cell — this achieves the same visual result without
+            // risking scrollback destruction.
+            {
+                let (w, h) = crossterm_terminal::size().unwrap_or((80, 24));
+                let spaces = " ".repeat(w as usize);
+                for y in 0..h {
+                    let _ = out.execute(cursor::MoveTo(0, y));
+                    let _ = out.write_all(spaces.as_bytes());
+                }
+            }
             out.flush()?;
             Ok(())
         })();
@@ -729,16 +742,16 @@ impl Terminal {
             self.alternate_screen_enabled = false;
         } else if !self.term_caps.has_alternate_screen {
             // No alternate screen was entered (terminal doesn't support it).
-            // We ran on the main screen directly. Clear the visible rain
-            // from the screen so the user gets a clean shell prompt, but
-            // do NOT purge scrollback — move cursor home and clear only
-            // the visible viewport (\x1b[H\x1b[2J clears visible screen
-            // without touching scrollback on most terminals; \x1b[3J would
-            // purge scrollback and must NOT be used).
-            let _ = self.stdout.execute(cursor::MoveTo(0, 0));
-            let _ = self
-                .stdout
-                .execute(crossterm_terminal::Clear(crossterm_terminal::ClearType::All));
+            // We ran on the main screen directly. Scrollback-safe exit:
+            // do NOT issue Clear(All) — \x1b[2J can clear scrollback on
+            // many terminals (VTE-based, Alacritty < 0.12, some xterm
+            // configs). Instead, just move the cursor below the viewport
+            // so the shell prompt appears on a clean line. The rain
+            // rendering scrolls into scrollback naturally, which is the
+            // expected behavior — previous command output is preserved.
+            let (_w, h) = crossterm_terminal::size().unwrap_or((80, 24));
+            let _ = self.stdout.execute(cursor::MoveTo(0, h.saturating_sub(1)));
+            let _ = self.stdout.write_all(b"\n\n");
         }
 
         // explicitly disable synchronized output (ESC[?2026l).

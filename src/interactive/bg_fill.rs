@@ -20,13 +20,16 @@ pub(crate) fn fill_terminal_bg(bg: Option<Color>) {
     use crossterm::cursor::MoveTo;
     use crossterm::execute;
     use crossterm::style::SetBackgroundColor;
-    use crossterm::terminal;
     use std::io::Write;
     let mut out = std::io::stdout();
-    // Set bg + clear screen first (fast path for terminals that respect it)
+    // Set bg color, then write spaces to every cell.
+    // Scrollback-safe: avoid Clear(ClearType::All) here — issuing \x1b[2J
+    // inside the alternate screen can set an internal flag on VTE-based
+    // terminals that causes the main screen's scrollback to be cleared
+    // when LeaveAlternateScreen is later called. The space-fill loop
+    // below already covers every cell, so Clear(All) is redundant.
     let _ = execute!(out, SetBackgroundColor(bg));
-    let _ = execute!(out, terminal::Clear(terminal::ClearType::All));
-    // Then actively write spaces to every row to guarantee coverage.
+    // Write spaces to every row to guarantee coverage.
     let (w, h) = crossterm::terminal::size().unwrap_or((80, 24));
     let spaces = " ".repeat(w as usize);
     for y in 0..h {
