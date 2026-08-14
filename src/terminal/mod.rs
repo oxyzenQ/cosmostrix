@@ -177,7 +177,7 @@ pub(crate) struct Terminal {
     /// Tier 2: # of RIS reset emissions. Reported in `--perf-stats`
     /// exit summary. Reset only by restart.
     ris_resets: u64,
-    /// v30.6: true when the most recent `flush_ansi` suppressed the flush
+    /// true when the most recent `flush_ansi` suppressed the flush
     /// due to byte-budget backpressure. Reset on next successful write.
     /// The event loop injects a synthetic `write_overshoot` from this —
     /// otherwise suppression masks itself (no write → stale latency →
@@ -341,7 +341,7 @@ impl Terminal {
             if should_backpressure(window_sum, self.bytes_since_ris) {
                 self.backpressure_skips += 1;
                 self.byte_window.push(0);
-                // v30.6: signal backpressure so the event loop injects
+                // signal backpressure so the event loop injects
                 // a synthetic write_overshoot (otherwise suppression
                 // masks itself: no write → stale latency → no
                 // perf_pressure → self-healer never fires).
@@ -382,7 +382,7 @@ impl Terminal {
                     self.byte_window.push(frame_bytes);
                     self.bytes_since_ris += frame_bytes;
                 }
-                // v30.6: clear backpressure flag (this flush went through).
+                // clear backpressure flag (this flush went through).
                 self.last_flush_suppressed = false;
                 Ok(())
             }
@@ -657,7 +657,7 @@ impl Terminal {
         self.last_write_ns
     }
 
-    /// v30.6: true when the most recent `flush_ansi` suppressed the flush
+    /// true when the most recent `flush_ansi` suppressed the flush
     /// due to byte-budget backpressure. Used by the event loop to inject
     /// a synthetic `write_overshoot` so the self-healer fires. Reset on
     /// next successful write.
@@ -706,7 +706,7 @@ impl Terminal {
             let _ = self.stdout.execute(crossterm_terminal::EnableLineWrap);
             self.line_wrap_disabled = false;
         }
-        // v31.1: REMOVED Clear(All) before LeaveAlternateScreen.
+        // REMOVED Clear(All) before LeaveAlternateScreen.
         //
         // v16 added MoveTo(0,0)+Clear(All) before LeaveAlternateScreen to
         // prevent rain residue from bleeding onto the main screen during the
@@ -725,7 +725,7 @@ impl Terminal {
                 .execute(crossterm_terminal::LeaveAlternateScreen);
             self.alternate_screen_enabled = false;
         }
-        // v31.1: explicitly disable synchronized output (ESC[?2026l).
+        // explicitly disable synchronized output (ESC[?2026l).
         // Each frame ends with SYNC_END, but if the last write failed or
         // was partial, sync mode could be stuck on — causing the terminal
         // to buffer all output invisibly after LeaveAlternateScreen.

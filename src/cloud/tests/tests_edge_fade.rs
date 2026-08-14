@@ -327,14 +327,14 @@ fn high_speed_bottom_edge_cells_clear_bounded() {
     );
 }
 
-// ─── v30.2 masterclass: rain shadow floor + SSOT compounded brightness ──────
+// ───  masterclass: rain shadow floor + SSOT compounded brightness ──────
 //
-// The following tests guard the v30.2 retune:
+// The following tests guard the  retune:
 // 1. rain_shadow_factor floors at RAIN_SHADOW_FLOOR (0.50) instead of 0.0
 // 2. crt_vignette_factor (extracted SSOT) returns expected smoothstep
 // 3. compounded_brightness models all 4 dimming effects multiplicatively
 //
-// These tests are the regression contract for the v30.2 audit fix. If
+// These tests are the regression contract for the  audit fix. If
 // any of them fail, the bottom-row invisibility bug (compounded brightness
 // at 0.08-0.11 = 89-92% dim) has regressed. See
 // `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect compounding
@@ -342,8 +342,8 @@ fn high_speed_bottom_edge_cells_clear_bounded() {
 
 #[test]
 fn rain_shadow_factor_floors_at_rain_shadow_floor() {
-    // The pre-v30.2 curve faded to 0.0 (full black) at the bottom row.
-    // v30.2 caps the floor at RAIN_SHADOW_FLOOR (0.50) so the compounded
+    // The previously curve faded to 0.0 (full black) at the bottom row.
+    // caps the floor at RAIN_SHADOW_FLOOR (0.50) so the compounded
     // bottom-row brightness stays above the rain-visibility threshold
     // (~10%) when shadow multiplies with edge fade + radial vignette +
     // CRT vignette.
@@ -389,7 +389,7 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
     let bottom = rain_shadow_factor(lines - 1, lines);
     assert!(
         (bottom - expected_bottom).abs() < 0.001,
-        "bottom row shadow factor should be {} (t={}, v30.2 remapped), got {}",
+        "bottom row shadow factor should be {} (t={},  remapped), got {}",
         expected_bottom,
         bottom_t,
         bottom
@@ -445,10 +445,10 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
 
 #[test]
 fn rain_shadow_factor_curve_shape_preserved_by_floor_remapping() {
-    // v30.2 linearly remaps the quadratic `1 - t^2` from [0, 1] to
+    // linearly remaps the quadratic `1 - t^2` from [0, 1] to
     // [RAIN_SHADOW_FLOOR, 1.0]. The curve SHAPE (slow start, accelerating
     // fade) must be preserved — only the floor moves. Verify by checking
-    // that the v30.2 curve is monotonically decreasing across the shadow
+    // that the  curve is monotonically decreasing across the shadow
     // zone and that the midpoint matches the expected remapped value.
     use crate::droplet::rain_shadow_factor;
 
@@ -578,10 +578,10 @@ fn crt_vignette_factor_skipped_on_short_terminal() {
 
 #[test]
 fn compounded_brightness_bottom_row_above_visibility_threshold() {
-    // THE v30.2 REGRESSION GUARD: the bottom row of an 80x40 terminal
+    // THE  REGRESSION GUARD: the bottom row of an 80x40 terminal
     // must stay above the rain-visibility threshold (~10%) after all 4
-    // dimming effects compound. Pre-v30.2 the compounded brightness was
-    // 0.080 (8%, rain invisible); v30.2's RAIN_SHADOW_FLOOR cap brings
+    // dimming effects compound. Pre- the compounded brightness was
+    // 0.080 (8%, rain invisible); RAIN_SHADOW_FLOOR cap brings
     // it to ~0.172 at the corner / ~0.241 at the center (rain visible).
     //
     // The threshold of 0.10 is the perceptual floor — anything below
@@ -598,7 +598,7 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
         let brightness = compounded_brightness(col, lines - 1, cols, lines, layer);
         assert!(
             brightness >= visibility_floor,
-            "bottom row col {} compounded brightness {} should be >= visibility floor {} (v30.2 RAIN_SHADOW_FLOOR regression)",
+            "bottom row col {} compounded brightness {} should be >= visibility floor {} ( RAIN_SHADOW_FLOOR regression)",
             col,
             brightness,
             visibility_floor
@@ -614,7 +614,7 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
     let bottom_center = compounded_brightness(cols / 2, lines - 1, cols, lines, layer);
     assert!(
         (bottom_center - 0.241).abs() < 0.005,
-        "bottom-center compounded brightness {} should be ~0.241 (documented v30.2 target)",
+        "bottom-center compounded brightness {} should be ~0.241 (documented  target)",
         bottom_center
     );
 
@@ -625,7 +625,7 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
         let brightness = compounded_brightness(col, lines - 1, cols, lines, layer);
         assert!(
             (brightness - 0.172).abs() < 0.005,
-            "bottom-corner col {} compounded brightness {} should be ~0.172 (documented v30.2 target)",
+            "bottom-corner col {} compounded brightness {} should be ~0.172 (documented  target)",
             col,
             brightness
         );
@@ -634,9 +634,9 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
 
 #[test]
 fn compounded_brightness_top_row_visible() {
-    // The top row should remain visibly dim (not destroyed). The v30.1
+    // The top row should remain visibly dim (not destroyed). The
     // retune targeted a compounded top brightness of ~0.53 (visible
-    // cinematic fade-in). v30.2 doesn't change the top row (no shadow
+    // cinematic fade-in).  doesn't change the top row (no shadow
     // applies there) — this test guards against accidental regressions
     // in the CRT vignette or edge fade constants that would push the
     // top row below the visibility floor.
@@ -650,7 +650,7 @@ fn compounded_brightness_top_row_visible() {
     let top_center = compounded_brightness(cols / 2, 0, cols, lines, layer);
     assert!(
         top_center >= 0.30,
-        "top-center compounded brightness {} should be >= 0.30 (documented v30.1 target ~0.53)",
+        "top-center compounded brightness {} should be >= 0.30 (documented  target ~0.53)",
         top_center
     );
 

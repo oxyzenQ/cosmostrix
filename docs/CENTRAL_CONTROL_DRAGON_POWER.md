@@ -41,7 +41,7 @@ This doc is the complete map of that directory:
 - The thermal guard input API (feature #13) — what is ready, what
   is pending
 - How to tune thresholds without surprising the adaptive layer
-- The migration history (v30.6 → v30.7 → v30.8)
+- The migration history (power audit consolidation → directory module → PowerManager)
 
 ---
 
@@ -66,7 +66,7 @@ file declares it. No call-site changes are needed when a constant
 moves between `constants.rs` and `central_control_dragon_power/mod.rs`.
 
 `src/interactive/adaptive.rs` was the original home of P1/P2/P4/P5
-plus the self-healer (1105 LOC in v30.5). It is now a 93-LOC thin
+plus the self-healer (1105 LOC originally). It is now a 93-LOC thin
 shim that only re-exports the same public items from
 `central_control_dragon_power`. New code should depend on
 `crate::central_control_dragon_power::*` directly; the shim exists
@@ -111,13 +111,13 @@ remain coordinated by their existing mechanisms.
 
 ### Zone 1 — FPS / frame_period (4 writers → 1 owner)
 
-**Before v30.8:** four independent writers competed for the frame
+**Previously:** four independent writers competed for the frame
 period: dynamic-default-fps (startup), xterm.js cap (Tier 1),
 adaptive throttling (idle × 0.5), and the self-healer (low-power
 scene fps=30). Each writer updated its own `Duration` local in
 `event_loop.rs` and the resolution order was implicit.
 
-**After v30.8:** `PowerManager::effective_fps(paused)` is the single
+**After migration:** `PowerManager::effective_fps(paused)` is the single
 owner. The 4-writer cascade is collapsed into one method that
 resolves in this order:
 
@@ -144,12 +144,12 @@ hard the renderer is working), so it stays outside `PowerManager`.
 
 ### Zone 3 — Spawn rate / density (4 multipliers → 1 input)
 
-**Before v30.8:** four layered multipliers in `cloud/rain.rs`
+**Previously:** four layered multipliers in `cloud/rain.rs`
 competed for spawn rate: `perf_pressure` clamp, entropy, profile, and
 gust. None were aware of each other, and `perf_pressure` was a local
 variable in `event_loop.rs` updated by inline math.
 
-**After v30.8:** `PowerManager::effective_pressure()` is the single
+**After migration:** `PowerManager::effective_pressure()` is the single
 read API for `perf_pressure`. The 4-multiplier cascade in
 `cloud/rain.rs` is unchanged (it composes multiplicatively by
 design), but it now reads from one source. Any future consumer of
@@ -603,19 +603,19 @@ range. The clamping is defensive: a misbehaving sampler cannot push
 
 ## 10. Calibration history
 
-- **v30.6 (power audit consolidation)**: extracted all power
+- **Power audit consolidation**: extracted all power
   management constants from `constants.rs` into
   `central_control_dragon_power.rs` (flat file, 437 LOC). Established
   single source of truth. Added `PowerThresholds` struct as the
   foundation for a future `PowerManager` coordinator.
-- **v30.7 (Phase 2 migration)**: converted the flat file to a
+- **Phase 2 (directory module migration)**: converted the flat file to a
   directory module. Behavior code (PhasePredictor, ReclaimState,
   EnduranceHealth, PerformanceSelfHealer, SelfHealAction) moved
   from `src/interactive/adaptive.rs` (1105 LOC) into submodules.
   `interactive/adaptive.rs` became a 93-LOC thin re-export shim.
   Layout mirrors `central_control_rains.rs` extended to a directory
   module.
-- **v30.8 (Phase 3 PowerManager)**: added `power_manager.rs`
+- **Phase 3 (PowerManager coordinator)**: added `power_manager.rs`
   submodule. `PowerManager` is the unified coordinator owning
   `perf_pressure` accumulation, `is_idle` detection, and effective
   FPS resolution. Exposes `effective_pressure()` /
@@ -640,7 +640,7 @@ range. The clamping is defensive: a misbehaving sampler cannot push
 
 ## 11. Future work
 
-**Thermal sensor sampling (feature #13) — COMPLETED v30.9.** The
+**Thermal sensor sampling (feature #13) — COMPLETED.** The
 Linux sampler is implemented in `thermal_sampler.rs` and wired into
 `event_loop.rs`. It reads `/sys/class/thermal/thermal_zone*/temp`,
 picks the hottest zone, normalizes to 0.0–1.0 via a linear ramp
@@ -652,7 +652,7 @@ Platform support: Linux only. macOS SMC and Windows WMI samplers are
 future work — on those platforms the sampler returns `None` and the
 thermal input stays at 0.0 (no behavior change).
 
-**`PerformanceSelfHealer` threshold migration — COMPLETED v30.9.**
+**`PerformanceSelfHealer` threshold migration — COMPLETED.**
 The self-healer now reads all 6 P1 + P2 thresholds from
 `self.thresholds: PowerThresholds` instead of from the standalone
 constants. The struct is the sole consumer-facing API; the standalone
@@ -671,7 +671,7 @@ uses `gradient_from_stops_oklab`) and the base shader applies Bayer
 `to_palette_routes_through_oklab_polar_engine` test verifies the
 routing. No further work needed.
 
-**Stale FPS references in config template — COMPLETED v30.9.** The
+**Stale FPS references in config template — COMPLETED.** The
 config template (`configfile.rs:603-609`), `docs/BENCHMARKING.md`,
 and `docs/RELEASE_CANDIDATE.md` now document the dynamic default
 (60 FPS standard, 144 FPS high-refresh) instead of the stale
@@ -688,10 +688,10 @@ The dragon power module specifically contributes:
 - `phase_predictor.rs`: 5 tests
 - `reclaim_state.rs`: 5 tests
 - `endurance_health.rs`: 5 tests
-- `self_healer.rs`: 18 tests (15 original + 3 v30.9 migration tests)
+- `self_healer.rs`: 18 tests (15 original + 3 migration tests)
 - `power_manager.rs`: 25 tests
-- `thermal_sampler.rs`: 9 tests (v30.9)
-- `audit_tests.rs`: 13 integration tests (v30.9 — end-to-end contract)
+- `thermal_sampler.rs`: 9 tests
+- `audit_tests.rs`: 13 integration tests (end-to-end contract)
 - `mod.rs`: 10 tests (PowerThresholds + constant sanity + thermal constants)
 
 Total: 90 tests directly exercising the dragon power module.
@@ -701,7 +701,7 @@ clean. The module is at 2820 LOC across 7 files, well under the
 1500-LOC-per-file cap (largest file: `power_manager.rs` at 736
 LOC).
 
-The `audit_tests.rs` file (v30.9) is the "not a gimmick" verification
+The `audit_tests.rs` file is the "not a gimmick" verification
 — 13 integration tests that exercise the public API contract end-to-end:
 thermal input flows to every `effective_pressure()` read, self-healer
 reads from `PowerThresholds` (not constants), frame lifecycle is stable

@@ -51,7 +51,7 @@ pub struct CloudConfig {
     pub message: Option<String>,
     pub message_border: bool,
     pub target_fps: f64,
-    /// v35.2 (FPS-F1): xterm.js host + 30 FPS cap, copied from `TerminalCaps`
+    /// (FPS-F1): xterm.js host + 30 FPS cap, copied from `TerminalCaps`
     /// at startup so the event loop's live-reload path can re-apply the cap
     /// when the user edits `fps =` in config.toml. See `resolve_capped_fps`.
     pub(crate) xtermjs_host: bool,
@@ -163,7 +163,7 @@ pub(crate) struct CliExplicit {
 }
 
 impl CloudConfig {
-    /// v35.2 (FPS-F1): resolve `target_fps` for live-reload, re-applying
+    /// (FPS-F1): resolve `target_fps` for live-reload, re-applying
     /// the xterm.js 30 FPS cap. Without this, a user in VSCode could edit
     /// `fps = 240` in config.toml and resurrect the multi-hour OOM crash
     /// Tier 2 was designed to prevent. Native terminals have
@@ -365,7 +365,7 @@ impl CloudConfig {
 /// - Never amplifies above 1.0 — the per-column model is already scale-
 ///   invariant, so amplification was always a bug.
 ///
-/// v25.0.0-alpha.3: the legacy `--fullwidth` parameter (which doubled the
+/// .0-alpha.3: the legacy `--fullwidth` parameter (which doubled the
 /// column stride for monolith streams) was removed. The `fullwidth` flag
 /// is gone, so this function no longer needs a `fullwidth` parameter —
 /// columns are always single-width (the Cosmic Dragon principle forbids

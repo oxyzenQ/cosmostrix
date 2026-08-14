@@ -71,21 +71,21 @@ pub(crate) fn sanitize_message_text(input: &str) -> String {
 mod tests {
     use super::sanitize_message_text;
 
-    /// v25.11 (bug #11): ASCII-only messages pass through unchanged.
+    /// (bug #11): ASCII-only messages pass through unchanged.
     #[test]
     fn sanitize_preserves_ascii_message() {
         let input = "Hello World! 0123 #hash $var";
         assert_eq!(sanitize_message_text(input), input);
     }
 
-    /// v25.11 (bug #11): newlines are preserved (needed for multi-line `-m`).
+    /// (bug #11): newlines are preserved (needed for multi-line `-m`).
     #[test]
     fn sanitize_preserves_newlines() {
         let input = "Line1\nLine2\nLine3";
         assert_eq!(sanitize_message_text(input), input);
     }
 
-    /// v25.11 (bug #11): wide CJK chars replaced with '?'.
+    /// (bug #11): wide CJK chars replaced with '?'.
     /// Without this, "世界" (2 chars, 4 cells) breaks the 1-char-1-cell
     /// invariant in the message box layout, causing rain to the right
     /// of the box to glitch.
@@ -95,21 +95,21 @@ mod tests {
         assert_eq!(result, "Hello ??");
     }
 
-    /// v25.11 (bug #11): emoji replaced with '?'.
+    /// (bug #11): emoji replaced with '?'.
     #[test]
     fn sanitize_replaces_emoji() {
         let result = sanitize_message_text("Galaxy 🌌 emoji");
         assert_eq!(result, "Galaxy ? emoji");
     }
 
-    /// v25.11 (bug #11): control chars (except \n) stripped.
+    /// (bug #11): control chars (except \n) stripped.
     #[test]
     fn sanitize_strips_control_chars() {
         let result = sanitize_message_text("Tab\there\x07bell");
         assert_eq!(result, "Tabherebell");
     }
 
-    /// v25.11 (bug #11): mixed content — ASCII passes, wide/control filtered.
+    /// (bug #11): mixed content — ASCII passes, wide/control filtered.
     #[test]
     fn sanitize_handles_mixed_content() {
         let result = sanitize_message_text("Hello 世界 🌌 αβγ #hash $var");
@@ -117,7 +117,7 @@ mod tests {
         assert_eq!(result, "Hello ?? ? αβγ #hash $var");
     }
 
-    /// v25.11 (bug #11): empty message stays empty.
+    /// (bug #11): empty message stays empty.
     #[test]
     fn sanitize_handles_empty_message() {
         assert_eq!(sanitize_message_text(""), "");

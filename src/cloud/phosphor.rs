@@ -377,7 +377,7 @@ impl Cloud {
                 self.phosphor_base_ch[pidx] = '\0';
                 if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                     let factor = self.phosphor[pidx] as f32 / 255.0;
-                    // v30.3 (chroma audit, A18): sub-threshold ghost
+                    // (chroma audit, A18): sub-threshold ghost
                     // brightness -- shared helper routes through chroma
                     // engine when active, chroma::legacy::scale_rgb
                     // otherwise. Matches the A1-A17 is_chroma() branch
@@ -401,7 +401,7 @@ impl Cloud {
 
             if let Some(base_fg) = self.phosphor_base_fg[pidx] {
                 let factor = self.phosphor[pidx] as f32 / 255.0;
-                // v30.3 (chroma audit, A19): main ghost brightness (visible
+                // (chroma audit, A19): main ghost brightness (visible
                 // trail) -- shared helper, same as A18. The branch exists
                 // for audit symmetry with the A1-A17 sites in droplet.rs.
                 let ghost_fg =
@@ -436,7 +436,7 @@ impl Cloud {
             } else if self.phosphor_base_ch[pidx] != '\0' {
                 let factor = self.phosphor[pidx] as f32 / 255.0;
                 let ghost_ch = self.phosphor_base_ch[pidx];
-                // v30.3 (chroma audit, A20): orphan trail fallback (rare
+                // (chroma audit, A20): orphan trail fallback (rare
                 // path -- no base_fg stored, derive from palette's first
                 // stop). Shared helper, same as A18/A19; factor is
                 // multiplied by 0.6 to dim the orphan trail relative to
@@ -577,7 +577,7 @@ impl Cloud {
                             let fidx = line as usize * width as usize + col as usize;
                             let cell = frame.cell_at_index(fidx);
                             if let Some(fg) = cell.fg {
-                                // v30.3 (chroma audit, A21): LuminanceSurge
+                                // (chroma audit, A21): LuminanceSurge
                                 // halo -- shared helper routes through chroma
                                 // engine when active, chroma::legacy fallback
                                 // otherwise. Matches the A1-A20 pattern.
@@ -691,7 +691,7 @@ impl Cloud {
                                 let fidx = line as usize * width as usize + col as usize;
                                 let cell = frame.cell_at_index(fidx);
                                 if let Some(fg) = cell.fg {
-                                    // v30.3 (chroma audit, A22): PulseWave
+                                    // (chroma audit, A22): PulseWave
                                     // halo -- shared helper (same as A21),
                                     // palette-derived hue-cycled target.
                                     let brightened = anomaly_halo_blend(

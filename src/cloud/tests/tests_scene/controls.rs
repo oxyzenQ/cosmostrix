@@ -87,7 +87,7 @@ fn unknown_scene_does_not_change_state() {
     assert_eq!(result, "binary");
 }
 
-/// v35.2 audit-test (FPS-F2/F3 contract): `apply_scene_runtime("low-power")`
+/// audit-test (FPS-F2/F3 contract): `apply_scene_runtime("low-power")`
 /// applies the scene's `speed`/`density`/`color`/`charset`/`glitch_level`
 /// at runtime, but NOT its `fps` field. Cloud does not own `target_fps` —
 /// it lives on `PowerManager` in `event_loop.rs`, which is NOT mutated by

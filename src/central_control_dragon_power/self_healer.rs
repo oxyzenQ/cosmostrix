@@ -90,7 +90,7 @@ pub(crate) enum SelfHealAction {
 /// See the module-level docs for the state machine diagram and the P2
 /// evaluation order rationale.
 ///
-/// v30.9: the healer now reads thresholds from a `PowerThresholds`
+/// the healer now reads thresholds from a `PowerThresholds`
 /// instance (constructed via `PowerThresholds::defaults()`). The
 /// standalone constants in `mod.rs` remain as the canonical values that
 /// `defaults()` copies.
@@ -554,7 +554,7 @@ mod tests {
         // The fallback scene must be a built-in scene name that exists
         // in the scene registry. "low-power" is the canonical low-CPU
         // scene (speed=5, density=0.45, glitch_level=None).
-        // v35.3 (FPS-F7): comment corrected — fps=30 was removed in v35.2
+        // (FPS-F7): comment corrected — fps=30 was removed
         // (scene fps is startup-only by design; the CPU shed comes from
         // speed/density/glitch, not from a runtime fps drop).
         assert_eq!(PerformanceSelfHealer::FALLBACK_SCENE, "low-power");
@@ -562,7 +562,7 @@ mod tests {
 
     #[test]
     fn self_healer_loads_default_thresholds_at_construction() {
-        // v30.9: the healer must construct with PowerThresholds::defaults()
+        // the healer must construct with PowerThresholds::defaults()
         // so production behavior matches the documented constants. This
         // test guards against a future constructor that forgets to load
         // the thresholds (which would silently make every comparison

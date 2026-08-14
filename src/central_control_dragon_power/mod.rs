@@ -55,7 +55,7 @@
 //!    xterm.js cap, adaptive throttling, self-healer via low-power scene,
 //!    ambient via scene). See the FPS Precedence Chain doc in
 //!    `termdetect.rs` for the resolution order.
-//!    **v35.2 audit note (FPS-F2/F3)**: the "self-healer via low-power
+//!    **audit note (FPS-F2/F3)**: the "self-healer via low-power
 //!    scene" and "ambient via scene" writers do NOT actually write
 //!    `target_fps` at runtime — `Cloud::apply_scene_runtime` only applies
 //!    `rain_style/color/charset/speed/density/glitch_level`, NOT `fps`.
@@ -94,18 +94,18 @@
 //!
 //! ## Calibration history
 //!
-//! - **v30.6 (power audit consolidation)**: extracted all power management
+//! - **(power audit consolidation)**: extracted all power management
 //!   constants from `constants.rs` into this file. Established single
 //!   source of truth. Added `PowerThresholds` struct as the foundation
 //!   for a future `PowerManager` coordinator that will own all signal
 //!   sampling and expose unified `effective_pressure` / `effective_fps`
 //!   / `is_idle` APIs.
-//! - **v30.7 (Phase 2 migration)**: behavior code moved from
+//! - **(Phase 2 migration)**: behavior code moved from
 //!   `src/interactive/adaptive.rs` into submodules of this directory.
 //!   Each submodule owns one subsystem (phase_predictor, reclaim_state,
 //!   endurance_health, self_healer). `interactive/adaptive.rs` becomes
 //!   a thin re-export shim. Layout mirrors `central_control_rains.rs`.
-//! - **v30.8 (Phase 3 PowerManager)**: `power_manager` submodule added.
+//! - **(Phase 3 PowerManager)**: `power_manager` submodule added.
 //!   `PowerManager` is the unified coordinator owning `perf_pressure`
 //!   accumulation, `is_idle` detection, and effective FPS resolution.
 //!   Exposes `effective_pressure()` / `effective_fps()` / `is_idle()`
@@ -183,7 +183,7 @@ pub(crate) const PERF_PRESSURE_CLASS_MEDIUM: f64 = 0.30;
 /// atmospheric subsystem tick rates are lowered.
 pub(crate) const IDLE_THRESHOLD_SECS: f64 = 30.0;
 
-/// v35.1: Idle threshold for the ambient scheduler's auto-snapback. After
+/// Idle threshold for the ambient scheduler's auto-snapback. After
 /// the user presses `x`/`c`/`s` (manual override) and is then idle for
 /// this many seconds, the event loop automatically re-applies the current
 /// ambient phase — no manual shortcut, no new CLI flag.
@@ -374,8 +374,8 @@ pub(crate) const XTERMJS_HARD_CEILING_BYTES: u64 = 200 * 1024 * 1024;
 
 // ─── PowerThresholds struct (foundation for PowerManager) ────────────────────
 //
-// v30.6: grouped all power management thresholds into a single type.
-// v30.8: PowerManager (in power_manager.rs) now consumes this struct.
+// grouped all power management thresholds into a single type.
+// PowerManager (in power_manager.rs) now consumes this struct.
 // PowerManager owns an instance plus all signal sampling state
 // (perf_pressure accumulator, idle timer, phase predictor, thermal
 // pressure input) and exposes the unified APIs:
@@ -393,7 +393,7 @@ pub(crate) const XTERMJS_HARD_CEILING_BYTES: u64 = 200 * 1024 * 1024;
 /// of truth; `PowerThresholds::defaults()` reads them at
 /// construction time.
 ///
-/// v30.9: `PerformanceSelfHealer::observe()` now reads all 6
+/// `PerformanceSelfHealer::observe()` now reads all 6
 /// self-healer fields (`pressure_high`, `pressure_low`,
 /// `downgrade_secs`, `restore_secs`, `health_investigate`,
 /// `health_cooldown_secs`) from this struct instead of from the

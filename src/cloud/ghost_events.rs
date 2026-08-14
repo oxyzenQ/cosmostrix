@@ -39,7 +39,7 @@ pub(super) struct EventCtx {
     /// scene's color scheme (green palette → dark green ghosts, red
     /// palette → dark red ghosts, etc.).
     pub ghost_base_color: (u8, u8, u8),
-    /// v30.3 (chroma audit, A9): cached ColorPipeline so the ghost event
+    /// (chroma audit, A9): cached ColorPipeline so the ghost event
     /// render can route its opacity fade through chroma::palette (chroma
     /// path) or chroma::legacy (legacy fallback). Copy enum, predicted-
     /// true in production.

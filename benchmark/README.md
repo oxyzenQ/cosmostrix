@@ -75,7 +75,7 @@ numbers.
 Both examples are comfortably above the 60 FPS simulation target. The
 dirty-cell coverage is not a quality score by itself; it reflects how much of
 the frame changes under the current cinematic renderer and terminal redraw
-threshold. All v4.0.0 measurements use the `actual_execution: single-threaded-renderer`
+threshold. All measurements use the `actual_execution: single-threaded-renderer`
 path (Zactrix engine runs single-threaded in headless benchmark mode).
 
 ## Competitor Comparison
@@ -191,7 +191,7 @@ scaling. RSS stays at 4.7 MiB regardless of screen size.
 
 ### Bonus: Interactive Encoding Stats (`--perf-stats`)
 
-cosmostrix v13.3.0+ exposes an ENCODING section in the `--perf-stats`
+cosmostrix exposes an ENCODING section in the `--perf-stats`
 exit report showing actual measured ANSI bytes per frame, bandwidth,
 and SGR cache hit rate. Measured on AMD Ryzen 7 5800HS, Cosmos palette,
 120×40, 60 FPS:
@@ -233,7 +233,7 @@ architecture specification of cosmostrix's diff-based rendering engine,
 including complexity analysis, design rationale, and comparison vs
 alternative rendering strategies.
 
-## v30.0.0-alpha.1 — Cosmic Dragon + BOLT Production Path (Historical)
+## Cosmic Dragon + BOLT Production Path (Historical)
 
 Release benchmark from `pro-linux-v3` binary (commit `585bcac`,
 2026-08-02). Auto-detected 88×32 terminal size. 10s duration per run
@@ -241,7 +241,7 @@ Release benchmark from `pro-linux-v3` binary (commit `585bcac`,
 governor, SMT on. Superseded by the v50 4-scene matrix in
 [docs/BENCHMARKING.md §5](../docs/BENCHMARKING.md#5-v50-reference-results-cloud-xeon-4-scene-matrix).
 
-- Binary version: `v30.0.0-alpha.1`
+- Binary version: `v30.0.0-alpha.1` (historical)
 - Commit: `585bcac`
 - Profile: `pro-linux-v3` (linux-x86_64-v3)
 - Rustc: 1.97.1
@@ -286,7 +286,7 @@ governor, SMT on. Superseded by the v50 4-scene matrix in
   working as designed. Production-draw path (0.99%) is more predictable
   than lean path (2.41%) due to ColorCache pre-formatted bytes.
 
-### Component Timing Breakdown (v30)
+### Component Timing Breakdown
 
 | Run | Scene | sim_share% | render_share% | io_share% | render_ns/cell | io_ns/cell | total_ns/cell |
 |-----|-------|-----------:|--------------:|----------:|---------------:|-----------:|--------------:|
@@ -301,7 +301,7 @@ mirrors the full `Terminal::draw` redraw (MoveTo per row + ColorCache
 SGR + BOLT bold escape). Both are fast — the difference is what they
 measure.
 
-### v30 vs v15 (Same Machine, Same Profile)
+### Comparison (Same Machine, Same Profile)
 
 | Metric | v15.0.0 (120×40) | v30.0.0 (88×32, lean) | Δ |
 |--------|-----------------:|----------------------:|------:|
@@ -318,7 +318,7 @@ partly from the BOLT branchless lookup tables + lean path optimizations
 added in v17–v30. Direct apples-to-apples comparison requires re-running
 v15 at 88×32 or v30 at 120×40.
 
-### v30 Energy & Microarchitecture (60s Endurance Run)
+### Energy & Microarchitecture (60s Endurance Run)
 
 | Metric | Value |
 |--------|------:|
@@ -361,7 +361,7 @@ See [docs/BENCHMARKING.md](../docs/BENCHMARKING.md) for the full
 benchmarking guide — how to run, interpret, and compare results, plus
 the strict `--bench-scene` validation contract.
 
-## v15.0.0 — The Cosmic Dragon (Pre-Release Polish, Historical)
+## The Cosmic Dragon (Pre-Release Polish, Historical)
 
 Release benchmark from `pro-linux-v3` binary (commit `ef15930`,
 2026-07-19). Default 120×40 terminal size. 30s duration, two consecutive
@@ -395,7 +395,7 @@ governor, SMT on.
 | sim/render/io | 0/41/59 | 0/40/60 | **0/40/60** |
 | total_frames | 928,697 | 931,648 | **930,173** |
 
-### v15 Microarchitecture & Energy
+### Microarchitecture & Energy
 
 | Metric | Run 1 | Run 2 | Average |
 |---|---:|---:|---:|
@@ -408,7 +408,7 @@ governor, SMT on.
 | Heap virtual | 620 KiB | 628 KiB | **624 KiB** |
 | Involuntary ctxt | 1,048 | 567 | **808** |
 
-### v15 vs v14 (Same Machine, Same Profile)
+### vs Prior Release (Same Machine, Same Profile)
 
 | Metric | v14.0.0 | v15.0.0 | Δ |
 |--------|--------:|--------:|------:|
@@ -522,7 +522,7 @@ All benchmarks: 120×40, `--bench-duration 10`, headless mode.
 
 ---
 
-## v11.0.0 — Cinematic Peak
+## Cinematic Peak
 
 Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
 2026-07-02). Default 120×40 terminal size. Cinematic visual quality push
@@ -546,7 +546,7 @@ Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
 | ansi_bytes/sec | — | **365M** | — |
 | frame_time_stability | excellent | excellent | — |
 
-### v11.0.0 Changes
+### Changes
 
 - Zactrix engine dead code removed (1562 lines, 5 modules deleted)
 - Cosmos palette brightened (30% → 45% avg luminance)
@@ -561,7 +561,7 @@ Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
 
 ---
 
-## v10.0.0 — Peak Performance & Stability
+## Peak Performance & Stability
 
 Release benchmark from `pro-linux-v3` binary (commit `93ed607`,
 2026-07-01). Default 120×40 terminal size. Three optimization phases
@@ -794,9 +794,9 @@ many frames the renderer can compute per second in a tight loop, not the FPS
 the user will see at runtime.  Treat stability, p95, and p99 as far more
 important than raw FPS.
 
-## v4.8.0 — Zactrix Integration + Terminal Cleanup Hardening
+## Zactrix Integration + Terminal Cleanup Hardening
 
-v4.8.0 integrates the Zactrix color pipeline optimization and hardens terminal
+integrates the Zactrix color pipeline optimization and hardens terminal
 cleanup on signal exit (fork-guard stdout race fix, viewport clear before
 alternate screen switch). 5-run release benchmark from `pro-linux-v3` binary
 (commit `ec1214b`), default 120x40 terminal size.
@@ -837,7 +837,7 @@ alternate screen switch). 5-run release benchmark from `pro-linux-v3` binary
   animation at 120x40).  Heavy message or matrix-mode workloads are not
   comparable to the default benchmark and will yield different FPS numbers.
 - The 50k FPS lab target was **not reached** and is **not promised**.  The
-  ~28,400 FPS plateau reflects the v4.8.0 default workload on this machine.
+  ~28,400 FPS plateau reflects the default workload on this machine.
 - `terminal_writer` remains `single-owner`: terminal writes are never
   parallelized.
 - `compute_parallelism` remains `disabled`: no parallel frame computation.
@@ -916,7 +916,7 @@ or visual behavior also regress.
 
 ## Metric Notes
 
-### Build Environment (SYSTEM section, v11.1.0)
+### Build Environment (SYSTEM section)
 
 The SYSTEM section now records the full build + toolchain context so
 benchmark reports are self-documenting for cross-machine comparison:
@@ -959,10 +959,10 @@ metrics alongside raw FPS:
 - `p95_frame_time` and `p99_frame_time` are percentile measurements of frame
   computation time, computed after trimming the top and bottom 1% of samples
   to eliminate cold-path and OS scheduling noise.
-- `p99_9_frame_time` (v11.1.0) is the 1-in-1000 worst frame time, computed
+- `p99_9_frame_time` is the 1-in-1000 worst frame time, computed
   from the FULL sorted array (not trimmed). Tighter than p99 on the long
   tail.
-- `max_frame_time` (v11.1.0) is the single worst frame spike — page faults,
+- `max_frame_time` is the single worst frame spike — page faults,
   OS scheduling glitches — that p99 smooths over. This is what users
   perceive as jank. The accompanying `max_frame_time_meaning` field explains
   this.
@@ -977,7 +977,7 @@ metrics alongside raw FPS:
 pacing that may cause visible micro-stutter despite the high average.
 Always check `p95_frame_time` and `p99_frame_time` alongside `avg_fps`.
 
-### MEMORY Section (v11.1.0)
+### MEMORY Section
 
 Reports process resident set size (RSS) sampled during the measurement
 window:
@@ -993,7 +993,7 @@ window:
 (`mach_task_basic_info`). Other platforms emit `unsupported` with a
 `rss_reason` field explaining the limitation.
 
-### CPU Section (v11.1.0)
+### CPU Section
 
 Reports process CPU usage as a percentage of one core:
 
@@ -1014,7 +1014,7 @@ terminals).
 (`mach_task_basic_info` `time_value_t`). Other platforms emit
 `unsupported`.
 
-### RESOURCE Section (v11.1.0)
+### RESOURCE Section
 
 Reports process resource usage deltas via `getrusage(RUSAGE_SELF)`. No
 permissions required — cross-platform on all Unix systems.
@@ -1041,7 +1041,7 @@ permissions required. It does not give hardware counters, but the page
 fault + context switch counters cover the scheduling-pressure story
 without elevated privileges.
 
-### COMPONENT TIMING Section (v11.1.0)
+### COMPONENT TIMING Section
 
 Breaks down per-frame time into three components, distinguishing
 "benchmark mainan" from "profiling tool":
@@ -1059,7 +1059,7 @@ Breaks down per-frame time into three components, distinguishing
 - `sim_share_percent`, `render_share_percent`, `io_share_percent`:
   relative breakdown of the three components.
 
-### DRIFT Section (v11.1.0)
+### DRIFT Section
 
 Compares first-half FPS vs second-half FPS for long-run drift detection.
 Use `--bench-duration N` (1–600 seconds) with a longer `N` to detect
@@ -1159,22 +1159,22 @@ Record at minimum:
 * version / commit
 * build variant
 * terminal size
-* cpu_model (v11.1.0, runtime-detected)
-* rustc_version (v11.1.0, from SYSTEM section)
-* lto / pgo status (v11.1.0, from SYSTEM section)
+* cpu_model (runtime-detected)
+* rustc_version (from SYSTEM section)
+* lto / pgo status (from SYSTEM section)
 * avg_fps
 * median_fps
 * p95_frame_time
 * p99_frame_time
-* p99_9_frame_time (v11.1.0)
-* max_frame_time (v11.1.0)
+* p99_9_frame_time
+* max_frame_time
 * frame_time_stability
 * avg_dirty_cell_ratio_percent
 * actual_execution
-* peak_rss (v11.1.0, Linux/macOS only)
-* avg_cpu_percent (v11.1.0, Linux/macOS only)
-* fps_drift_percent (v11.1.0, from the DRIFT section)
-* involuntary_ctxt (v11.1.0, from the RESOURCE section — CPU contention indicator)
+* peak_rss (Linux/macOS only)
+* avg_cpu_percent (Linux/macOS only)
+* fps_drift_percent (from the DRIFT section)
+* involuntary_ctxt (from the RESOURCE section — CPU contention indicator)
 
 For long-run drift verification, also run once with a longer duration:
 

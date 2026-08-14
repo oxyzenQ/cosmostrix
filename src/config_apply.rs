@@ -147,7 +147,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
                 .take(3)
                 .map(String::as_str)
                 .collect();
-            // v25.6 depth-test fix: targeted "did you mean" hints for
+            // depth-test fix: targeted "did you mean" hints for
             // structural TOML mistakes (e.g. bold under [color.tune]).
             let hints = crate::config_hints::format_hints_block(&parsed_cfg.unknown_keys);
             return Err(format!(
@@ -501,12 +501,12 @@ fn apply_glitch_level_values(
     // glitch_level presets below. No silent override is possible — the
     // original Phase 2 P2-3 finding described a v16-era scenario that no
     // longer applies.
-    // v35.3 (CLI-V-4): corrected flag names (--glitchpct not --glitch-pct) and
+    // (CLI-V-4): corrected flag names (--glitchpct not --glitch-pct) and
     // added --maxdpc to the list.
 
     match args.glitch_level {
         GlitchLevel::None => {
-            // v35.3 (Glitch-BUG8): explicitly reset all 5 preset fields to the
+            // (Glitch-BUG8): explicitly reset all 5 preset fields to the
             // None preset (matching apply_glitch_level_runtime) so the stored
             // CloudConfig is honest — startup-None now matches
             // runtime-scene-switch-None. The clap defaults happen to match for

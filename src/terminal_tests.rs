@@ -50,7 +50,7 @@ mod tests {
                 plan.push("enable-wrap");
                 self.wrap = false;
             }
-            // v31.1: REMOVED clear-viewport before leave-alternate.
+            // REMOVED clear-viewport before leave-alternate.
             // \x1b[2J in the alternate screen clears main screen
             // scrollback on some terminals (VTE, xterm-direct).
             if self.alternate {
@@ -202,7 +202,7 @@ mod tests {
             ..Default::default()
         };
         let plan = flags.cleanup_plan(false);
-        // v31.1: normal exit NO LONGER clears viewport — \x1b[2J in
+        // normal exit NO LONGER clears viewport — \x1b[2J in
         // alt screen destroys main screen scrollback on some terminals.
         assert!(!plan.contains(&"clear-viewport"));
         assert!(!plan.contains(&"purge-scrollback"));
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn signal_exit_cleanup_leaves_alternate_without_clear_v31_1() {
-        // v31.1: even signal exit no longer clears viewport before
+        // even signal exit no longer clears viewport before
         // leave-alternate — same scrollback destruction risk.
         let mut flags = CleanupFlags {
             mouse: true,
@@ -232,13 +232,13 @@ mod tests {
             leave_idx.is_some(),
             "signal-exit cleanup must include leave-alternate"
         );
-        // v31.1: no clear-viewport before leave-alternate
+        // no clear-viewport before leave-alternate
         assert!(!plan.contains(&"clear-viewport"));
     }
 
     #[test]
     fn normal_exit_cleanup_preserves_scrollback_v31_1() {
-        // v31.1: normal exit NO LONGER clears viewport — \x1b[2J in
+        // normal exit NO LONGER clears viewport — \x1b[2J in
         // alt screen destroys main screen scrollback on some terminals.
         // LeaveAlternateScreen alone properly restores the main screen.
         let mut flags = CleanupFlags {
@@ -256,7 +256,7 @@ mod tests {
         let plan = flags.cleanup_plan(false);
         assert!(
             !plan.contains(&"clear-viewport"),
-            "v31.1: normal exit must NOT clear viewport (scrollback safety)"
+            "normal exit must NOT clear viewport (scrollback safety)"
         );
         assert!(!flags.signal_exit_clear);
     }

@@ -78,7 +78,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         cloud.force_draw_everything();
         frame.clear_with_bg(cloud.palette.bg);
 
-        // v25.11 (bug #10): re-read terminal size after intro. Intro can
+        // (bug #10): re-read terminal size after intro. Intro can
         // take seconds; user may have resized → (w,h) stale until SIGWINCH.
         if cfg.screen_size.is_none() {
             if let Ok((nw, nh)) = term.size() {
@@ -109,7 +109,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     });
 
     let mut next_frame = Instant::now();
-    // v30.8 (Phase 3): PowerManager owns perf_pressure, is_idle, effective FPS.
+    // (Phase 3): PowerManager owns perf_pressure, is_idle, effective FPS.
     let mut power_manager = PowerManager::new(cfg.target_fps, Instant::now());
 
     let mut perf_frames: u64 = 0;
@@ -143,7 +143,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_ctxt_sample = Instant::now();
     let mut perf_rss_samples: u64 = 0;
 
-    let mut last_user_input_at = Instant::now(); // v35.1: auto-snapback driver
+    let mut last_user_input_at = Instant::now(); // auto-snapback driver
     let mut self_healer = PerformanceSelfHealer::new(); // P1+P2
 
     let mut charset_preset = cfg.charset_preset.clone();
@@ -171,7 +171,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let ambient_handle =
         crate::ambient_scheduler::spawn_ambient_scheduler(base_cfg.ambient_schedule.clone());
     let mut last_ambient_schedule = base_cfg.ambient_schedule.clone();
-    // v30.3: last-applied ambient entry — re-applied after live-reload rebuilds.
+    // last-applied ambient entry — re-applied after live-reload rebuilds.
     let mut last_applied_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
     // AB-07: permanent snapback kill — once schedule is detected empty
     // (by any path), auto-snapback is disabled until a new rx event is
@@ -180,7 +180,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // AB-08: config file path for ground-truth re-read. The watcher can
     // lose events, leaving all cached state stale. File on disk is truth.
     let config_path_for_ground_truth = base_cfg.config_path_for_watcher.clone();
-    // v25.5+v30.4: last-applied cfg map for diff trace + startup ambient.
+    //  last-applied cfg map for diff trace + startup ambient.
     let initial_cfg_map = base_cfg
         .config_path_for_watcher
         .as_deref()
@@ -189,7 +189,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> =
         Some(initial_cfg_map.clone());
 
-    // v30.3+hotfix: synchronous ambient apply at startup with REAL cfg map.
+    // +hotfix: synchronous ambient apply at startup with REAL cfg map.
     let (new_charset, startup_entry) = crate::ambient::apply_startup_ambient(
         &mut cloud,
         &base_cfg.ambient_schedule,
@@ -198,7 +198,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         def_ascii,
         &initial_cfg_map,
     );
-    // v30.5: startup ambient info for post-exit verbose (main.rs prints after drop).
+    // startup ambient info for post-exit verbose (main.rs prints after drop).
     let ambient_info = match &startup_entry {
         Some(e) => format!(
             "ambient: startup phase {:02}:{:02} (scene={}) applied at cold start",
@@ -211,7 +211,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         charset_preset = new_charset;
         scene_name = entry.scene.clone();
         scene_generation = scene_generation.wrapping_add(1);
-        // v35: ambient asserted at startup — lock palette, clear override.
+        // ambient asserted at startup — lock palette, clear override.
         cloud.user_override_since_ambient = false;
         cloud.ambient_palette_locked = true;
         term.set_color_cache(ColorCache::new(&cloud.palette));
@@ -242,7 +242,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         pending_config = Some(cfg);
                     }
                     Err(msg) => {
-                        // v25.13: config validation errors cause immediate exit.
+                        // config validation errors cause immediate exit.
                         crate::lr_trace!(
                             "render thread: config validation error — setting exit code + breaking rain loop"
                         );
@@ -271,7 +271,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 new_cfg.target_fps,
             );
 
-            // v25.5: field-level config diff trace (extracted to live_config_trace.rs).
+            // field-level config diff trace (extracted to live_config_trace.rs).
             crate::live_config_trace::trace_config_diff(
                 last_applied_cfg_map.as_ref(),
                 &new_cfg_map,
@@ -295,7 +295,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             frame = Frame::new(w, h, cloud.palette.bg);
             super::fill_terminal_bg(cloud.palette.bg);
             charset_preset = new_cfg.charset_preset.clone();
-            // v25.5+v30.8+v35.2: recompute target FPS from new config.
+            //  recompute target FPS from new config.
             let safe_fps = new_cfg.resolve_capped_fps(cfg.target_fps);
             power_manager.set_target_fps(safe_fps);
             // v30: keep HUD tgt: in sync with live-reloaded fps.
@@ -345,7 +345,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             } else if ambient_snapback_killed {
                 ambient_snapback_killed = false;
             }
-            // v30.3: re-apply last ambient entry to fresh Cloud.
+            // re-apply last ambient entry to fresh Cloud.
             if let Some(ref last_entry) = last_applied_ambient_entry {
                 let still_in = new_cfg
                     .ambient_schedule
@@ -528,7 +528,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let loop_now = Instant::now();
         // Capture scene generation at frame start — u64 copy for self-healer.
         let scene_generation_at_frame_start = scene_generation;
-        // v30.8 (Phase 3): PowerManager.begin_frame — is_idle, predictor, idle_started.
+        // (Phase 3): PowerManager.begin_frame — is_idle, predictor, idle_started.
         let is_idle = power_manager.begin_frame(loop_now);
         // P2: adaptive resync interval based on sustained idle duration.
         let idle_secs = power_manager
@@ -697,7 +697,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             cloud.force_draw_everything();
                             next_frame = activity_time;
                         }
-                        // v35.1: refresh auto-snapback idle timer on every key press.
+                        // refresh auto-snapback idle timer on every key press.
                         last_user_input_at = activity_time;
                         // Process the keybinding. This lets interactive
                         // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
@@ -743,7 +743,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     }
                     Event::Mouse(m) => {
                         // Mouse events always captured (blocks drag-select). No force_draw
-                        // on MOVE (old: bright-color flash). v30.10: CLICK wakes renderer
+                        // on MOVE (old: bright-color flash). CLICK wakes renderer
                         // on idle→active (old: click effect vanished at 30 FPS idle cadence).
                         let activity_time = Instant::now();
                         let is_click = matches!(m.kind, MouseEventKind::Down(_));
@@ -878,7 +878,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // chosen for the wait phase. Recompute before simulation and
         // scheduling so the first resumed frame does not inherit the paused
         // 250ms cadence.
-        // v30.8 (Phase 3): PowerManager.effective_fps() replaces the
+        // (Phase 3): PowerManager.effective_fps() replaces the
         // target_period / idle_period / pause_period Duration cascade.
         let frame_period = Duration::from_secs_f64(1.0 / power_manager.effective_fps(cloud.pause));
         let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
@@ -897,7 +897,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         hud_state.set_frame_mode(frame_mode);
         cloud.set_perf_pressure(power_manager.effective_pressure());
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
-        // v25.15 (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
+        // (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
         // from constants.rs — was a hardcoded `0.3` inline.
         let sim_factor = (1.0
             - (power_manager.effective_pressure() as f64) * SIM_PRESSURE_SCALE_FACTOR)
@@ -973,7 +973,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // VSCode's xterm.js falls behind over long runs; a write taking
         // >50% of frame period signals the consumer cannot keep up.
         //
-        // v30.6 (bug fix): also feed a synthetic overshoot when the last
+        // (bug fix): also feed a synthetic overshoot when the last
         // flush was suppressed by Tier 2.1 byte-budget backpressure.
         // Otherwise the suppression masks itself: no write_with_recovery
         // call → last_write_ns stale → perf_pressure doesn't accumulate
@@ -999,7 +999,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         let overshoot = ((work_s / frame_period_s) - 1.0).clamp(0.0, 2.0);
         let utilization = work_s / frame_period_s;
-        // v30.8 (Phase 3): PowerManager.observe_frame_end() replaces the
+        // (Phase 3): PowerManager.observe_frame_end() replaces the
         // inline perf_pressure increment/decay. Same math, same constants.
         // overshoot is kept as a local for the perf_stats overshoot-frame
         // counter below.
@@ -1007,7 +1007,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // ── P5: Endurance health sampling (ALWAYS ON) ──
         //
-        // v30.6 (bug fix): previously this entire block was gated by
+        // (bug fix): previously this entire block was gated by
         // `cfg.perf_stats`. When the user ran without --perf-stats, no
         // samples were ever pushed to EnduranceHealth, so its score stayed
         // at the initial 100.0 forever. That made the P2 self-healer
@@ -1095,7 +1095,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
 
         // Performance self-healer (P1+P2): pure policy returning an action
-        // enum. v30.6: always pass Some(score) (P5 sampling always-on).
+        // enum. always pass Some(score) (P5 sampling always-on).
         // Reset on scene change BEFORE observe() so we don't fire on the
         // same frame the user switched. Phase D: u64 counter compare.
         if scene_generation != scene_generation_at_frame_start {

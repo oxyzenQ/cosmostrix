@@ -525,7 +525,7 @@ mod tests {
         assert!(readme.contains("44 built-in themes"));
     }
 
-    // ── v25.11 (bug #13): "did you mean" color name suggestions ──
+    // ── (bug #13): "did you mean" color name suggestions ──
 
     #[test]
     fn unknown_color_cosmo_suggests_cosmos() {

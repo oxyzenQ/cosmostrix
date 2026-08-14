@@ -62,7 +62,7 @@
 //!
 //! ## Calibration history (most recent first)
 //!
-//! - **v30.0.0 (peak masterclass cinematic lock + stabilization)**: visual
+//! - **(peak masterclass cinematic lock + stabilization)**: visual
 //!   test rated 10/10 perfect after silent override bug fix + front
 //!   density restoration. No parameter changes — visual tuning is locked.
 //!   Strengthened the bug fixes with permanent regression tests in
@@ -88,7 +88,7 @@
 //!   cinematic.rs are pure consumers — they import from `crate::constants`
 //!   and add zero hardcoded layer values. Editing any rain parameter
 //!   requires touching only this single file.
-//! - **v30.0.0 (silent override bug fix + centralization)**: user reported
+//! - **(silent override bug fix + centralization)**: user reported
 //!   "the front layer feels dim, there's no glow" after differential tuning.
 //!   Deep audit found 3 silent override bugs in droplet.rs that made boosts
 //!   > 1.0 completely no-op:
@@ -114,7 +114,7 @@
 //!   `MONOLITH_LAYER_BRIGHTNESS` and `MONOLITH_BREATHING_AMPLITUDE`.
 //!   Now ALL layer-specific tuning lives in this single file — editing
 //!   any rain parameter requires touching only central_control_rains.rs.
-//! - **v30.0.0 (differential depth tuning)**: user requested sharper
+//! - **(differential depth tuning)**: user requested sharper
 //!   depth differential — back needs to be slightly more dim, mid needs
 //!   reduced density + slight dim, front needs to read more prominent
 //!   (no dimming). Tuned all three layers in opposite directions to
@@ -128,7 +128,7 @@
 //!   1:6.8:24.1 figure used the pre-restoration 1.00 density.)
 //!   — *Front density later restored; per-droplet boosts fixed in silent
 //!   override bug fix above.*
-//! - **v30.0.0 (final — visual test locked)**: after A/B visual testing
+//! - **(final — visual test locked)**: after A/B visual testing
 //!   against option C (density-focused) and option D (haze-focused), the
 //!   parameter set from commit 1e4e3fa (the initial visibility-floor
 //!   raise) was confirmed as the optimal balance. Reverted option C's
@@ -151,7 +151,7 @@
 //! - **v30 (initial raise)**: lifted back + mid visibility floor to
 //!   fix "too quiet/dim darkness" complaint. Effective back visibility
 //!   raised 2.5x; effective mid raised 3.06x. — *Confirmed optimal by
-//!   final visual lock; restored as v30.0.0 baseline.*
+//!   final visual lock; restored as baseline.*
 
 use std::time::Duration;
 
@@ -177,7 +177,7 @@ pub(crate) const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// v30.0.0 differential depth tuning + silent override bug fix: back
+/// .0 differential depth tuning + silent override bug fix: back
 /// dimmed 0.55→0.48 to push deeper into atmospheric haze; mid dimmed
 /// 0.88→0.80 for slight presence reduction; front boosted 1.00→1.05
 /// for more prominence. Bug fix in droplet.rs changed the brightness
@@ -192,7 +192,7 @@ pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80,
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// v30.0.0 differential + silent override bug fix: back desaturated
+/// .0 differential + silent override bug fix: back desaturated
 /// further 0.55→0.50 (more "rain in fog" feel); mid slightly
 /// desaturated 0.90→0.84 to match the dimmer brightness; front pushed
 /// 1.00→1.05 for richer neon. Bug fix in droplet.rs changed the
@@ -206,7 +206,7 @@ pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84,
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v30.0.0 differential: back dimmed 0.55→0.48 (distant heads stay as
+/// .0 differential: back dimmed 0.55→0.48 (distant heads stay as
 /// soft glow, never pop as bright pinpricks); mid reduced 0.82→0.74
 /// (slightly less bloom to match lower density); front boosted 1.0→1.15
 /// (more cinematic head pop, hero layer reads first).
@@ -217,7 +217,7 @@ pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74,
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// v30.0.0 differential + silent override bug fix: back 0.45→0.38
+/// .0 differential + silent override bug fix: back 0.45→0.38
 /// (effective self-bloom ~9%, vs ~27% for front — distant heads read
 /// as ambient glow); mid 0.78→0.68 (slightly less self-glow to match
 /// lower density); front 1.0→1.15 (full cinematic self-bloom).
@@ -268,7 +268,7 @@ pub(crate) const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// v30.0.0 differential: back raised 1.8→2.0 (trails fade even faster —
+/// .0 differential: back raised 1.8→2.0 (trails fade even faster —
 /// distant rain reads as brief flicker, not lingering streaks); mid
 /// raised 1.0→1.2 (slightly faster fade to complement lower density —
 /// fewer but cleaner streaks); front lowered 0.5→0.4 (slower fade —
@@ -294,7 +294,7 @@ pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 /// Per-layer spawn density multiplier (far = sparse, near = dense).
 ///
-/// v30.0.0 silent override bug fix: front restored from 1.10 → 0.85 to
+/// .0 silent override bug fix: front restored from 1.10 → 0.85 to
 /// compensate for the spawn-roll fix (commit 9080472) that gave front
 /// +40% more density rolls. At spawn_droplets distribution [0.35, 0.30,
 /// 0.35] (post-fix), front effective spawn rate = 0.35 × 0.85 × col_mod
@@ -320,7 +320,7 @@ pub(crate) const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 /// terminal equivalent of DoF blur — back layer reads as "behind a
 /// haze", front layer is sharp.
 ///
-/// v30.0.0 differential: back raised 0.40→0.45 (slightly more fog
+/// .0 differential: back raised 0.40→0.45 (slightly more fog
 /// blend to push back deeper into atmospheric depth); mid raised
 /// 0.12→0.18 (slight haze bump to complement lower density — mid
 /// reads as sitting behind a thin veil); front kept at 0.0 (sharp,
@@ -448,7 +448,7 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 
 /// Brightness factor at the extreme edge row of the CRT vignette.
 ///
-/// ## v30.1 masterclass retune (2026-08-07)
+/// ## masterclass retune (2026-08-07)
 /// The v30 value (0.5, 50% dim) compounded destructively with
 /// `EDGE_FADE_TOP_MIN` (0.45) and `EDGE_FADE_BOTTOM_MIN` (0.20) — both
 /// effects apply to the same top/bottom rows and their factors MULTIPLY,
@@ -511,16 +511,16 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// Minimum brightness floor for the rain shadow quadratic. The fade curve
 /// never drops below this value, even at the very last row.
 ///
-/// ## v30.2 masterclass retune (2026-08-09)
-/// Prior to v30.2, `rain_shadow_factor` faded quadratically to 0.0 (full
+/// ## masterclass retune (2026-08-09)
+/// Previously, `rain_shadow_factor` faded quadratically to 0.0 (full
 /// dark) at the bottom row. Compounded multiplicatively with the other
 /// three dimming effects that hit the same row — `viewport_edge_fade`
 /// (EDGE_FADE_BOTTOM_MIN = 0.45), `vignette_factor` (~0.71 at corners),
 /// and `crt_vignette_factor` (CRT_VIGNETTE_EDGE_FACTOR = 0.82) — the
 /// bottom row reached 0.08-0.11 brightness (89-92% dim) at the corners
 /// of an 80x40 terminal. Rain was functionally invisible at the bottom
-/// row, which is exactly the symptom the v30.1 retune (commit bfea09e)
-/// was supposed to fix but could not — the v30.1 audit only modeled 2
+/// row, which is exactly the symptom the retune (commit bfea09e)
+/// was supposed to fix but could not — the audit only modeled 2
 /// of the 4 effects (CRT vignette x edge fade) and missed the rain
 /// shadow + radial vignette contributions.
 ///
@@ -542,13 +542,13 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// absolute floor changes.
 ///
 /// Reference points:
-/// - 0.00 (pre-v30.2): full quadratic to black — destructive when
+/// - 0.00 (previously): full quadratic to black — destructive when
 ///   compounded with the other 3 effects (bottom row at 8% brightness)
-/// - 0.50 (v30.2 masterclass): 50% dim floor — visible depth, no
+/// - 0.50 (masterclass): 50% dim floor — visible depth, no
 ///   destruction (bottom row at 13% brightness, rain visible)
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
-/// compounding model and the v30.2 retune rationale.
+/// compounding model and the retune rationale.
 pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.50;
 
 // ─── Front layer tail allocation ───────────────────────────────────────────
@@ -847,7 +847,7 @@ pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 /// v30 (visual mode): reduced from 12 → 8 per owner request — shorter
 /// bottom dimmer zone. Must stay >= EDGE_FADE_ROWS for the Zone-1
 /// pre-fade math to make sense.
-/// v30.1 masterclass retune (2026-08-07): widened from 8 → 10 for a
+/// masterclass retune (2026-08-07): widened from 8 → 10 for a
 /// smoother dissolve ramp — the v30 8-row zone produced a slightly
 /// abrupt transition where the gentle pre-fade met the sharp lip.
 /// 10 rows gives the smoothstep more room to ease in. See
@@ -855,7 +855,7 @@ pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 10;
 
 /// Lip factor for the bottom edge fade (controls curvature).
-/// v30.1 masterclass retune: lowered from 0.75 → 0.72 — slightly
+/// masterclass retune: lowered from 0.75 → 0.72 — slightly
 /// smoother transition between Zone 1 (gentle pre-fade) and Zone 2
 /// (sharp lip). The 0.03 reduction is barely perceptible on its own
 /// but produces a more film-like dissolve when combined with the
@@ -864,7 +864,7 @@ pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.72;
 
 /// Minimum brightness factor at the top edge.
 ///
-/// ## v30.1 masterclass retune (2026-08-07)
+/// ## masterclass retune (2026-08-07)
 /// The v30 value (0.45, 55% dim) compounded destructively with
 /// `CRT_VIGNETTE_EDGE_FACTOR` (0.5) — both effects apply to the top
 /// rows and multiply, producing compounded top brightness 0.5 × 0.45 =
@@ -888,7 +888,7 @@ pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.65;
 
 /// Minimum brightness factor at the bottom edge.
 ///
-/// ## v30.1 masterclass retune (2026-08-07)
+/// ## masterclass retune (2026-08-07)
 /// The v30 value (0.20, 80% dim) compounded destructively with
 /// `CRT_VIGNETTE_EDGE_FACTOR` (0.5) — both effects apply to the bottom
 /// rows and multiply, producing compounded bottom brightness

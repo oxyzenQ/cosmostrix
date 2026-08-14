@@ -75,7 +75,7 @@ pub(crate) struct DrawCtx<'a> {
     pub bg: Option<Color>,
 
     pub color_mode: crate::runtime::ColorMode,
-    /// v30.3 (chroma audit): cached `ColorPipeline::detect(color_mode)`.
+    /// (chroma audit): cached `ColorPipeline::detect(color_mode)`.
     /// Hot-path callers (droplet shade, CRT dim, quantum ripple, ghost
     /// render) branch on `is_chroma()` to route through `chroma::palette::*`
     /// or `chroma::legacy::*`. Copy enum, predicted-true in production.
@@ -137,7 +137,7 @@ pub(crate) struct DrawCtx<'a> {
     /// factors for this frame. `None` disables shader-level atmospheric
     /// (cells render with raw palette colors). When `Some`, the shader
     /// applies atmospheric to each cell's resolved color BEFORE returning.
-    /// (v30.1: the old post-hoc `apply_climate_frame_effects` pass was
+    /// (the old post-hoc `apply_climate_frame_effects` pass was
     /// deleted; climate is shader-only now.)
     pub atmospheric: Option<crate::chroma::post::climate::ClimateCtx>,
 

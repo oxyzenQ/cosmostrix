@@ -6,7 +6,7 @@
 > you come back to the project after a long break — every doc, every key
 > source module, and every "where do I find X?" question is answered here.
 >
-> **Last updated: v40.0.0-alpha.1 (commit `5e9cff8`, 2026-08-11)
+> **Last updated: v50.0.0-alpha.2 (commit `5e9cff8`, 2026-08-11)
 
 ## Quick Navigation
 

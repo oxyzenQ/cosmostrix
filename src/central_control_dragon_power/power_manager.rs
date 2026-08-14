@@ -63,7 +63,7 @@
 //! call. `effective_pressure()` returns the value updated by the last
 //! `observe_frame_end()` call (or 0.0 before the first frame).
 //!
-//! ## Migration status (v30.8 / Phase 3)
+//! ## Migration status (Phase 3)
 //!
 //! This struct is the authoritative source for `perf_pressure`,
 //! `is_idle`, and effective FPS. The event loop constructs one
@@ -88,7 +88,7 @@ use crate::constants::*;
 /// holds a single instance by value and passes `&mut self` to the
 /// mutation methods.
 ///
-/// v30.8: struct + API are defined and wired into `event_loop.rs`.
+/// struct + API are defined and wired into `event_loop.rs`.
 /// `PowerManager` is constructed at startup and called every frame via
 /// `begin_frame()` + `observe_frame_end()`.
 pub(crate) struct PowerManager {
@@ -184,7 +184,7 @@ impl PowerManager {
     /// emergency. Added to base `perf_pressure` in
     /// [`effective_pressure`](Self::effective_pressure).
     ///
-    /// v30.9: the production sampler is now wired in `event_loop.rs`
+    /// the production sampler is now wired in `event_loop.rs`
     /// via `sample_thermal_pressure()` (Linux only). On non-Linux or
     /// in containers without thermal sysfs, the sampler returns `None`
     /// and this method is not called — the thermal input stays at 0.0

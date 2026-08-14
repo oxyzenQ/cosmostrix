@@ -35,7 +35,7 @@ fn charset_valid_values_pass() {
     }
 }
 
-// ── v25.14 (bug #17): intro selector validation ──
+// ── (bug #17): intro selector validation ──
 
 #[test]
 fn intro_typo_is_rejected() {
@@ -96,7 +96,7 @@ fn intro_empty_value_is_rejected() {
 #[test]
 fn fps_out_of_range_is_rejected() {
     assert!(validate_field_value("fps", "0").is_some());
-    // v30.3: cap reverted 300 -> 240. 241 is the new reject edge; 240
+    // cap reverted 300 -> 240. 241 is the new reject edge; 240
     // is the highest valid value. Rationale: 240 matches the most
     // common high-refresh monitor rate, aligns with the project's own
     // stated terminal ceiling (README.md:142: "typically 60-240 FPS on
@@ -463,7 +463,7 @@ fn color_bg_case_insensitive_matches_cli() {
 fn boolean_keys_reject_non_bool() {
     // Phase D Bug #1 fix: "yes"/"on"/"1"/"no"/"off"/"0" are now accepted
     // (matching parse_bool_config). Only truly invalid values are rejected.
-    // v35.3 (CLI-D-3): removed `mouse` assertions — mouse is no longer in
+    // (CLI-D-3): removed `mouse` assertions — mouse is no longer in
     // USER_CONFIG_KEYS (caught as unknown_key upstream). The bool validator
     // arm now only covers `auto-color-drift` and `async-mode`.
     assert!(validate_field_value("auto-color-drift", "maybe").is_some());
@@ -574,7 +574,7 @@ fn colors_custom_stops_rejects_empty() {
     assert!(validate_colors_custom_value("colors-custom.mytheme.stops", "").is_some());
 }
 
-// ── v25.8 (bug #6): color.tune.* range validation ──
+// ── (bug #6): color.tune.* range validation ──
 //
 // Previously, `color.tune.brightness = 999` was silently accepted by
 // --testconf (PASS) and silently defaulted to 1.0 at runtime — the user
@@ -656,7 +656,7 @@ fn color_tune_end_to_end_via_validate_config_strictly() {
     assert!(validate_config_strictly(&cfg2).is_ok());
 }
 
-/// v25.14 (bug #17): end-to-end check that `validate_config_strictly`
+/// (bug #17): end-to-end check that `validate_config_strictly`
 /// rejects an invalid `intro` value the same way it rejects an OOR
 /// `color.tune.brightness`. Before the fix, this passed silently and
 /// the user only saw a stderr warning at runtime (which doesn't stop

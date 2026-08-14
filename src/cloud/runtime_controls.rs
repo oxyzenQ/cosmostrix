@@ -50,7 +50,7 @@ impl Cloud {
     /// when the scheme is unchanged.
     pub fn set_color_scheme(&mut self, scheme: ColorScheme) {
         self.color_scheme = scheme;
-        // v35.3 (Color-#1): switching to a builtin scheme means a custom
+        // (Color-#1): switching to a builtin scheme means a custom
         // palette (if any was loaded) is no longer the source of truth.
         // Without this clear, the `custom_palette_active` flag would stay
         // true after `--colors-custom X` + 'c' cycle, falsely blocking
@@ -83,7 +83,7 @@ impl Cloud {
     /// identically to `set_color_scheme` — the old streams keep their birth
     /// palette below the wave line, and the new palette propagates visually.
     pub fn set_palette(&mut self, palette: crate::palette::Palette) {
-        // v35.3 (Color-#1): mark custom_palette_active so the drift gate
+        // (Color-#1): mark custom_palette_active so the drift gate
         // (rain.rs:923 `!custom_palette_active && !ambient_palette_locked`)
         // correctly suppresses palette drift while a custom palette is
         // loaded at runtime (e.g. ambient fires a scene with
@@ -172,8 +172,8 @@ impl Cloud {
 
     pub fn set_glitchy(&mut self, on: bool) {
         self.glitchy = on;
-        // v35.3 (Glitch-BUG6): when disabling glitch, clear in-flight anomaly
-        // zones to match the v35.2 Glitch-P0 fix in apply_glitch_level_runtime.
+        // (Glitch-BUG6): when disabling glitch, clear in-flight anomaly
+        // zones to match the Glitch-P0 fix in apply_glitch_level_runtime.
         // Without this, a future code path that uses set_glitchy(false) to
         // disable glitch at runtime would leave LuminanceSurge /
         // GlyphCorruption / PulseWave anomalies active for up to

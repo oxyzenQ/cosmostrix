@@ -9,7 +9,7 @@
 //! - Unix: SIGTSTP/SIGCONT → suspend/resume with terminal reinit
 //! - Windows: Ctrl+Break → graceful shutdown (Ctrl+C deprecated, see below)
 //!
-//! v25.13 (bug #15 follow-up): Ctrl+C (SIGINT on Unix, Ctrl+C on Windows)
+//! (bug #15 follow-up): Ctrl+C (SIGINT on Unix, Ctrl+C on Windows)
 //! is DEPRECATED as an exit method. Only 'q' exits cosmostrix. This matches
 //! the cinematic design principle: the user must deliberately press 'q' to
 //! quit — no accidental exits from terminal muscle memory. SIGINT is no
@@ -42,7 +42,7 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
     let signal_exit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     let term_reinit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
-    // v25.13: SIGINT (Ctrl+C) is NOT in this list — only 'q' exits
+    // SIGINT (Ctrl+C) is NOT in this list — only 'q' exits
     // cosmostrix. SIGTERM/SIGHUP/SIGQUIT remain for system-initiated
     // shutdown (kill(1), terminal close, SIGHUP on parent death).
     // SIGINT is intentionally ignored so the user's terminal Ctrl+C
@@ -104,7 +104,7 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
 
 /// Windows: Ctrl+Break handler + watchdog.
 ///
-/// v25.13 (bug #15 follow-up): on Unix, SIGINT (Ctrl+C) is deprecated —
+/// (bug #15 follow-up): on Unix, SIGINT (Ctrl+C) is deprecated —
 /// only 'q' exits. On Windows, the `ctrlc` crate handles both CTRL_C_EVENT
 /// and CTRL_BREAK_EVENT, so Ctrl+C still triggers graceful shutdown here.
 /// Fully filtering Ctrl+C on Windows would require direct Win32

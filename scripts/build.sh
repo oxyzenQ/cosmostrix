@@ -1165,7 +1165,7 @@ build_pgo() {
         pgo_stage_stamp_write "${stage1_stamp}" "${instrument_cpu}" "${final_cpu}"
 
         # ── Stage 2: Run multi-workload PGO training ───────────────────
-        # Multi-workload PGO training (v30.0.0-alpha.1+):
+        # Multi-workload PGO training:
         #   1. monolith + zen (default, peak throughput — train hot loop)
         #   2. cinematic + katana (heavier scene, glyph pool — train glyph-emit)
         #   3. signal + binary (glyph scene with anomaly zones — train post-fx)

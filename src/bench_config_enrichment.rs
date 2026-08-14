@@ -5,7 +5,7 @@
 
 use crate::app::CloudConfig;
 
-/// Compute the v25.17 CONFIG-enrichment fields from a CloudConfig.
+/// Compute the CONFIG-enrichment fields from a CloudConfig.
 ///
 /// Returns a tuple of (color_mode_label, custom_palette_name, custom_palette_bg_hex,
 /// color_bg_label, color_tune_summary, async_mode, glitch_enabled, glitch_level,
@@ -14,7 +14,7 @@ use crate::app::CloudConfig;
 /// `run_premium_benchmark_silent` construction sites emit identical values
 /// without duplicating the derivation logic.
 ///
-/// v30.3 (chroma dragon audit): the last two tuple fields disclose (a) which
+/// (chroma dragon audit): the last two tuple fields disclose (a) which
 /// color pipeline the run is using (`chroma_dragon` or `legacy_rgb`) and
 /// (b) what the chroma engine status is during benchmarking. Owner question:
 /// "when benchmarking mode 'cosmostrix --benchmark' is the chroma dragon
@@ -117,7 +117,7 @@ pub(crate) fn compute_config_enrichment(
     // drift is on when the cloud actually has it off).
     let auto_color_drift = false;
 
-    // v30.3 (chroma dragon audit): detect the active color pipeline from the
+    // (chroma dragon audit): detect the active color pipeline from the
     // color mode. The chroma engine itself is NOT disabled in benchmark mode
     // — only palette drift is disabled (palette rebuilds inject timing
     // spikes that corrupt p99/max). Climate drift still runs because it is

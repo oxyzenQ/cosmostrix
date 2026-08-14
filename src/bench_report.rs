@@ -88,7 +88,7 @@ pub(crate) struct BenchReportData {
     /// latter is slightly more expensive but produces smoother gradients.
     pub shading_mode: String,
 
-    // ── v25.17: CONFIG enrichment (color/charset/etc. parity with --verbose) ──
+    // ── CONFIG enrichment (color/charset/etc. parity with --verbose) ──
     // These fields close the gap between the rich `--verbose` dump and the
     // sparse benchmark CONFIG section. Benchmark reproducibility depends on
     // knowing the EXACT color pipeline (mode, palette, tune, bg) and the
@@ -124,14 +124,14 @@ pub(crate) struct BenchReportData {
     /// Auto color drift flag. When true, the ColorEcosystem autonomously
     /// rotates palettes — long benchmark runs may cross palette transitions.
     pub auto_color_drift: bool,
-    /// v30.3 (chroma dragon audit): the active color pipeline label
+    /// (chroma dragon audit): the active color pipeline label
     /// (`chroma_dragon` or `legacy_rgb`). Mirrors the `color_pipeline:`
     /// line in `cosmostrix -v` and the `color_pipeline` field in
     /// `cosmostrix --doctor` RENDERER section. The benchmark report must
     /// disclose this so the user can answer "is the chroma dragon running
     /// during my benchmark?" without reading the source.
     pub color_pipeline: &'static str,
-    /// v30.3 (chroma dragon audit): human-readable chroma engine status
+    /// (chroma dragon audit): human-readable chroma engine status
     /// during the benchmark run. Explains the relationship between
     /// benchmark mode and the chroma engine (palette drift is disabled
     /// for deterministic p99/max, but climate drift still runs because
@@ -345,7 +345,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         let s = r.section("CONFIG");
         s.field("scene", &data.scene);
         s.field("color_scheme", &data.color_scheme_name);
-        // v25.17: color pipeline parity with --verbose. Without these,
+        // color pipeline parity with --verbose. Without these,
         // two benchmark runs printing `color_scheme: cosmos` could have
         // used completely different render paths (TrueColor vs Color16,
         // custom palette vs built-in, identity tune vs shifted stops).
@@ -369,7 +369,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("glitch_level", data.glitch_level);
         s.field("glitch_pct", &format!("{:.1}", data.glitch_pct));
         s.field("auto_color_drift", &data.auto_color_drift.to_string());
-        // v30.3 (chroma dragon audit): disclose the active color pipeline and
+        // (chroma dragon audit): disclose the active color pipeline and
         // the chroma engine status during benchmark. The owner's question
         // "is the chroma dragon enable/disable during --benchmark?" is
         // answered here in plain text. Chroma is ENABLED in benchmark mode
@@ -402,7 +402,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             "The Cosmic Dragon Diff-Based Rendering Engine (diff-based + RLE + phosphor)",
         );
         s.field("version", env!("CARGO_PKG_VERSION"));
-        // v25.16: disclose the active scene so users can interpret FPS
+        // disclose the active scene so users can interpret FPS
         // numbers correctly. Different scenes have wildly different
         // throughput characteristics (monolith is ~3-5x faster than
         // cinematic on most terminals). The scene field + scene_note

@@ -491,7 +491,7 @@ fn main() -> std::io::Result<()> {
         return testconf::run(&args);
     }
 
-    // v25.6 depth-test fix: --list-* and --show-scene bypass strict config
+    // depth-test fix: --list-* and --show-scene bypass strict config
     // validation. Depth-test user with `charset-custom.long2.set` exceeding
     // the 256-char limit could not run `--list-charsets` because the strict
     // validation in apply_config_and_runtime_defaults killed the process
@@ -546,7 +546,7 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Benchmark default scene override (v25.16):
+    // Benchmark default scene override:
     //
     // When running in benchmark mode (--benchmark or --bench-all) without an
     // explicit --scene, default to "monolith" — the signature scene that
@@ -614,8 +614,8 @@ fn main() -> std::io::Result<()> {
         _ => BoldMode::Random,
     };
 
-    // v30.3: dynamic default FPS (terminal-aware: 144 high-perf / 60 std
-    // / 30 xterm.js) when user didn't set --fps. v30.6: track which
+    // dynamic default FPS (terminal-aware: 144 high-perf / 60 std
+    // / 30 xterm.js) when user didn't set --fps. track which
     // resolution layer won so verbose can show `fps_precedence:`. See
     // the FPS Precedence Chain doc in termdetect.rs.
     let term_caps = crate::termdetect::detect();
@@ -656,8 +656,8 @@ fn main() -> std::io::Result<()> {
 
     let target_fps = ux::or_exit(validate_f64_range("--fps", args.fps, 1.0, 240.0));
 
-    // v30+Tier 2: xterm.js hosts get 30 FPS cap to prevent OOM. v30.6: OVERRIDES resolution
-    // layer. v35.2: also re-applied on live-reload. v35.3 (FPS-F5): skip in ALL bench modes.
+    // Tier 2: xterm.js hosts get 30 FPS cap to prevent OOM. OVERRIDES resolution
+    // layer. also re-applied on live-reload. (FPS-F5): skip in ALL bench modes.
     let in_bench_mode = args.benchmark || args.bench_all || args.bench_frames.is_some();
     let xtermjs_cap_fired =
         !in_bench_mode && term_caps.xtermjs_host && target_fps > term_caps.default_fps_cap;
@@ -702,7 +702,7 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    // v30.2: rain_style resolution — built-in → its rain_style; custom →
+    // rain_style resolution — built-in → its rain_style; custom →
     // base-scene's rain_style; otherwise → Glyph.
     let cfg = configfile::load_config_file(args.config.as_deref());
     let rain_style = scene_custom::resolve_rain_style(args.scene.as_deref(), &cfg);
@@ -944,7 +944,7 @@ fn main() -> std::io::Result<()> {
             .and_then(scene_custom::parse_density_map)
     });
 
-    // v25.16: CliExplicit is Copy — field copy after CloudConfig move (avoids E0382).
+    // CliExplicit is Copy — field copy after CloudConfig move (avoids E0382).
     let cloud_cfg = CloudConfig {
         color_mode,
         shading_mode,
@@ -979,7 +979,7 @@ fn main() -> std::io::Result<()> {
         }),
         message_border: args.message_border,
         target_fps,
-        xtermjs_host: term_caps.xtermjs_host, // v35.2 (FPS-F1): live-reload cap
+        xtermjs_host: term_caps.xtermjs_host, // (FPS-F1): live-reload cap
         default_fps_cap: term_caps.default_fps_cap,
         duration: args.duration,
         duration_s,
@@ -1007,7 +1007,7 @@ fn main() -> std::io::Result<()> {
         auto_color_drift: args.auto_color_drift,
         monolith_density_map,
         config_path_for_watcher: {
-            // v25.2 Termux fix: multi-candidate path resolution so the
+            // Termux fix: multi-candidate path resolution so the
             // watcher watches the file the user is ACTUALLY editing. On
             // Termux with XDG_CONFIG_HOME=$PREFIX/etc, the old single-
             // candidate resolver picked a system path the user wasn't
@@ -1103,13 +1103,13 @@ fn main() -> std::io::Result<()> {
             .to_string();
         let startup_speed = cloud_cfg.speed;
         let startup_density = cloud_cfg.density;
-        // v30.5: print startup ambient info post-exit (event_loop prints
+        // print startup ambient info post-exit (event_loop prints
         // are invisible — alternate screen discards stderr on exit).
         if let Some(info) = interactive::startup_ambient_info() {
             crate::output::eprintln_verbose_purple(&info);
         }
 
-        // v25.13: live-reload errors cause immediate exit (see below).
+        // live-reload errors cause immediate exit (see below).
         let changed = final_color != startup_color
             || final_scene != startup_scene
             || final_charset != startup_charset
@@ -1156,7 +1156,7 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Live-reload fatal exit (v25.13 bug #15): watcher panics + validation
+    // Live-reload fatal exit ( bug #15): watcher panics + validation
     // errors set LIVE_RELOAD_EXIT_CODE=2, break the rain loop, print here
     // after Terminal::drop (no alt-screen leak).
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {

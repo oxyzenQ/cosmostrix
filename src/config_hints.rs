@@ -10,7 +10,7 @@
 //! header (a structural TOML mistake, not a typo).
 //!
 //! This module pattern-matches two real world user-error cases observed
-//! during the v25.6 depth test and returns a targeted hint explaining
+//! during the depth test and returns a targeted hint explaining
 //! WHERE the key should live:
 //!
 //! 1. **`color.tune.bold`** — `bold` is a top-level key (values 0/1/2),
@@ -23,7 +23,7 @@
 //!    the `adaptive-custom.*` key namespace was eliminated at commit
 //!    `07b44b5` along with the atmosphere engine subsystem, so the hint
 //!    now tells the user to REMOVE these entries (not move them to root
-//!    scope, which was the original v25.7 advice).
+//!    scope, which was the original advice).
 //!
 //! Hints are opt-in: callers (live reload, `--testconf`, startup
 //! validation) only append a `hint:` line when [`suggest_for_unknown_key`]
@@ -69,7 +69,7 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     // v30 (2026-08-05, atmosphere elimination): the entire `adaptive-custom.*`
     // key namespace was eliminated at commit 07b44b5 along with the atmosphere
     // engine subsystem. The hint now tells the user to REMOVE these keys,
-    // not move them to root scope (which was the original v25.7 advice when
+    // not move them to root scope (which was the original advice when
     // the keys were still live).
     if key.starts_with("scene-custom.") {
         let segments: Vec<&str> = key.split('.').collect();
@@ -99,7 +99,7 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
         }
     }
 
-    // Pattern 3 (v25.10 / bug #8): invalid colors-custom field. Triggered
+    // Pattern 3 (bug #8): invalid colors-custom field. Triggered
     // by `colors-custom.<name>.<field>` where `<field>` is not one of the
     // three accepted values (`bg`, `rain`, `stops`). Previously this surfaced
     // as a generic "unknown key (likely typo)" with no hint about which
@@ -157,7 +157,7 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
         ));
     }
 
-    // Pattern 4 (v25.11 / bug #13): top-level key typo. If the unknown key
+    // Pattern 4 (bug #13): top-level key typo. If the unknown key
     // is a simple word (no dots) that is edit-distance ≤ 2 from a known
     // top-level USER_CONFIG_KEYS entry, suggest the closest match. This
     // catches common typos like `collor` → `color`, `speeed` → `speed`,
@@ -257,7 +257,7 @@ fn colors_custom_field_hint(key: &str, field: &str) -> String {
     // Removed alias — point users to the canonical name.
     if field == "background" {
         return format!(
-            "'{key}': 'background' was removed in v25.10 — use 'bg' instead. \
+            "'{key}': 'background' was removed in  — use 'bg' instead. \
              Example: bg = \"#0a0a12\""
         );
     }
@@ -439,7 +439,7 @@ mod tests {
 
     #[test]
     fn generic_typo_returns_none() {
-        // v25.11: 'colro' and 'colour' now match 'color' (edit distance ≤ 2)
+        // 'colro' and 'colour' now match 'color' (edit distance ≤ 2)
         // so they DO get a did-you-mean hint. Use genuinely unrelated keys
         // that are edit-distance > 2 from any known key.
         assert_eq!(suggest_for_unknown_key("xyzqwerty"), None);
@@ -454,7 +454,7 @@ mod tests {
 
     #[test]
     fn format_hints_block_empty_for_no_hints() {
-        // v25.11: use keys that are NOT close to any known key (edit distance > 2).
+        // use keys that are NOT close to any known key (edit distance > 2).
         // 'colro'/'colour' now match 'color' and would produce hints.
         let keys = vec!["xyzqwerty".to_string(), "zzzzzzzzz".to_string()];
         assert_eq!(format_hints_block(&keys), "");
@@ -488,7 +488,7 @@ mod tests {
 
     #[test]
     fn format_hints_block_mixed_keys_only_emits_for_known_patterns() {
-        // v25.11: 'colro'/'colour' now match 'color' and produce hints.
+        // 'colro'/'colour' now match 'color' and produce hints.
         // Use genuinely unrelated keys for the no-hint cases.
         let keys = vec![
             "xyzqwerty".to_string(),       // no hint (edit dist > 2 from all keys)
@@ -508,7 +508,7 @@ mod tests {
 
     #[test]
     fn parse_color_tune_section_with_bold_promotes_to_root() {
-        // v25.7: [color.tune] + `bold = true` no longer lands in unknown_keys.
+        // [color.tune] + `bold = true` no longer lands in unknown_keys.
         // The parser auto-promotes `bold` to root scope (it's a known top-level
         // key) and records the promotion. The hint function still fires when
         // explicitly given the would-be-nested form, so users who see the
@@ -533,7 +533,7 @@ mod tests {
 
     #[test]
     fn parse_scene_custom_section_with_nested_adaptive_custom_promotes_to_root() {
-        // v25.7: [scene-custom.hacker-mode.adaptive-custom.10-00] + color = cosmos
+        // [scene-custom.hacker-mode.adaptive-custom.10-00] + color = cosmos
         // — both `adaptive-custom.10-00` (segment of the section path) AND
         // `color` (the flat key under it) are recognized top-level keys, so
         // the auto-promote fires for `color` (the flat key). No unknown_keys.
@@ -557,7 +557,7 @@ mod tests {
         assert!(suggest_for_unknown_key(full_key).is_some());
     }
 
-    // ── Pattern 3 (v25.10 / bug #8): invalid colors-custom fields ──────────
+    // ── Pattern 3 (bug #8): invalid colors-custom fields ──────────
 
     #[test]
     fn colors_custom_head_field_returns_hint() {
@@ -583,7 +583,7 @@ mod tests {
 
     #[test]
     fn colors_custom_background_field_returns_removal_hint() {
-        // `background` was an undocumented alias removed in v25.10.
+        // `background` was an undocumented alias removed.
         let hint = suggest_for_unknown_key("colors-custom.foo.background").expect("expected hint");
         assert!(
             hint.contains("removed"),
@@ -664,7 +664,7 @@ mod tests {
 
     #[test]
     fn parse_colors_custom_stops_accepted_not_in_unknown_keys() {
-        // v25.10: stops is now a deprecated alias for rain — accepted.
+        // stops is now a deprecated alias for rain — accepted.
         let parsed =
             crate::configfile::parse_config_text("[colors-custom.foo]\nstops = \"#ff0000\"\n");
         assert!(
@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn parse_colors_custom_background_lands_in_unknown_keys_with_hint() {
-        // v25.10: background alias removed — surfaces as unknown key.
+        // background alias removed — surfaces as unknown key.
         let parsed =
             crate::configfile::parse_config_text("[colors-custom.foo]\nbackground = \"#fff\"\n");
         assert!(
@@ -691,7 +691,7 @@ mod tests {
         assert!(hint.is_some(), "hint should fire for background");
     }
 
-    // ── v25.11 (bug #13): top-level key typo "did you mean" hints ──
+    // ── (bug #13): top-level key typo "did you mean" hints ──
 
     #[test]
     fn typo_collor_suggests_color() {

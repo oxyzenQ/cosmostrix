@@ -2,7 +2,7 @@
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> **STATUS: EXECUTED** (commit `69ca2c6`, v30.0.0-alpha.1, 2026-08-04).
+> **STATUS: EXECUTED** (commit `69ca2c6`, 2026-08-04).
 >
 > All three recommendations were applied:
 > - **`--bench-frames`**: KEPT + 2 fixes (docs bug in `benchmark/README.md:339-356`,
@@ -190,8 +190,8 @@ purely a user-facing CLI affordance.
 
 ### 2.4 Alternatives that already exist
 
-The `[charset-custom.<name>]` block in `config.toml` is the **v25
-replacement** for `--chars`. From `src/configfile.rs:736-752`:
+The `[charset-custom.<name>]` block in `config.toml` is the
+**replacement** for `--chars`. From `src/configfile.rs:736-752`:
 
 ```toml
 # [charset-custom.zen]
@@ -219,9 +219,9 @@ named presets, shareable across machines).
 
 ### 2.5 Documentation note
 
-The `[charset-custom]` block was added in v25 specifically to replace
+The `[charset-custom]` block was added specifically to replace
 `--chars`. The previous `--charset-file` flag (which loaded chars from
-a file) was removed in v25.0.0 with a migration message in
+a file) was removed with a migration message in
 `src/validation.rs:68-71`:
 
 ```
@@ -230,8 +230,8 @@ error: --charset-file has been removed in v25.0.0.
   and are loaded via --charset <name>.
 ```
 
-`--chars` was left in place during the v25 migration as a "soft
-deprecation" — but the v25 migration message explicitly tells users
+`--chars` was left in place during migration as a "soft
+deprecation" — but the migration message explicitly tells users
 to move to `[charset-custom]`. The only reason `--chars` was kept was
 that it accepted *hex Unicode ranges* (e.g. `0x30-0x39`) rather than
 literal characters, which is a slightly different input format.
@@ -259,7 +259,7 @@ Total LOC delta: ~75 lines deleted, ~5 lines added (REMOVED_FLAGS entry).
 `--chars` is fully superseded by `[charset-custom.<name>]` in
 config.toml. The config-file flow is strictly more powerful (literal
 chars, live-reload, named presets, shareable). `--chars` was a "soft
-deprecation" leftover from the v25 migration — the v25.0.0 release
+deprecation" leftover from migration — the release
 notes already tell users to move to `[charset-custom]` via the
 `--charset-file` removal message.
 

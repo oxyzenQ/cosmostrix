@@ -149,7 +149,7 @@ no-op behavior on clean frames.
 | Signal | Action | Quality |
 |--------|--------|---------|
 | SIGTERM, SIGHUP, SIGQUIT | Set `GRACEFUL_SHUTDOWN` + `signal_exit` flags, wait up to 20s for `SHUTDOWN`, then exit | Excellent — atomic-flag coordination, no stdout races |
-| SIGINT (Ctrl+C) | **Intentionally NOT handled** — user must press 'q' to quit (cinematic design principle, v25.13) | Deliberate |
+| SIGINT (Ctrl+C) | **Intentionally NOT handled** — user must press 'q' to quit (cinematic design principle) | Deliberate |
 | SIGTSTP (Ctrl+Z) | Disable mouse capture → `restore_terminal_best_effort()` → set `term_reinit` → raise SIGSTOP | Excellent — restores terminal *before* suspending so user gets a usable shell |
 | SIGCONT | Set `term_reinit` flag (main loop recreates Terminal on next iteration) | Clean |
 | Windows Ctrl+Break | Set graceful flags, sleep 1s, force restore + exit(130) if main loop didn't shut down | Adequate |

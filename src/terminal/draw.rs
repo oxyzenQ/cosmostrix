@@ -111,7 +111,7 @@ impl Terminal {
                 })
                 .unwrap_or(true);
             if needs_new_last {
-                // v25.16 (perf polish): reuse the old LastFrame's Vec
+                // (perf polish): reuse the old LastFrame's Vec
                 // allocation when the new dimensions fit. This avoids
                 // heap churn during resize-drag storms where the user
                 // overshoots and settles back to a smaller size.
@@ -213,7 +213,7 @@ impl Terminal {
         // row in one pass), then iterate contiguous runs. This eliminates
         // per-row Vec allocations on resize and improves cache locality.
         //
-        // v25.15 (perf audit): the previous `dirty_flat.extend(dirty.iter()
+        // (perf audit): the previous `dirty_flat.extend(dirty.iter()
         // .copied().filter(|&idx| idx < height * width))` had an O(N) bounds
         // filter that ran every frame. The filter is redundant — every entry
         // in `frame.dirty_indices()` was pushed by `Frame::set()` /
@@ -229,7 +229,7 @@ impl Terminal {
         dirty_flat.clear();
         dirty_flat.extend(dirty.iter().copied());
         dirty_flat.sort_unstable();
-        // v25.16 (perf polish): the previous O(N) `dirty_flat.iter().all()`
+        // (perf polish): the previous O(N) `dirty_flat.iter().all()`
         // checked every index every frame in debug builds (~4800
         // comparisons on a 200×40 terminal). Since `dirty_flat` is now
         // sorted ascending (we just called `sort_unstable()`), only the
@@ -252,7 +252,7 @@ impl Terminal {
 
         // Iterate the flat sorted array, detecting row boundaries and
         // contiguous horizontal runs for RLE batching.
-        // v25.11 (bug #12): track the current row to force a MoveTo at
+        // (bug #12): track the current row to force a MoveTo at
         // each row boundary. This prevents cursor desync where the terminal
         // autowraps or drifts at row boundaries (especially the bottom rows
         // where phosphor decay writes many ghost cells). Without this, a
@@ -286,7 +286,7 @@ impl Terminal {
             let bg0 = cell0.bg;
             let bold0 = cell0.bold;
 
-            // v25.11 (bug #12): force cursor resync at each row boundary.
+            // (bug #12): force cursor resync at each row boundary.
             // When we cross from one row to the next, invalidate cur_pos so
             // a MoveTo is always emitted for the first dirty cell in the
             // new row. This corrects any terminal-side autowrap or cursor

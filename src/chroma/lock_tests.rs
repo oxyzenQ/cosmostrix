@@ -96,7 +96,7 @@ use crate::runtime::{ColorMode, ColorPipeline, ColorScheme};
 /// - `"9-A"` — Phase 9-A: hue-preserving OKLab gradient variant (opt-in)
 /// - `"9-B (locked)"` — Phase 9-B: engine locked. All invariants asserted.
 /// - `"9-C (locked)"` — Phase 9-C: Cartesian removed, polar is sole path.
-/// - `"9-D (locked)"` — Phase 9-D: chroma dragon audit (v30.3). Adds
+/// - `"9-D (locked)"` — Phase 9-D: chroma dragon audit ). Adds
 ///   `ColorPipeline` enum + `chroma::legacy` module. INV-19 asserts
 ///   pipeline disclosure so the user can verify "chroma dragon active"
 ///   vs "legacy fallback" via `-v`, `--doctor`, and `--benchmark`.
@@ -869,7 +869,7 @@ fn lock_inv18_polar_is_sole_production_gradient_path() {
 /// prints the full report; the assertion verifies the engine version
 /// matches the locked tag and the invariant count is 19.
 ///
-/// v30.3 (Phase 9-D): invariant count bumped 18 → 19. INV-19 (pipeline
+/// (Phase 9-D): invariant count bumped 18 → 19. INV-19 (pipeline
 /// disclosure) was added by the chroma dragon audit. The version tag was
 /// bumped from `9-C (locked)` → `9-D (locked)` to signal the new public
 /// contract: `ColorPipeline::detect` is now part of the engine's surface.
@@ -979,7 +979,7 @@ fn lock_inv17_engine_lock_report() {
 /// dragon first -> fallback legacy rgb/srgb". The detection rule is:
 /// `ColorMode::TrueColor` → `ChromaDragon`, everything else → `LegacyRgb`.
 ///
-/// This invariant was added in v30.3 (Phase 9-D) by the chroma dragon
+/// This invariant was added in  (Phase 9-D) by the chroma dragon
 /// audit. It locks the public contract of `ColorPipeline` so a future
 /// refactor cannot silently flip the routing (e.g. enabling chroma on
 /// Color256 without a deliberate engine version bump).

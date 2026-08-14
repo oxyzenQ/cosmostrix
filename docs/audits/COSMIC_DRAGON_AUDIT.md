@@ -1,4 +1,4 @@
-# Cosmic Dragon Audit — v50.0.0-alpha.1
+# Cosmic Dragon Audit — v50.0.0-alpha.2
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
@@ -47,7 +47,7 @@ Three parallel audit tracks were conducted:
 | ID | Finding | Documentation |
 |----|---------|---------------|
 | S2 | `expand_tilde` doesn't support `~user` (POSIX per-user expansion) | Added doc comment to `expand_tilde()` in `safepath.rs`. Full POSIX expansion would require `getpwnam(3)` — not worth the libc dependency for a rarely-used feature. Users should use absolute paths for other users' configs. |
-| S3 | Live-reload parse race with non-atomic editor writes | Added module-level doc section to `live_config.rs`. Editors that write atomically (vim, emacs, nano, VSCode) are safe. Non-atomic writes (`echo >`, `tee`) could trigger false validation rejection. The v25.13 exit-on-error design is the honest choice — don't silently ignore malformed configs. |
+| S3 | Live-reload parse race with non-atomic editor writes | Added module-level doc section to `live_config.rs`. Editors that write atomically (vim, emacs, nano, VSCode) are safe. Non-atomic writes (`echo >`, `tee`) could trigger false validation rejection. The exit-on-error design is the honest choice — don't silently ignore malformed configs. |
 
 ---
 

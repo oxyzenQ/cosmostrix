@@ -353,7 +353,7 @@ mod tests {
     #[test]
     fn bench_file_stays_under_target_loc() {
         // Guard: src/bench.rs must stay well under 1500 LOC.
-        // Current target is under 1500 LOC — bumped from 1200 in v25.10 to
+        // Current target is under 1500 LOC — bumped from 1200 in  to
         // match the project-wide LOC cap. Phase 8-9 scaling added sub-component
         // timing wiring (sim/render/io accumulators and per-frame
         // cloud.last_sim_ms()/last_render_ms() reads). The ComponentTimer

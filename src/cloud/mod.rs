@@ -88,7 +88,7 @@ pub struct Cloud {
 
     pub(super) palette: Palette,
     pub(super) color_mode: ColorMode,
-    /// v30.3: cached `ColorPipeline::detect(color_mode)`.
+    /// cached `ColorPipeline::detect(color_mode)`.
     pub(super) color_pipeline: ColorPipeline,
     pub(super) rain_style: RainStyle,
     monolith_size: MonolithSize,
@@ -254,11 +254,11 @@ pub struct Cloud {
     pub(super) custom_palette_active: bool,
     /// v30 Bug #5: color_tune stored on Cloud so set_color_scheme re-applies it.
     pub(super) color_tune: crate::color_tune::ColorTune,
-    /// v35: true when ambient asserted palette → suppress auto-drift palette
+    /// true when ambient asserted palette → suppress auto-drift palette
     /// replacement (climate drift still runs). Cleared by `c`/`C`/`x`.
     /// See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3.
     pub(crate) ambient_palette_locked: bool,
-    /// v35: true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`)
+    /// true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`)
     /// or auto-drift picked new palette since last ambient fire. Prevents
     /// event-loop dedup from skipping day-boundary refire. Cleared by
     /// ambient fire (scheduler, `a` key, startup).
@@ -432,7 +432,7 @@ impl Cloud {
             // v30 strengthen: overridden in app.rs create_cloud.
             custom_palette_active: false,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
-            // v35: ambient-harmony flags start false (set by ambient fire,
+            // ambient-harmony flags start false (set by ambient fire,
             // cleared by user override x/c/s).
             ambient_palette_locked: false,
             user_override_since_ambient: false,
@@ -610,13 +610,13 @@ impl Cloud {
                     if d.is_alive {
                         d.increment_time(elapsed);
                         d.last_time = Some(now);
-                        // v30.2: randomize advance_remainder on resume (was 0,
+                        // randomize advance_remainder on resume (was 0,
                         // caused lockstep "loncat" pops). Jitter spreads them,
                         // matching apply_phase_jitter's per-droplet phase.
                         d.advance_remainder = self.rand_chance.sample(&mut self.mt);
                     }
                 }
-                // v30.2 §H10: shift monolith streams' last_time forward by
+                // §H10: shift monolith streams' last_time forward by
                 // pause duration (was "safe by accident" via resume_blend=0).
                 self.monolith_rain.shift_active_streams_last_time(elapsed);
                 self.last_phosphor_time += elapsed;
@@ -951,7 +951,7 @@ impl Cloud {
                         } else {
                             let progress = age_ms as f32 / FADE_IN_MS as f32;
                             let factor = FADE_IN_START + (1.0 - FADE_IN_START) * progress;
-                            // v30.3 A23: chroma first, legacy::scale_rgb fallback.
+                            // A23: chroma first, legacy::scale_rgb fallback.
                             if let Some((r, g, b)) = crate::palette::decode_color(base_fg) {
                                 Some(if self.color_pipeline.is_chroma() {
                                     crate::palette::apply_brightness_rgb(r, g, b, factor)

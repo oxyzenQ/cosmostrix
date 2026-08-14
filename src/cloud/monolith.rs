@@ -255,7 +255,7 @@ impl MonolithRain {
         }
     }
 
-    /// v30.2 §H10: shift `last_time` of every active stream forward by the
+    /// §H10: shift `last_time` of every active stream forward by the
     /// pause duration so the first post-resume frame computes a small dt
     /// (not the full pause duration). Previously this was "safe by accident"
     /// because `resume_blend ≈ 0` on the first frame zeroed the motion
@@ -870,7 +870,7 @@ pub(super) fn color_for_level(
     // This eliminates 2-4 color_to_rgb() calls per cell per frame.
     let (mut r, mut g, mut b) = palette::decode_color(base_color)?;
 
-    // v30.3 (chroma audit, A10): the monolith color pipeline has three
+    // (chroma audit, A10): the monolith color pipeline has three
     // brightness/blend stages. Each routes through the chroma engine
     // when active, falls back to chroma::legacy otherwise. All paths
     // use the same equations as the original inline math -- the

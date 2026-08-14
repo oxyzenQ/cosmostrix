@@ -26,7 +26,7 @@
 //!
 //! Unix signals (SIGTERM, SIGHUP, SIGQUIT, SIGTSTP, SIGCONT) are handled via
 //! a dedicated signal thread that sets an atomic `GRACEFUL_SHUTDOWN` flag.
-//! v25.13: SIGINT (Ctrl+C) is deprecated — only 'q' exits cosmostrix.
+//! SIGINT (Ctrl+C) is deprecated — only 'q' exits cosmostrix.
 //! The main loop checks this flag each iteration and exits cleanly, allowing
 //! `Terminal::drop()` to restore the terminal without racing on stdout.
 //! A fallback force-restore fires after 1 second if the main loop is stuck.
@@ -173,7 +173,7 @@ pub(crate) fn last_density() -> f32 {
     FINAL_DENSITY.lock().ok().and_then(|g| *g).unwrap_or(0.75)
 }
 
-// v30.5: startup ambient info — stored in a static so main.rs can print
+// startup ambient info — stored in a static so main.rs can print
 // it AFTER Terminal::drop exits the alternate screen. Printing inside
 // event_loop is invisible because the terminal is in alternate screen
 // mode and the output is discarded on exit.

@@ -784,7 +784,7 @@ impl Cloud {
         // Each particle keeps this RGB even if the user switches palette
         // mid-flight → natural crossfade between old & new cohorts.
         //
-        // v30.3 (chroma audit, A1 spawn): the primary path uses
+        // (chroma audit, A1 spawn): the primary path uses
         // `palette::decode_color` -- a chroma engine helper that decodes
         // any Color variant to its RGB triple. The fallback constants
         // QUANTUM_BRAND_PURPLE_* are only hit when `palette.colors` is

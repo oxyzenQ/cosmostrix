@@ -99,15 +99,15 @@ mod tests {
     fn bench_report_data_struct_fields_are_all_used() {
         // Verify the BenchReportData struct has the expected field count
         // to guard against accidental removal of fields during refactoring.
-        // Count: status(1) + dims/config(15+10=25, v25.17 added 10 enrichment
+        // Count: status(1) + dims/config(15+10=25,  added 10 enrichment
         // fields: color_mode_label, custom_palette_name, custom_palette_bg_hex,
         // color_bg_label, color_tune_summary, async_mode, glitch_enabled,
         // glitch_level, glitch_pct, auto_color_drift) + perf(8) + dirty(8)
         // + throughput(6) + timing(3) = 51
-        // v25.16: config grew from 6 to 15 fields (color_scheme_name,
+        // config grew from 6 to 15 fields (color_scheme_name,
         // charset_preset, glyph_count, rain_style, monolith_size, bold_mode,
         // shading_mode, + speed which moved from perf-only to config too).
-        // v25.17: config grew from 15 to 25 fields (CONFIG enrichment for
+        // config grew from 15 to 25 fields (CONFIG enrichment for
         // color/charset parity with --verbose).
         // The struct literal below is the real check — if this compiles,
         // all fields exist and have the correct types. Prefixed with `_`

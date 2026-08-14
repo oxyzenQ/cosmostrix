@@ -31,7 +31,7 @@ impl LastFrame {
         }
     }
 
-    /// v25.16 (perf polish): reuse the existing Vec allocation when the
+    /// (perf polish): reuse the existing Vec allocation when the
     /// new dimensions fit within the old capacity. Avoids a heap
     /// alloc/dealloc pair every time the terminal is resized to a
     /// smaller or equal size — common during window-drag resize storms

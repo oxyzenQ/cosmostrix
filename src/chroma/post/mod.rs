@@ -11,7 +11,7 @@
 //!
 //! Pre-Phase-3-G, atmospheric effects (luminance climate, saturation
 //! drift, persistence richness, instability pressure) were applied in a
-//! separate post-hoc pass (v30.1: `apply_climate_frame_effects` was
+//! separate post-hoc pass (`apply_climate_frame_effects` was
 //! deleted; climate is shader-only now) that iterated all dirty cells,
 //! decoded each cell's `Color` back to `(r, g, b)`, applied the
 //! modifiers, and re-encoded. That meant every

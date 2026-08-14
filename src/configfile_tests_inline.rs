@@ -77,7 +77,7 @@ fn legacy_keys_removed_v17() {
 
 #[test]
 fn profile_keys_are_known() {
-    // v30.2: `base-scene` is restored as a recognized profile/scene-custom
+    // `base-scene` is restored as a recognized profile/scene-custom
     // field (with cleaner inheritance semantics — see profile.rs). It
     // must be stored in values, NOT flagged as unknown.
     let parsed = parse_config_text(
@@ -95,7 +95,7 @@ fn profile_keys_are_known() {
         !parsed
             .unknown_keys
             .contains(&"profile.nightcore.base-scene".to_string()),
-        "base-scene must NOT be flagged as unknown in v30.2"
+        "base-scene must NOT be flagged as unknown"
     );
     // color is also recognized and stored.
     assert_eq!(
@@ -170,7 +170,7 @@ fn dump_config_contains_all_supported_keys() {
 
 #[test]
 fn dump_config_documents_paired_field_split() {
-    // v30.3: the dump-config template must explicitly document the
+    // the dump-config template must explicitly document the
     // split between `color` (built-in) and `colors-custom` (custom
     // block ref), and the symmetric split for `charset` vs
     // `charset-custom`. This prevents the duplicate-usage confusion
@@ -277,7 +277,7 @@ fn parse_multiline_array_joins_correctly() {
     assert!(rain.ends_with(']'), "rain value should end with ]");
 }
 
-// ── v25.2 Termux fix: path resolution tests ──
+// ── Termux fix: path resolution tests ──
 
 #[test]
 fn is_termux_environment_returns_false_off_termux() {

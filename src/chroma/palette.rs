@@ -325,7 +325,7 @@ pub(crate) fn apply_brightness_rgb(r: u8, g: u8, b: u8, factor: f32) -> Color {
 /// decode + `Color::Reset` check when the caller already has the
 /// pre-decoded (r, g, b) values. Returns the blended (r, g, b) triple.
 ///
-/// v30.3 (chroma audit, A2): added for the mouse-click flash wave hot
+/// (chroma audit, A2): added for the mouse-click flash wave hot
 /// path. The equation is identical to `blend_toward_white` -- the
 /// difference is the input/output shape (tuple vs Color). Used by
 /// droplet.rs::CellShader::shade when the chroma pipeline is active;
@@ -345,7 +345,7 @@ pub(crate) fn blend_toward_white_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u
 /// RGB-tuple version of `blend_toward_bg`. Blends `(r, g, b)` toward the
 /// target `(tr, tg, tb)` by `factor` (0.0 = no change, 1.0 = full target).
 ///
-/// v30.3 (chroma audit, A1): added for the quantum ripple render path.
+/// (chroma audit, A1): added for the quantum ripple render path.
 /// The particle carries its snapshot body color as `(r, g, b)` and blends
 /// the cell's current color toward that snapshot by `brightness`. The
 /// chroma path uses this helper; the legacy fallback uses
@@ -376,7 +376,7 @@ pub(crate) fn blend_toward_bg_rgb(
 /// a multiplicative brightness boost scaled by the parallax layer's
 /// self-bloom multiplier).
 ///
-/// v30.3 (chroma audit, A4): added for the head self-bloom hot path.
+/// (chroma audit, A4): added for the head self-bloom hot path.
 /// The equation is bit-identical to `chroma::legacy::boost_rgb` -- both
 /// use `(c as f32 * (1.0 + factor)).round().clamp(0.0, 255.0) as u8`.
 /// The audit proposed a future "perceptual OKLab L lift" variant that
@@ -411,14 +411,14 @@ pub(crate) fn decode_color(color: Color) -> Option<(u8, u8, u8)> {
 /// Unclamped variant of [`blend_toward_bg_rgb`]. Identical equation, but
 /// `factor` is NOT clamped to `[0.0, 1.0]`.
 ///
-/// v30.3 (chroma audit, A11): added for the parallax saturation
+/// (chroma audit, A11): added for the parallax saturation
 /// modulation in `droplet.rs::Droplet::draw`. The saturation effect
 /// uses `factor = 1.0 - saturation_mult`, and `PARALLAX_SATURATION_MULT`
 /// has values both below 1.0 (back layers desaturate, factor > 0) AND
 /// above 1.0 (front layer oversaturates, factor < 0). The standard
 /// `blend_toward_bg_rgb` clamps factor to `[0, 1]`, which would
 /// silently turn the front-layer oversaturation case into a no-op
-/// and regress the v30.0.0 saturation fix.
+/// and regress the saturation fix.
 ///
 /// Negative factors push the channel AWAY from the target (extrapolation
 /// beyond the source). Positive factors > 1.0 push beyond the target.
@@ -456,7 +456,7 @@ pub(crate) fn blend_toward_bg_rgb_unclamped(
 ///
 /// The standard `apply_brightness_rgb` clamps factor to `[0, 1]`, which
 /// would silently turn a 1.10 boost into a 1.0 no-op and regress the
-/// v30.0.0 fix that enabled front-layer brightness boost.
+/// .0 fix that enabled front-layer brightness boost.
 ///
 /// Factor > 1.0 scales the channel upward (boost). Factor < 0 inverts
 /// the channel (rarely meaningful but mathematically defined). The
@@ -467,7 +467,7 @@ pub(crate) fn blend_toward_bg_rgb_unclamped(
 /// legacy helper is also unclamped -- the only difference between the
 /// two is module ownership (chroma engine vs. legacy fallback).
 ///
-/// # Caller status (v30.3 A16 migration)
+/// # Caller status ( A16 migration)
 /// Wired into `droplet::CellShader::shade` for the parallax brightness
 /// + glyph dim multiplicative scale. The chroma path uses this helper;
 ///

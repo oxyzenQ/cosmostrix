@@ -126,7 +126,7 @@ are detected. The guard catches:
 If a future test genuinely needs the current package version, use
 `env!("CARGO_PKG_VERSION")` — never hardcode the literal string.
 
-## v15 Cosmic Dragon Architecture
+## Cosmic Dragon Architecture
 
 The Cosmic Dragon release introduces several major subsystems. All new code must
 follow these architectural rules.
@@ -141,14 +141,14 @@ The atmosphere engine subsystem was fully eliminated at commit `07b44b5`
 `atmosphere-*` scene-custom presets have been removed.
 
 Historical reference (preserved verbatim, no longer describes live behavior):
-- `docs/archive/specs/ATMOSPHERE_ENGINE.md` — v20 design spec
+- `docs/archive/specs/ATMOSPHERE_ENGINE.md` — design spec
 - `docs/archive/specs/CINEMATIC_BREATHING.md` — vocabulary spec
 - `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` — full
   elimination record (file list, KEPT-vs-DELETED table, backward-compat
   notes, revival guidance)
 
 Subsystems that still share the "atmosphere" name but were NOT deleted
-(because they are separate subsystems, not the v4.0.0 atmosphere engine):
+(because they are separate subsystems, not the atmosphere engine):
 - `src/chroma/post/climate.rs` — Chroma Dragon post-FX shader
   (luminance/saturation/instability). Used by
   `chroma::shaders::base::resolve_cell_color` for every cell render.
@@ -174,13 +174,13 @@ Subsystems that still share the "atmosphere" name but were NOT deleted
 - Invalid values (out of range, unknown enum) → error.
 - No silent fallback. No warnings. Errors only.
 
-### CLI Flag Policy (v14+)
+### CLI Flag Policy
 
 - Quit: only `q` exits. Esc, Ctrl+C, Ctrl+Z (in-app), Tab/BackTab, and all
   other unrecognized keys are silently ignored (fall through to the
-  `_ => {}` catch-all in `handle_keybinding`). v25.13: SIGINT (Ctrl+C) is
+  `_ => {}` catch-all in `handle_keybinding`). SIGINT (Ctrl+C) is
   deprecated at the signal level too — only SIGTERM/SIGHUP/SIGQUIT trigger
-  graceful shutdown. v30: in-app Ctrl+Z suspend keybind was removed
+  graceful shutdown. In-app Ctrl+Z suspend keybind was removed
   (terminal-driven SIGTSTP still works via `signal_handlers.rs`); the
   explicit Tab/BackTab no-op arm was removed (now falls through to
   catch-all). The user must press `q` deliberately to quit.
@@ -191,22 +191,22 @@ Subsystems that still share the "atmosphere" name but were NOT deleted
   - `c` / `C`        Cycle color scheme forward / backward
   - `s` / `S`        Cycle charset preset forward / backward
   - `p`              Pause / resume
-  - `x`              Cycle scene forward (uppercase `X` is a no-op since v30)
+  - `x`              Cycle scene forward (uppercase `X` is a no-op)
   - `Up` / `Down`    Speed up / slow down
   - `[` / `]`        Density down / up
-  - `i`              Toggle live HUD (uppercase `I` is a no-op since v30)
-  - `h`              Move HUD to opposite corner (uppercase `H` is a no-op since v30)
+  - `i`              Toggle live HUD (uppercase `I` is a no-op)
+  - `h`              Move HUD to opposite corner (uppercase `H` is a no-op)
 - Screensaver mode: all the above keys work normally. Only `q` exits.
 - Removed legacy keybinds (now silently ignored via catch-all, were
   never documented in `--help`):
-  - v30: `-` `_` `+` `=` (density aliases for `[` / `]`)
-  - v30: `Ctrl+Z` (in-app suspend — OS SIGTSTP still works)
-  - v30: `Tab` / `BackTab` explicit no-op arm (now catch-all; historical
+  - `-` `_` `+` `=` (density aliases for `[` / `]`)
+  - `Ctrl+Z` (in-app suspend — OS SIGTSTP still works)
+  - `Tab` / `BackTab` explicit no-op arm (now catch-all; historical
     shading-mode toggle that caused phosphor ghost flood — see
     `tests.rs::tab_*` regression suite)
   - Stale doc references to `a`, `m`, `g`, `b`/`B` as "interactive" keys
     were purged from RULES.md, COSMIC_DRAGON_ARCHITECTURE.md, README.md,
-    and inline comments — these were never active keybinds in v30.
+    and inline comments — these were never active keybinds.
 - Removed flags (each has a migration error produced by the `REMOVED_FLAGS`
   table in `src/validation.rs` that intercepts the flag before clap parsing):
   - v14.0.0: `--preset`, `--profile`, `--low-power`, `--list-presets`,

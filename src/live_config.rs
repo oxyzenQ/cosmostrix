@@ -33,7 +33,7 @@
 //! VSCode, most modern editors) are safe — the watcher sees either the
 //! old file or the complete new file, never a partial write.
 //!
-//! This is a known limitation of file-watcher systems. The v25.13 design
+//! This is a known limitation of file-watcher systems. The  design
 //! (exit on validation error) makes this more visible than the old "silently
 //! keep last valid config" behavior, but it is the honest choice: a
 //! malformed config should not be silently ignored.
@@ -55,7 +55,7 @@ use crate::live_config_poll::{
 
 use crate::configfile;
 
-// AB-10 / v25.12: session-wide buffered state lives in live_config_state.rs.
+// AB-10: session-wide buffered state lives in live_config_state.rs.
 // Re-export everything so existing `live_config::LIVE_RELOAD_*` and
 // `live_config::push_*` references continue to resolve unchanged.
 #[cfg(test)]
@@ -140,7 +140,7 @@ pub(crate) fn spawn_watcher(config_path: PathBuf) -> Option<Receiver<LiveConfigE
 /// the same mpsc channel. Dedup via triple-signal snapshot comparison.
 fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
     const DEBOUNCE_MS: u64 = 200;
-    // v25.4: env-configurable poll interval + adaptive burst.
+    // env-configurable poll interval + adaptive burst.
     let poll_interval_ms = env_poll_interval_ms();
     let change_counter = Arc::new(AtomicU64::new(0));
 
@@ -256,7 +256,7 @@ fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
     let target_file = Arc::new(path.clone());
     let mut last_event = std::time::Instant::now();
 
-    // v25.5: native watcher liveness diagnostic.
+    // native watcher liveness diagnostic.
     const NATIVE_SILENCE_WARN_SECS: u64 = 30;
     let loop_start = std::time::Instant::now();
     let mut last_native_event: Option<std::time::Instant> = None;
@@ -283,7 +283,7 @@ fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
             event.paths
         );
 
-        // v25.5: classify event source for liveness diagnostic.
+        // classify event source for liveness diagnostic.
         let is_native_event = matches!(
             event.kind,
             EventKind::Modify(notify::event::ModifyKind::Data(_))
@@ -324,7 +324,7 @@ fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
 }
 
 /// Process a single notify event. Returns `false` if channel closed.
-/// Dedup (v25.1): mtime + size + content hash; drops if all three equal
+/// Dedup: mtime + size + content hash; drops if all three equal
 /// `last_processed_state` (critical on Termux where mtime is unreliable).
 #[allow(clippy::too_many_arguments)]
 fn handle_notify_event(
@@ -374,10 +374,10 @@ fn handle_notify_event(
             // Small delay for atomic-save rename completion.
             std::thread::sleep(Duration::from_millis(50));
 
-            // SNAPSHOT DEDUP (v25.1): mtime + size + content hash. Drop if
+            // SNAPSHOT DEDUP: mtime + size + content hash. Drop if
             // equal to last_processed_state on all three signals.
             //
-            // v30.3 masterclass: use `snapshot_file_state_cached` with the
+            // masterclass: use `snapshot_file_state_cached` with the
             // previous snapshot as cache. On the common duplicate-event
             // path (native + poll both fire for the same edit), mtime +
             // size match → SHA-256 hash is skipped → ~20× faster dedup
@@ -420,7 +420,7 @@ fn handle_notify_event(
                 event.kind
             );
 
-            // v25.4 strengthening: signal polling heartbeat to enter burst
+            // strengthening: signal polling heartbeat to enter burst
             // mode (200ms × 5 cycles) to catch rapid follow-up edits.
             change_counter.fetch_add(1, Ordering::AcqRel);
 
@@ -441,7 +441,7 @@ fn handle_notify_event(
             }
 
             if let Err(msg) = validate_and_send(&parsed, tx) {
-                // v25.13 (bug #15): DO NOT write to stderr here. The watcher
+                // (bug #15): DO NOT write to stderr here. The watcher
                 // thread runs concurrently with the rain render loop, and any
                 // stderr write during rain leaks into the alternate-screen
                 // buffer — the user sees "weird text" polluting the rain
@@ -457,7 +457,7 @@ fn handle_notify_event(
             true
         }
         Err(e) => {
-            // v25.13 (bug #15): same reasoning — do NOT write to stderr
+            // (bug #15): same reasoning — do NOT write to stderr
             // during rain. Transient watcher errors are recoverable (polling
             // heartbeat covers). Log to lr_trace! for debug builds only.
             lr_trace!("[live-reload] transient watch error (polling heartbeat covers): {e}");
@@ -484,7 +484,7 @@ fn validate_and_send(
             "malformed line(s): '{}' (expected 'key = value' syntax)",
             lines.join(", ")
         );
-        // v25.12 (bug #14): surface to session rejection log.
+        // (bug #14): surface to session rejection log.
         push_validation_rejection(&msg);
         let _ = tx.try_send(Err(msg.clone()));
         return Err(msg);
@@ -498,20 +498,20 @@ fn validate_and_send(
             .take(3)
             .map(String::as_str)
             .collect();
-        // v25.6 depth-test fix: append "did you mean" hints for structural
+        // depth-test fix: append "did you mean" hints for structural
         // mistakes (e.g. color.tune.bold). Returns "" when no hints apply.
         let hints = crate::config_hints::format_hints_block(&parsed.unknown_keys);
         let msg = format!(
             "unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys){hints}",
             keys.join(", ")
         );
-        // v25.12 (bug #14): surface to session rejection log.
+        // (bug #14): surface to session rejection log.
         push_validation_rejection(&msg);
         let _ = tx.try_send(Err(msg.clone()));
         return Err(msg);
     }
 
-    // v25.7: auto-promoted keys are NOT errors — parser re-homed them to
+    // auto-promoted keys are NOT errors — parser re-homed them to
     // root scope. Surface as info so user knows TOML was structurally off.
     if !parsed.promoted_keys.is_empty() {
         let preview = parsed
@@ -546,7 +546,7 @@ fn validate_and_send(
             Ok(())
         }
         Err(msg) => {
-            // v25.12 (bug #14): surface rejection to session log so post-exit
+            // (bug #14): surface rejection to session log so post-exit
             // verbose summary can show it.
             lr_trace!("strict validation FAILED: {msg}");
             push_validation_rejection(&msg);
@@ -573,7 +573,7 @@ pub(crate) fn rebuild_cloud_config(
         cli.color, cli.charset, cli.speed, cli.density, cli.fps, cli.scene, cli.glitch_level
     );
 
-    // v25.5 depth-test fix: user-set color/charset must win over scene defaults.
+    // depth-test fix: user-set color/charset must win over scene defaults.
     let user_set_color = cfg.contains_key("color");
     let user_set_charset = cfg.contains_key("charset");
 
@@ -635,7 +635,7 @@ pub(crate) fn rebuild_cloud_config(
         );
     }
 
-    // Scene — skip if CLI --scene explicit. v25.5: scene color/charset are
+    // Scene — skip if CLI --scene explicit. scene color/charset are
     // defaults; user config values win.
     if !cli.scene {
         if let Some(v) = cfg.get("scene") {
@@ -741,8 +741,8 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // Glitch level — skip if CLI --glitch-level was explicit.
-    // v35.2 (CLI-P-3): re-derive ALL preset values on live reload.
-    // v35.3 (Glitch-BUG3): None arm now resets all 5 preset fields too.
+    // (CLI-P-3): re-derive ALL preset values on live reload.
+    // (Glitch-BUG3): None arm now resets all 5 preset fields too.
     // BL-01 (Dragon Hunt v3): dedup — delegate to the shared helper in
     // scene_custom.rs (bit-identical preset values, was inlined here).
     // max_dpc is NOT touched — never set by glitch_level presets at startup.
@@ -768,7 +768,7 @@ pub(crate) fn rebuild_cloud_config(
         );
     }
 
-    // v25.5: color-bg live reload (true = terminal default; false = solid black).
+    // color-bg live reload (true = terminal default; false = solid black).
     if let Some(v) = cfg.get("color-bg") {
         new.default_bg = match v.trim().to_ascii_lowercase().as_str() {
             "black" => false,
@@ -811,7 +811,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // v35.3 (CLI-P-1): live-reload bold/shadingmode/async-mode (previously
+    // (CLI-P-1): live-reload bold/shadingmode/async-mode (previously
     // silently ignored). Mirrors startup parsers.
     if let Some(v) = cfg.get("bold").and_then(|s| s.trim().parse::<u8>().ok()) {
         new.bold_mode = match v {
@@ -840,7 +840,7 @@ pub(crate) fn rebuild_cloud_config(
         crate::scene_custom::apply_scene_custom_to_cloud_config(&mut new, cfg, custom_name);
     }
 
-    // v25.11 (bug #9): color.tune.* live reload — re-parse from cfg HashMap
+    // (bug #9): color.tune.* live reload — re-parse from cfg HashMap
     // (same path as startup) when at least one color.tune.* key is present.
     // Preserves CLI --color-tune when no [color.tune] block exists.
     let has_tune_keys = cfg.contains_key("color.tune.brightness")

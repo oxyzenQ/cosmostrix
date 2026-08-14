@@ -63,7 +63,7 @@ const XTERMJS_HOSTS: &[&str] = &[
     "WarpTerminal",
 ];
 
-/// # FPS Precedence Chain (v30.6 documentation)
+/// # FPS Precedence Chain ( documentation)
 ///
 /// The effective frame rate at any moment is the result of a 7-layer
 /// precedence chain. Layers are listed highest-priority first; the
@@ -78,7 +78,7 @@ const XTERMJS_HOSTS: &[&str] = &[
 ///    fps=30, `cosmic-dragon` sets fps=60). Applied in
 ///    `config_apply::apply_scene_values` ONLY when the user did NOT
 ///    set `--fps` AND config.toml did NOT set `fps =`.
-///    **v35.2 audit note (FPS-F2/F3)**: scene-level `fps =` is
+///    **audit note (FPS-F2/F3)**: scene-level `fps =` is
 ///    **startup-only by design**. `Cloud::apply_scene_runtime` does
 ///    NOT apply `fps` at runtime — only `rain_style`/`color`/`charset`/
 ///    `speed`/`density`/`glitch_level`. So when the self-healer
@@ -118,7 +118,7 @@ const XTERMJS_HOSTS: &[&str] = &[
 ///   fps_source:    /proc ancestor (dynamic default)
 ///   fps_precedence: dynamic_default  <- which resolution layer won
 ///
-/// The `fps_precedence` field is the new v30.6 visibility signal:
+/// The `fps_precedence` field is the visibility signal:
 /// one of `cli`, `scene`, `config`, `dynamic_default`, or
 /// `xtermjs_cap`. Runtime layers (idle, pause) are NOT shown here
 /// because they change every frame — see the HUD's `tgt:` line for
@@ -147,14 +147,14 @@ pub(crate) struct TerminalCaps {
     /// user's --fps value wins). xterm.js hosts get 30 to keep the
     /// worst-case byte rate under ~7 MB/sec.
     pub default_fps_cap: f64,
-    /// v30.3 masterclass: dynamic default FPS when the user does NOT
+    /// masterclass: dynamic default FPS when the user does NOT
     /// specify `--fps` or `fps =` in config. Based on terminal tier:
     /// high-performance terminals (Alacritty, kitty, wezterm, ghostty,
     /// foot, iTerm2) get 144; standard/unknown terminals get 60; xterm.js
     /// hosts get 30. The user's explicit `--fps` / `fps =` ALWAYS wins
     /// over this default — it only applies when no FPS is specified.
     pub dynamic_default_fps: f64,
-    /// v30.5 hardening: human-readable source string identifying WHICH
+    /// hardening: human-readable source string identifying WHICH
     /// detection layer matched (e.g. "TERM_PROGRAM=Alacritty",
     /// "/proc ancestor 'alacritty'", "standard/unknown fallback").
     /// Shown in `-v` verbose output so the user can verify the detection
@@ -187,7 +187,7 @@ const VSCODE_FPS_CAP: f64 = XTERMJS_FPS_CAP;
 /// `--fps` or `fps =`, these terminals default to 144 FPS instead of 60.
 /// The user's explicit value ALWAYS wins over this default.
 ///
-/// v30.4 hotfix: matching is now CASE-INSENSITIVE (some terminals emit
+/// hotfix: matching is now CASE-INSENSITIVE (some terminals emit
 /// `alacritty` vs `Alacritty`, `apple_Terminal` vs `Apple_Terminal`).
 /// Also expanded the list with Konsole, Windows Terminal, and corrected
 /// `Apple_Terminal` (the previous `apple_Terminal` lowercase form never
@@ -255,7 +255,7 @@ fn high_perf_detection_source(term_program: &str, term: &str) -> Option<&'static
     {
         return Some("TERM substring");
     }
-    // Layer 5 (v30.5): Linux /proc ancestor process name.
+    // Layer 5: Linux /proc ancestor process name.
     let ancestors = ancestor_process_names(10);
     if ancestor_matches_high_perf(&ancestors) {
         // Find the matching ancestor name for the source string.
@@ -376,7 +376,7 @@ pub(crate) fn detect() -> TerminalCaps {
     let term_program = env::var("TERM_PROGRAM").unwrap_or_default();
 
     // Tier 2: match against the full list of known xterm.js hosts.
-    // v35.3 (FPS-F6): case-insensitive matching (mirrors HIGH_PERF_TERMINALS
+    // (FPS-F6): case-insensitive matching (mirrors HIGH_PERF_TERMINALS
     // at line 237). Casing is fragile across versions/forks — a future VSCode
     // fork emitting "VSCode" instead of "vscode" would silently bypass the
     // 30 FPS cap and resurrect the multi-hour OOM crash Tier 2 prevents.
@@ -403,9 +403,9 @@ pub(crate) fn detect() -> TerminalCaps {
     // uncapped (the user's --fps value, validated to 1.0..=240.0, wins).
     let default_fps_cap = if xtermjs_host { XTERMJS_FPS_CAP } else { 240.0 };
 
-    // v30.3 masterclass: dynamic default FPS based on terminal tier.
-    // v30.4 hotfix: case-insensitive matching + env-var fallbacks.
-    // v30.5 hardening: Layer 5 (/proc ancestor walk) + source tracking.
+    // masterclass: dynamic default FPS based on terminal tier.
+    // hotfix: case-insensitive matching + env-var fallbacks.
+    // hardening: Layer 5 (/proc ancestor walk) + source tracking.
     // The source string records WHICH layer matched — shown in -v output
     // so the user can verify the detection chain.
     let (dynamic_default_fps, dynamic_fps_source) = if xtermjs_host {
@@ -697,7 +697,7 @@ mod tests {
         );
     }
 
-    // ── v30.3 masterclass: dynamic default FPS tests ──
+    // ── masterclass: dynamic default FPS tests ──
 
     #[test]
     fn dynamic_default_fps_high_perf_terminal_gets_144() {
@@ -726,7 +726,7 @@ mod tests {
 
     #[test]
     fn dynamic_default_fps_case_insensitive_match_gets_144() {
-        // v30.4 hotfix: case-insensitive matching — `alacritty` (lowercase)
+        // hotfix: case-insensitive matching — `alacritty` (lowercase)
         // must match `Alacritty` in the list. Previously this fell through
         // to 60 FPS, which is the most likely cause of owner's "60 not 144"
         // report.
@@ -745,7 +745,7 @@ mod tests {
 
     #[test]
     fn dynamic_default_fps_term_substring_fallback_gets_144() {
-        // v30.4 hotfix: terminals that don't set TERM_PROGRAM but set a
+        // hotfix: terminals that don't set TERM_PROGRAM but set a
         // distinctive TERM (e.g., `xterm-ghostty`, `alacritty`) must still
         // get the high-perf default via the TERM substring hint fallback.
         let _guard = ENV_LOCK.lock().unwrap();
@@ -765,7 +765,7 @@ mod tests {
 
     #[test]
     fn dynamic_default_fps_konsole_via_env_var_gets_144() {
-        // v30.4 hotfix: KDE Konsole doesn't set TERM_PROGRAM; it exports
+        // hotfix: KDE Konsole doesn't set TERM_PROGRAM; it exports
         // KONSOLE_VERSION. Detect via that env var.
         let _guard = ENV_LOCK.lock().unwrap();
         let _env = EnvGuard::capture();
@@ -781,7 +781,7 @@ mod tests {
 
     #[test]
     fn dynamic_default_fps_windows_terminal_via_env_var_gets_144() {
-        // v30.4 hotfix: Windows Terminal sets WT_SESSION (not TERM_PROGRAM).
+        // hotfix: Windows Terminal sets WT_SESSION (not TERM_PROGRAM).
         let _guard = ENV_LOCK.lock().unwrap();
         let _env = EnvGuard::capture();
         env::set_var("TERM", "xterm-256color");
@@ -797,7 +797,7 @@ mod tests {
 
     #[test]
     fn dynamic_default_fps_tmux_passthrough_outer_terminal() {
-        // v30.4 hotfix: tmux doesn't override TERM_PROGRAM (it sets TMUX
+        // hotfix: tmux doesn't override TERM_PROGRAM (it sets TMUX
         // instead), so the outer terminal's TERM_PROGRAM passes through.
         // An Alacritty user inside tmux must still get 144 FPS.
         let _guard = ENV_LOCK.lock().unwrap();
@@ -857,7 +857,7 @@ mod tests {
         );
     }
 
-    // ── v30.5 hardening: /proc ancestor walk tests ──
+    // ── hardening: /proc ancestor walk tests ──
 
     #[test]
     #[cfg(target_os = "linux")]
@@ -978,7 +978,7 @@ mod tests {
         }
     }
 
-    // ── v30.5: dynamic_fps_source tests ──
+    // ── dynamic_fps_source tests ──
 
     #[test]
     fn dynamic_fps_source_records_term_program_layer() {

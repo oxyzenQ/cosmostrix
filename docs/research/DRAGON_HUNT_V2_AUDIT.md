@@ -65,7 +65,7 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
    file justified when it's only re-exported once?"
 
 4. **Forward-compat scaffolding frozen mid-flight** — the `atmosphere_*`
-   subsystem has been `#![allow(dead_code)]` since v4.0.0 Phase 3/4 (26
+   subsystem has been `#![allow(dead_code)]` since Phase 3/4 (26
    versions ago) because it was "not yet wired into the hot render path".
    Production callers do `let _ = verify_application(...)` — **discarding
    the result**. This is the largest single cluster of attribute-suppressed
@@ -95,7 +95,7 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 | 2 | `scripts/smooth_body_tail_gap.py` + `normalize_head_stops.py` (239 LOC) | DELETE — both target deleted `src/central_colors.rs`, will crash if run | -239 LOC |
 | 3 | `README.md:137-148` duplicate `## Philosophy` section | DELETE — pure subset of lines 89-135 | -12 LOC |
 | 4 | `README.md:132` wrong `--duration 1h30m` doc | FIX — `--duration` is bare-float-only; compound format is `--bench-duration`'s feature | doc accuracy |
-| 5 | `src/configfile.rs:88` stale "Legacy `config` filename (pre-v10)" comment | FIX — `CONFIG_FILE_NAME_LEGACY` was removed in v20.1 | doc accuracy |
+| 5 | `src/configfile.rs:88` stale "Legacy `config` filename" comment | FIX — `CONFIG_FILE_NAME_LEGACY` was removed | doc accuracy |
 | 6 | `docs/research/FLAGS_AUDIT_dead_weight.md:10-19` stale "NOT YET FIXED" status | FIX — bug was fixed in commit `295a725` | doc accuracy |
 | 7 | 3× stale README refs to `src/cosmic_dragon_lock_tests.rs` (Task 4 fallout) | FIX — path is now `src/cosmic_dragon/lock_tests.rs` | doc accuracy |
 | 8 | `Cargo.toml` `[profile.bench]` (5 lines) | DELETE — 0 `#[bench]` tests, 0 `cargo bench` invocations | -5 LOC |
@@ -119,8 +119,8 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 | # | Target | Action | Impact |
 |---|--------|--------|--------|
 | 18 | 7× `CONFIG_SYNC_AUDIT_PHASE{1..6,5_FINAL}.md` (3,715 LOC) | ARCHIVE to `docs/archive/CONFIG_SYNC/` — closed-phase reports, zero live consumers | -3,715 LOC from live tree |
-| 19 | `docs/COSMIC_DRAGON_EXPLORATION.md` (389 LOC) | ARCHIVE — references v13.3.0 in a v30 codebase; conclusions already in PHILOSOPHY.md | -389 LOC |
-| 20 | `docs/COSMIC_DRAGON_FINDINGS.md` (242 LOC) | ARCHIVE — v13.3.0 measurements superseded by PERFORMANCE_ACROSS_SCALES.md | -242 LOC |
+| 19 | `docs/COSMIC_DRAGON_EXPLORATION.md` (389 LOC) | ARCHIVE — references obsolete version numbers; conclusions already in PHILOSOPHY.md | -389 LOC |
+| 20 | `docs/COSMIC_DRAGON_FINDINGS.md` (242 LOC) | ARCHIVE — measurements superseded by PERFORMANCE_ACROSS_SCALES.md | -242 LOC |
 | 21 | `UNSAFE_SOUNDNESS_AUDIT.md` + `FLAGS_AUDIT_dead_weight.md` (873 LOC) | ARCHIVE — closed reports with zero live refs (except 1 user-facing error msg in `validation.rs:74`) | -873 LOC |
 | 22 | `benchmark/hyperfine.md` + 4× `perf|time-*.txt` + `cloud-xeon/` (33 KB) | DELETE + ARCHIVE — 1-shot artifacts with hardcoded dead paths | -33 KB |
 | 23 | `CHANGELOG.md` (112 KB, 2,404 LOC, 36 versions) | ARCHIVE pre-v13 (~700 LOC). MUST preserve v3.9.0 + v4.0.0 + "568 deterministic tests" (test-locked by `docs_tests/metadata.rs`) | -700 LOC from live tree |
@@ -146,7 +146,7 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 
 | # | Target | Decision needed |
 |---|--------|----------------|
-| 31 | Atmosphere subsystem (12 files, ~4,894 LOC) frozen since v4.0.0 Phase 3/4 | Owner decides: **(a) graduate** — wire `verify_application` result into render path; **(b) slim** — delete the unused half; **(c) archive** — document as "intentional reservation" and stop maintaining |
+| 31 | Atmosphere subsystem (12 files, ~4,894 LOC) frozen since Phase 3/4 | Owner decides: **(a) graduate** — wire `verify_application` result into render path; **(b) slim** — delete the unused half; **(c) archive** — document as "intentional reservation" and stop maintaining |
 | 32 | Bold default (per MATRIX_BOLD_AUDIT.md) | Owner already picked **Option B** (keep `BoldMode::Random` default). Closed. |
 | 33 | `droplet.rs:913+882` per-cell `vignette_factor` + `rain_shadow_factor` (sqrt+smoothstep) LUTs | Visual output may shift slightly — owner approval needed before changing |
 | 34 | `bitvec` dep (1.3MB compile cost) | Replace with hand-rolled `Vec<u64>` bitset? Saves ~4s compile, medium risk |
@@ -223,7 +223,7 @@ data structure with different semantics. The `bitvec` dep remains in
 Before any cleanup commit, be aware that the test suite actively enforces
 some content presence:
 
-1. **`src/docs_tests/assets.rs`** — 7 assertions enforcing all 7 v30 demo
+1. **`src/docs_tests/assets.rs`** — 7 assertions enforcing all 7 demo
    assets exist + no v1-v29 assets survive. Any asset deletion/rename must
    update this file in the same commit.
 
@@ -251,7 +251,7 @@ some content presence:
 |----------|----------------|
 | `cargo clippy -W dead_code` | v2 also stripped `#![allow(dead_code)]` attrs to surface hidden warnings |
 | `rg` for dep imports | v2 also checked feature-flag minimality (clap `suggestions`, crossterm `derive-more`) |
-| `rg` for `TODO\|FIXME` | v2 also checked version markers (`v17`, `v25`, `v30`) and matched against CHANGELOG to identify expired compat windows |
+| `rg` for `TODO\|FIXME` | also checked version markers and matched against CHANGELOG to identify expired compat windows |
 | File-by-file lint | v2 also did **reference-graph audit**: for each file, "who imports this?" — found orphan test files, orphan Python scripts, orphan docs |
 | Compiler-only | v2 also audited non-`.rs` artifacts: 16 MB GIF, 112 KB CHANGELOG, 6 dead-dragon-ab JSON files |
 

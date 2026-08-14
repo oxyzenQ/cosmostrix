@@ -134,10 +134,10 @@ pub(crate) fn collect_colors_custom(
                     palette.bg = Some(color);
                 }
             }
-            // v25.10 (bug #8): `stops` is a deprecated alias for `rain`.
+            // (bug #8): `stops` is a deprecated alias for `rain`.
             // The validator still accepts it (with a --testconf deprecation
             // warning); the runtime parser treats it identically to `rain`.
-            // v35.3 (CLI-D-2): emit a one-time deprecation warning at runtime
+            // (CLI-D-2): emit a one-time deprecation warning at runtime
             // too — previously only --testconf warned, so users who never
             // ran --testconf used the deprecated alias indefinitely with no
             // signal.
@@ -305,7 +305,7 @@ mod tests {
             }),
         };
         let palette = def.to_palette().unwrap();
-        // v30.3 masterclass: 2 raw stops expand to 9 OKLab-polar samples.
+        // masterclass: 2 raw stops expand to 9 OKLab-polar samples.
         assert_eq!(palette.colors.len(), COLORS_CUSTOM_PALETTE_STEPS);
         assert_eq!(
             palette.bg,
@@ -346,7 +346,7 @@ mod tests {
             "#000000, #ffffff".to_string(),
         );
         let palette = load_custom_palette(&cfg, "mytheme").unwrap();
-        // v30.3 masterclass: 2 CSV stops expand to 9 OKLab-polar samples.
+        // masterclass: 2 CSV stops expand to 9 OKLab-polar samples.
         assert_eq!(palette.colors.len(), COLORS_CUSTOM_PALETTE_STEPS);
     }
 
@@ -358,7 +358,7 @@ mod tests {
             "#000000, #ffffff".to_string(),
         );
         let palette = load_custom_palette(&cfg, "mytheme").unwrap();
-        // v30.3 masterclass: 2 CSV stops expand to 9 OKLab-polar samples.
+        // masterclass: 2 CSV stops expand to 9 OKLab-polar samples.
         assert_eq!(palette.colors.len(), COLORS_CUSTOM_PALETTE_STEPS);
     }
 
@@ -395,7 +395,7 @@ mod tests {
             "#000000, #ffffff".to_string(),
         );
         let palette = load_custom_palette(&cfg, "oldstyle").unwrap();
-        // v30.3 masterclass: 2 CSV stops expand to 9 OKLab-polar samples.
+        // masterclass: 2 CSV stops expand to 9 OKLab-polar samples.
         assert_eq!(
             palette.colors.len(),
             COLORS_CUSTOM_PALETTE_STEPS,
@@ -403,7 +403,7 @@ mod tests {
         );
     }
 
-    /// v30.3 masterclass: colors-custom must flow through the same OKLab
+    /// masterclass: colors-custom must flow through the same OKLab
     /// polar gradient engine as built-in themes. This integration test
     /// asserts the two properties that prove the bypass is fixed:
     ///
@@ -462,7 +462,7 @@ mod tests {
         );
     }
 
-    /// v30.3 masterclass: colors-custom must produce the SAME output as a
+    /// masterclass: colors-custom must produce the SAME output as a
     /// built-in theme that uses the same raw stops. This is the strongest
     /// possible proof that the bypass is fixed — colors-custom and built-in
     /// themes now share the identical code path.

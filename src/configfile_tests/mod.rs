@@ -1,11 +1,11 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v25.7: Auto-promote forgiving parser tests.
+//! Auto-promote forgiving parser tests.
 //!
 //! When the user writes a top-level key (e.g. `intro`) AFTER
 //! a `[scene-custom.<name>]` table header, TOML parsing rules nest it under
-//! the table (`scene-custom.<name>.intro`). The v25.7 parser
+//! the table (`scene-custom.<name>.intro`). The  parser
 //! detects this mis-nesting when the un-prefixed key is itself a known
 //! top-level key, and silently re-homes it to root scope so scene-custom and
 //! top-level keys coexist without forcing the user to learn TOML scope rules.
@@ -24,10 +24,10 @@ use crate::configfile::parse_config_text;
 
 #[test]
 fn scene_custom_then_top_level_key_promotes_to_root() {
-    // The exact scenario reported in the v25.6 depth test: user uncomments
+    // The exact scenario reported in the  depth test: user uncomments
     // [scene-custom.hacker-mode] and a top-level key in the same file.
-    // Pre-v25.7 this errored with "unknown key: scene-custom.hacker-mode.intro".
-    // v25.7: auto-promote to root scope, no error.
+    // Pre- this errored with "unknown key: scene-custom.hacker-mode.intro".
+    // auto-promote to root scope, no error.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
@@ -123,8 +123,8 @@ charset-custom.zen.set = \"|\"
 
 #[test]
 fn color_tune_then_top_level_key_promotes() {
-    // Bug #4 from v25.6 depth test: user writes [color.tune] then `bold = 1`.
-    // Pre-v25.7 this errored. v25.7: promote to root scope `bold = 1`.
+    // Bug #4 from  depth test: user writes [color.tune] then `bold = 1`.
+    // Pre- this errored: promote to root scope `bold = 1`.
     let content = "\
 [color.tune]
 brightness = 1.0
@@ -204,7 +204,7 @@ fn empty_section_header_is_malformed_and_promotion_still_fires() {
     // it does NOT reset `current_section` to root scope. So a flat
     // top-level key written after `[]` still gets nested
     // under the previous [scene-custom.<name>] block and needs promotion.
-    // This is exactly the v25.6 depth-test scenario.
+    // This is exactly the  depth-test scenario.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
@@ -232,7 +232,7 @@ fn multiple_top_level_keys_all_promote() {
     // A realistic config with top-level keys, all written after a scene-custom
     // block. All should be promoted (they are NOT valid scene-custom fields).
     //
-    // v30.3: `bold`, `shadingmode`, `async` ARE now valid scene-custom fields
+    // `bold`, `shadingmode`, `async` ARE now valid scene-custom fields
     // per owner contract — so they no longer get promoted when written under
     // a `[scene-custom.*]` block. This test now uses fields that remain
     // FORBIDDEN in scene-custom (`intro`, `auto-color-drift`, `color-bg`,

@@ -77,7 +77,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field("dirty_tracking", ri.dirty_tracking);
         s.field("io_strategy", ri.io_strategy);
         s.field("color_depth", ri.color_depth);
-        // v30.3 (chroma dragon audit): disclose the active color pipeline
+        // (chroma dragon audit): disclose the active color pipeline
         // alongside color_depth. The user runs `cosmostrix --doctor` to
         // verify the runtime environment -- without `color_pipeline` they
         // could see `color_depth: 24-bit truecolor` and still not know
@@ -321,7 +321,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         );
         s.field(
             "signal_exit",
-            "catchable cleanup (SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated v25.13)",
+            "catchable cleanup (SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated)",
         );
         s.field("sigkill", "cannot be caught or guaranteed");
         s.field("terminal_writer", "single-owner");

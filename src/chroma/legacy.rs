@@ -69,7 +69,7 @@
 /// Bit-identical to the pre-extraction inline equation. See module
 /// docs on the parity contract.
 ///
-/// # Caller status (v30.3 P6 migration)
+/// # Caller status ( P6 migration)
 /// Wired into `cloud::rain::apply_crt_dim_cell` for the legacy fallback
 /// path. The chroma path uses `chroma::palette::apply_brightness_rgb`
 /// (same equation, owned by the chroma engine).
@@ -109,7 +109,7 @@ pub(crate) fn scale_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
 /// # Parity
 /// Bit-identical to the pre-extraction inline equation.
 ///
-/// # Caller status (v30.3 P8 migration)
+/// # Caller status ( P8 migration)
 /// Transitively wired via `blend_toward_white` (which calls this with
 /// target (255, 255, 255)). Direct callers will land in P9 (quantum
 /// ripple blend toward snapshot color).
@@ -146,7 +146,7 @@ pub(crate) fn blend_toward_rgb(
 /// Bit-identical to the pre-extraction inline equation
 /// `(c as i32 + ((255 - c as i32) * wf + 128) / 256).clamp(0, 255) as u8`.
 ///
-/// # Caller status (v30.3 P8 migration)
+/// # Caller status ( P8 migration)
 /// Wired into `droplet::CellShader::shade` flash-wave loop for the legacy
 /// fallback path. The chroma path uses `chroma::palette::blend_toward_white_rgb`
 /// (same equation, owned by the chroma engine, tuple-in/tuple-out to avoid
@@ -183,7 +183,7 @@ pub(crate) fn blend_toward_white(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u
 /// # Parity
 /// Bit-identical to the pre-extraction inline equation.
 ///
-/// # Caller status (v30.3 P11 migration)
+/// # Caller status ( P11 migration)
 /// Wired into `droplet::CellShader::shade` head self-bloom for the
 /// legacy fallback path. The chroma path uses `chroma::palette::boost_rgb`
 /// (same equation, owned by the chroma engine). The audit proposed a

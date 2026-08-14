@@ -186,7 +186,7 @@ pub(crate) fn all_charset_presets() -> &'static [&'static str] {
     // or `Charset::ASCII_SAFE`. It is valid as a CLI/config input, but
     // it must NOT appear in the cycle list used by `cycle_charset_preset`.
     //
-    // Bug history (v30.0.0-alpha.1, "charset drift" user report):
+    // Bug history ("charset drift" user report):
     //   When "auto" was index 0 and "zen" was the last entry, pressing
     //   's' (cycle forward) from "zen" wrapped around to index 0 =
     //   "auto". The `charset_from_str("auto", false)` call in
@@ -256,7 +256,7 @@ pub fn cycle_charset_preset(current: &str, dir: i32) -> &'static str {
 
 pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
     theme::lookup_theme(s).ok_or_else(|| {
-        // v25.11 (bug #13): add "did you mean" suggestion for close matches.
+        // (bug #13): add "did you mean" suggestion for close matches.
         // Catches approximate names and typos, suggesting the closest current
         // theme when edit distance ≤ 2 (e.g. a slightly-misspelled color name
         // gets nudged toward the nearest valid theme).
@@ -271,7 +271,7 @@ pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
     })
 }
 
-/// v25.11 (bug #13): find the closest built-in color name to `input` using
+/// (bug #13): find the closest built-in color name to `input` using
 /// edit distance. Returns `Some(name)` if the best match has distance ≤ 2,
 /// or `None` if no color is close enough. Also checks theme aliases (e.g.
 /// `deep-sea` is an alias for `ocean`), so a typo like `deap-sea` would
@@ -339,7 +339,7 @@ mod tests {
 
     /// Regression: "auto" must never appear in the cycle candidate list.
     ///
-    /// This is the root cause of the v30.0.0-alpha.1 "charset drift" bug
+    /// This is the root cause of the "charset drift" bug
     /// where pressing 's' from "zen" wrapped to "auto" and silently
     /// replaced the user's custom charset with the built-in Matrix pool.
     #[test]

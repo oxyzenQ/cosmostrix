@@ -119,7 +119,7 @@ pub(crate) fn trace_rebuild_applied(
     }
 }
 
-/// v25.5: field-level config diff trace.
+/// field-level config diff trace.
 ///
 /// Emits a structured diff between the previously-applied config map and
 /// the newly-received one. `old = None` triggers the "[initial]" trace

@@ -12,7 +12,7 @@ non-destructive behavior.
 | # | Path | Cleanup | Visible Screen Cleared | Scrollback Purged | Terminal Mode Restored | Catchable | Owner/Manual Verification | Destructive |
 |---|------|---------|----------------------|-------------------|----------------------|-----------|--------------------------|-------------|
 | 1 | Normal `q` exit | Full via `Terminal::drop()` | No | No | Yes | Yes | No | No |
-| 2 | SIGINT (Ctrl+C) — **DEPRECATED v25.13**: SIGINT is no longer caught. Only `q` exits. Ctrl+C at the key level is ignored; `kill -INT` will use OS default (terminate without cleanup). Use SIGTERM/SIGHUP/SIGQUIT for graceful signal exit. | N/A (signal not caught) | No | No | No (OS default) | No | N/A | Depends on OS |
+| 2 | SIGINT (Ctrl+C) — **DEPRECATED**: SIGINT is no longer caught. Only `q` exits. Ctrl+C at the key level is ignored; `kill -INT` will use OS default (terminate without cleanup). Use SIGTERM/SIGHUP/SIGQUIT for graceful signal exit. | N/A (signal not caught) | No | No | No (OS default) | No | N/A | Depends on OS |
 | 3 | SIGTERM / `pkill -TERM` | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
 | 4 | SIGHUP | Full via `Terminal::drop()` + signal-exit viewport clear | Yes (alternate buffer cleared before switch) | No | Yes | Yes | No | No |
 | 5 | SIGTSTP / Ctrl-Z | Partial — terminal mode suspended, no explicit cleanup | No | No | Deferred (on SIGCONT) | Yes | No | No |
@@ -47,9 +47,9 @@ preserves the original terminal content underneath the rain. This path is
 intentionally non-destructive — the user's shell history and previous
 output are fully intact.
 
-### 2. Ctrl-C / SIGINT (DEPRECATED v25.13)
+### 2. Ctrl-C / SIGINT (DEPRECATED)
 
-**v25.13 change**: SIGINT (Ctrl+C) is no longer in the graceful-shutdown
+**Change**: SIGINT (Ctrl+C) is no longer in the graceful-shutdown
 signal list. Only `q` exits cosmostrix. This deprecation aligns with the
 cinematic design principle: the user must deliberately press `q` to quit —
 no accidental exits from terminal Ctrl+C muscle memory.
@@ -73,7 +73,7 @@ touching stdout, avoiding a race with the parent's buffered writer. If
 the parent is already dead (ppid == 1), the child performs terminal
 restoration. The parent handles all cleanup via `Terminal::drop()` with
 the signal-exit viewport clear. Visible residue should be fully cleaned
-after v4.8 Phase 4B fix.
+after Phase 4B fix.
 
 ### 4. SIGHUP
 
@@ -205,11 +205,11 @@ mode, and does not modify terminal state. No cleanup is needed.
 - **Normal `q` exit is non-destructive.** The alternate screen
   buffer preserves original terminal content. No scrollback modification.
   (Esc and Ctrl+C are intentionally ignored at the key level — only `q`
-  quits. v25.13: SIGINT is no longer caught at the signal level either.
+  quits. SIGINT is no longer caught at the signal level either.
   SIGTERM/SIGHUP/SIGQUIT from `kill` are still caught and trigger
   the signal-exit cleanup path.)
 
-- **SIGTERM should be clean for visible residue after v4.8 Phase 4B.**
+- **SIGTERM should be clean for visible residue after Phase 4B fix.**
   The signal-exit viewport clear prevents rain frame residue on the
   main screen during buffer switch.
 

@@ -151,7 +151,7 @@ fn default_scene_is_cinematic() {
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
-/// v25.16: benchmark mode (--benchmark or --bench-all) without an explicit
+/// benchmark mode (--benchmark or --bench-all) without an explicit
 /// --scene must default to "monolith" instead of the interactive default
 /// "cinematic". This is the fix for the FPS regression where users running
 /// `cosmostrix --benchmark` got cinematic (slow) instead of monolith (peak),
@@ -221,7 +221,7 @@ fn benchmark_mode_defaults_to_monolith_scene() {
     assert_eq!(args.glitch_level, GlitchLevel::Subtle);
 }
 
-/// v25.16: --benchmark with explicit --scene <name> must NOT override to
+/// --benchmark with explicit --scene <name> must NOT override to
 /// monolith. The user's choice wins. This pins the override-with-override
 /// contract: `cosmostrix --benchmark --scene cinematic` benchmarks cinematic.
 ///
@@ -745,16 +745,16 @@ fn dump_config_mentions_supported_keys() {
         "auto-color-drift",
         "async-mode",
         "intro",
-        // v30.1 simplification: legacy/historical key mentions removed
+        // simplification: legacy/historical key mentions removed
         // from dump config (mouse flag was v17-deletion note, preset was
-        // v20.1-removal note). Both are gone in the simplified dump.
+        // removal note). Both are gone in the simplified dump.
         // v50 simplification: `low-power` (a scene NAME, not a config key)
         // removed — the scene list is now "See: cosmostrix --list-scenes"
         // instead of inline. Scene names are not config keys.
     ] {
         assert!(dump.contains(key), "dump config should contain {key}");
     }
-    // v30.1: the standard example values are still present.
+    // the standard example values are still present.
     // All string values are now quoted (standard TOML convention).
     assert!(dump.contains("glitch-level = \"subtle\""));
     assert!(dump.contains("scene = \"cinematic\""));

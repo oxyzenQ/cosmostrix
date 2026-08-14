@@ -117,7 +117,7 @@ pub(super) const PARTICLE_POOL_SIZE: usize = 512;
 ///
 /// The intro can be exited early by pressing **`q`** (case-insensitive)
 /// or by sending SIGTERM / SIGHUP / SIGQUIT (handled via [`GRACEFUL_SHUTDOWN`]).
-/// v25.13: Ctrl+C (SIGINT) is deprecated — only 'q' exits cosmostrix.
+/// Ctrl+C (SIGINT) is deprecated — only 'q' exits cosmostrix.
 /// No other key skips — the intro ignores stray keypresses so accidental
 /// presses of space / enter / arrows don't cut the cinematic short.
 ///
@@ -370,7 +370,7 @@ pub(super) fn rng_freehand() -> f32 {
 /// Every other key — including modifiers, arrows, function keys, and
 /// `Enter` / `Space` — is ignored.
 ///
-/// v25.13: Ctrl+C (SIGINT) is deprecated — only 'q' exits cosmostrix.
+/// Ctrl+C (SIGINT) is deprecated — only 'q' exits cosmostrix.
 /// SIGTERM/SIGHUP/SIGQUIT are handled separately by the signal handler
 /// setting [`GRACEFUL_SHUTDOWN`], so we don't need to match them here.
 #[inline]
@@ -389,7 +389,7 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 /// All other key events are drained and ignored. This is deliberate: the
 /// intros run for 5–6.25 s (Cosmic Burst ~5 s, Logo ~6.25 s), and accidental
 /// presses of space / enter / arrow keys should not cut them short. The user
-/// always has a fast exit via `q`. v25.13: Ctrl+C (SIGINT) is deprecated.
+/// always has a fast exit via `q`. Ctrl+C (SIGINT) is deprecated.
 ///
 /// # Why not "any key skips"?
 ///
@@ -398,7 +398,7 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 /// * `q` is the canonical "quit" key throughout cosmostrix's interactive
 ///   mode, so reusing it here keeps the mental model consistent.
 /// * SIGTERM / SIGHUP / SIGQUIT remain hard exits for users who can't or
-///   won't press `q` (e.g. piped input, scripted kills). v25.13: Ctrl+C
+///   won't press `q` (e.g. piped input, scripted kills). Ctrl+C
 ///   (SIGINT) is deprecated — only 'q' exits cosmostrix.
 ///
 /// # Terminal-gone guard

@@ -6,7 +6,7 @@
 **Agent**: mouse-effects-audit-1 (general-purpose sub-agent)
 **Scope**: Peak-optimization audit of the mouse effects pipeline (cursor glow + dual-ring click flash wave + Quantum Ripple particle burst).
 **Mode**: Read-only. No source code modified.
-**Date**: 2026 (post-v30.2)
+**Date**: 2026 (post visual-mode retune)
 
 ---
 
@@ -137,7 +137,7 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
 | `src/droplet.rs:769-816` | Per-cell flash wave dual-ring blend |
 | `src/central_control_rains.rs:487-524` | All `MOUSE_*` constants |
 | `src/quantum_constants.rs` | All `QUANTUM_*` constants |
-| `src/cloud/tests/tests_quantum.rs:645-768` | v30 fix regression tests |
+| `src/cloud/tests/tests_quantum.rs:645-768` | fix regression tests |
 
 ---
 
@@ -295,7 +295,7 @@ This is the most impactful file. See §3 (Performance Findings) for the full bre
 ### 2.7 `src/cloud/mod.rs:613-618` — Pause Birth Shift
 
 ```rust
-// v30 fix: shift ALL active flash wave births (was single slot).
+// fix: shift ALL active flash wave births (was single slot).
 for w in &mut self.flash_waves {
     if w.active {
         w.birth += elapsed;
@@ -665,9 +665,9 @@ if matches!(m.kind, MouseEventKind::Moved | MouseEventKind::Drag(_) | MouseEvent
 
 ---
 
-## 7. v30 Fix Verification
+## 7. Fix Verification
 
-The v30 fix replaced a single `flash_time: Option<Instant>` slot with a bounded pool of `MOUSE_FLASH_POOL_SIZE = 4` slots. Verified:
+The fix replaced a single `flash_time: Option<Instant>` slot with a bounded pool of `MOUSE_FLASH_POOL_SIZE = 4` slots. Verified:
 
 - ✅ **Single click activates one slot** (`flash_wave_pool_single_click_activates_one_slot`, tests_quantum.rs:663)
 - ✅ **Double-click keeps both waves** (`flash_wave_pool_double_click_keeps_both_waves`, tests_quantum.rs:684) — the original bug scenario
@@ -679,19 +679,19 @@ The v30 fix replaced a single `flash_time: Option<Instant>` slot with a bounded 
 
 **Edge cases NOT covered by tests:**
 
-- ⚠️ **Same-instant clicks** (sub-microsecond): two clicks with identical `birth` values. The eviction policy picks index 0 (the `i == 0` short-circuit). On platforms with coarse `Instant` resolution (older Windows), this could cause the same slot to be repeatedly evicted under sustained click storms. Not a regression vs. the pre-v30 design (which always overwrote the single slot), but worth noting.
+- ⚠️ **Same-instant clicks** (sub-microsecond): two clicks with identical `birth` values. The eviction policy picks index 0 (the `i == 0` short-circuit). On platforms with coarse `Instant` resolution (older Windows), this could cause the same slot to be repeatedly evicted under sustained click storms. Not a regression vs. the previous design (which always overwrote the single slot), but worth noting.
 
 - ⚠️ **Click during pause deceleration**: `set_mouse_click` is callable during the pause deceleration ramp (`pause_start.is_some()` but `pause == false`). The new wave's `birth` is set to `Instant::now()`. If the user then fully pauses (deceleration completes), the wave's `birth` is correctly shifted on unpause. No bug — just an unusual interaction worth being aware of.
 
 - ⚠️ **Click at terminal edge**: `col == 0` or `col == cols-1`. The wave expands from the edge, but only the inward half is visible (the outward half is off-screen). Not a bug — expected behavior.
 
-**Verdict:** The v30 fix is **solid** for the documented use case (2-3 rapid clicks within 1.8s). The pool size of 4 is adequate for normal clicking. Click storms (>5 cps) will cause evictions, but that's by design (the oldest wave gets evicted, which is the least-bad choice).
+**Verdict:** The fix is **solid** for the documented use case (2-3 rapid clicks within 1.8s). The pool size of 4 is adequate for normal clicking. Click storms (>5 cps) will cause evictions, but that's by design (the oldest wave gets evicted, which is the least-bad choice).
 
 ---
 
 ## 8. Summary
 
-The mouse effects system is well-designed and the v30 fix is correctly implemented. The main optimization opportunities are:
+The mouse effects system is well-designed and the fix is correctly implemented. The main optimization opportunities are:
 
 1. **Eliminate dead code** (cursor glow block with `MOUSE_GLOW_INTENSITY = 0.0`) — high ROI, 5-minute fix.
 2. **Precompute wave-invariant quantities** in `FlashWaveCtx` — medium ROI, 15-minute fix.

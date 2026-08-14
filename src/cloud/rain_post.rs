@@ -29,7 +29,7 @@ impl Cloud {
     /// eases out via smoothstep so the inner boundary is imperceptible
     /// (no hard cutoff).
     ///
-    /// The factor goes from `CRT_VIGNETTE_EDGE_FACTOR` (0.82, v30.1
+    /// The factor goes from `CRT_VIGNETTE_EDGE_FACTOR` (0.82,
     /// masterclass retune) at the extreme edge row to 1.0 (no dim) at
     /// row `CRT_VIGNETTE_HEIGHT` inward from the edge:
     ///
@@ -37,7 +37,7 @@ impl Cloud {
     ///   smoothstep(t) = t * t * (3 - 2t)             (0 → 1, C1 continuous)
     ///   factor = EDGE + (1 - EDGE) * smoothstep(t)
     ///
-    /// v30.2: the smoothstep math is extracted into
+    /// the smoothstep math is extracted into
     /// `crate::droplet::crt_vignette_factor` (single source of truth) so
     /// the SSOT `compounded_brightness` audit function and this render
     /// path agree on the exact curve. The precompute loop below calls
@@ -89,7 +89,7 @@ impl Cloud {
         // Index CRT_VIGNETTE_HEIGHT..2*CRT_VIGNETTE_HEIGHT → bottom band
         // (row 0 = lines-1 = extreme edge).
         //
-        // v30.2: the smoothstep math now lives in the single-source-of-truth
+        // the smoothstep math now lives in the single-source-of-truth
         // `crate::droplet::crt_vignette_factor` function, extracted so the
         // SSOT `compounded_brightness` audit function and this render path
         // agree on the exact curve. Both bands share the same symmetric
@@ -185,7 +185,7 @@ impl Cloud {
         // the old behavior; at 30 FPS particles now travel 2x per frame,
         // preserving intended speed across the 0.8s lifespan.
         //
-        // v30.1: scale by resume_blend so ripple motion eases in lockstep
+        // scale by resume_blend so ripple motion eases in lockstep
         // with spawn/droplet/phosphor during pause-deceleration and
         // resume-acceleration (audit §8.1 — previously ripple ran at full
         // speed during the 0.30s decel, visually incongruous with rain).
@@ -253,19 +253,19 @@ impl Cloud {
             // body stop alone. See the constant's doc comment for the
             // empirical rationale.
             //
-            // v30.3 (chroma audit, A1): tone-down scale routes through
+            // (chroma audit, A1): tone-down scale routes through
             // chroma engine when active, legacy scale_rgb otherwise.
             // Both paths use the same `(c * factor).round().clamp(0,255)`
             // equation -- the original code used f32 multiply+round which
             // is bit-identical to what chroma::palette::apply_brightness_rgb
             // and chroma::legacy::scale_rgb produce for the same factor.
-            // v35.3 (Color-#4): corrected misleading "bit-identical" claim.
+            // (Color-#4): corrected misleading "bit-identical" claim.
             // The chroma path uses apply_brightness_rgb_unclamped (integer
             // `>> 8` math via scale_rgb semantics); the legacy path uses
             // f32 round. The two differ by ±1 per channel for some inputs
             // for QUANTUM_BODY_TONE_DOWN = 0.72 (constants.rs). The test at
             // tests_quantum.rs:614 accepts ±1 tolerance.
-            // v35.3 (Color-#5): chroma path now uses apply_brightness_rgb_unclamped
+            // (Color-#5): chroma path now uses apply_brightness_rgb_unclamped
             // (returns tuple directly) instead of apply_brightness_rgb +
             // decode_color round-trip — saves ~9 cycles/call. The call-site
             // guard (factor is a const in [0,1]) means the unclamped variant
@@ -307,7 +307,7 @@ impl Cloud {
                 (pr, pg, pb)
             };
 
-            // v30.3 (chroma audit, A1): blend toward particle snapshot
+            // (chroma audit, A1): blend toward particle snapshot
             // routes through chroma engine when active, legacy
             // blend_toward_rgb otherwise. Same equation both paths:
             // (c + (target - c) * (factor * 256) + 128) / 256 clamped.
@@ -386,7 +386,7 @@ fn apply_crt_dim_cell(
     let Some((r, g, b)) = crate::palette::decode_color(fg) else {
         return;
     };
-    // v30.3 (chroma audit, A8): route brightness scale through the chroma
+    // (chroma audit, A8): route brightness scale through the chroma
     // engine when active, fall back to chroma::legacy::scale_rgb otherwise.
     // Both paths use the same `((c * fi + 128) >> 8).clamp(0,255)` equation
     // -- the difference is auditability. See

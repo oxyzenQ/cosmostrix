@@ -5,7 +5,7 @@
 
 > **Document ID**: RAIN-AUDIT-002
 > **Date**: 2026-08
-> **Supersedes**: RAIN-AUDIT-001 (Option A / v30.0.0 baseline)
+> **Supersedes**: RAIN-AUDIT-001 (Option A baseline)
 > **Scope**: `src/central_control_rains.rs` per-layer brightness/depth stack
 > **Question**: Why does Option F "Film Matrix Hero" earn a 10/10 visual
 > rating, and is the rain brightness layer back/mid/front **peak**?
@@ -128,7 +128,7 @@ making more of them.
 | `MONOLITH_BREATHING_AMPLITUDE` | 0.018 | 0.026 | 0.034 | Cinematic breathing ±% |
 
 Bolded values are the six Option F deltas vs the Option A baseline
-(commit 1e4e3fa / v30.0.0 final). Mid layer is untouched — it stays
+(commit 1e4e3fa final). Mid layer is untouched — it stays
 exactly at Option A values, serving as the anchor that lets back
 recede and front push forward asymmetrically. This "anchor the mid,
 move the ends" strategy is the core of the Film Matrix Hero tuning
@@ -200,10 +200,10 @@ rain field that locks the eye onto the front layer immediately while
 preserving the depth gradient that makes the scene read as
 three-dimensional.
 
-The v30.1 changelog records this lock:
+The changelog records this lock:
 
-> **v30.1 (Option F "Film Matrix Hero")**: visual test rated 10/10
-> perfect. Six deltas vs v30.0.0 Option A: front brightness 1.05→1.10,
+> **Option F "Film Matrix Hero"**: visual test rated 10/10
+> perfect. Six deltas vs the Option A baseline: front brightness 1.05→1.10,
 > front saturation 1.05→1.12, front head_bloom 1.15→1.30, front
 > head_selfbloom 1.15→1.20, back contrast_reduction 0.45→0.55, front
 > phosphor_decay 0.40→0.60. Mid untouched. Ratio back:mid:front
@@ -316,7 +316,7 @@ Key tuning choices under Option F:
 
 - **Brightness 1.10** (10% boost, +0.05 vs A): per-droplet luminance
   is boosted above base so the front reads as the hero layer. The
-  v30.0.0 silent override bug fix (gate changed from `< 1.0` to
+  The silent override bug fix (gate changed from `< 1.0` to
   `!= 1.0`) means this boost actually applies.
 - **Saturation 1.12** (12% oversaturation, +0.07 vs A): colors are
   pushed away from gray, making neon hues pop harder. The +0.07 bump
@@ -343,7 +343,7 @@ Key tuning choices under Option F:
   as "heavy rain".
 - **Density 0.85** (sparse, unchanged from A): despite being the hero
   layer, density is kept below 1.0 to preserve individual streak
-  clarity. The v30.0.0 silent override bug fix restored this from
+  clarity. The silent override bug fix restored this from
   1.10 → 0.85 to compensate for the spawn-roll fix (commit 9080472)
   that gave front +40% more density rolls.
 - **Vignette exempt** + **rain shadow exempt** (unchanged from A):
@@ -362,12 +362,12 @@ Option A's longer ones) read as "heavier, crisper rain" rather than
 ## 5. Tuning Decision Matrix — Comparison for the Owner
 
 This section gives the owner a comparison of **alternative tunings**
-that were considered during the v30.x calibration series, with their
+that were considered during the calibration series, with their
 trade-offs. Option F is the current recommended lock — but if the
 owner wants to push in a specific direction, this matrix shows what
 to change and what the visual cost is.
 
-### 5.1 Option F — Film Matrix Hero (v30.1 current lock) ✅ RECOMMENDED
+### 5.1 Option F — Film Matrix Hero (current lock) ✅ RECOMMENDED
 
 | Parameter | Back | Mid | Front |
 |-----------|-----:|----:|------:|
@@ -403,7 +403,7 @@ testing.
 **When to use**: default for all cinematic rain scenes. This is the
 lock.
 
-### 5.2 Option A — v30.0.0 Baseline (superseded by F, retained for reference)
+### 5.2 Option A — Baseline (superseded by F, retained for reference)
 
 | Parameter | Back | Mid | Front | Delta vs F |
 |-----------|-----:|----:|------:|------------|
@@ -422,7 +422,7 @@ lock.
 
 **Pros**: Sits mid-envelope on every metric — safer, more conservative.
 Longer front trails (0.40 decay → 2.5× persistence) give each droplet
-more "weight" in time. Visually rated 9/10 during v30.0.0 testing —
+more "weight" in time. Visually rated 9/10 during testing —
 good but not locked.
 
 **Cons**: Back layer reads as slightly too present (4.6% share vs F's
@@ -435,7 +435,7 @@ fast-fall frames.
 longer trails — the "atmospheric Matrix" look rather than the "hero
 Matrix" look.
 
-### 5.3 Option B — Haze-Focused (v30 option D, reverted)
+### 5.3 Option B — Haze-Focused (reverted)
 
 | Parameter | Back | Mid | Front | Delta vs F |
 |-----------|-----:|----:|------:|------------|
@@ -455,13 +455,13 @@ luminance (white-bg) where the mid layer needs more fog to read as
 "distant".
 
 **Cons**: Phosphor decay 1.30 muted mid trails — individual streaks
-lost their cinematic streak feel. User testing during v30 rejected
+lost their cinematic streak feel. User testing rejected
 this: "mid trails feel chopped off, not flowing".
 
 **When to use**: only if the terminal background is bright (white-bg
 mode) and the mid layer reads as too prominent without the extra haze.
 
-### 5.4 Option C — Density-Focused (v30 option C, reverted)
+### 5.4 Option C — Density-Focused (reverted)
 
 | Parameter | Back | Mid | Front | Delta vs F |
 |-----------|-----:|----:|------:|------------|
@@ -481,13 +481,13 @@ haze". Slightly better for high-density terminals (200×60+) where the
 mid layer can feel busy.
 
 **Cons**: Density 0.55 made the field feel empty on smaller terminals
-(80×24). User testing during v30 rejected this: "mid feels absent,
+(80×24). User testing rejected this: "mid feels absent,
 not distant".
 
 **When to use**: only on large terminals (200×60+) where the mid layer
 reads as too busy. Not recommended as a default.
 
-### 5.5 Option D — Pre-v30 Baseline (option D in v30 history, deprecated)
+### 5.5 Option D — Original Baseline (deprecated)
 
 | Parameter | Back | Mid | Front | Delta vs F |
 |-----------|-----:|----:|------:|------------|
@@ -508,7 +508,7 @@ but more "uniform rain".
 **Cons**: Front layer doesn't dominate — eye has no clear focal plane.
 Back layer is too prominent (8.2% share vs target 3–8% — at the
 upper edge). Mid density 0.75 + phosphor 1.00 made mid feel busy.
-User testing during v30 rejected this: "feels like a wall of rain,
+User testing rejected this: "feels like a wall of rain,
 not a cinematic field".
 
 **When to use**: only if the goal is a non-cinematic "uniform rain"
@@ -797,7 +797,7 @@ lock.
 **Option F "Film Matrix Hero" is at the upper edge of the masterclass
 cinematic envelope on every audit metric, and earns the 10/10 visual
 rating through the coupled composition of four perceptual mechanisms
-(§7).** The v30.1 lock matches the masterclass reference ratio to
+(§7).** The lock matches the masterclass reference ratio to
 within 5% across all 10 audit metrics, with 7 of 10 sitting
 specifically at the upper bound — the "hero edge".
 

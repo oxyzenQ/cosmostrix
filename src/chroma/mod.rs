@@ -40,7 +40,7 @@
 //! | `catalog`    | `src/central_colors.rs` (moved in Phase 1) | `THEMES` registry, `build_colors`, `ThemeDef`/`ThemeColors` |
 //! | `shaders`    | new in Phase 2                           | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT` |
 //! | `gradient`   | new in Phase 3-A                         | OKLab polar interpolation (sole production path since v30) |
-//! | `legacy`     | new in v30.3                             | Explicit sRGB-linear fallback math (`scale_rgb`, `blend_toward_rgb`, `boost_rgb`) used when `ColorPipeline::LegacyRgb` is active |
+//! | `legacy`     | current                             | Explicit sRGB-linear fallback math (`scale_rgb`, `blend_toward_rgb`, `boost_rgb`) used when `ColorPipeline::LegacyRgb` is active |
 //!
 //! Modules `palette`, `catalog`, `shaders`, `gradient`, `legacy`, `post`,
 //! `tuning` cover all chroma concerns; no further sub-modules are planned.

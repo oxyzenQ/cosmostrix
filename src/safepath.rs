@@ -721,7 +721,7 @@ mod tests {
     #[test]
     fn usr_paths_rejected_v14() {
         // v14.0.0 strict policy: /usr/ paths are rejected.
-        // EXCEPTION (v30.1): /usr/local/etc/cosmostrix/ is ALLOWED on
+        // EXCEPTION: /usr/local/etc/cosmostrix/ is ALLOWED on
         // FreeBSD because the ports/packages convention puts system-wide
         // config there, NOT in /etc/ (which is reserved for the base
         // system). See `freebsd_usr_local_etc_cosmostrix_is_safe` for

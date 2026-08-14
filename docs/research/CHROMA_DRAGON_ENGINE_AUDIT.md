@@ -6,21 +6,21 @@
 **Agent**: GLM (main, master Rust + master Linux coder — Cosmic Dragon mode)
 **Scope**: End-to-end audit of every color-emitting code path in cosmostrix; verify the Chroma Dragon engine is the primary coloring authority with a documented legacy fallback; surface inconsistencies; propose a masterclass refactor for owner approval.
 **Mode**: Read-only. **NO SOURCE CODE MODIFIED.** This document is a research deliverable for owner approval before any code changes.
-**Date**: 2026-08-09 (HEAD `4780ad4`, post v30.2 visual-mode retune)
+**Date**: 2026-08-09 (HEAD `4780ad4`, post visual-mode retune)
 **Owner directive**: "all color → chroma dragon first → fallback legacy rgb/srgb"
 
 ---
 
 ## 0. TL;DR (10-second read)
 
-The Chroma Dragon engine (`src/chroma/`) is the project's structured color pipeline — palette construction (OKLab since v30), per-cell base shader (`resolve_cell_color`), atmospheric post-FX (`apply_climate`), palette-aware ghost color, and palette-aware anomaly halos. The engine is real and locked (Phase 9-B, 18 invariants).
+The Chroma Dragon engine (`src/chroma/`) is the project's structured color pipeline — palette construction (OKLab), per-cell base shader (`resolve_cell_color`), atmospheric post-FX (`apply_climate`), palette-aware ghost color, and palette-aware anomaly halos. The engine is real and locked (Phase 9-B, 18 invariants).
 
 **The inconsistency the owner found is real and structural.** While `resolve_cell_color` is the convergence point for *palette-stop selection*, **eleven other code paths bypass the chroma engine entirely** and emit `Color::Rgb { r, g, b }` by direct integer RGB math. These bypasses are not "fallbacks" — they are the *primary* coloring path for those effects, with no chroma-engine alternative. There is currently:
 
 - **No "Color Pipeline mode" enum.** Nothing distinguishes "chroma active" from "legacy RGB fallback" at runtime.
-- **No fallback system.** The legacy sRGB-linear gradient path was *removed* in v30 (commits referenced in `palette.rs:250` and `gradient.rs:41`). The codebase has no fallback path — every effect either calls the chroma engine or it doesn't, with no graceful degradation.
+- **No fallback system.** The legacy sRGB-linear gradient path was *removed* (commits referenced in `palette.rs:250` and `gradient.rs:41`). The codebase has no fallback path — every effect either calls the chroma engine or it doesn't, with no graceful degradation.
 - **No verbose/doctor disclosure.** `cosmostrix -v` prints `color_mode:` (terminal color depth) but never `chroma_dragon_engine: active|fallback`. `cosmostrix --doctor` likewise. The benchmark report discloses `auto_color_drift: false` (palette rebuild disabled) but says nothing about chroma engine status.
-- **Outdated docs.** `info.rs:223` (`docs_report()` for `cosmostrix --docs`) still claims "OKLab interpolation (default) + sRGB-linear fallback + hue-preserving polar variant" — but the sRGB-linear fallback was deleted in v30.
+- **Outdated docs.** `info.rs:223` (`docs_report()` for `cosmostrix --docs`) still claims "OKLab interpolation (default) + sRGB-linear fallback + hue-preserving polar variant" — but the sRGB-linear fallback was deleted.
 
 The refactor proposal in §6 introduces a `ColorPipeline` enum (Chroma / LegacyRgb), wires every Category-A bypass through chroma first, falls back to legacy on `ColorMode::Color256 | Color16 | Mono` (or an explicit `--no-chroma` flag), and surfaces the active pipeline in `-v`, `--doctor`, and the benchmark report.
 
@@ -73,7 +73,7 @@ src/chroma/                                ← the engine
 
 - ❌ No `ColorPipeline` / `ChromaMode` enum to signal "engine active vs fallback"
 - ❌ No detection of "chroma not supported, fall back to legacy"
-- ❌ No legacy sRGB-linear gradient path (removed in v30, confirmed in `palette.rs:250-255` and `gradient.rs:41`)
+- ❌ No legacy sRGB-linear gradient path (removed, confirmed in `palette.rs:250-255` and `gradient.rs:41`)
 - ❌ No way for the user to force chroma off (`--no-chroma` flag does not exist)
 - ❌ No verbose/doctor/benchmark disclosure of pipeline status
 
@@ -259,7 +259,7 @@ if vignette < 1.0 {
 
 Same pattern — should call `apply_brightness_rgb`.
 
-### A8. CRT Vignette Cell Dim (v30.2 masterclass retune — `4780ad4`)
+### A8. CRT Vignette Cell Dim (masterclass retune — `4780ad4`)
 
 **File**: `src/cloud/rain.rs:1310-1351` (`apply_crt_dim_cell`)
 
@@ -402,14 +402,14 @@ The `docs_report` output is shown by `cosmostrix --docs` and is also embedded in
 
 **Proposed correction**:
 ```
-  gradient   OKLab polar interpolation (sole production path since v30).
+  gradient   OKLab polar interpolation (sole production path).
              Hue-preserving, perceptually uniform. No sRGB-linear fallback —
-             the legacy path was removed in v30 (see palette.rs:250).
+             the legacy path was removed (see palette.rs:250).
 ```
 
 ### C2. `chroma/mod.rs` Phase history mentions "sRGB-linear" being removed but the docs_report still claims it exists
 
-The chroma engine's own `mod.rs` Phase history is accurate (Phase 9-A says "sole production path since v30"). The mismatch is only in `info.rs::docs_report` (which is user-facing via `--docs`).
+The chroma engine's own `mod.rs` Phase history is accurate (Phase 9-A says "sole production path"). The mismatch is only in `info.rs::docs_report` (which is user-facing via `--docs`).
 
 ---
 

@@ -25,9 +25,9 @@ use crate::constants::{
 /// EDGE_FADE_BOTTOM_MIN=0.45) ensure the bottom fade is more aggressive
 /// to prevent the phosphor ghost residue artifact where dying droplet
 /// heads burn into the bottom row. The asymmetry is preserved across
-/// retunes (pre-v30: 0.70/0.35; v30: 0.45/0.20; v30.1 masterclass:
+/// retunes (pre-v30: 0.70/0.35; v30: 0.45/0.20;  masterclass:
 /// 0.65/0.45) — see `docs/research/VISUAL_MODE_AUDIT.md` for the
-/// compounding math that drove the v30.1 values.
+/// compounding math that drove the  values.
 #[inline]
 pub(crate) fn viewport_edge_fade(line: u16, lines: u16) -> f32 {
     if lines == 0 || EDGE_FADE_ROWS == 0 {
@@ -132,8 +132,8 @@ pub(crate) fn vignette_factor(col: u16, line: u16, cols: u16, lines: u16) -> f32
 /// Applied BEFORE phosphor decay so the captured phosphor energy is
 /// already dimmed — the afterglow trail fades in sync with the shadow.
 ///
-/// ## v30.2 masterclass retune (2026-08-09)
-/// The pre-v30.2 curve faded to 0.0 (full black) at the bottom row.
+/// ## masterclass retune (2026-08-09)
+/// The previously curve faded to 0.0 (full black) at the bottom row.
 /// Compounded multiplicatively with `viewport_edge_fade` (0.45),
 /// `vignette_factor` (~0.71 at corners), and `crt_vignette_factor`
 /// (0.82), the bottom row reached 0.08 brightness (92% dim) — rain
@@ -161,7 +161,7 @@ pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
     let t = ((line - threshold) as f32 / span).clamp(0.0, 1.0);
     // Quadratic fade: 1.0 -> RAIN_SHADOW_FLOOR as t goes 0 -> 1, with
     // slow start and accelerating fade. Reads as natural depth shadow.
-    // v30.2: linearly remapped to floor at RAIN_SHADOW_FLOOR (0.50)
+    // linearly remapped to floor at RAIN_SHADOW_FLOOR (0.50)
     // instead of 0.0 — prevents the bottom row from going fully dark
     // when shadow multiplies with edge fade + radial vignette + CRT
     // vignette. Curve shape (quadratic 1 - t^2) is preserved.
@@ -178,7 +178,7 @@ pub(crate) fn rain_shadow_factor(line: u16, lines: u16) -> f32 {
 /// `CRT_VIGNETTE_EDGE_FACTOR` (extreme edge row). Both top and bottom
 /// bands use the same symmetric smoothstep curve.
 ///
-/// ## v30.2 masterclass extraction (2026-08-09)
+/// ## masterclass extraction (2026-08-09)
 /// Extracted from the inline row-factor precomputation in
 /// `cloud/rain.rs::apply_crt_vignette` so the per-row factor is
 /// queryable from the SSOT `compounded_brightness` function without

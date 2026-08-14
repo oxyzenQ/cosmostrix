@@ -240,7 +240,7 @@ impl Droplet {
         };
 
         let elapsed = now.saturating_duration_since(last);
-        // v30.2: defense-in-depth clamp — the caller (rain.rs:281-294) already
+        // defense-in-depth clamp — the caller (rain.rs:281-294) already
         // clamps via max_sim_delta, but if max_sim_delta is ever disabled or
         // a future callsite bypasses it, this prevents position teleport on
         // frame timing spikes (GC pause, OS stall).
@@ -424,7 +424,7 @@ impl Droplet {
 
         // F6: hoist loop-invariant transition energy + F7: fractional_progress.
         //
-        // v30.3 (chroma audit, A14): the hoist now stores the raw blend
+        // (chroma audit, A14): the hoist now stores the raw blend
         // factor (f32) instead of a pre-multiplied i32 weight, so the loop
         // body can route through chroma::palette::blend_toward_white_rgb /
         // chroma::legacy::blend_toward_white. Both helpers perform the
@@ -534,7 +534,7 @@ impl Droplet {
 
                 // F6: transition energy uses hoisted transition_wf.
                 //
-                // v30.3 (chroma audit, A14): route the white-blend through
+                // (chroma audit, A14): route the white-blend through
                 // chroma::palette::blend_toward_white_rgb when the chroma
                 // pipeline is active, fall back to chroma::legacy::blend_toward_white
                 // otherwise. Both helpers use the same equation
@@ -569,7 +569,7 @@ impl Droplet {
                         // a bright bloom spot against the dark background.
                         let layer_bloom = PARALLAX_HEAD_BLOOM_MULT[self.layer as usize];
                         let frac_bloom = 1.0 + frac_progress * FRACTIONAL_BLOOM_AMP;
-                        // v30.3 (chroma audit, A15): route head-bloom white-blend
+                        // (chroma audit, A15): route head-bloom white-blend
                         // through chroma::palette::blend_toward_white_rgb when
                         // active, chroma::legacy::blend_toward_white otherwise.
                         // Same equation both paths: `r + (255 - r) * wf / 256`.
@@ -590,7 +590,7 @@ impl Droplet {
 
                 // Parallax layer brightness + glyph dim: combine into one multiply.
                 //
-                // Bug fix (v30.0.0): the gate was `if combined_layer < 1.0` which
+                // Bug fix: the gate was `if combined_layer < 1.0` which
                 // silently skipped boosts > 1.0 — front-layer brightness 1.05
                 // was a complete no-op. Changed to `!= 1.0` so both dimming
                 // (< 1.0) and boosting (> 1.0) apply. The integer pipeline
@@ -599,9 +599,9 @@ impl Droplet {
                 let glyph_dim = PARALLAX_GLYPH_DIM[self.layer as usize];
                 let combined_layer = layer_brightness * glyph_dim;
                 if combined_layer != 1.0 {
-                    // v30.3 (A16): chroma-routed scale. Unclamped helper
+                    // (A16): chroma-routed scale. Unclamped helper
                     // because front layer combined_layer = 1.10 (BOOST > 1.0);
-                    // clamped apply_brightness_rgb would regress v30.0.0 fix.
+                    // clamped apply_brightness_rgb would regress fix.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                         crate::chroma::palette::apply_brightness_rgb_unclamped(
                             r,
@@ -619,14 +619,14 @@ impl Droplet {
 
                 // Depth-of-field saturation: blend toward luminance (gray) by
                 // `1.0 - saturation_mult`. Back layers lose vividness → "haze".
-                // v30.0.0 fix: gate is `!= 1.0` (not `< 1.0`) so front-layer
+                // .0 fix: gate is `!= 1.0` (not `< 1.0`) so front-layer
                 // oversaturation (sat > 1.0) also applies. Luminance uses
                 // Rec. 601 (0.299R + 0.587G + 0.114B) integer math.
                 let saturation_mult = PARALLAX_SATURATION_MULT[self.layer as usize];
                 if saturation_mult != 1.0 {
                     let lum = (r as u32 * 77 + g as u32 * 150 + b as u32 * 29 + 128) >> 8;
                     let lum = lum.min(255) as u8;
-                    // v30.3 (A11): chroma-routed. `1.0 - sat` can be NEGATIVE
+                    // (A11): chroma-routed. `1.0 - sat` can be NEGATIVE
                     // (front layer oversaturates), so chroma path uses
                     // `blend_toward_bg_rgb_unclamped` (legacy is already unclamped).
                     // Equation: out = c - (c - lum) * (1 - sat) = lerp(c, lum, 1-sat).
@@ -649,7 +649,7 @@ impl Droplet {
                 // perceptual blur — the terminal equivalent of depth-of-field.
                 // Only layer 0 (background) is affected; layers 1-2 stay sharp.
                 //
-                // v30.3 (chroma audit, A12): route through chroma engine when
+                // (chroma audit, A12): route through chroma engine when
                 // active, fall back to chroma::legacy::scale_rgb otherwise.
                 // The brightness-scale equation \`((c * fi + 128) >> 8).clamp(0,255)\`
                 // is bit-identical between the two paths; the difference is
@@ -662,7 +662,7 @@ impl Droplet {
                 let contrast_reduction = PARALLAX_CONTRAST_REDUCTION[self.layer as usize];
                 if contrast_reduction > 0.0 {
                     let factor = 1.0 - contrast_reduction;
-                    // v35.3 (Color-#5): apply_brightness_rgb_unclamped returns tuple directly,
+                    // (Color-#5): apply_brightness_rgb_unclamped returns tuple directly,
                     // avoiding the Color wrap + decode_color round-trip. Bit-identical for
                     // factor ∈ [0,1] (call-site guard ensures this).
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
@@ -688,7 +688,7 @@ impl Droplet {
                     }
                 };
                 if fog_factor < 1.0 {
-                    // v30.3 (chroma audit, A13): route depth-fog brightness
+                    // (chroma audit, A13): route depth-fog brightness
                     // scale through chroma engine when active, fall back to
                     // chroma::legacy::scale_rgb otherwise. Same equation both
                     // paths: \`((c * fi + 128) >> 8).clamp(0, 255)\` where
@@ -699,7 +699,7 @@ impl Droplet {
                     // [FOG_MIN_FACTOR=0.45, 1.0). Always within the chroma
                     // helper's [0, 1] clamp.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        // v35.3 (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
+                        // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
                         crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, fog_factor)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, fog_factor)
@@ -730,7 +730,7 @@ impl Droplet {
                     let dist_sq = norm_col * norm_col + norm_line * norm_line;
                     if dist_sq < 1.0 {
                         let glow = (1.0 - dist_sq) * MOUSE_GLOW_INTENSITY;
-                        // v30.3 (A17): chroma-routed white-blend (dead code in prod).
+                        // (A17): chroma-routed white-blend (dead code in prod).
                         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                             crate::chroma::palette::blend_toward_white_rgb(r, g, b, glow)
                         } else {
@@ -805,7 +805,7 @@ impl Droplet {
                     }
 
                     if factor > 0.0 {
-                        // v30.3 (chroma audit, A2): flash wave blends each
+                        // (chroma audit, A2): flash wave blends each
                         // cell toward pure white (255,255,255) by `factor`.
                         // The chroma path uses chroma::palette::blend_toward_white_rgb
                         // (the tuple-in/tuple-out variant of blend_toward_white,
@@ -824,13 +824,13 @@ impl Droplet {
                 }
 
                 // Head brightness modulation
-                // v30.3 (chroma audit, A3): route through chroma engine
+                // (chroma audit, A3): route through chroma engine
                 // when active, fall back to chroma::legacy::scale_rgb
                 // otherwise. Both paths use the same `((c*fi+128)>>8)`
                 // equation -- the difference is auditability.
                 if matches!(loc, CharLoc::Head) && head_bright < 1.0 {
                     let factor = 0.7 + 0.3 * head_bright;
-                    // v35.3 (Color-#5): apply_brightness_rgb_unclamped returns tuple directly.
+                    // (Color-#5): apply_brightness_rgb_unclamped returns tuple directly.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                         crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, factor)
                     } else {
@@ -850,7 +850,7 @@ impl Droplet {
                 // Without this, the layer brightness dimming was undone by the
                 // boost, popping the head back up — visible as a "white dot".
                 //
-                // Bug fix (v30.0.0): the original code used `as i32` on the
+                // Bug fix: the original code used `as i32` on the
                 // f32 multiplier, which truncated 0.30→0, 0.65→0, 0.78→0,
                 // 1.0→1. Combined with integer division `(60 * 0_or_1) / 256`,
                 // the result was `wf = 0` for ALL layers — the self-bloom was
@@ -866,7 +866,7 @@ impl Droplet {
                     // speed. The boost factor is scaled by layer via
                     // PARALLAX_HEAD_SELFBLOOM_MULT.
                     //
-                    // v30.3 (chroma audit, A4): boost routes through chroma
+                    // (chroma audit, A4): boost routes through chroma
                     // engine when active, legacy boost_rgb otherwise. Both
                     // paths use the same `(c as f32 * (1.0 + factor)).round()
                     // .clamp(0,255)` equation -- bit-identical output. The
@@ -901,11 +901,11 @@ impl Droplet {
                 // layers (mult=1.0) get the full shadow for depth.
                 let shadow_raw = crate::brightness_factors::rain_shadow_factor(line, ctx.lines);
                 let shadow = 1.0 - (1.0 - shadow_raw) * RAIN_SHADOW_LAYER_MULT[self.layer as usize];
-                // v30.3 (chroma audit, A5): rain shadow brightness scale
+                // (chroma audit, A5): rain shadow brightness scale
                 // routes through chroma engine when active, legacy
                 // scale_rgb otherwise. Same equation both paths.
                 if shadow < 1.0 {
-                    // v35.3 (Color-#5): apply_brightness_rgb_unclamped returns tuple directly.
+                    // (Color-#5): apply_brightness_rgb_unclamped returns tuple directly.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                         crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, shadow)
                     } else {
@@ -916,7 +916,7 @@ impl Droplet {
                     b = nb;
                 }
 
-                // v30.3 (chroma audit, A6): edge fade brightness scale
+                // (chroma audit, A6): edge fade brightness scale
                 // routes through chroma engine when active, legacy
                 // scale_rgb otherwise. The original PERF(v10) note about
                 // avoiding decode_color + apply_brightness_rgb still
@@ -928,7 +928,7 @@ impl Droplet {
                 // hot-path cost.
                 if edge_fade < 1.0 {
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        // v35.3 (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
+                        // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
                         crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, edge_fade)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, edge_fade)
@@ -956,12 +956,12 @@ impl Droplet {
                 );
                 let vignette =
                     1.0 - (1.0 - vignette_raw) * VIGNETTE_LAYER_MULT[self.layer as usize];
-                // v30.3 (chroma audit, A7): radial vignette brightness
+                // (chroma audit, A7): radial vignette brightness
                 // scale routes through chroma engine when active, legacy
                 // scale_rgb otherwise. Same equation both paths.
                 if vignette < 1.0 {
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        // v35.3 (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
+                        // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
                         crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, vignette)
                     } else {
                         crate::chroma::legacy::scale_rgb(r, g, b, vignette)
@@ -994,7 +994,7 @@ impl Droplet {
 
 // ─── Stabilization regression tests ─────────────────────────────────────────
 //
-// These tests lock in the three silent-override bug fixes from v30.0.0.
+// These tests lock in the three silent-override bug fixes.
 // Each test replays the exact arithmetic the production pipeline performs
 // on a per-pixel basis, with a multiplier drawn from the central control
 // file. If anyone reverts a fix (or accidentally introduces a new

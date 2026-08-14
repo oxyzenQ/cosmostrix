@@ -10,7 +10,7 @@
 //! `--scene-custom <name>`, the verbose output shows `scene: <name>` and
 //! live reload applies edits to the block immediately.
 //!
-//! ## v30.2 changes
+//! ## changes
 //!
 //! `base-scene` is RESTORED with cleaner inheritance semantics. When a
 //! `[scene-custom.<name>]` block sets `base-scene = <built-in-scene>`, the
@@ -33,7 +33,7 @@
 //! is NOT supported — base-scene must be a built-in scene name. This
 //! keeps the apply graph a flat 2-level, avoiding cycles.
 //!
-//! ## v20.1 changes (historical)
+//! ## changes (historical)
 //!
 //! `preset` was removed entirely. Existing configs that still contain
 //! `preset = <name>` will have those keys flagged as unknown by
@@ -49,12 +49,12 @@ use crate::config::Args;
 
 /// Apply a scene-custom block to a CloudConfig during live reload.
 ///
-/// v30.2: pre-pass — apply base-scene's defaults BEFORE the block's own
+/// pre-pass — apply base-scene's defaults BEFORE the block's own
 /// overrides. This ensures overrides correctly win over base-scene defaults
 /// (e.g. `base-scene = "signal", color = "neon-green"` results in neon-green,
 /// not signal's aurora).
 ///
-/// v30.3: per-field application is delegated to `apply_scene_custom_field_to_cloud_config`
+/// per-field application is delegated to `apply_scene_custom_field_to_cloud_config`
 /// (same module). On any touched field, a runtime warning is buffered via
 /// `live_config::push_runtime_warning` so it lands on the main screen
 /// post-exit (AB-10 rain-screen cleanliness) instead of leaking into the
@@ -98,7 +98,7 @@ use crate::profile::{apply_profile_layer, collect_profiles, is_valid_profile_nam
 /// Config namespace prefix for custom scene blocks.
 pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 
-/// v30.3: explicit field allowlist for `[scene-custom.<name>]` blocks.
+/// explicit field allowlist for `[scene-custom.<name>]` blocks.
 ///
 /// Owner contract (2026-08-07):
 /// - ALLOWED: `base-scene`, `color`, `charset`, `bold`, `colors-custom`,
@@ -108,7 +108,7 @@ pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 ///   `ambient`, `auto-color-drift`, `color.tune`, `monolith-size`,
 ///   `intro`, `color-bg`.
 ///
-/// `monolith-size` and `color-bg` were accepted in v30.2 (because the
+/// `monolith-size` and `color-bg` were accepted (because the
 /// allowlist was `PROFILE_FIELDS`, which included them). They are removed
 /// here because they collide with the ambient simplification: a custom
 /// scene used by an ambient entry should not own monolith-size or
@@ -134,9 +134,9 @@ pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
 
 /// Returns `true` if `key` is a recognized `[scene-custom.<name>.<field>]` key.
 ///
-/// v30.3: uses [`SCENE_CUSTOM_FIELDS`] (explicit allowlist) instead of
+/// uses [`SCENE_CUSTOM_FIELDS`] (explicit allowlist) instead of
 /// `PROFILE_FIELDS`. This rejects `monolith-size` and `color-bg` which
-/// were accepted in v30.2 but are forbidden by owner contract.
+/// were accepted but are forbidden by owner contract.
 #[must_use]
 pub(crate) fn is_scene_custom_config_key(key: &str) -> bool {
     let Some((prefix, rest)) = key.split_once('.') else {
@@ -155,7 +155,7 @@ pub(crate) fn is_scene_custom_config_key(key: &str) -> bool {
 ///
 /// Returns a `BTreeMap<name, UserProfile>` mirroring
 /// [`crate::profile::collect_profiles`] but scoped to the `scene-custom`
-/// namespace. v30.3: only fields in [`SCENE_CUSTOM_FIELDS`] are parsed —
+/// namespace. only fields in [`SCENE_CUSTOM_FIELDS`] are parsed —
 /// `monolith-size` and `color-bg` are silently dropped (the keys are
 /// flagged as unknown upstream by `is_scene_custom_config_key`).
 #[must_use]
@@ -181,7 +181,7 @@ pub(crate) fn collect_custom_scenes(
             "density" => scene.density = Some(value.clone()),
             "density-map" => scene.density_map = Some(value.clone()),
             "glitch-level" => scene.glitch_level = Some(value.clone()),
-            // v30.3: new scene-custom fields per owner spec.
+            // new scene-custom fields per owner spec.
             "bold" => scene.bold = Some(value.clone()),
             "colors-custom" => scene.colors_custom = Some(value.clone()),
             "charset-custom" => scene.charset_custom = Some(value.clone()),
@@ -197,7 +197,7 @@ pub(crate) fn collect_custom_scenes(
 
 /// Apply a user-defined custom scene by name.
 ///
-/// Lookup: `[scene-custom.<name>]` in config only. v20.1 removed the
+/// Lookup: `[scene-custom.<name>]` in config only. removed the
 /// `[profile.<name>]` fallback — users must rename the prefix to migrate.
 ///
 /// On success, sets `args.scene_custom = Some(name)` and
@@ -230,7 +230,7 @@ pub(crate) fn apply_scene_custom_layer(
             strict_unknown,
         )?;
         args.scene_custom = Some(normalized.clone());
-        // v30.2: custom scenes are first-class — args.scene reflects the
+        // custom scenes are first-class — args.scene reflects the
         // custom scene name (not a base-scene) so verbose output and
         // CloudConfig.scene_name both show `<name>`. Built-in scene defaults
         // are applied via `apply_profile_layer`'s base-scene inheritance
@@ -296,7 +296,7 @@ pub(crate) fn rain_style_for_custom_scene(
 
 /// Resolve the rain_style for any scene name (built-in OR custom).
 ///
-/// v30.2: if `name` is a built-in scene, returns its rain_style. If `name`
+/// if `name` is a built-in scene, returns its rain_style. If `name`
 /// is a custom scene, looks up its `[scene-custom.<name>]` block in `cfg`
 /// and returns the `base-scene`'s rain_style. Returns `RainStyle::Glyph`
 /// (the default) if neither resolves.
@@ -317,7 +317,7 @@ pub(crate) fn resolve_rain_style(
 /// CloudConfig in place. Used by live-reload to inherit a built-in scene's
 /// managed defaults before applying the custom block's own overrides.
 ///
-/// v35.3 (Glitch-BUG4): shared preset-derivation helper for the live-reload
+/// (Glitch-BUG4): shared preset-derivation helper for the live-reload
 /// path. Mirrors `Cloud::apply_glitch_level_runtime` (scene_runtime.rs:426)
 /// and `config_apply::apply_glitch_level_values` (startup). All three paths
 /// now agree on the 5 preset fields per GlitchLevel variant.
@@ -368,7 +368,7 @@ pub(crate) fn apply_glitch_level_preset_to_cloud_config(
     }
 }
 
-/// v30.2: extracted from `live_config::apply_scene_custom_to_cloud_config`
+/// extracted from `live_config::apply_scene_custom_to_cloud_config`
 /// to keep that file under the LOC cap. Returns `true` if a base-scene was
 /// found and applied (so the caller can track `touched_any`).
 pub(crate) fn apply_base_scene_to_cloud_config(
@@ -395,7 +395,7 @@ pub(crate) fn apply_base_scene_to_cloud_config(
             new.chars = crate::charset::build_chars(cs, &new.user_ranges, new.def_ascii);
         }
     }
-    // v35.3 (FPS-F4): gate fps with cli_explicit.fps — matches the startup
+    // (FPS-F4): gate fps with cli_explicit.fps — matches the startup
     // path (apply_profile_layer → apply_base_scene_to_args checks
     // is_explicit(matches, "fps")). Without this gate, `cosmostrix --fps 144
     // --scene-custom my-scene` silently drops to the base-scene's fps on the
@@ -412,7 +412,7 @@ pub(crate) fn apply_base_scene_to_cloud_config(
         new.density = density;
         new.base_density = density;
     }
-    // v35.3 (Glitch-BUG4): use shared preset helper — was only flipping
+    // (Glitch-BUG4): use shared preset helper — was only flipping
     // glitch_enabled, leaving glitch_pct/short_pct/die_early_pct stale.
     if let Some(glitch) = base_cfg.glitch_level {
         apply_glitch_level_preset_to_cloud_config(new, glitch);
@@ -420,7 +420,7 @@ pub(crate) fn apply_base_scene_to_cloud_config(
     true
 }
 
-/// v30.3: Apply a single `[scene-custom.<name>]` field to a CloudConfig.
+/// Apply a single `[scene-custom.<name>]` field to a CloudConfig.
 /// Extracted from `live_config::apply_scene_custom_to_cloud_config` to keep
 /// that file under the LOC cap. Returns `true` if the field was recognized
 /// and applied (so the caller can track `touched_any`).
@@ -478,7 +478,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "fps" => {
-            // v35.3 (FPS-F4): gate with cli_explicit.fps so `--fps 144`
+            // (FPS-F4): gate with cli_explicit.fps so `--fps 144`
             // survives a live-reload that re-applies the scene-custom block.
             if new.cli_explicit.fps {
                 return false;
@@ -506,7 +506,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "glitch-level" => {
-            // v35.3 (Glitch-BUG4): use shared preset helper. Was only
+            // (Glitch-BUG4): use shared preset helper. Was only
             // flipping glitch_enabled, leaving glitch_pct/short_pct/etc
             // stale — diverging from startup apply_custom_scene_runtime.
             use clap::ValueEnum;
@@ -551,7 +551,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             );
             true
         }
-        // v30.3: monolith-size and color-bg are FORBIDDEN in scene-custom.
+        // monolith-size and color-bg are FORBIDDEN in scene-custom.
         "monolith-size" | "color-bg" => false,
         _ => false,
     }
@@ -649,7 +649,7 @@ pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
 /// `--list-scenes`. Mirrors the column layout of `scene::list_scenes_text`
 /// so the two groups visually align.
 ///
-/// v30.2: when a custom scene sets `base-scene`, the listing annotates it
+/// when a custom scene sets `base-scene`, the listing annotates it
 /// as `name (base: <base-scene>)` so users can see at a glance which
 /// built-in scene a custom scene inherits from. Custom scenes without
 /// `base-scene` render as just `name` (inherit from cinematic implicitly).
@@ -727,7 +727,7 @@ mod tests {
 
     #[test]
     fn scene_custom_keys_are_recognized() {
-        // v30.2: `base-scene` is restored as a recognized scene-custom key.
+        // `base-scene` is restored as a recognized scene-custom key.
         // It triggers inheritance from a built-in scene before the custom
         // scene's own overrides are applied. The legacy `preset` field
         // remains removed.
@@ -803,7 +803,7 @@ mod tests {
         assert_eq!(SCENE_CUSTOM_NAMESPACE, "scene-custom");
     }
 
-    // ── rain_style_for_custom_scene (v30.2) ──
+    // ── rain_style_for_custom_scene ──
 
     #[test]
     fn rain_style_for_custom_scene_returns_base_scene_rain_style() {
@@ -878,7 +878,7 @@ mod tests {
 
     #[test]
     fn profile_fields_are_reusable_for_custom_scenes() {
-        // v30.2: `base-scene` is restored to PROFILE_FIELDS (with cleaner
+        // `base-scene` is restored to PROFILE_FIELDS (with cleaner
         // inheritance semantics — see profile.rs). `preset` remains removed.
         assert!(PROFILE_FIELDS.contains(&"base-scene"));
         assert!(!PROFILE_FIELDS.contains(&"preset"));
@@ -892,7 +892,7 @@ mod tests {
 
     #[test]
     fn list_custom_scenes_text_shows_base_annotation_when_set() {
-        // v30.2: when a custom scene sets `base-scene`, the listing
+        // when a custom scene sets `base-scene`, the listing
         // annotates it as `name (base: <base-scene>)`. Custom scenes
         // without `base-scene` render as just `name`.
         let cfg = HashMap::from([
@@ -1070,7 +1070,7 @@ mod tests {
         assert!(parse_density_map("''").is_none());
     }
 
-    // ── v30.3: scene-custom field allowlist / forbidden-field tests ──
+    // ── scene-custom field allowlist / forbidden-field tests ──
 
     #[test]
     fn scene_custom_fields_includes_v30_3_additions() {
@@ -1133,7 +1133,7 @@ mod tests {
 
     #[test]
     fn is_scene_custom_config_key_rejects_forbidden_fields() {
-        // v30.3: monolith-size and color-bg were accepted in v30.2 — they
+        // monolith-size and color-bg were accepted — they
         // MUST now be rejected per owner contract.
         for field in &[
             "monolith-size",
@@ -1145,7 +1145,7 @@ mod tests {
             let key = format!("scene-custom.test.{field}");
             assert!(
                 !is_scene_custom_config_key(&key),
-                "is_scene_custom_config_key must REJECT '{key}' (forbidden in v30.3)"
+                "is_scene_custom_config_key must REJECT '{key}' (forbidden)"
             );
         }
     }
@@ -1176,7 +1176,7 @@ mod tests {
 
     #[test]
     fn collect_custom_scenes_silently_drops_forbidden_fields() {
-        // v30.3: monolith-size and color-bg are filtered out by
+        // monolith-size and color-bg are filtered out by
         // is_scene_custom_config_key, so collect_custom_scenes never sees
         // them. Verify they don't appear in the parsed UserProfile.
         let cfg = HashMap::from([

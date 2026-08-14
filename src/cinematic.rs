@@ -65,7 +65,7 @@ pub(crate) fn monolith_motion_factor(phase: f32, head: f32) -> f32 {
 #[must_use]
 #[inline]
 pub(crate) fn monolith_breathing_factor(phase: f32, head: f32, layer: u8) -> f32 {
-    // v30.0.0 centralization: amplitudes moved to
+    // .0 centralization: amplitudes moved to
     // `central_control_rains.rs::MONOLITH_BREATHING_AMPLITUDE` so future
     // tuning requires editing only that single file.
     let amplitude = MONOLITH_BREATHING_AMPLITUDE[layer as usize];

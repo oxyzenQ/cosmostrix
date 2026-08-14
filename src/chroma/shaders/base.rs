@@ -132,7 +132,7 @@ pub(crate) struct ShaderCtx<'a> {
     /// dim/boost, saturation drift, persistence glow, instability
     /// flicker) to the resolved cell color BEFORE it is encoded as
     /// `Color::Rgb` and returned. This eliminates the old post-hoc
-    /// decode-encode cycle (v30.1: the `apply_climate_frame_effects`
+    /// decode-encode cycle (the `apply_climate_frame_effects`
     /// pass was deleted; climate is shader-only now) — the cell is
     /// written to the frame once with atmospheric already applied.
     ///
@@ -583,7 +583,7 @@ pub(crate) fn resolve_cell_color(
                 let dist_from_head = head_put_line.saturating_sub(line);
                 let denom = ((length as i32) - 3).max(1) as f32;
                 let t = (((dist_from_head as i32) - 1) as f32 / denom).clamp(0.0, 1.0);
-                // v30.3 masterclass: Bayer 4×4 ordered dithering on the
+                // masterclass: Bayer 4×4 ordered dithering on the
                 // short-droplet luminance-remap path. Same pattern as the
                 // shading_distance branch (line 500-506) — breaks up palette-
                 // boundary banding on short droplets (2-6 Middle cells) where
@@ -748,7 +748,7 @@ pub(crate) fn resolve_cell_color(
     // Apply the frame's atmospheric factors (luminance dim/boost, saturation
     // drift, persistence glow, instability flicker) to the resolved cell
     // color BEFORE returning. This eliminates the old post-hoc decode-encode
-    // cycle (v30.1: `apply_climate_frame_effects` was deleted; climate is
+    // cycle (`apply_climate_frame_effects` was deleted; climate is
     // shader-only now) — the cell is written to the frame once with
     // atmospheric already applied.
     //

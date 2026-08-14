@@ -204,7 +204,7 @@ fn audit_thermal_sampler_contract() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Audit 3: Self-healer reads from PowerThresholds (v30.9 migration)
+// Audit 3: Self-healer reads from PowerThresholds (migration)
 // ────────────────────────────────────────────────────────────────────────────
 
 /// Verify the self-healer constructs with PowerThresholds::defaults()

@@ -67,7 +67,7 @@ pub(crate) const MONOLITH_EFFECTIVE_SPEED_MAX: f32 = SPEED_MAX;
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
 ///
-/// Dragon-fight experiment (v36.1): bumped from 3 → 8 based on the
+/// Dragon-fight experiment : bumped from 3 → 8 based on the
 /// `threshold_sweep` cosmic dragon egg benchmark. The crossover point
 /// where diff-path cost equals full-redraw cost is size-independent
 /// at ~13% dirty (4 bytes/cell full-redraw vs 30 bytes/dirty diff).
@@ -145,7 +145,7 @@ pub(crate) const ANSI_BYTES_PER_CELL_ESTIMATE: u64 = 19;
 /// Config file directory name under XDG_CONFIG_HOME or ~/.config.
 pub(crate) const CONFIG_DIR_NAME: &str = "cosmostrix";
 
-/// Config file name. v20.1 removed the pre-v10 `config` (no extension)
+/// Config file name.  removed the pre-v10 `config` (no extension)
 /// fallback — users upgrading from pre-v10 must rename their file.
 pub(crate) const CONFIG_FILE_NAME: &str = "config.toml";
 
@@ -158,7 +158,7 @@ pub(crate) const DIRTY_CAPACITY_DIVISOR: usize = 8;
 /// Prevents wasting memory when terminal is very large.
 pub(crate) const DIRTY_CAPACITY_CAP: usize = 8192;
 
-// ── Renderer buffer pre-allocation (v25.16 perf polish) ──────────────────────
+// ── Renderer buffer pre-allocation ( perf polish) ──────────────────────
 //
 // These constants tune the initial capacity of the per-Terminal reusable
 // String/Vec buffers used by the diff- and full-redraw paths. The buffers
@@ -194,7 +194,7 @@ pub(crate) const RENDER_ROW_BUF_INIT_CAP: usize = 512;
 /// enabled (terminal capability detection).
 pub(crate) const RENDER_COMBINED_FLUSH_INIT_CAP: usize = 8192;
 
-// ── Benchmark warmup tuning (v25.16 perf polish) ─────────────────────────────
+// ── Benchmark warmup tuning ( perf polish) ─────────────────────────────
 
 /// Fraction of total bench frames used as warmup. `(bench_frames /
 /// BENCH_WARMUP_DIVISOR).clamp(BENCH_WARMUP_MIN_FRAMES,

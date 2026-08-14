@@ -9,7 +9,7 @@
 //!
 //! Climate effects (luminance climate, saturation drift, persistence
 //! richness, instability pressure) were applied in a separate post-hoc
-//! pass over dirty cells (v30.1: `apply_climate_frame_effects` was
+//! pass over dirty cells (`apply_climate_frame_effects` was
 //! deleted; climate is shader-only now). That pass:
 //!
 //! 1. Iterated all dirty cell indices (~500/frame typical).

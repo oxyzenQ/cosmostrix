@@ -224,7 +224,7 @@ Module layout (under `src/chroma/`):
              Hue-preserving, perceptually uniform. The legacy sRGB-linear
              variant was removed in v30 (see palette.rs:250 / gradient.rs:41).
              Fallback behavior for non-truecolor terminals lives in the
-             `chroma::legacy` module (v30.3 audit) — same per-channel RGB
+             `chroma::legacy` module ( audit) — same per-channel RGB
              math the bypasses used to inline, now auditable side-by-side
              with the chroma engine.
   shaders    Base cell shader (resolve_cell_color), CharLoc enum,
@@ -581,7 +581,7 @@ mod tests {
         );
     }
 
-    /// v25.15 (philosophy declaration): the --docs output must carry the
+    /// (philosophy declaration): the --docs output must carry the
     /// condensed masterpiece philosophy so the engine's identity is embedded
     /// in the binary itself, not just in the README. This locks in the
     /// exact wording requested for the formal philosophy declaration.

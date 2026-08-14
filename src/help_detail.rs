@@ -140,7 +140,7 @@ COMMON OPTIONS:
       Use --list-scenes to see all entries with descriptions.
 
       cosmic-dragon is the temporal-prediction milestone scene — a
-      deep-space binary rain commemorating the v20.0.0 breakthrough
+      deep-space binary rain commemorating the  breakthrough
       where horizon=12 + skip-draw + persistent cells slashed dirty_ratio
       from 18.33% to 0.39% and boosted avg_fps from 7,843 to 29,773
       (+280%). It is the visible reward for the achievement, not part
@@ -166,12 +166,12 @@ COMMON OPTIONS:
 
   --scene-custom <name>
       Apply a user-defined custom scene from config. Custom scenes use
-      the [scene-custom.<name>] namespace. v20.1 removed the
+      the [scene-custom.<name>] namespace.  removed the
       [profile.<name>] fallback — users with legacy profile blocks must
       rename the prefix to `scene-custom`. Explicit CLI flags always
       override custom-scene values.
 
-      Custom scenes are first-class citizens. v30.2 restores the
+      Custom scenes are first-class citizens.  restores the
       `base-scene` field with cleaner inheritance semantics: when set,
       the custom scene inherits ALL scene-managed defaults (color,
       charset, fps, speed, density, glitch-level, rain_style) from the
@@ -380,7 +380,7 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       replacement only (3% chance per 3s tick, 30s cooldown between events).
       Climate drift (luminance/saturation/hue) is always-on regardless.
       Config: auto-color-drift = true
-      Note (v35.3 Color-#6): suppressed when --colors-custom is set OR an
+      Note (Color-#6): suppressed when --colors-custom is set OR an
       ambient schedule is active (ambient_palette_locked gate); climate
       drift continues regardless. Edit config.toml to disable.
 

@@ -44,7 +44,7 @@ clear the visible screen and is intentionally non-destructive.
 
 ### Signal Exit (SIGTERM / SIGHUP / SIGQUIT)
 
-v25.13: SIGINT (Ctrl+C) is no longer caught — see "Ctrl-C (SIGINT)"
+SIGINT (Ctrl+C) is no longer caught — see "Ctrl-C (SIGINT)"
 section below for the deprecated behavior.
 
 Signal handler sets `GRACEFUL_SHUTDOWN` and a `signal_exit` flag. Main loop
@@ -62,9 +62,9 @@ main screen during the alternate-to-main transition.
 
 The signal handler thread blocks until `SHUTDOWN` is observed.
 
-### Ctrl-C (SIGINT) — DEPRECATED v25.13
+### Ctrl-C (SIGINT) — DEPRECATED
 
-**v25.13 change**: SIGINT is no longer in the graceful-shutdown signal
+**Change**: SIGINT is no longer in the graceful-shutdown signal
 list. Only `q` exits cosmostrix. This deprecation aligns with the
 cinematic design principle.
 
@@ -134,7 +134,7 @@ Normal exit only restores terminal modes and leaves the alternate screen.
 It does NOT clear the screen or scrollback. This is intentional — the
 alternate screen buffer preserves the original terminal content.
 
-Signal exit (SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated v25.13) clears the visible viewport inside
+Signal exit (SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated) clears the visible viewport inside
 the alternate screen before leaving, preventing rain frame residue.
 It does NOT purge scrollback or modify the main screen.
 
@@ -182,7 +182,7 @@ momentarily appear on the main screen during the terminal emulator's
 alternate-to-main buffer switch, leaving visible glyph residue.
 
 Fix: `Terminal` now accepts a `signal_exit: Arc<AtomicBool>` flag. When
-set (by signal handlers for SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated v25.13), `cleanup_terminal()`
+set (by signal handlers for SIGTERM/SIGHUP/SIGQUIT; SIGINT deprecated), `cleanup_terminal()`
 writes `MoveTo(0,0)` + `Clear(All)` + flush to the alternate screen
 buffer before issuing `LeaveAlternateScreen`. Normal q/esc exit does not
 set this flag, so normal exit remains non-destructive.
@@ -217,7 +217,7 @@ v4.8 merge remains blocked until owner-side visual smoke confirms the fix.
 ## Terminal Lifecycle Matrix
 
 A comprehensive matrix covering all terminal lifecycle paths (normal exit,
-SIGINT (deprecated v25.13), SIGTERM, SIGHUP, SIGQUIT, SIGTSTP/SIGCONT, SIGKILL, `--reset-terminal`,
+SIGINT (deprecated), SIGTERM, SIGHUP, SIGQUIT, SIGTSTP/SIGCONT, SIGKILL, `--reset-terminal`,
 Windows Terminal, tmux, ssh, headless, benchmark mode, and doctor mode)
 is maintained in `docs/TERMINAL_LIFECYCLE_MATRIX.md`. That document is
 the authoritative reference for cleanup guarantees across all paths.

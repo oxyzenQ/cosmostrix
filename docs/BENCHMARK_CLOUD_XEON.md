@@ -2,7 +2,7 @@
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> Historical verification that cosmostrix v30.0.0-alpha.1 builds and
+> Historical verification that cosmostrix builds and
 > benchmarks cleanly on a CPU other than the owner's Ryzen 5800HS — a
 > 2-core Intel Xeon cloud VM with no swap and no powercap/perf counters.
 > Same source commit, same `pro-linux-v3` profile, same `--bench-scene`
@@ -10,7 +10,7 @@
 > vs **73K avg FPS** on the owner's Ryzen (1.59× ratio, consistent with
 > single-thread IPC differences).
 >
-> **Note (v50):** This document preserves the v30 third-party verification.
+> **Note (v50):** This document preserves the third-party verification.
 > The current v50 4-scene reference matrix (captured on the same cloud
 > Xeon class) lives in [BENCHMARKING.md §5](BENCHMARKING.md#5-v50-reference-results-cloud-xeon-4-scene-matrix).
 
@@ -429,7 +429,7 @@ All raw logs are committed under `benchmark/cloud-xeon/`:
 ## See Also
 
 - [`docs/BENCHMARKING.md`](BENCHMARKING.md) — Main benchmarking guide
-  with the v30 4-run reference matrix on the owner's Ryzen 5800HS
+  with the 4-run reference matrix on the owner's Ryzen 5800HS
 - [`docs/BENCHMARK_ADVANCED.md`](BENCHMARK_ADVANCED.md) — How to enable
   the MICROARCHITECTURE and ENERGY sections (not available on this
   cloud VM)

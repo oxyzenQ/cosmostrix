@@ -3,7 +3,7 @@
 # Release Guard
 
 This document defines the mandatory pre-tag gates that must pass before
-creating a release tag.  It exists because the v4.8.0 release almost
+creating a release tag.  It exists because a prior release almost
 shipped without a benchmark report in `benchmark/README.md`.  The guard
 prevents that class of mistake from recurring.
 
@@ -109,7 +109,7 @@ Add a release benchmark section for the new version to
 * Mean avg_fps
 * Invariants table
 * Notes about workload scope and honest FPS boundaries
-* v11.1.0+: MEMORY section (peak_rss), CPU section (avg_cpu_percent),
+* Added in later releases: MEMORY section (peak_rss), CPU section (avg_cpu_percent),
   COMPONENT TIMING section (sim/render/io share), and DRIFT section
   (fps_drift_percent + interpretation). These are additive — a release
   that omits them fails this gate.
@@ -129,8 +129,8 @@ the following guards must be satisfied (see `src/docs_tests/metadata.rs`):
 * Benchmark README states `compute_parallelism: disabled`
 * Benchmark README states 50k was not reached / not promised
 * Benchmark README reports `actual_execution: single-threaded-renderer`
-* v11.1.0+: Benchmark README mentions the MEMORY and DRIFT section names
-  (guard test to be added alongside the first v11.1.0 release report).
+* Added in later releases: Benchmark README mentions the MEMORY and DRIFT section names
+  (guard test to be added alongside the next release report).
 
 ### Gate 7 — Terminal lifecycle verification
 
@@ -141,9 +141,9 @@ lifecycle matrix paths:
    fields (signal_exit, sigkill, terminal_writer, reset_terminal).
 2. Test normal `q` exit — no visible residue, prompt clean.
    (Esc and Ctrl+C are intentionally ignored — only `q` quits.
-   v25.13: SIGINT is also deprecated at the signal level — `kill -INT`
+   SIGINT is also deprecated at the signal level — `kill -INT`
    uses OS default; use `kill -TERM` for graceful shutdown.)
-3. Test `pkill -TERM -f cosmostrix` — no visible residue (v4.8 Phase 4B
+3. Test `pkill -TERM -f cosmostrix` — no visible residue (Phase 4B
    cleanup).
 4. Run `cosmostrix --reset-terminal` — confirms destructive recovery works.
 5. Review `docs/TERMINAL_LIFECYCLE_MATRIX.md` for accuracy.

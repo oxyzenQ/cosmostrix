@@ -16,7 +16,7 @@
 //!      force_draw_everything (every 5 minutes by default).
 //!
 //! This is exactly Bug #11 (commit c1843fe, originally for --message
-//! wide chars) and its v30.1 recurrence in GHOST_CHARS. Cosmostrix
+//! wide chars) and its recurrence in GHOST_CHARS. Cosmostrix
 //! will NEVER support emoji — only pure text/data. These tests guard
 //! that invariant at the static-array and charset-preset layer.
 //!
@@ -35,7 +35,7 @@ use crate::cloud::events::ghost::GHOST_CHARS;
 use crate::interactive::intro_cosmic::BURST_CHARS;
 
 /// Verify every entry in `GHOST_CHARS` is width=1. The previous bug
-/// (commit before v30.1) held fullwidth CJK ideographs (雨雷電風雲闇光)
+/// held fullwidth CJK ideographs (雨雷電風雲闇光)
 /// which caused the entire row to the right of a ghost to shift right
 /// by 1 for the ghost's 2-4 second lifetime.
 #[test]

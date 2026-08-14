@@ -55,7 +55,7 @@ fn validate_rejects_invalid_atmosphere_regime() {
     // atmosphere-regime is a removed key (atmosphere engine eliminated).
     // It is rejected as an unknown key by parse_config_text (not by
     // validate_config_strictly, which only validates values for known
-    // keys). v35.3 (CLI-D-3): the dead validator for this key was
+    // keys). (CLI-D-3): the dead validator for this key was
     // removed; this test now verifies the actual rejection path.
     let cfg_text = "atmosphere-regime = \"adaptivee\"\n";
     let parsed = crate::configfile::parse_config_text(cfg_text);
@@ -78,7 +78,7 @@ fn parse_range_rejects_invalid() {
     assert_eq!(parse_range("200"), None);
 }
 
-// ── v25.1 Termux fix: triple-signal tests live in
+// ── Termux fix: triple-signal tests live in
 // `live_config_poll::tests` (split keeps this file under LOC cap).
 
 // ── v20: scene-custom live reload tests ──
@@ -162,7 +162,7 @@ fn rebuild_applies_scene_custom_color_change() {
     assert_eq!(new.scene_name, "test-scene");
 }
 
-/// v25.5: user color wins over scene default (depth-test bug fix).
+/// user color wins over scene default (depth-test bug fix).
 #[test]
 fn rebuild_user_color_wins_over_scene_default() {
     let mut cfg = HashMap::new();
@@ -172,7 +172,7 @@ fn rebuild_user_color_wins_over_scene_default() {
     assert_eq!(new.color_scheme, crate::runtime::ColorScheme::Cosmos);
 }
 
-/// v25.5: user charset wins over scene default (depth-test bug fix).
+/// user charset wins over scene default (depth-test bug fix).
 #[test]
 fn rebuild_user_charset_wins_over_scene_default() {
     let mut cfg = HashMap::new();
@@ -182,7 +182,7 @@ fn rebuild_user_charset_wins_over_scene_default() {
     assert_eq!(new.charset_preset, "retro");
 }
 
-/// v25.5: color-bg live reload (was startup-only — depth-test bug fix).
+/// color-bg live reload (was startup-only — depth-test bug fix).
 #[test]
 fn rebuild_applies_color_bg_live_reload() {
     let base = minimal_cloud_config();
@@ -201,7 +201,7 @@ fn rebuild_applies_color_bg_live_reload() {
     );
 }
 
-/// v25.5: unrecognized color-bg keeps old setting.
+/// unrecognized color-bg keeps old setting.
 #[test]
 fn rebuild_color_bg_unrecognized_keeps_old() {
     let base = minimal_cloud_config();
@@ -316,7 +316,7 @@ fn rebuild_preserves_cli_explicit_speed_over_scene() {
     assert_eq!(new.speed, 25.0, "CLI --speed wins over scene default");
 }
 
-/// v25.14 (bug #16): Serialize every test that touches the global
+/// (bug #16): Serialize every test that touches the global
 /// `LIVE_RELOAD_VALIDATION_REJECTIONS` log (directly or indirectly via
 /// `validate_and_send`). Without this lock, cargo test's default
 /// thread-pool runs these tests in parallel and one test drains another
@@ -324,9 +324,9 @@ fn rebuild_preserves_cli_explicit_speed_over_scene() {
 /// sees 0 or 2+ and fails spuriously.
 static TEST_REJECTION_LOCK: Mutex<()> = Mutex::new(());
 
-/// v25.6 FIX D: validate_and_send returns Err on bad config, but the
+/// FIX D: validate_and_send returns Err on bad config, but the
 /// render thread NO LONGER sets LIVE_RELOAD_EXIT_CODE — only true
-/// watcher-thread panics do. v25.6 FIX E: error includes a hint.
+/// watcher-thread panics do. FIX E: error includes a hint.
 #[test]
 fn validate_and_send_returns_err_without_setting_exit_code() {
     let _guard = TEST_REJECTION_LOCK.lock().unwrap();
@@ -343,7 +343,7 @@ fn validate_and_send_returns_err_without_setting_exit_code() {
     assert_eq!(LIVE_RELOAD_EXIT_CODE.load(Ordering::Acquire), 0);
 }
 
-/// v25.11 (bug #9): color.tune.* changes must propagate via live reload.
+/// (bug #9): color.tune.* changes must propagate via live reload.
 /// Before the fix, `rebuild_cloud_config` never touched `color_tune`,
 /// so editing `brightness = 0.0` while running had zero effect until
 /// restart. Verify brightness/saturation/head/body/tail all flow through.
@@ -364,7 +364,7 @@ fn rebuild_applies_color_tune_live_reload_brightness() {
     );
 }
 
-/// v25.11 (bug #9): all 5 color.tune.* fields propagate, not just brightness.
+/// (bug #9): all 5 color.tune.* fields propagate, not just brightness.
 #[test]
 fn rebuild_applies_color_tune_live_reload_all_fields() {
     let base = minimal_cloud_config();
@@ -382,7 +382,7 @@ fn rebuild_applies_color_tune_live_reload_all_fields() {
     assert!((new.color_tune.tail - 0.8).abs() < 1e-6);
 }
 
-/// v25.11 (bug #9): when no color.tune.* keys are in config, the tune
+/// (bug #9): when no color.tune.* keys are in config, the tune
 /// stays at the base value (identity by default). This protects users
 /// who never set [color.tune] from accidentally dimming their rain.
 #[test]
@@ -398,7 +398,7 @@ fn rebuild_without_color_tune_keys_keeps_base_tune() {
     );
 }
 
-/// v25.12 (bug #14): `validate_and_send` must push every rejection to
+/// (bug #14): `validate_and_send` must push every rejection to
 /// the session log so the post-exit verbose summary can surface silent
 /// rejections. Before the fix, an OOR value like `color.tune.tail = 5.0`
 /// got silently rejected by `validate_config_strictly` — the watcher
@@ -406,7 +406,7 @@ fn rebuild_without_color_tune_keys_keeps_base_tune() {
 /// the user had no idea their edit was rejected.
 #[test]
 fn validate_and_send_pushes_oor_rejection_to_session_log() {
-    // v25.14 (bug #16): hold the serialization lock so parallel tests
+    // (bug #16): hold the serialization lock so parallel tests
     // cannot drain our rejection mid-test.
     let _guard = TEST_REJECTION_LOCK.lock().unwrap();
     // Drain any prior rejections from earlier tests in this process.
@@ -441,7 +441,7 @@ fn validate_and_send_pushes_oor_rejection_to_session_log() {
     assert!(again.is_empty(), "drain must empty the log");
 }
 
-/// v25.12 (bug #14): malformed lines and unknown keys must ALSO push to
+/// (bug #14): malformed lines and unknown keys must ALSO push to
 /// the session log, not just strict value validation failures. All three
 /// rejection paths in `validate_and_send` must be visible under `-v`.
 #[test]
@@ -464,7 +464,7 @@ fn validate_and_send_pushes_unknown_key_to_session_log() {
     );
 }
 
-/// v25.12 (bug #14): cap at MAX_REJECTION_LOG (64) to avoid unbounded
+/// (bug #14): cap at MAX_REJECTION_LOG (64) to avoid unbounded
 /// growth on a misbehaving editor that saves 1000 times per second.
 #[test]
 fn rejection_log_caps_at_max() {
@@ -487,7 +487,7 @@ fn rejection_log_caps_at_max() {
     assert!(again.is_empty());
 }
 
-/// v25.12 (bug #14): valid config does NOT push to the session log.
+/// (bug #14): valid config does NOT push to the session log.
 /// Only rejections are logged; valid reloads are silent (the rebuild
 /// trace already covers the success path).
 #[test]

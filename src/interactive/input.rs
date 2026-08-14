@@ -126,7 +126,7 @@ pub(super) fn handle_keybinding(
     // `_ => {}` arm at the end of this match). This prevents accidental
     // exits from terminal menu Esc, Ctrl+C muscle memory, or stray
     // function keys. The user must press 'q' deliberately to quit.
-    // v25.13: SIGINT (Ctrl+C) is no longer in the graceful-shutdown
+    // SIGINT (Ctrl+C) is no longer in the graceful-shutdown
     // signal list — see signal_handlers.rs.
     //
     // Historical note: Tab previously had an explicit arm here that
@@ -148,7 +148,7 @@ pub(super) fn handle_keybinding(
         // restored them as reverse-cycle bindings (shift+c/s is simple and
         // matches the c/C, s/S convention). See audit task flags-audit-4.
         //
-        // v35 ambient harmony: 'c'/'C' clears `ambient_palette_locked` (user
+        // ambient harmony: 'c'/'C' clears `ambient_palette_locked` (user
         // is taking ownership of color) and sets `user_override_since_ambient`
         // (so the next ambient fire isn't deduped). See
         // docs/audits/AMBIENT_SCHEDULER_AUDIT.md §2.3.
@@ -171,7 +171,7 @@ pub(super) fn handle_keybinding(
                 let chars = build_chars(cs, user_ranges, def_ascii);
                 cloud.transition_chars(chars);
             }
-            // v35: charset change is a user override — flag it so the next
+            // charset change is a user override — flag it so the next
             // ambient fire (which resets charset via apply_ambient_entry)
             // isn't deduped.
             cloud.user_override_since_ambient = true;
@@ -195,7 +195,7 @@ pub(super) fn handle_keybinding(
             *scene_generation = scene_generation.wrapping_add(1);
             *charset_preset =
                 cloud.apply_scene_runtime(next, charset_preset, user_ranges, def_ascii);
-            // v35: scene change is a user override — flag both. The palette
+            // scene change is a user override — flag both. The palette
             // lock is cleared because the new scene may bring its own color
             // (and auto-drift should be free to drift from there until the
             // next ambient fire re-locks).
@@ -253,7 +253,7 @@ pub(super) fn runtime_speed_clamp(cps: f32, rain_style: RainStyle) -> f32 {
     }
 }
 
-/// v35.1: Decide whether the ambient scheduler should auto-snapback.
+/// Decide whether the ambient scheduler should auto-snapback.
 ///
 /// Pure decision function — no side effects. The event loop calls this
 /// every frame; when it returns `true`, the loop re-applies the current
@@ -267,7 +267,7 @@ pub(super) fn runtime_speed_clamp(cps: f32, rain_style: RainStyle) -> f32 {
 /// shortcut, no new CLI flag — the harmony flags already in Cloud drive
 /// the behavior.
 ///
-/// See `docs/audits/AMBIENT_SCHEDULER_AUDIT.md` §2.2 (v35.1 revision).
+/// See `docs/audits/AMBIENT_SCHEDULER_AUDIT.md` §2.2.
 pub(super) fn should_auto_snapback(
     user_override_since_ambient: bool,
     idle_secs: f64,
@@ -276,7 +276,7 @@ pub(super) fn should_auto_snapback(
     user_override_since_ambient && idle_secs >= auto_snapback_delay_secs
 }
 
-/// v35.1: Try to auto-snapback to the current ambient phase.
+/// Try to auto-snapback to the current ambient phase.
 ///
 /// Called every frame from the event loop. Returns `true` if ambient was
 /// re-applied (caller must redraw — rebuild ColorCache, Frame, fill bg).

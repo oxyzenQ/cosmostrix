@@ -43,7 +43,7 @@ use crate::constants::*;
 /// # Returns
 /// The resync interval in seconds.
 ///
-/// v25.15 (perf audit): the tier thresholds and intervals are now named
+/// (perf audit): the tier thresholds and intervals are now named
 /// constants in `constants.rs` (`SECS_PER_HOUR`, `SECS_PER_4_HOURS`,
 /// `IDLE_RESYNC_TIER_2_SECS`, `IDLE_RESYNC_TIER_3_SECS`). Previously these
 /// were four magic numbers inline.

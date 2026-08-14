@@ -144,10 +144,10 @@ impl Cloud {
                 * normalized
                 * normalized
                 * (normalized * (normalized * 6.0 - 15.0) + 10.0);
-            // v30.1 §8.4: interpolate from resume_blend_start → 1.0 rather
+            // §8.4: interpolate from resume_blend_start → 1.0 rather
             // than always 0 → 1.0 (lets aborted-decel resumes start at 0.4).
             let start = self.resume_blend_start;
-            // v30.2: floor at 0.05 so droplets keep crawling during the
+            // floor at 0.05 so droplets keep crawling during the
             // smootherstep's flat-start window. Without this, the first
             // ~135ms of resume has resume_blend < 0.16 — droplets frozen,
             // then "loncat" (row-pop) asynchronously when the curve kicks
@@ -527,7 +527,7 @@ impl Cloud {
         // frame-invariant factors (dim/boost/saturation/persistence/instability
         // integers + now_secs) once, then passes them through DrawCtx →
         // ShaderCtx → resolve_cell_color where the shader applies them to
-        // each cell's resolved color BEFORE encoding. (v30.1: the old
+        // each cell's resolved color BEFORE encoding. (the old
         // post-hoc `apply_climate_frame_effects` pass was deleted; climate
         // is shader-only now, eliminating ~500 decode-encode-frame.set
         // cycles per frame.)
@@ -818,7 +818,7 @@ impl Cloud {
         // the same rate as the rain wakes up. Without this, phosphor trails
         // vanish at full speed while droplets move in slow motion — creating
         // temporal inconsistency that feels "spiky" during resume.
-        // v30.2: clamp dt to 1/30 sec (matches droplet/quantum/spawn caps).
+        // clamp dt to 1/30 sec (matches droplet/quantum/spawn caps).
         // Without this, a frame timing spike (GC pause, OS stall) could
         // make phosphor decay up to 3x faster than droplets move in the
         // same frame — visible as a "brightness dip" on trails.
@@ -867,7 +867,7 @@ impl Cloud {
         // anomalies). Cap the effective rate at 3× base to prevent visual
         // overload while preserving atmospheric dynamics.
         //
-        // v35.2 (Glitch-P1 fix): gate spawn by `perf_pressure < EVENT_PERF_GATE`,
+        // (Glitch-P1 fix): gate spawn by `perf_pressure < EVENT_PERF_GATE`,
         // mirroring ghost events (`cloud/ghost_events.rs:155`). Each active
         // anomaly writes ~12 KB/frame of cache-missed SGR bytes; without
         // this gate, anomalies continue to spawn under sustained CPU
@@ -932,7 +932,7 @@ impl Cloud {
         // keeps evolving (and the RNG stream stays consistent); only the
         // palette replacement is skipped.
         //
-        // v35 ambient/auto-drift harmony: when ambient has asserted a palette
+        // ambient/auto-drift harmony: when ambient has asserted a palette
         // (`ambient_palette_locked`), palette drift is suppressed even if
         // `auto_color_drift` is true. Ambient specifies the WHAT (which
         // palette), auto-drift specifies the HOW (climate variation on top).
@@ -946,7 +946,7 @@ impl Cloud {
         if self.auto_color_drift && !self.custom_palette_active && !self.ambient_palette_locked {
             if let Some(new_scheme) = maybe_drift {
                 self.set_color_scheme(new_scheme);
-                // v35: mark that auto-drift overrode ambient's palette. The
+                // mark that auto-drift overrode ambient's palette. The
                 // event loop's ambient-event dedup uses this to avoid
                 // skipping the next ambient fire (which would re-assert the
                 // ambient palette).
@@ -1010,7 +1010,7 @@ impl Cloud {
             }
         }
 
-        // 7. (removed in v30.1) Apply global atmospheric frame effects.
+        // 7. (removed) Apply global atmospheric frame effects.
         //    Was a no-op post-hoc pass — climate effects are now applied
         //    in the shader pipeline at resolve_cell_color via
         //    chroma::post::climate::apply_climate. The post-hoc function

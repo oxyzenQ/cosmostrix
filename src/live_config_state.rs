@@ -24,7 +24,7 @@ pub(crate) static LIVE_RELOAD_EXIT_CODE: AtomicU8 = AtomicU8::new(0);
 /// Printed to stderr AFTER terminal restoration so the user can see it.
 pub(crate) static LIVE_RELOAD_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
-/// v25.12 (bug #14): Accumulated validation rejections during the session.
+/// (bug #14): Accumulated validation rejections during the session.
 ///
 /// Each entry is one rejected config reload (timestamp + error). Drained in
 /// the post-exit verbose summary so the user sees EVERY silent rejection
@@ -86,7 +86,7 @@ pub(crate) fn push_validation_rejection(msg: &str) {
 }
 
 /// Drain the session rejection log (test-only utility). Empty if no
-/// rejections or mutex poisoned. Production exit path (v25.13, bug #15)
+/// rejections or mutex poisoned. Production exit path (bug #15)
 /// prints the first rejection via LIVE_RELOAD_EXIT_CODE and exits, so the
 /// log is never drained in production.
 #[cfg(test)]

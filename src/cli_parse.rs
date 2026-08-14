@@ -364,9 +364,9 @@ mod tests {
         assert_eq!(parse_screen_size("1000x1000").unwrap(), (1000, 1000));
     }
 
-    // ── v25.6 depth-test: --charset-custom alias tests ────────────────
+    // ── depth-test: --charset-custom alias tests ────────────────
 
-    /// v25.6 depth-test fix: --charset-custom is now an alias for --charset.
+    /// depth-test fix: --charset-custom is now an alias for --charset.
     /// Depth-test user expected `--charset-custom cat` to work by analogy
     /// with --colors-custom and --scene-custom. The existing --charset
     /// already handles BOTH built-in presets AND custom names, so the alias

@@ -126,7 +126,7 @@ fn bayer_dither_rounds_up_at_near_one_frac() {
     assert_eq!(downs, 1, "frac=15/16 should round down in 1 of 16 cells");
 }
 
-/// v30.3 masterclass: short-droplet luminance-remap path now uses Bayer
+/// masterclass: short-droplet luminance-remap path now uses Bayer
 /// dithering (same pattern as the shading_distance branch). This test
 /// verifies the dithering formula produces both up and down decisions
 /// for a mid-fractional continuous value — proving the path no longer

@@ -218,7 +218,7 @@ pub struct Args {
     #[arg(
         short = 'C',
         long = "charset",
-        // v25.6 depth-test fix: --charset-custom as alias. Depth-test user
+        // depth-test fix: --charset-custom as alias. Depth-test user
         // expected `--charset-custom cat` to work by analogy with
         // --colors-custom and --scene-custom. The existing --charset flag
         // already handles BOTH built-in presets AND custom names (loaded
@@ -867,7 +867,7 @@ pub(crate) fn print_show_scene(
         return Ok(());
     }
 
-    // 2. Custom scene lookup (scene-custom namespace only — v20.1 removed
+    // 2. Custom scene lookup (scene-custom namespace only — removed
     //    the [profile.<name>] fallback; users must rename the prefix).
     let custom_scenes = scene_custom::collect_custom_scenes(cfg);
     let normalized = name.trim().to_ascii_lowercase();

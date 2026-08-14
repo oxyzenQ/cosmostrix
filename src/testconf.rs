@@ -107,7 +107,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             crate::output::eprintln_error_labeled(&format!(
                 "testconf: unknown key '{key}' (likely typo)"
             ));
-            // v25.6 depth-test fix: targeted hint for structural TOML
+            // depth-test fix: targeted hint for structural TOML
             // mistakes (e.g. `bold` under [color.tune], or adaptive-custom
             // nested under [scene-custom.<name>]). Generic typos get no
             // hint — they fall through to the known-keys list below.
@@ -122,7 +122,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         );
     }
 
-    // v25.7: Info-only notice for auto-promoted keys (forgiving parser).
+    // Info-only notice for auto-promoted keys (forgiving parser).
     // These are NOT errors — the keys were silently re-homed to root scope.
     // We surface them so users know their TOML structure was off and can
     // optionally fix it for clarity (move the key BEFORE any [section] header).
@@ -186,7 +186,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // CD-07: surface inert [profile.<name>] blocks. The legacy `profile.*`
     // prefix is accepted by is_known_key (so --testconf PASSES silently on
     // configs containing them), but the blocks are never applied at runtime
-    // — they were replaced by `scene-custom.*` in v20.1. Add a clear warning
+    // — they were replaced by `scene-custom.*` . Add a clear warning
     // so users who keep legacy [profile.<name>] blocks know they are inert.
     let profile_only_keys: Vec<_> = parsed
         .values
@@ -195,14 +195,14 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         .collect();
     if !profile_only_keys.is_empty() {
         crate::output::eprintln_verbose_raw(
-            "testconf: warning: [profile.<name>] blocks are inert (replaced by [scene-custom.<name>] in v20.1). Rename the prefix to apply them at runtime.",
+            "testconf: warning: [profile.<name>] blocks are inert (replaced by [scene-custom.<name>] ). Rename the prefix to apply them at runtime.",
         );
     }
 
     // Validate known value-ranges for top-level (non-block) keys.
     // v14: invalid values are now ERRORS, not warnings — silent PASS for
     // bad values is a bug. Owner requirement: strict value validation.
-    // v30.2: ambient.* keys are validated as a group via
+    // ambient.* keys are validated as a group via
     // validate_ambient_entries (which checks scene-name validity and
     // rejects legacy multi-field format with a migration message).
     let mut ambient_validated = false;
@@ -227,7 +227,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         // colors-custom.* keys: validate hex format (same as validate_config_strictly).
         // Without this, --testconf passes invalid hex that crashes at startup.
         if key.starts_with("colors-custom.") {
-            // v25.10 (bug #8): deprecation notice for `.stops` (alias for `rain`).
+            // (bug #8): deprecation notice for `.stops` (alias for `rain`).
             // The value is still accepted, but users should migrate to `rain`
             // for clarity — `stops` was an undocumented alias that's now
             // explicitly deprecated.
@@ -483,7 +483,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                     None
                 }
             }),
-        // v25.8 (bug #6): color.tune.* fields must be in [0.0, 3.0].
+        // (bug #6): color.tune.* fields must be in [0.0, 3.0].
         // Previously these were silently accepted by --testconf and silently
         // defaulted to 1.0 at runtime (see color_tune_from_config's filter).
         // Now they fail loudly, matching the v14 strictness for fps/speed/density.
@@ -593,7 +593,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 ))
             }
         }
-        // v35.3 (CLI-D-3): removed dead validators for `atmosphere-regime` /
+        // (CLI-D-3): removed dead validators for `atmosphere-regime` /
         // `atmosphere-mode` — these keys are NOT in USER_CONFIG_KEYS (eliminated
         // at commit 07b44b5), so they fall into `unknown_keys` at parse time
         // and never reach `validate_field_value`. The migration hints now live
@@ -629,7 +629,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             }
         }
         // Phase D Bug #1 fix: accept the same lenient set as parse_bool_config
-        // (true/yes/on/1/false/no/off/0, case-insensitive). v35.3 (CLI-D-3):
+        // (true/yes/on/1/false/no/off/0, case-insensitive). (CLI-D-3):
         // removed dead `low-power` / `mouse` from this arm (no longer in
         // USER_CONFIG_KEYS — caught as unknown_keys upstream).
         "auto-color-drift" | "async-mode" => {
@@ -641,7 +641,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
-        // v25.14 (bug #17): intro selector — must match the clap ValueEnum
+        // (bug #17): intro selector — must match the clap ValueEnum
         // accepted by `--intro`. Previously this fell through to the
         // catch-all `_ => None` arm, so `intro = "blah"` passed strict
         // validation silently and only got caught at runtime by
@@ -663,7 +663,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
-        // v35.3 (CLI-V-2): scene-custom `async` field validator — previously
+        // (CLI-V-2): scene-custom `async` field validator — previously
         // fell through to `_ => None`, so `async = "garbage"` silently passed
         // --testconf then failed at runtime with only a stderr warning.
         // (The `colors-custom` and `charset-custom` block-reference validators
@@ -713,7 +713,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
 /// accepts `charset = <custom-name>` at the TOP LEVEL (legacy v25 behavior
 /// that predates the explicit `charset-custom` field). That pre-check runs
 /// BEFORE this wrapper, so the charset hint here only fires for the
-/// scene-custom block path — which is exactly the v30.3-design-consistent
+/// scene-custom block path — which is exactly the design-consistent
 /// behavior: inside `[scene-custom.<name>]`, the explicit `charset-custom`
 /// field is the canonical way to reference a custom block.
 pub(crate) fn validate_field_value_with_cfg(
@@ -721,7 +721,7 @@ pub(crate) fn validate_field_value_with_cfg(
     value: &str,
     cfg: &std::collections::HashMap<String, String>,
 ) -> Option<String> {
-    // v35.3 (CLI-V-2): scene-custom block-reference validators. These need
+    // (CLI-V-2): scene-custom block-reference validators. These need
     // cfg to check whether the referenced [colors-custom.<name>] /
     // [charset-custom.<name>] block exists in this config. Previously fell
     // through to the base catch-all `_ => None` and silently passed

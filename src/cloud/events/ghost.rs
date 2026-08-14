@@ -15,7 +15,7 @@ use crate::frame::Frame;
 
 use super::super::ghost_events::{CinematicEvent, EventCtx};
 
-// v30.1 — Bug #11 regression fix.
+// — Bug #11 regression fix.
 // Previously held fullwidth CJK ideographs ('雨','雷','電','風','雲','闇','光'),
 // all EAW=Wide (width=2). The frame buffer has no per-cell width metadata,
 // so a width=2 char advances the terminal cursor by 2 while the renderer
@@ -99,7 +99,7 @@ impl CinematicEvent for GhostEvent {
 
         let (br, bg, bb) = ctx.ghost_base_color;
 
-        // v30.3 (chroma audit, A9): opacity fade routes through the chroma
+        // (chroma audit, A9): opacity fade routes through the chroma
         // engine when active, falls back to the original f32 multiply+
         // truncate behavior otherwise. The chroma path's apply_brightness_rgb
         // uses integer `>> 8` math (with +128 rounding), while the legacy

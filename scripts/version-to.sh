@@ -18,8 +18,8 @@
 #   ./scripts/version-to.sh --help                Show this help
 #
 # EXAMPLES:
-#   ./scripts/version-to.sh v25.0.0                # Stable release
-#   ./scripts/version-to.sh v25.0.0-alpha.1        # Pre-release
+#   ./scripts/version-to.sh v50.0.0                # Stable release
+#   ./scripts/version-to.sh v50.0.0-alpha.2        # Pre-release
 #
 # Safety:
 #   - Refuses to run if git working tree has unrelated changes
@@ -84,8 +84,8 @@ USAGE:
     ./scripts/version-to.sh --help                 Show this help
 
 EXAMPLES:
-    ./scripts/version-to.sh v25.0.0               # Stable release
-    ./scripts/version-to.sh v25.0.0-alpha.1       # Pre-release
+    ./scripts/version-to.sh v50.0.0               # Stable release
+    ./scripts/version-to.sh v50.0.0-alpha.2       # Pre-release
 HELP
 }
 
@@ -295,8 +295,8 @@ update_pkgbuild() {
 
     # Update pkgver — includes the full version (stable or pre-release).
     # The PKGBUILD prepare() function constructs the download tag as v${pkgver}
-    # when _tag is empty, so pre-release versions like 25.0.0-alpha.1 work
-    # correctly with _tag= (tag becomes v25.0.0-alpha.1).
+    # when _tag is empty, so pre-release versions like 50.0.0-alpha.2 work
+    # correctly with _tag= (tag becomes v50.0.0-alpha.2).
     sed -i -E "s|^pkgver=.*|pkgver=${new_ver}|" "${PKGBUILD}"
 
     # Ensure _tag is empty — the download tag is always v${pkgver}
@@ -696,7 +696,7 @@ validate_prerelease_version() {
     fi
     if ! [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre)\.[0-9]+$ ]]; then
         log_err "Invalid pre-release version: ${ver}"
-        log_err "Expected: X.Y.Z-{alpha|beta|rc|pre}.N (e.g. 25.0.0-alpha.1)"
+        log_err "Expected: X.Y.Z-{alpha|beta|rc|pre}.N (e.g. 50.0.0-alpha.2)"
         exit 1
     fi
 }

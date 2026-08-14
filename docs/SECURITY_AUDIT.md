@@ -4,7 +4,7 @@
 
 **Audit date**: 2026-08-05
 **Auditor**: Super Z (main agent) + 1 parallel Explore agent
-**Subject**: `cosmostrix` v30.0.0-alpha.1
+**Subject**: `cosmostrix` v50.0.0-alpha.2
 **Commit**: `ebca662` (post-CI-fix) + this commit
 **Scope**: full source tree (`src/`, `build.rs`, `scripts/`, `.github/workflows/`, `aur/`)
 **Methodology**: automated `rg` sweeps for every sensitive capability class + manual review of every match
@@ -215,7 +215,7 @@ terminal — it never asks the terminal for state.
 - **SIGTSTP/SIGCONT**: disable mouse capture, restore terminal, raise
   `SIGSTOP` for proper Ctrl+Z suspend.
 - **SIGINT deliberately NOT handled** — only `q` exits cosmostrix
-  (documented v25.13 policy).
+  (documented policy).
 - **Windows**: `ctrlc::set_handler` for CTRL_C_EVENT + CTRL_BREAK_EVENT.
 
 **Cleanup on exit**: RAII `Terminal::drop` + 2-second watchdog thread +

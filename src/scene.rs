@@ -14,7 +14,7 @@
 //! subsystem) with nine curated visual scenes (`classic`,
 //! `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`,
 //! `low-power`) plus the `cosmic-dragon` milestone scene commemorating the
-//! temporal-prediction breakthrough (v20.0.0: dirty_ratio 18.33% → 0.39%,
+//! temporal-prediction breakthrough ( dirty_ratio 18.33% → 0.39%,
 //! FPS 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) keeps the
 //! three original entries to preserve runtime cycling behavior.
 
@@ -222,7 +222,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
         },
     },
     // --- Milestone scene (commemorates the temporal-prediction breakthrough) ---
-    // v20.0.0: horizon=12 + skip-draw + persistent cells slashed dirty_ratio
+    //  horizon=12 + skip-draw + persistent cells slashed dirty_ratio
     // from 18.33% to 0.39% and boosted avg_fps from 7,843 to 29,773 — a 280%
     // speedup with 99.6% fewer drawn cells. This scene is the visible reward
     // for that achievement: a deep-space binary rain that, like the Cosmic Dragon,
@@ -244,7 +244,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     // --- Tribute scene: carbonic ---
     //
     // Honors the +280% FPS achievement of the temporal-prediction
-    // experiment (v20.0.0: 7,843 → 29,773 FPS, dirty_ratio 18.33% →
+    // experiment ( 7,843 → 29,773 FPS, dirty_ratio 18.33% →
     // 0.39%). The experiment was ultimately reverted in v25 because
     // it compromised the cinematic visual quality, but the lessons
     // learned — about prediction, drift tolerance, and the
@@ -271,7 +271,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
-    // ── Honor scenes (v36.2) ──────────────────────────────────────────────
+    // ── Honor scenes ──────────────────────────────────────────────
     //
     // dragon-crystal: honors the cosmostrix + oxyzenQ journey and the
     // hardthinking-mode reward. The energy-zen palette's crystal-edge

@@ -5,7 +5,7 @@
 //! so that file stays under the 1500-LOC source cap enforced by
 //! `loc_tests`.
 //!
-//! ## v25.1 Termux fix: triple-signal change detection
+//! ## Termux fix: triple-signal change detection
 //!
 //! The previous polling heartbeat relied SOLELY on
 //! `std::fs::Metadata::modified()`. On Android Termux's FUSE-mounted
@@ -27,7 +27,7 @@
 //!   - content hash of the first 8KB (catches in-place content edits that
 //!     didn't change size or mtime — e.g., FUSE mtime bug)
 //!
-//! The content hash is v30.3: SHA-256 (cryptographic, per owner contract
+//! The content hash is SHA-256 (cryptographic, per owner contract
 //! 2026-08-07). Reading 8KB adds ~100µs overhead per poll — negligible
 //! at 750ms intervals. The previous FNV-1a 64-bit hash was replaced
 //! because owner required cryptographic strength for change detection.
@@ -56,7 +56,7 @@ const BURST_POLL_INTERVAL_MS: u64 = 200;
 /// "save → formatter → re-save" sequence.
 const BURST_CYCLES: u8 = 5;
 
-/// v25.5 strengthening: when a NEW change is detected DURING an active
+/// strengthening: when a NEW change is detected DURING an active
 /// burst, extend the burst by this many cycles (rather than resetting to
 /// BURST_CYCLES). This catches chain-editing scenarios (formatter →
 /// linter → save → editor auto-save) without dropping out of burst mode
@@ -98,7 +98,7 @@ pub(crate) fn env_poll_interval_ms() -> u64 {
 /// (e.g., FreeBSD kqueue feature not active, Android Termux inotify
 /// throttling, restricted containers).
 ///
-/// **Adaptive burst mode (v25.4 strengthening)**: after ANY change is
+/// **Adaptive burst mode (strengthening)**: after ANY change is
 /// detected — whether by the polling heartbeat itself or by the native
 /// watcher (signalled via `change_counter`) — the poll interval drops to
 /// `BURST_POLL_INTERVAL_MS` (200ms) for `BURST_CYCLES` (5) cycles. This
@@ -145,7 +145,7 @@ pub(crate) fn polling_heartbeat(
         last_state
     );
 
-    // v25.3: cycle counter for periodic liveness tracing. Every 5th
+    // cycle counter for periodic liveness tracing. Every 5th
     // cycle (~3.75s at 750ms interval), emit a heartbeat trace so the
     // user can verify the polling thread is actually alive. Without
     // this, a dead polling thread produces ZERO trace output, making
@@ -169,7 +169,7 @@ pub(crate) fn polling_heartbeat(
         let current_change_count = change_counter.load(Ordering::Acquire);
         if current_change_count != last_change_count {
             last_change_count = current_change_count;
-            // v25.5 strengthening: extend burst by BURST_CYCLES_EXTEND if
+            // strengthening: extend burst by BURST_CYCLES_EXTEND if
             // already in burst (chain-editing scenario), otherwise start
             // fresh burst at BURST_CYCLES. Capped at BURST_CYCLES_MAX.
             let prev = burst_cycles_remaining;
@@ -197,7 +197,7 @@ pub(crate) fn polling_heartbeat(
 
         let current_state = snapshot_file_state_cached(&path, Some(&last_state));
 
-        // v25.3: periodic liveness trace every 5 cycles. This is the
+        // periodic liveness trace every 5 cycles. This is the
         // KEY diagnostic for Termux — if the user sees these lines,
         // the polling thread is alive and reading the file. If they
         // DON'T see them, the polling thread is dead/panicked.
@@ -312,7 +312,7 @@ pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
 /// Snapshot the current state of the file at `path`, with an optional
 /// previous snapshot for the fast path.
 ///
-/// **Fast path (v30.3 masterclass):** when `prev` is `Some` AND its
+/// **Fast path (masterclass):** when `prev` is `Some` AND its
 /// `mtime` and `size` both match the current file's metadata, the
 /// expensive SHA-512 hash is SKIPPED and `prev.content_hash` is reused.
 /// This drops the per-poll cost from ~100µs (open + read 8KB + hash) to
@@ -382,7 +382,7 @@ pub(crate) fn snapshot_file_state_cached(
 /// Compute a SHA-256 hash of the first `max_bytes` of a file.
 /// Returns `None` if the file can't be opened or read.
 ///
-/// v30.3: upgraded from FNV-1a 64-bit to SHA-256 per owner contract.
+/// upgraded from FNV-1a 64-bit to SHA-256 per owner contract.
 /// SHA-256 gives cryptographic collision resistance — even an attacker
 /// (or a buggy editor) crafting two config files with the same hash is
 /// computationally infeasible. The performance cost is ~2x vs FNV-1a
@@ -624,7 +624,7 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
 
-    /// v30.3 masterclass: snapshot_file_state_cached with a matching prev
+    /// masterclass: snapshot_file_state_cached with a matching prev
     /// snapshot must reuse the prev content_hash (fast path). This is the
     /// dedup contract for the polling-heartbeat steady state — the hash
     /// is skipped when mtime + size are unchanged.
@@ -660,7 +660,7 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
 
-    /// v30.3 masterclass: snapshot_file_state_cached with a STALE prev
+    /// masterclass: snapshot_file_state_cached with a STALE prev
     /// snapshot must recompute the hash (slow path). After editing the
     /// file, mtime + size differ → cache miss → new hash computed.
     #[test]
@@ -690,7 +690,7 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
 
-    /// v30.3 masterclass: snapshot_file_state_cached with a None prev
+    /// masterclass: snapshot_file_state_cached with a None prev
     /// must always compute the hash (cold path). This is the
     /// backward-compat path used by `snapshot_file_state` (the wrapper).
     #[test]
@@ -716,7 +716,7 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
 
-    /// v30.3 masterclass: snapshot_file_state_cached must NOT cache off a
+    /// masterclass: snapshot_file_state_cached must NOT cache off a
     /// previously-failed snapshot (prev.mtime is None). This guards against
     /// the edge case where the file was previously unreadable (returning
     /// mtime=None, content_hash=None) and is now readable — we must
@@ -746,7 +746,7 @@ mod tests {
         std::fs::remove_file(&path).ok();
     }
 
-    /// v25.5 strengthening: worst-case burst duration must stay under 3s.
+    /// strengthening: worst-case burst duration must stay under 3s.
     #[test]
     fn burst_cycle_constants_are_sane() {
         // 10 cycles × 200ms = 2s ≤ 3s.
@@ -756,7 +756,7 @@ mod tests {
         );
     }
 
-    // ── v25.16 (bug #18): polling-heartbeat end-to-end test ──────────────
+    // ── (bug #18): polling-heartbeat end-to-end test ──────────────
     //
     // The polling heartbeat is the fallback path for live config reload on
     // systems where the native `notify` watcher is unreliable (Termux FUSE,
@@ -792,7 +792,7 @@ mod tests {
 
     /// Generous end-to-end timeout for the polling heartbeat test.
     ///
-    /// v25.16 (bug #18): raised from the previous informal 5s target to
+    /// (bug #18): raised from the previous informal 5s target to
     /// 15s. Slow CI filesystems (qemu, network FS, shared-tenant runners)
     /// can introduce multi-second scheduler latency between `thread::sleep`
     /// expiry and the next poll cycle. 15s gives 3× headroom over the
@@ -848,7 +848,7 @@ mod tests {
         // Wait for the heartbeat to capture its initial snapshot AND
         // complete at least one poll cycle against the unmodified file.
         //
-        // v25.16 (bug #18): under heavy parallel test load (especially
+        // (bug #18): under heavy parallel test load (especially
         // on shared-tenant CI runners), `std::thread::Builder::spawn`
         // itself can be delayed by 200–800ms before the new thread
         // starts executing. If we modify the file TOO SOON, the
@@ -905,7 +905,7 @@ mod tests {
         // which fails (channel closed) and causes the heartbeat to
         // exit cleanly via the `tx.send().is_err()` → break path.
         //
-        // v25.16 (bug #18): WITHOUT this final write, `handle.join()`
+        // (bug #18): WITHOUT this final write, `handle.join()`
         // would block forever. The heartbeat has no shutdown signal —
         // it exits ONLY when `tx.send()` returns Err. If no further
         // file changes happen, the heartbeat keeps polling indefinitely.

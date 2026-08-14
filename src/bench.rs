@@ -105,7 +105,7 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
 
     println!("BENCH:");
     println!("  scene: {}", cfg.scene_name);
-    // v25.16: disclose that monolith is the default + how to override, so
+    // disclose that monolith is the default + how to override, so
     // CI logs and human users can interpret FPS numbers correctly.
     println!("  scene_note: default is 'monolith' (peak throughput); override with --scene <name>");
     if cfg.scene_name != "monolith" {
@@ -636,7 +636,7 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     };
 
     // ── Build and print report ────────────────────────────────────────
-    // v25.17: compute CONFIG-enrichment fields once so the struct literal
+    // compute CONFIG-enrichment fields once so the struct literal
     // below stays readable. See `compute_config_enrichment` for derivation.
     let (
         color_mode_label,

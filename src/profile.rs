@@ -4,7 +4,7 @@
 //! User-defined profile support for flat `key = value` config files.
 //!
 //! Profiles are intentionally lightweight collections of override fields.
-//! v30.2 restores the `base-scene` field (removed in v20.1) with cleaner
+//! restores the `base-scene` field (removed) with cleaner
 //! semantics: when set, the profile inherits all scene-managed defaults
 //! (color, charset, fps, speed, density, glitch-level, rain_style) from
 //! the named built-in scene BEFORE applying the profile's own overrides.
@@ -40,7 +40,7 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "glitch-level",
     "monolith-size",
     "color-bg",
-    // v30.3: scene-custom-only fields (also accepted on profile.* for
+    // scene-custom-only fields (also accepted on profile.* for
     // symmetry, but owner's ask is specifically for [scene-custom.*]).
     // These are intentionally NOT in the forbidden list for scene-custom.
     "bold",
@@ -53,7 +53,7 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct UserProfile {
     /// Optional built-in scene name to inherit defaults from before applying
-    /// this profile's own overrides. v30.2: restored with cleaner semantics
+    /// this profile's own overrides. restored with cleaner semantics
     /// — the value must be a recognized built-in scene (`cinematic`,
     /// `signal`, `monolith`, etc.). Custom scene names are NOT allowed
     /// (no chained inheritance — keeps the apply graph a flat 2-level).
@@ -76,7 +76,7 @@ pub(crate) struct UserProfile {
     pub glitch_level: Option<String>,
     pub monolith_size: Option<String>,
     pub color_bg: Option<String>,
-    // v30.3: scene-custom extensions. These fields are accepted on both
+    // scene-custom extensions. These fields are accepted on both
     // `[profile.<name>]` and `[scene-custom.<name>]` blocks for symmetry,
     // but the primary ask was scene-custom support. See SCENE_CUSTOM_FIELDS
     // in `scene_custom.rs` for the explicit allowlist used by
@@ -150,7 +150,7 @@ pub(crate) fn collect_profiles(
             "glitch-level" => profile.glitch_level = Some(value.clone()),
             "monolith-size" => profile.monolith_size = Some(value.clone()),
             "color-bg" => profile.color_bg = Some(value.clone()),
-            // v30.3: scene-custom extensions (also accepted on profile.*).
+            // scene-custom extensions (also accepted on profile.*).
             "bold" => profile.bold = Some(value.clone()),
             "colors-custom" => profile.colors_custom = Some(value.clone()),
             "charset-custom" => profile.charset_custom = Some(value.clone()),
@@ -198,7 +198,7 @@ pub(crate) fn apply_profile_layer(
         return Ok(modified);
     };
 
-    // v30.2: `base-scene` is restored with cleaner semantics. When set,
+    // `base-scene` is restored with cleaner semantics. When set,
     // we pre-populate args.* with the named built-in scene's SceneConfig
     // defaults BEFORE applying this profile's own overrides. The profile's
     // explicit fields then win over the base scene's defaults. Fields not
@@ -426,7 +426,7 @@ fn apply_profile_overrides(
             None => warn_invalid(name, "color-bg", value, "black, default-background"),
         }
     }
-    // v30.3: scene-custom extension fields. Also applied on profile.* for
+    // scene-custom extension fields. Also applied on profile.* for
     // symmetry. `bold` and `shading_mode` use the same u8 parsing as the
     // top-level config keys; `async_mode` is a bool. `colors-custom` and
     // `charset-custom` are name references resolved at Cloud construction
@@ -552,7 +552,7 @@ fn parse_color_bg(value: &str) -> Option<ColorBg> {
     }
 }
 
-/// v30.3: parse a u8 field for profile/scene-custom application.
+/// parse a u8 field for profile/scene-custom application.
 /// Mirrors `parse_u8_config` in config_apply.rs but routes warnings through
 /// `warn_invalid` so the profile/scene-custom name shows up in the message.
 fn parse_u8_profile(name: &str, field: &str, value: &str, min: u8, max: u8) -> Option<u8> {
@@ -571,7 +571,7 @@ fn parse_u8_profile(name: &str, field: &str, value: &str, min: u8, max: u8) -> O
     }
 }
 
-/// v30.3: parse a bool field ("true"/"false", case-insensitive, also accepts
+/// parse a bool field ("true"/"false", case-insensitive, also accepts
 /// "1"/"0"). Used for the `async` scene-custom field.
 fn parse_bool(value: &str) -> Option<bool> {
     match value.trim().to_ascii_lowercase().as_str() {
@@ -617,7 +617,7 @@ mod tests {
 
     #[test]
     fn profile_keys_are_recognized() {
-        // v30.2: `base-scene` is restored as a recognized profile field — it
+        // `base-scene` is restored as a recognized profile field — it
         // triggers inheritance from a built-in scene's defaults before the
         // profile's own overrides are applied. The legacy `preset` field
         // remains removed (it was a synonym for base-scene with confusing

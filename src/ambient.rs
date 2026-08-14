@@ -9,7 +9,7 @@
 //! smoothstep blend window) — the user explicitly asked for snappy phase
 //! boundaries, not the imperceptible 5-minute cross-fade the old engine used.
 //!
-//! ## v30.2 config format (simplified — breaking change)
+//! ## config format (simplified — breaking change)
 //!
 //! ```text
 //! ambient.<HH-MM> = <scene-name>
@@ -19,12 +19,12 @@
 //! (`cinematic`, `signal`, `monolith`, etc.) or a custom scene defined via
 //! `[scene-custom.<name>]`. All parameters (color, charset, speed, density,
 //! fps, glitch-level, rain_style) live inside the scene itself, eliminating
-//! the precedence confusion that plagued the v30.0/v30.1 multi-field format.
+//! the precedence confusion that plagued the multi-field format.
 //!
-//! ### Migration from v30.1 multi-field format
+//! ### Migration from multi-field format
 //!
-//! v30.1 accepted `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`.
-//! v30.2 rejects this with a migration error. To preserve the entry, define
+//! accepted `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`.
+//! rejects this with a migration error. To preserve the entry, define
 //! a custom scene that captures the same parameters and reference it from a
 //! TOP-LEVEL `ambient.*` key (NEVER place the `ambient.*` key inside the
 //! `[scene-custom.<name>]` block — TOML would parse it as
@@ -91,10 +91,10 @@ pub(crate) const AMBIENT_MAX_ENTRIES: usize = 256;
 
 /// One entry in the ambient schedule. Parsed from `ambient.HH-MM = <scene>`.
 ///
-/// v30.2: simplified from a 7-field struct (color/scene/speed/density/fps/
+/// simplified from a 7-field struct (color/scene/speed/density/fps/
 /// charset/glitch_level) to just `scene`. All parameters now live inside the
 /// referenced scene (built-in or `[scene-custom.<name>]`). This eliminates
-/// the override-precedence bugs that plagued v30.0/v30.1 (e.g. `speed=50`
+/// the override-precedence bugs that plagued the old (e.g. `speed=50`
 /// being silently overridden by the scene's default `speed=12`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct AmbientEntry {
@@ -254,14 +254,14 @@ fn is_valid_hh_mm(s: &str) -> bool {
 
 /// Parse the value side of `ambient.<HH-MM> = <value>`.
 ///
-/// v30.2 format: `<scene-name>` — a single token, no commas, no `key=value`
+/// format: `<scene-name>` — a single token, no commas, no `key=value`
 /// pairs. The value must be a built-in scene name OR a custom scene name
 /// defined via `[scene-custom.<name>]`.
 ///
 /// # Errors
 ///
 /// Returns `Err` with a migration message if the value contains `,` or `=`,
-/// indicating the user is still using the v30.1 multi-field format. The
+/// indicating the user is still using the multi-field format. The
 /// migration message shows exactly how to convert the entry to the new
 /// format using a `[scene-custom.<name>]` block with `base-scene`.
 ///
@@ -271,15 +271,15 @@ pub(crate) fn parse_ambient_value(value: &str) -> Result<AmbientEntry, String> {
     if scene.is_empty() {
         return Err("ambient: empty scene name".to_string());
     }
-    // v30.2: detect legacy multi-field format and surface a migration
-    // message. The user almost certainly has a v30.1 config like
+    // detect legacy multi-field format and surface a migration
+    // message. The user almost certainly has a config like
     // `ambient.15-00 = neon-purple, signal, speed=50, density=0.65` and
     // needs to convert it to a custom scene block.
     if scene.contains(',') || scene.contains('=') {
         return Err(format!(
             "ambient: legacy multi-field format no longer supported (got '{value}').\n\
              \n\
-             v30.2 simplified ambient entries to a single scene name. To preserve\n\
+              simplified ambient entries to a single scene name. To preserve\n\
              this entry, define a custom scene that captures the same parameters\n\
              and reference it by name:\n\
              \n\
@@ -362,7 +362,7 @@ pub(crate) fn collect_ambient_schedule(cfg: &HashMap<String, String>) -> Ambient
 /// `Err(message)` on the first invalid entry — the caller surfaces this as
 /// exit code 2 (matches the rest of the strict validation contract).
 ///
-/// v30.2 validation rules:
+/// validation rules:
 /// - Value must parse as a single scene name (no commas, no `=`).
 /// - The scene name must be a recognized built-in scene OR a
 ///   `[scene-custom.<name>]` block that exists in the config.
@@ -390,12 +390,12 @@ pub(crate) fn validate_ambient_entries(cfg: &HashMap<String, String>) -> Result<
         let is_custom = custom_scenes.contains_key(&scene.to_ascii_lowercase());
         if !is_builtin && !is_custom {
             // UX hint: if the value contains commas or `=`, the user is
-            // almost certainly still using the v30.1 multi-field format.
+            // almost certainly still using the multi-field format.
             // The parse_ambient_value error already covers this case with
             // a full migration message, but we re-surface a shorter hint
             // here in case the value slipped through (e.g. quoted CSV).
             let hint = if scene.contains(',') || scene.contains('=') {
-                " — v30.2 requires a single scene name; see migration guide in --testconf output above"
+                " —  requires a single scene name; see migration guide in --testconf output above"
             } else {
                 ""
             };
@@ -467,7 +467,7 @@ pub(crate) fn current_second_of_minute() -> u32 {
 
 /// Returns the current day-of-year (0..=365) from the local wall clock.
 ///
-/// v35: used by the ambient scheduler to detect day-boundary crossings.
+/// used by the ambient scheduler to detect day-boundary crossings.
 /// Without this, a single-entry schedule (e.g. `ambient.22-10 = aurora`)
 /// would never refire after the initial fire: the scheduler's
 /// `last_applied == current_entry` dedup suppresses the legitimate next-day
@@ -507,7 +507,7 @@ pub(crate) fn current_yday() -> i32 {
     ((secs / 86_400) % 366) as i32
 }
 
-/// v30.3 masterclass: compute the current ambient phase and apply it to the
+/// masterclass: compute the current ambient phase and apply it to the
 /// cloud at startup (synchronous, before the event loop). Returns the new
 /// charset preset + the applied entry (or None if no schedule is active).
 ///
@@ -520,7 +520,7 @@ pub(crate) fn current_yday() -> i32 {
 /// The scheduler's subsequent fire of the same entry is deduped by the event
 /// loop (entry == last_applied_ambient_entry → skip).
 ///
-/// v30.4 hotfix: the `cfg` parameter MUST be the live config HashMap (loaded
+/// hotfix: the `cfg` parameter MUST be the live config HashMap (loaded
 /// from config.toml at startup), NOT an empty map. Earlier revisions passed
 /// `&HashMap::new()` here, which silently broke custom-scene resolution:
 /// `apply_ambient_entry` → `apply_custom_scene_runtime` calls
@@ -547,7 +547,7 @@ pub(crate) fn apply_startup_ambient(
         );
         return (charset_preset.to_string(), None);
     };
-    // v30.5 stabilization: warn if the cfg map is empty. Custom-scene
+    // stabilization: warn if the cfg map is empty. Custom-scene
     // targets (defined via [scene-custom.<name>] blocks) silently fail
     // to resolve without the cfg map — `collect_custom_scenes` returns
     // an empty HashMap and the lookup falls through to a no-op. This
@@ -572,7 +572,7 @@ pub(crate) fn apply_startup_ambient(
     let new_charset =
         cloud.apply_ambient_entry(&entry, charset_preset, user_ranges, def_ascii, cfg);
     let color_after = cloud.color_scheme();
-    // v30.5 stabilization: verify the apply actually changed cloud state.
+    // stabilization: verify the apply actually changed cloud state.
     // If the entry targeted a custom scene but the color didn't change,
     // the cfg lookup likely failed silently. Log a diagnostic so the
     // user can enable COSMOSTRIX_LIVE_RELOAD_DEBUG=1 and see why. Note:
@@ -617,7 +617,7 @@ mod tests {
         assert!(!is_ambient_config_key("ambient")); // no suffix
     }
 
-    // ── parse_ambient_value (v30.2: single scene name) ──
+    // ── parse_ambient_value ( single scene name) ──
 
     #[test]
     fn parses_single_builtin_scene_name() {
@@ -651,12 +651,12 @@ mod tests {
         assert!(parse_ambient_value("   ").is_err());
     }
 
-    // ── v30.2 migration: legacy multi-field format must produce a
+    // ── migration: legacy multi-field format must produce a
     //    helpful migration error, NOT silently drop fields. ──
 
     #[test]
     fn rejects_legacy_multifield_format_with_migration_message() {
-        // User's exact v30.1 config from the bug report — must surface
+        // User's exact  config from the bug report — must surface
         // a migration error pointing to [scene-custom.*] + base-scene.
         let err = parse_ambient_value("neon-purple, signal, speed=50, density=0.65")
             .expect_err("legacy format must be rejected");
@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn rejects_legacy_color_scene_positional_only() {
-        // Even just `cosmos, monolith` (no kv pairs) is v30.1 format.
+        // Even just `cosmos, monolith` (no kv pairs) is  format.
         let err = parse_ambient_value("cosmos, monolith")
             .expect_err("comma must trigger migration error");
         assert!(err.contains("legacy multi-field format"));
@@ -685,7 +685,7 @@ mod tests {
 
     #[test]
     fn rejects_legacy_kv_only_format() {
-        // `speed=15, density=1.2` (no positionals) is also v30.1 format.
+        // `speed=15, density=1.2` (no positionals) is also  format.
         let err = parse_ambient_value("speed=15, density=1.2")
             .expect_err("equals sign must trigger migration error");
         assert!(err.contains("legacy multi-field format"));
@@ -813,7 +813,7 @@ mod tests {
 
     #[test]
     fn collect_skips_legacy_format_entries() {
-        // v30.2: legacy multi-field entries fail to parse and are silently
+        // legacy multi-field entries fail to parse and are silently
         // dropped from the runtime schedule (strict --testconf still errors).
         // This matches the live-reload contract: a half-edited config must
         // not crash the runtime.
@@ -837,7 +837,7 @@ mod tests {
 
     #[test]
     fn collect_preserves_custom_scene_names() {
-        // v30.2: custom scene names are stored verbatim — validation that
+        // custom scene names are stored verbatim — validation that
         // they reference a defined [scene-custom.<name>] block happens in
         // validate_ambient_entries, not collect_ambient_schedule.
         let mut cfg = HashMap::new();
@@ -883,7 +883,7 @@ mod tests {
 
     #[test]
     fn validate_rejects_legacy_format_with_migration_hint() {
-        // v30.2: a legacy multi-field entry must fail validation with the
+        // a legacy multi-field entry must fail validation with the
         // full migration message. This is the primary user-facing error
         // path — when a user runs `--testconf` on an old config, they see
         // this and learn how to migrate.

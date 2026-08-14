@@ -243,7 +243,7 @@ The `--benchmark` report is organized into sections:
 **Machine**: 2-core Intel Xeon (Alibaba Cloud Linux), 3.9 GiB RAM, no swap,
 no RAPL, no perf counters. Kernel 5.10.134, gnu libc. CPU supports
 AVX-512 (avx512f/bw/cd/dq/vl/ifma/vbmi).
-**Binary**: `v50.0.0-alpha.1`, commit `36327da`, `pro-native` profile
+**Binary**: `v50.0.0-alpha.2`, commit `36327da`, `pro-native` profile
 (x86-64-v4 baseline + `target-cpu=native` → AVX-512 auto-detected), fat LTO,
 rustc 1.97.1, no PGO.
 **Terminal**: 80×24, `TERM=dumb`, color_mode=mono (sandbox has no TTY;

@@ -684,7 +684,7 @@ mod cases {
         );
     }
 
-    // ─── v30.10 regression: mouse click during idle must wake renderer ────────
+    // ───  regression: mouse click during idle must wake renderer ────────
     //
     // Bug: the mouse click handler used `let _ = register_activity(...)`,
     // silently discarding the return value. When the cloud was idle (30s
@@ -770,7 +770,7 @@ mod cases {
         );
     }
 
-    // ── v35: ambient harmony flag tests ──
+    // ── ambient harmony flag tests ──
     //
     // When the user presses x/c/s/C/S, two flags must be updated:
     //   - user_override_since_ambient = true  (so next ambient fire isn't deduped)
@@ -878,7 +878,7 @@ mod cases {
         );
     }
 
-    /// v35.1: `should_auto_snapback` returns false when no user override is
+    /// `should_auto_snapback` returns false when no user override is
     /// active — the ambient scheduler is already in control and doesn't need
     /// to re-assert anything.
     #[test]
@@ -898,7 +898,7 @@ mod cases {
         );
     }
 
-    /// v35.1: `should_auto_snapback` returns false when user has overridden
+    /// `should_auto_snapback` returns false when user has overridden
     /// but is still actively pressing keys (idle time below threshold).
     /// This is the "user is cycling through scenes" case — auto-snapback
     /// must NOT interrupt.
@@ -918,7 +918,7 @@ mod cases {
         );
     }
 
-    /// v35.1: `should_auto_snapback` returns true ONLY when user has
+    /// `should_auto_snapback` returns true ONLY when user has
     /// overridden AND idle time has crossed the threshold. This is the
     /// "user pressed x then walked away" case — ambient must re-assert.
     #[test]
@@ -937,7 +937,7 @@ mod cases {
         );
     }
 
-    /// v35.1: `should_auto_snapback` honors the configured threshold — a
+    /// `should_auto_snapback` honors the configured threshold — a
     /// longer threshold delays the snapback, a shorter threshold hastens it.
     /// This makes the helper reusable if AUTO_SNAPBACK_DELAY_SECS becomes
     /// configurable in the future.
@@ -963,7 +963,7 @@ mod cases {
         );
     }
 
-    /// v35: cloud fields default to false on construction.
+    /// cloud fields default to false on construction.
     #[test]
     fn v35_cloud_ambient_flags_default_false() {
         let cloud = make_test_cloud();

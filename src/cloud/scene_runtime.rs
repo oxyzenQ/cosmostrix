@@ -7,7 +7,7 @@
 //! at runtime, including rain style transitions, glyph warm-starting, and
 //! scene-managed value application (color, charset, speed, density, glitch).
 //!
-//! v30.2: `apply_scene_runtime` now accepts an optional `cfg` parameter
+//! `apply_scene_runtime` now accepts an optional `cfg` parameter
 //! (via the `_with_cfg` variant) so it can resolve custom scenes by looking
 //! up `[scene-custom.<name>]` blocks. When the named scene is a custom
 //! scene, the runtime applies the block's `base-scene` defaults first
@@ -36,7 +36,7 @@ impl Cloud {
     ///
     /// Returns the charset preset name used (scene's or current).
     ///
-    /// v30.2: This method only handles built-in scenes. For custom scenes
+    /// This method only handles built-in scenes. For custom scenes
     /// (referenced via `--scene-custom` or ambient entries), use
     /// [`Cloud::apply_scene_runtime_with_cfg`] which can resolve
     /// `[scene-custom.<name>]` blocks. The interactive scene-cycle keys
@@ -64,7 +64,7 @@ impl Cloud {
         )
     }
 
-    /// v30.2: Apply a runtime scene switch with custom-scene support.
+    /// Apply a runtime scene switch with custom-scene support.
     ///
     /// Like [`Cloud::apply_scene_runtime`] but also resolves custom scenes
     /// via `[scene-custom.<name>]` blocks in `cfg`. When `scene_name` is a
@@ -271,7 +271,7 @@ impl Cloud {
 
         // Step 2: apply custom block overrides.
         // color (built-in scheme via `color`, OR custom palette via `colors-custom`)
-        // v35.3 (Color-#2): add `if scheme != self.color_scheme` guard matching
+        // (Color-#2): add `if scheme != self.color_scheme` guard matching
         // the built-in path (line 142-146). Without this, an ambient fire of a
         // custom scene whose `color` matches the current scheme triggers a
         // spurious 300ms palette transition wave — the "snow ice vs spark fire"
@@ -286,7 +286,7 @@ impl Cloud {
                 self.set_palette(palette);
             }
         }
-        // v30.3: `colors-custom` — explicit custom palette name. Applied
+        // `colors-custom` — explicit custom palette name. Applied
         // only if `color` wasn't set (avoids last-writer-wins confusion).
         if custom.color.is_none() {
             if let Some(palette_name) = &custom.colors_custom {
@@ -308,7 +308,7 @@ impl Cloud {
                 self.transition_chars(chars);
             }
         }
-        // v30.3: `charset-custom` — explicit custom charset name. Applied
+        // `charset-custom` — explicit custom charset name. Applied
         // only if `charset` wasn't set.
         if custom.charset.is_none() {
             if let Some(charset_name) = &custom.charset_custom {
@@ -338,8 +338,8 @@ impl Cloud {
                 self.apply_glitch_level_runtime(level);
             }
         }
-        // v30.3: bold (0=Off, 1=Random, 2=All) — matches --bold CLI.
-        // v35.3 (CLI-V-5): tighten to reject values > 2 (was silently Random).
+        // bold (0=Off, 1=Random, 2=All) — matches --bold CLI.
+        // (CLI-V-5): tighten to reject values > 2 (was silently Random).
         // testconf rejects bold=99 with an error; the startup top-level path
         // rejects via parse_canonical_u8_range. This makes the runtime scene
         // path consistent: unknown values are silently ignored (mode unchanged)
@@ -359,8 +359,8 @@ impl Cloud {
                 }
             }
         }
-        // v30.3: shadingmode (0=Random, 1=DistanceFromHead).
-        // v35.3 (CLI-V-5): tighten to reject values > 1 (was silently Random).
+        // shadingmode (0=Random, 1=DistanceFromHead).
+        // (CLI-V-5): tighten to reject values > 1 (was silently Random).
         if let Some(shading_str) = &custom.shading_mode {
             if let Ok(n) = shading_str.trim().parse::<u8>() {
                 'shading: {
@@ -373,7 +373,7 @@ impl Cloud {
                 }
             }
         }
-        // v30.3: async (true/false).
+        // async (true/false).
         if let Some(async_str) = &custom.async_mode {
             let on = matches!(
                 async_str.trim().to_ascii_lowercase().as_str(),
@@ -383,7 +383,7 @@ impl Cloud {
         }
         // Note: fps, density-map are not runtime-applicable — they are
         // construction-time only. monolith-size and color-bg are forbidden
-        // in scene-custom blocks per v30.3 owner contract.
+        // in scene-custom blocks per  owner contract.
 
         self.semantic_invalidate = true;
         self.force_draw_everything = true;
@@ -482,7 +482,7 @@ impl Cloud {
 
     /// Apply an ambient phase entry at runtime — instant switch (no blend).
     ///
-    /// v30.2: simplified to a single scene-name field. The entry's `scene`
+    /// simplified to a single scene-name field. The entry's `scene`
     /// is resolved via [`Cloud::apply_scene_runtime_with_cfg`], which handles
     /// both built-in scenes (fast path) and custom scenes (looks up
     /// `[scene-custom.<name>]` block, applies `base-scene` defaults first,

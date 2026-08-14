@@ -214,14 +214,14 @@ fn repeated_uppercase_forward_cycle_never_blank() {
 
 // ── apply_ambient_entry regressions ──
 //
-// v30.2: ambient entries are now scene-name-only. The previous regression
+// ambient entries are now scene-name-only. The previous regression
 // (color/charset/speed/density being silently lost) is impossible by
 // construction — the scene IS the spec, so when ambient fires `signal`,
 // all of signal's defaults (color/charset/speed/density/glitch) are applied
 // atomically via apply_scene_runtime_with_cfg. There is no override layer
 // to lose.
 //
-// These tests verify the v30.2 contract:
+// These tests verify the  contract:
 // 1. apply_ambient_entry with a built-in scene name applies that scene's
 //    managed defaults.
 // 2. apply_ambient_entry with a custom scene name looks up the
@@ -249,7 +249,7 @@ fn make_cinematic_like_cloud() -> Cloud {
 
 #[test]
 fn apply_ambient_entry_builtin_scene_applies_scene_defaults() {
-    // v30.2: ambient entry with a built-in scene name applies that scene's
+    // ambient entry with a built-in scene name applies that scene's
     // managed defaults atomically. No override layer — the scene IS the spec.
     let mut cloud = make_cinematic_like_cloud();
     let entry = AmbientEntry {
@@ -285,7 +285,7 @@ fn apply_ambient_entry_builtin_scene_applies_scene_defaults() {
 
 #[test]
 fn apply_ambient_entry_custom_scene_applies_base_scene_then_overrides() {
-    // v30.2: ambient entry with a custom scene name looks up the
+    // ambient entry with a custom scene name looks up the
     // [scene-custom.<name>] block, applies base-scene defaults first,
     // then the block's own overrides.
     //
@@ -341,7 +341,7 @@ fn apply_ambient_entry_custom_scene_applies_base_scene_then_overrides() {
 
 #[test]
 fn apply_ambient_entry_custom_scene_without_base_scene_uses_glyph_rain() {
-    // v30.2: a custom scene with no base-scene falls back to Glyph rain
+    // a custom scene with no base-scene falls back to Glyph rain
     // style and applies only the block's own overrides. Missing fields
     // retain the cloud's current state (no reset to defaults).
     let mut cloud = make_cinematic_like_cloud();
@@ -378,7 +378,7 @@ fn apply_ambient_entry_custom_scene_without_base_scene_uses_glyph_rain() {
 
 #[test]
 fn apply_ambient_entry_unknown_scene_is_noop() {
-    // v30.2: an unknown scene name (not built-in, no [scene-custom.<name>]
+    // an unknown scene name (not built-in, no [scene-custom.<name>]
     // block) is a no-op — current state is preserved. This matches the
     // apply_scene_runtime contract for unknown scenes.
     let mut cloud = make_cinematic_like_cloud();
@@ -397,7 +397,7 @@ fn apply_ambient_entry_unknown_scene_is_noop() {
     assert!((cloud.droplet_density - 0.75).abs() < 0.01);
 }
 
-// ── apply_startup_ambient regression (v30.4 hotfix) ──
+// ── apply_startup_ambient regression ( hotfix) ──
 //
 // Bug: `apply_startup_ambient` originally passed `&HashMap::new()` (empty
 // cfg) to `apply_ambient_entry`. For custom-scene ambient targets, this

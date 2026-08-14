@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v25.9 (bug #7) regression tests — unquoted '#' inside array + multi-line
+//! (bug #7) regression tests — unquoted '#' inside array + multi-line
 //! array consumer over-eating.
 //!
 //! Bug summary: `rain = [#ff0000, #00ff00]` (unquoted hex inside array) had

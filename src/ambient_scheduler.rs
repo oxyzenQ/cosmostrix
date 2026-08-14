@@ -88,7 +88,7 @@ pub struct AmbientSchedulerHandle {
     cv: Arc<Condvar>,
     /// Monotonic counter incremented on every `reload` call.
     ///
-    /// v30.3: closes a TOCTOU race where `reload()` swapped the schedule
+    /// closes a TOCTOU race where `reload()` swapped the schedule
     /// and notified the condvar during the window between the scheduler
     /// releasing the lock (after its snapshot) and re-acquiring it for
     /// `wait_timeout`. The notify was lost (no thread was waiting yet),
@@ -217,14 +217,14 @@ fn scheduler_loop(
     generation: Arc<AtomicU64>,
     tx: std::sync::mpsc::SyncSender<AmbientEntry>,
 ) {
-    // v30.3: track the FULL last-applied entry (hour, minute, scene) instead
+    // track the FULL last-applied entry (hour, minute, scene) instead
     // of just (hour, minute). This fixes a bug where changing the SCENE NAME
     // for an existing time slot (e.g. `ambient.20-20 = evening` → `ambient.20-20
     // = afternoon`) didn't trigger a refire because the time key was unchanged.
     // Now any change to the scene name triggers a refire.
     let mut last_applied: Option<AmbientEntry> = None;
 
-    // v35: track the day-of-year of the last fire. Without this, a single-entry
+    // track the day-of-year of the last fire. Without this, a single-entry
     // schedule (e.g. `ambient.22-10 = aurora`) would never refire after the
     // initial fire: at 22:10 the next day, `current_phase == last_applied`
     // (both <22:10, aurora>), so the dedup suppresses the legitimate next-day
@@ -244,7 +244,7 @@ fn scheduler_loop(
         // sleep duration, then release the lock before sending (so `reload`
         // can't deadlock against a blocked `tx.send`).
         //
-        // v30.3: also snapshot the generation counter so we can detect a
+        // also snapshot the generation counter so we can detect a
         // missed condvar notify later (see the wait block below).
         let (current_entry, sleep_secs, seen_gen) = {
             let Ok(s) = schedule.lock() else {
@@ -258,7 +258,7 @@ fn scheduler_loop(
         };
 
         // Fire current phase if its identity changed since last fire.
-        // v30.3: compare the full entry (hour, minute, scene) — not just the
+        // compare the full entry (hour, minute, scene) — not just the
         // time key — so that scene-name changes for an existing slot trigger
         // a refire. This handles three cases:
         //   - Initial startup: last_applied is None → fire current phase.
@@ -296,7 +296,7 @@ fn scheduler_loop(
             last_applied = None;
         }
 
-        // v35: day-boundary refire. If we're in a new day (yday changed since
+        // day-boundary refire. If we're in a new day (yday changed since
         // the last fire) AND the current phase's boundary has been crossed
         // today (entry.minutes_of_day() <= now_min), refire even if
         // `entry == last_applied`. This handles single-entry schedules where
@@ -347,7 +347,7 @@ fn scheduler_loop(
         // Cap at 1 hour so a long-running session still picks up reload
         // signals even if the condvar notify is missed (defense-in-depth).
         //
-        // v30.3 race fix: between releasing the lock above (after the
+        // race fix: between releasing the lock above (after the
         // snapshot) and re-acquiring it here for `wait_timeout`, a `reload`
         // call can swap the schedule AND notify the condvar. That notify is
         // lost because no thread is waiting yet. Without the generation
@@ -370,7 +370,7 @@ fn scheduler_loop(
                 drop(s);
                 continue;
             }
-            // v30.3 robustness: if the mutex is poisoned (a prior `reload`
+            // robustness: if the mutex is poisoned (a prior `reload`
             // panicked mid-swap — extremely unlikely but possible),
             // `wait_timeout` returns Err. We treat that the same as a
             // poisoned lock above: exit the scheduler thread silently
@@ -511,7 +511,7 @@ mod tests {
     #[test]
     fn validate_ambient_entries_test_schedule_with_multiple_phases() {
         // Sanity: a realistic 3-phase schedule parses + validates.
-        // v30.2: each entry is just a scene name.
+        // each entry is just a scene name.
         let mut cfg = HashMap::new();
         cfg.insert("ambient.00-00".into(), "monolith".into());
         cfg.insert("ambient.06-00".into(), "matrix".into());
@@ -524,7 +524,7 @@ mod tests {
         assert!(crate::ambient::validate_ambient_entries(&cfg).is_ok());
     }
 
-    // ── v30.3: scheduler entry-aware refire tests ──
+    // ── scheduler entry-aware refire tests ──
     //
     // The scheduler now tracks the FULL entry (hour, minute, scene) instead
     // of just (hour, minute). This enables refire when the scene NAME for
@@ -535,7 +535,7 @@ mod tests {
     #[test]
     fn ambient_entry_eq_compares_all_fields() {
         // Sanity: AmbientEntry derives PartialEq — entries are equal only
-        // when ALL fields match. This is the foundation of the v30.3
+        // when ALL fields match. This is the foundation of the
         // entry-aware refire fix.
         let a = entry(20, 20);
         let b = entry(20, 20);
@@ -553,7 +553,7 @@ mod tests {
         };
         assert_ne!(
             c, d,
-            "entries with same time but different scene must NOT be equal (v30.3 fix)"
+            "entries with same time but different scene must NOT be equal (fix)"
         );
 
         let e = AmbientEntry {
@@ -572,7 +572,7 @@ mod tests {
         );
     }
 
-    /// v30.3: scenario from the bug report — user changes the scene NAME
+    /// scenario from the bug report — user changes the scene NAME
     /// for an existing time slot. The scheduler should refire because the
     /// entries are no longer equal (different scene).
     #[test]
@@ -603,8 +603,8 @@ mod tests {
         };
         handle.reload(s2);
 
-        // v30.3: scheduler should fire the new entry because the scene name
-        // differs from the last-applied entry (under v30.2's time-key-only
+        // scheduler should fire the new entry because the scene name
+        // differs from the last-applied entry (under the time-key-only
         // comparison, this would NOT fire — the bug).
         match handle.rx.recv_timeout(Duration::from_secs(2)) {
             Ok(e) => {
@@ -616,12 +616,12 @@ mod tests {
                 assert_eq!(e.minute, 20);
             }
             Err(_) => {
-                panic!("v30.3 regression: scheduler did not refire on scene-name change");
+                panic!("regression: scheduler did not refire on scene-name change");
             }
         }
     }
 
-    // ── v35: day-boundary refire tests ──
+    // ── day-boundary refire tests ──
     //
     // The scheduler now tracks `last_fired_yday` and refires the current
     // entry once per day when the boundary is crossed, even if
@@ -709,7 +709,7 @@ mod tests {
     /// (e.g. `ambient.12-00 = signal`), then uncomments it back within the
     /// same minute/hour. Sometimes the scene applies, sometimes it doesn't,
     /// requiring multiple config saves or a manual scene change to trigger.
-    /// Comparison with pre-v50: pre-v50 applied ambient immediately on
+    /// Comparison with pre-v50: applied ambient immediately on
     /// uncomment; post-128267e got stuck on the config's default scene.
     #[test]
     fn reload_after_empty_refires_same_entry() {

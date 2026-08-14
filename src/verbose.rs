@@ -66,7 +66,7 @@ pub(crate) fn print_verbose(
     charset_preset: &str,
     chars: &[char],
     target_fps: f64,
-    // v30.6: which resolution layer produced target_fps. One of:
+    // which resolution layer produced target_fps. One of:
     // cli / scene / config / dynamic_default / xtermjs_cap.
     fps_precedence: &'static str,
     speed: f32,
@@ -143,7 +143,7 @@ pub(crate) fn print_verbose(
         output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?}"));
     }
     output::eprintln_verbose("color_mode:", &format!(" {color_mode:?}"));
-    // v30.3 (chroma dragon audit): disclose the active color pipeline so the
+    // (chroma dragon audit): disclose the active color pipeline so the
     // user can verify "is the chroma dragon engine running, or did I fall
     // back to legacy sRGB-linear?". Owner directive: "all color -> chroma
     // dragon first -> fallback legacy rgb/srgb". The pipeline label and its
@@ -188,7 +188,7 @@ pub(crate) fn print_verbose(
             color_tune.tail
         ),
     );
-    // v25.17 (verbose ambiguity fix): previously printed just `true`/`false`,
+    // (verbose ambiguity fix): previously printed just `true`/`false`,
     // which was ambiguous — `false` could mean "solid black" OR "custom palette
     // bg from config.toml like `bg = \"#0a0a12\"`". Now we print a descriptive
     // label that distinguishes all three cases so users can verify at a glance
@@ -206,8 +206,8 @@ pub(crate) fn print_verbose(
     // ── Motion ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Motion ──"));
     output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
-    // v30.5: show which detection layer set the dynamic fps default.
-    // v30.6: also show fps_precedence (which RESOLUTION layer won:
+    // show which detection layer set the dynamic fps default.
+    // also show fps_precedence (which RESOLUTION layer won:
     // cli / scene / config / dynamic_default / xtermjs_cap).
     let caps_for_source = crate::termdetect::detect();
     output::eprintln_verbose(
@@ -428,7 +428,7 @@ pub(crate) fn print_verbose(
         "config exists:",
         &format!(" {}", resolved_config_path.exists()),
     );
-    // v25.2 Termux fix: show ALL candidate paths the live-reload watcher
+    // Termux fix: show ALL candidate paths the live-reload watcher
     // considers, so users can verify which file is being watched. This is
     // critical for Termux debugging where XDG_CONFIG_HOME may point to a
     // different location than $HOME/.config.
@@ -469,7 +469,7 @@ fn format_bg_color(bg: Option<Color>) -> String {
 ///   2. Custom palette WITHOUT `bg` field → falls back to `--color-bg` setting.
 ///   3. No custom palette → `--color-bg` decides (black or default-background).
 ///
-/// v25.17 (ambiguity fix #2): the previous version checked `color_bg` first,
+/// (ambiguity fix #2): the previous version checked `color_bg` first,
 /// which produced the misleading line `color_bg: default-background (terminal
 /// native bg, no override)` even when a custom palette's `bg = "#0000ce"`
 /// was actively painting the screen blue. The user saw the lie in real time

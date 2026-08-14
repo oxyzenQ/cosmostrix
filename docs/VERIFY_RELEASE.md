@@ -31,10 +31,10 @@ gpg --keyserver keys.openpgp.org --recv-keys 47A50AEF4B65AAC2
 
 ```bash
 # Download the archive + its .asc signature from the GitHub Release page
-# e.g. cosmostrix-v40.0.0-alpha.1-linux-amd64-v3-gnu.tar.gz
-#      cosmostrix-v40.0.0-alpha.1-linux-amd64-v3-gnu.tar.gz.asc
+# e.g. cosmostrix-v50.0.0-alpha.2-linux-amd64-v3-gnu.tar.gz
+#      cosmostrix-v50.0.0-alpha.2-linux-amd64-v3-gnu.tar.gz.asc
 
-gpg --verify cosmostrix-v40.0.0-alpha.1-linux-amd64-v3-gnu.tar.gz.asc
+gpg --verify cosmostrix-v50.0.0-alpha.2-linux-amd64-v3-gnu.tar.gz.asc
 ```
 
 Expected output:
@@ -62,20 +62,20 @@ All three commands print `<filename>: OK` on success (or `FAILED` on mismatch):
 
 ```bash
 # Classical (universal, every Linux has this)
-sha512sum -c cosmostrix-v40.0.0-alpha.1-linux-amd64-v3-gnu.tar.gz.sha512sum
+sha512sum -c cosmostrix-v50.0.0-alpha.2-linux-amd64-v3-gnu.tar.gz.sha512sum
 
 # Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c cosmostrix-v40.0.0-alpha.1-linux-amd64-v3-gnu.tar.gz.b2sum
+b2sum -c cosmostrix-v50.0.0-alpha.2-linux-amd64-v3-gnu.tar.gz.b2sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python)
 # openssl's -shake256 default output length varies by version/distro;
 # Python hashlib.shake_256 is consistent (64 bytes = 128 hex chars)
-COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-v40.0.0-alpha.1-linux-amd64-v3-gnu.tar.gz','rb').read()).hexdigest(64))")
-EXPECTED=$(awk '{print $1}' cosmostrix-v40.0.0-alpha.1-linux-amd64-v3-gnu.tar.gz.shake256)
-[ "$COMPUTED" = "$EXPECTED" ] && echo "cosmostrix-v40.0.0-alpha.1-linux-amd64-v3-gnu.tar.gz: OK" || echo "FAILED"
+COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-v50.0.0-alpha.2-linux-amd64-v3-gnu.tar.gz','rb').read()).hexdigest(64))")
+EXPECTED=$(awk '{print $1}' cosmostrix-v50.0.0-alpha.2-linux-amd64-v3-gnu.tar.gz.shake256)
+[ "$COMPUTED" = "$EXPECTED" ] && echo "cosmostrix-v50.0.0-alpha.2-linux-amd64-v3-gnu.tar.gz: OK" || echo "FAILED"
 ```
 
-Replace `v40.0.0-alpha.1` and `linux-amd64-v3-gnu` with the actual version and platform from the release page.
+Replace `v50.0.0-alpha.2` and `linux-amd64-v3-gnu` with the actual version and platform from the release page.
 
 ## 3. Why both GPG + checksums
 

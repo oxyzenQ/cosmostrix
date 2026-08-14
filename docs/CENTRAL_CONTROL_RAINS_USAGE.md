@@ -85,7 +85,7 @@ tweaked without rebuilding the binary.
 | Charset custom | (toml only) | `charset-custom.<name>.set` | Custom charset |
 | Color tune (global) | `--color-tune "k=v,k=v"` | `color.tune.<brightness\|saturation\|head\|body\|tail>` | Global brightness/saturation/head/body/tail multiplier |
 
-> **Removed (v30 — 2026-08-05, atmosphere engine elimination):** the
+> **Removed (2026-08-05, atmosphere engine elimination):** the
 > `--atmosphere-mode` / `--atmosphere-regime` CLI flags, the
 > `atmosphere-mode` / `atmosphere-regime` / `adaptive-custom.*` config
 > keys, and all `atmosphere-*` scene-custom presets have been removed.
@@ -748,7 +748,7 @@ alternative to Option F that produces a specific named look.
 To use one, edit `src/central_control_rains.rs` and replace the
 listed constants with the values shown, then `cargo build --release`.
 
-### 6.1 Recipe — Option A "v30.0.0 Baseline" (softer hero, longer trails)
+### 6.1 Recipe — Option A "Baseline" (softer hero, longer trails)
 
 The Option F predecessor. Softer hero pop, longer smearing trails,
 back layer slightly more present. Use this if Option F feels too

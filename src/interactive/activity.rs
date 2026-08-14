@@ -24,7 +24,7 @@ use crate::constants::*;
 /// At 60 FPS with a 500µs spin budget, this saves ~12,500 Instant::now()
 /// calls per frame (~250µs/frame at 20ns/call).
 ///
-/// v25.15 (perf audit): the spin limit is now `FRAME_SPIN_LIMIT` from
+/// (perf audit): the spin limit is now `FRAME_SPIN_LIMIT` from
 /// constants.rs — was a hardcoded `Duration::from_micros(1000)` inline.
 #[inline]
 pub(super) fn spin_wait(deadline: Instant) {

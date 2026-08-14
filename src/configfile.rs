@@ -44,7 +44,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "color-bg",
     "auto-color-drift",
     "async-mode",
-    // v35.2 (CLI-D-1 fix): `adaptive-custom` removed from this whitelist.
+    // (CLI-D-1 fix): `adaptive-custom` removed from this whitelist.
     // The atmosphere engine was eliminated at commit 07b44b5 (2026-08-05),
     // and `config_hints.rs` + `testconf.rs` both explicitly reject
     // `adaptive-custom.*` keys with "have been removed" messages. But the
@@ -66,7 +66,7 @@ const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
 /// Ambient phase scheduler: `ambient.<HH-MM> = <scene-name>`.
 ///
-/// v30.2: simplified — value is a single scene name (built-in OR custom).
+/// simplified — value is a single scene name (built-in OR custom).
 /// Config-only (no CLI flag). Time-of-day phase entries that switch the
 /// active scene at scheduled times. Instant switch (no blend window).
 /// Dynamic idle/wake scheduler thread — zero CPU between phase boundaries.
@@ -83,7 +83,7 @@ pub(crate) struct ParsedConfig {
     /// can warn on stderr. A line lands here when it has no `=` at all, or when
     /// either side of `=` is empty after trimming.
     pub malformed_lines: Vec<String>,
-    /// v25.7: keys that were auto-promoted from a nested section to root scope.
+    /// keys that were auto-promoted from a nested section to root scope.
     ///
     /// Each tuple is `(original_nested_key, promoted_root_key)`. Populated when
     /// the user writes a top-level key (e.g. `fps = 30`) AFTER a
@@ -224,7 +224,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 value = value[1..value.len() - 1].to_string();
             }
 
-            // v25.9 (bug #7): Detect unquoted '#' inside an array value.
+            // (bug #7): Detect unquoted '#' inside an array value.
             // strip_inline_comment strips at first unquoted '#'. If that
             // happened while bracket depth > 0, the user wrote e.g.
             // `rain = [#ff0000, #00ff00]` — '#' inside array was treated
@@ -245,7 +245,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
 
             // v25: Handle multi-line TOML arrays. If the value starts with
             // '[' but doesn't end with ']', consume subsequent lines until
-            // we find the closing ']'. v25.9 (bug #7) hardening: do NOT
+            // we find the closing ']'. (bug #7) hardening: do NOT
             // consume [section] headers — those were previously mistaken
             // for the closing ']' of the array, corrupting subsequent
             // block definitions.
@@ -286,7 +286,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 key.clone()
             };
             if !is_known_key(&full_key) {
-                // v25.7: Auto-promote forgiving parser. If the un-prefixed
+                // Auto-promote forgiving parser. If the un-prefixed
                 // key is itself a known top-level key, the user accidentally
                 // nested it under a [section] header (very common when
                 // mixing [scene-custom.<name>] with top-level keys like
@@ -326,7 +326,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
 /// Platform-specific resolution:
 /// - **Linux, macOS, FreeBSD, Android (Termux)**: Uses `$XDG_CONFIG_HOME`
 ///   if set, otherwise `~/.config`. On Termux specifically,
-///   `XDG_CONFIG_HOME` is deliberately IGNORED (see "v25.2 Termux fix"
+///   `XDG_CONFIG_HOME` is deliberately IGNORED (see "Termux fix"
 ///   below) because it may point to `$PREFIX/etc`, a system location
 ///   users don't edit.
 /// - **Windows**: Uses `%APPDATA%\cosmostrix\config.toml` (always absolute).
@@ -341,11 +341,11 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
 ///   (typically `/data/data/com.termux/files/usr/etc/cosmostrix/...`)
 /// - **Windows**: `%ProgramData%\cosmostrix\config.toml`
 ///
-/// Looks for `config.toml`. v20.1 removed the pre-v10 `config` (no
+/// Looks for `config.toml`. removed the pre-v10 `config` (no
 /// extension) fallback — users upgrading from pre-v10 must rename their
 /// file to `config.toml`.
 ///
-/// **v25.2 Termux fix**: On Android Termux, the XDG spec is ambiguous —
+/// **Termux fix**: On Android Termux, the XDG spec is ambiguous —
 /// Termux's default environment does NOT set `XDG_CONFIG_HOME`, but some
 /// Termux setups (e.g., when `termux-x11` or `proot-distro` is involved)
 /// set it to `$PREFIX/etc` (a system location, NOT where users put
@@ -390,7 +390,7 @@ pub(crate) fn default_config_file_path() -> PathBuf {
         let home = env::var("HOME").ok();
         let is_termux = is_termux_environment();
 
-        // v25.2 Termux fix: on Termux, $HOME/.config/cosmostrix/config.toml
+        // Termux fix: on Termux, $HOME/.config/cosmostrix/config.toml
         // is the canonical location users edit (matches Termux wiki/docs).
         // XDG_CONFIG_HOME may point to $PREFIX/etc (a system location),
         // which is NOT where users put their config. Always prefer $HOME
@@ -445,7 +445,7 @@ pub(crate) fn is_termux_environment() -> bool {
 ///   watcher will pick up the file when it's created).
 /// - Use `existed_candidates` for diagnostic logging.
 ///
-/// v25.2 Termux fix: this function existed conceptually but was inlined
+/// Termux fix: this function existed conceptually but was inlined
 /// in main.rs without the multi-candidate search. The Termux bug
 /// ("live reload doesn't work") was caused by main.rs using
 /// `args.config.unwrap_or_else(default_config_file_path)` which on
@@ -795,7 +795,7 @@ fn is_valid_custom_name(name: &str) -> bool {
 
 /// Check if a colors-custom field name is recognized.
 ///
-/// v25.10 (bug #8): tightened from `bg | background | rain` to
+/// (bug #8): tightened from `bg | background | rain` to
 /// `bg | rain | stops`. `background` (undocumented alias) was removed —
 /// use `bg`. `stops` is a deprecated alias for `rain` (still accepted,
 /// `--testconf` emits a deprecation warning). Brings the key-checker in
@@ -852,7 +852,7 @@ fn strip_inline_comment(line: &str) -> &str {
     line
 }
 
-/// v25.9 (bug #7): Detect unquoted '#' INSIDE an array value.
+/// (bug #7): Detect unquoted '#' INSIDE an array value.
 /// Returns `Some(byte_idx)` if the line has an unquoted '#' while bracket
 /// depth > 0. Catches `rain = [#ff0000, #00ff00]` (user mistake — should
 /// quote hex). Returns `None` for legitimate cases: quoted '#' inside

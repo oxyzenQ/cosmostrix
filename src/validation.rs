@@ -93,7 +93,7 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--check-bitcolor",
         "error: --check-bitcolor has been removed in v30.0.0-alpha.1.\n  It was a strict subset of `--doctor` output — every field it printed\n  (COLORTERM, TERM, auto_detected, forced, effective color depth) is already\n  shown by `cosmostrix --doctor` under the RENDERER and COLOR sections, plus\n  much more (terminal caps, env, perf hints, config paths).\n  Use `cosmostrix --doctor` instead.",
     ),
-    // v35.3 audit (CLI-R-2): 12 entries that were missing — each was producing
+    // audit (CLI-R-2): 12 entries that were missing — each was producing
     // clap's generic "unexpected argument" instead of a friendly migration hint.
     (
         "--no-lightning",
@@ -657,7 +657,7 @@ mod tests {
 
     #[test]
     fn check_removed_flags_intercepts_completions() {
-        // v25.10 audit: --completions was removed in v15 but was missing from
+        // audit: --completions was removed in v15 but was missing from
         // the REMOVED_FLAGS table — users got a generic clap "unexpected
         // argument" error instead of a helpful migration message.
         let argv = ["cosmostrix", "--completions", "bash"]
