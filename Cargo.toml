@@ -27,10 +27,15 @@ unicode-width = "0.2"
 # established in `interactive/adaptive.rs::local_secs_since_midnight`).
 notify = { version = ">=6.1, <7", default-features = false }
 
-# v30.3: SHA-256 for config.toml content hashing (live-reload change
-# detection). Owner contract requires cryptographic hash strength rather
+# v30.3: SHA-512 for config.toml content hashing (live-reload change
+# detection, --dump-config fingerprint, --testconf fingerprint).
+# Owner contract requires cryptographic hash strength rather
 # than the previous FNV-1a 64-bit hash. sha2 is pure-Rust, no unsafe, and
-# ~50KB compiled. Used by live_config_poll::hash_file_prefix.
+# ~50KB compiled. v50: upgraded from SHA-256 to SHA-512 for higher
+# security margin (256-bit collision resistance) at negligible cost
+# for small config files (<5 KB). Used by:
+#   - live_config_poll::hash_file_prefix (change detection)
+#   - configfile::sha512_hex (dump-config + testconf fingerprinting)
 sha2 = "0.10"
 
 # Bug 1 fix: enable kqueue backend on FreeBSD/GhostBSD/macOS (iOS too).

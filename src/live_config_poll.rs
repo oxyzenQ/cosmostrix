@@ -281,11 +281,13 @@ pub(crate) struct FileStateSnapshot {
     pub mtime: Option<std::time::SystemTime>,
     /// File size in bytes. `None` if `metadata()` itself failed.
     pub size: Option<u64>,
-    /// v30.3: SHA-256 hash of the first 8KB of file content. `None` if
+    /// v50: SHA-512 hash of the first 8KB of file content. `None` if
     /// the file couldn't be read (e.g., file deleted mid-snapshot).
     /// Upgraded from FNV-1a 64-bit per owner contract (2026-08-07):
     /// cryptographic strength required for change detection.
-    pub content_hash: Option<[u8; 32]>,
+    /// v50: upgraded from SHA-256 to SHA-512 for higher security margin
+    /// (256-bit collision resistance) at negligible cost for small files.
+    pub content_hash: Option<[u8; 64]>,
 }
 
 /// Number of bytes to hash for the content-hash fallback. 8KB is enough
@@ -312,7 +314,7 @@ pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
 ///
 /// **Fast path (v30.3 masterclass):** when `prev` is `Some` AND its
 /// `mtime` and `size` both match the current file's metadata, the
-/// expensive SHA-256 hash is SKIPPED and `prev.content_hash` is reused.
+/// expensive SHA-512 hash is SKIPPED and `prev.content_hash` is reused.
 /// This drops the per-poll cost from ~100µs (open + read 8KB + hash) to
 /// ~5µs (just `metadata()`), a ~20× speedup on the common steady-state
 /// cycle where nothing has changed.
@@ -390,8 +392,8 @@ pub(crate) fn snapshot_file_state_cached(
 /// huge files into memory. Config files are typically <8KB, but a
 /// misconfigured file (or a user pointing --config at /dev/zero)
 /// could be unbounded — the cap protects against that.
-fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<[u8; 32]> {
-    use sha2::{Digest, Sha256};
+fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<[u8; 64]> {
+    use sha2::{Digest, Sha512};
     use std::io::Read;
     let mut file = std::fs::File::open(path).ok()?;
     let mut buf = vec![0u8; max_bytes.min(8 * 1024)];
@@ -404,11 +406,11 @@ fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<[u8; 32]> {
         }
     }
     buf.truncate(filled);
-    let mut hasher = Sha256::new();
+    let mut hasher = Sha512::new();
     hasher.update(&buf);
     let result = hasher.finalize();
-    // GenericArray to [u8; 32] — `Into` is implemented.
-    let hash_arr: [u8; 32] = result.into();
+    // GenericArray to [u8; 64] — `Into` is implemented.
+    let hash_arr: [u8; 64] = result.into();
     Some(hash_arr)
 }
 
@@ -474,41 +476,46 @@ mod tests {
         std::env::remove_var("COSMOSTRIX_LIVE_RELOAD_POLL_MS");
     }
 
-    /// v30.3: SHA-256 hash known-answer test against published NIST vectors.
+    /// v50: SHA-512 hash known-answer test against published NIST vectors.
     /// Source: NIST FIPS 180-4 — empty string and "abc" are the canonical
-    /// SHA-256 test vectors.
+    /// SHA-512 test vectors.
     #[test]
-    fn sha256_known_vectors() {
-        use sha2::{Digest, Sha256};
-        // Empty input → e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-        let empty_expected: [u8; 32] = [
-            0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f,
-            0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b,
-            0x78, 0x52, 0xb8, 0x55,
+    fn sha512_known_vectors() {
+        use sha2::{Digest, Sha512};
+        // Empty input → cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e
+        let empty_expected: [u8; 64] = [
+            0xcf, 0x83, 0xe1, 0x35, 0x7e, 0xef, 0xb8, 0xbd, 0xf1, 0x54, 0x28, 0x50, 0xd6, 0x6d,
+            0x80, 0x07, 0xd6, 0x20, 0xe4, 0x05, 0x0b, 0x57, 0x15, 0xdc, 0x83, 0xf4, 0xa9, 0x21,
+            0xd3, 0x6c, 0xe9, 0xce, 0x47, 0xd0, 0xd1, 0x3c, 0x5d, 0x85, 0xf2, 0xb0, 0xff, 0x83,
+            0x18, 0xd2, 0x87, 0x7e, 0xec, 0x2f, 0x63, 0xb9, 0x31, 0xbd, 0x47, 0x41, 0x7a, 0x81,
+            0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e,
         ];
-        let mut h = Sha256::new();
+        let mut h = Sha512::new();
         h.update(b"");
-        let empty: [u8; 32] = h.finalize().into();
+        let empty: [u8; 64] = h.finalize().into();
         assert_eq!(empty, empty_expected);
 
-        // "abc" → ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
-        let abc_expected: [u8; 32] = [
-            0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea, 0x41, 0x41, 0x40, 0xde, 0x5d, 0xae,
-            0x22, 0x23, 0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61,
-            0xf2, 0x00, 0x15, 0xad,
+        // "abc" → ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f
+        // (NIST FIPS 180-4 SHA-512("abc") vector)
+        let abc_expected: [u8; 64] = [
+            0xdd, 0xaf, 0x35, 0xa1, 0x93, 0x61, 0x7a, 0xba, 0xcc, 0x41, 0x73, 0x49, 0xae, 0x20,
+            0x41, 0x31, 0x12, 0xe6, 0xfa, 0x4e, 0x89, 0xa9, 0x7e, 0xa2, 0x0a, 0x9e, 0xee, 0xe6,
+            0x4b, 0x55, 0xd3, 0x9a, 0x21, 0x92, 0x99, 0x2a, 0x27, 0x4f, 0xc1, 0xa8, 0x36, 0xba,
+            0x3c, 0x23, 0xa3, 0xfe, 0xeb, 0xbd, 0x45, 0x4d, 0x44, 0x23, 0x64, 0x3c, 0xe8, 0x0e,
+            0x2a, 0x9a, 0xc9, 0x4f, 0xa5, 0x4c, 0xa4, 0x9f,
         ];
-        let mut h = Sha256::new();
+        let mut h = Sha512::new();
         h.update(b"abc");
-        let abc: [u8; 32] = h.finalize().into();
+        let abc: [u8; 64] = h.finalize().into();
         assert_eq!(abc, abc_expected);
     }
 
-    /// hash_file_prefix returns Some([u8; 32]) for a readable file with
-    /// expected content. Cross-check against an inline SHA-256 of the same
+    /// hash_file_prefix returns Some([u8; 64]) for a readable file with
+    /// expected content. Cross-check against an inline SHA-512 of the same
     /// bytes.
     #[test]
-    fn hash_file_prefix_matches_inline_sha256() {
-        use sha2::{Digest, Sha256};
+    fn hash_file_prefix_matches_inline_sha512() {
+        use sha2::{Digest, Sha512};
         let dir = std::env::temp_dir().join("cosmostrix-tests");
         std::fs::create_dir_all(&dir).ok();
         let path = dir.join("hash_file_prefix.toml");
@@ -516,12 +523,12 @@ mod tests {
         std::fs::write(&path, content).unwrap();
 
         let hash = hash_file_prefix(&path, 8 * 1024).expect("hash must be Some");
-        let mut inline = Sha256::new();
+        let mut inline = Sha512::new();
         inline.update(content);
-        let inline_arr: [u8; 32] = inline.finalize().into();
+        let inline_arr: [u8; 64] = inline.finalize().into();
         assert_eq!(
             hash, inline_arr,
-            "hash_file_prefix must match inline SHA-256"
+            "hash_file_prefix must match inline SHA-512"
         );
 
         std::fs::remove_file(&path).ok();

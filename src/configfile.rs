@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
 use crate::profile::is_profile_config_key;
 use crate::scene_custom::is_scene_custom_config_key;
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha512};
 
 pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
@@ -671,7 +671,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 ///   # cosmostrix config file
 ///   # generated at <ISO 8601 UTC>
 ///   # using Howard Hinnant chrono design (libc::gmtime_r)
-///   # sha256: <hex digest of template body>
+///   # sha512: <hex digest of template body>
 ///   ```
 /// followed by a blank `#` line, then the existing curated `# cosmostrix
 /// configuration` template from `dump_config_text()`.
@@ -682,15 +682,17 @@ pub(crate) fn dump_config_text() -> &'static str {
 /// (civil-from-days + minimal abstraction) without claiming the chrono crate
 /// is in use (it was dropped in v30 to eliminate 8 transitive deps).
 ///
-/// v50: SHA-256 fingerprint of the template body (everything after the
+/// v50: SHA-512 fingerprint of the template body (everything after the
 /// header). Serves as a content-addressable identity — any change to the
 /// template produces a different digest. Users can verify their config
-/// template matches a known version with `sha256sum`, detect config drift
+/// template matches a known version with `sha512sum`, detect config drift
 /// across machines, and prove exact config state in bug reports. Uses the
 /// same `sha2` crate already in-tree for live-reload change detection
-/// (zero new dependencies). The hash covers only the template body (not
-/// the header itself), so the digest is deterministic regardless of when
-/// `--dump-config` is run.
+/// (zero new dependencies). SHA-512 chosen over SHA-256 for higher
+/// security margin (256-bit collision resistance vs 128-bit) at negligible
+/// cost for small config files (<5 KB). The hash covers only the template
+/// body (not the header itself), so the digest is deterministic regardless
+/// of when `--dump-config` is run.
 ///
 /// Returns a `String` (allocates) instead of `&'static str` because the
 /// timestamp is runtime-generated. Callers: `--dump-config` stdout path and
@@ -699,22 +701,22 @@ pub(crate) fn dump_config_text() -> &'static str {
 pub(crate) fn dump_config_with_header() -> String {
     let ts = crate::clock::now_iso_utc();
     let body = dump_config_text();
-    let hash = sha256_hex(body.as_bytes());
+    let hash = sha512_hex(body.as_bytes());
     format!(
-        "# cosmostrix config file\n# generated at {ts}\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# sha256: {hash}\n#\n{body}"
+        "# cosmostrix config file\n# generated at {ts}\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# sha512: {hash}\n#\n{body}"
     )
 }
 
-/// Compute the SHA-256 hex digest of `data`.
+/// Compute the SHA-512 hex digest of `data`.
 ///
 /// Used by `dump_config_with_header()` to fingerprint the template body
 /// and by `testconf::run()` to fingerprint the user's config file on disk.
-/// Returns a 64-character lowercase hex string.
+/// Returns a 128-character lowercase hex string.
 #[must_use]
-pub(crate) fn sha256_hex(data: &[u8]) -> String {
-    let mut hasher = Sha256::new();
+pub(crate) fn sha512_hex(data: &[u8]) -> String {
+    let mut hasher = Sha512::new();
     hasher.update(data);
-    format!("{:064x}", hasher.finalize())
+    format!("{:0128x}", hasher.finalize())
 }
 
 #[must_use]

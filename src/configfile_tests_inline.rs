@@ -199,7 +199,7 @@ fn dump_config_documents_paired_field_split() {
 fn dump_config_with_header_starts_with_header_lines() {
     // v50: the generated config must start with the 4-line header +
     // blank `#` line, then the existing `# cosmostrix configuration`
-    // template body. v50 added the sha256 fingerprint line.
+    // template body. v50 added the sha512 fingerprint line.
     let dump1 = dump_config_with_header();
     let lines: Vec<&str> = dump1.lines().collect();
     assert!(lines.len() >= 6, "header should have >= 6 lines");
@@ -220,11 +220,11 @@ fn dump_config_with_header_starts_with_header_lines() {
         lines[2], "# using Howard Hinnant chrono design (libc::gmtime_r)",
         "header line 3"
     );
-    // Line 4: SHA-256 fingerprint (v50)
+    // Line 4: SHA-512 fingerprint (v50)
     let line4 = lines[3];
     assert!(
-        line4.starts_with("# sha256: ") && line4.len() == 10 + 64,
-        "sha256 line wrong: {line4:?} (expected '# sha256: ' + 64 hex chars)"
+        line4.starts_with("# sha512: ") && line4.len() == 10 + 128,
+        "sha512 line wrong: {line4:?} (expected '# sha512: ' + 128 hex chars)"
     );
     // Line 5: blank `#` separator
     assert_eq!(lines[4], "#", "blank separator");
