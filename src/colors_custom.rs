@@ -8,7 +8,7 @@
 //! ```toml
 //! [colors-custom.sunset]
 //! bg = "#0a0a12"
-//! rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"
+//! rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"
 //! ```
 //!
 //! Load with `--colors-custom sunset` or use in an ambient phase:

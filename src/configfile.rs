@@ -587,8 +587,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 # All values shown are defaults. Uncomment to override.
 
 # scene = "cinematic"          # See: cosmostrix --list-scenes
-# color = "energy-zen"         # See: cosmostrix --list-colors
-# charset = "zen"              # See: cosmostrix --list-charsets
+# color = "energy-zen"         # See: cosmostrix --list-colors (cinematic default)
+# charset = "zen"              # See: cosmostrix --list-charsets (cinematic default)
 # color-bg = "default-background"  # or "black"
 # intro = "logo"               # logo | cosmic | none
 
@@ -602,7 +602,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # ── Behavior ──
 
-# glitch-level = "subtle"      # none | subtle | default | intense
+# glitch-level = "subtle"      # none | subtle | default | intense (cinematic default)
 # auto-color-drift = false     # slow palette drift
 # bold = 1                     # 0=off, 1=random, 2=all
 # shadingmode = 1             # 0=random, 1=cinematic
@@ -623,10 +623,17 @@ pub(crate) fn dump_config_text() -> &'static str {
 # [scene-custom.hacker-mode]
 # base-scene = "matrix"       # inherit defaults from a built-in scene
 # color = "green"              # built-in color name
+# colors-custom = "neon"       # custom palette name (overrides color)
 # charset = "hacker"           # built-in charset preset
+# charset-custom = "myglyphs"  # custom charset name (overrides charset)
 # speed = 28
 # density = 1.2
+# fps = 60                     # 1-240
+# bold = 1                     # 0=off, 1=random, 2=all
+# shadingmode = 1             # 0=random, 1=cinematic
 # glitch-level = "intense"
+# density-map = "0.5,1.0,1.5,1.0,0.5"  # per-zone density weights
+# async = true                 # variable column speeds
 
 # ── Custom Color Palettes ──
 # Define named palettes, reference via: colors-custom = <name>
@@ -634,7 +641,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # [colors-custom.zen]
 # bg = "#0a0a0a"
-# rain = ["#111111", "#4a4a4a", "#8a8a8a", "#d0d0d0"]
+# rain = ["#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"]
 
 # ── Custom Character Sets ──
 # Define named charsets, reference via: charset-custom = <name>

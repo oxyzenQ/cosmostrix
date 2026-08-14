@@ -251,7 +251,7 @@ fn colors_custom_field_hint(key: &str, field: &str) -> String {
             "'{key}': '{field}' is not a colors-custom field. \
              The 'head'/'body'/'tail' triple belongs to built-in palette internals and is not \
              user-configurable. Valid fields: bg (background color), rain (gradient stops). \
-             Example: [colors-custom.<name>]\n  bg = \"#0a0a12\"\n  rain = [\"#1a0033\", \"#9933ff\", \"#ffffff\"]"
+             Example: [colors-custom.<name>]\n  bg = \"#0a0a12\"\n  rain = [\"#1a0033\", \"#4d0080\", \"#9933ff\", \"#cc66ff\", \"#e6b3ff\", \"#f2ccff\", \"#ffffff\"]"
         );
     }
     // Removed alias — point users to the canonical name.
@@ -277,7 +277,7 @@ fn colors_custom_field_hint(key: &str, field: &str) -> String {
         "'{key}': '{field}' is not a recognized colors-custom field. \
          Valid fields: bg (background color), rain (gradient stops), \
          stops (deprecated alias for 'rain'). \
-         Example: [colors-custom.<name>]\n  bg = \"#0a0a12\"\n  rain = [\"#1a0033\", \"#9933ff\", \"#ffffff\"]"
+         Example: [colors-custom.<name>]\n  bg = \"#0a0a12\"\n  rain = [\"#1a0033\", \"#4d0080\", \"#9933ff\", \"#cc66ff\", \"#e6b3ff\", \"#f2ccff\", \"#ffffff\"]"
     )
 }
 
