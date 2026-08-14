@@ -62,7 +62,7 @@ pub(crate) static TERMINAL_RESTORED_BY_PANIC: AtomicBool = AtomicBool::new(false
 use crossterm::{
     cursor, event,
     style::{Attribute, Color, ResetColor, SetAttribute},
-    terminal as crossterm_terminal, ExecutableCommand, QueueableCommand,
+    terminal as crossterm_terminal, ExecutableCommand,
 };
 
 use crate::cell::Cell;
