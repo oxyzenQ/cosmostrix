@@ -703,14 +703,18 @@ pub(crate) fn dump_config_with_header() -> String {
     let body = dump_config_text();
     let hash = sha512_hex(body.as_bytes());
     format!(
-        "# cosmostrix config file\n# generated at {ts}\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# sha512: {hash}\n#\n{body}"
+        "# cosmostrix config file\n# generated at {ts}\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# sha512 (template): {hash}\n#\n{body}"
     )
 }
 
 /// Compute the SHA-512 hex digest of `data`.
 ///
-/// Used by `dump_config_with_header()` to fingerprint the template body
-/// and by `testconf::run()` to fingerprint the user's config file on disk.
+/// Two distinct scopes:
+///   - `dump_config_with_header()` → fingerprints the **template body** only
+///     (labelled `sha512 (template)` so users don't expect it to match
+///     `sha512sum` of the full file on disk, which includes header lines).
+///   - `testconf::run()` → fingerprints the **user's config file on disk**
+///     (matches `sha512sum` exactly).
 /// Returns a 128-character lowercase hex string.
 #[must_use]
 pub(crate) fn sha512_hex(data: &[u8]) -> String {

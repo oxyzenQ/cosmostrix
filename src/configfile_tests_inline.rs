@@ -220,11 +220,14 @@ fn dump_config_with_header_starts_with_header_lines() {
         lines[2], "# using Howard Hinnant chrono design (libc::gmtime_r)",
         "header line 3"
     );
-    // Line 4: SHA-512 fingerprint (v50)
+    // Line 4: SHA-512 template fingerprint (v50)
+    // Labelled "sha512 (template)" to distinguish from `sha512sum` of the
+    // full file on disk — this hash covers only the template body, not the
+    // header lines. Use `--testconf` or `sha512sum` for file-level checks.
     let line4 = lines[3];
     assert!(
-        line4.starts_with("# sha512: ") && line4.len() == 10 + 128,
-        "sha512 line wrong: {line4:?} (expected '# sha512: ' + 128 hex chars)"
+        line4.starts_with("# sha512 (template): ") && line4.len() == 21 + 128,
+        "sha512 (template) line wrong: {line4:?} (expected '# sha512 (template): ' + 128 hex chars)"
     );
     // Line 5: blank `#` separator
     assert_eq!(lines[4], "#", "blank separator");
