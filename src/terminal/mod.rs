@@ -706,30 +706,36 @@ impl Terminal {
             let _ = self.stdout.execute(crossterm_terminal::EnableLineWrap);
             self.line_wrap_disabled = false;
         }
-        // Always clear the visible viewport inside the alternate screen
-        // before switching back to the main screen. This prevents the last
-        // rain frame from being momentarily visible on the main screen when
-        // the terminal emulator processes the LeaveAlternateScreen escape.
+        // v31.1: REMOVED Clear(All) before LeaveAlternateScreen.
         //
-        // v16: Previously this only ran on signal-triggered exit (SIGTERM/
-        // SIGKILL). Normal q exit skipped it, assuming LeaveAlternateScreen
-        // alone would cleanly restore the original content. But some
-        // terminal emulators (especially with color-bg = default-background)
-        // don't fully restore — rain residue bleeds through. Now we always
-        // clear, which is a cheap operation (one Clear All escape) and
-        // eliminates the residue class of bugs entirely.
-        if self.alternate_screen_enabled {
-            let _ = self.stdout.queue(cursor::MoveTo(0, 0));
-            let _ = self.stdout.queue(crossterm_terminal::Clear(
-                crossterm_terminal::ClearType::All,
-            ));
-            let _ = self.stdout.flush();
-        }
+        // v16 added MoveTo(0,0)+Clear(All) before LeaveAlternateScreen to
+        // prevent rain residue from bleeding onto the main screen during the
+        // buffer swap. However, \x1b[2J inside the alternate screen can
+        // clear the main screen's scrollback on some terminal emulators
+        // (VTE-based, some xterm-direct implementations). After
+        // LeaveAlternateScreen, the user's entire terminal history was
+        // gone — a far worse bug than a brief rain residue flash.
+        //
+        // LeaveAlternateScreen alone properly restores the main screen
+        // buffer. The alternate screen content (including any rain residue)
+        // is swapped out and becomes invisible. No pre-clear is needed.
         if self.alternate_screen_enabled {
             let _ = self
                 .stdout
                 .execute(crossterm_terminal::LeaveAlternateScreen);
             self.alternate_screen_enabled = false;
+        }
+        // v31.1: explicitly disable synchronized output (ESC[?2026l).
+        // Each frame ends with SYNC_END, but if the last write failed or
+        // was partial, sync mode could be stuck on — causing the terminal
+        // to buffer all output invisibly after LeaveAlternateScreen.
+        // TERMINAL_RESTORE_SEQUENCE includes this, but cleanup_terminal()
+        // doesn't use that sequence. Belt-and-suspenders: always emit it.
+        if self.term_caps.sync_output {
+            let _ = self
+                .stdout
+                .write_all(crate::termdetect::SYNC_END);
+            let _ = self.stdout.flush();
         }
         if self.raw_mode_enabled {
             let _ = crossterm_terminal::disable_raw_mode();

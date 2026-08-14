@@ -23,7 +23,7 @@ mod tests {
     }
 
     impl CleanupFlags {
-        fn cleanup_plan(&mut self, signal_exit: bool) -> Vec<&'static str> {
+        fn cleanup_plan(&mut self, _signal_exit: bool) -> Vec<&'static str> {
             if self.cleaned {
                 return Vec::new();
             }
@@ -50,15 +50,9 @@ mod tests {
                 plan.push("enable-wrap");
                 self.wrap = false;
             }
-            // v16: Always clear viewport before leaving alternate screen.
-            // Previously only on signal_exit — now always, to prevent
-            // rain residue on normal q exit.
-            if self.alternate {
-                plan.push("clear-viewport");
-                if signal_exit {
-                    self.signal_exit_clear = true;
-                }
-            }
+            // v31.1: REMOVED clear-viewport before leave-alternate.
+            // \x1b[2J in the alternate screen clears main screen
+            // scrollback on some terminals (VTE, xterm-direct).
             if self.alternate {
                 plan.push("leave-alternate");
                 self.alternate = false;
@@ -192,7 +186,6 @@ mod tests {
                 "disable-bracketed-paste",
                 "show-cursor",
                 "enable-wrap",
-                "clear-viewport",
                 "leave-alternate",
                 "disable-raw",
             ]
@@ -209,15 +202,18 @@ mod tests {
             ..Default::default()
         };
         let plan = flags.cleanup_plan(false);
-        // v16: normal exit now ALSO clears viewport (always, not just signal)
-        assert!(plan.contains(&"clear-viewport"));
+        // v31.1: normal exit NO LONGER clears viewport — \x1b[2J in
+        // alt screen destroys main screen scrollback on some terminals.
+        assert!(!plan.contains(&"clear-viewport"));
         assert!(!plan.contains(&"purge-scrollback"));
         assert!(!plan.contains(&"cursor-home"));
         assert!(flags.cleanup_plan(false).is_empty());
     }
 
     #[test]
-    fn signal_exit_cleanup_clears_viewport_before_leaving_alternate() {
+    fn signal_exit_cleanup_leaves_alternate_without_clear_v31_1() {
+        // v31.1: even signal exit no longer clears viewport before
+        // leave-alternate — same scrollback destruction risk.
         let mut flags = CleanupFlags {
             mouse: true,
             focus: true,
@@ -231,22 +227,20 @@ mod tests {
         };
 
         let plan = flags.cleanup_plan(true);
-        let clear_idx = plan.iter().position(|&s| s == "clear-viewport");
         let leave_idx = plan.iter().position(|&s| s == "leave-alternate");
         assert!(
-            clear_idx.is_some() && leave_idx.is_some(),
-            "signal-exit cleanup must include clear-viewport and leave-alternate"
+            leave_idx.is_some(),
+            "signal-exit cleanup must include leave-alternate"
         );
-        assert!(
-            clear_idx < leave_idx,
-            "clear-viewport must happen before leave-alternate"
-        );
+        // v31.1: no clear-viewport before leave-alternate
+        assert!(!plan.contains(&"clear-viewport"));
     }
 
     #[test]
-    fn normal_exit_cleanup_always_clears_viewport_v16() {
-        // v16: normal exit now ALSO clears viewport (always, not just
-        // signal exit). This prevents rain residue on some terminals.
+    fn normal_exit_cleanup_preserves_scrollback_v31_1() {
+        // v31.1: normal exit NO LONGER clears viewport — \x1b[2J in
+        // alt screen destroys main screen scrollback on some terminals.
+        // LeaveAlternateScreen alone properly restores the main screen.
         let mut flags = CleanupFlags {
             mouse: true,
             focus: true,
@@ -261,10 +255,9 @@ mod tests {
 
         let plan = flags.cleanup_plan(false);
         assert!(
-            plan.contains(&"clear-viewport"),
-            "v16: normal exit must clear viewport (always)"
+            !plan.contains(&"clear-viewport"),
+            "v31.1: normal exit must NOT clear viewport (scrollback safety)"
         );
-        // But must NOT set signal_exit_clear (that's signal-only)
         assert!(!flags.signal_exit_clear);
     }
 
