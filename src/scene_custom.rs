@@ -616,31 +616,50 @@ pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
     static DENSITY_MAP_CACHE: OnceLock<std::sync::Mutex<HashMap<String, &'static [f64]>>> =
         OnceLock::new();
     let cache = DENSITY_MAP_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
-    let mut cache = cache.lock().expect("density-map cache poisoned");
 
-    if let Some(existing) = cache.get(csv) {
-        return Some(*existing);
-    }
+    // Shared parse closure — used by both the healthy-lock fast path and the
+    // poisoned-mutex fallback. Keeps the two paths in sync (no risk of
+    // behavior drift between cached vs. uncached parses).
+    let parse_weights = || -> Option<Vec<f64>> {
+        let weights: Vec<f64> = csv
+            .split(',')
+            .filter_map(|s| {
+                let s = s.trim();
+                if s.is_empty() {
+                    return None;
+                }
+                s.parse::<f64>().ok().map(|v| v.clamp(0.0, 1.0))
+            })
+            .collect();
+        if weights.is_empty() { None } else { Some(weights) }
+    };
 
-    let weights: Vec<f64> = csv
-        .split(',')
-        .filter_map(|s| {
-            let s = s.trim();
-            if s.is_empty() {
-                return None;
-            }
-            s.parse::<f64>().ok().map(|v| v.clamp(0.0, 1.0))
-        })
-        .collect();
-    if weights.is_empty() {
-        return None;
+    // v50 poison-safe lock: never propagate a poisoned mutex as a panic.
+    // If another thread panicked while holding this lock (degenerate —
+    // the guard is held for microseconds, only `cache.get` + `cache.insert`),
+    // fall through to a one-shot parse without dedup. Matches the
+    // poison-safe `if let Ok(g)` pattern used by every other production
+    // lock in cosmostrix (live_config_state, ambient_scheduler,
+    // interactive::mod, live_config_trace).
+    if let Ok(mut cache) = cache.lock() {
+        if let Some(existing) = cache.get(csv) {
+            return Some(*existing);
+        }
+        let weights = parse_weights()?;
+        // Leak the Vec so its backing slice becomes &'static. Cloud holds
+        // this for the entire process lifetime. The cache ensures we only
+        // leak once per distinct CSV string — live-reload no longer grows
+        // memory.
+        let leaked: &'static [f64] = Box::leak(weights.into_boxed_slice());
+        cache.insert(csv.to_string(), leaked);
+        Some(leaked)
+    } else {
+        // Poisoned-mutex recovery path: parse one-shot, skip dedup. Still
+        // leaks once per call (no cache), but only reachable after a panic
+        // in another thread holding this lock — never observed in practice.
+        let weights = parse_weights()?;
+        Some(Box::leak(weights.into_boxed_slice()))
     }
-    // Leak the Vec so its backing slice becomes &'static. Cloud holds this
-    // for the entire process lifetime. The cache ensures we only leak once
-    // per distinct CSV string — live-reload no longer grows memory.
-    let leaked: &'static [f64] = Box::leak(weights.into_boxed_slice());
-    cache.insert(csv.to_string(), leaked);
-    Some(leaked)
 }
 
 /// Render a one-line-per-entry listing of custom scenes from config.

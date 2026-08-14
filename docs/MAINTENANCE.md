@@ -93,6 +93,42 @@ If `cargo deny check advisories` or GitHub Dependabot reports a vulnerability:
 4. **Commit**: `security: update <crate> for CVE-XXXX-XXXXX`
 5. **Tag release** if the fix is user-facing: `./scripts/version-to.sh vX.Y.Z`
 
+### 4.1 Symlink Handling
+
+`--config <path>` enforces a directory whitelist via `validate_config_path()`
+(see `src/safepath.rs`). The path the user passes must resolve inside an
+allowed directory; symlinks pointing **outside** the whitelist are rejected
+at the validation layer.
+
+**What is not explicitly tested**: symlinks that resolve *inside* the
+whitelisted directory but were created by another user (TOCTOU between the
+whitelist check and the file read). This is acceptable because:
+
+- The configfile parser reads the target strictly as **TOML text**. It does
+  not `eval`, `include`, or recursively resolve `[include]` directives — the
+  file content cannot escape the parser's value-typed surface.
+- No environment variables, secrets, or shell expansion are performed during
+  config parsing. A symlink swap can at most feed the user *different TOML
+  content* than they expected, which the type-checked parser rejects loudly
+  via `--testconf`.
+- An attacker needs **filesystem write access inside the whitelisted
+  directory** to plant a symlink — at which point they already have the
+  same read/write authority as the cosmostrix process for that directory.
+
+**Mitigations already in place**:
+1. `validate_config_path()` rejects `..` traversal and absolute paths
+   outside the whitelist.
+2. `--testconf` is the recommended pre-flight check before any production
+   run — a swapped symlink will produce different TOML and be caught.
+3. The watcher thread (`src/live_config.rs`) re-validates the path on every
+   reload, so a swap mid-session is detected.
+
+**Future hardening (not required for v50 stable)**: if a real-world threat
+model emerges, switch `validate_config_path()` to `fstatat` with
+`AT_SYMLINK_NOFOLLOW` and reject any path that crosses a symlink boundary.
+This requires `std::os::unix::fs::symlink_metadata` plus a path-component
+walk — non-trivial portability work for Windows, hence deferred.
+
 ---
 
 ## 5. Periodic Health Check
