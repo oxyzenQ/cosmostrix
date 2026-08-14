@@ -242,8 +242,15 @@ impl Terminal {
 
         let init_res: Result<()> = (|| {
             let out = &mut term.stdout;
-            out.execute(crossterm_terminal::EnterAlternateScreen)?;
-            term.alternate_screen_enabled = true;
+            // Only enter alternate screen if the terminal supports it.
+            // Linux console (TERM=linux) and dumb terminals don't support
+            // the alternate screen buffer — entering it overwrites the main
+            // screen directly, and leaving it does not restore the original
+            // content. On such terminals, run on the main screen directly.
+            if term.term_caps.has_alternate_screen {
+                out.execute(crossterm_terminal::EnterAlternateScreen)?;
+                term.alternate_screen_enabled = true;
+            }
             out.execute(cursor::Hide)?;
             term.cursor_hidden = true;
             if out.execute(crossterm_terminal::DisableLineWrap).is_ok() {
@@ -706,25 +713,34 @@ impl Terminal {
             let _ = self.stdout.execute(crossterm_terminal::EnableLineWrap);
             self.line_wrap_disabled = false;
         }
-        // REMOVED Clear(All) before LeaveAlternateScreen.
-        //
-        // v16 added MoveTo(0,0)+Clear(All) before LeaveAlternateScreen to
-        // prevent rain residue from bleeding onto the main screen during the
-        // buffer swap. However, \x1b[2J inside the alternate screen can
-        // clear the main screen's scrollback on some terminal emulators
-        // (VTE-based, some xterm-direct implementations). After
-        // LeaveAlternateScreen, the user's entire terminal history was
-        // gone — a far worse bug than a brief rain residue flash.
-        //
-        // LeaveAlternateScreen alone properly restores the main screen
-        // buffer. The alternate screen content (including any rain residue)
-        // is swapped out and becomes invisible. No pre-clear is needed.
+
         if self.alternate_screen_enabled {
+            // REMOVED Clear(All) before LeaveAlternateScreen.
+            //
+            // \x1b[2J inside the alternate screen can clear the main
+            // screen's scrollback on some terminal emulators (VTE-based,
+            // some xterm-direct implementations). LeaveAlternateScreen
+            // alone properly restores the main screen buffer. The alternate
+            // screen content (including any rain residue) is swapped out
+            // and becomes invisible. No pre-clear is needed.
             let _ = self
                 .stdout
                 .execute(crossterm_terminal::LeaveAlternateScreen);
             self.alternate_screen_enabled = false;
+        } else if !self.term_caps.has_alternate_screen {
+            // No alternate screen was entered (terminal doesn't support it).
+            // We ran on the main screen directly. Clear the visible rain
+            // from the screen so the user gets a clean shell prompt, but
+            // do NOT purge scrollback — move cursor home and clear only
+            // the visible viewport (\x1b[H\x1b[2J clears visible screen
+            // without touching scrollback on most terminals; \x1b[3J would
+            // purge scrollback and must NOT be used).
+            let _ = self.stdout.execute(cursor::MoveTo(0, 0));
+            let _ = self
+                .stdout
+                .execute(crossterm_terminal::Clear(crossterm_terminal::ClearType::All));
         }
+
         // explicitly disable synchronized output (ESC[?2026l).
         // Each frame ends with SYNC_END, but if the last write failed or
         // was partial, sync mode could be stuck on — causing the terminal
@@ -788,7 +804,21 @@ pub(crate) fn restore_terminal_best_effort() {
     let _ = out.execute(ResetColor);
     let _ = out.execute(cursor::Show);
     let _ = out.execute(crossterm_terminal::EnableLineWrap);
-    let _ = out.execute(crossterm_terminal::LeaveAlternateScreen);
+    // Only leave alternate screen if the terminal supports it.
+    // On terminals without alternate screen support (Linux console,
+    // dumb), \x1b[?1049l is a no-op, but crossterm's
+    // LeaveAlternateScreen may emit additional sequences that could
+    // interfere. Check TERM to avoid unnecessary work.
+    // TERMINAL_RESTORE_SEQUENCE already includes \x1b[?1049l, so
+    // crossterm's LeaveAlternateScreen is redundant in most cases,
+    // but crossterm may do additional internal state cleanup.
+    let term = std::env::var("TERM").unwrap_or_default();
+    let has_alt = !term.eq_ignore_ascii_case("linux")
+        && !term.eq_ignore_ascii_case("dumb")
+        && !term.is_empty();
+    if has_alt {
+        let _ = out.execute(crossterm_terminal::LeaveAlternateScreen);
+    }
     let _ = crossterm_terminal::disable_raw_mode();
     let _ = out.flush();
 }

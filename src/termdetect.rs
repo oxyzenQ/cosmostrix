@@ -131,6 +131,15 @@ pub(crate) struct TerminalCaps {
     /// safe to enable; terminals that don't support it silently ignore
     /// the escape sequence.
     pub sync_output: bool,
+    /// True when the terminal supports the alternate screen buffer
+    /// (`ESC[?1049h` / `ESC[?1049l`). Linux console (TERM=linux) and
+    /// dumb terminals do NOT support it — entering the alternate screen
+    /// on such terminals overwrites the main screen directly, and leaving
+    /// it does not restore the original content. When false, cosmostrix
+    /// runs on the main screen and clears it on exit (preserving scrollback
+    /// by moving the cursor home and clearing only the visible area, not
+    /// the scrollback buffer).
+    pub has_alternate_screen: bool,
     /// True when running inside ANY xterm.js-based Electron host
     /// (`TERM_PROGRAM` matches an entry in `XTERMJS_HOSTS`). This is the
     /// primary Tier 2 signal — gating FPS cap, byte-budget backpressure,
@@ -416,8 +425,17 @@ pub(crate) fn detect() -> TerminalCaps {
         (STANDARD_DEFAULT_FPS, "standard/unknown fallback")
     };
 
+    // Alternate screen detection: most terminal emulators support it,
+    // but the Linux virtual console (TERM=linux) and dumb terminals do not.
+    // On these terminals, \x1b[?1049h is silently ignored, so the rain
+    // overwrites the main screen directly and the user's history is lost.
+    let has_alternate_screen = !term.eq_ignore_ascii_case("linux")
+        && !term.eq_ignore_ascii_case("dumb")
+        && !term.is_empty();
+
     TerminalCaps {
         sync_output: sync_ok,
+        has_alternate_screen,
         xtermjs_host,
         vscode_integrated,
         default_fps_cap,
@@ -539,6 +557,7 @@ mod tests {
         // Simulate TERM=linux detection result
         let caps = TerminalCaps {
             sync_output: false,
+            has_alternate_screen: false,
             xtermjs_host: false,
             vscode_integrated: false,
             default_fps_cap: 240.0,
@@ -546,6 +565,46 @@ mod tests {
             dynamic_fps_source: "test",
         };
         assert!(!caps.sync_output);
+        assert!(!caps.has_alternate_screen);
+    }
+
+    #[test]
+    fn alternate_screen_disabled_for_linux_console() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "linux");
+        env::remove_var("TERM_PROGRAM");
+        let caps = detect();
+        assert!(
+            !caps.has_alternate_screen,
+            "Linux console does not support alternate screen"
+        );
+    }
+
+    #[test]
+    fn alternate_screen_disabled_for_dumb_terminal() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "dumb");
+        env::remove_var("TERM_PROGRAM");
+        let caps = detect();
+        assert!(
+            !caps.has_alternate_screen,
+            "dumb terminal does not support alternate screen"
+        );
+    }
+
+    #[test]
+    fn alternate_screen_enabled_for_xterm() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        let caps = detect();
+        assert!(
+            caps.has_alternate_screen,
+            "xterm-256color supports alternate screen"
+        );
     }
 
     #[test]
