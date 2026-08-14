@@ -26,12 +26,16 @@ Usage: $0 [--system|--user|--all] [--keep-config] [--purge]
 
   (default)  Remove binary AND config from all locations.
   --system   Remove only from /usr/bin (uses sudo).
-             Also removes /etc/${PROJECT_NAME}/ if present.
+             Also removes config files in /etc/${PROJECT_NAME}/.
   --user     Remove only from ~/.local/bin (no sudo).
-             Also removes ~/.config/${PROJECT_NAME}/ if present.
+             Also removes config files in ~/.config/${PROJECT_NAME}/.
   --all      Remove binary + config from all locations (default behavior).
   --keep-config  Preserve config files (only remove binary).
   --purge    Alias for --all (backward compatibility).
+
+Symlink-safe: only known config files (config.toml, config.toml.new) are
+removed. The cosmostrix directory itself is preserved if it is a symlink
+or contains other files. Never rm -rf.
 
 Sudo is used only for system paths. Run WITHOUT sudo.
 EOF
@@ -69,17 +73,42 @@ remove_at() {
     fi
 }
 
-remove_dir() {
+# Symlink-safe directory cleanup: remove known config files inside
+# the directory, then try to rmdir the parent (only succeeds if empty).
+# NEVER rm -rf the directory itself — the owner may have symlinked it
+# (e.g., ~/.config/cosmostrix → /mnt/dotfiles/cosmostrix), and rm -rf
+# would follow the symlink and destroy the target tree.
+remove_config_dir() {
     local target="$1"
     local need_sudo="$2"
     if [[ -d "${target}" ]]; then
+        # Remove known config files only (not arbitrary contents).
+        local files=("config.toml" "config.toml.new" ".install_tmp_default.toml")
+        for f in "${files[@]}"; do
+            local fp="${target}/${f}"
+            if [[ -f "${fp}" ]] || [[ -L "${fp}" ]]; then
+                if [[ "${need_sudo}" == "yes" ]]; then
+                    sudo rm -f "${fp}"
+                else
+                    rm -f "${fp}"
+                fi
+                echo "   removed: ${fp}"
+                removed=$((removed+1))
+            fi
+        done
+        # Try to remove the directory if now empty (rmdir fails if not
+        # empty, or if it's a symlink — both are safe outcomes).
         if [[ "${need_sudo}" == "yes" ]]; then
-            sudo rm -rf "${target}"
+            sudo rmdir "${target}" 2>/dev/null || true
         else
-            rm -rf "${target}"
+            rmdir "${target}" 2>/dev/null || true
         fi
-        echo "   removed: ${target}/"
-        removed=$((removed+1))
+        # Report directory cleanup (whether or not rmdir succeeded).
+        if [[ ! -d "${target}" ]]; then
+            echo "   removed: ${target}/"
+        else
+            echo "   cleaned: ${target}/ (directory preserved, not empty or is symlink)"
+        fi
     fi
 }
 
@@ -103,18 +132,18 @@ case "${MODE}" in
 esac
 
 if [[ ${KEEP_CONFIG} -eq 0 ]]; then
-    # Default: remove config directories too
+    # Default: remove config files too (symlink-safe: never rm -rf)
     echo ">> Removing config"
     case "${MODE}" in
         --system)
-            remove_dir "/etc/${PROJECT_NAME}" yes
+            remove_config_dir "/etc/${PROJECT_NAME}" yes
             ;;
         --user)
-            remove_dir "${HOME}/.config/${PROJECT_NAME}" no
+            remove_config_dir "${HOME}/.config/${PROJECT_NAME}" no
             ;;
         --all)
-            remove_dir "/etc/${PROJECT_NAME}" yes
-            remove_dir "${HOME}/.config/${PROJECT_NAME}" no
+            remove_config_dir "/etc/${PROJECT_NAME}" yes
+            remove_config_dir "${HOME}/.config/${PROJECT_NAME}" no
             ;;
     esac
 elif [[ -f "${HOME}/.config/${PROJECT_NAME}/config.toml" ]] || [[ -d "/etc/${PROJECT_NAME}" ]]; then

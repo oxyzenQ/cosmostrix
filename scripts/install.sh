@@ -229,6 +229,15 @@ case "${MODE}" in
         ;;
 esac
 
+# Build --force flag for --dump-config pass-through.
+# The Rust binary's --dump-config refuses to overwrite existing files
+# unless --force is also passed. When the script's FORCE=1, we embed
+# --force in the --dump-config call so the binary's guard is bypassed.
+FORCE_ARG=()
+if [[ ${FORCE} -eq 1 ]]; then
+    FORCE_ARG=("--force")
+fi
+
 echo ">> [3/4] Installing config.toml (${MODE})"
 case "${MODE}" in
     --system)
@@ -237,7 +246,9 @@ case "${MODE}" in
         if sudo test -f "${config_path}"; then
             if [[ ${FORCE} -eq 1 ]]; then
                 # --force: overwrite existing system config directly.
-                sudo "${BINARY}" --dump-config "${config_path}" 2>/dev/null
+                # Pass --force to --dump-config so the binary skips its
+                # existing-file guard too.
+                sudo "${BINARY}" --dump-config "${config_path}" "${FORCE_ARG[@]}" 2>/dev/null
                 echo "   overwritten: ${config_path} (--force)"
             else
                 # Existing config: write new template to .new for manual merge.
@@ -261,7 +272,9 @@ case "${MODE}" in
         if [[ -f "${user_cfg}" ]]; then
             if [[ ${FORCE} -eq 1 ]]; then
                 # --force: overwrite existing config directly.
-                "${BINARY}" --dump-config "${user_cfg}" 2>/dev/null
+                # Pass --force to --dump-config so the binary skips its
+                # existing-file guard too.
+                "${BINARY}" --dump-config "${user_cfg}" "${FORCE_ARG[@]}" 2>/dev/null
                 echo "   overwritten: ${user_cfg} (--force)"
             else
                 # Existing config: write new template to .new for manual merge.
