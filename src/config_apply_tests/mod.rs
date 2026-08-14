@@ -167,9 +167,27 @@ fn benchmark_mode_defaults_to_monolith_scene() {
     // --scene was passed, inject args.scene = Some("monolith") BEFORE
     // apply_config_and_runtime_defaults. Then verify the resolved scene
     // and monolith's signature config fields.
-    let cli = &["--benchmark"];
-    let mut argv = vec!["cosmostrix"];
-    argv.extend_from_slice(cli);
+    //
+    // v50 fix: use an empty temp config file (--config <temp>) so the test
+    // is isolated from the user's real ~/.config/cosmostrix/config.toml.
+    // Previously this test built Args directly without --config, so the
+    // user's config (e.g. scene="cinematic", color="green") leaked into
+    // the test and overrode the monolith injection.
+    ensure_test_config_dir_allowed();
+    let mut path = std::env::temp_dir();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after unix epoch")
+        .as_nanos();
+    let seq = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    path.push(format!(
+        "cosmostrix-bench-test-{}-{nanos}-{seq}.toml",
+        std::process::id(),
+    ));
+    std::fs::write(&path, "").expect("write empty temp config");
+
+    let path_string = path.to_string_lossy().into_owned();
+    let argv = vec!["cosmostrix", "--config", path_string.as_str(), "--benchmark"];
     let cmd = Args::command();
     let matches = cmd.get_matches_from(argv);
     let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
@@ -187,6 +205,8 @@ fn benchmark_mode_defaults_to_monolith_scene() {
 
     apply_config_and_runtime_defaults(&matches, &mut args).expect("apply config");
 
+    let _ = std::fs::remove_file(&path);
+
     // After apply: scene is monolith, with monolith's signature config.
     assert_eq!(args.scene.as_deref(), Some("monolith"));
     assert_eq!(args.color, "energy-zen");
@@ -199,11 +219,29 @@ fn benchmark_mode_defaults_to_monolith_scene() {
 /// v25.16: --benchmark with explicit --scene <name> must NOT override to
 /// monolith. The user's choice wins. This pins the override-with-override
 /// contract: `cosmostrix --benchmark --scene cinematic` benchmarks cinematic.
+///
+/// v50 fix: use an empty temp config file (--config <temp>) so the test
+/// is isolated from the user's real ~/.config/cosmostrix/config.toml.
+/// Previously this test built Args directly without --config, so the
+/// user's config (e.g. color="green") leaked into the test and overrode
+/// the cinematic scene's default color (energy-zen).
 #[test]
 fn benchmark_mode_with_explicit_scene_keeps_user_choice() {
-    let cli = &["--benchmark", "--scene", "cinematic"];
-    let mut argv = vec!["cosmostrix"];
-    argv.extend_from_slice(cli);
+    ensure_test_config_dir_allowed();
+    let mut path = std::env::temp_dir();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after unix epoch")
+        .as_nanos();
+    let seq = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    path.push(format!(
+        "cosmostrix-bench2-test-{}-{nanos}-{seq}.toml",
+        std::process::id(),
+    ));
+    std::fs::write(&path, "").expect("write empty temp config");
+
+    let path_string = path.to_string_lossy().into_owned();
+    let argv = vec!["cosmostrix", "--config", path_string.as_str(), "--benchmark", "--scene", "cinematic"];
     let cmd = Args::command();
     let matches = cmd.get_matches_from(argv);
     let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
@@ -221,6 +259,8 @@ fn benchmark_mode_with_explicit_scene_keeps_user_choice() {
     }
 
     apply_config_and_runtime_defaults(&matches, &mut args).expect("apply config");
+
+    let _ = std::fs::remove_file(&path);
 
     // User's cinematic choice is honored, NOT overridden to monolith.
     assert_eq!(args.scene.as_deref(), Some("cinematic"));
