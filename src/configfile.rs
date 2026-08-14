@@ -719,6 +719,7 @@ pub(crate) fn dump_config_with_header() -> String {
 ///     `sha512sum` of the full file on disk, which includes header lines).
 ///   - `testconf::run()` → fingerprints the **user's config file on disk**
 ///     (matches `sha512sum` exactly).
+///
 /// Returns a 128-character lowercase hex string.
 #[must_use]
 pub(crate) fn sha512_hex(data: &[u8]) -> String {

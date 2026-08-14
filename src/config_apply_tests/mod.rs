@@ -187,7 +187,12 @@ fn benchmark_mode_defaults_to_monolith_scene() {
     std::fs::write(&path, "").expect("write empty temp config");
 
     let path_string = path.to_string_lossy().into_owned();
-    let argv = vec!["cosmostrix", "--config", path_string.as_str(), "--benchmark"];
+    let argv = vec![
+        "cosmostrix",
+        "--config",
+        path_string.as_str(),
+        "--benchmark",
+    ];
     let cmd = Args::command();
     let matches = cmd.get_matches_from(argv);
     let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
@@ -241,7 +246,14 @@ fn benchmark_mode_with_explicit_scene_keeps_user_choice() {
     std::fs::write(&path, "").expect("write empty temp config");
 
     let path_string = path.to_string_lossy().into_owned();
-    let argv = vec!["cosmostrix", "--config", path_string.as_str(), "--benchmark", "--scene", "cinematic"];
+    let argv = vec![
+        "cosmostrix",
+        "--config",
+        path_string.as_str(),
+        "--benchmark",
+        "--scene",
+        "cinematic",
+    ];
     let cmd = Args::command();
     let matches = cmd.get_matches_from(argv);
     let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
