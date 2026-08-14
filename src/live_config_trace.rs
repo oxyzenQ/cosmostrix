@@ -118,3 +118,76 @@ pub(crate) fn trace_rebuild_applied(
         ));
     }
 }
+
+/// v25.5: field-level config diff trace.
+///
+/// Emits a structured diff between the previously-applied config map and
+/// the newly-received one. `old = None` triggers the "[initial]" trace
+/// (first-ever apply). Otherwise emits "[changed N]", "[added N]", and
+/// "[removed N]" lines as needed, plus a "no field-level changes" line
+/// if the diff is empty (whitespace/comment-only edit).
+///
+/// Extracted from `event_loop.rs` to keep the file under the 1200-LOC cap.
+/// No-op when `COSMOSTRIX_LIVE_RELOAD_DEBUG` is unset.
+pub(crate) fn trace_config_diff(
+    old: Option<&std::collections::HashMap<String, String>>,
+    new: &std::collections::HashMap<String, String>,
+) {
+    if !live_reload_debug_enabled() {
+        return;
+    }
+    match old {
+        None => {
+            let mut keys: Vec<&String> = new.keys().collect();
+            keys.sort();
+            for k in keys {
+                crate::lr_trace!("config diff [initial]: {} = {}", k, new[k]);
+            }
+        }
+        Some(old_map) => {
+            let all_keys: std::collections::BTreeSet<&String> =
+                old_map.keys().chain(new.keys()).collect();
+            let mut changed: Vec<String> = Vec::new();
+            let mut added: Vec<String> = Vec::new();
+            let mut removed: Vec<String> = Vec::new();
+            for k in &all_keys {
+                match (old_map.get(*k), new.get(*k)) {
+                    (Some(o), Some(n)) => {
+                        if o != n {
+                            changed.push(format!("{}: {} → {}", k, o, n));
+                        }
+                    }
+                    (None, Some(n)) => added.push(format!("{}: {}", k, n)),
+                    (Some(o), None) => removed.push(format!("{}: {}", k, o)),
+                    (None, None) => unreachable!(),
+                }
+            }
+            if !changed.is_empty() {
+                crate::lr_trace!(
+                    "config diff [changed {}]: {}",
+                    changed.len(),
+                    changed.join(", ")
+                );
+            }
+            if !added.is_empty() {
+                crate::lr_trace!(
+                    "config diff [added {}]: {}",
+                    added.len(),
+                    added.join(", ")
+                );
+            }
+            if !removed.is_empty() {
+                crate::lr_trace!(
+                    "config diff [removed {}]: {}",
+                    removed.len(),
+                    removed.join(", ")
+                );
+            }
+            if changed.is_empty() && added.is_empty() && removed.is_empty() {
+                crate::lr_trace!(
+                    "config diff: no field-level changes (whitespace/comment edit)"
+                );
+            }
+        }
+    }
+}

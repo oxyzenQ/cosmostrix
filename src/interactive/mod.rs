@@ -41,6 +41,7 @@ mod activity;
 mod adaptive;
 mod bg_fill;
 mod event_loop;
+mod event_loop_finalize;
 mod hud;
 mod input;
 mod intro;

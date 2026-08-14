@@ -1,0 +1,309 @@
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: GPL-3.0-only
+
+//! Post-loop session finalization — extracted from `event_loop.rs`.
+//!
+//! Owns the entire post-loop sequence: shutdown signal, terminal stats
+//! capture, the `--perf-stats` performance report (162 lines of
+//! `Report` formatting), terminal drop (AB-10 alt-screen restore), and
+//! the final-state handoff to `super::set_final_state` for the post-exit
+//! verbose summary. Extracting this block keeps `event_loop.rs` under
+//! the 1200-LOC file cap without touching the loop body's tight coupling.
+//!
+//! All counters are read-only borrows; `term` is moved in (consumed by
+//! `drop`). Nothing flows back to the caller except `Ok(())`.
+
+use std::sync::atomic::Ordering;
+use std::time::{Duration, Instant};
+
+use crate::bench_helpers::format_backpressure_section;
+use crate::cloud::Cloud;
+use crate::constants::*;
+use crate::report::Report;
+use crate::terminal::Terminal;
+// CloudConfig is re-exported at the crate root (main.rs: pub use app::CloudConfig).
+use crate::CloudConfig;
+
+use super::activity::FrameTimeTracker;
+use super::watchdog::SHUTDOWN;
+
+/// Bundled perf counters + references needed by the post-loop report.
+///
+/// Every field is a snapshot taken at loop exit — the finalize path does
+/// not mutate any of them. The struct exists only to keep
+/// [`finalize_session`] signature readable (would otherwise be 21 params).
+pub(crate) struct SessionStats<'a> {
+    pub start_time: Instant,
+    pub perf_frames: u64,
+    pub perf_drawn_frames: u64,
+    pub perf_idle_frames: u64,
+    pub perf_overshoot_frames: u64,
+    pub perf_dirty_sum: u64,
+    pub perf_dirty_samples: u64,
+    pub perf_work_sum_s: f64,
+    pub perf_work_max_s: f64,
+    pub perf_pressure_sum: f64,
+    pub perf_pressure_max: f32,
+    pub perf_utilization_sum: f64,
+    pub perf_utilization_max: f32,
+    pub frame_time_tracker: &'a FrameTimeTracker,
+    pub power_manager_phase_transitions: u64,
+    pub power_manager_base_target_fps: f64,
+    pub endurance_health_score: f64,
+    pub endurance_health_classification: &'static str,
+}
+
+/// Run the entire post-loop finalization sequence.
+///
+/// Order matters (AB-10 rain-screen cleanliness):
+/// 1. Set `SHUTDOWN` so the watchdog doesn't false-alarm after normal exit.
+/// 2. Compute the final FPS summary line (deferred print until after drop).
+/// 3. Capture terminal encoding stats BEFORE drop.
+/// 4. Print the perf report if `--perf-stats` (large `Report` block).
+/// 5. `drop(term)` — restores alt screen so subsequent eprintln lands on
+///    the main screen, not polluting the rain matrix.
+/// 6. Hand off final color/scene/charset/density/speed to
+///    `super::set_final_state` for the post-exit verbose summary.
+/// 7. Print the deferred final FPS line if `--perf-stats`.
+pub(crate) fn finalize_session(
+    stats: &SessionStats,
+    term: Terminal,
+    cloud: &Cloud,
+    scene_name: &str,
+    charset_preset: &str,
+    cfg: &CloudConfig,
+) -> std::io::Result<()> {
+    SHUTDOWN.store(true, Ordering::Release);
+
+    let final_elapsed = stats.start_time.elapsed();
+    let final_elapsed_s = final_elapsed.as_secs_f64().max(0.000_001);
+    let final_avg_fps = (stats.perf_frames as f64) / final_elapsed_s;
+    let last_work_ms = stats.frame_time_tracker.rolling_avg_ms();
+    let final_instant_fps = if last_work_ms > 0.0 {
+        (1000.0 / last_work_ms).min(cfg.target_fps)
+    } else {
+        cfg.target_fps
+    };
+    let final_fps_line = format!(
+        "[cosmostrix] final FPS: {:.1} (instant: {:.1}, target: {:.1}), frames: {}, elapsed: {:.2}s",
+        final_avg_fps, final_instant_fps, cfg.target_fps, stats.perf_frames, final_elapsed_s
+    );
+
+    let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
+    let (tier2_skips, tier2_resets, tier2_bytes_since) = term.tier2_stats();
+
+    if cfg.perf_stats {
+        print_perf_report(
+            stats,
+            final_elapsed_s,
+            final_instant_fps,
+            enc_bytes,
+            enc_flushes,
+            sgr_hits,
+            sgr_misses,
+            tier2_skips,
+            tier2_resets,
+            tier2_bytes_since,
+        );
+    }
+
+    // AB-10: drop the terminal BEFORE any stderr write so the alt screen
+    // is restored and the final FPS line lands on the main screen, not
+    // polluting the rain matrix on exit.
+    drop(term);
+
+    let final_color_name = format!("{:?}", cloud.color_scheme());
+    super::set_final_state(
+        &final_color_name,
+        scene_name,
+        charset_preset,
+        cloud.chars_per_sec,
+        cloud.droplet_density,
+    );
+
+    // AB-10: only print final FPS when --perf-stats is requested.
+    // Previously this always printed (v30 design), but owner considers
+    // it a verbose leak — without -v or --perf-stats, the user sees
+    // unexpected output after exit. Now gated by cfg.perf_stats.
+    if cfg.perf_stats {
+        eprintln!("{}", final_fps_line);
+    }
+
+    Ok(())
+}
+
+/// Build + print the `--perf-stats` performance report.
+///
+/// Pure formatting — no mutation of `stats`. Gated by `cfg.perf_stats` in
+/// the caller; this function assumes the gate is already open.
+#[allow(clippy::too_many_arguments)]
+fn print_perf_report(
+    stats: &SessionStats,
+    elapsed_s: f64,
+    final_instant_fps: f64,
+    enc_bytes: u64,
+    enc_flushes: u64,
+    sgr_hits: u64,
+    sgr_misses: u64,
+    tier2_skips: u64,
+    tier2_resets: u64,
+    tier2_bytes_since: u64,
+) {
+    let frames = stats.perf_frames.max(1);
+    let avg_work_ms = (stats.perf_work_sum_s / frames as f64) * 1000.0;
+    let avg_pressure = stats.perf_pressure_sum / frames as f64;
+    let avg_fps = (stats.perf_frames as f64) / elapsed_s;
+    let drawn_ratio = (stats.perf_drawn_frames as f64) / (stats.perf_frames as f64).max(1.0);
+    let overshoot_ratio =
+        (stats.perf_overshoot_frames as f64) / (stats.perf_frames as f64).max(1.0) * 100.0;
+    let pressure_class = if avg_pressure < PERF_PRESSURE_CLASS_LOW {
+        "low"
+    } else if avg_pressure < PERF_PRESSURE_CLASS_MEDIUM {
+        "medium"
+    } else {
+        "high"
+    };
+
+    let mut r = Report::new("COSMOSTRIX PERFORMANCE REPORT");
+
+    {
+        let s = r.section("TIMING");
+        s.field("elapsed", &format!("{:.3}s", elapsed_s));
+        s.field("target_fps", &format!("{:.3}", stats.power_manager_base_target_fps));
+        s.field("avg_fps", &format!("{:.3}", avg_fps));
+        // v30: real instantaneous FPS from last ~1s of frame work times.
+        // Capped at target_fps (loop sleeps to maintain target). Read
+        // this for "what FPS am I seeing now" — distinct from avg_fps
+        // (whole-run average) and BACKPRESSURE.avg (load-shed signal).
+        s.field("instant_fps", &format!("{:.3}", final_instant_fps));
+        s.field(
+            "rolling_avg_frame_time",
+            &format!("{:.3}ms", stats.frame_time_tracker.rolling_avg_ms()),
+        );
+    }
+
+    {
+        let s = r.section("FRAMES");
+        s.field("total", &stats.perf_frames.to_string());
+        s.field(
+            "drawn",
+            &format!("{} ({:.1}%)", stats.perf_drawn_frames, drawn_ratio * 100.0),
+        );
+        s.field(
+            "idle_visual",
+            &format!(
+                "{} ({:.1}%)",
+                stats.perf_idle_frames,
+                (stats.perf_idle_frames as f64) / (stats.perf_frames as f64).max(1.0) * 100.0
+            ),
+        );
+        s.field(
+            "overshoot",
+            &format!("{} ({:.1}%)", stats.perf_overshoot_frames, overshoot_ratio),
+        );
+    }
+
+    {
+        let s = r.section("MOTION");
+        let avg_dirty = if stats.perf_dirty_samples > 0 {
+            stats.perf_dirty_sum as f64 / stats.perf_dirty_samples as f64
+        } else {
+            0.0
+        };
+        s.field("avg_dirty_cells", &format!("{:.1}", avg_dirty));
+        s.field(
+            "visual_fps_hint",
+            &format!(
+                "{:.1} ({} of {} frames had visual changes)",
+                drawn_ratio * stats.power_manager_base_target_fps,
+                stats.perf_drawn_frames,
+                stats.perf_frames
+            ),
+        );
+    }
+
+    {
+        let s = r.section("LATENCY");
+        s.field("avg_frame_time", &format!("{:.3}ms", avg_work_ms));
+        s.field(
+            "max_frame_time",
+            &format!("{:.3}ms", stats.perf_work_max_s * 1000.0),
+        );
+        s.field("jitter", stats.frame_time_tracker.jitter_classification());
+    }
+
+    {
+        // Backpressure = clamp(work/budget - 1, 0, 2): non-zero ONLY when
+        // renderer can't keep up. budget_utilization = work/budget (always
+        // non-zero) — companion so the section is informative on healthy hw.
+        format_backpressure_section(
+            &mut r,
+            avg_pressure,
+            stats.perf_pressure_max,
+            stats.perf_utilization_sum,
+            stats.perf_utilization_max,
+            stats.perf_frames,
+            Duration::from_secs_f64(1.0 / stats.power_manager_base_target_fps),
+            avg_work_ms,
+            pressure_class,
+            stats.perf_overshoot_frames,
+            overshoot_ratio,
+        );
+    }
+
+    // P5: Endurance health score
+    {
+        let s = r.section("ENDURANCE");
+        s.field(
+            "health_score",
+            &format!("{:.1}/100", stats.endurance_health_score),
+        );
+        s.field("classification", stats.endurance_health_classification);
+        s.field(
+            "phase_transitions",
+            &stats.power_manager_phase_transitions.to_string(),
+        );
+    }
+
+    // ENCODING: actual measured ANSI bytes/frame + SGR cache hit rate.
+    // These prove the diff-based + RLE + color cache optimizations work.
+    {
+        let s = r.section("ENCODING");
+        let total_sgr = sgr_hits + sgr_misses;
+        let hit_rate = if total_sgr > 0 {
+            (sgr_hits as f64 / total_sgr as f64) * 100.0
+        } else {
+            0.0
+        };
+        let avg_bytes_per_frame = if enc_flushes > 0 {
+            enc_bytes as f64 / enc_flushes as f64
+        } else {
+            0.0
+        };
+        let bandwidth_kib_s = (enc_bytes as f64 / 1024.0) / elapsed_s;
+
+        s.field("total_ansi_bytes", &enc_bytes.to_string());
+        s.field("frames_flushed", &enc_flushes.to_string());
+        s.field(
+            "avg_bytes_per_frame",
+            &format!("{:.1}", avg_bytes_per_frame),
+        );
+        s.field("bandwidth", &format!("{:.1} KiB/s", bandwidth_kib_s));
+        s.field("sgr_cache_hits", &sgr_hits.to_string());
+        s.field("sgr_cache_misses", &sgr_misses.to_string());
+        s.field("sgr_cache_hit_rate", &format!("{:.1}%", hit_rate));
+    }
+
+    // Tier 2: xterm.js host defenses (byte-budget backpressure + RIS reset).
+    // All three fields are 0 on native terminals; nonzero only inside
+    // VSCode/Hyper/WaveTerminal/Tabby/WarpTerminal. Useful for diagnosing
+    // whether the multi-hour OOM crash mode is actually being mitigated.
+    {
+        let s = r.section("TIER2_XTERMJS");
+        s.field("backpressure_skips", &tier2_skips.to_string());
+        s.field("ris_resets", &tier2_resets.to_string());
+        s.field("bytes_since_last_ris", &tier2_bytes_since.to_string());
+    }
+
+    r.print();
+}

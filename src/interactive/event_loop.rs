@@ -15,7 +15,6 @@ use crossterm::event::{Event, KeyCode, KeyEventKind, MouseEventKind};
 use crate::color_cache::ColorCache;
 use crate::constants::*;
 use crate::frame::Frame;
-use crate::report::Report;
 use crate::terminal::{is_terminal_gone, Terminal};
 
 use super::super::{effective_density, CloudConfig};
@@ -25,7 +24,7 @@ use super::adaptive::{
 };
 use super::hud::{FrameMode, HudState};
 use super::input::{handle_keybinding, PasteBurstGuard};
-use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
+use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 use crate::central_control_dragon_power::sample_thermal_pressure;
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
@@ -59,31 +58,27 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut cloud = cfg.create_cloud(density);
     cloud.reset(w, h);
-    // Enable atmospheric events for interactive mode (ghosts, etc.).
-    cloud.enable_events();
-    // P1: enable per-component timing only when --perf-stats is requested.
-    // When off, rain_at() skips 2 Instant::now() calls per frame (~40ns).
+    cloud.enable_events(); // atmospheric events for interactive mode
+    // P1: per-component timing only when --perf-stats (skips 2 Instant::now()
+    // per frame when off, ~40ns saved).
     cloud.set_component_timing(cfg.perf_stats);
 
-    // Build color byte cache from the palette so the draw hot path can
-    // emit pre-formatted ANSI SGR sequences instead of formatting on the fly.
+    // Build color byte cache so the draw hot path emits pre-formatted SGR.
     term.set_color_cache(ColorCache::new(&cloud.palette));
 
     let mut frame = Frame::new(w, h, cloud.palette.bg);
 
-    // v16: Fill entire alternate screen with palette bg before first frame (avoids visible edge gaps).
+    // v16: fill alt screen with palette bg before first frame (no edge gaps).
     super::fill_terminal_bg(cloud.palette.bg);
 
-    // v20: Modular cinematic intro (--intro <type> flag).
-    // v31: intro now plays in screensaver mode too (cosmostrix's signature; only 'q' skips).
+    // v20/v31: modular cinematic intro (plays in screensaver too; 'q' skips).
     if cfg.intro != crate::config::IntroType::None {
         super::intro::run_intro(&mut term, &mut frame, &cloud, w, h, cfg.intro)?;
         cloud.force_draw_everything();
         frame.clear_with_bg(cloud.palette.bg);
 
-        // v25.11 (bug #10): re-read terminal size after intro returns.
-        // Intro can take seconds; if user resized during it, (w,h) is stale
-        // — rain renders wrong until SIGWINCH. Fixed mode ignores resize.
+        // v25.11 (bug #10): re-read terminal size after intro. Intro can
+        // take seconds; user may have resized → (w,h) stale until SIGWINCH.
         if cfg.screen_size.is_none() {
             if let Ok((nw, nh)) = term.size() {
                 if nw != w || nh != h {
@@ -113,8 +108,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     });
 
     let mut next_frame = Instant::now();
-    // v30.8 (Phase 3): PowerManager owns perf_pressure accumulation, is_idle
-    // detection, and effective FPS resolution. Replaces scattered Duration cascade.
+    // v30.8 (Phase 3): PowerManager owns perf_pressure, is_idle, effective FPS.
     let mut power_manager = PowerManager::new(cfg.target_fps, Instant::now());
 
     let mut perf_frames: u64 = 0;
@@ -124,57 +118,36 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut perf_pressure_sum: f64 = 0.0;
     let mut perf_pressure_max: f32 = 0.0;
     let mut perf_overshoot_frames: u64 = 0;
-    // Utilization = work_s / frame_period_s (always non-zero).
     let (mut perf_utilization_sum, mut perf_utilization_max) = (0.0_f64, 0.0_f32);
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
 
-    // Live HUD overlay state — toggled with 'i'. When visible, renders a
-    // compact FPS/p99/RSS/CPU overlay in the top-right corner at 1 Hz.
-    // Zero cost when off (all methods short-circuit on visible==false).
-    // 'i' is the canonical toggle; 'h' moves the overlay between left
-    // and right corners. (v30 simplify: lowercase-only shortcuts.)
+    // Live HUD overlay ('i' toggles, 'h' moves corner). Zero cost when off.
     let mut hud_state: HudState = HudState::new();
     hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
-    // v30: seed HUD with user-configured target_fps so `tgt:` shows the
-    // right value from frame 1 (otherwise shows default 60 until live-reload).
-    hud_state.set_target_fps(cfg.target_fps);
+    hud_state.set_target_fps(cfg.target_fps); // seed so `tgt:` is right from frame 1
 
-    // Perceived-motion diagnostics: track visible-change frames vs idle frames.
-    let mut perf_idle_frames: u64 = 0; // frames where dirty_count == 0
-    let mut perf_dirty_sum: u64 = 0; // total dirty cells across all frames
-    let mut perf_dirty_samples: u64 = 0; // number of frames sampled for dirty avg
+    // Perceived-motion diagnostics: visible-change vs idle frames.
+    let mut perf_idle_frames: u64 = 0;
+    let mut perf_dirty_sum: u64 = 0;
+    let mut perf_dirty_samples: u64 = 0;
 
-    // Resize debounce: coalesce rapid resize storms into a single apply.
-    let mut last_resize_event: Option<Instant> = None;
+    let mut last_resize_event: Option<Instant> = None; // resize debounce
 
-    // Adaptive throttling: PowerManager owns the idle timer + phase
-    // predictor + idle_started tracker. last_resync_time stays here
-    // because resync scheduling is a Cloud concern, not a power concern.
-    let mut last_resync_time = Instant::now();
+    let mut last_resync_time = Instant::now(); // Cloud concern, not power
 
-    // P4: Memory reclaim state — rate-limits madvise hints during idle.
-    let mut reclaim_state = ReclaimState::new();
-
-    // P5: Endurance health score tracker.
-    let mut endurance_health = EnduranceHealth::new();
-    // Only Linux samples context-switch rate via /proc; on macOS this stays 0
-    // and the assignment inside the cfg block is skipped.
-    #[cfg(target_os = "linux")]
+    let mut reclaim_state = ReclaimState::new(); // P4 madvise rate-limiter
+    let mut endurance_health = EnduranceHealth::new(); // P5 health score
+    #[cfg(target_os = "linux")] // /proc sampling; macOS stays 0
     let mut last_ctxt_switches: u64 = 0;
     let mut last_ctxt_sample = Instant::now();
     let mut perf_rss_samples: u64 = 0;
 
-    // v35.1: last key press — drives idle-based auto-snapback (see AMBIENT_SCHEDULER_AUDIT.md §2.2).
-    let mut last_user_input_at = Instant::now();
-
-    // Self-healer (P1+P2): auto downgrade on high perf_pressure; EnduranceHealth mitigations.
-    let mut self_healer = PerformanceSelfHealer::new();
+    let mut last_user_input_at = Instant::now(); // v35.1: auto-snapback driver
+    let mut self_healer = PerformanceSelfHealer::new(); // P1+P2
 
     let mut charset_preset = cfg.charset_preset.clone();
     let mut scene_name = cfg.scene_name.clone();
-    // Phase D: bumped on scene_name reassignment — u64 compare replaces
-    // per-frame String clone (~60 allocs/sec saved).
-    let mut scene_generation: u64 = 0;
+    let mut scene_generation: u64 = 0; // Phase D: u64 compare vs String clone
     let user_ranges = cfg.user_ranges.clone();
     let def_ascii = cfg.def_ascii;
     let mut paste_guard = PasteBurstGuard::default();
@@ -297,61 +270,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 new_cfg.target_fps,
             );
 
-            // v25.5: field-level config diff trace.
-            let mut changed: Vec<String> = Vec::new();
-            let mut added: Vec<String> = Vec::new();
-            let mut removed: Vec<String> = Vec::new();
-            match &last_applied_cfg_map {
-                None => {
-                    let mut keys: Vec<&String> = new_cfg_map.keys().collect();
-                    keys.sort();
-                    for k in keys {
-                        crate::lr_trace!("config diff [initial]: {} = {}", k, new_cfg_map[k]);
-                    }
-                }
-                Some(old_map) => {
-                    let all_keys: std::collections::BTreeSet<&String> =
-                        old_map.keys().chain(new_cfg_map.keys()).collect();
-                    for k in &all_keys {
-                        match (old_map.get(*k), new_cfg_map.get(*k)) {
-                            (Some(o), Some(n)) => {
-                                if o != n {
-                                    changed.push(format!("{}: {} → {}", k, o, n));
-                                }
-                            }
-                            (None, Some(n)) => added.push(format!("{}: {}", k, n)),
-                            (Some(o), None) => removed.push(format!("{}: {}", k, o)),
-                            (None, None) => unreachable!(),
-                        }
-                    }
-                    if !changed.is_empty() {
-                        crate::lr_trace!(
-                            "config diff [changed {}]: {}",
-                            changed.len(),
-                            changed.join(", ")
-                        );
-                    }
-                    if !added.is_empty() {
-                        crate::lr_trace!(
-                            "config diff [added {}]: {}",
-                            added.len(),
-                            added.join(", ")
-                        );
-                    }
-                    if !removed.is_empty() {
-                        crate::lr_trace!(
-                            "config diff [removed {}]: {}",
-                            removed.len(),
-                            removed.join(", ")
-                        );
-                    }
-                    if changed.is_empty() && added.is_empty() && removed.is_empty() {
-                        crate::lr_trace!(
-                            "config diff: no field-level changes (whitespace/comment edit)"
-                        );
-                    }
-                }
-            }
+            // v25.5: field-level config diff trace (extracted to live_config_trace.rs).
+            crate::live_config_trace::trace_config_diff(
+                last_applied_cfg_map.as_ref(),
+                &new_cfg_map,
+            );
             last_applied_cfg_map = Some(new_cfg_map.clone());
             // Phase D #9: preserve ecosystem + post-FX across reload.
             // AB-02: capture override state for schedule-empty restore.
@@ -475,7 +398,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 cloud.ambient_palette_locked = false;
             }
         }
-        // AB-03+AB-04: poll ambient phase events. Empty schedule → drain all.
+        // AB-03+AB-04: poll ambient phase events. Empty schedule → drain.
         // Non-empty → discard events no longer in schedule (membership check).
         let mut last_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
         if !last_ambient_schedule.entries.is_empty() {
@@ -486,12 +409,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 last_ambient_entry = Some(entry);
             }
         } else {
-            // Drain stale events when schedule is empty.
-            while ambient_handle.rx.try_recv().is_ok() {}
+            while ambient_handle.rx.try_recv().is_ok() {} // drain stale
         }
-        // AB-08: ground-truth guard on rx event — if config file on disk says
-        // 0 ambient entries but we got an rx event, the event is stale (watcher
-        // missed the config change). Discard + nuke all ambient state.
+        // AB-08: ground-truth guard — if config file on disk says 0 entries
+        // but we got an rx event, the event is stale (watcher missed the
+        // change). Discard + nuke all ambient state.
         if last_ambient_entry.is_some() {
             if let Some(ref path) = config_path_for_ground_truth {
                 if let Ok(c) = std::fs::read_to_string(path) {
@@ -544,9 +466,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
         // AB-08: snapback ground-truth guard — re-read config file from disk.
-        // Cached state can go stale if watcher loses an event. File on disk
-        // is the only authoritative source. I/O cost ~50µs, only when snapback
-        // might fire (≤ once per 30s), so negligible.
+        // Cached state can go stale if watcher loses an event. ~50µs I/O,
+        // only when snapback might fire (≤ once per 30s).
         let _ab06_sked_len = last_ambient_schedule.entries.len() as u64;
         let _ab06_last_applied = last_applied_ambient_entry.is_some();
         super::ambient_diag_snapback_guard(_ab06_sked_len, _ab06_last_applied);
@@ -1171,25 +1092,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
 
-        // Performance self-healer (P1 + P2).
-        //
-        // Called every frame after perf_pressure is finalized and
-        // endurance_health has been recomputed (always-on since v30.6). The
-        // self-healer is a pure policy — it returns an action enum and
-        // we apply the side effects here.
-        //
-        // v30.6: always pass Some(score). Before v30.6, when perf_stats
-        // was off, None was passed and P2 silently disabled. Now sampling
-        // is always-on (see P5 block above), so the score is always real.
-        //
-        // `now` uses `loop_now` (captured at top of frame) for consistency
-        // with the rest of the timing-sensitive logic in this loop.
-
-        // If the scene changed since frame start (user 'x' key, live config
-        // reload, or ambient), reset the self-healer. Must happen
-        // BEFORE observe() so the self-healer doesn't fire a downgrade/
-        // restore on the same frame the user switched scenes. Phase D:
-        // u64 counter compare replaces a String-clone + String-ne.
+        // Performance self-healer (P1+P2): pure policy returning an action
+        // enum. v30.6: always pass Some(score) (P5 sampling always-on).
+        // Reset on scene change BEFORE observe() so we don't fire on the
+        // same frame the user switched. Phase D: u64 counter compare.
         if scene_generation != scene_generation_at_frame_start {
             self_healer.reset();
         }
@@ -1202,23 +1108,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         match heal_action {
             SelfHealAction::None => {}
             SelfHealAction::TriggerHealthMitigation => {
-                // P2: force a full redraw to clear any potential stuck state,
-                // and bypass ReclaimState's cooldown to issue an immediate
-                // madvise hint. The ReclaimState is also marked so its
-                // 1-hour interval resets from this point.
+                // P2: force full redraw + bypass ReclaimState cooldown for
+                // immediate madvise hint. Cooldown enforced inside self-healer.
                 cloud.force_draw_everything();
                 #[cfg(target_os = "linux")]
                 {
-                    // Reuse the frame buffer pointer/len computation from
-                    // the P4 reclaim path. We call hint_reclaim_pages
-                    // directly here because the self-healer's bypass is
-                    // intentional — the cooldown is enforced inside the
-                    // self-healer itself (last_health_mitigation field).
                     let cells_ptr = frame.cells.as_ptr();
                     let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
-                    // SAFETY: frame.cells is a valid Vec allocation; we only
-                    // pass the pointer and length to madvise which reads
-                    // metadata only, does not dereference the data.
+                    // SAFETY: frame.cells is a valid Vec allocation; madvise
+                    // reads metadata only, does not dereference the data.
                     unsafe {
                         super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
                     }
@@ -1226,25 +1124,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
                 #[cfg(not(target_os = "linux"))]
                 {
-                    // Non-Linux: madvise is a no-op, but we still mark the
-                    // reclaim state so the regular P4 path doesn't immediately
-                    // fire on the next idle check (consistency).
+                    // Non-Linux: madvise no-op, but mark reclaim state for
+                    // consistency with the P4 path.
                     reclaim_state.mark_reclaimed(loop_now);
                 }
             }
             SelfHealAction::DowngradeScene => {
-                // AB-11 (dragon power audit, option 2): do NOT switch scenes.
-                // The old code called cloud.apply_scene_runtime("low-power")
-                // which silently overrode the user's color, charset, density,
-                // speed, and glitch_level — violating the owner's principle
-                // that dragon power must not change visual identity.
-                //
-                // Instead: set the aggressive_throttle flag. This makes
-                // rain_at() use a steeper spawn-scale curve (0.9 vs 0.75)
-                // + lower floor (0.10 vs 0.25) + disables glitches entirely.
-                // The user's color/charset/density/speed/glitch_level are
-                // NEVER touched. When pressure recovers, the flag is cleared
-                // and spawn-scale returns to normal on the next frame.
+                // AB-11 (option 2): do NOT switch scenes. Set the
+                // aggressive_throttle flag instead — rain_at() uses steeper
+                // spawn-scale + disables glitches. User's color/charset/
+                // density/speed/glitch_level are NEVER touched. Flag clears
+                // on pressure recovery.
                 if !self_healer.is_downgraded() {
                     self_healer.record_downgrade(&scene_name);
                     cloud.set_aggressive_throttle(true);
@@ -1255,10 +1145,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 }
             }
             SelfHealAction::RestoreScene => {
-                // AB-11: clear the aggressive_throttle flag. No scene restore
-                // needed — the user's scene was never changed.
+                // AB-11: clear throttle flag. No scene restore needed.
                 if self_healer.is_downgraded() {
-                    self_healer.take_pre_degraded_scene(); // drain the saved name
+                    self_healer.take_pre_degraded_scene();
                     cloud.set_aggressive_throttle(false);
                     crate::live_config::push_runtime_warning(
                         "[self-heal] CPU pressure recovered — spawn throttle released",
@@ -1282,217 +1171,30 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         };
     }
 
-    // Signal the watchdog thread to stop so it doesn't outlive the main
-    // loop and falsely detect a "stuck" state after normal exit.
-    SHUTDOWN.store(true, Ordering::Release);
-
-    // v30 fix: compute the final FPS summary line now, but defer the
-    // eprintln to AFTER `drop(term)` below — otherwise the summary leaks
-    // into the alternate-screen rain matrix (AB-10 rain-screen cleanliness).
-    let final_elapsed = start_time.elapsed();
-    let final_elapsed_s = final_elapsed.as_secs_f64().max(0.000_001);
-    let final_avg_fps = (perf_frames as f64) / final_elapsed_s;
-    let last_work_ms = frame_time_tracker.rolling_avg_ms();
-    let final_instant_fps = if last_work_ms > 0.0 {
-        (1000.0 / last_work_ms).min(cfg.target_fps)
-    } else {
-        cfg.target_fps
+    // Post-loop finalization extracted to event_loop_finalize.rs (file-cap
+    // compliance). Bundles the shutdown signal, final FPS line, perf report,
+    // terminal drop (AB-10), and final-state handoff into one call. The
+    // struct is the read-only snapshot of all perf counters + borrowed
+    // tracker refs needed by the report.
+    let stats = super::event_loop_finalize::SessionStats {
+        start_time,
+        perf_frames,
+        perf_drawn_frames,
+        perf_idle_frames,
+        perf_overshoot_frames,
+        perf_dirty_sum,
+        perf_dirty_samples,
+        perf_work_sum_s,
+        perf_work_max_s,
+        perf_pressure_sum,
+        perf_pressure_max,
+        perf_utilization_sum,
+        perf_utilization_max,
+        frame_time_tracker: &frame_time_tracker,
+        power_manager_phase_transitions: power_manager.phase_transitions_observed(),
+        power_manager_base_target_fps: power_manager.base_target_fps(),
+        endurance_health_score: endurance_health.score(),
+        endurance_health_classification: endurance_health.classification(),
     };
-    let final_fps_line = format!(
-        "[cosmostrix] final FPS: {:.1} (instant: {:.1}, target: {:.1}), frames: {}, elapsed: {:.2}s",
-        final_avg_fps, final_instant_fps, cfg.target_fps, perf_frames, final_elapsed_s
-    );
-
-    // Capture terminal stats BEFORE drop. Cheap (two field reads); unifies
-    // the drop path so we always leave the alt screen before stderr writes.
-    let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
-    let (tier2_skips, tier2_resets, tier2_bytes_since) = term.tier2_stats();
-
-    if cfg.perf_stats {
-        let elapsed = final_elapsed;
-        let elapsed_s = elapsed.as_secs_f64().max(0.000_001);
-
-        let frames = perf_frames.max(1);
-        let avg_work_ms = (perf_work_sum_s / frames as f64) * 1000.0;
-        let avg_pressure = perf_pressure_sum / frames as f64;
-        let avg_fps = (perf_frames as f64) / elapsed_s;
-        let drawn_ratio = (perf_drawn_frames as f64) / (perf_frames as f64).max(1.0);
-        let overshoot_ratio =
-            (perf_overshoot_frames as f64) / (perf_frames as f64).max(1.0) * 100.0;
-        let pressure_class = if avg_pressure < PERF_PRESSURE_CLASS_LOW {
-            "low"
-        } else if avg_pressure < PERF_PRESSURE_CLASS_MEDIUM {
-            "medium"
-        } else {
-            "high"
-        };
-
-        let mut r = Report::new("COSMOSTRIX PERFORMANCE REPORT");
-
-        {
-            let s = r.section("TIMING");
-            s.field("elapsed", &format!("{:.3}s", elapsed_s));
-            s.field("target_fps", &format!("{:.3}", cfg.target_fps));
-            s.field("avg_fps", &format!("{:.3}", avg_fps));
-            // v30: real instantaneous FPS from last ~1s of frame work times.
-            // Capped at target_fps (loop sleeps to maintain target). Read
-            // this for "what FPS am I seeing now" — distinct from avg_fps
-            // (whole-run average) and BACKPRESSURE.avg (load-shed signal).
-            s.field("instant_fps", &format!("{:.3}", final_instant_fps));
-            s.field(
-                "rolling_avg_frame_time",
-                &format!("{:.3}ms", frame_time_tracker.rolling_avg_ms()),
-            );
-        }
-
-        {
-            let s = r.section("FRAMES");
-            s.field("total", &perf_frames.to_string());
-            s.field(
-                "drawn",
-                &format!("{} ({:.1}%)", perf_drawn_frames, drawn_ratio * 100.0),
-            );
-            s.field(
-                "idle_visual",
-                &format!(
-                    "{} ({:.1}%)",
-                    perf_idle_frames,
-                    (perf_idle_frames as f64) / (perf_frames as f64).max(1.0) * 100.0
-                ),
-            );
-            s.field(
-                "overshoot",
-                &format!("{} ({:.1}%)", perf_overshoot_frames, overshoot_ratio),
-            );
-        }
-
-        {
-            let s = r.section("MOTION");
-            let avg_dirty = if perf_dirty_samples > 0 {
-                perf_dirty_sum as f64 / perf_dirty_samples as f64
-            } else {
-                0.0
-            };
-            s.field("avg_dirty_cells", &format!("{:.1}", avg_dirty));
-            s.field(
-                "visual_fps_hint",
-                &format!(
-                    "{:.1} ({} of {} frames had visual changes)",
-                    drawn_ratio * cfg.target_fps,
-                    perf_drawn_frames,
-                    perf_frames
-                ),
-            );
-        }
-
-        {
-            let s = r.section("LATENCY");
-            s.field("avg_frame_time", &format!("{:.3}ms", avg_work_ms));
-            s.field(
-                "max_frame_time",
-                &format!("{:.3}ms", perf_work_max_s * 1000.0),
-            );
-            s.field("jitter", frame_time_tracker.jitter_classification());
-        }
-
-        {
-            // Backpressure = clamp(work/budget - 1, 0, 2): non-zero ONLY when
-            // renderer can't keep up. budget_utilization = work/budget (always
-            // non-zero) — companion so the section is informative on healthy hw.
-            crate::bench_helpers::format_backpressure_section(
-                &mut r,
-                avg_pressure,
-                perf_pressure_max,
-                perf_utilization_sum,
-                perf_utilization_max,
-                perf_frames,
-                Duration::from_secs_f64(1.0 / power_manager.base_target_fps()),
-                avg_work_ms,
-                pressure_class,
-                perf_overshoot_frames,
-                overshoot_ratio,
-            );
-        }
-
-        // P5: Endurance health score
-        {
-            let s = r.section("ENDURANCE");
-            s.field(
-                "health_score",
-                &format!("{:.1}/100", endurance_health.score()),
-            );
-            s.field("classification", endurance_health.classification());
-            s.field(
-                "phase_transitions",
-                &power_manager.phase_transitions_observed().to_string(),
-            );
-        }
-
-        // ENCODING: actual measured ANSI bytes/frame + SGR cache hit rate.
-        // These prove the diff-based + RLE + color cache optimizations work.
-        {
-            let s = r.section("ENCODING");
-            let total_sgr = sgr_hits + sgr_misses;
-            let hit_rate = if total_sgr > 0 {
-                (sgr_hits as f64 / total_sgr as f64) * 100.0
-            } else {
-                0.0
-            };
-            let avg_bytes_per_frame = if enc_flushes > 0 {
-                enc_bytes as f64 / enc_flushes as f64
-            } else {
-                0.0
-            };
-            let bandwidth_kib_s = (enc_bytes as f64 / 1024.0) / elapsed_s;
-
-            s.field("total_ansi_bytes", &enc_bytes.to_string());
-            s.field("frames_flushed", &enc_flushes.to_string());
-            s.field(
-                "avg_bytes_per_frame",
-                &format!("{:.1}", avg_bytes_per_frame),
-            );
-            s.field("bandwidth", &format!("{:.1} KiB/s", bandwidth_kib_s));
-            s.field("sgr_cache_hits", &sgr_hits.to_string());
-            s.field("sgr_cache_misses", &sgr_misses.to_string());
-            s.field("sgr_cache_hit_rate", &format!("{:.1}%", hit_rate));
-        }
-
-        // Tier 2: xterm.js host defenses (byte-budget backpressure + RIS reset).
-        // All three fields are 0 on native terminals; nonzero only inside
-        // VSCode/Hyper/WaveTerminal/Tabby/WarpTerminal. Useful for diagnosing
-        // whether the multi-hour OOM crash mode is actually being mitigated.
-        {
-            let s = r.section("TIER2_XTERMJS");
-            s.field("backpressure_skips", &tier2_skips.to_string());
-            s.field("ris_resets", &tier2_resets.to_string());
-            s.field("bytes_since_last_ris", &tier2_bytes_since.to_string());
-        }
-
-        r.print();
-    }
-
-    // AB-10: drop the terminal BEFORE any stderr write so the alt screen
-    // is restored and the final FPS line lands on the main screen, not
-    // polluting the rain matrix on exit.
-    drop(term);
-
-    // Store final runtime state for post-exit verbose summary.
-    let final_color_name = format!("{:?}", cloud.color_scheme());
-    super::set_final_state(
-        &final_color_name,
-        &scene_name,
-        &charset_preset,
-        cloud.chars_per_sec,
-        cloud.droplet_density,
-    );
-
-    // AB-10: only print final FPS when --perf-stats is requested.
-    // Previously this always printed (v30 design), but owner considers
-    // it a verbose leak — without -v or --perf-stats, the user sees
-    // unexpected output after exit. Now gated by cfg.perf_stats.
-    if cfg.perf_stats {
-        eprintln!("{}", final_fps_line);
-    }
-
-    Ok(())
+    super::event_loop_finalize::finalize_session(&stats, term, &cloud, &scene_name, &charset_preset, cfg)
 }

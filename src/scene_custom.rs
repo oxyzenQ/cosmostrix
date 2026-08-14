@@ -584,50 +584,38 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 
 /// Parse a comma-separated density-map string into a leaked `&'static [f64]`.
 ///
-/// Format: `"1.0,0.5,0.0,0.8,..."` — each value is a weight in `[0.0, 1.0]`.
-/// Values outside this range are clamped. Empty/whitespace entries are skipped.
-/// Returns `None` if the string contains no valid numbers.
-///
-/// The returned slice is `'static` — the memory lives for the process
-/// lifetime. v30 simplify: the leak is now **deduplicated by content** via
-/// a global `OnceLock<HashMap<String, &'static [f64]>>`. Repeated live-reloads
-/// of the same `density-map` string return the same slice instead of leaking
-/// a new one each time. Different strings still leak (one entry each), but
-/// the total leaked memory is now bounded by the number of *distinct*
-/// density-map strings the user ever writes, not the number of live-reloads.
+/// Format: `"1.0,0.5,0.0,0.8,..."` — weights in `[0.0, 1.0]` (out-of-range
+/// clamped). Empty/whitespace entries skipped. Returns `None` if no valid
+/// numbers. The slice is `'static` (process lifetime). v30: leak is
+/// deduplicated by content via a global `OnceLock<HashMap<String, &'static
+/// [f64]>>` — repeated live-reloads of the same string return the same slice.
+/// Total leaked memory bounded by the number of distinct density-map strings.
 #[must_use]
 pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
-    // v30 fix: accept BOTH unquoted CSV (`density-map = 0.05,0.3,1.0`) and
-    // quoted CSV (`density-map = "0.05,0.3,1.0"`). The configfile parser is
-    // a custom line-by-line parser (not a real TOML parser) and does NOT
-    // strip surrounding quotes from string values. Earlier, only the
-    // unquoted form worked; the quoted form silently failed --testconf
-    // (first entry parsed as `"0.05` → not a float) and produced no
-    // density map at runtime. Now we normalize by stripping a single pair
-    // of surrounding `"` (or `'`) before splitting, matching the
-    // leaf-consumer quote-stripping pattern used by colors_custom and
-    // charset_custom.
+    // v30 fix: accept BOTH unquoted (`0.05,0.3,1.0`) and quoted
+    // (`"0.05,0.3,1.0"`) CSV. The configfile parser is a custom line-by-line
+    // parser (not real TOML) and does NOT strip surrounding quotes. Earlier,
+    // only the unquoted form worked; quoted silently failed --testconf.
+    // Now we normalize by stripping a single pair of `"` (or `'`) before
+    // splitting, matching colors_custom + charset_custom.
     let csv = csv.trim().trim_matches('"').trim_matches('\'').trim();
 
-    // Dedup cache: maps the normalized CSV string to its parsed &'static slice.
-    // First call for a given CSV leaks the slice; subsequent calls return
-    // the same slice without re-leaking. Dedup is keyed on the *normalized*
-    // (quote-stripped) string so `"0.5,0.5"` and `0.5,0.5` share one entry.
+    // Dedup cache: maps normalized CSV → parsed &'static slice. First call
+    // leaks the slice; subsequent calls return it without re-leaking.
+    // Keyed on the normalized (quote-stripped) string so `"0.5,0.5"` and
+    // `0.5,0.5` share one entry.
     static DENSITY_MAP_CACHE: OnceLock<std::sync::Mutex<HashMap<String, &'static [f64]>>> =
         OnceLock::new();
     let cache = DENSITY_MAP_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
 
-    // Shared parse closure — used by both the healthy-lock fast path and the
-    // poisoned-mutex fallback. Keeps the two paths in sync (no risk of
-    // behavior drift between cached vs. uncached parses).
+    // Shared parse closure — used by both the healthy-lock + poisoned-mutex
+    // paths so they stay in sync (no behavior drift between cached/uncached).
     let parse_weights = || -> Option<Vec<f64>> {
         let weights: Vec<f64> = csv
             .split(',')
             .filter_map(|s| {
                 let s = s.trim();
-                if s.is_empty() {
-                    return None;
-                }
+                if s.is_empty() { return None; }
                 s.parse::<f64>().ok().map(|v| v.clamp(0.0, 1.0))
             })
             .collect();
@@ -635,28 +623,20 @@ pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
     };
 
     // v50 poison-safe lock: never propagate a poisoned mutex as a panic.
-    // If another thread panicked while holding this lock (degenerate —
-    // the guard is held for microseconds, only `cache.get` + `cache.insert`),
-    // fall through to a one-shot parse without dedup. Matches the
-    // poison-safe `if let Ok(g)` pattern used by every other production
-    // lock in cosmostrix (live_config_state, ambient_scheduler,
-    // interactive::mod, live_config_trace).
+    // Matches the `if let Ok(g)` pattern used by every other production lock.
     if let Ok(mut cache) = cache.lock() {
         if let Some(existing) = cache.get(csv) {
             return Some(*existing);
         }
         let weights = parse_weights()?;
-        // Leak the Vec so its backing slice becomes &'static. Cloud holds
-        // this for the entire process lifetime. The cache ensures we only
-        // leak once per distinct CSV string — live-reload no longer grows
-        // memory.
+        // Leak the Vec → &'static slice. Cache ensures we leak once per
+        // distinct CSV string (live-reload no longer grows memory).
         let leaked: &'static [f64] = Box::leak(weights.into_boxed_slice());
         cache.insert(csv.to_string(), leaked);
         Some(leaked)
     } else {
-        // Poisoned-mutex recovery path: parse one-shot, skip dedup. Still
-        // leaks once per call (no cache), but only reachable after a panic
-        // in another thread holding this lock — never observed in practice.
+        // Poisoned-mutex recovery: one-shot parse, skip dedup. Only
+        // reachable after a panic in another thread holding this lock.
         let weights = parse_weights()?;
         Some(Box::leak(weights.into_boxed_slice()))
     }
