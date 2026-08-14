@@ -21,7 +21,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 usage() {
     cat <<EOF
-Usage: $0 [--system|--user]
+Usage: $0 [--system|--user] [--force]
 
   --system   Install system-wide:
                binary  → /usr/bin/${PROJECT_NAME}
@@ -37,8 +37,14 @@ Usage: $0 [--system|--user]
   --user     Install to user-local (default, no sudo):
                binary  → ~/.local/bin/${PROJECT_NAME}
                config  → ~/.config/${PROJECT_NAME}/config.toml
-             The user-local config is NEVER overwritten. If it exists, the
-             new template is installed as config.new for manual review.
+             The user-local config is NEVER overwritten unless --force is given.
+             Without --force: if config exists, the new template is installed
+             as config.new for manual review.
+             With --force: existing config is overwritten with the new template.
+
+  --force    Overwrite existing config.toml without creating .new backup.
+             Applies to --user mode only (--system always overwrites).
+             DANGEROUS: destroys user customizations. Use with caution.
 
 CPU autodetect (Linux/x86-64 only):
   The build step auto-detects the CPU microarchitecture and picks the
@@ -53,10 +59,12 @@ EOF
 }
 
 MODE="--user"
+FORCE=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --system) MODE="--system"; shift ;;
         --user)   MODE="--user";   shift ;;
+        --force)  FORCE=1;        shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "error: unknown argument: $1" >&2; usage; exit 2 ;;
     esac
@@ -241,11 +249,18 @@ case "${MODE}" in
         user_cfg="${user_cfg_dir}/config.toml"
         mkdir -p "${user_cfg_dir}"
         if [[ -f "${user_cfg}" ]]; then
-            # Existing config: write new template to .new for manual merge.
-            # Use --dump-config <path> directly (not stdout redirect).
-            "${BINARY}" --dump-config "${user_cfg}.new" 2>/dev/null
-            echo "   existing config preserved: ${user_cfg}"
-            echo "   new template installed at: ${user_cfg}.new (review and merge manually)"
+            if [[ ${FORCE} -eq 1 ]]; then
+                # --force: overwrite existing config directly.
+                "${BINARY}" --dump-config "${user_cfg}" 2>/dev/null
+                echo "   overwritten: ${user_cfg} (--force)"
+            else
+                # Existing config: write new template to .new for manual merge.
+                # Use --dump-config <path> directly (not stdout redirect).
+                "${BINARY}" --dump-config "${user_cfg}.new" 2>/dev/null
+                echo "   existing config preserved: ${user_cfg}"
+                echo "   new template installed at: ${user_cfg}.new (review and merge manually)"
+                echo "   use --force to overwrite without backup"
+            fi
         else
             # No existing config: write template directly.
             "${BINARY}" --dump-config "${user_cfg}" 2>/dev/null

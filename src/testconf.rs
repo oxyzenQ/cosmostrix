@@ -38,7 +38,27 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         resolved_config = None;
     }
 
-    let path = resolved_config.unwrap_or_else(configfile::default_config_file_path);
+    let path = if let Some(p) = resolved_config.as_ref() {
+        p.clone()
+    } else {
+        // No explicit --config: try default user path first, then fall back
+        // to system-wide config (e.g., /etc/cosmostrix/config.toml). This
+        // mirrors the fallback in load_config_file_full, so --testconf works
+        // after a --system install where only /etc/cosmostrix/config.toml exists.
+        let default_path = configfile::default_config_file_path();
+        if default_path.exists() {
+            default_path
+        } else {
+            // Try system-wide fallback paths (same candidates as the live-reload
+            // watcher uses, minus the default which we already checked).
+            let candidates = configfile::config_candidate_paths();
+            candidates
+                .into_iter()
+                .skip(1) // skip default_path (already checked)
+                .find(|p| p.exists())
+                .unwrap_or(default_path) // none exist → report error for default
+        }
+    };
 
     println!("testconf: checking {}", path.display());
 

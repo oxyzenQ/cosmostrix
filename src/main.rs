@@ -471,7 +471,19 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.config_path {
-        println!("{}", configfile::default_config_file_path().display());
+        // Show the actually-resolved path (falls back to system config
+        // if user config doesn't exist), not just the default user path.
+        let default_path = configfile::default_config_file_path();
+        if default_path.exists() {
+            println!("{}", default_path.display());
+        } else {
+            let candidates = configfile::config_candidate_paths();
+            let resolved = candidates
+                .into_iter()
+                .find(|p| p.exists())
+                .unwrap_or(default_path);
+            println!("{}", resolved.display());
+        }
         return Ok(());
     }
 

@@ -8,8 +8,9 @@
 #   environment. Will not run on Windows (Git Bash, Cygwin, WSL ok).
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Uninstall cosmostrix: binary only. Config is PRESERVED (may contain
-# user customizations). Pass --purge to also remove config.
+# Uninstall cosmostrix: binary + config directories.
+# --all (default) removes binary AND config. --purge is kept as a synonym
+# for backward compatibility. Use --keep-config to preserve config.
 #
 # Auto-detects and removes the binary from:
 #   /usr/bin/, ~/.local/bin/
@@ -21,29 +22,31 @@ PROJECT_NAME="cosmostrix"
 
 usage() {
     cat <<EOF
-Usage: $0 [--system|--user|--all] [--purge]
+Usage: $0 [--system|--user|--all] [--keep-config] [--purge]
 
-  (default)  Auto-detect: scan /usr/bin, ~/.local/bin
-             and remove every ${PROJECT_NAME} binary found.
+  (default)  Remove binary AND config from all locations.
   --system   Remove only from /usr/bin (uses sudo).
+             Also removes /etc/${PROJECT_NAME}/ if present.
   --user     Remove only from ~/.local/bin (no sudo).
-  --all      Same as default.
-  --purge    Also remove config files (/etc/${PROJECT_NAME},
-             ~/.config/${PROJECT_NAME}).
+             Also removes ~/.config/${PROJECT_NAME}/ if present.
+  --all      Remove binary + config from all locations (default behavior).
+  --keep-config  Preserve config files (only remove binary).
+  --purge    Alias for --all (backward compatibility).
 
 Sudo is used only for system paths. Run WITHOUT sudo.
 EOF
 }
 
 MODE="--all"
-PURGE=0
+KEEP_CONFIG=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --system) MODE="--system"; shift ;;
-        --user)   MODE="--user";   shift ;;
-        --all)    MODE="--all";    shift ;;
-        --purge)  PURGE=1;         shift ;;
-        -h|--help) usage; exit 0 ;;
+        --system)      MODE="--system"; shift ;;
+        --user)        MODE="--user";   shift ;;
+        --all)         MODE="--all";    shift ;;
+        --keep-config) KEEP_CONFIG=1;   shift ;;
+        --purge)       MODE="--all";    shift ;;  # backward compat: same as --all
+        -h|--help)     usage; exit 0 ;;
         *) echo "error: unknown argument: $1" >&2; usage; exit 2 ;;
     esac
 done
@@ -99,13 +102,25 @@ case "${MODE}" in
         ;;
 esac
 
-if [[ ${PURGE} -eq 1 ]]; then
-    echo ">> Purging config (--purge)"
-    remove_dir "/etc/${PROJECT_NAME}" yes
-    remove_dir "${HOME}/.config/${PROJECT_NAME}" no
-elif [[ -f "${HOME}/.config/${PROJECT_NAME}/config.toml" ]]; then
-    echo "   NOTE: user config preserved at ~/.config/${PROJECT_NAME}/config.toml"
-    echo "         remove with: ./scripts/uninstall.sh --purge"
+if [[ ${KEEP_CONFIG} -eq 0 ]]; then
+    # Default: remove config directories too
+    echo ">> Removing config"
+    case "${MODE}" in
+        --system)
+            remove_dir "/etc/${PROJECT_NAME}" yes
+            ;;
+        --user)
+            remove_dir "${HOME}/.config/${PROJECT_NAME}" no
+            ;;
+        --all)
+            remove_dir "/etc/${PROJECT_NAME}" yes
+            remove_dir "${HOME}/.config/${PROJECT_NAME}" no
+            ;;
+    esac
+elif [[ -f "${HOME}/.config/${PROJECT_NAME}/config.toml" ]] || [[ -d "/etc/${PROJECT_NAME}" ]]; then
+    echo "   NOTE: config preserved (--keep-config)"
+    echo "         user: ~/.config/${PROJECT_NAME}/config.toml"
+    echo "         system: /etc/${PROJECT_NAME}/config.toml"
 fi
 
 if [[ ${removed} -eq 0 ]]; then
