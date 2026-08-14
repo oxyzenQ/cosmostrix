@@ -143,7 +143,7 @@ preserve_or_clean_user_config() {
     # Cannot use stdout redirect (blocked by safe-path check), so use
     # --dump-config with a temp path inside the allowed config dir.
     local tmp_default="${HOME}/.config/${PROJECT_NAME}/.install_tmp_default.toml"
-    "${binary}" --dump-config "${tmp_default}" 2>/dev/null
+    "${binary}" --dump-config "${tmp_default}" --force 2>/dev/null || true
     default_normalized=$(grep -vE '^\s*#|^\s*$' "${tmp_default}" 2>/dev/null || true)
     rm -f "${tmp_default}"
 
@@ -267,8 +267,10 @@ dump_config_sudo() {
 # Symlink-safe mkdir: if the path is a symlink to a directory,
 # mkdir -p is a no-op (safe). But if the symlink is broken or
 # points to a non-directory, we refuse to overwrite it.
+# Optional second arg: "sudo" to run mkdir via sudo (for /etc etc.).
 safe_mkdir() {
     local target="$1"
+    local use_sudo="${2:-}"
     if [[ -L "${target}" ]]; then
         if [[ -d "${target}" ]]; then
             return 0  # symlink → directory, already exists
@@ -276,13 +278,21 @@ safe_mkdir() {
         echo "error: ${target} is a symlink but not to a directory — cannot create" >&2
         return 1
     fi
-    mkdir -p "${target}"
+    # Directory already exists (not a symlink) — nothing to do.
+    if [[ -d "${target}" ]]; then
+        return 0
+    fi
+    if [[ "${use_sudo}" == "sudo" ]]; then
+        sudo mkdir -p "${target}"
+    else
+        mkdir -p "${target}"
+    fi
 }
 
 echo ">> [3/4] Installing config.toml (${MODE})"
 case "${MODE}" in
     --system)
-        safe_mkdir "/etc/${PROJECT_NAME}" || exit 1
+        safe_mkdir "/etc/${PROJECT_NAME}" sudo || exit 1
         config_path="/etc/${PROJECT_NAME}/config.toml"
         # New template path: config.new.toml (NOT config.toml.new).
         # The binary's --dump-config validates that the target path has
