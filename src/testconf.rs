@@ -56,6 +56,14 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         }
     };
 
+    // v50: SHA-256 fingerprint of the config file on disk.
+    // Lets the user verify exact config state with `sha256sum`,
+    // detect config drift across machines, and prove config identity
+    // in bug reports. Uses the same sha2 crate as --dump-config and
+    // live-reload change detection (zero new dependencies).
+    let hash = configfile::sha256_hex(content.as_bytes());
+    println!("testconf: sha256: {hash}");
+
     let parsed = configfile::parse_config_text(&content);
     let mut errors = 0usize;
     let mut warnings = 0usize;
