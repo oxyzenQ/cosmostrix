@@ -431,3 +431,32 @@ RENDERING PHILOSOPHY:
         print!("{}", text);
     }
 }
+
+// v50 (honesty audit): verify help text drift parameters match the
+// source-of-truth constants. If someone retunes the constants without
+// updating the help text, this test catches the drift.
+#[cfg(test)]
+mod honesty_tests {
+    use crate::central_control_rains::{
+        AUTONOMOUS_PALETTE_DRIFT_CHANCE, COLOR_ECOSYSTEM_TICK_SECS,
+        PALETTE_DRIFT_COOLDOWN_SECS,
+    };
+
+    #[test]
+    fn help_text_drift_params_match_constants() {
+        // The help text says "3% chance per 3s tick, 30s cooldown".
+        // Verify these match the actual constants.
+        assert_eq!(
+            AUTONOMOUS_PALETTE_DRIFT_CHANCE, 0.03,
+            "help text says 3% but AUTONOMOUS_PALETTE_DRIFT_CHANCE changed"
+        );
+        assert_eq!(
+            COLOR_ECOSYSTEM_TICK_SECS, 3.0,
+            "help text says 3s tick but COLOR_ECOSYSTEM_TICK_SECS changed"
+        );
+        assert_eq!(
+            PALETTE_DRIFT_COOLDOWN_SECS, 30.0,
+            "help text says 30s cooldown but PALETTE_DRIFT_COOLDOWN_SECS changed"
+        );
+    }
+}

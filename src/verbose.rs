@@ -158,9 +158,17 @@ pub(crate) fn print_verbose(
         &format!(" {} ({})", pipeline.label(), pipeline.description()),
     );
     if pipeline.is_chroma() {
+        // v50 (honesty audit): dynamically format chroma features with their
+        // actual tuning constants, not a bare hardcoded list. If someone
+        // changes SUBPIXEL_JITTER_AMPLITUDE or HEAD_HALO_FACTOR, this output
+        // updates automatically — no stale strings lying to the user.
+        let jitter_amp = crate::chroma::tuning::SUBPIXEL_JITTER_AMPLITUDE;
+        let halo_factor = crate::chroma::tuning::HEAD_HALO_FACTOR;
         output::eprintln_verbose(
             "  chroma_features:",
-            " oklab_gradient, perceptual_blend, climate_post_fx, head_halo, l_smoothing, subpixel_jitter",
+            &format!(
+                " oklab_gradient, perceptual_blend, climate_post_fx, head_halo(factor={halo_factor}), l_smoothing, subpixel_jitter(amplitude={jitter_amp})"
+            ),
         );
     } else if let Some(reason) = pipeline.disable_reason(color_mode) {
         output::eprintln_verbose(
@@ -281,9 +289,17 @@ pub(crate) fn print_verbose(
     } else {
         "disabled"
     };
+    // v50 (honesty audit): format drift parameters from source-of-truth
+    // constants, not hardcoded strings. If someone retunes the constants,
+    // this output updates automatically.
+    let drift_pct = crate::central_control_rains::AUTONOMOUS_PALETTE_DRIFT_CHANCE * 100.0;
+    let tick_secs = crate::central_control_rains::COLOR_ECOSYSTEM_TICK_SECS;
+    let cooldown_secs = crate::central_control_rains::PALETTE_DRIFT_COOLDOWN_SECS;
     output::eprintln_verbose(
         "  palette_drift:",
-        &format!(" {palette_drift_label} (3% chance per 3s tick, 30s cooldown between events)"),
+        &format!(
+            " {palette_drift_label} ({drift_pct:.0}% chance per {tick_secs:.0}s tick, {cooldown_secs:.0}s cooldown between events)"
+        ),
     );
     if bench_mode && auto_drift {
         output::eprintln_verbose(
@@ -316,12 +332,16 @@ pub(crate) fn print_verbose(
             "schedule:",
             &format!(" {} entries [{}]", entries.len(), summary.join(", ")),
         );
-        // Auto-snapback note: hardcoded 30s idle threshold. The user
-        // cannot tune this at runtime; disclose so they understand the
-        // snapback behavior is fixed.
+        // v50 (honesty audit): format idle threshold from source-of-truth
+        // constant, not hardcoded "30s". Matches --doctor which already
+        // uses crate::constants::IDLE_THRESHOLD_SECS dynamically.
+        let idle_secs = crate::central_control_dragon_power::IDLE_THRESHOLD_SECS;
+        let snapback_secs = crate::central_control_dragon_power::AUTO_SNAPBACK_DELAY_SECS;
         output::eprintln_verbose(
             "auto_snapback:",
-            " 30s idle threshold (hardcoded — user overrides via 'c'/'C'/'x'/'s' revert after 30s)",
+            &format!(
+                " {idle_secs:.0}s idle threshold, {snapback_secs:.0}s snapback delay (user overrides via 'c'/'C'/'x'/'s' revert after {snapback_secs:.0}s)"
+            ),
         );
     }
 
