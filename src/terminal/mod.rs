@@ -732,9 +732,7 @@ impl Terminal {
         // TERMINAL_RESTORE_SEQUENCE includes this, but cleanup_terminal()
         // doesn't use that sequence. Belt-and-suspenders: always emit it.
         if self.term_caps.sync_output {
-            let _ = self
-                .stdout
-                .write_all(crate::termdetect::SYNC_END);
+            let _ = self.stdout.write_all(crate::termdetect::SYNC_END);
             let _ = self.stdout.flush();
         }
         if self.raw_mode_enabled {
