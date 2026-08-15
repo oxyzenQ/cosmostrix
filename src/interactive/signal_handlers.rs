@@ -19,6 +19,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use crate::platform::TermReinit;
+
 use super::watchdog::{spawn_watchdog, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
 
 // restore_terminal_best_effort is used by BOTH the Unix SIGTSTP handler
@@ -38,9 +40,9 @@ use signal_hook::low_level;
 /// Returns the `signal_exit` flag (shared with Terminal) and the
 /// `term_reinit` flag (checked by the event loop after SIGCONT).
 #[cfg(unix)]
-pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
+pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
     let signal_exit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-    let term_reinit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let term_reinit: TermReinit = TermReinit::new(AtomicBool::new(false));
 
     // SIGINT (Ctrl+C) is NOT in this list — only 'q' exits
     // cosmostrix. SIGTERM/SIGHUP/SIGQUIT remain for system-initiated
@@ -112,9 +114,9 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
 /// CTRL_BREAK_EVENT). That's a future enhancement; the primary target
 /// platform is Linux (pro-linux-v3 build) where SIGINT is already excluded.
 #[cfg(windows)]
-pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
+pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
     let signal_exit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-    let term_reinit: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let term_reinit: TermReinit = ();
 
     let se = signal_exit.clone();
     if let Err(e) = ctrlc::set_handler(move || {

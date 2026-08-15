@@ -142,6 +142,7 @@ mod message;
 mod output;
 mod panic_hook;
 // `palette` now lives at `src/chroma/palette.rs`; re-exported above.
+mod platform;
 mod profile;
 mod posix_time;
 #[cfg(test)]

@@ -5,10 +5,7 @@
 mod cases {
     use std::time::{Duration, Instant};
 
-    #[cfg(unix)]
-    use std::sync::atomic::AtomicBool;
-    #[cfg(unix)]
-    use std::sync::Arc;
+    use crate::platform::{default_term_reinit, TermReinit};
 
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
@@ -292,7 +289,7 @@ mod cases {
         key: &KeyEvent,
         charset_preset: &mut String,
         cfg: &CloudConfig,
-        #[cfg(unix)] term_reinit: &Arc<AtomicBool>,
+        term_reinit: &TermReinit,
     ) -> bool {
         let mut scene_name = String::from("monolith");
         let mut scene_generation: u64 = 0;
@@ -304,7 +301,6 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             cfg,
-            #[cfg(unix)]
             term_reinit,
         )
     }
@@ -318,7 +314,7 @@ mod cases {
         scene_name: &mut String,
         scene_generation: &mut u64,
         cfg: &CloudConfig,
-        #[cfg(unix)] term_reinit: &Arc<AtomicBool>,
+        term_reinit: &TermReinit,
     ) -> bool {
         let user_ranges: [(char, char); 0] = [];
         handle_keybinding(
@@ -331,7 +327,6 @@ mod cases {
             &user_ranges,
             true,
             cfg,
-            #[cfg(unix)]
             term_reinit,
         )
     }
@@ -352,8 +347,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(scene_name, "matrix");
@@ -380,8 +374,7 @@ mod cases {
                 &mut scene_name,
                 &mut scene_generation,
                 &make_test_config(),
-                #[cfg(unix)]
-                &Arc::new(AtomicBool::new(false)),
+                &default_term_reinit(),
             );
             visited.push(scene_name.clone());
         }
@@ -408,8 +401,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         // scene_name local variable should be unchanged (no scene cycle fired).
@@ -449,8 +441,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         // 'C' must change the scheme (not be a no-op)...
@@ -494,8 +485,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         // 'S' must change the charset preset (not be a no-op)...
@@ -527,8 +517,7 @@ mod cases {
             &tab_key(),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert!(!result, "Tab should not signal a keybinding action");
@@ -558,8 +547,7 @@ mod cases {
             &backtab_key(),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert!(!result, "BackTab should not signal a keybinding action");
@@ -583,8 +571,7 @@ mod cases {
             &tab_key(),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert!(!cloud.pause, "Tab should not pause the rain");
@@ -604,8 +591,7 @@ mod cases {
             &tab_key(),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -631,8 +617,7 @@ mod cases {
             &tab_key(),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert!(
@@ -661,8 +646,7 @@ mod cases {
                 &tab_key(),
                 &mut charset_preset,
                 &make_test_config(),
-                #[cfg(unix)]
-                &Arc::new(AtomicBool::new(false)),
+                &default_term_reinit(),
             );
         }
 
@@ -800,8 +784,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert!(
@@ -832,8 +815,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert!(
@@ -866,8 +848,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert!(
@@ -1020,8 +1001,7 @@ mod cases {
             &key_with_mod('c', KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1044,8 +1024,7 @@ mod cases {
             &key_with_mod('q', KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1070,8 +1049,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(scene_name, "monolith", "Super+X must NOT cycle scene");
@@ -1094,8 +1072,7 @@ mod cases {
             &mut scene_name,
             &mut scene_generation,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(charset_preset, before, "Super+S must NOT cycle charset");
@@ -1114,8 +1091,7 @@ mod cases {
             &key_with_mod('p', KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(cloud.pause, paused_before, "Super+P must NOT toggle pause");
@@ -1136,8 +1112,7 @@ mod cases {
             &key_with_mod(' ', KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1160,8 +1135,7 @@ mod cases {
             &arrow_with_mod(KeyCode::Up, KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1183,8 +1157,7 @@ mod cases {
             &arrow_with_mod(KeyCode::Down, KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1207,8 +1180,7 @@ mod cases {
             &key_with_mod('[', KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
         assert_eq!(
             cloud.droplet_density, density_before,
@@ -1222,8 +1194,7 @@ mod cases {
             &key_with_mod(']', KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
         assert_eq!(
             cloud.droplet_density, density_before,
@@ -1246,8 +1217,7 @@ mod cases {
             &key_with_mod('c', KeyModifiers::HYPER),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1271,8 +1241,7 @@ mod cases {
             &key_with_mod('c', KeyModifiers::META),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1297,8 +1266,7 @@ mod cases {
             &key_with_mod('c', KeyModifiers::CONTROL),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1323,8 +1291,7 @@ mod cases {
             &key_with_mod('c', KeyModifiers::ALT),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1350,8 +1317,7 @@ mod cases {
             &key_with_mod('C', KeyModifiers::CONTROL | KeyModifiers::SHIFT),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1376,8 +1342,7 @@ mod cases {
             &key_with_mod('C', KeyModifiers::SUPER | KeyModifiers::SHIFT),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_eq!(
@@ -1402,8 +1367,7 @@ mod cases {
             &key('c'),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_ne!(
@@ -1430,8 +1394,7 @@ mod cases {
             &key_with_mod('C', KeyModifiers::SHIFT),
             &mut charset_preset,
             &make_test_config(),
-            #[cfg(unix)]
-            &Arc::new(AtomicBool::new(false)),
+            &default_term_reinit(),
         );
 
         assert_ne!(

@@ -84,21 +84,12 @@ pub(crate) fn cpu_model_string() -> Option<String> {
 
 #[cfg(target_os = "linux")]
 fn linux_cpu_model() -> Option<String> {
-    let mut file = std::fs::File::open("/proc/cpuinfo").ok()?;
-    let mut buf = String::new();
-    std::io::Read::read_to_string(&mut file, &mut buf).ok()?;
-    for line in buf.lines() {
-        if let Some(rest) = line.strip_prefix("model name") {
-            // Format: "model name      : Intel(R) Core(TM) ..."
-            if let Some((_, value)) = rest.split_once(':') {
-                let trimmed = value.trim();
-                if !trimmed.is_empty() {
-                    return Some(trimmed.to_string());
-                }
-            }
-        }
-    }
-    None
+    crate::platform::procfs_field("/proc/cpuinfo", "model name").and_then(|v| {
+        // Format: "model name      : Intel(R) Core(TM) ..."
+        v.split_once(':')
+            .map(|(_, val)| val.trim().to_string())
+            .filter(|s| !s.is_empty())
+    })
 }
 
 #[cfg(target_os = "macos")]

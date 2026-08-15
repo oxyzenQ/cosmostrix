@@ -9,10 +9,7 @@
 
 use std::time::{Duration, Instant};
 
-#[cfg(unix)]
-use std::sync::atomic::AtomicBool;
-#[cfg(unix)]
-use std::sync::Arc;
+use crate::platform::TermReinit;
 
 use crate::charset::{build_chars, charset_from_str};
 use crate::cloud::Cloud;
@@ -109,7 +106,7 @@ pub(super) fn handle_keybinding(
     user_ranges: &[(char, char)],
     def_ascii: bool,
     _cfg: &CloudConfig,
-    #[cfg(unix)] _term_reinit: &Arc<AtomicBool>,
+    _term_reinit: &TermReinit,
 ) -> bool {
     use crossterm::event::KeyCode;
 

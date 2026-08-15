@@ -50,8 +50,8 @@ impl EnvSnapshot {
             term: env_str("TERM"),
             term_program: env_str("TERM_PROGRAM"),
             term_version: env_str("TERM_PROGRAM_VERSION"),
-            cpu_governor: linux_sys_read("scaling_governor"),
-            smt_active: linux_smt_active(),
+            cpu_governor: crate::platform::sysfs_cpu_freq("scaling_governor"),
+            smt_active: crate::platform::sysfs_smt_active(),
         }
     }
 }
@@ -117,43 +117,6 @@ fn kernel_version() -> Option<String> {
 
 #[cfg(not(unix))]
 fn kernel_version() -> Option<String> {
-    None
-}
-
-/// Read a single line from `/sys/devices/system/cpu/cpu0/cpufreq/<key>`.
-/// Returns None if the file doesn't exist (e.g. on non-Linux or systems
-/// without CPUFreq).
-#[cfg(target_os = "linux")]
-fn linux_sys_read(key: &str) -> Option<String> {
-    let path = format!("/sys/devices/system/cpu/cpu0/cpufreq/{key}");
-    std::fs::read_to_string(&path)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-}
-
-#[cfg(not(target_os = "linux"))]
-fn linux_sys_read(_key: &str) -> Option<String> {
-    None
-}
-
-/// Read SMT active status from `/sys/devices/system/cpu/smt/active`.
-/// Returns "on" or "off" on Linux with SMT support; None otherwise.
-#[cfg(target_os = "linux")]
-fn linux_smt_active() -> Option<String> {
-    let raw = std::fs::read_to_string("/sys/devices/system/cpu/smt/active")
-        .ok()?
-        .trim()
-        .to_string();
-    match raw.as_str() {
-        "1" => Some("on".to_string()),
-        "0" => Some("off".to_string()),
-        _ => Some(raw),
-    }
-}
-
-#[cfg(not(target_os = "linux"))]
-fn linux_smt_active() -> Option<String> {
     None
 }
 
@@ -241,9 +204,9 @@ mod tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn linux_sys_read_returns_none_for_nonexistent_file() {
+    fn sysfs_cpu_freq_returns_none_for_nonexistent_file() {
         // A key that definitely doesn't exist in cpufreq.
-        let result = linux_sys_read("definitely_nonexistent_key_xyz123");
+        let result = crate::platform::sysfs_cpu_freq("definitely_nonexistent_key_xyz123");
         assert!(result.is_none(), "nonexistent /sys file must return None");
     }
 

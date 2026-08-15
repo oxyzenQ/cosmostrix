@@ -25,9 +25,6 @@
 //! process footprint", not as a precise allocator accounting. For allocator
 //! accounting, run under `valgrind --tool=massif` or `heaptrack` separately.
 
-#[cfg(target_os = "linux")]
-use std::io::Read;
-
 /// Sample the current process RSS in kibibytes (KiB), if available.
 ///
 /// Returns `None` on unsupported platforms or if the OS query fails. The
@@ -58,34 +55,10 @@ pub(crate) fn current_rss_kb() -> Option<u64> {
 
 #[cfg(target_os = "linux")]
 fn linux_rss_kb() -> Option<u64> {
-    // /proc/self/status is a small text file (~4 KiB). Read it into a
-    // stack-anchored buffer to avoid heap allocation on the hot sampling
-    // path. 8 KiB is generous; the file is typically ~3 KiB.
-    let mut file = std::fs::File::open("/proc/self/status").ok()?;
-    let mut buf = [0u8; 8192];
-    let n = file.read(&mut buf).ok()?;
-    let text = std::str::from_utf8(&buf[..n]).ok()?;
-
-    // Parse line-by-line. The field we want is `VmRSS:    12345 kB`.
-    // We do a manual byte scan instead of `.lines().find()` to avoid
-    // allocating a `Vec<&str>` per call.
-    for line in text.split('\n') {
-        if let Some(rest) = line.strip_prefix("VmRSS:") {
-            // Rest looks like "    12345 kB"
-            let trimmed = rest.trim();
-            // Take leading digits, ignore the trailing " kB" suffix.
-            let digits_end = trimmed
-                .bytes()
-                .position(|b| !b.is_ascii_digit())
-                .unwrap_or(trimmed.len());
-            if digits_end == 0 {
-                return None;
-            }
-            let value: u64 = trimmed[..digits_end].parse().ok()?;
-            return Some(value);
-        }
-    }
-    None
+    // Delegated to the platform abstraction layer. The parsing logic
+    // (find "VmRSS:" line, extract leading digits, skip " kB" suffix)
+    // is centralized in `crate::platform::procfs_field_u64`.
+    crate::platform::procfs_field_u64("/proc/self/status", "VmRSS:")
 }
 
 // ── macOS: mach_task_basic_info via libc ────────────────────────────────────

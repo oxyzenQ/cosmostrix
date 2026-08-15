@@ -32,12 +32,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     crate::spawn_kill9_terminal_guard();
 
     // Install signal handlers + watchdog (extracted to signal_handlers.rs).
+    // term_reinit is TermReinit (Arc<AtomicBool> on Unix, () on Windows).
+    // On Windows, TermReinit=() so all swap() calls are eliminated at
+    // compile time — no #[cfg] needed at the usage sites.
     let (signal_exit, term_reinit) = super::signal_handlers::install_signal_handlers();
-    // On non-Unix (Windows), term_reinit is unused — no SIGCONT/SIGTSTP.
-    // Consume it here to suppress the unused_variable warning. On Unix,
-    // this line is cfg'd out and term_reinit is used later for SIGCONT.
-    #[cfg(not(unix))]
-    let _ = term_reinit;
 
     // AB-10: emit pre-alt-screen warnings BEFORE Terminal::with_signal_exit()
     // enters the alt screen. Otherwise they leak into the rain matrix.
@@ -561,8 +559,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             break;
         }
         let mut pending_resize: Option<(u16, u16)> = None;
-        #[cfg(unix)]
-        if term_reinit.swap(false, Ordering::AcqRel) {
+        if crate::platform::swap_term_reinit(&term_reinit) {
             drop(term);
             term = Terminal::with_signal_exit(signal_exit.clone())?;
             // v17: always re-enable mouse reporting after SIGCONT (see
@@ -715,7 +712,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             &user_ranges,
                             def_ascii,
                             cfg,
-                            #[cfg(unix)]
                             &term_reinit,
                         );
                         if cfg.screensaver {
