@@ -181,7 +181,7 @@ pub(crate) struct HudState {
     screen_size: (u16, u16, bool),
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
-    /// 9 lines: fps / tgt / p99 / max / rss / cpu / up / screensize /
+    /// 9 lines: fps / tgt / max / p99 / cpu / rss / up / screensize /
     /// commit-id (cid). The cid line is static (compile-time git SHA
     /// injected by build.rs via `COSMOSTRIX_GIT_SHA`), so its text is
     /// set once in `new()` and only its color is refreshed by
@@ -239,10 +239,16 @@ impl HudState {
             cached_lines: [
                 (Color::Cyan, String::new()),
                 (Color::Cyan, String::new()), // tgt line — uses `dim` (tail) at runtime
-                (Color::Yellow, String::new()),
-                (Color::Magenta, String::new()),
-                (Color::Green, String::new()),
-                (Color::Cyan, String::new()), // cpu line — uses `mid` at runtime
+                // v50 (2026-08-15): rows 2-5 reordered intra-pair to match
+                // htop/btop convention — extreme before representative
+                // (max before p99), active before passive (cpu before rss).
+                // Brightness gradient stop assignments are unchanged —
+                // colors[i] still maps to cached_lines[i]. Only the content
+                // at each index changed.
+                (Color::Magenta, String::new()), // max line (was row 3)
+                (Color::Yellow, String::new()),  // p99 line (was row 2)
+                (Color::Cyan, String::new()),    // cpu line — uses `mid` at runtime (was row 5)
+                (Color::Green, String::new()),   // rss line (was row 4)
                 (Color::DarkCyan, String::new()),
                 (Color::DarkCyan, String::new()),
                 // cid line — commit short SHA, static for the entire
@@ -462,10 +468,10 @@ impl HudState {
     /// ```text
     ///   row 0  fps          ← dim      (tail — palette index 1)
     ///   row 1  tgt          ← dim
-    ///   row 2  p99          ← trail    (palette index n/4)
-    ///   row 3  max          ← trail
-    ///   row 4  rss          ← mid      (palette index n/2)
-    ///   row 5  cpu          ← mid
+    ///   row 2  max          ← trail    (palette index n/4)
+    ///   row 3  p99          ← trail
+    ///   row 4  cpu          ← mid      (palette index n/2)
+    ///   row 5  rss          ← mid
     ///   row 6  up           ← head     (palette last stop, brightest)
     ///   row 7  screensize   ← head     (rain head — leading white)
     ///   row 8  cid          ← head     (build identity — same head stop)
@@ -613,9 +619,12 @@ impl HudState {
             FrameMode::Paused => " paused".to_string(),
         };
         self.cached_lines[1] = (colors[1], format!(" tgt: {tgt_str}{mode_suffix}"));
-        self.cached_lines[2] = (colors[2], format!(" p99: {:.3}ms", self.p99_ms));
-        self.cached_lines[3] = (colors[3], format!(" max: {:.3}ms", self.max_ms));
-        self.cached_lines[4] = (colors[4], format!(" rss: {rss_str}"));
+        // v50 (2026-08-15): intra-pair swap — max before p99 (extreme
+        // first), cpu before rss (active first). Matches htop/btop/mangoHUD
+        // convention. Brightness gradient stop assignments (colors[i]) are
+        // unchanged — only the content at each index moved.
+        self.cached_lines[2] = (colors[2], format!(" max: {:.3}ms", self.max_ms));
+        self.cached_lines[3] = (colors[3], format!(" p99: {:.3}ms", self.p99_ms));
         // CPU% line: process CPU usage with 2-decimal precision.
         // Format: ` cpu: 0.45%` (single-threaded typical: 0-5%) or
         // ` cpu: —` when the sampler is unsupported (non-unix) or
@@ -625,17 +634,18 @@ impl HudState {
         // The em dash is U+2014 (3 bytes UTF-8) but renders as 1 cell —
         // matches the existing `rss: —` fallback convention.
         //
-        // Color: uses `mid` (palette_colors[n/2]) brightened — same as
-        // the p99 line. This is intentional: cpu% is a metric the user
-        // actively watches when investigating performance, so it
-        // deserves a bright color. The `dim` color is reserved for
-        // uptime/screensize which are informational only. Brightening
-        // guarantees readability on dark rain palettes.
+        // Color: uses `mid` (palette_colors[n/2]) brightened. This is
+        // intentional: cpu% is a metric the user actively watches when
+        // investigating performance, so it deserves a bright color. The
+        // `dim` color is reserved for uptime/screensize which are
+        // informational only. Brightening guarantees readability on dark
+        // rain palettes.
         let cpu_str = match self.cpu_percent {
             Some(pct) => format!("{pct:.2}%"),
             None => "—".to_string(),
         };
-        self.cached_lines[5] = (colors[5], format!(" cpu: {cpu_str}"));
+        self.cached_lines[4] = (colors[4], format!(" cpu: {cpu_str}"));
+        self.cached_lines[5] = (colors[5], format!(" rss: {rss_str}"));
         self.cached_lines[6] = (colors[6], format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };

@@ -27,10 +27,10 @@ each line means without reading the full reference below.
 |-----|--------------|----------------|----------------------------------------------------------------------------------------------------|
 | 0   | ` fps:`      | FPS (number)   | Render-work throughput = `1000 / avg_work_ms`. Often 10-100× higher than `tgt:` because loop sleep is excluded. |
 | 1   | ` tgt:`      | FPS (number)   | **Target** FPS cap from `--fps` / `config.toml`. The cap you configured, with optional `idle` / `paused` mode suffix. |
-| 2   | ` p99:`      | ms             | 99th-percentile frame time. The slowest 1% of recent frames — catches spikes `avg` hides.          |
-| 3   | ` max:`      | ms             | Maximum frame time observed in the last 60 seconds. Auto-resets so a startup spike does not dominate forever. |
-| 4   | ` rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth → possible leak.                       |
-| 5   | ` cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
+| 2   | ` max:`      | ms             | Maximum frame time observed in the last 60 seconds. Auto-resets so a startup spike does not dominate forever. |
+| 3   | ` p99:`      | ms             | 99th-percentile frame time. The slowest 1% of recent frames — catches spikes `avg` hides.          |
+| 4   | ` cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
+| 5   | ` rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth → possible leak.                       |
 | 6   | ` up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
 | 7   | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
 | 8   | ` cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
@@ -60,10 +60,10 @@ visible at once; this mockup annotates each:
 ┌─────────────────────────┐
 │ fps: 451      ◄── 0. render-work throughput (NOT the cap)
 │ tgt: 60       ◄── 1. your --fps cap, "60" = sixty FPS target
-│ p99: 0.832ms  ◄── 2. slowest 1% of frames (spike detector)
-│ max: 1.204ms  ◄── 3. worst frame in last 60s (auto-resets)
-│ rss: 8.2MiB   ◄── 4. process memory (leak detector)
-│ cpu: 1.43%    ◄── 5. process CPU% (one core = 100%)
+│ max: 1.204ms  ◄── 2. worst frame in last 60s (auto-resets)
+│ p99: 0.832ms  ◄── 3. slowest 1% of frames (spike detector)
+│ cpu: 1.43%    ◄── 4. process CPU% (one core = 100%)
+│ rss: 8.2MiB   ◄── 5. process memory (leak detector)
 │ up: 03:42     ◄── 6. session uptime (MM:SS under 1h)
 │ 200x50 auto   ◄── 7. terminal size + mode (auto/fix)
 │ cid: 6ed244b  ◄── 8. build commit id (verify without quitting)
@@ -171,7 +171,17 @@ See `docs/archive/specs/ATMOSPHERE_ENGINE.md` for the original
 discussion (atmosphere engine archival — the HUD `tgt:` line was added
 in the same Dragon Hunt v2 Phase 6 window).
 
-### 3. ` p99: <ms>`
+### 3. ` max: <ms>`
+
+**Maximum frame time** observed in the last 60 seconds. Auto-resets
+every `MAX_RESET_INTERVAL_SECS` (60s) so a startup spike from 10
+minutes ago doesn't dominate the display forever.
+
+Use `max` together with `p99`: if `max` is much larger than `p99`,
+the spike was a one-off (likely a resize event, signal, or first-frame
+cold cache). If `max` is close to `p99`, the slow path is recurring.
+
+### 4. ` p99: <ms>`
 
 **99th-percentile frame time** in milliseconds, computed from a ring
 buffer of recent frame times (stack-allocated sort, ~300ns, called
@@ -182,27 +192,7 @@ infrequent spikes that `avg` hides. A healthy p99 is `< 2× avg`. A p99
 that is `10× avg` means there are periodic stalls (GC pauses, kernel
 scheduling, terminal-emulator backpressure).
 
-### 4. ` max: <ms>`
-
-**Maximum frame time** observed in the last 60 seconds. Auto-resets
-every `MAX_RESET_INTERVAL_SECS` (60s) so a startup spike from 10
-minutes ago doesn't dominate the display forever.
-
-Use `max` together with `p99`: if `max` is much larger than `p99`,
-the spike was a one-off (likely a resize event, signal, or first-frame
-cold cache). If `max` is close to `p99`, the slow path is recurring.
-
-### 5. ` rss: <size>`
-
-**Process RSS** (resident set size) in KiB or MiB. Sampled at 1 Hz via
-`memstat::current_rss_kb()` (reads `/proc/self/status` on Linux,
-`task_info` on macOS, `getrusage` on BSD/Android).
-
-On Linux, `rss` includes all resident pages (code + heap + mmap'd
-files). A growing `rss` over a long session suggests a memory leak
-— check `docs/ENDURANCE.md` for the leak-detection methodology.
-
-### 6. ` cpu: <percent>`
+### 5. ` cpu: <percent>`
 
 **Process CPU%** with 2-decimal precision. Sampled at 1 Hz as the
 delta between two `cpustat::current_cpu_ns()` readings (Linux:
@@ -216,6 +206,16 @@ display width safety.
 
 Shows `—` (em dash) on unsupported platforms (non-unix) or during the
 brief pre-delta window (first ~1s after HUD toggle-on).
+
+### 6. ` rss: <size>`
+
+**Process RSS** (resident set size) in KiB or MiB. Sampled at 1 Hz via
+`memstat::current_rss_kb()` (reads `/proc/self/status` on Linux,
+`task_info` on macOS, `getrusage` on BSD/Android).
+
+On Linux, `rss` includes all resident pages (code + heap + mmap'd
+files). A growing `rss` over a long session suggests a memory leak
+— check `docs/ENDURANCE.md` for the leak-detection methodology.
 
 ### 7. ` up: <duration>`
 
@@ -287,7 +287,7 @@ User runs `cosmostrix --fps 30`, presses `i`, sees:
 ```
  fps: 11000
  tgt: 30
- p99: 0.150ms
+ max: 0.150ms
  ...
 ```
 
@@ -328,10 +328,10 @@ of equally-bright text.
 |-----|--------------|-------------|--------------------------|
 | 0   | `fps`        | dim         | palette index 1 (tail)   |
 | 1   | `tgt`        | dim         | palette index 1 (tail)   |
-| 2   | `p99`        | trail       | palette index n/4        |
-| 3   | `max`        | trail       | palette index n/4        |
-| 4   | `rss`        | mid         | palette index n/2 (body) |
-| 5   | `cpu`        | mid         | palette index n/2 (body) |
+| 2   | `max`        | trail       | palette index n/4        |
+| 3   | `p99`        | trail       | palette index n/4        |
+| 4   | `cpu`        | mid         | palette index n/2 (body) |
+| 5   | `rss`        | mid         | palette index n/2 (body) |
 | 6   | `up`         | head        | palette last stop        |
 | 7   | `screensize` | head        | palette last stop        |
 

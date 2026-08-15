@@ -406,7 +406,7 @@ RUNTIME CONTROLS:
   x             Cycle scene       [ / ]      Density
   Up / Down     Speed
   Space         Reset animation
-  i             Toggle live HUD (fps / tgt / p99 / max / RSS / CPU% / uptime / screen)
+  i             Toggle live HUD (fps / tgt / max / p99 / CPU% / RSS / uptime / screen)
                 See docs/HUD.md for what each line means, why `fps:` ≠ `--fps`,
                 and diagnostic recipes for common symptoms.
   h             Move HUD to opposite corner (left ↔ right)

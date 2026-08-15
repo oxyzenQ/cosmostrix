@@ -413,7 +413,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
   c / C         Cycle theme       s / S      Cycle charset
   x             Cycle scene       [ / ]      Density
   Up / Down     Speed             Space      Reseed animation
-  i             Toggle live HUD (FPS / p99 / max / RSS / uptime)
+  i             Toggle live HUD (FPS / max / p99 / CPU% / RSS / uptime)
   h             Move HUD to opposite corner (left ↔ right)
 ```
 

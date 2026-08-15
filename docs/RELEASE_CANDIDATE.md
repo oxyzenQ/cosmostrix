@@ -128,7 +128,7 @@ platforms they emit `unsupported` with a reason field.
 
 Then press `i` and verify:
 
-- A top-right overlay appears showing `fps`, `tgt`, `p99`, `max`, `rss`, `cpu`, `up`, `screensize`.
+- A top-right overlay appears showing `fps`, `tgt`, `max`, `p99`, `cpu`, `rss`, `up`, `screensize`.
 - The overlay updates ~1 time per second without flickering.
 - Press `i` again — the overlay disappears cleanly.
 - Press `q` — clean exit, terminal restored.

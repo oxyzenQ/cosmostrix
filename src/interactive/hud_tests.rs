@@ -120,12 +120,15 @@ fn hud_toggle_preserves_cpu_baseline_for_instant_reopen() {
 
 #[test]
 fn hud_cpu_line_renders_dash_when_unsupported() {
-    // Verify the cached_lines[5] entry renders ` cpu: —` when
+    // Verify the cached_lines[4] entry renders ` cpu: —` when
     // cpu_percent is None. This is the user-visible contract:
     // unsupported platforms (non-unix) and the brief pre-delta
     // window after HUD-on both show the em dash, not `0.00%`.
     // (v30 2026-08-05: index shifted from [4] to [5] because a new
     // `tgt:` line was inserted at index [1].)
+    // (v50 2026-08-15: index shifted back from [5] to [4] after the
+    // intra-pair HUD reorder — cpu moved above rss to match htop
+    // convention: active before passive.)
     let mut h = HudState::new();
     h.toggle(); // visible
                 // Force-update metrics without sampling — cpu_percent stays None.
@@ -136,8 +139,8 @@ fn hud_cpu_line_renders_dash_when_unsupported() {
         h.cpu_percent.is_none(),
         "cpu_percent must be None before any sample"
     );
-    // cached_lines[5] is the cpu line (after v30 tgt line insertion).
-    let (_, cpu_line) = &h.cached_lines[5];
+    // cached_lines[4] is the cpu line (after v50 intra-pair reorder).
+    let (_, cpu_line) = &h.cached_lines[4];
     assert!(
         cpu_line.contains('—'),
         "cpu line must render em dash when unsupported, got: {cpu_line:?}"
@@ -152,11 +155,14 @@ fn hud_cpu_line_renders_percent_with_two_decimals_when_supported() {
     // behavior — if we later change to 1 decimal, this test fails.
     // (v30 2026-08-05: index shifted from [4] to [5] because a new
     // `tgt:` line was inserted at index [1].)
+    // (v50 2026-08-15: index shifted back from [5] to [4] after the
+    // intra-pair HUD reorder — cpu moved above rss to match htop
+    // convention: active before passive.)
     let mut h = HudState::new();
     h.toggle(); // visible
     h.cpu_percent = Some(12.3456); // should render as 12.35%
     h.update_metrics(&[]);
-    let (_, cpu_line) = &h.cached_lines[5];
+    let (_, cpu_line) = &h.cached_lines[4];
     assert!(
         cpu_line.contains("12.35%"),
         "cpu line must render 2-decimal percent, got: {cpu_line:?}"
@@ -167,8 +173,9 @@ fn hud_cpu_line_renders_percent_with_two_decimals_when_supported() {
 fn hud_has_nine_cached_lines_after_v50_cid_addition() {
     // Regression guard: the HUD must have exactly 9 cached lines
     // after the v50 addition of the `cid:` (commit id) line at
-    // index [8]. The previous count was 8 (fps / tgt / p99 / max /
-    // rss / cpu / up / screensize); now 9 (adds cid at row 8).
+    // index [8]. The previous count was 8 (fps / tgt / max / p99 /
+    // cpu / rss / up / screensize post-v50 intra-pair reorder); now 9
+    // (adds cid at row 8).
     // The cid line shares the head color stop with screensize.
     // If a future change adds or removes a line, this test will
     // catch it.
@@ -483,7 +490,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             g: 255,
             b: 255
         },
-        "row 2 (p99) must NOT use head — only bottom row gets head"
+        "row 2 (max) must NOT use head — only bottom row gets head"
     );
     assert_ne!(
         h.cached_lines[4].0,
@@ -492,7 +499,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             g: 255,
             b: 255
         },
-        "row 4 (rss) must NOT use head — only bottom row gets head"
+        "row 4 (cpu) must NOT use head — only bottom row gets head"
     );
 }
 
