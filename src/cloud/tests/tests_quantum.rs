@@ -1189,8 +1189,8 @@ fn quantum_lifespan_constant_in_masterclass_range() {
 ///   - 12-30 cells/sec: cell transition every 2-5 frames (acceptable)
 ///   - 30-60 cells/sec: cell transition every 1-2 frames (smooth)
 ///   - Above 60 cells/sec: 1+ cells/frame (blur)
-/// The valid range is [12, 60] — wide enough to cover both conservative
-/// and aggressive tuning without allowing blur-inducing speeds.
+///   - The valid range is [12, 60] — wide enough to cover both conservative
+///     and aggressive tuning without allowing blur-inducing speeds.
 #[test]
 fn quantum_speed_constant_in_smooth_drift_range() {
     assert!(
@@ -1206,21 +1206,17 @@ fn quantum_speed_constant_in_smooth_drift_range() {
 /// smooth ramp (at least 30% of life).
 #[test]
 fn quantum_brightness_curve_segments_well_ordered() {
-    assert!(
+    const _: () = assert!(
         QUANTUM_RIPPLE_HEAD_END_FRAC > 0.0 && QUANTUM_RIPPLE_HEAD_END_FRAC < 1.0,
-        "HEAD_END_FRAC must be in (0, 1), got {}",
-        QUANTUM_RIPPLE_HEAD_END_FRAC
+        "HEAD_END_FRAC must be in (0, 1)"
     );
-    assert!(
+    const _: () = assert!(
         QUANTUM_RIPPLE_TAIL_START_FRAC > 0.0 && QUANTUM_RIPPLE_TAIL_START_FRAC < 1.0,
-        "TAIL_START_FRAC must be in (0, 1), got {}",
-        QUANTUM_RIPPLE_TAIL_START_FRAC
+        "TAIL_START_FRAC must be in (0, 1)"
     );
-    assert!(
+    const _: () = assert!(
         QUANTUM_RIPPLE_HEAD_END_FRAC < QUANTUM_RIPPLE_TAIL_START_FRAC,
-        "HEAD_END_FRAC ({}) must precede TAIL_START_FRAC ({})",
-        QUANTUM_RIPPLE_HEAD_END_FRAC,
-        QUANTUM_RIPPLE_TAIL_START_FRAC
+        "HEAD_END_FRAC must precede TAIL_START_FRAC"
     );
     let body_width = QUANTUM_RIPPLE_TAIL_START_FRAC - QUANTUM_RIPPLE_HEAD_END_FRAC;
     assert!(
