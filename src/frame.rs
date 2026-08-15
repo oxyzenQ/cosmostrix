@@ -60,6 +60,13 @@ use crate::constants::{
 /// `--benchmark` realloc counters on common screen sizes.
 const DIRTY_INLINE_CAPACITY: usize = 256;
 
+/// Reset threshold for generation counters: reset well before u32::MAX to
+/// avoid a surprise memset stall during benchmarks or demos. At 60 FPS,
+/// u32::MAX ≈ 2.27 years. We reset at this threshold (~2.1 years) to add
+/// a ~3-month safety margin. The memset at 4K resolution (33M cells × 4B)
+/// is ~132ms — amortized over 2+ years, negligible.
+const GEN_RESET_THRESHOLD: u32 = u32::MAX - 50_000_000;
+
 #[derive(Clone, Debug)]
 pub struct Frame {
     pub width: u16,
@@ -144,7 +151,7 @@ impl Frame {
     pub fn clear_with_bg(&mut self, bg: Option<crossterm::style::Color>) {
         self.blank = Cell::blank_with_bg(bg);
         self.gen = self.gen.wrapping_add(1);
-        if self.gen == 0 {
+        if self.gen == 0 || self.gen >= GEN_RESET_THRESHOLD {
             self.cell_gen.fill(0);
             self.gen = 1;
         }
@@ -209,10 +216,10 @@ impl Frame {
         // dirty_all is also reset here — the renderer's full-redraw flag
         // applies per-frame, not across frames.
         self.dirty_gen = self.dirty_gen.wrapping_add(1);
-        if self.dirty_gen == 0 {
-            // Overflow: u32::MAX frames at 60 FPS ≈ 2 years. Reset all
-            // stamps to 0 and restart the counter at 1. Cost: one O(N)
-            // memset every ~2 years — negligible.
+        if self.dirty_gen == 0 || self.dirty_gen >= GEN_RESET_THRESHOLD {
+            // Overflow safety: reset all stamps well before u32::MAX.
+            // At 60 FPS, the threshold is reached after ~2.1 years.
+            // Cost: one O(N) memset — amortized over 2+ years, negligible.
             self.dirty_cell_gen.fill(0);
             self.dirty_gen = 1;
         }

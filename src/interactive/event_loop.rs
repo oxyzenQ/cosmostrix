@@ -29,7 +29,6 @@ use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 use crate::central_control_dragon_power::sample_thermal_pressure;
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
-    #[cfg(target_os = "linux")]
     crate::spawn_kill9_terminal_guard();
 
     // Install signal handlers + watchdog (extracted to signal_handlers.rs).

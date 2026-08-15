@@ -143,6 +143,7 @@ mod output;
 mod panic_hook;
 // `palette` now lives at `src/chroma/palette.rs`; re-exported above.
 mod profile;
+mod posix_time;
 #[cfg(test)]
 mod property_tests;
 mod rain_style;
@@ -284,6 +285,57 @@ pub fn spawn_kill9_terminal_guard() {
         libc::_exit(0);
     }
 }
+
+/// macOS equivalent of the Linux fork guard.
+///
+/// macOS lacks `prctl(PR_SET_PDEATHSIG)`, so we use a background thread
+/// that polls `getppid()`. When the parent dies (ppid becomes 1, i.e.
+/// reparented to launchd), the thread restores the terminal state.
+///
+/// This is inferior to the Linux fork guard (polling interval vs instant
+/// signal delivery), but covers the SIGKILL/crash case that the panic hook
+/// and watchdog alone cannot handle. The polling interval of 500ms is a
+/// compromise: fast enough to restore within half a second, slow enough to
+/// be negligible CPU overhead.
+#[cfg(target_os = "macos")]
+pub fn spawn_kill9_terminal_guard() {
+    if env_var_truthy("COSMOSTRIX_NO_FORK_GUARD") {
+        return;
+    }
+
+    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
+        return;
+    }
+
+    // SAFETY: tcgetattr is the standard POSIX call to read terminal
+    // attributes. stdin is confirmed to be a TTY above.
+    let orig = unsafe {
+        let mut termios: std::mem::MaybeUninit<libc::termios> = std::mem::MaybeUninit::uninit();
+        if libc::tcgetattr(libc::STDIN_FILENO, termios.as_mut_ptr()) != 0 {
+            return;
+        }
+        termios.assume_init()
+    };
+
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(500));
+            // SAFETY: getppid() is a simple POSIX call, always safe.
+            if unsafe { libc::getppid() } == 1 {
+                // Parent died — restore terminal and exit this thread.
+                let _ = unsafe {
+                    libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig)
+                };
+                restore_terminal_best_effort();
+                return;
+            }
+        }
+    });
+}
+
+/// No-op on platforms without a fork guard (Windows, etc.).
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub fn spawn_kill9_terminal_guard() {}
 
 fn main() -> std::io::Result<()> {
     // MUST be first — checks CPU features before any v3/v4 instructions execute

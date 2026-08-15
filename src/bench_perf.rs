@@ -69,12 +69,9 @@ mod linux {
         }
     }
 
-    extern "C" {
-        fn syscall(num: libc::c_long, ...) -> libc::c_long;
-        fn close(fd: libc::c_int) -> libc::c_int;
-    }
-
-    const SYS_PERF_EVENT_OPEN: libc::c_long = 298;
+    // Use libc's arch-correct syscall number instead of a hardcoded value.
+    // x86_64: 298, aarch64: 241, riscv64: 280 — libc provides the right one.
+    const SYS_PERF_EVENT_OPEN: libc::c_long = libc::SYS_perf_event_open;
 
     fn open_counter(config: u64) -> Option<i32> {
         // SAFETY: syscall() and libc::ioctl() are FFI calls into the Linux
@@ -90,7 +87,7 @@ mod linux {
             };
             // pid=0 (this process), cpu=0 (specific core — needed for perf_event_open),
             // group_fd=-1, flags=0
-            let fd = syscall(
+            let fd = libc::syscall(
                 SYS_PERF_EVENT_OPEN,
                 &attr as *const PerfEventAttr as *mut PerfEventAttr,
                 0i32,  // pid=0: measure this process
@@ -110,10 +107,12 @@ mod linux {
                 // but reads silently return 0 — better to close + report
                 // unavailable than emit a misleading `available: true` with
                 // zero counters.
-                if libc::ioctl(fd, 0x2400u64 as _) < 0 {
+                // PERF_EVENT_IOC_ENABLE = _IOW('$', 0, __u32) = 0x2400.
+                // Not yet exported by libc 0.2.x; defined per Linux perf_event.h.
+                const PERF_EVENT_IOC_ENABLE: libc::c_ulong = 0x2400;
+                if libc::ioctl(fd, PERF_EVENT_IOC_ENABLE, 0) < 0 {
                     // SAFETY: fd is a valid open file descriptor just obtained
-                    // from libc::open above; close it to avoid fd leak. Outer
-                    // unsafe block (line 86) already provides the unsafe context.
+                    // from syscall above; close it to avoid fd leak.
                     libc::close(fd);
                     None
                 } else {
@@ -147,7 +146,7 @@ mod linux {
             // can race with fd reuse in concurrent code — this code is
             // single-threaded with respect to perf counters).
             unsafe {
-                close(fd);
+                libc::close(fd);
             }
         }
     }

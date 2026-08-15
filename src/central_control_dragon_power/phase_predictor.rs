@@ -131,27 +131,13 @@ impl Default for PhasePredictor {
 /// In practice, the event loop calls `local_secs_since_midnight()` directly
 /// (power_manager.rs). For environments without timezone support, falls back
 /// to 0.0 (predictions start from midnight).
+/// Delegates to `crate::posix_time::local_tm()` — see that module for the
+/// consolidated POSIX FFI path.
 #[cfg(unix)]
 pub(crate) fn local_secs_since_midnight() -> f64 {
-    use std::mem::MaybeUninit;
-    // SAFETY: libc::time(NULL) is the documented POSIX call — writes nothing
-    // when the pointer is NULL, returns time_t or -1 on error. No preconditions.
-    let now = unsafe { libc::time(std::ptr::null_mut()) };
-    if now < 0 {
-        return 0.0;
-    }
-    let mut tm: MaybeUninit<libc::tm> = MaybeUninit::uninit();
-    let tm_ptr = tm.as_mut_ptr();
-    // SAFETY: localtime_r is the thread-safe POSIX variant. It reads `now`
-    // (a valid time_t value, checked >= 0 above) and writes into our
-    // MaybeUninit<tm> buffer. Returns NULL on failure (handled below).
-    if unsafe { libc::localtime_r(&now, tm_ptr) }.is_null() {
-        return 0.0;
-    }
-    // SAFETY: localtime_r returned non-NULL, which per POSIX means the tm
-    // struct has been fully initialized. assume_init() is now sound.
-    let tm = unsafe { tm.assume_init() };
-    (tm.tm_hour as f64 * 3600.0) + (tm.tm_min as f64 * 60.0) + tm.tm_sec as f64
+    crate::posix_time::local_tm()
+        .map(|tm| tm.secs_since_midnight())
+        .unwrap_or(0.0)
 }
 
 // cfg(not(unix)): Fallback uses UTC seconds. The predictor still works,
