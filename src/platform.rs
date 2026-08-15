@@ -48,12 +48,15 @@ pub(crate) type TermReinit = ();
 ///
 /// On Unix, returns a new `Arc<AtomicBool>` initialized to `false`.
 /// On non-Unix, returns `()`.
+/// Only used in test code (interactive/tests.rs).
+#[cfg(test)]
 #[cfg(unix)]
 #[inline]
 pub(crate) fn default_term_reinit() -> TermReinit {
     std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false))
 }
 
+#[cfg(test)]
 #[cfg(not(unix))]
 #[inline]
 #[must_use]
