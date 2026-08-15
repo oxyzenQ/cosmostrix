@@ -61,7 +61,6 @@ Expected output:
 
 ```
 gpg: Good signature from "Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>"
-gpg:                 aka "Rezky Cahya Sahputra (rezky_nightky) <with.rezky@gmail.com>"
 ```
 
 A `Good signature` line confirms authenticity. The `WARNING: This key is not certified with a trusted signature` notice is normal for first-time imports — verify the fingerprint matches `F532 4E09 67F1 04D5 8CE0 25F3 47A5 0AEF 4B65 AAC2`.
