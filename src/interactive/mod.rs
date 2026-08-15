@@ -114,9 +114,12 @@ pub(crate) fn emit_pre_alt_screen_warnings(fixed_size: Option<(u16, u16)>, intro
         let tw = tw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
         let th = th.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
         if fixed.0 > tw || fixed.1 > th {
-            eprintln!(
+            crate::output::eprintln_safe!(
                 "warning: --screen-size {}x{} exceeds terminal {}x{}; will clip to top-left",
-                fixed.0, fixed.1, tw, th
+                fixed.0,
+                fixed.1,
+                tw,
+                th
             );
         }
     }
@@ -125,7 +128,7 @@ pub(crate) fn emit_pre_alt_screen_warnings(fixed_size: Option<(u16, u16)>, intro
         let tw = tw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
         let th = th.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
         if tw < intro::MIN_INTRO_COLS || th < intro::MIN_INTRO_LINES {
-            eprintln!(
+            crate::output::eprintln_safe!(
                 "Terminal too small for intro ({}x{} < {}x{}). Starting rain...",
                 tw,
                 th,

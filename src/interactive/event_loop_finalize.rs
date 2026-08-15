@@ -129,7 +129,7 @@ pub(crate) fn finalize_session(
     // it a verbose leak — without -v or --perf-stats, the user sees
     // unexpected output after exit. Now gated by cfg.perf_stats.
     if cfg.perf_stats {
-        eprintln!("{}", final_fps_line);
+        crate::output::eprintln_safe!("{}", final_fps_line);
     }
 
     Ok(())

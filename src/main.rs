@@ -1122,37 +1122,40 @@ fn main() -> std::io::Result<()> {
             let reset = crate::output::reset();
             crate::output::eprintln_verbose_purple("final runtime state");
             if final_color != startup_color {
-                eprintln!(
+                crate::output::eprintln_safe!(
                     "{purple}[verbose]{reset} {ts} {purple}  color_scheme:{reset}  {} (was {})",
-                    final_color, startup_color
+                    final_color,
+                    startup_color
                 );
             }
             if final_scene != startup_scene {
-                eprintln!(
+                crate::output::eprintln_safe!(
                     "{purple}[verbose]{reset} {ts} {purple}  scene:{reset}         {} (was {})",
-                    final_scene, startup_scene
+                    final_scene,
+                    startup_scene
                 );
             }
             if final_charset != startup_charset {
-                eprintln!(
+                crate::output::eprintln_safe!(
                     "{purple}[verbose]{reset} {ts} {purple}  charset:{reset}       {} (was {})",
-                    final_charset, startup_charset
+                    final_charset,
+                    startup_charset
                 );
             }
             if (final_speed - startup_speed).abs() >= 0.01 {
-                eprintln!(
+                crate::output::eprintln_safe!(
                     "{purple}[verbose]{reset} {ts} {purple}  speed:{reset}         {:.1} (was {:.1})",
                     final_speed, startup_speed
                 );
             }
             if (final_density - startup_density).abs() >= 0.01 {
-                eprintln!(
+                crate::output::eprintln_safe!(
                     "{purple}[verbose]{reset} {ts} {purple}  density:{reset}       {:.2} (was {:.2})",
                     final_density, startup_density
                 );
             }
             let diag = interactive::ambient_diag_summary();
-            eprintln!("{purple}[verbose]{reset} {ts} {purple}  {diag}{reset}");
+            crate::output::eprintln_safe!("{purple}[verbose]{reset} {ts} {purple}  {diag}{reset}");
         }
     }
 
@@ -1162,13 +1165,13 @@ fn main() -> std::io::Result<()> {
     if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
         if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
             if let Some(ref msg) = *guard {
-                eprintln!(
+                crate::output::eprintln_safe!(
                     "{} [live-reload] ERROR: {}{}",
                     crate::output::error_bold_open(),
                     msg,
                     crate::output::reset()
                 );
-                eprintln!(
+                crate::output::eprintln_safe!(
                     "{}  Config NOT applied. Fix the error and restart cosmostrix.{}",
                     crate::output::error_open(),
                     crate::output::reset()
@@ -1185,7 +1188,7 @@ fn main() -> std::io::Result<()> {
         crate::output::eprintln_warn_labeled(&w);
     }
     for t in crate::live_config_trace::drain_debug_traces() {
-        eprintln!("{t}");
+        crate::output::eprintln_safe!("{t}");
     }
     result
 }

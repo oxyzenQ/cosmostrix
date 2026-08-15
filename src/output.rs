@@ -312,11 +312,56 @@ pub(crate) fn warn(msg: &str) -> String {
     }
 }
 
+// ── Broken-pipe-safe eprintln ────────────────────────────────────────────────
+
+/// Like `eprintln!` but never panics on broken stderr.
+///
+/// Uses `write_fmt` with the error explicitly discarded. When the terminal
+/// is closed (SIGHUP, PTY destroyed), stderr becomes a broken pipe.
+/// `eprintln!` calls `stderr().write_fmt(...)` which panics on write
+/// failure (Rust std intentionally panics to surface I/O errors). A panic
+/// in post-exit paths (verbose dump, live-reload error print, debug trace
+/// drain) would unwind main(), hit the panic hook (which is safe), and
+/// abort the process with exit code 101 instead of the intended 0/2.
+///
+/// This macro breaks the chain by discarding the write error — safe to
+/// call in any context where stderr may be broken: post-exit paths,
+/// signal handlers, the watchdog thread, and the panic hook itself.
+///
+/// # When to use
+///
+/// Use `eprintln_safe!` instead of `eprintln!` in:
+/// - Post-exit verbose dumps (after `Terminal::drop` restored the terminal)
+/// - Live-reload error printing (terminal may have been closed mid-session)
+/// - Debug trace draining (same reason)
+/// - Any code path that runs after the rain loop exits
+///
+/// `eprintln!` remains fine for:
+/// - Startup output (before alt screen — stderr is a healthy TTY)
+/// - In-loop verbose output (stderr is captured by alt screen but NOT broken)
+///
+/// # Example
+///
+/// ```no_run
+/// # use crate::output::eprintln_safe;
+/// eprintln_safe!("error: {}", "config not found");
+/// eprintln_safe!("[verbose] color_scheme:  {} (was {})", "nebula", "vaporwave");
+/// ```
+macro_rules! eprintln_safe {
+    ($($arg:tt)*) => {{
+        use std::io::Write;
+        let _ = std::io::stderr().write_fmt(format_args!($($arg)*));
+        let _ = std::io::stderr().write_fmt(format_args!("\n"));
+        let _ = std::io::stderr().flush();
+    }};
+}
+pub(crate) use eprintln_safe;
+
 // ── Print helpers (stderr) ───────────────────────────────────────────────────
 
 /// Print a labeled error to stderr: "error: <msg>" in red.
 pub(crate) fn eprintln_error_labeled(msg: &str) {
-    eprintln!("{} {}", error_bold("error:"), error(msg));
+    eprintln_safe!("{} {}", error_bold("error:"), error(msg));
 }
 
 /// Print a labeled warning to stderr: "⚠ <msg>" in yellow.
@@ -325,7 +370,7 @@ pub(crate) fn eprintln_warn_labeled(msg: &str) {
     // caller can emit a summary line at the end of config apply. This helps
     // users who miss individual warnings in noisy startup output.
     STARTUP_WARNING_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    eprintln!("{} {}", warn_bold("⚠"), warn(msg));
+    eprintln_safe!("{} {}", warn_bold("⚠"), warn(msg));
 }
 
 /// Phase 5 closure (P3-5): process-lifetime counter for warnings emitted via
@@ -390,7 +435,7 @@ pub(crate) fn verbose_line(label: &str, value: &str) -> String {
 /// Print a verbose line directly to stderr. Convenience wrapper for
 /// `eprintln!("{}", verbose_line(label, value))`.
 pub(crate) fn eprintln_verbose(label: &str, value: &str) {
-    eprintln!("{}", verbose_line(label, value));
+    eprintln_safe!("{}", verbose_line(label, value));
 }
 
 /// Print a raw verbose message (no label/value split) with the
@@ -400,8 +445,8 @@ pub(crate) fn eprintln_verbose(label: &str, value: &str) {
 pub(crate) fn eprintln_verbose_raw(msg: &str) {
     let ts = now_hhmm();
     match color_capability() {
-        ColorCapability::Mono => eprintln!("[verbose] {ts} {msg}"),
-        _ => eprintln!("{}[verbose]{} {ts} {msg}", brand_bold_open(), reset()),
+        ColorCapability::Mono => eprintln_safe!("[verbose] {ts} {msg}"),
+        _ => eprintln_safe!("{}[verbose]{} {ts} {msg}", brand_bold_open(), reset()),
     }
 }
 
@@ -413,8 +458,8 @@ pub(crate) fn eprintln_verbose_raw(msg: &str) {
 pub(crate) fn eprintln_verbose_purple(msg: &str) {
     let ts = now_hhmm();
     match color_capability() {
-        ColorCapability::Mono => eprintln!("[verbose] {ts} {msg}"),
-        _ => eprintln!(
+        ColorCapability::Mono => eprintln_safe!("[verbose] {ts} {msg}"),
+        _ => eprintln_safe!(
             "{}[verbose]{} {ts} {}{}{}",
             brand_bold_open(),
             reset(),
@@ -436,6 +481,41 @@ mod tests {
         assert_eq!(BRAND_PURPLE_RGB, (168, 85, 247)); // #A855F7 purple-500
         assert_eq!(ERROR_RGB, (239, 68, 68)); // #EF4444 red-500
         assert_eq!(WARN_RGB, (234, 179, 8)); // #EAB308 yellow-500
+    }
+
+    // ── eprintln_safe! macro ──
+
+    #[test]
+    fn eprintln_safe_does_not_panic_with_format_args() {
+        // The macro must accept the same format-arg syntax as eprintln!
+        // and must never panic. We can't easily redirect stderr in a unit
+        // test, so this test only verifies panic-safety — the write goes
+        // to the real stderr (visible if you run with --nocapture).
+        eprintln_safe!("test: {} = {}", "answer", 42);
+        eprintln_safe!("no args");
+        eprintln_safe!("mixed {} {} {}", 1, "two", 3.0);
+    }
+
+    #[test]
+    fn eprintln_safe_handles_empty_string() {
+        // Edge case: empty format string. Must not panic.
+        eprintln_safe!("");
+    }
+
+    #[test]
+    fn eprintln_safe_compiles_with_complex_format() {
+        // Verify the macro accepts the same complex format strings used
+        // in main.rs post-exit paths (named args, precision, mixed types).
+        let purple = "\x1b[35m";
+        let reset = "\x1b[0m";
+        let ts = "12:34";
+        let final_color = "nebula";
+        let startup_color = "vaporwave";
+        eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  color_scheme:{reset}  {} (was {})",
+            final_color,
+            startup_color
+        );
     }
 
     // ── Phase 5 closure (P3-5): startup warning counter ──
