@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Core simulation engine for Cosmostrix — atmospheric rendering pipeline.
-//!
 //! Key systems: **DrawCtx** (read-only renderer snapshot for per-frame
 //! callbacks), **DropletSpawner** (3 parallax layers, see `spawn.rs`),
 //! **GhostEventScheduler** (ghost-kanji events, see `ghost_events.rs`),
 //! **LivingRain** (wind-gust drift, see `living_rain.rs`).
-//!
 //! On color-scheme change, new droplets inherit the new palette while
 //! existing droplets keep their old colors until they age out —
 //! transition smoothed via Phase 8 hue-preserving chroma shader
@@ -132,12 +130,17 @@ pub struct Cloud {
     pub(super) color_map: Vec<u8>,
 
     pub(super) edge_fade_lut: Vec<f32>,
+    /// Pre-baked 2D vignette factor LUT (flat: `line * cols + col`).
+    /// Eliminates per-cell sqrt + smoothstep in Droplet::draw hot path.
+    /// Rebuilt on resize alongside edge_fade_lut. ~27-48 KiB.
+    pub(super) vignette_lut: Vec<f32>,
+    /// (cols, lines) used to build vignette_lut — skip rebuild if unchanged.
+    pub(super) vignette_lut_dims: (u16, u16),
 
-    /// Phase D (hot-path): precomputed per-column hue-coherence perturbation
-    /// LUT. Built once per frame in `rain_at` from the time phase. Read by
-    /// index in the shader hot path instead of calling
-    /// `column_coherence_perturbation(phase, col)` per cell (saves
-    /// ~65-130M cycles/sec at 60 FPS on a 200-col viewport).
+    /// Phase D (hot-path): per-column hue-coherence perturbation LUT.
+    /// Built once per frame in `rain_at`. Replaces per-cell
+    /// `column_coherence_perturbation(phase, col)` (saves ~65-130M
+    /// cycles/sec at 60 FPS on a 200-col viewport).
     pub(super) column_coherence_lut: Vec<i32>,
 
     pub(super) droplet_free_list: Vec<usize>,
@@ -163,18 +166,13 @@ pub struct Cloud {
     pub(super) start_anchor: Instant,
     pub(super) spawn_remainder: f32,
     pub(super) pause_time: Option<Instant>,
-
     pub(super) resume_blend: f32,
     pub(super) resume_start: Option<Instant>,
     /// Starting resume_blend for the acceleration ramp (triple-tap 'p').
     pub(super) resume_blend_start: f32,
-
     pub(super) pause_start: Option<Instant>,
-
     pub(super) force_draw_everything: bool,
-
     pub(super) semantic_invalidate: bool,
-
     pub(super) frames_since_full_redraw: u64,
 
     /// P4: frame counter for stuck-cell sweep (gated on enable_stuck_cell_sweep).
@@ -333,6 +331,8 @@ impl Cloud {
             glitch_map: BitVec::new(),
             color_map: Vec::new(),
             edge_fade_lut: Vec::new(),
+            vignette_lut: Vec::new(),
+            vignette_lut_dims: (0, 0),
             // Phase D: preallocated — rain_at resizes+fills per frame.
             column_coherence_lut: Vec::new(),
             droplet_free_list: Vec::new(),

@@ -696,6 +696,8 @@ impl Cloud {
             char_pool: &self.char_pool,
             previous_char_pool: &self.previous_char_pool,
             edge_fade_lut: &self.edge_fade_lut,
+            vignette_lut: &self.vignette_lut,
+            vignette_lut_cols: self.vignette_lut_dims.0,
             charset_wave_line,
             color_wave_line,
             mouse_col: self.mouse_col,

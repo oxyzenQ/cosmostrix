@@ -91,6 +91,22 @@ impl Cloud {
                 .push(crate::droplet::viewport_edge_fade(line, lines));
         }
 
+        // Pre-bake 2D vignette factor LUT (flat: `line * cols + col`).
+        // Eliminates per-cell sqrt + smoothstep in Droplet::draw's hot path.
+        // At 200×60 = 48 KiB, 105×64 ≈ 27 KiB — trivial memory cost.
+        let vignette_total = (cols as usize) * (lines as usize);
+        self.vignette_lut.clear();
+        self.vignette_lut.reserve(vignette_total);
+        for line in 0..lines {
+            for col in 0..cols {
+                self.vignette_lut
+                    .push(crate::brightness_factors::vignette_factor(
+                        col, line, cols, lines,
+                    ));
+            }
+        }
+        self.vignette_lut_dims = (cols, lines);
+
         // Reset phosphor state for new terminal size
         let total = (cols as usize) * (lines as usize);
         self.phosphor.clear();

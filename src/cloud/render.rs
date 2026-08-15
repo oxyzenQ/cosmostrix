@@ -110,6 +110,13 @@ pub(crate) struct DrawCtx<'a> {
     /// Built once per terminal resize in Cloud::reset(); DrawCtx borrows it.
     /// Replaces per-cell `viewport_edge_fade(line, lines)` float division.
     pub edge_fade_lut: &'a [f32],
+    /// Pre-baked 2D vignette factor LUT (flat: indexed as `line * cols + col`).
+    /// Same values as `brightness_factors::vignette_factor()` but pre-computed.
+    /// Built on resize; DrawCtx borrows the slice for the draw call duration.
+    pub vignette_lut: &'a [f32],
+    /// Dimensions of the vignette LUT: (cols, lines) used at build time.
+    /// Allows safe bounds-checked indexing.
+    pub vignette_lut_cols: u16,
     pub charset_wave_line: Option<f32>,
 
     /// Color transition wave line: during a palette transition, rows above
