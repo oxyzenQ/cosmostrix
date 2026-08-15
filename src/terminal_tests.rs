@@ -111,6 +111,18 @@ mod tests {
     }
 
     #[test]
+    fn normal_restore_sequence_pops_kitty_keyboard_protocol() {
+        // v50: panic recovery must pop kitty keyboard flags, otherwise
+        // the user's shell receives CSI-u sequences for every keypress
+        // (arrow keys / Home / End / etc. break) after cosmostrix panics.
+        // The pop is `CSI <1u` = `\x1b[<1u`.
+        assert!(
+            TERMINAL_RESTORE_SEQUENCE.contains("\x1b[<1u"),
+            "restore sequence must include kitty keyboard protocol pop (\\x1b[<1u) — without it, panic recovery leaves the terminal in enhanced-keyboard mode"
+        );
+    }
+
+    #[test]
     fn reset_terminal_sequence_disables_terminal_reporting_modes() {
         for mode in [
             "?1000l", "?1002l", "?1003l", "?1006l", "?1015l", "?2004l", "?1004l", "?1049l", "?25h",
@@ -150,6 +162,18 @@ mod tests {
         assert!(
             TERMINAL_RESET_SEQUENCE.matches("\x1b[H").count() >= 2,
             "reset sequence must move cursor home before and after clearing"
+        );
+    }
+
+    #[test]
+    fn reset_terminal_sequence_pops_kitty_keyboard_protocol() {
+        // v50: emergency reset must also pop kitty keyboard flags.
+        // Users reaching for --reset-terminal are already in a broken
+        // state — they may have been launched in a kitty-keyboard-enabled
+        // terminal that crashed mid-session, leaving the protocol pushed.
+        assert!(
+            TERMINAL_RESET_SEQUENCE.contains("\x1b[<1u"),
+            "reset sequence must include kitty keyboard protocol pop (\\x1b[<1u) for full recovery"
         );
     }
 

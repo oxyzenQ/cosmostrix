@@ -119,6 +119,17 @@ pub(crate) struct Terminal {
     mouse_capture_enabled: bool,
     focus_change_enabled: bool,
     bracketed_paste_enabled: bool,
+    /// True when the kitty keyboard protocol has been pushed (CSI >1u)
+    /// and must be popped (CSI <1u) at cleanup. Set in `with_signal_exit`
+    /// when `term_caps.kitty_keyboard` is true AND the push succeeds.
+    /// The pop is emitted BEFORE LeaveAlternateScreen so the kitty
+    /// protocol stack is unwound while still on the alt screen — same
+    /// ordering pattern as SYNC_END before LeaveAlternateScreen (the
+    /// kitty protocol is alt-screen-independent, but grouping it with
+    /// the other alt-screen-scoped teardown steps keeps the cleanup
+    /// invariants simple: "everything optional is disabled before we
+    /// leave the alt screen").
+    kitty_keyboard_enabled: bool,
     raw_mode_enabled: bool,
     alternate_screen_enabled: bool,
     cursor_hidden: bool,
@@ -234,6 +245,7 @@ impl Terminal {
             mouse_capture_enabled: false,
             focus_change_enabled: false,
             bracketed_paste_enabled: false,
+            kitty_keyboard_enabled: false,
             raw_mode_enabled: true,
             alternate_screen_enabled: false,
             cursor_hidden: false,
@@ -281,6 +293,35 @@ impl Terminal {
             }
             if out.execute(event::EnableBracketedPaste).is_ok() {
                 term.bracketed_paste_enabled = true;
+            }
+            // Kitty keyboard protocol: push DISAMBIGUATE_ESCAPE_CODES so
+            // the terminal reports the FULL modifier bitfield on every
+            // keypress (1=SHIFT, 2=ALT, 4=CONTROL, 8=SUPER, 16=HYPER,
+            // 32=META). Without this, terminals fall back to legacy
+            // escape sequences that ONLY encode SHIFT/ALT/CONTROL —
+            // Super/Hyper/Meta are silently stripped, reaching cosmostrix
+            // as `Char('c')` with `KeyModifiers::NONE`. That made Super+C
+            // indistinguishable from bare 'c', bypassing the modifier
+            // allowlist in `input.rs::is_unmodified_or_shift()`.
+            //
+            // Only pushed when `term_caps.kitty_keyboard` is true
+            // (detected via KITTY_KEYBOARD_TERMINALS list — see
+            // termdetect.rs). On terminals that don't support the
+            // protocol, the push would emit literal `CSI >1u` characters
+            // into the input stream, polluting it.
+            //
+            // The push is paired with a pop in `cleanup_terminal()`
+            // before LeaveAlternateScreen. crossterm 0.29's
+            // PushKeyboardEnhancementFlags returns Err(Unsupported) on
+            // Windows — `let _ =` silently ignores that case.
+            if term.term_caps.kitty_keyboard
+                && out
+                    .execute(event::PushKeyboardEnhancementFlags(
+                        event::KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES,
+                    ))
+                    .is_ok()
+            {
+                term.kitty_keyboard_enabled = true;
             }
             out.execute(SetAttribute(Attribute::Reset))?;
             out.execute(ResetColor)?;
@@ -732,6 +773,25 @@ impl Terminal {
             let _ = self.stdout.execute(event::DisableBracketedPaste);
             self.bracketed_paste_enabled = false;
         }
+        // Kitty keyboard protocol pop: must happen before
+        // LeaveAlternateScreen so the protocol stack is unwound while
+        // still on the alt screen (matches the SYNC_END ordering pattern).
+        // PopKeyboardEnhancementFlags sends `CSI <1u` which removes the
+        // DISAMBIGUATE_ESCAPE_CODES flag pushed at init. If we forgot
+        // this pop, the terminal would stay in enhanced-keyboard mode
+        // AFTER cosmostrix exits — the user's shell would receive CSI-u
+        // sequences for every keypress, breaking arrow keys / Home /
+        // End / etc. in their shell.
+        //
+        // Safe to call unconditionally even if the push failed: kitty
+        // protocol is a stack, popping an empty stack is a no-op on
+        // compliant terminals. But we gate on `kitty_keyboard_enabled`
+        // to avoid emitting `CSI <1u` to terminals that never got a
+        // push (which could otherwise misinterpret the bytes).
+        if self.kitty_keyboard_enabled {
+            let _ = self.stdout.execute(event::PopKeyboardEnhancementFlags);
+            self.kitty_keyboard_enabled = false;
+        }
         let _ = self.stdout.execute(SetAttribute(Attribute::Reset));
         let _ = self.stdout.execute(ResetColor);
         if self.cursor_hidden {
@@ -873,6 +933,14 @@ pub(crate) fn restore_terminal_best_effort() {
 /// - Mouse reporting (1000, 1002, 1003, 1006, 1015)
 /// - Bracketed paste (2004)
 /// - Focus events (1004)
+/// - Kitty keyboard protocol (`\x1b[<1u` — pop DISAMBIGUATE_ESCAPE_CODES)
+///   Added v50: panic recovery must pop kitty keyboard flags, otherwise the
+///   user's shell receives CSI-u sequences for every keypress (arrow keys,
+///   Home/End, etc. break) until they reset their terminal. The pop is a
+///   no-op on terminals that never had a push (kitty protocol is a stack —
+///   popping an empty stack is well-defined as a no-op on compliant
+///   terminals; on non-compliant terminals the bytes are inert control
+///   sequences that get discarded).
 /// - Alternate screen (1049)
 /// - Synchronized output (2026) — added v15, prevents stuck sync mode
 /// - Cursor hide (25 → show)
@@ -887,6 +955,7 @@ pub(crate) fn restore_terminal_best_effort() {
 /// TERMINAL_RESET_SEQUENCE used only by --reset-terminal.
 pub(crate) const TERMINAL_RESTORE_SEQUENCE: &str = "\x1b[0m\
      \x1b[?2026l\
+     \x1b[<1u\
      \x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\
      \x1b[?2004l\
      \x1b[?1004l\
@@ -911,6 +980,7 @@ pub(crate) const TERMINAL_RESTORE_SEQUENCE: &str = "\x1b[0m\
 /// active and the user can't see their shell prompt).
 pub(crate) const TERMINAL_RESET_SEQUENCE: &str = "\x1b[0m\
      \x1b[?2026l\
+     \x1b[<1u\
      \x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?1015l\
      \x1b[?2004l\
      \x1b[?1004l\

@@ -12,6 +12,23 @@
 //!   partial redraws. Supported by: kitty, wezterm, alacritty, foot,
 //!   iTerm2 3.5+, Windows Terminal 1.22+, tmux 3.3+.
 //!
+//! - **Kitty keyboard protocol** (`ESC[>1u` push / `ESC[<1u` pop): tells
+//!   the terminal to send all key events unambiguously as CSI-u sequences
+//!   with a modifier bitfield. Without this, terminals send legacy escape
+//!   sequences that ONLY encode SHIFT/ALT/CONTROL — Super/Hyper/Meta are
+//!   silently stripped. The result is that Super+C reaches cosmostrix as
+//!   `Char('c')` with `KeyModifiers::NONE`, making it indistinguishable
+//!   from a bare 'c' press. The allowlist modifier guard in
+//!   `input.rs::is_unmodified_or_shift()` cannot reject what the terminal
+//!   never reported, so Super+C cycles colors despite the guard.
+//!   Enabling the protocol here makes the terminal report the full
+//!   modifier bitfield (1=SHIFT, 2=ALT, 4=CONTROL, 8=SUPER, 16=HYPER,
+//!   32=META), and crossterm 0.29 decodes it into `KeyModifiers::SUPER`/
+//!   `HYPER`/`META` bits — which the allowlist correctly rejects.
+//!   Supported by: kitty, foot, WezTerm, alacritty, ghostty, konsole
+//!   22.04+, tmux 3.3+ (forwards via `extended-keys`). NOT supported by
+//!   xterm.js hosts, generic xterm, Linux console (TERM=linux).
+//!
 //! - **xterm.js host detection** (Tier 2): the `TERM_PROGRAM` env var is
 //!   checked against a list of known Electron-based terminal hosts that
 //!   embed xterm.js as their renderer. All of them share the same
@@ -131,6 +148,27 @@ pub(crate) struct TerminalCaps {
     /// safe to enable; terminals that don't support it silently ignore
     /// the escape sequence.
     pub sync_output: bool,
+    /// Kitty keyboard protocol (`ESC[>1u` push / `ESC[<1u` pop).
+    ///
+    /// True when the host terminal is known to support the kitty keyboard
+    /// protocol's progressive enhancement flags (kitty, foot, WezTerm,
+    /// alacritty, ghostty, konsole 22.04+). When true, `Terminal::init`
+    /// pushes `DISAMBIGUATE_ESCAPE_CODES` so the terminal sends all key
+    /// events as CSI-u sequences with the FULL modifier bitfield
+    /// (1=SHIFT, 2=ALT, 4=CONTROL, 8=SUPER, 16=HYPER, 32=META).
+    ///
+    /// Without this flag, legacy escape sequences only encode
+    /// SHIFT/ALT/CONTROL — Super/Hyper/Meta are silently stripped,
+    /// reaching cosmostrix as `Char('c')` with `KeyModifiers::NONE`.
+    /// That made Super+C indistinguishable from bare 'c', bypassing
+    /// the modifier allowlist in `input.rs::is_unmodified_or_shift()`.
+    ///
+    /// False on: xterm.js hosts (VSCode/Hyper/Wave/Tabby/Warp — xterm.js
+    /// doesn't implement kitty protocol), generic xterm (uncertain,
+    /// conservative skip), Linux console (vt.c doesn't understand
+    /// CSI->1u and emits literal characters), and any terminal not in
+    /// the known-support list.
+    pub kitty_keyboard: bool,
     /// True when the terminal supports the alternate screen buffer
     /// (`ESC[?1049h` / `ESC[?1049l`). Most terminals support it,
     /// INCLUDING the Linux virtual console (TERM=linux) via vt.c mode
@@ -227,6 +265,53 @@ const HIGH_PERF_TERM_HINTS: &[&str] = &[
     "konsole",
 ];
 
+/// `TERM_PROGRAM` values that identify terminals known to support the
+/// kitty keyboard protocol (CSI-u progressive enhancement). When matched,
+/// cosmostrix pushes `DISAMBIGUATE_ESCAPE_CODES` so the terminal reports
+/// the FULL modifier bitfield (incl. Super/Hyper/Meta) on every keypress.
+///
+/// This list is a DELIBERATE SUBSET of `HIGH_PERF_TERMINALS` — kitty
+/// keyboard protocol is newer than "high-perf renderer" status, so some
+/// high-perf terminals are excluded here:
+///   - `iTerm.app` / `Apple_Terminal`: support is version-dependent
+///     (macOS 12+ for Terminal.app, iTerm2 needs opt-in). Conservative
+///     skip — false positive would push garbage `CSI >1u` to a terminal
+///     that doesn't understand it, polluting the input stream.
+///   - `WindowsTerminal`: only relevant on Windows, where crossterm's
+///     PushKeyboardEnhancementFlags returns Err(Unsupported). Even if
+///     we set this flag, the execute() call would silently fail.
+///
+/// Verified support (crossterm 0.29 docs + terminal docs):
+///   - kitty: original implementer, always supported
+///   - foot: supported since v1.4 (2020)
+///   - WezTerm: supported, gated by `enable_kitty_keyboard` config
+///     (defaults to "true" in current versions)
+///   - alacritty: supported since v0.13.0 (2022)
+///   - ghostty: supported, always on
+///   - konsole: supported since 22.04 (2022)
+const KITTY_KEYBOARD_TERMINALS: &[&str] = &[
+    "Alacritty",
+    "kitty",
+    "WezTerm",
+    "ghostty",
+    "foot",
+    "konsole",
+];
+
+/// `TERM` substring hints for kitty keyboard protocol support. Mirrors
+/// `KITTY_KEYBOARD_TERMINALS` for the case where `TERM_PROGRAM` is unset
+/// but `TERM` contains the terminal name (e.g. `xterm-ghostty`,
+/// `xterm-kitty`, `alacritty`, `foot-extra`). Matched case-insensitively
+/// as a substring.
+const KITTY_KEYBOARD_TERM_HINTS: &[&str] = &[
+    "alacritty",
+    "kitty",
+    "ghostty",
+    "foot",
+    "wezterm",
+    "konsole",
+];
+
 /// Returns the detection source if the terminal appears to be a
 /// high-performance emulator. Checks (in order, 5 layers):
 ///   1. TERM_PROGRAM (case-insensitive exact match)
@@ -283,6 +368,81 @@ fn high_perf_detection_source(term_program: &str, term: &str) -> Option<&'static
         }
     }
     None
+}
+
+/// Returns true if the host terminal is known to support the kitty
+/// keyboard protocol (CSI-u progressive enhancement). Uses the SAME
+/// 5-layer detection chain as `high_perf_detection_source()` but with
+/// the stricter `KITTY_KEYBOARD_*` lists — a terminal may be high-perf
+/// (renderer-wise) without supporting kitty keyboard protocol (e.g.
+/// iTerm2, Apple Terminal).
+///
+/// When this returns true, `Terminal::init` pushes
+/// `KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES` so the terminal
+/// reports the full modifier bitfield on every keypress. Without this
+/// push, terminals fall back to legacy escape sequences that ONLY encode
+/// SHIFT/ALT/CONTROL — Super/Hyper/Meta are silently stripped, making
+/// Super+C indistinguishable from bare 'c' and bypassing the modifier
+/// allowlist in `input.rs::is_unmodified_or_shift()`.
+///
+/// Special cases:
+///   - xterm.js hosts (VSCode/Hyper/Wave/Tabby/Warp): always false.
+///     xterm.js doesn't implement kitty protocol; pushing the flag would
+///     pollute the input stream with literal `CSI >1u` characters.
+///   - Linux console (TERM=linux): always false. vt.c doesn't understand
+///     kitty protocol sequences and would emit them as literal chars.
+///   - Generic xterm (TERM=xterm or xterm-256color): false. Support is
+///     version-dependent and xterm is the default TERM for many setups
+///     that aren't actually xterm (e.g. SSH to a server). Conservative
+///     skip to avoid pushing garbage to non-xterm terminals claiming
+///     `xterm` TERM.
+fn kitty_keyboard_supported(term_program: &str, term: &str, xtermjs_host: bool) -> bool {
+    // Never enable on terminals known to NOT support kitty protocol.
+    if xtermjs_host {
+        return false;
+    }
+    // Linux console: vt.c emits literal chars for CSI->1u, polluting
+    // the input stream. Skip unconditionally — even if some future
+    // kernel adds support, the user can override via TERM change.
+    if term.eq_ignore_ascii_case("linux") {
+        return false;
+    }
+    // Layer 1: TERM_PROGRAM exact match (case-insensitive).
+    let tp_lower = term_program.to_ascii_lowercase();
+    if !tp_lower.is_empty()
+        && KITTY_KEYBOARD_TERMINALS
+            .iter()
+            .any(|&t| t.eq_ignore_ascii_case(&tp_lower))
+    {
+        return true;
+    }
+    // Layer 2: KONSOLE_VERSION env var (KDE Konsole sets this even when
+    // TERM_PROGRAM is unset — same pattern as high_perf_detection_source).
+    if std::env::var("KONSOLE_VERSION").is_ok() {
+        return true;
+    }
+    // Layer 3: TERM substring hints (case-insensitive). Catches terminals
+    // like `xterm-ghostty`, `xterm-kitty`, `alacritty`, `foot-extra`.
+    let term_lower = term.to_ascii_lowercase();
+    if !term_lower.is_empty()
+        && KITTY_KEYBOARD_TERM_HINTS
+            .iter()
+            .any(|&hint| term_lower.contains(hint))
+    {
+        return true;
+    }
+    // Layer 4: Linux /proc ancestor process name. Catches Alacritty
+    // launched with TERM=xterm-direct (no TERM_PROGRAM, no hint in TERM).
+    // Reuses the same ancestor walk as high_perf detection — the ancestor
+    // list is shared because every kitty-keyboard-supporting terminal is
+    // also a high-perf terminal (the kitty list is a strict subset).
+    let ancestors = ancestor_process_names(10);
+    ancestors.iter().any(|name| {
+        let name_lower = name.to_ascii_lowercase();
+        KITTY_KEYBOARD_TERM_HINTS
+            .iter()
+            .any(|&hint| name_lower.contains(hint))
+    })
 }
 
 /// Parse the `ppid` field from a `/proc/<pid>/stat` line. The stat format
@@ -448,8 +608,23 @@ pub(crate) fn detect() -> TerminalCaps {
     // correctly preserves scrollback on TTY quit.
     let has_alternate_screen = !term.eq_ignore_ascii_case("dumb") && !term.is_empty();
 
+    // Kitty keyboard protocol: enable ONLY on terminals known to support
+    // it (kitty, foot, WezTerm, alacritty, ghostty, konsole). See the
+    // KITTY_KEYBOARD_TERMINALS list above for the full rationale.
+    //
+    // Owner-reported bug: Super+C (Windows-key + c) cycled colors despite
+    // the modifier allowlist in input.rs::is_unmodified_or_shift(). Root
+    // cause: without kitty protocol enabled, the terminal sends Super+C
+    // as legacy escape sequence that strips the SUPER bit, so cosmostrix
+    // sees Char('c') with KeyModifiers::NONE — indistinguishable from a
+    // bare 'c' press. Enabling the protocol makes the terminal report
+    // the full modifier bitfield via CSI-u, allowing the allowlist to
+    // correctly reject Super+C.
+    let kitty_keyboard = kitty_keyboard_supported(&term_program, &term, xtermjs_host);
+
     TerminalCaps {
         sync_output: sync_ok,
+        kitty_keyboard,
         has_alternate_screen,
         xtermjs_host,
         vscode_integrated,
@@ -573,8 +748,11 @@ mod tests {
         // (Linux console vt.c does not understand mode 2026), but
         // has_alternate_screen is now ON (vt.c supports mode 1049 since
         // kernel 2.6.x — see detect() comment for the full history).
+        // kitty_keyboard is also OFF — vt.c doesn't understand kitty
+        // protocol sequences (CSI->1u), would emit them as literal chars.
         let caps = TerminalCaps {
             sync_output: false,
+            kitty_keyboard: false,
             has_alternate_screen: true,
             xtermjs_host: false,
             vscode_integrated: false,
@@ -586,6 +764,10 @@ mod tests {
         assert!(
             caps.has_alternate_screen,
             "Linux console supports alternate screen (kernel 2.6.x+)"
+        );
+        assert!(
+            !caps.kitty_keyboard,
+            "Linux console does not support kitty keyboard protocol"
         );
     }
 
@@ -606,6 +788,12 @@ mod tests {
             !caps.sync_output,
             "sync_output must stay disabled for Linux console"
         );
+        // kitty_keyboard must stay OFF for Linux console — vt.c would
+        // emit CSI->1u as literal characters, polluting the input stream.
+        assert!(
+            !caps.kitty_keyboard,
+            "kitty_keyboard must stay disabled for Linux console (vt.c doesn't understand kitty protocol)"
+        );
     }
 
     #[test]
@@ -619,6 +807,10 @@ mod tests {
             !caps.has_alternate_screen,
             "dumb terminal does not support alternate screen"
         );
+        assert!(
+            !caps.kitty_keyboard,
+            "dumb terminal does not support kitty keyboard protocol"
+        );
     }
 
     #[test]
@@ -631,6 +823,15 @@ mod tests {
         assert!(
             caps.has_alternate_screen,
             "xterm-256color supports alternate screen"
+        );
+        // Generic xterm (no TERM_PROGRAM, no ancestor hint): kitty_keyboard
+        // is conservatively OFF. Real xterm support is version-dependent
+        // and many setups claim `xterm` TERM without actually being xterm
+        // (SSH defaults, screen, etc.). Conservative skip avoids pushing
+        // garbage CSI->1u to non-xterm terminals.
+        assert!(
+            !caps.kitty_keyboard,
+            "kitty_keyboard must stay disabled for generic xterm (conservative skip — support is version-dependent and TERM=xterm is the default for many non-xterm setups)"
         );
     }
 
@@ -649,6 +850,10 @@ mod tests {
         assert!(
             !caps.sync_output,
             "sync_output must be disabled for xterm.js hosts (OOM amplification)"
+        );
+        assert!(
+            !caps.kitty_keyboard,
+            "kitty_keyboard must be disabled for xterm.js hosts (xterm.js doesn't implement kitty protocol — pushing CSI->1u would pollute input stream)"
         );
         assert_eq!(caps.default_fps_cap, XTERMJS_FPS_CAP);
     }
@@ -673,9 +878,158 @@ mod tests {
                 !caps.sync_output,
                 "sync_output must be disabled for TERM_PROGRAM={host}"
             );
+            assert!(
+                !caps.kitty_keyboard,
+                "kitty_keyboard must be disabled for xterm.js host {host}"
+            );
             assert_eq!(
                 caps.default_fps_cap, XTERMJS_FPS_CAP,
                 "FPS cap must apply for TERM_PROGRAM={host}"
+            );
+        }
+    }
+
+    #[test]
+    fn kitty_keyboard_enabled_for_alacritty_term_program() {
+        // Owner-reported bug: Super+C cycled colors on Alacritty despite
+        // the modifier allowlist. This is the regression test for the
+        // kitty keyboard protocol enablement fix.
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "Alacritty");
+        let caps = detect();
+        assert!(
+            caps.kitty_keyboard,
+            "Alacritty (TERM_PROGRAM=Alacritty) supports kitty keyboard protocol since v0.13.0"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_enabled_for_kitty_term_program() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-kitty");
+        env::set_var("TERM_PROGRAM", "kitty");
+        let caps = detect();
+        assert!(
+            caps.kitty_keyboard,
+            "kitty terminal is the original implementer of kitty keyboard protocol"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_enabled_for_wezterm_term_program() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "wezterm");
+        env::set_var("TERM_PROGRAM", "WezTerm");
+        let caps = detect();
+        assert!(
+            caps.kitty_keyboard,
+            "WezTerm supports kitty keyboard protocol"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_enabled_for_ghostty_term_program() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-ghostty");
+        env::set_var("TERM_PROGRAM", "ghostty");
+        let caps = detect();
+        assert!(
+            caps.kitty_keyboard,
+            "ghostty supports kitty keyboard protocol"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_enabled_for_foot_term_program() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "foot-extra");
+        env::set_var("TERM_PROGRAM", "foot");
+        let caps = detect();
+        assert!(
+            caps.kitty_keyboard,
+            "foot supports kitty keyboard protocol since v1.4"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_enabled_for_konsole_via_env_var() {
+        // KDE Konsole doesn't set TERM_PROGRAM; it sets KONSOLE_VERSION.
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::remove_var("TERM_PROGRAM");
+        env::set_var("KONSOLE_VERSION", "230804");
+        let caps = detect();
+        assert!(
+            caps.kitty_keyboard,
+            "KDE Konsole (KONSOLE_VERSION set) supports kitty keyboard protocol since 22.04"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_enabled_for_term_substring_hint() {
+        // Some terminals don't set TERM_PROGRAM but their name appears
+        // as a substring in TERM (e.g., `xterm-ghostty`, `alacritty`).
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-ghostty");
+        env::remove_var("TERM_PROGRAM");
+        let caps = detect();
+        assert!(
+            caps.kitty_keyboard,
+            "TERM=xterm-ghostty contains 'ghostty' substring — should trigger kitty keyboard detection"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_disabled_for_iterm_app() {
+        // iTerm.app is high-perf but NOT in the kitty keyboard list —
+        // support is version-dependent and requires opt-in. Conservative
+        // skip to avoid pushing garbage CSI->1u to a terminal that may
+        // not understand it.
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "iTerm.app");
+        let caps = detect();
+        assert!(
+            !caps.kitty_keyboard,
+            "iTerm.app is excluded from kitty keyboard list (version-dependent support — conservative skip)"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_disabled_for_apple_terminal() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let _env = EnvGuard::capture();
+        env::set_var("TERM", "xterm-256color");
+        env::set_var("TERM_PROGRAM", "Apple_Terminal");
+        let caps = detect();
+        assert!(
+            !caps.kitty_keyboard,
+            "Apple_Terminal is excluded from kitty keyboard list (version-dependent support — conservative skip)"
+        );
+    }
+
+    #[test]
+    fn kitty_keyboard_case_insensitive_term_program_match() {
+        // Detection must be case-insensitive — some terminals emit
+        // `alacritty` vs `Alacritty`, `WEZTERM` vs `WezTerm`.
+        let _guard = ENV_LOCK.lock().unwrap();
+        for &tp in &["alacritty", "ALACRITTY", "Alacritty", "aLaCrItTy"] {
+            let _env = EnvGuard::capture();
+            env::set_var("TERM", "xterm-256color");
+            env::set_var("TERM_PROGRAM", tp);
+            let caps = detect();
+            assert!(
+                caps.kitty_keyboard,
+                "kitty_keyboard must be true for TERM_PROGRAM={tp} (case-insensitive)"
             );
         }
     }
