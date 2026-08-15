@@ -132,13 +132,13 @@ pub(crate) struct TerminalCaps {
     /// the escape sequence.
     pub sync_output: bool,
     /// True when the terminal supports the alternate screen buffer
-    /// (`ESC[?1049h` / `ESC[?1049l`). Linux console (TERM=linux) and
-    /// dumb terminals do NOT support it — entering the alternate screen
-    /// on such terminals overwrites the main screen directly, and leaving
-    /// it does not restore the original content. When false, cosmostrix
-    /// runs on the main screen and clears it on exit (preserving scrollback
-    /// by moving the cursor home and clearing only the visible area, not
-    /// the scrollback buffer).
+    /// (`ESC[?1049h` / `ESC[?1049l`). Most terminals support it,
+    /// INCLUDING the Linux virtual console (TERM=linux) via vt.c mode
+    /// 1049 (kernel 2.6.x+) — entering the alt buffer saves the main
+    /// screen state (incl. scrollback), leaving it restores the main
+    /// screen intact. Only `dumb` terminals and an unset TERM lack alt
+    /// screen support. When false, cosmostrix runs on the main screen
+    /// directly (scrollback is preserved by not clearing it).
     pub has_alternate_screen: bool,
     /// True when running inside ANY xterm.js-based Electron host
     /// (`TERM_PROGRAM` matches an entry in `XTERMJS_HOSTS`). This is the
@@ -425,13 +425,28 @@ pub(crate) fn detect() -> TerminalCaps {
         (STANDARD_DEFAULT_FPS, "standard/unknown fallback")
     };
 
-    // Alternate screen detection: most terminal emulators support it,
-    // but the Linux virtual console (TERM=linux) and dumb terminals do not.
-    // On these terminals, \x1b[?1049h is silently ignored, so the rain
-    // overwrites the main screen directly and the user's history is lost.
-    let has_alternate_screen = !term.eq_ignore_ascii_case("linux")
-        && !term.eq_ignore_ascii_case("dumb")
-        && !term.is_empty();
+    // Alternate screen detection. Most terminal emulators support the
+    // alternate screen buffer (\x1b[?1049h / \x1b[?1049l), INCLUDING the
+    // Linux virtual console (TERM=linux) since kernel 2.6.x — the vt.c
+    // driver implements modes 47/1047/1049. Entering the alt buffer saves
+    // the main screen state (including scrollback); leaving it restores
+    // the main screen intact. This is what preserves the user's terminal
+    // history (e.g. `echo hello` output) after cosmostrix quits on a TTY
+    // (ctrl+alt+fN).
+    //
+    // Only `dumb` terminals and an unset TERM truly lack alt screen
+    // support — on those, \x1b[?1049h is silently ignored, so cosmostrix
+    // falls back to rendering on the main screen directly.
+    //
+    // History: commit 6d0574b previously disabled alt screen for
+    // TERM=linux based on the belief that Linux console didn't support
+    // \x1b[?1049h. That belief was incorrect for modern kernels. The real
+    // cause of the original scrollback loss was Clear(All) emitted inside
+    // the alt screen (removed by commits 8b2a19b, 42c76a8, 246e9b9e,
+    // 6ed244b). With Clear(All) gone and sync mode correctly placed
+    // (commit 01ffda8), enabling alt screen for Linux console now
+    // correctly preserves scrollback on TTY quit.
+    let has_alternate_screen = !term.eq_ignore_ascii_case("dumb") && !term.is_empty();
 
     TerminalCaps {
         sync_output: sync_ok,
@@ -554,10 +569,13 @@ mod tests {
 
     #[test]
     fn sync_output_disabled_for_linux_console() {
-        // Simulate TERM=linux detection result
+        // Simulate TERM=linux detection result: sync_output stays OFF
+        // (Linux console vt.c does not understand mode 2026), but
+        // has_alternate_screen is now ON (vt.c supports mode 1049 since
+        // kernel 2.6.x — see detect() comment for the full history).
         let caps = TerminalCaps {
             sync_output: false,
-            has_alternate_screen: false,
+            has_alternate_screen: true,
             xtermjs_host: false,
             vscode_integrated: false,
             default_fps_cap: 240.0,
@@ -565,19 +583,28 @@ mod tests {
             dynamic_fps_source: "test",
         };
         assert!(!caps.sync_output);
-        assert!(!caps.has_alternate_screen);
+        assert!(
+            caps.has_alternate_screen,
+            "Linux console supports alternate screen (kernel 2.6.x+)"
+        );
     }
 
     #[test]
-    fn alternate_screen_disabled_for_linux_console() {
+    fn alternate_screen_enabled_for_linux_console() {
         let _guard = ENV_LOCK.lock().unwrap();
         let _env = EnvGuard::capture();
         env::set_var("TERM", "linux");
         env::remove_var("TERM_PROGRAM");
         let caps = detect();
         assert!(
-            !caps.has_alternate_screen,
-            "Linux console does not support alternate screen"
+            caps.has_alternate_screen,
+            "Linux console (TERM=linux) supports alternate screen via vt.c mode 1049 (kernel 2.6.x+). Re-enabling alt screen preserves TTY scrollback on quit."
+        );
+        // sync_output must stay OFF for Linux console — vt.c does not
+        // understand mode 2026, so emitting sync markers is wasted bytes.
+        assert!(
+            !caps.sync_output,
+            "sync_output must stay disabled for Linux console"
         );
     }
 

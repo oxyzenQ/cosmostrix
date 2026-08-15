@@ -262,10 +262,14 @@ impl Terminal {
         let init_res: Result<()> = (|| {
             let out = &mut term.stdout;
             // Only enter alternate screen if the terminal supports it.
-            // Linux console (TERM=linux) and dumb terminals don't support
-            // the alternate screen buffer — entering it overwrites the main
-            // screen directly, and leaving it does not restore the original
-            // content. On such terminals, run on the main screen directly.
+            // The Linux virtual console (TERM=linux) DOES support the
+            // alternate screen buffer (\x1b[?1049h) via vt.c since kernel
+            // 2.6.x — entering it saves the main screen state (incl.
+            // scrollback), leaving it restores the main screen intact.
+            // This is what preserves TTY history (e.g. `echo hello`) on
+            // quit. Only `dumb` terminals and an unset TERM lack alt
+            // screen support — on those, cosmostrix runs on the main
+            // screen directly (scrollback is preserved by not clearing).
             if term.term_caps.has_alternate_screen {
                 out.execute(crossterm_terminal::EnterAlternateScreen)?;
                 term.alternate_screen_enabled = true;
@@ -848,17 +852,14 @@ pub(crate) fn restore_terminal_best_effort() {
     let _ = out.execute(cursor::Show);
     let _ = out.execute(crossterm_terminal::EnableLineWrap);
     // Only leave alternate screen if the terminal supports it.
-    // On terminals without alternate screen support (Linux console,
-    // dumb), \x1b[?1049l is a no-op, but crossterm's
-    // LeaveAlternateScreen may emit additional sequences that could
-    // interfere. Check TERM to avoid unnecessary work.
-    // TERMINAL_RESTORE_SEQUENCE already includes \x1b[?1049l, so
-    // crossterm's LeaveAlternateScreen is redundant in most cases,
-    // but crossterm may do additional internal state cleanup.
+    // The Linux virtual console (TERM=linux) DOES support the alt screen
+    // buffer (\x1b[?1049l via vt.c, kernel 2.6.x+) — see termdetect.rs
+    // for the full history. Only `dumb` terminals and an unset TERM
+    // lack alt screen support. TERMINAL_RESTORE_SEQUENCE already includes
+    // \x1b[?1049l, so crossterm's LeaveAlternateScreen is redundant in
+    // most cases, but crossterm may do additional internal state cleanup.
     let term = std::env::var("TERM").unwrap_or_default();
-    let has_alt = !term.eq_ignore_ascii_case("linux")
-        && !term.eq_ignore_ascii_case("dumb")
-        && !term.is_empty();
+    let has_alt = !term.eq_ignore_ascii_case("dumb") && !term.is_empty();
     if has_alt {
         let _ = out.execute(crossterm_terminal::LeaveAlternateScreen);
     }
