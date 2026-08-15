@@ -47,9 +47,11 @@ jobs:
             exit 0  # non-fatal — network glitch should not break the pipeline
           }
 
-          # Extract signing subkey expiry dates (skip master key [SCEA])
+          # Extract signing subkey expiry dates (skip master key + revoked subkeys).
+          # GPG colon format: sub:usage:validity:start:expiry:...
+          # Field 2 validity: n=valid, r=revoked, e=expired, i=invalid, d=disabled
           EXPIRY_LINES=$(gpg --batch --with-colons --list-keys "${GPG_KEY_FINGERPRINT}" \
-            | grep '^sub:' | grep -v '^\[revoked\]' || true)
+            | awk -F: '/^sub:/ && $2 != "r"')
 
           if [[ -z "$EXPIRY_LINES" ]]; then
             echo "No signing subkeys found (master key may have no subkeys)"
