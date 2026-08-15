@@ -29,7 +29,8 @@ use super::super::Cloud;
 use crate::constants::{
     COLOR_TRANSITION_DURATION_MS, MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_POOL_SIZE,
     QUANTUM_BODY_TONE_DOWN, QUANTUM_BRAND_PURPLE_B, QUANTUM_BRAND_PURPLE_G, QUANTUM_BRAND_PURPLE_R,
-    QUANTUM_RIPPLE_LIFETIME_SECS, QUANTUM_RIPPLE_PARTICLE_COUNT,
+    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_LIFETIME_SECS, QUANTUM_RIPPLE_PARTICLE_COUNT,
+    QUANTUM_RIPPLE_SPEED,
 };
 use crate::frame::Frame;
 use crate::palette::decode_color;
@@ -765,4 +766,337 @@ fn flash_wave_pool_size_constant_is_reasonable() {
     // pattern avoids clippy::assertions_on_constants while still catching
     // accidental zero/negative values at build time.
     const _: () = assert!(MOUSE_FLASH_DURATION_SECS > 0.0);
+}
+
+// ─── v50 stabilization: quantum ripple edge-bounce regression tests ────────
+//
+// Owner requested that quantum ripple particles BOUNCE off the four screen
+// edges instead of dying on border crossing. Previously, a particle that
+// crossed `col >= cols` or `line >= lines` was immediately deactivated —
+// on small viewports (or clicks near an edge) this clipped the burst and
+// most of the cohort expired within the first few frames.
+//
+// The new behavior: position is mirrored across the offending edge AND
+// the crossed-axis velocity is reflected with a damping factor
+// (`QUANTUM_RIPPLE_BOUNCE_DAMPING`). Perpendicular velocity is untouched.
+//
+// These tests verify each of the four edges individually, plus the
+// interaction between bouncing and the age-based lifespan expiry.
+
+/// Sanity: the bounce damping constant sits in a perceptible range.
+/// Below 0.5 the second bounce dies too quickly; above 0.95 the cohort
+/// ricochets nearly elastically within the 0.8s lifespan, which feels
+/// chaotic. The sweet spot is [0.7, 0.9].
+#[test]
+fn quantum_bounce_damping_constant_in_sweet_spot() {
+    assert!(
+        (0.7..=0.95).contains(&QUANTUM_RIPPLE_BOUNCE_DAMPING),
+        "QUANTUM_RIPPLE_BOUNCE_DAMPING = {QUANTUM_RIPPLE_BOUNCE_DAMPING} is outside [0.7, 0.95] \
+         — if this was intentional, update the rationale in the constant's doc comment"
+    );
+    // Compile-time guard: damping must be strictly positive (else a bounce
+    // would freeze the particle on the edge) and at most 1.0 (else a bounce
+    // would AMPLIFY the velocity, violating energy conservation).
+    const _: () = assert!(QUANTUM_RIPPLE_BOUNCE_DAMPING > 0.0);
+    const _: () = assert!(QUANTUM_RIPPLE_BOUNCE_DAMPING <= 1.0);
+}
+
+/// Helper: spawn a click and pin ONE active particle to a deterministic
+/// position + velocity so the bounce can be verified exactly. Returns
+/// the index of the pinned particle in `quantum_particles`.
+///
+/// `col`/`line` are the cell coordinates (u16, matching
+/// `Cloud::set_mouse_click`); internally the particle's float position
+/// is set to `col + 0.5` / `line + 0.5` to mirror `spawn_quantum_ripple`'s
+/// `cx = col as f32 + 0.5` convention.
+fn pin_one_particle(
+    cloud: &mut Cloud,
+    col: u16,
+    line: u16,
+    vx: f32,
+    vy: f32,
+    spawn_time: Instant,
+) -> usize {
+    cloud.set_mouse_click(col, line);
+    // The pool is now populated with up to QUANTUM_RIPPLE_PARTICLE_COUNT
+    // active particles. Pin the first one to deterministic values so the
+    // bounce assertion can be exact. Other particles keep their random
+    // velocities — they don't affect this test because we only inspect
+    // the pinned index.
+    let idx = cloud
+        .quantum_particles
+        .iter()
+        .position(|p| p.active)
+        .expect("at least one particle must be active after click");
+    let p = &mut cloud.quantum_particles[idx];
+    p.x = col as f32 + 0.5; // mirror spawn_quantum_ripple's cx = col + 0.5 convention
+    p.y = line as f32 + 0.5;
+    p.vx = vx;
+    p.vy = vy;
+    p.birth = spawn_time; // reset birth so age is small at frame_time
+    // Anchor the quantum update clock so dt is deterministic.
+    cloud.last_quantum_update_time = spawn_time;
+    cloud.last_phosphor_time = spawn_time;
+    idx
+}
+
+/// Step the cloud forward by one frame and return. Wraps the standard
+/// rain_at call with the timestamp bookkeeping the bounce tests need.
+fn step_one_frame(cloud: &mut Cloud, frame: &mut Frame, frame_time: Instant) {
+    cloud.rain_at(frame, frame_time);
+}
+
+/// Right edge: a particle moving +x must reflect to -x with damping,
+/// and its position must be mirrored back inside bounds.
+#[test]
+fn quantum_particle_bounces_off_right_edge() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    let spawn_time = Instant::now();
+    // Cloud is 20×10 → max_x = 19. Spawn at (17, 5), push particle
+    // +x at 100 cells/sec for 1/30 sec → Δx = 3.33 → reaches x ≈ 20.83
+    // → overshoots max_x=19 by ~1.83 → mirrors to 19 - 1.83 ≈ 17.17.
+    let idx = pin_one_particle(&mut cloud, 17, 5, 100.0, 0.0, spawn_time);
+    let pre_vx = cloud.quantum_particles[idx].vx;
+
+    let frame_time = spawn_time + Duration::from_millis(33);
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    step_one_frame(&mut cloud, &mut frame, frame_time);
+
+    let p = &cloud.quantum_particles[idx];
+    assert!(p.active, "particle must still be active after a single bounce");
+    assert!(
+        p.vx < 0.0,
+        "vx must be NEGATIVE after bouncing off the right edge, got {}",
+        p.vx
+    );
+    let expected_mag = pre_vx.abs() * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+    let actual_mag = p.vx.abs();
+    assert!(
+        (actual_mag - expected_mag).abs() < 0.5,
+        "post-bounce |vx|={} should equal pre-bounce |vx|={} * damping={} ≈ {}, within ±0.5",
+        actual_mag,
+        pre_vx.abs(),
+        QUANTUM_RIPPLE_BOUNCE_DAMPING,
+        expected_mag
+    );
+    // Position must be strictly inside bounds (max_x = 19).
+    assert!(
+        p.x <= 19.0,
+        "x must be inside bounds after bounce, got {}",
+        p.x
+    );
+    // vy is untouched (perpendicular to the bounced axis).
+    assert!(
+        p.vy.abs() < 0.001,
+        "vy must be unchanged (perpendicular axis untouched), got {}",
+        p.vy
+    );
+}
+
+/// Left edge: a particle moving -x must reflect to +x with damping.
+#[test]
+fn quantum_particle_bounces_off_left_edge() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    let spawn_time = Instant::now();
+    // Spawn at (2, 5), push -x at 100 cells/sec → reaches x ≈ -0.83
+    // → overshoots 0 by ~0.83 → mirrors to 0 + 0.83 ≈ 0.83.
+    let idx = pin_one_particle(&mut cloud, 2, 5, -100.0, 0.0, spawn_time);
+    let pre_vx = cloud.quantum_particles[idx].vx;
+
+    let frame_time = spawn_time + Duration::from_millis(33);
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    step_one_frame(&mut cloud, &mut frame, frame_time);
+
+    let p = &cloud.quantum_particles[idx];
+    assert!(p.active, "particle must still be active after a single bounce");
+    assert!(
+        p.vx > 0.0,
+        "vx must be POSITIVE after bouncing off the left edge, got {}",
+        p.vx
+    );
+    let expected_mag = pre_vx.abs() * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+    let actual_mag = p.vx.abs();
+    assert!(
+        (actual_mag - expected_mag).abs() < 0.5,
+        "post-bounce |vx|={} should equal pre-bounce |vx|={} * damping={} ≈ {}, within ±0.5",
+        actual_mag,
+        pre_vx.abs(),
+        QUANTUM_RIPPLE_BOUNCE_DAMPING,
+        expected_mag
+    );
+    assert!(p.x >= 0.0, "x must be inside bounds after bounce, got {}", p.x);
+    assert!(
+        p.vy.abs() < 0.001,
+        "vy must be unchanged (perpendicular axis untouched), got {}",
+        p.vy
+    );
+}
+
+/// Bottom edge: a particle moving +y must reflect to -y with damping.
+#[test]
+fn quantum_particle_bounces_off_bottom_edge() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    let spawn_time = Instant::now();
+    // Cloud is 20×10 → max_y = 9. Spawn at (5, 7), push +y at 100
+    // cells/sec for 1/30 sec → Δy = 3.33 → reaches y ≈ 10.83 → overshoots
+    // max_y=9 by ~1.83 → mirrors to 9 - 1.83 ≈ 7.17.
+    let idx = pin_one_particle(&mut cloud, 5, 7, 0.0, 100.0, spawn_time);
+    let pre_vy = cloud.quantum_particles[idx].vy;
+
+    let frame_time = spawn_time + Duration::from_millis(33);
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    step_one_frame(&mut cloud, &mut frame, frame_time);
+
+    let p = &cloud.quantum_particles[idx];
+    assert!(p.active, "particle must still be active after a single bounce");
+    assert!(
+        p.vy < 0.0,
+        "vy must be NEGATIVE after bouncing off the bottom edge, got {}",
+        p.vy
+    );
+    let expected_mag = pre_vy.abs() * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+    let actual_mag = p.vy.abs();
+    assert!(
+        (actual_mag - expected_mag).abs() < 0.5,
+        "post-bounce |vy|={} should equal pre-bounce |vy|={} * damping={} ≈ {}, within ±0.5",
+        actual_mag,
+        pre_vy.abs(),
+        QUANTUM_RIPPLE_BOUNCE_DAMPING,
+        expected_mag
+    );
+    assert!(
+        p.y <= 9.0,
+        "y must be inside bounds after bounce, got {}",
+        p.y
+    );
+    assert!(
+        p.vx.abs() < 0.001,
+        "vx must be unchanged (perpendicular axis untouched), got {}",
+        p.vx
+    );
+}
+
+/// Top edge: a particle moving -y must reflect to +y with damping.
+#[test]
+fn quantum_particle_bounces_off_top_edge() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    let spawn_time = Instant::now();
+    // Spawn at (5, 2), push -y at 100 cells/sec → reaches y ≈ -0.83
+    // → overshoots 0 by ~0.83 → mirrors to 0 + 0.83 ≈ 0.83.
+    let idx = pin_one_particle(&mut cloud, 5, 2, 0.0, -100.0, spawn_time);
+    let pre_vy = cloud.quantum_particles[idx].vy;
+
+    let frame_time = spawn_time + Duration::from_millis(33);
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    step_one_frame(&mut cloud, &mut frame, frame_time);
+
+    let p = &cloud.quantum_particles[idx];
+    assert!(p.active, "particle must still be active after a single bounce");
+    assert!(
+        p.vy > 0.0,
+        "vy must be POSITIVE after bouncing off the top edge, got {}",
+        p.vy
+    );
+    let expected_mag = pre_vy.abs() * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+    let actual_mag = p.vy.abs();
+    assert!(
+        (actual_mag - expected_mag).abs() < 0.5,
+        "post-bounce |vy|={} should equal pre-bounce |vy|={} * damping={} ≈ {}, within ±0.5",
+        actual_mag,
+        pre_vy.abs(),
+        QUANTUM_RIPPLE_BOUNCE_DAMPING,
+        expected_mag
+    );
+    assert!(p.y >= 0.0, "y must be inside bounds after bounce, got {}", p.y);
+    assert!(
+        p.vx.abs() < 0.001,
+        "vx must be unchanged (perpendicular axis untouched), got {}",
+        p.vx
+    );
+}
+
+/// Bouncing must NOT extend a particle's lifespan. The age-based expiry
+/// (`age >= QUANTUM_RIPPLE_LIFETIME_SECS`) is the only death condition
+/// now that border-crossing no longer deactivates particles. Verify a
+/// particle that bounces repeatedly still deactivates once its age
+/// crosses the lifespan threshold.
+#[test]
+fn quantum_bounce_does_not_extend_lifespan() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    let spawn_time = Instant::now();
+    // Pin a fast-moving particle so it definitely bounces during its life.
+    // Speed = 4x the default (18 → 72) to guarantee multiple bounces.
+    let idx = pin_one_particle(
+        &mut cloud,
+        10,
+        5,
+        QUANTUM_RIPPLE_SPEED * 4.0,
+        QUANTUM_RIPPLE_SPEED * 4.0,
+        spawn_time,
+    );
+
+    // Advance well past the lifespan. The particle must deactivate even
+    // though it has been bouncing the whole time.
+    let expire_time =
+        spawn_time + Duration::from_millis(((QUANTUM_RIPPLE_LIFETIME_SECS * 1000.0) as u64) + 50);
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    cloud.last_phosphor_time = spawn_time;
+    cloud.rain_at(&mut frame, expire_time);
+
+    let p = &cloud.quantum_particles[idx];
+    assert!(
+        !p.active,
+        "particle must deactivate once age exceeds LIFETIME_SECS, even after bouncing — got active=true at x={}, y={}",
+        p.x, p.y
+    );
+    assert_eq!(
+        cloud.quantum_active_count, 0,
+        "active_count counter must reach zero once all particles expire"
+    );
+}
+
+/// A particle that bounces off a corner (both axes overshoot in one
+/// frame) must reflect BOTH velocity components. This is the
+/// stress-test edge case: a fast particle heading into a corner.
+#[test]
+fn quantum_particle_bounces_off_corner_both_axes() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    let spawn_time = Instant::now();
+    // Spawn near the bottom-right corner (17, 7) with a fast (+x, +y)
+    // velocity. Both axes overshoot in the same frame.
+    let idx = pin_one_particle(&mut cloud, 17, 7, 100.0, 100.0, spawn_time);
+    let pre_vx = cloud.quantum_particles[idx].vx;
+    let pre_vy = cloud.quantum_particles[idx].vy;
+
+    let frame_time = spawn_time + Duration::from_millis(33);
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    step_one_frame(&mut cloud, &mut frame, frame_time);
+
+    let p = &cloud.quantum_particles[idx];
+    assert!(p.active, "particle must still be active after corner bounce");
+    assert!(
+        p.vx < 0.0 && p.vy < 0.0,
+        "both vx and vy must be NEGATIVE after a corner bounce, got vx={}, vy={}",
+        p.vx, p.vy
+    );
+    // Both axes damped independently.
+    let expected_vx_mag = pre_vx.abs() * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+    let expected_vy_mag = pre_vy.abs() * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+    assert!(
+        (p.vx.abs() - expected_vx_mag).abs() < 0.5,
+        "post-corner-bounce |vx|={} should ≈ {}, within ±0.5",
+        p.vx.abs(),
+        expected_vx_mag
+    );
+    assert!(
+        (p.vy.abs() - expected_vy_mag).abs() < 0.5,
+        "post-corner-bounce |vy|={} should ≈ {}, within ±0.5",
+        p.vy.abs(),
+        expected_vy_mag
+    );
+    assert!(
+        p.x <= 19.0 && p.y <= 9.0,
+        "position must be inside bounds after corner bounce, got x={}, y={}",
+        p.x, p.y
+    );
 }

@@ -13,7 +13,7 @@ use crossterm::style::Color;
 
 use crate::constants::{
     CRT_VIGNETTE_HEIGHT, CRT_VIGNETTE_PERF_THRESHOLD, QUANTUM_BODY_TONE_DOWN,
-    QUANTUM_RIPPLE_LIFETIME_SECS,
+    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_LIFETIME_SECS,
 };
 use crate::frame::Frame;
 
@@ -163,6 +163,14 @@ impl Cloud {
     /// body color — a natural crossfade. Expired particles are
     /// deactivated (returned to the free-list).
     ///
+    /// v50 stabilization (owner-requested): particles now **bounce**
+    /// off the four screen edges instead of dying on border crossing.
+    /// Each bounce applies `QUANTUM_RIPPLE_BOUNCE_DAMPING` to the
+    /// crossed axis only — perpendicular velocity is untouched so the
+    /// trajectory mirrors like a specular reflection. Age-based expiry
+    /// is unchanged: bouncing keeps a particle alive within its
+    /// `QUANTUM_RIPPLE_LIFETIME_SECS` window, but does not extend it.
+    ///
     /// Runs O(active_particles) per frame. Cost is negligible —
     /// typically 0-20 active particles, peaking at ~40 during rapid
     /// multi-click bursts.
@@ -219,6 +227,55 @@ impl Cloud {
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
+            // Bounce off the four screen edges (owner-requested v50
+            // stabilization — previously particles died as soon as they
+            // crossed the border, which clipped the burst on small
+            // viewports or edge clicks). Specular reflection along the
+            // crossed axis with a per-bounce damping factor
+            // (`QUANTUM_RIPPLE_BOUNCE_DAMPING`) so the cohort gradually
+            // loses energy instead of ricocheting forever. The
+            // perpendicular axis is untouched, preserving the angle of
+            // incidence == angle of reflection.
+            //
+            // We mirror the position across the offending edge AND flip
+            // the velocity in one step. The mirror formula
+            // `2 * edge - p.x` projects the particle back inside bounds
+            // by the same distance it overshot — so a 0.4-cell overshoot
+            // becomes a 0.4-cell inward position. This is the standard
+            // specular-bounce correction and prevents the "stuck on the
+            // edge" artifact that a plain clamp + flip would produce.
+            //
+            // Safety: `cols`/`lines` are u16, so `saturating_sub(1)`
+            // guards against the degenerate 0-col / 0-line terminal
+            // (where every position is "out of bounds"). In that case
+            // `max_x == 0.0` and the particle gets clamped to the
+            // single edge forever — visually a no-op since the screen
+            // has no interior to draw on anyway.
+            let max_x = cols.saturating_sub(1) as f32;
+            let max_y = lines.saturating_sub(1) as f32;
+            if p.x < 0.0 {
+                p.x = -p.x;
+                p.vx = -p.vx * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+            } else if p.x > max_x {
+                p.x = 2.0 * max_x - p.x;
+                p.vx = -p.vx * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+            }
+            if p.y < 0.0 {
+                p.y = -p.y;
+                p.vy = -p.vy * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+            } else if p.y > max_y {
+                p.y = 2.0 * max_y - p.y;
+                p.vy = -p.vy * QUANTUM_RIPPLE_BOUNCE_DAMPING;
+            }
+            // Final clamp guards against the rare case of a single
+            // frame advancing the particle more than one viewport-width
+            // (e.g. a long pause/resume where dt was clamped to 1/30
+            // but the velocity was already high). Without this clamp
+            // the mirrored position could still sit outside bounds and
+            // the `as u16` cast below would produce a wrapping value.
+            p.x = p.x.clamp(0.0, max_x);
+            p.y = p.y.clamp(0.0, max_y);
+
             let life_frac = age / QUANTUM_RIPPLE_LIFETIME_SECS;
             let fade = 1.0 - life_frac;
             let brightness = fade * fade;
@@ -226,6 +283,9 @@ impl Cloud {
             let col = p.x as u16;
             let line = p.y as u16;
             if col >= cols || line >= lines {
+                // Defensive: should be unreachable after the clamp
+                // above, but a degenerate 0×0 terminal could still
+                // trip it. Deactivate rather than panic.
                 p.active = false;
                 deactivated += 1;
                 continue;

@@ -284,6 +284,43 @@ pub(crate) const QUANTUM_BRAND_PURPLE_B: u8 = 247;
 /// values (0.85–1.0) restore the "too bright" complaint.
 pub(crate) const QUANTUM_BODY_TONE_DOWN: f32 = 0.72;
 
+/// Velocity retention factor applied to a quantum ripple particle each
+/// time it bounces off a screen edge.
+///
+/// Owner-requested behavior (v50 stabilization): ripple particles used
+/// to die as soon as they crossed the screen border (`col >= cols` or
+/// `line >= lines`). On small viewports — or when the user clicks near
+/// an edge — most of the 20-particle cohort would expire in the first
+/// few frames, making the burst feel clipped instead of radiating
+/// outward. The requested fix is to make the particles **bounce** off
+/// the four screen edges, so a click anywhere produces a visible shower
+/// that ricochets around the viewport until the age-based lifespan
+/// (`QUANTUM_RIPPLE_LIFETIME_SECS`) expires.
+///
+/// To keep the visual organic and avoid a perpetual elastic ping-pong,
+/// each bounce multiplies the velocity component by this damping
+/// factor. The factor applies only to the axis that bounced — the
+/// perpendicular component is untouched, so the post-bounce direction
+/// is the mirror of the pre-bounce direction (true specular reflection)
+/// scaled by `DAMPING`.
+///
+/// `0.85` was chosen so that:
+///  - After 1 bounce, the particle keeps 85% of its speed — visually
+///    still energetic, clearly still "alive".
+///  - After 3 bounces, ~61% — slowing down enough that the eye reads
+///    the trajectory as decaying without it abruptly stopping.
+///  - After 5 bounces, ~44% — combined with the age-based brightness
+///    fade (`fade * fade` over the 0.8s lifespan), the particle is
+///    both dim AND slow, naturally fading out.
+///
+/// Lower values (0.6–0.75) make bounces die too quickly — the second
+/// bounce already reads as a stop. Higher values (0.95–1.0) make the
+/// cohort ricochet forever within the lifespan, which feels chaotic
+/// and can mask the underlying rain on small viewports.
+///
+/// See `cloud::rain_post::apply_quantum_ripple` for the bounce math.
+pub(crate) const QUANTUM_RIPPLE_BOUNCE_DAMPING: f32 = 0.85;
+
 // Message overlay limits
 
 /// Maximum message text length (characters). Prevents excessively long
