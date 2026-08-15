@@ -21,9 +21,13 @@ mod tests;
 use std::env;
 // Re-export test-only items so tests.rs can find them via super::*.
 #[cfg(test)]
+#[cfg(not(target_os = "linux"))]
+pub(crate) use ancestor::ancestor_matches_high_perf;
+#[cfg(test)]
 #[cfg(target_os = "linux")]
 pub(crate) use ancestor::parse_proc_ppid;
 #[cfg(test)]
+#[cfg(target_os = "linux")]
 pub(crate) use ancestor::{ancestor_matches_high_perf, ancestor_process_names};
 #[cfg(test)]
 pub(crate) use protocol::{known_xtermjs_hosts, RIS_RESET, VSCODE_FPS_CAP};

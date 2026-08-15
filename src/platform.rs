@@ -111,6 +111,7 @@ pub(crate) fn sysfs_read_line(path: &str) -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 #[must_use]
+#[allow(dead_code)]
 pub(crate) fn sysfs_read_line(_path: &str) -> Option<String> {
     None
 }
@@ -177,6 +178,7 @@ pub(crate) fn procfs_field(path: &str, prefix: &str) -> Option<String> {
 
 #[cfg(not(target_os = "linux"))]
 #[must_use]
+#[allow(dead_code)]
 pub(crate) fn procfs_field(_path: &str, _prefix: &str) -> Option<String> {
     None
 }
@@ -201,6 +203,7 @@ pub(crate) fn procfs_field_u64(path: &str, prefix: &str) -> Option<u64> {
 
 #[cfg(not(target_os = "linux"))]
 #[must_use]
+#[allow(dead_code)]
 pub(crate) fn procfs_field_u64(_path: &str, _prefix: &str) -> Option<u64> {
     None
 }
