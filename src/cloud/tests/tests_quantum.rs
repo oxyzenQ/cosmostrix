@@ -834,7 +834,7 @@ fn pin_one_particle(
     p.vx = vx;
     p.vy = vy;
     p.birth = spawn_time; // reset birth so age is small at frame_time
-    // Anchor the quantum update clock so dt is deterministic.
+                          // Anchor the quantum update clock so dt is deterministic.
     cloud.last_quantum_update_time = spawn_time;
     cloud.last_phosphor_time = spawn_time;
     idx
@@ -863,7 +863,10 @@ fn quantum_particle_bounces_off_right_edge() {
     step_one_frame(&mut cloud, &mut frame, frame_time);
 
     let p = &cloud.quantum_particles[idx];
-    assert!(p.active, "particle must still be active after a single bounce");
+    assert!(
+        p.active,
+        "particle must still be active after a single bounce"
+    );
     assert!(
         p.vx < 0.0,
         "vx must be NEGATIVE after bouncing off the right edge, got {}",
@@ -908,7 +911,10 @@ fn quantum_particle_bounces_off_left_edge() {
     step_one_frame(&mut cloud, &mut frame, frame_time);
 
     let p = &cloud.quantum_particles[idx];
-    assert!(p.active, "particle must still be active after a single bounce");
+    assert!(
+        p.active,
+        "particle must still be active after a single bounce"
+    );
     assert!(
         p.vx > 0.0,
         "vx must be POSITIVE after bouncing off the left edge, got {}",
@@ -924,7 +930,11 @@ fn quantum_particle_bounces_off_left_edge() {
         QUANTUM_RIPPLE_BOUNCE_DAMPING,
         expected_mag
     );
-    assert!(p.x >= 0.0, "x must be inside bounds after bounce, got {}", p.x);
+    assert!(
+        p.x >= 0.0,
+        "x must be inside bounds after bounce, got {}",
+        p.x
+    );
     assert!(
         p.vy.abs() < 0.001,
         "vy must be unchanged (perpendicular axis untouched), got {}",
@@ -948,7 +958,10 @@ fn quantum_particle_bounces_off_bottom_edge() {
     step_one_frame(&mut cloud, &mut frame, frame_time);
 
     let p = &cloud.quantum_particles[idx];
-    assert!(p.active, "particle must still be active after a single bounce");
+    assert!(
+        p.active,
+        "particle must still be active after a single bounce"
+    );
     assert!(
         p.vy < 0.0,
         "vy must be NEGATIVE after bouncing off the bottom edge, got {}",
@@ -991,7 +1004,10 @@ fn quantum_particle_bounces_off_top_edge() {
     step_one_frame(&mut cloud, &mut frame, frame_time);
 
     let p = &cloud.quantum_particles[idx];
-    assert!(p.active, "particle must still be active after a single bounce");
+    assert!(
+        p.active,
+        "particle must still be active after a single bounce"
+    );
     assert!(
         p.vy > 0.0,
         "vy must be POSITIVE after bouncing off the top edge, got {}",
@@ -1007,7 +1023,11 @@ fn quantum_particle_bounces_off_top_edge() {
         QUANTUM_RIPPLE_BOUNCE_DAMPING,
         expected_mag
     );
-    assert!(p.y >= 0.0, "y must be inside bounds after bounce, got {}", p.y);
+    assert!(
+        p.y >= 0.0,
+        "y must be inside bounds after bounce, got {}",
+        p.y
+    );
     assert!(
         p.vx.abs() < 0.001,
         "vx must be unchanged (perpendicular axis untouched), got {}",
@@ -1073,11 +1093,15 @@ fn quantum_particle_bounces_off_corner_both_axes() {
     step_one_frame(&mut cloud, &mut frame, frame_time);
 
     let p = &cloud.quantum_particles[idx];
-    assert!(p.active, "particle must still be active after corner bounce");
+    assert!(
+        p.active,
+        "particle must still be active after corner bounce"
+    );
     assert!(
         p.vx < 0.0 && p.vy < 0.0,
         "both vx and vy must be NEGATIVE after a corner bounce, got vx={}, vy={}",
-        p.vx, p.vy
+        p.vx,
+        p.vy
     );
     // Both axes damped independently.
     let expected_vx_mag = pre_vx.abs() * QUANTUM_RIPPLE_BOUNCE_DAMPING;
@@ -1097,6 +1121,7 @@ fn quantum_particle_bounces_off_corner_both_axes() {
     assert!(
         p.x <= 19.0 && p.y <= 9.0,
         "position must be inside bounds after corner bounce, got x={}, y={}",
-        p.x, p.y
+        p.x,
+        p.y
     );
 }
