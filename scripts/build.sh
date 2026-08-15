@@ -407,7 +407,7 @@ run_audit() {
                 local audit_output
                 audit_output=$(cargo audit 2>&1)
                 local rc=$?
-                echo "$audit_output" | grep -iE '(vulnerabilit[yi]|CVE-|warning|error)' || true
+                echo "$audit_output" | grep -iE '(vulnerabilit[yi]|CVE-|warning|error)' || true  # codespell:ignore
                 if [ $rc -eq 0 ]; then
                         log_success_quietable "Security audit passed"
                 else
