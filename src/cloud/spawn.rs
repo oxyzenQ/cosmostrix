@@ -823,7 +823,13 @@ impl Cloud {
             // (enough for organic feel) without visible stratification.
             let speed = QUANTUM_RIPPLE_SPEED * (0.9 + self.rand_chance.sample(&mut self.mt) * 0.2);
 
-            let char_idx = (self.rand_chance.sample(&mut self.mt) * chars.len() as f32) as usize;
+            // Pre-clamp: rand_chance returns [0, 1), but float rounding
+            // on the multiply can theoretically reach chars.len(). The
+            // .min() below also guards, but clamping the random value
+            // first makes the intent explicit and avoids relying on the
+            // downstream guard.
+            let char_idx =
+                (self.rand_chance.sample(&mut self.mt).min(0.999) * chars.len() as f32) as usize;
             p.active = true;
             p.x = cx;
             p.y = cy;

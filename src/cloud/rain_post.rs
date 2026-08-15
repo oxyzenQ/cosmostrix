@@ -7,7 +7,7 @@
 //! ring). Both are Cloud methods split from rain.rs to keep that file under the
 //! 1200-LOC source cap. Same impl block, just in a sibling file.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
 
@@ -200,15 +200,22 @@ impl Cloud {
         // the old behavior; at 30 FPS particles now travel 2x per frame,
         // preserving intended speed across the 2.5s lifespan.
         //
-        // scale by resume_blend so ripple motion eases in lockstep
-        // with spawn/droplet/phosphor during pause-deceleration and
-        // resume-acceleration (audit §8.1 — previously ripple ran at full
-        // speed during the 0.30s decel, visually incongruous with rain).
-        let dt = now
+        // Also capped by max_sim_delta (set by the event loop under perf
+        // pressure) so quantum ripple decelerates in lockstep with rain
+        // and monolith when the system is overloaded. Without this cap,
+        // quantum particles would race ahead of the rain during throttling
+        // — visually incongruous (rain crawls, particles zip).
+        // When max_sim_delta is zero (bench mode / tests), the cap is
+        // disabled — matching the droplet/monolith convention.
+        let dt_raw = now
             .saturating_duration_since(self.last_quantum_update_time)
-            .as_secs_f32()
-            .min(1.0 / 30.0)
-            * self.resume_blend;
+            .as_secs_f32();
+        let sim_cap = if self.max_sim_delta > Duration::from_millis(0) {
+            self.max_sim_delta.as_secs_f32()
+        } else {
+            f32::MAX
+        };
+        let dt = dt_raw.min(1.0 / 30.0).min(sim_cap) * self.resume_blend.clamp(0.0, 1.0);
         self.last_quantum_update_time = now;
 
         let cols = self.cols;
@@ -274,12 +281,12 @@ impl Cloud {
                 p.y = 2.0 * max_y - p.y;
                 p.vy = -p.vy * QUANTUM_RIPPLE_BOUNCE_DAMPING;
             }
-            // Final clamp guards against the rare case of a single
-            // frame advancing the particle more than one viewport-width
-            // (e.g. a long pause/resume where dt was clamped to 1/30
-            // but the velocity was already high). Without this clamp
-            // the mirrored position could still sit outside bounds and
-            // the `as u16` cast below would produce a wrapping value.
+            // Final clamp: defense-in-depth against multi-bounce in a single
+            // frame (e.g. 30 cells/sec * 1/30 sec dt = 1 cell; a particle
+            // near the edge can overshoot, bounce, and overshoot again).
+            // The mirror formula handles each individual bounce correctly;
+            // this clamp catches the accumulated error after multiple bounces.
+            // Without it, the `as u16` cast below would wrap on out-of-bounds.
             p.x = p.x.clamp(0.0, max_x);
             p.y = p.y.clamp(0.0, max_y);
 
@@ -319,8 +326,12 @@ impl Cloud {
                 1.0 - s * (1.0 - TAIL_FLOOR)
             } else {
                 // TAIL: linear fade from TAIL_FLOOR down to 0.
-                let tail_t = (life_frac - QUANTUM_RIPPLE_TAIL_START_FRAC)
-                    / (1.0 - QUANTUM_RIPPLE_TAIL_START_FRAC);
+                // Clamp tail_t to [0, 1] to guard against float precision
+                // drift when life_frac is very close to 1.0 — prevents
+                // negative brightness from 1.0 - tail_t going below 0.
+                let tail_t = ((life_frac - QUANTUM_RIPPLE_TAIL_START_FRAC)
+                    / (1.0 - QUANTUM_RIPPLE_TAIL_START_FRAC))
+                    .clamp(0.0, 1.0);
                 TAIL_FLOOR * (1.0 - tail_t)
             };
 
