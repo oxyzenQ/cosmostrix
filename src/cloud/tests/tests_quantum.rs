@@ -1156,7 +1156,7 @@ fn quantum_particle_bounces_off_corner_both_axes() {
 //
 // The retune:
 //  - Lifespan 0.8s → 2.5s (the "a few seconds masterclass" request).
-//  - Speed 18 -> 9 -> 12 cells/sec (balanced: not a blur, not a slog).
+//  - Speed 18 -> 9 -> 12 -> 30 cells/sec (smooth cell transitions at 60 FPS).
 //  - Spawn speed variance 0.8..1.2 → 0.9..1.1 (coherent cohort).
 //  - Bounce damping 0.85 → 0.78 (more deceleration over longer life).
 //  - Brightness curve `fade*fade` → HEAD/BODY/TAIL three-segment fade.
@@ -1181,15 +1181,22 @@ fn quantum_lifespan_constant_in_masterclass_range() {
     const _: () = assert!(QUANTUM_RIPPLE_LIFETIME_SECS <= 10.0);
 }
 
-/// Sanity: speed must be in the "smooth drift" range. Above 15 cells/sec
-/// the motion reads as a blur (the original 18.0 complaint); below 5
-/// the particle appears static. The sweet spot is [6, 12].
+/// Sanity: speed must be in the "smooth terminal motion" range.
+/// Terminal rendering is discrete (1 cell = minimum unit), so the
+/// visual smoothness depends on how often the particle crosses a cell
+/// boundary per frame. At 60 FPS:
+///   - Below 12 cells/sec: particle stays in same cell for 5+ frames (stutter)
+///   - 12-30 cells/sec: cell transition every 2-5 frames (acceptable)
+///   - 30-60 cells/sec: cell transition every 1-2 frames (smooth)
+///   - Above 60 cells/sec: 1+ cells/frame (blur)
+/// The valid range is [12, 60] — wide enough to cover both conservative
+/// and aggressive tuning without allowing blur-inducing speeds.
 #[test]
 fn quantum_speed_constant_in_smooth_drift_range() {
     assert!(
-        (6.0..=12.0).contains(&QUANTUM_RIPPLE_SPEED),
-        "QUANTUM_RIPPLE_SPEED = {QUANTUM_RIPPLE_SPEED} is outside [6, 12] \
-         — owner requested smooth motion (was 18.0, too fast)"
+        (12.0..=60.0).contains(&QUANTUM_RIPPLE_SPEED),
+        "QUANTUM_RIPPLE_SPEED = {QUANTUM_RIPPLE_SPEED} is outside [12, 60] \
+         — must produce smooth cell transitions at 60 FPS"
     );
     const _: () = assert!(QUANTUM_RIPPLE_SPEED > 0.0);
 }

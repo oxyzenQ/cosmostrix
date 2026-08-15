@@ -256,9 +256,9 @@ pub(crate) const QUANTUM_RIPPLE_PARTICLE_COUNT: usize = 20;
 /// smoothstep + tail brightness curve (see `apply_quantum_ripple`).
 ///
 /// 2.5s was chosen so that:
-///  - At the default speed (12 cells/sec) the particle travels ~30
-///    cells in its lifetime — enough to cross a typical viewport once
-///    and ricochet, matching the "masterclass" aesthetic.
+///  - At the default speed (30 cells/sec) the particle travels ~75
+///    cells in its lifetime — enough to cross a wide viewport multiple
+///    times with ricochets, matching the "masterclass" aesthetic.
 ///  - Three rapid clicks (60 active particles) all coexist for most
 ///    of their lifespan without exhausting the 96-slot pool.
 ///  - The fade curve's "tail" segment (last 30% of life = 0.75s) is
@@ -271,19 +271,22 @@ pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 2.5;
 
 /// Particle outward radial speed (cells/sec).
 ///
-/// v50 masterclass retune: lowered from 18.0 to 12.0. The original 18
-/// cells/sec combined with the 0.8s lifespan meant particles crossed
-/// the viewport in ~1 second and ricocheted violently. The first
-/// retune to 9.0 was reported as too slow — particles drifted like
-/// snow instead of the snappy ripple the owner expected. 12.0 is the
-/// balanced midpoint: 33% slower than 18.0 (no blur, no violent
-/// ricochet) yet 33% faster than 9.0 (snappy enough to feel responsive).
+/// v50 speed evolution: 18.0 (too fast/blur) -> 9.0 (too slow/snow)
+/// -> 12.0 (better but still stuttery at 0.2 cells/frame) -> 30.0.
+///
+/// 30.0 cells/sec was chosen because at 60 FPS the particle moves
+/// 0.5 cells/frame — it changes terminal cell every 2 frames instead
+/// of every 5 frames (12.0) or every 7 frames (9.0). This is the
+/// minimum speed where discrete cell-to-cell rendering feels smooth
+/// in a terminal emulator. Above 60 cells/sec (1 cell/frame) the
+/// motion reads as a blur again; below 12 cells/sec the stutter is
+/// visually distracting.
 ///
 /// Combined with the narrower spawn-speed variance (0.9..1.1 instead
 /// of 0.8..1.2), this produces a visually coherent cohort where all
 /// particles travel at similar perceived speeds — the "masterclass"
 /// look the owner requested.
-pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 12.0;
+pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 30.0;
 
 /// Brand purple RGB (same as logo color) for Quantum effects.
 pub(crate) const QUANTUM_BRAND_PURPLE_R: u8 = 168;

@@ -175,7 +175,7 @@ impl Cloud {
     /// curve is now a three-segment HEAD/BODY/TAIL fade (see
     /// `QUANTUM_RIPPLE_HEAD_END_FRAC` / `QUANTUM_RIPPLE_TAIL_START_FRAC`)
     /// replacing the old `fade*fade` quadratic. Combined with the
-    /// longer 2.5s lifespan and 12 cells/sec speed, this produces
+    /// longer 2.5s lifespan and 30 cells/sec speed, this produces
     /// the smooth drift + graceful fade-out the owner requested.
     ///
     /// Runs O(active_particles) per frame. Cost is negligible —
