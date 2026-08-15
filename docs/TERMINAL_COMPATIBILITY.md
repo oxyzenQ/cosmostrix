@@ -23,12 +23,12 @@ it keeps recovery paths conservative and explicit.
 | Terminal | Expected result | Notes |
 | --- | --- | --- |
 | Alacritty | Excellent | Truecolor is expected. `color-bg = default-background` follows Alacritty's configured background and opacity. |
-| Konsole | Excellent | Truecolor is expected on modern Konsole. |
+| Konsole | Excellent | Truecolor is expected on modern Konsole. **Known issue:** `Super+C` (Windows-key + c) still cycles color — Konsole's kitty keyboard encoder does not set the `SUPER` bit. See [Known Issues](#known-issues) below. |
 | Kitty | Excellent | Truecolor and Unicode rendering are expected. |
 | Ghostty | Excellent | Truecolor and Unicode rendering are expected. |
 | GNOME Terminal | Good | Truecolor usually works through VTE-based detection. |
 | Windows Terminal / PowerShell | Good | `--reset-terminal` is best-effort; user confirmation on Windows builds is still useful. |
-| tmux | Good with config | The outer terminal and tmux must both support RGB for truecolor. |
+| tmux | Good with config | The outer terminal and tmux must both support RGB for truecolor. **Known issue:** `Super+C` (Windows-key + c) still cycles color inside tmux — tmux translates kitty protocol back to legacy escape sequences, dropping the `SUPER` bit. See [Known Issues](#known-issues) below. |
 | SSH | Depends on remote env | Forward `TERM`/`COLORTERM` carefully; remote font and locale also matter. |
 | Linux console / minimal TTY | Basic | Use `--colormode 256` or `--charset minimal` if colors or glyphs look wrong. Synchronized output (mode 2026) is disabled because vt.c does not understand it. **Known issue:** scrollback is not preserved on `q` quit — see [Known Issues](#known-issues) below. |
 | VSCode integrated terminal | Good (capped) | Auto-detected via `TERM_PROGRAM=vscode`. Tier 2 defenses apply: (1) synchronized output (mode 2026) disabled because xterm.js's buffer implementation amplifies memory pressure; (2) FPS capped at 30 to keep the worst-case byte rate under ~7 MB/sec; (3) byte-budget backpressure suppresses flushes when the rolling window exceeds 40 MB; (4) periodic RIS reset (ESC c) every ~50 MB clears xterm.js's scrollback buffer to prevent the multi-hour V8 OOM (SIGTRAP) crash. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
@@ -227,3 +227,73 @@ The issue is documented here so future maintainers do not re-attempt
 the same fix paths. If you believe you have a new angle (for example a
 vt.c-specific escape sequence that bounds the scroll region to the
 visible viewport only), open a discussion before opening a PR.
+
+### Super+C still cycles color in tmux and Konsole (won't fix)
+
+**Symptom:** Pressing `Super+C` (the Windows-logo key plus `c`) still
+cycles the color scheme forward, even though commit `c1aa101` enabled
+the kitty keyboard protocol and commit `94d0c88` added an allowlist
+modifier guard that rejects `KeyModifiers::SUPER`. Bare `c` and
+`Shift+C` continue to work as designed (forward / reverse cycle).
+
+**Scope:** Reported by the owner on:
+
+- **tmux** (any version) — running cosmostrix inside a tmux session,
+  regardless of the outer terminal. The outer terminal may itself
+  report `SUPER` correctly when cosmostrix runs directly (Alacritty,
+  Hyper, Kitty, WezTerm, Ghostty, foot all confirmed working by the
+  owner), but the moment cosmostrix is launched inside `tmux`, the
+  `SUPER` bit is lost and `Super+C` arrives as a bare `Char('c')` with
+  `KeyModifiers::NONE`.
+- **Konsole** (any version tested, including 22.04+) — running
+  cosmostrix directly inside Konsole. The kitty keyboard protocol is
+  correctly enabled (the `KONSOLE_VERSION` env-var detection fires and
+  `PushKeyboardEnhancementFlags` is sent), but Konsole's CSI-u encoder
+  does not populate the `SUPER` modifier bitfield for the Windows-key
+  combo, so crossterm decodes the event as `KeyModifiers::NONE`.
+
+Confirmed working (Super+C correctly blocked) by the owner:
+
+- Alacritty, Hyper, Kitty, WezTerm, Ghostty, foot.
+
+**Status:** Won't fix. The allowlist guard (`is_unmodified_or_shift`)
+is correct and complete on cosmostrix's side — the `SUPER` bit is
+rejected the moment crossterm exposes it. The failure is downstream of
+cosmostrix: the terminal multiplexer (tmux) or terminal emulator
+(Konsole) strips the `SUPER` modifier bit before the event reaches
+crossterm's decoder. No amount of cosmostrix-side code can recover a
+bit that was never delivered. The two layers that would need to change:
+
+1. **tmux** — its `extended-keys` feature forwards the kitty keyboard
+   protocol between the outer terminal and tmux, but when re-emitting
+   key events to the application inside the pane, tmux translates back
+   to legacy escape sequences in the default `extended-keys format`
+   setting. Legacy sequences can only encode `SHIFT | ALT | CONTROL`,
+   so `SUPER | HYPER | META` are silently dropped. The fix would be
+   `tmux` setting `extended-keys format all` (or equivalent) and
+   emitting CSI-u to applications — outside cosmostrix's control.
+2. **Konsole** — its kitty keyboard protocol implementation reports
+   `SHIFT | ALT | CONTROL` but does not set the `SUPER` bit for the
+   Windows-key combo. This is a Konsole-side bug; the fix belongs
+   upstream in Konsole's input encoder.
+
+**Workarounds:**
+
+1. **Run cosmostrix directly in a reporting terminal** — launch
+   cosmostrix inside Alacritty, Hyper, Kitty, WezTerm, Ghostty, or
+   foot (not inside tmux/screen, not inside Konsole). `Super+C` is
+   correctly blocked in these.
+2. **Avoid the Super-key shortcut entirely** — use bare `c` (forward
+   cycle) or `Shift+C` (reverse cycle) instead. Both work in every
+   terminal, including tmux and Konsole.
+3. **If you must use tmux**, configure `extended-keys format all` in
+   `~/.tmux.conf` and verify with `tmux -V` >= 3.3. This is untested
+   by the cosmostrix owner; even with the setting, tmux may still
+   translate to legacy encoding for compatibility reasons.
+
+The issue is documented here so future maintainers do not re-attempt
+the same fix path on the cosmostrix side. The allowlist modifier guard
+and kitty keyboard protocol push are both correct and complete; any
+further work belongs upstream in tmux and Konsole. If a future tmux or
+Konsole release fixes `SUPER` bit forwarding, no cosmostrix change is
+needed — the existing guard will start rejecting `Super+C` automatically.
