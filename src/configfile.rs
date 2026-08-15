@@ -670,12 +670,13 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 /// Build the full dump-config output with a generated header prepended.
 ///
-/// The header is 4 comment lines:
+/// The header is 5 comment lines:
 ///   ```text
 ///   # cosmostrix config file
 ///   # generated at <ISO 8601 UTC>
 ///   # using Howard Hinnant chrono design (libc::gmtime_r)
-///   # sha512 (template): <hex digest of template body>
+///   # template-fingerprint: <hex digest of template body>
+///   # verify full file: sha512sum <path> or --testconf
 ///   ```
 /// followed by a blank `#` line, then the existing curated `# cosmostrix
 /// configuration` template from `dump_config_text()`.
@@ -687,16 +688,22 @@ pub(crate) fn dump_config_text() -> &'static str {
 /// is in use (it was dropped in v30 to eliminate 8 transitive deps).
 ///
 /// v50: SHA-512 fingerprint of the template body (everything after the
-/// header). Serves as a content-addressable identity — any change to the
-/// template produces a different digest. Users can verify their config
-/// template matches a known version with `sha512sum`, detect config drift
-/// across machines, and prove exact config state in bug reports. Uses the
-/// same `sha2` crate already in-tree for live-reload change detection
-/// (zero new dependencies). SHA-512 chosen over SHA-256 for higher
-/// security margin (256-bit collision resistance vs 128-bit) at negligible
-/// cost for small config files (<5 KB). The hash covers only the template
-/// body (not the header itself), so the digest is deterministic regardless
-/// of when `--dump-config` is run.
+/// header). Labelled `template-fingerprint` so users don't confuse it with
+/// `sha512sum` of the full file on disk (which includes header lines).
+/// Serves as a content-addressable identity — any change to the template
+/// produces a different digest. `--testconf` extracts this fingerprint and
+/// compares it against the current built-in template to detect drift.
+/// Uses the same `sha2` crate already in-tree for live-reload change
+/// detection (zero new dependencies). SHA-512 chosen over SHA-256 for
+/// higher security margin (256-bit collision resistance vs 128-bit) at
+/// negligible cost for small config files (<5 KB). The hash covers only the
+/// template body (not the header itself), so the digest is deterministic
+/// regardless of when `--dump-config` is run.
+///
+/// v50 (alpha.2): Added line 5 (`verify full file`) so users who only look at the
+/// header immediately know which command produces the full-file hash that
+/// matches `sha512sum`. This eliminates the most common confusion:
+/// "why doesn't the template hash match sha512sum?".
 ///
 /// Returns a `String` (allocates) instead of `&'static str` because the
 /// timestamp is runtime-generated. Callers: `--dump-config` stdout path and
@@ -707,18 +714,21 @@ pub(crate) fn dump_config_with_header() -> String {
     let body = dump_config_text();
     let hash = sha512_hex(body.as_bytes());
     format!(
-        "# cosmostrix config file\n# generated at {ts}\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# sha512 (template): {hash}\n#\n{body}"
+        "# cosmostrix config file\n# generated at {ts}\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# template-fingerprint: {hash}\n# verify full file: sha512sum <path> or --testconf\n#\n{body}"
     )
 }
 
 /// Compute the SHA-512 hex digest of `data`.
 ///
-/// Two distinct scopes:
+/// Three distinct scopes:
 ///   - `dump_config_with_header()` → fingerprints the **template body** only
-///     (labelled `sha512 (template)` so users don't expect it to match
+///     (labelled `template-fingerprint` so users don't expect it to match
 ///     `sha512sum` of the full file on disk, which includes header lines).
 ///   - `testconf::run()` → fingerprints the **user's config file on disk**
 ///     (matches `sha512sum` exactly).
+///   - `testconf::run()` → also fingerprints the **current built-in template**
+///     at runtime and compares it against the header fingerprint to detect
+///     template drift (user edited the commented template body).
 ///
 /// Returns a 128-character lowercase hex string.
 #[must_use]
@@ -726,6 +736,39 @@ pub(crate) fn sha512_hex(data: &[u8]) -> String {
     let mut hasher = Sha512::new();
     hasher.update(data);
     format!("{:0128x}", hasher.finalize())
+}
+
+/// Extract the `template-fingerprint` hex digest from the header of a config
+/// file (if present).
+///
+/// Looks for a line matching `# template-fingerprint: <128 hex chars>` in the
+/// first 6 lines of the file. Returns `None` if the header is missing or
+/// doesn't contain a fingerprint line (e.g., hand-written config, or pre-v50
+/// format).
+///
+/// Used by `testconf::run()` to detect template drift: the extracted
+/// fingerprint is compared against a fresh `sha512_hex(dump_config_text())`
+/// computed at runtime.
+#[must_use]
+pub(crate) fn extract_template_fingerprint(content: &str) -> Option<String> {
+    for line in content.lines().take(6) {
+        let trimmed = line.trim_start();
+        if let Some(hex) = trimmed.strip_prefix("# template-fingerprint: ") {
+            let hex = hex.trim();
+            // Validate: must be exactly 128 lowercase hex characters.
+            if hex.len() == 128 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+                return Some(hex.to_owned());
+            }
+        }
+        // Also accept the legacy v50 label for backward compat.
+        if let Some(hex) = trimmed.strip_prefix("# sha512 (template): ") {
+            let hex = hex.trim();
+            if hex.len() == 128 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+                return Some(hex.to_owned());
+            }
+        }
+    }
+    None
 }
 
 #[must_use]

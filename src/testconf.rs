@@ -81,8 +81,30 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // detect config drift across machines, and prove config identity
     // in bug reports. Uses the same sha2 crate as --dump-config and
     // live-reload change detection (zero new dependencies).
-    let hash = configfile::sha512_hex(content.as_bytes());
-    println!("testconf: sha512: {hash}");
+    let file_hash = configfile::sha512_hex(content.as_bytes());
+    println!("testconf: file-sha512: {file_hash}");
+
+    // v50 (alpha.2): Extract template-fingerprint from the header (if present)
+    // and compare against the current built-in template to detect drift.
+    let header_fp = configfile::extract_template_fingerprint(&content);
+    let current_template_hash = configfile::sha512_hex(configfile::dump_config_text().as_bytes());
+    match &header_fp {
+        Some(fp) => {
+            println!("testconf: template-fingerprint: {fp}");
+            if fp == &current_template_hash {
+                println!("testconf: template drift: none (matches built-in v50 template)");
+            } else {
+                println!("testconf: template drift: detected — header fingerprint differs from built-in template");
+                println!("testconf:   built-in hash: {current_template_hash}");
+                eprintln!(
+                    "testconf: hint: run `cosmostrix --dump-config <path> --force` to regenerate the template"
+                );
+            }
+        }
+        None => {
+            println!("testconf: template-fingerprint: (not found in header — config may be hand-written or pre-v50)");
+        }
+    }
 
     let parsed = configfile::parse_config_text(&content);
     let mut errors = 0usize;

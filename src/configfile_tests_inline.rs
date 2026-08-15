@@ -197,12 +197,16 @@ fn dump_config_documents_paired_field_split() {
 
 #[test]
 fn dump_config_with_header_starts_with_header_lines() {
-    // v50: the generated config must start with the 4-line header +
+    // v50 (alpha.2): the generated config must start with the 5-line header +
     // blank `#` line, then the existing `# cosmostrix configuration`
-    // template body. v50 added the sha512 fingerprint line.
+    // template body. v50 added the fingerprint; this iteration renamed it to
+    // `template-fingerprint` and added a `verify full file` hint line.
     let dump1 = dump_config_with_header();
     let lines: Vec<&str> = dump1.lines().collect();
-    assert!(lines.len() >= 6, "header should have >= 6 lines");
+    assert!(
+        lines.len() >= 7,
+        "header should have >= 7 lines (5 header + blank + body)"
+    );
     assert_eq!(lines[0], "# cosmostrix config file", "header line 1");
     // Line 2: `# generated at <ISO 8601 UTC>`
     let line2 = lines[1];
@@ -220,20 +224,25 @@ fn dump_config_with_header_starts_with_header_lines() {
         lines[2], "# using Howard Hinnant chrono design (libc::gmtime_r)",
         "header line 3"
     );
-    // Line 4: SHA-512 template fingerprint (v50)
-    // Labelled "sha512 (template)" to distinguish from `sha512sum` of the
+    // Line 4: template fingerprint (v50 alpha.2 label)
+    // Labelled "template-fingerprint" to distinguish from `sha512sum` of the
     // full file on disk — this hash covers only the template body, not the
     // header lines. Use `--testconf` or `sha512sum` for file-level checks.
     let line4 = lines[3];
     assert!(
-        line4.starts_with("# sha512 (template): ") && line4.len() == 21 + 128,
-        "sha512 (template) line wrong: {line4:?} (expected '# sha512 (template): ' + 128 hex chars)"
+        line4.starts_with("# template-fingerprint: ") && line4.len() == 24 + 128,
+        "template-fingerprint line wrong: {line4:?} (expected '# template-fingerprint: ' + 128 hex chars)"
     );
-    // Line 5: blank `#` separator
-    assert_eq!(lines[4], "#", "blank separator");
-    // Line 6: existing template body starts
+    // Line 5: verify full file hint (v50 alpha.2)
     assert_eq!(
-        lines[5], "# cosmostrix configuration",
+        lines[4], "# verify full file: sha512sum <path> or --testconf",
+        "header line 5 (verify hint)"
+    );
+    // Line 6: blank `#` separator
+    assert_eq!(lines[5], "#", "blank separator");
+    // Line 7: existing template body starts
+    assert_eq!(
+        lines[6], "# cosmostrix configuration",
         "template body start"
     );
 }
@@ -414,4 +423,70 @@ fn resolve_watcher_config_path_returns_default_when_no_candidates_exist() {
     // depending on the test runner. We don't assert on it because
     // it's environment-dependent.
     let _ = existed;
+}
+
+// ── v50 (alpha.2): extract_template_fingerprint tests ──
+
+#[test]
+fn extract_template_fingerprint_from_v501_header() {
+    let content = dump_config_with_header();
+    let fp = extract_template_fingerprint(&content);
+    assert!(
+        fp.is_some(),
+        "should extract fingerprint from v50 alpha.2 header"
+    );
+    let fp = fp.unwrap();
+    assert_eq!(fp.len(), 128, "fingerprint must be 128 hex chars");
+    // Verify the extracted fingerprint matches a fresh body hash.
+    let expected = sha512_hex(dump_config_text().as_bytes());
+    assert_eq!(
+        fp, expected,
+        "extracted fingerprint must match fresh body hash"
+    );
+}
+
+#[test]
+fn extract_template_fingerprint_from_legacy_v50_header() {
+    // Legacy v50 used the label `sha512 (template):` instead of
+    // `template-fingerprint:`.
+    let hash_hex = "a".repeat(128);
+    let content = format!(
+        "# cosmostrix config file\n# generated at 2026-01-01T00:00:00Z\n# using Howard Hinnant chrono design (libc::gmtime_r)\n# sha512 (template): {hash_hex}\n#\n# body here\n"
+    );
+    let fp = extract_template_fingerprint(&content);
+    assert!(
+        fp.is_some(),
+        "should extract fingerprint from legacy v50 header"
+    );
+    assert_eq!(fp.unwrap(), hash_hex);
+}
+
+#[test]
+fn extract_template_fingerprint_missing_header() {
+    // Hand-written config with no fingerprint line.
+    let content = "# cosmostrix configuration\n# some random config\ncolor = green\n";
+    let fp = extract_template_fingerprint(&content);
+    assert!(fp.is_none(), "should return None when no fingerprint line");
+}
+
+#[test]
+fn extract_template_fingerprint_invalid_hex() {
+    // Fingerprint line with invalid (too short) hex.
+    let content = "# template-fingerprint: deadbeef\n# rest of file\n";
+    let fp = extract_template_fingerprint(&content);
+    assert!(fp.is_none(), "should reject fingerprint with wrong length");
+}
+
+#[test]
+fn extract_template_fingerprint_only_scans_first_6_lines() {
+    // Fingerprint on line 8 (beyond the scan window) should be ignored.
+    let hash_hex = "b".repeat(128);
+    let content = format!(
+        "# line 1\n# line 2\n# line 3\n# line 4\n# line 5\n# line 6\n# line 7\n# template-fingerprint: {hash_hex}\n"
+    );
+    let fp = extract_template_fingerprint(&content);
+    assert!(
+        fp.is_none(),
+        "should not find fingerprint beyond first 6 lines"
+    );
 }
