@@ -579,14 +579,12 @@ run_python_lint() {
         local py_failed=0
         local py_output
         if [ ${QUIET_CHECK} -eq 1 ]; then
-                py_output=$(ruff check scripts/*.py 2>&1)
-                if [ $? -ne 0 ]; then
+                if ! py_output=$(ruff check scripts/*.py 2>&1); then
                         echo "$py_output"
                         log_error "ruff check failed — fix Python lint issues"
                         ((py_failed++))
                 fi
-                py_output=$(ruff format --check scripts/*.py 2>&1)
-                if [ $? -ne 0 ]; then
+                if ! py_output=$(ruff format --check scripts/*.py 2>&1); then
                         echo "$py_output"
                         log_error "ruff format check failed — run 'ruff format scripts/*.py' to fix"
                         ((py_failed++))
