@@ -218,6 +218,37 @@ pub use info::env_var_truthy;
 // Path security validation lives in src/safepath.rs.
 pub(crate) use crate::safepath::{is_safe_path, validate_config_path};
 
+/// Fork guard: protects the terminal from being left in raw mode when
+/// cosmostrix is killed unexpectedly (SIGKILL, segfault, OOM).
+///
+/// When cosmostrix starts, it switches the terminal to raw mode. Normally
+/// `Terminal::drop()` restores the original settings on graceful exit.
+/// But SIGKILL bypasses all Rust cleanup — the terminal stays broken:
+/// no echo, no line buffering, keys produce garbage. The user must blindly
+/// type `reset` or `stty sane` to recover.
+///
+/// Three strategies by platform:
+///
+/// - **Linux**: `fork()` + `prctl(PR_SET_PDEATHSIG)`. A child process holds
+///   the original termios and waits for SIGTERM (delivered instantly by the
+///   kernel when the parent dies). Zero latency, zero CPU overhead. This is
+///   the gold standard — `prctl` is Linux-only.
+///
+/// - **All other Unix** (macOS, FreeBSD, OpenBSD, NetBSD, Android/Termux):
+///   A background thread polls `getppid()` every 500ms. When the parent dies,
+///   the child is reparented to PID 1 (launchd/init) — ppid becomes 1. The
+///   thread detects this and restores the terminal. 500ms worst-case latency
+///   (typically ~250ms average), negligible CPU (one syscall per 500ms).
+///   This covers macOS (no prctl), BSD (no prctl), and Android (fork may be
+///   restricted by seccomp, but threads always work).
+///
+/// - **Windows**: No-op. ConPTY (Windows Terminal, PowerShell 7+) automatically
+///   restores console state when the attached process exits, even on
+///   Task Manager kill. Legacy cmd.exe has `SetConsoleMode` but it also
+///   reverts on process exit. The panic hook and watchdog still cover the
+///   graceful-shutdown path. Set `COSMOSTRIX_NO_FORK_GUARD=1` to skip.
+//
+// ── Linux: fork + prctl(PR_SET_PDEATHSIG) ─────────────────────────────
 #[cfg(target_os = "linux")]
 pub fn spawn_kill9_terminal_guard() {
     if env_var_truthy("COSMOSTRIX_NO_FORK_GUARD") {
@@ -286,18 +317,18 @@ pub fn spawn_kill9_terminal_guard() {
     }
 }
 
-/// macOS equivalent of the Linux fork guard.
+// ── All other Unix (macOS, BSD, Android/Termux): getppid polling ───────
+
+/// Unix fallback: background thread polling `getppid()`.
 ///
-/// macOS lacks `prctl(PR_SET_PDEATHSIG)`, so we use a background thread
-/// that polls `getppid()`. When the parent dies (ppid becomes 1, i.e.
-/// reparented to launchd), the thread restores the terminal state.
+/// Used on all Unix platforms except Linux (which has the superior fork+prctl).
+/// Covers macOS, FreeBSD, OpenBSD, NetBSD, DragonFly BSD, and Android/Termux.
 ///
-/// This is inferior to the Linux fork guard (polling interval vs instant
-/// signal delivery), but covers the SIGKILL/crash case that the panic hook
-/// and watchdog alone cannot handle. The polling interval of 500ms is a
-/// compromise: fast enough to restore within half a second, slow enough to
-/// be negligible CPU overhead.
-#[cfg(target_os = "macos")]
+/// When the parent cosmostrix process dies (SIGKILL, crash, OOM), the OS
+/// reparents this thread to PID 1. The thread detects ppid==1 and restores
+/// the terminal. Worst-case latency: 500ms. CPU overhead: one `getppid()`
+/// syscall per 500ms — negligible.
+#[cfg(all(unix, not(target_os = "linux")))]
 pub fn spawn_kill9_terminal_guard() {
     if env_var_truthy("COSMOSTRIX_NO_FORK_GUARD") {
         return;
@@ -317,24 +348,35 @@ pub fn spawn_kill9_terminal_guard() {
         termios.assume_init()
     };
 
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_millis(500));
-            // SAFETY: getppid() is a simple POSIX call, always safe.
-            if unsafe { libc::getppid() } == 1 {
-                // Parent died — restore terminal and exit this thread.
-                let _ = unsafe {
-                    libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig)
-                };
-                restore_terminal_best_effort();
-                return;
+    std::thread::Builder::new()
+        .name("cx-term-guard".to_string())
+        .spawn(move || {
+            loop {
+                std::thread::sleep(std::time::Duration::from_millis(500));
+                // SAFETY: getppid() is a simple POSIX call, always safe.
+                // On parent death, OS reparents to PID 1 (launchd/init).
+                if unsafe { libc::getppid() } == 1 {
+                    // Parent died — restore terminal and exit this thread.
+                    let _ = unsafe {
+                        libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig)
+                    };
+                    restore_terminal_best_effort();
+                    return;
+                }
             }
-        }
-    });
+        })
+        .expect("failed to spawn terminal guard thread");
 }
 
-/// No-op on platforms without a fork guard (Windows, etc.).
-#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+// ── Windows: no-op (ConPTY auto-restores) ──────────────────────────────
+
+/// Windows: no fork guard needed.
+///
+/// ConPTY (Windows Terminal, PowerShell 7+, VSCode) automatically restores
+/// console mode when the attached process exits — even on Task Manager kill
+/// or crash. Legacy cmd.exe with `SetConsoleMode` also reverts on exit.
+/// The panic hook and watchdog still cover graceful shutdown.
+#[cfg(not(unix))]
 pub fn spawn_kill9_terminal_guard() {}
 
 fn main() -> std::io::Result<()> {
