@@ -550,7 +550,7 @@ run_shellcheck() {
                 local sh_output
                 sh_output=$(shellcheck scripts/*.sh 2>&1)
                 local rc=$?
-                # shellcheck: only show lines with actual findings
+                # Only show lines with actual findings
                 echo "$sh_output" | grep -E '(^In |^scripts/|SC[0-9])' || true
                 if [ $rc -eq 0 ]; then
                         log_success_quietable "Shellcheck passed"
