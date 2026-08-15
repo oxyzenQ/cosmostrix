@@ -30,7 +30,7 @@ it keeps recovery paths conservative and explicit.
 | Windows Terminal / PowerShell | Good | `--reset-terminal` is best-effort; user confirmation on Windows builds is still useful. |
 | tmux | Good with config | The outer terminal and tmux must both support RGB for truecolor. |
 | SSH | Depends on remote env | Forward `TERM`/`COLORTERM` carefully; remote font and locale also matter. |
-| Linux console / minimal TTY | Basic | Alternate screen (`ESC[?1049h`) is supported via vt.c (kernel 2.6.x+), so scrollback is preserved on `q` quit — prior `echo hello` output stays in the terminal. Use `--colormode 256` or `--charset minimal` if colors or glyphs look wrong. Synchronized output (mode 2026) is disabled because vt.c does not understand it. |
+| Linux console / minimal TTY | Basic | Use `--colormode 256` or `--charset minimal` if colors or glyphs look wrong. Synchronized output (mode 2026) is disabled because vt.c does not understand it. **Known issue:** scrollback is not preserved on `q` quit — see [Known Issues](#known-issues) below. |
 | VSCode integrated terminal | Good (capped) | Auto-detected via `TERM_PROGRAM=vscode`. Tier 2 defenses apply: (1) synchronized output (mode 2026) disabled because xterm.js's buffer implementation amplifies memory pressure; (2) FPS capped at 30 to keep the worst-case byte rate under ~7 MB/sec; (3) byte-budget backpressure suppresses flushes when the rolling window exceeds 40 MB; (4) periodic RIS reset (ESC c) every ~50 MB clears xterm.js's scrollback buffer to prevent the multi-hour V8 OOM (SIGTRAP) crash. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
 | Hyper | Good (capped) | Auto-detected via `TERM_PROGRAM=Hyper`. Same Tier 2 defenses as VSCode (Hyper embeds xterm.js as its terminal renderer). |
 | WaveTerminal | Good (capped) | Auto-detected via `TERM_PROGRAM=WaveTerminal`. Same Tier 2 defenses as VSCode (WaveTerminal embeds xterm.js in its tiling panes). |
@@ -139,3 +139,71 @@ match the local terminal. For headless environments, prefer:
 cosmostrix --benchmark
 cosmostrix --doctor
 ```
+
+## Known Issues
+
+### TTY scrollback is not preserved on quit (won't fix)
+
+**Symptom:** On a real Linux virtual console (TTY, reached via
+`ctrl+alt+fN`, `TERM=linux`), terminal history emitted before cosmostrix
+started — for example the output of `echo hello` — is gone from the
+scrollback buffer after quitting cosmostrix with `q`. The visible
+screen clears immediately on exit.
+
+**Scope:** This issue is specific to the kernel Linux virtual console
+(vt.c). Graphical terminal emulators (Alacritty, Kitty, Ghostty,
+Konsole, GNOME Terminal, xterm, etc.) do NOT exhibit this issue —
+scrollback is preserved on `q` quit there. The issue is also absent
+when cosmostrix runs inside `tmux` or `screen` on a TTY (the
+multiplexer maintains its own scrollback buffer that survives).
+
+**Status:** Won't fix. Multiple fix attempts across seven commits
+(`6d0574b`, `8b2a19b`, `42c76a8`, `246e9b9e`, `6ed244b`, `01ffda8`,
+`2b9be7e`) targeted this issue from different angles (alt-screen
+detection, `Clear(All)` removal, sync-mode placement) without producing
+a working result on the actual TTY. The remaining hypothesis is that
+the Linux vt.c scrollback ring buffer is shared between the primary
+and alternate screen buffers, so any frame content that triggers a
+scroll event pollutes the shared scrollback and pushes out prior
+history. Without kernel-side changes to vt.c, no userspace sequence
+combination can reliably preserve scrollback across a full-screen
+rendering session on the raw Linux console.
+
+**Workarounds:** Pick whichever fits your workflow.
+
+1. **Run inside `tmux`** — tmux maintains its own scrollback buffer
+   that is fully decoupled from the kernel vt.c scrollback. Quit
+   cosmostrix with `q`, then scroll up inside tmux
+   (`ctrl+b` then `[` then `PgUp`); your prior `echo hello` output
+   is preserved in the tmux pane's history.
+
+   ```bash
+   tmux new -s rain    # start a tmux session
+   echo hello          # this output is now in tmux scrollback
+   cosmostrix          # run the renderer
+   # press q to quit
+   # ctrl+b [ then PgUp to scroll — `hello` is still there
+   ```
+
+2. **Run inside `screen`** — same principle as tmux; screen maintains
+   its own scrollback (`ctrl+a` then `Esc` to enter copy/scroll mode).
+
+3. **Use a graphical terminal emulator** — if a GUI session is
+   available, run cosmostrix in Alacritty, Kitty, Ghostty, Konsole,
+   GNOME Terminal, or xterm. None of these exhibit the scrollback
+   loss; `echo hello` stays in scrollback after `q`.
+
+4. **Log to a file with `tee`** — if preserving specific output is the
+   goal, pipe it through `tee` before launching cosmostrix:
+
+   ```bash
+   echo hello | tee /tmp/before-rain.log
+   cosmostrix
+   # after q:
+   cat /tmp/before-rain.log
+   ```
+
+The issue is documented here so future maintainers do not re-attempt
+the same fix paths. If you believe you have a new angle (for example a
+vt.c-specific escape sequence that bounds the scroll region to the
+visible viewport only), open a discussion before opening a PR.
