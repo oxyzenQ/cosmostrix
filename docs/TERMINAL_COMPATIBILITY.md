@@ -31,11 +31,11 @@ it keeps recovery paths conservative and explicit.
 | tmux | Good with config | The outer terminal and tmux must both support RGB for truecolor. **Known issue:** `Super+C` (Windows-key + c) still cycles color inside tmux — tmux translates kitty protocol back to legacy escape sequences, dropping the `SUPER` bit. See [Known Issues](#known-issues) below. |
 | SSH | Depends on remote env | Forward `TERM`/`COLORTERM` carefully; remote font and locale also matter. |
 | Linux console / minimal TTY | Basic | Use `--colormode 256` or `--charset minimal` if colors or glyphs look wrong. Synchronized output (mode 2026) is disabled because vt.c does not understand it. **Known issue:** scrollback is not preserved on `q` quit — see [Known Issues](#known-issues) below. |
-| VSCode integrated terminal | Good (capped) | Auto-detected via `TERM_PROGRAM=vscode`. Tier 2 defenses apply: (1) synchronized output (mode 2026) disabled because xterm.js's buffer implementation amplifies memory pressure; (2) FPS capped at 30 to keep the worst-case byte rate under ~7 MB/sec; (3) byte-budget backpressure suppresses flushes when the rolling window exceeds 40 MB; (4) periodic RIS reset (ESC c) every ~50 MB clears xterm.js's scrollback buffer to prevent the multi-hour V8 OOM (SIGTRAP) crash. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
-| Hyper | Good (capped) | Auto-detected via `TERM_PROGRAM=Hyper`. Same Tier 2 defenses as VSCode (Hyper embeds xterm.js as its terminal renderer). |
-| WaveTerminal | Good (capped) | Auto-detected via `TERM_PROGRAM=WaveTerminal`. Same Tier 2 defenses as VSCode (WaveTerminal embeds xterm.js in its tiling panes). |
-| Tabby | Good (capped) | Auto-detected via `TERM_PROGRAM=Tabby`. Same Tier 2 defenses as VSCode (Tabby embeds xterm.js for its terminal pane). |
-| WarpTerminal | Good (capped) | Auto-detected via `TERM_PROGRAM=WarpTerminal`. Same Tier 2 defenses as VSCode (Warp's renderer pane is xterm.js). |
+| VSCode integrated terminal | Capped (degraded) | Auto-detected via `TERM_PROGRAM=vscode`. Tier 2 defenses apply (FPS cap 30, sync disabled, byte-budget backpressure, periodic RIS reset) but residual lag/stutter is unavoidable — see [Known Issues](#known-issues) below. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
+| Hyper | Capped (degraded) | Auto-detected via `TERM_PROGRAM=Hyper`. Same Tier 2 defenses as VSCode (Hyper embeds xterm.js). Same residual lag/stutter — see [Known Issues](#known-issues) below. |
+| WaveTerminal | Capped (degraded) | Auto-detected via `TERM_PROGRAM=WaveTerminal`. Same Tier 2 defenses as VSCode (WaveTerminal embeds xterm.js). Same residual lag/stutter — see [Known Issues](#known-issues) below. |
+| Tabby | Capped (degraded) | Auto-detected via `TERM_PROGRAM=Tabby`. Same Tier 2 defenses as VSCode (Tabby embeds xterm.js). Same residual lag/stutter — see [Known Issues](#known-issues) below. |
+| WarpTerminal | Capped (degraded) | Auto-detected via `TERM_PROGRAM=WarpTerminal`. Same Tier 2 defenses as VSCode (Warp's renderer pane is xterm.js). Same residual lag/stutter — see [Known Issues](#known-issues) below. |
 
 ## Background Behavior
 
@@ -297,3 +297,166 @@ and kitty keyboard protocol push are both correct and complete; any
 further work belongs upstream in tmux and Konsole. If a future tmux or
 Konsole release fixes `SUPER` bit forwarding, no cosmostrix change is
 needed — the existing guard will start rejecting `Super+C` automatically.
+
+### Electron / xterm.js terminals lag and stutter (residual, won't fix)
+
+**Symptom:** Running cosmostrix inside any Electron-based terminal —
+VSCode integrated terminal, Hyper, WaveTerminal, Tabby, WarpTerminal —
+produces a visibly degraded experience: frame stutter, intermittent
+input lag (key presses take 100-500 ms to register), mouse-glow
+effects that visibly trail the cursor, and occasional multi-second
+freezes during long-running sessions. The renderer never crashes
+(Tier 2 mitigations prevent the SIGTRAP/OOM that used to occur), but
+the visual quality is far below what cosmostrix delivers in a native
+terminal.
+
+**Scope:** Every Electron-based terminal that ships xterm.js as its
+renderer:
+
+- VSCode integrated terminal (`TERM_PROGRAM=vscode`)
+- Hyper (`TERM_PROGRAM=Hyper`)
+- WaveTerminal (`TERM_PROGRAM=WaveTerminal`)
+- Tabby (`TERM_PROGRAM=Tabby`)
+- WarpTerminal (`TERM_PROGRAM=WarpTerminal`)
+
+Native terminals — Alacritty, Kitty, Ghostty, foot, WezTerm, Konsole,
+GNOME Terminal, xterm — are unaffected. They process the same byte
+stream 5-20× faster because they run a native ANSI parser in the
+terminal process itself, not a JavaScript parser in a V8 isolate
+inside Chromium.
+
+**What cosmostrix already does (Tier 2 defenses, in place since
+SECURITY_AUDIT §12a):**
+
+1. **FPS cap at 30** (vs 240 on native terminals) — caps the
+   instantaneous byte rate at ~7 MB/sec worst case.
+2. **Synchronized output disabled** — xterm.js's mode 2026 buffer
+   implementation amplifies memory pressure, so mode 2026 is never
+   pushed on xterm.js hosts.
+3. **Rolling byte-budget backpressure** — a 600-frame (20 s at 30 FPS)
+   sliding window tracks cumulative bytes; when the window exceeds
+   40 MB, the next flush is suppressed entirely (the rain animation
+   keeps advancing internally, only the ANSI write is skipped).
+4. **Periodic RIS reset** — every ~50 MB of cumulative output, cosmostrix
+   emits `ESC c` (Reset to Initial State) to force xterm.js to flush
+   its in-memory scrollback buffer, preventing the multi-hour V8 OOM
+   that originally crashed these hosts (SIGTRAP, coredump 2026-08-04).
+5. **Hard ceiling** at 200 MB as a belt-and-suspenders last resort.
+
+**Why the residual lag is unavoidable (won't fix on cosmostrix side):**
+
+The fundamental bottleneck is architectural, not algorithmic. In a
+native terminal, ANSI bytes flow:
+
+```
+cosmostrix → write(2) → kernel PTY → terminal's native ANSI parser → GPU
+```
+
+In an Electron/xterm.js host, the same bytes flow:
+
+```
+cosmostrix → write(2) → kernel PTY → node-pty (Node.js) → IPC to
+renderer process → xterm.js (V8/JavaScript) → Canvas/WebGL → Chromium
+compositor → GPU
+```
+
+That extra hop through V8 introduces three cosmostrix-cannot-fix
+sources of stutter:
+
+1. **V8 garbage collection pauses** — xterm.js's buffer and the
+   node-pty pump both allocate JavaScript objects per frame. V8's
+   incremental GC pauses typically run 5-50 ms, but major GCs on a
+   long-running pane can stall 100-300 ms. Each pause drops 3-9
+   frames at 30 FPS, visible as a hitch. No cosmostrix-side fix can
+   suppress V8's GC scheduler.
+2. **Chromium compositor scheduling** — even when xterm.js's canvas
+   paint is fast, Chromium composites the canvas with the rest of the
+   Electron window (sidebar, tabs, devtools) on its own vsync
+   schedule. Frames that miss the compositor's deadline get dropped,
+   producing visible stutter on heavy scenes. cosmostrix has no
+   control over Chromium's compositor.
+3. **node-pty backpressure is cooperative, not enforced** — node-pty
+   reads from the PTY in a JavaScript callback; if the renderer is
+   busy, the read is delayed. The kernel PTY buffer (typically
+   256 KB on Linux) fills, then `write(2)` in cosmostrix blocks.
+   cosmostrix's write-latency backpressure detects this and downgrades
+   the scene, but the downgrade itself is visible as a quality drop —
+   fewer glyphs, smaller burst, dimmer colors. The user perceives
+   this as "the rain looks worse inside VSCode."
+
+**Practical impact on the experience:**
+
+- **Short sessions (< 5 min)**: Usually fine. The V8 heap hasn't grown
+  enough for major GCs; the buffer is small; cosmostrix's 30 FPS cap
+  is enough to keep up. Mild stutter is visible on dense scenes but
+  tolerable.
+- **Medium sessions (5-30 min)**: Noticeable stutter every 30-90 s as
+  V8 incremental GCs fire. Mouse glow trails become visible. Color
+  cycling may feel sluggish (50-200 ms between keypress and visible
+  change).
+- **Long sessions (> 30 min)**: Major GC pauses (100-300 ms) hit
+  every few minutes. RIS resets fire every ~7 s of sustained output,
+  producing a brief full-screen flicker. The byte-budget backpressure
+  may suppress 5-15% of flushes during heavy scenes, causing the rain
+  to visibly drop frames. The renderer does not crash (Tier 2 prevents
+  it), but the experience is poor.
+
+**Status:** Won't fix on the cosmostrix side. The Tier 2 defenses
+are complete and correctly sized for the 30 FPS cap; they prevent
+the crash, but they cannot paper over the architectural cost of
+running an ANSI parser inside V8. The remaining work belongs to the
+Electron / xterm.js / Chromium stack:
+
+- xterm.js could ship a WebAssembly ANSI parser to escape V8 GC.
+- Electron could expose a direct PTY-to-canvas pipe that bypasses
+  node-pty's JavaScript pump.
+- Chromium could offer a "low-latency compositor mode" that doesn't
+  drop frames on missed deadlines.
+
+None of these are cosmostrix's to build.
+
+**Workarounds:**
+
+1. **Use a native terminal for serious viewing** — Alacritty, Kitty,
+   Ghostty, foot, WezTerm, Konsole all deliver 5-20× the throughput
+   at 1/10th the latency. If you're running cosmostrix to enjoy the
+   animation, do it in a native terminal.
+2. **Lower the FPS cap further** — `cosmostrix --fps 15` halves the
+   byte rate and gives xterm.js more headroom. Useful for long-running
+   sessions inside VSCode where stability matters more than smoothness.
+3. **Keep sessions short inside Electron hosts** — under 5 minutes,
+   the experience is acceptable. Past 30 minutes, expect visible
+   degradation.
+4. **Reduce the screen size** — `cosmostrix --screen-size 80x24`
+   caps the column/row count, shrinking every frame's byte cost.
+   Useful when you must run inside an Electron host and want to keep
+   the byte budget well under the 40 MB backpressure threshold.
+5. **Close other VSCode panes** — Electron's renderer process shares
+   one V8 isolate across all panes in a window. Heavy operations in
+   another pane (debugger, language server, search) steal V8 time
+   from xterm.js and amplify stutter. Closing unrelated panes helps.
+
+**Note on mouse glow:** the cursor-follow glow and click-wave effects
+are always on (the `--n` flag was removed in v17 — see
+`src/verbose.rs`). There is no CLI toggle to disable them, so they
+contribute to the per-frame byte cost on every terminal, including
+Electron hosts. If a future cosmostrix release reintroduces a
+mouse-effect toggle, it would be a meaningful lever for reducing
+xterm.js pressure.
+
+**Verification:** Tier 2 defenses are covered by the test suite
+(`tier2::tests::*`, `termdetect::tests::xtermjs_host_*`). The
+residual lag is a measured architectural property, not a bug —
+benchmark numbers are in `docs/BENCHMARKING.md`. If you observe a
+sudden *regression* (e.g., a frame rate that previously held at 30
+FPS drops to 5 FPS), that's worth investigating as a cosmostrix-side
+issue; file it with `--perf-stats` output attached.
+
+The issue is documented here so future maintainers do not re-attempt
+the same mitigation paths. The Tier 2 defenses are correctly sized
+and complete; further work belongs upstream in xterm.js, Electron,
+and Chromium. If a future xterm.js release ships a WASM parser or
+Electron exposes a direct PTY-to-canvas pipe, the FPS cap can be
+raised and the byte-budget backpressure can be relaxed — but the
+detection logic and defense layers should remain in place as a
+safety net.
