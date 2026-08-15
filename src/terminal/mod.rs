@@ -194,13 +194,32 @@ impl Terminal {
         crossterm_terminal::enable_raw_mode()?;
         let out = BufWriter::with_capacity(STDOUT_BUF_CAPACITY, raw);
         let term_caps = crate::termdetect::detect();
-        if term_caps.sync_output {
-            // Enable synchronized output at the terminal level.
-            // The terminal now expects ESC[?2026h / ESC[?2026l framing
-            // around each logical update batch.  We wrap entire frames
-            // in the draw method.
-            let _ = out.get_ref().write_all(crate::termdetect::SYNC_START);
-        }
+        // v50 scrollback fix: do NOT emit SYNC_START (\x1b[?2026h) here.
+        //
+        // This used to write SYNC_START directly to `out.get_ref()` (the
+        // underlying Stdout) BEFORE EnterAlternateScreen was called below.
+        // That meant \x1b[?2026h landed on the MAIN screen, not the alt
+        // screen. Sync mode then stayed open on the main screen for the
+        // entire session — closed only by the SYNC_END in cleanup_terminal(),
+        // which ran AFTER LeaveAlternateScreen.
+        //
+        // On VTE-based terminals (GNOME Terminal, xfce4-terminal), Alacritty,
+        // and some xterm configs, having \x1b[?2026l (sync end) arrive on the
+        // main screen AFTER \x1b[?1049l (leave alt screen) causes the terminal
+        // to apply the buffered "sync frame" to the main screen — which can
+        // trigger scrollback destruction. The terminal interprets the
+        // leave-alt-screen switch as a content update buffered by sync mode,
+        // and "displaying" it wipes the scrollback.
+        //
+        // Each frame's flush_ansi() already wraps content in
+        // SYNC_START + frame + SYNC_END on the ALT screen. No global
+        // sync open is needed at init — the first frame's SYNC_START
+        // handles it correctly on the alt screen.
+        //
+        // The matching fix in cleanup_terminal() moves SYNC_END to BEFORE
+        // LeaveAlternateScreen, so sync mode is closed on the alt screen
+        // (where it was opened by the last frame) before switching back
+        // to the (untouched) main screen.
         let mut term = Self {
             stdout: out,
             last: None,
@@ -721,6 +740,26 @@ impl Terminal {
         }
 
         if self.alternate_screen_enabled {
+            // v50 scrollback fix: emit SYNC_END BEFORE LeaveAlternateScreen.
+            //
+            // The previous order was: LeaveAlternateScreen → SYNC_END.
+            // That meant \x1b[?2026l (sync end) landed on the MAIN screen
+            // (after the switch back from alt). Combined with the init-time
+            // SYNC_START that also landed on the main screen (before
+            // EnterAlternateScreen), sync mode was open on the main screen
+            // for the entire session. When SYNC_END finally arrived after
+            // LeaveAlternateScreen, VTE-based terminals and Alacritty
+            // interpreted the buffered leave-alt-screen switch as a content
+            // update and "displayed" it — destroying the main screen's
+            // scrollback.
+            //
+            // The correct order (matching restore_terminal_best_effort() /
+            // TERMINAL_RESTORE_SEQUENCE) is: SYNC_END → LeaveAlternateScreen.
+            // This closes sync mode on the ALT screen (where the last frame
+            // opened it) before switching back to the (untouched) main screen.
+            // The main screen never sees a sync open or close, so its
+            // scrollback is preserved.
+            //
             // REMOVED Clear(All) before LeaveAlternateScreen.
             //
             // \x1b[2J inside the alternate screen can clear the main
@@ -729,6 +768,15 @@ impl Terminal {
             // alone properly restores the main screen buffer. The alternate
             // screen content (including any rain residue) is swapped out
             // and becomes invisible. No pre-clear is needed.
+            if self.term_caps.sync_output {
+                // Belt-and-suspenders: if the last frame's SYNC_END was
+                // lost (write failure / partial flush), sync mode is stuck
+                // open on the alt screen. Close it here BEFORE leaving the
+                // alt screen, so the main screen is never touched by a
+                // sync-end sequence.
+                let _ = self.stdout.write_all(crate::termdetect::SYNC_END);
+                let _ = self.stdout.flush();
+            }
             let _ = self
                 .stdout
                 .execute(crossterm_terminal::LeaveAlternateScreen);
@@ -745,17 +793,6 @@ impl Terminal {
             let (_w, h) = crossterm_terminal::size().unwrap_or((80, 24));
             let _ = self.stdout.execute(cursor::MoveTo(0, h.saturating_sub(1)));
             let _ = self.stdout.write_all(b"\n\n");
-        }
-
-        // explicitly disable synchronized output (ESC[?2026l).
-        // Each frame ends with SYNC_END, but if the last write failed or
-        // was partial, sync mode could be stuck on — causing the terminal
-        // to buffer all output invisibly after LeaveAlternateScreen.
-        // TERMINAL_RESTORE_SEQUENCE includes this, but cleanup_terminal()
-        // doesn't use that sequence. Belt-and-suspenders: always emit it.
-        if self.term_caps.sync_output {
-            let _ = self.stdout.write_all(crate::termdetect::SYNC_END);
-            let _ = self.stdout.flush();
         }
         if self.raw_mode_enabled {
             let _ = crossterm_terminal::disable_raw_mode();
