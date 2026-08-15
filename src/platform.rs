@@ -118,9 +118,7 @@ pub(crate) fn sysfs_read_line(_path: &str) -> Option<String> {
 #[cfg(target_os = "linux")]
 #[must_use]
 pub(crate) fn sysfs_cpu_freq(key: &str) -> Option<String> {
-    sysfs_read_line(&format!(
-        "/sys/devices/system/cpu/cpu0/cpufreq/{key}"
-    ))
+    sysfs_read_line(&format!("/sys/devices/system/cpu/cpu0/cpufreq/{key}"))
 }
 
 #[cfg(not(target_os = "linux"))]

@@ -434,9 +434,7 @@ pub(crate) fn current_second_of_minute() -> u32 {
 /// Delegates to `crate::posix_time::local_tm()`.
 #[must_use]
 pub(crate) fn current_yday() -> i32 {
-    crate::posix_time::local_tm()
-        .map(|tm| tm.yday)
-        .unwrap_or(0)
+    crate::posix_time::local_tm().map(|tm| tm.yday).unwrap_or(0)
 }
 
 /// masterclass: compute the current ambient phase and apply it to the

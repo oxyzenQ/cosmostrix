@@ -143,8 +143,8 @@ mod output;
 mod panic_hook;
 // `palette` now lives at `src/chroma/palette.rs`; re-exported above.
 mod platform;
-mod profile;
 mod posix_time;
+mod profile;
 #[cfg(test)]
 mod property_tests;
 mod rain_style;
@@ -180,7 +180,6 @@ mod width_guard_tests;
 
 use clap::{CommandFactory, FromArgMatches};
 
-#[cfg(target_os = "linux")]
 use std::io::IsTerminal;
 
 use std::env;
@@ -193,7 +192,6 @@ use crate::config::{
 use crate::constants::*;
 use crate::runtime::{BoldMode, ShadingMode};
 use crate::terminal::reset_terminal_emergency;
-#[cfg(target_os = "linux")]
 use crate::terminal::restore_terminal_best_effort;
 use crate::validation::{
     prevalidate_cli_args, validate_f32_range, validate_f64_range, validate_speed,
@@ -358,9 +356,7 @@ pub fn spawn_kill9_terminal_guard() {
                 // On parent death, OS reparents to PID 1 (launchd/init).
                 if unsafe { libc::getppid() } == 1 {
                     // Parent died — restore terminal and exit this thread.
-                    let _ = unsafe {
-                        libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig)
-                    };
+                    let _ = unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig) };
                     restore_terminal_best_effort();
                     return;
                 }

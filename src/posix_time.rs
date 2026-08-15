@@ -44,9 +44,9 @@ pub(crate) struct LocalTm {
 /// Result of a POSIX `gmtime_r` call (UTC).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct UtcTm {
-    pub year: i32,   // full year (e.g. 2026)
-    pub month: i32,  // 1..=12
-    pub day: i32,    // 1..=31
+    pub year: i32,  // full year (e.g. 2026)
+    pub month: i32, // 1..=12
+    pub day: i32,   // 1..=31
     pub hour: i32,
     pub minute: i32,
     pub second: i32,
@@ -131,7 +131,14 @@ pub(crate) fn utc_tm() -> UtcTm {
 #[cfg(unix)]
 impl UtcTm {
     fn zero() -> Self {
-        Self { year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0 }
+        Self {
+            year: 0,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            second: 0,
+        }
     }
 }
 
@@ -150,7 +157,12 @@ pub(crate) fn local_tm() -> Option<LocalTm> {
     let min = ((secs / 60) % 60) as i32;
     let sec = (secs % 60) as i32;
     let yday = ((secs / 86_400) % 366) as i32;
-    Some(LocalTm { hour, minute: min, second: sec, yday })
+    Some(LocalTm {
+        hour,
+        minute: min,
+        second: sec,
+        yday,
+    })
 }
 
 #[cfg(not(unix))]
@@ -176,13 +188,27 @@ pub(crate) fn utc_tm() -> UtcTm {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = if m <= 2 { y + 1 } else { y };
-    UtcTm { year: year as i32, month: m as i32, day: d as i32, hour, minute: min, second: sec }
+    UtcTm {
+        year: year as i32,
+        month: m as i32,
+        day: d as i32,
+        hour,
+        minute: min,
+        second: sec,
+    }
 }
 
 #[cfg(not(unix))]
 impl UtcTm {
     fn zero() -> Self {
-        Self { year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0 }
+        Self {
+            year: 0,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            second: 0,
+        }
     }
 }
 
@@ -212,16 +238,32 @@ mod tests {
     fn local_tm_fields_bounded() {
         let tm = local_tm().expect("local_tm should succeed on this platform");
         assert!((0..24).contains(&tm.hour), "hour out of range: {}", tm.hour);
-        assert!((0..60).contains(&tm.minute), "minute out of range: {}", tm.minute);
-        assert!((0..60).contains(&tm.second), "second out of range: {}", tm.second);
-        assert!((0..=365).contains(&tm.yday), "yday out of range: {}", tm.yday);
+        assert!(
+            (0..60).contains(&tm.minute),
+            "minute out of range: {}",
+            tm.minute
+        );
+        assert!(
+            (0..60).contains(&tm.second),
+            "second out of range: {}",
+            tm.second
+        );
+        assert!(
+            (0..=365).contains(&tm.yday),
+            "yday out of range: {}",
+            tm.yday
+        );
     }
 
     #[test]
     fn utc_tm_fields_bounded() {
         let tm = utc_tm();
         assert!(tm.year >= 2025, "year too old: {}", tm.year);
-        assert!((1..=12).contains(&tm.month), "month out of range: {}", tm.month);
+        assert!(
+            (1..=12).contains(&tm.month),
+            "month out of range: {}",
+            tm.month
+        );
         assert!((1..=31).contains(&tm.day), "day out of range: {}", tm.day);
         assert!((0..24).contains(&tm.hour), "hour out of range: {}", tm.hour);
     }
@@ -230,7 +272,11 @@ mod tests {
     fn secs_since_midnight_bounded() {
         let tm = local_tm().expect("local_tm should succeed");
         let secs = tm.secs_since_midnight();
-        assert!((0.0..86_400.0).contains(&secs), "secs_since_midnight out of range: {}", secs);
+        assert!(
+            (0.0..86_400.0).contains(&secs),
+            "secs_since_midnight out of range: {}",
+            secs
+        );
     }
 
     #[test]

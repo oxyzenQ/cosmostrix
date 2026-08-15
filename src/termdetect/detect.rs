@@ -3,7 +3,7 @@
 
 use crate::termdetect::ancestor::{ancestor_matches_high_perf, ancestor_process_names};
 use crate::termdetect::hosts::{
-    HIGH_PERF_TERM_HINTS, HIGH_PERF_TERMINALS, KITTY_KEYBOARD_TERM_HINTS, KITTY_KEYBOARD_TERMINALS,
+    HIGH_PERF_TERMINALS, HIGH_PERF_TERM_HINTS, KITTY_KEYBOARD_TERMINALS, KITTY_KEYBOARD_TERM_HINTS,
 };
 
 /// Returns the detection source if the terminal appears to be a
