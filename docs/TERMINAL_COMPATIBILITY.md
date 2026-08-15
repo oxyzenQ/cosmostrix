@@ -169,6 +169,26 @@ history. Without kernel-side changes to vt.c, no userspace sequence
 combination can reliably preserve scrollback across a full-screen
 rendering session on the raw Linux console.
 
+**Confirmation that this is a vt.c limitation, not a cosmostrix
+regression:**
+
+1. **Not a v50 regression** — the owner reproduced the same scrollback
+   loss on cosmostrix v15 stable and earlier. The bug has existed for
+   as long as cosmostrix has rendered full-screen on the Linux console.
+2. **Independent of TERM** — the owner tested with both `TERM=linux`
+   (vt.c native, sync_output off, alt screen on after `2b9be7e`) and
+   the inherited `TERM=xterm-direct` (sync_output on). Both produce
+   the same scrollback loss on the same TTY. This rules out any
+   TERM-based detection tweak as a fix.
+3. **Independent of sync mode** — `TERM=linux` correctly disables
+   mode 2026 sequences, yet the bug persists. So the loss is not
+   caused by vt.c misparsing mode 2026.
+4. **Multiplexer decouples** — running cosmostrix inside `tmux` on
+   the same TTY preserves scrollback (`ctrl+b [ PgUp` shows prior
+   `echo hello` output). tmux's scrollback is fully decoupled from
+   vt.c, confirming the loss source is the kernel vt.c scrollback
+   ring buffer itself.
+
 **Workarounds:** Pick whichever fits your workflow.
 
 1. **Run inside `tmux`** — tmux maintains its own scrollback buffer
