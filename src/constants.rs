@@ -256,9 +256,9 @@ pub(crate) const QUANTUM_RIPPLE_PARTICLE_COUNT: usize = 20;
 /// smoothstep + tail brightness curve (see `apply_quantum_ripple`).
 ///
 /// 2.5s was chosen so that:
-///  - At the default speed (9 cells/sec) the particle travels ~22
-///    cells in its lifetime — enough to cross a 20-col viewport once
-///    or ricochet twice, matching the "masterclass" aesthetic.
+///  - At the default speed (12 cells/sec) the particle travels ~30
+///    cells in its lifetime — enough to cross a typical viewport once
+///    and ricochet, matching the "masterclass" aesthetic.
 ///  - Three rapid clicks (60 active particles) all coexist for most
 ///    of their lifespan without exhausting the 96-slot pool.
 ///  - The fade curve's "tail" segment (last 30% of life = 0.75s) is
@@ -271,18 +271,19 @@ pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 2.5;
 
 /// Particle outward radial speed (cells/sec).
 ///
-/// v50 masterclass retune: lowered from 18.0 → 9.0. The original 18
+/// v50 masterclass retune: lowered from 18.0 to 12.0. The original 18
 /// cells/sec combined with the 0.8s lifespan meant particles crossed
-/// the viewport in ~1 second and died on the opposite edge (pre-bounce
-/// fix) or ricocheted violently (post-bounce fix). At 9 cells/sec with
-/// the new 2.5s lifespan, motion reads as a smooth drift outward —
-/// the eye can follow individual particles instead of seeing a blur.
+/// the viewport in ~1 second and ricocheted violently. The first
+/// retune to 9.0 was reported as too slow — particles drifted like
+/// snow instead of the snappy ripple the owner expected. 12.0 is the
+/// balanced midpoint: 33% slower than 18.0 (no blur, no violent
+/// ricochet) yet 33% faster than 9.0 (snappy enough to feel responsive).
 ///
 /// Combined with the narrower spawn-speed variance (0.9..1.1 instead
 /// of 0.8..1.2), this produces a visually coherent cohort where all
 /// particles travel at similar perceived speeds — the "masterclass"
 /// look the owner requested.
-pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 9.0;
+pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 12.0;
 
 /// Brand purple RGB (same as logo color) for Quantum effects.
 pub(crate) const QUANTUM_BRAND_PURPLE_R: u8 = 168;

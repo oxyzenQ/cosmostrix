@@ -1156,7 +1156,7 @@ fn quantum_particle_bounces_off_corner_both_axes() {
 //
 // The retune:
 //  - Lifespan 0.8s → 2.5s (the "a few seconds masterclass" request).
-//  - Speed 18 → 9 cells/sec (slower drift, easier to follow by eye).
+//  - Speed 18 -> 9 -> 12 cells/sec (balanced: not a blur, not a slog).
 //  - Spawn speed variance 0.8..1.2 → 0.9..1.1 (coherent cohort).
 //  - Bounce damping 0.85 → 0.78 (more deceleration over longer life).
 //  - Brightness curve `fade*fade` → HEAD/BODY/TAIL three-segment fade.
