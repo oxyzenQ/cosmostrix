@@ -33,6 +33,7 @@ each line means without reading the full reference below.
 | 5   | ` cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
 | 6   | ` up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
 | 7   | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
+| 8   | ` cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
 
 **Symbol legend:**
 
@@ -45,13 +46,14 @@ each line means without reading the full reference below.
 | `%`             | Percent of one CPU core. 100% = one full core. Multi-threaded spills can exceed 100%.            |
 | `—` (em dash)   | Metric unavailable: unsupported platform (non-unix for `cpu:`) or pre-delta window (first ~1s).  |
 | `auto` / `fix`  | After screensize: `auto` = follows terminal resize, `fix` = `--screen-size WxH` locked.          |
+| `cid:`          | Commit id line — 7-char lowercase hex git short SHA injected at compile time by `build.rs`. Falls back to `unknown` for tarball builds without `.git`. |
 
 ---
 
 ## Annotated HUD Layout
 
 What you actually see in the corner after pressing `i` (left position
-shown; right position mirrors to the right edge). All 8 lines are
+shown; right position mirrors to the right edge). All 9 lines are
 visible at once; this mockup annotates each:
 
 ```text
@@ -64,14 +66,17 @@ visible at once; this mockup annotates each:
 │ cpu: 1.43%    ◄── 5. process CPU% (one core = 100%)
 │ up: 03:42     ◄── 6. session uptime (MM:SS under 1h)
 │ 200x50 auto   ◄── 7. terminal size + mode (auto/fix)
+│ cid: 6ed244b  ◄── 8. build commit id (verify without quitting)
 └─────────────────────────┘
 ```
 
 **Color gradient (top dim → bottom bright):** the HUD mirrors a falling
-rain droplet — the bottom line (`screensize`) is the brightest `head`
-(rain leading character), the top line (`fps`) is the dimmest `tail`
-(rain trailing fade). See [HUD Color Scheme](#hud-color-scheme) below
-for the full palette mapping.
+rain droplet — the bottom two lines (`screensize` and `cid`) share the
+brightest `head` stop (rain leading character), the top line (`fps`) is
+the dimmest `tail` (rain trailing fade). The `cid` line earns the head
+position because the build identity is the most definitive info the
+owner reads to verify which commit is running. See [HUD Color Scheme](#hud-color-scheme)
+below for the full palette mapping.
 
 **Width is dynamic:** the HUD grows to fit the longest line (capped at
 22 cols, floored at 12 cols). High-FPS values like `fps: 11000` push
@@ -114,7 +119,7 @@ diagnostic recipes for specific symptoms.
 
 ## HUD Lines (top-to-bottom)
 
-The HUD writes 8 lines into the frame buffer at the chosen corner
+The HUD writes 9 lines into the frame buffer at the chosen corner
 (left default, or right after pressing `h`). Each line is one metric.
 
 ### 1. ` fps: <N>`
@@ -224,6 +229,30 @@ brief pre-delta window (first ~1s after HUD toggle-on).
 **Terminal size** as `columns x rows`, with mode:
 - `auto` — dynamic (follows terminal resize)
 - `fix` — fixed via `--screen-size WxH` (ignores resize)
+
+### 9. ` cid: <short-SHA>`
+
+**Build commit id** — the 7-character lowercase hex git short SHA
+injected at compile time by `build.rs` (via `git rev-parse --short=7
+HEAD`, exposed as the `COSMOSTRIX_GIT_SHA` env var). Falls back to the
+literal string `unknown` for tarball/release builds that had no `.git`
+directory available at compile time.
+
+**Why this line exists:** the owner needs to verify which exact commit
+is running without quitting cosmostrix. Previously, checking the build
+version required `q` to exit, then `git log -1` or `cosmostrix
+--version`, then re-launching — disruptive to long-running sessions.
+The `cid:` line puts the answer in the corner at all times when the
+HUD is visible.
+
+**Why the text never changes:** the SHA is baked into the binary at
+compile time. The line is set once in `HudState::new()` and only its
+color is refreshed by `refresh_colors` every frame (it shares the head
+stop with `screensize`, the brightest position — both are "definitive
+identity" lines).
+
+**Cross-reference:** the same SHA is printed by `cosmostrix --version`
+and emitted in `--benchmark` JSON output as the `git_sha` field.
 
 ---
 

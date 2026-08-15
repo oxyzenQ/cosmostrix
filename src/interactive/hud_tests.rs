@@ -164,18 +164,19 @@ fn hud_cpu_line_renders_percent_with_two_decimals_when_supported() {
 }
 
 #[test]
-fn hud_has_eight_cached_lines_after_v30_tgt_addition() {
-    // Regression guard: the HUD must have exactly 8 cached lines
-    // after the v30 (2026-08-05) addition of the `tgt:` line at
-    // index [1]. The previous count was 7 (fps / p99 / max / rss /
-    // cpu / up / screensize); now 8 (fps / tgt / p99 / max / rss /
-    // cpu / up / screensize). If a future change adds or removes a
-    // line, this test will catch it.
+fn hud_has_nine_cached_lines_after_v50_cid_addition() {
+    // Regression guard: the HUD must have exactly 9 cached lines
+    // after the v50 addition of the `cid:` (commit id) line at
+    // index [8]. The previous count was 8 (fps / tgt / p99 / max /
+    // rss / cpu / up / screensize); now 9 (adds cid at row 8).
+    // The cid line shares the head color stop with screensize.
+    // If a future change adds or removes a line, this test will
+    // catch it.
     let h = HudState::new();
     assert_eq!(
         h.cached_lines.len(),
-        8,
-        "HUD must have 8 cached lines after the v30 tgt-line addition"
+        9,
+        "HUD must have 9 cached lines after the v50 cid-line addition"
     );
 }
 
@@ -396,17 +397,22 @@ fn refresh_colors_updates_colors_without_touching_text() {
 
 #[test]
 fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
-    // HD-01: 8-stop chroma gradient sweep. The BOTTOM row (screensize,
-    // idx 7) must be the brightest `head` color (palette last stop), and
-    // the TOP row (fps, idx 0) must be the dimmest `dim` color (palette
-    // first stop, brightened to readable floor). This inverts the
-    // original mapping where fps/tgt/max were brightest at the top — the
-    // owner explicitly flagged the inversion: 'rain tail is dim head is
-    // white' (head leads at the bottom of a falling stream).
+    // HD-01: 9-stop chroma gradient sweep. The BOTTOM row (cid, idx 8)
+    // and the second-bottom row (screensize, idx 7) share the brightest
+    // `head` color (palette last stop), and the TOP row (fps, idx 0) is
+    // the dimmest `dim` color (palette first stop, brightened to readable
+    // floor). This inverts the original mapping where fps/tgt/max were
+    // brightest at the top — the owner explicitly flagged the inversion:
+    // 'rain tail is dim head is white' (head leads at the bottom of a
+    // falling stream).
+    //
+    // v50: bumped from 8 → 9 stops after adding the `cid:` line at row 8.
+    // The cid line shares the head stop with screensize — both are
+    // "definitive identity" lines the owner reads to verify the build.
     //
     // We use a palette where head is pure white RGB(255,255,255) so the
     // assertion is unambiguous, and dim is a dark green RGB(0,50,0)
-    // that brightens to RGB(0,200,0). The bottom row must be white
+    // that brightens to RGB(0,200,0). The bottom two rows must be white
     // (head); the top row must be green (dim).
     let mut h = HudState::new();
     h.toggle();
@@ -434,7 +440,12 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             r: 255,
             g: 255,
             b: 255,
-        }, // idx 7 (last) → line 7 (head, white)
+        }, // idx 7 → line 7 (screensize, head, white)
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        }, // idx 8 → line 8 (cid, head, white — shares stop with screensize)
     ];
     h.refresh_colors(&palette);
     // Top row (fps, idx 0) = palette[0] = RGB(0, 50, 0) brightened to RGB(0, 200, 0)
@@ -443,7 +454,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         Color::Rgb { r: 0, g: 200, b: 0 },
         "top row (fps) must use palette[0] (brightened dim) — rain tail at top"
     );
-    // Bottom row (screensize, idx 7) = palette[7] = RGB(255, 255, 255)
+    // Row 7 (screensize, idx 7) = palette[7] = RGB(255, 255, 255)
     assert_eq!(
         h.cached_lines[7].0,
         Color::Rgb {
@@ -451,7 +462,17 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             g: 255,
             b: 255
         },
-        "bottom row (screensize) must use palette[7] (head) — rain head at bottom"
+        "row 7 (screensize) must use palette[7] (head) — rain head near bottom"
+    );
+    // Bottom row (cid, idx 8) = palette[8] = RGB(255, 255, 255) — shares head stop
+    assert_eq!(
+        h.cached_lines[8].0,
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255
+        },
+        "bottom row (cid) must use palette[8] (head) — shares head stop with screensize"
     );
     // Middle rows should NOT be white — they should be the intermediate
     // green stops, not the head.
@@ -516,9 +537,10 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
 }
 
 #[test]
-fn refresh_colors_gradient_uses_eight_distinct_stops() {
-    // HD-01: 8 HUD rows now use 8 distinct palette stops (one per line),
+fn refresh_colors_gradient_uses_nine_distinct_stops() {
+    // HD-01: 9 HUD rows now use 9 distinct palette stops (one per line),
     // sweeping the full chroma dragon gradient top→bottom.
+    // v50: bumped from 8 → 9 stops after adding the `cid:` line at row 8.
     let mut h = HudState::new();
     h.toggle();
     let palette = vec![
@@ -550,6 +572,11 @@ fn refresh_colors_gradient_uses_eight_distinct_stops() {
             g: 255,
             b: 255,
         },
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        }, // idx 8 → line 8 (cid, shares head stop with screensize)
     ];
     h.refresh_colors(&palette);
     for (i, expected) in palette.iter().enumerate() {
@@ -561,10 +588,41 @@ fn refresh_colors_gradient_uses_eight_distinct_stops() {
 }
 
 #[test]
-fn compute_chroma_gradient_8_sweeps_full_palette_range() {
-    // HD-01 regression: verify the 8-stop chroma gradient helper maps
-    // each of the 8 HUD lines to its corresponding palette stop.
-    // Line i samples palette[(i / 7.0 * (n-1)).round()].
+fn hud_cid_line_contains_commit_sha_or_unknown() {
+    // v50: the cid line at index [8] must contain the compile-time
+    // git short SHA injected by build.rs via `COSMOSTRIX_GIT_SHA`,
+    // falling back to "unknown" when the build had no .git dir.
+    // The text is set once in `new()` and never mutated — the owner
+    // needs to read the commit hash without quitting cosmostrix.
+    let h = HudState::new();
+    let (_, cid_line) = &h.cached_lines[8];
+    assert!(
+        cid_line.starts_with(" cid: "),
+        "cid line must start with ' cid: ' prefix, got: {cid_line:?}"
+    );
+    let sha = cid_line.strip_prefix(" cid: ").unwrap();
+    assert!(
+        !sha.is_empty(),
+        "cid line must carry a non-empty SHA, got: {cid_line:?}"
+    );
+    // The fallback "unknown" is valid for tarball builds without .git.
+    // For git builds, build.rs emits a 7-char lowercase hex short SHA
+    // (digits 0-9 + lowercase a-f). Digits are NOT lowercase letters, so
+    // we only check `is_ascii_hexdigit()` + length 7 — case is already
+    // enforced by build.rs which lowercases the SHA.
+    let is_unknown = sha == "unknown";
+    let is_hex_sha = sha.len() == 7 && sha.chars().all(|c| c.is_ascii_hexdigit());
+    assert!(
+        is_unknown || is_hex_sha,
+        "cid SHA must be 'unknown' or a 7-char hex string, got: {sha:?}"
+    );
+}
+
+#[test]
+fn compute_chroma_gradient_9_sweeps_full_palette_range() {
+    // HD-01 regression: verify the 9-stop chroma gradient helper maps
+    // each of the 9 HUD lines to its corresponding palette stop.
+    // Line i samples palette[(i / 8.0 * (n-1)).round()].
     let palette = vec![
         Color::Rgb { r: 50, g: 0, b: 0 }, // idx 0 → line 0
         Color::Rgb { r: 0, g: 50, b: 0 }, // idx 1 → line 1
@@ -594,8 +652,13 @@ fn compute_chroma_gradient_8_sweeps_full_palette_range() {
             g: 255,
             b: 255,
         }, // idx 7 → line 7
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        }, // idx 8 → line 8 (cid, shares head stop with screensize)
     ];
-    let colors = compute_chroma_gradient_8(&palette);
+    let colors = compute_chroma_gradient_9(&palette);
     // Line 0 = palette[0] = RGB(50,0,0) brightened to RGB(200,0,0)
     assert_eq!(colors[0], Color::Rgb { r: 200, g: 0, b: 0 });
     // Line 1 = palette[1] = RGB(0,50,0) brightened to RGB(0,200,0)
@@ -608,6 +671,16 @@ fn compute_chroma_gradient_8_sweeps_full_palette_range() {
             g: 255,
             b: 255
         }
+    );
+    // Line 8 = palette[8] = RGB(255,255,255) — cid shares head stop
+    assert_eq!(
+        colors[8],
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255
+        },
+        "cid line (idx 8) must use the head stop — same as screensize"
     );
 }
 
