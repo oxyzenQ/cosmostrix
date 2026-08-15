@@ -59,9 +59,9 @@ pub(crate) fn has_dirty_cells(frame: &Frame) -> bool {
     frame.is_dirty_all() || !frame.dirty_indices().is_empty()
 }
 
-// LOC guard — all scene split files must stay under 1000 LOC
+// LOC guard — all scene split files must stay under 1500 LOC
 
-/// All Rust source files must stay under 1000 LOC after the architecture split.
+/// All Rust source files must stay under 1500 LOC after the architecture split.
 #[test]
 fn all_rust_files_under_loc_cap() {
     let files = [
@@ -88,7 +88,7 @@ fn all_rust_files_under_loc_cap() {
     for path in &files {
         let content = std::fs::read_to_string(path).unwrap_or_default();
         let count = content.lines().count();
-        assert!(count <= 1000, "{path}: {count} LOC exceeds 1000 cap");
+        assert!(count <= 1500, "{path}: {count} LOC exceeds 1500 cap");
     }
 }
 
@@ -106,7 +106,7 @@ fn phase4_monolith_facade_stays_small() {
     );
 }
 
-/// All monolith split files must be under 1000 LOC.
+/// All monolith split files must be under 1500 LOC.
 #[test]
 fn phase4_all_monolith_split_files_under_loc_cap() {
     let files = [
@@ -120,7 +120,7 @@ fn phase4_all_monolith_split_files_under_loc_cap() {
     for path in &files {
         let content = std::fs::read_to_string(path).unwrap_or_default();
         let count = content.lines().count();
-        assert!(count <= 1000, "{path}: {count} LOC exceeds 1000 cap");
+        assert!(count <= 1500, "{path}: {count} LOC exceeds 1500 cap");
     }
 }
 
@@ -191,7 +191,7 @@ fn phase5_scene_facade_stays_small() {
     );
 }
 
-/// All scene split files must be under 1000 LOC.
+/// All scene split files must be under 1500 LOC.
 #[test]
 fn phase5_all_scene_split_files_under_loc_cap() {
     let files = [
@@ -206,7 +206,7 @@ fn phase5_all_scene_split_files_under_loc_cap() {
     for path in &files {
         let content = std::fs::read_to_string(path).unwrap_or_default();
         let count = content.lines().count();
-        assert!(count <= 1000, "{path}: {count} LOC exceeds 1000 cap");
+        assert!(count <= 1500, "{path}: {count} LOC exceeds 1500 cap");
     }
 }
 

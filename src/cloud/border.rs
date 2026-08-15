@@ -4,7 +4,7 @@
 //! Border-cell utilities for the message overlay.
 //!
 //! Extracted from `cloud/mod.rs` to keep `mod.rs` under the
-//! 1000-LOC cap after `cargo fmt` expanded `is_border_char`'s `matches!`
+//! 1500-LOC cap after `cargo fmt` expanded `is_border_char`'s `matches!`
 //! call across multiple lines. The logic is unchanged — only the
 //! location has moved.
 

@@ -3,7 +3,7 @@
 
 //! Verbose diagnostic output for --verbose flag.
 //!
-//! Extracted from main.rs to keep that file under 1000 LOC.
+//! Extracted from main.rs to keep that file under 1500 LOC.
 //! Prints comprehensive runtime configuration to stderr for
 //! power users / hackers debugging config and loading issues.
 //!

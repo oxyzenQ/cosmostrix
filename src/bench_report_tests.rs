@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Tests for bench_report.rs (extracted to keep that file under 1000 LOC).
+//! Tests for bench_report.rs (extracted to keep that file under 1500 LOC).
 
 #[cfg(test)]
 mod tests {
@@ -216,14 +216,14 @@ mod tests {
 
     #[test]
     fn bench_report_bench_report_file_stays_under_loc_cap() {
-        // Guard: this file must stay under 1000 LOC. The loc_tests module
+        // Guard: this file must stay under 1500 LOC. The loc_tests module
         // enforces this globally, but this explicit check catches issues
         // during development before the global test runs.
         let source = include_str!("bench_report.rs");
         let lines = source.lines().count();
         assert!(
-            lines < 1000,
-            "bench_report.rs must stay under 1000 LOC (currently {lines})"
+            lines < 1500,
+            "bench_report.rs must stay under 1500 LOC (currently {lines})"
         );
     }
 

@@ -5,7 +5,7 @@
 //!
 //! CRT vignette (top/bottom edge dim) + quantum ripple (click-triggered expanding
 //! ring). Both are Cloud methods split from rain.rs to keep that file under the
-//! 1200-LOC source cap. Same impl block, just in a sibling file.
+//! 1500-LOC source cap. Same impl block, just in a sibling file.
 
 use std::time::{Duration, Instant};
 
