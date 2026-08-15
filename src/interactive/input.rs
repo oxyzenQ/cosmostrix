@@ -115,7 +115,9 @@ pub(super) fn handle_keybinding(
     // Note: CONTROL+Shift+'c' (Ctrl+Shift+C) produces Char('C') with
     // CONTROL | SHIFT modifiers — this is correctly rejected because the
     // CONTROL bit is set.
-    if k.modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) {
+    if k.modifiers
+        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+    {
         return false;
     }
 
