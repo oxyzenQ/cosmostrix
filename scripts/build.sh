@@ -60,6 +60,10 @@ export CARGO_BUILD_JOBS="${MAX_JOBS}"
 # Rust optimization flags
 export CARGO_TERM_COLOR=always
 
+# Quiet mode: suppress passing output, only show failures/warnings.
+# Toggle with --quiet / -q flag.
+QUIET_CHECK=0
+
 # Functions
 log_info() {
         echo -e "${BLUE}[INFO]${NC} $1"
@@ -78,7 +82,17 @@ log_error() {
 }
 
 log_step() {
-        echo -e "${CYAN}[→]${NC} $1"
+        if [ ${QUIET_CHECK} -eq 0 ]; then
+                echo -e "${CYAN}[→]${NC} $1"
+        fi
+}
+
+log_success_quietable() {
+        # In quiet mode, skip the success message entirely.
+        # In normal mode, behave like log_success.
+        if [ ${QUIET_CHECK} -eq 0 ]; then
+                log_success "$1"
+        fi
 }
 
 check_rust_toolchain() {
@@ -291,19 +305,48 @@ build_release_with_debug() {
 run_tests() {
         log_step "Running test suite..."
 
+        local test_output
         if [ "${NEXTEST_AVAILABLE:-0}" -eq 1 ]; then
-                if cargo nextest run --target "${TARGET}" --jobs "${MAX_JOBS}"; then
-                        log_success "All tests passed (nextest)"
+                if [ ${QUIET_CHECK} -eq 1 ]; then
+                        test_output=$(cargo nextest run --target "${TARGET}" --jobs "${MAX_JOBS}" 2>&1)
+                        local rc=$?
+                        # In quiet mode, show only failures
+                        echo "$test_output" | grep -E '(FAILED|failures:|error\[)' || true
+                        if [ $rc -eq 0 ]; then
+                                log_success_quietable "All tests passed (nextest)"
+                        else
+                                log_error "Tests failed"
+                        fi
+                        return $rc
                 else
-                        log_error "Tests failed"
-                        return 1
+                        if cargo nextest run --target "${TARGET}" --jobs "${MAX_JOBS}"; then
+                                log_success "All tests passed (nextest)"
+                                return 0
+                        else
+                                log_error "Tests failed"
+                                return 1
+                        fi
                 fi
         else
-                if cargo test --target "${TARGET}" --jobs "${MAX_JOBS}" -- --test-threads="${MAX_JOBS}"; then
-                        log_success "All tests passed"
+                if [ ${QUIET_CHECK} -eq 1 ]; then
+                        test_output=$(cargo test --target "${TARGET}" --jobs "${MAX_JOBS}" -- --test-threads="${MAX_JOBS}" 2>&1)
+                        local rc=$?
+                        # In quiet mode, show only failures + summary line
+                        echo "$test_output" | grep -E '(FAILED|failures:|test result:)' || true
+                        if [ $rc -eq 0 ]; then
+                                log_success_quietable "All tests passed"
+                        else
+                                log_error "Tests failed"
+                        fi
+                        return $rc
                 else
-                        log_error "Tests failed"
-                        return 1
+                        if cargo test --target "${TARGET}" --jobs "${MAX_JOBS}" -- --test-threads="${MAX_JOBS}"; then
+                                log_success "All tests passed"
+                                return 0
+                        else
+                                log_error "Tests failed"
+                                return 1
+                        fi
                 fi
         fi
 }
@@ -311,19 +354,35 @@ run_tests() {
 run_clippy() {
         log_step "Running Clippy linter..."
 
-        if cargo clippy --target "${TARGET}" --all-targets --all-features -- -D warnings; then
-                log_success "Clippy checks passed"
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                # Quiet: show only errors/warnings (cargo clippy outputs to stderr)
+                local clip_output
+                clip_output=$(cargo clippy --target "${TARGET}" --all-targets --all-features -- -D warnings 2>&1)
+                local clip_rc=$?
+                echo "$clip_output" | grep -E '^(error|warning)' || true
+                if [ $clip_rc -eq 0 ]; then
+                        log_success_quietable "Clippy checks passed"
+                else
+                        log_error "Clippy found issues"
+                fi
+                return $clip_rc
         else
-                log_error "Clippy found issues"
-                return 1
+                if cargo clippy --target "${TARGET}" --all-targets --all-features -- -D warnings; then
+                        log_success "Clippy checks passed"
+                        return 0
+                else
+                        log_error "Clippy found issues"
+                        return 1
+                fi
         fi
 }
 
 run_fmt_check() {
         log_step "Checking code formatting..."
 
-        if cargo fmt --all -- --check; then
-                log_success "Code formatting is correct"
+        if cargo fmt --all -- --check 2>&1; then
+                log_success_quietable "Code formatting is correct"
+                return 0
         else
                 log_error "Formatting issues found. Run: cargo fmt --all"
                 return 1
@@ -344,11 +403,24 @@ run_audit() {
                 return 0
         fi
 
-        if cargo audit; then
-                log_success "Security audit passed"
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                local audit_output
+                audit_output=$(cargo audit 2>&1)
+                local rc=$?
+                echo "$audit_output" | grep -iE '(vulnerabilit|CVE-|warning|error)' || true
+                if [ $rc -eq 0 ]; then
+                        log_success_quietable "Security audit passed"
+                else
+                        log_warning "Security issues detected"
+                fi
+                return $rc
         else
-                log_warning "Security issues detected"
-                return 1
+                if cargo audit; then
+                        log_success "Security audit passed"
+                else
+                        log_warning "Security issues detected"
+                        return 1
+                fi
         fi
 }
 
@@ -360,11 +432,24 @@ run_loc_check() {
                 return 0
         fi
 
-        if bash scripts/check-rs-loc.sh; then
-                log_success "LOC check passed"
+        local loc_output
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                loc_output=$(bash scripts/check-rs-loc.sh 2>&1)
+                local rc=$?
+                echo "$loc_output" | grep -E '(FAIL|ERROR|over|exceeds)' || true
+                if [ $rc -eq 0 ]; then
+                        log_success_quietable "LOC check passed"
+                else
+                        log_error "LOC check failed"
+                fi
+                return $rc
         else
-                log_error "LOC check failed"
-                return 1
+                if bash scripts/check-rs-loc.sh; then
+                        log_success "LOC check passed"
+                else
+                        log_error "LOC check failed"
+                        return 1
+                fi
         fi
 }
 
@@ -376,11 +461,24 @@ run_header_check() {
                 return 1
         fi
 
-        if bash scripts/check-headers.sh; then
-                log_success "Header check passed"
+        local hdr_output
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                hdr_output=$(bash scripts/check-headers.sh 2>&1)
+                local rc=$?
+                echo "$hdr_output" | grep -iE '(missing|FAIL|ERROR)' || true
+                if [ $rc -eq 0 ]; then
+                        log_success_quietable "Header check passed"
+                else
+                        log_error "Header check failed"
+                fi
+                return $rc
         else
-                log_error "Header check failed"
-                return 1
+                if bash scripts/check-headers.sh; then
+                        log_success "Header check passed"
+                else
+                        log_error "Header check failed"
+                        return 1
+                fi
         fi
 }
 
@@ -392,11 +490,24 @@ run_version_anti_pattern_check() {
                 return 1
         fi
 
-        if bash scripts/check-version-anti-patterns.sh; then
-                log_success "Version anti-pattern check passed"
+        local vap_output
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                vap_output=$(bash scripts/check-version-anti-patterns.sh 2>&1)
+                local rc=$?
+                echo "$vap_output" | grep -iE '(FAIL|ERROR|found|anti-pattern)' || true
+                if [ $rc -eq 0 ]; then
+                        log_success_quietable "Version anti-pattern check passed"
+                else
+                        log_error "Version anti-pattern check failed (use env!(\"CARGO_PKG_VERSION\") instead)"
+                        return 1
+                fi
         else
-                log_error "Version anti-pattern check failed (use env!(\"CARGO_PKG_VERSION\") instead)"
-                return 1
+                if bash scripts/check-version-anti-patterns.sh; then
+                        log_success "Version anti-pattern check passed"
+                else
+                        log_error "Version anti-pattern check failed (use env!(\"CARGO_PKG_VERSION\") instead)"
+                        return 1
+                fi
         fi
 
         log_step "Checking Rust version sync across all sources..."
@@ -406,11 +517,24 @@ run_version_anti_pattern_check() {
                 return 1
         fi
 
-        if bash scripts/check-rust-version-sync.sh; then
-                log_success "Rust version sync check passed"
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                local vs_output
+                vs_output=$(bash scripts/check-rust-version-sync.sh 2>&1)
+                local vs_rc=$?
+                echo "$vs_output" | grep -iE '(FAIL|ERROR|mismatch|desync|differ)' || true
+                if [ $vs_rc -eq 0 ]; then
+                        log_success_quietable "Rust version sync check passed"
+                else
+                        log_error "Rust version sync check failed — see output above for mismatched sources"
+                        return 1
+                fi
         else
-                log_error "Rust version sync check failed — see output above for mismatched sources"
-                return 1
+                if bash scripts/check-rust-version-sync.sh; then
+                        log_success "Rust version sync check passed"
+                else
+                        log_error "Rust version sync check failed — see output above for mismatched sources"
+                        return 1
+                fi
         fi
 }
 
@@ -422,11 +546,25 @@ run_shellcheck() {
                 return 0
         fi
 
-        if shellcheck scripts/*.sh; then
-                log_success "Shellcheck passed"
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                local sh_output
+                sh_output=$(shellcheck scripts/*.sh 2>&1)
+                local rc=$?
+                # shellcheck: only show lines with actual findings
+                echo "$sh_output" | grep -E '(^In |^scripts/|SC[0-9])' || true
+                if [ $rc -eq 0 ]; then
+                        log_success_quietable "Shellcheck passed"
+                else
+                        log_error "Shellcheck failed — fix warnings before committing"
+                fi
+                return $rc
         else
-                log_error "Shellcheck failed — fix warnings before committing"
-                return 1
+                if shellcheck scripts/*.sh; then
+                        log_success "Shellcheck passed"
+                else
+                        log_error "Shellcheck failed — fix warnings before committing"
+                        return 1
+                fi
         fi
 }
 
@@ -439,18 +577,34 @@ run_python_lint() {
         fi
 
         local py_failed=0
-        if ! ruff check scripts/*.py; then
-                log_error "ruff check failed — fix Python lint issues"
-                ((py_failed++))
-        fi
+        local py_output
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                py_output=$(ruff check scripts/*.py 2>&1)
+                if [ $? -ne 0 ]; then
+                        echo "$py_output"
+                        log_error "ruff check failed — fix Python lint issues"
+                        ((py_failed++))
+                fi
+                py_output=$(ruff format --check scripts/*.py 2>&1)
+                if [ $? -ne 0 ]; then
+                        echo "$py_output"
+                        log_error "ruff format check failed — run 'ruff format scripts/*.py' to fix"
+                        ((py_failed++))
+                fi
+        else
+                if ! ruff check scripts/*.py; then
+                        log_error "ruff check failed — fix Python lint issues"
+                        ((py_failed++))
+                fi
 
-        if ! ruff format --check scripts/*.py; then
-                log_error "ruff format check failed — run 'ruff format scripts/*.py' to fix"
-                ((py_failed++))
+                if ! ruff format --check scripts/*.py; then
+                        log_error "ruff format check failed — run 'ruff format scripts/*.py' to fix"
+                        ((py_failed++))
+                fi
         fi
 
         if [ $py_failed -eq 0 ]; then
-                log_success "Python lint + format passed"
+                log_success_quietable "Python lint + format passed"
                 return 0
         else
                 return 1
@@ -601,6 +755,7 @@ OPTIONS:
     --no-install    Don't auto-install nightly/miri (fail if missing)
     --full          Run full lib test suite under Miri (slow, may fail on FFI)
     --quiet-miri    Suppress Miri status banner (for CI jobs that don't care)
+    --quiet, -q     Suppress passing output in check-all, only show failures/warnings
 
 ENVIRONMENT:
     COSMOSTRIX_JOBS             Override CPU core limit (default: 75% of cores, max 8)
@@ -699,11 +854,24 @@ run_version_sync() {
                 return 1
         fi
 
-        if "${bumper}" --check "${current}"; then
-                log_success "All active version refs agree with Cargo.toml (v${current})"
+        if [ ${QUIET_CHECK} -eq 1 ]; then
+                local vsync_output
+                vsync_output=$("${bumper}" --check "${current}" 2>&1)
+                local vsync_rc=$?
+                echo "$vsync_output" | grep -iE '(FAIL|ERROR|mismatch|desync|differ|desync)' || true
+                if [ $vsync_rc -eq 0 ]; then
+                        log_success_quietable "All active version refs agree with Cargo.toml (v${current})"
+                else
+                        log_error "Version desync detected — run './scripts/version-to.sh v${current}' to fix"
+                fi
+                return $vsync_rc
         else
-                log_error "Version desync detected — run './scripts/version-to.sh v${current}' to fix"
-                return 1
+                if "${bumper}" --check "${current}"; then
+                        log_success "All active version refs agree with Cargo.toml (v${current})"
+                else
+                        log_error "Version desync detected — run './scripts/version-to.sh v${current}' to fix"
+                        return 1
+                fi
         fi
 }
 
@@ -778,6 +946,11 @@ while [ $# -gt 0 ]; do
         --quiet-miri)
                 # Suppress Miri status banner (for CI jobs that don't care).
                 MIRI_QUIET=1
+                shift
+                ;;
+        --quiet | -q)
+                # Suppress passing output in check-all, only show failures/warnings.
+                QUIET_CHECK=1
                 shift
                 ;;
         help | -h | --help)
